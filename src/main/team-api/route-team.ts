@@ -8,7 +8,7 @@ import type { TeamApiOptions } from "./dependencies";
 
 import { readFile } from "node:fs/promises";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
-import type { TeamPresenceSnapshot, UpdateTeamMemberInput } from "@openbot/contracts/ipc";
+import type { TeamPresenceSnapshot } from "@openbot/contracts/ipc";
 import { isBoolean } from "@openbot/contracts/runtime-values";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import { sourceText } from "@openbot/i18n/source";
@@ -26,7 +26,6 @@ export interface TeamRouteDependencies {
     | "changePassword"
     | "resolveLogo"
     | "listMembers"
-    | "getMember"
     | "updateMember"
     | "removeMember"
     | "listInvites"
@@ -50,7 +49,7 @@ export async function routeTeam(
     remoteScreen,
     createInvite,
     updateMember,
-    removeMember: removeFromDirectory,
+    removeMember: removeHostMember,
     onSessionRevoked,
     getPresence,
     refreshPresence,
@@ -58,15 +57,19 @@ export async function routeTeam(
 ): Promise<RouteOutcome> {
   const { method, url, request, response, member, token, sessionId, json, empty } = context;
 
+  /** What removing a member does, whether an admin removes them or they leave. */
   /**
-   * What removing a member does, whether an admin removes them or they leave. The directory, when
-   * there is one, is where the membership lives: a write only to the local copy would come back
-   * on the next directory sync.
+   * Whether the host service makes the change, so that it also reaches the account directory. The
+   * owner and an unknown member stay with the team store, which refuses them with its released error.
    */
+  function hostChanges(memberId: string): boolean {
+    const target = store.listMembers().find((candidate) => candidate.id === memberId);
+    return target !== undefined && target.role !== "owner";
+  }
+
   async function removeMember(memberId: string): Promise<void> {
-    if (store.getMember(memberId)?.role === "owner")
-      throw new HttpError(400, sourceText("error.team.ownerCannotRemove"));
-    await runCauseEffect(removeFromDirectory ? removeFromDirectory(memberId) : store.removeMember(memberId));
+    if (removeHostMember && hostChanges(memberId)) return runCauseEffect(removeHostMember(memberId));
+    await runCauseEffect(store.removeMember(memberId));
     await (remoteScreen ? runCauseEffect(remoteScreen.revokeMember(memberId)) : undefined);
     refreshPresence();
   }
@@ -145,15 +148,13 @@ export async function routeTeam(
       throw new HttpError(400, "disabled must be a boolean.");
     }
     const memberId = pathIdentifier(memberMatch[1], "memberId");
-    if (store.getMember(memberId)?.role === "owner")
-      throw new HttpError(400, sourceText("error.team.ownerCannotChange"));
-    const patch: Omit<UpdateTeamMemberInput, "memberId"> = {
+    const patch: { role?: "admin" | "member"; disabled?: boolean } = {
       ...(role ? { role } : {}),
       ...(disabled === undefined ? {} : { disabled }),
     };
-    const updated = await runCauseEffect(
-      updateMember ? updateMember({ memberId, ...patch }) : store.updateMember(memberId, patch),
-    );
+    if (updateMember && hostChanges(memberId))
+      return json(200, await runCauseEffect(updateMember({ memberId, ...patch })));
+    const updated = await runCauseEffect(store.updateMember(memberId, patch));
     if (updated.disabled) await (remoteScreen ? runCauseEffect(remoteScreen.revokeMember(updated.id)) : undefined);
     refreshPresence();
     return json(200, updated);
@@ -198,6 +199,12 @@ export async function routeTeam(
   if (method === "DELETE" && sessionMatch) {
     requireAdmin(member);
     const revokedSessionId = pathIdentifier(sessionMatch[1], "sessionId");
+    // Admins manage members, not the owner: only the owner ends the owner's sessions.
+    const target = store.listSessions().find((session) => session.id === revokedSessionId);
+    const targetMember = target && store.listMembers().find((candidate) => candidate.id === target.memberId);
+    if (member.role !== "owner" && targetMember?.role === "owner") {
+      throw new HttpError(400, sourceText("error.team.ownerCannotChange"));
+    }
     await runCauseEffect(store.revokeSession(revokedSessionId));
     await (onSessionRevoked ? runCauseEffect(onSessionRevoked(revokedSessionId)) : undefined);
     await (remoteScreen ? runCauseEffect(remoteScreen.revokeTeamSession(revokedSessionId)) : undefined);

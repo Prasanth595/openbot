@@ -12,6 +12,8 @@ export const messages = {
     "Você já está conectado à sua conta. Saia em Configurações antes de conectar outra conta.",
   "mobile.link.pairing.description":
     "Continue somente se você solicitou este link em Conectar celular no aplicativo para computador.",
+  "mobile.link.pairing.accountService":
+    "Este link se conecta ao serviço de contas em {origin}, não ao serviço de contas do OpenBot.",
   "mobile.link.pairing.connect": "Conectar",
   "mobile.link.plugin.title": "Abrir página do plugin",
   "mobile.link.plugin.description": "Veja este plugin no site do OpenBot.",

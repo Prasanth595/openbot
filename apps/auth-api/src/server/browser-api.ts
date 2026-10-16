@@ -51,6 +51,7 @@ export interface BrowserApiServices {
     | "revokeInvite"
     | "changeMembership"
     | "hostAsset"
+    | "emailableInvite"
   >;
   /** The stored logo of one host version, or null. The handler checks membership and the version first. */
   hostLogo: (hostId: string, version: string) => ReturnType<typeof readHostLogo>;
@@ -266,7 +267,7 @@ const handleBrowserOperation = Effect.fn("BrowserApi.handleOperation")(function*
     return json(yield* services.remote.acceptInvite(user, yield* requiredString(body, "token")));
   if (path === "v1/team-invitations/email") {
     yield* sendTeamInviteEmail(
-      { auth: services.auth, delivery: services.inviteEmailDelivery },
+      { auth: services.auth, remote: services.remote, delivery: services.inviteEmailDelivery },
       user,
       body,
       services.sourceIp(request),

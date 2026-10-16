@@ -1122,6 +1122,8 @@ export class HostService extends EventEmitter<HostEvents> {
         // Recording the directory is a write too, so the switch can land inside it and the
         // member below would be the previous account's.
         yield* remoteDecode(() => this.#assertStillActiveHost(hostId));
+        if (updated.role !== current.role || updated.status !== current.status)
+          yield* this.#revokeMemberSessions(input.memberId);
         return {
           id: updated.membershipId,
           username: updated.email,
@@ -1155,6 +1157,7 @@ export class HostService extends EventEmitter<HostEvents> {
           const members = yield* optionalListRemoteMembers(hostId);
           yield* this.#syncRemoteDirectory(hostId, members);
         }
+        yield* this.#revokeMemberSessions(memberId);
         return;
       }
       yield* this.#options.store.removeMember(memberId);
@@ -1175,7 +1178,7 @@ export class HostService extends EventEmitter<HostEvents> {
     (operation) => this.#provide(operation),
   ).bind(this);
 
-  /** Records the directory, and closes the connections of sessions it no longer allows. */
+  /** Records the directory, and closes the sessions that it no longer allows. */
   readonly #syncRemoteDirectory = Effect.fn("HostService.syncRemoteDirectory")(function* (
     this: HostService,
     hostId: string,
@@ -1183,13 +1186,40 @@ export class HostService extends EventEmitter<HostEvents> {
   ): Effect.fn.Return<void, RemoteWorkflowError> {
     const closed = yield* this.#options.store.syncRemoteDirectory(hostId, members);
     if (closed.length === 0) return;
-    for (const sessionId of closed) {
-      this.#liveActivityPush?.remove(sessionId);
-      this.#pushNotifications?.remove(sessionId);
-    }
-    const gateway = this.#webrtcGateway;
-    if (gateway) yield* Effect.forEach(closed, (sessionId) => gateway.revokeSession(sessionId), { discard: true });
+    for (const sessionId of closed) yield* this.#closeLocalSession(sessionId);
     this.#api.refreshPresence();
+  });
+
+  /**
+   * Ends every session of a member after the account directory changed the membership. A WebRTC
+   * session keeps the role that the account service gave when it opened, so the change does not
+   * reach a connected member until this closes the session. The member connects again with the new
+   * role, or cannot connect. The account service already ended these sessions with the membership
+   * change, so only the local parts close here: one failed account call cannot leave a session open.
+   */
+  readonly #revokeMemberSessions = Effect.fn("HostService.revokeMemberSessions")(function* (
+    this: HostService,
+    memberId: string,
+  ): Effect.fn.Return<void, RemoteWorkflowError> {
+    for (const session of this.#options.store.listSessions()) {
+      if (session.memberId !== memberId) continue;
+      yield* this.#closeLocalSession(session.id);
+      yield* this.#options.store.revokeSession(session.id);
+    }
+    yield* this.#remoteScreen.revokeMember(memberId);
+    this.#api.refreshPresence();
+  });
+
+  /** Closes this computer's parts of one session. The account service ends the session itself. */
+  readonly #closeLocalSession = Effect.fn("HostService.closeLocalSession")(function* (
+    this: HostService,
+    sessionId: string,
+  ): Effect.fn.Return<void, RemoteWorkflowError> {
+    this.#liveActivityPush?.remove(sessionId);
+    this.#pushNotifications?.remove(sessionId);
+    if (this.#webrtcGateway) yield* this.#webrtcGateway.revokeSession(sessionId);
+    yield* this.#remoteScreen.revokeTeamSession(sessionId);
+    yield* this.#browserView.revokeTeamSession(sessionId);
   });
 
   readonly #revokeWebRtcSession = Effect.fn("HostService.revokeWebRtcSession")(function* (
