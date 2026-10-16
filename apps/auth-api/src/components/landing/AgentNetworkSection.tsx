@@ -15,11 +15,11 @@ import {
   agentNetworkNodeAt,
   buildAgentNetwork,
   drawAgentNetwork,
-  HUB_SIGNAL_STYLES,
   type HubSignal,
   type HubSignalStyle,
   type NetworkAssets,
   type NetworkView,
+  randomHubSignalStyle,
   regrowAgentNetwork,
   startHubSignal,
 } from "./agent-network-scene";
@@ -277,7 +277,7 @@ export function AgentNetworkSection() {
     };
     const click = (event: MouseEvent) => {
       if (onHub(event)) {
-        startSignal(HUB_SIGNAL_STYLES[Math.floor(Math.random() * HUB_SIGNAL_STYLES.length)] ?? "ripple", now());
+        startSignal(randomHubSignalStyle(), now());
         eggs.poke();
         return;
       }

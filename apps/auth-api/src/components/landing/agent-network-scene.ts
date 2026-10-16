@@ -206,9 +206,9 @@ function hash(index: number): number {
   return (value >>> 0) / 4294967296;
 }
 
-const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
+export const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 const easeOutCubic = (value: number) => 1 - (1 - value) ** 3;
-const easeInOutCubic = (value: number) => (value < 0.5 ? 4 * value ** 3 : 1 - (-2 * value + 2) ** 3 / 2);
+export const easeInOutCubic = (value: number) => (value < 0.5 ? 4 * value ** 3 : 1 - (-2 * value + 2) ** 3 / 2);
 const easeOutBack = (value: number) => 1 + 2.2 * (value - 1) ** 3 + 1.2 * (value - 1) ** 2;
 
 function nodeReach(node: NetworkNode): number {
@@ -546,6 +546,10 @@ export function agentNetworkHubAt(network: AgentNetwork, view: NetworkView, t: n
  */
 export const HUB_SIGNAL_STYLES = ["ripple", "broadcast", "echo"] as const;
 export type HubSignalStyle = (typeof HUB_SIGNAL_STYLES)[number];
+
+/** One of the signal styles, at random. */
+export const randomHubSignalStyle = (): HubSignalStyle =>
+  HUB_SIGNAL_STYLES[Math.floor(Math.random() * HUB_SIGNAL_STYLES.length)] ?? "ripple";
 
 /** A signal that a click on the hub starts at second `at`. */
 export interface HubSignal {

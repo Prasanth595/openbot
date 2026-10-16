@@ -8,11 +8,14 @@ import { LANDING_NETWORK_EGGS } from "../../lib/landing-content";
 import {
   type AgentNetwork,
   agentNetworkNodePoint,
+  clamp01,
+  easeInOutCubic,
   HUB_SIGNAL_STYLES,
   type HubSignalStyle,
   type NetworkAssets,
   type NetworkMessage,
   type NetworkView,
+  randomHubSignalStyle,
 } from "./agent-network-scene";
 
 const KONAMI = [
@@ -37,8 +40,6 @@ const ROLL_SECONDS = 1.6;
 /** A click adds no chat while this many agents talk. */
 const MAX_TALKERS = 4;
 
-const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
-const easeInOutCubic = (value: number) => (value < 0.5 ? 4 * value ** 3 : 1 - (-2 * value + 2) ** 3 / 2);
 const pick = (lines: readonly string[]) => lines[Math.floor(Math.random() * lines.length)] ?? "";
 /** The lines in a random order, so agents that talk together do not say the same line. */
 const shuffled = (lines: readonly string[]) =>
@@ -129,8 +130,7 @@ export function createAgentNetworkEggs(host: AgentNetworkEggsHost) {
       say(node, order[index % order.length] ?? "", delay + index * step, length);
   };
   const signal = (style: HubSignalStyle, delay = 0) => host.signal(style, now() + delay);
-  const randomSignal = (delay = 0) =>
-    signal(HUB_SIGNAL_STYLES[Math.floor(Math.random() * HUB_SIGNAL_STYLES.length)] ?? "ripple", delay);
+  const randomSignal = (delay = 0) => signal(randomHubSignalStyle(), delay);
   /** Up to `count` agents chat after `delay`, when there is room. */
   const chat = (count: number, delay: number) => {
     const t = now();
