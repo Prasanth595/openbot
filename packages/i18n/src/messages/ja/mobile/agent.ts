@@ -261,6 +261,7 @@ export const messages = {
   "mobile.agent.permissions.title": "権限",
   "mobile.agent.advanced.title": "詳細設定",
   "mobile.agent.runtime.unavailable": "利用できません",
+  "mobile.agent.runtime.hostDefault": "ホストの既定",
   "mobile.agent.runtime.provider": "プロバイダー",
   "mobile.agent.runtime.account": "アカウント",
   "mobile.agent.runtime.accountNumbered": "アカウント {number}",

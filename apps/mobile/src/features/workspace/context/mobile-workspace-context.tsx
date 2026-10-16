@@ -19,7 +19,10 @@ import {
   TEAM_BROWSER_VIEW_FRAME_POINT_CAPABILITY,
   TEAM_BROWSER_VIEW_VIEWPORT_CAPABILITY,
 } from "@openbot/contracts/team-protocol/browser-view-v1";
-import { TEAM_CONVERSATION_UNREAD_CAPABILITY } from "@openbot/contracts/team-protocol/current";
+import {
+  TEAM_AGENT_CREATE_MODEL_CAPABILITY,
+  TEAM_CONVERSATION_UNREAD_CAPABILITY,
+} from "@openbot/contracts/team-protocol/current";
 import { EVENTS_CAPABILITY } from "@openbot/contracts/team-protocol/events-v1";
 import { HOST_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/host-admin-v1";
 import { LIVE_ACTIVITY_PUSH_CAPABILITY } from "@openbot/contracts/team-protocol/live-activity-push-v1";
@@ -1504,6 +1507,17 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
           avatarSeed: input.avatarSeed,
           avatarHue: input.avatarHue,
           initialMessage: input.initialMessage,
+          // The host applies the pair before it queues the initial message. A host without the
+          // capability starts its own default.
+          ...(input.provider &&
+          input.model &&
+          serverCapabilities.current.get(activeServer.id)?.includes(TEAM_AGENT_CREATE_MODEL_CAPABILITY)
+            ? {
+                provider: input.provider,
+                model: input.model,
+                ...(input.reasoningEffort ? { reasoningEffort: input.reasoningEffort } : {}),
+              }
+            : {}),
         });
         setAgents((current) => [
           ...current.filter((agent) => agent.id !== created.id),

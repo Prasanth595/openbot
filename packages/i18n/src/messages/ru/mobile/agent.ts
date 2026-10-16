@@ -285,6 +285,7 @@ export const messages = {
   "mobile.agent.permissions.title": "Разрешения",
   "mobile.agent.advanced.title": "Дополнительно",
   "mobile.agent.runtime.unavailable": "Недоступно",
+  "mobile.agent.runtime.hostDefault": "По умолчанию на хосте",
   "mobile.agent.runtime.provider": "Провайдер",
   "mobile.agent.runtime.account": "Аккаунт",
   "mobile.agent.runtime.accountNumbered": "Аккаунт {number}",
