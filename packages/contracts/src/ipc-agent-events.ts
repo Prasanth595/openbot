@@ -24,6 +24,7 @@ import {
   isConversationReadState,
   isConversationSnapshot,
 } from "./ipc-conversations";
+import { type HiddenAgent, isHiddenAgentsSnapshot } from "./ipc-hidden-agents";
 import { isQueueSnapshot, type QueueSnapshot } from "./ipc-queue";
 import { isSidebarLayoutSnapshot, type SidebarLayoutSnapshot } from "./ipc-sidebar-layout";
 import { isBoolean, isDynamicRecord, isNumber, isString } from "./runtime-values";
@@ -48,6 +49,8 @@ export type AgentEvent =
   | { type: "channel-memories-changed"; channelId: string }
   | { type: "channel-routines-changed"; channelId: string }
   | { type: "sidebar-layout-changed"; layout: SidebarLayoutSnapshot }
+  /** The whole hidden list, in the `agent-hidden-v1` wire shape, so the Team API sends it as it is. */
+  | { type: "hidden-agents-changed"; agents: HiddenAgent[] }
   | { type: "conversation"; snapshot: ConversationSnapshot }
   | { type: "conversation-invalidated"; agentId: string; revision: number }
   | { type: "conversation-page"; page: ConversationPage }
@@ -160,6 +163,8 @@ export function isAgentEvent(value: unknown): value is AgentEvent {
       return isIdentifier(value.channelId);
     case "sidebar-layout-changed":
       return isSidebarLayoutSnapshot(value.layout);
+    case "hidden-agents-changed":
+      return isHiddenAgentsSnapshot({ agents: value.agents });
     case "conversation":
       return isConversationSnapshot(value.snapshot);
     case "conversation-invalidated":

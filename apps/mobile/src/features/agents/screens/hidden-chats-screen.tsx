@@ -12,7 +12,7 @@ import { useText } from "@/shared/lib/text";
 
 export function HiddenChatsScreen() {
   const { t } = useText();
-  const { hiddenAgents, unhideAgent } = useMobileWorkspace();
+  const { activeServer, hiddenAgents, unhideAgent, hidesAgentsOnServer } = useMobileWorkspace();
   const foreground = useThemeColor("foreground");
   const items: { id: string; name: string; href: Href; avatar: ReactNode; show: () => void }[] = hiddenAgents.map(
     (agent) => ({
@@ -44,7 +44,7 @@ export function HiddenChatsScreen() {
           {t("mobile.agent.hidden.title")}
         </Typography.Heading>
         <Typography.Paragraph type="body-xs" align="center" className="text-text-secondary">
-          {t("mobile.agent.hidden.body")}
+          {t(hidesAgentsOnServer(activeServer.id) ? "mobile.agent.hidden.bodySynced" : "mobile.agent.hidden.body")}
         </Typography.Paragraph>
       </View>
 

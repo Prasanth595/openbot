@@ -36,6 +36,7 @@ export const messages = {
   "mobile.agent.appearance.hue.magenta": "Magenta",
   "mobile.agent.menu.deleteFailed": "Agent konnte nicht gelöscht werden",
   "mobile.agent.menu.duplicateFailed": "Agent konnte nicht dupliziert werden",
+  "mobile.agent.menu.hideFailed": "Agent konnte nicht ausgeblendet werden",
   "mobile.agent.menu.actionFailed": "Der Server konnte diese Aktion nicht abschließen. Versuche es erneut.",
   "mobile.agent.menu.deleteTitle": "{name} löschen?",
   "mobile.agent.menu.deleteBody": "Dadurch wird der Agent von diesem Server entfernt.",
@@ -473,8 +474,11 @@ export const messages = {
   "mobile.agent.hidden.title": "Ausgeblendete Chats",
   "mobile.agent.hidden.body":
     "Ausgeblendete Chats arbeiten weiter. Sie werden nur nicht auf dem Startbildschirm angezeigt.",
+  "mobile.agent.hidden.bodySynced":
+    "Ein ausgeblendeter Chat behält seinen Verlauf. Sein Agent führt keine Routinen aus und erhält keine neuen Nachrichten. Jedes Gerät auf diesem Server blendet ihn aus.",
   "mobile.agent.hidden.showNamed": "{name} anzeigen",
   "mobile.agent.hidden.show": "Anzeigen",
+  "mobile.agent.hidden.showFailed": "Agent konnte nicht angezeigt werden",
   "mobile.agent.home.connecting": "Verbindung zum Server wird hergestellt",
   "mobile.agent.home.loadingServers": "Deine Server werden geladen",
   "mobile.agent.home.addAgent": "Agent hinzufügen",

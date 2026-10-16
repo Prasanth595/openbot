@@ -122,6 +122,7 @@ export const messages = {
   "error.backend.mailboxStateCorrupt":
     "Lo stato della casella è danneggiato o proviene da una versione più recente di OpenBot; non lo sovrascrivo.",
   "error.backend.recipientDeleting": "Il destinatario è in fase di eliminazione. Riprova al termine dell'eliminazione.",
+  "error.backend.recipientHidden": "Questo agente è nascosto. Ripristinalo per inviare messaggi.",
   "error.backend.attachBetween": "Allega da 1 a {limit} file.",
   "error.backend.attachmentNotFile": "L'allegato non è un file: {path}",
   "error.backend.generatedImageTooLarge": "L'immagine generata supera il limite di 100 MB.",

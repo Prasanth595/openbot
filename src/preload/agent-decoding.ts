@@ -1,4 +1,9 @@
-import { type AgentSessionSettings, isAgentSessionSettings } from "@openbot/contracts/ipc";
+import {
+  type AgentSessionSettings,
+  type HiddenAgentsSnapshot,
+  isAgentSessionSettings,
+  isHiddenAgentsSnapshot,
+} from "@openbot/contracts/ipc";
 // What main answers for agents: provider status, models, the agents themselves, memories, routines,
 // shared tables and the sidebar layout.
 //
@@ -192,5 +197,10 @@ export function decodeOptionalMemorySelection(value: unknown): AgentMemorySelect
 }
 export function decodeAgentSessionSettingsFromMain(value: unknown): AgentSessionSettings {
   if (!isAgentSessionSettings(value)) throw new Error("Invalid session settings response.");
+  return value;
+}
+
+export function decodeHiddenAgentsFromMain(value: unknown): HiddenAgentsSnapshot {
+  if (!isHiddenAgentsSnapshot(value)) throw new Error("Invalid hidden agents response.");
   return value;
 }

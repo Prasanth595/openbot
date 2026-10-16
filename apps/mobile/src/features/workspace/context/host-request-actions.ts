@@ -5,17 +5,20 @@ import {
   decodeAgentHostSettings,
   decodeInstalledSkills,
   decodeStorageUsage,
+  type HiddenAgent,
   isAgentMemory,
   isAgentModelOption,
   isQueueSnapshot,
   isRoutine,
   isRoutineRun,
   type RoutineCalendarOwner,
+  type SetAgentHiddenInput,
   STORAGE_CAPABILITY,
 } from "@openbot/contracts/ipc";
 import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import { AGENT_ADMIN_CAPABILITY, AGENT_ADMIN_ROUTES } from "@openbot/contracts/team-protocol/agent-admin-v1";
+import { AGENT_HIDDEN_CAPABILITY } from "@openbot/contracts/team-protocol/agent-hidden-v1";
 import {
   AGENT_HOST_SETTINGS_CAPABILITY,
   AGENT_HOST_SETTINGS_ROUTES,
@@ -55,6 +58,7 @@ import {
   listAgentSkills,
   listEventActivity,
   listEventRoutines,
+  listHiddenAgents,
   listProviderAccounts,
   listSharedTables,
   previewAgentTemplate,
@@ -63,6 +67,7 @@ import {
   resetAgentSessionSetting,
   rotateEventRoutineSecret,
   saveEventRoutine,
+  setAgentHidden,
   setAgentProviderAccount,
   setAgentSessionSetting,
   setAgentSkillEnabled,
@@ -162,6 +167,28 @@ type HostRequestActions = Pick<
 /** Runs a Team API request. A failure rejects with the error of the host, not its Effect wrapper. */
 function runTeamRequest<A>(operation: Effect.Effect<A, { readonly cause: unknown }>): Promise<A> {
   return runTeamEffect(operation.pipe(Effect.mapError((error) => error.cause)));
+}
+
+/** A host that serves `agent-hidden-v1` owns the hidden agents of its members. */
+export function hidesAgentsOnHost(capabilities: readonly string[] | undefined): boolean {
+  return capabilities?.includes(AGENT_HIDDEN_CAPABILITY) ?? false;
+}
+
+/** The hidden agents of a host that serves `agent-hidden-v1`, or null for an older host. */
+export async function readHostHiddenAgents(
+  request: TeamApiRequest,
+  capabilities: readonly string[],
+): Promise<HiddenAgent[] | null> {
+  if (!hidesAgentsOnHost(capabilities)) return null;
+  return (await runTeamRequest(listHiddenAgents(request))).agents;
+}
+
+/** Hides or restores one agent on the host. The host answers with its whole hidden list. */
+export async function writeHostAgentHidden(
+  request: TeamApiRequest,
+  input: SetAgentHiddenInput,
+): Promise<HiddenAgent[]> {
+  return (await runTeamRequest(setAgentHidden(request, input))).agents;
 }
 
 /** Workspace actions that only send host requests and read advertised capabilities. */

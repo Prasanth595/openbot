@@ -29,6 +29,11 @@ export function createSidebarDataStore(deps: {
   );
   const pinnedKeys = createMemo(() => new Set(chatPinnedItems().map(sidebarPinnedItemKey)));
   const agentById = createMemo(() => new Map(props.agents.map((agent) => [agent.id, agent])));
+  /** When the user hid each agent, by agent id. An agent that is not in it is not hidden. */
+  const userHiddenAt = createMemo(
+    () => new Map((props.userHiddenAgents ?? []).map((entry) => [entry.agentId, entry.hiddenAt])),
+  );
+  const agentIsUserHidden = (agentId: string) => userHiddenAt().has(agentId);
   const personById = createMemo(() => new Map(props.people.map((member) => [member.id, member])));
   const channels = () => props.channels ?? [];
   const channelById = createMemo(() => new Map(channels().map((channel) => [channel.id, channel])));
@@ -52,7 +57,9 @@ export function createSidebarDataStore(deps: {
     for (const ref of chatPinnedItems()) {
       if (ref.kind === "agent") {
         const agent = agentById().get(ref.id);
-        if (agent) items.push(resolve(ref, agent, { ref, chat: { kind: "agent", id: agent.id, agent } }));
+        // A hidden agent keeps its pin, so a restore puts it back in the strip.
+        if (agent && !agentIsUserHidden(agent.id))
+          items.push(resolve(ref, agent, { ref, chat: { kind: "agent", id: agent.id, agent } }));
       }
       if (ref.kind === "channel") {
         const channel = channelById().get(ref.id);
@@ -63,7 +70,10 @@ export function createSidebarDataStore(deps: {
     return items;
   });
   const listedAgents = createMemo(() =>
-    props.agents.filter((agent) => !pinnedKeys().has(sidebarPinnedItemKey({ kind: "agent", id: agent.id }))),
+    props.agents.filter(
+      (agent) =>
+        !agentIsUserHidden(agent.id) && !pinnedKeys().has(sidebarPinnedItemKey({ kind: "agent", id: agent.id })),
+    ),
   );
   /**
    * Agents that wait for the user leave their section for the "Needs you" group, the same way a
@@ -90,6 +100,10 @@ export function createSidebarDataStore(deps: {
   const agentWaits = (agentId: string) => waitingIds().has(agentId);
   const waitingAgents = createMemo(() => sortByLayoutOrder(listedAgents().filter((agent) => agentWaits(agent.id))));
   const filteredAgents = createMemo(() => listedAgents().filter((agent) => !agentWaits(agent.id)));
+  /** The hidden agents, pinned ones included, in their layout order. They are not drag sources. */
+  const userHiddenAgentList = createMemo(() =>
+    sortByLayoutOrder(props.agents.filter((agent) => agentIsUserHidden(agent.id))),
+  );
   const filteredChannels = createMemo(() =>
     channels().filter((channel) => !pinnedKeys().has(sidebarPinnedItemKey({ kind: "channel", id: channel.id }))),
   );
@@ -221,6 +235,11 @@ export function createSidebarDataStore(deps: {
     return resolvedPinnedItems().map((item) => sidebarPinnedItemKey(item.ref));
   }
 
+  /** The ISO time when the user hid the agent, or undefined when the agent is not hidden. */
+  function userHiddenSince(agentId: string): string | undefined {
+    return userHiddenAt().get(agentId);
+  }
+
   return {
     assignedSectionId,
     agentById,
@@ -242,6 +261,8 @@ export function createSidebarDataStore(deps: {
     sectionLabel,
     sectionPosition,
     visiblePinnedKeys,
+    userHiddenAgentList,
+    userHiddenSince,
     visibleSectionIds,
     waitingAgents,
   };

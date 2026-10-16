@@ -3,6 +3,7 @@ import type {
   AgentStatus,
   AgentSummary,
   AvatarImageInput,
+  HiddenAgent,
   UpdateAgentInput,
 } from "@openbot/contracts/ipc";
 import { PROVIDER_ACCOUNTS_CAPABILITY } from "@openbot/contracts/team-protocol/provider-accounts-v1";
@@ -147,6 +148,18 @@ const Agents = createSimpleContext({
     let openedAgentChatId: string | null = null;
     /** Agents whose delete can still be undone. Main still has them, so each roster read leaves them out. */
     const hiddenAgentIds = new Set<string>();
+    /**
+     * The agents that a user hid on this server. They stay in the roster: the sidebar shows them in its
+     * Hidden group, and an open chat stays open. Not the same as `hiddenAgentIds` above.
+     */
+    const [userHiddenAgents, setUserHiddenAgents] = createSignal<HiddenAgent[]>([]);
+    const userHiddenAgentIds = createMemo(() => new Set(userHiddenAgents().map((agent) => agent.agentId)));
+
+    /** Applies the whole hidden list of this server, from a read, an event or a write. */
+    function applyUserHiddenAgents(agents: HiddenAgent[]): void {
+      if (!scopeIsCurrent()) return;
+      setUserHiddenAgents(agents);
+    }
 
     const activeAgent = createMemo(() => {
       if (activeDirectMember()) return undefined;
@@ -198,7 +211,9 @@ const Agents = createSimpleContext({
       setActiveAgentId((current) => {
         // Validate the saved choice before it can trigger conversation requests.
         const preferred = current || savedAgentId;
-        return profiles.some((agent) => agent.id === preferred) ? preferred : (profiles[0]?.id ?? "");
+        if (profiles.some((agent) => agent.id === preferred)) return preferred;
+        const hidden = untrack(userHiddenAgentIds);
+        return (profiles.find((agent) => !hidden.has(agent.id)) ?? profiles[0])?.id ?? "";
       });
       if (profiles.length === 0 && !agentSetupOpen()) {
         setAgentSetupDraft(createFirstAgentDraft());
@@ -369,6 +384,9 @@ const Agents = createSimpleContext({
       applyStoredAgents,
       hideAgent,
       forgetHiddenAgent,
+      userHiddenAgents,
+      userHiddenAgentIds,
+      applyUserHiddenAgents,
       openBotSetup,
       cancelAgentSetup,
       updateAgent,

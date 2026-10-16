@@ -63,6 +63,9 @@ const AgentActions = createSimpleContext({
       analyticsAgentProperties,
       hideAgent,
       forgetHiddenAgent,
+      userHiddenAgents,
+      userHiddenAgentIds,
+      applyUserHiddenAgents,
     } = useAgents();
     const { initializeConversation, removeConversation } = useConversation();
     const { setActiveTurns, setFailedTurns, setQueues, setPendingPrompts } = useTurns();
@@ -189,7 +192,9 @@ const AgentActions = createSimpleContext({
       const marketplaceAgent = Boolean(agent.marketplaceSource);
       const wasActive = activeAgentId() === agentId;
       // Read before the roster changes: a read after a write returns the old value until the flush.
-      const nextAgentId = agentList().find((candidate) => candidate.id !== agentId)?.id ?? "";
+      const others = agentList().filter((candidate) => candidate.id !== agentId);
+      const userHidden = userHiddenAgentIds();
+      const nextAgentId = (others.find((candidate) => !userHidden.has(candidate.id)) ?? others[0])?.id ?? "";
       const hidden = hideAgent(agentId);
       if (!hidden) return;
       const showAgent: () => void = hidden;
@@ -270,7 +275,60 @@ const AgentActions = createSimpleContext({
       });
     }
 
-    return { createAgent, createAgentInPlace, editAgent, duplicateAgent, deleteAgent };
+    /** The Undo toasts of hides on this server. A server switch removes them with this scope. */
+    const hideToastIds = new Set<string>();
+    onCleanup(() => {
+      const ids = [...hideToastIds];
+      // A write to the Toaster from a scope cleanup stops the reactive system.
+      queueMicrotask(() => {
+        for (const id of ids) toast.dismiss(id);
+      });
+    });
+
+    /**
+     * Hides or restores an agent. The sidebar moves the agent at once, and the server's answer then
+     * replaces the hidden list. If the server refuses, only this agent goes back. The open chat stays
+     * open: the user can read it, and the sidebar shows the agent in its Hidden group.
+     */
+    async function setAgentHiddenByUser(agentId: string, hidden: boolean): Promise<void> {
+      if (agentSetupOpen() && creatingAgent()) return;
+      const agent = agentList().find((candidate) => candidate.id === agentId);
+      if (!agent || userHiddenAgentIds().has(agentId) === hidden) return;
+      const serverId = activeServerId();
+      const toastId = `agent-hide-${serverId}-${agentId}`;
+      const previous = userHiddenAgents().find((entry) => entry.agentId === agentId);
+      const withoutAgent = () => userHiddenAgents().filter((entry) => entry.agentId !== agentId);
+      applyUserHiddenAgents(
+        hidden ? [...withoutAgent(), { agentId, hiddenAt: new Date().toISOString() }] : withoutAgent(),
+      );
+      if (hidden) {
+        const { t } = currentText();
+        hideToastIds.add(toastId);
+        toast(t("agent.hideUndo.title", { name: agent.name }), {
+          id: toastId,
+          action: { label: t("agent.hideUndo.action"), onClick: () => void setAgentHiddenByUser(agentId, false) },
+          onDismiss: () => hideToastIds.delete(toastId),
+          onAutoClose: () => hideToastIds.delete(toastId),
+        });
+      } else if (hideToastIds.delete(toastId)) {
+        toast.dismiss(toastId);
+      }
+      try {
+        const snapshot = await agentsPort().agent.setAgentHidden({ agentId, hidden }, serverId);
+        applyUserHiddenAgents(snapshot.agents);
+      } catch (error) {
+        if (!scopeIsCurrent()) return;
+        applyUserHiddenAgents(previous ? [...withoutAgent(), previous] : withoutAgent());
+        if (hideToastIds.delete(toastId)) toast.dismiss(toastId);
+        const { t, errorMessage } = currentText();
+        actionToast.error(t(hidden ? "agent.error.hideFailed" : "agent.error.restoreFailed"), {
+          description: errorMessage(error, t("agent.error.hiddenFailed")),
+          report: { operation: "agent", source: "action", cause_code: classifyFailure(error) },
+        });
+      }
+    }
+
+    return { createAgent, createAgentInPlace, editAgent, duplicateAgent, deleteAgent, setAgentHiddenByUser };
   },
 });
 

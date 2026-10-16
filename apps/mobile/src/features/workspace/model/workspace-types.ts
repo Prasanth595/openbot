@@ -369,7 +369,11 @@ export interface MobileWorkspaceContextValue {
   ) => Promise<DraftAttachment>;
   downloadAttachment: (serverId: string, attachmentId: string) => Promise<RemoteFileUpload>;
   discardAttachment: (agentId: string, attachmentId: string, serverId?: string) => Promise<void>;
+  /** True when the server owns the hidden agents (`agent-hidden-v1`), so each device shows the same list. */
+  hidesAgentsOnServer: (serverId: string) => boolean;
+  /** Hides an agent of the active server: on the host when it owns the list, else on this phone only. */
   hideAgent: (agentId: string) => void;
+  /** Shows a hidden agent of the active server again, on this phone and on the host. */
   unhideAgent: (agentId: string) => void;
   markAgentRead: (agentId: string, throughMessageId?: string, serverId?: string) => void;
   markAgentUnread: (agentId: string) => void;

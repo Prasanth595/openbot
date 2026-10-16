@@ -36,6 +36,7 @@ export const messages = {
   "mobile.agent.appearance.hue.magenta": "Magenta",
   "mobile.agent.menu.deleteFailed": "Impossible de supprimer l’agent",
   "mobile.agent.menu.duplicateFailed": "Impossible de dupliquer l’agent",
+  "mobile.agent.menu.hideFailed": "Impossible de masquer l’agent",
   "mobile.agent.menu.actionFailed": "Le serveur n’a pas pu terminer cette action. Veuillez réessayer.",
   "mobile.agent.menu.deleteTitle": "Supprimer {name} ?",
   "mobile.agent.menu.deleteBody": "Cette action supprime l’agent de ce serveur.",
@@ -478,8 +479,11 @@ export const messages = {
   "mobile.agent.hidden.title": "Discussions masquées",
   "mobile.agent.hidden.body":
     "Les discussions masquées continuent de fonctionner. Elles ne s’affichent simplement pas sur l’écran d’accueil.",
+  "mobile.agent.hidden.bodySynced":
+    "Une discussion masquée garde son historique. Son agent n’exécute pas de routines et ne reçoit pas de nouveaux messages. Tous les appareils de ce serveur la masquent.",
   "mobile.agent.hidden.showNamed": "Afficher {name}",
   "mobile.agent.hidden.show": "Afficher",
+  "mobile.agent.hidden.showFailed": "Impossible d’afficher l’agent",
   "mobile.agent.home.connecting": "Connexion au serveur",
   "mobile.agent.home.loadingServers": "Chargement de vos serveurs",
   "mobile.agent.home.addAgent": "Ajouter un agent",

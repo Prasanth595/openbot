@@ -42,6 +42,8 @@ export function createSidebarScope(props: SidebarProps) {
     sectionIsCollapsed,
     sectionLabel,
     sectionPosition,
+    userHiddenAgentList,
+    userHiddenSince,
     visiblePinnedKeys,
     visibleSectionIds,
     waitingAgents,
@@ -121,7 +123,7 @@ export function createSidebarScope(props: SidebarProps) {
   });
 
   createEffect(
-    () => [resolvedPinnedItems(), waitingAgents(), filteredChats(), orderedPeople()],
+    () => [resolvedPinnedItems(), waitingAgents(), filteredChats(), orderedPeople(), userHiddenAgentList()],
     () => {
       scrollFades.remeasure();
     },
@@ -192,6 +194,8 @@ export function createSidebarScope(props: SidebarProps) {
     stopSidebarDragging,
     updateSectionEditorName,
     updateSidebarNativeDrag,
+    userHiddenAgentList,
+    userHiddenSince,
     visibleSectionIds,
     waitingAgents,
   };

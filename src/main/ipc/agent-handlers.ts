@@ -1,3 +1,4 @@
+import { AGENT_HIDDEN_CAPABILITY, AGENT_HIDDEN_ROUTES } from "@openbot/contracts/team-protocol/agent-hidden-v1";
 import {
   AGENT_SESSION_SETTINGS_CAPABILITY,
   AGENT_SESSION_SETTINGS_ROUTES,
@@ -29,6 +30,7 @@ import {
   parseHostAnalyticsInput,
   parseResetAgentSessionSetting,
   parseSaveAgentProfile,
+  parseSetAgentHiddenInput,
   parseSetAgentSessionSetting,
 } from "@openbot/contracts/ipc";
 import { isDynamicRecord } from "@openbot/contracts/runtime-values";
@@ -55,6 +57,7 @@ import {
   decodeAgentStatusFromHost,
   decodeAgentSummaries,
   decodeAgentSummary,
+  decodeHiddenAgentsFromHost,
   decodeHostAnalyticsFromHost,
   decodeInstalledSkillsFromHost,
   decodeQueuedMessageReceipt,
@@ -228,6 +231,32 @@ export function agentIpcHandlers({
             throw new Error(sourceText("error.team.agentSettingsUnsupported"));
           return runCauseEffect(
             remoteServers.request(serverId, AGENT_SESSION_SETTINGS_ROUTES.reset, decodeAgentSessionSettingsFromHost, {
+              method: "POST",
+              body: input,
+            }),
+          );
+        },
+      }),
+      listHiddenAgents: scopedQueryHandler({
+        local: () => service.listHiddenAgents(),
+        // A server without `agent-hidden-v1` cannot hide an agent, so it has no hidden agents.
+        remote: (serverId) => {
+          if (!remoteServers.supportsCapability(serverId, AGENT_HIDDEN_CAPABILITY)) return { agents: [] };
+          return runCauseEffect(
+            remoteServers.request(serverId, AGENT_HIDDEN_ROUTES.read, decodeHiddenAgentsFromHost, {
+              method: "POST",
+              body: {},
+            }),
+          );
+        },
+      }),
+      setAgentHidden: scopedHandler(parseSetAgentHiddenInput, {
+        local: (input) => runCauseEffect(service.setAgentHidden(input)),
+        remote: (input, serverId) => {
+          if (!remoteServers.supportsCapability(serverId, AGENT_HIDDEN_CAPABILITY))
+            throw new Error(sourceText("error.team.agentSettingsUnsupported"));
+          return runCauseEffect(
+            remoteServers.request(serverId, AGENT_HIDDEN_ROUTES.set, decodeHiddenAgentsFromHost, {
               method: "POST",
               body: input,
             }),

@@ -1,9 +1,13 @@
 import {
   type AgentSessionSettings,
+  type HiddenAgentsSnapshot,
   isAgentSessionSettings,
+  isHiddenAgentsSnapshot,
   type ResetAgentSessionSettingInput,
+  type SetAgentHiddenInput,
   type SetAgentSessionSettingInput,
 } from "@openbot/contracts/ipc";
+import { AGENT_HIDDEN_ROUTES } from "@openbot/contracts/team-protocol/agent-hidden-v1";
 import { AGENT_SESSION_SETTINGS_ROUTES } from "@openbot/contracts/team-protocol/agent-session-settings-v1";
 import { HOST_MEMBER_UPDATE_ROUTES } from "@openbot/contracts/team-protocol/host-member-update-v1";
 import { HOST_RELEASE_ROUTES } from "@openbot/contracts/team-protocol/host-release-v1";
@@ -923,6 +927,23 @@ export function resetAgentSessionSetting(
   input: ResetAgentSessionSettingInput,
 ): Effect.Effect<AgentSessionSettings, TeamAdminRequestError> {
   return adminCall(() => request("POST", AGENT_SESSION_SETTINGS_ROUTES.reset, decodeSessionSettings, { ...input }));
+}
+
+function decodeHiddenAgents(value: unknown): HiddenAgentsSnapshot {
+  if (!isHiddenAgentsSnapshot(value)) throw new Error("Invalid hidden agents response.");
+  return value;
+}
+/** Any member may read and change the hidden agents of a host that advertises `agent-hidden-v1`. */
+export function listHiddenAgents(request: TeamApiRequest): Effect.Effect<HiddenAgentsSnapshot, TeamAdminRequestError> {
+  return adminCall(() => request("POST", AGENT_HIDDEN_ROUTES.read, decodeHiddenAgents, {}));
+}
+export function setAgentHidden(
+  request: TeamApiRequest,
+  input: SetAgentHiddenInput,
+): Effect.Effect<HiddenAgentsSnapshot, TeamAdminRequestError> {
+  return adminCall(() =>
+    request("POST", AGENT_HIDDEN_ROUTES.set, decodeHiddenAgents, { agentId: input.agentId, hidden: input.hidden }),
+  );
 }
 
 type GitHubConnectorStatusRoute = Exclude<keyof typeof CONNECTORS_ROUTES, "githubRepositories">;

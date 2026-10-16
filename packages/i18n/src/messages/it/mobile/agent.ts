@@ -36,6 +36,7 @@ export const messages = {
   "mobile.agent.appearance.hue.magenta": "Magenta",
   "mobile.agent.menu.deleteFailed": "Impossibile eliminare l'agente",
   "mobile.agent.menu.duplicateFailed": "Impossibile duplicare l'agente",
+  "mobile.agent.menu.hideFailed": "Impossibile nascondere l'agente",
   "mobile.agent.menu.actionFailed": "Il server non ha potuto completare questa azione. Riprova.",
   "mobile.agent.menu.deleteTitle": "Eliminare {name}?",
   "mobile.agent.menu.deleteBody": "L'agente verrà rimosso da questo server.",
@@ -470,8 +471,11 @@ export const messages = {
   "mobile.agent.hidden.title": "Chat nascoste",
   "mobile.agent.hidden.body":
     "Le chat nascoste continuano a funzionare. Semplicemente non compaiono nella schermata Home.",
+  "mobile.agent.hidden.bodySynced":
+    "Una chat nascosta conserva la sua cronologia. Il suo agente non esegue routine e non riceve nuovi messaggi. Tutti i dispositivi di questo server la nascondono.",
   "mobile.agent.hidden.showNamed": "Mostra {name}",
   "mobile.agent.hidden.show": "Mostra",
+  "mobile.agent.hidden.showFailed": "Impossibile mostrare l'agente",
   "mobile.agent.home.connecting": "Connessione al server",
   "mobile.agent.home.loadingServers": "Caricamento dei tuoi server",
   "mobile.agent.home.addAgent": "Aggiungi agente",

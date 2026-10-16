@@ -98,6 +98,7 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
     agentList,
     agentListConnecting,
     activeAgent,
+    userHiddenAgentIds,
     modelOptions,
     settingsRequest,
     updateAgent,
@@ -390,6 +391,7 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
         onManageProviders={manageProviders() ? openProviderSettings : undefined}
         agent={conversationAgent()}
         agents={agentList()}
+        mentionAgents={agentList().filter((agent) => !userHiddenAgentIds().has(agent.id))}
         availableRoutineIds={activeRoutineIds()}
         routines={activeRoutines()}
         modelOptions={modelOptions()}

@@ -1,3 +1,4 @@
+import { AGENT_HIDDEN_CAPABILITY } from "@openbot/contracts/team-protocol/current";
 import { computeAgentAvatarMoods } from "@openbot/ui/features/agents/agent-avatar-mood";
 import { Sidebar } from "@openbot/ui/features/sidebar/Sidebar";
 import { SidebarMobileAppCard } from "@openbot/ui/features/sidebar/SidebarMobileAppCard";
@@ -54,8 +55,10 @@ export function WorkspaceSidebar(props: { peopleEnabled: boolean }) {
     agentSetupDraft,
     duplicatingAgentIds,
     openBotSetup,
+    userHiddenAgents,
+    userHiddenAgentIds,
   } = useAgents();
-  const { editAgent, duplicateAgent, deleteAgent } = useAgentActions();
+  const { editAgent, duplicateAgent, deleteAgent, setAgentHiddenByUser } = useAgentActions();
   const { activeTurns, queues, failedTurns, usageLimits, pendingPrompts, pendingApprovals } = useTurns();
   const { unreadReplies, recentReplies, markAllAgentMessagesRead } = useConversation();
   const { directPeople } = usePresence();
@@ -147,7 +150,10 @@ export function WorkspaceSidebar(props: { peopleEnabled: boolean }) {
         void markAllAgentMessagesRead();
         void channels.markAllRead();
       }}
-      hasUnread={agentList().some((agent) => (unreadReplies()[agent.id] ?? 0) > 0) || channels.hasUnread()}
+      hasUnread={
+        agentList().some((agent) => !userHiddenAgentIds().has(agent.id) && (unreadReplies()[agent.id] ?? 0) > 0) ||
+        channels.hasUnread()
+      }
       view={layout.sidebarView()}
       serverName={activeServer()?.name ?? "Local"}
       onOpenServerSettings={(trigger) => {
@@ -203,6 +209,17 @@ export function WorkspaceSidebar(props: { peopleEnabled: boolean }) {
       duplicatingAgentIds={duplicatingAgentIds()}
       onDuplicateAgent={duplicateAgent}
       onDeleteAgent={deleteAgent}
+      userHiddenAgents={userHiddenAgents()}
+      onHideAgent={
+        activeServerSupportsCapability(AGENT_HIDDEN_CAPABILITY)
+          ? (agentId) => void setAgentHiddenByUser(agentId, true)
+          : undefined
+      }
+      onRestoreAgent={
+        activeServerSupportsCapability(AGENT_HIDDEN_CAPABILITY)
+          ? (agentId) => void setAgentHiddenByUser(agentId, false)
+          : undefined
+      }
       compact={layout.leftPanelCompact()}
       onExpand={layout.expandSidebar}
       onOpenSearch={() => setGlobalSearchVisibility(true)}
