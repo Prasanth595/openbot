@@ -197,7 +197,7 @@ import { ProviderCredentialStore } from "./provider-credential-store";
 import { createProviderDetection, type ProviderDetection } from "./provider-detection";
 import { PROVIDER_DETECTION_SETTINGS_FILE, ProviderDetectionSettingsStore } from "./provider-detection-settings-store";
 import { ProviderHostSignIns } from "./provider-host-sign-ins";
-import { startProviderLog } from "./provider-log";
+import { startAgentLog, startProviderLog } from "./provider-log";
 import { toProviderRuntimeFailure } from "./provider-runtime-effects";
 import { ProviderRuntimeManager, providerRuntimeRoot, runtimeTarget } from "./provider-runtime-manager";
 import { ProviderUseSettingsStore } from "./provider-use-settings-store";
@@ -372,6 +372,8 @@ const TEARDOWN_ORDER = {
   trace: 120,
   // After the service, so the lines its providers write while they stop are kept.
   providerLog: 121,
+  // After the service, so a deletion that fails while the service stops is kept.
+  agentLog: 122,
   // Last: every step above can still write.
   database: 130,
 } as const;
@@ -740,6 +742,7 @@ export async function createApplicationServices({
     "the provider log",
     startProviderLog(join(app.getPath("userData"), "logs")),
   );
+  teardown.push(TEARDOWN_ORDER.agentLog, "the agent log", startAgentLog(join(app.getPath("userData"), "logs")));
   // The one forward reference left in this function: the controller is built at the top of
   // startup because its window must be able to appear immediately, but the two services its
   // critical actions drive are built hundreds of lines below. A single named local rather than
@@ -1606,7 +1609,12 @@ export async function createApplicationServices({
       caches: ["remote-attachments", "remote-shared-files", "remote-workspace-files"].map((name) =>
         join(userData, name),
       ),
-      logs: [join(userData, "logs", "remote"), join(userData, "logs", "update"), join(userData, "logs", "providers")],
+      logs: [
+        join(userData, "logs", "remote"),
+        join(userData, "logs", "update"),
+        join(userData, "logs", "providers"),
+        join(userData, "logs", "agents"),
+      ],
       runtimes: providerRuntimeRoot({
         appData: app.getPath("appData"),
         userDataOverride: app.commandLine.getSwitchValue("user-data-dir"),

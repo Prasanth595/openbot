@@ -1139,7 +1139,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       hostedSites: this.#hostedSites,
       compaction: this.#compaction,
       deleteWithRevokedApproval: options.deleteWithRevokedApproval ?? ((_agentId, remove) => remove()),
-      logger,
+      logger: createOpenBotLogger("agent-removal"),
       hooks: {
         emit: (event) => this.#emit(event),
         listAgents: () => this.listAgents(),
