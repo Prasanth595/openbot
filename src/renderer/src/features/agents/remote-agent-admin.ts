@@ -19,7 +19,7 @@ export type RemoteAgentAdminCalls = Pick<
 >;
 
 /** A joined server where this account may change agent access and auto-approve. */
-export function serverCanAdministerAgents(server: ServerSummary | undefined): server is ServerSummary {
+function serverCanAdministerAgents(server: ServerSummary | undefined): server is ServerSummary {
   return serverCanAdminister(server, AGENT_ADMIN_CAPABILITY);
 }
 
