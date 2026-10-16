@@ -133,7 +133,10 @@ const SPAWN_ENVIRONMENT_PROVIDERS: readonly AgentProvider[] = [
   "acp",
 ];
 
-/** One log line for each row whose state changes, so the provider log shows when a provider went away. */
+/**
+ * One log line for each row whose state or connection state changes, so the provider log shows when a
+ * provider went away, and when a connect started and ended.
+ */
 function logProviderStateChanges(
   previous: readonly AgentProviderStatus[],
   next: readonly AgentProviderStatus[],
@@ -141,11 +144,12 @@ function logProviderStateChanges(
 ): void {
   for (const row of next) {
     const before = previous.find((candidate) => candidate.id === row.id);
-    if (before?.state === row.state) continue;
+    if (before?.state === row.state && before?.connectionState === row.connectionState) continue;
     logger.info("A provider changed state.", {
       provider: row.id,
       from: before?.state ?? null,
       to: row.state,
+      connectionState: row.connectionState ?? null,
       version: row.version,
       message: row.message === null ? null : shortenDiagnostic(redactMcp(row.message)),
     });
