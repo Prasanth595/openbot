@@ -455,7 +455,8 @@ export class TeamApiServer {
 
   /**
    * The last user action from a client - a send, a change, or a typing event - or null for none. A focus
-   * ping (`focus-use-v1`) also counts, for at most 30 minutes after the last user action of its session.
+   * ping (`focus-use-v1`) also counts, for at most 30 minutes after the last user action of its session or
+   * after the app got focus again.
    * Reads, polls and mark-read do not count: a client that is only open does not keep a hosted server running.
    */
   lastClientUseAt(): number | null {

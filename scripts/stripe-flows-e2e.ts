@@ -1312,6 +1312,13 @@ const scenarios: Record<Scenario, (account: Account) => Promise<void>> = {
         web,
       );
       const reports = new Set(web.held.map((sample) => sample.lastActiveAt).filter((at) => at !== null));
+      // Without focus the page sends no ping, so a failure below would not be about the server.
+      record(
+        "boat",
+        "the held web page has focus",
+        web.held.length > 0 && web.held.every((sample) => sample.focused),
+        web.held,
+      );
       record(
         "boat",
         "a focused web client with no input keeps the server running for 20 minutes",

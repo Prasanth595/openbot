@@ -299,7 +299,8 @@ starts again when you press a key or click in an app that shows it, when a Slack
 Telegram message addresses OpenBot, or a few minutes before its next scheduled routine run. Use means that an agent works, a remote desktop is open, a file moves, or you
 sent a message, made a change, typed or used a shared browser view in the last 5 minutes. An app
 that has focus (a focused window or tab, or the phone app in the foreground) also counts, for at
-most 30 minutes after your last message, change or typing. The app tells only the server that it
+most 30 minutes after your last message, change or typing, or after you return to the app. The app
+tells only the server that it
 has focus; the account service gets no new data. An app that is only open without focus does not count.
 To show whether a server is asleep, the app asks the account service for its state. This request
 stores nothing. When boat stops the sandbox, boat keeps a snapshot of its disk until

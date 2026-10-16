@@ -1280,7 +1280,9 @@ export function createWebWorkspace(
   createHostRestartToasts(() => hostViews().filter((host) => !followsServerUpdate(host.id)));
   onSettled(() => {
     void refreshHosts().catch(report);
+    const pageFocus = () => setPageFocused(!document.hidden && document.hasFocus());
     const focus = () => {
+      pageFocus();
       runtime.hosts?.refresh();
       void props
         .onSessionCheck()
@@ -1292,6 +1294,7 @@ export function createWebWorkspace(
         .catch(report);
     };
     const visibility = () => {
+      pageFocus();
       if (document.hidden) {
         hostLifecycle.cancelPending();
         if (hostId && state.status !== "online") generation += 1;
@@ -1304,13 +1307,10 @@ export function createWebWorkspace(
     const network = () => {
       if (!document.hidden) recovery.networkRestored();
     };
-    const focusChange = () => setPageFocused(!document.hidden && document.hasFocus());
     document.addEventListener("visibilitychange", visibility);
-    document.addEventListener("visibilitychange", focusChange);
     window.addEventListener("online", network);
     window.addEventListener("focus", focus);
-    window.addEventListener("focus", focusChange);
-    window.addEventListener("blur", focusChange);
+    window.addEventListener("blur", pageFocus);
     return () => {
       disposed = true;
       generation += 1;
@@ -1318,12 +1318,10 @@ export function createWebWorkspace(
       hostLifecycle.dispose();
       focusUse.dispose();
       document.removeEventListener("visibilitychange", visibility);
-      document.removeEventListener("visibilitychange", focusChange);
       window.removeEventListener("online", network);
       acceptedInvite = null;
       window.removeEventListener("focus", focus);
-      window.removeEventListener("focus", focusChange);
-      window.removeEventListener("blur", focusChange);
+      window.removeEventListener("blur", pageFocus);
       void runtime.dispose({ sessionsEnded: props.accountSessionEnded?.() ?? false }).catch(() => undefined);
     };
   });

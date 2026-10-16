@@ -10,7 +10,7 @@ last user action (`CLIENT_USE_WINDOW_MS`): a request that changes data, or a typ
 the requests that a client sends with no user action (polls, previews, mark-read) do not count
 (`src/main/team-api/client-use.ts`). An app that has focus (a focused desktop window, a visible and
 focused browser tab, the phone app in the foreground) also counts, for at most 30 minutes after the
-last user action of its session (`focus-use-v1`). So an app that has focus but is not used keeps the
+last user action of its session or after the app gets focus again (`focus-use-v1`). So an app that has focus but is not used keeps the
 server on for 30 minutes, and then the server stops 15 to 30 minutes later. An app that is open
 without focus does not keep the server on: it stops 15 to 30 minutes after the last action (see the
 cron interval below). The desktop and the web client then show the server as asleep, and the next key
@@ -99,7 +99,8 @@ when a server is idle or boat stops a sandbox; and `error` and `deleted`. The Wo
    (`FOCUS_USE_LIMIT_MS`) after the later of the start of the focus period and the last user action of
    the same session. A ping more than 8 minutes after the previous one starts a new focus period. The
    ping is passive in `client-use.ts`, so it does not reset the limit and does not change which session
-   push notifications count as in use.
+   push notifications count as in use. Like other use, a focused app delays the automatic update
+   restart of a hosted server (`RequestedUpdate`, `clientInUse`).
 
    It sends
    `POST /v2/hosting/servers/:id/activity` with `{inUse, nextRunAt}` and the session from its claim:
@@ -366,7 +367,7 @@ servers, their webhooks and the cron continue.
    connect from the desktop and the web client. Delete the server at the end.
 
 The cron runs each 5 minutes in production. An idle server stops 15 to 30 minutes after its last
-use (a focus ping is use only for 30 minutes after the last user action), and the checks that repair a missed webhook run at most 5 minutes late.
+use (a focus ping is use only for 30 minutes after the last user action or a new focus period), and the checks that repair a missed webhook run at most 5 minutes late.
 
 ### Sales reports
 

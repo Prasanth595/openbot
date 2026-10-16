@@ -3,10 +3,10 @@
 // What it grants, recorded here because freezing it makes it permanent: a signed-in member's client
 // tells the host that its app has focus (a focused desktop window, a visible and focused browser tab,
 // the phone app in the foreground). The body is empty and the host answers with an empty object. The
-// host counts it as use of a hosted server for a limited time after the last send, change or typing
-// event of the same session, so a member who only reads does not see the server stop. Only a hosted
-// server advertises it, and any member can send it. Widening any of it needs a second capability
-// string.
+// host counts it as use of a hosted server for a limited time after the later of the last send,
+// change or typing event of the same session and the start of its focus period, so a member who only
+// reads does not see the server stop. Only a hosted server advertises it, and any member can send it.
+// Widening any of it needs a second capability string.
 import { adminRoute, empty, type OptionalRouteCodec } from "./admin-wire";
 
 export const FOCUS_USE_CAPABILITY = "focus-use-v1";

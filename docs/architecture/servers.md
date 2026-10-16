@@ -167,7 +167,7 @@ focus and the server is online, through `createFocusUsePing` in `packages/team-c
 main process, the web client and the mobile app each give it their own focus signal and transport.
 The host keeps the focus period of each session apart from `#sessionUse`, so a focused desktop does
 not stop the phone's push notifications. A ping moves `lastClientUseAt` only for 30 minutes after the
-last user action of its session. The route is in `PASSIVE_ROUTES`, so the generic client use path
+later of the last user action of its session and the start of its focus period. The route is in `PASSIVE_ROUTES`, so the generic client use path
 does not count it. See [hosted servers](../hosted-servers.md) step 5.
 
 ### Admin capabilities
