@@ -238,11 +238,19 @@ export function AgentNetworkSection() {
       canvas.height = Math.round(box.height * ratio);
       draw();
     };
-    // When the network is complete, a click on an agent grows a new network from it.
+    // True where the mask of `.landing-network-canvas` shows at least half of the network:
+    // below the middle of the fade under the heading, and inside the middle of the fade of the
+    // ellipse (72% × 78% at 50% 55%, solid to 60%).
+    const unmasked = (x: number, y: number) =>
+      y >= view.top + 48 &&
+      Math.hypot((x - view.width * 0.5) / (view.width * 0.72), (y - view.height * 0.55) / (view.height * 0.78)) <= 0.8;
+    // When the network is complete, a click on a visible agent grows a new network from it.
     const agentAt = (event: MouseEvent) => {
       if (now() < network.end) return -1;
       const box = canvas.getBoundingClientRect();
-      return agentNetworkNodeAt(network, view, now(), event.clientX - box.left, event.clientY - box.top);
+      const x = event.clientX - box.left;
+      const y = event.clientY - box.top;
+      return unmasked(x, y) ? agentNetworkNodeAt(network, view, now(), x, y) : -1;
     };
     // Reduced motion has no signal.
     const onHub = (event: MouseEvent) => {
