@@ -56,16 +56,23 @@ export function useAccountUsagePolling() {
   }
 
   /* A reading belongs to one server. On that server, the reading stays until the refresh for the new target
-   * replaces it, so the rail rings do not blink while models load. It goes when no refresh follows. */
+   * replaces it, so the rail rings do not blink while models load. */
   createEffect(
     () => usageTargetKey(),
     (targetKey) =>
       untrack(() => {
         const serverId = activeServerId() ?? null;
-        if (serverId !== selectedServerId || (!usageReady() && !providersLoading())) auth.invalidateAccountUsage();
+        if (serverId !== selectedServerId) auth.invalidateAccountUsage();
         selectedServerId = serverId;
         auth.selectAccountUsageTarget(targetKey);
       }),
+  );
+  /* With no provider ready or loading, no refresh follows, so the reading goes. */
+  createEffect(
+    () => usageReady() || providersLoading(),
+    (refreshFollows) => {
+      if (!refreshFollows) untrack(auth.invalidateAccountUsage);
+    },
   );
 
   /* The backend reads only the providers that are available. While a reading shows, a read during the checks

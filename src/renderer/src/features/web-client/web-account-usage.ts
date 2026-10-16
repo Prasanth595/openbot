@@ -53,9 +53,12 @@ export function createWebAccountUsage(options: {
   createEffect(usageHostId, () => {
     setAccountUsage(null);
   });
-  createEffect(usageTargetKey, () => {
-    if (!untrack(usageReady) && !untrack(providersLoading)) setAccountUsage(null);
-  });
+  createEffect(
+    () => usageReady() || providersLoading(),
+    (refreshFollows) => {
+      if (!refreshFollows) setAccountUsage(null);
+    },
+  );
   // The composer shows the usage-limit notice with the Usage page closed, so read once for each target.
   // As on desktop, while a reading shows, the read waits for the provider checks to end.
   const hasReading = createMemo(() => (accountUsage()?.limits.length ?? 0) > 0);
