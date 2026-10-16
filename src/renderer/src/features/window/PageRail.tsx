@@ -130,6 +130,8 @@ export interface PageRailProps {
   /** Absent while Marketplace cannot open. */
   onMarketplace?: (() => void) | undefined;
   onSettings: (button: HTMLElement) => void;
+  /** A notice for the Settings button, such as an update, when no other place shows it. A dot marks it. */
+  settingsNotice?: string | undefined;
   /** The Help menu, between Marketplace and Settings. */
   help: JSX.Element;
 }
@@ -182,8 +184,15 @@ export function PageRail(props: PageRailProps) {
           )}
         </Show>
         {props.help}
-        <RailButton label={t("app.rail.settings")} current={props.current === "settings"} onClick={props.onSettings}>
+        <RailButton
+          label={props.settingsNotice ? `${t("app.rail.settings")}. ${props.settingsNotice}` : t("app.rail.settings")}
+          current={props.current === "settings"}
+          onClick={props.onSettings}
+        >
           <Settings aria-hidden="true" />
+          <Show when={props.settingsNotice}>
+            <span class="window-rail-notice" aria-hidden="true" />
+          </Show>
         </RailButton>
       </div>
     </nav>

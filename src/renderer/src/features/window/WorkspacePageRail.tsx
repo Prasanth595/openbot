@@ -1,3 +1,4 @@
+import { isUpdateActivePhase } from "@openbot/contracts/ipc";
 import { accountUsageProviderRows } from "@openbot/ui/features/account/account-usage-view";
 import type { SidebarView } from "@openbot/ui/features/sidebar/sidebar-types";
 import { HelpMenu, type HelpMenuNews } from "@openbot/ui/features/updates/HelpMenu";
@@ -11,6 +12,7 @@ import { useAgents } from "../agents/agents-context";
 import { withHostAccountUsage } from "../agents/host-provider-accounts";
 import { useChannels } from "../channels/channels-context";
 import { useSettings } from "../settings/settings-context";
+import { useUpdates } from "../updates/updates-context";
 import { useWhatsNew } from "../updates/whats-new-context";
 import { compareReleaseVersions } from "../updates/whats-new-history";
 import { loadWhatsNewReleases } from "../updates/whats-new-releases";
@@ -74,7 +76,8 @@ export function WorkspacePageRail(props: { hidden: boolean }) {
   const windowPage = useWindowPage();
   const auth = useAuth();
   const { agentStatus, hostAccountLimits } = useAgents();
-  const { setSkillsMarketplaceOpen } = useSettings();
+  const { openAppSettings, setSkillsMarketplaceOpen } = useSettings();
+  const updates = useUpdates();
   const layout = useLayout();
   const channels = useChannels();
   /** Agents and Routines show the same page; they set the list of the sidebar. */
@@ -91,6 +94,12 @@ export function WorkspacePageRail(props: { hidden: boolean }) {
       text,
     ).filter((row) => row.reportsUsage && row.windows.length > 0),
   );
+  /** The compact sidebar has no footer, so the update island does not show. The Settings button then marks the update. */
+  const updateNotice = () => {
+    const phase = updates.status().phase;
+    if (!layout.leftPanelCompact() || !isUpdateActivePhase(phase)) return undefined;
+    return text.t(phase === "ready" || phase === "installing" ? "account.update.ready" : "account.update.available");
+  };
   const current = (): PageRailPage | null => {
     const page = windowPage.page();
     if (page === "agents") return layout.sidebarView();
@@ -106,7 +115,8 @@ export function WorkspacePageRail(props: { hidden: boolean }) {
       onSchedule={windowPage.openSchedule}
       onUsage={windowPage.openUsage}
       onMarketplace={() => setSkillsMarketplaceOpen(true)}
-      onSettings={windowPage.openSettings}
+      onSettings={(button) => (updateNotice() ? openAppSettings(button, "updates") : windowPage.openSettings(button))}
+      settingsNotice={updateNotice()}
       help={<RailHelpMenu />}
     />
   );

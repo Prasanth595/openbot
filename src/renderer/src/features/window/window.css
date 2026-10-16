@@ -84,6 +84,17 @@
   height: var(--openbot-icon-lg);
 }
 
+/* The dot of a rail button that has a notice, such as an update. */
+.window-rail-notice {
+  position: absolute;
+  top: var(--openbot-space-1-5);
+  right: var(--openbot-space-1-5);
+  width: var(--openbot-space-2);
+  height: var(--openbot-space-2);
+  border-radius: var(--openbot-radius-pill);
+  background: var(--openbot-badge-new);
+}
+
 /* The box of a rail button that has a hover card, so the card has a place to point at. */
 .window-rail-card-trigger {
   display: flex;
