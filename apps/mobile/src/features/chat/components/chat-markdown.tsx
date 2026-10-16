@@ -847,7 +847,7 @@ export const ChatMarkdown = memo(function ChatMarkdown({
     [body, finished],
   );
   const reveal = useMemo(() => createReplyReveal(tokens), [tokens]);
-  const visibleTokens = useReplyPlayback(reveal, playback);
+  const { tokens: visibleTokens, flushed } = useReplyPlayback(reveal, playback);
   const codeColor = useThemeColor("foreground");
   const { t } = useText();
   // A reply turns into native text views once it has stopped streaming and its words have all
@@ -895,7 +895,7 @@ export const ChatMarkdown = memo(function ChatMarkdown({
           t,
           streaming,
           finished,
-          animateTail: (streaming || Boolean(playback?.enabled)) && animationEnabled && textReveal,
+          animateTail: (streaming || (Boolean(playback?.enabled) && !flushed)) && animationEnabled && textReveal,
           nativeSelection: revealed ? nativeTarget : undefined,
         }}
       />

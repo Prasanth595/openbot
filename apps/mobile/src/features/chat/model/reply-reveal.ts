@@ -11,6 +11,21 @@ export function replyWordDelay(word: string): number {
   return Math.min(80, 40 + word.trim().length * 3);
 }
 
+/** Playback time before a complete reply can show its remaining words at once. */
+export const REPLY_FLUSH_AFTER_MS = 1000;
+/** A remaining tail shorter than this plays to its end. */
+const REPLY_FLUSH_TAIL_MS = 500;
+
+/** A complete reply shows its remaining words at once unless only a short tail remains. */
+export function replyFlushes(words: readonly string[], from: number): boolean {
+  let remaining = REPLY_FLUSH_TAIL_MS;
+  for (const word of words.slice(from)) {
+    remaining -= replyWordDelay(word);
+    if (remaining < 0) return true;
+  }
+  return false;
+}
+
 export function replyWordFeedback(word: string, index: number): "selection" | "soft" | "light" {
   if (/[.!?…]["'”’)]*\s*$/u.test(word)) return "light";
   return index % 4 === 0 || word.trim().length > 8 ? "soft" : "selection";

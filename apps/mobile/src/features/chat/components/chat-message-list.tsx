@@ -502,6 +502,10 @@ const MessageRow = memo(function MessageRow({
               markRevealed(message.id);
               replyHaptics.onWord(word, index);
             },
+            onFlush: () => {
+              markRevealed(message.id);
+              replyHaptics.onFlush();
+            },
             onComplete: replyHaptics.onComplete,
           }
         : undefined,
