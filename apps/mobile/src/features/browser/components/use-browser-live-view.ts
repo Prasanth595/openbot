@@ -32,9 +32,6 @@ export function useBrowserLiveView(
   onContextMenu: (menu: BrowserViewContextMenu) => void,
 ) {
   const { openBrowserView } = useMobileWorkspaceActions();
-  // The workspace value changes with every server and agent update. A view stays open through them.
-  const open = useRef(openBrowserView);
-  open.current = openBrowserView;
   const contextMenu = useRef(onContextMenu);
   contextMenu.current = onContextMenu;
   const image = useSharedValue<SkImage | null>(null);
@@ -73,7 +70,7 @@ export function useBrowserLiveView(
     drawn.current = null;
     const retired: SkImage[] = [];
     let live = false;
-    const view = open.current(serverId, tabId, (event) => {
+    const view = openBrowserView(serverId, tabId, (event) => {
       if (event.type === "frame") {
         let decoded: SkImage | null = null;
         try {
@@ -125,7 +122,7 @@ export function useBrowserLiveView(
       drawn.current = null;
       selections.current = [];
     };
-  }, [active, image, queue, serverId, tabId]);
+  }, [active, image, queue, serverId, tabId, openBrowserView]);
 
   /** The page's selected text, or null when it is longer than one copy carries. Rejects when the host does not answer. */
   const requestSelection = useCallback(
