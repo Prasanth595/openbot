@@ -47,12 +47,12 @@ function contents(db: DatabaseSync) {
 
 function typeIndexColumns(db: DatabaseSync) {
   return db
-    .prepare("SELECT name FROM pragma_index_info('orchestration_events_aggregate_type') ORDER BY seqno")
+    .prepare("SELECT name FROM pragma_index_info('orchestration_events_thread_type') ORDER BY seqno")
     .all()
     .map((column) => column.name);
 }
 
-const TYPE_INDEX_COLUMNS = ["aggregate_type", "aggregate_id", "event_type", "sequence"];
+const TYPE_INDEX_COLUMNS = ["aggregate_id", "event_type", "sequence"];
 
 function expectHealthy(db: DatabaseSync): void {
   expect(db.prepare("SELECT MAX(version) AS version FROM schema_migrations").get()).toEqual({ version: 42 });
@@ -95,11 +95,11 @@ describe("event type index migration", () => {
     seedEvents(db);
     const before = contents(db);
     // SQLite refuses an index whose name a table holds, even with IF NOT EXISTS.
-    db.exec("CREATE TABLE orchestration_events_aggregate_type (conflict TEXT)");
+    db.exec("CREATE TABLE orchestration_events_thread_type (conflict TEXT)");
     expect(() => migrateOpenBotDatabase(db)).toThrow("migration to version 42 failed");
     expect(db.prepare("SELECT version FROM schema_migrations WHERE version = 42").all()).toEqual([]);
     expect(contents(db)).toEqual(before);
-    db.exec("DROP TABLE orchestration_events_aggregate_type");
+    db.exec("DROP TABLE orchestration_events_thread_type");
     migrateOpenBotDatabase(db);
     expect(contents(db)).toEqual(before);
     expect(typeIndexColumns(db)).toEqual(TYPE_INDEX_COLUMNS);
