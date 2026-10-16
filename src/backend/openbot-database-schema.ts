@@ -462,6 +462,14 @@ const V41_ATTACHMENT_OWNER_INDEX_SQL = `
   CREATE INDEX IF NOT EXISTS attachments_owner ON projection_attachments(owner_kind, owner_id);
 `;
 
+// Migration 42 indexes the columns that a routine flow sweep filters on. A sweep runs on each turn and queue
+// change, and without them each one is a scan of every routine run and flow step (#2283). Frozen with the migration.
+const V42_ROUTINE_FLOW_SWEEP_INDEX_SQL = `
+  CREATE INDEX IF NOT EXISTS routine_runs_status_updated ON projection_routine_runs(status, updated_at);
+  CREATE INDEX IF NOT EXISTS routine_flow_steps_status ON routine_flow_steps(status);
+  CREATE INDEX IF NOT EXISTS routine_flow_steps_updated ON routine_flow_steps(updated_at);
+`;
+
 const BASELINE_AGENT_ROUTINES_END_SQL = `    last_event_sequence INTEGER NOT NULL
   );
   CREATE INDEX IF NOT EXISTS agent_routines_agent`;
@@ -573,7 +581,8 @@ const LATEST_SCHEMA_SQL =
   ROUTINE_RESULT_SCHEMA_SQL +
   AGENT_TASK_SCHEMA_SQL +
   V40_THREAD_MESSAGE_ORDER_INDEX_SQL +
-  V41_ATTACHMENT_OWNER_INDEX_SQL;
+  V41_ATTACHMENT_OWNER_INDEX_SQL +
+  V42_ROUTINE_FLOW_SWEEP_INDEX_SQL;
 
 /** The end of the thread message table with the migration 40 columns before its PRIMARY KEY constraint. */
 function withThreadMessageOrderColumns(tableEnd: string): string {
@@ -807,6 +816,11 @@ const MIGRATIONS: readonly OpenBotMigration[] = [
     version: 41,
     // Only creates an index, so no foreign-key pause and no vacuum.
     up: (db) => db.exec(V41_ATTACHMENT_OWNER_INDEX_SQL),
+  },
+  {
+    version: 42,
+    // Only creates indexes, so no foreign-key pause and no vacuum.
+    up: (db) => db.exec(V42_ROUTINE_FLOW_SWEEP_INDEX_SQL),
   },
 ];
 
