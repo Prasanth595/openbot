@@ -16,7 +16,7 @@ import {
 import { ComputerIcon } from "@openbot/ui/features/conversation/ConversationIcons";
 import { useText } from "@openbot/ui/text";
 import type { JSX } from "@solidjs/web";
-import { For, flush, Show } from "solid-js";
+import { For, flush, onSettled, Show } from "solid-js";
 
 /** A pane of the side panel. Each open pane has a tab at the top of the panel. */
 export type SidePanelPane = "browser" | "files" | "tasks" | "settings";
@@ -221,14 +221,22 @@ export function SidePanelHeader(props: SidePanelHeaderProps) {
   );
 }
 
-/** With no open pane, the side panel lists the panes it can open. */
+/**
+ * With no open pane, the side panel lists the panes it can open. When the last tab closes, the focus
+ * goes with it, so the first pane button takes the focus.
+ */
 export function SidePanelLauncher(props: {
   available: readonly SidePanelPane[];
   onOpen: (pane: SidePanelPane) => void;
 }) {
   const { t } = useText();
+  let launcher: HTMLElement | undefined;
+  onSettled(() => {
+    if (document.activeElement === null || document.activeElement === document.body)
+      launcher?.querySelector<HTMLElement>("button")?.focus();
+  });
   return (
-    <nav class="side-panel-launcher" aria-label={t("conversation.sidePanel.launcher")}>
+    <nav ref={launcher} class="side-panel-launcher" aria-label={t("conversation.sidePanel.launcher")}>
       <For each={props.available}>
         {(pane) => (
           <Button variant="secondary" class="side-panel-launch" onClick={() => props.onOpen(pane)}>
