@@ -5,7 +5,7 @@ import type { ConversationMessage, ConversationSnapshot } from "@openbot/contrac
 import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import type { AgentRoster } from "./agent-roster";
 import { recordUsageMessage } from "./agent-usage";
-import { type DatabaseCore, deleteOrphanReceipts } from "./database-core";
+import { type DatabaseCore, deleteReceiptsOf } from "./database-core";
 import {
   databaseRow,
   databaseRows,
@@ -835,10 +835,9 @@ function conversationRecoveryState(
  * Drops the earlier events for a message that is still streaming, so the log holds one event per
  * streaming message instead of one per 100 ms flush.
  *
- * The receipt of each dropped event goes with it. `deleteOrphanReceipts` would find the same rows,
- * but it scans the whole receipts table to do it, and this runs on the flush path - the cost this
- * write path exists to remove. The command ids are read first so each receipt is deleted by key,
- * and the `NOT EXISTS` guard keeps a receipt whose command wrote more than the one event.
+ * The receipt of each dropped event goes with it. The command ids are read first so each receipt is
+ * deleted by key: this runs on the flush path, and a scan of the whole receipts table is the cost
+ * this write path exists to remove.
  */
 function supersedeStreamedMessageEvents(
   db: DatabaseSync,
@@ -866,12 +865,7 @@ function supersedeStreamedMessageEvents(
     retainedSequence,
     messageId,
   );
-  const deleteReceipt = db.prepare(
-    `DELETE FROM orchestration_command_receipts
-     WHERE command_id = ?
-       AND NOT EXISTS (SELECT 1 FROM orchestration_events WHERE command_id = ?)`,
-  );
-  for (const commandId of supersededCommandIds) deleteReceipt.run(commandId, commandId);
+  deleteReceiptsOf(db, supersededCommandIds);
 }
 
 function pruneConversationSnapshots(db: DatabaseSync, threadId: string, retainedSequence: number): void {
@@ -882,6 +876,9 @@ function pruneConversationSnapshots(db: DatabaseSync, threadId: string, retained
     aggregate_type = 'thread' AND aggregate_id = ? AND sequence < ?
       AND (json_type(payload_json, '$.snapshot') = 'object'
         OR json_type(payload_json, '$.streamedMessage') = 'object')`;
+  const supersededCommandIds = databaseRows(
+    db.prepare(`SELECT command_id FROM orchestration_events WHERE ${supersededEvents}`).all(threadId, retainedSequence),
+  ).map((row) => requiredStringColumn(row, "command_id"));
   db.prepare(
     `DELETE FROM projection_thread_activities
      WHERE thread_id = ? AND last_event_sequence IN (
@@ -889,5 +886,5 @@ function pruneConversationSnapshots(db: DatabaseSync, threadId: string, retained
      )`,
   ).run(threadId, threadId, retainedSequence);
   db.prepare(`DELETE FROM orchestration_events WHERE ${supersededEvents}`).run(threadId, retainedSequence);
-  deleteOrphanReceipts(db);
+  deleteReceiptsOf(db, supersededCommandIds);
 }

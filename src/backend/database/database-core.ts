@@ -218,12 +218,19 @@ function decodeReceiptRow(value: unknown): ReceiptRow | null {
   };
 }
 
-export function deleteOrphanReceipts(db: DatabaseSync): void {
-  db.exec(`DELETE FROM orchestration_command_receipts
-    WHERE NOT EXISTS (
-      SELECT 1 FROM orchestration_events
-      WHERE orchestration_events.command_id = orchestration_command_receipts.command_id
-    )`);
+/**
+ * Deletes the receipts of commands whose events were just dropped. Each receipt is deleted by key,
+ * because a sweep for every orphan scans the whole receipts table, which grows without limit. The
+ * `NOT EXISTS` guard keeps a receipt whose command still has an event.
+ */
+export function deleteReceiptsOf(db: DatabaseSync, commandIds: readonly string[]): void {
+  if (commandIds.length === 0) return;
+  const deleteReceipt = db.prepare(
+    `DELETE FROM orchestration_command_receipts
+     WHERE command_id = ?
+       AND NOT EXISTS (SELECT 1 FROM orchestration_events WHERE command_id = ?)`,
+  );
+  for (const commandId of commandIds) deleteReceipt.run(commandId, commandId);
 }
 
 export function deleteAggregateHistory(db: DatabaseSync, aggregateType: string, aggregateIds: readonly string[]): void {

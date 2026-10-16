@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
-import { type DatabaseCore, deleteOrphanReceipts } from "./database-core";
+import { type DatabaseCore, deleteReceiptsOf } from "./database-core";
 import { databaseRow, databaseRows, requiredStringColumn } from "./database-rows";
 
 interface MailboxProjectionAttachment {
@@ -113,11 +113,12 @@ export class MailboxProjection {
       ],
       (db, sequences) => {
         const sequence = sequences[0] ?? 0;
-        db.prepare(
-          `DELETE FROM orchestration_events
-           WHERE aggregate_type = 'mailbox' AND aggregate_id = 'mailbox' AND sequence < ?`,
-        ).run(sequence);
-        deleteOrphanReceipts(db);
+        const olderEvents = "aggregate_type = 'mailbox' AND aggregate_id = 'mailbox' AND sequence < ?";
+        const olderCommandIds = databaseRows(
+          db.prepare(`SELECT command_id FROM orchestration_events WHERE ${olderEvents}`).all(sequence),
+        ).map((row) => requiredStringColumn(row, "command_id"));
+        db.prepare(`DELETE FROM orchestration_events WHERE ${olderEvents}`).run(sequence);
+        deleteReceiptsOf(db, olderCommandIds);
         const value = state;
         const attachments = mailboxAttachmentRows(value);
         // Deliveries go before their messages, as in the full rewrite this replaced, so no row
