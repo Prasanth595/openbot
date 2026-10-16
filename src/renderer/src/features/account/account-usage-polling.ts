@@ -38,6 +38,7 @@ export function useAccountUsagePolling() {
     return `${serverId}:${connected}`;
   });
   let lastRefreshAt = 0;
+  let selectedServerId: string | null = null;
 
   function refresh(targetKey: string) {
     lastRefreshAt = Date.now();
@@ -45,9 +46,16 @@ export function useAccountUsagePolling() {
     void auth.refreshAccountUsage(targetKey).catch(() => undefined);
   }
 
+  /* A reading belongs to one server. While models load, each provider check changes the target; the
+   * reading of the same server then stays until the next one replaces it, so the rail rings do not blink. */
   createEffect(
     () => usageTargetKey(),
-    (targetKey) => untrack(() => auth.selectAccountUsageTarget(targetKey)),
+    (targetKey) =>
+      untrack(() => {
+        const serverId = activeServerId() ?? null;
+        auth.selectAccountUsageTarget(targetKey, { keepReading: serverId !== null && serverId === selectedServerId });
+        selectedServerId = serverId;
+      }),
   );
 
   createEffect(

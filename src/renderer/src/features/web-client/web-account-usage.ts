@@ -5,7 +5,7 @@ import type { WebWorkspace } from "./web-client-context";
 
 /**
  * The account usage reading of the connected host, for the account dock and the composer's usage-limit
- * notice. As on desktop, a reading is for one host and one set of connected providers.
+ * notice. As on desktop, a reading is for one host and is taken again for each set of connected providers.
  */
 export function createWebAccountUsage(options: {
   workspace: Pick<WebWorkspace, "state" | "runtime" | "onHostEvent">;
@@ -15,10 +15,15 @@ export function createWebAccountUsage(options: {
   const { workspace, status } = options;
   const [accountUsage, setAccountUsage] = createSignal<AccountUsage | null>(null);
   let usageGeneration = 0;
+  /** The host that the reading is for, while it is online. */
+  const usageHostId = createMemo(() => {
+    const hostId = workspace.state.host?.hostId;
+    return hostId && workspace.runtime.accountUsage && workspace.state.status === "online" ? hostId : null;
+  });
   /* As in the desktop dock: the reading is taken again when a provider connects or disconnects. */
   const usageTargetKey = createMemo(() => {
-    const hostId = workspace.state.host?.hostId;
-    if (!hostId || !workspace.runtime.accountUsage || workspace.state.status !== "online") return null;
+    const hostId = usageHostId();
+    if (!hostId) return null;
     const connected = (status().providers ?? [])
       .filter((item) => item.state === "available" && item.connectionState !== "connecting")
       .map((item) => item.id)
@@ -26,8 +31,9 @@ export function createWebAccountUsage(options: {
       .join(",");
     return `${hostId}:${connected}`;
   });
-  // As on desktop: a reading is for one host and one set of connected providers.
-  createEffect(usageTargetKey, () => {
+  // As on desktop: a reading is for one host. On the same host, a provider check keeps the reading until
+  // the next one replaces it, so the rail rings do not blink while models load.
+  createEffect(usageHostId, () => {
     setAccountUsage(null);
   });
   const usageReady = createMemo(() => {
