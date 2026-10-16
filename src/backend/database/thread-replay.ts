@@ -3,7 +3,7 @@ import type { ConversationMessage, ConversationSnapshot } from "@openbot/contrac
 import { isAgentProvider } from "@openbot/contracts/ipc";
 import { type DynamicRecord, isNumber, isString } from "@openbot/contracts/runtime-values";
 import type { ConversationQueries } from "./conversation-queries";
-import type { DatabaseCore } from "./database-core";
+import { type DatabaseCore, deleteThreadAttachments } from "./database-core";
 import { databaseRows, decodeThreadAgentRow, objectValue, requiredEventRow } from "./database-rows";
 import { currentConversationMessage } from "./legacy-conversation-message";
 import type { ProviderSession } from "./provider-sessions";
@@ -171,9 +171,7 @@ export class ThreadReplay {
       db.prepare("DELETE FROM projection_thread_messages WHERE thread_id = ?").run(threadId);
       db.prepare("DELETE FROM projection_thread_summaries WHERE thread_id = ?").run(threadId);
       db.prepare("DELETE FROM projection_provider_sessions WHERE thread_id = ?").run(threadId);
-      db.prepare("DELETE FROM projection_attachments WHERE owner_kind = 'thread-message' AND owner_id LIKE ?").run(
-        `${threadId}:%`,
-      );
+      deleteThreadAttachments(db, threadId);
       const sessionInsert = db.prepare(`
         INSERT INTO projection_provider_sessions (
           id, thread_id, provider, external_session_id, model, effort, state,

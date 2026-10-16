@@ -240,3 +240,13 @@ export function deleteAggregateHistory(db: DatabaseSync, aggregateType: string, 
     ...aggregateIds,
   );
 }
+
+/**
+ * Deletes the attachments of every message of a thread. Their owner is `<thread>:<message>`, and a range
+ * from `<thread>:` up to `<thread>;` (the next character) reads the owner index; `LIKE` cannot (#2241).
+ */
+export function deleteThreadAttachments(db: DatabaseSync, threadId: string): void {
+  db.prepare(
+    "DELETE FROM projection_attachments WHERE owner_kind = 'thread-message' AND owner_id >= ? AND owner_id < ?",
+  ).run(`${threadId}:`, `${threadId};`);
+}
