@@ -22,11 +22,12 @@ import { STORAGE_ROUTES } from "@openbot/contracts/team-protocol/storage-v1";
 import { sourceText } from "@openbot/i18n/source";
 import { runCauseEffect } from "../../backend/effect-boundary";
 import type { StorageAgent, StorageUsageService } from "../../backend/storage-usage";
+import type { ProviderRuntimeManager } from "../provider-runtime-manager";
 import type { ResponseDecoder } from "../remote-host-decoding";
 import type { RemoteRequestInit } from "../remote-server-client";
 import { agentRequest } from "./agent-inputs";
 import { type OpenAttachmentDependencies, openAttachmentForServer } from "./attachment-handlers";
-import { type IpcGroupHandlers, payloadHandler } from "./define-ipc-group";
+import { handler, type IpcGroupHandlers, payloadHandler } from "./define-ipc-group";
 import { scopedHandler } from "./scoped-handler";
 
 /** The RemoteServerManager members this registrar reaches, and nothing else. */
@@ -43,6 +44,7 @@ interface StorageRemoteServers extends Pick<OpenAttachmentDependencies["remoteSe
 
 export interface StorageIpcDependencies extends Omit<OpenAttachmentDependencies, "remoteServers"> {
   storage: Pick<StorageUsageService, "usage" | "deleteFile" | "clear">;
+  providerRuntimes: Pick<ProviderRuntimeManager, "oldVersions" | "removeOldVersions">;
   remoteServers: StorageRemoteServers;
   agents: () => StorageAgent[];
   openPath: (path: string) => Promise<string>;
@@ -57,6 +59,7 @@ function decodeStorageChange(value: unknown): undefined {
 
 export function storageIpcHandlers({
   storage,
+  providerRuntimes,
   mailbox,
   remoteServers,
   getMainWindow,
@@ -113,6 +116,8 @@ export function storageIpcHandlers({
         const error = await openPath(agent.workspacePath);
         if (error) throw new Error(error);
       }),
+      getOldRuntimeVersions: handler(() => runCauseEffect(providerRuntimes.oldVersions())),
+      removeOldRuntimeVersions: handler(() => runCauseEffect(providerRuntimes.removeOldVersions())),
     },
   };
 }

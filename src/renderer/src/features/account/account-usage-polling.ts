@@ -37,7 +37,17 @@ export function useAccountUsagePolling() {
       .join(",");
     return `${serverId}:${connected}`;
   });
+  /** A provider still starts or checks its sign-in, so a new target and its reading follow. */
+  const providersLoading = createMemo(() => {
+    const status = agentStatus();
+    return (
+      status.phase === "starting" ||
+      status.phase === "restarting" ||
+      Boolean(status.providers?.some((item) => item.state === "checking" || item.connectionState === "connecting"))
+    );
+  });
   let lastRefreshAt = 0;
+  let selectedServerId: string | null = null;
 
   function refresh(targetKey: string) {
     lastRefreshAt = Date.now();
@@ -45,13 +55,31 @@ export function useAccountUsagePolling() {
     void auth.refreshAccountUsage(targetKey).catch(() => undefined);
   }
 
+  /* A reading belongs to one server. On that server, the reading stays until the refresh for the new target
+   * replaces it, so the rail rings do not blink while models load. */
   createEffect(
     () => usageTargetKey(),
-    (targetKey) => untrack(() => auth.selectAccountUsageTarget(targetKey)),
+    (targetKey) =>
+      untrack(() => {
+        const serverId = activeServerId() ?? null;
+        if (serverId !== selectedServerId) auth.invalidateAccountUsage();
+        selectedServerId = serverId;
+        auth.selectAccountUsageTarget(targetKey);
+      }),
+  );
+  /* With no provider ready or loading, no refresh follows, so the reading goes. */
+  createEffect(
+    () => usageReady() || providersLoading(),
+    (refreshFollows) => {
+      if (!refreshFollows) untrack(auth.invalidateAccountUsage);
+    },
   );
 
+  /* The backend reads only the providers that are available. While a reading shows, a read during the checks
+   * would replace it with part of it, so the poll waits for the checks to end. With no reading, it reads at once. */
+  const hasReading = createMemo(() => (auth.accountUsage()?.limits.length ?? 0) > 0);
   createEffect(
-    () => (usageReady() ? usageTargetKey() : null),
+    () => (usageReady() && !(hasReading() && providersLoading()) ? usageTargetKey() : null),
     (target) => {
       if (!target) return;
       const targetKey = target;

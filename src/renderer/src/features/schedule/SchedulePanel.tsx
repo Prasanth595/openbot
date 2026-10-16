@@ -159,10 +159,13 @@ export function ScheduleView(props: ScheduleViewProps) {
     if (routine) props.onOpenRoutine(routine);
   }
 
-  // The page stays open when the user switches the server, so the calendar loads and listens again.
+  // The page stays open when the user switches the server, so the calendar clears, loads and listens again.
   createEffect(
     () => props.serverId,
     (serverId) => {
+      setState((draft) => {
+        draft.calendar = null;
+      });
       void load();
       const unsubscribe = props.source.onStale(serverId, () => void load(true));
       return () => {

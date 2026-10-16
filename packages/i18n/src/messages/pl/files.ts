@@ -91,10 +91,13 @@ export const messages = {
   "files.cleanup.canBeCleared": "Można zwolnić: {size}",
   "files.cleanup.description.caches": "Kopie plików serwera. OpenBot pobierze je ponownie, gdy je otworzysz.",
   "files.cleanup.description.logs": "Logi diagnostyczne. Nowe logi są tworzone od razu.",
+  "files.cleanup.description.runtimes":
+    "Starsze wersje CLI dostawców, których nie używa żaden agent. OpenBot zachowuje używaną wersję i jedną starszą, działającą wersję.",
   "files.cleanup.clear": "Wyczyść",
   "files.cleanup.clearCategory": "Wyczyść: {category}",
   "files.cleanup.confirm.caches": "Wyczyścić pliki serwera z pamięci podręcznej?",
   "files.cleanup.confirm.logs": "Wyczyścić logi?",
+  "files.cleanup.confirm.runtimes": "Usunąć stare wersje CLI dostawców?",
   "files.cleanup.confirmDescription": "To zwolni {size}. {description}",
   "files.cleanup.clearing": "Czyszczenie…",
   "files.cleanup.failed": "Nie udało się wyczyścić danych.",

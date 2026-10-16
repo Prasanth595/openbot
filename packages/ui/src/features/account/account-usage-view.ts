@@ -96,6 +96,11 @@ function usageRowKey(provider: AgentProviderId, accountId: string | null): strin
   return `${provider}\u0000${accountId ?? ""}`;
 }
 
+/** The identity of a row across readings. A list keyed by it keeps its items when a reading builds new rows. */
+export function accountUsageRowKey(row: AccountUsageProviderRow): string {
+  return usageRowKey(row.provider, row.accountId);
+}
+
 function usageRow(
   provider: AgentProviderId,
   accountId: string | null,

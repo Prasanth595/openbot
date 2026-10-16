@@ -4,6 +4,7 @@ import {
   FILES_BREAKDOWN,
   FILES_CHIEF_BREAKDOWN,
   FILES_CONVERSATIONS,
+  FILES_OLD_RUNTIME_BYTES,
   FILES_ROWS,
 } from "../../stories/files-fixtures";
 
@@ -13,6 +14,7 @@ const GB = 1024 ** 3;
 export function createMockStorage(): StorageDesktopApi {
   let files = structuredClone(FILES_ROWS);
   let breakdown = structuredClone(FILES_BREAKDOWN);
+  let oldRuntimeBytes = FILES_OLD_RUNTIME_BYTES;
 
   const usage = (input: GetStorageUsageInput): StorageUsage => {
     const inScope = (agentId: string | null, conversationId: string | null) =>
@@ -45,5 +47,13 @@ export function createMockStorage(): StorageDesktopApi {
     },
     openFile: async () => undefined,
     openLocation: async () => undefined,
+    getOldRuntimeVersions: async () => ({ bytes: oldRuntimeBytes }),
+    removeOldRuntimeVersions: async () => {
+      breakdown = breakdown.map((row) =>
+        row.category === "runtimes" ? { ...row, bytes: row.bytes - oldRuntimeBytes } : row,
+      );
+      oldRuntimeBytes = 0;
+      return { bytes: 0 };
+    },
   };
 }
