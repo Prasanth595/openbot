@@ -3891,7 +3891,9 @@ describe("OpenBotDatabase", () => {
   it("checks the file after a migration at a start after a clean close", async () => {
     const database = await createDatabase();
     const userDataPath = database.userDataPath;
-    database.connection.exec("DROP TABLE projection_agent_tasks; DELETE FROM schema_migrations WHERE version = 38");
+    database.connection.exec(
+      "DROP TABLE projection_agent_tasks; DELETE FROM schema_migrations WHERE version IN (38, 39)",
+    );
     damageProbeTable(database);
 
     // The first start applies the migration; the second has none to run and must still check.
