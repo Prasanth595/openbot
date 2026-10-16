@@ -150,7 +150,8 @@ Restore marks the missed routine runs as skipped before it clears the flag, so t
 run a backlog. Then it arms the routines and drains the queue. IPC `agent:hidden:list` and
 `agent:hidden:set` change the state, and the event `hidden-agents-changed` carries the whole list.
 A joined desktop, the web client and the mobile app use the optional `agent-hidden-v1` capability
-(`packages/contracts/src/team-protocol/agent-hidden-v1.ts`), which any member can call.
+(`packages/contracts/src/team-protocol/agent-hidden-v1.ts`). Any member reads the list; only an
+owner or an admin hides or restores an agent on a host.
 `/v1/agents` and the released agent codecs do not carry `hiddenAt`.
 
 ## Agent tasks

@@ -103,6 +103,7 @@ export const messages = defineMessages("error.team", {
   "error.team.searchQueryRequired": "A valid search query is required.",
   "error.team.agentAnalyticsUnsupported": "Agent analytics is not supported by this client.",
   "error.team.membersCannotDeleteAgents": "Members cannot delete agents.",
+  "error.team.membersCannotHideAgents": "Members cannot hide or restore agents.",
   "error.team.avatarType": "Choose a PNG, JPEG, or WebP image.",
   "error.team.avatarNotFound": "Agent avatar not found.",
   "error.team.secureAuthUnsupported": "Secure authentication is not supported by this client.",

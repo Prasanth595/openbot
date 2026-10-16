@@ -8,7 +8,8 @@ import type { RouteOutcome, TeamApiRequestContext } from "./request-context";
 import { readJson, requireVisibleBodyAgent } from "./request-helpers";
 
 /**
- * Any member reads the hidden agents, and hides or restores one. An agent that this peer cannot see
+ * Any member reads the hidden agents. Only an owner or an admin hides or restores one, as for a delete:
+ * a hidden agent does not run its routines and refuses messages for all members. An agent that this peer cannot see
  * (`hiddenAgentIds`, a provider its protocol does not know) is not in the list and cannot be set.
  */
 export async function routeAgentHidden(
@@ -24,6 +25,7 @@ export async function routeAgentHidden(
   const body = await readJson(request);
   if (url.pathname === AGENT_HIDDEN_ROUTES.read)
     return json(200, visibleSnapshot(hiddenAgents.listHiddenAgents(), hiddenAgentIds));
+  if (context.member.role === "member") throw new HttpError(403, sourceText("error.team.membersCannotHideAgents"));
   requireVisibleBodyAgent(body, hiddenAgentIds);
   const snapshot = await runCauseEffect(hiddenAgents.setAgentHidden(parseSetAgentHiddenInput(body)));
   return json(200, visibleSnapshot(snapshot, hiddenAgentIds));

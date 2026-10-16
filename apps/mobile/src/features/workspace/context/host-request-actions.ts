@@ -176,6 +176,14 @@ export function hidesAgentsOnHost(capabilities: readonly string[] | undefined): 
   return capabilities?.includes(AGENT_HIDDEN_CAPABILITY) ?? false;
 }
 
+/**
+ * An owner or an admin hides on the host. The host refuses a member, so a member hides on this phone
+ * only, as on a host without the capability.
+ */
+export function hostOwnsHide(capabilities: readonly string[] | undefined, role: string | undefined): boolean {
+  return hidesAgentsOnHost(capabilities) && (role === "owner" || role === "admin");
+}
+
 /** The hidden agents of a host that serves `agent-hidden-v1`, or null for an older host. */
 export async function readHostHiddenAgents(
   request: TeamApiRequest,

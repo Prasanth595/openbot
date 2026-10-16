@@ -369,7 +369,10 @@ export interface MobileWorkspaceContextValue {
   ) => Promise<DraftAttachment>;
   downloadAttachment: (serverId: string, attachmentId: string) => Promise<RemoteFileUpload>;
   discardAttachment: (agentId: string, attachmentId: string, serverId?: string) => Promise<void>;
-  /** True when the server owns the hidden agents (`agent-hidden-v1`), so each device shows the same list. */
+  /**
+   * True when a hide goes to the host (`agent-hidden-v1`, and the user is an owner or admin), so each
+   * device shows it. A member hides on this phone only.
+   */
   hidesAgentsOnServer: (serverId: string) => boolean;
   /** Hides an agent of the active server: on the host when it owns the list, else on this phone only. */
   hideAgent: (agentId: string) => void;

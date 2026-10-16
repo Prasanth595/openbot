@@ -108,6 +108,7 @@ export const messages = {
   "error.team.searchQueryRequired": "Serve una ricerca valida.",
   "error.team.agentAnalyticsUnsupported": "Le analisi dell'agente non sono supportate da questo client.",
   "error.team.membersCannotDeleteAgents": "I membri non possono eliminare gli agenti.",
+  "error.team.membersCannotHideAgents": "I membri non possono nascondere né ripristinare gli agenti.",
   "error.team.avatarType": "Scegli un'immagine PNG, JPEG o WebP.",
   "error.team.avatarNotFound": "Avatar dell'agente non trovato.",
   "error.team.secureAuthUnsupported": "L'autenticazione sicura non è supportata da questo client.",

@@ -103,6 +103,7 @@ export const messages = {
   "error.team.searchQueryRequired": "Geçerli bir arama sorgusu gereklidir.",
   "error.team.agentAnalyticsUnsupported": "Ajan analitiği bu istemci tarafından desteklenmiyor.",
   "error.team.membersCannotDeleteAgents": "Üyeler ajanları silemez.",
+  "error.team.membersCannotHideAgents": "Üyeler ajanları gizleyemez veya geri yükleyemez.",
   "error.team.avatarType": "Bir PNG, JPEG veya WebP görseli seçin.",
   "error.team.avatarNotFound": "Ajan avatarı bulunamadı.",
   "error.team.secureAuthUnsupported": "Güvenli kimlik doğrulaması bu istemci tarafından desteklenmiyor.",

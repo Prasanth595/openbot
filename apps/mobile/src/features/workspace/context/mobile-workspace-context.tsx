@@ -77,6 +77,7 @@ import { createBrowserActions } from "@/features/workspace/context/browser-actio
 import {
   createHostRequestActions,
   hidesAgentsOnHost,
+  hostOwnsHide,
   readHostHiddenAgents,
   requestAgentAvatar,
   writeHostAgentHidden,
@@ -1312,8 +1313,9 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         void loadConversation(agentId).catch(() => undefined);
       },
       hideAgent: (agentId) => {
-        const serverId = currentActiveServer().id;
-        if (hidesAgentsOnHost(serverCapabilities.current.get(serverId))) {
+        const server = currentActiveServer();
+        const serverId = server.id;
+        if (hostOwnsHide(serverCapabilities.current.get(serverId), server.role)) {
           // The host owns the hide. The pin stays a preference of this phone.
           if (preferencesRef.current[serverId]?.pinned.includes(agentId))
             updatePreferences(serverId, (current) => ({
@@ -1444,7 +1446,8 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       activeAgents,
       hiddenAgents,
       pinnedAgentIds,
-      hidesAgentsOnServer: (serverId) => hidesAgentsOnHost(serverCapabilities.current.get(serverId)),
+      hidesAgentsOnServer: (serverId) =>
+        hostOwnsHide(serverCapabilities.current.get(serverId), servers.find((server) => server.id === serverId)?.role),
       canEditServerIdentity: (serverId) => administers(serverId, HOST_ADMIN_CAPABILITY),
       canSendNotifications: (serverId) =>
         servers.some((server) => server.id === serverId && showsOnline(server)) && supportsPushNotifications(serverId),

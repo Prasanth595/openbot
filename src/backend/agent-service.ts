@@ -2082,11 +2082,6 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     if (this.#store.isHidden(agentId)) throw new Error(sourceText("error.backend.recipientHidden"));
   }
 
-  /** Whether the agent is hidden. Tools and channels leave a hidden agent out. */
-  isAgentHidden(agentId: string): boolean {
-    return this.#store.isHidden(agentId);
-  }
-
   setMarketplaceSource(agentId: string, source: NonNullable<AgentSummary["marketplaceSource"]>): AgentSummary {
     const agent = this.#store.setMarketplaceSource(agentId, source);
     this.#emit({ type: "agents-changed", agents: this.listAgents() });

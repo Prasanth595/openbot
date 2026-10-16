@@ -103,6 +103,7 @@ export const messages = {
   "error.team.searchQueryRequired": "有効な検索クエリが必要です。",
   "error.team.agentAnalyticsUnsupported": "このクライアントはエージェントの分析に対応していません。",
   "error.team.membersCannotDeleteAgents": "メンバーはエージェントを削除できません。",
+  "error.team.membersCannotHideAgents": "メンバーはエージェントを非表示にしたり復元したりできません。",
   "error.team.avatarType": "PNG、JPEG、または WebP 画像を選択してください。",
   "error.team.avatarNotFound": "エージェントのアバターが見つかりません。",
   "error.team.secureAuthUnsupported": "このクライアントは安全な認証に対応していません。",

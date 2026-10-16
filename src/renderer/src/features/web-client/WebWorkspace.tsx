@@ -1199,8 +1199,11 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
       },
     );
   }
+  // The host refuses a member: a hidden agent stops for every member, as a deleted one does.
   const hideSupported = () =>
-    workspace.state.status === "online" && workspace.state.capabilities.includes(AGENT_HIDDEN_CAPABILITY);
+    workspace.state.status === "online" &&
+    workspace.state.capabilities.includes(AGENT_HIDDEN_CAPABILITY) &&
+    (workspace.state.host?.role === "owner" || workspace.state.host?.role === "admin");
   function startCreate() {
     setMobilePane("conversation");
     channels.close();
