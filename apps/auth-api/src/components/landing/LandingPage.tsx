@@ -1,13 +1,13 @@
 import { AppLogo, PlatformLogo, ProviderLogo } from "@openbot/brand";
 import { onSettled } from "solid-js";
 import { landingAnalytics } from "../../lib/analytics";
+import { ContentCallToAction } from "../content/ContentCallToAction";
 import { ButtonLink } from "../ui/button";
 import { AgentNetworkSection } from "./AgentNetworkSection";
 import { DownloadSection } from "./DownloadSection";
 import { FaqSection } from "./FaqSection";
 import { FeaturesSection } from "./FeaturesSection";
 import { HeroDownloadSelector } from "./HeroDownloadSelector";
-import { LandingAgentBand } from "./LandingAgentBand";
 import { LandingAppPreview } from "./LandingAppPreview";
 import { LandingFooter } from "./LandingFooter";
 import { LandingGlow } from "./LandingGlow";
@@ -111,8 +111,8 @@ export function LandingPage() {
         <PricingSection />
         <TeamsSection />
         <FaqSection />
-        <LandingAgentBand />
         <DownloadSection />
+        <ContentCallToAction />
       </main>
       <LandingFooter />
       <LandingGlow />
