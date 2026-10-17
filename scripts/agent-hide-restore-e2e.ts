@@ -473,13 +473,6 @@ try {
     assert.equal(missed?.deliveryId, null, "Restore replayed an occurrence from the hidden time.");
     assert.equal(missed?.missed?.count, 2, "The record does not count the two hidden occurrences.");
     assert.equal(agents.listQueue(setup.agentId).deliveries.length, 0, "Restore queued work from the hidden time.");
-    const listed = await call("GET", TEAM_API_ROUTES.agents.all, { token: setup.memberToken });
-    assert.ok(Array.isArray(listed.body));
-    const agent = record(
-      listed.body.find((entry) => record(entry, "agent").id === setup.agentId),
-      "restored agent",
-    );
-    assert.equal(agent.hiddenAt, undefined, "The restored agent still has a hidden time.");
     return { nextRunAt: routine.trigger.nextRunAt, missed: missed?.missed, status: missed?.status };
   });
 

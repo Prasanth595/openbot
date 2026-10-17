@@ -205,6 +205,18 @@ let agents: AgentService | undefined;
 /** Registers the IPC handler again after a restart. */
 let restarted = () => {};
 
+function isServerSummary(value: unknown): value is ServerSummary {
+  if (typeof value !== "object" || value === null) return false;
+  return (
+    "id" in value &&
+    typeof value.id === "string" &&
+    "notificationsMuted" in value &&
+    typeof value.notificationsMuted === "boolean" &&
+    "notificationsMutedUntil" in value &&
+    (value.notificationsMutedUntil === null || typeof value.notificationsMutedUntil === "number")
+  );
+}
+
 function localServer(servers: ServerSummary[]): ServerSummary {
   const server = servers.find((candidate) => candidate.id === LOCAL_SERVER_ID);
   assert.ok(server, "The server list has no local server.");
@@ -278,8 +290,8 @@ try {
     const listener = ipcListeners.get(channel);
     assert.ok(listener, `No IPC handler is registered for ${channel}.`);
     const result = await listener(sender, payload);
-    assert.ok(Array.isArray(result), "The handler did not return the server list.");
-    return result.map((server: ServerSummary) => server);
+    assert.ok(Array.isArray(result) && result.every(isServerSummary), "The handler did not return the server list.");
+    return result;
   };
 
   let turn = 0;

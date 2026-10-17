@@ -50,6 +50,7 @@ import type { TeamWebRtcChannel } from "../src/main/team-webrtc-bridge";
 const OUT = resolve(import.meta.dirname, "../.openbot-build/team-api-legacy-clients-e2e");
 const FIXTURES = resolve(import.meta.dirname, "../packages/contracts/src/team-protocol/fixtures");
 const HOST_VERSION = "0.0.0-e2e";
+const STEP_DEADLINE_MS = 30_000;
 /** The app version that a released client sends. The host must not choose by it. */
 const CLIENT_VERSION = "0.3.5";
 const OWNER = { username: "owner-user", password: "owner-password-123" };
@@ -106,13 +107,22 @@ const report: { passed: boolean; host: { appVersion: string; port: number | null
 
 /** Runs one check. `summarize` keeps secrets and live objects out of the report. */
 async function step<T>(name: string, run: () => Promise<T>, summarize: (value: T) => unknown = (value) => value) {
+  let deadline: ReturnType<typeof setTimeout> | undefined;
   try {
-    const value = await run();
+    // A bound on failure only: each check waits for its event, and a missing event must fail.
+    const value = await Promise.race([
+      run(),
+      new Promise<never>((_, reject) => {
+        deadline = setTimeout(() => reject(new Error(`No result within ${STEP_DEADLINE_MS} ms.`)), STEP_DEADLINE_MS);
+      }),
+    ]);
     report.steps.push({ name, passed: true, detail: summarize(value) });
     return value;
   } catch (error) {
     report.steps.push({ name, passed: false, error: error instanceof Error ? error.message : String(error) });
     throw error;
+  } finally {
+    clearTimeout(deadline);
   }
 }
 
@@ -236,7 +246,14 @@ async function v3(
 function nextMessage<T>(socket: WebSocket, pick: (value: unknown) => T | null): Promise<T> {
   return new Promise((resolveMessage, reject) => {
     const onMessage = (event: MessageEvent) => {
-      const picked = pick(JSON.parse(String(event.data)));
+      let picked: T | null;
+      try {
+        picked = pick(JSON.parse(String(event.data)));
+      } catch (error) {
+        socket.removeEventListener("message", onMessage);
+        reject(error);
+        return;
+      }
       if (picked === null) return;
       socket.removeEventListener("message", onMessage);
       resolveMessage(picked);
@@ -260,9 +277,11 @@ class LoopbackBridge extends TeamWebRtcBridge {
       for (const wake of this.#waiters) wake();
     });
 
+  /** As the WebRTC worker does, a closed peer connection reports `peer-disconnected` to the host. */
   override readonly disconnectPeer = (peerId: string) =>
     Effect.sync(() => {
       this.disconnected.push(peerId);
+      queueMicrotask(() => this.emit("disconnected", peerId));
       for (const wake of this.#waiters) wake();
     });
 
@@ -715,10 +734,27 @@ try {
     ] as const) {
       const refused = await connectV2(peerId, opening);
       await refused.bridge.until(() => (refused.bridge.disconnected.includes(peerId) ? true : null));
-      assert.ok(
-        !refused.bridge.sent.some((frame) => authFrame(frame.data)?.type === "auth-confirmed"),
-        `The ${opening} client was confirmed.`,
+      const ready = refused.bridge.sent
+        .map((frame) => authFrame(frame.data))
+        .find((frame) => frame?.type === "auth-ready");
+      if (opening === "forged") assert.equal(ready, undefined, "The host signed for a forged proof.");
+      // A completion that was in flight when the connection closed: the host must refuse it.
+      refused.bridge.emit(
+        "data",
+        peerId,
+        "rpc",
+        encodeTeamProtocolV2Frame({
+          version: 2,
+          type: "auth-complete",
+          clientNonce: refused.clientNonce,
+          hostNonce: ready?.type === "auth-ready" ? ready.hostNonce : randomBytes(32).toString("base64url"),
+        }),
       );
+      const outcome = await refused.bridge.until(() => {
+        if (refused.bridge.sent.some((frame) => authFrame(frame.data)?.type === "auth-confirmed")) return "confirmed";
+        return refused.bridge.disconnected.filter((id) => id === peerId).length > 1 ? "refused" : null;
+      });
+      assert.equal(outcome, "refused", `The ${opening} client was confirmed.`);
       assert.ok(
         !refused.bridge.sent.some((frame) => {
           const response = rpcFrame(frame.data);
