@@ -812,8 +812,7 @@ try {
       ) && list(bobThreads.body).length === 0,
       [bobThreads, bobWithOwner, bobWithAda, bobPage].map((reply) => reply.status),
     );
-    // The status of these refusals is not asserted: the host answers 500 requestFailed and logs an
-    // error for them, which is a client error. This check asserts only that nothing is stored.
+    const loggedBefore = logged.length;
     const toSelf = await call("POST", TEAM_API_ROUTES.direct.messages, {
       token: bobToken,
       json: { memberId: bobId, text: "hello me", clientMessageId: "client-message-2" },
@@ -822,13 +821,27 @@ try {
       token: bobToken,
       json: { memberId: "not-a-member", text: "hello stranger", clientMessageId: "client-message-3" },
     });
+    const withStranger = await call("GET", TEAM_API_ROUTES.direct.conversation("not-a-member"), { token: bobToken });
     const threadsAfter = await call("GET", TEAM_API_ROUTES.direct.threads, { token: bobToken });
+    const unavailable = sourceText("error.team.directRecipientUnavailable");
     check(
-      "a direct message to oneself or to someone not on the team is refused and not stored",
-      [toSelf, toStranger].every((reply) => reply.status >= 400) &&
+      "a direct message to oneself gets 400; to someone not on the team, 404; nothing is stored",
+      errorIs(toSelf, 400, sourceText("error.team.directMessageSelf")) &&
+        errorIs(toStranger, 404, unavailable) &&
+        errorIs(withStranger, 404, unavailable) &&
         threadsAfter.status === 200 &&
         list(threadsAfter.body).length === 0,
-      { toSelf: summary(toSelf), toStranger: summary(toStranger), threadsAfter: summary(threadsAfter) },
+      {
+        toSelf: summary(toSelf),
+        toStranger: summary(toStranger),
+        withStranger: summary(withStranger),
+        threadsAfter: summary(threadsAfter),
+      },
+    );
+    check(
+      "the refused direct messages are client errors and write no error log line",
+      logged.slice(loggedBefore).every((line) => !line.includes("Team API request failed")),
+      { lines: logged.slice(loggedBefore) },
     );
   }
 
@@ -1229,6 +1242,26 @@ try {
         newLines.every((line) => !line.includes(FAKE_SECRET)) &&
         newLines.some((line) => line.includes("[redacted]")),
       { lines: newLines.length },
+    );
+  }
+
+  // ---- A direct message to a disabled member ----
+  // Last, because disabling Ada ends her sessions.
+  {
+    await Effect.runPromise(store.updateMember(adaId, { disabled: true }));
+    const loggedBefore = logged.length;
+    const toDisabled = await call("POST", TEAM_API_ROUTES.direct.messages, {
+      token: bobToken,
+      json: { memberId: adaId, text: "hello disabled", clientMessageId: "client-message-4" },
+    });
+    const threadsAfter = await call("GET", TEAM_API_ROUTES.direct.threads, { token: bobToken });
+    check(
+      "a direct message to a disabled member gets 404, is not stored and writes no error log line",
+      errorIs(toDisabled, 404, sourceText("error.team.directRecipientUnavailable")) &&
+        threadsAfter.status === 200 &&
+        list(threadsAfter.body).length === 0 &&
+        logged.slice(loggedBefore).every((line) => !line.includes("Team API request failed")),
+      { toDisabled: summary(toDisabled), threadsAfter: summary(threadsAfter) },
     );
   }
   check(

@@ -121,11 +121,11 @@ interface AgentRoutinesSettingsProps {
   /** Names the owner and owns every call. A channel passes `channelRoutinesPort` here. */
   port: RoutinesPort;
   onCountChange: (count: number) => void;
-  onBack?: () => void;
-  onClose?: () => void;
-  selectionRequest?: RoutineSelectionRequest | null;
-  onSelectionRequestHandled?: (nonce: number) => void;
-  onOpenRun?: (messageId: string) => void;
+  onBack?: (() => void) | undefined;
+  onClose?: (() => void) | undefined;
+  selectionRequest?: RoutineSelectionRequest | null | undefined;
+  onSelectionRequestHandled?: ((nonce: number) => void) | undefined;
+  onOpenRun?: ((messageId: string) => void) | undefined;
 }
 
 export function AgentRoutinesSettings(props: AgentRoutinesSettingsProps) {

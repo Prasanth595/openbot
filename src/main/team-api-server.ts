@@ -1530,14 +1530,18 @@ export class TeamApiServer {
     });
   }
 
+  // A refusal here is the client's error, so it is an `HttpError`: the dispatcher answers its status
+  // and does not log it. The English of each message is the text that hosts sent before, byte for byte.
   #requireDirectRecipient(senderMemberId: string, recipientMemberId: string): TeamMemberSummary {
     if (senderMemberId === recipientMemberId) {
-      throw new Error("You cannot open a direct message with yourself.");
+      throw new HttpError(400, sourceText("error.team.directMessageSelf"));
     }
     const sender = this.#options.store.getMember(senderMemberId);
     const recipient = this.#options.store.getMember(recipientMemberId);
-    if (!sender || sender.disabled) throw new Error("Your team access is unavailable.");
-    if (!recipient || recipient.disabled) throw new Error("This team member is unavailable.");
+    if (!sender || sender.disabled) throw new HttpError(403, sourceText("error.host.teamAccessUnavailable"));
+    if (!recipient || recipient.disabled) {
+      throw new HttpError(404, sourceText("error.team.directRecipientUnavailable"));
+    }
     return recipient;
   }
 

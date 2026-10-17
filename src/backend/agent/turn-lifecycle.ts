@@ -14,12 +14,12 @@ import {
 import { isString } from "@openbot/contracts/runtime-values";
 import { createOpenBotLogger } from "@openbot/logging";
 import { classifyFailure } from "@openbot/telemetry";
-import { Deferred, Effect, Exit, Schema, Scope } from "effect";
+import { Cause, Deferred, Effect, Exit, Schema, Scope } from "effect";
 import type { AgentClient } from "../agent-client";
 import type { AgentStore } from "../agent-store";
 import type { BrowserOperationError } from "../browser-effects";
 import { newAssistantMessage, normalizeCompletionStatus } from "../conversation-snapshots";
-import { causeHelpers } from "../effect-boundary";
+import { causeHelpers, reportOriginalFailure } from "../effect-boundary";
 import type { DeliveryContext, MailboxStore } from "../mailbox-store";
 import {
   type AppServerNotification,
@@ -190,6 +190,8 @@ export class TurnLifecycle {
    * answer, and the drain must not then mark the turn active again. Past the cap, the oldest goes.
    */
   readonly #endedTurns = new Set<string>();
+  /** Turns whose normal end runs now. A Stop must not settle one of them as an orphan (#2214). */
+  readonly #completingTurns = new Set<string>();
   /**
    * The time of the last provider notification for each agent: a delta, a tool item, a usage
    * update. It is the only clock that moves while a turn works, and it is lost on restart.
@@ -302,8 +304,10 @@ export class TurnLifecycle {
       if (this.#observedCompactions.get(turn.threadId) === turnId) this.#observedCompactions.delete(turn.threadId);
       this.#compaction.abandonCompaction(turn.threadId);
       yield* this.#completeTurn(turn.agentId, turn.threadId, turnId, "interrupted").pipe(
-        Effect.catch((failure) =>
-          Effect.sync(() => this.#hooks.emitError("turn_completion_failed", failure.cause, turn.agentId)),
+        Effect.catchCause((cause) =>
+          reportOriginalFailure(cause, (failure) =>
+            this.#hooks.emitError("turn_completion_failed", failure, turn.agentId),
+          ),
         ),
       );
     }
@@ -311,6 +315,11 @@ export class TurnLifecycle {
 
   hasEnded(turnId: string): boolean {
     return this.#endedTurns.has(turnId);
+  }
+
+  /** True while the normal end of this turn runs: it settles the turn itself. */
+  isCompleting(turnId: string): boolean {
+    return this.#completingTurns.has(turnId);
   }
 
   /** The task of a provider thread, or null for the agent's own chat and its other threads. */
@@ -511,9 +520,12 @@ export class TurnLifecycle {
           this.#compaction.finish(agentId, threadId, status);
           return;
         }
+        // A defect too: this fiber has no other handler, and the turn is settled by then.
         yield* this.#completeTurn(agentId, threadId, turnId, status).pipe(
-          Effect.catch((failure) =>
-            Effect.sync(() => this.#hooks.emitError("turn_completion_failed", failure.cause, agentId)),
+          Effect.catchCause((cause) =>
+            reportOriginalFailure(cause, (failure) =>
+              this.#hooks.emitError("turn_completion_failed", failure, agentId),
+            ),
           ),
         );
         return;
@@ -649,188 +661,286 @@ export class TurnLifecycle {
     );
   }
 
-  readonly #completeTurn = Effect.fn("TurnLifecycle.completeTurn")(function* (
+  readonly #completeTurn = Effect.fn("TurnLifecycle.completeTurn")(
+    function* (this: TurnLifecycle, agentId: string, threadId: string, turnId: string, status: string) {
+      const running = this.#runningTurns.get(turnId);
+      this.#runningTurns.delete(turnId);
+      this.#markEnded(turnId);
+      this.#completingTurns.add(turnId);
+      const noUpdateCalled = this.#noUpdateTurns.delete(turnId);
+      if (running) {
+        // `waitMs` is OpenBot's part of a slow reply: the queue (a usage-limit hold included), the
+        // provider start, the session and its settings. `firstOutputMs` is the provider's: the time
+        // to its first text, thinking or tool step.
+        logger.info("A turn finished.", {
+          provider: running.client.provider,
+          model: this.#hooks.turnModel(agentId, turnId),
+          status,
+          waitMs: running.sentAt === null ? null : Math.max(0, running.startedAt - running.sentAt),
+          firstOutputMs: running.firstOutputAt === null ? null : running.firstOutputAt - running.startedAt,
+          durationMs: Date.now() - running.startedAt,
+        });
+      }
+      const reportedError = this.#turnErrors.get(turnId);
+      this.#turnErrors.delete(turnId);
+      // The error is kept only while the turn runs, so a refused turn always has its entry.
+      const refusedFailure =
+        running !== undefined && status === "failed" && reportedError !== undefined
+          ? refusedSessionFailure(running.client.provider, reportedError)
+          : null;
+      const refused = running !== undefined && refusedFailure !== null;
+      const limited = status === "failed" && this.#limitedTurns.has(turnId);
+      const resetsAt = this.#limitedTurns.get(turnId) ?? null;
+      this.#limitedTurns.delete(turnId);
+      this.#deltas.flushTurn(turnId);
+      yield* this.#images.waitForOperations(threadId, turnId);
+      const association = this.#turnAssociations.get(turnId);
+      if (association) yield* Deferred.await(association).pipe(Effect.catch(() => Effect.void));
+      this.#memories.finishTurn(turnId, status);
+      // A refused session is closed below, and a spent plan would refuse the summary turn too, so
+      // neither is compacted.
+      const shouldCompact = !refused && !limited && this.#compaction.reserve(agentId, threadId);
+      this.#browser.endControl(this.#conversation.publicThreadId(agentId, threadId), turnId);
+      const snapshot = this.#conversation.ensureSnapshot(agentId, threadId);
+      snapshot.activeTurnId = null;
+      const deliveries = this.#mailbox.findDeliveriesByTurn(agentId, turnId);
+      // A task turn ends as a turn of the agent's own chat does, in the task's own lane.
+      const taskTurn = this.#conversation.isTaskThread(snapshot.threadId);
+      // A channel task is not run again: an unfinished turn pauses it, and its Resume opens the new session.
+      const retry =
+        refused &&
+        !running.produced &&
+        deliveries.length > 0 &&
+        (taskTurn || !this.#conversation.isExecutionThread(snapshot.threadId)) &&
+        deliveries.every(({ delivery }) => !this.#refusedRetries.has(delivery.id));
+      if (retry) {
+        yield* this.#retryRefusedTurn(agentId, threadId, turnId, snapshot, deliveries);
+        return;
+      }
+      // The plan refused the turn before it did anything that a second run would repeat, so its
+      // messages wait in the queue for the reset. A channel task goes back to its channel's queue
+      // instead: an assignment that waited here would reserve the whole host until the reset.
+      const repeatable = limited && running !== undefined && !running.acted && deliveries.length > 0;
+      const channelTurn = !taskTurn && this.#conversation.isExecutionThread(snapshot.threadId);
+      const requeue = repeatable && !channelTurn;
+      for (const message of snapshot.messages) {
+        if (this.#itemTurns.get(message.id) !== turnId || message.status !== "streaming") continue;
+        message.status = normalizeCompletionStatus(repeatable ? "interrupted" : status);
+        markIncompleteImageGeneration(message, message.status);
+      }
+      // Only this loop reads the map, so the finished turn's items go, or it holds every item ever seen.
+      for (const [itemId, itemTurnId] of this.#itemTurns) if (itemTurnId === turnId) this.#itemTurns.delete(itemId);
+      // The limit belongs to the model the turn ran on, which the agent may have left since.
+      const model = this.#hooks.turnModel(agentId, turnId);
+      if (requeue) {
+        yield* this.#requeueTurn(agentId, threadId, turnId, snapshot, deliveries);
+        // After the requeue, so a routine set to skip finds its run back in the queue.
+        yield* this.#usageLimits.reached(agentId, resetsAt, model);
+        this.#hooks.scheduleDrain(agentId);
+        return;
+      }
+      if (limited) yield* this.#usageLimits.reached(agentId, resetsAt, model);
+      else if (status === "completed") yield* this.#usageLimits.completed(agentId, model);
+      // After the limit is recorded, so the channel does not assign the task to this agent again
+      // before the reset. A channel that took the task back ends this turn as interrupted.
+      let requeued = repeatable && channelTurn;
+      for (const { delivery } of requeued ? deliveries : []) {
+        if (yield* this.#hooks.requeueChannelDelivery(delivery.id)) continue;
+        requeued = false;
+        break;
+      }
+      const outcome = requeued ? "interrupted" : status;
+      // The failed turn of the agent's own chat only: a task shows its outcome in its own row.
+      if (!taskTurn && outcome === "failed") this.#failedTurns.set(agentId, turnId);
+      else if (!taskTurn) this.#failedTurns.delete(agentId);
+      const failure = refusedFailure ?? reportedError;
+      if (refused) {
+        yield* this.#hooks.dropRefusedSession(agentId, threadId);
+        const taskId = taskTurn ? this.#taskForThread(agentId, threadId) : null;
+        if (taskId !== null && failure !== undefined) {
+          this.#hooks.emitFailure?.({ code: "agent_error", agentId, causeCode: classifyFailure(failure) });
+          this.#hooks.taskFailed(taskId, failure);
+        } else this.#hooks.emitError("agent_error", failure, agentId);
+      }
+      if (deliveries.some((delivery) => delivery.delivery.sender.kind === "agent")) {
+        dropPlaceholderAnswers(snapshot, turnId);
+      }
+      // Only a turn that ran nothing but scheduled, script or webhook runs: a person who wrote in the
+      // same turn, or who started a Test run, waits for the answer.
+      const quiet =
+        outcome === "completed" &&
+        this.#quietRoutineTurn(snapshot.threadId, deliveries) &&
+        settleQuietRoutineTurn(snapshot, turnId, noUpdateCalled);
+      const latestAssistant = latestTurnAnswer(snapshot.messages, turnId);
+      if (deliveries.length > 0) {
+        const terminal = outcome === "failed" ? "failed" : outcome === "interrupted" ? "interrupted" : "completed";
+        for (const delivery of deliveries) {
+          this.#refusedRetries.delete(delivery.delivery.id);
+          const reason = terminal === "failed" && failure ? this.#hooks.redactMcp(failure) : null;
+          yield* this.#mailbox.markTerminal(delivery.delivery.id, terminal, reason).pipe(toTurnOperationFailed);
+          this.#mailboxSync.syncDeliveryMessage(snapshot, delivery.delivery.id);
+        }
+        // A turn can start with the answers of several teammates. `#relayAgentResult` skips each one
+        // that wants no answer, so only a teammate that asked for a result gets one.
+        if (!this.#conversation.isExecutionThread(snapshot.threadId) && terminal === "completed" && latestAssistant) {
+          for (const delivery of deliveries)
+            yield* this.#relayAgentResult(agentId, turnId, delivery, latestAssistant.text);
+        }
+        // The requester holds the answers of the other teammates until each request has ended, so
+        // this end can release them, also when this turn failed and sends no result.
+        for (const { delivery } of deliveries) {
+          if (delivery.sender.kind === "agent") this.#hooks.scheduleDrain(delivery.sender.agentId);
+        }
+      }
+      // Each run start saved the earlier preview; a quiet turn puts back the oldest one, unless
+      // something else changed the preview since. Every turn takes its entries, so none stays behind.
+      const savedPreviews = deliveries.flatMap(({ delivery }) =>
+        delivery.sender.kind === "routine" ? (this.#hooks.takeRoutinePreview(delivery.id) ?? []) : [],
+      );
+      // A routine run that answered only the no-update marker, also a Test run that shows it in the
+      // chat, does not put the marker in the preview.
+      const markerAnswer =
+        latestAssistant !== undefined &&
+        deliveries.some(({ delivery }) => delivery.sender.kind === "routine") &&
+        isNoUpdateAnswer(latestAssistant.text);
+      if (latestAssistant && !markerAnswer && !this.#conversation.isExecutionThread(snapshot.threadId)) {
+        yield* this.#store.updatePreview(agentId, latestAssistant.text).pipe(toTurnOperationFailed);
+        this.#hooks.emit({ type: "agents-changed", agents: this.#hooks.listAgents() });
+      } else if (quiet || (markerAnswer && !this.#conversation.isExecutionThread(snapshot.threadId))) {
+        const saved = savedPreviews[0];
+        const current = this.#store.list().find((entry) => entry.id === agentId)?.preview;
+        if (saved && current === savedPreviews.at(-1)?.shown) {
+          yield* this.#store.updatePreview(agentId, saved.previous).pipe(toTurnOperationFailed);
+          this.#hooks.emit({ type: "agents-changed", agents: this.#hooks.listAgents() });
+        }
+      }
+      this.#conversation.emitConversation(snapshot, "turn.completed", { turnId, status: outcome });
+      if (deliveries.length > 0) {
+        try {
+          this.#mailboxSync.emitQueue(agentId);
+        } catch (error) {
+          this.#hooks.emitError("delivery_reconciliation_pending", error, agentId);
+          this.#mailboxSync.retryDeliveryReconciliation(agentId);
+        }
+      }
+      this.#hooks.emit({
+        type: "turn-completed",
+        agentId,
+        threadId: this.#conversation.publicThreadId(agentId, threadId),
+        turnId,
+        status: outcome,
+        origin: deliveries[0]?.delivery.sender.kind ?? "unknown",
+        ...(quiet ? { quiet: true as const } : {}),
+      });
+      if (shouldCompact) yield* this.#compaction.request(agentId, threadId);
+      else this.#hooks.scheduleDrain(agentId);
+    },
+    Effect.uninterruptible,
+    (completion, agentId, threadId, turnId, status) =>
+      // The turn is already out of `#runningTurns`, so a step above that fails must not leave its
+      // deliveries running: nothing else would end them, and the agent's queue would wait (#2214).
+      completion.pipe(
+        Effect.onError((cause) =>
+          Cause.hasInterruptsOnly(cause)
+            ? Effect.void
+            : this.settleOrphanedTurn(agentId, threadId, turnId, status === "failed" ? "failed" : "interrupted"),
+        ),
+        Effect.ensuring(Effect.sync(() => this.#completingTurns.delete(turnId))),
+      ),
+  );
+
+  /**
+   * Ends a turn that its normal end did not settle: a completion that failed part way, or a Stop for a
+   * turn that no provider runs any more (#2214). Each delivery of the turn that is still starting or
+   * running ends as `terminal`, the cached and stored turn close, and the agent's queue drains again.
+   * Each step reports its own failure, and the steps after it still run.
+   */
+  readonly settleOrphanedTurn = Effect.fn("TurnLifecycle.settleOrphanedTurn")(function* (
     this: TurnLifecycle,
     agentId: string,
-    threadId: string,
+    threadId: string | null,
     turnId: string,
-    status: string,
+    terminal: "failed" | "interrupted",
   ) {
-    const running = this.#runningTurns.get(turnId);
+    const report = (cause: Cause.Cause<TurnOperationFailed>) =>
+      reportOriginalFailure(cause, (failure) => this.#hooks.emitError("turn_completion_failed", failure, agentId));
     this.#runningTurns.delete(turnId);
+    this.#markEnded(turnId);
+    const deliveries = yield* turnStep(() => this.#mailbox.findDeliveriesByTurn(agentId, turnId)).pipe(
+      Effect.catchCause((cause) => report(cause).pipe(Effect.as([]))),
+    );
+    for (const { delivery } of deliveries) {
+      yield* this.#mailbox
+        .markTerminal(delivery.id, terminal, null)
+        .pipe(toTurnOperationFailed, Effect.catchCause(report));
+    }
+    const owner = this.#conversation.snapshotWithTurn(agentId, turnId);
+    yield* turnStep(() => {
+      // With no open delivery and no snapshot on the turn, the turn is still open only when the normal
+      // end failed after it settled the deliveries and before it saved the conversation.
+      if (
+        !owner &&
+        deliveries.length === 0 &&
+        (threadId === null ||
+          this.#store.database.readActiveTurnId(agentId, this.#conversation.publicThreadId(agentId, threadId)) !==
+            turnId)
+      )
+        return;
+      const snapshot = owner ?? this.#conversation.ensureSnapshot(agentId, threadId);
+      const publicThreadId = snapshot.threadId;
+      if (!publicThreadId) return;
+      const closed = structuredClone(snapshot);
+      const changedIds = new Set<string>();
+      const status = normalizeCompletionStatus(terminal);
+      for (const message of closed.messages) {
+        if (message.status !== "streaming") continue;
+        if (message.turnId !== turnId && this.#itemTurns.get(message.id) !== turnId) continue;
+        message.status = status;
+        markIncompleteImageGeneration(message, status);
+        changedIds.add(message.id);
+      }
+      for (const { delivery } of deliveries) {
+        this.#mailboxSync.syncDeliveryMessage(closed, delivery.id);
+        changedIds.add(delivery.id);
+      }
+      if (closed.activeTurnId === turnId) closed.activeTurnId = null;
+      closed.revision = this.#store.database.persistConversationChanges({
+        agentId,
+        threadId: publicThreadId,
+        activeTurnId: closed.activeTurnId,
+        changedMessages: closed.messages.filter((message) => changedIds.has(message.id)),
+        eventType: "turn.completed",
+        detail: { turnId, status: terminal },
+      });
+      // Clear the cached turn before queue listeners can read or change the agent.
+      this.#conversation.setSnapshot(agentId, closed);
+      this.#conversation.publishConversation(closed);
+      this.#hooks.emit({
+        type: "turn-completed",
+        agentId,
+        threadId: publicThreadId,
+        turnId,
+        status: terminal,
+        origin: deliveries[0]?.delivery.sender.kind ?? "unknown",
+      });
+    }).pipe(Effect.catchCause(report));
+    for (const [itemId, itemTurnId] of this.#itemTurns) if (itemTurnId === turnId) this.#itemTurns.delete(itemId);
+    yield* turnStep(() => this.#mailboxSync.emitQueue(agentId)).pipe(Effect.catchCause(report));
+    yield* turnStep(() => {
+      for (const { delivery } of deliveries) {
+        if (delivery.sender.kind === "agent") this.#hooks.scheduleDrain(delivery.sender.agentId);
+      }
+      this.#hooks.scheduleDrain(agentId);
+    }).pipe(Effect.catchCause(report));
+  }, Effect.uninterruptible);
+
+  #markEnded(turnId: string): void {
     this.#endedTurns.add(turnId);
     if (this.#endedTurns.size > ENDED_TURN_LIMIT) {
       const [oldest] = this.#endedTurns;
       if (oldest !== undefined) this.#endedTurns.delete(oldest);
     }
-    const noUpdateCalled = this.#noUpdateTurns.delete(turnId);
-    if (running) {
-      // `waitMs` is OpenBot's part of a slow reply: the queue (a usage-limit hold included), the
-      // provider start, the session and its settings. `firstOutputMs` is the provider's: the time
-      // to its first text, thinking or tool step.
-      logger.info("A turn finished.", {
-        provider: running.client.provider,
-        model: this.#hooks.turnModel(agentId, turnId),
-        status,
-        waitMs: running.sentAt === null ? null : Math.max(0, running.startedAt - running.sentAt),
-        firstOutputMs: running.firstOutputAt === null ? null : running.firstOutputAt - running.startedAt,
-        durationMs: Date.now() - running.startedAt,
-      });
-    }
-    const reportedError = this.#turnErrors.get(turnId);
-    this.#turnErrors.delete(turnId);
-    // The error is kept only while the turn runs, so a refused turn always has its entry.
-    const refusedFailure =
-      running !== undefined && status === "failed" && reportedError !== undefined
-        ? refusedSessionFailure(running.client.provider, reportedError)
-        : null;
-    const refused = running !== undefined && refusedFailure !== null;
-    const limited = status === "failed" && this.#limitedTurns.has(turnId);
-    const resetsAt = this.#limitedTurns.get(turnId) ?? null;
-    this.#limitedTurns.delete(turnId);
-    this.#deltas.flushTurn(turnId);
-    yield* this.#images.waitForOperations(threadId, turnId);
-    const association = this.#turnAssociations.get(turnId);
-    if (association) yield* Deferred.await(association).pipe(Effect.catch(() => Effect.void));
-    this.#memories.finishTurn(turnId, status);
-    // A refused session is closed below, and a spent plan would refuse the summary turn too, so
-    // neither is compacted.
-    const shouldCompact = !refused && !limited && this.#compaction.reserve(agentId, threadId);
-    this.#browser.endControl(this.#conversation.publicThreadId(agentId, threadId), turnId);
-    const snapshot = this.#conversation.ensureSnapshot(agentId, threadId);
-    snapshot.activeTurnId = null;
-    const deliveries = this.#mailbox.findDeliveriesByTurn(agentId, turnId);
-    // A task turn ends as a turn of the agent's own chat does, in the task's own lane.
-    const taskTurn = this.#conversation.isTaskThread(snapshot.threadId);
-    // A channel task is not run again: an unfinished turn pauses it, and its Resume opens the new session.
-    const retry =
-      refused &&
-      !running.produced &&
-      deliveries.length > 0 &&
-      (taskTurn || !this.#conversation.isExecutionThread(snapshot.threadId)) &&
-      deliveries.every(({ delivery }) => !this.#refusedRetries.has(delivery.id));
-    if (retry) {
-      yield* this.#retryRefusedTurn(agentId, threadId, turnId, snapshot, deliveries);
-      return;
-    }
-    // The plan refused the turn before it did anything that a second run would repeat, so its
-    // messages wait in the queue for the reset. A channel task goes back to its channel's queue
-    // instead: an assignment that waited here would reserve the whole host until the reset.
-    const repeatable = limited && running !== undefined && !running.acted && deliveries.length > 0;
-    const channelTurn = !taskTurn && this.#conversation.isExecutionThread(snapshot.threadId);
-    const requeue = repeatable && !channelTurn;
-    for (const message of snapshot.messages) {
-      if (this.#itemTurns.get(message.id) !== turnId || message.status !== "streaming") continue;
-      message.status = normalizeCompletionStatus(repeatable ? "interrupted" : status);
-      markIncompleteImageGeneration(message, message.status);
-    }
-    // Only this loop reads the map, so the finished turn's items go, or it holds every item ever seen.
-    for (const [itemId, itemTurnId] of this.#itemTurns) if (itemTurnId === turnId) this.#itemTurns.delete(itemId);
-    // The limit belongs to the model the turn ran on, which the agent may have left since.
-    const model = this.#hooks.turnModel(agentId, turnId);
-    if (requeue) {
-      yield* this.#requeueTurn(agentId, threadId, turnId, snapshot, deliveries);
-      // After the requeue, so a routine set to skip finds its run back in the queue.
-      yield* this.#usageLimits.reached(agentId, resetsAt, model);
-      this.#hooks.scheduleDrain(agentId);
-      return;
-    }
-    if (limited) yield* this.#usageLimits.reached(agentId, resetsAt, model);
-    else if (status === "completed") yield* this.#usageLimits.completed(agentId, model);
-    // After the limit is recorded, so the channel does not assign the task to this agent again
-    // before the reset. A channel that took the task back ends this turn as interrupted.
-    let requeued = repeatable && channelTurn;
-    for (const { delivery } of requeued ? deliveries : []) {
-      if (yield* this.#hooks.requeueChannelDelivery(delivery.id)) continue;
-      requeued = false;
-      break;
-    }
-    const outcome = requeued ? "interrupted" : status;
-    // The failed turn of the agent's own chat only: a task shows its outcome in its own row.
-    if (!taskTurn && outcome === "failed") this.#failedTurns.set(agentId, turnId);
-    else if (!taskTurn) this.#failedTurns.delete(agentId);
-    const failure = refusedFailure ?? reportedError;
-    if (refused) {
-      yield* this.#hooks.dropRefusedSession(agentId, threadId);
-      const taskId = taskTurn ? this.#taskForThread(agentId, threadId) : null;
-      if (taskId !== null && failure !== undefined) {
-        this.#hooks.emitFailure?.({ code: "agent_error", agentId, causeCode: classifyFailure(failure) });
-        this.#hooks.taskFailed(taskId, failure);
-      } else this.#hooks.emitError("agent_error", failure, agentId);
-    }
-    if (deliveries.some((delivery) => delivery.delivery.sender.kind === "agent")) {
-      dropPlaceholderAnswers(snapshot, turnId);
-    }
-    // Only a turn that ran nothing but scheduled, script or webhook runs: a person who wrote in the
-    // same turn, or who started a Test run, waits for the answer.
-    const quiet =
-      outcome === "completed" &&
-      this.#quietRoutineTurn(snapshot.threadId, deliveries) &&
-      settleQuietRoutineTurn(snapshot, turnId, noUpdateCalled);
-    const latestAssistant = latestTurnAnswer(snapshot.messages, turnId);
-    if (deliveries.length > 0) {
-      const terminal = outcome === "failed" ? "failed" : outcome === "interrupted" ? "interrupted" : "completed";
-      for (const delivery of deliveries) {
-        this.#refusedRetries.delete(delivery.delivery.id);
-        const reason = terminal === "failed" && failure ? this.#hooks.redactMcp(failure) : null;
-        yield* this.#mailbox.markTerminal(delivery.delivery.id, terminal, reason).pipe(toTurnOperationFailed);
-        this.#mailboxSync.syncDeliveryMessage(snapshot, delivery.delivery.id);
-      }
-      // A turn can start with the answers of several teammates. `#relayAgentResult` skips each one
-      // that wants no answer, so only a teammate that asked for a result gets one.
-      if (!this.#conversation.isExecutionThread(snapshot.threadId) && terminal === "completed" && latestAssistant) {
-        for (const delivery of deliveries)
-          yield* this.#relayAgentResult(agentId, turnId, delivery, latestAssistant.text);
-      }
-      // The requester holds the answers of the other teammates until each request has ended, so
-      // this end can release them, also when this turn failed and sends no result.
-      for (const { delivery } of deliveries) {
-        if (delivery.sender.kind === "agent") this.#hooks.scheduleDrain(delivery.sender.agentId);
-      }
-    }
-    // Each run start saved the earlier preview; a quiet turn puts back the oldest one, unless
-    // something else changed the preview since. Every turn takes its entries, so none stays behind.
-    const savedPreviews = deliveries.flatMap(({ delivery }) =>
-      delivery.sender.kind === "routine" ? (this.#hooks.takeRoutinePreview(delivery.id) ?? []) : [],
-    );
-    // A routine run that answered only the no-update marker, also a Test run that shows it in the
-    // chat, does not put the marker in the preview.
-    const markerAnswer =
-      latestAssistant !== undefined &&
-      deliveries.some(({ delivery }) => delivery.sender.kind === "routine") &&
-      isNoUpdateAnswer(latestAssistant.text);
-    if (latestAssistant && !markerAnswer && !this.#conversation.isExecutionThread(snapshot.threadId)) {
-      yield* this.#store.updatePreview(agentId, latestAssistant.text).pipe(toTurnOperationFailed);
-      this.#hooks.emit({ type: "agents-changed", agents: this.#hooks.listAgents() });
-    } else if (quiet || (markerAnswer && !this.#conversation.isExecutionThread(snapshot.threadId))) {
-      const saved = savedPreviews[0];
-      const current = this.#store.list().find((entry) => entry.id === agentId)?.preview;
-      if (saved && current === savedPreviews.at(-1)?.shown) {
-        yield* this.#store.updatePreview(agentId, saved.previous).pipe(toTurnOperationFailed);
-        this.#hooks.emit({ type: "agents-changed", agents: this.#hooks.listAgents() });
-      }
-    }
-    this.#conversation.emitConversation(snapshot, "turn.completed", { turnId, status: outcome });
-    if (deliveries.length > 0) {
-      try {
-        this.#mailboxSync.emitQueue(agentId);
-      } catch (error) {
-        this.#hooks.emitError("delivery_reconciliation_pending", error, agentId);
-        this.#mailboxSync.retryDeliveryReconciliation(agentId);
-      }
-    }
-    this.#hooks.emit({
-      type: "turn-completed",
-      agentId,
-      threadId: this.#conversation.publicThreadId(agentId, threadId),
-      turnId,
-      status: outcome,
-      origin: deliveries[0]?.delivery.sender.kind ?? "unknown",
-      ...(quiet ? { quiet: true as const } : {}),
-    });
-    if (shouldCompact) yield* this.#compaction.request(agentId, threadId);
-    else this.#hooks.scheduleDrain(agentId);
-  }, Effect.uninterruptible);
+  }
 
   /**
    * Queues the deliveries of a turn once more, after the provider refused the session's history.

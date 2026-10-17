@@ -14,14 +14,14 @@ import { createSmoothHeightResize } from "./createSmoothHeightResize";
 interface QueuePanelProps {
   deliveries: QueueDelivery[];
   /** Why the queue is waiting, when the cause is not a turn this conversation can show. */
-  hold?: QueueHold | null;
+  hold?: QueueHold | null | undefined;
   agents?: AgentProfile[];
   skills?: InstalledSkill[];
   editingDeliveryId?: string | null;
   canSteer: boolean;
   onSteer: (deliveryId: string) => void;
   /** Starts a separate task with a queued message. Absent where the host keeps no tasks. */
-  onRunAsTask?: (deliveryId: string) => void;
+  onRunAsTask?: ((deliveryId: string) => void) | undefined;
   onCancel: (deliveryId: string) => void;
   onEdit: (delivery: QueueDelivery) => void;
   onReorder: (deliveryIds: string[]) => void;

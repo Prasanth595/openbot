@@ -1624,14 +1624,14 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       duplicateAgent: async (agentId) => {
         const source = agents.find((agent) => agent.id === agentId);
         if (!source) throw new Error("Agent not found");
+        // The copy gets a new id and its own workspace, so neither is passed on.
+        const { id: _sourceId, workspacePath: _sourceWorkspacePath, ...copied } = source;
         const agent = {
           ...createAgentSummary({
-            ...source,
-            id: undefined,
+            ...copied,
             name: `${source.name} copy`,
             preview: "",
             updatedAt: null,
-            workspacePath: undefined,
           }),
           threadId: null,
         };

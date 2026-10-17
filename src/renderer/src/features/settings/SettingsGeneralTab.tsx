@@ -37,7 +37,7 @@ const LINK_TARGET_KEYS = {
 interface SettingsGeneralTabProps {
   value: GeneralSettingsValue;
   /** The device with the keyboard, naming ⌘ or Ctrl in the shortcut option. */
-  platform?: "darwin" | "win32" | "linux";
+  platform?: "darwin" | "win32" | "linux" | undefined;
   /** A dev or preview build keeps its own logo color, so the logo color row says so. */
   variant: AppVariant;
   /** The dialog element the Select popovers portal into, captured when the tab was created. */

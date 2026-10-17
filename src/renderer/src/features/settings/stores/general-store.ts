@@ -55,6 +55,7 @@ export function createSettingsGeneralStore(props: GeneralStoreProps) {
     ).map((provider) => {
       const agent = props.agentStatus?.providers?.find((candidate) => candidate.id === provider);
       const runtime = props.providerRuntimeStatuses?.[provider];
+      const keyStatus = provider === "opencode" ? props.openCodeKeyStatus?.() : undefined;
       return {
         id: provider,
         name: agentProviderName(provider),
@@ -70,7 +71,7 @@ export function createSettingsGeneralStore(props: GeneralStoreProps) {
         lastError: agent?.lastError,
         diagnostics: agent ? providerDiagnosticsText(agent) : undefined,
         availableVersion: props.providerAvailableVersions?.[provider] ?? null,
-        keyStatus: provider === "opencode" ? props.openCodeKeyStatus?.() : undefined,
+        ...(keyStatus === undefined ? {} : { keyStatus }),
         off: agent?.off ?? props.offProviders?.includes(provider),
         usedBy: props.providerUsers?.[provider],
         accounts: agent?.accounts?.map((account) => ({

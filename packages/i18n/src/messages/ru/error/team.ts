@@ -27,6 +27,8 @@ export const messages = {
   "error.team.loginIncorrect": "Неверное имя пользователя или пароль.",
   "error.team.currentPasswordIncorrect": "Текущий пароль неверен.",
   "error.team.memberNotFound": "Участник команды не найден.",
+  "error.team.directMessageSelf": "Вы не можете открыть личное сообщение с самим собой.",
+  "error.team.directRecipientUnavailable": "Этот участник команды недоступен.",
   "error.team.ownerCannotChange": "Аккаунт владельца нельзя изменить.",
   "error.team.ownerCannotRemove": "Аккаунт владельца нельзя удалить.",
   "error.team.serverNotConfigured": "Сервер команды не настроен.",

@@ -121,9 +121,9 @@ export function ApprovalCard(props: {
    * other level, and where the user may not change the agent's Permissions. The card then reads
    * exactly as it did before this option existed.
    */
-  onAlwaysAllow?: () => Promise<boolean>;
+  onAlwaysAllow?: (() => Promise<boolean>) | undefined;
   /** The agent this grant would cover, for the confirmation the grant deserves. */
-  agentName?: string;
+  agentName?: string | undefined;
 }) {
   const { t, errorMessage, sourceText } = useText();
   const [submitting, setSubmitting] = createSignal(false);
@@ -239,7 +239,7 @@ export function ApprovalCard(props: {
 }
 
 interface BrowserTakeoverCardProps {
-  request?: BrowserTakeoverRequest;
+  request?: BrowserTakeoverRequest | undefined;
   agentName: string;
   tab: BrowserTab | undefined;
   preview: BrowserPreview | null;

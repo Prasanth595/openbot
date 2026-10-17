@@ -32,7 +32,7 @@ import { LocalSkillsLibrary } from "./LocalSkillsLibrary";
 export type AgentSkillsMode = "mutable" | "host" | "readonly" | "hidden";
 
 interface AgentSkillsModalProps {
-  selectionRequest?: { skillId: string } | null;
+  selectionRequest?: { skillId: string } | null | undefined;
   agentId: string;
   agentName: string;
   open: boolean;
@@ -45,9 +45,9 @@ interface AgentSkillsModalProps {
   calls?: AgentSkillCalls | undefined;
   /** `null`: no marketplace catalog, so the list and details show only what the host sends. */
   catalog?: SkillCatalogCalls | null | undefined;
-  onCreateSkill?: () => void;
-  onTrySkill?: (skill: MarketplaceSkillDetail) => void;
-  onAddFromMarketplace?: (agentId: string) => void;
+  onCreateSkill?: (() => void) | undefined;
+  onTrySkill?: ((skill: MarketplaceSkillDetail) => void) | undefined;
+  onAddFromMarketplace?: ((agentId: string) => void) | undefined;
 }
 
 type ConfirmKind = "remove" | "replace";

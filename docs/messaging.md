@@ -155,8 +155,9 @@ Not confirmed: this flow end to end against Telegram. The tests use a fake Signa
 
 ## Test Slack locally
 
-Slack must reach Signal over public HTTPS. `bun run dev:slack` opens a `cloudflared` tunnel to the
-local Signal and gives it the development app's signing secret.
+Slack must reach Signal and the account API over public HTTPS. `bun run dev:slack` opens two
+`cloudflared` tunnels, one to the local Signal and one to the local account API, and gives Signal the
+development app's signing secret.
 
 1. Install `cloudflared` (`brew install cloudflared`).
 2. Write `.env.slack-dev` in the worktree root. Git ignores it.
@@ -169,13 +170,14 @@ local Signal and gives it the development app's signing secret.
    `REMOTE_TICKET_PRIVATE_JWK` in `.openbot/dev-state.json`, and export
    `SLACK_ROUTE_KEY_ID=openbot-remote-1`. Development only: the
    ticket key's public key is already in the JWKS that Signal loads.
-4. Run `bun run dev:slack` (add `--shared` for the shared `OpenBot Dev` profile). Set the printed address
-   as the development app's request URL, for events and interactivity. It changes on each start.
+4. Run `bun run dev:slack` (add `--shared` for the shared `OpenBot Dev` profile). Set the printed addresses
+   as the development app's request URL, for events and interactivity, and its redirect URL. They
+   change on each start.
 
-The install itself needs an account API that Slack can send the browser back to over HTTPS. Use the
-test Worker (`bun run deploy:test`) with the development app's `SLACK_CLIENT_ID` and
-`SLACK_CLIENT_SECRET`. Not confirmed: a local install that returns to a dev app on a computer that
-also has an installed OpenBot. The operating system sends `openbot://` to the installed app.
+The install returns through the account API tunnel. The local account API needs the development
+app's `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET` and `SLACK_STATE_SECRET` in local development state.
+The dev app gets the grant on a loopback port, not through `openbot://`, so an installed OpenBot on
+the same computer does not get it. Not confirmed: this install end to end.
 
 ## Troubleshooting
 

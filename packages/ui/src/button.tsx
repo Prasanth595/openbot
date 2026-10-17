@@ -51,7 +51,7 @@ const OTHER_CUE_MARKERS = [
 type OpenBotButtonProps = VariantProps<typeof buttonVariants> & {
   class?: JSX.HTMLAttributes<HTMLElement>["class"];
   children?: JSX.Element;
-  loading?: boolean;
+  loading?: boolean | undefined;
   loadingLabel?: string;
   fullWidth?: boolean;
 } & { [Marker in (typeof OTHER_CUE_MARKERS)[number]]?: string | undefined };

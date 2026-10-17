@@ -170,7 +170,7 @@ session, device, browser, operating-system, network, and approximate geographic 
 request. The analytics service runs on OpenBot's self-hosted infrastructure and receives events
 through `analytics.openbot.run`.
 Analytics is enabled in production by default. Desktop users can disable it under **Settings →
-General → Privacy → Share product analytics**. The preference is stored locally and disables both UI
+General → Permissions → Share product analytics**. The preference is stored locally and disables both UI
 analytics and lifecycle analytics emitted by the local host. Website analytics does not use the
 desktop preference. Mobile has its own phone-wide **Settings → Privacy → Share product analytics**
 preference, independent of desktop and host collection. It defaults to enabled in a
@@ -509,7 +509,7 @@ is not included in analytics; provider output uses the application's secret reda
   or a one-time code is read from 1Password when the browser fills it, goes only to that page, and
   is never sent to an agent, a provider, a log or a team member. The token and each filled value
   are redacted from logs, exports and diagnostics. An owner or admin of a joined server can paste a
-  service account token for that server in Settings › Connectors. The token goes once, over the
+  service account token for that server in Server settings › Connectors. The token goes once, over the
   encrypted connection, to the server, which keeps it in the same file on its own disk. The
   computer that sent it does not keep it, and no answer from the server carries it.
 - `~/Library/Application Support/OpenBot/logs/trace.ndjson` is a local trace of IPC calls,
@@ -1142,7 +1142,7 @@ Permission approval remains in macOS System Settings on the host.
 ## Secure browser authentication
 
 Passwords, email/SMS codes, and authenticator codes entered in a secure chat card are sent to the
-shown HTTPS site for one submission. Connected desktop and mobile clients send the value through
+shown HTTPS site for one submission. Connected desktop, mobile and browser clients send the value through
 the authenticated Team API to the computer running the browser. The handoff does not add the value
 to chat, provider tool arguments, diagnostics, analytics, or a credential store. Input and submission
 values are held in memory for the operation; cancellation and submission clear the input.

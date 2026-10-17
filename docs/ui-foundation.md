@@ -7,7 +7,7 @@ OpenBot is dark-first and uses a compact control scale: 24 px for supporting ele
 Features — the `src/renderer/src/features/<domain>/` directories — import primitives from `@openbot/ui` only, and shared feature components from explicit subpaths such as `@openbot/ui/features/sidebar/Sidebar`. Direct imports from Kobalte and Lucide are forbidden. Kobalte is a behaviour engine, not the application's public API; that is what lets it be upgraded without touching a feature.
 
 - `Text` and `Heading` — interface text; pick the semantic `as`, and the look through `variant` or `size`.
-- `Button` — an action with a label. `primary` serves the single most important action in a context, `secondary` standard actions, `ghost` toolbars, `danger` destructive operations, and `link` actions embedded in text.
+- `Button` — an action with a label. `default` serves the single most important action in a context, `secondary` standard actions, `ghost` toolbars, `destructive` destructive operations, and `link` actions embedded in text.
 - `IconButton` — a standalone icon; always pass `label`. `tooltip` may add the shortcut, but it does not replace the accessible label.
 - `Badge` — a short, non-interactive state or category. Do not use it as a button.
 - `Input`, `Textarea`, `NativeSelect` — native controls in a uniform anatomy. Wrap them in `Field` to wire up label, description, error, `required` and `aria-describedby` automatically.
@@ -23,7 +23,7 @@ Colours must come from the semantic `--openbot-*` variables. Text sizes, radii a
 
 ## Verification
 
-Isolated components are checked in Storybook under `Foundations`. Full flows, dialogs, menus, the composer and the conversation are checked in the dev app. Every component should have default, hover, focus-visible, active, disabled and loading/empty states (where they apply), a keyboard test and an a11y story. A11y is a global Storybook gate (`test: "error"`). The stable Chromium/macOS snapshots cover the foundations gallery, the full application screen, the join-server dialog, the host panel and the model picker.
+Isolated components are checked in Storybook under `Foundations`. Full flows, dialogs, menus, the composer and the conversation are checked in the dev app. Every component should have default, hover, focus-visible, active, disabled and loading/empty states (where they apply), a keyboard test and an a11y story. A11y is a global Storybook gate (`test: "error"`).
 
 ## Which component to pick
 

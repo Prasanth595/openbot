@@ -55,7 +55,7 @@ the share card from the preview. An agent that the host added from a
 listing gets Update when the host serves `agent-update-v1`; the host downloads the current version.
 `web-provider-admin.ts` answers the desktop `providerAdmin` group over the `providers-v1` routes, so
 the Providers section of `ServerSettingsModal` uses the same runtime, key, custom provider, and code
-sign-in logic (`provider-code-login.ts`, `ProviderSettingsSection.tsx`) as the desktop app. On
+sign-in logic (`provider-connection.ts`, `ProviderSettingsSection.tsx`) as the desktop app. On
 desktop the section shows the providers of the active server only, because provider state exists
 only for that server; for another server it offers to switch. The
 browser applies host `status` events, and reads the status every 3 seconds while a code sign-in waits.
