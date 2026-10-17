@@ -10,6 +10,8 @@ import type { AgentMessage } from "@openbot/ui/data";
 import { createEffect, createMemo, createProjection, createSignal, mapArray } from "solid-js";
 import { toAgentMessage, toAgentMessages } from "../../app-message-projection";
 import type { createRemoteAgentAdmin } from "../agents/remote-agent-admin";
+import { messagePromptRequestKey, promptRequestKey } from "../conversation/conversation-keys";
+import type { PromptAnswerOptions } from "../conversation/conversation-types";
 import type { WebWorkspace } from "./web-client-context";
 
 type PromptEvent = Extract<AgentEvent, { type: "prompt" }>;
@@ -121,6 +123,14 @@ export function createWebConversationView(options: {
     [],
     { key: "id" },
   );
+  /** The interactive block of the waiting prompt's message, when the agent asked with one. */
+  const promptUiBlock = createMemo(() => {
+    const question = prompt();
+    const page = workspace.conversation()?.page;
+    if (!question || !page) return undefined;
+    const requestKey = promptRequestKey(question.turnId, question.requestId);
+    return page.messages.findLast((message) => messagePromptRequestKey(message) === requestKey)?.uiBlock;
+  });
   /** The replied-to messages that are not on the loaded pages. The host sends them with each page. */
   const messageReferences = createMemo(() => {
     const page = workspace.conversation()?.page;
@@ -133,7 +143,10 @@ export function createWebConversationView(options: {
     );
   });
   const missingMessageReferences = () => workspace.conversation()?.missingReferences;
-  async function answerPrompt(answers: RespondToPromptInput["answers"]): Promise<boolean> {
+  async function answerPrompt(
+    answers: RespondToPromptInput["answers"],
+    options?: PromptAnswerOptions,
+  ): Promise<boolean> {
     const question = prompt();
     if (!question) return false;
     setAnsweredPrompt({ prompt: question, presented: false });
@@ -141,7 +154,9 @@ export function createWebConversationView(options: {
       await workspace.answer({ requestId: question.requestId, answers });
     } catch (error) {
       setAnsweredPrompt(undefined);
-      throw error;
+      if (!options?.onError) throw error;
+      options.onError(error);
+      return false;
     }
     return true;
   }
@@ -163,6 +178,7 @@ export function createWebConversationView(options: {
     approval,
     alwaysAllowApproval,
     prompt,
+    promptUiBlock,
     messages,
     messageReferences,
     missingMessageReferences,

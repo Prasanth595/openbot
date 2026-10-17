@@ -56,6 +56,7 @@ import { SHARED_TABLES_CAPABILITY } from "./shared-tables-v1";
 import { SIGN_IN_RELAY_CAPABILITY } from "./sign-in-relay-v1";
 import { SKILLS_ADMIN_CAPABILITY } from "./skills-admin-v1";
 import { SKILLS_EVENTS_CAPABILITY } from "./skills-events-v1";
+import { TEAM_UI_BLOCKS_CAPABILITY } from "./ui-blocks-v1";
 import { TEAM_PROTOCOL_V7_CAPABILITIES } from "./v7";
 import { WORKSPACE_DIRECTORY_CAPABILITY } from "./workspace-directory-v1";
 
@@ -134,6 +135,7 @@ export {
   TEAM_BROWSER_VIEW_VIEWPORT_CAPABILITY,
   TEAM_HISTORY_EXTENT_CAPABILITY,
   TEAM_MESSAGE_CLIENT_ID_CAPABILITY,
+  TEAM_UI_BLOCKS_CAPABILITY,
   WORKSPACE_DIRECTORY_CAPABILITY,
 };
 
@@ -209,6 +211,7 @@ export const TEAM_CURRENT_CAPABILITIES = [
   ROUTINE_RECOVERY_CAPABILITY,
   FOCUS_USE_CAPABILITY,
   AGENT_HIDDEN_CAPABILITY,
+  TEAM_UI_BLOCKS_CAPABILITY,
 ] as const;
 
 export type TeamCurrentCapability = (typeof TEAM_CURRENT_CAPABILITIES)[number];
@@ -297,7 +300,8 @@ export const TEAM_BOOTSTRAP_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
     capability !== ROUTINE_RECOVERY_CAPABILITY &&
     capability !== INSTANCE_TRANSFER_CAPABILITY &&
     capability !== FOCUS_USE_CAPABILITY &&
-    capability !== AGENT_HIDDEN_CAPABILITY,
+    capability !== AGENT_HIDDEN_CAPABILITY &&
+    capability !== TEAM_UI_BLOCKS_CAPABILITY,
 );
 export function teamCapabilitiesForProtocol(protocol: number | null | undefined): readonly TeamCurrentCapability[] {
   return protocol !== null && protocol !== undefined && protocol >= 7
@@ -327,6 +331,7 @@ export function legacyTeamCapabilities(capabilities: readonly string[]): string[
       capability !== ROUTINE_RECOVERY_CAPABILITY &&
       capability !== INSTANCE_TRANSFER_CAPABILITY &&
       capability !== FOCUS_USE_CAPABILITY &&
-      capability !== AGENT_HIDDEN_CAPABILITY,
+      capability !== AGENT_HIDDEN_CAPABILITY &&
+      capability !== TEAM_UI_BLOCKS_CAPABILITY,
   );
 }
