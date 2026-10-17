@@ -152,7 +152,19 @@ export function Button<T extends ValidComponent = "button">(props: ButtonProps<T
 
 export type IconButtonSize = Extract<ButtonSize, "icon" | "icon-xs" | "icon-sm" | "icon-lg">;
 
-export interface IconButtonProps extends Omit<ButtonProps, "children" | "fullWidth" | "size"> {
+/** The handlers that the tooltip trigger chains. Kobalte types them with no `undefined`. */
+interface TooltipTriggerHandlers {
+  onPointerEnter?: JSX.EventHandlerUnion<HTMLButtonElement, PointerEvent>;
+  onPointerLeave?: JSX.EventHandlerUnion<HTMLButtonElement, PointerEvent>;
+  onPointerDown?: JSX.EventHandlerUnion<HTMLButtonElement, PointerEvent>;
+  onClick?: JSX.EventHandlerUnion<HTMLButtonElement, MouseEvent>;
+  onFocus?: JSX.EventHandlerUnion<HTMLButtonElement, FocusEvent>;
+  onBlur?: JSX.EventHandlerUnion<HTMLButtonElement, FocusEvent>;
+}
+
+export interface IconButtonProps
+  extends Omit<ButtonProps, "children" | "fullWidth" | "size" | keyof TooltipTriggerHandlers>,
+    TooltipTriggerHandlers {
   label: string;
   children: JSX.Element;
   tooltip?: string;

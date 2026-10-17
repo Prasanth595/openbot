@@ -51,7 +51,7 @@ export function LabelTooltip(props: LabelTooltipProps): JSX.Element {
         gutter={8}
         openDelay={250}
         closeDelay={75}
-        disabled={props.disabled}
+        disabled={props.disabled ?? false}
       >
         {props.children}
         <Tooltip.Portal>
