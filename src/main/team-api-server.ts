@@ -859,10 +859,11 @@ export class TeamApiServer {
   // One method per module, so the dispatcher above reads as a list of domains and the wiring of
   // each narrow `*RouteDependencies` sits next to nothing else.
   #routeTeam(context: TeamApiRequestContext): Promise<RouteOutcome> {
-    const { remoteScreen, createInvite, updateMember, removeMember, onSessionRevoked } = this.#options;
+    const { remoteScreen, browserView, createInvite, updateMember, removeMember, onSessionRevoked } = this.#options;
     return routeTeam(context, {
       store: this.#options.store,
       ...(remoteScreen === undefined ? {} : { remoteScreen }),
+      ...(browserView === undefined ? {} : { browserView }),
       ...(createInvite === undefined ? {} : { createInvite }),
       ...(updateMember === undefined ? {} : { updateMember }),
       ...(removeMember === undefined ? {} : { removeMember }),
