@@ -253,15 +253,15 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
     },
   );
 
-  createEffect(
-    () => props.skillSelectionRequest,
-    (request) => {
-      if (request)
-        setDraft((state) => {
-          state.skills.open = true;
-        });
-    },
-  );
+  // The request stays set after the dialog closes, and it is read again at each activity of the agent.
+  // The memo opens the dialog again only for a new request.
+  const skillSelectionRequest = createMemo(() => props.skillSelectionRequest);
+  createEffect(skillSelectionRequest, (request) => {
+    if (request)
+      setDraft((state) => {
+        state.skills.open = true;
+      });
+  });
 
   return (
     <SharedAgentSettingsPanel
