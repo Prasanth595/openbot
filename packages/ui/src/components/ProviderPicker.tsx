@@ -895,7 +895,7 @@ export function ProviderPicker(props: ProviderPickerProps) {
                           >
                             <Ellipsis aria-hidden="true" />
                           </DropdownMenu.Trigger>
-                          <DropdownMenu.Portal mount={props.menuMount}>
+                          <DropdownMenu.Portal mount={props.menuMount ?? document.body}>
                             <DropdownMenu.Content>
                               <Show when={updateOffered()}>
                                 <DropdownMenu.Item

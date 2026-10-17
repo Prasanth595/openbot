@@ -117,7 +117,7 @@ export function AgentImportView(props: AgentImportViewProps) {
 
 function ImportGuide(props: {
   reading: boolean;
-  error?: string | null;
+  error?: string | null | undefined;
   setup: AgentImportSetup;
   exportSkill: string | null;
   onSetupChange: (setup: AgentImportSetup) => void;
@@ -248,8 +248,8 @@ function ImportReview(props: {
   preview: AgentImportPreview;
   reading: boolean;
   importing: boolean;
-  error?: string | null;
-  now?: Date;
+  error?: string | null | undefined;
+  now?: Date | undefined;
   onChoose: () => void;
   onImport: (keys: string[], channelKeys: string[]) => void;
   onCancel: () => void;

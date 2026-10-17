@@ -38,7 +38,7 @@ export interface CustomProviderDraft {
 export interface CustomProviderErrors {
   providerId?: string;
   displayName?: string;
-  baseUrl?: string;
+  baseUrl?: string | undefined;
   apiKey?: string;
   /** Nothing usable in the whole list, so no single row owns the message. */
   models?: string;

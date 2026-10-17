@@ -339,9 +339,9 @@ export function StorageOverview(props: StorageOverviewProps) {
 
 function StorageCaption(props: {
   state: StorageScanState;
-  scannedAt?: string | null;
-  freeBytes?: number | null;
-  now?: Date;
+  scannedAt?: string | null | undefined;
+  freeBytes?: number | null | undefined;
+  now?: Date | undefined;
 }) {
   const { t, format } = useText();
   const parts = () => {

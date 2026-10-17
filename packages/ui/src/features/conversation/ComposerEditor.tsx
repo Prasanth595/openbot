@@ -890,7 +890,7 @@ export function ComposerEditor(props: ComposerEditorProps) {
         </div>
       </Show>
       <Show when={pickerOpen()}>
-        <Portal mount={pickerFrame().mount}>
+        <Portal mount={pickerFrame().mount ?? document.body}>
           <div
             class="mention-picker"
             style={{

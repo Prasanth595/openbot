@@ -247,16 +247,16 @@ const codeContent = (block: MessageContentBlock) => (block.type === "code" ? blo
 const textContent = (block: MessageContentBlock) => (block.type === "text" ? block : undefined);
 
 export function MessageBody(props: {
-  animate?: boolean;
+  animate?: boolean | undefined;
   message: AgentMessage;
   referencedMessage?: AgentMessage | undefined;
   /**
    * Who wrote the quoted message. A chat with several authors has to name the one it quotes, and
    * an agent chat names another person the reader quotes. Absent, the quote says "You" or "Agent".
    */
-  referencedAuthorName?: string;
+  referencedAuthorName?: string | undefined;
   /** Opens the quoted message in the chat. Absent, the quote is not a control. */
-  onOpenReference?: () => void;
+  onOpenReference?: (() => void) | undefined;
   /**
    * `loading` while the chat loads the history around the original. `unavailable` when the chat did
    * not find it: a note says so. A quote stays open to a new try, because a load can fail for a
@@ -264,16 +264,16 @@ export function MessageBody(props: {
    */
   referenceState?: "loading" | "unavailable" | undefined;
   agents: AgentProfile[];
-  skills?: InstalledSkill[];
+  skills?: InstalledSkill[] | undefined;
   onSelectAgent: (agentId: string) => void;
   onOpenLink: (url: string) => void;
   onPreview: (attachment: AttachmentSummary) => void;
   onAttachmentAction: (attachment: AttachmentSummary, action: "open" | "reveal" | "download") => void;
-  onOpenSharedFile?: (path: string) => void;
-  onOpenWorkspaceFile?: (path: string) => void;
+  onOpenSharedFile?: ((path: string) => void) | undefined;
+  onOpenWorkspaceFile?: ((path: string) => void) | undefined;
   /** Opens the passage that a quote in the message points to. */
-  onOpenQuote?: (messageId: string, text: string) => void;
-  onDownload?: (attachment: AttachmentSummary) => void;
+  onOpenQuote?: ((messageId: string, text: string) => void) | undefined;
+  onDownload?: ((attachment: AttachmentSummary) => void) | undefined;
   mediaSource?: AttachmentMediaSource | undefined;
 }) {
   const { t } = useText();

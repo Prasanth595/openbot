@@ -53,8 +53,8 @@ export function SliderField(props: SliderFieldProps): JSX.Element {
       value={[props.value]}
       minValue={props.minValue}
       maxValue={props.maxValue}
-      step={props.step}
-      disabled={props.disabled}
+      {...(props.step === undefined ? {} : { step: props.step })}
+      {...(props.disabled === undefined ? {} : { disabled: props.disabled })}
       getValueLabel={(params) => props.formatValue(params.values[0] ?? props.value)}
       onChange={(values) => reportChange(values[0] ?? props.value)}
       onChangeEnd={(values) => props.onChangeEnd?.(values[0] ?? props.value)}

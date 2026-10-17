@@ -15,8 +15,8 @@ import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 export function BrowserSecretCard(props: {
   request: BrowserTakeoverRequest;
   variant?: "card" | "island";
-  onOpen?: () => void;
-  loadPreview?: (tabId: string) => Promise<BrowserPreview>;
+  onOpen?: (() => void) | undefined;
+  loadPreview?: ((tabId: string) => Promise<BrowserPreview>) | undefined;
   onRespond: (input: RespondToBrowserSecretInput) => Promise<void>;
 }) {
   const { t } = useText();

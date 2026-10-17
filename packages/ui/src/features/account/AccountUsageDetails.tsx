@@ -51,7 +51,7 @@ export function AccountUsageDetails(props: {
           onClick={props.onRefresh}
           disabled={props.refreshDisabled}
         >
-          <RefreshCw class={props.refreshActive ? "icon-spinning" : undefined} aria-hidden="true" />
+          <RefreshCw class={props.refreshActive ? "icon-spinning" : ""} aria-hidden="true" />
         </Button>
       </header>
       <Show when={props.loading && props.rows.length === 0}>

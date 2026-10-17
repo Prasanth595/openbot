@@ -141,7 +141,7 @@ export function BrowserPreviewCard(props: {
   contextKey: string;
   enabled: boolean;
   onOpen: (tabId: string, trigger: HTMLButtonElement) => void;
-  onClose?: (tabId: string) => void;
+  onClose?: ((tabId: string) => void) | undefined;
 }) {
   const { t } = useText();
   const [state, setState] = createStore<{ preview: BrowserPreview | null; failed: boolean }>({

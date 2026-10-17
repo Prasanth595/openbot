@@ -571,7 +571,7 @@ function RoutineRunHistory(props: {
 
 function HostedSiteTarget(props: {
   marker: Extract<ChatActionMarkerModel, { kind: "hosted-site" }>;
-  onOpenHostedSite?: (url: string) => void;
+  onOpenHostedSite?: ((url: string) => void) | undefined;
 }) {
   const { t } = useText();
   const name = () => props.marker.hostname ?? props.marker.title;
@@ -723,7 +723,7 @@ function RoutineTarget(props: {
   icon?: ReturnType<typeof statusIcon>;
   status?: ChatActionMarkerStatus;
   available: boolean;
-  onOpenRoutine?: (routine: { routineId: string; name: string }) => void;
+  onOpenRoutine?: ((routine: { routineId: string; name: string }) => void) | undefined;
 }) {
   const { t } = useText();
   return (
@@ -745,10 +745,10 @@ function RoutineTarget(props: {
 function ActionTarget(props: {
   name: string;
   icon: ReturnType<typeof statusIcon>;
-  status?: ChatActionMarkerStatus;
+  status?: ChatActionMarkerStatus | undefined;
   available: boolean;
   actionLabel: string;
-  onOpen?: () => void;
+  onOpen?: (() => void) | undefined;
 }) {
   const { t } = useText();
   const interactive = () => props.available && Boolean(props.onOpen);

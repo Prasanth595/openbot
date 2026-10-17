@@ -39,7 +39,7 @@ export function LanguageSelect(props: LanguageSelectProps): JSX.Element {
       optionValue="id"
       optionTextValue={label}
       value={appLanguageOption(props.value)}
-      disabled={props.disabled}
+      {...(props.disabled === undefined ? {} : { disabled: props.disabled })}
       onChange={(option) => option && props.onChange(option.id)}
       placement="bottom-end"
       itemComponent={(itemProps) => (

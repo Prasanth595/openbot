@@ -12,6 +12,14 @@ export type SelectProps<Option, OptGroup = never, T extends ValidComponent = "di
 > &
   Pick<ComponentProps<T>, "class" | "children">;
 
+/**
+ * The `value` of a select whose option can be missing. Kobalte reads an undefined `value` as no
+ * `value`, so the select keeps its own selection until an option exists.
+ */
+export function selectValue<Option>(value: Option | undefined): { value?: Option } {
+  return value === undefined ? {} : { value };
+}
+
 export function Select<Option, OptGroup = never, T extends ValidComponent = "div">(
   props: SelectProps<Option, OptGroup, T>,
 ): JSX.Element {
@@ -76,7 +84,7 @@ export function SelectContent(props: SelectContentProps): JSX.Element {
   const others = omit(props, "class", "mount");
   let contentElement: HTMLElement | undefined;
   return (
-    <SelectPrimitive.Portal mount={props.mount}>
+    <SelectPrimitive.Portal mount={props.mount ?? document.body}>
       <SelectPrimitive.Content
         ref={(element) => {
           contentElement = element;

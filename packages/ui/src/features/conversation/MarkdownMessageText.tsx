@@ -23,7 +23,7 @@ import {
 type MarkdownMessageTextProps = Omit<RichMessageTextProps, "showCitationFooter"> & {
   showCitationFooter?: boolean;
   streaming?: boolean;
-  imagesAsLinks?: boolean;
+  imagesAsLinks?: boolean | undefined;
   /** Opens a markdown image in the image viewer. Without it, an image is only a picture. */
   onOpenImage?: ((image: HTMLImageElement) => void) | undefined;
 };
@@ -300,7 +300,7 @@ function MarkdownBlocks(props: {
    */
   linkDefinitions?: string;
   content: MarkdownContentProps;
-  streaming?: boolean;
+  streaming?: boolean | undefined;
   streamingTailAfter?: number | undefined;
 }) {
   const tokens = createMemo(() => props.tokens);
@@ -508,7 +508,7 @@ function MarkdownList(props: {
   );
 }
 
-function MarkdownTable(props: { token: Tokens.Table; content: MarkdownContentProps; streaming?: boolean }) {
+function MarkdownTable(props: { token: Tokens.Table; content: MarkdownContentProps; streaming?: boolean | undefined }) {
   const headers = createMemo(() => props.token.header);
   const rows = createMemo(() => props.token.rows);
   const streamingCellIndex = createMemo(() =>
@@ -556,7 +556,7 @@ function MarkdownTable(props: { token: Tokens.Table; content: MarkdownContentPro
 function MarkdownInline(props: {
   tokens: Token[];
   content: MarkdownContentProps;
-  streaming?: boolean;
+  streaming?: boolean | undefined;
   streamingTailAfter?: number | undefined;
 }) {
   const { t } = useText();
@@ -772,7 +772,7 @@ function semanticChatTag(token: Token | undefined): string | null {
 function RichText(props: {
   body: string;
   content: MarkdownContentProps;
-  streaming?: boolean;
+  streaming?: boolean | undefined;
   streamingTailAfter?: number | undefined;
 }) {
   return (

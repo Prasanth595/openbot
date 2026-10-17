@@ -754,8 +754,8 @@ function IslandModeSwap(props: IslandModeSwapProps): JSX.Element {
 
 function CompactLeading(props: {
   presentation: DynamicIslandPresentation;
-  displayMode?: "notch" | "island";
-  variant?: AppVariant;
+  displayMode?: "notch" | "island" | undefined;
+  variant?: AppVariant | undefined;
 }): JSX.Element {
   const statusAgent = () => compactStatusAgent(props.presentation);
   const working = () => (props.presentation.mode === "working" ? props.presentation.working : []);
@@ -814,7 +814,7 @@ function CompactTrailing(props: { presentation: DynamicIslandPresentation }): JS
 
 function CompactAgentIdentity(props: {
   agent: DynamicIslandAgentIdentity;
-  displayMode?: "notch" | "island";
+  displayMode?: "notch" | "island" | undefined;
   working?: boolean;
 }): JSX.Element {
   return (
@@ -828,7 +828,7 @@ function CompactAgentIdentity(props: {
   );
 }
 
-function CompactAgentName(props: { name: string; displayMode?: "notch" | "island" }): JSX.Element {
+function CompactAgentName(props: { name: string; displayMode?: "notch" | "island" | undefined }): JSX.Element {
   const nameMaxWidth = () =>
     props.displayMode === "island" ? STATUS_COMPACT_NAME_MAX_WIDTH.island : STATUS_COMPACT_NAME_MAX_WIDTH.notch;
   return (
@@ -966,11 +966,11 @@ function IdleGreetingEmoji(): JSX.Element {
 
 function ExpandedContent(props: {
   presentation: DynamicIslandPresentation;
-  displayMode?: "notch" | "island";
+  displayMode?: "notch" | "island" | undefined;
   inlineReply?: boolean | undefined;
   onAction: (action: DynamicIslandAction) => Promise<boolean> | undefined;
   actionError?: UserErrorDetails | undefined;
-  onHaptic?: () => void;
+  onHaptic?: (() => void) | undefined;
   onClose: () => void;
 }): JSX.Element {
   const { t } = useText();
@@ -1311,7 +1311,7 @@ function QuestionContent(props: {
   inlineReply?: boolean | undefined;
   actionError?: UserErrorDetails | undefined;
   onAction: (action: DynamicIslandAction) => Promise<boolean> | undefined;
-  onHaptic?: () => void;
+  onHaptic?: (() => void) | undefined;
   onClose: () => void;
 }): JSX.Element {
   const { t } = useText();
@@ -1767,7 +1767,7 @@ function ApprovalContext(props: { item: DynamicIslandApprovalItem }): JSX.Elemen
   );
 }
 
-function IslandAvatar(props: { agent: DynamicIslandAgentIdentity; working?: boolean }): JSX.Element {
+function IslandAvatar(props: { agent: DynamicIslandAgentIdentity; working?: boolean | undefined }): JSX.Element {
   return (
     <AgentAvatar
       agent={props.agent}

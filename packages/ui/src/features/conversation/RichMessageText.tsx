@@ -24,16 +24,16 @@ import {
 export interface RichMessageTextProps {
   body: string;
   agents: ComposerAgent[];
-  skills?: ComposerSkill[];
+  skills?: ComposerSkill[] | undefined;
   attachments?: AttachmentSummary[] | undefined;
-  citations?: MessageCitation[];
+  citations?: MessageCitation[] | undefined;
   onSelectAgent: (agentId: string) => void;
   onOpenLink: (url: string) => void;
-  onOpenAttachment?: (attachment: AttachmentSummary) => void;
-  onOpenSharedFile?: (path: string) => void;
-  onOpenWorkspaceFile?: (path: string) => void;
+  onOpenAttachment?: ((attachment: AttachmentSummary) => void) | undefined;
+  onOpenSharedFile?: ((path: string) => void) | undefined;
+  onOpenWorkspaceFile?: ((path: string) => void) | undefined;
   /** Shows the passage that a quote tag names. Without it, a quote is a chip that does nothing. */
-  onOpenQuote?: (messageId: string, text: string) => void;
+  onOpenQuote?: ((messageId: string, text: string) => void) | undefined;
   showCitationFooter?: boolean;
   /** The characters of a streaming body after this text. It fades the words revealed last. */
   streamingTailAfter?: number | undefined;
@@ -333,7 +333,7 @@ function plainTextPart(part: RichMessagePart): boolean {
 
 interface RichMessagePart {
   text: string;
-  agent?: ComposerAgent;
+  agent?: ComposerAgent | undefined;
   skill?: ComposerSkill;
   /**
    * An MCP server tag carries the name it was written with, and nothing looks it up. A message is a

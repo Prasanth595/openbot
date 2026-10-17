@@ -52,7 +52,7 @@ type OpenBotButtonProps = VariantProps<typeof buttonVariants> & {
   class?: JSX.HTMLAttributes<HTMLElement>["class"];
   children?: JSX.Element;
   loading?: boolean | undefined;
-  loadingLabel?: string;
+  loadingLabel?: string | undefined;
   fullWidth?: boolean;
 } & { [Marker in (typeof OTHER_CUE_MARKERS)[number]]?: string | undefined };
 
