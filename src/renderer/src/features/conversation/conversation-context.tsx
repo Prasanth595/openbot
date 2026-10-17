@@ -60,8 +60,19 @@ const INACTIVE_SNAPSHOT_TAIL = LATEST_PAGE_SIZE * 4;
 
 function trimToLatestPage(conversation: ConversationState): void {
   if (conversation.messages.length <= LATEST_PAGE_SIZE) return;
-  conversation.messages = conversation.messages.slice(-LATEST_PAGE_SIZE);
-  conversation.references = {};
+  const kept = conversation.messages.slice(-LATEST_PAGE_SIZE);
+  const removedById = new Map(
+    conversation.messages.slice(0, -LATEST_PAGE_SIZE).map((message) => [message.id, message]),
+  );
+  // A kept reply keeps the quote of an original that the trim removes, as a page from the host gives it.
+  const references: Record<string, AgentMessage> = {};
+  for (const message of kept) {
+    const originalId = message.replyToMessageId;
+    const original = originalId ? (removedById.get(originalId) ?? conversation.references?.[originalId]) : undefined;
+    if (originalId && original) references[originalId] = original;
+  }
+  conversation.messages = kept;
+  conversation.references = references;
   conversation.page = { hasOlder: true, olderCursor: null };
 }
 

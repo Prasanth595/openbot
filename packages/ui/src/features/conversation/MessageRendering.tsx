@@ -258,8 +258,9 @@ export function MessageBody(props: {
   /** Opens the quoted message in the chat. Absent, the quote is not a control. */
   onOpenReference?: () => void;
   /**
-   * `loading` while the chat loads the history around the original. `unavailable` when the chat no
-   * longer has it: the quote cannot open it, and a note says so. With no quote, only the note shows.
+   * `loading` while the chat loads the history around the original. `unavailable` when the chat did
+   * not find it: a note says so. A quote stays open to a new try, because a load can fail for a
+   * time. With no quote, only the note shows.
    */
   referenceState?: "loading" | "unavailable" | undefined;
   agents: AgentProfile[];
@@ -279,7 +280,7 @@ export function MessageBody(props: {
     untrack(() => props.animate),
   );
   const streamedBody = streamingBody.body;
-  const referenceOpens = () => Boolean(props.onOpenReference) && props.referenceState !== "unavailable";
+  const referenceOpens = () => Boolean(props.onOpenReference);
   const referenceTextId = `message-reply-${createUniqueId()}`;
   const selectionInstruction = createMemo(() =>
     props.message.author === "you" && props.message.replyToMessageId
@@ -468,7 +469,8 @@ export function MessageBody(props: {
         )}
       </Show>
       <Show when={props.referenceState === "unavailable"}>
-        <p class="message-reply-unavailable" role="status">
+        {/* Only a jump that failed changes the note while the row shows. A row that mounts again must not repeat it. */}
+        <p class="message-reply-unavailable" role={props.referencedMessage ? "status" : undefined}>
           <Info class="message-reply-unavailable-icon" aria-hidden="true" />
           {t("chat.reply.originalUnavailable")}
         </p>

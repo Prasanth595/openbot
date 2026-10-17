@@ -116,10 +116,14 @@ export function createReplyJumpStore(deps: ReplyJumpStoreDeps) {
     });
   }
 
+  /* A jump that the reader leaves for another chat stops, so that it does not load or scroll that chat. */
+  const isOpen = (agentId: string | undefined) => deps.props.agent?.id === agentId;
+
   /* Scrolls the message to the middle of the view. `undefined` when the chat no longer has it. */
-  async function reveal(id: string, replyId: string): Promise<HTMLElement | undefined> {
+  async function reveal(id: string, replyId: string, agentId: string | undefined): Promise<HTMLElement | undefined> {
     deps.setStickToLatest(false);
     let row = await findRow(id);
+    if (!isOpen(agentId)) return undefined;
     if (!row && deps.props.onOpenSearchMessage) {
       setLoadingReplyId(replyId);
       try {
@@ -131,7 +135,7 @@ export function createReplyJumpStore(deps: ReplyJumpStoreDeps) {
       }
     }
     const element = deps.scrollElement();
-    if (!row || !element) return undefined;
+    if (!row || !element || !isOpen(agentId)) return undefined;
     for (let attempt = 0; attempt < SCROLL_ATTEMPTS; attempt += 1) {
       // A scroll event near the bottom can set the follow of the latest message again.
       deps.setStickToLatest(false);
@@ -163,10 +167,12 @@ export function createReplyJumpStore(deps: ReplyJumpStoreDeps) {
   async function openReference(reply: AgentMessage): Promise<void> {
     const targetId = reply.replyToMessageId;
     if (!targetId || jumping) return;
+    const agentId = deps.props.agent?.id;
     jumping = true;
     setUnavailableReplyId(null);
     try {
-      const row = await reveal(targetId, reply.id);
+      const row = await reveal(targetId, reply.id, agentId);
+      if (!isOpen(agentId)) return;
       if (!row) {
         setUnavailableReplyId(reply.id);
         return;
@@ -181,6 +187,8 @@ export function createReplyJumpStore(deps: ReplyJumpStoreDeps) {
     } finally {
       jumping = false;
     }
+    // An original next to the reply needs no scroll, and the reply stays in view.
+    updateReturnVisibility();
   }
 
   async function returnToReply(): Promise<void> {
@@ -189,7 +197,7 @@ export function createReplyJumpStore(deps: ReplyJumpStoreDeps) {
     jumping = true;
     setReturnReplyId(null);
     try {
-      const row = await reveal(replyId, replyId);
+      const row = await reveal(replyId, replyId, deps.props.agent?.id);
       if (!row) return;
       flash(row);
       focusQuote(replyId);
