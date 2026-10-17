@@ -4,3 +4,4 @@
 - An invitation from an admin stayed valid after the admin was removed or demoted. Now it stops working.
 - If the public ticket key set had a private key by mistake, `/.well-known/jwks.json` published the private key. Now it publishes only the public members.
 - A checkout return address that starts with `//` or `/\` could send the browser to another site. The account server never made such an address, but now it refuses one.
+- A hosted site address such as `/constructor` made the site router read storage for a file that does not exist. Now the router finds only the files of the site.
