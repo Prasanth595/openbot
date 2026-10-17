@@ -88,12 +88,11 @@ export const WithReplyContext: Story = {
 };
 
 const reply: AgentMessage = {
-  ...message,
   id: "message-reply",
   author: "you",
   body: "Approved. Renew it today and tell me the new expiry date.",
+  time: "10:00",
   replyToMessageId: "message-reference",
-  status: undefined,
   attachments: [],
 };
 
