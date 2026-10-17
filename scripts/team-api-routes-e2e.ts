@@ -318,6 +318,11 @@ const mailbox: TeamApiMailbox = {
     Effect.succeed(id === "att-1" ? { path: attachmentPath, mimeType: "text/plain", name: "report one.txt" } : null),
 };
 
+// The holders whose browser control a route gave back, so a session end can be checked.
+const releasedHolders: Parameters<TeamApiBrowser["releaseUserControlHeldBy"]>[0][] = [];
+const releasedSession = (sessionId: string | undefined) =>
+  releasedHolders.some((holder) => holder.kind === "session" && holder.sessionId === sessionId);
+
 const browser: TeamApiBrowser = {
   listTabs: unused("listTabs"),
   getControlState: unused("getControlState"),
@@ -328,7 +333,9 @@ const browser: TeamApiBrowser = {
   stop: unused("stop"),
   takeUserControl: unused("takeUserControl"),
   releaseUserControl: unused("releaseUserControl"),
-  releaseUserControlHeldBy: unused("releaseUserControlHeldBy"),
+  releaseUserControlHeldBy: (holder) => {
+    releasedHolders.push(holder);
+  },
   close: unused("close"),
   capturePreview: unused("capturePreview"),
   setVisible: unused("setVisible"),
@@ -609,15 +616,22 @@ try {
 
     const adaSecond = field(otherUser.body, "sessionToken");
     assert.ok(typeof adaSecond === "string", "ada has no second session.");
+    const adaSecondSession = store.authenticateSession(adaSecond)?.sessionId;
     const logout = await call("POST", TEAM_API_ROUTES.auth.logout, { token: adaSecond, json: {} });
     const afterLogout = await call("GET", TEAM_API_ROUTES.me, { token: adaSecond });
     const firstStill = await call("GET", TEAM_API_ROUTES.me, { token: adaToken });
     check(
-      "logout ends only that session",
+      "logout ends only that session and gives back the browser control of that session",
       logout.status === 204 &&
         errorIs(afterLogout, 401, sourceText("error.team.authenticationRequired")) &&
-        firstStill.status === 200,
-      { logout: logout.status, afterLogout: afterLogout.status, firstStill: firstStill.status },
+        firstStill.status === 200 &&
+        releasedSession(adaSecondSession),
+      {
+        logout: logout.status,
+        afterLogout: afterLogout.status,
+        firstStill: firstStill.status,
+        released: releasedSession(adaSecondSession),
+      },
     );
   }
 
@@ -783,9 +797,17 @@ try {
     const revokedUse = await call("GET", TEAM_API_ROUTES.me, { token: bobSecond });
     const bobFirst = await call("GET", TEAM_API_ROUTES.me, { token: bobToken });
     check(
-      "an admin ends one session of a member; that token gets 401 and the other session stays",
-      revokeBob.status === 204 && revokedUse.status === 401 && bobFirst.status === 200,
-      { revoke: revokeBob.status, revokedUse: revokedUse.status, bobFirst: bobFirst.status },
+      "an admin ends one session of a member; that token gets 401, the other session stays, and the browser control of that session is given back",
+      revokeBob.status === 204 &&
+        revokedUse.status === 401 &&
+        bobFirst.status === 200 &&
+        releasedSession(bobSecondSession?.id),
+      {
+        revoke: revokeBob.status,
+        revokedUse: revokedUse.status,
+        bobFirst: bobFirst.status,
+        released: releasedSession(bobSecondSession?.id),
+      },
     );
   }
 
