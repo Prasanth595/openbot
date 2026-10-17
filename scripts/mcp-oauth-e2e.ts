@@ -1,15 +1,40 @@
 // Runs the silent MCP OAuth paths end to end on the real `McpOAuth`: the real SDK exchange, the real
 // `secureOAuthFetch` and the real logger, against a local OAuth server on the loopback address. The
 // storage is a map that decodes each record as the store on disk does. No account or key is used.
+//
+// The proxy cases run the real `McpGateway` and its `McpOAuthProxy` on a temporary database, with
+// the SDK MCP client as the provider and an SDK Streamable HTTP server as the signed-in MCP server.
+// The provider payload is the one `codexMcpServers` and `claudeMcpServers` build for a spawn.
 // `bun scripts/mcp-oauth-e2e.ts`. Writes .openbot-build/mcp-oauth-e2e/report.json.
 import assert from "node:assert/strict";
-import { mkdir, rm, writeFile } from "node:fs/promises";
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { randomUUID } from "node:crypto";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { createServer, request as httpRequest, type IncomingMessage, type ServerResponse } from "node:http";
+import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { createOpenBotLogger } from "@openbot/logging";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
+import {
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+  McpError,
+  ToolListChangedNotificationSchema,
+} from "@modelcontextprotocol/sdk/types.js";
+import type { McpServerConfig } from "@openbot/contracts/ipc";
+import { createOpenBotLogger, redactText } from "@openbot/logging";
 import { Effect } from "effect";
+import { McpGateway } from "../src/backend/agent/mcp-gateway";
 import { runCauseEffect } from "../src/backend/effect-boundary";
+import { toMcpOperationError } from "../src/backend/mcp-effects";
 import { McpOAuth, type McpOAuthRecord, mcpOAuthRecordSchema } from "../src/backend/mcp-oauth-provider";
+import type { McpOAuthProxySettings } from "../src/backend/mcp-oauth-proxy";
+import { claudeMcpServers, codexMcpServers, usableMcpServers } from "../src/backend/mcp-provider-shapes";
+import { McpServerStore } from "../src/backend/mcp-server-store";
+import { OpenBotDatabase } from "../src/backend/openbot-database";
+import { NO_PROVIDER_CREDENTIALS } from "../src/backend/provider-drivers";
 
 const OUT = resolve(import.meta.dirname, "../.openbot-build/mcp-oauth-e2e");
 const REDIRECT_URL = "http://127.0.0.1:28417/mcp-auth";
@@ -294,10 +319,408 @@ async function main() {
     return { warnings: warnings().length, status: "http 503", credentialsInLog: false };
   });
 
+  const proxy = await proxyCases(auth);
   await auth.close();
-  const cases = { refreshed, invalidGrant, invalidClient, networkError, signOut, revokeRefused };
+  const cases = { refreshed, invalidGrant, invalidClient, networkError, signOut, revokeRefused, ...proxy };
   await writeFile(join(OUT, "report.json"), `${JSON.stringify({ ok: true, cases }, null, 2)}\n`);
   process.stdout.write(`mcp-oauth-e2e: ${Object.keys(cases).length} cases passed\n`);
+}
+
+interface ResourceHit {
+  method: string;
+  path: string;
+  authorization: string | undefined;
+  rowKey: string | undefined;
+}
+
+/**
+ * The signed-in MCP server: an SDK Streamable HTTP server with one session per client, behind a
+ * bearer check that answers 401 as a real server does. `/moved` redirects on the same origin and
+ * `/away` to another origin. Each path has its own protected-resource metadata, which a refresh
+ * checks against the row's URL.
+ */
+async function startResourceServer(authorizationServer: string) {
+  const hits: ResourceHit[] = [];
+  const waiters: Array<() => void> = [];
+  const valid = new Set(["access-on-file"]);
+  const sessions = new Map<string, StreamableHTTPServerTransport>();
+  const server = createServer(async (request, response) => {
+    const url = new URL(request.url ?? "/", base);
+    const rowKey = request.headers["x-row-key"];
+    hits.push({
+      method: request.method ?? "GET",
+      path: url.pathname,
+      authorization: request.headers.authorization,
+      rowKey: typeof rowKey === "string" ? rowKey : undefined,
+    });
+    for (const waiter of waiters.splice(0)) waiter();
+    const metadata = /^\/\.well-known\/oauth-protected-resource(\/.*)$/u.exec(url.pathname)?.[1];
+    if (metadata)
+      return json(response, 200, { resource: `${base}${metadata}`, authorization_servers: [authorizationServer] });
+    if (url.pathname === "/moved") {
+      response.writeHead(307, { location: "/mcp" });
+      return response.end();
+    }
+    if (url.pathname === "/away") {
+      response.writeHead(307, { location: `http://localhost:${port}/mcp` });
+      return response.end();
+    }
+    if (url.pathname !== "/mcp") return json(response, 404, {});
+    const bearer = request.headers.authorization?.replace(/^Bearer /u, "") ?? "";
+    if (!valid.has(bearer)) {
+      response.writeHead(401, {
+        "www-authenticate": `Bearer resource_metadata="${base}/.well-known/oauth-protected-resource${url.pathname}"`,
+      });
+      return response.end();
+    }
+    const sessionId = request.headers["mcp-session-id"];
+    let transport = typeof sessionId === "string" ? sessions.get(sessionId) : undefined;
+    if (!transport) {
+      const created = new StreamableHTTPServerTransport({
+        sessionIdGenerator: randomUUID,
+        onsessioninitialized: (id) => {
+          sessions.set(id, created);
+        },
+      });
+      await mcpServer().connect(asTransport(created));
+      transport = created;
+    }
+    await transport.handleRequest(request, response);
+  });
+  await new Promise<void>((done) => server.listen(0, "127.0.0.1", done));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const port = address.port;
+  const base = `http://127.0.0.1:${port}`;
+  return {
+    base,
+    hits,
+    valid,
+    /** Resolves when the hits satisfy `done`, and fails at the deadline. */
+    waitFor: (done: () => boolean, what: string) =>
+      new Promise<void>((resolveWait, reject) => {
+        const timer = setTimeout(() => reject(new Error(`The MCP server did not see ${what}.`)), DEADLINE_MS);
+        const check = () => {
+          if (!done()) return void waiters.push(check);
+          clearTimeout(timer);
+          resolveWait();
+        };
+        check();
+      }),
+    close: async () => {
+      for (const transport of sessions.values()) await transport.close();
+      server.closeAllConnections();
+      await new Promise<void>((done) => server.close(() => done()));
+    },
+  };
+}
+
+/** `echo` answers with its text; `notify` sends a list change on the session's GET stream. */
+function mcpServer() {
+  const server = new Server(
+    { name: "e2e-resource", version: "1.0.0" },
+    { capabilities: { tools: { listChanged: true } } },
+  );
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({
+    tools: [
+      { name: "echo", inputSchema: { type: "object", properties: { text: { type: "string" } } } },
+      { name: "notify", inputSchema: { type: "object" } },
+    ],
+  }));
+  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    if (request.params.name === "notify") {
+      // No related request: the SDK sends it on the standalone GET stream.
+      await server.sendToolListChanged();
+      return { content: [{ type: "text", text: "sent" }] };
+    }
+    return { content: [{ type: "text", text: String(request.params.arguments?.text ?? "") }] };
+  });
+  return server;
+}
+
+/** A signed-in record for `url` that is still fresh, so the proxy hands the stored token on unchanged. */
+function freshRecord(base: string, url: string): McpOAuthRecord {
+  const record = expiredRecord(base);
+  const { origin, pathname } = new URL(url);
+  return mcpOAuthRecordSchema.parse({
+    ...record,
+    tokens: { ...record.tokens, expires_in: 3600 },
+    obtainedAt: Date.now(),
+    discovery: {
+      ...record.discovery,
+      resourceMetadataUrl: `${origin}/.well-known/oauth-protected-resource${pathname}`,
+    },
+  });
+}
+
+const INITIALIZE = JSON.stringify({
+  jsonrpc: "2.0",
+  id: 1,
+  method: "initialize",
+  params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "e2e", version: "1.0.0" } },
+});
+
+/** The status of one raw POST, with headers that `fetch` would not send, such as another `Host`. */
+function rawPost(url: string, headers: Record<string, string>): Promise<number> {
+  return new Promise((done, reject) => {
+    const request = httpRequest(
+      url,
+      {
+        method: "POST",
+        headers: { accept: "application/json, text/event-stream", "content-type": "application/json", ...headers },
+      },
+      (response) => {
+        response.resume();
+        done(response.statusCode ?? 0);
+      },
+    );
+    request.on("error", reject);
+    request.end(INITIALIZE);
+  });
+}
+
+function textOf(result: Awaited<ReturnType<Client["callTool"]>>): string {
+  const [first] = Array.isArray(result.content) ? result.content : [];
+  return first && typeof first === "object" && "text" in first ? String(first.text) : "";
+}
+
+/**
+ * The SDK transport classes declare their handlers and `sessionId` as `T | undefined`, which
+ * `exactOptionalPropertyTypes` does not accept as a `Transport`. This one forwards to such a class.
+ */
+function asTransport(inner: {
+  start(): Promise<void>;
+  send: Transport["send"];
+  close(): Promise<void>;
+  onclose?: (() => void) | undefined;
+  onerror?: ((error: Error) => void) | undefined;
+  onmessage?: Transport["onmessage"] | undefined;
+  setProtocolVersion?: ((version: string) => void) | undefined;
+}): Transport {
+  const transport: Transport = {
+    start: () => {
+      inner.onclose = () => transport.onclose?.();
+      inner.onerror = (error) => transport.onerror?.(error);
+      inner.onmessage = (message, extra) => transport.onmessage?.(message, extra);
+      return inner.start();
+    },
+    send: (message, options) => inner.send(message, options),
+    close: () => inner.close(),
+    setProtocolVersion: (version) => inner.setProtocolVersion?.(version),
+  };
+  return transport;
+}
+
+/**
+ * The proxy end to end: the provider payload, a tool call and a GET-stream notification through
+ * it, a token the server ends during the session, a sign-out, the refused requests, and the
+ * address after a restart.
+ */
+async function proxyCases(auth: Awaited<ReturnType<typeof startAuthorizationServer>>) {
+  auth.setTokenMode("rotate");
+  auth.setRevokeStatus(200);
+  const resource = await startResourceServer(auth.base);
+  const root = await mkdtemp(join(tmpdir(), "openbot-mcp-oauth-proxy-"));
+  const database = new OpenBotDatabase(root);
+  const clients: Client[] = [];
+  const gateways: McpGateway[] = [];
+  try {
+    await runCauseEffect(database.initialize());
+    const servers = new McpServerStore(database);
+    const row = (name: string, path: string): McpServerConfig =>
+      servers.save({
+        id: "",
+        name,
+        transport: "http",
+        enabled: true,
+        command: "",
+        args: [],
+        env: [],
+        envPassthrough: [],
+        workingDirectory: "",
+        url: `${resource.base}${path}`,
+        headers: [{ key: "X-Row-Key", value: "row-secret" }],
+      });
+    const direct = row("Resource", "/mcp");
+    const moved = row("Moved", "/moved");
+    const away = row("Away", "/away");
+    const { records, storage } = memoryStorage();
+    for (const config of [direct, moved, away]) records.set(config.url, freshRecord(auth.base, config.url));
+    const logLines: string[] = [];
+    const oauth = new McpOAuth({
+      storage,
+      openExternal: async () => {
+        throw new Error("A proxy path opened the browser.");
+      },
+      redirectUrl: REDIRECT_URL,
+      logger: createOpenBotLogger("mcp-oauth", (line) => logLines.push(line)),
+    });
+    // A holder, so the type is not narrowed to `null` across the writes in the callbacks.
+    const saved: { value: McpOAuthProxySettings | null } = { value: null };
+    const settings = {
+      read: () => saved.value,
+      write: (next: McpOAuthProxySettings) =>
+        Effect.sync(() => {
+          saved.value = next;
+        }),
+    };
+    const startGateway = () => {
+      const gateway = new McpGateway({
+        servers,
+        credentials: { ...NO_PROVIDER_CREDENTIALS, mcpOAuth: oauth, mcpOAuthProxySettings: settings },
+        computerUseMcpServer: () => null,
+        logger: createOpenBotLogger("agent-service", (line) => logLines.push(line)),
+        hooks: { emitError: () => undefined, refreshAllAgentRuntimes: () => Effect.void },
+      });
+      gateways.push(gateway);
+      return gateway;
+    };
+    const endpointOf = async (gateway: McpGateway, config: McpServerConfig) => {
+      const endpoint = await runCauseEffect(gateway.endpoint(config));
+      assert.ok(!("error" in endpoint), "The proxy did not start.");
+      assert.equal(endpoint.proxied, true);
+      assert.ok(endpoint.authorization);
+      return { url: endpoint.url, bearer: endpoint.authorization };
+    };
+    const connect = async (url: string, bearer: string) => {
+      const client = new Client({ name: "e2e-provider", version: "1.0.0" });
+      clients.push(client);
+      await client.connect(
+        asTransport(
+          new StreamableHTTPClientTransport(new URL(url), {
+            requestInit: { headers: { authorization: `Bearer ${bearer}` } },
+          }),
+        ),
+      );
+      return client;
+    };
+    let gateway = startGateway();
+
+    // The payload a provider is spawned with names the proxy only: no token, no header of the row.
+    const usable = await runCauseEffect(
+      usableMcpServers(gateway.enabled(), undefined, (config) => gateway.endpoint(config).pipe(toMcpOperationError)),
+    );
+    const codex = codexMcpServers(usable);
+    const claude = claudeMcpServers(usable);
+    assert.deepEqual(codex.dropped, []);
+    for (const payload of [JSON.stringify(codex.servers), JSON.stringify(claude.servers)]) {
+      for (const secret of ["access-on-file", "refresh-on-file", "row-secret", resource.base])
+        assert.ok(!payload.includes(secret), "A provider payload held a credential or the server's own address.");
+    }
+    const directRoute = await endpointOf(gateway, direct);
+    const port = saved.value?.port;
+    assert.ok(port);
+    const codexDirect = codex.servers.Resource;
+    assert.ok(codexDirect && "url" in codexDirect);
+    assert.match(codexDirect.url, new RegExp(`^http://127\\.0\\.0\\.1:${port}/mcp/[0-9a-f]{32}$`, "u"));
+    assert.deepEqual(codexDirect.http_headers, { Authorization: `Bearer ${directRoute.bearer}` });
+    const redacted = `bearer ${directRoute.bearer}`;
+    assert.ok(!gateway.redact(redacted).includes(directRoute.bearer));
+    assert.ok(!redactText(redacted).includes(directRoute.bearer));
+    const handoff = { proxiedRows: Object.keys(codex.servers).length, tokensInPayload: false, bearerRedacted: true };
+
+    // A tool call goes through, and the server gets the row's header and the token from this process.
+    const client = await connect(directRoute.url, directRoute.bearer);
+    const notified = new Promise<void>((done) =>
+      client.setNotificationHandler(ToolListChangedNotificationSchema, () => done()),
+    );
+    assert.equal(textOf(await client.callTool({ name: "echo", arguments: { text: "through" } })), "through");
+    const upstream = resource.hits.filter((hit) => hit.path === "/mcp" && hit.method === "POST");
+    assert.ok(upstream.length > 0);
+    assert.ok(upstream.every((hit) => hit.authorization === "Bearer access-on-file" && hit.rowKey === "row-secret"));
+    const echo = { text: "through", upstreamToken: "access-on-file", rowHeaderUpstream: true };
+
+    // The GET stream stays open through the proxy and carries a server notification.
+    await resource.waitFor(
+      () => resource.hits.some((hit) => hit.path === "/mcp" && hit.method === "GET"),
+      "a GET stream",
+    );
+    await client.callTool({ name: "notify", arguments: {} });
+    await Promise.race([
+      notified,
+      new Promise((_, reject) => setTimeout(() => reject(new Error("No notification came through.")), DEADLINE_MS)),
+    ]);
+    const getStream = { notification: "notifications/tools/list_changed" };
+
+    // Refused at the proxy: another Host, a bearer of another route, and a redirect to another origin.
+    const movedRoute = await endpointOf(gateway, moved);
+    const awayRoute = await endpointOf(gateway, away);
+    const hitsBefore = resource.hits.length;
+    assert.equal(
+      await rawPost(directRoute.url, {
+        host: `rebound.example:${port}`,
+        authorization: `Bearer ${directRoute.bearer}`,
+      }),
+      403,
+    );
+    assert.equal(await rawPost(directRoute.url, { authorization: `Bearer ${movedRoute.bearer}` }), 403);
+    assert.equal(resource.hits.length, hitsBefore, "A refused request reached the server.");
+    assert.equal(await rawPost(awayRoute.url, { authorization: `Bearer ${awayRoute.bearer}` }), 502);
+    const movedClient = await connect(movedRoute.url, movedRoute.bearer);
+    assert.equal(textOf(await movedClient.callTool({ name: "echo", arguments: { text: "moved" } })), "moved");
+    const refused = { otherHost: 403, otherRouteBearer: 403, crossOriginRedirect: 502, sameOriginRedirect: "followed" };
+
+    // The server ends the token during the session: one refresh, and the call still succeeds.
+    resource.valid.clear();
+    resource.valid.add("access-rotated");
+    auth.reset();
+    assert.equal(textOf(await client.callTool({ name: "echo", arguments: { text: "renewed" } })), "renewed");
+    assert.equal(auth.hits.filter((hit) => hit.path === "/token").length, 1);
+    assert.equal(resource.hits.at(-1)?.authorization, "Bearer access-rotated");
+    const midSessionRefresh = { refreshes: 1, text: "renewed" };
+
+    // After a sign-out the call gets a JSON-RPC error, never a 401 that would start a sign-in.
+    await runCauseEffect(gateway.signOut({ mcpServerId: direct.id }));
+    const hitsAtSignOut = resource.hits.length;
+    const postsBefore = resource.hits.filter((hit) => hit.method === "POST").length;
+    const failure = await client.callTool({ name: "echo", arguments: { text: "gone" } }).then(
+      () => null,
+      (error: unknown) => error,
+    );
+    assert.ok(failure instanceof McpError, "The call after a sign-out did not fail with a JSON-RPC error.");
+    assert.equal(failure.code, -32001);
+    assert.equal(resource.hits.filter((hit) => hit.method === "POST").length, postsBefore);
+    assert.ok(!resource.hits.slice(hitsAtSignOut).some((hit) => hit.path.startsWith("/.well-known")));
+    const signedOut = { code: failure.code, upstreamRequests: 0, discoveryRequests: 0 };
+
+    for (const line of logLines)
+      for (const secret of ["access-on-file", "access-rotated", "refresh-on-file", "row-secret", directRoute.bearer])
+        assert.ok(!line.includes(secret), "A log line quoted a credential.");
+
+    // A restart keeps the address and the bearers, so a resumed Codex session still reaches them.
+    for (const open of clients.splice(0)) await open.close();
+    const fingerprint = await runCauseEffect(gateway.proxyFingerprint(servers.listEnabled()));
+    assert.ok(fingerprint);
+    await runCauseEffect(gateway.close());
+    gateway = startGateway();
+    const restarted = await endpointOf(gateway, moved);
+    assert.deepEqual(restarted, movedRoute);
+    assert.equal(await runCauseEffect(gateway.proxyFingerprint(servers.listEnabled())), fingerprint);
+    await runCauseEffect(gateway.close());
+
+    // A program holds the saved port: a new port and a new secret, and the manifest changes.
+    const blocker = createServer();
+    await new Promise<void>((done) => blocker.listen(port, "127.0.0.1", done));
+    try {
+      gateway = startGateway();
+      const moved2 = await endpointOf(gateway, moved);
+      assert.notEqual(saved.value?.port, port);
+      assert.notEqual(moved2.bearer, movedRoute.bearer);
+      assert.notEqual(await runCauseEffect(gateway.proxyFingerprint(servers.listEnabled())), fingerprint);
+    } finally {
+      await new Promise<void>((done) => blocker.close(() => done()));
+    }
+    const restart = { samePortAndBearer: true, sameFingerprint: true, busyPortRotatesSecret: true };
+
+    await runCauseEffect(oauth.close());
+    return { handoff, echo, getStream, refused, midSessionRefresh, signedOut, restart };
+  } finally {
+    for (const open of clients) await open.close();
+    for (const open of gateways) await runCauseEffect(open.close());
+    await resource.close();
+    database.close();
+    await rm(root, { recursive: true, force: true });
+  }
 }
 
 await main();

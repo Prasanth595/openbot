@@ -54,7 +54,39 @@ Sign-out and removal delete the local tokens first. Then OpenBot sends one best-
 request per token, refresh token first, to the `revocation_endpoint` of the authorization server.
 The request goes through `secureOAuthFetch`, with the client authentication of the registration and
 a 5-second limit. A failure is logged with the origin and the status only, and is not shown.
-Run `bun run test:mcp-oauth` to check these paths against a local authorization server.
+Run `bun run test:mcp-oauth` to check the sign-in paths against a local authorization server.
+
+### How an agent reaches a signed-in MCP server
+
+An agent never gets an OAuth token. `McpGateway.endpoint` gives a provider a route of
+`McpOAuthProxy` ([`mcp-oauth-proxy.ts`](../../src/backend/mcp-oauth-proxy.ts)) for each http row
+that has a sign-in on this computer, or a sign-in that the server ended, and no `Authorization`
+header that the user typed. The GitHub row keeps its own proxy. Other rows, stdio rows and the Test
+probe are not changed.
+
+| Part | Rule |
+| --- | --- |
+| Address | `http://127.0.0.1:<port>/mcp/<route>`. The route is a digest of the row id and its URL, so a changed URL is a new route. |
+| Bearer | An HMAC of the route with the proxy secret. A bearer opens one route only. It is compared with `timingSafeEqual` and registered for redaction. |
+| Refused with 403 | A `Host` that is not `127.0.0.1:<port>` or `localhost:<port>`, an unknown path, a wrong bearer. |
+| Upstream | The row's URL and its headers, with the current token. The provider's `Authorization` and cookies are not sent. Only same-origin 307 and 308 redirects are followed, at most 3. |
+| Server answers 401 | One `McpOAuth.refreshAccessToken`, then one retry with the new token. |
+| No sign-in | Each request gets JSON-RPC error `-32001`, notifications get 202, GET and DELETE get 405. The proxy never answers 401, so the provider does not start its own sign-in. |
+| Server not reached | 502 with JSON-RPC error `-32603`. |
+
+Each request reads its target from the enabled rows and the stored sign-in. Removing, turning off,
+editing or signing out of a row refuses its route at once; there is no list of routes to keep
+current. A proxy that cannot start drops the row from the hand-off with
+`error.backend.mcpOAuthProxyUnavailable`. The raw token is never the fallback.
+
+The port and the secret are kept encrypted in `openbot-mcp-oauth-proxy-v1.json`. Codex keeps the
+MCP configuration of a resumed thread, so the same address must work after a restart. When the
+saved port is in use, the proxy takes a new port and a new secret, so the old bearers stop working.
+The Codex tool manifest records the proxy address and the proxied rows; a change replaces the Codex
+session at its next turn. A computer with no proxied row keeps its manifest.
+
+Run `bun run test:mcp-oauth` to check these paths against a local authorization server and a local
+MCP server.
 
 ## Remote sign-in: the callback relay
 

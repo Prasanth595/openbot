@@ -196,6 +196,10 @@ export const messages = {
   "error.backend.mcpSignInResponseTimedOut": "Oturum açma yanıtı zamanında gelmedi.",
   "error.backend.mcpServerExited":
     "Sunucu yanıt vermeden durdu. Hatasını görmek için komutu bir terminalde çalıştırın.",
+  "error.backend.mcpOAuthProxyUnavailable":
+    "OpenBot bu sunucu için yerel oturum açma bağlantısını başlatamadı. OpenBot'u yeniden başlatın ve tekrar deneyin.",
+  "error.backend.mcpOAuthSignInNeeded":
+    "Bu MCP sunucusundaki oturum sona erdi. Kullanıcının OpenBot'ta yeniden oturum açması gerekiyor.",
   "error.backend.mcpServerUnreachable": "OpenBot sunucuya ulaşamadı. URL'yi ve ağınızı kontrol edin.",
   "error.backend.mcpLocalServerOff":
     "Bu bilgisayarda {address} adresinde yanıt veren bir sunucu yok. Sunucuyu başlatın veya onu çalıştıran uygulamada açın, ardından tekrar deneyin.",

@@ -76,7 +76,13 @@ export const testMcpServer = Effect.fnUntraced(function* (
         const server = yield* usableMcpServer(
           config,
           tools,
-          oauth ? (subject) => oauth.accessToken(subject.url) : undefined,
+          // The probe runs in this process, so it holds the token itself and never uses the proxy.
+          oauth
+            ? (subject) =>
+                oauth
+                  .accessToken(subject.url)
+                  .pipe(Effect.map((authorization) => ({ url: subject.url, authorization, proxied: false })))
+            : undefined,
         );
         return yield* probeMcpServerEffect(server, timeoutMs, signIn, signInPlace);
       }),

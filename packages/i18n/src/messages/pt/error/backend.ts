@@ -207,6 +207,10 @@ export const messages = {
   "error.backend.mcpSignInResponseTimedOut": "A resposta do login não chegou a tempo.",
   "error.backend.mcpServerExited":
     "O servidor parou antes de responder. Execute o comando em um terminal para ver o erro.",
+  "error.backend.mcpOAuthProxyUnavailable":
+    "O OpenBot não conseguiu iniciar a conexão local de login para este servidor. Reinicie o OpenBot e tente novamente.",
+  "error.backend.mcpOAuthSignInNeeded":
+    "O login neste servidor MCP terminou. O usuário precisa entrar novamente no OpenBot.",
   "error.backend.mcpServerUnreachable": "O OpenBot não conseguiu acessar o servidor. Verifique a URL e sua rede.",
   "error.backend.mcpLocalServerOff":
     "Nenhum servidor responde em {address} neste computador. Inicie o servidor ou ative-o no app que o executa e tente novamente.",

@@ -20,8 +20,8 @@ import {
   acpMcpServers,
   agentMcpServers,
   computerUseParam,
-  type McpAuthorizationSource,
   type McpDropReporter,
+  type McpEndpointSource,
   type McpServerSource,
   type McpToolRuntimeSource,
   usableMcpServers,
@@ -72,7 +72,7 @@ export interface MuseProviderOptions {
   mcpServers?: McpServerSource;
   reportMcpDrops?: McpDropReporter;
   mcpToolRuntimes?: McpToolRuntimeSource;
-  mcpAuthorization?: McpAuthorizationSource;
+  mcpEndpoint?: McpEndpointSource;
   readAccount?: () => Effect.Effect<
     { authenticated: boolean; email?: string | null; planType?: string | null },
     ProviderClientOperationError
@@ -492,7 +492,7 @@ export class MuseAgentClient extends EventEmitter<ClientEvents> implements Agent
           computerUseParam(params),
         ),
         this.#options.mcpToolRuntimes?.(),
-        this.#options.mcpAuthorization,
+        this.#options.mcpEndpoint,
       ).pipe(toProviderClientOperationError);
       for (const secret of mcpSecretValues(resolved.map((server) => server.config))) this.#secrets.add(secret);
       const handoff = acpMcpServers(resolved);

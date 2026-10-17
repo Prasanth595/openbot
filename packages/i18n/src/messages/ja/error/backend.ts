@@ -207,6 +207,10 @@ export const messages = {
   "error.backend.mcpSignInResponseTimedOut": "サインインの応答が時間内に届きませんでした。",
   "error.backend.mcpServerExited":
     "サーバーは応答する前に停止しました。ターミナルでコマンドを実行してエラーを確認してください。",
+  "error.backend.mcpOAuthProxyUnavailable":
+    "OpenBot はこのサーバーのローカルサインイン接続を開始できませんでした。OpenBot を再起動してから、もう一度お試しください。",
+  "error.backend.mcpOAuthSignInNeeded":
+    "この MCP サーバーへのサインインは終了しました。ユーザーは OpenBot でもう一度サインインする必要があります。",
   "error.backend.mcpServerUnreachable":
     "OpenBot はサーバーに接続できませんでした。URL とネットワークを確認してください。",
   "error.backend.mcpLocalServerOff":

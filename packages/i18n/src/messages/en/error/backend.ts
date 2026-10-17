@@ -193,6 +193,10 @@ export const messages = defineMessages("error.backend", {
   "error.backend.mcpSignInResponseTimedOut": "The sign-in response did not arrive in time.",
   "error.backend.mcpServerExited":
     "The server stopped before it answered. Run the command in a terminal to see its error.",
+  "error.backend.mcpOAuthProxyUnavailable":
+    "OpenBot could not start its local sign-in connection for this server. Restart OpenBot, then try again.",
+  "error.backend.mcpOAuthSignInNeeded":
+    "The sign-in to this MCP server has ended. The user must sign in to it again in OpenBot.",
   "error.backend.mcpServerUnreachable": "OpenBot could not reach the server. Check the URL and your network.",
   "error.backend.mcpLocalServerOff":
     "No server answers at {address} on this computer. Start the server, or turn it on in the app that runs it, then try again.",
