@@ -117,7 +117,7 @@ import type { QueueEditRequest } from "@openbot/contracts/team-protocol/queue-ed
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger } from "@openbot/logging";
 import { classifyFailure } from "@openbot/telemetry";
-import { Deferred, Effect, Exit, Fiber, Result, Schema, Scope, Semaphore } from "effect";
+import { Cause, Deferred, Effect, Exit, Fiber, Result, Schema, Scope, Semaphore } from "effect";
 import { AgentMemories } from "./agent/agent-memories";
 import { AgentRemoval, AgentRemovalFailed } from "./agent/agent-removal";
 import { AgentSettingsRefused } from "./agent/agent-settings-refused";
@@ -196,6 +196,7 @@ import { ChannelService } from "./channel-service";
 import type { BundledProviderExecutables } from "./cli";
 import type { ConversationMarkerExclusions } from "./conversation-read-store";
 import type { ProviderSession } from "./database/provider-sessions";
+import { reportOriginalFailure } from "./effect-boundary";
 import type { HostMemory } from "./host-memory";
 import type { MailboxStore } from "./mailbox-store";
 import { toMcpOperationError } from "./mcp-effects";
@@ -569,7 +570,16 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         },
         onProvidersReady: () =>
           Effect.gen({ self: this }, function* () {
-            yield* this.#boot.reconcileUnresolvedDeliveries();
+            // A failed reconcile must not skip the channels and drains below (#2214).
+            yield* this.#boot
+              .reconcileUnresolvedDeliveries()
+              .pipe(
+                Effect.catchCause((cause) =>
+                  Cause.hasInterruptsOnly(cause)
+                    ? Effect.failCause(cause)
+                    : reportOriginalFailure(cause, (failure) => this.#emitError("delivery_reconcile_failed", failure)),
+                ),
+              );
             yield* this.channels.recover();
             // A failure must not skip the drains below; the next start archives what is left.
             if (this.#retireChannels)
@@ -582,9 +592,16 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
                 );
             this.#channelRoutines.reconcileAll();
             yield* this.#boot.backfillProviderHistory().pipe(Effect.forkIn(this.#scope));
+          }).pipe(
             // Limits are not kept over a restart, so an agent on a backup model goes back first.
-            for (const agent of this.#store.list()) this.#drain.scheduleDrain(agent.id);
-          }).pipe(toProviderOperationFailed),
+            // The drains also run when a step above fails, so no settled lane stays idle.
+            Effect.ensuring(
+              Effect.sync(() => {
+                for (const agent of this.#store.list()) this.#drain.scheduleDrain(agent.id);
+              }),
+            ),
+            toProviderOperationFailed,
+          ),
         onProviderLost: (client) => {
           this.#boot.orphanDeliveriesOf(client.provider, (agentId) => this.#providers.runsOnOwnProcess(agentId));
           this.#compaction.dispose();
@@ -829,12 +846,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         },
         executionThreads: () => [...this.channels.store.executionThreads(), ...this.messaging.store.executionThreads()],
         taskThreads: () => this.#tasks.executionThreads(),
-        deliveryThreadId: (deliveryId) => {
-          const assignment = this.channels.store.assignmentForDelivery(deliveryId);
-          return assignment
-            ? this.channels.store.context(assignment.channelId, assignment.agentId).threadId
-            : (this.#tasks.threadForDelivery(deliveryId) ?? this.messaging.threadForDelivery(deliveryId));
-        },
+        deliveryThreadId: (deliveryId) => this.#deliveryThreadId(deliveryId),
         deliverySettled: (deliveryId, terminal) => this.messaging.deliverySettled(deliveryId, terminal),
       },
     });
@@ -3721,6 +3733,14 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     this.#conversation.emitConversation(snapshot);
   }, Effect.uninterruptible).bind(this);
 
+  /** The channel, task or messaging thread of a delivery, or null for the agent's own chat. */
+  #deliveryThreadId(deliveryId: string): string | null {
+    const assignment = this.channels.store.assignmentForDelivery(deliveryId);
+    return assignment
+      ? this.channels.store.context(assignment.channelId, assignment.agentId).threadId
+      : (this.#tasks.threadForDelivery(deliveryId) ?? this.messaging.threadForDelivery(deliveryId));
+  }
+
   interrupt(agentId: string, turnId: string, executionThreadId?: string): Effect.Effect<void, AgentLifecycleFailed> {
     return Effect.suspend(() => {
       if (!executionThreadId) this.#stoppedTurns.set(agentId, turnId);
@@ -3750,6 +3770,25 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
           (failure) => new AgentLifecycleFailed({ operation: "load interrupted agent", cause: failure.cause }),
         ),
       );
+    // No provider runs a turn whose end failed part way or whose provider exited, so it has nothing to
+    // stop. The Stop then settles what OpenBot still holds for the turn, and the queue frees (#2214).
+    // A turn that the drain started can wait for its `turn/started` with a snapshot already on it:
+    // that turn is live, and only the provider can stop it.
+    if (!mayStop && this.#turn.turnStartedAt(turnId) === null) {
+      const owner = this.#conversation.snapshotWithTurn(agentId, turnId);
+      if (!owner || this.#turn.hasEnded(turnId)) {
+        const deliveries = yield* lifecycleStep("find interrupted deliveries", () =>
+          this.#mailbox.findDeliveriesByTurn(agentId, turnId),
+        );
+        if (owner || deliveries.length > 0) {
+          const firstDelivery = deliveries[0]?.delivery.id;
+          const threadId =
+            executionThreadId ?? owner?.threadId ?? (firstDelivery ? this.#deliveryThreadId(firstDelivery) : null);
+          yield* this.#turn.settleOrphanedTurn(agentId, threadId, turnId, "interrupted");
+          return true;
+        }
+      }
+    }
     const client = yield* lifecycleStep("find interrupt provider", () =>
       this.#providers.requireReadyClientForAgent(agent),
     );
