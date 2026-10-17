@@ -148,7 +148,7 @@ export function createWebWorkspace(
     onSessionCheck: () => Promise<void>;
     /** Read when the workspace closes: true when its account session has ended. */
     accountSessionEnded?: () => boolean;
-    createRuntime?: WebRuntimeFactory;
+    createRuntime?: WebRuntimeFactory | undefined;
   },
   hooks: {
     /** A new agent status of the connected host, such as the end of a provider sign-in. */

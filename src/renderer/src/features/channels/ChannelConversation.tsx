@@ -365,7 +365,11 @@ export function ChannelConversation(props: ChannelConversationProps) {
     return [...ids].map((id) => {
       const agent = agentList().find((candidate) => candidate.id === id);
       const authored = page.messages.find((entry) => entry.author.id === id);
-      return { id, name: agent?.name ?? authored?.author.name ?? t("chat.activity.agentFallback"), agent };
+      return {
+        id,
+        name: agent?.name ?? authored?.author.name ?? t("chat.activity.agentFallback"),
+        ...(agent ? { agent } : {}),
+      };
     });
   });
   const messageVirtualizer = createChatVirtualizer<HTMLElement, HTMLElement>({

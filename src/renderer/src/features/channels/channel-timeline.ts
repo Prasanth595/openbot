@@ -67,13 +67,13 @@ function toAgentMessage(entry: ChannelMessage, own: boolean, options: DayMarkerO
     createdAt: message.createdAt,
     streaming: message.status === "streaming",
     status: message.status,
-    itemType: message.itemType,
-    senderAgentId: message.senderAgentId,
-    replyToMessageId: message.replyToMessageId,
-    attachments: message.attachments,
-    imageGeneration: message.imageGeneration,
-    questionPrompt: message.questionPrompt,
-    turnId: message.turnId,
+    ...(message.itemType === undefined ? {} : { itemType: message.itemType }),
+    ...(message.senderAgentId === undefined ? {} : { senderAgentId: message.senderAgentId }),
+    ...(message.replyToMessageId === undefined ? {} : { replyToMessageId: message.replyToMessageId }),
+    ...(message.attachments === undefined ? {} : { attachments: message.attachments }),
+    ...(message.imageGeneration === undefined ? {} : { imageGeneration: message.imageGeneration }),
+    ...(message.questionPrompt === undefined ? {} : { questionPrompt: message.questionPrompt }),
+    ...(message.turnId === undefined ? {} : { turnId: message.turnId }),
   };
 }
 
@@ -103,7 +103,7 @@ export function channelTimelineEntries(
     const agent = agents.find((candidate) => candidate.id === source.author.id);
     const author: ChatMessageAuthor = own
       ? { kind: "you", name: t("chat.message.you") }
-      : { kind: "agent", name: source.author.name, agent, avatarSeed: agent ? undefined : source.author.id };
+      : { kind: "agent", name: source.author.name, ...(agent ? { agent } : { avatarSeed: source.author.id }) };
     const dayMarker = dayMarkerLabel(previous?.message.createdAt, source.message.createdAt, options);
     const marker = channelRoutingMarker(source);
     const sameAuthor =

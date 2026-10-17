@@ -25,7 +25,7 @@ export interface RichMessageTextProps {
   body: string;
   agents: AgentProfile[];
   skills?: InstalledSkill[];
-  attachments?: AttachmentSummary[];
+  attachments?: AttachmentSummary[] | undefined;
   citations?: MessageCitation[];
   onSelectAgent: (agentId: string) => void;
   onOpenLink: (url: string) => void;

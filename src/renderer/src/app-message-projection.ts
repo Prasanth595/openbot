@@ -34,20 +34,20 @@ export function toAgentProfile(stored: AgentSummary): AgentProfile {
     provider: stored.provider,
     model: stored.model,
     reasoningEffort: stored.reasoningEffort,
-    providerAccountId: stored.providerAccountId,
-    access: stored.access,
-    computerUse: stored.computerUse,
-    allowAutomation: stored.allowAutomation,
-    busyMessageMode: stored.busyMessageMode,
-    taskLimit: stored.taskLimit,
-    backupModels: stored.backupModels,
-    usageLimitReturn: stored.usageLimitReturn,
+    ...(stored.providerAccountId === undefined ? {} : { providerAccountId: stored.providerAccountId }),
+    ...(stored.access === undefined ? {} : { access: stored.access }),
+    ...(stored.computerUse === undefined ? {} : { computerUse: stored.computerUse }),
+    ...(stored.allowAutomation === undefined ? {} : { allowAutomation: stored.allowAutomation }),
+    ...(stored.busyMessageMode === undefined ? {} : { busyMessageMode: stored.busyMessageMode }),
+    ...(stored.taskLimit === undefined ? {} : { taskLimit: stored.taskLimit }),
+    ...(stored.backupModels === undefined ? {} : { backupModels: stored.backupModels }),
+    ...(stored.usageLimitReturn === undefined ? {} : { usageLimitReturn: stored.usageLimitReturn }),
     threadId: stored.threadId,
     workspacePath: stored.workspacePath,
     avatarSeed: stored.avatarSeed,
     avatarHue: stored.avatarHue,
     avatarUrl: stored.avatarUrl,
-    marketplaceSource: stored.marketplaceSource,
+    ...(stored.marketplaceSource === undefined ? {} : { marketplaceSource: stored.marketplaceSource }),
     updatedAt: stored.updatedAt,
     time: stored.updatedAt ? formatTime(stored.updatedAt) : currentText().t("chat.day.now"),
     preview: cleanPreview(stored.preview),
@@ -61,42 +61,44 @@ export function toAgentMessage(message: ConversationMessage, ownerAgentId?: stri
   const hostedSiteEvent = hostedSiteConversationEvent(message);
   const actionMarker = chatActionMarker(message, ownerAgentId, routineEvent, routineRunEvent, hostedSiteEvent);
   const plan = messagePlan(message);
+  const senderMember = message.author === "user" ? message.senderMember : undefined;
+  const status =
+    message.exchange || message.routine
+      ? undefined
+      : message.delivery?.status === "queued"
+        ? `Queued #${message.delivery.position}`
+        : message.delivery?.status === "cancelled"
+          ? "Cancelled"
+          : message.status === "failed"
+            ? "Failed"
+            : message.status === "interrupted"
+              ? "Stopped"
+              : undefined;
   return {
     id: message.id,
-    turnId: message.turnId,
+    ...(message.turnId === undefined ? {} : { turnId: message.turnId }),
     author: message.author === "user" ? "you" : "agent",
     body: message.author === "user" ? message.text : cleanAgentMessageText(message.text),
     time: formatMessageTime(message.createdAt),
     createdAt: message.createdAt,
     streaming: message.status === "streaming",
-    itemType: message.itemType,
+    ...(message.itemType === undefined ? {} : { itemType: message.itemType }),
     kind: message.questionPrompt ? "question" : actionMarker ? "action-marker" : plan ? "plan" : "text",
-    senderAgentId: exchangeSenderId,
-    senderMember: message.author === "user" ? message.senderMember : undefined,
-    replyToMessageId: message.replyToMessageId,
-    attachments: message.attachments,
-    imageGeneration: message.imageGeneration,
-    questionPrompt: message.questionPrompt,
+    ...(exchangeSenderId === undefined ? {} : { senderAgentId: exchangeSenderId }),
+    ...(senderMember === undefined ? {} : { senderMember }),
+    ...(message.replyToMessageId === undefined ? {} : { replyToMessageId: message.replyToMessageId }),
+    ...(message.attachments === undefined ? {} : { attachments: message.attachments }),
+    ...(message.imageGeneration === undefined ? {} : { imageGeneration: message.imageGeneration }),
+    ...(message.questionPrompt === undefined ? {} : { questionPrompt: message.questionPrompt }),
     ...(message.uiBlock ? { uiBlock: message.uiBlock } : {}),
-    exchange: message.exchange,
-    reaction: message.reaction,
+    ...(message.exchange === undefined ? {} : { exchange: message.exchange }),
+    ...(message.reaction === undefined ? {} : { reaction: message.reaction }),
     reactions:
       message.reactions ?? (message.reaction ? [{ emoji: message.reaction, actor: { kind: "user" as const } }] : []),
-    routine: message.routine,
-    actionMarker: actionMarker ?? undefined,
-    plan: plan ?? undefined,
-    status:
-      message.exchange || message.routine
-        ? undefined
-        : message.delivery?.status === "queued"
-          ? `Queued #${message.delivery.position}`
-          : message.delivery?.status === "cancelled"
-            ? "Cancelled"
-            : message.status === "failed"
-              ? "Failed"
-              : message.status === "interrupted"
-                ? "Stopped"
-                : undefined,
+    ...(message.routine === undefined ? {} : { routine: message.routine }),
+    ...(actionMarker ? { actionMarker } : {}),
+    ...(plan ? { plan } : {}),
+    ...(status === undefined ? {} : { status }),
   };
 }
 
@@ -167,7 +169,7 @@ export function toAgentMessages(
     const text = cleanAgentMessageText(message.text);
     const thinking: AgentMessage = {
       id: `thinking:${key}`,
-      turnId: message.turnId,
+      ...(message.turnId === undefined ? {} : { turnId: message.turnId }),
       author: "agent",
       body: "",
       time: formatMessageTime(message.createdAt),

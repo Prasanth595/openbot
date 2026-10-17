@@ -53,7 +53,7 @@ export function AgentUsagePanel(props: AgentUsagePanelProps) {
   const { t } = useText();
   const port = () => props.port ?? usagePort();
   const [state, setState] = createStore<UsageState>({
-    range: { ...analyticsRange("range"), agentId: props.agentId },
+    range: { ...analyticsRange("range"), ...(props.agentId === undefined ? {} : { agentId: props.agentId }) },
     agents: [],
     result: null,
     phase: "loading",
@@ -111,7 +111,8 @@ export function AgentUsagePanel(props: AgentUsagePanelProps) {
     () => [props.agentId, props.serverId],
     () => {
       setState((draft) => {
-        draft.range.agentId = props.agentId;
+        if (props.agentId === undefined) delete draft.range.agentId;
+        else draft.range.agentId = props.agentId;
         draft.agents = [];
       });
     },
@@ -179,7 +180,8 @@ export function AgentUsagePanel(props: AgentUsagePanelProps) {
             onChange={(value) => {
               if (value)
                 setState((draft) => {
-                  draft.range.agentId = value === "all" ? undefined : value.slice(6);
+                  if (value === "all") delete draft.range.agentId;
+                  else draft.range.agentId = value.slice(6);
                 });
             }}
             itemComponent={(itemProps) => (
@@ -220,9 +222,10 @@ export function AgentUsagePanel(props: AgentUsagePanelProps) {
             onChange={(value) => {
               setState((draft) => {
                 draft.period = value;
+                const agentId = draft.range.agentId;
                 draft.range = {
                   ...analyticsRange("range", usagePeriodDays[value]),
-                  agentId: draft.range.agentId,
+                  ...(agentId === undefined ? {} : { agentId }),
                 };
               });
             }}

@@ -465,14 +465,16 @@ export function createWebWorkspaceRuntime(
     if (disposed) throw new Error(currentText().t("webClient.error.connectionClosed"));
     const current = generation;
     const requestHostId = lockedHostId;
+    const timeoutMs =
+      method === "GET" && path === TEAM_API_ROUTES.me ? 15_000 : remoteWorkspaceReadTimeout(method, path);
     const result = await peer.execute({
       id: crypto.randomUUID(),
       type: "request",
       method,
       path,
       body,
-      upload,
-      timeoutMs: method === "GET" && path === TEAM_API_ROUTES.me ? 15_000 : remoteWorkspaceReadTimeout(method, path),
+      ...(upload === undefined ? {} : { upload }),
+      ...(timeoutMs === undefined ? {} : { timeoutMs }),
     });
     if (disposed || generation !== current) throw new Error(currentText().t("webClient.error.hostChanged"));
     const membershipRead = method === "GET" && path === TEAM_API_ROUTES.me;

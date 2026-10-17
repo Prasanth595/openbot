@@ -47,19 +47,19 @@ export interface FirstAgentSetupProps {
   submitting?: boolean;
   error?: string | null;
   /** The live catalog behind the model picker. Absent, the form keeps no model choice. */
-  modelOptions?: AgentModelOption[];
-  agentStatus?: AgentStatus;
-  runtimeStatuses?: Partial<Record<AgentProviderId, ProviderRuntimeStatus>>;
-  customProviders?: readonly CustomProviderSummary[];
+  modelOptions?: AgentModelOption[] | undefined;
+  agentStatus?: AgentStatus | undefined;
+  runtimeStatuses?: Partial<Record<AgentProviderId, ProviderRuntimeStatus>> | undefined;
+  customProviders?: readonly CustomProviderSummary[] | undefined;
   /** The user's own ACP agents on this computer, for the model picker's Custom tab. */
-  customAgents?: readonly CustomAgentSummary[];
-  onDownloadProvider?: (provider: AgentProviderId) => void | Promise<void>;
-  onCancelProviderDownload?: (provider: AgentProviderId) => void | Promise<void>;
-  onConnectProvider?: (provider: AgentProviderId) => void | Promise<void>;
-  onAddCustomProvider?: (trigger: HTMLElement) => void;
+  customAgents?: readonly CustomAgentSummary[] | undefined;
+  onDownloadProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
+  onCancelProviderDownload?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
+  onConnectProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
+  onAddCustomProvider?: ((trigger: HTMLElement) => void) | undefined;
   onChange: (value: FirstAgentDraft) => void;
   onSubmit: (value: FirstAgentDraft) => void | Promise<void>;
-  onCancel?: () => void;
+  onCancel?: (() => void) | undefined;
 }
 
 export const FIRST_AGENT_AVATAR_SEEDS = avatarCandidateSeeds("first-bot", "first-bot", 0);

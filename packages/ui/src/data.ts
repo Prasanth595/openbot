@@ -220,7 +220,7 @@ export interface AgentProfile {
   avatarSeed: string;
   avatarHue: AvatarHue | null;
   avatarUrl: string | null;
-  marketplaceSource?: AgentSummary["marketplaceSource"];
+  marketplaceSource?: NonNullable<AgentSummary["marketplaceSource"]>;
   updatedAt?: string | null;
   time: string;
   preview: string;

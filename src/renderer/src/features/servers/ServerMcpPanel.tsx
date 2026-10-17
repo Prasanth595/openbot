@@ -80,11 +80,11 @@ export interface ServerMcpPanelProps {
   servers: McpServerConfig[];
   canManage: boolean;
   /** The dialog element the row menus portal into, so a menu is not clipped by the modal. */
-  menuMount?: HTMLElement;
+  menuMount?: HTMLElement | undefined;
   /** Reports the form view, so the header shows a breadcrumb instead of the panel holding a back row. */
-  onDetailChange?: (detail: McpPanelDetail | null) => void;
+  onDetailChange?: ((detail: McpPanelDetail | null) => void) | undefined;
   /** Empty-list reason when the read failed; a failed read must not say "No MCP servers yet." */
-  loadError?: string | null;
+  loadError?: string | null | undefined;
   /**
    * One sentence about the managed runtime a STDIO server is started with, or nothing.
    *
@@ -92,9 +92,9 @@ export interface ServerMcpPanelProps {
    * is doing right now, and the panel only repeats it. The caller leaves it out for a remote
    * server, whose host holds its own runtime.
    */
-  toolRuntimeNote?: string | null;
+  toolRuntimeNote?: string | null | undefined;
   /** Re-read the list; without it the error has no way out except closing the dialog. */
-  onRetryLoad?: () => void;
+  onRetryLoad?: (() => void) | undefined;
   onSave: (config: McpServerConfig) => Promise<void>;
   onRemove: (id: string) => Promise<void>;
   onSetEnabled: (id: string, enabled: boolean) => Promise<void>;
@@ -104,7 +104,7 @@ export interface ServerMcpPanelProps {
    * Browser sign-in for http servers. This computer signs in with its own browser; a joined server
    * signs in with the host's browser, and this panel shows that page.
    */
-  signIn?: McpPanelSignIn;
+  signIn?: McpPanelSignIn | undefined;
 }
 
 export interface McpPanelSignIn {
@@ -1211,7 +1211,7 @@ function McpRowList(props: {
 
 function McpRowMenu(props: {
   name: string;
-  mount?: HTMLElement;
+  mount?: HTMLElement | undefined;
   triggerRef?: (element: HTMLElement) => void;
   disabled: boolean;
   testDisabled: boolean;
@@ -1250,7 +1250,7 @@ function McpRowMenu(props: {
       >
         <Ellipsis aria-hidden="true" />
       </DropdownMenu.Trigger>
-      <DropdownMenu.Portal mount={props.mount}>
+      <DropdownMenu.Portal mount={props.mount ?? document.body}>
         <DropdownMenu.Content class="server-mcp-row-menu">
           <DropdownMenu.Item disabled={props.testDisabled} onSelect={() => props.onTest()}>
             <Plug aria-hidden="true" />

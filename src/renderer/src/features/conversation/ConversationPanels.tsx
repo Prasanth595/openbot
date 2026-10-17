@@ -30,7 +30,7 @@ import { createEffect, createMemo, createProjection, Loading, lazy, onSettled, S
 import { conversationPort } from "./conversation-port";
 
 /** @internal Stable HMR boundary for conversation panels. */
-export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLButtonElement) => void }) {
+export function ConversationPanels(panelProps: { onOpenUsage?: ((trigger: HTMLButtonElement) => void) | undefined }) {
   const controller = useConversationController();
   const {
     agentReady,
