@@ -273,7 +273,7 @@ export const messages = defineMessages("chat", {
   "chat.scrollRail.earlier": "Earlier messages",
   "chat.scrollRail.earlierSince": "Earlier, since {date}",
   "chat.day.now": "now",
-  "chat.errorStatus.readState": "Could not read the conversation state",
+  "chat.errorStatus.readState": "Could not mark the conversation as read",
   "chat.errorStatus.send": "Could not send the message",
   "chat.send.sending": "Sending…",
   "chat.send.waiting": "Waiting to send",

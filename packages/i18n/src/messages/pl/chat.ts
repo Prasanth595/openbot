@@ -333,7 +333,7 @@ export const messages = {
   "chat.scrollRail.earlier": "Wcześniejsze wiadomości",
   "chat.scrollRail.earlierSince": "Wcześniej, od {date}",
   "chat.day.now": "teraz",
-  "chat.errorStatus.readState": "Nie udało się odczytać stanu rozmowy",
+  "chat.errorStatus.readState": "Nie udało się oznaczyć rozmowy jako przeczytanej",
   "chat.errorStatus.send": "Nie udało się wysłać wiadomości",
   "chat.send.sending": "Wysyłanie…",
   "chat.send.waiting": "Czeka na wysłanie",

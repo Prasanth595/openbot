@@ -283,7 +283,7 @@ export const messages = {
   "chat.scrollRail.earlier": "Messages plus anciens",
   "chat.scrollRail.earlierSince": "Plus anciens, depuis le {date}",
   "chat.day.now": "maintenant",
-  "chat.errorStatus.readState": "Impossible de lire l’état de la conversation",
+  "chat.errorStatus.readState": "Impossible de marquer la conversation comme lue",
   "chat.errorStatus.send": "Impossible d’envoyer le message",
   "chat.send.sending": "Envoi…",
   "chat.send.waiting": "En attente d’envoi",

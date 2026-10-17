@@ -2,11 +2,10 @@ import { defineMessages } from "../../message";
 
 /**
  * The public web pages that do one task: join a server, return from Slack or Discord, return from
- * billing, report a hosted site, and the load error and not-found titles. `apps/auth-api` renders
+ * billing, report a hosted site, and the load error page. `apps/auth-api` renders
  * them on the server in the visitor's language.
  */
 export const messages = defineMessages("sitePage", {
-  "sitePage.notFound.pageTitle": "Page not found · OpenBot",
   "sitePage.error.title": "This page could not load",
   "sitePage.error.body":
     "Check your connection and reload the page. If it still does not load, go back to the home page.",

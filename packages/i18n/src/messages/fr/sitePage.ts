@@ -2,7 +2,6 @@ import type { PartialTranslation } from "../../message";
 import type { messages as source } from "../en/sitePage";
 
 export const messages = {
-  "sitePage.notFound.pageTitle": "Page introuvable · OpenBot",
   "sitePage.error.title": "Impossible de charger cette page",
   "sitePage.error.body":
     "Vérifiez votre connexion et rechargez la page. Si elle ne se charge toujours pas, revenez à la page d’accueil.",
