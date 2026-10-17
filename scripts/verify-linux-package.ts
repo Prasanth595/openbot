@@ -1,13 +1,19 @@
 import { spawn } from "node:child_process";
 import { constants, existsSync } from "node:fs";
-import { access, mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import { access, lstat, mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import { FuseV1Options, getCurrentFuseWire } from "@electron/fuses";
 import { isDynamicRecord, isNumber, isString } from "@openbot/contracts/runtime-values";
 import { createOpenBotLogger, toLogValue } from "@openbot/logging";
+import { isMissingFileError } from "../src/backend/file-errors";
 
 const logger = createOpenBotLogger("verify-linux-package");
+
+// Each launch step ends on a state or an event. This limit only turns a real hang into a clear failure:
+// a slow release runner can need much more time than usual to start the first instance.
+const launchStepLimitMs = 5 * 60_000;
 
 /** The scripts that a server installs from a release (`RELEASE_FILES` in scripts/hosting/openbot-hosted-update). */
 const HOSTED_SCRIPTS = [
@@ -249,18 +255,17 @@ async function verifyLaunch(executable: string): Promise<void> {
     stderr = `${stderr}${chunk}`.slice(-4_000);
   });
 
+  const launchExit = new Promise<never>((_, reject) => {
+    child.once("exit", (code, signal) => {
+      reject(
+        new Error(`Packaged OpenBot exited during launch (${signal ?? `code ${String(code)}`}): ${stderr.trim()}`),
+      );
+    });
+  });
+
   try {
-    await Promise.race([
-      new Promise<never>((_, reject) => {
-        child.once("exit", (code, signal) => {
-          reject(
-            new Error(`Packaged OpenBot exited during launch (${signal ?? `code ${String(code)}`}): ${stderr.trim()}`),
-          );
-        });
-      }),
-      new Promise<void>((resolveDelay) => setTimeout(resolveDelay, 3_000)),
-    ]);
-    await verifySecondInstanceExits(executable, userDataPath);
+    await waitForSingleInstanceLock(userDataPath, launchExit);
+    await verifySecondInstanceExits(executable, userDataPath, launchExit);
   } finally {
     child.kill("SIGTERM");
     await Promise.race([
@@ -287,24 +292,76 @@ function launchEnvironment(userDataPath: string): NodeJS.ProcessEnv {
   };
 }
 
-async function verifySecondInstanceExits(executable: string, userDataPath: string): Promise<void> {
+/**
+ * Waits until the first instance holds the profile. Chromium makes `SingletonLock` in userData when
+ * the main process takes its single-instance lock. A second instance that starts before that does not
+ * forward to the first one: it takes the lock itself and stays open.
+ */
+async function waitForSingleInstanceLock(userDataPath: string, launchExit: Promise<never>): Promise<void> {
+  const lockPath = join(userDataPath, "SingletonLock");
+  const stop = new AbortController();
+  const waitForLock = async () => {
+    const limit = Date.now() + launchStepLimitMs;
+    while (!(await lockExists(lockPath))) {
+      if (Date.now() > limit) {
+        throw new Error("Packaged OpenBot did not take its single-instance lock in 5 minutes.");
+      }
+      await delay(200, undefined, { signal: stop.signal });
+    }
+  };
+  try {
+    await Promise.race([launchExit, waitForLock()]);
+  } finally {
+    stop.abort();
+  }
+}
+
+// `SingletonLock` is a symbolic link to a host and process name, not to a file, so it must not be followed.
+async function lockExists(lockPath: string): Promise<boolean> {
+  try {
+    await lstat(lockPath);
+    return true;
+  } catch (error) {
+    if (isMissingFileError(error)) return false;
+    throw error;
+  }
+}
+
+async function verifySecondInstanceExits(
+  executable: string,
+  userDataPath: string,
+  launchExit: Promise<never>,
+): Promise<void> {
   const second = spawn(executable, [`--user-data-dir=${userDataPath}`], {
     env: launchEnvironment(userDataPath),
-    stdio: "ignore",
+    stdio: ["ignore", "ignore", "pipe"],
   });
-  const result = await Promise.race([
-    new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolveExit) => {
-      second.once("exit", (code, signal) => resolveExit({ code, signal }));
-    }),
-    new Promise<null>((resolveDelay) => setTimeout(() => resolveDelay(null), 3_000)),
-  ]);
-  if (!result) {
-    second.kill();
-    throw new Error("A second OpenBot instance did not exit.");
-  }
-  if (result.code !== 0 || result.signal) {
-    throw new Error(
-      `A second OpenBot instance exited unexpectedly (${result.signal ?? `code ${String(result.code)}`}).`,
-    );
+  let stderr = "";
+  second.stderr.setEncoding("utf8");
+  second.stderr.on("data", (chunk: string) => {
+    stderr = `${stderr}${chunk}`.slice(-4_000);
+  });
+  const stop = new AbortController();
+  try {
+    // The second instance exits only after the first one accepts its arguments. A busy first instance
+    // accepts them later, so this waits for the exit and not for a fixed time.
+    const result = await Promise.race([
+      new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolveExit) => {
+        second.once("exit", (code, signal) => resolveExit({ code, signal }));
+      }),
+      launchExit,
+      delay(launchStepLimitMs, null, { signal: stop.signal }),
+    ]);
+    if (!result) {
+      throw new Error(`A second OpenBot instance did not exit in 5 minutes: ${stderr.trim()}`);
+    }
+    if (result.code !== 0 || result.signal) {
+      throw new Error(
+        `A second OpenBot instance exited unexpectedly (${result.signal ?? `code ${String(result.code)}`}): ${stderr.trim()}`,
+      );
+    }
+  } finally {
+    stop.abort();
+    if (second.exitCode === null && second.signalCode === null) second.kill("SIGKILL");
   }
 }
