@@ -23,7 +23,9 @@ interface Step {
   name: string;
   sessionId: string | null;
   status: string | null;
+  /** The `error` notification text: the only failure that OpenBot checks for a refused session. */
   error: string | null;
+  requestError: string | null;
   refusedFailure: string | null;
   failures: string[];
 }
@@ -53,7 +55,7 @@ async function bounded<T>(promise: Promise<T>, label: string, ms: number): Promi
   }
 }
 
-function brokenServer(root: string): McpServerConfig {
+function brokenServer(): McpServerConfig {
   return {
     id: "broken-framing",
     name: "broken_framing",
@@ -64,14 +66,23 @@ function brokenServer(root: string): McpServerConfig {
     args: ["-c", "printf 'not json-rpc\\r\\n\\r\\n'; sleep 120"],
     env: [],
     envPassthrough: [],
-    workingDirectory: root,
+    // OpenBot does not send a stdio server with a working directory to Muse.
+    workingDirectory: "",
     url: "",
     headers: [],
   };
 }
 
 async function run(name: string, cwd: string, servers: McpServerConfig[], resumeId: string | null): Promise<Step> {
-  const step: Step = { name, sessionId: null, status: null, error: null, refusedFailure: null, failures: [] };
+  const step: Step = {
+    name,
+    sessionId: null,
+    status: null,
+    error: null,
+    requestError: null,
+    refusedFailure: null,
+    failures: [],
+  };
   report.steps.push(step);
   const client = new MuseAgentClient(
     { executable, version: "local" },
@@ -123,7 +134,7 @@ async function run(name: string, cwd: string, servers: McpServerConfig[], resume
           (value) => value,
         ),
       ).catch((error: unknown) => {
-        step.error ??= message(error);
+        step.requestError = message(error);
       });
       step.status = await bounded(completed, `${name} turn`, turnDeadlineMs);
     } finally {
@@ -146,7 +157,7 @@ try {
   root = await realpath(await mkdtemp(join(tmpdir(), "openbot-muse-mcp-fault-")));
   const cwd = join(root, "workspace");
   await mkdir(cwd);
-  const faulted = await run("broken-mcp-start", cwd, [brokenServer(root)], null);
+  const faulted = await run("broken-mcp-start", cwd, [brokenServer()], null);
   assert.equal(faulted.status, "failed", "A session with a broken MCP server fails its turn.");
   assert.ok(faulted.refusedFailure, `OpenBot closes the session for this error: ${faulted.error}`);
   assert.ok(faulted.sessionId);
