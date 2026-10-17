@@ -149,6 +149,20 @@ without the capability never sends them, so a client keeps them whenever they ar
 malformed value fails closed. The WebRTC host peer encodes the local response again with the same
 option, so the fields reach the web client and a joined desktop through the data channel too.
 
+### UI blocks
+
+`ui-blocks-v1` carries the interactive block of an `ask_ui` question prompt (see
+`packages/contracts/src/ui-blocks.ts`). It adds `uiBlock` beside the frozen keys of a message in
+`GET /v1/agents/:id/conversation` and `conversation-page` (messages and references), and in the
+`conversation` and `conversation-page` events. The host adds it only on protocol 7 and only for a
+connection that advertises the capability. A released client reads the message as its fallback: a
+question prompt that it answers through the released prompt route, and the host reads the block's
+answer from those answers. A host without the capability never sends `uiBlock`, so a client keeps it
+whenever it is present, and a block that the contract refuses fails closed. A privileged action (a
+`danger` button, a button with `confirm`, or the primary button of a `danger` confirm), and an answer
+in words on a block that has one, is for the owner and admins only; the host answers a member with
+403. A secret form value goes to the agent and is never stored.
+
 ### Skill events
 
 `skills-events-v1` adds one optional event, `skills-changed { agentId }`. The host sends it after

@@ -1914,6 +1914,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 remoteDesktopSessionActive={false}
                 remoteDesktopVisible={false}
                 prompt={view.prompt()}
+                promptUiBlock={view.promptUiBlock()}
                 approval={view.approval()}
                 browserTakeover={browserTakeover()}
                 onSelectAgent={(id) => {
