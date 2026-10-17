@@ -10,6 +10,7 @@ import type {
   BrowserControlState,
   BrowserTab,
   BrowserTakeoverRequest,
+  ConversationMessage,
   ConversationPage,
   HiddenAgent,
   HostedServerIssue,
@@ -66,7 +67,34 @@ interface WebConversation {
   attachments: AttachmentSummary[];
   loading: boolean;
   error?: string | null;
+  /** The older pages were released; the next latest read takes the host's page and cursor. */
+  trimmed?: boolean;
 }
+
+/** The messages that a conversation keeps when it is not open, as on the desktop. */
+const LATEST_PAGE_SIZE = 50;
+
+/**
+ * Releases the older pages of a conversation that is not open. The next latest read replaces the
+ * kept messages with the host page, so the older pages load again from the host's cursor, with no gap.
+ */
+function trimToLatestPage(conversation: WebConversation): void {
+  const page = conversation.page;
+  if (!page || page.messages.length <= LATEST_PAGE_SIZE) return;
+  const kept = page.messages.slice(-LATEST_PAGE_SIZE);
+  const removedById = new Map(page.messages.slice(0, -LATEST_PAGE_SIZE).map((message) => [message.id, message]));
+  // A kept reply keeps the quote of an original that the trim removes, as a page from the host gives it.
+  const references: Record<string, ConversationMessage> = {};
+  for (const message of kept) {
+    const originalId = message.replyToMessageId;
+    const original = originalId ? (removedById.get(originalId) ?? page.references[originalId]) : undefined;
+    if (originalId && original) references[originalId] = original;
+  }
+  page.messages = kept;
+  page.references = references;
+  conversation.trimmed = true;
+}
+
 interface WebWorkspaceState {
   hosts: RemoteTeamHost[];
   host: RemoteTeamHost | null;
@@ -1016,7 +1044,8 @@ export function createWebWorkspace(
   async function load(id: string, older = false) {
     const current = generation;
     const previous = state.conversations[id];
-    const before = older ? (previous?.page?.pageInfo.olderCursor ?? undefined) : undefined;
+    // The cursor of a trimmed conversation is after a gap until a latest read gives the host's cursor.
+    const before = older && !previous?.trimmed ? (previous?.page?.pageInfo.olderCursor ?? undefined) : undefined;
     if (older && !before) return;
     conversationReads.set(id, (conversationReads.get(id) ?? 0) + 1);
     try {
@@ -1028,6 +1057,10 @@ export function createWebWorkspace(
         if (!item) return;
         const old = item.page?.threadId === page.threadId ? item.page : null;
         if (old && page.revision < old.revision) return;
+        // A trim or a latest read during this older read moved the cursor, so this page is not next.
+        if (older && (item.trimmed || old?.pageInfo.olderCursor !== before)) return;
+        // A trimmed conversation can be behind the host by more than one page, so its kept messages go.
+        const merge = older ? "older" : old && !item.trimmed ? "latest" : "replace";
         const resolvedRequests = new Set(
           page.messages.flatMap((message) =>
             message.questionPrompt?.resolution ? [String(message.questionPrompt.requestId)] : [],
@@ -1041,18 +1074,18 @@ export function createWebWorkspace(
         );
         item.page = {
           ...page,
-          messages: mergeConversationPage(
-            old?.messages ?? [],
-            page.messages,
-            older ? "older" : old ? "latest" : "replace",
-          ),
-          references: { ...old?.references, ...page.references },
-          pageInfo: !older && old ? old.pageInfo : page.pageInfo,
+          messages: mergeConversationPage(old?.messages ?? [], page.messages, merge),
+          references: merge === "replace" ? page.references : { ...old?.references, ...page.references },
+          pageInfo: merge === "latest" ? (old?.pageInfo ?? page.pageInfo) : page.pageInfo,
           // An older page has the thread's current revision but not its newest messages. The loaded
           // newest messages keep their revision, so a delta held during this read still applies.
           revision: older && old ? old.revision : page.revision,
         };
-        item.missingReferences = { ...(old ? item.missingReferences : {}), ...missingReplyOriginals(page) };
+        item.missingReferences = {
+          ...(merge === "replace" ? {} : item.missingReferences),
+          ...missingReplyOriginals(page),
+        };
+        if (!older) item.trimmed = false;
         item.loading = false;
         item.error = null;
       });
@@ -1160,6 +1193,11 @@ export function createWebWorkspace(
     const current = generation;
     selectedId = id;
     setState((draft) => {
+      const previous = draft.selectedId;
+      if (previous && previous !== id) {
+        const closed = draft.conversations[previous];
+        if (closed) trimToLatestPage(closed);
+      }
       draft.selectedId = id;
       draft.conversations[id] ??= {
         page: null,

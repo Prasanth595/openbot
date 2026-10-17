@@ -5,15 +5,18 @@ import { createMockOpenBot } from "./mock-openbot";
 import { mockWebRuntimeFor } from "./mock-web-runtime";
 
 /**
- * The mock host for `bun run perf:web` (`scripts/web-client-perf-e2e.ts`). The first agent has a long
- * conversation, and the script streams a reply into it and counts the host requests that the web
- * client makes. The script reads the driver from `globalThis.openbotWebBench`.
+ * The mock host for `bun run perf:web` (`scripts/web-client-perf-e2e.ts`) and
+ * `scripts/web-client-conversation-trim-e2e.ts`. The first agent has a long conversation, and the
+ * scripts stream a reply into it and count the host requests that the web client makes. The scripts
+ * read the driver from `globalThis.openbotWebBench`.
  */
 interface WebBench {
   /** Resolves when the host has the long conversation. */
   ready: Promise<string>;
-  /** Host requests per runtime method since the last reset. */
+  /** Host requests per runtime method since the last reset. `conversationOlder` counts older-page reads. */
   calls: Record<string, number>;
+  /** The names of the agent with the long conversation and of another agent, set when `ready` resolves. */
+  agentNames: { open: string; other: string };
   resetCalls: () => void;
   /** Resolves when no host request is running for one macrotask. */
   idle: () => Promise<void>;
@@ -65,12 +68,15 @@ export const createBenchWebRuntime: WebRuntimeFactory = (_accountId, events) => 
   });
   let agentId = "";
   let otherAgentId = "";
+  const agentNames = { open: "", other: "" };
 
   async function seed(): Promise<void> {
     const [agent, other] = await mock.api.agent.listAgents();
     if (!agent || !other) throw new Error("The mock host needs two agents.");
     agentId = agent.id;
     otherAgentId = other.id;
+    agentNames.open = agent.name;
+    agentNames.other = other.name;
     mock.updateConversationSnapshot(agentId, (snapshot) => {
       const messages: ConversationMessage[] = [];
       for (let index = 0; index < SEEDED_MESSAGES; index++) {
@@ -116,7 +122,10 @@ export const createBenchWebRuntime: WebRuntimeFactory = (_accountId, events) => 
     }),
     listHosts: counted("listHosts", base.listHosts),
     listAgents: counted("listAgents", base.listAgents),
-    conversation: counted("conversation", base.conversation),
+    conversation: counted("conversation", (id, before) => {
+      if (before !== undefined) calls.conversationOlder = (calls.conversationOlder ?? 0) + 1;
+      return base.conversation(id, before);
+    }),
     conversationReads: counted("conversationReads", base.conversationReads),
     markRead: counted("markRead", base.markRead),
     queue: counted("queue", base.queue),
@@ -162,6 +171,7 @@ export const createBenchWebRuntime: WebRuntimeFactory = (_accountId, events) => 
   const bench: WebBench = {
     ready,
     calls,
+    agentNames,
     resetCalls: () => {
       for (const name of Object.keys(calls)) delete calls[name];
     },

@@ -10,3 +10,4 @@
 ### Changed
 
 - Agents with a long message history start queued work faster.
+- The web app uses less memory when you open many long conversations.
