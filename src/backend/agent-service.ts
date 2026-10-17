@@ -733,10 +733,22 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     });
     // The Team API sends the held list as its own event; the frozen tab projection drops the flag.
     let userControlTabIds = "";
+    // `browser-page-state` sends the history state the same way.
+    let browserPageStates = "";
     this.#browser.onChanged((tabs, activeTabId) => {
       this.#attention.cancelTakeoversForMissingTabs(tabs);
       Effect.runFork(this.#browserUploads.retainTabs(tabs).pipe(Effect.forkIn(this.#scope)));
       this.#emit({ type: "browser-changed", tabs, activeTabId });
+      const pageStates = tabs.map((tab) => ({
+        tabId: tab.id,
+        canGoBack: tab.canGoBack === true,
+        canGoForward: tab.canGoForward === true,
+      }));
+      const pageStateKey = JSON.stringify(pageStates);
+      if (pageStateKey !== browserPageStates) {
+        browserPageStates = pageStateKey;
+        this.#emit({ type: "browser-page-state-changed", tabs: pageStates });
+      }
       const held = tabs.filter((tab) => tab.userControl).map((tab) => tab.id);
       if (held.join("\n") === userControlTabIds) return;
       userControlTabIds = held.join("\n");

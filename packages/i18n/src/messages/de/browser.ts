@@ -43,6 +43,7 @@ export const messages = {
   "browser.goBack": "Zurück",
   "browser.goForward": "Vorwärts",
   "browser.reload": "Seite neu laden",
+  "browser.stopLoading": "Laden stoppen",
   "browser.recording.label": "Browseraufnahme aktiv",
   "browser.recording.badge": "REC",
   "browser.diagnosticErrors": {
@@ -94,6 +95,7 @@ export const messages = {
   "browser.error.openAddress": "Die Adresse konnte in diesem Tab nicht geöffnet werden.",
   "browser.error.closeTab": "Der Browser-Tab konnte nicht geschlossen werden.",
   "browser.error.reloadTab": "Der Browser-Tab konnte nicht neu geladen werden.",
+  "browser.error.stopLoading": "Das Laden der Seite konnte nicht gestoppt werden.",
   "browser.error.takeControl": "Der Browser-Tab konnte nicht übernommen werden.",
   "browser.error.releaseControl": "Der Browser-Tab konnte nicht an den Agenten zurückgegeben werden.",
   "browser.error.navigateBack": "Zurücknavigieren war nicht möglich.",

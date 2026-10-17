@@ -42,6 +42,7 @@ export const messages = defineMessages("browser", {
   "browser.goBack": "Go back",
   "browser.goForward": "Go forward",
   "browser.reload": "Reload page",
+  "browser.stopLoading": "Stop loading",
   "browser.recording.label": "Browser recording active",
   "browser.recording.badge": "REC",
   "browser.diagnosticErrors": {
@@ -91,6 +92,7 @@ export const messages = defineMessages("browser", {
   "browser.error.openAddress": "Could not open the address in this tab.",
   "browser.error.closeTab": "Could not close the browser tab.",
   "browser.error.reloadTab": "Could not reload the browser tab.",
+  "browser.error.stopLoading": "Could not stop loading the page.",
   "browser.error.takeControl": "Could not take control of the browser tab.",
   "browser.error.releaseControl": "Could not give the browser tab back to the agent.",
   "browser.error.navigateBack": "Could not navigate back.",

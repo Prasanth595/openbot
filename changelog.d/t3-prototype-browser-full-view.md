@@ -6,6 +6,7 @@
   to its right, or all other tabs. Reopen a closed tab at its old place.
 - The address bar suggests open tabs, pages you visited in this session, and a search as you type, and it
   completes a visited address.
+- Stop a page that loads from the address bar. Back and Forward are off when the tab has no page to go to.
 - In the full browser view, the keys of other browsers work: new tab, close, reopen, select a tab by number,
   next and previous tab, address bar, reload, back and forward.
 

@@ -103,6 +103,9 @@ export const TEAM_API_ROUTES = {
     userControl: "/v1/browser/user-control",
     userControlTake: "/v1/browser/user-control/take",
     userControlRelease: "/v1/browser/user-control/release",
+    // Behind `browser-page-state`; see `team-protocol/browser-page-state-v1.ts`.
+    pageState: "/v1/browser/page-state",
+    stop: "/v1/browser/stop",
   },
   remoteScreen: {
     prefix: REMOTE_SCREEN,

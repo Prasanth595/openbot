@@ -474,13 +474,30 @@ export function createWebWorkspace(
           setState((draft) => {
             draft.takeovers = draft.takeovers.filter((item) => String(item.requestId) !== String(event.requestId));
           });
-        // The frozen tab event has no field for a person's control; `browser-user-control-changed`
-        // sends it, and a tab keeps its mark until the next list.
+        // The frozen tab event has no field for a person's control or the history state;
+        // `browser-user-control-changed` and `browser-page-state-changed` send them, and a tab keeps
+        // its values until the next list.
         if (event.type === "browser-changed")
           setState((draft) => {
-            const held = new Set(draft.browserTabs.filter((tab) => tab.userControl).map((tab) => tab.id));
-            draft.browserTabs = event.tabs.map((tab) => (held.has(tab.id) ? { ...tab, userControl: true } : tab));
+            const previous = new Map(draft.browserTabs.map((tab) => [tab.id, tab]));
+            draft.browserTabs = event.tabs.map((tab) => {
+              const kept = previous.get(tab.id);
+              return {
+                ...tab,
+                ...(kept?.userControl ? { userControl: true as const } : {}),
+                ...(kept?.canGoBack === undefined ? {} : { canGoBack: kept.canGoBack }),
+                ...(kept?.canGoForward === undefined ? {} : { canGoForward: kept.canGoForward }),
+              };
+            });
             draft.activeBrowserTabId = event.activeTabId;
+          });
+        if (event.type === "browser-page-state-changed")
+          setState((draft) => {
+            const states = new Map(event.tabs.map(({ tabId, ...state }) => [tabId, state]));
+            draft.browserTabs = draft.browserTabs.map(({ canGoBack: _back, canGoForward: _forward, ...tab }) => ({
+              ...tab,
+              ...states.get(tab.id),
+            }));
           });
         if (event.type === "browser-user-control-changed")
           setState((draft) => {

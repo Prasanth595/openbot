@@ -66,6 +66,11 @@ import { guardedListDecoder, optionalHistoryExtent, requiredString } from "@open
 import { isDynamicRecord, isNumber, isString } from "@openbot/contracts/runtime-values";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import {
+  BROWSER_PAGE_STATE_CAPABILITY,
+  BROWSER_PAGE_STATE_ROUTES,
+  decodeBrowserPageStateSnapshot,
+} from "@openbot/contracts/team-protocol/browser-page-state-v1";
+import {
   BROWSER_USER_CONTROL_CAPABILITY,
   BROWSER_USER_CONTROL_ROUTES,
   decodeBrowserUserControlSnapshot,
@@ -170,6 +175,8 @@ export interface WebWorkspaceRuntime {
   openBrowserTab(input: BrowserOpenInput): Promise<BrowserTab>;
   navigateBrowserTab(input: BrowserNavigateInput): Promise<void>;
   reloadBrowserTab(tabId: string): Promise<void>;
+  /** Behind `browser-page-state`. */
+  stopBrowserTab(tabId: string): Promise<void>;
   closeBrowserTab(tabId: string): Promise<void>;
   /** Behind `browser-user-control`: the owning agent waits on the tab until the release. */
   takeBrowserControl(tabId: string): Promise<void>;
@@ -710,13 +717,23 @@ export function createWebWorkspaceRuntime(
     async browserTabs() {
       const value = await request("GET", TEAM_API_ROUTES.browser.tabs);
       if (!Array.isArray(value)) throw new Error("The host returned an invalid tab list.");
-      const tabs = value.map(decodeWebBrowserTab);
-      // The frozen tab list has no field for a person's control, so the host answers on its own route.
-      if (!capabilities.includes(BROWSER_USER_CONTROL_CAPABILITY)) return tabs;
-      const held = new Set(
-        decodeBrowserUserControlSnapshot(await request("POST", BROWSER_USER_CONTROL_ROUTES.state, {})).tabIds,
-      );
-      return tabs.map((tab) => (held.has(tab.id) ? { ...tab, userControl: true } : tab));
+      // The frozen tab list has no field for a person's control or the history state, so the host
+      // answers on their own routes.
+      const held = capabilities.includes(BROWSER_USER_CONTROL_CAPABILITY)
+        ? new Set(decodeBrowserUserControlSnapshot(await request("POST", BROWSER_USER_CONTROL_ROUTES.state, {})).tabIds)
+        : new Set<string>();
+      const pageStates = capabilities.includes(BROWSER_PAGE_STATE_CAPABILITY)
+        ? new Map(
+            decodeBrowserPageStateSnapshot(await request("POST", BROWSER_PAGE_STATE_ROUTES.state, {})).tabs.map(
+              ({ tabId, ...state }) => [tabId, state],
+            ),
+          )
+        : new Map<string, { canGoBack: boolean; canGoForward: boolean }>();
+      return value.map(decodeWebBrowserTab).map((tab) => ({
+        ...tab,
+        ...(held.has(tab.id) ? { userControl: true as const } : {}),
+        ...pageStates.get(tab.id),
+      }));
     },
     async openBrowserTab(input) {
       return decodeWebBrowserTab(await request("POST", TEAM_API_ROUTES.browser.open, { ...input }));
@@ -734,6 +751,11 @@ export function createWebWorkspaceRuntime(
     },
     async reloadBrowserTab(tabId) {
       await request("POST", TEAM_API_ROUTES.browser.reload, { tabId });
+    },
+    async stopBrowserTab(tabId) {
+      if (!capabilities.includes(BROWSER_PAGE_STATE_CAPABILITY))
+        throw new Error(currentText().t("error.backend.browserStopUnsupported"));
+      decodeBrowserPageStateSnapshot(await request("POST", BROWSER_PAGE_STATE_ROUTES.stop, { tabId }));
     },
     async closeBrowserTab(tabId) {
       await request("POST", TEAM_API_ROUTES.browser.close, { tabId });

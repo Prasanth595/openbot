@@ -25,7 +25,9 @@ const runId = argument("run-id");
 const cases: string[] = [];
 const resultSchema = z.object({ status: z.literal("user-control-ended"), note: z.string(), next: z.string() });
 
-const server = createServer((_request, response) => {
+// `/slow` never answers, so only a stop ends its load.
+const server = createServer((request, response) => {
+  if (request.url === "/slow") return;
   response.setHeader("Content-Type", "text/html; charset=utf-8");
   response.end('<!doctype html><meta charset="utf-8"><title>Fixture</title><button>Fixture button</button>');
 });
@@ -271,6 +273,36 @@ async function main(): Promise<void> {
     }
 
     {
+      const { tab } = await open();
+      assert.equal(listed(tab.id)?.canGoBack, false, "A new tab reported a page to go back to.");
+      assert.equal(listed(tab.id)?.canGoForward, false, "A new tab reported a page to go forward to.");
+      await runCauseEffect(host.loadUrl(tab.id, `${origin}/page-${++sequence}`));
+      assert.equal(listed(tab.id)?.canGoBack, true, "A second page did not allow Back.");
+      assert.equal(listed(tab.id)?.canGoForward, false);
+      await runCauseEffect(host.navigate(tab.id, "back"));
+      assert.equal(listed(tab.id)?.canGoBack, false, "The first page allowed Back.");
+      assert.equal(listed(tab.id)?.canGoForward, true, "Back did not allow Forward.");
+      recordCases("history-state-follows-navigation");
+
+      const started = new Promise<void>((resolve) => {
+        const unsubscribe = host.onChanged((tabs) => {
+          if (!tabs.some((item) => item.id === tab.id && item.loading)) return;
+          unsubscribe();
+          resolve();
+        });
+      });
+      const loading = runCauseEffect(host.loadUrl(tab.id, `${origin}/slow`));
+      await started;
+      await runCauseEffect(host.stop(tab.id));
+      await loading;
+      assert.equal(listed(tab.id)?.loading, false, "The stopped tab still loads.");
+      await runCauseEffect(host.stop(tab.id));
+      const after = success(await routed(params("snapshot", { tabId: tab.id, image: "never" }), never));
+      assert.equal(after.success, true, "The tab did not work after a stop.");
+      recordCases("stop-ends-load-as-done", "stop-of-idle-tab-is-noop", "tab-works-after-stop");
+    }
+
+    {
       const emitted: AgentEvent[] = [];
       const refresh = new RemoteEventRefresh({
         request: () => Effect.die(new Error("This fixture makes no request.")),
@@ -305,6 +337,25 @@ async function main(): Promise<void> {
         released?.type === "browser-changed" && released.tabs[0]?.userControl === undefined,
         "Remote release was not merged.",
       );
+      await Effect.runPromise(
+        refresh.forward("server-1", {
+          type: "browser-page-state-changed",
+          tabs: [{ tabId: tab.id, canGoBack: true, canGoForward: false }],
+        }),
+      );
+      const paged = emitted.at(-1);
+      assert(
+        paged?.type === "browser-changed" && paged.tabs[0]?.canGoBack === true && paged.tabs[0].canGoForward === false,
+        "Remote page state was not merged.",
+      );
+      await Effect.runPromise(
+        refresh.forward("server-1", { type: "browser-changed", tabs: [tab], activeTabId: tab.id }),
+      );
+      const pageKept = emitted.at(-1);
+      assert(
+        pageKept?.type === "browser-changed" && pageKept.tabs[0]?.canGoBack === true,
+        "A tab change lost the remote page state.",
+      );
       refresh.forget("server-1");
       await Effect.runPromise(refresh.forward("server-1", { type: "browser-user-control-changed", tabIds: [tab.id] }));
       assert.equal(emitted.at(-1)?.type, "browser-user-control-changed", "A forgotten server kept its tab list.");
@@ -312,6 +363,8 @@ async function main(): Promise<void> {
         "remote-event-merges-hold",
         "remote-tab-change-keeps-hold",
         "remote-release-clears-hold",
+        "remote-event-merges-page-state",
+        "remote-tab-change-keeps-page-state",
         "remote-forget-clears-state",
       );
     }
@@ -325,7 +378,7 @@ async function main(): Promise<void> {
       electron: process.versions.electron,
       cases,
       scope:
-        "Owned hidden native process, temporary profile, and a loopback page. BrowserHost with the tool router's composition and the remote event merge. No provider calls, no Team API transport, no secret request.",
+        "Owned hidden native process, temporary profile, and a loopback page. BrowserHost with the tool router's composition, the history state and Stop, and the remote event merge. No provider calls, no Team API transport, no secret request.",
     };
     await mkdir(dirname(reportPath), { recursive: true });
     await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
@@ -340,6 +393,7 @@ async function main(): Promise<void> {
     phase("native-cleanup");
     if (browser) await runCauseEffect(browser.destroy());
     if (window && !window.isDestroyed()) window.destroy();
+    server.closeAllConnections();
     await new Promise<void>((resolve) => server.close(() => resolve()));
     app.exit(Number(process.exitCode ?? 0));
   }

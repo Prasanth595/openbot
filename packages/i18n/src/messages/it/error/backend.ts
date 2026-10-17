@@ -47,6 +47,7 @@ export const messages = {
     "Questa scheda del browser attende un segreto. Rispondi prima alla richiesta del segreto.",
   "error.backend.browserUserControlUnsupported":
     "Questo host remoto non supporta il controllo di una scheda del browser.",
+  "error.backend.browserStopUnsupported": "Questo host remoto non può interrompere il caricamento di una pagina.",
   "error.backend.sharedDataLocalOnly": "I dati condivisi sono gestiti sul computer su cui girano questi agenti.",
   "error.backend.browserUrlProtocol": "Sono consentiti solo URL del browser HTTP(S).",
   "error.backend.sunshineNotReady": "Sunshine non è diventato pronto.",

@@ -43,6 +43,7 @@ export const messages = defineMessages("error.backend", {
     "This remote host does not support address-bar navigation in an existing tab.",
   "error.backend.browserUserControlBusy": "This browser tab waits for a secret. Answer the secret request first.",
   "error.backend.browserUserControlUnsupported": "This remote host does not support taking control of a browser tab.",
+  "error.backend.browserStopUnsupported": "This remote host cannot stop a page load.",
   "error.backend.sharedDataLocalOnly": "Shared data is managed on the computer that runs these agents.",
   "error.backend.browserUrlProtocol": "Only HTTP(S) browser URLs are allowed.",
   "error.backend.sunshineNotReady": "Sunshine did not become ready.",

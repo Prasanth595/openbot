@@ -128,8 +128,19 @@ export function decodeBrowserPictureInPictureEvent(value: unknown): BrowserPictu
 }
 
 function browserTab(tab: DynamicRecord): BrowserTab {
-  const { environment, recording, diagnosticErrorCount, openerTabId, popupFailure, userControl } = tab;
+  const {
+    environment,
+    recording,
+    diagnosticErrorCount,
+    openerTabId,
+    popupFailure,
+    userControl,
+    canGoBack,
+    canGoForward,
+  } = tab;
   if (recording !== undefined && !isBoolean(recording)) throw new Error("Invalid recording.");
+  if (canGoBack !== undefined && !isBoolean(canGoBack)) throw new Error("Invalid canGoBack.");
+  if (canGoForward !== undefined && !isBoolean(canGoForward)) throw new Error("Invalid canGoForward.");
   if (diagnosticErrorCount !== undefined && !isNumber(diagnosticErrorCount)) {
     throw new Error("Invalid diagnosticErrorCount.");
   }
@@ -148,6 +159,8 @@ function browserTab(tab: DynamicRecord): BrowserTab {
     ...(popupFailure === undefined ? {} : { popupFailure: popupFailureOf(popupFailure) }),
     // Only an exact `true` marks the tab: any other value does not make an agent wait.
     ...(userControl === true ? { userControl } : {}),
+    ...(canGoBack === undefined ? {} : { canGoBack }),
+    ...(canGoForward === undefined ? {} : { canGoForward }),
   };
 }
 

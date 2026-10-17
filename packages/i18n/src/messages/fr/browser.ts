@@ -43,6 +43,7 @@ export const messages = {
   "browser.goBack": "Revenir en arrière",
   "browser.goForward": "Avancer",
   "browser.reload": "Actualiser la page",
+  "browser.stopLoading": "Arrêter le chargement",
   "browser.recording.label": "Enregistrement du navigateur en cours",
   "browser.recording.badge": "REC",
   "browser.diagnosticErrors": {
@@ -92,6 +93,7 @@ export const messages = {
   "browser.error.openAddress": "Impossible d’ouvrir l’adresse dans cet onglet.",
   "browser.error.closeTab": "Impossible de fermer l’onglet du navigateur.",
   "browser.error.reloadTab": "Impossible d’actualiser l’onglet du navigateur.",
+  "browser.error.stopLoading": "Impossible d’arrêter le chargement de la page.",
   "browser.error.takeControl": "Impossible de prendre le contrôle de l’onglet du navigateur.",
   "browser.error.releaseControl": "Impossible de rendre l’onglet du navigateur à l’agent.",
   "browser.error.navigateBack": "Impossible de revenir en arrière.",

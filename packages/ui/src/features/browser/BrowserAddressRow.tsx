@@ -5,13 +5,14 @@ import {
   BrowserBackIcon,
   BrowserForwardIcon,
   BrowserReloadIcon,
+  BrowserStopIcon,
 } from "@openbot/ui/features/conversation/ConversationIcons";
 import { useText } from "@openbot/ui/text";
 import { createMemo, createStore, createUniqueId, flush, Show } from "solid-js";
 import { BrowserPageMenu } from "./BrowserPageMenu";
 import { BrowserOwnerIcon } from "./BrowserTabIcon";
 import { browserActionLabel } from "./browser-action-labels";
-import type { BrowserFullViewProps } from "./browser-full-view-types";
+import { type BrowserFullViewProps, browserTabStoppable } from "./browser-full-view-types";
 import {
   type BrowserSuggestion,
   browserAddressUrl,
@@ -168,7 +169,7 @@ export function BrowserAddressRow(props: {
         size="icon-sm"
         aria-label={t("browser.goBack")}
         aria-keyshortcuts={browserAriaShortcut("back", props.view.shortcuts)}
-        disabled={!tab()}
+        disabled={!tab() || tab()?.canGoBack === false}
         data-cuelume-tap="navigate"
         onClick={() => {
           const current = tab();
@@ -184,7 +185,7 @@ export function BrowserAddressRow(props: {
           size="icon-sm"
           aria-label={t("browser.goForward")}
           aria-keyshortcuts={browserAriaShortcut("forward", props.view.shortcuts)}
-          disabled={!tab()}
+          disabled={!tab() || tab()?.canGoForward === false}
           data-cuelume-tap="navigate"
           onClick={() => {
             const current = tab();
@@ -193,19 +194,36 @@ export function BrowserAddressRow(props: {
         >
           <BrowserForwardIcon />
         </Button>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label={t("browser.reload")}
-          aria-keyshortcuts={browserAriaShortcut("reload", props.view.shortcuts)}
-          disabled={!tab()?.url}
-          onClick={() => {
-            const current = tab();
-            if (current) props.view.onReload(current.id);
-          }}
+        <Show
+          when={browserTabStoppable(tab())}
+          fallback={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={t("browser.reload")}
+              aria-keyshortcuts={browserAriaShortcut("reload", props.view.shortcuts)}
+              disabled={!tab()?.url}
+              onClick={() => {
+                const current = tab();
+                if (current) props.view.onReload(current.id);
+              }}
+            >
+              <BrowserReloadIcon />
+            </Button>
+          }
         >
-          <BrowserReloadIcon />
-        </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={t("browser.stopLoading")}
+            onClick={() => {
+              const current = tab();
+              if (current) props.view.onStop(current.id);
+            }}
+          >
+            <BrowserStopIcon />
+          </Button>
+        </Show>
       </Show>
       <form class="browser-full-capsule" onSubmit={(event) => event.preventDefault()}>
         <Show when={acting()}>

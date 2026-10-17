@@ -36,6 +36,7 @@ export default function BrowserFullViewAdapter() {
     navigateBrowserTab,
     openBrowserAddress,
     reloadBrowserTab,
+    stopBrowserTab,
     setActiveRightPanel,
     setBrowserSurfaceElement,
     showBrowserPip,
@@ -115,6 +116,7 @@ export default function BrowserFullViewAdapter() {
         if (closed) void openTab(closed.url, { index: closed.index });
       }}
       onReload={(tabId) => void reloadBrowserTab(tabId)}
+      onStop={(tabId) => void stopBrowserTab(tabId)}
       onNavigate={(tabId, direction) => void navigateBrowserTab(tabId, direction)}
       onOpenAddress={(url, tabId) => void openBrowserAddress(url, tabId === undefined)}
       canEnterPip={!props.runtime}

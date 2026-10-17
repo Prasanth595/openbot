@@ -1,5 +1,6 @@
 import { type AgentHiddenEvent, agentHiddenEvent } from "./agent-hidden-v1";
 import { type AgentSessionSettingsEvent, agentSessionSettingsEvent } from "./agent-session-settings-v1";
+import { type BrowserPageStateEvent, browserPageStateEvent } from "./browser-page-state-v1";
 import { type BrowserUserControlEvent, browserUserControlEvent } from "./browser-user-control-v1";
 // Events that optional capabilities add outside the frozen base event vocabularies. The base event
 // adapters reject them, so each transport asks here first and sends or decodes them as they are.
@@ -12,6 +13,7 @@ import { type SkillsEvent, skillsEvent } from "./skills-events-v1";
 export type OptionalTeamEvent =
   | AgentHiddenEvent
   | AgentSessionSettingsEvent
+  | BrowserPageStateEvent
   | BrowserUserControlEvent
   | ChannelEvent
   | HostRestartEvent
@@ -24,6 +26,7 @@ export function optionalTeamEvent(value: unknown): OptionalTeamEvent | null {
   return (
     agentHiddenEvent(value) ??
     agentSessionSettingsEvent(value) ??
+    browserPageStateEvent(value) ??
     browserUserControlEvent(value) ??
     channelEvent(value) ??
     hostRestartEvent(value) ??

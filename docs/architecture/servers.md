@@ -170,6 +170,27 @@ in words on a block that has one, is for the owner and admins only; the host ans
 resolution leave it out. The provider transcript of the tool call can keep it, and the agent can
 repeat it in a reply or a thought, which the conversation stores as any other message.
 
+### Browser control and page state
+
+The frozen `browser-changed` event and `GET /v1/browser/tabs` drop unknown tab keys in released
+clients, so two optional capabilities send their tab state on their own event and routes. A client
+merges it into the tab list: the desktop main process in `remote-server-event-refresh.ts`, and the
+web client in `web-client-context.tsx` and `web-runtime.ts`. A member does not see a private tab in
+either one.
+
+`browser-user-control-v1` lets any member who can see a tab take it from its agent and give it back:
+`POST /v1/browser/user-control` (state), `/take` and `/release`, each with `{ tabId }` except the
+state, and each answering with the held tab ids. While a person holds a tab, the owning agent's
+browser tool calls on it wait until the release. The host refuses a take while a secret request is
+active on the tab, and releases the holds of a session when it ends. Each change sends
+`browser-user-control-changed { tabIds }`.
+
+`browser-page-state-v1` adds `POST /v1/browser/page-state` (empty body) and `POST /v1/browser/stop`
+(`{ tabId }`). Both answer with `{ tabs: [{ tabId, canGoBack, canGoForward }] }`, and each change
+sends `browser-page-state-changed` with the same list. A stop ends the load at once, before the queued
+tab operations, and a stop of a tab that does not load changes nothing. A client shows Stop only for a
+host that reports the page state; for an older host, Back and Forward stay enabled.
+
 ### Skill events
 
 `skills-events-v1` adds one optional event, `skills-changed { agentId }`. The host sends it after

@@ -9,6 +9,10 @@ import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import { type DynamicRecord, isBoolean } from "@openbot/contracts/runtime-values";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import {
+  BROWSER_PAGE_STATE_CAPABILITY,
+  BROWSER_PAGE_STATE_ROUTES,
+} from "@openbot/contracts/team-protocol/browser-page-state-v1";
+import {
   BROWSER_USER_CONTROL_CAPABILITY,
   BROWSER_USER_CONTROL_ROUTES,
 } from "@openbot/contracts/team-protocol/browser-user-control-v1";
@@ -132,6 +136,21 @@ export async function routeBrowser(
         .listTabs()
         .filter((tab) => tab.userControl && !hidden(tab.id))
         .map((tab) => tab.id),
+    });
+  }
+
+  // Behind `browser-page-state`. A stop ends the load now, before the queued tab operations; the
+  // answer is the history state of each tab that this member can see, as the event sends it.
+  if (method === "POST" && Object.values(BROWSER_PAGE_STATE_ROUTES).some((path) => path === url.pathname)) {
+    if (!capabilities.has(BROWSER_PAGE_STATE_CAPABILITY))
+      throw new HttpError(400, sourceText("error.backend.browserStopUnsupported"));
+    const body = await readJson(request);
+    if (url.pathname === BROWSER_PAGE_STATE_ROUTES.stop) await runCauseEffect(browser.stop(tabId(body)));
+    return json(200, {
+      tabs: browser
+        .listTabs()
+        .filter((tab) => !hidden(tab.id))
+        .map((tab) => ({ tabId: tab.id, canGoBack: tab.canGoBack === true, canGoForward: tab.canGoForward === true })),
     });
   }
 

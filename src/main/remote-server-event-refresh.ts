@@ -56,9 +56,11 @@ export class RemoteEventRefresh {
   readonly #queues = new Map<string, QueueRefresh>();
   readonly #generations = new Map<string, number>();
   readonly #rosterLoads = new Map<string, Deferred.Deferred<void, RemoteWorkflowError>>();
-  // The frozen `browser-changed` event has no field for a person's control, so `browser-user-control-v1`
-  // sends the held tabs on their own. Each server keeps its last list and tabs to merge them here.
+  // The frozen `browser-changed` event has no field for a person's control or the history state, so
+  // `browser-user-control-v1` and `browser-page-state-v1` send them on their own. Each server keeps its
+  // last lists and tabs to merge them here.
   readonly #browserHolds = new Map<string, ReadonlySet<string>>();
+  readonly #browserPageStates = new Map<string, ReadonlyMap<string, { canGoBack: boolean; canGoForward: boolean }>>();
   readonly #browserStates = new Map<string, { tabs: BrowserTab[]; activeTabId: string | null }>();
 
   constructor(options: RemoteEventRefreshOptions) {
@@ -84,8 +86,9 @@ export class RemoteEventRefresh {
       yield* this.#refreshConversationPage(serverId, event.agentId, event.revision);
     } else if (event.type === "queue-invalidated") {
       yield* this.#refreshQueue(serverId, event.agentId);
-    } else if (event.type === "browser-user-control-changed") {
-      this.#browserHolds.set(serverId, new Set(event.tabIds));
+    } else if (event.type === "browser-user-control-changed" || event.type === "browser-page-state-changed") {
+      if (event.type === "browser-user-control-changed") this.#browserHolds.set(serverId, new Set(event.tabIds));
+      else this.#browserPageStates.set(serverId, new Map(event.tabs.map(({ tabId, ...state }) => [tabId, state])));
       this.#emit(serverId, event);
       const state = this.#browserStates.get(serverId);
       if (state) this.#emit(serverId, addRemotePreviewUrls(this.#withBrowserHolds(serverId, state), serverId));
@@ -106,9 +109,15 @@ export class RemoteEventRefresh {
     state: { tabs: BrowserTab[]; activeTabId: string | null },
   ): Extract<AgentEvent, { type: "browser-changed" }> {
     const held = this.#browserHolds.get(serverId);
+    const pageStates = this.#browserPageStates.get(serverId);
     const tabs = state.tabs.map((tab) => {
-      const { userControl: _, ...rest } = tab;
-      return held?.has(tab.id) ? { ...rest, userControl: true as const } : rest;
+      const { userControl: _, canGoBack: _back, canGoForward: _forward, ...rest } = tab;
+      const pageState = pageStates?.get(tab.id);
+      return {
+        ...rest,
+        ...(held?.has(tab.id) ? { userControl: true as const } : {}),
+        ...(pageState ? { canGoBack: pageState.canGoBack, canGoForward: pageState.canGoForward } : {}),
+      };
     });
     return { type: "browser-changed", tabs, activeTabId: state.activeTabId };
   }
@@ -173,6 +182,7 @@ export class RemoteEventRefresh {
   forget(serverId: string): void {
     this.#rosterLoads.delete(serverId);
     this.#browserHolds.delete(serverId);
+    this.#browserPageStates.delete(serverId);
     this.#browserStates.delete(serverId);
     this.#generations.delete(serverId);
     for (const key of this.#conversations.keys()) {
@@ -186,6 +196,7 @@ export class RemoteEventRefresh {
   clear(): void {
     this.#rosterLoads.clear();
     this.#browserHolds.clear();
+    this.#browserPageStates.clear();
     this.#browserStates.clear();
     this.#generations.clear();
     this.#conversations.clear();

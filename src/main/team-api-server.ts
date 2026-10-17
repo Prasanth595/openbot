@@ -29,6 +29,7 @@ import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import { ACP_REGISTRY_CAPABILITY } from "@openbot/contracts/team-protocol/acp-registry-v1";
 import { AGENT_HIDDEN_CAPABILITY } from "@openbot/contracts/team-protocol/agent-hidden-v1";
 import { AGENT_SESSION_SETTINGS_CAPABILITY } from "@openbot/contracts/team-protocol/agent-session-settings-v1";
+import { BROWSER_PAGE_STATE_CAPABILITY } from "@openbot/contracts/team-protocol/browser-page-state-v1";
 import { BROWSER_USER_CONTROL_CAPABILITY } from "@openbot/contracts/team-protocol/browser-user-control-v1";
 import {
   AGENT_ADMIN_CAPABILITY,
@@ -1212,6 +1213,16 @@ export class TeamApiServer {
    * routes. A usage reading keeps the provider's own sign-in only, as `GET /v1/agents/usage` does: a
    * released client reads one limit per provider.
    */
+  #sendBrowserPageState(client: Ws.WebSocket, connection: EventClientState): void {
+    const tabs = this.#options.browser.listTabs().map((tab) => ({
+      tabId: tab.id,
+      canGoBack: tab.canGoBack === true,
+      canGoForward: tab.canGoForward === true,
+    }));
+    if (client.readyState !== webSockets.WebSocket.OPEN) return;
+    client.send(JSON.stringify(this.#eventFor(connection, { type: "browser-page-state-changed", tabs })));
+  }
+
   #eventFor(connection: EventClientState, event: AgentEvent): AgentEvent {
     if (event.type === "usage-changed" && event.usage.limits.some((limit) => limit.accountId !== undefined))
       return {
@@ -1221,9 +1232,14 @@ export class TeamApiServer {
     if (event.type === "browser-user-control-changed") {
       const { browser, store } = this.#options;
       if (!event.tabIds.some((tabId) => browser.isPrivate(tabId))) return event;
-      const role = store.authenticate(connection.token)?.role;
-      if (role && role !== "member") return event;
+      if (canAdministerServer(store.authenticate(connection.token)?.role)) return event;
       return { ...event, tabIds: event.tabIds.filter((tabId) => !browser.isPrivate(tabId)) };
+    }
+    if (event.type === "browser-page-state-changed") {
+      const { browser, store } = this.#options;
+      if (!event.tabs.some((tab) => browser.isPrivate(tab.tabId))) return event;
+      if (canAdministerServer(store.authenticate(connection.token)?.role)) return event;
+      return { ...event, tabs: event.tabs.filter((tab) => !browser.isPrivate(tab.tabId)) };
     }
     if (event.type !== "browser-changed") return event;
     const { browser, store } = this.#options;
@@ -1299,6 +1315,7 @@ export class TeamApiServer {
               connection.capabilities.has(HOST_UPDATE_CAPABILITY) ||
               connection.capabilities.has(HOST_MEMBER_UPDATE_CAPABILITY);
             const userControlWasSent = connection.capabilities.has(BROWSER_USER_CONTROL_CAPABILITY);
+            const pageStateWasSent = connection.capabilities.has(BROWSER_PAGE_STATE_CAPABILITY);
             connection.capabilities = new Set(event.capabilities.filter(isTeamCurrentCapability));
             if (connection.capabilities.has("agent-runtime-snapshots") && !snapshotsWereEnabled) {
               this.#sendRuntimeSnapshot(client, connection, false);
@@ -1308,6 +1325,8 @@ export class TeamApiServer {
             // The same for the tabs that a person controls now.
             if (!userControlWasSent && connection.capabilities.has(BROWSER_USER_CONTROL_CAPABILITY))
               this.#sendBrowserUserControl(client, connection);
+            if (!pageStateWasSent && connection.capabilities.has(BROWSER_PAGE_STATE_CAPABILITY))
+              this.#sendBrowserPageState(client, connection);
           }
           connection.includeConversationEvents = event.includeConversations;
           return;
@@ -1831,6 +1850,7 @@ function eventCapability(event: AgentEvent): TeamCurrentCapability | null {
   if (event.type === "agent-session-settings-changed") return AGENT_SESSION_SETTINGS_CAPABILITY;
   if (event.type === "hidden-agents-changed") return AGENT_HIDDEN_CAPABILITY;
   if (event.type === "browser-user-control-changed") return BROWSER_USER_CONTROL_CAPABILITY;
+  if (event.type === "browser-page-state-changed") return BROWSER_PAGE_STATE_CAPABILITY;
   if (event.type === "skills-changed") return SKILLS_EVENTS_CAPABILITY;
   if (event.type === "routine-flows-changed") return ROUTINE_FLOWS_CAPABILITY;
   if (event.type === "turn-progress") return TEAM_AGENT_ACTIVITY_CAPABILITY;

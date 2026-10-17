@@ -15,6 +15,9 @@ export interface BrowserTab {
   popupFailure?: { id: string; message: string };
   /** A person controls this tab, so the owning agent waits for the release. */
   userControl?: true;
+  /** Whether the tab has a page to go back or forward to. Absent: unknown, such as from an older host. */
+  canGoBack?: boolean;
+  canGoForward?: boolean;
 }
 
 export type BrowserImageMode = "auto" | "always" | "never";

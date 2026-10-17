@@ -1201,6 +1201,7 @@ export const IPC_ENDPOINTS = {
     activate: request<string, void>()("browser:activate"),
     navigate: request<BrowserNavigateInput, void>()("browser:navigate"),
     reload: request<string, void>()("browser:reload"),
+    stop: request<string, void>()("browser:stop"),
     close: request<string, void>()("browser:close"),
     takeControl: request<string, void>()("browser:take-control"),
     releaseControl: request<string, void>()("browser:release-control"),

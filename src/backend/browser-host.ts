@@ -59,6 +59,7 @@ import {
   type BrowserHostTab,
   type BrowserPreviewPage,
   currentTabUrl,
+  hasHistoryEntry,
   type KeepQueueBlocked,
   restoreWebContentsFocus,
   toPublicTab,
@@ -748,7 +749,10 @@ export class BrowserHost {
   ): Effect.fn.Return<void, BrowserOperationError> {
     yield* this.#enqueue(tabId, (tab) =>
       Effect.gen({ self: this }, function* () {
-        yield* navigateAndWait(tab.contents, () => navigateHistory(tab.contents, direction));
+        yield* untilStopped(
+          tab,
+          navigateAndWait(tab.contents, () => navigateHistory(tab.contents, direction)),
+        );
       }),
     );
   }).bind(this);
@@ -764,7 +768,10 @@ export class BrowserHost {
       (tab) =>
         Effect.gen({ self: this }, function* () {
           tab.loadGeneration += 1;
-          yield* navigateAndWait(tab.contents, () => tab.contents.loadURL(normalizedUrl, browserLoadOptions()));
+          yield* untilStopped(
+            tab,
+            navigateAndWait(tab.contents, () => tab.contents.loadURL(normalizedUrl, browserLoadOptions())),
+          );
           this.#focusTab(tab);
         }),
       true,
@@ -779,13 +786,30 @@ export class BrowserHost {
       tabId,
       (tab) =>
         Effect.gen({ self: this }, function* () {
-          return yield* navigateAndWait(tab.contents, () => {
-            tab.contents.reload();
-            return true;
-          });
+          return yield* untilStopped(
+            tab,
+            navigateAndWait(tab.contents, () => {
+              tab.contents.reload();
+              return true;
+            }),
+          );
         }),
       true,
     );
+  }).bind(this);
+
+  /**
+   * Stops the load of the tab now, not after the queued tab operations: a person stops a page that
+   * does not finish. The load that it ends counts as done, not as failed.
+   */
+  readonly stop = Effect.fn("BrowserHost.stop")(function* (
+    this: BrowserHost,
+    tabId: string,
+  ): Effect.fn.Return<void, BrowserOperationError> {
+    const tab = yield* this.#requireTab(tabId);
+    if (!tab.contents.isLoading()) return;
+    tab.loadGeneration += 1;
+    yield* browserSync(() => tab.contents.stop());
   }).bind(this);
 
   readonly close = Effect.fn("BrowserHost.close")(function* (
@@ -2772,13 +2796,19 @@ function boundedCaptureDataUrl(image: NativeImage): string {
     .toDataURL();
 }
 
+/** A load that `BrowserHost.stop` ended succeeds: the person chose to keep the page as it is. */
+function untilStopped(
+  tab: BrowserHostTab,
+  load: Effect.Effect<void, BrowserOperationError>,
+): Effect.Effect<void, BrowserOperationError> {
+  const generation = tab.loadGeneration;
+  return load.pipe(Effect.catch((failure) => (tab.loadGeneration === generation ? Effect.fail(failure) : Effect.void)));
+}
+
 function navigateHistory(contents: WebContents, direction: BrowserNavigationDirection): boolean {
-  const history = contents.navigationHistory;
   const offset = direction === "back" ? -1 : 1;
-  if (!history.canGoToOffset(offset)) return false;
-  const entry = history.getEntryAtIndex(history.getActiveIndex() + offset);
-  if (!entry?.url) return false;
-  history.goToOffset(offset);
+  if (!hasHistoryEntry(contents, offset)) return false;
+  contents.navigationHistory.goToOffset(offset);
   return true;
 }
 

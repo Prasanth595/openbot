@@ -15,6 +15,8 @@ const tab: BrowserTab = {
   loading: false,
   ownerThreadId: "thread-chief",
   ownerAgentId: chief.id,
+  canGoBack: true,
+  canGoForward: false,
 };
 
 const tabs: BrowserTab[] = [
@@ -64,6 +66,7 @@ const meta = {
     onMoveTab: fn(),
     onReopenTab: fn(),
     onReload: fn(),
+    onStop: fn(),
     onNavigate: fn(),
     onOpenAddress: fn(),
     onSurface: fn(),
@@ -90,6 +93,9 @@ export const Tabs: Story = {};
 
 /** On macOS the traffic lights are over the top row, so the tabs start clear of them. */
 export const MacWindowControls: Story = { args: { macWindowControls: true } };
+
+/** The page loads: Stop is in place of Reload. */
+export const Loading: Story = { args: { activeTab: tabs[2] } };
 
 /** The agent clicks on the page. Its tab shows that it acts, and the dock shows the step. */
 export const AgentActing: Story = {

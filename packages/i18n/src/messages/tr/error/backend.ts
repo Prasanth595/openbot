@@ -47,6 +47,7 @@ export const messages = {
     "Bu tarayıcı sekmesi bir gizli bilgi bekliyor. Önce gizli bilgi isteğini yanıtlayın.",
   "error.backend.browserUserControlUnsupported":
     "Bu uzak ana makine bir tarayıcı sekmesinin denetimini almayı desteklemiyor.",
+  "error.backend.browserStopUnsupported": "Bu uzak ana bilgisayar sayfa yüklemesini durduramaz.",
   "error.backend.sharedDataLocalOnly": "Paylaşılan veriler bu ajanları çalıştıran bilgisayarda yönetilir.",
   "error.backend.browserUrlProtocol": "Yalnızca HTTP(S) tarayıcı URL'lerine izin verilir.",
   "error.backend.sunshineNotReady": "Sunshine hazır hale gelmedi.",

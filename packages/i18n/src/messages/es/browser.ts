@@ -43,6 +43,7 @@ export const messages = {
   "browser.goBack": "Retroceder",
   "browser.goForward": "Avanzar",
   "browser.reload": "Recargar página",
+  "browser.stopLoading": "Detener carga",
   "browser.recording.label": "Grabación del navegador activa",
   "browser.recording.badge": "REC",
   "browser.diagnosticErrors": {
@@ -92,6 +93,7 @@ export const messages = {
   "browser.error.openAddress": "No se pudo abrir la dirección en esta pestaña.",
   "browser.error.closeTab": "No se pudo cerrar la pestaña del navegador.",
   "browser.error.reloadTab": "No se pudo recargar la pestaña del navegador.",
+  "browser.error.stopLoading": "No se pudo detener la carga de la página.",
   "browser.error.takeControl": "No se pudo tomar el control de la pestaña del navegador.",
   "browser.error.releaseControl": "No se pudo devolver la pestaña del navegador al agente.",
   "browser.error.navigateBack": "No se pudo retroceder.",

@@ -38,6 +38,8 @@ const fullTab = {
   openerTabId: "tab-0",
   popupFailure: { id: "popup-1", message: "The popup was blocked." },
   userControl: true,
+  canGoBack: true,
+  canGoForward: false,
 } satisfies BrowserTab;
 
 const bounds = { x: 10, y: 20, width: 480, height: 270 } satisfies BrowserBounds;
@@ -120,6 +122,8 @@ describe("browser decoders", () => {
       },
     ],
     ["browser tab with a text error count", decodeBrowserTab, { ...tab, diagnosticErrorCount: "2" }],
+    ["browser tab with a text canGoBack", decodeBrowserTab, { ...tab, canGoBack: "true" }],
+    ["browser tab with a numeric canGoForward", decodeBrowserTab, { ...tab, canGoForward: 1 }],
     ["browser tab list that is not an array", decodeBrowserTabs, tab],
     ["browser display state without tabs", decodeBrowserDisplayState, { activeTabId: null }],
     [

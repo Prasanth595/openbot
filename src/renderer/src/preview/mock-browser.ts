@@ -87,6 +87,7 @@ export function createMockBrowser(
       emitAgentEvent({ type: "browser-changed", tabs: browserTabs, activeTabId: activeBrowserTabId });
     },
     reload: async () => undefined,
+    stop: async () => undefined,
     takeControl: async (tabId) => setUserControl(tabId, true),
     releaseControl: async (tabId) => setUserControl(tabId, false),
     close: async (tabId) => {

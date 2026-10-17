@@ -47,6 +47,7 @@ export const messages = {
     "このブラウザーのタブはシークレットを待っています。先にシークレットの要求に応答してください。",
   "error.backend.browserUserControlUnsupported":
     "このリモートホストは、ブラウザーのタブの操作の引き継ぎに対応していません。",
+  "error.backend.browserStopUnsupported": "このリモートホストはページの読み込みを停止できません。",
   "error.backend.sharedDataLocalOnly": "共有データは、これらのエージェントを実行しているコンピューターで管理されます。",
   "error.backend.browserUrlProtocol": "HTTP(S) のブラウザー URL のみ使用できます。",
   "error.backend.sunshineNotReady": "Sunshine の準備ができませんでした。",

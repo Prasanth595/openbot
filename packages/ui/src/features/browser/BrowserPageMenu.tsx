@@ -2,7 +2,7 @@ import { buttonVariants, DropdownMenu, Ellipsis } from "@openbot/ui";
 import { useText } from "@openbot/ui/text";
 import { Show } from "solid-js";
 import { BrowserShortcutHint } from "./BrowserTabIcon";
-import type { BrowserFullViewProps } from "./browser-full-view-types";
+import { type BrowserFullViewProps, browserTabStoppable } from "./browser-full-view-types";
 
 /** The actions of the view in one menu: a new tab, reopen, Picture in Picture, hide. */
 export function BrowserPageMenu(props: { view: BrowserFullViewProps; narrow: boolean; onNewTab: () => void }) {
@@ -20,7 +20,7 @@ export function BrowserPageMenu(props: { view: BrowserFullViewProps; narrow: boo
         <DropdownMenu.Content>
           <Show when={props.narrow}>
             <DropdownMenu.Item
-              disabled={!tab()}
+              disabled={!tab() || tab()?.canGoForward === false}
               onSelect={() => {
                 const current = tab();
                 if (current) props.view.onNavigate(current.id, "forward");
@@ -29,16 +29,30 @@ export function BrowserPageMenu(props: { view: BrowserFullViewProps; narrow: boo
               {t("browser.goForward")}
               <BrowserShortcutHint view={props.view} name="forward" />
             </DropdownMenu.Item>
-            <DropdownMenu.Item
-              disabled={!tab()?.url}
-              onSelect={() => {
-                const current = tab();
-                if (current) props.view.onReload(current.id);
-              }}
+            <Show
+              when={browserTabStoppable(tab())}
+              fallback={
+                <DropdownMenu.Item
+                  disabled={!tab()?.url}
+                  onSelect={() => {
+                    const current = tab();
+                    if (current) props.view.onReload(current.id);
+                  }}
+                >
+                  {t("browser.reload")}
+                  <BrowserShortcutHint view={props.view} name="reload" />
+                </DropdownMenu.Item>
+              }
             >
-              {t("browser.reload")}
-              <BrowserShortcutHint view={props.view} name="reload" />
-            </DropdownMenu.Item>
+              <DropdownMenu.Item
+                onSelect={() => {
+                  const current = tab();
+                  if (current) props.view.onStop(current.id);
+                }}
+              >
+                {t("browser.stopLoading")}
+              </DropdownMenu.Item>
+            </Show>
             <DropdownMenu.Separator />
           </Show>
           <DropdownMenu.Item onSelect={props.onNewTab}>

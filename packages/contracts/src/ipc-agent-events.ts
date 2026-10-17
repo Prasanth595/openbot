@@ -121,6 +121,11 @@ export type AgentEvent =
   | { type: "browser-control-changed"; state: BrowserControlState }
   /** The whole list of tabs that a person controls, in the `browser-user-control` wire shape. */
   | { type: "browser-user-control-changed"; tabIds: string[] }
+  /** The history state of every tab, in the `browser-page-state` wire shape. */
+  | {
+      type: "browser-page-state-changed";
+      tabs: { tabId: string; canGoBack: boolean; canGoForward: boolean }[];
+    }
   | { type: "error"; agentId?: string; code: string; message: string }
   /**
    * A provider plan refused a turn, once per limit. The queues of its agents wait for the reset.
@@ -272,6 +277,14 @@ export function isAgentEvent(value: unknown): value is AgentEvent {
       return isDynamicRecord(value.state);
     case "browser-user-control-changed":
       return Array.isArray(value.tabIds) && value.tabIds.every(isString);
+    case "browser-page-state-changed":
+      return (
+        Array.isArray(value.tabs) &&
+        value.tabs.every(
+          (tab) =>
+            isDynamicRecord(tab) && isString(tab.tabId) && isBoolean(tab.canGoBack) && isBoolean(tab.canGoForward),
+        )
+      );
     case "error":
       return isString(value.code) && isString(value.message);
     case "usage-limit-reached":

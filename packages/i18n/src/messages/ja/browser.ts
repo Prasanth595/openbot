@@ -43,6 +43,7 @@ export const messages = {
   "browser.goBack": "戻る",
   "browser.goForward": "進む",
   "browser.reload": "ページを再読み込み",
+  "browser.stopLoading": "読み込みを停止",
   "browser.recording.label": "ブラウザーを録画中",
   "browser.recording.badge": "録画",
   "browser.diagnosticErrors": {
@@ -91,6 +92,7 @@ export const messages = {
   "browser.error.openAddress": "このタブでアドレスを開けませんでした。",
   "browser.error.closeTab": "ブラウザーのタブを閉じられませんでした。",
   "browser.error.reloadTab": "ブラウザーのタブを再読み込みできませんでした。",
+  "browser.error.stopLoading": "ページの読み込みを停止できませんでした。",
   "browser.error.takeControl": "ブラウザーのタブを操作できませんでした。",
   "browser.error.releaseControl": "ブラウザーのタブをエージェントに戻せませんでした。",
   "browser.error.navigateBack": "前のページに戻れませんでした。",

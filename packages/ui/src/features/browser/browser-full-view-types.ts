@@ -28,6 +28,7 @@ export interface BrowserFullViewProps {
   onMoveTab: (tabId: string, index: number) => void;
   onReopenTab: () => void;
   onReload: (tabId: string) => void;
+  onStop: (tabId: string) => void;
   onNavigate: (tabId: string, direction: "back" | "forward") => void;
   /** Opens the address in the tab, or in a new tab when there is none. */
   onOpenAddress: (url: string, tabId: string | undefined) => void;
@@ -54,4 +55,9 @@ export interface BrowserFullViewProps {
   shortcuts?: BrowserShortcutPlatform;
   /** The island, the queue and the composer of the tab's agent, over the page. */
   dock?: JSX.Element;
+}
+
+/** Only a host that reports the history state can stop a load, so an older host keeps Reload. */
+export function browserTabStoppable(tab: BrowserTab | undefined): boolean {
+  return tab?.loading === true && tab.canGoBack !== undefined;
 }

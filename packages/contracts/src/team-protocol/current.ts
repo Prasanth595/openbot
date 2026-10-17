@@ -13,6 +13,7 @@ import { AGENT_PUBLISH_CAPABILITY } from "./agent-publish-v1";
 import { AGENT_SESSION_SETTINGS_CAPABILITY } from "./agent-session-settings-v1";
 import { AGENT_UPDATE_CAPABILITY } from "./agent-update-v1";
 import { TEAM_BROWSER_NAVIGATION_CAPABILITY } from "./browser-navigation-v1";
+import { BROWSER_PAGE_STATE_CAPABILITY } from "./browser-page-state-v1";
 import { BROWSER_USER_CONTROL_CAPABILITY } from "./browser-user-control-v1";
 import {
   TEAM_BROWSER_VIEW_CAPABILITY,
@@ -93,6 +94,7 @@ export {
   AGENT_SESSION_SETTINGS_CAPABILITY,
   AGENT_UPDATE_CAPABILITY,
   ANDROID_PUSH_NOTIFICATIONS_CAPABILITY,
+  BROWSER_PAGE_STATE_CAPABILITY,
   BROWSER_USER_CONTROL_CAPABILITY,
   CHANNEL_DELETE_CAPABILITY,
   CONNECTORS_CAPABILITY,
@@ -214,6 +216,7 @@ export const TEAM_CURRENT_CAPABILITIES = [
   FOCUS_USE_CAPABILITY,
   AGENT_HIDDEN_CAPABILITY,
   BROWSER_USER_CONTROL_CAPABILITY,
+  BROWSER_PAGE_STATE_CAPABILITY,
   TEAM_UI_BLOCKS_CAPABILITY,
 ] as const;
 
@@ -305,6 +308,7 @@ export const TEAM_BOOTSTRAP_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
     capability !== FOCUS_USE_CAPABILITY &&
     capability !== AGENT_HIDDEN_CAPABILITY &&
     capability !== BROWSER_USER_CONTROL_CAPABILITY &&
+    capability !== BROWSER_PAGE_STATE_CAPABILITY &&
     capability !== TEAM_UI_BLOCKS_CAPABILITY,
 );
 export function teamCapabilitiesForProtocol(protocol: number | null | undefined): readonly TeamCurrentCapability[] {
@@ -337,6 +341,7 @@ export function legacyTeamCapabilities(capabilities: readonly string[]): string[
       capability !== FOCUS_USE_CAPABILITY &&
       capability !== AGENT_HIDDEN_CAPABILITY &&
       capability !== BROWSER_USER_CONTROL_CAPABILITY &&
+      capability !== BROWSER_PAGE_STATE_CAPABILITY &&
       capability !== TEAM_UI_BLOCKS_CAPABILITY,
   );
 }

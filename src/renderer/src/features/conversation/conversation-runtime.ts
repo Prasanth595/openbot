@@ -42,6 +42,7 @@ export interface ConversationRuntime {
     | "open"
     | "openPictureInPicture"
     | "reload"
+    | "stop"
     | "releaseControl"
     | "setVisible"
     | "takeControl"

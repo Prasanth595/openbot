@@ -43,6 +43,7 @@ export const messages = {
   "browser.goBack": "Voltar",
   "browser.goForward": "Avançar",
   "browser.reload": "Recarregar página",
+  "browser.stopLoading": "Parar carregamento",
   "browser.recording.label": "Gravação do navegador ativa",
   "browser.recording.badge": "GRAV",
   "browser.diagnosticErrors": {
@@ -92,6 +93,7 @@ export const messages = {
   "browser.error.openAddress": "Não foi possível abrir o endereço nesta aba.",
   "browser.error.closeTab": "Não foi possível fechar a aba do navegador.",
   "browser.error.reloadTab": "Não foi possível recarregar a aba do navegador.",
+  "browser.error.stopLoading": "Não foi possível parar o carregamento da página.",
   "browser.error.takeControl": "Não foi possível assumir o controle da aba do navegador.",
   "browser.error.releaseControl": "Não foi possível devolver a aba do navegador ao agente.",
   "browser.error.navigateBack": "Não foi possível voltar.",

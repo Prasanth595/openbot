@@ -43,6 +43,7 @@ export const messages = {
   "browser.goBack": "Geri git",
   "browser.goForward": "İleri git",
   "browser.reload": "Sayfayı yenile",
+  "browser.stopLoading": "Yüklemeyi durdur",
   "browser.recording.label": "Tarayıcı kaydı etkin",
   "browser.recording.badge": "KAYIT",
   "browser.diagnosticErrors": {
@@ -92,6 +93,7 @@ export const messages = {
   "browser.error.openAddress": "Adres bu sekmede açılamadı.",
   "browser.error.closeTab": "Tarayıcı sekmesi kapatılamadı.",
   "browser.error.reloadTab": "Tarayıcı sekmesi yeniden yüklenemedi.",
+  "browser.error.stopLoading": "Sayfanın yüklenmesi durdurulamadı.",
   "browser.error.takeControl": "Tarayıcı sekmesinin denetimi alınamadı.",
   "browser.error.releaseControl": "Tarayıcı sekmesi ajana geri verilemedi.",
   "browser.error.navigateBack": "Geri gidilemedi.",

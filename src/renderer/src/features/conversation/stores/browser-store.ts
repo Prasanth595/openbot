@@ -386,6 +386,23 @@ export function createBrowserStore(deps: BrowserStoreDeps) {
     }
   }
 
+  async function stopBrowserTab(tabId: string) {
+    if (
+      !browserInteractionAvailable() ||
+      closingBrowserTabIds.has(tabId) ||
+      !browserTabs().some((tab) => tab.id === tabId)
+    ) {
+      return;
+    }
+    const agentId = deps.props.agent?.id;
+    const target = agentId ? { agentId, serverId: deps.props.server?.id ?? "local" } : undefined;
+    try {
+      await conversationRuntime(deps.props).browser.stop(tabId);
+    } catch (error) {
+      deps.setComposerError(currentText().t("browser.error.stopLoading"), target, error);
+    }
+  }
+
   async function navigateBrowserTab(tabId: string, direction: "back" | "forward") {
     if (
       !browserInteractionAvailable() ||
@@ -461,6 +478,7 @@ export function createBrowserStore(deps: BrowserStoreDeps) {
     closeBrowserTab,
     activateBrowserTab,
     reloadBrowserTab,
+    stopBrowserTab,
     navigateBrowserTab,
     takeBrowserControl,
     releaseBrowserControl,

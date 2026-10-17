@@ -43,6 +43,7 @@ export const messages = {
   "browser.goBack": "Wstecz",
   "browser.goForward": "Dalej",
   "browser.reload": "Odśwież stronę",
+  "browser.stopLoading": "Zatrzymaj wczytywanie",
   "browser.recording.label": "Nagrywanie przeglądarki aktywne",
   "browser.recording.badge": "REC",
   "browser.diagnosticErrors": {
@@ -94,6 +95,7 @@ export const messages = {
   "browser.error.openAddress": "Nie udało się otworzyć adresu w tej karcie.",
   "browser.error.closeTab": "Nie udało się zamknąć karty przeglądarki.",
   "browser.error.reloadTab": "Nie udało się odświeżyć karty przeglądarki.",
+  "browser.error.stopLoading": "Nie udało się zatrzymać wczytywania strony.",
   "browser.error.takeControl": "Nie udało się przejąć kontroli nad kartą przeglądarki.",
   "browser.error.releaseControl": "Nie udało się oddać karty przeglądarki agentowi.",
   "browser.error.navigateBack": "Nie udało się cofnąć.",

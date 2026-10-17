@@ -48,6 +48,7 @@ export const messages = {
     "Cet onglet du navigateur attend un secret. Répondez d’abord à la demande de secret.",
   "error.backend.browserUserControlUnsupported":
     "Cet hôte distant ne permet pas de prendre le contrôle d’un onglet du navigateur.",
+  "error.backend.browserStopUnsupported": "Cet hôte distant ne peut pas arrêter le chargement d’une page.",
   "error.backend.sharedDataLocalOnly": "Les données partagées sont gérées sur l’ordinateur qui exécute ces agents.",
   "error.backend.browserUrlProtocol": "Seules les URL de navigateur HTTP(S) sont autorisées.",
   "error.backend.sunshineNotReady": "Sunshine n’est pas devenu prêt.",
