@@ -3,10 +3,9 @@ import { Button, Input, Search } from "@openbot/ui";
 import { createSignal, For, flush, Show } from "solid-js";
 import { useI18n } from "../../i18n-context";
 import { usePlatform } from "../../platform";
-import { voiceSupported } from "../conversation/voice-status";
 import { useServerSettings } from "../servers/server-settings";
 import { useSettings } from "../settings/settings-context";
-import { navItem, navItems, type SettingsTab } from "../settings/settings-tabs";
+import { navItem, navItems, type SettingsTab, settingsTabShown } from "../settings/settings-tabs";
 import { ServerSettingsPageTitle, SettingsPageFrame } from "./SettingsPageFrame";
 import { type SettingsKind, useWindowPage } from "./window-page-context";
 
@@ -54,14 +53,7 @@ export function SettingsPage(props: { kind: SettingsKind }) {
   const serverSettings = useServerSettings();
   const platform = usePlatform();
   const [query, setQuery] = createSignal("");
-  /** The same tabs as the settings panel: no Dynamic Island off macOS and no Voice on Linux. */
-  const tabShown = (tab: SettingsTab) => {
-    const os = platform.appInfo()?.platform;
-    // Hosted servers shows only for an account with hosting, so the search does not offer it.
-    if (tab === "hosted-servers") return false;
-    if (tab === "dynamic-island") return os === "darwin";
-    return tab !== "voice" || voiceSupported(os);
-  };
+  const tabShown = (tab: SettingsTab) => settingsTabShown(tab, platform.appInfo()?.platform);
   const results = () => (query().trim() ? rankRows(query().trim(), (key) => i18n.t(key), tabShown) : null);
   /** What a screen reader hears while the user types a query. */
   const resultStatus = () => {

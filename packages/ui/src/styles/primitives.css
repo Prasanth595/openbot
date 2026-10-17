@@ -2162,12 +2162,6 @@
   }
 }
 
-@keyframes ui-confirm-dialog-fade-in {
-  from {
-    opacity: 0;
-  }
-}
-
 @keyframes ui-confirm-dialog-in {
   from {
     opacity: 0;
@@ -2195,7 +2189,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .ui-dialog-content.ui-confirm-dialog {
-    animation-name: ui-confirm-dialog-fade-in;
+    animation-name: ui-dialog-overlay-in;
   }
 
   .ui-confirm-dialog-actions .ui-button:active {

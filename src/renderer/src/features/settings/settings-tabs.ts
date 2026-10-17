@@ -1,3 +1,4 @@
+import type { AppInfo } from "@openbot/contracts/ipc";
 import type { AppTextKey } from "@openbot/i18n";
 import {
   Bell,
@@ -11,6 +12,7 @@ import {
   Smartphone,
   UserRound,
 } from "@openbot/ui";
+import { voiceSupported } from "../conversation/voice-status";
 
 export type SettingsTab =
   | "general"
@@ -169,4 +171,14 @@ export function navItem(tab: SettingsTab): SettingsNavItem {
   const found = navItems.find((item) => item.value === tab);
   if (!found) throw new Error(`Unknown settings tab: ${tab}`);
   return found;
+}
+
+/**
+ * Whether the settings panel and its search show the tab: no Dynamic Island off macOS and no Voice on
+ * Linux. Hosted servers opens from its own entry, not from this panel.
+ */
+export function settingsTabShown(tab: SettingsTab, platform: AppInfo["platform"] | undefined): boolean {
+  if (tab === "hosted-servers") return false;
+  if (tab === "dynamic-island") return platform === "darwin";
+  return tab !== "voice" || voiceSupported(platform);
 }
