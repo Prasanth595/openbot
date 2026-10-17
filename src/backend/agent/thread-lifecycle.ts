@@ -19,6 +19,7 @@ import type { AgentStore } from "../agent-store";
 import type { ProviderSession } from "../database/provider-sessions";
 import { causeHelpers } from "../effect-boundary";
 import type { MailboxStore } from "../mailbox-store";
+import type { McpOperationError } from "../mcp-effects";
 import {
   agentMcpServers,
   type CodexDisabledMcpServer,
@@ -26,7 +27,7 @@ import {
   codexDisabledServers,
   codexMcpServerName,
   codexMcpServers,
-  type McpAuthorizationSource,
+  type McpEndpointSource,
   type McpServerDrop,
   type McpServerSource,
   type McpToolRuntimeSource,
@@ -98,7 +99,9 @@ export interface ThreadLifecycleOptions {
    */
   mcpServers?: McpServerSource;
   mcpToolRuntimes?: McpToolRuntimeSource;
-  mcpAuthorization?: McpAuthorizationSource;
+  mcpEndpoint?: McpEndpointSource;
+  /** What the tool manifest records about the OAuth proxy for a set. See `McpGateway.proxyFingerprint`. */
+  mcpProxyFingerprint?: (configs: readonly McpServerConfig[]) => Effect.Effect<string | null, McpOperationError>;
   /**
    * Variables for the commands a Codex agent runs, such as the paths that point `gh` and `git` at
    * the built-in GitHub connection. Claude and the ACP clients read the same source at spawn.
@@ -130,7 +133,10 @@ export class ThreadLifecycle {
   readonly #hooks: ThreadLifecycleHooks;
   readonly #mcpServers: McpServerSource;
   readonly #mcpToolRuntimes: McpToolRuntimeSource | undefined;
-  readonly #mcpAuthorization: McpAuthorizationSource | undefined;
+  readonly #mcpEndpoint: McpEndpointSource | undefined;
+  readonly #mcpProxyFingerprint: (
+    configs: readonly McpServerConfig[],
+  ) => Effect.Effect<string | null, McpOperationError>;
   readonly #agentEnvironment: () => Readonly<Record<string, string>>;
   readonly #passwordVaultConnected: () => boolean;
   readonly #sectionTeammates: (agentId: string) => SectionTeammates | null;
@@ -155,7 +161,8 @@ export class ThreadLifecycle {
     this.#hooks = options.hooks;
     this.#mcpServers = options.mcpServers ?? (() => []);
     this.#mcpToolRuntimes = options.mcpToolRuntimes;
-    this.#mcpAuthorization = options.mcpAuthorization;
+    this.#mcpEndpoint = options.mcpEndpoint;
+    this.#mcpProxyFingerprint = options.mcpProxyFingerprint ?? (() => Effect.succeed(null));
     this.#agentEnvironment = options.agentEnvironment ?? (() => ({}));
     this.#passwordVaultConnected = options.passwordVaultConnected ?? (() => false);
     this.#sectionTeammates = options.sectionTeammates ?? (() => null);
@@ -410,6 +417,8 @@ export class ThreadLifecycle {
     const environment = this.#agentEnvironment();
     // The same single reading, so the manifest records the section-mates these instructions name.
     const section = this.#sectionTeammates(agent.id);
+    // Read before the configuration, which starts the same listener: both see one port.
+    const proxy = client.provider === "codex" ? yield* this.#proxyFingerprint(mcpServers) : null;
     const config = yield* this.codexConfigEffect(agent, client, mcpServers, disabled, toolRuntimes, environment);
     const response = yield* client
       .request(
@@ -452,7 +461,7 @@ export class ThreadLifecycle {
           yield* threadIo(() =>
             writeFile(
               this.toolManifestPath(externalThreadId),
-              this.toolFingerprint(agent, mcpServers, disabled, toolRuntimes, environment, section),
+              this.toolFingerprint(agent, mcpServers, disabled, toolRuntimes, environment, section, proxy),
               {
                 mode: 0o600,
               },
@@ -568,7 +577,7 @@ export class ThreadLifecycle {
     ThreadOperationFailed
   > {
     if (client.provider !== "codex") return {};
-    const usable = yield* usableMcpServers(configs, toolRuntimes, this.#mcpAuthorization).pipe(toThreadOperationFailed);
+    const usable = yield* usableMcpServers(configs, toolRuntimes, this.#mcpEndpoint).pipe(toThreadOperationFailed);
     const { servers, dropped } = yield* threadStep(() => codexMcpServers(usable));
     this.#hooks.reportMcpDrops(client.provider, dropped);
     const mcpServers = { ...disabled, ...servers };
@@ -656,6 +665,10 @@ export class ThreadLifecycle {
    * their sorted ids go in, so a reorder or a rename in the section does not drop the history of
    * each agent in it; a member who joins or leaves does. An agent with no section adds no value and
    * keeps its fingerprint.
+   *
+   * The OAuth proxy goes in for the same reason as the MCP set: a session keeps the proxy address it
+   * was given, and a row that gains a sign-in moves from its own URL to a proxy route. Only a set
+   * with a proxied row adds a value.
    */
   private toolFingerprint(
     agent: AgentSummary,
@@ -664,6 +677,7 @@ export class ThreadLifecycle {
     toolRuntimes: McpToolRuntimes,
     environment: Readonly<Record<string, string>>,
     section: SectionTeammates | null,
+    proxy: string | null,
   ): string {
     return createHash("sha256")
       .update(
@@ -689,9 +703,14 @@ export class ThreadLifecycle {
           ],
           ...(Object.keys(environment).length > 0 ? [Object.entries(environment).sort()] : []),
           ...(section ? [section.members.map((member) => member.id).sort()] : []),
+          ...(proxy ? [proxy] : []),
         ]),
       )
       .digest("hex");
+  }
+
+  #proxyFingerprint(configs: readonly McpServerConfig[]): Effect.Effect<string | null, ThreadOperationFailed> {
+    return this.#mcpProxyFingerprint(configs).pipe(toThreadOperationFailed);
   }
 
   /**
@@ -742,6 +761,7 @@ export class ThreadLifecycle {
     const configs = this.#agentMcpServers(agent);
     const toolRuntimes = this.#toolRuntimes();
     const disabled = yield* this.codexOwnServersEffect(client, configs, toolRuntimes);
+    const proxy = yield* this.#proxyFingerprint(configs);
     const fingerprint = yield* threadStep(() =>
       this.toolFingerprint(
         agent,
@@ -750,6 +770,7 @@ export class ThreadLifecycle {
         toolRuntimes,
         this.#agentEnvironment(),
         this.#sectionTeammates(agent.id),
+        proxy,
       ),
     );
     return stored.success === fingerprint;

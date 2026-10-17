@@ -423,7 +423,7 @@ export function createServerGeneralSection(
               <Show
                 when={address()}
                 fallback={
-                  <Badge variant="secondary" size="md" shape="pill">
+                  <Badge class="server-settings-private-badge" variant="secondary">
                     {t("server.settings.private")}
                   </Badge>
                 }

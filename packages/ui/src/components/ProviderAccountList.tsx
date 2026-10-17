@@ -96,7 +96,7 @@ export function ProviderAccountList(props: ProviderAccountListProps) {
                     {(message) => <small class="provider-picker-check-error">{message()}</small>}
                   </Show>
                 </span>
-                <Badge class="provider-picker-status" variant={ACCOUNT_STATE_VARIANT[state()]} shape="pill">
+                <Badge class="provider-picker-status" variant={ACCOUNT_STATE_VARIANT[state()]}>
                   {t(ACCOUNT_STATE_TEXT[state()])}
                 </Badge>
                 <DropdownMenu.Root placement="bottom-end" gutter={4} modal={false}>

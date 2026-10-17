@@ -207,7 +207,7 @@ type WebWorkspaceProps = {
   /** True when the account session has ended, so closing sends no remote session end. */
   accountSessionEnded?: () => boolean;
   onLogout: () => Promise<void>;
-  createRuntime?: WebRuntimeFactory;
+  createRuntime?: WebRuntimeFactory | undefined;
   /** A shared agent that a `/app?agent=<id>` link named. The dialog installs it only on a press. */
   agentTemplateId?: string | null;
   onAgentTemplateClose?: () => void;
@@ -1419,6 +1419,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                           source={scheduleSource}
                           agents={workspace.profiles()}
                           channels={channels.state.channels}
+                          channelsSupported={channels.supported()}
                           onOpenAgent={(agentId) => {
                             setMobilePane("conversation");
                             void select(agentId);
@@ -1681,7 +1682,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                       mcpSignIn={
                         mcpSignInSupported()
                           ? {
-                              signedIn: serverSettings.state.mcpSignIns,
+                              states: serverSettings.state.mcpSignIns,
                               remote: {
                                 hostName: target().name,
                                 runtime: workspace.runtime.browser,
@@ -1853,6 +1854,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 failed={Boolean(workspace.state.hostsError)}
                 reference={workspace.state.hostsError?.reference ?? null}
                 onJoin={() => setJoinOpen(true)}
+                onCreateServer={hostedServers.available() ? hostedServers.openAddServer : undefined}
                 onRefresh={() => void workspace.run(workspace.refreshHosts)}
               />
             </Show>
@@ -1955,6 +1957,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 remoteDesktopSessionActive={false}
                 remoteDesktopVisible={false}
                 prompt={view.prompt()}
+                promptUiBlock={view.promptUiBlock()}
                 approval={view.approval()}
                 browserTakeover={browserTakeover()}
                 onSelectAgent={(id) => {

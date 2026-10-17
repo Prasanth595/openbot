@@ -126,7 +126,7 @@ export class VoiceTranscriptionService extends EventEmitter<VoiceTranscriptionEv
       const service = new VoiceModelService({
         modelId,
         directory: options.modelDirectories[modelId],
-        fetch: options.fetch,
+        ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
       });
       service.on("status", (status) => this.emit("modelStatus", status));
       return service;

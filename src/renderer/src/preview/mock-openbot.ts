@@ -257,6 +257,8 @@ function mockWorkspaceDirectory(path: string): WorkspaceDirectory {
 
 /** What each story server answers with when it is tested, so a story reads the same way twice. */
 const MOCK_MCP_TOOL_COUNTS: Record<string, number> = { "Local SQLite": 12, Linear: 1, Figma: 6 };
+/** The one address that asks for a sign-in until it has one, so the preview shows Save signing in. */
+const MOCK_MCP_SIGN_IN_URL = "https://mcp.granola.ai/mcp";
 
 export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBotControls {
   const appInfo = clone(options.appInfo ?? STORY_APP_INFO);
@@ -339,11 +341,25 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
   }
   let mcpServers = clone(STORY_MCP_SERVERS);
   let mcpSignedIn = new Set<string>();
+  // Figma refused its saved sign-in, so the preview shows a row that asks for a new one.
+  let mcpLost = new Set<string>(["mcp-figma"]);
+  // A sign-in is kept by address, as main keeps it: a draft signs in before Save gives it an id.
+  let mcpSignedInUrls = new Set<string>();
   let cancelPendingMcpSignIn: (() => void) | null = null;
+  const forgetMcpSignIn = (mcpServerId: string) => {
+    const url = mcpServers.find((server) => server.id === mcpServerId)?.url;
+    mcpSignedIn = new Set([...mcpSignedIn].filter((id) => id !== mcpServerId));
+    mcpLost = new Set([...mcpLost].filter((id) => id !== mcpServerId));
+    mcpSignedInUrls = new Set([...mcpSignedInUrls].filter((signedIn) => signedIn !== url));
+  };
   const mcpSignInStates = () =>
     mcpServers
       .filter((server) => server.transport === "http")
-      .map((server) => ({ mcpServerId: server.id, signedIn: mcpSignedIn.has(server.id) }));
+      .map((server) => ({
+        mcpServerId: server.id,
+        signedIn: mcpSignedIn.has(server.id) || mcpSignedInUrls.has(server.url),
+        needsSignIn: mcpLost.has(server.id),
+      }));
   let mcpSignInApps: Record<string, McpSignInApp> = {};
   const mcpSignInAppState = (mcpServerId: string): McpSignInAppState => ({
     redirectUrl: "http://127.0.0.1:28417/mcp-auth",
@@ -1494,13 +1510,16 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       },
       /**
        * A test takes a moment, so the panel shows its connecting state before the answer lands. A
-       * command that is not on this machine fails, the way the real probe reports a missing one.
+       * command that is not on this machine fails, the way the real probe reports a missing one, and
+       * the sign-in address asks for a sign-in until it has one.
        */
       testMcpServer: async ({ config }) => {
         await new Promise((resolve) => schedule(() => resolve(null), 400));
         const command = config.command.split(" ")[0] ?? "";
         if (config.transport === "stdio" && command.startsWith("bunx"))
           return { toolCount: 0, error: `Command not found: ${command}` };
+        if (config.transport === "http" && config.url === MOCK_MCP_SIGN_IN_URL && !mcpSignedInUrls.has(config.url))
+          return { toolCount: 0, error: sourceText("error.backend.mcpSignInRequired") };
         return { toolCount: MOCK_MCP_TOOL_COUNTS[config.name] ?? 4, error: null };
       },
       /** The browser is pretended: the sign-in lands after a moment unless Cancel comes first. */
@@ -1511,7 +1530,11 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
             if (settled) return;
             settled = true;
             cancelPendingMcpSignIn = null;
-            if (!error && config.id) mcpSignedIn = new Set(mcpSignedIn).add(config.id);
+            if (!error && config.id) {
+              forgetMcpSignIn(config.id);
+              mcpSignedIn = new Set(mcpSignedIn).add(config.id);
+            }
+            if (!error) mcpSignedInUrls = new Set(mcpSignedInUrls).add(config.url);
             resolve({ toolCount: error ? 0 : (MOCK_MCP_TOOL_COUNTS[config.name] ?? 4), error });
           };
           cancelPendingMcpSignIn = () => settle(sourceText("error.backend.mcpSignInCancelled"));
@@ -1526,7 +1549,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         cancelPendingMcpSignIn?.();
       },
       signOutMcpServer: async ({ mcpServerId }) => {
-        mcpSignedIn = new Set([...mcpSignedIn].filter((id) => id !== mcpServerId));
+        forgetMcpSignIn(mcpServerId);
         return mcpSignInStates();
       },
       listMcpSignIns: async () => mcpSignInStates(),
@@ -1536,13 +1559,13 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         const secretSaved =
           clientSecret === null ? (mcpSignInApps[mcpServerId]?.secretSaved ?? false) : clientSecret !== "";
         mcpSignInApps = { ...mcpSignInApps, [mcpServerId]: { clientId, secretSaved, scope } };
-        mcpSignedIn = new Set([...mcpSignedIn].filter((id) => id !== mcpServerId));
+        forgetMcpSignIn(mcpServerId);
         return mcpSignInAppState(mcpServerId);
       },
       removeMcpSignInApp: async ({ mcpServerId }) => {
         const { [mcpServerId]: _removed, ...rest } = mcpSignInApps;
         mcpSignInApps = rest;
-        mcpSignedIn = new Set([...mcpSignedIn].filter((id) => id !== mcpServerId));
+        forgetMcpSignIn(mcpServerId);
         return mcpSignInAppState(mcpServerId);
       },
       getSidebarLayout: async () => clone(sidebarLayout),
@@ -1601,14 +1624,14 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       duplicateAgent: async (agentId) => {
         const source = agents.find((agent) => agent.id === agentId);
         if (!source) throw new Error("Agent not found");
+        // The copy gets a new id and its own workspace, so neither is passed on.
+        const { id: _sourceId, workspacePath: _sourceWorkspacePath, ...copied } = source;
         const agent = {
           ...createAgentSummary({
-            ...source,
-            id: undefined,
+            ...copied,
             name: `${source.name} copy`,
             preview: "",
             updatedAt: null,
-            workspacePath: undefined,
           }),
           threadId: null,
         };
@@ -1885,12 +1908,19 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
           emit(latestConversationListeners, input.agentId);
         }
         const snapshot = clone(getSnapshot(input.agentId));
-        const messages = snapshot.messages.slice(-Math.min(input.limit ?? 50, 100));
+        const limit = Math.min(input.limit ?? 50, 100);
+        // The cursor of an older page is the id of the first message after it, as the host pages by message.
+        const anchor = input.anchor;
+        const cursorIndex =
+          anchor?.type === "before" ? snapshot.messages.findIndex((message) => message.id === anchor.cursor) : -1;
+        const end = cursorIndex >= 0 ? cursorIndex : snapshot.messages.length;
+        const start = Math.max(0, end - limit);
+        const messages = snapshot.messages.slice(start, end);
         return {
           ...snapshot,
           messages,
           references: {},
-          pageInfo: { hasOlder: snapshot.messages.length > messages.length, olderCursor: null },
+          pageInfo: { hasOlder: start > 0, olderCursor: start > 0 ? (messages[0]?.id ?? null) : null },
           readState: { unreadCount: 0, firstUnreadMessageId: null, throughMessageId: null },
         };
       },

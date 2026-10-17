@@ -182,6 +182,7 @@ import {
 } from "./main-window";
 import { ManagedSkillService } from "./managed-skill-service";
 import { McpHostSignIns } from "./mcp-host-sign-ins";
+import { McpOAuthProxySettingsFile } from "./mcp-oauth-proxy-store";
 import {
   MCP_OAUTH_REDIRECT_PATH,
   MCP_OAUTH_REDIRECT_PORT,
@@ -294,6 +295,7 @@ const MESSAGING_CREDENTIAL_FILE = "openbot-messaging-credentials-v1.json";
 const INGRESS_QUEUE_KEY_FILE = "openbot-ingress-queue-key-v1.json";
 /** The MCP sign-ins. Separate from the keys above: a key is typed by the user, a token is not. */
 const MCP_OAUTH_FILE = "openbot-mcp-oauth-v1.json";
+const MCP_OAUTH_PROXY_FILE = "openbot-mcp-oauth-proxy-v1.json";
 /** The one GitHub sign-in of this computer, with the same cipher as the MCP sign-ins. */
 const GITHUB_CONNECTOR_FILE = "openbot-github-connector-v1.json";
 /** The 1Password service account token of this computer, with the same cipher. */
@@ -890,7 +892,7 @@ export async function createApplicationServices({
   configureApplicationProtocol();
   const developmentUrl = process.env.ELECTRON_RENDERER_URL;
   const teamWebRtcBridge = new TeamWebRtcBridge({
-    developmentUrl,
+    developmentUrl: developmentUrl ?? null,
     iceTransportPolicy: developmentUrl && process.env.OPENBOT_DEV_ICE_TRANSPORT_POLICY === "relay" ? "relay" : "all",
   });
   teamWebRtcBridge.on("accountProfileChanged", refreshAccountProfile);
@@ -924,7 +926,7 @@ export async function createApplicationServices({
     browser,
     preloadPath: join(__dirname, "../preload/index.cjs"),
     iconPath: appIconPath,
-    developmentUrl: process.env.ELECTRON_RENDERER_URL,
+    ...(developmentUrl === undefined ? {} : { developmentUrl }),
     onEvent: (event) => {
       const window = windows.getMainWindow();
       if (!window || window.isDestroyed()) return;
@@ -1096,6 +1098,17 @@ export async function createApplicationServices({
   if (mcpOAuthLoadError) {
     logger.warn(`OpenBot could not read the MCP sign-in file (${mcpOAuthLoadError.name}). It was left unchanged.`);
   }
+  // The OAuth proxy port, so a Codex session resumed after a restart reaches the same address.
+  const mcpOAuthProxySettings = new McpOAuthProxySettingsFile(
+    join(app.getPath("userData"), MCP_OAUTH_PROXY_FILE),
+    secretCipher,
+  );
+  const mcpOAuthProxyLoadError = await Effect.runPromise(mcpOAuthProxySettings.load());
+  if (mcpOAuthProxyLoadError) {
+    logger.warn(
+      `OpenBot could not read the MCP sign-in proxy file (${mcpOAuthProxyLoadError.name}). A new port is used.`,
+    );
+  }
   /*
    * Where a returning grant lands. The loopback listener is the address RFC 8252 gives a native
    * app and the only one some authorization servers accept - Canva refuses `openbot://mcp-auth`
@@ -1150,6 +1163,7 @@ export async function createApplicationServices({
     storage: mcpOAuthStore,
     openExternal: (url) => shell.openExternal(url),
     redirectUrl: mcpOAuthRedirect?.redirectUrl ?? MCP_OAUTH_REDIRECT_URL,
+    logger: createOpenBotLogger("mcp-oauth"),
   });
   mcpOAuthAuthority = mcpOAuth;
   teardown.push(TEARDOWN_ORDER.mcpOAuth, "MCP token refresh", () => Effect.runPromise(mcpOAuth.close()));
@@ -1205,8 +1219,10 @@ export async function createApplicationServices({
   });
   // Looked up again on demand, because a user may install the driver while OpenBot runs, and the
   // panel's "Check again" has to see it.
-  const resolveCuaDriverExecutable = () =>
-    resolveCuaDriver({
+  const resolveCuaDriverExecutable = () => {
+    const installDirectory = process.env.CUA_DRIVER_RS_INSTALL_DIR ?? process.env.CUA_DRIVER_BIN_DIR;
+    const localAppDataDirectory = process.env.LOCALAPPDATA;
+    return resolveCuaDriver({
       isPackaged: app.isPackaged,
       resourcesPath: process.resourcesPath,
       sourceRoot: resolve(__dirname, "../.."),
@@ -1215,10 +1231,11 @@ export async function createApplicationServices({
       homeDirectory: homedir(),
       pathVariable: process.env.PATH ?? null,
       overrides: [process.env.OPENBOT_CUA_DRIVER_PATH, process.env.CUA_DRIVER_PATH],
-      installDirectory: process.env.CUA_DRIVER_RS_INSTALL_DIR ?? process.env.CUA_DRIVER_BIN_DIR,
-      localAppDataDirectory: process.env.LOCALAPPDATA,
+      ...(installDirectory === undefined ? {} : { installDirectory }),
+      ...(localAppDataDirectory === undefined ? {} : { localAppDataDirectory }),
       applicationsDirectory: "/Applications",
     });
+  };
   const cuaDriver = new CuaDriverRuntime({
     executable: await Effect.runPromise(resolveCuaDriverExecutable()),
     resolveExecutable: resolveCuaDriverExecutable,
@@ -1227,7 +1244,7 @@ export async function createApplicationServices({
     commandAlias: cuaDriverCommandAlias({
       platform: process.platform,
       isPackaged: app.isPackaged,
-      appImagePath: process.env.APPIMAGE,
+      appImagePath: process.env.APPIMAGE ?? null,
       userDataPath: app.getPath("userData"),
     }),
     endpoint: await runCauseEffect(
@@ -1235,7 +1252,7 @@ export async function createApplicationServices({
         platform: process.platform,
         userDataPath: app.getPath("userData"),
         temporaryDirectory: tmpdir(),
-        runtimeDirectory: process.env.XDG_RUNTIME_DIR,
+        runtimeDirectory: process.env.XDG_RUNTIME_DIR ?? null,
       }),
     ),
     supported: isSupportedCuaDriverTarget(process.platform, process.arch),
@@ -1335,7 +1352,7 @@ export async function createApplicationServices({
   // folder stays: a macOS path in userData has a space and is too long for a Unix socket.
   const providerTempDirectory = join(app.getPath("userData"), "provider-temp");
   performance.mark("openbot:services.computer-use");
-  if (process.platform === "win32") await sweepProviderTemp(providerTempDirectory);
+  if (process.platform === "win32") await Effect.runPromise(sweepProviderTemp(providerTempDirectory));
   const service: AgentService = new AgentService({
     store,
     mailbox,
@@ -1396,9 +1413,10 @@ export async function createApplicationServices({
       // user's own `PATH`, so a machine with no Node can still start `npx some-server` and a machine
       // that has one keeps the build it installed.
       mcpToolRuntimes: () => providerRuntimes.mcpToolRuntimes(),
-      // The bearer token for an http server, minted here and spent by the provider process. The
-      // service asks for one at each hand-off; only a test the user pressed may open a browser.
+      // The sign-ins of the http servers. The service hands a provider a route of its OAuth proxy,
+      // never the token; only a test the user pressed may open a browser.
       mcpOAuth,
+      mcpOAuthProxySettings,
       providerStateDirectory: join(app.getPath("userData"), "provider-state"),
       ...(process.platform === "win32" ? { providerTempDirectory } : {}),
       // The GitHub entries are paths only: `gh` and `git` read the token from the files the connection
@@ -1733,7 +1751,9 @@ export async function createApplicationServices({
       sourceRoot: resolve(__dirname, "../.."),
       platform: process.platform === "darwin" || process.platform === "win32" ? process.platform : "linux",
       architecture: process.arch,
-      overrideRoot: process.env.OPENBOT_REMOTE_DESKTOP_RUNTIME_PATH,
+      ...(process.env.OPENBOT_REMOTE_DESKTOP_RUNTIME_PATH === undefined
+        ? {}
+        : { overrideRoot: process.env.OPENBOT_REMOTE_DESKTOP_RUNTIME_PATH }),
     }),
   );
   const agentAdminSettings = createAgentAdminSettings({ agents: service, approvalAutomation });
@@ -2315,30 +2335,33 @@ export async function createApplicationServices({
     // login session runs OpenBot from that bundle would replace it underneath that session, so
     // the service refuses the install until every sibling session stopped. Unpackaged runs never
     // enable updates, so there is nothing to guard there.
-    checkSiblingInstances: app.isPackaged
-      ? () =>
-          listSiblingOpenBotInstances({
-            executablePath: app.getPath("exe"),
-            currentPid: process.pid,
-            platform: process.platform,
-          }).pipe(
-            Effect.tap((siblings) =>
-              Effect.sync(() => {
-                if (siblings.length === 0) return;
-                const list = siblings.map(({ pid, uid }) => `pid ${pid} (uid ${uid})`).join(", ");
-                logger.warn(
-                  `OpenBot update install refused: other OpenBot processes run from this application: ${list}`,
-                );
-              }),
+    ...(app.isPackaged
+      ? {
+          checkSiblingInstances: () =>
+            listSiblingOpenBotInstances({
+              executablePath: app.getPath("exe"),
+              currentPid: process.pid,
+              platform: process.platform,
+            }).pipe(
+              Effect.tap((siblings) =>
+                Effect.sync(() => {
+                  if (siblings.length === 0) return;
+                  const list = siblings.map(({ pid, uid }) => `pid ${pid} (uid ${uid})`).join(", ");
+                  logger.warn(
+                    `OpenBot update install refused: other OpenBot processes run from this application: ${list}`,
+                  );
+                }),
+              ),
             ),
-          )
-      : undefined,
-    currentUid: typeof process.getuid === "function" ? process.getuid() : undefined,
+        }
+      : {}),
+    ...(typeof process.getuid === "function" ? { currentUid: process.getuid() } : {}),
     platform: process.platform,
     logDirectory: join(app.getPath("userData"), "logs", "update"),
     // Squirrel.Mac only. The path is meaningless under a Linux or Windows home directory.
-    shipItDirectory:
-      process.platform === "darwin" ? join(homedir(), "Library", "Caches", "app.openbot.desktop.ShipIt") : undefined,
+    ...(process.platform === "darwin"
+      ? { shipItDirectory: join(homedir(), "Library", "Caches", "app.openbot.desktop.ShipIt") }
+      : {}),
   });
   teardown.push(TEARDOWN_ORDER.updater, "the update service", () => Effect.runPromise(updater.stop()));
   const agentInitialization = new AgentInitializationGate(() =>

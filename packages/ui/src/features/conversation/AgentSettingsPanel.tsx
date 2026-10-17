@@ -102,9 +102,9 @@ export interface AgentSettingsPanelProps {
   modelOptions: AgentModelOption[];
   working: boolean;
   /** Unknown while a remote host has not sent it; the level then shows as if it were on. */
-  autoApprove?: boolean;
+  autoApprove?: boolean | undefined;
   /** Writes the Permissions level. Without it, the level is read-only. */
-  onUpdatePermissions?: (input: UpdateAgentAdminSettingsInput) => Promise<void>;
+  onUpdatePermissions?: ((input: UpdateAgentAdminSettingsInput) => Promise<void>) | undefined;
   /** Computer Use is local-only too, and no remote host administers it yet. */
   computerUseEditable?: boolean;
   /** Local scripts can be changed locally or through the host's administrator route. */
@@ -116,20 +116,20 @@ export interface AgentSettingsPanelProps {
   /** Backup models are local-only too: the Team API does not carry them. */
   backupModelsEditable?: boolean;
   /** Whether a usage limit holds this model and account now, for the backup models page. */
-  usageLimited?: (choice: AgentModelChoice) => boolean;
+  usageLimited?: ((choice: AgentModelChoice) => boolean) | undefined;
   /** The app default an agent without its own busy-message setting follows. */
-  defaultBusyMessageMode?: BusyMessageMode;
-  providerRuntimeStatuses?: Partial<Record<AgentProviderId, ProviderRuntimeStatus>>;
+  defaultBusyMessageMode?: BusyMessageMode | undefined;
+  providerRuntimeStatuses?: Partial<Record<AgentProviderId, ProviderRuntimeStatus>> | undefined;
   /** The caller supplies providers available on the selected host. */
-  customProviders?: readonly CustomProviderSummary[];
+  customProviders?: readonly CustomProviderSummary[] | undefined;
   /** The user's own ACP agents on this computer, for the model picker's Custom tab. */
-  customAgents?: readonly CustomAgentSummary[];
-  onDownloadProvider?: (provider: AgentProviderId) => void | Promise<void>;
-  onCancelProviderDownload?: (provider: AgentProviderId) => void | Promise<void>;
-  onConnectProvider?: (provider: AgentProviderId) => void | Promise<void>;
-  canConnectProvider?: (provider: AgentProviderId) => boolean;
+  customAgents?: readonly CustomAgentSummary[] | undefined;
+  onDownloadProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
+  onCancelProviderDownload?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
+  onConnectProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
+  canConnectProvider?: ((provider: AgentProviderId) => boolean) | undefined;
   /** Opens the provider settings from the model picker. */
-  onManageProviders?: (trigger: HTMLElement) => void;
+  onManageProviders?: ((trigger: HTMLElement) => void) | undefined;
   maxWidth: () => number;
   onClose: () => void;
   width: number;
@@ -150,7 +150,7 @@ export interface AgentSettingsPanelProps {
    * Starts a new chat with the agent after the user confirms. The agent forgets the messages before
    * it and keeps its setup. Left out when the host cannot do it.
    */
-  onStartNewChat?: () => Promise<void>;
+  onStartNewChat?: (() => Promise<void>) | undefined;
 }
 
 const INSTRUCTIONS_SAVE_DELAY_MS = 400;
@@ -279,8 +279,9 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
     setPage(target);
     queueMicrotask(() =>
       (
-        pageRoot?.querySelector<HTMLElement>("button:not(:disabled), input, textarea, select") ??
-        pageRoot?.closest("aside")?.querySelector<HTMLElement>(".settings-panel-nav-button")
+        pageRoot?.querySelector<HTMLElement>(
+          'button:not(:disabled, [aria-disabled="true"]), input, textarea, select',
+        ) ?? pageRoot?.closest("aside")?.querySelector<HTMLElement>(".settings-panel-nav-button")
       )?.focus(),
     );
   }

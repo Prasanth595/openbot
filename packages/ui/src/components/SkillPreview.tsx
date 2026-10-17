@@ -27,7 +27,7 @@ export function skillInstructions(skill: MarketplaceSkillDetail): string {
 export function SkillPreview(props: {
   onOpenUrl: (url: string) => Promise<void>;
   skill: MarketplaceSkillDetail;
-  onTry?: () => void;
+  onTry?: (() => void) | undefined;
   unavailableReason?: string;
   /** The creator line under the name, where the page that shows the preview names one. */
   creatorName?: string;

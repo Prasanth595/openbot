@@ -176,15 +176,15 @@ exact corresponding source for both GPL components with every binary release. A 
 a binary, license, source manifest, checksum, platform signature, or notarization result is missing.
 
 Use this source build only to make or reproduce a runtime version. The
-`.github/workflows/remote-desktop-runtime.yml` workflow builds macOS ARM64, macOS x64 and Windows x64 when the
-recipe or a pinned input changes. It publishes an immutable GitHub prerelease named
-`remote-desktop-runtime-<input-digest>`. The prerelease contains the three deterministic archives, SPDX
+`.github/workflows/remote-desktop-runtime.yml` workflow builds macOS ARM64, macOS x64, Windows x64 and Linux x64
+when the recipe or a pinned input changes. It publishes an immutable GitHub prerelease named
+`remote-desktop-runtime-<input-digest>`. The prerelease contains the four deterministic archives, SPDX
 SBOMs, build provenance, and `remote-desktop-runtime-manifest.json`. It is not an OpenBot application
 update and it must never contain `latest.yml`.
 
 PR pushes do not cancel an active runtime build. The next run reuses a successful native build
 from the same PR and platform when its native inputs and build tools are unchanged. It still runs
-verification and the macOS smoke test against the current checkout. A cache miss rebuilds the
+verification and the macOS or Linux smoke test against the current checkout. A cache miss rebuilds the
 runtime. Pushes to `main` and manual dispatches do not use the PR build cache.
 
 After publication, the workflow opens a draft PR that adds the release tag and SHA-256 values to
@@ -194,7 +194,7 @@ is refused.
 
 So a branch that changes the recipe pins by hand, and must, or merging it leaves `main` with an
 unpinned lock -- which is not a degraded state but a broken one, because
-`prepare-remote-desktop-runtime.ts` throws and takes every `package`, `dist:mac` and `dist:win` run
+`prepare-remote-desktop-runtime.ts` throws and takes every `package`, `dist:mac`, `dist:win` and `dist:linux` run
 with it. From the branch:
 
 ```bash
@@ -207,7 +207,7 @@ bun scripts/pin-remote-desktop-runtime.ts remote-desktop-runtime-manifest.json
 To repeat verification after a download or CI setup failure, without replacing the published
 artifacts, run `gh workflow run remote-desktop-runtime.yml --ref <branch> -f verify_only=true`.
 This mode requires an existing release for the current input digest and runs installation, runtime
-verification, the macOS smoke test, and application packaging. It does not build or publish.
+verification, the macOS and Linux smoke tests, and application packaging. It does not build or publish.
 
 Commit the rewritten `native-runtime.lock.json` to the branch and merge it with the recipe, so `main`
 never sees the two apart. The pin does not change the input digest -- it covers `recipeVersion`, both
@@ -289,7 +289,7 @@ packages have no license file, so set `licenseSha256` to the SHA-256 of `LICENSE
 `native-runtime.lock.json` also pins the OpenCode CLI that OpenBot downloads for the OpenCode
 provider before its first update check answers, by npm platform package, asset SHA-256, extracted binary SHA-256, byte counts, and the
 MIT license file it takes from the `opencode-ai` npm package. Codex, Claude, and Grok are pinned
-in the same file by hand; OpenCode has a script, because the version, both platform packages, and
+in the same file by hand; OpenCode has a script, because the version, all five platform packages, and
 the license have to agree:
 
 ```bash
@@ -297,9 +297,9 @@ bun run pin:opencode-runtime          # the newest published release
 bun run pin:opencode-runtime 1.18.30  # one exact version
 ```
 
-The script downloads both platform tarballs, checks that `package/package.json` names the package
-and version the lock claims, hashes the extracted binary and the license, and on macOS runs the
-extracted binary with `--version` and refuses a value that is not the pinned one. That last check is
+The script downloads all five platform tarballs, checks that `package/package.json` names the package
+and version the lock claims, hashes the extracted binary and the license, and runs the extracted
+binary of the target that matches the host with `--version` and refuses a value that is not the pinned one. That last check is
 what protects `verifyInstalledRuntime`, which compares the installed version for exact equality. The
 script prints the block for review instead of rewriting the lock, so paste it over the `opencode`
 entry and re-run it with that exact version: the command reports `already pins OpenCode <version>`
@@ -321,7 +321,7 @@ the user installs nothing.
 bun run pin:cua-driver 0.34.0
 ```
 
-The script downloads all three `-binary` release assets, hashes each shipped file, and refuses a
+The script downloads all four `-binary` release assets, hashes each shipped file, and refuses a
 release that renamed an asset or dropped a file. It prints the block for review instead of rewriting
 the lock, so paste it over the `cuaDriver` entry. Use the versioned `cua-driver-rs-v*` tags; the
 `nightly-cua-driver-rs-v*` tags are rebuilt daily and are not a pin.
@@ -346,7 +346,7 @@ Notarization accepts a nested binary signed by another Developer ID team, and
 `native-runtime.lock.json` also pins Bun, which is not a provider CLI: it is the runtime a STDIO MCP
 server is started with on a computer that has no Node, and the staged layout puts a second name
 `bunx` beside it so that `npx -y <package>` has something to answer it. The pin has its own script
-for the same reason OpenCode does - the version, three platform packages, and the MIT license have
+for the same reason OpenCode does - the version, five platform packages, and the MIT license have
 to agree:
 
 ```bash
@@ -354,7 +354,7 @@ bun run pin:bun-runtime         # the newest published release
 bun run pin:bun-runtime 1.4.2   # one exact version
 ```
 
-It works like the OpenCode script: it downloads all three platform tarballs, checks
+It works like the OpenCode script: it downloads all five platform tarballs, checks
 `package/package.json` against the registry metadata, hashes the extracted binary and
 `LICENSE.md`, runs `--version` on the target that matches the host, and prints the block for review
 instead of rewriting the lock. Paste it over the `bun` entry and re-run it with that exact version
@@ -502,9 +502,10 @@ git push origin vX.Y.Z
 ```
 
 Pushing the version tag runs `.github/workflows/release.yml`.
-The tag workflow starts only after `https://openbot.run/join` and the Apple association file return
-direct `200` responses with the required security headers, MIME type, app IDs, and paths: `/join`
-for the desktop app, and `/join` and `/agents/*` for the mobile app.
+The tag workflow builds nothing until `https://openbot.run/join` and the Apple association file return
+direct `200` responses: `/join` with `Cache-Control: no-store`, and the association file as
+`application/json` with the exact app IDs and paths: `/join` for the desktop app, and `/join` and
+`/agents/*` for the mobile app.
 
 The workflow:
 
@@ -514,9 +515,10 @@ The workflow:
 4. builds signed and notarized ARM64 DMG and ZIP artifacts plus a separately signed/notarized Host PKG on a GitHub Apple silicon runner,
    and signed and notarized x64 DMG and ZIP artifacts on a GitHub Intel runner (`macos-15-intel`). Each
    architecture builds on its own runner, because the voice runtime and the remote desktop runtime
-   are prepared for the architecture of the build machine. The Host PKG is ARM64 only;
-   when `hdiutil create` fails with "Device not configured" or "Resource busy", it builds again,
-   up to 3 attempts, because that runner error is not caused by the app;
+   are prepared for the architecture of the build machine. The Host PKG is ARM64 only.
+   When `hdiutil create` fails with "Device not configured" or "Resource busy", or a network
+   connection drops, the app build of each architecture starts again, up to 3 attempts, because
+   these runner errors are not caused by the app;
 5. builds a signed Windows x64 NSIS installer on a GitHub Windows runner (unsigned in a dry run);
 6. builds unsigned Linux x64 and arm64 AppImages on GitHub Ubuntu 24.04 runners of each architecture,
    with the launch check under `xvfb-run`;
@@ -579,8 +581,8 @@ check, download, or restart reports an actionable error and can be retried in pl
 
 The voice runtime (the sherpa-onnx N-API addon and ONNX Runtime, from the pinned `sherpa-onnx-*`
 npm packages) is part of the macOS and Windows applications, in `voice/runtime`. Linux ships no voice
-runtime and no remote desktop runtime, so voice prompts and remote desktop report themselves as
-unavailable there. The NVIDIA Parakeet TDT 0.6B v3 int8 model is not part of an application or update
+runtime, so voice prompts report themselves as unavailable there. The Linux arm64 AppImage also
+ships no remote desktop runtime. The NVIDIA Parakeet TDT 0.6B v3 int8 model is not part of an application or update
 artifact. OpenBot downloads its four pinned files on first voice use, checks the size and SHA-256 of
 each, and keeps the verified files in `runtimes/parakeet-tdt-0.6b-v3-int8` in the user data directory
 for later offline use. The optional Whisper large-v3 turbo int8 model, which takes a fixed dictation

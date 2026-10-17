@@ -288,7 +288,11 @@ const Conversation = createSimpleContext({
 
     function applyConversationReads(reads: Record<string, ConversationReadState>): void {
       setConversations((current) => {
-        for (const [agentId, conversation] of Object.entries(current)) conversation.read = reads[agentId];
+        for (const [agentId, conversation] of Object.entries(current)) {
+          const read = reads[agentId];
+          if (read === undefined) delete conversation.read;
+          else conversation.read = read;
+        }
         for (const [agentId, read] of Object.entries(reads)) {
           current[agentId] ??= { messages: [] };
           current[agentId].read = read;
@@ -631,7 +635,8 @@ const Conversation = createSimpleContext({
         const pageMessages = mapped.map((message) => {
           const stored = currentById.get(message.id);
           if (!stored) return createStoredMessage({ ...message, animate: false });
-          if (!agentMessagesEqual(stored, message)) updateStored(stored, { ...message, animate: stored.animate });
+          if (!agentMessagesEqual(stored, message))
+            updateStored(stored, stored.animate === undefined ? message : { ...message, animate: stored.animate });
           return stored;
         });
         conversation.messages = mergeConversationPage(currentMessages, pageMessages, merge);

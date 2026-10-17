@@ -170,7 +170,7 @@ session, device, browser, operating-system, network, and approximate geographic 
 request. The analytics service runs on OpenBot's self-hosted infrastructure and receives events
 through `analytics.openbot.run`.
 Analytics is enabled in production by default. Desktop users can disable it under **Settings →
-General → Privacy → Share product analytics**. The preference is stored locally and disables both UI
+General → Permissions → Share product analytics**. The preference is stored locally and disables both UI
 analytics and lifecycle analytics emitted by the local host. Website analytics does not use the
 desktop preference. Mobile has its own phone-wide **Settings → Privacy → Share product analytics**
 preference, independent of desktop and host collection. It defaults to enabled in a
@@ -228,7 +228,8 @@ agent workspaces, conversations, attachments, browser data, and team data are st
 ## Data stored by the central account service
 
 The account service runs on Cloudflare Workers. It uses Cloudflare D1 for structured records and
-Cloudflare R2 for account avatar files.
+Cloudflare R2 for files: account avatars, host logos, published hosted site files, marketplace skill
+bundles and icons, and the images of published agent templates.
 
 The service stores:
 
@@ -267,6 +268,13 @@ The service stores:
   each subscription the Stripe subscription ID, plan, billing period, currency, price, status, period end,
   and whether it ends at the period end. The service also keeps the ID, type and receive time of each
   Stripe webhook event for 7 days, to ignore a repeated event. These records hold no card data.
+- hosted sites: the hostname, title, description, framework, state, owner account ID, lifecycle
+  times, and for each deployment the file list, sizes and content types. The published site files
+  are in R2. Anyone can read a published site. Deleting a site removes its files.
+- marketplace skills: the owner account ID, name, description, category, review state, version
+  records, install counts, and the skill bundle and icon in R2.
+- reports about a hosted site: the hostname, the reason, the optional details text, a keyed hash of
+  the source address (of its /64 for IPv6) for each day, the review state and the creation time.
 
 The service does not store plaintext one-time codes, account session tokens, or team authentication
 tickets in D1. It returns a new plaintext secret only to the client that requested it. The desktop
@@ -480,6 +488,8 @@ is not included in analytics; provider output uses the application's secret reda
   system's secret storage in the same way as provider API keys. One record per server address holds
   the client registration and the access and refresh tokens. Removing the server in settings, or
   choosing Sign out on it, deletes its record. These values are redacted from logs, exports and diagnostics.
+  The port and secret of the local MCP sign-in server are kept in
+  `~/Library/Application Support/OpenBot/openbot-mcp-oauth-proxy-v1.json`, encrypted in the same way.
 - The GitHub connection (Server settings > Connectors) is kept in
   `~/Library/Application Support/OpenBot/openbot-github-connector-v1.json`, encrypted by the operating
   system's secret storage. It holds the GitHub access and refresh tokens, the account name, ID and
@@ -507,7 +517,7 @@ is not included in analytics; provider output uses the application's secret reda
   or a one-time code is read from 1Password when the browser fills it, goes only to that page, and
   is never sent to an agent, a provider, a log or a team member. The token and each filled value
   are redacted from logs, exports and diagnostics. An owner or admin of a joined server can paste a
-  service account token for that server in Settings › Connectors. The token goes once, over the
+  service account token for that server in Server settings › Connectors. The token goes once, over the
   encrypted connection, to the server, which keeps it in the same file on its own disk. The
   computer that sent it does not keep it, and no answer from the server carries it.
 - `~/Library/Application Support/OpenBot/logs/trace.ndjson` is a local trace of IPC calls,
@@ -576,10 +586,13 @@ Network traffic can also occur when:
 - a locally installed Codex plugin connects to its service;
 - an MCP server the user enabled is reached at its own address, and, when that server asks for a
   sign-in, OpenBot connects to the server's authorization service to register itself, to exchange
-  the grant the browser returns, and to renew the token. Nothing about the user's agents,
-  conversations or files is sent in those requests. The registration names OpenBot's logo at
-  `openbot.run`; an authorization service that shows it on its sign-in page can make the browser
-  load it from `openbot.run`;
+  the grant the browser returns, and to renew the token. When the user signs out of the server or
+  removes it, OpenBot sends the tokens it deleted to that same service once, to revoke them.
+  Agents reach a server that OpenBot signed in to through a local server on `127.0.0.1`, which adds
+  the token to each call, so the token does not go to the agent's process.
+  Nothing about the user's agents, conversations or files is sent in those requests. The
+  registration names OpenBot's logo at `openbot.run`; an authorization service that shows it on its
+  sign-in page can make the browser load it from `openbot.run`;
 - the user presses Install on the 1Password page. OpenBot downloads the 1Password CLI release that it
   pins from `cache.agilebits.com`, checks its SHA-256, and keeps it in
   `~/Library/Application Support/OpenBot/provider-state/1password-cli`. The request carries no user
@@ -1137,7 +1150,7 @@ Permission approval remains in macOS System Settings on the host.
 ## Secure browser authentication
 
 Passwords, email/SMS codes, and authenticator codes entered in a secure chat card are sent to the
-shown HTTPS site for one submission. Connected desktop and mobile clients send the value through
+shown HTTPS site for one submission. Connected desktop, mobile and browser clients send the value through
 the authenticated Team API to the computer running the browser. The handoff does not add the value
 to chat, provider tool arguments, diagnostics, analytics, or a credential store. Input and submission
 values are held in memory for the operation; cancellation and submission clear the input.

@@ -2,6 +2,10 @@ import type { PartialTranslation } from "../../message";
 import type { messages as source } from "../en/onboarding";
 
 export const messages = {
+  "onboarding.readFailed.title": "OpenBot non è riuscito a leggere la tua configurazione.",
+  "onboarding.readFailed.description":
+    "I tuoi dati locali non sono cambiati. Riprova. Se il problema continua, configura di nuovo OpenBot.",
+  "onboarding.readFailed.setUpAgain": "Configura di nuovo",
   "onboarding.setup.saveFailed": "OpenBot non è riuscito a salvare la tua configurazione locale.",
   "onboarding.setup.verifyFailed": "OpenBot non è riuscito a verificare questo invito.",
   "onboarding.setup.connectFailed": "OpenBot non è riuscito a connettersi a questo host.",

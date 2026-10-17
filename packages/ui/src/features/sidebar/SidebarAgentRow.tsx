@@ -125,7 +125,7 @@ export function SidebarAgentRow(rowProps: { agent: AgentProfile; waiting?: boole
               </span>
               <Show when={title()}>
                 {(label) => (
-                  <Badge class="agent-role-badge" size="sm" title={label()}>
+                  <Badge class="agent-role-badge" title={label()}>
                     <span>{label()}</span>
                   </Badge>
                 )}

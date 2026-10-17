@@ -9,7 +9,7 @@ Settings can be open for a server that is not the selected one.
 
 `src/backend/storage-usage.ts` owns the scan and has no Electron imports. Sent and generated files
 come from the mailbox state in memory, with their chat from paged read-only queries in
-`database/storage-usage-queries.ts`; a file's status comes from `stat`, not from
+`database/storage-usage-queries.ts`; a file's status comes from `lstat`, not from
 `resolveAttachment`, which hashes the file. Workspaces, shared files, downloads, caches, logs and
 runtimes are measured by a bounded walk: `lstat`, no symlinks followed, a stop at 100,000 entries,
 and a yield between pages, because `DatabaseSync` and the walk run on the main thread. A result is
@@ -122,6 +122,11 @@ and answers the new agents by id and name, which the client reads with the agent
 the file (`instance-transfer:*` is server-scoped). The web client does not show the Transfer section: its
 downloads are limited to 10 MB.
 
+After a restart, the first upload or export removes old files from `instance-transfer-uploads/`,
+including unfinished `.part` files, before it writes a new file. Concurrent uploads and exports wait
+for this cleanup. If cleanup fails, the operation fails; the next upload or export retries it.
+Later operations keep the current process's files. Local files selected by the user are kept.
+
 ### Routine flows
 
 `routine-flows-v1` serves the routine canvas (see [Routine flows](agents.md#routine-flows)) to a
@@ -148,6 +153,43 @@ request advertises the capability, so a released client reads the same bytes as 
 without the capability never sends them, so a client keeps them whenever they are present, and a
 malformed value fails closed. The WebRTC host peer encodes the local response again with the same
 option, so the fields reach the web client and a joined desktop through the data channel too.
+
+### UI blocks
+
+`ui-blocks-v1` carries the interactive block of an `ask_ui` question prompt (see
+`packages/contracts/src/ui-blocks.ts`). It adds `uiBlock` beside the frozen keys of a message in
+`GET /v1/agents/:id/conversation` and `conversation-page` (messages and references), and in the
+`conversation` and `conversation-page` events. The host adds it only on protocol 7 and only for a
+connection that advertises the capability. A released client reads the message as its fallback: a
+question prompt that it answers through the released prompt route, and the host reads the block's
+answer from those answers. A host without the capability never sends `uiBlock`, so a client keeps it
+whenever it is present, and a block that the contract refuses fails closed. A privileged action (a
+`danger` button, a button with `confirm`, or the primary button of a `danger` confirm), and an answer
+in words on a block that has one, is for the owner and admins only; the host answers a member with
+403. A secret form value goes to the agent in the tool result. The stored block and the prompt
+resolution leave it out. The provider transcript of the tool call can keep it, and the agent can
+repeat it in a reply or a thought, which the conversation stores as any other message.
+
+### Queue window
+
+`queue-window-v1` keeps the queue snapshot of a long-lived agent inside one WebRTC frame. The
+mailbox keeps every finished delivery, and the released `GET /v1/agents/:id/queue` answers all of
+them. After some weeks of use, that answer is larger than the 2 MiB JSON frame, so the host peer
+answers `error.remote.responseTooLarge` and the phone and the web client cannot read the queue.
+
+On protocol 7, when the request advertises the capability, `GET /v1/agents/:id/queue` and
+`POST /v1/agents/:id/queue/edit` keep every queued, starting and running delivery, the `editing`
+mark included. Then they keep every failed, interrupted and cancelled delivery, newest first, while
+it fits in `WEBRTC_FRAME_BODY_BUDGET`: the phone and the web client show the failure reason of a
+failed message, and hide a cancelled message, at any age. Only completed deliveries leave the
+window: the newest 100 by `createdAt` stay, while they fit, for the receipts of recent messages.
+The kept deliveries stay in queue order, and the wire shape and keys do not change. A request
+without the capability, and every protocol 6 or older request, gets the full list as before.
+
+Every current client sends `teamCapabilitiesForProtocol(7)`, so the phone, the web client and a
+joined desktop get the window without other client code. A released phone keeps the full list
+until it updates. `scripts/queue-window-e2e.ts` checks the frame size with and without the
+capability.
 
 ### Skill events
 
@@ -180,9 +222,9 @@ host advertises a capability only when its `TeamApiAdmin` member exists.
 | Capability | Grants | IPC group |
 | --- | --- | --- |
 | `agent-admin-v1` | Agent access and auto-approve | `agentAdmin` |
-| `agent-host-settings-v1` | Agent Computer Use, local scripts, and messages while it works; reads the host default | none: only the iPhone app uses it |
+| `agent-host-settings-v1` | Agent Computer Use, local scripts, and messages while it works; reads the host default | `agentAdmin` |
 | `skills-admin-v1` | List, install, remove, enable skills by marketplace id | `agentAdmin` |
-| `shared-tables-v1` | List and delete shared tables | `agentAdmin` |
+| `shared-tables-v1` | List and delete shared tables | `sharedTables` |
 | `agent-install-v1` | Add an agent from a listing or a shared template, by id | `agentAdmin` |
 | `agent-update-v1` | Update an agent added from a listing to the listing's current version, by id | `agentAdmin` |
 | `providers-v1` | Code sign-in, provider API keys, managed runtimes, custom endpoints | `providerAdmin` |
@@ -209,7 +251,7 @@ runs it under the util-linux `script`, and the admin sends back the code that th
 stdin, and Windows has no `script`. So only a Linux host advertises `providers-v3`; a macOS or
 Windows host keeps `providers-v1`, and its clients offer the Codex code sign-in only. The CLI output and the pasted code are secrets; no log line or
 error quotes them. How a sign-in ends arrives in the host's agent status, as for Codex.
-`codeSignInProviders` in `server-capabilities.ts` picks the providers that the Providers list offers
+`serverCodeRouteProviders` in `server-capabilities.ts` picks the providers that the Providers list offers
 for a code sign-in, from the host's capabilities.
 
 `providers-v4` adds Cursor and Cline to the sign-in and to the runtime routes. Every host with
@@ -283,7 +325,7 @@ settings are not synchronized between devices.
 Billing is per server. One account can pay for several servers; each server has its own Stripe
 subscription. The Account Worker (`apps/auth-api/src/server/billing-service.ts`) talks to the Stripe
 REST API with `fetch`; there is no Stripe SDK. The plan catalog in `packages/contracts/src/billing.ts`
-holds only the plan IDs, storage and lookup keys. The amounts are six Stripe Prices with the lookup
+holds the plan IDs, storage, member and site limits, relative speed and lookup keys, and no amounts. The amounts are six Stripe Prices with the lookup
 keys `openbot_{plan}_{interval}`. `bun run api:stripe:bootstrap` (`scripts/stripe-bootstrap.ts`)
 creates them and the Customer Portal settings.
 

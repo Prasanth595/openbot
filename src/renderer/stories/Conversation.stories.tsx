@@ -1,5 +1,11 @@
 import { serializeAttachmentReference } from "@openbot/contracts/attachment-references";
 import type { AgentEvent, AttachmentSummary, DraftAttachment, QueueSnapshot } from "@openbot/contracts/ipc";
+import {
+  type ConversationUiBlock,
+  type UiChoiceBlock,
+  type UiConfirmBlock,
+  uiBlockFallbackQuestions,
+} from "@openbot/contracts/ui-blocks";
 import type { AgentMessage as RendererAgentMessage, RoutineRunMarkerModel } from "@openbot/ui/data";
 import { BrowserTakeoverCard } from "@openbot/ui/features/conversation/ConversationPrompts";
 import type { VoicePhase } from "@openbot/ui/features/conversation/VoiceRecordingMorph";
@@ -498,6 +504,34 @@ const markdownImageMessages: RendererAgentMessage[] = [
   },
 ];
 
+/** A reply that names a file by its full path, beside a user message, in a medium-width chat. */
+const longPathReplyMessages: RendererAgentMessage[] = [
+  {
+    id: "long-path-user",
+    author: "you",
+    body: "Clean up the old build logs, and keep a copy of what you delete first.",
+    time: "10:02",
+    kind: "text",
+  },
+  {
+    id: "long-path-agent",
+    author: "agent",
+    body: [
+      "I deleted 42 build logs older than 30 days. Together they took 3.2 GB, and none of them belonged to an open release.",
+      "",
+      "- **Nightly builds:** removed. The 28 logs of the nightly channel from before the last release are gone.",
+      "- **Disk after the clean-up:**",
+      "  - Used: 81% → **64%**. The next full rotation is due in 12 days.",
+      "  - Largest folder now: **release-candidates**, with 410 MB.",
+      "- **Copies:** I kept the list of deleted logs and their checksums in `/Users/test/OpenBot/Agents/agent-5b0c2e7a-91d4-4f3e-8a6b-2c7d9e1f0a3b/backups/build-log-cleanup-2026-10-15/deleted-build-logs-with-checksums.json`.",
+      "",
+      "Nothing else on the disk changed. Tell me if you also want the crash dumps archived.",
+    ].join("\n"),
+    time: "10:03",
+    kind: "text",
+  },
+];
+
 const markdownMessages: RendererAgentMessage[] = [
   {
     id: "markdown-user",
@@ -750,6 +784,87 @@ const promptChatMessages: RendererAgentMessage[] = [
     author: "agent",
     body: "I have a few decisions to confirm before I finish the setup.",
     time: "10:01",
+    kind: "text",
+  },
+];
+
+const uiBlockLetter: UiConfirmBlock = {
+  type: "confirm",
+  title: "Send the letter to the board?",
+  danger: true,
+  fields: [
+    { label: "To", value: "board@example.com" },
+    { label: "From", select: "from", options: ["me@example.com", "team@example.com"] },
+  ],
+  preview: "Hello,\n\nThe **heating** is off in block B since Monday. Could you send someone?",
+  actions: [
+    { id: "send", label: "Send", style: "primary" },
+    { id: "cancel", label: "Do not send", style: "ghost" },
+  ],
+};
+
+const uiBlockAudience: UiChoiceBlock = {
+  type: "choice",
+  title: "Who gets the offer?",
+  options: [
+    { id: "active", label: "Active customers", meta: "1 284" },
+    { id: "sleeping", label: "Sleeping customers", meta: "3 102" },
+  ],
+};
+
+const uiBlockPendingLetter: ConversationUiBlock = {
+  version: 1,
+  blockId: "letter",
+  spec: uiBlockLetter,
+  state: { status: "pending" },
+};
+
+const uiBlockPrompt: Extract<AgentEvent, { type: "prompt" }> = {
+  type: "prompt",
+  requestId: "ui-block-letter",
+  agentId: "chief",
+  threadId: "thread-chief",
+  turnId: "turn-ui-block",
+  questions: uiBlockFallbackQuestions(uiBlockLetter),
+};
+
+const uiBlockChatMessages: RendererAgentMessage[] = [
+  {
+    id: "ui-block-chat-user",
+    author: "you",
+    body: "Write to the board about the heating, and pick who gets the spring offer.",
+    time: "10:00",
+    kind: "text",
+  },
+  {
+    id: "question-prompt:turn-ui-block-earlier:ui-block-audience",
+    turnId: "turn-ui-block-earlier",
+    author: "agent",
+    body: "",
+    time: "10:01",
+    kind: "question",
+    itemType: "question_prompt",
+    questionPrompt: {
+      requestId: "ui-block-audience",
+      questions: uiBlockFallbackQuestions(uiBlockAudience),
+      resolution: { status: "answered", responses: {} },
+    },
+    uiBlock: {
+      version: 1,
+      blockId: "audience",
+      spec: uiBlockAudience,
+      state: {
+        status: "answered",
+        response: { actionId: "submit", values: { selected: ["sleeping"] } },
+        outcome: "Sleeping customers",
+      },
+    },
+  },
+  {
+    id: "ui-block-chat-agent",
+    author: "agent",
+    body: "The offer goes to sleeping customers. Here is the letter for the board.",
+    time: "10:02",
     kind: "text",
   },
 ];
@@ -1391,6 +1506,18 @@ export const MarkdownInChat: Story = {
   },
 };
 
+export const LongFilePathInReply: Story = {
+  name: "Long file path in a reply",
+  args: {
+    messages: longPathReplyMessages,
+  },
+  render: (storyArgs) => (
+    <section style={{ width: "720px", height: "820px", overflow: "hidden" }}>
+      <MockedConversation args={storyArgs} />
+    </section>
+  ),
+};
+
 export const StreamingMarkdownInChat: Story = {
   name: "Streaming Markdown in chat",
   args: {
@@ -1489,6 +1616,15 @@ export const PromptQuestionsInChat: Story = {
   args: {
     messages: promptChatMessages,
     prompt: promptQuestions,
+  },
+};
+
+export const UiBlocksInChat: Story = {
+  name: "Agent UI blocks in chat",
+  args: {
+    messages: uiBlockChatMessages,
+    prompt: uiBlockPrompt,
+    promptUiBlock: uiBlockPendingLetter,
   },
 };
 

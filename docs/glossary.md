@@ -9,7 +9,7 @@ table, IPC channel or product string, or when a term in the code disagrees with 
   (`ipc-marketplace-agents.ts`). **teammate** is prompt and marketing text, never a type.
   Human members use `TeamMemberSummary`.
 - **agent template**: a public, link-only copy of one agent's instructions, skills and routines
-  (`ipc-agent-templates.ts`, `agentTemplates:*`, D1 `agent_templates`, `openbot.run/agents/<id>`).
+  (`ipc-agent-templates.ts`, `agent-templates:*`, D1 `agent_templates`, `openbot.run/agents/<id>`).
   It holds no workspace files and no memories. It is not a marketplace agent: it has no review and
   no listing.
 - **bot**: do not use for new product code. Keep released names: Team API v1-v3
@@ -26,8 +26,8 @@ table, IPC channel or product string, or when a term in the code disagrees with 
   for each OpenBot computer (`GitHubConnectorService`, `github-connector:*`,
   `GITHUB_CONNECTOR_MCP_SERVER_ID`). A user-added MCP server or a marketplace plugin is not a
   connector.
-- **messaging connection**: one workspace of an external chat platform, today a Slack workspace that
-  installed the OpenBot app, where this computer's agents answer (`projection_messaging_connections`,
+- **messaging connection**: one workspace of an external chat platform (a Slack workspace, a Discord
+  guild or a Telegram chat), where this computer's agents answer (`projection_messaging_connections`,
   `MessagingConnection`, `messaging:*`). Its **Slack Orchestrator** is the agent that receives each
   new conversation and asks its teammates. A **messaging thread** is one external conversation (a Slack thread) that one agent
   answers in its own execution thread (`projection_messaging_threads`, `MessagingLink`). A Slack

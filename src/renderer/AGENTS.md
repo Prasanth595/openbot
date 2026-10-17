@@ -69,8 +69,8 @@ wiring (`App.tsx`, `AppView.tsx`, `app-providers.tsx`, `app-bootstrap.tsx`, `Wor
 owns (`navigation.tsx`, `layout.tsx`, `turns.tsx`, `providers.tsx`,
 `simple-context.tsx`, `scope-lifetime.ts`), `preview/` — whose mocks are the second implementation
 of the IPC surface and belong beside `mock-openbot.ts` — and the base stylesheets in `styles/`
-(`base.css`, `transitions.css`, `otp-input.css`; `action-menu.css` and `sliding-tabs.css` are now in
-`packages/ui/src/styles/`) —
+(`base.css`, `transitions.css`; `action-menu.css` and `sliding-tabs.css` are now in
+`packages/ui/src/styles/`, and `otp-input.css` is in `packages/ui/src/features/account/`) —
 plus `styles/app-shell.css`, which ends in a theme layer that assigns the palette across every domain
 at once and cannot be split until that layer is lifted out; its header says so. Stories stay in
 `src/renderer/stories/`, where the test rules relax.
@@ -86,10 +86,10 @@ domains stays flat rather than being imported sideways out of one of them.
 together are one record — a saved-and-draft form pair, a `data`/`loaded`/`loading`/`error` quad, a
 phase plus the numbers only one phase uses, several `Record`s keyed by the same `agentId`. Declare the
 shape up front, so replacing one field re-renders only what read that field;
-`packages/ui/src/features/agents/FirstAgentSetup.tsx` is the form version. Keep the setter private
+`packages/ui/src/features/custom-providers/CustomProviderDialog.tsx` is the form version. Keep the setter private
 behind named mutations where the store *is* a module's or a hook's exported surface, as `app-stored-values.ts` does. Inside a
 component, write the field where it changes — `setPanels((state) => { state.x = value; })` at the
-call site, as `SettingsModal.tsx` does — and let a named mutation there earn its name: more than one
+call site, as `ServerGeneralSection.tsx` does — and let a named mutation there earn its name: more than one
 field, a guard or a side effect, or enough call sites that the name deduplicates something. A
 function whose whole body is `state.x = value` is the signal wall one layer down. Ten keyed
 `Record` signals are one row type shredded into ten columns, every write spreads the whole map so

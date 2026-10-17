@@ -4,14 +4,20 @@ import type { messages as source } from "../en/customProvider";
 export const messages = {
   "customProvider.registry.title": "Registro ACP",
   "customProvider.registry.description":
-    "Instala agentes en este host. Si quitas el entorno de ejecución, se conservan los ajustes, las credenciales y las conversaciones del agente.",
+    "Instala agentes en este servidor. Si quitas el entorno de ejecución, se conservan los ajustes, las credenciales y las conversaciones del agente.",
   "customProvider.registry.search": "Buscar en el registro",
   "customProvider.registry.empty": "Ningún agente coincide con esta búsqueda.",
   "customProvider.registry.agentId": "ID del agente personalizado",
   "customProvider.registry.install": "Instalar",
   "customProvider.registry.update": "Actualizar",
   "customProvider.registry.remove": "Quitar",
-  "customProvider.registry.failed": "Falló la operación del registro.",
+  "customProvider.registry.searchFailed": "No se pudo buscar en el registro. Vuelve a intentarlo.",
+  "customProvider.registry.statusFailed":
+    "No se pudo comprobar el progreso de la instalación. OpenBot lo volverá a intentar.",
+  "customProvider.registry.installFailed": "No se pudo instalar el agente. Vuelve a intentarlo.",
+  "customProvider.registry.updateFailed": "No se pudo actualizar el agente. Vuelve a intentarlo.",
+  "customProvider.registry.removeFailed": "No se pudo quitar el entorno de ejecución. Vuelve a intentarlo.",
+  "customProvider.registry.cancelFailed": "No se pudo cancelar la instalación. Vuelve a intentarlo.",
   "customProvider.error.providerIdRequired": "Introduce un ID de proveedor.",
   "customProvider.error.providerIdPattern":
     "Usa letras minúsculas, números, guiones o guiones bajos, empezando por una letra o un número.",

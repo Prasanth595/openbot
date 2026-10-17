@@ -22,7 +22,8 @@ const context = createSimpleContext({
       trigger = source;
       setState((draft) => {
         draft.serverId = serverId;
-        draft.agentId = agentId;
+        if (agentId === undefined) delete draft.agentId;
+        else draft.agentId = agentId;
         draft.view = view;
       });
     }
@@ -66,7 +67,7 @@ const context = createSimpleContext({
     function clear() {
       setState((draft) => {
         draft.serverId = null;
-        draft.agentId = undefined;
+        delete draft.agentId;
       });
     }
 

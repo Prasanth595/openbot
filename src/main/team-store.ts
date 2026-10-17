@@ -647,14 +647,16 @@ export class TeamStore {
         return yield* new RemoteWorkflowError({ cause: new TeamStoreError(sourceText("error.team.serverNotActive")) });
       }
       if (input.serverName !== undefined) state.serverName = input.serverName.trim();
-      state.serverLogo = nextLogo;
+      if (nextLogo === undefined) delete state.serverLogo;
+      else state.serverLogo = nextLogo;
       const attempt6 = yield* Effect.gen({ self: this }, function* () {
         yield* this.#persistEffect();
       }).pipe(Effect.result);
       if (Result.isFailure(attempt6)) {
         const error = attempt6.failure.cause;
         state.serverName = previousName;
-        state.serverLogo = previousLogo;
+        if (previousLogo === undefined) delete state.serverLogo;
+        else state.serverLogo = previousLogo;
         if (nextLogo && nextLogo.version !== previousLogo?.version) {
           yield* this.#removeLogoEffect(nextLogo).pipe(Effect.catch(() => Effect.void));
         }
@@ -1591,17 +1593,20 @@ function ownerAccountId(host: StoredTeam): string | null {
  * over the value neither touched. Nothing here can drop work the user did in either build.
  */
 function reconcileHost(baseline: StoredTeam, mine: StoredTeam, theirs: StoredTeam): StoredTeam {
-  return {
+  const merged: StoredTeam = {
     ...mine,
     serverName: pickChanged(baseline.serverName, mine.serverName, theirs.serverName),
     enabledOnLaunch: pickChanged(baseline.enabledOnLaunch, mine.enabledOnLaunch, theirs.enabledOnLaunch),
-    serverLogo: pickChanged(baseline.serverLogo, mine.serverLogo, theirs.serverLogo),
     members: reconcileMembers(baseline.members, mine.members, theirs.members),
     invites: reconcileEntries(baseline.invites, mine.invites, theirs.invites),
     // A session missing on either side was signed out there, and `reconcileEntries` keeps
     // it that way rather than handing back a token the user has already revoked.
     sessions: reconcileEntries(baseline.sessions, mine.sessions, theirs.sessions),
   };
+  const serverLogo = pickChanged(baseline.serverLogo, mine.serverLogo, theirs.serverLogo);
+  if (serverLogo === undefined) delete merged.serverLogo;
+  else merged.serverLogo = serverLogo;
+  return merged;
 }
 
 /**

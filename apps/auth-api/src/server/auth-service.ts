@@ -690,11 +690,15 @@ export class AuthService {
     function* (
       this: AuthService,
       sessionToken: string,
+      hostId: string | null,
     ): Effect.fn.Return<MobileAuthDevice[], AuthWorkflowFailure, AuthDependencies> {
       const dependencies = yield* AuthDependencies;
+      if (hostId !== null && !MOBILE_CONNECT_HOST_ID_PATTERN.test(hostId)) {
+        return yield* new AuthServiceError(400, "invalid_mobile_host", "The Mobile Connect host ID is invalid.");
+      }
       const user = yield* this.authenticate(sessionToken);
       if (!user) return yield* new AuthServiceError(401, "unauthorized", "The session is invalid.");
-      return yield* dependencies.repository.listMobileAuthDevices(user.id, dependencies.now());
+      return yield* dependencies.repository.listMobileAuthDevices(user.id, dependencies.now(), hostId);
     },
     (operation) => operation.pipe(Effect.mapError(authFailure), Effect.provide(this.#layer)),
   ).bind(this);

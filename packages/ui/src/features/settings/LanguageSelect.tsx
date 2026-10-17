@@ -16,7 +16,7 @@ export interface LanguageSelectProps {
   onChange: (value: AppLanguage) => void;
   disabled?: boolean;
   /** The dialog element the popover portals into, as the other Settings selects receive it. */
-  mount?: HTMLElement;
+  mount?: HTMLElement | undefined;
 }
 
 /**

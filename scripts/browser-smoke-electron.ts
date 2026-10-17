@@ -6,7 +6,16 @@ import { join } from "node:path";
 import type { BrowserBounds } from "@openbot/contracts/ipc";
 import { type DynamicRecord, isDynamicRecord, isNumber, isString } from "@openbot/contracts/runtime-values";
 import { Effect } from "effect";
-import { app, BrowserWindow, clipboard, type WebContents, webContents } from "electron";
+import {
+  app,
+  BrowserWindow,
+  clipboard,
+  type DownloadItem,
+  type Event as ElectronEvent,
+  type WebContents,
+  type WebContentsConsoleMessageEventParams,
+  webContents,
+} from "electron";
 import { BrowserUploads } from "../src/backend/agent/browser-uploads";
 import { attachmentCall } from "../src/backend/attachment-effects";
 import { BrowserHost } from "../src/backend/browser-host";
@@ -17,6 +26,13 @@ import { waitForPresentedFrame } from "./browser-smoke-frames";
 
 let cachedPageVersion = 1;
 let slowDocumentVersion = 0;
+// `/slow-document?action` stays open until the smoke releases it, so the navigation that the timed
+// click starts is still pending when the click reaches its deadline.
+let actionNavigationRequests = 0;
+let releaseActionNavigation = (): void => {};
+const actionNavigationReleased = new Promise<void>((resolve) => {
+  releaseActionNavigation = resolve;
+});
 let browserToolCall = 0;
 // The user agent each `/headers` hit carried, keyed by `?source=`. A subframe request that
 // bypasses the session identity shows up here under its own source with the raw build string.
@@ -325,10 +341,11 @@ const server = createServer((request, response) => {
     const version = slowDocumentVersion;
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     response.write("<!doctype html><main>loading</main>");
-    setTimeout(
-      () => response.end(`<script>document.querySelector('main').textContent='ready:${version}'</script>`),
-      250,
-    );
+    const finish = () => response.end(`<script>document.querySelector('main').textContent='ready:${version}'</script>`);
+    if (url.search === "?action") {
+      actionNavigationRequests += 1;
+      void actionNavigationReleased.then(finish);
+    } else setTimeout(finish, 250);
     return;
   }
   if (url.pathname === "/v2") {
@@ -528,7 +545,10 @@ async function main(): Promise<void> {
     const openingTab = runCauseEffect(browser.open(origin, "smoke-thread", "smoke-bot", true));
     window.webContents.focus();
     const tab = await openingTab;
-    await waitFor(async () => webContents.getFocusedWebContents()?.getURL() === `${origin}/`);
+    await waitFor(
+      async () => webContents.getFocusedWebContents()?.getURL() === `${origin}/`,
+      "the focused local tab to open",
+    );
     await runCauseEffect(browser.setVisible({ visible: true, bounds: { x: 0, y: 0, width: 760, height: 560 } }));
     const resizedFillViewport = browser.listTabs().find((candidate) => candidate.id === tab.id)?.environment?.viewport;
     if (resizedFillViewport?.width !== 760 || resizedFillViewport?.height !== 560) {
@@ -808,10 +828,12 @@ async function main(): Promise<void> {
       })()`,
       true,
     );
-    await waitFor(async () =>
-      retainedDocumentChanges
-        .slice(retainedChangesBeforeNavigation)
-        .some((change) => change.tabId === v2Tab.id && change.documentIds.has(lateFrameDocumentId)),
+    await waitFor(
+      async () =>
+        retainedDocumentChanges
+          .slice(retainedChangesBeforeNavigation)
+          .some((change) => change.tabId === v2Tab.id && change.documentIds.has(lateFrameDocumentId)),
+      "the late frame document change",
     );
     await v2Contents.executeJavaScript("document.querySelector('[data-many-oopifs]').remove(); true", true);
     await new Promise((resolve) => setTimeout(resolve, 100));
@@ -878,7 +900,10 @@ async function main(): Promise<void> {
     if (!scheduledFrameNavigation.success || !staleFrameTarget || !isNumber(staleFrameRevision)) {
       throw new Error(`V2 iframe navigation setup failed: ${toolError(scheduledFrameNavigation)}`);
     }
-    await waitFor(async () => documentChangedTabs.slice(documentChangesBeforeFrameNavigation).includes(v2Tab.id));
+    await waitFor(
+      async () => documentChangedTabs.slice(documentChangesBeforeFrameNavigation).includes(v2Tab.id),
+      "the frame navigation document change",
+    );
     const staleFrameClick = await callBrowserTool(browser, "click", {
       tabId: v2Tab.id,
       target: { kind: "ref", ref: String(staleFrameTarget.ref), revision: staleFrameRevision },
@@ -947,6 +972,7 @@ async function main(): Promise<void> {
       async () =>
         (await blockedContents.executeJavaScript("document.querySelector('output').textContent", true)) ===
         "frame ready",
+      "the blocking frame to report ready",
     );
     // Wedge the frame: from here on it answers nothing, so the bounded wait
     // below must give up on it and the close after that must not hang behind
@@ -962,6 +988,7 @@ async function main(): Promise<void> {
       async () =>
         (await blockedContents.executeJavaScript("document.querySelector('output').textContent", true)) ===
         "frame spinning",
+      "the blocking frame to start spinning",
     );
     // One bounded wait proves a frame that answers nothing is given up on. The
     // close after it proves the timeout cancelled the command instead of
@@ -989,13 +1016,21 @@ async function main(): Promise<void> {
       .getAllWebContents()
       .find((contents) => !contents.isDestroyed() && contents.getURL().startsWith(frozenOrigin));
     if (!frozenContents) throw new Error("Environment timeout fixture web contents were not available.");
-    const rendererStarted = new Promise<void>((resolve) => {
-      frozenContents.once("console-message", () => resolve());
+    // Wait for this exact message. An unpackaged Electron also logs its security warning to the
+    // console after the page load, so the first message can arrive before the loop starts. The
+    // environment change then succeeds and only the snapshot after it meets the stopped renderer.
+    const rendererStopped = new Promise<void>((resolve) => {
+      const onConsoleMessage = (details: ElectronEvent<WebContentsConsoleMessageEventParams>): void => {
+        if (details.message !== "environment renderer stopped") return;
+        frozenContents.off("console-message", onConsoleMessage);
+        resolve();
+      };
+      frozenContents.on("console-message", onConsoleMessage);
     });
     void frozenContents
       .executeJavaScript("console.info('environment renderer stopped'); while (true) {}", true)
       .catch(() => undefined);
-    await rendererStarted;
+    await rendererStopped;
     const frozenEnvironment = await Promise.race([
       callBrowserTool(browser, "set_environment", { tabId: frozenTab.id, colorScheme: "dark" }),
       new Promise<null>((resolve) => setTimeout(() => resolve(null), 20_000)),
@@ -1389,7 +1424,7 @@ async function main(): Promise<void> {
       const currentErrors =
         browser.listTabs().find((candidate) => candidate.id === v2Tab.id)?.diagnosticErrorCount ?? 0;
       return changedEventCount > changesBeforeDiagnosticError && currentErrors > errorsBeforeDiagnosticError;
-    });
+    }, "the diagnostic error count to change");
     const oversizedEnvironment = await callBrowserTool(browser, "set_environment", {
       tabId: v2Tab.id,
       preset: "custom",
@@ -1492,27 +1527,41 @@ async function main(): Promise<void> {
       `(() => { const button = document.createElement('button'); button.setAttribute('aria-label', 'Slow action navigation'); button.onclick = () => { location.href = ${JSON.stringify(`${origin}/slow-document?action`)}; }; document.body.append(button); return true; })()`,
       true,
     );
-    const timedActionNavigation = await callBrowserTool(browser, "click", {
-      tabId: actionNavigationTab.id,
-      target: { kind: "role", role: "button", name: "Slow action navigation", exact: true },
-      timeoutMs: 100,
-    });
-    const timedActionPayload = toolTextPayload(timedActionNavigation);
-    if (
-      !timedActionNavigation.success ||
-      !Array.isArray(timedActionPayload?.actions) ||
-      !timedActionPayload.actions.some(
-        (entry) => isDynamicRecord(entry) && String(entry.detail).includes("Action completed"),
-      )
-    ) {
-      throw new Error("V2 action-triggered navigation did not accurately report a dispatched timed action.");
-    }
-    const snapshotAfterTimedAction = await callBrowserTool(browser, "snapshot", { tabId: actionNavigationTab.id });
-    if (
-      !snapshotAfterTimedAction.success ||
-      browser.listTabs().find((candidate) => candidate.id === actionNavigationTab.id)?.loading === true
-    ) {
-      throw new Error("V2 action-triggered navigation escaped tab serialization.");
+    // The tab was just opened, so it may have no presented frame yet, and Chromium would drop the click.
+    await waitForPresentedFrame(actionNavigationContents);
+    try {
+      // The server holds the navigation open until the release below, so the click reaches its
+      // deadline while the navigation is pending. The limit only has to fit the dispatch: 100 ms
+      // did not always fit the highlight and the dispatch on a loaded runner.
+      const timedActionNavigation = await callBrowserTool(browser, "click", {
+        tabId: actionNavigationTab.id,
+        target: { kind: "role", role: "button", name: "Slow action navigation", exact: true },
+        timeoutMs: 5_000,
+      });
+      const timedActionPayload = toolTextPayload(timedActionNavigation);
+      if (
+        !timedActionNavigation.success ||
+        !Array.isArray(timedActionPayload?.actions) ||
+        !timedActionPayload.actions.some(
+          (entry) => isDynamicRecord(entry) && String(entry.detail).includes("Action completed"),
+        )
+      ) {
+        throw new Error(
+          `V2 action-triggered navigation did not accurately report a dispatched timed action: ${timedActionNavigation.success ? JSON.stringify(timedActionPayload?.actions) : toolError(timedActionNavigation)}`,
+        );
+      }
+      if (actionNavigationRequests === 0) {
+        throw new Error("V2 timed action reported a dispatch, but the server received no navigation request.");
+      }
+      const snapshotAfterTimedAction = await callBrowserTool(browser, "snapshot", { tabId: actionNavigationTab.id });
+      if (
+        !snapshotAfterTimedAction.success ||
+        browser.listTabs().find((candidate) => candidate.id === actionNavigationTab.id)?.loading === true
+      ) {
+        throw new Error("V2 action-triggered navigation escaped tab serialization.");
+      }
+    } finally {
+      releaseActionNavigation();
     }
     await runCauseEffect(browser.close(actionNavigationTab.id));
     const { tab: waitTab, contents: waitContents } = await openTabWithContents(
@@ -1694,30 +1743,35 @@ async function main(): Promise<void> {
       throw new Error("A failed navigation leaked a browser tab.");
     }
 
-    const downloadPage = await runCauseEffect(browser.open(origin, "smoke-thread"));
+    const { tab: downloadPage, contents: downloadContents } = await openTabWithContents(
+      browser,
+      origin,
+      "smoke-thread",
+    );
+    // The tab was just opened, so it may have no presented frame yet, and Chromium would drop the click.
+    await waitForPresentedFrame(downloadContents);
     const downloadSnapshot = await runCauseEffect(browser.snapshot(downloadPage.id));
     const download = downloadSnapshot.elements.find((element) => element.name === "Download");
     if (!download) throw new Error("Download link is missing.");
+    const firstDownload = nextDownloadDone(downloadContents, "the first browser download");
     await runCauseEffect(
       browser.act(downloadPage.id, downloadSnapshot.revision, {
         type: "click",
         ref: download.ref,
       }),
     );
-    const downloadPath = join(downloadsRoot, "openbot-smoke.txt");
-    await waitFor(async () => (await readFile(downloadPath, "utf8")) === "local download");
+    await expectDownloadedFile(await firstDownload, join(downloadsRoot, "openbot-smoke.txt"), "first");
     const nextDownloadSnapshot = await runCauseEffect(browser.snapshot(downloadPage.id));
     const nextDownload = nextDownloadSnapshot.elements.find((element) => element.name === "Download");
     if (!nextDownload) throw new Error("Download link disappeared.");
+    const secondDownload = nextDownloadDone(downloadContents, "the second browser download");
     await runCauseEffect(
       browser.act(downloadPage.id, nextDownloadSnapshot.revision, {
         type: "click",
         ref: nextDownload.ref,
       }),
     );
-    await waitFor(
-      async () => (await readFile(join(downloadsRoot, "openbot-smoke (2).txt"), "utf8")) === "local download",
-    );
+    await expectDownloadedFile(await secondDownload, join(downloadsRoot, "openbot-smoke (2).txt"), "second");
     process.stdout.write("BrowserHost: download passed.\n");
 
     const toolResult = await runCauseEffect(
@@ -1861,7 +1915,7 @@ async function runFocusScenario(browser: BrowserHost, origin: string): Promise<v
   focusSentinel.show();
   focusSentinel.focus();
   focusSentinel.webContents.focus();
-  await waitFor(async () => webContents.getFocusedWebContents() === focusSentinel.webContents);
+  await waitFor(async () => webContents.getFocusedWebContents() === focusSentinel.webContents, "focus sentinel focus");
   let focusLosses = 0;
   focusSentinel.webContents.on("blur", () => {
     focusLosses += 1;
@@ -2661,8 +2715,10 @@ async function runKeyboardScenario(browser: BrowserHost, origin: string, tempora
     })()`,
       true,
     );
-    await waitFor(async () =>
-      retainedDocumentChanges.slice(changesBeforeTriggerNavigation).some((change) => change.tabId === keysTab.id),
+    await waitFor(
+      async () =>
+        retainedDocumentChanges.slice(changesBeforeTriggerNavigation).some((change) => change.tabId === keysTab.id),
+      "the trigger navigation document change",
     );
     const retainedShadowFrame = retainedDocumentChanges
       .slice(changesBeforeTriggerNavigation)
@@ -3563,13 +3619,54 @@ async function expectFailure(operation: () => Promise<unknown>): Promise<void> {
   throw new Error("Expected operation to fail.");
 }
 
-async function waitFor(check: () => Promise<boolean>, waitedFor = "a browser download"): Promise<void> {
+interface FinishedDownload {
+  state: "completed" | "cancelled" | "interrupted";
+  path: string;
+}
+
+/**
+ * Resolves when the next download that `contents` starts is done. Call it before the click: the
+ * session emits `will-download` as the response arrives. The host's own listener runs first and
+ * sets the save path, so the item reports the path the host chose.
+ */
+function nextDownloadDone(contents: WebContents, step: string): Promise<FinishedDownload> {
+  const { session } = contents;
+  return new Promise((resolve, reject) => {
+    const started = (_event: ElectronEvent, item: DownloadItem, source: WebContents) => {
+      if (source !== contents) return;
+      session.off("will-download", started);
+      item.once("done", (_doneEvent, state) => {
+        clearTimeout(timer);
+        resolve({ state, path: item.getSavePath() });
+      });
+    };
+    // The limit only turns a dropped click into a failure; a download that starts ends at once.
+    const timer = setTimeout(() => {
+      session.off("will-download", started);
+      reject(new Error(`Timed out waiting for ${step}.`));
+    }, 30_000);
+    session.on("will-download", started);
+  });
+}
+
+async function expectDownloadedFile(download: FinishedDownload, expectedPath: string, step: string): Promise<void> {
+  if (download.state !== "completed" || download.path !== expectedPath) {
+    throw new Error(
+      `The ${step} browser download ended ${download.state} at ${download.path}, not at ${expectedPath}.`,
+    );
+  }
+  if ((await readFile(expectedPath, "utf8")) !== "local download") {
+    throw new Error(`The ${step} browser download saved the wrong content.`);
+  }
+}
+
+async function waitFor(check: () => Promise<boolean>, waitedFor: string): Promise<void> {
   const deadline = Date.now() + 5_000;
   while (Date.now() < deadline) {
     try {
       if (await check()) return;
     } catch {
-      // The download may not exist yet.
+      // The checked state may not exist yet.
     }
     await new Promise((resolve) => setTimeout(resolve, 50));
   }

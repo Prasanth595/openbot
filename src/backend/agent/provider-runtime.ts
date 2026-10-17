@@ -664,10 +664,9 @@ export class ProviderRuntime implements ProviderPort {
           cause: new CodexCliError(sourceText("error.provider.customAgentNone"), "missing"),
         });
       }
+      const bundledExecutable = this.#bundledExecutables[provider];
       const cli = yield* requireProviderDriver(provider)
-        .resolveCli({
-          bundledExecutable: this.#bundledExecutables[provider],
-        })
+        .resolveCli(bundledExecutable === undefined ? {} : { bundledExecutable })
         .pipe(toProviderOperationFailed);
       this.#cliSources.set(provider, cli.source);
       return cli;
@@ -1604,7 +1603,8 @@ export class ProviderRuntime implements ProviderPort {
           yield* this.#reloadProviderCli(provider, cli);
         }).pipe(
           Effect.mapError((error) => {
-            this.#bundledExecutables[provider] = previousExecutable;
+            if (previousExecutable === undefined) delete this.#bundledExecutables[provider];
+            else this.#bundledExecutables[provider] = previousExecutable;
             const cause = error.cause;
             const failure = new Error(
               sourceText("error.provider.cliUpdateFailed", {
@@ -2057,7 +2057,7 @@ export class ProviderRuntime implements ProviderPort {
           checkError: null,
         });
       }
-      this.#setStatus({ providers });
+      this.#setStatus(providers === undefined ? {} : { providers });
     }
     yield* Effect.forEach(activeClients, ([provider, client]) => this.#refreshAccount(provider, client), {
       concurrency: "unbounded",
@@ -2242,13 +2242,17 @@ export class ProviderRuntime implements ProviderPort {
     client: AgentClient,
     cli: AgentCliInfo,
     account: NonNullable<AccountReadResult["account"]>,
-    options: { isCurrent?: () => boolean; notifyReady?: boolean } = {},
+    options: { isCurrent?: () => boolean; notifyReady?: boolean; disposals?: number } = {},
   ) {
+    // `disposals` is the count from before the caller started the client. `stop()` does not wait
+    // for an activation: a client added after its `dispose()` would run on.
+    const disposals = options.disposals ?? this.#disposals;
+    const disposed = () => this.#hooks.isStopping() || disposals !== this.#disposals;
     return yield* this.#providerActivation.withPermit(
       Effect.gen({ self: this }, function* () {
         const { isCurrent, notifyReady = true } = options;
         const stopCandidate = client.stop().pipe(Effect.catch(() => Effect.void));
-        if (isCurrent && !isCurrent()) {
+        if ((isCurrent && !isCurrent()) || disposed()) {
           yield* stopCandidate;
           return;
         }
@@ -2276,6 +2280,7 @@ export class ProviderRuntime implements ProviderPort {
         const updated = yield* Effect.result(
           Effect.gen({ self: this }, function* () {
             const freshCatalogs = yield* this.#refreshModelCatalog();
+            if (disposed()) return null;
             if (isCurrent && !isCurrent()) return false;
             yield* providerStep(() => {
               const primaryProvider = this.#clients.has(this.#preferredProvider)
@@ -2307,6 +2312,17 @@ export class ProviderRuntime implements ProviderPort {
             return true;
           }),
         );
+        // A `dispose()` during the refresh took the clients in the map: this one, not the previous
+        // client that it replaced. Nothing else stops that previous client, so stop both here and
+        // put no client back into the disposed runtime. `AgentService.stop` clears the attention
+        // and turn state itself, as it does for the clients that `dispose()` hands back.
+        if (disposed()) {
+          if (this.#clients.get(provider) === client) this.#clients.delete(provider);
+          yield* stopCandidate;
+          if (previousClient && previousClient !== client)
+            yield* previousClient.stop().pipe(Effect.catch(() => Effect.void));
+          return;
+        }
         if (Result.isFailure(updated)) {
           yield* restorePrevious;
           return yield* updated.failure;
@@ -2319,9 +2335,10 @@ export class ProviderRuntime implements ProviderPort {
           yield* previousClient.stop().pipe(Effect.catch(() => Effect.void));
           yield* this.#hooks.onClientStopped(previousClient);
         }
+        if (disposed()) return;
         if (provider === "codex") yield* this.#refreshUsage(client).pipe(Effect.ignore, Effect.forkIn(this.#scope));
         if (this.#providerAccounts && provider !== "acp") yield* this.#providerAccounts.checkAll(provider);
-        if (notifyReady) yield* this.#hooks.onProvidersReady().pipe(toProviderOperationFailed);
+        if (notifyReady && !disposed()) yield* this.#hooks.onProvidersReady().pipe(toProviderOperationFailed);
       }),
     );
   }, Effect.uninterruptible);
@@ -2457,11 +2474,13 @@ export class ProviderRuntime implements ProviderPort {
       }
       return;
     }
+    const disposals = this.#disposals;
     const candidate = yield* this.#authenticateClient(provider, cli, {
       startTimeoutMs: LONG_START_TIMEOUT_MS,
     });
     yield* this.#activateProviderClient(provider, candidate.client, cli, candidate.account, {
       notifyReady: false,
+      disposals,
     }).pipe(toProviderOperationFailed);
   }, Effect.uninterruptible);
 
@@ -2489,6 +2508,7 @@ export class ProviderRuntime implements ProviderPort {
       }),
       () =>
         Effect.gen({ self: this }, function* () {
+          const disposals = this.#disposals;
           const resolved = yield* this.#resolveProviderCli(provider);
           cli = resolved;
           const candidate = yield* this.#authenticateClient(provider, resolved, {
@@ -2496,6 +2516,7 @@ export class ProviderRuntime implements ProviderPort {
           });
           yield* this.#activateProviderClient(provider, candidate.client, resolved, candidate.account, {
             notifyReady: false,
+            disposals,
           }).pipe(toProviderOperationFailed);
           yield* providerStep(() => this.#clearProviderConnectionState(provider));
           return this.status();

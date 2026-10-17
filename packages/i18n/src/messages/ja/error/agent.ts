@@ -92,6 +92,9 @@ export const messages = {
   "error.agent.computerUseLocalOnly": "Computer Use は、エージェントを実行しているコンピューターでのみ変更できます。",
   "error.agent.automationLocalOnly":
     "ローカルスクリプトは、エージェントを実行しているコンピューターでのみ許可できます。",
+  "error.agent.sideQuestionLocalOnly": "サイド質問は、エージェントを実行しているコンピューターでのみ使えます。",
+  "error.agent.sideQuestionBusy": "実行中のサイド質問が多すぎます。しばらくしてからもう一度お試しください。",
+  "error.agent.sideQuestionFailed": "エージェントはサイド質問に回答できませんでした。もう一度お試しください。",
   "error.agent.busyMessageModeLocalOnly":
     "エージェントの作業中のメッセージの扱いは、エージェントを実行しているコンピューターでのみ設定できます。",
   "error.agent.backupModelsLocalOnly":

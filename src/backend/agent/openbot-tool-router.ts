@@ -21,6 +21,7 @@ import {
 } from "@openbot/contracts/ipc";
 import { isPluginSlug } from "@openbot/contracts/plugin-links";
 import { isString } from "@openbot/contracts/runtime-values";
+import { isUiBlockId, normalizeUiBlockSpec } from "@openbot/contracts/ui-blocks";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, redactText } from "@openbot/logging";
 import { Effect, Result } from "effect";
@@ -37,7 +38,12 @@ import type { MailboxStore } from "../mailbox-store";
 import { agentMcpServers } from "../mcp-provider-shapes";
 import type { MessagingThreads } from "../messaging/messaging-threads";
 import { MESSAGING_OUTBOUND_TOOLS } from "../messaging/messaging-tools";
-import { CHAT_VISUAL_PREVIEW_DEFAULT_WIDTH, htmlPreviewToolSchema, htmlRenderToolSchema } from "../openbot-tools";
+import {
+  askUiToolSchema,
+  CHAT_VISUAL_PREVIEW_DEFAULT_WIDTH,
+  htmlPreviewToolSchema,
+  htmlRenderToolSchema,
+} from "../openbot-tools";
 import { type AppServerRequest, type DynamicToolCallParams, type DynamicToolResult, isRecord } from "../protocol";
 import { handleRoutineFlowTool, type RoutineFlowTools } from "../routine-flows/routine-flow-tools";
 import type { StoredStateFailure } from "../stored-state-effects";
@@ -180,7 +186,7 @@ export class OpenBotToolRouter {
   readonly #drain: DrainScheduler;
   readonly #tables: AgentTables | null;
   readonly #sidebarLayout: AgentSidebar | null;
-  readonly #localSkillTools?: () => LocalSkillTools;
+  readonly #localSkillTools: (() => LocalSkillTools) | undefined;
   readonly #routineFlowTools: (() => RoutineFlowTools) | undefined;
   readonly #approvalAutomation: ApprovalAutomationPolicy;
   readonly #visualPreview: ChatVisualPreviewHost | null;
@@ -363,6 +369,11 @@ export class OpenBotToolRouter {
               this.#attention.surfaceDynamicPrompt(client, toolRequest);
               return;
             }
+            // Every provider gets ask_ui, Claude too: its call arrives here through the SDK MCP server.
+            if (toolRequest.params.tool === "ask_ui") {
+              this.#askUi(client, toolRequest, toolRequest.params);
+              return;
+            }
             if (isHostedSiteMutationTool(toolRequest.params.tool)) {
               yield* this.#attention.surfaceHostedSiteApproval(
                 client,
@@ -420,6 +431,34 @@ export class OpenBotToolRouter {
       Effect.catchDefect(reportFailure),
     );
   }).bind(this);
+
+  /**
+   * Checks an `ask_ui` call and shows its block. Like `ask_user`, it answers the call only when the
+   * person answers or the turn ends. The agent can correct a refused block, so it gets the reason.
+   */
+  #askUi(client: AgentClient, request: AppServerRequest, params: DynamicToolCallParams): void {
+    const refuse = (message: string) => client.respond(request.id, openBotToolFailure(message));
+    const parsed = askUiToolSchema.safeParse(params.arguments);
+    if (!parsed.success) {
+      refuse(`${z.prettifyError(parsed.error)}\nCorrect the arguments and retry.`);
+      return;
+    }
+    const spec = normalizeUiBlockSpec(parsed.data.block);
+    // The stored block must read back, so its id passes the same check as the read.
+    const blockId = parsed.data.blockId ?? randomUUID();
+    if (!spec || !isUiBlockId(blockId)) {
+      refuse(
+        "The block breaks a rule: ids and option labels must be unique, an id must not be botId or a similar name, a value must be one of its options, a single choice selects at most one option, and a secret field is a text field with no value. Correct the block and retry.",
+      );
+      return;
+    }
+    const agentId = this.#conversation.agentForThread(params.threadId);
+    if (agentId && this.#channels.store.channelForThread(this.#conversation.publicThreadId(agentId, params.threadId))) {
+      refuse("A channel cannot show an ask_ui block. Ask in plain text instead.");
+      return;
+    }
+    this.#attention.surfaceUiBlock(client, request, { blockId, spec });
+  }
 
   #requireAgent(agentId: string): AgentSummary {
     const agent = this.#hooks.listAgents().find((candidate) => candidate.id === agentId);
@@ -1142,7 +1181,11 @@ export class OpenBotToolRouter {
           : yield* loadAvatarFile(avatarPath, sender.workspacePath).pipe(toToolOperationFailed);
       const input: UpdateAgentInput = {
         agentId,
-        ...fields,
+        ...(fields.name === undefined ? {} : { name: fields.name }),
+        ...(fields.title === undefined ? {} : { title: fields.title }),
+        ...(fields.description === undefined ? {} : { description: fields.description }),
+        ...(fields.avatarSeed === undefined ? {} : { avatarSeed: fields.avatarSeed }),
+        ...(fields.notifications === undefined ? {} : { notifications: fields.notifications }),
         ...runtime,
         // Only a restriction is written, so a user change between the check and this write is never undone.
         ...(access === "workspace" ? { access } : {}),
@@ -1267,7 +1310,7 @@ export class OpenBotToolRouter {
           sourcePaths: paths,
           // An agent can send "" for no reply. Every reader rejects an empty id.
           replyToMessageId: replyToMessageId?.trim() || null,
-          expectsReply,
+          ...(expectsReply === undefined ? {} : { expectsReply }),
           ...(messagingReturn ? { messagingReturn } : {}),
           idempotencyKey: toolCallIdempotencyKey(params),
         })

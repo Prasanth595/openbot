@@ -3,7 +3,8 @@
 ## Local scripts API
 
 `src/main/automation-server.ts` is a loopback HTTP listener through which a local script sends
-messages, runs routines, and answers pending questions and approvals for an enabled agent. [docs/automation.md](../automation.md) has the routes and the
+messages, runs routines, and answers pending questions and approvals for an enabled agent. It also
+reads delivery results, changes the agent's model and account, and starts a new chat. [docs/automation.md](../automation.md) has the routes and the
 commands. The listener runs only while at least one agent has `allowAutomation`, and binds
 `127.0.0.1` on a free port. It writes the URL and a new bearer token to `<userData>/automation/`
 (folder `0700`, files `0600`) and deletes them when it stops. It refuses any request with an
@@ -64,14 +65,14 @@ event has `quiet: true`, which stops the desktop notification and the completion
 marker and the run history stay. A marker inside a longer answer is a report and is shown. A Test run
 is never quiet.
 
-`quiet` reaches remote clients too. The released Team API event projects a fixed key list, so the
-current v6 adapter puts `quiet` beside the frozen `turn-completed` projection
-(`packages/contracts/src/team-protocol/turn-quiet-v6.ts`), in the way `plan` and `senderMember` ride
-beside the conversation projection. The browser client, the phone, and a desktop connected to a
-remote server then show no notification, play no completion sound, and the Dynamic Island shows no
-new reply. A client on protocol 1-5, or a v6 client that predates the flag, drops the key without an
-error and shows the run as finished, as before. Only `true` is a value: any other value is a
-`protocol_error`.
+`quiet` reaches remote clients too, through the optional `quiet-turn-v1` capability
+(`packages/contracts/src/team-protocol/quiet-turn-v1.ts`). The host sends a client with the
+capability a `quiet-turn-completed` event in place of `turn-completed`. The client transport changes
+it back to `turn-completed` with `quiet: true` (`optional-events.ts`). The browser client, the phone,
+and a desktop connected to a remote server then show no notification, play no completion sound, and
+the Dynamic Island shows no new reply. A client without the capability gets the released
+`turn-completed` event and shows the run as finished, as before. A malformed
+`quiet-turn-completed` event is an error.
 
 A routine run whose last answer is only the marker, also a Test run that shows it in the chat, does
 not put the marker in the preview either. The provider history import
@@ -259,8 +260,9 @@ whose copy ended with no answer. A message from the person does not wait: it sta
 takes the answers that are already in. Each end of a copy schedules a drain for the requester.
 
 This policy lives in `src/backend/agent/developer-instructions.ts` and is supplied on both thread
-start and resume. Codex receives `developerInstructions`; Claude appends them to its system prompt;
-Grok receives them as a tagged instruction block in normal turn input. There is no model-specific
+start and resume. Codex receives `developerInstructions`; Claude and Pi append them to the system
+prompt; Grok and the other ACP agents receive them as a tagged instruction block in normal turn
+input; Muse puts them first in the turn input. There is no model-specific
 verbosity setting or response filter. Delivery is tested, but compliance depends on the provider,
 model, and existing conversation context; Grok's input block is not a dedicated system message.
 Restarting the app reapplies the current policy without deleting conversation history. The policy
@@ -315,7 +317,7 @@ user widens them again, and only the user moves an agent between Ask first and F
 the access and Computer Use limits of the agent that creates it, so a Workspace-only agent cannot
 get around its sandbox through a teammate. There is no creation step for skills or routines in
 the UI.
-Codex and Grok receive the dynamic tool definitions; Claude exposes the same operations through
+The other providers receive the dynamic tool definitions; Claude exposes the same operations through
 its SDK MCP bridge. `src/backend/openbot-tools.ts` owns the tool names, descriptions, and Zod
 argument shapes used by both declarations. It reuses the profile, section, and routine schemas.
 Claude uses the SDK’s `AskUserQuestion` flow instead of the `ask_user` MCP tool.
@@ -367,25 +369,22 @@ the replacement is bound, reloaded after restart, and removed after a turn accep
 The same handoff carries a chat to another provider after a provider switch. It holds the user and
 assistant messages after the last context-reset marker, with attachment names only. OpenBot stores
 no tool steps, so the work log comes from the providers. At the switch, before the old sessions are
-retired, `ThreadLifecycle.readWorkSteps` reads each active session with `thread/read` through the
-client that holds it, with a 10-second limit. The switch then checks again that no turn started.
+retired, `ThreadLifecycle.readWorkSteps` reads each active session with the provider history read
+through the client that holds it, with a 10-second limit. The switch then checks again that no turn started.
 Only after the switch is stored, `saveWorkSteps` writes the rendered steps of the 60 newest turns to
-`provider-work-steps/<sha256(session id)>` (mode 0600), or `{}` for a session with none. The sessions
+`provider-work-steps/v2/<sha256(session id)>` (mode 0600), or `{}` for a session with none. The sessions
 are retired before the write, so a turn that starts during it keeps its new session and reads the
 provider instead. The file is
 deleted and reconciled with the other session files, and a file that does not parse counts as no
-capture. A session without a capture, such as one that no client held, is read when the
-handoff is built: only the three newest, on their own providers, with a stopped CLI started again
-and one 10-second limit for the start and the read. From the turns that match a transcript message,
-`renderTurnSteps` adds a work log: commands with exit code and output tail, changed file paths, tool
-calls, searches and progress notes. Each field is redacted before it is cut, and each turn has a
+capture. The handoff does not read a provider. A session without a capture, such as one that no
+client held, gives no steps. `readCapturedSteps` (`src/backend/agent/handoff-tool-steps.ts`) renders
+the work log: commands with exit code and output tail, changed file paths, tool
+calls, searches and progress notes. The handoff adds the steps of each turn that matches a
+transcript message. Each field is redacted before it is cut, and each turn has a
 size limit. Reasoning, diffs, images and other provider-private state stay with the provider that
-made them. A failed capture or read leaves that session's steps out. Codex returns tool steps from
+made them. A failed capture leaves that session's steps out. Codex returns tool steps from
 its stored rollout. Claude returns only notes. An ACP agent keeps only the text and thinking of its
-turns, so it also gives only notes, and only while its process holds the session: the handoff read
-sends no `cwd`, as the boot backfill does, so a session that the process released is not opened
-again. That handoff read uses the shared provider process, so a session that ran in a Workspace only
-process gives no steps unless the switch captured it.
+turns, so it also gives only notes, and only while its process holds the session.
 
 The optional `agent-profile-generation` Team API endpoints remain available. They use a separate
 provider client with tools restricted and validate drafts before returning them. Their save path

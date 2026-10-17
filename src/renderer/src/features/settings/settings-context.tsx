@@ -4,8 +4,10 @@ import {
   type DynamicIslandGeometry,
 } from "@openbot/contracts/ipc";
 import { DEFAULT_GENERAL_SETTINGS, type GeneralSettingsValue } from "@openbot/ui/features/settings/app-settings";
+import { currentText } from "@openbot/ui/text";
 import { createEffect, createSignal, onSettled } from "solid-js";
 import { isActionSoundEnabled, readActionSoundTheme, setActionSoundChoice } from "../../action-sounds";
+import { actionToast } from "../../action-toast";
 import { desktopAnalytics } from "../../analytics";
 import { isCompletionSoundEnabled, setCompletionSoundEnabled } from "../../completion-sound";
 import { usePlatform } from "../../platform";
@@ -18,6 +20,16 @@ import { isOpenSettingsShortcut } from "./settings-shortcut";
 import type { SettingsTab } from "./settings-tabs";
 
 const ANALYTICS_APP_VERSION_STORAGE_KEY = "openbot:analytics-app-version";
+
+/** Tells the user why a switch went back to its previous value. */
+function showSaveFailure(error: unknown): void {
+  const { t, errorMessage } = currentText();
+  actionToast.error(errorMessage(error, t("settings.preferences.saveFailed")), {
+    // One save can revert two switches, such as both notification switches. The id shows one toast.
+    id: "settings-preference-save-failed",
+    report: { operation: "settings", source: "action", cause_code: "unknown" },
+  });
+}
 
 /**
  * Application-wide preferences and the two surfaces that edit them: the
@@ -43,6 +55,12 @@ const Settings = createSimpleContext({
     const { setupState } = useSetup();
 
     const [analyticsPreferenceLoaded, setAnalyticsPreferenceLoaded] = createSignal<boolean | null>(null);
+    /**
+     * The state of the preference reads below. "failed" when one or more reads failed: the rows of
+     * that read show defaults, not the saved values, so the settings page tells the user and offers
+     * a retry.
+     */
+    const [preferencesLoad, setPreferencesLoad] = createSignal<"loading" | "loaded" | "failed">("loading");
     const [skillsMarketplaceOpen, setSkillsMarketplaceOpen] = createSignal(false);
     // Undefined until main answers. The Settings preview then draws the notch it had before.
     const [builtInDisplayGeometry, setBuiltInDisplayGeometry] = createSignal<DynamicIslandGeometry | undefined>();
@@ -151,7 +169,10 @@ const Settings = createSimpleContext({
       ): void {
         void request
           .then((response) => setGeneralSettings((current) => ({ ...current, [key]: read(response) })))
-          .catch(() => setGeneralSettings((current) => ({ ...current, [key]: previous[key] })));
+          .catch((error: unknown) => {
+            setGeneralSettings((current) => ({ ...current, [key]: previous[key] }));
+            showSaveFailure(error);
+          });
       }
 
       setGeneralSettings(value);
@@ -174,10 +195,11 @@ const Settings = createSimpleContext({
             setAnalyticsPreferenceLoaded(preference.enabled);
             setGeneralSettings((current) => ({ ...current, productAnalytics: preference.enabled }));
           })
-          .catch(() => {
+          .catch((error: unknown) => {
             desktopAnalytics.setTrackingEnabled(previous.productAnalytics);
             setAnalyticsPreferenceLoaded(previous.productAnalytics);
             setGeneralSettings((current) => ({ ...current, productAnalytics: previous.productAnalytics }));
+            showSaveFailure(error);
           });
       }
       if (previous.autoDownloadUpdates !== value.autoDownloadUpdates) {
@@ -282,8 +304,9 @@ const Settings = createSimpleContext({
               macBookNotchNewServers: preference.newServersVisible,
             }));
           })
-          .catch(() => {
+          .catch((error: unknown) => {
             if (save !== dynamicIslandSaveCount) return;
+            showSaveFailure(error);
             setGeneralSettings((current) => ({
               ...current,
               macBookNotch: previous.macBookNotch,
@@ -349,81 +372,97 @@ const Settings = createSimpleContext({
       };
     });
 
+    /**
+     * Reads the saved preferences. A failed read keeps the default value of its rows, and marks the
+     * load as failed so that the settings page can show the error and read again.
+     */
+    function loadPreferences(): void {
+      setPreferencesLoad("loading");
+      void Promise.allSettled([
+        settingsPort()
+          .getAnalyticsPreference()
+          .then(
+            (preference) => {
+              setAnalyticsPreferenceLoaded(preference.enabled);
+              setGeneralSettings((current) => ({ ...current, productAnalytics: preference.enabled }));
+            },
+            (error: unknown) => {
+              // Analytics stays off until a read or the user turns it on. A retry that fails again
+              // keeps the value that is already shown.
+              if (analyticsPreferenceLoaded() === null) {
+                setAnalyticsPreferenceLoaded(false);
+                setGeneralSettings((current) => ({ ...current, productAnalytics: false }));
+              }
+              throw error;
+            },
+          ),
+        settingsPort()
+          .update.getPreference()
+          .then((preference) => {
+            // A toggle made before this read resolves has already been persisted, so the older value
+            // must not be painted back over it.
+            setGeneralSettings((current) => ({
+              ...current,
+              autoDownloadUpdates: autoDownloadUpdatesChanged ? current.autoDownloadUpdates : preference.autoDownload,
+              allowRemoteUpdates: allowRemoteUpdatesChanged
+                ? current.allowRemoteUpdates
+                : preference.allowRemoteUpdates,
+              autoInstallUpdates: autoInstallUpdatesChanged ? current.autoInstallUpdates : preference.autoInstall,
+            }));
+          }),
+        settingsPort()
+          .getBusyMessageModePreference()
+          .then((preference) => {
+            if (busyMessageModeChanged) return;
+            setGeneralSettings((current) => ({ ...current, busyMessageMode: preference.mode }));
+          }),
+        settingsPort()
+          .getAgentMemoryLimitPreference()
+          .then((preference) => {
+            if (agentMemoryLimitChanged) return;
+            setGeneralSettings((current) => ({ ...current, agentMemoryLimit: preference.limit }));
+          }),
+        settingsPort()
+          .getRemoteSessionReusePreference()
+          .then((preference) => {
+            if (keepRemoteSessionsChanged) return;
+            setGeneralSettings((current) => ({ ...current, keepRemoteSessions: preference.keepBetweenRuns }));
+          }),
+        settingsPort()
+          .notifications.getPreference()
+          .then((preference) => {
+            if (notificationPreferenceChanged) return;
+            setGeneralSettings((current) => ({
+              ...current,
+              desktopNotifications: preference.desktopNotifications,
+              notificationPreview: preference.messagePreview,
+            }));
+          }),
+        settingsPort()
+          .dynamicIsland.getPreference()
+          .then((preference) =>
+            setGeneralSettings((current) => ({
+              ...current,
+              macBookNotch: preference.enabled,
+              macBookNotchHaptics: preference.hapticsEnabled,
+              macBookNotchIdle: preference.idleVisible,
+              macBookNotchAdditionalDisplays: preference.additionalDisplaysEnabled,
+              macBookNotchWidthPercent: preference.widthPercent,
+              macBookNotchHeightPercent: preference.heightPercent,
+              macBookNotchServers: preference.serverVisibility,
+              macBookNotchNewServers: preference.newServersVisible,
+            })),
+          ),
+      ]).then((results) => {
+        setPreferencesLoad(results.some((result) => result.status === "rejected") ? "failed" : "loaded");
+      });
+    }
+
     onSettled(() => {
-      void settingsPort()
-        .getAnalyticsPreference()
-        .then((preference) => {
-          setAnalyticsPreferenceLoaded(preference.enabled);
-          setGeneralSettings((current) => ({ ...current, productAnalytics: preference.enabled }));
-        })
-        .catch(() => {
-          setAnalyticsPreferenceLoaded(false);
-          setGeneralSettings((current) => ({ ...current, productAnalytics: false }));
-        });
+      loadPreferences();
       void settingsPort()
         .getApprovalAutomation()
         .then(setApprovalAutomation)
-        .catch(() => undefined);
-      void settingsPort()
-        .update.getPreference()
-        .then((preference) => {
-          // A toggle made before this read resolves has already been persisted, so the older value
-          // must not be painted back over it.
-          setGeneralSettings((current) => ({
-            ...current,
-            autoDownloadUpdates: autoDownloadUpdatesChanged ? current.autoDownloadUpdates : preference.autoDownload,
-            allowRemoteUpdates: allowRemoteUpdatesChanged ? current.allowRemoteUpdates : preference.allowRemoteUpdates,
-            autoInstallUpdates: autoInstallUpdatesChanged ? current.autoInstallUpdates : preference.autoInstall,
-          }));
-        })
-        .catch(() => undefined);
-      void settingsPort()
-        .getBusyMessageModePreference()
-        .then((preference) => {
-          if (busyMessageModeChanged) return;
-          setGeneralSettings((current) => ({ ...current, busyMessageMode: preference.mode }));
-        })
-        .catch(() => undefined);
-      void settingsPort()
-        .getAgentMemoryLimitPreference()
-        .then((preference) => {
-          if (agentMemoryLimitChanged) return;
-          setGeneralSettings((current) => ({ ...current, agentMemoryLimit: preference.limit }));
-        })
-        .catch(() => undefined);
-      void settingsPort()
-        .getRemoteSessionReusePreference()
-        .then((preference) => {
-          if (keepRemoteSessionsChanged) return;
-          setGeneralSettings((current) => ({ ...current, keepRemoteSessions: preference.keepBetweenRuns }));
-        })
-        .catch(() => undefined);
-      void settingsPort()
-        .notifications.getPreference()
-        .then((preference) => {
-          if (notificationPreferenceChanged) return;
-          setGeneralSettings((current) => ({
-            ...current,
-            desktopNotifications: preference.desktopNotifications,
-            notificationPreview: preference.messagePreview,
-          }));
-        })
-        .catch(() => undefined);
-      void settingsPort()
-        .dynamicIsland.getPreference()
-        .then((preference) =>
-          setGeneralSettings((current) => ({
-            ...current,
-            macBookNotch: preference.enabled,
-            macBookNotchHaptics: preference.hapticsEnabled,
-            macBookNotchIdle: preference.idleVisible,
-            macBookNotchAdditionalDisplays: preference.additionalDisplaysEnabled,
-            macBookNotchWidthPercent: preference.widthPercent,
-            macBookNotchHeightPercent: preference.heightPercent,
-            macBookNotchServers: preference.serverVisibility,
-            macBookNotchNewServers: preference.newServersVisible,
-          })),
-        )
         .catch(() => undefined);
       void settingsPort()
         .dynamicIsland.getBuiltInDisplayGeometry()
@@ -436,6 +475,8 @@ const Settings = createSimpleContext({
 
     return {
       analyticsPreferenceLoaded,
+      preferencesLoadFailed: () => preferencesLoad() === "failed",
+      reloadPreferences: loadPreferences,
       generalSettings,
       builtInDisplayGeometry,
       updateGeneralSettings,

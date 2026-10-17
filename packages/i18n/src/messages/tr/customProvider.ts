@@ -4,14 +4,19 @@ import type { messages as source } from "../en/customProvider";
 export const messages = {
   "customProvider.registry.title": "ACP kayıt defteri",
   "customProvider.registry.description":
-    "Bu ana makineye ajan yükleyin. Çalışma zamanını kaldırmak ajan ayarlarını, kimlik bilgilerini ve konuşmaları korur.",
+    "Bu sunucuya ajan yükleyin. Çalışma zamanını kaldırmak ajan ayarlarını, kimlik bilgilerini ve konuşmaları korur.",
   "customProvider.registry.search": "Kayıt defterinde ara",
   "customProvider.registry.empty": "Bu aramayla eşleşen ajan yok.",
   "customProvider.registry.agentId": "Özel ajan kimliği",
   "customProvider.registry.install": "Yükle",
   "customProvider.registry.update": "Güncelle",
   "customProvider.registry.remove": "Çalışma zamanını kaldır",
-  "customProvider.registry.failed": "Kayıt defteri işlemi başarısız oldu.",
+  "customProvider.registry.searchFailed": "Kayıt defterinde arama yapılamadı. Tekrar deneyin.",
+  "customProvider.registry.statusFailed": "Yükleme ilerlemesi denetlenemedi. OpenBot tekrar deneyecek.",
+  "customProvider.registry.installFailed": "Ajan yüklenemedi. Tekrar deneyin.",
+  "customProvider.registry.updateFailed": "Ajan güncellenemedi. Tekrar deneyin.",
+  "customProvider.registry.removeFailed": "Çalışma zamanı kaldırılamadı. Tekrar deneyin.",
+  "customProvider.registry.cancelFailed": "Yükleme iptal edilemedi. Tekrar deneyin.",
   // Form doğrulama. Her mesaj özel sağlayıcı formunun bir alanını adlandırır.
   "customProvider.error.providerIdRequired": "Bir sağlayıcı kimliği girin.",
   "customProvider.error.providerIdPattern":

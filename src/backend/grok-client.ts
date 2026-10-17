@@ -5,12 +5,7 @@ import { sourceText } from "@openbot/i18n/source";
 import { Effect } from "effect";
 import { AcpAgentClient, type AcpHistoryPersistence } from "./acp-client";
 import type { GrokCliInfo } from "./cli";
-import type {
-  McpAuthorizationSource,
-  McpDropReporter,
-  McpServerSource,
-  McpToolRuntimeSource,
-} from "./mcp-provider-shapes";
+import type { McpDropReporter, McpEndpointSource, McpServerSource, McpToolRuntimeSource } from "./mcp-provider-shapes";
 import { confineSpawnTarget, grokStatePaths, type ProcessConfinement } from "./process-confinement";
 import { type AccountRateLimitsReadResult, getRecord, getString } from "./protocol";
 import { providerCall } from "./provider-client-effects";
@@ -23,7 +18,7 @@ export class GrokAgentClient extends AcpAgentClient {
     mcpServers: McpServerSource = () => [],
     reportMcpDrops?: McpDropReporter,
     mcpToolRuntimes?: McpToolRuntimeSource,
-    mcpAuthorization?: McpAuthorizationSource,
+    mcpEndpoint?: McpEndpointSource,
     confinement?: ProcessConfinement,
     agentEnvironment?: () => Readonly<Record<string, string>>,
     history?: AcpHistoryPersistence,
@@ -41,7 +36,7 @@ export class GrokAgentClient extends AcpAgentClient {
       mcpServers: profileGeneration ? () => [] : mcpServers,
       reportMcpDrops,
       mcpToolRuntimes,
-      mcpAuthorization,
+      mcpEndpoint,
       argv: [
         "--no-auto-update",
         ...(profileGeneration ? ["--tools=", "--deny", "*", "--no-subagents", "--disable-web-search"] : []),

@@ -579,8 +579,12 @@
   }
 }
 
+/* One column as wide as the bubble. The implicit `auto` column grew to the content's min-content
+   width, and a file chip's percentage cap does not count there, so a long path made the text run
+   past the bubble and the chat ask for a column wider than the window. */
 .message-content-blocks {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   min-width: 0;
   gap: 10px;
 }
@@ -1039,7 +1043,7 @@
 
 .anchored-tooltip {
   position: fixed;
-  z-index: 240;
+  z-index: var(--openbot-layer-tooltip);
   box-sizing: border-box;
   width: max-content;
   max-width: min(280px, calc(100vw - 16px));

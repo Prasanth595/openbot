@@ -216,6 +216,45 @@ export const CodeBlock: Story = {
   render: (storyArgs) => <MessageBodySurface args={storyArgs} variant="ghost" width="460px" />,
 };
 
+export const UnknownConstructorLanguage: Story = {
+  args: {
+    message: {
+      ...message,
+      id: "message-unknown-constructor-language",
+      body: ["Before the code.", "", "```constructor", "const total = 42;", "```", "", "After the code."].join("\n"),
+      status: undefined,
+      attachments: [],
+    },
+  },
+  render: (storyArgs) => <MessageBodySurface args={storyArgs} variant="ghost" width="460px" />,
+};
+
+export const UnknownPrototypeLanguage: Story = {
+  args: {
+    message: {
+      ...message,
+      id: "message-unknown-prototype-language",
+      body: ["Before the code.", "", "```__proto__", "const fallback = 7;", "```", "", "After the code."].join("\n"),
+      status: undefined,
+      attachments: [],
+    },
+  },
+  render: (storyArgs) => <MessageBodySurface args={storyArgs} variant="ghost" width="460px" />,
+};
+
+export const UnknownOrdinaryLanguage: Story = {
+  args: {
+    message: {
+      ...message,
+      id: "message-unknown-ordinary-language",
+      body: ["Before the code.", "", "```mylang", "const ordinary = 3;", "```", "", "After the code."].join("\n"),
+      status: undefined,
+      attachments: [],
+    },
+  },
+  render: (storyArgs) => <MessageBodySurface args={storyArgs} variant="ghost" width="460px" />,
+};
+
 export const StreamingCodeBlock: Story = {
   args: {
     message: {

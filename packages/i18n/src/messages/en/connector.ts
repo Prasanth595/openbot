@@ -77,6 +77,8 @@ export const messages = defineMessages("connector", {
   "connector.github.close": "Close",
   // The last section of an integration page, with the action that removes it.
   "connector.dangerZone": "Danger zone",
+  "connector.statusUnknown": "Unknown",
+  "connector.readFailed": "OpenBot could not read the state of this connection.",
 
   // Server settings > Connectors: the list of integrations. Each row opens its page.
   "connector.hub.onThisComputer": "On this computer",
@@ -116,6 +118,7 @@ export const messages = defineMessages("connector", {
     "OpenBot does not have these permissions in Slack: {scopes}. Disconnect the workspace, then connect it again.",
   "connector.slack.retryAt": "Slack asked OpenBot to wait. It tries again at {time}.",
   "connector.slack.reconnect": "Reconnect",
+  "connector.slack.pause": "Pause",
   "connector.slack.resume": "Resume",
   // {action} is a button, such as Pause; {name} is the workspace name.
   "connector.slack.rowAction": "{action}: {name}",
@@ -188,6 +191,7 @@ export const messages = defineMessages("connector", {
     "OpenBot does not have these permissions in Discord: {scopes}. Disconnect the Discord server, then connect it again.",
   "connector.discord.retryAt": "Discord asked OpenBot to wait. It tries again at {time}.",
   "connector.discord.reconnect": "Reconnect",
+  "connector.discord.pause": "Pause",
   "connector.discord.resume": "Resume",
   // {action} is a button, such as Pause; {name} is the Discord server name.
   "connector.discord.rowAction": "{action}: {name}",
@@ -339,6 +343,7 @@ export const messages = defineMessages("connector", {
     "In the 1Password app, open Settings > Developer and turn on “Integrate with 1Password CLI”.",
   "connector.onePassword.stepAppReady": "The 1Password app lets the CLI create the shared vault.",
   "connector.onePassword.openApp": "Open 1Password",
+  "connector.onePassword.openAppFailed": "OpenBot could not open 1Password.",
   "connector.onePassword.checkAgain": "Check again",
   "connector.onePassword.stepVaultTitle": "Create the shared vault",
   "connector.onePassword.stepVaultDescription":
