@@ -219,6 +219,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           FAILED: ${{ needs.update.result == 'failure' || needs.deploy.result == 'failure' }}
+          # A cancelled run proves nothing, so only a successful check run closes the alert.
+          PASSED: ${{ needs.update.result == 'success' && needs.deploy.result != 'failure' && needs.deploy.result != 'cancelled' }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           title="Status page checks fail"
@@ -235,6 +237,6 @@ jobs:
           Last failed run: $RUN_URL
 
           The next good run closes this issue."
-          elif [ -n "$open" ]; then
+          elif [ "$PASSED" = "true" ] && [ -n "$open" ]; then
             gh issue close "$open" --comment "The checks run again: $RUN_URL"
           fi
