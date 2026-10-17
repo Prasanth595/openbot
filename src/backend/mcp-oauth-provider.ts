@@ -951,7 +951,10 @@ class McpOAuthClientProvider implements OAuthClientProvider {
     const cause = result.failure.cause;
     const clientRefused = cause instanceof InvalidClientError || cause instanceof UnauthorizedClientError;
     if (!clientRefused && !(cause instanceof InvalidGrantError)) return "kept";
-    const { tokens: _tokens, obtainedAt: _obtainedAt, client: registration, ...kept } = this.#record();
+    const current = this.#record();
+    // A sign-in that ended during the refresh stored a new grant: the refusal is about the old one.
+    if (current.tokens?.refresh_token !== refreshToken) return "kept";
+    const { tokens: _tokens, obtainedAt: _obtainedAt, client: registration, ...kept } = current;
     yield* this.#options.storage.write(this.#options.resource, {
       ...kept,
       ...(registration && !clientRefused ? { client: registration } : {}),
