@@ -311,6 +311,23 @@ is one folder per plugin in [`marketplace/plugin-catalog/`](../../marketplace/pl
    The build writes `src/renderer/src/features/settings/marketplace-plugin-catalog.ts`,
    `apps/auth-api/src/lib/plugin-catalog.generated.ts` and `resources/plugin-catalog/`. Do not edit
    them by hand.
+5. For an `http` server, run `bun run test:mcp-catalog`
+   ([`mcp-catalog-smoke.ts`](../../scripts/mcp-catalog-smoke.ts)). It connects to the live servers
+   with no account and writes `.openbot-build/mcp-catalog-smoke/report.json`. It needs the network,
+   so it is a manual run and not a CI gate.
+
+The smoke checks an `http` server with no `auth` or with a `link` flow. It skips `stdio` servers and
+servers with only `key` or `local` flows: they need the user's key or computer. Add or keep an entry
+only when the smoke passes for it:
+
+| `auth` | The server must |
+| --- | --- |
+| None | Answer `initialize` with no credential. |
+| `link` | Refuse `initialize` with a 401 and a `Bearer` challenge. Publish protected-resource metadata that names an authorization server. That server's metadata lists a `registration_endpoint`, `S256` in `code_challenge_methods_supported` and the `code` response type. Its endpoints use https and public addresses. |
+
+A `link` server with no `registration_endpoint` fails: each user would have to register a sign-in app
+first. Use a `key` flow for it, or leave it out. The smoke reads metadata only. It never registers a
+client and never sends a credential.
 
 A server that does not register OpenBot by itself needs a **sign-in app**: an OAuth app that the
 admin registers with the provider. The user enters its client ID in the "Sign-in app" section of the
