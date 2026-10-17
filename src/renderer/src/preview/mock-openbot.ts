@@ -258,7 +258,7 @@ function mockWorkspaceDirectory(path: string): WorkspaceDirectory {
 /** What each story server answers with when it is tested, so a story reads the same way twice. */
 const MOCK_MCP_TOOL_COUNTS: Record<string, number> = { "Local SQLite": 12, Linear: 1, Figma: 6 };
 /** The one address that asks for a sign-in until it has one, so the preview shows Save signing in. */
-export const MOCK_MCP_SIGN_IN_URL = "https://mcp.granola.ai/mcp";
+const MOCK_MCP_SIGN_IN_URL = "https://mcp.granola.ai/mcp";
 
 export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBotControls {
   const appInfo = clone(options.appInfo ?? STORY_APP_INFO);
