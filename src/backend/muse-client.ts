@@ -326,6 +326,7 @@ export class MuseAgentClient extends EventEmitter<ClientEvents> implements Agent
     if (this.#options.profileGeneration)
       return yield* providerFailure(new Error(sourceText("error.provider.museProfileUnsupported")));
     if (this.#host) return this.#host;
+    // The fork starts on the next tick, so `#starting` is set before a failed launch resets it.
     if (!this.#starting) this.#starting = yield* Effect.forkDetach(this.#launch());
     const host = yield* Fiber.join(this.#starting);
     if (!host) return yield* providerFailure(new Error(sourceText("error.provider.museNotStarted")));
