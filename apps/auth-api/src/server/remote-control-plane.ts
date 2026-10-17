@@ -65,7 +65,8 @@ const MEMBER_SEAT_AVAILABLE_SQL = `(
 
 // An invitation admits a user only while its creator can still invite on the host, and it never undoes
 // a removal made after the invitation: the removed member needs a new invitation or a reactivation.
-// A member who left is not removed, so an earlier invitation still admits them.
+// A member who left is not removed, so an earlier invitation still admits them. A revoked row with no
+// removal time counts as a removal.
 // Binds the user ID of the account that accepts.
 const INVITE_STILL_GRANTED_SQL = `(
   EXISTS(
@@ -76,9 +77,22 @@ const INVITE_STILL_GRANTED_SQL = `(
   AND NOT EXISTS(
     SELECT 1 FROM remote_memberships
      WHERE host_id = remote_invites.host_id AND user_id = ? AND status = 'revoked'
-       AND removed_at >= remote_invites.created_at
+       AND COALESCE(removed_at, updated_at) >= remote_invites.created_at
   )
 )`;
+
+/**
+ * The SQL value of `removed_at` after a membership change. It is the time of the first removal by an
+ * owner or admin, 0 when the member left, and NULL for an active member. A revoked row with NULL comes
+ * from a Worker before migration 0036, so the invitation check counts it as a removal. A member who is
+ * already revoked cannot clear a removal by leaving again. The value binds the change time when it has
+ * a placeholder.
+ */
+function removedAtAfterChange(change: { revoke: boolean; leave: boolean; activating: boolean; active: boolean }) {
+  if (!change.revoke) return change.activating ? "NULL" : "removed_at";
+  if (change.leave) return change.active ? "0" : "removed_at";
+  return change.active ? "?" : "CASE WHEN removed_at > 0 THEN removed_at ELSE ? END";
+}
 
 export type { RemoteMemberRole };
 
@@ -1199,10 +1213,12 @@ export class RemoteControlPlane {
       if (activating && membership.status !== "active") {
         yield* this.#requireMemberSeat(input.hostId, membership.user_id, limit);
       }
-      // Only a removal by an owner or admin blocks the invitations made before it. A leave and an
-      // activation clear the time; a role change of a revoked member keeps it.
-      const removing = input.revoke === true && !leavingOwnMembership;
-      const removedAt = removing ? "?" : input.revoke || activating ? "NULL" : "removed_at";
+      const removedAt = removedAtAfterChange({
+        revoke: input.revoke === true,
+        leave: leavingOwnMembership,
+        activating,
+        active: membership.status === "active",
+      });
       const now = dependencies.now();
       const activeSessions = yield* remoteCall(() =>
         dependencies.database
@@ -1229,7 +1245,7 @@ export class RemoteControlPlane {
               role,
               input.revoke ? "revoked" : activating ? "active" : membership.status,
               now,
-              ...(removing ? [now] : []),
+              ...(removedAt.includes("?") ? [now] : []),
               input.membershipId,
               ...(activating ? [input.hostId, membership.user_id, input.hostId, limit] : []),
             ),

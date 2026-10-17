@@ -190,6 +190,62 @@ async function aRoleChangeKeepsANewInviteValid() {
   });
 }
 
+/** A host with a member who joined with a permanent link. */
+async function hostWithLinkMember() {
+  const host = await remoteHost();
+  const member = addUser(host.database, "member");
+  const link = await Effect.runPromise(
+    host.remote.createInvite(host.owner, { hostId: HOST_ID, role: "member", permanent: true }),
+  );
+  host.clock.now += 1_000;
+  await Effect.runPromise(host.remote.acceptInvite(member, link.token));
+  host.clock.now += 1_000;
+  return { ...host, member, link, id: membershipId(host.database, member.id) };
+}
+
+async function aRemovedMemberCannotUndoTheRemovalByLeaving() {
+  const { database, owner, clock, remote, member, link, id } = await hostWithLinkMember();
+  await Effect.runPromise(remote.changeMembership(owner.id, { hostId: HOST_ID, membershipId: id, revoke: true }));
+  clock.now += 1_000;
+  const left = await outcome(remote.changeMembership(member.id, { hostId: HOST_ID, membershipId: id, revoke: true }));
+  clock.now += 1_000;
+  const again = await outcome(remote.acceptInvite(member, link.token));
+  check("a removed member who leaves again still cannot rejoin with the permanent link", again === "invite_invalid", {
+    left,
+    outcome: again,
+    membership: membershipStatus(database, member.id),
+  });
+}
+
+async function aRepeatedRemovalKeepsANewInviteValid() {
+  const { database, owner, clock, remote, member, id } = await hostWithLinkMember();
+  await Effect.runPromise(remote.changeMembership(owner.id, { hostId: HOST_ID, membershipId: id, revoke: true }));
+  clock.now += 1_000;
+  const fresh = await Effect.runPromise(remote.createInvite(owner, { hostId: HOST_ID, role: "member" }));
+  clock.now += 1_000;
+  await Effect.runPromise(remote.changeMembership(owner.id, { hostId: HOST_ID, membershipId: id, revoke: true }));
+  clock.now += 1_000;
+  const joined = await outcome(remote.acceptInvite(member, fresh.token));
+  check("a second removal of a removed member does not cancel a newer invite", joined === "ok", {
+    outcome: joined,
+    membership: membershipStatus(database, member.id),
+  });
+}
+
+async function aRevokeFromTheOldWorkerCountsAsARemoval() {
+  const { database, clock, remote, member, link, id } = await hostWithLinkMember();
+  // The Worker before migration 0036 revokes the member and does not write removed_at.
+  database
+    .prepare("UPDATE remote_memberships SET status = 'revoked', updated_at = ? WHERE membership_id = ?")
+    .run(clock.now, id);
+  clock.now += 1_000;
+  const again = await outcome(remote.acceptInvite(member, link.token));
+  check("a revoke with no removal time blocks an earlier invite", again === "invite_invalid", {
+    outcome: again,
+    membership: membershipStatus(database, member.id),
+  });
+}
+
 async function anOldRevokeCountsAsARemoval() {
   const database = new DatabaseSync(":memory:");
   const names = (await readdir(MIGRATIONS)).sort();
@@ -412,6 +468,9 @@ const scenarios = [
   aRemovedMemberCannotRejoinWithAnOldInvite,
   aMemberWhoLeftRejoinsWithTheLink,
   aRoleChangeKeepsANewInviteValid,
+  aRemovedMemberCannotUndoTheRemovalByLeaving,
+  aRepeatedRemovalKeepsANewInviteValid,
+  aRevokeFromTheOldWorkerCountsAsARemoval,
   anOldRevokeCountsAsARemoval,
   anInviteEndsWithTheAdminWhoMadeIt,
   theJwksNeverPublishesAPrivateKey,
