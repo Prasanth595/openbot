@@ -25,6 +25,13 @@ import { waitForPresentedFrame } from "./browser-smoke-frames";
 
 let cachedPageVersion = 1;
 let slowDocumentVersion = 0;
+// `/slow-document?action` stays open until the smoke releases it, so the navigation that the timed
+// click starts is still pending when the click reaches its deadline.
+let actionNavigationRequests = 0;
+let releaseActionNavigation = (): void => {};
+const actionNavigationReleased = new Promise<void>((resolve) => {
+  releaseActionNavigation = resolve;
+});
 let browserToolCall = 0;
 // The user agent each `/headers` hit carried, keyed by `?source=`. A subframe request that
 // bypasses the session identity shows up here under its own source with the raw build string.
@@ -333,10 +340,11 @@ const server = createServer((request, response) => {
     const version = slowDocumentVersion;
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     response.write("<!doctype html><main>loading</main>");
-    setTimeout(
-      () => response.end(`<script>document.querySelector('main').textContent='ready:${version}'</script>`),
-      250,
-    );
+    const finish = () => response.end(`<script>document.querySelector('main').textContent='ready:${version}'</script>`);
+    if (url.search === "?action") {
+      actionNavigationRequests += 1;
+      void actionNavigationReleased.then(finish);
+    } else setTimeout(finish, 250);
     return;
   }
   if (url.pathname === "/v2") {
@@ -1510,27 +1518,41 @@ async function main(): Promise<void> {
       `(() => { const button = document.createElement('button'); button.setAttribute('aria-label', 'Slow action navigation'); button.onclick = () => { location.href = ${JSON.stringify(`${origin}/slow-document?action`)}; }; document.body.append(button); return true; })()`,
       true,
     );
-    const timedActionNavigation = await callBrowserTool(browser, "click", {
-      tabId: actionNavigationTab.id,
-      target: { kind: "role", role: "button", name: "Slow action navigation", exact: true },
-      timeoutMs: 100,
-    });
-    const timedActionPayload = toolTextPayload(timedActionNavigation);
-    if (
-      !timedActionNavigation.success ||
-      !Array.isArray(timedActionPayload?.actions) ||
-      !timedActionPayload.actions.some(
-        (entry) => isDynamicRecord(entry) && String(entry.detail).includes("Action completed"),
-      )
-    ) {
-      throw new Error("V2 action-triggered navigation did not accurately report a dispatched timed action.");
-    }
-    const snapshotAfterTimedAction = await callBrowserTool(browser, "snapshot", { tabId: actionNavigationTab.id });
-    if (
-      !snapshotAfterTimedAction.success ||
-      browser.listTabs().find((candidate) => candidate.id === actionNavigationTab.id)?.loading === true
-    ) {
-      throw new Error("V2 action-triggered navigation escaped tab serialization.");
+    // The tab was just opened, so it may have no presented frame yet, and Chromium would drop the click.
+    await waitForPresentedFrame(actionNavigationContents);
+    try {
+      // The server holds the navigation open until the release below, so the click reaches its
+      // deadline while the navigation is pending. The limit only has to fit the dispatch: 100 ms
+      // did not always fit the highlight and the dispatch on a loaded runner.
+      const timedActionNavigation = await callBrowserTool(browser, "click", {
+        tabId: actionNavigationTab.id,
+        target: { kind: "role", role: "button", name: "Slow action navigation", exact: true },
+        timeoutMs: 5_000,
+      });
+      const timedActionPayload = toolTextPayload(timedActionNavigation);
+      if (
+        !timedActionNavigation.success ||
+        !Array.isArray(timedActionPayload?.actions) ||
+        !timedActionPayload.actions.some(
+          (entry) => isDynamicRecord(entry) && String(entry.detail).includes("Action completed"),
+        )
+      ) {
+        throw new Error(
+          `V2 action-triggered navigation did not accurately report a dispatched timed action: ${timedActionNavigation.success ? JSON.stringify(timedActionPayload?.actions) : toolError(timedActionNavigation)}`,
+        );
+      }
+      if (actionNavigationRequests === 0) {
+        throw new Error("V2 timed action reported a dispatch, but the server received no navigation request.");
+      }
+      const snapshotAfterTimedAction = await callBrowserTool(browser, "snapshot", { tabId: actionNavigationTab.id });
+      if (
+        !snapshotAfterTimedAction.success ||
+        browser.listTabs().find((candidate) => candidate.id === actionNavigationTab.id)?.loading === true
+      ) {
+        throw new Error("V2 action-triggered navigation escaped tab serialization.");
+      }
+    } finally {
+      releaseActionNavigation();
     }
     await runCauseEffect(browser.close(actionNavigationTab.id));
     const { tab: waitTab, contents: waitContents } = await openTabWithContents(
