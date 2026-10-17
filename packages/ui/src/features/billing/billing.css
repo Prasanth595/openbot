@@ -59,12 +59,6 @@
 
 /* The web client's Billing dialog. */
 .billing-dialog-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: var(--openbot-layer-dialog);
-  display: grid;
-  place-items: center;
-  padding: var(--openbot-space-6);
   background: var(--openbot-bg-overlay);
 }
 

@@ -633,7 +633,7 @@ export class DrainScheduler {
             routineRun:
               item.delivery.sender.kind === "routine" ? this.#routines.runForDelivery(item.delivery.id) : null,
             wokenWaits: item.delivery.sender.kind === "routine" ? this.#routines.wokenWaits(item.delivery.id) : [],
-            executionText: execution?.text,
+            ...(execution?.text === undefined ? {} : { executionText: execution.text }),
           }),
         ),
         [...requestIds].flatMap((requestId) => this.#mailbox.unansweredRecipients(requestId)),
@@ -655,7 +655,7 @@ export class DrainScheduler {
           id: item.id,
           author: item.sender.kind === "agent" ? "agent" : "user",
           source: item.sender.kind === "agent" ? "agent" : "user",
-          senderAgentId: item.sender.kind === "agent" ? item.sender.agentId : undefined,
+          ...(item.sender.kind === "agent" ? { senderAgentId: item.sender.agentId } : {}),
           replyToMessageId: item.replyToMessageId,
           attachments: item.attachments,
           delivery: { id: item.id, status: "starting", position: null },

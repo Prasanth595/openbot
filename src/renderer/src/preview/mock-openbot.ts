@@ -1634,14 +1634,14 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       duplicateAgent: async (agentId) => {
         const source = agents.find((agent) => agent.id === agentId);
         if (!source) throw new Error("Agent not found");
+        // The copy gets a new id and its own workspace, so neither is passed on.
+        const { id: _sourceId, workspacePath: _sourceWorkspacePath, ...copied } = source;
         const agent = {
           ...createAgentSummary({
-            ...source,
-            id: undefined,
+            ...copied,
             name: `${source.name} copy`,
             preview: "",
             updatedAt: null,
-            workspacePath: undefined,
           }),
           threadId: null,
         };
@@ -1918,12 +1918,19 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
           emit(latestConversationListeners, input.agentId);
         }
         const snapshot = clone(getSnapshot(input.agentId));
-        const messages = snapshot.messages.slice(-Math.min(input.limit ?? 50, 100));
+        const limit = Math.min(input.limit ?? 50, 100);
+        // The cursor of an older page is the id of the first message after it, as the host pages by message.
+        const anchor = input.anchor;
+        const cursorIndex =
+          anchor?.type === "before" ? snapshot.messages.findIndex((message) => message.id === anchor.cursor) : -1;
+        const end = cursorIndex >= 0 ? cursorIndex : snapshot.messages.length;
+        const start = Math.max(0, end - limit);
+        const messages = snapshot.messages.slice(start, end);
         return {
           ...snapshot,
           messages,
           references: {},
-          pageInfo: { hasOlder: snapshot.messages.length > messages.length, olderCursor: null },
+          pageInfo: { hasOlder: start > 0, olderCursor: start > 0 ? (messages[0]?.id ?? null) : null },
           readState: { unreadCount: 0, firstUnreadMessageId: null, throughMessageId: null },
         };
       },

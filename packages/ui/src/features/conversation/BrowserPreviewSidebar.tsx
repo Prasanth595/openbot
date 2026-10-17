@@ -8,7 +8,7 @@ const BROWSER_PANEL_MIN = 220;
 const BROWSER_PANEL_MAX = 1600;
 
 interface BrowserPreviewSidebarProps {
-  capturePreview?: (tabId: string) => Promise<BrowserPreview>;
+  capturePreview?: ((tabId: string) => Promise<BrowserPreview>) | undefined;
   readWidth: (fallback: number, min: number, max: number) => number;
   readCustomWidth: () => number;
   saveWidth: (width: number) => void;
@@ -136,7 +136,7 @@ export default function BrowserPreviewSidebar(props: BrowserPreviewSidebarProps)
 }
 
 export function BrowserPreviewCard(props: {
-  capturePreview?: (tabId: string) => Promise<BrowserPreview>;
+  capturePreview?: ((tabId: string) => Promise<BrowserPreview>) | undefined;
   tab: BrowserTab;
   contextKey: string;
   enabled: boolean;

@@ -136,6 +136,8 @@ export const messages = {
     "Créer des serveurs OpenBot qui fonctionnent quand cet ordinateur est éteint.",
   "settings.sections.label": "Sections des réglages",
   "settings.panel.resize": "Redimensionner le panneau de droite",
+  "settings.preferences.loadFailed": "Impossible de charger vos réglages.",
+  "settings.preferences.saveFailed": "Impossible d’enregistrer ce réglage. Réessayez.",
   "settings.agentSelect.placeholder": "Choisir un agent",
   "settings.agentSelect.empty": "Aucun agent local",
   "settings.agentSelect.label": "Installer dans",
@@ -309,6 +311,9 @@ export const messages = {
   "settings.profile.sessions.disconnectLabel": "Déconnecter la session {name} ouverte le {signedIn}",
   "settings.profile.sessions.loadFailed": "Impossible de charger les sessions du compte. Réessayez.",
   "settings.profile.sessions.disconnectFailed": "Impossible de déconnecter cette session. Réessayez.",
+  "settings.profile.sessions.disconnectConfirm.title": "Déconnecter cette session ?",
+  "settings.profile.sessions.disconnectConfirm.description":
+    "Cet appareil est déconnecté de votre compte. Il doit se connecter à nouveau pour accéder au compte.",
   "settings.updates.title": "Mises à jour d’OpenBot",
   "settings.updates.track.title": "Canal de mise à jour",
   "settings.updates.track.description": "Le canal Stable reçoit les versions testées d’OpenBot.",
@@ -319,7 +324,7 @@ export const messages = {
   "settings.updates.unavailable": "Mises à jour indisponibles",
   "settings.updates.autoDownload.title": "Télécharger automatiquement les mises à jour",
   "settings.updates.autoDownload.description": "Télécharger les nouvelles versions dès qu’elles sont disponibles.",
-  "settings.updates.managed.title": "Géré par l’hôte",
+  "settings.updates.managed.title": "Géré par Host Manager",
   "settings.updates.managed.description":
     "Les mises à jour de ce Mac sont gérées automatiquement par OpenBot Host Manager. Tous les utilisateurs partagent la même application OpenBot et sont mis à jour ensemble lorsque les utilisateurs enregistrés sont inactifs.",
   "settings.updates.target.latest": "La dernière mise à jour d’OpenBot",
@@ -327,7 +332,7 @@ export const messages = {
   "settings.updates.host.ready":
     "{target} est téléchargée. En attente de l’inactivité des autres utilisateurs de ce Mac.",
   "settings.updates.host.installing": "Installation de {target}…",
-  "settings.updates.host.failed": "La mise à jour de l’hôte a échoué. Contactez l’administrateur de l’hôte.",
+  "settings.updates.host.failed": "La mise à jour gérée a échoué. Contactez l’administrateur de ce Mac.",
   "settings.updates.status.idle": "Recherchez les mises à jour pour obtenir la dernière version Stable.",
   "settings.updates.status.checking": "Recherche de mises à jour sur le canal Stable…",
   "settings.updates.status.available": "{target} est disponible au téléchargement.",

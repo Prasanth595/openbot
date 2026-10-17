@@ -1,4 +1,5 @@
 import { Button, Heading } from "@openbot/ui";
+import type { VoicePhase } from "@openbot/ui/features/conversation/VoiceRecordingMorph";
 import { currentText } from "@openbot/ui/text";
 import { createSignal, For, onCleanup, onSettled } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
@@ -15,7 +16,6 @@ import {
 } from "../src/features/conversation/conversation-scope";
 import type { ConversationProps } from "../src/features/conversation/conversation-types";
 import { VOICE_LEVEL_COUNT } from "../src/features/conversation/stores/voice-store";
-import type { VoicePhase } from "../src/features/conversation/voice-status";
 import { CONVERSATION_STORY_ARGS, StoryAppProviders } from "./conversation-story-support";
 import { STORY_AGENT_STATUS } from "./fixtures";
 import { createMockOpenBot } from "./mock-openbot";

@@ -14,7 +14,7 @@ import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import { sourceText } from "@openbot/i18n/source";
 import { runCauseEffect } from "../../backend/effect-boundary";
 import type { TeamStore } from "../team-store";
-import type { TeamApiBrowser, TeamApiRemoteScreen } from "./dependencies";
+import type { TeamApiBrowser, TeamApiBrowserView, TeamApiRemoteScreen } from "./dependencies";
 import { HttpError } from "./http-error";
 import type { RouteOutcome, TeamApiRequestContext } from "./request-context";
 import { nullableString, pathIdentifier, readJson, requireAdmin, stringField } from "./request-helpers";
@@ -36,6 +36,7 @@ export interface TeamRouteDependencies {
   remoteScreen?: Pick<TeamApiRemoteScreen, "revokeTeamSession" | "revokeMember">;
   /** A session or a member that ends gives back the browser tabs it controls. */
   browser?: Pick<TeamApiBrowser, "releaseUserControlHeldBy">;
+  browserView?: Pick<TeamApiBrowserView, "revokeTeamSession">;
   createInvite?: TeamApiOptions["createInvite"];
   updateMember?: TeamApiOptions["updateMember"];
   removeMember?: TeamApiOptions["removeMember"];
@@ -50,6 +51,7 @@ export async function routeTeam(
     store,
     remoteScreen,
     browser,
+    browserView,
     createInvite,
     updateMember,
     removeMember: removeHostMember,
@@ -86,6 +88,7 @@ export async function routeTeam(
     await runCauseEffect(store.logout(token));
     await (remoteScreen ? runCauseEffect(remoteScreen.revokeTeamSession(sessionId)) : undefined);
     browser?.releaseUserControlHeldBy({ kind: "session", sessionId });
+    await (browserView ? runCauseEffect(browserView.revokeTeamSession(sessionId)) : undefined);
     refreshPresence();
     return empty(204);
   }
@@ -218,6 +221,7 @@ export async function routeTeam(
     await (onSessionRevoked ? runCauseEffect(onSessionRevoked(revokedSessionId)) : undefined);
     await (remoteScreen ? runCauseEffect(remoteScreen.revokeTeamSession(revokedSessionId)) : undefined);
     browser?.releaseUserControlHeldBy({ kind: "session", sessionId: revokedSessionId });
+    await (browserView ? runCauseEffect(browserView.revokeTeamSession(revokedSessionId)) : undefined);
     refreshPresence();
     return empty(204);
   }

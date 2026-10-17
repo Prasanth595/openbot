@@ -2,6 +2,7 @@ import type { AccountSession, AgentSummary, CentralAuthUser, HostAnalytics } fro
 import {
   Badge,
   Button,
+  ConfirmDialog,
   ErrorReference,
   Item,
   ItemActions,
@@ -60,6 +61,8 @@ export function SettingsProfileTab(props: SettingsProfileTabProps) {
   const { t, format, errorMessage } = useText();
   const [signingOut, setSigningOut] = createSignal(false);
   const [signOutError, setSignOutError] = createSignal<string | null>(null);
+  /** The session that the Disconnect confirmation is open for. */
+  const [disconnectTarget, setDisconnectTarget] = createSignal<string | null>(null);
   const [editing, setEditing] = createSignal(false);
   const [sharing, setSharing] = createSignal(false);
   const accountName = () => props.account.name?.trim() || props.account.email.split("@")[0] || props.account.email;
@@ -133,7 +136,7 @@ export function SettingsProfileTab(props: SettingsProfileTabProps) {
 
       <SettingsSection title={t("settings.profile.account.title")}>
         <ItemGroup class="settings-modal-card">
-          <Item class="settings-modal-account-email-row">
+          <Item data-settings-row="settings.profile.email.title" class="settings-modal-account-email-row">
             <ItemContent>
               <ItemTitle>{t("settings.profile.email.title")}</ItemTitle>
               <ItemDescription>{t("settings.profile.email.description")}</ItemDescription>
@@ -158,6 +161,7 @@ export function SettingsProfileTab(props: SettingsProfileTabProps) {
       </SettingsSection>
       <Show when={props.canListSessions}>
         <SettingsSection
+          data-settings-row="settings.profile.sessions.title"
           title={t("settings.profile.sessions.title")}
           description={t("settings.profile.sessions.description")}
         >
@@ -207,7 +211,7 @@ export function SettingsProfileTab(props: SettingsProfileTabProps) {
                           signedIn: sessionTime(session.connectedAt),
                         })}
                         disabled={Boolean(props.store.state.sessions.revokingId) || !props.canRevokeSession}
-                        onClick={() => void props.store.revokeSession(session.sessionId)}
+                        onClick={() => setDisconnectTarget(session.sessionId)}
                       >
                         {props.store.state.sessions.revokingId === session.sessionId
                           ? t("settings.disconnect.pending")
@@ -219,6 +223,21 @@ export function SettingsProfileTab(props: SettingsProfileTabProps) {
               )}
             </For>
           </ItemGroup>
+          <ConfirmDialog
+            open={disconnectTarget() !== null}
+            onCancel={() => setDisconnectTarget(null)}
+            onConfirm={async () => {
+              const sessionId = disconnectTarget();
+              if (sessionId === null) return;
+              // The store shows a failure under the section heading, so the dialog closes either way.
+              await props.store.revokeSession(sessionId);
+              setDisconnectTarget(null);
+            }}
+            title={t("settings.profile.sessions.disconnectConfirm.title")}
+            description={t("settings.profile.sessions.disconnectConfirm.description")}
+            confirmLabel={t("settings.disconnect.action")}
+            pendingLabel={t("settings.disconnect.pending")}
+          />
         </SettingsSection>
       </Show>
     </>

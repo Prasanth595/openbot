@@ -42,9 +42,9 @@ export function browserInputAction(call: BrowserInputCall, hooks: BrowserDynamic
           engine.click(
             args.target,
             {
-              button: args.button,
-              clickCount: args.clickCount,
-              modifiers: args.modifiers,
+              ...(args.button === undefined ? {} : { button: args.button }),
+              ...(args.clickCount === undefined ? {} : { clickCount: args.clickCount }),
+              ...(args.modifiers === undefined ? {} : { modifiers: args.modifiers }),
             },
             deadline,
             markDispatched,
@@ -65,7 +65,7 @@ export function browserInputAction(call: BrowserInputCall, hooks: BrowserDynamic
             args.target,
             args.text,
             {
-              mode: args.target ? (args.mode ?? "replace") : undefined,
+              ...(args.target ? { mode: args.mode ?? "replace" } : {}),
               submit: args.submit === true,
             },
             deadline,

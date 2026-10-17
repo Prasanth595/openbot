@@ -29,6 +29,7 @@ import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import { ACP_REGISTRY_CAPABILITY } from "@openbot/contracts/team-protocol/acp-registry-v1";
 import { AGENT_HIDDEN_CAPABILITY } from "@openbot/contracts/team-protocol/agent-hidden-v1";
 import { AGENT_SESSION_SETTINGS_CAPABILITY } from "@openbot/contracts/team-protocol/agent-session-settings-v1";
+import { AGENT_TASKS_CAPABILITY } from "@openbot/contracts/team-protocol/agent-tasks-v1";
 import { BROWSER_PAGE_STATE_CAPABILITY } from "@openbot/contracts/team-protocol/browser-page-state-v1";
 import { BROWSER_USER_CONTROL_CAPABILITY } from "@openbot/contracts/team-protocol/browser-user-control-v1";
 import {
@@ -87,7 +88,7 @@ import {
   type HostRestartState,
 } from "@openbot/contracts/team-protocol/host-update-v1";
 import { teamHttpCodec } from "@openbot/contracts/team-protocol/http-codecs";
-import { optionalTeamEvent } from "@openbot/contracts/team-protocol/optional-events";
+import { type OptionalTeamEvent, optionalTeamEvent } from "@openbot/contracts/team-protocol/optional-events";
 import { teamSideRouteCodec } from "@openbot/contracts/team-protocol/side-routes";
 import {
   TEAM_APP_VERSION_HEADER,
@@ -151,6 +152,7 @@ import { routeAgentInstall } from "./team-api/route-agent-install";
 import { routeAgentMemoryPage } from "./team-api/route-agent-memories";
 import { routeAgentPublish } from "./team-api/route-agent-publish";
 import { routeAgentSessionSettings } from "./team-api/route-agent-session-settings";
+import { routeAgentTasks } from "./team-api/route-agent-tasks";
 import { routeAgents } from "./team-api/route-agents";
 import { routeBrowser } from "./team-api/route-browser";
 import { routeChannels } from "./team-api/route-channels";
@@ -804,6 +806,7 @@ export class TeamApiServer {
       if ((await routeAgentHostSettings(context, this.#options.admin, hidden)) === "handled") return;
       if ((await routeAgentSessionSettings(context, this.#options.admin, hidden)) === "handled") return;
       if ((await routeAgentHidden(context, this.#options.hiddenAgents, hidden)) === "handled") return;
+      if ((await routeAgentTasks(context, this.#options.agentTasks, hidden)) === "handled") return;
       if ((await routeSkillsAdmin(context, this.#options.admin, hidden)) === "handled") return;
       if ((await routeSharedTables(context, this.#options.admin)) === "handled") return;
       if ((await routeAgentInstall(context, this.#options.admin, hidden, newAgentHidden)) === "handled") return;
@@ -871,23 +874,26 @@ export class TeamApiServer {
   // One method per module, so the dispatcher above reads as a list of domains and the wiring of
   // each narrow `*RouteDependencies` sits next to nothing else.
   #routeTeam(context: TeamApiRequestContext): Promise<RouteOutcome> {
+    const { remoteScreen, browserView, createInvite, updateMember, removeMember, onSessionRevoked } = this.#options;
     return routeTeam(context, {
       store: this.#options.store,
-      remoteScreen: this.#options.remoteScreen,
       browser: this.#options.browser,
-      createInvite: this.#options.createInvite,
-      updateMember: this.#options.updateMember,
-      removeMember: this.#options.removeMember,
-      onSessionRevoked: this.#options.onSessionRevoked,
+      ...(remoteScreen === undefined ? {} : { remoteScreen }),
+      ...(browserView === undefined ? {} : { browserView }),
+      ...(createInvite === undefined ? {} : { createInvite }),
+      ...(updateMember === undefined ? {} : { updateMember }),
+      ...(removeMember === undefined ? {} : { removeMember }),
+      ...(onSessionRevoked === undefined ? {} : { onSessionRevoked }),
       getPresence: () => this.getPresence(),
       refreshPresence: () => this.refreshPresence(),
     });
   }
 
   #routeRemoteScreen(context: TeamApiRequestContext): Promise<RouteOutcome> {
+    const remoteScreen = this.#options.remoteScreen;
     return routeRemoteScreen(context, {
       store: this.#options.store,
-      remoteScreen: this.#options.remoteScreen,
+      ...(remoteScreen === undefined ? {} : { remoteScreen }),
     });
   }
 
@@ -904,7 +910,11 @@ export class TeamApiServer {
   }
 
   #routeBrowser(context: TeamApiRequestContext): Promise<RouteOutcome> {
-    return routeBrowser(context, { browser: this.#options.browser, browserView: this.#options.browserView });
+    const browserView = this.#options.browserView;
+    return routeBrowser(context, {
+      browser: this.#options.browser,
+      ...(browserView === undefined ? {} : { browserView }),
+    });
   }
 
   #routeFiles(context: TeamApiRequestContext): Promise<RouteOutcome> {
@@ -1104,7 +1114,15 @@ export class TeamApiServer {
       const supportsRuntimeSnapshots = connection.capabilities.has("agent-runtime-snapshots");
       const requiredCapability = eventCapability(event);
       if (requiredCapability && !connection.capabilities.has(requiredCapability)) continue;
-      if (event.type === "conversation" && !connection.includeConversationEvents) continue;
+      // A task conversation follows the conversation scope too: a desktop asks for it only for its active server.
+      if (
+        (event.type === "conversation" ||
+          event.type === "agent-task-conversation" ||
+          event.type === "agent-task-conversation-delta") &&
+        !connection.includeConversationEvents
+      ) {
+        continue;
+      }
       if (event.type === "queue-changed" && supportsRuntimeSnapshots && !connection.includeConversationEvents) {
         continue;
       }
@@ -1113,24 +1131,39 @@ export class TeamApiServer {
       let outgoing: string;
       // `eventCapability` above has already kept an optional event from a client without its capability.
       // Completion must still reach a peer without quiet-turn-v1 through its frozen adapter.
-      const optional =
-        event.type === "turn-completed" && event.quiet && connection.capabilities.has(QUIET_TURN_CAPABILITY)
-          ? {
-              type: "quiet-turn-completed" as const,
-              agentId: event.agentId,
-              threadId: event.threadId,
-              turnId: event.turnId,
-              status: event.status,
-              ...(event.origin === undefined ? {} : { origin: event.origin }),
-            }
-          : optionalTeamEvent(event);
+      let optional: OptionalTeamEvent | null;
+      try {
+        optional =
+          event.type === "turn-completed" && event.quiet && connection.capabilities.has(QUIET_TURN_CAPABILITY)
+            ? {
+                type: "quiet-turn-completed" as const,
+                agentId: event.agentId,
+                threadId: event.threadId,
+                turnId: event.turnId,
+                status: event.status,
+                ...(event.origin === undefined ? {} : { origin: event.origin }),
+              }
+            : optionalTeamEvent(
+                event.type === "agent-task-conversation"
+                  ? { ...event, snapshot: conversationSnapshotForCapabilities(event.snapshot, connection.capabilities) }
+                  : event,
+              );
+      } catch (error) {
+        // As for `encodeEvent`: a malformed optional event is skipped for this client only.
+        (this.#options.logger ?? logger).warn("Team API event could not be encoded:", toLogValue(error));
+        continue;
+      }
       if (optional) {
         // The base events go through the provider view; an optional event that names a hidden agent is left out.
+        // A task event uses the hidden agents of the task routes, so a task of an agent that answers 404 does not arrive.
+        const agentId = optionalEventAgentId(optional);
+        const protocol = eventProtocol(connection.capabilities);
         if (
-          "agentId" in optional &&
-          hiddenProviderAgentIds(this.#options.agents.listAgents(), eventProtocol(connection.capabilities)).has(
-            optional.agentId,
-          )
+          agentId !== null &&
+          (requiredCapability === AGENT_TASKS_CAPABILITY
+            ? this.hiddenAgentIds(protocol, connection.capabilities)
+            : hiddenProviderAgentIds(this.#options.agents.listAgents(), protocol)
+          ).has(agentId)
         )
           continue;
         // The list of hidden agents does not name an agent that this peer cannot see, as `/v1/hidden-agents` does.
@@ -1565,14 +1598,18 @@ export class TeamApiServer {
     });
   }
 
+  // A refusal here is the client's error, so it is an `HttpError`: the dispatcher answers its status
+  // and does not log it. The English of each message is the text that hosts sent before, byte for byte.
   #requireDirectRecipient(senderMemberId: string, recipientMemberId: string): TeamMemberSummary {
     if (senderMemberId === recipientMemberId) {
-      throw new Error("You cannot open a direct message with yourself.");
+      throw new HttpError(400, sourceText("error.team.directMessageSelf"));
     }
     const sender = this.#options.store.getMember(senderMemberId);
     const recipient = this.#options.store.getMember(recipientMemberId);
-    if (!sender || sender.disabled) throw new Error("Your team access is unavailable.");
-    if (!recipient || recipient.disabled) throw new Error("This team member is unavailable.");
+    if (!sender || sender.disabled) throw new HttpError(403, sourceText("error.host.teamAccessUnavailable"));
+    if (!recipient || recipient.disabled) {
+      throw new HttpError(404, sourceText("error.team.directRecipientUnavailable"));
+    }
     return recipient;
   }
 
@@ -1679,6 +1716,7 @@ export class TeamApiServer {
         if (capability === ACP_REGISTRY_CAPABILITY) return this.#options.admin?.acpRegistry !== undefined;
         if (capability === AGENT_SESSION_SETTINGS_CAPABILITY) return this.#options.admin?.sessionSettings !== undefined;
         if (capability === AGENT_HIDDEN_CAPABILITY) return this.#options.hiddenAgents !== undefined;
+        if (capability === AGENT_TASKS_CAPABILITY) return this.#options.agentTasks !== undefined;
         if (capability === AGENT_HOST_SETTINGS_CAPABILITY) return this.#options.admin?.agentHost !== undefined;
         if (capability === SKILLS_ADMIN_CAPABILITY) return this.#options.admin?.skills !== undefined;
         if (capability === SKILLS_EVENTS_CAPABILITY) return this.#options.skills !== undefined;
@@ -1840,6 +1878,12 @@ function isLegacyConversationClient(connection: EventClientState): boolean {
   return connection.includeConversationEvents && !connection.capabilities.has("agent-runtime-snapshots");
 }
 
+/** The agent that an optional event names. The task list and a task conversation name it in their snapshot. */
+function optionalEventAgentId(event: OptionalTeamEvent): string | null {
+  if (event.type === "agent-tasks-changed" || event.type === "agent-task-conversation") return event.snapshot.agentId;
+  return "agentId" in event ? event.agentId : null;
+}
+
 function eventCapability(event: AgentEvent): TeamCurrentCapability | null {
   if (
     event.type === "channels-changed" ||
@@ -1851,6 +1895,12 @@ function eventCapability(event: AgentEvent): TeamCurrentCapability | null {
   if (event.type === "hidden-agents-changed") return AGENT_HIDDEN_CAPABILITY;
   if (event.type === "browser-user-control-changed") return BROWSER_USER_CONTROL_CAPABILITY;
   if (event.type === "browser-page-state-changed") return BROWSER_PAGE_STATE_CAPABILITY;
+  if (
+    event.type === "agent-tasks-changed" ||
+    event.type === "agent-task-conversation" ||
+    event.type === "agent-task-conversation-delta"
+  )
+    return AGENT_TASKS_CAPABILITY;
   if (event.type === "skills-changed") return SKILLS_EVENTS_CAPABILITY;
   if (event.type === "routine-flows-changed") return ROUTINE_FLOWS_CAPABILITY;
   if (event.type === "turn-progress") return TEAM_AGENT_ACTIVITY_CAPABILITY;

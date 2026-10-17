@@ -12,7 +12,16 @@ import type {
   ServerSummary,
   UpdateStatus,
 } from "@openbot/contracts/ipc";
-import { Tabs } from "@openbot/ui";
+import {
+  Alert,
+  AlertActions,
+  AlertContent,
+  AlertDescription,
+  AlertIcon,
+  Button,
+  Tabs,
+  TriangleAlert,
+} from "@openbot/ui";
 import { BillingPanel } from "@openbot/ui/features/billing/BillingPanel";
 import { createBillingStore } from "@openbot/ui/features/billing/billing-store";
 import type { GeneralSettingsValue } from "@openbot/ui/features/settings/app-settings";
@@ -34,13 +43,17 @@ import { SettingsDynamicIslandTab } from "./SettingsDynamicIslandTab";
 import { SettingsGeneralTab } from "./SettingsGeneralTab";
 import { SettingsNotificationsTab } from "./SettingsNotificationsTab";
 import { SettingsVoiceTab } from "./SettingsVoiceTab";
-import { navItem, navItems, type SettingsTab } from "./settings-tabs";
+import { navItem, navItems, type SettingsTab, settingsTabShown } from "./settings-tabs";
 import { createSettingsVoiceStore } from "./settings-voice-store";
 
 export interface SettingsModalProps {
   open: boolean;
   value: GeneralSettingsValue;
   onValueChange: (value: GeneralSettingsValue) => void;
+  /** True when the saved preferences could not be read, so the rows show default values. */
+  preferencesLoadFailed?: boolean;
+  /** Reads the saved preferences again. */
+  onRetryPreferencesLoad?: () => void;
   appInfo: AppInfo | null;
   /** The built-in display's notch, null when it has none, or undefined before main answers. */
   builtInDisplayGeometry?: DynamicIslandGeometry | undefined;
@@ -134,13 +147,7 @@ export function SettingsModal(props: SettingsModalProps) {
       if (tab) setActiveTab(tab);
     },
   );
-  const visibleNavItems = () =>
-    navItems.filter(
-      (item) =>
-        (item.value !== "dynamic-island" || isMac()) &&
-        (item.value !== "voice" || hasVoice()) &&
-        item.value !== "hosted-servers",
-    );
+  const visibleNavItems = () => navItems.filter((item) => settingsTabShown(item.value, props.appInfo?.platform));
 
   const title = () => i18n.t(navItem(activeTab()).titleKey);
   const description = () => i18n.t(navItem(activeTab()).descriptionKey);
@@ -167,6 +174,29 @@ export function SettingsModal(props: SettingsModalProps) {
     orientation: "vertical" as const,
     activationMode: "automatic" as const,
   };
+
+  /** Shown above the rows that the preference read fills, while those rows show default values. */
+  const preferencesLoadError = () => (
+    <Show when={props.preferencesLoadFailed}>
+      <Alert tone="danger" role="alert" report={{ operation: "settings", source: "system", cause_code: "unknown" }}>
+        <AlertIcon>
+          <TriangleAlert aria-hidden="true" />
+        </AlertIcon>
+        <AlertContent>
+          <AlertDescription>{i18n.t("settings.preferences.loadFailed")}</AlertDescription>
+        </AlertContent>
+        <Show when={props.onRetryPreferencesLoad}>
+          {(retry) => (
+            <AlertActions>
+              <Button type="button" variant="outline" size="sm" onClick={() => retry()()}>
+                {i18n.t("common.retry")}
+              </Button>
+            </AlertActions>
+          )}
+        </Show>
+      </Alert>
+    </Show>
+  );
 
   function updateSetting<Key extends keyof GeneralSettingsValue>(key: Key, value: GeneralSettingsValue[Key]): void {
     props.onValueChange({ ...props.value, [key]: value });
@@ -206,6 +236,7 @@ export function SettingsModal(props: SettingsModalProps) {
         }
       >
         <Tabs.Content value="general" class="settings-modal-tab-panel" data-tab="general">
+          {preferencesLoadError()}
           <SettingsGeneralTab
             value={props.value}
             variant={props.appInfo?.variant ?? "production"}
@@ -217,6 +248,7 @@ export function SettingsModal(props: SettingsModalProps) {
         </Tabs.Content>
 
         <Tabs.Content value="notifications" class="settings-modal-tab-panel" data-tab="notifications">
+          {preferencesLoadError()}
           <SettingsNotificationsTab
             value={props.value}
             onUpdateSetting={updateSetting}
@@ -238,6 +270,7 @@ export function SettingsModal(props: SettingsModalProps) {
 
         <Show when={isMac()}>
           <Tabs.Content value="dynamic-island" class="settings-modal-tab-panel" data-tab="dynamic-island">
+            {preferencesLoadError()}
             <SettingsDynamicIslandTab
               value={props.value}
               variant={props.appInfo?.variant ?? "production"}
@@ -284,6 +317,7 @@ export function SettingsModal(props: SettingsModalProps) {
         </Tabs.Content>
 
         <Tabs.Content value="updates" class="settings-modal-tab-panel" data-tab="updates">
+          {preferencesLoadError()}
           <SettingsUpdatesTab
             store={updates}
             onOpenWhatsNew={props.onOpenWhatsNew}

@@ -261,7 +261,7 @@
   --provider-model-rail-bg: color-mix(in srgb, var(--openbot-bg-notch) 22%, var(--ui-menu-bg));
   --provider-model-segment-radius: calc(var(--ui-menu-item-radius) - var(--openbot-space-0-5));
   position: relative;
-  z-index: 40;
+  z-index: var(--openbot-layer-dropdown);
   width: min(360px, calc(100vw - 24px));
   min-height: 226px;
   overflow: hidden;
@@ -319,7 +319,7 @@
 }
 
 .provider-model-rail-tooltip {
-  z-index: var(--openbot-layer-popover);
+  z-index: var(--openbot-layer-tooltip);
   display: flex;
   max-width: min(240px, calc(100vw - 16px));
   flex-direction: column;

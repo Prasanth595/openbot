@@ -122,7 +122,13 @@ export function mockWebRuntimeFor(mock: MockOpenBotControls, events: WebRuntimeE
       await agent.updateAgent(input);
     },
     deleteAgent: (agentId) => agent.deleteAgent(agentId),
-    search: (agentId, query, cursor) => agent.searchConversationMessages({ agentId, query, cursor, limit: 50 }),
+    search: (agentId, query, cursor) =>
+      agent.searchConversationMessages({
+        query,
+        ...(agentId === undefined ? {} : { agentId }),
+        ...(cursor === undefined ? {} : { cursor }),
+        limit: 50,
+      }),
     dispose: async () => {
       unsubscribe();
       mock.dispose();

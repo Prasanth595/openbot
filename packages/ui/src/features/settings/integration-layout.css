@@ -173,10 +173,7 @@
 
 /* Above the settings window the flow opens from. */
 .integration-dialog-backdrop {
-  position: fixed;
-  inset: 0;
   z-index: calc(var(--openbot-layer-dialog) + 1);
-  background: var(--openbot-dialog-overlay);
 }
 
 .integration-wizard-dialog {

@@ -9,6 +9,7 @@ import {
 // `serverId` in the request.
 
 import {
+  type AgentTaskInput,
   analyticsQuery,
   assertAnalyticsScope,
   assertHostAnalyticsScope,
@@ -36,6 +37,7 @@ import {
 } from "@openbot/contracts/ipc";
 import { isDynamicRecord } from "@openbot/contracts/runtime-values";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
+import { AGENT_TASKS_CAPABILITY, AGENT_TASKS_ROUTES } from "@openbot/contracts/team-protocol/agent-tasks-v1";
 import { CHANNEL_ROUTES } from "@openbot/contracts/team-protocol/channels-v1";
 import { CONTEXT_RESET_CAPABILITY, CONTEXT_RESET_ROUTES } from "@openbot/contracts/team-protocol/context-reset-v1";
 import {
@@ -63,9 +65,12 @@ import {
   decodeInstalledSkillsFromHost,
   decodeQueuedMessageReceipt,
   decodeQueueSnapshot,
+  decodeRemoteAgentTask,
+  decodeRemoteAgentTasks,
+  decodeRemoteTaskConversation,
   decodeSidebarLayoutSnapshot,
 } from "../remote-agent-decoding";
-import { acceptEmpty, decodeVoid } from "../remote-host-decoding";
+import { acceptEmpty, decodeVoid, type ResponseDecoder } from "../remote-host-decoding";
 import type { RemoteServerManager } from "../remote-server-manager";
 import type { SkillMarketplaceService } from "../skill-marketplace-service";
 import {
@@ -106,16 +111,28 @@ import { scopedHandler, scopedQueryHandler } from "./scoped-handler";
 /** Its lines also go to the provider log. See `PROVIDER_LOG_PREFIXES`. */
 const modelLogger = createOpenBotLogger("provider-models");
 
+/** A joined server without `agent-tasks-v1`, or a task request that it cannot carry, fails with a reason. */
+function taskRemoteUnsupported(): never {
+  throw new Error(sourceText("error.backend.taskRemoteUnsupported"));
+}
+
+/** The body of an `agent-tasks-v1` request: the agent, with the task, the text of a start or message, or both. */
+interface RemoteTaskBody {
+  agentId: string;
+  taskId?: string;
+  text?: string;
+  clientMessageId?: string;
+}
+
+function agentTaskBody(input: AgentTaskInput): AgentTaskInput {
+  return { agentId: input.agentId, taskId: input.taskId };
+}
+
 /**
  * Names each member of a model list that fails `isAgentModelOption`, and returns the list unchanged.
  * The preload refuses the whole list for one such member and has no log of its own, so without this
  * the window shows "Invalid agent model response." and nothing records which model it was.
  */
-/** A joined server has no task route, so a task control there fails with a reason. */
-function taskRemoteUnsupported(): never {
-  throw new Error(sourceText("error.backend.taskRemoteUnsupported"));
-}
-
 function logRejectedModels<T>(models: T, source: "local" | "remote"): T {
   if (!Array.isArray(models)) return models;
   for (const model of models) {
@@ -135,7 +152,7 @@ export interface AgentIpcDependencies {
   host: HostService;
   remoteServers: RemoteServerManager;
   skills: SkillMarketplaceService;
-  messageLinks: Pick<MessageLinkRelay, "open" | "paste" | "cancel">;
+  messageLinks: MessageLinkRelay;
   openExternal: (url: string) => Promise<void>;
 }
 
@@ -148,6 +165,10 @@ export function agentIpcHandlers({
   messageLinks,
   openExternal,
 }: AgentIpcDependencies): Pick<IpcGroupHandlers, "agent"> {
+  const remoteTaskRequest = <T>(serverId: string, path: string, decoder: ResponseDecoder<T>, body: RemoteTaskBody) => {
+    if (!remoteServers.supportsCapability(serverId, AGENT_TASKS_CAPABILITY)) taskRemoteUnsupported();
+    return runCauseEffect(remoteServers.request(serverId, path, decoder, { method: "POST", body }));
+  };
   return {
     agent: {
       getStatus: scopedQueryHandler({
@@ -390,7 +411,7 @@ export function agentIpcHandlers({
           if (input.busyMessageMode !== undefined) {
             throw new Error(sourceText("error.agent.busyMessageModeLocalOnly"));
           }
-          // A server runs tasks only on its own computer: the Team API has no task route.
+          // The released agent route does not carry the task limit, and `agent-tasks-v1` does not change it.
           if (input.taskLimit !== undefined) {
             throw new Error(sourceText("error.agent.taskLimitLocalOnly"));
           }
@@ -455,15 +476,15 @@ export function agentIpcHandlers({
           await openHttpLink(url, openExternal);
           return null;
         },
-        remote: ({ agentId, url }, serverId) => messageLinks.open(serverId, agentId, url),
+        remote: ({ agentId, url }, serverId) => runCauseEffect(messageLinks.open(serverId, agentId, url)),
       }),
       pasteMessageLink: scopedHandler(parsePasteMessageLink, {
         local: () => Promise.reject(new Error(sourceText("error.mcp.relayEnded"))),
-        remote: ({ url, address }, serverId) => messageLinks.paste(serverId, url, address),
+        remote: ({ url, address }, serverId) => runCauseEffect(messageLinks.paste(serverId, url, address)),
       }),
       cancelMessageLink: scopedHandler(parseCancelMessageLink, {
         local: async () => undefined,
-        remote: ({ url }, serverId) => messageLinks.cancel(serverId, url),
+        remote: ({ url }, serverId) => runCauseEffect(messageLinks.cancel(serverId, url)),
       }),
       searchConversationMessages: scopedHandler(parseSearchConversationMessages, {
         local: (parsed) =>
@@ -493,7 +514,16 @@ export function agentIpcHandlers({
       sendMessage: scopedHandler(parseSendMessage, {
         local: (input) => runCauseEffect(service.sendMessage(input, host.conversationSender())),
         remote: (input, serverId) => {
-          if (input.taskId) throw new Error(sourceText("error.backend.taskRemoteUnsupported"));
+          if (input.taskId) {
+            // `agent-tasks-v1` carries text only.
+            if (input.attachmentDraftIds?.length) taskRemoteUnsupported();
+            return remoteTaskRequest(serverId, AGENT_TASKS_ROUTES.send, decodeQueuedMessageReceipt, {
+              agentId: input.agentId,
+              taskId: input.taskId,
+              text: input.text,
+              ...(input.clientMessageId === undefined ? {} : { clientMessageId: input.clientMessageId }),
+            });
+          }
           return runCauseEffect(
             remoteServers.request(serverId, TEAM_API_ROUTES.agent.messages(input.agentId), decodeQueuedMessageReceipt, {
               method: "POST",
@@ -529,34 +559,55 @@ export function agentIpcHandlers({
           throw new Error(sourceText("error.backend.agentWaitRemoteUnsupported"));
         },
       }),
-      // Tasks are local only: the Team API has no task route. A joined server shows no task.
+      // A joined server has tasks through `agent-tasks-v1`. A server without it shows no task.
       listTasks: scopedHandler(parseAgentId, {
         local: (agentId) => service.listTasks(agentId),
-        remote: (agentId) => ({ agentId, tasks: [], limit: 1 }),
+        remote: (agentId, serverId) =>
+          remoteServers.supportsCapability(serverId, AGENT_TASKS_CAPABILITY)
+            ? runCauseEffect(
+                remoteServers.request(serverId, AGENT_TASKS_ROUTES.list, decodeRemoteAgentTasks, {
+                  method: "POST",
+                  body: { agentId },
+                }),
+              )
+            : { agentId, tasks: [], limit: 1 },
       }),
       readTask: scopedHandler(parseAgentTask, {
         local: (parsed) => service.readTask(parsed.agentId, parsed.taskId),
-        remote: taskRemoteUnsupported,
+        remote: (parsed, serverId) =>
+          remoteTaskRequest(serverId, AGENT_TASKS_ROUTES.read, decodeRemoteTaskConversation, agentTaskBody(parsed)),
       }),
       startTask: scopedHandler(parseStartAgentTask, {
         local: (input) => runCauseEffect(service.startTask(input, host.conversationSender())),
-        remote: taskRemoteUnsupported,
+        // `agent-tasks-v1` carries text only.
+        remote: (input, serverId) => {
+          if (input.attachmentDraftIds?.length) taskRemoteUnsupported();
+          return remoteTaskRequest(serverId, AGENT_TASKS_ROUTES.start, decodeRemoteAgentTask, {
+            agentId: input.agentId,
+            text: input.text,
+            ...(input.clientMessageId === undefined ? {} : { clientMessageId: input.clientMessageId }),
+          });
+        },
       }),
+      // Local only: `agent-tasks-v1` does not move a queued message into a task.
       runQueuedMessageAsTask: scopedHandler(parseRunQueuedMessageAsTask, {
         local: (parsed) => runCauseEffect(service.runQueuedMessageAsTask(parsed)),
         remote: taskRemoteUnsupported,
       }),
       stopTask: scopedHandler(parseAgentTask, {
         local: (parsed) => runCauseEffect(service.stopTask(parsed)),
-        remote: taskRemoteUnsupported,
+        remote: (parsed, serverId) =>
+          remoteTaskRequest(serverId, AGENT_TASKS_ROUTES.stop, acceptEmpty, agentTaskBody(parsed)),
       }),
       closeTask: scopedHandler(parseAgentTask, {
         local: (parsed) => runCauseEffect(service.closeTask(parsed)),
-        remote: taskRemoteUnsupported,
+        remote: (parsed, serverId) =>
+          remoteTaskRequest(serverId, AGENT_TASKS_ROUTES.close, acceptEmpty, agentTaskBody(parsed)),
       }),
       reopenTask: scopedHandler(parseAgentTask, {
         local: (parsed) => service.reopenTask(parsed),
-        remote: taskRemoteUnsupported,
+        remote: (parsed, serverId) =>
+          remoteTaskRequest(serverId, AGENT_TASKS_ROUTES.reopen, acceptEmpty, agentTaskBody(parsed)),
       }),
       acknowledgeFailedTurn: scopedHandler(parseAcknowledgeFailedTurn, {
         local: (parsed) => service.acknowledgeFailedTurn(parsed.agentId, parsed.turnId),

@@ -52,8 +52,8 @@ import { UiErrorsProvider } from "./ui-errors";
  * `preview/OpenBotPlayground.tsx` passes `landingPreview`.
  */
 export interface AppProps {
-  landingPreview?: boolean;
-  peopleEnabled?: boolean;
+  landingPreview?: boolean | undefined;
+  peopleEnabled?: boolean | undefined;
 }
 
 /**

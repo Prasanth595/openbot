@@ -2,7 +2,7 @@
 
 ## Team API compatibility boundary
 
-Current remote connections use Team API protocol v5 over three ordered WebRTC DataChannels: `rpc`,
+Current remote connections use Team API protocol v7 over three ordered WebRTC DataChannels: `rpc`,
 `events`, and `files`. A sandboxed hidden Chromium page owns each `RTCPeerConnection`. Electron main
 uses a `MessagePort` and transfers binary data as `ArrayBuffer`. Signal carries SDP and ICE only,
 except the Slack requests of an agent's Slack app (see [Messaging connections](channels-and-messaging.md#messaging-connections)).
@@ -142,7 +142,7 @@ sheet moves its files into the app cache, the user chooses an agent, and that ch
 text and files, which follow the attachment rules above. The phone reads the response headers of a
 shared link; a link to an image of at most 10 MB is downloaded and comes as a file instead of the link. Permanent invitation metadata comes from the shared Team client; revocation stops
 new joins without removing existing members.
-iOS associates only `https://openbot.run/join` with `run.openbot.mobile`. Changes to associated
+iOS associates `https://openbot.run/join` and `https://openbot.run/agents/*` with `run.openbot.mobile`. Changes to associated
 domains require a new native app build and deployment of the website association file. Android
 continues to open HTTPS invitations in the browser, whose button opens `openbot://join`. Enabling
 verified Android App Links requires the release app-signing certificate's SHA-256 fingerprint,

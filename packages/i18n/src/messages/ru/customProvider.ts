@@ -4,14 +4,19 @@ import type { messages as source } from "../en/customProvider";
 export const messages = {
   "customProvider.registry.title": "Реестр ACP",
   "customProvider.registry.description":
-    "Устанавливайте агентов на этот хост. При удалении среды выполнения настройки агента, учётные данные и диалоги сохраняются.",
+    "Устанавливайте агентов на этот сервер. При удалении среды выполнения настройки агента, учётные данные и диалоги сохраняются.",
   "customProvider.registry.search": "Поиск в реестре",
   "customProvider.registry.empty": "Нет агентов, подходящих под запрос.",
   "customProvider.registry.agentId": "ID пользовательского агента",
   "customProvider.registry.install": "Установить",
   "customProvider.registry.update": "Обновить",
   "customProvider.registry.remove": "Удалить среду выполнения",
-  "customProvider.registry.failed": "Операция с реестром не удалась.",
+  "customProvider.registry.searchFailed": "Не удалось выполнить поиск в реестре. Повторите попытку.",
+  "customProvider.registry.statusFailed": "Не удалось проверить ход установки. OpenBot повторит попытку.",
+  "customProvider.registry.installFailed": "Не удалось установить агента. Повторите попытку.",
+  "customProvider.registry.updateFailed": "Не удалось обновить агента. Повторите попытку.",
+  "customProvider.registry.removeFailed": "Не удалось удалить среду выполнения. Повторите попытку.",
+  "customProvider.registry.cancelFailed": "Не удалось отменить установку. Повторите попытку.",
   "customProvider.error.providerIdRequired": "Введите ID провайдера.",
   "customProvider.error.providerIdPattern":
     "Используйте строчные буквы, цифры, дефисы или подчёркивания; начинаться ID должен с буквы или цифры.",

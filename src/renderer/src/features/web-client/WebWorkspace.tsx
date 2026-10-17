@@ -16,6 +16,7 @@ import {
 } from "@openbot/contracts/ipc";
 import { AGENT_HOST_SETTINGS_ROUTES } from "@openbot/contracts/team-protocol/agent-host-settings-v1";
 import { AGENT_IMPORT_CAPABILITY } from "@openbot/contracts/team-protocol/agent-import-v1";
+import { AGENT_TASKS_CAPABILITY } from "@openbot/contracts/team-protocol/agent-tasks-v1";
 import { CONNECTORS_CAPABILITY } from "@openbot/contracts/team-protocol/connectors-v1";
 import { CONTEXT_RESET_CAPABILITY } from "@openbot/contracts/team-protocol/context-reset-v1";
 import { AGENT_HIDDEN_CAPABILITY, TEAM_AGENT_CREATE_MODEL_CAPABILITY } from "@openbot/contracts/team-protocol/current";
@@ -73,7 +74,19 @@ import type { SidebarView } from "@openbot/ui/features/sidebar/sidebar-types";
 import { PageRail, type PageRailPage } from "@openbot/ui/features/window/PageRail";
 import { useText } from "@openbot/ui/text";
 import { Effect } from "effect";
-import { createEffect, createMemo, createSignal, Loading, lazy, onCleanup, onSettled, Show, untrack } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  Loading,
+  lazy,
+  Match,
+  onCleanup,
+  onSettled,
+  Show,
+  Switch,
+  untrack,
+} from "solid-js";
 // Copying a selection with a formula in it gives its LaTeX source, as on desktop.
 import "katex/contrib/copy-tex";
 import { actionToast } from "../../action-toast";
@@ -81,7 +94,7 @@ import { toAgentMessage } from "../../app-message-projection";
 import { ProviderSignInDialogs } from "../../components/ProviderSignInDialogs";
 import { isGlobalSearchShortcut } from "../../global-search-shortcut";
 import { LayoutProvider, useLayout } from "../../layout";
-import { AgentUsagePanel, RoutineFlowsCanvas, ScheduleView, ServerOnboarding } from "../../lazy-views";
+import { AgentUsagePanel, RoutineFlowsCanvas, ScheduleView, ServerOnboarding, TasksView } from "../../lazy-views";
 import { PlatformProvider } from "../../platform";
 import { WorkspaceFrame } from "../../WorkspaceFrame";
 import {
@@ -155,6 +168,7 @@ import { createWebProviderSettings, openWebDestination } from "./web-provider-ad
 import { webRoutineFlowsHost } from "./web-routine-flows";
 import { webScheduleSource } from "./web-schedule";
 import { createWebServerSettings } from "./web-server-settings";
+import { webTasksSource } from "./web-tasks";
 import { createWebUsagePort } from "./web-usage-port";
 
 const CONNECTING_STATUS: AgentStatus = {
@@ -180,6 +194,9 @@ function newAgentAvatar(): Pick<FirstAgentDraft, "avatarSeed" | "avatarHue"> {
   return { avatarSeed, avatarHue };
 }
 
+/** The pages of the connected host that cover the conversation. */
+type HostPageView = "usage" | "schedule" | "tasks";
+
 type WebWorkspaceProps = {
   accountId: string;
   accountEmail?: string;
@@ -190,7 +207,7 @@ type WebWorkspaceProps = {
   /** True when the account session has ended, so closing sends no remote session end. */
   accountSessionEnded?: () => boolean;
   onLogout: () => Promise<void>;
-  createRuntime?: WebRuntimeFactory;
+  createRuntime?: WebRuntimeFactory | undefined;
   /** A shared agent that a `/app?agent=<id>` link named. The dialog installs it only on a press. */
   agentTemplateId?: string | null;
   onAgentTemplateClose?: () => void;
@@ -435,12 +452,10 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     return () => phoneQuery?.removeEventListener("change", update);
   });
   const compact = () => !phone() && layout.leftPanelCompact();
-  /** The Usage or Schedule page of the connected host. As on desktop, it follows a host switch. */
-  const [hostPage, setHostPage] = createSignal<{ view: "usage" | "schedule"; trigger: HTMLElement | null } | null>(
-    null,
-  );
+  /** The Usage, Schedule or Tasks page of the connected host. As on desktop, it follows a host switch. */
+  const [hostPage, setHostPage] = createSignal<{ view: HostPageView; trigger: HTMLElement | null } | null>(null);
   /** Only the connected host answers, so another host is connected first, as for its settings. */
-  async function openHostPage(serverId: string, view: "usage" | "schedule", trigger: HTMLElement | null) {
+  async function openHostPage(serverId: string, view: HostPageView, trigger: HTMLElement | null) {
     if (server()?.id !== serverId) {
       const host = workspace.state.hosts.find((item) => item.hostId === serverId);
       if (!host) return;
@@ -647,6 +662,8 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     return mounts;
   }
   const scheduleSource = webScheduleSource(workspace, hostRequest);
+  const tasksSource = webTasksSource(workspace, hostRequest);
+  const tasksSupported = () => workspace.state.capabilities.includes(AGENT_TASKS_CAPABILITY);
   const marketplaceCalls = createWebMarketplaceCalls(props.accountFetch, hostRequest);
   // The host's connectors, for an owner or admin. The web client has no computer of its own.
   const connectorTarget = createMemo(() => remoteAdminServer(server(), CONNECTORS_CAPABILITY));
@@ -1248,6 +1265,14 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
             usageRows={usageRows()}
             onAgents={() => showSidebarView("agents")}
             onRoutines={routinesSupported() ? () => showSidebarView("routines") : undefined}
+            onTasks={
+              tasksSupported()
+                ? (button) => {
+                    const id = server()?.id;
+                    if (id) void openHostPage(id, "tasks", button);
+                  }
+                : undefined
+            }
             onSchedule={(button) => {
               const id = server()?.id;
               if (id) void openHostPage(id, "schedule", button);
@@ -1336,7 +1361,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
             windowPage={page()}
             page={
               <Show
-                when={page() === "usage" || page() === "schedule" ? server() : undefined}
+                when={page() === "usage" || page() === "schedule" || page() === "tasks" ? server() : undefined}
                 fallback={
                   <Show when={settingsKind()} keyed>
                     {(kind) => (
@@ -1358,8 +1383,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 }
               >
                 {(target) => (
-                  <Show
-                    when={page() === "schedule"}
+                  <Switch
                     fallback={
                       <Loading>
                         <AgentUsagePanel
@@ -1371,22 +1395,40 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                       </Loading>
                     }
                   >
-                    <Loading>
-                      <ScheduleView
-                        serverId={target().id}
-                        hostName={target().name}
-                        onBack={closeHostPage}
-                        source={scheduleSource}
-                        agents={workspace.profiles()}
-                        channels={channels.state.channels}
-                        onOpenAgent={(agentId) => {
-                          setMobilePane("conversation");
-                          void select(agentId);
-                        }}
-                        onOpenRoutine={openRoutine}
-                      />
-                    </Loading>
-                  </Show>
+                    <Match when={page() === "tasks"}>
+                      <Loading>
+                        <TasksView
+                          serverId={target().id}
+                          hostName={target().name}
+                          onBack={closeHostPage}
+                          source={tasksSource}
+                          agents={workspace.profiles()}
+                          onOpenLink={(url) => void openWebLink(url)}
+                          onAttachmentAction={(attachment) =>
+                            void runtime.agent.openAttachment({ attachmentId: attachment.id, action: "download" })
+                          }
+                        />
+                      </Loading>
+                    </Match>
+                    <Match when={page() === "schedule"}>
+                      <Loading>
+                        <ScheduleView
+                          serverId={target().id}
+                          hostName={target().name}
+                          onBack={closeHostPage}
+                          source={scheduleSource}
+                          agents={workspace.profiles()}
+                          channels={channels.state.channels}
+                          channelsSupported={channels.supported()}
+                          onOpenAgent={(agentId) => {
+                            setMobilePane("conversation");
+                            void select(agentId);
+                          }}
+                          onOpenRoutine={openRoutine}
+                        />
+                      </Loading>
+                    </Match>
+                  </Switch>
                 )}
               </Show>
             }
@@ -1812,6 +1854,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 failed={Boolean(workspace.state.hostsError)}
                 reference={workspace.state.hostsError?.reference ?? null}
                 onJoin={() => setJoinOpen(true)}
+                onCreateServer={hostedServers.available() ? hostedServers.openAddServer : undefined}
                 onRefresh={() => void workspace.run(workspace.refreshHosts)}
               />
             </Show>

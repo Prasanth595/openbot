@@ -118,7 +118,7 @@ return type enforces this without a test.
 | Shared error, dependencies, parsing, context | `http-error.ts`, `dependencies.ts`, `request-helpers.ts`, `request-context.ts` |
 | Members, invitations, sessions, presence, authenticated account routes | `route-team.ts` |
 | Screen, direct requests, browser, files | `route-remote-screen.ts`, `route-direct.ts`, `route-browser.ts`, `route-files.ts` |
-| Agent collection and the only `/v1/agents/:agentId` regex | `route-agents.ts` |
+| Agent collection and the only `/v1/agents/:agentId` route regex | `route-agents.ts` |
 | Agent sub-resources, owned by `route-agents.ts` | `route-agent-memories.ts`, `route-agent-routines.ts`, `route-agent-conversation.ts`, `route-agent-queue.ts` |
 
 Preserve these released wire rules:

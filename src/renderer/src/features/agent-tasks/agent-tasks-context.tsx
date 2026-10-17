@@ -23,8 +23,9 @@ interface AgentTasksState {
 
 /**
  * The tasks of each agent on this computer: their list, the conversation of each opened task, and the
- * task actions. Only the local host keeps tasks: the Team API has no task route, so a joined server
- * shows none. Only the active agent's list loads; an `agent-tasks-changed` event updates any agent.
+ * task actions. Only the local host shows tasks in the chat; the Tasks page reads a joined server's
+ * tasks through the `agent-tasks-v1` routes. Only the active agent's list loads; an
+ * `agent-tasks-changed` event updates any agent.
  */
 const AgentTasks = createSimpleContext({
   name: "AgentTasks",

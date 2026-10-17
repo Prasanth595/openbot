@@ -242,6 +242,15 @@ export const messages = {
   "server.routineFeed.regenerate": "Новый URL",
   "server.routineFeed.regenerateLabel": "Создать новый URL. Старый URL перестанет работать.",
   "server.routineFeed.turnOff": "Отключить",
+  "server.routineFeed.loading": "Загрузка ленты календаря",
+  "server.routineFeed.regenerateTitle": "Создать новый URL?",
+  "server.routineFeed.regenerateDescription":
+    "Текущий URL перестанет работать. Календари, которые его используют, перестанут обновляться, пока вы не подпишетесь на новый URL.",
+  "server.routineFeed.regenerateConfirm": "Создать URL",
+  "server.routineFeed.turnOffTitle": "Отключить ленту календаря?",
+  "server.routineFeed.turnOffDescription":
+    "Текущий URL перестанет работать. Если вы снова включите ленту, она получит новый URL.",
+  "server.routineFeed.agentsLoadFailed": "Не удалось загрузить агентов.",
   "server.settings.nameTooShort": "Введите не менее {limit} символов.",
   "server.settings.nameTooLong": "Используйте не более {limit} символов.",
   "server.settings.actionFailedTitle": "Не удалось выполнить действие с сервером",

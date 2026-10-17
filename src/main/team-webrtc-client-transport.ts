@@ -483,8 +483,10 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
                 : sideRoute
                   ? sideRoute.request(path, init.body)
                   : encodeTeamProtocolV7WebRtcHttpRequest(method, path, init.body, {
-                      preserveSemanticTags: init.preserveSemanticTags,
-                      agentCreateModel: init.agentCreateModel,
+                      ...(init.preserveSemanticTags === undefined
+                        ? {}
+                        : { preserveSemanticTags: init.preserveSemanticTags }),
+                      ...(init.agentCreateModel === undefined ? {} : { agentCreateModel: init.agentCreateModel }),
                     }),
               capabilities: [
                 ...teamCapabilitiesForProtocol(

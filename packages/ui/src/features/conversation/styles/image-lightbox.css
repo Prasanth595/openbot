@@ -52,10 +52,9 @@
 /* The viewer. The backdrop is a sibling below the content, and the content covers the window so
  * that its empty stage can take the click that closes it. */
 .ui-dialog-overlay.image-lightbox-backdrop {
-  position: fixed;
-  z-index: var(--openbot-layer-dialog);
-  inset: 0;
   background: var(--openbot-bg-overlay);
+  /* The viewer animates its backdrop from script, with the zoom of the image. */
+  animation: none;
 }
 
 .ui-dialog-content.image-lightbox {

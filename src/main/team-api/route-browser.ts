@@ -116,7 +116,7 @@ export async function routeBrowser(
     await runCauseEffect(
       browser.setVisible({
         visible: body.visible,
-        bounds: body.bounds === undefined ? undefined : parseBrowserBounds(body.bounds),
+        ...(body.bounds === undefined ? {} : { bounds: parseBrowserBounds(body.bounds) }),
       }),
     );
     return empty(204);

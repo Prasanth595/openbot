@@ -1,11 +1,22 @@
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
+import { Effect, Schema } from "effect";
+import { causeHelpers } from "./effect-boundary";
+
+/** A host name that did not resolve. The cause is the resolver's own error. */
+export class AddressLookupError extends Schema.TaggedError<AddressLookupError>()("AddressLookupError", {
+  cause: Schema.Defect(),
+}) {}
+
+const { io } = causeHelpers(AddressLookupError);
 
 /** Every address a host name resolves to. Injected by tests; `dns.lookup` otherwise. */
-export type AddressLookup = (hostname: string) => Promise<readonly string[]>;
+export type AddressLookup = (hostname: string) => Effect.Effect<readonly string[], AddressLookupError>;
 
-export const systemAddressLookup: AddressLookup = async (hostname) =>
-  (await lookup(hostname, { all: true, verbatim: true })).map(({ address }) => address);
+export const systemAddressLookup: AddressLookup = Effect.fn("NetworkAddress.lookup")(function* (hostname: string) {
+  const answers = yield* io(() => lookup(hostname, { all: true, verbatim: true }));
+  return answers.map(({ address }) => address);
+});
 
 /**
  * Whether an IP address is on the public internet: not private, loopback, link-local, carrier-grade
@@ -23,9 +34,9 @@ export function isPublicAddress(address: string): boolean {
 /**
  * The addresses of a URL's host: the host itself when it is an IP address, or what it resolves to.
  */
-export async function hostAddresses(url: URL, resolve: AddressLookup): Promise<readonly string[]> {
+export function hostAddresses(url: URL, resolve: AddressLookup): Effect.Effect<readonly string[], AddressLookupError> {
   const host = url.hostname.startsWith("[") ? url.hostname.slice(1, -1) : url.hostname;
-  return isIP(host) ? [host] : resolve(host);
+  return isIP(host) ? Effect.succeed([host]) : resolve(host);
 }
 
 function ipv4Octets(address: string): number[] {

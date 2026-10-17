@@ -896,7 +896,7 @@ export async function createApplicationServices({
   configureApplicationProtocol();
   const developmentUrl = process.env.ELECTRON_RENDERER_URL;
   const teamWebRtcBridge = new TeamWebRtcBridge({
-    developmentUrl,
+    developmentUrl: developmentUrl ?? null,
     iceTransportPolicy: developmentUrl && process.env.OPENBOT_DEV_ICE_TRANSPORT_POLICY === "relay" ? "relay" : "all",
   });
   teamWebRtcBridge.on("accountProfileChanged", refreshAccountProfile);
@@ -930,7 +930,7 @@ export async function createApplicationServices({
     browser,
     preloadPath: join(__dirname, "../preload/index.cjs"),
     iconPath: appIconPath,
-    developmentUrl: process.env.ELECTRON_RENDERER_URL,
+    ...(developmentUrl === undefined ? {} : { developmentUrl }),
     onEvent: (event) => {
       const window = windows.getMainWindow();
       if (!window || window.isDestroyed()) return;
@@ -1235,8 +1235,10 @@ export async function createApplicationServices({
   });
   // Looked up again on demand, because a user may install the driver while OpenBot runs, and the
   // panel's "Check again" has to see it.
-  const resolveCuaDriverExecutable = () =>
-    resolveCuaDriver({
+  const resolveCuaDriverExecutable = () => {
+    const installDirectory = process.env.CUA_DRIVER_RS_INSTALL_DIR ?? process.env.CUA_DRIVER_BIN_DIR;
+    const localAppDataDirectory = process.env.LOCALAPPDATA;
+    return resolveCuaDriver({
       isPackaged: app.isPackaged,
       resourcesPath: process.resourcesPath,
       sourceRoot: resolve(__dirname, "../.."),
@@ -1245,10 +1247,11 @@ export async function createApplicationServices({
       homeDirectory: homedir(),
       pathVariable: process.env.PATH ?? null,
       overrides: [process.env.OPENBOT_CUA_DRIVER_PATH, process.env.CUA_DRIVER_PATH],
-      installDirectory: process.env.CUA_DRIVER_RS_INSTALL_DIR ?? process.env.CUA_DRIVER_BIN_DIR,
-      localAppDataDirectory: process.env.LOCALAPPDATA,
+      ...(installDirectory === undefined ? {} : { installDirectory }),
+      ...(localAppDataDirectory === undefined ? {} : { localAppDataDirectory }),
       applicationsDirectory: "/Applications",
     });
+  };
   const cuaDriver = new CuaDriverRuntime({
     executable: await Effect.runPromise(resolveCuaDriverExecutable()),
     resolveExecutable: resolveCuaDriverExecutable,
@@ -1257,7 +1260,7 @@ export async function createApplicationServices({
     commandAlias: cuaDriverCommandAlias({
       platform: process.platform,
       isPackaged: app.isPackaged,
-      appImagePath: process.env.APPIMAGE,
+      appImagePath: process.env.APPIMAGE ?? null,
       userDataPath: app.getPath("userData"),
     }),
     endpoint: await runCauseEffect(
@@ -1265,7 +1268,7 @@ export async function createApplicationServices({
         platform: process.platform,
         userDataPath: app.getPath("userData"),
         temporaryDirectory: tmpdir(),
-        runtimeDirectory: process.env.XDG_RUNTIME_DIR,
+        runtimeDirectory: process.env.XDG_RUNTIME_DIR ?? null,
       }),
     ),
     supported: isSupportedCuaDriverTarget(process.platform, process.arch),
@@ -1365,7 +1368,7 @@ export async function createApplicationServices({
   // folder stays: a macOS path in userData has a space and is too long for a Unix socket.
   const providerTempDirectory = join(app.getPath("userData"), "provider-temp");
   performance.mark("openbot:services.computer-use");
-  if (process.platform === "win32") await sweepProviderTemp(providerTempDirectory);
+  if (process.platform === "win32") await Effect.runPromise(sweepProviderTemp(providerTempDirectory));
   const service: AgentService = new AgentService({
     store,
     mailbox,
@@ -1764,7 +1767,9 @@ export async function createApplicationServices({
       sourceRoot: resolve(__dirname, "../.."),
       platform: process.platform === "darwin" || process.platform === "win32" ? process.platform : "linux",
       architecture: process.arch,
-      overrideRoot: process.env.OPENBOT_REMOTE_DESKTOP_RUNTIME_PATH,
+      ...(process.env.OPENBOT_REMOTE_DESKTOP_RUNTIME_PATH === undefined
+        ? {}
+        : { overrideRoot: process.env.OPENBOT_REMOTE_DESKTOP_RUNTIME_PATH }),
     }),
   );
   const agentAdminSettings = createAgentAdminSettings({ agents: service, approvalAutomation });
@@ -1918,6 +1923,8 @@ export async function createApplicationServices({
     routineFlows: routineFlowRuntime,
     // Present, so the host advertises `agent-hidden-v1`. Any member can hide or restore an agent that they can see.
     hiddenAgents: service,
+    // Present, so the host advertises `agent-tasks-v1`. Any member who can send a message to the agent.
+    agentTasks: service,
     // True on a hosted server, so the host advertises `focus-use-v1`. Any member can send it.
     focusUse: hostedServer !== null,
     // Each member present advertises its admin capability. Every admin route requires an owner or admin.
@@ -2344,30 +2351,33 @@ export async function createApplicationServices({
     // login session runs OpenBot from that bundle would replace it underneath that session, so
     // the service refuses the install until every sibling session stopped. Unpackaged runs never
     // enable updates, so there is nothing to guard there.
-    checkSiblingInstances: app.isPackaged
-      ? () =>
-          listSiblingOpenBotInstances({
-            executablePath: app.getPath("exe"),
-            currentPid: process.pid,
-            platform: process.platform,
-          }).pipe(
-            Effect.tap((siblings) =>
-              Effect.sync(() => {
-                if (siblings.length === 0) return;
-                const list = siblings.map(({ pid, uid }) => `pid ${pid} (uid ${uid})`).join(", ");
-                logger.warn(
-                  `OpenBot update install refused: other OpenBot processes run from this application: ${list}`,
-                );
-              }),
+    ...(app.isPackaged
+      ? {
+          checkSiblingInstances: () =>
+            listSiblingOpenBotInstances({
+              executablePath: app.getPath("exe"),
+              currentPid: process.pid,
+              platform: process.platform,
+            }).pipe(
+              Effect.tap((siblings) =>
+                Effect.sync(() => {
+                  if (siblings.length === 0) return;
+                  const list = siblings.map(({ pid, uid }) => `pid ${pid} (uid ${uid})`).join(", ");
+                  logger.warn(
+                    `OpenBot update install refused: other OpenBot processes run from this application: ${list}`,
+                  );
+                }),
+              ),
             ),
-          )
-      : undefined,
-    currentUid: typeof process.getuid === "function" ? process.getuid() : undefined,
+        }
+      : {}),
+    ...(typeof process.getuid === "function" ? { currentUid: process.getuid() } : {}),
     platform: process.platform,
     logDirectory: join(app.getPath("userData"), "logs", "update"),
     // Squirrel.Mac only. The path is meaningless under a Linux or Windows home directory.
-    shipItDirectory:
-      process.platform === "darwin" ? join(homedir(), "Library", "Caches", "app.openbot.desktop.ShipIt") : undefined,
+    ...(process.platform === "darwin"
+      ? { shipItDirectory: join(homedir(), "Library", "Caches", "app.openbot.desktop.ShipIt") }
+      : {}),
   });
   teardown.push(TEARDOWN_ORDER.updater, "the update service", () => Effect.runPromise(updater.stop()));
   const agentInitialization = new AgentInitializationGate(() =>

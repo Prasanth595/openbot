@@ -833,8 +833,13 @@ function receiveMessagingInstall(link: Extract<DeepLink, { kind: "slack-workspac
     platform === "slack"
       ? current.messaging.completeSlackWorkspace(link.nonce, link.grant)
       : current.messaging.completeDiscordGuild(link.nonce, link.grant);
-  void Effect.runPromise(completed)
-    .then((accepted) => accepted || current.relayedMessagingInstalls.forward(platform, link.nonce, link.grant))
+  void Effect.runPromise(
+    completed.pipe(
+      Effect.flatMap((accepted) =>
+        accepted ? Effect.succeed(true) : current.relayedMessagingInstalls.forward(platform, link.nonce, link.grant),
+      ),
+    ),
+  )
     .then((accepted) => {
       const window = windowHolder.current;
       if (accepted && window && !window.isDestroyed()) showMainWindow(window);

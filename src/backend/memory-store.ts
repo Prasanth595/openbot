@@ -128,11 +128,11 @@ export class MemoryStore {
       if (!current || current.updatedAt !== input.expectedUpdatedAt) return null;
     }
     return this.save(ownerId, {
-      memoryId: input.memoryId,
+      ...(input.memoryId === undefined ? {} : { memoryId: input.memoryId }),
       text: input.text,
       origin: "automatic",
       sourceTurnId: input.sourceTurnId,
-      commandId: input.commandId,
+      ...(input.commandId === undefined ? {} : { commandId: input.commandId }),
     });
   }
 

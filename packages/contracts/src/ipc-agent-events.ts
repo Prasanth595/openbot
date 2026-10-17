@@ -68,7 +68,7 @@ export type AgentEvent =
   | { type: "queue-changed"; snapshot: QueueSnapshot }
   /** Local only: the Team API has no wait events, so a remote server never sends one. */
   | { type: "waits-changed"; snapshot: AgentWaitsSnapshot }
-  /** Local only, as the task events below: the Team API has no task events. */
+  /** The Team API sends the three task events below only to a peer with `agent-tasks-v1`, in this shape. */
   | { type: "agent-tasks-changed"; snapshot: AgentTasksSnapshot }
   /** The conversation of one task. Its turns never reach the agent's own chat events. */
   | { type: "agent-task-conversation"; taskId: string; snapshot: ConversationSnapshot }

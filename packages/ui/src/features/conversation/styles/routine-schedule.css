@@ -8,23 +8,16 @@
   padding: 0;
 }
 
-/* Keyboard focus is a muted ring, as on the row box: accent rings look like a selection here. */
-.routine-schedule-picker,
-.routine-popover,
-.routine-chip-select-content {
-  --routine-focus-ring: 0 0 0 1px var(--openbot-text-muted);
-  /* A light item hides a ring that touches it, so the ring has a gap of the popover colour. */
-  --routine-focus-ring-on-selected: 0 0 0 2px var(--openbot-bg-control), 0 0 0 3px var(--openbot-text-muted);
-}
-
-/* The same weight as the accent outline rule in auth.css, which loads earlier. */
+/* Keyboard focus uses the shared focus ring, as the other controls do. The ring is a box shadow, so
+   the native outline goes. This rule has the same weight as the accent outline rule in auth.css,
+   which loads earlier. */
 :is(.routine-schedule-picker, .routine-popover, .routine-chip-select-content)
 :is(button, input, textarea):focus-visible {
   outline: 0;
 }
 
 :is(.routine-schedule-picker, .routine-popover) .ui-button:focus-visible {
-  box-shadow: var(--routine-focus-ring);
+  box-shadow: var(--openbot-focus-ring);
 }
 
 .routine-schedule-picker {
@@ -168,7 +161,7 @@
 }
 
 .routine-chip:focus-visible {
-  box-shadow: var(--routine-focus-ring);
+  box-shadow: var(--openbot-focus-ring);
 }
 
 .routine-chip:is([aria-expanded="true"], [data-expanded]) {
@@ -251,7 +244,7 @@
 }
 
 .routine-day-item:has(:focus-visible) .routine-day {
-  box-shadow: var(--routine-focus-ring);
+  box-shadow: var(--openbot-focus-ring);
 }
 
 /* The strip is short, so an unselected day can look like a button. A month grid stays plain. */
@@ -272,9 +265,8 @@
   color: var(--openbot-bg-canvas);
 }
 
-.routine-day.routine-day-selected:focus-visible,
-.routine-day-item:has(:focus-visible) .routine-day.routine-day-selected {
-  box-shadow: var(--routine-focus-ring-on-selected);
+.routine-day.routine-day-selected:focus-visible {
+  box-shadow: var(--openbot-focus-ring);
 }
 
 /* Time */
@@ -296,12 +288,7 @@
 }
 
 .routine-clock-segment.ui-input:focus-visible {
-  box-shadow: var(--routine-focus-ring);
-}
-
-.routine-cron-input.ui-input:focus-visible {
-  border-color: var(--openbot-text-muted);
-  box-shadow: none;
+  box-shadow: var(--openbot-focus-ring);
 }
 
 .routine-clock-separator {
@@ -339,13 +326,7 @@
 }
 
 .routine-segmented-item:has(:focus-visible) .routine-segmented-control {
-  box-shadow: var(--routine-focus-ring);
-}
-
-.routine-segmented-item:has(:focus-visible) .routine-segmented-control[data-checked] {
-  box-shadow:
-    0 0 0 2px var(--openbot-bg-control-active),
-    0 0 0 3px var(--openbot-text-muted);
+  box-shadow: var(--openbot-focus-ring);
 }
 
 /* Hours window: a two-option list and, for "Between hours", the times beside it. */
@@ -391,7 +372,7 @@
 }
 
 .routine-window-option:has(:focus-visible) .routine-window-option-control {
-  box-shadow: var(--routine-focus-ring);
+  box-shadow: var(--openbot-focus-ring);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -473,7 +454,7 @@
 }
 
 .routine-calendar-day:focus-visible {
-  box-shadow: var(--routine-focus-ring);
+  box-shadow: var(--openbot-focus-ring);
 }
 
 .routine-calendar-day[aria-current="date"]:not(.routine-day-selected) {
@@ -687,7 +668,7 @@ code.routine-webhook-secret {
 
 .routine-webhook-events-toggle:focus-visible {
   outline: 0;
-  box-shadow: var(--routine-focus-ring, 0 0 0 1px var(--openbot-text-muted));
+  box-shadow: var(--openbot-focus-ring);
 }
 
 .routine-webhook-events-toggle > svg {

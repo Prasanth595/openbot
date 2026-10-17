@@ -1,10 +1,4 @@
 .join-server-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: var(--openbot-layer-dialog);
-  display: grid;
-  place-items: center;
-  padding: var(--openbot-space-6);
   animation: join-server-backdrop-in var(--modal-open-dur) var(--modal-ease) both;
   will-change: opacity;
 }

@@ -284,7 +284,7 @@ export function ProviderPicker(props: ProviderPickerProps) {
         <span class="provider-picker-state">
           {/* Count only; endpoint naming is the model picker's job. Moves beside Add when it opens the list. */}
           <Show when={endpointCount() > 0 && !countManageable()}>
-            <Badge class="provider-picker-custom-count" variant="secondary" shape="pill">
+            <Badge class="provider-picker-custom-count" variant="secondary">
               {endpointCountLabel()}
             </Badge>
           </Show>
@@ -293,7 +293,6 @@ export function ProviderPicker(props: ProviderPickerProps) {
             <Badge
               class={`provider-picker-status provider-picker-status-${engine().state}`}
               variant={providerStatusVariant(engine().state)}
-              shape="pill"
             >
               {providerStatusLabel(t, format, engine().state)}
             </Badge>
@@ -666,11 +665,7 @@ export function ProviderPicker(props: ProviderPickerProps) {
                       <Show
                         when={!off()}
                         fallback={
-                          <Badge
-                            class="provider-picker-status provider-picker-status-off"
-                            variant="secondary"
-                            shape="pill"
-                          >
+                          <Badge class="provider-picker-status provider-picker-status-off" variant="secondary">
                             {t("provider.status.off")}
                           </Badge>
                         }
@@ -685,11 +680,7 @@ export function ProviderPicker(props: ProviderPickerProps) {
                             (option().keyStatus === "missing" || option().keyStatus === "unreadable")
                           }
                         >
-                          <Badge
-                            class="provider-picker-status provider-picker-key-status"
-                            variant="secondary"
-                            shape="pill"
-                          >
+                          <Badge class="provider-picker-status provider-picker-key-status" variant="secondary">
                             {t("provider.key.free")}
                           </Badge>
                         </Show>
@@ -697,7 +688,6 @@ export function ProviderPicker(props: ProviderPickerProps) {
                           <Badge
                             class={`provider-picker-status provider-picker-status-${visualState()}`}
                             variant={providerStatusVariant(visualState())}
-                            shape="pill"
                           >
                             {providerStatusLabel(t, format, state(), connecting(), runtimeStatus(), updatable())}
                           </Badge>

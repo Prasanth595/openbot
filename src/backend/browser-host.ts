@@ -368,9 +368,13 @@ export class BrowserHost {
         this.#emitChanged();
       },
       {
-        maxRecordingMs: options.recordingDurationMs,
-        maxConcurrentRecordings: options.recordingMaxConcurrent,
-        maxAggregateBytes: options.recordingMaxAggregateBytes,
+        ...(options.recordingDurationMs === undefined ? {} : { maxRecordingMs: options.recordingDurationMs }),
+        ...(options.recordingMaxConcurrent === undefined
+          ? {}
+          : { maxConcurrentRecordings: options.recordingMaxConcurrent }),
+        ...(options.recordingMaxAggregateBytes === undefined
+          ? {}
+          : { maxAggregateBytes: options.recordingMaxAggregateBytes }),
       },
     );
     // Service workers read the process fallback instead of the session, so it changes too.
@@ -1315,7 +1319,7 @@ export class BrowserHost {
           );
           tab.diagnostics.action({
             action: action.type,
-            target: target ? describeBrowserTarget(target) : undefined,
+            ...(target ? { target: describeBrowserTarget(target) } : {}),
             outcome: "success",
           });
         }).pipe(
@@ -1324,7 +1328,7 @@ export class BrowserHost {
               const error = operationFailure.cause;
               tab.diagnostics.action({
                 action: action.type,
-                target: target ? describeBrowserTarget(target) : undefined,
+                ...(target ? { target: describeBrowserTarget(target) } : {}),
                 outcome: "error",
                 detail: String(error),
               });
@@ -1669,10 +1673,10 @@ export class BrowserHost {
         const tabId = args.tabId;
         yield* browserSync(() => this.#requireToolTab(params, tabId));
         const condition = {
-          target: args.target,
-          text: args.text,
-          url: args.url,
-          state: args.state,
+          ...(args.target === undefined ? {} : { target: args.target }),
+          ...(args.text === undefined ? {} : { text: args.text }),
+          ...(args.url === undefined ? {} : { url: args.url }),
+          ...(args.state === undefined ? {} : { state: args.state }),
         };
         if (!condition.target && !condition.text && !condition.url && !condition.state)
           return yield* browserFailure(new Error("wait_for requires a condition."));
@@ -2035,7 +2039,7 @@ export class BrowserHost {
         kind: "network",
         level: details.statusCode >= 400 ? "error" : "info",
         message: `${details.method} ${details.statusCode}`,
-        url: diagnosticUrl(details.url),
+        ...diagnosticUrlField(details.url),
         method: details.method,
         status: details.statusCode,
       });
@@ -2048,7 +2052,7 @@ export class BrowserHost {
         kind: "network",
         level: "error",
         message: `${details.method} ${details.error}`,
-        url: diagnosticUrl(details.url),
+        ...diagnosticUrlField(details.url),
         method: details.method,
       });
       this.#emitChanged();
@@ -2234,7 +2238,7 @@ export class BrowserHost {
         kind: "console",
         level: details.level,
         message: details.message,
-        url: diagnosticUrl(details.sourceId),
+        ...diagnosticUrlField(details.sourceId),
       });
       if (details.level === "error") this.#emitChanged();
     });
@@ -2244,7 +2248,7 @@ export class BrowserHost {
         kind: "load",
         level: "error",
         message: `${code}: ${description}`,
-        url: diagnosticUrl(url),
+        ...diagnosticUrlField(url),
       });
       this.#emitChanged();
     });
@@ -2766,6 +2770,12 @@ function approximateSite(origin: string): string {
   const hostname = new URL(origin).hostname;
   if (isIP(hostname.replace(/^\[|\]$/gu, "")) !== 0) return hostname;
   return hostname.split(".").slice(-2).join(".");
+}
+
+/** The `url` of a diagnostic entry without credentials, query, or fragment; no key when the URL does not parse. */
+function diagnosticUrlField(value: string): { url?: string } {
+  const url = diagnosticUrl(value);
+  return url === undefined ? {} : { url };
 }
 
 function readConsoleMessage(args: unknown[]): BrowserConsoleMessageDetails | null {

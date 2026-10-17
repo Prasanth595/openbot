@@ -91,12 +91,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-.global-search-overlay {
-  position: fixed;
-  z-index: var(--openbot-layer-dialog);
-  inset: 0;
-}
-
 .global-search-dialog {
   position: fixed;
   z-index: calc(var(--openbot-layer-dialog) + 1);
@@ -754,7 +748,7 @@
 }
 
 .server-rail-tooltip {
-  z-index: var(--openbot-layer-popover);
+  z-index: var(--openbot-layer-tooltip);
   max-width: min(240px, calc(100vw - 16px));
   border: 1px solid var(--openbot-border-strong);
   border-radius: var(--openbot-radius-sm);
@@ -1981,10 +1975,13 @@ textarea {
 .sidebar-pinned-title {
   box-sizing: border-box;
   max-width: 100%;
+  height: 18px;
+  min-height: 18px;
   flex: 0 0 16px;
   border-color: var(--openbot-border);
   border-radius: var(--openbot-radius-xs);
   background: var(--openbot-hover);
+  padding: 0 var(--openbot-space-1);
   color: var(--openbot-text-readable);
   font-weight: 400;
 }
@@ -2284,7 +2281,7 @@ textarea {
 }
 
 .sidebar-wait-tooltip {
-  z-index: var(--openbot-layer-popover);
+  z-index: var(--openbot-layer-tooltip);
   display: grid;
   max-width: min(260px, calc(100vw - 16px));
   gap: 2px;
@@ -2477,7 +2474,7 @@ textarea {
 
 .avatar-editor {
   position: relative;
-  z-index: 50;
+  z-index: var(--openbot-layer-popover);
   width: min(284px, calc(var(--settings-panel-width, 296px) - 30px));
   max-width: calc(100vw - 24px);
   margin: 0;
@@ -2804,6 +2801,8 @@ textarea {
 .agent-role-badge {
   min-width: 0;
   max-width: 100%;
+  height: 18px;
+  min-height: 18px;
   overflow: hidden;
   flex: 0 1 auto;
   justify-self: start;
@@ -2904,7 +2903,7 @@ textarea {
 
 .account-usage-popover {
   position: relative;
-  z-index: 80;
+  z-index: var(--openbot-layer-tooltip);
   display: grid;
   width: min(300px, calc(100vw - var(--openbot-space-4)));
   max-height: min(60vh, 420px);

@@ -31,7 +31,7 @@ export interface ChatMessageAuthor {
   kind: "you" | "agent" | "member";
   name: string;
   /** Missing for an author the agent list no longer holds, and for the reader's own messages. */
-  agent?: AgentProfile;
+  agent?: AgentProfile | undefined;
   /** The face to draw when the profile is gone: the author id keeps deleted agents apart. */
   avatarSeed?: string;
 }
@@ -47,25 +47,25 @@ export interface ChatMessageRowProps {
    */
   showAuthor?: boolean | undefined;
   /** Whether the time stands beside the author name. Without a name, the time is in the action row. */
-  showTime?: boolean;
+  showTime?: boolean | undefined;
   animate?: boolean;
   agents: AgentProfile[];
-  skills?: InstalledSkill[];
-  referencedMessage?: AgentMessage;
+  skills?: InstalledSkill[] | undefined;
+  referencedMessage?: AgentMessage | undefined;
   /** Who wrote the quoted message. A chat with several authors has to name the one it quotes. */
-  referencedAuthorName?: string;
+  referencedAuthorName?: string | undefined;
   /** Opens the quoted message in the chat. */
-  onOpenReference?: () => void;
+  onOpenReference?: (() => void) | undefined;
   referenceState?: "loading" | "unavailable" | undefined;
-  reactions?: readonly ConversationReaction[];
-  reactionOverflowCount?: number;
-  onRemoveReaction?: () => void;
+  reactions?: readonly ConversationReaction[] | undefined;
+  reactionOverflowCount?: number | undefined;
+  onRemoveReaction?: (() => void) | undefined;
   actions?: JSX.Element;
   footer?: JSX.Element;
   /** Extra content inside the bubble, under the body: a question prompt, a note about the message. */
   children?: JSX.Element;
-  class?: string;
-  "data-chat-search-message"?: string;
+  class?: string | undefined;
+  "data-chat-search-message"?: string | undefined;
   onSelectAgent: (agentId: string) => void;
   onOpenLink: (url: string) => void;
   onPreview: (attachment: AttachmentSummary) => void;

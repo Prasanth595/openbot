@@ -261,6 +261,91 @@ jobs:
           path: .openbot-build/automation-cli-e2e/
           if-no-files-found: ignore
 
+  team-api-routes-e2e:
+    # Drives the real Team API server over HTTP on a loopback port, with the real team store and
+    # direct-message store on temporary files and an in-memory agent service. It needs no Electron,
+    # display or external service.
+    name: Team API routes E2E
+    needs: detect
+    if: needs.detect.outputs.desktop == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Bun
+        uses: ./.github/actions/setup-bun
+        with:
+          install: ignore-scripts
+
+      - name: Run the Team API routes E2E test
+        run: bun run test:team-api-routes
+
+      - name: Upload the Team API routes E2E report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: team-api-routes-e2e
+          path: .openbot-build/team-api-routes-e2e/
+          if-no-files-found: ignore
+
+  reverse-actions-e2e:
+    # Runs the released Team API adapters and the reverse actions (revoke and reconnect, mute and
+    # unmute, pause and resume, hide and restore) against the real host services on a temporary
+    # profile, with loopback HTTP and WebSocket. It needs no Electron, display or external service.
+    name: Team API and reverse actions E2E
+    needs: detect
+    if: needs.detect.outputs.desktop == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Bun
+        uses: ./.github/actions/setup-bun
+        with:
+          install: ignore-scripts
+
+      - name: Run the Team API legacy clients E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:team-legacy-clients
+
+      - name: Run the Team session revoke and reconnect E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:team-session-revoke
+
+      - name: Run the server mute and unmute E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:server-mute
+
+      - name: Run the routine pause and resume E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:routine-pause-resume
+
+      - name: Run the agent hide and restore E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:agent-hide-restore
+
+      - name: Run the messaging pause and resume E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:messaging-pause-resume
+
+      - name: Upload the reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: reverse-actions-e2e
+          path: |
+            .openbot-build/team-api-legacy-clients-e2e/
+            .openbot-build/team-session-revoke-e2e/
+            .openbot-build/server-mute-e2e/
+            .openbot-build/routine-pause-resume-e2e/
+            .openbot-build/agent-hide-restore-e2e/
+            .openbot-build/messaging-pause-resume-e2e/
+          if-no-files-found: ignore
+
   surfaces:
     # `desktop:typecheck` covers only the desktop projects, so without this job
     # `apps/mobile`, `apps/site-router`, `packages/team-client`, `remote/api`,
@@ -386,7 +471,7 @@ jobs:
     # fails this one.
     name: All required checks pass
     if: always()
-    needs: [detect, check, browser, tests-desktop, signal-e2e, automation-cli-e2e, surfaces, api, storybook]
+    needs: [detect, check, browser, tests-desktop, signal-e2e, automation-cli-e2e, team-api-routes-e2e, reverse-actions-e2e, surfaces, api, storybook]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -412,7 +497,7 @@ jobs:
     # `apps/auth-api`, which `api` already covers: mobile, the site router, the
     # team client and the remote stack all consume the account API, so a red
     # Surfaces is the signal that this deploy is the thing about to break them.
-    needs: [check, browser, tests-desktop, signal-e2e, automation-cli-e2e, api, storybook, surfaces]
+    needs: [check, browser, tests-desktop, signal-e2e, automation-cli-e2e, team-api-routes-e2e, reverse-actions-e2e, api, storybook, surfaces]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: cloudflare-production
@@ -564,36 +649,63 @@ jobs:
         shell: bash
         env:
           SITE_HOSTING_EXPECTED_ENABLED: ${{ vars.SITE_HOSTING_EXPECTED_ENABLED }}
+        # Each check names the URL and the value that it received when it fails. A bare `test` or
+        # `grep -q` stops the step with no message, and the logs of earlier failures could not show
+        # which check failed. The received headers include `cf-cache-status` and `age`, which show
+        # whether the edge served a cached response of the previous Worker version.
         run: |
           verification_dir="$(mktemp -d)"
           trap 'rm -rf "$verification_dir"' EXIT
+          fail() {
+            echo "::error title=Verify production deployment::$1"
+            exit 1
+          }
+          require_status() {
+            test "$1" = "$2" || fail "$3 returned HTTP $1. Expected HTTP $2."
+          }
+          require_header() {
+            if ! tr -d '\r' < "$1" | grep -Eiq "$2"; then
+              echo "Response headers of $3:"
+              tr -d '\r' < "$1"
+              fail "$3 has no response header that matches '$2'."
+            fi
+          }
           curl --fail --silent --show-error --retry 5 --retry-all-errors https://openbot.run/ >/dev/null
           join_status="$(curl --silent --show-error --retry 5 --retry-all-errors \
             --max-redirs 0 --dump-header "$verification_dir/join.headers" \
             --output "$verification_dir/join.html" --write-out '%{http_code}' \
             https://openbot.run/join)"
-          test "$join_status" = "200"
-          tr -d '\r' < "$verification_dir/join.headers" | grep -Eiq '^cache-control:.*no-store'
-          tr -d '\r' < "$verification_dir/join.headers" | grep -Eiq '^referrer-policy:.*no-referrer'
+          require_status "$join_status" 200 https://openbot.run/join
+          require_header "$verification_dir/join.headers" '^cache-control:.*no-store' https://openbot.run/join
+          require_header "$verification_dir/join.headers" '^referrer-policy:.*no-referrer' https://openbot.run/join
+          association_url=https://openbot.run/.well-known/apple-app-site-association
           association_status="$(curl --silent --show-error --retry 5 --retry-all-errors \
             --max-redirs 0 --dump-header "$verification_dir/association.headers" \
             --output "$verification_dir/association.json" --write-out '%{http_code}' \
-            https://openbot.run/.well-known/apple-app-site-association)"
-          test "$association_status" = "200"
-          tr -d '\r' < "$verification_dir/association.headers" | grep -Eiq '^content-type: application/json'
-          jq -e '.applinks.details == [{"appID":"ZTRDTUL87R.app.openbot.desktop","paths":["/join"]},{"appID":"ZTRDTUL87R.run.openbot.mobile","paths":["/join","/agents/*"]}]' \
-            "$verification_dir/association.json" >/dev/null
+            "$association_url")"
+          require_status "$association_status" 200 "$association_url"
+          require_header "$verification_dir/association.headers" '^content-type: application/json' "$association_url"
+          if ! jq -e '.applinks.details == [{"appID":"ZTRDTUL87R.app.openbot.desktop","paths":["/join"]},{"appID":"ZTRDTUL87R.run.openbot.mobile","paths":["/join","/agents/*"]}]' \
+            "$verification_dir/association.json" >/dev/null; then
+            echo "Response headers of $association_url:"
+            tr -d '\r' < "$verification_dir/association.headers"
+            echo "Response body of $association_url (first 4000 bytes):"
+            head -c 4000 "$verification_dir/association.json"
+            echo
+            fail "$association_url does not have the expected applinks.details."
+          fi
           curl --fail --silent --show-error --retry 5 --retry-all-errors https://api.openbot.run/health/live >/dev/null
           curl --fail --silent --show-error --retry 5 --retry-all-errors https://api.openbot.run/health/ready >/dev/null
+          site_url=https://deployment-smoke-check.openbot.site/
           site_status="$(curl --silent --show-error --retry 5 --retry-all-errors \
             --max-redirs 0 --dump-header "$verification_dir/site-router.headers" \
             --output "$verification_dir/site-router.txt" --write-out '%{http_code}' \
-            https://deployment-smoke-check.openbot.site/)"
+            "$site_url")"
           case "$SITE_HOSTING_EXPECTED_ENABLED" in
-            true) test "$site_status" = "404" ;;
-            false) test "$site_status" = "503" ;;
-            *) echo "SITE_HOSTING_EXPECTED_ENABLED must be true or false." >&2; exit 1 ;;
+            true) require_status "$site_status" 404 "$site_url" ;;
+            false) require_status "$site_status" 503 "$site_url" ;;
+            *) fail "SITE_HOSTING_EXPECTED_ENABLED must be true or false." ;;
           esac
-          tr -d '\r' < "$verification_dir/site-router.headers" | grep -Eiq '^cache-control:.*no-store'
-          tr -d '\r' < "$verification_dir/site-router.headers" | grep -Eiq '^x-content-type-options:.*nosniff'
-          tr -d '\r' < "$verification_dir/site-router.headers" | grep -Eiq '^x-robots-tag:.*noindex'
+          require_header "$verification_dir/site-router.headers" '^cache-control:.*no-store' "$site_url"
+          require_header "$verification_dir/site-router.headers" '^x-content-type-options:.*nosniff' "$site_url"
+          require_header "$verification_dir/site-router.headers" '^x-robots-tag:.*noindex' "$site_url"

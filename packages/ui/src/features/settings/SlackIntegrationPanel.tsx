@@ -38,13 +38,14 @@ import { createEffect, createSignal, For, Match, Show, Switch } from "solid-js";
 import { ProviderModelPicker } from "../../components/ProviderModelPicker";
 import { useText } from "../../text";
 import { AgentAvatar } from "../agents/AgentAvatar";
+import { DiscordMark, SlackMark } from "./brand-marks";
 import {
   DetailHeader,
-  DiscordMark,
   type IntegrationStatus,
   LogoTile,
-  SlackMark,
+  ReadFailedAlert,
   Stepper,
+  UNKNOWN_STATUS,
   WizardDialog,
   type WizardLink,
 } from "./IntegrationLayout";
@@ -84,6 +85,13 @@ export interface SlackIntegrationPanelProps {
   onAddOrchestrator: (workspaceId: string, choice: SlackOrchestratorChoice | null) => void;
   /** The joined server's name, when the connections are that server's and not this computer's. */
   hostName?: string | undefined;
+  /**
+   * Why the last read of the connections failed. `connections` are from an earlier read; with none,
+   * the state is not known, so the page shows the reason and Retry and offers no connect.
+   */
+  loadError?: string | null | undefined;
+  /** Reads the connections again. */
+  onRetry?: (() => void) | undefined;
 }
 
 /** What a workspace row can do. */
@@ -138,6 +146,7 @@ const SLACK_TEXT = {
   missingScopes: "connector.slack.missingScopes",
   retryAt: "connector.slack.retryAt",
   reconnect: "connector.slack.reconnect",
+  pause: "connector.slack.pause",
   resume: "connector.slack.resume",
   rowAction: "connector.slack.rowAction",
   orchestratorTitle: "connector.slack.orchestratorTitle",
@@ -193,6 +202,7 @@ const DISCORD_TEXT = {
   missingScopes: "connector.discord.missingScopes",
   retryAt: "connector.discord.retryAt",
   reconnect: "connector.discord.reconnect",
+  pause: "connector.discord.pause",
   resume: "connector.discord.resume",
   rowAction: "connector.discord.rowAction",
   orchestratorTitle: "connector.discord.orchestratorTitle",
@@ -257,12 +267,25 @@ export function slackOrchestrator<Agent extends { id: string }>(
   return agents.find((agent) => agent.id === connection.orchestratorAgentId) ?? null;
 }
 
+/**
+ * True when a read of the connections failed and no earlier read gave any. The state is not known, and
+ * "Not set up" would be wrong. Telegram's page uses it too.
+ */
+export function messagingStateUnknown(props: {
+  connections: readonly MessagingConnection[];
+  loadError?: string | null | undefined;
+}): boolean {
+  return Boolean(props.loadError) && props.connections.length === 0;
+}
+
 /** The state of the whole Slack or Discord integration, for the page header and the Connectors list. */
 export function slackIntegrationState(
   connections: readonly MessagingConnection[],
   agents: readonly { id: string }[],
   platform: WorkspacePlatform = "slack",
+  loadError?: string | null,
 ): { status: IntegrationStatus; label: AppTextKey; attention: number } {
+  if (messagingStateUnknown({ connections, loadError })) return { ...UNKNOWN_STATUS, attention: 0 };
   const text = messagingPlatformText(platform);
   const attention = connections.filter(
     (connection) => rowKind(connection) === "attention" || !slackOrchestrator(connection, agents),
@@ -283,7 +306,8 @@ export function SlackIntegrationPanel(props: SlackIntegrationPanelProps) {
   const [dialogOpen, setDialogOpen] = createSignal(false);
   const [disconnecting, setDisconnecting] = createSignal<MessagingConnection | null>(null);
   const text = () => messagingPlatformText(props.platform);
-  const state = () => slackIntegrationState(props.connections, props.agents, props.platform);
+  const state = () => slackIntegrationState(props.connections, props.agents, props.platform, props.loadError);
+  const unknown = () => messagingStateUnknown(props);
   const first = () => props.connections[0] ?? null;
   /** Until the first workspace has its orchestrator, the header offers the next step of the dialog. */
   const setUpDone = () => {
@@ -305,13 +329,15 @@ export function SlackIntegrationPanel(props: SlackIntegrationPanelProps) {
         statusLabel={t(state().label)}
         subtitle={t(text().description)}
         actions={
-          <Show when={!setUpDone()}>
+          <Show when={!setUpDone() && !unknown()}>
             <Button type="button" size="sm" disabled={props.busy} onClick={() => setDialogOpen(true)}>
               {first() ? t(text().addAgent) : t(text().connect)}
             </Button>
           </Show>
         }
       />
+
+      <Show when={props.loadError}>{(message) => <ReadFailedAlert message={message()} onRetry={props.onRetry} />}</Show>
 
       <Show when={state().attention > 0}>
         <Alert tone="warning" role="alert">
@@ -468,6 +494,7 @@ function WorkspaceRow(props: {
         <Switch>
           <Match when={kind() === "attention"}>{action(t(text().reconnect), props.onReconnect)}</Match>
           <Match when={kind() === "paused"}>{action(t(text().resume), () => props.onSetEnabled(true))}</Match>
+          <Match when={kind() === "live"}>{action(t(text().pause), () => props.onSetEnabled(false))}</Match>
         </Switch>
         <Button
           type="button"

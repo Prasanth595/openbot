@@ -7,6 +7,9 @@ import {
   type HostProviderAccounts,
   isAgentHostSettings,
   isAgentSessionSettings,
+  isAgentTask,
+  isAgentTasksSnapshot,
+  isConversationSnapshot,
   isHiddenAgentsSnapshot,
 } from "@openbot/contracts/ipc";
 // Agent-shaped wire payloads: summaries, status, models, skills, memories, routines, queue.
@@ -45,6 +48,9 @@ import { isNumber, isString } from "@openbot/contracts/runtime-values";
 
 export const decodeAgentHostSettingsFromHost = guardedDecoder(isAgentHostSettings, "agent host settings response");
 export const decodeHiddenAgentsFromHost = guardedDecoder(isHiddenAgentsSnapshot, "hidden agents response");
+export const decodeRemoteAgentTasks = guardedDecoder(isAgentTasksSnapshot, "remote agent tasks");
+export const decodeRemoteAgentTask = guardedDecoder(isAgentTask, "remote agent task");
+export const decodeRemoteTaskConversation = guardedDecoder(isConversationSnapshot, "remote task conversation");
 
 export function decodeDraftAttachment(value: unknown): DraftAttachment {
   if (!isAttachmentSummary(value)) throw new Error("Invalid attachment.");

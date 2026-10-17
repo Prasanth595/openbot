@@ -677,6 +677,8 @@ function AppSettings(props: AccountProps) {
     appSettingsRestoreTarget,
     sendTestNotification,
     openNotificationSettings,
+    preferencesLoadFailed,
+    reloadPreferences,
   } = useSettings();
   return (
     <Loading>
@@ -686,6 +688,8 @@ function AppSettings(props: AccountProps) {
         page={windowPage.settingsPlacement("personal")}
         value={generalSettings()}
         onValueChange={updateGeneralSettings}
+        preferencesLoadFailed={preferencesLoadFailed()}
+        onRetryPreferencesLoad={reloadPreferences}
         appInfo={platform.appInfo()}
         builtInDisplayGeometry={builtInDisplayGeometry()}
         servers={servers()}

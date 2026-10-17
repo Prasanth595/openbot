@@ -95,6 +95,7 @@ interface HostServiceOptions {
   instanceTransfer?: ForwardedApiOptions["instanceTransfer"];
   routineFlows?: ForwardedApiOptions["routineFlows"];
   hiddenAgents?: ForwardedApiOptions["hiddenAgents"];
+  agentTasks?: ForwardedApiOptions["agentTasks"];
   admin?: ForwardedApiOptions["admin"];
   focusUse?: ForwardedApiOptions["focusUse"];
   appVersion: string;
@@ -243,7 +244,7 @@ export class HostService extends EventEmitter<HostEvents> {
       getRuntimeCredentials:
         options.getRemoteDesktopRuntimeCredentials ??
         (() => Effect.succeed({ username: "openbot", password: "development-runtime-not-for-release" })),
-      getDisplays: options.getRemoteDesktopDisplays,
+      ...(options.getRemoteDesktopDisplays ? { getDisplays: options.getRemoteDesktopDisplays } : {}),
       getIceServers:
         options.getRemoteDesktopIceServers ??
         (() => Effect.fail(new RemoteWorkflowError({ cause: new Error(sourceText("error.host.iceServersMissing")) }))),
@@ -353,22 +354,25 @@ export class HostService extends EventEmitter<HostEvents> {
       store: options.store,
       agents: options.agents,
       agentsReady: options.agentsReady,
-      channels: options.channels,
-      mcpServers: options.mcpServers,
-      mcpSignIns: options.mcpSignIns,
-      signInRelay: options.signInRelay,
-      connectors: options.connectors,
-      onePasswordConnector: options.onePasswordConnector,
-      providerHostSignIns: options.providerHostSignIns,
-      providerAccounts: options.providerAccounts,
-      mcpToolRuntimePreparation: options.mcpToolRuntimePreparation,
-      storage: options.storage,
-      hostedSites: options.hostedSites,
-      events: options.events,
-      agentImport: options.agentImport,
-      instanceTransfer: options.instanceTransfer,
-      routineFlows: options.routineFlows,
-      hiddenAgents: options.hiddenAgents,
+      ...(options.channels === undefined ? {} : { channels: options.channels }),
+      ...(options.mcpServers === undefined ? {} : { mcpServers: options.mcpServers }),
+      ...(options.mcpSignIns === undefined ? {} : { mcpSignIns: options.mcpSignIns }),
+      ...(options.signInRelay === undefined ? {} : { signInRelay: options.signInRelay }),
+      ...(options.connectors === undefined ? {} : { connectors: options.connectors }),
+      ...(options.onePasswordConnector === undefined ? {} : { onePasswordConnector: options.onePasswordConnector }),
+      ...(options.providerHostSignIns === undefined ? {} : { providerHostSignIns: options.providerHostSignIns }),
+      ...(options.providerAccounts === undefined ? {} : { providerAccounts: options.providerAccounts }),
+      ...(options.mcpToolRuntimePreparation === undefined
+        ? {}
+        : { mcpToolRuntimePreparation: options.mcpToolRuntimePreparation }),
+      ...(options.storage === undefined ? {} : { storage: options.storage }),
+      ...(options.hostedSites === undefined ? {} : { hostedSites: options.hostedSites }),
+      ...(options.events === undefined ? {} : { events: options.events }),
+      ...(options.agentImport === undefined ? {} : { agentImport: options.agentImport }),
+      ...(options.instanceTransfer === undefined ? {} : { instanceTransfer: options.instanceTransfer }),
+      ...(options.routineFlows === undefined ? {} : { routineFlows: options.routineFlows }),
+      ...(options.hiddenAgents === undefined ? {} : { hiddenAgents: options.hiddenAgents }),
+      ...(options.agentTasks === undefined ? {} : { agentTasks: options.agentTasks }),
       // The identity route changes this host's name and logo through `updateIdentity`, so a change
       // from a joined admin runs every step a local one does.
       admin: {
@@ -382,7 +386,7 @@ export class HostService extends EventEmitter<HostEvents> {
       browserView: this.#browserView,
       remoteScreen: this.#remoteScreen,
       redeemCentralTicket: options.redeemCentralTicket,
-      chat: options.chat,
+      ...(options.chat === undefined ? {} : { chat: options.chat }),
       onPresence: (snapshot) => this.emit("presence", snapshot),
       onDirectMessage: (event) => this.emit("directMessage", event),
       onDirectTyping: (event) => this.emit("directTyping", event),
@@ -390,9 +394,9 @@ export class HostService extends EventEmitter<HostEvents> {
       updateMember: (input) => this.updateMember(input),
       removeMember: (memberId) => this.removeMember(memberId),
       onSessionRevoked: (sessionId) => this.#revokeWebRtcSession(sessionId),
-      liveActivityPush: this.#liveActivityPush,
-      pushNotifications: this.#pushNotifications,
-      focusUse: options.focusUse,
+      ...(this.#liveActivityPush === undefined ? {} : { liveActivityPush: this.#liveActivityPush }),
+      ...(this.#pushNotifications === undefined ? {} : { pushNotifications: this.#pushNotifications }),
+      ...(options.focusUse === undefined ? {} : { focusUse: options.focusUse }),
     });
     this.#runtime = ManagedRuntime.make(
       Layer.succeed(
@@ -434,7 +438,7 @@ export class HostService extends EventEmitter<HostEvents> {
               yield* this.#browserView.revokeTeamSession(sessionId);
               this.#options.browser.releaseUserControlHeldBy({ kind: "session", sessionId });
             }),
-          verifyClientTicket: options.verifyRemoteSessionTicket,
+          ...(options.verifyRemoteSessionTicket ? { verifyClientTicket: options.verifyRemoteSessionTicket } : {}),
         })
       : null;
   }
@@ -1334,7 +1338,11 @@ export class HostService extends EventEmitter<HostEvents> {
       const localApiUrl = this.#localApiUrl();
       if (!localApiUrl)
         return yield* new RemoteWorkflowError({ cause: new Error(sourceText("error.host.publishBeforeInvite")) });
-      const invite = yield* this.#options.store.createInvite(input.role, input.email, { permanent: input.permanent });
+      const invite = yield* this.#options.store.createInvite(
+        input.role,
+        input.email,
+        input.permanent === undefined ? {} : { permanent: input.permanent },
+      );
       const inviteUrl = createInviteUrl(
         {
           apiUrl: localApiUrl,

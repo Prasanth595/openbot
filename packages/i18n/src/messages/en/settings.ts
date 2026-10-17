@@ -128,6 +128,9 @@ export const messages = defineMessages("settings", {
   "settings.tab.hostedServers.description": "Create OpenBot servers that run when this computer is off.",
   "settings.sections.label": "Settings sections",
   "settings.panel.resize": "Resize right panel",
+  // A failed read or save of the app preferences on the General, Notifications, Dynamic Island and Updates tabs.
+  "settings.preferences.loadFailed": "Could not load your settings.",
+  "settings.preferences.saveFailed": "Could not save this setting. Try again.",
   // The agent picker on the skill and plugin install pages.
   "settings.agentSelect.placeholder": "Choose an agent",
   "settings.agentSelect.empty": "No local agents",
@@ -301,6 +304,9 @@ export const messages = defineMessages("settings", {
   "settings.profile.sessions.disconnectLabel": "Disconnect {name} session from {signedIn}",
   "settings.profile.sessions.loadFailed": "Could not load account sessions. Please try again.",
   "settings.profile.sessions.disconnectFailed": "Could not disconnect this session. Please try again.",
+  "settings.profile.sessions.disconnectConfirm.title": "Disconnect this session?",
+  "settings.profile.sessions.disconnectConfirm.description":
+    "This device is signed out of your account. It must sign in again to connect.",
   // The Updates tab. {target} is "OpenBot v1.2.3" or settings.updates.target.latest.
   "settings.updates.title": "OpenBot updates",
   "settings.updates.track.title": "Update track",
@@ -312,14 +318,14 @@ export const messages = defineMessages("settings", {
   "settings.updates.unavailable": "Updates unavailable",
   "settings.updates.autoDownload.title": "Automatically download updates",
   "settings.updates.autoDownload.description": "Download new versions when they become available.",
-  "settings.updates.managed.title": "Managed by Host",
+  "settings.updates.managed.title": "Managed by Host Manager",
   "settings.updates.managed.description":
     "Updates for this Mac are managed automatically by OpenBot Host Manager. All users share the same OpenBot application and are updated together when registered users are idle.",
   "settings.updates.target.latest": "The latest OpenBot update",
   "settings.updates.host.upToDate": "Up to date. OpenBot Host Manager keeps this Mac current.",
   "settings.updates.host.ready": "{target} is downloaded. Waiting for the other users of this Mac to be idle.",
   "settings.updates.host.installing": "Installing {target}…",
-  "settings.updates.host.failed": "The host update failed. Contact the host administrator.",
+  "settings.updates.host.failed": "The managed update failed. Contact the administrator of this Mac.",
   "settings.updates.status.idle": "Check for updates to find the latest Stable release.",
   "settings.updates.status.checking": "Checking the Stable track for updates…",
   "settings.updates.status.available": "{target} is available to download.",

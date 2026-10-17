@@ -26,6 +26,8 @@ export const messages = defineMessages("error.team", {
   "error.team.loginIncorrect": "The username or password is incorrect.",
   "error.team.currentPasswordIncorrect": "The current password is incorrect.",
   "error.team.memberNotFound": "Team member not found.",
+  "error.team.directMessageSelf": "You cannot open a direct message with yourself.",
+  "error.team.directRecipientUnavailable": "This team member is unavailable.",
   "error.team.ownerCannotChange": "The owner account cannot be changed.",
   "error.team.ownerCannotRemove": "The owner account cannot be removed.",
   "error.team.serverNotConfigured": "The team server is not configured.",

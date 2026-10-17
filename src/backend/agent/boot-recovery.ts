@@ -1,10 +1,10 @@
-import { Effect, Schema } from "effect";
+import { Cause, Effect, Schema } from "effect";
 import type { AgentProvider } from "../agent-client";
 import type { AgentStore } from "../agent-store";
 import { mergeConversationSnapshots } from "../conversation-snapshots";
-import { causeHelpers } from "../effect-boundary";
+import { causeHelpers, reportOriginalFailure } from "../effect-boundary";
 import { LineTooLongError } from "../jsonl";
-import type { MailboxStore } from "../mailbox-store";
+import type { DeliveryContext, MailboxStore } from "../mailbox-store";
 import { providerSync } from "../provider-client-effects";
 import { importProviderHistory } from "../provider-history-import";
 import type { ConversationRuntime } from "./conversation-runtime";
@@ -14,6 +14,8 @@ import type { MailboxSync } from "./mailbox-sync";
 import type { ProviderRuntime } from "./provider-runtime";
 import { providerForAgent } from "./thread-items";
 import type { ThreadLifecycle } from "./thread-lifecycle";
+
+type UnresolvedDelivery = DeliveryContext["delivery"];
 
 export interface BootRecoveryHooks {
   executionThreads?(): Array<{ id: string; threadId: string }>;
@@ -148,112 +150,130 @@ export class BootRecovery {
       const ids = unconfirmedStarts.get(laneOf(delivery)) ?? new Set<string>();
       unconfirmedStarts.set(laneOf(delivery), ids.add(delivery.id));
     }
-    for (const context of unresolved) {
-      const { delivery } = context;
+    for (const { delivery } of unresolved) {
       if (!this.#orphanedDeliveryIds.delete(delivery.id)) continue;
-      const interrupted = {
-        terminal: "interrupted" as const,
-        reason: "OpenBot restarted before this delivery reached a confirmed terminal state.",
-      };
-      const { terminal, reason } = yield* Effect.gen({ self: this }, function* () {
-        const { agent, client, session } = yield* recoveryStep(() => {
-          const agent = this.#store.list().find((candidate) => candidate.id === delivery.recipientAgentId);
-          const client = agent ? this.#providers.clientForAgent(agent) : null;
-          const threadId = this.#hooks.deliveryThreadId?.(delivery.id) ?? agent?.threadId;
-          const session =
-            agent && threadId ? this.#store.database.activeProviderSession(threadId, agent.provider) : null;
-          return { agent, client, session };
-        });
-        if (agent && session && client) {
-          const historyKey = `${session.provider}:${session.externalSessionId}`;
-          if (this.#oversizedHistory.has(historyKey)) return interrupted;
-          if (!client.readHistory) return interrupted;
-          const batchIds = delivery.turnId ? null : unconfirmedStarts.get(laneOf(delivery));
-          let recovered: { turnId: string; status?: string } | undefined;
-          yield* client
-            .readHistory(
-              {
-                threadId: session.externalSessionId,
-                cwd: agent.workspacePath,
-                items: delivery.turnId ? "none" : "full",
-              },
-              (fragment) =>
-                providerSync(() => {
-                  const matches =
-                    fragment.turnId === delivery.turnId ||
-                    fragment.items.some(
-                      (item) =>
-                        item.type === "userMessage" &&
-                        !!item.clientId &&
-                        (item.clientId === delivery.id || batchIds?.has(item.clientId) === true),
-                    );
-                  if (matches) {
-                    recovered =
-                      fragment.status === undefined
-                        ? { turnId: fragment.turnId }
-                        : { turnId: fragment.turnId, status: fragment.status };
-                  }
-                  return !matches;
-                }),
-            )
-            .pipe(
-              Effect.tapError((failure) =>
-                Effect.sync(() => {
-                  if (containsLineTooLong(failure)) this.#oversizedHistory.add(historyKey);
-                }),
-              ),
-              toBootRecoveryFailed,
-            );
-          const turn = recovered ? { id: recovered.turnId, status: recovered.status } : undefined;
-          if (turn && !delivery.turnId) {
-            yield* this.#mailbox.markRunning(delivery.id, turn.id).pipe(toBootRecoveryFailed);
-          }
-          if (turn?.status === "completed") {
-            return { terminal: "completed" as const, reason: null };
-          } else if (turn?.status === "failed") {
-            return { terminal: "failed" as const, reason: "The recovered Codex turn failed." };
-          }
-        }
-        return interrupted;
-      }).pipe(Effect.catch(() => Effect.succeed(interrupted)));
-      // A failed provider read keeps the conservative interrupted result; never replay side effects.
-      yield* this.#mailbox.markTerminal(delivery.id, terminal, reason).pipe(toBootRecoveryFailed);
-      yield* recoveryStep(() => {
-        const agent = this.#store.list().find((candidate) => candidate.id === delivery.recipientAgentId);
-        const threadId = this.#hooks.deliveryThreadId?.(delivery.id) ?? agent?.threadId;
-        if (agent && threadId) {
-          const recoveryTurnId =
-            delivery.turnId ?? this.#store.database.readConversationRuntime(agent.id, threadId).activeTurnId;
-          const changedMessages = this.#store.database
-            .readConversationRecoveryMessages(agent.id, threadId, recoveryTurnId)
-            .filter((message) => message.turnId === recoveryTurnId && message.status === "streaming")
-            .map((message) => {
-              const changed = structuredClone(message);
-              changed.status = terminal;
-              markIncompleteImageGeneration(changed, terminal);
-              return changed;
-            });
-          const revision = this.#store.database.persistConversationChanges({
-            agentId: agent.id,
-            threadId,
-            activeTurnId: null,
-            changedMessages,
-            eventType: "turn.reconciled-after-restart",
-            detail: { turnId: delivery.turnId, status: terminal },
-          });
-          const snapshot = structuredClone(this.#conversation.ensureSnapshot(agent.id, threadId));
-          const changedById = new Map(changedMessages.map((message) => [message.id, message]));
-          snapshot.messages = snapshot.messages.map((message) => changedById.get(message.id) ?? message);
-          snapshot.activeTurnId = null;
-          snapshot.revision = revision;
-          // Clear the cached turn before queue listeners can read or change the agent.
-          this.#conversation.setSnapshot(agent.id, snapshot);
-          this.#conversation.publishConversation(snapshot);
-        }
-        this.#mailboxSync.emitQueue(delivery.recipientAgentId);
-        this.#hooks.deliverySettled?.(delivery.id, terminal);
-      });
+      const batchIds = delivery.turnId ? null : (unconfirmedStarts.get(laneOf(delivery)) ?? null);
+      // One delivery that cannot settle must not leave the others of this pass running (#2214).
+      yield* this.#reconcileOrphanedDelivery(delivery, batchIds).pipe(
+        Effect.catchCause((cause) =>
+          Cause.hasInterruptsOnly(cause)
+            ? Effect.failCause(cause)
+            : reportOriginalFailure(cause, (failure) => {
+                // Keep the mark, so the next provider readiness tries this delivery again.
+                this.#orphanedDeliveryIds.add(delivery.id);
+                this.#hooks.emitError("delivery_reconcile_failed", failure, delivery.recipientAgentId);
+              }),
+        ),
+      );
     }
+  });
+
+  /** Asks the provider how one orphaned delivery ended, then records that end. */
+  readonly #reconcileOrphanedDelivery = Effect.fn("BootRecovery.reconcileOrphanedDelivery")(function* (
+    this: BootRecovery,
+    delivery: UnresolvedDelivery,
+    batchIds: ReadonlySet<string> | null,
+  ) {
+    const interrupted = {
+      terminal: "interrupted" as const,
+      reason: "OpenBot restarted before this delivery reached a confirmed terminal state.",
+    };
+    const { terminal, reason } = yield* Effect.gen({ self: this }, function* () {
+      const { agent, client, session } = yield* recoveryStep(() => {
+        const agent = this.#store.list().find((candidate) => candidate.id === delivery.recipientAgentId);
+        const client = agent ? this.#providers.clientForAgent(agent) : null;
+        const threadId = this.#hooks.deliveryThreadId?.(delivery.id) ?? agent?.threadId;
+        const session = agent && threadId ? this.#store.database.activeProviderSession(threadId, agent.provider) : null;
+        return { agent, client, session };
+      });
+      if (agent && session && client) {
+        const historyKey = `${session.provider}:${session.externalSessionId}`;
+        if (this.#oversizedHistory.has(historyKey)) return interrupted;
+        if (!client.readHistory) return interrupted;
+        let recovered: { turnId: string; status?: string } | undefined;
+        yield* client
+          .readHistory(
+            {
+              threadId: session.externalSessionId,
+              cwd: agent.workspacePath,
+              items: delivery.turnId ? "none" : "full",
+            },
+            (fragment) =>
+              providerSync(() => {
+                const matches =
+                  fragment.turnId === delivery.turnId ||
+                  fragment.items.some(
+                    (item) =>
+                      item.type === "userMessage" &&
+                      !!item.clientId &&
+                      (item.clientId === delivery.id || batchIds?.has(item.clientId) === true),
+                  );
+                if (matches) {
+                  recovered =
+                    fragment.status === undefined
+                      ? { turnId: fragment.turnId }
+                      : { turnId: fragment.turnId, status: fragment.status };
+                }
+                return !matches;
+              }),
+          )
+          .pipe(
+            Effect.tapError((failure) =>
+              Effect.sync(() => {
+                if (containsLineTooLong(failure)) this.#oversizedHistory.add(historyKey);
+              }),
+            ),
+            toBootRecoveryFailed,
+          );
+        const turn = recovered ? { id: recovered.turnId, status: recovered.status } : undefined;
+        if (turn && !delivery.turnId) {
+          yield* this.#mailbox.markRunning(delivery.id, turn.id).pipe(toBootRecoveryFailed);
+        }
+        if (turn?.status === "completed") {
+          return { terminal: "completed" as const, reason: null };
+        } else if (turn?.status === "failed") {
+          return { terminal: "failed" as const, reason: "The recovered Codex turn failed." };
+        }
+      }
+      return interrupted;
+    }).pipe(Effect.catch(() => Effect.succeed(interrupted)));
+    // A failed provider read keeps the conservative interrupted result; never replay side effects.
+    yield* this.#mailbox.markTerminal(delivery.id, terminal, reason).pipe(toBootRecoveryFailed);
+    yield* recoveryStep(() => {
+      const agent = this.#store.list().find((candidate) => candidate.id === delivery.recipientAgentId);
+      const threadId = this.#hooks.deliveryThreadId?.(delivery.id) ?? agent?.threadId;
+      if (agent && threadId) {
+        const recoveryTurnId =
+          delivery.turnId ?? this.#store.database.readConversationRuntime(agent.id, threadId).activeTurnId;
+        const changedMessages = this.#store.database
+          .readConversationRecoveryMessages(agent.id, threadId, recoveryTurnId)
+          .filter((message) => message.turnId === recoveryTurnId && message.status === "streaming")
+          .map((message) => {
+            const changed = structuredClone(message);
+            changed.status = terminal;
+            markIncompleteImageGeneration(changed, terminal);
+            return changed;
+          });
+        const revision = this.#store.database.persistConversationChanges({
+          agentId: agent.id,
+          threadId,
+          activeTurnId: null,
+          changedMessages,
+          eventType: "turn.reconciled-after-restart",
+          detail: { turnId: delivery.turnId, status: terminal },
+        });
+        const snapshot = structuredClone(this.#conversation.ensureSnapshot(agent.id, threadId));
+        const changedById = new Map(changedMessages.map((message) => [message.id, message]));
+        snapshot.messages = snapshot.messages.map((message) => changedById.get(message.id) ?? message);
+        snapshot.activeTurnId = null;
+        snapshot.revision = revision;
+        // Clear the cached turn before queue listeners can read or change the agent.
+        this.#conversation.setSnapshot(agent.id, snapshot);
+        this.#conversation.publishConversation(snapshot);
+      }
+      this.#mailboxSync.emitQueue(delivery.recipientAgentId);
+      this.#hooks.deliverySettled?.(delivery.id, terminal);
+    });
   });
 
   recoverPersistedTurns(): void {

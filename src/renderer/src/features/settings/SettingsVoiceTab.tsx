@@ -189,7 +189,7 @@ export function SettingsVoiceTab(props: SettingsVoiceTabProps) {
 
   return (
     <>
-      <SettingsSection title={t("settings.voice.models.title")}>
+      <SettingsSection data-settings-row="settings.voice.models.title" title={t("settings.voice.models.title")}>
         <ItemGroup class="settings-modal-card">
           <For each={VOICE_MODELS}>
             {(model) => {
@@ -306,7 +306,7 @@ export function SettingsVoiceTab(props: SettingsVoiceTabProps) {
 
       <SettingsSection title={t("settings.voice.language.section")}>
         <ItemGroup class="settings-modal-card">
-          <Item class="settings-modal-row">
+          <Item data-settings-row="settings.voice.language.title" class="settings-modal-row">
             <ItemContent>
               <ItemTitle>{t("settings.voice.language.title")}</ItemTitle>
               <ItemDescription>

@@ -29,6 +29,8 @@ export const messages = {
   "error.team.loginIncorrect": "Der Benutzername oder das Passwort ist falsch.",
   "error.team.currentPasswordIncorrect": "Das aktuelle Passwort ist falsch.",
   "error.team.memberNotFound": "Teammitglied nicht gefunden.",
+  "error.team.directMessageSelf": "Du kannst keine Direktnachricht mit dir selbst öffnen.",
+  "error.team.directRecipientUnavailable": "Dieses Teammitglied ist nicht verfügbar.",
   "error.team.ownerCannotChange": "Das Eigentümerkonto kann nicht geändert werden.",
   "error.team.ownerCannotRemove": "Das Eigentümerkonto kann nicht entfernt werden.",
   "error.team.serverNotConfigured": "Der Teamserver ist nicht eingerichtet.",

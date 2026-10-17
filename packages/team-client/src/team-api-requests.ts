@@ -9,10 +9,14 @@ import {
   type AgentImportPreview,
   type AgentMemory,
   type AgentMemorySelectionState,
+  type AgentTask,
+  type AgentTaskInput,
+  type AgentTasksSnapshot,
   type ApplyAgentImportInput,
   type AttachmentSummary,
   BROWSER_SECRET_RESPONSE_PATH,
   type CancelQueuedMessageInput,
+  type ConversationSnapshot,
   decodeChannel,
   decodeChannelMemories,
   decodeChannelMemory,
@@ -28,12 +32,17 @@ import {
   type InstalledSkill,
   isAgentMemory,
   isAgentMemorySelectionState,
+  isAgentTask,
+  isAgentTasksSnapshot,
   isAttachmentSummary,
+  isConversationSnapshot,
+  isQueuedMessageReceipt,
   isRoutine,
   isRoutineFlowCanvas,
   isRoutineFlowLink,
   isRoutineRun,
   type OpenBotDesktopApi,
+  type QueuedMessageReceipt,
   type RemoteAgentImportResult,
   type ReorderQueueInput,
   type RespondToApprovalInput,
@@ -42,6 +51,7 @@ import {
   type Routine,
   type RoutineRun,
   type SetAgentMemoryInclusionInput,
+  type StartAgentTaskInput,
   type SteerQueuedMessageInput,
   type TestRoutineInput,
   type UpdateQueuedMessageInput,
@@ -57,6 +67,7 @@ import {
   AGENT_MEMORY_INCLUSION_ROUTE,
   AGENT_MEMORY_SELECTION_PAGE_ROUTE,
 } from "@openbot/contracts/team-protocol/agent-memories-v1";
+import { AGENT_TASKS_ROUTES } from "@openbot/contracts/team-protocol/agent-tasks-v1";
 import { CHANNEL_ROUTES } from "@openbot/contracts/team-protocol/channels-v1";
 import { CONTEXT_RESET_ROUTES } from "@openbot/contracts/team-protocol/context-reset-v1";
 import { ROUTINE_FLOWS_ROUTES } from "@openbot/contracts/team-protocol/routine-flows-v1";
@@ -155,6 +166,65 @@ export const clearAgentContext = Effect.fn("TeamClient.clearAgentContext")(funct
   agentId: string,
 ): Effect.fn.Return<void, TeamRequestError> {
   return yield* teamCall(() => request("POST", CONTEXT_RESET_ROUTES.clear, ignoreResponse, { agentId }));
+});
+
+const decodeAgentTasks = guardedDecoder(isAgentTasksSnapshot, "agent tasks response");
+const decodeAgentTask = guardedDecoder(isAgentTask, "agent task response");
+const decodeTaskConversation = guardedDecoder(isConversationSnapshot, "task conversation response");
+const decodeTaskReceipt = guardedDecoder(isQueuedMessageReceipt, "task message receipt");
+
+/**
+ * The tasks of one agent. Send them only to a host that serves `agent-tasks-v1`. A start and a
+ * message carry text only: the caller refuses attachments before it calls them.
+ */
+export const listAgentTasks = Effect.fn("TeamClient.listAgentTasks")(function* (
+  request: TeamApiRequest,
+  agentId: string,
+): Effect.fn.Return<AgentTasksSnapshot, TeamRequestError> {
+  return yield* teamCall(() => request("POST", AGENT_TASKS_ROUTES.list, decodeAgentTasks, { agentId }));
+});
+
+export const readAgentTask = Effect.fn("TeamClient.readAgentTask")(function* (
+  request: TeamApiRequest,
+  { agentId, taskId }: AgentTaskInput,
+): Effect.fn.Return<ConversationSnapshot, TeamRequestError> {
+  return yield* teamCall(() => request("POST", AGENT_TASKS_ROUTES.read, decodeTaskConversation, { agentId, taskId }));
+});
+
+export const startAgentTask = Effect.fn("TeamClient.startAgentTask")(function* (
+  request: TeamApiRequest,
+  { agentId, text, clientMessageId }: StartAgentTaskInput,
+): Effect.fn.Return<AgentTask, TeamRequestError> {
+  return yield* teamCall(() =>
+    request("POST", AGENT_TASKS_ROUTES.start, decodeAgentTask, {
+      agentId,
+      text,
+      ...(clientMessageId === undefined ? {} : { clientMessageId }),
+    }),
+  );
+});
+
+export const sendAgentTaskMessage = Effect.fn("TeamClient.sendAgentTaskMessage")(function* (
+  request: TeamApiRequest,
+  { agentId, taskId, text, clientMessageId }: AgentTaskInput & { text: string; clientMessageId?: string },
+): Effect.fn.Return<QueuedMessageReceipt, TeamRequestError> {
+  return yield* teamCall(() =>
+    request("POST", AGENT_TASKS_ROUTES.send, decodeTaskReceipt, {
+      agentId,
+      taskId,
+      text,
+      ...(clientMessageId === undefined ? {} : { clientMessageId }),
+    }),
+  );
+});
+
+/** Stops the running turn of a task, closes the task, or reopens it. */
+export const agentTaskControl = Effect.fn("TeamClient.agentTaskControl")(function* (
+  request: TeamApiRequest,
+  action: "stop" | "close" | "reopen",
+  { agentId, taskId }: AgentTaskInput,
+): Effect.fn.Return<void, TeamRequestError> {
+  return yield* teamCall(() => request("POST", AGENT_TASKS_ROUTES[action], ignoreResponse, { agentId, taskId }));
 });
 
 /** Sends a Grok Bot export to the host. Send it only to a host that serves `agent-import-v1`. */

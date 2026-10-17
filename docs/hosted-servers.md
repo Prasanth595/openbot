@@ -37,7 +37,7 @@ has its own Stripe plan. Its machine comes from the plan
 
 | Part | Where | Job |
 | --- | --- | --- |
-| Account Worker | `apps/auth-api/src/server/hosted-server-service.ts`, `boat-client.ts` | Creates, restarts and deletes sandboxes. Stores state in D1 (`0023_hosted_servers.sql`). |
+| Account Worker | `apps/auth-api/src/server/hosted-server-service.ts`, `boat-client.ts` | Creates, restarts and deletes sandboxes. Stores state in D1 (`0023_hosted_servers.sql`, `0028_hosted_server_lifecycle.sql`). |
 | Server template | `scripts/hosting/` | Builds the boat named snapshot that each server starts from. |
 | Server bootstrap | `src/main/hosted-server-bootstrap.ts` | On the first start, redeems the claim, signs in, and publishes the host. |
 | Start retry | `src/main/hosted-server-start-retry.ts` | Publishes the host again after a failed start. |
@@ -75,8 +75,8 @@ when a server is idle or boat stops a sandbox; and `error` and `deleted`. The Wo
    applies. When that create call returns later, the Worker deletes the sandbox that no row owns.
 
    The Worker then names the sandbox `openbot-<plan>-<owner email>-<first 8 characters of the host
-   ID>` (`PATCH /sandboxes/:id`), so an operator can find it in the boat dashboard. Each character of
-   the email that is not a letter or a digit becomes `-`. The name is only a label; a plan change
+   ID>` (`PATCH /sandboxes/:id`), so an operator can find it in the boat dashboard. The email is in
+   lowercase, and each group of characters that are not letters or digits becomes one `-`. The name is only a label; a plan change
    renames the sandbox.
 3. **Env handoff.** boat puts the sandbox env in the setup script, not in systemd. The Worker sends
    `setupScript: exec /opt/OpenBot/hosted/openbot-hosted-env`. That helper writes the two values to
@@ -284,7 +284,7 @@ with `getServerEntitlement` when a member joins or is reactivated, and refuses a
 `bun run api:deploy:test` loads `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `BOAT_API_KEY` and
 `BOAT_WEBHOOK_SECRET` from the encrypted `apps/auth-api/.env.dev` on each deploy, so a
 value that you set by hand for these four is replaced. Set `DOTENV_PRIVATE_KEY_DEV` in the shell.
-`bun run hosting:setup --target=test` makes the two webhooks and writes their secrets to that file. It also sets the allow list from
+`bun run hosting:setup --target=test` makes the two webhooks and writes their secrets to that file. `api:deploy:test` also sets the allow list from
 `HOSTED_SERVERS_TEST_ALLOW_LIST` in that file. Set the template with
 `wrangler secret put HOSTED_SERVER_TEMPLATE --env test` from `apps/auth-api`:
 

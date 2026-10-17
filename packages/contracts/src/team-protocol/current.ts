@@ -11,6 +11,7 @@ import { AGENT_INSTALL_CAPABILITY } from "./agent-install-v1";
 import { AGENT_MEMORIES_CAPABILITY } from "./agent-memories-v1";
 import { AGENT_PUBLISH_CAPABILITY } from "./agent-publish-v1";
 import { AGENT_SESSION_SETTINGS_CAPABILITY } from "./agent-session-settings-v1";
+import { AGENT_TASKS_CAPABILITY } from "./agent-tasks-v1";
 import { AGENT_UPDATE_CAPABILITY } from "./agent-update-v1";
 import { TEAM_BROWSER_NAVIGATION_CAPABILITY } from "./browser-navigation-v1";
 import { BROWSER_PAGE_STATE_CAPABILITY } from "./browser-page-state-v1";
@@ -82,6 +83,17 @@ export const TEAM_EML_ATTACHMENTS_CAPABILITY = "eml-attachments";
  * Widening any of it needs a second capability string.
  */
 export const TEAM_MEMBER_LEAVE_CAPABILITY = "member-leave-v1";
+/**
+ * Frozen optional queue-window-v1 contract: a bounded queue snapshot. On a protocol 7 request that
+ * advertises it, `GET /v1/agents/:agentId/queue` and `POST /v1/agents/:agentId/queue/edit` keep every
+ * queued, starting and running delivery. Then they keep every failed, interrupted and cancelled
+ * delivery, newest first, while it fits in one WebRTC frame. Then they keep the newest completed
+ * deliveries: at most 100, while they fit. The kept
+ * deliveries stay in queue order, and the response keeps the frozen shape and keys. A request
+ * without the capability gets the full list, as before. Widening any of it needs a second
+ * capability string.
+ */
+export const TEAM_QUEUE_WINDOW_CAPABILITY = "queue-window-v1";
 export {
   ACP_REGISTRY_CAPABILITY,
   AGENT_ADMIN_CAPABILITY,
@@ -92,6 +104,7 @@ export {
   AGENT_MEMORIES_CAPABILITY,
   AGENT_PUBLISH_CAPABILITY,
   AGENT_SESSION_SETTINGS_CAPABILITY,
+  AGENT_TASKS_CAPABILITY,
   AGENT_UPDATE_CAPABILITY,
   ANDROID_PUSH_NOTIFICATIONS_CAPABILITY,
   BROWSER_PAGE_STATE_CAPABILITY,
@@ -215,9 +228,11 @@ export const TEAM_CURRENT_CAPABILITIES = [
   ROUTINE_RECOVERY_CAPABILITY,
   FOCUS_USE_CAPABILITY,
   AGENT_HIDDEN_CAPABILITY,
+  TEAM_QUEUE_WINDOW_CAPABILITY,
+  TEAM_UI_BLOCKS_CAPABILITY,
+  AGENT_TASKS_CAPABILITY,
   BROWSER_USER_CONTROL_CAPABILITY,
   BROWSER_PAGE_STATE_CAPABILITY,
-  TEAM_UI_BLOCKS_CAPABILITY,
 ] as const;
 
 export type TeamCurrentCapability = (typeof TEAM_CURRENT_CAPABILITIES)[number];
@@ -307,9 +322,11 @@ export const TEAM_BOOTSTRAP_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
     capability !== INSTANCE_TRANSFER_CAPABILITY &&
     capability !== FOCUS_USE_CAPABILITY &&
     capability !== AGENT_HIDDEN_CAPABILITY &&
+    capability !== TEAM_QUEUE_WINDOW_CAPABILITY &&
     capability !== BROWSER_USER_CONTROL_CAPABILITY &&
     capability !== BROWSER_PAGE_STATE_CAPABILITY &&
-    capability !== TEAM_UI_BLOCKS_CAPABILITY,
+    capability !== TEAM_UI_BLOCKS_CAPABILITY &&
+    capability !== AGENT_TASKS_CAPABILITY,
 );
 export function teamCapabilitiesForProtocol(protocol: number | null | undefined): readonly TeamCurrentCapability[] {
   return protocol !== null && protocol !== undefined && protocol >= 7
@@ -340,8 +357,10 @@ export function legacyTeamCapabilities(capabilities: readonly string[]): string[
       capability !== INSTANCE_TRANSFER_CAPABILITY &&
       capability !== FOCUS_USE_CAPABILITY &&
       capability !== AGENT_HIDDEN_CAPABILITY &&
+      capability !== TEAM_QUEUE_WINDOW_CAPABILITY &&
       capability !== BROWSER_USER_CONTROL_CAPABILITY &&
       capability !== BROWSER_PAGE_STATE_CAPABILITY &&
-      capability !== TEAM_UI_BLOCKS_CAPABILITY,
+      capability !== TEAM_UI_BLOCKS_CAPABILITY &&
+      capability !== AGENT_TASKS_CAPABILITY,
   );
 }

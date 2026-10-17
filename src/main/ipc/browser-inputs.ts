@@ -50,7 +50,7 @@ export function parseVisibility(value: unknown): BrowserVisibilityInput {
   }
   return {
     visible: value.visible,
-    bounds: value.bounds === undefined ? undefined : parseBounds(value.bounds),
+    ...(value.bounds === undefined ? {} : { bounds: parseBounds(value.bounds) }),
     ...(value.target === undefined ? {} : { target: parseBrowserViewTarget(value.target) }),
   };
 }
