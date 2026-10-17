@@ -30,8 +30,6 @@ export const OPENBOT_LINKS = {
   /** A Redirect Rule in the openbot.run Cloudflare zone sends this to the current Discord invite. */
   discord: "https://discord.openbot.run",
   download: "#download",
-  /** The same anchor from a page that is not the landing page. */
-  downloadFromOtherPage: "/#download",
   news: "/news",
   guides: "/guides",
   plugins: "/plugins",

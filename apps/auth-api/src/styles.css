@@ -973,17 +973,6 @@ a {
   mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M13.17 5 11.76 6.41 16.34 11H4v2h12.34l-4.58 4.59L13.17 19l7-7-7-7Z'/%3E%3C/svg%3E");
 }
 
-.join-page {
-  min-height: 100dvh;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  padding: 96px 24px 48px;
-  background:
-    radial-gradient(circle at 50% 42%, var(--openbot-accent-strong), var(--openbot-transparent) 38%),
-    var(--openbot-bg-canvas);
-}
-
 .join-card {
   width: min(100%, 520px);
   display: grid;
@@ -1079,11 +1068,6 @@ a {
 }
 
 @media (max-width: 520px) {
-  .join-page {
-    padding-right: 14px;
-    padding-left: 14px;
-  }
-
   .join-card-actions {
     grid-template-columns: 1fr;
   }
