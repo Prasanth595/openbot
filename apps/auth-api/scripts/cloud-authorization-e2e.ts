@@ -9,6 +9,7 @@ import { DatabaseSync } from "node:sqlite";
 import { Effect } from "effect";
 import { routeRequest } from "../../site-router/src/index";
 import { BillingSales } from "../src/server/billing-sales";
+import { enforceMarketplaceIngress } from "../src/server/marketplace-request-policy";
 import { RemoteControlPlane } from "../src/server/remote-control-plane";
 import type { AuthUser } from "../src/server/types";
 import { sqliteD1 } from "./sqlite-d1";
@@ -287,12 +288,38 @@ async function aSiteServesOnlyItsOwnFiles() {
   }
 }
 
+// A client sets `X-Forwarded-For` itself. A new value for each request must not give it a new limit.
+async function aRateLimitIgnoresForwardedFor() {
+  const keys: string[] = [];
+  const bindings = {
+    MARKETPLACE_INGRESS_RATE_LIMITER: {
+      limit: async ({ key }: { key: string }) => {
+        keys.push(key);
+        return { success: true };
+      },
+    },
+  };
+  const send = (headers: Record<string, string>) =>
+    Effect.runPromise(enforceMarketplaceIngress(new Request("https://openbot.run/v1/skills", { headers }), bindings));
+  await send({ "CF-Connecting-IP": "203.0.113.7", "X-Forwarded-For": "198.51.100.1" });
+  await send({ "CF-Connecting-IP": "203.0.113.7", "X-Forwarded-For": "198.51.100.2" });
+  await send({ "X-Forwarded-For": "198.51.100.3" });
+  await send({ "X-Forwarded-For": "198.51.100.4" });
+  check(
+    "a rate limit uses the Cloudflare address, not X-Forwarded-For",
+    keys[0] === keys[1] && keys[0] === "ip:203.0.113.7",
+    keys,
+  );
+  check("a request with no Cloudflare address does not get a new key from X-Forwarded-For", keys[2] === keys[3], keys);
+}
+
 const scenarios = [
   aRemovedMemberCannotRejoinWithAnOldInvite,
   anInviteEndsWithTheAdminWhoMadeIt,
   theJwksNeverPublishesAPrivateKey,
   aCheckoutReturnStaysOnTheAccountSite,
   aSiteServesOnlyItsOwnFiles,
+  aRateLimitIgnoresForwardedFor,
 ];
 for (const scenario of scenarios) {
   try {
