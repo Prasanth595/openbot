@@ -4,7 +4,8 @@
 // failed starts stop after the limit, that an automatic refresh does not start the provider again
 // and a user refresh does, that low disk space stops a start before the process spawns, that a
 // launch removes what an earlier run left, and that a server that unpacks for longer than the
-// request timeout connects on the retry and after a key change (#2311).
+// request timeout connects on the retry and after a key change (#2311), and that a key change that
+// ends after the runtime is disposed does not keep its new process.
 // `bun scripts/antigravity-start-e2e.ts`. Writes .openbot-build/antigravity-start-e2e/report.json.
 import assert from "node:assert/strict";
 import { chmod, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -104,6 +105,12 @@ interface Report {
     keyChange: { spawns: number; state: string | undefined };
     logLines: string[];
   };
+  disposeDuringKeyChange?: {
+    handedToStop: number;
+    keyChange: "succeeded" | "failed";
+    leftInRuntime: number;
+    processStopped: boolean;
+  };
 }
 
 const root = await mkdtemp(join(tmpdir(), "openbot-antigravity-start-e2e-"));
@@ -130,7 +137,20 @@ async function waitFor(label: string, check: () => Promise<boolean>, waitMs = WA
 
 const entries = (path: string): Promise<string[]> => readdir(path).catch(() => []);
 
-function runtime(tempRoot: string, freeBytes: () => number): { providers: ProviderRuntime; store: AgentStore } {
+function running(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function runtime(
+  tempRoot: string,
+  freeBytes: () => number,
+  isStopping: () => boolean = () => false,
+): { providers: ProviderRuntime; store: AgentStore } {
   const store = new AgentStore(join(root, "profile"), join(root, "home"), new OpenBotDatabase(join(root, "profile")));
   const providers = new ProviderRuntime({
     offProviders: BUILT_IN_PROVIDER_DRIVERS.map((driver) => driver.id).filter((id) => id !== "antigravity"),
@@ -144,7 +164,7 @@ function runtime(tempRoot: string, freeBytes: () => number): { providers: Provid
       onProvidersReady: () => Effect.void,
       onProviderLost: () => undefined,
       onClientStopped: () => Effect.void,
-      isStopping: () => false,
+      isStopping,
       isProviderBusy: () => false,
       isAgentBusy: () => false,
       isProviderAssigned: () => true,
@@ -311,6 +331,41 @@ try {
   assert.ok(
     diagnostics.some((line) => line.includes("A provider did not start.") && line.includes('"stage":"initialize"')),
   );
+
+  // 8. The app stops while a key change starts the new process. `AgentService.stop` marks the service
+  // as stopping, then disposes the runtime and stops the clients that it hands back. The key change
+  // ends after that, and must stop its process rather than add it to the disposed runtime.
+  process.env.FAKE_AGY_UNPACK_MS = "2000";
+  await rm(log, { force: true });
+  let stopping = false;
+  const disposing = runtime(
+    join(root, "temp-dispose"),
+    () => Number.MAX_SAFE_INTEGER,
+    () => stopping,
+  ).providers;
+  const keyChangeEnd = runCauseEffect(disposing.changeProviderCredential("antigravity", () => Effect.void)).then(
+    () => "succeeded" as const,
+    () => "failed" as const,
+  );
+  await waitFor("the key change to start its process", async () => (await starts()).length === 1);
+  stopping = true;
+  const handed = await runCauseEffect(disposing.dispose());
+  for (const client of handed) await runCauseEffect(client.stop());
+  const keyChangeAfterDispose = await keyChangeEnd;
+  const [keyChangeStart] = await starts();
+  assert.ok(keyChangeStart);
+  // A second dispose hands back what the runtime still holds: a client added after the first one.
+  const left = await runCauseEffect(disposing.dispose());
+  report.disposeDuringKeyChange = {
+    handedToStop: handed.length,
+    keyChange: keyChangeAfterDispose,
+    leftInRuntime: left.length,
+    processStopped: false,
+  };
+  for (const client of left) await runCauseEffect(client.stop());
+  assert.equal(left.length, 0, "the disposed runtime holds no client");
+  await waitFor("the key change's process to stop", async () => !running(keyChangeStart.pid));
+  report.disposeDuringKeyChange.processStopped = true;
 
   report.passed = true;
 } finally {
