@@ -28,6 +28,7 @@ import type {
   UpdateAgentInput,
   WorkspaceDirectory,
 } from "@openbot/contracts/ipc";
+import type { ConversationUiBlock } from "@openbot/contracts/ui-blocks";
 import type { AgentMessage, AgentProfile } from "@openbot/ui/data";
 import type { BrowserViewRuntime } from "@openbot/ui/features/browser/BrowserLiveView";
 import type { UsageLimitAskCardProps } from "@openbot/ui/features/conversation/BackupModels";
@@ -60,6 +61,15 @@ export interface ConversationTarget {
 /** What was said so far in a recording, and the conversation it is dictated into. */
 export interface VoiceLiveTranscript extends ConversationTarget {
   text: string;
+}
+
+/** How an answer to a prompt reports a failure. */
+export interface PromptAnswerOptions {
+  /**
+   * Gets the error of an answer that failed, for a card that shows it itself. Without it the app
+   * reports the failure in the conversation (desktop) or the answer throws (web client).
+   */
+  onError?: (error: unknown) => void;
 }
 
 export interface ConversationProps {
@@ -176,6 +186,11 @@ export interface ConversationProps {
   remoteDesktopSessionActive: boolean;
   remoteDesktopVisible: boolean;
   prompt: Extract<AgentEvent, { type: "prompt" }> | undefined;
+  /**
+   * The interactive block of `prompt`'s message, when the agent asked with one. The prompt then draws
+   * as the block's card; without it, as the prompt's questions.
+   */
+  promptUiBlock?: ConversationUiBlock | undefined;
   approval: Extract<AgentEvent, { type: "approval" }>["approval"] | undefined;
   /** A usage limit holds the agent's queued message on this computer. The chat asks where to send it. */
   usageLimitAsk?: UsageLimitAskCardProps | undefined;
@@ -202,7 +217,7 @@ export interface ConversationProps {
   onSearchMessages?: (query: string) => Promise<{ messageIds: string[]; total: number }>;
   onOpenSearchMessage?: (messageId: string) => Promise<void>;
   onTypingChange: (agentId: string, typing: boolean) => void;
-  onAnswerPrompt: (answers: Record<string, string[]>) => Promise<boolean>;
+  onAnswerPrompt: (answers: Record<string, string[]>, options?: PromptAnswerOptions) => Promise<boolean>;
   onPromptResolutionPresented?: (agentId: string, turnId: string, requestId: string | number) => void;
   onRespondToApproval: (decision: "accept" | "decline") => Promise<boolean>;
   /**

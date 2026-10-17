@@ -210,7 +210,7 @@ export const messages = defineMessages("error.backend", {
   "error.backend.oauthTooManyRedirects": "The OAuth endpoint redirected too many times.",
   "error.backend.oauthRedirectOrigin":
     "The OAuth endpoint redirected to {origin}, so the credentials were not forwarded.",
-  "error.backend.oauthTimedOut": "The OAuth endpoint {origin} did not answer in time.",
+  "error.backend.oauthTimedOut": "No answer came from the OAuth endpoint {origin} in time.",
   "error.backend.oauthResponseTooLarge": "The OAuth endpoint {origin} sent a response that is too large.",
   "error.backend.oauthResponseUnreadable": "The response of the OAuth endpoint {origin} could not be read.",
   "error.backend.mcpOAuthPrivateEndpoint":
@@ -242,6 +242,8 @@ export const messages = defineMessages("error.backend", {
   "error.backend.steerQueuedOnly": "Only queued messages can be steered.",
   "error.backend.promptInactive": "This prompt is no longer active.",
   "error.backend.promptAnswerMismatch": "A prompt answer does not match an active question.",
+  "error.backend.uiBlockAnswerInvalid": "This answer does not fit the agent's block.",
+  "error.backend.uiBlockActionNotAllowed": "Only the server owner or an admin can choose this action.",
   "error.backend.approvalInactive": "This approval is no longer active.",
   "error.backend.takeoverInactive": "This browser takeover is no longer active.",
   "error.backend.authSubmitting": "Authentication submission is already in progress.",

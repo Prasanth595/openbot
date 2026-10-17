@@ -176,6 +176,14 @@ const MCP_REVOCATION_TIMEOUT_MS = 5_000;
 export interface McpSignIn {
   /** Given to the SDK transport, which drives the whole exchange through it. */
   readonly provider: OAuthClientProvider;
+  /**
+   * Starts this sign-in for a server that answered without one. Some servers, such as Google's, list
+   * their tools to anyone and ask for a token only when a tool runs, so the SDK never gets the 401
+   * that starts a sign-in, and Sign in would end at once with nothing opened. Answers whether the
+   * page opened: `false` when this address already holds a token, or when the server publishes no
+   * protected-resource metadata that names an authorization server.
+   */
+  begin: () => Effect.Effect<boolean, McpOperationError>;
   /** Waits for the browser to come back, then trades the grant for a token set. */
   complete: () => Effect.Effect<void, McpOperationError>;
   /** Ends a wait nothing will answer, so a cancelled sign-in leaves no entry behind. */
@@ -222,6 +230,8 @@ export interface McpOAuthAuthority {
   signedIn: (url: string) => boolean;
   /** Whether the server refused the stored sign-in, so the user must sign in again. */
   needsSignIn: (url: string) => boolean;
+  /** Whether this computer keeps a sign-in for this URL: current, expired, or ended by the server. */
+  hasSignIn: (url: string) => boolean;
   /** Drops the tokens and keeps the sign-in app, so the next sign-in uses the same app. */
   signOut: (url: string) => Effect.Effect<void, McpOperationError>;
   /** Drops everything kept for this URL, the sign-in app included. Used when the row is removed. */
@@ -428,6 +438,26 @@ export class McpOAuth implements McpOAuthAuthority {
     this.#attempts.set(resource, cancel);
     return {
       provider,
+      begin: () =>
+        Effect.gen({ self: this }, function* () {
+          if (cancelled || abandoned || this.#options.storage.read(resource)?.tokens) return false;
+          // Discovery and the registration read only public documents; the abort ends them with this step.
+          const controller = new AbortController();
+          const fetchFn = this.#fetch(resource, controller.signal);
+          return yield* withTimeout(
+            Effect.gen(function* () {
+              // A server that answers without a sign-in and names no authorization server takes none:
+              // the SDK would otherwise guess `/authorize` at the server's own origin.
+              const metadata = yield* mcpCall(() =>
+                discoverOAuthProtectedResourceMetadata(resource, undefined, fetchFn),
+              ).pipe(Effect.catch(() => Effect.succeed(null)));
+              if (!metadata?.authorization_servers?.length) return false;
+              return (yield* mcpCall(() => auth(provider, { serverUrl: resource, fetchFn }))) === "REDIRECT";
+            }),
+            this.#options.refreshTimeoutMs ?? MCP_TOKEN_TIMEOUT_MS,
+            sourceText("error.backend.mcpSignInResponseTimedOut"),
+          ).pipe(Effect.mapError(mcpFailure), Effect.ensuring(Effect.sync(() => controller.abort())));
+        }),
       complete: () =>
         Effect.gen({ self: this }, function* () {
           if (cancelled) return yield* mcpFailure(new Error(sourceText("error.backend.mcpSignInCancelled")));
@@ -516,6 +546,12 @@ export class McpOAuth implements McpOAuthAuthority {
     const resource = normalizeResource(url);
     const record = resource === null ? undefined : this.#options.storage.read(resource);
     return record?.lostAt !== undefined && !record.tokens;
+  }
+
+  hasSignIn(url: string): boolean {
+    const resource = normalizeResource(url);
+    const record = resource === null ? undefined : this.#options.storage.read(resource);
+    return record?.tokens !== undefined || record?.lostAt !== undefined;
   }
 
   get redirectUrl(): string {
@@ -964,7 +1000,10 @@ class McpOAuthClientProvider implements OAuthClientProvider {
     const cause = result.failure.cause;
     const clientRefused = cause instanceof InvalidClientError || cause instanceof UnauthorizedClientError;
     if (!clientRefused && !(cause instanceof InvalidGrantError)) return "kept";
-    const { tokens: _tokens, obtainedAt: _obtainedAt, client: registration, ...kept } = this.#record();
+    const current = this.#record();
+    // A sign-in that ended during the refresh stored a new grant: the refusal is about the old one.
+    if (current.tokens?.refresh_token !== refreshToken) return "kept";
+    const { tokens: _tokens, obtainedAt: _obtainedAt, client: registration, ...kept } = current;
     yield* this.#options.storage.write(this.#options.resource, {
       ...kept,
       ...(registration && !clientRefused ? { client: registration } : {}),
@@ -1306,16 +1345,23 @@ export function secureOAuthFetch(options: SecureOAuthFetchOptions = {}): FetchLi
         resolve,
       }
     : null;
-  return (input, init) => runCauseEffect(secureOAuthRequest(input, init, options.signal, guard));
+  const mcpTraffic = options.mcpTraffic === true ? resource : null;
+  return (input, init) => runCauseEffect(secureOAuthRequest(input, init, options.signal, guard, mcpTraffic));
 }
 
 export interface SecureOAuthFetchOptions {
   signal?: AbortSignal;
   /**
    * The MCP server the exchange is for. When it is on the public internet, every OAuth endpoint
-   * must be too. A request to this exact address is MCP traffic, and has no size or time limit.
+   * must be too.
    */
   resource?: string;
+  /**
+   * Whether this fetch also sends MCP traffic, as the probe transport does. A request to the exact
+   * `resource` address then has no size or time limit. A sign-in, refresh or revocation sends no
+   * MCP traffic, so an endpoint at that address still has the limits.
+   */
+  mcpTraffic?: boolean;
   /** Resolves host names for that rule. `dns.lookup` when not given. */
   lookup?: AddressLookup;
 }
@@ -1344,9 +1390,10 @@ const secureOAuthRequest = Effect.fn("McpOAuth.secureFetch")(function* (
   init: Parameters<FetchLike>[1],
   signal: AbortSignal | undefined,
   guard: OAuthAddressGuard | null,
+  mcpServer: URL | null,
 ): Effect.fn.Return<Response, McpOperationError> {
   let url = yield* mcpSync(() => new URL(input instanceof URL ? input.toString() : input));
-  const mcpTraffic = guard !== null && withoutHash(url) === withoutHash(guard.resource);
+  const mcpTraffic = mcpServer !== null && withoutHash(url) === withoutHash(mcpServer);
   let request: RequestInit = { ...init, ...(signal ? { signal } : {}), redirect: "manual" };
   for (let hop = 0; ; hop++) {
     if (!isSecureEndpoint(url))
@@ -1354,7 +1401,7 @@ const secureOAuthRequest = Effect.fn("McpOAuth.secureFetch")(function* (
     if (guard) yield* checkEndpointAddress(url, guard);
     const origin = url.origin;
     // A redirect to another origin leaves the MCP server, so that hop has the OAuth limits.
-    const unlimited = mcpTraffic && origin === guard?.resource.origin;
+    const unlimited = mcpTraffic && origin === mcpServer?.origin;
     const send = Effect.tryPromise({
       try: (requestSignal) =>
         fetch(url, {
@@ -1366,8 +1413,11 @@ const secureOAuthRequest = Effect.fn("McpOAuth.secureFetch")(function* (
     const response = yield* unlimited
       ? send
       : send.pipe(
+          // Only a redirect this loop follows skips the limit: one with no `Location` goes to the SDK.
           Effect.flatMap((answer) =>
-            REDIRECT_STATUSES.has(answer.status) ? Effect.succeed(answer) : limited(answer, origin),
+            REDIRECT_STATUSES.has(answer.status) && answer.headers.has("location")
+              ? Effect.succeed(answer)
+              : limited(answer, origin),
           ),
           Effect.timeoutOrElse({
             duration: OAUTH_REQUEST_TIMEOUT_MS,

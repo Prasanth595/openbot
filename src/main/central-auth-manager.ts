@@ -448,9 +448,13 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
   readonly listMobileConnectedDevices = Effect.fn("CentralAuth.listMobileConnectedDevices")(
     function* (
       this: CentralAuthManager,
+      host: MobileConnectHostBinding | null,
     ): Effect.fn.Return<MobileConnectedDevice[], CentralAuthOperationError, CentralAuthTransport> {
+      // A phone signs in to the account and opens each host of the account directory. The list shows
+      // the phones that can open this computer, so a computer with no host identity has none (#2356).
+      if (!host) return [];
       const result = yield* this.#authorizedRequestEffect(
-        "/v1/mobile-auth/devices",
+        `/v1/mobile-auth/devices?host=${encodeURIComponent(host.hostId)}`,
         { method: "GET" },
         decodeMobileConnectedDevices,
       );
