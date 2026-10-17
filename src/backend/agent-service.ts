@@ -269,14 +269,14 @@ export interface AgentServiceOptions {
   /** The provider accounts after the first. Omitted, each provider holds its own sign-in only. */
   providerAccounts?: ProviderAccountStore;
   saveProviderUse?: (provider: AgentProvider, on: boolean) => Effect.Effect<void, AgentLifecycleFailed>;
-  localSkillTools?: () => LocalSkillTools;
+  localSkillTools?: (() => LocalSkillTools) | undefined;
   /** Built after the service, so read when a tool call needs it. */
   routineFlowTools?: () => RoutineFlowTools;
   /**
    * Whose approvals are answered without asking. The main process owns the preference, because it
    * is a property of this computer and never crosses the Team API. Omitted, every approval asks.
    */
-  approvalAutomation?: ApprovalAutomationPolicy;
+  approvalAutomation?: ApprovalAutomationPolicy | undefined;
   /**
    * The app default for a message sent while its agent works. The main process owns the preference.
    * Omitted, such a message waits in the queue, as every one did before the setting existed.

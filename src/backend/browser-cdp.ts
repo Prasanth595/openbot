@@ -523,7 +523,11 @@ export class BrowserCdpEngine {
   readonly click = Effect.fn("BrowserCdp.click")(function* (
     this: BrowserCdpEngine,
     target: BrowserTarget,
-    options: { button?: "left" | "middle" | "right"; clickCount?: number; modifiers?: string[] } = {},
+    options: {
+      button?: "left" | "middle" | "right" | undefined;
+      clickCount?: number | undefined;
+      modifiers?: string[] | undefined;
+    } = {},
     deadline?: number,
     onDispatch?: ActionDispatch,
   ): Effect.fn.Return<void, BrowserOperationError> {
@@ -562,7 +566,7 @@ export class BrowserCdpEngine {
     this: BrowserCdpEngine,
     target: BrowserTarget | undefined,
     text: string,
-    options: { mode?: "replace" | "append"; submit?: boolean } = {},
+    options: { mode?: "replace" | "append" | undefined; submit?: boolean } = {},
     deadline?: number,
     onDispatch?: ActionDispatch,
   ): Effect.fn.Return<void, BrowserOperationError> {
@@ -1298,7 +1302,7 @@ export class BrowserCdpEngine {
   readonly #identifyUploadTargetEffect = Effect.fn("BrowserCdp.identifyUploadTarget")(function* (
     this: BrowserCdpEngine,
     send: SendCommand,
-    resolved: { backendNodeId: number; sessionId?: string },
+    resolved: { backendNodeId: number; sessionId?: string | undefined },
   ): Effect.fn.Return<BrowserUploadAssignment, BrowserOperationError> {
     const documentId = yield* this.#callOnNode(
       send,
@@ -1793,7 +1797,12 @@ export class BrowserCdpEngine {
 
   readonly waitFor = Effect.fn("BrowserCdp.waitFor")(function* (
     this: BrowserCdpEngine,
-    condition: { target?: BrowserTarget; text?: string; url?: string; state?: string },
+    condition: {
+      target?: BrowserTarget | undefined;
+      text?: string | undefined;
+      url?: string | undefined;
+      state?: string | undefined;
+    },
     timeoutMs = WAIT_TIMEOUT_MS,
   ): Effect.fn.Return<void, BrowserOperationError> {
     yield* this.#leaseEffect((send) =>
@@ -1986,7 +1995,7 @@ export class BrowserCdpEngine {
     send: SendCommand,
     target: BrowserTarget,
     deadline?: number,
-  ): Effect.fn.Return<{ backendNodeId: number; sessionId?: string }, BrowserOperationError> {
+  ): Effect.fn.Return<{ backendNodeId: number; sessionId?: string | undefined }, BrowserOperationError> {
     const resolved = yield* this.#resolveTargetEffect(send, target, deadline);
     if (!resolved.backendNodeId)
       return yield* browserFailure(new Error("This operation requires an element target, not coordinates."));
@@ -2002,7 +2011,10 @@ export class BrowserCdpEngine {
     target: BrowserTarget,
     deadline?: number,
     allowNonActionableRole = false,
-  ): Effect.fn.Return<{ backendNodeId?: number; sessionId?: string; x: number; y: number }, BrowserOperationError> {
+  ): Effect.fn.Return<
+    { backendNodeId?: number; sessionId?: string | undefined; x: number; y: number },
+    BrowserOperationError
+  > {
     if (target.kind === "point") {
       const metrics = yield* send("Page.getLayoutMetrics");
       const viewport = recordValue(metrics.cssLayoutViewport);
@@ -2045,7 +2057,7 @@ export class BrowserCdpEngine {
       };
     }
     if (target.kind === "css") {
-      const matches: Array<{ objectId: string; sessionId?: string }> = [];
+      const matches: Array<{ objectId: string; sessionId?: string | undefined }> = [];
       let ambiguous = false;
       yield* Effect.gen({ self: this }, function* () {
         for (const capture of this.#snapshotTargets(Number.POSITIVE_INFINITY)) {
@@ -2236,7 +2248,7 @@ export class BrowserCdpEngine {
     hitTest: boolean,
     scrollIntoView = true,
     deadline?: number,
-  ): Effect.fn.Return<{ x: number; y: number; sessionId?: string }, BrowserOperationError> {
+  ): Effect.fn.Return<{ x: number; y: number; sessionId?: string | undefined }, BrowserOperationError> {
     const resolved = yield* this.#resolveTargetEffect(send, target, deadline);
     yield* browserSync(() => assertBeforeDeadline(deadline));
     if (!resolved.backendNodeId) return { x: resolved.x, y: resolved.y };
@@ -2250,7 +2262,7 @@ export class BrowserCdpEngine {
     hitTest: boolean,
     sessionId?: string,
     scrollIntoView = true,
-  ): Effect.fn.Return<{ x: number; y: number; sessionId?: string }, BrowserOperationError> {
+  ): Effect.fn.Return<{ x: number; y: number; sessionId?: string | undefined }, BrowserOperationError> {
     if (scrollIntoView) yield* send("DOM.scrollIntoViewIfNeeded", { backendNodeId }, sessionId);
     const box = yield* send("DOM.getBoxModel", { backendNodeId }, sessionId);
     const model = recordValue(box.model);

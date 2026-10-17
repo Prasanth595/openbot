@@ -150,13 +150,13 @@ export interface OpenBotToolRouterOptions {
   drain: DrainScheduler;
   tables: AgentTables | null;
   sidebarLayout: AgentSidebar | null;
-  localSkillTools?: () => LocalSkillTools;
-  routineFlowTools?: () => RoutineFlowTools;
-  approvalAutomation?: ApprovalAutomationPolicy;
+  localSkillTools?: (() => LocalSkillTools) | undefined;
+  routineFlowTools?: (() => RoutineFlowTools) | undefined;
+  approvalAutomation?: ApprovalAutomationPolicy | undefined;
   /** Draws pages for `html_preview`; null where no window can draw one. */
-  visualPreview?: ChatVisualPreviewHost | null;
+  visualPreview?: ChatVisualPreviewHost | null | undefined;
   /** Captures the desktop for `capture_screen`; null where this process has no desktop. */
-  screenCapture?: ScreenCaptureHost | null;
+  screenCapture?: ScreenCaptureHost | null | undefined;
   hooks: OpenBotToolRouterHooks;
 }
 

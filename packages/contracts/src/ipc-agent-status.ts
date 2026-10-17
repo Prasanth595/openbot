@@ -198,7 +198,7 @@ export interface AgentStatus {
    * status would stop every update from it.
    */
   auth: AgentAuthState;
-  providers?: AgentProviderStatus[];
+  providers?: AgentProviderStatus[] | undefined;
   capabilities: {
     chat: CapabilityState;
     browser: CapabilityState;

@@ -24,8 +24,8 @@ export type BrowserImageMode = "auto" | "always" | "never";
 
 export type BrowserTarget =
   | { kind: "ref"; ref: string; revision: number }
-  | { kind: "role"; role: string; name?: string; exact?: boolean }
-  | { kind: "text"; text: string; exact?: boolean }
+  | { kind: "role"; role: string; name?: string | undefined; exact?: boolean | undefined }
+  | { kind: "text"; text: string; exact?: boolean | undefined }
   | { kind: "css"; selector: string }
   | { kind: "point"; x: number; y: number };
 
@@ -77,17 +77,17 @@ export interface BrowserDiagnosticEntry {
   kind: "console" | "network" | "load";
   level: "debug" | "info" | "warning" | "error";
   message: string;
-  url?: string;
-  method?: string;
-  status?: number;
+  url?: string | undefined;
+  method?: string | undefined;
+  status?: number | undefined;
 }
 
 export interface BrowserActionHistoryEntry {
   timestamp: string;
   action: string;
-  target?: string;
+  target?: string | undefined;
   outcome: "success" | "error";
-  detail?: string;
+  detail?: string | undefined;
 }
 
 export interface BrowserSnapshot {

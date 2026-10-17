@@ -41,11 +41,11 @@ export interface SaveAutomaticMemory {
 }
 
 export interface SaveMemoryInput {
-  memoryId?: string;
+  memoryId?: string | undefined;
   text: string;
   origin: AgentMemoryOrigin;
   sourceTurnId: string | null;
-  commandId?: string;
+  commandId?: string | undefined;
   uncapped?: boolean;
 }
 

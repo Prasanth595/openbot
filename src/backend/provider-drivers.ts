@@ -336,7 +336,7 @@ export interface BuiltInProviderDriver {
   /** Absent for a provider that holds one account only. */
   accounts?: ProviderAccountSupport;
   resolveCli(options?: {
-    bundledExecutable?: string | null;
+    bundledExecutable?: string | null | undefined;
   }): Effect.Effect<AgentCliInfo, ProviderClientOperationError>;
   createClient(
     cli: AgentCliInfo,

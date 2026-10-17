@@ -186,8 +186,8 @@ const KEY_ALIASES: Record<string, [string, string, number?, string?]> = {
 function normalizeKey(key: string): {
   key: string;
   code: string;
-  windowsVirtualKeyCode?: number;
-  nativeVirtualKeyCode?: number;
+  windowsVirtualKeyCode?: number | undefined;
+  nativeVirtualKeyCode?: number | undefined;
   text?: string;
 } {
   const alias = KEY_ALIASES[key.toLowerCase()];

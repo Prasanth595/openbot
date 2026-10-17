@@ -49,7 +49,7 @@ import {
 
 export interface RoutineMutationOptions {
   recordConversationEvent?: boolean;
-  turnId?: string;
+  turnId?: string | undefined;
 }
 
 /**

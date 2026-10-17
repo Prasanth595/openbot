@@ -53,7 +53,7 @@ const ACTIONABLE_ROLES = new Set([
 
 export interface TargetRecord {
   backendNodeId: number;
-  targetId?: string;
+  targetId?: string | undefined;
   element: BrowserElement;
   visibleText: string;
 }
@@ -66,8 +66,8 @@ export interface SnapshotTarget {
 
 export interface SemanticMatch {
   backendNodeId: number;
-  sessionId?: string;
-  targetId?: string;
+  sessionId?: string | undefined;
+  targetId?: string | undefined;
   role: string;
   name: string;
 }

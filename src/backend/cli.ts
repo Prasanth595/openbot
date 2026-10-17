@@ -86,14 +86,14 @@ export class CodexCliError extends Error {
  * has no managed copy and only the user's own installation is used. A missing key means the same as
  * an unset option: the resolver looks for the copy shipped inside the application itself.
  */
-export type BundledProviderExecutables = Partial<Record<AgentProviderId, string | null>>;
+export type BundledProviderExecutables = Partial<Record<AgentProviderId, string | null | undefined>>;
 
 export const resolveCodexCli: (input?: {
   systemCandidates?: string[];
-  bundledExecutable?: string | null;
+  bundledExecutable?: string | null | undefined;
 }) => Effect.Effect<CodexCliInfo, ProviderClientOperationError> = Effect.fn("Cli.resolveCodexCli")(
   function* (
-    input: { systemCandidates?: string[]; bundledExecutable?: string | null } = {},
+    input: { systemCandidates?: string[]; bundledExecutable?: string | null | undefined } = {},
   ): Effect.fn.Return<CodexCliInfo, ProviderClientOperationError> {
     const bundledExecutable =
       input.bundledExecutable === undefined ? bundledCodexExecutable() : input.bundledExecutable;
@@ -146,10 +146,10 @@ function bundledCodexExecutable(
 
 export const resolveClaudeCli: (input?: {
   systemCandidates?: string[];
-  bundledExecutable?: string | null;
+  bundledExecutable?: string | null | undefined;
 }) => Effect.Effect<ClaudeCliInfo, ProviderClientOperationError> = Effect.fn("Cli.resolveClaudeCli")(
   function* (
-    input: { systemCandidates?: string[]; bundledExecutable?: string | null } = {},
+    input: { systemCandidates?: string[]; bundledExecutable?: string | null | undefined } = {},
   ): Effect.fn.Return<ClaudeCliInfo, ProviderClientOperationError> {
     const bundledExecutable =
       input.bundledExecutable === undefined ? bundledClaudeExecutable() : input.bundledExecutable;
@@ -201,10 +201,10 @@ function bundledClaudeExecutable(
 
 export const resolveGrokCli: (input?: {
   systemCandidates?: string[];
-  bundledExecutable?: string | null;
+  bundledExecutable?: string | null | undefined;
 }) => Effect.Effect<GrokCliInfo, ProviderClientOperationError> = Effect.fn("Cli.resolveGrokCli")(
   function* (
-    input: { systemCandidates?: string[]; bundledExecutable?: string | null } = {},
+    input: { systemCandidates?: string[]; bundledExecutable?: string | null | undefined } = {},
   ): Effect.fn.Return<GrokCliInfo, ProviderClientOperationError> {
     const bundledExecutable = input.bundledExecutable === undefined ? bundledGrokExecutable() : input.bundledExecutable;
     const candidates = yield* cliCandidates("grok", input.systemCandidates, bundledExecutable);
@@ -251,10 +251,10 @@ export const resolveGrokCli: (input?: {
  */
 export const resolveOpencodeCli: (input?: {
   systemCandidates?: string[];
-  bundledExecutable?: string | null;
+  bundledExecutable?: string | null | undefined;
 }) => Effect.Effect<OpencodeCliInfo, ProviderClientOperationError> = Effect.fn("Cli.resolveOpencodeCli")(
   function* (
-    input: { systemCandidates?: string[]; bundledExecutable?: string | null } = {},
+    input: { systemCandidates?: string[]; bundledExecutable?: string | null | undefined } = {},
   ): Effect.fn.Return<OpencodeCliInfo, ProviderClientOperationError> {
     const bundledExecutable =
       input.bundledExecutable === undefined ? bundledOpencodeExecutable() : input.bundledExecutable;
@@ -304,10 +304,10 @@ export function antigravityHarnessName(target: string): "localharness_external" 
  */
 export const resolveAntigravityCli: (input?: {
   systemCandidates?: string[];
-  bundledExecutable?: string | null;
+  bundledExecutable?: string | null | undefined;
 }) => Effect.Effect<AntigravityCliInfo, ProviderClientOperationError> = Effect.fn("Cli.resolveAntigravityCli")(
   function* (
-    input: { systemCandidates?: string[]; bundledExecutable?: string | null } = {},
+    input: { systemCandidates?: string[]; bundledExecutable?: string | null | undefined } = {},
   ): Effect.fn.Return<AntigravityCliInfo, ProviderClientOperationError> {
     const override = input.systemCandidates ?? [configuredCliPath("antigravity")].filter((path) => path !== null);
     const candidates =
@@ -363,10 +363,10 @@ export const CURSOR_MANIFEST = "cursor-package.json";
  */
 export const resolveCursorCli: (input?: {
   systemCandidates?: string[];
-  bundledExecutable?: string | null;
+  bundledExecutable?: string | null | undefined;
 }) => Effect.Effect<CursorCliInfo, ProviderClientOperationError> = Effect.fn("Cli.resolveCursorCli")(
   function* (
-    input: { systemCandidates?: string[]; bundledExecutable?: string | null } = {},
+    input: { systemCandidates?: string[]; bundledExecutable?: string | null | undefined } = {},
   ): Effect.fn.Return<CursorCliInfo, ProviderClientOperationError> {
     const candidates = yield* cliCandidates("cursor", input.systemCandidates, input.bundledExecutable ?? null);
     let found = false;
@@ -427,10 +427,10 @@ export function parseCursorManifestVersion(manifest: string): string {
  */
 export const resolveClineCli: (input?: {
   systemCandidates?: string[];
-  bundledExecutable?: string | null;
+  bundledExecutable?: string | null | undefined;
 }) => Effect.Effect<ClineCliInfo, ProviderClientOperationError> = Effect.fn("Cli.resolveClineCli")(
   function* (
-    input: { systemCandidates?: string[]; bundledExecutable?: string | null } = {},
+    input: { systemCandidates?: string[]; bundledExecutable?: string | null | undefined } = {},
   ): Effect.fn.Return<ClineCliInfo, ProviderClientOperationError> {
     const candidates = yield* cliCandidates("cline", input.systemCandidates, input.bundledExecutable ?? null);
     const failures: CodexCliError[] = [];
@@ -569,7 +569,7 @@ function isMinimumVersion(version: string, minimum: readonly number[]): boolean 
 /** Resolves native RPC providers through the same explicit/managed/system precedence. */
 const resolveNativeCli = Effect.fn("Cli.resolveNativeCli")(function* (
   provider: "pi" | "muse",
-  input: { systemCandidates?: string[]; bundledExecutable?: string | null } = {},
+  input: { systemCandidates?: string[]; bundledExecutable?: string | null | undefined } = {},
 ): Effect.fn.Return<AgentCliInfo, ProviderClientOperationError> {
   const candidates = yield* cliCandidates(provider, input.systemCandidates, input.bundledExecutable ?? null);
   let found = false;
@@ -602,10 +602,12 @@ const resolveNativeCli = Effect.fn("Cli.resolveNativeCli")(function* (
   );
 });
 
-export const resolvePiCli = (input?: { systemCandidates?: string[]; bundledExecutable?: string | null }) =>
+export const resolvePiCli = (input?: { systemCandidates?: string[]; bundledExecutable?: string | null | undefined }) =>
   resolveNativeCli("pi", input);
-export const resolveMuseCli = (input?: { systemCandidates?: string[]; bundledExecutable?: string | null }) =>
-  resolveNativeCli("muse", input);
+export const resolveMuseCli = (input?: {
+  systemCandidates?: string[];
+  bundledExecutable?: string | null | undefined;
+}) => resolveNativeCli("muse", input);
 
 export function parsePiVersion(output: string): string {
   const match = output.trim().match(/(?:^|\s)v?(\d+\.\d+\.\d+)(?:[-+][\w.-]+)?(?:\s|$)/u);

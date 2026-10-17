@@ -76,7 +76,7 @@ export interface DeliveryPromptSources {
   /** The open waits that a routine run wakes. The run continues their requests. */
   wokenWaits?: readonly AgentWait[];
   /** The prompt a channel task or an external message sends in place of the delivery text. */
-  executionText?: string;
+  executionText?: string | undefined;
 }
 
 const TEAMMATE_HEADER = "Message from OpenBot teammate";

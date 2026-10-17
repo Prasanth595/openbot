@@ -107,8 +107,8 @@ interface ClientEvents {
 
 interface ThreadConfig {
   cwd: string;
-  model?: string;
-  effort?: string;
+  model?: string | undefined;
+  effort?: string | undefined;
   developerInstructions: string;
   additionalDirectories: string[];
   persistSession: boolean;

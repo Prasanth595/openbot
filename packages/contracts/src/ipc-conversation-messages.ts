@@ -14,7 +14,7 @@ export const IMAGE_GENERATION_ASPECT_RATIOS = ["square", "portrait", "landscape"
 export type ImageGenerationAspectRatio = (typeof IMAGE_GENERATION_ASPECT_RATIOS)[number];
 
 export interface ImageGenerationInfo {
-  prompt?: string;
+  prompt?: string | undefined;
   resolution: string;
   aspectRatio: ImageGenerationAspectRatio;
   error?: string;
@@ -199,12 +199,14 @@ export interface ConversationMessage {
   exchange?: AgentExchangeSummary | undefined;
   reaction?: MessageReaction | null | undefined;
   reactions?: ConversationReaction[] | undefined;
-  routine?: {
-    routineId: string;
-    runId: string;
-    name: string;
-    scheduledFor: string;
-  };
+  routine?:
+    | {
+        routineId: string;
+        runId: string;
+        name: string;
+        scheduledFor: string;
+      }
+    | undefined;
   questionPrompt?: ConversationQuestionPrompt | undefined;
   /** Set on the one `plan` message of a turn. The text holds the same plan as a checklist. */
   plan?: ConversationPlan | undefined;

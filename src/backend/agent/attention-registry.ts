@@ -126,7 +126,7 @@ interface PendingBrowserTakeover {
   client: AgentClient;
   /** The provider's request. `submit_secret` keys the entry by a new id, so it is kept here. */
   providerRequestId: RequestId;
-  secret?: PreparedBrowserSecret;
+  secret?: PreparedBrowserSecret | undefined;
   submitting?: boolean;
   params: DynamicToolCallParams;
   request: BrowserTakeoverRequest;
@@ -183,7 +183,7 @@ export interface AttentionRegistryOptions {
   hostedSites: HostedSiteApprovals;
   routines: RoutineAttention;
   /** Read at each approval, so a grant the user gives now applies to the next request. */
-  approvalAutomation?: ApprovalAutomationPolicy;
+  approvalAutomation?: ApprovalAutomationPolicy | undefined;
   /**
    * Whether the agent runs in the workspace sandbox now. Each approval it raises asks to go outside
    * the limit the user chose, so Full access does not answer it.
@@ -202,7 +202,7 @@ export interface AttentionRegistryOptions {
    * The vault the user shared with OpenBot, or null. A password or authenticator request for a login
    * saved there is filled without a card: putting the login in the shared vault is the consent.
    */
-  passwordVault?: PasswordVault | null;
+  passwordVault?: PasswordVault | null | undefined;
 }
 
 export type RuntimeAttention = Pick<

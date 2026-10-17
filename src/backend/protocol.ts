@@ -62,8 +62,8 @@ export interface AppServerRequest {
 export interface AccountReadResult {
   account: null | {
     type: string;
-    email?: string | null;
-    planType?: string | null;
+    email?: string | null | undefined;
+    planType?: string | null | undefined;
   };
   requiresOpenaiAuth: boolean;
 }
@@ -95,27 +95,27 @@ export interface AccountLoginCompletedResult {
 }
 
 export interface AccountRateLimitWindowResult {
-  usedPercent?: number | null;
-  windowDurationMins?: number | null;
-  resetsAt?: number | null;
+  usedPercent?: number | null | undefined;
+  windowDurationMins?: number | null | undefined;
+  resetsAt?: number | null | undefined;
 }
 
 export interface AccountRateLimitResult {
-  limitId?: string | null;
-  limitName?: string | null;
-  normalModelSlug?: string | null;
-  primary?: AccountRateLimitWindowResult | null;
-  secondary?: AccountRateLimitWindowResult | null;
+  limitId?: string | null | undefined;
+  limitName?: string | null | undefined;
+  normalModelSlug?: string | null | undefined;
+  primary?: AccountRateLimitWindowResult | null | undefined;
+  secondary?: AccountRateLimitWindowResult | null | undefined;
 }
 
 export interface AccountRateLimitsReadResult {
-  rateLimits?: AccountRateLimitResult | null;
-  rateLimitsByLimitId?: Record<string, AccountRateLimitResult | undefined> | null;
+  rateLimits?: AccountRateLimitResult | null | undefined;
+  rateLimitsByLimitId?: Record<string, AccountRateLimitResult | undefined> | null | undefined;
 }
 
 export interface ThreadItem {
   type: string;
-  id?: string;
+  id?: string | undefined;
   clientId?: string | null;
   text?: string;
   content?: Array<{ type: string; text?: string }>;

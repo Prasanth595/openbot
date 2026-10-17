@@ -67,7 +67,7 @@ export interface MessagingOrigin {
 }
 
 interface StoredMessage {
-  channelId?: string;
+  channelId?: string | undefined;
   messaging?: MessagingOrigin;
   /**
    * A request an agent sent from an external conversation, such as a Slack thread. The teammate's
@@ -108,8 +108,8 @@ interface StoredFinishedEdit {
 }
 
 interface StoredDelivery {
-  editId?: string;
-  finishedEditOutcomes?: Record<string, StoredFinishedEdit>;
+  editId?: string | undefined;
+  finishedEditOutcomes?: Record<string, StoredFinishedEdit> | undefined;
   id: string;
   messageId: string;
   recipientAgentId: string;
@@ -158,7 +158,7 @@ interface EnqueueInput {
   text: string;
   replyToMessageId?: string | null;
   /** False marks information the recipient must not answer. Defaults to an expected answer. */
-  expectsReply?: boolean;
+  expectsReply?: boolean | undefined;
   draftIds?: string[];
   sourcePaths?: string[];
   idempotencyKey?: string;

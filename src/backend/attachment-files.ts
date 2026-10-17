@@ -50,9 +50,9 @@ export interface StoredGeneratedAttachment extends StoredAttachment {
 }
 
 export interface StoredDraft extends StoredAttachment {
-  ownerEditId?: string;
+  ownerEditId?: string | undefined;
   /** Released edit drafts can still belong to a durable composer backup. */
-  preserveOnRestart?: boolean;
+  preserveOnRestart?: boolean | undefined;
   createdAt: string;
 }
 
