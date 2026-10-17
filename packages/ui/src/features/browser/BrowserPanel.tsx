@@ -1,11 +1,5 @@
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
-import type {
-  BrowserControlAction,
-  BrowserControlDetailAction,
-  BrowserControlSession,
-  BrowserTab,
-} from "@openbot/contracts/ipc";
-import type { AppTextKey } from "@openbot/i18n";
+import type { BrowserControlSession, BrowserTab } from "@openbot/contracts/ipc";
 import {
   Alert,
   AlertContent,
@@ -30,37 +24,10 @@ import {
   PlusIcon,
 } from "@openbot/ui/features/conversation/ConversationIcons";
 import { useText } from "@openbot/ui/text";
-import { Portal } from "@solidjs/web";
+import { type JSX, Portal } from "@solidjs/web";
 import { createEffect, createSignal, For, onSettled, Show } from "solid-js";
 import BrowserLiveView, { type BrowserViewRuntime } from "./BrowserLiveView";
-
-const BROWSER_ACTION_LABELS = {
-  open: "browser.action.open",
-  "list-tabs": "browser.action.listTabs",
-  snapshot: "browser.action.snapshot",
-  click: "browser.action.click",
-  type: "browser.action.type",
-  key: "browser.action.key",
-  scroll: "browser.action.scroll",
-  back: "browser.action.back",
-  forward: "browser.action.forward",
-  reload: "browser.action.reload",
-  screenshot: "browser.action.screenshot",
-  status: "browser.action.status",
-  navigate: "browser.action.navigate",
-  press: "browser.action.key",
-  hover: "browser.action.hover",
-  "select-option": "browser.action.selectOption",
-  "set-checked": "browser.action.setChecked",
-  drag: "browser.action.drag",
-  "upload-files": "browser.action.uploadFiles",
-  "wait-for": "browser.action.waitFor",
-  evaluate: "browser.action.evaluate",
-  "set-environment": "browser.action.setEnvironment",
-  "recording-start": "browser.action.recordingStart",
-  "recording-stop": "browser.action.recordingStop",
-  "close-tab": "browser.action.closeTab",
-} as const satisfies Record<BrowserControlAction | BrowserControlDetailAction, AppTextKey>;
+import { browserActionLabel } from "./browser-action-labels";
 
 interface BrowserPanelProps {
   open: boolean;
@@ -94,6 +61,8 @@ interface BrowserPanelProps {
    * from an ancestor; the platform has to arrive as a value.
    */
   macWindowControls?: boolean;
+  /** The island, the queue and the composer of the tab's agent, over the page. */
+  dock?: JSX.Element;
 }
 
 export default function BrowserPanel(props: BrowserPanelProps) {
@@ -147,6 +116,7 @@ export default function BrowserPanel(props: BrowserPanelProps) {
           />
         )}
       </Show>
+      <Show when={props.open && props.tabs.length > 0}>{props.dock}</Show>
       <Show when={props.tabs.length === 0}>
         <div class="browser-empty-state">
           <strong>{t("browser.empty.title")}</strong>
@@ -276,7 +246,7 @@ export default function BrowserPanel(props: BrowserPanelProps) {
                             class="browser-tab-control browser-tab-control-acting"
                             title={t("browser.tab.controlStatus", {
                               name: controller()?.name ?? t("browser.tab.agentFallback"),
-                              action: t(BROWSER_ACTION_LABELS[session().detailAction ?? session().action]),
+                              action: t(browserActionLabel(session())),
                             })}
                           >
                             <BrowserControlIcon />

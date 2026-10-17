@@ -649,6 +649,21 @@
   user-select: none;
 }
 
+/* The compact editor has the sizes of the compact composer. */
+.composer-editor-root[data-size="compact"],
+.composer-editor-root[data-size="compact"] .composer-editor-surface {
+  min-height: 28px;
+}
+
+.composer-editor-root[data-size="compact"] .composer-editor-surface {
+  padding: 4px 0;
+}
+
+.composer-editor-root[data-size="compact"] .composer-editor-placeholder {
+  top: 4px;
+  left: 0;
+}
+
 /* The box comes from `.reference-chip`; this token only loses the chip fill and gains the outline. */
 .composer-mention-token.composer-tag-unavailable {
   border: 1px dashed var(--openbot-border-strong);

@@ -26,6 +26,8 @@ interface QueuePanelProps {
   onCancel: (deliveryId: string) => void;
   onEdit: (delivery: QueueDelivery) => void;
   onReorder: (deliveryIds: string[]) => void;
+  /** `floating` is the glass queue over a browser page, with quiet glass row actions. */
+  variant?: "docked" | "floating";
 }
 
 interface DragSlot {
@@ -392,6 +394,7 @@ export function QueuePanel(props: QueuePanelProps) {
             "agent-queue-panel-dragging": Boolean(draggedId()),
           },
         ]}
+        data-variant={props.variant ?? "docked"}
         aria-label={t("queue.label")}
         onDragOver={(event) => {
           if (!draggedId()) return;

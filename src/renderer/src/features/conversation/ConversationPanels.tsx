@@ -15,6 +15,7 @@ import { serverCanAdministerAgents } from "../agents/remote-agent-admin";
 import type { AgentFilesOptions } from "../files/AgentFilesSettings";
 import { canManageStorage, serverHasStorage } from "../files/storage-usage";
 import { remoteRoutineRecovery, serverCanAdminister, serverSupportsCapability } from "../servers/server-capabilities";
+import { BrowserDockAdapter } from "./BrowserDockAdapter";
 import { htmlAttachmentPageHtml, htmlAttachmentPageUrl } from "./chat-visual-url";
 import { useConversationController } from "./conversation-controller-context";
 import { useConversationViewScope } from "./conversation-scope";
@@ -401,6 +402,7 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
             liveViewClipboard={serverSupportsCapability(props.server, "browser-view-clipboard")}
             onBack={() => setActiveRightPanel("browser")}
             onEnterPip={props.runtime ? () => undefined : showBrowserPip}
+            dock={<BrowserDockAdapter tab={activeBrowserTab()} />}
           />
         </Portal>
       </Show>

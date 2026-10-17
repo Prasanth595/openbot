@@ -64,6 +64,8 @@ interface ComposerEditorProps {
   placeholder: string;
   ariaLabel: string;
   disabled: boolean;
+  /** `compact` is one short line, as in the floating composer over a browser page. */
+  size?: "default" | "compact";
   focusRequest?: number;
   /** Raised by one to open the skill picker at the caret, as a typed `$` does. */
   skillPickerRequest?: number;
@@ -724,7 +726,7 @@ export function ComposerEditor(props: ComposerEditorProps) {
   }
 
   return (
-    <div class="composer-editor-root" data-dictating={dictating() ? "" : undefined}>
+    <div class="composer-editor-root" data-size={props.size ?? "default"} data-dictating={dictating() ? "" : undefined}>
       <Show when={!props.value && !dictating()}>
         <span class="composer-editor-placeholder" aria-hidden="true">
           {props.placeholder}
