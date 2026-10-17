@@ -430,6 +430,7 @@ export class HostService extends EventEmitter<HostEvents> {
               this.#pushNotifications?.remove(sessionId);
               yield* this.#remoteScreen.revokeTeamSession(sessionId);
               yield* this.#browserView.revokeTeamSession(sessionId);
+              this.#options.browser.releaseUserControlHeldBy({ kind: "session", sessionId });
             }),
           verifyClientTicket: options.verifyRemoteSessionTicket,
         })
@@ -1135,7 +1136,10 @@ export class HostService extends EventEmitter<HostEvents> {
         ...(input.role ? { role: input.role } : {}),
         ...(input.disabled === undefined ? {} : { disabled: input.disabled }),
       });
-      if (member.disabled) yield* this.#remoteScreen.revokeMember(member.id);
+      if (member.disabled) {
+        yield* this.#remoteScreen.revokeMember(member.id);
+        this.#options.browser.releaseUserControlHeldBy({ kind: "member", memberId: member.id });
+      }
       this.#api.refreshPresence();
       return member;
     },
@@ -1157,6 +1161,7 @@ export class HostService extends EventEmitter<HostEvents> {
       }
       yield* this.#options.store.removeMember(memberId);
       yield* this.#remoteScreen.revokeMember(memberId);
+      this.#options.browser.releaseUserControlHeldBy({ kind: "member", memberId });
       this.#api.refreshPresence();
     },
     (operation) => this.#provide(operation),
@@ -1168,6 +1173,7 @@ export class HostService extends EventEmitter<HostEvents> {
       yield* this.#options.store.revokeSession(sessionId);
       yield* this.#remoteScreen.revokeTeamSession(sessionId);
       yield* this.#browserView.revokeTeamSession(sessionId);
+      this.#options.browser.releaseUserControlHeldBy({ kind: "session", sessionId });
       this.#api.refreshPresence();
     },
     (operation) => this.#provide(operation),

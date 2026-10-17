@@ -46,6 +46,10 @@ export const messages = {
   "error.backend.channelDeleteUnsupported": "Este servidor não oferece suporte à exclusão de canais.",
   "error.backend.browserNavigateUnsupported":
     "Este computador anfitrião remoto não oferece suporte à navegação pela barra de endereços em uma aba existente.",
+  "error.backend.browserUserControlBusy":
+    "Esta aba do navegador está esperando um segredo. Responda primeiro ao pedido do segredo.",
+  "error.backend.browserUserControlUnsupported":
+    "Este computador anfitrião remoto não oferece suporte para assumir o controle de uma aba do navegador.",
   "error.backend.sharedDataLocalOnly":
     "Os dados compartilhados são gerenciados no computador que executa estes agentes.",
   "error.backend.browserUrlProtocol": "Somente URLs HTTP(S) são permitidas no navegador.",

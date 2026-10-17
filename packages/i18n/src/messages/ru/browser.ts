@@ -95,6 +95,8 @@ export const messages = {
   "browser.error.openAddress": "Не удалось открыть адрес в этой вкладке.",
   "browser.error.closeTab": "Не удалось закрыть вкладку браузера.",
   "browser.error.reloadTab": "Не удалось перезагрузить вкладку браузера.",
+  "browser.error.takeControl": "Не удалось взять управление вкладкой браузера.",
+  "browser.error.releaseControl": "Не удалось вернуть вкладку браузера агенту.",
   "browser.error.navigateBack": "Не удалось перейти назад.",
   "browser.error.navigateForward": "Не удалось перейти вперёд.",
 } as const satisfies PartialTranslation<typeof source>;

@@ -43,6 +43,10 @@ export const messages = {
   "error.backend.channelDeleteUnsupported": "Dieser Server unterstützt das Löschen von Kanälen nicht.",
   "error.backend.browserNavigateUnsupported":
     "Dieser entfernte Host unterstützt die Navigation über die Adressleiste in einem vorhandenen Tab nicht.",
+  "error.backend.browserUserControlBusy":
+    "Dieser Browser-Tab wartet auf ein Geheimnis. Beantworte zuerst die Anfrage nach dem Geheimnis.",
+  "error.backend.browserUserControlUnsupported":
+    "Dieser entfernte Host unterstützt die Übernahme eines Browser-Tabs nicht.",
   "error.backend.sharedDataLocalOnly":
     "Geteilte Daten werden auf dem Computer verwaltet, auf dem diese Agenten laufen.",
   "error.backend.browserUrlProtocol": "Im Browser sind nur HTTP(S)-URLs erlaubt.",

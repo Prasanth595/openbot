@@ -42,7 +42,9 @@ export interface ConversationRuntime {
     | "open"
     | "openPictureInPicture"
     | "reload"
+    | "releaseControl"
     | "setVisible"
+    | "takeControl"
   >;
   voice: Pick<
     OpenBotDesktopApi["voice"],

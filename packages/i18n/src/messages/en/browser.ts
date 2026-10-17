@@ -92,6 +92,8 @@ export const messages = defineMessages("browser", {
   "browser.error.openAddress": "Could not open the address in this tab.",
   "browser.error.closeTab": "Could not close the browser tab.",
   "browser.error.reloadTab": "Could not reload the browser tab.",
+  "browser.error.takeControl": "Could not take control of the browser tab.",
+  "browser.error.releaseControl": "Could not give the browser tab back to the agent.",
   "browser.error.navigateBack": "Could not navigate back.",
   "browser.error.navigateForward": "Could not navigate forward.",
   "browser.userControl.status": "You control this page",

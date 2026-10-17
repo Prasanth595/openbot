@@ -36,6 +36,17 @@ export function createMockBrowser(
   const browserLiveViewListeners = new Set<Listener<BrowserLiveViewEvent>>();
   const browserPictureInPictureListeners = new Set<Listener<BrowserPictureInPictureEvent>>();
 
+  // The preview has no agent to wait, so a take only marks the tab, as the host's list does.
+  const setUserControl = (tabId: string, held: boolean) => {
+    browserTabs = browserTabs.map((tab) => {
+      if (tab.id !== tabId) return tab;
+      const { userControl: _, ...rest } = tab;
+      return held ? { ...rest, userControl: true } : rest;
+    });
+    emit(browserDisplayListeners, { tabs: browserTabs, activeTabId: activeBrowserTabId });
+    emitAgentEvent({ type: "browser-changed", tabs: browserTabs, activeTabId: activeBrowserTabId });
+  };
+
   const browser: OpenBotDesktopApi["browser"] = {
     open: async (input: BrowserOpenInput) => {
       const tab: BrowserTab = {
@@ -76,6 +87,8 @@ export function createMockBrowser(
       emitAgentEvent({ type: "browser-changed", tabs: browserTabs, activeTabId: activeBrowserTabId });
     },
     reload: async () => undefined,
+    takeControl: async (tabId) => setUserControl(tabId, true),
+    releaseControl: async (tabId) => setUserControl(tabId, false),
     close: async (tabId) => {
       const closedTab = browserTabs.find((tab) => tab.id === tabId);
       const closedIds = new Set([tabId]);

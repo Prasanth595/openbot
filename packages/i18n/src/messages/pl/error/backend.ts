@@ -44,6 +44,10 @@ export const messages = {
   "error.backend.channelDeleteUnsupported": "Ten serwer nie obsługuje usuwania kanałów.",
   "error.backend.browserNavigateUnsupported":
     "Ten zdalny host nie obsługuje nawigacji z paska adresu w istniejącej karcie.",
+  "error.backend.browserUserControlBusy":
+    "Ta karta przeglądarki czeka na sekret. Najpierw odpowiedz na prośbę o sekret.",
+  "error.backend.browserUserControlUnsupported":
+    "Ten zdalny host nie obsługuje przejmowania kontroli nad kartą przeglądarki.",
   "error.backend.sharedDataLocalOnly": "Dane współdzielone są zarządzane na komputerze, na którym działają ci agenci.",
   "error.backend.browserUrlProtocol": "Dozwolone są tylko adresy URL HTTP(S).",
   "error.backend.sunshineNotReady": "Sunshine nie osiągnął gotowości.",

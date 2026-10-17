@@ -342,6 +342,7 @@ const windows = createMainWindowController({
   onRendererGone: () => {
     deepLinkReceiverReady = false;
     filePreviewPages.clear();
+    services?.browser.releaseUserControlHeldBy({ kind: "local" });
   },
   onMainWindowCreated: (window) => {
     attachWindowsSessionEndHandlers(window);

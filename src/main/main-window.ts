@@ -174,6 +174,8 @@ export function createMainWindowController({
     });
     window.on("close", (event) => {
       rememberMainWindowBounds(window.getNormalBounds());
+      // Nobody can use a tab without the window, so the agents waiting on it continue.
+      getServices()?.browser.releaseUserControlHeldBy({ kind: "local" });
       if (process.platform === "darwin" && !isQuitting()) {
         // The hidden renderer owns the cross-host Dynamic Island coordinator and must outlive its visible window.
         event.preventDefault();

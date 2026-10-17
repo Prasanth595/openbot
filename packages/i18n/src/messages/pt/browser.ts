@@ -93,6 +93,8 @@ export const messages = {
   "browser.error.openAddress": "Não foi possível abrir o endereço nesta aba.",
   "browser.error.closeTab": "Não foi possível fechar a aba do navegador.",
   "browser.error.reloadTab": "Não foi possível recarregar a aba do navegador.",
+  "browser.error.takeControl": "Não foi possível assumir o controle da aba do navegador.",
+  "browser.error.releaseControl": "Não foi possível devolver a aba do navegador ao agente.",
   "browser.error.navigateBack": "Não foi possível voltar.",
   "browser.error.navigateForward": "Não foi possível avançar.",
 } as const satisfies PartialTranslation<typeof source>;

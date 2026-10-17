@@ -93,6 +93,8 @@ export const messages = {
   "browser.error.openAddress": "Adres bu sekmede açılamadı.",
   "browser.error.closeTab": "Tarayıcı sekmesi kapatılamadı.",
   "browser.error.reloadTab": "Tarayıcı sekmesi yeniden yüklenemedi.",
+  "browser.error.takeControl": "Tarayıcı sekmesinin denetimi alınamadı.",
+  "browser.error.releaseControl": "Tarayıcı sekmesi ajana geri verilemedi.",
   "browser.error.navigateBack": "Geri gidilemedi.",
   "browser.error.navigateForward": "İleri gidilemedi.",
 } as const satisfies PartialTranslation<typeof source>;

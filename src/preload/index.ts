@@ -946,6 +946,8 @@ const openbotApi: OpenBotDesktopApi = {
       navigate: decodeVoid,
       reload: decodeVoid,
       close: decodeVoid,
+      takeControl: decodeVoid,
+      releaseControl: decodeVoid,
       listTabs: decodeBrowserTabs,
       getDisplayState: decodeBrowserDisplayState,
       getControlState: decodeBrowserControlState,

@@ -72,6 +72,7 @@ import {
   readAgentToolSchema,
   updateProfileToolSchema,
 } from "./profile-tools";
+import { browserUserControlResult } from "./prompts";
 import { ROUTINE_NO_UPDATE_TOOL } from "./routine-quiet-runs";
 import type { RoutineScheduler } from "./routine-scheduler";
 import { type OpenBotToolResponse, openBotToolFailure, openBotToolResult } from "./routine-tools";
@@ -336,12 +337,17 @@ export class OpenBotToolRouter {
               threadId: this.#conversation.publicThreadId(agentId, toolRequest.params.threadId),
               ownerAgentId: agentId,
             };
+            // While the user controls the tab, the call waits for the release and does not run.
+            const userControl = (tabId: string) =>
+              this.#browser.awaitUserControlRelease(tabId).pipe(Effect.as(browserUserControlResult()));
             const operation = Effect.gen({ self: this }, function* () {
+              const heldTabId = this.#browser.userControlTabFor(params);
+              if (heldTabId) return yield* userControl(heldTabId);
               return yield* params.tool === "upload_files"
                 ? this.#browserUploads.uploadFiles(agentId, params)
                 : params.tool === "list_logins"
                   ? this.#attention.listVaultLogins(params)
-                  : this.#browser.handleDynamicTool(params);
+                  : this.#browser.handleDynamicTool(params, { onUserControl: userControl });
             });
             const signal = toolRequest.signal;
             const cancelled = Effect.callback<never>((resume) => {

@@ -468,10 +468,20 @@ export function createWebWorkspace(
           setState((draft) => {
             draft.takeovers = draft.takeovers.filter((item) => String(item.requestId) !== String(event.requestId));
           });
+        // The frozen tab event has no field for a person's control; `browser-user-control-changed`
+        // sends it, and a tab keeps its mark until the next list.
         if (event.type === "browser-changed")
           setState((draft) => {
-            draft.browserTabs = event.tabs;
+            const held = new Set(draft.browserTabs.filter((tab) => tab.userControl).map((tab) => tab.id));
+            draft.browserTabs = event.tabs.map((tab) => (held.has(tab.id) ? { ...tab, userControl: true } : tab));
             draft.activeBrowserTabId = event.activeTabId;
+          });
+        if (event.type === "browser-user-control-changed")
+          setState((draft) => {
+            const held = new Set(event.tabIds);
+            draft.browserTabs = draft.browserTabs.map(({ userControl: _, ...tab }) =>
+              held.has(tab.id) ? { ...tab, userControl: true } : tab,
+            );
           });
         if (event.type === "browser-control-changed")
           setState((draft) => {

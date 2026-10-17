@@ -94,6 +94,8 @@ import {
   type StoredBrowserStateV2,
 } from "./browser-state";
 import {
+  BrowserToolHold,
+  BrowserUserControlHeld,
   boundEngineOperation,
   enqueueTabOperation,
   isTimeoutError,
@@ -271,6 +273,14 @@ function rejectTakeoverTool(): Effect.Effect<DynamicToolResult, BrowserOperation
   );
 }
 
+/** Who controls a tab: the person at this computer, or one session of a team member. */
+export type BrowserUserControlHolder = { kind: "local" } | { kind: "member"; memberId: string; sessionId: string };
+/** The holds to release when a window, a session or a member ends. */
+export type BrowserUserControlOwner =
+  | { kind: "local" }
+  | { kind: "session"; sessionId: string }
+  | { kind: "member"; memberId: string };
+
 export class BrowserHost {
   static readonly CONTROL_IDLE_GRACE_MS = BrowserControlSessions.IDLE_GRACE_MS;
   readonly #window: BrowserWindow;
@@ -294,6 +304,10 @@ export class BrowserHost {
   #target: BrowserViewTarget = "main";
   readonly #mountedViews = new Map<WebContentsView, BrowserWindow>();
   readonly #takeoverTabIds = new Set<string>();
+  /** The tabs that a person controls, with who took each one, so a closed session releases its own. */
+  readonly #userControlTabIds = new Map<string, BrowserUserControlHolder>();
+  /** The agent tool calls that wait for the release of a tab. */
+  readonly #userControlWaiters = new Map<string, Set<Deferred.Deferred<void>>>();
   /**
    * The origins where an agent ran `evaluate`. Kept by origin, not by document: a same-origin popup,
    * opener or service worker carries the script past one document.
@@ -435,6 +449,7 @@ export class BrowserHost {
       tab.secret !== undefined ||
       tab.secretDocument === true ||
       this.#takeoverTabIds.has(tab.id) ||
+      this.#userControlTabIds.has(tab.id) ||
       tab.contents.isCurrentlyAudible()
     );
   }
@@ -519,7 +534,10 @@ export class BrowserHost {
   listTabs(): BrowserTab[] {
     return [...this.#tabs.values()]
       .filter((tab) => !tab.closing && !tab.contents.isDestroyed())
-      .map((tab) => toPublicTab(tab));
+      .map((tab) => {
+        const publicTab = toPublicTab(tab);
+        return this.#userControlTabIds.has(tab.id) ? { ...publicTab, userControl: true as const } : publicTab;
+      });
   }
 
   /** The renderer process of each open tab, so the resource monitor can count tabs apart from windows. */
@@ -737,6 +755,8 @@ export class BrowserHost {
       .filter((child) => child.openerTabId === tabId || (signInSession && child.privateSession === signInSession))
       .map((child) => this.close(child.id));
     this.#takeoverTabIds.delete(tabId);
+    this.#userControlTabIds.delete(tabId);
+    this.#completeUserControlWaiters(tabId);
 
     if (this.#activeTabId === tabId) {
       this.#activeTabId =
@@ -808,6 +828,100 @@ export class BrowserHost {
       ),
     );
   }).bind(this);
+
+  /**
+   * A person takes the tab. The agent tool calls on it wait for the release. An operation that already
+   * runs ends first, because the take waits for its place in the tab queue.
+   */
+  readonly takeUserControl = Effect.fn("BrowserHost.takeUserControl")(function* (
+    this: BrowserHost,
+    tabId: string,
+    holder: BrowserUserControlHolder,
+  ): Effect.fn.Return<void, BrowserOperationError> {
+    const tab = this.#tabs.get(tabId);
+    if (!tab || tab.closing) return yield* browserFailure(new Error(sourceText("error.backend.browserTabNotFound")));
+    if (tab.secret) return yield* browserFailure(new Error(sourceText("error.backend.browserUserControlBusy")));
+    if (this.#userControlTabIds.has(tabId)) return;
+    tab.engine.invalidateReferences();
+    this.#userControlTabIds.set(tabId, holder);
+    tab.diagnostics.clearDiagnostics();
+    this.#emitChanged();
+    yield* this.#enqueue(tabId, () => this.#recorder.discard(tabId, "tab-closed"), true).pipe(
+      Effect.catch((operationFailure) =>
+        Effect.gen({ self: this }, function* () {
+          if (this.#userControlTabIds.get(tabId) === holder) this.#endUserControl(tabId);
+          return yield* browserFailure(operationFailure.cause);
+        }),
+      ),
+    );
+  }).bind(this);
+
+  /** Any caller that can see the tab gives it back. A tab that nobody holds stays as it is. */
+  releaseUserControl(tabId: string): void {
+    if (!this.#userControlTabIds.has(tabId)) return;
+    const tab = this.#tabs.get(tabId);
+    if (tab) {
+      tab.engine.invalidateReferences();
+      tab.diagnostics.clearDiagnostics();
+    }
+    this.#endUserControl(tabId);
+  }
+
+  /** Releases the tabs of a closed window, session or member. */
+  releaseUserControlHeldBy(owner: BrowserUserControlOwner): void {
+    for (const [tabId, holder] of [...this.#userControlTabIds]) {
+      if (
+        (owner.kind === "local" && holder.kind === "local") ||
+        (owner.kind === "session" && holder.kind === "member" && holder.sessionId === owner.sessionId) ||
+        (owner.kind === "member" && holder.kind === "member" && holder.memberId === owner.memberId)
+      )
+        this.releaseUserControl(tabId);
+    }
+  }
+
+  /** The tab of this agent tool call while a person controls it, or null. */
+  userControlTabFor(params: DynamicToolCallParams): string | null {
+    const tabId = isRecord(params.arguments) ? params.arguments.tabId : undefined;
+    if (!isString(tabId) || !this.#userControlTabIds.has(tabId)) return null;
+    const tab = this.listTabs().find((candidate) => candidate.id === tabId);
+    return tab && this.#canUseToolTab(params, tab) ? tabId : null;
+  }
+
+  /** Waits until nobody controls the tab: a release, a tab close or the host shutdown. */
+  awaitUserControlRelease(tabId: string): Effect.Effect<void> {
+    return Effect.suspend(() => {
+      if (!this.#userControlTabIds.has(tabId)) return Effect.void;
+      const released = Deferred.makeUnsafe<void>();
+      const waiters = this.#userControlWaiters.get(tabId) ?? new Set<Deferred.Deferred<void>>();
+      this.#userControlWaiters.set(tabId, waiters);
+      waiters.add(released);
+      return Deferred.await(released).pipe(
+        Effect.ensuring(
+          Effect.sync(() => {
+            waiters.delete(released);
+            if (waiters.size === 0 && this.#userControlWaiters.get(tabId) === waiters)
+              this.#userControlWaiters.delete(tabId);
+          }),
+        ),
+      );
+    });
+  }
+
+  #heldByUser(tabId: string): boolean {
+    return this.#userControlTabIds.has(tabId);
+  }
+
+  #endUserControl(tabId: string): void {
+    this.#userControlTabIds.delete(tabId);
+    this.#completeUserControlWaiters(tabId);
+    this.#emitChanged();
+  }
+
+  #completeUserControlWaiters(tabId: string): void {
+    const waiters = this.#userControlWaiters.get(tabId);
+    this.#userControlWaiters.delete(tabId);
+    for (const released of waiters ?? []) Deferred.doneUnsafe(released, Exit.void);
+  }
 
   readonly prepareSecret = Effect.fn("BrowserHost.prepareSecret")(function* (
     this: BrowserHost,
@@ -1597,21 +1711,25 @@ export class BrowserHost {
     params: DynamicToolCallParams,
     hooks: BrowserDynamicToolHooks = {},
   ): Effect.fn.Return<DynamicToolResult, BrowserOperationError> {
-    return yield* Effect.gen({ self: this }, function* () {
+    const outcome = yield* Effect.gen({ self: this }, function* () {
       const call = yield* browserSync(() => parseBrowserToolCall(params.tool, params.arguments));
       yield* browserSync(() => this.#controls.begin(params, call));
-      return yield* runBrowserTool(this.#toolHandlers, call.tool, call, params, hooks);
+      return { result: yield* runBrowserTool(this.#toolHandlers, call.tool, call, params, hooks) };
     })
       .pipe(
+        Effect.provideService(BrowserToolHold, (tabId: string) => this.#heldByUser(tabId)),
         Effect.catch((operationFailure) =>
-          Effect.sync((): DynamicToolResult => {
+          Effect.sync((): { result: DynamicToolResult } | { heldTabId: string } => {
             const error = operationFailure.cause;
+            if (error instanceof BrowserUserControlHeld) return { heldTabId: error.tabId };
             return {
-              success: false,
-              // The single place every browser tool failure reaches a provider. A page exception carries
-              // the page's own message -- `throw new Error("password=hunter2")` -- so this gets the same
-              // redaction the diagnostics ring applies, and the diagnostic copy stays the redacted one.
-              contentItems: [{ type: "inputText", text: redactText(String(error)) }],
+              result: {
+                success: false,
+                // The single place every browser tool failure reaches a provider. A page exception carries
+                // the page's own message -- `throw new Error("password=hunter2")` -- so this gets the same
+                // redaction the diagnostics ring applies, and the diagnostic copy stays the redacted one.
+                contentItems: [{ type: "inputText", text: redactText(String(error)) }],
+              },
             };
           }),
         ),
@@ -1623,6 +1741,13 @@ export class BrowserHost {
           }),
         ),
       );
+    if ("result" in outcome) return outcome.result;
+    // The agent's control of the tab ended above, so the wait does not show the agent at work.
+    if (hooks.onUserControl) return yield* hooks.onUserControl(outcome.heldTabId);
+    return {
+      success: false,
+      contentItems: [{ type: "inputText", text: new BrowserUserControlHeld(outcome.heldTabId).message }],
+    };
   }).bind(this);
 
   #toolTabs(params: DynamicToolCallParams): { tabs: BrowserTab[]; activeTabId: string | null } {
@@ -1673,7 +1798,7 @@ export class BrowserHost {
         "Browser upload target resolution timed out.",
         keepQueueBlocked,
       ),
-    );
+    ).pipe(Effect.provideService(BrowserToolHold, (heldTabId: string) => this.#heldByUser(heldTabId)));
   }).bind(this);
 
   readonly destroy = Effect.fn("BrowserHost.destroy")(function* (this: BrowserHost) {
@@ -1700,6 +1825,8 @@ export class BrowserHost {
           );
         }
         this.#tabs.clear();
+        this.#userControlTabIds.clear();
+        for (const tabId of [...this.#userControlWaiters.keys()]) this.#completeUserControlWaiters(tabId);
         this.#listeners.clear();
         this.#controls.dispose();
         this.#documentListeners.clear();
@@ -1985,7 +2112,7 @@ export class BrowserHost {
       );
     });
     contents.on("console-message", (...eventArgs) => {
-      if (this.#takeoverTabIds.has(tab.id) || tab.secret) return;
+      if (this.#takeoverTabIds.has(tab.id) || this.#userControlTabIds.has(tab.id) || tab.secret) return;
       const details = readConsoleMessage(eventArgs);
       if (!details) return;
       tab.diagnostics.add({
@@ -2318,6 +2445,7 @@ export class BrowserHost {
     if (this.#tabs.get(tabId)?.secret)
       throw new Error("Browser inspection is protected during authentication. Use takeover.");
     if (this.#takeoverTabIds.has(tabId)) throw new Error(`Browser tab is under user takeover: ${tabId}`);
+    if (this.#heldByUser(tabId)) throw new BrowserUserControlHeld(tabId);
   }
 
   #canUseToolTab(params: DynamicToolCallParams, tab: BrowserTab): boolean {

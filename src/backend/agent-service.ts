@@ -725,10 +725,16 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         scheduleDrain: (agentId) => this.#drain.scheduleDrain(agentId),
       },
     });
+    // The Team API sends the held list as its own event; the frozen tab projection drops the flag.
+    let userControlTabIds = "";
     this.#browser.onChanged((tabs, activeTabId) => {
       this.#attention.cancelTakeoversForMissingTabs(tabs);
       Effect.runFork(this.#browserUploads.retainTabs(tabs).pipe(Effect.forkIn(this.#scope)));
       this.#emit({ type: "browser-changed", tabs, activeTabId });
+      const held = tabs.filter((tab) => tab.userControl).map((tab) => tab.id);
+      if (held.join("\n") === userControlTabIds) return;
+      userControlTabIds = held.join("\n");
+      this.#emit({ type: "browser-user-control-changed", tabIds: held });
     });
     this.#browser.onDocumentChanged((tabId, documentIds) =>
       Effect.runFork(this.#browserUploads.retainDocuments(tabId, documentIds).pipe(Effect.forkIn(this.#scope))),

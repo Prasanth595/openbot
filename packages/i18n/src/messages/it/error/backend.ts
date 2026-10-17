@@ -43,6 +43,10 @@ export const messages = {
   "error.backend.channelDeleteUnsupported": "Questo server non supporta l'eliminazione dei canali.",
   "error.backend.browserNavigateUnsupported":
     "Questo host remoto non supporta la navigazione dalla barra degli indirizzi in una scheda esistente.",
+  "error.backend.browserUserControlBusy":
+    "Questa scheda del browser attende un segreto. Rispondi prima alla richiesta del segreto.",
+  "error.backend.browserUserControlUnsupported":
+    "Questo host remoto non supporta il controllo di una scheda del browser.",
   "error.backend.sharedDataLocalOnly": "I dati condivisi sono gestiti sul computer su cui girano questi agenti.",
   "error.backend.browserUrlProtocol": "Sono consentiti solo URL del browser HTTP(S).",
   "error.backend.sunshineNotReady": "Sunshine non è diventato pronto.",

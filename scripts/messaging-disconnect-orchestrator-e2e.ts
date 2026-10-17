@@ -51,6 +51,8 @@ const browser: AgentBrowserHost = {
   clearControls: () => {},
   endControl: () => {},
   close: () => Effect.void,
+  userControlTabFor: () => null,
+  awaitUserControlRelease: unused,
 };
 const ingress: MessagingIngress = {
   acquire: () => () => {},

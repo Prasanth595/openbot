@@ -93,6 +93,8 @@ export const messages = {
   "browser.error.openAddress": "Impossibile aprire l'indirizzo in questa scheda.",
   "browser.error.closeTab": "Impossibile chiudere la scheda del browser.",
   "browser.error.reloadTab": "Impossibile ricaricare la scheda del browser.",
+  "browser.error.takeControl": "Impossibile prendere il controllo della scheda del browser.",
+  "browser.error.releaseControl": "Impossibile restituire la scheda del browser all’agente.",
   "browser.error.navigateBack": "Impossibile tornare indietro.",
   "browser.error.navigateForward": "Impossibile andare avanti.",
 } as const satisfies PartialTranslation<typeof source>;

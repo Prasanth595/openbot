@@ -119,6 +119,7 @@
     "./team-protocol/acp-registry-v1": "./src/team-protocol/acp-registry-v1.ts",
     "./team-protocol/agent-hidden-v1": "./src/team-protocol/agent-hidden-v1.ts",
     "./team-protocol/agent-session-settings-v1": "./src/team-protocol/agent-session-settings-v1.ts",
+    "./team-protocol/browser-user-control-v1": "./src/team-protocol/browser-user-control-v1.ts",
     "./team-protocol/providers-v5": "./src/team-protocol/providers-v5.ts",
     "./team-protocol/host-admin-v1": "./src/team-protocol/host-admin-v1.ts",
     "./team-protocol/hosted-sites-v1": "./src/team-protocol/hosted-sites-v1.ts",

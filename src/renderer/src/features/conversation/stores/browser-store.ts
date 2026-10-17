@@ -421,6 +421,38 @@ export function createBrowserStore(deps: BrowserStoreDeps) {
     }
   }
 
+  /** The owning agent's browser calls on this tab wait until the release. */
+  async function takeBrowserControl(tabId: string) {
+    await setBrowserControl(tabId, "take");
+  }
+
+  async function releaseBrowserControl(tabId: string) {
+    await setBrowserControl(tabId, "release");
+  }
+
+  async function setBrowserControl(tabId: string, action: "take" | "release") {
+    if (
+      !browserInteractionAvailable() ||
+      closingBrowserTabIds.has(tabId) ||
+      !browserTabs().some((tab) => tab.id === tabId)
+    ) {
+      return;
+    }
+    const agentId = deps.props.agent?.id;
+    const target = agentId ? { agentId, serverId: deps.props.server?.id ?? "local" } : undefined;
+    const browser = conversationRuntime(deps.props).browser;
+    try {
+      if (action === "take") await browser.takeControl(tabId);
+      else await browser.releaseControl(tabId);
+    } catch (error) {
+      deps.setComposerError(
+        currentText().t(action === "take" ? "browser.error.takeControl" : "browser.error.releaseControl"),
+        target,
+        error,
+      );
+    }
+  }
+
   return {
     browserInteractionAvailable,
     browserSidebarOpen,
@@ -444,5 +476,7 @@ export function createBrowserStore(deps: BrowserStoreDeps) {
     activateBrowserTab,
     reloadBrowserTab,
     navigateBrowserTab,
+    takeBrowserControl,
+    releaseBrowserControl,
   };
 }

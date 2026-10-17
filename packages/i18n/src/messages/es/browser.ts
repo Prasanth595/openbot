@@ -93,6 +93,8 @@ export const messages = {
   "browser.error.openAddress": "No se pudo abrir la dirección en esta pestaña.",
   "browser.error.closeTab": "No se pudo cerrar la pestaña del navegador.",
   "browser.error.reloadTab": "No se pudo recargar la pestaña del navegador.",
+  "browser.error.takeControl": "No se pudo tomar el control de la pestaña del navegador.",
+  "browser.error.releaseControl": "No se pudo devolver la pestaña del navegador al agente.",
   "browser.error.navigateBack": "No se pudo retroceder.",
   "browser.error.navigateForward": "No se pudo avanzar.",
 } as const satisfies PartialTranslation<typeof source>;

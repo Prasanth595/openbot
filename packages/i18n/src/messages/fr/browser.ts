@@ -93,6 +93,8 @@ export const messages = {
   "browser.error.openAddress": "Impossible d’ouvrir l’adresse dans cet onglet.",
   "browser.error.closeTab": "Impossible de fermer l’onglet du navigateur.",
   "browser.error.reloadTab": "Impossible d’actualiser l’onglet du navigateur.",
+  "browser.error.takeControl": "Impossible de prendre le contrôle de l’onglet du navigateur.",
+  "browser.error.releaseControl": "Impossible de rendre l’onglet du navigateur à l’agent.",
   "browser.error.navigateBack": "Impossible de revenir en arrière.",
   "browser.error.navigateForward": "Impossible d’avancer.",
 } as const satisfies PartialTranslation<typeof source>;

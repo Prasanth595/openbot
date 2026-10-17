@@ -95,6 +95,8 @@ export const messages = {
   "browser.error.openAddress": "Die Adresse konnte in diesem Tab nicht geöffnet werden.",
   "browser.error.closeTab": "Der Browser-Tab konnte nicht geschlossen werden.",
   "browser.error.reloadTab": "Der Browser-Tab konnte nicht neu geladen werden.",
+  "browser.error.takeControl": "Der Browser-Tab konnte nicht übernommen werden.",
+  "browser.error.releaseControl": "Der Browser-Tab konnte nicht an den Agenten zurückgegeben werden.",
   "browser.error.navigateBack": "Zurücknavigieren war nicht möglich.",
   "browser.error.navigateForward": "Vorwärtsnavigieren war nicht möglich.",
 } as const satisfies PartialTranslation<typeof source>;

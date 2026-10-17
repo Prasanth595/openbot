@@ -302,6 +302,10 @@ export type TeamApiBrowser = Pick<
   | "getDisplayState"
   | "loadUrl"
   | "isPrivate"
+  // A person's control of a tab, behind `browser-user-control`.
+  | "takeUserControl"
+  | "releaseUserControl"
+  | "releaseUserControlHeldBy"
   // The live view, behind `browser-view`. `browser-view-gateway.ts` is what reaches these; a route
   // cannot, because frames outlive the request that asked for them.
   | "startView"

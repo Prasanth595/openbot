@@ -1,7 +1,12 @@
 // The embedded browser and its picture-in-picture window.
 
-import { type BrowserDisplayState, LOCAL_SERVER_ID } from "@openbot/contracts/ipc";
+import { type BrowserDisplayState, type BrowserTab, LOCAL_SERVER_ID } from "@openbot/contracts/ipc";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
+import {
+  BROWSER_USER_CONTROL_CAPABILITY,
+  BROWSER_USER_CONTROL_ROUTES,
+  decodeBrowserUserControlSnapshot,
+} from "@openbot/contracts/team-protocol/browser-user-control-v1";
 import { decodeBrowserViewInputValue } from "@openbot/contracts/team-protocol/browser-view-v1";
 import { TEAM_BROWSER_NAVIGATION_CAPABILITY } from "@openbot/contracts/team-protocol/current";
 import { sourceText } from "@openbot/i18n/source";
@@ -37,6 +42,8 @@ export interface BrowserIpcDependencies {
     | "navigate"
     | "reload"
     | "close"
+    | "takeUserControl"
+    | "releaseUserControl"
     | "listTabs"
     | "getDisplayState"
     | "getControlState"
@@ -53,6 +60,26 @@ export function browserIpcHandlers({
   remoteServers,
   browserView,
 }: BrowserIpcDependencies): Pick<IpcGroupHandlers, "browser" | "browserInput"> {
+  // The frozen tab list has no field for a person's control, so a host that can tell answers on
+  // its own route, and its list marks the tabs here.
+  const withUserControl = async (serverId: string, tabs: BrowserTab[]): Promise<BrowserTab[]> => {
+    if (!remoteServers.supportsCapability(serverId, BROWSER_USER_CONTROL_CAPABILITY)) return tabs;
+    const { tabIds } = await runCauseEffect(
+      remoteServers.request(serverId, BROWSER_USER_CONTROL_ROUTES.state, decodeBrowserUserControlSnapshot, {
+        method: "POST",
+        body: {},
+      }),
+    );
+    const held = new Set(tabIds);
+    return tabs.map((tab) => (held.has(tab.id) ? { ...tab, userControl: true } : tab));
+  };
+  const userControlRequest = async (serverId: string, route: string, tabId: string): Promise<void> => {
+    if (!remoteServers.supportsCapability(serverId, BROWSER_USER_CONTROL_CAPABILITY))
+      throw new Error(sourceText("error.backend.browserUserControlUnsupported"));
+    await runCauseEffect(
+      remoteServers.request(serverId, route, decodeBrowserUserControlSnapshot, { method: "POST", body: { tabId } }),
+    );
+  };
   return {
     browser: {
       open: payloadHandler(parseBrowserOpen, (parsed) =>
@@ -135,11 +162,26 @@ export function browserIpcHandlers({
             ),
         }),
       ),
+      takeControl: payloadHandler(stringPayload("tabId"), (tabId) =>
+        routeToServer(remoteServers.activeServerId, {
+          local: () => runCauseEffect(browser.takeUserControl(tabId, { kind: "local" })),
+          remote: (serverId) => userControlRequest(serverId, BROWSER_USER_CONTROL_ROUTES.take, tabId),
+        }),
+      ),
+      releaseControl: payloadHandler(stringPayload("tabId"), (tabId) =>
+        routeToServer(remoteServers.activeServerId, {
+          local: () => browser.releaseUserControl(tabId),
+          remote: (serverId) => userControlRequest(serverId, BROWSER_USER_CONTROL_ROUTES.release, tabId),
+        }),
+      ),
       listTabs: handler(() =>
         routeToServer(remoteServers.activeServerId, {
           local: () => browser.listTabs(),
-          remote: (serverId) =>
-            runCauseEffect(remoteServers.request(serverId, TEAM_API_ROUTES.browser.tabs, decodeBrowserTabs)),
+          remote: async (serverId) =>
+            withUserControl(
+              serverId,
+              await runCauseEffect(remoteServers.request(serverId, TEAM_API_ROUTES.browser.tabs, decodeBrowserTabs)),
+            ),
         }),
       ),
       getDisplayState: handler(() =>
@@ -152,11 +194,12 @@ export function browserIpcHandlers({
               const tabs = await runCauseEffect(
                 remoteServers.request(serverId, TEAM_API_ROUTES.browser.tabs, decodeBrowserTabs),
               );
-              return { tabs, activeTabId: tabs[0]?.id ?? null };
+              return { tabs: await withUserControl(serverId, tabs), activeTabId: tabs[0]?.id ?? null };
             }
-            return runCauseEffect(
+            const display = await runCauseEffect(
               remoteServers.request(serverId, TEAM_API_ROUTES.browser.display, decodeBrowserDisplayState),
             );
+            return { ...display, tabs: await withUserControl(serverId, display.tabs) };
           },
         }),
       ),

@@ -43,6 +43,10 @@ export const messages = {
   "error.backend.channelDeleteUnsupported": "Kanal silme bu sunucu tarafından desteklenmiyor.",
   "error.backend.browserNavigateUnsupported":
     "Bu uzak ana makine mevcut bir sekmede adres çubuğuyla gezinmeyi desteklemiyor.",
+  "error.backend.browserUserControlBusy":
+    "Bu tarayıcı sekmesi bir gizli bilgi bekliyor. Önce gizli bilgi isteğini yanıtlayın.",
+  "error.backend.browserUserControlUnsupported":
+    "Bu uzak ana makine bir tarayıcı sekmesinin denetimini almayı desteklemiyor.",
   "error.backend.sharedDataLocalOnly": "Paylaşılan veriler bu ajanları çalıştıran bilgisayarda yönetilir.",
   "error.backend.browserUrlProtocol": "Yalnızca HTTP(S) tarayıcı URL'lerine izin verilir.",
   "error.backend.sunshineNotReady": "Sunshine hazır hale gelmedi.",

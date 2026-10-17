@@ -1190,6 +1190,8 @@ export const IPC_ENDPOINTS = {
     navigate: request<BrowserNavigateInput, void>()("browser:navigate"),
     reload: request<string, void>()("browser:reload"),
     close: request<string, void>()("browser:close"),
+    takeControl: request<string, void>()("browser:take-control"),
+    releaseControl: request<string, void>()("browser:release-control"),
     listTabs: request<undefined, BrowserTab[]>()("browser:list-tabs"),
     getDisplayState: request<undefined, BrowserDisplayState>()("browser:get-display-state"),
     getControlState: request<undefined, BrowserControlState>()("browser:get-control-state"),

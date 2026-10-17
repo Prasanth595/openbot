@@ -65,6 +65,11 @@ import { guardedListDecoder, optionalHistoryExtent, requiredString } from "@open
 import { isDynamicRecord, isNumber, isString } from "@openbot/contracts/runtime-values";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import {
+  BROWSER_USER_CONTROL_CAPABILITY,
+  BROWSER_USER_CONTROL_ROUTES,
+  decodeBrowserUserControlSnapshot,
+} from "@openbot/contracts/team-protocol/browser-user-control-v1";
+import {
   decodeBrowserViewInputValue,
   TEAM_BROWSER_VIEW_CLIPBOARD_CAPABILITY,
   TEAM_BROWSER_VIEW_FRAME_POINT_CAPABILITY,
@@ -164,6 +169,9 @@ export interface WebWorkspaceRuntime {
   navigateBrowserTab(input: BrowserNavigateInput): Promise<void>;
   reloadBrowserTab(tabId: string): Promise<void>;
   closeBrowserTab(tabId: string): Promise<void>;
+  /** Behind `browser-user-control`: the owning agent waits on the tab until the release. */
+  takeBrowserControl(tabId: string): Promise<void>;
+  releaseBrowserControl(tabId: string): Promise<void>;
   respondToBrowserSecret?: (input: RespondToBrowserSecretInput) => Promise<void>;
   getSidebarLayout?: () => Promise<SidebarLayoutSnapshot>;
   mutateSidebarLayout?: (action: SidebarLayoutAction) => Promise<SidebarLayoutSnapshot>;
@@ -700,7 +708,13 @@ export function createWebWorkspaceRuntime(
     async browserTabs() {
       const value = await request("GET", TEAM_API_ROUTES.browser.tabs);
       if (!Array.isArray(value)) throw new Error("The host returned an invalid tab list.");
-      return value.map(decodeWebBrowserTab);
+      const tabs = value.map(decodeWebBrowserTab);
+      // The frozen tab list has no field for a person's control, so the host answers on its own route.
+      if (!capabilities.includes(BROWSER_USER_CONTROL_CAPABILITY)) return tabs;
+      const held = new Set(
+        decodeBrowserUserControlSnapshot(await request("POST", BROWSER_USER_CONTROL_ROUTES.state, {})).tabIds,
+      );
+      return tabs.map((tab) => (held.has(tab.id) ? { ...tab, userControl: true } : tab));
     },
     async openBrowserTab(input) {
       return decodeWebBrowserTab(await request("POST", TEAM_API_ROUTES.browser.open, { ...input }));
@@ -721,6 +735,16 @@ export function createWebWorkspaceRuntime(
     },
     async closeBrowserTab(tabId) {
       await request("POST", TEAM_API_ROUTES.browser.close, { tabId });
+    },
+    async takeBrowserControl(tabId) {
+      if (!capabilities.includes(BROWSER_USER_CONTROL_CAPABILITY))
+        throw new Error(currentText().t("error.backend.browserUserControlUnsupported"));
+      decodeBrowserUserControlSnapshot(await request("POST", BROWSER_USER_CONTROL_ROUTES.take, { tabId }));
+    },
+    async releaseBrowserControl(tabId) {
+      if (!capabilities.includes(BROWSER_USER_CONTROL_CAPABILITY))
+        throw new Error(currentText().t("error.backend.browserUserControlUnsupported"));
+      decodeBrowserUserControlSnapshot(await request("POST", BROWSER_USER_CONTROL_ROUTES.release, { tabId }));
     },
     async browserPreview(tabId) {
       return decodeWebBrowserPreview(await request("POST", TEAM_API_ROUTES.browser.preview, { tabId }));

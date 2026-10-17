@@ -7,6 +7,10 @@
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import { type DynamicRecord, isBoolean } from "@openbot/contracts/runtime-values";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
+import {
+  BROWSER_USER_CONTROL_CAPABILITY,
+  BROWSER_USER_CONTROL_ROUTES,
+} from "@openbot/contracts/team-protocol/browser-user-control-v1";
 import { sourceText } from "@openbot/i18n/source";
 import { runCauseEffect } from "../../backend/effect-boundary";
 import type { TeamApiBrowser, TeamApiBrowserView } from "./dependencies";
@@ -23,7 +27,7 @@ export async function routeBrowser(
   context: TeamApiRequestContext,
   { browser, browserView }: BrowserRouteDependencies,
 ): Promise<RouteOutcome> {
-  const { method, url, request, member, sessionId, json, empty } = context;
+  const { method, url, request, member, sessionId, capabilities, json, empty } = context;
   // A private tab holds an administrator's MCP sign-in (`mcp-sign-in-v1`). A member could watch the
   // password, or finish the sign-in with their own account, so to a member that tab does not exist.
   const hidden = (tabId: string) => member.role === "member" && browser.isPrivate(tabId);
@@ -111,6 +115,23 @@ export async function routeBrowser(
       }),
     );
     return empty(204);
+  }
+
+  // Behind `browser-user-control`. Any member who can see a tab takes or releases it; the answer is
+  // the whole list of held tabs that this member can see, as the event sends it.
+  if (method === "POST" && Object.values(BROWSER_USER_CONTROL_ROUTES).some((path) => path === url.pathname)) {
+    if (!capabilities.has(BROWSER_USER_CONTROL_CAPABILITY))
+      throw new HttpError(400, sourceText("error.backend.browserUserControlUnsupported"));
+    const body = await readJson(request);
+    if (url.pathname === BROWSER_USER_CONTROL_ROUTES.take)
+      await runCauseEffect(browser.takeUserControl(tabId(body), { kind: "member", memberId: member.id, sessionId }));
+    if (url.pathname === BROWSER_USER_CONTROL_ROUTES.release) browser.releaseUserControl(tabId(body));
+    return json(200, {
+      tabIds: browser
+        .listTabs()
+        .filter((tab) => tab.userControl && !hidden(tab.id))
+        .map((tab) => tab.id),
+    });
   }
 
   // Behind `browser-view`. The session is only the agreement about which tab and who is watching;

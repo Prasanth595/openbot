@@ -95,6 +95,8 @@ export const messages = {
   "browser.error.openAddress": "Nie udało się otworzyć adresu w tej karcie.",
   "browser.error.closeTab": "Nie udało się zamknąć karty przeglądarki.",
   "browser.error.reloadTab": "Nie udało się odświeżyć karty przeglądarki.",
+  "browser.error.takeControl": "Nie udało się przejąć kontroli nad kartą przeglądarki.",
+  "browser.error.releaseControl": "Nie udało się oddać karty przeglądarki agentowi.",
   "browser.error.navigateBack": "Nie udało się cofnąć.",
   "browser.error.navigateForward": "Nie udało się przejść dalej.",
 } as const satisfies PartialTranslation<typeof source>;

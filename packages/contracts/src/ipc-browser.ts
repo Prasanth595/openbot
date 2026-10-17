@@ -13,6 +13,8 @@ export interface BrowserTab {
   openerTabId?: string;
   /** Local popup failure, without authentication URLs or request data. */
   popupFailure?: { id: string; message: string };
+  /** A person controls this tab, so the owning agent waits for the release. */
+  userControl?: true;
 }
 
 export type BrowserImageMode = "auto" | "always" | "never";

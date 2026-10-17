@@ -99,6 +99,10 @@ export const TEAM_API_ROUTES = {
     // `streamPath` it answers with, which `team-protocol/browser-view-v1.ts` builds and reads.
     viewSessions: "/v1/browser/view/sessions",
     viewSession: (sessionId: string) => `/v1/browser/view/sessions/${segment(sessionId)}`,
+    // Behind `browser-user-control`; see `team-protocol/browser-user-control-v1.ts`.
+    userControl: "/v1/browser/user-control",
+    userControlTake: "/v1/browser/user-control/take",
+    userControlRelease: "/v1/browser/user-control/release",
   },
   remoteScreen: {
     prefix: REMOTE_SCREEN,

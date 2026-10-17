@@ -27,6 +27,7 @@ import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import { ACP_REGISTRY_CAPABILITY } from "@openbot/contracts/team-protocol/acp-registry-v1";
 import { AGENT_HIDDEN_CAPABILITY } from "@openbot/contracts/team-protocol/agent-hidden-v1";
 import { AGENT_SESSION_SETTINGS_CAPABILITY } from "@openbot/contracts/team-protocol/agent-session-settings-v1";
+import { BROWSER_USER_CONTROL_CAPABILITY } from "@openbot/contracts/team-protocol/browser-user-control-v1";
 import {
   AGENT_ADMIN_CAPABILITY,
   AGENT_HOST_SETTINGS_CAPABILITY,
@@ -542,6 +543,16 @@ export class TeamApiServer {
     if (client.readyState === webSockets.WebSocket.OPEN) client.send(JSON.stringify(this.#hostRestart));
   }
 
+  #sendBrowserUserControl(client: Ws.WebSocket, connection: EventClientState): void {
+    const tabIds = this.#options.browser
+      .listTabs()
+      .filter((tab) => tab.userControl)
+      .map((tab) => tab.id);
+    // An empty list is sent too: it clears the holds that a reconnecting client still shows.
+    if (client.readyState !== webSockets.WebSocket.OPEN) return;
+    client.send(JSON.stringify(this.#eventFor(connection, { type: "browser-user-control-changed", tabIds })));
+  }
+
   listDirectThreads(memberId: string): DirectThreadSummary[] {
     return this.#requireChat().listThreads(memberId);
   }
@@ -859,6 +870,7 @@ export class TeamApiServer {
     return routeTeam(context, {
       store: this.#options.store,
       remoteScreen: this.#options.remoteScreen,
+      browser: this.#options.browser,
       createInvite: this.#options.createInvite,
       onSessionRevoked: this.#options.onSessionRevoked,
       getPresence: () => this.getPresence(),
@@ -1183,6 +1195,13 @@ export class TeamApiServer {
         ...event,
         usage: { ...event.usage, limits: event.usage.limits.filter((limit) => limit.accountId === undefined) },
       };
+    if (event.type === "browser-user-control-changed") {
+      const { browser, store } = this.#options;
+      if (!event.tabIds.some((tabId) => browser.isPrivate(tabId))) return event;
+      const role = store.authenticate(connection.token)?.role;
+      if (role && role !== "member") return event;
+      return { ...event, tabIds: event.tabIds.filter((tabId) => !browser.isPrivate(tabId)) };
+    }
     if (event.type !== "browser-changed") return event;
     const { browser, store } = this.#options;
     if (!event.tabs.some((tab) => browser.isPrivate(tab.id))) return event;
@@ -1256,12 +1275,16 @@ export class TeamApiServer {
             const restartWasSent =
               connection.capabilities.has(HOST_UPDATE_CAPABILITY) ||
               connection.capabilities.has(HOST_MEMBER_UPDATE_CAPABILITY);
+            const userControlWasSent = connection.capabilities.has(BROWSER_USER_CONTROL_CAPABILITY);
             connection.capabilities = new Set(event.capabilities.filter(isTeamCurrentCapability));
             if (connection.capabilities.has("agent-runtime-snapshots") && !snapshotsWereEnabled) {
               this.#sendRuntimeSnapshot(client, connection, false);
             }
             // A member that connects while a restart waits learns about it here, not at the next change.
             if (!restartWasSent && this.#hostRestart.state !== "none") this.#sendHostRestart(client, connection);
+            // The same for the tabs that a person controls now.
+            if (!userControlWasSent && connection.capabilities.has(BROWSER_USER_CONTROL_CAPABILITY))
+              this.#sendBrowserUserControl(client, connection);
           }
           connection.includeConversationEvents = event.includeConversations;
           return;
@@ -1783,6 +1806,7 @@ function eventCapability(event: AgentEvent): TeamCurrentCapability | null {
     return "channel-chats-v1";
   if (event.type === "agent-session-settings-changed") return AGENT_SESSION_SETTINGS_CAPABILITY;
   if (event.type === "hidden-agents-changed") return AGENT_HIDDEN_CAPABILITY;
+  if (event.type === "browser-user-control-changed") return BROWSER_USER_CONTROL_CAPABILITY;
   if (event.type === "skills-changed") return SKILLS_EVENTS_CAPABILITY;
   if (event.type === "routine-flows-changed") return ROUTINE_FLOWS_CAPABILITY;
   if (event.type === "turn-progress") return TEAM_AGENT_ACTIVITY_CAPABILITY;

@@ -92,6 +92,8 @@ export const messages = {
   "browser.error.openAddress": "このタブでアドレスを開けませんでした。",
   "browser.error.closeTab": "ブラウザーのタブを閉じられませんでした。",
   "browser.error.reloadTab": "ブラウザーのタブを再読み込みできませんでした。",
+  "browser.error.takeControl": "ブラウザーのタブを操作できませんでした。",
+  "browser.error.releaseControl": "ブラウザーのタブをエージェントに戻せませんでした。",
   "browser.error.navigateBack": "前のページに戻れませんでした。",
   "browser.error.navigateForward": "次のページに進めませんでした。",
 } as const satisfies PartialTranslation<typeof source>;

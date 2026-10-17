@@ -295,6 +295,23 @@ export function browserTakeoverResult(decision: RespondToBrowserTakeoverInput["d
   };
 }
 
+/** The answer for a browser tool call that waited while the user controlled its tab. Only the model reads it. */
+export function browserUserControlResult(): DynamicToolResult {
+  return {
+    success: true,
+    contentItems: [
+      {
+        type: "inputText",
+        text: JSON.stringify({
+          status: "user-control-ended",
+          note: "The user controlled this tab and may have changed the page. The tool call did not run.",
+          next: "Take a fresh snapshot before you act on this tab again.",
+        }),
+      },
+    ],
+  };
+}
+
 export function browserTakeoverError(
   message = "OpenBot could not create a browser takeover request.",
 ): DynamicToolResult {

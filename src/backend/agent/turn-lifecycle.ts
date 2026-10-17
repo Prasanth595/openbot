@@ -19,11 +19,14 @@ import { Deferred, Effect, Exit, Schema, Scope } from "effect";
 import type { AgentClient } from "../agent-client";
 import type { AgentStore } from "../agent-store";
 import type { BrowserOperationError } from "../browser-effects";
+import type { BrowserDynamicToolHooks } from "../browser-tool-actions";
 import { newAssistantMessage, normalizeCompletionStatus } from "../conversation-snapshots";
 import { causeHelpers } from "../effect-boundary";
 import type { DeliveryContext, MailboxStore } from "../mailbox-store";
 import {
   type AppServerNotification,
+  type DynamicToolCallParams,
+  type DynamicToolResult,
   decodeAccountLoginCompletedResult,
   getArray,
   getRecord,
@@ -73,6 +76,15 @@ export interface AgentBrowserHost extends AttentionBrowserHost, BrowserUploadTar
   endControl(threadId: string, turnId: string): void;
   /** Deleting an agent closes the tabs it owned, which nothing else can reach once it is gone. */
   close(tabId: string): Effect.Effect<void, BrowserOperationError>;
+  /** `onUserControl` gives the result of a call that reaches a held tab in the tab queue. */
+  handleDynamicTool(
+    params: DynamicToolCallParams,
+    hooks?: BrowserDynamicToolHooks,
+  ): Effect.Effect<DynamicToolResult, BrowserOperationError>;
+  /** The tab of this browser tool call while the user controls it, or null. */
+  userControlTabFor(params: DynamicToolCallParams): string | null;
+  /** Ends when nobody controls the tab: a release, a tab close or the host shutdown. */
+  awaitUserControlRelease(tabId: string): Effect.Effect<void>;
 }
 
 export interface TurnHooks {

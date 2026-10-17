@@ -3,11 +3,14 @@ import { Effect, type Fiber } from "effect";
 import type { BrowserCdpEngine } from "./browser-cdp";
 import { type BrowserOperationError, browserSync } from "./browser-effects";
 import type { BrowserToolCall } from "./browser-tools";
+import type { DynamicToolResult } from "./protocol";
 
 export interface BrowserDynamicToolHooks {
   onUploadTargetResolved?: (inputId: string, documentId: string) => void;
   onUploadAssigned?: (inputId: string, documentId: string) => void;
   onUploadOperationStarted?: (completion: Fiber.Fiber<void, BrowserOperationError>) => void;
+  /** A person controls the tab. The caller waits for the release and gives the result of the tool call. */
+  onUserControl?: (tabId: string) => Effect.Effect<DynamicToolResult>;
 }
 
 export type BrowserInputCall = Extract<

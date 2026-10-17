@@ -37,6 +37,7 @@ const fullTab = {
   diagnosticErrorCount: 2,
   openerTabId: "tab-0",
   popupFailure: { id: "popup-1", message: "The popup was blocked." },
+  userControl: true,
 } satisfies BrowserTab;
 
 const bounds = { x: 10, y: 20, width: 480, height: 270 } satisfies BrowserBounds;
@@ -133,5 +134,11 @@ describe("browser decoders", () => {
     ["picture-in-picture event of an unknown type", decodeBrowserPictureInPictureEvent, { type: "grow" }],
   ] as const)("rejects a %s", (_name, decode: (value: unknown) => unknown, value) => {
     expect(() => decode(value)).toThrow(/^Invalid /);
+  });
+
+  // A renderer that read a truthy value as a person's control would show a tab as held that the agent
+  // still uses. Only the exact `true` that main sends crosses the bridge.
+  it.each([false, "true", 1, null, {}])("drops a userControl value of %j", (userControl) => {
+    expect(decodeBrowserTab({ ...tab, userControl })).toEqual(tab);
   });
 });

@@ -184,6 +184,8 @@ export function createWebConversationRuntime(
       open: (input) => remote.openBrowserTab(input),
       openPictureInPicture: unavailable,
       reload: (tabId) => remote.reloadBrowserTab(tabId),
+      takeControl: (tabId) => remote.takeBrowserControl(tabId),
+      releaseControl: (tabId) => remote.releaseBrowserControl(tabId),
       setVisible: async () => {},
     },
     voice: {
