@@ -30,10 +30,10 @@ import {
 } from "@openbot/ui";
 import { createEffect, createMemo, createSignal, For, Match, Show, Switch } from "solid-js";
 import { useText } from "../../text";
+import { GitHubMark } from "./brand-marks";
 import {
   DangerZone,
   DetailHeader,
-  GitHubMark,
   type IntegrationStatus,
   Stepper,
   WizardDialog,

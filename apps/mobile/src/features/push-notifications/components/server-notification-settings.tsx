@@ -7,7 +7,6 @@ import { SettingsRow, SettingsSection } from "@/features/settings/components/set
 import { SettingsPicker } from "@/features/settings/components/settings-controls";
 import { useLiveActivitiesPreference } from "@/features/settings/model/live-activities";
 import {
-  alertsOn,
   mutedUntil,
   type ServerNotificationSetting,
   saveServerNotificationSetting,
@@ -39,7 +38,8 @@ type MuteChoice = "current" | "off" | "forever" | `${number}`;
 
 /**
  * What one server may notify about on this phone, and a mute, as the desktop server settings have.
- * On iOS the same choices decide when the Live Activity plays the sound, so they stay on for that too.
+ * On iOS the same choices decide whether the Live Activity shows this server and when it plays the
+ * sound, so they stay on while Live Activities are on.
  */
 export function ServerNotificationSettings({
   server,
@@ -57,7 +57,7 @@ export function ServerNotificationSettings({
   const setting = serverNotificationSetting(preference, server.id);
   const until = mutedUntil(setting, Date.now());
   // Android has no Live Activity.
-  const enabled = preference.ready && !preference.saving && alertsOn(preference, isIOS && liveActivities.enabled);
+  const enabled = preference.ready && !preference.saving && (preference.enabled || (isIOS && liveActivities.enabled));
   const mute: MuteChoice = until === null ? "off" : until === Number.POSITIVE_INFINITY ? "forever" : "current";
 
   function save(change: Partial<ServerNotificationSetting>) {

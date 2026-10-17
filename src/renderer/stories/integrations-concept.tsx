@@ -39,8 +39,8 @@ import {
 } from "@openbot/ui";
 import { AgentAvatar } from "@openbot/ui/features/agents/AgentAvatar";
 import { PluginIcon } from "@openbot/ui/features/marketplace/PluginIcon";
+import { GitHubMark } from "@openbot/ui/features/settings/brand-marks";
 import {
-  GitHubMark,
   type IntegrationStatus,
   LogoTile,
   DetailHeader as SharedDetailHeader,

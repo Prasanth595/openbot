@@ -182,6 +182,7 @@ import {
 } from "./main-window";
 import { ManagedSkillService } from "./managed-skill-service";
 import { McpHostSignIns } from "./mcp-host-sign-ins";
+import { McpOAuthProxySettingsFile } from "./mcp-oauth-proxy-store";
 import {
   MCP_OAUTH_REDIRECT_PATH,
   MCP_OAUTH_REDIRECT_PORT,
@@ -294,6 +295,7 @@ const MESSAGING_CREDENTIAL_FILE = "openbot-messaging-credentials-v1.json";
 const INGRESS_QUEUE_KEY_FILE = "openbot-ingress-queue-key-v1.json";
 /** The MCP sign-ins. Separate from the keys above: a key is typed by the user, a token is not. */
 const MCP_OAUTH_FILE = "openbot-mcp-oauth-v1.json";
+const MCP_OAUTH_PROXY_FILE = "openbot-mcp-oauth-proxy-v1.json";
 /** The one GitHub sign-in of this computer, with the same cipher as the MCP sign-ins. */
 const GITHUB_CONNECTOR_FILE = "openbot-github-connector-v1.json";
 /** The 1Password service account token of this computer, with the same cipher. */
@@ -1096,6 +1098,17 @@ export async function createApplicationServices({
   if (mcpOAuthLoadError) {
     logger.warn(`OpenBot could not read the MCP sign-in file (${mcpOAuthLoadError.name}). It was left unchanged.`);
   }
+  // The OAuth proxy port, so a Codex session resumed after a restart reaches the same address.
+  const mcpOAuthProxySettings = new McpOAuthProxySettingsFile(
+    join(app.getPath("userData"), MCP_OAUTH_PROXY_FILE),
+    secretCipher,
+  );
+  const mcpOAuthProxyLoadError = await Effect.runPromise(mcpOAuthProxySettings.load());
+  if (mcpOAuthProxyLoadError) {
+    logger.warn(
+      `OpenBot could not read the MCP sign-in proxy file (${mcpOAuthProxyLoadError.name}). A new port is used.`,
+    );
+  }
   /*
    * Where a returning grant lands. The loopback listener is the address RFC 8252 gives a native
    * app and the only one some authorization servers accept - Canva refuses `openbot://mcp-auth`
@@ -1150,6 +1163,7 @@ export async function createApplicationServices({
     storage: mcpOAuthStore,
     openExternal: (url) => shell.openExternal(url),
     redirectUrl: mcpOAuthRedirect?.redirectUrl ?? MCP_OAUTH_REDIRECT_URL,
+    logger: createOpenBotLogger("mcp-oauth"),
   });
   mcpOAuthAuthority = mcpOAuth;
   teardown.push(TEARDOWN_ORDER.mcpOAuth, "MCP token refresh", () => Effect.runPromise(mcpOAuth.close()));
@@ -1396,9 +1410,10 @@ export async function createApplicationServices({
       // user's own `PATH`, so a machine with no Node can still start `npx some-server` and a machine
       // that has one keeps the build it installed.
       mcpToolRuntimes: () => providerRuntimes.mcpToolRuntimes(),
-      // The bearer token for an http server, minted here and spent by the provider process. The
-      // service asks for one at each hand-off; only a test the user pressed may open a browser.
+      // The sign-ins of the http servers. The service hands a provider a route of its OAuth proxy,
+      // never the token; only a test the user pressed may open a browser.
       mcpOAuth,
+      mcpOAuthProxySettings,
       providerStateDirectory: join(app.getPath("userData"), "provider-state"),
       ...(process.platform === "win32" ? { providerTempDirectory } : {}),
       // The GitHub entries are paths only: `gh` and `git` read the token from the files the connection

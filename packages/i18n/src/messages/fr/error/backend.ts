@@ -211,6 +211,10 @@ export const messages = {
   "error.backend.mcpSignInResponseTimedOut": "La réponse à la connexion n’est pas arrivée à temps.",
   "error.backend.mcpServerExited":
     "Le serveur s’est arrêté avant de répondre. Exécutez la commande dans un terminal pour voir son erreur.",
+  "error.backend.mcpOAuthProxyUnavailable":
+    "OpenBot n’a pas pu démarrer sa connexion locale de connexion pour ce serveur. Redémarrez OpenBot, puis réessayez.",
+  "error.backend.mcpOAuthSignInNeeded":
+    "La connexion à ce serveur MCP a pris fin. L’utilisateur doit se reconnecter dans OpenBot.",
   "error.backend.mcpServerUnreachable": "OpenBot n’a pas pu joindre le serveur. Vérifiez l’URL et votre réseau.",
   "error.backend.mcpLocalServerOff":
     "Aucun serveur ne répond à {address} sur cet ordinateur. Démarrez le serveur ou activez-le dans l’app qui l’exécute, puis réessayez.",
@@ -225,6 +229,12 @@ export const messages = {
   "error.backend.oauthTooManyRedirects": "Le point de terminaison OAuth a effectué trop de redirections.",
   "error.backend.oauthRedirectOrigin":
     "Le point de terminaison OAuth a redirigé vers {origin} : les identifiants n’ont pas été transmis.",
+  "error.backend.oauthTimedOut": "Le point de terminaison OAuth {origin} n’a pas répondu à temps.",
+  "error.backend.oauthResponseTooLarge":
+    "Le point de terminaison OAuth {origin} a envoyé une réponse trop volumineuse.",
+  "error.backend.oauthResponseUnreadable": "La réponse du point de terminaison OAuth {origin} n’a pas pu être lue.",
+  "error.backend.mcpOAuthPrivateEndpoint":
+    "Le point de terminaison OAuth {origin} est sur un réseau privé, mais le serveur MCP est public : les identifiants n’ont pas été envoyés.",
   "error.backend.sidebarSectionLimit": "Un serveur peut avoir jusqu’à {limit} sections de barre latérale.",
   "error.backend.sectionNameRequired": "Le nom de la section est requis.",
   "error.backend.sectionNameTooLong": "Le nom de la section est trop long.",

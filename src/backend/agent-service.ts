@@ -123,7 +123,7 @@ import { AgentRemoval, AgentRemovalFailed } from "./agent/agent-removal";
 import { AgentSettingsRefused } from "./agent/agent-settings-refused";
 import type { ApprovalAutomationPolicy } from "./agent/approval-automation";
 import { AttachmentGateway } from "./agent/attachment-gateway";
-import { AttentionRegistry, type LocalAttentionResponse } from "./agent/attention-registry";
+import { AttentionRegistry, type LocalAttentionResponse, type PromptResponder } from "./agent/attention-registry";
 import { BootRecovery } from "./agent/boot-recovery";
 import { BrowserUploads } from "./agent/browser-uploads";
 import type { ChatVisualPreviewHost } from "./agent/chat-visual-preview";
@@ -672,7 +672,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         // `enabledMcpServers`, which the Codex thread configuration reads.
         mcpServers: () => this.#mcp.record(credentials.mcpServers()),
         reportMcpDrops: (provider, drops) => this.#mcp.reportDrops(provider, drops),
-        mcpAuthorization: (config) => this.#mcp.authorization(config).pipe(toMcpOperationError),
+        mcpEndpoint: (config) => this.#mcp.endpoint(config).pipe(toMcpOperationError),
       },
       mcpHandoff: this.#mcp.handoffLog(),
       redactMcp: (text) => this.#mcp.redact(text),
@@ -798,7 +798,8 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       compaction: this.#compaction,
       mcpServers: () => this.#mcp.enabled(),
       mcpToolRuntimes: () => this.#mcp.toolRuntimes(),
-      mcpAuthorization: (config) => this.#mcp.authorization(config).pipe(toMcpOperationError),
+      mcpEndpoint: (config) => this.#mcp.endpoint(config).pipe(toMcpOperationError),
+      mcpProxyFingerprint: (configs) => this.#mcp.proxyFingerprint(configs).pipe(toMcpOperationError),
       ...(credentials.agentEnvironment ? { agentEnvironment: credentials.agentEnvironment } : {}),
       passwordVaultConnected: () => options.passwordVault?.connected() ?? false,
       sectionTeammates: (agentId) => this.sectionTeammates(agentId),
@@ -3116,6 +3117,8 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       discard: true,
     });
     yield* Fiber.join(channelStop);
+    // After the clients: a provider that still runs would see its MCP servers fail.
+    yield* this.#mcp.close();
     yield* settleLifecycleTasks("finish drain", this.#drain.pendingTasks());
     yield* settleLifecycleTasks("finish image requests", this.#images.pendingOperations());
     yield* this.#images.dispose();
@@ -3808,9 +3811,10 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     yield* Effect.all(requests, { concurrency: "unbounded", discard: true });
   }, Effect.uninterruptible).bind(this);
 
-  respondToPrompt(input: RespondToPromptInput): Effect.Effect<void, AgentLifecycleFailed> {
+  /** `responder` is absent for the person at this computer; the Team API gives the member who answers. */
+  respondToPrompt(input: RespondToPromptInput, responder?: PromptResponder): Effect.Effect<void, AgentLifecycleFailed> {
     return this.#attention
-      .respondToPrompt(input)
+      .respondToPrompt(input, responder)
       .pipe(
         Effect.mapError((failure) => new AgentLifecycleFailed({ operation: "respondToPrompt", cause: failure.cause })),
       );

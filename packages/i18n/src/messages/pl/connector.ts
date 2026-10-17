@@ -81,6 +81,8 @@ export const messages = {
   "connector.github.keepConnected": "Nie odłączaj",
   "connector.github.close": "Zamknij",
   "connector.dangerZone": "Strefa zagrożenia",
+  "connector.statusUnknown": "Nieznany",
+  "connector.readFailed": "Nie udało się odczytać stanu tego połączenia.",
 
   "connector.hub.onThisComputer": "Na tym komputerze",
   "connector.hub.onHost": "Na serwerze {host}",
@@ -116,6 +118,7 @@ export const messages = {
     "OpenBot nie ma tych uprawnień w Slacku: {scopes}. Odłącz obszar roboczy, a potem połącz go ponownie.",
   "connector.slack.retryAt": "Slack poprosił OpenBot o czekanie. Kolejna próba o {time}.",
   "connector.slack.reconnect": "Połącz ponownie",
+  "connector.slack.pause": "Wstrzymaj",
   "connector.slack.resume": "Wznów",
   "connector.slack.rowAction": "{action}: {name}",
   "connector.slack.orchestratorTitle": "Slack Orchestrator",
@@ -185,6 +188,7 @@ export const messages = {
     "OpenBot nie ma tych uprawnień w Discordzie: {scopes}. Odłącz serwer Discord, a potem połącz go ponownie.",
   "connector.discord.retryAt": "Discord poprosił OpenBot o czekanie. Kolejna próba o {time}.",
   "connector.discord.reconnect": "Połącz ponownie",
+  "connector.discord.pause": "Wstrzymaj",
   "connector.discord.resume": "Wznów",
   "connector.discord.rowAction": "{action}: {name}",
   "connector.discord.orchestratorTitle": "Discord Orchestrator",
@@ -333,6 +337,7 @@ export const messages = {
     "W aplikacji 1Password otwórz Settings > Developer i włącz „Integrate with 1Password CLI”.",
   "connector.onePassword.stepAppReady": "Aplikacja 1Password pozwala CLI utworzyć udostępniony sejf.",
   "connector.onePassword.openApp": "Otwórz 1Password",
+  "connector.onePassword.openAppFailed": "Nie udało się otworzyć 1Password.",
   "connector.onePassword.checkAgain": "Sprawdź ponownie",
   "connector.onePassword.stepVaultTitle": "Utwórz udostępniony sejf",
   "connector.onePassword.stepVaultDescription":

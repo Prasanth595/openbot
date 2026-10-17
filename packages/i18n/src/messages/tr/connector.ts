@@ -85,6 +85,8 @@ export const messages = {
   "connector.github.close": "Kapat",
   // Bir entegrasyon sayfasının onu kaldıran eylemi içeren son bölümü.
   "connector.dangerZone": "Tehlikeli bölge",
+  "connector.statusUnknown": "Bilinmiyor",
+  "connector.readFailed": "OpenBot bu bağlantının durumunu okuyamadı.",
 
   // Sunucu ayarları > Bağlayıcılar: entegrasyonlar listesi. Her satır kendi sayfasını açar.
   "connector.hub.onThisComputer": "Bu bilgisayarda",
@@ -124,6 +126,7 @@ export const messages = {
     "OpenBot Slack'te şu izinlere sahip değil: {scopes}. Çalışma alanı bağlantısını kesin, ardından tekrar bağlayın.",
   "connector.slack.retryAt": "Slack OpenBot'tan beklemesini istedi. {time} saatinde tekrar deneyecek.",
   "connector.slack.reconnect": "Yeniden bağlan",
+  "connector.slack.pause": "Duraklat",
   "connector.slack.resume": "Sürdür",
   // {action} Pause gibi bir düğmedir; {name} çalışma alanı adıdır.
   "connector.slack.rowAction": "{action}: {name}",
@@ -195,6 +198,7 @@ export const messages = {
     "OpenBot Discord'da şu izinlere sahip değil: {scopes}. Discord sunucusu bağlantısını kesin, ardından tekrar bağlayın.",
   "connector.discord.retryAt": "Discord OpenBot'tan beklemesini istedi. {time} saatinde tekrar deneyecek.",
   "connector.discord.reconnect": "Yeniden bağlan",
+  "connector.discord.pause": "Duraklat",
   "connector.discord.resume": "Sürdür",
   // {action} Pause gibi bir düğmedir; {name} Discord sunucusunun adıdır.
   "connector.discord.rowAction": "{action}: {name}",
@@ -346,6 +350,7 @@ export const messages = {
     "1Password uygulamasında Settings > Developer bölümünü açın ve “Integrate with 1Password CLI” seçeneğini açın.",
   "connector.onePassword.stepAppReady": "1Password uygulaması, CLI'nin paylaşılan kasayı oluşturmasına izin veriyor.",
   "connector.onePassword.openApp": "1Password'ü aç",
+  "connector.onePassword.openAppFailed": "OpenBot, 1Password'ü açamadı.",
   "connector.onePassword.checkAgain": "Tekrar denetle",
   "connector.onePassword.stepVaultTitle": "Paylaşılan kasayı oluşturun",
   "connector.onePassword.stepVaultDescription":

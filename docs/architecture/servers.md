@@ -122,6 +122,11 @@ and answers the new agents by id and name, which the client reads with the agent
 the file (`instance-transfer:*` is server-scoped). The web client does not show the Transfer section: its
 downloads are limited to 10 MB.
 
+After a restart, the first upload or export removes old files from `instance-transfer-uploads/`,
+including unfinished `.part` files, before it writes a new file. Concurrent uploads and exports wait
+for this cleanup. If cleanup fails, the operation fails; the next upload or export retries it.
+Later operations keep the current process's files. Local files selected by the user are kept.
+
 ### Routine flows
 
 `routine-flows-v1` serves the routine canvas (see [Routine flows](agents.md#routine-flows)) to a
@@ -148,6 +153,22 @@ request advertises the capability, so a released client reads the same bytes as 
 without the capability never sends them, so a client keeps them whenever they are present, and a
 malformed value fails closed. The WebRTC host peer encodes the local response again with the same
 option, so the fields reach the web client and a joined desktop through the data channel too.
+
+### UI blocks
+
+`ui-blocks-v1` carries the interactive block of an `ask_ui` question prompt (see
+`packages/contracts/src/ui-blocks.ts`). It adds `uiBlock` beside the frozen keys of a message in
+`GET /v1/agents/:id/conversation` and `conversation-page` (messages and references), and in the
+`conversation` and `conversation-page` events. The host adds it only on protocol 7 and only for a
+connection that advertises the capability. A released client reads the message as its fallback: a
+question prompt that it answers through the released prompt route, and the host reads the block's
+answer from those answers. A host without the capability never sends `uiBlock`, so a client keeps it
+whenever it is present, and a block that the contract refuses fails closed. A privileged action (a
+`danger` button, a button with `confirm`, or the primary button of a `danger` confirm), and an answer
+in words on a block that has one, is for the owner and admins only; the host answers a member with
+403. A secret form value goes to the agent in the tool result. The stored block and the prompt
+resolution leave it out. The provider transcript of the tool call can keep it, and the agent can
+repeat it in a reply or a thought, which the conversation stores as any other message.
 
 ### Queue window
 

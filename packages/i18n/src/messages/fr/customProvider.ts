@@ -4,14 +4,19 @@ import type { messages as source } from "../en/customProvider";
 export const messages = {
   "customProvider.registry.title": "Registre ACP",
   "customProvider.registry.description":
-    "Installez des agents sur cet hôte. « Désinstaller » conserve les réglages, les identifiants et les conversations de l’agent.",
+    "Installez des agents sur ce serveur. « Désinstaller » conserve les réglages, les identifiants et les conversations de l’agent.",
   "customProvider.registry.search": "Rechercher dans le registre",
   "customProvider.registry.empty": "Aucun agent ne correspond à cette recherche.",
   "customProvider.registry.agentId": "ID de l’agent personnalisé",
   "customProvider.registry.install": "Installer",
   "customProvider.registry.update": "Mettre à jour",
   "customProvider.registry.remove": "Désinstaller",
-  "customProvider.registry.failed": "L’opération sur le registre a échoué.",
+  "customProvider.registry.searchFailed": "Impossible de rechercher dans le registre. Réessayez.",
+  "customProvider.registry.statusFailed": "Impossible de vérifier la progression de l’installation. OpenBot réessaie.",
+  "customProvider.registry.installFailed": "Impossible d’installer l’agent. Réessayez.",
+  "customProvider.registry.updateFailed": "Impossible de mettre à jour l’agent. Réessayez.",
+  "customProvider.registry.removeFailed": "Impossible de désinstaller l’agent. Réessayez.",
+  "customProvider.registry.cancelFailed": "Impossible d’annuler l’installation. Réessayez.",
   "customProvider.error.providerIdRequired": "Saisissez un ID de fournisseur.",
   "customProvider.error.providerIdPattern":
     "Utilisez des lettres minuscules, des chiffres, des tirets ou des traits de soulignement, en commençant par une lettre ou un chiffre.",
