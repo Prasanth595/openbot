@@ -16,4 +16,6 @@
   one button with the tab count opens the list of tabs.
 - The composer, the queue and the agent status float over the page in the full browser view, so you can talk to
   the agent of the tab while you look at the page. The agent's reply shows over the page and closes by itself.
+- Select a tab of a different agent in the full browser view to open that agent's chat. The page stays open,
+  and the floating composer sends to the agent of the tab.
 - The card where an agent asks for a code or a password has a new design.

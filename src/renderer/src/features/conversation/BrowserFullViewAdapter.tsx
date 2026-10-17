@@ -73,6 +73,18 @@ export default function BrowserFullViewAdapter() {
     return tab;
   }
 
+  /**
+   * The dock is the composer of the conversation, so a tab of another agent brings its chat: the page stays
+   * open, and the dock sends, stops and edits the queue of the agent that owns the tab.
+   */
+  function activateTab(tabId: string) {
+    activateBrowserTab(tabId);
+    const ownerId = tabs().find((tab) => tab.id === tabId)?.ownerAgentId;
+    if (!ownerId || ownerId === props.agent?.id || !props.agents.some((agent) => agent.id === ownerId)) return;
+    setActiveRightPanel("browser-expanded", ownerId);
+    props.onSelectAgent(ownerId);
+  }
+
   function closeTabs(tabIds: readonly string[]) {
     const order = tabs();
     // The tab with the lowest index is the first to open again, so each one goes back to its place.
@@ -103,7 +115,7 @@ export default function BrowserFullViewAdapter() {
       ownerForTab={(tab) =>
         tab.ownerAgentId ? props.agents.find((agent) => agent.id === tab.ownerAgentId) : undefined
       }
-      onActivateTab={activateBrowserTab}
+      onActivateTab={activateTab}
       onCloseTabs={closeTabs}
       onNewTab={(afterId) => openTab(BROWSER_NEW_TAB_URL, afterId === undefined ? {} : { afterId })}
       onDuplicateTab={(tabId) => {

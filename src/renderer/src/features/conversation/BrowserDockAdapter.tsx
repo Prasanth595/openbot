@@ -53,14 +53,28 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined; 
     const ownerId = adapterProps.tab?.ownerAgentId;
     return (ownerId ? props.agents.find((agent) => agent.id === ownerId) : undefined) ?? props.agent;
   });
-  /** The conversation shows a different agent: its turn and queue are not the tab's. */
+  /**
+   * The conversation shows a different agent: its turn, queue and replies are not the tab's. The full view
+   * changes to the owner when the user selects a tab, so this is a tab that the agent brought to the front.
+   */
   const foreign = () => Boolean(owner() && props.agent && owner()?.id !== props.agent.id);
   const control = () => (adapterProps.tab ? browserControlForTab(adapterProps.tab) : undefined);
-  const working = () => Boolean(props.activeTurnId) || control()?.phase === "acting";
+  const working = () => (!foreign() && Boolean(props.activeTurnId)) || control()?.phase === "acting";
   const [handoffPending, setHandoffPending] = createSignal(false);
   const [dismissedReplies, setDismissedReplies] = createSignal<ReadonlySet<string>>(new Set());
-  /** Only an answer that arrives while the page is open shows on it. */
-  const openedAfter = untrack(() => props.messages.at(-1)?.id);
+  /**
+   * Only an answer that arrives while the page is open shows on it. For each agent, this is the last message
+   * when its chat had loaded in this view; the reply of an agent whose chat is still loading does not show.
+   */
+  const [openedAfter, setOpenedAfter] = createSignal<ReadonlyMap<string, string | null>>(new Map());
+  createEffect(
+    () => ({ agentId: props.agent?.id, loaded: props.loaded }),
+    ({ agentId, loaded }) => {
+      if (!agentId || !loaded || untrack(openedAfter).has(agentId)) return;
+      const last = untrack(() => props.messages.at(-1)?.id) ?? null;
+      setOpenedAfter((markers) => new Map(markers).set(agentId, last));
+    },
+  );
 
   const takeover = () => {
     const request = props.browserTakeover;
@@ -75,10 +89,13 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined; 
     return { prompt, first: fromField ? first : undefined };
   };
   const reply = createMemo(() => {
+    const agentId = props.agent?.id;
+    const marker = agentId ? openedAfter().get(agentId) : undefined;
+    if (foreign() || marker === undefined) return undefined;
     const messages = props.messages;
     for (let index = messages.length - 1; index >= 0; index -= 1) {
       const message = messages[index];
-      if (!message || message.id === openedAfter) return undefined;
+      if (!message || message.id === marker) return undefined;
       if (message.author !== "agent") return undefined;
       if (message.streaming || message.itemType === "commentary") continue;
       if ((message.kind ?? "text") !== "text" || !message.body.trim()) continue;
@@ -128,9 +145,14 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined; 
     return current && current.agentId !== owner()?.id ? current : null;
   };
   const dismissReply = (id: string) => setDismissedReplies((ids) => new Set(ids).add(id));
+  /** The conversation changes to the owner, and the page stays open for it. */
   const openAgent = () => {
     const agent = owner();
-    return foreign() && agent ? () => props.onSelectAgent(agent.id) : undefined;
+    if (!foreign() || !agent) return undefined;
+    return () => {
+      setActiveRightPanel("browser-expanded", agent.id);
+      props.onSelectAgent(agent.id);
+    };
   };
 
   async function handoff(action: () => Promise<void>) {
