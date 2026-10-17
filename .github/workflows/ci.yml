@@ -261,6 +261,62 @@ jobs:
           path: .openbot-build/automation-cli-e2e/
           if-no-files-found: ignore
 
+  reverse-actions-e2e:
+    # Runs the released Team API adapters and the reverse actions (revoke and reconnect, mute and
+    # unmute, pause and resume, hide and restore) against the real host services on a temporary
+    # profile, with loopback HTTP and WebSocket. It needs no Electron, display or external service.
+    name: Team API and reverse actions E2E
+    needs: detect
+    if: needs.detect.outputs.desktop == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Bun
+        uses: ./.github/actions/setup-bun
+        with:
+          install: ignore-scripts
+
+      - name: Run the Team API legacy clients E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:team-legacy-clients
+
+      - name: Run the Team session revoke and reconnect E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:team-session-revoke
+
+      - name: Run the server mute and unmute E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:server-mute
+
+      - name: Run the routine pause and resume E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:routine-pause-resume
+
+      - name: Run the agent hide and restore E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:agent-hide-restore
+
+      - name: Run the messaging pause and resume E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:messaging-pause-resume
+
+      - name: Upload the reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: reverse-actions-e2e
+          path: |
+            .openbot-build/team-api-legacy-clients-e2e/
+            .openbot-build/team-session-revoke-e2e/
+            .openbot-build/server-mute-e2e/
+            .openbot-build/routine-pause-resume-e2e/
+            .openbot-build/agent-hide-restore-e2e/
+            .openbot-build/messaging-pause-resume-e2e/
+          if-no-files-found: ignore
+
   surfaces:
     # `desktop:typecheck` covers only the desktop projects, so without this job
     # `apps/mobile`, `apps/site-router`, `packages/team-client`, `remote/api`,
@@ -386,7 +442,7 @@ jobs:
     # fails this one.
     name: All required checks pass
     if: always()
-    needs: [detect, check, browser, tests-desktop, signal-e2e, automation-cli-e2e, surfaces, api, storybook]
+    needs: [detect, check, browser, tests-desktop, signal-e2e, automation-cli-e2e, reverse-actions-e2e, surfaces, api, storybook]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -412,7 +468,7 @@ jobs:
     # `apps/auth-api`, which `api` already covers: mobile, the site router, the
     # team client and the remote stack all consume the account API, so a red
     # Surfaces is the signal that this deploy is the thing about to break them.
-    needs: [check, browser, tests-desktop, signal-e2e, automation-cli-e2e, api, storybook, surfaces]
+    needs: [check, browser, tests-desktop, signal-e2e, automation-cli-e2e, reverse-actions-e2e, api, storybook, surfaces]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: cloudflare-production
