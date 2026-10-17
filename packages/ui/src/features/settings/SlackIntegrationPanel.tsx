@@ -38,13 +38,12 @@ import { createEffect, createSignal, For, Match, Show, Switch } from "solid-js";
 import { ProviderModelPicker } from "../../components/ProviderModelPicker";
 import { useText } from "../../text";
 import { AgentAvatar } from "../agents/AgentAvatar";
+import { DiscordMark, SlackMark } from "./brand-marks";
 import {
   DetailHeader,
-  DiscordMark,
   type IntegrationStatus,
   LogoTile,
   ReadFailedAlert,
-  SlackMark,
   Stepper,
   UNKNOWN_STATUS,
   WizardDialog,

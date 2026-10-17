@@ -99,6 +99,7 @@ Its main jobs are:
 | Tests (desktop 1/2, 2/2) | `ubuntu-latest` | `bun run test:desktop -- --shard=<n>/2` |
 | Signal E2E | `ubuntu-latest` | `bun run test:signal`, when `remote/` or `scripts/` changes |
 | Local scripts CLI E2E | `ubuntu-latest` | `bun run test:automation-cli` |
+| Team API routes E2E | `ubuntu-latest` | `bun run test:team-api-routes`, when desktop code changes |
 | Surfaces | `ubuntu-latest` | Parallel groups described below, then `bun run remote:check:compose` |
 | API | `ubuntu-latest` | `bun run check:api`, then, for a pull request from this repository, upload `apps/auth-api/dist` |
 | Storybook build | `ubuntu-latest` | `bun run build-storybook` |
@@ -184,8 +185,9 @@ where it checks the machine that builds the release.
 
 `bun run knip:check` fails on unused files, unused exports and exported types, unused or unlisted
 dependencies, unresolved imports and unlisted binaries in every workspace. It takes about 6 seconds. `knip.config.ts` names the entry
-points that knip cannot find by itself: the electron-vite inputs, the modules that the renderer HTML
-pages load, the Metro shims, and every command in `scripts/`. Each ignore entry states its reason.
+points that knip cannot find by itself: the Metro shims and stylesheet, and every command in
+`scripts/`. Its electron-vite and wrangler plugins find the electron-vite inputs, the modules that
+the renderer HTML pages load, and the Worker entries. Each ignore entry states its reason.
 Stylesheets go through a small compiler so that `@import "<package>"` counts as a use. The frozen
 Team API protocol files (`packages/contracts/src/team-protocol/v*.ts` and `*-v*.ts`) are exempt
 from the export checks: a released codec keeps its full API. When knip names an unused export,

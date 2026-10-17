@@ -1043,7 +1043,7 @@
 
 .anchored-tooltip {
   position: fixed;
-  z-index: 240;
+  z-index: var(--openbot-layer-tooltip);
   box-sizing: border-box;
   width: max-content;
   max-width: min(280px, calc(100vw - 16px));

@@ -517,19 +517,7 @@
   color: var(--openbot-text-muted);
 }
 
-.agent-memories-overlay {
-  position: fixed;
-  inset: 0;
-}
-
-.agent-memories-overlay {
-  z-index: var(--openbot-layer-dialog);
-}
-
-.agent-memories-overlay[data-expanded] {
-  animation: agent-dialog-overlay-in var(--openbot-duration-dialog) ease;
-}
-
+/* The overlay fades out with the modal, which is not one of its children. */
 .agent-memories-overlay[data-closed] {
   animation: agent-dialog-overlay-out var(--openbot-duration-dialog) ease;
 }
@@ -1048,12 +1036,6 @@
 
 .agent-memories-modal[data-closed] {
   animation: agent-dialog-content-out var(--openbot-duration-dialog) ease;
-}
-
-@keyframes agent-dialog-overlay-in {
-  from {
-    opacity: 0;
-  }
 }
 
 @keyframes agent-dialog-overlay-out {

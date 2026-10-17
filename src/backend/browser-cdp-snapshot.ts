@@ -137,7 +137,7 @@ export const collectBoundedSnapshot = Effect.fn("Browser.collectBoundedSnapshot"
       elements.push(element);
       targets.set(ref, {
         backendNodeId: candidate.backendNodeId,
-        targetId: capture.targetId,
+        ...(capture.targetId === undefined ? {} : { targetId: capture.targetId }),
         element,
         visibleText: candidate.visibleText,
       });
@@ -504,8 +504,8 @@ export const semanticAxMatches = Effect.fn("Browser.semanticAxMatches")(function
       if (!matched) continue;
       matches.push({
         backendNodeId,
-        sessionId: capture.sessionId,
-        targetId: capture.targetId,
+        ...(capture.sessionId === undefined ? {} : { sessionId: capture.sessionId }),
+        ...(capture.targetId === undefined ? {} : { targetId: capture.targetId }),
         role,
         name,
       });

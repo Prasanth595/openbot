@@ -380,7 +380,7 @@ export function AgentSkillsModal(props: AgentSkillsModalProps) {
                         onUninstall={() => requestRemove(skill())}
                       />
                       <Switch
-                        aria-label={`Enable ${skill().name}`}
+                        aria-label={t("skill.enableName", { name: skill().name })}
                         checked={isEnabled(skill())}
                         disabled={savingId() === skill().skillId}
                         onChange={(enabled) => void setEnabled(skill(), enabled)}
@@ -550,7 +550,7 @@ export function AgentSkillsModal(props: AgentSkillsModalProps) {
                                               }}
                                             />
                                             <Switch
-                                              aria-label={`Enable ${skill().name}`}
+                                              aria-label={t("skill.enableName", { name: skill().name })}
                                               checked={isEnabled(skill())}
                                               disabled={savingId() === skill().skillId}
                                               onChange={(enabled) => void setEnabled(skill(), enabled)}

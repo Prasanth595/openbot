@@ -279,8 +279,9 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
     setPage(target);
     queueMicrotask(() =>
       (
-        pageRoot?.querySelector<HTMLElement>("button:not(:disabled), input, textarea, select") ??
-        pageRoot?.closest("aside")?.querySelector<HTMLElement>(".settings-panel-nav-button")
+        pageRoot?.querySelector<HTMLElement>(
+          'button:not(:disabled, [aria-disabled="true"]), input, textarea, select',
+        ) ?? pageRoot?.closest("aside")?.querySelector<HTMLElement>(".settings-panel-nav-button")
       )?.focus(),
     );
   }

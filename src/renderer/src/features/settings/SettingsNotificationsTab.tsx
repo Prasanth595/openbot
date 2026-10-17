@@ -43,12 +43,14 @@ export function SettingsNotificationsTab(props: SettingsNotificationsTabProps) {
       <SettingsSection title={i18n.t("settings.alerts.title")}>
         <ItemGroup class="settings-modal-card">
           <SwitchField
+            data-settings-row="settings.desktopNotifications.title"
             checked={props.value.desktopNotifications}
             onChange={(checked) => props.onUpdateSetting("desktopNotifications", checked)}
             label={i18n.t("settings.desktopNotifications.title")}
             description={i18n.t("settings.desktopNotifications.description")}
           />
           <SwitchField
+            data-settings-row="settings.notificationPreview.title"
             checked={props.value.notificationPreview}
             disabled={!props.value.desktopNotifications}
             onChange={(checked) => props.onUpdateSetting("notificationPreview", checked)}
@@ -57,7 +59,7 @@ export function SettingsNotificationsTab(props: SettingsNotificationsTabProps) {
           />
           <Show when={props.onTestNotification}>
             {(onTestNotification) => (
-              <Item>
+              <Item data-settings-row="settings.testNotification.title">
                 <ItemContent>
                   <ItemTitle>{i18n.t("settings.testNotification.title")}</ItemTitle>
                   <ItemDescription>{i18n.t("settings.testNotification.description")}</ItemDescription>
@@ -98,12 +100,13 @@ export function SettingsNotificationsTab(props: SettingsNotificationsTabProps) {
       <SettingsSection title={i18n.t("settings.sounds.title")}>
         <ItemGroup class="settings-modal-card">
           <SwitchField
+            data-settings-row="settings.taskSound.title"
             checked={props.value.taskCompletionSound}
             onChange={(checked) => props.onUpdateSetting("taskCompletionSound", checked)}
             label={i18n.t("settings.taskSound.title")}
             description={i18n.t("settings.taskSound.description")}
           />
-          <Item class="settings-modal-row settings-sound-theme-row">
+          <Item data-settings-row="settings.soundFeedback.title" class="settings-modal-row settings-sound-theme-row">
             <ItemContent>
               <ItemTitle>{i18n.t("settings.soundFeedback.title")}</ItemTitle>
               <ItemDescription>{i18n.t("settings.soundFeedback.description")}</ItemDescription>

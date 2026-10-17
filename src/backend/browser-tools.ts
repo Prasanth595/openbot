@@ -31,10 +31,10 @@ const browserTargetSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("role"),
     role: nonBlankString(64),
-    name: nonBlankString(500).optional(),
-    exact: z.boolean().optional(),
+    name: nonBlankString(500).exactOptional(),
+    exact: z.boolean().exactOptional(),
   }),
-  z.object({ kind: z.literal("text"), text: nonBlankString(500), exact: z.boolean().optional() }),
+  z.object({ kind: z.literal("text"), text: nonBlankString(500), exact: z.boolean().exactOptional() }),
   z.object({ kind: z.literal("css"), selector: nonBlankString(2_000) }),
   z.object({
     kind: z.literal("point"),

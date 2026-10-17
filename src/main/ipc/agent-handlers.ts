@@ -135,7 +135,7 @@ export interface AgentIpcDependencies {
   host: HostService;
   remoteServers: RemoteServerManager;
   skills: SkillMarketplaceService;
-  messageLinks: Pick<MessageLinkRelay, "open" | "paste" | "cancel">;
+  messageLinks: MessageLinkRelay;
   openExternal: (url: string) => Promise<void>;
 }
 
@@ -455,15 +455,15 @@ export function agentIpcHandlers({
           await openHttpLink(url, openExternal);
           return null;
         },
-        remote: ({ agentId, url }, serverId) => messageLinks.open(serverId, agentId, url),
+        remote: ({ agentId, url }, serverId) => runCauseEffect(messageLinks.open(serverId, agentId, url)),
       }),
       pasteMessageLink: scopedHandler(parsePasteMessageLink, {
         local: () => Promise.reject(new Error(sourceText("error.mcp.relayEnded"))),
-        remote: ({ url, address }, serverId) => messageLinks.paste(serverId, url, address),
+        remote: ({ url, address }, serverId) => runCauseEffect(messageLinks.paste(serverId, url, address)),
       }),
       cancelMessageLink: scopedHandler(parseCancelMessageLink, {
         local: async () => undefined,
-        remote: ({ url }, serverId) => messageLinks.cancel(serverId, url),
+        remote: ({ url }, serverId) => runCauseEffect(messageLinks.cancel(serverId, url)),
       }),
       searchConversationMessages: scopedHandler(parseSearchConversationMessages, {
         local: (parsed) =>

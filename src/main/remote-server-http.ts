@@ -64,15 +64,18 @@ export const requestJson = Effect.fn("RemoteHttp.requestJson")(function* <T>(
         ...(options.appVersion ? { [TEAM_APP_VERSION_HEADER]: options.appVersion } : {}),
         ...(options.capabilities ? { [TEAM_CAPABILITIES_HEADER]: options.capabilities.join(",") } : {}),
       },
-      body:
-        options.body === undefined
-          ? undefined
-          : sideRoute
-            ? JSON.stringify(sideRoute.request(path, options.body))
-            : codec.encodeRequest(method, path, options.body, {
-                preserveSemanticTags: options.preserveSemanticTags,
-                agentCreateModel: options.agentCreateModel,
-              }),
+      ...(options.body === undefined
+        ? {}
+        : {
+            body: sideRoute
+              ? JSON.stringify(sideRoute.request(path, options.body))
+              : codec.encodeRequest(method, path, options.body, {
+                  ...(options.preserveSemanticTags === undefined
+                    ? {}
+                    : { preserveSemanticTags: options.preserveSemanticTags }),
+                  ...(options.agentCreateModel === undefined ? {} : { agentCreateModel: options.agentCreateModel }),
+                }),
+          }),
     },
     options.timeoutMs,
   );

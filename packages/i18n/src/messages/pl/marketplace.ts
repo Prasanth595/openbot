@@ -157,6 +157,15 @@ export const messages = {
   "marketplace.plugin.notion.prompt.meetingNotes":
     "Zamień te punkty w uporządkowaną notatkę ze spotkania w przestrzeni mojego zespołu.",
   "marketplace.plugin.notion.prompt.updateDoc": "Zaktualizuj dokument wdrożeniowy o nową listę kontrolną wydania.",
+  "marketplace.plugin.cobrain.tagline": "Wspólna pamięć dla twoich agentów AI",
+  "marketplace.plugin.cobrain.description":
+    "Cobrain to pamięć w Markdownie, którą może czytać i zapisywać każda podłączona AI. Agenci przed pracą wczytują kontekst klienta lub projektu, przeszukują wcześniejsze notatki i decyzje oraz zapisują to, czego się nauczą, aby następna rozmowa zaczynała się tam, gdzie skończyła się poprzednia. Każdy użytkownik loguje się na własne konto Cobrain.",
+  "marketplace.plugin.cobrain.app":
+    "Czytanie, wyszukiwanie i zapisywanie notatek w twoim mózgu Cobrain przez jeden serwer MCP.",
+  "marketplace.plugin.cobrain.prompt.startSession": "Wczytaj mój kontekst Cobrain dla tego projektu, zanim zaczniemy.",
+  "marketplace.plugin.cobrain.prompt.searchDecision":
+    "Wyszukaj w moich notatkach Cobrain, co ustaliliśmy w sprawie cen.",
+  "marketplace.plugin.cobrain.prompt.saveNote": "Zapisz w Cobrain notatkę o tym, co dziś zrobiliśmy i co zostało.",
   "marketplace.plugin.figma.tagline": "Projekty i prototypy",
   "marketplace.plugin.figma.description":
     "Figma pozwala agentom czytać pliki projektów, sprawdzać komponenty, style i zmienne oraz przekazywać specyfikacje produkcyjne inżynierom. Łączy się z serwerem MCP w aplikacji desktopowej Figma na tym komputerze. Serwer może tylko czytać projekty; obsługa zapisu jest w przygotowaniu.",
@@ -255,6 +264,14 @@ export const messages = {
     "Podsumuj moje nieprzeczytane e-maile i napisz szkice odpowiedzi na pilne.",
   "marketplace.plugin.composio.prompt.handoff": "Opublikuj podsumowanie tego pull requestu na kanale naszego zespołu.",
   "marketplace.plugin.composio.prompt.apps": "Jakich aplikacji i akcji możesz używać przez Composio?",
+  "marketplace.plugin.composio.hint.url": "Adres URL serwera MCP na twoim koncie Composio",
+  "marketplace.plugin.composio.hint.apiKey":
+    "Tylko jeśli twój serwer go wymaga. Znajdziesz go w ustawieniach konta Composio.",
+  "marketplace.auth.apiKey": "Klucz API",
+  "marketplace.auth.personalApiKey": "Osobisty klucz API",
+  "marketplace.auth.mcpUrl": "Adres URL MCP",
+  "marketplace.auth.createKey": "Utwórz klucz",
+  "marketplace.auth.createServer": "Utwórz serwer",
   "marketplace.skill.installMenu.install": "Zainstaluj",
   "marketplace.skill.installMenu.installNamed": "Zainstaluj: {name}",
   "marketplace.skill.installMenu.allAgents": "Wszyscy agenci",

@@ -365,6 +365,9 @@
      and the surface opened last wins only by accident. */
   --openbot-layer-dialog-host: calc(var(--openbot-layer-dialog) + var(--openbot-layer-popover));
   --openbot-layer-toast: 120;
+  /* A tooltip names the control under the pointer. It shows above every other layer, also above
+     a dialog or a menu that holds the control. */
+  --openbot-layer-tooltip: 240;
 }
 
 /* Every surface that paints a provider - the picker mark, the update toast and its progress bar,

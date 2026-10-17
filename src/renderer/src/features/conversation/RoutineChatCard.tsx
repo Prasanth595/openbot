@@ -64,7 +64,7 @@ export function RoutineChatCard(props: RoutineChatCardProps) {
     () => (props.focusRequested ? element() : undefined),
     (card) => {
       if (!card) return;
-      card.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
+      card.querySelector<HTMLButtonElement>('button:not(:disabled, [aria-disabled="true"])')?.focus();
       props.onFocusHandled?.();
     },
   );

@@ -215,6 +215,7 @@
     "test:signal": "bun scripts/signal-security-e2e.ts",
     "test:ipc-input": "bun scripts/ipc-input-e2e.ts",
     "test:automation-cli": "bun scripts/automation-cli-e2e.ts",
+    "test:team-api-routes": "bun --preload ./scripts/team-api-routes-e2e-electron.mjs scripts/team-api-routes-e2e.ts",
     "test:analytics-redaction": "bun scripts/analytics-redaction-e2e.ts",
     "test:central-auth-startup": "bun scripts/central-auth-startup-stall-e2e.ts",
     "test:hosted-start-wait": "bun apps/auth-api/scripts/hosted-start-wait-e2e.ts",

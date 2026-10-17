@@ -218,7 +218,10 @@ export class LocalMcpBridge {
 
     const mcp = new Server(
       { name: route.namespace.name, version: "0.1.0" },
-      { capabilities: { tools: {} }, instructions: route.namespace.description },
+      {
+        capabilities: { tools: {} },
+        ...(route.namespace.description === undefined ? {} : { instructions: route.namespace.description }),
+      },
     );
     mcp.setRequestHandler(ListToolsRequestSchema, async () => ({
       tools: route.namespace.tools.map((tool) => ({
@@ -290,7 +293,8 @@ export class LocalMcpBridge {
       ),
     );
 
-    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+    // No `sessionIdGenerator`: the transport runs stateless, one transport for each request.
+    const transport = new StreamableHTTPServerTransport({});
     yield* Effect.gen({ self: this }, function* () {
       try {
         mcpResult(yield* Effect.result(mcpCall(() => mcp.connect(transport))));

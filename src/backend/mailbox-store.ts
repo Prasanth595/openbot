@@ -488,7 +488,7 @@ export class MailboxStore {
       const committedByDraftId = new Map(drafts.map((draft, index) => [draft.id, attachments[index]] as const));
       const messaging = input.messaging ?? this.#answerReturn(input, recipients);
       const message: StoredMessage = {
-        channelId: input.channelId,
+        ...(input.channelId === undefined ? {} : { channelId: input.channelId }),
         ...(messaging ? { messaging } : {}),
         ...(input.messagingReturn ? { messagingReturn: input.messagingReturn } : {}),
         ...(input.taskId ? { taskId: input.taskId } : {}),
@@ -1488,7 +1488,8 @@ export class MailboxStore {
     try {
       this.#persist("delivery.edit-started");
     } catch (error) {
-      delivery.editId = previous;
+      if (previous === undefined) delete delivery.editId;
+      else delivery.editId = previous;
       throw error;
     }
   }
@@ -1516,7 +1517,9 @@ export class MailboxStore {
       this.#persist("delivery.edit-attachments-retained");
     } catch (error) {
       drafts.forEach((draft, index) => {
-        draft.ownerEditId = previous[index];
+        const ownerEditId = previous[index];
+        if (ownerEditId === undefined) delete draft.ownerEditId;
+        else draft.ownerEditId = ownerEditId;
       });
       throw error;
     }
@@ -1578,11 +1581,16 @@ export class MailboxStore {
       this.#persist(cancelDelivery ? "delivery.cancelled" : "delivery.edit-finished");
     } catch (error) {
       delivery.status = previousStatus;
-      delivery.editId = editId;
-      delivery.finishedEditOutcomes = previousOutcomes;
+      if (editId === undefined) delete delivery.editId;
+      else delivery.editId = editId;
+      if (previousOutcomes === undefined) delete delivery.finishedEditOutcomes;
+      else delivery.finishedEditOutcomes = previousOutcomes;
       released.forEach((draft, index) => {
-        draft.ownerEditId = editId;
-        draft.preserveOnRestart = previousRetention[index];
+        // `released` is empty when there is no edit id.
+        if (editId !== undefined) draft.ownerEditId = editId;
+        const preserveOnRestart = previousRetention[index];
+        if (preserveOnRestart === undefined) delete draft.preserveOnRestart;
+        else draft.preserveOnRestart = preserveOnRestart;
       });
       throw error;
     }

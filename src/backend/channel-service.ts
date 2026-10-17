@@ -1950,7 +1950,9 @@ export class ChannelService {
       { kind: "agent", id: agentId, name: this.hooks.agents().find((item) => item.id === agentId)?.name ?? agentId },
       `${this.hooks.agents().find((item) => item.id === args.recipientAgentId)?.name ?? args.recipientAgentId}: ${args.task}`,
     );
-    handoff.message.replyToMessageId = sourceMessageIds[0];
+    // The check above rejects an empty list, so the first source message is always there.
+    const [firstSourceMessageId] = sourceMessageIds;
+    if (firstSourceMessageId !== undefined) handoff.message.replyToMessageId = firstSourceMessageId;
     yield* channelSync(() => this.store.update(channel, { tasks: changes, messages: [handoff] }, operationId));
     this.publish(channelId);
     yield* this.wake(channelId);

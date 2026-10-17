@@ -43,7 +43,7 @@ import { SettingsDynamicIslandTab } from "./SettingsDynamicIslandTab";
 import { SettingsGeneralTab } from "./SettingsGeneralTab";
 import { SettingsNotificationsTab } from "./SettingsNotificationsTab";
 import { SettingsVoiceTab } from "./SettingsVoiceTab";
-import { navItem, navItems, type SettingsTab } from "./settings-tabs";
+import { navItem, navItems, type SettingsTab, settingsTabShown } from "./settings-tabs";
 import { createSettingsVoiceStore } from "./settings-voice-store";
 
 export interface SettingsModalProps {
@@ -147,13 +147,7 @@ export function SettingsModal(props: SettingsModalProps) {
       if (tab) setActiveTab(tab);
     },
   );
-  const visibleNavItems = () =>
-    navItems.filter(
-      (item) =>
-        (item.value !== "dynamic-island" || isMac()) &&
-        (item.value !== "voice" || hasVoice()) &&
-        item.value !== "hosted-servers",
-    );
+  const visibleNavItems = () => navItems.filter((item) => settingsTabShown(item.value, props.appInfo?.platform));
 
   const title = () => i18n.t(navItem(activeTab()).titleKey);
   const description = () => i18n.t(navItem(activeTab()).descriptionKey);

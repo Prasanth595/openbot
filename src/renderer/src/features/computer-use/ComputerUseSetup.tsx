@@ -196,6 +196,7 @@ export function ComputerUseSetup(props: ComputerUseSetupProps) {
           fallback={<PermissionGroup busy={busyPermission()} permissions={permissions()} onOpen={openPermission} />}
         >
           <SettingsSection
+            data-settings-row="computerUse.permissions.title"
             title={t("computerUse.permissions.title")}
             description={t("computerUse.permissions.description")}
           >

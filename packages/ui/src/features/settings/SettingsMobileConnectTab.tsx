@@ -109,7 +109,10 @@ export function SettingsMobileConnectTab(props: SettingsMobileConnectTabProps) {
             if (value === "ios" || value === "android") setPlatform(value);
           }}
         >
-          <Item class="settings-modal-row settings-mobile-connect-action-row">
+          <Item
+            data-settings-row="settings.mobileConnect.install.title"
+            class="settings-modal-row settings-mobile-connect-action-row"
+          >
             <ItemMedia class="settings-mobile-connect-step" aria-hidden="true">
               1
             </ItemMedia>
@@ -169,7 +172,10 @@ export function SettingsMobileConnectTab(props: SettingsMobileConnectTabProps) {
       </ItemGroup>
 
       <ItemGroup class="settings-modal-card settings-mobile-connect-card">
-        <Item class="settings-modal-row settings-mobile-connect-action-row">
+        <Item
+          data-settings-row="settings.mobileConnect.signIn.title"
+          class="settings-modal-row settings-mobile-connect-action-row"
+        >
           <ItemMedia class="settings-mobile-connect-step" aria-hidden="true">
             {props.canManageLink ? "2.1" : "2"}
           </ItemMedia>
@@ -263,7 +269,10 @@ export function SettingsMobileConnectTab(props: SettingsMobileConnectTabProps) {
 
       <Show when={props.canManageLink}>
         <ItemGroup class="settings-modal-card settings-mobile-connect-card">
-          <Item class="settings-modal-row settings-mobile-connect-action-row">
+          <Item
+            data-settings-row="settings.mobileConnect.link.title"
+            class="settings-modal-row settings-mobile-connect-action-row"
+          >
             <ItemMedia class="settings-mobile-connect-step" aria-hidden="true">
               2.2
             </ItemMedia>
@@ -370,7 +379,11 @@ export function SettingsMobileConnectTab(props: SettingsMobileConnectTabProps) {
         />
       </Show>
 
-      <section class="settings-mobile-devices" aria-labelledby="settings-mobile-devices-title">
+      <section
+        data-settings-row="settings.mobileConnect.devices.title"
+        class="settings-mobile-devices"
+        aria-labelledby="settings-mobile-devices-title"
+      >
         <div class="settings-mobile-devices-heading">
           <h3 id="settings-mobile-devices-title">{t("settings.mobileConnect.devices.title")}</h3>
           <Show when={props.store.state.devices.loading}>
