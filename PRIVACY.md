@@ -274,7 +274,7 @@ The service stores:
 - marketplace skills: the owner account ID, name, description, category, review state, version
   records, install counts, and the skill bundle and icon in R2.
 - reports about a hosted site: the hostname, the reason, the optional details text, a keyed hash of
-  the source address for each day, the review state and the creation time.
+  the source address (of its /64 for IPv6) for each day, the review state and the creation time.
 
 The service does not store plaintext one-time codes, account session tokens, or team authentication
 tickets in D1. It returns a new plaintext secret only to the client that requested it. The desktop

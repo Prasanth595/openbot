@@ -145,6 +145,80 @@ async function aRemovedMemberCannotRejoinWithAnOldInvite() {
   });
 }
 
+async function aMemberWhoLeftRejoinsWithTheLink() {
+  const { database, owner, clock, remote } = await remoteHost();
+  const member = addUser(database, "member");
+  const link = await Effect.runPromise(
+    remote.createInvite(owner, { hostId: HOST_ID, role: "member", permanent: true }),
+  );
+  clock.now += 1_000;
+  await Effect.runPromise(remote.acceptInvite(member, link.token));
+  clock.now += 1_000;
+  await Effect.runPromise(
+    remote.changeMembership(member.id, {
+      hostId: HOST_ID,
+      membershipId: membershipId(database, member.id),
+      revoke: true,
+    }),
+  );
+  clock.now += 1_000;
+  const rejoined = await outcome(remote.acceptInvite(member, link.token));
+  check("a member who left rejoins with the permanent link", rejoined === "ok", {
+    outcome: rejoined,
+    membership: membershipStatus(database, member.id),
+  });
+}
+
+async function aRoleChangeKeepsANewInviteValid() {
+  const { database, owner, clock, remote } = await remoteHost();
+  const member = addUser(database, "member");
+  const first = await Effect.runPromise(remote.createInvite(owner, { hostId: HOST_ID, role: "member" }));
+  clock.now += 1_000;
+  await Effect.runPromise(remote.acceptInvite(member, first.token));
+  const id = membershipId(database, member.id);
+  clock.now += 1_000;
+  await Effect.runPromise(remote.changeMembership(owner.id, { hostId: HOST_ID, membershipId: id, revoke: true }));
+  clock.now += 1_000;
+  const fresh = await Effect.runPromise(remote.createInvite(owner, { hostId: HOST_ID, role: "member" }));
+  clock.now += 1_000;
+  await Effect.runPromise(remote.changeMembership(owner.id, { hostId: HOST_ID, membershipId: id, role: "admin" }));
+  clock.now += 1_000;
+  const joined = await outcome(remote.acceptInvite(member, fresh.token));
+  check("a role change of a removed member does not cancel a newer invite", joined === "ok", {
+    outcome: joined,
+    membership: membershipStatus(database, member.id),
+  });
+}
+
+async function anOldRevokeCountsAsARemoval() {
+  const database = new DatabaseSync(":memory:");
+  const names = (await readdir(MIGRATIONS)).sort();
+  const removal = names.indexOf("0036_membership_removed_at.sql");
+  for (const name of names.slice(0, removal)) database.exec(await readFile(join(MIGRATIONS, name), "utf8"));
+  addUser(database, "owner");
+  addUser(database, "member");
+  database
+    .prepare(
+      "INSERT INTO remote_hosts(host_id, owner_user_id, name, created_at, updated_at) VALUES (?, 'owner', 'Host', 1, 1)",
+    )
+    .run(HOST_ID);
+  database
+    .prepare(
+      `INSERT INTO remote_memberships(membership_id, host_id, user_id, role, status, created_at, updated_at)
+       VALUES ('m-owner', ?, 'owner', 'owner', 'active', 1, 1), ('m-member', ?, 'member', 'member', 'revoked', 2, 5)`,
+    )
+    .run(HOST_ID, HOST_ID);
+  for (const name of names.slice(removal)) database.exec(await readFile(join(MIGRATIONS, name), "utf8"));
+  const rows = database.prepare("SELECT user_id, status, updated_at, removed_at FROM remote_memberships").all();
+  check(
+    "the migration keeps each membership and marks an old revoke as a removal",
+    rows.length === 2 &&
+      rows.some((row) => row.user_id === "owner" && row.status === "active" && row.removed_at === null) &&
+      rows.some((row) => row.user_id === "member" && row.status === "revoked" && row.removed_at === 5),
+    { rows },
+  );
+}
+
 async function anInviteEndsWithTheAdminWhoMadeIt() {
   const { database, owner, clock, remote } = await remoteHost();
   const admin = addUser(database, "admin");
@@ -336,6 +410,9 @@ async function aRateLimitIgnoresForwardedFor() {
 
 const scenarios = [
   aRemovedMemberCannotRejoinWithAnOldInvite,
+  aMemberWhoLeftRejoinsWithTheLink,
+  aRoleChangeKeepsANewInviteValid,
+  anOldRevokeCountsAsARemoval,
   anInviteEndsWithTheAdminWhoMadeIt,
   theJwksNeverPublishesAPrivateKey,
   aCheckoutReturnStaysOnTheAccountSite,

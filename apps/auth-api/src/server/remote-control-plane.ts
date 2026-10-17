@@ -65,6 +65,7 @@ const MEMBER_SEAT_AVAILABLE_SQL = `(
 
 // An invitation admits a user only while its creator can still invite on the host, and it never undoes
 // a removal made after the invitation: the removed member needs a new invitation or a reactivation.
+// A member who left is not removed, so an earlier invitation still admits them.
 // Binds the user ID of the account that accepts.
 const INVITE_STILL_GRANTED_SQL = `(
   EXISTS(
@@ -75,7 +76,7 @@ const INVITE_STILL_GRANTED_SQL = `(
   AND NOT EXISTS(
     SELECT 1 FROM remote_memberships
      WHERE host_id = remote_invites.host_id AND user_id = ? AND status = 'revoked'
-       AND updated_at >= remote_invites.created_at
+       AND removed_at >= remote_invites.created_at
   )
 )`;
 
@@ -1056,7 +1057,7 @@ export class RemoteControlPlane {
                   AND ${INVITE_STILL_GRANTED_SQL}
                ON CONFLICT(host_id, user_id) DO UPDATE SET
                  role = CASE WHEN remote_memberships.role = 'owner' THEN 'owner' ELSE excluded.role END,
-                 status = 'active', updated_at = excluded.updated_at`
+                 status = 'active', updated_at = excluded.updated_at, removed_at = NULL`
                 : `INSERT INTO remote_memberships(
                  membership_id, host_id, user_id, role, status, created_at, updated_at
                ) SELECT ?, ?, ?, ?, 'active', ?, ?
@@ -1065,7 +1066,7 @@ export class RemoteControlPlane {
                   AND ${MEMBER_SEAT_AVAILABLE_SQL} AND ${INVITE_STILL_GRANTED_SQL}
                ON CONFLICT(host_id, user_id) DO UPDATE SET
                  role = CASE WHEN remote_memberships.role = 'owner' THEN 'owner' ELSE excluded.role END,
-                 status = 'active', updated_at = excluded.updated_at`,
+                 status = 'active', updated_at = excluded.updated_at, removed_at = NULL`,
             )
             .bind(
               membershipId,
@@ -1198,6 +1199,10 @@ export class RemoteControlPlane {
       if (activating && membership.status !== "active") {
         yield* this.#requireMemberSeat(input.hostId, membership.user_id, limit);
       }
+      // Only a removal by an owner or admin blocks the invitations made before it. A leave and an
+      // activation clear the time; a role change of a revoked member keeps it.
+      const removing = input.revoke === true && !leavingOwnMembership;
+      const removedAt = removing ? "?" : input.revoke || activating ? "NULL" : "removed_at";
       const now = dependencies.now();
       const activeSessions = yield* remoteCall(() =>
         dependencies.database
@@ -1217,13 +1222,14 @@ export class RemoteControlPlane {
         dependencies.database.batch([
           dependencies.database
             .prepare(
-              `UPDATE remote_memberships SET role = ?, status = ?, updated_at = ?
+              `UPDATE remote_memberships SET role = ?, status = ?, updated_at = ?, removed_at = ${removedAt}
             WHERE membership_id = ?${activating ? ` AND ${MEMBER_SEAT_AVAILABLE_SQL}` : ""}`,
             )
             .bind(
               role,
               input.revoke ? "revoked" : activating ? "active" : membership.status,
               now,
+              ...(removing ? [now] : []),
               input.membershipId,
               ...(activating ? [input.hostId, membership.user_id, input.hostId, limit] : []),
             ),
