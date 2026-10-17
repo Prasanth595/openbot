@@ -2312,10 +2312,15 @@ export class ProviderRuntime implements ProviderPort {
             return true;
           }),
         );
-        // `dispose()` took the clients, the previous one too, so no client goes back into the map.
-        if (Result.isSuccess(updated) && updated.success === null) {
-          yield* restorePrevious;
-          if (this.#clients.get(provider) === previousClient) this.#clients.delete(provider);
+        // A `dispose()` during the refresh took the clients in the map: this one, not the previous
+        // client that it replaced. Nothing else stops that previous client, so stop both here and
+        // put no client back into the disposed runtime. `AgentService.stop` clears the attention
+        // and turn state itself, as it does for the clients that `dispose()` hands back.
+        if (disposed()) {
+          if (this.#clients.get(provider) === client) this.#clients.delete(provider);
+          yield* stopCandidate;
+          if (previousClient && previousClient !== client)
+            yield* previousClient.stop().pipe(Effect.catch(() => Effect.void));
           return;
         }
         if (Result.isFailure(updated)) {
