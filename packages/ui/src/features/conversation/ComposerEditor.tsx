@@ -287,8 +287,20 @@ export function ComposerEditor(props: ComposerEditorProps) {
       focusRequest: props.focusRequest ?? 0,
       skillPickerRequest: props.skillPickerRequest ?? 0,
       quoteRequest: props.quoteRequest,
+      disabled: props.disabled,
     }),
-    ({ agentId, value, agents, skills, mcpServers, attachments, focusRequest, skillPickerRequest, quoteRequest }) => {
+    ({
+      agentId,
+      value,
+      agents,
+      skills,
+      mcpServers,
+      attachments,
+      focusRequest,
+      skillPickerRequest,
+      quoteRequest,
+      disabled,
+    }) => {
       if (!editor || (isComposing && agentId === lastAgentId)) return;
       const attachmentKey = attachments.map((attachment) => `${attachment.id}:${attachment.name}`).join("|");
       const skillKey = skills
@@ -345,7 +357,8 @@ export function ComposerEditor(props: ComposerEditorProps) {
         lastSkillPickerRequest = skillPickerRequest;
         openSkillPicker();
       }
-      if (quoteRequest && quoteRequest.id > lastQuoteRequest) {
+      // A locked composer keeps the quote until it opens again.
+      if (quoteRequest && quoteRequest.id > lastQuoteRequest && !disabled) {
         lastQuoteRequest = quoteRequest.id;
         insertQuote(quoteRequest.messageId, quoteRequest.text);
       }

@@ -51,6 +51,7 @@ export function expandChatTagReferences(
   value: string,
   resolveName?: (reference: ChatTagReference) => string | undefined,
 ): string {
+  const text = { first: value.search(/\S/u), last: value.trimEnd().length, quoteEnd: -1 };
   return value.replace(
     CHAT_TAG_REFERENCE_PATTERN,
     (
@@ -64,30 +65,38 @@ export function expandChatTagReferences(
       const name = decodeChatTagComponent(encodedName, encoding !== undefined);
       const id = decodeChatTagComponent(encodedId, encoding !== undefined);
       const reference = { kind, id, name, start: offset, end: offset + marker.length };
-      if (kind === "quote") return expandedQuote(name, value, offset, offset + marker.length);
+      if (kind === "quote") {
+        const expanded = expandedQuote(name, value, offset, offset + marker.length, text);
+        text.quoteEnd = offset + marker.length;
+        return expanded;
+      }
       const resolvedName = resolveName?.(reference) ?? name;
       return expandedChatTag(kind, resolvedName);
     },
   );
 }
 
-const QUOTE_AT_END = /@\[[^\]\r\n]+\]\(quote(?:\+uri)?:[^)\r\n]+\)[^\S\r\n]*$/u;
-
 /**
  * A quote is a Markdown block quote on its own lines, so the provider reads it as quoted text and
- * the words after it as the user's answer to it.
+ * the words after it as the user's answer to it. `text` holds offsets in `value`, so each quote
+ * costs only the length of its own marker, also in a long message with many quotes.
  */
-function expandedQuote(text: string, value: string, start: number, end: number): string {
-  const quote = text
+function expandedQuote(
+  quoted: string,
+  value: string,
+  start: number,
+  end: number,
+  text: { first: number; last: number; quoteEnd: number },
+): string {
+  const quote = quoted
     .split(/\r?\n/u)
     .map((line) => (line.trim() ? `> ${line}` : ">"))
     .join("\n");
-  const before = value.slice(0, start);
-  const after = value.slice(end);
   // A quote just before this one already ends with a blank line.
-  const separated = !before.trim() || before.endsWith("\n\n") || QUOTE_AT_END.test(before);
-  const prefix = separated ? "" : before.endsWith("\n") ? "\n" : "\n\n";
-  const suffix = !after.trim() ? "" : after.startsWith("\n\n") ? "" : after.startsWith("\n") ? "\n" : "\n\n";
+  const afterQuote = text.quoteEnd >= 0 && /^[^\S\r\n]*$/u.test(value.slice(text.quoteEnd, start));
+  const separated = start <= text.first || value.startsWith("\n\n", start - 2) || afterQuote;
+  const prefix = separated ? "" : value[start - 1] === "\n" ? "\n" : "\n\n";
+  const suffix = end >= text.last ? "" : value.startsWith("\n\n", end) ? "" : value[end] === "\n" ? "\n" : "\n\n";
   return `${prefix}${quote}${suffix}`;
 }
 

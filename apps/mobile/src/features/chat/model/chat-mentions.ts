@@ -5,10 +5,11 @@ export function mentionDraft(source: string) {
   let text = "";
   const mentions = [];
   for (const reference of chatTagReferences(source)) {
-    if (reference.kind !== "agent") continue;
+    if (reference.kind !== "agent" && reference.kind !== "quote") continue;
     text += source.slice(cursor, reference.start);
     const start = text.length;
-    text += `@${reference.name}`;
+    // A quote keeps its marker through an edit, as a mention does. The phone cannot jump to its source.
+    text += reference.kind === "quote" ? `“${reference.name}”` : `@${reference.name}`;
     mentions.push({ start, end: text.length, reference, wire: source.slice(reference.start, reference.end) });
     cursor = reference.end;
   }

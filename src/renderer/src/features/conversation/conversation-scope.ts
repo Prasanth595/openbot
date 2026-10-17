@@ -35,6 +35,9 @@ import { createSideQuestionStore } from "./stores/side-question-store";
 import { createSkillsStore } from "./stores/skills-store";
 import { createVoiceStore } from "./stores/voice-store";
 
+/** At 9 encoded characters each, this many stays far below the message limit. */
+const QUOTE_TEXT_LIMIT = 2000;
+
 function followConversationBottom(element: HTMLDivElement): void {
   element.scrollTop = element.scrollHeight;
 }
@@ -850,7 +853,10 @@ export function createConversationViewScope(props: ConversationProps) {
   );
 
   function quoteSelection(messageId: string, text: string) {
-    setQuoteRequest((current) => ({ id: (current?.id ?? 0) + 1, messageId, text }));
+    // Encoded, a long passage could pass the message limit, and the composer would drop it with the text after it.
+    // The start of the passage is enough to find it again. Code points keep a surrogate pair whole.
+    const quoted = Array.from(text).slice(0, QUOTE_TEXT_LIMIT).join("").trimEnd();
+    setQuoteRequest((current) => ({ id: (current?.id ?? 0) + 1, messageId, text: quoted }));
   }
 
   /** Scrolls to the passage that a quote points to and marks it. */
