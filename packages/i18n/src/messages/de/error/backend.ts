@@ -234,6 +234,11 @@ export const messages = {
   "error.backend.oauthTooManyRedirects": "Der OAuth-Endpunkt hat zu oft weitergeleitet.",
   "error.backend.oauthRedirectOrigin":
     "Der OAuth-Endpunkt hat zu {origin} weitergeleitet. Die Zugangsdaten wurden daher nicht weitergegeben.",
+  "error.backend.oauthTimedOut": "Der OAuth-Endpunkt {origin} hat nicht rechtzeitig geantwortet.",
+  "error.backend.oauthResponseTooLarge": "Der OAuth-Endpunkt {origin} hat eine zu große Antwort gesendet.",
+  "error.backend.oauthResponseUnreadable": "Die Antwort des OAuth-Endpunkts {origin} konnte nicht gelesen werden.",
+  "error.backend.mcpOAuthPrivateEndpoint":
+    "Der OAuth-Endpunkt {origin} liegt in einem privaten Netzwerk, der MCP-Server ist aber öffentlich. Die Zugangsdaten wurden daher nicht gesendet.",
   "error.backend.sidebarSectionLimit": "Ein Server kann bis zu {limit} Seitenleistenabschnitte haben.",
   "error.backend.sectionNameRequired": "Ein Abschnittsname ist erforderlich.",
   "error.backend.sectionNameTooLong": "Der Abschnittsname ist zu lang.",

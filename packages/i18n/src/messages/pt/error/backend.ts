@@ -224,6 +224,11 @@ export const messages = {
   "error.backend.oauthTooManyRedirects": "O endpoint OAuth redirecionou vezes demais.",
   "error.backend.oauthRedirectOrigin":
     "O endpoint OAuth redirecionou para {origin}, por isso as credenciais não foram encaminhadas.",
+  "error.backend.oauthTimedOut": "O endpoint OAuth {origin} não respondeu a tempo.",
+  "error.backend.oauthResponseTooLarge": "O endpoint OAuth {origin} enviou uma resposta grande demais.",
+  "error.backend.oauthResponseUnreadable": "Não foi possível ler a resposta do endpoint OAuth {origin}.",
+  "error.backend.mcpOAuthPrivateEndpoint":
+    "O endpoint OAuth {origin} está em uma rede privada, mas o servidor MCP é público, por isso as credenciais não foram enviadas.",
   "error.backend.sidebarSectionLimit": "Um servidor pode ter até {limit} seções na barra lateral.",
   "error.backend.sectionNameRequired": "É necessário informar o nome da seção.",
   "error.backend.sectionNameTooLong": "O nome da seção é muito longo.",

@@ -225,6 +225,11 @@ export const messages = {
   "error.backend.oauthTooManyRedirects": "OAuth エンドポイントのリダイレクトが多すぎます。",
   "error.backend.oauthRedirectOrigin":
     "OAuth エンドポイントが {origin} にリダイレクトしたため、認証情報を転送しませんでした。",
+  "error.backend.oauthTimedOut": "OAuth エンドポイント {origin} が時間内に応答しませんでした。",
+  "error.backend.oauthResponseTooLarge": "OAuth エンドポイント {origin} の応答が大きすぎます。",
+  "error.backend.oauthResponseUnreadable": "OAuth エンドポイント {origin} の応答を読み取れませんでした。",
+  "error.backend.mcpOAuthPrivateEndpoint":
+    "OAuth エンドポイント {origin} はプライベートネットワーク上にありますが、MCP サーバーは公開されているため、認証情報を送信しませんでした。",
   "error.backend.sidebarSectionLimit": "1 つのサーバーに置けるサイドバーのセクションは {limit} 個までです。",
   "error.backend.sectionNameRequired": "セクション名が必要です。",
   "error.backend.sectionNameTooLong": "セクション名が長すぎます。",

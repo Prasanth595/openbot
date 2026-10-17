@@ -295,7 +295,7 @@ function createTransport(
      * passed `normalizeResource`, so the guard refuses nothing this probe could otherwise reach.
      */
     return new StreamableHTTPClientTransport(new URL(config.url), {
-      fetch: authProvider ? secureOAuthFetch() : challengeRecordingFetch(onChallenge),
+      fetch: authProvider ? secureOAuthFetch({ resource: config.url }) : challengeRecordingFetch(onChallenge),
       ...(authProvider ? { authProvider } : {}),
       requestInit: { headers },
     });

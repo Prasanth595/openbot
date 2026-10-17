@@ -54,6 +54,15 @@ Sign-out and removal delete the local tokens first. Then OpenBot sends one best-
 request per token, refresh token first, to the `revocation_endpoint` of the authorization server.
 The request goes through `secureOAuthFetch`, with the client authentication of the registration and
 a 5-second limit. A failure is logged with the origin and the status only, and is not shown.
+
+`secureOAuthFetch` limits each OAuth request: the body is at most 1 MiB, and the answer must come in
+20 seconds. The outer deadlines stay. A request to the MCP URL itself is MCP traffic, because the
+probe uses the same fetch for the transport, so it has no size or time limit. When the host of the
+MCP URL resolves only to public addresses, each OAuth host (metadata, authorization server, token,
+registration and revocation endpoints) must also resolve only to public addresses, or the request
+fails with `error.backend.mcpOAuthPrivateEndpoint` before it connects. A failed lookup also stops
+the request. A LAN or localhost MCP URL has no such check. The check does not pin the address, so
+DNS can change between the check and the connection; this residual risk is accepted.
 Run `bun run test:mcp-oauth` to check the sign-in paths against a local authorization server.
 
 ### How an agent reaches a signed-in MCP server

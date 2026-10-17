@@ -24,15 +24,23 @@ import {
   ToolListChangedNotificationSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import type { McpServerConfig } from "@openbot/contracts/ipc";
+import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, redactText } from "@openbot/logging";
 import { Effect } from "effect";
 import { McpGateway } from "../src/backend/agent/mcp-gateway";
 import { runCauseEffect } from "../src/backend/effect-boundary";
 import { toMcpOperationError } from "../src/backend/mcp-effects";
-import { McpOAuth, type McpOAuthRecord, mcpOAuthRecordSchema } from "../src/backend/mcp-oauth-provider";
+import {
+  McpOAuth,
+  type McpOAuthRecord,
+  mcpOAuthRecordSchema,
+  normalizeResource,
+  secureOAuthFetch,
+} from "../src/backend/mcp-oauth-provider";
 import type { McpOAuthProxySettings } from "../src/backend/mcp-oauth-proxy";
 import { claudeMcpServers, codexMcpServers, usableMcpServers } from "../src/backend/mcp-provider-shapes";
 import { McpServerStore } from "../src/backend/mcp-server-store";
+import { isPublicAddress } from "../src/backend/network-address";
 import { OpenBotDatabase } from "../src/backend/openbot-database";
 import { NO_PROVIDER_CREDENTIALS } from "../src/backend/provider-drivers";
 
@@ -79,6 +87,13 @@ async function startAuthorizationServer() {
       return json(response, 200, { resource: `${base}/mcp`, authorization_servers: [base] });
     if (path === "/register") return json(response, 201, { client_id: "registered", redirect_uris: [REDIRECT_URL] });
     if (path === "/revoke") return json(response, revokeStatus, {});
+    // Larger than the OAuth body limit: one with a declared length, one counted as it arrives.
+    if (path === "/big-declared") return json(response, 200, { padding: "x".repeat(2 * 1024 * 1024) });
+    if (path === "/big-streamed") {
+      response.writeHead(200, { "content-type": "application/json" });
+      for (let chunk = 0; chunk < 32; chunk++) response.write("x".repeat(64 * 1024));
+      return response.end();
+    }
     if (path === "/token" && request.method === "POST") {
       if (tokenMode === "drop") return request.socket.destroy();
       if (tokenMode === "invalid_grant") return json(response, 400, { error: "invalid_grant" });
@@ -320,8 +335,9 @@ async function main() {
   });
 
   const proxy = await proxyCases(auth);
+  const network = await networkCases(auth);
   await auth.close();
-  const cases = { refreshed, invalidGrant, invalidClient, networkError, signOut, revokeRefused, ...proxy };
+  const cases = { refreshed, invalidGrant, invalidClient, networkError, signOut, revokeRefused, ...proxy, ...network };
   await writeFile(join(OUT, "report.json"), `${JSON.stringify({ ok: true, cases }, null, 2)}\n`);
   process.stdout.write(`mcp-oauth-e2e: ${Object.keys(cases).length} cases passed\n`);
 }
@@ -724,3 +740,113 @@ async function proxyCases(auth: Awaited<ReturnType<typeof startAuthorizationServ
 }
 
 await main();
+
+/**
+ * The network limits of every OAuth request: a public MCP server whose OAuth endpoint is on a
+ * private address is refused before any connection, and a body above the limit is not read. The
+ * lookup is injected, so the public names resolve without DNS.
+ */
+async function networkCases(auth: Awaited<ReturnType<typeof startAuthorizationServer>>) {
+  const addressTable = {
+    "93.184.216.34": true,
+    "2606:4700::1111": true,
+    "10.0.0.5": false,
+    "172.16.0.1": false,
+    "192.168.1.1": false,
+    "127.0.0.1": false,
+    "169.254.169.254": false,
+    "100.64.0.1": false,
+    "224.0.0.1": false,
+    "0.0.0.0": false,
+    "::1": false,
+    "::": false,
+    "fd00::1": false,
+    "fe80::1": false,
+    "ff02::1": false,
+    "::ffff:10.0.0.5": false,
+    "::ffff:93.184.216.34": true,
+    "[::ffff:a00:5]": false,
+  };
+  for (const [address, expected] of Object.entries(addressTable))
+    assert.equal(isPublicAddress(address), expected, `isPublicAddress(${address})`);
+
+  // `localhost` is a name, so the lookup decides it; the server behind it is the real loopback one.
+  const localBase = auth.base.replace("127.0.0.1", "localhost");
+  const publicUrl = "https://mcp.public.example/mcp";
+  const names: Record<string, readonly string[]> = {
+    "mcp.public.example": ["93.184.216.34"],
+    "mixed.example": ["93.184.216.34", "10.0.0.5"],
+    localhost: ["127.0.0.1"],
+  };
+  const looked: string[] = [];
+  const lookup = async (hostname: string) => {
+    looked.push(hostname);
+    const addresses = names[hostname];
+    if (!addresses) throw new Error(`No fake address for ${hostname}.`);
+    return addresses;
+  };
+  const refusal = async (request: Promise<Response>) => {
+    try {
+      await request;
+    } catch (error) {
+      return error instanceof Error ? error.message : String(error);
+    }
+    throw new Error("The request was not refused.");
+  };
+
+  // A public server whose discovery names a loopback endpoint: the refresh never reaches it, and
+  // the tokens stay, as for any refresh that did not get an answer.
+  auth.reset();
+  const resource = normalizeResource(publicUrl);
+  assert.ok(resource);
+  const { records, storage } = memoryStorage();
+  records.set(resource, expiredRecord(localBase));
+  const oauth = new McpOAuth({
+    storage,
+    openExternal: async () => {
+      throw new Error("A silent path opened the browser.");
+    },
+    redirectUrl: REDIRECT_URL,
+    lookup,
+  });
+  const token = await runCauseEffect(oauth.accessToken(publicUrl));
+  await runCauseEffect(oauth.close());
+  assert.equal(token, "access-on-file");
+  assert.equal(records.get(resource)?.tokens?.refresh_token, "refresh-on-file");
+  assert.ok(looked.includes("localhost"), "The OAuth endpoint was not checked.");
+  assert.equal(auth.hits.length, 0, "A refused OAuth endpoint was reached.");
+
+  const guarded = secureOAuthFetch({ resource: publicUrl, lookup });
+  const privateEndpoint = await refusal(guarded(`${localBase}/token`, { method: "POST", body: "grant_type=x" }));
+  assert.equal(privateEndpoint, sourceText("error.backend.mcpOAuthPrivateEndpoint", { origin: localBase }));
+  const mixed = await refusal(guarded("https://mixed.example/token", { method: "POST" }));
+  assert.equal(mixed, sourceText("error.backend.mcpOAuthPrivateEndpoint", { origin: "https://mixed.example" }));
+  assert.equal(auth.hits.length, 0, "A refused OAuth endpoint was reached.");
+
+  // A server the user typed on a loopback address keeps its loopback authorization server.
+  const local = await secureOAuthFetch({ resource: `${localBase}/mcp`, lookup })(
+    `${localBase}/.well-known/oauth-authorization-server`,
+  );
+  assert.equal(local.status, 200);
+
+  // A body above the limit is refused, with or without a declared length.
+  const declared = await refusal(secureOAuthFetch()(`${auth.base}/big-declared`));
+  const streamed = await refusal(secureOAuthFetch()(`${auth.base}/big-streamed`));
+  const tooLarge = sourceText("error.backend.oauthResponseTooLarge", { origin: auth.base });
+  assert.equal(declared, tooLarge);
+  assert.equal(streamed, tooLarge);
+  // MCP traffic to the server itself has no limit: the probe sends it through the same fetch.
+  const mcpTraffic = await secureOAuthFetch({ resource: `${auth.base}/big-streamed` })(`${auth.base}/big-streamed`);
+  assert.equal((await mcpTraffic.text()).length, 2 * 1024 * 1024);
+
+  return {
+    addressClassifier: { checked: Object.keys(addressTable).length },
+    privateEndpoint: {
+      refusedBeforeConnecting: true,
+      tokensKept: true,
+      mixedAnswerRefused: true,
+      loopbackAllowed: true,
+    },
+    bodyLimit: { declaredRefused: true, streamedRefused: true, mcpTrafficUnlimited: true },
+  };
+}

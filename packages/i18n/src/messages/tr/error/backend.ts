@@ -213,6 +213,11 @@ export const messages = {
   "error.backend.oauthTooManyRedirects": "OAuth uç noktası çok fazla yönlendirme yaptı.",
   "error.backend.oauthRedirectOrigin":
     "OAuth uç noktası {origin} adresine yönlendirme yaptı, bu nedenle kimlik bilgileri iletilmedi.",
+  "error.backend.oauthTimedOut": "OAuth uç noktası {origin} zamanında yanıt vermedi.",
+  "error.backend.oauthResponseTooLarge": "OAuth uç noktası {origin} çok büyük bir yanıt gönderdi.",
+  "error.backend.oauthResponseUnreadable": "OAuth uç noktası {origin} yanıtı okunamadı.",
+  "error.backend.mcpOAuthPrivateEndpoint":
+    "OAuth uç noktası {origin} özel bir ağda, ancak MCP sunucusu herkese açık; bu nedenle kimlik bilgileri gönderilmedi.",
   "error.backend.sidebarSectionLimit": "Bir sunucu en fazla {limit} kenar çubuğu bölümüne sahip olabilir.",
   "error.backend.sectionNameRequired": "Bölüm adı gereklidir.",
   "error.backend.sectionNameTooLong": "Bölüm adı çok uzun.",
