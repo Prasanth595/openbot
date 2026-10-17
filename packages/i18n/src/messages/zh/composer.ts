@@ -36,6 +36,7 @@ export const messages = {
   "composer.token.agent": "助手 {name}",
   "composer.token.skill": "技能 {name}",
   "composer.token.mcp": "MCP 服务器 {name}",
+  "composer.token.quote": "引用 {name}",
   "composer.token.unavailableAgent": "助手 {name} 不可用",
   "composer.token.unavailableSkill": "技能 {name} 不可用",
   "composer.token.unavailableMcp": "MCP 服务器 {name} 不可用",

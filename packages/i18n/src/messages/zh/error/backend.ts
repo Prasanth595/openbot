@@ -180,6 +180,8 @@ export const messages = {
   "error.backend.mcpSignInTimedOut": "未在浏览器中完成登录。",
   "error.backend.mcpSignInResponseTimedOut": "登录响应未及时返回。",
   "error.backend.mcpServerExited": "服务器在响应之前就停止了。请在终端中运行该命令以查看错误。",
+  "error.backend.mcpOAuthProxyUnavailable": "OpenBot 无法为这台服务器建立本地登录连接。请重启 OpenBot 后再试一次。",
+  "error.backend.mcpOAuthSignInNeeded": "该 MCP 服务器的登录已结束。用户需要在 OpenBot 中重新登录。",
   "error.backend.mcpServerUnreachable": "OpenBot 无法连接该服务器。请检查地址与网络。",
   "error.backend.mcpLocalServerOff":
     "此电脑上 {address} 没有服务器在响应。请启动服务器，或在运行它的应用中开启它，然后重试。",
@@ -217,6 +219,8 @@ export const messages = {
   "error.backend.steerQueuedOnly": "只能引导排队中的消息。",
   "error.backend.promptInactive": "该提示已不再有效。",
   "error.backend.promptAnswerMismatch": "有提示答案与任何活跃问题都不匹配。",
+  "error.backend.uiBlockAnswerInvalid": "这个回答不符合助手给出的选项。",
+  "error.backend.uiBlockActionNotAllowed": "只有服务器所有者或管理员可以选择这个操作。",
   "error.backend.approvalInactive": "该审批已不再有效。",
   "error.backend.takeoverInactive": "该浏览器接管已不再有效。",
   "error.backend.authSubmitting": "身份验证正在提交中。",
