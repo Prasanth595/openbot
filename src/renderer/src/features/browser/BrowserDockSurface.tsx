@@ -83,8 +83,12 @@ export function BrowserDockSurface() {
         .browserDock.setFrame({ seq, ...frame })
         .catch(() => undefined);
     }
-    // A spring moves the glass on each frame, so the blur follows it until the animations end.
-    if (document.getAnimations().length > 0) schedule();
+    // A spring moves the glass on each frame, so the blur follows it until the animations end. A spinner
+    // that never ends does not move the glass.
+    const moving = document
+      .getAnimations()
+      .some((animation) => animation.effect?.getTiming().iterations !== Number.POSITIVE_INFINITY);
+    if (moving) schedule();
   }
 
   function schedule() {
@@ -151,7 +155,6 @@ export function BrowserDockSurface() {
             onRespondSecret={(input) => browserDockPort().agent.respondToBrowserSecret(input, LOCAL_SERVER_ID)}
             onDismissReply={(id) => perform({ type: "dismiss-reply", id })}
             onOpenChat={dock().canOpenChat ? () => perform({ type: "open-chat" }) : undefined}
-            onOpenAgent={dock().openAgent ? () => perform({ type: "open-agent" }) : undefined}
             onSelectAgent={(agentId) => perform({ type: "select-agent", agentId })}
             onOpenLink={(url) => perform({ type: "open-link", url })}
           />

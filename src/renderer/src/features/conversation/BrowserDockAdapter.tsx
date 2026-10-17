@@ -31,6 +31,8 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined; 
   const {
     props,
     currentDraft,
+    currentTarget,
+    clearSubmittedDraft,
     updateCurrentDraft,
     submitComposer,
     composerFocusRequest,
@@ -49,17 +51,8 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined; 
     setActiveRightPanel,
   } = useConversationViewScope();
   const { t } = useText();
-  const owner = createMemo(() => {
-    const ownerId = adapterProps.tab?.ownerAgentId;
-    return (ownerId ? props.agents.find((agent) => agent.id === ownerId) : undefined) ?? props.agent;
-  });
-  /**
-   * The conversation shows a different agent: its turn, queue and replies are not the tab's. The full view
-   * changes to the owner when the user selects a tab, so this is a tab that the agent brought to the front.
-   */
-  const foreign = () => Boolean(owner() && props.agent && owner()?.id !== props.agent.id);
   const control = () => (adapterProps.tab ? browserControlForTab(adapterProps.tab) : undefined);
-  const working = () => (!foreign() && Boolean(props.activeTurnId)) || control()?.phase === "acting";
+  const working = () => Boolean(props.activeTurnId) || control()?.phase === "acting";
   const [handoffPending, setHandoffPending] = createSignal(false);
   const [dismissedReplies, setDismissedReplies] = createSignal<ReadonlySet<string>>(new Set());
   /**
@@ -83,7 +76,7 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined; 
   /** One open question with no choices is answered from the field. Others need the chat. */
   const question = () => {
     const prompt = props.prompt;
-    if (!prompt || prompt.agentId !== owner()?.id || prompt.questions.length === 0) return undefined;
+    if (!prompt || prompt.agentId !== props.agent?.id || prompt.questions.length === 0) return undefined;
     const [first] = prompt.questions;
     const fromField = prompt.questions.length === 1 && first && first.options === null && !first.isSecret;
     return { prompt, first: fromField ? first : undefined };
@@ -91,7 +84,7 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined; 
   const reply = createMemo(() => {
     const agentId = props.agent?.id;
     const marker = agentId ? openedAfter().get(agentId) : undefined;
-    if (foreign() || marker === undefined) return undefined;
+    if (marker === undefined) return undefined;
     const messages = props.messages;
     for (let index = messages.length - 1; index >= 0; index -= 1) {
       const message = messages[index];
@@ -135,25 +128,16 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined; 
     if (!tab || content?.kind !== "activity") return undefined;
     if (content.control === "request") return async () => void (await respondToBrowserTakeover("complete"));
     if (content.control === "user") return () => releaseBrowserControl(tab.id);
-    if (foreign() || !serverSupportsCapability(props.server, BROWSER_USER_CONTROL_CAPABILITY)) return undefined;
+    if (!serverSupportsCapability(props.server, BROWSER_USER_CONTROL_CAPABILITY)) return undefined;
     return () => takeBrowserControl(tab.id);
   };
 
-  const deliveries = () => (foreign() ? [] : presentedQueueDeliveries());
+  const deliveries = presentedQueueDeliveries;
   const hold = () => {
     const current = props.queue?.hold;
-    return current && current.agentId !== owner()?.id ? current : null;
+    return current && current.agentId !== props.agent?.id ? current : null;
   };
   const dismissReply = (id: string) => setDismissedReplies((ids) => new Set(ids).add(id));
-  /** The conversation changes to the owner, and the page stays open for it. */
-  const openAgent = () => {
-    const agent = owner();
-    if (!foreign() || !agent) return undefined;
-    return () => {
-      setActiveRightPanel("browser-expanded", agent.id);
-      props.onSelectAgent(agent.id);
-    };
-  };
 
   async function handoff(action: () => Promise<void>) {
     if (handoffPending()) return;
@@ -175,8 +159,11 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined; 
     if (asked?.first && !editingDeliveryId()) {
       const answer = text.trim();
       if (!answer) return;
+      // The user can select the tab of another agent before the answer arrives: clear the draft of this one.
+      const target = currentTarget();
+      const draft = currentDraft();
       void props.onAnswerPrompt({ [asked.first.id]: [answer] }).then((answered) => {
-        if (answered) updateCurrentDraft({ text: "" });
+        if (answered && target) clearSubmittedDraft(target, { ...draft, attachments: [] });
       });
       return;
     }
@@ -188,7 +175,7 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined; 
   let draftText = untrack(() => currentDraft().text);
   let draftRevision = 0;
   const presentation = createMemo((): BrowserDockPresentation | null => {
-    const agent = owner();
+    const agent = props.agent;
     if (!adapterProps.overlay || !adapterProps.tab || !agent) return null;
     const text = currentDraft().text;
     if (text !== draftText) {
@@ -214,7 +201,6 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined; 
       island: island(),
       handoffPending: handoffPending(),
       canHandoff: Boolean(onHandoff()),
-      openAgent: Boolean(openAgent()),
       canOpenChat: true,
     });
   });
@@ -274,9 +260,6 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined; 
       case "open-chat":
         setActiveRightPanel("browser");
         return;
-      case "open-agent":
-        openAgent()?.();
-        return;
       case "select-agent":
         props.onSelectAgent(action.agentId);
         return;
@@ -303,7 +286,7 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined; 
   );
 
   return (
-    <Show when={!overlayShown() && owner()}>
+    <Show when={!overlayShown() && props.agent}>
       {(agent) => (
         <BrowserDock
           agent={agent()}
@@ -333,7 +316,6 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined; 
           onRespondSecret={(input) => conversationRuntime(props).agent.respondToBrowserSecret(input)}
           onDismissReply={dismissReply}
           onOpenChat={() => setActiveRightPanel("browser")}
-          onOpenAgent={openAgent()}
           onSelectAgent={props.onSelectAgent}
           onOpenLink={(url) => void openExternalMessageUrl(url)}
         />

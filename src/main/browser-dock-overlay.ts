@@ -132,7 +132,9 @@ export class BrowserDockOverlay {
     this: BrowserDockOverlay,
     presentation: BrowserDockPresentation | null,
   ): Effect.fn.Return<void, BrowserDockOverlayFailed> {
-    if (this.#destroyed || isDeepStrictEqual(this.#presentation, presentation)) return;
+    if (this.#destroyed) return;
+    // The same presentation again still brings back a view that failed or was dropped.
+    if (isDeepStrictEqual(this.#presentation, presentation) && (presentation === null || this.#view)) return;
     this.#presentation = presentation;
     if (presentation) yield* this.#ensureView();
     const view = this.#view;

@@ -35,7 +35,8 @@ export function browserSearchUrl(query: string): string {
 export function browserSearchQuery(url: string): string | undefined {
   if (!url.startsWith(SEARCH_URL)) return undefined;
   try {
-    return decodeURIComponent(url.slice(SEARCH_URL.length).split("&")[0] ?? "").replaceAll("+", " ");
+    // A "+" is a space only before decoding: "c%2B%2B" is "c++".
+    return decodeURIComponent((url.slice(SEARCH_URL.length).split("&")[0] ?? "").replaceAll("+", " "));
   } catch {
     return undefined;
   }

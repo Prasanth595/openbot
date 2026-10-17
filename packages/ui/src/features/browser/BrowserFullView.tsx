@@ -133,7 +133,10 @@ export default function BrowserFullView(props: BrowserFullViewProps) {
     (platform) => {
       if (!platform) return;
       const onKeyDown = (event: KeyboardEvent) => {
-        if (event.isComposing || event.defaultPrevented) return;
+        if (event.isComposing || event.keyCode === 229 || event.defaultPrevented) return;
+        // A menu or a dialog over the view has the focus: its keys are its own.
+        if (event.target instanceof Element && event.target.closest("[role=dialog], [role=alertdialog], [role=menu]"))
+          return;
         const command = browserViewCommand(event, platform);
         if (!command) return;
         event.preventDefault();

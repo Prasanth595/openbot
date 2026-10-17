@@ -46,11 +46,17 @@ export function textRect(element: Element): DOMRect {
   return rect.width > 0 ? rect : element.getBoundingClientRect();
 }
 
-/** A copy of an element for a motion: no ids, no inline style, no focus, and hidden from assistive technology. */
+/**
+ * A copy of an element for a motion: no ids, no inline style, no focus, no typed values (a code or a
+ * password), and hidden from assistive technology.
+ */
 function inertCopy(element: Element): HTMLElement | undefined {
   const copy = element.cloneNode(true);
   if (!(copy instanceof HTMLElement)) return undefined;
   for (const node of [copy, ...copy.querySelectorAll("[id]")]) node.removeAttribute("id");
+  for (const field of copy.querySelectorAll("input, textarea")) {
+    if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) field.value = "";
+  }
   copy.removeAttribute("style");
   copy.inert = true;
   copy.setAttribute("aria-hidden", "true");

@@ -371,7 +371,6 @@ export function createServerConversationState() {
   const [settingsModel, setSettingsModel] = createSignal<AgentModelId>("gpt-6-luna");
   const [settingsReasoning, setSettingsReasoning] = createSignal<AgentReasoningEffort>("medium");
   const [browserAddress, setBrowserAddress] = createSignal("https://www.google.com");
-  const [browserAddressEditing, setBrowserAddressEditing] = createSignal(false);
   const [sidebarFilePreview, writeSidebarFilePreview] = createSignal<SidebarFilePreview | null>(null);
   // The accepted preview outlives its lazy view. Keep its page with the server-owned state,
   // including when it changes twice before Solid settles or the user visits another conversation.
@@ -420,8 +419,6 @@ export function createServerConversationState() {
     setSettingsReasoning,
     browserAddress,
     setBrowserAddress,
-    browserAddressEditing,
-    setBrowserAddressEditing,
     sidebarFilePreview,
     setSidebarFilePreview,
     openReactionMessageId,

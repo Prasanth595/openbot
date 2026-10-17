@@ -50,7 +50,8 @@ export const messages = {
     "Esta aba do navegador está esperando um segredo. Responda primeiro ao pedido do segredo.",
   "error.backend.browserUserControlUnsupported":
     "Este computador anfitrião remoto não oferece suporte para assumir o controle de uma aba do navegador.",
-  "error.backend.browserStopUnsupported": "Este host remoto não consegue parar o carregamento de uma página.",
+  "error.backend.browserStopUnsupported":
+    "Este computador anfitrião remoto não consegue parar o carregamento de uma página.",
   "error.backend.sharedDataLocalOnly":
     "Os dados compartilhados são gerenciados no computador que executa estes agentes.",
   "error.backend.browserUrlProtocol": "Somente URLs HTTP(S) são permitidas no navegador.",

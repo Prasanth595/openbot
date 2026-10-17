@@ -101,7 +101,6 @@ export const messages = {
   "browser.dock.messageTo": "{name} へのメッセージ",
   "browser.dock.needsYou": "{name} がこのページで手助けを求めています",
   "browser.dock.answerInChat": "チャットで回答",
-  "browser.dock.openAgent": "{name} を開く",
   "browser.tab.newRight": "右に新しいタブ",
   "browser.tab.duplicate": "複製",
   "browser.tab.moveLeft": "タブを左へ移動",

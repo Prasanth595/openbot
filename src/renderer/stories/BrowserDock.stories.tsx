@@ -107,8 +107,3 @@ export const Reply: Story = {
     },
   },
 };
-
-/** The tab belongs to another agent: the queue and the turn are in that agent's chat. */
-export const OtherAgent: Story = {
-  args: { onOpenAgent: fn() },
-};

@@ -35,7 +35,6 @@ const PRESENTATION: BrowserDockPresentation = {
   island: { kind: "activity", control: "agent", label: "Reading the page" },
   handoffPending: false,
   canHandoff: true,
-  openAgent: false,
   canOpenChat: true,
 };
 

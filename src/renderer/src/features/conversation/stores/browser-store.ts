@@ -49,7 +49,6 @@ export interface BrowserStoreDeps {
   >;
   browserAddress: () => string;
   setBrowserAddress: (address: string) => void;
-  setBrowserAddressEditing: (editing: boolean) => void;
   /** `cause` is the failure behind `error`. The banner shows its code. */
   setComposerError: (error: string | null, targetOverride?: ConversationTarget, cause?: unknown) => void;
   panels: BrowserPanels;
@@ -65,12 +64,12 @@ export function createBrowserStore(deps: BrowserStoreDeps) {
   const screenOpen = () => browserSidebarOpen() || browserExpandedOpen() || browserPipOpen();
   /** All tabs of the server. The full view lists them; the side panel lists only the agent's. */
   const allBrowserTabs = createMemo(() => (deps.props.browserEnabled === false ? [] : deps.props.browserTabs));
+  const ownsTab = (agent: Pick<AgentProfile, "id" | "threadId">, tab: BrowserTab) =>
+    tab.ownerAgentId ? tab.ownerAgentId === agent.id : Boolean(agent.threadId && tab.ownerThreadId === agent.threadId);
   const tabsOwnedBy = (agent: Pick<AgentProfile, "id" | "threadId">) =>
-    allBrowserTabs().filter((tab) =>
-      tab.ownerAgentId
-        ? tab.ownerAgentId === agent.id
-        : Boolean(agent.threadId && tab.ownerThreadId === agent.threadId),
-    );
+    allBrowserTabs().filter((tab) => ownsTab(agent, tab));
+  /** The agent of a tab. A tab of an old agent run has only the thread. */
+  const browserTabOwner = (tab: BrowserTab) => deps.props.agents.find((agent) => ownsTab(agent, tab));
   const browserTabs = createMemo(() => {
     const agent = deps.props.agent;
     return agent ? tabsOwnedBy(agent) : [];
@@ -272,7 +271,6 @@ export function createBrowserStore(deps: BrowserStoreDeps) {
     if (!browserInteractionAvailable()) return;
     const value = address.trim();
     if (!value) return;
-    deps.setBrowserAddressEditing(false);
     const targetAgentId = deps.props.agent?.id;
     const target = targetAgentId ? { agentId: targetAgentId, serverId: deps.props.server?.id ?? "local" } : undefined;
     const analytics = desktopAnalytics.scope();
@@ -439,22 +437,37 @@ export function createBrowserStore(deps: BrowserStoreDeps) {
     }
   }
 
+  /** The tabs that the user took in this view. Only the full view shows the control that gives them back. */
+  const takenBrowserTabIds = new Set<string>();
+
   /** The owning agent's browser calls on this tab wait until the release. */
   async function takeBrowserControl(tabId: string) {
-    await setBrowserControl(tabId, "take");
+    if (await setBrowserControl(tabId, "take")) takenBrowserTabIds.add(tabId);
   }
 
   async function releaseBrowserControl(tabId: string) {
-    await setBrowserControl(tabId, "release");
+    if (await setBrowserControl(tabId, "release")) takenBrowserTabIds.delete(tabId);
   }
 
-  async function setBrowserControl(tabId: string, action: "take" | "release") {
-    if (
-      !browserInteractionAvailable() ||
-      closingBrowserTabIds.has(tabId) ||
-      !browserTabs().some((tab) => tab.id === tabId)
-    ) {
-      return;
+  // The user leaves the full view: the agents get their pages back, so no tab waits with no control in sight.
+  let fullViewWasOpen = false;
+  createEffect(browserExpandedOpen, (open) => {
+    const closed = fullViewWasOpen && !open;
+    fullViewWasOpen = open;
+    if (!closed) return;
+    const held = new Set(untrack(allBrowserTabs).flatMap((tab) => (tab.userControl ? [tab.id] : [])));
+    for (const tabId of [...takenBrowserTabIds]) {
+      if (held.has(tabId)) void releaseBrowserControl(tabId);
+      else takenBrowserTabIds.delete(tabId);
+    }
+  });
+
+  /** Whether the host took the request. */
+  async function setBrowserControl(tabId: string, action: "take" | "release"): Promise<boolean> {
+    // The user gives back a tab of any agent; the user takes only a tab of this agent.
+    const tabs = action === "take" ? browserTabs() : allBrowserTabs();
+    if (!browserInteractionAvailable() || closingBrowserTabIds.has(tabId) || !tabs.some((tab) => tab.id === tabId)) {
+      return false;
     }
     const agentId = deps.props.agent?.id;
     const target = agentId ? { agentId, serverId: deps.props.server?.id ?? "local" } : undefined;
@@ -462,12 +475,14 @@ export function createBrowserStore(deps: BrowserStoreDeps) {
     try {
       if (action === "take") await browser.takeControl(tabId);
       else await browser.releaseControl(tabId);
+      return true;
     } catch (error) {
       deps.setComposerError(
         currentText().t(action === "take" ? "browser.error.takeControl" : "browser.error.releaseControl"),
         target,
         error,
       );
+      return false;
     }
   }
 
@@ -494,6 +509,7 @@ export function createBrowserStore(deps: BrowserStoreDeps) {
     closeBrowserTab,
     activateBrowserTab,
     showBrowserTabOf,
+    browserTabOwner,
     reloadBrowserTab,
     stopBrowserTab,
     navigateBrowserTab,

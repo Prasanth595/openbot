@@ -123,6 +123,8 @@ export function BrowserAddressRow(props: {
   };
 
   const onKeyDown = (event: KeyboardEvent & { currentTarget: HTMLInputElement }) => {
+    // These keys choose and commit the text of an input method.
+    if (event.isComposing || event.keyCode === 229) return;
     const list = rows();
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
@@ -259,7 +261,12 @@ export function BrowserAddressRow(props: {
           placeholder={t("browser.address.placeholder")}
           value={address.text ?? tab()?.url ?? ""}
           onInput={(event: InputEvent & { currentTarget: HTMLInputElement }) =>
-            edit(event.currentTarget, event.currentTarget.value, event.inputType.startsWith("insert"))
+            edit(
+              event.currentTarget,
+              event.currentTarget.value,
+              // A completion selects text, which ends the text that an input method composes.
+              !event.isComposing && event.inputType.startsWith("insert"),
+            )
           }
           onKeyDown={onKeyDown}
           onFocus={(event: FocusEvent & { currentTarget: HTMLInputElement }) => {

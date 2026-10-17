@@ -90,8 +90,6 @@ export interface BrowserDockPresentation {
   island: BrowserDockIsland | null;
   handoffPending: boolean;
   canHandoff: boolean;
-  /** The conversation shows a different agent: the composer is one button that opens the tab's agent. */
-  openAgent: boolean;
   canOpenChat: boolean;
 }
 
@@ -108,7 +106,6 @@ export type BrowserDockAction =
   | { type: "handoff" }
   | { type: "dismiss-reply"; id: string }
   | { type: "open-chat" }
-  | { type: "open-agent" }
   | { type: "select-agent"; agentId: string }
   | { type: "open-link"; url: string };
 
@@ -155,7 +152,6 @@ export function isBrowserDockPresentation(value: unknown): value is BrowserDockP
     (value.island === null || isBrowserDockIsland(value.island)) &&
     isBoolean(value.handoffPending) &&
     isBoolean(value.canHandoff) &&
-    isBoolean(value.openAgent) &&
     isBoolean(value.canOpenChat)
   );
 }
@@ -183,7 +179,6 @@ export function isBrowserDockAction(value: unknown): value is BrowserDockAction 
     case "cancel-edit":
     case "handoff":
     case "open-chat":
-    case "open-agent":
       return true;
     default:
       return false;

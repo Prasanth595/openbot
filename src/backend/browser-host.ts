@@ -430,9 +430,15 @@ export class BrowserHost {
     if (!pending) return;
     tab.pendingRestore = undefined;
     tab.sleeping = undefined;
-    yield* Effect.forkIn(enqueueTabOperation(tab, pending, true).pipe(Effect.ignore), tab.scope, {
-      startImmediately: true,
-    });
+    // An agent tool can wake a tab that a person holds. The restore is the host's work, so the hold does not stop it.
+    yield* Effect.forkIn(
+      enqueueTabOperation(tab, pending, true).pipe(
+        Effect.ignore,
+        Effect.provideService(BrowserToolHold, () => false),
+      ),
+      tab.scope,
+      { startImmediately: true },
+    );
   });
 
   readonly #sleepIdleTabs = Effect.fn("BrowserHost.sleepIdleTabs")(function* (this: BrowserHost) {
@@ -702,6 +708,8 @@ export class BrowserHost {
             if (this.#tabs.get(tab.id) === tab) {
               this.#unmountView(tab.view);
               this.#tabs.delete(tab.id);
+              this.#userControlTabIds.delete(tab.id);
+              this.#completeUserControlWaiters(tab.id);
               yield* tab.engine.destroy();
               tab.contents.close();
               if (this.#activeTabId === tab.id) {

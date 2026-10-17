@@ -53,7 +53,6 @@ const PRESENTATION: BrowserDockPresentation = {
   island: null,
   handoffPending: false,
   canHandoff: false,
-  openAgent: false,
   canOpenChat: true,
 };
 

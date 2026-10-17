@@ -229,12 +229,6 @@ body:has(.browser-dock-surface),
   color: var(--openbot-text-primary);
 }
 
-/* The tab belongs to an agent that this conversation does not show: one button opens it. */
-.browser-dock-open-agent {
-  justify-content: center;
-  border-radius: var(--openbot-radius-pill);
-}
-
 /* The text of a new queue row waits until the sent text arrives from the field. */
 .agent-queue-panel[data-variant="floating"] .agent-queue-item[data-arriving] .agent-queue-message {
   visibility: hidden;

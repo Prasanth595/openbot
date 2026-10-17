@@ -65,8 +65,6 @@ export interface BrowserDockProps {
   onRespondSecret: (input: RespondToBrowserSecretInput) => Promise<void>;
   onDismissReply: (id: string) => void;
   onOpenChat?: (() => void) | undefined;
-  /** Set when the conversation does not show the tab's agent: the composer is one button that opens it. */
-  onOpenAgent?: (() => void) | undefined;
   onSelectAgent: (agentId: string) => void;
   onOpenLink: (url: string) => void;
 }
@@ -317,81 +315,65 @@ export function BrowserDock(props: BrowserDockProps) {
             </Show>
           </div>
         </div>
-        <Show
-          when={props.onOpenAgent}
-          fallback={
-            <form
-              class="browser-dock-glass browser-dock-composer"
-              ref={(element) => {
-                form = element;
-              }}
-              onSubmit={(event) => {
-                event.preventDefault();
-                send();
-              }}
-              // Escape stops the edit, and the message goes back to its row unchanged.
-              onKeyDown={(event) => {
-                if (event.key !== "Escape" || event.defaultPrevented || !editing()) return;
-                event.preventDefault();
-                props.onCancelEdit();
-              }}
-            >
-              <AgentAvatar agent={props.agent} class="browser-dock-avatar" />
-              <div class="browser-dock-editor">
-                <ComposerEditor
-                  size="compact"
-                  agentId={props.agent.id}
-                  agents={props.agents}
-                  skills={props.skills}
-                  mcpServers={props.mcpServers}
-                  value={props.value}
-                  focusRequest={props.focusRequest}
-                  placeholder={placeholder()}
-                  ariaLabel={t("browser.dock.messageTo", { name: props.agent.name })}
-                  disabled={false}
-                  sendShortcut={props.sendShortcut}
-                  onSubmit={send}
-                  onValueChange={props.onValueChange}
-                />
-              </div>
-              {/* As in the conversation: while the agent works and the field is empty, Send is Stop. */}
-              <Show
-                when={props.working && !editing() && !props.value.trim()}
-                fallback={
-                  <Button
-                    type="submit"
-                    variant="ghost"
-                    class="voice-button"
-                    aria-label={editing() ? t("composer.send.saveQueued") : t("composer.send.message")}
-                  >
-                    <ArrowUp aria-hidden="true" />
-                  </Button>
-                }
-              >
-                <Button
-                  type="button"
-                  variant="ghost"
-                  class="voice-button voice-button-active"
-                  aria-label={t("composer.send.stop")}
-                  onClick={() => props.onStop()}
-                >
-                  <StopIcon />
-                </Button>
-              </Show>
-            </form>
-          }
+        <form
+          class="browser-dock-glass browser-dock-composer"
+          ref={(element) => {
+            form = element;
+          }}
+          onSubmit={(event) => {
+            event.preventDefault();
+            send();
+          }}
+          // Escape stops the edit, and the message goes back to its row unchanged.
+          onKeyDown={(event) => {
+            if (event.key !== "Escape" || event.defaultPrevented || !editing()) return;
+            event.preventDefault();
+            props.onCancelEdit();
+          }}
         >
-          {(openAgent) => (
+          <AgentAvatar agent={props.agent} class="browser-dock-avatar" />
+          <div class="browser-dock-editor">
+            <ComposerEditor
+              size="compact"
+              agentId={props.agent.id}
+              agents={props.agents}
+              skills={props.skills}
+              mcpServers={props.mcpServers}
+              value={props.value}
+              focusRequest={props.focusRequest}
+              placeholder={placeholder()}
+              ariaLabel={t("browser.dock.messageTo", { name: props.agent.name })}
+              disabled={false}
+              sendShortcut={props.sendShortcut}
+              onSubmit={send}
+              onValueChange={props.onValueChange}
+            />
+          </div>
+          {/* As in the conversation: while the agent works and the field is empty, Send is Stop. */}
+          <Show
+            when={props.working && !editing() && !props.value.trim()}
+            fallback={
+              <Button
+                type="submit"
+                variant="ghost"
+                class="voice-button"
+                aria-label={editing() ? t("composer.send.saveQueued") : t("composer.send.message")}
+              >
+                <ArrowUp aria-hidden="true" />
+              </Button>
+            }
+          >
             <Button
+              type="button"
               variant="ghost"
-              class="browser-dock-glass browser-dock-composer browser-dock-open-agent"
-              onClick={() => openAgent()()}
+              class="voice-button voice-button-active"
+              aria-label={t("composer.send.stop")}
+              onClick={() => props.onStop()}
             >
-              <AgentAvatar agent={props.agent} class="browser-dock-avatar" />
-              {t("browser.dock.openAgent", { name: props.agent.name })}
+              <StopIcon />
             </Button>
-          )}
-        </Show>
+          </Show>
+        </form>
       </div>
     </div>
   );

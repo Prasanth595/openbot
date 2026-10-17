@@ -102,7 +102,6 @@ export const messages = {
   "browser.dock.messageTo": "{name} için mesaj",
   "browser.dock.needsYou": "{name} bu sayfada size ihtiyaç duyuyor",
   "browser.dock.answerInChat": "Sohbette yanıtla",
-  "browser.dock.openAgent": "{name} aç",
   "browser.tab.newRight": "Sağa yeni sekme",
   "browser.tab.duplicate": "Çoğalt",
   "browser.tab.moveLeft": "Sekmeyi sola taşı",

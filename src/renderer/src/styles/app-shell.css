@@ -985,8 +985,7 @@ textarea {
       var(--left-header-height) no-repeat;
   }
 
-  /* A side panel is the right part of the window card. Its pseudo-element is the line to the chat. The
-   * tabbed browser covers the whole window, so it stays as it is. */
+  /* A side panel is the right part of the window card. Its pseudo-element is the line to the chat. */
   .app-frame-edge .settings-panel,
   .app-frame-edge .browser-panel {
     isolation: isolate;

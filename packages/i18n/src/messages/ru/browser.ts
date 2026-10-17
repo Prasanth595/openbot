@@ -104,7 +104,6 @@ export const messages = {
   "browser.dock.messageTo": "Сообщение для {name}",
   "browser.dock.needsYou": "{name}: нужна ваша помощь на этой странице",
   "browser.dock.answerInChat": "Ответить в чате",
-  "browser.dock.openAgent": "Открыть {name}",
   "browser.tab.newRight": "Новая вкладка справа",
   "browser.tab.duplicate": "Дублировать",
   "browser.tab.moveLeft": "Переместить влево",

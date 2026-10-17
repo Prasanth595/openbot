@@ -136,7 +136,24 @@ export function canReopenBrowserTab(serverId: string): boolean {
 }
 
 /** Records a page that a tab shows. A second visit moves the page to the top. */
-export function recordBrowserVisit(serverId: string, url: string, title: string) {
+/** The page that each tab showed last, for each server. The full view mounts again, so it is kept here. */
+const shownPages = new Map<string, Map<string, { url: string; title: string }>>();
+
+/** A tab that shows a new address is a visit. A new title for the same address only names the page. */
+export function recordBrowserPages(serverId: string, pages: readonly { tabId: string; url: string; title: string }[]) {
+  const seen = shownPages.get(serverId) ?? new Map<string, { url: string; title: string }>();
+  shownPages.set(serverId, seen);
+  for (const page of pages) {
+    const previous = seen.get(page.tabId);
+    if (previous?.url !== page.url) recordBrowserVisit(serverId, page.url, page.title);
+    else if (previous.title !== page.title) recordBrowserTitle(serverId, page.url, page.title);
+    seen.set(page.tabId, { url: page.url, title: page.title });
+  }
+  const open = new Set(pages.map((page) => page.tabId));
+  for (const tabId of seen.keys()) if (!open.has(tabId)) seen.delete(tabId);
+}
+
+function recordBrowserVisit(serverId: string, url: string, title: string) {
   if (!recordable(url)) return;
   update(serverId, (draft) => {
     const previous = draft.history.find((entry) => entry.url === url);
@@ -146,7 +163,7 @@ export function recordBrowserVisit(serverId: string, url: string, title: string)
 }
 
 /** Updates the title of a page that is in the history, without a new visit. */
-export function recordBrowserTitle(serverId: string, url: string, title: string) {
+function recordBrowserTitle(serverId: string, url: string, title: string) {
   if (!title || !session(serverId).history.some((entry) => entry.url === url && entry.title !== title)) return;
   update(serverId, (draft) => {
     draft.history = draft.history.map((entry) => (entry.url === url ? { ...entry, title } : entry));

@@ -101,7 +101,6 @@ export const messages = defineMessages("browser", {
   "browser.dock.messageTo": "Message to {name}",
   "browser.dock.needsYou": "{name} needs you on this page",
   "browser.dock.answerInChat": "Answer in chat",
-  "browser.dock.openAgent": "Open {name}",
   "browser.tab.newRight": "New tab to the right",
   "browser.tab.duplicate": "Duplicate",
   "browser.tab.moveLeft": "Move tab left",

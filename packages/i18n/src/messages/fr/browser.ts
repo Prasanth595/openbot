@@ -102,7 +102,6 @@ export const messages = {
   "browser.dock.messageTo": "Message à {name}",
   "browser.dock.needsYou": "{name} a besoin de vous sur cette page",
   "browser.dock.answerInChat": "Répondre dans le chat",
-  "browser.dock.openAgent": "Ouvrir {name}",
   "browser.tab.newRight": "Nouvel onglet à droite",
   "browser.tab.duplicate": "Dupliquer",
   "browser.tab.moveLeft": "Déplacer à gauche",
