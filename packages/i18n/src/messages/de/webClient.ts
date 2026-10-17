@@ -27,6 +27,7 @@ export const messages = {
   "webClient.connect.stepSignIn": "Melde dich mit deiner E-Mail-Adresse an.",
   "webClient.connect.stepRemote": "Aktiviere den Fernzugriff.",
   "webClient.notice.download": "OpenBot herunterladen",
+  "webClient.notice.createServer": "Gehosteten Server erstellen",
   "webClient.notice.join": "Mit Einladung beitreten",
   "webClient.notice.refreshHosts": "Hosts aktualisieren",
   "webClient.agent.modelsFailed": "Die Modelle des Hosts konnten nicht geladen werden.",

@@ -3,6 +3,7 @@ import { readFirstTouch } from "@openbot/contracts/first-touch";
 import { isDynamicRecord } from "@openbot/contracts/runtime-values";
 import { createFileRoute } from "@tanstack/solid-router";
 import { onSettled, Show } from "solid-js";
+import { TransactionalPage } from "../../components/transactional/TransactionalPage";
 
 /** The page that Stripe Checkout and the Customer Portal open when a desktop user goes back. */
 export const Route = createFileRoute("/billing/return")({
@@ -48,26 +49,31 @@ function sendCheckoutAttribution(): void {
   }).catch(() => undefined);
 }
 
+const COPY = {
+  updatedTitle: "Billing updated",
+  updatedBody: "Go back to OpenBot. You can close this page.",
+  cancelledTitle: "Checkout cancelled",
+  cancelledBody: "Nothing was charged. Go back to OpenBot.",
+} as const;
+
 function BillingReturn() {
   const search = Route.useSearch();
   onSettled(() => sendCheckoutAttribution());
   return (
-    <main class="join-page">
-      <section class="join-card" aria-labelledby="billing-return-title">
-        <AppLogo variant="production" class="join-card-logo" />
-        <Show
-          when={search().cancelled}
-          fallback={
-            <>
-              <h1 id="billing-return-title">Billing updated</h1>
-              <p class="join-card-copy">Go back to OpenBot. You can close this page.</p>
-            </>
-          }
-        >
-          <h1 id="billing-return-title">Checkout cancelled</h1>
-          <p class="join-card-copy">Nothing was charged. Go back to OpenBot.</p>
-        </Show>
-      </section>
-    </main>
+    <TransactionalPage titleId="billing-return-title">
+      <AppLogo variant="production" class="join-card-logo" />
+      <Show
+        when={search().cancelled}
+        fallback={
+          <>
+            <h1 id="billing-return-title">{COPY.updatedTitle}</h1>
+            <p class="join-card-copy">{COPY.updatedBody}</p>
+          </>
+        }
+      >
+        <h1 id="billing-return-title">{COPY.cancelledTitle}</h1>
+        <p class="join-card-copy">{COPY.cancelledBody}</p>
+      </Show>
+    </TransactionalPage>
   );
 }

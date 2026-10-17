@@ -10,9 +10,17 @@ import { PageError } from "../components/landing/PageError";
 import { servingSiteUrl } from "../lib/serving-site-url";
 import { OPENBOT_SECURITY_HEADERS, openBotRootHead } from "../lib/site-metadata";
 
+const NOT_FOUND_TITLE = "Page not found · OpenBot";
+
 export const Route = createRootRoute({
   beforeLoad: () => ({ siteUrl: servingSiteUrl() }),
-  head: () => openBotRootHead(interLatinFont),
+  // The router marks the match that shows the global 404 with `_notFound`. That page has no route of
+  // its own, so the root head gives it its title. A child route's own title still wins.
+  head: ({ matches }) => {
+    const head = openBotRootHead(interLatinFont);
+    if (!matches.some((match) => match._notFound)) return head;
+    return { ...head, meta: head.meta.map((tag) => ("title" in tag ? { title: NOT_FOUND_TITLE } : tag)) };
+  },
   headers: () => OPENBOT_SECURITY_HEADERS,
   component: RootComponent,
   shellComponent: RootDocument,

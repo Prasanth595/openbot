@@ -26,6 +26,7 @@ export const messages = defineMessages("webClient", {
   "webClient.connect.stepSignIn": "Sign in with your email.",
   "webClient.connect.stepRemote": "Turn on remote access.",
   "webClient.notice.download": "Download OpenBot",
+  "webClient.notice.createServer": "Create a hosted server",
   "webClient.notice.join": "Join with invitation",
   "webClient.notice.refreshHosts": "Refresh hosts",
   "webClient.agent.modelsFailed": "Could not load the host models.",

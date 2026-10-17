@@ -258,7 +258,7 @@ function serveLocalHostedSite(
   hostedUrl.port = "";
   return routeHostedSiteRequest(
     new Request(hostedUrl, request),
-    { SITES: bindings.SITES, SITE_SERVE_ENABLED: "true" },
+    { SITES: bindings.SITES, SITE_SERVE_ENABLED: "true", ACCOUNT_ORIGIN: configuredOrigin.origin },
     Date.now(),
   );
 }

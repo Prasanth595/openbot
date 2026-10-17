@@ -27,6 +27,7 @@ export const messages = {
   "webClient.connect.stepSignIn": "Entre com seu e-mail.",
   "webClient.connect.stepRemote": "Ative o acesso remoto.",
   "webClient.notice.download": "Baixar OpenBot",
+  "webClient.notice.createServer": "Criar servidor hospedado",
   "webClient.notice.join": "Entrar com convite",
   "webClient.notice.refreshHosts": "Atualizar anfitriões",
   "webClient.agent.modelsFailed": "Não foi possível carregar os modelos do computador anfitrião.",

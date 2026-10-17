@@ -27,6 +27,7 @@ export const messages = {
   "webClient.connect.stepSignIn": "Войдите с помощью адреса электронной почты.",
   "webClient.connect.stepRemote": "Включите удалённый доступ.",
   "webClient.notice.download": "Скачать OpenBot",
+  "webClient.notice.createServer": "Создать облачный сервер",
   "webClient.notice.join": "Войти по приглашению",
   "webClient.notice.refreshHosts": "Обновить хосты",
   "webClient.agent.modelsFailed": "Не удалось загрузить модели хоста.",

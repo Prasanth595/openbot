@@ -984,12 +984,6 @@ a {
     var(--openbot-bg-canvas);
 }
 
-.join-page-brand {
-  position: absolute;
-  top: 24px;
-  left: 24px;
-}
-
 .join-card {
   width: min(100%, 520px);
   display: grid;
@@ -1068,10 +1062,6 @@ a {
   justify-content: center;
 }
 
-.join-card-disabled {
-  opacity: 0.5;
-}
-
 .join-card-error {
   margin: 26px 0 0;
   color: var(--openbot-text-primary);
@@ -1092,10 +1082,6 @@ a {
   .join-page {
     padding-right: 14px;
     padding-left: 14px;
-  }
-
-  .join-page-brand {
-    left: 18px;
   }
 
   .join-card-actions {
@@ -11270,4 +11256,88 @@ a {
   .contact-row {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* Shared agent page: the footer and the "no longer shared" state. */
+/* The page centres its card in a flex column; the footer spans the full width below it. */
+.agent-share-page > .landing-footer {
+  align-self: stretch;
+}
+
+.agent-share-gone-copy {
+  margin: 12px 0 0;
+  color: var(--openbot-text-secondary);
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.agent-share-gone-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+/* ---------------------------------------------------------------------------
+   Transactional pages: join, Slack and Discord connect, billing return, site
+   report, and page error. The site header and footer frame one centred card
+   (`.join-card`). `components/transactional/TransactionalPage.tsx` owns it.
+   --------------------------------------------------------------------------- */
+
+.transactional-main {
+  min-height: min(78dvh, 820px);
+  display: grid;
+  place-items: center;
+  padding: clamp(32px, 6vw, 72px) 16px clamp(48px, 8vw, 96px);
+  background: radial-gradient(circle at 50% 42%, var(--openbot-accent-strong), var(--openbot-transparent) 38%);
+}
+
+/* A form reads from the start edge, and needs more width than a message. */
+.transactional-card[data-layout="form"] {
+  width: min(100%, 640px);
+  justify-items: stretch;
+  text-align: start;
+}
+
+.transactional-form-heading {
+  margin-bottom: 28px;
+}
+
+.transactional-form-heading .join-card-copy {
+  max-width: none;
+  margin-top: 12px;
+}
+
+/* A shared button that cannot act yet, for example before the join page reads its link. */
+.transactional-card .landing-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.transactional-card .landing-button:disabled:active {
+  transform: none;
+}
+
+.transactional-provider {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.transactional-provider-mark {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+
+.transactional-notes {
+  display: grid;
+  gap: 6px;
+  margin: 24px 0 0;
+  padding: 0;
+  color: var(--openbot-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  list-style: none;
 }

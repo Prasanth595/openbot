@@ -3,9 +3,8 @@ import type { JSX } from "@solidjs/web";
 import { Link } from "@tanstack/solid-router";
 import { createSignal, createUniqueId, For, Show } from "solid-js";
 import { CONTACT_EMAIL } from "../../lib/contact";
-import { LandingFooter } from "../landing/LandingFooter";
 import { LandingIcon } from "../landing/LandingIcon";
-import { SiteHeader } from "../landing/SiteHeader";
+import { TransactionalPage } from "../transactional/TransactionalPage";
 
 /** The reasons that `/v1/sites/reports` accepts. */
 const REPORT_REASONS = [
@@ -17,6 +16,26 @@ const REPORT_REASONS = [
 ] as const;
 
 const DETAILS_LIMIT = 1_000;
+
+const COPY = {
+  title: "Report a hosted site",
+  intro: "Send a report about harmful or unlawful content on an openbot.site address.",
+  hostnameLabel: "Site address",
+  hostnameMissing: "Enter the site address",
+  hostnamePlaceholder: "example.openbot.site",
+  reasonLabel: "Reason",
+  detailsLabel: "Details",
+  optional: "Optional",
+  detailsPlaceholder: "What is wrong with this site?",
+  send: "Send report",
+  sending: "Sending…",
+  tooMany: "Too many reports. Try again later.",
+  sendFailed: "Could not send the report. Try again.",
+  writeTo: "You can also write to",
+  sentTitle: "Report sent",
+  sentBody: "Thanks. We received your report.",
+  home: "Go to the home page",
+} as const;
 
 type ReportStatus = "idle" | "sending" | "sent" | "failed";
 
@@ -50,7 +69,7 @@ function createReportForm() {
     const data = new FormData(form);
     const hostname = fieldText(data, "hostname");
     if (!hostname) {
-      setHostnameError("Enter the site address");
+      setHostnameError(COPY.hostnameMissing);
       const field = form.elements.namedItem("hostname");
       if (field instanceof HTMLElement) field.focus();
       return;
@@ -71,8 +90,8 @@ function createReportForm() {
       setStatus("sent");
       return;
     }
-    if (response?.status === 429) setFailure("Too many reports. Try again later.");
-    else setFailure((response && (await serverMessage(response))) ?? "Could not send the report. Try again.");
+    if (response?.status === 429) setFailure(COPY.tooMany);
+    else setFailure((response && (await serverMessage(response))) ?? COPY.sendFailed);
     setStatus("failed");
   };
 
@@ -85,10 +104,10 @@ function SentNotice() {
       <span class="contact-sent-mark">
         <LandingIcon name="check" />
       </span>
-      <h2>Report sent</h2>
-      <p>Thanks. We received your report.</p>
+      <h2>{COPY.sentTitle}</h2>
+      <p>{COPY.sentBody}</p>
       <Link to="/" class="contact-text-button">
-        Go to the home page
+        {COPY.home}
       </Link>
     </div>
   );
@@ -103,99 +122,84 @@ export function ReportSitePage(props: { hostname: string }) {
   const [detailsLength, setDetailsLength] = createSignal(0);
 
   return (
-    <div class="landing-page">
-      <SiteHeader page="content" />
-      <main>
-        <section class="landing-section contact-section" data-revealed="true" aria-labelledby="report-site-title">
-          <div class="landing-section-inner">
-            <div class="landing-faq-layout">
-              <header class="landing-section-heading landing-faq-heading">
-                <h1 id="report-site-title">Report a hosted site</h1>
-                <p>Send a report about harmful or unlawful content on an openbot.site address.</p>
-              </header>
-              <div class="contact-card">
-                <Show when={form.status() !== "sent"} fallback={<SentNotice />}>
-                  <form class="contact-form" novalidate onSubmit={form.submit}>
-                    <div class="contact-field">
-                      <div class="contact-field-head">
-                        <label for={hostnameId}>Site address</label>
-                        <Show when={form.hostnameError()}>
-                          {(error) => (
-                            <span id={`${hostnameId}-error`} class="contact-error">
-                              {error()}
-                            </span>
-                          )}
-                        </Show>
-                      </div>
-                      <input
-                        id={hostnameId}
-                        name="hostname"
-                        type="text"
-                        value={props.hostname}
-                        readonly={props.hostname !== ""}
-                        placeholder="example.openbot.site"
-                        autocomplete="off"
-                        spellcheck={false}
-                        aria-invalid={form.hostnameError() ? "true" : undefined}
-                        aria-describedby={form.hostnameError() ? `${hostnameId}-error` : undefined}
-                      />
-                    </div>
-                    <div class="contact-field">
-                      <div class="contact-field-head">
-                        <label for={reasonId}>Reason</label>
-                      </div>
-                      <div class="contact-select">
-                        <select id={reasonId} name="reason">
-                          <For each={REPORT_REASONS}>
-                            {(reason) => <option value={reason.id}>{reason.label}</option>}
-                          </For>
-                        </select>
-                        <LandingIcon name="chevron-down" class="contact-select-icon" />
-                      </div>
-                    </div>
-                    <div class="contact-field">
-                      <div class="contact-field-head">
-                        <label for={detailsId}>Details</label>
-                        <span class="contact-optional">Optional</span>
-                      </div>
-                      <textarea
-                        id={detailsId}
-                        name="details"
-                        rows={5}
-                        maxlength={DETAILS_LIMIT}
-                        placeholder="What is wrong with this site?"
-                        aria-describedby={`${detailsId}-count`}
-                        onInput={(event) => setDetailsLength(event.currentTarget.value.length)}
-                      />
-                      {/* One expression: the server writes a constant as text, but the client expects a slot. */}
-                      <span id={`${detailsId}-count`} class="contact-count">
-                        {`${detailsLength()} / ${DETAILS_LIMIT}`}
-                      </span>
-                    </div>
-                    <div class="contact-submit">
-                      <button
-                        type="submit"
-                        class="landing-button landing-button-primary landing-button-md"
-                        data-icon="arrow-right"
-                        disabled={form.status() === "sending"}
-                      >
-                        {form.status() === "sending" ? "Sending…" : "Send report"}
-                      </button>
-                      <Show when={form.status() === "failed"}>
-                        <p class="contact-privacy contact-failed" role="alert">
-                          {form.failure()} You can also write to <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
-                          .
-                        </p>
-                      </Show>
-                    </div>
-                  </form>
-                </Show>
-              </div>
+    <TransactionalPage titleId="report-site-title" layout="form" class="contact-section">
+      <header class="transactional-form-heading">
+        <h1 id="report-site-title">{COPY.title}</h1>
+        <p class="join-card-copy">{COPY.intro}</p>
+      </header>
+      <Show when={form.status() !== "sent"} fallback={<SentNotice />}>
+        <form class="contact-form" novalidate onSubmit={form.submit}>
+          <div class="contact-field">
+            <div class="contact-field-head">
+              <label for={hostnameId}>{COPY.hostnameLabel}</label>
+              <Show when={form.hostnameError()}>
+                {(error) => (
+                  <span id={`${hostnameId}-error`} class="contact-error">
+                    {error()}
+                  </span>
+                )}
+              </Show>
+            </div>
+            <input
+              id={hostnameId}
+              name="hostname"
+              type="text"
+              value={props.hostname}
+              readonly={props.hostname !== ""}
+              placeholder={COPY.hostnamePlaceholder}
+              autocomplete="off"
+              spellcheck={false}
+              aria-invalid={form.hostnameError() ? "true" : undefined}
+              aria-describedby={form.hostnameError() ? `${hostnameId}-error` : undefined}
+            />
+          </div>
+          <div class="contact-field">
+            <div class="contact-field-head">
+              <label for={reasonId}>{COPY.reasonLabel}</label>
+            </div>
+            <div class="contact-select">
+              <select id={reasonId} name="reason">
+                <For each={REPORT_REASONS}>{(reason) => <option value={reason.id}>{reason.label}</option>}</For>
+              </select>
+              <LandingIcon name="chevron-down" class="contact-select-icon" />
             </div>
           </div>
-        </section>
-      </main>
-      <LandingFooter />
-    </div>
+          <div class="contact-field">
+            <div class="contact-field-head">
+              <label for={detailsId}>{COPY.detailsLabel}</label>
+              <span class="contact-optional">{COPY.optional}</span>
+            </div>
+            <textarea
+              id={detailsId}
+              name="details"
+              rows={5}
+              maxlength={DETAILS_LIMIT}
+              placeholder={COPY.detailsPlaceholder}
+              aria-describedby={`${detailsId}-count`}
+              onInput={(event) => setDetailsLength(event.currentTarget.value.length)}
+            />
+            {/* One expression: the server writes a constant as text, but the client expects a slot. */}
+            <span id={`${detailsId}-count`} class="contact-count">
+              {`${detailsLength()} / ${DETAILS_LIMIT}`}
+            </span>
+          </div>
+          <div class="contact-submit">
+            <button
+              type="submit"
+              class="landing-button landing-button-primary landing-button-md"
+              data-icon="arrow-right"
+              disabled={form.status() === "sending"}
+            >
+              {form.status() === "sending" ? COPY.sending : COPY.send}
+            </button>
+            <Show when={form.status() === "failed"}>
+              <p class="contact-privacy contact-failed" role="alert">
+                {form.failure()} {COPY.writeTo} <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
+              </p>
+            </Show>
+          </div>
+        </form>
+      </Show>
+    </TransactionalPage>
   );
 }

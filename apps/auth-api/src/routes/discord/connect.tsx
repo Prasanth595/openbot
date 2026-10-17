@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/solid-router";
-import { DiscordConnectPage } from "../../components/landing/DiscordConnectPage";
+import { MessagingConnectPage } from "../../components/transactional/MessagingConnectPage";
 
 export const Route = createFileRoute("/discord/connect")({
   head: () => ({
@@ -14,5 +14,9 @@ export const Route = createFileRoute("/discord/connect")({
     "Referrer-Policy": "no-referrer",
     "X-Robots-Tag": "noindex, nofollow, noarchive",
   }),
-  component: DiscordConnectPage,
+  component: DiscordConnect,
 });
+
+function DiscordConnect() {
+  return <MessagingConnectPage provider="discord" />;
+}

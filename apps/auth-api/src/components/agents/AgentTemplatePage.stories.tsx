@@ -6,6 +6,7 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import "../../styles.css";
 // Stands in for a photo the owner uploaded as the agent's avatar.
 import samplePhoto from "../../../public/icon-512x512.png";
+import { AgentTemplateNotSharedPage } from "./AgentTemplateNotSharedPage";
 import { AgentTemplatePage } from "./AgentTemplatePage";
 
 const TEMPLATE: AgentTemplateDetail = {
@@ -63,6 +64,7 @@ rootRoute.addChildren([
   createRoute({ getParentRoute: () => rootRoute, path: "/news" }),
   createRoute({ getParentRoute: () => rootRoute, path: "/guides" }),
   createRoute({ getParentRoute: () => rootRoute, path: "/plugins" }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/download" }),
 ]);
 const router = createRouter({ routeTree: rootRoute });
 
@@ -93,7 +95,7 @@ export const InstructionsOnly: Story = {
   args: { template: { ...TEMPLATE, title: "", skills: [], routines: [] } },
 };
 
-/** Long instructions are clamped behind "Read all instructions". */
+/** Long instructions are clamped behind "Read more". */
 export const LongInstructions: Story = {
   args: {
     template: {
@@ -108,4 +110,9 @@ export const LongInstructions: Story = {
       ).join("\n"),
     },
   },
+};
+
+/** The owner unpublished the agent, or the id is unknown: the loader's 404 shows this page. */
+export const NoLongerShared: Story = {
+  render: () => <WithRouter>{() => <AgentTemplateNotSharedPage />}</WithRouter>,
 };

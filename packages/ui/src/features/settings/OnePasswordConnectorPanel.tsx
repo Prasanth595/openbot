@@ -28,14 +28,8 @@ import {
 import type { JSX } from "@solidjs/web";
 import { createSignal, For, onSettled, Show } from "solid-js";
 import { useText } from "../../text";
-import {
-  DangerZone,
-  DetailHeader,
-  type IntegrationStatus,
-  OnePasswordMark,
-  ReadFailedAlert,
-  UNKNOWN_STATUS,
-} from "./IntegrationLayout";
+import { OnePasswordMark } from "./brand-marks";
+import { DangerZone, DetailHeader, type IntegrationStatus, ReadFailedAlert, UNKNOWN_STATUS } from "./IntegrationLayout";
 
 export interface OnePasswordConnectorPanelProps {
   status: OnePasswordConnectorStatus;

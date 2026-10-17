@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/solid-router";
-import { SlackConnectPage } from "../../components/landing/SlackConnectPage";
+import { MessagingConnectPage } from "../../components/transactional/MessagingConnectPage";
 
 export const Route = createFileRoute("/slack/connect")({
   head: () => ({
@@ -14,5 +14,9 @@ export const Route = createFileRoute("/slack/connect")({
     "Referrer-Policy": "no-referrer",
     "X-Robots-Tag": "noindex, nofollow, noarchive",
   }),
-  component: SlackConnectPage,
+  component: SlackConnect,
 });
+
+function SlackConnect() {
+  return <MessagingConnectPage provider="slack" />;
+}

@@ -63,7 +63,17 @@ export type FooterLink =
   | {
       readonly label: string;
       readonly external: false;
-      readonly to: "/" | "/download" | "/news" | "/guides" | "/plugins" | "/changelog" | "/compare" | "/providers";
+      readonly to:
+        | "/"
+        | "/download"
+        | "/news"
+        | "/guides"
+        | "/plugins"
+        | "/changelog"
+        | "/compare"
+        | "/providers"
+        | "/teams"
+        | "/contact";
       readonly hash?: string;
     }
   | {
@@ -87,6 +97,8 @@ export const FOOTER_COLUMNS: readonly FooterColumn[] = [
       { label: "Guides", external: false, to: "/guides" },
       { label: "Plugins", external: false, to: "/plugins" },
       { label: "Changelog", external: false, to: "/changelog" },
+      { label: "Teams", external: false, to: "/teams" },
+      { label: "Contact", external: false, to: "/contact" },
       { label: "Source code", external: true, href: OPENBOT_LINKS.repository },
       { label: "License", external: true, href: OPENBOT_LINKS.license },
       { label: "Privacy", external: true, href: OPENBOT_LINKS.privacy },

@@ -1813,6 +1813,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 failed={Boolean(workspace.state.hostsError)}
                 reference={workspace.state.hostsError?.reference ?? null}
                 onJoin={() => setJoinOpen(true)}
+                onCreateServer={hostedServers.available() ? hostedServers.openAddServer : undefined}
                 onRefresh={() => void workspace.run(workspace.refreshHosts)}
               />
             </Show>
