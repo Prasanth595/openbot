@@ -132,6 +132,7 @@ export function createWebConversationView(options: {
       ]),
     );
   });
+  const missingMessageReferences = () => workspace.conversation()?.missingReferences;
   async function answerPrompt(answers: RespondToPromptInput["answers"]): Promise<boolean> {
     const question = prompt();
     if (!question) return false;
@@ -164,6 +165,7 @@ export function createWebConversationView(options: {
     prompt,
     messages,
     messageReferences,
+    missingMessageReferences,
     answerPrompt,
     presentPromptResolution,
     respondToApproval,

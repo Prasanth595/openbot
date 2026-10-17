@@ -1,7 +1,7 @@
 import type { AgentMessage } from "@openbot/ui/data";
 import { preferredMessageScrollBehavior } from "@openbot/ui/features/conversation/MessageNavigation";
 import type { VirtualItem } from "@tanstack/virtual-core";
-import { createEffect, createMemo, createSignal } from "solid-js";
+import { createEffect, createSignal } from "solid-js";
 import type { ConversationProps } from "../conversation-types";
 
 /* The frames a row gets to appear after a scroll to its index or a page load. */
@@ -32,7 +32,6 @@ export function createReplyJumpStore(deps: ReplyJumpStoreDeps) {
   const [returnReplyId, setReturnReplyId] = createSignal<string | null>(null);
   const [loadingReplyId, setLoadingReplyId] = createSignal<string | null>(null);
   const [unavailableReplyId, setUnavailableReplyId] = createSignal<string | null>(null);
-  const messageIds = createMemo(() => new Set(deps.props.messages.map((message) => message.id)));
   let jumping = false;
 
   createEffect(
@@ -227,17 +226,14 @@ export function createReplyJumpStore(deps: ReplyJumpStoreDeps) {
   }
 
   /**
-   * The state of a reply's quote. A reply whose original is neither loaded nor among the
-   * references the host sent quotes a deleted message. A host that sends no references cannot
-   * tell, so its quote stays as it is.
+   * The state of a reply's quote. Only a page from the host can tell that an original is deleted,
+   * so a reply that came live with an original outside the loaded window keeps its quote as it is.
    */
   function referenceState(reply: AgentMessage | undefined, referenced: AgentMessage | undefined) {
     if (!reply?.replyToMessageId) return undefined;
     if (loadingReplyId() === reply.id) return "loading";
     if (unavailableReplyId() === reply.id) return "unavailable";
-    if (!referenced && deps.props.messageReferences && !messageIds().has(reply.replyToMessageId)) {
-      return "unavailable";
-    }
+    if (!referenced && deps.props.missingMessageReferences?.[reply.replyToMessageId]) return "unavailable";
     return undefined;
   }
 

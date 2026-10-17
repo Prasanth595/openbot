@@ -399,6 +399,7 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
         modelOptions={modelOptions()}
         messages={activeMessages()}
         messageReferences={activeAgent() ? (conversations[activeAgent()?.id ?? ""]?.references ?? {}) : {}}
+        missingMessageReferences={activeAgent() ? conversations[activeAgent()?.id ?? ""]?.missingReferences : undefined}
         unreadCount={activeAgent() ? (conversations[activeAgent()?.id ?? ""]?.read?.unreadCount ?? 0) : 0}
         firstUnreadMessageId={
           activeAgent() ? (conversations[activeAgent()?.id ?? ""]?.read?.firstUnreadMessageId ?? null) : null

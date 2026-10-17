@@ -1874,6 +1874,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 modelOptions={models()}
                 messages={view.messages}
                 messageReferences={view.messageReferences()}
+                missingMessageReferences={view.missingMessageReferences()}
                 unreadCount={readState()?.unreadCount ?? 0}
                 firstUnreadMessageId={readState()?.firstUnreadMessageId ?? null}
                 loaded={Boolean(workspace.conversation()?.page)}

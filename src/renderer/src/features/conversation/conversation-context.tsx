@@ -38,7 +38,7 @@ import {
   messagePromptRequestKey,
   promptRequestKey,
 } from "./conversation-keys";
-import { mergeConversationPage, windowedSnapshotMessages } from "./conversation-merge";
+import { mergeConversationPage, missingReplyOriginals, windowedSnapshotMessages } from "./conversation-merge";
 import { conversationPort } from "./conversation-port";
 import {
   decideAgentAutoRead,
@@ -85,6 +85,8 @@ interface ConversationState {
   page?: ConversationPageInfo;
   windowMode?: "latest" | "around";
   references?: Record<string, AgentMessage>;
+  /** The originals that a host page says are deleted, by id. */
+  missingReferences?: Record<string, true>;
   olderLoading?: boolean;
   olderError?: string | null;
   read?: ConversationReadState;
@@ -638,6 +640,10 @@ const Conversation = createSimpleContext({
           ...Object.fromEntries(
             Object.entries(page.references).map(([id, message]) => [id, toAgentMessage(message, page.agentId)]),
           ),
+        };
+        conversation.missingReferences = {
+          ...(merge === "replace" ? {} : conversation.missingReferences),
+          ...missingReplyOriginals(page),
         };
         conversation.page = page.pageInfo;
         if (windowMode) conversation.windowMode = windowMode;

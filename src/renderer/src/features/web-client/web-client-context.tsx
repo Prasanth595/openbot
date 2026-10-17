@@ -40,7 +40,7 @@ import { currentText } from "@openbot/ui/text";
 import { errorReference, type UserErrorDetails } from "@openbot/user-errors";
 import { createEffect, createMemo, createSignal, createStore, onSettled } from "solid-js";
 import { toAgentProfile } from "../../app-message-projection";
-import { mergeConversationPage } from "../conversation/conversation-merge";
+import { mergeConversationPage, missingReplyOriginals } from "../conversation/conversation-merge";
 import { followsServerUpdate } from "../servers/server-update-flow";
 import { createSidebarPreferences } from "../sidebar/sidebar-preferences";
 import { defaultSidebarLayout } from "../sidebar/sidebar-sections";
@@ -60,6 +60,8 @@ import { readWebServerSelection, writeWebServerSelection } from "./web-server-se
 
 interface WebConversation {
   page: ConversationPage | null;
+  /** The originals that a host page says are deleted, by id. */
+  missingReferences?: Record<string, true>;
   draft: string;
   attachments: AttachmentSummary[];
   loading: boolean;
@@ -1050,6 +1052,7 @@ export function createWebWorkspace(
           // newest messages keep their revision, so a delta held during this read still applies.
           revision: older && old ? old.revision : page.revision,
         };
+        item.missingReferences = { ...(old ? item.missingReferences : {}), ...missingReplyOriginals(page) };
         item.loading = false;
         item.error = null;
       });
