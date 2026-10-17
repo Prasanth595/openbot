@@ -1356,7 +1356,8 @@ const verifyChangedRuntime = Effect.fn("ProviderRuntime.verifyChangedRuntime")(f
   const versionChecked = isManagedToolRuntime(spec.runtime) || isProviderOn(spec.runtime);
   const before = yield* runtimeFingerprint(root);
   const saved = yield* runtimeIO(() => readFile(recordPath, "utf8")).pipe(
-    Effect.map((text) => parseVerificationRecord(text)),
+    // A crash can leave the record empty or cut; `runtimeSync` makes that a failure, not a defect.
+    Effect.flatMap((text) => runtimeSync(() => parseVerificationRecord(text))),
     Effect.catch(() => Effect.succeed(null)),
   );
   if (
