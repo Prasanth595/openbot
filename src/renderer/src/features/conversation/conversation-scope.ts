@@ -663,8 +663,6 @@ export function createConversationViewScope(props: ConversationProps) {
   let lastPanelAgentId: string | undefined;
   let lastHandledSettingsRequestNonce: number | undefined;
   let lastHandledMessageFocusNonce: number | undefined;
-  /* A quote whose message was not on screen. It shows when the message focus request lands. */
-  let pendingQuoteJump: { messageId: string; text: string } | undefined;
   const [quoteRequest, setQuoteRequest] = createSignal<QuoteRequest | undefined>(undefined);
   let lastRuntimeSettingsSignature: string | undefined;
   async function saveAgentPatch(
@@ -854,10 +852,6 @@ export function createConversationViewScope(props: ConversationProps) {
         target.scrollIntoView({ behavior: "auto", block: "center", inline: "nearest" });
         updateScrollFade();
         updateUnreadDividerVisibility();
-        const quote = pendingQuoteJump;
-        if (quote?.messageId !== request.messageId) return;
-        pendingQuoteJump = undefined;
-        showQuotedText(quote.messageId, quote.text);
       });
     },
   );
@@ -871,12 +865,14 @@ export function createConversationViewScope(props: ConversationProps) {
 
   /** Scrolls to the passage that a quote points to and marks it. */
   function openQuote(messageId: string, text: string) {
-    if (showQuotedText(messageId, text)) {
-      pendingQuoteJump = undefined;
-      return;
-    }
-    pendingQuoteJump = { messageId, text };
-    void props.onOpenSearchMessage?.(messageId);
+    if (!showQuotedText(messageId, text)) void revealQuote(messageId, text);
+  }
+
+  /* A row far away is not drawn, and a message outside the loaded pages is loaded first. */
+  async function revealQuote(messageId: string, text: string) {
+    const agentId = props.agent?.id;
+    const row = await replyJump.reveal(messageId, undefined, agentId);
+    if (row && props.agent?.id === agentId) showQuotedText(messageId, text);
   }
 
   function showQuotedText(messageId: string, text: string): boolean {

@@ -118,13 +118,20 @@ export function createReplyJumpStore(deps: ReplyJumpStoreDeps) {
   /* A jump that the reader leaves for another chat stops, so that it does not load or scroll that chat. */
   const isOpen = (agentId: string | undefined) => deps.props.agent?.id === agentId;
 
-  /* Scrolls the message to the middle of the view. `undefined` when the chat no longer has it. */
-  async function reveal(id: string, replyId: string, agentId: string | undefined): Promise<HTMLElement | undefined> {
+  /*
+   * Scrolls the message to the middle of the view. `undefined` when the chat no longer has it.
+   * `replyId` is the reply whose quote shows the load; a quote chip has no such reply.
+   */
+  async function reveal(
+    id: string,
+    replyId: string | undefined,
+    agentId: string | undefined,
+  ): Promise<HTMLElement | undefined> {
     deps.setStickToLatest(false);
     let row = await findRow(id);
     if (!isOpen(agentId)) return undefined;
     if (!row && deps.props.onOpenSearchMessage) {
-      setLoadingReplyId(replyId);
+      setLoadingReplyId(replyId ?? null);
       try {
         await deps.props.onOpenSearchMessage(id);
         await nextFrame();
@@ -239,6 +246,7 @@ export function createReplyJumpStore(deps: ReplyJumpStoreDeps) {
 
   return {
     returnReplyId,
+    reveal,
     openReference,
     returnToReply,
     stayHere,
