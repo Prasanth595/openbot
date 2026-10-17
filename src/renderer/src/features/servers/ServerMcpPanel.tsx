@@ -523,7 +523,9 @@ export function ServerMcpPanel(props: ServerMcpPanelProps) {
     if (!test) return false;
     if (test.status === "passed") return true;
     if (test.kind === "refused") {
-      notSaved(test.error);
+      setState((current) => {
+        current.error = test.error;
+      });
       // With every header row removed there is no field to focus: Add header's row comes back.
       if (state.draft.headers.length === 0)
         setState((current) => {
@@ -535,14 +537,11 @@ export function ServerMcpPanel(props: ServerMcpPanelProps) {
     }
     if (test.kind !== "sign-in" || !canSignIn(state.draft)) return true;
     const signedIn = await signInDraft();
-    if (signedIn?.status === "failed") notSaved(signedIn.error);
+    if (signedIn?.status === "failed")
+      setState((current) => {
+        current.error = signedIn.error;
+      });
     return signedIn?.status === "passed";
-  }
-
-  function notSaved(error: string): void {
-    setState((current) => {
-      current.error = error;
-    });
   }
 
   /** Puts the form back to what is stored, the way the General tab's save bar resets its fields. */
