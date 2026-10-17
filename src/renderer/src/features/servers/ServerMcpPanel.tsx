@@ -412,6 +412,7 @@ export function ServerMcpPanel(props: ServerMcpPanelProps) {
   let formTestButton: HTMLButtonElement | undefined;
   // A URL in the command moves to Server URL, and refused credentials send the user to Headers.
   let urlInput: HTMLInputElement | undefined;
+  let commandInput: HTMLInputElement | undefined;
   let headerKeyInput: HTMLInputElement | undefined;
 
   /** A web address in the stdio command names an http server: the form switches to it. */
@@ -422,6 +423,8 @@ export function ServerMcpPanel(props: ServerMcpPanelProps) {
       current.draft.url = address.trim();
       current.draft.command = "";
     });
+    // A paste into an empty field leaves the stored command at "", so the field is not redrawn.
+    if (commandInput) commandInput.value = "";
     // One frame later, once Server URL is mounted. The focus is still in the hidden command field
     // after a paste, or nowhere after a blur to another stdio field. A click elsewhere keeps it.
     requestAnimationFrame(() => {
@@ -521,7 +524,12 @@ export function ServerMcpPanel(props: ServerMcpPanelProps) {
     if (test.status === "passed") return true;
     if (test.kind === "refused") {
       notSaved(test.error);
-      // One frame later, once the busy latch no longer disables the field.
+      // With every header row removed there is no field to focus: Add header's row comes back.
+      if (state.draft.headers.length === 0)
+        setState((current) => {
+          current.draft.headers.push({ key: "", value: "" });
+        });
+      // One frame later, once the busy latch no longer disables the field and the row is mounted.
       requestAnimationFrame(() => headerKeyInput?.focus());
       return false;
     }
@@ -808,6 +816,9 @@ export function ServerMcpPanel(props: ServerMcpPanelProps) {
                 error={visible("command")}
               >
                 <Input
+                  ref={(element: HTMLInputElement) => {
+                    commandInput = element;
+                  }}
                   size="md"
                   placeholder={COMMAND_PLACEHOLDER}
                   value={state.draft.command}
