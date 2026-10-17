@@ -234,12 +234,13 @@ async function waitForDelivery(target, agent, deliveryId, timeoutMs) {
 async function main(positional, flags) {
   const [command, ...rest] = positional;
   if (!command || flags.has("--help")) throw new CliError(USAGE, command ? EXIT.done : EXIT.usage);
-  // Every flag is checked before a request, so a wrong flag never leaves a task queued.
+  // Every flag and argument is checked before the connection is read, so a wrong one never leaves a
+  // task queued and is a usage error also when OpenBot is off.
   const timeout = flags.get("--timeout");
   const timeoutMs = duration(typeof timeout === "string" ? timeout : "30m");
-  const target = await connection();
   if (command === "list") {
     if (rest.length > 0) throw new CliError(USAGE, EXIT.usage);
+    const target = await connection();
     const agents = await request(target, "GET", "/v1/agents");
     return {
       result: { agents },
@@ -252,6 +253,7 @@ async function main(positional, flags) {
     if (!reference || task === undefined || rest.length > 2) throw new CliError(USAGE, EXIT.usage);
     const text = task === "-" ? await readStdin() : task;
     if (!text.trim()) throw new CliError("The task is empty.", EXIT.usage);
+    const target = await connection();
     const agent = await findAgent(target, reference);
     const id = flags.get("--id");
     const receipt = await request(target, "POST", `/v1/agents/${encodeURIComponent(agent.id)}/messages`, {
@@ -279,6 +281,7 @@ async function main(positional, flags) {
   if (command === "status") {
     const [reference, deliveryId] = rest;
     if (!reference || !deliveryId || rest.length > 2) throw new CliError(USAGE, EXIT.usage);
+    const target = await connection();
     const agent = await findAgent(target, reference);
     const path = `/v1/agents/${encodeURIComponent(agent.id)}/deliveries/${encodeURIComponent(deliveryId)}`;
     const delivery = await request(target, "GET", path);
@@ -289,6 +292,7 @@ async function main(positional, flags) {
     const [action, reference, value] = rest;
     if (action === "new-chat") {
       if (!reference || rest.length > 2) throw new CliError(USAGE, EXIT.usage);
+      const target = await connection();
       const agent = await findAgent(target, reference);
       await request(target, "POST", `/v1/agents/${encodeURIComponent(agent.id)}/context/clear`);
       return {
@@ -310,6 +314,7 @@ async function main(positional, flags) {
         ...(typeof provider === "string" ? { provider } : {}),
       };
     } else throw new CliError(USAGE, EXIT.usage);
+    const target = await connection();
     const agent = await findAgent(target, reference);
     const updated = await request(target, "POST", `/v1/agents/${encodeURIComponent(agent.id)}/settings`, body);
     return {
