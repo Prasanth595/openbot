@@ -6,3 +6,7 @@
   compaction of the stopped process shows as failed instead of staying hidden.
 - Signing out, or ending a session from a phone or the web, now also closes the live browser view
   of that session.
+
+### Changed
+
+- Agents with a long message history start queued work faster.
