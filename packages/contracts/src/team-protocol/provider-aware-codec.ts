@@ -515,7 +515,8 @@ function isProviderAwareSidebarLayout(value: unknown): value is TeamProtocolProv
   );
 }
 
-function isProviderAwareConversationSnapshot(value: unknown): value is TeamProtocolProviderAwareJsonObject {
+/** Also checks the task conversations of `agent-tasks-v1`, after their keys are put in the wire spelling. */
+export function isProviderAwareConversationSnapshot(value: unknown): value is TeamProtocolProviderAwareJsonObject {
   return (
     isTeamProtocolProviderAwareJsonObject(value) &&
     isProviderAwareIdentifier(value.botId) &&

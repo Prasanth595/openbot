@@ -1,5 +1,6 @@
 import { type AgentHiddenEvent, agentHiddenEvent } from "./agent-hidden-v1";
 import { type AgentSessionSettingsEvent, agentSessionSettingsEvent } from "./agent-session-settings-v1";
+import { type AgentTasksEvent, agentTasksEvent } from "./agent-tasks-v1";
 // Events that optional capabilities add outside the frozen base event vocabularies. The base event
 // adapters reject them, so each transport asks here first and sends or decodes them as they are.
 import { type ChannelEvent, channelEvent } from "./channels-v1";
@@ -11,6 +12,7 @@ import { type SkillsEvent, skillsEvent } from "./skills-events-v1";
 export type OptionalTeamEvent =
   | AgentHiddenEvent
   | AgentSessionSettingsEvent
+  | AgentTasksEvent
   | ChannelEvent
   | HostRestartEvent
   | SkillsEvent
@@ -22,6 +24,7 @@ export function optionalTeamEvent(value: unknown): OptionalTeamEvent | null {
   return (
     agentHiddenEvent(value) ??
     agentSessionSettingsEvent(value) ??
+    agentTasksEvent(value) ??
     channelEvent(value) ??
     hostRestartEvent(value) ??
     skillsEvent(value) ??

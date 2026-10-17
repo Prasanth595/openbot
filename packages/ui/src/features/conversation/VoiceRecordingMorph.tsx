@@ -1,8 +1,20 @@
+import type { AppTextKey } from "@openbot/i18n";
 import { Button, Check, X } from "@openbot/ui";
 import type { JSX } from "@solidjs/web";
 import { createEffect, createUniqueId, For, Show } from "solid-js";
 import { useText } from "../../text";
 import { prefersReducedMotion } from "../../utils";
+
+export type VoicePhase = "idle" | "preparing" | "requesting" | "recording" | "transcribing";
+
+/** The catalog key of the voice button's accessible name. */
+export function voiceButtonLabel(phase: VoicePhase): AppTextKey {
+  if (phase === "recording") return "composer.voice.stop";
+  if (phase === "preparing") return "composer.voice.preparing";
+  if (phase === "requesting") return "composer.voice.requesting";
+  if (phase === "transcribing") return "composer.voice.transcribing";
+  return "composer.voice.start";
+}
 
 function formatVoiceDuration(totalSeconds: number): string {
   const minutes = Math.floor(totalSeconds / 60);

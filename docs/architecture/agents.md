@@ -177,9 +177,16 @@ the task to "Earlier tasks" when no message of it waits, starts or runs, and reo
 starts queued tasks again. When a task's provider session ends, the next session gets a handoff of
 that task's own transcript, as the main chat does; channel threads still get none.
 
-Task events (`agent-tasks-changed`, `agent-task-conversation`, `agent-task-conversation-delta`) are
-local. The Team API has no task route, and its frozen codecs drop these events, so a joined server
-shows no tasks. Prompts, approvals and warnings of a task turn show in the main chat. A provider
+A joined desktop and the web client reach the tasks of a server through the optional `agent-tasks-v1`
+capability (`packages/contracts/src/team-protocol/agent-tasks-v1.ts`, host route
+`src/main/team-api/route-agent-tasks.ts`). Its routes are `POST /v1/agent-tasks/{list,read,start,send,stop,close,reopen}`
+with the ids in the body. A member who can send a message to the agent can use them; no role is
+checked, and the member is the sender of a start and of a message. A hidden agent, or one that the
+peer cannot see, answers 404. A start and a message carry text only, and "Run as task" stays local.
+The host sends the task events (`agent-tasks-changed`, `agent-task-conversation`,
+`agent-task-conversation-delta`) in their local shape, only to a peer with the capability, and not
+for a hidden agent. A server without the capability shows no tasks, and a task control there fails
+with `error.backend.taskRemoteUnsupported`. Prompts, approvals and warnings of a task turn show in the main chat. A provider
 error of a task turn goes to the task: `AgentTasks` stores the redacted text in the task's `error`
 column, and the next turn of the task clears it. The panel shows it after a restart too.
 

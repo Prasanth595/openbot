@@ -1,5 +1,15 @@
 import { ProviderLogo } from "@openbot/brand";
-import { Bot, Button, CalendarClock, ChartArea, MotionTooltip, Settings, Store, Workflow } from "@openbot/ui";
+import {
+  Bot,
+  Button,
+  CalendarClock,
+  ChartArea,
+  ListChecks,
+  MotionTooltip,
+  Settings,
+  Store,
+  Workflow,
+} from "@openbot/ui";
 import { AccountUsageDetails } from "@openbot/ui/features/account/AccountUsageDetails";
 import { type AccountUsageProviderRow, accountUsageRowKey } from "@openbot/ui/features/account/account-usage-view";
 import { useText } from "@openbot/ui/text";
@@ -115,7 +125,7 @@ function UsageRings(props: { row: AccountUsageProviderRow; onOpen: (button: HTML
 }
 
 /** The rail pages. Agents and Routines show the same page with a different sidebar list. */
-export type PageRailPage = "agents" | "routines" | "schedule" | "usage" | "marketplace" | "settings";
+export type PageRailPage = "agents" | "routines" | "tasks" | "schedule" | "usage" | "marketplace" | "settings";
 
 export interface PageRailProps {
   hidden: boolean;
@@ -126,6 +136,8 @@ export interface PageRailProps {
   onAgents: () => void;
   /** Absent when the server has no routines. */
   onRoutines?: (() => void) | undefined;
+  /** Absent where the server keeps no tasks. */
+  onTasks?: ((button: HTMLElement) => void) | undefined;
   /** Absent where there is no schedule page. */
   onSchedule?: ((button: HTMLElement) => void) | undefined;
   onUsage: (button: HTMLElement) => void;
@@ -158,6 +170,17 @@ export function PageRail(props: PageRailProps) {
               onClick={() => onRoutines()()}
             >
               <Workflow aria-hidden="true" />
+            </RailButton>
+          )}
+        </Show>
+        <Show when={props.onTasks}>
+          {(onTasks) => (
+            <RailButton
+              label={t("app.rail.tasks")}
+              current={props.current === "tasks"}
+              onClick={(button) => onTasks()(button)}
+            >
+              <ListChecks aria-hidden="true" />
             </RailButton>
           )}
         </Show>

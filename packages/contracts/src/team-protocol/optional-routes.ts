@@ -11,6 +11,7 @@ import { AGENT_INSTALL_CODECS } from "./agent-install-v1";
 import { AGENT_MEMORIES_CODECS } from "./agent-memories-v1";
 import { AGENT_PUBLISH_CODECS } from "./agent-publish-v1";
 import { AGENT_SESSION_SETTINGS_CODECS } from "./agent-session-settings-v1";
+import { AGENT_TASKS_CODECS } from "./agent-tasks-v1";
 import { AGENT_UPDATE_CODECS } from "./agent-update-v1";
 import { CONNECTORS_CODECS } from "./connectors-v1";
 import { CONTEXT_RESET_CODECS } from "./context-reset-v1";
@@ -88,6 +89,7 @@ const CODECS: ReadonlyMap<string, OptionalRouteCodec> = new Map([
   ...PROVIDER_ACCOUNTS_CODECS,
   ...ONEPASSWORD_CONNECTOR_CODECS,
   ...AGENT_HIDDEN_CODECS,
+  ...AGENT_TASKS_CODECS,
 ]);
 
 export function optionalRouteCodec(path: string): OptionalRouteCodec | undefined {

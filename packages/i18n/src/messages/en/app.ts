@@ -52,6 +52,7 @@ export const messages = defineMessages("app", {
   "app.rail.label": "Pages",
   "app.rail.agents": "Agents",
   "app.rail.schedule": "Schedule",
+  "app.rail.tasks": "Tasks",
   "app.rail.usage": "Usage",
   "app.rail.marketplace": "Marketplace",
   "app.rail.settings": "Settings",

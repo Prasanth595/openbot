@@ -86,6 +86,6 @@ export interface ConversationRuntime {
     | undefined;
 }
 
-export function conversationRuntime(props: ConversationProps): ConversationRuntime {
+export function conversationRuntime(props: Pick<ConversationProps, "runtime">): ConversationRuntime {
   return props.runtime ?? window.openbot;
 }

@@ -1887,6 +1887,8 @@ export async function createApplicationServices({
     routineFlows: routineFlowRuntime,
     // Present, so the host advertises `agent-hidden-v1`. Any member can hide or restore an agent that they can see.
     hiddenAgents: service,
+    // Present, so the host advertises `agent-tasks-v1`. Any member who can send a message to the agent.
+    agentTasks: service,
     // True on a hosted server, so the host advertises `focus-use-v1`. Any member can send it.
     focusUse: hostedServer !== null,
     // Each member present advertises its admin capability. Every admin route requires an owner or admin.

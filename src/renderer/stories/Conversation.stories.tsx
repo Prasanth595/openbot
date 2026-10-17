@@ -2,6 +2,7 @@ import { serializeAttachmentReference } from "@openbot/contracts/attachment-refe
 import type { AgentEvent, AttachmentSummary, DraftAttachment, QueueSnapshot } from "@openbot/contracts/ipc";
 import type { AgentMessage as RendererAgentMessage, RoutineRunMarkerModel } from "@openbot/ui/data";
 import { BrowserTakeoverCard } from "@openbot/ui/features/conversation/ConversationPrompts";
+import type { VoicePhase } from "@openbot/ui/features/conversation/VoiceRecordingMorph";
 import { currentText } from "@openbot/ui/text";
 import { Portal } from "@solidjs/web";
 import { createEffect, createSignal, onCleanup, onSettled, Show } from "solid-js";
@@ -12,7 +13,6 @@ import { Conversation, createConversationController } from "../src/features/conv
 import { ConversationView } from "../src/features/conversation/ConversationView";
 import { ConversationControllerProvider } from "../src/features/conversation/conversation-controller-context";
 import { composerDraftKey } from "../src/features/conversation/conversation-keys";
-import type { VoicePhase } from "../src/features/conversation/voice-status";
 import browserTakeoverPreviewUrl from "./assets/browser-takeover-preview.svg";
 import {
   CONVERSATION_STORY_ARGS,

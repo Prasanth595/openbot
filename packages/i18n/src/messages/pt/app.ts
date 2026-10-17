@@ -51,6 +51,7 @@ export const messages = {
   "app.rail.label": "Páginas",
   "app.rail.agents": "Agentes",
   "app.rail.schedule": "Agenda",
+  "app.rail.tasks": "Tarefas",
   "app.rail.usage": "Uso",
   "app.rail.marketplace": "Loja",
   "app.rail.settings": "Configurações",

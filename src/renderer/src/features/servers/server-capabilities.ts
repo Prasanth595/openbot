@@ -64,7 +64,8 @@ export function serverSupportsCapability(
       capability === "routine-recovery-v1" ||
       capability === "agent-import-v1" ||
       capability === "instance-transfer-v1" ||
-      capability === "agent-hidden-v1") &&
+      capability === "agent-hidden-v1" ||
+      capability === "agent-tasks-v1") &&
     server?.kind === "remote"
   ) {
     return server.compatibility?.capabilities.includes(capability) === true;
