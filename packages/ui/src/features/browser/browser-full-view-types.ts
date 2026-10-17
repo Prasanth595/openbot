@@ -52,7 +52,7 @@ export interface BrowserFullViewProps {
    * The keys of other browsers work in the view, as on this platform. The web client leaves them to the
    * user's browser, so it gives no platform.
    */
-  shortcuts?: BrowserShortcutPlatform;
+  shortcuts?: BrowserShortcutPlatform | undefined;
   /** The island, the queue and the composer of the tab's agent, over the page. */
   dock?: JSX.Element;
 }

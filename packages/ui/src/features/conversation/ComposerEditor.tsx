@@ -67,9 +67,9 @@ import { isSendShortcutKey, type SendShortcut } from "./send-shortcut";
 interface ComposerEditorProps {
   agentId: string | undefined;
   agents: ComposerAgent[];
-  skills?: ComposerSkill[];
+  skills?: ComposerSkill[] | undefined;
   /** The host's MCP servers, offered by the same `$` the skills answer. */
-  mcpServers?: ComposerMcpServer[];
+  mcpServers?: ComposerMcpServer[] | undefined;
   attachments?: DraftAttachment[];
   value: string;
   placeholder: string;
@@ -77,7 +77,7 @@ interface ComposerEditorProps {
   disabled: boolean;
   /** `compact` is one short line, as in the floating composer over a browser page. */
   size?: "default" | "compact";
-  focusRequest?: number;
+  focusRequest?: number | undefined;
   /** Raised by one to open the skill picker at the caret, as a typed `$` does. */
   skillPickerRequest?: number;
   /** A new id puts a quote chip for the text at the caret, or at the end when the caret is unknown. */
@@ -92,7 +92,7 @@ interface ComposerEditorProps {
    * Which chord sends the message. Enter keeps the current behavior; the platform modifier with
    * Enter sends and plain Enter adds a line. The renderer resolves the platform and passes it.
    */
-  sendShortcut?: SendShortcut;
+  sendShortcut?: SendShortcut | undefined;
   onOpenAttachment?: (attachment: DraftAttachment) => void;
   /** Receives pasted files. Without it, a file paste does nothing here; the desktop preload imports it. */
   onPasteFiles?: (files: File[]) => void;

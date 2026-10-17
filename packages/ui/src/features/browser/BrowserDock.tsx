@@ -38,35 +38,35 @@ export interface BrowserDockProps {
   /** The agent that owns the tab. */
   agent: ComposerAgent;
   agents: ComposerAgent[];
-  skills?: ComposerSkill[];
-  mcpServers?: ComposerMcpServer[];
+  skills?: ComposerSkill[] | undefined;
+  mcpServers?: ComposerMcpServer[] | undefined;
   value: string;
-  focusRequest?: number;
-  sendShortcut?: SendShortcut;
+  focusRequest?: number | undefined;
+  sendShortcut?: SendShortcut | undefined;
   /** The agent has a turn. With an empty field, Send is Stop. */
   working: boolean;
   deliveries: QueueDelivery[];
-  hold?: QueueHold | null;
-  editingDeliveryId?: string | null;
+  hold?: QueueHold | null | undefined;
+  editingDeliveryId?: string | null | undefined;
   canSteer: boolean;
   island: BrowserIslandContent | null;
-  handoffPending?: boolean;
+  handoffPending?: boolean | undefined;
   onValueChange: (value: string) => void;
   onSend: (text: string) => void;
   onStop: () => void;
   onSteer: (deliveryId: string) => void;
-  onRunAsTask?: (deliveryId: string) => void;
+  onRunAsTask?: ((deliveryId: string) => void) | undefined;
   onCancel: (deliveryId: string) => void;
   onEdit: (delivery: QueueDelivery) => void;
   onCancelEdit: () => void;
   onReorder: (deliveryIds: string[]) => void;
   /** Gives the page to the user, or back. Absent when the host cannot. */
-  onHandoff?: () => void;
+  onHandoff?: (() => void) | undefined;
   onRespondSecret: (input: RespondToBrowserSecretInput) => Promise<void>;
   onDismissReply: (id: string) => void;
-  onOpenChat?: () => void;
+  onOpenChat?: (() => void) | undefined;
   /** Set when the conversation does not show the tab's agent: the composer is one button that opens it. */
-  onOpenAgent?: () => void;
+  onOpenAgent?: (() => void) | undefined;
   onSelectAgent: (agentId: string) => void;
   onOpenLink: (url: string) => void;
 }

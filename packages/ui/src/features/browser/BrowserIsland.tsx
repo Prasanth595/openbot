@@ -34,15 +34,15 @@ export interface BrowserIslandFaceProps {
   content: BrowserIslandContent;
   agent: ComposerAgent;
   agents: ComposerAgent[];
-  handoffPending?: boolean;
-  onHandoff?: () => void;
+  handoffPending?: boolean | undefined;
+  onHandoff?: (() => void) | undefined;
   onRespondSecret: (input: RespondToBrowserSecretInput) => Promise<void>;
   onDismissReply: (id: string) => void;
-  onOpenChat?: () => void;
+  onOpenChat?: (() => void) | undefined;
   onSelectAgent: (agentId: string) => void;
   onOpenLink: (url: string) => void;
   /** Receives the text of the step, which a sent message moves to. */
-  statusRef?: (element: HTMLSpanElement) => void;
+  statusRef?: ((element: HTMLSpanElement) => void) | undefined;
 }
 
 /** The content of the island. The dock draws the glass around it and moves it. */
@@ -76,7 +76,7 @@ export function BrowserIslandFace(props: BrowserIslandFaceProps) {
                   variant="ghost"
                   size="xs"
                   class="browser-dock-handoff"
-                  loading={props.handoffPending}
+                  loading={props.handoffPending === true}
                   onClick={() => handoff()()}
                 >
                   {current().control === "agent" ? t("island.action.takeOver") : t("prompt.browser.done")}

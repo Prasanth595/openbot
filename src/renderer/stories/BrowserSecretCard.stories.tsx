@@ -51,17 +51,17 @@ export const Failed: Story = {
     },
   },
 };
-export const Narrow: Story = {
-  render: (args) => (
-    <div style={{ width: "280px", "max-width": "100%" }}>
-      <BrowserSecretCard {...args} />
-    </div>
-  ),
-};
+const renderNarrow: NonNullable<Story["render"]> = (args) => (
+  <div style={{ width: "280px", "max-width": "100%" }}>
+    <BrowserSecretCard {...args} />
+  </div>
+);
+
+export const Narrow: Story = { render: renderNarrow };
 
 export const TwelveDigitsNarrow: Story = {
   args: { request: { ...request, secret: { method: "otp", origin: "https://accounts.example.com", digits: 12 } } },
-  render: Narrow.render,
+  render: renderNarrow,
 };
 
 export const PreviewUnavailable: Story = {
@@ -106,5 +106,5 @@ export const IslandSubmittingCode: Story = {
 
 export const IslandNarrow: Story = {
   args: { variant: "island" },
-  render: Narrow.render,
+  render: renderNarrow,
 };
