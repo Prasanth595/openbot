@@ -148,7 +148,7 @@ function updateSkillToken(token: HTMLSpanElement, skill: InstalledSkill): void {
   token.replaceChildren(iconWrap, name);
 }
 
-/* The lucide-solid 1.33.0 `Puzzle` and `Blocks` shapes, drawn without the icon components. A token
+/* The lucide-solid 1.33.0 `Puzzle`, `Blocks` and `TextQuote` shapes, drawn without the icon components. A token
    is built in effects and event handlers, where a production build has no Solid owner, and lucide's
    `Icon` reads a context there: it throws `NoOwnerError` and halts the renderer. */
 type GlyphShape = ["path" | "rect", Record<string, string>];
@@ -165,6 +165,13 @@ const PUZZLE_GLYPH: GlyphShape[] = [
 const BLOCKS_GLYPH: GlyphShape[] = [
   ["path", { d: "M10 22V7a1 1 0 0 0-1-1H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5a1 1 0 0 0-1-1H2" }],
   ["rect", { x: "14", y: "2", width: "8", height: "8", rx: "1" }],
+];
+
+const TEXT_QUOTE_GLYPH: GlyphShape[] = [
+  ["path", { d: "M17 5H3" }],
+  ["path", { d: "M21 12H8" }],
+  ["path", { d: "M21 19H8" }],
+  ["path", { d: "M3 12v7" }],
 ];
 
 const GLYPH_ATTRIBUTES = {
@@ -215,7 +222,28 @@ function updateMcpToken(token: HTMLSpanElement, server: McpServerConfig): void {
   token.replaceChildren(iconWrap, name);
 }
 
-function createUnavailableTagToken(kind: ChatTagKind, id: string, name: string): HTMLSpanElement {
+/** A passage that the user selected in a message. Its id is the id of that message. */
+export function createQuoteToken(messageId: string, text: string): HTMLSpanElement {
+  const token = document.createElement("span");
+  token.className = `composer-mention-token ${referenceChipClasses.root}`;
+  token.dataset.kind = "quote";
+  token.title = text;
+  token.contentEditable = "false";
+  token.dataset.quoteMessageId = messageId;
+  token.dataset.quoteText = text;
+  token.setAttribute("aria-label", currentText().t("composer.token.quote", { name: text }));
+  const iconWrap = document.createElement("span");
+  iconWrap.className = referenceChipClasses.icon;
+  iconWrap.setAttribute("aria-hidden", "true");
+  iconWrap.append(createChipGlyph("text-quote", TEXT_QUOTE_GLYPH));
+  const name = document.createElement("span");
+  name.className = referenceChipClasses.name;
+  name.textContent = text;
+  token.append(iconWrap, name);
+  return token;
+}
+
+function createUnavailableTagToken(kind: Exclude<ChatTagKind, "quote">, id: string, name: string): HTMLSpanElement {
   const token = document.createElement("span");
   if (kind === "skill") {
     updateUnavailableSkillToken(token, id, name);
@@ -312,6 +340,11 @@ export function renderEditorValue(
         (candidate) => candidate.skillId === id && candidate.state !== "needs-repair" && candidate.enabled !== false,
       );
       editor.append(skill ? createSkillToken(skill) : createUnavailableTagToken("skill", id, name));
+      cursor = index + match[0].length;
+      continue;
+    }
+    if (semanticReference?.kind === "quote") {
+      editor.append(createQuoteToken(semanticReference.id, semanticReference.name));
       cursor = index + match[0].length;
       continue;
     }

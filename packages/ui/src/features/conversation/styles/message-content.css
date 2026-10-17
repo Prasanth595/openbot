@@ -199,6 +199,12 @@
   color: inherit;
 }
 
+/* The passage that a quote points to, after a click on the quote. */
+::highlight(openbot-quote-target) {
+  background: var(--openbot-warning);
+  color: var(--openbot-text-on-light);
+}
+
 .selection-highlight-layer {
   position: fixed;
   z-index: 18;
@@ -411,6 +417,12 @@
   width: 28px;
 }
 
+.selection-actions-kbd {
+  height: 18px;
+  margin-left: 2px;
+  font-size: var(--openbot-text-xs);
+}
+
 .selection-actions-icon-button {
   background: transparent;
   color: var(--openbot-text-secondary);
@@ -523,6 +535,10 @@
   .selection-actions-control {
     width: 28px;
     padding: 0;
+  }
+
+  .selection-actions-kbd {
+    display: none;
   }
 
   .selection-actions-label {

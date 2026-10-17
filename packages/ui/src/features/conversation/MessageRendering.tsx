@@ -252,6 +252,8 @@ export function MessageBody(props: {
   onAttachmentAction: (attachment: AttachmentSummary, action: "open" | "reveal" | "download") => void;
   onOpenSharedFile?: (path: string) => void;
   onOpenWorkspaceFile?: (path: string) => void;
+  /** Opens the passage that a quote in the message points to. */
+  onOpenQuote?: (messageId: string, text: string) => void;
   onDownload?: (attachment: AttachmentSummary) => void;
   mediaSource?: AttachmentMediaSource | undefined;
 }) {
@@ -384,6 +386,7 @@ export function MessageBody(props: {
       onOpenImage={openMarkdownImage}
       onOpenSharedFile={props.onOpenSharedFile}
       onOpenWorkspaceFile={props.onOpenWorkspaceFile}
+      onOpenQuote={props.onOpenQuote}
     />
   );
 
@@ -416,6 +419,7 @@ export function MessageBody(props: {
                 onOpenAttachment={openAttachment}
                 onOpenSharedFile={props.onOpenSharedFile}
                 onOpenWorkspaceFile={props.onOpenWorkspaceFile}
+                onOpenQuote={props.onOpenQuote}
                 showCitationFooter={false}
               />
             </p>
@@ -476,6 +480,7 @@ export function MessageBody(props: {
                             onOpenImage={openMarkdownImage}
                             onOpenSharedFile={props.onOpenSharedFile}
                             onOpenWorkspaceFile={props.onOpenWorkspaceFile}
+                            onOpenQuote={props.onOpenQuote}
                             showCitationFooter={index === lastTextBlockIndex()}
                             streaming={streamingBody.revealing() && index === contentBlocks().length - 1}
                             streamingTailAfter={textTailAfter()[index]}

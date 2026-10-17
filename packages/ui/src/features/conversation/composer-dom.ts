@@ -24,6 +24,9 @@ function serializeNode(node: Node): string {
   const mcpId = node.dataset.mcpId;
   const mcpName = node.dataset.mcpName;
   if (mcpId && mcpName) return serializeChatTagReference("mcp", mcpName, mcpId);
+  const quoteMessageId = node.dataset.quoteMessageId;
+  const quoteText = node.dataset.quoteText;
+  if (quoteMessageId && quoteText) return serializeChatTagReference("quote", quoteText, quoteMessageId);
   if (node.tagName === "BR") return "\n";
   const content = Array.from(node.childNodes).map(serializeNode).join("");
   return node.tagName === "DIV" || node.tagName === "P" ? `${content}\n` : content;

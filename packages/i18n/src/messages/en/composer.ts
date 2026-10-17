@@ -35,6 +35,7 @@ export const messages = defineMessages("composer", {
   "composer.token.agent": "Agent {name}",
   "composer.token.skill": "Skill {name}",
   "composer.token.mcp": "MCP server {name}",
+  "composer.token.quote": "Quote {name}",
   "composer.token.unavailableAgent": "Unavailable agent {name}",
   "composer.token.unavailableSkill": "Unavailable skill {name}",
   "composer.token.unavailableMcp": "Unavailable MCP server {name}",

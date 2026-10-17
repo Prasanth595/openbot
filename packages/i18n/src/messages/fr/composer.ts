@@ -38,6 +38,7 @@ export const messages = {
   "composer.token.agent": "Agent {name}",
   "composer.token.skill": "Compétence {name}",
   "composer.token.mcp": "Serveur MCP {name}",
+  "composer.token.quote": "Citation {name}",
   "composer.token.unavailableAgent": "Agent indisponible {name}",
   "composer.token.unavailableSkill": "Compétence indisponible {name}",
   "composer.token.unavailableMcp": "Serveur MCP indisponible {name}",

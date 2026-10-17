@@ -1,6 +1,6 @@
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import { SELECTION_ACTION_INSTRUCTIONS, serializeSelectionInstruction } from "@openbot/contracts/selection-instruction";
-import { Button, Input } from "@openbot/ui";
+import { Button, Input, Kbd, TextQuote } from "@openbot/ui";
 import { clamp } from "@openbot/ui/utils";
 import { Portal } from "@solidjs/web";
 import type { Element as SolidElement } from "solid-js";
@@ -19,6 +19,9 @@ export interface MessageTextSelection {
   text: string;
   range: Range;
 }
+
+/** The modifier of the quote chord with Shift and Period: Command on macOS, Control elsewhere. */
+export type QuoteShortcutModifier = "meta" | "ctrl";
 
 export interface SelectionRect {
   top: number;
@@ -78,6 +81,9 @@ export function MessageSelectionActions(props: {
   contextKey: string | undefined;
   disabled: boolean;
   onSend: (messageId: string, body: string) => Promise<boolean>;
+  /** Puts the selected text in the composer as a quote. Without it, the toolbar has no Quote action. */
+  onQuote?: ((messageId: string, text: string) => void) | undefined;
+  quoteShortcut?: QuoteShortcutModifier;
 }) {
   const [selection, setSelection] = createSignal<MessageTextSelection | null>(null);
   const [fallbackHighlight, setFallbackHighlight] = createSignal(false);
@@ -93,6 +99,14 @@ export function MessageSelectionActions(props: {
   const dismiss = () => {
     clearSelection();
     window.getSelection()?.removeAllRanges();
+  };
+
+  const quote = () => {
+    const active = selection();
+    if (!active || !props.onQuote) return;
+    // The composer takes the caret next, so the message selection must go first.
+    dismiss();
+    props.onQuote(active.messageId, active.text);
   };
 
   const captureSelection = () => {
@@ -156,13 +170,20 @@ export function MessageSelectionActions(props: {
       if (event.target instanceof Element && event.target.closest(".selection-actions-layer")) return;
       captureSelection();
     };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!selection() || !props.onQuote || !isQuoteShortcut(event, props.quoteShortcut ?? "ctrl")) return;
+      event.preventDefault();
+      quote();
+    };
     window.addEventListener("pointerdown", onPointerDown);
     window.addEventListener("pointerup", onPointerUp);
     window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("keydown", onKeyDown);
     return () => {
       window.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("pointerup", onPointerUp);
       window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("keydown", onKeyDown);
       clearPersistentHighlight();
     };
   });
@@ -175,6 +196,8 @@ export function MessageSelectionActions(props: {
           fallbackHighlight={fallbackHighlight()}
           onDismiss={dismiss}
           onSend={props.onSend}
+          onQuote={props.onQuote ? quote : undefined}
+          quoteShortcut={props.quoteShortcut}
         />
       )}
     </Show>
@@ -186,6 +209,8 @@ export function SelectionActionsBar(props: {
   fallbackHighlight?: boolean;
   onDismiss: () => void;
   onSend: (messageId: string, body: string) => Promise<boolean>;
+  onQuote?: (() => void) | undefined;
+  quoteShortcut?: QuoteShortcutModifier | undefined;
 }) {
   const { t } = useText();
   const [prompt, setPrompt] = createSignal("");
@@ -442,10 +467,37 @@ export function SelectionActionsBar(props: {
                     "selection-actions-presets-expanded": expanded(),
                   },
                 ]}
-                style={{ "max-width": hasPrompt() ? "0px" : expanded() ? "462px" : "224px" }}
+                style={{
+                  "max-width": hasPrompt()
+                    ? "0px"
+                    : `${(expanded() ? 462 : 224) + (props.onQuote ? QUOTE_ACTION_WIDTH : 0)}px`,
+                }}
               >
                 <Show when={!expanded()}>
                   <span class="selection-actions-divider" aria-hidden="true" />
+                </Show>
+                <Show when={props.onQuote}>
+                  {(onQuote) => (
+                    <Button
+                      variant="ghost"
+                      type="button"
+                      class="selection-actions-control"
+                      aria-label={t("chat.selection.quote")}
+                      aria-keyshortcuts={props.quoteShortcut === "meta" ? "Meta+Shift+Period" : "Control+Shift+Period"}
+                      onPointerDown={(event) => event.preventDefault()}
+                      onClick={() => onQuote()()}
+                    >
+                      <TextQuote class="selection-actions-icon" aria-hidden="true" />
+                      <span class="selection-actions-label">{t("chat.selection.quote")}</span>
+                      <Kbd class="selection-actions-kbd" aria-hidden="true">
+                        {t(
+                          props.quoteShortcut === "meta"
+                            ? "chat.selection.quoteShortcutMac"
+                            : "chat.selection.quoteShortcutOther",
+                        )}
+                      </Kbd>
+                    </Button>
+                  )}
                 </Show>
                 <PresetButton
                   label={t("chat.selection.explain")}
@@ -529,6 +581,14 @@ function PresetButton(props: { label: string; icon: SolidElement; onSelect: () =
       <span class="selection-actions-label">{props.label}</span>
     </Button>
   );
+}
+
+/* The Quote button with its shortcut label, so the presets do not clip it. */
+const QUOTE_ACTION_WIDTH = 116;
+
+function isQuoteShortcut(event: KeyboardEvent, modifier: QuoteShortcutModifier): boolean {
+  const modifierDown = modifier === "meta" ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
+  return modifierDown && event.shiftKey && !event.altKey && event.code === "Period";
 }
 
 function messageTextBlock(node: Node): HTMLElement | null {

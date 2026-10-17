@@ -1,7 +1,7 @@
 import { type ChatTagKind, chatTagReferences } from "@openbot/contracts/chat-tag-references";
 import type { AttachmentSummary, InstalledSkill } from "@openbot/contracts/ipc";
 import type { AppTextKey } from "@openbot/i18n";
-import { Blocks, Button, Puzzle } from "@openbot/ui";
+import { Blocks, Button, Puzzle, TextQuote } from "@openbot/ui";
 import { ReferenceChip } from "@openbot/ui/reference-chip";
 import { usesTouchLayout } from "@openbot/ui/utils";
 import type { JSX } from "@solidjs/web";
@@ -32,6 +32,8 @@ export interface RichMessageTextProps {
   onOpenAttachment?: (attachment: AttachmentSummary) => void;
   onOpenSharedFile?: (path: string) => void;
   onOpenWorkspaceFile?: (path: string) => void;
+  /** Shows the passage that a quote tag names. Without it, a quote is a chip that does nothing. */
+  onOpenQuote?: (messageId: string, text: string) => void;
   showCitationFooter?: boolean;
   /** The characters of a streaming body after this text. It fades the words revealed last. */
   streamingTailAfter?: number | undefined;
@@ -41,7 +43,10 @@ const UNAVAILABLE_TAG_LABELS = {
   agent: "chat.tag.unavailableAgent",
   skill: "chat.tag.unavailableSkill",
   mcp: "chat.tag.unavailableMcp",
-} as const satisfies Record<ChatTagKind, AppTextKey>;
+} as const satisfies Record<UnavailableTagKind, AppTextKey>;
+
+/* A quote carries its own text, so it never depends on something that can go away. */
+type UnavailableTagKind = Exclude<ChatTagKind, "quote">;
 
 export function RichMessageText(props: RichMessageTextProps) {
   const { t } = useText();
@@ -154,6 +159,19 @@ export function RichMessageText(props: RichMessageTextProps) {
           }
           if (part.mcpName) {
             return <ReferenceChip class="message-reference-chip" kind="mcp" name={part.mcpName} icon={<Blocks />} />;
+          }
+          if (part.quote) {
+            const quote = part.quote;
+            const onOpenQuote = props.onOpenQuote;
+            return (
+              <ReferenceChip
+                kind="quote"
+                name={quote.text}
+                class="message-reference-chip message-quote-tag"
+                icon={<TextQuote />}
+                onClick={onOpenQuote ? () => onOpenQuote(quote.messageId, quote.text) : undefined}
+              />
+            );
           }
           if (part.unavailableKind) {
             return (
@@ -305,6 +323,7 @@ function plainTextPart(part: RichMessagePart): boolean {
     part.agent ||
     part.skill ||
     part.mcpName ||
+    part.quote ||
     part.unavailableKind ||
     part.citation ||
     part.attachment ||
@@ -321,7 +340,9 @@ interface RichMessagePart {
    * record of what the user asked, and a server removed since does not make that record wrong.
    */
   mcpName?: string;
-  unavailableKind?: ChatTagKind;
+  /** Text the user quoted from a message of this chat. */
+  quote?: { messageId: string; text: string };
+  unavailableKind?: UnavailableTagKind;
   citation?: MessageCitation;
   attachment?: AttachmentSummary;
   sharedPath?: string;
@@ -337,7 +358,13 @@ function richMessageParts(
 ): RichMessagePart[] {
   const parts: RichMessagePart[] = [];
   for (const taggedReference of semanticTagParts(body, agents, skills)) {
-    if (taggedReference.agent || taggedReference.skill || taggedReference.mcpName || taggedReference.unavailableKind) {
+    if (
+      taggedReference.agent ||
+      taggedReference.skill ||
+      taggedReference.mcpName ||
+      taggedReference.quote ||
+      taggedReference.unavailableKind
+    ) {
       parts.push(taggedReference);
       continue;
     }
@@ -375,6 +402,8 @@ function semanticTagParts(body: string, agents: AgentProfile[], skills: Installe
       parts.push(agent ? { text: agent.name, agent } : { text: reference.name, unavailableKind: "agent" });
     } else if (reference.kind === "mcp") {
       parts.push({ text: reference.name, mcpName: reference.name });
+    } else if (reference.kind === "quote") {
+      parts.push({ text: reference.name, quote: { messageId: reference.id, text: reference.name } });
     } else {
       const skill = skills.find(
         (candidate) => candidate.skillId === reference.id && candidate.state !== "needs-repair",

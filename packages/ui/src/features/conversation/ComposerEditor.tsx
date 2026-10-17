@@ -5,7 +5,17 @@ import type { DraftAttachment, InstalledSkill, McpServerConfig } from "@openbot/
 import { Badge, Blocks, Listbox, Puzzle } from "@openbot/ui";
 import { usesTouchLayout } from "@openbot/ui/utils";
 import { Dynamic, Portal } from "@solidjs/web";
-import { createEffect, createMemo, createSignal, createUniqueId, For, onCleanup, onSettled, Show } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  createUniqueId,
+  For,
+  onCleanup,
+  onSettled,
+  Show,
+  untrack,
+} from "solid-js";
 import { createScrollFades } from "../../components/createScrollFades";
 import type { AgentProfile } from "../../data";
 import { useText } from "../../text";
@@ -43,6 +53,7 @@ import {
   createAttachmentToken,
   createMcpToken,
   createMentionToken,
+  createQuoteToken,
   createSkillToken,
   MENTION_PATTERN,
   renderEditorValue,
@@ -67,6 +78,10 @@ interface ComposerEditorProps {
   focusRequest?: number;
   /** Raised by one to open the skill picker at the caret, as a typed `$` does. */
   skillPickerRequest?: number;
+  /** A new id puts a quote chip for the text at the caret, or at the end when the caret is unknown. */
+  quoteRequest?: QuoteRequest | undefined;
+  /** Opens the passage that a quote chip in the draft points to. */
+  onOpenQuote?: ((messageId: string, text: string) => void) | undefined;
   /** The last skill list request failed, so an empty picker says so instead of "no skills". */
   skillsLoadFailed?: boolean;
   onValueChange: (value: string) => void;
@@ -86,6 +101,12 @@ interface ComposerEditorProps {
    * the final text. See `dictationWords` for how they show.
    */
   dictation?: { text: string; final: boolean };
+}
+
+export interface QuoteRequest {
+  id: number;
+  messageId: string;
+  text: string;
 }
 
 interface MentionContext {
@@ -223,6 +244,10 @@ export function ComposerEditor(props: ComposerEditorProps) {
   let lastEmittedValue = "";
   let lastFocusRequest = 0;
   let lastSkillPickerRequest = 0;
+  // A request made before this editor existed belongs to an earlier one, which inserted it.
+  let lastQuoteRequest = untrack(() => props.quoteRequest?.id ?? 0);
+  /* Where the caret was when the editor last had it. A selection in a message takes the caret away. */
+  let savedCaret: number | null = null;
   let isComposing = false;
   const [compositionRevision, setCompositionRevision] = createSignal(0);
   const attachmentTokenActions: AttachmentTokenActions = {
@@ -261,8 +286,9 @@ export function ComposerEditor(props: ComposerEditorProps) {
       attachments: props.attachments ?? [],
       focusRequest: props.focusRequest ?? 0,
       skillPickerRequest: props.skillPickerRequest ?? 0,
+      quoteRequest: props.quoteRequest,
     }),
-    ({ agentId, value, agents, skills, mcpServers, attachments, focusRequest, skillPickerRequest }) => {
+    ({ agentId, value, agents, skills, mcpServers, attachments, focusRequest, skillPickerRequest, quoteRequest }) => {
       if (!editor || (isComposing && agentId === lastAgentId)) return;
       const attachmentKey = attachments.map((attachment) => `${attachment.id}:${attachment.name}`).join("|");
       const skillKey = skills
@@ -289,6 +315,7 @@ export function ComposerEditor(props: ComposerEditorProps) {
       const skillsChanged = skillKey !== lastSkillKey;
       const mcpChanged = mcpKey !== lastMcpKey;
       const focusRequested = focusRequest > lastFocusRequest;
+      if (draftChanged) savedCaret = null;
       if (contentChanged) {
         lastAgentId = agentId;
         lastEmittedValue = value;
@@ -317,6 +344,10 @@ export function ComposerEditor(props: ComposerEditorProps) {
       if (skillPickerRequest > lastSkillPickerRequest) {
         lastSkillPickerRequest = skillPickerRequest;
         openSkillPicker();
+      }
+      if (quoteRequest && quoteRequest.id > lastQuoteRequest) {
+        lastQuoteRequest = quoteRequest.id;
+        insertQuote(quoteRequest.messageId, quoteRequest.text);
       }
     },
   );
@@ -405,6 +436,7 @@ export function ComposerEditor(props: ComposerEditorProps) {
     const document = editor.ownerDocument;
     const view = document.defaultView;
     const selectionChanged = () => {
+      if (editor && document.activeElement === editor) savedCaret = readEditorSelection(editor)?.focus ?? savedCaret;
       // A dismissed picker stays closed until the user types or clicks again.
       if (mention()) updateMention();
     };
@@ -531,6 +563,38 @@ export function ComposerEditor(props: ComposerEditorProps) {
     setMention(null);
     emitValue();
     editor.focus();
+  }
+
+  function insertQuote(messageId: string, text: string) {
+    if (!editor || props.disabled) return;
+    editor.focus({ preventScroll: true });
+    const value = editorText(editor);
+    const offset = savedCaret !== null && savedCaret <= value.length ? savedCaret : value.length;
+    const range = rangeFromTextOffsets(editor, offset, offset);
+    if (!range) return;
+    const trailingSpace = document.createTextNode(" ");
+    range.insertNode(trailingSpace);
+    range.insertNode(createQuoteToken(messageId, text));
+    const beforeCaret = value.slice(0, offset);
+    if (beforeCaret && !/\s$/u.test(beforeCaret)) range.insertNode(document.createTextNode(" "));
+    range.setStartAfter(trailingSpace);
+    range.collapse(true);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    setMention(null);
+    emitValue();
+    scheduleCaretScroll();
+  }
+
+  function handleEditorClick(event: MouseEvent) {
+    const quote = event.target instanceof Element ? event.target.closest<HTMLElement>("[data-quote-message-id]") : null;
+    const messageId = quote?.dataset.quoteMessageId;
+    if (messageId && props.onOpenQuote) {
+      props.onOpenQuote(messageId, quote.dataset.quoteText ?? "");
+      return;
+    }
+    updateMention();
   }
 
   function ensureEditorSelection() {
@@ -748,7 +812,7 @@ export function ComposerEditor(props: ComposerEditorProps) {
           emitValue();
           updateMention();
         }}
-        onClick={updateMention}
+        onClick={handleEditorClick}
         onKeyDown={handleKeyDown}
         onBeforeInput={handleBeforeInput}
         onCompositionStart={() => {

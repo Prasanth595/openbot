@@ -117,6 +117,7 @@ export function ConversationTimeline() {
     openSkillSettings,
     openSharedFile,
     openWorkspaceFile,
+    openQuote,
     pendingSendFor,
     providerUpdateRequired,
     previewAttachment,
@@ -704,6 +705,7 @@ export function ConversationTimeline() {
                             onAttachmentAction={attachmentAction}
                             onOpenSharedFile={openSharedFile}
                             onOpenWorkspaceFile={openWorkspaceFile}
+                            onOpenQuote={openQuote}
                             onDownload={(attachment) => attachmentAction(attachment, "download")}
                             mediaSource={runtime.attachmentMedia}
                             class={pending() ? "message-entry-pending" : undefined}

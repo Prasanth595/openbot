@@ -222,6 +222,7 @@ export function MarkdownMessageText(props: MarkdownMessageTextProps) {
       onOpenAttachment: props.onOpenAttachment,
       onOpenSharedFile: props.onOpenSharedFile,
       onOpenWorkspaceFile: props.onOpenWorkspaceFile,
+      onOpenQuote: props.onOpenQuote,
       fileDirectory: fileDirectory(),
     }),
   );
@@ -258,6 +259,7 @@ export function MarkdownInlineText(
     onOpenAttachment: props.onOpenAttachment,
     onOpenSharedFile: props.onOpenSharedFile,
     onOpenWorkspaceFile: props.onOpenWorkspaceFile,
+    onOpenQuote: props.onOpenQuote,
     fileDirectory: messageFileDirectory(props.body),
   });
   return <MarkdownInline tokens={tokens()} content={contentProps()} />;
@@ -763,7 +765,7 @@ function textTokenEndsWithTagMarker(token: Token | undefined): boolean {
 
 function semanticChatTag(token: Token | undefined): string | null {
   if (!token || !tokenIs(token, "link")) return null;
-  const target = /^(agent|skill)(?:\+uri)?:([^\r\n]+)$/u.exec(token.href);
+  const target = /^(agent|skill|quote)(?:\+uri)?:([^\r\n]+)$/u.exec(token.href);
   return target?.[2] ? `@${token.raw}` : null;
 }
 
