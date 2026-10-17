@@ -2,9 +2,20 @@ import { chatPreviewKind } from "@openbot/contracts/chat-preview";
 import type { AttachmentSummary, InstalledSkill, MessageReaction } from "@openbot/contracts/ipc";
 import { canPreviewAttachment, MESSAGE_REACTIONS, MORE_MESSAGE_REACTIONS } from "@openbot/contracts/ipc";
 import { parseSelectionInstruction } from "@openbot/contracts/selection-instruction";
-import { type BubbleVariant, Button, DropdownMenu } from "@openbot/ui";
+import { type BubbleVariant, Button, DropdownMenu, Info, LoaderCircle } from "@openbot/ui";
 import { prefersReducedMotion } from "@openbot/ui/utils";
-import { createEffect, createMemo, createSignal, For, Match, onCleanup, Show, Switch, untrack } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  createUniqueId,
+  For,
+  Match,
+  onCleanup,
+  Show,
+  Switch,
+  untrack,
+} from "solid-js";
 import type { AgentMessage, AgentProfile } from "../../data";
 import { useText } from "../../text";
 import { AttachmentCards, type AttachmentMediaSource } from "./AttachmentCards";
@@ -244,6 +255,13 @@ export function MessageBody(props: {
    * an agent chat names another person the reader quotes. Absent, the quote says "You" or "Agent".
    */
   referencedAuthorName?: string;
+  /** Opens the quoted message in the chat. Absent, the quote is not a control. */
+  onOpenReference?: () => void;
+  /**
+   * `loading` while the chat loads the history around the original. `unavailable` when the chat no
+   * longer has it: the quote cannot open it, and a note says so. With no quote, only the note shows.
+   */
+  referenceState?: "loading" | "unavailable" | undefined;
   agents: AgentProfile[];
   skills?: InstalledSkill[];
   onSelectAgent: (agentId: string) => void;
@@ -261,6 +279,8 @@ export function MessageBody(props: {
     untrack(() => props.animate),
   );
   const streamedBody = streamingBody.body;
+  const referenceOpens = () => Boolean(props.onOpenReference) && props.referenceState !== "unavailable";
+  const referenceTextId = `message-reply-${createUniqueId()}`;
   const selectionInstruction = createMemo(() =>
     props.message.author === "you" && props.message.replyToMessageId
       ? parseSelectionInstruction(props.message.body)
@@ -399,12 +419,33 @@ export function MessageBody(props: {
       </Show>
       <Show when={props.referencedMessage}>
         {(referenced) => (
-          <div class="message-reply-context">
-            <span>
+          <div
+            class="message-reply-context"
+            data-opens={referenceOpens() ? "" : undefined}
+            data-unavailable={props.referenceState === "unavailable" ? "" : undefined}
+          >
+            {/*
+             * The button lies over the quote, not around it: the quote can hold links and mentions,
+             * and a button cannot hold a control. The quote under it is inert, so a click and the
+             * Tab key both reach the button only.
+             */}
+            <Show when={referenceOpens()}>
+              <Button
+                variant="ghost"
+                type="button"
+                class="message-reply-open"
+                aria-label={t("chat.reply.showOriginal")}
+                aria-describedby={referenceTextId}
+                aria-busy={props.referenceState === "loading" ? "true" : undefined}
+                data-cuelume-tap="navigate"
+                onClick={() => props.onOpenReference?.()}
+              />
+            </Show>
+            <span inert={referenceOpens() ? true : undefined}>
               {props.referencedAuthorName ??
                 (referenced().author === "you" ? t("chat.message.you") : t("chat.message.agentFallback"))}
             </span>
-            <p>
+            <p id={referenceTextId} inert={referenceOpens() ? true : undefined}>
               <RichMessageText
                 body={referenced().body || t("chat.message.attachment")}
                 agents={props.agents}
@@ -419,8 +460,17 @@ export function MessageBody(props: {
                 showCitationFooter={false}
               />
             </p>
+            <Show when={props.referenceState === "loading"}>
+              <LoaderCircle class="message-reply-loading" aria-hidden="true" />
+            </Show>
           </div>
         )}
+      </Show>
+      <Show when={props.referenceState === "unavailable"}>
+        <p class="message-reply-unavailable" role="status">
+          <Info class="message-reply-unavailable-icon" aria-hidden="true" />
+          {t("chat.reply.originalUnavailable")}
+        </p>
       </Show>
       <div class="message-content-resize" ref={(element) => (messageContentResize = element)}>
         <div class="message-content-blocks" ref={(element) => (messageContent = element)}>
