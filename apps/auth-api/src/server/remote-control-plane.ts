@@ -84,14 +84,15 @@ const INVITE_STILL_GRANTED_SQL = `(
 /**
  * The SQL value of `removed_at` after a membership change. It is the time of the first removal by an
  * owner or admin, 0 when the member left, and NULL for an active member. A revoked row with NULL comes
- * from a Worker before migration 0036, so the invitation check counts it as a removal. A member who is
- * already revoked cannot clear a removal by leaving again. The value binds the change time when it has
- * a placeholder.
+ * from a Worker before migration 0036, so the invitation check counts it as a removal. The value reads
+ * the row as the UPDATE finds it, so a leave that races a removal cannot clear it, and a member who is
+ * already revoked cannot clear a removal by leaving again. It binds the change time when it has a
+ * placeholder.
  */
-function removedAtAfterChange(change: { revoke: boolean; leave: boolean; activating: boolean; active: boolean }) {
+function removedAtAfterChange(change: { revoke: boolean; leave: boolean; activating: boolean }) {
   if (!change.revoke) return change.activating ? "NULL" : "removed_at";
-  if (change.leave) return change.active ? "0" : "removed_at";
-  return change.active ? "?" : "CASE WHEN removed_at > 0 THEN removed_at ELSE ? END";
+  if (change.leave) return "CASE WHEN status = 'active' THEN 0 ELSE removed_at END";
+  return "CASE WHEN status = 'revoked' AND removed_at > 0 THEN removed_at ELSE ? END";
 }
 
 export type { RemoteMemberRole };
@@ -1217,7 +1218,6 @@ export class RemoteControlPlane {
         revoke: input.revoke === true,
         leave: leavingOwnMembership,
         activating,
-        active: membership.status === "active",
       });
       const now = dependencies.now();
       const activeSessions = yield* remoteCall(() =>
