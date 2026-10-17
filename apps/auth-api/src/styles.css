@@ -11086,6 +11086,13 @@ a {
   box-shadow: 0 0 0 3px var(--openbot-accent-strong);
 }
 
+/* A value that the page filled in, such as the site on the report form. */
+.contact-field input[readonly] {
+  border-color: var(--contact-border);
+  background: transparent;
+  color: var(--openbot-text-secondary);
+}
+
 .contact-field [aria-invalid="true"] {
   border-color: var(--openbot-danger-border);
 }

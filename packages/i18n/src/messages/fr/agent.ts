@@ -18,6 +18,31 @@ export const messages = {
   "agent.setup.creating": "Création de l’agent…",
   "agent.setup.create": "Créer l’agent",
   "agent.setup.suggestions": "Suggestions",
+  "agent.setup.suggestion.label": "{name}. {description}",
+  "agent.setup.suggestion.inboxHelper.name": "Assistant e-mail",
+  "agent.setup.suggestion.inboxHelper.description": "Rédige des réponses et n’oublie aucune relance.",
+  "agent.setup.suggestion.inboxHelper.purpose":
+    "Rédiger des réponses claires à mes e-mails dans mon style, résumer les longs fils et suivre les relances.",
+  "agent.setup.suggestion.tripPlanner.name": "Organisateur de voyages",
+  "agent.setup.suggestion.tripPlanner.description": "Compare les options et prépare des itinéraires pratiques.",
+  "agent.setup.suggestion.tripPlanner.purpose":
+    "Comparer les options de voyage et transformer mes idées vagues en itinéraires pratiques, jour par jour.",
+  "agent.setup.suggestion.personalOrganizer.name": "Organisateur personnel",
+  "agent.setup.suggestion.personalOrganizer.description": "Transforme notes, courses et tâches en un plan simple.",
+  "agent.setup.suggestion.personalOrganizer.purpose":
+    "Organiser mes notes, mes courses et mes tâches en vrac en priorités claires et en prochaines étapes simples.",
+  "agent.setup.suggestion.shoppingScout.name": "Conseiller d’achat",
+  "agent.setup.suggestion.shoppingScout.description": "Compare produits, prix et avis avant l’achat.",
+  "agent.setup.suggestion.shoppingScout.purpose":
+    "Comparer les produits, les prix et les avis pour que je fasse des achats judicieux avec moins de recherches.",
+  "agent.setup.suggestion.writingPartner.name": "Partenaire d’écriture",
+  "agent.setup.suggestion.writingPartner.description": "Rédige des messages et des documents au ton naturel.",
+  "agent.setup.suggestion.writingPartner.purpose":
+    "M’aider à rédiger et à améliorer des messages et des documents, avec une écriture claire et naturelle.",
+  "agent.setup.suggestion.learningCoach.name": "Coach d’apprentissage",
+  "agent.setup.suggestion.learningCoach.description": "Explique les sujets difficiles et crée des plans d’étude.",
+  "agent.setup.suggestion.learningCoach.purpose":
+    "Expliquer clairement les sujets difficiles et créer des plans d’étude adaptés à mon rythme et à mes objectifs.",
   "agent.deleteUndo.title": "{name} supprimé",
   "agent.deleteUndo.action": "Annuler",
   "agent.hideUndo.title": "{name} est masqué",

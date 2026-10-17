@@ -18,6 +18,31 @@ export const messages = {
   "agent.setup.creating": "Tworzenie agenta…",
   "agent.setup.create": "Utwórz agenta",
   "agent.setup.suggestions": "Sugestie",
+  "agent.setup.suggestion.label": "{name}. {description}",
+  "agent.setup.suggestion.inboxHelper.name": "Pomocnik poczty",
+  "agent.setup.suggestion.inboxHelper.description": "Szkicuje odpowiedzi i pilnuje, by nic nie umknęło.",
+  "agent.setup.suggestion.inboxHelper.purpose":
+    "Pisz jasne odpowiedzi na e-maile w moim stylu, streszczaj długie wątki i pilnuj spraw, do których trzeba wrócić.",
+  "agent.setup.suggestion.tripPlanner.name": "Planer podróży",
+  "agent.setup.suggestion.tripPlanner.description": "Porównuje opcje i układa praktyczne plany podróży.",
+  "agent.setup.suggestion.tripPlanner.purpose":
+    "Porównuj opcje podróży i zamieniaj moje luźne pomysły w praktyczne plany na każdy dzień.",
+  "agent.setup.suggestion.personalOrganizer.name": "Osobisty organizer",
+  "agent.setup.suggestion.personalOrganizer.description": "Zamienia notatki, sprawunki i zadania w prosty plan.",
+  "agent.setup.suggestion.personalOrganizer.purpose":
+    "Porządkuj moje notatki, sprawunki i luźne zadania w jasne priorytety i proste kolejne kroki.",
+  "agent.setup.suggestion.shoppingScout.name": "Doradca zakupowy",
+  "agent.setup.suggestion.shoppingScout.description": "Porównuje produkty, ceny i opinie przed zakupem.",
+  "agent.setup.suggestion.shoppingScout.purpose":
+    "Porównuj produkty, ceny i opinie, żeby rozsądne decyzje zakupowe wymagały ode mnie mniej szukania.",
+  "agent.setup.suggestion.writingPartner.name": "Partner do pisania",
+  "agent.setup.suggestion.writingPartner.description": "Pisze wiadomości i dokumenty naturalnym językiem.",
+  "agent.setup.suggestion.writingPartner.purpose":
+    "Pomagaj mi pisać i poprawiać wiadomości oraz dokumenty, tak by tekst był jasny i naturalny.",
+  "agent.setup.suggestion.learningCoach.name": "Trener nauki",
+  "agent.setup.suggestion.learningCoach.description": "Wyjaśnia trudne tematy i układa plany nauki.",
+  "agent.setup.suggestion.learningCoach.purpose":
+    "Jasno wyjaśniaj trudne tematy i układaj plany nauki dopasowane do mojego tempa i celów.",
   "agent.deleteUndo.title": "Usunięto agenta {name}",
   "agent.deleteUndo.action": "Cofnij",
   "agent.hideUndo.title": "Ukryto {name}",

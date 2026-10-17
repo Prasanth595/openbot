@@ -1379,6 +1379,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                         source={scheduleSource}
                         agents={workspace.profiles()}
                         channels={channels.state.channels}
+                        channelsSupported={channels.supported()}
                         onOpenAgent={(agentId) => {
                           setMobilePane("conversation");
                           void select(agentId);

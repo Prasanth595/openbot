@@ -18,6 +18,31 @@ export const messages = {
   "agent.setup.creating": "Создание агента…",
   "agent.setup.create": "Создать агента",
   "agent.setup.suggestions": "Подсказки",
+  "agent.setup.suggestion.label": "{name}. {description}",
+  "agent.setup.suggestion.inboxHelper.name": "Помощник по почте",
+  "agent.setup.suggestion.inboxHelper.description": "Готовит черновики ответов и следит, чтобы ничего не забылось.",
+  "agent.setup.suggestion.inboxHelper.purpose":
+    "Писать понятные ответы на письма в моём стиле, кратко пересказывать длинные переписки и следить за письмами, которые ждут ответа.",
+  "agent.setup.suggestion.tripPlanner.name": "Планировщик поездок",
+  "agent.setup.suggestion.tripPlanner.description": "Сравнивает варианты и составляет удобные маршруты.",
+  "agent.setup.suggestion.tripPlanner.purpose":
+    "Сравнивать варианты поездок и превращать мои общие идеи в удобные маршруты по дням.",
+  "agent.setup.suggestion.personalOrganizer.name": "Личный органайзер",
+  "agent.setup.suggestion.personalOrganizer.description": "Превращает заметки, дела и задачи в простой план.",
+  "agent.setup.suggestion.personalOrganizer.purpose":
+    "Упорядочивать мои заметки, дела и разрозненные задачи в понятные приоритеты и простые следующие шаги.",
+  "agent.setup.suggestion.shoppingScout.name": "Помощник по покупкам",
+  "agent.setup.suggestion.shoppingScout.description": "Сравнивает товары, цены и отзывы перед покупкой.",
+  "agent.setup.suggestion.shoppingScout.purpose":
+    "Сравнивать товары, цены и отзывы, чтобы выбирать покупки разумно и тратить меньше времени на поиск.",
+  "agent.setup.suggestion.writingPartner.name": "Соавтор текстов",
+  "agent.setup.suggestion.writingPartner.description": "Пишет сообщения и документы естественным языком.",
+  "agent.setup.suggestion.writingPartner.purpose":
+    "Помогать писать и улучшать сообщения и документы, чтобы текст был понятным и естественным.",
+  "agent.setup.suggestion.learningCoach.name": "Наставник по учёбе",
+  "agent.setup.suggestion.learningCoach.description": "Объясняет сложные темы и составляет планы обучения.",
+  "agent.setup.suggestion.learningCoach.purpose":
+    "Понятно объяснять сложные темы и составлять планы обучения под мой темп и мои цели.",
   "agent.deleteUndo.title": "Агент {name} удалён",
   "agent.deleteUndo.action": "Отменить",
   "agent.hideUndo.title": "{name} скрыт",

@@ -1,7 +1,8 @@
 import { AppLogo } from "@openbot/brand";
 import { readFirstTouch } from "@openbot/contracts/first-touch";
+import { isDynamicRecord } from "@openbot/contracts/runtime-values";
 import { createFileRoute } from "@tanstack/solid-router";
-import { onSettled } from "solid-js";
+import { onSettled, Show } from "solid-js";
 
 /** The page that Stripe Checkout and the Customer Portal open when a desktop user goes back. */
 export const Route = createFileRoute("/billing/return")({
@@ -13,6 +14,13 @@ export const Route = createFileRoute("/billing/return")({
     "Referrer-Policy": "no-referrer",
     "X-Robots-Tag": "noindex, nofollow, noarchive",
   }),
+  // A cancelled Checkout comes back with `cancelled=1`, and the router reads a number from the query.
+  // The router also validates the search that it wrote, so `true` must stay true. A page that was
+  // not cancelled keeps the key out of its URL.
+  validateSearch: (value): { cancelled?: true } =>
+    isDynamicRecord(value) && (value.cancelled === 1 || value.cancelled === "1" || value.cancelled === true)
+      ? { cancelled: true }
+      : {},
   component: BillingReturn,
 });
 
@@ -41,13 +49,24 @@ function sendCheckoutAttribution(): void {
 }
 
 function BillingReturn() {
+  const search = Route.useSearch();
   onSettled(() => sendCheckoutAttribution());
   return (
     <main class="join-page">
       <section class="join-card" aria-labelledby="billing-return-title">
         <AppLogo variant="production" class="join-card-logo" />
-        <h1 id="billing-return-title">Billing updated</h1>
-        <p class="join-card-copy">Go back to OpenBot. You can close this page.</p>
+        <Show
+          when={search().cancelled}
+          fallback={
+            <>
+              <h1 id="billing-return-title">Billing updated</h1>
+              <p class="join-card-copy">Go back to OpenBot. You can close this page.</p>
+            </>
+          }
+        >
+          <h1 id="billing-return-title">Checkout cancelled</h1>
+          <p class="join-card-copy">Nothing was charged. Go back to OpenBot.</p>
+        </Show>
       </section>
     </main>
   );

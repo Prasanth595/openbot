@@ -17,6 +17,32 @@ export const messages = defineMessages("agent", {
   "agent.setup.creating": "Creating agent…",
   "agent.setup.create": "Create agent",
   "agent.setup.suggestions": "Suggestions",
+  // Suggested agents. Selecting one copies its name and purpose into the new agent.
+  "agent.setup.suggestion.label": "{name}. {description}",
+  "agent.setup.suggestion.inboxHelper.name": "Inbox Helper",
+  "agent.setup.suggestion.inboxHelper.description": "Drafts replies and keeps follow-ups from slipping.",
+  "agent.setup.suggestion.inboxHelper.purpose":
+    "Draft clear email replies in my voice, summarize long threads, and keep track of follow-ups.",
+  "agent.setup.suggestion.tripPlanner.name": "Trip Planner",
+  "agent.setup.suggestion.tripPlanner.description": "Compares options and builds practical itineraries.",
+  "agent.setup.suggestion.tripPlanner.purpose":
+    "Compare travel options and turn my rough ideas into practical, day-by-day itineraries.",
+  "agent.setup.suggestion.personalOrganizer.name": "Personal Organizer",
+  "agent.setup.suggestion.personalOrganizer.description": "Turns notes, errands, and tasks into a simple plan.",
+  "agent.setup.suggestion.personalOrganizer.purpose":
+    "Organize my notes, errands, and loose tasks into clear priorities and simple next steps.",
+  "agent.setup.suggestion.shoppingScout.name": "Shopping Scout",
+  "agent.setup.suggestion.shoppingScout.description": "Compares products, prices, and reviews before I buy.",
+  "agent.setup.suggestion.shoppingScout.purpose":
+    "Compare products, prices, and reviews so I can make practical buying decisions with less research.",
+  "agent.setup.suggestion.writingPartner.name": "Writing Partner",
+  "agent.setup.suggestion.writingPartner.description": "Drafts messages and documents in a natural voice.",
+  "agent.setup.suggestion.writingPartner.purpose":
+    "Help me draft and improve messages and documents while keeping the writing clear and natural.",
+  "agent.setup.suggestion.learningCoach.name": "Learning Coach",
+  "agent.setup.suggestion.learningCoach.description": "Explains difficult topics and builds study plans.",
+  "agent.setup.suggestion.learningCoach.purpose":
+    "Explain difficult topics clearly and build study plans that match my pace and goals.",
   "agent.deleteUndo.title": "{name} deleted",
   "agent.deleteUndo.action": "Undo",
   "agent.hideUndo.title": "{name} is hidden",

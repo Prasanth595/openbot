@@ -18,6 +18,31 @@ export const messages = {
   "agent.setup.creating": "エージェントを作成中…",
   "agent.setup.create": "エージェントを作成",
   "agent.setup.suggestions": "おすすめ",
+  "agent.setup.suggestion.label": "{name}。{description}",
+  "agent.setup.suggestion.inboxHelper.name": "メールアシスタント",
+  "agent.setup.suggestion.inboxHelper.description": "返信の下書きを作り、フォローアップの漏れを防ぎます。",
+  "agent.setup.suggestion.inboxHelper.purpose":
+    "私の文体で分かりやすいメールの返信を下書きし、長いスレッドを要約して、フォローアップを管理してください。",
+  "agent.setup.suggestion.tripPlanner.name": "旅行プランナー",
+  "agent.setup.suggestion.tripPlanner.description": "選択肢を比べて、実用的な旅程を作ります。",
+  "agent.setup.suggestion.tripPlanner.purpose":
+    "旅行の選択肢を比較し、私の大まかなアイデアを実用的な日ごとの旅程にまとめてください。",
+  "agent.setup.suggestion.personalOrganizer.name": "整理アシスタント",
+  "agent.setup.suggestion.personalOrganizer.description": "メモや用事、タスクをシンプルな計画にまとめます。",
+  "agent.setup.suggestion.personalOrganizer.purpose":
+    "メモや用事、細かなタスクを整理して、明確な優先順位とシンプルな次の一歩にまとめてください。",
+  "agent.setup.suggestion.shoppingScout.name": "買い物アドバイザー",
+  "agent.setup.suggestion.shoppingScout.description": "購入前に製品、価格、レビューを比較します。",
+  "agent.setup.suggestion.shoppingScout.purpose":
+    "製品、価格、レビューを比較して、少ない下調べで実用的な購入判断ができるようにしてください。",
+  "agent.setup.suggestion.writingPartner.name": "文章パートナー",
+  "agent.setup.suggestion.writingPartner.description": "メッセージや文書を自然な文体で下書きします。",
+  "agent.setup.suggestion.writingPartner.purpose":
+    "メッセージや文書の下書きと推敲を手伝い、分かりやすく自然な文章にしてください。",
+  "agent.setup.suggestion.learningCoach.name": "学習コーチ",
+  "agent.setup.suggestion.learningCoach.description": "難しいテーマを説明し、学習計画を立てます。",
+  "agent.setup.suggestion.learningCoach.purpose":
+    "難しいテーマを分かりやすく説明し、私のペースと目標に合った学習計画を立ててください。",
   "agent.deleteUndo.title": "{name} を削除しました",
   "agent.deleteUndo.action": "元に戻す",
   "agent.hideUndo.title": "{name} を非表示にしました",

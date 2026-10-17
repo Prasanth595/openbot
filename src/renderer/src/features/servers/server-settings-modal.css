@@ -523,3 +523,25 @@
   justify-content: flex-end;
   gap: var(--openbot-space-1);
 }
+
+/* The feed area before the first read answers. It fades in after a delay, so a fast answer does not flash it. */
+.server-settings-routine-feed-loading {
+  display: grid;
+  place-items: center;
+  padding: var(--openbot-space-6);
+  animation: server-settings-routine-feed-loading-in var(--openbot-duration-normal) var(--openbot-ease-out)
+    var(--openbot-loading-indicator-delay) both;
+}
+
+@keyframes server-settings-routine-feed-loading-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.server-settings-routine-feed-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--openbot-space-2);
+}

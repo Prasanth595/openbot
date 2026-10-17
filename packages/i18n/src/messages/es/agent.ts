@@ -18,6 +18,31 @@ export const messages = {
   "agent.setup.creating": "Creando agente…",
   "agent.setup.create": "Crear agente",
   "agent.setup.suggestions": "Sugerencias",
+  "agent.setup.suggestion.label": "{name}. {description}",
+  "agent.setup.suggestion.inboxHelper.name": "Asistente de correo",
+  "agent.setup.suggestion.inboxHelper.description": "Redacta respuestas y no deja escapar ningún seguimiento.",
+  "agent.setup.suggestion.inboxHelper.purpose":
+    "Redactar respuestas de correo claras con mi estilo, resumir hilos largos y llevar el control de los seguimientos.",
+  "agent.setup.suggestion.tripPlanner.name": "Planificador de viajes",
+  "agent.setup.suggestion.tripPlanner.description": "Compara opciones y crea itinerarios prácticos.",
+  "agent.setup.suggestion.tripPlanner.purpose":
+    "Comparar opciones de viaje y convertir mis ideas generales en itinerarios prácticos día a día.",
+  "agent.setup.suggestion.personalOrganizer.name": "Organizador personal",
+  "agent.setup.suggestion.personalOrganizer.description": "Convierte notas, recados y tareas en un plan sencillo.",
+  "agent.setup.suggestion.personalOrganizer.purpose":
+    "Organizar mis notas, recados y tareas sueltas en prioridades claras y próximos pasos sencillos.",
+  "agent.setup.suggestion.shoppingScout.name": "Asesor de compras",
+  "agent.setup.suggestion.shoppingScout.description": "Compara productos, precios y reseñas antes de comprar.",
+  "agent.setup.suggestion.shoppingScout.purpose":
+    "Comparar productos, precios y reseñas para que pueda decidir mis compras con criterio y menos investigación.",
+  "agent.setup.suggestion.writingPartner.name": "Compañero de escritura",
+  "agent.setup.suggestion.writingPartner.description": "Redacta mensajes y documentos con un tono natural.",
+  "agent.setup.suggestion.writingPartner.purpose":
+    "Ayudarme a redactar y mejorar mensajes y documentos con una escritura clara y natural.",
+  "agent.setup.suggestion.learningCoach.name": "Tutor de estudio",
+  "agent.setup.suggestion.learningCoach.description": "Explica temas difíciles y crea planes de estudio.",
+  "agent.setup.suggestion.learningCoach.purpose":
+    "Explicar con claridad temas difíciles y crear planes de estudio adaptados a mi ritmo y mis objetivos.",
   "agent.deleteUndo.title": "{name} eliminado",
   "agent.deleteUndo.action": "Deshacer",
   "agent.hideUndo.title": "{name} está oculto",

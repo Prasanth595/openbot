@@ -237,6 +237,15 @@ export const messages = {
   "server.routineFeed.regenerate": "Nueva URL",
   "server.routineFeed.regenerateLabel": "Crea una URL nueva. La anterior deja de funcionar.",
   "server.routineFeed.turnOff": "Desactivar",
+  "server.routineFeed.loading": "Cargando la fuente de calendario",
+  "server.routineFeed.regenerateTitle": "¿Crear una URL nueva?",
+  "server.routineFeed.regenerateDescription":
+    "La URL actual deja de funcionar. Los calendarios que la usan dejan de actualizarse hasta que te suscribas de nuevo con la URL nueva.",
+  "server.routineFeed.regenerateConfirm": "Crear URL",
+  "server.routineFeed.turnOffTitle": "¿Desactivar la fuente de calendario?",
+  "server.routineFeed.turnOffDescription":
+    "La URL actual deja de funcionar. Si activas la fuente de nuevo, tendrá una URL nueva.",
+  "server.routineFeed.agentsLoadFailed": "No se pudieron cargar los agentes.",
   "server.settings.nameTooShort": "Introduce al menos {limit} caracteres.",
   "server.settings.nameTooLong": "Usa como máximo {limit} caracteres.",
   "server.settings.actionFailedTitle": "Error en la acción del servidor",

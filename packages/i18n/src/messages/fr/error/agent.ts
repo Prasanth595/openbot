@@ -96,6 +96,10 @@ export const messages = {
   "error.agent.computerUseLocalOnly": "Computer Use ne peut être modifié que sur l’ordinateur qui exécute l’agent.",
   "error.agent.automationLocalOnly":
     "Les scripts locaux ne peuvent être autorisés que sur l’ordinateur qui exécute l’agent.",
+  "error.agent.sideQuestionLocalOnly":
+    "Les questions annexes ne fonctionnent que sur l’ordinateur qui exécute l’agent.",
+  "error.agent.sideQuestionBusy": "Trop de questions annexes sont en cours. Réessayez dans un instant.",
+  "error.agent.sideQuestionFailed": "L’agent n’a pas pu répondre à la question annexe. Réessayez.",
   "error.agent.busyMessageModeLocalOnly":
     "Le comportement des messages pendant le travail de l’agent ne peut être réglé que sur l’ordinateur qui exécute l’agent.",
   "error.agent.backupModelsLocalOnly":

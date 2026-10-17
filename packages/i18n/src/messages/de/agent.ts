@@ -18,6 +18,32 @@ export const messages = {
   "agent.setup.creating": "Agent wird erstellt…",
   "agent.setup.create": "Agenten erstellen",
   "agent.setup.suggestions": "Vorschläge",
+  "agent.setup.suggestion.label": "{name}. {description}",
+  "agent.setup.suggestion.inboxHelper.name": "Postfach-Helfer",
+  "agent.setup.suggestion.inboxHelper.description": "Entwirft Antworten und vergisst keine Follow-ups.",
+  "agent.setup.suggestion.inboxHelper.purpose":
+    "Klare E-Mail-Antworten in meinem Stil entwerfen, lange Verläufe zusammenfassen und Follow-ups im Blick behalten.",
+  "agent.setup.suggestion.tripPlanner.name": "Reiseplaner",
+  "agent.setup.suggestion.tripPlanner.description": "Vergleicht Optionen und erstellt praktische Reisepläne.",
+  "agent.setup.suggestion.tripPlanner.purpose":
+    "Reiseoptionen vergleichen und aus meinen groben Ideen praktische Reisepläne für jeden Tag machen.",
+  "agent.setup.suggestion.personalOrganizer.name": "Alltagsplaner",
+  "agent.setup.suggestion.personalOrganizer.description":
+    "Macht aus Notizen, Besorgungen und Aufgaben einen einfachen Plan.",
+  "agent.setup.suggestion.personalOrganizer.purpose":
+    "Meine Notizen, Besorgungen und losen Aufgaben in klare Prioritäten und einfache nächste Schritte ordnen.",
+  "agent.setup.suggestion.shoppingScout.name": "Einkaufsberater",
+  "agent.setup.suggestion.shoppingScout.description": "Vergleicht Produkte, Preise und Bewertungen vor dem Kauf.",
+  "agent.setup.suggestion.shoppingScout.purpose":
+    "Produkte, Preise und Bewertungen vergleichen, damit ich mit weniger Recherche gute Kaufentscheidungen treffe.",
+  "agent.setup.suggestion.writingPartner.name": "Schreibpartner",
+  "agent.setup.suggestion.writingPartner.description": "Entwirft Nachrichten und Dokumente in natürlichem Ton.",
+  "agent.setup.suggestion.writingPartner.purpose":
+    "Mir helfen, Nachrichten und Dokumente zu entwerfen und zu verbessern, klar und natürlich geschrieben.",
+  "agent.setup.suggestion.learningCoach.name": "Lerncoach",
+  "agent.setup.suggestion.learningCoach.description": "Erklärt schwierige Themen und erstellt Lernpläne.",
+  "agent.setup.suggestion.learningCoach.purpose":
+    "Schwierige Themen klar erklären und Lernpläne erstellen, die zu meinem Tempo und meinen Zielen passen.",
   "agent.deleteUndo.title": "{name} gelöscht",
   "agent.deleteUndo.action": "Rückgängig",
   "agent.hideUndo.title": "{name} ist ausgeblendet",
