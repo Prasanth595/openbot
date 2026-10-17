@@ -1,6 +1,12 @@
 import type { CentralAuthUser } from "@openbot/contracts/ipc";
 import { userInitials } from "@openbot/ui";
-import type { ProfileDay, ProfileStats } from "@openbot/ui/features/settings/profile-stats";
+import {
+  heatLevel,
+  heatmapMonths,
+  heatmapWeeks,
+  type ProfileDay,
+  type ProfileStats,
+} from "@openbot/ui/features/settings/profile-stats";
 import { usageCompact } from "@openbot/ui/features/usage/usage-format";
 import { currentText } from "@openbot/ui/text";
 import { drawLogo, ellipsize, FONT } from "../agent-templates/agent-template-card";
@@ -133,46 +139,37 @@ async function loadPhoto(url: string): Promise<HTMLImageElement | null> {
   }
 }
 
+/** The opacity of each heatmap level; level 0 is the text colour, the others the accent. */
+const LEVEL_ALPHA = [0.07, 0.32, 0.55, 0.78, 1] as const;
+
 /** The last `WEEKS` columns of the year, Sunday at the top, with the month above its first week. */
 function drawWeeks(context: CanvasRenderingContext2D, days: ProfileDay[], colors: ShareColors): void {
   const { format } = currentText();
   const last = days.at(-1);
   const visible = days.slice(-(WEEKS * 7 - (6 - (last?.weekday ?? 6))));
-  const slots: Array<ProfileDay | null> = [...Array.from({ length: visible[0]?.weekday ?? 0 }, () => null), ...visible];
+  const weeks = heatmapWeeks(visible);
   const step = (WIDTH - PAD * 2 + GRID.gap) / WEEKS;
   const cell = step - GRID.gap;
   const max = Math.max(0, ...visible.map((day) => day.tokens));
 
   context.font = `500 20px ${FONT}`;
   context.fillStyle = colors.muted;
-  let previousMonth = "";
-  for (let column = 0; column < WEEKS; column += 1) {
-    const first = slots.slice(column * 7, column * 7 + 7).find((day) => day !== null);
-    if (!first) continue;
-    const month = first.date.slice(0, 7);
-    if (month === previousMonth) continue;
-    previousMonth = month;
-    if (column === 0 && Number(first.date.slice(8)) > 7) continue;
-    const label = format.date(Date.parse(`${first.date}T00:00:00Z`), { month: "short", timeZone: "UTC" });
-    context.fillText(label, PAD + column * step, GRID.top - 14);
+  for (const month of heatmapMonths(weeks)) {
+    const label = format.date(Date.parse(`${month.date}T00:00:00Z`), { month: "short", timeZone: "UTC" });
+    context.fillText(label, PAD + month.week * step, GRID.top - 14);
   }
 
-  slots.forEach((day, index) => {
-    if (!day) return;
-    const x = PAD + Math.floor(index / 7) * step;
-    const y = GRID.top + (index % 7) * step;
-    const ratio = max > 0 ? day.tokens / max : 0;
-    context.beginPath();
-    context.roundRect(x, y, cell, cell, 6);
-    if (ratio <= 0 && day.messages === 0) {
-      context.fillStyle = colors.text;
-      context.globalAlpha = 0.07;
-    } else {
-      context.fillStyle = colors.accent;
-      context.globalAlpha = ratio <= 0.15 ? 0.32 : ratio <= 0.35 ? 0.55 : ratio <= 0.6 ? 0.78 : 1;
-    }
-    context.fill();
-    context.globalAlpha = 1;
+  weeks.forEach((week, column) => {
+    week.forEach((day, row) => {
+      if (!day) return;
+      const level = heatLevel(day, max);
+      context.beginPath();
+      context.roundRect(PAD + column * step, GRID.top + row * step, cell, cell, 6);
+      context.fillStyle = level === 0 ? colors.text : colors.accent;
+      context.globalAlpha = LEVEL_ALPHA[level];
+      context.fill();
+      context.globalAlpha = 1;
+    });
   });
 }
 

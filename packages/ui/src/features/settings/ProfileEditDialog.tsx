@@ -2,22 +2,13 @@ import type { AvatarImageInput, CentralAuthUser } from "@openbot/contracts/ipc";
 import { Button, Dialog, Field, IconButton, ImageRemoveButton, Input, Pencil, Text, UserAvatar, X } from "@openbot/ui";
 import { createSignal, Show } from "solid-js";
 import { useText } from "../../text";
+import { blobDataUrl } from "./ProfileShareDialog";
 import type { SettingsProfileStore } from "./stores/profile-store";
 
 /** A new photo, or `null` to remove the photo. `undefined` keeps the saved photo. */
 interface PhotoDraft {
   image: AvatarImageInput | null;
   url: string | null;
-}
-
-/** The page's content security policy refuses `blob:` images, so the preview is a `data:` URL. */
-function imageDataUrl(image: AvatarImageInput): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(new Blob([image.bytes.slice()], { type: image.mimeType }));
-  });
 }
 
 /**
@@ -62,7 +53,7 @@ function ProfileEditForm(props: { store: SettingsProfileStore; account: CentralA
     setPhotoError(null);
     try {
       const image = await props.store.processAvatarFile(file);
-      setPhoto({ image, url: await imageDataUrl(image) });
+      setPhoto({ image, url: await blobDataUrl(new Blob([image.bytes.slice()], { type: image.mimeType })) });
     } catch (cause) {
       setPhotoError(errorMessage(cause, t("settings.profile.photo.processFailed")));
     } finally {

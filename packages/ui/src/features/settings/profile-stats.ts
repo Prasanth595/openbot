@@ -34,6 +34,44 @@ function active(day: ProfileDay): boolean {
   return day.tokens > 0 || day.messages > 0;
 }
 
+export type HeatLevel = 0 | 1 | 2 | 3 | 4;
+
+/** A day with messages but no reported tokens is still an active day, so it gets the first level. */
+export function heatLevel(day: ProfileDay, max: number): HeatLevel {
+  if (day.tokens <= 0 || max <= 0) return day.messages > 0 ? 1 : 0;
+  const ratio = day.tokens / max;
+  if (ratio <= 0.15) return 1;
+  if (ratio <= 0.35) return 2;
+  if (ratio <= 0.6) return 3;
+  return 4;
+}
+
+/** One column of seven slots for each week, Sunday at the top. A slot outside the days is `null`. */
+export function heatmapWeeks(days: readonly ProfileDay[]): Array<Array<ProfileDay | null>> {
+  const slots: Array<ProfileDay | null> = [...Array.from({ length: days[0]?.weekday ?? 0 }, () => null), ...days];
+  while (slots.length % 7) slots.push(null);
+  const weeks: Array<Array<ProfileDay | null>> = [];
+  for (let index = 0; index < slots.length; index += 7) weeks.push(slots.slice(index, index + 7));
+  return weeks;
+}
+
+/** The week where each month starts, with the first day of the month in that week. */
+export function heatmapMonths(weeks: ReadonlyArray<ReadonlyArray<ProfileDay | null>>) {
+  const months: Array<{ week: number; date: string }> = [];
+  let previous = "";
+  weeks.forEach((week, index) => {
+    const first = week.find((day) => day !== null);
+    if (!first) return;
+    const month = first.date.slice(0, 7);
+    if (month === previous) return;
+    previous = month;
+    // A month that starts late in the first week has no room for its label.
+    if (index === 0 && Number(first.date.slice(8)) > 7) return;
+    months.push({ week: index, date: first.date });
+  });
+  return months;
+}
+
 /**
  * The Profile tab's view of one host report: every day of the range, the streaks, and the
  * rankings. A teammate that was deleted has usage but no row in `agents`, so the ranking skips it.

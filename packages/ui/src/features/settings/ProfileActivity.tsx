@@ -5,7 +5,7 @@ import { useText } from "../../text";
 import { AgentAvatar } from "../agents/AgentAvatar";
 import { UsageProviderMark } from "../usage/UsageProviderMark";
 import { usageCompact, usageCost, usageProviderName, usageSeriesColor } from "../usage/usage-format";
-import type { ProfileDay, ProfileStats } from "./profile-stats";
+import { heatLevel, heatmapMonths, heatmapWeeks, type ProfileDay, type ProfileStats } from "./profile-stats";
 
 export type ProfileActivityPhase = "loading" | "ready" | "error" | "unsupported";
 
@@ -35,47 +35,21 @@ export function useProfileDates() {
   };
 }
 
-type HeatLevel = 0 | 1 | 2 | 3 | 4;
-
-/** A day with messages but no reported tokens is still an active day, so it gets the first level. */
-function heatLevel(day: ProfileDay, max: number): HeatLevel {
-  if (day.tokens <= 0 || max <= 0) return day.messages > 0 ? 1 : 0;
-  const ratio = day.tokens / max;
-  if (ratio <= 0.15) return 1;
-  if (ratio <= 0.35) return 2;
-  if (ratio <= 0.6) return 3;
-  return 4;
-}
-
 /**
  * A year of days: one column for each week, Sunday at the top. A screen reader reads the summary
- * label. A pointer over a day shows its date and tokens in the chart tooltip.
+ * label. A pointer over a day shows its date and tokens in the chart tooltip. The cells stay in
+ * place when a later report arrives, so a reload does not play the entrance again.
  */
 export function ProfileHeatmap(props: { days: ProfileDay[]; label: string }) {
   const { t } = useText();
   const dates = useProfileDates();
   const model = createMemo(() => {
-    const lead = props.days[0]?.weekday ?? 0;
-    const slots: Array<ProfileDay | null> = [...Array.from({ length: lead }, () => null), ...props.days];
-    while (slots.length % 7) slots.push(null);
+    const weeks = heatmapWeeks(props.days);
     const max = Math.max(0, ...props.days.map((day) => day.tokens));
-    const columns: Array<Array<{ day: ProfileDay; level: HeatLevel } | null>> = [];
-    for (let index = 0; index < slots.length; index += 7) {
-      columns.push(slots.slice(index, index + 7).map((day) => (day ? { day, level: heatLevel(day, max) } : null)));
-    }
-    const months: Array<{ column: number; label: string }> = [];
-    let previous = "";
-    columns.forEach((column, index) => {
-      const first = column.find((cell) => cell !== null);
-      if (!first) return;
-      const month = first.day.date.slice(0, 7);
-      if (month === previous) return;
-      previous = month;
-      // A month that starts late in the first column has no room for its label.
-      if (index === 0 && Number(first.day.date.slice(8)) > 7) return;
-      months.push({ column: index, label: dates.month(first.day.date) });
-    });
-    return { columns, months };
+    return {
+      columns: weeks.map((week) => week.map((day) => (day ? { day, level: heatLevel(day, max) } : null))),
+      months: heatmapMonths(weeks).map((month) => ({ column: month.week, label: dates.month(month.date) })),
+    };
   });
   const [hover, setHover] = createSignal<{ day: ProfileDay; x: number; y: number } | null>(null);
   let root: HTMLDivElement | undefined;
@@ -90,22 +64,26 @@ export function ProfileHeatmap(props: { days: ProfileDay[]; label: string }) {
   return (
     <div ref={root} class="profile-heatmap" style={{ "--profile-columns": String(model().columns.length) }}>
       <div class="profile-heatmap-months" aria-hidden="true">
-        <For each={model().months}>
-          {(month) => <span style={{ "grid-column": `${month.column + 1} / span 3` }}>{month.label}</span>}
+        <For each={model().months} keyed={(month) => month.column}>
+          {(month) => <span style={{ "grid-column": `${month().column + 1} / span 3` }}>{month().label}</span>}
         </For>
       </div>
       <div class="profile-heatmap-grid" role="img" aria-label={props.label} onPointerLeave={() => setHover(null)}>
-        <For each={model().columns}>
+        <For each={model().columns} keyed={false}>
           {(column, columnIndex) => (
-            <For each={column}>
+            <For each={column()} keyed={false}>
               {(cell) => (
                 <span
                   class="profile-heat-cell"
-                  style={{ "--profile-col": String(columnIndex()) }}
-                  data-level={cell ? cell.level : undefined}
-                  data-empty={cell ? undefined : ""}
-                  data-active={cell && hover()?.day === cell.day ? "" : undefined}
-                  onPointerEnter={(event) => (cell ? showDay(cell.day, event.currentTarget) : setHover(null))}
+                  style={{ "--profile-col": String(columnIndex) }}
+                  data-level={cell()?.level}
+                  data-empty={cell() ? undefined : ""}
+                  data-active={cell() && hover()?.day.date === cell()?.day.date ? "" : undefined}
+                  onPointerEnter={(event) => {
+                    const current = cell();
+                    if (current) showDay(current.day, event.currentTarget);
+                    else setHover(null);
+                  }}
                 />
               )}
             </For>
@@ -182,15 +160,15 @@ function ProfileTiles(props: { stats: ProfileStats }) {
   });
   return (
     <dl class="profile-tiles">
-      <For each={tiles()}>
+      <For each={tiles()} keyed={(tile) => tile.label}>
         {(tile, index) => (
           <div class="profile-tile" style={{ "--profile-i": String(index()) }}>
-            <dt>{tile.label}</dt>
+            <dt>{tile().label}</dt>
             <dd>
               <strong>
-                <span class="sr-only">{tile.value}</span>
+                <span class="sr-only">{tile().value}</span>
                 <span class="t-digit-group is-animating profile-tile-value" aria-hidden="true">
-                  <For each={[...tile.value]}>
+                  <For each={[...tile().value]}>
                     {(character, characterIndex) => (
                       <span class="t-digit" style={{ "--profile-c": String(characterIndex()) }}>
                         {character}
@@ -199,7 +177,7 @@ function ProfileTiles(props: { stats: ProfileStats }) {
                   </For>
                 </span>
               </strong>
-              <span>{tile.detail}</span>
+              <span>{tile().detail}</span>
             </dd>
           </div>
         )}
@@ -224,6 +202,7 @@ export function ProfileActivity(props: {
 }) {
   const { t } = useText();
   const dates = useProfileDates();
+  const weekdayName = (weekday: number | null) => (weekday === null ? null : dates.weekday(weekday));
   return (
     <>
       <Show when={props.phase === "loading" && !props.stats}>
@@ -291,11 +270,11 @@ export function ProfileActivity(props: {
                         </div>
                       )}
                     </Show>
-                    <Show when={stats().busiestWeekday ?? false}>
+                    <Show when={weekdayName(stats().busiestWeekday)}>
                       {(weekday) => (
                         <div>
                           <dt>{t("settings.profile.insights.weekday")}</dt>
-                          <dd>{dates.weekday(weekday())}</dd>
+                          <dd>{weekday()}</dd>
                         </div>
                       )}
                     </Show>
@@ -310,12 +289,12 @@ export function ProfileActivity(props: {
                 <Show when={stats().teammates.length > 0}>
                   <SettingsSection title={t("settings.profile.teammates.title")}>
                     <ol class="profile-card profile-ranking">
-                      <For each={stats().teammates.slice(0, 4)}>
+                      <For each={stats().teammates.slice(0, 4)} keyed={(row) => row.agent.id}>
                         {(row, index) => (
                           <li style={{ "--profile-i": String(index()) }}>
-                            <AgentAvatar agent={row.agent} class="profile-ranking-avatar" />
-                            <span class="profile-ranking-name">{row.agent.name}</span>
-                            <strong>{usageCompact(row.tokens)}</strong>
+                            <AgentAvatar agent={row().agent} class="profile-ranking-avatar" />
+                            <span class="profile-ranking-name">{row().agent.name}</span>
+                            <strong>{usageCompact(row().tokens)}</strong>
                           </li>
                         )}
                       </For>
@@ -325,22 +304,22 @@ export function ProfileActivity(props: {
               </div>
               <SettingsSection title={t("settings.profile.models.title")}>
                 <ul class="profile-card profile-bars">
-                  <For each={stats().models}>
+                  <For each={stats().models} keyed={(model) => `${model.provider}/${model.model}`}>
                     {(model, index) => (
                       <li style={{ "--profile-i": String(index()) }}>
                         <span class="profile-bar-label">
-                          <UsageProviderMark provider={model.provider} />
-                          <span class="profile-bar-name" title={model.model}>
-                            {model.model}
+                          <UsageProviderMark provider={model().provider} />
+                          <span class="profile-bar-name" title={model().model}>
+                            {model().model}
                           </span>
                         </span>
                         <span class="profile-bar-track" aria-hidden="true">
                           <span
                             class="profile-bar-fill"
-                            style={{ width: percent(model.share), background: usageSeriesColor(model.provider) }}
+                            style={{ width: percent(model().share), background: usageSeriesColor(model().provider) }}
                           />
                         </span>
-                        <span class="profile-bar-value">{percent(model.share)}</span>
+                        <span class="profile-bar-value">{percent(model().share)}</span>
                       </li>
                     )}
                   </For>

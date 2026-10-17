@@ -3,7 +3,7 @@ import { createSignal, onCleanup, Show, untrack } from "solid-js";
 import { useText } from "../../text";
 
 /** The page's content security policy refuses `blob:` images, so the preview is a `data:` URL. */
-function blobDataUrl(blob: Blob): Promise<string> {
+export function blobDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
