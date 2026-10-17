@@ -2843,9 +2843,13 @@ function parseJwks(value: string, keyId: string): RemotePublicJwks {
   return { keys };
 }
 
+/** The private members of a JWK (RFC 7518 section 6). `/.well-known/jwks.json` never publishes them. */
+const PRIVATE_JWK_MEMBERS = new Set(["d", "p", "q", "dp", "dq", "qi", "oth", "k"]);
+
 function parsePublicJwk(value: unknown): RemotePublicJwk {
   if (!isDynamicRecord(value) || !isString(value.kid) || !isString(value.kty)) {
     throw new Error("REMOTE_TICKET_PUBLIC_JWKS is invalid.");
   }
-  return { ...value, kid: value.kid, kty: value.kty };
+  const publicMembers = Object.entries(value).filter(([name]) => !PRIVATE_JWK_MEMBERS.has(name));
+  return { ...Object.fromEntries(publicMembers), kid: value.kid, kty: value.kty };
 }

@@ -175,7 +175,33 @@ async function anInviteEndsWithTheAdminWhoMadeIt() {
   });
 }
 
-const scenarios = [aRemovedMemberCannotRejoinWithAnOldInvite, anInviteEndsWithTheAdminWhoMadeIt];
+async function theJwksNeverPublishesAPrivateKey() {
+  const database = await migratedDatabase();
+  const keys = await ticketKeys();
+  const privateJwk = JSON.parse(keys.REMOTE_TICKET_PRIVATE_JWK);
+  // An operator pastes the private key into the public set by mistake.
+  const remote = new RemoteControlPlane({
+    DB: sqliteD1(database),
+    ...keys,
+    REMOTE_TICKET_PUBLIC_JWKS: JSON.stringify({ keys: [privateJwk] }),
+  });
+  const published = remote.publicJwks().keys;
+  const leaked = published.flatMap((key) =>
+    ["d", "p", "q", "dp", "dq", "qi", "oth", "k"].filter((name) => name in key),
+  );
+  check("the JWKS does not publish the private members of a key", leaked.length === 0, { leaked });
+  const [key] = published;
+  check(
+    "the JWKS keeps the public members of the key",
+    key?.kid === "ticket-1" && key.kty === "EC" && key.x === privateJwk.x && key.y === privateJwk.y,
+  );
+}
+
+const scenarios = [
+  aRemovedMemberCannotRejoinWithAnOldInvite,
+  anInviteEndsWithTheAdminWhoMadeIt,
+  theJwksNeverPublishesAPrivateKey,
+];
 for (const scenario of scenarios) {
   try {
     await scenario();
