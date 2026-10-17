@@ -151,6 +151,17 @@ export const messages = {
     "Mach aus diesen Stichpunkten eine strukturierte Besprechungsnotiz in meinem Teambereich.",
   "marketplace.plugin.notion.prompt.updateDoc":
     "Aktualisiere das Onboarding-Dokument mit der neuen Release-Checkliste.",
+  "marketplace.plugin.cobrain.tagline": "Gemeinsames Gedächtnis für deine KI-Agenten",
+  "marketplace.plugin.cobrain.description":
+    "Cobrain ist ein Markdown-Gedächtnis, das jede verbundene KI lesen und beschreiben kann. Agenten laden vor der Arbeit den Kontext eines Kunden oder Projekts, durchsuchen frühere Notizen und Entscheidungen und speichern, was sie lernen, damit die nächste Unterhaltung dort beginnt, wo die letzte endete. Jeder Nutzer meldet sich bei seinem eigenen Cobrain-Konto an.",
+  "marketplace.plugin.cobrain.app":
+    "Notizen in deinem Cobrain-Gehirn lesen, durchsuchen und schreiben, über einen MCP-Server.",
+  "marketplace.plugin.cobrain.prompt.startSession":
+    "Lade meinen Cobrain-Kontext für dieses Projekt, bevor wir anfangen.",
+  "marketplace.plugin.cobrain.prompt.searchDecision":
+    "Durchsuche meine Cobrain-Notizen danach, was wir zu den Preisen entschieden haben.",
+  "marketplace.plugin.cobrain.prompt.saveNote":
+    "Speichere in Cobrain eine Notiz mit dem, was wir heute erledigt haben und was noch offen ist.",
   "marketplace.plugin.figma.tagline": "Designs und Prototypen",
   "marketplace.plugin.figma.description":
     "Mit Figma lesen Agenten Designdateien, prüfen Komponenten, Stile und Variablen und übergeben Produktionsspezifikationen an Entwickler. Es verbindet sich mit dem MCP-Server in der Figma-Desktop-App auf diesem Computer. Der Server kann Designs nur lesen; Schreibunterstützung ist in Arbeit.",
@@ -255,6 +266,14 @@ export const messages = {
     "Fasse meine ungelesenen E-Mails zusammen und entwirf Antworten auf die dringenden.",
   "marketplace.plugin.composio.prompt.handoff": "Poste eine Zusammenfassung dieses Pull Requests in unseren Teamkanal.",
   "marketplace.plugin.composio.prompt.apps": "Welche Apps und Aktionen kannst du über Composio nutzen?",
+  "marketplace.plugin.composio.hint.url": "Die URL eines MCP-Servers in deinem Composio-Konto",
+  "marketplace.plugin.composio.hint.apiKey":
+    "Nur wenn dein Server einen verlangt. Du findest ihn in den Einstellungen deines Composio-Kontos.",
+  "marketplace.auth.apiKey": "API-Schlüssel",
+  "marketplace.auth.personalApiKey": "Persönlicher API-Schlüssel",
+  "marketplace.auth.mcpUrl": "MCP-URL",
+  "marketplace.auth.createKey": "Schlüssel erstellen",
+  "marketplace.auth.createServer": "Server erstellen",
   "marketplace.skill.installMenu.install": "Installieren",
   "marketplace.skill.installMenu.installNamed": "{name} installieren",
   "marketplace.skill.installMenu.allAgents": "Alle Agenten",

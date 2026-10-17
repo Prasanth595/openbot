@@ -144,6 +144,15 @@ export const messages = {
   "marketplace.plugin.notion.prompt.meetingNotes": "この箇条書きを、チームスペースの構造化された議事録にしてください。",
   "marketplace.plugin.notion.prompt.updateDoc":
     "オンボーディングのドキュメントを新しいリリースチェックリストで更新してください。",
+  "marketplace.plugin.cobrain.tagline": "AI エージェントの共有メモリー",
+  "marketplace.plugin.cobrain.description":
+    "Cobrain は、接続したすべての AI が読み書きできる Markdown のメモリーです。エージェントは作業の前にクライアントやプロジェクトのコンテキストを読み込み、過去のメモや決定事項を検索し、学んだことを保存します。そのため、次の会話は前回の続きから始まります。各ユーザーは自分の Cobrain アカウントにサインインします。",
+  "marketplace.plugin.cobrain.app": "1 つの MCP サーバーで、Cobrain のメモを読み取り、検索し、書き込みます。",
+  "marketplace.plugin.cobrain.prompt.startSession":
+    "始める前に、このプロジェクトの Cobrain コンテキストを読み込んでください。",
+  "marketplace.plugin.cobrain.prompt.searchDecision": "価格について決めたことを Cobrain のメモから探してください。",
+  "marketplace.plugin.cobrain.prompt.saveNote":
+    "今日やったことと残っていることを Cobrain にメモとして保存してください。",
   "marketplace.plugin.figma.tagline": "デザインとプロトタイプ",
   "marketplace.plugin.figma.description":
     "Figma を使うと、エージェントはデザインファイルを読み取り、コンポーネント、スタイル、変数を調べ、本番用の仕様をエンジニアに渡せます。このコンピューターの Figma デスクトップアプリにある MCP サーバーに接続します。サーバーはデザインの読み取りのみ可能で、書き込みには現在対応中です。",
@@ -246,6 +255,13 @@ export const messages = {
   "marketplace.plugin.composio.prompt.inbox": "未読メールをまとめて、急ぎのものに返信の下書きを作成してください。",
   "marketplace.plugin.composio.prompt.handoff": "このプルリクエストの概要をチームのチャンネルに投稿してください。",
   "marketplace.plugin.composio.prompt.apps": "Composio で使えるアプリと操作はどれですか？",
+  "marketplace.plugin.composio.hint.url": "Composio アカウントにある MCP サーバーの URL",
+  "marketplace.plugin.composio.hint.apiKey": "サーバーで必要な場合のみ。Composio のアカウント設定で確認できます。",
+  "marketplace.auth.apiKey": "API キー",
+  "marketplace.auth.personalApiKey": "個人用 API キー",
+  "marketplace.auth.mcpUrl": "MCP URL",
+  "marketplace.auth.createKey": "キーを作成",
+  "marketplace.auth.createServer": "サーバーを作成",
 
   "marketplace.skill.installMenu.install": "インストール",
   "marketplace.skill.installMenu.installNamed": "{name} をインストール",

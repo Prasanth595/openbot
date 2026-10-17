@@ -314,7 +314,12 @@ export interface AuthRepository {
     device: MobileAuthDeviceIdentity;
   }): Effect.Effect<MobileAuthSessionResult | null, AuthStoreError>;
   authenticateMobileSession(sessionToken: string, now: number): Effect.Effect<AuthUser | null, AuthStoreError>;
-  listMobileAuthDevices(userId: string, now: number): Effect.Effect<MobileAuthDevice[], AuthStoreError>;
+  /** With a host, only the phones that can open it: none when the host is not in the account directory. */
+  listMobileAuthDevices(
+    userId: string,
+    now: number,
+    hostId: string | null,
+  ): Effect.Effect<MobileAuthDevice[], AuthStoreError>;
   revokeMobileAuthDevice(userId: string, sessionId: string, now: number): Effect.Effect<boolean, AuthStoreError>;
   /** Creates the user of the email when there is none. */
   createServerClaim(input: {

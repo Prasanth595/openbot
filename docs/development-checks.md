@@ -183,8 +183,9 @@ where it checks the machine that builds the release.
 
 `bun run knip:check` fails on unused files, unused exports and exported types, unused or unlisted
 dependencies, unresolved imports and unlisted binaries in every workspace. It takes about 6 seconds. `knip.config.ts` names the entry
-points that knip cannot find by itself: the electron-vite inputs, the modules that the renderer HTML
-pages load, the Metro shims, and every command in `scripts/`. Each ignore entry states its reason.
+points that knip cannot find by itself: the Metro shims and stylesheet, and every command in
+`scripts/`. Its electron-vite and wrangler plugins find the electron-vite inputs, the modules that
+the renderer HTML pages load, and the Worker entries. Each ignore entry states its reason.
 Stylesheets go through a small compiler so that `@import "<package>"` counts as a use. The frozen
 Team API protocol files (`packages/contracts/src/team-protocol/v*.ts` and `*-v*.ts`) are exempt
 from the export checks: a released codec keeps its full API. When knip names an unused export,

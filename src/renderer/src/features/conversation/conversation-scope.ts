@@ -619,6 +619,7 @@ export function createConversationViewScope(props: ConversationProps) {
     copiedMessageId,
     setCopiedMessageId,
     setComposerError: setScopedComposerError,
+    setComposerFocusRequest,
   });
   const { replyToMessage, reactToMessage, copyMessage, removeAttachment } = messageActions;
   const settings = createSettingsStore({
@@ -639,7 +640,7 @@ export function createConversationViewScope(props: ConversationProps) {
   let scrollElement: HTMLDivElement | undefined;
   let virtualRoot: HTMLDivElement | undefined;
   let agentActivitySlot: HTMLDivElement | undefined;
-  let requiredInteractionElement: HTMLDivElement | undefined;
+  let requiredInteractionElement: HTMLElement | undefined;
   let scrollResizeObserver: ResizeObserver | undefined;
   let unreadMessagesDivider: HTMLDivElement | undefined;
   let latestScrollFrame: number | undefined;
@@ -1227,7 +1228,7 @@ export function createConversationViewScope(props: ConversationProps) {
     agentActivitySlot = element;
     scrollResizeObserver?.observe(element);
   };
-  const setRequiredInteractionElement = (element: HTMLDivElement | undefined) => {
+  const setRequiredInteractionElement = (element: HTMLElement | undefined) => {
     if (requiredInteractionElement) scrollResizeObserver?.unobserve(requiredInteractionElement);
     requiredInteractionElement = element;
     if (element) scrollResizeObserver?.observe(element);

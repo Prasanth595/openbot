@@ -1101,3 +1101,9 @@ html:active-view-transition-type(open)::view-transition-new(*) {
     stroke-dashoffset: -1.2;
   }
 }
+
+/* The read error reuses the sign-in screen; its one secondary action sits under the primary button. */
+.setup-read-error-actions {
+  justify-content: center;
+  margin-top: var(--openbot-space-3);
+}

@@ -237,6 +237,15 @@ export const messages = {
   "server.routineFeed.regenerate": "Nowy URL",
   "server.routineFeed.regenerateLabel": "Utwórz nowy URL. Stary URL przestanie działać.",
   "server.routineFeed.turnOff": "Wyłącz",
+  "server.routineFeed.loading": "Wczytywanie subskrypcji kalendarza",
+  "server.routineFeed.regenerateTitle": "Utworzyć nowy URL?",
+  "server.routineFeed.regenerateDescription":
+    "Obecny URL przestanie działać. Kalendarze, które go używają, przestaną się aktualizować, dopóki nie zasubskrybujesz nowego URL.",
+  "server.routineFeed.regenerateConfirm": "Utwórz URL",
+  "server.routineFeed.turnOffTitle": "Wyłączyć subskrypcję kalendarza?",
+  "server.routineFeed.turnOffDescription":
+    "Obecny URL przestanie działać. Jeśli ponownie włączysz subskrypcję, otrzyma nowy URL.",
+  "server.routineFeed.agentsLoadFailed": "Nie udało się wczytać agentów.",
   "server.settings.nameTooShort": "Minimalna liczba znaków: {limit}.",
   "server.settings.nameTooLong": "Maksymalna liczba znaków: {limit}.",
   "server.settings.actionFailedTitle": "Działanie serwera nie powiodło się",

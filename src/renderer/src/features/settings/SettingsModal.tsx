@@ -12,11 +12,19 @@ import type {
   ServerSummary,
   UpdateStatus,
 } from "@openbot/contracts/ipc";
-import { Tabs } from "@openbot/ui";
+import {
+  Alert,
+  AlertActions,
+  AlertContent,
+  AlertDescription,
+  AlertIcon,
+  Button,
+  Tabs,
+  TriangleAlert,
+} from "@openbot/ui";
 import { BillingPanel } from "@openbot/ui/features/billing/BillingPanel";
 import { createBillingStore } from "@openbot/ui/features/billing/billing-store";
 import type { GeneralSettingsValue } from "@openbot/ui/features/settings/app-settings";
-import { ProfileNameSaveBar } from "@openbot/ui/features/settings/ProfileNameSaveBar";
 import { SettingsDialogShell, type SettingsPagePlacement } from "@openbot/ui/features/settings/SettingsDialogShell";
 import { SettingsMobileConnectTab } from "@openbot/ui/features/settings/SettingsMobileConnectTab";
 import { SettingsProfileTab } from "@openbot/ui/features/settings/SettingsProfileTab";
@@ -29,17 +37,23 @@ import { createEffect, createSignal, Show, untrack } from "solid-js";
 import { useI18n } from "../../i18n-context";
 import { ComputerUseSetup } from "../computer-use/ComputerUseSetup";
 import { voiceSupported } from "../conversation/voice-status";
+import { createProfileActivityStore } from "./profile-activity-store";
+import { renderProfileShareImage } from "./profile-share-image";
 import { SettingsDynamicIslandTab } from "./SettingsDynamicIslandTab";
 import { SettingsGeneralTab } from "./SettingsGeneralTab";
 import { SettingsNotificationsTab } from "./SettingsNotificationsTab";
 import { SettingsVoiceTab } from "./SettingsVoiceTab";
-import { navItem, navItems, type SettingsTab } from "./settings-tabs";
+import { navItem, navItems, type SettingsTab, settingsTabShown } from "./settings-tabs";
 import { createSettingsVoiceStore } from "./settings-voice-store";
 
 export interface SettingsModalProps {
   open: boolean;
   value: GeneralSettingsValue;
   onValueChange: (value: GeneralSettingsValue) => void;
+  /** True when the saved preferences could not be read, so the rows show default values. */
+  preferencesLoadFailed?: boolean;
+  /** Reads the saved preferences again. */
+  onRetryPreferencesLoad?: () => void;
   appInfo: AppInfo | null;
   /** The built-in display's notch, null when it has none, or undefined before main answers. */
   builtInDisplayGeometry?: DynamicIslandGeometry | undefined;
@@ -85,12 +99,11 @@ export interface SettingsModalProps {
 }
 
 /**
- * The dialog shell: the tab list, the header, the footer save bar, and one delegation per panel.
+ * The dialog shell: the tab list, the header, and one delegation per panel.
  *
  * Every panel's state is a store created here rather than inside its tab, because Kobalte unmounts
  * an unselected `Tabs.Content` when the dialog closes. A list owned by the tab would lose the rows
- * it is showing while it refetches on reopen, and the footer below could not read the profile
- * draft while another tab is selected.
+ * it is showing while it refetches on reopen.
  */
 export function SettingsModal(props: SettingsModalProps) {
   const i18n = useI18n();
@@ -99,6 +112,10 @@ export function SettingsModal(props: SettingsModalProps) {
   );
   let modalElement: HTMLElement | undefined;
   const profile = createSettingsProfileStore(props, () => activeTab() === "profile");
+  const profileActivity = createProfileActivityStore(
+    () => props.open && activeTab() === "profile",
+    (stats) => renderProfileShareImage(props.account, stats),
+  );
   const mobileConnect = createSettingsMobileConnectStore(props, () => activeTab() === "mobile-connect");
   const updates = createSettingsUpdatesStore(props);
   const billing = createBillingStore(
@@ -130,13 +147,7 @@ export function SettingsModal(props: SettingsModalProps) {
       if (tab) setActiveTab(tab);
     },
   );
-  const visibleNavItems = () =>
-    navItems.filter(
-      (item) =>
-        (item.value !== "dynamic-island" || isMac()) &&
-        (item.value !== "voice" || hasVoice()) &&
-        item.value !== "hosted-servers",
-    );
+  const visibleNavItems = () => navItems.filter((item) => settingsTabShown(item.value, props.appInfo?.platform));
 
   const title = () => i18n.t(navItem(activeTab()).titleKey);
   const description = () => i18n.t(navItem(activeTab()).descriptionKey);
@@ -164,6 +175,29 @@ export function SettingsModal(props: SettingsModalProps) {
     activationMode: "automatic" as const,
   };
 
+  /** Shown above the rows that the preference read fills, while those rows show default values. */
+  const preferencesLoadError = () => (
+    <Show when={props.preferencesLoadFailed}>
+      <Alert tone="danger" role="alert" report={{ operation: "settings", source: "system", cause_code: "unknown" }}>
+        <AlertIcon>
+          <TriangleAlert aria-hidden="true" />
+        </AlertIcon>
+        <AlertContent>
+          <AlertDescription>{i18n.t("settings.preferences.loadFailed")}</AlertDescription>
+        </AlertContent>
+        <Show when={props.onRetryPreferencesLoad}>
+          {(retry) => (
+            <AlertActions>
+              <Button type="button" variant="outline" size="sm" onClick={() => retry()()}>
+                {i18n.t("common.retry")}
+              </Button>
+            </AlertActions>
+          )}
+        </Show>
+      </Alert>
+    </Show>
+  );
+
   function updateSetting<Key extends keyof GeneralSettingsValue>(key: Key, value: GeneralSettingsValue[Key]): void {
     props.onValueChange({ ...props.value, [key]: value });
   }
@@ -183,7 +217,6 @@ export function SettingsModal(props: SettingsModalProps) {
         contentKey={activeTab()}
         restoreFocusTarget={props.restoreFocusTarget}
         onContentElement={(element) => (modalElement = element)}
-        footer={<ProfileNameSaveBar store={profile} />}
         sidebar={
           <Tabs.List class="settings-modal-nav" aria-label={i18n.t("settings.sections.label")}>
             {visibleNavItems().map((item) => {
@@ -203,6 +236,7 @@ export function SettingsModal(props: SettingsModalProps) {
         }
       >
         <Tabs.Content value="general" class="settings-modal-tab-panel" data-tab="general">
+          {preferencesLoadError()}
           <SettingsGeneralTab
             value={props.value}
             variant={props.appInfo?.variant ?? "production"}
@@ -214,6 +248,7 @@ export function SettingsModal(props: SettingsModalProps) {
         </Tabs.Content>
 
         <Tabs.Content value="notifications" class="settings-modal-tab-panel" data-tab="notifications">
+          {preferencesLoadError()}
           <SettingsNotificationsTab
             value={props.value}
             onUpdateSetting={updateSetting}
@@ -235,6 +270,7 @@ export function SettingsModal(props: SettingsModalProps) {
 
         <Show when={isMac()}>
           <Tabs.Content value="dynamic-island" class="settings-modal-tab-panel" data-tab="dynamic-island">
+            {preferencesLoadError()}
             <SettingsDynamicIslandTab
               value={props.value}
               variant={props.appInfo?.variant ?? "production"}
@@ -250,10 +286,11 @@ export function SettingsModal(props: SettingsModalProps) {
           <ComputerUseSetup variant="settings" />
         </Tabs.Content>
 
-        <Tabs.Content value="profile" class="settings-modal-tab-panel" data-tab="profile">
+        <Tabs.Content value="profile" class="settings-modal-tab-panel profile-panel" data-tab="profile">
           <SettingsProfileTab
             store={profile}
             account={props.account}
+            activity={profileActivity}
             canListSessions={Boolean(props.onListAccountSessions)}
             canRevokeSession={Boolean(props.onRevokeAccountSession)}
             onSignOut={props.onSignOut}
@@ -280,6 +317,7 @@ export function SettingsModal(props: SettingsModalProps) {
         </Tabs.Content>
 
         <Tabs.Content value="updates" class="settings-modal-tab-panel" data-tab="updates">
+          {preferencesLoadError()}
           <SettingsUpdatesTab
             store={updates}
             onOpenWhatsNew={props.onOpenWhatsNew}

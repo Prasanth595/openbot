@@ -1,17 +1,32 @@
 import { AppLogo } from "@openbot/brand";
 import { readFirstTouch } from "@openbot/contracts/first-touch";
+import { isDynamicRecord } from "@openbot/contracts/runtime-values";
 import { createFileRoute } from "@tanstack/solid-router";
-import { onSettled } from "solid-js";
+import { onSettled, Show } from "solid-js";
+import { billingReturnText } from "../../components/transactional/page-text";
+import { TransactionalPage } from "../../components/transactional/TransactionalPage";
+import { loadPageText } from "../../lib/page-text";
 
 /** The page that Stripe Checkout and the Customer Portal open when a desktop user goes back. */
 export const Route = createFileRoute("/billing/return")({
-  head: () => ({
-    meta: [{ title: "OpenBot billing" }, { name: "robots", content: "noindex, nofollow, noarchive" }],
-  }),
   headers: () => ({
     "Cache-Control": "no-store",
     "Referrer-Policy": "no-referrer",
     "X-Robots-Tag": "noindex, nofollow, noarchive",
+  }),
+  // A cancelled Checkout comes back with `cancelled=1`, and the router reads a number from the query.
+  // The router also validates the search that it wrote, so `true` must stay true. A page that was
+  // not cancelled keeps the key out of its URL.
+  validateSearch: (value): { cancelled?: true } =>
+    isDynamicRecord(value) && (value.cancelled === 1 || value.cancelled === "1" || value.cancelled === true)
+      ? { cancelled: true }
+      : {},
+  loader: ({ context }) => loadPageText(context.locale, billingReturnText),
+  head: ({ loaderData }) => ({
+    meta: [
+      ...(loaderData ? [{ title: loaderData.text.pageTitle }] : []),
+      { name: "robots", content: "noindex, nofollow, noarchive" },
+    ],
   }),
   component: BillingReturn,
 });
@@ -41,14 +56,25 @@ function sendCheckoutAttribution(): void {
 }
 
 function BillingReturn() {
+  const search = Route.useSearch();
+  const page = Route.useLoaderData();
+  const text = () => page().text;
   onSettled(() => sendCheckoutAttribution());
   return (
-    <main class="join-page">
-      <section class="join-card" aria-labelledby="billing-return-title">
-        <AppLogo variant="production" class="join-card-logo" />
-        <h1 id="billing-return-title">Billing updated</h1>
-        <p class="join-card-copy">Go back to OpenBot. You can close this page.</p>
-      </section>
-    </main>
+    <TransactionalPage titleId="billing-return-title" lang={page().lang}>
+      <AppLogo variant="production" class="join-card-logo" />
+      <Show
+        when={search().cancelled}
+        fallback={
+          <>
+            <h1 id="billing-return-title">{text().updatedTitle}</h1>
+            <p class="join-card-copy">{text().updatedBody}</p>
+          </>
+        }
+      >
+        <h1 id="billing-return-title">{text().cancelledTitle}</h1>
+        <p class="join-card-copy">{text().cancelledBody}</p>
+      </Show>
+    </TransactionalPage>
   );
 }

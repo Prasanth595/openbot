@@ -480,6 +480,8 @@ is not included in analytics; provider output uses the application's secret reda
   system's secret storage in the same way as provider API keys. One record per server address holds
   the client registration and the access and refresh tokens. Removing the server in settings, or
   choosing Sign out on it, deletes its record. These values are redacted from logs, exports and diagnostics.
+  The port and secret of the local MCP sign-in server are kept in
+  `~/Library/Application Support/OpenBot/openbot-mcp-oauth-proxy-v1.json`, encrypted in the same way.
 - The GitHub connection (Server settings > Connectors) is kept in
   `~/Library/Application Support/OpenBot/openbot-github-connector-v1.json`, encrypted by the operating
   system's secret storage. It holds the GitHub access and refresh tokens, the account name, ID and
@@ -576,10 +578,13 @@ Network traffic can also occur when:
 - a locally installed Codex plugin connects to its service;
 - an MCP server the user enabled is reached at its own address, and, when that server asks for a
   sign-in, OpenBot connects to the server's authorization service to register itself, to exchange
-  the grant the browser returns, and to renew the token. Nothing about the user's agents,
-  conversations or files is sent in those requests. The registration names OpenBot's logo at
-  `openbot.run`; an authorization service that shows it on its sign-in page can make the browser
-  load it from `openbot.run`;
+  the grant the browser returns, and to renew the token. When the user signs out of the server or
+  removes it, OpenBot sends the tokens it deleted to that same service once, to revoke them.
+  Agents reach a server that OpenBot signed in to through a local server on `127.0.0.1`, which adds
+  the token to each call, so the token does not go to the agent's process.
+  Nothing about the user's agents, conversations or files is sent in those requests. The
+  registration names OpenBot's logo at `openbot.run`; an authorization service that shows it on its
+  sign-in page can make the browser load it from `openbot.run`;
 - the user presses Install on the 1Password page. OpenBot downloads the 1Password CLI release that it
   pins from `cache.agilebits.com`, checks its SHA-256, and keeps it in
   `~/Library/Application Support/OpenBot/provider-state/1password-cli`. The request carries no user

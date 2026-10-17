@@ -2,15 +2,6 @@
  * join-server-dialog.css, but scrolls instead of paging: the repeatable model and header lists have
  * no fixed height. */
 
-.custom-provider-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: var(--openbot-layer-dialog);
-  display: grid;
-  place-items: center;
-  padding: var(--openbot-space-6);
-}
-
 .custom-provider-dialog {
   display: flex;
   width: min(460px, 100%);

@@ -55,8 +55,8 @@ import {
   agentMcpServers,
   claudeMcpServers,
   computerUseParam,
-  type McpAuthorizationSource,
   type McpDropReporter,
+  type McpEndpointSource,
   type McpServerSource,
   type McpToolRuntimeSource,
   usableMcpServers,
@@ -151,7 +151,8 @@ interface ThreadRuntime {
   contextRequest: number;
   compacting: boolean;
   config: ThreadConfig;
-  appliedEffort?: string;
+  /** The effort the `claude` process runs with; undefined when the model takes no effort setting. */
+  appliedEffort: string | undefined;
   input: AsyncMessageQueue;
   query: ClaudeQuery;
   activeTurn: ActiveTurn | null;
@@ -231,7 +232,7 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
   readonly #mcpServers: McpServerSource;
   readonly #reportMcpDrops: McpDropReporter | undefined;
   readonly #mcpToolRuntimes: McpToolRuntimeSource | undefined;
-  readonly #mcpAuthorization: McpAuthorizationSource | undefined;
+  readonly #mcpEndpoint: McpEndpointSource | undefined;
   /** Where a Workspace only query keeps its skill plugin. Without it, such a query has no workspace skills. */
   readonly #stateDirectory: string | undefined;
   /** Read at each session start, so a GitHub connection made while OpenBot runs reaches the next session. */
@@ -273,7 +274,7 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
     mcpServers: McpServerSource = () => [],
     reportMcpDrops?: McpDropReporter,
     mcpToolRuntimes?: McpToolRuntimeSource,
-    mcpAuthorization?: McpAuthorizationSource,
+    mcpEndpoint?: McpEndpointSource,
     stateDirectory?: string,
     agentEnvironment?: (inherited?: NodeJS.ProcessEnv) => Readonly<Record<string, string>>,
     historyIndexDirectory?: string,
@@ -286,7 +287,7 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
     this.#mcpServers = mcpServers;
     this.#reportMcpDrops = reportMcpDrops;
     this.#mcpToolRuntimes = mcpToolRuntimes;
-    this.#mcpAuthorization = mcpAuthorization;
+    this.#mcpEndpoint = mcpEndpoint;
     this.#stateDirectory = stateDirectory;
     this.#agentEnvironment = agentEnvironment;
     const historyEnvironment = agentEnvironment?.();
@@ -721,7 +722,7 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
           yield* usableMcpServers(
             agentMcpServers(this.#mcpServers(), config.computerUse),
             this.#mcpToolRuntimes?.(),
-            this.#mcpAuthorization,
+            this.#mcpEndpoint,
           ).pipe(toProviderClientOperationError),
         );
     const stateDirectory = this.#stateDirectory;
@@ -1829,10 +1830,12 @@ function readThreadConfig(params: unknown): ThreadConfig {
       ? params.runtimeWorkspaceRoots.filter((value): value is string => isString(value))
       : [];
   const cwd = requiredString(params, "cwd");
+  const model = getString(params, "model");
+  const effort = getString(params, "effort");
   return {
     cwd,
-    model: getString(params, "model") ?? undefined,
-    effort: getString(params, "effort") ?? undefined,
+    ...(model === null ? {} : { model }),
+    ...(effort === null ? {} : { effort }),
     developerInstructions: getString(params, "developerInstructions") ?? "",
     additionalDirectories: [...new Set([cwd, ...roots])],
     persistSession: !isRecord(params) || params.persistSession !== false,

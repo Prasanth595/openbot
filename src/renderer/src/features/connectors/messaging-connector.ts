@@ -11,6 +11,7 @@ import type {
   WorkspacePlatform,
 } from "@openbot/ui/features/settings/SlackIntegrationPanel";
 import type { TelegramChatPlace } from "@openbot/ui/features/settings/TelegramIntegrationPanel";
+import { currentText } from "@openbot/ui/text";
 import { createSignal, untrack } from "solid-js";
 import { type ConnectorController, createConnectorActions } from "./connector-controller";
 
@@ -107,26 +108,44 @@ export function createMessagingConnector(
   api: MessagingApi,
   options: MessagingConnectorOptions,
 ): ConnectorController {
-  const [loaded, setLoaded] = createSignal<{ serverId: string | undefined; overview: MessagingOverview } | null>(null);
+  /**
+   * The last read of one server's connections. A failed read keeps the overview of an earlier read of
+   * the same server, and `error` says why it failed. With no overview, the state is not known.
+   */
+  const [loaded, setLoaded] = createSignal<{
+    serverId: string | undefined;
+    overview: MessagingOverview | null;
+    error: string | null;
+  } | null>(null);
   // Another server's connections are not shown, also when this server's read fails.
-  const overview = () => {
-    const current = loaded();
-    return current && current.serverId === options.serverId?.() ? current.overview : null;
+  const current = () => {
+    const last = loaded();
+    return last && last.serverId === options.serverId?.() ? last : null;
   };
+  const overview = () => current()?.overview ?? null;
   const actions = createConnectorActions(ACTION_FAILED[platform]);
   /** Each read replaces the one before it, so a slow answer never overwrites a newer one. */
   let reads = 0;
 
-  // A failed read keeps the last overview. The next poll or action reads again.
+  // The page shows a failed read with Retry. The next poll or action also reads again.
   const reload = () => {
     const read = ++reads;
     const serverId = untrack(() => options.serverId?.());
     void api
       .overview(platform)
       .then((next) => {
-        if (!actions.disposed() && read === reads) setLoaded({ serverId, overview: next });
+        if (!actions.disposed() && read === reads) setLoaded({ serverId, overview: next, error: null });
       })
-      .catch(() => undefined);
+      .catch((error: unknown) => {
+        if (actions.disposed() || read !== reads) return;
+        const { t, errorMessage } = currentText();
+        const last = untrack(loaded);
+        setLoaded({
+          serverId,
+          overview: last && last.serverId === serverId ? last.overview : null,
+          error: errorMessage(error, t("connector.readFailed")),
+        });
+      });
   };
   const run = (action: () => Promise<unknown>) => actions.run(action, { settled: reload });
   const addOrchestrator = (target: MessagingOrchestratorTarget, choice: SlackOrchestratorChoice | null) =>
@@ -141,7 +160,7 @@ export function createMessagingConnector(
     setEnabled: (workspaceId: string, enabled: boolean) => run(() => api.setEnabled(platform, workspaceId, enabled)),
   };
   const base = {
-    ready: () => overview() !== null,
+    ready: () => current() !== null,
     available: () => true,
     busy: actions.busy,
     reload,
@@ -174,6 +193,10 @@ export function createMessagingConnector(
           get hostName() {
             return options.hostName?.();
           },
+          get loadError() {
+            return current()?.error ?? null;
+          },
+          onRetry: reload,
           onConnectChat: (place) =>
             new Promise<boolean>((resolve) => {
               let opened = false;
@@ -219,6 +242,10 @@ export function createMessagingConnector(
         get hostName() {
           return options.hostName?.();
         },
+        get loadError() {
+          return current()?.error ?? null;
+        },
+        onRetry: reload,
         onConnectWorkspace: connect,
         onDisconnectWorkspace: shared.disconnect,
         onReconnect: shared.reconnect,

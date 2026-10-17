@@ -63,5 +63,6 @@ export const messages = {
   "update.whatsNew.empty.body":
     "Ta wersja nie ma tu informacji do pokazania. Pełna lista zmian pokazuje wszystkie zmiany.",
   "update.whatsNew.changelog": "Pełna lista zmian",
+  "update.whatsNew.changelogFailed": "Nie udało się otworzyć listy zmian.",
   "update.whatsNew.done": "Rozumiem",
 } as const satisfies PartialTranslation<typeof source>;

@@ -46,13 +46,7 @@ export function McpSignInDialog(props: McpSignInDialogProps) {
       onSubmit={() => void attempt(async () => props.subject.config)}
       action={
         <Show when={!page()}>
-          <Button
-            class="mcp-connect-primary"
-            type="submit"
-            loading={busy()}
-            loadingLabel={t("mcp.signIn.waiting")}
-            disabled={busy()}
-          >
+          <Button class="mcp-connect-primary" type="submit" loading={busy()} loadingLabel={t("mcp.signIn.waiting")}>
             {state.phase === "failed" ? t("common.tryAgain") : t("mcp.signIn.continue", { name: props.subject.name })}
             {/* A joined server's page opens in this dialog, not in another app. */}
             <Show when={state.phase !== "failed" && !props.hostName}>

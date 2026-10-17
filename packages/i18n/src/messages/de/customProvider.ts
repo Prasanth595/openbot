@@ -4,14 +4,20 @@ import type { messages as source } from "../en/customProvider";
 export const messages = {
   "customProvider.registry.title": "ACP-Registry",
   "customProvider.registry.description":
-    "Installiere Agenten auf diesem Host. „Laufzeit entfernen“ behält Agenteneinstellungen, Zugangsdaten und Unterhaltungen.",
+    "Installiere Agenten auf diesem Server. „Laufzeit entfernen“ behält Agenteneinstellungen, Zugangsdaten und Unterhaltungen.",
   "customProvider.registry.search": "Registry durchsuchen",
   "customProvider.registry.empty": "Keine Agenten entsprechen dieser Suche.",
   "customProvider.registry.agentId": "ID des benutzerdefinierten Agenten",
   "customProvider.registry.install": "Installieren",
   "customProvider.registry.update": "Aktualisieren",
   "customProvider.registry.remove": "Laufzeit entfernen",
-  "customProvider.registry.failed": "Der Registry-Vorgang ist fehlgeschlagen.",
+  "customProvider.registry.searchFailed": "Die Registry konnte nicht durchsucht werden. Versuche es erneut.",
+  "customProvider.registry.statusFailed":
+    "Der Installationsfortschritt konnte nicht geprüft werden. OpenBot versucht es erneut.",
+  "customProvider.registry.installFailed": "Der Agent konnte nicht installiert werden. Versuche es erneut.",
+  "customProvider.registry.updateFailed": "Der Agent konnte nicht aktualisiert werden. Versuche es erneut.",
+  "customProvider.registry.removeFailed": "Die Laufzeit konnte nicht entfernt werden. Versuche es erneut.",
+  "customProvider.registry.cancelFailed": "Die Installation konnte nicht abgebrochen werden. Versuche es erneut.",
   "customProvider.error.providerIdRequired": "Gib eine Anbieter-ID ein.",
   "customProvider.error.providerIdPattern":
     "Verwende Kleinbuchstaben, Zahlen, Bindestriche oder Unterstriche. Beginne mit einem Buchstaben oder einer Zahl.",

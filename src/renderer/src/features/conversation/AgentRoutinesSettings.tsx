@@ -32,7 +32,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Switch,
+  SwitchField,
   Text,
   Textarea,
   toast,
@@ -66,6 +66,7 @@ import { type RoutineText, routineScheduleSummary } from "@openbot/ui/features/c
 import { useText } from "@openbot/ui/text";
 import type { JSX } from "@solidjs/web";
 import { createEffect, createMemo, createSignal, createStore, For, onCleanup, Show, untrack } from "solid-js";
+import { actionToast } from "../../action-toast";
 import { type DesktopAnalyticsScope, desktopAnalytics } from "../../analytics";
 import { writeClipboardText } from "../../clipboard";
 import type { RoutineEditorRecord, RoutinesPort } from "./routines-port";
@@ -149,6 +150,9 @@ export function AgentRoutinesSettings(props: AgentRoutinesSettingsProps) {
   const [testing, setTesting] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
   const [confirmDelete, setConfirmDelete] = createSignal(false);
+  const [deleting, setDeleting] = createSignal(false);
+  // The list rows whose Pause or Resume waits for the host.
+  const [togglingIds, setTogglingIds] = createSignal<ReadonlySet<string>>(new Set());
   const [pendingExit, setPendingExit] = createSignal<PendingRoutineExit | null>(null);
   const scrollFades = createScrollFades();
   let draftRevision = 0;
@@ -537,6 +541,7 @@ export function AgentRoutinesSettings(props: AgentRoutinesSettingsProps) {
   }
 
   async function deleteRoutine(): Promise<void> {
+    if (deleting()) return;
     const current = draft();
     if (!current?.id) {
       closeEditor();
@@ -544,6 +549,8 @@ export function AgentRoutinesSettings(props: AgentRoutinesSettingsProps) {
     }
     const startedAt = performance.now();
     const analytics = desktopAnalytics.scope();
+    setDeleting(true);
+    setError(null);
     try {
       await props.port.remove(current.id);
       setRoutines((items) => {
@@ -556,6 +563,46 @@ export function AgentRoutinesSettings(props: AgentRoutinesSettingsProps) {
     } catch (caught) {
       trackRoutineAction(analytics, "delete", current, startedAt, "failed");
       setError(errorMessage(caught, t("routine.settings.deleteFailed")));
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  /**
+   * Pauses or resumes a routine from the list. It saves the routine as the editor does, with only
+   * `active` changed, so the host keeps every other field.
+   */
+  async function setRoutineActive(routine: RoutineEditorRecord, active: boolean): Promise<void> {
+    if (togglingIds().has(routine.id)) return;
+    setTogglingIds((current) => new Set(current).add(routine.id));
+    const schedule = routineScheduleOf(routine);
+    const tracked = { triggerKind: routineTriggerKind(routine), schedule };
+    const startedAt = performance.now();
+    const analytics = desktopAnalytics.scope();
+    try {
+      const { routine: saved } = await props.port.save({
+        routineId: routine.id,
+        name: routine.name,
+        instruction: routine.instruction,
+        active,
+        timezone: routine.timezone,
+        schedule,
+        trigger: webhookTriggerOf(routine) ?? { kind: "schedule", schedule },
+        ...(routine.limitPolicy ? { limitPolicy: routine.limitPolicy } : {}),
+        ...(routine.missedPolicy ? { missedPolicy: routine.missedPolicy } : {}),
+      });
+      setRoutines((items) => items.map((item) => (item.id === saved.id ? saved : item)));
+      trackRoutineAction(analytics, "update", tracked, startedAt, "succeeded");
+    } catch (caught) {
+      trackRoutineAction(analytics, "update", tracked, startedAt, "failed");
+      const fallback = active ? t("routine.settings.resumeFailed") : t("routine.settings.pauseFailed");
+      actionToast.error(errorMessage(caught, fallback));
+    } finally {
+      setTogglingIds((current) => {
+        const next = new Set(current);
+        next.delete(routine.id);
+        return next;
+      });
     }
   }
 
@@ -697,44 +744,64 @@ export function AgentRoutinesSettings(props: AgentRoutinesSettingsProps) {
                   <div class="agent-routines-list">
                     <For each={routines()}>
                       {(routine) => (
-                        <Button
-                          variant="ghost"
-                          type="button"
-                          class="agent-routine-row"
-                          onClick={() => openRoutine(routine)}
-                        >
-                          <span
-                            class={
-                              routine.active ? "agent-routine-status-icon-active" : "agent-routine-status-icon-paused"
-                            }
+                        <div class="agent-routine-list-item">
+                          <Button
+                            variant="ghost"
+                            type="button"
+                            class="agent-routine-row"
+                            onClick={() => openRoutine(routine)}
                           >
-                            <Show
-                              when={routine.active}
-                              fallback={
-                                <Show when={routineCompleted(routine)} fallback={<CirclePause aria-hidden="true" />}>
-                                  <CircleCheck aria-hidden="true" />
-                                </Show>
+                            <span
+                              class={
+                                routine.active ? "agent-routine-status-icon-active" : "agent-routine-status-icon-paused"
                               }
                             >
                               <Show
-                                when={routineTriggerKind(routine) === "webhook"}
-                                fallback={<Clock3 aria-hidden="true" />}
+                                when={routine.active}
+                                fallback={
+                                  <Show when={routineCompleted(routine)} fallback={<CirclePause aria-hidden="true" />}>
+                                    <CircleCheck aria-hidden="true" />
+                                  </Show>
+                                }
                               >
-                                <Link aria-hidden="true" />
+                                <Show
+                                  when={routineTriggerKind(routine) === "webhook"}
+                                  fallback={<Clock3 aria-hidden="true" />}
+                                >
+                                  <Link aria-hidden="true" />
+                                </Show>
                               </Show>
-                            </Show>
-                          </span>
-                          <span>
-                            <strong>{routine.name}</strong>
-                            <small>
-                              {routine.active
-                                ? routineListSummary(routine, text)
-                                : routineCompleted(routine)
-                                  ? t("routine.settings.completed", { schedule: routineListSummary(routine, text) })
-                                  : t("routine.settings.paused")}
-                            </small>
-                          </span>
-                        </Button>
+                            </span>
+                            <span>
+                              <strong>{routine.name}</strong>
+                              <small>
+                                {routine.active
+                                  ? routineListSummary(routine, text)
+                                  : routineCompleted(routine)
+                                    ? t("routine.settings.completed", { schedule: routineListSummary(routine, text) })
+                                    : t("routine.settings.paused")}
+                              </small>
+                            </span>
+                          </Button>
+                          {/* A done one-time routine needs a new time to run again, so only the editor resumes it. */}
+                          <Show when={!routineCompleted(routine)}>
+                            <Button
+                              variant="ghost"
+                              type="button"
+                              size="sm"
+                              class="agent-routine-row-action"
+                              aria-label={
+                                routine.active
+                                  ? t("routine.settings.pauseNamed", { name: routine.name })
+                                  : t("routine.settings.resumeNamed", { name: routine.name })
+                              }
+                              loading={togglingIds().has(routine.id)}
+                              onClick={() => void setRoutineActive(routine, !routine.active)}
+                            >
+                              {routine.active ? t("routine.settings.pause") : t("routine.settings.resume")}
+                            </Button>
+                          </Show>
+                        </div>
                       )}
                     </For>
                   </div>
@@ -746,26 +813,34 @@ export function AgentRoutinesSettings(props: AgentRoutinesSettingsProps) {
           {(current) => (
             <div class="agent-routine-editor">
               <div class="agent-routine-editor-actions">
-                <div class="agent-routine-active-toggle">
-                  <Switch
-                    id="routine-active"
-                    aria-label={t("routine.settings.activeToggle")}
-                    checked={current().active}
-                    onChange={(active) => changeDraft((value) => ({ ...value, active }))}
-                  />
-                  <label for="routine-active">
-                    {current().active ? t("routine.settings.active") : t("routine.settings.paused")}
-                  </label>
-                </div>
+                <SwitchField
+                  class="agent-routine-active-toggle"
+                  label={current().active ? t("routine.settings.active") : t("routine.settings.paused")}
+                  checked={current().active}
+                  onChange={(active) => changeDraft((value) => ({ ...value, active }))}
+                />
                 <div class="agent-routine-action-buttons">
                   <Show
                     when={!confirmDelete()}
                     fallback={
                       <>
-                        <Button variant="destructive" type="button" size="sm" onClick={() => void deleteRoutine()}>
+                        <Button
+                          variant="destructive"
+                          type="button"
+                          size="sm"
+                          loading={deleting()}
+                          loadingLabel={t("routine.settings.deleting")}
+                          onClick={() => void deleteRoutine()}
+                        >
                           {t("routine.settings.deleteNow")}
                         </Button>
-                        <Button variant="secondary" type="button" size="sm" onClick={() => setConfirmDelete(false)}>
+                        <Button
+                          variant="secondary"
+                          type="button"
+                          size="sm"
+                          disabled={deleting()}
+                          onClick={() => setConfirmDelete(false)}
+                        >
                           {t("common.cancel")}
                         </Button>
                       </>
@@ -787,7 +862,7 @@ export function AgentRoutinesSettings(props: AgentRoutinesSettingsProps) {
                             type="button"
                             size="sm"
                             class="agent-routine-test"
-                            disabled={!current().id || testing() || !validDraft(current())}
+                            disabled={!current().id || !validDraft(current())}
                             loading={testing()}
                             loadingLabel={t("routine.settings.starting")}
                             onClick={() => void testRun()}
@@ -800,7 +875,7 @@ export function AgentRoutinesSettings(props: AgentRoutinesSettingsProps) {
                       <Button
                         type="button"
                         size="sm"
-                        disabled={saving() || !validDraft(current())}
+                        disabled={!validDraft(current())}
                         loading={saving()}
                         loadingLabel={t("common.saving")}
                         onClick={() => void saveDraft()}

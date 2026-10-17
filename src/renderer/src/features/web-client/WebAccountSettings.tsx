@@ -17,7 +17,6 @@ import {
   UserRound,
 } from "@openbot/ui";
 import { LanguageSelect } from "@openbot/ui/features/settings/LanguageSelect";
-import { ProfileNameSaveBar } from "@openbot/ui/features/settings/ProfileNameSaveBar";
 import { SendShortcutSelect } from "@openbot/ui/features/settings/SendShortcutSelect";
 import { SettingsDialogShell, type SettingsPagePlacement } from "@openbot/ui/features/settings/SettingsDialogShell";
 import { SettingsProfileTab } from "@openbot/ui/features/settings/SettingsProfileTab";
@@ -121,7 +120,6 @@ export default function WebAccountSettings(props: WebAccountSettingsProps) {
         description={t(navItem().descriptionKey)}
         contentKey={activeTab()}
         onContentElement={(element) => (modalElement = element)}
-        footer={<ProfileNameSaveBar store={profile} />}
         sidebar={
           <>
             <Tabs.List class="settings-modal-nav" aria-label={t("settings.sections.label")}>
@@ -157,7 +155,7 @@ export default function WebAccountSettings(props: WebAccountSettingsProps) {
           </>
         }
       >
-        <Tabs.Content value="profile" class="settings-modal-tab-panel" data-tab="profile">
+        <Tabs.Content value="profile" class="settings-modal-tab-panel profile-panel" data-tab="profile">
           <SettingsProfileTab
             store={profile}
             account={props.account}

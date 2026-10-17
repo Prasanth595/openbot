@@ -4,14 +4,19 @@ import type { messages as source } from "../en/customProvider";
 export const messages = {
   "customProvider.registry.title": "ACP レジストリ",
   "customProvider.registry.description":
-    "このホストにエージェントをインストールします。ランタイムを削除しても、エージェントの設定、認証情報、会話は残ります。",
+    "このサーバーにエージェントをインストールします。ランタイムを削除しても、エージェントの設定、認証情報、会話は残ります。",
   "customProvider.registry.search": "レジストリを検索",
   "customProvider.registry.empty": "この検索に一致するエージェントはありません。",
   "customProvider.registry.agentId": "カスタムエージェント ID",
   "customProvider.registry.install": "インストール",
   "customProvider.registry.update": "アップデート",
   "customProvider.registry.remove": "ランタイムを削除",
-  "customProvider.registry.failed": "レジストリの操作に失敗しました。",
+  "customProvider.registry.searchFailed": "レジストリを検索できませんでした。もう一度お試しください。",
+  "customProvider.registry.statusFailed": "インストールの進行状況を確認できませんでした。OpenBot が再試行します。",
+  "customProvider.registry.installFailed": "エージェントをインストールできませんでした。もう一度お試しください。",
+  "customProvider.registry.updateFailed": "エージェントをアップデートできませんでした。もう一度お試しください。",
+  "customProvider.registry.removeFailed": "ランタイムを削除できませんでした。もう一度お試しください。",
+  "customProvider.registry.cancelFailed": "インストールをキャンセルできませんでした。もう一度お試しください。",
   "customProvider.error.providerIdRequired": "プロバイダー ID を入力してください。",
   "customProvider.error.providerIdPattern":
     "小文字の英字、数字、ハイフン、アンダースコアを使い、英字か数字で始めてください。",

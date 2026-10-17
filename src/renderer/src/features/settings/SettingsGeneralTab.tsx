@@ -55,7 +55,7 @@ export function SettingsGeneralTab(props: SettingsGeneralTabProps) {
     <>
       <SettingsSection title={i18n.t("settings.appearance.title")}>
         <ItemGroup class="settings-modal-card">
-          <Item class="settings-modal-row">
+          <Item data-settings-row="settings.language.title" class="settings-modal-row">
             <ItemContent>
               <ItemTitle>{i18n.t("settings.language.title")}</ItemTitle>
               <ItemDescription>{i18n.t("settings.language.description")}</ItemDescription>
@@ -64,7 +64,7 @@ export function SettingsGeneralTab(props: SettingsGeneralTabProps) {
               <LanguageSelect value={i18n.language()} onChange={i18n.changeLanguage} mount={props.selectMount} />
             </ItemActions>
           </Item>
-          <Item class="settings-modal-row settings-logo-color-row">
+          <Item data-settings-row="settings.logoColor.title" class="settings-modal-row settings-logo-color-row">
             <ItemContent>
               <ItemTitle>{i18n.t("settings.logoColor.title")}</ItemTitle>
               <ItemDescription>{i18n.t("settings.logoColor.description")}</ItemDescription>
@@ -79,7 +79,7 @@ export function SettingsGeneralTab(props: SettingsGeneralTabProps) {
 
       <SettingsSection title={i18n.t("settings.conversations.title")}>
         <ItemGroup class="settings-modal-card">
-          <Item class="settings-modal-row">
+          <Item data-settings-row="settings.sendShortcut.title" class="settings-modal-row">
             <ItemContent>
               <ItemTitle>{i18n.t("settings.sendShortcut.title")}</ItemTitle>
               <ItemDescription>{i18n.t("settings.sendShortcut.description")}</ItemDescription>
@@ -94,12 +94,13 @@ export function SettingsGeneralTab(props: SettingsGeneralTabProps) {
             </ItemActions>
           </Item>
           <SwitchField
+            data-settings-row="settings.busyMessage.title"
             checked={props.value.busyMessageMode === "steer"}
             onChange={(checked) => props.onUpdateSetting("busyMessageMode", checked ? "steer" : "queue")}
             label={i18n.t("settings.busyMessage.title")}
             description={i18n.t("settings.busyMessage.description")}
           />
-          <Item class="settings-modal-row">
+          <Item data-settings-row="settings.agentMemoryLimit.title" class="settings-modal-row">
             <ItemContent>
               <ItemTitle>{i18n.t("settings.agentMemoryLimit.title")}</ItemTitle>
               <ItemDescription>{i18n.t("settings.agentMemoryLimit.description")}</ItemDescription>
@@ -122,7 +123,7 @@ export function SettingsGeneralTab(props: SettingsGeneralTabProps) {
               </Select>
             </ItemActions>
           </Item>
-          <Item class="settings-modal-row">
+          <Item data-settings-row="settings.externalLinks.title" class="settings-modal-row">
             <ItemContent>
               <ItemTitle>{i18n.t("settings.externalLinks.title")}</ItemTitle>
               <ItemDescription>{i18n.t("settings.externalLinks.description")}</ItemDescription>
@@ -153,24 +154,28 @@ export function SettingsGeneralTab(props: SettingsGeneralTabProps) {
       <SettingsSection title={i18n.t("settings.appBehavior.title")}>
         <ItemGroup class="settings-modal-card">
           <SwitchField
+            data-settings-row="settings.launchAtLogin.title"
             checked={props.value.launchAtLogin}
             onChange={(checked) => props.onUpdateSetting("launchAtLogin", checked)}
             label={i18n.t("settings.launchAtLogin.title")}
             description={i18n.t("settings.launchAtLogin.description")}
           />
           <SwitchField
+            data-settings-row="settings.keepRemoteSessions.title"
             checked={props.value.keepRemoteSessions}
             onChange={(checked) => props.onUpdateSetting("keepRemoteSessions", checked)}
             label={i18n.t("settings.keepRemoteSessions.title")}
             description={i18n.t("settings.keepRemoteSessions.description")}
           />
           <SwitchField
+            data-settings-row="settings.keepRunning.title"
             checked={props.value.keepRunningInBackground}
             onChange={(checked) => props.onUpdateSetting("keepRunningInBackground", checked)}
             label={i18n.t("settings.keepRunning.title")}
             description={i18n.t("settings.keepRunning.description")}
           />
           <SwitchField
+            data-settings-row="settings.restoreWorkspace.title"
             checked={props.value.restoreLastWorkspace}
             onChange={(checked) => props.onUpdateSetting("restoreLastWorkspace", checked)}
             label={i18n.t("settings.restoreWorkspace.title")}
@@ -182,6 +187,7 @@ export function SettingsGeneralTab(props: SettingsGeneralTabProps) {
       <SettingsSection title={i18n.t("settings.permissions.title")}>
         <ItemGroup class="settings-modal-card">
           <SwitchField
+            data-settings-row="settings.analytics.title"
             checked={props.value.productAnalytics}
             onChange={(checked) => props.onUpdateSetting("productAnalytics", checked)}
             label={i18n.t("settings.analytics.title")}
