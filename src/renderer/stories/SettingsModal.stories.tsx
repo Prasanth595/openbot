@@ -217,6 +217,10 @@ export const Narrow: Story = {
   parameters: { viewport: { defaultViewport: "settingsNarrow" } },
 };
 
+export const Profile: Story = {
+  render: () => <SettingsModalStory initialOpen initialTab="profile" />,
+};
+
 export const Notifications: Story = {
   render: () => <SettingsModalStory initialOpen initialTab="notifications" />,
 };
