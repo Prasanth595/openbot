@@ -25,7 +25,12 @@ import { isPlanLimitDiagnostic } from "./provider-diagnostics";
 import type { ProviderRuntime } from "./provider-runtime";
 import type { RoutineScheduler } from "./routine-scheduler";
 import { sessionSettingsOverrides } from "./session-settings";
-import { isMissingProviderSessionError, isRequestTimeout, providerForAgent } from "./thread-items";
+import {
+  isCodexCompactionRefusal,
+  isMissingProviderSessionError,
+  isRequestTimeout,
+  providerForAgent,
+} from "./thread-items";
 import type { ThreadLifecycle } from "./thread-lifecycle";
 import { TurnSlots } from "./turn-slots";
 import type { UsageLimitGate } from "./usage-limit-gate";
@@ -698,6 +703,14 @@ export class DrainScheduler {
       let response: Effect.Success<ReturnType<typeof startTurn>>;
       if (Result.isSuccess(firstStart)) response = firstStart.success;
       else {
+        // Codex compacts this thread, so the input did not reach it. The messages keep their place
+        // and wait for the compaction turn to end.
+        if (isCodexCompactionRefusal(firstStart.failure.cause)) {
+          for (const item of batch) yield* this.#mailbox.restoreQueued(item.delivery.id).pipe(toDeliveryStartFailed);
+          this.#compaction.holdForRefusal(agent.id, threadId, client);
+          this.#mailboxSync.emitQueue(agent.id);
+          return;
+        }
         if (!isMissingProviderSessionError(firstStart.failure.cause, client.provider)) return yield* firstStart.failure;
         const unavailableThreadId = threadId;
         if (this.#conversation.loadedClientFor(unavailableThreadId) === client) {

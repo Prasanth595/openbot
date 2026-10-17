@@ -503,6 +503,7 @@ export class TurnLifecycle {
           this.#observedCompactions.delete(threadId);
           this.#compaction.observeCompaction(threadId, status === "completed" ? "completed" : "failed");
         }
+        this.#compaction.threadTurnEnded(threadId);
         if (this.#compaction.isCompactionTurn(threadId, turnId)) {
           this.#compaction.finish(agentId, threadId, status);
           return;

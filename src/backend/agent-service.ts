@@ -243,6 +243,8 @@ export interface AgentServiceOptions {
   mailbox: MailboxStore;
   browser: AgentBrowserHost;
   requestTimeoutMs?: number;
+  /** How long a Codex context compaction runs before OpenBot stops it. Tests make it short. */
+  contextCompactionTimeoutMs?: number;
   preferredProvider?: AgentProvider;
   /** The model chosen beside `preferredProvider`, or `null` for that provider's own default. */
   preferredModel?: AgentModelId | null;
@@ -600,6 +602,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
             this.#attention.clearPrompts(client);
             this.#attention.clearBrowserTakeovers(client);
             this.#attention.clearApprovals(client);
+            this.#compaction.clientEnded(client);
             yield* this.#turn.interruptTurnsOf(client);
           }),
         onAgentClientLost: (agentId, client) =>
@@ -608,6 +611,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
             this.#attention.clearBrowserTakeovers(client);
             this.#attention.clearApprovals(client);
             this.#boot.orphanDeliveriesOfAgent(agentId);
+            this.#compaction.clientEnded(client);
             yield* this.#turn.interruptTurnsOf(client, { keepRecoverable: true });
             // A teammate that asked this agent may hold the other answers until this work ends.
             const requesters = this.#mailbox
@@ -689,6 +693,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       },
     });
     this.#compaction = new ContextCompaction({
+      timeoutMs: options.contextCompactionTimeoutMs,
       changed: () => this.#emitRuntimeSnapshot(),
       store,
       providers: this.#providers,

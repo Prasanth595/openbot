@@ -23,6 +23,19 @@ export function isArchivedThreadError(error: unknown): boolean {
 }
 
 /**
+ * Codex refused `turn/start` because a compaction turn runs on the thread. Codex 0.160.1 answers a
+ * `NotSubmitted` input with this internal error, so the input did not reach the turn and the caller
+ * can queue it again for when the compaction ends.
+ */
+export function isCodexCompactionRefusal(error: unknown): boolean {
+  return (
+    error instanceof AppServerError &&
+    error.code === -32603 &&
+    error.message.startsWith("failed to submit turn input: ActiveTurnNotSteerable { turn_kind: Compact")
+  );
+}
+
+/**
  * The provider refused the session's own history. Grok keeps the `encrypted_content` of each
  * reasoning item in its session and sends it back on every request, and xAI accepts it only from
  * the caller it was issued to. After a sign-in to another account or a new API key, each turn of
