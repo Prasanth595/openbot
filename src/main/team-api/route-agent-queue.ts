@@ -1,3 +1,4 @@
+import { TEAM_QUEUE_WINDOW_CAPABILITY } from "@openbot/contracts/team-protocol/current";
 import {
   decodeQueueEditRequest,
   QueueEditRejectedError,
@@ -11,12 +12,25 @@ import { HttpError } from "./http-error";
 // see that the field arrived.
 
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
-import type { ReorderQueueInput, SteerQueuedMessageInput, UpdateQueuedMessageInput } from "@openbot/contracts/ipc";
+import type {
+  QueueDelivery,
+  QueueSnapshot,
+  ReorderQueueInput,
+  SteerQueuedMessageInput,
+  UpdateQueuedMessageInput,
+} from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { runCauseEffect } from "../../backend/effect-boundary";
 import type { TeamApiAgents } from "./dependencies";
 import type { AgentRouteTarget, RouteOutcome, TeamApiRequestContext } from "./request-context";
-import { memberSender, readJson, requireListedAgent, stringArray, stringField } from "./request-helpers";
+import {
+  memberSender,
+  readJson,
+  requireListedAgent,
+  stringArray,
+  stringField,
+  WEBRTC_FRAME_BODY_BUDGET,
+} from "./request-helpers";
 
 export interface AgentQueueRouteDependencies {
   agents: Pick<
@@ -39,13 +53,17 @@ export async function routeAgentQueue(
   { agents }: AgentQueueRouteDependencies,
 ): Promise<RouteOutcome> {
   const { method, request, member, json, empty } = context;
+  const snapshot = (value: QueueSnapshot) =>
+    json(
+      200,
+      context.protocol >= 7 && context.capabilities.has(TEAM_QUEUE_WINDOW_CAPABILITY) ? queueWindow(value) : value,
+    );
 
   if (method === "POST" && action === "queue/edit") {
     if (context.protocol < 3 || !context.capabilities.has(TEAM_QUEUE_EDIT_CAPABILITY))
       throw new HttpError(400, sourceText("error.team.queueEditUnsupported"));
     try {
-      return json(
-        200,
+      return snapshot(
         await runCauseEffect(
           agents.editQueuedMessage(agentId, decodeQueueEditRequest(await readJson(request)), memberSender(member)),
         ),
@@ -56,7 +74,7 @@ export async function routeAgentQueue(
     }
   }
   if (method === "GET" && action === "queue") {
-    return json(200, agents.listQueue(agentId));
+    return snapshot(agents.listQueue(agentId));
   }
   if (method === "POST" && action === "failures/acknowledge") {
     const body = await readJson(request);
@@ -114,4 +132,38 @@ export async function routeAgentQueue(
   }
 
   return "unmatched";
+}
+
+/** The finished deliveries a queue-window-v1 snapshot keeps at most. */
+const QUEUE_WINDOW_FINISHED_LIMIT = 100;
+const ACTIVE_STATUSES = new Set<QueueDelivery["status"]>(["queued", "starting", "running"]);
+
+/**
+ * queue-window-v1: the queue without its old history. The store keeps every finished delivery, so a
+ * long-lived agent's full snapshot passes one WebRTC frame and a remote client cannot read it. Every
+ * active delivery stays, because the composer, the queue and the edit lock act on them. Only the
+ * newest finished deliveries stay, for receipts and failure reasons, while they fit in the frame.
+ */
+function queueWindow(snapshot: QueueSnapshot): QueueSnapshot {
+  const finished = snapshot.deliveries
+    .map((delivery, index) => ({ delivery, index }))
+    .filter(({ delivery }) => !ACTIVE_STATUSES.has(delivery.status))
+    .sort((a, b) => b.delivery.createdAt.localeCompare(a.delivery.createdAt) || b.index - a.index);
+  if (finished.length === 0) return snapshot;
+  const kept = new Set<QueueDelivery>();
+  let bytes = Buffer.byteLength(
+    JSON.stringify({
+      ...snapshot,
+      deliveries: snapshot.deliveries.filter(({ status }) => ACTIVE_STATUSES.has(status)),
+    }),
+  );
+  for (const { delivery } of finished.slice(0, QUEUE_WINDOW_FINISHED_LIMIT)) {
+    bytes += Buffer.byteLength(JSON.stringify(delivery)) + 1;
+    if (bytes > WEBRTC_FRAME_BODY_BUDGET) break;
+    kept.add(delivery);
+  }
+  return {
+    ...snapshot,
+    deliveries: snapshot.deliveries.filter((delivery) => ACTIVE_STATUSES.has(delivery.status) || kept.has(delivery)),
+  };
 }

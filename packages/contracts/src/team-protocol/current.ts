@@ -79,6 +79,16 @@ export const TEAM_EML_ATTACHMENTS_CAPABILITY = "eml-attachments";
  * Widening any of it needs a second capability string.
  */
 export const TEAM_MEMBER_LEAVE_CAPABILITY = "member-leave-v1";
+/**
+ * Frozen optional queue-window-v1 contract: a bounded queue snapshot. On a protocol 7 request that
+ * advertises it, `GET /v1/agents/:agentId/queue` and `POST /v1/agents/:agentId/queue/edit` keep every
+ * queued, starting and running delivery, and only the newest finished deliveries (completed, failed,
+ * interrupted, cancelled): at most 100, and only as many as fit in one WebRTC frame. The kept
+ * deliveries stay in queue order, and the response keeps the frozen shape and keys. A request
+ * without the capability gets the full list, as before. Widening any of it needs a second
+ * capability string.
+ */
+export const TEAM_QUEUE_WINDOW_CAPABILITY = "queue-window-v1";
 export {
   ACP_REGISTRY_CAPABILITY,
   AGENT_ADMIN_CAPABILITY,
@@ -209,6 +219,7 @@ export const TEAM_CURRENT_CAPABILITIES = [
   ROUTINE_RECOVERY_CAPABILITY,
   FOCUS_USE_CAPABILITY,
   AGENT_HIDDEN_CAPABILITY,
+  TEAM_QUEUE_WINDOW_CAPABILITY,
 ] as const;
 
 export type TeamCurrentCapability = (typeof TEAM_CURRENT_CAPABILITIES)[number];
@@ -297,7 +308,8 @@ export const TEAM_BOOTSTRAP_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
     capability !== ROUTINE_RECOVERY_CAPABILITY &&
     capability !== INSTANCE_TRANSFER_CAPABILITY &&
     capability !== FOCUS_USE_CAPABILITY &&
-    capability !== AGENT_HIDDEN_CAPABILITY,
+    capability !== AGENT_HIDDEN_CAPABILITY &&
+    capability !== TEAM_QUEUE_WINDOW_CAPABILITY,
 );
 export function teamCapabilitiesForProtocol(protocol: number | null | undefined): readonly TeamCurrentCapability[] {
   return protocol !== null && protocol !== undefined && protocol >= 7
@@ -327,6 +339,7 @@ export function legacyTeamCapabilities(capabilities: readonly string[]): string[
       capability !== ROUTINE_RECOVERY_CAPABILITY &&
       capability !== INSTANCE_TRANSFER_CAPABILITY &&
       capability !== FOCUS_USE_CAPABILITY &&
-      capability !== AGENT_HIDDEN_CAPABILITY,
+      capability !== AGENT_HIDDEN_CAPABILITY &&
+      capability !== TEAM_QUEUE_WINDOW_CAPABILITY,
   );
 }
