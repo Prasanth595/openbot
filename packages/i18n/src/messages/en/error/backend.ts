@@ -210,7 +210,7 @@ export const messages = defineMessages("error.backend", {
   "error.backend.oauthTooManyRedirects": "The OAuth endpoint redirected too many times.",
   "error.backend.oauthRedirectOrigin":
     "The OAuth endpoint redirected to {origin}, so the credentials were not forwarded.",
-  "error.backend.oauthTimedOut": "The OAuth endpoint {origin} did not answer in time.",
+  "error.backend.oauthTimedOut": "No answer came from the OAuth endpoint {origin} in time.",
   "error.backend.oauthResponseTooLarge": "The OAuth endpoint {origin} sent a response that is too large.",
   "error.backend.oauthResponseUnreadable": "The response of the OAuth endpoint {origin} could not be read.",
   "error.backend.mcpOAuthPrivateEndpoint":

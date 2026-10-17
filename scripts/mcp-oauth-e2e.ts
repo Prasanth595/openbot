@@ -905,11 +905,18 @@ async function networkCases(auth: Awaited<ReturnType<typeof startAuthorizationSe
   assert.equal(streamed, tooLarge);
   assert.equal(await refusal(secureOAuthFetch()(`${auth.base}/big-redirect`)), tooLarge);
   // MCP traffic to the server itself has no limit: the probe sends it through the same fetch.
-  const mcpTraffic = await secureOAuthFetch({ resource: `${auth.base}/big-streamed` })(`${auth.base}/big-streamed`);
+  const mcpTraffic = await secureOAuthFetch({ resource: `${auth.base}/big-streamed`, mcpTraffic: true })(
+    `${auth.base}/big-streamed`,
+  );
   assert.equal((await mcpTraffic.text()).length, 2 * 1024 * 1024);
+  // A sign-in exchange sends no MCP traffic: an endpoint at the MCP URL itself still has the limit.
+  const exchange = await refusal(
+    secureOAuthFetch({ resource: `${auth.base}/big-streamed` })(`${auth.base}/big-streamed`),
+  );
+  assert.equal(exchange, tooLarge);
   // A redirect to another origin leaves the MCP server, so that hop has the limit again.
   const away = await refusal(
-    secureOAuthFetch({ resource: `${auth.base}/redirect-away` })(`${auth.base}/redirect-away`),
+    secureOAuthFetch({ resource: `${auth.base}/redirect-away`, mcpTraffic: true })(`${auth.base}/redirect-away`),
   );
   assert.equal(away, sourceText("error.backend.oauthResponseTooLarge", { origin: localBase }));
 
@@ -926,6 +933,7 @@ async function networkCases(auth: Awaited<ReturnType<typeof startAuthorizationSe
       streamedRefused: true,
       redirectWithoutLocationRefused: true,
       mcpTrafficUnlimited: true,
+      exchangeAtMcpUrlLimited: true,
       crossOriginHopLimited: true,
     },
   };

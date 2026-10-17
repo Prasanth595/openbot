@@ -1345,16 +1345,23 @@ export function secureOAuthFetch(options: SecureOAuthFetchOptions = {}): FetchLi
         resolve,
       }
     : null;
-  return (input, init) => runCauseEffect(secureOAuthRequest(input, init, options.signal, guard));
+  const mcpTraffic = options.mcpTraffic === true ? resource : null;
+  return (input, init) => runCauseEffect(secureOAuthRequest(input, init, options.signal, guard, mcpTraffic));
 }
 
 export interface SecureOAuthFetchOptions {
   signal?: AbortSignal;
   /**
    * The MCP server the exchange is for. When it is on the public internet, every OAuth endpoint
-   * must be too. A request to this exact address is MCP traffic, and has no size or time limit.
+   * must be too.
    */
   resource?: string;
+  /**
+   * Whether this fetch also sends MCP traffic, as the probe transport does. A request to the exact
+   * `resource` address then has no size or time limit. A sign-in, refresh or revocation sends no
+   * MCP traffic, so an endpoint at that address still has the limits.
+   */
+  mcpTraffic?: boolean;
   /** Resolves host names for that rule. `dns.lookup` when not given. */
   lookup?: AddressLookup;
 }
@@ -1383,9 +1390,10 @@ const secureOAuthRequest = Effect.fn("McpOAuth.secureFetch")(function* (
   init: Parameters<FetchLike>[1],
   signal: AbortSignal | undefined,
   guard: OAuthAddressGuard | null,
+  mcpServer: URL | null,
 ): Effect.fn.Return<Response, McpOperationError> {
   let url = yield* mcpSync(() => new URL(input instanceof URL ? input.toString() : input));
-  const mcpTraffic = guard !== null && withoutHash(url) === withoutHash(guard.resource);
+  const mcpTraffic = mcpServer !== null && withoutHash(url) === withoutHash(mcpServer);
   let request: RequestInit = { ...init, ...(signal ? { signal } : {}), redirect: "manual" };
   for (let hop = 0; ; hop++) {
     if (!isSecureEndpoint(url))
@@ -1393,7 +1401,7 @@ const secureOAuthRequest = Effect.fn("McpOAuth.secureFetch")(function* (
     if (guard) yield* checkEndpointAddress(url, guard);
     const origin = url.origin;
     // A redirect to another origin leaves the MCP server, so that hop has the OAuth limits.
-    const unlimited = mcpTraffic && origin === guard?.resource.origin;
+    const unlimited = mcpTraffic && origin === mcpServer?.origin;
     const send = Effect.tryPromise({
       try: (requestSignal) =>
         fetch(url, {
