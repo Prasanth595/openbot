@@ -55,7 +55,7 @@ interface VoiceSubmitHooks {
 }
 
 /** What the voice store reads from its view: the agent and server it dictates for, and the runtime. */
-export type VoiceStoreProps = Pick<ConversationProps, "runtime"> & {
+type VoiceStoreProps = Pick<ConversationProps, "runtime"> & {
   agent: Pick<NonNullable<ConversationProps["agent"]>, "id"> | undefined;
   server: Pick<NonNullable<ConversationProps["server"]>, "id"> | undefined;
 };
