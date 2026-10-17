@@ -115,8 +115,8 @@ lines.on("line", (line) => {
   if (mode === "pi" && method === "get_state") return reply({ sessionFile });
   if (mode === "pi" && method === "get_session_stats") return reply({
     tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } });
-  // Fail setup on an unimplemented request, instead of treating it as a MIME failure.
   if (mode === "pi" && ["switch_session", "set_model"].includes(method)) return reply({});
+  // Fail setup on an unimplemented request, instead of treating it as a MIME failure.
   send({ jsonrpc: "2.0", id: message.id, error: { code: -32601, message: "Fixture does not implement " + method } });
 });
 `;
