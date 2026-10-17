@@ -13,19 +13,21 @@ import { requestLocale } from "../lib/request-locale";
 import { servingSiteUrl } from "../lib/serving-site-url";
 import { OPENBOT_SECURITY_HEADERS, openBotRootHead } from "../lib/site-metadata";
 
+const NOT_FOUND_TITLE = "Page not found · OpenBot";
+
 export const Route = createRootRoute({
   beforeLoad: () => ({ siteUrl: servingSiteUrl(), locale: requestLocale() }),
-  // The 404 title and the error page text, in the language of the request. The server loads them
-  // once per document, and the browser reads them from the loader data.
+  // The error page text, in the language of the request. The server loads it once per document, and
+  // the browser reads it from the loader data.
   loader: ({ context }) => loadPageText(context.locale, rootPageText),
   shouldReload: false,
   // The router marks the match that shows the global 404 with `_notFound`. That page has no route of
-  // its own, so the root head gives it its title. A child route's own title still wins.
-  head: ({ matches, loaderData }) => {
+  // its own, so the root head gives it its title. A child route's own title still wins. The 404 page
+  // is English only, so its title is English too.
+  head: ({ matches }) => {
     const head = openBotRootHead(interLatinFont);
-    const title = loaderData?.text.notFoundTitle;
-    if (!title || !matches.some((match) => match._notFound)) return head;
-    return { ...head, meta: head.meta.map((tag) => ("title" in tag ? { title } : tag)) };
+    if (!matches.some((match) => match._notFound)) return head;
+    return { ...head, meta: head.meta.map((tag) => ("title" in tag ? { title: NOT_FOUND_TITLE } : tag)) };
   },
   // The HTML holds catalog text in the language of `Accept-Language`, so a cache must keep it apart.
   headers: () => ({ ...OPENBOT_SECURITY_HEADERS, Vary: "Accept-Language" }),

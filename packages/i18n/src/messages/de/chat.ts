@@ -298,7 +298,7 @@ export const messages = {
   "chat.scrollRail.earlier": "Frühere Nachrichten",
   "chat.scrollRail.earlierSince": "Früher, seit {date}",
   "chat.day.now": "jetzt",
-  "chat.errorStatus.readState": "Der Lesestatus der Unterhaltung konnte nicht gelesen werden",
+  "chat.errorStatus.readState": "Die Unterhaltung konnte nicht als gelesen markiert werden",
   "chat.errorStatus.send": "Die Nachricht konnte nicht gesendet werden",
   "chat.send.sending": "Wird gesendet…",
   "chat.send.waiting": "Wartet auf Versand",

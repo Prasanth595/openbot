@@ -2,7 +2,6 @@ import type { PartialTranslation } from "../../message";
 import type { messages as source } from "../en/sitePage";
 
 export const messages = {
-  "sitePage.notFound.pageTitle": "ページが見つかりません · OpenBot",
   "sitePage.error.title": "このページを読み込めませんでした",
   "sitePage.error.body":
     "接続を確認して、ページを再読み込みしてください。それでも読み込めない場合は、ホームページに戻ってください。",

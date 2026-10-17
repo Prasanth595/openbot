@@ -52,7 +52,7 @@ export function WebConnectComputer(props: {
           <div class="web-connect-primary-actions">
             <a
               class={`web-connect-download ${buttonVariants({ variant: "default" })}`}
-              href="/#download"
+              href="/download"
               target="_blank"
               rel="noreferrer"
             >

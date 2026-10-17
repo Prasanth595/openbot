@@ -333,7 +333,7 @@ export const messages = {
   "chat.scrollRail.earlier": "Прежние сообщения",
   "chat.scrollRail.earlierSince": "Раньше, с {date}",
   "chat.day.now": "сейчас",
-  "chat.errorStatus.readState": "Не удалось прочитать состояние диалога",
+  "chat.errorStatus.readState": "Не удалось отметить диалог как прочитанный",
   "chat.errorStatus.send": "Не удалось отправить сообщение",
   "chat.send.sending": "Отправка…",
   "chat.send.waiting": "Ожидает отправки",

@@ -201,6 +201,10 @@ export const messages = {
   "error.backend.mcpSignInResponseTimedOut": "Ответ на вход не пришёл вовремя.",
   "error.backend.mcpServerExited":
     "Сервер остановился, не ответив. Запустите команду в терминале, чтобы увидеть ошибку.",
+  "error.backend.mcpOAuthProxyUnavailable":
+    "OpenBot не смог запустить локальное подключение для входа на этот сервер. Перезапустите OpenBot и повторите попытку.",
+  "error.backend.mcpOAuthSignInNeeded":
+    "Вход на этот MCP-сервер завершён. Пользователю нужно снова войти на него в OpenBot.",
   "error.backend.mcpServerUnreachable": "OpenBot не смог связаться с сервером. Проверьте URL и сеть.",
   "error.backend.mcpLocalServerOff":
     "На этом компьютере по адресу {address} не отвечает ни один сервер. Запустите сервер или включите его в приложении, которое его запускает, и повторите попытку.",
@@ -213,6 +217,11 @@ export const messages = {
   "error.backend.oauthNotHttps": "Эндпоинт OAuth {origin} не использует https, поэтому учётные данные не отправлены.",
   "error.backend.oauthTooManyRedirects": "Эндпоинт OAuth слишком много раз перенаправлял.",
   "error.backend.oauthRedirectOrigin": "Эндпоинт OAuth перенаправил на {origin}, поэтому учётные данные не переданы.",
+  "error.backend.oauthTimedOut": "Эндпоинт OAuth {origin} не ответил вовремя.",
+  "error.backend.oauthResponseTooLarge": "Эндпоинт OAuth {origin} отправил слишком большой ответ.",
+  "error.backend.oauthResponseUnreadable": "Не удалось прочитать ответ эндпоинта OAuth {origin}.",
+  "error.backend.mcpOAuthPrivateEndpoint":
+    "Эндпоинт OAuth {origin} находится в частной сети, а MCP-сервер публичный, поэтому учётные данные не отправлены.",
   "error.backend.sidebarSectionLimit": "На сервере может быть не более {limit} разделов боковой панели.",
   "error.backend.sectionNameRequired": "Нужно название раздела.",
   "error.backend.sectionNameTooLong": "Название раздела слишком длинное.",

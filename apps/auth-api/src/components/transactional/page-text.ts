@@ -140,9 +140,9 @@ export function pageErrorText(t: AppTranslate) {
 
 export type PageErrorText = ReturnType<typeof pageErrorText>;
 
-/** The text that the root route owns: the 404 title and the load error page. */
+/** The text that the root route owns: the load error page. */
 export function rootPageText(t: AppTranslate) {
-  return { notFoundTitle: t("sitePage.notFound.pageTitle"), error: pageErrorText(t) };
+  return { error: pageErrorText(t) };
 }
 
 export type RootPageText = ReturnType<typeof rootPageText>;

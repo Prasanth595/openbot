@@ -67,6 +67,16 @@ export const navItems: ReadonlyArray<SettingsNavItem> = [
     ],
   },
   {
+    value: "profile",
+    titleKey: "settings.tab.profile.title",
+    descriptionKey: "settings.tab.profile.description",
+    icon: UserRound,
+    rows: [
+      { titleKey: "settings.profile.email.title", descriptionKey: "settings.profile.email.description" },
+      { titleKey: "settings.profile.sessions.title", descriptionKey: "settings.profile.sessions.description" },
+    ],
+  },
+  {
     value: "notifications",
     titleKey: "settings.tab.notifications.title",
     descriptionKey: "settings.tab.notifications.description",
@@ -109,18 +119,6 @@ export const navItems: ReadonlyArray<SettingsNavItem> = [
     descriptionKey: "settings.tab.computerUse.description",
     icon: MousePointer2,
     rows: [{ titleKey: "computerUse.permissions.title", descriptionKey: "computerUse.permissions.description" }],
-  },
-  {
-    value: "profile",
-    titleKey: "settings.tab.profile.title",
-    descriptionKey: "settings.tab.profile.description",
-    icon: UserRound,
-    rows: [
-      { titleKey: "settings.profile.name.title", descriptionKey: "settings.profile.name.description" },
-      { titleKey: "settings.profile.photo.title", descriptionKey: "settings.profile.photo.description" },
-      { titleKey: "settings.profile.email.title", descriptionKey: "settings.profile.email.description" },
-      { titleKey: "settings.profile.sessions.title", descriptionKey: "settings.profile.sessions.description" },
-    ],
   },
   {
     value: "billing",

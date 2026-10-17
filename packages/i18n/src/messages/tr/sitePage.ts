@@ -2,7 +2,6 @@ import type { PartialTranslation } from "../../message";
 import type { messages as source } from "../en/sitePage";
 
 export const messages = {
-  "sitePage.notFound.pageTitle": "Sayfa bulunamadı · OpenBot",
   "sitePage.error.title": "Bu sayfa yüklenemedi",
   "sitePage.error.body":
     "Bağlantınızı kontrol edin ve sayfayı yeniden yükleyin. Yine de yüklenmezse ana sayfaya dönün.",

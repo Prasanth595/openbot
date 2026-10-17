@@ -55,8 +55,8 @@ export const messages = {
   "agent.error.hideFailed": "Impossibile nascondere l’agente",
   "agent.error.restoreFailed": "Impossibile ripristinare l’agente",
   "agent.error.hiddenFailed": "La modifica non è stata salvata. Riprova.",
-  "agent.error.settingsFailed": "Impossibile salvare le impostazioni dell'agente. Riprova.",
-  "agent.error.avatarFailed": "Impossibile aggiornare l'avatar. Riprova.",
+  "agent.error.settingsFailed": "Impossibile salvare le impostazioni dell'agente",
+  "agent.error.avatarFailed": "Impossibile aggiornare l'avatar",
   "agent.error.adminOnly":
     "Le impostazioni dell'agente possono essere modificate solo da un amministratore del server.",
   "agent.error.continueFailed": "L'agente non è riuscito a continuare. Riprova.",
