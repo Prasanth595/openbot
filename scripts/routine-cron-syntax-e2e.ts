@@ -26,8 +26,26 @@ import { RoutineTimer } from "../src/backend/routine-timer";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const NOW = new Date("2035-01-01T00:01:00.000Z");
-const INVALID = ["*/10/garbage * * * *", ",10 * * * *", "/10 * * * *", "-10/10 * * * *", "0-/10 * * * *"];
-const VALID = ["*/10 * * * *", "0,10 * * * *", "0-50/10 * * * *"];
+// Each save must fail. The value is the next run that the released parser reads after the 00:10 run.
+// `Number` reads hex, exponent, sign and fraction forms, so a stored row with them still runs.
+const RELEASED_NEXT_RUN: Record<string, string> = {
+  "*/10/garbage * * * *": "2035-01-01T00:20:00.000Z",
+  ",10 * * * *": "2035-01-01T01:00:00.000Z",
+  "/10 * * * *": "2035-01-01T01:00:00.000Z",
+  "-10/10 * * * *": "2035-01-01T01:00:00.000Z",
+  "0-/10 * * * *": "2035-01-01T01:00:00.000Z",
+  "0x5 * * * *": "2035-01-01T01:05:00.000Z",
+  "1e1 * * * *": "2035-01-01T01:10:00.000Z",
+  "+5 * * * *": "2035-01-01T01:05:00.000Z",
+  "5.0 * * * *": "2035-01-01T01:05:00.000Z",
+  "0-0x32/10 * * * *": "2035-01-01T00:20:00.000Z",
+  "*/1e1 * * * *": "2035-01-01T00:20:00.000Z",
+  "0,+10 * * * *": "2035-01-01T01:00:00.000Z",
+  "0 1.0 * * *": "2035-01-01T01:00:00.000Z",
+};
+const INVALID = Object.keys(RELEASED_NEXT_RUN);
+// Leading zeros are plain decimal digits, so saves keep them.
+const VALID = ["*/10 * * * *", "0,10 * * * *", "0-50/10 * * * *", "00-50/010 * * * *"];
 const SOURCES = [
   "scripts/routine-cron-syntax-e2e.ts",
   "scripts/routine-due-revalidation-e2e.ts",
@@ -356,12 +374,9 @@ async function legacyControl(fixture: Fixture, row: CaseResult, expression: stri
   assert.equal(edited.instruction, "Edited synthetic instruction");
   assert.deepEqual(edited.trigger, loaded.trigger);
   assert.deepEqual(fixture.runs.get(fixture.agentId, routine.id), edited);
-  await delivery(
-    fixture,
-    row,
-    edited,
-    expression === "*/10/garbage * * * *" ? "2035-01-01T00:20:00.000Z" : "2035-01-01T01:00:00.000Z",
-  );
+  const expectedNext = RELEASED_NEXT_RUN[expression];
+  assert.ok(expectedNext, "Each released stored case needs its next run.");
+  await delivery(fixture, row, edited, expectedNext);
 }
 
 function channelInput(fixture: Fixture, expression: string) {
