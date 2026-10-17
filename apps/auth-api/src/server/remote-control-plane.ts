@@ -63,6 +63,22 @@ const MEMBER_SEAT_AVAILABLE_SQL = `(
   OR (SELECT COUNT(*) FROM remote_memberships WHERE host_id = ? AND status = 'active') < ?
 )`;
 
+// An invitation admits a user only while its creator can still invite on the host, and it never undoes
+// a removal made after the invitation: the removed member needs a new invitation or a reactivation.
+// Binds the user ID of the account that accepts.
+const INVITE_STILL_GRANTED_SQL = `(
+  EXISTS(
+    SELECT 1 FROM remote_memberships
+     WHERE host_id = remote_invites.host_id AND user_id = remote_invites.created_by_user_id
+       AND status = 'active' AND role IN ('owner', 'admin')
+  )
+  AND NOT EXISTS(
+    SELECT 1 FROM remote_memberships
+     WHERE host_id = remote_invites.host_id AND user_id = ? AND status = 'revoked'
+       AND updated_at >= remote_invites.created_at
+  )
+)`;
+
 export type { RemoteMemberRole };
 
 export class RemoteControlPlaneError extends Schema.TaggedError<RemoteControlPlaneError>()("RemoteControlPlaneError", {
@@ -1003,6 +1019,15 @@ export class RemoteControlPlane {
           "The owner cannot accept a member invitation.",
         );
       }
+      const granted = yield* remoteCall(() =>
+        dependencies.database
+          .prepare(`SELECT 1 AS granted FROM remote_invites WHERE invite_id = ? AND ${INVITE_STILL_GRANTED_SQL}`)
+          .bind(invite.invite_id, user.id)
+          .first<{ granted: number }>(),
+      );
+      if (!granted) {
+        return yield* new RemoteControlPlaneError(404, "invite_invalid", "The invitation is invalid or expired.");
+      }
       const limit = yield* this.#memberLimit(invite.host_id);
       yield* this.#requireMemberSeat(invite.host_id, user.id, limit);
       const membershipId = crypto.randomUUID();
@@ -1028,6 +1053,7 @@ export class RemoteControlPlane {
                ) SELECT ?, ?, ?, ?, 'active', ?, ?
                  FROM remote_invites
                 WHERE invite_id = ? AND revoked_at IS NULL AND expires_at > ? AND ${MEMBER_SEAT_AVAILABLE_SQL}
+                  AND ${INVITE_STILL_GRANTED_SQL}
                ON CONFLICT(host_id, user_id) DO UPDATE SET
                  role = CASE WHEN remote_memberships.role = 'owner' THEN 'owner' ELSE excluded.role END,
                  status = 'active', updated_at = excluded.updated_at`
@@ -1036,28 +1062,40 @@ export class RemoteControlPlane {
                ) SELECT ?, ?, ?, ?, 'active', ?, ?
                  FROM remote_invites
                 WHERE invite_id = ? AND used_at IS NULL AND revoked_at IS NULL AND expires_at > ?
-                  AND ${MEMBER_SEAT_AVAILABLE_SQL}
+                  AND ${MEMBER_SEAT_AVAILABLE_SQL} AND ${INVITE_STILL_GRANTED_SQL}
                ON CONFLICT(host_id, user_id) DO UPDATE SET
                  role = CASE WHEN remote_memberships.role = 'owner' THEN 'owner' ELSE excluded.role END,
                  status = 'active', updated_at = excluded.updated_at`,
             )
-            .bind(membershipId, invite.host_id, user.id, invite.role, now, now, invite.invite_id, now, ...seat),
+            .bind(
+              membershipId,
+              invite.host_id,
+              user.id,
+              invite.role,
+              now,
+              now,
+              invite.invite_id,
+              now,
+              ...seat,
+              user.id,
+            ),
           // A permanent link counts the join and stays live; a single-use link burns. A join that
           // lost the last seat to a concurrent one leaves the invitation as it was.
           permanent
             ? dependencies.database
                 .prepare(
                   `UPDATE remote_invites SET use_count = use_count + 1
-                WHERE invite_id = ? AND revoked_at IS NULL AND expires_at > ? AND ${MEMBER_SEAT_AVAILABLE_SQL}`,
+                WHERE invite_id = ? AND revoked_at IS NULL AND expires_at > ? AND ${MEMBER_SEAT_AVAILABLE_SQL}
+                  AND ${INVITE_STILL_GRANTED_SQL}`,
                 )
-                .bind(invite.invite_id, now, ...seat)
+                .bind(invite.invite_id, now, ...seat, user.id)
             : dependencies.database
                 .prepare(
                   `UPDATE remote_invites SET used_at = ?
                 WHERE invite_id = ? AND used_at IS NULL AND revoked_at IS NULL AND expires_at > ?
-                  AND ${MEMBER_SEAT_AVAILABLE_SQL}`,
+                  AND ${MEMBER_SEAT_AVAILABLE_SQL} AND ${INVITE_STILL_GRANTED_SQL}`,
                 )
-                .bind(now, invite.invite_id, now, ...seat),
+                .bind(now, invite.invite_id, now, ...seat, user.id),
           dependencies.database
             .prepare("UPDATE remote_sessions SET ended_at = ? WHERE host_id = ? AND user_id = ? AND ended_at IS NULL")
             .bind(now, invite.host_id, user.id),

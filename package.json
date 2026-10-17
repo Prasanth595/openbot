@@ -219,6 +219,7 @@
     "test:central-auth-startup": "bun scripts/central-auth-startup-stall-e2e.ts",
     "test:hosted-start-wait": "bun apps/auth-api/scripts/hosted-start-wait-e2e.ts",
     "test:remote-auth-events": "bun apps/auth-api/scripts/remote-auth-events-e2e.ts",
+    "test:cloud-authorization": "bun apps/auth-api/scripts/cloud-authorization-e2e.ts",
     "test:billing-snapshot": "bun apps/auth-api/scripts/billing-snapshot-e2e.ts",
     "test:mobile-connected-devices": "bun scripts/mobile-connected-devices-e2e.ts",
     "test:composer-lists": "bun scripts/composer-markdown-lists-e2e.ts",
