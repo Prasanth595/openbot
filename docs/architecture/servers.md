@@ -158,12 +158,12 @@ answers `error.remote.responseTooLarge` and the phone and the web client cannot 
 
 On protocol 7, when the request advertises the capability, `GET /v1/agents/:id/queue` and
 `POST /v1/agents/:id/queue/edit` keep every queued, starting and running delivery, the `editing`
-mark included. Of the finished deliveries (completed, failed, interrupted, cancelled), they keep
-only the newest by `createdAt`: at most 100, and only as many as fit in
-`WEBRTC_FRAME_BODY_BUDGET`. The kept deliveries stay in queue order, and the wire shape and keys do
-not change. The clients use the active deliveries, the latest failed turn and its reason, and the
-receipts of recent messages, so they need nothing older. A request without the capability, and
-every protocol 6 or older request, gets the full list as before.
+mark included. Then they keep every failed, interrupted and cancelled delivery, newest first, while
+it fits in `WEBRTC_FRAME_BODY_BUDGET`: the phone and the web client show the failure reason of a
+failed message, and hide a cancelled message, at any age. Only completed deliveries leave the
+window: the newest 100 by `createdAt` stay, while they fit, for the receipts of recent messages.
+The kept deliveries stay in queue order, and the wire shape and keys do not change. A request
+without the capability, and every protocol 6 or older request, gets the full list as before.
 
 Every current client sends `teamCapabilitiesForProtocol(7)`, so the phone, the web client and a
 joined desktop get the window without other client code. A released phone keeps the full list

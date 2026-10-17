@@ -134,22 +134,25 @@ export async function routeAgentQueue(
   return "unmatched";
 }
 
-/** The finished deliveries a queue-window-v1 snapshot keeps at most. */
-const QUEUE_WINDOW_FINISHED_LIMIT = 100;
+/** The completed deliveries a queue-window-v1 snapshot keeps at most. */
+const QUEUE_WINDOW_COMPLETED_LIMIT = 100;
 const ACTIVE_STATUSES = new Set<QueueDelivery["status"]>(["queued", "starting", "running"]);
 
 /**
  * queue-window-v1: the queue without its old history. The store keeps every finished delivery, so a
- * long-lived agent's full snapshot passes one WebRTC frame and a remote client cannot read it. Every
- * active delivery stays, because the composer, the queue and the edit lock act on them. Only the
- * newest finished deliveries stay, for receipts and failure reasons, while they fit in the frame.
+ * long-lived agent's full snapshot passes one WebRTC frame and a remote client cannot read it.
+ * Every active delivery stays, because the composer, the queue and the edit lock act on them. Then
+ * every failed, interrupted and cancelled delivery stays, newest first, while it fits in the frame:
+ * the clients show its failure reason or hide its message, at any age. Only completed deliveries
+ * leave: the newest 100 stay, for receipts, while they fit.
  */
 function queueWindow(snapshot: QueueSnapshot): QueueSnapshot {
-  const finished = snapshot.deliveries
+  const newestFirst = snapshot.deliveries
     .map((delivery, index) => ({ delivery, index }))
     .filter(({ delivery }) => !ACTIVE_STATUSES.has(delivery.status))
-    .sort((a, b) => b.delivery.createdAt.localeCompare(a.delivery.createdAt) || b.index - a.index);
-  if (finished.length === 0) return snapshot;
+    .sort((a, b) => b.delivery.createdAt.localeCompare(a.delivery.createdAt) || b.index - a.index)
+    .map(({ delivery }) => delivery);
+  if (newestFirst.length === 0) return snapshot;
   const kept = new Set<QueueDelivery>();
   let bytes = Buffer.byteLength(
     JSON.stringify({
@@ -157,11 +160,16 @@ function queueWindow(snapshot: QueueSnapshot): QueueSnapshot {
       deliveries: snapshot.deliveries.filter(({ status }) => ACTIVE_STATUSES.has(status)),
     }),
   );
-  for (const { delivery } of finished.slice(0, QUEUE_WINDOW_FINISHED_LIMIT)) {
-    bytes += Buffer.byteLength(JSON.stringify(delivery)) + 1;
-    if (bytes > WEBRTC_FRAME_BODY_BUDGET) break;
-    kept.add(delivery);
-  }
+  const keep = (deliveries: QueueDelivery[]) => {
+    for (const delivery of deliveries) {
+      const next = bytes + Buffer.byteLength(JSON.stringify(delivery)) + 1;
+      if (next > WEBRTC_FRAME_BODY_BUDGET) return;
+      bytes = next;
+      kept.add(delivery);
+    }
+  };
+  keep(newestFirst.filter(({ status }) => status !== "completed"));
+  keep(newestFirst.filter(({ status }) => status === "completed").slice(0, QUEUE_WINDOW_COMPLETED_LIMIT));
   return {
     ...snapshot,
     deliveries: snapshot.deliveries.filter((delivery) => ACTIVE_STATUSES.has(delivery.status) || kept.has(delivery)),

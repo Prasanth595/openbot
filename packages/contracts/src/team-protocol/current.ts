@@ -82,8 +82,9 @@ export const TEAM_MEMBER_LEAVE_CAPABILITY = "member-leave-v1";
 /**
  * Frozen optional queue-window-v1 contract: a bounded queue snapshot. On a protocol 7 request that
  * advertises it, `GET /v1/agents/:agentId/queue` and `POST /v1/agents/:agentId/queue/edit` keep every
- * queued, starting and running delivery, and only the newest finished deliveries (completed, failed,
- * interrupted, cancelled): at most 100, and only as many as fit in one WebRTC frame. The kept
+ * queued, starting and running delivery. Then they keep every failed, interrupted and cancelled
+ * delivery, newest first, while it fits in one WebRTC frame. Then they keep the newest completed
+ * deliveries: at most 100, while they fit. The kept
  * deliveries stay in queue order, and the response keeps the frozen shape and keys. A request
  * without the capability gets the full list, as before. Widening any of it needs a second
  * capability string.

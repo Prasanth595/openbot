@@ -58,6 +58,9 @@ const LONG_TEXT_BYTES = 90_000;
 const QUEUED = 3;
 const FAILED = 2;
 const FAILURE_REASON = "The provider stopped the turn.";
+const OLD_FAILURE_AGENT = "agent-old-failure";
+/** More completed deliveries than the count limit, after one old failed and one old interrupted. */
+const LATER_COMPLETED = 150;
 
 interface ReadResult {
   protocol: number;
@@ -268,7 +271,7 @@ async function enqueue(mailbox: MailboxStore, agentId: string, text: string): Pr
 async function finish(
   mailbox: MailboxStore,
   deliveryId: string,
-  status: "completed" | "failed",
+  status: "completed" | "failed" | "interrupted",
   error: string | null = null,
 ): Promise<void> {
   await runCauseEffect(mailbox.markStarting(deliveryId));
@@ -288,6 +291,35 @@ async function seedHistory(
     ids.push(id);
   }
   return ids;
+}
+
+/** An old failure keeps its reason after more completed deliveries than the count limit. */
+async function checkOldFailure(origin: string, mailbox: MailboxStore): Promise<void> {
+  const failed = await enqueue(mailbox, OLD_FAILURE_AGENT, "old failed");
+  await finish(mailbox, failed, "failed", FAILURE_REASON);
+  const interrupted = await enqueue(mailbox, OLD_FAILURE_AGENT, "old interrupted");
+  await finish(mailbox, interrupted, "interrupted");
+  const completed = await seedHistory(mailbox, OLD_FAILURE_AGENT, LATER_COMPLETED);
+  const snapshot = await read(origin, "old-failure-with-window", {
+    method: "GET",
+    path: `/v1/agents/${OLD_FAILURE_AGENT}/queue`,
+    protocol: 7,
+    queueWindow: true,
+  });
+  assert.ok(snapshot, "The snapshot with an old failure fits in one frame.");
+  const byId = new Map(snapshot.deliveries.map((delivery) => [delivery.id, delivery]));
+  assert.equal(byId.get(failed)?.status, "failed", "The old failed delivery stays.");
+  assert.equal(byId.get(failed)?.error, FAILURE_REASON, "The old failure reason stays.");
+  assert.equal(byId.get(interrupted)?.status, "interrupted", "The old interrupted delivery stays.");
+  assert.deepEqual(
+    snapshot.deliveries.map((delivery) => delivery.id),
+    [failed, interrupted, ...completed.slice(-100)],
+    "Only the oldest completed deliveries leave, and queue order stays.",
+  );
+  report.checks.push(
+    `old failure: 1 failed and 1 interrupted delivery before ${LATER_COMPLETED} completed stay; ` +
+      `${snapshot.deliveries.length} deliveries in a ${report.reads["old-failure-with-window"]?.frameBytes}-byte frame`,
+  );
 }
 
 /** Long messages: the frame budget, not the count limit, ends the window. */
@@ -419,6 +451,7 @@ try {
   const history = await seedHistory(mailbox, HISTORY_AGENT);
   await checkHistoryOnly(host.origin, mailbox, history);
   await checkMixed(host.origin, mailbox);
+  await checkOldFailure(host.origin, mailbox);
   await checkLongMessages(host.origin, mailbox);
   report.passed = true;
 } catch (error) {
