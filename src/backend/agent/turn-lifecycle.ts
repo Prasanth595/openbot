@@ -190,6 +190,8 @@ export class TurnLifecycle {
    * answer, and the drain must not then mark the turn active again. Past the cap, the oldest goes.
    */
   readonly #endedTurns = new Set<string>();
+  /** Turns whose normal end runs now. A Stop must not settle one of them as an orphan (#2214). */
+  readonly #completingTurns = new Set<string>();
   /**
    * The time of the last provider notification for each agent: a delta, a tool item, a usage
    * update. It is the only clock that moves while a turn works, and it is lost on restart.
@@ -310,6 +312,11 @@ export class TurnLifecycle {
 
   hasEnded(turnId: string): boolean {
     return this.#endedTurns.has(turnId);
+  }
+
+  /** True while the normal end of this turn runs: it settles the turn itself. */
+  isCompleting(turnId: string): boolean {
+    return this.#completingTurns.has(turnId);
   }
 
   /** The task of a provider thread, or null for the agent's own chat and its other threads. */
@@ -656,6 +663,7 @@ export class TurnLifecycle {
       const running = this.#runningTurns.get(turnId);
       this.#runningTurns.delete(turnId);
       this.#markEnded(turnId);
+      this.#completingTurns.add(turnId);
       const noUpdateCalled = this.#noUpdateTurns.delete(turnId);
       if (running) {
         // `waitMs` is OpenBot's part of a slow reply: the queue (a usage-limit hold included), the
@@ -834,6 +842,7 @@ export class TurnLifecycle {
             ? Effect.void
             : this.settleOrphanedTurn(agentId, threadId, turnId, status === "failed" ? "failed" : "interrupted"),
         ),
+        Effect.ensuring(Effect.sync(() => this.#completingTurns.delete(turnId))),
       ),
   );
 
@@ -863,48 +872,55 @@ export class TurnLifecycle {
         .pipe(toTurnOperationFailed, Effect.catchCause(report));
     }
     const owner = this.#conversation.snapshotWithTurn(agentId, turnId);
-    // With no open delivery and no snapshot on the turn, the normal end did this part already.
-    if (owner || deliveries.length > 0) {
-      yield* turnStep(() => {
-        const snapshot = owner ?? this.#conversation.ensureSnapshot(agentId, threadId);
-        const publicThreadId = snapshot.threadId;
-        if (!publicThreadId) return;
-        const closed = structuredClone(snapshot);
-        const changedIds = new Set<string>();
-        const status = normalizeCompletionStatus(terminal);
-        for (const message of closed.messages) {
-          if (message.status !== "streaming") continue;
-          if (message.turnId !== turnId && this.#itemTurns.get(message.id) !== turnId) continue;
-          message.status = status;
-          markIncompleteImageGeneration(message, status);
-          changedIds.add(message.id);
-        }
-        for (const { delivery } of deliveries) {
-          this.#mailboxSync.syncDeliveryMessage(closed, delivery.id);
-          changedIds.add(delivery.id);
-        }
-        if (closed.activeTurnId === turnId) closed.activeTurnId = null;
-        closed.revision = this.#store.database.persistConversationChanges({
-          agentId,
-          threadId: publicThreadId,
-          activeTurnId: closed.activeTurnId,
-          changedMessages: closed.messages.filter((message) => changedIds.has(message.id)),
-          eventType: "turn.completed",
-          detail: { turnId, status: terminal },
-        });
-        // Clear the cached turn before queue listeners can read or change the agent.
-        this.#conversation.setSnapshot(agentId, closed);
-        this.#conversation.publishConversation(closed);
-        this.#hooks.emit({
-          type: "turn-completed",
-          agentId,
-          threadId: publicThreadId,
-          turnId,
-          status: terminal,
-          origin: deliveries[0]?.delivery.sender.kind ?? "unknown",
-        });
-      }).pipe(Effect.catchCause(report));
-    }
+    yield* turnStep(() => {
+      // With no open delivery and no snapshot on the turn, the turn is still open only when the normal
+      // end failed after it settled the deliveries and before it saved the conversation.
+      if (
+        !owner &&
+        deliveries.length === 0 &&
+        (threadId === null ||
+          this.#store.database.readActiveTurnId(agentId, this.#conversation.publicThreadId(agentId, threadId)) !==
+            turnId)
+      )
+        return;
+      const snapshot = owner ?? this.#conversation.ensureSnapshot(agentId, threadId);
+      const publicThreadId = snapshot.threadId;
+      if (!publicThreadId) return;
+      const closed = structuredClone(snapshot);
+      const changedIds = new Set<string>();
+      const status = normalizeCompletionStatus(terminal);
+      for (const message of closed.messages) {
+        if (message.status !== "streaming") continue;
+        if (message.turnId !== turnId && this.#itemTurns.get(message.id) !== turnId) continue;
+        message.status = status;
+        markIncompleteImageGeneration(message, status);
+        changedIds.add(message.id);
+      }
+      for (const { delivery } of deliveries) {
+        this.#mailboxSync.syncDeliveryMessage(closed, delivery.id);
+        changedIds.add(delivery.id);
+      }
+      if (closed.activeTurnId === turnId) closed.activeTurnId = null;
+      closed.revision = this.#store.database.persistConversationChanges({
+        agentId,
+        threadId: publicThreadId,
+        activeTurnId: closed.activeTurnId,
+        changedMessages: closed.messages.filter((message) => changedIds.has(message.id)),
+        eventType: "turn.completed",
+        detail: { turnId, status: terminal },
+      });
+      // Clear the cached turn before queue listeners can read or change the agent.
+      this.#conversation.setSnapshot(agentId, closed);
+      this.#conversation.publishConversation(closed);
+      this.#hooks.emit({
+        type: "turn-completed",
+        agentId,
+        threadId: publicThreadId,
+        turnId,
+        status: terminal,
+        origin: deliveries[0]?.delivery.sender.kind ?? "unknown",
+      });
+    }).pipe(Effect.catchCause(report));
     for (const [itemId, itemTurnId] of this.#itemTurns) if (itemTurnId === turnId) this.#itemTurns.delete(itemId);
     yield* turnStep(() => this.#mailboxSync.emitQueue(agentId)).pipe(Effect.catchCause(report));
     yield* turnStep(() => {

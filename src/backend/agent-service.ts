@@ -3773,8 +3773,8 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     // No provider runs a turn whose end failed part way or whose provider exited, so it has nothing to
     // stop. The Stop then settles what OpenBot still holds for the turn, and the queue frees (#2214).
     // A turn that the drain started can wait for its `turn/started` with a snapshot already on it:
-    // that turn is live, and only the provider can stop it.
-    if (!mayStop && this.#turn.turnStartedAt(turnId) === null) {
+    // that turn is live, and only the provider can stop it. A turn whose normal end runs settles itself.
+    if (!mayStop && this.#turn.turnStartedAt(turnId) === null && !this.#turn.isCompleting(turnId)) {
       const owner = this.#conversation.snapshotWithTurn(agentId, turnId);
       if (!owner || this.#turn.hasEnded(turnId)) {
         const deliveries = yield* lifecycleStep("find interrupted deliveries", () =>

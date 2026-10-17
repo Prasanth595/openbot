@@ -4,13 +4,15 @@
 // (a) boot recovery cannot settle one of three orphaned deliveries: the other two settle, and the drain runs;
 // (b) a turn end fails, by a defect or by a stored-state failure: the delivery ends, and the next message runs;
 // (c) a late write after the turn ended does not open the turn row again;
-// (d) Stop on a delivery that stays running after its turn ended frees the queue.
+// (d) Stop on a delivery that stays running after its turn ended frees the queue;
+// (e) Stop while the normal turn end runs does not settle the completed turn as interrupted;
+// (f) a turn end that fails after its deliveries settled still closes the stored turn.
 // `bun scripts/stuck-running-deliveries-e2e.ts`. Writes .openbot-build/stuck-running-deliveries-e2e/report.json.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { AGENT_PROVIDERS } from "@openbot/contracts/ipc";
+import { AGENT_PROVIDERS, type AgentEvent } from "@openbot/contracts/ipc";
 import { Effect } from "effect";
 import type { AgentBrowserHost } from "../src/backend/agent/turn-lifecycle";
 import { getString, isRecord } from "../src/backend/protocol";
@@ -42,7 +44,8 @@ const { StoredStateFailure } = await import("../src/backend/stored-state-effects
 
 /**
  * A Codex app-server with the methods that the service calls. `control.json` sets whether a new
- * turn is held until `turn/interrupt` or the process exits, and how long a turn that is not held runs.
+ * turn is held until `turn/interrupt` or the process exits, how long a turn that is not held runs, and
+ * whether `turn/started` comes before the `turn/start` answer.
  * Like Codex, `turn/interrupt` for a turn that does not run is refused.
  */
 const FAKE_CODEX = `#!/usr/bin/env node
@@ -94,10 +97,12 @@ const answer = (message) => {
     case "thread/items/list": return write({ id: message.id, result: { data: [], nextCursor: null } });
     case "thread/read": return write({ id: message.id, result: { thread: { id: params.threadId, turns: [] } } });
     case "turn/start": {
-      const { holdTurns, turnMs } = control();
+      const { holdTurns, turnMs, startedFirst } = control();
       const turnId = prefix + "turn-" + (++turns);
+      const started = { method: "turn/started", params: { threadId: params.threadId, turn: { id: turnId } } };
+      if (startedFirst) write(started);
       write({ id: message.id, result: { turn: { id: turnId, status: "inProgress", items: [] } } });
-      write({ method: "turn/started", params: { threadId: params.threadId, turn: { id: turnId } } });
+      if (!startedFirst) write(started);
       const timer = holdTurns ? undefined : setTimeout(() => finish(turnId, "completed"), turnMs);
       running.set(turnId, { threadId: params.threadId, timer });
       return;
@@ -205,7 +210,7 @@ async function need<T>(label: string, read: () => T | null | undefined | false):
   return value;
 }
 
-async function control(value: { holdTurns: boolean; turnMs: number }): Promise<void> {
+async function control(value: { holdTurns: boolean; turnMs: number; startedFirst?: boolean }): Promise<void> {
   await writeFile(controlPath, JSON.stringify(value));
 }
 
@@ -501,7 +506,83 @@ try {
     return null;
   });
 
-  report.passed = report.cases.length === 5 && report.cases.every((entry) => entry.passed);
+  await runCase("e: Stop while the turn end runs", async (details) => {
+    // `turn/started` comes first, so the turn takes its delivery itself. That write is held, and the
+    // normal end of the turn waits for it: a Stop in that wait comes after the provider ended the
+    // turn and before the end settled it.
+    await control({ holdTurns: false, turnMs: 1_000, startedFirst: true });
+    const target = await agentWithRunningTurn(second, "Stop during end");
+    const queuedId = await queueSecond(second, target.agentId);
+    const markRunning = mailbox.markRunning;
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let secondTurnId: string | null = null;
+    mailbox.markRunning = (deliveryId, turnId) => {
+      if (deliveryId !== queuedId) return markRunning(deliveryId, turnId);
+      secondTurnId = turnId;
+      return markRunning(deliveryId, turnId).pipe(Effect.andThen(Effect.promise(() => gate)));
+    };
+    const completions: string[] = [];
+    const onEvent = (event: AgentEvent) => {
+      if (event.type === "turn-completed" && event.agentId === target.agentId) completions.push(event.turnId);
+    };
+    second.agents.on("event", onEvent);
+    try {
+      const turnId = await need("the second turn", () => secondTurnId);
+      await need("the end of the second turn", () => second.agents.earliestRunningTurnStartedAt() === null);
+      details.stop = await runCauseEffect(second.agents.interrupt(target.agentId, turnId)).then(
+        () => "sent",
+        (error: unknown) => (error instanceof Error ? error.message : String(error)),
+      );
+      release();
+      await waitFor(() => isTerminal(status(mailbox, queuedId)) && completions.includes(turnId));
+      details.turnRow = turnRow(second.database, turnId);
+    } finally {
+      release();
+      mailbox.markRunning = markRunning;
+      second.agents.off("event", onEvent);
+    }
+    details.first = status(mailbox, target.deliveryId);
+    details.second = status(mailbox, queuedId);
+    details.completions = completions;
+    if (status(mailbox, queuedId) !== "completed") return "Stop settled a turn that completed.";
+    if (completions.filter((turnId) => turnId === secondTurnId).length !== 1) return "The turn did not end once.";
+    return null;
+  });
+
+  await runCase("f: a turn end that fails after its deliveries settled closes the stored turn", async (details) => {
+    await control({ holdTurns: false, turnMs: 1_000 });
+    const target = await agentWithRunningTurn(second, "Late end failure");
+    const queuedId = await queueSecond(second, target.agentId);
+    const updatePreview = second.store.updatePreview;
+    let armed = true;
+    second.store.updatePreview = (id, preview) => {
+      if (armed && id === target.agentId) {
+        armed = false;
+        return Effect.fail(new StoredStateFailure({ cause: injected("preview") }));
+      }
+      return updatePreview(id, preview);
+    };
+    try {
+      await waitFor(() => isTerminal(status(mailbox, target.deliveryId)) && status(mailbox, queuedId) === "completed");
+    } finally {
+      second.store.updatePreview = updatePreview;
+    }
+    const row = turnRow(second.database, target.turnId);
+    details.first = status(mailbox, target.deliveryId);
+    details.second = status(mailbox, queuedId);
+    details.turnRow = row;
+    details.previewFailed = !armed;
+    if (armed) return "The turn end did not reach the injected failure.";
+    if (status(mailbox, target.deliveryId) !== "completed") return "The first delivery did not complete.";
+    if (status(mailbox, queuedId) !== "completed") return "The next queued message did not run.";
+    if (!row?.completedAt || row.status === "running") return "The stored turn stays running.";
+    return null;
+  });
+
+  report.passed = report.cases.length === 7 && report.cases.every((entry) => entry.passed);
   if (!report.passed) process.exitCode = 1;
 } catch (error) {
   report.error = error instanceof Error ? (error.stack ?? error.message) : String(error);
