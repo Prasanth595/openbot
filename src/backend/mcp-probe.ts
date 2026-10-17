@@ -110,9 +110,25 @@ const probeMcpServerEffect = Effect.fnUntraced(function* (
     const described = describeProbeFailure(error, config, timeoutMs, signIn, seen.challenge, signInPlace);
     return { toolCount: 0, error: boundedError(redactMcpValues(described, probeSecrets(server, signIn))) };
   };
+  // The person's sign-in has its own deadline; the retried connection gets a fresh transport.
+  const afterSignIn = Effect.fnUntraced(function* (active: McpSignIn) {
+    const retry = yield* Effect.result(
+      active
+        .complete()
+        .pipe(toMcpProbeFailure, Effect.andThen(connectAndCountEffect(server, timeoutMs, active.provider, record))),
+    );
+    return Result.isFailure(retry) ? failure(retry.failure.cause) : { toolCount: retry.success, error: null };
+  });
   const startedAt = Date.now();
   const first = yield* Effect.result(connectAndCountEffect(server, timeoutMs, signIn?.provider, record));
-  if (Result.isSuccess(first)) return { toolCount: first.success, error: null };
+  if (Result.isSuccess(first)) {
+    // The user pressed Sign in, and the server answered without a sign-in: it can still want one
+    // to run a tool. Its sign-in starts here, or the press ends with nothing opened and nothing said.
+    if (!signIn) return { toolCount: first.success, error: null };
+    const begun = yield* Effect.result(signIn.begin());
+    if (Result.isFailure(begun)) return failure(begun.failure.cause);
+    return begun.success ? yield* afterSignIn(signIn) : { toolCount: first.success, error: null };
+  }
   // A server on the 2025-03 MCP authorization spec answers 401 with no challenge at all; its OAuth
   // metadata at the origin is what says a sign-in, not a key, is wanted. Only a refusal the sentence
   // would explain is followed up, and only public documents are read: no credential is sent.
@@ -124,13 +140,7 @@ const probeMcpServerEffect = Effect.fnUntraced(function* (
       bearer: yield* advertisesOAuth(config.url, timeoutMs - (Date.now() - startedAt)),
     };
   if (!signIn || !(first.failure.cause instanceof UnauthorizedError)) return failure(first.failure.cause);
-  // The person's sign-in has its own deadline; the retried connection gets a fresh transport.
-  const retry = yield* Effect.result(
-    signIn
-      .complete()
-      .pipe(toMcpProbeFailure, Effect.andThen(connectAndCountEffect(server, timeoutMs, signIn.provider, record))),
-  );
-  return Result.isFailure(retry) ? failure(retry.failure.cause) : { toolCount: retry.success, error: null };
+  return yield* afterSignIn(signIn);
 });
 
 /**
