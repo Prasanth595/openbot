@@ -498,9 +498,9 @@ export class RemoteControlPlane {
         hostId: string;
         name: string;
         ownerMembershipId: string;
-        devicePublicKey?: string | null;
-        rotateCredential?: boolean;
-        machineToken?: string;
+        devicePublicKey?: string | null | undefined;
+        rotateCredential?: boolean | undefined;
+        machineToken?: string | undefined;
       },
     ) {
       const dependencies = yield* RemoteDependencies;

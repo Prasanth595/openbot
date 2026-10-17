@@ -1,11 +1,5 @@
 {
   "exactOptionalPropertyTypes": {
-    "apps/auth-api/src/components/content/ArticleMedia.tsx": 1,
-    "apps/auth-api/src/components/landing/LandingFooter.tsx": 1,
-    "apps/auth-api/src/routes/v1/skills/index.ts": 1,
-    "apps/auth-api/src/routes/v2/remote/hosts/register.ts": 1,
-    "apps/auth-api/src/server/auth-service.ts": 1,
-    "apps/auth-api/src/server/hosted-site-service.ts": 1,
     "electron.vite.config.ts": 1,
     "packages/ui/src/components/ProviderModelPicker.tsx": 1,
     "packages/ui/src/components/ProviderPicker.tsx": 1,

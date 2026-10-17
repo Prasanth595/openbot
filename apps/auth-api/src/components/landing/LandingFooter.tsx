@@ -127,7 +127,7 @@ function FooterNavLink(props: { link: FooterLink }) {
       </Show>
       <Show when={page()}>
         {(link) => (
-          <Link to={link().to} hash={link().hash}>
+          <Link to={link().to} {...routeHash(link().hash)}>
             {link().label}
           </Link>
         )}
@@ -141,4 +141,9 @@ function FooterNavLink(props: { link: FooterLink }) {
       </Show>
     </>
   );
+}
+
+// The router reads a missing hash and an undefined hash the same way; its type takes only the first.
+function routeHash(hash: string | undefined): { hash?: string } {
+  return hash === undefined ? {} : { hash };
 }
