@@ -1,7 +1,7 @@
 import type { BrowserTab } from "@openbot/contracts/ipc";
 import BrowserFullView from "@openbot/ui/features/browser/BrowserFullView";
 import { BROWSER_NEW_TAB_URL } from "@openbot/ui/features/browser/browser-suggestions";
-import { createEffect, createMemo } from "solid-js";
+import { createEffect, createMemo, untrack } from "solid-js";
 import {
   browserSessionHistory,
   canReopenBrowserTab,
@@ -45,7 +45,8 @@ export default function BrowserFullViewAdapter() {
 
   createEffect(
     () => ({ id: serverId(), listed: browserTabs() }),
-    ({ id, listed }) => syncBrowserTabOrder(id, listed),
+    // The order is read to change it, not to run again when it changes.
+    ({ id, listed }) => untrack(() => syncBrowserTabOrder(id, listed)),
   );
 
   // A tab that shows a new address is a visit. A new title for the same address only names the page.

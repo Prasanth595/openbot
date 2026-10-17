@@ -80,6 +80,8 @@ export interface BrowserHostTab {
   diagnostics: BrowserDiagnostics;
   recording: boolean;
   captureGeneration: number;
+  /** Counts the addresses loaded after the tab opened. A later load that aborts the first load does not close the tab. */
+  loadGeneration: number;
   viewInvalidations: Set<() => void>;
   /**
    * The live view that made the last right-click, until the menu of that click opens. The menu then

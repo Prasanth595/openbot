@@ -676,6 +676,7 @@ export class BrowserHost {
     return yield* Effect.gen({ self: this }, function* () {
       yield* this.#persistState();
 
+      const loadGeneration = tab.loadGeneration;
       yield* Effect.gen({ self: this }, function* () {
         yield* browserCall(() => tab.contents.loadURL(normalizedUrl, browserLoadOptions()));
         if (focus) {
@@ -686,6 +687,8 @@ export class BrowserHost {
         Effect.catch((operationFailure) =>
           Effect.gen({ self: this }, function* () {
             const error = operationFailure.cause;
+            // The user entered an address before the first page loaded: that load is the tab's page now.
+            if (this.#tabs.get(tab.id) === tab && tab.loadGeneration !== loadGeneration) return;
             if (this.#tabs.get(tab.id) === tab) {
               this.#unmountView(tab.view);
               this.#tabs.delete(tab.id);
@@ -751,6 +754,7 @@ export class BrowserHost {
       tabId,
       (tab) =>
         Effect.gen({ self: this }, function* () {
+          tab.loadGeneration += 1;
           yield* navigateAndWait(tab.contents, () => tab.contents.loadURL(normalizedUrl, browserLoadOptions()));
           this.#focusTab(tab);
         }),
@@ -1941,6 +1945,7 @@ export class BrowserHost {
       diagnostics,
       recording: false,
       captureGeneration: 0,
+      loadGeneration: 0,
       documents: 0,
       viewInvalidations: new Set(),
       viewContextMenu: null,

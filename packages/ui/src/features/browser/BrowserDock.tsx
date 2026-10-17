@@ -152,12 +152,13 @@ export function BrowserDock(props: BrowserDockProps) {
 
   // A new queue row for the sent text: the text moves from the field into it.
   createEffect(
-    () => props.deliveries.map((delivery) => delivery.id),
-    (ids, previous) => {
-      const added = ids.filter((id) => !previous?.includes(id));
+    () => props.deliveries.map((delivery) => ({ id: delivery.id, text: delivery.text })),
+    (rows, previous) => {
+      const known = new Set(previous?.map((row) => row.id));
+      const added = rows.filter((row) => !known.has(row.id));
       if (!pending?.before || added.length === 0) return;
       const sent = pending;
-      const delivery = props.deliveries.find((item) => added.includes(item.id) && item.text.trim() === sent.text);
+      const delivery = added.find((row) => row.text.trim() === sent.text);
       if (!delivery) return;
       queueMicrotask(() => {
         const current = takePending();

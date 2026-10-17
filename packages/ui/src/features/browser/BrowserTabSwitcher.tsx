@@ -32,7 +32,8 @@ export function BrowserTabSwitcher(props: {
   };
 
   return (
-    <Popover.Root open={open()} onOpenChange={setOpen} placement="bottom-start" gutter={4}>
+    // Modal, so the focus goes into the list and Escape closes the list, not the browser view.
+    <Popover.Root modal open={open()} onOpenChange={setOpen} placement="bottom-start" gutter={4}>
       <Popover.Trigger
         class={`${buttonVariants({ variant: "ghost", size: "sm" })} browser-full-switch no-drag`}
         aria-label={label()}
@@ -60,6 +61,13 @@ export function BrowserTabSwitcher(props: {
       <Popover.Portal>
         <Popover.Content
           class="ui-popover-menu-surface browser-full-switch-menu"
+          onOpenAutoFocus={(event: Event) => {
+            const current = event.currentTarget instanceof HTMLElement ? event.currentTarget : undefined;
+            const row = current?.querySelector<HTMLElement>('[aria-current="true"]');
+            if (!row) return;
+            event.preventDefault();
+            row.focus();
+          }}
           onCloseAutoFocus={(event: Event) => {
             if (keepFocus) event.preventDefault();
             keepFocus = false;
