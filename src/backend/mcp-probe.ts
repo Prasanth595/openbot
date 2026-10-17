@@ -76,7 +76,13 @@ export const testMcpServer = Effect.fnUntraced(function* (
         const server = yield* usableMcpServer(
           config,
           tools,
-          oauth ? (subject) => oauth.accessToken(subject.url) : undefined,
+          // The probe runs in this process, so it holds the token itself and never uses the proxy.
+          oauth
+            ? (subject) =>
+                oauth
+                  .accessToken(subject.url)
+                  .pipe(Effect.map((authorization) => ({ url: subject.url, authorization, proxied: false })))
+            : undefined,
         );
         return yield* probeMcpServerEffect(server, timeoutMs, signIn, signInPlace);
       }),
@@ -299,7 +305,9 @@ function createTransport(
      * passed `normalizeResource`, so the guard refuses nothing this probe could otherwise reach.
      */
     return new StreamableHTTPClientTransport(new URL(config.url), {
-      fetch: authProvider ? secureOAuthFetch() : challengeRecordingFetch(onChallenge),
+      fetch: authProvider
+        ? secureOAuthFetch({ resource: config.url, mcpTraffic: true })
+        : challengeRecordingFetch(onChallenge),
       ...(authProvider ? { authProvider } : {}),
       requestInit: { headers },
     });

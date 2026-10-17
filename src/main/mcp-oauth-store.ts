@@ -110,12 +110,14 @@ export class McpOAuthStore implements McpOAuthStorage {
         // that names only where the authorization server was found is not empty: the SDK saves
         // discovery state before it registers, and deleting it here would send the code exchange
         // back to default discovery. A sign-in app alone is not empty either: the administrator saves
-        // it before the first sign-in.
+        // it before the first sign-in. Nor is a sign-in the server ended: `lostAt` is what lets the
+        // row say so.
         if (
           record.app === undefined &&
           record.client === undefined &&
           record.tokens === undefined &&
-          record.discovery === undefined
+          record.discovery === undefined &&
+          record.lostAt === undefined
         )
           next.delete(resource);
         else next.set(resource, record);
