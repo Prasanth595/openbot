@@ -9,7 +9,7 @@ import { type AgentActivityLabel, agentActivityLabelKey, nextAgentActivityLabel 
 export interface ChannelWorker {
   id: string;
   name: string;
-  agent?: AgentProfile;
+  agent?: AgentProfile | undefined;
 }
 
 /**

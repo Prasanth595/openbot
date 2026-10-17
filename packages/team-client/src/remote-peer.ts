@@ -84,8 +84,8 @@ export type RemoteTeamCommand =
       method: string;
       path: string;
       body: TeamProtocolV2Json;
-      upload?: RemoteFileUpload;
-      timeoutMs?: number;
+      upload?: RemoteFileUpload | undefined;
+      timeoutMs?: number | undefined;
     };
 
 export interface RemoteTeamBootstrapPayload {

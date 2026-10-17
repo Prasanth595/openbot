@@ -226,7 +226,7 @@ export interface DirectConversationSnapshot {
   otherMemberId: string;
   messages: DirectMessage[];
   revision: number;
-  readState?: DirectConversationReadState;
+  readState?: DirectConversationReadState | undefined;
 }
 
 export type DirectConversationPageAnchor =
@@ -252,7 +252,7 @@ export interface DirectConversationPage {
     olderCount?: number;
     oldestAt?: string;
   };
-  readState?: DirectConversationReadState;
+  readState?: DirectConversationReadState | undefined;
 }
 
 export interface DirectConversationReadState {

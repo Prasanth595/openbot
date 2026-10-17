@@ -569,7 +569,7 @@ export const EmptySections: Story = {
       order: ["people", "unassigned", demoSectionId, emptySectionId],
     },
   },
-  decorators: FirstAgent.decorators,
+  decorators: [(Story) => <div style={{ width: "280px", height: "100vh" }}>{Story()}</div>],
 };
 
 export const FirstAgentNarrow: Story = {

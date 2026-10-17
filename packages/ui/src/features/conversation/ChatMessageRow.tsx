@@ -33,7 +33,7 @@ export interface ChatMessageAuthor {
   /** Missing for an author the agent list no longer holds, and for the reader's own messages. */
   agent?: AgentProfile | undefined;
   /** The face to draw when the profile is gone: the author id keeps deleted agents apart. */
-  avatarSeed?: string;
+  avatarSeed?: string | undefined;
 }
 
 export interface ChatMessageRowProps {

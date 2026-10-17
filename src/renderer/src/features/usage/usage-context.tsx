@@ -11,7 +11,11 @@ type HostPaneView = "usage" | "schedule" | "tasks";
 const context = createSimpleContext({
   name: "UsageProvider",
   init: () => {
-    const [state, setState] = createStore<{ serverId: string | null; agentId?: string; view: HostPaneView }>({
+    const [state, setState] = createStore<{
+      serverId: string | null;
+      agentId?: string | undefined;
+      view: HostPaneView;
+    }>({
       serverId: null,
       view: "usage",
     });

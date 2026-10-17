@@ -52,8 +52,8 @@ export function isChatVisualMimeType(mimeType: string): boolean {
 }
 
 export function chatVisualReply<Attachment extends { mimeType: string }>(message: {
-  itemType?: string | null;
-  attachments?: readonly Attachment[] | null;
+  itemType?: string | null | undefined;
+  attachments?: readonly Attachment[] | null | undefined;
 }): { attachment: Attachment; height?: number } | null {
   if (!message.itemType?.startsWith(CHAT_VISUAL_ITEM_TYPE_PREFIX)) return null;
   const attachment = message.attachments?.length === 1 ? message.attachments[0] : undefined;

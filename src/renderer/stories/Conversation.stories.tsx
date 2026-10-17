@@ -1125,7 +1125,7 @@ function MockedConversation(props: {
         </ConversationControllerProvider>
       </StoryAppProviders>
       <Show when={props.takeoverStateGallery && takeoverGalleryMount()}>
-        <Portal mount={takeoverGalleryMount() ?? undefined}>
+        <Portal mount={takeoverGalleryMount() ?? document.body}>
           <div class="browser-takeover-story-states">
             <BrowserTakeoverCard
               agentName={props.args.agent?.name ?? "the agent"}

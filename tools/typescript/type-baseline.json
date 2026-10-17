@@ -3,19 +3,6 @@
     "packages/ui/src/switch.tsx": 1,
     "src/backend/local-mcp-bridge.ts": 1,
     "src/backend/mcp-probe.ts": 1,
-    "src/main/github-mcp-proxy.ts": 2,
-    "src/renderer/stories/App.stories.tsx": 1,
-    "src/renderer/stories/ChatPrimitives.stories.tsx": 1,
-    "src/renderer/stories/ComputerUsePermissionHelp.stories.tsx": 1,
-    "src/renderer/stories/Conversation.stories.tsx": 1,
-    "src/renderer/stories/DynamicIsland.stories.tsx": 1,
-    "src/renderer/stories/FilesStorage.stories.tsx": 1,
-    "src/renderer/stories/LanguageSelect.stories.tsx": 1,
-    "src/renderer/stories/McpKeyDialog.stories.tsx": 1,
-    "src/renderer/stories/RoutineScheduleCard.stories.tsx": 1,
-    "src/renderer/stories/Select.stories.tsx": 2,
-    "src/renderer/stories/ServerSettingsModal.stories.tsx": 1,
-    "src/renderer/stories/SettingsModal.stories.tsx": 1,
-    "src/renderer/stories/Sidebar.stories.tsx": 1
+    "src/main/github-mcp-proxy.ts": 2
   }
 }

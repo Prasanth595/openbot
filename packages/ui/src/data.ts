@@ -155,40 +155,42 @@ export interface MessageReactionSummary {
 
 export interface AgentMessage {
   id: string;
-  turnId?: string;
+  turnId?: string | undefined;
   author: "you" | "agent";
   body: string;
   time: string;
   createdAt?: string;
   streaming?: boolean;
-  animate?: boolean;
-  itemType?: string;
+  animate?: boolean | undefined;
+  itemType?: string | undefined;
   kind?: MessageKind;
-  status?: string;
-  senderAgentId?: string;
+  status?: string | undefined;
+  senderAgentId?: string | undefined;
   /** The person who wrote a `you` message. Absent on the reader's own older messages. */
-  senderMember?: ConversationMessageSender;
-  replyToMessageId?: string | null;
-  attachments?: AttachmentSummary[];
-  imageGeneration?: ImageGenerationInfo;
-  questionPrompt?: ConversationQuestionPrompt;
+  senderMember?: ConversationMessageSender | undefined;
+  replyToMessageId?: string | null | undefined;
+  attachments?: AttachmentSummary[] | undefined;
+  imageGeneration?: ImageGenerationInfo | undefined;
+  questionPrompt?: ConversationQuestionPrompt | undefined;
   /** The interactive block an agent drew. A blocking block sits beside `questionPrompt`. */
   uiBlock?: ConversationUiBlock;
   citations?: MessageCitation[];
-  exchange?: AgentExchangeSummary;
-  reaction?: MessageReaction | null;
+  exchange?: AgentExchangeSummary | undefined;
+  reaction?: MessageReaction | null | undefined;
   reactions?: ConversationReaction[];
   reactionSummary?: MessageReactionSummary;
-  routine?: {
-    routineId: string;
-    runId: string;
-    name: string;
-    scheduledFor: string;
-  };
-  actionMarker?: ChatActionMarkerModel;
+  routine?:
+    | {
+        routineId: string;
+        runId: string;
+        name: string;
+        scheduledFor: string;
+      }
+    | undefined;
+  actionMarker?: ChatActionMarkerModel | undefined;
   items?: string[];
   itemIds?: string[];
-  plan?: AgentMessagePlan;
+  plan?: AgentMessagePlan | undefined;
 }
 
 export interface AgentProfile {
@@ -201,13 +203,13 @@ export interface AgentProfile {
   model: AgentModelId;
   reasoningEffort: AgentReasoningEffort;
   /** The provider account after the first. Absent for the provider's own sign-in. */
-  providerAccountId?: string;
+  providerAccountId?: string | undefined;
   /** Absent for an agent on a remote host, which does not share it; the host then decides. */
-  access?: AgentAccess;
+  access?: AgentAccess | undefined;
   /** Absent means on. Absent for an agent on a remote host too, which does not share it. */
-  computerUse?: boolean;
+  computerUse?: boolean | undefined;
   /** Absent means off. Absent for an agent on a remote host too, which does not share it. */
-  allowAutomation?: boolean;
+  allowAutomation?: boolean | undefined;
   /** Absent means the app default. Absent for an agent on a remote host too, which does not share it. */
   busyMessageMode?: AgentSummary["busyMessageMode"];
   /** Absent means the default task limit. Absent for an agent on a remote host too, which runs no tasks. */

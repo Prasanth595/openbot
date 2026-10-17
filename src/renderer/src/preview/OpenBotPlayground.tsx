@@ -20,7 +20,7 @@ export interface OpenBotPlaygroundDependencies {
 
 export interface OpenBotPlaygroundProps {
   dependencies?: OpenBotPlaygroundDependencies;
-  options?: MockOpenBotOptions;
+  options?: MockOpenBotOptions | undefined;
   variant?: "default" | "landing";
 }
 

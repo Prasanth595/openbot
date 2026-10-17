@@ -89,7 +89,7 @@ interface ConversationState {
   missingReferences?: Record<string, true>;
   olderLoading?: boolean;
   olderError?: string | null;
-  read?: ConversationReadState;
+  read?: ConversationReadState | undefined;
   recentReply?: boolean;
 }
 

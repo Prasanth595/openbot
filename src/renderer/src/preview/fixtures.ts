@@ -548,7 +548,7 @@ export const STORY_DIRECT_SNAPSHOTS: Record<string, DirectConversationSnapshot> 
   },
 };
 
-export const STORY_SERVERS: ServerSummary[] = [
+export const STORY_SERVERS: [ServerSummary, ...ServerSummary[]] = [
   {
     id: "local",
     name: "Local",

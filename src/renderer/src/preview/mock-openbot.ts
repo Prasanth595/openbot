@@ -681,7 +681,9 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
     return clone(snapshot);
   }
 
-  function createAgentSummary(input: Partial<AgentSummary> = {}): AgentSummary {
+  function createAgentSummary(
+    input: { [Key in keyof AgentSummary]?: AgentSummary[Key] | undefined } = {},
+  ): AgentSummary {
     agentCounter += 1;
     const id = input.id ?? `mock-agent-${agentCounter}`;
     return {

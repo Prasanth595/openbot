@@ -37,7 +37,7 @@ export function Select<Option, OptGroup = never, T extends ValidComponent = "div
 
 export type SelectTriggerProps = PolymorphicProps<"button", SelectPrimitive.SelectTriggerProps<"button">> &
   Pick<ComponentProps<"button">, "class" | "children"> & {
-    size?: "sm" | "md";
+    size?: "sm" | "md" | undefined;
   };
 
 export function SelectTrigger(rawProps: SelectTriggerProps): JSX.Element {

@@ -39,11 +39,11 @@ export function isAgentAccess(value: unknown): value is AgentAccess {
 }
 
 /** Whether the agent may use Computer Use. Absent means on, as for every agent before the setting existed. */
-export function agentComputerUseEnabled(agent: Pick<AgentSummary, "computerUse">): boolean {
+export function agentComputerUseEnabled(agent: { computerUse?: boolean | undefined }): boolean {
   return agent.computerUse !== false;
 }
 
-export function agentAutomationAllowed(agent: Pick<AgentSummary, "allowAutomation">): boolean {
+export function agentAutomationAllowed(agent: { allowAutomation?: boolean | undefined }): boolean {
   return agent.allowAutomation === true;
 }
 
@@ -53,7 +53,7 @@ export function agentAutomationAllowed(agent: Pick<AgentSummary, "allowAutomatio
  * outside the roots. Grok and OpenCode run the agent in a provider process of its own, inside an
  * operating system sandbox (`process-confinement.ts`); on Linux and Windows that process does not start.
  */
-export function workspaceAccessEnforced(agent: Pick<AgentSummary, "access">): boolean {
+export function workspaceAccessEnforced(agent: { access?: AgentAccess | undefined }): boolean {
   return agent.access === "workspace";
 }
 
@@ -62,7 +62,7 @@ export interface AgentModelChoice {
   provider: AgentProviderId;
   model: AgentModelId;
   /** Absent means the provider's own sign-in, `DEFAULT_PROVIDER_ACCOUNT_ID`. */
-  providerAccountId?: string;
+  providerAccountId?: string | undefined;
 }
 
 /** The most backup models an agent keeps. */

@@ -12,7 +12,7 @@ export interface RoutineScheduleCardProps {
   action: "created" | "updated";
   schedule: RoutineScheduleDraft;
   /** Without it the card is read-only. */
-  onChange?: (schedule: RoutineScheduleDraft) => void;
+  onChange?: ((schedule: RoutineScheduleDraft) => void) | undefined;
   /** One edit on the row is complete. A card that saves each edit saves here. */
   onEditEnd?: () => void;
   state?: RoutineScheduleCardState;

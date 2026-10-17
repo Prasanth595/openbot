@@ -81,9 +81,9 @@ export interface SettingsModalProps {
   processAvatarFile?: (file: File) => Promise<AvatarImageInput>;
   billingApi?: BillingDesktopApi;
   /** The account's hosted servers. The tab is shown only when the account server offers them. */
-  hostedServersApi?: HostedServersDesktopApi;
+  hostedServersApi?: HostedServersDesktopApi | undefined;
   /** Opens the add server dialog from the Hosted servers tab. */
-  onAddHostedServer?: () => void;
+  onAddHostedServer?: (() => void) | undefined;
   /** A hosted server that the server menu asked to delete. Each nonce opens its confirmation once. */
   hostedServerDeleteRequest?: { serverId: string; nonce: number } | null;
   onTestNotification?: () => void | Promise<void>;
@@ -91,7 +91,7 @@ export interface SettingsModalProps {
   onOpenNotificationSettings?: () => void | Promise<void>;
   restoreFocusTarget?: HTMLElement | null;
   /** The tab shown when the modal is created. Read once; the user moves between tabs after that. */
-  initialTab?: SettingsTab;
+  initialTab?: SettingsTab | undefined;
   /** The tab shown each time the modal opens. Without it, the modal shows the tab that was open last. */
   openTab?: SettingsTab | undefined;
   /** Where the settings page shows, or nothing while the page is not on screen. */

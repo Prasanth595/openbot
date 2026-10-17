@@ -44,10 +44,9 @@ import { localizedPlugin } from "./marketplace-plugin-text";
 import { agentHomeCache, marketplaceErrorMessage, skillHomeCache } from "./marketplace-shared";
 
 /** An agent of the server that the Marketplace is for. */
-export type MarketplaceAgentRow = Pick<
-  AgentSummary,
-  "id" | "name" | "marketplaceSource" | "avatarSeed" | "avatarHue" | "avatarUrl"
->;
+export type MarketplaceAgentRow = Pick<AgentSummary, "id" | "name" | "avatarSeed" | "avatarHue" | "avatarUrl"> & {
+  marketplaceSource?: AgentSummary["marketplaceSource"];
+};
 
 export interface MarketplaceControllerProps {
   open: boolean;

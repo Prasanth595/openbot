@@ -14,7 +14,7 @@ const options: AppLanguageOption[] = [...APP_LANGUAGE_OPTIONS];
 export interface LanguageSelectProps {
   value: AppLanguage;
   onChange: (value: AppLanguage) => void;
-  disabled?: boolean;
+  disabled?: boolean | undefined;
   /** The dialog element the popover portals into, as the other Settings selects receive it. */
   mount?: HTMLElement | undefined;
 }

@@ -15,7 +15,7 @@ import {
 
 export interface AgentFilesViewProps {
   agentName: string;
-  loading?: boolean;
+  loading?: boolean | undefined;
   error?: string | null;
   onRetry?: () => void;
   /** This agent's share of each storage location. */

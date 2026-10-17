@@ -13,7 +13,7 @@ export interface McpKeyDialogProps extends McpConnectBaseProps {
   /** The credentials this server asks for, as its listing declares them. */
   flow: McpKeyFlow;
   /** Opens the page the key is created on. Without it the dialog shows no link. */
-  onOpenUrl?: (url: string) => void;
+  onOpenUrl?: ((url: string) => void) | undefined;
   /** The joined server whose host keeps the credential. Absent when this computer keeps it. */
   hostName?: string | undefined;
 }
