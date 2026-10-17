@@ -19,6 +19,7 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import type { FetchLike, Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { LATEST_PROTOCOL_VERSION } from "@modelcontextprotocol/sdk/types.js";
 import { createOpenBotLogger, toLogValue } from "@openbot/logging";
+import { Effect } from "effect";
 import { secureOAuthFetch } from "../src/backend/mcp-oauth-provider";
 import { hostAddresses, isPublicAddress, systemAddressLookup } from "../src/backend/network-address";
 import { defaultPluginCatalogPaths, loadPluginCatalog, type PluginApp } from "./build-plugin-catalog";
@@ -196,7 +197,7 @@ async function checkLink(url: string, requests: string[]): Promise<LinkDetails> 
   for (const endpoint of endpoints) {
     const target = new URL(endpoint);
     check(target.protocol === "https:", `${target.origin} does not use https`);
-    const addresses = await hostAddresses(target, systemAddressLookup);
+    const addresses = await Effect.runPromise(hostAddresses(target, systemAddressLookup));
     check(addresses.length > 0 && addresses.every(isPublicAddress), `${target.origin} is on a private network`);
   }
   return {

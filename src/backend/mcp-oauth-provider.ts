@@ -1,5 +1,5 @@
 import { Deferred, Effect, Exit, Fiber, Result, Scope } from "effect";
-import { McpOperationError, mcpCall, mcpFailure, mcpSync } from "./mcp-effects";
+import { McpOperationError, mcpCall, mcpFailure, mcpSync, toMcpOperationError } from "./mcp-effects";
 /**
  * The OAuth client OpenBot is, for an http MCP server that asks its users to sign in.
  *
@@ -50,7 +50,13 @@ import type { Logger } from "@openbot/logging";
 import { z } from "zod";
 import { runCauseEffect } from "./effect-boundary";
 import { readLimitedBody } from "./limited-body";
-import { type AddressLookup, hostAddresses, isPublicAddress, systemAddressLookup } from "./network-address";
+import {
+  type AddressLookup,
+  type AddressLookupError,
+  hostAddresses,
+  isPublicAddress,
+  systemAddressLookup,
+} from "./network-address";
 import { withTimeout } from "./with-timeout";
 
 /** What one server's sign-in leaves behind, and all of it: nothing else is kept between runs. */
@@ -1331,17 +1337,17 @@ const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 export function secureOAuthFetch(options: SecureOAuthFetchOptions = {}): FetchLike {
   const resource = options.resource === undefined ? null : new URL(options.resource);
   const resolve = options.lookup ?? systemAddressLookup;
-  // Resolved once for each exchange: every hop compares its addresses with this one answer.
-  let resourcePublic: Promise<boolean> | undefined;
   const guard: OAuthAddressGuard | null = resource
     ? {
         resource,
-        resourcePublic: () => {
-          resourcePublic ??= hostAddresses(resource, resolve).then(
-            (addresses) => addresses.length > 0 && addresses.every(isPublicAddress),
-          );
-          return resourcePublic;
-        },
+        // Resolved once for each exchange: every hop compares its addresses with this one answer.
+        resourcePublic: Effect.runSync(
+          Effect.cached(
+            hostAddresses(resource, resolve).pipe(
+              Effect.map((addresses) => addresses.length > 0 && addresses.every(isPublicAddress)),
+            ),
+          ),
+        ),
         resolve,
       }
     : null;
@@ -1368,7 +1374,7 @@ export interface SecureOAuthFetchOptions {
 
 interface OAuthAddressGuard {
   resource: URL;
-  resourcePublic: () => Promise<boolean>;
+  resourcePublic: Effect.Effect<boolean, AddressLookupError>;
   resolve: AddressLookup;
 }
 
@@ -1450,8 +1456,8 @@ const secureOAuthRequest = Effect.fn("McpOAuth.secureFetch")(function* (
  * stops a document that names a private address, not a resolver that changes its answer.
  */
 const checkEndpointAddress = Effect.fn("McpOAuth.checkEndpointAddress")(function* (url: URL, guard: OAuthAddressGuard) {
-  if (!(yield* mcpCall(guard.resourcePublic))) return;
-  const addresses = yield* mcpCall(() => hostAddresses(url, guard.resolve));
+  if (!(yield* toMcpOperationError(guard.resourcePublic))) return;
+  const addresses = yield* toMcpOperationError(hostAddresses(url, guard.resolve));
   if (addresses.length > 0 && addresses.every(isPublicAddress)) return;
   return yield* mcpFailure(new Error(sourceText("error.backend.mcpOAuthPrivateEndpoint", { origin: url.origin })));
 });
