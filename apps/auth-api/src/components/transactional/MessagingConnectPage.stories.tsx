@@ -1,9 +1,11 @@
+import { translateFor } from "@openbot/i18n";
 import type { JSX } from "@solidjs/web";
 import { createRootRoute, createRoute, createRouter, RouterContextProvider } from "@tanstack/solid-router";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 // The site's stylesheet, loaded only when a site story opens. See `ArticleMedia.stories.tsx`.
 import "../../styles.css";
 import { MessagingConnectView } from "./MessagingConnectPage";
+import { messagingConnectText } from "./page-text";
 
 /**
  * The site header's links need a router. The real route tree carries Worker-only modules, so this is
@@ -24,10 +26,13 @@ function WithRouter(props: { children: () => JSX.Element }) {
   return <RouterContextProvider router={router}>{props.children}</RouterContextProvider>;
 }
 
+const SLACK_TEXT = messagingConnectText(translateFor("en"), "slack");
+const DISCORD_TEXT = messagingConnectText(translateFor("en"), "discord");
+
 const meta = {
   title: "Site/Messaging connect page",
   component: MessagingConnectView,
-  args: { provider: "slack", openUrl: "", failure: null },
+  args: { provider: "slack", lang: "en", text: SLACK_TEXT, openUrl: "", failure: null },
   parameters: { layout: "fullscreen", a11y: { test: "error" } },
   render: (args) => <WithRouter>{() => <MessagingConnectView {...args} />}</WithRouter>,
 } satisfies Meta<typeof MessagingConnectView>;
@@ -64,13 +69,13 @@ export const SlackUnknownError: Story = {
 };
 
 export const DiscordReturnToOpenBot: Story = {
-  args: { provider: "discord", openUrl: "openbot://discord-guild?nonce=example&grant=example" },
+  args: { provider: "discord", text: DISCORD_TEXT, openUrl: "openbot://discord-guild?nonce=example&grant=example" },
 };
 
 export const DiscordGuildTaken: Story = {
-  args: { provider: "discord", failure: "discord_guild_taken" },
+  args: { provider: "discord", text: DISCORD_TEXT, failure: "discord_guild_taken" },
 };
 
 export const DiscordSignInExpired: Story = {
-  args: { provider: "discord", failure: "discord_state_invalid" },
+  args: { provider: "discord", text: DISCORD_TEXT, failure: "discord_state_invalid" },
 };

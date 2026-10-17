@@ -270,7 +270,7 @@ export const messages = {
   "settings.updates.unavailable": "Actualizaciones no disponibles",
   "settings.updates.autoDownload.title": "Descargar actualizaciones automáticamente",
   "settings.updates.autoDownload.description": "Descargar las nuevas versiones cuando estén disponibles.",
-  "settings.updates.managed.title": "Gestionado por el host",
+  "settings.updates.managed.title": "Gestionado por Host Manager",
   "settings.updates.managed.description":
     "OpenBot Host Manager gestiona automáticamente las actualizaciones de este Mac. Todos los usuarios comparten la misma aplicación OpenBot y se actualizan juntos cuando los usuarios registrados están inactivos.",
   "settings.updates.target.latest": "La última actualización de OpenBot",
@@ -278,7 +278,7 @@ export const messages = {
   "settings.updates.host.ready":
     "{target} está descargado. Esperando a que los demás usuarios de este Mac estén inactivos.",
   "settings.updates.host.installing": "Instalando {target}…",
-  "settings.updates.host.failed": "La actualización del host falló. Contacta con el administrador del host.",
+  "settings.updates.host.failed": "La actualización gestionada falló. Contacta con el administrador de este Mac.",
   "settings.updates.status.idle": "Busca actualizaciones para encontrar la última versión estable.",
   "settings.updates.status.checking": "Buscando actualizaciones del canal estable…",
   "settings.updates.status.available": "{target} está disponible para descargar.",

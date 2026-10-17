@@ -2,14 +2,10 @@ import { Portal } from "@solidjs/web";
 import { type Accessor, createSignal, createUniqueId, onCleanup, Show } from "solid-js";
 import { DOWNLOAD_PLATFORMS, detectDownloadPlatform } from "../../lib/download-platforms";
 import { Button } from "../ui/button";
+import type { OpenAppFallbackText } from "./page-text";
 
 /** How long the app has to take over before the page offers help. The same as `PluginOpenButtons`. */
 const OPEN_APP_HINT_DELAY_MS = 1200;
-
-const COPY = {
-  title: "Nothing opened?",
-  dismiss: "Not now",
-} as const;
 
 export interface OpenAppFallback {
   /** Starts the timer. Call it when the visitor presses a button that opens an `openbot://` link. */
@@ -59,7 +55,7 @@ export function createOpenAppFallback(): OpenAppFallback {
  * same behaviour as `PluginOpenButtons`: the platform `<dialog>` holds the focus, Escape and "Not now"
  * close it, and a press on the backdrop closes it. The download button gets the focus.
  */
-export function OpenAppFallbackDialog(props: { fallback: OpenAppFallback; copy: string }) {
+export function OpenAppFallbackDialog(props: { fallback: OpenAppFallback; text: OpenAppFallbackText }) {
   const titleId = createUniqueId();
   let dialog: HTMLDialogElement | undefined;
   const platform = () => DOWNLOAD_PLATFORMS[detectDownloadPlatform(globalThis.navigator ?? {}) ?? "macos"];
@@ -82,12 +78,12 @@ export function OpenAppFallbackDialog(props: { fallback: OpenAppFallback; copy: 
       <Portal>
         <dialog ref={openDialog} class="plugin-dialog" aria-labelledby={titleId} onClose={props.fallback.close}>
           <h2 class="plugin-dialog-title" id={titleId}>
-            {COPY.title}
+            {props.text.title}
           </h2>
-          <p class="plugin-dialog-copy">{props.copy}</p>
+          <p class="plugin-dialog-copy">{props.text.body}</p>
           <div class="plugin-dialog-actions">
             <button class="plugin-dialog-dismiss" type="button" onClick={() => dialog?.close()}>
-              {COPY.dismiss}
+              {props.text.dismiss}
             </button>
             <Button autofocus href={platform().href} variant="primary" size="sm" icon="download">
               {platform().action}

@@ -1,10 +1,13 @@
 import { createFileRoute } from "@tanstack/solid-router";
 import { MessagingConnectPage } from "../../components/transactional/MessagingConnectPage";
+import { messagingConnectText } from "../../components/transactional/page-text";
+import { loadPageText } from "../../lib/page-text";
 
 export const Route = createFileRoute("/discord/connect")({
-  head: () => ({
+  loader: ({ context }) => loadPageText(context.locale, (t) => messagingConnectText(t, "discord")),
+  head: ({ loaderData }) => ({
     meta: [
-      { title: "Return to OpenBot" },
+      ...(loaderData ? [{ title: loaderData.text.title }] : []),
       { name: "robots", content: "noindex, nofollow, noarchive" },
       { name: "referrer", content: "no-referrer" },
     ],
@@ -18,5 +21,6 @@ export const Route = createFileRoute("/discord/connect")({
 });
 
 function DiscordConnect() {
-  return <MessagingConnectPage provider="discord" />;
+  const page = Route.useLoaderData();
+  return <MessagingConnectPage provider="discord" lang={page().lang} text={page().text} />;
 }

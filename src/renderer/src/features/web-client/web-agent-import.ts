@@ -20,7 +20,9 @@ function readBase64(file: File): Promise<string> {
       const url = String(reader.result);
       resolve(url.slice(url.indexOf(",") + 1));
     });
-    reader.addEventListener("error", () => reject(reader.error ?? new Error("The file could not be read.")));
+    reader.addEventListener("error", () =>
+      reject(reader.error ?? new Error(currentText().t("server.import.readFailed"))),
+    );
     reader.readAsDataURL(file);
   });
 }

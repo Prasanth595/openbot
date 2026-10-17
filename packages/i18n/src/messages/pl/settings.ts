@@ -267,14 +267,15 @@ export const messages = {
   "settings.updates.unavailable": "Aktualizacje niedostępne",
   "settings.updates.autoDownload.title": "Automatycznie pobieraj aktualizacje",
   "settings.updates.autoDownload.description": "Pobieraj nowe wersje, gdy staną się dostępne.",
-  "settings.updates.managed.title": "Zarządzane przez hosta",
+  "settings.updates.managed.title": "Zarządzane przez Host Manager",
   "settings.updates.managed.description":
     "Aktualizacjami tego Maca automatycznie zarządza OpenBot Host Manager. Wszyscy użytkownicy korzystają z tej samej aplikacji OpenBot i są aktualizowani razem, gdy zarejestrowani użytkownicy są bezczynni.",
   "settings.updates.target.latest": "Najnowsza aktualizacja OpenBot",
   "settings.updates.host.upToDate": "Aktualne. OpenBot Host Manager utrzymuje tego Maca w aktualnej wersji.",
   "settings.updates.host.ready": "Pobrano: {target}. Oczekiwanie, aż inni użytkownicy tego Maca będą bezczynni.",
   "settings.updates.host.installing": "Instalowanie: {target}…",
-  "settings.updates.host.failed": "Aktualizacja hosta nie powiodła się. Skontaktuj się z administratorem hosta.",
+  "settings.updates.host.failed":
+    "Zarządzana aktualizacja nie powiodła się. Skontaktuj się z administratorem tego Maca.",
   "settings.updates.status.idle": "Sprawdź aktualizacje, aby znaleźć najnowsze wydanie stabilne.",
   "settings.updates.status.checking": "Sprawdzanie aktualizacji w kanale Stabilny…",
   "settings.updates.status.available": "Do pobrania: {target}.",

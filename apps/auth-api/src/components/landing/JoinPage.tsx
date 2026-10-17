@@ -4,29 +4,11 @@ import { createSignal, onSettled, Show } from "solid-js";
 import { landingAnalytics } from "../../lib/analytics";
 import { detectDownloadPlatform } from "../../lib/download-platforms";
 import { OPENBOT_DOWNLOAD_LINKS } from "../../lib/landing-links";
+import type { JoinPageText } from "../transactional/page-text";
 import { TransactionalPage } from "../transactional/TransactionalPage";
 import { Button } from "../ui/button";
 
-const COPY = {
-  eyebrow: "Private invitation",
-  title: "Join an OpenBot server",
-  intro: "Open this invitation in OpenBot. The app checks the server and asks you to confirm before it connects.",
-  invalid: "This invitation link is not valid or is not complete. Ask the server owner for a new invitation.",
-  open: "Open OpenBot",
-  browser: "Open in browser",
-  download: "Download OpenBot",
-  notOpened:
-    "If OpenBot did not open, install it with Download OpenBot, or start OpenBot once so that it can open invitation links. You can also use Open in browser.",
-  mobile: "If OpenBot is installed, tap Open OpenBot. You can also paste this link into Add server in the app.",
-  // The link carries no expiry, use limit or email, and the page does not send the token anywhere to
-  // ask. So these notes give the rules, and the app shows the details before the visitor joins.
-  singleUse:
-    "A single-use link works one time and then expires. A permanent link works until the owner revokes it. OpenBot shows the expiry before you join.",
-  email: "If the invitation came by email, sign in to OpenBot with that email address.",
-  share: "This link gives access to a server. Share it only with people you want to invite.",
-} as const;
-
-export function JoinPage() {
+export function JoinPage(props: { lang: string; text: JoinPageText }) {
   const [openUrl, setOpenUrl] = createSignal("");
   const [browserUrl, setBrowserUrl] = createSignal("");
   const [downloadUrl, setDownloadUrl] = createSignal<string>(OPENBOT_DOWNLOAD_LINKS.macos);
@@ -56,18 +38,18 @@ export function JoinPage() {
   });
 
   return (
-    <TransactionalPage titleId="join-title">
+    <TransactionalPage titleId="join-title" lang={props.lang}>
       <div class="join-card-signal" aria-hidden="true">
         <span />
         <i />
         <span />
       </div>
       <AppLogo variant="production" animation="blink" class="join-card-logo" />
-      <p class="join-card-eyebrow">{COPY.eyebrow}</p>
-      <h1 id="join-title">{COPY.title}</h1>
-      <p class="join-card-copy">{COPY.intro}</p>
+      <p class="join-card-eyebrow">{props.text.eyebrow}</p>
+      <h1 id="join-title">{props.text.title}</h1>
+      <p class="join-card-copy">{props.text.intro}</p>
 
-      <Show when={!invalid()} fallback={<p class="join-card-error">{COPY.invalid}</p>}>
+      <Show when={!invalid()} fallback={<p class="join-card-error">{props.text.invalid}</p>}>
         <div class="join-card-actions">
           {/* Until the page reads the link, the app cannot open it. The button is then a real
               disabled button, so it is not a link that goes nowhere. */}
@@ -75,26 +57,26 @@ export function JoinPage() {
             when={openUrl()}
             fallback={
               <Button as="button" type="button" disabled variant="primary" size="lg" icon="open">
-                {COPY.open}
+                {props.text.open}
               </Button>
             }
           >
             {(href) => (
               <Button href={href()} variant="primary" size="lg" icon="open" onClick={() => setOpenAttempted(true)}>
-                {COPY.open}
+                {props.text.open}
               </Button>
             )}
           </Show>
           <Show when={browserUrl()}>
             {(href) => (
               <Button href={href()} variant="secondary" size="lg" icon="arrow-right">
-                {COPY.browser}
+                {props.text.browser}
               </Button>
             )}
           </Show>
           <Show when={!mobile()}>
             <Button href={downloadUrl()} variant="secondary" size="lg" icon="download">
-              {COPY.download}
+              {props.text.download}
             </Button>
           </Show>
         </div>
@@ -103,16 +85,16 @@ export function JoinPage() {
       <Show when={!mobile()}>
         {/* The live region exists before the click, so screen readers announce the text when it appears. */}
         <p class={openAttempted() ? "join-card-note" : "join-card-status-empty"} role="status">
-          <Show when={openAttempted()}>{COPY.notOpened}</Show>
+          <Show when={openAttempted()}>{props.text.notOpened}</Show>
         </p>
       </Show>
       <Show when={mobile()}>
-        <p class="join-card-note">{COPY.mobile}</p>
+        <p class="join-card-note">{props.text.mobile}</p>
       </Show>
       <ul class="transactional-notes">
-        <li>{COPY.singleUse}</li>
-        <li>{COPY.email}</li>
-        <li>{COPY.share}</li>
+        <li>{props.text.singleUse}</li>
+        <li>{props.text.email}</li>
+        <li>{props.text.share}</li>
       </ul>
     </TransactionalPage>
   );

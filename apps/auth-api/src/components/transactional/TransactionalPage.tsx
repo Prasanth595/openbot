@@ -9,6 +9,11 @@ export interface TransactionalPageProps {
   layout?: "message" | "form";
   /** More classes for the card, for example `contact-section` for the form field colours. */
   class?: string;
+  /**
+   * The language of the page text, when it comes from the catalogs. The site header and footer stay
+   * in English, so the attribute goes on `<main>` and not on `<html>`.
+   */
+  lang?: string;
   children: JSX.Element;
 }
 
@@ -21,7 +26,7 @@ export function TransactionalPage(props: TransactionalPageProps) {
   return (
     <div class="landing-page transactional-page">
       <SiteHeader page="content" />
-      <main class="transactional-main">
+      <main class="transactional-main" lang={props.lang}>
         <section
           class={props.class ? `join-card transactional-card ${props.class}` : "join-card transactional-card"}
           data-layout={props.layout ?? "message"}
