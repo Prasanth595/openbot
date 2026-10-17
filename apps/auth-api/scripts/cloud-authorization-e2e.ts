@@ -311,6 +311,27 @@ async function aRateLimitIgnoresForwardedFor() {
     keys,
   );
   check("a request with no Cloudflare address does not get a new key from X-Forwarded-For", keys[2] === keys[3], keys);
+
+  // One IPv6 subscriber has a full /64. A new address in it must not give it a new limit.
+  keys.length = 0;
+  for (const address of [
+    "2001:db8:1:2::1",
+    "2001:0db8:0001:0002:ffff:eeee:dddd:cccc",
+    "2001:DB8:1:2::",
+    "2001:db8:1:3::1",
+    "::1",
+  ])
+    await send({ "CF-Connecting-IP": address });
+  check(
+    "a rate limit counts the addresses of one IPv6 /64 together",
+    keys[0] === "ip:2001:db8:1:2::/64" && keys[1] === keys[0] && keys[2] === keys[0],
+    keys,
+  );
+  check(
+    "another IPv6 /64 has its own rate limit",
+    keys[3] === "ip:2001:db8:1:3::/64" && keys[4] === "ip:0:0:0:0::/64",
+    keys,
+  );
 }
 
 const scenarios = [

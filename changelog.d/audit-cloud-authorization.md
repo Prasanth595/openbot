@@ -6,3 +6,4 @@
 - A checkout return address that starts with `//` or `/\` could send the browser to another site. The account server never made such an address, but now it refuses one.
 - A hosted site address such as `/constructor` made the site router read storage for a file that does not exist. Now the router finds only the files of the site.
 - A request with no Cloudflare client address got its rate limit key from `X-Forwarded-For`, which the client sets. Now only the Cloudflare address sets the key.
+- An IPv6 client got a new per-address rate limit for each address in its /64. Now all addresses of one /64 share a limit.
