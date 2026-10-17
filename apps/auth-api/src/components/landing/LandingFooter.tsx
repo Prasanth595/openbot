@@ -45,7 +45,7 @@ export function LandingFooter() {
 
             <p class="landing-footer-description">{FOOTER_DESCRIPTION}</p>
 
-            <Link class="landing-footer-cta" to="/" hash="download">
+            <Link class="landing-footer-cta" to="/download">
               <span>Download OpenBot</span>
               <LandingIcon name="download" />
             </Link>
@@ -93,7 +93,7 @@ export function LandingFooter() {
         <div class="landing-footer-bottom" data-revealed={revealState()}>
           <p>&copy; {currentYear} Synthetify Labs, All rights reserved.</p>
           <div class="landing-footer-meta">
-            <Link to="/" hash="download">
+            <Link to="/download">
               <span class="landing-footer-availability" aria-hidden="true" />
               Available for macOS, Windows, Linux, iOS and Android
             </Link>

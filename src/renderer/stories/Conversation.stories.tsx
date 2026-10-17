@@ -504,6 +504,34 @@ const markdownImageMessages: RendererAgentMessage[] = [
   },
 ];
 
+/** A reply that names a file by its full path, beside a user message, in a medium-width chat. */
+const longPathReplyMessages: RendererAgentMessage[] = [
+  {
+    id: "long-path-user",
+    author: "you",
+    body: "Clean up the old build logs, and keep a copy of what you delete first.",
+    time: "10:02",
+    kind: "text",
+  },
+  {
+    id: "long-path-agent",
+    author: "agent",
+    body: [
+      "I deleted 42 build logs older than 30 days. Together they took 3.2 GB, and none of them belonged to an open release.",
+      "",
+      "- **Nightly builds:** removed. The 28 logs of the nightly channel from before the last release are gone.",
+      "- **Disk after the clean-up:**",
+      "  - Used: 81% → **64%**. The next full rotation is due in 12 days.",
+      "  - Largest folder now: **release-candidates**, with 410 MB.",
+      "- **Copies:** I kept the list of deleted logs and their checksums in `/Users/test/OpenBot/Agents/agent-5b0c2e7a-91d4-4f3e-8a6b-2c7d9e1f0a3b/backups/build-log-cleanup-2026-10-15/deleted-build-logs-with-checksums.json`.",
+      "",
+      "Nothing else on the disk changed. Tell me if you also want the crash dumps archived.",
+    ].join("\n"),
+    time: "10:03",
+    kind: "text",
+  },
+];
+
 const markdownMessages: RendererAgentMessage[] = [
   {
     id: "markdown-user",
@@ -1476,6 +1504,18 @@ export const MarkdownInChat: Story = {
   args: {
     messages: markdownMessages,
   },
+};
+
+export const LongFilePathInReply: Story = {
+  name: "Long file path in a reply",
+  args: {
+    messages: longPathReplyMessages,
+  },
+  render: (storyArgs) => (
+    <section style={{ width: "720px", height: "820px", overflow: "hidden" }}>
+      <MockedConversation args={storyArgs} />
+    </section>
+  ),
 };
 
 export const StreamingMarkdownInChat: Story = {

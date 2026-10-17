@@ -1,5 +1,6 @@
 import type { AgentTemplateDetail } from "@openbot/contracts/ipc";
 import { createFileRoute, notFound } from "@tanstack/solid-router";
+import { AgentTemplateNotSharedPage } from "../../components/agents/AgentTemplateNotSharedPage";
 import { AgentTemplatePage } from "../../components/agents/AgentTemplatePage";
 import { agentTemplatePath } from "../../lib/agent-template-path";
 import { readAgentTemplate } from "../../lib/agent-templates";
@@ -57,12 +58,22 @@ async function agentTemplateHead(template: AgentTemplateDetail, siteUrl: string)
   };
 }
 
+const NOT_SHARED_HEAD = {
+  meta: [{ title: "Agent no longer shared — OpenBot" }, { name: "robots", content: "noindex, nofollow" }],
+};
+
 export const Route = createFileRoute("/agents/$templateId")({
   loader: ({ params }) => loadAgentTemplate(params.templateId),
-  head: ({ loaderData, match }) => (loaderData ? agentTemplateHead(loaderData, match.context.siteUrl) : {}),
+  head: ({ loaderData, match }) => {
+    if (loaderData) return agentTemplateHead(loaderData, match.context.siteUrl);
+    // The not-found page below shows in place of the agent. A failed load keeps the site title.
+    return match.status === "notFound" ? NOT_SHARED_HEAD : {};
+  },
   // Not cached: the page shows the instructions, which an unpublish must take back at once.
   headers: () => ({ "X-Robots-Tag": "noindex, nofollow", "Cache-Control": "private, no-store" }),
   component: AgentTemplateRoute,
+  // An unpublished agent and an unknown id are both a 404 from the loader.
+  notFoundComponent: AgentTemplateNotSharedPage,
 });
 
 function AgentTemplateRoute() {

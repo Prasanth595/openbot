@@ -1,9 +1,10 @@
 import { createOpenBotAgentTemplateUrl, createWebAppAgentTemplatePath } from "@openbot/contracts/agent-template-links";
 import type { AgentTemplateDetail } from "@openbot/contracts/ipc";
+import { Link } from "@tanstack/solid-router";
 import { createSignal, For, lazy, onSettled, Show } from "solid-js";
 import { agentTemplatePath } from "../../lib/agent-template-path";
 import { landingAnalytics } from "../../lib/analytics";
-import { OPENBOT_LINKS } from "../../lib/landing-links";
+import { LandingFooter } from "../landing/LandingFooter";
 import { SiteHeader } from "../landing/SiteHeader";
 import { PluginOpenButtons } from "../plugins/PluginOpenButtons";
 
@@ -86,8 +87,13 @@ export function AgentTemplatePage(props: AgentTemplatePageProps) {
               {props.template.description}
             </p>
             <Show when={clamped()}>
-              <button class="agent-share-more" type="button" onClick={() => setExpanded(!expanded())}>
-                {expanded() ? "Show less" : "Read all instructions"}
+              <button
+                class="agent-share-more"
+                type="button"
+                aria-expanded={expanded() ? "true" : "false"}
+                onClick={() => setExpanded(!expanded())}
+              >
+                {expanded() ? "Show less" : "Read more"}
               </button>
             </Show>
 
@@ -104,11 +110,12 @@ export function AgentTemplatePage(props: AgentTemplatePageProps) {
         </article>
 
         <p class="agent-share-fallback">
-          OpenBot didn't open? <a href={OPENBOT_LINKS.downloadFromOtherPage}>Download it</a>,{" "}
-          <a href={openUrl()}>open the app</a>, or{" "}
+          OpenBot didn't open? <Link to="/download">Download it</Link>, <a href={openUrl()}>open the app</a>, or{" "}
           <a href={createWebAppAgentTemplatePath(props.template.id)}>open in browser</a>.
         </p>
       </main>
+
+      <LandingFooter />
     </div>
   );
 }

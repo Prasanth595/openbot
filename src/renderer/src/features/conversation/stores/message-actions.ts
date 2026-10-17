@@ -31,12 +31,15 @@ export interface MessageActionsDeps {
   copiedMessageId: () => string | null;
   setCopiedMessageId: (id: string | null) => void;
   setComposerError: (error: string | null, targetOverride?: ConversationTarget) => void;
+  setComposerFocusRequest: (update: (current: number) => number) => void;
 }
 
 export function createMessageActions(deps: MessageActionsDeps) {
   function replyToMessage(message: AgentMessage) {
     deps.updateCurrentDraft({ replyToMessageId: message.id });
     deps.setOpenReactionMessageId(null);
+    // The user replies to type, so the caret goes to the composer.
+    deps.setComposerFocusRequest((value) => value + 1);
   }
 
   async function reactToMessage(message: AgentMessage, emoji: MessageReaction | null) {

@@ -1990,7 +1990,10 @@ export class BrowserCdpEngine {
     const resolved = yield* this.#resolveTargetEffect(send, target, deadline);
     if (!resolved.backendNodeId)
       return yield* browserFailure(new Error("This operation requires an element target, not coordinates."));
-    return { backendNodeId: resolved.backendNodeId, sessionId: resolved.sessionId };
+    return {
+      backendNodeId: resolved.backendNodeId,
+      ...(resolved.sessionId === undefined ? {} : { sessionId: resolved.sessionId }),
+    };
   });
 
   readonly #resolveTargetEffect = Effect.fn("BrowserCdp.resolveTarget")(function* (
@@ -2036,7 +2039,7 @@ export class BrowserCdpEngine {
       }
       return {
         backendNodeId: record.backendNodeId,
-        sessionId,
+        ...(sessionId === undefined ? {} : { sessionId }),
         x: 0,
         y: 0,
       };
@@ -2048,7 +2051,11 @@ export class BrowserCdpEngine {
         for (const capture of this.#snapshotTargets(Number.POSITIVE_INFINITY)) {
           const match = yield* cssObjectMatch(send, target.selector, capture.sessionId);
           ambiguous ||= match.ambiguous;
-          if (match.objectId) matches.push({ objectId: match.objectId, sessionId: capture.sessionId });
+          if (match.objectId)
+            matches.push({
+              objectId: match.objectId,
+              ...(capture.sessionId === undefined ? {} : { sessionId: capture.sessionId }),
+            });
         }
       }).pipe(
         Effect.catch((operationFailure) =>
@@ -2087,7 +2094,7 @@ export class BrowserCdpEngine {
           return yield* browserFailure(new Error(`Unable to resolve CSS selector: ${target.selector}`));
         return {
           backendNodeId,
-          sessionId: match.sessionId,
+          ...(match.sessionId === undefined ? {} : { sessionId: match.sessionId }),
           x: 0,
           y: 0,
         };
@@ -2124,8 +2131,8 @@ export class BrowserCdpEngine {
             seen.add(key);
             candidates.push({
               backendNodeId,
-              sessionId: capture.sessionId,
-              targetId: capture.targetId,
+              ...(capture.sessionId === undefined ? {} : { sessionId: capture.sessionId }),
+              ...(capture.targetId === undefined ? {} : { targetId: capture.targetId }),
               role: fallbackRole(node ?? {}),
               name: target.text,
             });
@@ -2165,7 +2172,7 @@ export class BrowserCdpEngine {
     }
     return {
       backendNodeId: found.backendNodeId,
-      sessionId: found.sessionId,
+      ...(found.sessionId === undefined ? {} : { sessionId: found.sessionId }),
       x: 0,
       y: 0,
     };
@@ -2266,7 +2273,8 @@ export class BrowserCdpEngine {
     const insetX = Math.min(4, Math.max(0, (right - left) / 4));
     const insetY = Math.min(4, Math.max(0, (bottom - top) / 4));
     const center = { x: (left + right) / 2, y: (top + bottom) / 2 };
-    if (!hitTest) return { ...center, sessionId };
+    const session = sessionId === undefined ? {} : { sessionId };
+    if (!hitTest) return { ...center, ...session };
     const points = uniquePoints([
       center,
       { x: left + insetX, y: top + insetY },
@@ -2283,7 +2291,7 @@ export class BrowserCdpEngine {
       );
       const hitId = numberValue(hit.backendNodeId);
       if (hitId && (yield* isNodeOrDescendant(send, hitId, backendNodeId, sessionId))) {
-        return { ...point, sessionId };
+        return { ...point, ...session };
       }
       blockerId ||= hitId;
     }

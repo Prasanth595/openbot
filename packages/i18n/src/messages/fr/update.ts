@@ -63,5 +63,6 @@ export const messages = {
   "update.whatsNew.empty.body":
     "Cette version n’a aucune note à afficher ici. Le journal des modifications complet affiche toutes les modifications.",
   "update.whatsNew.changelog": "Journal complet",
+  "update.whatsNew.changelogFailed": "OpenBot n’a pas pu ouvrir le journal des modifications.",
   "update.whatsNew.done": "Compris",
 } as const satisfies PartialTranslation<typeof source>;

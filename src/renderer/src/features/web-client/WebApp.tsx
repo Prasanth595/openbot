@@ -213,7 +213,7 @@ export function WebApp(props: { createRuntime?: WebRuntimeFactory } = {}) {
       !isString(value.user.id) ||
       !isString(value.user.email)
     )
-      throw new Error("The account response is invalid.");
+      throw new Error(text.t("webClient.login.accountInvalid"));
     return {
       id: value.user.id,
       email: value.user.email,
@@ -259,7 +259,7 @@ export function WebApp(props: { createRuntime?: WebRuntimeFactory } = {}) {
     const value = await signInRequest("email/start", { email });
     if (value === null) return;
     if (!isDynamicRecord(value) || !isString(value.challengeId) || typeof value.resendAt !== "number")
-      throw new Error("The sign-in response is invalid.");
+      throw new Error(text.t("webClient.login.responseInvalid"));
     const challengeId = value.challengeId;
     const resendAt = value.resendAt;
     setState((draft) => {

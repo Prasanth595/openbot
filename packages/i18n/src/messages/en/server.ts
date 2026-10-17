@@ -238,6 +238,15 @@ export const messages = defineMessages("server", {
   "server.routineFeed.regenerate": "New URL",
   "server.routineFeed.regenerateLabel": "Make a new URL. The old URL stops working.",
   "server.routineFeed.turnOff": "Turn off",
+  "server.routineFeed.loading": "Loading the calendar feed",
+  "server.routineFeed.regenerateTitle": "Make a new URL?",
+  "server.routineFeed.regenerateDescription":
+    "The current URL stops working. Calendars that use it stop updating until you subscribe again with the new URL.",
+  "server.routineFeed.regenerateConfirm": "Make new URL",
+  "server.routineFeed.turnOffTitle": "Turn off the calendar feed?",
+  "server.routineFeed.turnOffDescription":
+    "The current URL stops working. If you turn the feed on again, it gets a new URL.",
+  "server.routineFeed.agentsLoadFailed": "Could not load the agents.",
   "server.settings.nameTooShort": "Enter at least {limit} characters.",
   "server.settings.nameTooLong": "Use no more than {limit} characters.",
   "server.settings.actionFailedTitle": "Server action failed",

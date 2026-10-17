@@ -66,6 +66,8 @@ export const messages = {
   "connector.github.keepConnected": "Resta connesso",
   "connector.github.close": "Chiudi",
   "connector.dangerZone": "Zona pericolosa",
+  "connector.statusUnknown": "Sconosciuto",
+  "connector.readFailed": "OpenBot non è riuscito a leggere lo stato di questa connessione.",
 
   "connector.hub.onThisComputer": "Su questo computer",
   "connector.hub.onHost": "Su {host}",
@@ -99,6 +101,7 @@ export const messages = {
     "OpenBot non ha questi permessi in Slack: {scopes}. Disconnetti il workspace, poi connettilo di nuovo.",
   "connector.slack.retryAt": "Slack ha chiesto a OpenBot di aspettare. Nuovo tentativo alle {time}.",
   "connector.slack.reconnect": "Riconnetti",
+  "connector.slack.pause": "Pausa",
   "connector.slack.resume": "Riprendi",
   "connector.slack.rowAction": "{action}: {name}",
   "connector.slack.orchestratorTitle": "Slack Orchestrator",
@@ -167,6 +170,7 @@ export const messages = {
     "OpenBot non ha questi permessi in Discord: {scopes}. Disconnetti il server Discord, poi connettilo di nuovo.",
   "connector.discord.retryAt": "Discord ha chiesto a OpenBot di aspettare. Nuovo tentativo alle {time}.",
   "connector.discord.reconnect": "Riconnetti",
+  "connector.discord.pause": "Pausa",
   "connector.discord.resume": "Riprendi",
   "connector.discord.rowAction": "{action}: {name}",
   "connector.discord.orchestratorTitle": "Discord Orchestrator",
@@ -312,6 +316,7 @@ export const messages = {
     "Nell'app 1Password apri Impostazioni > Sviluppatore e attiva «Integra con la CLI di 1Password».",
   "connector.onePassword.stepAppReady": "L'app 1Password permette alla CLI di creare il vault condiviso.",
   "connector.onePassword.openApp": "Apri 1Password",
+  "connector.onePassword.openAppFailed": "OpenBot non è riuscito ad aprire 1Password.",
   "connector.onePassword.checkAgain": "Ricontrolla",
   "connector.onePassword.stepVaultTitle": "Crea il vault condiviso",
   "connector.onePassword.stepVaultDescription":

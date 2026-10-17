@@ -165,10 +165,14 @@ const checkoutReturnResponse = Effect.fn("BillingSales.returnResponse")(function
         ),
       )) ?? destination;
   }
+  // Stripe opens this endpoint only as the cancel URL of Checkout. The stored return URL already has
+  // the flag; the fallback page needs it too, so that it does not say that billing changed.
+  const location = new URL(destination, url.origin);
+  location.searchParams.set("cancelled", "1");
   return new Response(null, {
     status: 303,
     headers: {
-      Location: new URL(destination, url.origin).href,
+      Location: location.href,
       "Cache-Control": "no-store",
       "Referrer-Policy": "no-referrer",
     },
@@ -254,7 +258,7 @@ function serveLocalHostedSite(
   hostedUrl.port = "";
   return routeHostedSiteRequest(
     new Request(hostedUrl, request),
-    { SITES: bindings.SITES, SITE_SERVE_ENABLED: "true" },
+    { SITES: bindings.SITES, SITE_SERVE_ENABLED: "true", ACCOUNT_ORIGIN: configuredOrigin.origin },
     Date.now(),
   );
 }

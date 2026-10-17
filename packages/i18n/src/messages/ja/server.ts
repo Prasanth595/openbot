@@ -233,6 +233,15 @@ export const messages = {
   "server.routineFeed.regenerate": "新しい URL",
   "server.routineFeed.regenerateLabel": "新しい URL を作成します。古い URL は使えなくなります。",
   "server.routineFeed.turnOff": "オフにする",
+  "server.routineFeed.loading": "カレンダーフィードを読み込み中",
+  "server.routineFeed.regenerateTitle": "新しい URL を作成しますか？",
+  "server.routineFeed.regenerateDescription":
+    "現在の URL は使えなくなります。この URL を使うカレンダーは、新しい URL で登録し直すまで更新されません。",
+  "server.routineFeed.regenerateConfirm": "新しい URL を作成",
+  "server.routineFeed.turnOffTitle": "カレンダーフィードをオフにしますか？",
+  "server.routineFeed.turnOffDescription":
+    "現在の URL は使えなくなります。フィードを再びオンにすると、新しい URL になります。",
+  "server.routineFeed.agentsLoadFailed": "エージェントを読み込めませんでした。",
   "server.settings.nameTooShort": "{limit} 文字以上で入力してください。",
   "server.settings.nameTooLong": "{limit} 文字以内で入力してください。",
   "server.settings.actionFailedTitle": "サーバーの操作に失敗しました",

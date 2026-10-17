@@ -81,6 +81,8 @@ export const messages = {
   "connector.github.keepConnected": "Оставить подключённым",
   "connector.github.close": "Закрыть",
   "connector.dangerZone": "Опасная зона",
+  "connector.statusUnknown": "Неизвестно",
+  "connector.readFailed": "OpenBot не смог прочитать состояние этого подключения.",
 
   "connector.hub.onThisComputer": "На этом компьютере",
   "connector.hub.onHost": "На {host}",
@@ -116,6 +118,7 @@ export const messages = {
     "У OpenBot нет этих разрешений в Slack: {scopes}. Отключите рабочее пространство и подключите его снова.",
   "connector.slack.retryAt": "Slack попросил OpenBot подождать. Следующая попытка в {time}.",
   "connector.slack.reconnect": "Переподключить",
+  "connector.slack.pause": "Приостановить",
   "connector.slack.resume": "Возобновить",
   "connector.slack.rowAction": "{action}: {name}",
   "connector.slack.orchestratorTitle": "Оркестратор Slack",
@@ -183,6 +186,7 @@ export const messages = {
     "У OpenBot нет этих разрешений в Discord: {scopes}. Отключите сервер Discord и подключите его снова.",
   "connector.discord.retryAt": "Discord попросил OpenBot подождать. Следующая попытка в {time}.",
   "connector.discord.reconnect": "Переподключить",
+  "connector.discord.pause": "Приостановить",
   "connector.discord.resume": "Возобновить",
   "connector.discord.rowAction": "{action}: {name}",
   "connector.discord.orchestratorTitle": "Оркестратор Discord",
@@ -328,6 +332,7 @@ export const messages = {
     "В приложении 1Password откройте «Настройки» > «Разработчик» и включите «Integrate with 1Password CLI».",
   "connector.onePassword.stepAppReady": "Приложение 1Password позволяет CLI создать общее хранилище.",
   "connector.onePassword.openApp": "Открыть 1Password",
+  "connector.onePassword.openAppFailed": "OpenBot не смог открыть 1Password.",
   "connector.onePassword.checkAgain": "Проверить снова",
   "connector.onePassword.stepVaultTitle": "Создайте общее хранилище",
   "connector.onePassword.stepVaultDescription":

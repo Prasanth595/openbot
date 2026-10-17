@@ -63,5 +63,6 @@ export const messages = {
   "update.whatsNew.empty.body":
     "Bu sürümde burada gösterilecek bir not yok. Tüm değişiklikler tam sürüm günlüğünde gösterilir.",
   "update.whatsNew.changelog": "Tam sürüm günlüğü",
+  "update.whatsNew.changelogFailed": "OpenBot sürüm günlüğünü açamadı.",
   "update.whatsNew.done": "Anladım",
 } as const satisfies PartialTranslation<typeof source>;
