@@ -226,6 +226,8 @@ export interface McpOAuthAuthority {
   signedIn: (url: string) => boolean;
   /** Whether the server refused the stored sign-in, so the user must sign in again. */
   needsSignIn: (url: string) => boolean;
+  /** Whether this computer keeps a sign-in for this URL: current, expired, or ended by the server. */
+  hasSignIn: (url: string) => boolean;
   /** Drops the tokens and keeps the sign-in app, so the next sign-in uses the same app. */
   signOut: (url: string) => Effect.Effect<void, McpOperationError>;
   /** Drops everything kept for this URL, the sign-in app included. Used when the row is removed. */
@@ -534,6 +536,12 @@ export class McpOAuth implements McpOAuthAuthority {
     const resource = normalizeResource(url);
     const record = resource === null ? undefined : this.#options.storage.read(resource);
     return record?.lostAt !== undefined && !record.tokens;
+  }
+
+  hasSignIn(url: string): boolean {
+    const resource = normalizeResource(url);
+    const record = resource === null ? undefined : this.#options.storage.read(resource);
+    return record?.tokens !== undefined || record?.lostAt !== undefined;
   }
 
   get redirectUrl(): string {

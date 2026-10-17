@@ -728,6 +728,22 @@ async function proxyCases(auth: Awaited<ReturnType<typeof startAuthorizationServ
     assert.ok(!resource.hits.slice(hitsAtSignOut).some((hit) => hit.path.startsWith("/.well-known")));
     const signedOut = { code: failure.code, upstreamRequests: 0, discoveryRequests: 0 };
 
+    // An expired token with no refresh token is not a current sign-in, but the row stays on its route.
+    const fingerprintBeforeExpiry = await runCauseEffect(gateway.proxyFingerprint(servers.listEnabled()));
+    const fresh = freshRecord(auth.base, away.url);
+    records.set(
+      away.url,
+      mcpOAuthRecordSchema.parse({
+        ...fresh,
+        tokens: { access_token: "access-expired", token_type: "Bearer", expires_in: 1 },
+        obtainedAt: Date.now() - 60_000,
+      }),
+    );
+    assert.equal(oauth.signedIn(away.url), false);
+    assert.deepEqual(await endpointOf(gateway, away), awayRoute);
+    assert.equal(await runCauseEffect(gateway.proxyFingerprint(servers.listEnabled())), fingerprintBeforeExpiry);
+    const expiredWithoutRefresh = { sameRoute: true, sameFingerprint: true };
+
     for (const line of logLines)
       for (const secret of ["access-on-file", "access-rotated", "refresh-on-file", "row-secret", directRoute.bearer])
         assert.ok(!line.includes(secret), "A log line quoted a credential.");
@@ -758,7 +774,7 @@ async function proxyCases(auth: Awaited<ReturnType<typeof startAuthorizationServ
     const restart = { samePortAndBearer: true, sameFingerprint: true, busyPortRotatesSecret: true };
 
     await runCauseEffect(oauth.close());
-    return { handoff, echo, getStream, refused, midSessionRefresh, signedOut, restart };
+    return { handoff, echo, getStream, refused, midSessionRefresh, signedOut, expiredWithoutRefresh, restart };
   } finally {
     for (const open of clients) await open.close();
     for (const open of gateways) await runCauseEffect(open.close());
