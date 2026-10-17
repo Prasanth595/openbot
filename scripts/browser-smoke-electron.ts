@@ -13,6 +13,7 @@ import {
   type DownloadItem,
   type Event as ElectronEvent,
   type WebContents,
+  type WebContentsConsoleMessageEventParams,
   webContents,
 } from "electron";
 import { BrowserUploads } from "../src/backend/agent/browser-uploads";
@@ -1015,13 +1016,21 @@ async function main(): Promise<void> {
       .getAllWebContents()
       .find((contents) => !contents.isDestroyed() && contents.getURL().startsWith(frozenOrigin));
     if (!frozenContents) throw new Error("Environment timeout fixture web contents were not available.");
-    const rendererStarted = new Promise<void>((resolve) => {
-      frozenContents.once("console-message", () => resolve());
+    // Wait for this exact message. An unpackaged Electron also logs its security warning to the
+    // console after the page load, so the first message can arrive before the loop starts. The
+    // environment change then succeeds and only the snapshot after it meets the stopped renderer.
+    const rendererStopped = new Promise<void>((resolve) => {
+      const onConsoleMessage = (details: ElectronEvent<WebContentsConsoleMessageEventParams>): void => {
+        if (details.message !== "environment renderer stopped") return;
+        frozenContents.off("console-message", onConsoleMessage);
+        resolve();
+      };
+      frozenContents.on("console-message", onConsoleMessage);
     });
     void frozenContents
       .executeJavaScript("console.info('environment renderer stopped'); while (true) {}", true)
       .catch(() => undefined);
-    await rendererStarted;
+    await rendererStopped;
     const frozenEnvironment = await Promise.race([
       callBrowserTool(browser, "set_environment", { tabId: frozenTab.id, colorScheme: "dark" }),
       new Promise<null>((resolve) => setTimeout(() => resolve(null), 20_000)),

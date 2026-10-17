@@ -8,13 +8,7 @@
  */
 
 .opencode-key-backdrop {
-  position: fixed;
-  inset: 0;
   z-index: calc(var(--openbot-layer-dialog) + 1);
-  display: grid;
-  place-items: center;
-  padding: var(--openbot-space-6);
-  animation: opencode-key-backdrop-in var(--openbot-duration-normal) var(--openbot-ease-out) both;
 }
 
 .opencode-key-dialog {
@@ -72,12 +66,6 @@
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: var(--openbot-space-2);
-}
-
-@keyframes opencode-key-backdrop-in {
-  from {
-    opacity: 0;
-  }
 }
 
 @keyframes opencode-key-dialog-in {

@@ -186,7 +186,7 @@ export class OpenBotToolRouter {
   readonly #drain: DrainScheduler;
   readonly #tables: AgentTables | null;
   readonly #sidebarLayout: AgentSidebar | null;
-  readonly #localSkillTools?: () => LocalSkillTools;
+  readonly #localSkillTools: (() => LocalSkillTools) | undefined;
   readonly #routineFlowTools: (() => RoutineFlowTools) | undefined;
   readonly #approvalAutomation: ApprovalAutomationPolicy;
   readonly #visualPreview: ChatVisualPreviewHost | null;
@@ -1181,7 +1181,11 @@ export class OpenBotToolRouter {
           : yield* loadAvatarFile(avatarPath, sender.workspacePath).pipe(toToolOperationFailed);
       const input: UpdateAgentInput = {
         agentId,
-        ...fields,
+        ...(fields.name === undefined ? {} : { name: fields.name }),
+        ...(fields.title === undefined ? {} : { title: fields.title }),
+        ...(fields.description === undefined ? {} : { description: fields.description }),
+        ...(fields.avatarSeed === undefined ? {} : { avatarSeed: fields.avatarSeed }),
+        ...(fields.notifications === undefined ? {} : { notifications: fields.notifications }),
         ...runtime,
         // Only a restriction is written, so a user change between the check and this write is never undone.
         ...(access === "workspace" ? { access } : {}),
@@ -1306,7 +1310,7 @@ export class OpenBotToolRouter {
           sourcePaths: paths,
           // An agent can send "" for no reply. Every reader rejects an empty id.
           replyToMessageId: replyToMessageId?.trim() || null,
-          expectsReply,
+          ...(expectsReply === undefined ? {} : { expectsReply }),
           ...(messagingReturn ? { messagingReturn } : {}),
           idempotencyKey: toolCallIdempotencyKey(params),
         })

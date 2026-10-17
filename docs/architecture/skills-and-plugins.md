@@ -11,7 +11,7 @@ A skill follows the [Agent Skills specification](https://agentskills.io/specific
 
 | Folder | Written by | Read by |
 | --- | --- | --- |
-| `<workspace>/.agents/skills/` | OpenBot, the user, the agent | Codex, Grok, OpenCode, Gemini, Cursor, Cline |
+| `<workspace>/.agents/skills/` | OpenBot, the user, the agent | Codex, Grok, OpenCode, Gemini, Cursor, Cline, Pi, Muse, custom agents |
 | `<workspace>/.claude/skills/` | OpenBot, the user, the agent | Claude Code, OpenCode, Cursor |
 | `<workspace>/.opencode/skills/` | the user, the agent | OpenCode |
 | `<workspace>/.gemini/skills/` | the user, the agent | Gemini |
@@ -21,7 +21,7 @@ A skill follows the [Agent Skills specification](https://agentskills.io/specific
 | `~/.claude/skills/` | the user | Claude Code, OpenCode |
 | `~/.codex/skills/`, `~/.config/opencode/skills/` | the user | Codex, OpenCode |
 
-A confined agent (Grok, OpenCode, Gemini, Cursor or Cline, not in Full access) cannot write the workspace
+A confined agent (Grok, OpenCode, Gemini, Cursor, Cline, Pi, Muse or a custom agent, not in Full access) cannot write the workspace
 skill folders: `src/backend/process-confinement.ts` protects them as project settings.
 
 OpenBot writes each skill that it installs to both `.agents/skills/<slug>` and
@@ -97,7 +97,7 @@ The GitHub connector is built in and has no SQLite row. `src/main/github-connect
 in to the `openbotgit` GitHub App with the device flow, which needs only the public Client ID, and keeps
 the tokens in `openbot-github-connector-v1.json`, encrypted with `safeStorage`. While it is
 connected, `McpGateway.enabled()` adds the `openbot-github` server (`api.githubcopilot.com/mcp/`),
-and `authorization()` gives it a fresh bearer at each hand-off. An enabled server that the user added
+and `mcpAuthorization()` gives it a fresh bearer at each hand-off. An enabled server that the user added
 with the name `github` wins. For `gh` and `git`, the service writes the token to
 `<userData>/provider-state/github` (mode 0600), and each provider gets `GH_CONFIG_DIR` and a
 `GIT_CONFIG_*` credential helper that reads that file. The environment holds only paths, never the
@@ -137,4 +137,4 @@ The backend local skill tools derive the agent from the calling provider session
 
 A plugin is one developer's bundle: an MCP server, shown as an app, the skills that drive it, and the listing text. The catalog of available plugins is a static file set that the Account Worker serves from `openbot.run` without an account, and the main process keeps a copy in the user-data directory rather than in SQLite, because a remote catalog is a cache and not the source of truth. An install saves the app as a host-global MCP server and installs the pinned skills into the chosen agent. A share link at `openbot.run/plugins/<slug>` opens a public page, and `openbot://plugins/<slug>` opens the listing in the app; neither one installs anything.
 
-See [plugin distribution and sharing](../plugin-distribution.md) for the catalog shape, the fetch and cache rules, the install and uninstall order, the deep-link parser rules, and the security review. Two parts of that design run today. The Apps tab installs the listing's pinned skills into the chosen agent and saves its app as a host-global MCP server. The links work: `openbot.run/plugins` and `openbot.run/plugins/<slug>` are pages on the public site, and `openbot://plugins/<slug>` opens that listing in the app, which is the second kind `src/main/deep-link-router.ts` recognises beside an invitation. Both sides read one catalog, generated from `marketplace/plugin-catalog/`, because a listing that said one thing on the page and another in the app would be two catalogs. The catalog files, the Worker routes that serve them, the cache in the main process, and uninstall are still design.
+See [plugin distribution and sharing](../plugin-distribution.md) for the catalog shape, the fetch and cache rules, the install and uninstall order, the deep-link parser rules, and the security review. Three parts of that design run today. The Apps tab installs the listing's pinned skills into the chosen agent and saves its app as a host-global MCP server. The links work: `openbot.run/plugins` and `openbot.run/plugins/<slug>` are pages on the public site, and `openbot://plugins/<slug>` opens that listing in the app, which is one of the link kinds that `src/main/deep-link-router.ts` recognises beside an invitation. Both sides read one catalog, generated from `marketplace/plugin-catalog/`, because a listing that said one thing on the page and another in the app would be two catalogs. The Apps tab also uninstalls a listing. The catalog files, the Worker routes that serve them, and the cache in the main process are still design.

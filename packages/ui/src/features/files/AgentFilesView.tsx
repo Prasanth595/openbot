@@ -26,7 +26,7 @@ export interface AgentFilesViewProps {
   onBack: () => void;
   onClose: () => void;
   /** Opens the workspace folder in the file manager. Leave it out for a remote server: the folder is on the host. */
-  onOpenWorkspace?: () => void;
+  onOpenWorkspace?: (() => void) | undefined;
   /** The viewer can delete this agent's files. */
   canDelete?: boolean;
   onOpenConversation: (conversationId: string) => void;

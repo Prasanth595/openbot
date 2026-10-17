@@ -420,14 +420,15 @@ export class MailboxStore {
     const messageIds = new Set(
       this.#state.messages.filter((message) => message.messaging?.linkId === linkId).map((message) => message.id),
     );
-    return this.#state.deliveries
-      .filter(
-        (delivery) =>
-          messageIds.has(delivery.messageId) &&
-          (delivery.status === "queued" || delivery.status === "starting" || delivery.status === "running"),
-      )
-      .sort(compareQueueOrder)
-      .map((delivery) => this.#context(delivery));
+    return this.#contexts(
+      this.#state.deliveries
+        .filter(
+          (delivery) =>
+            messageIds.has(delivery.messageId) &&
+            (delivery.status === "queued" || delivery.status === "starting" || delivery.status === "running"),
+        )
+        .sort(compareQueueOrder),
+    );
   }
 
   enqueue = Effect.fn("MailboxStore.enqueue")(function* (
@@ -488,7 +489,7 @@ export class MailboxStore {
       const committedByDraftId = new Map(drafts.map((draft, index) => [draft.id, attachments[index]] as const));
       const messaging = input.messaging ?? this.#answerReturn(input, recipients);
       const message: StoredMessage = {
-        channelId: input.channelId,
+        ...(input.channelId === undefined ? {} : { channelId: input.channelId }),
         ...(messaging ? { messaging } : {}),
         ...(input.messagingReturn ? { messagingReturn: input.messagingReturn } : {}),
         ...(input.taskId ? { taskId: input.taskId } : {}),
@@ -724,8 +725,24 @@ export class MailboxStore {
     return delivery ? this.#taskIdOf(delivery) : null;
   }
 
-  #taskIdOf(delivery: StoredDelivery): string | null {
-    return this.#state.messages.find((message) => message.id === delivery.messageId)?.taskId ?? null;
+  #taskIdOf(delivery: StoredDelivery, messages?: ReadonlyMap<string, StoredMessage>): string | null {
+    const message = messages
+      ? messages.get(delivery.messageId)
+      : this.#state.messages.find((candidate) => candidate.id === delivery.messageId);
+    return message?.taskId ?? null;
+  }
+
+  /**
+   * Indexes the positions and messages once, so a list of contexts does not sort or scan for each one.
+   * Only a queued delivery has a position, so a list of started deliveries does not sort the queue.
+   */
+  #contexts(deliveries: StoredDelivery[]): DeliveryContext[] {
+    if (deliveries.length === 0) return [];
+    const positions = deliveries.some((delivery) => delivery.status === "queued")
+      ? this.#queuedPositions()
+      : new Map<string, number>();
+    const messages = this.#messagesById();
+    return deliveries.map((delivery) => this.#context(delivery, positions, messages));
   }
 
   /** The tasks of this agent that have a queued message, in queue order of their first one. */
@@ -1085,10 +1102,11 @@ export class MailboxStore {
    */
   nextQueued(agentId: string, taskId: string | null = null): DeliveryContext | null {
     if (this.laneActive(agentId, taskId)) return null;
+    const messages = this.#messagesById();
     const delivery = this.#queuedFor(agentId).find(
-      (candidate) => this.#taskIdOf(candidate) === taskId && !this.#isHeldReply(candidate),
+      (candidate) => this.#taskIdOf(candidate, messages) === taskId && !this.#isHeldReply(candidate),
     );
-    return delivery && this.#mayStart(delivery) ? this.#context(delivery) : null;
+    return delivery && this.#mayStart(delivery) ? this.#context(delivery, undefined, messages) : null;
   }
 
   /**
@@ -1104,14 +1122,15 @@ export class MailboxStore {
     if (message.sender.kind !== "user" && !requestId) return [];
     // A teammate's answer runs in the agent's own chat, so a task message starts alone.
     if (message.taskId) return [];
-    return this.#queuedFor(next.recipientAgentId)
-      .filter((candidate) => {
-        if (candidate.id === next.id || !this.#mayStart(candidate) || this.#taskIdOf(candidate)) return false;
+    const messages = this.#messagesById();
+    return this.#contexts(
+      this.#queuedFor(next.recipientAgentId).filter((candidate) => {
+        if (candidate.id === next.id || !this.#mayStart(candidate) || this.#taskIdOf(candidate, messages)) return false;
         if (!requestId) return this.#isHeldReply(candidate);
-        const reply = this.#requireMessage(candidate.messageId);
+        const reply = this.#requireMessage(candidate.messageId, messages);
         return isAnswer(reply) && reply.replyToMessageId === requestId;
-      })
-      .map((delivery) => this.#context(delivery));
+      }),
+    );
   }
 
   /** The agents that were sent a request and whose delivery ended with no answer. */
@@ -1192,14 +1211,14 @@ export class MailboxStore {
   }
 
   findDeliveriesByTurn(agentId: string, turnId: string): DeliveryContext[] {
-    return this.#state.deliveries
-      .filter(
+    return this.#contexts(
+      this.#state.deliveries.filter(
         (delivery) =>
           delivery.recipientAgentId === agentId &&
           delivery.turnId === turnId &&
           (delivery.status === "starting" || delivery.status === "running"),
-      )
-      .map((delivery) => this.#context(delivery));
+      ),
+    );
   }
 
   /** Without `taskId`, any lane of the agent; with it, only that lane (null: the agent's own chat). */
@@ -1213,9 +1232,7 @@ export class MailboxStore {
    * Without `taskId`, any lane of the agent; with it, only that lane (null: the agent's own chat).
    */
   startingDeliveriesForAgent(agentId: string, taskId?: string | null): DeliveryContext[] {
-    return this.#state.deliveries
-      .filter((candidate) => this.#startingIn(candidate, agentId, taskId))
-      .map((delivery) => this.#context(delivery));
+    return this.#contexts(this.#state.deliveries.filter((candidate) => this.#startingIn(candidate, agentId, taskId)));
   }
 
   #startingIn(delivery: StoredDelivery, agentId: string, taskId: string | null | undefined): boolean {
@@ -1488,7 +1505,8 @@ export class MailboxStore {
     try {
       this.#persist("delivery.edit-started");
     } catch (error) {
-      delivery.editId = previous;
+      if (previous === undefined) delete delivery.editId;
+      else delivery.editId = previous;
       throw error;
     }
   }
@@ -1516,7 +1534,9 @@ export class MailboxStore {
       this.#persist("delivery.edit-attachments-retained");
     } catch (error) {
       drafts.forEach((draft, index) => {
-        draft.ownerEditId = previous[index];
+        const ownerEditId = previous[index];
+        if (ownerEditId === undefined) delete draft.ownerEditId;
+        else draft.ownerEditId = ownerEditId;
       });
       throw error;
     }
@@ -1578,11 +1598,16 @@ export class MailboxStore {
       this.#persist(cancelDelivery ? "delivery.cancelled" : "delivery.edit-finished");
     } catch (error) {
       delivery.status = previousStatus;
-      delivery.editId = editId;
-      delivery.finishedEditOutcomes = previousOutcomes;
+      if (editId === undefined) delete delivery.editId;
+      else delivery.editId = editId;
+      if (previousOutcomes === undefined) delete delivery.finishedEditOutcomes;
+      else delivery.finishedEditOutcomes = previousOutcomes;
       released.forEach((draft, index) => {
-        draft.ownerEditId = editId;
-        draft.preserveOnRestart = previousRetention[index];
+        // `released` is empty when there is no edit id.
+        if (editId !== undefined) draft.ownerEditId = editId;
+        const preserveOnRestart = previousRetention[index];
+        if (preserveOnRestart === undefined) delete draft.preserveOnRestart;
+        else draft.preserveOnRestart = preserveOnRestart;
       });
       throw error;
     }
@@ -1917,9 +1942,9 @@ export class MailboxStore {
   }
 
   unresolvedDeliveries(): DeliveryContext[] {
-    return this.#state.deliveries
-      .filter((delivery) => delivery.status === "starting" || delivery.status === "running")
-      .map((delivery) => this.#context(delivery));
+    return this.#contexts(
+      this.#state.deliveries.filter((delivery) => delivery.status === "starting" || delivery.status === "running"),
+    );
   }
 
   recoverAsInterrupted = Effect.fn("MailboxStore.recoverAsInterrupted")(function* (
@@ -2238,10 +2263,14 @@ export class MailboxStore {
     }
   }, Effect.uninterruptible).bind(this);
 
-  #context(delivery: StoredDelivery): DeliveryContext {
-    const message = this.#requireMessage(delivery.messageId);
+  #context(
+    delivery: StoredDelivery,
+    positions?: ReadonlyMap<string, number>,
+    messages?: ReadonlyMap<string, StoredMessage>,
+  ): DeliveryContext {
+    const message = this.#requireMessage(delivery.messageId, messages);
     return {
-      delivery: this.#publicDelivery(delivery),
+      delivery: this.#publicDelivery(delivery, positions, message),
       managedAttachments: message.attachments.map((attachment) => ({
         ...toAttachmentSummary(attachment),
         path: attachment.path,
@@ -2259,7 +2288,7 @@ export class MailboxStore {
 
   #publicDelivery(
     delivery: StoredDelivery,
-    positions = this.#queuedPositions(),
+    positions?: ReadonlyMap<string, number>,
     message = this.#requireMessage(delivery.messageId),
   ): QueueDelivery {
     const {
@@ -2277,7 +2306,12 @@ export class MailboxStore {
       attachments: message.attachments.map(toAttachmentSummary),
       replyToMessageId: message.replyToMessageId,
       ...(message.expectsReply === false ? { expectsReply: false } : {}),
-      position: delivery.status === "queued" ? (positions.get(delivery.id) ?? null) : null,
+      position:
+        delivery.status === "queued"
+          ? positions
+            ? (positions.get(delivery.id) ?? null)
+            : this.#queuedPosition(delivery)
+          : null,
       editing: Boolean(delivery.editId),
     };
   }
@@ -2294,6 +2328,19 @@ export class MailboxStore {
       positions.set(delivery.id, position);
     }
     return positions;
+  }
+
+  /** The queue position of one queued delivery, without sorting the whole mailbox. */
+  #queuedPosition(delivery: StoredDelivery): number {
+    let position = 1;
+    for (const candidate of this.#state.deliveries)
+      if (
+        candidate.status === "queued" &&
+        candidate.recipientAgentId === delivery.recipientAgentId &&
+        compareQueueOrder(candidate, delivery) < 0
+      )
+        position += 1;
+    return position;
   }
 
   #receipt(messageId: string): QueuedMessageReceipt {

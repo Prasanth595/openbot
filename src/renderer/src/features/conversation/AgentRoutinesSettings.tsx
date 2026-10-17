@@ -121,11 +121,11 @@ interface AgentRoutinesSettingsProps {
   /** Names the owner and owns every call. A channel passes `channelRoutinesPort` here. */
   port: RoutinesPort;
   onCountChange: (count: number) => void;
-  onBack?: () => void;
-  onClose?: () => void;
-  selectionRequest?: RoutineSelectionRequest | null;
-  onSelectionRequestHandled?: (nonce: number) => void;
-  onOpenRun?: (messageId: string) => void;
+  onBack?: (() => void) | undefined;
+  onClose?: (() => void) | undefined;
+  selectionRequest?: RoutineSelectionRequest | null | undefined;
+  onSelectionRequestHandled?: ((nonce: number) => void) | undefined;
+  onOpenRun?: ((messageId: string) => void) | undefined;
 }
 
 export function AgentRoutinesSettings(props: AgentRoutinesSettingsProps) {
@@ -862,7 +862,7 @@ export function AgentRoutinesSettings(props: AgentRoutinesSettingsProps) {
                             type="button"
                             size="sm"
                             class="agent-routine-test"
-                            disabled={!current().id || testing() || !validDraft(current())}
+                            disabled={!current().id || !validDraft(current())}
                             loading={testing()}
                             loadingLabel={t("routine.settings.starting")}
                             onClick={() => void testRun()}
@@ -875,7 +875,7 @@ export function AgentRoutinesSettings(props: AgentRoutinesSettingsProps) {
                       <Button
                         type="button"
                         size="sm"
-                        disabled={saving() || !validDraft(current())}
+                        disabled={!validDraft(current())}
                         loading={saving()}
                         loadingLabel={t("common.saving")}
                         onClick={() => void saveDraft()}

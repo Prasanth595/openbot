@@ -230,12 +230,12 @@ other places.
 
 1. **Descriptor.** Add the id to `AGENT_PROVIDERS` and a row to `AGENT_PROVIDER_DESCRIPTOR_TABLE` in
    [`packages/contracts/src/agent-providers.ts`](../../packages/contracts/src/agent-providers.ts):
-   `displayName`, `cliName`, `authKind`, `signInMessage`, `codeSignIn`, `skillFolders` and the
+   `displayName`, `cliName`, `authKind`, `signInMessage`, `localCodeSignIn`, `skillFolders` and the
    other fields. The table uses `satisfies Record<AgentProviderId, ...>`, so a missing row does not
    compile. Do not add to `AGENT_IDS_RESERVED_AT_RELEASE`: it is frozen.
 2. **Driver.** Add a row to `BUILT_IN_PROVIDER_DRIVERS` in
    [`src/backend/provider-drivers.ts`](../../src/backend/provider-drivers.ts). Choose the sign-in:
-   - `signIn`: `browser`, `cli-command`, `external`, `terminal` or `acp-authenticate`.
+   - `signIn`: `browser`, `cli-command`, `external`, `terminal`, `muse-device` or `acp-authenticate`.
    - `codeSignIn` (optional): `codex-device`, `muse-device`, or `cli` with flow `device`, `paste`
      or `link`. A code sign-in is what lets a joined server sign in today.
    The dispatch is `#signIn` and `#startProviderCode` in

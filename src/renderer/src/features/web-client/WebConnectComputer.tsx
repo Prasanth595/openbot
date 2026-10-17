@@ -1,6 +1,7 @@
 import { AppLogo } from "@openbot/brand";
-import { Button, buttonVariants, Download, ErrorReference, Heading, Link2, RefreshCw, Text } from "@openbot/ui";
+import { Button, buttonVariants, Download, ErrorReference, Heading, Link2, RefreshCw, Server, Text } from "@openbot/ui";
 import { useText } from "@openbot/ui/text";
+import { Show } from "solid-js";
 
 /** The first screen of the web client when the account has no computer to connect to. */
 export function WebConnectComputer(props: {
@@ -9,6 +10,8 @@ export function WebConnectComputer(props: {
   /** The code of the failed host list read. */
   reference?: string | null;
   onJoin: () => void;
+  /** Opens the hosted server plans. Leave it out when the account cannot create a hosted server. */
+  onCreateServer?: (() => void) | undefined;
   onRefresh: () => void;
 }) {
   const { t } = useText();
@@ -49,13 +52,21 @@ export function WebConnectComputer(props: {
           <div class="web-connect-primary-actions">
             <a
               class={`web-connect-download ${buttonVariants({ variant: "default" })}`}
-              href="/#download"
+              href="/download"
               target="_blank"
               rel="noreferrer"
             >
               <Download aria-hidden="true" />
               {t("webClient.notice.download")}
             </a>
+            <Show when={props.onCreateServer}>
+              {(createServer) => (
+                <Button variant="outline" onClick={() => createServer()()}>
+                  <Server aria-hidden="true" />
+                  {t("webClient.notice.createServer")}
+                </Button>
+              )}
+            </Show>
             <Button variant="outline" onClick={() => props.onJoin()}>
               <Link2 aria-hidden="true" />
               {t("webClient.notice.join")}

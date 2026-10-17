@@ -478,7 +478,7 @@ export class AttentionRegistry {
       }
     }
     secret.cancel();
-    pending.secret = undefined;
+    delete pending.secret;
     if (input.decision === "submit" && pending.request.secret)
       pending.request.secret = { ...pending.request.secret, requiresReload: true };
     else delete pending.request.secret;

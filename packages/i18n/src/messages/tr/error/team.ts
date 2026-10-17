@@ -27,6 +27,8 @@ export const messages = {
   "error.team.loginIncorrect": "Kullanıcı adı veya şifre yanlış.",
   "error.team.currentPasswordIncorrect": "Mevcut şifre yanlış.",
   "error.team.memberNotFound": "Ekip üyesi bulunamadı.",
+  "error.team.directMessageSelf": "Kendinizle doğrudan mesaj açamazsınız.",
+  "error.team.directRecipientUnavailable": "Bu ekip üyesi kullanılamıyor.",
   "error.team.ownerCannotChange": "Sahip hesabı değiştirilemez.",
   "error.team.ownerCannotRemove": "Sahip hesabı kaldırılamaz.",
   "error.team.serverNotConfigured": "Ekip sunucusu yapılandırılmamış.",

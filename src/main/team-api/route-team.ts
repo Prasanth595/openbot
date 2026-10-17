@@ -14,7 +14,7 @@ import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import { sourceText } from "@openbot/i18n/source";
 import { runCauseEffect } from "../../backend/effect-boundary";
 import type { TeamStore } from "../team-store";
-import type { TeamApiRemoteScreen } from "./dependencies";
+import type { TeamApiBrowserView, TeamApiRemoteScreen } from "./dependencies";
 import { HttpError } from "./http-error";
 import type { RouteOutcome, TeamApiRequestContext } from "./request-context";
 import { nullableString, pathIdentifier, readJson, requireAdmin, stringField } from "./request-helpers";
@@ -34,6 +34,7 @@ export interface TeamRouteDependencies {
     | "revokeSession"
   >;
   remoteScreen?: Pick<TeamApiRemoteScreen, "revokeTeamSession" | "revokeMember">;
+  browserView?: Pick<TeamApiBrowserView, "revokeTeamSession">;
   createInvite?: TeamApiOptions["createInvite"];
   updateMember?: TeamApiOptions["updateMember"];
   removeMember?: TeamApiOptions["removeMember"];
@@ -47,6 +48,7 @@ export async function routeTeam(
   {
     store,
     remoteScreen,
+    browserView,
     createInvite,
     updateMember,
     removeMember: removeHostMember,
@@ -81,6 +83,7 @@ export async function routeTeam(
   if (method === "POST" && url.pathname === TEAM_API_ROUTES.auth.logout) {
     await runCauseEffect(store.logout(token));
     await (remoteScreen ? runCauseEffect(remoteScreen.revokeTeamSession(sessionId)) : undefined);
+    await (browserView ? runCauseEffect(browserView.revokeTeamSession(sessionId)) : undefined);
     refreshPresence();
     return empty(204);
   }
@@ -208,6 +211,7 @@ export async function routeTeam(
     await runCauseEffect(store.revokeSession(revokedSessionId));
     await (onSessionRevoked ? runCauseEffect(onSessionRevoked(revokedSessionId)) : undefined);
     await (remoteScreen ? runCauseEffect(remoteScreen.revokeTeamSession(revokedSessionId)) : undefined);
+    await (browserView ? runCauseEffect(browserView.revokeTeamSession(revokedSessionId)) : undefined);
     refreshPresence();
     return empty(204);
   }

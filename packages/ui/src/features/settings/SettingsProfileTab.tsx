@@ -136,7 +136,7 @@ export function SettingsProfileTab(props: SettingsProfileTabProps) {
 
       <SettingsSection title={t("settings.profile.account.title")}>
         <ItemGroup class="settings-modal-card">
-          <Item class="settings-modal-account-email-row">
+          <Item data-settings-row="settings.profile.email.title" class="settings-modal-account-email-row">
             <ItemContent>
               <ItemTitle>{t("settings.profile.email.title")}</ItemTitle>
               <ItemDescription>{t("settings.profile.email.description")}</ItemDescription>
@@ -161,6 +161,7 @@ export function SettingsProfileTab(props: SettingsProfileTabProps) {
       </SettingsSection>
       <Show when={props.canListSessions}>
         <SettingsSection
+          data-settings-row="settings.profile.sessions.title"
           title={t("settings.profile.sessions.title")}
           description={t("settings.profile.sessions.description")}
         >

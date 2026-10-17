@@ -65,29 +65,29 @@ interface ProviderModelPickerProps {
   label?: string;
   /** A glyph before the field label. The `field` variant only. */
   icon?: JSX.Element;
-  reasoningEffort?: AgentReasoningEffort;
-  onReasoningEffortChange?: (effort: AgentReasoningEffort) => void;
+  reasoningEffort?: AgentReasoningEffort | undefined;
+  onReasoningEffortChange?: ((effort: AgentReasoningEffort) => void) | undefined;
   disabled?: boolean;
   /** Keep approval controls available while model and effort changes are locked. */
   modelChangesDisabled?: boolean;
   disabledReason?: string;
-  runtimeStatuses?: Partial<Record<AgentProviderId, ProviderRuntimeStatus>>;
-  onDownloadProvider?: (provider: AgentProviderId) => void | Promise<void>;
-  onCancelProviderDownload?: (provider: AgentProviderId) => void | Promise<void>;
-  onConnectProvider?: (provider: AgentProviderId) => void | Promise<void>;
+  runtimeStatuses?: Partial<Record<AgentProviderId, ProviderRuntimeStatus>> | undefined;
+  onDownloadProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
+  onCancelProviderDownload?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
+  onConnectProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
   /** A signed-out provider shows Connect only when this place has a way in. Without it, every one does. */
-  canConnectProvider?: (provider: AgentProviderId) => boolean;
+  canConnectProvider?: ((provider: AgentProviderId) => boolean) | undefined;
   /** Endpoints the user named; served by OpenCode, separated out only by the picker. */
   customProviders?: readonly CustomProviderSummary[] | undefined;
   /** The user's own ACP agents; provider `acp`, drawn on the Custom tab with one group each. */
   customAgents?: readonly CustomAgentSummary[] | undefined;
   /** Receives the picker trigger, so focus returns to it when the opened settings close. */
-  onAddCustomProvider?: (trigger: HTMLElement) => void;
+  onAddCustomProvider?: ((trigger: HTMLElement) => void) | undefined;
   /**
    * Opens the provider settings. With it, the rail leaves out the providers that cannot run, and a
    * plus button after them opens the settings to connect one. Receives the picker trigger.
    */
-  onManageProviders?: (trigger: HTMLElement) => void;
+  onManageProviders?: ((trigger: HTMLElement) => void) | undefined;
   /**
    * Gives each account of a provider with more than one its own rail entry, and passes the account
    * of a choice to `onChange`. Only where the agent's account can change.

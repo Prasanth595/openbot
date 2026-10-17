@@ -317,7 +317,7 @@ export const messages = {
   "settings.updates.unavailable": "Обновления недоступны",
   "settings.updates.autoDownload.title": "Скачивать обновления автоматически",
   "settings.updates.autoDownload.description": "Скачивать новые версии, как только они появятся.",
-  "settings.updates.managed.title": "Управляется хостом",
+  "settings.updates.managed.title": "Управляется Host Manager",
   "settings.updates.managed.description":
     "Обновления этого Mac управляются автоматически через OpenBot Host Manager. Все пользователи используют одно приложение OpenBot и обновляются вместе, когда зарегистрированные пользователи не заняты.",
   "settings.updates.target.latest": "Последнее обновление OpenBot",
@@ -325,7 +325,7 @@ export const messages = {
     "Актуальная версия. OpenBot Host Manager поддерживает этот Mac в актуальном состоянии.",
   "settings.updates.host.ready": "{target} скачано. Ожидаем, пока остальные пользователи этого Mac освободятся.",
   "settings.updates.host.installing": "Установка {target}…",
-  "settings.updates.host.failed": "Не удалось обновить хост. Обратитесь к администратору хоста.",
+  "settings.updates.host.failed": "Не удалось выполнить управляемое обновление. Обратитесь к администратору этого Mac.",
   "settings.updates.status.idle": "Проверьте обновления, чтобы найти последний релиз Stable.",
   "settings.updates.status.checking": "Проверка обновлений в канале Stable…",
   "settings.updates.status.available": "{target} доступно для скачивания.",

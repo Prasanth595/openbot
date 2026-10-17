@@ -77,8 +77,7 @@ export function createOnePasswordConnector(
       .catch((error: unknown) => {
         if (actions.disposed()) return;
         const { t, errorMessage } = currentText();
-        actionToast.error(t("connector.onePassword.openAppFailed"), {
-          description: errorMessage(error, t("connector.onePassword.openAppFailed")),
+        actionToast.error(errorMessage(error, t("connector.onePassword.openAppFailed")), {
           report: { operation: "other", source: "action", cause_code: classifyFailure(error) },
         });
       });

@@ -7,7 +7,7 @@ import { createEffect, createMemo, createSignal, onSettled, Show } from "solid-j
 import { z } from "zod";
 
 interface RemoteDesktopWorkspaceProps {
-  mount?: HTMLElement;
+  mount?: HTMLElement | undefined;
   testControls?: JSX.Element;
   viewOnly?: boolean;
   onViewerState?: (state: ViewerState) => void;

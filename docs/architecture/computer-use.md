@@ -145,8 +145,8 @@ capability. On a server with an agent display, Sunshine runs on that display (se
 Codex saves an “Always allow” tool decision only when the MCP server is in a file-backed
 configuration layer. A thread configuration alone does not satisfy this check. Before starting or
 resuming a thread with Computer Use, OpenBot registers `computer_use` in the Codex user
-configuration through `config/value/write`. The new entry contains only the driver command and
-`enabled = false`. The write uses the user layer's version, and an existing entry is left unchanged.
+configuration through `config/batchWrite`. The new entry contains only a placeholder command
+(`openbot-mcp`) and `enabled = false`. The write uses the user layer's version, and an existing entry is left unchanged.
 OpenBot does not save the driver socket, environment, or credentials in that entry.
 
 The thread configuration enables the running driver and supplies its current command, arguments,

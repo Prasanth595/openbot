@@ -95,7 +95,7 @@ The host (`HostEventsService.receive`) returns:
 | 400 | Body is not UTF-8 JSON `{ type, occurredAt?, data? }` |
 | 202 | Run started, or ignored: `event-type`, `filter`, or `inactive` |
 | 200 | Duplicate delivery ID for this routine |
-| 503 | The host cannot decrypt the secret, the agent is held or being deleted, the channel is archived or held, or the handler failed |
+| 503 | The host has no signed-in account or cannot decrypt the secret, the agent is held or being deleted, the channel is archived or held, or the handler failed |
 
 Verification comes before JSON decoding. The signature is
 `sha256=HMAC-SHA256(secret, "<timestamp>.<deliveryId>.<body>")`, compared in constant time. The

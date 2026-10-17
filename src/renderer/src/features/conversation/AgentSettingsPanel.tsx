@@ -36,33 +36,33 @@ interface AgentSettingsPanelProps
   localHost?: boolean;
   sessionSettingsEditable?: boolean;
   /** The memory cap of an agent on this computer. Absent for a remote agent: its host enforces its own. */
-  memoryLimit?: number;
+  memoryLimit?: number | undefined;
   /** The web client's host calls for the settings that its server supports. */
-  adminCalls?: ConversationRuntime["admin"];
-  onPublish?: () => void;
-  onOpenUsage?: (trigger: HTMLButtonElement) => void;
+  adminCalls?: ConversationRuntime["admin"] | undefined;
+  onPublish?: (() => void) | undefined;
+  onOpenUsage?: ((trigger: HTMLButtonElement) => void) | undefined;
   onWidthChange: (width: number) => void;
-  skillSelectionRequest?: { skillId: string } | null;
-  routineSelectionRequest?: RoutineSelectionRequest | null;
-  onRoutineSelectionRequestHandled?: (nonce: number) => void;
-  onOpenRoutineRun?: (messageId: string) => void;
-  skillsMode?: AgentSkillsMode;
+  skillSelectionRequest?: { skillId: string } | null | undefined;
+  routineSelectionRequest?: RoutineSelectionRequest | null | undefined;
+  onRoutineSelectionRequestHandled?: ((nonce: number) => void) | undefined;
+  onOpenRoutineRun?: ((messageId: string) => void) | undefined;
+  skillsMode?: AgentSkillsMode | undefined;
   /** The joined server that runs the agent, for the `host` skills mode. */
   skillsServerId?: string | undefined;
-  skillsMarketplaceOpen?: boolean;
+  skillsMarketplaceOpen?: boolean | undefined;
   /** Another page of the window covers the conversation. */
   workspaceCovered?: boolean | undefined;
   /** The shared data lives on the computer that runs the agents. A joined server shows it to an admin only. */
-  tablesVisible?: boolean;
+  tablesVisible?: boolean | undefined;
   /** Names the agent that keeps each set of records. Threaded like `customProviders`, for the same reason. */
-  agents?: readonly AgentProfile[];
+  agents?: readonly AgentProfile[] | undefined;
   /** Event routine calls for a host that advertises `events-v1`; absent keeps the released schedule API. */
-  eventRoutines?: EventRoutinesApi;
-  onCreateSkill?: () => void;
-  onTrySkill?: (skill: MarketplaceSkillDetail) => void;
-  onAddFromMarketplace?: (agentId: string) => void;
+  eventRoutines?: EventRoutinesApi | undefined;
+  onCreateSkill?: (() => void) | undefined;
+  onTrySkill?: ((skill: MarketplaceSkillDetail) => void) | undefined;
+  onAddFromMarketplace?: ((agentId: string) => void) | undefined;
   /** The Files row. Left out for a remote server without `storage-v1`. */
-  files?: AgentFilesOptions;
+  files?: AgentFilesOptions | undefined;
 }
 
 export type { AgentSkillsMode };

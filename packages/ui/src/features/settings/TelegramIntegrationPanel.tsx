@@ -28,13 +28,13 @@ import { createEffect, createSignal, For, Match, Show, Switch } from "solid-js";
 import { ProviderModelPicker } from "../../components/ProviderModelPicker";
 import { useText } from "../../text";
 import { AgentAvatar } from "../agents/AgentAvatar";
+import { TelegramMark } from "./brand-marks";
 import {
   DetailHeader,
   type IntegrationStatus,
   LogoTile,
   ReadFailedAlert,
   Stepper,
-  TelegramMark,
   UNKNOWN_STATUS,
   WizardDialog,
   type WizardLink,

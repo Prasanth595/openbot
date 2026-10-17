@@ -859,22 +859,25 @@ export class TeamApiServer {
   // One method per module, so the dispatcher above reads as a list of domains and the wiring of
   // each narrow `*RouteDependencies` sits next to nothing else.
   #routeTeam(context: TeamApiRequestContext): Promise<RouteOutcome> {
+    const { remoteScreen, browserView, createInvite, updateMember, removeMember, onSessionRevoked } = this.#options;
     return routeTeam(context, {
       store: this.#options.store,
-      remoteScreen: this.#options.remoteScreen,
-      createInvite: this.#options.createInvite,
-      updateMember: this.#options.updateMember,
-      removeMember: this.#options.removeMember,
-      onSessionRevoked: this.#options.onSessionRevoked,
+      ...(remoteScreen === undefined ? {} : { remoteScreen }),
+      ...(browserView === undefined ? {} : { browserView }),
+      ...(createInvite === undefined ? {} : { createInvite }),
+      ...(updateMember === undefined ? {} : { updateMember }),
+      ...(removeMember === undefined ? {} : { removeMember }),
+      ...(onSessionRevoked === undefined ? {} : { onSessionRevoked }),
       getPresence: () => this.getPresence(),
       refreshPresence: () => this.refreshPresence(),
     });
   }
 
   #routeRemoteScreen(context: TeamApiRequestContext): Promise<RouteOutcome> {
+    const remoteScreen = this.#options.remoteScreen;
     return routeRemoteScreen(context, {
       store: this.#options.store,
-      remoteScreen: this.#options.remoteScreen,
+      ...(remoteScreen === undefined ? {} : { remoteScreen }),
     });
   }
 
@@ -891,7 +894,11 @@ export class TeamApiServer {
   }
 
   #routeBrowser(context: TeamApiRequestContext): Promise<RouteOutcome> {
-    return routeBrowser(context, { browser: this.#options.browser, browserView: this.#options.browserView });
+    const browserView = this.#options.browserView;
+    return routeBrowser(context, {
+      browser: this.#options.browser,
+      ...(browserView === undefined ? {} : { browserView }),
+    });
   }
 
   #routeFiles(context: TeamApiRequestContext): Promise<RouteOutcome> {
@@ -1523,14 +1530,18 @@ export class TeamApiServer {
     });
   }
 
+  // A refusal here is the client's error, so it is an `HttpError`: the dispatcher answers its status
+  // and does not log it. The English of each message is the text that hosts sent before, byte for byte.
   #requireDirectRecipient(senderMemberId: string, recipientMemberId: string): TeamMemberSummary {
     if (senderMemberId === recipientMemberId) {
-      throw new Error("You cannot open a direct message with yourself.");
+      throw new HttpError(400, sourceText("error.team.directMessageSelf"));
     }
     const sender = this.#options.store.getMember(senderMemberId);
     const recipient = this.#options.store.getMember(recipientMemberId);
-    if (!sender || sender.disabled) throw new Error("Your team access is unavailable.");
-    if (!recipient || recipient.disabled) throw new Error("This team member is unavailable.");
+    if (!sender || sender.disabled) throw new HttpError(403, sourceText("error.host.teamAccessUnavailable"));
+    if (!recipient || recipient.disabled) {
+      throw new HttpError(404, sourceText("error.team.directRecipientUnavailable"));
+    }
     return recipient;
   }
 

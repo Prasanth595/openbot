@@ -40,7 +40,7 @@ import {
 import type { McpOAuthProxySettings } from "../src/backend/mcp-oauth-proxy";
 import { claudeMcpServers, codexMcpServers, usableMcpServers } from "../src/backend/mcp-provider-shapes";
 import { McpServerStore } from "../src/backend/mcp-server-store";
-import { isPublicAddress } from "../src/backend/network-address";
+import { AddressLookupError, isPublicAddress } from "../src/backend/network-address";
 import { OpenBotDatabase } from "../src/backend/openbot-database";
 import { NO_PROVIDER_CREDENTIALS } from "../src/backend/provider-drivers";
 
@@ -847,12 +847,14 @@ async function networkCases(auth: Awaited<ReturnType<typeof startAuthorizationSe
     localhost: ["127.0.0.1"],
   };
   const looked: string[] = [];
-  const lookup = async (hostname: string) => {
-    looked.push(hostname);
-    const addresses = names[hostname];
-    if (!addresses) throw new Error(`No fake address for ${hostname}.`);
-    return addresses;
-  };
+  const lookup = (hostname: string) =>
+    Effect.suspend(() => {
+      looked.push(hostname);
+      const addresses = names[hostname];
+      return addresses
+        ? Effect.succeed(addresses)
+        : Effect.fail(new AddressLookupError({ cause: new Error(`No fake address for ${hostname}.`) }));
+    });
   const refusal = async (request: Promise<Response>) => {
     try {
       await request;

@@ -4,14 +4,20 @@ import type { messages as source } from "../en/customProvider";
 export const messages = {
   "customProvider.registry.title": "Registro ACP",
   "customProvider.registry.description":
-    "Instale agentes neste computador anfitrião. Remover o runtime mantém as configurações, as credenciais e as conversas do agente.",
+    "Instale agentes neste servidor. Remover o runtime mantém as configurações, as credenciais e as conversas do agente.",
   "customProvider.registry.search": "Buscar no registro",
   "customProvider.registry.empty": "Nenhum agente corresponde a esta busca.",
   "customProvider.registry.agentId": "ID do agente personalizado",
   "customProvider.registry.install": "Instalar",
   "customProvider.registry.update": "Atualizar",
   "customProvider.registry.remove": "Remover runtime",
-  "customProvider.registry.failed": "A operação do registro falhou.",
+  "customProvider.registry.searchFailed": "Não foi possível buscar no registro. Tente novamente.",
+  "customProvider.registry.statusFailed":
+    "Não foi possível verificar o progresso da instalação. O OpenBot tentará de novo.",
+  "customProvider.registry.installFailed": "Não foi possível instalar o agente. Tente novamente.",
+  "customProvider.registry.updateFailed": "Não foi possível atualizar o agente. Tente novamente.",
+  "customProvider.registry.removeFailed": "Não foi possível remover o runtime. Tente novamente.",
+  "customProvider.registry.cancelFailed": "Não foi possível cancelar a instalação. Tente novamente.",
   "customProvider.error.providerIdRequired": "Digite um ID de provedor.",
   "customProvider.error.providerIdPattern":
     "Use letras minúsculas, números, hífens ou sublinhados, começando com uma letra ou um número.",

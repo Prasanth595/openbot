@@ -3,12 +3,12 @@ import { readFirstTouch } from "@openbot/contracts/first-touch";
 import { isDynamicRecord } from "@openbot/contracts/runtime-values";
 import { createFileRoute } from "@tanstack/solid-router";
 import { onSettled, Show } from "solid-js";
+import { billingReturnText } from "../../components/transactional/page-text";
+import { TransactionalPage } from "../../components/transactional/TransactionalPage";
+import { loadPageText } from "../../lib/page-text";
 
 /** The page that Stripe Checkout and the Customer Portal open when a desktop user goes back. */
 export const Route = createFileRoute("/billing/return")({
-  head: () => ({
-    meta: [{ title: "OpenBot billing" }, { name: "robots", content: "noindex, nofollow, noarchive" }],
-  }),
   headers: () => ({
     "Cache-Control": "no-store",
     "Referrer-Policy": "no-referrer",
@@ -21,6 +21,13 @@ export const Route = createFileRoute("/billing/return")({
     isDynamicRecord(value) && (value.cancelled === 1 || value.cancelled === "1" || value.cancelled === true)
       ? { cancelled: true }
       : {},
+  loader: ({ context }) => loadPageText(context.locale, billingReturnText),
+  head: ({ loaderData }) => ({
+    meta: [
+      ...(loaderData ? [{ title: loaderData.text.pageTitle }] : []),
+      { name: "robots", content: "noindex, nofollow, noarchive" },
+    ],
+  }),
   component: BillingReturn,
 });
 
@@ -50,24 +57,24 @@ function sendCheckoutAttribution(): void {
 
 function BillingReturn() {
   const search = Route.useSearch();
+  const page = Route.useLoaderData();
+  const text = () => page().text;
   onSettled(() => sendCheckoutAttribution());
   return (
-    <main class="join-page">
-      <section class="join-card" aria-labelledby="billing-return-title">
-        <AppLogo variant="production" class="join-card-logo" />
-        <Show
-          when={search().cancelled}
-          fallback={
-            <>
-              <h1 id="billing-return-title">Billing updated</h1>
-              <p class="join-card-copy">Go back to OpenBot. You can close this page.</p>
-            </>
-          }
-        >
-          <h1 id="billing-return-title">Checkout cancelled</h1>
-          <p class="join-card-copy">Nothing was charged. Go back to OpenBot.</p>
-        </Show>
-      </section>
-    </main>
+    <TransactionalPage titleId="billing-return-title" lang={page().lang}>
+      <AppLogo variant="production" class="join-card-logo" />
+      <Show
+        when={search().cancelled}
+        fallback={
+          <>
+            <h1 id="billing-return-title">{text().updatedTitle}</h1>
+            <p class="join-card-copy">{text().updatedBody}</p>
+          </>
+        }
+      >
+        <h1 id="billing-return-title">{text().cancelledTitle}</h1>
+        <p class="join-card-copy">{text().cancelledBody}</p>
+      </Show>
+    </TransactionalPage>
   );
 }

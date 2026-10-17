@@ -249,7 +249,7 @@ const textContent = (block: MessageContentBlock) => (block.type === "text" ? blo
 export function MessageBody(props: {
   animate?: boolean;
   message: AgentMessage;
-  referencedMessage?: AgentMessage;
+  referencedMessage?: AgentMessage | undefined;
   /**
    * Who wrote the quoted message. A chat with several authors has to name the one it quotes, and
    * an agent chat names another person the reader quotes. Absent, the quote says "You" or "Agent".
@@ -636,7 +636,7 @@ export function MessageActions(props: {
   onTogglePicker: () => void;
   onExpandEmoji: () => void;
   onReact: (emoji: MessageReaction | null) => void;
-  onReply?: () => void;
+  onReply?: (() => void) | undefined;
   onCopy: () => void;
 }) {
   const { t } = useText();

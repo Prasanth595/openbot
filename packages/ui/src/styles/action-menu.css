@@ -265,7 +265,7 @@
 }
 
 .ui-motion-tooltip {
-  z-index: var(--openbot-layer-popover);
+  z-index: var(--openbot-layer-tooltip);
   transform-origin: var(--kb-tooltip-content-transform-origin);
   animation: ui-menu-in var(--ui-submenu-duration) var(--ui-submenu-ease) both;
 }
