@@ -132,7 +132,11 @@ async function runHost(root: string, configure: boolean): Promise<void> {
     Effect.gen(function* () {
       const identity = team.getIdentity();
       assert.ok(identity, "The host has no identity.");
-      const invite = yield* team.createInvite(input.role, input.email, { permanent: input.permanent });
+      const invite = yield* team.createInvite(
+        input.role,
+        input.email,
+        input.permanent === undefined ? {} : { permanent: input.permanent },
+      );
       return {
         id: invite.id,
         role: input.role,
@@ -316,7 +320,7 @@ async function call(
   const response = await fetch(`http://127.0.0.1:${port}${path}`, {
     method,
     headers,
-    body: input.body === undefined ? undefined : JSON.stringify(input.body),
+    body: input.body === undefined ? null : JSON.stringify(input.body),
   });
   const body = await response.text();
   return { status: response.status, body: body ? JSON.parse(body) : null };

@@ -250,7 +250,7 @@ async function call(
   const response = await fetch(`http://127.0.0.1:${current().port}${path}`, {
     method,
     headers,
-    body: input.body === undefined ? undefined : JSON.stringify(input.body),
+    body: input.body === undefined ? null : JSON.stringify(input.body),
   });
   const body = await response.text();
   return { status: response.status, body: body ? JSON.parse(body) : null };

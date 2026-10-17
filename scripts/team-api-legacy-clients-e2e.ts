@@ -204,7 +204,7 @@ async function wire(
   const response = await fetch(`http://127.0.0.1:${port}${input.path}`, {
     method: input.method,
     headers,
-    body: input.body === undefined ? undefined : JSON.stringify(input.body),
+    body: input.body === undefined ? null : JSON.stringify(input.body),
   });
   const body = await response.text();
   return { status: response.status, body: body ? JSON.parse(body) : null };
@@ -219,7 +219,7 @@ async function v1(
   token?: string,
 ): Promise<{ status: number; body: unknown }> {
   if (body !== undefined) decodeTeamProtocolV1HttpRequest(method, path, body);
-  const response = await wire(port, { protocol: TEAM_PROTOCOL_V1, method, path, body, token });
+  const response = await wire(port, { protocol: TEAM_PROTOCOL_V1, method, path, body, ...(token ? { token } : {}) });
   return {
     status: response.status,
     body: decodeTeamProtocolV1HttpResponse(method, path, response.status, response.body),
