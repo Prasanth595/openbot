@@ -441,7 +441,7 @@ export class SkillMarketplaceService {
             { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ receiptId }) },
             decodeInstalledReceipt,
           )
-          .pipe(toSkillMarketplaceFailure);
+          .pipe(Effect.catchTag("CentralAuthOperationError", () => Effect.void));
       yield* this.refreshAgentRuntime(agent.id).pipe(toSkillMarketplaceFailure);
       return toInstalledSkill(entry, detail.version, "installed", entry.description);
     });

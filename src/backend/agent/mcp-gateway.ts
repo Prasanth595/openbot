@@ -199,8 +199,8 @@ export class McpGateway {
   });
 
   /**
-   * Whether a row goes through the OAuth proxy: an http row with a sign-in on this computer, or one
-   * the server ended, and no `Authorization` the user typed. A row whose sign-in ended still goes
+   * Whether a row goes through the OAuth proxy: an http row with a sign-in on this computer, and no
+   * `Authorization` the user typed. A row whose token expired or whose sign-in ended still goes
    * through, so the agent reads that it has to sign in again rather than a bare refusal.
    */
   #proxied(config: McpServerConfig): boolean {
@@ -210,7 +210,7 @@ export class McpGateway {
       config.transport === "http" &&
       config.id !== GITHUB_CONNECTOR_MCP_SERVER_ID &&
       !config.headers.some((pair) => pair.key.trim().toLowerCase() === "authorization") &&
-      (oauth.signedIn(config.url) || oauth.needsSignIn(config.url))
+      oauth.hasSignIn(config.url)
     );
   }
 

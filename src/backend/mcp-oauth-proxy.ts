@@ -3,6 +3,7 @@
 // it renews a token that the server refuses during a session.
 
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { once } from "node:events";
 import { createServer, type Server as HttpServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
@@ -202,6 +203,10 @@ export class McpOAuthProxy {
     // A page in a browser can reach a loopback port. It cannot send a matching `Host` through DNS
     // rebinding, and it cannot know a bearer, so both are checked before anything else is read.
     if (port === null || secret === null || !allowedHost(request.headers.host, port)) return refuse(response, 403);
+    const controller = new AbortController();
+    // The provider closed the connection: the upstream request and its event stream end too. This is
+    // set before the first wait, so a close during a token refresh is not missed.
+    response.once("close", () => controller.abort());
     const route = /^\/mcp\/([0-9a-f]{32})$/u.exec(request.url ?? "")?.[1];
     if (!route || !authorized(request, routeBearer(secret, route))) return refuse(response, 403);
     const method = request.method ?? "";
@@ -214,9 +219,6 @@ export class McpOAuthProxy {
     if (body === "too-large") return refuse(response, 413);
     const target = yield* this.#options.target(route);
     if (!target) return signInNeeded(response, method, body);
-    const controller = new AbortController();
-    // The provider closed the connection: the upstream request and its event stream end too.
-    response.once("close", () => controller.abort());
     const upstream = yield* this.#forward(target, request, method, body, controller);
     if (!upstream) return signInNeeded(response, method, body);
     const headers: Record<string, string> = {};
@@ -325,7 +327,10 @@ const send = Effect.fn("McpOAuthProxy.send")(function* (
     if (answer.status < 300 || answer.status >= 400) return answer;
     yield* discard(answer);
     const location = answer.headers.get("location");
-    const next = location && (answer.status === 307 || answer.status === 308) ? new URL(location, url) : null;
+    const next =
+      location && (answer.status === 307 || answer.status === 308) && URL.canParse(location, url)
+        ? new URL(location, url)
+        : null;
     if (!next || next.origin !== origin || hop >= MAX_REDIRECTS)
       return yield* new McpOperationError({ cause: new Error("The MCP server redirected to another address.") });
     url = next;
@@ -373,11 +378,8 @@ async function pipeBody(body: ReadableStream<Uint8Array>, response: ServerRespon
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      if (!response.write(value) && !signal.aborted)
-        await new Promise<void>((resolve) => {
-          response.once("drain", resolve);
-          signal.addEventListener("abort", () => resolve(), { once: true });
-        });
+      // `once` removes its listeners when either event comes, and rejects when the provider is gone.
+      if (!response.write(value)) await once(response, "drain", { signal });
     }
     response.end();
   } finally {
