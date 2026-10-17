@@ -117,9 +117,10 @@ export function isDynamicToolCall(value: unknown): value is DynamicToolCallParam
 export function toThreadItem(value: DynamicRecord): ThreadItem | null {
   const type = getString(value, "type");
   if (type === "reasoning") {
+    const id = getString(value, "id");
     return {
       type: "agentMessage",
-      id: getString(value, "id") ?? undefined,
+      ...(id === null ? {} : { id }),
       phase: "commentary",
       text: reasoningText(value),
     };

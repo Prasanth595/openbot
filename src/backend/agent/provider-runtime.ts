@@ -664,10 +664,9 @@ export class ProviderRuntime implements ProviderPort {
           cause: new CodexCliError(sourceText("error.provider.customAgentNone"), "missing"),
         });
       }
+      const bundledExecutable = this.#bundledExecutables[provider];
       const cli = yield* requireProviderDriver(provider)
-        .resolveCli({
-          bundledExecutable: this.#bundledExecutables[provider],
-        })
+        .resolveCli(bundledExecutable === undefined ? {} : { bundledExecutable })
         .pipe(toProviderOperationFailed);
       this.#cliSources.set(provider, cli.source);
       return cli;
@@ -1604,7 +1603,8 @@ export class ProviderRuntime implements ProviderPort {
           yield* this.#reloadProviderCli(provider, cli);
         }).pipe(
           Effect.mapError((error) => {
-            this.#bundledExecutables[provider] = previousExecutable;
+            if (previousExecutable === undefined) delete this.#bundledExecutables[provider];
+            else this.#bundledExecutables[provider] = previousExecutable;
             const cause = error.cause;
             const failure = new Error(
               sourceText("error.provider.cliUpdateFailed", {
@@ -2057,7 +2057,7 @@ export class ProviderRuntime implements ProviderPort {
           checkError: null,
         });
       }
-      this.#setStatus({ providers });
+      this.#setStatus(providers === undefined ? {} : { providers });
     }
     yield* Effect.forEach(activeClients, ([provider, client]) => this.#refreshAccount(provider, client), {
       concurrency: "unbounded",

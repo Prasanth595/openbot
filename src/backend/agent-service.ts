@@ -384,7 +384,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   readonly #removal: AgentRemoval;
   readonly #tools: OpenBotToolRouter;
   readonly #sidebarLayout: AgentSidebar | null;
-  readonly #localSkillTools?: () => LocalSkillTools;
+  readonly #localSkillTools: (() => LocalSkillTools) | undefined;
   readonly #routineFlowTools: (() => RoutineFlowTools) | undefined;
   readonly #developmentDefaults: boolean;
   readonly #busyMessageMode: () => BusyMessageMode;
@@ -706,7 +706,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       browser: this.#browser,
       hostedSites: this.#hostedSites,
       routines: this.#routines,
-      approvalAutomation: options.approvalAutomation,
+      ...(options.approvalAutomation === undefined ? {} : { approvalAutomation: options.approvalAutomation }),
       workspaceSandboxed: (agentId) => {
         const agent = store.list().find((candidate) => candidate.id === agentId);
         return agent !== undefined && workspaceAccessEnforced(agent);
@@ -715,7 +715,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       emit: (event) => this.#emit(event),
       emitError: (code, error, agentId) => this.#emitError(code, error, agentId),
       emitRuntimeSnapshot: () => this.#emitRuntimeSnapshot(),
-      passwordVault: options.passwordVault,
+      ...(options.passwordVault === undefined ? {} : { passwordVault: options.passwordVault }),
     });
     this.#duplication = new DuplicationGate({
       store,
@@ -1177,11 +1177,11 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       drain: this.#drain,
       tables: this.#tables,
       sidebarLayout: this.#sidebarLayout,
-      localSkillTools: this.#localSkillTools,
-      routineFlowTools: this.#routineFlowTools,
-      approvalAutomation: options.approvalAutomation,
-      visualPreview: options.visualPreview,
-      screenCapture: options.screenCapture,
+      ...(this.#localSkillTools === undefined ? {} : { localSkillTools: this.#localSkillTools }),
+      ...(this.#routineFlowTools === undefined ? {} : { routineFlowTools: this.#routineFlowTools }),
+      ...(options.approvalAutomation === undefined ? {} : { approvalAutomation: options.approvalAutomation }),
+      ...(options.visualPreview === undefined ? {} : { visualPreview: options.visualPreview }),
+      ...(options.screenCapture === undefined ? {} : { screenCapture: options.screenCapture }),
       hooks: {
         listAgents: () => this.listAgents(),
         listModels: () => this.listModels(),
@@ -3855,7 +3855,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     });
     this.#emit({
       type: "error",
-      agentId,
+      ...(agentId !== undefined ? { agentId } : {}),
       code,
       // Redacted, because every error from a provider CLI arrives here on its way to the renderer
       // and the log, and a CLI quotes what it was given: a failure against a custom endpoint can

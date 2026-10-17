@@ -201,11 +201,13 @@ export function decodeAccountReadResult(value: unknown): AccountReadResult {
     };
   }
   const accountRecord = decodeRecord(account, "account");
+  const email = optionalString(accountRecord, "email");
+  const planType = optionalString(accountRecord, "planType");
   return {
     account: {
       type: requiredString(accountRecord, "type"),
-      email: optionalString(accountRecord, "email"),
-      planType: optionalString(accountRecord, "planType"),
+      ...(email === undefined ? {} : { email }),
+      ...(planType === undefined ? {} : { planType }),
     },
     requiresOpenaiAuth: requiresOpenaiAuth === undefined ? false : recordBoolean(record, "requiresOpenaiAuth"),
   };
@@ -248,9 +250,11 @@ export function decodeAccountLoginCompletedResult(value: unknown): AccountLoginC
 
 export function decodeAccountRateLimitsReadResult(value: unknown): AccountRateLimitsReadResult {
   const record = decodeRecord(value, "rate limits response");
+  const rateLimits = decodeRateLimit(record.rateLimits);
+  const rateLimitsByLimitId = decodeRateLimitsById(record.rateLimitsByLimitId);
   return {
-    rateLimits: decodeRateLimit(record.rateLimits),
-    rateLimitsByLimitId: decodeRateLimitsById(record.rateLimitsByLimitId),
+    ...(rateLimits === undefined ? {} : { rateLimits }),
+    ...(rateLimitsByLimitId === undefined ? {} : { rateLimitsByLimitId }),
   };
 }
 
@@ -343,22 +347,30 @@ function decodeThreadContent(value: unknown): Array<{ type: string; text?: strin
 function decodeRateLimit(value: unknown): AccountRateLimitResult | null | undefined {
   if (value === undefined || value === null) return value;
   const record = decodeRecord(value, "rate limit");
+  const limitId = optionalString(record, "limitId");
+  const limitName = optionalString(record, "limitName");
+  const normalModelSlug = optionalString(record, "normalModelSlug");
+  const primary = decodeRateLimitWindow(record.primary);
+  const secondary = decodeRateLimitWindow(record.secondary);
   return {
-    limitId: optionalString(record, "limitId"),
-    limitName: optionalString(record, "limitName"),
-    normalModelSlug: optionalString(record, "normalModelSlug"),
-    primary: decodeRateLimitWindow(record.primary),
-    secondary: decodeRateLimitWindow(record.secondary),
+    ...(limitId === undefined ? {} : { limitId }),
+    ...(limitName === undefined ? {} : { limitName }),
+    ...(normalModelSlug === undefined ? {} : { normalModelSlug }),
+    ...(primary === undefined ? {} : { primary }),
+    ...(secondary === undefined ? {} : { secondary }),
   };
 }
 
 function decodeRateLimitWindow(value: unknown): AccountRateLimitWindowResult | null | undefined {
   if (value === undefined || value === null) return value;
   const record = decodeRecord(value, "rate limit window");
+  const usedPercent = optionalNumber(record, "usedPercent");
+  const windowDurationMins = optionalNumber(record, "windowDurationMins");
+  const resetsAt = optionalNumber(record, "resetsAt");
   return {
-    usedPercent: optionalNumber(record, "usedPercent"),
-    windowDurationMins: optionalNumber(record, "windowDurationMins"),
-    resetsAt: optionalNumber(record, "resetsAt"),
+    ...(usedPercent === undefined ? {} : { usedPercent }),
+    ...(windowDurationMins === undefined ? {} : { windowDurationMins }),
+    ...(resetsAt === undefined ? {} : { resetsAt }),
   };
 }
 

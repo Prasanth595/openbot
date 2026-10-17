@@ -151,7 +151,8 @@ interface ThreadRuntime {
   contextRequest: number;
   compacting: boolean;
   config: ThreadConfig;
-  appliedEffort?: string;
+  /** The effort the `claude` process runs with; undefined when the model takes no effort setting. */
+  appliedEffort: string | undefined;
   input: AsyncMessageQueue;
   query: ClaudeQuery;
   activeTurn: ActiveTurn | null;
@@ -1829,10 +1830,12 @@ function readThreadConfig(params: unknown): ThreadConfig {
       ? params.runtimeWorkspaceRoots.filter((value): value is string => isString(value))
       : [];
   const cwd = requiredString(params, "cwd");
+  const model = getString(params, "model");
+  const effort = getString(params, "effort");
   return {
     cwd,
-    model: getString(params, "model") ?? undefined,
-    effort: getString(params, "effort") ?? undefined,
+    ...(model === null ? {} : { model }),
+    ...(effort === null ? {} : { effort }),
     developerInstructions: getString(params, "developerInstructions") ?? "",
     additionalDirectories: [...new Set([cwd, ...roots])],
     persistSession: !isRecord(params) || params.persistSession !== false,
