@@ -89,8 +89,9 @@ async function startAuthorizationServer() {
     if (path === "/revoke") return json(response, revokeStatus, {});
     // Larger than the OAuth body limit: one with a declared length, one counted as it arrives.
     if (path === "/big-declared") return json(response, 200, { padding: "x".repeat(2 * 1024 * 1024) });
-    if (path === "/big-streamed") {
-      response.writeHead(200, { "content-type": "application/json" });
+    // A redirect status with no `Location` is an answer, not a hop, so the limit applies to it.
+    if (path === "/big-streamed" || path === "/big-redirect") {
+      response.writeHead(path === "/big-redirect" ? 302 : 200, { "content-type": "application/json" });
       for (let chunk = 0; chunk < 32; chunk++) response.write("x".repeat(64 * 1024));
       return response.end();
     }
@@ -840,6 +841,7 @@ async function networkCases(auth: Awaited<ReturnType<typeof startAuthorizationSe
   const tooLarge = sourceText("error.backend.oauthResponseTooLarge", { origin: auth.base });
   assert.equal(declared, tooLarge);
   assert.equal(streamed, tooLarge);
+  assert.equal(await refusal(secureOAuthFetch()(`${auth.base}/big-redirect`)), tooLarge);
   // MCP traffic to the server itself has no limit: the probe sends it through the same fetch.
   const mcpTraffic = await secureOAuthFetch({ resource: `${auth.base}/big-streamed` })(`${auth.base}/big-streamed`);
   assert.equal((await mcpTraffic.text()).length, 2 * 1024 * 1024);
@@ -857,6 +859,12 @@ async function networkCases(auth: Awaited<ReturnType<typeof startAuthorizationSe
       mixedAnswerRefused: true,
       loopbackAllowed: true,
     },
-    bodyLimit: { declaredRefused: true, streamedRefused: true, mcpTrafficUnlimited: true, crossOriginHopLimited: true },
+    bodyLimit: {
+      declaredRefused: true,
+      streamedRefused: true,
+      redirectWithoutLocationRefused: true,
+      mcpTrafficUnlimited: true,
+      crossOriginHopLimited: true,
+    },
   };
 }

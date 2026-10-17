@@ -1366,8 +1366,11 @@ const secureOAuthRequest = Effect.fn("McpOAuth.secureFetch")(function* (
     const response = yield* unlimited
       ? send
       : send.pipe(
+          // Only a redirect this loop follows skips the limit: one with no `Location` goes to the SDK.
           Effect.flatMap((answer) =>
-            REDIRECT_STATUSES.has(answer.status) ? Effect.succeed(answer) : limited(answer, origin),
+            REDIRECT_STATUSES.has(answer.status) && answer.headers.has("location")
+              ? Effect.succeed(answer)
+              : limited(answer, origin),
           ),
           Effect.timeoutOrElse({
             duration: OAUTH_REQUEST_TIMEOUT_MS,
