@@ -1349,7 +1349,7 @@ export async function createApplicationServices({
   // folder stays: a macOS path in userData has a space and is too long for a Unix socket.
   const providerTempDirectory = join(app.getPath("userData"), "provider-temp");
   performance.mark("openbot:services.computer-use");
-  if (process.platform === "win32") await sweepProviderTemp(providerTempDirectory);
+  if (process.platform === "win32") await Effect.runPromise(sweepProviderTemp(providerTempDirectory));
   const service: AgentService = new AgentService({
     store,
     mailbox,

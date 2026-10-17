@@ -258,7 +258,7 @@ try {
   const sweepRoot = join(root, "temp-sweep");
   await mkdir(join(sweepRoot, "antigravity", "run-earlier", "_MEI1a2b"), { recursive: true });
   await writeFile(join(sweepRoot, "antigravity", "run-earlier", "_MEI1a2b", "python310.dll"), "");
-  await sweepProviderTemp(sweepRoot);
+  await Effect.runPromise(sweepProviderTemp(sweepRoot));
   await waitFor(
     "the earlier run's folder to be removed",
     async () => (await entries(join(sweepRoot, "antigravity"))).length === 0,
