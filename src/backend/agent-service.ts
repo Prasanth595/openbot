@@ -120,6 +120,7 @@ import { classifyFailure } from "@openbot/telemetry";
 import { Deferred, Effect, Exit, Fiber, Result, Schema, Scope, Semaphore } from "effect";
 import { AgentMemories } from "./agent/agent-memories";
 import { AgentRemoval, AgentRemovalFailed } from "./agent/agent-removal";
+import { AgentSettingsRefused } from "./agent/agent-settings-refused";
 import type { ApprovalAutomationPolicy } from "./agent/approval-automation";
 import { AttachmentGateway } from "./agent/attachment-gateway";
 import { AttentionRegistry, type LocalAttentionResponse } from "./agent/attention-registry";
@@ -2210,10 +2211,10 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         this.#conversation.anyWorkingSnapshot(input.agentId)?.activeTurnId ??
         (previous.threadId ? this.#store.database.readActiveTurnId(input.agentId, previous.threadId) : null);
       if (this.#conversation.workingTaskSnapshots(input.agentId).length > 0) {
-        throw new Error(sourceText("error.agent.waitForTasksBeforeProviderChange"));
+        throw new AgentSettingsRefused(sourceText("error.agent.waitForTasksBeforeProviderChange"));
       }
       if (hasPendingWork || activeTurn) {
-        throw new Error(sourceText("error.agent.waitBeforeProviderChange"));
+        throw new AgentSettingsRefused(sourceText("error.agent.waitBeforeProviderChange"));
       }
     };
     const { previous, requestedModel, requestedProvider, previousAccount, requestedAccount } = yield* lifecycleStep(
@@ -2229,16 +2230,18 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         if (input.model && !requestedModel) {
           // A change of model alone stays on the agent's provider, so that provider is the one to explain.
           const provider = input.provider ?? (previous ? providerForAgent(previous) : undefined);
-          throw modelUnavailableError(
-            input.model,
-            provider,
-            this.#endpoints.available(),
-            this.#providers.status().providers ?? [],
+          throw new AgentSettingsRefused(
+            modelUnavailableError(
+              input.model,
+              provider,
+              this.#endpoints.available(),
+              this.#providers.status().providers ?? [],
+            ).message,
           );
         }
         const requestedProvider = input.provider ?? requestedModel?.provider ?? previous?.provider;
         if (input.provider && requestedModel && requestedModel.provider !== input.provider) {
-          throw new Error(sourceText("error.agent.modelProviderMismatch"));
+          throw new AgentSettingsRefused(sourceText("error.agent.modelProviderMismatch"));
         }
         if (requestedProvider && previous && requestedProvider !== providerForAgent(previous)) {
           if (!input.model || !input.provider) {
@@ -2262,7 +2265,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
           input.providerAccountId !== undefined &&
           (!requestedProvider || !this.#providers.hasProviderAccount(requestedProvider, requestedAccount))
         )
-          throw new Error(
+          throw new AgentSettingsRefused(
             sourceText("error.provider.accountNotFound", {
               provider: requestedProvider ? providerLabel(requestedProvider) : "",
             }),

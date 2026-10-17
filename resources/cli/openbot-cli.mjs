@@ -22,17 +22,21 @@ A task of "-" is read from standard input.
 
 Exit codes: 0 done, 1 the turn failed or OpenBot refused, 2 wrong command line,
 3 the agent waits for a person, 4 timed out (the work continues), 5 OpenBot cannot be reached
-or the agent was not found.`;
+or the agent was not found.
+
+When OpenBot restarts during a wait, the CLI reads the new URL and token and continues.`;
 
 const EXIT = { done: 0, failed: 1, usage: 2, needsPerson: 3, timedOut: 4, unreachable: 5 };
 const POLL_MS = 2000;
 const ENDED = new Set(["completed", "failed", "interrupted", "cancelled"]);
 
 class CliError extends Error {
-  /** @param {string} message @param {number} exitCode */
-  constructor(message, exitCode) {
+  /** @param {string} message @param {number} exitCode @param {boolean} [stale] */
+  constructor(message, exitCode, stale = false) {
     super(message);
     this.exitCode = exitCode;
+    /** True when the URL or the token can be old: OpenBot restarted, or Local scripts went off and on. */
+    this.stale = stale;
   }
 }
 
@@ -61,6 +65,8 @@ async function connection() {
 }
 
 /**
+ * One request. When the URL or the token is old, it reads the automation folder again and tries one
+ * more time. Each POST that the CLI sends can be repeated: a message has its retry key.
  * @param {{ url: string, token: string }} target
  * @param {"GET" | "POST"} method
  * @param {string} path
@@ -68,6 +74,25 @@ async function connection() {
  * @returns {Promise<any>}
  */
 async function request(target, method, path, body) {
+  try {
+    return await requestOnce(target, method, path, body);
+  } catch (error) {
+    if (!(error instanceof CliError) || !error.stale) throw error;
+    const fresh = await connection().catch(() => null);
+    if (!fresh || (fresh.url === target.url && fresh.token === target.token)) throw error;
+    Object.assign(target, fresh);
+    return requestOnce(target, method, path, body);
+  }
+}
+
+/**
+ * @param {{ url: string, token: string }} target
+ * @param {"GET" | "POST"} method
+ * @param {string} path
+ * @param {unknown} [body]
+ * @returns {Promise<any>}
+ */
+async function requestOnce(target, method, path, body) {
   /** @type {Response} */
   let response;
   try {
@@ -81,7 +106,7 @@ async function request(target, method, path, body) {
       signal: AbortSignal.timeout(30_000),
     });
   } catch {
-    throw new CliError(`OpenBot does not answer at ${target.url}.`, EXIT.unreachable);
+    throw new CliError(`OpenBot does not answer at ${target.url}.`, EXIT.unreachable, true);
   }
   const text = await response.text();
   let value = null;
@@ -92,8 +117,10 @@ async function request(target, method, path, body) {
   }
   if (response.ok) return value;
   const reason = value && typeof value.error === "string" ? value.error : `HTTP ${response.status}`;
-  const unreachable = response.status === 401 || response.status === 403 || response.status === 404;
-  throw new CliError(reason, unreachable ? EXIT.unreachable : EXIT.failed);
+  // 403 means that the agent has Local scripts off. A 404 after the agent was found is an unknown
+  // delivery or an agent that was deleted since, so it is a refusal, not a missing app.
+  if (response.status === 401) throw new CliError(reason, EXIT.unreachable, true);
+  throw new CliError(reason, response.status === 403 ? EXIT.unreachable : EXIT.failed);
 }
 
 /**
@@ -177,14 +204,22 @@ async function waitForDelivery(target, agent, deliveryId, timeoutMs) {
   const base = `/v1/agents/${encodeURIComponent(agent.id)}`;
   const deadline = Date.now() + timeoutMs;
   for (;;) {
-    const delivery = await request(target, "GET", `${base}/deliveries/${encodeURIComponent(deliveryId)}`);
-    if (ENDED.has(delivery.status)) {
-      return { result: delivery, exitCode: delivery.status === "completed" ? EXIT.done : EXIT.failed };
-    }
-    if (delivery.status === "running") {
-      const pending = await request(target, "GET", `${base}/pending`);
-      const waiting = pending.prompts.length + pending.approvals.length + pending.browserTakeovers.length;
-      if (waiting > 0) return { result: { ...delivery, state: "needs-person", pending }, exitCode: EXIT.needsPerson };
+    let delivery;
+    try {
+      delivery = await request(target, "GET", `${base}/deliveries/${encodeURIComponent(deliveryId)}`);
+      if (ENDED.has(delivery.status)) {
+        return { result: delivery, exitCode: delivery.status === "completed" ? EXIT.done : EXIT.failed };
+      }
+      // A queued delivery can wait behind an earlier turn of the agent that waits for a person.
+      if (delivery.status === "running" || delivery.status === "queued") {
+        const pending = await request(target, "GET", `${base}/pending`);
+        const waiting = pending.prompts.length + pending.approvals.length + pending.browserTakeovers.length;
+        if (waiting > 0) return { result: { ...delivery, state: "needs-person", pending }, exitCode: EXIT.needsPerson };
+      }
+    } catch (error) {
+      // OpenBot restarts: its files are gone or name a new port and token. The delivery stays in the
+      // database, so the wait continues until the deadline.
+      if (!(error instanceof CliError) || !error.stale || Date.now() >= deadline) throw error;
     }
     if (Date.now() >= deadline) return { result: { ...delivery, state: "timed-out" }, exitCode: EXIT.timedOut };
     await sleep(Math.min(POLL_MS, Math.max(0, deadline - Date.now())));
@@ -199,6 +234,9 @@ async function waitForDelivery(target, agent, deliveryId, timeoutMs) {
 async function main(positional, flags) {
   const [command, ...rest] = positional;
   if (!command || flags.has("--help")) throw new CliError(USAGE, command ? EXIT.done : EXIT.usage);
+  // Every flag is checked before a request, so a wrong flag never leaves a task queued.
+  const timeout = flags.get("--timeout");
+  const timeoutMs = duration(typeof timeout === "string" ? timeout : "30m");
   const target = await connection();
   if (command === "list") {
     if (rest.length > 0) throw new CliError(USAGE, EXIT.usage);
@@ -231,13 +269,7 @@ async function main(positional, flags) {
         text: `Queued for ${agent.name}: delivery ${delivery.id} (${delivery.status}).`,
       };
     }
-    const timeout = flags.get("--timeout");
-    const waited = await waitForDelivery(
-      target,
-      agent,
-      delivery.id,
-      duration(typeof timeout === "string" ? timeout : "30m"),
-    );
+    const waited = await waitForDelivery(target, agent, delivery.id, timeoutMs);
     return {
       result: { agent, messageId: receipt.messageId, deliveryId: delivery.id, ...waited.result },
       exitCode: waited.exitCode,
@@ -290,12 +322,12 @@ async function main(positional, flags) {
 }
 
 /**
- * @param {{ name: string }} agent
+ * @param {{ id: string, name: string }} agent
  * @param {{ id: string, status: string, state?: string, error?: string | null, answer?: string | null }} delivery
  */
 function describeDelivery(agent, delivery) {
   if (delivery.state === "needs-person")
-    return `${agent.name} waits for a person: answer in OpenBot, then run "openbot-cli status ${agent.name} ${delivery.id}".`;
+    return `${agent.name} waits for a person: answer in OpenBot, then run "openbot-cli status ${agent.id} ${delivery.id}".`;
   if (delivery.state === "timed-out")
     return `Timed out while ${agent.name} works (${delivery.status}). Delivery ${delivery.id} continues.`;
   if (delivery.status === "completed") return delivery.answer ?? `${agent.name} finished with no answer.`;

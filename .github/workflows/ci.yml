@@ -233,6 +233,34 @@ jobs:
           path: .openbot-build/signal-security-e2e/
           if-no-files-found: ignore
 
+  automation-cli-e2e:
+    # Runs `openbot-cli` with Node against the real Local scripts server on a loopback port, with
+    # an in-memory agent service. It needs no Electron, display or external service.
+    name: Local scripts CLI E2E
+    needs: detect
+    if: needs.detect.outputs.desktop == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Bun
+        uses: ./.github/actions/setup-bun
+        with:
+          install: ignore-scripts
+
+      - name: Run the Local scripts CLI E2E test
+        run: bun run test:automation-cli
+
+      - name: Upload the Local scripts CLI E2E report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: automation-cli-e2e
+          path: .openbot-build/automation-cli-e2e/
+          if-no-files-found: ignore
+
   surfaces:
     # `desktop:typecheck` covers only the desktop projects, so without this job
     # `apps/mobile`, `apps/site-router`, `packages/team-client`, `remote/api`,
@@ -358,7 +386,7 @@ jobs:
     # fails this one.
     name: All required checks pass
     if: always()
-    needs: [detect, check, browser, tests-desktop, signal-e2e, surfaces, api, storybook]
+    needs: [detect, check, browser, tests-desktop, signal-e2e, automation-cli-e2e, surfaces, api, storybook]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -384,7 +412,7 @@ jobs:
     # `apps/auth-api`, which `api` already covers: mobile, the site router, the
     # team client and the remote stack all consume the account API, so a red
     # Surfaces is the signal that this deploy is the thing about to break them.
-    needs: [check, browser, tests-desktop, signal-e2e, api, storybook, surfaces]
+    needs: [check, browser, tests-desktop, signal-e2e, automation-cli-e2e, api, storybook, surfaces]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: cloudflare-production

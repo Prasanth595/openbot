@@ -1,0 +1,4 @@
+### Added
+
+- `openbot-cli` runs a task on an agent from a terminal or a script and can wait for the answer. It also changes an agent's model, reasoning effort or provider account, and starts a new chat with an agent. It uses the Local scripts API, so only agents with **Local scripts** on can be used. When OpenBot restarts during a wait, the command continues the wait. See `docs/automation.md`. Thanks to @NatanPimentel.
+- The Local scripts API has three new routes: `GET /v1/agents/:agentId/deliveries/:deliveryId` gives the state of a sent message and the turn's answer, `POST /v1/agents/:agentId/settings` changes the model, reasoning effort, provider or provider account, and `POST /v1/agents/:agentId/context/clear` starts a new chat, the same as **New chat** in the agent's settings. A change that the agent's state or the listed models refuse answers `409` with the reason.

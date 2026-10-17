@@ -8,9 +8,10 @@ import { spawn } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import type { QueueDelivery, QueuedMessageReceipt, UpdateAgentInput } from "@openbot/contracts/ipc";
+import type { AgentModelOption, QueueDelivery, QueuedMessageReceipt, UpdateAgentInput } from "@openbot/contracts/ipc";
 import { ContextResetBusyError } from "@openbot/contracts/team-protocol/context-reset-v1";
 import { Effect } from "effect";
+import { AgentSettingsRefused } from "../src/backend/agent/agent-settings-refused";
 import { AutomationServer, type UpdatedAgent } from "../src/main/automation-server";
 
 const OUT = resolve(import.meta.dirname, "../.openbot-build/automation-cli-e2e");
@@ -23,7 +24,7 @@ interface Check {
 }
 
 /** How a message's delivery ends, chosen by the message text. */
-type Outcome = "completed" | "failed" | "person" | "forever";
+type Outcome = "completed" | "failed" | "person" | "forever" | "behind" | "restart";
 
 interface FakeDelivery {
   id: string;
@@ -33,8 +34,35 @@ interface FakeDelivery {
 }
 
 const agents = [
-  { id: "agent-ada", name: "Ada", allowAutomation: true },
-  { id: "agent-bo", name: "Bo", allowAutomation: false },
+  {
+    id: "agent-ada",
+    name: "Ada",
+    allowAutomation: true,
+    provider: "claude",
+    model: "claude-sonnet-5-5",
+    reasoningEffort: "high",
+  },
+  {
+    id: "agent-bo",
+    name: "Bo",
+    allowAutomation: false,
+    provider: "claude",
+    model: "claude-sonnet-5-5",
+    reasoningEffort: "high",
+  },
+] as const;
+function model(
+  provider: AgentModelOption["provider"],
+  id: string,
+  defaultReasoningEffort: AgentModelOption["defaultReasoningEffort"],
+  supportedReasoningEfforts: AgentModelOption["supportedReasoningEfforts"],
+): AgentModelOption {
+  return { provider, id, name: id, description: "", defaultReasoningEffort, supportedReasoningEfforts };
+}
+const models = [
+  model("claude", "claude-sonnet-5-5", "high", ["low", "medium", "high"]),
+  model("claude", "claude-opus-5-5", "high", ["low", "medium", "high", "max"]),
+  model("codex", "gpt-5.5", "medium", ["low", "medium"]),
 ];
 const deliveries = new Map<string, FakeDelivery>();
 const updates: UpdateAgentInput[] = [];
@@ -46,7 +74,9 @@ function deliveryState(
 ): Pick<QueueDelivery, "recipientAgentId" | "status" | "turnId" | "error"> {
   delivery.reads += 1;
   const base = { recipientAgentId: delivery.agentId, turnId: delivery.reads > 1 ? `turn-${delivery.id}` : null };
-  if (delivery.reads === 1) return { ...base, status: "queued", error: null };
+  if (delivery.reads === 1 || delivery.outcome === "behind") return { ...base, status: "queued", error: null };
+  // OpenBot restarts while the CLI waits: the next read comes through a new port and token.
+  if (delivery.reads === 2 && delivery.outcome === "restart") restarted = restart();
   if (delivery.reads < 3 || delivery.outcome === "person" || delivery.outcome === "forever")
     return { ...base, status: "running", error: null };
   if (delivery.outcome === "failed") return { ...base, status: "failed", error: "The provider stopped." };
@@ -54,9 +84,10 @@ function deliveryState(
 }
 
 const root = mkdtempSync(join(tmpdir(), "openbot-cli-e2e-"));
-const server = new AutomationServer({
+const options: ConstructorParameters<typeof AutomationServer>[0] = {
   root,
   listAgents: () => agents,
+  listModels: () => models,
   listRoutines: () => [],
   runRoutine: () => Effect.die(new Error("No routine runs in this test.")),
   sendMessage: (input) => {
@@ -68,7 +99,11 @@ const server = new AutomationServer({
           ? "person"
           : input.text === "forever"
             ? "forever"
-            : "completed";
+            : input.text === "behind a question"
+              ? "behind"
+              : input.text === "restart"
+                ? "restart"
+                : "completed";
     deliveries.set(id, { id, agentId: input.agentId, outcome, reads: 0 });
     const receipt: QueuedMessageReceipt = {
       messageId: `message-${id}`,
@@ -77,9 +112,10 @@ const server = new AutomationServer({
     return Effect.succeed(receipt);
   },
   getLocalAttention: (agentId) => {
-    // Only the newest delivery can wait: an earlier question is gone once the next test starts.
+    // Only the newest delivery can wait: an earlier question is gone once the next test starts. A
+    // delivery that stays queued waits behind an earlier turn's question.
     const newest = [...deliveries.values()].at(-1);
-    const waiting = newest?.agentId === agentId && newest.outcome === "person";
+    const waiting = newest?.agentId === agentId && (newest.outcome === "person" || newest.outcome === "behind");
     return {
       prompts: [],
       approvals: [],
@@ -93,7 +129,8 @@ const server = new AutomationServer({
   },
   turnAnswer: (_agentId, turnId) => `Answer of ${turnId}`,
   updateAgent: (input) => {
-    if (busy) return Effect.fail({ cause: new Error("Wait until the agent is idle.") });
+    if (busy) return Effect.fail({ cause: new AgentSettingsRefused("Wait until the agent is idle.") });
+    if (input.providerAccountId === "a0000000000000000") return Effect.fail({ cause: new Error("disk full") });
     updates.push(input);
     const agent: UpdatedAgent = {
       id: input.agentId,
@@ -110,7 +147,14 @@ const server = new AutomationServer({
     cleared.push(agentId);
     return Effect.void;
   },
-});
+};
+let server = new AutomationServer(options);
+let restarted: Promise<void> | null = null;
+function restart(): Promise<void> {
+  const old = server;
+  server = new AutomationServer(options);
+  return Effect.runPromise(Effect.andThen(old.stop(), server.sync()));
+}
 
 interface Run {
   code: number | null;
@@ -190,10 +234,39 @@ try {
   await check("status reads a delivery", ["status", "Ada", "delivery-2", "--json"], 0, (run) => {
     return parsed(run).answer === "Answer of turn-delivery-2";
   });
+  await check(
+    "a task queued behind a question exits 3",
+    ["run", "Ada", "behind a question", "--wait", "--json"],
+    3,
+    (run) => parsed(run).state === "needs-person",
+  );
+  await check("status of an unknown delivery exits 1", ["status", "Ada", "delivery-404"], 1, (run) => {
+    return run.stderr.length > 0;
+  });
+  const sent = deliveries.size;
+  await check(
+    "a wrong --timeout exits 2 and sends nothing",
+    ["run", "Ada", "hello", "--wait", "--timeout", "soon"],
+    2,
+    (run) => {
+      return run.stderr.length > 0 && deliveries.size === sent;
+    },
+  );
   await check("an agent without Local scripts is not found", ["run", "Bo", "hello"], 5, (run) => {
     return run.stderr.includes('No agent "Bo"');
   });
   await check("a wrong command line exits 2", ["run", "Ada"], 2, (run) => run.stderr.includes("Usage:"));
+  const oldUrl = readFileSync(join(root, "url"), "utf8");
+  await check(
+    "run --wait continues after OpenBot restarts",
+    ["run", "Ada", "restart", "--wait", "--json"],
+    0,
+    (run) => {
+      return parsed(run).status === "completed" && readFileSync(join(root, "url"), "utf8") !== oldUrl;
+    },
+  );
+  await restarted;
+  const newToken = readFileSync(join(root, "token"), "utf8").trim();
   await check("set-account changes the account", ["agent", "set-account", "Ada", "a0123456789abcdef"], 0, (run) => {
     return (
       run.stdout.includes("account a0123456789abcdef") && updates.at(-1)?.providerAccountId === "a0123456789abcdef"
@@ -204,6 +277,24 @@ try {
     ["agent", "set-model", "Ada", "claude-opus-5-5", "--effort", "max", "--json"],
     0,
     (run) => parsed(run).agent.model === "claude-opus-5-5" && updates.at(-1)?.reasoningEffort === "max",
+  );
+  await check("set-model takes the provider from the model", ["agent", "set-model", "Ada", "gpt-5.5"], 0, () => {
+    const update = updates.at(-1);
+    // The agent's `high` is not supported by gpt-5.5, so the model's default replaces it.
+    return update?.provider === "codex" && update.model === "gpt-5.5" && update.reasoningEffort === "medium";
+  });
+  const updateCount = updates.length;
+  await check(
+    "an effort that the model does not support exits 1",
+    ["agent", "set-model", "Ada", "claude-sonnet-5-5", "--effort", "max"],
+    1,
+    (run) => run.stderr.includes("max") && updates.length === updateCount,
+  );
+  await check(
+    "an unexpected update failure exits 1 without its detail",
+    ["agent", "set-account", "Ada", "a0000000000000000"],
+    1,
+    (run) => run.stderr.includes("internal error") && !run.stderr.includes("disk full"),
   );
   await check("an invalid account ID is refused", ["agent", "set-account", "Ada", "../x"], 1, (run) => {
     return run.stderr.includes("providerAccountId is invalid.");
@@ -224,7 +315,7 @@ try {
   await check("a stopped app exits 5", ["list"], 5, (run) => run.stderr.includes("OpenBot is not running"));
   checks.push({
     name: "the token is never in the output",
-    passed: outputs.every((text) => !text.includes(token)),
+    passed: outputs.every((text) => !text.includes(token) && !text.includes(newToken)),
     detail: null,
   });
 } finally {

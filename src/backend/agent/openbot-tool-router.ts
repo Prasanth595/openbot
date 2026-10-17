@@ -59,8 +59,8 @@ import { isHostedSiteMutationTool } from "./hosted-site-events";
 import type { MailboxSync } from "./mailbox-sync";
 import {
   listModelsPayload,
-  type ModelRequest,
   modelList,
+  requestedRuntime,
   requestedToolModel,
   requireReasoningEffort,
 } from "./model-tools";
@@ -488,42 +488,6 @@ export class OpenBotToolRouter {
       })),
     };
   });
-
-  /**
-   * The provider, model and effort an `update_profile` call names, checked against what the CLIs list
-   * now. Like `create_agent`, a model or an effort that is not listed is an error that names the valid
-   * values. A new model keeps the agent's effort when it supports it, else takes the model's default.
-   */
-  #requestedRuntime(
-    agentId: string,
-    request: ModelRequest,
-  ): Pick<UpdateAgentInput, "provider" | "model" | "reasoningEffort"> {
-    if (request.provider === undefined && request.model === undefined && request.reasoningEffort === undefined) {
-      return {};
-    }
-    const target = this.#requireAgent(agentId);
-    const models = this.#hooks.listModels();
-    const requested = requestedToolModel(request, models);
-    if (requested) {
-      const keptEffort = requested.supportedReasoningEfforts.includes(target.reasoningEffort)
-        ? target.reasoningEffort
-        : requested.defaultReasoningEffort;
-      return {
-        provider: requested.provider,
-        model: requested.id,
-        reasoningEffort: request.reasoningEffort ?? keptEffort,
-      };
-    }
-    if (request.reasoningEffort === undefined) return {};
-    const current = models.find((model) => model.provider === target.provider && model.id === target.model);
-    if (!current) {
-      throw new Error(
-        sourceText("error.agent.modelNotListed", { model: target.model, models: modelList(models, target.provider) }),
-      );
-    }
-    requireReasoningEffort(current, request.reasoningEffort);
-    return { reasoningEffort: request.reasoningEffort };
-  }
 
   readonly #handleOpenBotTool = Effect.fn("OpenBotToolRouter.handleOpenBotTool")(function* (
     this: OpenBotToolRouter,
@@ -1171,7 +1135,7 @@ export class OpenBotToolRouter {
       }
       // Checked before anything is written, so a model the provider does not list leaves the name
       // and every other field of the same call unchanged.
-      const runtime = this.#requestedRuntime(agentId, runtimeRequest);
+      const runtime = requestedRuntime(target, runtimeRequest, this.#hooks.listModels());
       const image =
         avatarPath === undefined
           ? undefined

@@ -1429,23 +1429,24 @@ export async function createApplicationServices({
     tables,
   });
   teardown.push(TEARDOWN_ORDER.service, "the agent service", () => runCauseEffect(service.stop()));
-  // Listens only while an agent allows local scripts; see `AutomationServer`.
   /** The answer an agent gave in one turn, for routine flows, routine results and local scripts. */
   const turnAnswer = (agentId: string, turnId: string): string | null => {
     const threadId = store.list().find((agent) => agent.id === agentId)?.threadId;
     if (!threadId) return null;
     return latestTurnAnswer(store.database.readTurnAssistantMessages(agentId, threadId, turnId), turnId)?.text ?? null;
   };
+  // Listens only while an agent allows local scripts; see `AutomationServer`.
   const automation = new AutomationServer({
     root: store.automationRoot,
     listAgents: () => service.listAgents(),
+    listModels: () => service.listModels(),
     listRoutines: (agentId) => service.listRoutines(agentId),
     runRoutine: (input) => service.runRoutineFromAutomation(input),
     sendMessage: (input) => service.sendMessage(input),
     getLocalAttention: (agentId) => service.getLocalAttention(agentId),
     respondToLocalAttention: (agentId, input) => service.respondToLocalAttention(agentId, input),
     delivery: (deliveryId) => mailbox.getDelivery(deliveryId)?.delivery ?? null,
-    turnAnswer: (agentId, turnId) => turnAnswer(agentId, turnId),
+    turnAnswer,
     updateAgent: (input) => service.updateAgent(input),
     clearAgentContext: (agentId) => service.clearAgentContext(agentId),
   });

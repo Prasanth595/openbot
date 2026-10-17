@@ -43,13 +43,14 @@ With `--json`, the output is one JSON object, also for a failure (`{ "ok": false
 | Exit code | Meaning |
 | --- | --- |
 | 0 | Done. For `run --wait`, the turn completed. |
-| 1 | The turn failed, was stopped or was cancelled, or OpenBot refused the request. |
+| 1 | The turn failed, was stopped or was cancelled, OpenBot refused the request, or the delivery is unknown. |
 | 2 | The command line is wrong, or two agents have the name. |
-| 3 | The agent waits for a person: a question, an approval or a browser takeover. Answer it in OpenBot or through the routes below, then use `status`. |
+| 3 | The agent waits for a person: a question, an approval or a browser takeover, also of an earlier turn that this task waits behind. Answer it in OpenBot or through the routes below, then use `status`. |
 | 4 | The wait timed out. The agent continues. |
 | 5 | OpenBot is not running, no agent has Local scripts on, or the agent was not found. |
 
-The command reads the files below each time and sends the token only in a request header.
+The command reads the files below each time and sends the token only in a request header. When
+OpenBot restarts during a wait, the command reads the new files and continues the wait.
 Set `OPENBOT_AUTOMATION_DIR` to use another folder, for example the one of a development profile.
 
 ## Turn it on
@@ -167,8 +168,12 @@ not use the request limit.
 Send one or more of `{ "provider": "claude", "model": "claude-opus-5-5", "reasoningEffort": "high",
 "providerAccountId": "default" }` with `Content-Type: application/json`. This is the same change as
 the model and account controls in the agent's settings. `providerAccountId` is an account ID from
-**Settings > Providers**, `default` for the provider's own sign-in, or `null`. A change of provider or
-account waits until the agent is idle: while it works, the answer is `409` with the reason. A
+**Settings > Providers**, `default` for the provider's own sign-in, or `null`. A `model` without
+`provider` uses the provider that lists the model, and a `provider` without `model` uses the
+provider's default model. When the new model does not support the agent's effort, the effort
+becomes the model's default. A model or an effort that the providers do not list gives `409` with the
+valid values. A change of provider or account waits until the agent is idle: while it works, the
+answer is `409` with the reason. A
 successful response is `200` with `id`, `name`, `provider`, `model`, `reasoningEffort` and
 `providerAccountId`. Other fields, such as the name, permissions or Local scripts, give `400`: change
 them in OpenBot.

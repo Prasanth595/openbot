@@ -4,6 +4,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { join } from "node:path";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import {
+  type AgentModelOption,
   type AgentSummary,
   agentAutomationAllowed,
   isAgentModel,
@@ -21,7 +22,9 @@ import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, registerSecretValue, toLogValue } from "@openbot/logging";
 import { RoutineInputError } from "@openbot/team-client/routine-schedule";
 import { Effect, Exit, Schema, Scope, Semaphore } from "effect";
+import { AgentSettingsRefused } from "../backend/agent/agent-settings-refused";
 import { InactiveAttentionRequest } from "../backend/agent/inactive-attention-request";
+import { type ModelRequest, requestedRuntime } from "../backend/agent/model-tools";
 import type { AgentLifecycleFailed, AgentService } from "../backend/agent-service";
 import { writeFileAtomically } from "../backend/atomic-json-file";
 import { AUTOMATION_HEADERS_FILE, AUTOMATION_TOKEN_FILE, AUTOMATION_URL_FILE } from "../backend/automation-command";
@@ -65,7 +68,12 @@ export type UpdatedAgent = Pick<
 export interface AutomationServerOptions {
   /** The folder that holds the URL and token files. Only the user can read it. */
   root: string;
-  listAgents: () => readonly Pick<AgentSummary, "id" | "name" | "allowAutomation" | "hiddenAt">[];
+  listAgents: () => readonly Pick<
+    AgentSummary,
+    "id" | "name" | "allowAutomation" | "hiddenAt" | "provider" | "model" | "reasoningEffort"
+  >[];
+  /** The models that the provider CLIs list now. */
+  listModels: () => AgentModelOption[];
   listRoutines: (agentId: string) => readonly Pick<Routine, "id" | "name" | "active">[];
   runRoutine: (input: {
     agentId: string;
@@ -237,7 +245,7 @@ export class AutomationServer {
     } catch (error) {
       if (error instanceof HttpError) return send(response, error.status, { error: error.message });
       if (error instanceof InactiveAttentionRequest) return send(response, 409, { error: error.message });
-      if (error instanceof AgentUpdateRefused) return send(response, 409, { error: error.message });
+      if (error instanceof AgentSettingsRefused) return send(response, 409, { error: error.message });
       if (error instanceof ContextResetBusyError) return send(response, 409, { error: error.message });
       logger.warn("An automation request failed.", error);
       if (!response.headersSent) send(response, 500, { error: "internal error" });
@@ -280,17 +288,17 @@ export class AutomationServer {
     }
     const value = await readJson(request);
     // The setting can change while the script uploads its body.
-    this.#requireAgent(agentId);
+    const agent = this.#requireAgent(agentId);
     if (route === "settings") {
-      const input = agentSettingsInput(agentId, value);
-      let updated: UpdatedAgent;
-      try {
-        updated = await runCauseEffect(this.#options.updateAgent(input));
-      } catch (error) {
-        // The update throws a sentence for the user, such as "wait until the agent is idle".
-        if (error instanceof Error) throw new AgentUpdateRefused(error.message);
-        throw error;
-      }
+      const { runtime, providerAccountId } = settingsRequest(value);
+      // The same resolution as the agent's `update_profile` tool: a model names its provider, and an
+      // effort that the new model does not support is refused or replaced by the model's default.
+      const input: UpdateAgentInput = {
+        agentId,
+        ...requestedRuntime(agent, runtime, this.#options.listModels()),
+        ...(providerAccountId === undefined ? {} : { providerAccountId }),
+      };
+      const updated = await runCauseEffect(this.#options.updateAgent(input));
       logger.info(`A local script changed the settings of agent ${agentId}.`);
       return send(response, 200, {
         id: updated.id,
@@ -349,7 +357,7 @@ export class AutomationServer {
       throw new HttpError(409, sourceText("error.backend.recipientHidden"));
   }
 
-  #requireAgent(agentId: string, routine = false): void {
+  #requireAgent(agentId: string, routine = false) {
     const agent = this.#options.listAgents().find((candidate) => candidate.id === agentId);
     if (!agent) throw new HttpError(404, "not found");
     if (!agentAutomationAllowed(agent))
@@ -357,6 +365,7 @@ export class AutomationServer {
         403,
         routine ? sourceText("error.agent.automationOff") : sourceText("error.agent.localScriptsOff"),
       );
+    return agent;
   }
 
   async #run(request: IncomingMessage, response: ServerResponse, agentId: string, routineId: string): Promise<void> {
@@ -477,14 +486,14 @@ async function readJson(request: IncomingMessage): Promise<DynamicRecord> {
   return value;
 }
 
-/** A refusal from the agent update, for example while the agent works. Its message is for the user. */
-class AgentUpdateRefused extends Error {}
-
 /**
  * The model and account fields of an update. Name, permissions and Local scripts itself stay in the
  * app: a script can choose how an agent runs, not who it is or what it may do.
  */
-function agentSettingsInput(agentId: string, value: DynamicRecord): UpdateAgentInput {
+function settingsRequest(value: DynamicRecord): {
+  runtime: ModelRequest;
+  providerAccountId: UpdateAgentInput["providerAccountId"];
+} {
   const { provider, model, reasoningEffort, providerAccountId, ...rest } = value;
   if (Object.keys(rest).length > 0) throw new HttpError(400, `${Object.keys(rest)[0]} cannot be changed here.`);
   if (provider !== undefined && !isAgentProvider(provider)) throw new HttpError(400, "provider is invalid.");
@@ -495,13 +504,7 @@ function agentSettingsInput(agentId: string, value: DynamicRecord): UpdateAgentI
     throw new HttpError(400, "providerAccountId is invalid.");
   if (provider === undefined && model === undefined && reasoningEffort === undefined && providerAccountId === undefined)
     throw new HttpError(400, "Send provider, model, reasoningEffort or providerAccountId.");
-  return {
-    agentId,
-    ...(provider === undefined ? {} : { provider }),
-    ...(model === undefined ? {} : { model }),
-    ...(reasoningEffort === undefined ? {} : { reasoningEffort }),
-    ...(providerAccountId === undefined ? {} : { providerAccountId }),
-  };
+  return { runtime: { provider, model, reasoningEffort }, providerAccountId };
 }
 
 function requiredString(value: DynamicRecord, key: string, limit: number): string {
