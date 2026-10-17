@@ -1348,7 +1348,7 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
               method,
               path,
               body: payloadBody,
-              ...(bodyTransferId ? { bodyTransferId, contentType: upload?.mimeType } : {}),
+              ...(bodyTransferId && upload ? { bodyTransferId, contentType: upload.mimeType } : {}),
               capabilities: [...teamCapabilitiesForProtocol(checksConnection ? undefined : state.hostProtocol)],
             },
           }),

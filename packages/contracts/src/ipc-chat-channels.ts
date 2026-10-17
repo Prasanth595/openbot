@@ -144,7 +144,7 @@ export type ChannelCommand =
 
 export interface ChannelReadInput {
   channelId: string;
-  beforeSequence?: number;
+  beforeSequence?: number | undefined;
 }
 
 /**

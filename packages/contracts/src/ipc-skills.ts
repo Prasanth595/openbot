@@ -58,11 +58,11 @@ export interface MarketplaceSkillPage {
 }
 
 export interface MarketplaceSkillQuery {
-  query?: string;
+  query?: string | undefined;
   category?: SkillCategory;
   featured?: boolean;
-  sort?: "installs";
-  cursor?: string;
+  sort?: "installs" | undefined;
+  cursor?: string | undefined;
   limit?: number;
 }
 

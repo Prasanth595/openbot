@@ -54,10 +54,10 @@ export interface MarketplaceAgentPage {
 
 export interface MarketplaceAgentQuery {
   category?: SkillCategory;
-  query?: string;
+  query?: string | undefined;
   featured?: boolean;
-  sort?: "installs";
-  cursor?: string;
+  sort?: "installs" | undefined;
+  cursor?: string | undefined;
   limit?: number;
 }
 
