@@ -25,7 +25,7 @@ import { fileURLToPath } from "node:url";
 // On macOS this keeps one extracted copy for each Electron version and architecture, and each
 // worktree gets an APFS clone of it. `install-electron` stays the only step that downloads and
 // checks the archive: `save` stores only a dist that it installed, with the SHA-256 of each file,
-// and `restore` clones an entry only when every file still matches. After `restore`,
+// and `restore` keeps a clone only when every cloned file matches the list. After `restore`,
 // `install-electron` checks the clone as it checks its own install. Linux and Windows skip the cache.
 
 type Arch = "arm64" | "x64";
@@ -33,6 +33,9 @@ type Arch = "arm64" | "x64";
 const PLATFORM_PATH = "Electron.app/Contents/MacOS/Electron";
 const FILE_LIST = "files.sha256";
 const UNUSED_ENTRY_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+// A `save` that was stopped leaves its staging directory. A `save` in progress takes seconds.
+const STAGING_PREFIX = ".staging-";
+const UNUSED_STAGING_AGE_MS = 60 * 60 * 1000;
 // These make `install-electron` install another platform, architecture or location than the key.
 const INSTALL_OVERRIDES = [
   "ELECTRON_INSTALL_PLATFORM",
@@ -123,38 +126,43 @@ function fileSha256(path: string): string {
   return hash.digest("hex");
 }
 
-function entryIsIntact(entry: string, version: string): boolean {
-  try {
-    return (
-      isInstalled(join(entry, "dist"), version) &&
-      readFileSync(join(entry, FILE_LIST), "utf8") === fileList(join(entry, "dist"))
-    );
-  } catch {
-    return false;
-  }
-}
-
 /** `cp -c` clones with clonefile(2) and copies where a clone is not possible. `-R` keeps symlinks. */
 function cloneTree(source: string, target: string): void {
   const result = spawnSync("/bin/cp", ["-c", "-R", source, target], { stdio: ["ignore", "ignore", "pipe"] });
   if (result.status !== 0) throw new Error(result.stderr?.toString().trim() || `cp exited with ${result.status}`);
 }
 
+function readFileList(entry: string): string | null {
+  try {
+    return readFileSync(join(entry, FILE_LIST), "utf8");
+  } catch {
+    return null;
+  }
+}
+
 function restore(entry: string, version: string): void {
   if (isInstalledHere(version) || !existsSync(entry)) return;
-  if (!entryIsIntact(entry, version)) {
-    // `save` makes the entry again after `install-electron` installs this version. A sandbox can
-    // refuse the removal; then the entry stays unused, and the next `restore` checks it again.
-    try {
-      rmSync(entry, { recursive: true, force: true });
-      process.stdout.write(`Removed a damaged Electron cache entry: ${entry}.\n`);
-    } catch {}
-    return;
-  }
+  // The time keeps the entry from `removeUnusedEntries` while it is cloned. A sandbox can refuse
+  // the change.
+  try {
+    const now = new Date();
+    utimesSync(entry, now, now);
+  } catch {}
   const staging = join(electronRoot, `.dist-${process.pid}`);
+  let cloned = false;
   try {
     rmSync(staging, { recursive: true, force: true });
-    cloneTree(join(entry, "dist"), staging);
+    // Another worktree can replace or remove the entry during the clone, so the check reads the clone.
+    const expected = readFileList(entry);
+    if (expected !== null) {
+      cloneTree(join(entry, "dist"), staging);
+      cloned = isInstalled(staging, version) && fileList(staging) === expected;
+    }
+    if (!cloned) {
+      rmSync(staging, { recursive: true, force: true });
+      removeDamagedEntry(entry);
+      return;
+    }
     rmSync(distPath, { recursive: true, force: true });
     renameSync(staging, distPath);
     writeFileSync(pathFile, PLATFORM_PATH);
@@ -162,12 +170,17 @@ function restore(entry: string, version: string): void {
   } catch (error) {
     rmSync(staging, { recursive: true, force: true });
     process.stdout.write(`Did not clone Electron from the cache (${String(error)}). install-electron installs it.\n`);
-    return;
   }
-  // The time keeps a used entry from `removeUnusedEntries`. A sandbox can refuse the change.
+}
+
+/**
+ * `save` makes the entry again after `install-electron` installs this version. A sandbox can refuse
+ * the removal; then the entry stays unused, and the next `restore` checks it again.
+ */
+function removeDamagedEntry(entry: string): void {
   try {
-    const now = new Date();
-    utimesSync(entry, now, now);
+    rmSync(entry, { recursive: true, force: true });
+    process.stdout.write(`Removed a damaged Electron cache entry: ${entry}.\n`);
   } catch {}
 }
 
@@ -175,7 +188,7 @@ function save(entry: string, version: string, arch: Arch): void {
   // `restore` checks each file of an existing entry before it uses the entry.
   if (existsSync(join(entry, FILE_LIST)) && isInstalled(join(entry, "dist"), version)) return;
   if (!isInstalledHere(version) || executableArch(distPath) !== arch) return;
-  const staging = join(cacheRoot, `.staging-${process.pid}`);
+  const staging = join(cacheRoot, `${STAGING_PREFIX}${process.pid}`);
   try {
     // An entry without a file list or a complete dist is damaged; a new one replaces it.
     rmSync(entry, { recursive: true, force: true });
@@ -198,9 +211,11 @@ function save(entry: string, version: string, arch: Arch): void {
 function removeUnusedEntries(current: string): void {
   for (const name of readdirSync(cacheRoot)) {
     const entry = join(cacheRoot, name);
-    if (entry === current || name.startsWith(".")) continue;
+    const isStaging = name.startsWith(STAGING_PREFIX);
+    if (entry === current || (name.startsWith(".") && !isStaging)) continue;
     try {
-      if (Date.now() - statSync(entry).mtimeMs > UNUSED_ENTRY_AGE_MS) rmSync(entry, { recursive: true, force: true });
+      const maxAge = isStaging ? UNUSED_STAGING_AGE_MS : UNUSED_ENTRY_AGE_MS;
+      if (Date.now() - statSync(entry).mtimeMs > maxAge) rmSync(entry, { recursive: true, force: true });
     } catch {}
   }
 }
