@@ -199,6 +199,9 @@ change; removing the restore also requires fresh package downloads on a new runn
 The Electron download is
 deliberately not cached: `install-electron` takes 2.6s on a runner, and a measured cache hit
 restored 123 MB in 4.4s and left `bun install` at 29.9s against 29.0s with no cache at all.
+`scripts/install-electron.ts` runs `install-electron` in the root `postinstall`. It tries again,
+two times at most, only when the download fails with HTTP 429 or 5xx or a lost connection, because
+`@electron/get` has no retry. Each attempt checks the archive against the package checksums.
 
 ## Focused tests
 
