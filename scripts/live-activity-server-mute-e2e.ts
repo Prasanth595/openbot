@@ -18,8 +18,6 @@ import type { AgentEvent, AgentSummary } from "@openbot/contracts/ipc";
 import { LIVE_ACTIVITY_PUSH_ROUTES } from "@openbot/contracts/team-protocol/live-activity-push-v1";
 import { createOpenBotLogger } from "@openbot/logging";
 import { plugin } from "bun";
-import { createElement } from "react";
-import { createRoot, type Root } from "react-dom/client";
 
 const OUT = resolve(import.meta.dirname, "../.openbot-build/live-activity-server-mute-e2e");
 const MOBILE_SRC = resolve(import.meta.dirname, "../apps/mobile/src");
@@ -148,6 +146,15 @@ plugin({
 function mobileUrl(path: string): string {
   return pathToFileURL(join(MOBILE_SRC, path)).href;
 }
+
+// React is a dependency of the mobile app, so it loads from there, as the hook does.
+interface Root {
+  render: (element: unknown) => void;
+  unmount: () => void;
+}
+const mobileRequire = createRequire(join(MOBILE_SRC, "../package.json"));
+const { createElement }: { createElement: (component: () => null) => unknown } = mobileRequire("react");
+const { createRoot }: { createRoot: (container: Element) => Root } = mobileRequire("react-dom/client");
 
 // React DOM reads the global window. The hook renders nothing.
 const { JSDOM }: { JSDOM: new (html: string) => { window: Window & typeof globalThis } } = require("jsdom");
