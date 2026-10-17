@@ -360,7 +360,7 @@ const receiver = createServer((request, response) => {
   request.on("data", (chunk: Buffer) => chunks.push(chunk));
   request.on("end", () => {
     const headers = Object.fromEntries(
-      ["content-type", "x-openbot-event", "x-openbot-delivery", "x-openbot-timestamp", "x-openbot-signature"].map(
+      ["content-type", "x-openbot-event", "x-openbot-delivery-id", "x-openbot-timestamp", "x-openbot-signature"].map(
         (name) => [name, request.headers[name]?.toString()],
       ),
     );
@@ -405,6 +405,7 @@ interface NotifyReport {
 interface NotifyStateJson {
   checkedAt: string | null;
   seen: Record<string, string>;
+  open: Record<string, { missing: number }>;
   outbox: { id: string; subscription: string; attempts: number; nextAt: string; event: { type: string } }[];
 }
 
@@ -543,7 +544,7 @@ function verify(item: Received, secret: string) {
   assert.ok(Math.abs(Date.now() / 1000 - Number(timestamp)) < 300, "The timestamp is not the send time.");
   const expected = Buffer.from(
     `sha256=${createHmac("sha256", secret)
-      .update(`${timestamp}.${item.headers["x-openbot-delivery"] ?? ""}.${item.body}`)
+      .update(`${timestamp}.${item.headers["x-openbot-delivery-id"] ?? ""}.${item.body}`)
       .digest("hex")}`,
   );
   const actual = Buffer.from(item.headers["x-openbot-signature"] ?? "");
@@ -582,7 +583,12 @@ assert.equal(existsSync(NOTIFY_STATE), false);
 let notified = await notify("bootstrap", STATUS_A, "2026-10-16T10:41:00Z", { extra: ["--bootstrap"] });
 assert.deepEqual(take(), [], "The bootstrap run sent an event.");
 assert.deepEqual(notified.queued, []);
-assert.deepEqual(Object.keys(notifyState().seen).sort(), ["incident.created:201", "maintenance.scheduled:202"]);
+assert.deepEqual(Object.keys(notifyState().seen).sort(), [
+  "incident.created:201",
+  "incident.updated:201:2026-10-16T10:30:00Z:investigating",
+  "maintenance.scheduled:202",
+  "maintenance.updated:202:2026-10-15T08:00:00Z:scheduled",
+]);
 await assert.rejects(
   notify("bootstrap-again", STATUS_A, "2026-10-16T10:42:00Z", { extra: ["--bootstrap"] }),
   "--bootstrap with a state file must fail.",
@@ -593,9 +599,13 @@ notified = await notify("events", STATUS_B, "2026-10-16T12:05:30Z");
 assert.deepEqual(
   notified.found.filter((id) => !id.startsWith("incident.created:201") && !id.startsWith("maintenance.scheduled")),
   [
+    `incident.updated:201:${investigating.at}:investigating`,
     `incident.updated:201:${identified.at}:identified`,
+    `maintenance.updated:202:${scheduled.at}:scheduled`,
     "maintenance.started:202",
     "incident.created:203",
+    // Its first update is in incident.created, so it is not sent alone.
+    "incident.updated:203:2026-10-16T12:01:00Z:investigating",
     "service.changed:marketplace:2026-10-16T12:05:00Z",
   ],
 );
@@ -615,7 +625,7 @@ for (const item of got.filter((entry) => entry.subscription === "team" || entry.
   assert.equal(body.version, 1);
   assert.equal(body.type, item.headers["x-openbot-event"]);
   assert.equal(body.page, "https://status.openbot.run");
-  assert.match(item.headers["x-openbot-delivery"] ?? "", /^[0-9a-f]{32}$/);
+  assert.match(item.headers["x-openbot-delivery-id"] ?? "", /^[0-9a-f]{32}$/);
 }
 const created = JSON.parse(
   got.find((item) => item.subscription === "team" && item.headers["x-openbot-event"] === "incident.created")?.body ??
@@ -652,7 +662,7 @@ assert.match(
   discord.content,
   /^\*\*New incident: Sign-in fails\*\*\nMajor outage: Accounts and sign-in, Hosted servers\n/,
 );
-const deliveryIds = got.map((item) => item.headers["x-openbot-delivery"]);
+const deliveryIds = got.map((item) => item.headers["x-openbot-delivery-id"]);
 assert.equal(new Set(deliveryIds).size, deliveryIds.length, "Two deliveries have the same ID.");
 assert.deepEqual(
   notifyState().outbox.map((item) => [item.subscription, item.attempts, item.nextAt]),
@@ -774,6 +784,72 @@ assert.ok(
     .every((line) => line.startsWith("::add-mask::") || !leakValues.some((value) => line.includes(value))),
   "A secret is in the GitHub Actions log outside an add-mask command.",
 );
+// An incident that opens again sends no old "Resolved" update. An open incident that leaves the page
+// (closed as not planned) and a maintenance that is closed before its start send one event, after 2
+// runs without them. The first update of an incident that opened with none is sent when it comes.
+const resolvedUpdate = { at: "2026-10-16T13:00:00Z", stage: "resolved", body: "This incident is resolved." };
+const reopened = links([resolvedUpdate, identified, investigating]);
+const later = incident({
+  id: 204,
+  title: "Accounts database upgrade",
+  kind: "maintenance",
+  impact: "maintenance",
+  components: ["accounts"],
+  startedAt: "2026-10-20T12:00:00Z",
+  resolvedAt: "2026-10-20T13:00:00Z",
+  updates: [],
+});
+const empty = (updates: UpdateFixture[]) =>
+  incident({ id: 205, title: "Slow downloads", components: ["updates"], startedAt: "2026-10-17T00:02:30Z", updates });
+const slowNote = { at: "2026-10-17T00:03:30Z", stage: "identified", body: "A slow mirror." };
+const sortedEvents = (list: Received[]) => {
+  const groups = bySubscription(list);
+  return { team: [...(groups.team ?? [])].sort(), discord: [...(groups.discord ?? [])].sort(), ops: groups.ops };
+};
+
+notified = await notify(
+  "reopen",
+  statusFile("2026-10-17T00:03:00Z", [], [empty([]), later, reopened, maintenance()]),
+  "2026-10-17T00:03:00Z",
+  {
+    hooks: hooksLeft,
+  },
+);
+assert.deepEqual(sortedEvents(take()), {
+  team: ["incident.created", "maintenance.scheduled"],
+  discord: ["incident.created", "maintenance.scheduled"],
+  ops: undefined,
+});
+const withNote = [empty([slowNote]), later, reopened, maintenance()];
+notified = await notify("removed-incident", statusFile("2026-10-17T00:04:00Z", [], withNote), "2026-10-17T00:04:00Z", {
+  hooks: hooksLeft,
+});
+got = take();
+assert.deepEqual(sortedEvents(got), {
+  team: ["incident.removed", "incident.updated"],
+  discord: ["incident.removed", "incident.updated"],
+  ops: undefined,
+});
+const removed = JSON.parse(
+  got.find((item) => item.subscription === "team" && item.headers["x-openbot-event"] === "incident.removed")?.body ??
+    "{}",
+);
+assert.equal(removed.incident.id, 203);
+assert.equal(removed.incident.title, "Sign-in fails");
+const withoutLater = [empty([slowNote]), reopened, maintenance()];
+await notify("cancel-1", statusFile("2026-10-17T00:05:00Z", [], withoutLater), "2026-10-17T00:05:00Z", {
+  hooks: hooksLeft,
+});
+assert.deepEqual(take(), [], "A maintenance that is missing for one run is cancelled.");
+await notify("cancel-2", statusFile("2026-10-17T00:05:30Z", [], withoutLater), "2026-10-17T00:05:30Z", {
+  hooks: hooksLeft,
+});
+assert.deepEqual(sortedEvents(take()), {
+  team: ["maintenance.cancelled"],
+  discord: ["maintenance.cancelled"],
+  ops: undefined,
+});
+assert.deepEqual(Object.keys(notifyState().open).sort(), ["201", "205"]);
 receiver.close();
 
 const scanned = [

@@ -66,6 +66,7 @@ const SEEN_DAYS = 100;
 const DAY_MS = 86_400_000;
 const MIN_SECRET_LENGTH = 32;
 const DISCORD_LIMIT = 2_000;
+const REMOVED_AFTER_RUNS = 2;
 
 // Events -----------------------------------------------------------------------
 
@@ -77,6 +78,8 @@ const EVENT_TYPES = [
   "maintenance.started",
   "maintenance.updated",
   "maintenance.completed",
+  "incident.removed",
+  "maintenance.cancelled",
   "service.changed",
   "test",
 ] as const;
@@ -128,7 +131,7 @@ const WebhookEvent = Schema.Struct({
 type WebhookEvent = typeof WebhookEvent.Type;
 
 const Delivery = Schema.Struct({
-  /** The `x-openbot-delivery` header. The same for each try, so a receiver can drop a repeat. */
+  /** The `x-openbot-delivery-id` header. The same for each try, so a receiver can drop a repeat. */
   id: Schema.String,
   subscription: Schema.String,
   event: WebhookEvent,
@@ -138,6 +141,13 @@ const Delivery = Schema.Struct({
 });
 type Delivery = typeof Delivery.Type;
 
+const OpenIncident = Schema.Struct({
+  incident: EventIncident,
+  /** The runs in a row whose `status.json` did not have the incident. */
+  missing: Schema.Int,
+});
+type OpenIncident = typeof OpenIncident.Type;
+
 /** `notify.json` on the `status-notify` branch. It holds subscription IDs only. */
 const NotifyState = Schema.Struct({
   version: Schema.Literal(1),
@@ -146,6 +156,8 @@ const NotifyState = Schema.Struct({
   services: Schema.Record(Schema.String, CheckResult),
   /** Event ID to the time that this script found the event. */
   seen: Schema.Record(Schema.String, Schema.String),
+  /** Incident ID to the incidents that have not ended, for the event when one leaves the page. */
+  open: Schema.Record(Schema.String, OpenIncident),
   outbox: Schema.Array(Delivery),
 });
 type NotifyState = typeof NotifyState.Type;
@@ -156,6 +168,8 @@ interface FoundEvent {
   type: EventType;
   incident: EventIncident | null;
   service: EventService | null;
+  /** An event that announces this one. When both are new in one run, only that event is sent. */
+  announcedBy?: string;
 }
 
 const FINAL_STAGES: ReadonlySet<Stage> = new Set(["resolved", "completed"]);
@@ -176,20 +190,23 @@ const eventIncident = (incident: Incident, update: IncidentUpdate | null): Event
 function incidentEvents(incidents: readonly Incident[]): FoundEvent[] {
   const events: FoundEvent[] = [];
   for (const incident of [...incidents].reverse()) {
-    const add = (type: EventType, id: string, update: IncidentUpdate | null) =>
-      events.push({ id, type, incident: eventIncident(incident, update), service: null });
+    const add = (type: EventType, id: string, update: IncidentUpdate | null, announcedBy?: string) =>
+      events.push({ id, type, incident: eventIncident(incident, update), service: null, announcedBy });
     const maintenance = incident.kind === "maintenance";
     const ended = incident.resolvedAt !== null && Date.parse(incident.resolvedAt) <= NOW_MS;
     const oldestFirst = [...incident.updates].reverse();
     const latest = incident.updates[0] ?? null;
 
     const opened = maintenance ? "maintenance.scheduled" : "incident.created";
-    add(opened, `${opened}:${incident.id}`, oldestFirst[0] ?? null);
+    const openedId = `${opened}:${incident.id}`;
+    add(opened, openedId, oldestFirst[0] ?? null);
     const updated = maintenance ? "maintenance.updated" : "incident.updated";
-    for (const update of oldestFirst.slice(1)) {
-      // The end event announces the final update.
-      if (ended && FINAL_STAGES.has(update.stage)) continue;
-      add(updated, `${updated}:${incident.id}:${update.at}:${update.stage}`, update);
+    for (const [index, update] of oldestFirst.entries()) {
+      // The end event announces the final update. An issue that opens again keeps it.
+      if (FINAL_STAGES.has(update.stage)) continue;
+      // The first update is in the opening event, unless it came after that event.
+      const announcedBy = index === 0 ? openedId : undefined;
+      add(updated, `${updated}:${incident.id}:${update.at}:${update.stage}`, update, announcedBy);
     }
     if (maintenance) {
       if (Date.parse(incident.startedAt) <= NOW_MS)
@@ -224,6 +241,33 @@ function serviceEvents(status: StatusFile, state: NotifyState): FoundEvent[] {
       },
     ];
   });
+}
+
+/**
+ * The incidents that have not ended, and an event for each one that left `status.json`: a false
+ * alarm closed as not planned, a maintenance closed before its start, a removed label or a deleted
+ * issue. The schedule runs and the issue runs publish in parallel, so an older `status.json` can come
+ * after a newer one. Only an incident that is missing for `REMOVED_AFTER_RUNS` runs in a row is gone.
+ */
+function openIncidents(status: StatusFile, state: NotifyState) {
+  const open: Record<string, OpenIncident> = {};
+  for (const incident of status.incidents) {
+    if (incident.resolvedAt !== null && Date.parse(incident.resolvedAt) <= NOW_MS) continue;
+    open[String(incident.id)] = { incident: eventIncident(incident, incident.updates[0] ?? null), missing: 0 };
+  }
+  const listed = new Set(status.incidents.map((incident) => String(incident.id)));
+  const events: FoundEvent[] = [];
+  for (const [id, entry] of Object.entries(state.open)) {
+    if (listed.has(id)) continue;
+    const missing = entry.missing + 1;
+    if (missing < REMOVED_AFTER_RUNS) {
+      open[id] = { ...entry, missing };
+      continue;
+    }
+    const type = entry.incident.kind === "maintenance" ? "maintenance.cancelled" : "incident.removed";
+    events.push({ id: `${type}:${id}`, type, incident: entry.incident, service: null });
+  }
+  return { open, events };
 }
 
 // Subscriptions ------------------------------------------------------------------
@@ -307,6 +351,8 @@ const TITLES: Record<EventType, string> = {
   "maintenance.started": "Maintenance started",
   "maintenance.updated": "Maintenance update",
   "maintenance.completed": "Maintenance complete",
+  "incident.removed": "Incident removed",
+  "maintenance.cancelled": "Maintenance cancelled",
   "service.changed": "Service check changed",
   test: "Test event",
 };
@@ -387,7 +433,7 @@ async function send(subscription: Subscription, delivery: Delivery): Promise<Out
     "Content-Type": "application/json",
     "User-Agent": "openbot-status-webhook",
     "x-openbot-event": delivery.event.type,
-    "x-openbot-delivery": delivery.id,
+    "x-openbot-delivery-id": delivery.id,
     "x-openbot-timestamp": timestamp,
   };
   if (subscription.secret) {
@@ -423,7 +469,7 @@ function readState(): NotifyState {
   if (!existsSync(STATE_PATH)) {
     // A missing file after a failed fetch must not send every current event again.
     if (!args.bootstrap) throw new Error(`${STATE_PATH} does not exist. Run with --bootstrap only for the first run.`);
-    return { version: 1, checkedAt: null, services: {}, seen: {}, outbox: [] };
+    return { version: 1, checkedAt: null, services: {}, seen: {}, open: {}, outbox: [] };
   }
   if (args.bootstrap) throw new Error(`${STATE_PATH} exists. Run without --bootstrap.`);
   return decodeNotifyState(JSON.parse(readFileSync(STATE_PATH, "utf8")));
@@ -442,8 +488,11 @@ const activeIds = new Set(active.map((subscription) => subscription.id));
 const status = decodeStatusFile(JSON.parse(readFileSync(STATUS_PATH, "utf8")));
 const previous = readState();
 
-const found = [...incidentEvents(status.incidents), ...serviceEvents(status, previous)];
-const fresh = args.bootstrap ? [] : found.filter((event) => !Object.hasOwn(previous.seen, event.id));
+const incidents = openIncidents(status, previous);
+const found = [...incidentEvents(status.incidents), ...incidents.events, ...serviceEvents(status, previous)];
+const unseen = args.bootstrap ? [] : found.filter((event) => !Object.hasOwn(previous.seen, event.id));
+const unseenIds = new Set(unseen.map((event) => event.id));
+const fresh = unseen.filter((event) => !(event.announcedBy && unseenIds.has(event.announcedBy)));
 if (args.test) fresh.push({ id: `test:${NOW}`, type: "test", incident: null, service: null });
 if (args.bootstrap) logger.warn(`Bootstrap: ${found.length} current events are marked as sent.`);
 if (subscriptions.length === 0) logger.info("STATUS_WEBHOOKS has no subscriptions.");
@@ -556,6 +605,7 @@ const state: NotifyState = {
     ? Object.fromEntries(status.services.map((service) => [service.id, service.result]))
     : previous.services,
   seen,
+  open: incidents.open,
   outbox,
 };
 writeFile(STATE_PATH, `${JSON.stringify(state, null, 2)}\n`);

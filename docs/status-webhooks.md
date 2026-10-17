@@ -43,17 +43,24 @@ event to each active status webhook**. Each subscription that is not paused gets
 | Type | When |
 | --- | --- |
 | `incident.created` | A new incident issue. |
-| `incident.updated` | A new comment on an incident. |
+| `incident.updated` | A new comment on an incident. A comment with the stage `Resolved` is not sent alone: `incident.resolved` carries it. |
 | `incident.resolved` | An incident issue closes. It carries the final update. |
+| `incident.removed` | An open incident leaves the page, for example a false alarm closed as not planned, or an issue without the `status` label. |
 | `maintenance.scheduled` | A new maintenance issue. |
 | `maintenance.started` | The maintenance window starts. |
 | `maintenance.updated` | A new comment on a maintenance issue. |
-| `maintenance.completed` | The maintenance window ends, or the issue closes before the end. A maintenance issue that closes before the start is cancelled: it leaves the page, and no event is sent. |
+| `maintenance.completed` | The maintenance window ends, or the issue closes before the end. |
+| `maintenance.cancelled` | A maintenance that has not ended leaves the page, for example an issue closed before the start. |
 | `service.changed` | The result of a service check changes, for example from `ok` to `down`. Only on request. |
 | `test` | A test from the workflow input. Always sent. |
 
 `service.changed` is not in the defaults. A check can fail for one run because of a network error,
 and 2 failed runs open an automatic incident, which sends `incident.created`.
+
+`incident.removed` and `maintenance.cancelled` come one run later than the change, because the
+schedule runs and the issue runs can publish an older page after a newer one. An incident issue that
+opens again sends no event. Its next comment sends `incident.updated`, and the next close sends
+`incident.resolved` again.
 
 The first run on a repository without the `status-notify` branch sends nothing. It marks the events
 that are on the page as sent.
@@ -103,7 +110,7 @@ nobody, even if the incident text contains `@everyone`.
 | Header | Value |
 | --- | --- |
 | `x-openbot-event` | The event type. |
-| `x-openbot-delivery` | 32 hexadecimal characters. The same for each try of one event to one subscription. |
+| `x-openbot-delivery-id` | 32 hexadecimal characters. The same for each try of one event to one subscription. |
 | `x-openbot-timestamp` | The send time, in Unix seconds. |
 | `x-openbot-signature` | `sha256=<hex>`, when the subscription has a secret. |
 
@@ -120,7 +127,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 function verify(headers: Headers, body: string, secret: string) {
   const timestamp = headers.get("x-openbot-timestamp") ?? "";
-  const delivery = headers.get("x-openbot-delivery") ?? "";
+  const delivery = headers.get("x-openbot-delivery-id") ?? "";
   const expected = `sha256=${createHmac("sha256", secret).update(`${timestamp}.${delivery}.${body}`).digest("hex")}`;
   const actual = headers.get("x-openbot-signature") ?? "";
   const fresh = Math.abs(Date.now() / 1000 - Number(timestamp)) <= 300;
@@ -139,9 +146,15 @@ in one run.
 The events can arrive out of order, and a receiver can get an event again. Use the delivery ID and
 the `incident.update.at` time, not the arrival order.
 
+Only one webhook job runs at a time, and GitHub keeps only the newest job that waits. A service
+change that the newest job does not see again, and a test event, can be lost. If a test event does
+not arrive, run the workflow again.
+
 ## State
 
 The job keeps its state in `notify.json` on the `status-notify` branch, as one commit that each run
 replaces. It holds the subscription IDs, the event IDs that it found, and the waiting deliveries with
-their bodies. It never holds a URL or a secret. If you delete the branch, the next run starts again:
+their bodies. It never holds a URL or a secret. The repository is public, so anyone can read the
+subscription IDs, the retry times and the last error of each waiting delivery, such as `HTTP 500`.
+Use IDs that show nothing private. If you delete the branch, the next run starts again:
 it marks all events as sent, sends nothing, and loses the waiting deliveries.

@@ -218,7 +218,8 @@ jobs:
     needs: update
     if: needs.update.outputs.publish == 'true'
     # One job at a time, because each job replaces `status-notify`. A newer pending job replaces an
-    # older one; its `status.json` holds the same incidents or newer ones.
+    # older one. Its `status.json` holds the same incidents or newer ones, but a service change or a
+    # test event of the replaced job is lost.
     concurrency:
       group: status-page-notify
       cancel-in-progress: false
@@ -330,10 +331,14 @@ jobs:
             --jq "[.[] | select(.title == \"$title\" and .user.login == \"github-actions[bot]\")][0].number // empty")
           if [ "$FAILED" = "true" ]; then
             if [ -n "$open" ]; then exit 0; fi
-            # One failed run can be a short GitHub error, so open the issue only after the second.
+            # One failed run can be a short GitHub error, so open the issue only after the second. Only
+            # the check and deploy jobs count: a failed webhook job also fails the run.
             previous=$(gh api -X GET "repos/$GH_REPO/actions/workflows/status-page.yml/runs" -f status=completed -f per_page=20 \
-              --jq "[.workflow_runs[] | select(.id != $GITHUB_RUN_ID and (.event == \"schedule\" or .event == \"workflow_dispatch\"))][0].conclusion // empty")
-            if [ "$previous" != "failure" ]; then exit 0; fi
+              --jq "[.workflow_runs[] | select(.id != $GITHUB_RUN_ID and (.event == \"schedule\" or .event == \"workflow_dispatch\"))][0].id // empty")
+            if [ -z "$previous" ]; then exit 0; fi
+            failed=$(gh api -X GET "repos/$GH_REPO/actions/runs/$previous/jobs" \
+              --jq '[.jobs[] | select((.name == "Check and publish" or .name == "Deploy") and .conclusion == "failure")] | length')
+            if [ "$failed" = "0" ]; then exit 0; fi
             gh issue create --title "$title" --body "The status page workflow failed 2 times in a row, so https://status.openbot.run can show old data. The page shows \"Checks are late\" after some minutes.
 
           Last failed run: $RUN_URL
