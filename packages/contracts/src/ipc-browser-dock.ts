@@ -90,7 +90,6 @@ export interface BrowserDockPresentation {
   island: BrowserDockIsland | null;
   handoffPending: boolean;
   canHandoff: boolean;
-  canOpenChat: boolean;
 }
 
 export type BrowserDockAction =
@@ -151,8 +150,7 @@ export function isBrowserDockPresentation(value: unknown): value is BrowserDockP
     isBoolean(value.canRunAsTask) &&
     (value.island === null || isBrowserDockIsland(value.island)) &&
     isBoolean(value.handoffPending) &&
-    isBoolean(value.canHandoff) &&
-    isBoolean(value.canOpenChat)
+    isBoolean(value.canHandoff)
   );
 }
 

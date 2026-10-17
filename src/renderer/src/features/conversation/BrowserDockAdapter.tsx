@@ -1,10 +1,12 @@
-import type {
-  BrowserDockAction,
-  BrowserDockAgent,
-  BrowserDockMcpServer,
-  BrowserDockPresentation,
-  BrowserDockSkill,
-  BrowserTab,
+import {
+  BROWSER_DOCK_LIMITS,
+  type BrowserDockAction,
+  type BrowserDockAgent,
+  type BrowserDockIsland,
+  type BrowserDockMcpServer,
+  type BrowserDockPresentation,
+  type BrowserDockSkill,
+  type BrowserTab,
 } from "@openbot/contracts/ipc";
 import { BROWSER_USER_CONTROL_CAPABILITY } from "@openbot/contracts/team-protocol/browser-user-control-v1";
 import type { ComposerAgent, ComposerMcpServer, ComposerSkill } from "@openbot/ui/data";
@@ -187,21 +189,20 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined; 
     return snapshot({
       agent: dockAgent(agent),
       agents: props.agents.map(dockAgent),
-      skills: installedSkills().map(dockSkill),
+      skills: installedSkills().slice(0, BROWSER_DOCK_LIMITS.skills).map(dockSkill),
       mcpServers: mcpServers().map(dockMcpServer),
       draft: { text, revision: draftRevision },
       focusRequest: composerFocusRequest(),
       sendShortcut: deviceSendShortcut(props.platform),
       working: working(),
-      deliveries: deliveries(),
+      deliveries: deliveries().slice(0, BROWSER_DOCK_LIMITS.deliveries),
       hold: hold(),
       editingDeliveryId: editingDeliveryId() ?? null,
       canSteer: Boolean(props.activeTurnId),
       canRunAsTask: Boolean(props.tasks?.onRunQueuedMessage),
-      island: island(),
+      island: dockIsland(island()),
       handoffPending: handoffPending(),
       canHandoff: Boolean(onHandoff()),
-      canOpenChat: true,
     });
   });
   /** Main shows the overlay above the page. */
@@ -322,6 +323,14 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined; 
       )}
     </Show>
   );
+}
+
+/** Main refuses a whole presentation with a field over its limit, so a long step or reply is cut here. */
+function dockIsland(island: BrowserDockIsland | null): BrowserDockIsland | null {
+  if (island?.kind === "activity" && island.control === "agent")
+    return { ...island, label: island.label.slice(0, BROWSER_DOCK_LIMITS.label) };
+  if (island?.kind === "reply") return { ...island, body: island.body.slice(0, BROWSER_DOCK_LIMITS.replyBody) };
+  return island;
 }
 
 function dockAgent(agent: ComposerAgent): BrowserDockAgent {

@@ -1,5 +1,6 @@
 // Checks the reverse actions of team access on a real host: revoke and sign in again, revoke an
-// invitation, disable and enable a member, and remove a member who then joins again. A real
+// invitation, disable and enable a member, and remove a member who then joins again. The last event
+// socket of a session that closes gives back the browser control of that session. A real
 // `TeamApiServer` runs on loopback with the real team store on a temporary profile, in a child
 // process of this script. An owner client makes each change through the released `/v1/team/*`
 // routes, and a member client checks that its token, its event socket and its sign-in follow. The
@@ -39,7 +40,10 @@ const MEMBER = { username: "member-user", password: "member-password-123" };
 const STEP_DEADLINE_MS = 30_000;
 
 /** A line that the host process writes to its standard output, after `HOST_LINE`. */
-type HostMessage = { type: "ready"; port: number } | { type: "revoked"; sessionId: string };
+type HostMessage =
+  | { type: "ready"; port: number }
+  | { type: "revoked"; sessionId: string }
+  | { type: "released"; sessionId: string };
 const HOST_LINE = "team-revoke-host ";
 
 // --- Host process ---
@@ -106,7 +110,9 @@ async function runHost(root: string, configure: boolean): Promise<void> {
     stop: unused,
     takeUserControl: unused,
     releaseUserControl: () => {},
-    releaseUserControlHeldBy: () => {},
+    releaseUserControlHeldBy: (holder) => {
+      if (holder.kind === "session") send({ type: "released", sessionId: holder.sessionId });
+    },
     close: unused,
     capturePreview: unused,
     setVisible: unused,
@@ -228,6 +234,7 @@ function decodeHostLine(line: string): HostMessage | null {
   const value = record(JSON.parse(line.slice(HOST_LINE.length)), "host line");
   if (value.type === "ready" && typeof value.port === "number") return { type: "ready", port: value.port };
   if (value.type === "revoked") return { type: "revoked", sessionId: text(value.sessionId, "session id") };
+  if (value.type === "released") return { type: "released", sessionId: text(value.sessionId, "session id") };
   throw new Error(`Unknown host line: ${line}`);
 }
 
@@ -261,6 +268,9 @@ const sockets: WebSocket[] = [];
 /** Sessions that the host told the WebRTC gateway to end, and the waiters for the next one. */
 const revokedForGateway: string[] = [];
 const revokedWaiters: ((sessionId: string) => void)[] = [];
+/** Sessions whose browser control the host gave back, and the waiters for the next one. */
+const releasedSessions: string[] = [];
+const releasedWaiters: ((sessionId: string) => void)[] = [];
 
 /** Starts the host process on the profile, and waits until it listens. */
 async function startHost(configure: boolean): Promise<void> {
@@ -283,7 +293,10 @@ async function startHost(configure: boolean): Promise<void> {
         const message = decodeHostLine(line);
         if (!message) process.stdout.write(`${line}\n`);
         else if (message.type === "ready") ready.resolve(message.port);
-        else {
+        else if (message.type === "released") {
+          releasedSessions.push(message.sessionId);
+          releasedWaiters.shift()?.(message.sessionId);
+        } else {
           revokedForGateway.push(message.sessionId);
           revokedWaiters.shift()?.(message.sessionId);
         }
@@ -307,6 +320,10 @@ async function stopHost(): Promise<void> {
 /** The next session that the host tells the WebRTC gateway to end. */
 function nextRevokedForGateway(): Promise<string> {
   return new Promise((resolveRevoked) => revokedWaiters.push(resolveRevoked));
+}
+
+function nextReleasedSession(): Promise<string> {
+  return new Promise((resolveReleased) => releasedWaiters.push(resolveReleased));
 }
 
 /** One request from a current desktop client. */
@@ -363,7 +380,7 @@ async function loginDevice(ownerToken: string): Promise<{ token: string; session
  * Opens the event socket of a session, and gives a promise for its close code. The promise is in
  * an object: an async function that returned it directly would wait for the close.
  */
-async function openEvents(token: string): Promise<{ closed: Promise<number> }> {
+async function openEvents(token: string): Promise<{ closed: Promise<number>; close: () => void }> {
   const socket = new WebSocket(`ws://127.0.0.1:${port}${TEAM_API_ROUTES.events}`, [
     TEAM_PROTOCOL_V1_WEBSOCKET,
     `openbot-token.${token}`,
@@ -376,7 +393,7 @@ async function openEvents(token: string): Promise<{ closed: Promise<number> }> {
     socket.addEventListener("open", () => resolveOpen(), { once: true });
     socket.addEventListener("error", () => reject(new Error("The event socket did not open.")), { once: true });
   });
-  return { closed };
+  return { closed, close: () => socket.close() };
 }
 
 /** The owner creates an invitation through the Team API, and the member reads its link. */
@@ -411,6 +428,22 @@ try {
     ({ id }) => ({ memberId: id, devices: 2 }),
   );
   const memberId = member.id;
+
+  await step("client goes away: the last event socket of a session gives back its browser control", async () => {
+    const phoneSession = member.phone.sessionId;
+    const first = await openEvents(member.phone.token);
+    const second = await openEvents(member.phone.token);
+    first.close();
+    await first.closed;
+    const released = nextReleasedSession();
+    second.close();
+    await second.closed;
+    assert.equal(await released, phoneSession, "The last socket did not give back the browser control.");
+    const releases = releasedSessions.filter((sessionId) => sessionId === phoneSession).length;
+    assert.equal(releases, 1, "A socket gave back the browser control while the session had another socket.");
+    assert.equal(await meStatus(member.phone.token), 200, "Closing the sockets ended the session.");
+    return { releases };
+  });
 
   await step("revoke session: one device loses access at once, the other keeps it", async () => {
     const laptopSession = member.laptop.sessionId;

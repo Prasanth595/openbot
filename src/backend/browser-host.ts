@@ -2378,6 +2378,20 @@ export class BrowserHost {
     });
   }
 
+  /** Sends a key press of the page to the window, with its modifiers, and gives the window the focus. */
+  #forwardKeyToWindow(input: Input): void {
+    if (this.#window.isDestroyed()) return;
+    const keyCode = FORWARDED_KEY_CODES[input.key] ?? (input.key.length === 1 ? input.key.toUpperCase() : input.key);
+    const modifiers: Array<"shift" | "control" | "alt" | "meta"> = [];
+    if (input.shift) modifiers.push("shift");
+    if (input.control) modifiers.push("control");
+    if (input.alt) modifiers.push("alt");
+    if (input.meta) modifiers.push("meta");
+    this.#window.webContents.focus();
+    this.#window.webContents.sendInputEvent({ type: "keyDown", keyCode, modifiers });
+    this.#window.webContents.sendInputEvent({ type: "keyUp", keyCode, modifiers });
+  }
+
   /**
    * Forward Escape from an embedded page to the renderer, which collapses the expanded browser back
    * to the preview sidebar. Only the visible page in the main window does this: in Picture in
@@ -2394,20 +2408,6 @@ export class BrowserHost {
    * have; a preload or a permanent debugger attach would answer synchronously but weaken the
    * sandboxed view or fight the automation recorder.
    */
-  /** Sends a key press of the page to the window, with its modifiers, and gives the window the focus. */
-  #forwardKeyToWindow(input: Input): void {
-    if (this.#window.isDestroyed()) return;
-    const keyCode = FORWARDED_KEY_CODES[input.key] ?? (input.key.length === 1 ? input.key.toUpperCase() : input.key);
-    const modifiers: Array<"shift" | "control" | "alt" | "meta"> = [];
-    if (input.shift) modifiers.push("shift");
-    if (input.control) modifiers.push("control");
-    if (input.alt) modifiers.push("alt");
-    if (input.meta) modifiers.push("meta");
-    this.#window.webContents.focus();
-    this.#window.webContents.sendInputEvent({ type: "keyDown", keyCode, modifiers });
-    this.#window.webContents.sendInputEvent({ type: "keyUp", keyCode, modifiers });
-  }
-
   #collapseOnEscape(tab: BrowserHostTab): void {
     if (!this.#collapsesOnEscape(tab)) return;
     const frame = tab.contents.focusedFrame ?? tab.contents.mainFrame;

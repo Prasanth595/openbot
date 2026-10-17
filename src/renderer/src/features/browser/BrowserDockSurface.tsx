@@ -154,7 +154,7 @@ export function BrowserDockSurface() {
             // The code goes to main from here and never through the main renderer.
             onRespondSecret={(input) => browserDockPort().agent.respondToBrowserSecret(input, LOCAL_SERVER_ID)}
             onDismissReply={(id) => perform({ type: "dismiss-reply", id })}
-            onOpenChat={dock().canOpenChat ? () => perform({ type: "open-chat" }) : undefined}
+            onOpenChat={() => perform({ type: "open-chat" })}
             onSelectAgent={(agentId) => perform({ type: "select-agent", agentId })}
             onOpenLink={(url) => perform({ type: "open-link", url })}
           />

@@ -1241,11 +1241,6 @@ export class TeamApiServer {
     }
   }
 
-  /**
-   * A member does not see an administrator's private MCP sign-in tab, the same as on the browser
-   * routes. A usage reading keeps the provider's own sign-in only, as `GET /v1/agents/usage` does: a
-   * released client reads one limit per provider.
-   */
   #sendBrowserPageState(client: Ws.WebSocket, connection: EventClientState): void {
     const tabs = this.#options.browser.listTabs().map((tab) => ({
       tabId: tab.id,
@@ -1256,6 +1251,11 @@ export class TeamApiServer {
     client.send(JSON.stringify(this.#eventFor(connection, { type: "browser-page-state-changed", tabs })));
   }
 
+  /**
+   * A member does not see an administrator's private MCP sign-in tab, the same as on the browser
+   * routes. A usage reading keeps the provider's own sign-in only, as `GET /v1/agents/usage` does: a
+   * released client reads one limit per provider.
+   */
   #eventFor(connection: EventClientState, event: AgentEvent): AgentEvent {
     if (event.type === "usage-changed" && event.usage.limits.some((limit) => limit.accountId !== undefined))
       return {
@@ -1399,6 +1399,11 @@ export class TeamApiServer {
       const directTypingRecipientId = connection.directTypingRecipientId;
       connection.directTypingRecipientId = null;
       this.#eventClients.delete(client);
+      // A client that closes, crashes or loses the network keeps its session, so its last socket gives back
+      // the pages that the session controls. Otherwise the agent waits for a person who is not there.
+      if (sessionId && ![...this.#eventClients.values()].some((other) => other.sessionId === sessionId)) {
+        this.#options.browser.releaseUserControlHeldBy({ kind: "session", sessionId });
+      }
       if (directTypingRecipientId && !this.#hasDirectTyping(connection.memberId, directTypingRecipientId)) {
         this.#publishDirectTyping(connection.memberId, directTypingRecipientId, false);
       }

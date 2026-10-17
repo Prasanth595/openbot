@@ -53,7 +53,6 @@ const PRESENTATION: BrowserDockPresentation = {
   island: null,
   handoffPending: false,
   canHandoff: false,
-  canOpenChat: true,
 };
 
 const FRAME: BrowserDockFrame = { seq: 1, height: 120, glass: [] };
