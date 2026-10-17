@@ -34,7 +34,6 @@ export const messages = defineMessages("browser", {
   "browser.tab.controlledBy": "{title}, controlled by {name}",
   "browser.tab.controllerFallback": "agent",
   "browser.tab.controlStatus": "{name}: {action}",
-  "browser.tab.agentFallback": "Agent",
   "browser.tab.closeHint": "Press Delete or Control/Command W to close",
   "browser.tab.closeNamed": "Close {name}",
   "browser.tab.closeUnnamed": "Close browser tab",
