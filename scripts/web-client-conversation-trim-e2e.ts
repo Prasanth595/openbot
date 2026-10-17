@@ -54,19 +54,23 @@ async function visible(page: Page, text: string): Promise<boolean> {
     .catch(() => false);
 }
 
-/** Scrolls the open conversation up until `Question 0:` shows. Returns the texts seen on the way. */
-async function scrollToTop(page: Page, watch: string[]): Promise<{ reachedTop: boolean; seen: string[] }> {
+/** Scrolls the open conversation up until `top` shows. Returns the texts seen on the way. */
+async function scrollToTop(
+  page: Page,
+  watch: string[],
+  top = "Question 0:",
+): Promise<{ reachedTop: boolean; seen: string[] }> {
   const seen = new Set<string>();
   const anchor = await page.locator(".conversation-scroll").first().boundingBox();
   assert.ok(anchor, "The conversation has no scroll area.");
   await page.mouse.move(anchor.x + anchor.width / 2, anchor.y + anchor.height / 2);
   for (let round = 0; round < SCROLL_ROUNDS; round += 1) {
     for (const text of watch) if (await visible(page, text)) seen.add(text);
-    if (await visible(page, "Question 0:")) return { reachedTop: true, seen: [...seen] };
+    if (await visible(page, top)) return { reachedTop: true, seen: [...seen] };
     await page.mouse.wheel(0, -4000);
     await idle(page);
   }
-  return { reachedTop: await visible(page, "Question 0:"), seen: [...seen] };
+  return { reachedTop: await visible(page, top), seen: [...seen] };
 }
 
 async function openAgent(page: Page, name: string): Promise<void> {
@@ -112,6 +116,16 @@ try {
   });
   check("the second scroll reaches the oldest message, with no gap", second.reachedTop, second);
   check("a middle page loads during the second scroll", second.seen.includes("Question 100:"), second);
+
+  // A short conversation gets more than one page of messages while it is not open.
+  await openAgent(page, other);
+  await openAgent(page, open);
+  await page.evaluate('globalThis.openbotWebBench.append(60, "Later")');
+  await openAgent(page, other);
+  await page.getByText("Later 59:").first().waitFor({ timeout: 60_000 });
+  await idle(page);
+  const reopened = await scrollToTop(page, ["Later 5:"], "Later 0:");
+  check("messages that arrived while a short conversation was closed load with no gap", reopened.reachedTop, reopened);
   report.passed = checks.every((entry) => entry.passed);
 } catch (error) {
   report.error = error instanceof Error ? (error.stack ?? error.message) : String(error);

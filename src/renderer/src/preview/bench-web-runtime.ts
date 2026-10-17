@@ -25,6 +25,11 @@ interface WebBench {
    * in the open conversation, or with `other` in the conversation of another agent.
    */
   stream: (tokens: number, marker: string, other?: boolean) => Promise<void>;
+  /**
+   * Adds `count` messages, `<prefix> <index>: ...`, to the conversation of another agent on the host
+   * only, with no event, as when they arrive while that conversation is not open.
+   */
+  append: (count: number, prefix: string) => void;
 }
 
 const SEEDED_MESSAGES = 160;
@@ -168,6 +173,25 @@ export const createBenchWebRuntime: WebRuntimeFactory = (_accountId, events) => 
     await idle();
   }
 
+  function append(count: number, prefix: string): void {
+    const createdAt = new Date().toISOString();
+    mock.updateConversationSnapshot(otherAgentId, (snapshot) => {
+      const added: ConversationMessage[] = [];
+      for (let index = 0; index < count; index++) {
+        added.push({
+          id: `bench-${prefix}-${index}`,
+          turnId: `bench-${prefix}-turn-${index}`,
+          author: "assistant",
+          source: "assistant",
+          text: `${prefix} ${index}: the build is still running.`,
+          createdAt,
+          status: "completed",
+        });
+      }
+      snapshot.messages = [...snapshot.messages, ...added];
+    });
+  }
+
   const bench: WebBench = {
     ready,
     calls,
@@ -177,6 +201,7 @@ export const createBenchWebRuntime: WebRuntimeFactory = (_accountId, events) => 
     },
     idle,
     stream,
+    append,
   };
   Object.assign(globalThis, { openbotWebBench: bench });
   return runtime;

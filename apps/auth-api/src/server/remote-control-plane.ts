@@ -63,6 +63,12 @@ const MEMBER_SEAT_AVAILABLE_SQL = `(
   OR (SELECT COUNT(*) FROM remote_memberships WHERE host_id = ? AND status = 'active') < ?
 )`;
 
+/** The membership row that this accept wrote: its id and its update time. */
+const JOINED_NOW_SQL = `EXISTS(
+  SELECT 1 FROM remote_memberships
+   WHERE host_id = ? AND user_id = ? AND status = 'active' AND membership_id = ? AND updated_at = ?
+)`;
+
 export type { RemoteMemberRole };
 
 export class RemoteControlPlaneError extends Schema.TaggedError<RemoteControlPlaneError>()("RemoteControlPlaneError", {
@@ -982,11 +988,11 @@ export class RemoteControlPlane {
       const invite = yield* remoteCall(() =>
         dependencies.database
           .prepare(
-            `SELECT invite_id, host_id, email, role, expires_at, used_at, revoked_at, max_uses, use_count
+            `SELECT invite_id, host_id, email, role, expires_at, used_at, revoked_at, max_uses, use_count, created_at
          FROM remote_invites WHERE token_hash = ? LIMIT 1`,
           )
           .bind(tokenHash)
-          .first<RemoteInviteRow>(),
+          .first<RemoteInviteRow & { created_at: number }>(),
       );
       const permanent = invite?.max_uses === null;
       if (!invite || invite.revoked_at || invite.expires_at <= now || (!permanent && invite.used_at)) {
@@ -1002,10 +1008,10 @@ export class RemoteControlPlane {
       const existingMembership = yield* remoteCall(() =>
         dependencies.database
           .prepare(
-            "SELECT membership_id, role, status FROM remote_memberships WHERE host_id = ? AND user_id = ? LIMIT 1",
+            "SELECT membership_id, role, status, updated_at FROM remote_memberships WHERE host_id = ? AND user_id = ? LIMIT 1",
           )
           .bind(invite.host_id, user.id)
-          .first<Pick<RemoteMembershipRow, "membership_id" | "role" | "status">>(),
+          .first<Pick<RemoteMembershipRow, "membership_id" | "role" | "status"> & { updated_at: number }>(),
       );
       if (existingMembership?.role === "owner") {
         return yield* new RemoteControlPlaneError(
@@ -1014,13 +1020,14 @@ export class RemoteControlPlane {
           "The owner cannot accept a member invitation.",
         );
       }
-      // Only an owner or an admin brings back a removed member. A link that they still have does not.
-      if (existingMembership?.status === "revoked") {
+      // A link from before a removal or a leave does not bring the member back. An invitation made after
+      // it does, as does a reactivation by an owner or an admin.
+      if (existingMembership?.status === "revoked" && invite.created_at <= existingMembership.updated_at) {
         return yield* new RemoteControlPlaneError(404, "invite_invalid", "The invitation is invalid or expired.");
       }
       // A member who opens a link again keeps their role and their sessions, and the invitation stays
       // as it was. A change of role goes through `changeMembership`, which also ends the old sessions.
-      if (existingMembership) {
+      if (existingMembership?.status === "active") {
         return {
           hostId: invite.host_id,
           membershipId: existingMembership.membership_id,
@@ -1031,6 +1038,10 @@ export class RemoteControlPlane {
       yield* this.#requireMemberSeat(invite.host_id, user.id, limit);
       const membershipId = crypto.randomUUID();
       const seat = [invite.host_id, user.id, invite.host_id, limit] as const;
+      // The writes after the membership apply only when this accept made it: a new row, or the removed
+      // row that it brought back. An accept that a concurrent one beat leaves the invitation as it was.
+      const joinedId = existingMembership?.membership_id ?? membershipId;
+      const joinedNow = [invite.host_id, user.id, joinedId, now] as const;
       const accepted = yield* remoteCall(() =>
         dependencies.database.batch([
           dependencies.database
@@ -1041,41 +1052,72 @@ export class RemoteControlPlane {
                ) SELECT ?, ?, ?, ?, 'active', ?, ?
                  FROM remote_invites
                 WHERE invite_id = ? AND revoked_at IS NULL AND expires_at > ? AND ${MEMBER_SEAT_AVAILABLE_SQL}
-               ON CONFLICT(host_id, user_id) DO UPDATE SET updated_at = remote_memberships.updated_at
-                WHERE remote_memberships.status = 'active' AND remote_memberships.role <> 'owner'`
+               ON CONFLICT(host_id, user_id) DO UPDATE SET
+                 role = excluded.role, status = 'active', updated_at = excluded.updated_at
+                WHERE remote_memberships.status = 'revoked' AND remote_memberships.role <> 'owner'
+                  AND remote_memberships.updated_at < ?`
                 : `INSERT INTO remote_memberships(
                  membership_id, host_id, user_id, role, status, created_at, updated_at
                ) SELECT ?, ?, ?, ?, 'active', ?, ?
                  FROM remote_invites
                 WHERE invite_id = ? AND used_at IS NULL AND revoked_at IS NULL AND expires_at > ?
                   AND ${MEMBER_SEAT_AVAILABLE_SQL}
-               ON CONFLICT(host_id, user_id) DO UPDATE SET updated_at = remote_memberships.updated_at
-                WHERE remote_memberships.status = 'active' AND remote_memberships.role <> 'owner'`,
+               ON CONFLICT(host_id, user_id) DO UPDATE SET
+                 role = excluded.role, status = 'active', updated_at = excluded.updated_at
+                WHERE remote_memberships.status = 'revoked' AND remote_memberships.role <> 'owner'
+                  AND remote_memberships.updated_at < ?`,
             )
-            .bind(membershipId, invite.host_id, user.id, invite.role, now, now, invite.invite_id, now, ...seat),
+            .bind(
+              membershipId,
+              invite.host_id,
+              user.id,
+              invite.role,
+              now,
+              now,
+              invite.invite_id,
+              now,
+              ...seat,
+              invite.created_at,
+            ),
           // A permanent link counts the join and stays live; a single-use link burns. A join that
           // lost the last seat to a concurrent one leaves the invitation as it was.
           permanent
             ? dependencies.database
                 .prepare(
                   `UPDATE remote_invites SET use_count = use_count + 1
-                WHERE invite_id = ? AND revoked_at IS NULL AND expires_at > ? AND ${MEMBER_SEAT_AVAILABLE_SQL}`,
+                WHERE invite_id = ? AND revoked_at IS NULL AND expires_at > ? AND ${MEMBER_SEAT_AVAILABLE_SQL}
+                  AND ${JOINED_NOW_SQL}`,
                 )
-                .bind(invite.invite_id, now, ...seat)
+                .bind(invite.invite_id, now, ...seat, ...joinedNow)
             : dependencies.database
                 .prepare(
                   `UPDATE remote_invites SET used_at = ?
                 WHERE invite_id = ? AND used_at IS NULL AND revoked_at IS NULL AND expires_at > ?
-                  AND ${MEMBER_SEAT_AVAILABLE_SQL}`,
+                  AND ${MEMBER_SEAT_AVAILABLE_SQL} AND ${JOINED_NOW_SQL}`,
                 )
-                .bind(now, invite.invite_id, now, ...seat),
+                .bind(now, invite.invite_id, now, ...seat, ...joinedNow),
           dependencies.database
-            .prepare("UPDATE remote_sessions SET ended_at = ? WHERE host_id = ? AND user_id = ? AND ended_at IS NULL")
-            .bind(now, invite.host_id, user.id),
+            .prepare(
+              `UPDATE remote_sessions SET ended_at = ? WHERE host_id = ? AND user_id = ? AND ended_at IS NULL
+                AND ${JOINED_NOW_SQL}`,
+            )
+            .bind(now, invite.host_id, user.id, ...joinedNow),
           this.#authEventStatement({ type: "account-servers-changed", userId: user.id }, now),
         ]),
       );
       if ((accepted[0]?.meta.changes ?? 0) !== 1 || (accepted[1]?.meta.changes ?? 0) !== 1) {
+        // A concurrent accept or reactivation made this user a member first.
+        const concurrent = yield* remoteCall(() =>
+          dependencies.database
+            .prepare(
+              "SELECT membership_id, role FROM remote_memberships WHERE host_id = ? AND user_id = ? AND status = 'active' LIMIT 1",
+            )
+            .bind(invite.host_id, user.id)
+            .first<Pick<RemoteMembershipRow, "membership_id" | "role">>(),
+        );
+        if ((accepted[0]?.meta.changes ?? 0) === 0 && concurrent && concurrent.role !== "owner") {
+          return { hostId: invite.host_id, membershipId: concurrent.membership_id, role: concurrent.role };
+        }
         yield* this.#requireMemberSeat(invite.host_id, user.id, limit);
         return yield* new RemoteControlPlaneError(409, "invite_already_used", "The invitation was already used.");
       }

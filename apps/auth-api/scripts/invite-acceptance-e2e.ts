@@ -1,6 +1,7 @@
 // Runs the real invitation acceptance of the account server on a migrated SQLite database. A member who
 // opens a link again keeps their role, their sessions and the host auth epoch, and does not use a
-// single-use link. A removed member cannot join again with a link that they still have. The cap of
+// single-use link. A removed member cannot join again with a link that they still have, and a member who
+// left joins again with a new invitation. The cap of
 // outstanding single-use invitations holds when owners create them at the same time.
 //
 // Run: bun run test:invite-acceptance
@@ -45,6 +46,11 @@ const privateJwk = await crypto.subtle.exportKey("jwk", privateKey);
 async function setup() {
   const database = await migratedDatabase();
   const now = Date.now();
+  let clock = now;
+  /** Moves the clock of the control plane, so that a later write has a later time. */
+  const advance = (ms: number) => {
+    clock += ms;
+  };
   const addUser = database.prepare(
     "INSERT INTO users(id, identity_key, email, name, avatar_url, created_at, updated_at) VALUES (?, ?, ?, ?, NULL, ?, ?)",
   );
@@ -67,7 +73,7 @@ async function setup() {
       REMOTE_TICKET_PUBLIC_JWKS: JSON.stringify({ keys: [{ ...publicJwk, kid: "ticket-1" }] }),
       REMOTE_TICKET_KEY_ID: "ticket-1",
     },
-    { now: () => now, schedule: () => undefined },
+    { now: () => clock, schedule: () => undefined },
   );
   const epoch = () =>
     Number(database.prepare("SELECT auth_epoch FROM remote_hosts WHERE host_id = ?").get(HOST_ID)?.auth_epoch);
@@ -96,7 +102,7 @@ async function setup() {
       .run(randomUUID(), HOST_ID, MEMBER.id, membershipId, now, now + HOUR);
   const createInvite = (role: "admin" | "member", permanent: boolean) =>
     Effect.runPromise(plane.createInvite(OWNER, { hostId: HOST_ID, role, permanent }));
-  return { database, now, plane, epoch, membership, invite, openSessions, openSession, createInvite };
+  return { database, now, advance, plane, epoch, membership, invite, openSessions, openSession, createInvite };
 }
 
 /** The error code of an operation, or null when it succeeds. */
@@ -171,6 +177,29 @@ async function aRemovedMemberStaysRemoved() {
   check("a refused accept keeps the host auth epoch", epoch() === before, { before, after: epoch() });
 }
 
+async function aMemberWhoLeftJoinsWithANewInvitation() {
+  const { plane, membership, advance, createInvite } = await setup();
+  const old = await createInvite("member", true);
+  await failureCode(plane.acceptInvite(MEMBER, old.token));
+  const joined = membership();
+  if (!joined) throw new Error("The member did not join.");
+  advance(1000);
+  await Effect.runPromise(
+    plane.changeMembership(MEMBER.id, { hostId: HOST_ID, membershipId: joined.id, revoke: true }),
+  );
+  const withOld = await failureCode(plane.acceptInvite(MEMBER, old.token));
+  check("a member who left cannot join with a link from before", withOld.code === "invite_invalid", withOld);
+  advance(1000);
+  const fresh = await createInvite("admin", false);
+  const accepted = await failureCode(plane.acceptInvite(MEMBER, fresh.token));
+  check("a member who left joins again with a new invitation", accepted.code === null, accepted);
+  check(
+    "the member who joins again is active, with the role of the new invitation",
+    membership()?.status === "active" && membership()?.role === "admin" && membership()?.id === joined.id,
+    { before: joined, after: membership() },
+  );
+}
+
 async function aSingleUseLinkStaysUnusedForAMember() {
   const { plane, membership, invite, createInvite } = await setup();
   const permanent = await createInvite("member", true);
@@ -219,6 +248,7 @@ const scenarios = [
   aMemberAcceptsAgain,
   anAdminKeepsTheRole,
   aRemovedMemberStaysRemoved,
+  aMemberWhoLeftJoinsWithANewInvitation,
   aSingleUseLinkStaysUnusedForAMember,
   singleUseCapHolds,
 ];
