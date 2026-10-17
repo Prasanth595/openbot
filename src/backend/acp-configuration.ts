@@ -159,7 +159,8 @@ export class AcpConfiguration {
    * the options of that model, so the catalog is built from one answer per model.
    *
    * Only for a catalog that came from the config option. An agent that describes each model's efforts
-   * in `session/new` has answered already and is not asked again.
+   * in `session/new` has answered already and is not asked again. An agent that groups its listed
+   * models in the option (`groupedModelOption`) is asked: the list says nothing about efforts.
    *
    * No probe has to succeed. A model whose probe fails, or that the time does not reach, keeps the
    * session-wide efforts the catalog held before, and the user can still select them. `deadline` is when the caller's own `model/list`
@@ -178,7 +179,11 @@ export class AcpConfiguration {
       (candidate): candidate is Extract<SessionConfigOption, { type: "select" }> =>
         candidate.category === "model" && candidate.type === "select",
     );
-    if (!option || availableModels(probe).length > 0) return yield* providerSync(() => models);
+    const grouped = groupedModelOption(probe) !== null;
+    if (!option || (availableModels(probe).length > 0 && !grouped)) return yield* providerSync(() => models);
+    // A grouped option resolves a model to one of its efforts, so the session opened on the exact
+    // model in the list, and goes back to it. The agent takes that model as a value too.
+    const opening = grouped ? (listedCurrentModel(probe) ?? option.currentValue) : option.currentValue;
     // The sweep, and each request in it, ends at whichever comes first: its own budget, or the point
     // where the caller's deadline still holds the cleanup. One agent that never answers then costs
     // its own model's efforts, and not the whole catalog.
@@ -186,7 +191,7 @@ export class AcpConfiguration {
     const startedAt = performance.now();
     const probed: AcpModel[] = [];
     let answered = 0;
-    let selected = option.currentValue;
+    let selected = opening;
     for (const model of models) {
       const response = yield* this.#requestBeforeEffect(
         () => connection.setSessionConfigOption({ sessionId: probe.sessionId, configId: option.id, value: model.id }),
@@ -207,13 +212,13 @@ export class AcpConfiguration {
     // Back to the model the session opened on. The session is closed next, but an agent that keeps a
     // "last used model" outside the session would otherwise remember the end of this sweep, and the
     // user's own next CLI session would start on a model they never chose.
-    if (selected !== option.currentValue) {
+    if (selected !== opening) {
       yield* this.#requestBeforeEffect(
         () =>
           connection.setSessionConfigOption({
             sessionId: probe.sessionId,
             configId: option.id,
-            value: option.currentValue,
+            value: opening,
           }),
         Math.min(Date.now() + MODEL_REASONING_CLEANUP_MS, deadline),
         "session/set_config_option",
@@ -389,7 +394,7 @@ interface SessionSetupResponse {
 function modelsFromSessionSetup(response: SessionSetupResponse): AcpModel[] {
   const options = sessionConfigOptions(response);
   const discovered = availableModels(response);
-  if (discovered.length === 0) return modelsFromConfig(options);
+  if (discovered.length === 0 || groupedModelOption(response)) return modelsFromConfig(options);
   const configReasoning = reasoningFromConfig(options);
   return discovered.map((model) => {
     const supportedReasoningEfforts = model.supportedReasoningEfforts ?? configReasoning.supportedReasoningEfforts;
@@ -462,10 +467,41 @@ function sessionConfigOptions(response: SessionSetupResponse): SessionConfigOpti
 }
 
 export function currentModelFromSessionSetup(response: SessionSetupResponse): string | null {
+  return groupedModelOption(response)?.currentValue ?? listedCurrentModel(response);
+}
+
+function listedCurrentModel(response: SessionSetupResponse): string | null {
   if (!isRecord(response.models)) return null;
   return isString(response.models.currentModelId) && response.models.currentModelId.trim()
     ? response.models.currentModelId.trim()
     : null;
+}
+
+/**
+ * The model option of an agent that groups the models it lists in the superseded `models` field.
+ *
+ * Antigravity 1.3.0 and later list each reasoning effort as a model of its own there
+ * (`gemini-3.1-pro-low`, `gemini-3.1-pro-high`), and offer the same models in the option as one
+ * `gemini-3.1-pro` value with a `thought_level` option. Read from the list, every effort was a model
+ * in the picker, the Effort menu offered the efforts a second time, and a model picked there was not
+ * a value of the option, so the session never changed to it.
+ *
+ * Only when the agent has one model option, the option and the list differ, and the list says nothing
+ * about efforts. An agent that lists the option's own models, describes each model's efforts, or has a
+ * second model option (Cline has a provider option first) keeps the list.
+ */
+function groupedModelOption(response: SessionSetupResponse): Extract<SessionConfigOption, { type: "select" }> | null {
+  const options = sessionConfigOptions(response).filter(
+    (candidate): candidate is Extract<SessionConfigOption, { type: "select" }> =>
+      candidate.category === "model" && candidate.type === "select",
+  );
+  const [option] = options;
+  const listed = availableModels(response);
+  if (options.length !== 1 || !option || listed.length === 0) return null;
+  if (listed.some((model) => model.supportedReasoningEfforts || model.usesModelReasoningEffort !== null)) return null;
+  const values = new Set(selectValues(option).map((entry) => entry.value));
+  const ids = new Set(listed.map((model) => model.id));
+  return values.size === ids.size && [...values].every((value) => ids.has(value)) ? null : option;
 }
 
 function availableModels(response: SessionSetupResponse): Array<{
