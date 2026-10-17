@@ -59,6 +59,11 @@ desktop keeps the link in its encrypted session file and deletes it at sign-out.
 signs out those phones, also when the link row went with its desktop session, and the device list
 shows each phone's method. `DELETE /v1/mobile-auth/ticket?host=` spends the unused one-time codes of
 that host when the desktop cancels the code that it shows.
+A phone session is account-wide: the phone opens each host of the account directory, not only the
+host of its code. `GET /v1/mobile-auth/devices?host=` lists the account's phones only when that host
+is in the directory (an active membership and a device key), so they can open it. With no `host`,
+the route returns every phone, as before. The desktop Connected devices list sends its started host
+and shows no phones when it has no host identity. Account sessions still list and revoke each phone.
 A phone can also sign in with an email code. It requests the code through `/v1/auth/email/start` and
 verifies it through `/v1/mobile-auth/email/verify`, which writes the `auth_sessions` row and its
 `mobile_auth_sessions` row in one batch; `/v1/auth/email/verify` would make a desktop session. This

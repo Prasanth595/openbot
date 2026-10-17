@@ -172,6 +172,14 @@ const MCP_REVOCATION_TIMEOUT_MS = 5_000;
 export interface McpSignIn {
   /** Given to the SDK transport, which drives the whole exchange through it. */
   readonly provider: OAuthClientProvider;
+  /**
+   * Starts this sign-in for a server that answered without one. Some servers, such as Google's, list
+   * their tools to anyone and ask for a token only when a tool runs, so the SDK never gets the 401
+   * that starts a sign-in, and Sign in would end at once with nothing opened. Answers whether the
+   * page opened: `false` when this address already holds a token, or when the server publishes no
+   * protected-resource metadata that names an authorization server.
+   */
+  begin: () => Effect.Effect<boolean, McpOperationError>;
   /** Waits for the browser to come back, then trades the grant for a token set. */
   complete: () => Effect.Effect<void, McpOperationError>;
   /** Ends a wait nothing will answer, so a cancelled sign-in leaves no entry behind. */
@@ -418,6 +426,26 @@ export class McpOAuth implements McpOAuthAuthority {
     this.#attempts.set(resource, cancel);
     return {
       provider,
+      begin: () =>
+        Effect.gen({ self: this }, function* () {
+          if (cancelled || abandoned || this.#options.storage.read(resource)?.tokens) return false;
+          // Discovery and the registration read only public documents; the abort ends them with this step.
+          const controller = new AbortController();
+          const fetchFn = secureOAuthFetch(controller.signal);
+          return yield* withTimeout(
+            Effect.gen(function* () {
+              // A server that answers without a sign-in and names no authorization server takes none:
+              // the SDK would otherwise guess `/authorize` at the server's own origin.
+              const metadata = yield* mcpCall(() =>
+                discoverOAuthProtectedResourceMetadata(resource, undefined, fetchFn),
+              ).pipe(Effect.catch(() => Effect.succeed(null)));
+              if (!metadata?.authorization_servers?.length) return false;
+              return (yield* mcpCall(() => auth(provider, { serverUrl: resource, fetchFn }))) === "REDIRECT";
+            }),
+            this.#options.refreshTimeoutMs ?? MCP_TOKEN_TIMEOUT_MS,
+            sourceText("error.backend.mcpSignInResponseTimedOut"),
+          ).pipe(Effect.mapError(mcpFailure), Effect.ensuring(Effect.sync(() => controller.abort())));
+        }),
       complete: () =>
         Effect.gen({ self: this }, function* () {
           if (cancelled) return yield* mcpFailure(new Error(sourceText("error.backend.mcpSignInCancelled")));
@@ -954,7 +982,10 @@ class McpOAuthClientProvider implements OAuthClientProvider {
     const cause = result.failure.cause;
     const clientRefused = cause instanceof InvalidClientError || cause instanceof UnauthorizedClientError;
     if (!clientRefused && !(cause instanceof InvalidGrantError)) return "kept";
-    const { tokens: _tokens, obtainedAt: _obtainedAt, client: registration, ...kept } = this.#record();
+    const current = this.#record();
+    // A sign-in that ended during the refresh stored a new grant: the refusal is about the old one.
+    if (current.tokens?.refresh_token !== refreshToken) return "kept";
+    const { tokens: _tokens, obtainedAt: _obtainedAt, client: registration, ...kept } = current;
     yield* this.#options.storage.write(this.#options.resource, {
       ...kept,
       ...(registration && !clientRefused ? { client: registration } : {}),
