@@ -680,9 +680,27 @@ const NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
 const REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
 const PACKAGE_REL = "http://schemas.openxmlformats.org/package/2006/relationships";
 
-function spreadsheetDatesXlsx(system: "1900" | "1904"): Uint8Array {
-  const workbook = spreadsheetDateWorkbooks.find((entry) => entry.system === system);
-  if (!workbook) throw new Error("Missing spreadsheet date fixture.");
+const spreadsheetNumberFormatCases: { id: string; value: number; format: string }[] = [
+  { id: "dollar-prefix", value: 1234.5, format: '"$"#,##0.00' },
+  { id: "negative-dollar-prefix", value: -1234.5, format: '"$"#,##0.00' },
+  { id: "spaced-prefix", value: 1234.5, format: '"USD "0.00' },
+  { id: "prefix-and-percent", value: 0.125, format: '"Gain "0.0%' },
+  { id: "suffix", value: 2.5, format: '0.00" kg"' },
+  { id: "text-only", value: 1234.5, format: '"Total"' },
+];
+
+const escapeXmlAttribute = (value: string): string => value.replaceAll("&", "&amp;").replaceAll('"', "&quot;");
+
+/** A one-sheet workbook with a Case column and a styled Value column. */
+function caseWorkbookXlsx(input: {
+  sheetName: string;
+  date1904: boolean;
+  /** Format codes for the custom IDs 164 and up. */
+  formats: string[];
+  /** The numFmtId of each cell style. */
+  styles: number[];
+  cases: { id: string; value: number; style: number }[];
+}): Uint8Array {
   const entries = {
     "[Content_Types].xml": `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
       <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
@@ -692,28 +710,56 @@ function spreadsheetDatesXlsx(system: "1900" | "1904"): Uint8Array {
       <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
     </Types>`,
     "_rels/.rels": `<Relationships xmlns="${PACKAGE_REL}"><Relationship Id="rId1" Type="${REL}/officeDocument" Target="xl/workbook.xml"/></Relationships>`,
-    // No workbookPr in the 1900 fixture: Excel uses that system by default.
-    "xl/workbook.xml": `<workbook xmlns="${NS}" xmlns:r="${REL}">${workbook.system === "1904" ? '<workbookPr date1904="1"/>' : ""}<sheets><sheet name="Dates ${workbook.system}" sheetId="1" r:id="rId1"/></sheets></workbook>`,
+    "xl/workbook.xml": `<workbook xmlns="${NS}" xmlns:r="${REL}">${input.date1904 ? '<workbookPr date1904="1"/>' : ""}<sheets><sheet name="${input.sheetName}" sheetId="1" r:id="rId1"/></sheets></workbook>`,
     "xl/_rels/workbook.xml.rels": `<Relationships xmlns="${PACKAGE_REL}">
       <Relationship Id="rId1" Type="${REL}/worksheet" Target="worksheets/sheet1.xml"/>
       <Relationship Id="rId2" Type="${REL}/styles" Target="styles.xml"/>
     </Relationships>`,
     "xl/styles.xml": `<styleSheet xmlns="${NS}">
+      ${input.formats.length ? `<numFmts count="${input.formats.length}">${input.formats.map((code, index) => `<numFmt numFmtId="${164 + index}" formatCode="${escapeXmlAttribute(code)}"/>`).join("")}</numFmts>` : ""}
       <fonts count="1"><font/></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>
       <borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-      <cellXfs count="4">${[0, 14, 22, 21].map((id) => `<xf numFmtId="${id}" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>`).join("")}</cellXfs>
+      <cellXfs count="${input.styles.length}">${input.styles.map((id) => `<xf numFmtId="${id}" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>`).join("")}</cellXfs>
     </styleSheet>`,
     "xl/worksheets/sheet1.xml": `<worksheet xmlns="${NS}"><sheetData>
       <row r="1"><c r="A1" t="inlineStr"><is><t>Case</t></is></c><c r="B1" t="inlineStr"><is><t>Value</t></is></c></row>
-      ${workbook.cases
+      ${input.cases
         .map(
           (entry, index) =>
-            `<row r="${index + 2}"><c r="A${index + 2}" t="inlineStr"><is><t>${entry.id}</t></is></c><c r="B${index + 2}" s="${entry.style}"><v>${entry.serial}</v></c></row>`,
+            `<row r="${index + 2}"><c r="A${index + 2}" t="inlineStr"><is><t>${entry.id}</t></is></c><c r="B${index + 2}" s="${entry.style}"><v>${entry.value}</v></c></row>`,
         )
         .join("")}
     </sheetData></worksheet>`,
   };
   return zipSync(Object.fromEntries(Object.entries(entries).map(([name, xml]) => [name, strToU8(xml)])));
+}
+
+function spreadsheetDatesXlsx(system: "1900" | "1904"): Uint8Array {
+  const workbook = spreadsheetDateWorkbooks.find((entry) => entry.system === system);
+  if (!workbook) throw new Error("Missing spreadsheet date fixture.");
+  return caseWorkbookXlsx({
+    sheetName: `Dates ${workbook.system}`,
+    // No workbookPr in the 1900 fixture: Excel uses that system by default.
+    date1904: workbook.system === "1904",
+    formats: [],
+    styles: [0, 14, 22, 21],
+    cases: workbook.cases.map((entry) => ({ id: entry.id, value: entry.serial, style: entry.style })),
+  });
+}
+
+function spreadsheetNumberFormatsXlsx(): Uint8Array {
+  const formats = [...new Set(spreadsheetNumberFormatCases.map((entry) => entry.format))];
+  return caseWorkbookXlsx({
+    sheetName: "Number formats",
+    date1904: false,
+    formats,
+    styles: [0, ...formats.map((_format, index) => 164 + index)],
+    cases: spreadsheetNumberFormatCases.map((entry) => ({
+      id: entry.id,
+      value: entry.value,
+      style: formats.indexOf(entry.format) + 1,
+    })),
+  });
 }
 
 async function seedAttachments(
@@ -732,7 +778,8 @@ async function seedAttachments(
     | "audio"
     | "spreadsheet"
     | "spreadsheetDates1900"
-    | "spreadsheetDates1904",
+    | "spreadsheetDates1904"
+    | "spreadsheetNumberFormats",
     AttachmentSummary
   >
 > {
@@ -823,6 +870,11 @@ async function seedAttachments(
       mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       bytes: spreadsheetDatesXlsx("1904"),
     }),
+    spreadsheetNumberFormats: await store(chief, {
+      name: "spreadsheet-number-formats.xlsx",
+      mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      bytes: spreadsheetNumberFormatsXlsx(),
+    }),
   };
 }
 
@@ -841,7 +893,8 @@ async function seedConversations(
     | "audio"
     | "spreadsheet"
     | "spreadsheetDates1900"
-    | "spreadsheetDates1904",
+    | "spreadsheetDates1904"
+    | "spreadsheetNumberFormats",
     AttachmentSummary
   >,
   clock: SeedClock,
@@ -969,14 +1022,19 @@ async function seedConversations(
           "chief-assistant-spreadsheet-dates",
           "assistant",
           [
-            "Open these workbooks to check spreadsheet dates:",
+            "Open these workbooks to check spreadsheet dates and number formats:",
             "",
             `- ${file(attachments.spreadsheetDates1900)}`,
             `- ${file(attachments.spreadsheetDates1904)}`,
+            `- ${file(attachments.spreadsheetNumberFormats)}`,
           ].join("\n"),
           42 * MINUTE,
         ),
-        attachments: [attachments.spreadsheetDates1900, attachments.spreadsheetDates1904],
+        attachments: [
+          attachments.spreadsheetDates1900,
+          attachments.spreadsheetDates1904,
+          attachments.spreadsheetNumberFormats,
+        ],
       },
       message(
         "chief-assistant-rich-previews",

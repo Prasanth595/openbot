@@ -158,19 +158,26 @@ function formatExcelNumber(value: string, format: string, date1904: boolean, num
   const hasDate = hasDateFormat(format);
   if (hasDate) return formatExcelDate(number, format, date1904);
   if (hasTimeFormat(format)) return number < 0 ? value : formatExcelTime(number, format);
+  // A one-section format puts the minus sign before all of its text, so "$" shows -$1.00.
+  const sign = number < 0 ? "-" : "";
+  // A format with only literal text shows that text in place of the number.
+  if (unquotedFormat(format).trim() === "")
+    return `${sign}${format.replace(/"([^"]*)"|\\(.)/gu, (_match, quoted?: string, escaped?: string) => quoted ?? escaped ?? "")}`;
   const prefix = format.match(/^"([^"]*)"/u)?.[1] ?? "";
+  const magnitude = prefix ? Math.abs(number) : number;
+  const signedPrefix = prefix ? `${sign}${prefix}` : "";
   const suffix = formatLiteralSuffix(format);
   const hasPercentScaling = unquotedFormat(format).includes("%");
   if (hasPercentScaling) {
     const minimumFractionDigits = (decimals.match(/0/gu) ?? []).length;
     const maximumFractionDigits = decimals.length;
-    return `${prefix}${numbers.number(number * 100, { minimumFractionDigits, maximumFractionDigits })}%${suffix ? ` ${suffix}` : ""}`;
+    return `${signedPrefix}${numbers.number(magnitude * 100, { minimumFractionDigits, maximumFractionDigits })}%${suffix ? ` ${suffix}` : ""}`;
   }
   const minimumFractionDigits = (decimals.match(/0/gu) ?? []).length;
   const integerFormat = unquotedFormat(format).split(".")[0] ?? "";
   const minimumIntegerDigits = Math.max(1, (integerFormat.match(/0/gu) ?? []).length);
   if (minimumIntegerDigits > 21) return value;
-  const formatted = `${prefix}${numbers.number(number, {
+  const formatted = `${signedPrefix}${numbers.number(magnitude, {
     minimumFractionDigits,
     maximumFractionDigits: decimals.length,
     minimumIntegerDigits,

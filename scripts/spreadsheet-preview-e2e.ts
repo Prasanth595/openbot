@@ -1,7 +1,7 @@
-// bun scripts/spreadsheet-dates-e2e.ts --phase=before|after --allow-mutations --instance=<id>
+// bun scripts/spreadsheet-preview-e2e.ts --phase=before|after --allow-mutations --instance=<id>
 // The coordinator owns the isolated seeded dev app and selects Chief before this script runs.
 // Precondition: the coordinator selects English through the app UI in each fresh profile.
-// Reports and panel screenshots go to .openbot-build/spreadsheet-dates-e2e/<phase>.
+// Reports and panel screenshots go to .openbot-build/spreadsheet-preview-e2e/<phase>.
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
@@ -12,28 +12,33 @@ import { type AutomationSession, assertMutationAllowed, connectToDevApp } from "
 import { type DevInstanceRecord, readDevInstanceRecords } from "./dev-automation/instance-registry";
 
 const ROOT = resolve(import.meta.dirname, "..");
-const OUT = resolve(ROOT, ".openbot-build/spreadsheet-dates-e2e");
+const OUT = resolve(ROOT, ".openbot-build/spreadsheet-preview-e2e");
 const SOURCE = resolve(ROOT, "packages/ui/src/features/conversation/SpreadsheetFilePreview.tsx");
 const phase = process.argv.find((arg) => arg.startsWith("--phase="))?.slice("--phase=".length);
 if (phase !== "before" && phase !== "after") throw new Error("Pass --phase=before or --phase=after.");
 const phaseOut = resolve(OUT, phase);
 
-interface DateCase {
+interface PreviewCase {
   id: string;
   expected: string;
 }
 
 interface WorkbookCase {
-  system: "1900" | "1904";
-  cases: DateCase[];
+  filename: string;
+  sheet: string;
+  cases: PreviewCase[];
 }
 
 // Expectations come from Excel's date systems, not the component's parser or formatters.
 // https://support.microsoft.com/en-gb/excel/change-the-date-system-format-or-two-digit-year-interpretation
 // https://learn.microsoft.com/en-us/troubleshoot/microsoft-365-apps/excel/wrongly-assumes-1900-is-leap-year
+// Number format expectations follow Excel's format code rules: one section applies to every number,
+// Excel puts the minus sign before the whole result, and quoted text shows as written.
+// https://support.microsoft.com/en-US/excel/review-guidelines-for-customizing-a-number-format
 const workbooks: WorkbookCase[] = [
   {
-    system: "1900",
+    filename: "spreadsheet-dates-1900.xlsx",
+    sheet: "Dates 1900",
     cases: [
       { id: "date-1", expected: "1900-01-01" },
       { id: "date-59", expected: "1900-02-28" },
@@ -47,12 +52,25 @@ const workbooks: WorkbookCase[] = [
     ],
   },
   {
-    system: "1904",
+    filename: "spreadsheet-dates-1904.xlsx",
+    sheet: "Dates 1904",
     cases: [
       { id: "date-0", expected: "1904-01-01" },
       { id: "date-59", expected: "1904-02-29" },
       { id: "plain-number", expected: "60" },
       { id: "time-only", expected: "12:00:00" },
+    ],
+  },
+  {
+    filename: "spreadsheet-number-formats.xlsx",
+    sheet: "Number formats",
+    cases: [
+      { id: "dollar-prefix", expected: "$1,234.50" },
+      { id: "negative-dollar-prefix", expected: "-$1,234.50" },
+      { id: "spaced-prefix", expected: "USD 1234.50" },
+      { id: "prefix-and-percent", expected: "Gain 12.5%" },
+      { id: "suffix", expected: "2.50 kg" },
+      { id: "text-only", expected: "Total" },
     ],
   },
 ];
@@ -61,8 +79,8 @@ function sourceHash(): string {
   return createHash("sha256").update(readFileSync(SOURCE)).digest("hex");
 }
 
-interface CaseResult extends DateCase {
-  system: WorkbookCase["system"];
+interface CaseResult extends PreviewCase {
+  filename: string;
   observed: string | null;
   passed: boolean;
   error: string;
@@ -88,7 +106,7 @@ const report: Report = {
   instance: null,
   cases: workbooks.flatMap((workbook) =>
     workbook.cases.map((entry) => ({
-      system: workbook.system,
+      filename: workbook.filename,
       ...entry,
       observed: null,
       passed: false,
@@ -108,7 +126,7 @@ try {
   stage = "Require mutation opt-in and isolated named instance";
   const instanceId = process.argv.find((arg) => arg.startsWith("--instance="))?.slice(11);
   assertMutationAllowed({
-    command: "spreadsheet-dates-e2e",
+    command: "spreadsheet-preview-e2e",
     allowMutations: process.argv.includes("--allow-mutations"),
     instanceNamed: Boolean(instanceId),
   });
@@ -129,7 +147,7 @@ try {
     pid: instance.pid,
   };
   stage = "Connect to the registered app";
-  session = await connectToDevApp(instance.remoteDebuggingPort, createOpenBotLogger("spreadsheet-dates-e2e"), {
+  session = await connectToDevApp(instance.remoteDebuggingPort, createOpenBotLogger("spreadsheet-preview-e2e"), {
     expectedRendererPort: instance.rendererPort,
     ownerPid: instance.pid,
   });
@@ -141,16 +159,16 @@ try {
   const panel = page.getByRole("complementary", { name: "File preview", exact: true });
   assert.equal(await panel.count(), 0, "Close any existing preview before running.");
   for (const workbook of workbooks) {
-    stage = `Render ${workbook.system} workbook in FilePreviewPanel`;
-    const filename = `spreadsheet-dates-${workbook.system}.xlsx`;
+    stage = `Render ${workbook.filename} in FilePreviewPanel`;
+    const filename = workbook.filename;
     const open = conversation.getByRole("button", { name: `Open attached file ${filename}`, exact: true });
     await open.waitFor({ state: "visible" });
     assert.equal(await open.count(), 1, "Refuse ambiguous shared-file buttons.");
     await open.click();
     await panel.getByRole("heading", { name: filename, exact: true }).waitFor({ state: "visible" });
-    const table = panel.getByRole("table", { name: `Dates ${workbook.system}`, exact: true });
+    const table = panel.getByRole("table", { name: workbook.sheet, exact: true });
     await table.waitFor({ state: "visible" });
-    for (const result of report.cases.filter((entry) => entry.system === workbook.system)) {
+    for (const result of report.cases.filter((entry) => entry.filename === filename)) {
       try {
         const row = table.getByRole("row").filter({ has: page.getByRole("cell", { name: result.id, exact: true }) });
         result.observed = await row.getByRole("cell").nth(1).innerText();
@@ -159,7 +177,7 @@ try {
         result.error = "Could not read the expected case row.";
       }
     }
-    const screenshot = `${workbook.system}.png`;
+    const screenshot = filename.replace(/\.xlsx$/u, ".png");
     await panel.screenshot({ path: resolve(phaseOut, screenshot) });
     report.screenshots.push(screenshot);
     await panel.getByRole("button", { name: "Close file preview", exact: true }).click();
