@@ -56,6 +56,8 @@ export const messages = {
   "browser.pip.reattach": "Rattacher le navigateur au panneau de droite",
   "browser.pip.reattachTitle": "Rattacher le navigateur",
   "browser.pip.close": "Fermer la fenêtre du navigateur",
+  "browser.pip.reattachFailed": "OpenBot n’a pas pu rattacher le navigateur.",
+  "browser.pip.closeFailed": "OpenBot n’a pas pu fermer la fenêtre du navigateur.",
   "browser.popupBlocked.title": "Fenêtre contextuelle bloquée",
   "browser.popupBlocked.dismiss": "Ignorer le message de fenêtre contextuelle",
   "browser.liveView.label": "Vue en direct de la page sur l’hôte",

@@ -128,6 +128,8 @@ export const messages = {
   "settings.save.notSaved": "Değişiklikler kaydedilmedi",
   "settings.save.reset": "Sıfırla",
   "settings.panel.resize": "Sağ paneli yeniden boyutlandır",
+  "settings.preferences.loadFailed": "Ayarlarınız yüklenemedi.",
+  "settings.preferences.saveFailed": "Bu ayar kaydedilemedi. Tekrar deneyin.",
   "settings.agentSelect.placeholder": "Bir ajan seçin",
   "settings.agentSelect.empty": "Yerel ajan yok",
   "settings.agentSelect.label": "Şuraya yükle:",
@@ -251,6 +253,9 @@ export const messages = {
   "settings.profile.sessions.disconnectLabel": "{signedIn} tarihli {name} oturumunun bağlantısını kes",
   "settings.profile.sessions.loadFailed": "Hesap oturumları yüklenemedi. Lütfen tekrar deneyin.",
   "settings.profile.sessions.disconnectFailed": "Bu oturumun bağlantısı kesilemedi. Lütfen tekrar deneyin.",
+  "settings.profile.sessions.disconnectConfirm.title": "Bu oturumun bağlantısı kesilsin mi?",
+  "settings.profile.sessions.disconnectConfirm.description":
+    "Bu cihazın hesabınızdaki oturumu kapatılır. Bağlanmak için yeniden oturum açması gerekir.",
   "settings.updates.title": "OpenBot güncellemeleri",
   "settings.updates.track.title": "Güncelleme kanalı",
   "settings.updates.track.description": "Kararlı kanal test edilmiş OpenBot sürümlerini alır.",

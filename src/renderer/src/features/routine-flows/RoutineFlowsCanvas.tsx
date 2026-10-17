@@ -134,7 +134,7 @@ export function RoutineFlowsCanvas(props: RoutineFlowsCanvasProps) {
           draft.webhookConnected = status.connected;
         }),
       )
-      .catch(() => undefined);
+      .catch(failed(t("routine.webhook.statusFailed")));
     const stopEvents = host().onEvent((event) => {
       if (event.type === "routine-flows-changed") {
         if (event.agentId === agentId()) reloadSoon();

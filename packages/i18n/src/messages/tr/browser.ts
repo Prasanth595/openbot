@@ -56,6 +56,8 @@ export const messages = {
   "browser.pip.reattach": "Tarayıcıyı sağ kenar çubuğuna yeniden ekle",
   "browser.pip.reattachTitle": "Tarayıcıyı yeniden ekle",
   "browser.pip.close": "Tarayıcı açılır penceresini kapat",
+  "browser.pip.reattachFailed": "OpenBot tarayıcıyı kenar çubuğuna geri ekleyemedi.",
+  "browser.pip.closeFailed": "OpenBot tarayıcı açılır penceresini kapatamadı.",
   "browser.popupBlocked.title": "Açılır pencere engellendi",
   "browser.popupBlocked.dismiss": "Açılır pencere mesajını kapat",
   "browser.liveView.label": "Ana makinedeki sayfanın canlı görünümü",

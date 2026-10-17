@@ -1,8 +1,12 @@
 import { Match, Switch } from "solid-js";
 import type { TextValue } from "../../text";
-import { BitwardenConnectorPanel, type BitwardenConnectorPanelProps } from "../settings/BitwardenConnectorPanel";
+import {
+  BitwardenConnectorPanel,
+  type BitwardenConnectorPanelProps,
+  bitwardenStatus,
+} from "../settings/BitwardenConnectorPanel";
 import { GITHUB_STATUS, GitHubConnectorPanel, type GitHubConnectorPanelProps } from "../settings/GitHubConnectorPanel";
-import type { IntegrationStatus } from "../settings/IntegrationLayout";
+import { type IntegrationStatus, UNKNOWN_STATUS } from "../settings/IntegrationLayout";
 import type { IntegrationAgent } from "../settings/IntegrationsHub";
 import {
   ONEPASSWORD_STATUS,
@@ -11,6 +15,7 @@ import {
 } from "../settings/OnePasswordConnectorPanel";
 import {
   messagingPlatformText,
+  messagingStateUnknown,
   SlackIntegrationPanel,
   type SlackIntegrationPanelProps,
   slackIntegrationState,
@@ -43,6 +48,11 @@ export interface ConnectorSummary {
   agents?: IntegrationAgent[] | undefined;
 }
 
+/** What a list shows for a connector whose state OpenBot could not read. */
+function unknownSummary(t: TextValue["t"]): ConnectorSummary {
+  return { status: UNKNOWN_STATUS.status, statusLabel: t(UNKNOWN_STATUS.label), summary: t("connector.readFailed") };
+}
+
 export function connectorSummary(detail: ConnectorDetail, t: TextValue["t"]): ConnectorSummary {
   switch (detail.id) {
     case "github": {
@@ -63,6 +73,7 @@ export function connectorSummary(detail: ConnectorDetail, t: TextValue["t"]): Co
       };
     }
     case "onepassword": {
+      if (detail.props.statusError) return unknownSummary(t);
       const status = detail.props.status;
       const header = ONEPASSWORD_STATUS[status.state];
       const host = detail.props.hostName;
@@ -78,15 +89,17 @@ export function connectorSummary(detail: ConnectorDetail, t: TextValue["t"]): Co
       };
     }
     case "bitwarden": {
-      const connected = detail.props.status.connected;
+      if (detail.props.statusError) return unknownSummary(t);
+      const header = bitwardenStatus(detail.props);
       return {
-        status: connected ? "connected" : "idle",
-        statusLabel: connected ? t("connector.bitwarden.connected") : t("connector.bitwarden.disconnected"),
+        status: header.status,
+        statusLabel: t(header.label),
         summary: t("connector.bitwarden.description"),
       };
     }
     case "slack":
     case "discord": {
+      if (messagingStateUnknown(detail.props)) return unknownSummary(t);
       const { connections, agents } = detail.props;
       const text = messagingPlatformText(detail.id);
       const state = slackIntegrationState(connections, agents, detail.id);
@@ -108,6 +121,7 @@ export function connectorSummary(detail: ConnectorDetail, t: TextValue["t"]): Co
       };
     }
     case "telegram": {
+      if (messagingStateUnknown(detail.props)) return unknownSummary(t);
       const { connections, agents } = detail.props;
       const state = telegramIntegrationState(connections, agents);
       const orchestrator = telegramOrchestrator(connections, agents);

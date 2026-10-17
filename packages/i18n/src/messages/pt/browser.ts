@@ -56,6 +56,8 @@ export const messages = {
   "browser.pip.reattach": "Reanexar navegador à barra lateral direita",
   "browser.pip.reattachTitle": "Reanexar navegador",
   "browser.pip.close": "Fechar janela flutuante do navegador",
+  "browser.pip.reattachFailed": "O OpenBot não conseguiu reanexar o navegador.",
+  "browser.pip.closeFailed": "O OpenBot não conseguiu fechar a janela flutuante do navegador.",
   "browser.popupBlocked.title": "Pop-up bloqueado",
   "browser.popupBlocked.dismiss": "Dispensar mensagem de pop-up",
   "browser.liveView.label": "Visualização ao vivo da página no computador anfitrião",

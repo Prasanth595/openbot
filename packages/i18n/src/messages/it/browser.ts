@@ -56,6 +56,8 @@ export const messages = {
   "browser.pip.reattach": "Riaggancia il browser alla barra laterale destra",
   "browser.pip.reattachTitle": "Riaggancia il browser",
   "browser.pip.close": "Chiudi il popup del browser",
+  "browser.pip.reattachFailed": "OpenBot non è riuscito a riagganciare il browser.",
+  "browser.pip.closeFailed": "OpenBot non è riuscito a chiudere il popup del browser.",
   "browser.popupBlocked.title": "Popup bloccato",
   "browser.popupBlocked.dismiss": "Chiudi il messaggio del popup",
   "browser.liveView.label": "Vista in diretta della pagina sull'host",

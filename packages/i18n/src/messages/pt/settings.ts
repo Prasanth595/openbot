@@ -129,6 +129,8 @@ export const messages = {
   "settings.save.notSaved": "Alterações não salvas",
   "settings.save.reset": "Redefinir",
   "settings.panel.resize": "Redimensionar painel direito",
+  "settings.preferences.loadFailed": "Não foi possível carregar suas configurações.",
+  "settings.preferences.saveFailed": "Não foi possível salvar esta configuração. Tente de novo.",
   "settings.agentSelect.placeholder": "Escolha um agente",
   "settings.agentSelect.empty": "Nenhum agente local",
   "settings.agentSelect.label": "Instalar em",
@@ -254,6 +256,9 @@ export const messages = {
   "settings.profile.sessions.disconnectLabel": "Desconectar a sessão de {name} de {signedIn}",
   "settings.profile.sessions.loadFailed": "Não foi possível carregar as sessões da conta. Tente novamente.",
   "settings.profile.sessions.disconnectFailed": "Não foi possível desconectar esta sessão. Tente novamente.",
+  "settings.profile.sessions.disconnectConfirm.title": "Desconectar esta sessão?",
+  "settings.profile.sessions.disconnectConfirm.description":
+    "Este dispositivo sai da sua conta. Ele precisa entrar de novo para se conectar.",
   "settings.updates.title": "Atualizações do OpenBot",
   "settings.updates.track.title": "Canal de atualização",
   "settings.updates.track.description": "O canal Estável recebe versões testadas do OpenBot.",

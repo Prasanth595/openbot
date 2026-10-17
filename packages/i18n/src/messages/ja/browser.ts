@@ -55,6 +55,8 @@ export const messages = {
   "browser.pip.reattach": "ブラウザーを右のサイドバーに戻す",
   "browser.pip.reattachTitle": "ブラウザーを戻す",
   "browser.pip.close": "ブラウザーのポップアップを閉じる",
+  "browser.pip.reattachFailed": "OpenBot はブラウザーをサイドバーに戻せませんでした。",
+  "browser.pip.closeFailed": "OpenBot はブラウザーのポップアップを閉じられませんでした。",
   "browser.popupBlocked.title": "ポップアップがブロックされました",
   "browser.popupBlocked.dismiss": "ポップアップのメッセージを閉じる",
   "browser.liveView.label": "ホスト上のページのライブビュー",

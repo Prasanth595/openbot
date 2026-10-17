@@ -32,12 +32,19 @@ import {
   DetailHeader,
   type IntegrationStatus,
   LogoTile,
+  ReadFailedAlert,
   Stepper,
   TelegramMark,
+  UNKNOWN_STATUS,
   WizardDialog,
   type WizardLink,
 } from "./IntegrationLayout";
-import type { SlackIntegrationAgent, SlackOrchestratorChoice, SlackOrchestratorModels } from "./SlackIntegrationPanel";
+import {
+  messagingStateUnknown,
+  type SlackIntegrationAgent,
+  type SlackOrchestratorChoice,
+  type SlackOrchestratorModels,
+} from "./SlackIntegrationPanel";
 
 // The Telegram page uses the styles of the Slack page (`slack-integration.css`): the two pages have
 // the same layout.
@@ -65,6 +72,13 @@ export interface TelegramIntegrationPanelProps {
   onAddOrchestrator: (choice: TelegramOrchestratorChoice | null) => void;
   /** The joined server's name, when the chats are that server's and not this computer's. */
   hostName?: string | undefined;
+  /**
+   * Why the last read of the chats failed. `connections` are from an earlier read; with none, the
+   * state is not known, so the page shows the reason and Retry and offers no connect.
+   */
+  loadError?: string | null | undefined;
+  /** Reads the chats again. */
+  onRetry?: (() => void) | undefined;
 }
 
 /** What a chat row can do. */
@@ -114,7 +128,9 @@ export function telegramOrchestrator<Agent extends { id: string }>(
 export function telegramIntegrationState(
   connections: readonly MessagingConnection[],
   agents: readonly { id: string }[],
+  loadError?: string | null,
 ): { status: IntegrationStatus; label: AppTextKey; attention: number } {
+  if (messagingStateUnknown({ connections, loadError })) return { ...UNKNOWN_STATUS, attention: 0 };
   const orchestrator = telegramOrchestrator(connections, agents);
   const attention = connections.filter((connection) => rowKind(connection) === "attention" || !orchestrator).length;
   if (attention > 0) return { status: "attention", label: "connector.telegram.statusAttention", attention };
@@ -133,7 +149,8 @@ export function TelegramIntegrationPanel(props: TelegramIntegrationPanelProps) {
   const [disconnecting, setDisconnecting] = createSignal<MessagingConnection | null>(null);
   /** The chats before the user pressed a link action. A chat that is not in it is the new one. */
   const [linking, setLinking] = createSignal<ReadonlySet<string> | null>(null);
-  const state = () => telegramIntegrationState(props.connections, props.agents);
+  const state = () => telegramIntegrationState(props.connections, props.agents, props.loadError);
+  const unknown = () => messagingStateUnknown(props);
   const orchestrator = () => telegramOrchestrator(props.connections, props.agents);
   const setUpDone = () => props.connections.length > 0 && orchestrator() !== null;
   const waiting = () => {
@@ -156,13 +173,15 @@ export function TelegramIntegrationPanel(props: TelegramIntegrationPanelProps) {
         statusLabel={t(state().label)}
         subtitle={t("connector.telegram.description")}
         actions={
-          <Show when={!setUpDone()}>
+          <Show when={!setUpDone() && !unknown()}>
             <Button type="button" size="sm" disabled={props.busy} onClick={() => setDialogOpen(true)}>
               {props.connections.length > 0 ? t("connector.telegram.addAgent") : t("connector.telegram.connect")}
             </Button>
           </Show>
         }
       />
+
+      <Show when={props.loadError}>{(message) => <ReadFailedAlert message={message()} onRetry={props.onRetry} />}</Show>
 
       <Show when={state().attention > 0}>
         <Alert tone="warning" role="alert">

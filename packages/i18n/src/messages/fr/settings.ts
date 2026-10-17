@@ -139,6 +139,8 @@ export const messages = {
   "settings.save.notSaved": "Modifications non enregistrées",
   "settings.save.reset": "Rétablir",
   "settings.panel.resize": "Redimensionner le panneau de droite",
+  "settings.preferences.loadFailed": "Impossible de charger vos réglages.",
+  "settings.preferences.saveFailed": "Impossible d’enregistrer ce réglage. Réessayez.",
   "settings.agentSelect.placeholder": "Choisir un agent",
   "settings.agentSelect.empty": "Aucun agent local",
   "settings.agentSelect.label": "Installer dans",
@@ -265,6 +267,9 @@ export const messages = {
   "settings.profile.sessions.disconnectLabel": "Déconnecter la session {name} ouverte le {signedIn}",
   "settings.profile.sessions.loadFailed": "Impossible de charger les sessions du compte. Réessayez.",
   "settings.profile.sessions.disconnectFailed": "Impossible de déconnecter cette session. Réessayez.",
+  "settings.profile.sessions.disconnectConfirm.title": "Déconnecter cette session ?",
+  "settings.profile.sessions.disconnectConfirm.description":
+    "Cet appareil est déconnecté de votre compte. Il doit se connecter à nouveau pour accéder au compte.",
   "settings.updates.title": "Mises à jour d’OpenBot",
   "settings.updates.track.title": "Canal de mise à jour",
   "settings.updates.track.description": "Le canal Stable reçoit les versions testées d’OpenBot.",

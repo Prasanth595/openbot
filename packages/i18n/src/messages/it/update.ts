@@ -62,5 +62,6 @@ export const messages = {
   "update.whatsNew.empty.body":
     "Questa versione non ha note da mostrare qui. Il changelog completo mostra tutte le modifiche.",
   "update.whatsNew.changelog": "Changelog completo",
+  "update.whatsNew.changelogFailed": "OpenBot non è riuscito ad aprire il changelog.",
   "update.whatsNew.done": "Ho capito",
 } as const satisfies PartialTranslation<typeof source>;

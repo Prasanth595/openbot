@@ -131,6 +131,8 @@ export const messages = {
   "settings.save.notSaved": "Änderungen nicht gespeichert",
   "settings.save.reset": "Zurücksetzen",
   "settings.panel.resize": "Größe des rechten Bereichs ändern",
+  "settings.preferences.loadFailed": "Deine Einstellungen konnten nicht geladen werden.",
+  "settings.preferences.saveFailed": "Diese Einstellung konnte nicht gespeichert werden. Versuche es erneut.",
   "settings.agentSelect.placeholder": "Agenten auswählen",
   "settings.agentSelect.empty": "Keine lokalen Agenten",
   "settings.agentSelect.label": "Installieren für",
@@ -256,6 +258,9 @@ export const messages = {
   "settings.profile.sessions.disconnectLabel": "Sitzung von {name} vom {signedIn} trennen",
   "settings.profile.sessions.loadFailed": "Die Kontositzungen konnten nicht geladen werden. Versuche es erneut.",
   "settings.profile.sessions.disconnectFailed": "Diese Sitzung konnte nicht getrennt werden. Versuche es erneut.",
+  "settings.profile.sessions.disconnectConfirm.title": "Diese Sitzung trennen?",
+  "settings.profile.sessions.disconnectConfirm.description":
+    "Dieses Gerät wird von deinem Konto abgemeldet. Es muss sich erneut anmelden, um sich zu verbinden.",
   "settings.updates.title": "OpenBot-Updates",
   "settings.updates.track.title": "Update-Kanal",
   "settings.updates.track.description": "Der stabile Kanal erhält getestete OpenBot-Versionen.",

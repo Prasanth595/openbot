@@ -56,6 +56,8 @@ export const messages = {
   "browser.pip.reattach": "Browser wieder an die rechte Seitenleiste andocken",
   "browser.pip.reattachTitle": "Browser wieder andocken",
   "browser.pip.close": "Browser-Popup schließen",
+  "browser.pip.reattachFailed": "OpenBot konnte den Browser nicht wieder andocken.",
+  "browser.pip.closeFailed": "OpenBot konnte das Browser-Popup nicht schließen.",
   "browser.popupBlocked.title": "Popup blockiert",
   "browser.popupBlocked.dismiss": "Popup-Meldung schließen",
   "browser.liveView.label": "Live-Ansicht der Seite auf dem Host",

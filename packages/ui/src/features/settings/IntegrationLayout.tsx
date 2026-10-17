@@ -5,7 +5,14 @@
  */
 
 import { AppLogo } from "@openbot/brand";
+import type { AppTextKey } from "@openbot/i18n";
 import {
+  Alert,
+  AlertActions,
+  AlertContent,
+  AlertDescription,
+  AlertIcon,
+  AlertTitle,
   Badge,
   Button,
   Check,
@@ -21,6 +28,7 @@ import {
   ItemTitle,
   SettingsSection,
   Text,
+  TriangleAlert,
   X,
 } from "@openbot/ui";
 import type { JSX } from "@solidjs/web";
@@ -113,6 +121,43 @@ export function StatusPill(props: { status: IntegrationStatus; label: string }) 
       <span class="integration-status-dot" aria-hidden="true" />
       {props.label}
     </Badge>
+  );
+}
+
+/**
+ * The status of a connection that OpenBot could not read. It is not "Not set up": the connection can
+ * be there. The page says why the read failed and has Retry.
+ */
+export const UNKNOWN_STATUS = {
+  status: "attention",
+  label: "connector.statusUnknown",
+} as const satisfies { status: IntegrationStatus; label: AppTextKey };
+
+/** A read of a connection that failed: why, and Retry. `message` is the reason in the reader's language. */
+export function ReadFailedAlert(props: { message: string; onRetry?: (() => void) | undefined }) {
+  const { t } = useText();
+  const title = () => t("connector.readFailed");
+  return (
+    <Alert tone="warning" role="alert">
+      <AlertIcon>
+        <TriangleAlert />
+      </AlertIcon>
+      <AlertContent>
+        <AlertTitle>{title()}</AlertTitle>
+        <Show when={props.message !== title()}>
+          <AlertDescription>{props.message}</AlertDescription>
+        </Show>
+      </AlertContent>
+      <Show when={props.onRetry}>
+        {(retry) => (
+          <AlertActions>
+            <Button type="button" size="sm" variant="outline" onClick={() => retry()()}>
+              {t("common.retry")}
+            </Button>
+          </AlertActions>
+        )}
+      </Show>
+    </Alert>
   );
 }
 

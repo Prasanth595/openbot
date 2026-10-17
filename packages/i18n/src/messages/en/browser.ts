@@ -55,6 +55,8 @@ export const messages = defineMessages("browser", {
   "browser.pip.reattach": "Reattach browser to right sidebar",
   "browser.pip.reattachTitle": "Reattach browser",
   "browser.pip.close": "Close browser popup",
+  "browser.pip.reattachFailed": "OpenBot could not reattach the browser.",
+  "browser.pip.closeFailed": "OpenBot could not close the browser popup.",
   "browser.popupBlocked.title": "Popup blocked",
   "browser.popupBlocked.dismiss": "Dismiss popup message",
   "browser.liveView.label": "Live view of the page on the host",
