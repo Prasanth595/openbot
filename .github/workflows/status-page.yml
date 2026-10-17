@@ -3,7 +3,7 @@ name: Status page
 # The public status page at https://status.openbot.run. GitHub hosts it, so it stays up when
 # Cloudflare does not. Each run checks the services, keeps the check history in `state.json` on the
 # `status-data` branch, opens or closes the automatic incident issues, and publishes the page with
-# the `status` issues. See apps/status/scripts/update.ts.
+# the `status` issues. See apps/status/scripts/update.ts. The `alert` job reports runs that fail.
 on:
   schedule:
     - cron: "*/5 * * * *"
@@ -194,3 +194,47 @@ jobs:
       - name: Deploy the page
         id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+
+  # The page cannot report that its own checks stopped. After 2 failed check runs in a row, this job
+  # opens one issue, so the people who watch the repository get a notification. The next good check
+  # run closes it. The issue has no `status` label, so the page does not show it.
+  alert:
+    name: Report failed checks
+    needs: [update, deploy]
+    if: >-
+      always() && github.repository == 'nightly-labs/openbot' &&
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    concurrency:
+      group: status-page-alert
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      issues: write
+    steps:
+      - name: Open or close the alert issue
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          FAILED: ${{ needs.update.result == 'failure' || needs.deploy.result == 'failure' }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Status page checks fail"
+          open=$(gh api -X GET "repos/$GH_REPO/issues" -f state=open -f creator='github-actions[bot]' -f per_page=100 \
+            --jq "[.[] | select(.title == \"$title\" and .user.login == \"github-actions[bot]\")][0].number // empty")
+          if [ "$FAILED" = "true" ]; then
+            if [ -n "$open" ]; then exit 0; fi
+            # One failed run can be a short GitHub error, so open the issue only after the second.
+            previous=$(gh api -X GET "repos/$GH_REPO/actions/workflows/status-page.yml/runs" -f status=completed -f per_page=20 \
+              --jq "[.workflow_runs[] | select(.id != $GITHUB_RUN_ID and (.event == \"schedule\" or .event == \"workflow_dispatch\"))][0].conclusion // empty")
+            if [ "$previous" != "failure" ]; then exit 0; fi
+            gh issue create --title "$title" --body "The status page workflow failed 2 times in a row, so https://status.openbot.run can show old data. The page shows \"Checks are late\" after some minutes.
+
+          Last failed run: $RUN_URL
+
+          The next good run closes this issue."
+          elif [ -n "$open" ]; then
+            gh issue close "$open" --comment "The checks run again: $RUN_URL"
+          fi

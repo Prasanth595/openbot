@@ -216,7 +216,7 @@ function readState(): StateFile {
 
 type Action =
   | { type: "open-issue"; service: ServiceId; reason: string; issue: number }
-  | { type: "close-issue" | "comment-issue"; service: ServiceId; issue: number };
+  | { type: "close-issue"; service: ServiceId; issue: number };
 
 function addMinutes(days: readonly CheckDay[], result: CheckOutcome["result"], minutes: number): CheckDay[] {
   const date = NOW.slice(0, 10);
@@ -542,7 +542,7 @@ function autoIssueBody(service: ServiceId, reason: string) {
     "",
     `Investigating: The automatic check failed ${RUNS_TO_OPEN} times in a row (${reason}). We are looking into it.`,
     "",
-    "<!-- The status workflow opened this issue. It closes it when the checks pass again, if no person commented. -->",
+    "<!-- The status workflow opened this issue. It closes it when the checks pass again. -->",
   ].join("\n");
 }
 
@@ -566,31 +566,18 @@ async function openIssue(service: ServiceId, reason: string): Promise<number> {
 }
 
 /** Closes the automatic issue, or leaves it open for the person who commented on it. */
-async function recoverIssue(service: ServiceId, number: number): Promise<"close-issue" | "comment-issue"> {
+async function recoverIssue(service: ServiceId, number: number): Promise<"close-issue"> {
   // 0 is the issue that a dry run planned to open.
-  if (number === 0) return "close-issue";
+  if (number === 0 || DRY_RUN) return "close-issue";
   const issue = await github("GET", `/repos/${REPOSITORY}/issues/${number}`, decodeIssue);
   if (issue.state === "closed") return "close-issue";
-  // Only a maintainer's comment keeps the issue open: anyone can comment on a public issue.
-  let people = false;
-  for (const comment of await issueComments(issue)) {
-    if (comment.user?.login !== BOT_LOGIN && (await trusted(comment.user, comment.author_association))) people = true;
-  }
-  if (DRY_RUN) return people ? "comment-issue" : "close-issue";
-  const name = serviceName(service);
-  if (people) {
-    await github("POST", `/repos/${REPOSITORY}/issues/${number}/comments`, decodeId, {
-      body: `Monitoring: ${name} passed the last ${RUNS_TO_RECOVER} checks. A maintainer closes this issue.`,
-    });
-    return "comment-issue";
-  }
   // Close first: after a failed close, a comment first would repeat on each run.
   await github("PATCH", `/repos/${REPOSITORY}/issues/${number}`, decodeNumber, {
     state: "closed",
     state_reason: "completed",
   });
   await github("POST", `/repos/${REPOSITORY}/issues/${number}/comments`, decodeId, {
-    body: `Resolved: ${name} passed the last ${RUNS_TO_RECOVER} checks.`,
+    body: `Resolved: ${serviceName(service)} passed the last ${RUNS_TO_RECOVER} checks.`,
   });
   return "close-issue";
 }

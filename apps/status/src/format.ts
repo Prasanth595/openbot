@@ -45,7 +45,8 @@ export const formatDayTime = (iso: string) => `${formatDay(iso)}, ${formatTime(i
 
 export const formatUptime = (percent: number | null) => {
   if (percent === null) return "No data";
-  return percent >= 99.995 ? "100%" : `${percent.toFixed(2)}%`;
+  // At most 2 decimals and no trailing zeros, so 100% and 75% use one format.
+  return `${Number(percent.toFixed(2))}%`;
 };
 
 export const formatMinutes = (minutes: number) => {

@@ -121,6 +121,7 @@ export const decodeStateFile = Schema.decodeUnknownSync(StateFile);
 
 export const HISTORY_DAYS = 90;
 const DAY_MS = 86_400_000;
+const DAY_MINUTES = DAY_MS / 60_000;
 
 const STATE_RANK: Record<StatusState, number> = { operational: 0, maintenance: 1, degraded: 2, partial: 3, major: 4 };
 
@@ -140,7 +141,12 @@ export interface StatusDay {
   state: StatusState | null;
   check: CheckDay | null;
   incidents: Incident[];
+  /** Down minutes from the incidents of the day: all of a major outage, 30% of a partial outage. */
+  outageMinutes: number;
 }
+
+/** The share of a partial outage that counts as down time, as in Atlassian Statuspage. */
+const PARTIAL_WEIGHT = 0.3;
 
 /** A day with checks that failed for 30 minutes or more is a major outage. */
 const MAJOR_FAILED_MINUTES = 30;
@@ -167,27 +173,52 @@ export function serviceDays(
     const check = checks.get(date) ?? null;
     let state: StatusState | null = check && check.checks > 0 ? checkState(check) : null;
     const touching: Incident[] = [];
+    const major: [number, number][] = [];
+    const outages: [number, number][] = [];
     for (const incident of incidents) {
       if (!incident.components.includes(service.id)) continue;
       const from = Math.max(Date.parse(incident.startedAt), start);
       const to = Math.min(incident.resolvedAt ? Date.parse(incident.resolvedAt) : nowMs, end);
       if (to <= from) continue;
       touching.push(incident);
+      if (incident.impact === "major") major.push([from, to]);
+      if (incident.impact === "major" || incident.impact === "partial") outages.push([from, to]);
       state = worseState(state ?? "operational", incident.impact);
     }
-    return { date, state, check, incidents: touching };
+    const majorMs = coveredMs(major);
+    const outageMs = majorMs + PARTIAL_WEIGHT * (coveredMs(outages) - majorMs);
+    return { date, state, check, incidents: touching, outageMinutes: outageMs / 60_000 };
   });
 }
 
-/** The share of checked time in which the check did not fail, or null when nothing was checked. */
+/** The time that the intervals cover, with overlaps counted once. */
+function coveredMs(intervals: [number, number][]) {
+  let total = 0;
+  let reached = -Infinity;
+  for (const [from, to] of intervals.sort((a, b) => a[0] - b[0])) {
+    if (to > reached) {
+      total += to - Math.max(from, reached);
+      reached = to;
+    }
+  }
+  return total;
+}
+
+/**
+ * The share of time in which the service was available, or null when there is no data. A failed
+ * check and an outage incident are both down time, so an outage that the checks missed also counts.
+ */
 export function uptimePercent(days: readonly StatusDay[]): number | null {
   let minutes = 0;
-  let failed = 0;
+  let down = 0;
   for (const day of days) {
-    minutes += day.check?.minutes ?? 0;
-    failed += day.check?.failedMinutes ?? 0;
+    const failed = day.check?.failedMinutes ?? 0;
+    // A day with an incident but no checks, such as a day before the checks started, is one full day.
+    const checked = day.check && day.check.checks > 0 ? day.check.minutes : day.outageMinutes > 0 ? DAY_MINUTES : 0;
+    minutes += Math.max(checked, day.outageMinutes);
+    down += Math.max(failed, day.outageMinutes);
   }
-  return minutes === 0 ? null : 100 * (1 - failed / minutes);
+  return minutes === 0 ? null : 100 * (1 - down / minutes);
 }
 
 const RESULT_STATE: Record<CheckResult, StatusState | null> = {
