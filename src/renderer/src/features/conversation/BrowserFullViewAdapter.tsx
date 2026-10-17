@@ -28,6 +28,7 @@ export default function BrowserFullViewAdapter() {
     props,
     activateBrowserTab,
     activeBrowserTab,
+    allBrowserTabs,
     browserControlForTab,
     browserControllerForTab,
     browserExpandedOpen,
@@ -40,12 +41,13 @@ export default function BrowserFullViewAdapter() {
     setActiveRightPanel,
     setBrowserSurfaceElement,
     showBrowserPip,
+    showBrowserTabOf,
   } = useConversationViewScope();
   const serverId = () => props.server?.id ?? "";
-  const tabs = createMemo(() => orderedBrowserTabs(serverId(), browserTabs()));
+  const tabs = createMemo(() => orderedBrowserTabs(serverId(), allBrowserTabs()));
 
   createEffect(
-    () => ({ id: serverId(), listed: browserTabs() }),
+    () => ({ id: serverId(), listed: allBrowserTabs() }),
     // The order is read to change it, not to run again when it changes.
     ({ id, listed }) => untrack(() => syncBrowserTabOrder(id, listed)),
   );
@@ -53,7 +55,10 @@ export default function BrowserFullViewAdapter() {
   // A tab that shows a new address is a visit. A new title for the same address only names the page.
   const seen = new Map<string, { url: string; title: string }>();
   createEffect(
-    () => ({ id: serverId(), pages: browserTabs().map((tab) => ({ tabId: tab.id, url: tab.url, title: tab.title })) }),
+    () => ({
+      id: serverId(),
+      pages: allBrowserTabs().map((tab) => ({ tabId: tab.id, url: tab.url, title: tab.title })),
+    }),
     ({ id, pages }) => {
       for (const page of pages) {
         const previous = seen.get(page.tabId);
@@ -78,11 +83,15 @@ export default function BrowserFullViewAdapter() {
    * open, and the dock sends, stops and edits the queue of the agent that owns the tab.
    */
   function activateTab(tabId: string) {
-    activateBrowserTab(tabId);
+    if (browserTabs().some((tab) => tab.id === tabId)) {
+      activateBrowserTab(tabId);
+      return;
+    }
     const ownerId = tabs().find((tab) => tab.id === tabId)?.ownerAgentId;
-    if (!ownerId || ownerId === props.agent?.id || !props.agents.some((agent) => agent.id === ownerId)) return;
-    setActiveRightPanel("browser-expanded", ownerId);
-    props.onSelectAgent(ownerId);
+    const owner = props.agents.find((agent) => agent.id === ownerId);
+    if (!owner || !showBrowserTabOf(owner, tabId)) return;
+    setActiveRightPanel("browser-expanded", owner.id);
+    props.onSelectAgent(owner.id);
   }
 
   function closeTabs(tabIds: readonly string[]) {

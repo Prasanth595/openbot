@@ -1,5 +1,6 @@
 import type { BrowserControlSession, BrowserPreview, BrowserTab } from "@openbot/contracts/ipc";
 import { TEAM_BROWSER_NAVIGATION_CAPABILITY } from "@openbot/contracts/team-protocol/current";
+import type { AgentProfile } from "@openbot/ui/data";
 import { browserAddressUrl } from "@openbot/ui/features/browser/browser-suggestions";
 import { currentText } from "@openbot/ui/text";
 import { createEffect, createMemo, createSignal, untrack } from "solid-js";
@@ -62,19 +63,21 @@ export function createBrowserStore(deps: BrowserStoreDeps) {
     browserInteractionAvailable() && deps.panels.activeRightPanel() === "browser-expanded";
   const browserPipOpen = () => browserInteractionAvailable() && deps.panels.activeRightPanel() === "browser-pip";
   const screenOpen = () => browserSidebarOpen() || browserExpandedOpen() || browserPipOpen();
-  const browserTabs = createMemo(() => {
-    if (deps.props.browserEnabled === false) return [];
-    const agent = deps.props.agent;
-    if (!agent) return [];
-    return deps.props.browserTabs.filter((tab) =>
+  /** All tabs of the server. The full view lists them; the side panel lists only the agent's. */
+  const allBrowserTabs = createMemo(() => (deps.props.browserEnabled === false ? [] : deps.props.browserTabs));
+  const tabsOwnedBy = (agent: Pick<AgentProfile, "id" | "threadId">) =>
+    allBrowserTabs().filter((tab) =>
       tab.ownerAgentId
         ? tab.ownerAgentId === agent.id
         : Boolean(agent.threadId && tab.ownerThreadId === agent.threadId),
     );
+  const browserTabs = createMemo(() => {
+    const agent = deps.props.agent;
+    return agent ? tabsOwnedBy(agent) : [];
   });
   const closingBrowserTabIds = new Set<string>();
   createEffect(
-    () => new Set(browserTabs().map((tab) => tab.id)),
+    () => new Set(allBrowserTabs().map((tab) => tab.id)),
     (visibleTabIds) => {
       for (const tabId of closingBrowserTabIds) {
         if (!visibleTabIds.has(tabId)) closingBrowserTabIds.delete(tabId);
@@ -335,7 +338,7 @@ export function createBrowserStore(deps: BrowserStoreDeps) {
     if (
       !browserInteractionAvailable() ||
       closingBrowserTabIds.has(tabId) ||
-      !browserTabs().some((tab) => tab.id === tabId)
+      !allBrowserTabs().some((tab) => tab.id === tabId)
     ) {
       return;
     }
@@ -360,6 +363,18 @@ export function createBrowserStore(deps: BrowserStoreDeps) {
       return;
     }
     deps.props.onActivateBrowserTab(tabId);
+  }
+
+  /**
+   * Makes the tab the one that its owner shows. The conversation of the owner then activates it when it
+   * opens, so the switch to the owner's chat does not bring back the tab that the owner showed last.
+   */
+  function showBrowserTabOf(agent: Pick<AgentProfile, "id" | "threadId">, tabId: string) {
+    if (!browserInteractionAvailable() || closingBrowserTabIds.has(tabId)) return false;
+    const index = tabsOwnedBy(agent).findIndex((tab) => tab.id === tabId);
+    if (index < 0) return false;
+    lastShownTabs.set(agent.id, { id: tabId, index });
+    return true;
   }
 
   async function reloadBrowserTab(tabId: string) {
@@ -462,6 +477,7 @@ export function createBrowserStore(deps: BrowserStoreDeps) {
     browserExpandedOpen,
     browserPipOpen,
     screenOpen,
+    allBrowserTabs,
     browserTabs,
     activeBrowserTab,
     browserTakeoverTab,
@@ -477,6 +493,7 @@ export function createBrowserStore(deps: BrowserStoreDeps) {
     openBrowserAddress,
     closeBrowserTab,
     activateBrowserTab,
+    showBrowserTabOf,
     reloadBrowserTab,
     stopBrowserTab,
     navigateBrowserTab,
