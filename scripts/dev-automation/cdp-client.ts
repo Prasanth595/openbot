@@ -248,7 +248,7 @@ export interface ConnectOptions {
   pageSelector?: string | null;
   // The pid of the live registry record that owns the port, if any. See
   // OpenDevBrowserOptions: without it a browser with no app window is refused.
-  ownerPid?: number | null;
+  ownerPid?: number | null | undefined;
 }
 
 export interface PageChoice {
@@ -320,7 +320,7 @@ export interface OpenDevBrowserOptions {
   // A browser without the Electron token must prove its process descends from
   // this pid, because liveness alone cannot tell a restarted instance from a
   // squatter.
-  ownerPid?: number | null;
+  ownerPid?: number | null | undefined;
 }
 
 export async function openDevBrowser(

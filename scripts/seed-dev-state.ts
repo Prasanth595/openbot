@@ -212,7 +212,7 @@ export interface DevelopmentSeedOptions {
    */
   agentModel?: SeededAgentModel;
   /** Generated agents, histories, channels and images on top of the showcase, for benchmarks. */
-  scale?: SeedScale;
+  scale?: SeedScale | undefined;
 }
 
 export interface DevelopmentSeedSummary {

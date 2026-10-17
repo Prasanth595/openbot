@@ -158,7 +158,7 @@ async function putOptionalSecretSet(...names: string[]): Promise<void> {
 async function run(
   executable: string,
   args: string[],
-  options: { env?: NodeJS.ProcessEnv; input?: string; label: string },
+  options: { env?: NodeJS.ProcessEnv | undefined; input?: string; label: string },
 ): Promise<void> {
   await new Promise<void>((resolveProcess, rejectProcess) => {
     const environment = { ...process.env, ...options.env };

@@ -182,37 +182,37 @@ export function conversationMessageSender(id: string, name: string): Conversatio
 
 export interface ConversationMessage {
   id: string;
-  turnId?: string;
+  turnId?: string | undefined;
   author: ConversationMessageAuthor;
   text: string;
   createdAt: string;
   status: "streaming" | "completed" | "failed" | "interrupted";
-  itemType?: string;
-  source?: "user" | "assistant" | "agent" | "system" | "routine";
-  senderAgentId?: string;
+  itemType?: string | undefined;
+  source?: "user" | "assistant" | "agent" | "system" | "routine" | undefined;
+  senderAgentId?: string | undefined;
   /** Absent on a message from before senders were kept, and on one from an older host. */
-  senderMember?: ConversationMessageSender;
-  replyToMessageId?: string | null;
-  attachments?: AttachmentSummary[];
-  imageGeneration?: ImageGenerationInfo;
-  delivery?: Pick<QueueDelivery, "id" | "status" | "position">;
-  exchange?: AgentExchangeSummary;
-  reaction?: MessageReaction | null;
-  reactions?: ConversationReaction[];
+  senderMember?: ConversationMessageSender | undefined;
+  replyToMessageId?: string | null | undefined;
+  attachments?: AttachmentSummary[] | undefined;
+  imageGeneration?: ImageGenerationInfo | undefined;
+  delivery?: Pick<QueueDelivery, "id" | "status" | "position"> | undefined;
+  exchange?: AgentExchangeSummary | undefined;
+  reaction?: MessageReaction | null | undefined;
+  reactions?: ConversationReaction[] | undefined;
   routine?: {
     routineId: string;
     runId: string;
     name: string;
     scheduledFor: string;
   };
-  questionPrompt?: ConversationQuestionPrompt;
+  questionPrompt?: ConversationQuestionPrompt | undefined;
   /** Set on the one `plan` message of a turn. The text holds the same plan as a checklist. */
-  plan?: ConversationPlan;
+  plan?: ConversationPlan | undefined;
   /**
    * An interactive block from `ask_ui` (see `ui-blocks.ts`). It rides on a `question_prompt` message
    * beside `questionPrompt`. Absent on a message from an older host.
    */
-  uiBlock?: ConversationUiBlock;
+  uiBlock?: ConversationUiBlock | undefined;
 }
 
 export function isConversationMessage(value: unknown): value is ConversationMessage {

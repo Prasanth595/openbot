@@ -58,7 +58,7 @@ export default defineConfig({
     resolve: {
       dedupe: ["solid-js", "@solidjs/web"],
     },
-    server: rendererPort ? { port: rendererPort, strictPort: true } : undefined,
+    ...(rendererPort ? { server: { port: rendererPort, strictPort: true } } : {}),
     build: {
       rollupOptions: {
         input: {
