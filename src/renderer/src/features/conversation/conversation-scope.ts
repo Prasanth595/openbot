@@ -28,6 +28,7 @@ import { createMessageActions } from "./stores/message-actions";
 import { createPanelsStore, SIDE_PANEL_MODES } from "./stores/panels-store";
 import { PENDING_SEND_ID_PREFIX, pendingSendMessage } from "./stores/pending-send-store";
 import { createQueueStore } from "./stores/queue-store";
+import { createReplyJumpStore } from "./stores/reply-jump-store";
 import { createScrollStore } from "./stores/scroll-store";
 import { createSearchStore } from "./stores/search-store";
 import { createSettingsStore, runtimeSettingsEqual } from "./stores/settings-store";
@@ -440,6 +441,15 @@ export function createConversationViewScope(props: ConversationProps) {
     jumpToUnreadMessages,
     jumpToLatestMessage,
   } = scroll;
+  const replyJump = createReplyJumpStore({
+    props,
+    scrollElement: () => scrollElement,
+    timelineIndexById,
+    scrollToIndex: (index) => messageVirtualizer.scrollToIndex(index),
+    setStickToLatest: (value) => {
+      stickToLatest = value;
+    },
+  });
   const search = createSearchStore({
     props,
     chatSearchOpen,
@@ -1234,6 +1244,7 @@ export function createConversationViewScope(props: ConversationProps) {
   };
 
   return {
+    replyJump,
     sideQuestionAvailable,
     sideQuestion,
     setSideQuestionDraft,

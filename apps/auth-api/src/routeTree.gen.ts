@@ -32,6 +32,7 @@ import { Route as DownloadPlatformRouteImport } from './routes/download/$platfor
 import { Route as GuidesIndexRouteImport } from './routes/guides/index'
 import { Route as GuidesSlugRouteImport } from './routes/guides/$slug'
 import { Route as GuidesRssDotxmlRouteImport } from './routes/guides/rss[.]xml'
+import { Route as HealthHostingRouteImport } from './routes/health/hosting'
 import { Route as HealthLiveRouteImport } from './routes/health/live'
 import { Route as HealthReadyRouteImport } from './routes/health/ready'
 import { Route as NewsIndexRouteImport } from './routes/news/index'
@@ -270,6 +271,11 @@ const GuidesSlugRoute = GuidesSlugRouteImport.update({
 const GuidesRssDotxmlRoute = GuidesRssDotxmlRouteImport.update({
   id: '/guides/rss.xml',
   path: '/guides/rss.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HealthHostingRoute = HealthHostingRouteImport.update({
+  id: '/health/hosting',
+  path: '/health/hosting',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HealthLiveRoute = HealthLiveRouteImport.update({
@@ -962,6 +968,7 @@ export interface FileRoutesByFullPath {
   '/download/$platform': typeof DownloadPlatformRoute
   '/guides/$slug': typeof GuidesSlugRoute
   '/guides/rss.xml': typeof GuidesRssDotxmlRoute
+  '/health/hosting': typeof HealthHostingRoute
   '/health/live': typeof HealthLiveRoute
   '/health/ready': typeof HealthReadyRoute
   '/news/$slug': typeof NewsSlugRoute
@@ -1110,6 +1117,7 @@ export interface FileRoutesByTo {
   '/download/$platform': typeof DownloadPlatformRoute
   '/guides/$slug': typeof GuidesSlugRoute
   '/guides/rss.xml': typeof GuidesRssDotxmlRoute
+  '/health/hosting': typeof HealthHostingRoute
   '/health/live': typeof HealthLiveRoute
   '/health/ready': typeof HealthReadyRoute
   '/news/$slug': typeof NewsSlugRoute
@@ -1259,6 +1267,7 @@ export interface FileRoutesById {
   '/download/$platform': typeof DownloadPlatformRoute
   '/guides/$slug': typeof GuidesSlugRoute
   '/guides/rss.xml': typeof GuidesRssDotxmlRoute
+  '/health/hosting': typeof HealthHostingRoute
   '/health/live': typeof HealthLiveRoute
   '/health/ready': typeof HealthReadyRoute
   '/news/$slug': typeof NewsSlugRoute
@@ -1409,6 +1418,7 @@ export interface FileRouteTypes {
     | '/download/$platform'
     | '/guides/$slug'
     | '/guides/rss.xml'
+    | '/health/hosting'
     | '/health/live'
     | '/health/ready'
     | '/news/$slug'
@@ -1557,6 +1567,7 @@ export interface FileRouteTypes {
     | '/download/$platform'
     | '/guides/$slug'
     | '/guides/rss.xml'
+    | '/health/hosting'
     | '/health/live'
     | '/health/ready'
     | '/news/$slug'
@@ -1705,6 +1716,7 @@ export interface FileRouteTypes {
     | '/download/$platform'
     | '/guides/$slug'
     | '/guides/rss.xml'
+    | '/health/hosting'
     | '/health/live'
     | '/health/ready'
     | '/news/$slug'
@@ -1854,6 +1866,7 @@ export interface RootRouteChildren {
   DownloadPlatformRoute: typeof DownloadPlatformRoute
   GuidesSlugRoute: typeof GuidesSlugRoute
   GuidesRssDotxmlRoute: typeof GuidesRssDotxmlRoute
+  HealthHostingRoute: typeof HealthHostingRoute
   HealthLiveRoute: typeof HealthLiveRoute
   HealthReadyRoute: typeof HealthReadyRoute
   NewsSlugRoute: typeof NewsSlugRoute
@@ -2127,6 +2140,13 @@ declare module '@tanstack/solid-router' {
       path: '/guides/rss.xml'
       fullPath: '/guides/rss.xml'
       preLoaderRoute: typeof GuidesRssDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/health/hosting': {
+      id: '/health/hosting'
+      path: '/health/hosting'
+      fullPath: '/health/hosting'
+      preLoaderRoute: typeof HealthHostingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/health/live': {
@@ -3141,6 +3161,7 @@ const rootRouteChildren: RootRouteChildren = {
   DownloadPlatformRoute: DownloadPlatformRoute,
   GuidesSlugRoute: GuidesSlugRoute,
   GuidesRssDotxmlRoute: GuidesRssDotxmlRoute,
+  HealthHostingRoute: HealthHostingRoute,
   HealthLiveRoute: HealthLiveRoute,
   HealthReadyRoute: HealthReadyRoute,
   NewsSlugRoute: NewsSlugRoute,

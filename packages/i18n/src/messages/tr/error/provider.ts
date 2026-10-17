@@ -235,6 +235,10 @@ export const messages = {
   "error.provider.usageLimitReached": "Hesap kullanım sınırına ulaştı.",
   "error.provider.foreignReasoning":
     "Farklı bir hesap veya API anahtarı aldığı için {provider} bu sohbetteki önceki akıl yürütmeyi kabul etmedi. OpenBot sohbet geçmişiyle yeni bir {provider} oturumu başlattı. Tekrar deneyin.",
+  "error.provider.opencodeSessionRejected":
+    "OpenCode isteği reddetti ve nedenini belirtmedi. Bu, uzun bir sohbette veya model değişikliğinden sonra olabilir. OpenBot, sohbet geçmişiyle yeni bir OpenCode oturumu başlattı. Yeniden deneyin. Hata sürerse başka bir model veya daha düşük bir efor seçin.",
+  "error.provider.museMcpStartupFault":
+    "Muse bir MCP sunucusunu başlatamadı ve bu oturumda MCP’yi engelledi. OpenBot, sohbet geçmişiyle yeni bir Muse oturumu başlattı. Tekrar deneyin. Hata devam ederse bu ajan için Bilgisayar Kullanımı’nı veya başarısız olan MCP sunucusunu kapatın.",
   "error.provider.grokSignIn": "Grok'u kullanmak için `grok login` komutunu çalıştırın veya XAI_API_KEY ayarlayın.",
   "error.provider.acpSignInTimedOut": "Oturum açma zaman aşımına uğradı.",
   "error.provider.acpSignInStopped": "Oturum açma tamamlanmadan önce durdu.",

@@ -1874,6 +1874,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 modelOptions={models()}
                 messages={view.messages}
                 messageReferences={view.messageReferences()}
+                missingMessageReferences={view.missingMessageReferences()}
                 unreadCount={readState()?.unreadCount ?? 0}
                 firstUnreadMessageId={readState()?.firstUnreadMessageId ?? null}
                 loaded={Boolean(workspace.conversation()?.page)}
@@ -1945,7 +1946,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   const result = await workspace.runtime.search(id, query);
                   return { messageIds: result.results.map((item) => item.message.id), total: result.total };
                 }}
-                onOpenSearchMessage={(messageId) => workspace.run(() => workspace.openSearchMessage(messageId))}
+                onOpenSearchMessage={workspace.openSearchMessage}
                 onTypingChange={setTyping}
                 onAnswerPrompt={view.answerPrompt}
                 onPromptResolutionPresented={(_agentId, turnId, requestId) =>

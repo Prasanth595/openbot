@@ -54,6 +54,9 @@ export interface ChatMessageRowProps {
   referencedMessage?: AgentMessage;
   /** Who wrote the quoted message. A chat with several authors has to name the one it quotes. */
   referencedAuthorName?: string;
+  /** Opens the quoted message in the chat. */
+  onOpenReference?: () => void;
+  referenceState?: "loading" | "unavailable" | undefined;
   reactions?: readonly ConversationReaction[];
   reactionOverflowCount?: number;
   onRemoveReaction?: () => void;
@@ -175,6 +178,8 @@ export function ChatMessageRow(props: ChatMessageRowProps): JSX.Element {
                 message={props.message}
                 referencedMessage={props.referencedMessage}
                 referencedAuthorName={props.referencedAuthorName}
+                onOpenReference={props.onOpenReference}
+                referenceState={props.referenceState}
                 agents={props.agents}
                 skills={props.skills}
                 onSelectAgent={props.onSelectAgent}

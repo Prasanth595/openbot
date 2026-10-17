@@ -38,7 +38,7 @@ import {
   messagePromptRequestKey,
   promptRequestKey,
 } from "./conversation-keys";
-import { mergeConversationPage, windowedSnapshotMessages } from "./conversation-merge";
+import { mergeConversationPage, missingReplyOriginals, windowedSnapshotMessages } from "./conversation-merge";
 import { conversationPort } from "./conversation-port";
 import {
   decideAgentAutoRead,
@@ -60,8 +60,19 @@ const INACTIVE_SNAPSHOT_TAIL = LATEST_PAGE_SIZE * 4;
 
 function trimToLatestPage(conversation: ConversationState): void {
   if (conversation.messages.length <= LATEST_PAGE_SIZE) return;
-  conversation.messages = conversation.messages.slice(-LATEST_PAGE_SIZE);
-  conversation.references = {};
+  const kept = conversation.messages.slice(-LATEST_PAGE_SIZE);
+  const removedById = new Map(
+    conversation.messages.slice(0, -LATEST_PAGE_SIZE).map((message) => [message.id, message]),
+  );
+  // A kept reply keeps the quote of an original that the trim removes, as a page from the host gives it.
+  const references: Record<string, AgentMessage> = {};
+  for (const message of kept) {
+    const originalId = message.replyToMessageId;
+    const original = originalId ? (removedById.get(originalId) ?? conversation.references?.[originalId]) : undefined;
+    if (originalId && original) references[originalId] = original;
+  }
+  conversation.messages = kept;
+  conversation.references = references;
   conversation.page = { hasOlder: true, olderCursor: null };
 }
 
@@ -74,6 +85,8 @@ interface ConversationState {
   page?: ConversationPageInfo;
   windowMode?: "latest" | "around";
   references?: Record<string, AgentMessage>;
+  /** The originals that a host page says are deleted, by id. */
+  missingReferences?: Record<string, true>;
   olderLoading?: boolean;
   olderError?: string | null;
   read?: ConversationReadState;
@@ -627,6 +640,10 @@ const Conversation = createSimpleContext({
           ...Object.fromEntries(
             Object.entries(page.references).map(([id, message]) => [id, toAgentMessage(message, page.agentId)]),
           ),
+        };
+        conversation.missingReferences = {
+          ...(merge === "replace" ? {} : conversation.missingReferences),
+          ...missingReplyOriginals(page),
         };
         conversation.page = page.pageInfo;
         if (windowMode) conversation.windowMode = windowMode;

@@ -5,10 +5,14 @@ import { mergeConfig, type PluginOption } from "vite";
 import { chatVisualPages } from "./chat-visual-pages";
 
 const config = {
-  // The desktop renderer, and the public site's article components. A site story
-  // brings its own stylesheet with it, because the two stylesheets set the same
-  // global rules to different values and cannot both be loaded for every story.
-  stories: ["../src/renderer/**/*.stories.@(ts|tsx)", "../apps/auth-api/src/**/*.stories.@(ts|tsx)"],
+  // The desktop renderer, the public site's article components and the status page. A site
+  // or status story brings its own stylesheet with it, because the stylesheets set the same
+  // global rules to different values and cannot all be loaded for every story.
+  stories: [
+    "../src/renderer/**/*.stories.@(ts|tsx)",
+    "../apps/auth-api/src/**/*.stories.@(ts|tsx)",
+    "../apps/status/src/**/*.stories.@(ts|tsx)",
+  ],
   addons: ["@storybook/addon-a11y"],
   framework: {
     name: "storybook-solidjs-vite",

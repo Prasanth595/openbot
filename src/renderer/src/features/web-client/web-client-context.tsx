@@ -40,7 +40,7 @@ import { currentText } from "@openbot/ui/text";
 import { errorReference, type UserErrorDetails } from "@openbot/user-errors";
 import { createEffect, createMemo, createSignal, createStore, onSettled } from "solid-js";
 import { toAgentProfile } from "../../app-message-projection";
-import { mergeConversationPage } from "../conversation/conversation-merge";
+import { mergeConversationPage, missingReplyOriginals } from "../conversation/conversation-merge";
 import { followsServerUpdate } from "../servers/server-update-flow";
 import { createSidebarPreferences } from "../sidebar/sidebar-preferences";
 import { defaultSidebarLayout } from "../sidebar/sidebar-sections";
@@ -60,6 +60,8 @@ import { readWebServerSelection, writeWebServerSelection } from "./web-server-se
 
 interface WebConversation {
   page: ConversationPage | null;
+  /** The originals that a host page says are deleted, by id. */
+  missingReferences?: Record<string, true>;
   draft: string;
   attachments: AttachmentSummary[];
   loading: boolean;
@@ -1050,6 +1052,7 @@ export function createWebWorkspace(
           // newest messages keep their revision, so a delta held during this read still applies.
           revision: older && old ? old.revision : page.revision,
         };
+        item.missingReferences = { ...(old ? item.missingReferences : {}), ...missingReplyOriginals(page) };
         item.loading = false;
         item.error = null;
       });
@@ -1567,17 +1570,25 @@ export function createWebWorkspace(
           draft.activeBrowserTabId = tabId;
         });
     },
+    /**
+     * Loads older pages until the message is loaded. It does not go through `run`: another action
+     * would make `run` skip the load, and a jump would then report a message that exists as missing.
+     */
     async openSearchMessage(messageId: string) {
       const id = selectedId;
       const current = generation;
       if (!id) return;
-      while (!state.conversations[id]?.page?.messages.some((message) => message.id === messageId)) {
-        const page = state.conversations[id]?.page;
-        if (!page?.pageInfo.hasOlder || !page.pageInfo.olderCursor) break;
-        const cursor = page.pageInfo.olderCursor;
-        await load(id, true);
-        if (disposed || current !== generation || selectedId !== id) return;
-        if (state.conversations[id]?.page?.pageInfo.olderCursor === cursor) break;
+      try {
+        while (!state.conversations[id]?.page?.messages.some((message) => message.id === messageId)) {
+          const page = state.conversations[id]?.page;
+          if (!page?.pageInfo.hasOlder || !page.pageInfo.olderCursor) break;
+          const cursor = page.pageInfo.olderCursor;
+          await load(id, true);
+          if (disposed || current !== generation || selectedId !== id) return;
+          if (state.conversations[id]?.page?.pageInfo.olderCursor === cursor) break;
+        }
+      } catch (error) {
+        if (current === generation) report(error);
       }
     },
     async approve(input: RespondToApprovalInput) {

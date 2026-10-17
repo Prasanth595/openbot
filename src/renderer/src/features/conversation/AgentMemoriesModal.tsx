@@ -68,8 +68,11 @@ export function AgentMemoriesModal(props: AgentMemoriesModalProps) {
     }
   }
 
+  // The port is new after each activity of the agent, and an effect runs again for an equal value.
+  // The memo keeps a memory edit until the owner changes.
+  const ownerId = createMemo(() => props.port.ownerId);
   createEffect(
-    () => [props.open, props.port.ownerId] as const,
+    () => [props.open, ownerId()] as const,
     ([open]) => {
       if (!open) return;
       setSelection(null);

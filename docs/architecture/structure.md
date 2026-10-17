@@ -8,6 +8,7 @@ apps/
   mobile/            Expo React Native client for remote team hosts
   site-router/       Cloudflare Worker that serves published sites from private R2 storage
   slack-app/         Slack CLI projects with the OpenBot Slack app manifests (production, development)
+  status/            Public status page on GitHub Pages and the service check script of its workflow
 packages/
   ui/                Shared SolidJS controls and primitive styles for desktop, web, and Storybook
   brand/             Shared logos, avatars, and design tokens

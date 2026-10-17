@@ -122,6 +122,8 @@ export interface ConversationProps {
   modelOptions: AgentModelOption[];
   messages: readonly AgentMessage[];
   messageReferences?: Record<string, AgentMessage>;
+  /** The quoted originals that the host no longer has. Their replies show a note in place of the quote. */
+  missingMessageReferences?: Readonly<Record<string, true>>;
   unreadCount: number;
   firstUnreadMessageId: string | null;
   loaded: boolean;

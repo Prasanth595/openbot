@@ -430,6 +430,12 @@ computer answers each chat; see [Telegram connections](#telegram-connections). C
 email provider can keep their own security, delivery, and network logs under their own policies. These provider logs are outside the
 OpenBot application database and its daily maintenance task.
 
+The public status page at `status.openbot.run` is on GitHub Pages. GitHub serves it and keeps its
+own request logs under its own policy. The page has no analytics and no cookies, and it loads
+nothing from other sites. A GitHub Actions workflow checks the OpenBot services about every 5 minutes
+with plain requests that carry no account or user data. Incidents on the page come from issues
+with the `status` label in the public OpenBot repository.
+
 Paid server plans use Stripe. You enter card and billing details on Stripe's pages, not in OpenBot.
 Stripe sends the account service the subscription state, the plan, its price, the period, and the
 account and server IDs that the subscription names, never the card number. When you choose a plan

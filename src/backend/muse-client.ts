@@ -607,7 +607,7 @@ export class MuseAgentClient extends EventEmitter<ClientEvents> implements Agent
           ? {}
           : {
               input,
-              workspaceRoots: [thread.cwd, ...thread.roots],
+              workspaceRoots: [...new Set([thread.cwd, ...thread.roots])],
               ifBusy: "queue",
               ...(effort ? { reasoningEffort: effort } : {}),
             }),

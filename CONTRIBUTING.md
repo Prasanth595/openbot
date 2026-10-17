@@ -186,10 +186,10 @@ contributions to Synthetify Labs spółka z ograniczoną odpowiedzialnością. O
 users with write access to this repository and bots do not sign.
 
 To sign, tick the agreement box in the description of your pull request. The pull request template
-adds the box. When the description has no box, the `CLA` workflow adds it at the end. A coding
-agent ticks the box only when you tell it to. An author of a commit in a pull request that a
-different person opened signs with a comment instead, as section 10 of the agreement says. You sign
-one time for each version. The `CLA` workflow records the signature on the `cla-signatures` branch
+has no box, because most authors do not sign. When you must sign, the `CLA` workflow adds the box to
+the end of the description. A coding agent ticks the box only when you tell it to. An author of a
+commit in a pull request that a different person opened signs with a comment instead, as section 10
+of the agreement says. You sign one time for each version. The `CLA` workflow records the signature on the `cla-signatures` branch
 and sets the `CLA` status. Its rules are in `scripts/cla.ts`. Each commit author email must be
 linked to a GitHub account, so that the workflow can find who must sign.
 
