@@ -1764,7 +1764,7 @@ export class RemoteServerManager extends EventEmitter<RemoteServerEvents> {
       const response = yield* this.#client.fetch(server, url, {
         method: image ? "PUT" : "DELETE",
         headers,
-        body: image ? Buffer.from(image.bytes) : undefined,
+        ...(image ? { body: Buffer.from(image.bytes) } : {}),
       });
       const json = yield* remoteCall(() => response.json());
       const value = yield* remoteDecode(() =>

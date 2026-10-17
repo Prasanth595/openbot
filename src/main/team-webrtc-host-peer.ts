@@ -649,7 +649,7 @@ export class TeamWebRtcHostPeer {
             "OpenBot-Capabilities": [...this.#peerCapabilities].join(","),
             ...(this.#localSessionId ? { "X-OpenBot-WebRTC-Session": this.#localSessionId } : {}),
           },
-          body: requestBody,
+          ...(requestBody === undefined ? {} : { body: requestBody }),
         }),
       ),
       (response) =>

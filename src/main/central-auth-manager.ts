@@ -1342,7 +1342,8 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
   ): Effect.fn.Return<CentralAuthState, CentralAuthOperationError, CentralAuthTransport> {
     const existingChallenge = this.#state.status === "code_sent" ? this.#state : null;
     if (existingChallenge) {
-      this.#setState({ ...existingChallenge, issue: undefined });
+      const { issue: _previousIssue, ...challenge } = existingChallenge;
+      this.#setState(challenge);
     } else {
       this.#setState({ status: "signing_in" });
     }
@@ -1408,7 +1409,10 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
       code: string,
     ): Effect.fn.Return<CentralAuthState, CentralAuthOperationError, CentralAuthTransport> {
       const challenge = this.#state.status === "code_sent" ? this.#state : null;
-      if (challenge) this.#setState({ ...challenge, issue: undefined });
+      if (challenge) {
+        const { issue: _previousIssue, ...pendingChallenge } = challenge;
+        this.#setState(pendingChallenge);
+      }
       let sessionApplied = false;
       return yield* Effect.gen({ self: this }, function* () {
         const session = yield* this.#requestEffect(
@@ -1675,7 +1679,7 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
         path,
         {
           ...init,
-          headers: sessionToken ? { ...init.headers, Authorization: `Bearer ${sessionToken}` } : init.headers,
+          ...(sessionToken ? { headers: { ...init.headers, Authorization: `Bearer ${sessionToken}` } } : {}),
         },
         decoder,
         timeoutMs,
