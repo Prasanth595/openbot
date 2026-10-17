@@ -67,10 +67,13 @@ export function AgentMemoriesModal(props: AgentMemoriesModalProps) {
     for (const pending of [...pendingDeletes.values()]) pending.commit();
   });
 
-  /** The cap the owner reached, or null. A remote host's cap is unknown here; it refuses on save. */
+  /**
+   * The cap the owner reached, or null. A remote host's cap is unknown here; it refuses on save. A
+   * memory that waits for undo is still stored, so it still counts.
+   */
   const reachedLimit = () => {
     const limit = props.port.limit;
-    return limit !== null && visibleMemories().length >= limit ? limit : null;
+    return limit !== null && memories().length >= limit ? limit : null;
   };
 
   /** Hides or shows a memory while its delete waits. */
