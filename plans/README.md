@@ -19,12 +19,18 @@ Allowed states: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED: <reason>`,
 ## Dependencies
 
 - Plan 002 supersedes the backend part of plan 001. The host whitelist part is
-  the next stage of plan 002.
+  the open stage of plan 002. Part of it is in the code: D1 keeps members by
+  account, role and invitation email (`remote_memberships`, `remote_invites`), and
+  the host accepts a one-host account ticket (`redeemCentralTicket`). The host
+  still keeps local password sign-in (`src/main/team-store.ts`), and the plan
+  does not permit that. Not confirmed: which commit started this stage. The
+  history before 2026-09-01 is one commit (`ea08619ca`).
 - Plan 003 is independent of 001 and 002. It was written against a clean
   worktree at commit `4980fb58`, after #633 gave Codex HTTP MCP servers, and
   rewritten once the developer decided the runtime, the configuration policy and
-  the OAuth question. Stages 1 to 3 are implemented; Stage 4 is open.
-- The plan was written against a dirty working tree at commit `8229759`.
+  the OAuth question. Stages 1 to 4 are done in #635 (`87f488804`). Stage 4
+  replaced `mcp-remote` with native MCP OAuth.
+- Plan 001 was written against a dirty working tree at commit `8229759`.
   Uncommitted files of the OpenBot Remote feature are part of the input state.
   The implementer must preserve them and check them before making a change.
 
