@@ -205,7 +205,7 @@ export const RemoteMcpSignIn: Story = {
     initialSection: "mcp",
     mcpServers: REMOTE_MCP_SERVERS,
   },
-  render: (args) => <RemoteMcpStory settings={args} />,
+  render: (args) => <McpSignInStory settings={args} />,
 };
 
 export const RemoteMcpMember: Story = {
@@ -216,13 +216,32 @@ export const RemoteMcpMember: Story = {
     initialSection: "mcp",
     mcpServers: REMOTE_MCP_SERVERS,
   },
-  render: (args) => <RemoteMcpStory settings={args} />,
+  render: (args) => <McpSignInStory settings={args} />,
 };
 
-function RemoteMcpStory(props: { settings: ServerSettingsModalProps }) {
+/**
+ * This computer's MCP list after Granola refused its saved sign-in. The row asks for a new sign-in
+ * with no test, and Sign in finishes at once. A joined host never reports a lost sign-in.
+ */
+export const LocalMcpSignInNeeded: Story = {
+  args: {
+    initialSection: "mcp",
+    mcpServers: REMOTE_MCP_SERVERS,
+  },
+  render: (args) => (
+    <McpSignInStory
+      settings={args}
+      initial={{ "mcp-granola": { mcpServerId: "mcp-granola", signedIn: false, needsSignIn: true } }}
+    />
+  ),
+};
+
+function McpSignInStory(props: { settings: ServerSettingsModalProps; initial?: Record<string, McpSignInState> }) {
   const [states, setStates] = createStore<Record<string, McpSignInState>>({
     "mcp-linear": { mcpServerId: "mcp-linear", signedIn: true },
+    ...props.initial,
   });
+  const local = props.settings.server.kind === "local";
   const host = createSignInHost();
   const waiting = new Map<string, (result: McpTestResult) => void>();
   const finish = (url: string, result: McpTestResult) => {
@@ -232,7 +251,11 @@ function RemoteMcpStory(props: { settings: ServerSettingsModalProps }) {
   };
   const signIn: McpPanelSignIn = {
     states,
-    remote: { hostName: props.settings.server.name, runtime: host.runtime, clipboard: true, pages: host.pages },
+    ...(local
+      ? {}
+      : {
+          remote: { hostName: props.settings.server.name, runtime: host.runtime, clipboard: true, pages: host.pages },
+        }),
     start: (config) =>
       new Promise((resolve) => {
         waiting.set(config.url, (result) => {
@@ -242,7 +265,8 @@ function RemoteMcpStory(props: { settings: ServerSettingsModalProps }) {
             });
           resolve(result);
         });
-        host.open(config.url, config.name, () => finish(config.url, { toolCount: 6, error: null }));
+        if (local) finish(config.url, { toolCount: 6, error: null });
+        else host.open(config.url, config.name, () => finish(config.url, { toolCount: 6, error: null }));
       }),
     cancel: async (url) => finish(url, { toolCount: 0, error: sourceText("error.backend.mcpSignInCancelled") }),
     signOut: async (id) =>
