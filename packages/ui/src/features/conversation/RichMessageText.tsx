@@ -1,12 +1,12 @@
 import { type ChatTagKind, chatTagReferences } from "@openbot/contracts/chat-tag-references";
-import type { AttachmentSummary, InstalledSkill } from "@openbot/contracts/ipc";
+import type { AttachmentSummary } from "@openbot/contracts/ipc";
 import type { AppTextKey } from "@openbot/i18n";
 import { Blocks, Button, Puzzle } from "@openbot/ui";
 import { ReferenceChip } from "@openbot/ui/reference-chip";
 import { usesTouchLayout } from "@openbot/ui/utils";
 import type { JSX } from "@solidjs/web";
 import { createMemo, createSignal, createUniqueId, For, Show, untrack } from "solid-js";
-import type { AgentProfile, MessageCitation } from "../../data";
+import type { ComposerAgent, ComposerSkill, MessageCitation } from "../../data";
 import { useText } from "../../text";
 import { AgentAvatar } from "../agents/AgentAvatar";
 import { AnchoredTooltip } from "./AnchoredTooltip";
@@ -23,8 +23,8 @@ import {
 
 export interface RichMessageTextProps {
   body: string;
-  agents: AgentProfile[];
-  skills?: InstalledSkill[];
+  agents: ComposerAgent[];
+  skills?: ComposerSkill[];
   attachments?: AttachmentSummary[];
   citations?: MessageCitation[];
   onSelectAgent: (agentId: string) => void;
@@ -314,8 +314,8 @@ function plainTextPart(part: RichMessagePart): boolean {
 
 interface RichMessagePart {
   text: string;
-  agent?: AgentProfile;
-  skill?: InstalledSkill;
+  agent?: ComposerAgent;
+  skill?: ComposerSkill;
   /**
    * An MCP server tag carries the name it was written with, and nothing looks it up. A message is a
    * record of what the user asked, and a server removed since does not make that record wrong.
@@ -330,8 +330,8 @@ interface RichMessagePart {
 
 function richMessageParts(
   body: string,
-  agents: AgentProfile[],
-  skills: InstalledSkill[],
+  agents: ComposerAgent[],
+  skills: ComposerSkill[],
   citationsByNumber: Map<number, MessageCitation>,
   attachmentsById: Map<string, AttachmentSummary>,
 ): RichMessagePart[] {
@@ -363,7 +363,7 @@ function richMessageParts(
   return parts;
 }
 
-function semanticTagParts(body: string, agents: AgentProfile[], skills: InstalledSkill[]): RichMessagePart[] {
+function semanticTagParts(body: string, agents: ComposerAgent[], skills: ComposerSkill[]): RichMessagePart[] {
   const references = chatTagReferences(body);
   if (references.length === 0) return [{ text: body }];
   const parts: RichMessagePart[] = [];
@@ -484,12 +484,12 @@ function CitationArrowIcon() {
 
 interface AgentTagMatcher {
   expression: RegExp;
-  agentsByName: Map<string, AgentProfile>;
+  agentsByName: Map<string, ComposerAgent>;
 }
 
-const agentTagMatchers = new WeakMap<AgentProfile[], AgentTagMatcher>();
+const agentTagMatchers = new WeakMap<ComposerAgent[], AgentTagMatcher>();
 
-function agentTagMatcher(agents: AgentProfile[]): AgentTagMatcher | null {
+function agentTagMatcher(agents: ComposerAgent[]): AgentTagMatcher | null {
   if (agents.length === 0) return null;
   const cached = agentTagMatchers.get(agents);
   if (cached) return cached;
@@ -505,12 +505,12 @@ function agentTagMatcher(agents: AgentProfile[]): AgentTagMatcher | null {
   return matcher;
 }
 
-function taggedMessageParts(body: string, agents: AgentProfile[]) {
+function taggedMessageParts(body: string, agents: ComposerAgent[]) {
   if (!body.includes("@")) return [{ text: body, agent: undefined }];
   const matcher = agentTagMatcher(agents);
   if (!matcher) return [{ text: body, agent: undefined }];
   matcher.expression.lastIndex = 0;
-  const parts: Array<{ text: string; agent: AgentProfile | undefined }> = [];
+  const parts: Array<{ text: string; agent: ComposerAgent | undefined }> = [];
   let cursor = 0;
   for (const match of body.matchAll(matcher.expression)) {
     const index = match.index ?? 0;

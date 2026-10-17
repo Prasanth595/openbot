@@ -2,6 +2,9 @@ import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import type {
   AgentMemoryLimitPreference,
   AgentProviderId,
+  BrowserDockAction,
+  BrowserDockFrame,
+  BrowserDockPresentation,
   BusyMessageModePreference,
   DeleteHostedSiteInput,
   DynamicIslandAction,
@@ -39,6 +42,9 @@ import {
   isAgentProvider,
   isAppLanguage,
   isAppLogoColor,
+  isBrowserDockAction,
+  isBrowserDockFrame,
+  isBrowserDockPresentation,
   isBusyMessageMode,
   isDynamicIslandAction,
   isDynamicIslandInteractive,
@@ -178,6 +184,21 @@ export function parseDynamicIslandPresentation(input: unknown): DynamicIslandPre
 export function parseDynamicIslandAction(input: unknown): DynamicIslandAction {
   if (isDynamicIslandAction(input)) return input;
   throw new Error("Dynamic Island action is invalid.");
+}
+
+export function parseBrowserDockPresentation(input: unknown): BrowserDockPresentation | null {
+  if (input === null || isBrowserDockPresentation(input)) return input;
+  throw new Error("Browser dock presentation is invalid.");
+}
+
+export function parseBrowserDockAction(input: unknown): BrowserDockAction {
+  if (isBrowserDockAction(input)) return input;
+  throw new Error("Browser dock action is invalid.");
+}
+
+export function parseBrowserDockFrame(input: unknown): BrowserDockFrame {
+  if (isBrowserDockFrame(input)) return input;
+  throw new Error("Browser dock frame is invalid.");
 }
 
 export function parseMacPermission(input: unknown): MacPermissionId {

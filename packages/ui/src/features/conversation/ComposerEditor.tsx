@@ -1,13 +1,13 @@
 import { attachmentReferenceIds } from "@openbot/contracts/attachment-references";
 import { serializeChatTagReference } from "@openbot/contracts/chat-tag-references";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
-import type { DraftAttachment, InstalledSkill, McpServerConfig } from "@openbot/contracts/ipc";
+import type { DraftAttachment } from "@openbot/contracts/ipc";
 import { Badge, Blocks, Listbox, Puzzle } from "@openbot/ui";
 import { usesTouchLayout } from "@openbot/ui/utils";
 import { Dynamic, Portal } from "@solidjs/web";
 import { createEffect, createMemo, createSignal, createUniqueId, For, onCleanup, onSettled, Show } from "solid-js";
 import { createScrollFades } from "../../components/createScrollFades";
-import type { AgentProfile } from "../../data";
+import type { ComposerAgent, ComposerMcpServer, ComposerSkill } from "../../data";
 import { useText } from "../../text";
 import { AgentAvatar } from "../agents/AgentAvatar";
 import { AnchoredTooltip } from "./AnchoredTooltip";
@@ -55,10 +55,10 @@ import { isSendShortcutKey, type SendShortcut } from "./send-shortcut";
 
 interface ComposerEditorProps {
   agentId: string | undefined;
-  agents: AgentProfile[];
-  skills?: InstalledSkill[];
+  agents: ComposerAgent[];
+  skills?: ComposerSkill[];
   /** The host's MCP servers, offered by the same `$` the skills answer. */
-  mcpServers?: McpServerConfig[];
+  mcpServers?: ComposerMcpServer[];
   attachments?: DraftAttachment[];
   value: string;
   placeholder: string;

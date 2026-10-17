@@ -1,11 +1,11 @@
 import { expandChatTagReferences } from "@openbot/contracts/chat-tag-references";
-import type { InstalledSkill, QueueDelivery, QueueHold, QueueSteerFallback } from "@openbot/contracts/ipc";
+import type { QueueDelivery, QueueHold, QueueSteerFallback } from "@openbot/contracts/ipc";
 import type { AppTextKey } from "@openbot/i18n";
 import { Button, ConfirmDialog, Plus } from "@openbot/ui";
 import { prefersReducedMotion } from "@openbot/ui/utils";
 import { createEffect, createMemo, createSignal, createUniqueId, For, onCleanup, Show, untrack } from "solid-js";
 import { createVerticalDragPreview } from "../../components/createVerticalDragPreview";
-import type { AgentProfile } from "../../data";
+import type { ComposerAgent, ComposerSkill } from "../../data";
 import { useText } from "../../text";
 import { AnchoredTooltip } from "./AnchoredTooltip";
 import { fileBadge } from "./AttachmentCards";
@@ -16,8 +16,8 @@ interface QueuePanelProps {
   deliveries: QueueDelivery[];
   /** Why the queue is waiting, when the cause is not a turn this conversation can show. */
   hold?: QueueHold | null;
-  agents?: AgentProfile[];
-  skills?: InstalledSkill[];
+  agents?: ComposerAgent[];
+  skills?: ComposerSkill[];
   editingDeliveryId?: string | null;
   canSteer: boolean;
   onSteer: (deliveryId: string) => void;

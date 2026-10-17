@@ -36,6 +36,7 @@ import {
   type Input,
   Menu,
   type NativeImage,
+  type Rectangle,
   type Session,
   session,
   type WebContents,
@@ -285,6 +286,13 @@ export type BrowserUserControlOwner =
   | { kind: "session"; sessionId: string }
   | { kind: "member"; memberId: string };
 
+/** The page that the main window shows, in window pixels, and the zoom of the window. */
+export interface BrowserMainPage {
+  tabId: string;
+  bounds: Rectangle;
+  zoomFactor: number;
+}
+
 export class BrowserHost {
   static readonly CONTROL_IDLE_GRACE_MS = BrowserControlSessions.IDLE_GRACE_MS;
   readonly #window: BrowserWindow;
@@ -305,6 +313,7 @@ export class BrowserHost {
   #attachedView: WebContentsView | null = null;
   #pictureInPictureWindow: BrowserWindow | null = null;
   #pictureInPictureOverlayView: WebContentsView | null = null;
+  #mainPageListener: ((page: BrowserMainPage | null) => void) | null = null;
   #target: BrowserViewTarget = "main";
   readonly #mountedViews = new Map<WebContentsView, BrowserWindow>();
   readonly #takeoverTabIds = new Set<string>();
@@ -572,6 +581,30 @@ export class BrowserHost {
       if (this.#attachedView) this.#mountView(this.#attachedView, this.#window);
     }
     this.#syncAttachedView();
+  }
+
+  /**
+   * Calls `listener` each time the page of the main window moves, and with null when the main window
+   * shows no page. It runs after the page view is raised, so the listener can raise its own views above it.
+   */
+  setMainPageListener(listener: ((page: BrowserMainPage | null) => void) | null): void {
+    this.#mainPageListener = listener;
+    this.#syncAttachedView();
+  }
+
+  /**
+   * The keys of the window that work while the dock over the page has the focus: DevTools, search, and
+   * the keys of the full view. True when the window takes the key.
+   */
+  forwardDockShortcut(input: Input): boolean {
+    if (this.#window.isDestroyed()) return false;
+    if (isToggleDevToolsShortcut(input)) {
+      this.#window.webContents.toggleDevTools();
+      return true;
+    }
+    if (!isGlobalSearchShortcut(input) && !isBrowserViewShortcut(input, process.platform === "darwin")) return false;
+    this.#forwardKeyToWindow(input);
+    return true;
   }
 
   setPictureInPictureOverlayView(view: WebContentsView | null): void {
@@ -2377,6 +2410,7 @@ export class BrowserHost {
       targetWindow.isDestroyed()
     ) {
       this.#attachedView?.setVisible(false);
+      this.#mainPageListener?.(null);
       return;
     }
 
@@ -2393,17 +2427,17 @@ export class BrowserHost {
     tab.view.setBorderRadius(0);
     // Renderer bounds are CSS pixels; native child views use device-independent window pixels.
     const zoomFactor = targetWindow.webContents.getZoomFactor();
-    tab.view.setBounds(
-      validateBounds({
-        x: this.#bounds.x * zoomFactor,
-        y: this.#bounds.y * zoomFactor,
-        width: this.#bounds.width * zoomFactor,
-        height: this.#bounds.height * zoomFactor,
-      }),
-    );
+    const bounds = validateBounds({
+      x: this.#bounds.x * zoomFactor,
+      y: this.#bounds.y * zoomFactor,
+      width: this.#bounds.width * zoomFactor,
+      height: this.#bounds.height * zoomFactor,
+    });
+    tab.view.setBounds(bounds);
     tab.view.setVisible(true);
     tab.contents.invalidate();
     this.#raisePictureInPictureOverlay();
+    this.#mainPageListener?.(this.#target === "main" ? { tabId: tab.id, bounds, zoomFactor } : null);
     if (tab.focusOnVisible) {
       tab.focusOnVisible = false;
       tab.contents.focus();

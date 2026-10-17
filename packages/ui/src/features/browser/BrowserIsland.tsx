@@ -1,6 +1,6 @@
-import type { BrowserTakeoverRequest, RespondToBrowserSecretInput } from "@openbot/contracts/ipc";
+import type { BrowserDockIsland, RespondToBrowserSecretInput } from "@openbot/contracts/ipc";
 import { Button, LoaderCircle, MousePointer2, X } from "@openbot/ui";
-import type { AgentProfile } from "@openbot/ui/data";
+import type { ComposerAgent } from "@openbot/ui/data";
 import { AgentAvatar } from "@openbot/ui/features/agents/AgentAvatar";
 import { BrowserSecretCard } from "@openbot/ui/features/conversation/BrowserSecretCard";
 import { RichMessageText } from "@openbot/ui/features/conversation/RichMessageText";
@@ -15,11 +15,7 @@ import { Match, Show, Switch } from "solid-js";
  * - `reply`: what the agent said. An answer closes by itself; a `question` stays until the user answers it.
  *   `answerInChat` is set when the answer needs more than a line of text.
  */
-export type BrowserIslandContent =
-  | { kind: "activity"; control: "agent"; label: string }
-  | { kind: "activity"; control: "user" | "request" }
-  | { kind: "secret"; request: BrowserTakeoverRequest }
-  | { kind: "reply"; id: string; body: string; question?: boolean; answerInChat?: boolean };
+export type BrowserIslandContent = BrowserDockIsland;
 
 /** A change of this key moves the island with a spring. Other changes update it in place. */
 export function browserIslandKey(content: BrowserIslandContent | null): string {
@@ -36,8 +32,8 @@ export function browserIslandKey(content: BrowserIslandContent | null): string {
 
 export interface BrowserIslandFaceProps {
   content: BrowserIslandContent;
-  agent: AgentProfile;
-  agents: AgentProfile[];
+  agent: ComposerAgent;
+  agents: ComposerAgent[];
   handoffPending?: boolean;
   onHandoff?: () => void;
   onRespondSecret: (input: RespondToBrowserSecretInput) => Promise<void>;

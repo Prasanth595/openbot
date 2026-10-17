@@ -53,6 +53,7 @@ import { appIpcHandlers } from "./ipc/app-handlers";
 import { attachmentIpcHandlers } from "./ipc/attachment-handlers";
 import { billingIpcHandlers } from "./ipc/billing-handlers";
 import { bitwardenConnectorIpcHandlers } from "./ipc/bitwarden-connector-handlers";
+import { browserDockIpcHandlers } from "./ipc/browser-dock-handlers";
 import { browserIpcHandlers } from "./ipc/browser-handlers";
 import { channelMemoryIpcHandlers } from "./ipc/channel-memory-handlers";
 import { channelRoutineIpcHandlers } from "./ipc/channel-routine-handlers";
@@ -454,6 +455,7 @@ function registerIpcHandlers({
   mailbox,
   browser,
   browserPictureInPicture,
+  browserDock,
   browserView,
   updater,
   setupFile,
@@ -538,6 +540,7 @@ function registerIpcHandlers({
       resources: resourceMonitor,
     }),
     ...dynamicIslandIpcHandlers({ dynamicIsland }),
+    ...browserDockIpcHandlers({ browserDock }),
     ...computerUseIpcHandlers({
       cuaDriver,
       openExternal: (url) => shell.openExternal(url),

@@ -157,6 +157,7 @@ import type {
   BrowserTab,
   BrowserVisibilityInput,
 } from "./ipc-browser";
+import type { BrowserDockAction, BrowserDockFrame, BrowserDockPresentation } from "./ipc-browser-dock";
 import type { RespondToBrowserSecretInput } from "./ipc-browser-secret";
 import type {
   ChannelMemory,
@@ -673,6 +674,21 @@ export const IPC_ENDPOINTS = {
     performHaptic: request<undefined, void>()("dynamic-island:perform-haptic"),
     action: event<DynamicIslandAction>()("dynamic-island:action"),
     setInteractive: request<SetDynamicIslandInteractiveInput, void>()("dynamic-island:set-interactive"),
+  },
+  /**
+   * The dock over a local page. The main renderer publishes it and does its actions; the overlay view
+   * above the page shows it and reports the space and the glass it needs.
+   */
+  browserDock: {
+    /** Null hides the overlay. */
+    publishPresentation: request<BrowserDockPresentation | null, void>()("browser-dock:publish-presentation"),
+    getPresentation: request<undefined, BrowserDockPresentation | null>()("browser-dock:get-presentation"),
+    presentation: event<BrowserDockPresentation | null>()("browser-dock:presentation"),
+    performAction: request<BrowserDockAction, void>()("browser-dock:perform-action"),
+    action: event<BrowserDockAction>()("browser-dock:action"),
+    setFrame: request<BrowserDockFrame, void>()("browser-dock:set-frame"),
+    /** Whether the overlay shows the dock over the page. While it does, the dock in the renderer is inert. */
+    shown: event<boolean>()("browser-dock:shown"),
   },
   computerUse: {
     getState: request<undefined, ComputerUseState>()("computer-use:get-state"),
@@ -1427,6 +1443,7 @@ export const IPC_GROUP_PATHS = {
   providerRuntimes: "providerRuntimes",
   voice: "voice",
   dynamicIsland: "dynamicIsland",
+  browserDock: "browserDock",
   computerUse: "computerUse",
   skills: "skills",
   customProviders: "customProviders",

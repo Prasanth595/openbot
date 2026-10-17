@@ -91,7 +91,7 @@ export function isQueuedAgentReply(delivery: QueueDelivery): boolean {
   );
 }
 
-function isQueueDelivery(value: unknown): value is QueueDelivery {
+export function isQueueDelivery(value: unknown): value is QueueDelivery {
   return (
     isDynamicRecord(value) &&
     isIdentifier(value.id) &&

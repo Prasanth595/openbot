@@ -1,12 +1,6 @@
-import type {
-  InstalledSkill,
-  McpServerConfig,
-  QueueDelivery,
-  QueueHold,
-  RespondToBrowserSecretInput,
-} from "@openbot/contracts/ipc";
+import type { QueueDelivery, QueueHold, RespondToBrowserSecretInput } from "@openbot/contracts/ipc";
 import { ArrowUp, Button } from "@openbot/ui";
-import type { AgentProfile } from "@openbot/ui/data";
+import type { ComposerAgent, ComposerMcpServer, ComposerSkill } from "@openbot/ui/data";
 import { AgentAvatar } from "@openbot/ui/features/agents/AgentAvatar";
 import { ComposerEditor } from "@openbot/ui/features/conversation/ComposerEditor";
 import { StopIcon } from "@openbot/ui/features/conversation/ConversationIcons";
@@ -42,10 +36,10 @@ const SEND_MORPH_WINDOW_MS = 1500;
 
 export interface BrowserDockProps {
   /** The agent that owns the tab. */
-  agent: AgentProfile;
-  agents: AgentProfile[];
-  skills?: InstalledSkill[];
-  mcpServers?: McpServerConfig[];
+  agent: ComposerAgent;
+  agents: ComposerAgent[];
+  skills?: ComposerSkill[];
+  mcpServers?: ComposerMcpServer[];
   value: string;
   focusRequest?: number;
   sendShortcut?: SendShortcut;

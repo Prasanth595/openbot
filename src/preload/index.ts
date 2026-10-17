@@ -153,6 +153,11 @@ import {
   decodeBrowserTab,
   decodeBrowserTabs,
 } from "./browser-decoding";
+import {
+  decodeBrowserDockAction,
+  decodeBrowserDockPresentation,
+  decodeBrowserDockShown,
+} from "./browser-dock-decoding";
 import { clipboardFiles } from "./clipboard-files";
 import {
   decodeComputerUseHighlightPlacement,
@@ -559,6 +564,15 @@ const openbotApi: OpenBotDesktopApi = {
     connectProviderAccount: decodeAgentStatusFromMain,
     renameProviderAccount: decodeAgentStatusFromMain,
     removeProviderAccount: decodeAgentStatusFromMain,
+  }),
+  browserDock: bridgeGroup(IPC_ENDPOINTS.browserDock, {
+    publishPresentation: decodeVoid,
+    getPresentation: decodeBrowserDockPresentation,
+    presentation: decodeBrowserDockPresentation,
+    performAction: decodeVoid,
+    action: decodeBrowserDockAction,
+    setFrame: decodeVoid,
+    shown: decodeBrowserDockShown,
   }),
   dynamicIsland: bridgeGroup(IPC_ENDPOINTS.dynamicIsland, {
     getPreference: decodeDynamicIslandPreference,

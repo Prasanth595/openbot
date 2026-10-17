@@ -117,6 +117,7 @@ import { ApprovalAutomation, readApprovalAutomation } from "./approval-automatio
 import { AutomationServer } from "./automation-server";
 import { BillingDesktopService } from "./billing-service";
 import { BitwardenConnectorService } from "./bitwarden-connector-service";
+import { BrowserDockOverlay } from "./browser-dock-overlay";
 import { BrowserPictureInPicture } from "./browser-picture-in-picture";
 import { BrowserViewClient } from "./browser-view-client";
 import { BusyMessageModePreferenceStore } from "./busy-message-mode-preference-store";
@@ -173,6 +174,7 @@ import {
   createComputerUseHighlightWindow,
   createComputerUsePermissionHelpWindow,
   createDynamicIslandWindow,
+  loadBrowserDockRenderer,
   loadComputerUseHighlightRenderer,
   loadComputerUsePermissionHelpRenderer,
   loadDynamicIslandRenderer,
@@ -333,6 +335,7 @@ const TEARDOWN_ORDER = {
   mcpHostSignIns: 29,
   browser: 30,
   browserPictureInPicture: 40,
+  browserDock: 42,
   browserView: 45,
   providerDetection: 48,
   providerRuntimes: 50,
@@ -427,6 +430,7 @@ export interface ApplicationServices {
   storageUsage: StorageUsageService;
   browser: BrowserHost;
   browserPictureInPicture: BrowserPictureInPicture;
+  browserDock: BrowserDockOverlay;
   browserView: BrowserViewClient;
   updater: UpdateService;
   /** Point-in-time restart safety for host-managed updates. Nothing holds the instance when empty. */
@@ -922,6 +926,18 @@ export async function createApplicationServices({
     },
   });
   teardown.push(TEARDOWN_ORDER.browserPictureInPicture, "picture in picture", () => browserPictureInPicture.destroy());
+  // A value, as for Picture in Picture: the overlay is a view in the window that the browser shows its pages in.
+  const browserDock = new BrowserDockOverlay({
+    mainWindow,
+    preloadPath: join(__dirname, "../preload/index.cjs"),
+    load: loadBrowserDockRenderer,
+    forwardShortcut: (input) => browser.forwardDockShortcut(input),
+  });
+  browser.setMainPageListener((page) => browserDock.setPage(page));
+  teardown.push(TEARDOWN_ORDER.browserDock, "the browser dock", () => {
+    browser.setMainPageListener(null);
+    browserDock.destroy();
+  });
   browser.onChanged((tabs, activeTabId) => forwardBrowserDisplayState({ tabs, activeTabId }));
   const setupFile = join(app.getPath("userData"), SETUP_FILE);
   const analyticsPreferenceFile = join(app.getPath("userData"), ANALYTICS_PREFERENCE_FILE);
@@ -2497,6 +2513,7 @@ export async function createApplicationServices({
     storageUsage,
     browser,
     browserPictureInPicture,
+    browserDock,
     browserView,
     updater,
     setupFile,

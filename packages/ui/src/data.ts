@@ -14,6 +14,8 @@ import type {
   ConversationReaction,
   HostedSiteConversationEvent,
   ImageGenerationInfo,
+  InstalledSkill,
+  McpServerConfig,
   MessageReaction,
   ModelSwitchReason,
   QueueDeliveryStatus,
@@ -222,3 +224,21 @@ export interface AgentProfile {
   time: string;
   preview: string;
 }
+
+/** The agent fields that the composer, the queue, rich text and the browser dock read. */
+export type ComposerAgent = Pick<
+  AgentProfile,
+  "id" | "name" | "title" | "description" | "avatarSeed" | "avatarHue" | "avatarUrl"
+>;
+
+/** The skill fields that the composer, the queue and rich text read. */
+export type ComposerSkill = Pick<
+  InstalledSkill,
+  "skillId" | "slug" | "name" | "state" | "enabled" | "origin" | "description"
+>;
+
+/** The MCP server fields that the composer reads. It never reads the environment or the headers. */
+export type ComposerMcpServer = Pick<
+  McpServerConfig,
+  "id" | "name" | "enabled" | "transport" | "command" | "args" | "url"
+>;

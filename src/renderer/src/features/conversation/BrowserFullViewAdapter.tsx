@@ -127,7 +127,8 @@ export default function BrowserFullViewAdapter() {
       liveViewClipboard={serverSupportsCapability(props.server, "browser-view-clipboard")}
       onBack={() => setActiveRightPanel("browser")}
       onEnterPip={props.runtime ? () => undefined : showBrowserPip}
-      dock={<BrowserDockAdapter tab={activeBrowserTab()} />}
+      // A local tab is a native view above this window, so its dock goes in the overlay above the page.
+      dock={<BrowserDockAdapter tab={activeBrowserTab()} overlay={!props.runtime && props.server?.kind === "local"} />}
     />
   );
 }

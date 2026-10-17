@@ -1,5 +1,6 @@
 import { installPointerFocusGuard } from "@openbot/ui/pointer-focus";
 import { render } from "@solidjs/web";
+import { BrowserDockSurface } from "./features/browser/BrowserDockSurface";
 import { ComputerUseHighlightSurface } from "./features/computer-use/ComputerUseHighlightSurface";
 import { ComputerUsePermissionHelp, permissionFromQuery } from "./features/computer-use/ComputerUsePermissionHelp";
 import { DynamicIslandSurface } from "./features/dynamic-island/DynamicIslandSurface";
@@ -8,7 +9,8 @@ import { syncLogoColor } from "./logo-color";
 import "./styles.css";
 
 // The helper windows have an entry of their own, so they do not load `App`. There is one Dynamic
-// Island window for each display, and with `App` each one used twice the memory.
+// Island window for each display, and with `App` each one used twice the memory. The browser dock
+// overlay is a view of the main window, not a window, but it has no `App` either.
 const root = document.getElementById("root");
 
 if (!root) {
@@ -28,6 +30,12 @@ render(() => {
     return (
       <I18nProvider>
         <DynamicIslandSurface />
+      </I18nProvider>
+    );
+  if (surface === "browser-dock")
+    return (
+      <I18nProvider>
+        <BrowserDockSurface />
       </I18nProvider>
     );
   if (surface === "computer-use-highlight")

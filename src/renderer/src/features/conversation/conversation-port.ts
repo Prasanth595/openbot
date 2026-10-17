@@ -37,6 +37,7 @@ export interface ConversationPort {
     | "setDirectTyping"
   >;
   storage: Pick<OpenBotDesktopApi["storage"], "openLocation">;
+  browserDock: Pick<OpenBotDesktopApi["browserDock"], "publishPresentation" | "onAction" | "onShown">;
 }
 
 /** Read on each call: tests and stories replace `window.openbot` per case. */

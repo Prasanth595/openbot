@@ -808,6 +808,16 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       return () => logoColorListeners.delete(listener);
     },
     onOpenSettings: () => () => undefined,
+    // The preview has no native page, so the overlay is never on screen and the DOM dock stays.
+    browserDock: {
+      publishPresentation: async () => undefined,
+      getPresentation: async () => null,
+      onPresentation: () => () => undefined,
+      performAction: async () => undefined,
+      onAction: () => () => undefined,
+      setFrame: async () => undefined,
+      onShown: () => () => undefined,
+    },
     dynamicIsland: {
       getPreference: async () => clone(dynamicIslandPreference),
       setPreference: async (preference) => {
