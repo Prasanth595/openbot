@@ -46,6 +46,8 @@ interface PendingStart {
   task: AgentTask;
   text: string;
   clientMessageId: string;
+  /** The server of the start. A server change commits it after `props.serverId` names the new one. */
+  serverId: string;
   timer: ReturnType<typeof setTimeout>;
 }
 
@@ -203,12 +205,11 @@ export function TasksView(props: TasksViewProps) {
     if (!start) return null;
     pending = null;
     clearTimeout(start.timer);
-    const serverId = props.serverId;
     const current = generation;
     try {
       const task = await props.source.start(
         { agentId: start.task.agentId, text: start.text, clientMessageId: start.clientMessageId },
-        serverId,
+        start.serverId,
       );
       if (current !== generation) return task;
       rememberTask(task);
@@ -268,7 +269,13 @@ export function TasksView(props: TasksViewProps) {
       updatedAt: now,
       closedAt: null,
     };
-    pending = { task, text, clientMessageId, timer: setTimeout(() => void commit(), UNDO_MS) };
+    pending = {
+      task,
+      text,
+      clientMessageId,
+      serverId: props.serverId,
+      timer: setTimeout(() => void commit(), UNDO_MS),
+    };
     setState((draft) => {
       draft.pending = task;
       draft.took = { taskId: task.id, pending: true };
@@ -339,6 +346,7 @@ export function TasksView(props: TasksViewProps) {
       setState((draft) => {
         draft.snapshots = {};
         draft.conversations = {};
+        draft.pending = null;
         draft.selectedId = null;
         draft.took = null;
       });

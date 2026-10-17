@@ -1644,7 +1644,8 @@ function projectProviderAwareSidebarLayout(value: unknown): TeamProtocolProvider
   return projected;
 }
 
-function projectProviderAwareConversation(
+/** Also projects the task conversations of `agent-tasks-v1`, with no read state. */
+export function projectProviderAwareConversation(
   value: unknown,
   page: boolean,
   includeReadState = true,

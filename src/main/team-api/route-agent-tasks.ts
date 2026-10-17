@@ -7,7 +7,13 @@ import { runCauseEffect } from "../../backend/effect-boundary";
 import type { TeamApiAgentTasks } from "./dependencies";
 import { HttpError } from "./http-error";
 import type { RouteOutcome, TeamApiRequestContext } from "./request-context";
-import { memberSender, readJson, requireListedAgent, stringField } from "./request-helpers";
+import {
+  conversationSnapshotForCapabilities,
+  memberSender,
+  readJson,
+  requireListedAgent,
+  stringField,
+} from "./request-helpers";
 
 /**
  * `agent-tasks-v1`: the tasks of one agent. A member who can send a message to the agent can use them,
@@ -32,7 +38,7 @@ export async function routeAgentTasks(
   const taskId = stringField(body, "taskId");
   switch (url.pathname) {
     case AGENT_TASKS_ROUTES.read:
-      return json(200, tasks.readTask(agentId, taskId));
+      return json(200, conversationSnapshotForCapabilities(tasks.readTask(agentId, taskId), capabilities));
     case AGENT_TASKS_ROUTES.send:
       return json(
         202,

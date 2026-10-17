@@ -81,7 +81,6 @@ function createTasksVoice(controls: TasksVoiceControls): TasksVoiceAdapter {
   };
   const store = createVoiceStore({
     props: {
-      runtime: undefined,
       agent: { id: VOICE_TARGET_AGENT_ID },
       get server() {
         return { id: controls.serverId() };

@@ -1124,10 +1124,15 @@ export class TeamApiServer {
       }
       if (optional) {
         // The base events go through the provider view; an optional event that names a hidden agent is left out.
+        // A task event uses the hidden agents of the task routes, so a task of an agent that answers 404 does not arrive.
         const agentId = optionalEventAgentId(optional);
+        const protocol = eventProtocol(connection.capabilities);
         if (
           agentId !== null &&
-          hiddenProviderAgentIds(this.#options.agents.listAgents(), eventProtocol(connection.capabilities)).has(agentId)
+          (requiredCapability === AGENT_TASKS_CAPABILITY
+            ? this.hiddenAgentIds(protocol, connection.capabilities)
+            : hiddenProviderAgentIds(this.#options.agents.listAgents(), protocol)
+          ).has(agentId)
         )
           continue;
         // The list of hidden agents does not name an agent that this peer cannot see, as `/v1/hidden-agents` does.

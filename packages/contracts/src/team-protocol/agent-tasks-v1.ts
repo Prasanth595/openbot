@@ -11,8 +11,9 @@
 // events: `agent-tasks-changed` with the whole task list of one agent, `agent-task-conversation` with
 // the conversation of one task, and `agent-task-conversation-delta` with streamed text. The host sends
 // them only to a peer that has this capability. A task conversation is checked with the released
-// provider-aware conversation validator, after its keys are put in the wire spelling. The host redacts
-// the task `error` text before it reaches this contract. Bounds and meaning do not follow IPC changes;
+// provider-aware conversation validator, after its keys are put in the wire spelling. It carries only
+// the message keys of a v7 conversation route. The host redacts the task `error` text before it
+// reaches this contract. Bounds and meaning do not follow IPC changes;
 // widening any of it needs a second capability string.
 import { type AgentTasksSnapshot, isAgentTasksSnapshot } from "../ipc-agent-tasks";
 import { type ConversationSnapshot, isConversationSnapshot } from "../ipc-conversations";
@@ -29,9 +30,11 @@ import {
   oneOf,
   string,
 } from "./admin-wire";
-import { toWireAgentKeys } from "./current-agent-keys";
-import { isProviderAwareConversationSnapshot } from "./provider-aware-codec";
-import type { TeamProtocolV1JsonValue } from "./v1";
+import { withExchangeExpectsReply } from "./conversation-exchange-v7";
+import { withConversationPlans } from "./conversation-plan-v4";
+import { withConversationSenders } from "./conversation-sender-v5";
+import { toCurrentAgentKeys, toWireAgentKeys } from "./current-agent-keys";
+import { isProviderAwareConversationSnapshot, projectProviderAwareConversation } from "./provider-aware-codec";
 import type { TeamProtocolV2Json } from "./v2";
 
 export const AGENT_TASKS_CAPABILITY = "agent-tasks-v1";
@@ -87,13 +90,20 @@ const task = fields({
   closedAt: nullable(time),
 });
 const snapshot = fields({ agentId: identifier, tasks: list(task, 50), limit: taskLimit });
-/** The conversation stays whole: a projection would drop the message fields that the released validator allows. */
+/**
+ * The conversation has the message keys of a v7 conversation route: the frozen provider-aware
+ * projection, then the `expectsReply`, `plan` and `senderMember` side channels. A key that the IPC
+ * adds later does not reach the wire.
+ */
 const conversation: AdminDecoder = (input) => {
   if (!isDynamicRecord(input)) throw new Error("Invalid agent task conversation.");
   const copy: TeamProtocolV2Json = JSON.parse(JSON.stringify(input));
-  const wire: TeamProtocolV1JsonValue = copy;
-  if (!isProviderAwareConversationSnapshot(toWireAgentKeys(wire))) throw new Error("Invalid agent task conversation.");
-  return copy;
+  const wire = toWireAgentKeys(copy);
+  if (!isProviderAwareConversationSnapshot(wire)) throw new Error("Invalid agent task conversation.");
+  const projected = projectProviderAwareConversation(wire, false, false);
+  return toCurrentAgentKeys(
+    withConversationSenders(withConversationPlans(withExchangeExpectsReply(projected, wire), wire), wire),
+  );
 };
 const receipt = fields({
   messageId: identifier,
