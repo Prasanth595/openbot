@@ -6,6 +6,7 @@ import {
   type SpawnedMspConnection,
   spawnMspConnection,
 } from "@muse-code/sdk";
+import { attachmentMimeTypeForName } from "@openbot/contracts/attachment-files";
 import { isString } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
 import { redactText } from "@openbot/logging";
@@ -1035,7 +1036,7 @@ const musePrompt = Effect.fn("MuseAgentClient.prompt")(function* (params: unknow
       input.push({
         type: "image",
         base64Data: bytes.toString("base64"),
-        mediaType: /\.jpe?g$/iu.test(path) ? "image/jpeg" : /\.webp$/iu.test(path) ? "image/webp" : "image/png",
+        mediaType: attachmentMimeTypeForName(path),
       });
     }
   }
