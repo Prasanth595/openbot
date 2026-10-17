@@ -5,10 +5,12 @@
 ```text
 apps/
   auth-api/          Public web and /app browser entry, accounts, memberships, connection tickets, and billing
+  discord-app/       Developer Portal settings of the OpenBot Discord app (no code)
   mobile/            Expo React Native client for remote team hosts
   site-router/       Cloudflare Worker that serves published sites from private R2 storage
   slack-app/         Slack CLI projects with the OpenBot Slack app manifests (production, development)
   status/            Public status page on GitHub Pages, and the check and webhook scripts of its workflow
+  telegram-app/      BotFather settings of the OpenBot Telegram bot (no code)
 packages/
   ui/                Shared SolidJS controls and primitive styles for desktop, web, and Storybook
   brand/             Shared logos, avatars, and design tokens
@@ -19,7 +21,7 @@ packages/
   team-client/       Shared team connection, recovery, WebRTC framing, Dynamic Island state, and routine schedules
   user-errors/       Shared user-facing error messages for desktop and mobile
 remote/
-  api/               Bun Signal service for SDP, ICE, ticket checks, and TURN credentials
+  api/               Bun Signal service for SDP, ICE, ticket checks, TURN credentials, and the Slack, Discord, Telegram and webhook relays
   scripts/           Bun checks and update commands for Signal and coturn
 src/
   backend/           Agent runtime, provider adapters, event storage, queues, and browser host
@@ -27,7 +29,7 @@ src/
   preload/           Narrow typed bridge from Electron main to the renderer
   renderer/          SolidJS user interface
 scripts/             Development, smoke, release, and package verification entry points
-tools/               Biome GritQL rules, the UI foundation check, and the vitest sequencer
+tools/               Biome GritQL rules, the UI foundation check, the vitest sequencer and setup, and the type baseline
 .agents/skills/      Task instructions for coding agents, such as release and smoke checks
 ```
 
@@ -83,7 +85,8 @@ SolidJS, provider, Cloudflare, and application code; and the account server to d
   recovery. They do not create a second copy of messages already saved by the live turn.
 - `ConversationRuntime` keeps active work and a bounded recent cache. Released full-history APIs
   build their responses from SQLite for each request. They do not set the working cache.
-- `~/.codex`, `~/.claude`, `~/.grok`, and `~/.gemini` are provider-owned login and resume state. They are not OpenBot
+- `~/.codex`, `~/.claude`, `~/.grok`, `~/.gemini`, `~/.cursor`, `~/.cline`, `~/.pi`, and the OpenCode
+  XDG folders are provider-owned login and resume state. They are not OpenBot
   conversation storage.
 - D1 is the source of truth for central accounts, remote membership, invitations, and logical sessions.
 - Stripe is the source of truth for paid plans. D1 `billing_subscriptions` is a copy that the Stripe

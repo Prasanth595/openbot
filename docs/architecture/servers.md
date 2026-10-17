@@ -9,7 +9,7 @@ Settings can be open for a server that is not the selected one.
 
 `src/backend/storage-usage.ts` owns the scan and has no Electron imports. Sent and generated files
 come from the mailbox state in memory, with their chat from paged read-only queries in
-`database/storage-usage-queries.ts`; a file's status comes from `stat`, not from
+`database/storage-usage-queries.ts`; a file's status comes from `lstat`, not from
 `resolveAttachment`, which hashes the file. Workspaces, shared files, downloads, caches, logs and
 runtimes are measured by a bounded walk: `lstat`, no symlinks followed, a stop at 100,000 entries,
 and a yield between pages, because `DatabaseSync` and the walk run on the main thread. A result is
@@ -201,9 +201,9 @@ host advertises a capability only when its `TeamApiAdmin` member exists.
 | Capability | Grants | IPC group |
 | --- | --- | --- |
 | `agent-admin-v1` | Agent access and auto-approve | `agentAdmin` |
-| `agent-host-settings-v1` | Agent Computer Use, local scripts, and messages while it works; reads the host default | none: only the iPhone app uses it |
+| `agent-host-settings-v1` | Agent Computer Use, local scripts, and messages while it works; reads the host default | `agentAdmin` |
 | `skills-admin-v1` | List, install, remove, enable skills by marketplace id | `agentAdmin` |
-| `shared-tables-v1` | List and delete shared tables | `agentAdmin` |
+| `shared-tables-v1` | List and delete shared tables | `sharedTables` |
 | `agent-install-v1` | Add an agent from a listing or a shared template, by id | `agentAdmin` |
 | `agent-update-v1` | Update an agent added from a listing to the listing's current version, by id | `agentAdmin` |
 | `providers-v1` | Code sign-in, provider API keys, managed runtimes, custom endpoints | `providerAdmin` |
@@ -230,7 +230,7 @@ runs it under the util-linux `script`, and the admin sends back the code that th
 stdin, and Windows has no `script`. So only a Linux host advertises `providers-v3`; a macOS or
 Windows host keeps `providers-v1`, and its clients offer the Codex code sign-in only. The CLI output and the pasted code are secrets; no log line or
 error quotes them. How a sign-in ends arrives in the host's agent status, as for Codex.
-`codeSignInProviders` in `server-capabilities.ts` picks the providers that the Providers list offers
+`serverCodeRouteProviders` in `server-capabilities.ts` picks the providers that the Providers list offers
 for a code sign-in, from the host's capabilities.
 
 `providers-v4` adds Cursor and Cline to the sign-in and to the runtime routes. Every host with
@@ -304,7 +304,7 @@ settings are not synchronized between devices.
 Billing is per server. One account can pay for several servers; each server has its own Stripe
 subscription. The Account Worker (`apps/auth-api/src/server/billing-service.ts`) talks to the Stripe
 REST API with `fetch`; there is no Stripe SDK. The plan catalog in `packages/contracts/src/billing.ts`
-holds only the plan IDs, storage and lookup keys. The amounts are six Stripe Prices with the lookup
+holds the plan IDs, storage, member and site limits, relative speed and lookup keys, and no amounts. The amounts are six Stripe Prices with the lookup
 keys `openbot_{plan}_{interval}`. `bun run api:stripe:bootstrap` (`scripts/stripe-bootstrap.ts`)
 creates them and the Customer Portal settings.
 

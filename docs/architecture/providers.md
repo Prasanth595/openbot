@@ -5,10 +5,10 @@ To add a provider, or to see how a provider signs in on a joined server, read
 
 ## Built-in tool discovery
 
-`agent/tool-catalog.ts` exposes seven direct tools and three discovery tools to every adapter.
+`agent/tool-catalog.ts` exposes nine direct tools and three discovery tools to every adapter.
 Claude uses its native question tool instead of `ask_user`. The direct tools are `ask_user`,
-`attach_files_to_response`, `list_agents`, `send_message`, `remember`, `forget_memory`, and
-`react_to_user_message`. External plugin registration stays with each provider adapter.
+`attach_files_to_response`, `list_agents`, `send_message`, `search_memories`, `remember`,
+`forget_memory`, `react_to_user_message`, and `routine_no_update`. External plugin registration stays with each provider adapter.
 
 `tool_search` uses local keyword matching. Exact names come first, then word matches, with stable
 catalog order for ties. It returns five results by default and at most ten. `tool_describe` returns
@@ -97,12 +97,12 @@ history recall as references. OpenBot retains each native provider's session and
 
 The runtime manager offers the latest upstream release of each provider CLI. It checks at startup,
 every hour, and when the user selects `Check for updates` (`provider-runtime-releases.ts`): GitHub
-`releases/latest` for Codex, the npm `latest` tag for Claude, OpenCode and Cline, `x.ai/cli/stable`
-for Grok, and the ACP registry entries `antigravity-acp` for Gemini and `cursor` for Cursor. The version in `native-runtime.lock.json` is what a first install uses before a check has
+`releases/latest` for Codex and Pi, the npm `latest` tag for Claude, OpenCode and Cline, `x.ai/cli/stable`
+for Grok, the `muse-stable` channel for Muse, and the ACP registry entries `antigravity-acp` for Gemini and `cursor` for Cursor. The version in `native-runtime.lock.json` is what a first install uses before a check has
 answered, and Bun, which is a tool runtime and not a provider, stays on it.
 
 Every upstream download is checked against its source's own hash: the GitHub asset `digest` for
-Codex and npm `dist.integrity` for Claude, OpenCode and Cline. x.ai and the ACP registry publish no hash,
+Codex and Pi, the manifest `checksum` for Muse, and npm `dist.integrity` for Claude, OpenCode and Cline. x.ai and the ACP registry publish no hash,
 so a Grok, Gemini or Cursor release is trusted on TLS alone. A Gemini release must stay on
 `dl.google.com/agy-extensions/releases` and keep the pinned command name. A Cursor release must use
 the pinned `downloads.cursor.com/lab` path for its target, with a build that starts with the
@@ -172,8 +172,9 @@ An update that finds the version already in the store skips the transfer, not th
 agent service has to be given the executable either way. Staging directories carry the pid and a
 random suffix and are swept by age, never by name, so a sibling's install is not collected while it
 runs. The manager stamps each version it takes into use -- the pinned one it verified, and the older
-one it falls back to until the pinned one arrives -- and collection keeps anything stamped within a
-month, so a version another instance or another
+one it falls back to until the pinned one arrives -- and collection keeps anything stamped within two
+days. When the computer has been awake for one check interval (one hour), the update check keeps
+only what was stamped within three hours. So a version another instance or another
 worktree's pin still runs is not removed; a collection that fails, as it does on Windows for an open
 binary, never stops startup.
 
@@ -260,23 +261,24 @@ deliveries while it writes, and reports success only after a new process runs wi
 
 That one variable turns on two products: OpenCode reports OpenCode Zen and OpenCode Go as a single
 catalog, on the separate endpoints `opencode.ai/zen/v1` and `opencode.ai/zen/go/v1`, and OpenBot
-supports only Go. So `isOpencodeModelUnusableWithStoredKey` in `src/backend/agent/model-catalog.ts`
+supports only Go. So `isOpencodeModelUnusableWithStoredKey` in `src/backend/agent/provider-models.ts`
 drops the paid Zen models from `ModelCatalog.refresh` while OpenBot is the one supplying the key;
 with no key stored those models can only come from the user's own OpenCode sign-in, which does
 buy them. Neither `/models` endpoint authenticates, so entitlement cannot be read back and the
 split is a product rule rather than a check.
 
-`PREFERRED_MODEL_ORDER` in the same pass reorders that catalog, because a provider with no
+`PREFERRED_MODEL_ORDER` (in the same file) reorders that catalog, because a provider with no
 `defaultProviderModel` runs the first model of its list and OpenCode reports the third-party
 services the user signed in to before its own — so the fallback used to pick a model behind a token
 OpenBot can neither see nor refresh. `opencodeModelRank` sorts free models first with Muse ahead of
-the rest, then OpenCode's own paid models, then everything behind a separate sign-in. The sort is
-stable, so the CLI's order survives inside one tier.
+the rest, then OpenCode's own paid models, then everything behind a separate sign-in. Inside one
+tier the newest version comes first. The sort is stable, so the CLI's order stays between models of
+one version.
 
-Free means a display name ending in "Free": `model/list` carries no price and neither Go endpoint
-authenticates, so the name is the only signal. `isFreeOpencodeModelName` in
-`packages/contracts/src/agent-providers.ts` is shared with the picker badge in
-`src/renderer/src/components/provider-model-options.ts`, so a badge and a default cannot disagree
+Free means a display name ending in "Free", or an id in a short explicit list
+(`opencode/big-pickle`): `model/list` carries no price and neither Go endpoint authenticates.
+`isFreeOpencodeModel` in `packages/contracts/src/agent-providers.ts` is shared with the picker badge in
+`packages/ui/src/components/provider-model-options.ts`, so a badge and a default cannot disagree
 about what costs money.
 Provider session IDs remain in `projection_provider_sessions`; migration 17 adds OpenCode while
 preserving turn links. Provider switches keep the same agent, workspace, and local thread.
@@ -451,7 +453,7 @@ event stream select it when the peer advertises `local-providers-v2`, and HTTPS 
 the protocol range. `GET /v1/agents/models` sends a v1–v5 peer only the ids its charset accepts. A
 v5 peer still gets the filtered view.
 
-The v4, v5 and v6 base schemas are one codec, `provider-aware-codec.ts`. Each `v<N>-base.ts` passes
+The v4, v5, v6 and v7 base schemas are one codec, `provider-aware-codec.ts`. Each `v<N>-base.ts` passes
 `createProviderAwareCodec` a frozen profile: the providers, the signed-in auth kinds and the agent
 model charset. Nothing else differs between these versions. Do not edit a released profile; a new
 provider needs a new protocol version.

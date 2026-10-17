@@ -53,8 +53,8 @@ A plugin is one developer's bundle. It contains:
 - the listing text: name, tagline, description, example prompts, icon, category, version, and the
   developer's website, privacy policy and terms links.
 
-The types in `src/renderer/src/features/settings/marketplace-plugins.ts` are the start shape.
-They are local to the renderer today.
+The types in `packages/ui/src/features/settings/marketplace-plugins.ts` are the start shape.
+They are local to `@openbot/ui` today.
 
 ## 2. Catalog delivery
 
@@ -169,8 +169,8 @@ The build script refuses:
 | A skill `versionId` that is not published | The install would fail for all users. |
 | More than one app in a plugin | Version 1 keeps the install simple. The array stays for later. |
 
-A `--check` mode fails when the generated module is not the same as a fresh build. CI runs it, so a
-hand-edited generated file cannot ship.
+A `--check` mode fails when the generated module is not the same as a fresh build. No CI job runs it
+now, so CI does not stop a hand-edited generated file.
 
 Publish order: publish the skills first with `scripts/publish-production-catalog.ts`, then deploy the
 Worker. The build script tests that each pinned skill version exists.
@@ -296,7 +296,7 @@ stated in the confirmation instead. A receipt store (3.1) would allow the narrow
 
 ### 4.1 The page
 
-`apps/auth-api/src/routes/plugins/$slug/index.tsx` shows one plugin. `apps/auth-api/src/routes/plugins/index.tsx`
+`apps/auth-api/src/routes/plugins/$slug.tsx` shows one plugin. `apps/auth-api/src/routes/plugins/index.tsx`
 lists them. Both read the same generated module as the JSON routes, so there is one source.
 
 The page follows `apps/auth-api/src/routes/guides/$slug.tsx`:
@@ -355,6 +355,7 @@ export type DeepLink = { kind: "invite"; url: string } | { kind: "plugin"; slug:
 | `invite` | `openbot://join?…` | Opens the join dialog, as today. |
 | `plugin` | `openbot://plugins/<slug>` | Opens the marketplace listing. |
 | `agent-template` | `openbot://agents/<id>` | Opens the agent template preview. See [architecture/agents.md](architecture/agents.md#agent-templates). |
+| `mcp-auth`, `slack-workspace`, `discord-guild` | `openbot://mcp-auth?…`, `openbot://slack-workspace?…`, `openbot://discord-guild?…` | Returns an MCP sign-in or a Slack or Discord grant to the app. |
 | other | — | The URL is dropped without a message, as today. |
 
 The invite parser runs first, so an invite URL never reaches the plugin parser. `src/main/index.ts`
@@ -388,7 +389,7 @@ fetch, so the `connect-src` policy does not change. Two states follow:
 user trusts. The clipboard gets exactly `https://openbot.run/plugins/<slug>`, with no query and no
 tracking field.
 
-The button becomes the existing `CopyButton` in `src/renderer/src/components/ui/button.tsx`, which
+The button becomes the existing `CopyButton` in `packages/ui/src/button.tsx`, which
 holds the copied state and announces "Link copied".
 
 ### 4.6 External links
@@ -453,9 +454,9 @@ Ordered by cost.
 ## 8. Order of work
 
 1. ~~Correct the fixture host to `openbot.run`, and build the share URL from the slug.~~ Done:
-   `createPluginShareUrl` in `src/renderer/src/features/settings/marketplace-plugins.ts`.
+   `createPluginShareUrl` in `packages/contracts/src/plugin-links.ts`.
 2. ~~`marketplace/plugin-catalog/` and `scripts/build-plugin-catalog.ts`, with fixtures and `--check`.~~ Done:
-   the source holds 14 listings (no-auth, header key, stdio env key, and OAuth
+   the source holds 17 listings (no-auth, header key, stdio env key, and OAuth
    over HTTP, which the main process signs in to itself), and the build writes the renderer literal,
    the Worker module, and the offline snapshot, with `--check` for CI.
 3. The Worker routes: the JSON first, then the page and the sitemap entries. Partly done: the pages
@@ -478,5 +479,5 @@ Ordered by cost.
 8. ~~The deep-link router and the share link.~~ Done. `src/main/deep-link-router.ts` decides which
    kind an `openbot://` link is, `openbot://plugins/<slug>` opens that app's page in the Apps tab
    and installs nothing, and `openbot.run/plugins/<slug>` now answers, so the detail page offers
-   `Copy link` again. The public pages read the same catalog the tab reads, from
-   `packages/contracts/src/plugin-catalog.ts`.
+   `Copy link` again. The public pages read the same catalog source as the tab, through the generated
+   `apps/auth-api/src/lib/plugin-catalog.generated.ts`.
