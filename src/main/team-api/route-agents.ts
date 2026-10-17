@@ -30,7 +30,7 @@ import { V6_AGENT_MODEL } from "@openbot/contracts/team-protocol/v6-adapter";
 import { sourceText } from "@openbot/i18n/source";
 import type { Effect } from "effect";
 import type { AgentDuplicationFailed } from "../../backend/agent/duplication-gate";
-import { InactiveAttentionRequest } from "../../backend/agent/inactive-attention-request";
+import { ForbiddenAttentionAnswer, InactiveAttentionRequest } from "../../backend/agent/inactive-attention-request";
 import { runCauseEffect } from "../../backend/effect-boundary";
 import { parseSidebarLayoutAction } from "../ipc/agent-inputs";
 import type { TeamApiAgents, TeamApiOptions, TeamApiSidebarLayout } from "./dependencies";
@@ -268,12 +268,14 @@ export async function routeAgents(
 
   if (method === "POST" && url.pathname === TEAM_API_ROUTES.respond.prompt) {
     const body = await readJson(request);
+    const sender = memberSender(member);
     await runCauseEffect(
-      agents.respondToPrompt({
-        requestId: promptRequestId(body.requestId),
-        answers: promptAnswers(body.answers),
-      }),
-    ).catch(inactiveAsConflict);
+      agents.respondToPrompt(
+        { requestId: promptRequestId(body.requestId), answers: promptAnswers(body.answers) },
+        // A UI block's privileged action is for the owner and admins only.
+        { ...(sender ? { sender } : {}), privileged: member.role !== "member" },
+      ),
+    ).catch(refusedPromptAnswer);
     return empty(204);
   }
   if (method === "POST" && url.pathname === TEAM_API_ROUTES.respond.approval) {
@@ -313,4 +315,10 @@ export async function routeAgents(
 function inactiveAsConflict(error: unknown): never {
   if (error instanceof InactiveAttentionRequest) throw new HttpError(409, error.message);
   throw error;
+}
+
+/** As `inactiveAsConflict`, and a member's answer that only the owner or an admin may give is forbidden. */
+function refusedPromptAnswer(error: unknown): never {
+  if (error instanceof ForbiddenAttentionAnswer) throw new HttpError(403, error.message);
+  return inactiveAsConflict(error);
 }

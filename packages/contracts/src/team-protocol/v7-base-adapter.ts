@@ -11,6 +11,7 @@ import {
   toWireAgentKeys,
   toWireAgentKeysObjectForPath,
 } from "./current-agent-keys";
+import { withConversationUiBlocks } from "./ui-blocks-v1";
 import {
   decodeTeamProtocolV7BaseEvent,
   decodeTeamProtocolV7BaseHttpRequest,
@@ -37,7 +38,12 @@ export function decodeTeamProtocolV7BaseCurrentEvent(value: unknown): TeamProtoc
   const decodedValue: TeamProtocolV7BaseJsonValue = JSON.parse(JSON.stringify(decoded.event));
   let current: unknown;
   try {
-    current = withEventConversationPlans(restoreBrowserSecretMetadata(toCurrentAgentKeys(decodedValue), value), value);
+    current = withEventConversationPlans(
+      restoreBrowserSecretMetadata(toCurrentAgentKeys(decodedValue), value),
+      value,
+      // A host sends a UI block only under ui-blocks-v1, so a present one is always kept.
+      value,
+    );
   } catch {
     return { kind: "invalid", type: decoded.event.type };
   }
@@ -48,7 +54,7 @@ export function decodeTeamProtocolV7BaseCurrentEvent(value: unknown): TeamProtoc
 
 export function encodeTeamProtocolV7BaseCurrentEvent(
   event: AgentEvent | TeamRealtimeEvent,
-  options: { preserveSemanticTags?: boolean; preserveBrowserSecrets?: boolean } = {},
+  options: { preserveSemanticTags?: boolean; preserveBrowserSecrets?: boolean; uiBlocks?: boolean } = {},
 ): string | null {
   // `turn-progress` bypasses the frozen codec, so it needs the vocabulary swap applied by hand.
   if (event.type === "turn-progress") return JSON.stringify(toWireAgentKeys(JSON.parse(JSON.stringify(event))));
@@ -59,26 +65,30 @@ export function encodeTeamProtocolV7BaseCurrentEvent(
   if (decoded.kind !== "known") return null;
   const encoded = encodeTeamProtocolV7BaseEvent(decoded.event);
   if (!encoded || (!options.preserveBrowserSecrets && !eventConversationKey(event.type))) return encoded;
-  const output = withEventConversationPlans(JSON.parse(encoded), wireValue);
+  // The block goes as written: the key swap would rename a response value under a field id such as `agentId`.
+  const output = withEventConversationPlans(JSON.parse(encoded), wireValue, options.uiBlocks ? currentValue : null);
   return JSON.stringify(options.preserveBrowserSecrets ? restoreBrowserSecretMetadata(output, wireValue) : output);
 }
 
 /**
- * Puts the plans and the senders of a conversation event beside its frozen projection. See
- * `withConversationPlans` and `withConversationSenders`.
+ * Puts the plans and the senders of a conversation event beside its frozen projection, and the UI
+ * blocks of `uiBlockSource` when it is not null. See `withConversationPlans`, `withConversationSenders`
+ * and `withConversationUiBlocks`.
  */
 function withEventConversationPlans(
   projected: TeamProtocolV7BaseJsonValue,
   source: unknown,
+  uiBlockSource: unknown,
 ): TeamProtocolV7BaseJsonValue {
   if (projected === null || Array.isArray(projected) || typeof projected !== "object") return projected;
   if (!isDynamicRecord(source)) return projected;
   const key = eventConversationKey(projected.type);
   const conversation = key ? projected[key] : undefined;
   if (!key || conversation === undefined) return projected;
+  const withPlans = withConversationSenders(withConversationPlans(conversation, source[key]), source[key]);
   return {
     ...projected,
-    [key]: withConversationSenders(withConversationPlans(conversation, source[key]), source[key]),
+    [key]: isDynamicRecord(uiBlockSource) ? withConversationUiBlocks(withPlans, uiBlockSource[key]) : withPlans,
   };
 }
 

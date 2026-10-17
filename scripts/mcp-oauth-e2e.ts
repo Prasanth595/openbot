@@ -62,6 +62,8 @@ async function startAuthorizationServer() {
   const waiters: Array<{ done: () => boolean; resolve: () => void }> = [];
   let tokenMode: TokenMode = "rotate";
   let revokeStatus = 200;
+  // Runs when a refresh reaches `/token`, before the answer: a case puts a sign-in in that wait.
+  let beforeToken: () => void = () => undefined;
   const server = createServer(async (request, response) => {
     const url = new URL(request.url ?? "/", base);
     const body = Object.fromEntries(new URLSearchParams(await readBody(request)));
@@ -101,6 +103,7 @@ async function startAuthorizationServer() {
       return response.end();
     }
     if (path === "/token" && request.method === "POST") {
+      beforeToken();
       if (tokenMode === "drop") return request.socket.destroy();
       if (tokenMode === "invalid_grant") return json(response, 400, { error: "invalid_grant" });
       if (tokenMode === "invalid_client") return json(response, 401, { error: "invalid_client" });
@@ -126,7 +129,13 @@ async function startAuthorizationServer() {
     setRevokeStatus: (status: number) => {
       revokeStatus = status;
     },
-    reset: () => hits.splice(0),
+    setBeforeToken: (run: () => void) => {
+      beforeToken = run;
+    },
+    reset: () => {
+      hits.splice(0);
+      beforeToken = () => undefined;
+    },
     /** Resolves when the hits satisfy `done`, and fails at the deadline. */
     waitFor: (done: () => boolean) =>
       new Promise<void>((resolveWait, reject) => {
@@ -278,6 +287,33 @@ async function main() {
     return { token, clientKept: true, discoveryKept: true, needsSignIn: true, registrations: 0 };
   });
 
+  // A sign-in that ends while a refresh waits stores a new grant. The refusal of the old grant
+  // that follows does not delete it.
+  auth.setTokenMode("invalid_grant");
+  const signInDuringRefresh = await withOAuth(expiredRecord(auth.base), async (oauth, records) => {
+    const fresh = expiredRecord(auth.base);
+    auth.setBeforeToken(() =>
+      records.set(mcpUrl, {
+        ...fresh,
+        tokens: {
+          access_token: "access-new",
+          token_type: "Bearer",
+          expires_in: 3600,
+          refresh_token: "refresh-new",
+          issuer: auth.base,
+        },
+        obtainedAt: Date.now(),
+      }),
+    );
+    await runCauseEffect(oauth.accessToken(mcpUrl));
+    const stored = records.get(mcpUrl);
+    assert.ok(auth.hits.some((hit) => hit.path === "/token"));
+    assert.equal(stored?.tokens?.refresh_token, "refresh-new");
+    assert.equal(stored?.lostAt, undefined);
+    assert.equal(oauth.needsSignIn(mcpUrl), false);
+    return { newGrantKept: true, needsSignIn: false };
+  });
+
   // `invalid_client`: the registration goes too, and nothing registers a new one in the background.
   auth.setTokenMode("invalid_client");
   const invalidClient = await withOAuth(expiredRecord(auth.base), async (oauth, records) => {
@@ -343,7 +379,17 @@ async function main() {
   const proxy = await proxyCases(auth);
   const network = await networkCases(auth);
   await auth.close();
-  const cases = { refreshed, invalidGrant, invalidClient, networkError, signOut, revokeRefused, ...proxy, ...network };
+  const cases = {
+    refreshed,
+    invalidGrant,
+    signInDuringRefresh,
+    invalidClient,
+    networkError,
+    signOut,
+    revokeRefused,
+    ...proxy,
+    ...network,
+  };
   await writeFile(join(OUT, "report.json"), `${JSON.stringify({ ok: true, cases }, null, 2)}\n`);
   process.stdout.write(`mcp-oauth-e2e: ${Object.keys(cases).length} cases passed\n`);
 }
@@ -705,6 +751,22 @@ async function proxyCases(auth: Awaited<ReturnType<typeof startAuthorizationServ
     assert.ok(!resource.hits.slice(hitsAtSignOut).some((hit) => hit.path.startsWith("/.well-known")));
     const signedOut = { code: failure.code, upstreamRequests: 0, discoveryRequests: 0 };
 
+    // An expired token with no refresh token is not a current sign-in, but the row stays on its route.
+    const fingerprintBeforeExpiry = await runCauseEffect(gateway.proxyFingerprint(servers.listEnabled()));
+    const fresh = freshRecord(auth.base, away.url);
+    records.set(
+      away.url,
+      mcpOAuthRecordSchema.parse({
+        ...fresh,
+        tokens: { access_token: "access-expired", token_type: "Bearer", expires_in: 1 },
+        obtainedAt: Date.now() - 60_000,
+      }),
+    );
+    assert.equal(oauth.signedIn(away.url), false);
+    assert.deepEqual(await endpointOf(gateway, away), awayRoute);
+    assert.equal(await runCauseEffect(gateway.proxyFingerprint(servers.listEnabled())), fingerprintBeforeExpiry);
+    const expiredWithoutRefresh = { sameRoute: true, sameFingerprint: true };
+
     for (const line of logLines)
       for (const secret of ["access-on-file", "access-rotated", "refresh-on-file", "row-secret", directRoute.bearer])
         assert.ok(!line.includes(secret), "A log line quoted a credential.");
@@ -735,7 +797,7 @@ async function proxyCases(auth: Awaited<ReturnType<typeof startAuthorizationServ
     const restart = { samePortAndBearer: true, sameFingerprint: true, busyPortRotatesSecret: true };
 
     await runCauseEffect(oauth.close());
-    return { handoff, echo, getStream, refused, midSessionRefresh, signedOut, restart };
+    return { handoff, echo, getStream, refused, midSessionRefresh, signedOut, expiredWithoutRefresh, restart };
   } finally {
     for (const open of clients) await open.close();
     for (const open of gateways) await runCauseEffect(open.close());
