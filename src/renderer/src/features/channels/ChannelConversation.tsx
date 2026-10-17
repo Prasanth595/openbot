@@ -256,6 +256,7 @@ export function ChannelConversation(props: ChannelConversationProps) {
     },
   );
   const [dropActive, setDropActive] = createSignal(false);
+  const [composerFocusRequest, setComposerFocusRequest] = createSignal(0);
   const [copyError, setCopyError] = createSignal<UserErrorDetails | null>(null);
   createEffect(
     () => channels.state.selectedId,
@@ -860,7 +861,10 @@ export function ChannelConversation(props: ChannelConversationProps) {
                                   onReply={
                                     page().channel.archived
                                       ? undefined
-                                      : () => updateComposer({ replyToMessageId: initialEntry.id })
+                                      : () => {
+                                          updateComposer({ replyToMessageId: initialEntry.id });
+                                          setComposerFocusRequest((value) => value + 1);
+                                        }
                                   }
                                   onCopy={() => void copyChannelMessage(entry()?.message ?? initialEntry.message)}
                                 />
@@ -1057,6 +1061,7 @@ export function ChannelConversation(props: ChannelConversationProps) {
                       placeholder={t("channel.composer.placeholder", { name: page().channel.name })}
                       value={composer().text}
                       disabled={channels.state.pending}
+                      focusRequest={composerFocusRequest()}
                       onSubmit={submit}
                       onPasteFiles={importFiles}
                       onValueChange={(text) => updateComposer({ text })}
