@@ -23,8 +23,7 @@ Allowed states: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED: <reason>`,
   account, role and invitation email (`remote_memberships`, `remote_invites`), and
   the host accepts a one-host account ticket (`redeemCentralTicket`). The host
   still keeps local password sign-in (`src/main/team-store.ts`), and the plan
-  does not permit that. Not confirmed: which commit started this stage. The
-  history before 2026-09-01 is one commit (`ea08619ca`).
+  does not permit that.
 - Plan 003 is independent of 001 and 002. It was written against a clean
   worktree at commit `4980fb58`, after #633 gave Codex HTTP MCP servers, and
   rewritten once the developer decided the runtime, the configuration policy and
