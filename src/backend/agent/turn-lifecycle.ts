@@ -12,7 +12,6 @@ import {
   latestTurnAnswer,
 } from "@openbot/contracts/ipc";
 import { isString } from "@openbot/contracts/runtime-values";
-import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger } from "@openbot/logging";
 import { classifyFailure } from "@openbot/telemetry";
 import { Deferred, Effect, Exit, Schema, Scope } from "effect";
@@ -47,9 +46,8 @@ import type { ProviderRuntime } from "./provider-runtime";
 import { isNoUpdateAnswer, settleQuietRoutineTurn } from "./routine-quiet-runs";
 import { ThreadFileHistory } from "./thread-file-history";
 import {
-  isForeignReasoningError,
   isNonActionableCodexWarning,
-  providerLabel,
+  refusedSessionFailure,
   type ToolUsageSignal,
   toolProgressText,
   toolUsage,
@@ -576,7 +574,7 @@ export class TurnLifecycle {
         if (notification.method === "error" && errorTurnId && this.#runningTurns.has(errorTurnId)) {
           this.#turnErrors.set(errorTurnId, message);
           // The turn's completion runs it again or reports it in words the user can act on.
-          if (isForeignReasoningError(message)) return;
+          if (refusedSessionFailure(source.provider, message) !== null) return;
         }
         // A spent quota or balance is explained by the usage notice, so only a provider that reports
         // usage can leave it out of the banner. Gemini's 429 reads as a spent quota, and it failed
@@ -678,11 +676,11 @@ export class TurnLifecycle {
     const reportedError = this.#turnErrors.get(turnId);
     this.#turnErrors.delete(turnId);
     // The error is kept only while the turn runs, so a refused turn always has its entry.
-    const refused =
-      running !== undefined &&
-      status === "failed" &&
-      reportedError !== undefined &&
-      isForeignReasoningError(reportedError);
+    const refusedFailure =
+      running !== undefined && status === "failed" && reportedError !== undefined
+        ? refusedSessionFailure(running.client.provider, reportedError)
+        : null;
+    const refused = running !== undefined && refusedFailure !== null;
     const limited = status === "failed" && this.#limitedTurns.has(turnId);
     const resetsAt = this.#limitedTurns.get(turnId) ?? null;
     this.#limitedTurns.delete(turnId);
@@ -747,9 +745,7 @@ export class TurnLifecycle {
     // The failed turn of the agent's own chat only: a task shows its outcome in its own row.
     if (!taskTurn && outcome === "failed") this.#failedTurns.set(agentId, turnId);
     else if (!taskTurn) this.#failedTurns.delete(agentId);
-    const failure = refused
-      ? sourceText("error.provider.foreignReasoning", { provider: providerLabel(running.client.provider) })
-      : reportedError;
+    const failure = refusedFailure ?? reportedError;
     if (refused) {
       yield* this.#hooks.dropRefusedSession(agentId, threadId);
       const taskId = taskTurn ? this.#taskForThread(agentId, threadId) : null;
