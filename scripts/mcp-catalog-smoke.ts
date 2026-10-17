@@ -77,7 +77,7 @@ function check(condition: unknown, failure: string): asserts condition {
   if (!condition) throw new CheckFailed(failure);
 }
 
-/** A fetch that records each request, and refuses a POST anywhere but the MCP server. */
+/** A fetch that records each request, and refuses a POST anywhere but the MCP server, redirects included. */
 function recording(fetchFn: FetchLike, url: string, requests: string[]): FetchLike {
   const server = withoutHash(new URL(url));
   return (input, init) => {
@@ -87,7 +87,8 @@ function recording(fetchFn: FetchLike, url: string, requests: string[]): FetchLi
     // Registration and token requests are POSTs to the authorization server. This check sends none.
     if (method !== "GET" && withoutHash(target) !== server)
       return Promise.reject(new Error(`Refused ${method} to ${target.origin}: the smoke never registers.`));
-    return fetchFn(input, init);
+    // A followed 307 or 308 sends the POST again to its target, past the check above.
+    return fetchFn(input, method === "GET" ? init : { ...init, redirect: "manual" });
   };
 }
 
