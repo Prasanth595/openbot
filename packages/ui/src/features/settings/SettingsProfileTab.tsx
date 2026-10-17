@@ -76,7 +76,7 @@ export function SettingsProfileTab(props: SettingsProfileTabProps) {
           onChange={(event) => void props.store.uploadAvatar(event.currentTarget.files?.[0])}
         />
         <ItemGroup class="settings-modal-card">
-          <Item class="settings-identity-name-row">
+          <Item data-settings-row="settings.profile.name.title" class="settings-identity-name-row">
             <ItemContent>
               <ItemTitle id="settings-profile-name-label">{t("settings.profile.name.title")}</ItemTitle>
               <ItemDescription id="settings-profile-name-description">
@@ -116,7 +116,7 @@ export function SettingsProfileTab(props: SettingsProfileTabProps) {
               </span>
             </ItemActions>
           </Item>
-          <Item class="settings-identity-image-row">
+          <Item data-settings-row="settings.profile.photo.title" class="settings-identity-image-row">
             <ItemContent>
               <ItemTitle>{t("settings.profile.photo.title")}</ItemTitle>
               <ItemDescription class={props.store.state.avatar.error ? "settings-modal-error" : undefined}>
@@ -152,7 +152,7 @@ export function SettingsProfileTab(props: SettingsProfileTabProps) {
 
       <SettingsSection title={t("settings.profile.account.title")}>
         <ItemGroup class="settings-modal-card">
-          <Item class="settings-modal-account-email-row">
+          <Item data-settings-row="settings.profile.email.title" class="settings-modal-account-email-row">
             <ItemContent>
               <ItemTitle>{t("settings.profile.email.title")}</ItemTitle>
               <ItemDescription>{t("settings.profile.email.description")}</ItemDescription>
@@ -177,6 +177,7 @@ export function SettingsProfileTab(props: SettingsProfileTabProps) {
       </SettingsSection>
       <Show when={props.canListSessions}>
         <SettingsSection
+          data-settings-row="settings.profile.sessions.title"
           title={t("settings.profile.sessions.title")}
           description={t("settings.profile.sessions.description")}
         >

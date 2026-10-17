@@ -71,7 +71,7 @@ export function McpKeyDialog(props: McpKeyDialogProps) {
           type="submit"
           loading={busy()}
           loadingLabel={t("common.connecting")}
-          disabled={busy() || (form.touched && !complete())}
+          disabled={form.touched && !complete()}
         >
           {state.phase === "failed" ? t("common.tryAgain") : t("mcp.connect.connect")}
         </Button>

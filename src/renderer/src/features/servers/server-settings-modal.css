@@ -136,6 +136,10 @@
   stroke-width: var(--openbot-icon-stroke);
 }
 
+.server-settings-private-badge {
+  padding: var(--openbot-space-0-5) var(--openbot-space-1-5);
+}
+
 .server-settings-address-control[data-copied] {
   color: var(--openbot-success);
 }

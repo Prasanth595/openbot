@@ -29,7 +29,6 @@ export function ProfileNameSaveBar(props: { store: SettingsProfileStore }) {
               variant="default"
               loading={props.store.state.profile.busy}
               loadingLabel={t("common.saving")}
-              disabled={props.store.state.profile.busy}
               onClick={() => void props.store.saveName()}
             >
               {t("common.save")}

@@ -137,7 +137,7 @@ export function SidebarPinnedGroup() {
                                 </strong>
                                 <Show when={agent().title.trim()}>
                                   {(label) => (
-                                    <Badge class="sidebar-pinned-title" size="sm" title={label()}>
+                                    <Badge class="sidebar-pinned-title" title={label()}>
                                       <span>{label()}</span>
                                     </Badge>
                                   )}
@@ -161,7 +161,7 @@ export function SidebarPinnedGroup() {
                                 </strong>
                                 <Show when={channel().title.trim()}>
                                   {(label) => (
-                                    <Badge class="sidebar-pinned-title" size="sm" title={label()}>
+                                    <Badge class="sidebar-pinned-title" title={label()}>
                                       <span>{label()}</span>
                                     </Badge>
                                   )}

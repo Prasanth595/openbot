@@ -1,7 +1,7 @@
 .account-login-screen,
 .initial-setup-screen {
   position: absolute;
-  z-index: 100;
+  z-index: var(--openbot-layer-dialog);
   inset: 0;
   min-height: 100vh;
   display: grid;
@@ -221,7 +221,9 @@
 }
 
 .account-login-primary:disabled,
-.account-login-code-action:disabled {
+.account-login-primary[aria-disabled="true"],
+.account-login-code-action:disabled,
+.account-login-code-action[aria-disabled="true"] {
   cursor: default;
   opacity: 0.48;
 }
@@ -257,7 +259,7 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .account-login-primary:hover:not(:disabled) {
+  .account-login-primary:hover:not(:disabled, [aria-disabled="true"]) {
     background: var(--openbot-text-primary);
   }
 
@@ -267,7 +269,7 @@
   }
 }
 
-.account-login-primary:active:not(:disabled) {
+.account-login-primary:active:not(:disabled, [aria-disabled="true"]) {
   transform: scale(0.98);
 }
 
@@ -594,7 +596,7 @@
   padding-inline: var(--openbot-space-2);
 }
 
-.ui-button.provider-picker-refresh:hover:not(:disabled) {
+.ui-button.provider-picker-refresh:hover:not(:disabled, [aria-disabled="true"]) {
   color: var(--openbot-text-primary);
 }
 
@@ -1428,7 +1430,7 @@ body,
 .voice-button:hover,
 .voice-button-active:hover,
 .initial-setup-save:hover:not(:disabled),
-.account-login-primary:hover:not(:disabled) {
+.account-login-primary:hover:not(:disabled, [aria-disabled="true"]) {
   background: var(--openbot-text-primary);
   color: var(--openbot-text-on-light);
 }

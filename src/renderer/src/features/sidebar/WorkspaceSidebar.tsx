@@ -55,7 +55,7 @@ export function WorkspaceSidebar(props: { peopleEnabled: boolean }) {
     activeAgent,
     agentSetupDraft,
     duplicatingAgentIds,
-    openBotSetup,
+    openAgentSetup,
     userHiddenAgents,
     userHiddenAgentIds,
   } = useAgents();
@@ -206,7 +206,7 @@ export function WorkspaceSidebar(props: { peopleEnabled: boolean }) {
       onPreloadDirectConversation={props.peopleEnabled ? () => void DirectConversation.preload() : undefined}
       onCreateAgent={() => {
         channels.close();
-        openBotSetup();
+        openAgentSetup();
       }}
       onEditAgent={editAgent}
       duplicateSupported={activeServerSupportsCapability("agent-duplication")}
@@ -243,7 +243,7 @@ export function WorkspaceSidebar(props: { peopleEnabled: boolean }) {
               avatarHue: agentSetupDraft().avatarHue,
               onSelect: () => {
                 channels.close();
-                openBotSetup();
+                openAgentSetup();
               },
             }
           : undefined

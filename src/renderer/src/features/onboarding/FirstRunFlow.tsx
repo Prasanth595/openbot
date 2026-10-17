@@ -367,7 +367,6 @@ export function FirstRunFlow(props: FirstRunFlowProps) {
                 type="button"
                 variant="default"
                 class="onboarding-next"
-                disabled={busy()}
                 aria-describedby={blockedReason() ? nextReasonId : undefined}
                 loading={busy()}
                 loadingLabel={t("onboarding.opening")}
