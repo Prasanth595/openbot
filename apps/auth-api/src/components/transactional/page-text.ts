@@ -88,8 +88,6 @@ export function billingReturnText(t: AppTranslate) {
   };
 }
 
-export type BillingReturnText = ReturnType<typeof billingReturnText>;
-
 /** A private-use character that marks where the contact link goes in `writeTo`. */
 const EMAIL_MARKER = "";
 
@@ -129,7 +127,7 @@ export function reportSiteText(t: AppTranslate) {
 
 export type ReportSiteText = ReturnType<typeof reportSiteText>;
 
-export function pageErrorText(t: AppTranslate) {
+function pageErrorText(t: AppTranslate) {
   return {
     title: t("sitePage.error.title"),
     body: t("sitePage.error.body"),
