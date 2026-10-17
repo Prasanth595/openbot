@@ -248,8 +248,30 @@ async function verifyLaunch(executable: string): Promise<void> {
   });
 
   try {
-    await waitForSingleInstanceLock(userDataPath, launchExit);
+    // Chromium on Windows keeps `lockfile` in userData open while main holds its single-instance lock. A
+    // second instance that starts before that does not forward to the first one: it takes the lock and stays open.
+    await waitForFirstInstance(
+      launchExit,
+      () => pathExists(join(userDataPath, "lockfile")),
+      "take its lock",
+      () => stderr,
+    );
+    // The lock is not enough. The second instance waits about 20 seconds for the first one to answer, and
+    // the answer needs a free main thread; with no answer, Chromium can kill the first instance. Main
+    // answers only after its start, and a launch that stops during the start must fail here. So this
+    // waits until the window has loaded and called main (`trace.ndjson`, see `rendererCalledMain`).
+    await waitForFirstInstance(
+      launchExit,
+      () => rendererCalledMain(userDataPath),
+      "load its window",
+      () => stderr,
+    );
     await verifySecondInstanceExits(executable, userDataPath, launchExit);
+    if (child.exitCode !== null || child.signalCode !== null) {
+      throw new Error(
+        `Packaged OpenBot exited when a second instance started (${child.signalCode ?? `code ${String(child.exitCode)}`}): ${stderr.trim()}`,
+      );
+    }
   } finally {
     terminateProcessTree(child.pid);
     await Promise.race([
@@ -273,34 +295,48 @@ function terminateProcessTree(pid: number | undefined): void {
   }
 }
 
-/**
- * Waits until the first instance holds the profile. Chromium on Windows keeps `lockfile` in userData
- * open while the main process holds its single-instance lock. A second instance that starts before
- * that does not forward to the first one: it takes the lock itself and stays open.
- */
-async function waitForSingleInstanceLock(userDataPath: string, launchExit: Promise<never>): Promise<void> {
-  const lockPath = join(userDataPath, "lockfile");
+/** Waits for a state of the first instance. It fails immediately when the first instance exits. */
+async function waitForFirstInstance(
+  launchExit: Promise<never>,
+  reached: () => Promise<boolean>,
+  step: string,
+  stderr: () => string,
+): Promise<void> {
   const stop = new AbortController();
-  const waitForLock = async () => {
+  const waitForState = async () => {
     const limit = Date.now() + launchStepLimitMs;
-    while (!(await lockExists(lockPath))) {
+    while (!(await reached())) {
       if (Date.now() > limit) {
-        throw new Error("Packaged OpenBot did not take its single-instance lock in 5 minutes.");
+        throw new Error(`Packaged OpenBot did not ${step} in 5 minutes: ${stderr().trim()}`);
       }
       await delay(200, undefined, { signal: stop.signal });
     }
   };
   try {
-    await Promise.race([launchExit, waitForLock()]);
+    await Promise.race([launchExit, waitForState()]);
   } finally {
     stop.abort();
   }
 }
 
-async function lockExists(lockPath: string): Promise<boolean> {
+async function pathExists(path: string): Promise<boolean> {
   try {
-    await lstat(lockPath);
+    await lstat(path);
     return true;
+  } catch (error) {
+    if (isMissingFileError(error)) return false;
+    throw error;
+  }
+}
+
+/**
+ * Whether the window of the first instance has called main. The renderer asks main for `getAppInfo` when
+ * it mounts (src/renderer/src/platform.tsx), main records each trusted call in `logs/trace.ndjson`
+ * (`setIpcCallObserver` in src/main/index.ts), and a main-thread timer writes the line about one second later.
+ */
+async function rendererCalledMain(userDataPath: string): Promise<boolean> {
+  try {
+    return (await readFile(join(userDataPath, "logs", "trace.ndjson"), "utf8")).includes('"kind":"ipc"');
   } catch (error) {
     if (isMissingFileError(error)) return false;
     throw error;
