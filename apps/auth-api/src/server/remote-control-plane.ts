@@ -1234,6 +1234,9 @@ export class RemoteControlPlane {
             binds: [input.membershipId],
           }
         : undefined;
+      // An admin who leaves, is removed or is demoted can no longer invite, so their open invitations
+      // close. Then they leave the invitation limits and the list.
+      const closingInvites = membership.role === "admin" && (input.revoke === true || role !== "admin");
       const changed = yield* remoteCall(() =>
         dependencies.database.batch([
           dependencies.database
@@ -1249,6 +1252,17 @@ export class RemoteControlPlane {
               input.membershipId,
               ...(activating ? [input.hostId, membership.user_id, input.hostId, limit] : []),
             ),
+          ...(closingInvites
+            ? [
+                dependencies.database
+                  .prepare(
+                    `UPDATE remote_invites SET revoked_at = ?
+                  WHERE host_id = ? AND created_by_user_id = ? AND revoked_at IS NULL
+                    AND (used_at IS NULL OR max_uses IS NULL)${applied ? ` AND ${applied.sql}` : ""}`,
+                  )
+                  .bind(now, input.hostId, membership.user_id, ...(applied?.binds ?? [])),
+              ]
+            : []),
           dependencies.database
             .prepare(
               `UPDATE remote_hosts SET auth_epoch = auth_epoch + 1, updated_at = ?

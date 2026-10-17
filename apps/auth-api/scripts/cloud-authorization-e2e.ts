@@ -275,6 +275,65 @@ async function anOldRevokeCountsAsARemoval() {
   );
 }
 
+async function aDemotionClosesTheInvitesOfTheAdmin() {
+  const { database, owner, clock, remote } = await remoteHost();
+  const admin = addUser(database, "admin");
+  const adminInvite = await Effect.runPromise(remote.createInvite(owner, { hostId: HOST_ID, role: "admin" }));
+  clock.now += 1_000;
+  await Effect.runPromise(remote.acceptInvite(admin, adminInvite.token));
+  const link = await Effect.runPromise(
+    remote.createInvite(admin, { hostId: HOST_ID, role: "member", permanent: true }),
+  );
+  clock.now += 1_000;
+  await Effect.runPromise(
+    remote.changeMembership(owner.id, {
+      hostId: HOST_ID,
+      membershipId: membershipId(database, admin.id),
+      role: "member",
+    }),
+  );
+  const row = database.prepare("SELECT revoked_at FROM remote_invites WHERE invite_id = ?").get(link.inviteId);
+  check("a demotion closes the invites of the admin", row?.revoked_at === clock.now, { row });
+}
+
+async function anOldInviteOfAFormerAdminCloses() {
+  const database = new DatabaseSync(":memory:");
+  const names = (await readdir(MIGRATIONS)).sort();
+  const closing = names.indexOf("0037_close_invites_of_former_admins.sql");
+  for (const name of names.slice(0, closing)) database.exec(await readFile(join(MIGRATIONS, name), "utf8"));
+  for (const id of ["owner", "admin", "former"]) addUser(database, id);
+  database
+    .prepare(
+      "INSERT INTO remote_hosts(host_id, owner_user_id, name, created_at, updated_at) VALUES (?, 'owner', 'Host', 1, 1)",
+    )
+    .run(HOST_ID);
+  database
+    .prepare(
+      `INSERT INTO remote_memberships(membership_id, host_id, user_id, role, status, created_at, updated_at)
+       VALUES ('m-owner', ?, 'owner', 'owner', 'active', 1, 1), ('m-admin', ?, 'admin', 'admin', 'active', 1, 1),
+              ('m-former', ?, 'former', 'member', 'active', 1, 1)`,
+    )
+    .run(HOST_ID, HOST_ID, HOST_ID);
+  const invite = database.prepare(
+    `INSERT INTO remote_invites(invite_id, host_id, token_hash, role, created_by_user_id, expires_at, created_at, max_uses, use_count)
+     VALUES (?, ?, ?, 'member', ?, 9999999999999, 1, ?, 0)`,
+  );
+  invite.run("by-owner", HOST_ID, "hash-owner", "owner", null);
+  invite.run("by-admin", HOST_ID, "hash-admin", "admin", 1);
+  invite.run("by-former", HOST_ID, "hash-former", "former", null);
+  for (const name of names.slice(closing)) database.exec(await readFile(join(MIGRATIONS, name), "utf8"));
+  const rows = database.prepare("SELECT invite_id, revoked_at FROM remote_invites ORDER BY invite_id").all();
+  const revoked = Object.fromEntries(rows.map((row) => [row.invite_id, row.revoked_at !== null]));
+  check(
+    "the migration closes only the invites of a former admin",
+    rows.length === 3 &&
+      revoked["by-former"] === true &&
+      revoked["by-owner"] === false &&
+      revoked["by-admin"] === false,
+    { rows },
+  );
+}
+
 async function anInviteEndsWithTheAdminWhoMadeIt() {
   const { database, owner, clock, remote } = await remoteHost();
   const admin = addUser(database, "admin");
@@ -296,6 +355,19 @@ async function anInviteEndsWithTheAdminWhoMadeIt() {
     }),
   );
   clock.now += 1_000;
+  const listed = await Effect.runPromise(remote.listInvites(owner.id, HOST_ID));
+  const closed = listed.find((invite) => invite.inviteId === link.inviteId);
+  const kept = listed.find((invite) => invite.inviteId === ownerLink.inviteId);
+  check(
+    "the removal closes the invites of the admin and keeps the owner's",
+    Boolean(closed?.revokedAt) && kept?.revokedAt === null,
+    {
+      closed,
+      kept,
+    },
+  );
+  const preview = await outcome(remote.previewInvite(link.token));
+  check("the preview of an invite from a removed admin is invalid", preview === "invite_invalid", { preview });
   const joined = await outcome(remote.acceptInvite(other, link.token));
   check("an invite from an admin who was removed admits nobody", joined === "invite_invalid", {
     outcome: joined,
@@ -473,6 +545,8 @@ const scenarios = [
   aRevokeFromTheOldWorkerCountsAsARemoval,
   anOldRevokeCountsAsARemoval,
   anInviteEndsWithTheAdminWhoMadeIt,
+  aDemotionClosesTheInvitesOfTheAdmin,
+  anOldInviteOfAFormerAdminCloses,
   theJwksNeverPublishesAPrivateKey,
   aCheckoutReturnStaysOnTheAccountSite,
   aSiteServesOnlyItsOwnFiles,
