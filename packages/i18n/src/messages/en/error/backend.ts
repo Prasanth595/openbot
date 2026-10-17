@@ -193,6 +193,10 @@ export const messages = defineMessages("error.backend", {
   "error.backend.mcpSignInResponseTimedOut": "The sign-in response did not arrive in time.",
   "error.backend.mcpServerExited":
     "The server stopped before it answered. Run the command in a terminal to see its error.",
+  "error.backend.mcpOAuthProxyUnavailable":
+    "OpenBot could not start its local sign-in connection for this server. Restart OpenBot, then try again.",
+  "error.backend.mcpOAuthSignInNeeded":
+    "The sign-in to this MCP server has ended. The user must sign in to it again in OpenBot.",
   "error.backend.mcpServerUnreachable": "OpenBot could not reach the server. Check the URL and your network.",
   "error.backend.mcpLocalServerOff":
     "No server answers at {address} on this computer. Start the server, or turn it on in the app that runs it, then try again.",
@@ -206,6 +210,11 @@ export const messages = defineMessages("error.backend", {
   "error.backend.oauthTooManyRedirects": "The OAuth endpoint redirected too many times.",
   "error.backend.oauthRedirectOrigin":
     "The OAuth endpoint redirected to {origin}, so the credentials were not forwarded.",
+  "error.backend.oauthTimedOut": "No answer came from the OAuth endpoint {origin} in time.",
+  "error.backend.oauthResponseTooLarge": "The OAuth endpoint {origin} sent a response that is too large.",
+  "error.backend.oauthResponseUnreadable": "The response of the OAuth endpoint {origin} could not be read.",
+  "error.backend.mcpOAuthPrivateEndpoint":
+    "The OAuth endpoint {origin} is on a private network, but the MCP server is public, so the credentials were not sent.",
   "error.backend.sidebarSectionLimit": "A server can have up to {limit} sidebar sections.",
   "error.backend.sectionNameRequired": "Section name is required.",
   "error.backend.sectionNameTooLong": "Section name is too long.",

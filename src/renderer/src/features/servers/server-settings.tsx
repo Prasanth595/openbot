@@ -4,6 +4,7 @@ import type {
   McpServerConfig,
   McpSignInAppState,
   McpSignInRelayPage,
+  McpSignInState,
   McpTestResult,
   SaveMcpSignInAppInput,
   ServerSummary,
@@ -65,7 +66,7 @@ const ServerSettings = createSimpleContext({
     const [serverSettingsMcp, setServerSettingsMcp] = createSignal<McpServerConfig[]>([]);
     const [serverSettingsMcpError, setServerSettingsMcpError] = createSignal<string | null>(null);
     /** Which http rows the server holds a sign-in for, by id. Empty for a host without `mcp-sign-in-v1`. */
-    const [serverSettingsMcpSignIns, setServerSettingsMcpSignIns] = createSignal<Record<string, boolean>>({});
+    const [serverSettingsMcpSignIns, setServerSettingsMcpSignIns] = createSignal<Record<string, McpSignInState>>({});
     /** The host tab of each remote sign-in page, by the address it signs in to, while the sign-in waits. */
     const [serverSettingsMcpSignInPages, setServerSettingsMcpSignInPages] = createSignal<Record<string, string>>({});
     /** The relayed sign-in page of each remote sign-in that waits in this computer's browser (`sign-in-relay-v1`). */
@@ -474,7 +475,7 @@ const ServerSettings = createSimpleContext({
     }
 
     /** Which http rows the server holds a sign-in for. A host without `mcp-sign-in-v1` answers none. */
-    async function listMcpSignIns(server: ServerSummary): Promise<Record<string, boolean>> {
+    async function listMcpSignIns(server: ServerSummary): Promise<Record<string, McpSignInState>> {
       // A badge beside the list, not the list: a failed read shows no badge rather than failing the
       // list read, or reporting a save that already landed as failed.
       return serversPort()

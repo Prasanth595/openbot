@@ -44,8 +44,8 @@ import {
   acpMcpServers,
   agentMcpServers,
   computerUseParam,
-  type McpAuthorizationSource,
   type McpDropReporter,
+  type McpEndpointSource,
   type McpServerSource,
   type McpToolRuntimeSource,
   usableMcpServers,
@@ -281,7 +281,7 @@ export interface AcpProviderOptions {
   /** What this provider could not be given. Reported once per spawn, by `AgentService`. */
   reportMcpDrops?: McpDropReporter | undefined;
   mcpToolRuntimes?: McpToolRuntimeSource | undefined;
-  mcpAuthorization?: McpAuthorizationSource | undefined;
+  mcpEndpoint?: McpEndpointSource | undefined;
   authenticate?(
     connection: ClientSideConnection,
     initialization: InitializeResponse,
@@ -1101,7 +1101,7 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
                   usableMcpServers(
                     agentMcpServers(this.options.mcpServers?.() ?? [], computerUse),
                     this.options.mcpToolRuntimes?.(),
-                    this.options.mcpAuthorization,
+                    this.options.mcpEndpoint,
                   ).pipe(toProviderClientOperationError),
                 ),
               ),

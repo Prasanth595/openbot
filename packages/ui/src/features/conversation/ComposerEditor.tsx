@@ -349,8 +349,10 @@ export function ComposerEditor(props: ComposerEditorProps) {
       lastMcpKey = mcpKey;
       if (focusRequested) {
         lastFocusRequest = focusRequest;
+        // Text that the user selected in the draft stays selected, for example when they click Reply on a message.
+        const draftSelection = contentChanged ? null : readEditorSelection(editor);
         editor.focus({ preventScroll: true });
-        placeCaretAtEnd(editor);
+        if (!draftSelection || draftSelection.anchor === draftSelection.focus) placeCaretAtEnd(editor);
         scheduleCaretScroll();
       }
       if (skillPickerRequest > lastSkillPickerRequest) {
