@@ -1101,7 +1101,15 @@ export class TeamApiServer {
       const supportsRuntimeSnapshots = connection.capabilities.has("agent-runtime-snapshots");
       const requiredCapability = eventCapability(event);
       if (requiredCapability && !connection.capabilities.has(requiredCapability)) continue;
-      if (event.type === "conversation" && !connection.includeConversationEvents) continue;
+      // A task conversation follows the conversation scope too: a desktop asks for it only for its active server.
+      if (
+        (event.type === "conversation" ||
+          event.type === "agent-task-conversation" ||
+          event.type === "agent-task-conversation-delta") &&
+        !connection.includeConversationEvents
+      ) {
+        continue;
+      }
       if (event.type === "queue-changed" && supportsRuntimeSnapshots && !connection.includeConversationEvents) {
         continue;
       }
