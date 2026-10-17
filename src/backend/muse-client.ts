@@ -10,7 +10,7 @@ import { attachmentMimeTypeForName } from "@openbot/contracts/attachment-files";
 import { isString } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
 import { redactText } from "@openbot/logging";
-import { Effect, Exit, Option, Schema, Scope } from "effect";
+import { Effect, Exit, Fiber, Option, Schema, Scope } from "effect";
 import { secretElicitationField } from "./agent/prompts";
 import { type AgentClient, type AgentProvider, type DiagnosticOrigin, RequestTimeoutError } from "./agent-client";
 import { type AgentCliInfo, cliSpawnTarget } from "./cli";
@@ -127,7 +127,8 @@ export class MuseAgentClient extends EventEmitter<ClientEvents> implements Agent
   readonly #scope = Scope.makeUnsafe();
   #running = false;
   #host: SpawnedMspConnection | null = null;
-  #starting: Promise<SpawnedMspConnection> | null = null;
+  /** The one launch that every caller waits for. It is not interrupted when a caller is. */
+  #starting: Fiber.Fiber<SpawnedMspConnection, ProviderClientOperationError> | null = null;
   #handshake: ReturnType<typeof spawnMspConnection> | null = null;
   #events: Promise<void> = Promise.resolve();
   #stopping = false;
@@ -325,62 +326,80 @@ export class MuseAgentClient extends EventEmitter<ClientEvents> implements Agent
     if (this.#options.profileGeneration)
       return yield* providerFailure(new Error(sourceText("error.provider.museProfileUnsupported")));
     if (this.#host) return this.#host;
-    if (!this.#starting) this.#starting = this.#launch();
-    return yield* providerCall(() => this.#starting).pipe(
-      Effect.flatMap((host) =>
-        host
-          ? Effect.succeed(host)
-          : Effect.fail(providerFailure(new Error(sourceText("error.provider.museNotStarted")))),
+    if (!this.#starting) this.#starting = yield* Effect.forkDetach(this.#launch());
+    const host = yield* Fiber.join(this.#starting);
+    if (!host) return yield* providerFailure(new Error(sourceText("error.provider.museNotStarted")));
+    return host;
+  });
+
+  readonly #launch = Effect.fn("MuseAgentClient.launch")(function* (
+    this: MuseAgentClient,
+  ): Effect.fn.Return<SpawnedMspConnection, ProviderClientOperationError> {
+    const handshake = yield* providerSync(() => {
+      const base = cliSpawnTarget(
+        this.#cli.executable,
+        this.#options.profileGeneration
+          ? ["serve", "--disable-shell", "--disable-write", "-c", "hooks={}", "-c", "managed_hooks_path=null"]
+          : ["serve", "--trust-workspace", "--disable-sandbox"],
+      );
+      const target = this.#options.confine?.(base) ?? base;
+      if (target.windowsVerbatimArguments) throw new Error(sourceText("error.provider.museNativeWindows"));
+      const environment: NodeJS.ProcessEnv = {
+        ...(this.#options.env ?? process.env),
+        ...this.#options.extraEnv?.(),
+        MUSE_NO_AUTO_UPDATE: "1",
+      };
+      for (const key of Object.keys(environment)) if (key.toUpperCase() === "META_API_KEY") delete environment[key];
+      const apiKey = this.#options.apiKey();
+      if (apiKey) {
+        environment.META_API_KEY = apiKey;
+        this.#secrets.add(apiKey);
+      }
+      return (this.#options.spawn ?? spawnMspConnection)({
+        command: target.command,
+        args: target.args,
+        env: environment,
+        shutdownTimeoutMs: 10_000,
+        onStderr: (chunk) => this.#diagnostics.push(chunk),
+      });
+    });
+    this.#handshake = handshake;
+    return yield* this.#connect(handshake).pipe(
+      // A close failure replaces the launch failure, and the failed launch then stays cached.
+      Effect.catch((error) =>
+        providerCall(() => handshake.close()).pipe(
+          Effect.andThen(
+            Effect.sync(() => {
+              this.#starting = null;
+            }),
+          ),
+          Effect.andThen(Effect.fail(error)),
+        ),
       ),
     );
   });
 
-  async #launch(): Promise<SpawnedMspConnection> {
-    const base = cliSpawnTarget(
-      this.#cli.executable,
-      this.#options.profileGeneration
-        ? ["serve", "--disable-shell", "--disable-write", "-c", "hooks={}", "-c", "managed_hooks_path=null"]
-        : ["serve", "--trust-workspace", "--disable-sandbox"],
+  readonly #connect = Effect.fn("MuseAgentClient.connect")(function* (
+    this: MuseAgentClient,
+    handshake: ReturnType<typeof spawnMspConnection>,
+  ): Effect.fn.Return<SpawnedMspConnection, ProviderClientOperationError> {
+    const host = yield* providerCall(() =>
+      handshake.initialize({
+        clientInfo: { name: "openbot", version: "1" },
+        capabilities: { requestedCapabilities: ["sessionMcp"] },
+      }),
+    ).pipe(
+      Effect.timeoutOrElse({
+        duration: this.#options.requestTimeoutMs ?? 30_000,
+        orElse: () => Effect.fail(providerFailure(new Error(sourceText("error.provider.museStartTimeout")))),
+      }),
     );
-    const target = this.#options.confine?.(base) ?? base;
-    if (target.windowsVerbatimArguments) throw new Error(sourceText("error.provider.museNativeWindows"));
-    const environment: NodeJS.ProcessEnv = {
-      ...(this.#options.env ?? process.env),
-      ...this.#options.extraEnv?.(),
-      MUSE_NO_AUTO_UPDATE: "1",
-    };
-    for (const key of Object.keys(environment)) if (key.toUpperCase() === "META_API_KEY") delete environment[key];
-    const apiKey = this.#options.apiKey();
-    if (apiKey) {
-      environment.META_API_KEY = apiKey;
-      this.#secrets.add(apiKey);
-    }
-    const handshake = (this.#options.spawn ?? spawnMspConnection)({
-      command: target.command,
-      args: target.args,
-      env: environment,
-      shutdownTimeoutMs: 10_000,
-      onStderr: (chunk) => this.#diagnostics.push(chunk),
-    });
-    this.#handshake = handshake;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    try {
-      const host = await Promise.race([
-        handshake.initialize({
-          clientInfo: { name: "openbot", version: "1" },
-          capabilities: { requestedCapabilities: ["sessionMcp"] },
-        }),
-        new Promise<never>((_, reject) => {
-          timer = setTimeout(
-            () => reject(new Error(sourceText("error.provider.museStartTimeout"))),
-            this.#options.requestTimeoutMs ?? 30_000,
-          );
-        }),
-      ]);
-      if (this.#stopping) throw new Error(sourceText("error.provider.museStartStopped"));
-      if (host.initializeResult.schema.version !== 1) throw new Error(sourceText("error.provider.museProtocolVersion"));
-      if (host.initializeResult.sessionDurability === "ephemeral")
-        throw new Error(sourceText("error.provider.museHistoryRequired"));
+    if (this.#stopping) return yield* providerFailure(new Error(sourceText("error.provider.museStartStopped")));
+    if (host.initializeResult.schema.version !== 1)
+      return yield* providerFailure(new Error(sourceText("error.provider.museProtocolVersion")));
+    if (host.initializeResult.sessionDurability === "ephemeral")
+      return yield* providerFailure(new Error(sourceText("error.provider.museHistoryRequired")));
+    return yield* providerSync(() => {
       this.#host = host;
       host.connection.onServerRequest(async (request) => {
         if (request.method === "approval/request" || request.method === "userInput/request") return {};
@@ -400,14 +419,8 @@ export class MuseAgentClient extends EventEmitter<ClientEvents> implements Agent
         if (!this.#stopping) this.#fail(new Error("Muse connection closed."));
       });
       return host;
-    } catch (error) {
-      await handshake.close();
-      this.#starting = null;
-      throw error;
-    } finally {
-      if (timer) clearTimeout(timer);
-    }
-  }
+    });
+  });
 
   #redactionValues(): string[] {
     const key = this.#options.apiKey();
