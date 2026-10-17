@@ -94,6 +94,11 @@ async function startAuthorizationServer() {
       for (let chunk = 0; chunk < 32; chunk++) response.write("x".repeat(64 * 1024));
       return response.end();
     }
+    // MCP traffic that leaves for another origin.
+    if (path === "/redirect-away") {
+      response.writeHead(307, { location: `${base.replace("127.0.0.1", "localhost")}/big-streamed` });
+      return response.end();
+    }
     if (path === "/token" && request.method === "POST") {
       if (tokenMode === "drop") return request.socket.destroy();
       if (tokenMode === "invalid_grant") return json(response, 400, { error: "invalid_grant" });
@@ -838,6 +843,11 @@ async function networkCases(auth: Awaited<ReturnType<typeof startAuthorizationSe
   // MCP traffic to the server itself has no limit: the probe sends it through the same fetch.
   const mcpTraffic = await secureOAuthFetch({ resource: `${auth.base}/big-streamed` })(`${auth.base}/big-streamed`);
   assert.equal((await mcpTraffic.text()).length, 2 * 1024 * 1024);
+  // A redirect to another origin leaves the MCP server, so that hop has the limit again.
+  const away = await refusal(
+    secureOAuthFetch({ resource: `${auth.base}/redirect-away` })(`${auth.base}/redirect-away`),
+  );
+  assert.equal(away, sourceText("error.backend.oauthResponseTooLarge", { origin: localBase }));
 
   return {
     addressClassifier: { checked: Object.keys(addressTable).length },
@@ -847,6 +857,6 @@ async function networkCases(auth: Awaited<ReturnType<typeof startAuthorizationSe
       mixedAnswerRefused: true,
       loopbackAllowed: true,
     },
-    bodyLimit: { declaredRefused: true, streamedRefused: true, mcpTrafficUnlimited: true },
+    bodyLimit: { declaredRefused: true, streamedRefused: true, mcpTrafficUnlimited: true, crossOriginHopLimited: true },
   };
 }

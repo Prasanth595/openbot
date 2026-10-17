@@ -1353,6 +1353,8 @@ const secureOAuthRequest = Effect.fn("McpOAuth.secureFetch")(function* (
       return yield* mcpFailure(new Error(sourceText("error.backend.oauthNotHttps", { origin: url.origin })));
     if (guard) yield* checkEndpointAddress(url, guard);
     const origin = url.origin;
+    // A redirect to another origin leaves the MCP server, so that hop has the OAuth limits.
+    const unlimited = mcpTraffic && origin === guard?.resource.origin;
     const send = Effect.tryPromise({
       try: (requestSignal) =>
         fetch(url, {
@@ -1361,7 +1363,7 @@ const secureOAuthRequest = Effect.fn("McpOAuth.secureFetch")(function* (
         }),
       catch: mcpFailure,
     });
-    const response = yield* mcpTraffic
+    const response = yield* unlimited
       ? send
       : send.pipe(
           Effect.flatMap((answer) =>
