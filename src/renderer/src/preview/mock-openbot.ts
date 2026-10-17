@@ -257,6 +257,8 @@ function mockWorkspaceDirectory(path: string): WorkspaceDirectory {
 
 /** What each story server answers with when it is tested, so a story reads the same way twice. */
 const MOCK_MCP_TOOL_COUNTS: Record<string, number> = { "Local SQLite": 12, Linear: 1, Figma: 6 };
+/** The one address that asks for a sign-in until it has one, so the preview shows Save signing in. */
+export const MOCK_MCP_SIGN_IN_URL = "https://mcp.granola.ai/mcp";
 
 export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBotControls {
   const appInfo = clone(options.appInfo ?? STORY_APP_INFO);
@@ -341,17 +343,21 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
   let mcpSignedIn = new Set<string>();
   // Figma refused its saved sign-in, so the preview shows a row that asks for a new one.
   let mcpLost = new Set<string>(["mcp-figma"]);
+  // A sign-in is kept by address, as main keeps it: a draft signs in before Save gives it an id.
+  let mcpSignedInUrls = new Set<string>();
   let cancelPendingMcpSignIn: (() => void) | null = null;
   const forgetMcpSignIn = (mcpServerId: string) => {
+    const url = mcpServers.find((server) => server.id === mcpServerId)?.url;
     mcpSignedIn = new Set([...mcpSignedIn].filter((id) => id !== mcpServerId));
     mcpLost = new Set([...mcpLost].filter((id) => id !== mcpServerId));
+    mcpSignedInUrls = new Set([...mcpSignedInUrls].filter((signedIn) => signedIn !== url));
   };
   const mcpSignInStates = () =>
     mcpServers
       .filter((server) => server.transport === "http")
       .map((server) => ({
         mcpServerId: server.id,
-        signedIn: mcpSignedIn.has(server.id),
+        signedIn: mcpSignedIn.has(server.id) || mcpSignedInUrls.has(server.url),
         needsSignIn: mcpLost.has(server.id),
       }));
   let mcpSignInApps: Record<string, McpSignInApp> = {};
@@ -1504,13 +1510,16 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       },
       /**
        * A test takes a moment, so the panel shows its connecting state before the answer lands. A
-       * command that is not on this machine fails, the way the real probe reports a missing one.
+       * command that is not on this machine fails, the way the real probe reports a missing one, and
+       * the sign-in address asks for a sign-in until it has one.
        */
       testMcpServer: async ({ config }) => {
         await new Promise((resolve) => schedule(() => resolve(null), 400));
         const command = config.command.split(" ")[0] ?? "";
         if (config.transport === "stdio" && command.startsWith("bunx"))
           return { toolCount: 0, error: `Command not found: ${command}` };
+        if (config.transport === "http" && config.url === MOCK_MCP_SIGN_IN_URL && !mcpSignedInUrls.has(config.url))
+          return { toolCount: 0, error: sourceText("error.backend.mcpSignInRequired") };
         return { toolCount: MOCK_MCP_TOOL_COUNTS[config.name] ?? 4, error: null };
       },
       /** The browser is pretended: the sign-in lands after a moment unless Cancel comes first. */
@@ -1525,6 +1534,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
               forgetMcpSignIn(config.id);
               mcpSignedIn = new Set(mcpSignedIn).add(config.id);
             }
+            if (!error) mcpSignedInUrls = new Set(mcpSignedInUrls).add(config.url);
             resolve({ toolCount: error ? 0 : (MOCK_MCP_TOOL_COUNTS[config.name] ?? 4), error });
           };
           cancelPendingMcpSignIn = () => settle(sourceText("error.backend.mcpSignInCancelled"));

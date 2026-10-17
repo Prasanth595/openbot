@@ -236,11 +236,39 @@ export const LocalMcpSignInNeeded: Story = {
   ),
 };
 
+/**
+ * This computer's MCP list, to connect Granola. In Connect a custom MCP, paste
+ * `https://mcp.granola.ai/mcp` into Command to launch: the form moves to Streamable HTTP. Save
+ * tests the server, which asks for a sign-in, signs in, and then saves the row.
+ */
+export const LocalMcpConnect: Story = {
+  args: {
+    initialSection: "mcp",
+    mcpServers: REMOTE_MCP_SERVERS.filter((config) => config.id !== "mcp-granola"),
+  },
+  render: (args) => <McpSignInStory settings={args} />,
+};
+
 function McpSignInStory(props: { settings: ServerSettingsModalProps; initial?: Record<string, McpSignInState> }) {
   const [states, setStates] = createStore<Record<string, McpSignInState>>({
     "mcp-linear": { mcpServerId: "mcp-linear", signedIn: true },
     ...props.initial,
   });
+  const [servers, setServers] = createSignal(props.settings.mcpServers ?? []);
+  const save = async (config: McpServerConfig) => {
+    const id = config.id || `mcp-${config.name.toLowerCase().replaceAll(" ", "-")}`;
+    // A draft signs in before it has an id: the new row keeps that sign-in.
+    if (!config.id && states[""]?.signedIn)
+      setStates((current) => {
+        current[id] = { mcpServerId: id, signedIn: true };
+        delete current[""];
+      });
+    setServers((list) =>
+      list.some((server) => server.id === id)
+        ? list.map((server) => (server.id === id ? { ...config, id } : server))
+        : [...list, { ...config, id }],
+    );
+  };
   const local = props.settings.server.kind === "local";
   const host = createSignInHost();
   const waiting = new Map<string, (result: McpTestResult) => void>();
@@ -279,7 +307,19 @@ function McpSignInStory(props: { settings: ServerSettingsModalProps; initial?: R
       return { toolCount: 0, error: sourceText("error.backend.mcpSignInRequired") };
     return { toolCount: 6, error: null };
   };
-  return <RemoteSetupStory settings={{ ...props.settings, mcpSignIn: signIn, onTestMcpServer: test }} />;
+  return (
+    <RemoteSetupStory
+      settings={{
+        ...props.settings,
+        get mcpServers() {
+          return servers();
+        },
+        mcpSignIn: signIn,
+        onTestMcpServer: test,
+        onSaveMcpServer: save,
+      }}
+    />
+  );
 }
 
 /** A Starter server with one site of its own and one unlinked site from before it was registered. */

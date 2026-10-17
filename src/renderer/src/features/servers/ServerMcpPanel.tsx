@@ -39,6 +39,7 @@ import { createEffect, createMemo, createStore, For, onCleanup, Show } from "sol
 import { type McpPanelSignInApp, McpSignInAppSection } from "./McpSignInAppSection";
 import {
   emptyMcpConfig,
+  isMcpHttpAddress,
   isMcpSignInCancelled,
   isMcpSignInOnHost,
   type McpServerConfig,
@@ -51,6 +52,7 @@ import {
   mcpConfigIsValid,
   mcpFailureKind,
   mcpProviderLimitNote,
+  mcpSaveConnects,
   mcpStatusLabel,
   mcpStatusVariant,
   mcpTestMessage,
@@ -320,15 +322,19 @@ export function ServerMcpPanel(props: ServerMcpPanelProps) {
   const testRow = (config: McpServerConfig) => runRow(config, "testing", runTest);
   const signInRow = (config: McpServerConfig) => runRow(config, "signing-in", runSignIn);
 
-  /** The form's test or sign-in, which answers for the draft on screen and not for any stored row. */
+  /**
+   * The form's test or sign-in, which answers for the draft on screen and not for any stored row.
+   * It also returns the answer; `null` when there is none for this draft: the user cancelled, or
+   * left or reset the form while it waited.
+   */
   async function runDraft(
     pending: "testing" | "signing-in",
     answer: (config: McpServerConfig) => Promise<SettledTest | null>,
-  ): Promise<void> {
+  ): Promise<SettledTest | null> {
     setState((current) => {
       current.touched = true;
     });
-    if (!mcpConfigIsValid(state.draft)) return;
+    if (!mcpConfigIsValid(state.draft)) return null;
     const run = ++draftTestRun;
     const tested = normalizeMcpConfig(state.draft);
     setState((current) => {
@@ -336,11 +342,12 @@ export function ServerMcpPanel(props: ServerMcpPanelProps) {
       current.formTestConfig = tested;
     });
     const test = await answer(tested);
-    if (run !== draftTestRun) return;
+    if (run !== draftTestRun) return null;
     setState((current) => {
       current.formTest = test;
       if (!test) current.formTestConfig = null;
     });
+    return test;
   }
 
   const testDraft = () => runDraft("testing", runTest);
@@ -403,6 +410,25 @@ export function ServerMcpPanel(props: ServerMcpPanelProps) {
   // Test connection, gets the focus one frame after the dialog left.
   const menuButtons: Record<string, HTMLElement> = {};
   let formTestButton: HTMLButtonElement | undefined;
+  // A URL in the command moves to Server URL, and refused credentials send the user to Headers.
+  let urlInput: HTMLInputElement | undefined;
+  let headerKeyInput: HTMLInputElement | undefined;
+
+  /** A web address in the stdio command names an http server: the form switches to it. */
+  function moveToUrl(address: string): void {
+    const from = document.activeElement;
+    setState((current) => {
+      current.draft.transport = "http";
+      current.draft.url = address.trim();
+      current.draft.command = "";
+    });
+    // One frame later, once Server URL is mounted. The focus is still in the hidden command field
+    // after a paste, or nowhere after a blur to another stdio field. A click elsewhere keeps it.
+    requestAnimationFrame(() => {
+      if (document.activeElement === document.body || document.activeElement === from) urlInput?.focus();
+    });
+  }
+
   createEffect(
     () => remotePage()?.rowId,
     (rowId, previous) => {
@@ -464,15 +490,51 @@ export function ServerMcpPanel(props: ServerMcpPanelProps) {
   }
 
   async function save(): Promise<void> {
+    // A test the user already ran for this draft answers for the save too.
+    const tested = formTest();
     setState((current) => {
       current.touched = true;
     });
     if (!mcpConfigIsValid(state.draft)) return;
-    // The draft's empty id stays empty: the store mints the id on insert, and a client-minted one
-    // reads to it as an edit of a row that is not there.
-    const config = normalizeMcpConfig(state.draft);
-    const saved = await run("save", () => props.onSave(config));
-    if (saved) backToList();
+    const connects = mcpSaveConnects(state.draft, state.baseline, state.editingId === null);
+    // The connect step runs inside the save latch, so the form stays locked until the row is stored.
+    let stored = false;
+    await run("save", async () => {
+      if (connects && !(await connectBeforeSave(tested))) return;
+      // The draft's empty id stays empty: the store mints the id on insert, and a client-minted one
+      // reads to it as an edit of a row that is not there.
+      await props.onSave(normalizeMcpConfig(state.draft));
+      stored = true;
+    });
+    if (stored) backToList();
+  }
+
+  /**
+   * Save connects an http server first, so a server that asks for a sign-in gets one before it is
+   * stored. A server that answered, or that cannot be reached now, saves as before: the address can
+   * be right while the server is down. Refused credentials do not save; the user fixes Headers.
+   * The save bar repeats why it did not save, as for a failed save: the test result can be off screen.
+   */
+  async function connectBeforeSave(tested: McpTestState | null): Promise<boolean> {
+    const test = tested?.status === "passed" || tested?.status === "failed" ? tested : await testDraft();
+    if (!test) return false;
+    if (test.status === "passed") return true;
+    if (test.kind === "refused") {
+      notSaved(test.error);
+      // One frame later, once the busy latch no longer disables the field.
+      requestAnimationFrame(() => headerKeyInput?.focus());
+      return false;
+    }
+    if (test.kind !== "sign-in" || !canSignIn(state.draft)) return true;
+    const signedIn = await signInDraft();
+    if (signedIn?.status === "failed") notSaved(signedIn.error);
+    return signedIn?.status === "passed";
+  }
+
+  function notSaved(error: string): void {
+    setState((current) => {
+      current.error = error;
+    });
   }
 
   /** Puts the form back to what is stored, the way the General tab's save bar resets its fields. */
@@ -500,7 +562,7 @@ export function ServerMcpPanel(props: ServerMcpPanelProps) {
       failed: Boolean(state.error),
       saving: state.busy === "save",
       resetDisabled: state.busy !== null,
-      saveDisabled: disabled() || (state.touched && !mcpConfigIsValid(state.draft)),
+      saveDisabled: disabled() || formWaiting() || (state.touched && !mcpConfigIsValid(state.draft)),
     };
   }
 
@@ -750,16 +812,21 @@ export function ServerMcpPanel(props: ServerMcpPanelProps) {
                   placeholder={COMMAND_PLACEHOLDER}
                   value={state.draft.command}
                   disabled={disabled()}
-                  onValueChange={(value) =>
-                    setState((current) => {
-                      current.draft.command = value;
-                    })
-                  }
-                  onBlur={() =>
+                  onValueChange={(value) => {
+                    // A paste moves at once. Typed text waits for the blur: the field leaves with the
+                    // stdio panel, and the keys typed before Server URL has the focus would be lost.
+                    if (isMcpHttpAddress(value) && value.length - state.draft.command.length > 1) moveToUrl(value);
+                    else
+                      setState((current) => {
+                        current.draft.command = value;
+                      });
+                  }}
+                  onBlur={() => {
                     setState((current) => {
                       current.touched = true;
-                    })
-                  }
+                    });
+                    if (isMcpHttpAddress(state.draft.command)) moveToUrl(state.draft.command);
+                  }}
                 />
               </Field>
 
@@ -936,6 +1003,9 @@ export function ServerMcpPanel(props: ServerMcpPanelProps) {
             >
               <Field label={t("mcp.panel.serverUrl")} error={visible("url")}>
                 <Input
+                  ref={(element: HTMLInputElement) => {
+                    urlInput = element;
+                  }}
                   size="md"
                   type="url"
                   placeholder={URL_PLACEHOLDER}
@@ -968,6 +1038,9 @@ export function ServerMcpPanel(props: ServerMcpPanelProps) {
                   {(pair, index) => (
                     <div class="server-mcp-repeat-row server-mcp-repeat-row-pair">
                       <Input
+                        ref={(element: HTMLInputElement) => {
+                          if (index === 0) headerKeyInput = element;
+                        }}
                         size="md"
                         placeholder={t("mcp.panel.key")}
                         aria-label={t("mcp.panel.headerKey", { position: index + 1 })}
