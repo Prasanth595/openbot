@@ -4,7 +4,8 @@
 // failed starts stop after the limit, that an automatic refresh does not start the provider again
 // and a user refresh does, that low disk space stops a start before the process spawns, that a
 // launch removes what an earlier run left, and that a server that unpacks for longer than the
-// request timeout connects on the retry and after a key change (#2311).
+// request timeout connects on the retry and after a key change (#2311), and that a key change that
+// ends after the runtime is disposed does not keep its new process or the previous one.
 // `bun scripts/antigravity-start-e2e.ts`. Writes .openbot-build/antigravity-start-e2e/report.json.
 import assert from "node:assert/strict";
 import { chmod, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -34,6 +35,8 @@ const SLOW_UNPACK_MS = 7_000;
 
 // `FAKE_AGY_MODE`: `hang` never answers, `crash` exits at its first request, and `slow` unpacks for
 // `FAKE_AGY_UNPACK_MS` before it reads a request, then answers as an ACP server with one model.
+// While the file `FAKE_AGY_HOLD` exists, a `session/new` after the first one, as the catalogue
+// refresh of a started process sends, waits for that file to go and writes its pid to `<file>.held`.
 const FAKE_AGY = `#!/usr/bin/env node
 const fs = require("node:fs");
 const path = require("node:path");
@@ -45,6 +48,7 @@ fs.writeFileSync(path.join(unpacked, "python310.dll"), Buffer.alloc(5 * 1024 * 1
 fs.appendFileSync(process.env.FAKE_AGY_LOG, JSON.stringify({
   pid: process.pid, TMP: process.env.TMP, TEMP: process.env.TEMP, TMPDIR: process.env.TMPDIR, unpacked,
 }) + NL);
+let sessions = 0;
 const write = (message) => process.stdout.write(JSON.stringify({ jsonrpc: "2.0", ...message }) + NL);
 function handle(message) {
   if (message.id === undefined) return;
@@ -53,10 +57,19 @@ function handle(message) {
     return;
   }
   if (message.method === "session/new") {
-    write({ id: message.id, result: {
+    const answer = () => write({ id: message.id, result: {
       sessionId: "s-" + message.id,
       models: { availableModels: [{ modelId: "gemini-fake", name: "Gemini Fake" }], currentModelId: "gemini-fake" },
     } });
+    sessions += 1;
+    const hold = process.env.FAKE_AGY_HOLD;
+    if (!hold || sessions === 1 || !fs.existsSync(hold)) return answer();
+    fs.appendFileSync(hold + ".held", process.pid + NL);
+    const wait = setInterval(() => {
+      if (fs.existsSync(hold)) return;
+      clearInterval(wait);
+      answer();
+    }, 20);
     return;
   }
   write({ id: message.id, result: {} });
@@ -104,6 +117,19 @@ interface Report {
     keyChange: { spawns: number; state: string | undefined };
     logLines: string[];
   };
+  disposeDuringKeyChange?: {
+    handedToStop: number;
+    keyChange: "succeeded" | "failed";
+    leftInRuntime: number;
+    processStopped: boolean;
+  };
+  disposeDuringCatalogRefresh?: {
+    handedToStop: number;
+    keyChange: "succeeded" | "failed";
+    leftInRuntime: number;
+    newProcessStopped: boolean;
+    previousProcessStopped: boolean;
+  };
 }
 
 const root = await mkdtemp(join(tmpdir(), "openbot-antigravity-start-e2e-"));
@@ -130,7 +156,20 @@ async function waitFor(label: string, check: () => Promise<boolean>, waitMs = WA
 
 const entries = (path: string): Promise<string[]> => readdir(path).catch(() => []);
 
-function runtime(tempRoot: string, freeBytes: () => number): { providers: ProviderRuntime; store: AgentStore } {
+function running(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function runtime(
+  tempRoot: string,
+  freeBytes: () => number,
+  isStopping: () => boolean = () => false,
+): { providers: ProviderRuntime; store: AgentStore } {
   const store = new AgentStore(join(root, "profile"), join(root, "home"), new OpenBotDatabase(join(root, "profile")));
   const providers = new ProviderRuntime({
     offProviders: BUILT_IN_PROVIDER_DRIVERS.map((driver) => driver.id).filter((id) => id !== "antigravity"),
@@ -144,7 +183,7 @@ function runtime(tempRoot: string, freeBytes: () => number): { providers: Provid
       onProvidersReady: () => Effect.void,
       onProviderLost: () => undefined,
       onClientStopped: () => Effect.void,
-      isStopping: () => false,
+      isStopping,
       isProviderBusy: () => false,
       isAgentBusy: () => false,
       isProviderAssigned: () => true,
@@ -312,8 +351,97 @@ try {
     diagnostics.some((line) => line.includes("A provider did not start.") && line.includes('"stage":"initialize"')),
   );
 
+  // 8. The app stops while a key change starts the new process. `AgentService.stop` marks the service
+  // as stopping, then disposes the runtime and stops the clients that it hands back. The key change
+  // ends after that, and must stop its process rather than add it to the disposed runtime.
+  process.env.FAKE_AGY_UNPACK_MS = "2000";
+  await rm(log, { force: true });
+  let stopping = false;
+  const disposing = runtime(
+    join(root, "temp-dispose"),
+    () => Number.MAX_SAFE_INTEGER,
+    () => stopping,
+  ).providers;
+  const keyChangeEnd = runCauseEffect(disposing.changeProviderCredential("antigravity", () => Effect.void)).then(
+    () => "succeeded" as const,
+    () => "failed" as const,
+  );
+  await waitFor("the key change to start its process", async () => (await starts()).length === 1);
+  stopping = true;
+  const handed = await runCauseEffect(disposing.dispose());
+  for (const client of handed) await runCauseEffect(client.stop());
+  const keyChangeAfterDispose = await keyChangeEnd;
+  const [keyChangeStart] = await starts();
+  assert.ok(keyChangeStart);
+  // A second dispose hands back what the runtime still holds: a client added after the first one.
+  const left = await runCauseEffect(disposing.dispose());
+  report.disposeDuringKeyChange = {
+    handedToStop: handed.length,
+    keyChange: keyChangeAfterDispose,
+    leftInRuntime: left.length,
+    processStopped: false,
+  };
+  for (const client of left) await runCauseEffect(client.stop());
+  assert.equal(left.length, 0, "the disposed runtime holds no client");
+  await waitFor("the key change's process to stop", async () => !running(keyChangeStart.pid));
+  report.disposeDuringKeyChange.processStopped = true;
+
+  // 9. The app stops while a key change refreshes the model catalogue with its new process. The new
+  // client replaced the previous one in the runtime, so `dispose()` hands back only the new client.
+  // The key change must stop the previous process too, and keep no client in the disposed runtime.
+  process.env.FAKE_AGY_UNPACK_MS = "0";
+  delete process.env.FAKE_AGY_HOLD;
+  await rm(log, { force: true });
+  let refreshStopping = false;
+  const refreshing = runtime(
+    join(root, "temp-dispose-refresh"),
+    () => Number.MAX_SAFE_INTEGER,
+    () => refreshStopping,
+  ).providers;
+  await runCauseEffect(refreshing.ensureProvider("antigravity"));
+  assert.equal(antigravityRow(refreshing)?.state, "available");
+  const [previousStart] = await starts();
+  assert.ok(previousStart);
+  const hold = join(root, "hold-catalog");
+  await writeFile(hold, "");
+  process.env.FAKE_AGY_HOLD = hold;
+  const refreshKeyChangeEnd = runCauseEffect(
+    refreshing.changeProviderCredential("antigravity", () => Effect.void),
+  ).then(
+    () => "succeeded" as const,
+    () => "failed" as const,
+  );
+  await waitFor(
+    "the new process to hold the catalogue refresh",
+    async () => (await readFile(`${hold}.held`, "utf8").catch(() => "")).length > 0,
+  );
+  delete process.env.FAKE_AGY_HOLD;
+  refreshStopping = true;
+  const refreshHanded = await runCauseEffect(refreshing.dispose());
+  for (const client of refreshHanded) await runCauseEffect(client.stop());
+  await rm(hold);
+  const refreshKeyChange = await refreshKeyChangeEnd;
+  const newStart = (await starts()).find((entry) => entry.pid !== previousStart.pid);
+  assert.ok(newStart);
+  const refreshLeft = await runCauseEffect(refreshing.dispose());
+  for (const client of refreshLeft) await runCauseEffect(client.stop());
+  report.disposeDuringCatalogRefresh = {
+    handedToStop: refreshHanded.length,
+    keyChange: refreshKeyChange,
+    leftInRuntime: refreshLeft.length,
+    newProcessStopped: false,
+    previousProcessStopped: false,
+  };
+  assert.equal(refreshLeft.length, 0, "the disposed runtime holds no client");
+  await waitFor("the new process to stop", async () => !running(newStart.pid));
+  report.disposeDuringCatalogRefresh.newProcessStopped = true;
+  await waitFor("the previous process to stop", async () => !running(previousStart.pid));
+  report.disposeDuringCatalogRefresh.previousProcessStopped = true;
+
   report.passed = true;
 } finally {
+  // A failed step can leave a fake process that this script started; stop it.
+  for (const entry of await starts()) if (running(entry.pid)) process.kill(entry.pid);
   await mkdir(OUT, { recursive: true });
   await writeFile(join(OUT, "report.json"), `${JSON.stringify(report, null, 2)}\n`);
   await rm(root, { recursive: true, force: true });
