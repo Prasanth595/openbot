@@ -434,7 +434,9 @@ The public status page at `status.openbot.run` is on GitHub Pages. GitHub serves
 own request logs under its own policy. The page has no analytics and no cookies, and it loads
 nothing from other sites. A GitHub Actions workflow checks the OpenBot services about every 5 minutes
 with plain requests that carry no account or user data. Incidents on the page come from issues
-with the `status` label in the public OpenBot repository.
+with the `status` label in the public OpenBot repository. The same workflow sends the public incident
+and service state to webhook addresses that the OpenBot team sets, such as a team chat channel. It
+sends no account or user data.
 
 Paid server plans use Stripe. You enter card and billing details on Stripe's pages, not in OpenBot.
 Stripe sends the account service the subscription state, the plan, its price, the period, and the
