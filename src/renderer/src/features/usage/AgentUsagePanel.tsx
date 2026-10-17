@@ -49,11 +49,18 @@ interface UsageState {
   serverId: string;
 }
 
+/** The report range for a period. With no agent, the report is for all agents. */
+function usageRange(days: number, agentId: string | undefined): HostAnalyticsInput {
+  // `analyticsRange` needs an agent id; the panel keeps only the dates it computes.
+  const { startDate, endDate, timeZone } = analyticsRange("", days);
+  return agentId === undefined ? { startDate, endDate, timeZone } : { startDate, endDate, timeZone, agentId };
+}
+
 export function AgentUsagePanel(props: AgentUsagePanelProps) {
   const { t } = useText();
   const port = () => props.port ?? usagePort();
   const [state, setState] = createStore<UsageState>({
-    range: { ...analyticsRange("range"), ...(props.agentId === undefined ? {} : { agentId: props.agentId }) },
+    range: usageRange(usagePeriodDays["30d"], props.agentId),
     agents: [],
     result: null,
     phase: "loading",
@@ -222,11 +229,7 @@ export function AgentUsagePanel(props: AgentUsagePanelProps) {
             onChange={(value) => {
               setState((draft) => {
                 draft.period = value;
-                const agentId = draft.range.agentId;
-                draft.range = {
-                  ...analyticsRange("range", usagePeriodDays[value]),
-                  ...(agentId === undefined ? {} : { agentId }),
-                };
+                draft.range = usageRange(usagePeriodDays[value], draft.range.agentId);
               });
             }}
           />
