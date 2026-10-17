@@ -407,7 +407,7 @@ try {
 
   async function call(method: string, path: string, options: CallOptions = {}): Promise<Reply> {
     const headers = protocolHeaders(options);
-    let body: string | Uint8Array<ArrayBuffer> | undefined;
+    let body: string | Uint8Array<ArrayBuffer> | null = null;
     if (options.json !== undefined) {
       headers["Content-Type"] = "application/json";
       body = JSON.stringify(options.json);
