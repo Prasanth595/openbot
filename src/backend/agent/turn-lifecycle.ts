@@ -293,8 +293,11 @@ export class TurnLifecycle {
         this.#mailbox
           .findDeliveriesByTurn(turn.agentId, turnId)
           .some(({ delivery }) => delivery.status === "starting" || delivery.status === "running")
-      )
+      ) {
+        // The client is gone, so no browser tool of this turn can run. Other agents keep their controls.
+        this.#browser.endControl(this.#conversation.publicThreadId(turn.agentId, turn.threadId), turnId);
         continue;
+      }
       this.#attention.clearForTurn(turn.threadId, turnId);
       if (this.#observedCompactions.get(turn.threadId) === turnId) this.#observedCompactions.delete(turn.threadId);
       this.#compaction.abandonCompaction(turn.threadId);
