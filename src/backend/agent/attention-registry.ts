@@ -1058,7 +1058,7 @@ export class AttentionRegistry {
           pending.id,
           pending.uiBlock
             ? uiBlockPromptResult({ status: "expired", blockId: pending.uiBlock.blockId })
-            : expiredPromptResult(pending.responseKind === "ui-block" ? "dynamic-tool" : pending.responseKind),
+            : expiredPromptResult(pending.responseKind),
         );
       } catch (error) {
         logger.warn("Unable to answer an expired prompt", { error: toLogValue(error) });

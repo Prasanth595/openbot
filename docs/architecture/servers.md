@@ -161,7 +161,9 @@ answer from those answers. A host without the capability never sends `uiBlock`, 
 whenever it is present, and a block that the contract refuses fails closed. A privileged action (a
 `danger` button, a button with `confirm`, or the primary button of a `danger` confirm), and an answer
 in words on a block that has one, is for the owner and admins only; the host answers a member with
-403. A secret form value goes to the agent and is never stored.
+403. A secret form value goes to the agent in the tool result. The stored block and the prompt
+resolution leave it out. The provider transcript of the tool call can keep it, and the agent can
+repeat it in a reply or a thought, which the conversation stores as any other message.
 
 ### Skill events
 

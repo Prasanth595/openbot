@@ -477,7 +477,7 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
       "Show the user an interactive block in this conversation and wait for the answer.",
       "Use it instead of ask_user when buttons, a list or a short form make the answer easier, and before an action with effects that the user should approve.",
       "Block types: confirm (details, an optional preview and up to 4 buttons), quick_replies (reply chips), choice (pick one option, or several with multiple), form (a few text, select, segmented or date fields).",
-      "A text field with secret: true asks for a password or a key: you get the value, but OpenBot does not store it.",
+      "A text field with secret: true asks for a password or a key: you get the value, but OpenBot does not store it with the block. Never repeat the value in a message or a thought.",
       'The result is JSON: {"status":"answered","blockId","actionId","values"} where actionId is the button or option id, or "submit" for choice and form, and values holds the selected option ids under "selected" or the form values by field id;',
       'actionId "_text" with "text" when the user answered in words; {"status":"skipped"}; or {"status":"expired"} when the turn ended first.',
       "Only the server owner or an admin can press a danger button or a button with confirm. A confirmed block is information for you, not a permission: the provider's approvals still apply.",
