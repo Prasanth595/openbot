@@ -128,48 +128,48 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
     },
   );
 
-  createEffect(
-    () => props.agent.id,
-    (agentId) => {
-      setDraft((state) => {
-        state.tables.open = false;
-        state.memories.open = false;
-        state.routines.open = false;
-        state.files.open = false;
-        state.skills.open = false;
-        state.skills.reopenAfterMarketplace = false;
-      });
-      if (untrack(() => !props.remoteClient || props.tablesVisible !== false)) {
-        void tableCalls()
-          .listTables()
-          .catch(() => [])
-          .then((items) => {
-            setDraft((state) => {
-              state.tables.count = items.length;
-            });
+  // An effect runs again for an equal value, and each activity of the agent gives a new agent
+  // object. The memo keeps an open view, such as a routine edit, until the agent changes.
+  const currentAgentId = createMemo(() => props.agent.id);
+  createEffect(currentAgentId, (agentId) => {
+    setDraft((state) => {
+      state.tables.open = false;
+      state.memories.open = false;
+      state.routines.open = false;
+      state.files.open = false;
+      state.skills.open = false;
+      state.skills.reopenAfterMarketplace = false;
+    });
+    if (untrack(() => !props.remoteClient || props.tablesVisible !== false)) {
+      void tableCalls()
+        .listTables()
+        .catch(() => [])
+        .then((items) => {
+          setDraft((state) => {
+            state.tables.count = items.length;
           });
-      }
-      void untrack(() => loadSkillsCount(agentId));
-      if (!props.remoteClient) {
-        void conversationPort()
-          .agent.listMemories(agentId)
-          .catch(() => [])
-          .then((items) => {
-            setDraft((state) => {
-              state.memories.count = items.length;
-            });
+        });
+    }
+    void untrack(() => loadSkillsCount(agentId));
+    if (!props.remoteClient) {
+      void conversationPort()
+        .agent.listMemories(agentId)
+        .catch(() => [])
+        .then((items) => {
+          setDraft((state) => {
+            state.memories.count = items.length;
           });
-        void routinesPort()
-          .list()
-          .catch(() => [])
-          .then((items) => {
-            setDraft((state) => {
-              state.routines.count = items.length;
-            });
+        });
+      void routinesPort()
+        .list()
+        .catch(() => [])
+        .then((items) => {
+          setDraft((state) => {
+            state.routines.count = items.length;
           });
-      }
-    },
-  );
+        });
+    }
+  });
 
   // The count follows a skill change made anywhere, as the dialog does.
   createEffect(
