@@ -422,6 +422,7 @@ export function MessageBody(props: {
           <div
             class="message-reply-context"
             data-opens={referenceOpens() ? "" : undefined}
+            data-loading={props.referenceState === "loading" ? "" : undefined}
             data-unavailable={props.referenceState === "unavailable" ? "" : undefined}
           >
             {/*

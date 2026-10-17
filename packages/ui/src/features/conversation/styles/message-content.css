@@ -1212,16 +1212,15 @@
 /* A quote that opens its original. The button lies over the whole quote, its left mark included. */
 .message-reply-context[data-opens] {
   position: relative;
+  transition: border-left-color var(--openbot-duration-hover) var(--openbot-ease-out);
+}
+
+/* The spinner takes the right column; the author and the text flow into the left one. */
+.message-reply-context[data-loading] {
   display: grid;
   align-items: center;
   column-gap: var(--openbot-space-2);
   grid-template-columns: minmax(0, 1fr) auto;
-  transition: border-left-color var(--openbot-duration-hover) var(--openbot-ease-out);
-}
-
-.message-reply-context[data-opens] > span,
-.message-reply-context[data-opens] > p {
-  grid-column: 1;
 }
 
 .message-reply-context[data-opens]:hover {
