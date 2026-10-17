@@ -177,6 +177,20 @@ async function main(): Promise<void> {
     }
 
     {
+      const { tab } = await open();
+      await runCauseEffect(host.takeUserControl(tab.id, { kind: "local" }));
+      const listing = routed(params("list_tabs", {}), never);
+      const listingState = settled(listing);
+      await turn();
+      assert.equal(listingState.done, false, "A tab list ran while a tab was held.");
+      host.releaseUserControl(tab.id);
+      userControlEnded(success(await listing));
+      const afterRelease = success(await routed(params("list_tabs", {}), never));
+      assert.equal(afterRelease.success, true, "A tab list after the release did not run.");
+      recordCases("tab-list-waits-for-held-tab", "tab-list-runs-after-release");
+    }
+
+    {
       const { tab, contents } = await open();
       const action = await startBlockingEvaluate(tab.id, contents, never);
       const queued = routed(params("snapshot", { tabId: tab.id, image: "never" }), never);

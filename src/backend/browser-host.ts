@@ -164,6 +164,8 @@ const PREVIEW_STALE_AFTER_MS = 1_000;
 const VIEW_FRAME_QUALITY = 60;
 const VIEW_FRAME_MAX_WIDTH = 1_280;
 const VIEW_FRAME_MAX_HEIGHT = 800;
+/** The agent browser tools that read or change the agent's tab set, and not one tab. */
+const TAB_SET_TOOLS: ReadonlySet<string> = new Set(["open", "list_tabs", "status"]);
 /** How long after a live view's right-click the page's menu still belongs to that view. */
 const VIEW_CONTEXT_MENU_MS = 1_500;
 /** The `keyCode` of `sendInputEvent` for a key whose `Input.key` name is different. */
@@ -927,8 +929,16 @@ export class BrowserHost {
     }
   }
 
-  /** The tab of this agent tool call while a person controls it, or null. */
+  /**
+   * The tab of this agent tool call while a person controls it, or null. A call for the agent's tab
+   * set, such as `list_tabs`, waits while the person controls any tab that the agent can use.
+   */
   userControlTabFor(params: DynamicToolCallParams): string | null {
+    if (TAB_SET_TOOLS.has(params.tool))
+      return (
+        this.listTabs().find((tab) => this.#userControlTabIds.has(tab.id) && this.#canUseToolTab(params, tab))?.id ??
+        null
+      );
     const tabId = isRecord(params.arguments) ? params.arguments.tabId : undefined;
     if (!isString(tabId) || !this.#userControlTabIds.has(tabId)) return null;
     const tab = this.listTabs().find((candidate) => candidate.id === tabId);
