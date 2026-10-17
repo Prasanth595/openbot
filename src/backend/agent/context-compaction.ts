@@ -414,7 +414,11 @@ export class ContextCompaction {
       client.request("turn/interrupt", { threadId, turnId }, decodeRecordResponse).pipe(
         Effect.catch(() =>
           Effect.sync(() => {
-            if (budget.phase === "stopping" && budget.compactionTurnId === turnId) this.#abandon(agentId, threadId);
+            // After `dispose`, a new compaction of this thread has its own budget.
+            const current = this.#budgets.get(threadId) === budget;
+            if (current && budget.phase === "stopping" && budget.compactionTurnId === turnId) {
+              this.#abandon(agentId, threadId);
+            }
           }),
         ),
       ),
