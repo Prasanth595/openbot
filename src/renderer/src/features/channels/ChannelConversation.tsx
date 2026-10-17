@@ -257,6 +257,13 @@ export function ChannelConversation(props: ChannelConversationProps) {
   );
   const [dropActive, setDropActive] = createSignal(false);
   const [composerFocusRequest, setComposerFocusRequest] = createSignal(0);
+  // A page that loads mounts a new editor. A Reply on the previous page must not focus it.
+  createEffect(
+    () => channels.state.page === null,
+    (loading) => {
+      if (loading) setComposerFocusRequest(0);
+    },
+  );
   const [copyError, setCopyError] = createSignal<UserErrorDetails | null>(null);
   createEffect(
     () => channels.state.selectedId,
