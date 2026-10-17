@@ -905,7 +905,7 @@ class McpOAuthClientProvider implements OAuthClientProvider {
     const result = yield* Effect.result(
       mcpCall(() =>
         refreshAuthorization(issuer, {
-          metadata,
+          ...(metadata ? { metadata } : {}),
           clientInformation: client,
           refreshToken,
           ...(resource ? { resource } : {}),
