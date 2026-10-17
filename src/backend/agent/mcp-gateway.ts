@@ -371,13 +371,20 @@ export class McpGateway {
     return this.#servers.list().find((row) => row.id === mcpServerId && row.transport === "http");
   }
 
-  /** Whether each http row has a sign-in on this computer. Yes or no only, never a token. */
+  /**
+   * Whether each http row has a sign-in on this computer, and whether the server ended the one it
+   * had. Yes or no only, never a token.
+   */
   signIns(): McpSignInState[] {
     const oauth = this.#oauth;
     return this.#servers
       .list()
       .filter((config) => config.transport === "http")
-      .map((config) => ({ mcpServerId: config.id, signedIn: oauth?.signedIn(config.url) ?? false }));
+      .map((config) => ({
+        mcpServerId: config.id,
+        signedIn: oauth?.signedIn(config.url) ?? false,
+        needsSignIn: oauth?.needsSignIn(config.url) ?? false,
+      }));
   }
 
   /**

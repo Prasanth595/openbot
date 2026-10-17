@@ -198,6 +198,7 @@
     "test:acp-directories": "bun scripts/acp-additional-directories-e2e.ts",
     "test:custom-agents": "bun scripts/custom-acp-agent-e2e.ts",
     "test:custom-agents:login-path": "bun scripts/custom-acp-agent-login-path-e2e.ts",
+    "test:mcp-oauth": "bun scripts/mcp-oauth-e2e.ts",
     "test:mcp-tool-consent": "bun scripts/mcp-tool-consent-e2e.ts",
     "test:antigravity-start": "bun scripts/antigravity-start-e2e.ts",
     "test:acp-effort-variants": "bun scripts/acp-effort-variants-e2e.ts",

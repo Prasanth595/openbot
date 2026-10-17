@@ -339,11 +339,21 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
   }
   let mcpServers = clone(STORY_MCP_SERVERS);
   let mcpSignedIn = new Set<string>();
+  // Figma refused its saved sign-in, so the preview shows a row that asks for a new one.
+  let mcpLost = new Set<string>(["mcp-figma"]);
   let cancelPendingMcpSignIn: (() => void) | null = null;
+  const forgetMcpSignIn = (mcpServerId: string) => {
+    mcpSignedIn = new Set([...mcpSignedIn].filter((id) => id !== mcpServerId));
+    mcpLost = new Set([...mcpLost].filter((id) => id !== mcpServerId));
+  };
   const mcpSignInStates = () =>
     mcpServers
       .filter((server) => server.transport === "http")
-      .map((server) => ({ mcpServerId: server.id, signedIn: mcpSignedIn.has(server.id) }));
+      .map((server) => ({
+        mcpServerId: server.id,
+        signedIn: mcpSignedIn.has(server.id),
+        needsSignIn: mcpLost.has(server.id),
+      }));
   let mcpSignInApps: Record<string, McpSignInApp> = {};
   const mcpSignInAppState = (mcpServerId: string): McpSignInAppState => ({
     redirectUrl: "http://127.0.0.1:28417/mcp-auth",
@@ -1511,7 +1521,10 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
             if (settled) return;
             settled = true;
             cancelPendingMcpSignIn = null;
-            if (!error && config.id) mcpSignedIn = new Set(mcpSignedIn).add(config.id);
+            if (!error && config.id) {
+              forgetMcpSignIn(config.id);
+              mcpSignedIn = new Set(mcpSignedIn).add(config.id);
+            }
             resolve({ toolCount: error ? 0 : (MOCK_MCP_TOOL_COUNTS[config.name] ?? 4), error });
           };
           cancelPendingMcpSignIn = () => settle(sourceText("error.backend.mcpSignInCancelled"));
@@ -1526,7 +1539,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         cancelPendingMcpSignIn?.();
       },
       signOutMcpServer: async ({ mcpServerId }) => {
-        mcpSignedIn = new Set([...mcpSignedIn].filter((id) => id !== mcpServerId));
+        forgetMcpSignIn(mcpServerId);
         return mcpSignInStates();
       },
       listMcpSignIns: async () => mcpSignInStates(),
@@ -1536,13 +1549,13 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         const secretSaved =
           clientSecret === null ? (mcpSignInApps[mcpServerId]?.secretSaved ?? false) : clientSecret !== "";
         mcpSignInApps = { ...mcpSignInApps, [mcpServerId]: { clientId, secretSaved, scope } };
-        mcpSignedIn = new Set([...mcpSignedIn].filter((id) => id !== mcpServerId));
+        forgetMcpSignIn(mcpServerId);
         return mcpSignInAppState(mcpServerId);
       },
       removeMcpSignInApp: async ({ mcpServerId }) => {
         const { [mcpServerId]: _removed, ...rest } = mcpSignInApps;
         mcpSignInApps = rest;
-        mcpSignedIn = new Set([...mcpSignedIn].filter((id) => id !== mcpServerId));
+        forgetMcpSignIn(mcpServerId);
         return mcpSignInAppState(mcpServerId);
       },
       getSidebarLayout: async () => clone(sidebarLayout),

@@ -32,6 +32,30 @@ The sign-in kinds of providers are in `ProviderSignIn` and `ProviderCodeSignIn` 
 [`provider-drivers.ts`](../../src/backend/provider-drivers.ts). The kinds of applications are the
 `auth` kinds of a catalog entry: `link`, `key` and `local`.
 
+### How an MCP sign-in renews and ends
+
+`McpOAuth` ([`mcp-oauth-provider.ts`](../../src/backend/mcp-oauth-provider.ts)) renews a token
+before a thread start or a test, with no browser. The renewal calls `refreshAuthorization` of the
+SDK, not `auth()`, so it never registers a new client. The answer of the token endpoint sets what
+stays:
+
+| Answer | Tokens | Client registration | Sign-in app, discovery | Row |
+| --- | --- | --- | --- | --- |
+| New token set | Replaced | Kept | Kept | Signed in |
+| `invalid_grant` | Dropped | Kept | Kept | Sign-in needed (`lostAt`) |
+| `invalid_client`, `unauthorized_client` | Dropped | Dropped | Kept | Sign-in needed (`lostAt`) |
+| No network, a server error, a timeout | Kept | Kept | Kept | No change |
+
+A dropped token is not handed to an agent: `accessToken` answers `null`. The IPC
+`McpSignInState.needsSignIn` tells the panel to show the sign-in badge and the Sign in button with
+no test. The frozen `mcp-sign-in-v1` wire keeps only `mcpServerId` and `signedIn`.
+
+Sign-out and removal delete the local tokens first. Then OpenBot sends one best-effort RFC 7009
+request per token, refresh token first, to the `revocation_endpoint` of the authorization server.
+The request goes through `secureOAuthFetch`, with the client authentication of the registration and
+a 5-second limit. A failure is logged with the origin and the status only, and is not shown.
+Run `bun run test:mcp-oauth` to check these paths against a local authorization server.
+
 ## Remote sign-in: the callback relay
 
 The user is connected to a joined server, for example a cloud server. The host starts the sign-in,

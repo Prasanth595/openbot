@@ -1640,7 +1640,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                       mcpSignIn={
                         mcpSignInSupported()
                           ? {
-                              signedIn: serverSettings.state.mcpSignIns,
+                              states: serverSettings.state.mcpSignIns,
                               remote: {
                                 hostName: target().name,
                                 runtime: workspace.runtime.browser,

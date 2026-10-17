@@ -1,5 +1,5 @@
-import { Deferred, Effect, Exit, Fiber, Scope } from "effect";
-import { type McpOperationError, mcpCall, mcpFailure, mcpSync } from "./mcp-effects";
+import { Deferred, Effect, Exit, Fiber, Result, Scope } from "effect";
+import { McpOperationError, mcpCall, mcpFailure, mcpSync } from "./mcp-effects";
 /**
  * The OAuth client OpenBot is, for an http MCP server that asks its users to sign in.
  *
@@ -19,10 +19,26 @@ import { type McpOperationError, mcpCall, mcpFailure, mcpSync } from "./mcp-effe
  */
 
 import { randomUUID } from "node:crypto";
-import { auth, type OAuthClientProvider, type OAuthDiscoveryState } from "@modelcontextprotocol/sdk/client/auth.js";
 import {
+  auth,
+  discoverAuthorizationServerMetadata,
+  discoverOAuthProtectedResourceMetadata,
+  type OAuthClientProvider,
+  type OAuthDiscoveryState,
+  refreshAuthorization,
+  selectClientAuthMethod,
+  selectResourceURL,
+} from "@modelcontextprotocol/sdk/client/auth.js";
+import {
+  InvalidClientError,
+  InvalidGrantError,
+  UnauthorizedClientError,
+} from "@modelcontextprotocol/sdk/server/auth/errors.js";
+import {
+  type AuthorizationServerMetadata,
   type OAuthClientInformationFull,
   OAuthClientInformationFullSchema,
+  type OAuthClientInformationMixed,
   type OAuthClientMetadata,
   type OAuthTokens,
   OAuthTokensSchema,
@@ -30,6 +46,7 @@ import {
 import type { FetchLike } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { MCP_SIGN_IN_TIMEOUT_MS } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
+import type { Logger } from "@openbot/logging";
 import { z } from "zod";
 import { runCauseEffect } from "./effect-boundary";
 import { withTimeout } from "./with-timeout";
@@ -70,6 +87,12 @@ export const mcpOAuthRecordSchema = z.object({
       resourceMetadataUrl: z.string().optional(),
     })
     .optional(),
+  /**
+   * When a silent refresh was refused and the tokens were dropped. The row then says that the user
+   * must sign in again, and not only that no token is on file. A sign-in that succeeds, a sign-out
+   * and a removal clear it. Older builds strip the field when they read the file.
+   */
+  lostAt: z.number().optional(),
 });
 
 export type McpOAuthRecord = z.infer<typeof mcpOAuthRecordSchema>;
@@ -120,6 +143,10 @@ export interface McpOAuthOptions {
   signInTimeoutMs?: number;
   /** How long a token exchange may hold a thread start or a test before the stored token answers. */
   refreshTimeoutMs?: number;
+  /** How long one RFC 7009 revocation request may run after a sign-out. */
+  revocationTimeoutMs?: number;
+  /** Where a revocation failure is written. It is never shown to the user. */
+  logger?: Pick<Logger, "warn">;
 }
 
 /**
@@ -134,6 +161,12 @@ const MCP_TOKEN_TIMEOUT_MS = 10_000;
  * last moment does not hand a provider a token that dies during the handshake.
  */
 const TOKEN_REFRESH_MARGIN_MS = 60_000;
+
+/**
+ * How long one revocation request may run. The local tokens are already gone when it starts, so
+ * this bounds only how long a dead endpoint keeps a request open.
+ */
+const MCP_REVOCATION_TIMEOUT_MS = 5_000;
 
 /** One sign-in, from the browser leaving to the token set being stored. */
 export interface McpSignIn {
@@ -181,6 +214,8 @@ export interface McpOAuthAuthority {
   cancelSignIn: (url: string) => boolean;
   /** Whether this computer holds a token for this URL. Never the token itself. */
   signedIn: (url: string) => boolean;
+  /** Whether the server refused the stored sign-in, so the user must sign in again. */
+  needsSignIn: (url: string) => boolean;
   /** Drops the tokens and keeps the sign-in app, so the next sign-in uses the same app. */
   signOut: (url: string) => Effect.Effect<void, McpOperationError>;
   /** Drops everything kept for this URL, the sign-in app included. Used when the row is removed. */
@@ -233,8 +268,9 @@ export class McpOAuth implements McpOAuthAuthority {
    * signed in to it.
    *
    * Never interactive: this runs at a thread start, where a browser window nobody asked for would
-   * arrive out of nowhere. A refresh that fails answers with the token that is stored anyway, so
-   * the server states the refusal itself rather than the tool quietly losing its credential.
+   * arrive out of nowhere. A refresh that cannot reach the server answers with the token that is
+   * stored anyway, so the server states the refusal itself. A refresh that the server refused drops
+   * the tokens, and then the answer is `null`: a token the server already refused is not handed on.
    */
   readonly accessToken = Effect.fn("McpOAuth.accessToken")(function* (
     this: McpOAuth,
@@ -251,7 +287,7 @@ export class McpOAuth implements McpOAuthAuthority {
     // whichever server the MCP resource names. Keep the access token for the resource instead.
     if (!credentialIssuer(stored.tokens, stored)) return fallback;
     yield* this.#refresh(resource);
-    return yield* mcpSync(() => this.#options.storage.read(resource)?.tokens?.access_token ?? fallback);
+    return yield* mcpSync(() => this.#options.storage.read(resource)?.tokens?.access_token ?? null);
   }).bind(this);
 
   /**
@@ -272,6 +308,10 @@ export class McpOAuth implements McpOAuthAuthority {
    * and its entry cleared, so the next caller starts a fresh exchange instead of joining the
    * same stall again. Without this every later thread would wait out the same dead request and
    * receive the expired token, even when the server answers new requests.
+   *
+   * It is a refresh and nothing more: the `auth()` flow of the SDK registers a new client when the
+   * stored one is refused, and a refresh with no browser behind it must not do that. See
+   * `McpOAuthClientProvider.refresh`.
    */
   readonly #refresh = Effect.fn("McpOAuth.refresh")(function* (this: McpOAuth, resource: string) {
     const running = this.#refreshing.get(resource);
@@ -279,17 +319,14 @@ export class McpOAuth implements McpOAuthAuthority {
     if (running) return yield* this.#awaitRefresh(running);
     const controller = new AbortController();
     // The scope owns the exchange; a caller can stop waiting without cancelling another caller's refresh.
-    const operation = mcpCall(() =>
-      auth(this.#provider(resource, null), {
-        serverUrl: resource,
-        fetchFn: secureOAuthFetch(controller.signal),
-      }),
-    ).pipe(
-      Effect.asVoid,
-      Effect.timeoutOrElse({ duration: timeoutMs, orElse: () => Effect.void }),
-      Effect.catch(() => Effect.void),
-      Effect.ensuring(Effect.sync(() => controller.abort())),
-    );
+    const operation = this.#provider(resource, null)
+      .refresh(secureOAuthFetch(controller.signal))
+      .pipe(
+        Effect.asVoid,
+        Effect.timeoutOrElse({ duration: timeoutMs, orElse: () => Effect.void }),
+        Effect.catch(() => Effect.void),
+        Effect.ensuring(Effect.sync(() => controller.abort())),
+      );
     const exchange = yield* Effect.forkIn(operation, this.#scope, { startImmediately: true });
     this.#refreshing.set(resource, exchange);
     exchange.addObserver(() => {
@@ -434,16 +471,27 @@ export class McpOAuth implements McpOAuthAuthority {
     return Boolean(record?.tokens && (record.tokens.refresh_token || !expiringSoon(record, 0)));
   }
 
+  needsSignIn(url: string): boolean {
+    const resource = normalizeResource(url);
+    const record = resource === null ? undefined : this.#options.storage.read(resource);
+    return record?.lostAt !== undefined && !record.tokens;
+  }
+
   get redirectUrl(): string {
     return this.#options.redirectUrl;
   }
 
-  /** Forgets one server's registration, tokens and sign-in app. Used when the row is removed. */
+  /**
+   * Forgets one server's registration, tokens and sign-in app. Used when the row is removed. The
+   * tokens are revoked after they are gone from this computer: see `#revoke`.
+   */
   readonly forget = Effect.fn("McpOAuth.forget")(function* (this: McpOAuth, url: string) {
     const resource = normalizeResource(url);
     if (!resource) return;
+    const record = this.#options.storage.read(resource);
     this.#invalidate(resource);
     yield* this.#options.storage.clear(resource);
+    yield* this.#revoke(resource, record);
   }).bind(this);
 
   /**
@@ -453,11 +501,61 @@ export class McpOAuth implements McpOAuthAuthority {
   readonly signOut = Effect.fn("McpOAuth.signOut")(function* (this: McpOAuth, url: string) {
     const resource = normalizeResource(url);
     if (!resource) return;
-    const app = this.#options.storage.read(resource)?.app;
+    const record = this.#options.storage.read(resource);
+    const app = record?.app;
     this.#invalidate(resource);
     if (app) yield* this.#options.storage.write(resource, { app });
     else yield* this.#options.storage.clear(resource);
+    yield* this.#revoke(resource, record);
   }).bind(this);
+
+  /**
+   * Asks the authorization server to end the grant (RFC 7009), after the local copy is deleted.
+   *
+   * The order matters. A revocation that hangs or fails must not keep a token on this computer
+   * that the user asked to remove, so the delete comes first and the request runs in the
+   * background. One request per token, refresh token first: most servers end the access token with
+   * its grant. A failure is logged and nothing else. The user signed out here, and a server that
+   * cannot revoke still lets the token expire.
+   */
+  #revoke(resource: string, record: McpOAuthRecord | null): Effect.Effect<void> {
+    const tokens = record?.tokens;
+    if (!record || !tokens) return Effect.void;
+    const issuer = credentialIssuer(tokens, record);
+    const client = revocationClient(record, issuer);
+    if (!issuer || !client) return Effect.void;
+    const timeoutMs = this.#options.revocationTimeoutMs ?? MCP_REVOCATION_TIMEOUT_MS;
+    const logger = this.#options.logger;
+    const origin = new URL(resource).origin;
+    // Aborts what is still open when the revocation ends, so a request that never answers does not outlive it.
+    const controller = new AbortController();
+    const fetchFn = secureOAuthFetch(controller.signal);
+    // A failure is written as its kind and status only: the error text can quote the request.
+    const revocation = Effect.gen(function* () {
+      const metadata = yield* mcpCall(() => discoverAuthorizationServerMetadata(issuer, { fetchFn })).pipe(
+        Effect.timeoutOrElse({ duration: timeoutMs, orElse: () => Effect.succeed(undefined) }),
+      );
+      const endpoint = revocationEndpoint(metadata);
+      if (!endpoint) return;
+      for (const [token, hint] of [
+        [tokens.refresh_token, "refresh_token"],
+        [tokens.access_token, "access_token"],
+      ] as const) {
+        if (!token) continue;
+        const status = yield* revokeToken(endpoint, token, hint, client, metadata, fetchFn).pipe(
+          Effect.timeoutOrElse({ duration: timeoutMs, orElse: () => Effect.succeed("timeout") }),
+          Effect.catch((error) => Effect.succeed(errorKind(error))),
+        );
+        if (status !== "ok") logger?.warn("An MCP token was not revoked.", { origin, hint, status });
+      }
+    }).pipe(
+      Effect.catch((error) =>
+        Effect.sync(() => logger?.warn("An MCP token was not revoked.", { origin, status: errorKind(error) })),
+      ),
+      Effect.ensuring(Effect.sync(() => controller.abort())),
+    );
+    return Effect.forkIn(revocation, this.#scope, { startImmediately: true }).pipe(Effect.asVoid);
+  }
 
   signInApp(url: string): McpOAuthAppSummary | null {
     const resource = normalizeResource(url);
@@ -749,10 +847,90 @@ class McpOAuthClientProvider implements OAuthClientProvider {
     return runCauseEffect(
       Effect.gen({ self: this }, function* () {
         this.#recordTokens(tokens);
-        yield* this.#save({ tokens, obtainedAt: Date.now() });
+        yield* this.#save({ tokens, obtainedAt: Date.now(), lostAt: undefined });
       }),
     );
   }
+
+  /**
+   * A refresh with no browser behind it: the stored refresh token is traded for a new token set,
+   * and nothing else is tried.
+   *
+   * The `auth()` flow of the SDK does more. When the authorization server refuses the client, it
+   * drops the whole record, registers a new client (RFC 7591) and starts an authorization that this
+   * run cannot show. When the server refuses the grant, it drops the tokens and the caller gets the
+   * expired token. Both happen with no user to ask. Here the refusal is classified, and the record
+   * says what it cost:
+   *
+   * - `invalid_grant`: the grant ended. The tokens go. The client and the discovery stay, so the
+   *   next sign-in uses the same registration.
+   * - `invalid_client` or `unauthorized_client`: the client is not accepted. The tokens and the
+   *   registration go. A sign-in app stays, because the administrator typed it.
+   * - Any other failure (no network, a server error, a timeout) keeps the record as it is.
+   *
+   * The first two set `lostAt`, so the row says that the user must sign in again.
+   */
+  readonly refresh = Effect.fn("McpOAuthClientProvider.refresh")(function* (
+    this: McpOAuthClientProvider,
+    fetchFn: FetchLike,
+  ): Effect.fn.Return<"refreshed" | "lost" | "kept", McpOperationError> {
+    const stored = this.#record();
+    const discovery = this.discoveryState();
+    // The SDK binds a credential to the authorization server URL it found, so that URL is the
+    // issuer. A record without discovery state still names it on its tokens.
+    const issuer =
+      discovery?.authorizationServerUrl ??
+      (typeof stored.tokens?.issuer === "string" ? stored.tokens.issuer : undefined);
+    if (!issuer) return "kept";
+    this.#activeIssuer = issuer;
+    const tokens = this.tokens();
+    const refreshToken = tokens?.refresh_token;
+    if (!refreshToken || (typeof tokens.issuer === "string" && !issuersMatch(tokens.issuer, issuer))) return "kept";
+    // A silent provider answers the client on file, or none. With none, a refresh is not possible
+    // without registering, and this does not register.
+    const client = yield* mcpSync(() => this.clientInformation());
+    if (!client || (typeof client.issuer === "string" && !issuersMatch(client.issuer, issuer))) return "kept";
+    const metadata = yield* mcpCall(() => discoverAuthorizationServerMetadata(issuer, { fetchFn }));
+    const resourceMetadata = yield* mcpCall(() =>
+      discoverOAuthProtectedResourceMetadata(
+        this.#options.resource,
+        discovery?.resourceMetadataUrl ? { resourceMetadataUrl: discovery.resourceMetadataUrl } : {},
+        fetchFn,
+      ),
+    ).pipe(Effect.catch(() => Effect.succeed(undefined)));
+    const selected = yield* mcpCall(() => selectResourceURL(this.#options.resource, this, resourceMetadata));
+    // Sent as the metadata states it, exactly as `auth()` sends it: `URL.href` adds a "/" to a
+    // pathless indicator, and a server that compares exactly refuses that.
+    const resource = selected && resourceMetadata ? resourceMetadata.resource : selected;
+    const result = yield* Effect.result(
+      mcpCall(() =>
+        refreshAuthorization(issuer, {
+          metadata,
+          clientInformation: client,
+          refreshToken,
+          ...(resource ? { resource } : {}),
+          fetchFn,
+        }),
+      ),
+    );
+    if (Result.isSuccess(result)) {
+      // As `auth()` does: a client saved before 1.31 is bound to the server that accepted it.
+      if (typeof client.issuer !== "string")
+        yield* mcpCall(() => this.saveClientInformation({ ...client, issuer })).pipe(Effect.catch(() => Effect.void));
+      yield* mcpCall(() => this.saveTokens({ ...result.success, issuer }));
+      return "refreshed";
+    }
+    const cause = result.failure.cause;
+    const clientRefused = cause instanceof InvalidClientError || cause instanceof UnauthorizedClientError;
+    if (!clientRefused && !(cause instanceof InvalidGrantError)) return "kept";
+    const { tokens: _tokens, obtainedAt: _obtainedAt, client: registration, ...kept } = this.#record();
+    yield* this.#options.storage.write(this.#options.resource, {
+      ...kept,
+      ...(registration && !clientRefused ? { client: registration } : {}),
+      lostAt: Date.now(),
+    });
+    return "lost";
+  });
 
   /** What this attempt must never quote back. Short values are left to `redactMcpValues`. */
   recordSecret(value: string | undefined): void {
@@ -873,18 +1051,17 @@ class McpOAuthClientProvider implements OAuthClientProvider {
         // A sign-in app stays through every refusal: the administrator typed it, and only they
         // can change it.
         const record = yield* mcpSync(() => this.#record());
-        const app = record.app ? { app: record.app } : {};
         if (scope === "all") {
           this.#codeVerifier = null;
-          if (record.app) yield* this.#options.storage.write(this.#options.resource, app);
+          if (record.app) yield* this.#options.storage.write(this.#options.resource, { app: record.app });
           else yield* this.#options.storage.clear(this.#options.resource);
           return;
         }
+        // The discovery stays with the part that is kept: the retry that follows reuses it.
+        const { tokens, obtainedAt, client, ...kept } = record;
         yield* this.#options.storage.write(
           this.#options.resource,
-          scope === "client"
-            ? { ...app, tokens: record.tokens, obtainedAt: record.obtainedAt }
-            : { ...app, client: record.client },
+          scope === "client" ? { ...kept, tokens, obtainedAt } : { ...kept, client },
         );
       }),
     );
@@ -1127,6 +1304,70 @@ function redirected(request: RequestInit, status: number): RequestInit {
   if (status === 307 || status === 308) return request;
   const { body: _body, ...rest } = request;
   return { ...rest, method: "GET" };
+}
+
+/**
+ * The client a revocation authenticates as: the sign-in app, or the registration on file. `null`
+ * when the one on file belongs to another authorization server, which must not receive it.
+ */
+function revocationClient(record: McpOAuthRecord, issuer: string | undefined): OAuthClientInformationMixed | null {
+  if (!issuer) return null;
+  if (record.app) {
+    if (record.app.issuer && !issuersMatch(record.app.issuer, issuer)) return null;
+    return {
+      client_id: record.app.clientId,
+      ...(record.app.clientSecret ? { client_secret: record.app.clientSecret } : {}),
+    };
+  }
+  const { client } = record;
+  if (!client) return null;
+  if (typeof client.issuer === "string" && !issuersMatch(client.issuer, issuer)) return null;
+  return client;
+}
+
+function revocationEndpoint(metadata: AuthorizationServerMetadata | undefined): URL | null {
+  const endpoint = metadata && "revocation_endpoint" in metadata ? metadata.revocation_endpoint : undefined;
+  if (typeof endpoint !== "string") return null;
+  try {
+    return new URL(endpoint);
+  } catch {
+    return null;
+  }
+}
+
+/** One RFC 7009 request. Answers `ok`, or the HTTP status the server gave instead. */
+const revokeToken = Effect.fn("McpOAuth.revokeToken")(function* (
+  endpoint: URL,
+  token: string,
+  hint: "refresh_token" | "access_token",
+  client: OAuthClientInformationMixed,
+  metadata: AuthorizationServerMetadata | undefined,
+  fetchFn: FetchLike,
+): Effect.fn.Return<string, McpOperationError> {
+  const params = new URLSearchParams({ token, token_type_hint: hint });
+  const headers = new Headers({ "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" });
+  const supported =
+    (metadata && "revocation_endpoint_auth_methods_supported" in metadata
+      ? metadata.revocation_endpoint_auth_methods_supported
+      : undefined) ??
+    metadata?.token_endpoint_auth_methods_supported ??
+    [];
+  const method = yield* mcpSync(() => selectClientAuthMethod(client, supported));
+  if (method === "client_secret_basic" && client.client_secret)
+    headers.set("Authorization", `Basic ${btoa(`${client.client_id}:${client.client_secret}`)}`);
+  else {
+    params.set("client_id", client.client_id);
+    if (method === "client_secret_post" && client.client_secret) params.set("client_secret", client.client_secret);
+  }
+  const response = yield* mcpCall(() => fetchFn(endpoint, { method: "POST", headers, body: params }));
+  yield* mcpCall(() => response.body?.cancel()).pipe(Effect.catch(() => Effect.void));
+  return response.ok ? "ok" : `http ${response.status}`;
+});
+
+/** The class of a failure, for a log line that must not carry the failure's own text. */
+function errorKind(error: unknown): string {
+  const cause = error instanceof McpOperationError ? error.cause : error;
+  return cause instanceof Error ? cause.name : "unknown";
 }
 
 /** Whether the stored access token is inside the margin, or already past its life. */

@@ -42,6 +42,7 @@ import {
   isMcpSignInCancelled,
   isMcpSignInOnHost,
   type McpServerConfig,
+  type McpSignInState,
   type McpTestResult,
   type McpTestState,
   mcpConfigChanged,
@@ -108,8 +109,8 @@ export interface ServerMcpPanelProps {
 }
 
 export interface McpPanelSignIn {
-  /** Whether the host holds a sign-in, by row id. A yes or no only. */
-  signedIn: Record<string, boolean>;
+  /** The host's sign-in state, by row id: whether it holds a sign-in, and whether one was lost. */
+  states: Record<string, McpSignInState>;
   /**
    * A joined server's host signs in with its own browser, and its page shows here: the grant comes
    * back on an address only that host can reach. Absent when this computer signs in.
@@ -213,8 +214,11 @@ export function ServerMcpPanel(props: ServerMcpPanelProps) {
   /** Row test result while it still describes the row; the enabled switch is not compared. */
   const rowTest = (config: McpServerConfig): McpTestState | undefined => {
     const entry = state.tests[config.id];
-    if (!entry || mcpConfigChanged({ ...config, enabled: entry.config.enabled }, entry.config)) return undefined;
-    return entry.test;
+    if (entry && !mcpConfigChanged({ ...config, enabled: entry.config.enabled }, entry.config)) return entry.test;
+    // The server refused the saved sign-in: the row asks for a new one as a failed test would.
+    if (canSignIn(config) && props.signIn?.states[config.id]?.needsSignIn)
+      return { status: "failed", error: t("error.backend.mcpSignInRequired"), kind: "sign-in" };
+    return undefined;
   };
   const visible = (key: "name" | "command" | "url") => (state.touched ? errors()[key] : undefined);
   const removeTarget = createMemo(() => props.servers.find((config) => config.id === state.removeId) ?? null);
@@ -583,7 +587,7 @@ export function ServerMcpPanel(props: ServerMcpPanelProps) {
                       <div class="server-mcp-row-title">
                         <ItemTitle>{config().name}</ItemTitle>
                         <Badge variant={mcpStatusVariant(test())}>{mcpStatusLabel(config(), t, test())}</Badge>
-                        <Show when={canSignIn(config()) && props.signIn?.signedIn[config().id]}>
+                        <Show when={canSignIn(config()) && props.signIn?.states[config().id]?.signedIn}>
                           <Badge variant="outline">{t("mcp.status.signedIn")}</Badge>
                         </Show>
                       </div>
@@ -662,7 +666,7 @@ export function ServerMcpPanel(props: ServerMcpPanelProps) {
                         signIn={
                           canSignIn(config())
                             ? {
-                                signedIn: Boolean(props.signIn?.signedIn[config().id]),
+                                signedIn: Boolean(props.signIn?.states[config().id]?.signedIn),
                                 busy: test()?.status === "signing-in",
                                 onSignIn: () => void signInRow(config()),
                                 onSignOut: () => signOut(config()),

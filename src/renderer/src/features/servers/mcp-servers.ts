@@ -93,8 +93,8 @@ export type McpTestState =
   | { status: "failed"; error: string; kind: McpFailureKind };
 
 /** The sign-in states main answers with, as the lookup by row id the panel reads. */
-export function mcpSignInRecord(states: readonly McpSignInState[]): Record<string, boolean> {
-  return Object.fromEntries(states.map((state) => [state.mcpServerId, state.signedIn]));
+export function mcpSignInRecord(states: readonly McpSignInState[]): Record<string, McpSignInState> {
+  return Object.fromEntries(states.map((state) => [state.mcpServerId, state]));
 }
 
 /** The whole sentence a test produced, for the form. The row shows the short badge instead. */

@@ -566,7 +566,7 @@ function ServerSettings(props: { connectors: ConnectorRegistry }) {
           mcpSignIn={
             server().kind === "local" || remoteMcpSignIn(server())
               ? {
-                  signedIn: serverSettingsMcpSignIns(),
+                  states: serverSettingsMcpSignIns(),
                   remote:
                     server().kind === "remote"
                       ? {

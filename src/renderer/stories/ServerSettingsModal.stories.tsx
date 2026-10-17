@@ -3,6 +3,7 @@ import type {
   HostStatus,
   HostUpdateStatus,
   McpServerConfig,
+  McpSignInState,
   McpTestResult,
 } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
@@ -219,7 +220,9 @@ export const RemoteMcpMember: Story = {
 };
 
 function RemoteMcpStory(props: { settings: ServerSettingsModalProps }) {
-  const [signedIn, setSignedIn] = createStore<Record<string, boolean>>({ "mcp-linear": true });
+  const [states, setStates] = createStore<Record<string, McpSignInState>>({
+    "mcp-linear": { mcpServerId: "mcp-linear", signedIn: true },
+  });
   const host = createSignInHost();
   const waiting = new Map<string, (result: McpTestResult) => void>();
   const finish = (url: string, result: McpTestResult) => {
@@ -228,14 +231,14 @@ function RemoteMcpStory(props: { settings: ServerSettingsModalProps }) {
     waiting.delete(url);
   };
   const signIn: McpPanelSignIn = {
-    signedIn,
+    states,
     remote: { hostName: props.settings.server.name, runtime: host.runtime, clipboard: true, pages: host.pages },
     start: (config) =>
       new Promise((resolve) => {
         waiting.set(config.url, (result) => {
           if (!result.error)
-            setSignedIn((current) => {
-              current[config.id] = true;
+            setStates((current) => {
+              current[config.id] = { mcpServerId: config.id, signedIn: true };
             });
           resolve(result);
         });
@@ -243,12 +246,12 @@ function RemoteMcpStory(props: { settings: ServerSettingsModalProps }) {
       }),
     cancel: async (url) => finish(url, { toolCount: 0, error: sourceText("error.backend.mcpSignInCancelled") }),
     signOut: async (id) =>
-      setSignedIn((current) => {
+      setStates((current) => {
         delete current[id];
       }),
   };
   const test = async (config: McpServerConfig): Promise<McpTestResult> => {
-    if (config.transport === "http" && !signedIn[config.id])
+    if (config.transport === "http" && !states[config.id]?.signedIn)
       return { toolCount: 0, error: sourceText("error.backend.mcpSignInRequired") };
     return { toolCount: 6, error: null };
   };
