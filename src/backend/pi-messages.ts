@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { attachmentMimeTypeForName } from "@openbot/contracts/attachment-files";
 import { isString } from "@openbot/contracts/runtime-values";
 import { Effect } from "effect";
 import { getArray, getString, isRecord, type ThreadItem } from "./protocol";
@@ -79,13 +80,7 @@ export const piPrompt = Effect.fn("Pi.prompt")(function* (params: unknown) {
       const path = getString(input, "path");
       if (!path) return yield* providerFailure(new Error("Pi image has no path."));
       const bytes = yield* providerCall(() => readFile(path));
-      const mimeType = path.toLowerCase().endsWith(".png")
-        ? "image/png"
-        : path.toLowerCase().endsWith(".webp")
-          ? "image/webp"
-          : path.toLowerCase().endsWith(".gif")
-            ? "image/gif"
-            : "image/jpeg";
+      const mimeType = attachmentMimeTypeForName(path);
       images.push({ type: "image", mimeType, data: bytes.toString("base64") });
     }
   }

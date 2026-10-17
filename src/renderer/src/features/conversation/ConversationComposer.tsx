@@ -80,6 +80,8 @@ export function ConversationComposer() {
     presentedQueueDeliveries,
     previewAttachment,
     props,
+    quoteRequest,
+    openQuote,
     queuePanelVisible,
     removeAttachment,
     reorderPresentedQueue,
@@ -544,6 +546,8 @@ export function ConversationComposer() {
             ariaLabel={messageLabel()}
             focusRequest={composerFocusRequest()}
             skillPickerRequest={skillPickerRequest()}
+            quoteRequest={quoteRequest()}
+            onOpenQuote={openQuote}
             onValueChange={(text) => {
               updateCurrentDraft({ text });
               updateTeamTyping(text);

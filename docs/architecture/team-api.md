@@ -59,6 +59,11 @@ desktop keeps the link in its encrypted session file and deletes it at sign-out.
 signs out those phones, also when the link row went with its desktop session, and the device list
 shows each phone's method. `DELETE /v1/mobile-auth/ticket?host=` spends the unused one-time codes of
 that host when the desktop cancels the code that it shows.
+A phone session is account-wide: the phone opens each host of the account directory, not only the
+host of its code. `GET /v1/mobile-auth/devices?host=` lists the account's phones only when that host
+is in the directory (an active membership and a device key), so they can open it. With no `host`,
+the route returns every phone, as before. The desktop Connected devices list sends its started host
+and shows no phones when it has no host identity. Account sessions still list and revoke each phone.
 A phone can also sign in with an email code. It requests the code through `/v1/auth/email/start` and
 verifies it through `/v1/mobile-auth/email/verify`, which writes the `auth_sessions` row and its
 `mobile_auth_sessions` row in one batch; `/v1/auth/email/verify` would make a desktop session. This
@@ -79,8 +84,12 @@ iOS `inactive` transitions, including Notification Center, do not trigger a chec
 Session revocation, explicit refresh,
 and completed invitation acceptance can refresh sooner. A lost healthy connection also requests
 membership reconciliation; a transport failure alone never removes a server. Mobile member controls
-use the same account endpoints: owners and admins can invite, while only owners can change another
-member's role or remove access. D1 retains revoked membership records and invalidates affected
+use the same account endpoints: owners and admins invite, change another member's role, remove access
+and end another member's session. Nobody can change or remove the owner, and only the owner ends the
+owner's sessions. `canAdministerServer` in `packages/contracts/src/ipc-team-host.ts` is the one role
+check for the clients and the host. On a host with an account directory, the Team API member `PATCH`
+and `DELETE` write to D1 through `HostService`, so the next directory sync does not undo them; each
+sync closes the host sessions of a member that D1 removed, disabled or gave another role. D1 retains revoked membership records and invalidates affected
 sessions; both clients exclude inactive members from the active list and count. On legacy HTTP(S)
 hosts, desktop exposes inactive records separately for removal before a new invitation; it does not
 restore the pause/restore controls or change the released invitation rules. Mobile separates shareable

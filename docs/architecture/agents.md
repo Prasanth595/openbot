@@ -304,7 +304,7 @@ environment values, URLs, or headers, because they can hold secrets. `install_lo
 it they act on the caller. `uninstall_skill` never removes skill files that the user changed.
 An agent can only restrict access and Computer Use, for itself or a teammate. The router writes
 only a restriction, so a user change between its check and the write is never undone. Only the
-user widens them again, and only the user changes auto-approve, MCP servers and local script runs. A new agent gets
+user widens them again, and only the user moves an agent between Ask first and Full access, and changes MCP servers and local script runs. A new agent gets
 the access and Computer Use limits of the agent that creates it, so a Workspace-only agent cannot
 get around its sandbox through a teammate. There is no creation step for skills or routines in
 the UI.

@@ -91,12 +91,12 @@ export const messages = {
   "agentSettings.runtime.notAvailable": "Pas encore disponible",
   "agentSettings.runtime.fullAccessNote":
     "L’agent s’exécute avec un accès complet à l’ordinateur depuis son espace de travail et le dossier partagé.",
-  "agentSettings.runtime.claudeApprovalNote":
-    "Claude agit sans demander d’approbation, sauf pour les questions qu’il vous pose.",
-  "agentSettings.runtime.providerApprovalNote":
-    "Selon le fournisseur, les commandes sensibles peuvent d’abord demander une approbation.",
+  "agentSettings.runtime.askNote":
+    "Il vous demande avant d’utiliser un outil OpenBot ou de publier un site, et quand son fournisseur demande une approbation.",
+  "agentSettings.runtime.fullNote": "Il agit sans demander, sauf pour les questions qu’il vous pose.",
 
   "agentSettings.access.workspace": "Espace de travail seul",
+  "agentSettings.access.ask": "Demander d’abord",
   "agentSettings.access.full": "Accès complet",
   "agentSettings.busyMessage.appDefaultQueue": "Par défaut de l’app (File d’attente)",
   "agentSettings.busyMessage.appDefaultSteer": "Par défaut de l’app (Orienter)",
@@ -120,10 +120,13 @@ export const messages = {
   "agentSettings.newChat.failed": "Impossible de commencer une nouvelle discussion.",
 
   "agentSettings.fullAccess.title": "Donner un accès complet à cet agent ?",
+  "agentSettings.fullAccess.askTitle": "Laisser cet agent travailler hors de son espace de travail ?",
   "agentSettings.fullAccess.description":
     "L’agent pourra alors lire, modifier et supprimer tout fichier accessible à votre compte utilisateur, exécuter n’importe quelle commande et utiliser le réseau. Une seule instruction mal comprise ou une page web malveillante peut atteindre vos fichiers personnels.",
-  "agentSettings.fullAccess.cancel": "Garder l’accès limité",
+  "agentSettings.fullAccess.noApproval":
+    "L’agent exécutera alors des commandes, modifiera des fichiers, utilisera des outils et publiera des sites sans vous demander d’abord.",
   "agentSettings.fullAccess.confirm": "Autoriser l’accès complet",
+  "agentSettings.fullAccess.askConfirm": "Demander d’abord",
 
   "agentSettings.links.usage": "Utilisation",
   "agentSettings.links.memories": "Souvenirs",
@@ -137,10 +140,9 @@ export const messages = {
   "agentSettings.links.routinesCount": { one: "{count} configurée", other: "{count} configurées" },
   "agentSettings.runtime.workspaceNote":
     "« Espace de travail uniquement » limite les écritures à l’espace de travail de cet agent, au dossier partagé et aux dossiers temporaires. La lecture et le réseau restent disponibles.",
-  "agentSettings.runtime.workspaceEnforcedCommand":
-    "Une commande qui doit écrire à l’extérieur vous demande d’abord, même quand l’approbation automatique est activée.",
+  "agentSettings.runtime.workspaceEnforcedCommand": "Une commande qui doit écrire à l’extérieur vous demande d’abord.",
   "agentSettings.runtime.workspaceEnforcedClaude":
-    "Une modification de fichier à l’extérieur vous demande d’abord, même quand l’approbation automatique est activée. Une commande ne peut pas écrire à l’extérieur.",
+    "Une modification de fichier à l’extérieur vous demande d’abord. Une commande ne peut pas écrire à l’extérieur.",
   "agentSettings.runtime.workspaceUnlimited":
     "Computer Use et le navigateur OpenBot ne sont pas limités ; vous pouvez désactiver Computer Use ci-dessous.",
   "agentSettings.computerUse.title": "Computer Use",

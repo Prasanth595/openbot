@@ -41,8 +41,8 @@ desktop port as the default and take injected calls: `web-server-settings.ts` gi
 routes. A member or role change revokes every session on the host; the browser reconnects once when
 the directory still lists the host. `ConversationRuntime.admin` carries the skills and shared-table
 calls to the agent settings panel, which shows only Skills and Tables in the browser. Memories,
-routines, and files stay on the desktop. The auto-approve switch writes through the agent-admin
-route. `web-marketplace.ts` gives `MarketplaceModal` its calls: the public catalog routes of
+routines, and files stay on the desktop. The Permissions select writes access and auto-approve through
+the agent-admin route. `web-marketplace.ts` gives `MarketplaceModal` its calls: the public catalog routes of
 the account service that serves `/app` (`@openbot/team-client/marketplace-catalog`), and installs on
 the host over `skills-admin-v1`, `agent-install-v1`, `agent-update-v1`, and `mcp-servers-v1`. Try skill and a plugin
 prompt add a line to the agent's draft, as on desktop. A shared agent page also links

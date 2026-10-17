@@ -220,6 +220,10 @@ export const messages = {
   "error.backend.mcpSignInResponseTimedOut": "Die Antwort auf die Anmeldung kam nicht rechtzeitig an.",
   "error.backend.mcpServerExited":
     "Der Server wurde beendet, bevor er geantwortet hat. Führe den Befehl in einem Terminal aus, um seinen Fehler zu sehen.",
+  "error.backend.mcpOAuthProxyUnavailable":
+    "OpenBot konnte die lokale Anmeldeverbindung für diesen Server nicht starten. Starte OpenBot neu und versuche es dann erneut.",
+  "error.backend.mcpOAuthSignInNeeded":
+    "Die Anmeldung bei diesem MCP-Server ist beendet. Der Benutzer muss sich in OpenBot erneut anmelden.",
   "error.backend.mcpServerUnreachable": "OpenBot konnte den Server nicht erreichen. Prüfe die URL und dein Netzwerk.",
   "error.backend.mcpLocalServerOff":
     "Unter {address} antwortet auf diesem Computer kein Server. Starte den Server oder schalte ihn in der App ein, die ihn ausführt, und versuche es dann erneut.",
@@ -234,6 +238,11 @@ export const messages = {
   "error.backend.oauthTooManyRedirects": "Der OAuth-Endpunkt hat zu oft weitergeleitet.",
   "error.backend.oauthRedirectOrigin":
     "Der OAuth-Endpunkt hat zu {origin} weitergeleitet. Die Zugangsdaten wurden daher nicht weitergegeben.",
+  "error.backend.oauthTimedOut": "Der OAuth-Endpunkt {origin} hat nicht rechtzeitig geantwortet.",
+  "error.backend.oauthResponseTooLarge": "Der OAuth-Endpunkt {origin} hat eine zu große Antwort gesendet.",
+  "error.backend.oauthResponseUnreadable": "Die Antwort des OAuth-Endpunkts {origin} konnte nicht gelesen werden.",
+  "error.backend.mcpOAuthPrivateEndpoint":
+    "Der OAuth-Endpunkt {origin} liegt in einem privaten Netzwerk, der MCP-Server ist aber öffentlich. Die Zugangsdaten wurden daher nicht gesendet.",
   "error.backend.sidebarSectionLimit": "Ein Server kann bis zu {limit} Seitenleistenabschnitte haben.",
   "error.backend.sectionNameRequired": "Ein Abschnittsname ist erforderlich.",
   "error.backend.sectionNameTooLong": "Der Abschnittsname ist zu lang.",

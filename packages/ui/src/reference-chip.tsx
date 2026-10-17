@@ -15,6 +15,7 @@ const CHIP_KIND_LABELS = {
   agent: "chat.reference.kind.agent",
   mcp: "chat.reference.kind.mcp",
   plugin: "chat.reference.kind.plugin",
+  quote: "chat.reference.kind.quote",
   skill: "chat.reference.kind.skill",
 } as const satisfies Record<ReferenceChipKind, AppTextKey>;
 
@@ -22,10 +23,11 @@ const CHIP_OPEN_LABELS = {
   agent: "chat.reference.open.agent",
   mcp: "chat.reference.open.mcp",
   plugin: "chat.reference.open.plugin",
+  quote: "chat.reference.open.quote",
   skill: "chat.reference.open.skill",
 } as const satisfies Record<ReferenceChipKind, string>;
 
-export type ReferenceChipKind = "agent" | "mcp" | "plugin" | "skill";
+export type ReferenceChipKind = "agent" | "mcp" | "plugin" | "quote" | "skill";
 
 /** Shared appearance for rendered references and contenteditable tokens. */
 export function ReferenceChip(props: {
@@ -34,7 +36,7 @@ export function ReferenceChip(props: {
   kind: ReferenceChipKind;
   class?: string;
   style?: JSX.CSSProperties;
-  onClick?: (event: MouseEvent) => void;
+  onClick?: ((event: MouseEvent) => void) | undefined;
   /** Sound cue for the click. The default is `open`. */
   "data-cuelume-tap"?: string;
 }) {

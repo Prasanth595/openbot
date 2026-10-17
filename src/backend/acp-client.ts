@@ -19,6 +19,7 @@ import {
   type SessionNotification,
 } from "@agentclientprotocol/sdk";
 import { agentProviderName } from "@openbot/contracts/agent-providers";
+import { attachmentMimeTypeForName } from "@openbot/contracts/attachment-files";
 import type { AgentSessionSettingsSnapshot, AgentSessionSettingValue } from "@openbot/contracts/ipc";
 import { type DynamicRecord, isBoolean, isString } from "@openbot/contracts/runtime-values";
 import { type SourceMessages, sourceText } from "@openbot/i18n/source";
@@ -43,8 +44,8 @@ import {
   acpMcpServers,
   agentMcpServers,
   computerUseParam,
-  type McpAuthorizationSource,
   type McpDropReporter,
+  type McpEndpointSource,
   type McpServerSource,
   type McpToolRuntimeSource,
   usableMcpServers,
@@ -280,7 +281,7 @@ export interface AcpProviderOptions {
   /** What this provider could not be given. Reported once per spawn, by `AgentService`. */
   reportMcpDrops?: McpDropReporter | undefined;
   mcpToolRuntimes?: McpToolRuntimeSource | undefined;
-  mcpAuthorization?: McpAuthorizationSource | undefined;
+  mcpEndpoint?: McpEndpointSource | undefined;
   authenticate?(
     connection: ClientSideConnection,
     initialization: InitializeResponse,
@@ -1100,7 +1101,7 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
                   usableMcpServers(
                     agentMcpServers(this.options.mcpServers?.() ?? [], computerUse),
                     this.options.mcpToolRuntimes?.(),
-                    this.options.mcpAuthorization,
+                    this.options.mcpEndpoint,
                   ).pipe(toProviderClientOperationError),
                 ),
               ),
@@ -1938,7 +1939,6 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
           command: params.toolCall.kind === "execute" ? printableInput(params.toolCall.rawInput) : null,
           reason: params.toolCall.title ?? null,
           permissions: requestedPermissions,
-          acpOptions: params.options,
         },
       )
       .pipe(toProviderClientOperationError);
@@ -2071,17 +2071,16 @@ const promptBlocksEffect = Effect.fn("AcpAgentClient.promptBlocks")(function* (p
     if (item.type === "localImage" && isString(item.path)) {
       const path = item.path;
       const data = yield* providerCall(() => readFile(path));
-      blocks.push({ type: "image", data: data.toString("base64"), mimeType: imageMimeType(item.path), uri: item.path });
+      blocks.push({
+        type: "image",
+        data: data.toString("base64"),
+        mimeType: attachmentMimeTypeForName(path),
+        uri: item.path,
+      });
     }
   }
   return blocks;
 });
-
-function imageMimeType(path: string): "image/jpeg" | "image/webp" | "image/png" {
-  if (/\.jpe?g$/i.test(path)) return "image/jpeg";
-  if (/\.webp$/i.test(path)) return "image/webp";
-  return "image/png";
-}
 
 function printableInput(value: unknown): string | null {
   if (isString(value)) return value;

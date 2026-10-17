@@ -74,7 +74,7 @@ export const messages = {
     other: "{count} pasującego ustawienia.",
   },
   "app.standingApproval.description":
-    "{name} będzie uruchamiać polecenia i narzędzia MCP, zmieniać pliki oraz rozszerzać własny dostęp do systemu plików i sieci na komputerze, na którym działa, bez ponownego pytania. Publikowanie, zastępowanie i usuwanie publicznych witryn nadal wymaga zatwierdzenia, chyba że tryb Turbo jest włączony. Automatyczne zatwierdzanie możesz wyłączyć w menu modelu tego agenta.",
+    "Agent {name} przechodzi na Pełny dostęp. Będzie uruchamiać polecenia i narzędzia, zmieniać pliki, publikować witryny oraz rozszerzać własny dostęp do systemu plików i sieci na komputerze, na którym działa, bez ponownego pytania. Możesz to zmienić w ustawieniach Dostęp agenta.",
   "app.standingApproval.descriptionUnnamed":
-    "Ten agent będzie uruchamiać polecenia i narzędzia MCP, zmieniać pliki oraz rozszerzać własny dostęp do systemu plików i sieci na komputerze, na którym działa, bez ponownego pytania. Publikowanie, zastępowanie i usuwanie publicznych witryn nadal wymaga zatwierdzenia, chyba że tryb Turbo jest włączony. Automatyczne zatwierdzanie możesz wyłączyć w menu modelu tego agenta.",
+    "Ten agent przechodzi na Pełny dostęp. Będzie uruchamiać polecenia i narzędzia, zmieniać pliki, publikować witryny oraz rozszerzać własny dostęp do systemu plików i sieci na komputerze, na którym działa, bez ponownego pytania. Możesz to zmienić w ustawieniach Dostęp agenta.",
 } as const satisfies PartialTranslation<typeof source>;

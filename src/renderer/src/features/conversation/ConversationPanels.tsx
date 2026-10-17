@@ -12,7 +12,6 @@ import { actionToast } from "../../action-toast";
 import { toAgentMessages } from "../../app-message-projection";
 import { agentTemplatesPort } from "../agent-templates/agent-templates-port";
 import { createPublishAgent } from "../agent-templates/PublishAgent";
-import { serverCanAdministerAgents } from "../agents/remote-agent-admin";
 import type { AgentFilesOptions } from "../files/AgentFilesSettings";
 import { canManageStorage, serverHasStorage } from "../files/storage-usage";
 import { remoteRoutineRecovery, serverCanAdminister } from "../servers/server-capabilities";
@@ -398,7 +397,8 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
                 (!props.runtime || props.runtime.admin !== undefined) &&
                 serverCanAdminister(props.server, "shared-tables-v1")
               }
-              accessEditable={props.server?.kind === "local" || serverCanAdministerAgents(props.server)}
+              autoApprove={props.agentAutoApproves}
+              onUpdatePermissions={props.onUpdateAgentPermissions}
               computerUseEditable={props.server?.kind === "local"}
               automationEditable={
                 props.server?.kind === "local" ||

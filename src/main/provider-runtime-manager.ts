@@ -2,9 +2,9 @@ import { execFile } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { createReadStream, createWriteStream } from "node:fs";
-import { access, mkdir, readdir, readFile, rename, rm, stat, statfs, utimes, writeFile } from "node:fs/promises";
+import { access, lstat, mkdir, readdir, readFile, rename, rm, stat, statfs, utimes, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { finished } from "node:stream/promises";
 import { promisify } from "node:util";
 import {
@@ -17,7 +17,7 @@ import {
   type ProviderRuntimeSnapshot,
   type ProviderRuntimeStatus,
 } from "@openbot/contracts/ipc";
-import { isDynamicRecord, isNumber, isString } from "@openbot/contracts/runtime-values";
+import { isBoolean, isDynamicRecord, isNumber, isString } from "@openbot/contracts/runtime-values";
 import { matchingSourceKeys, sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, type LogValue, redactText, toLogValue } from "@openbot/logging";
 import { Deferred, Effect, Exit, Fiber, Result, Scope, Stream } from "effect";
@@ -625,7 +625,7 @@ export class ProviderRuntimeManager extends EventEmitter<ProviderRuntimeManagerE
       for (const version of versions) {
         const spec = version === pinned.version ? pinned : recordedSpec(pinned, version);
         const installRoot = join(targetRoot, version);
-        if (!(yield* this.#verifiesEffect(installRoot, spec))) continue;
+        if (!(yield* this.#verifiesUnlessUnchangedEffect(installRoot, spec))) continue;
         yield* this.#stampInUseEffect(installRoot);
         return version;
       }
@@ -1021,6 +1021,13 @@ export class ProviderRuntimeManager extends EventEmitter<ProviderRuntimeManagerE
     );
   }
 
+  #verifiesUnlessUnchangedEffect(installRoot: string, spec: RuntimeSpec): Effect.Effect<boolean> {
+    return verifyChangedRuntime(installRoot, spec, this.#lock, this.#isProviderOn).pipe(
+      Effect.as(true),
+      Effect.catch(() => Effect.succeed(false)),
+    );
+  }
+
   #downloadSmallFileEffect(
     url: string,
     expectedSha256: string | null,
@@ -1190,10 +1197,19 @@ export class ProviderRuntimeManager extends EventEmitter<ProviderRuntimeManagerE
     const stale = Date.now() - retentionMs;
     return this.#oldVersionPathsEffect(target, stale, true).pipe(
       Effect.flatMap((paths) =>
-        Effect.forEach(paths, (path) => removeStaleRuntimeDirectory(path, stale), {
-          concurrency: "unbounded",
-          discard: true,
-        }),
+        Effect.forEach(
+          paths,
+          (path) =>
+            removeStaleRuntimeDirectory(path, stale).pipe(
+              Effect.andThen(pathExists(path)),
+              Effect.flatMap((kept) =>
+                kept
+                  ? Effect.void
+                  : runtimeIO(() => rm(verificationRecordPath(path), { force: true })).pipe(Effect.ignore),
+              ),
+            ),
+          { concurrency: "unbounded", discard: true },
+        ),
       ),
       Effect.catch(() => Effect.void),
     );
@@ -1310,6 +1326,92 @@ const verifyInstalledRuntime = Effect.fn("ProviderRuntime.verifyInstalledRuntime
   if ((yield* runtimeSync(() => descriptor.parseVersion(output))) !== spec.version) {
     return yield* new ProviderRuntimeFailure({ cause: new Error(sourceText("error.provider.unexpectedVersion")) });
   }
+});
+
+/** Bump when `verifyInstalledRuntime` checks something new, so a record from an older build is not trusted. */
+const VERIFICATION_RECORD_LAYOUT = 1;
+
+/**
+ * `verifyInstalledRuntime`, skipped when no file of the version changed since it last passed.
+ *
+ * The full check reads and hashes every installed CLI, more than 2 GB with every provider on, and
+ * runs each version command: about 1.5 s of every start, before the window could open. A pass writes
+ * the size, times and inode of each file beside the version directory. A write to a file changes its
+ * ctime, which no process without root can set back, so a changed, added or removed file runs the
+ * full check again, and so does a lock or a check that is new. Like the install record, this guards
+ * against a damaged or replaced install, not against a writer who can change the record as well.
+ * The directory itself is left out: `#stampInUse` changes its times on every start.
+ */
+const verifyChangedRuntime = Effect.fn("ProviderRuntime.verifyChangedRuntime")(function* (
+  root: string,
+  spec: RuntimeSpec,
+  lock: AgentRuntimeLock,
+  isProviderOn: (provider: ManagedProviderId) => boolean,
+): Effect.fn.Return<void, ProviderRuntimeFailure> {
+  const recordPath = verificationRecordPath(root);
+  const key = createHash("sha256")
+    .update(JSON.stringify([VERIFICATION_RECORD_LAYOUT, spec, lock[spec.runtime]]))
+    .digest("hex");
+  // A tool runtime and a provider that is on also had their version checked; one that is off did not.
+  const versionChecked = isManagedToolRuntime(spec.runtime) || isProviderOn(spec.runtime);
+  const before = yield* runtimeFingerprint(root);
+  const saved = yield* runtimeIO(() => readFile(recordPath, "utf8")).pipe(
+    // A crash can leave the record empty or cut; `runtimeSync` makes that a failure, not a defect.
+    Effect.flatMap((text) => runtimeSync(() => parseVerificationRecord(text))),
+    Effect.catch(() => Effect.succeed(null)),
+  );
+  if (
+    before !== null &&
+    saved?.key === key &&
+    (saved.versionChecked || !versionChecked) &&
+    saved.files.join("\n") === before.join("\n")
+  )
+    return;
+  yield* verifyInstalledRuntime(root, spec, lock, isProviderOn);
+  // A file that changed while it was read is checked again on the next start.
+  const after = before === null ? null : yield* runtimeFingerprint(root);
+  if (after === null || after.join("\n") !== before?.join("\n")) return;
+  const record = `${JSON.stringify({ key, versionChecked, files: after })}\n`;
+  const staged = `${recordPath}.${process.pid}-${randomBytes(4).toString("hex")}`;
+  // Best effort, as the stamp is: without a record the next start runs the full check.
+  yield* runtimeIO(async () => {
+    await writeFile(staged, record);
+    await rename(staged, recordPath);
+  }).pipe(Effect.catch(() => runtimeIO(() => rm(staged, { force: true })).pipe(Effect.ignore)));
+});
+
+/** Beside the version directory, so the install record's file count and the collector do not see it. */
+function verificationRecordPath(root: string): string {
+  return join(dirname(root), `.${basename(root)}.verified.json`);
+}
+
+function parseVerificationRecord(text: string): { key: string; versionChecked: boolean; files: string[] } | null {
+  const value = JSON.parse(text);
+  if (!isDynamicRecord(value) || !isString(value.key) || !isBoolean(value.versionChecked)) return null;
+  const files = value.files;
+  if (!Array.isArray(files) || !files.every(isString)) return null;
+  return { key: value.key, versionChecked: value.versionChecked, files };
+}
+
+/** One line per file under `root`, sorted, or `null` when something there is not a plain file or folder. */
+const runtimeFingerprint = Effect.fn("ProviderRuntime.runtimeFingerprint")(function* (
+  root: string,
+  prefix = "",
+): Effect.fn.Return<string[] | null, ProviderRuntimeFailure> {
+  const lines: string[] = [];
+  const entries = yield* runtimeIO(() => readdir(join(root, prefix), { withFileTypes: true }));
+  for (const entry of entries) {
+    const path = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) {
+      const nested = yield* runtimeFingerprint(root, path);
+      if (nested === null) return null;
+      lines.push(...nested);
+    } else if (entry.isFile()) {
+      const info = yield* runtimeIO(() => lstat(join(root, path), { bigint: true }));
+      lines.push([path, info.size, info.mtimeNs, info.ctimeNs, info.ino, info.dev].join("\0"));
+    } else return null;
+  }
+  return lines.sort();
 });
 
 /**

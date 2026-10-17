@@ -135,8 +135,6 @@ export const messages = {
   "provider.picker.effort": "Усилие",
   "provider.picker.effortLabel": "Уровень усилий агента",
   "provider.picker.selectEffort": "Выбрать уровень усилий",
-  "provider.picker.autoApprove": "Автоодобрение",
-  "provider.picker.autoApproveLabel": "Автоматически одобрять действия этого агента",
   "provider.picker.custom": "Свой",
   "provider.picker.cliReady": "{cli} готов",
   "provider.status.signInRequired": "Нужно войти",

@@ -1,12 +1,12 @@
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import {
-  type AgentAccess,
   type AvatarHue,
+  agentPermissionLevel,
+  canAdministerServer,
   DEFAULT_PROVIDER_ACCOUNT_ID,
   type HostProviderAccounts,
   type UpdateAgentInput,
 } from "@openbot/contracts/ipc";
-import type { MobileTextKey } from "@openbot/i18n/mobile";
 import { useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
@@ -15,7 +15,11 @@ import { useThemeColor } from "heroui-native/hooks";
 import Pencil from "lucide-react-native/icons/pencil";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, View } from "react-native";
-import { AgentAccessFields, useAgentAdminSettings } from "@/features/agents/components/agent-access-fields";
+import {
+  AgentAccessFields,
+  PERMISSION_LABEL,
+  useAgentAdminSettings,
+} from "@/features/agents/components/agent-access-fields";
 import { AgentAppearancePicker } from "@/features/agents/components/agent-appearance-picker";
 import { AgentNewChatSection, AgentNotificationsRow } from "@/features/agents/components/agent-chat-settings";
 import { AgentBusyMessageField, AgentHostPermissionFields } from "@/features/agents/components/agent-host-fields";
@@ -43,11 +47,6 @@ type AgentEdits = Pick<
   UpdateAgentInput,
   "name" | "title" | "description" | "avatarSeed" | "avatarHue" | "provider" | "model" | "reasoningEffort"
 >;
-
-const ACCESS_LABEL = {
-  workspace: "mobile.agent.access.workspace",
-  full: "mobile.agent.access.full",
-} as const satisfies Record<AgentAccess, MobileTextKey>;
 
 type AgentPage =
   | "info"
@@ -502,7 +501,7 @@ function AgentForm({
               </SettingsRow>
             ) : null}
           </SettingsSection>
-          {host && host.role !== "member" ? (
+          {host && canAdministerServer(host.role) ? (
             <AgentSessionSettingsSection key={`${agent.serverId}:${agent.id}`} agent={agent} available={available} />
           ) : null}
           {showPermissions || showNotifications || showAdvanced ? (
@@ -512,7 +511,7 @@ function AgentForm({
             >
               {showPermissions ? (
                 <SettingsRow
-                  supportingText={adminSettings ? t(ACCESS_LABEL[adminSettings.access]) : undefined}
+                  supportingText={adminSettings ? t(PERMISSION_LABEL[agentPermissionLevel(adminSettings)]) : undefined}
                   onPress={() =>
                     router.push({
                       pathname: "/agent-info/[agentId]/permissions",

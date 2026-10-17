@@ -1,4 +1,4 @@
-import { analyticsRange, type InstalledSkill } from "@openbot/contracts/ipc";
+import { analyticsRange, canAdministerServer, type InstalledSkill } from "@openbot/contracts/ipc";
 import type { MobileTextKey } from "@openbot/i18n/mobile";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
@@ -341,7 +341,7 @@ export function AgentInformation({
             <AgentFiles
               agent={agent}
               usage={storage.data}
-              canDelete={role === "owner" || role === "admin"}
+              canDelete={canAdministerServer(role)}
               onChanged={rescanStorage}
             />
           ) : (

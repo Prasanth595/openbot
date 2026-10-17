@@ -44,6 +44,9 @@ extraResources:
     to: plugin-catalog
   - from: resources/agent-import
     to: agent-import
+  # `openbot-cli.mjs` runs tasks on agents through the Local scripts API; see docs/automation.md.
+  - from: resources/cli
+    to: cli
   - from: build/icon-production.png
     to: icons/icon-production.png
   - from: build/icon-dev.png

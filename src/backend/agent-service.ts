@@ -120,9 +120,10 @@ import { classifyFailure } from "@openbot/telemetry";
 import { Deferred, Effect, Exit, Fiber, Result, Schema, Scope, Semaphore } from "effect";
 import { AgentMemories } from "./agent/agent-memories";
 import { AgentRemoval, AgentRemovalFailed } from "./agent/agent-removal";
+import { AgentSettingsRefused } from "./agent/agent-settings-refused";
 import type { ApprovalAutomationPolicy } from "./agent/approval-automation";
 import { AttachmentGateway } from "./agent/attachment-gateway";
-import { AttentionRegistry, type LocalAttentionResponse } from "./agent/attention-registry";
+import { AttentionRegistry, type LocalAttentionResponse, type PromptResponder } from "./agent/attention-registry";
 import { BootRecovery } from "./agent/boot-recovery";
 import { BrowserUploads } from "./agent/browser-uploads";
 import type { ChatVisualPreviewHost } from "./agent/chat-visual-preview";
@@ -243,6 +244,8 @@ export interface AgentServiceOptions {
   mailbox: MailboxStore;
   browser: AgentBrowserHost;
   requestTimeoutMs?: number;
+  /** How long a Codex context compaction runs before OpenBot stops it. Tests make it short. */
+  contextCompactionTimeoutMs?: number;
   preferredProvider?: AgentProvider;
   /** The model chosen beside `preferredProvider`, or `null` for that provider's own default. */
   preferredModel?: AgentModelId | null;
@@ -600,6 +603,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
             this.#attention.clearPrompts(client);
             this.#attention.clearBrowserTakeovers(client);
             this.#attention.clearApprovals(client);
+            this.#compaction.clientEnded(client);
             yield* this.#turn.interruptTurnsOf(client);
           }),
         onAgentClientLost: (agentId, client) =>
@@ -608,6 +612,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
             this.#attention.clearBrowserTakeovers(client);
             this.#attention.clearApprovals(client);
             this.#boot.orphanDeliveriesOfAgent(agentId);
+            this.#compaction.clientEnded(client);
             yield* this.#turn.interruptTurnsOf(client, { keepRecoverable: true });
             // A teammate that asked this agent may hold the other answers until this work ends.
             const requesters = this.#mailbox
@@ -667,7 +672,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         // `enabledMcpServers`, which the Codex thread configuration reads.
         mcpServers: () => this.#mcp.record(credentials.mcpServers()),
         reportMcpDrops: (provider, drops) => this.#mcp.reportDrops(provider, drops),
-        mcpAuthorization: (config) => this.#mcp.authorization(config).pipe(toMcpOperationError),
+        mcpEndpoint: (config) => this.#mcp.endpoint(config).pipe(toMcpOperationError),
       },
       mcpHandoff: this.#mcp.handoffLog(),
       redactMcp: (text) => this.#mcp.redact(text),
@@ -689,6 +694,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       },
     });
     this.#compaction = new ContextCompaction({
+      timeoutMs: options.contextCompactionTimeoutMs,
       changed: () => this.#emitRuntimeSnapshot(),
       store,
       providers: this.#providers,
@@ -798,7 +804,8 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       compaction: this.#compaction,
       mcpServers: () => this.#mcp.enabled(),
       mcpToolRuntimes: () => this.#mcp.toolRuntimes(),
-      mcpAuthorization: (config) => this.#mcp.authorization(config).pipe(toMcpOperationError),
+      mcpEndpoint: (config) => this.#mcp.endpoint(config).pipe(toMcpOperationError),
+      mcpProxyFingerprint: (configs) => this.#mcp.proxyFingerprint(configs).pipe(toMcpOperationError),
       ...(credentials.agentEnvironment ? { agentEnvironment: credentials.agentEnvironment } : {}),
       passwordVaultConnected: () => options.passwordVault?.connected() ?? false,
       sectionTeammates: (agentId) => this.sectionTeammates(agentId),
@@ -1145,7 +1152,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       hostedSites: this.#hostedSites,
       compaction: this.#compaction,
       deleteWithRevokedApproval: options.deleteWithRevokedApproval ?? ((_agentId, remove) => remove()),
-      logger,
+      logger: createOpenBotLogger("agent-removal"),
       hooks: {
         emit: (event) => this.#emit(event),
         listAgents: () => this.listAgents(),
@@ -2216,10 +2223,10 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         this.#conversation.anyWorkingSnapshot(input.agentId)?.activeTurnId ??
         (previous.threadId ? this.#store.database.readActiveTurnId(input.agentId, previous.threadId) : null);
       if (this.#conversation.workingTaskSnapshots(input.agentId).length > 0) {
-        throw new Error(sourceText("error.agent.waitForTasksBeforeProviderChange"));
+        throw new AgentSettingsRefused(sourceText("error.agent.waitForTasksBeforeProviderChange"));
       }
       if (hasPendingWork || activeTurn) {
-        throw new Error(sourceText("error.agent.waitBeforeProviderChange"));
+        throw new AgentSettingsRefused(sourceText("error.agent.waitBeforeProviderChange"));
       }
     };
     const { previous, requestedModel, requestedProvider, previousAccount, requestedAccount } = yield* lifecycleStep(
@@ -2235,16 +2242,18 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         if (input.model && !requestedModel) {
           // A change of model alone stays on the agent's provider, so that provider is the one to explain.
           const provider = input.provider ?? (previous ? providerForAgent(previous) : undefined);
-          throw modelUnavailableError(
-            input.model,
-            provider,
-            this.#endpoints.available(),
-            this.#providers.status().providers ?? [],
+          throw new AgentSettingsRefused(
+            modelUnavailableError(
+              input.model,
+              provider,
+              this.#endpoints.available(),
+              this.#providers.status().providers ?? [],
+            ).message,
           );
         }
         const requestedProvider = input.provider ?? requestedModel?.provider ?? previous?.provider;
         if (input.provider && requestedModel && requestedModel.provider !== input.provider) {
-          throw new Error(sourceText("error.agent.modelProviderMismatch"));
+          throw new AgentSettingsRefused(sourceText("error.agent.modelProviderMismatch"));
         }
         if (requestedProvider && previous && requestedProvider !== providerForAgent(previous)) {
           if (!input.model || !input.provider) {
@@ -2268,7 +2277,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
           input.providerAccountId !== undefined &&
           (!requestedProvider || !this.#providers.hasProviderAccount(requestedProvider, requestedAccount))
         )
-          throw new Error(
+          throw new AgentSettingsRefused(
             sourceText("error.provider.accountNotFound", {
               provider: requestedProvider ? providerLabel(requestedProvider) : "",
             }),
@@ -3114,6 +3123,8 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       discard: true,
     });
     yield* Fiber.join(channelStop);
+    // After the clients: a provider that still runs would see its MCP servers fail.
+    yield* this.#mcp.close();
     yield* settleLifecycleTasks("finish drain", this.#drain.pendingTasks());
     yield* settleLifecycleTasks("finish image requests", this.#images.pendingOperations());
     yield* this.#images.dispose();
@@ -3806,9 +3817,10 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     yield* Effect.all(requests, { concurrency: "unbounded", discard: true });
   }, Effect.uninterruptible).bind(this);
 
-  respondToPrompt(input: RespondToPromptInput): Effect.Effect<void, AgentLifecycleFailed> {
+  /** `responder` is absent for the person at this computer; the Team API gives the member who answers. */
+  respondToPrompt(input: RespondToPromptInput, responder?: PromptResponder): Effect.Effect<void, AgentLifecycleFailed> {
     return this.#attention
-      .respondToPrompt(input)
+      .respondToPrompt(input, responder)
       .pipe(
         Effect.mapError((failure) => new AgentLifecycleFailed({ operation: "respondToPrompt", cause: failure.cause })),
       );

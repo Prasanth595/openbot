@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { AgentContextCategoryUsage, AgentContextState } from "@openbot/contracts/ipc";
 import { Effect, Schema } from "effect";
+import type { AgentClient } from "../agent-client";
 import type { AgentStore } from "../agent-store";
 import { causeHelpers } from "../effect-boundary";
 import { decodeRecordResponse, getRecord } from "../protocol";
@@ -11,7 +12,8 @@ interface ThreadContextBudget {
   usedTokens: number;
   contextWindow: number;
   pending: boolean;
-  phase: "idle" | "requested" | "running";
+  /** `stopping`: the deadline asked Codex to stop the compaction turn, and the queue waits for its end. */
+  phase: "idle" | "requested" | "running" | "stopping";
   compactionTurnId: string | null;
   lastCompactedTokens: number | null;
 }
@@ -22,11 +24,20 @@ const CONTEXT_COMPACTION_TIMEOUT_MS = 120_000;
 const USAGE_CHANGE_DELAY_MS = 250;
 
 export interface ContextCompactionOptions {
+  /** How long a compaction runs before OpenBot stops it. Tests make it short. */
+  timeoutMs?: number | undefined;
   store: AgentStore;
   providers: ProviderPort;
   emitError(code: string, error: unknown, agentId?: string): void;
   scheduleDrain(agentId: string): void;
   changed?(): void;
+}
+
+/** A queue that Codex refused because a compaction turn runs on `threadId`. */
+interface RefusalHold {
+  threadId: string;
+  client: AgentClient;
+  timer: NodeJS.Timeout;
 }
 
 /**
@@ -38,6 +49,10 @@ export interface ContextCompactionOptions {
  * belongs to the compaction, and `isCompactionTurn` recognizes its completion. The budget is keyed
  * by *external* provider thread id, `compactingAgents` by agent id, because an agent only ever compacts one
  * thread at a time and the drain guard asks the question by agent.
+ *
+ * Codex refuses input while a compaction turn runs, so the hold lasts until that turn ends: the
+ * deadline stops the turn instead of releasing the queue, and a refused `turn/start` puts its
+ * messages back to wait for the end of the turn. A hold of a client that ended ends with it.
  */
 export class ContextCompaction {
   readonly #store: AgentStore;
@@ -45,7 +60,12 @@ export class ContextCompaction {
   readonly #emitError: (code: string, error: unknown, agentId?: string) => void;
   readonly #scheduleDrain: (agentId: string) => void;
   readonly #budgets = new Map<string, ThreadContextBudget>();
-  readonly #compactingAgents = new Set<string>();
+  /** The thread that compacts, and the client that runs it once `request` sends it. */
+  readonly #compactingAgents = new Map<string, { threadId: string; client: AgentClient | null }>();
+  readonly #refusals = new Map<string, RefusalHold>();
+  readonly #timeoutMs: number;
+  /** How long a stopped compaction, or a refused queue, waits for the turn to end. */
+  readonly #graceMs: number;
   readonly #display = new Map<string, Omit<AgentContextState, "agentId" | "threadId">>();
   readonly #awaitingPostCompaction = new Set<string>();
   readonly #durations = new Map<string, number>();
@@ -55,6 +75,8 @@ export class ContextCompaction {
 
   constructor(options: ContextCompactionOptions) {
     this.#changed = options.changed ?? (() => {});
+    this.#timeoutMs = options.timeoutMs ?? CONTEXT_COMPACTION_TIMEOUT_MS;
+    this.#graceMs = Math.ceil(this.#timeoutMs / 4);
     this.#store = options.store;
     this.#providers = options.providers;
     this.#emitError = options.emitError;
@@ -161,7 +183,7 @@ export class ContextCompaction {
 
   /** One clause of the drain guard the queue engine composes. False means "hold this agent's queue". */
   mayDrain(agentId: string): boolean {
-    return !this.#compactingAgents.has(agentId);
+    return !this.#compactingAgents.has(agentId) && !this.#refusals.has(agentId);
   }
 
   updateBudget(threadId: string, params: unknown): void {
@@ -212,7 +234,7 @@ export class ContextCompaction {
       return false;
     }
     budget.phase = "requested";
-    this.#compactingAgents.add(agentId);
+    this.#compactingAgents.set(agentId, { threadId, client: null });
     this.observeCompaction(threadId, "running");
     return true;
   }
@@ -236,6 +258,7 @@ export class ContextCompaction {
       return;
     }
 
+    this.#compactingAgents.set(agentId, { threadId, client });
     this.#clearTimer(threadId);
     const timer = setTimeout(() => {
       this.#emitError(
@@ -243,10 +266,10 @@ export class ContextCompaction {
         "Codex context compaction timed out; queued work will continue.",
         agentId,
       );
-      this.observeCompaction(threadId, "failed");
-      this.#release(agentId, threadId);
-      this.#scheduleDrain(agentId);
-    }, CONTEXT_COMPACTION_TIMEOUT_MS);
+      const turnId = budget.compactionTurnId;
+      if (budget.phase === "running" && turnId) this.#stop(agentId, threadId, client, turnId);
+      else this.#abandon(agentId, threadId);
+    }, this.#timeoutMs);
     timer.unref?.();
     this.#timers.set(threadId, timer);
 
@@ -264,6 +287,9 @@ export class ContextCompaction {
         ),
         Effect.catch((failure) =>
           Effect.sync(() => {
+            // Codex reported the compaction turn, so it runs whatever the answer was. Its end, or
+            // the deadline, releases the queue.
+            if (budget.phase === "running" || budget.phase === "stopping") return;
             budget.lastCompactedTokens = budget.usedTokens;
             this.#emitError("context_compaction_failed", failure.cause, agentId);
             this.observeCompaction(threadId, "failed");
@@ -308,7 +334,9 @@ export class ContextCompaction {
     const budget = this.#budgets.get(threadId);
     if (budget && status !== "completed") {
       budget.lastCompactedTokens = budget.usedTokens;
-      this.#emitError("context_compaction_failed", `Codex context compaction ended with status ${status}.`, agentId);
+      // A compaction that the deadline stopped was already reported as timed out.
+      if (budget.phase !== "stopping")
+        this.#emitError("context_compaction_failed", `Codex context compaction ended with status ${status}.`, agentId);
     }
     this.observeCompaction(threadId, status === "completed" ? "completed" : "failed");
     this.#release(agentId, threadId);
@@ -329,16 +357,87 @@ export class ContextCompaction {
     this.#compactingAgents.delete(agentId);
   }
 
+  /**
+   * Codex refused input because a compaction turn runs on `threadId`, such as one that outlived its
+   * deadline. The agent's queue waits for a turn of that thread to end, for `graceMs` at most: a
+   * refusal proves that nothing ran, so the next start can only be refused again.
+   */
+  holdForRefusal(agentId: string, threadId: string, client: AgentClient): void {
+    this.#endRefusal(agentId, false);
+    const timer = setTimeout(() => this.#endRefusal(agentId), this.#graceMs);
+    timer.unref?.();
+    this.#refusals.set(agentId, { threadId, client, timer });
+  }
+
+  /** A turn of this provider thread ended, so a queue that Codex refused for it can start again. */
+  threadTurnEnded(threadId: string): void {
+    for (const [agentId, hold] of this.#refusals) if (hold.threadId === threadId) this.#endRefusal(agentId);
+  }
+
+  /** The client stopped or exited, so the compactions and refusals it held end with it. */
+  clientEnded(client: AgentClient): void {
+    for (const [agentId, compaction] of this.#compactingAgents) {
+      if (compaction.client !== client) continue;
+      this.observeCompaction(compaction.threadId, "failed");
+      this.#release(agentId, compaction.threadId);
+      this.#scheduleDrain(agentId);
+    }
+    for (const [agentId, hold] of this.#refusals) if (hold.client === client) this.#endRefusal(agentId);
+  }
+
   dispose(): void {
     if (this.#usageTimer) clearTimeout(this.#usageTimer);
     this.#usageTimer = null;
     for (const timer of this.#timers.values()) clearTimeout(timer);
     this.#timers.clear();
     this.#compactingAgents.clear();
+    for (const hold of this.#refusals.values()) clearTimeout(hold.timer);
+    this.#refusals.clear();
     this.#budgets.clear();
     this.#display.clear();
     this.#durations.clear();
     this.#awaitingPostCompaction.clear();
+  }
+
+  /**
+   * The deadline came while Codex runs the compaction turn. Codex refuses input until that turn
+   * ends, so the queue waits for its `turn/completed`, and for `graceMs` at most.
+   */
+  #stop(agentId: string, threadId: string, client: AgentClient, turnId: string): void {
+    const budget = this.#budgets.get(threadId);
+    if (!budget) return;
+    budget.phase = "stopping";
+    const timer = setTimeout(() => this.#abandon(agentId, threadId), this.#graceMs);
+    timer.unref?.();
+    this.#timers.set(threadId, timer);
+    Effect.runFork(
+      client.request("turn/interrupt", { threadId, turnId }, decodeRecordResponse).pipe(
+        Effect.catch(() =>
+          Effect.sync(() => {
+            // After `dispose`, a new compaction of this thread has its own budget.
+            const current = this.#budgets.get(threadId) === budget;
+            if (current && budget.phase === "stopping" && budget.compactionTurnId === turnId) {
+              this.#abandon(agentId, threadId);
+            }
+          }),
+        ),
+      ),
+    );
+  }
+
+  /** Ends a compaction that did not end by itself, and lets the queue continue. */
+  #abandon(agentId: string, threadId: string): void {
+    this.observeCompaction(threadId, "failed");
+    this.#release(agentId, threadId);
+    this.#scheduleDrain(agentId);
+  }
+
+  #endRefusal(agentId: string, drain = true): void {
+    const hold = this.#refusals.get(agentId);
+    if (!hold) return;
+    clearTimeout(hold.timer);
+    this.#refusals.delete(agentId);
+    if (drain) this.#scheduleDrain(agentId);
   }
 
   #release(agentId: string, threadId: string): void {

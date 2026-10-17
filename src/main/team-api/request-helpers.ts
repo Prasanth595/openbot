@@ -15,6 +15,7 @@ import {
   type ConversationSnapshot,
   type ConversationWithReadState,
   type CreateAgentInput,
+  canAdministerServer,
   conversationMessageSender,
   HOSTED_SITE_EVENT_ITEM_TYPE_PREFIX,
   isAgentModel,
@@ -173,7 +174,7 @@ export function requireReleasedSchedule(schedule: unknown): void {
 }
 
 export function requireAdmin(member: TeamMemberSummary): void {
-  if (member.role === "member") throw new HttpError(403, sourceText("error.team.adminRequired"));
+  if (!canAdministerServer(member.role)) throw new HttpError(403, sourceText("error.team.adminRequired"));
 }
 
 /**

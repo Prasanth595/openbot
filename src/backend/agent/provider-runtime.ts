@@ -35,6 +35,7 @@ import {
   type AccountLoginCompletedResult,
   type AccountReadResult,
   decodeAccountRateLimitsReadResult,
+  decodeAccountRateLimitsUpdated,
   decodeAccountReadResult,
   decodeRecordResponse,
   getString,
@@ -166,6 +167,22 @@ function logProviderStateChanges(
 function usageWindowHasReset(limit: AccountUsage["limits"][number]): boolean {
   const now = Date.now() / 1_000;
   return [limit.primary, limit.secondary].some((window) => window?.resetsAt != null && window.resetsAt <= now);
+}
+
+/**
+ * The windows of a pushed rate-limit update for the provider's own bucket, or null when the push is for another
+ * bucket, such as a Codex model-specific one, or cannot be read.
+ */
+function pushedUsageLimit(provider: AgentProvider, params: unknown): AccountUsage["limits"][number] | null {
+  let rateLimits: ReturnType<typeof decodeAccountRateLimitsUpdated>;
+  try {
+    rateLimits = decodeAccountRateLimitsUpdated(params);
+  } catch {
+    return null;
+  }
+  if ((rateLimits.limitId ?? provider) !== provider) return null;
+  const limit = normalizeAccountUsage({ rateLimits, rateLimitsByLimitId: null }).limits[0];
+  return limit && (limit.primary || limit.secondary) ? limit : null;
 }
 
 export type AgentClientFactory = (
@@ -1920,11 +1937,31 @@ export class ProviderRuntime implements ProviderPort {
     this.#setStatus({ capabilities: { ...this.#status.capabilities, computerUse } });
   }
 
-  /** Router arm: the CLI pushed new rate limits. */
-  readonly refreshCodexUsage = Effect.fn("ProviderRuntime.refreshCodexUsage")(function* (this: ProviderRuntime) {
-    const client = this.#clients.get("codex");
-    if (client) yield* this.#refreshUsage(client, undefined, false).pipe(Effect.ignore);
-  }).bind(this);
+  /**
+   * Router arm: the CLI pushed new rate limits. The push is sparse, so a window it leaves out keeps its last
+   * value. A push for another bucket, or one that cannot be read, waits for the next reading. The readings of
+   * added accounts follow their own reads. The event holds every row, because the web client replaces its rows
+   * with each event; a provider that stopped reporting is left out, so its row does not come back.
+   */
+  applyPushedUsage(source: AgentClient, params: unknown): void {
+    const provider = source.provider;
+    if (this.#clients.get(provider) !== source) return;
+    const pushed = pushedUsageLimit(provider, params);
+    if (!pushed) return;
+    const kept = this.#lastUsage.get(provider);
+    const limit = {
+      ...kept,
+      id: provider,
+      primary: pushed.primary ?? kept?.primary ?? null,
+      secondary: pushed.secondary ?? kept?.secondary ?? null,
+    };
+    this.#usageUnreported.delete(provider);
+    this.#lastUsage.set(provider, limit);
+    const limits = [...this.#lastUsage]
+      .filter(([item]) => !this.#usageUnreported.has(item) && (this.#clients.has(item) || this.#released.has(item)))
+      .map(([, item]) => item);
+    this.#emit({ type: "usage-changed", usage: structuredClone({ limits }) });
+  }
 
   /** Refresh the notice once when one provider reports the same exhausted balance several ways. */
   readonly refreshUsageAfterLimit = Effect.fn("ProviderRuntime.refreshUsageAfterLimit")(function* (

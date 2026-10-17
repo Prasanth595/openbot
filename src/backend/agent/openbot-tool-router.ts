@@ -21,6 +21,7 @@ import {
 } from "@openbot/contracts/ipc";
 import { isPluginSlug } from "@openbot/contracts/plugin-links";
 import { isString } from "@openbot/contracts/runtime-values";
+import { isUiBlockId, normalizeUiBlockSpec } from "@openbot/contracts/ui-blocks";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, redactText } from "@openbot/logging";
 import { Effect, Result } from "effect";
@@ -37,7 +38,12 @@ import type { MailboxStore } from "../mailbox-store";
 import { agentMcpServers } from "../mcp-provider-shapes";
 import type { MessagingThreads } from "../messaging/messaging-threads";
 import { MESSAGING_OUTBOUND_TOOLS } from "../messaging/messaging-tools";
-import { CHAT_VISUAL_PREVIEW_DEFAULT_WIDTH, htmlPreviewToolSchema, htmlRenderToolSchema } from "../openbot-tools";
+import {
+  askUiToolSchema,
+  CHAT_VISUAL_PREVIEW_DEFAULT_WIDTH,
+  htmlPreviewToolSchema,
+  htmlRenderToolSchema,
+} from "../openbot-tools";
 import { type AppServerRequest, type DynamicToolCallParams, type DynamicToolResult, isRecord } from "../protocol";
 import { handleRoutineFlowTool, type RoutineFlowTools } from "../routine-flows/routine-flow-tools";
 import type { StoredStateFailure } from "../stored-state-effects";
@@ -59,8 +65,8 @@ import { isHostedSiteMutationTool } from "./hosted-site-events";
 import type { MailboxSync } from "./mailbox-sync";
 import {
   listModelsPayload,
-  type ModelRequest,
   modelList,
+  requestedRuntime,
   requestedToolModel,
   requireReasoningEffort,
 } from "./model-tools";
@@ -369,6 +375,11 @@ export class OpenBotToolRouter {
               this.#attention.surfaceDynamicPrompt(client, toolRequest);
               return;
             }
+            // Every provider gets ask_ui, Claude too: its call arrives here through the SDK MCP server.
+            if (toolRequest.params.tool === "ask_ui") {
+              this.#askUi(client, toolRequest, toolRequest.params);
+              return;
+            }
             if (isHostedSiteMutationTool(toolRequest.params.tool)) {
               yield* this.#attention.surfaceHostedSiteApproval(
                 client,
@@ -426,6 +437,34 @@ export class OpenBotToolRouter {
       Effect.catchDefect(reportFailure),
     );
   }).bind(this);
+
+  /**
+   * Checks an `ask_ui` call and shows its block. Like `ask_user`, it answers the call only when the
+   * person answers or the turn ends. The agent can correct a refused block, so it gets the reason.
+   */
+  #askUi(client: AgentClient, request: AppServerRequest, params: DynamicToolCallParams): void {
+    const refuse = (message: string) => client.respond(request.id, openBotToolFailure(message));
+    const parsed = askUiToolSchema.safeParse(params.arguments);
+    if (!parsed.success) {
+      refuse(`${z.prettifyError(parsed.error)}\nCorrect the arguments and retry.`);
+      return;
+    }
+    const spec = normalizeUiBlockSpec(parsed.data.block);
+    // The stored block must read back, so its id passes the same check as the read.
+    const blockId = parsed.data.blockId ?? randomUUID();
+    if (!spec || !isUiBlockId(blockId)) {
+      refuse(
+        "The block breaks a rule: ids and option labels must be unique, an id must not be botId or a similar name, a value must be one of its options, a single choice selects at most one option, and a secret field is a text field with no value. Correct the block and retry.",
+      );
+      return;
+    }
+    const agentId = this.#conversation.agentForThread(params.threadId);
+    if (agentId && this.#channels.store.channelForThread(this.#conversation.publicThreadId(agentId, params.threadId))) {
+      refuse("A channel cannot show an ask_ui block. Ask in plain text instead.");
+      return;
+    }
+    this.#attention.surfaceUiBlock(client, request, { blockId, spec });
+  }
 
   #requireAgent(agentId: string): AgentSummary {
     const agent = this.#hooks.listAgents().find((candidate) => candidate.id === agentId);
@@ -494,42 +533,6 @@ export class OpenBotToolRouter {
       })),
     };
   });
-
-  /**
-   * The provider, model and effort an `update_profile` call names, checked against what the CLIs list
-   * now. Like `create_agent`, a model or an effort that is not listed is an error that names the valid
-   * values. A new model keeps the agent's effort when it supports it, else takes the model's default.
-   */
-  #requestedRuntime(
-    agentId: string,
-    request: ModelRequest,
-  ): Pick<UpdateAgentInput, "provider" | "model" | "reasoningEffort"> {
-    if (request.provider === undefined && request.model === undefined && request.reasoningEffort === undefined) {
-      return {};
-    }
-    const target = this.#requireAgent(agentId);
-    const models = this.#hooks.listModels();
-    const requested = requestedToolModel(request, models);
-    if (requested) {
-      const keptEffort = requested.supportedReasoningEfforts.includes(target.reasoningEffort)
-        ? target.reasoningEffort
-        : requested.defaultReasoningEffort;
-      return {
-        provider: requested.provider,
-        model: requested.id,
-        reasoningEffort: request.reasoningEffort ?? keptEffort,
-      };
-    }
-    if (request.reasoningEffort === undefined) return {};
-    const current = models.find((model) => model.provider === target.provider && model.id === target.model);
-    if (!current) {
-      throw new Error(
-        sourceText("error.agent.modelNotListed", { model: target.model, models: modelList(models, target.provider) }),
-      );
-    }
-    requireReasoningEffort(current, request.reasoningEffort);
-    return { reasoningEffort: request.reasoningEffort };
-  }
 
   readonly #handleOpenBotTool = Effect.fn("OpenBotToolRouter.handleOpenBotTool")(function* (
     this: OpenBotToolRouter,
@@ -1177,7 +1180,7 @@ export class OpenBotToolRouter {
       }
       // Checked before anything is written, so a model the provider does not list leaves the name
       // and every other field of the same call unchanged.
-      const runtime = this.#requestedRuntime(agentId, runtimeRequest);
+      const runtime = requestedRuntime(target, runtimeRequest, this.#hooks.listModels());
       const image =
         avatarPath === undefined
           ? undefined

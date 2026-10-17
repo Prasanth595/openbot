@@ -131,7 +131,6 @@ import type {
   ApprovalAutomationPreference,
   RespondToApprovalInput,
   RespondToBrowserTakeoverInput,
-  SetApprovalAutomationInput,
 } from "./ipc-approvals";
 import type {
   ChooseAttachmentsInput,
@@ -524,9 +523,6 @@ export const IPC_ENDPOINTS = {
     getAnalyticsPreference: request<undefined, AnalyticsPreference>()("app:get-analytics-preference"),
     setAnalyticsPreference: request<SetAnalyticsPreferenceInput, AnalyticsPreference>()("app:set-analytics-preference"),
     getApprovalAutomation: request<undefined, ApprovalAutomationPreference>()("app:get-approval-automation"),
-    setApprovalAutomation: request<SetApprovalAutomationInput, ApprovalAutomationPreference>()(
-      "app:set-approval-automation",
-    ),
     // A remote owner or admin can change a grant from a phone or the web client, so main tells the
     // window instead of the window only reading the value at start.
     approvalAutomation: event<ApprovalAutomationPreference>()("app:approval-automation"),

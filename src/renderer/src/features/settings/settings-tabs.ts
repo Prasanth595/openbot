@@ -44,6 +44,12 @@ export const navItems: ReadonlyArray<SettingsNavItem> = [
     icon: Settings,
   },
   {
+    value: "profile",
+    titleKey: "settings.tab.profile.title",
+    descriptionKey: "settings.tab.profile.description",
+    icon: UserRound,
+  },
+  {
     value: "notifications",
     titleKey: "settings.tab.notifications.title",
     descriptionKey: "settings.tab.notifications.description",
@@ -66,12 +72,6 @@ export const navItems: ReadonlyArray<SettingsNavItem> = [
     titleKey: "settings.tab.computerUse.title",
     descriptionKey: "settings.tab.computerUse.description",
     icon: MousePointer2,
-  },
-  {
-    value: "profile",
-    titleKey: "settings.tab.profile.title",
-    descriptionKey: "settings.tab.profile.description",
-    icon: UserRound,
   },
   {
     value: "billing",

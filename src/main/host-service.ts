@@ -387,6 +387,8 @@ export class HostService extends EventEmitter<HostEvents> {
       onDirectMessage: (event) => this.emit("directMessage", event),
       onDirectTyping: (event) => this.emit("directTyping", event),
       createInvite: (input) => this.createInvite(input),
+      updateMember: (input) => this.updateMember(input),
+      removeMember: (memberId) => this.removeMember(memberId),
       onSessionRevoked: (sessionId) => this.#revokeWebRtcSession(sessionId),
       liveActivityPush: this.#liveActivityPush,
       pushNotifications: this.#pushNotifications,
@@ -790,7 +792,7 @@ export class HostService extends EventEmitter<HostEvents> {
       if (yield* this.#cancelSupersededStartEffect(generation)) return this.getStatus();
       if (this.#usesAccountDirectory() && optionalListRemoteMembers) {
         const members = yield* optionalListRemoteMembers(identity.serverId);
-        yield* this.#options.store.syncRemoteDirectory(identity.serverId, members);
+        yield* this.#syncRemoteDirectory(identity.serverId, members);
         if (yield* this.#cancelSupersededStartEffect(generation)) return this.getStatus();
       }
       const bootstrap = yield* optionalIssueRemoteHostTicket(identity.serverId);
@@ -946,7 +948,7 @@ export class HostService extends EventEmitter<HostEvents> {
         // account's. Answer with the now-active host's own members rather than failing a
         // read with the store's cross-account guard.
         if (!this.#isActiveHost(hostId)) return this.#options.store.listMembers();
-        yield* this.#options.store.syncRemoteDirectory(hostId, members);
+        yield* this.#syncRemoteDirectory(hostId, members);
         // Recording the directory is a write, and the switch can land during it. The names,
         // addresses and roles below are the previous account's if it did.
         if (!this.#isActiveHost(hostId)) return this.#options.store.listMembers();
@@ -1117,10 +1119,12 @@ export class HostService extends EventEmitter<HostEvents> {
         const updated = members.find((member) => member.membershipId === input.memberId);
         if (!updated)
           return yield* new RemoteWorkflowError({ cause: new Error(sourceText("error.host.memberNotFound")) });
-        yield* this.#options.store.syncRemoteDirectory(hostId, members);
+        yield* this.#syncRemoteDirectory(hostId, members);
         // Recording the directory is a write too, so the switch can land inside it and the
         // member below would be the previous account's.
         yield* remoteDecode(() => this.#assertStillActiveHost(hostId));
+        if (updated.role !== current.role || updated.status !== current.status)
+          yield* this.#revokeMemberSessions(input.memberId);
         return {
           id: updated.membershipId,
           username: updated.email,
@@ -1155,8 +1159,9 @@ export class HostService extends EventEmitter<HostEvents> {
         yield* optionalRemoveRemoteMember(hostId, memberId);
         if (optionalListRemoteMembers) {
           const members = yield* optionalListRemoteMembers(hostId);
-          yield* this.#options.store.syncRemoteDirectory(hostId, members);
+          yield* this.#syncRemoteDirectory(hostId, members);
         }
+        yield* this.#revokeMemberSessions(memberId);
         return;
       }
       yield* this.#options.store.removeMember(memberId);
@@ -1178,6 +1183,52 @@ export class HostService extends EventEmitter<HostEvents> {
     },
     (operation) => this.#provide(operation),
   ).bind(this);
+
+  /** Records the directory, and closes the sessions that it no longer allows. */
+  readonly #syncRemoteDirectory = Effect.fn("HostService.syncRemoteDirectory")(function* (
+    this: HostService,
+    hostId: string,
+    members: RemoteDirectoryMember[],
+  ): Effect.fn.Return<void, RemoteWorkflowError> {
+    const closed = yield* this.#options.store.syncRemoteDirectory(hostId, members);
+    if (closed.length === 0) return;
+    for (const sessionId of closed) yield* this.#closeLocalSession(sessionId);
+    this.#api.refreshPresence();
+  });
+
+  /**
+   * Ends every session of a member after the account directory changed the membership. A WebRTC
+   * session keeps the role that the account service gave when it opened, so the change does not
+   * reach a connected member until this closes the session. The member connects again with the new
+   * role, or cannot connect. The account service already ended these sessions with the membership
+   * change, so only the local parts close here: one failed account call cannot leave a session open.
+   */
+  readonly #revokeMemberSessions = Effect.fn("HostService.revokeMemberSessions")(function* (
+    this: HostService,
+    memberId: string,
+  ): Effect.fn.Return<void, RemoteWorkflowError> {
+    for (const session of this.#options.store.listSessions()) {
+      if (session.memberId !== memberId) continue;
+      yield* this.#closeLocalSession(session.id);
+      yield* this.#options.store.revokeSession(session.id);
+    }
+    yield* this.#remoteScreen.revokeMember(memberId);
+    this.#options.browser.releaseUserControlHeldBy({ kind: "member", memberId });
+    this.#api.refreshPresence();
+  });
+
+  /** Closes this computer's parts of one session. The account service ends the session itself. */
+  readonly #closeLocalSession = Effect.fn("HostService.closeLocalSession")(function* (
+    this: HostService,
+    sessionId: string,
+  ): Effect.fn.Return<void, RemoteWorkflowError> {
+    this.#liveActivityPush?.remove(sessionId);
+    this.#pushNotifications?.remove(sessionId);
+    if (this.#webrtcGateway) yield* this.#webrtcGateway.revokeSession(sessionId);
+    yield* this.#remoteScreen.revokeTeamSession(sessionId);
+    yield* this.#browserView.revokeTeamSession(sessionId);
+    this.#options.browser.releaseUserControlHeldBy({ kind: "session", sessionId });
+  });
 
   readonly #revokeWebRtcSession = Effect.fn("HostService.revokeWebRtcSession")(function* (
     this: HostService,

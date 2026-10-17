@@ -96,10 +96,15 @@ function parseNumberFormats(bytes: Uint8Array | undefined): string[] {
 
 function formatExcelDate(value: number, format: string, date1904: boolean): string {
   const epoch = date1904 ? Date.UTC(1904, 0, 1) : Date.UTC(1899, 11, 30);
-  const date = new Date(epoch + value * 86_400_000);
+  // Excel includes the fictional date 1900-02-29 at serial 60 for compatibility.
+  const adjustedValue = !date1904 && value > 0 && value < 60 ? value + 1 : value;
+  const date = new Date(epoch + adjustedValue * 86_400_000);
   if (Number.isNaN(date.getTime())) return String(value);
   const pad = (part: number) => String(part).padStart(2, "0");
-  const day = `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
+  const day =
+    !date1904 && value >= 60 && value < 61
+      ? "1900-02-29"
+      : `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
   if (!hasTimeFormat(format)) return day;
   return `${day} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
 }
@@ -153,25 +158,33 @@ function formatExcelNumber(value: string, format: string, date1904: boolean, num
   const hasDate = hasDateFormat(format);
   if (hasDate) return formatExcelDate(number, format, date1904);
   if (hasTimeFormat(format)) return number < 0 ? value : formatExcelTime(number, format);
+  // A one-section format puts the minus sign before all of its text, so "$" shows -$1.00.
+  const sign = number < 0 ? "-" : "";
+  // A format with only literal text shows that text in place of the number.
+  if (unquotedFormat(format).trim() === "")
+    return `${sign}${format.replace(/"([^"]*)"|\\(.)/gu, (_match, quoted?: string, escaped?: string) => quoted ?? escaped ?? "")}`;
+  const prefix = format.match(/^"([^"]*)"/u)?.[1] ?? "";
+  const magnitude = prefix ? Math.abs(number) : number;
+  const signedPrefix = prefix ? `${sign}${prefix}` : "";
   const suffix = formatLiteralSuffix(format);
   const hasPercentScaling = unquotedFormat(format).includes("%");
   if (hasPercentScaling) {
     const minimumFractionDigits = (decimals.match(/0/gu) ?? []).length;
     const maximumFractionDigits = decimals.length;
-    return `${numbers.number(number * 100, { minimumFractionDigits, maximumFractionDigits })}%${suffix ? ` ${suffix}` : ""}`;
+    return `${signedPrefix}${numbers.number(magnitude * 100, { minimumFractionDigits, maximumFractionDigits })}%${suffix ? ` ${suffix}` : ""}`;
   }
   const minimumFractionDigits = (decimals.match(/0/gu) ?? []).length;
   const integerFormat = unquotedFormat(format).split(".")[0] ?? "";
   const minimumIntegerDigits = Math.max(1, (integerFormat.match(/0/gu) ?? []).length);
   if (minimumIntegerDigits > 21) return value;
-  const formatted = numbers.number(number, {
+  const formatted = `${signedPrefix}${numbers.number(magnitude, {
     minimumFractionDigits,
     maximumFractionDigits: decimals.length,
     minimumIntegerDigits,
     useGrouping: integerFormat.includes(","),
-  });
+  })}`;
   if (suffix) return suffix === "%" ? `${formatted}%` : `${formatted} ${suffix}`;
-  return /"[^"]*%[^"]*"|\\%/u.test(format) ? `${formatted}%` : formatted;
+  return /"[^"]*%[^"]*"|\\%/u.test(format.replace(/^"[^"]*"/u, "")) ? `${formatted}%` : formatted;
 }
 
 function cellValue(

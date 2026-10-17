@@ -34,6 +34,17 @@ const markdown = new Marked({
           return { type: "agentMention", raw: source.slice(0, reference.end) };
       },
     },
+    {
+      name: "chatQuote",
+      level: "inline",
+      start: (source) => source.indexOf("@["),
+      tokenizer(source) {
+        const reference = chatTagReferences(source)[0];
+        // The phone cannot open the quoted passage, so a quote reads as its text in quotation marks.
+        if (reference?.start === 0 && reference.kind === "quote")
+          return { type: "text", raw: source.slice(0, reference.end), text: `“${reference.name}”` };
+      },
+    },
   ],
 });
 

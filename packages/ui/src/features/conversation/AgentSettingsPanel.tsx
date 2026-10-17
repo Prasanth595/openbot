@@ -1,14 +1,13 @@
 import { agentProviderDescriptor, agentProviderName } from "@openbot/contracts/agent-providers";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import {
-  AGENT_ACCESS_MODES,
   AGENT_TASK_LIMIT_DEFAULT,
   AGENT_TASK_LIMIT_MAX,
-  type AgentAccess,
   type AgentBackupModels,
   type AgentModelChoice,
   type AgentModelId,
   type AgentModelOption,
+  type AgentPermissionLevel,
   type AgentProviderId,
   type AgentReasoningEffort,
   type AgentStatus,
@@ -16,13 +15,18 @@ import {
   type AvatarImageInput,
   agentAutomationAllowed,
   agentComputerUseEnabled,
+  agentPermissionLevel,
+  agentPermissionLevels,
+  agentPermissionUpdate,
   type BusyMessageMode,
   type CustomAgentSummary,
   type CustomProviderSummary,
   DEFAULT_AGENT_ACCESS,
   DEFAULT_BUSY_MESSAGE_MODE,
   type ProviderRuntimeStatus,
+  type UpdateAgentAdminSettingsInput,
   type UpdateAgentInput,
+  widensAgentPermission,
 } from "@openbot/contracts/ipc";
 import type { AppTextKey } from "@openbot/i18n";
 import {
@@ -97,8 +101,10 @@ export interface AgentSettingsPanelProps {
   agentStatus: AgentStatus;
   modelOptions: AgentModelOption[];
   working: boolean;
-  /** Access belongs to the computer that runs the agent, so a remote server hides the control. */
-  accessEditable?: boolean;
+  /** Unknown while a remote host has not sent it; the level then shows as if it were on. */
+  autoApprove?: boolean;
+  /** Writes the Permissions level. Without it, the level is read-only. */
+  onUpdatePermissions?: (input: UpdateAgentAdminSettingsInput) => Promise<void>;
   /** Computer Use is local-only too, and no remote host administers it yet. */
   computerUseEditable?: boolean;
   /** Local scripts can be changed locally or through the host's administrator route. */
@@ -187,7 +193,7 @@ interface AgentSettingsDraft {
   dirty: Record<keyof AgentTextFields, boolean>;
   fields: AgentTextFields;
   notifications: boolean;
-  access: AgentAccess;
+  permission: AgentPermissionLevel;
   computerUse: boolean;
   allowAutomation: boolean;
   /** `default` follows the app setting. */
@@ -196,8 +202,8 @@ interface AgentSettingsDraft {
   taskLimit: TaskLimitChoice;
   /** Null asks first, with no saved order. */
   backupModels: AgentBackupModels | null;
-  /** Widening to full access waits here for the confirmation. */
-  confirmingFullAccess: boolean;
+  /** A level that gives the agent more freedom waits here for the confirmation. */
+  confirmingPermission: AgentPermissionLevel | null;
   runtime: AgentRuntimeSettings;
   saveError: string | null;
   /** The code of the failure behind `saveError`. */
@@ -239,13 +245,13 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
     dirty: { description: false, name: false, title: false },
     fields: { description: "", name: "", title: "" },
     notifications: true,
-    access: DEFAULT_AGENT_ACCESS,
+    permission: untrack(() => currentPermission()),
     computerUse: true,
     allowAutomation: false,
     busyMessage: "default",
     taskLimit: "default",
     backupModels: null,
-    confirmingFullAccess: false,
+    confirmingPermission: null,
     runtime: untrack(() => ({ ...props.runtimeSettings })),
     saveError: null,
     saveErrorReference: null,
@@ -295,6 +301,21 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
     }
   }
 
+  function currentPermission(): AgentPermissionLevel {
+    return agentPermissionLevel({
+      access: props.agent.access ?? DEFAULT_AGENT_ACCESS,
+      autoApprove: props.autoApprove ?? true,
+    });
+  }
+
+  /** Leaving the workspace warns about reach; reaching Full access warns that the agent stops asking. */
+  function widenDescription(): string {
+    const reach = draft.permission === "workspace" ? `${t("agentSettings.fullAccess.description")} ` : "";
+    return draft.confirmingPermission === "ask"
+      ? `${reach}${t("agentSettings.runtime.askNote")}`
+      : `${reach}${t("agentSettings.fullAccess.noApproval")}`;
+  }
+
   /** The message under the form: every save path clears it first and reports its failure through it. */
   function setSaveError(message: string | null, cause?: unknown): void {
     setDraft((state) => {
@@ -338,7 +359,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
           agent.title,
           agent.description,
           String(agent.notifications),
-          agent.access ?? DEFAULT_AGENT_ACCESS,
+          currentPermission(),
           String(agentComputerUseEnabled(agent)),
           String(agentAutomationAllowed(agent)),
           agent.busyMessageMode ?? "default",
@@ -380,13 +401,13 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
           if (!keep.title) state.fields.title = agent.title;
           if (!keep.description) state.fields.description = agent.description;
           state.notifications = agent.notifications;
-          state.access = agent.access ?? DEFAULT_AGENT_ACCESS;
+          state.permission = currentPermission();
           state.computerUse = agentComputerUseEnabled(agent);
           state.allowAutomation = agentAutomationAllowed(agent);
           state.busyMessage = agent.busyMessageMode ?? "default";
           state.taskLimit = taskLimitChoice(agent.taskLimit);
           state.backupModels = agent.backupModels ?? null;
-          if (agentChanged) state.confirmingFullAccess = false;
+          if (agentChanged) state.confirmingPermission = null;
           state.runtime.provider = runtimeSettings.provider;
           state.runtime.model = runtimeSettings.model;
           state.runtime.reasoningEffort = runtimeSettings.reasoningEffort;
@@ -667,17 +688,25 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
     }
   }
 
-  async function saveAccess(nextAccess: AgentAccess): Promise<void> {
+  async function savePermission(next: AgentPermissionLevel): Promise<void> {
     const agentId = props.agent.id;
-    const previousAccess = draft.access;
+    const update = props.onUpdatePermissions;
+    if (!update) return;
+    const previous = draft.permission;
+    setSaveError(null);
     setDraft((state) => {
-      state.access = nextAccess;
+      state.permission = next;
     });
-    if (await saveAgentPatch({ access: nextAccess }, agentId)) return;
-    if (!disposed && props.agent.id === agentId && draft.access === nextAccess) {
-      setDraft((state) => {
-        state.access = previousAccess;
-      });
+    try {
+      await update(agentPermissionUpdate(agentId, next));
+    } catch (error) {
+      if (disposed || props.agent.id !== agentId) return;
+      setSaveError(errorMessage(error, t("agentSettings.saveFailed")), error);
+      if (draft.permission === next) {
+        setDraft((state) => {
+          state.permission = previous;
+        });
+      }
     }
   }
 
@@ -1138,7 +1167,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
                   ref={pageRowRef("permissions")}
                   icon={<ShieldCheck aria-hidden="true" />}
                   label={t("agentSettings.permissions.title")}
-                  value={t(ACCESS_LABEL[draft.access])}
+                  value={t(ACCESS_LABEL[draft.permission])}
                   onClick={() => openPage("permissions")}
                 />
                 <div class="agent-settings-switch-row">
@@ -1169,21 +1198,21 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
               </SettingsLinkGroup>
             </Show>
             <Show when={page() === "permissions"}>
-              <Show when={props.accessEditable}>
+              <Show when={props.onUpdatePermissions}>
                 <SettingsLinkGroup inset class="agent-settings-runtime-rows">
-                  <Select<AgentAccess>
+                  <Select<AgentPermissionLevel>
                     class="agent-settings-runtime-select"
-                    options={[...AGENT_ACCESS_MODES]}
-                    value={draft.access}
-                    onChange={(nextAccess) => {
-                      if (!nextAccess || nextAccess === draft.access) return;
-                      // Widening is the move that needs the warning. Narrowing is never something a
-                      // user needs protecting from, so it is written straight away.
-                      if (nextAccess === "full") {
+                    options={[...agentPermissionLevels(draft.runtime.provider, currentPermission())]}
+                    value={draft.permission}
+                    onChange={(next) => {
+                      if (!next || next === draft.permission) return;
+                      // More freedom is the move that needs the warning. Less freedom is never
+                      // something a user needs protecting from, so it is written straight away.
+                      if (widensAgentPermission(draft.permission, next)) {
                         setDraft((state) => {
-                          state.confirmingFullAccess = true;
+                          state.confirmingPermission = next;
                         });
-                      } else void saveAccess(nextAccess);
+                      } else void savePermission(next);
                     }}
                     itemComponent={(item) => (
                       <SelectItem item={item.item}>{t(ACCESS_LABEL[item.item.rawValue])}</SelectItem>
@@ -1194,8 +1223,8 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
                       aria-label={t("agentSettings.runtime.accessLabel")}
                     >
                       <span class="agent-settings-runtime-label">{t("agentSettings.runtime.access")}</span>
-                      <SelectValue<AgentAccess>>
-                        {(state) => t(ACCESS_LABEL[state.selectedOption() ?? DEFAULT_AGENT_ACCESS])}
+                      <SelectValue<AgentPermissionLevel>>
+                        {(state) => t(ACCESS_LABEL[state.selectedOption() ?? draft.permission])}
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent />
@@ -1204,13 +1233,13 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
               </Show>
               <Text as="p" class="agent-settings-runtime-note" variant="caption" tone="muted">
                 <Show
-                  when={draft.access === "workspace"}
+                  when={draft.permission === "workspace"}
                   fallback={
                     <>
                       {t("agentSettings.runtime.fullAccessNote")}{" "}
-                      {draft.runtime.provider === "claude"
-                        ? t("agentSettings.runtime.claudeApprovalNote")
-                        : t("agentSettings.runtime.providerApprovalNote")}
+                      {draft.permission === "ask"
+                        ? t("agentSettings.runtime.askNote")
+                        : t("agentSettings.runtime.fullNote")}
                     </>
                   }
                 >
@@ -1391,23 +1420,32 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
           )}
         </Show>
         <ConfirmDialog
-          open={draft.confirmingFullAccess}
+          open={draft.confirmingPermission !== null}
           tone="default"
           initialFocus="cancel"
-          title={t("agentSettings.fullAccess.title")}
-          description={t("agentSettings.fullAccess.description")}
-          cancelLabel={t("agentSettings.fullAccess.cancel")}
-          confirmLabel={t("agentSettings.fullAccess.confirm")}
+          title={t(
+            draft.confirmingPermission === "ask"
+              ? "agentSettings.fullAccess.askTitle"
+              : "agentSettings.fullAccess.title",
+          )}
+          description={widenDescription()}
+          cancelLabel={t("common.cancel")}
+          confirmLabel={t(
+            draft.confirmingPermission === "ask"
+              ? "agentSettings.fullAccess.askConfirm"
+              : "agentSettings.fullAccess.confirm",
+          )}
           onCancel={() =>
             setDraft((state) => {
-              state.confirmingFullAccess = false;
+              state.confirmingPermission = null;
             })
           }
           onConfirm={() => {
+            const next = draft.confirmingPermission;
             setDraft((state) => {
-              state.confirmingFullAccess = false;
+              state.confirmingPermission = null;
             });
-            void saveAccess("full");
+            if (next) void savePermission(next);
           }}
         />
       </Show>
@@ -1465,5 +1503,6 @@ const APP_DEFAULT_BUSY_MESSAGE_LABEL = {
 
 const ACCESS_LABEL = {
   workspace: "agentSettings.access.workspace",
+  ask: "agentSettings.access.ask",
   full: "agentSettings.access.full",
-} as const satisfies Record<AgentAccess, AppTextKey>;
+} as const satisfies Record<AgentPermissionLevel, AppTextKey>;

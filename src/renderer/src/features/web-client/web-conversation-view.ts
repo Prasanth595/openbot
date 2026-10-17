@@ -1,8 +1,17 @@
-import type { AgentEvent, RespondToApprovalInput, RespondToPromptInput } from "@openbot/contracts/ipc";
+import {
+  type AgentEvent,
+  agentPermissionLevel,
+  agentPermissionUpdate,
+  type ConversationMessage,
+  type RespondToApprovalInput,
+  type RespondToPromptInput,
+} from "@openbot/contracts/ipc";
 import type { AgentMessage } from "@openbot/ui/data";
-import { createEffect, createMemo, createProjection, createSignal } from "solid-js";
+import { createEffect, createMemo, createProjection, createSignal, mapArray } from "solid-js";
 import { toAgentMessage, toAgentMessages } from "../../app-message-projection";
 import type { createRemoteAgentAdmin } from "../agents/remote-agent-admin";
+import { messagePromptRequestKey, promptRequestKey } from "../conversation/conversation-keys";
+import type { PromptAnswerOptions } from "../conversation/conversation-types";
 import type { WebWorkspace } from "./web-client-context";
 
 type PromptEvent = Extract<AgentEvent, { type: "prompt" }>;
@@ -26,13 +35,17 @@ export function createWebConversationView(options: {
       (item) => item.agentId === workspace.state.selectedId && item.threadId === workspace.selected()?.threadId,
     ),
   );
-  /** "Always allow", for an owner or admin whose host answered. The grant is written on the host. */
+  /**
+   * "Always allow" moves an agent at Ask first to Full access, for an owner or admin whose host
+   * answered. The change is written on the host.
+   */
   const alwaysAllowApproval = createMemo(() => {
     const agent = workspace.selected();
     const item = approval();
-    if (!agent || !item || !remoteAgentAdmin.settings()) return undefined;
+    const settings = remoteAgentAdmin.settings();
+    if (!agent || !item || !settings || agentPermissionLevel(settings) !== "ask") return undefined;
     return async () => {
-      await remoteAgentAdmin.update({ agentId: agent.id, autoApprove: true });
+      await remoteAgentAdmin.update(agentPermissionUpdate(agent.id, "full"));
       if (approval()?.requestId !== item.requestId) return false;
       await workspace.approve({ requestId: item.requestId, decision: "accept" });
       return true;
@@ -87,18 +100,37 @@ export function createWebConversationView(options: {
       questions: message.questionPrompt.questions,
     };
   });
+  const storedMessages = () => workspace.conversation()?.page?.messages ?? [];
+  const row = (message: ConversationMessage) =>
+    withoutPreviewUrls(toAgentMessage(message, workspace.state.selectedId ?? undefined));
   /**
-   * A stream chunk changes the text of one stored message, and this projection runs again. The
-   * result is reconciled by id, so the other messages keep their objects and their rows.
+   * One row per stored message, each in its own memo: a stream chunk changes the text of one message,
+   * and only that message is converted again.
    */
+  const rows = mapArray(storedMessages, (message) => createMemo(() => row(message())), {
+    keyed: (message) => message.id,
+  });
+  /** The rows, with the thinking of a turn joined. The result is reconciled by id, so the other messages keep their rows. */
   const messages = createProjection<AgentMessage[]>(
-    () =>
-      toAgentMessages(workspace.conversation()?.page?.messages ?? [], workspace.state.selectedId ?? undefined).map(
-        withoutPreviewUrls,
-      ),
+    () => {
+      const converted = rows();
+      return toAgentMessages(
+        storedMessages(),
+        workspace.state.selectedId ?? undefined,
+        (message, index) => converted[index]?.() ?? row(message),
+      );
+    },
     [],
     { key: "id" },
   );
+  /** The interactive block of the waiting prompt's message, when the agent asked with one. */
+  const promptUiBlock = createMemo(() => {
+    const question = prompt();
+    const page = workspace.conversation()?.page;
+    if (!question || !page) return undefined;
+    const requestKey = promptRequestKey(question.turnId, question.requestId);
+    return page.messages.findLast((message) => messagePromptRequestKey(message) === requestKey)?.uiBlock;
+  });
   /** The replied-to messages that are not on the loaded pages. The host sends them with each page. */
   const messageReferences = createMemo(() => {
     const page = workspace.conversation()?.page;
@@ -110,7 +142,11 @@ export function createWebConversationView(options: {
       ]),
     );
   });
-  async function answerPrompt(answers: RespondToPromptInput["answers"]): Promise<boolean> {
+  const missingMessageReferences = () => workspace.conversation()?.missingReferences;
+  async function answerPrompt(
+    answers: RespondToPromptInput["answers"],
+    options?: PromptAnswerOptions,
+  ): Promise<boolean> {
     const question = prompt();
     if (!question) return false;
     setAnsweredPrompt({ prompt: question, presented: false });
@@ -118,7 +154,9 @@ export function createWebConversationView(options: {
       await workspace.answer({ requestId: question.requestId, answers });
     } catch (error) {
       setAnsweredPrompt(undefined);
-      throw error;
+      if (!options?.onError) throw error;
+      options.onError(error);
+      return false;
     }
     return true;
   }
@@ -140,8 +178,10 @@ export function createWebConversationView(options: {
     approval,
     alwaysAllowApproval,
     prompt,
+    promptUiBlock,
     messages,
     messageReferences,
+    missingMessageReferences,
     answerPrompt,
     presentPromptResolution,
     respondToApproval,

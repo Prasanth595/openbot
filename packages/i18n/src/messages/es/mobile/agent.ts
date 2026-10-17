@@ -279,16 +279,23 @@ export const messages = {
   "mobile.agent.access.title": "Acceso",
   "mobile.agent.access.label": "Acceso del agente",
   "mobile.agent.access.workspace": "Solo espacio de trabajo",
+  "mobile.agent.access.ask": "Preguntar antes",
   "mobile.agent.access.full": "Acceso completo",
-  "mobile.agent.access.autoApprove": "Aprobar automáticamente",
-  "mobile.agent.access.autoApproveNote": "El host responde por sí mismo a las aprobaciones de este agente.",
   "mobile.agent.access.autoApproveLocked":
     "El modo Turbo está activado en este host, así que todos los agentes aprueban automáticamente.",
+  "mobile.agent.access.workspaceNote":
+    "El agente trabaja en su espacio de trabajo y en la carpeta compartida del host.",
+  "mobile.agent.access.askNote":
+    "El agente te pregunta antes de usar una herramienta de OpenBot o publicar un sitio, y cuando su proveedor pide aprobación.",
+  "mobile.agent.access.fullNote": "El agente actúa sin preguntar, salvo las preguntas que te haga.",
   "mobile.agent.access.fullTitle": "¿Dar acceso completo a este agente?",
+  "mobile.agent.access.askTitle": "¿Dejar que este agente trabaje fuera de su espacio de trabajo?",
   "mobile.agent.access.fullBody":
     "El agente podrá leer, cambiar y eliminar cualquier archivo al que llegue la cuenta de usuario del host, ejecutar cualquier comando y usar la red.",
-  "mobile.agent.access.fullCancel": "Mantener solo el espacio de trabajo",
+  "mobile.agent.access.noApproval":
+    "El agente ejecutará comandos, cambiará archivos, usará herramientas y publicará sitios sin preguntarte antes.",
   "mobile.agent.access.fullConfirm": "Permitir acceso completo",
+  "mobile.agent.access.askConfirm": "Usar Preguntar antes",
   "mobile.agent.access.failed": "No se pudo cambiar el acceso del agente.",
   "mobile.agent.access.unsupported": "Este host no puede cambiar el acceso del agente desde un dispositivo remoto.",
   "mobile.agent.host.computerUse": "Uso del equipo",

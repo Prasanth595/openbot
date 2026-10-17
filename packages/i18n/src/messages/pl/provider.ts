@@ -135,8 +135,6 @@ export const messages = {
   "provider.picker.effort": "Wysiłek",
   "provider.picker.effortLabel": "Wysiłek rozumowania agenta",
   "provider.picker.selectEffort": "Wybierz wysiłek",
-  "provider.picker.autoApprove": "Automatyczne zatwierdzanie",
-  "provider.picker.autoApproveLabel": "Automatycznie zatwierdzaj działania tego agenta",
   "provider.picker.custom": "Własny",
   "provider.picker.cliReady": "{cli} gotowy",
   "provider.status.signInRequired": "Wymagane logowanie",

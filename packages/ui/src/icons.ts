@@ -107,6 +107,7 @@ export { default as Smartphone } from "lucide-solid/icons/smartphone";
 export { default as Sparkles } from "lucide-solid/icons/sparkles";
 export { default as Store } from "lucide-solid/icons/store";
 export { default as Table2 } from "lucide-solid/icons/table-2";
+export { default as TextQuote } from "lucide-solid/icons/text-quote";
 export { default as Trash2 } from "lucide-solid/icons/trash-2";
 export { default as TriangleAlert } from "lucide-solid/icons/triangle-alert";
 export { default as Upload } from "lucide-solid/icons/upload";

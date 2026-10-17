@@ -1,4 +1,9 @@
-import { isReleasedRoutineSchedule, type RoutineFlowCanvas, type RoutineFlowStep } from "@openbot/contracts/ipc";
+import {
+  canAdministerServer,
+  isReleasedRoutineSchedule,
+  type RoutineFlowCanvas,
+  type RoutineFlowStep,
+} from "@openbot/contracts/ipc";
 import {
   ROUTINE_FLOW_STEP_TEXT_LIMIT,
   ROUTINE_FLOWS_CAPABILITY,
@@ -168,7 +173,7 @@ export async function routeRoutineFlows(
       const agentId = stringField(body, "agentId");
       requireVisible(agentId);
       const canvas = await run(routineFlows.canvas(agentId));
-      return json(200, memberCanvas(canvas, hiddenAgentIds, member.role !== "member"));
+      return json(200, memberCanvas(canvas, hiddenAgentIds, canAdministerServer(member.role)));
     }
     case ROUTINE_FLOWS_ROUTES.savePosition: {
       const input = parse(parseSaveRoutineFlowPosition, body);

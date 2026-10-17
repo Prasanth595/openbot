@@ -47,8 +47,6 @@ export const messages = {
   "conversation.header.publish": "Опубликовать агента",
   "conversation.header.browserActing": "{name} управляет браузером",
   "conversation.header.agentFallback": "Агент",
-  "conversation.header.thisAgent": "Этот агент",
-  "conversation.header.grantFailed": "Не удалось сохранить постоянное подтверждение для {name}. Повторите попытку.",
   "conversation.header.modelsBusy": "Дождитесь завершения текущей работы, прежде чем менять модель.",
   "conversation.header.modelsUnavailable": "Модели станут доступны после подключения CLI агента.",
   "conversation.sidePanel.label": "Боковая панель",

@@ -919,6 +919,49 @@ export class RemoteControlPlane {
     (operation) => operation.pipe(Effect.provide(this.#layer)),
   ).bind(this);
 
+  /**
+   * The host name for an invitation email. The caller must be an owner or admin of the host, and
+   * the token must identify an open single-use invitation of that host for this email and role.
+   */
+  readonly emailableInvite = Effect.fn("RemoteControlPlane.emailableInvite")(
+    function* (
+      this: RemoteControlPlane,
+      userId: string,
+      input: { hostId: string; token: string; email: string; role: Exclude<RemoteMemberRole, "owner"> },
+    ) {
+      const dependencies = yield* RemoteDependencies;
+      yield* this.#requireRole(input.hostId, userId, ["owner", "admin"]);
+      const validToken = yield* remoteValidate(() => requiredText(input.token, 512, "invite token"));
+      const tokenHash = yield* sha256(validToken).pipe(
+        Effect.mapError((error) => (error instanceof RemoteControlPlaneError ? error : new RemoteOperationError({}))),
+      );
+      const invite = yield* remoteCall(() =>
+        dependencies.database
+          .prepare(
+            `SELECT i.invite_id, i.host_id, i.email, i.role, i.expires_at, i.used_at, i.revoked_at,
+                i.max_uses, i.use_count, h.name
+         FROM remote_invites i JOIN remote_hosts h ON h.host_id = i.host_id
+         WHERE i.token_hash = ? AND i.host_id = ? LIMIT 1`,
+          )
+          .bind(tokenHash, input.hostId)
+          .first<RemoteInviteRow & { name: string }>(),
+      );
+      if (
+        !invite ||
+        invite.revoked_at ||
+        invite.expires_at <= dependencies.now() ||
+        invite.used_at ||
+        invite.max_uses === null ||
+        invite.email !== input.email ||
+        invite.role !== input.role
+      ) {
+        return yield* new RemoteControlPlaneError(404, "invite_invalid", "The invitation is invalid or expired.");
+      }
+      return { hostName: invite.name };
+    },
+    (operation) => operation.pipe(Effect.provide(this.#layer)),
+  ).bind(this);
+
   readonly acceptInvite = Effect.fn("RemoteControlPlane.acceptInvite")(
     function* (this: RemoteControlPlane, user: AuthUser, token: string) {
       const dependencies = yield* RemoteDependencies;
@@ -1100,7 +1143,7 @@ export class RemoteControlPlane {
         return yield* new RemoteControlPlaneError(404, "membership_not_found", "The membership does not exist.");
       }
       const leavingOwnMembership = input.revoke === true && membership.user_id === actorUserId;
-      if (!leavingOwnMembership) yield* this.#requireRole(input.hostId, actorUserId, ["owner"]);
+      if (!leavingOwnMembership) yield* this.#requireRole(input.hostId, actorUserId, ["owner", "admin"]);
       if (membership.role === "owner") {
         return yield* new RemoteControlPlaneError(
           409,
@@ -1321,7 +1364,26 @@ export class RemoteControlPlane {
           "session_inactive",
           "The remote session does not belong to this browser session.",
         );
-      if (session.user_id !== userId) yield* this.#requireRole(session.host_id, userId, ["owner"]);
+      if (session.user_id !== userId) {
+        const actor = yield* this.#requireRole(session.host_id, userId, ["owner", "admin"]);
+        // Admins manage members, not the owner: only the owner ends the owner's sessions.
+        const target =
+          actor.role === "owner"
+            ? null
+            : yield* remoteCall(() =>
+                dependencies.database
+                  .prepare("SELECT role FROM remote_memberships WHERE host_id = ? AND user_id = ? LIMIT 1")
+                  .bind(session.host_id, session.user_id)
+                  .first<{ role: string }>(),
+              );
+        if (target?.role === "owner") {
+          return yield* new RemoteControlPlaneError(
+            409,
+            "owner_membership_protected",
+            "The owner membership cannot be changed.",
+          );
+        }
+      }
       const now = dependencies.now();
       const event = { type: "remote-session-ended" as const, hostId: session.host_id, sessionId };
       yield* remoteCall(() =>

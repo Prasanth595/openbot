@@ -24,6 +24,9 @@ function serializeNode(node: Node): string {
   const mcpId = node.dataset.mcpId;
   const mcpName = node.dataset.mcpName;
   if (mcpId && mcpName) return serializeChatTagReference("mcp", mcpName, mcpId);
+  const quoteMessageId = node.dataset.quoteMessageId;
+  const quoteText = node.dataset.quoteText;
+  if (quoteMessageId && quoteText) return serializeChatTagReference("quote", quoteText, quoteMessageId);
   if (node.tagName === "BR") return "\n";
   const content = Array.from(node.childNodes).map(serializeNode).join("");
   return node.tagName === "DIV" || node.tagName === "P" ? `${content}\n` : content;
@@ -221,7 +224,8 @@ export function mentionTokenAtCaretBoundary(
 
 function closestMentionToken(node: Node, editor: HTMLDivElement): HTMLElement | null {
   const element = node instanceof HTMLElement ? node : node.parentElement;
-  const token = element?.closest<HTMLElement>("[data-mention-id], [data-skill-id], [data-mcp-id]") ?? null;
+  const token =
+    element?.closest<HTMLElement>("[data-mention-id], [data-skill-id], [data-mcp-id], [data-quote-message-id]") ?? null;
   return token && editor.contains(token) ? token : null;
 }
 

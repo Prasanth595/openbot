@@ -47,8 +47,6 @@ export const messages = {
   "conversation.header.publish": "Publicar agente",
   "conversation.header.browserActing": "{name} está controlando el navegador",
   "conversation.header.agentFallback": "Agente",
-  "conversation.header.thisAgent": "Este agente",
-  "conversation.header.grantFailed": "No se pudo guardar la aprobación permanente de {name}. Vuelve a intentarlo.",
   "conversation.header.modelsBusy": "Espera a que termine el trabajo actual antes de cambiar de modelo.",
   "conversation.header.modelsUnavailable": "Los modelos están disponibles cuando se conecta una CLI de agente.",
   "conversation.sidePanel.label": "Panel lateral",

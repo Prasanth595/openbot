@@ -200,6 +200,10 @@ export const messages = {
   "error.backend.mcpSignInResponseTimedOut": "Oturum açma yanıtı zamanında gelmedi.",
   "error.backend.mcpServerExited":
     "Sunucu yanıt vermeden durdu. Hatasını görmek için komutu bir terminalde çalıştırın.",
+  "error.backend.mcpOAuthProxyUnavailable":
+    "OpenBot bu sunucu için yerel oturum açma bağlantısını başlatamadı. OpenBot'u yeniden başlatın ve tekrar deneyin.",
+  "error.backend.mcpOAuthSignInNeeded":
+    "Bu MCP sunucusundaki oturum sona erdi. Kullanıcının OpenBot'ta yeniden oturum açması gerekiyor.",
   "error.backend.mcpServerUnreachable": "OpenBot sunucuya ulaşamadı. URL'yi ve ağınızı kontrol edin.",
   "error.backend.mcpLocalServerOff":
     "Bu bilgisayarda {address} adresinde yanıt veren bir sunucu yok. Sunucuyu başlatın veya onu çalıştıran uygulamada açın, ardından tekrar deneyin.",
@@ -213,6 +217,11 @@ export const messages = {
   "error.backend.oauthTooManyRedirects": "OAuth uç noktası çok fazla yönlendirme yaptı.",
   "error.backend.oauthRedirectOrigin":
     "OAuth uç noktası {origin} adresine yönlendirme yaptı, bu nedenle kimlik bilgileri iletilmedi.",
+  "error.backend.oauthTimedOut": "OAuth uç noktası {origin} zamanında yanıt vermedi.",
+  "error.backend.oauthResponseTooLarge": "OAuth uç noktası {origin} çok büyük bir yanıt gönderdi.",
+  "error.backend.oauthResponseUnreadable": "OAuth uç noktası {origin} yanıtı okunamadı.",
+  "error.backend.mcpOAuthPrivateEndpoint":
+    "OAuth uç noktası {origin} özel bir ağda, ancak MCP sunucusu herkese açık; bu nedenle kimlik bilgileri gönderilmedi.",
   "error.backend.sidebarSectionLimit": "Bir sunucu en fazla {limit} kenar çubuğu bölümüne sahip olabilir.",
   "error.backend.sectionNameRequired": "Bölüm adı gereklidir.",
   "error.backend.sectionNameTooLong": "Bölüm adı çok uzun.",

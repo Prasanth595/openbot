@@ -279,16 +279,22 @@ export const messages = {
   "mobile.agent.access.title": "Accesso",
   "mobile.agent.access.label": "Accesso dell'agente",
   "mobile.agent.access.workspace": "Solo workspace",
+  "mobile.agent.access.ask": "Chiedi prima",
   "mobile.agent.access.full": "Accesso completo",
-  "mobile.agent.access.autoApprove": "Approvazione automatica",
-  "mobile.agent.access.autoApproveNote": "L'host risponde da solo alle richieste di approvazione di questo agente.",
   "mobile.agent.access.autoApproveLocked":
     "La modalità Turbo è attiva su questo host, quindi ogni agente approva in automatico.",
+  "mobile.agent.access.workspaceNote": "L'agente lavora nel suo workspace e nella cartella condivisa sull'host.",
+  "mobile.agent.access.askNote":
+    "L'agente ti chiede prima di usare un tool di OpenBot o pubblicare un sito, e quando il suo provider chiede un'approvazione.",
+  "mobile.agent.access.fullNote": "L'agente agisce senza chiedere, tranne per le domande che ti pone.",
   "mobile.agent.access.fullTitle": "Dare a questo agente l'accesso completo?",
+  "mobile.agent.access.askTitle": "Far lavorare questo agente fuori dal suo workspace?",
   "mobile.agent.access.fullBody":
     "L'agente potrà leggere, modificare ed eliminare qualsiasi file raggiungibile dall'account utente dell'host, eseguire qualsiasi comando e usare la rete.",
-  "mobile.agent.access.fullCancel": "Mantieni solo il workspace",
+  "mobile.agent.access.noApproval":
+    "L'agente eseguirà comandi, modificherà file, userà tool e pubblicherà siti senza chiedertelo prima.",
   "mobile.agent.access.fullConfirm": "Consenti l'accesso completo",
+  "mobile.agent.access.askConfirm": "Usa Chiedi prima",
   "mobile.agent.access.failed": "Impossibile modificare l'accesso dell'agente.",
   "mobile.agent.access.unsupported": "Questo host non può modificare l'accesso dell'agente da un dispositivo remoto.",
   "mobile.agent.host.computerUse": "Controllo del computer",

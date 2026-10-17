@@ -6,6 +6,7 @@ import {
   type SpawnedMspConnection,
   spawnMspConnection,
 } from "@muse-code/sdk";
+import { attachmentMimeTypeForName } from "@openbot/contracts/attachment-files";
 import { isString } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
 import { redactText } from "@openbot/logging";
@@ -19,8 +20,8 @@ import {
   acpMcpServers,
   agentMcpServers,
   computerUseParam,
-  type McpAuthorizationSource,
   type McpDropReporter,
+  type McpEndpointSource,
   type McpServerSource,
   type McpToolRuntimeSource,
   usableMcpServers,
@@ -71,7 +72,7 @@ export interface MuseProviderOptions {
   mcpServers?: McpServerSource;
   reportMcpDrops?: McpDropReporter;
   mcpToolRuntimes?: McpToolRuntimeSource;
-  mcpAuthorization?: McpAuthorizationSource;
+  mcpEndpoint?: McpEndpointSource;
   readAccount?: () => Effect.Effect<
     { authenticated: boolean; email?: string | null; planType?: string | null },
     ProviderClientOperationError
@@ -491,7 +492,7 @@ export class MuseAgentClient extends EventEmitter<ClientEvents> implements Agent
           computerUseParam(params),
         ),
         this.#options.mcpToolRuntimes?.(),
-        this.#options.mcpAuthorization,
+        this.#options.mcpEndpoint,
       ).pipe(toProviderClientOperationError);
       for (const secret of mcpSecretValues(resolved.map((server) => server.config))) this.#secrets.add(secret);
       const handoff = acpMcpServers(resolved);
@@ -607,7 +608,7 @@ export class MuseAgentClient extends EventEmitter<ClientEvents> implements Agent
           ? {}
           : {
               input,
-              workspaceRoots: [thread.cwd, ...thread.roots],
+              workspaceRoots: [...new Set([thread.cwd, ...thread.roots])],
               ifBusy: "queue",
               ...(effort ? { reasoningEffort: effort } : {}),
             }),
@@ -1035,7 +1036,7 @@ const musePrompt = Effect.fn("MuseAgentClient.prompt")(function* (params: unknow
       input.push({
         type: "image",
         base64Data: bytes.toString("base64"),
-        mediaType: /\.jpe?g$/iu.test(path) ? "image/jpeg" : /\.webp$/iu.test(path) ? "image/webp" : "image/png",
+        mediaType: attachmentMimeTypeForName(path),
       });
     }
   }

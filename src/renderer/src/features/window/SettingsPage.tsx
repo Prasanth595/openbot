@@ -32,7 +32,6 @@ const SEARCH_ROWS: { tab: SettingsTab; titleKey: AppTextKey; descriptionKey: App
     titleKey: "settings.restoreWorkspace.title",
     descriptionKey: "settings.restoreWorkspace.description",
   },
-  { tab: "general", titleKey: "settings.turbo.title", descriptionKey: "settings.turbo.description" },
   { tab: "general", titleKey: "settings.analytics.title", descriptionKey: "settings.analytics.description" },
   {
     tab: "notifications",

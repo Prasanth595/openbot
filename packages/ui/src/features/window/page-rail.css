@@ -16,6 +16,10 @@
   flex-direction: column;
   align-items: center;
   gap: var(--openbot-space-1-5);
+  /* The window swallows mouse events over a drag area. With the gaps between the buttons in the
+   * drag area, the pointer left the group between two buttons, and the tooltip closed instead of
+   * moving to the next button. */
+  -webkit-app-region: no-drag;
 }
 
 .window-rail-button {

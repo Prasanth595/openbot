@@ -26,7 +26,6 @@ import type {
   SetAnalyticsPreferenceInput,
   SetAppLanguagePreferenceInput,
   SetAppLogoColorPreferenceInput,
-  SetApprovalAutomationInput,
   SetDynamicIslandInteractiveInput,
   SetEnabledSkillInput,
   SubmitMarketplaceAgentInput,
@@ -50,7 +49,6 @@ import {
   isDynamicIslandInteractive,
   isDynamicIslandPreference,
   isDynamicIslandPresentation,
-  isSetApprovalAutomationInput,
   isSkillCategory,
 } from "@openbot/contracts/ipc";
 import {
@@ -84,17 +82,6 @@ export function parseProviderId(input: unknown): AgentProviderId {
 export function parseAnalyticsPreference(input: unknown): SetAnalyticsPreferenceInput {
   if (!isDynamicRecord(input) || !isBoolean(input.enabled)) throw new Error("Analytics preference is required.");
   return { enabled: input.enabled };
-}
-
-export function parseApprovalAutomation(input: unknown): SetApprovalAutomationInput {
-  if (!isSetApprovalAutomationInput(input)) throw new Error("Approval automation preference is required.");
-  const parsed: SetApprovalAutomationInput = {};
-  if (input.turbo !== undefined) parsed.turbo = input.turbo;
-  if (input.agentId !== undefined && input.autoApprove !== undefined) {
-    parsed.agentId = input.agentId;
-    parsed.autoApprove = input.autoApprove;
-  }
-  return parsed;
 }
 
 export function parseBusyMessageModePreference(input: unknown): BusyMessageModePreference {

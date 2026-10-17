@@ -184,6 +184,7 @@ import {
 } from "./main-window";
 import { ManagedSkillService } from "./managed-skill-service";
 import { McpHostSignIns } from "./mcp-host-sign-ins";
+import { McpOAuthProxySettingsFile } from "./mcp-oauth-proxy-store";
 import {
   MCP_OAUTH_REDIRECT_PATH,
   MCP_OAUTH_REDIRECT_PORT,
@@ -199,7 +200,7 @@ import { ProviderCredentialStore } from "./provider-credential-store";
 import { createProviderDetection, type ProviderDetection } from "./provider-detection";
 import { PROVIDER_DETECTION_SETTINGS_FILE, ProviderDetectionSettingsStore } from "./provider-detection-settings-store";
 import { ProviderHostSignIns } from "./provider-host-sign-ins";
-import { startProviderLog } from "./provider-log";
+import { startAgentLog, startProviderLog } from "./provider-log";
 import { toProviderRuntimeFailure } from "./provider-runtime-effects";
 import { ProviderRuntimeManager, providerRuntimeRoot, runtimeTarget } from "./provider-runtime-manager";
 import { ProviderUseSettingsStore } from "./provider-use-settings-store";
@@ -266,7 +267,8 @@ const logger = createOpenBotLogger("application-services");
 const SETUP_FILE = "openbot-setup-v2.json";
 const ANALYTICS_PREFERENCE_FILE = "openbot-analytics-preference-v1.json";
 const ANALYTICS_INVENTORY_FILE = "openbot-analytics-inventory-v1.json";
-const APPROVAL_AUTOMATION_FILE = "openbot-approval-automation-v2.json";
+const APPROVAL_AUTOMATION_FILE = "openbot-approval-automation-v3.json";
+const V2_APPROVAL_AUTOMATION_FILE = "openbot-approval-automation-v2.json";
 const ROUTINE_FEED_FILE = "openbot-routine-feed-v1.json";
 const LEGACY_APPROVAL_AUTOMATION_FILE = "openbot-approval-automation-v1.json";
 const LANGUAGE_PREFERENCE_FILE = "openbot-language-preference-v1.json";
@@ -295,6 +297,7 @@ const MESSAGING_CREDENTIAL_FILE = "openbot-messaging-credentials-v1.json";
 const INGRESS_QUEUE_KEY_FILE = "openbot-ingress-queue-key-v1.json";
 /** The MCP sign-ins. Separate from the keys above: a key is typed by the user, a token is not. */
 const MCP_OAUTH_FILE = "openbot-mcp-oauth-v1.json";
+const MCP_OAUTH_PROXY_FILE = "openbot-mcp-oauth-proxy-v1.json";
 /** The one GitHub sign-in of this computer, with the same cipher as the MCP sign-ins. */
 const GITHUB_CONNECTOR_FILE = "openbot-github-connector-v1.json";
 /** The 1Password service account token of this computer, with the same cipher. */
@@ -374,6 +377,8 @@ const TEARDOWN_ORDER = {
   trace: 120,
   // After the service, so the lines its providers write while they stop are kept.
   providerLog: 121,
+  // After the service, so a deletion that fails while the service stops is kept.
+  agentLog: 122,
   // Last: every step above can still write.
   database: 130,
 } as const;
@@ -743,6 +748,7 @@ export async function createApplicationServices({
     "the provider log",
     startProviderLog(join(app.getPath("userData"), "logs")),
   );
+  teardown.push(TEARDOWN_ORDER.agentLog, "the agent log", startAgentLog(join(app.getPath("userData"), "logs")));
   // The one forward reference left in this function: the controller is built at the top of
   // startup because its window must be able to appear immediately, but the two services its
   // critical actions drive are built hundreds of lines below. A single named local rather than
@@ -834,7 +840,11 @@ export async function createApplicationServices({
     centralAuth.stopProfileRefresh();
   });
   const store = new AgentStore(app.getPath("userData"), homedir());
+  // Phase marks for `dev:bench`, so a slow start shows which group of awaits it waited on. They
+  // change nothing.
+  performance.mark("openbot:services.pre-store");
   await runCauseEffect(store.initialize());
+  performance.mark("openbot:services.store");
   // Closing copies the write-ahead log into the database file and removes it.
   teardown.push(TEARDOWN_ORDER.database, "the database", () => store.database.close());
   const managedSkills = new ManagedSkillService(
@@ -861,6 +871,7 @@ export async function createApplicationServices({
   await Effect.runPromise(managedSkills.syncAll(store.list()));
   await Effect.runPromise(skillCreator.syncAll(store.list()));
   await Effect.runPromise(dataSkill.syncAll(store.list()));
+  performance.mark("openbot:services.skills");
   const hostedSites = new HostedSiteDesktopService(centralAuth, () => {
     // Read at request time: the team store is created later, and the server can register after launch.
     const hostId = teamStore.getIdentity()?.serverId;
@@ -910,6 +921,7 @@ export async function createApplicationServices({
   });
   teardown.push(TEARDOWN_ORDER.browser, "the browser", () => runCauseEffect(browser.destroy()));
   await runCauseEffect(browser.restore(store.list().map((agent) => ({ id: agent.id, threadId: agent.threadId }))));
+  performance.mark("openbot:services.browser");
   const browserPictureInPicture = new BrowserPictureInPicture({
     // A value, deliberately: the window this is docked to is the one that exists now. The event
     // callback below is the opposite case and re-reads, because it fires long after a macOS window
@@ -994,7 +1006,9 @@ export async function createApplicationServices({
       readApprovalAutomation(
         approvalAutomationFile,
         store.list().map((agent) => agent.id),
-        join(app.getPath("userData"), LEGACY_APPROVAL_AUTOMATION_FILE),
+        [V2_APPROVAL_AUTOMATION_FILE, LEGACY_APPROVAL_AUTOMATION_FILE].map((file) =>
+          join(app.getPath("userData"), file),
+        ),
       ),
     ),
     knownAgentIds: () => store.list().map((agent) => agent.id),
@@ -1059,6 +1073,7 @@ export async function createApplicationServices({
   const providerDetectionSettings = new ProviderDetectionSettingsStore(
     join(app.getPath("userData"), PROVIDER_DETECTION_SETTINGS_FILE),
   );
+  performance.mark("openbot:services.preferences");
   await runCauseEffect(providerDetectionSettings.load());
   const providerDetection = await Effect.runPromise(
     createProviderDetection({
@@ -1082,6 +1097,7 @@ export async function createApplicationServices({
   // An unreadable key file is reported, not fatal: the app starts, OpenCode runs on the free models,
   // and Settings tells the user to save the key again. Only the error's class is logged, because a
   // parse message quotes the file.
+  performance.mark("openbot:services.provider-detection");
   const credentialLoadError = await Effect.runPromise(providerCredentials.load());
   if (credentialLoadError) {
     logger.warn(`OpenBot could not read the provider key file (${credentialLoadError.name}). It was left unchanged.`);
@@ -1097,6 +1113,17 @@ export async function createApplicationServices({
   const mcpOAuthLoadError = await Effect.runPromise(mcpOAuthStore.load());
   if (mcpOAuthLoadError) {
     logger.warn(`OpenBot could not read the MCP sign-in file (${mcpOAuthLoadError.name}). It was left unchanged.`);
+  }
+  // The OAuth proxy port, so a Codex session resumed after a restart reaches the same address.
+  const mcpOAuthProxySettings = new McpOAuthProxySettingsFile(
+    join(app.getPath("userData"), MCP_OAUTH_PROXY_FILE),
+    secretCipher,
+  );
+  const mcpOAuthProxyLoadError = await Effect.runPromise(mcpOAuthProxySettings.load());
+  if (mcpOAuthProxyLoadError) {
+    logger.warn(
+      `OpenBot could not read the MCP sign-in proxy file (${mcpOAuthProxyLoadError.name}). A new port is used.`,
+    );
   }
   /*
    * Where a returning grant lands. The loopback listener is the address RFC 8252 gives a native
@@ -1122,6 +1149,7 @@ export async function createApplicationServices({
         ? { port: Number(new URL(mcpOAuthRedirect.redirectUrl).port), path: MCP_OAUTH_REDIRECT_PATH }
         : null,
   });
+  performance.mark("openbot:services.mcp-sign-in-file");
   const mcpOAuthRedirect = await startMcpOAuthRedirectServer({
     language,
     preferredPort: MCP_OAUTH_REDIRECT_PORT,
@@ -1151,6 +1179,7 @@ export async function createApplicationServices({
     storage: mcpOAuthStore,
     openExternal: (url) => shell.openExternal(url),
     redirectUrl: mcpOAuthRedirect?.redirectUrl ?? MCP_OAUTH_REDIRECT_URL,
+    logger: createOpenBotLogger("mcp-oauth"),
   });
   mcpOAuthAuthority = mcpOAuth;
   teardown.push(TEARDOWN_ORDER.mcpOAuth, "MCP token refresh", () => Effect.runPromise(mcpOAuth.close()));
@@ -1191,6 +1220,7 @@ export async function createApplicationServices({
     openExternal: (url) => shell.openExternal(url),
   });
   await runCauseEffect(onePasswordConnector.load());
+  performance.mark("openbot:services.connectors");
   teardown.push(TEARDOWN_ORDER.onePasswordConnector, "the 1Password connection", () =>
     runCauseEffect(onePasswordConnector.dispose()),
   );
@@ -1334,6 +1364,7 @@ export async function createApplicationServices({
   // tree stop ends every command it started, so none outlives its folder. Elsewhere the system
   // folder stays: a macOS path in userData has a space and is too long for a Unix socket.
   const providerTempDirectory = join(app.getPath("userData"), "provider-temp");
+  performance.mark("openbot:services.computer-use");
   if (process.platform === "win32") await sweepProviderTemp(providerTempDirectory);
   const service: AgentService = new AgentService({
     store,
@@ -1395,9 +1426,10 @@ export async function createApplicationServices({
       // user's own `PATH`, so a machine with no Node can still start `npx some-server` and a machine
       // that has one keeps the build it installed.
       mcpToolRuntimes: () => providerRuntimes.mcpToolRuntimes(),
-      // The bearer token for an http server, minted here and spent by the provider process. The
-      // service asks for one at each hand-off; only a test the user pressed may open a browser.
+      // The sign-ins of the http servers. The service hands a provider a route of its OAuth proxy,
+      // never the token; only a test the user pressed may open a browser.
       mcpOAuth,
+      mcpOAuthProxySettings,
       providerStateDirectory: join(app.getPath("userData"), "provider-state"),
       ...(process.platform === "win32" ? { providerTempDirectory } : {}),
       // The GitHub entries are paths only: `gh` and `git` read the token from the files the connection
@@ -1428,15 +1460,26 @@ export async function createApplicationServices({
     tables,
   });
   teardown.push(TEARDOWN_ORDER.service, "the agent service", () => runCauseEffect(service.stop()));
+  /** The answer an agent gave in one turn, for routine flows, routine results and local scripts. */
+  const turnAnswer = (agentId: string, turnId: string): string | null => {
+    const threadId = store.list().find((agent) => agent.id === agentId)?.threadId;
+    if (!threadId) return null;
+    return latestTurnAnswer(store.database.readTurnAssistantMessages(agentId, threadId, turnId), turnId)?.text ?? null;
+  };
   // Listens only while an agent allows local scripts; see `AutomationServer`.
   const automation = new AutomationServer({
     root: store.automationRoot,
     listAgents: () => service.listAgents(),
+    listModels: () => service.listModels(),
     listRoutines: (agentId) => service.listRoutines(agentId),
     runRoutine: (input) => service.runRoutineFromAutomation(input),
     sendMessage: (input) => service.sendMessage(input),
     getLocalAttention: (agentId) => service.getLocalAttention(agentId),
     respondToLocalAttention: (agentId, input) => service.respondToLocalAttention(agentId, input),
+    delivery: (deliveryId) => mailbox.getDelivery(deliveryId)?.delivery ?? null,
+    turnAnswer,
+    updateAgent: (input) => service.updateAgent(input),
+    clearAgentContext: (agentId) => service.clearAgentContext(agentId),
   });
   service.on("event", (event) => {
     if (event.type === "agents-changed") Effect.runFork(automation.requestSync());
@@ -1451,13 +1494,7 @@ export async function createApplicationServices({
         const found = mailbox.getDelivery(deliveryId)?.delivery;
         return found ? { status: found.status, turnId: found.turnId, error: found.error } : null;
       },
-      turnAnswer: (agentId, turnId) => {
-        const threadId = store.list().find((agent) => agent.id === agentId)?.threadId;
-        if (!threadId) return null;
-        return (
-          latestTurnAnswer(store.database.readTurnAssistantMessages(agentId, threadId, turnId), turnId)?.text ?? null
-        );
-      },
+      turnAnswer,
       agentName: (agentId) => store.list().find((agent) => agent.id === agentId)?.name ?? agentId,
       sendHandoff: (input) => service.enqueueRoutineHandoff(input),
       // An agent event, so this window, joined clients and the web app hear it the same way.
@@ -1475,13 +1512,7 @@ export async function createApplicationServices({
         const found = mailbox.getDelivery(deliveryId)?.delivery;
         return found ? { turnId: found.turnId } : null;
       },
-      turnAnswer: (agentId, turnId) => {
-        const threadId = store.list().find((agent) => agent.id === agentId)?.threadId;
-        if (!threadId) return null;
-        return (
-          latestTurnAnswer(store.database.readTurnAssistantMessages(agentId, threadId, turnId), turnId)?.text ?? null
-        );
-      },
+      turnAnswer,
       connection: (connectionId) => {
         const record = service.messaging.store.connection(connectionId);
         return record?.enabled ? { platform: record.platform, name: record.workspaceName } : null;
@@ -1511,6 +1542,7 @@ export async function createApplicationServices({
   // The host id is read when the Signal socket opens, and the team store is built further down, so
   // it starts as "no name yet".
   let ingressHostId: () => string | null = () => null;
+  performance.mark("openbot:services.routines");
   const { messaging, signalIngress } = await createMessagingServices({
     teardown,
     secretCipher,
@@ -1583,6 +1615,7 @@ export async function createApplicationServices({
     Effect.runFork(providerRuntimes.ensureToolRuntimes());
   // After `new AgentService`, which owns the channels: the layout files channels beside agents, and
   // reconciling against the agents alone would read every channel as gone and drop where it sits.
+  performance.mark("openbot:services.messaging");
   await runCauseEffect(sidebarLayout.reconcileAgents(service.sidebarChatIds()));
 
   /*
@@ -1619,7 +1652,12 @@ export async function createApplicationServices({
       caches: ["remote-attachments", "remote-shared-files", "remote-workspace-files"].map((name) =>
         join(userData, name),
       ),
-      logs: [join(userData, "logs", "remote"), join(userData, "logs", "update"), join(userData, "logs", "providers")],
+      logs: [
+        join(userData, "logs", "remote"),
+        join(userData, "logs", "update"),
+        join(userData, "logs", "providers"),
+        join(userData, "logs", "agents"),
+      ],
       runtimes: providerRuntimeRoot({
         appData: app.getPath("appData"),
         userDataOverride: app.commandLine.getSwitchValue("user-data-dir"),
@@ -1661,6 +1699,7 @@ export async function createApplicationServices({
     join(app.getPath("userData"), TEAM_FILE),
   );
   await runCauseEffect(teamStore.initialize());
+  performance.mark("openbot:services.team");
   ingressHostId = () => teamStore.getIdentity()?.serverId ?? null;
   signalIngress.reconnect();
   const webhookRelay = new WebhookRelay({
@@ -1717,6 +1756,7 @@ export async function createApplicationServices({
   }
 
   const teamChatStore = new TeamChatStore(store.database);
+  performance.mark("openbot:services.hosted");
   const remoteDesktopRuntime = await Effect.runPromise(
     resolveRemoteDesktopRuntime({
       isPackaged: app.isPackaged,
@@ -2029,6 +2069,7 @@ export async function createApplicationServices({
     throw new Error(`Unsupported analytics platform: ${analyticsPlatform}`);
   }
   // Load the local catalog before telemetry starts so tool steps and inventory use the same names.
+  performance.mark("openbot:services.remote-desktop");
   const catalogPluginServers = await Effect.runPromise(
     loadCatalogPluginServers(
       app.isPackaged
@@ -2169,7 +2210,9 @@ export async function createApplicationServices({
   // account check and its coalescing; this only forwards the notice to it.
   teamWebRtcBridge.on("accountServersChanged", () => void Effect.runPromise(remoteServers.invalidateDirectory()));
   teardown.push(TEARDOWN_ORDER.remoteServers, "the remote servers", () => runCauseEffect(remoteServers.stop()));
+  performance.mark("openbot:services.plugin-catalog");
   await runCauseEffect(remoteServers.initialize());
+  performance.mark("openbot:services.remote-servers");
   criticalActionTargets = { agents: service, host, remoteServers };
   // After `remoteServers.initialize()`. The client half polls for the host's connection file and
   // throws when it never appears, before any window is shown - see the module it lives in. It reads
@@ -2490,7 +2533,9 @@ export async function createApplicationServices({
       await Effect.runPromise(serverMode.close());
     });
   }
+  performance.mark("openbot:services.updates");
   await runCauseEffect(hostUpdateCoordinator.tick());
+  performance.mark("openbot:services.host-update");
   hostUpdateCoordinator.start();
   teardown.push(TEARDOWN_ORDER.hostUpdateCoordinator, "the host update coordinator", () =>
     Effect.runPromise(hostUpdateCoordinator.stop()),

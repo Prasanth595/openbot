@@ -211,6 +211,10 @@ export const messages = {
   "error.backend.mcpSignInResponseTimedOut": "A resposta do login não chegou a tempo.",
   "error.backend.mcpServerExited":
     "O servidor parou antes de responder. Execute o comando em um terminal para ver o erro.",
+  "error.backend.mcpOAuthProxyUnavailable":
+    "O OpenBot não conseguiu iniciar a conexão local de login para este servidor. Reinicie o OpenBot e tente novamente.",
+  "error.backend.mcpOAuthSignInNeeded":
+    "O login neste servidor MCP terminou. O usuário precisa entrar novamente no OpenBot.",
   "error.backend.mcpServerUnreachable": "O OpenBot não conseguiu acessar o servidor. Verifique a URL e sua rede.",
   "error.backend.mcpLocalServerOff":
     "Nenhum servidor responde em {address} neste computador. Inicie o servidor ou ative-o no app que o executa e tente novamente.",
@@ -224,6 +228,11 @@ export const messages = {
   "error.backend.oauthTooManyRedirects": "O endpoint OAuth redirecionou vezes demais.",
   "error.backend.oauthRedirectOrigin":
     "O endpoint OAuth redirecionou para {origin}, por isso as credenciais não foram encaminhadas.",
+  "error.backend.oauthTimedOut": "O endpoint OAuth {origin} não respondeu a tempo.",
+  "error.backend.oauthResponseTooLarge": "O endpoint OAuth {origin} enviou uma resposta grande demais.",
+  "error.backend.oauthResponseUnreadable": "Não foi possível ler a resposta do endpoint OAuth {origin}.",
+  "error.backend.mcpOAuthPrivateEndpoint":
+    "O endpoint OAuth {origin} está em uma rede privada, mas o servidor MCP é público, por isso as credenciais não foram enviadas.",
   "error.backend.sidebarSectionLimit": "Um servidor pode ter até {limit} seções na barra lateral.",
   "error.backend.sectionNameRequired": "É necessário informar o nome da seção.",
   "error.backend.sectionNameTooLong": "O nome da seção é muito longo.",

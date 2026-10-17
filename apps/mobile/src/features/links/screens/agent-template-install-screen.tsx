@@ -1,4 +1,4 @@
-import type { AgentTemplateDetail, RoutineSchedule } from "@openbot/contracts/ipc";
+import { type AgentTemplateDetail, canAdministerServer, type RoutineSchedule } from "@openbot/contracts/ipc";
 import type { MobileTextKey } from "@openbot/i18n/mobile";
 import { useQuery } from "@tanstack/react-query";
 import { router, Stack, useLocalSearchParams } from "expo-router";
@@ -61,7 +61,7 @@ function AgentTemplateInstall({ request }: { request?: string }) {
   });
   // Owners and admins see each of their servers from the start. A server that is still connecting,
   // offline, or too old stays in the list as a disabled row, so the sheet does not change its layout.
-  const managed = workspace.servers.filter((server) => server.role !== "member");
+  const managed = workspace.servers.filter((server) => canAdministerServer(server.role));
   const eligible = managed.filter((server) => showsOnline(server) && workspace.canInstallAgentTemplate(server.id));
   const [chosenServerId, setChosenServerId] = useState<string | null>(null);
   // The default applies only until the user selects a server. After that, the choice stays: a

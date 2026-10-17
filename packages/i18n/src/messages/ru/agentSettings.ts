@@ -96,12 +96,12 @@ export const messages = {
   "agentSettings.runtime.notAvailable": "Пока недоступно",
   "agentSettings.runtime.fullAccessNote":
     "Агент работает с полным доступом к компьютеру из своего рабочего пространства и общей папки.",
-  "agentSettings.runtime.claudeApprovalNote":
-    "Claude действует без запроса подтверждения, кроме вопросов, которые он задаёт вам.",
-  "agentSettings.runtime.providerApprovalNote":
-    "В зависимости от провайдера для опасных команд сначала может понадобиться подтверждение.",
+  "agentSettings.runtime.askNote":
+    "Агент спрашивает вас, прежде чем использовать инструмент OpenBot или опубликовать сайт, а также когда его провайдер запрашивает одобрение.",
+  "agentSettings.runtime.fullNote": "Агент действует без подтверждения, кроме вопросов, которые он задаёт вам.",
 
   "agentSettings.access.workspace": "Рабочее пространство",
+  "agentSettings.access.ask": "Сначала спрашивать",
   "agentSettings.access.full": "Полный доступ",
   "agentSettings.busyMessage.appDefaultQueue": "По умолчанию (очередь)",
   "agentSettings.busyMessage.appDefaultSteer": "По умолчанию (направлять)",
@@ -124,10 +124,13 @@ export const messages = {
   "agentSettings.newChat.failed": "Не удалось начать новый чат.",
 
   "agentSettings.fullAccess.title": "Дать этому агенту полный доступ?",
+  "agentSettings.fullAccess.askTitle": "Разрешить этому агенту работать за пределами рабочего пространства?",
   "agentSettings.fullAccess.description":
     "Тогда агент сможет читать, изменять и удалять любые файлы, доступные вашему пользователю, выполнять любые команды и пользоваться сетью. Одна неверно понятая инструкция или вредоносная веб-страница могут добраться до ваших личных файлов.",
-  "agentSettings.fullAccess.cancel": "Только рабочее пространство",
+  "agentSettings.fullAccess.noApproval":
+    "Тогда агент будет выполнять команды, изменять файлы, использовать инструменты и публиковать сайты, не спрашивая вас.",
   "agentSettings.fullAccess.confirm": "Разрешить полный доступ",
+  "agentSettings.fullAccess.askConfirm": "Сначала спрашивать",
 
   "agentSettings.links.usage": "Использование",
   "agentSettings.links.memories": "Память",
@@ -162,9 +165,9 @@ export const messages = {
   "agentSettings.runtime.workspaceNote":
     "Режим «Только рабочее пространство» ограничивает запись рабочим пространством агента, общей папкой и временными папками. Чтение и сеть остаются доступными.",
   "agentSettings.runtime.workspaceEnforcedCommand":
-    "Если команде нужно записать данные за пределами рабочего пространства, сначала она спросит вас, даже при включённом «Автоодобрении».",
+    "Если команде нужно записать данные за пределами рабочего пространства, сначала она спросит вас.",
   "agentSettings.runtime.workspaceEnforcedClaude":
-    "Изменение файла за пределами рабочего пространства сначала требует вашего подтверждения, даже при включённом «Автоодобрении». Команда не может записывать за его пределами.",
+    "Изменение файла за пределами рабочего пространства сначала требует вашего подтверждения. Команда не может записывать за его пределами.",
   "agentSettings.runtime.workspaceUnlimited":
     "Управление компьютером и браузер OpenBot не ограничены; управление компьютером можно отключить ниже.",
   "agentSettings.computerUse.title": "Управление компьютером",

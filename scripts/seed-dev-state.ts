@@ -243,7 +243,7 @@ export interface DevelopmentSeedSummary {
 const SEED_SUMMARY = {
   agents: 4,
   conversations: 4,
-  attachments: 10,
+  attachments: 12,
   teamMembers: 2,
   activeInvites: 1,
   sessions: 2,
@@ -647,13 +647,139 @@ async function seedAgents(agentStore: AgentStore, agentModel: SeededAgentModel):
   return agents;
 }
 
+const spreadsheetDateWorkbooks: {
+  system: "1900" | "1904";
+  cases: { id: string; serial: number; style: number }[];
+}[] = [
+  {
+    system: "1900",
+    cases: [
+      { id: "date-1", serial: 1, style: 1 },
+      { id: "date-59", serial: 59, style: 1 },
+      { id: "date-60", serial: 60, style: 1 },
+      { id: "date-61", serial: 61, style: 1 },
+      { id: "datetime-1.5", serial: 1.5, style: 2 },
+      { id: "datetime-60.5", serial: 60.5, style: 2 },
+      { id: "modern-45292", serial: 45292, style: 1 },
+      { id: "plain-number", serial: 60, style: 0 },
+      { id: "time-only", serial: 0.5, style: 3 },
+    ],
+  },
+  {
+    system: "1904",
+    cases: [
+      { id: "date-0", serial: 0, style: 1 },
+      { id: "date-59", serial: 59, style: 1 },
+      { id: "plain-number", serial: 60, style: 0 },
+      { id: "time-only", serial: 0.5, style: 3 },
+    ],
+  },
+];
+
+const NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+const REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+const PACKAGE_REL = "http://schemas.openxmlformats.org/package/2006/relationships";
+
+const spreadsheetNumberFormatCases: { id: string; value: number; format: string }[] = [
+  { id: "dollar-prefix", value: 1234.5, format: '"$"#,##0.00' },
+  { id: "negative-dollar-prefix", value: -1234.5, format: '"$"#,##0.00' },
+  { id: "spaced-prefix", value: 1234.5, format: '"USD "0.00' },
+  { id: "prefix-and-percent", value: 0.125, format: '"Gain "0.0%' },
+  { id: "suffix", value: 2.5, format: '0.00" kg"' },
+  { id: "text-only", value: 1234.5, format: '"Total"' },
+];
+
+const escapeXmlAttribute = (value: string): string => value.replaceAll("&", "&amp;").replaceAll('"', "&quot;");
+
+/** A one-sheet workbook with a Case column and a styled Value column. */
+function caseWorkbookXlsx(input: {
+  sheetName: string;
+  date1904: boolean;
+  /** Format codes for the custom IDs 164 and up. */
+  formats: string[];
+  /** The numFmtId of each cell style. */
+  styles: number[];
+  cases: { id: string; value: number; style: number }[];
+}): Uint8Array {
+  const entries = {
+    "[Content_Types].xml": `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+      <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+      <Default Extension="xml" ContentType="application/xml"/>
+      <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+      <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+      <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+    </Types>`,
+    "_rels/.rels": `<Relationships xmlns="${PACKAGE_REL}"><Relationship Id="rId1" Type="${REL}/officeDocument" Target="xl/workbook.xml"/></Relationships>`,
+    "xl/workbook.xml": `<workbook xmlns="${NS}" xmlns:r="${REL}">${input.date1904 ? '<workbookPr date1904="1"/>' : ""}<sheets><sheet name="${input.sheetName}" sheetId="1" r:id="rId1"/></sheets></workbook>`,
+    "xl/_rels/workbook.xml.rels": `<Relationships xmlns="${PACKAGE_REL}">
+      <Relationship Id="rId1" Type="${REL}/worksheet" Target="worksheets/sheet1.xml"/>
+      <Relationship Id="rId2" Type="${REL}/styles" Target="styles.xml"/>
+    </Relationships>`,
+    "xl/styles.xml": `<styleSheet xmlns="${NS}">
+      ${input.formats.length ? `<numFmts count="${input.formats.length}">${input.formats.map((code, index) => `<numFmt numFmtId="${164 + index}" formatCode="${escapeXmlAttribute(code)}"/>`).join("")}</numFmts>` : ""}
+      <fonts count="1"><font/></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>
+      <borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+      <cellXfs count="${input.styles.length}">${input.styles.map((id) => `<xf numFmtId="${id}" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>`).join("")}</cellXfs>
+    </styleSheet>`,
+    "xl/worksheets/sheet1.xml": `<worksheet xmlns="${NS}"><sheetData>
+      <row r="1"><c r="A1" t="inlineStr"><is><t>Case</t></is></c><c r="B1" t="inlineStr"><is><t>Value</t></is></c></row>
+      ${input.cases
+        .map(
+          (entry, index) =>
+            `<row r="${index + 2}"><c r="A${index + 2}" t="inlineStr"><is><t>${entry.id}</t></is></c><c r="B${index + 2}" s="${entry.style}"><v>${entry.value}</v></c></row>`,
+        )
+        .join("")}
+    </sheetData></worksheet>`,
+  };
+  return zipSync(Object.fromEntries(Object.entries(entries).map(([name, xml]) => [name, strToU8(xml)])));
+}
+
+function spreadsheetDatesXlsx(system: "1900" | "1904"): Uint8Array {
+  const workbook = spreadsheetDateWorkbooks.find((entry) => entry.system === system);
+  if (!workbook) throw new Error("Missing spreadsheet date fixture.");
+  return caseWorkbookXlsx({
+    sheetName: `Dates ${workbook.system}`,
+    // No workbookPr in the 1900 fixture: Excel uses that system by default.
+    date1904: workbook.system === "1904",
+    formats: [],
+    styles: [0, 14, 22, 21],
+    cases: workbook.cases.map((entry) => ({ id: entry.id, value: entry.serial, style: entry.style })),
+  });
+}
+
+function spreadsheetNumberFormatsXlsx(): Uint8Array {
+  const formats = [...new Set(spreadsheetNumberFormatCases.map((entry) => entry.format))];
+  return caseWorkbookXlsx({
+    sheetName: "Number formats",
+    date1904: false,
+    formats,
+    styles: [0, ...formats.map((_format, index) => 164 + index)],
+    cases: spreadsheetNumberFormatCases.map((entry) => ({
+      id: entry.id,
+      value: entry.value,
+      style: formats.indexOf(entry.format) + 1,
+    })),
+  });
+}
+
 async function seedAttachments(
   mailbox: MailboxStore,
   agents: Map<string, AgentSummary>,
   transferDirectories: string[],
 ): Promise<
   Record<
-    "brief" | "metrics" | "evidence" | "image" | "log" | "svg" | "pdf" | "audio" | "spreadsheet",
+    | "brief"
+    | "metrics"
+    | "evidence"
+    | "image"
+    | "log"
+    | "svg"
+    | "pdf"
+    | "audio"
+    | "spreadsheet"
+    | "spreadsheetDates1900"
+    | "spreadsheetDates1904"
+    | "spreadsheetNumberFormats",
     AttachmentSummary
   >
 > {
@@ -734,6 +860,21 @@ async function seedAttachments(
       mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       bytes: previewXlsx(),
     }),
+    spreadsheetDates1900: await store(chief, {
+      name: "spreadsheet-dates-1900.xlsx",
+      mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      bytes: spreadsheetDatesXlsx("1900"),
+    }),
+    spreadsheetDates1904: await store(chief, {
+      name: "spreadsheet-dates-1904.xlsx",
+      mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      bytes: spreadsheetDatesXlsx("1904"),
+    }),
+    spreadsheetNumberFormats: await store(chief, {
+      name: "spreadsheet-number-formats.xlsx",
+      mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      bytes: spreadsheetNumberFormatsXlsx(),
+    }),
   };
 }
 
@@ -742,7 +883,18 @@ async function seedConversations(
   mailbox: MailboxStore,
   agents: Map<string, AgentSummary>,
   attachments: Record<
-    "brief" | "metrics" | "evidence" | "image" | "log" | "svg" | "pdf" | "audio" | "spreadsheet",
+    | "brief"
+    | "metrics"
+    | "evidence"
+    | "image"
+    | "log"
+    | "svg"
+    | "pdf"
+    | "audio"
+    | "spreadsheet"
+    | "spreadsheetDates1900"
+    | "spreadsheetDates1904"
+    | "spreadsheetNumberFormats",
     AttachmentSummary
   >,
   clock: SeedClock,
@@ -863,6 +1015,25 @@ async function seedConversations(
           attachments.audio,
           attachments.image,
           attachments.spreadsheet,
+        ],
+      },
+      {
+        ...message(
+          "chief-assistant-spreadsheet-dates",
+          "assistant",
+          [
+            "Open these workbooks to check spreadsheet dates and number formats:",
+            "",
+            `- ${file(attachments.spreadsheetDates1900)}`,
+            `- ${file(attachments.spreadsheetDates1904)}`,
+            `- ${file(attachments.spreadsheetNumberFormats)}`,
+          ].join("\n"),
+          42 * MINUTE,
+        ),
+        attachments: [
+          attachments.spreadsheetDates1900,
+          attachments.spreadsheetDates1904,
+          attachments.spreadsheetNumberFormats,
         ],
       },
       message(

@@ -1,7 +1,6 @@
 import { AGENT_MEMORY_LIMITS, type AgentMemoryLimit, type AppVariant } from "@openbot/contracts/ipc";
 import type { AppTextKey } from "@openbot/i18n";
 import {
-  ConfirmDialog,
   Item,
   ItemActions,
   ItemContent,
@@ -20,7 +19,7 @@ import type { GeneralSettingsValue } from "@openbot/ui/features/settings/app-set
 import { LanguageSelect } from "@openbot/ui/features/settings/LanguageSelect";
 import { LogoColorPicker } from "@openbot/ui/features/settings/LogoColorPicker";
 import { SendShortcutSelect } from "@openbot/ui/features/settings/SendShortcutSelect";
-import { createSignal, Show } from "solid-js";
+import { Show } from "solid-js";
 import { useI18n } from "../../i18n-context";
 import { useLogoColorChoice } from "../../logo-color";
 
@@ -45,14 +44,12 @@ interface SettingsGeneralTabProps {
   selectMount: HTMLElement | undefined;
   onUpdateSetting: <Key extends keyof GeneralSettingsValue>(key: Key, value: GeneralSettingsValue[Key]) => void;
   onUpdateSettings: (patch: Partial<GeneralSettingsValue>) => void;
-  turboModePending?: boolean;
 }
 
 export function SettingsGeneralTab(props: SettingsGeneralTabProps) {
   const i18n = useI18n();
   const linkTargetLabel = (value: GeneralSettingsValue["externalLinkTarget"] | undefined) =>
     value === undefined ? "" : i18n.t(LINK_TARGET_KEYS[value]);
-  const [confirmingTurbo, setConfirmingTurbo] = createSignal(false);
   const logoColor = useLogoColorChoice();
   return (
     <>
@@ -185,18 +182,6 @@ export function SettingsGeneralTab(props: SettingsGeneralTabProps) {
       <SettingsSection title={i18n.t("settings.permissions.title")}>
         <ItemGroup class="settings-modal-card">
           <SwitchField
-            checked={props.value.turboMode}
-            disabled={props.turboModePending}
-            onChange={(checked) => {
-              // Turning it on is the move that needs the warning. Turning it off restores asking and
-              // is never something a user needs protecting from, so it is written straight away.
-              if (checked) setConfirmingTurbo(true);
-              else props.onUpdateSetting("turboMode", false);
-            }}
-            label={i18n.t("settings.turbo.title")}
-            description={i18n.t("settings.turbo.description")}
-          />
-          <SwitchField
             checked={props.value.productAnalytics}
             onChange={(checked) => props.onUpdateSetting("productAnalytics", checked)}
             label={i18n.t("settings.analytics.title")}
@@ -204,21 +189,6 @@ export function SettingsGeneralTab(props: SettingsGeneralTabProps) {
           />
         </ItemGroup>
       </SettingsSection>
-
-      <ConfirmDialog
-        open={confirmingTurbo()}
-        tone="default"
-        initialFocus="cancel"
-        title={i18n.t("settings.turbo.confirmTitle")}
-        description={i18n.t("settings.turbo.confirmDescription")}
-        cancelLabel={i18n.t("common.cancel")}
-        confirmLabel={i18n.t("settings.turbo.confirmAccept")}
-        onCancel={() => setConfirmingTurbo(false)}
-        onConfirm={() => {
-          setConfirmingTurbo(false);
-          props.onUpdateSetting("turboMode", true);
-        }}
-      />
     </>
   );
 }

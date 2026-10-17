@@ -9,6 +9,7 @@ import {
   type AppInfo,
   type BrowserTakeoverRequest,
   CHANNEL_CHATS_CAPABILITY,
+  canAdministerServer,
   decodeAgentHostSettings,
   type ServerConnectionState,
   type ServerSummary,
@@ -73,12 +74,14 @@ import { PageRail, type PageRailPage } from "@openbot/ui/features/window/PageRai
 import { useText } from "@openbot/ui/text";
 import { Effect } from "effect";
 import { createEffect, createMemo, createSignal, Loading, lazy, onCleanup, onSettled, Show, untrack } from "solid-js";
+// Copying a selection with a formula in it gives its LaTeX source, as on desktop.
+import "katex/contrib/copy-tex";
 import { actionToast } from "../../action-toast";
 import { toAgentMessage } from "../../app-message-projection";
 import { ProviderSignInDialogs } from "../../components/ProviderSignInDialogs";
 import { isGlobalSearchShortcut } from "../../global-search-shortcut";
 import { LayoutProvider, useLayout } from "../../layout";
-import { AgentUsagePanel } from "../../lazy-views";
+import { AgentUsagePanel, RoutineFlowsCanvas, ScheduleView, ServerOnboarding } from "../../lazy-views";
 import { PlatformProvider } from "../../platform";
 import { WorkspaceFrame } from "../../WorkspaceFrame";
 import {
@@ -110,9 +113,7 @@ import type { AgentSettingsRequest } from "../conversation/conversation-types";
 import { webEventRoutinesApi } from "../conversation/routine-webhooks-api";
 import type { FilesPort } from "../files/files-port";
 import { hostSetupProviderProps } from "../onboarding/host-setup-provider-props";
-import { ServerOnboarding } from "../onboarding/ServerOnboarding";
-import { RoutineFlowsCanvas } from "../routine-flows/RoutineFlowsCanvas";
-import { type ScheduleRoutine, ScheduleView } from "../schedule/SchedulePanel";
+import type { ScheduleRoutine } from "../schedule/SchedulePanel";
 import { AddServerOverlay, type AddServerResume } from "../servers/AddServerOverlay";
 import type { ServerHostedSitesOptions, ServerSettingsSection } from "../servers/ServerSettingsModal";
 import type { HostTimezoneCalls } from "../servers/ServerTimezoneSetting";
@@ -523,8 +524,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   }
   // The events routes answer only an owner or admin. A member keeps the released routine routes.
   const eventsEnabled = () =>
-    workspace.state.capabilities.includes(EVENTS_CAPABILITY) &&
-    (workspace.state.host?.role === "owner" || workspace.state.host?.role === "admin");
+    workspace.state.capabilities.includes(EVENTS_CAPABILITY) && canAdministerServer(workspace.state.host?.role);
   // The same owner or admin reads and saves `missedPolicy` and the missed-run history on such a host.
   const routineRecoveryEnabled = () =>
     eventsEnabled() && workspace.state.capabilities.includes(ROUTINE_RECOVERY_CAPABILITY);
@@ -566,10 +566,10 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     eventsEnabled,
     () =>
       workspace.state.capabilities.includes("agent-session-settings-v1") &&
-      (workspace.state.host?.role === "owner" || workspace.state.host?.role === "admin"),
+      canAdministerServer(workspace.state.host?.role),
     () =>
       workspace.state.capabilities.includes(SIGN_IN_RELAY_CAPABILITY) &&
-      (workspace.state.host?.role === "owner" || workspace.state.host?.role === "admin"),
+      canAdministerServer(workspace.state.host?.role),
     routineRecoveryEnabled,
   );
   const remoteAgentAdmin = createRemoteAgentAdmin(
@@ -916,7 +916,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
       if (hostId) writeChannelSelection(props.accountId, hostId, channelId);
     },
     supported: channelsSupported,
-    deletionSupported: () => workspace.state.host?.role === "owner" || workspace.state.host?.role === "admin",
+    deletionSupported: () => canAdministerServer(workspace.state.host?.role),
     beforeOpen: () => {
       setCreating(false);
       // Not `showAgents`: the list restores the saved channel after a host connects, and that must
@@ -1084,11 +1084,6 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
       (request) => request.agentId === agent.id && request.threadId === agent.threadId,
     );
   });
-  const setAgentAutoApprove = createMemo(() => {
-    const agent = workspace.selected();
-    if (!agent || !remoteAgentAdmin.settings()) return undefined;
-    return (autoApprove: boolean) => remoteAgentAdmin.update({ agentId: agent.id, autoApprove });
-  });
   const clearSelectedAgentContext = createMemo(() => {
     const agent = workspace.selected();
     if (!agent || !workspace.runtime.admin || !workspace.state.capabilities.includes(CONTEXT_RESET_CAPABILITY))
@@ -1209,7 +1204,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   const hideSupported = () =>
     workspace.state.status === "online" &&
     workspace.state.capabilities.includes(AGENT_HIDDEN_CAPABILITY) &&
-    (workspace.state.host?.role === "owner" || workspace.state.host?.role === "admin");
+    canAdministerServer(workspace.state.host?.role);
   function startCreate() {
     setMobilePane("conversation");
     channels.close();
@@ -1376,19 +1371,21 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                       </Loading>
                     }
                   >
-                    <ScheduleView
-                      serverId={target().id}
-                      hostName={target().name}
-                      onBack={closeHostPage}
-                      source={scheduleSource}
-                      agents={workspace.profiles()}
-                      channels={channels.state.channels}
-                      onOpenAgent={(agentId) => {
-                        setMobilePane("conversation");
-                        void select(agentId);
-                      }}
-                      onOpenRoutine={openRoutine}
-                    />
+                    <Loading>
+                      <ScheduleView
+                        serverId={target().id}
+                        hostName={target().name}
+                        onBack={closeHostPage}
+                        source={scheduleSource}
+                        agents={workspace.profiles()}
+                        channels={channels.state.channels}
+                        onOpenAgent={(agentId) => {
+                          setMobilePane("conversation");
+                          void select(agentId);
+                        }}
+                        onOpenRoutine={openRoutine}
+                      />
+                    </Loading>
                   </Show>
                 )}
               </Show>
@@ -1486,9 +1483,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   duplicatingAgentIds={new Set(workspace.state.duplicatingAgentIds)}
                   onDuplicateAgent={workspace.duplicateAgent}
                   deleteSupported={
-                    workspace.state.status === "online" &&
-                    Boolean(workspace.state.host) &&
-                    workspace.state.host?.role !== "member"
+                    workspace.state.status === "online" && canAdministerServer(workspace.state.host?.role)
                   }
                   marketplaceSupported={workspace.state.status === "online"}
                   onDeleteAgent={workspace.deleteAgent}
@@ -1645,7 +1640,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                       mcpSignIn={
                         mcpSignInSupported()
                           ? {
-                              signedIn: serverSettings.state.mcpSignIns,
+                              states: serverSettings.state.mcpSignIns,
                               remote: {
                                 hostName: target().name,
                                 runtime: workspace.runtime.browser,
@@ -1750,26 +1745,28 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
           >
             <Show when={serverOnboarding()}>
               {(settings) => (
-                <ServerOnboarding
-                  serverName={server()?.name ?? ""}
-                  setup={hostSetupProviderProps(settings())}
-                  onContinue={(provider, model) => {
-                    const id = server()?.id;
-                    if (id)
-                      setServerSetupChoices((current) => ({
-                        ...current,
-                        [id]: { preferredProvider: provider, preferredModel: model },
-                      }));
-                  }}
-                  onClose={
-                    returnHostId()
-                      ? () => {
-                          const id = returnHostId();
-                          if (id) selectServer(id);
-                        }
-                      : undefined
-                  }
-                />
+                <Loading>
+                  <ServerOnboarding
+                    serverName={server()?.name ?? ""}
+                    setup={hostSetupProviderProps(settings())}
+                    onContinue={(provider, model) => {
+                      const id = server()?.id;
+                      if (id)
+                        setServerSetupChoices((current) => ({
+                          ...current,
+                          [id]: { preferredProvider: provider, preferredModel: model },
+                        }));
+                    }}
+                    onClose={
+                      returnHostId()
+                        ? () => {
+                            const id = returnHostId();
+                            if (id) selectServer(id);
+                          }
+                        : undefined
+                    }
+                  />
+                </Loading>
               )}
             </Show>
             <Show when={agentFormOpen() && !serverOnboarding()}>
@@ -1824,13 +1821,15 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 {(_hostId) => (
                   <Show when={routineFlowsHost}>
                     {(host) => (
-                      <RoutineFlowsCanvas
-                        host={host()}
-                        agent={conversationAgent()}
-                        agents={workspace.profiles()}
-                        newAgentModels={newAgentModels()}
-                        createAgent={createCanvasAgent}
-                      />
+                      <Loading>
+                        <RoutineFlowsCanvas
+                          host={host()}
+                          agent={conversationAgent()}
+                          agents={workspace.profiles()}
+                          newAgentModels={newAgentModels()}
+                          createAgent={createCanvasAgent}
+                        />
+                      </Loading>
                     )}
                   </Show>
                 )}
@@ -1875,6 +1874,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 modelOptions={models()}
                 messages={view.messages}
                 messageReferences={view.messageReferences()}
+                missingMessageReferences={view.missingMessageReferences()}
                 unreadCount={readState()?.unreadCount ?? 0}
                 firstUnreadMessageId={readState()?.firstUnreadMessageId ?? null}
                 loaded={Boolean(workspace.conversation()?.page)}
@@ -1914,6 +1914,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 remoteDesktopSessionActive={false}
                 remoteDesktopVisible={false}
                 prompt={view.prompt()}
+                promptUiBlock={view.promptUiBlock()}
                 approval={view.approval()}
                 browserTakeover={browserTakeover()}
                 onSelectAgent={(id) => {
@@ -1946,7 +1947,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   const result = await workspace.runtime.search(id, query);
                   return { messageIds: result.results.map((item) => item.message.id), total: result.total };
                 }}
-                onOpenSearchMessage={(messageId) => workspace.run(() => workspace.openSearchMessage(messageId))}
+                onOpenSearchMessage={workspace.openSearchMessage}
                 onTypingChange={setTyping}
                 onAnswerPrompt={view.answerPrompt}
                 onPromptResolutionPresented={(_agentId, turnId, requestId) =>
@@ -1954,9 +1955,8 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 }
                 onRespondToApproval={view.respondToApproval}
                 onAlwaysAllowApproval={view.alwaysAllowApproval()}
-                agentAutoApproves={remoteAgentAdmin.settings()?.autoApprove ?? false}
-                agentAutoApproveLocked={remoteAgentAdmin.settings()?.autoApproveLocked ?? false}
-                onSetAgentAutoApprove={setAgentAutoApprove()}
+                agentAutoApproves={remoteAgentAdmin.autoApproves()}
+                onUpdateAgentPermissions={remoteAgentAdmin.settings() ? remoteAgentAdmin.update : undefined}
                 onClearAgentContext={clearSelectedAgentContext()}
                 onRespondToBrowserTakeover={(decision) => workspace.respondToBrowserTakeover(decision)}
                 onCancelQueuedMessage={workspace.cancelQueued}

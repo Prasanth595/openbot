@@ -1,6 +1,7 @@
 import { MessageSelectionActions } from "@openbot/ui/features/conversation/SelectionActions";
 import { useText } from "@openbot/ui/text";
 import { createEffect, Show } from "solid-js";
+import { currentDevicePlatform } from "../../send-shortcut-preference";
 import { ConversationComposer } from "./ConversationComposer";
 import { ConversationHeader } from "./ConversationHeader";
 import { ConversationPanels } from "./ConversationPanels";
@@ -29,6 +30,7 @@ export function ConversationView(props: ConversationProps) {
     sidePanelOpen,
     handleChatSearchShortcut,
     sendSelectionInstruction,
+    quoteSelection,
     setConversationPanelElement,
     setDropActive,
     settingsPanelWidth,
@@ -83,6 +85,8 @@ export function ConversationView(props: ConversationProps) {
           contextKey={props.agent?.id}
           disabled={!props.agent || !agentReady() || submitting()}
           onSend={sendSelectionInstruction}
+          onQuote={quoteSelection}
+          quoteShortcut={(props.platform ?? currentDevicePlatform()) === "darwin" ? "meta" : "ctrl"}
         />
         <Show when={dropActive()}>
           <div class="attachment-drop-overlay">{t("conversation.view.drop")}</div>

@@ -54,6 +54,9 @@ export interface ChatMessageRowProps {
   referencedMessage?: AgentMessage;
   /** Who wrote the quoted message. A chat with several authors has to name the one it quotes. */
   referencedAuthorName?: string;
+  /** Opens the quoted message in the chat. */
+  onOpenReference?: () => void;
+  referenceState?: "loading" | "unavailable" | undefined;
   reactions?: readonly ConversationReaction[];
   reactionOverflowCount?: number;
   onRemoveReaction?: () => void;
@@ -69,6 +72,7 @@ export interface ChatMessageRowProps {
   onAttachmentAction: (attachment: AttachmentSummary, action: "open" | "reveal" | "download") => void;
   onOpenSharedFile?: (path: string) => void;
   onOpenWorkspaceFile?: (path: string) => void;
+  onOpenQuote?: (messageId: string, text: string) => void;
   onDownload?: (attachment: AttachmentSummary) => void;
   /** Loads the images and media of a client that gets no `previewUrl`. */
   mediaSource?: AttachmentMediaSource | undefined;
@@ -174,6 +178,8 @@ export function ChatMessageRow(props: ChatMessageRowProps): JSX.Element {
                 message={props.message}
                 referencedMessage={props.referencedMessage}
                 referencedAuthorName={props.referencedAuthorName}
+                onOpenReference={props.onOpenReference}
+                referenceState={props.referenceState}
                 agents={props.agents}
                 skills={props.skills}
                 onSelectAgent={props.onSelectAgent}
@@ -182,6 +188,7 @@ export function ChatMessageRow(props: ChatMessageRowProps): JSX.Element {
                 onAttachmentAction={props.onAttachmentAction}
                 onOpenSharedFile={props.onOpenSharedFile}
                 onOpenWorkspaceFile={props.onOpenWorkspaceFile}
+                onOpenQuote={props.onOpenQuote}
                 onDownload={props.onDownload}
                 mediaSource={props.mediaSource}
               />

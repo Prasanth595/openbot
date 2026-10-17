@@ -25,6 +25,7 @@
     "./hosted-server-wake": "./src/hosted-server-wake.ts",
     "./focus-use": "./src/focus-use.ts",
     "./agent-message-text": "./src/agent-message-text.ts",
+    "./base64": "./src/base64.ts",
     "./dynamic-island-coordinator": "./src/dynamic-island-coordinator.ts",
     "./dynamic-island-presentation": "./src/dynamic-island-presentation.ts",
     "./live-activity-props": "./src/live-activity-props.ts",

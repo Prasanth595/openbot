@@ -1,4 +1,5 @@
 import type { McpSignInRelayPage, UpdateAgentInput } from "@openbot/contracts/ipc";
+import type { QuoteRequest } from "@openbot/ui/features/conversation/ComposerEditor";
 import { currentText } from "@openbot/ui/text";
 import { errorReference } from "@openbot/user-errors";
 import {
@@ -17,6 +18,7 @@ import { useConversationController } from "./conversation-controller-context";
 import { agentConversationKey, composerDraftKey } from "./conversation-keys";
 import { conversationRuntime } from "./conversation-runtime";
 import type { ComposerDraft, ConversationProps, ConversationTarget, SidePanelPane } from "./conversation-types";
+import { clearQuotedTextHighlight, highlightQuotedText, messageTextBlocks } from "./quoted-text";
 import { createActivityStore } from "./stores/activity-store";
 import { createBrowserStore } from "./stores/browser-store";
 import { createComposerActions } from "./stores/composer-actions";
@@ -26,12 +28,16 @@ import { createMessageActions } from "./stores/message-actions";
 import { createPanelsStore, SIDE_PANEL_MODES } from "./stores/panels-store";
 import { PENDING_SEND_ID_PREFIX, pendingSendMessage } from "./stores/pending-send-store";
 import { createQueueStore } from "./stores/queue-store";
+import { createReplyJumpStore } from "./stores/reply-jump-store";
 import { createScrollStore } from "./stores/scroll-store";
 import { createSearchStore } from "./stores/search-store";
 import { createSettingsStore, runtimeSettingsEqual } from "./stores/settings-store";
 import { createSideQuestionStore } from "./stores/side-question-store";
 import { createSkillsStore } from "./stores/skills-store";
 import { createVoiceStore } from "./stores/voice-store";
+
+/** At 9 encoded characters each, this many stays far below the message limit. */
+const QUOTE_TEXT_LIMIT = 2000;
 
 function followConversationBottom(element: HTMLDivElement): void {
   element.scrollTop = element.scrollHeight;
@@ -437,6 +443,15 @@ export function createConversationViewScope(props: ConversationProps) {
     jumpToUnreadMessages,
     jumpToLatestMessage,
   } = scroll;
+  const replyJump = createReplyJumpStore({
+    props,
+    scrollElement: () => scrollElement,
+    timelineIndexById,
+    scrollToIndex: (index) => messageVirtualizer.scrollToIndex(index),
+    setStickToLatest: (value) => {
+      stickToLatest = value;
+    },
+  });
   const search = createSearchStore({
     props,
     chatSearchOpen,
@@ -606,6 +621,7 @@ export function createConversationViewScope(props: ConversationProps) {
     copiedMessageId,
     setCopiedMessageId,
     setComposerError: setScopedComposerError,
+    setComposerFocusRequest,
   });
   const { replyToMessage, reactToMessage, copyMessage, removeAttachment } = messageActions;
   const settings = createSettingsStore({
@@ -626,7 +642,7 @@ export function createConversationViewScope(props: ConversationProps) {
   let scrollElement: HTMLDivElement | undefined;
   let virtualRoot: HTMLDivElement | undefined;
   let agentActivitySlot: HTMLDivElement | undefined;
-  let requiredInteractionElement: HTMLDivElement | undefined;
+  let requiredInteractionElement: HTMLElement | undefined;
   let scrollResizeObserver: ResizeObserver | undefined;
   let unreadMessagesDivider: HTMLDivElement | undefined;
   let latestScrollFrame: number | undefined;
@@ -650,6 +666,7 @@ export function createConversationViewScope(props: ConversationProps) {
   let lastPanelAgentId: string | undefined;
   let lastHandledSettingsRequestNonce: number | undefined;
   let lastHandledMessageFocusNonce: number | undefined;
+  const [quoteRequest, setQuoteRequest] = createSignal<QuoteRequest | undefined>(undefined);
   let lastRuntimeSettingsSignature: string | undefined;
   async function saveAgentPatch(
     updates: Omit<UpdateAgentInput, "agentId">,
@@ -842,6 +859,41 @@ export function createConversationViewScope(props: ConversationProps) {
     },
   );
 
+  function quoteSelection(messageId: string, text: string) {
+    // Encoded, a long passage could pass the message limit, and the composer would drop it with the text after it.
+    // The start of the passage is enough to find it again. Code points keep a surrogate pair whole.
+    const quoted = Array.from(text).slice(0, QUOTE_TEXT_LIMIT).join("").trimEnd();
+    setQuoteRequest((current) => ({ id: (current?.id ?? 0) + 1, messageId, text: quoted }));
+  }
+
+  /** Scrolls to the passage that a quote points to and marks it. */
+  function openQuote(messageId: string, text: string) {
+    if (!showQuotedText(messageId, text)) void revealQuote(messageId, text);
+  }
+
+  /* A row far away is not drawn, and a message outside the loaded pages is loaded first. */
+  async function revealQuote(messageId: string, text: string) {
+    const agentId = props.agent?.id;
+    const row = await replyJump.reveal(messageId, undefined, agentId);
+    if (row && props.agent?.id === agentId) showQuotedText(messageId, text);
+  }
+
+  function showQuotedText(messageId: string, text: string): boolean {
+    const blocks = scrollElement ? messageTextBlocks(scrollElement, messageId) : [];
+    const firstBlock = blocks[0];
+    if (!firstBlock) return false;
+    stickToLatest = false;
+    const range = highlightQuotedText(blocks, text);
+    (range?.startContainer.parentElement ?? firstBlock).scrollIntoView({
+      behavior: "auto",
+      block: "center",
+      inline: "nearest",
+    });
+    updateScrollFade();
+    updateUnreadDividerVisibility();
+    return true;
+  }
+
   createEffect(
     () => {
       const lastMessage = props.messages[props.messages.length - 1];
@@ -894,6 +946,7 @@ export function createConversationViewScope(props: ConversationProps) {
   );
 
   onCleanup(() => {
+    clearQuotedTextHighlight();
     if (latestScrollFrame !== undefined) cancelAnimationFrame(latestScrollFrame);
     if (latestScrollSettleFrame !== undefined) cancelAnimationFrame(latestScrollSettleFrame);
   });
@@ -1177,7 +1230,7 @@ export function createConversationViewScope(props: ConversationProps) {
     agentActivitySlot = element;
     scrollResizeObserver?.observe(element);
   };
-  const setRequiredInteractionElement = (element: HTMLDivElement | undefined) => {
+  const setRequiredInteractionElement = (element: HTMLElement | undefined) => {
     if (requiredInteractionElement) scrollResizeObserver?.unobserve(requiredInteractionElement);
     requiredInteractionElement = element;
     if (element) scrollResizeObserver?.observe(element);
@@ -1190,6 +1243,7 @@ export function createConversationViewScope(props: ConversationProps) {
   };
 
   return {
+    replyJump,
     sideQuestionAvailable,
     sideQuestion,
     setSideQuestionDraft,
@@ -1339,6 +1393,9 @@ export function createConversationViewScope(props: ConversationProps) {
     selectAndConfirmModel,
     selectAndConfirmReasoning,
     sendSelectionInstruction,
+    quoteRequest,
+    quoteSelection,
+    openQuote,
     setActiveRightPanel,
     setBrowserAddress,
     setBrowserAddressEditing,

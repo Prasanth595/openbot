@@ -291,16 +291,22 @@ export const messages = {
   "mobile.agent.access.title": "Erişim",
   "mobile.agent.access.label": "Ajan erişimi",
   "mobile.agent.access.workspace": "Yalnızca çalışma alanı",
+  "mobile.agent.access.ask": "Önce sor",
   "mobile.agent.access.full": "Tam erişim",
-  "mobile.agent.access.autoApprove": "Otomatik onayla",
-  "mobile.agent.access.autoApproveNote": "Ana makine bu ajanın onaylarını kendiliğinden yanıtlar.",
   "mobile.agent.access.autoApproveLocked":
     "Bu ana makinede Turbo mod açık, bu nedenle her ajanın istekleri otomatik onaylanır.",
+  "mobile.agent.access.workspaceNote": "Ajan, ana makinedeki çalışma alanında ve paylaşılan klasörde çalışır.",
+  "mobile.agent.access.askNote":
+    "Ajan bir OpenBot aracı kullanmadan veya bir site yayımlamadan önce ve sağlayıcısı onay istediğinde size sorar.",
+  "mobile.agent.access.fullNote": "Ajan, size sorduğu sorular hariç, sormadan hareket eder.",
   "mobile.agent.access.fullTitle": "Bu ajana tam erişim verilsin mi?",
+  "mobile.agent.access.askTitle": "Bu ajan çalışma alanının dışında çalışabilsin mi?",
   "mobile.agent.access.fullBody":
     "Ajan daha sonra ana makine kullanıcı hesabının ulaşabileceği her dosyayı okuyabilir, değiştirebilir ve silebilir; herhangi bir komutu çalıştırabilir ve ağı kullanabilir.",
-  "mobile.agent.access.fullCancel": "Yalnızca çalışma alanında tut",
+  "mobile.agent.access.noApproval":
+    "Ajan bundan sonra size önce sormadan komut çalıştırır, dosyaları değiştirir, araç kullanır ve site yayımlar.",
   "mobile.agent.access.fullConfirm": "Tam erişime izin ver",
+  "mobile.agent.access.askConfirm": "Önce sor",
   "mobile.agent.access.failed": "Ajan erişimi değiştirilemedi.",
   "mobile.agent.access.unsupported": "Bu ana makine uzak bir cihazdan ajan erişimini değiştiremez.",
   "mobile.agent.host.computerUse": "Bilgisayar Kullanımı",

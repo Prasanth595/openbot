@@ -47,8 +47,6 @@ export const messages = {
   "conversation.header.publish": "Opublikuj agenta",
   "conversation.header.browserActing": "{name} steruje przeglądarką",
   "conversation.header.agentFallback": "Agent",
-  "conversation.header.thisAgent": "Ten agent",
-  "conversation.header.grantFailed": "Nie udało się zapisać stałego zatwierdzenia dla: {name}. Spróbuj ponownie.",
   "conversation.header.modelsBusy": "Poczekaj na zakończenie bieżącej pracy, zanim zmienisz model.",
   "conversation.header.modelsUnavailable": "Modele będą dostępne po połączeniu CLI agenta.",
   "conversation.sidePanel.label": "Panel boczny",

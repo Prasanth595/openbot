@@ -34,7 +34,9 @@ const markdown = new Marked({
         const reference = chatTagReferences(source)[0];
         if (reference?.start !== 0) return undefined;
         const raw = source.slice(0, reference.end);
-        return { type: "chatTag", raw, text: expandChatTagReferences(raw) };
+        // A one-line preview has no room for a block quote, so the quoted text stands in marks.
+        const text = reference.kind === "quote" ? `“${reference.name}”` : expandChatTagReferences(raw);
+        return { type: "chatTag", raw, text };
       },
     },
   ],

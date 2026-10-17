@@ -8,6 +8,7 @@ import {
   assertSupportedAttachmentName,
   attachmentFileExtension,
   IMAGE_ATTACHMENT_EXTENSIONS,
+  isOpenableAttachmentName,
   MEDIA_ATTACHMENT_EXTENSIONS,
   supportedAttachmentExtensions,
 } from "@openbot/contracts/attachment-files";
@@ -120,7 +121,7 @@ export function attachmentIpcHandlers({
     }
     const cached = await cacheRemoteFile(directory, cacheKey, downloaded);
     if (action === "reveal") shell.showItemInFolder(cached);
-    else await openPath(cached);
+    else await openOrRevealPath(cached);
   }
 
   return {
@@ -201,7 +202,10 @@ export function attachmentIpcHandlers({
       openSharedFile: scopedHandler(parseOpenSharedFile, {
         local: async (parsed) => {
           const sharedFile = await runCauseEffect(service.resolveSharedFile(parsed.path));
-          await deliverLocalFile(sharedFile.path, sharedFile.name, parsed.action, () => openPath(sharedFile.path));
+          // A member upload lands in the shared folder too, so a shared file opens only when its type is safe.
+          await deliverLocalFile(sharedFile.path, sharedFile.name, parsed.action, () =>
+            openOrRevealPath(sharedFile.path),
+          );
         },
         remote: async (parsed, serverId) => {
           const downloaded = await runCauseEffect(remoteServers.downloadSharedFile(parsed.path, serverId));
@@ -299,7 +303,7 @@ export function openAttachmentForServer(
         shell.showItemInFolder(attachment.path);
         return;
       }
-      await openPath(attachment.path);
+      await openOrRevealPath(attachment.path);
     },
     remote: async (target) => {
       const downloaded = await runCauseEffect(remoteServers.downloadAttachment(input.attachmentId, target));
@@ -315,13 +319,14 @@ export function openAttachmentForServer(
         bytes: downloaded.bytes,
       });
       if (input.action === "reveal") shell.showItemInFolder(cached);
-      else await openPath(cached);
+      else await openOrRevealPath(cached);
     },
   });
 }
 
 // A remote file has to land on disk before the OS can open it. Owner-only, under a per-server and
-// per-path digest so two servers sharing a file name cannot overwrite each other.
+// per-path digest so two servers sharing a file name cannot overwrite each other. The host supplies
+// the name, so it is made safe for every file system first.
 async function cacheRemoteFile(
   directory: string,
   cacheKeyInput: string,
@@ -330,7 +335,7 @@ async function cacheRemoteFile(
   const cacheRoot = join(app.getPath("userData"), directory);
   await mkdir(cacheRoot, { recursive: true, mode: 0o700 });
   const cacheKey = createHash("sha256").update(cacheKeyInput).digest("hex");
-  const target = join(cacheRoot, `${cacheKey}-${basename(downloaded.name)}`);
+  const target = join(cacheRoot, `${cacheKey}-${safeFileName(downloaded.name) || "file"}`);
   await writeFile(target, downloaded.bytes, { mode: 0o600 });
   await chmod(target, 0o600);
   return target;
@@ -340,6 +345,26 @@ async function cacheRemoteFile(
 async function openPath(path: string): Promise<void> {
   const error = await shell.openPath(path);
   if (error) throw new Error(error);
+}
+
+// Another member or a remote host chose this file and its name. The OS can run some types when it
+// opens them, so only a document, image or media file opens. The file manager shows other types.
+async function openOrRevealPath(path: string): Promise<void> {
+  if (isOpenableAttachmentName(path)) await openPath(path);
+  else shell.showItemInFolder(path);
+}
+
+// The last segment of a name, without characters that Windows does not permit in a file name, and
+// without the trailing dots and spaces that Windows removes.
+function safeFileName(name: string): string {
+  return (
+    name
+      .replaceAll("\\", "/")
+      .split("/")
+      .at(-1)
+      ?.replace(/[<>:"|?*\p{Cc}]/gu, "-")
+      .replace(/[. ]+$/g, "") ?? ""
+  );
 }
 
 // Returns the chosen path, or undefined when the user cancelled.
@@ -501,13 +526,7 @@ const saveAttachmentArchive = Effect.fn("Attachments.saveArchive")(function* (
       return yield* archiveFailure(sourceText("error.attachment.fileTooLarge"));
     if (totalBytes > ATTACHMENT_LIMITS.totalBytes)
       return yield* archiveFailure(sourceText("error.attachment.totalTooLarge"));
-    const safeName =
-      item.name
-        .replaceAll("\\", "/")
-        .split("/")
-        .at(-1)
-        ?.replace(/[<>:"|?*\p{Cc}]/gu, "-")
-        .replace(/[. ]+$/g, "") || "attachment";
+    const safeName = safeFileName(item.name) || "attachment";
     const extension = extname(safeName);
     const stem = safeName.slice(0, safeName.length - extension.length);
     let name = safeName;

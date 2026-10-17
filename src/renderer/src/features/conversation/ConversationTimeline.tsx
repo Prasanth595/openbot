@@ -1,5 +1,6 @@
 import { chatVisualReply } from "@openbot/contracts/chat-visual";
 import type { ConversationMessageSender } from "@openbot/contracts/ipc";
+import type { ConversationUiBlock } from "@openbot/contracts/ui-blocks";
 import { Button } from "@openbot/ui";
 import type { AgentMessage, ChatActionMarkerModel } from "@openbot/ui/data";
 import { AgentActivityIndicator } from "@openbot/ui/features/conversation/AgentActivity";
@@ -15,7 +16,7 @@ import { ChatVisual } from "@openbot/ui/features/conversation/ChatVisual";
 import { ContextCompactionMarker, type ContextCompactionView } from "@openbot/ui/features/conversation/ContextUsage";
 import { BrowserTakeoverCard } from "@openbot/ui/features/conversation/ConversationPrompts";
 import { dayMarkerLabel } from "@openbot/ui/features/conversation/chat-day-markers";
-import { ScrollToLatestButton } from "@openbot/ui/features/conversation/MessageNavigation";
+import { ReplyReturnButton, ScrollToLatestButton } from "@openbot/ui/features/conversation/MessageNavigation";
 import { MessageActions } from "@openbot/ui/features/conversation/MessageRendering";
 import { PendingSendStatus } from "@openbot/ui/features/conversation/PendingSendStatus";
 import { TaskList } from "@openbot/ui/features/conversation/TaskList";
@@ -41,6 +42,12 @@ import { PENDING_SEND_ID_PREFIX, pendingSendRetrySafe } from "./stores/pending-s
  */
 function markerOnlyMessage(message: AgentMessage): boolean {
   return Boolean(message.actionMarker);
+}
+
+/** A block the history draws: one that is answered, expired or closed. */
+function frozenUiBlock(message: AgentMessage | undefined): ConversationUiBlock | undefined {
+  const block = message?.uiBlock;
+  return block && block.state.status !== "pending" ? block : undefined;
 }
 
 /**
@@ -117,12 +124,14 @@ export function ConversationTimeline() {
     openSkillSettings,
     openSharedFile,
     openWorkspaceFile,
+    openQuote,
     pendingSendFor,
     providerUpdateRequired,
     previewAttachment,
     props,
     reactToMessage,
     renderedAgentActivity,
+    replyJump,
     respondToBrowserTakeover,
     replyToMessage,
     retryPendingSend,
@@ -237,6 +246,11 @@ export function ConversationTimeline() {
     cachedPrompt = { key, prompt };
     return cachedPrompt;
   });
+  /**
+   * The block of the waiting prompt draws it as a card. Until the block's message arrives, or when the
+   * agent asked without one, the prompt's questions draw it.
+   */
+  const pendingPromptBlock = createMemo(() => (keyedPrompt() ? props.promptUiBlock : undefined));
   return (
     <>
       <span class="sr-only" role="status" aria-live="polite" aria-atomic="true">
@@ -277,15 +291,23 @@ export function ConversationTimeline() {
           setStickToLatest(element.scrollHeight - element.scrollTop - element.clientHeight <= 80);
           updateScrollFade(element);
           updateUnreadDividerVisibility();
+          replyJump.updateReturnVisibility();
         }}
       >
         <ChatScrollRail {...rail.props} />
-        <Show when={showScrollToLatest() || props.discontinuous}>
-          <ScrollToLatestButton
-            onClick={() => void jumpToLatestMessage()}
-            newMessageCount={newMessageCount()}
-            onDismiss={clearNewMessages}
-          />
+        <Show
+          when={replyJump.returnReplyId()}
+          fallback={
+            <Show when={showScrollToLatest() || props.discontinuous}>
+              <ScrollToLatestButton
+                onClick={() => void jumpToLatestMessage()}
+                newMessageCount={newMessageCount()}
+                onDismiss={clearNewMessages}
+              />
+            </Show>
+          }
+        >
+          <ReplyReturnButton onBack={() => void replyJump.returnToReply()} onStay={replyJump.stayHere} />
         </Show>
         <Show when={props.loaded}>
           <Show when={props.loadingOlder || props.olderError}>
@@ -365,6 +387,10 @@ export function ConversationTimeline() {
                     props.messageReferences?.[replyToMessageId]
                   );
                 });
+                const openReference = () => {
+                  const current = message();
+                  if (current) void replyJump.openReference(current);
+                };
                 // A quote of another person's message names them; any other quote keeps its label.
                 const referencedAuthorName = () => {
                   const sender = otherSender(referencedMessage());
@@ -691,6 +717,8 @@ export function ConversationTimeline() {
                             skills={installedSkills()}
                             referencedMessage={referencedMessage()}
                             referencedAuthorName={referencedAuthorName()}
+                            onOpenReference={openReference}
+                            referenceState={replyJump.referenceState(message(), referencedMessage())}
                             reactions={displayedReactions()}
                             reactionOverflowCount={message()?.reactionSummary?.overflowCount}
                             onRemoveReaction={() => {
@@ -704,6 +732,7 @@ export function ConversationTimeline() {
                             onAttachmentAction={attachmentAction}
                             onOpenSharedFile={openSharedFile}
                             onOpenWorkspaceFile={openWorkspaceFile}
+                            onOpenQuote={openQuote}
                             onDownload={(attachment) => attachmentAction(attachment, "download")}
                             mediaSource={runtime.attachmentMedia}
                             class={pending() ? "message-entry-pending" : undefined}
@@ -767,13 +796,32 @@ export function ConversationTimeline() {
                         }
                       >
                         {(questionPrompt) => (
-                          <Show when={questionPrompt.resolution} keyed>
-                            {(resolution) => (
+                          <Show
+                            when={frozenUiBlock(message())}
+                            fallback={
+                              <Show when={questionPrompt.resolution} keyed>
+                                {(resolution) => (
+                                  <article
+                                    data-chat-search-message={message()?.id}
+                                    class="question-prompt-history-entry"
+                                  >
+                                    <QuestionPromptBubble
+                                      questions={questionPrompt.questions}
+                                      resolution={resolution}
+                                      onSubmit={async () => false}
+                                    />
+                                  </article>
+                                )}
+                              </Show>
+                            }
+                          >
+                            {(block) => (
                               <article data-chat-search-message={message()?.id} class="question-prompt-history-entry">
-                                <QuestionPromptBubble
-                                  questions={questionPrompt.questions}
-                                  resolution={resolution}
-                                  onSubmit={async () => false}
+                                <UiBlockPrompt
+                                  block={block()}
+                                  agents={props.agents}
+                                  onSelectAgent={props.onSelectAgent}
+                                  onOpenLink={(url) => void openExternalMessageUrl(url)}
                                 />
                               </article>
                             )}
@@ -816,23 +864,38 @@ export function ConversationTimeline() {
             )}
           </Show>
           <Show when={keyedPrompt()} keyed>
-            {(entry) => (
-              <Loading>
-                <QuestionPromptBubble
-                  questions={entry.prompt.questions}
-                  elementRef={setRequiredInteractionElement}
-                  sendShortcut={deviceSendShortcut(props.platform)}
-                  onSubmit={props.onAnswerPrompt}
-                  onResolutionPresented={() =>
-                    props.onPromptResolutionPresented?.(
-                      entry.prompt.agentId,
-                      entry.prompt.turnId,
-                      entry.prompt.requestId,
-                    )
-                  }
-                />
-              </Loading>
-            )}
+            {(entry) => {
+              const presentResolution = () =>
+                props.onPromptResolutionPresented?.(entry.prompt.agentId, entry.prompt.turnId, entry.prompt.requestId);
+              return (
+                <Loading>
+                  <Show
+                    when={pendingPromptBlock()}
+                    fallback={
+                      <QuestionPromptBubble
+                        questions={entry.prompt.questions}
+                        elementRef={setRequiredInteractionElement}
+                        sendShortcut={deviceSendShortcut(props.platform)}
+                        onSubmit={props.onAnswerPrompt}
+                        onResolutionPresented={presentResolution}
+                      />
+                    }
+                  >
+                    {(block) => (
+                      <UiBlockPrompt
+                        block={block()}
+                        agents={props.agents}
+                        onSelectAgent={props.onSelectAgent}
+                        onOpenLink={(url) => void openExternalMessageUrl(url)}
+                        elementRef={setRequiredInteractionElement}
+                        onAnswer={props.onAnswerPrompt}
+                        onAnswered={presentResolution}
+                      />
+                    )}
+                  </Show>
+                </Loading>
+              );
+            }}
           </Show>
           <Show keyed when={props.approval}>
             {(approval) => (
@@ -901,3 +964,4 @@ const ApprovalCard = lazy(() =>
 const QuestionPromptBubble = lazy(() =>
   import("@openbot/ui/components/QuestionPromptBubble").then((module) => ({ default: module.QuestionPromptBubble })),
 );
+const UiBlockPrompt = lazy(() => import("./UiBlockPrompt").then((module) => ({ default: module.UiBlockPrompt })));

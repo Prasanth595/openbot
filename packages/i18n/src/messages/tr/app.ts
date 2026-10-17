@@ -72,7 +72,7 @@ export const messages = {
     other: "{count} eşleşen ayar.",
   },
   "app.standingApproval.description":
-    "{name}, onu çalıştıran bilgisayarda tekrar sormadan komut ve MCP aracı çalıştıracak, dosyaları değiştirecek ve kendi dosya sistemi ile ağ erişimini genişletecektir. Turbo modu açık olmadığı sürece herkese açık siteleri yayımlamak, değiştirmek ve silmek yine onay gerektirir. Bu ajanın model menüsünden Otomatik onayı kapatabilirsiniz.",
+    "{name} Tam erişime geçer. Onu çalıştıran bilgisayarda tekrar sormadan komut ve araç çalıştıracak, dosyaları değiştirecek, site yayımlayacak ve kendi dosya sistemi ile ağ erişimini genişletecektir. Bunu ajanın İzinler ayarlarından değiştirebilirsiniz.",
   "app.standingApproval.descriptionUnnamed":
-    "Bu ajan, onu çalıştıran bilgisayarda tekrar sormadan komut ve MCP aracı çalıştıracak, dosyaları değiştirecek ve kendi dosya sistemi ile ağ erişimini genişletecektir. Turbo modu açık olmadığı sürece herkese açık siteleri yayımlamak, değiştirmek ve silmek yine onay gerektirir. Bu ajanın model menüsünden Otomatik onayı kapatabilirsiniz.",
+    "Bu ajan Tam erişime geçer. Onu çalıştıran bilgisayarda tekrar sormadan komut ve araç çalıştıracak, dosyaları değiştirecek, site yayımlayacak ve kendi dosya sistemi ile ağ erişimini genişletecektir. Bunu ajanın İzinler ayarlarından değiştirebilirsiniz.",
 } as const satisfies PartialTranslation<typeof source>;

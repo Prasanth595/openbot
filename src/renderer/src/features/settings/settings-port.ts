@@ -14,7 +14,6 @@ export interface SettingsPort {
   onOpenSettings: OpenBotDesktopApi["onOpenSettings"];
   setAgentMemoryLimitPreference: OpenBotDesktopApi["setAgentMemoryLimitPreference"];
   setAnalyticsPreference: OpenBotDesktopApi["setAnalyticsPreference"];
-  setApprovalAutomation: OpenBotDesktopApi["setApprovalAutomation"];
   setBusyMessageModePreference: OpenBotDesktopApi["setBusyMessageModePreference"];
   setRemoteSessionReusePreference: OpenBotDesktopApi["setRemoteSessionReusePreference"];
   dynamicIsland: Pick<

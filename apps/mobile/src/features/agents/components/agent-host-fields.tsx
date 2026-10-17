@@ -3,6 +3,7 @@ import {
   agentProviderDescriptor,
   agentProviderName,
   type BusyMessageMode,
+  canAdministerServer,
   type UpdateAgentHostSettingsInput,
 } from "@openbot/contracts/ipc";
 import type { MobileTextKey } from "@openbot/i18n/mobile";
@@ -54,7 +55,7 @@ function useAgentHostSettings({ agent, server, available }: AgentHostFieldsProps
   const queryClient = useQueryClient();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const canAdminister = server?.role === "owner" || server?.role === "admin";
+  const canAdminister = canAdministerServer(server?.role);
   // Under "agent-info" and ending in "host": the host's `agents-changed` event reads it again, so a
   // change made on another device shows here while the page is open.
   const queryKey = queryKeys.agentRecord(queryScope, agent.serverId, agent.id, "host");

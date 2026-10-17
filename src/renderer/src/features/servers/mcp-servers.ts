@@ -93,8 +93,8 @@ export type McpTestState =
   | { status: "failed"; error: string; kind: McpFailureKind };
 
 /** The sign-in states main answers with, as the lookup by row id the panel reads. */
-export function mcpSignInRecord(states: readonly McpSignInState[]): Record<string, boolean> {
-  return Object.fromEntries(states.map((state) => [state.mcpServerId, state.signedIn]));
+export function mcpSignInRecord(states: readonly McpSignInState[]): Record<string, McpSignInState> {
+  return Object.fromEntries(states.map((state) => [state.mcpServerId, state]));
 }
 
 /** The whole sentence a test produced, for the form. The row shows the short badge instead. */
@@ -151,6 +151,23 @@ export function mcpConfigDraft(config: McpServerConfig): McpServerConfig {
  */
 export function mcpConfigChanged(draft: McpServerConfig, baseline: McpServerConfig): boolean {
   return JSON.stringify(normalizeMcpConfig(draft)) !== JSON.stringify(normalizeMcpConfig(baseline));
+}
+
+/**
+ * Whether Save connects before it stores: a new http server, or an edit that changes where or how
+ * it connects. A rename or a stdio server saves at once, as before.
+ */
+export function mcpSaveConnects(draft: McpServerConfig, baseline: McpServerConfig, isNew: boolean): boolean {
+  if (draft.transport !== "http") return false;
+  if (isNew || baseline.transport !== "http") return true;
+  const next = normalizeMcpConfig(draft);
+  const stored = normalizeMcpConfig(baseline);
+  return next.url !== stored.url || JSON.stringify(next.headers) !== JSON.stringify(stored.headers);
+}
+
+/** A value in the stdio command that is a web address: it names an http server, not a program. */
+export function isMcpHttpAddress(value: string): boolean {
+  return /^https?:\/\/\S/i.test(value.trim());
 }
 
 /**

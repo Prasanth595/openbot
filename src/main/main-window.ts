@@ -160,7 +160,9 @@ export function createMainWindowController({
       // both of those rows. The setup window below uses the same offsets.
       ...(process.platform === "darwin"
         ? { titleBarStyle: "hidden" as const, trafficLightPosition: { x: 12, y: 13 } }
-        : {}),
+        : // Windows and Linux draw the application menu as a bar under the title bar. It stays set, so
+          // its shortcuts work, and the Alt key shows it.
+          { autoHideMenuBar: true }),
       webPreferences: {
         preload: join(__dirname, "../preload/index.cjs"),
         contextIsolation: true,

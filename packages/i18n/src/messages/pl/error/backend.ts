@@ -205,6 +205,10 @@ export const messages = {
   "error.backend.mcpSignInResponseTimedOut": "Odpowiedź logowania nie dotarła na czas.",
   "error.backend.mcpServerExited":
     "Serwer zatrzymał się przed odpowiedzią. Uruchom polecenie w terminalu, aby zobaczyć błąd.",
+  "error.backend.mcpOAuthProxyUnavailable":
+    "OpenBot nie mógł uruchomić lokalnego połączenia logowania dla tego serwera. Uruchom ponownie OpenBot i spróbuj jeszcze raz.",
+  "error.backend.mcpOAuthSignInNeeded":
+    "Logowanie do tego serwera MCP wygasło. Użytkownik musi zalogować się ponownie w OpenBot.",
   "error.backend.mcpServerUnreachable": "OpenBot nie mógł połączyć się z serwerem. Sprawdź URL i sieć.",
   "error.backend.mcpLocalServerOff":
     "Żaden serwer nie odpowiada pod adresem {address} na tym komputerze. Uruchom serwer lub włącz go w aplikacji, która go obsługuje, i spróbuj ponownie.",
@@ -219,6 +223,11 @@ export const messages = {
   "error.backend.oauthTooManyRedirects": "Endpoint OAuth przekierował zbyt wiele razy.",
   "error.backend.oauthRedirectOrigin":
     "Endpoint OAuth przekierował do {origin}, więc dane uwierzytelniające nie zostały przekazane.",
+  "error.backend.oauthTimedOut": "Endpoint OAuth {origin} nie odpowiedział na czas.",
+  "error.backend.oauthResponseTooLarge": "Endpoint OAuth {origin} wysłał zbyt dużą odpowiedź.",
+  "error.backend.oauthResponseUnreadable": "Nie udało się odczytać odpowiedzi endpointu OAuth {origin}.",
+  "error.backend.mcpOAuthPrivateEndpoint":
+    "Endpoint OAuth {origin} jest w sieci prywatnej, a serwer MCP jest publiczny, więc dane uwierzytelniające nie zostały wysłane.",
   "error.backend.sidebarSectionLimit": "Serwer może mieć maksymalnie {limit} sekcji paska bocznego.",
   "error.backend.sectionNameRequired": "Nazwa sekcji jest wymagana.",
   "error.backend.sectionNameTooLong": "Nazwa sekcji jest za długa.",

@@ -4,6 +4,7 @@
  * agent summary and the approval preference; an owner or admin of a joined server reads them here.
  */
 
+import { type AgentProviderId, agentProviderDescriptor } from "./agent-providers";
 import { type AgentAccess, isAgentAccess } from "./ipc-agents";
 import { isIdentifier } from "./ipc-bounded-values";
 import { type BusyMessageMode, isBusyMessageMode } from "./ipc-queue";
@@ -12,7 +13,10 @@ import { isBoolean, isDynamicRecord } from "./runtime-values";
 export interface AgentAdminSettings {
   access: AgentAccess;
   autoApprove: boolean;
-  /** Turbo mode is on for the whole host, so every agent auto-approves and the choice is read-only. */
+  /**
+   * Released hosts send true while their Turbo mode is on: every agent then auto-approves and the
+   * choice is read-only. Hosts without Turbo mode always send false.
+   */
   autoApproveLocked: boolean;
 }
 
@@ -21,6 +25,47 @@ export interface UpdateAgentAdminSettingsInput {
   agentId: string;
   access?: AgentAccess;
   autoApprove?: boolean;
+}
+
+/**
+ * The one choice the user makes about what an agent may do. `workspace`: it works in its workspace
+ * and asks to go outside it. `ask`: it reaches the whole computer and asks before it acts. `full`:
+ * it reaches the whole computer and never asks.
+ */
+export const AGENT_PERMISSION_LEVELS = ["workspace", "ask", "full"] as const;
+export type AgentPermissionLevel = (typeof AGENT_PERMISSION_LEVELS)[number];
+
+/**
+ * The levels a provider can honor. A provider that cannot ask in full reach has no `ask`, except
+ * while the agent is stored at `ask`: OpenBot still asks before its built-in tools and sites then,
+ * and the select must show that. An older host can leave the provider out; then every level shows.
+ */
+export function agentPermissionLevels(
+  provider: AgentProviderId | undefined,
+  current?: AgentPermissionLevel,
+): readonly AgentPermissionLevel[] {
+  return provider === undefined || agentProviderDescriptor(provider).approvalsInFullAccess || current === "ask"
+    ? AGENT_PERMISSION_LEVELS
+    : ["workspace", "full"];
+}
+
+/** The level that the stored settings give. */
+export function agentPermissionLevel(
+  settings: Pick<AgentAdminSettings, "access" | "autoApprove"> & { autoApproveLocked?: boolean },
+): AgentPermissionLevel {
+  if (settings.access === "workspace") return "workspace";
+  return settings.autoApprove || settings.autoApproveLocked ? "full" : "ask";
+}
+
+/** The stored settings for a level. Workspace only keeps the grant, which applies only in full reach. */
+export function agentPermissionUpdate(agentId: string, level: AgentPermissionLevel): UpdateAgentAdminSettingsInput {
+  if (level === "workspace") return { agentId, access: "workspace" };
+  return { agentId, access: "full", autoApprove: level === "full" };
+}
+
+/** Moving to a level later in `AGENT_PERMISSION_LEVELS` gives the agent more freedom. */
+export function widensAgentPermission(from: AgentPermissionLevel, to: AgentPermissionLevel): boolean {
+  return AGENT_PERMISSION_LEVELS.indexOf(to) > AGENT_PERMISSION_LEVELS.indexOf(from);
 }
 
 export function isAgentAdminSettings(value: unknown): value is AgentAdminSettings {

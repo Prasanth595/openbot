@@ -301,16 +301,22 @@ export const messages = {
   "mobile.agent.access.title": "Dostęp",
   "mobile.agent.access.label": "Dostęp agenta",
   "mobile.agent.access.workspace": "Tylko obszar roboczy",
+  "mobile.agent.access.ask": "Najpierw pytaj",
   "mobile.agent.access.full": "Pełny dostęp",
-  "mobile.agent.access.autoApprove": "Automatyczne zatwierdzanie",
-  "mobile.agent.access.autoApproveNote": "Host sam odpowiada na prośby tego agenta o zatwierdzenie.",
   "mobile.agent.access.autoApproveLocked":
     "Tryb Turbo jest włączony na tym hoście, więc każdy agent zatwierdza automatycznie.",
+  "mobile.agent.access.workspaceNote": "Agent pracuje w swoim obszarze roboczym i w folderze współdzielonym na hoście.",
+  "mobile.agent.access.askNote":
+    "Agent pyta cię, zanim użyje narzędzia OpenBot lub opublikuje witrynę, oraz gdy jego dostawca prosi o zgodę.",
+  "mobile.agent.access.fullNote": "Agent działa bez pytania, z wyjątkiem pytań, które ci zadaje.",
   "mobile.agent.access.fullTitle": "Dać temu agentowi pełny dostęp?",
+  "mobile.agent.access.askTitle": "Pozwolić temu agentowi pracować poza obszarem roboczym?",
   "mobile.agent.access.fullBody":
     "Agent będzie mógł odczytywać, zmieniać i usuwać każdy plik dostępny dla konta użytkownika na hoście, uruchamiać dowolne polecenia i korzystać z sieci.",
-  "mobile.agent.access.fullCancel": "Zostaw tylko obszar roboczy",
+  "mobile.agent.access.noApproval":
+    "Agent będzie wtedy uruchamiać polecenia, zmieniać pliki, używać narzędzi i publikować witryny bez pytania cię o zgodę.",
   "mobile.agent.access.fullConfirm": "Zezwól na pełny dostęp",
+  "mobile.agent.access.askConfirm": "Najpierw pytaj",
   "mobile.agent.access.failed": "Nie udało się zmienić dostępu agenta.",
   "mobile.agent.access.unsupported": "Ten host nie może zmieniać dostępu agenta ze zdalnego urządzenia.",
   "mobile.agent.host.computerUse": "Sterowanie komputerem",

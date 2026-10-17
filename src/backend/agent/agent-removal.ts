@@ -7,6 +7,7 @@ import type { ChannelService } from "../channel-service";
 import { causeHelpers } from "../effect-boundary";
 import type { MailboxStore } from "../mailbox-store";
 import type { MessagingThreads } from "../messaging/messaging-threads";
+import { isRecord } from "../protocol";
 import type { ContextCompaction } from "./context-compaction";
 import type { ConversationRuntime } from "./conversation-runtime";
 import type { DrainScheduler } from "./drain-scheduler";
@@ -42,7 +43,7 @@ export interface AgentRemovalOptions {
     agentId: string,
     remove: () => Effect.Effect<void, AgentRemovalFailed>,
   ) => Effect.Effect<void, AgentRemovalFailed>;
-  /** The agent service logger, so a deletion keeps the `agent-service` prefix it always had. */
+  /** The `agent-removal` logger. The main process keeps its lines in the agent log file. */
   logger: Logger;
   hooks: AgentRemovalHooks;
 }
@@ -178,9 +179,9 @@ export class AgentRemoval {
       stage = "agent-files-and-record";
       yield* this.#store.deleteAgent(agent.id).pipe(toAgentRemovalFailed);
     }).pipe(
-      Effect.mapError(() => {
-        // File-system errors can contain private paths. Log only the failed stage.
-        this.#logger.warn("Agent deletion failed.", { stage });
+      Effect.mapError((failure) => {
+        // File-system errors can contain private paths. Log only the failed stage and the error code.
+        this.#logger.warn("Agent deletion failed.", { stage, ...removalErrorCode(failure) });
         return new AgentRemovalFailed({ cause: new Error(sourceText("error.agent.deleteIncomplete")) });
       }),
     );
@@ -225,7 +226,7 @@ export class AgentRemoval {
     for (const tab of owned) {
       const result = yield* Effect.result(this.#browser.close(tab.id).pipe(toAgentRemovalFailed));
       if (Result.isSuccess(result)) closed += 1;
-      else this.#logger.warn("Could not close a deleted agent's browser tab.", { error: result.failure.cause });
+      else this.#logger.warn("Could not close a deleted agent's browser tab.", removalErrorCode(result.failure));
     }
     if (closed > 0) this.#logger.info("Closed a deleted agent's browser tabs.", { agentId: agent.id, count: closed });
   });
@@ -236,5 +237,17 @@ export class AgentRemovalFailed extends Schema.TaggedError<AgentRemovalFailed>()
 }) {}
 
 const { sync: removalStep, rewrap: toAgentRemovalFailed } = causeHelpers(AgentRemovalFailed);
+
+/** The first error code in the cause chain, such as `EBUSY` or `ERR_SQLITE_ERROR`. Never a message or a path. */
+function removalErrorCode(failure: unknown): { code?: string; errcode?: number } {
+  let cause = failure;
+  for (let depth = 0; depth < 8 && isRecord(cause); depth += 1) {
+    const { code, errcode } = cause;
+    if (typeof code === "string" && /^[A-Z][A-Z0-9_]{1,40}$/u.test(code))
+      return { code, ...(typeof errcode === "number" ? { errcode } : {}) };
+    cause = cause.cause;
+  }
+  return {};
+}
 
 export { toAgentRemovalFailed };

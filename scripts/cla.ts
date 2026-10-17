@@ -5,11 +5,12 @@
 //
 // The author of the pull request and each commit author must sign. Bots, organization members and
 // users with write access skip the check, as in `contribution-policy.ts`. The author of the pull
-// request signs with the agreement box that TEMPLATE_PATH puts in the description. When the
-// description has no box, for example because an agent wrote it, the script adds the unticked box
-// of TEMPLATE_PATH to the end, so that the author signs with one click. Each author can
-// also sign with a comment that contains the signing line of CLA.md. A box or a comment counts only
-// when its last editor is the author: a user with write access can edit the text of other people.
+// request signs with a ticked agreement box in the description. The pull request template has no
+// box, so that people who do not sign are not asked to tick it. When an author who must sign has no
+// box in the description, the script adds the unticked box to the end, so that the author signs with
+// one click. Each author can also sign with a comment that contains the signing line of CLA.md. A
+// box or a comment counts only when its last editor is the author: a user with write access can edit
+// the text of other people.
 //
 // The script copies each new signature to SIGNATURES_FILE on the SIGNATURES_BRANCH branch, so the
 // record stays when the author edits the description or deletes the comment. Each run reads all
@@ -27,7 +28,7 @@ import { dirname } from "node:path";
 const TRUSTED_ASSOCIATIONS = new Set(["OWNER", "MEMBER"]);
 const TRUSTED_PERMISSIONS = new Set(["admin", "maintain", "write"]);
 const AGREEMENT_PATH = "CLA.md";
-const TEMPLATE_PATH = ".github/PULL_REQUEST_TEMPLATE.md";
+const AGREEMENT_NAME = "OpenBot Contributor Assignment Agreement";
 const SIGNATURES_BRANCH = "cla-signatures";
 const SIGNATURES_FILE = "signatures.json";
 const STATUS_CONTEXT = "CLA";
@@ -107,34 +108,14 @@ function parseNumber(value: string | undefined): number {
   return number;
 }
 
-/** The heading and the unticked box of the agreement section in TEMPLATE_PATH. */
-interface AgreementSection {
-  readonly heading: string;
-  readonly box: string;
-}
-
-/**
- * The version of CLA.md, the line that signs it, and the agreement section of the template. The
- * script fails when CLA.md does not contain the line, or when the pull request template has no
- * empty box with it under a heading.
- */
-function loadAgreement(): {
-  readonly version: string;
-  readonly signingLine: string;
-  readonly section: AgreementSection;
-} {
+/** The version of CLA.md and the line that signs it. The script fails when CLA.md does not contain the line. */
+function loadAgreement(): { readonly version: string; readonly signingLine: string } {
   const text = readFileSync(AGREEMENT_PATH, "utf8");
   const version = /^Version: (\S+)$/m.exec(text)?.[1];
   if (version === undefined) fail(`${AGREEMENT_PATH} has no "Version:" line.`);
-  const signingLine = `I have read the OpenBot Contributor Assignment Agreement ${version} and I agree to it.`;
+  const signingLine = `I have read the ${AGREEMENT_NAME} ${version} and I agree to it.`;
   if (!text.includes(signingLine)) fail(`${AGREEMENT_PATH} does not contain the signing line "${signingLine}".`);
-  const expected = normalize(signingLine);
-  const lines = readFileSync(TEMPLATE_PATH, "utf8").split("\n");
-  const box = lines.find((line) => line.startsWith("- [ ] ") && normalize(line.slice(6)) === expected);
-  if (box === undefined) fail(`${TEMPLATE_PATH} has no "- [ ]" box with the signing line "${signingLine}".`);
-  const heading = lines.slice(0, lines.indexOf(box)).findLast((line) => line.startsWith("## "));
-  if (heading === undefined) fail(`${TEMPLATE_PATH} has no "## " heading before the agreement box.`);
-  return { version, signingLine, section: { heading, box } };
+  return { version, signingLine };
 }
 
 /** Compares lines without links, case, extra spaces or the final full stop. */
@@ -418,20 +399,21 @@ function checkboxSignature(
 }
 
 /**
- * Adds the agreement section of the template to the end of the description, so that the author
+ * Adds an agreement section with an unticked box to the end of the description, so that the author
  * signs with one click on the box. GitHub starts no workflow for this edit, because the job token
  * makes it. A failure only goes to the log: the status and the comment must still be written.
  */
-function addBox(number: number, body: string, section: AgreementSection): void {
+function addBox(number: number, body: string, signingLine: string): void {
   // The edit replaces the whole description. When the author changed it after `body` was read, do
   // not overwrite the change: the run for that `edited` event adds the box.
   if (loadDescription(number).body !== body) return;
   const before = body.trimEnd() === "" ? "" : `${body.trimEnd()}\n\n`;
+  const box = `- [ ] ${signingLine.replace(AGREEMENT_NAME, `[${AGREEMENT_NAME}](${agreementUrl})`)}`;
   try {
     write(
       `add the agreement box to the description of #${number}`,
       ["api", "-X", "PATCH", `repos/${repository}/pulls/${number}`, "-F", "body=@-"],
-      `${before}${section.heading}\n\n${section.box}\n`,
+      `${before}## Contributor Assignment Agreement\n\n${box}\n`,
     );
   } catch (error) {
     process.stderr.write(`Could not add the agreement box to #${number}: ${String(error)}\n`);
@@ -537,7 +519,7 @@ interface Decision {
 }
 
 function checkPullRequest(number: number): Decision {
-  const { version, signingLine, section } = loadAgreement();
+  const { version, signingLine } = loadAgreement();
   const pr = loadPullRequest(number);
   if (pr.state !== "open") {
     return {
@@ -569,7 +551,7 @@ function checkPullRequest(number: number): Decision {
     unsigned.some((person) => person.id === pr.author.id) &&
     agreementBoxes(description.body, signingLine).length === 0
   ) {
-    addBox(number, description.body, section);
+    addBox(number, description.body, signingLine);
   }
 
   const tooManyCommits = pr.commits > MAX_COMMITS;

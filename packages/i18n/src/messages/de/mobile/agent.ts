@@ -286,16 +286,23 @@ export const messages = {
   "mobile.agent.access.title": "Zugriff",
   "mobile.agent.access.label": "Agentenzugriff",
   "mobile.agent.access.workspace": "Nur Arbeitsbereich",
+  "mobile.agent.access.ask": "Erst fragen",
   "mobile.agent.access.full": "Voller Zugriff",
-  "mobile.agent.access.autoApprove": "Automatisch genehmigen",
-  "mobile.agent.access.autoApproveNote": "Der Host beantwortet die Genehmigungsanfragen dieses Agenten selbst.",
   "mobile.agent.access.autoApproveLocked":
     "Der Turbo-Modus ist für diesen Host aktiv, daher genehmigt jeder Agent automatisch.",
+  "mobile.agent.access.workspaceNote":
+    "Der Agent arbeitet in seinem Arbeitsbereich und im gemeinsamen Ordner auf dem Host.",
+  "mobile.agent.access.askNote":
+    "Der Agent fragt dich, bevor er ein OpenBot-Tool nutzt oder eine Website veröffentlicht, und wenn sein Anbieter eine Freigabe anfordert.",
+  "mobile.agent.access.fullNote": "Der Agent handelt ohne Rückfrage, außer bei Fragen, die er dir stellt.",
   "mobile.agent.access.fullTitle": "Diesem Agenten vollen Zugriff geben?",
+  "mobile.agent.access.askTitle": "Diesen Agenten außerhalb seines Arbeitsbereichs arbeiten lassen?",
   "mobile.agent.access.fullBody":
     "Der Agent kann dann jede Datei lesen, ändern und löschen, auf die das Benutzerkonto des Hosts zugreifen kann, jeden Befehl ausführen und das Netzwerk nutzen.",
-  "mobile.agent.access.fullCancel": "Nur Arbeitsbereich beibehalten",
+  "mobile.agent.access.noApproval":
+    "Der Agent führt dann Befehle aus, ändert Dateien, nutzt Tools und veröffentlicht Websites, ohne dich vorher zu fragen.",
   "mobile.agent.access.fullConfirm": "Vollen Zugriff erlauben",
+  "mobile.agent.access.askConfirm": "Erst fragen nutzen",
   "mobile.agent.access.failed": "Der Agentenzugriff konnte nicht geändert werden.",
   "mobile.agent.access.unsupported": "Dieser Host kann den Agentenzugriff nicht von einem Remote-Gerät aus ändern.",
   "mobile.agent.host.computerUse": "Computersteuerung",

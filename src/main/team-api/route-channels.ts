@@ -2,6 +2,7 @@ import {
   CHANNEL_CHATS_CAPABILITY,
   CHANNEL_DELETE_CAPABILITY,
   type ChannelCommand,
+  canAdministerServer,
   isReleasedRoutineSchedule,
   parseChannelCommand,
   parseChannelRead,
@@ -71,14 +72,15 @@ export async function routeChannels(
   if (remove) {
     if (!capabilities.has(CHANNEL_DELETE_CAPABILITY))
       throw new HttpError(400, sourceText("error.team.channelDeleteUnsupported"));
-    if (member.role === "member") throw new HttpError(403, sourceText("error.team.membersCannotDeleteChannels"));
+    if (!canAdministerServer(member.role))
+      throw new HttpError(403, sourceText("error.team.membersCannotDeleteChannels"));
     const body = await readJson(request);
     await runCauseEffect(channels.deleteChannel(channelId(body)));
     return empty(204);
   }
   if (settings) return routeChannelSettings(context, agents);
   const input = parseChannelCommand(channelRequest(url.pathname, await readJson(request)));
-  if (input.type === "archive" && member.role === "member")
+  if (input.type === "archive" && !canAdministerServer(member.role))
     throw new HttpError(403, sourceText("error.team.membersCannotArchiveChannels"));
   return json(
     200,

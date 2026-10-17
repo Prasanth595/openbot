@@ -1,6 +1,7 @@
 import { isAvatarMimeType } from "@openbot/contracts/avatar-images";
 import {
   assertStorageUsageScope,
+  canAdministerServer,
   decodeAgentAdminSettings,
   decodeAgentHostSettings,
   decodeInstalledSkills,
@@ -14,6 +15,7 @@ import {
   type RoutineCalendarOwner,
   type SetAgentHiddenInput,
   STORAGE_CAPABILITY,
+  type TeamRole,
 } from "@openbot/contracts/ipc";
 import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
@@ -180,8 +182,8 @@ function hidesAgentsOnHost(capabilities: readonly string[] | undefined): boolean
  * An owner or an admin hides on the host. The host refuses a member, so a member hides on this phone
  * only, as on a host without the capability.
  */
-export function hostOwnsHide(capabilities: readonly string[] | undefined, role: string | undefined): boolean {
-  return hidesAgentsOnHost(capabilities) && (role === "owner" || role === "admin");
+export function hostOwnsHide(capabilities: readonly string[] | undefined, role: TeamRole | undefined): boolean {
+  return hidesAgentsOnHost(capabilities) && canAdministerServer(role);
 }
 
 /** The hidden agents of a host that serves `agent-hidden-v1`, or null for an older host. */

@@ -65,7 +65,7 @@ import {
 import { type RoutineText, routineScheduleSummary } from "@openbot/ui/features/conversation/routine-schedule-ui";
 import { useText } from "@openbot/ui/text";
 import type { JSX } from "@solidjs/web";
-import { createEffect, createSignal, createStore, For, onCleanup, Show, untrack } from "solid-js";
+import { createEffect, createMemo, createSignal, createStore, For, onCleanup, Show, untrack } from "solid-js";
 import { type DesktopAnalyticsScope, desktopAnalytics } from "../../analytics";
 import { writeClipboardText } from "../../clipboard";
 import type { RoutineEditorRecord, RoutinesPort } from "./routines-port";
@@ -231,15 +231,15 @@ export function AgentRoutinesSettings(props: AgentRoutinesSettingsProps) {
       }),
   );
 
-  createEffect(
-    () => props.port.ownerId,
-    () => {
-      closeEditor();
-      setLoading(true);
-      setRoutinesLoaded(false);
-      void untrack(loadRoutines);
-    },
-  );
+  // The port is new after each activity of the agent, and an effect runs again for an equal value.
+  // The memo closes the open routine only when the owner changes.
+  const ownerId = createMemo(() => props.port.ownerId);
+  createEffect(ownerId, () => {
+    closeEditor();
+    setLoading(true);
+    setRoutinesLoaded(false);
+    void untrack(loadRoutines);
+  });
 
   createEffect(
     () => (draft()?.triggerKind === "webhook" ? props.port.events?.api : undefined),

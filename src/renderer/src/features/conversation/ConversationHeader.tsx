@@ -1,4 +1,3 @@
-import { classifyFailure } from "@openbot/telemetry";
 import { isAgentTaskActive } from "@openbot/ui/features/conversation/AgentTasks";
 import { ConversationHeader as SharedConversationHeader } from "@openbot/ui/features/conversation/ConversationHeader";
 import { useConversationViewScope } from "./conversation-scope";
@@ -6,12 +5,10 @@ import { useConversationViewScope } from "./conversation-scope";
 const loadAgentSettingsPanel = () => import("./AgentSettingsPanel");
 
 import { useText } from "@openbot/ui/text";
-import { createMemo } from "solid-js";
-import { actionToast } from "../../action-toast";
 
 /** @internal Stable HMR boundary for conversation header. */
 export function ConversationHeader() {
-  const { t, errorMessage } = useText();
+  const { t } = useText();
   const {
     actingBrowserControl,
     agentActivity,
@@ -27,21 +24,6 @@ export function ConversationHeader() {
     toggleSidePanel,
   } = useConversationViewScope();
   const runningTasks = () => props.tasks?.snapshot?.tasks.filter(isAgentTaskActive).length ?? 0;
-  const changeAutoApprove = createMemo(() => {
-    const save = props.onSetAgentAutoApprove;
-    const name = props.agent?.name ?? t("conversation.header.thisAgent");
-    if (!save) return undefined;
-    return (next: boolean) => {
-      void save(next).catch((error) => {
-        actionToast.error(
-          next
-            ? errorMessage(error, t("conversation.header.grantFailed", { name }))
-            : t("settings.autoApprove.revokeFailed", { name }),
-          { report: { operation: "turn", source: "action", cause_code: classifyFailure(error) } },
-        );
-      });
-    };
-  });
   return (
     <SharedConversationHeader
       agent={props.agent}
@@ -70,10 +52,6 @@ export function ConversationHeader() {
         providerAccountId: props.agent?.providerAccountId,
         onChange: (model, provider, accountId) => void selectAndConfirmModel(model, provider, accountId),
         onReasoningEffortChange: (effort) => void selectAndConfirmReasoning(effort),
-        autoApprove: props.agentAutoApproves,
-        agentName: props.agent?.name,
-        autoApproveLocked: props.agentAutoApproveLocked,
-        onAutoApproveChange: changeAutoApprove(),
       }}
       remoteControl={
         props.remoteDesktopEnabled !== false && props.server?.kind === "remote"

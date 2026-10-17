@@ -1,7 +1,8 @@
-import type { AgentModelOption, AgentReasoningEffort } from "@openbot/contracts/ipc";
+import type { AgentModelOption, AgentReasoningEffort, AgentSummary, UpdateAgentInput } from "@openbot/contracts/ipc";
 import { AGENT_PROVIDERS, defaultProviderModel } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import type { AgentProvider } from "../agent-client";
+import { AgentSettingsRefused } from "./agent-settings-refused";
 import { providerLabel } from "./thread-items";
 
 export interface ModelRequest {
@@ -77,7 +78,7 @@ export function modelList(models: AgentModelOption[], provider?: AgentProvider):
 export function requestedToolModel(request: ModelRequest, models: AgentModelOption[]): AgentModelOption | null {
   const { provider, model } = request;
   if (provider !== undefined && !models.some((candidate) => candidate.provider === provider)) {
-    throw new Error(sourceText("error.agent.providerNotListed", { provider: providerLabel(provider) }));
+    throw new AgentSettingsRefused(sourceText("error.agent.providerNotListed", { provider: providerLabel(provider) }));
   }
   let chosen: AgentModelOption | null = null;
   if (model !== undefined) {
@@ -85,9 +86,11 @@ export function requestedToolModel(request: ModelRequest, models: AgentModelOpti
       models.find(
         (candidate) => candidate.id === model && (provider === undefined || candidate.provider === provider),
       ) ?? null;
-    if (!chosen && models.length === 0) throw new Error(sourceText("error.agent.modelUnavailable"));
+    if (!chosen && models.length === 0) throw new AgentSettingsRefused(sourceText("error.agent.modelUnavailable"));
     if (!chosen)
-      throw new Error(sourceText("error.agent.modelNotListed", { model, models: modelList(models, provider) }));
+      throw new AgentSettingsRefused(
+        sourceText("error.agent.modelNotListed", { model, models: modelList(models, provider) }),
+      );
   } else if (provider !== undefined) {
     chosen = providerDefault(provider, models);
   }
@@ -97,11 +100,46 @@ export function requestedToolModel(request: ModelRequest, models: AgentModelOpti
 
 export function requireReasoningEffort(model: AgentModelOption, effort: AgentReasoningEffort): void {
   if (model.supportedReasoningEfforts.includes(effort)) return;
-  throw new Error(
+  throw new AgentSettingsRefused(
     sourceText("error.agent.reasoningEffortUnsupported", {
       model: model.id,
       effort,
       efforts: model.supportedReasoningEfforts.join(", "),
     }),
   );
+}
+
+/**
+ * The provider, model and effort that a settings request names, checked against what the CLIs list
+ * now. Like `create_agent`, a model or an effort that is not listed is an error that names the valid
+ * values. A new model keeps the agent's effort when it supports it, else takes the model's default.
+ */
+export function requestedRuntime(
+  target: Pick<AgentSummary, "provider" | "model" | "reasoningEffort">,
+  request: ModelRequest,
+  models: AgentModelOption[],
+): Pick<UpdateAgentInput, "provider" | "model" | "reasoningEffort"> {
+  if (request.provider === undefined && request.model === undefined && request.reasoningEffort === undefined) {
+    return {};
+  }
+  const requested = requestedToolModel(request, models);
+  if (requested) {
+    const keptEffort = requested.supportedReasoningEfforts.includes(target.reasoningEffort)
+      ? target.reasoningEffort
+      : requested.defaultReasoningEffort;
+    return {
+      provider: requested.provider,
+      model: requested.id,
+      reasoningEffort: request.reasoningEffort ?? keptEffort,
+    };
+  }
+  if (request.reasoningEffort === undefined) return {};
+  const current = models.find((model) => model.provider === target.provider && model.id === target.model);
+  if (!current) {
+    throw new AgentSettingsRefused(
+      sourceText("error.agent.modelNotListed", { model: target.model, models: modelList(models, target.provider) }),
+    );
+  }
+  requireReasoningEffort(current, request.reasoningEffort);
+  return { reasoningEffort: request.reasoningEffort };
 }

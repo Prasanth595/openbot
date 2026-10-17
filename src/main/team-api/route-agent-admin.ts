@@ -13,9 +13,10 @@ import type { RouteOutcome, TeamApiRequestContext } from "./request-context";
 import { readJson, requireAdmin, requireVisibleBodyAgent, stringField } from "./request-helpers";
 
 /**
- * Access and auto-approve of one agent, changed from a joined server. Both decide what the agent
- * may do on this computer, so only an owner or admin can read or change them. Turbo mode stays a
- * local choice: the route reports it and cannot change it. Frozen by `agent-admin-v1`.
+ * Access and auto-approve of one agent, changed from a joined server. Together they are the agent's
+ * Permissions level, which decides what the agent may do on this computer, so only an owner or admin
+ * can read or change them. `autoApproveLocked` is always false now that Turbo mode is gone; the
+ * field stays because released clients read it. Frozen by `agent-admin-v1`.
  */
 export async function routeAgentAdmin(
   context: TeamApiRequestContext,

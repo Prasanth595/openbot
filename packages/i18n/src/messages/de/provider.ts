@@ -122,8 +122,6 @@ export const messages = {
   "provider.picker.effort": "Aufwand",
   "provider.picker.effortLabel": "Denkaufwand des Agenten",
   "provider.picker.selectEffort": "Aufwand auswählen",
-  "provider.picker.autoApprove": "Automatisch genehmigen",
-  "provider.picker.autoApproveLabel": "Aktionen dieses Agenten automatisch genehmigen",
   "provider.picker.custom": "Benutzerdefiniert",
   "provider.picker.cliReady": "{cli} bereit",
   "provider.status.signInRequired": "Anmeldung erforderlich",

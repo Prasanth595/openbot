@@ -24,9 +24,11 @@ import type {
   RoutineFields,
   ServerSummary,
   TeamPresenceSnapshot,
+  UpdateAgentAdminSettingsInput,
   UpdateAgentInput,
   WorkspaceDirectory,
 } from "@openbot/contracts/ipc";
+import type { ConversationUiBlock } from "@openbot/contracts/ui-blocks";
 import type { AgentMessage, AgentProfile } from "@openbot/ui/data";
 import type { BrowserViewRuntime } from "@openbot/ui/features/browser/BrowserLiveView";
 import type { UsageLimitAskCardProps } from "@openbot/ui/features/conversation/BackupModels";
@@ -59,6 +61,15 @@ export interface ConversationTarget {
 /** What was said so far in a recording, and the conversation it is dictated into. */
 export interface VoiceLiveTranscript extends ConversationTarget {
   text: string;
+}
+
+/** How an answer to a prompt reports a failure. */
+export interface PromptAnswerOptions {
+  /**
+   * Gets the error of an answer that failed, for a card that shows it itself. Without it the app
+   * reports the failure in the conversation (desktop) or the answer throws (web client).
+   */
+  onError?: (error: unknown) => void;
 }
 
 export interface ConversationProps {
@@ -121,6 +132,8 @@ export interface ConversationProps {
   modelOptions: AgentModelOption[];
   messages: readonly AgentMessage[];
   messageReferences?: Record<string, AgentMessage>;
+  /** The quoted originals that the host no longer has. Their replies show a note in place of the quote. */
+  missingMessageReferences?: Readonly<Record<string, true>>;
   unreadCount: number;
   firstUnreadMessageId: string | null;
   loaded: boolean;
@@ -173,6 +186,11 @@ export interface ConversationProps {
   remoteDesktopSessionActive: boolean;
   remoteDesktopVisible: boolean;
   prompt: Extract<AgentEvent, { type: "prompt" }> | undefined;
+  /**
+   * The interactive block of `prompt`'s message, when the agent asked with one. The prompt then draws
+   * as the block's card; without it, as the prompt's questions.
+   */
+  promptUiBlock?: ConversationUiBlock | undefined;
   approval: Extract<AgentEvent, { type: "approval" }>["approval"] | undefined;
   /** A usage limit holds the agent's queued message on this computer. The chat asks where to send it. */
   usageLimitAsk?: UsageLimitAskCardProps | undefined;
@@ -199,28 +217,25 @@ export interface ConversationProps {
   onSearchMessages?: (query: string) => Promise<{ messageIds: string[]; total: number }>;
   onOpenSearchMessage?: (messageId: string) => Promise<void>;
   onTypingChange: (agentId: string, typing: boolean) => void;
-  onAnswerPrompt: (answers: Record<string, string[]>) => Promise<boolean>;
+  onAnswerPrompt: (answers: Record<string, string[]>, options?: PromptAnswerOptions) => Promise<boolean>;
   onPromptResolutionPresented?: (agentId: string, turnId: string, requestId: string | number) => void;
   onRespondToApproval: (decision: "accept" | "decline") => Promise<boolean>;
   /**
-   * Grants the agent a standing approval and accepts the request in hand. Absent where the grant
-   * cannot be given: the approval widens the agent's access, or the agent belongs to a remote
-   * server, whose own computer holds that choice.
+   * Moves an agent at Ask first to Full access and accepts the request in hand. Absent at any other
+   * level, and where the user may not change the agent's Permissions.
    */
   onAlwaysAllowApproval?: () => Promise<boolean>;
   /**
-   * Whether this agent acts without asking, by Turbo mode or by its own grant. Shown in the header,
-   * because standing consent the user cannot see is consent they cannot take back.
+   * Whether this agent acts without asking at Full access. Unknown while a remote host has not
+   * answered. Together with the agent's access it gives the Permissions level.
    */
   agentAutoApproves?: boolean;
-  /** Turbo mode covers every agent, so the per-agent switch is read-only while it is on. */
-  agentAutoApproveLocked?: boolean;
   /** The app default an agent without its own busy-message setting follows. Local agents only. */
   defaultBusyMessageMode?: BusyMessageMode;
   /** The app memory cap. Local agents only. */
   agentMemoryLimit?: number;
-  /** Absent for a remote agent: its own computer holds that choice. */
-  onSetAgentAutoApprove?: (autoApprove: boolean) => Promise<void>;
+  /** Writes the agent's Permissions level. Absent where the user may not change it. */
+  onUpdateAgentPermissions?: (input: UpdateAgentAdminSettingsInput) => Promise<void>;
   /** Starts a new chat with the agent. Absent when its host does not serve `context-reset-v1`. */
   onClearAgentContext?: () => Promise<void>;
   onRespondToBrowserTakeover: (decision: "complete" | "cancel") => Promise<boolean>;

@@ -23,13 +23,57 @@ export function isArchivedThreadError(error: unknown): boolean {
 }
 
 /**
+ * Codex refused `turn/start` because a compaction turn runs on the thread. Codex 0.160.1 answers a
+ * `NotSubmitted` input with this internal error, so the input did not reach the turn and the caller
+ * can queue it again for when the compaction ends.
+ */
+export function isCodexCompactionRefusal(error: unknown): boolean {
+  return (
+    error instanceof AppServerError &&
+    error.code === -32603 &&
+    error.message.startsWith("failed to submit turn input: ActiveTurnNotSteerable { turn_kind: Compact")
+  );
+}
+
+/**
  * The provider refused the session's own history. Grok keeps the `encrypted_content` of each
  * reasoning item in its session and sends it back on every request, and xAI accepts it only from
  * the caller it was issued to. After a sign-in to another account or a new API key, each turn of
  * that session fails the same way, so only a new session, given the OpenBot transcript, recovers.
  */
-export function isForeignReasoningError(message: string): boolean {
+function isForeignReasoningError(message: string): boolean {
   return /\bencrypted_content\b.*\bnot issued to this caller\b/i.test(message);
+}
+
+/**
+ * OpenCode's model gateway answers a request that it does not accept with one generic 400 that
+ * names no field. A session that grew too long for its model, often after the agent moved to
+ * another model on the same session, fails each turn this way, and OpenCode does not compact it
+ * (#2351). Only a new session, given the OpenBot transcript, recovers.
+ */
+function isRejectedOpenCodeRequest(provider: AgentProvider, message: string): boolean {
+  return provider === "opencode" && /\bthe request contains invalid parameters\b/i.test(message);
+}
+
+/**
+ * Muse stores a failed MCP startup audit in the session, and `session/resume` cannot clear it. Each
+ * later turn of that session fails in milliseconds, even after the failed server is removed
+ * (#2369). Only a new session, given the OpenBot transcript, recovers.
+ */
+function isMuseMcpStartupFault(provider: AgentProvider, message: string): boolean {
+  return provider === "muse" && /\bMCP startup audit failed\b/i.test(message);
+}
+
+/**
+ * The failure to show when the provider refused the session's own history, or null when it did
+ * not. Each turn of a refused session fails the same way, so the caller closes the session.
+ */
+export function refusedSessionFailure(provider: AgentProvider, message: string): string | null {
+  if (isForeignReasoningError(message))
+    return sourceText("error.provider.foreignReasoning", { provider: providerLabel(provider) });
+  if (isRejectedOpenCodeRequest(provider, message)) return sourceText("error.provider.opencodeSessionRejected");
+  if (isMuseMcpStartupFault(provider, message)) return sourceText("error.provider.museMcpStartupFault");
+  return null;
 }
 
 export function isMissingProviderSessionError(error: unknown, provider: AgentProvider): boolean {

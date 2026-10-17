@@ -88,9 +88,11 @@ export const messages = {
   "agentSettings.runtime.notAvailable": "Henüz kullanılamıyor",
   "agentSettings.runtime.fullAccessNote":
     "Ajan, çalışma alanından ve paylaşılan klasörden tam bilgisayar erişimiyle çalışır.",
-  "agentSettings.runtime.claudeApprovalNote": "Claude, size sorduğu sorular hariç, onay istemeden hareket eder.",
-  "agentSettings.runtime.providerApprovalNote": "Sağlayıcıya bağlı olarak, hassas komutlar önce onay isteyebilir.",
+  "agentSettings.runtime.askNote":
+    "Bir OpenBot aracı kullanmadan veya bir site yayımlamadan önce ve sağlayıcısı onay istediğinde size sorar.",
+  "agentSettings.runtime.fullNote": "Size sorduğu sorular hariç, sormadan hareket eder.",
   "agentSettings.access.workspace": "Yalnızca çalışma alanı",
+  "agentSettings.access.ask": "Önce sor",
   "agentSettings.access.full": "Tam erişim",
   "agentSettings.busyMessage.appDefaultQueue": "Uygulama varsayılanı (Kuyruk)",
   "agentSettings.busyMessage.appDefaultSteer": "Uygulama varsayılanı (Yönlendir)",
@@ -111,10 +113,13 @@ export const messages = {
   "agentSettings.newChat.confirm": "Yeni sohbet başlat",
   "agentSettings.newChat.failed": "Yeni bir sohbet başlatılamadı.",
   "agentSettings.fullAccess.title": "Bu ajana tam erişim verilsin mi?",
+  "agentSettings.fullAccess.askTitle": "Bu ajan çalışma alanının dışında çalışabilsin mi?",
   "agentSettings.fullAccess.description":
     "Ajan, kullanıcı hesabınızın erişebileceği herhangi bir dosyayı okuyabilir, değiştirebilir ve silebilir, herhangi bir komutu çalıştırabilir ve ağı kullanabilir. Yanlış anlaşılan bir talimat veya kötü amaçlı bir web sayfası kişisel dosyalarınıza ulaşabilir.",
-  "agentSettings.fullAccess.cancel": "Yalnızca çalışma alanı",
+  "agentSettings.fullAccess.noApproval":
+    "Ajan bundan sonra size önce sormadan komut çalıştırır, dosyaları değiştirir, araç kullanır ve site yayımlar.",
   "agentSettings.fullAccess.confirm": "Tam erişime izin ver",
+  "agentSettings.fullAccess.askConfirm": "Önce sor",
   "agentSettings.links.usage": "Kullanım",
   "agentSettings.links.memories": "Bellekler",
   "agentSettings.links.memoriesCount": { one: "{count} kayıtlı", other: "{count} kayıtlı" },
@@ -127,10 +132,9 @@ export const messages = {
   "agentSettings.links.routinesCount": { one: "{count} yapılandırılmış", other: "{count} yapılandırılmış" },
   "agentSettings.runtime.workspaceNote":
     "Yalnızca çalışma alanı, yazma işlemlerini bu ajanın çalışma alanı, paylaşılan klasör ve geçici klasörlerle sınırlar. Okuma ve ağ erişimi kullanılabilir kalır.",
-  "agentSettings.runtime.workspaceEnforcedCommand":
-    "Dışarıya yazması gereken bir komut, Otomatik onay açık olsa bile önce size sorar.",
+  "agentSettings.runtime.workspaceEnforcedCommand": "Dışarıya yazması gereken bir komut önce size sorar.",
   "agentSettings.runtime.workspaceEnforcedClaude":
-    "Dışarıdaki bir dosya düzenlemesi, Otomatik onay açık olsa bile önce size sorar. Bir komut dışarıya yazamaz.",
+    "Dışarıdaki bir dosya düzenlemesi önce size sorar. Bir komut dışarıya yazamaz.",
   "agentSettings.runtime.workspaceUnlimited":
     "Bilgisayar Kullanımı ve OpenBot tarayıcısı sınırlandırılmamıştır; Bilgisayar Kullanımını aşağıdan kapatabilirsiniz.",
   "agentSettings.computerUse.title": "Bilgisayar Kullanımı",

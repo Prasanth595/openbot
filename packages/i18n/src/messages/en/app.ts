@@ -73,7 +73,7 @@ export const messages = defineMessages("app", {
     other: "{count} matching settings.",
   },
   "app.standingApproval.description":
-    "{name} will run commands and MCP tools, change files and widen its own filesystem and network access on the computer that runs it without asking again. Publishing, replacing and deleting public sites still require approval unless Turbo mode is on. You can turn off Auto approve in this agent's model menu.",
+    "{name} moves to Full access. It will run commands and tools, change files, publish sites and widen its own filesystem and network access on the computer that runs it without asking again. You can change this in the agent's Permissions settings.",
   "app.standingApproval.descriptionUnnamed":
-    "This agent will run commands and MCP tools, change files and widen its own filesystem and network access on the computer that runs it without asking again. Publishing, replacing and deleting public sites still require approval unless Turbo mode is on. You can turn off Auto approve in this agent's model menu.",
+    "This agent moves to Full access. It will run commands and tools, change files, publish sites and widen its own filesystem and network access on the computer that runs it without asking again. You can change this in the agent's Permissions settings.",
 });

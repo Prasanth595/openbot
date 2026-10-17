@@ -1,5 +1,40 @@
 [
   {
+    "version": "0.43.0",
+    "date": "2026-10-17",
+    "notices": [
+      "Sign in to Vercel and other OAuth MCP servers again. After that, they stay signed in when their access token expires."
+    ],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "Hide an agent that you do not use now, and restore it later. Its thread, files and settings stay.",
+          "Ask the agent a side question from the composer \"+\" menu. The answer shows in the side panel and does not go into the chat.",
+          "Quote selected text from a chat message in a new message, and click a quote in a reply to go to the original message.",
+          "The Schedule page has a Month view.",
+          "A Claude agent's context popover shows what fills its context."
+        ]
+      },
+      {
+        "type": "changed",
+        "items": [
+          "Set what an agent may do with one Permissions setting in its agent settings: Workspace only, Ask first or Full access. It replaces Turbo mode and Auto approve. An agent keeps what it could do before.",
+          "OpenBot opens faster, and long chats stream, scroll and search with less work.",
+          "OpenBot keeps only the provider CLI version in use and one older version. Clean up on the Storage page removes old versions at once."
+        ]
+      },
+      {
+        "type": "fixed",
+        "items": [
+          "Gemini connects on Windows when its server takes longer than 30 s to start.",
+          "A message that you send while Codex compacts the context waits in the queue.",
+          "OpenCode and Muse agents no longer fail each message after a model change or an MCP start failure."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.42.0",
     "date": "2026-10-16",
     "notices": [],
