@@ -47,6 +47,11 @@ function chatTagKind(value: string | undefined): ChatTagKind {
   return "agent";
 }
 
+/**
+ * The text with each marker as words. `resolveName` gives the current name of an agent, skill or
+ * MCP server. For a quote it gives the whole replacement: a one-line preview uses it to keep the
+ * quote out of a block quote.
+ */
 export function expandChatTagReferences(
   value: string,
   resolveName?: (reference: ChatTagReference) => string | undefined,
@@ -66,6 +71,8 @@ export function expandChatTagReferences(
       const id = decodeChatTagComponent(encodedId, encoding !== undefined);
       const reference = { kind, id, name, start: offset, end: offset + marker.length };
       if (kind === "quote") {
+        const inline = resolveName?.(reference);
+        if (inline !== undefined) return inline;
         const expanded = expandedQuote(name, value, offset, offset + marker.length, text);
         text.quoteEnd = offset + marker.length;
         return expanded;
