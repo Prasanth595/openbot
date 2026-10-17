@@ -126,8 +126,12 @@ export function AgentSkillsModal(props: AgentSkillsModalProps) {
     }
   }
 
+  // The agent object is new after each activity of the agent, and an effect runs again for an equal
+  // value. The memos keep an open skill until the agent or the request changes.
+  const agentId = createMemo(() => props.agentId);
+  const selectionRequest = createMemo(() => props.selectionRequest);
   createEffect(
-    () => [props.open, props.agentId, skillsMode(), props.selectionRequest] as const,
+    () => [props.open, agentId(), skillsMode(), selectionRequest()] as const,
     ([open]) => {
       closeDetail();
       if (!open) {

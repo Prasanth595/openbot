@@ -23,7 +23,7 @@ import { conversationPort, type SharedTableCalls } from "./conversation-port";
 import type { ConversationRuntime } from "./conversation-runtime";
 import { agentMemoriesPort } from "./memories-port";
 import type { EventRoutinesApi } from "./routine-webhooks-api";
-import { agentRoutinesPort, eventRoutinesPort } from "./routines-port";
+import { agentRoutinesPort, eventRoutinesPort, type RoutinesPort } from "./routines-port";
 import { SharedTablesModal } from "./SharedTablesModal";
 
 interface AgentSettingsPanelProps
@@ -152,24 +152,47 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
     }
     void untrack(() => loadSkillsCount(agentId));
     if (!props.remoteClient) {
-      void conversationPort()
-        .agent.listMemories(agentId)
-        .catch(() => [])
-        .then((items) => {
-          setDraft((state) => {
-            state.memories.count = items.length;
-          });
-        });
-      void routinesPort()
-        .list()
-        .catch(() => [])
-        .then((items) => {
-          setDraft((state) => {
-            state.routines.count = items.length;
-          });
-        });
+      loadMemoriesCount(agentId);
+      untrack(() => loadRoutinesCount(routinesPort()));
     }
   });
+
+  // The counts follow a memory or routine change, also one that the agent makes in a turn.
+  createEffect(
+    () => (props.remoteClient ? null : ([currentAgentId(), memoriesPort(), routinesPort()] as const)),
+    (sources) => {
+      if (!sources) return;
+      const [agentId, memories, routines] = sources;
+      const stopMemories = memories.subscribe(() => loadMemoriesCount(agentId));
+      const stopRoutines = routines.subscribe(() => loadRoutinesCount(routines));
+      return () => {
+        stopMemories();
+        stopRoutines();
+      };
+    },
+  );
+
+  function loadMemoriesCount(agentId: string): void {
+    void conversationPort()
+      .agent.listMemories(agentId)
+      .catch(() => [])
+      .then((items) => {
+        setDraft((state) => {
+          state.memories.count = items.length;
+        });
+      });
+  }
+
+  function loadRoutinesCount(port: RoutinesPort): void {
+    void port
+      .list()
+      .catch(() => [])
+      .then((items) => {
+        setDraft((state) => {
+          state.routines.count = items.length;
+        });
+      });
+  }
 
   // The count follows a skill change made anywhere, as the dialog does.
   createEffect(
