@@ -11,7 +11,7 @@ import type { ComposerAgent, ComposerMcpServer, ComposerSkill } from "@openbot/u
 import { BrowserDock, type BrowserIslandContent } from "@openbot/ui/features/browser/BrowserDock";
 import { browserActionLabel } from "@openbot/ui/features/browser/browser-action-labels";
 import { useText } from "@openbot/ui/text";
-import { createEffect, createMemo, createSignal, onSettled, Show, snapshot, untrack } from "solid-js";
+import { createEffect, createMemo, createSignal, Show, snapshot, untrack } from "solid-js";
 import { deviceSendShortcut } from "../../send-shortcut-preference";
 import { serverSupportsCapability } from "../servers/server-capabilities";
 import { conversationPort } from "./conversation-port";
@@ -204,7 +204,12 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined; 
     void conversationPort()
       .browserDock.publishPresentation(value)
       .catch(() => undefined);
-  createEffect(presentation, publish);
+  createEffect(
+    () => ({ overlay: adapterProps.overlay, value: presentation() }),
+    ({ overlay, value }) => {
+      if (overlay) publish(value);
+    },
+  );
 
   function act(action: BrowserDockAction) {
     switch (action.type) {
@@ -259,15 +264,21 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined; 
     }
   }
 
-  onSettled(() => {
-    const stopAction = conversationPort().browserDock.onAction(act);
-    const stopShown = conversationPort().browserDock.onShown(setOverlayShown);
-    return () => {
-      stopAction();
-      stopShown();
-      publish(null);
-    };
-  });
+  // Only the desktop app has the overlay; the web client has no `window.openbot`.
+  createEffect(
+    () => adapterProps.overlay,
+    (overlay) => {
+      if (!overlay) return;
+      const stopAction = conversationPort().browserDock.onAction(act);
+      const stopShown = conversationPort().browserDock.onShown(setOverlayShown);
+      return () => {
+        stopAction();
+        stopShown();
+        setOverlayShown(false);
+        publish(null);
+      };
+    },
+  );
 
   return (
     <Show when={!overlayShown() && owner()}>
