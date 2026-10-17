@@ -32,6 +32,71 @@ The sign-in kinds of providers are in `ProviderSignIn` and `ProviderCodeSignIn` 
 [`provider-drivers.ts`](../../src/backend/provider-drivers.ts). The kinds of applications are the
 `auth` kinds of a catalog entry: `link`, `key` and `local`.
 
+### How an MCP sign-in renews and ends
+
+`McpOAuth` ([`mcp-oauth-provider.ts`](../../src/backend/mcp-oauth-provider.ts)) renews a token
+before a thread start or a test, with no browser. The renewal calls `refreshAuthorization` of the
+SDK, not `auth()`, so it never registers a new client. The answer of the token endpoint sets what
+stays:
+
+| Answer | Tokens | Client registration | Sign-in app, discovery | Row |
+| --- | --- | --- | --- | --- |
+| New token set | Replaced | Kept | Kept | Signed in |
+| `invalid_grant` | Dropped | Kept | Kept | Sign-in needed (`lostAt`) |
+| `invalid_client`, `unauthorized_client` | Dropped | Dropped | Kept | Sign-in needed (`lostAt`) |
+| No network, a server error, a timeout | Kept | Kept | Kept | No change |
+
+A dropped token is not handed to an agent: `accessToken` answers `null`. The IPC
+`McpSignInState.needsSignIn` tells the panel to show the sign-in badge and the Sign in button with
+no test. The frozen `mcp-sign-in-v1` wire keeps only `mcpServerId` and `signedIn`.
+
+Sign-out and removal delete the local tokens first. Then OpenBot sends one best-effort RFC 7009
+request per token, refresh token first, to the `revocation_endpoint` of the authorization server.
+The request goes through `secureOAuthFetch`, with the client authentication of the registration and
+a 5-second limit. A failure is logged with the origin and the status only, and is not shown.
+
+`secureOAuthFetch` limits each OAuth request: the body is at most 1 MiB, and the answer must come in
+20 seconds. The outer deadlines stay. A request to the MCP URL itself is MCP traffic, because the
+probe uses the same fetch for the transport, so it has no size or time limit. When the host of the
+MCP URL resolves only to public addresses, each OAuth host (metadata, authorization server, token,
+registration and revocation endpoints) must also resolve only to public addresses, or the request
+fails with `error.backend.mcpOAuthPrivateEndpoint` before it connects. A failed lookup also stops
+the request. A LAN or localhost MCP URL has no such check. The check does not pin the address, so
+DNS can change between the check and the connection; this residual risk is accepted.
+Run `bun run test:mcp-oauth` to check the sign-in paths against a local authorization server.
+
+### How an agent reaches a signed-in MCP server
+
+An agent never gets an OAuth token. `McpGateway.endpoint` gives a provider a route of
+`McpOAuthProxy` ([`mcp-oauth-proxy.ts`](../../src/backend/mcp-oauth-proxy.ts)) for each http row
+that has a sign-in on this computer, or a sign-in that the server ended, and no `Authorization`
+header that the user typed. The GitHub row keeps its own proxy. Other rows, stdio rows and the Test
+probe are not changed.
+
+| Part | Rule |
+| --- | --- |
+| Address | `http://127.0.0.1:<port>/mcp/<route>`. The route is a digest of the row id and its URL, so a changed URL is a new route. |
+| Bearer | An HMAC of the route with the proxy secret. A bearer opens one route only. It is compared with `timingSafeEqual` and registered for redaction. |
+| Refused with 403 | A `Host` that is not `127.0.0.1:<port>` or `localhost:<port>`, an unknown path, a wrong bearer. |
+| Upstream | The row's URL and its headers, with the current token. The provider's `Authorization` and cookies are not sent. Only same-origin 307 and 308 redirects are followed, at most 3. |
+| Server answers 401 | One `McpOAuth.refreshAccessToken`, then one retry with the new token. |
+| No sign-in | Each request gets JSON-RPC error `-32001`, notifications get 202, GET and DELETE get 405. The proxy never answers 401, so the provider does not start its own sign-in. |
+| Server not reached | 502 with JSON-RPC error `-32603`. |
+
+Each request reads its target from the enabled rows and the stored sign-in. Removing, turning off,
+editing or signing out of a row refuses its route at once; there is no list of routes to keep
+current. A proxy that cannot start drops the row from the hand-off with
+`error.backend.mcpOAuthProxyUnavailable`. The raw token is never the fallback.
+
+The port and the secret are kept encrypted in `openbot-mcp-oauth-proxy-v1.json`. Codex keeps the
+MCP configuration of a resumed thread, so the same address must work after a restart. When the
+saved port is in use, the proxy takes a new port and a new secret, so the old bearers stop working.
+The Codex tool manifest records the proxy address and the proxied rows; a change replaces the Codex
+session at its next turn. A computer with no proxied row keeps its manifest.
+
+Run `bun run test:mcp-oauth` to check these paths against a local authorization server and a local
+MCP server.
+
 ## Remote sign-in: the callback relay
 
 The user is connected to a joined server, for example a cloud server. The host starts the sign-in,
@@ -246,6 +311,23 @@ is one folder per plugin in [`marketplace/plugin-catalog/`](../../marketplace/pl
    The build writes `src/renderer/src/features/settings/marketplace-plugin-catalog.ts`,
    `apps/auth-api/src/lib/plugin-catalog.generated.ts` and `resources/plugin-catalog/`. Do not edit
    them by hand.
+5. For an `http` server, run `bun run test:mcp-catalog`
+   ([`mcp-catalog-smoke.ts`](../../scripts/mcp-catalog-smoke.ts)). It connects to the live servers
+   with no account and writes `.openbot-build/mcp-catalog-smoke/report.json`. It needs the network,
+   so it is a manual run and not a CI gate.
+
+The smoke checks an `http` server with no `auth` or with a `link` flow. It skips `stdio` servers and
+servers with only `key` or `local` flows: they need the user's key or computer. Add or keep an entry
+only when the smoke passes for it:
+
+| `auth` | The server must |
+| --- | --- |
+| None | Answer `initialize` with no credential. |
+| `link` | Refuse `initialize` with a 401 and a `Bearer` challenge. Publish protected-resource metadata that names an authorization server. That server's metadata lists a `registration_endpoint`, `S256` in `code_challenge_methods_supported` and the `code` response type. Its endpoints use https and public addresses. |
+
+A `link` server with no `registration_endpoint` fails: each user would have to register a sign-in app
+first. Use a `key` flow for it, or leave it out. The smoke reads metadata only. It never registers a
+client and never sends a credential.
 
 A server that does not register OpenBot by itself needs a **sign-in app**: an OAuth app that the
 admin registers with the provider. The user enters its client ID in the "Sign-in app" section of the

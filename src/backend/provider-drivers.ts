@@ -25,12 +25,8 @@ import {
 import { CustomAcpAgentsClient, type CustomAgentConfig, type CustomAgentSource } from "./custom-acp-agents-client";
 import { GrokAgentClient } from "./grok-client";
 import type { McpOAuthAuthority } from "./mcp-oauth-provider";
-import type {
-  McpAuthorizationSource,
-  McpDropReporter,
-  McpServerSource,
-  McpToolRuntimeSource,
-} from "./mcp-provider-shapes";
+import type { McpOAuthProxySettingsStore } from "./mcp-oauth-proxy";
+import type { McpDropReporter, McpEndpointSource, McpServerSource, McpToolRuntimeSource } from "./mcp-provider-shapes";
 import { MuseAgentClient } from "./muse-client";
 import {
   type CustomProviderSource,
@@ -256,16 +252,22 @@ export interface ProviderClientContext {
    */
   readonly mcpToolRuntimes?: McpToolRuntimeSource;
   /**
-   * The bearer token for an http server this machine has signed in to, read at spawn. Optional for
-   * the same reason again: a driver without one hands over only the headers the user wrote.
+   * Where each http server is reached and with which bearer, read at spawn: a server this machine
+   * signed in to is a route of the loopback OAuth proxy. Optional for the same reason again: a
+   * driver without one hands over the URL and the headers the user wrote.
    */
-  readonly mcpAuthorization?: McpAuthorizationSource;
+  readonly mcpEndpoint?: McpEndpointSource;
   /**
    * The sign-ins this machine holds for http MCP servers. Read by `AgentService` and by nothing
-   * else: a driver is given `mcpAuthorization` above, which is the one token it can spend. This is
+   * else: a driver is given `mcpEndpoint` above, which never holds an OAuth token. This is
    * the whole authority - it signs in, refreshes and forgets - so it travels no further.
    */
   readonly mcpOAuth?: McpOAuthAuthority;
+  /**
+   * Where the OAuth proxy keeps its port and secret, so a Codex session resumed after a restart
+   * reaches the same address. Optional: without it the proxy takes a new port at each start.
+   */
+  readonly mcpOAuthProxySettings?: McpOAuthProxySettingsStore;
   /**
    * Whether this model may still be used. A removed endpoint stays in the running process, with the
    * credentials it started with, until that process restarts, and the restart waits for the work in
@@ -375,7 +377,7 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
         mcpServers: context.mcpServers,
         ...(context.reportMcpDrops ? { reportMcpDrops: context.reportMcpDrops } : {}),
         ...(context.mcpToolRuntimes ? { mcpToolRuntimes: context.mcpToolRuntimes } : {}),
-        ...(context.mcpAuthorization ? { mcpAuthorization: context.mcpAuthorization } : {}),
+        ...(context.mcpEndpoint ? { mcpEndpoint: context.mcpEndpoint } : {}),
         ...(history ? { history } : {}),
       });
     },
@@ -417,7 +419,7 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
         mcpServers: context.mcpServers,
         ...(context.reportMcpDrops ? { reportMcpDrops: context.reportMcpDrops } : {}),
         ...(context.mcpToolRuntimes ? { mcpToolRuntimes: context.mcpToolRuntimes } : {}),
-        ...(context.mcpAuthorization ? { mcpAuthorization: context.mcpAuthorization } : {}),
+        ...(context.mcpEndpoint ? { mcpEndpoint: context.mcpEndpoint } : {}),
       }),
     createProfileClient: (cli, timeout, context) =>
       new MuseAgentClient(cli, {
@@ -477,7 +479,7 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
         context.mcpServers,
         context.reportMcpDrops,
         context.mcpToolRuntimes,
-        context.mcpAuthorization,
+        context.mcpEndpoint,
         context.providerStateDirectory,
         withAccountEnvironment(context),
       ),
@@ -520,7 +522,7 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
         context.mcpServers,
         context.reportMcpDrops,
         context.mcpToolRuntimes,
-        context.mcpAuthorization,
+        context.mcpEndpoint,
         confinement,
         withAccountEnvironment(context),
         context.history?.("grok"),
@@ -556,7 +558,7 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
         mcpServers: context.mcpServers,
         reportMcpDrops: context.reportMcpDrops,
         mcpToolRuntimes: context.mcpToolRuntimes,
-        mcpAuthorization: context.mcpAuthorization,
+        mcpEndpoint: context.mcpEndpoint,
         readRateLimits: () =>
           readOpenCodeGoUsage(context.apiKey("opencode")).pipe(
             Effect.mapError((failure) => providerFailure(failure.cause)),
@@ -605,7 +607,7 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
         mcpServers: context.mcpServers,
         reportMcpDrops: context.reportMcpDrops,
         mcpToolRuntimes: context.mcpToolRuntimes,
-        mcpAuthorization: context.mcpAuthorization,
+        mcpEndpoint: context.mcpEndpoint,
         history: context.history?.("antigravity"),
       }),
     // A profile-generation client asks one question and must not act: no MCP servers, and every
@@ -650,7 +652,7 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
         mcpServers: context.mcpServers,
         reportMcpDrops: context.reportMcpDrops,
         mcpToolRuntimes: context.mcpToolRuntimes,
-        mcpAuthorization: context.mcpAuthorization,
+        mcpEndpoint: context.mcpEndpoint,
         history: context.history?.("cursor"),
       }),
     createProfileClient: (cli, timeout, context) =>
@@ -695,7 +697,7 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
         mcpServers: context.mcpServers,
         reportMcpDrops: context.reportMcpDrops,
         mcpToolRuntimes: context.mcpToolRuntimes,
-        mcpAuthorization: context.mcpAuthorization,
+        mcpEndpoint: context.mcpEndpoint,
         history: context.history?.("cline"),
       }),
     createProfileClient: (cli, timeout, context) =>
@@ -791,7 +793,7 @@ function customAgentChild(
           mcpServers: context.mcpServers,
           reportMcpDrops: context.reportMcpDrops,
           mcpToolRuntimes: context.mcpToolRuntimes,
-          mcpAuthorization: context.mcpAuthorization,
+          mcpEndpoint: context.mcpEndpoint,
         }),
   });
 }

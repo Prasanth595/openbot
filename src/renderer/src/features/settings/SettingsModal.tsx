@@ -25,7 +25,6 @@ import {
 import { BillingPanel } from "@openbot/ui/features/billing/BillingPanel";
 import { createBillingStore } from "@openbot/ui/features/billing/billing-store";
 import type { GeneralSettingsValue } from "@openbot/ui/features/settings/app-settings";
-import { ProfileNameSaveBar } from "@openbot/ui/features/settings/ProfileNameSaveBar";
 import { SettingsDialogShell, type SettingsPagePlacement } from "@openbot/ui/features/settings/SettingsDialogShell";
 import { SettingsMobileConnectTab } from "@openbot/ui/features/settings/SettingsMobileConnectTab";
 import { SettingsProfileTab } from "@openbot/ui/features/settings/SettingsProfileTab";
@@ -38,6 +37,8 @@ import { createEffect, createSignal, Show, untrack } from "solid-js";
 import { useI18n } from "../../i18n-context";
 import { ComputerUseSetup } from "../computer-use/ComputerUseSetup";
 import { voiceSupported } from "../conversation/voice-status";
+import { createProfileActivityStore } from "./profile-activity-store";
+import { renderProfileShareImage } from "./profile-share-image";
 import { SettingsDynamicIslandTab } from "./SettingsDynamicIslandTab";
 import { SettingsGeneralTab } from "./SettingsGeneralTab";
 import { SettingsNotificationsTab } from "./SettingsNotificationsTab";
@@ -98,12 +99,11 @@ export interface SettingsModalProps {
 }
 
 /**
- * The dialog shell: the tab list, the header, the footer save bar, and one delegation per panel.
+ * The dialog shell: the tab list, the header, and one delegation per panel.
  *
  * Every panel's state is a store created here rather than inside its tab, because Kobalte unmounts
  * an unselected `Tabs.Content` when the dialog closes. A list owned by the tab would lose the rows
- * it is showing while it refetches on reopen, and the footer below could not read the profile
- * draft while another tab is selected.
+ * it is showing while it refetches on reopen.
  */
 export function SettingsModal(props: SettingsModalProps) {
   const i18n = useI18n();
@@ -112,6 +112,10 @@ export function SettingsModal(props: SettingsModalProps) {
   );
   let modalElement: HTMLElement | undefined;
   const profile = createSettingsProfileStore(props, () => activeTab() === "profile");
+  const profileActivity = createProfileActivityStore(
+    () => props.open && activeTab() === "profile",
+    (stats) => renderProfileShareImage(props.account, stats),
+  );
   const mobileConnect = createSettingsMobileConnectStore(props, () => activeTab() === "mobile-connect");
   const updates = createSettingsUpdatesStore(props);
   const billing = createBillingStore(
@@ -219,7 +223,6 @@ export function SettingsModal(props: SettingsModalProps) {
         contentKey={activeTab()}
         restoreFocusTarget={props.restoreFocusTarget}
         onContentElement={(element) => (modalElement = element)}
-        footer={<ProfileNameSaveBar store={profile} />}
         sidebar={
           <Tabs.List class="settings-modal-nav" aria-label={i18n.t("settings.sections.label")}>
             {visibleNavItems().map((item) => {
@@ -289,10 +292,11 @@ export function SettingsModal(props: SettingsModalProps) {
           <ComputerUseSetup variant="settings" />
         </Tabs.Content>
 
-        <Tabs.Content value="profile" class="settings-modal-tab-panel" data-tab="profile">
+        <Tabs.Content value="profile" class="settings-modal-tab-panel profile-panel" data-tab="profile">
           <SettingsProfileTab
             store={profile}
             account={props.account}
+            activity={profileActivity}
             canListSessions={Boolean(props.onListAccountSessions)}
             canRevokeSession={Boolean(props.onRevokeAccountSession)}
             onSignOut={props.onSignOut}
