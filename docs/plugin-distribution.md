@@ -54,7 +54,8 @@ A plugin is one developer's bundle. It contains:
   developer's website, privacy policy and terms links.
 
 The types in `packages/ui/src/features/settings/marketplace-plugins.ts` are the start shape.
-They are local to `@openbot/ui` today.
+`@openbot/ui` owns them today, and the renderer imports them from there. They are not in
+`packages/contracts`.
 
 ## 2. Catalog delivery
 
@@ -458,7 +459,7 @@ Ordered by cost.
 2. ~~`marketplace/plugin-catalog/` and `scripts/build-plugin-catalog.ts`, with fixtures and `--check`.~~ Done:
    the source holds 17 listings (no-auth, header key, stdio env key, and OAuth
    over HTTP, which the main process signs in to itself), and the build writes the renderer literal,
-   the Worker module, and the offline snapshot, with `--check` for CI.
+   the Worker module, and the offline snapshot. No CI job runs `--check` yet.
 3. The Worker routes: the JSON first, then the page and the sitemap entries. Partly done: the pages
    (`apps/auth-api/src/routes/plugins/`) and the sitemap entries (`apps/auth-api/src/server/content-feed.ts`)
    read the generated catalog. The JSON route does not exist.

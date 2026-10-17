@@ -455,7 +455,8 @@ v5 peer still gets the filtered view.
 
 The v4, v5, v6 and v7 base schemas are one codec, `provider-aware-codec.ts`. Each `v<N>-base.ts` passes
 `createProviderAwareCodec` a frozen profile: the providers, the signed-in auth kinds and the agent
-model charset. Nothing else differs between these versions. Do not edit a released profile; a new
+model charset. The v7 profile also raises the capability limit from 64 to 128 (`v7-base.ts`).
+Nothing else differs between these versions. Do not edit a released profile; a new
 provider needs a new protocol version.
 
 ### Custom agents
