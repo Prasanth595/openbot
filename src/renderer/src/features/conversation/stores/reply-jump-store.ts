@@ -8,6 +8,10 @@ import type { ConversationProps } from "../conversation-types";
 const ROW_WAIT_FRAMES = 30;
 /* A row this far inside the edge of the view counts as seen. */
 const ROW_SEEN_INSET_PX = 40;
+/* The frames with no scroll change after which a smooth scroll counts as stopped. */
+const SCROLL_IDLE_FRAMES = 6;
+/* A scroll that another scroll stopped before its goal gets one more try. */
+const SCROLL_ATTEMPTS = 2;
 const FLASH_ANIMATION = "reply-flash";
 
 export interface ReplyJumpStoreDeps {
@@ -69,8 +73,11 @@ export function createReplyJumpStore(deps: ReplyJumpStoreDeps) {
     return undefined;
   }
 
-  /* Ends when the scroll is at its goal, or when the reader takes the scroll over. */
-  function scrollToCentre(element: HTMLElement, row: HTMLElement): Promise<void> {
+  /**
+   * Ends at the goal, when the reader takes the scroll over, or when the scroll stops before its
+   * goal. Another scroll, such as the follow of a page that loads, can stop this one.
+   */
+  function scrollToCentre(element: HTMLElement, row: HTMLElement): Promise<"goal" | "input" | "stopped"> {
     const top =
       row.getBoundingClientRect().top -
       element.getBoundingClientRect().top +
@@ -80,22 +87,32 @@ export function createReplyJumpStore(deps: ReplyJumpStoreDeps) {
     const behavior = preferredMessageScrollBehavior();
     if (behavior !== "smooth" || Math.abs(element.scrollTop - goal) <= 1) {
       element.scrollTo({ top: goal });
-      return Promise.resolve();
+      return Promise.resolve("goal");
     }
     return new Promise((resolve) => {
       const inputs = ["wheel", "touchstart", "pointerdown", "keydown"] as const;
-      const finish = () => {
-        element.removeEventListener("scrollend", settle);
-        for (const input of inputs) element.removeEventListener(input, finish);
-        resolve();
+      let done = false;
+      const finish = (result: "goal" | "input" | "stopped") => {
+        if (done) return;
+        done = true;
+        for (const input of inputs) element.removeEventListener(input, onInput);
+        resolve(result);
       };
-      // An instant scroll before this one queues its own `scrollend`, so only the goal ends the wait.
-      const settle = () => {
-        if (Math.abs(element.scrollTop - goal) <= 1) finish();
-      };
-      element.addEventListener("scrollend", settle);
-      for (const input of inputs) element.addEventListener(input, finish, { passive: true });
+      const onInput = () => finish("input");
+      for (const input of inputs) element.addEventListener(input, onInput, { passive: true });
       element.scrollTo({ top: goal, behavior });
+      let lastTop = element.scrollTop;
+      let idleFrames = 0;
+      const watch = () => {
+        if (done) return;
+        const current = element.scrollTop;
+        if (Math.abs(current - goal) <= 1) return finish("goal");
+        idleFrames = current === lastTop ? idleFrames + 1 : 0;
+        lastTop = current;
+        if (idleFrames >= SCROLL_IDLE_FRAMES) return finish("stopped");
+        requestAnimationFrame(watch);
+      };
+      requestAnimationFrame(watch);
     });
   }
 
@@ -115,8 +132,13 @@ export function createReplyJumpStore(deps: ReplyJumpStoreDeps) {
     }
     const element = deps.scrollElement();
     if (!row || !element) return undefined;
-    deps.setStickToLatest(false);
-    await scrollToCentre(element, row);
+    for (let attempt = 0; attempt < SCROLL_ATTEMPTS; attempt += 1) {
+      // A scroll event near the bottom can set the follow of the latest message again.
+      deps.setStickToLatest(false);
+      if ((await scrollToCentre(element, row)) !== "stopped") break;
+      row = await findRow(id);
+      if (!row) return undefined;
+    }
     return row;
   }
 
@@ -151,6 +173,11 @@ export function createReplyJumpStore(deps: ReplyJumpStoreDeps) {
       }
       flash(row);
       setReturnReplyId(reply.id);
+      // A page load removes the quote that had focus. Focus then goes to the way back.
+      if (!document.activeElement || document.activeElement === document.body) {
+        await nextFrame();
+        deps.scrollElement()?.querySelector<HTMLElement>("[data-reply-return] .scroll-to-latest-button")?.focus();
+      }
     } finally {
       jumping = false;
     }
