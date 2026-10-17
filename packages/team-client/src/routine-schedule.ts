@@ -80,6 +80,7 @@ function hasRunsTooClose(spec: CronSpec, timezone: string): boolean {
  */
 export function validateRoutineSchedule(schedule: RoutineSchedule, timezone: string): void {
   validateStoredRoutineSchedule(schedule, timezone);
+  if (schedule.kind === "custom") validateCronSaveSyntax(schedule.expression);
   if (
     schedule.kind === "advanced" &&
     schedule.time.kind === "every" &&
@@ -342,6 +343,28 @@ function parseCron(expression: string): CronSpec {
     parseCronField(values[3], 1, 12, "month"),
     parseCronField(values[4], 0, 6, "weekday", true),
   );
+}
+
+/** Reject tokens the released parser ignores, but keep stored schedules readable. */
+function validateCronSaveSyntax(expression: string): void {
+  const values = expression.trim().split(/\s+/);
+  if (!hasFiveFields(values)) throw new RoutineInputError(sourceText("error.backend.routineCronFields"));
+  const fields = [
+    [values[0], "minute"],
+    [values[1], "hour"],
+    [values[2], "day"],
+    [values[3], "month"],
+    [values[4], "weekday"],
+  ] as const;
+  for (const [source, label] of fields) {
+    for (const segment of source.split(",")) {
+      const parts = segment.split("/");
+      const rangeSource = parts[0] ?? "";
+      if (rangeSource.split("-").includes("") || parts.length > 2) {
+        throw new RoutineInputError(sourceText("error.backend.routineCronValueInvalid", { field: label }));
+      }
+    }
+  }
 }
 
 function hasFiveFields(values: string[]): values is [string, string, string, string, string] {
