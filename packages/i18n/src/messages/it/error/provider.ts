@@ -238,6 +238,8 @@ export const messages = {
     "{provider} non ha accettato il ragionamento precedente in questa chat, perché lo ha ricevuto un altro account o un'altra chiave API. OpenBot ha avviato una nuova sessione di {provider} con la cronologia della chat. Riprova.",
   "error.provider.opencodeSessionRejected":
     "OpenCode ha rifiutato la richiesta senza indicarne la causa. Può succedere in una chat lunga o dopo un cambio di modello. OpenBot ha avviato una nuova sessione OpenCode con la cronologia della chat. Riprova. Se l’errore continua, scegli un altro modello o un impegno minore.",
+  "error.provider.museMcpStartupFault":
+    "Muse non è riuscito ad avviare un server MCP e ha bloccato MCP in questa sessione. OpenBot ha avviato una nuova sessione Muse con la cronologia della chat. Riprova. Se l’errore continua, disattiva Controllo del computer o il server MCP non riuscito per questo agente.",
   "error.provider.grokSignIn": "Esegui `grok login` o imposta XAI_API_KEY per usare Grok.",
   "error.provider.acpSignInTimedOut": "L'accesso è scaduto.",
   "error.provider.acpSignInStopped": "L'accesso si è interrotto prima di essere completato.",

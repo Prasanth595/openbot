@@ -43,6 +43,15 @@ function isRejectedOpenCodeRequest(provider: AgentProvider, message: string): bo
 }
 
 /**
+ * Muse stores a failed MCP startup audit in the session, and `session/resume` cannot clear it. Each
+ * later turn of that session fails in milliseconds, even after the failed server is removed
+ * (#2369). Only a new session, given the OpenBot transcript, recovers.
+ */
+function isMuseMcpStartupFault(provider: AgentProvider, message: string): boolean {
+  return provider === "muse" && /\bMCP startup audit failed\b/i.test(message);
+}
+
+/**
  * The failure to show when the provider refused the session's own history, or null when it did
  * not. Each turn of a refused session fails the same way, so the caller closes the session.
  */
@@ -50,6 +59,7 @@ export function refusedSessionFailure(provider: AgentProvider, message: string):
   if (isForeignReasoningError(message))
     return sourceText("error.provider.foreignReasoning", { provider: providerLabel(provider) });
   if (isRejectedOpenCodeRequest(provider, message)) return sourceText("error.provider.opencodeSessionRejected");
+  if (isMuseMcpStartupFault(provider, message)) return sourceText("error.provider.museMcpStartupFault");
   return null;
 }
 
