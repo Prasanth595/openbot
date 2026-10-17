@@ -25,7 +25,7 @@ import { nullableString, parseBrowserBounds, pathIdentifier, readJson, stringFie
 
 export interface BrowserRouteDependencies {
   browser: TeamApiBrowser;
-  browserView?: TeamApiBrowserView;
+  browserView?: TeamApiBrowserView | undefined;
 }
 
 export async function routeBrowser(

@@ -64,22 +64,22 @@ export interface RemoteHostRequestTransport {
     hostId: string,
     path: string,
     init?: {
-      method?: string;
+      method?: string | undefined;
       body?: unknown;
-      preserveSemanticTags?: boolean;
-      agentCreateModel?: boolean;
-      timeoutMs?: number;
+      preserveSemanticTags?: boolean | undefined;
+      agentCreateModel?: boolean | undefined;
+      timeoutMs?: number | undefined;
     },
   ) => Effect.Effect<unknown, RemoteWorkflowError>;
   requestResponse: (
     hostId: string,
     path: string,
     init?: {
-      method?: string;
+      method?: string | undefined;
       body?: unknown;
-      contentType?: string;
-      preserveSemanticTags?: boolean;
-      timeoutMs?: number;
+      contentType?: string | undefined;
+      preserveSemanticTags?: boolean | undefined;
+      timeoutMs?: number | undefined;
     },
   ) => Effect.Effect<
     {
@@ -285,10 +285,10 @@ export class RemoteServerClient {
 
   /** The negotiated protocol and this app's capabilities, as `requestJson` wants them. */
   requestProtocol(compatibility: ServerCompatibility): {
-    protocol?: number;
-    appVersion?: string;
-    capabilities?: readonly TeamCurrentCapability[];
-    preserveSemanticTags?: boolean;
+    protocol?: number | undefined;
+    appVersion?: string | undefined;
+    capabilities?: readonly TeamCurrentCapability[] | undefined;
+    preserveSemanticTags?: boolean | undefined;
   } {
     const protocol = compatibility.negotiatedProtocol;
     const appVersion = this.#appVersion;

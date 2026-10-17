@@ -15,7 +15,7 @@ interface BrowserPictureInPictureOptions {
   browser: BrowserHost;
   preloadPath: string;
   iconPath: string;
-  developmentUrl?: string;
+  developmentUrl?: string | undefined;
   onEvent: (event: BrowserPictureInPictureEvent) => void;
 }
 

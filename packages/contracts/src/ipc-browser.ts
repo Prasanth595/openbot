@@ -213,7 +213,7 @@ export type BrowserNavigateInput =
 
 export interface BrowserVisibilityInput {
   visible: boolean;
-  bounds?: BrowserBounds;
+  bounds?: BrowserBounds | undefined;
   target?: BrowserViewTarget;
 }
 

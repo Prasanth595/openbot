@@ -27,15 +27,15 @@ import { RemoteProtocolError, RemoteRequestError } from "./remote-server-errors"
 const REMOTE_REQUEST_TIMEOUT_MS = 15_000;
 
 export interface RemoteJsonRequestOptions {
-  method?: string;
+  method?: string | undefined;
   body?: unknown;
-  token?: string;
-  protocol?: number;
-  appVersion?: string;
-  capabilities?: readonly TeamCurrentCapability[];
-  preserveSemanticTags?: boolean;
-  agentCreateModel?: boolean;
-  timeoutMs?: number;
+  token?: string | undefined;
+  protocol?: number | undefined;
+  appVersion?: string | undefined;
+  capabilities?: readonly TeamCurrentCapability[] | undefined;
+  preserveSemanticTags?: boolean | undefined;
+  agentCreateModel?: boolean | undefined;
+  timeoutMs?: number | undefined;
 }
 
 export const requestJson = Effect.fn("RemoteHttp.requestJson")(function* <T>(

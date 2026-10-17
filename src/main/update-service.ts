@@ -93,12 +93,12 @@ interface UpdateServiceOptions {
   enabled: boolean;
   autoDownload: boolean;
   beforeInstall: () => Promise<void>;
-  checkSiblingInstances?: () => Effect.Effect<readonly OpenBotSiblingInstance[], SiblingScanFailed>;
+  checkSiblingInstances?: (() => Effect.Effect<readonly OpenBotSiblingInstance[], SiblingScanFailed>) | undefined;
   /** The uid of this process. It tells a refusal in this account apart from another account. */
-  currentUid?: number;
+  currentUid?: number | undefined;
   platform?: NodeJS.Platform;
   logDirectory?: string;
-  shipItDirectory?: string;
+  shipItDirectory?: string | undefined;
   initialCheckDelayMs?: number;
   checkIntervalMs?: number;
   checkTimeoutMs?: number;

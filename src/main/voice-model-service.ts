@@ -97,7 +97,7 @@ interface VoiceModelServiceOptions {
   modelId?: LocalVoiceModelId;
   directory: string;
   files?: readonly VoiceModelFile[];
-  fetch?: (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
+  fetch?: ((input: string | URL | Request, init?: RequestInit) => Promise<Response>) | undefined;
 }
 
 /** What a verified file looked like, so a later check can skip the hash while nothing changed. */

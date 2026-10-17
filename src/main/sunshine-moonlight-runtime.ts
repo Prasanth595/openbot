@@ -340,7 +340,7 @@ interface SunshineMoonlightRuntimeOptions {
   getDisplays: () => RemoteDesktopDisplay[];
   getIceServers: () => Effect.Effect<RemoteDesktopIceServer[], RemoteDesktopOperationError>;
   spawnProcess?: RemoteRuntimeSpawn;
-  onDiagnostic?: (source: "sunshine" | "moonlight", message: string) => void;
+  onDiagnostic?: ((source: "sunshine" | "moonlight", message: string) => void) | undefined;
   /** Called when Sunshine or Moonlight Web exits after the runtime started. */
   onExit?: (source: "sunshine" | "moonlight") => void;
   allocateSunshineBasePort?: () => Effect.Effect<number, RemoteDesktopOperationError>;

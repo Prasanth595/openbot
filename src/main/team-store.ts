@@ -109,10 +109,12 @@ interface StoredTeam {
   enabledOnLaunch: boolean;
   publicKey: string;
   privateKey: string;
-  serverLogo?: {
-    version: string;
-    mimeType: AvatarImageInput["mimeType"];
-  };
+  serverLogo?:
+    | {
+        version: string;
+        mimeType: AvatarImageInput["mimeType"];
+      }
+    | undefined;
   members: StoredMember[];
   invites: StoredInvite[];
   sessions: StoredSession[];
@@ -961,7 +963,7 @@ export class TeamStore {
       this: TeamStore,
       role: Exclude<TeamRole, "owner">,
       emailInput?: string,
-      options?: { permanent?: boolean },
+      options?: { permanent?: boolean | undefined },
     ): Effect.fn.Return<CreatedInvite, RemoteWorkflowError, TeamStoreFiles> {
       if (role !== "admin" && role !== "member")
         return yield* new RemoteWorkflowError({ cause: new TeamStoreError("Invalid invite role.") });

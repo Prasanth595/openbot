@@ -163,7 +163,7 @@ export interface CuaDriverEndpointInput {
   userDataPath: string;
   temporaryDirectory: string;
   /** `XDG_RUNTIME_DIR`, read on Linux alone. */
-  runtimeDirectory?: string | null;
+  runtimeDirectory?: string | null | undefined;
 }
 
 /**
@@ -224,7 +224,7 @@ export interface CuaDriverCommandAliasInput {
   platform: NodeJS.Platform;
   isPackaged: boolean;
   /** `APPIMAGE`, which only an AppImage run sets. */
-  appImagePath?: string | null;
+  appImagePath?: string | null | undefined;
   userDataPath: string;
 }
 

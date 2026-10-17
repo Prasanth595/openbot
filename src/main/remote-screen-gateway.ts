@@ -75,7 +75,7 @@ interface RemoteScreenGatewayOptions {
   runtimePaths: RemoteDesktopRuntimePaths | null;
   runtimeStateDirectory: string;
   getRuntimeCredentials: () => Effect.Effect<{ username: string; password: string }, RemoteWorkflowError>;
-  getDisplays?: () => RemoteDesktopDisplay[];
+  getDisplays?: (() => RemoteDesktopDisplay[]) | undefined;
   getIceServers: () => Effect.Effect<RemoteDesktopIceServer[], RemoteWorkflowError>;
   createRuntime?: RemoteScreenGatewayCreateRuntime;
   audit?: (event: RemoteScreenAuditEvent) => void;

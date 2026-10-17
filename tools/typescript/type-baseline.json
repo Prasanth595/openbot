@@ -44,8 +44,6 @@
     "src/backend/local-mcp-bridge.ts": 1,
     "src/backend/mcp-probe.ts": 1,
     "src/main/github-mcp-proxy.ts": 2,
-    "src/main/session-configuration.ts": 1,
-    "src/main/team-webrtc-bridge.ts": 3,
     "src/renderer/stories/App.stories.tsx": 1,
     "src/renderer/stories/ChatPrimitives.stories.tsx": 1,
     "src/renderer/stories/ComputerUsePermissionHelp.stories.tsx": 1,

@@ -36,7 +36,7 @@ export function configureContentSecurityPolicy(): void {
 
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     if (details.resourceType !== "mainFrame" || !isTrustedRendererUrl(details.url)) {
-      callback({ responseHeaders: details.responseHeaders });
+      callback(details.responseHeaders === undefined ? {} : { responseHeaders: details.responseHeaders });
       return;
     }
     callback({

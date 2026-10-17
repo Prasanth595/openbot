@@ -72,10 +72,10 @@ export interface RemoteEventCompatibilitySource {
     refresh?: boolean,
   ): Effect.Effect<ServerCompatibility, RemoteWorkflowError>;
   requestProtocol(compatibility: ServerCompatibility): {
-    protocol?: number;
-    appVersion?: string;
-    capabilities?: readonly TeamCurrentCapability[];
-    preserveSemanticTags?: boolean;
+    protocol?: number | undefined;
+    appVersion?: string | undefined;
+    capabilities?: readonly TeamCurrentCapability[] | undefined;
+    preserveSemanticTags?: boolean | undefined;
   };
 }
 

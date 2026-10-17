@@ -354,15 +354,15 @@ export type TeamApiOnePasswordConnector = Pick<
 
 export interface TeamApiOptions {
   /** `events-v1`: admin-only event source and routine management. */
-  events?: HostEventsApi;
-  channels?: ChannelService;
-  mcpServers?: TeamApiMcpServers;
-  mcpSignIns?: TeamApiMcpSignIns;
-  signInRelay?: TeamApiSignInRelay;
-  connectors?: TeamApiConnectors;
-  onePasswordConnector?: TeamApiOnePasswordConnector;
-  providerHostSignIns?: TeamApiProviderHostSignIns;
-  providerAccounts?: TeamApiProviderAccounts;
+  events?: HostEventsApi | undefined;
+  channels?: ChannelService | undefined;
+  mcpServers?: TeamApiMcpServers | undefined;
+  mcpSignIns?: TeamApiMcpSignIns | undefined;
+  signInRelay?: TeamApiSignInRelay | undefined;
+  connectors?: TeamApiConnectors | undefined;
+  onePasswordConnector?: TeamApiOnePasswordConnector | undefined;
+  providerHostSignIns?: TeamApiProviderHostSignIns | undefined;
+  providerAccounts?: TeamApiProviderAccounts | undefined;
   /** Starts and waits for the managed tool runtimes behind the MCP save, enable, and test routes. */
   mcpToolRuntimePreparation?: McpToolRuntimePreparation;
   storage?: TeamApiStorage;
@@ -380,36 +380,36 @@ export interface TeamApiOptions {
    * Waits for the agent initialization in progress. A host that wakes publishes before its agents
    * load, and an empty roster then would tell a peer that the server has no agents.
    */
-  agentsReady?: () => Effect.Effect<void>;
-  skills?: Pick<SkillMarketplaceService, "listInstalledForChatTags">;
-  sidebarLayout?: TeamApiSidebarLayout;
+  agentsReady?: (() => Effect.Effect<void>) | undefined;
+  skills?: Pick<SkillMarketplaceService, "listInstalledForChatTags"> | undefined;
+  sidebarLayout?: TeamApiSidebarLayout | undefined;
   mailbox: TeamApiMailbox;
   browser: TeamApiBrowser;
-  browserView?: TeamApiBrowserView;
-  remoteScreen?: TeamApiRemoteScreen;
+  browserView?: TeamApiBrowserView | undefined;
+  remoteScreen?: TeamApiRemoteScreen | undefined;
   redeemCentralTicket?: (
     ticket: string,
     serverId: string,
   ) => Effect.Effect<CentralAuthUser | null, RemoteWorkflowError>;
-  onPresence?: (snapshot: TeamPresenceSnapshot) => void;
-  chat?: TeamChatStore;
-  onDirectMessage?: (event: DirectMessageRealtimeEvent) => void;
-  onDirectTyping?: (event: DirectTypingRealtimeEvent) => void;
-  createInvite?: OmitThisParameter<HostService["createInvite"]>;
+  onPresence?: ((snapshot: TeamPresenceSnapshot) => void) | undefined;
+  chat?: TeamChatStore | undefined;
+  onDirectMessage?: ((event: DirectMessageRealtimeEvent) => void) | undefined;
+  onDirectTyping?: ((event: DirectTypingRealtimeEvent) => void) | undefined;
+  createInvite?: OmitThisParameter<HostService["createInvite"]> | undefined;
   /**
    * Changes and removes members as the desktop app does. With an OpenBot account, the account
    * directory holds the membership; a change only in the team file has no effect there.
    */
-  updateMember?: OmitThisParameter<HostService["updateMember"]>;
-  removeMember?: OmitThisParameter<HostService["removeMember"]>;
-  onSessionRevoked?: (sessionId: string) => Effect.Effect<void, RemoteWorkflowError>;
+  updateMember?: OmitThisParameter<HostService["updateMember"]> | undefined;
+  removeMember?: OmitThisParameter<HostService["removeMember"]> | undefined;
+  onSessionRevoked?: ((sessionId: string) => Effect.Effect<void, RemoteWorkflowError>) | undefined;
   /** Sends Live Activity updates to members' phones. Absent when this host has no account credential. */
-  liveActivityPush?: LiveActivityPushService;
+  liveActivityPush?: LiveActivityPushService | undefined;
   /** Sends notifications to members' phones. Absent when this host has no account credential. */
-  pushNotifications?: PushNotificationService;
+  pushNotifications?: PushNotificationService | undefined;
   /** `focus-use-v1`: true on a hosted server, where a focused app keeps the server running. */
-  focusUse?: boolean;
-  rateLimitCapacity?: number;
-  now?: () => number;
-  logger?: Logger;
+  focusUse?: boolean | undefined;
+  rateLimitCapacity?: number | undefined;
+  now?: (() => number) | undefined;
+  logger?: Logger | undefined;
 }

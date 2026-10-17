@@ -73,7 +73,7 @@ export interface ConversationPageInfo {
 
 export interface ReadConversationPageInput {
   agentId: string;
-  anchor?: ConversationPageAnchor;
+  anchor?: ConversationPageAnchor | undefined;
   limit?: number;
 }
 

@@ -224,7 +224,7 @@ export type CentralAuthState =
       expiresAt: number;
       resendAvailableAt: number;
       developmentCode?: string;
-      issue?: CentralAuthIssue;
+      issue?: CentralAuthIssue | undefined;
     }
   | { status: "signed_in"; user: CentralAuthUser }
   | { status: "error"; issue: CentralAuthIssue };

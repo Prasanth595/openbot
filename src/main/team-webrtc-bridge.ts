@@ -40,7 +40,7 @@ interface TeamWebRtcBridgeEvents {
 }
 
 interface TeamWebRtcBridgeOptions {
-  developmentUrl?: string | null;
+  developmentUrl?: string | null | undefined;
   preloadPath?: string;
   iceTransportPolicy?: "all" | "relay";
 }
@@ -50,11 +50,19 @@ interface TeamWebRtcBridgeOptions {
 // discriminated Signal union it carries fragments of has already been decoded on the other side.
 // The schema stays zod and stays strict about it: this is the renderer-to-main trust boundary, and
 // the only thing shared with the wire contract is the shape of what crosses it, tied below.
-const iceServerSchema = z.object({
-  urls: z.union([z.string(), z.array(z.string())]),
-  username: z.string().optional(),
-  credential: z.string().optional(),
-}) satisfies z.ZodType<IceServer>;
+const iceServerSchema = z
+  .object({
+    urls: z.union([z.string(), z.array(z.string())]),
+    username: z.string().optional(),
+    credential: z.string().optional(),
+  })
+  .transform(
+    ({ urls, username, credential }): IceServer => ({
+      urls,
+      ...(username === undefined ? {} : { username }),
+      ...(credential === undefined ? {} : { credential }),
+    }),
+  ) satisfies z.ZodType<IceServer>;
 const bridgeMessageSchema = z
   .object({
     type: z.string().optional(),

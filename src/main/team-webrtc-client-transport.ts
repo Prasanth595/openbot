@@ -408,11 +408,11 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
     hostId: string,
     path: string,
     init: {
-      method?: string;
+      method?: string | undefined;
       body?: unknown;
-      preserveSemanticTags?: boolean;
-      agentCreateModel?: boolean;
-      timeoutMs?: number;
+      preserveSemanticTags?: boolean | undefined;
+      agentCreateModel?: boolean | undefined;
+      timeoutMs?: number | undefined;
     } = {},
   ): Effect.fn.Return<TeamProtocolV2Json | undefined, RemoteWorkflowError> {
     return yield* this.#owned(
@@ -427,12 +427,12 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
     hostId: string,
     path: string,
     init: {
-      method?: string;
+      method?: string | undefined;
       body?: unknown;
-      contentType?: string;
-      preserveSemanticTags?: boolean;
-      agentCreateModel?: boolean;
-      timeoutMs?: number;
+      contentType?: string | undefined;
+      preserveSemanticTags?: boolean | undefined;
+      agentCreateModel?: boolean | undefined;
+      timeoutMs?: number | undefined;
     } = {},
   ): Effect.fn.Return<
     {
