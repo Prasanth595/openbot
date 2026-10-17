@@ -15,7 +15,7 @@ afterEach(() => {
 });
 
 interface ReleasedSchema {
-  readonly tag: "v0.1.12" | "v0.1.15" | "v0.2.1";
+  readonly tag: "v0.1.12" | "v0.1.15" | "v0.1.18" | "v0.2.1";
   readonly markers: readonly number[];
 }
 
@@ -25,6 +25,9 @@ const RELEASED_SCHEMAS: readonly ReleasedSchema[] = [
   { tag: "v0.1.12", markers: [3] },
   { tag: "v0.1.15", markers: [4] },
   { tag: "v0.1.15", markers: [3, 4] },
+  // v0.1.18 to v0.2.0 kept version 4 and added the message page index.
+  { tag: "v0.1.18", markers: [4] },
+  { tag: "v0.1.18", markers: [3, 4] },
   { tag: "v0.2.1", markers: [6] },
   { tag: "v0.2.1", markers: [3, 4, 6] },
 ];
