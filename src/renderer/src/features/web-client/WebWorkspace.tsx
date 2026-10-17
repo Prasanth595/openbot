@@ -1946,7 +1946,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   const result = await workspace.runtime.search(id, query);
                   return { messageIds: result.results.map((item) => item.message.id), total: result.total };
                 }}
-                onOpenSearchMessage={(messageId) => workspace.run(() => workspace.openSearchMessage(messageId))}
+                onOpenSearchMessage={workspace.openSearchMessage}
                 onTypingChange={setTyping}
                 onAnswerPrompt={view.answerPrompt}
                 onPromptResolutionPresented={(_agentId, turnId, requestId) =>

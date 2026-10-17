@@ -1570,17 +1570,25 @@ export function createWebWorkspace(
           draft.activeBrowserTabId = tabId;
         });
     },
+    /**
+     * Loads older pages until the message is loaded. It does not go through `run`: another action
+     * would make `run` skip the load, and a jump would then report a message that exists as missing.
+     */
     async openSearchMessage(messageId: string) {
       const id = selectedId;
       const current = generation;
       if (!id) return;
-      while (!state.conversations[id]?.page?.messages.some((message) => message.id === messageId)) {
-        const page = state.conversations[id]?.page;
-        if (!page?.pageInfo.hasOlder || !page.pageInfo.olderCursor) break;
-        const cursor = page.pageInfo.olderCursor;
-        await load(id, true);
-        if (disposed || current !== generation || selectedId !== id) return;
-        if (state.conversations[id]?.page?.pageInfo.olderCursor === cursor) break;
+      try {
+        while (!state.conversations[id]?.page?.messages.some((message) => message.id === messageId)) {
+          const page = state.conversations[id]?.page;
+          if (!page?.pageInfo.hasOlder || !page.pageInfo.olderCursor) break;
+          const cursor = page.pageInfo.olderCursor;
+          await load(id, true);
+          if (disposed || current !== generation || selectedId !== id) return;
+          if (state.conversations[id]?.page?.pageInfo.olderCursor === cursor) break;
+        }
+      } catch (error) {
+        if (current === generation) report(error);
       }
     },
     async approve(input: RespondToApprovalInput) {
