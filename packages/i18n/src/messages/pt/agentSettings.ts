@@ -4,11 +4,11 @@ import type { messages as source } from "../en/agentSettings";
 export const messages = {
   "agentSettings.session.title": "Configurações do provedor",
   "agentSettings.session.readFailed": "Não foi possível ler as configurações do provedor.",
-  "agentSettings.session.pending": "As mudanças salvas valem antes do próximo turno.",
-  "agentSettings.session.unavailable": "O valor salvo {value} não está disponível. Escolha outro valor ou restaure-o.",
+  "agentSettings.session.pending": "As alterações salvas são aplicadas antes do próximo turno.",
+  "agentSettings.session.unavailable": "O valor salvo {value} não está disponível. Escolha outro valor ou redefina-o.",
   "agentSettings.session.effective": "Valor atual do provedor: {value}",
-  "agentSettings.session.reset": "Restaurar configuração",
-  "agentSettings.session.resetNamed": "Restaurar {name}",
+  "agentSettings.session.reset": "Redefinir",
+  "agentSettings.session.resetNamed": "Redefinir {name}",
   "agentSettings.label": "Configurações do agente",
   "agentSettings.title": "Configurações",
   "agentSettings.backToDetails": "Voltar aos detalhes",
@@ -76,27 +76,32 @@ export const messages = {
   "agentSettings.runtime.reasoning": "Raciocínio",
   "agentSettings.runtime.reasoningLabel": "Nível de raciocínio do agente",
   "agentSettings.runtime.selectReasoning": "Selecionar raciocínio",
-  "agentSettings.runtime.reasoningSetByProvider": "Definido pelo {provider}",
+  "agentSettings.runtime.reasoningSetByProvider": "Pelo {provider}",
   "agentSettings.runtime.access": "Acesso",
   "agentSettings.runtime.accessLabel": "Acesso do agente",
   "agentSettings.runtime.busyMessage": "Durante o trabalho",
   "agentSettings.runtime.busyMessageLabel": "Mensagens enquanto o agente trabalha",
+  "agentSettings.runtime.taskLimit": "Tarefas paralelas",
+  "agentSettings.runtime.taskLimitLabel": "Tarefas executadas ao mesmo tempo",
   "agentSettings.runtime.workingDirectory": "Diretório de trabalho",
   "agentSettings.runtime.notAvailable": "Ainda não disponível",
   "agentSettings.runtime.fullAccessNote":
     "O agente tem acesso completo ao computador a partir do seu espaço de trabalho e da pasta compartilhada.",
-  "agentSettings.runtime.claudeApprovalNote":
-    "O Claude age sem pedir aprovação, exceto pelas perguntas que faz a você.",
-  "agentSettings.runtime.providerApprovalNote":
-    "Dependendo do provedor, comandos sensíveis podem pedir aprovação antes de executar.",
-  "agentSettings.access.workspace": "Somente o espaço de trabalho",
+  "agentSettings.runtime.askNote":
+    "Ele pergunta antes de usar uma ferramenta do OpenBot ou publicar um site, e quando o provedor pede aprovação.",
+  "agentSettings.runtime.fullNote": "Ele age sem perguntar, exceto pelas perguntas que faz a você.",
+  "agentSettings.access.workspace": "Espaço de trabalho",
+  "agentSettings.access.ask": "Perguntar antes",
   "agentSettings.access.full": "Acesso completo",
   "agentSettings.busyMessage.appDefaultQueue": "Padrão do app (Fila)",
-  "agentSettings.busyMessage.appDefaultSteer": "Padrão do app (Redirecionar)",
+  "agentSettings.busyMessage.appDefaultSteer": "Padrão do app (Orientar)",
   "agentSettings.busyMessage.queue": "Fila",
-  "agentSettings.busyMessage.steer": "Redirecionar",
+  "agentSettings.busyMessage.steer": "Orientar",
   "agentSettings.busyMessage.steerUnsupported":
-    "{provider} não pode redirecionar um turno em andamento. Mensagens enviadas enquanto ele trabalha esperam na fila.",
+    "{provider} não pode orientar um turno em andamento. As mensagens enviadas enquanto ele trabalha esperam na fila.",
+  "agentSettings.taskLimit.default": "Padrão ({count})",
+  "agentSettings.taskLimit.oneTurn":
+    "{provider} executa um turno por vez. As tarefas e o chat deste agente esperam uns pelos outros.",
   "agentSettings.notifications.title": "Notificações",
   "agentSettings.newChat.title": "Novo chat",
   "agentSettings.newChat.description": "O agente esquece este chat. Sua configuração é mantida.",
@@ -107,10 +112,13 @@ export const messages = {
   "agentSettings.newChat.confirm": "Iniciar novo chat",
   "agentSettings.newChat.failed": "Não foi possível iniciar um novo chat.",
   "agentSettings.fullAccess.title": "Dar acesso completo a este agente?",
+  "agentSettings.fullAccess.askTitle": "Deixar este agente trabalhar fora do espaço de trabalho?",
   "agentSettings.fullAccess.description":
     "O agente poderá ler, alterar e excluir qualquer arquivo acessível à sua conta de usuário, executar qualquer comando e usar a rede. Uma instrução mal interpretada ou uma página da web maliciosa pode atingir seus arquivos pessoais.",
-  "agentSettings.fullAccess.cancel": "Manter somente o espaço de trabalho",
+  "agentSettings.fullAccess.noApproval":
+    "O agente executará comandos, alterará arquivos, usará ferramentas e publicará sites sem perguntar a você antes.",
   "agentSettings.fullAccess.confirm": "Permitir acesso completo",
+  "agentSettings.fullAccess.askConfirm": "Usar Perguntar antes",
   "agentSettings.links.usage": "Uso",
   "agentSettings.links.memories": "Memórias",
   "agentSettings.links.memoriesCount": { one: "{count} salva", other: "{count} salvas" },
@@ -124,16 +132,16 @@ export const messages = {
   "agentSettings.runtime.workspaceNote":
     "Somente o espaço de trabalho limita a gravação ao espaço de trabalho deste agente, à pasta compartilhada e às pastas temporárias. A leitura e a rede continuam disponíveis.",
   "agentSettings.runtime.workspaceEnforcedCommand":
-    "Um comando que precise gravar fora desses locais pede sua aprovação, mesmo com Aprovação automática ativada.",
+    "Um comando que precise gravar fora desses locais pede sua aprovação.",
   "agentSettings.runtime.workspaceEnforcedClaude":
-    "A edição de um arquivo fora desses locais pede sua aprovação, mesmo com Aprovação automática ativada. Um comando não pode gravar fora desses locais.",
+    "A edição de um arquivo fora desses locais pede sua aprovação. Um comando não pode gravar fora desses locais.",
   "agentSettings.runtime.workspaceUnlimited":
     "O Uso do computador e o navegador do OpenBot não são limitados; você pode desativar o Uso do computador abaixo.",
   "agentSettings.computerUse.title": "Uso do computador",
   "agentSettings.computerUse.description": "Permitir que este agente controle aplicativos neste computador",
   "agentSettings.automation.title": "Scripts locais",
   "agentSettings.automation.description":
-    "Permitir que scripts no host enviem mensagens, executem rotinas, respondam perguntas e aceitem ou recusem aprovações",
+    "Permitir que scripts no computador anfitrião enviem mensagens, executem rotinas, respondam perguntas e aceitem ou recusem aprovações",
   "agentSettings.runtime.workspaceEnforcedProcess":
     "Todo o processo do {provider} é executado em um ambiente isolado, por isso a gravação fora desses locais falha. Disponível somente no macOS.",
 } as const satisfies PartialTranslation<typeof source>;

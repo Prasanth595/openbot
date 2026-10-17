@@ -50,11 +50,11 @@ export const messages = {
   "prompt.browser.cancelled": "İptal edildi",
   "prompt.browser.actionRequired": "Eylem gerekiyor",
   "prompt.browser.reload":
-    "Giriş işlemini tamamlayın, ardından “Tamamladım” seçeneğini seçmeden önce tarayıcı sayfasını yenileyin. Sayfa incelemesi, sayfa yeniden yüklenene kadar engellenir.",
+    "Oturum açma işlemini tamamlayın, ardından “Tamamladım” seçeneğini seçmeden önce tarayıcı sayfasını yenileyin. Sayfa incelemesi, sayfa yeniden yüklenene kadar engellenir.",
   "prompt.browser.continuing": "{name} devam ediyor.",
   "prompt.browser.cancelledBody": "Tarayıcı adımı iptal edildi.",
   "prompt.browser.pendingBody":
-    "Giriş yapma, doğrulama veya onayı tamamlamak için sayfayı açın. Ardından {name} ajanının devam etmesine izin verin.",
+    "Oturum açma, doğrulama veya onayı tamamlamak için sayfayı açın. Ardından {name} ajanının devam etmesine izin verin.",
   "prompt.browser.openPage": "{title} sayfasını aç",
   "prompt.browser.returning": "Geri dönülüyor…",
   "prompt.browser.done": "Tamamladım",

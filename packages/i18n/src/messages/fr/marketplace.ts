@@ -38,7 +38,7 @@ export const messages = {
   "marketplace.try.enable": "Activez cette compétence dans les réglages de l’agent pour l’essayer.",
   "marketplace.try.repair": "Réparez cette compétence dans les réglages de l’agent pour l’essayer.",
   "marketplace.try.update": "Mettez à jour cette compétence pour essayer cette version.",
-  "marketplace.try.composerUnavailable": "L’éditeur de l’agent n’est pas disponible.",
+  "marketplace.try.composerUnavailable": "La zone de message de l’agent n’est pas disponible.",
 
   "marketplace.open": "Ouvrir {name}",
   "marketplace.tab.apps": "Apps",
@@ -160,9 +160,9 @@ export const messages = {
   "marketplace.plugin.figma.prompt.assets": "Extrayez les icônes marketing en 2x pour le bundle de l’app.",
   "marketplace.plugin.paper.tagline": "Canevas de design basé sur HTML et CSS",
   "marketplace.plugin.paper.description":
-    "Paper permet aux agents de lire et d’écrire le fichier de design ouvert dans Paper Desktop : inspecter les plans de travail, les sélections, les styles calculés, le JSX et les tokens, et créer ou modifier des cadres, du texte et des styles. Installez Paper Desktop, ouvrez-le une fois et ouvrez un fichier avant de commencer. OpenBot démarre le CLI Paper que Paper Desktop installe. Paper ne demande aucune clé. Les outils d’écriture modifient le fichier ouvert : vérifiez chaque écriture avant de l’approuver.",
+    "Paper permet aux agents de lire et d’écrire le fichier de design ouvert dans Paper Desktop : inspecter les plans de travail, les sélections, les styles calculés, le JSX et les tokens, et créer ou modifier des cadres, du texte et des styles. Installez Paper Desktop, ouvrez-le une fois et ouvrez un fichier avant de commencer. OpenBot démarre la CLI Paper que Paper Desktop installe. Paper ne demande aucune clé. Les outils d’écriture modifient le fichier ouvert : vérifiez chaque écriture avant de l’approuver.",
   "marketplace.plugin.paper.app":
-    "Lit et écrit le fichier Paper Desktop ouvert, via le serveur MCP local que le CLI Paper relaie. Demande Paper Desktop avec un fichier ouvert.",
+    "Lit et écrit le fichier Paper Desktop ouvert, via le serveur MCP local que la CLI Paper relaie. Demande Paper Desktop avec un fichier ouvert.",
   "marketplace.plugin.paper.prompt.implement":
     "Implémentez le cadre Paper sélectionné dans ce code, avec nos conventions de code.",
   "marketplace.plugin.paper.prompt.codeToDesign":
@@ -185,7 +185,7 @@ export const messages = {
   "marketplace.plugin.vercel.app":
     "Projets, déploiements, journaux de build et d’exécution, via le serveur MCP de Vercel avec connexion dans le navigateur.",
   "marketplace.plugin.vercel.prompt.failedBuild": "Pourquoi le dernier déploiement de production a-t-il échoué ?",
-  "marketplace.plugin.vercel.prompt.recentDeployments": "Liste les déploiements d’aujourd’hui et leur statut.",
+  "marketplace.plugin.vercel.prompt.recentDeployments": "Listez les déploiements d’aujourd’hui et leur statut.",
   "marketplace.plugin.vercel.prompt.runtimeErrors":
     "Quelles routes ont eu des erreurs d’exécution au cours de la dernière heure ?",
   "marketplace.plugin.context7.tagline": "Documentation à jour des bibliothèques",

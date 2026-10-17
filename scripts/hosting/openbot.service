@@ -5,6 +5,9 @@
 Description=OpenBot hosted server
 Wants=network-online.target openbot-update-apply.service
 After=network-online.target display-manager.service
+# openbot-boat-pre-stop stops OpenBot before boat saves the disk, and makes this file so that nothing
+# starts it again before the save. /run is empty at each boot.
+ConditionPathExists=!/run/openbot-pre-stop
 
 [Service]
 Type=simple
@@ -16,6 +19,8 @@ Environment=XDG_RUNTIME_DIR=/run/openbot
 # older release moved this one into place; openbot-hosted-update says why.
 ExecStartPre=-+/opt/OpenBot/hosted/openbot-hosted-update trigger
 ExecStart=/opt/OpenBot/hosted/openbot-hosted-server
+# Stops OpenBot before its virtual displays, so that it closes its database first.
+ExecStop=/opt/OpenBot/hosted/openbot-hosted-server --stop
 Restart=always
 RestartSec=10
 TimeoutStopSec=60

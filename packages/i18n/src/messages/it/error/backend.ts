@@ -3,15 +3,16 @@ import type { messages as source } from "../../en/error/backend";
 
 export const messages = {
   "error.backend.eventsUnavailable": "Gli eventi non sono disponibili su questo host.",
+  "error.backend.databaseIntegrity": "Il database di OpenBot non ha superato il controllo di integrità.",
   "error.backend.webhookRouteLimit": "Un host può avere al massimo {limit} routine webhook.",
   "error.backend.webhookSettingsInvalid": "Controlla le impostazioni del webhook e riprova.",
   "error.backend.webhookRouteUnavailable":
     "Il percorso pubblico del webhook non è pronto. Controlla la connessione all'host e riprova.",
-  "error.backend.browserViewRemoteOnly": "La vista live del browser è disponibile solo per un host remoto.",
-  "error.backend.browserViewUnsupported": "Questo host remoto non supporta la vista live del browser.",
+  "error.backend.browserViewRemoteOnly": "La vista in diretta del browser è disponibile solo per un host remoto.",
+  "error.backend.browserViewUnsupported": "Questo host remoto non supporta la vista in diretta del browser.",
   "error.backend.browserViewLimit": "Su questo host ci sono troppe viste del browser aperte.",
-  "error.backend.browserViewEnded": "La vista live di questa pagina è terminata.",
-  "error.backend.browserViewFailed": "La vista live di questa pagina non è riuscita.",
+  "error.backend.browserViewEnded": "La vista in diretta di questa pagina è terminata.",
+  "error.backend.browserViewFailed": "La vista in diretta di questa pagina non è riuscita.",
   "error.backend.windowTemporarilyUnavailable": "La finestra di OpenBot non è al momento disponibile.",
   "error.backend.windowUnavailable": "La finestra di OpenBot non è disponibile.",
   "error.backend.sunshineApiHttp": "L'API di Sunshine ha risposto con errore HTTP {status}.",
@@ -119,8 +120,9 @@ export const messages = {
   "error.backend.fileGone": "Il file non esiste o è già stato eliminato.",
   "error.backend.managedAttachmentChanged": "L'allegato gestito manca o è cambiato: {name}",
   "error.backend.mailboxStateCorrupt":
-    "Lo stato della casella è danneggiato o proviene da una versione più recente di OpenBot; non lo sovrascrivo.",
+    "Lo stato della casella è danneggiato o proviene da una versione più recente di OpenBot; non viene sovrascritto.",
   "error.backend.recipientDeleting": "Il destinatario è in fase di eliminazione. Riprova al termine dell'eliminazione.",
+  "error.backend.recipientHidden": "Questo agente è nascosto. Ripristinalo per inviare messaggi.",
   "error.backend.attachBetween": "Allega da 1 a {limit} file.",
   "error.backend.attachmentNotFile": "L'allegato non è un file: {path}",
   "error.backend.generatedImageTooLarge": "L'immagine generata supera il limite di 100 MB.",
@@ -140,7 +142,7 @@ export const messages = {
   "error.backend.routineAnchorInvalid": "Il punto di riferimento dell'intervallo della routine non è valido.",
   "error.backend.routineNoOccurrence": "La pianificazione non ha nessuna occorrenza nei prossimi cinque anni.",
   "error.backend.routineOncePassed":
-    "L’ora di questa routine singola è già passata. Scegli una data o un’ora successiva.",
+    "L'ora di questa routine singola è già passata. Scegli una data o un'ora successiva.",
   "error.backend.routineTimezoneInvalid": "Il fuso orario della routine non è valido.",
   "error.backend.routineCronFields": "Le pianificazioni personalizzate devono usare cinque campi cron.",
   "error.backend.routineCronValueInvalid": "Il valore cron {field} non è valido.",
@@ -195,7 +197,7 @@ export const messages = {
   "error.backend.mcpSignInAbandoned": "L'accesso MCP è stato abbandonato.",
   "error.backend.mcpSignInNoBrowser": "Questo accesso MCP non può aprire un browser.",
   "error.backend.mcpSignInNotWebPage": "L'indirizzo di accesso non è una pagina web.",
-  "error.backend.mcpSignInRequired": "Questo server richiede l'accesso. Scegli Accedi per continuare nel browser.",
+  "error.backend.mcpSignInRequired": "Questo server richiede l'accesso. Scegli «Accedi» per continuare nel browser.",
   "error.backend.mcpSignInOnHost":
     "Questo server richiede l'accesso. Accedi a questo server in OpenBot sul computer host.",
   "error.backend.mcpSignInNeedsHttps":
@@ -248,7 +250,7 @@ export const messages = {
   "error.backend.promptInactive": "Questo prompt non è più attivo.",
   "error.backend.promptAnswerMismatch": "La risposta al prompt non corrisponde a una domanda attiva.",
   "error.backend.approvalInactive": "Questa approvazione non è più attiva.",
-  "error.backend.takeoverInactive": "Questo controllo del browser non è più attivo.",
+  "error.backend.takeoverInactive": "Questo intervento nel browser non è più attivo.",
   "error.backend.authSubmitting": "L'invio dell'autenticazione è già in corso.",
   "error.backend.authRequestInactive": "Questa richiesta di autenticazione sicura non è più attiva.",
   "error.backend.secureAuthUnavailable": "L'autenticazione sicura non è disponibile.",
@@ -287,4 +289,21 @@ export const messages = {
   "error.backend.mcpSignInAppNoServer":
     "Salva questo server MCP come server con URL prima di aggiungere un'app di accesso.",
   "error.backend.mcpSignInAppUnavailable": "Questo computer non può conservare un'app di accesso.",
+  "error.backend.taskMoveRefused":
+    "Solo un messaggio che hai inviato soltanto a questo agente può essere eseguito come attività.",
+  "error.backend.taskNotFound": "Questa attività non è disponibile.",
+  "error.backend.taskClosed": "Questa attività è chiusa. Riaprila per inviare un messaggio.",
+  "error.backend.taskStillRunning": "Questa attività è ancora in corso. Attendi che si fermi, poi chiudila.",
+  "error.backend.taskTitleRequired": "Dai all'attività un titolo breve.",
+  "error.backend.taskToolInvalid":
+    "Dai all'attività un titolo di al massimo 120 caratteri e una descrizione che dica cosa fare.",
+  "error.backend.taskOwnChatOnly":
+    "Avvia un'attività solo dalla tua chat. Un canale, una conversazione di messaggistica o un'altra attività non possono avviarne una.",
+  "error.backend.taskOpenLimit":
+    "Questo agente ha già {count} attività aperte. Attendi che l'utente ne chiuda una prima di avviare un'altra attività.",
+  "error.backend.taskOpenLimitReached":
+    "Questo agente ha {count} attività aperte. Chiudi un'attività, poi avviane o aprine un'altra.",
+  "error.backend.taskRemoteUnsupported": "Le attività sono disponibili solo per gli agenti su questo computer.",
+  "error.backend.taskStartFailed":
+    "OpenBot non è riuscito ad avviare l'attività. Esegui invece il lavoro in questo turno.",
 } as const satisfies PartialTranslation<typeof source>;

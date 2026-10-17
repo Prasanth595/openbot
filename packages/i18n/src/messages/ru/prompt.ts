@@ -60,6 +60,6 @@ export const messages = {
   "prompt.browser.done": "Готово",
   "prompt.browser.cancelling": "Отмена…",
   "prompt.browser.pageFallback": "Страница браузера",
-  "prompt.browser.hostFallback": "браузере",
+  "prompt.browser.hostFallback": "странице браузера",
   "prompt.inputRequiredAnnouncement": "Нужен ваш ответ. {question}",
 } as const satisfies PartialTranslation<typeof source>;

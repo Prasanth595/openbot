@@ -2,7 +2,7 @@ import type { PartialTranslation } from "../../message";
 import type { messages as source } from "../en/sidebar";
 
 export const messages = {
-  "sidebar.frame.label": "Nawigacja agentów",
+  "sidebar.frame.label": "Nawigacja po agentach",
   "sidebar.nav.label": "Lista czatów",
   "sidebar.nav.freeArea": "Wolny obszar paska bocznego",
   "sidebar.nav.actions": "Akcje paska bocznego",
@@ -48,6 +48,9 @@ export const messages = {
   "sidebar.agentMenu.duplicate": "Duplikuj agenta",
   "sidebar.agentMenu.duplicating": "Duplikowanie…",
   "sidebar.agentMenu.delete": "Usuń agenta",
+  "sidebar.agentMenu.hide": "Ukryj agenta",
+  "sidebar.agentMenu.restore": "Przywróć",
+  "sidebar.agentMenu.restoreTo": "Przywróć do: {section}",
   "sidebar.channelMenu.label": "Akcje kanału",
   "sidebar.channelMenu.edit": "Edytuj kanał",
   "sidebar.channelMenu.delete": "Usuń kanał",
@@ -92,6 +95,15 @@ export const messages = {
   "sidebar.waiting.hint.question": "Wybierz, aby odpowiedzieć",
   "sidebar.waiting.hint.approval": "Wybierz, aby przejrzeć",
   "sidebar.waiting.hint.takeover": "Wybierz, aby przejąć",
+  "sidebar.hidden.title": "Ukryte",
+  "sidebar.hidden.count": { one: "({count})", few: "({count})", many: "({count})", other: "({count})" },
+  "sidebar.hidden.label": {
+    one: "Ukryte, {count} agent",
+    few: "Ukryte, {count} agenty",
+    many: "Ukryte, {count} agentów",
+    other: "Ukryte, {count} agenta",
+  },
+  "sidebar.hidden.since": "Wstrzymany od {date}",
   "sidebar.state.routineFailed": {
     one: "Rutyna nie powiodła się",
     few: "{count} rutyny nie powiodły się",
@@ -118,7 +130,7 @@ export const messages = {
   "sidebar.delete.agentDescription":
     "To usunie agenta i jego rozmowę OpenBot z aplikacji. Jego kolejka, wspomnienia, rutyny i obszar roboczy zostaną usunięte. Historia przechowywana osobno przez połączonego dostawcę CLI nie zostanie usunięta.",
   "sidebar.delete.channelDescription":
-    "To zatrzyma kanał. Jego historia zostanie w sekcji „Usunięte kanały” tylko do podglądu. Nie można go przywrócić. Agenci członkowie zostaną zachowani.",
+    "To zatrzyma kanał. Jego historia zostanie w sekcji „Usunięte kanały” tylko do podglądu. Nie można go przywrócić. Agenci należący do kanału zostaną zachowani.",
   "sidebar.delete.sectionDescription":
     "Agenci z tej sekcji zostaną przeniesieni do „Bez sekcji”. Żaden agent nie zostanie usunięty.",
   "sidebar.delete.failed": "Nie udało się usunąć tego elementu. Spróbuj ponownie.",

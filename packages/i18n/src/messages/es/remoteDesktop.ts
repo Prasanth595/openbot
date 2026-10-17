@@ -44,7 +44,7 @@ export const messages = {
     "Actualiza OpenBot en el host para comprobar los permisos y probar el escritorio remoto.",
   "remoteDesktop.setup.permissions": "Permisos",
   "remoteDesktop.setup.checked": "Comprobado",
-  "remoteDesktop.setup.checkAgain": "Comprobar de nuevo",
+  "remoteDesktop.setup.checkAgain": "Comprobar",
   "remoteDesktop.setup.grantAccess": "Conceder acceso a {name}",
   "remoteDesktop.setup.grant": "Conceder",
   "remoteDesktop.setup.grantHelp":

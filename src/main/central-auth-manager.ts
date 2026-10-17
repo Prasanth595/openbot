@@ -19,7 +19,6 @@ import {
   isMobileConnectHostBinding,
   type MobileConnectHostBinding,
 } from "@openbot/contracts/mobile-connect";
-import type { NotificationRelayPush } from "@openbot/contracts/notification-relay";
 import {
   decodeRemoteSession,
   decodeRemoteSessionTicket,
@@ -62,6 +61,7 @@ import {
   type RemoteInviteRecord,
   type RemoteMemberRecord,
 } from "./central-auth-records";
+import type { NotificationRelayRequest } from "./push-notifications";
 
 interface CentralAuthEvents {
   changed: [state: CentralAuthState];
@@ -842,23 +842,25 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
   ).bind(this);
 
   /**
-   * Sends one notification through the account service to Apple. The host sealed the agent name and
-   * the text with keys that only the phone has. Returns `gone` when the session of the phone ended
-   * or Apple refused the token.
+   * Sends one notification through the account service to Apple for an iPhone, or to Firebase Cloud
+   * Messaging for an Android phone. The host sealed the agent name and the text with keys that only
+   * the phone has. Returns `gone` when the session of the phone ended or Apple or Google refused the
+   * token.
    */
   readonly sendPushNotification = Effect.fn("CentralAuth.sendPushNotification")(
     function* (
       this: CentralAuthManager,
       hostId: string,
-      push: NotificationRelayPush,
+      request: NotificationRelayRequest,
     ): Effect.fn.Return<"sent" | "gone", CentralAuthOperationError, CentralAuthTransport> {
       const machineToken = yield* this.#hostMachineToken(hostId);
+      const route = request.platform === "android" ? "android-notification" : "notification";
       return yield* this.#requestEffect(
-        `/v2/remote/hosts/${encodeURIComponent(hostId)}/notification`,
+        `/v2/remote/hosts/${encodeURIComponent(hostId)}/${route}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ machineToken, ...push }),
+          body: JSON.stringify({ machineToken, ...request.push }),
         },
         () => undefined,
       ).pipe(
@@ -1656,12 +1658,19 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
     decoder: (value: unknown) => T,
     sessionToken?: string,
   ): Effect.fn.Return<T, CentralAuthOperationError, CentralAuthTransport> {
-    const deadline = Date.now() + this.#options.startupRetryWindowMs;
+    let deadline = Date.now() + this.#options.startupRetryWindowMs;
+    // A timer that fires late means a blocked event loop, such as a slow database check at start,
+    // not a slow server. The window counts only the time the loop ran.
+    const excludeBlockedTime = (startedAt: number, expectedMs: number) => {
+      deadline += Math.max(0, Date.now() - startedAt - expectedMs);
+    };
     let retryIndex = 0;
     while (true) {
       const remainingMs = deadline - Date.now();
       if (remainingMs <= 0)
         return yield* new CentralAuthOperationError({ cause: new Error(sourceText("error.auth.serviceUnavailable")) });
+      const timeoutMs = Math.max(1, Math.min(this.#options.startupRequestTimeoutMs, remainingMs));
+      const startedAt = Date.now();
       const result = yield* this.#requestEffect(
         path,
         {
@@ -1669,9 +1678,10 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
           headers: sessionToken ? { ...init.headers, Authorization: `Bearer ${sessionToken}` } : init.headers,
         },
         decoder,
-        Math.max(1, Math.min(this.#options.startupRequestTimeoutMs, remainingMs)),
+        timeoutMs,
       ).pipe(Effect.result);
       if (Result.isSuccess(result)) return result.success;
+      excludeBlockedTime(startedAt, timeoutMs);
       const error = result.failure.cause;
       if (!isTransientStartupError(error)) return yield* result.failure;
       const delayMs = Math.min(
@@ -1679,7 +1689,9 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
         Math.max(0, deadline - Date.now()),
       );
       if (delayMs <= 0) return yield* result.failure;
+      const sleptAt = Date.now();
       yield* Effect.sleep(delayMs);
+      excludeBlockedTime(sleptAt, delayMs);
       retryIndex += 1;
     }
   });

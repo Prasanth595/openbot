@@ -1,4 +1,3 @@
-import { type MenuAction, type MenuComponentRef, MenuView } from "@expo/ui/community/menu";
 import * as Clipboard from "expo-clipboard";
 import { Link, router } from "expo-router";
 import { type ReactNode, useEffect, useRef, useState } from "react";
@@ -14,6 +13,7 @@ import {
   useMobileWorkspaceSelector,
 } from "@/features/workspace/context/mobile-workspace-context";
 import { canToggleAgentPin } from "@/features/workspace/model/agent-pins";
+import { type MenuAction, type MenuComponentRef, MenuView } from "@/shared/components/menu-view";
 import { haptics } from "@/shared/lib/haptics";
 import { currentText, useText } from "@/shared/lib/text";
 
@@ -168,15 +168,15 @@ export function AgentContextMenuLink({
 
 /**
  * The long-press menu of an agent on Android, with the actions of the iOS context menu. It opens when
- * it mounts and calls `onClose` when it closes, so the parent mounts it only while it shows: the
- * Android menu is a Jetpack Compose view, and a long list kept one with every item of the menu for
- * each row. It covers its parent, so the menu opens at the row, as it did around the row.
+ * it mounts and calls `onClose` when it closes, so the parent mounts it only while it shows: a long
+ * list would otherwise keep a menu with every item for each row. It covers its parent, so the menu
+ * opens at the row, as it did around the row.
  */
 export function AgentAndroidMenu({ agent, onClose }: { agent: MobileAgent; onClose: () => void }) {
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
   return (
     <View
-      // The open menu is a popup window. The row under it keeps its touches.
+      // The open menu draws in a portal. The row under it keeps its touches.
       pointerEvents="none"
       style={StyleSheet.absoluteFill}
       onLayout={({ nativeEvent }) => setSize({ width: nativeEvent.layout.width, height: nativeEvent.layout.height })}
@@ -215,22 +215,28 @@ function OpenAgentMenu({
     handleDelete,
   } = useAgentMenuActions(agent);
   const actions: MenuAction[] = [
-    { id: "read", title: t(isUnread ? "mobile.agent.menu.markRead" : "mobile.agent.menu.markUnread") },
+    {
+      id: "read",
+      title: t(isUnread ? "mobile.agent.menu.markRead" : "mobile.agent.menu.markUnread"),
+      image: isUnread ? "envelope.open" : "envelope.badge",
+    },
     {
       id: "pin",
       title: t(isPinned ? "mobile.agent.pin.unpin" : "mobile.agent.pin.pin"),
+      image: isPinned ? "pin.slash" : "pin",
       attributes: { disabled: !canPin },
     },
-    { id: "hide", title: t("mobile.agent.menu.hide") },
+    { id: "hide", title: t("mobile.agent.menu.hide"), image: "eye.slash" },
     ...sectionMenu.androidActions,
-    { id: "info", title: t("mobile.agent.menu.info") },
+    { id: "info", title: t("mobile.agent.menu.info"), image: "info.circle" },
     {
       id: "more",
       title: t("mobile.agent.menu.more"),
+      image: "ellipsis",
       subactions: [
-        { id: "copy", title: t("mobile.agent.menu.copyId") },
-        { id: "duplicate", title: t("mobile.agent.menu.duplicate") },
-        { id: "delete", title: t("common.delete"), attributes: { destructive: true } },
+        { id: "copy", title: t("mobile.agent.menu.copyId"), image: "doc.on.doc" },
+        { id: "duplicate", title: t("mobile.agent.menu.duplicate"), image: "plus.square.on.square" },
+        { id: "delete", title: t("common.delete"), image: "trash", attributes: { destructive: true } },
       ],
     },
   ];

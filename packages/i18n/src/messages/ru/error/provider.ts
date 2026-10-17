@@ -5,7 +5,7 @@ export const messages = {
   "error.provider.mcpConfig":
     "OpenBot не удалось зарегистрировать серверы MCP в конфигурации Codex. Проверьте, что файл config.toml Codex корректен и доступен для записи, затем перезапустите OpenBot.",
   "error.provider.computerUseConfig":
-    "OpenBot не смог зарегистрировать управление компьютером в конфигурации Codex. Убедитесь, что ваш config.toml для Codex корректен и доступен для записи, затем перезапустите OpenBot. Чтобы продолжить без него, отключите управление компьютером в настройках помощника.",
+    "OpenBot не смог зарегистрировать управление компьютером в конфигурации Codex. Убедитесь, что ваш config.toml для Codex корректен и доступен для записи, затем перезапустите OpenBot. Чтобы продолжить без него, отключите управление компьютером в настройках агента.",
   "error.provider.endpointsReadOnly":
     "Сохранённые эндпоинты записаны более новой версией OpenBot, либо файл не читается. Чтобы изменить их, обновите OpenBot.",
   "error.provider.endpointNoSecureStorage":
@@ -149,6 +149,8 @@ export const messages = {
   "error.provider.cliTimedOut": "{provider} не ответил вовремя. Возможно, компьютер занят. OpenBot повторит попытку.",
   "error.provider.cliTimedOutRefresh":
     "{provider} не ответил вовремя. Возможно, компьютер занят. Обновите провайдеров, чтобы повторить попытку.",
+  "error.provider.acpStartTimedOut": "{provider} не завершил запуск за {seconds} с. Возможно, компьютер занят.",
+  "error.provider.acpModelsTimedOut": "{provider} не вывел список моделей за {seconds} с. Возможно, компьютер занят.",
   "error.provider.startStopped":
     "{provider} несколько раз подряд не запустился, поэтому OpenBot перестал пытаться. Обновите провайдеров, чтобы повторить попытку.",
   "error.provider.tempDiskSpace":
@@ -181,7 +183,7 @@ export const messages = {
   "error.provider.opencodeInvalidUpload":
     "Провайдер моделей OpenCode сообщил о некорректном запросе на загрузку. Выберите другую модель и продолжайте. Проверьте сохранённые регулярные задачи, прежде чем создавать их заново.\n{detail}",
   "error.provider.opencodeProviderFailed":
-    "У провайдера моделей произошёл сбой на его стороне. Дело не в вашем соединении. Повторите позже или выберите другую модель.\n{detail}",
+    "У провайдера моделей произошёл сбой на его стороне. Дело не в вашем соединении. Повторите попытку позже или выберите другую модель.\n{detail}",
   "error.provider.opencodeNetwork":
     "OpenCode не смог подключиться к провайдеру моделей. Проверьте сетевое подключение компьютера, где работает OpenBot, и повторите попытку.\n{detail}",
   "error.provider.opencodeNoAnswer":
@@ -229,6 +231,10 @@ export const messages = {
   "error.provider.usageLimitReached": "Аккаунт достиг лимита использования.",
   "error.provider.foreignReasoning":
     "{provider} не принял предыдущие рассуждения в этом чате, потому что их получил другой аккаунт или API-ключ. OpenBot начал новую сессию {provider} с историей чата. Повторите попытку.",
+  "error.provider.opencodeSessionRejected":
+    "OpenCode отклонил запрос и не указал причину. Это может произойти в длинном чате или после смены модели. OpenBot начал новый сеанс OpenCode с историей чата. Повторите попытку. Если ошибка не исчезнет, выберите другую модель или меньший уровень усилий.",
+  "error.provider.museMcpStartupFault":
+    "Muse не удалось запустить сервер MCP, и он заблокировал MCP в этом сеансе. OpenBot начал новый сеанс Muse с историей чата. Повторите попытку. Если ошибка повторяется, отключите Управление компьютером или неисправный сервер MCP для этого агента.",
   "error.provider.grokSignIn": "Выполните `grok login` или задайте XAI_API_KEY, чтобы использовать Grok.",
   "error.provider.acpSignInTimedOut": "Время входа истекло.",
   "error.provider.acpSignInStopped": "Вход прервался, не завершившись.",
@@ -271,14 +277,15 @@ export const messages = {
   "error.provider.customAgentEnvValueMissing": "Введите значение для {name}.",
   "error.provider.off": "{provider} выключен в OpenBot. Сначала включите его в настройках провайдеров.",
   "error.provider.inUse": "{provider} использует агент. Смените его модель, прежде чем выключать этого провайдера.",
-  "error.provider.useBusy": "Дождитесь окончания проверки провайдера или входа и попробуйте ещё раз.",
+  "error.provider.useBusy": "Дождитесь окончания проверки провайдера или входа и повторите попытку.",
   "error.provider.useSettingsReadOnly":
     "Не удаётся прочитать сохранённые настройки провайдеров. Обновите OpenBot, прежде чем их менять.",
   "error.provider.useChangeFailed": "OpenBot не удалось изменить настройку провайдера.",
   "error.provider.accountsUnsupported": "{provider} поддерживает только один аккаунт.",
   "error.provider.accountNeedsConnection": "Подключите {provider}, прежде чем добавлять ещё один аккаунт.",
   "error.provider.accountLimit": "Максимум аккаунтов {provider}: {limit}.",
-  "error.provider.accountNotFound": "Этого аккаунта {provider} нет на этом компьютере. Обновите и попробуйте ещё раз.",
+  "error.provider.accountNotFound":
+    "Этого аккаунта {provider} нет на этом компьютере. Обновите список и повторите попытку.",
   "error.provider.accountAlreadyAdded": "Этот аккаунт {provider} уже подключён.",
   "error.provider.accountDefault": "Первый аккаунт {provider} нельзя удалить.",
   "error.provider.accountInUse": "Агент с этим аккаунтом сейчас работает. Попробуйте ещё раз, когда агент остановится.",

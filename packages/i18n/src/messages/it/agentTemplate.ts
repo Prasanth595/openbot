@@ -16,7 +16,7 @@ export const messages = {
   "agentTemplate.install.description":
     "Leggi le istruzioni, le skill e le routine di questo agente condiviso prima di aggiungerlo.",
   "agentTemplate.install.loading": "Caricamento dell'agente…",
-  "agentTemplate.install.pending": "Aggiunta in corso…",
+  "agentTemplate.install.pending": "Aggiunta…",
   "agentTemplate.install.action": "Aggiungi agente",
   "agentTemplate.install.failed": "Impossibile aggiungere l'agente.",
   "agentTemplate.install.readFailed": "Impossibile leggere l'agente condiviso.",
@@ -28,8 +28,8 @@ export const messages = {
   "agentTemplate.publish.description":
     "Condividi questo agente come modello. Vengono pubblicate le sue istruzioni, skill e routine. I file e le memorie no.",
   "agentTemplate.publish.published": "Pubblicato",
-  "agentTemplate.publish.unpublish": "Annulla la pubblicazione",
-  "agentTemplate.publish.unpublishing": "Annullamento della pubblicazione…",
+  "agentTemplate.publish.unpublish": "Annulla pubblicazione",
+  "agentTemplate.publish.unpublishing": "Annullamento…",
   "agentTemplate.publish.unpublishFailed": "Impossibile annullare la pubblicazione dell'agente.",
   "agentTemplate.publish.lastUpdated": "Ultimo aggiornamento {date}",
   "agentTemplate.publish.context": "Contesto",

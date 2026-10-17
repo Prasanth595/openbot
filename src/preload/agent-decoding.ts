@@ -1,4 +1,9 @@
-import { type AgentSessionSettings, isAgentSessionSettings } from "@openbot/contracts/ipc";
+import {
+  type AgentSessionSettings,
+  type HiddenAgentsSnapshot,
+  isAgentSessionSettings,
+  isHiddenAgentsSnapshot,
+} from "@openbot/contracts/ipc";
 // What main answers for agents: provider status, models, the agents themselves, memories, routines,
 // shared tables and the sidebar layout.
 //
@@ -47,6 +52,7 @@ export const decodeRoutines = guardedListDecoder(isRoutine, "routine list respon
 export const decodeRoutineRun = guardedDecoder(isRoutineRun, "routine run response");
 export const decodeRoutineRuns = guardedListDecoder(isRoutineRun, "routine history response");
 export const decodeAutomationRunCommand = guardedDecoder(isString, "run command response");
+export const decodeSideQuestionAnswer = guardedDecoder(isString, "side question answer");
 export const decodeRoutineCalendar = guardedDecoder(isRoutineCalendar, "routine calendar response");
 export const decodeRoutineFeed = guardedDecoder(isRoutineFeed, "routine feed response");
 
@@ -192,5 +198,10 @@ export function decodeOptionalMemorySelection(value: unknown): AgentMemorySelect
 }
 export function decodeAgentSessionSettingsFromMain(value: unknown): AgentSessionSettings {
   if (!isAgentSessionSettings(value)) throw new Error("Invalid session settings response.");
+  return value;
+}
+
+export function decodeHiddenAgentsFromMain(value: unknown): HiddenAgentsSnapshot {
+  if (!isHiddenAgentsSnapshot(value)) throw new Error("Invalid hidden agents response.");
   return value;
 }

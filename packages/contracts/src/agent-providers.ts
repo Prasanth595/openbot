@@ -98,12 +98,25 @@ export interface AgentProviderDescriptor {
    */
   readonly steer: "native" | "deferred";
   /**
+   * Whether the CLI runs turns of two sessions of one agent at the same time. `false`: the agent runs
+   * one turn at a time, so its tasks and its own chat wait for each other. A custom ACP agent is
+   * `false`, because OpenBot cannot know what the command does with a second prompt.
+   */
+  readonly concurrentTurns: boolean;
+  /**
    * Whether OpenBot can read the plan's remaining usage. `false`: the CLI exposes no usage reading,
    * so the dock says the provider does not report usage instead of waiting for a reading. Declared
    * here because the renderer cannot see the drivers; set it to `true` with a driver's usage read
    * (Codex and Claude read it themselves, Grok and OpenCode through `readRateLimits`).
    */
   readonly reportsUsage: boolean;
+  /**
+   * Whether an agent outside Workspace only can stop and ask before it acts. `false`: the client
+   * allows every tool in full reach (`claude-client.ts` `canUseTool`), so the agent has no "Ask
+   * first" level. Each ACP agent sends `session/request_permission` only when its own CLI decides
+   * to ask.
+   */
+  readonly approvalsInFullAccess: boolean;
 }
 
 /**
@@ -127,7 +140,9 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     skillFolders: [".agents/skills"],
     workspaceEnforcement: "command-sandbox",
     steer: "native",
+    concurrentTurns: true,
     reportsUsage: true,
+    approvalsInFullAccess: true,
   },
   claude: {
     id: "claude",
@@ -145,7 +160,9 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     skillFolders: [".claude/skills"],
     workspaceEnforcement: "tool-sandbox",
     steer: "native",
+    concurrentTurns: true,
     reportsUsage: true,
+    approvalsInFullAccess: false,
   },
   grok: {
     id: "grok",
@@ -163,7 +180,9 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     skillFolders: [".agents/skills"],
     workspaceEnforcement: "confined-process",
     steer: "deferred",
+    concurrentTurns: true,
     reportsUsage: true,
+    approvalsInFullAccess: true,
   },
   opencode: {
     id: "opencode",
@@ -183,7 +202,9 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     skillFolders: [".opencode/skills", ".agents/skills", ".claude/skills"],
     workspaceEnforcement: "confined-process",
     steer: "deferred",
+    concurrentTurns: true,
     reportsUsage: true,
+    approvalsInFullAccess: true,
   },
   // Google moved Google AI Pro and Ultra accounts from Gemini CLI to Antigravity on 18 June 2026,
   // so the plan runs through Google's Antigravity ACP server. The account and the models are Gemini.
@@ -203,7 +224,9 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     skillFolders: [".gemini/skills", ".agents/skills"],
     workspaceEnforcement: "confined-process",
     steer: "deferred",
+    concurrentTurns: true,
     reportsUsage: false,
+    approvalsInFullAccess: true,
   },
   // The Cursor CLI (`cursor-agent acp`) with the user's Cursor plan. Sign-in is the ACP
   // `cursor_login` method, which opens a browser. `CURSOR_API_KEY` in the environment also signs in.
@@ -223,7 +246,9 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     skillFolders: [".cursor/skills", ".claude/skills", ".agents/skills"],
     workspaceEnforcement: "confined-process",
     steer: "deferred",
+    concurrentTurns: true,
     reportsUsage: false,
+    approvalsInFullAccess: true,
   },
   // The Cline CLI (`cline --acp`). Sign-in is the ACP `cline` method, which opens a browser. A Cline
   // account runs the free models; `CLINE_API_KEY` in the environment also signs in.
@@ -243,7 +268,9 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     skillFolders: [".cline/skills", ".clinerules/skills", ".agents/skills"],
     workspaceEnforcement: "confined-process",
     steer: "deferred",
+    concurrentTurns: true,
     reportsUsage: false,
+    approvalsInFullAccess: true,
   },
   pi: {
     id: "pi",
@@ -261,7 +288,9 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     skillFolders: [".agents/skills"],
     workspaceEnforcement: "confined-process",
     steer: "native",
+    concurrentTurns: true,
     reportsUsage: false,
+    approvalsInFullAccess: true,
   },
   muse: {
     id: "muse",
@@ -279,7 +308,9 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     skillFolders: [".agents/skills"],
     workspaceEnforcement: "confined-process",
     steer: "native",
+    concurrentTurns: true,
     reportsUsage: true,
+    approvalsInFullAccess: true,
   },
   // One provider for every Agent Client Protocol agent the user adds by command. The model id names
   // the agent (`<customAgentId>/<agentModel>`), so one provider row serves them all and the shipped
@@ -300,7 +331,9 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     skillFolders: [".agents/skills"],
     workspaceEnforcement: "confined-process",
     steer: "deferred",
+    concurrentTurns: false,
     reportsUsage: false,
+    approvalsInFullAccess: true,
   },
 } as const satisfies Record<AgentProviderId, AgentProviderDescriptor>;
 

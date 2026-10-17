@@ -5,10 +5,10 @@ export const messages = {
   "update.action.check": "Rechercher des mises à jour",
   "update.action.checking": "Recherche de mises à jour…",
   "update.action.download": "Télécharger la mise à jour",
-  "update.action.downloading": "Téléchargement de la mise à jour…",
-  "update.action.restart": "Redémarrer pour mettre à jour",
+  "update.action.downloading": "Téléchargement…",
+  "update.action.restart": "Installer et redémarrer",
   "update.action.restarting": "Redémarrage…",
-  "update.action.retryDownload": "Relancer le téléchargement",
+  "update.action.retryDownload": "Retélécharger",
   "update.managedByHost": "Géré par l’hôte",
   "update.upToDate": "À jour",
 
@@ -62,6 +62,6 @@ export const messages = {
   "update.whatsNew.empty.title": "Aucune nouvelle fonctionnalité dans cette version",
   "update.whatsNew.empty.body":
     "Cette version n’a aucune note à afficher ici. Le journal des modifications complet affiche toutes les modifications.",
-  "update.whatsNew.changelog": "Journal des modifications complet",
+  "update.whatsNew.changelog": "Journal complet",
   "update.whatsNew.done": "Compris",
 } as const satisfies PartialTranslation<typeof source>;

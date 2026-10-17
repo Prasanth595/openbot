@@ -87,9 +87,9 @@ export const messages = {
   "chat.usageLimit.title": "Osiągnięto limit użycia dostawcy {provider}",
   "chat.usageLimit.onHold": "Wiadomość wstrzymana",
   "chat.usageLimit.bodyReset":
-    "Twoja wiadomość jeszcze się nie zaczęła. Wyślij ją teraz do innego modelu albo poczekaj do {reset}.",
+    "Praca nad twoją wiadomością jeszcze się nie zaczęła. Wyślij ją teraz do innego modelu albo poczekaj do {reset}.",
   "chat.usageLimit.body":
-    "Twoja wiadomość jeszcze się nie zaczęła. Wyślij ją teraz do innego modelu albo poczekaj, aż limit się skończy.",
+    "Praca nad twoją wiadomością jeszcze się nie zaczęła. Wyślij ją teraz do innego modelu albo poczekaj, aż limit się skończy.",
   "chat.usageLimit.sendTo": "Wyślij do",
   "chat.usageLimit.remember": "Następnym razem przełącz bez pytania",
   "chat.usageLimit.wait": "Poczekaj na reset",
@@ -231,6 +231,10 @@ export const messages = {
   },
   "chat.newMessages.scrollToLatest": "Przewiń do najnowszej wiadomości",
   "chat.newMessages.dismiss": "Ukryj licznik nowych wiadomości",
+  "chat.reply.showOriginal": "Pokaż oryginalną wiadomość",
+  "chat.reply.originalUnavailable": "Oryginalna wiadomość jest niedostępna",
+  "chat.reply.back": "Wróć do odpowiedzi",
+  "chat.reply.stay": "Zostań tutaj",
   "chat.unread.marking": "Oznaczanie…",
   "chat.unread.markRead": "Oznacz jako przeczytane",
   "chat.unread.dividerLabel": "Nowe wiadomości",
@@ -351,5 +355,5 @@ export const messages = {
   "chat.compaction.completed": "Skompaktowano kontekst",
   "chat.compaction.failed": "Nie udało się skompaktować kontekstu",
   "chat.compaction.tokens": "{before} → {after} tokenów",
-  "chat.compaction.continues": "Wiadomości w kolejce będą kontynuowane.",
+  "chat.compaction.continues": "Wiadomości z kolejki są dalej przetwarzane.",
 } as const satisfies PartialTranslation<typeof source>;

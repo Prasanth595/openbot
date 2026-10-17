@@ -1,21 +1,25 @@
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import {
-  type AgentAccess,
   type AvatarHue,
+  agentPermissionLevel,
+  canAdministerServer,
   DEFAULT_PROVIDER_ACCOUNT_ID,
   type HostProviderAccounts,
   type UpdateAgentInput,
 } from "@openbot/contracts/ipc";
-import type { MobileTextKey } from "@openbot/i18n/mobile";
 import { useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { Pencil } from "lucide-react-native";
+import Pencil from "lucide-react-native/icons/pencil";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, View } from "react-native";
-import { AgentAccessFields, useAgentAdminSettings } from "@/features/agents/components/agent-access-fields";
+import {
+  AgentAccessFields,
+  PERMISSION_LABEL,
+  useAgentAdminSettings,
+} from "@/features/agents/components/agent-access-fields";
 import { AgentAppearancePicker } from "@/features/agents/components/agent-appearance-picker";
 import { AgentNewChatSection, AgentNotificationsRow } from "@/features/agents/components/agent-chat-settings";
 import { AgentBusyMessageField, AgentHostPermissionFields } from "@/features/agents/components/agent-host-fields";
@@ -32,6 +36,7 @@ import {
   type MobileServer,
   useMobileWorkspace,
 } from "@/features/workspace/context/mobile-workspace-context";
+import { showsOnline } from "@/features/workspace/model/server-status";
 import { SheetFormField } from "@/shared/components/sheet-form-field";
 import { SheetSaveAction } from "@/shared/components/sheet-save-action";
 import { SheetScrollView } from "@/shared/components/sheet-scroll-view";
@@ -42,11 +47,6 @@ type AgentEdits = Pick<
   UpdateAgentInput,
   "name" | "title" | "description" | "avatarSeed" | "avatarHue" | "provider" | "model" | "reasoningEffort"
 >;
-
-const ACCESS_LABEL = {
-  workspace: "mobile.agent.access.workspace",
-  full: "mobile.agent.access.full",
-} as const satisfies Record<AgentAccess, MobileTextKey>;
 
 type AgentPage =
   | "info"
@@ -76,9 +76,7 @@ export function EditAgentScreen({ page = "info" }: { page?: AgentPage }) {
   if (agent) lastAgent.current = agent;
   const displayed = agent ?? lastAgent.current;
   if (displayed) {
-    return (
-      <AgentForm agent={displayed} host={host} available={Boolean(agent && host?.state === "online")} page={page} />
-    );
+    return <AgentForm agent={displayed} host={host} available={Boolean(agent && showsOnline(host))} page={page} />;
   }
   return (
     <SheetScrollView className="bg-sheet" contentContainerClassName="p-5 pb-safe-offset-5">
@@ -344,7 +342,7 @@ function AgentForm({
       ) : null}
       {page === "runtime" ? (
         <AgentRuntimeFields
-          agent={agent}
+          serverId={agent.serverId}
           available={available}
           saving={saving}
           provider={provider}
@@ -503,7 +501,7 @@ function AgentForm({
               </SettingsRow>
             ) : null}
           </SettingsSection>
-          {host && host.role !== "member" ? (
+          {host && canAdministerServer(host.role) ? (
             <AgentSessionSettingsSection key={`${agent.serverId}:${agent.id}`} agent={agent} available={available} />
           ) : null}
           {showPermissions || showNotifications || showAdvanced ? (
@@ -513,7 +511,7 @@ function AgentForm({
             >
               {showPermissions ? (
                 <SettingsRow
-                  supportingText={adminSettings ? t(ACCESS_LABEL[adminSettings.access]) : undefined}
+                  supportingText={adminSettings ? t(PERMISSION_LABEL[agentPermissionLevel(adminSettings)]) : undefined}
                   onPress={() =>
                     router.push({
                       pathname: "/agent-info/[agentId]/permissions",

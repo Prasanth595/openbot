@@ -5,7 +5,7 @@ export const messages = {
   // The listing: categories, rows, and the words for each kind of listing.
   "marketplace.category.coding": "Kodlama",
   "marketplace.category.design": "Tasarım",
-  "marketplace.category.dataAnalytics": "Veri ve Analitik",
+  "marketplace.category.dataAnalytics": "Veri ve analitik",
   "marketplace.category.documents": "Belgeler",
   "marketplace.category.productivity": "Verimlilik",
   "marketplace.category.research": "Araştırma",
@@ -62,8 +62,8 @@ export const messages = {
   "marketplace.filter.category": "Kategori",
   "marketplace.filter.added": "Eklendi",
   "marketplace.filter.notAdded": "Eklenmedi",
-  "marketplace.filter.installed": "Kuruldu",
-  "marketplace.filter.notInstalled": "Kurulmadı",
+  "marketplace.filter.installed": "Kurulu",
+  "marketplace.filter.notInstalled": "Kurulu değil",
   "marketplace.filter.clear": "Filtreleri temizle",
   "marketplace.noMatch.apps": "Bu aramayla eşleşen uygulama yok.",
   "marketplace.noMatch.filters": "Filtrelerle eşleşen öğe yok.",
@@ -92,7 +92,7 @@ export const messages = {
 
   // Agents.
   "marketplace.agent.add": "Ekle",
-  "marketplace.agent.addNamed": "{name} ekle",
+  "marketplace.agent.addNamed": "Ekle: {name}",
   "marketplace.agent.addAgent": "Ajan ekle",
   "marketplace.agent.added": "Eklendi",
   "marketplace.agent.updateAvailable": "Güncelleme mevcut",
@@ -101,26 +101,26 @@ export const messages = {
 
   // Apps.
   "marketplace.app.connect": "Bağlan",
-  "marketplace.app.reconnect": "Yeniden Bağlan",
+  "marketplace.app.reconnect": "Yeniden bağlan",
   "marketplace.app.connectNamed": "{name} uygulamasına bağlan",
   "marketplace.app.reconnectNamed": "{name} uygulamasına yeniden bağlan",
   "marketplace.app.connected": "Bağlandı",
-  "marketplace.app.attention": "İlgilenilmesi gerekiyor",
+  "marketplace.app.attention": "Dikkat gerekiyor",
   "marketplace.app.notConnected": "Bağlı değil",
   "marketplace.app.custom": "MCP sunucusu",
   "marketplace.app.githubTagline": "Depolar, sorunlar ve çekme istekleri",
   "marketplace.app.onePasswordTagline": "Paylaştığınız oturum bilgileriyle sitelerde oturum açın",
   // The category row in the 1Password page's information.
-  "marketplace.app.onePasswordCategory": "Oturum Açma ve Kimlik Bilgisi Yönetimi",
+  "marketplace.app.onePasswordCategory": "Oturum açma ve kimlik bilgisi yönetimi",
   "marketplace.app.yourApps": "Uygulamalarınız",
   "marketplace.app.moreApps": "Daha fazla uygulama",
   "marketplace.app.server": "Sunucu",
   "marketplace.app.command": "Komut",
   "marketplace.app.address": "Adres",
-  "marketplace.app.disconnect.title": "Bağlantıyı Kes",
+  "marketplace.app.disconnect.title": "Bağlantıyı kes",
   "marketplace.app.disconnect.description":
     "{name} uygulamasını ve becerilerini bu bilgisayardan kaldırın. Daha sonra tekrar bağlayabilirsiniz.",
-  "marketplace.app.disconnect.action": "Bağlantıyı Kes",
+  "marketplace.app.disconnect.action": "Bağlantıyı kes",
   "marketplace.app.remove.title": "Sunucuyu kaldır",
   "marketplace.app.remove.description": "Ajanlarınız artık bu sunucuyu kullanamaz. Ayarları silinir.",
   "marketplace.app.remove.action": "Kaldır",
@@ -179,9 +179,9 @@ export const messages = {
   "marketplace.plugin.figma.prompt.assets": "Pazarlama simgelerini uygulama paketi için 2x boyutunda dışa aktar.",
   "marketplace.plugin.paper.tagline": "HTML ve CSS üzerine kurulu tasarım tuvali",
   "marketplace.plugin.paper.description":
-    "Paper, ajanların Paper Desktop'ta açık olan tasarım dosyasını okuyup yazmasına olanak tanır: çizim yüzeylerini, seçimleri, hesaplanan stilleri, JSX'i ve token'ları inceler; çerçeveler, metinler ve stiller oluşturur veya değiştirir. Başlamadan önce Paper Desktop'u yükleyin, bir kez açın ve bir dosya açın. OpenBot, Paper Desktop'un yüklediği Paper CLI'ı başlatır. Paper anahtar gerektirmez. Yazma araçları açık dosyayı değiştirir, bu yüzden her yazmayı onaylamadan önce inceleyin.",
+    "Paper, ajanların Paper Desktop'ta açık olan tasarım dosyasını okuyup yazmasına olanak tanır: çizim yüzeylerini, seçimleri, hesaplanan stilleri, JSX'i ve token'ları inceler; çerçeveler, metinler ve stiller oluşturur veya değiştirir. Başlamadan önce Paper Desktop'u yükleyin, bir kez açın ve bir dosya açın. OpenBot, Paper Desktop'un yüklediği Paper CLI'yi başlatır. Paper anahtar gerektirmez. Yazma araçları açık dosyayı değiştirir, bu yüzden her yazmayı onaylamadan önce inceleyin.",
   "marketplace.plugin.paper.app":
-    "Açık Paper Desktop dosyasını, Paper CLI'ın aktardığı yerel MCP sunucusu üzerinden okur ve yazar. Bir dosyası açık Paper Desktop gerektirir.",
+    "Açık Paper Desktop dosyasını, Paper CLI'nin aktardığı yerel MCP sunucusu üzerinden okur ve yazar. Bir dosyası açık Paper Desktop gerektirir.",
   "marketplace.plugin.paper.prompt.implement":
     "Seçili Paper çerçevesini bu kod tabanında, kod kurallarımıza uygun olarak uygula.",
   "marketplace.plugin.paper.prompt.codeToDesign":
@@ -236,7 +236,7 @@ export const messages = {
   "marketplace.plugin.airtable.prompt.bases": "Hangi tabanlara erişimim var?",
   "marketplace.plugin.airtable.prompt.records": "Lansman takip tablosunu özetle.",
   "marketplace.plugin.airtable.prompt.update":
-    "Yol haritası tabanında yayınlanan özellikleri tamamlandı olarak işaretle.",
+    "Yol haritası tabanında yayımlanan özellikleri tamamlandı olarak işaretle.",
   "marketplace.plugin.firecrawl.tagline": "Web'den veri çıkarma ve arama",
   "marketplace.plugin.firecrawl.description":
     "Firecrawl, ajanların tek bir API üzerinden sayfaları kazımasına, yapılandırılmış veri çıkarmasına ve web'de arama yapmasına olanak tanır. Firecrawl panosundaki API anahtarı yerel sunucuya tek bir ortam değişkeni olarak aktarılır.",
@@ -245,7 +245,7 @@ export const messages = {
   "marketplace.plugin.firecrawl.prompt.scrape": "Bu sayfadaki fiyat tablosunu yapılandırılmış veri olarak çıkar.",
   "marketplace.plugin.firecrawl.prompt.research": "Rakiplerin fiyatlarını araştır ve her kaynak sayfayı belirt.",
   "marketplace.plugin.firecrawl.prompt.monitor": "Bu ay değişiklik günlüğü sayfamızda ne değişti?",
-  "marketplace.plugin.braveSearch.tagline": "Gizli web araması",
+  "marketplace.plugin.braveSearch.tagline": "Gizlilik odaklı web araması",
   "marketplace.plugin.braveSearch.description":
     "Brave Search, ajanların izleme olmadan web'de ve yerel sonuçlarda arama yapmasına olanak tanır. Brave Search API panosundaki API anahtarı yerel sunucuya tek bir ortam değişkeni olarak aktarılır.",
   "marketplace.plugin.braveSearch.app": "Web ve yerel arama, Brave API anahtarıyla yerel bir MCP sunucusu üzerinden.",
@@ -272,7 +272,7 @@ export const messages = {
 
   // Skills. {label} is the install button text: an agent name, "All agents" or "2 agents".
   "marketplace.skill.installMenu.install": "Kur",
-  "marketplace.skill.installMenu.installNamed": "{name} kur",
+  "marketplace.skill.installMenu.installNamed": "Kur: {name}",
   "marketplace.skill.installMenu.allAgents": "Tüm ajanlar",
   "marketplace.skill.installMenu.agents": {
     one: "{count} ajan",
@@ -311,7 +311,7 @@ export const messages = {
   "marketplace.error.installLocalOnHost":
     "{name} uygulamasını bu ajanları çalıştıran bilgisayara yükleyin: uygulaması sunucusunu o bilgisayarda çalıştırır.",
   "marketplace.error.installOnHost":
-    "{name} uygulamasını bu ajanları çalıştıran bilgisayara yükleyin: uygulaması bir tarayıcı girişi gerektirir.",
+    "{name} uygulamasını bu ajanları çalıştıran bilgisayara yükleyin: uygulaması tarayıcıda oturum açmayı gerektirir.",
   "marketplace.error.appInvalid": "{name} eklenemiyor: {reason}",
   "marketplace.error.uninstallNoServer": "Bir eklentiyi kaldırmak için yerel bir sunucu seçin.",
   "marketplace.error.uninstallPartial": "{name} uygulamasının bazı kısımları kaldırılamadı. {failures}",

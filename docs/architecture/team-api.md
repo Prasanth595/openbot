@@ -29,7 +29,14 @@ peer renews its Signal socket and restarts ICE; a host that dropped the connecti
 fingerprint, and the peer fails at once instead of after a read timeout. A connection that is lost
 while a return checks it is replaced at once, with no countdown, as when the check fails. After 160 s Signal has told
 the host to drop the connection (120 s socket idle timeout, then 30 s), so the peer is replaced on the
-same session at once, without a resume hello, and the first attempt shows Connecting. Canceled reads
+same session at once, without a resume hello, and the first attempt connects. A server that was
+Online when the app left keeps its Online look during the first attempt after the return, for up to
+5 s (`QUIET_RESUME_MS` in `server-connection.tsx`): the server is `resuming`, `showsOnline` is
+true, and no reconnect status, faded avatars or faded chat show. A workspace request to a resuming
+server waits for Online instead of failing; it fails when an attempt fails, when the app leaves, or
+when the server goes. The outbox, the queue, history reloads and the browser view still read the
+live `state`. A failed attempt, a cooldown, a protocol stop or the end of the 5 s shows the normal
+reconnect status. A server that was not Online when the app left shows its status at once. Canceled reads
 and event resets request data synchronization without showing a reconnect on a healthy connection. Invite selection and manual refresh reuse the same controller. A transient RTC
 disconnected state has a 15-second recovery window, including on resume; failed or closed states
 drive recovery immediately. Signal's `rate_limited`, or a close with code 1008 and no error frame,
@@ -72,8 +79,12 @@ iOS `inactive` transitions, including Notification Center, do not trigger a chec
 Session revocation, explicit refresh,
 and completed invitation acceptance can refresh sooner. A lost healthy connection also requests
 membership reconciliation; a transport failure alone never removes a server. Mobile member controls
-use the same account endpoints: owners and admins can invite, while only owners can change another
-member's role or remove access. D1 retains revoked membership records and invalidates affected
+use the same account endpoints: owners and admins invite, change another member's role, remove access
+and end another member's session. Nobody can change or remove the owner, and only the owner ends the
+owner's sessions. `canAdministerServer` in `packages/contracts/src/ipc-team-host.ts` is the one role
+check for the clients and the host. On a host with an account directory, the Team API member `PATCH`
+and `DELETE` write to D1 through `HostService`, so the next directory sync does not undo them; each
+sync closes the host sessions of a member that D1 removed, disabled or gave another role. D1 retains revoked membership records and invalidates affected
 sessions; both clients exclude inactive members from the active list and count. On legacy HTTP(S)
 hosts, desktop exposes inactive records separately for removal before a new invitation; it does not
 restore the pause/restore controls or change the released invitation rules. Mobile separates shareable
@@ -120,7 +131,11 @@ The one exception is development builds: `bun run dev:mobile` opens the link wit
 and a `__DEV__` build redeems it without confirmation only when its account service is a loopback
 or private-network `http:` origin. Release builds always use the confirmed flow.
 Plugin links open their validated public page in the in-app browser. Unsupported links show a
-safe fallback. Permanent invitation metadata comes from the shared Team client; revocation stops
+safe fallback. A share from another app opens `openbot://expo-sharing` (the iOS share extension or an
+Android share intent of `expo-sharing`); the share waits in native storage through sign-in. The share
+sheet moves its files into the app cache, the user chooses an agent, and that chat's composer gets the
+text and files, which follow the attachment rules above. The phone reads the response headers of a
+shared link; a link to an image of at most 10 MB is downloaded and comes as a file instead of the link. Permanent invitation metadata comes from the shared Team client; revocation stops
 new joins without removing existing members.
 iOS associates only `https://openbot.run/join` with `run.openbot.mobile`. Changes to associated
 domains require a new native app build and deployment of the website association file. Android

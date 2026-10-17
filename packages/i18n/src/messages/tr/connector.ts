@@ -6,13 +6,13 @@ export const messages = {
   "connector.github.title": "GitHub",
   "connector.github.description":
     "Bu bilgisayardaki her ajan GitHub depolarınızı, sorunlarınızı (issues), çekme isteklerinizi (pull requests), gh ve git araçlarını kullanabilir.",
-  "connector.github.connect": "GitHub'a Bağlan",
+  "connector.github.connect": "GitHub'a bağlan",
   "connector.github.pendingTitle": "Bu kodu GitHub'a yazın",
   "connector.github.pendingDescription": "GitHub tarayıcınızda açıldı. Bağlanmak için kodu oraya yazın.",
   "connector.github.waiting": "GitHub bekleniyor",
   "connector.github.copyCode": "Kodu kopyala",
   "connector.github.codeCopied": "Kopyalandı",
-  "connector.github.openGitHub": "GitHub'ı Aç",
+  "connector.github.openGitHub": "GitHub'ı aç",
   "connector.github.cancel": "İptal",
   "connector.github.connectedAs": "@{login} olarak bağlandı",
   "connector.github.repositoriesTitle": "Depolar",
@@ -28,13 +28,13 @@ export const messages = {
     other: "Ve {count} depo daha",
   },
   // Yalnızca üyelerinin görebileceği bir deponun yanındaki rozet.
-  "connector.github.private": "Gizli",
-  "connector.github.disconnect": "Bağlantıyı Kes",
-  "connector.github.disconnectTitle": "GitHub Bağlantısını Kes",
+  "connector.github.private": "Özel",
+  "connector.github.disconnect": "Bağlantıyı kes",
+  "connector.github.disconnectTitle": "GitHub bağlantısını kes",
   "connector.github.disconnectSummary": "Tüm ajanlar GitHub erişimini kaybeder. Sohbetleriniz ve dosyalarınız kalır.",
   "connector.github.expiredTitle": "GitHub bağlantısının süresi doldu",
   "connector.github.expiredDescription": "Ajanlara yeniden GitHub erişimi vermek için @{login} olarak tekrar bağlanın.",
-  "connector.github.reconnect": "Yeniden Bağlan",
+  "connector.github.reconnect": "Yeniden bağlan",
   "connector.github.actionFailed": "OpenBot GitHub bağlantısını değiştiremedi.",
   // GitHub sayfasının üst kısmındaki adın yanındaki durum.
   "connector.github.statusConnected": "Bağlandı",
@@ -51,7 +51,7 @@ export const messages = {
   // {query} kullanıcının filtreye yazdığı metindir.
   "connector.github.noMatch": "“{query}” ile eşleşen depo bulunamadı.",
   // Bağlanma iletişim kutusu. Adımlar sayı olarak gösterilir; ekran okuyucular adları okur.
-  "connector.github.stepSignIn": "Giriş yap",
+  "connector.github.stepSignIn": "Oturum aç",
   "connector.github.stepConnected": "Bağlandı",
   "connector.github.requestingCode": "OpenBot GitHub'dan bir kod istiyor.",
   // {code} GitHub'a yazılacak koddur (örneğin WDJB-MJHT).
@@ -70,7 +70,7 @@ export const messages = {
   "connector.github.disconnectConfirmDescription": "Bağlantıyı kesmek @{login} oturumunu bu bilgisayardan kaldırır.",
   "connector.github.disconnectEffectTools": "Tüm ajanlar GitHub araçlarını, gh ve git erişimini kaybeder.",
   "connector.github.disconnectEffectRevoke": "Ardından OpenBot yetkisini kaldırabileceğiniz GitHub açılır.",
-  "connector.github.disconnectEffectKept": "Sohbetler, dosyalar ve ajan hafızası bu bilgisayarda kalır.",
+  "connector.github.disconnectEffectKept": "Sohbetler, dosyalar ve ajan belleği bu bilgisayarda kalır.",
   // The same text for the connection of a joined server. {host} is the server name, such as Studio.
   "connector.github.descriptionHost":
     "{host} sunucusundaki her ajan GitHub depolarınızı, sorunlarınızı (issues), çekme isteklerinizi (pull requests), gh ve git araçlarını kullanabilir.",
@@ -80,8 +80,8 @@ export const messages = {
   },
   "connector.github.disconnectConfirmDescriptionHost":
     "Bağlantıyı kesmek @{login} oturumunu {host} sunucusundan kaldırır.",
-  "connector.github.disconnectEffectKeptHost": "Sohbetler, dosyalar ve ajan hafızası {host} sunucusunda kalır.",
-  "connector.github.keepConnected": "Bağlı kal",
+  "connector.github.disconnectEffectKeptHost": "Sohbetler, dosyalar ve ajan belleği {host} sunucusunda kalır.",
+  "connector.github.keepConnected": "Bağlı tut",
   "connector.github.close": "Kapat",
   // Bir entegrasyon sayfasının onu kaldıran eylemi içeren son bölümü.
   "connector.dangerZone": "Tehlikeli bölge",
@@ -105,31 +105,31 @@ export const messages = {
     "Kullanıcılar Slack'te @OpenBot'tan bahseder veya doğrudan mesaj gönderir. Slack Düzenleyicisi doğru ajana sorar ve yanıtlar.",
   "connector.slack.statusNotSetUp": "Ayarlanmadı",
   "connector.slack.statusConnected": "Bağlandı",
-  "connector.slack.statusAttention": "İlgilenilmesi gerekiyor",
+  "connector.slack.statusAttention": "Dikkat gerekiyor",
   // {workspace} Slack çalışma alanı adıdır.
   "connector.slack.summaryConnected": "{workspace} · Slack Düzenleyicisi yanıtlıyor",
   "connector.slack.summaryNoAgent": "{workspace} · Henüz yanıt veren bir ajan yok",
   "connector.slack.attentionTitle": {
-    one: "{count} çalışma alanının ilgilenilmesi gerekiyor",
-    other: "{count} çalışma alanının ilgilenilmesi gerekiyor",
+    one: "{count} çalışma alanı için işlem gerekiyor",
+    other: "{count} çalışma alanı için işlem gerekiyor",
   },
   "connector.slack.attentionDescription": "Aşağıdaki durum ne yapılması gerektiğini belirtir.",
-  "connector.slack.connect": "Slack'e Bağlan",
+  "connector.slack.connect": "Slack'e bağlan",
   "connector.slack.addAgent": "Ajan ekle",
   "connector.slack.actionFailed": "Slack değişikliği kabul etmedi",
   "connector.slack.workspaceTitle": "Çalışma alanı",
   "connector.slack.workspaceDescription": "Kullanıcılar @OpenBot'tan bahseder veya doğrudan mesaj gönderir.",
-  "connector.slack.disconnectWorkspace": "Bağlantıyı Kes",
+  "connector.slack.disconnectWorkspace": "Bağlantıyı kes",
   "connector.slack.missingScopes":
     "OpenBot Slack'te şu izinlere sahip değil: {scopes}. Çalışma alanı bağlantısını kesin, ardından tekrar bağlayın.",
   "connector.slack.retryAt": "Slack OpenBot'tan beklemesini istedi. {time} saatinde tekrar deneyecek.",
-  "connector.slack.reconnect": "Yeniden Bağlan",
+  "connector.slack.reconnect": "Yeniden bağlan",
   "connector.slack.resume": "Sürdür",
   // {action} Pause gibi bir düğmedir; {name} çalışma alanı adıdır.
   "connector.slack.rowAction": "{action}: {name}",
   "connector.slack.orchestratorTitle": "Slack Düzenleyicisi",
   "connector.slack.orchestratorDescription":
-    "Bu ajan Slack'ten gelen her isteği alır. Kısa olanları kendisi yanıtlar, diğer işleri doğru ajana iletir ve yanıtı ileti dizisinde yayınlar.",
+    "Bu ajan Slack'ten gelen her isteği alır. Kısa olanları kendisi yanıtlar, diğer işleri doğru ajana iletir ve yanıtı ileti dizisinde paylaşır.",
   "connector.slack.orchestratorNone": "Henüz yanıt veren bir ajan yok",
   "connector.slack.orchestratorNoneDescription": "Slack Düzenleyicisini ekleyin, aksi takdirde Slack yanıt alamaz.",
   "connector.slack.inviteNote":
@@ -143,7 +143,7 @@ export const messages = {
   "connector.slack.connectStepBrowser": "Slack tarayıcınızda açılır",
   "connector.slack.connectStepAllow": "Sağ üst köşeden çalışma alanını seçin, ardından İzin Ver'e tıklayın",
   "connector.slack.connectStepReturn": "Slack işlemi tamamlandığında bu iletişim kutusu devam eder",
-  "connector.slack.connectInSlack": "Slack'te Bağlan",
+  "connector.slack.connectInSlack": "Slack'te bağlan",
   "connector.slack.connectWaiting": "Slack bekleniyor. Kurulumu tarayıcınızda tamamlayın.",
   "connector.slack.agentStepTitle": "Slack Düzenleyicisini ekleyin",
   // {workspace} Slack çalışma alanı adıdır.
@@ -152,18 +152,19 @@ export const messages = {
   "connector.slack.orchestratorRole": "Slack'te yanıt verir ve ekibe sorar",
   "connector.slack.orchestratorDoesReceive": "Her Slack isteğini ilk olarak alır",
   "connector.slack.orchestratorDoesDelegate": "Her görevi en uygun ajana iletir",
-  "connector.slack.orchestratorDoesAnswer": "Yanıtı Slack ileti dizisinde yayınlar",
+  "connector.slack.orchestratorDoesAnswer": "Yanıtı Slack ileti dizisinde paylaşır",
   "connector.slack.orchestratorModel": "Model",
   "connector.slack.doneTitle": "OpenBot {workspace} içinde",
   "connector.slack.doneDescription": "Herhangi bir genel kanalda @OpenBot'tan bahsedin veya doğrudan mesaj gönderin.",
   "connector.slack.done": "Bitti",
   "connector.slack.disconnectTitle": "{workspace} bağlantısı kesilsin mi?",
   "connector.slack.disconnectDescription":
-    "OpenBot {workspace} içinde yanıt vermeyi durdurur ve Slack token'ını bu bilgisayardan kaldırır.",
+    "OpenBot {workspace} içinde yanıt vermeyi durdurur ve Slack belirtecini bu bilgisayardan kaldırır.",
   "connector.slack.disconnectDescriptionHost":
-    "OpenBot {workspace} içinde yanıt vermeyi durdurur ve Slack token'ını {host} üzerinden kaldırır.",
+    "OpenBot {workspace} içinde yanıt vermeyi durdurur ve Slack belirtecini {host} sunucusundan kaldırır.",
   "connector.slack.disconnectEffect": "{workspace} içindeki kişiler artık @OpenBot aracılığıyla ajanlarınıza ulaşamaz.",
   "connector.slack.removeEffectKept": "Konuşmalar ve Slack Düzenleyicisi OpenBot'ta kalır.",
+  "connector.slack.removeEffectDeleted": "Slack Düzenleyicisi ve konuşmaları OpenBot'tan silinir.",
   "connector.slack.keep": "Bağlı tut",
   "connector.slack.close": "Kapat",
 
@@ -174,26 +175,26 @@ export const messages = {
     "Kullanıcılar bir Discord sunucusunun kanalında @OpenBot'tan bahseder. Discord Düzenleyicisi doğru ajana sorar ve yanıtlar.",
   "connector.discord.statusNotSetUp": "Ayarlanmadı",
   "connector.discord.statusConnected": "Bağlandı",
-  "connector.discord.statusAttention": "İlgilenilmesi gerekiyor",
+  "connector.discord.statusAttention": "Dikkat gerekiyor",
   // {workspace} Discord sunucusunun adıdır.
   "connector.discord.summaryConnected": "{workspace} · Discord Düzenleyicisi yanıtlıyor",
   "connector.discord.summaryNoAgent": "{workspace} · Henüz yanıt veren bir ajan yok",
   "connector.discord.attentionTitle": {
-    one: "{count} Discord sunucusunun ilgilenilmesi gerekiyor",
-    other: "{count} Discord sunucusunun ilgilenilmesi gerekiyor",
+    one: "{count} Discord sunucusu için işlem gerekiyor",
+    other: "{count} Discord sunucusu için işlem gerekiyor",
   },
   "connector.discord.attentionDescription": "Aşağıdaki durum ne yapılması gerektiğini belirtir.",
-  "connector.discord.connect": "Discord'a Bağlan",
+  "connector.discord.connect": "Discord'a bağlan",
   "connector.discord.addAgent": "Ajan ekle",
   "connector.discord.actionFailed": "Discord değişikliği kabul etmedi",
   "connector.discord.workspaceTitle": "Discord sunucusu",
   "connector.discord.workspaceDescription":
     "Bir kanalda @OpenBot'tan bahsedin. Devam etmek için OpenBot'a yanıt verin.",
-  "connector.discord.disconnectWorkspace": "Bağlantıyı Kes",
+  "connector.discord.disconnectWorkspace": "Bağlantıyı kes",
   "connector.discord.missingScopes":
     "OpenBot Discord'da şu izinlere sahip değil: {scopes}. Discord sunucusu bağlantısını kesin, ardından tekrar bağlayın.",
   "connector.discord.retryAt": "Discord OpenBot'tan beklemesini istedi. {time} saatinde tekrar deneyecek.",
-  "connector.discord.reconnect": "Yeniden Bağlan",
+  "connector.discord.reconnect": "Yeniden bağlan",
   "connector.discord.resume": "Sürdür",
   // {action} Pause gibi bir düğmedir; {name} Discord sunucusunun adıdır.
   "connector.discord.rowAction": "{action}: {name}",
@@ -212,7 +213,7 @@ export const messages = {
   "connector.discord.connectStepBrowser": "Discord tarayıcınızda açılır",
   "connector.discord.connectStepAllow": "Sunucuyu seçin, ardından Yetkilendir'e tıklayın",
   "connector.discord.connectStepReturn": "Discord işlemi tamamlandığında bu iletişim kutusu devam eder",
-  "connector.discord.connectInDiscord": "Discord'da Bağlan",
+  "connector.discord.connectInDiscord": "Discord'da bağlan",
   "connector.discord.connectWaiting": "Discord bekleniyor. Yetkilendirmeyi tarayıcınızda tamamlayın.",
   "connector.discord.agentStepTitle": "Discord Düzenleyicisini ekleyin",
   // {workspace} Discord sunucusunun adıdır.
@@ -230,10 +231,11 @@ export const messages = {
   "connector.discord.disconnectDescription":
     "OpenBot {workspace} içinde yanıt vermeyi bırakır ve Discord bağlantısını bu bilgisayardan kaldırır.",
   "connector.discord.disconnectDescriptionHost":
-    "OpenBot {workspace} içinde yanıt vermeyi bırakır ve Discord bağlantısını {host} üzerinden kaldırır.",
+    "OpenBot {workspace} içinde yanıt vermeyi bırakır ve Discord bağlantısını {host} sunucusundan kaldırır.",
   "connector.discord.disconnectEffect":
     "{workspace} içindeki kişiler artık @OpenBot aracılığıyla ajanlarınıza ulaşamaz.",
   "connector.discord.removeEffectKept": "Konuşmalar ve Discord Düzenleyicisi OpenBot'ta kalır.",
+  "connector.discord.removeEffectDeleted": "Discord Düzenleyicisi ve konuşmaları OpenBot'tan silinir.",
   "connector.discord.keep": "Bağlı tut",
   "connector.discord.close": "Kapat",
   // Sunucu ayarları > Bağlayıcılar > Telegram: her sohbet tek OpenBot botunu ekler ve Telegram
@@ -243,7 +245,7 @@ export const messages = {
     "OpenBot botunu bir Telegram grubuna ekleyin veya botla doğrudan bir sohbet açın. Telegram Düzenleyicisi doğru ajana sorar ve yanıtlar.",
   "connector.telegram.statusNotSetUp": "Ayarlanmadı",
   "connector.telegram.statusConnected": "Bağlandı",
-  "connector.telegram.statusAttention": "İlgilenilmesi gerekiyor",
+  "connector.telegram.statusAttention": "Dikkat gerekiyor",
   // {count} bağlı Telegram sohbetlerinin sayısıdır.
   "connector.telegram.summaryConnected": {
     one: "{count} sohbet · Telegram Düzenleyicisi yanıtlıyor",
@@ -254,11 +256,11 @@ export const messages = {
     other: "{count} sohbet · Henüz yanıt veren bir ajan yok",
   },
   "connector.telegram.attentionTitle": {
-    one: "{count} sohbetin ilgilenilmesi gerekiyor",
-    other: "{count} sohbetin ilgilenilmesi gerekiyor",
+    one: "{count} sohbet için işlem gerekiyor",
+    other: "{count} sohbet için işlem gerekiyor",
   },
   "connector.telegram.attentionDescription": "Aşağıdaki durum ne yapılması gerektiğini belirtir.",
-  "connector.telegram.connect": "Telegram'a Bağlan",
+  "connector.telegram.connect": "Telegram'a bağlan",
   "connector.telegram.addAgent": "Ajan ekle",
   "connector.telegram.actionFailed": "Telegram değişikliği kabul etmedi",
   "connector.telegram.chatsTitle": "Sohbetler",
@@ -274,8 +276,8 @@ export const messages = {
   "connector.telegram.retryAt": "Telegram OpenBot'tan beklemesini istedi. {time} saatinde tekrar deneyecek.",
   "connector.telegram.pause": "Duraklat",
   "connector.telegram.resume": "Sürdür",
-  "connector.telegram.reconnect": "Yeniden Bağlan",
-  "connector.telegram.disconnectChat": "Bağlantıyı Kes",
+  "connector.telegram.reconnect": "Yeniden bağlan",
+  "connector.telegram.disconnectChat": "Bağlantıyı kes",
   // {action} Pause gibi bir düğmedir; {name} sohbet adıdır.
   "connector.telegram.rowAction": "{action}: {name}",
   "connector.telegram.linkTitle": "Başka bir sohbet bağlayın",
@@ -285,7 +287,7 @@ export const messages = {
   "connector.telegram.openDirectChat": "Doğrudan sohbet aç",
   "connector.telegram.orchestratorTitle": "Telegram Düzenleyicisi",
   "connector.telegram.orchestratorDescription":
-    "Bu ajan tüm Telegram sohbetlerinizden OpenBot'a gelen mesajları alır. Kısa olanları kendisi yanıtlar, diğer işleri doğru ajana iletir ve yanıtı sohbette yayınlar.",
+    "Bu ajan tüm Telegram sohbetlerinizden OpenBot'a gelen mesajları alır. Kısa olanları kendisi yanıtlar, diğer işleri doğru ajana iletir ve yanıtı sohbette paylaşır.",
   "connector.telegram.orchestratorNone": "Henüz yanıt veren bir ajan yok",
   "connector.telegram.orchestratorNoneDescription":
     "Telegram Düzenleyicisini ekleyin, aksi takdirde Telegram yanıt alamaz.",
@@ -309,24 +311,26 @@ export const messages = {
   "connector.telegram.orchestratorRole": "Telegram'da yanıt verir ve ekibe sorar",
   "connector.telegram.orchestratorDoesReceive": "OpenBot'a gelen her Telegram mesajını ilk olarak alır",
   "connector.telegram.orchestratorDoesDelegate": "Her görevi en uygun ajana iletir",
-  "connector.telegram.orchestratorDoesAnswer": "Yanıtı Telegram sohbetinde yayınlar",
+  "connector.telegram.orchestratorDoesAnswer": "Yanıtı Telegram sohbetinde paylaşır",
   "connector.telegram.orchestratorModel": "Model",
   "connector.telegram.doneTitle": "OpenBot {chat} içinde",
   "connector.telegram.done": "Bitti",
   "connector.telegram.disconnectTitle": "{chat} bağlantısı kesilsin mi?",
-  "connector.telegram.disconnectDescription":
-    "OpenBot botu {chat} sohbetinden ayrılır ve OpenBot orada yanıt vermeyi bırakır. Konuşmalar OpenBot'ta kalır.",
+  "connector.telegram.leaveDescription":
+    "OpenBot botu {chat} sohbetinden ayrılır ve OpenBot orada yanıt vermeyi bırakır.",
   "connector.telegram.disconnectEffect":
     "{chat} içindeki kişiler artık OpenBot botu aracılığıyla ajanlarınıza ulaşamaz.",
   "connector.telegram.removeEffectKept": "Konuşmalar ve Telegram Düzenleyicisi OpenBot'ta kalır.",
+  "connector.telegram.removeEffectDeleted":
+    "Bu son sohbet olduğundan Telegram Düzenleyicisi ve konuşmaları OpenBot'tan silinir.",
   "connector.telegram.keep": "Bağlı tut",
   "connector.telegram.close": "Kapat",
   "connector.onePassword.title": "1Password",
   "connector.onePassword.description":
-    "Ajanların OpenBot tarayıcısında sitelere giriş yapabilmesi için özel bir 1Password kasasını bir hizmet hesabı aracılığıyla OpenBot ile paylaşın.",
+    "Ajanların OpenBot tarayıcısında sitelere oturum açabilmesi için özel bir 1Password kasasını bir hizmet hesabı aracılığıyla OpenBot ile paylaşın.",
   "connector.onePassword.howItWorks":
     "Bağlanma, 1Password hesabınızda “Shared with OpenBot” adlı bir kasa ve yalnızca bu kasayı okuyabilen bir hizmet hesabı oluşturur. OpenBot kayıtlı girişleri bu bilgisayardaki kendi tarayıcısında doldurur; bu nedenle yalnızca o kasaya taşıdığınız öğeler paylaşılır. Ajanlar hiçbir zaman parola görmez.",
-  "connector.onePassword.connect": "1Password'e Bağlan",
+  "connector.onePassword.connect": "1Password'e bağlan",
   "connector.onePassword.setupTitle": "Kurulum",
   "connector.onePassword.stepCliTitle": "1Password CLI'yi yükleyin",
   "connector.onePassword.stepCliChecking": "Bu bilgisayarda 1Password CLI aranıyor",
@@ -341,7 +345,7 @@ export const messages = {
   "connector.onePassword.stepAppDescription":
     "1Password uygulamasında Settings > Developer bölümünü açın ve “Integrate with 1Password CLI” seçeneğini açın.",
   "connector.onePassword.stepAppReady": "1Password uygulaması, CLI'nin paylaşılan kasayı oluşturmasına izin veriyor.",
-  "connector.onePassword.openApp": "1Password'ü Aç",
+  "connector.onePassword.openApp": "1Password'ü aç",
   "connector.onePassword.checkAgain": "Tekrar denetle",
   "connector.onePassword.stepVaultTitle": "Paylaşılan kasayı oluşturun",
   "connector.onePassword.stepVaultDescription":
@@ -363,16 +367,16 @@ export const messages = {
     one: "{count} giriş",
     other: "{count} giriş",
   },
-  "connector.onePassword.disconnect": "Bağlantıyı Kes",
-  "connector.onePassword.disconnectTitle": "1Password Bağlantısını Kes",
+  "connector.onePassword.disconnect": "Bağlantıyı kes",
+  "connector.onePassword.disconnectTitle": "1Password bağlantısını kes",
   "connector.onePassword.disconnectSummary":
     "OpenBot belirteci unutur. Kasa ve hizmet hesabı 1Password'de kalır; artık gerekmiyorsa onları orada kaldırın.",
   "connector.onePassword.actionFailed": "OpenBot 1Password bağlantısını değiştiremedi.",
   "connector.onePassword.statusConnected": "Bağlandı",
   "connector.onePassword.statusConnecting": "Bağlanıyor",
-  "connector.onePassword.statusNotSetUp": "Kurulmadı",
+  "connector.onePassword.statusNotSetUp": "Ayarlanmadı",
   "connector.onePassword.descriptionHost":
-    "Ayrı bir 1Password kasasını bir hizmet hesabıyla {host} üzerindeki OpenBot ile paylaşın; böylece {host} üzerindeki ajanlar onun tarayıcısında sitelere giriş yapabilir.",
+    "Ayrı bir 1Password kasasını bir hizmet hesabıyla {host} üzerindeki OpenBot ile paylaşın; böylece {host} üzerindeki ajanlar onun tarayıcısında sitelere oturum açabilir.",
   "connector.onePassword.howItWorksHost":
     "{host} bir hizmet hesabı belirteciyle bağlanır. 1Password.com'da yalnızca OpenBot ile paylaştığınız kasayı okuyabilen bir hizmet hesabı oluşturun ve belirtecini buraya yapıştırın. {host} belirteci denetler ve saklar; bu bilgisayar saklamaz. Ajanlar hiçbir zaman parola görmez.",
   "connector.onePassword.disconnectSummaryHost":
@@ -386,8 +390,8 @@ export const messages = {
   "connector.bitwarden.session":
     "Oturum anahtarı bellekte kalır. Kasa 8 saat kullanılmazsa veya OpenBot kapanırsa tekrar bağlanın. Bağlantıyı kesmek OpenBot erişimini durdurur; diğer Bitwarden istemcilerini kilitlemez.",
   "connector.bitwarden.sessionKey": "Bitwarden oturum anahtarı",
-  "connector.bitwarden.connect": "Bitwarden'a Bağlan",
-  "connector.bitwarden.disconnect": "Bitwarden Bağlantısını Kes",
+  "connector.bitwarden.connect": "Bitwarden'a bağlan",
+  "connector.bitwarden.disconnect": "Bitwarden bağlantısını kes",
   "connector.bitwarden.connected": "Bağlandı",
   "connector.bitwarden.disconnected": "Bağlı değil",
   "connector.bitwarden.actionFailed": "OpenBot Bitwarden bağlantısını değiştiremedi.",

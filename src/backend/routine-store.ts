@@ -732,12 +732,36 @@ export class RoutineStore {
    * routines stays due as well, so it runs once now.
    */
   skipMissed(now = new Date(), held?: RoutineHoldWindow): void {
-    for (const routine of this.#allActive()) {
+    this.#skipMissedIn(this.#allActive(), now, held, false);
+  }
+
+  /**
+   * `skipMissed` for the routines of one owner, when the user restores a hidden agent. The hide was a
+   * pause that the user chose, so every missed occurrence is skipped, also for a routine set to run
+   * once, as a paused routine does when it is resumed.
+   */
+  skipMissedFor(ownerId: string, now = new Date()): void {
+    this.#skipMissedIn(
+      this.#allActive().filter((routine) => routine.ownerId === ownerId),
+      now,
+      undefined,
+      true,
+    );
+  }
+
+  #skipMissedIn(
+    routines: readonly OwnedRoutine[],
+    now: Date,
+    held: RoutineHoldWindow | undefined,
+    skipAll: boolean,
+  ): void {
+    for (const routine of routines) {
+      const missedPolicy = skipAll ? "skip" : routine.missedPolicy;
       const { trigger } = routine;
       const due = Date.parse(trigger.nextRunAt);
       if (held && due >= held.since.getTime() && due <= held.until.getTime()) continue;
       if (trigger.schedule.kind === "once") {
-        if (due <= now.getTime()) this.#settleMissedOnce(routine, now);
+        if (due <= now.getTime()) this.#settleMissedOnce(routine, now, missedPolicy);
         continue;
       }
       if (due > now.getTime()) {
@@ -757,7 +781,7 @@ export class RoutineStore {
         continue;
       }
       const missed = missedOccurrences(trigger.schedule, routine.timezone, first, now);
-      if (routine.missedPolicy === "run-once") {
+      if (missedPolicy === "run-once") {
         if (!missed.previous) continue;
         const count = missed.truncated ? missed.count : missed.count - 1;
         this.#recordMissed(routine, { first, until: missed.previous, count }, missed.last);
@@ -772,13 +796,13 @@ export class RoutineStore {
    * finishes it. Otherwise `run-once` keeps it due, so the scheduler runs it now, and `skip`
    * records the missed time and finishes it.
    */
-  #settleMissedOnce(routine: OwnedRoutine, now: Date): void {
+  #settleMissedOnce(routine: OwnedRoutine, now: Date, missedPolicy: RoutineMissedPolicy | undefined): void {
     const { trigger } = routine;
     if (this.#latestScheduledRun(trigger.id, trigger.nextRunAt)) {
       this.completeTrigger(routine.id, trigger.id, now);
       return;
     }
-    if (routine.missedPolicy === "run-once") return;
+    if (missedPolicy === "run-once") return;
     const at = new Date(trigger.nextRunAt);
     this.#recordMissed(routine, { first: at, until: at, count: 1 }, null);
   }

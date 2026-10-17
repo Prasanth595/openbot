@@ -25,7 +25,7 @@ export const messages = {
     "このユーザーアカウントで別の OpenBot プロセスがまだ実行中です。それを終了してから、もう一度アップデートをインストールしてください。",
   "error.update.siblingCheckFailed":
     "他の OpenBot セッションを確認できませんでした。インストールする前にもう一度お試しください。",
-  "error.update.remoteDisabled": "このコンピュータでは、サーバー管理者からのアップデートはオフになっています。",
+  "error.update.remoteDisabled": "このコンピューターでは、サーバー管理者からのアップデートはオフになっています。",
   "error.update.restartStarted": "OpenBot はアップデートをインストールするため、すでに再起動しています。",
   "error.update.alreadyRestarting": "OpenBot はすでに再起動しています。",
 } as const satisfies PartialTranslation<typeof source>;

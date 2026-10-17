@@ -32,7 +32,7 @@ export const messages = {
   "error.team.serverNotConfigured": "El servidor del equipo no está configurado.",
   "error.team.accountChangedDuringRequest": "La cuenta con sesión iniciada cambió mientras se procesaba la solicitud.",
   "error.team.serverFileUnreadable":
-    "No se pudo leer el archivo del servidor del equipo de este equipo. Muévelo a otra ubicación antes de configurar un servidor para que no se sobrescriba.",
+    "No se pudo leer el archivo local del servidor del equipo. Muévelo a otra ubicación antes de configurar un servidor para que no se sobrescriba.",
   "error.team.emailInvalid": "Introduce una dirección de correo válida.",
   "error.team.accountNameTooLong": "El nombre de la cuenta es demasiado largo.",
   "error.team.avatarUrlTooLong": "La URL del avatar de la cuenta es demasiado larga.",
@@ -60,6 +60,7 @@ export const messages = {
   "error.team.membersCannotArchiveChannels": "Los miembros no pueden archivar canales.",
   "error.team.sharedDataUnsupported": "Esta conexión no admite datos compartidos.",
   "error.team.agentInstallUnsupported": "Esta conexión no permite añadir agentes.",
+  "error.team.agentHideUnsupported": "Esta conexión no permite ocultar agentes.",
   "error.team.agentPublishUnsupported": "Esta conexión no permite publicar agentes.",
   "error.team.agentUpdateUnsupported": "Esta conexión no permite actualizar agentes.",
   "error.team.contextResetUnsupported": "Esta conexión no permite iniciar un nuevo chat.",
@@ -69,7 +70,10 @@ export const messages = {
     "Este servidor no admite flujos de rutinas. Actualiza OpenBot en el equipo que lo ejecuta.",
   "error.team.routineCanvasTooLarge":
     "Este lienzo de rutinas es demasiado grande para enviarlo a este dispositivo. Acorta las instrucciones de las rutinas en el equipo que ejecuta el servidor.",
+  "error.team.conversationPageTooLarge":
+    "Un mensaje de esta conversación es demasiado grande para enviarlo a este dispositivo. Abre la conversación en el equipo que ejecuta el servidor.",
   "error.team.agentImportUnsupported": "Esta conexión no permite importar agentes.",
+  "error.team.instanceTransferUnsupported": "Esta conexión no admite transferir agentes.",
   "error.team.liveActivityUnsupported": "Este host no puede actualizar la Live Activity de un teléfono.",
   "error.team.pushNotificationsUnsupported": "Este host no puede enviar notificaciones a un teléfono.",
   "error.team.agentUpdateTargetRequired": "Se requiere un agente para actualizar.",
@@ -101,6 +105,7 @@ export const messages = {
   "error.team.searchQueryRequired": "Se requiere una consulta de búsqueda válida.",
   "error.team.agentAnalyticsUnsupported": "Este cliente no admite estadísticas de agentes.",
   "error.team.membersCannotDeleteAgents": "Los miembros no pueden eliminar agentes.",
+  "error.team.membersCannotHideAgents": "Los miembros no pueden ocultar ni restaurar agentes.",
   "error.team.avatarType": "Elige una imagen PNG, JPEG o WebP.",
   "error.team.avatarNotFound": "No se encontró el avatar del agente.",
   "error.team.secureAuthUnsupported": "Este cliente no admite autenticación segura.",

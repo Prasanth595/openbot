@@ -1,7 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 import type { AgentSummary } from "@openbot/contracts/ipc";
 import { revokeRoutineWebhooks } from "../webhook-route-store";
-import type { DatabaseCore } from "./database-core";
+import { type DatabaseCore, deleteReceiptsOf } from "./database-core";
 import { databaseRow, databaseRows, requiredStringColumn } from "./database-rows";
 
 type AgentRuntime = Pick<AgentSummary, "provider" | "model" | "reasoningEffort">;
@@ -9,7 +9,8 @@ type AgentRuntime = Pick<AgentSummary, "provider" | "model" | "reasoningEffort">
 /**
  * The audit entry of a model change that one agent made to another agent, or to itself. It rides in
  * the roster event of the same write, so the entry and the change commit or fail together. A change
- * the user makes carries none: the user is the default author of every roster event.
+ * the user makes carries none: the user is the default author of every roster event. `replaceAgents`
+ * keeps each `agent.model-changed` event when it drops the older roster events, so the audit stays.
  */
 export interface AgentModelChange {
   initiatingAgentId: string;
@@ -61,7 +62,8 @@ export class AgentRoster {
    * Claimed by `thread_id` rather than matched on `agent_id`, because both halves of the split have to
    * be caught: an agent rebuilt under its own id points at no thread while its old row still names it,
    * and a thread whose `agent_id` keeps a pre-rename spelling names an agent that no longer answers to
-   * it. Ordered so that a repair over the result is deterministic.
+   * it. Ordered so that a repair over the result is deterministic. A task thread is claimed by its task,
+   * so a repair never makes it an agent's own chat.
    */
   unclaimedThreads(): { threadId: string; agentId: string }[] {
     return databaseRows(
@@ -71,6 +73,7 @@ export class AgentRoster {
            WHERE thread_id NOT IN (SELECT thread_id FROM projection_agents WHERE thread_id IS NOT NULL)
              AND thread_id NOT IN (SELECT thread_id FROM projection_channel_contexts)
              AND thread_id NOT IN (SELECT thread_id FROM projection_messaging_threads)
+             AND thread_id NOT IN (SELECT thread_id FROM projection_agent_tasks)
            ORDER BY thread_id`,
         )
         .all(),
@@ -84,7 +87,8 @@ export class AgentRoster {
    * The agent list the newest roster event carries, for a roster projection that has lost its rows.
    *
    * `orchestration_events` is the source of truth and every roster write appends the whole list to one
-   * aggregate, so the newest event on it is the roster. Nothing else reads events back into
+   * aggregate, so the newest event on it is the roster. `replaceAgents` drops the older roster events,
+   * except the model-change audit entries. Nothing else reads events back into
    * `projection_agents`: the projection is written only by `replaceAgents`, and an empty projection
    * beside a non-empty log reads as "no agents" -- every chat gone, with each thread and message row
    * still on disk.
@@ -140,6 +144,7 @@ export class AgentRoster {
           );
           if (agent.threadId) this.ensureThreadProjection(db, agent, sequences[0] ?? 0);
         });
+        pruneRosterEvents(db, sequences[0] ?? 0);
         return null;
       },
     );
@@ -271,4 +276,22 @@ export class AgentRoster {
       sequence,
     );
   }
+}
+
+/**
+ * Drops the roster events older than `retainedSequence`, with their receipts. Each roster event holds
+ * the whole agent list and only the newest one is read, so without this the log grows by one roster
+ * on each send and each turn end (#2282). A database from an earlier build is cleaned by its first
+ * roster write. An `agent.model-changed` event stays: it is the audit entry of a model change.
+ */
+function pruneRosterEvents(db: DatabaseSync, retainedSequence: number): void {
+  const matchOlder = `
+    aggregate_type = 'agents' AND aggregate_id = 'agents' AND sequence < ?
+      AND event_type <> 'agent.model-changed'`;
+  const commandIds = databaseRows(
+    db.prepare(`SELECT command_id FROM orchestration_events WHERE ${matchOlder}`).all(retainedSequence),
+  ).map((row) => requiredStringColumn(row, "command_id"));
+  if (commandIds.length === 0) return;
+  db.prepare(`DELETE FROM orchestration_events WHERE ${matchOlder}`).run(retainedSequence);
+  deleteReceiptsOf(db, commandIds);
 }

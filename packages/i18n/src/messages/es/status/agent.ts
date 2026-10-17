@@ -8,4 +8,11 @@ export const messages = {
   "status.agent.modelSwitchedForLimit": "Límite de uso alcanzado. Se cambió a {model}.",
   "status.agent.modelReturnedAfterLimit": "El límite de uso terminó. Se volvió a {model}.",
   "status.agent.marketplaceSuggested": "Se sugirió una aplicación de Marketplace: {app}.",
+  "status.agent.screenCaptureScreen": "Capturar la pantalla principal y enviar la imagen al modelo del agente.",
+  "status.agent.screenCaptureDisplay": "Capturar la pantalla {name} y enviar la imagen al modelo del agente.",
+  "status.agent.screenCaptureWindow": "Capturar la ventana {name} y enviar la imagen al modelo del agente.",
+  "status.agent.screenCaptureRegion":
+    "Capturar el área de la pantalla en {x}, {y}, de {width} × {height} puntos, y enviar la imagen al modelo del agente.",
+  "status.agent.screenCaptureProgress": "Pidiendo permiso para capturar la pantalla…",
+  "status.agent.screenCaptureReviewing": "Revisando la captura de pantalla…",
 } as const satisfies PartialTranslation<typeof source>;

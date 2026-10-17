@@ -3,6 +3,7 @@ import type { messages as source } from "../../en/error/backend";
 
 export const messages = {
   "error.backend.eventsUnavailable": "Los eventos no están disponibles en este host.",
+  "error.backend.databaseIntegrity": "La base de datos de OpenBot no superó la comprobación de integridad.",
   "error.backend.webhookRouteLimit": "Un host puede tener un máximo de {limit} rutinas de webhook.",
   "error.backend.webhookSettingsInvalid": "Comprueba los ajustes del webhook e inténtalo de nuevo.",
   "error.backend.webhookRouteUnavailable":
@@ -75,7 +76,7 @@ export const messages = {
     "Los recuerdos esenciales superan el límite del prompt. Configura una entrada para buscarla cuando sea necesario e inténtalo de nuevo.",
   "error.backend.memorySelectionConflict": "El recuerdo cambió. Vuelve a cargarlo e inténtalo de nuevo.",
   "error.backend.memorySelectionUserControlled":
-    "El usuario controla esta selección de memoria. Respeta la elección del usuario.",
+    "El usuario controla la selección de este recuerdo. Respeta la elección del usuario.",
   "error.backend.memorySearchQuery": "Escribe una o más palabras de búsqueda, hasta 256 caracteres.",
   "error.backend.memoryOperationFailed": "Falló la operación de memoria. Inténtalo de nuevo.",
   "error.backend.memoryGone": "Este recuerdo ya no existe.",
@@ -121,6 +122,7 @@ export const messages = {
     "El estado del buzón está dañado o pertenece a una versión más reciente de OpenBot; no se sobrescribirá.",
   "error.backend.recipientDeleting":
     "El destinatario se está eliminando. Inténtalo de nuevo cuando termine la eliminación.",
+  "error.backend.recipientHidden": "Este agente está oculto. Restáuralo para enviarle mensajes.",
   "error.backend.attachBetween": "Adjunta entre 1 y {limit} archivos.",
   "error.backend.attachmentNotFile": "El adjunto no es un archivo: {path}",
   "error.backend.generatedImageTooLarge": "La imagen generada supera el límite de 100 MB.",
@@ -197,7 +199,7 @@ export const messages = {
   "error.backend.mcpSignInRequired":
     "Este servidor pide que inicies sesión. Elige Iniciar sesión para continuar en tu navegador.",
   "error.backend.mcpSignInOnHost":
-    "Este servidor pide un inicio de sesión. Inicia sesión en él desde OpenBot en el equipo anfitrión.",
+    "Este servidor pide un inicio de sesión. Inicia sesión en él desde OpenBot en el equipo host.",
   "error.backend.mcpSignInNeedsHttps":
     "Este servidor pide un inicio de sesión, y OpenBot solo inicia sesión por https. Cambia la URL a {url}.",
   "error.backend.mcpSignInCancelled": "Se canceló el inicio de sesión.",
@@ -209,7 +211,7 @@ export const messages = {
   "error.backend.mcpLocalServerOff":
     "Ningún servidor responde en {address} en este equipo. Inicia el servidor o actívalo en la app que lo ejecuta y vuelve a intentarlo.",
   "error.backend.mcpServerBlocked":
-    "Este equipo bloqueó la conexión con el servidor. Revisa tu firewall o software de seguridad y vuelve a intentarlo.",
+    "Este equipo bloqueó la conexión con el servidor. Revisa tu cortafuegos o software de seguridad y vuelve a intentarlo.",
   "error.backend.mcpServerIncompatible":
     "Algo respondió en esta dirección, pero no como un servidor MCP por Streamable HTTP. Revisa la URL y actualiza la app que ejecuta el servidor.",
   "error.backend.mcpRemoteBridge":
@@ -240,9 +242,9 @@ export const messages = {
   "error.backend.editSaved": "Esta edición ya se guardó.",
   "error.backend.editSavedDifferent": "Esta edición ya se guardó con otro contenido. Tus cambios no se guardaron.",
   "error.backend.useChannelTaskControlsWork": "Usa los controles de tareas del canal para el trabajo del canal.",
-  "error.backend.steerTurnChanged": "El turno activo cambió antes de que se pudiera incorporar este mensaje.",
+  "error.backend.steerTurnChanged": "El turno activo cambió antes de que se pudiera orientar con este mensaje.",
   "error.backend.steerUnsupported": "Este proveedor no puede orientar un turno en curso. Tu mensaje sigue en la cola.",
-  "error.backend.steerQueuedOnly": "Solo se pueden incorporar mensajes en cola al turno activo.",
+  "error.backend.steerQueuedOnly": "Solo se puede orientar con mensajes en cola.",
   "error.backend.promptInactive": "Esta pregunta ya no está activa.",
   "error.backend.promptAnswerMismatch": "Una respuesta no coincide con ninguna pregunta activa.",
   "error.backend.approvalInactive": "Esta aprobación ya no está activa.",
@@ -277,14 +279,29 @@ export const messages = {
     "La página del navegador cambió durante la vista previa. Inténtalo de nuevo.",
   "error.backend.browserInputProtected": "La entrada del navegador está protegida durante la autenticación.",
   "error.backend.mcpServerHttpCredentials":
-    "El servidor respondió {status}. Comprueba la clave API u otras credenciales.",
+    "El servidor respondió {status}. Comprueba la clave de API u otras credenciales.",
   "error.backend.mcpServerHttpUrl":
     "El servidor respondió {status}. Comprueba la URL. El enlace puede ser incorrecto, haber caducado o haberse eliminado.",
   "error.backend.mcpSignInAppUrl": "La app de inicio de sesión necesita una URL de servidor válida.",
   "error.backend.mcpSignInAppClientId": "Introduce el ID de cliente de la app de inicio de sesión.",
   "error.backend.mcpSignInAppIssuerChanged":
-    "El servidor de inicio de sesión de este servidor MCP cambió, así que OpenBot no le envió la app de inicio de sesión. Si el cambio es correcto, quita la app de inicio de sesión y agrégala de nuevo.",
+    "El servidor de inicio de sesión de este servidor MCP cambió, así que OpenBot no le envió la app de inicio de sesión. Si el cambio es correcto, quita la app de inicio de sesión y añádela de nuevo.",
   "error.backend.mcpSignInAppNoServer":
     "Guarda este servidor MCP como servidor de URL antes de añadir una app de inicio de sesión.",
-  "error.backend.mcpSignInAppUnavailable": "Este ordenador no puede guardar una app de inicio de sesión.",
+  "error.backend.mcpSignInAppUnavailable": "Este equipo no puede guardar una app de inicio de sesión.",
+  "error.backend.taskMoveRefused": "Solo un mensaje que enviaste únicamente a este agente puede ejecutarse como tarea.",
+  "error.backend.taskNotFound": "Esta tarea no está disponible.",
+  "error.backend.taskClosed": "Esta tarea está cerrada. Vuelve a abrirla para enviar un mensaje.",
+  "error.backend.taskStillRunning": "Esta tarea sigue en ejecución. Espera a que se detenga y después ciérrala.",
+  "error.backend.taskTitleRequired": "Dale a la tarea un título corto.",
+  "error.backend.taskToolInvalid":
+    "Dale a la tarea un título de 120 caracteres como máximo y una descripción que diga qué hay que hacer.",
+  "error.backend.taskOwnChatOnly":
+    "Inicia una tarea solo desde tu propio chat. Un canal, una conversación de mensajería u otra tarea no pueden iniciarla.",
+  "error.backend.taskOpenLimit":
+    "Este agente ya tiene {count} tareas abiertas. Espera a que el usuario cierre una antes de iniciar otra tarea.",
+  "error.backend.taskOpenLimitReached":
+    "Este agente tiene {count} tareas abiertas. Cierra una tarea y después inicia o abre otra.",
+  "error.backend.taskRemoteUnsupported": "Las tareas solo están disponibles para los agentes de este equipo.",
+  "error.backend.taskStartFailed": "OpenBot no pudo iniciar la tarea. Haz el trabajo en este turno.",
 } as const satisfies PartialTranslation<typeof source>;

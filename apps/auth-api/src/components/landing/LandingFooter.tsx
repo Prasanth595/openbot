@@ -16,7 +16,7 @@ const SOCIALS = [
   },
   {
     label: "X",
-    href: OPENBOT_LINKS.contact,
+    href: OPENBOT_LINKS.x,
     path: "M17.5 3h3.2l-7 8 8.2 10h-6.4l-5-6.5L4.7 21H1.5l7.5-8.5L1.1 3h6.5l4.5 6 5.4-6Zm-1.1 16h1.8L7.6 4.9H5.7L16.4 19Z",
   },
   {

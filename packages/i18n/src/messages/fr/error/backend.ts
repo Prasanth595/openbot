@@ -3,6 +3,7 @@ import type { messages as source } from "../../en/error/backend";
 
 export const messages = {
   "error.backend.eventsUnavailable": "Les événements ne sont pas disponibles sur cet hôte.",
+  "error.backend.databaseIntegrity": "La base de données OpenBot a échoué à la vérification d’intégrité.",
   "error.backend.webhookRouteLimit": "Un hôte peut avoir au plus {limit} routines webhook.",
   "error.backend.webhookSettingsInvalid": "Vérifiez les réglages du webhook et réessayez.",
   "error.backend.webhookRouteUnavailable":
@@ -73,7 +74,7 @@ export const messages = {
   "error.backend.channelAssignmentChanged": "Cette tâche de canal a changé.",
   "error.backend.channelMemberRequired": "Sélectionnez un membre disponible de ce canal.",
   "error.backend.memoryEssentialBudget":
-    "Les souvenirs essentiels dépassent la limite du prompt. Réglez une entrée sur Rechercher au besoin, puis réessayez.",
+    "Les souvenirs essentiels dépassent la limite du prompt. Réglez une entrée sur « Rechercher au besoin », puis réessayez.",
   "error.backend.memorySelectionConflict": "Le souvenir a changé. Rechargez-le et réessayez.",
   "error.backend.memorySelectionUserControlled":
     "L’utilisateur contrôle la sélection de ce souvenir. Conservez le choix de l’utilisateur.",
@@ -92,7 +93,7 @@ export const messages = {
   "error.backend.agentMemoryLimitReached":
     "Vous avez {saved} souvenirs sur {limit}. Pour faire de la place, mettez à jour un souvenir par son memoryId avec le texte combiné de deux souvenirs liés, puis oubliez l’autre, ou oubliez un souvenir qui n’est plus vrai. Puis réessayez.",
   "error.backend.agentMemoryLimitExceeded":
-    "Vous avez {saved} souvenirs, et la limite est de {limit}. L’utilisateur a fixé la limite sous le nombre de souvenirs enregistrés. N’oubliez pas de souvenirs pour faire de la place. Dites à l’utilisateur que ce souvenir n’a pas été enregistré.",
+    "Vous avez {saved} souvenirs, et la limite est de {limit}. L’utilisateur a fixé la limite sous le nombre de souvenirs enregistrés. N’oubliez aucun souvenir pour faire de la place. Dites à l’utilisateur que ce souvenir n’a pas été enregistré.",
   "error.backend.channelHistoryLeadRequired": "Choisissez un responsable de canal pour préparer l’historique partagé.",
   "error.backend.channelHistoryArriving":
     "Un message partagé est encore en cours de réception. Reprenez quand il sera complet.",
@@ -125,6 +126,7 @@ export const messages = {
     "L’état de la messagerie est corrompu ou provient d’une version plus récente d’OpenBot ; il ne sera pas écrasé.",
   "error.backend.recipientDeleting":
     "Le destinataire est en cours de suppression. Réessayez une fois la suppression terminée.",
+  "error.backend.recipientHidden": "Cet agent est masqué. Restaurez-le pour envoyer des messages.",
   "error.backend.attachBetween": "Joignez entre 1 et {limit} fichiers.",
   "error.backend.attachmentNotFile": "La pièce jointe n’est pas un fichier : {path}",
   "error.backend.generatedImageTooLarge": "L’image générée dépasse la limite de 100 Mo.",
@@ -199,7 +201,7 @@ export const messages = {
   "error.backend.mcpSignInNoBrowser": "Cette connexion MCP ne peut pas ouvrir de navigateur.",
   "error.backend.mcpSignInNotWebPage": "L’adresse de connexion n’est pas une page web.",
   "error.backend.mcpSignInRequired":
-    "Ce serveur demande une connexion. Choisissez Se connecter pour continuer dans votre navigateur.",
+    "Ce serveur demande une connexion. Choisissez « Se connecter » pour continuer dans votre navigateur.",
   "error.backend.mcpSignInOnHost":
     "Ce serveur demande une connexion. Connectez-vous-y dans OpenBot sur l’ordinateur hôte.",
   "error.backend.mcpSignInNeedsHttps":
@@ -236,8 +238,10 @@ export const messages = {
   "error.backend.workspaceFileOutside": "Le fichier doit se trouver dans l’espace de travail de l’agent.",
   "error.backend.workspacePathNotFile": "Le chemin de l’espace de travail n’est pas un fichier.",
   "error.backend.workspacePathNotDirectory": "Le chemin de l’espace de travail n’est pas un dossier.",
-  "error.backend.workspacePathMissing": "Rien n’existe à {path} dans l’espace de travail de l’agent {root}.",
-  "error.backend.workspacePathMissingForMember": "Rien n’existe à {path} dans l’espace de travail de l’agent.",
+  "error.backend.workspacePathMissing":
+    "Il n’y a rien à l’emplacement {path} dans l’espace de travail de l’agent {root}.",
+  "error.backend.workspacePathMissingForMember":
+    "Il n’y a rien à l’emplacement {path} dans l’espace de travail de l’agent.",
   "error.backend.useChannelTaskControls": "Utilisez les commandes de tâche du canal pour cette tâche.",
   "error.backend.editFinished": "Cette modification est déjà terminée.",
   "error.backend.editCancelled": "Cette modification a été annulée : le message garde son texte d’origine.",
@@ -292,4 +296,19 @@ export const messages = {
   "error.backend.mcpSignInAppNoServer":
     "Enregistrez ce serveur MCP comme serveur URL avant d’ajouter une app de connexion.",
   "error.backend.mcpSignInAppUnavailable": "Cet ordinateur ne peut pas conserver d’app de connexion.",
+  "error.backend.taskMoveRefused": "Seul un message envoyé uniquement à cet agent peut s’exécuter comme tâche.",
+  "error.backend.taskNotFound": "Cette tâche n’est pas disponible.",
+  "error.backend.taskClosed": "Cette tâche est fermée. Rouvrez-la pour envoyer un message.",
+  "error.backend.taskStillRunning": "Cette tâche est toujours en cours. Attendez qu’elle s’arrête, puis fermez-la.",
+  "error.backend.taskTitleRequired": "Donnez un titre court à la tâche.",
+  "error.backend.taskToolInvalid":
+    "Donnez à la tâche un titre de 120 caractères au plus et des consignes qui disent quoi faire.",
+  "error.backend.taskOwnChatOnly":
+    "Lancez une tâche uniquement depuis votre propre discussion. Un canal, une conversation de messagerie ou une autre tâche ne peut pas en lancer.",
+  "error.backend.taskOpenLimit":
+    "Cet agent a déjà {count} tâches ouvertes. Attendez que l’utilisateur en ferme une avant de lancer une autre tâche.",
+  "error.backend.taskOpenLimitReached":
+    "Cet agent a {count} tâches ouvertes. Fermez une tâche, puis lancez-en ou ouvrez-en une autre.",
+  "error.backend.taskRemoteUnsupported": "Les tâches sont disponibles uniquement pour les agents de cet ordinateur.",
+  "error.backend.taskStartFailed": "OpenBot n’a pas pu lancer la tâche. Faites plutôt le travail dans ce tour.",
 } as const satisfies PartialTranslation<typeof source>;

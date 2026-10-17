@@ -62,6 +62,7 @@ export const messages = {
   "error.team.membersCannotArchiveChannels": "Mitglieder können keine Kanäle archivieren.",
   "error.team.sharedDataUnsupported": "Diese Verbindung unterstützt keine geteilten Daten.",
   "error.team.agentInstallUnsupported": "Diese Verbindung unterstützt das Hinzufügen von Agenten nicht.",
+  "error.team.agentHideUnsupported": "Diese Verbindung unterstützt das Ausblenden von Agenten nicht.",
   "error.team.agentPublishUnsupported": "Diese Verbindung unterstützt das Veröffentlichen von Agenten nicht.",
   "error.team.agentUpdateUnsupported": "Diese Verbindung unterstützt das Aktualisieren von Agenten nicht.",
   "error.team.contextResetUnsupported": "Diese Verbindung unterstützt das Starten eines neuen Chats nicht.",
@@ -71,7 +72,10 @@ export const messages = {
     "Dieser Server unterstützt keine Routinenabläufe. Aktualisiere OpenBot auf dem Computer, auf dem er läuft.",
   "error.team.routineCanvasTooLarge":
     "Diese Routinenansicht ist zu groß, um sie an dieses Gerät zu senden. Kürze die Routinenanweisungen auf dem Computer, auf dem der Server läuft.",
+  "error.team.conversationPageTooLarge":
+    "Eine Nachricht in dieser Unterhaltung ist zu groß, um sie an dieses Gerät zu senden. Öffne die Unterhaltung auf dem Computer, auf dem der Server läuft.",
   "error.team.agentImportUnsupported": "Diese Verbindung unterstützt das Importieren von Agenten nicht.",
+  "error.team.instanceTransferUnsupported": "Diese Verbindung unterstützt keine Übertragung von Agenten.",
   "error.team.liveActivityUnsupported": "Dieser Host kann die Live Activity eines Telefons nicht aktualisieren.",
   "error.team.pushNotificationsUnsupported": "Dieser Host kann keine Mitteilungen an ein Telefon senden.",
   "error.team.agentUpdateTargetRequired": "Ein Agent zum Aktualisieren ist erforderlich.",
@@ -103,6 +107,7 @@ export const messages = {
   "error.team.searchQueryRequired": "Eine gültige Suchanfrage ist erforderlich.",
   "error.team.agentAnalyticsUnsupported": "Dieser Client unterstützt keine Agentenanalysen.",
   "error.team.membersCannotDeleteAgents": "Mitglieder können keine Agenten löschen.",
+  "error.team.membersCannotHideAgents": "Mitglieder können keine Agenten ausblenden oder wiederherstellen.",
   "error.team.avatarType": "Wähle ein PNG-, JPEG- oder WebP-Bild.",
   "error.team.avatarNotFound": "Agentenavatar nicht gefunden.",
   "error.team.secureAuthUnsupported": "Dieser Client unterstützt keine sichere Authentifizierung.",

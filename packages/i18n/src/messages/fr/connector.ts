@@ -144,6 +144,7 @@ export const messages = {
     "OpenBot cesse de répondre dans {workspace} et supprime son jeton Slack de {host}.",
   "connector.slack.disconnectEffect": "Les membres de {workspace} ne peuvent plus joindre vos agents via @OpenBot.",
   "connector.slack.removeEffectKept": "Les conversations et le Slack Orchestrator restent dans OpenBot.",
+  "connector.slack.removeEffectDeleted": "Le Slack Orchestrator et ses conversations sont supprimés d’OpenBot.",
   "connector.slack.keep": "Rester connecté",
   "connector.slack.close": "Fermer",
 
@@ -207,6 +208,7 @@ export const messages = {
     "OpenBot cesse de répondre dans {workspace} et supprime la connexion Discord de {host}.",
   "connector.discord.disconnectEffect": "Les membres de {workspace} ne peuvent plus joindre vos agents via @OpenBot.",
   "connector.discord.removeEffectKept": "Les conversations et le Discord Orchestrator restent dans OpenBot.",
+  "connector.discord.removeEffectDeleted": "Le Discord Orchestrator et ses conversations sont supprimés d’OpenBot.",
   "connector.discord.keep": "Rester connecté",
   "connector.discord.close": "Fermer",
 
@@ -253,7 +255,7 @@ export const messages = {
     "Telegram s’ouvre dans votre navigateur. La discussion s’affiche ici une fois associée.",
   "connector.telegram.linkWaiting": "En attente de Telegram. Sélectionnez la discussion dans Telegram.",
   "connector.telegram.addToGroup": "Ajouter à un groupe",
-  "connector.telegram.openDirectChat": "Ouvrir une discussion directe",
+  "connector.telegram.openDirectChat": "Discuter en privé",
   "connector.telegram.orchestratorTitle": "Telegram Orchestrator",
   "connector.telegram.orchestratorDescription":
     "Cet agent reçoit les messages destinés à OpenBot depuis toutes vos discussions Telegram. Il répond lui-même aux messages courts, confie les autres tâches au bon agent et publie la réponse dans la discussion.",
@@ -283,10 +285,11 @@ export const messages = {
   "connector.telegram.doneTitle": "OpenBot est dans {chat}",
   "connector.telegram.done": "Terminé",
   "connector.telegram.disconnectTitle": "Déconnecter {chat} ?",
-  "connector.telegram.disconnectDescription":
-    "Le bot OpenBot quitte {chat}, et OpenBot cesse d’y répondre. Les conversations restent dans OpenBot.",
+  "connector.telegram.leaveDescription": "Le bot OpenBot quitte {chat}, et OpenBot cesse d’y répondre.",
   "connector.telegram.disconnectEffect": "Les membres de {chat} ne peuvent plus joindre vos agents via le bot OpenBot.",
   "connector.telegram.removeEffectKept": "Les conversations et le Telegram Orchestrator restent dans OpenBot.",
+  "connector.telegram.removeEffectDeleted":
+    "C’est la dernière discussion : le Telegram Orchestrator et ses conversations sont supprimés d’OpenBot.",
   "connector.telegram.keep": "Rester connecté",
   "connector.telegram.close": "Fermer",
   "connector.onePassword.title": "1Password",
@@ -296,21 +299,21 @@ export const messages = {
     "La connexion crée un coffre « Shared with OpenBot » dans votre compte 1Password et un compte de service qui peut lire uniquement ce coffre. OpenBot remplit les identifiants enregistrés dans son navigateur sur cet ordinateur : seuls les éléments que vous déplacez dans ce coffre sont partagés. Les agents ne voient jamais de mot de passe.",
   "connector.onePassword.connect": "Connecter 1Password",
   "connector.onePassword.setupTitle": "Configuration",
-  "connector.onePassword.stepCliTitle": "Installer le CLI 1Password",
-  "connector.onePassword.stepCliChecking": "Recherche du CLI 1Password sur cet ordinateur",
-  "connector.onePassword.stepCliInstalling": "Téléchargement du CLI 1Password depuis 1Password",
+  "connector.onePassword.stepCliTitle": "Installer la CLI 1Password",
+  "connector.onePassword.stepCliChecking": "Recherche de la CLI 1Password sur cet ordinateur",
+  "connector.onePassword.stepCliInstalling": "Téléchargement de la CLI 1Password depuis 1Password",
   "connector.onePassword.stepCliReady": "La version {version} est installée.",
   "connector.onePassword.stepCliMissing":
-    "OpenBot le télécharge depuis 1Password dans son propre dossier. Aucun mot de passe administrateur n’est nécessaire.",
+    "OpenBot la télécharge depuis 1Password dans son propre dossier. Aucun mot de passe administrateur n’est nécessaire.",
   "connector.onePassword.stepCliManual":
-    "OpenBot ne peut pas l’installer sur cet ordinateur. Installez-le depuis 1Password, puis revenez sur cette page.",
+    "OpenBot ne peut pas l’installer sur cet ordinateur. Installez-la depuis 1Password, puis revenez sur cette page.",
   "connector.onePassword.installCli": "Installer",
   "connector.onePassword.stepAppTitle": "Activer l’intégration CLI",
   "connector.onePassword.stepAppDescription":
     "Dans l’app 1Password, ouvrez Réglages > Développeur et activez « Intégrer avec 1Password CLI ».",
-  "connector.onePassword.stepAppReady": "L’app 1Password permet au CLI de créer le coffre partagé.",
+  "connector.onePassword.stepAppReady": "L’app 1Password permet à la CLI de créer le coffre partagé.",
   "connector.onePassword.openApp": "Ouvrir 1Password",
-  "connector.onePassword.checkAgain": "Vérifier à nouveau",
+  "connector.onePassword.checkAgain": "Revérifier",
   "connector.onePassword.stepVaultTitle": "Créer le coffre partagé",
   "connector.onePassword.stepVaultDescription":
     "OpenBot crée le coffre « Shared with OpenBot » et un compte de service qui peut seulement le lire. 1Password vous demande votre approbation.",
@@ -346,7 +349,7 @@ export const messages = {
   "connector.bitwarden.title": "Bitwarden",
   "connector.bitwarden.description": "Remplir les identifiants du navigateur depuis Bitwarden.",
   "connector.bitwarden.setup":
-    "Installez le CLI Bitwarden et connectez-vous avec bw login. Créez un dossier nommé Shared with OpenBot et placez-y uniquement les identifiants que les agents peuvent utiliser. Exécutez bw unlock --raw et collez la clé de session ci-dessous. Ne collez pas votre mot de passe principal.",
+    "Installez la CLI Bitwarden et connectez-vous avec bw login. Créez un dossier nommé Shared with OpenBot et placez-y uniquement les identifiants que les agents peuvent utiliser. Exécutez bw unlock --raw et collez la clé de session ci-dessous. Ne collez pas votre mot de passe principal.",
   "connector.bitwarden.scope":
     "Tous les agents de cet ordinateur peuvent utiliser les identifiants correspondants dans Shared with OpenBot. OpenBot utilise des origines HTTPS exactes. Il n’utilise pas les éléments qui demandent une invite de mot de passe principal ou une règle de correspondance d’URI personnalisée.",
   "connector.bitwarden.session":

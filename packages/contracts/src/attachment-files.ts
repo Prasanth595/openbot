@@ -76,6 +76,33 @@ export const ATTACHMENT_FILE_EXTENSIONS = [
   ...CONTEXT_ATTACHMENT_EXTENSIONS,
 ] as const;
 
+/**
+ * The attachment types that the desktop app opens with the default app of the operating system:
+ * images, audio, video, documents and plain text. The operating system can run other types when
+ * it opens them, for example a script on Windows, or a page in a browser. The old Office formats
+ * (doc, xls, ppt) can hold macros. The desktop app shows those files in the file manager and does
+ * not open them. The file name can come from another member or from a remote host, so it is not
+ * trusted.
+ */
+export const OPENABLE_ATTACHMENT_EXTENSIONS = [
+  ...IMAGE_ATTACHMENT_EXTENSIONS,
+  ...MEDIA_ATTACHMENT_EXTENSIONS,
+  "pdf",
+  "docx",
+  "odt",
+  "rtf",
+  "xlsx",
+  "ods",
+  "pptx",
+  "odp",
+  "eml",
+  "txt",
+  "md",
+  "markdown",
+  "csv",
+  "log",
+] as const;
+
 /** What a host accepts beyond the base list. An older remote host rejects EML, MP3, and MOV. */
 export interface AttachmentSupport {
   eml: boolean;
@@ -109,6 +136,14 @@ export function isSupportedAttachmentName(name: string): boolean {
   const basename = name.split(/[\\/]/u).at(-1)?.trim().toLowerCase() ?? "";
   const extension = attachmentFileExtension(basename);
   return EXTENSIONLESS_TEXT_FILES.has(basename) || (extension !== null && SUPPORTED_EXTENSIONS.has(extension));
+}
+
+const OPENABLE_EXTENSIONS = new Set<string>(OPENABLE_ATTACHMENT_EXTENSIONS);
+
+/** Whether the desktop app can open this file with the default app. See `OPENABLE_ATTACHMENT_EXTENSIONS`. */
+export function isOpenableAttachmentName(name: string): boolean {
+  const extension = attachmentFileExtension(name);
+  return extension !== null && OPENABLE_EXTENSIONS.has(extension);
 }
 
 /**

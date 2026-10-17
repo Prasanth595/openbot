@@ -26,14 +26,14 @@ export const messages = {
   "billing.server.renews": "Renouvellement le {date}",
   "billing.server.ends": "Se termine le {date}",
   "billing.status.trialing": "Essai",
-  "billing.status.paymentFailed": "Paiement échoué",
+  "billing.status.paymentFailed": "Échec du paiement",
   "billing.status.paused": "En pause",
   "billing.otherServers": "Autres serveurs",
   "billing.action.menu": "Actions de l’offre pour {server}",
   "billing.action.change": "Changer d’offre",
   "billing.action.cancel": "Résilier l’offre",
   "billing.action.renew": "Renouveler l’offre",
-  "billing.action.updatePayment": "Mettre à jour le moyen de paiement",
+  "billing.action.updatePayment": "Changer de moyen de paiement",
   "billing.lifecycle.cancelRenewal": "Annuler le renouvellement",
   "billing.lifecycle.cancelTitle": "Annuler le renouvellement de {name} ?",
   "billing.lifecycle.cancelDescription":
@@ -66,7 +66,7 @@ export const messages = {
   "billing.lifecycle.scheduledDescription":
     "Le renouvellement est désactivé. Votre serveur et vos données seront supprimés.",
   "billing.lifecycle.scheduleDescription":
-    "Utilisez votre serveur jusqu’à la fin de la période payée. Ensuite, ses agents, conversations et fichiers seront définitivement supprimés. Vous pouvez arrêter la suppression avec Conserver le serveur avant cette date.",
+    "Utilisez votre serveur jusqu’à la fin de la période payée. Ensuite, ses agents, conversations et fichiers seront définitivement supprimés. Vous pouvez arrêter la suppression avec « Conserver le serveur » avant cette date.",
   "billing.lifecycle.keepTitle": "Conserver {name} ?",
   "billing.lifecycle.keepDescription":
     "Votre serveur et ses données sont conservés. La suppression planifiée s’arrête et le renouvellement automatique reprend.",
@@ -74,7 +74,7 @@ export const messages = {
   "billing.lifecycle.deleteDescription":
     "Supprimez définitivement ce serveur, ses agents, conversations et fichiers. Votre abonnement prend fin maintenant. Cette action est irréversible.",
   "billing.lifecycle.saving": "Enregistrement…",
-  "billing.lifecycle.failed": "La modification n’a pas pu être confirmée. Actualisez Facturation et réessayez.",
+  "billing.lifecycle.failed": "La modification n’a pas pu être confirmée. Actualisez la facturation et réessayez.",
   "billing.lifecycle.deleted": "{name} a été supprimé. Son abonnement a pris fin.",
   "billing.lifecycle.label": "Aperçu de conception · Actions fictives uniquement",
   "billing.lifecycle.reset": "Réinitialiser l’aperçu",

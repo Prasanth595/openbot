@@ -8,7 +8,7 @@ import type {
 import type { AgentActivityLabel } from "@openbot/ui/features/conversation/AgentActivity";
 import { currentText } from "@openbot/ui/text";
 import type { UserErrorDetails } from "@openbot/user-errors";
-import { createEffect, createSignal, onCleanup } from "solid-js";
+import { createEffect, createSignal, createStore, onCleanup } from "solid-js";
 import type { ChatSearchMatch } from "./chat-search";
 import {
   appendPluginPrompt,
@@ -21,6 +21,7 @@ import {
 } from "./composer-draft";
 import { type StoredComposerDrafts, writeComposerDraftsOnChange } from "./composer-draft-storage";
 import { composerDraftKey } from "./conversation-keys";
+import { releaseFilePreviewPage } from "./conversation-port";
 import type {
   ComposerDraft,
   ConversationProps,
@@ -28,7 +29,9 @@ import type {
   SidebarFilePreview,
   VoiceLiveTranscript,
 } from "./conversation-types";
+import type { SidePanelsState } from "./stores/panels-store";
 import { createPendingSendStore } from "./stores/pending-send-store";
+import type { SideQuestionState } from "./stores/side-question-store";
 import type { VoiceCloudStream } from "./stores/voice-store";
 
 const SETTINGS_PANEL_DEFAULT = 296;
@@ -362,12 +365,23 @@ export function createServerConversationState() {
   const [markingRead, setMarkingRead] = createSignal(false);
   const [dropActive, setDropActive] = createSignal(false);
   const [rightPanels, setRightPanels] = createSignal<Record<string, RightPanelMode>>({});
+  const [sidePanels, setSidePanels] = createStore<SidePanelsState>({ side: {}, tasks: {} });
   const [settingsProvider, setSettingsProvider] = createSignal<AgentProviderId>("codex");
   const [settingsModel, setSettingsModel] = createSignal<AgentModelId>("gpt-6-luna");
   const [settingsReasoning, setSettingsReasoning] = createSignal<AgentReasoningEffort>("medium");
   const [browserAddress, setBrowserAddress] = createSignal("https://www.google.com");
   const [browserAddressEditing, setBrowserAddressEditing] = createSignal(false);
-  const [sidebarFilePreview, setSidebarFilePreview] = createSignal<SidebarFilePreview | null>(null);
+  const [sidebarFilePreview, writeSidebarFilePreview] = createSignal<SidebarFilePreview | null>(null);
+  // The accepted preview outlives its lazy view. Keep its page with the server-owned state,
+  // including when it changes twice before Solid settles or the user visits another conversation.
+  let previewPageUrl: string | undefined;
+  const setSidebarFilePreview = (preview: SidebarFilePreview | null) => {
+    const nextPageUrl = preview?.preview?.pageUrl;
+    if (previewPageUrl !== nextPageUrl) releaseFilePreviewPage(previewPageUrl);
+    previewPageUrl = nextPageUrl;
+    writeSidebarFilePreview(preview);
+  };
+  onCleanup(() => releaseFilePreviewPage(previewPageUrl));
   const [openReactionMessageId, setOpenReactionMessageId] = createSignal<string | null>(null);
   const [expandedEmojiMessageId, setExpandedEmojiMessageId] = createSignal<string | null>(null);
   const [copiedMessageId, setCopiedMessageId] = createSignal<string | null>(null);
@@ -379,6 +393,8 @@ export function createServerConversationState() {
   const [chatSearchTotal, setChatSearchTotal] = createSignal(0);
   // The rows of the waiting block that the person closed. Row ids name the question message.
   const [hiddenAwaitingReplyIds, setHiddenAwaitingReplyIds] = createSignal<ReadonlySet<string>>(new Set());
+  // Keyed by agent id, as `rightPanels` is: a side question lives as long as its pane, not its view.
+  const [sideQuestions, setSideQuestions] = createStore<Record<string, SideQuestionState>>({});
 
   return {
     showComposerActions,
@@ -393,6 +409,8 @@ export function createServerConversationState() {
     setDropActive,
     rightPanels,
     setRightPanels,
+    sidePanels,
+    setSidePanels,
     settingsProvider,
     setSettingsProvider,
     settingsModel,
@@ -425,6 +443,8 @@ export function createServerConversationState() {
     setChatSearchTotal,
     hiddenAwaitingReplyIds,
     setHiddenAwaitingReplyIds,
+    sideQuestions,
+    setSideQuestions,
   };
 }
 

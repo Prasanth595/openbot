@@ -12,10 +12,10 @@ import type { MobileTranslate } from "@openbot/i18n/mobile";
 import * as Linking from "expo-linking";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { FileText } from "lucide-react-native";
+import FileText from "lucide-react-native/icons/file-text";
 import type { Token, Tokens } from "marked";
 import { Fragment, memo, type ReactNode, useEffect, useId, useMemo, useRef } from "react";
-import { type ColorValue, ScrollView, type TextStyle, useWindowDimensions, View } from "react-native";
+import { type ColorValue, Platform, ScrollView, type TextStyle, useWindowDimensions, View } from "react-native";
 import { UITextView } from "react-native-uitextview";
 import { useCSSVariable } from "uniwind";
 import { BloubAvatarThumbnail } from "@/features/agents/components/bloub-avatar";
@@ -31,7 +31,7 @@ import { graphemes } from "@/shared/lib/graphemes";
 import { haptics } from "@/shared/lib/haptics";
 import { useMotionPreference } from "@/shared/lib/motion";
 import { currentText, useText } from "@/shared/lib/text";
-import { parseChatMarkdown, parseFinishedChatMarkdown } from "../model/chat-markdown-parser";
+import { parseFinishedChatMarkdown, parseStreamingChatMarkdown } from "../model/chat-markdown-parser";
 import { plainMentionParts } from "../model/chat-mentions";
 import { createReplyReveal } from "../model/reply-reveal";
 import { ChatCodeBlock } from "./chat-code-block";
@@ -635,7 +635,7 @@ function MarkdownBlocks({
         // The list row draws the task mark, so the checkbox token adds nothing.
         if (token.type === "space" || token.type === "def" || token.type === "checkbox") return null;
         if (tokenIs(token, "paragraph") || tokenIs(token, "text")) {
-          if (inList && token.tokens?.some((child) => tokenIs(child, "codespan"))) {
+          if ((inList || Platform.OS === "android") && token.tokens?.some((child) => tokenIs(child, "codespan"))) {
             return <ListParagraph key={offset} tokens={token.tokens} presentation={presentation} />;
           }
           const { nativeSelection } = presentation;
@@ -843,11 +843,11 @@ export const ChatMarkdown = memo(function ChatMarkdown({
   const textReveal = useMotionPreference("textReveal");
   const { fontScale } = useWindowDimensions();
   const tokens = useMemo(
-    () => (finished ? parseFinishedChatMarkdown(body) : parseChatMarkdown(body)),
+    () => (finished ? parseFinishedChatMarkdown(body) : parseStreamingChatMarkdown(body)),
     [body, finished],
   );
   const reveal = useMemo(() => createReplyReveal(tokens), [tokens]);
-  const visibleTokens = useReplyPlayback(reveal, playback);
+  const { tokens: visibleTokens, flushed } = useReplyPlayback(reveal, playback);
   const codeColor = useThemeColor("foreground");
   const { t } = useText();
   // A reply turns into native text views once it has stopped streaming and its words have all
@@ -895,7 +895,7 @@ export const ChatMarkdown = memo(function ChatMarkdown({
           t,
           streaming,
           finished,
-          animateTail: (streaming || Boolean(playback?.enabled)) && animationEnabled && textReveal,
+          animateTail: (streaming || (Boolean(playback?.enabled) && !flushed)) && animationEnabled && textReveal,
           nativeSelection: revealed ? nativeTarget : undefined,
         }}
       />

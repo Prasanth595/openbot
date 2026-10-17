@@ -144,11 +144,15 @@ export const messages = {
   "error.provider.opencodeVersionUnreadable": "Nie można odczytać wersji OpenCode CLI.",
   "error.provider.bunVersionUnreadable": "Nie można odczytać wersji środowiska uruchomieniowego Bun.",
   "error.provider.connectBeforeProfile": "Połącz wybranego dostawcę, zanim wygenerujesz profil.",
-  "error.provider.cliNotReady": "{provider} CLI nie jest gotowy lub zalogowany.",
+  "error.provider.cliNotReady": "{provider} CLI nie jest gotowy ani zalogowany.",
   "error.provider.cliTimedOut":
     "{provider} nie odpowiedział na czas. Komputer może być zajęty. OpenBot spróbuje ponownie.",
   "error.provider.cliTimedOutRefresh":
     "{provider} nie odpowiedział na czas. Komputer może być zajęty. Odśwież dostawców, aby spróbować ponownie.",
+  "error.provider.acpStartTimedOut":
+    "{provider} nie zakończył uruchamiania w ciągu {seconds} s. Komputer może być zajęty.",
+  "error.provider.acpModelsTimedOut":
+    "{provider} nie podał listy modeli w ciągu {seconds} s. Komputer może być zajęty.",
   "error.provider.startStopped":
     "{provider} kilka razy z rzędu się nie uruchomił, więc OpenBot przestał próbować. Odśwież dostawców, aby spróbować ponownie.",
   "error.provider.tempDiskSpace":
@@ -229,6 +233,10 @@ export const messages = {
   "error.provider.usageLimitReached": "Konto osiągnęło limit użycia.",
   "error.provider.foreignReasoning":
     "Dostawca {provider} nie przyjął wcześniejszego rozumowania z tego czatu, ponieważ otrzymało je inne konto lub inny klucz API. OpenBot rozpoczął nową sesję {provider} z historią czatu. Spróbuj ponownie.",
+  "error.provider.opencodeSessionRejected":
+    "OpenCode odrzucił żądanie i nie podał przyczyny. Może się to zdarzyć w długim czacie lub po zmianie modelu. OpenBot rozpoczął nową sesję OpenCode z historią czatu. Spróbuj ponownie. Jeśli błąd się powtarza, wybierz inny model lub niższy wysiłek.",
+  "error.provider.museMcpStartupFault":
+    "Muse nie mógł uruchomić serwera MCP i zablokował MCP w tej sesji. OpenBot rozpoczął nową sesję Muse z historią czatu. Spróbuj ponownie. Jeśli błąd się powtarza, wyłącz Sterowanie komputerem lub serwer MCP, który zawiódł, dla tego agenta.",
   "error.provider.grokSignIn": "Uruchom `grok login` lub ustaw XAI_API_KEY, aby używać Grok.",
   "error.provider.acpSignInTimedOut": "Upłynął limit czasu logowania.",
   "error.provider.acpSignInStopped": "Logowanie zatrzymało się przed zakończeniem.",
@@ -299,7 +307,7 @@ export const messages = {
   "error.provider.piSessionMissing": "Plik sesji Pi nie jest dostępny na tym komputerze.",
   "error.provider.piResumeCancelled": "Pi anulował wznowienie sesji. Spróbuj ponownie.",
   "error.provider.piSessionIdentity": "Pi zwrócił inną sesję. Zapisana sesja nie została zastąpiona.",
-  "error.provider.piModelInvalid": "Wybierz model Pi, który zawiera swojego dostawcę.",
+  "error.provider.piModelInvalid": "Wybierz model Pi, który zawiera nazwę dostawcy.",
   "error.provider.piToolInvalid": "Narzędzie zwróciło nieprawidłowy wynik.",
   "error.provider.piSignIn": "Użyj /login w Pi na komputerze hosta. Zamknij Pi po zakończeniu logowania.",
   "error.provider.museBusy": "Sesja Muse jest zajęta.",
@@ -322,7 +330,7 @@ export const messages = {
   "error.provider.museSessionMismatch": "Muse zwrócił inną sesję.",
   "error.provider.museCompactRejected": "Muse nie przyjął kompaktowania.",
   "error.provider.museTurnMismatch": "Muse zwrócił inną turę.",
-  "error.provider.museHistoryMismatch": "Historia Muse wykroczyła poza sesję.",
+  "error.provider.museHistoryMismatch": "Historia Muse obejmuje różne sesje.",
   "error.provider.museRecoveryFailed": "Muse nie może odzyskać brakujących zdarzeń.",
   "error.provider.museHistoryStalled": "Kursor historii Muse nie przesunął się.",
   "error.provider.museApprovalUnavailable": "Muse nie zaoferował tej odpowiedzi zatwierdzenia.",

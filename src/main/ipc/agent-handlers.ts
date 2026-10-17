@@ -1,3 +1,4 @@
+import { AGENT_HIDDEN_CAPABILITY, AGENT_HIDDEN_ROUTES } from "@openbot/contracts/team-protocol/agent-hidden-v1";
 import {
   AGENT_SESSION_SETTINGS_CAPABILITY,
   AGENT_SESSION_SETTINGS_ROUTES,
@@ -22,6 +23,7 @@ import {
   hostAnalyticsQuery,
   isAgentModelOption,
   parseAgentAnalyticsInput,
+  parseAskSideQuestion,
   parseBrowserSecretResponse,
   parseChannelCommand,
   parseChannelRead,
@@ -29,6 +31,7 @@ import {
   parseHostAnalyticsInput,
   parseResetAgentSessionSetting,
   parseSaveAgentProfile,
+  parseSetAgentHiddenInput,
   parseSetAgentSessionSetting,
 } from "@openbot/contracts/ipc";
 import { isDynamicRecord } from "@openbot/contracts/runtime-values";
@@ -55,6 +58,7 @@ import {
   decodeAgentStatusFromHost,
   decodeAgentSummaries,
   decodeAgentSummary,
+  decodeHiddenAgentsFromHost,
   decodeHostAnalyticsFromHost,
   decodeInstalledSkillsFromHost,
   decodeQueuedMessageReceipt,
@@ -67,6 +71,7 @@ import type { SkillMarketplaceService } from "../skill-marketplace-service";
 import {
   parseAcknowledgeFailedTurn,
   parseAgentId,
+  parseAgentTask,
   parseApprovalResponse,
   parseBrowserTakeoverResponse,
   parseCancelAgentWait,
@@ -84,11 +89,13 @@ import {
   parseQueueEdit,
   parseReadConversationPage,
   parseReorderQueue,
+  parseRunQueuedMessageAsTask,
   parseSearchConversationFiles,
   parseSearchConversationMessages,
   parseSendMessage,
   parseSetAgentAvatar,
   parseSidebarLayoutAction,
+  parseStartAgentTask,
   parseSteerQueuedMessage,
   parseUpdateAgent,
   parseUpdateQueuedMessage,
@@ -104,6 +111,11 @@ const modelLogger = createOpenBotLogger("provider-models");
  * The preload refuses the whole list for one such member and has no log of its own, so without this
  * the window shows "Invalid agent model response." and nothing records which model it was.
  */
+/** A joined server has no task route, so a task control there fails with a reason. */
+function taskRemoteUnsupported(): never {
+  throw new Error(sourceText("error.backend.taskRemoteUnsupported"));
+}
+
 function logRejectedModels<T>(models: T, source: "local" | "remote"): T {
   if (!Array.isArray(models)) return models;
   for (const model of models) {
@@ -226,6 +238,32 @@ export function agentIpcHandlers({
           );
         },
       }),
+      listHiddenAgents: scopedQueryHandler({
+        local: () => service.listHiddenAgents(),
+        // A server without `agent-hidden-v1` cannot hide an agent, so it has no hidden agents.
+        remote: (serverId) => {
+          if (!remoteServers.supportsCapability(serverId, AGENT_HIDDEN_CAPABILITY)) return { agents: [] };
+          return runCauseEffect(
+            remoteServers.request(serverId, AGENT_HIDDEN_ROUTES.read, decodeHiddenAgentsFromHost, {
+              method: "POST",
+              body: {},
+            }),
+          );
+        },
+      }),
+      setAgentHidden: scopedHandler(parseSetAgentHiddenInput, {
+        local: (input) => runCauseEffect(service.setAgentHidden(input)),
+        remote: (input, serverId) => {
+          if (!remoteServers.supportsCapability(serverId, AGENT_HIDDEN_CAPABILITY))
+            throw new Error(sourceText("error.team.agentHideUnsupported"));
+          return runCauseEffect(
+            remoteServers.request(serverId, AGENT_HIDDEN_ROUTES.set, decodeHiddenAgentsFromHost, {
+              method: "POST",
+              body: input,
+            }),
+          );
+        },
+      }),
       listAgents: scopedQueryHandler({
         local: () => service.listAgents(),
         remote: (serverId) =>
@@ -306,6 +344,12 @@ export function agentIpcHandlers({
             }),
           ),
       }),
+      askSideQuestion: scopedHandler(parseAskSideQuestion, {
+        local: (input) => runCauseEffect(service.askSideQuestion(input)),
+        remote: () => {
+          throw new Error(sourceText("error.agent.sideQuestionLocalOnly"));
+        },
+      }),
       saveProfile: scopedHandler(parseSaveAgentProfile, {
         local: (input) => runCauseEffect(service.saveProfile(input, sidebarLayout, host.conversationSender())),
         remote: (input, serverId) =>
@@ -345,6 +389,10 @@ export function agentIpcHandlers({
           }
           if (input.busyMessageMode !== undefined) {
             throw new Error(sourceText("error.agent.busyMessageModeLocalOnly"));
+          }
+          // A server runs tasks only on its own computer: the Team API has no task route.
+          if (input.taskLimit !== undefined) {
+            throw new Error(sourceText("error.agent.taskLimitLocalOnly"));
           }
           if (input.backupModels !== undefined || input.leaveUsageLimit !== undefined) {
             throw new Error(sourceText("error.agent.backupModelsLocalOnly"));
@@ -444,14 +492,16 @@ export function agentIpcHandlers({
       }),
       sendMessage: scopedHandler(parseSendMessage, {
         local: (input) => runCauseEffect(service.sendMessage(input, host.conversationSender())),
-        remote: (input, serverId) =>
-          runCauseEffect(
+        remote: (input, serverId) => {
+          if (input.taskId) throw new Error(sourceText("error.backend.taskRemoteUnsupported"));
+          return runCauseEffect(
             remoteServers.request(serverId, TEAM_API_ROUTES.agent.messages(input.agentId), decodeQueuedMessageReceipt, {
               method: "POST",
               // The host uses this computer's zone for a routine the agent creates from the message.
               body: { ...input, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
             }),
-          ),
+          );
+        },
       }),
       setMessageReaction: scopedHandler(parseMessageReaction, {
         local: (parsed) => runCauseEffect(service.setMessageReaction(parsed)),
@@ -478,6 +528,35 @@ export function agentIpcHandlers({
         remote: () => {
           throw new Error(sourceText("error.backend.agentWaitRemoteUnsupported"));
         },
+      }),
+      // Tasks are local only: the Team API has no task route. A joined server shows no task.
+      listTasks: scopedHandler(parseAgentId, {
+        local: (agentId) => service.listTasks(agentId),
+        remote: (agentId) => ({ agentId, tasks: [], limit: 1 }),
+      }),
+      readTask: scopedHandler(parseAgentTask, {
+        local: (parsed) => service.readTask(parsed.agentId, parsed.taskId),
+        remote: taskRemoteUnsupported,
+      }),
+      startTask: scopedHandler(parseStartAgentTask, {
+        local: (input) => runCauseEffect(service.startTask(input, host.conversationSender())),
+        remote: taskRemoteUnsupported,
+      }),
+      runQueuedMessageAsTask: scopedHandler(parseRunQueuedMessageAsTask, {
+        local: (parsed) => runCauseEffect(service.runQueuedMessageAsTask(parsed)),
+        remote: taskRemoteUnsupported,
+      }),
+      stopTask: scopedHandler(parseAgentTask, {
+        local: (parsed) => runCauseEffect(service.stopTask(parsed)),
+        remote: taskRemoteUnsupported,
+      }),
+      closeTask: scopedHandler(parseAgentTask, {
+        local: (parsed) => runCauseEffect(service.closeTask(parsed)),
+        remote: taskRemoteUnsupported,
+      }),
+      reopenTask: scopedHandler(parseAgentTask, {
+        local: (parsed) => service.reopenTask(parsed),
+        remote: taskRemoteUnsupported,
       }),
       acknowledgeFailedTurn: scopedHandler(parseAcknowledgeFailedTurn, {
         local: (parsed) => service.acknowledgeFailedTurn(parsed.agentId, parsed.turnId),

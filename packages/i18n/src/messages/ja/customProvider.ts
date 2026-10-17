@@ -42,11 +42,11 @@ export const messages = {
 
   "customProvider.saved.restarted": "保存しました。OpenBot がモデルを読み込んでいます。",
   "customProvider.saved.skippedBusy":
-    "保存しました。OpenCode は現在のタスクが止まったあとで一覧を読み込みます。そのときに接続を押してください。",
+    "保存しました。OpenCode は現在のタスクが止まったあとで一覧を読み込みます。そのあとで「接続」を押してください。",
   "customProvider.saved.notRunning": "保存しました。OpenCode は次回の起動時に一覧を読み込みます。",
   "customProvider.removed.restarted": "削除しました。OpenBot がモデルを読み込んでいます。",
   "customProvider.removed.skippedBusy":
-    "削除しました。OpenCode は現在のタスクが止まったあとで一覧を読み込みます。そのときに接続を押してください。",
+    "削除しました。OpenCode は現在のタスクが止まったあとで一覧を読み込みます。そのあとで「接続」を押してください。",
   "customProvider.removed.notRunning": "削除しました。OpenCode は次回の起動時に一覧を読み込みます。",
   "customProvider.saveFailed": "OpenBot はこのエンドポイントを保存できませんでした。",
   "customProvider.removeFailed": "OpenBot は {name} を削除できませんでした。",
@@ -106,7 +106,7 @@ export const messages = {
   "customProvider.probe.checking": "確認中",
   "customProvider.probe.running": { other: "実行中 · モデル {count} 個" },
 
-  "customProvider.detected.title": "このコンピュータで見つかったもの",
+  "customProvider.detected.title": "このコンピューターで見つかったもの",
   "customProvider.detected.scanning": "ローカルのモデルとエージェントを探しています。",
   "customProvider.detected.scanAgain": "再スキャン",
   "customProvider.detected.empty": "OpenBot はローカルのモデルサーバーも ACP エージェントも見つけられませんでした。",
@@ -162,7 +162,7 @@ export const messages = {
   "customProvider.acp.checkOkVersion": "{name} {version} が応答しました",
   "customProvider.acp.checkProtocol": "ACP バージョン {version}",
   "customProvider.acp.checkFailed": "エージェントが応答しませんでした",
-  "customProvider.acp.trustTitle": "このコマンドはこのコンピュータで実行されます",
+  "customProvider.acp.trustTitle": "このコマンドはこのコンピューターで実行されます",
   "customProvider.acp.trustDescription":
     "OpenBot はあなたのユーザーアカウントでこれを起動します。エージェントはファイルの読み取りと変更、コマンドの実行ができます。信頼できるエージェントだけを追加してください。",
   "customProvider.acp.submit": "エージェントを追加",
@@ -180,7 +180,7 @@ export const messages = {
     "小文字の英字、数字、ハイフンを使い、英字か数字で始めてください。40 文字以内にしてください。",
 
   "customProvider.agents.title": "カスタムエージェント",
-  "customProvider.agents.description": "OpenBot がこのコンピュータで起動する ACP エージェントです。",
+  "customProvider.agents.description": "OpenBot がこのコンピューターで起動する ACP エージェントです。",
   "customProvider.agents.empty": "カスタムエージェントはまだありません。",
   "customProvider.agents.add": "エージェントを追加",
   "customProvider.agents.restart": "エージェントを再起動",

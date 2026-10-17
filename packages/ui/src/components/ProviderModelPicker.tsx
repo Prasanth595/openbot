@@ -35,7 +35,6 @@ import {
   SelectTrigger,
   SelectValue,
   SlidersHorizontal,
-  Switch,
   Tabs,
   Tooltip,
 } from "@openbot/ui";
@@ -54,7 +53,6 @@ import {
   type PickerModelGroup,
   pickerModels,
 } from "./provider-model-options";
-import { StandingApprovalConfirmation } from "./StandingApprovalConfirmation";
 import { SwapLabel, type SwapMotion } from "./SwapLabel";
 
 interface ProviderModelPickerProps {
@@ -90,16 +88,6 @@ interface ProviderModelPickerProps {
    * plus button after them opens the settings to connect one. Receives the picker trigger.
    */
   onManageProviders?: (trigger: HTMLElement) => void;
-  /**
-   * This agent's standing approval, below Effort. Without the callback the row is absent, which is
-   * how a remote agent and the setup screen show the picker they always showed: the grant belongs
-   * to the computer that runs the agent.
-   */
-  autoApprove?: boolean;
-  agentName?: string;
-  /** Turbo mode already covers every agent, so the switch reads on and cannot be turned off here. */
-  autoApproveLocked?: boolean;
-  onAutoApproveChange?: (autoApprove: boolean) => void;
   /**
    * Gives each account of a provider with more than one its own rail entry, and passes the account
    * of a choice to `onChange`. Only where the agent's account can change.
@@ -177,7 +165,6 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
   const { t, format } = text;
   const [open, setOpen] = createSignal(false);
   const [search, setSearch] = createSignal("");
-  const [grantConfirmation, setGrantConfirmation] = createSignal<{ name?: string; confirm: () => void } | null>(null);
   let trigger: HTMLButtonElement | undefined;
   const providerButtons = new Map<RailKey, HTMLButtonElement>();
   let root: HTMLDivElement | undefined;
@@ -913,24 +900,6 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
                         </Show>
                       </div>
                     </Show>
-                    <Show when={props.onAutoApproveChange}>
-                      {(change) => (
-                        <div class="provider-model-effort">
-                          <span>{t("provider.picker.autoApprove")}</span>
-                          <Switch
-                            aria-label={t("provider.picker.autoApproveLabel")}
-                            checked={props.autoApprove === true}
-                            disabled={props.autoApproveLocked === true}
-                            onChange={(next) => {
-                              const save = change();
-                              if (!next) return save(false);
-                              setGrantConfirmation({ name: props.agentName, confirm: () => save(true) });
-                              setOpen(false);
-                            }}
-                          />
-                        </div>
-                      )}
-                    </Show>
                   </Tabs.Content>
                 );
               }}
@@ -938,17 +907,6 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
           </Tabs.Root>
         </Popover.Content>
       </Popover.Root>
-      <StandingApprovalConfirmation
-        open={grantConfirmation() !== null}
-        agentName={grantConfirmation()?.name}
-        restoreFocusTarget={trigger}
-        onCancel={() => setGrantConfirmation(null)}
-        onConfirm={() => {
-          const grant = grantConfirmation();
-          setGrantConfirmation(null);
-          grant?.confirm();
-        }}
-      />
     </div>
   );
 }

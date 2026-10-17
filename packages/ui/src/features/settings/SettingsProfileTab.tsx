@@ -15,7 +15,7 @@ import {
   Text,
   UserAvatar,
 } from "@openbot/ui";
-import { For, Show } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import { useText } from "../../text";
 import type { SettingsProfileStore } from "./stores/profile-store";
 
@@ -24,6 +24,8 @@ interface SettingsProfileTabProps {
   account: CentralAuthUser;
   canListSessions: boolean;
   canRevokeSession: boolean;
+  /** Signs this computer out of the account. The button is hidden without it. */
+  onSignOut?: (() => Promise<void>) | undefined;
 }
 
 /** `Date.prototype.toLocaleString()` with no options: the date and the time, each field numeric. */
@@ -38,7 +40,9 @@ const SESSION_TIME_FORMAT: Intl.DateTimeFormatOptions = {
 const SESSION_TITLE_SEPARATOR = " · ";
 
 export function SettingsProfileTab(props: SettingsProfileTabProps) {
-  const { t, format } = useText();
+  const { t, format, errorMessage } = useText();
+  const [signingOut, setSigningOut] = createSignal(false);
+  const [signOutError, setSignOutError] = createSignal<string | null>(null);
   const sessionTime = (timestamp: number) => format.date(timestamp, SESSION_TIME_FORMAT);
   const sessionKind = (session: AccountSession) => {
     if (session.hostedServer) return t("settings.profile.sessions.kind.hostedServer");
@@ -46,6 +50,17 @@ export function SettingsProfileTab(props: SettingsProfileTabProps) {
       ? t("settings.profile.sessions.kind.desktop")
       : t("settings.profile.sessions.kind.mobile");
   };
+  async function signOut(onSignOut: () => Promise<void>) {
+    if (signingOut()) return;
+    setSigningOut(true);
+    setSignOutError(null);
+    try {
+      await onSignOut();
+    } catch (cause) {
+      setSignOutError(errorMessage(cause, t("account.menu.signOutFailed")));
+      setSigningOut(false);
+    }
+  }
   return (
     <>
       <SettingsSection title={t("settings.profile.identity.title")}>
@@ -138,11 +153,21 @@ export function SettingsProfileTab(props: SettingsProfileTabProps) {
             <ItemContent>
               <ItemTitle>{t("settings.profile.email.title")}</ItemTitle>
               <ItemDescription>{t("settings.profile.email.description")}</ItemDescription>
+              <Show when={signOutError()}>
+                {(message) => <ItemDescription role="alert">{message()}</ItemDescription>}
+              </Show>
             </ItemContent>
             <ItemActions>
               <Text as="span" class="settings-modal-readonly-value" variant="body">
                 {props.account.email}
               </Text>
+              <Show when={props.onSignOut}>
+                {(onSignOut) => (
+                  <Button variant="outline" disabled={signingOut()} onClick={() => void signOut(onSignOut())}>
+                    {signingOut() ? t("account.menu.signingOut") : t("account.menu.signOut")}
+                  </Button>
+                )}
+              </Show>
             </ItemActions>
           </Item>
         </ItemGroup>

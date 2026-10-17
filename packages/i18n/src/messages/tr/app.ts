@@ -2,7 +2,7 @@ import type { PartialTranslation } from "../../message";
 import type { messages as source } from "../en/app";
 
 export const messages = {
-  "app.loading": "OpenBot Yükleniyor",
+  "app.loading": "OpenBot yükleniyor",
   "app.leftPanel.resize": "Sol kenar çubuğunu yeniden boyutlandır",
   "app.host.thisMac": "Bu Mac",
   "app.host.thisComputer": "Bu bilgisayar",
@@ -23,7 +23,7 @@ export const messages = {
   "app.errorStatus.messageLoad": "Mesaj yüklenemedi",
   "app.errorStatus.acknowledge": "Onaylama başarısız oldu",
   "app.provider.connected": "{name} bağlandı",
-  "app.provider.signedInAs": "{account} olarak giriş yapıldı.",
+  "app.provider.signedInAs": "{account} olarak oturum açıldı.",
   "app.provider.signedInElsewhere": "Giriş işlemi diğer cihazda tamamlandı.",
   "app.provider.newCode": "Yeni kod al",
   "app.provider.codeExpired": "{name} kodunun süresi doldu",
@@ -48,8 +48,31 @@ export const messages = {
   "app.questionnaire.empty": "Soru yok",
   "app.standingApproval.title": "{name} için her zaman izin verilsin mi?",
   "app.standingApproval.titleUnnamed": "Bu ajan için her zaman izin verilsin mi?",
+  "app.rail.label": "Sayfalar",
+  "app.rail.agents": "Ajanlar",
+  "app.rail.schedule": "Zamanlama",
+  "app.rail.usage": "Kullanım",
+  "app.rail.marketplace": "Pazar yeri",
+  "app.rail.settings": "Ayarlar",
+  "app.rail.settingsNotice": "Ayarlar. {notice}",
+  "app.page.serverFallback": "Sunucu",
+  "app.help.label": "Yardım",
+  "app.help.whatsNew": "Yenilikler",
+  "app.help.changelog": "Tüm değişiklik günlüğü",
+  "app.help.guides": "Kılavuzlar",
+  "app.help.discord": "Discord'a katıl",
+  "app.rail.usageRings": "{name} kullanımı: {windows}. Kullanımı aç",
+  "app.settingsPage.title": "Ayarlar",
+  "app.settingsPage.search": "Ayarlarda ara",
+  "app.settingsPage.searchPlaceholder": "Ayarlarda ara…",
+  "app.settingsPage.results": "Ayar arama sonuçları",
+  "app.settingsPage.noResults": "Eşleşen ayar yok.",
+  "app.settingsPage.resultCount": {
+    one: "{count} eşleşen ayar.",
+    other: "{count} eşleşen ayar.",
+  },
   "app.standingApproval.description":
-    "{name}, onu çalıştıran bilgisayarda tekrar sormadan komut çalıştıracak, dosyaları değiştirecek ve kendi dosya sistemi ile ağ erişimini genişletecektir. Turbo modu açık olmadığı sürece herkese açık siteleri yayımlamak, değiştirmek ve silmek yine onay gerektirir. Bu ajanın model menüsünden Otomatik onayı kapatabilirsiniz.",
+    "{name} Tam erişime geçer. Onu çalıştıran bilgisayarda tekrar sormadan komut ve araç çalıştıracak, dosyaları değiştirecek, site yayımlayacak ve kendi dosya sistemi ile ağ erişimini genişletecektir. Bunu ajanın İzinler ayarlarından değiştirebilirsiniz.",
   "app.standingApproval.descriptionUnnamed":
-    "Bu ajan, onu çalıştıran bilgisayarda tekrar sormadan komut çalıştıracak, dosyaları değiştirecek ve kendi dosya sistemi ile ağ erişimini genişletecektir. Turbo modu açık olmadığı sürece herkese açık siteleri yayımlamak, değiştirmek ve silmek yine onay gerektirir. Bu ajanın model menüsünden Otomatik onayı kapatabilirsiniz.",
+    "Bu ajan Tam erişime geçer. Onu çalıştıran bilgisayarda tekrar sormadan komut ve araç çalıştıracak, dosyaları değiştirecek, site yayımlayacak ve kendi dosya sistemi ile ağ erişimini genişletecektir. Bunu ajanın İzinler ayarlarından değiştirebilirsiniz.",
 } as const satisfies PartialTranslation<typeof source>;

@@ -47,9 +47,9 @@ when nothing is left for that host or the user signs out. A level of
 "Nothing" and a mute with no end remove it too. `PushNotificationService` in `src/main` keeps the
 registrations in `openbot-push-notifications-v1.json` in the user data folder, readable only by the
 user, so a phone that does not connect after the host restarts still gets notifications. It sends
-only while the phone is away or its connection is closed. An event that waits for the member (input,
-an approval, a browser step) always goes. An answer or a failure does not go while the member uses a
-desktop app: that computer had input in the last 30 seconds (`powerMonitor.getSystemIdleState`), and
+only while the phone is away or its connection is closed. No event goes while the member uses a
+desktop app, which shows the event and asks for input, an approval, or a browser step itself: that
+computer had input in the last 30 seconds (`powerMonitor.getSystemIdleState`), and
 the window of the host's own desktop app has focus or is open with desktop notifications on, for
 the owner; or the member sent, answered, or typed from another session in the last 30
 seconds (`TeamApiServer.lastMemberUseElsewhere`, kept in memory). The time is short because a task
@@ -74,6 +74,35 @@ The Notification Service Extension of the app (`apps/mobile/plugins/with-notific
 file `push-notifications.json`, and shows the agent name and the text. It refuses content that names
 another server than the one whose keys open it. A notification that it cannot open keeps the app
 name only. A tap opens the chat of the agent.
+
+## Android notifications
+
+An Android phone gets the same notifications in the same conditions, through Firebase Cloud
+Messaging. Android has no Live Activity, so the host does not check one. The phone registers with
+every connected server that supports `push-notifications-android-v1`
+(`POST /v1/push-notifications/android-registration`): the Firebase token of the app, the secret of
+that host, the language, the level, a mute end, the preview switch, and the sound. A registration
+always has a token. `PushNotificationService` keeps it in the same file, as an entry with
+`platform: "android"`; a host from before this capability drops such an entry when it reads the file.
+
+The host sends the sealed notification to `POST /v2/remote/hosts/:hostId/android-notification`. The
+Worker checks the credential, the notification limit of the host and the session, as for an iPhone.
+It signs an OAuth token with the Firebase service account key (`FCM_SERVICE_ACCOUNT`) and sends a
+high-priority data message with `sealed` and, unless the notification is silent, `sound`. It stores
+and logs nothing. Firebase answers `UNREGISTERED` or `SENDER_ID_MISMATCH` for a token that no longer
+reaches the app, and the Worker answers `410`, which removes the registration.
+
+`OpenBotMessagingService.kt` (`apps/mobile/modules/android-notifications`) gets the message, also
+while the app does not run. It opens the seal with the keys that the app writes into
+`push-notifications.json` in its files folder, and gives the notification to `expo-notifications`,
+so a tap reaches the app as on iOS. Android plays the sound of the notification channel, so the app
+makes one channel for each sound (`android-notification-channels.ts`), and the service picks the
+channel of the sound in the message.
+
+Notifications only inform; they have no buttons on either platform. An answer from a button would
+have to reach the computer over the WebRTC connection of the app, which Android does not let a
+closed or frozen app build: React Native stops its timers and its view updates in the background,
+and the web view that holds the connection does not connect again after Android froze the app.
 
 ## Shared channel chats
 
@@ -232,7 +261,10 @@ transport for its events. `messaging-types.ts` is the seam; the core never reads
   teammate's answer runs as a follow-up turn in the same Slack thread. A turn that only asked a
   teammate posts "A teammate is working on it" (`MessagingThreads.awaitsTeammate`). It goes in the
   sidebar's Integrations section, which `MessagingService` creates the first time; the renderer shows
-  that section collapsed.
+  that section collapsed. A disconnect deletes the orchestrator that no other connected place uses
+  (`AgentService.deleteAgent`, which also removes its links), and then the section when no agent is
+  assigned to it. It checks first that the agent can be deleted, so a busy orchestrator stops the
+  disconnect before the token is revoked or the place unlinked.
 - **Execution threads.** Each Slack thread is a link with its own execution thread in
   `projection_threads`, as a channel-agent pair is. A direct message is answered in a thread under
   it, so each one is its own conversation. `MessagingThreads.event` takes that thread's conversation

@@ -28,8 +28,39 @@ export function isArchivedThreadError(error: unknown): boolean {
  * the caller it was issued to. After a sign-in to another account or a new API key, each turn of
  * that session fails the same way, so only a new session, given the OpenBot transcript, recovers.
  */
-export function isForeignReasoningError(message: string): boolean {
+function isForeignReasoningError(message: string): boolean {
   return /\bencrypted_content\b.*\bnot issued to this caller\b/i.test(message);
+}
+
+/**
+ * OpenCode's model gateway answers a request that it does not accept with one generic 400 that
+ * names no field. A session that grew too long for its model, often after the agent moved to
+ * another model on the same session, fails each turn this way, and OpenCode does not compact it
+ * (#2351). Only a new session, given the OpenBot transcript, recovers.
+ */
+function isRejectedOpenCodeRequest(provider: AgentProvider, message: string): boolean {
+  return provider === "opencode" && /\bthe request contains invalid parameters\b/i.test(message);
+}
+
+/**
+ * Muse stores a failed MCP startup audit in the session, and `session/resume` cannot clear it. Each
+ * later turn of that session fails in milliseconds, even after the failed server is removed
+ * (#2369). Only a new session, given the OpenBot transcript, recovers.
+ */
+function isMuseMcpStartupFault(provider: AgentProvider, message: string): boolean {
+  return provider === "muse" && /\bMCP startup audit failed\b/i.test(message);
+}
+
+/**
+ * The failure to show when the provider refused the session's own history, or null when it did
+ * not. Each turn of a refused session fails the same way, so the caller closes the session.
+ */
+export function refusedSessionFailure(provider: AgentProvider, message: string): string | null {
+  if (isForeignReasoningError(message))
+    return sourceText("error.provider.foreignReasoning", { provider: providerLabel(provider) });
+  if (isRejectedOpenCodeRequest(provider, message)) return sourceText("error.provider.opencodeSessionRejected");
+  if (isMuseMcpStartupFault(provider, message)) return sourceText("error.provider.museMcpStartupFault");
+  return null;
 }
 
 export function isMissingProviderSessionError(error: unknown, provider: AgentProvider): boolean {

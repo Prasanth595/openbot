@@ -3,7 +3,7 @@
     "name": "OpenBot",
     "slug": "openbot",
     "platforms": ["ios", "android"],
-    "version": "1.3.1",
+    "version": "1.3.2",
     "orientation": "portrait",
     "icon": "./assets/icons/app-icon.png",
     "scheme": "openbot",
@@ -72,9 +72,15 @@
           "granularPermissions": ["photo"]
         }
       ],
-      "expo-notifications",
       [
-        "./plugins/with-ios-notification-sounds",
+        "expo-notifications",
+        {
+          "icon": "./assets/icons/notification-icon.png",
+          "color": "#6960F1"
+        }
+      ],
+      [
+        "./plugins/with-notification-sounds",
         {
           "sounds": [
             "./assets/sounds/openbot-task.wav",
@@ -90,14 +96,36 @@
         "expo-build-properties",
         {
           "android": {
-            "usesCleartextTraffic": true
+            "usesCleartextTraffic": true,
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true
           },
           "ios": {
             "enableSceneSupport": true
           }
         }
       ],
-      "expo-sharing",
+      [
+        "./plugins/with-share-target",
+        {
+          "ios": {
+            "enabled": true,
+            "appGroupId": "group.run.openbot.mobile",
+            "extensionBundleIdentifier": "run.openbot.mobile.ShareExtension",
+            "activationRule": {
+              "supportsText": true,
+              "supportsWebUrlWithMaxCount": 1,
+              "supportsImageWithMaxCount": 10,
+              "supportsFileWithMaxCount": 10
+            }
+          },
+          "android": {
+            "enabled": true,
+            "singleShareMimeTypes": ["text/*", "image/*", "application/*"],
+            "multipleShareMimeTypes": ["*/*"]
+          }
+        }
+      ],
       "expo-font",
       "expo-image",
       [

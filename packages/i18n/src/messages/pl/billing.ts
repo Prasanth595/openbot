@@ -34,7 +34,7 @@ export const messages = {
   "billing.action.renew": "Odnów plan",
   "billing.action.updatePayment": "Zaktualizuj metodę płatności",
   "billing.lifecycle.cancelRenewal": "Anuluj odnawianie",
-  "billing.lifecycle.cancelTitle": "Anulować odnawianie: {name}?",
+  "billing.lifecycle.cancelTitle": "Anulować odnawianie serwera {name}?",
   "billing.lifecycle.cancelDescription":
     "Ten serwer działa do końca opłaconego okresu. Potem się zatrzyma. Jego agenci, rozmowy i pliki zostaną. Inne serwery nie są objęte tą zmianą.",
   "billing.lifecycle.resumeDescription":

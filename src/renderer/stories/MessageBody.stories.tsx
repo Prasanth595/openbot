@@ -87,6 +87,40 @@ export const WithReplyContext: Story = {
   },
 };
 
+const reply: AgentMessage = {
+  id: "message-reply",
+  author: "you",
+  body: "Approved. Renew it today and tell me the new expiry date.",
+  time: "10:00",
+  replyToMessageId: "message-reference",
+  attachments: [],
+};
+
+const quoted: AgentMessage = {
+  id: "message-reference",
+  author: "agent",
+  body: "Without a renewed certificate, macOS rejects the update on Friday. I need your approval to buy the renewal.",
+  time: "09:55",
+};
+
+/** The quote is a button: a click scrolls the chat to the original and flashes it. */
+export const ReplyOpensOriginal: Story = {
+  args: { message: reply, referencedMessage: quoted, onOpenReference: fn() },
+  render: (storyArgs) => <MessageBodySurface args={storyArgs} author="user" width="360px" />,
+};
+
+/** The original is in older history, which the chat loads before it scrolls. */
+export const ReplyLoadingOriginal: Story = {
+  args: { message: reply, referencedMessage: quoted, onOpenReference: fn(), referenceState: "loading" },
+  render: (storyArgs) => <MessageBodySurface args={storyArgs} author="user" width="360px" />,
+};
+
+/** The original was deleted. The chat has no text to quote, so only the note shows. */
+export const ReplyOriginalUnavailable: Story = {
+  args: { message: reply, referenceState: "unavailable" },
+  render: (storyArgs) => <MessageBodySurface args={storyArgs} author="user" width="360px" />,
+};
+
 export const WithSelectedTextInstruction: Story = {
   args: {
     message: {

@@ -10,7 +10,7 @@ export const messages = {
   "mobile.search.filter.files": "ファイル",
   "mobile.search.filter.routines": "ルーティン",
   "mobile.search.filter.settings": "設定",
-  "mobile.search.clearFilter": "フィルタを解除",
+  "mobile.search.clearFilter": "フィルターを解除",
   "mobile.search.seeAll": "すべて表示",
   "mobile.search.seeAllLabel": "{section}をすべて表示",
   "mobile.search.emptyTitle": "一致する結果はありません",

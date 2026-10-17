@@ -1,3 +1,4 @@
+import { AGENT_HIDDEN_CAPABILITY } from "@openbot/contracts/team-protocol/current";
 import { computeAgentAvatarMoods } from "@openbot/ui/features/agents/agent-avatar-mood";
 import { Sidebar } from "@openbot/ui/features/sidebar/Sidebar";
 import { SidebarMobileAppCard } from "@openbot/ui/features/sidebar/SidebarMobileAppCard";
@@ -15,11 +16,13 @@ import { useChannels } from "../channels/channels-context";
 import { useConversation } from "../conversation/conversation-context";
 import { useDirectMessages } from "../conversation/direct-messages-context";
 import { useServerActions } from "../servers/server-actions";
+import { serverRoleCanAdminister } from "../servers/server-capabilities";
 import { useServerSettings } from "../servers/server-settings";
 import { serverUpdateBadge, showServerUpdate } from "../servers/server-update-flow";
 import { useServers } from "../servers/servers-context";
 import { useSettings } from "../settings/settings-context";
 import { usePresence } from "../team/team-context";
+import { SidebarUpdateIsland } from "../updates/SidebarUpdateIsland";
 import { useSidebar } from "./sidebar-context";
 
 /** Dismissing the mobile app card is a choice of this computer, like the sidebar width. The key is
@@ -53,8 +56,13 @@ export function WorkspaceSidebar(props: { peopleEnabled: boolean }) {
     agentSetupDraft,
     duplicatingAgentIds,
     openBotSetup,
+    userHiddenAgents,
+    userHiddenAgentIds,
   } = useAgents();
-  const { editAgent, duplicateAgent, deleteAgent } = useAgentActions();
+  const { editAgent, duplicateAgent, deleteAgent, setAgentHiddenByUser } = useAgentActions();
+  // The host refuses a member: a hidden agent stops for every member, as a deleted one does.
+  const hideAllowed = () =>
+    activeServerSupportsCapability(AGENT_HIDDEN_CAPABILITY) && serverRoleCanAdminister(activeServer());
   const { activeTurns, queues, failedTurns, usageLimits, pendingPrompts, pendingApprovals } = useTurns();
   const { unreadReplies, recentReplies, markAllAgentMessagesRead } = useConversation();
   const { directPeople } = usePresence();
@@ -146,13 +154,11 @@ export function WorkspaceSidebar(props: { peopleEnabled: boolean }) {
         void markAllAgentMessagesRead();
         void channels.markAllRead();
       }}
-      hasUnread={agentList().some((agent) => (unreadReplies()[agent.id] ?? 0) > 0) || channels.hasUnread()}
+      hasUnread={
+        agentList().some((agent) => !userHiddenAgentIds().has(agent.id) && (unreadReplies()[agent.id] ?? 0) > 0) ||
+        channels.hasUnread()
+      }
       view={layout.sidebarView()}
-      onViewChange={(view) => {
-        // An open channel would stay in the middle with no row in the list.
-        if (view === "routines") channels.close();
-        layout.setSidebarView(view);
-      }}
       serverName={activeServer()?.name ?? "Local"}
       onOpenServerSettings={(trigger) => {
         const server = activeServer();
@@ -207,19 +213,25 @@ export function WorkspaceSidebar(props: { peopleEnabled: boolean }) {
       duplicatingAgentIds={duplicatingAgentIds()}
       onDuplicateAgent={duplicateAgent}
       onDeleteAgent={deleteAgent}
+      userHiddenAgents={userHiddenAgents()}
+      onHideAgent={hideAllowed() ? (agentId) => void setAgentHiddenByUser(agentId, true) : undefined}
+      onRestoreAgent={hideAllowed() ? (agentId) => void setAgentHiddenByUser(agentId, false) : undefined}
       compact={layout.leftPanelCompact()}
       onExpand={layout.expandSidebar}
       onOpenSearch={() => setGlobalSearchVisibility(true)}
       footer={
-        <Show when={!platform.landingPreview && !mobileAppDismissed()}>
-          <SidebarMobileAppCard
-            onOpenInstall={() => openAppSettings(null, "mobile-connect")}
-            onDismiss={() => {
-              window.localStorage.setItem(MOBILE_APP_DISMISSED_STORAGE_KEY, "true");
-              setMobileAppDismissed(true);
-            }}
-          />
-        </Show>
+        <>
+          <Show when={!platform.landingPreview && !mobileAppDismissed()}>
+            <SidebarMobileAppCard
+              onOpenInstall={() => openAppSettings(null, "mobile-connect")}
+              onDismiss={() => {
+                window.localStorage.setItem(MOBILE_APP_DISMISSED_STORAGE_KEY, "true");
+                setMobileAppDismissed(true);
+              }}
+            />
+          </Show>
+          <SidebarUpdateIsland />
+        </>
       }
       onOpenMarketplace={() => setSkillsMarketplaceOpen(true)}
       agentsConnecting={agentListConnecting()}

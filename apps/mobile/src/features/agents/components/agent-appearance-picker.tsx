@@ -3,7 +3,7 @@ import type { AvatarHue } from "@openbot/contracts/ipc";
 import type { MobileTextKey } from "@openbot/i18n/mobile";
 import { Button, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { Shuffle } from "lucide-react-native";
+import Shuffle from "lucide-react-native/icons/shuffle";
 import { memo, type ReactNode, useCallback, useState } from "react";
 import { View } from "react-native";
 import { AgentColorGlow, useAgentColorTransition } from "@/features/agents/components/agent-color-glow";

@@ -51,6 +51,8 @@ type CachedRate = {
 export class BillingUsd {
   readonly #database: D1Database;
   readonly #fetch: (input: string, init: RequestInit) => Promise<Response>;
+  // A stored rate never changes, so one instance reads each currency and day once.
+  readonly #rates = new Map<string, { fxDate: string; usdRate: number }>();
 
   constructor(options: { database: D1Database; fetch: (input: string, init: RequestInit) => Promise<Response> }) {
     this.#database = options.database;
@@ -77,8 +79,12 @@ export class BillingUsd {
       return { amountUsd: amountMinor, fxDate: day, fxRate: 1 };
     }
 
-    const cached = yield* this.#cachedRate(currency, day);
-    const rate = cached ?? (yield* this.#loadRate(currency, day));
+    const key = `${currency}:${day}`;
+    let rate = this.#rates.get(key);
+    if (!rate) {
+      rate = (yield* this.#cachedRate(currency, day)) ?? (yield* this.#loadRate(currency, day));
+      this.#rates.set(key, rate);
+    }
     const amountUsd = Math.round(amountMinor * rate.usdRate);
     if (!Number.isSafeInteger(amountUsd) || amountUsd < 0) {
       return yield* new BillingUsdError({ reason: "invalid_rate" });

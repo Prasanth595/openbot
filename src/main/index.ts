@@ -8,6 +8,7 @@ import {
   IPC_ENDPOINTS,
 } from "@openbot/contracts/ipc";
 import { createFormat, resolveLocale, translateFor } from "@openbot/i18n";
+import { localizeSourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, toLogValue } from "@openbot/logging";
 import { createRemoteDirectoryRefresh } from "@openbot/team-client/remote-directory";
 import { Effect, Semaphore } from "effect";
@@ -38,6 +39,7 @@ import {
   readDevelopmentRemoteDebuggingPort,
   shouldAutoStartHost,
 } from "./development-profile";
+import { filePreviewPages } from "./file-preview-pages";
 import { hostAllowsTenantLaunch } from "./host-update-coordinator";
 import { takeHostedServerEnvironment } from "./hosted-server-bootstrap";
 import { takeHostingDeveloperKey } from "./hosted-server-service";
@@ -86,6 +88,7 @@ import { teamIpcHandlers } from "./ipc/team-handlers";
 import { updateIpcHandlers } from "./ipc/update-handlers";
 import { voiceIpcHandlers } from "./ipc/voice-handlers";
 import { installLinuxDesktopEntry } from "./linux-desktop-entry";
+import { configureLinuxGpu } from "./linux-gpu-mode";
 import { MacHapticFeedback } from "./mac-haptic-feedback";
 import {
   configureApplicationMenu,
@@ -152,10 +155,6 @@ const analyticsCaptureUrl = !app.isPackaged ? readAnalyticsCaptureUrl(process.en
 // Electron exposes FedCM without an account chooser, so every request fails with a NetworkError.
 // Sites such as Google Sign-In use FedCM when it exists and fall back to their popup when it does not.
 app.commandLine.appendSwitch("disable-features", "FedCm");
-// On some Linux GPU drivers the GPU process dies with no fallback mode left, and Chromium then
-// stops the main process with SIGTRAP ("GPU process isn't usable. Goodbye."). Software rendering
-// keeps the window up. The renderer sandbox stays on.
-if (process.platform === "linux") app.disableHardwareAcceleration();
 if (developmentRemoteDebuggingPort) {
   app.commandLine.appendSwitch("remote-debugging-port", developmentRemoteDebuggingPort);
   app.commandLine.appendSwitch("remote-debugging-address", "127.0.0.1");
@@ -178,6 +177,12 @@ app.setName("OpenBot");
 app.enableSandbox();
 if (process.platform === "win32") app.setAppUserModelId("app.openbot.desktop");
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
+// Linux: the GPU stays on until it fails on this computer (#992). `userData` has its final path here.
+configureLinuxGpu({
+  userDataPath: app.getPath("userData"),
+  ownsInstance: hasSingleInstanceLock,
+  server: hostedServer !== null || serverMode !== null,
+});
 const appVariant = readAppVariant(process.env.OPENBOT_APP_VARIANT, app.isPackaged);
 if (!app.isPackaged) guardDevelopmentOutput([process.stdout, process.stderr], () => app.quit());
 const appIconPath = resolveAppIconPath({
@@ -263,11 +268,14 @@ let deepLinkReceiverReady = false;
 
 const MAIN_WINDOW_STATE_FILE = "openbot-main-window-state-v1.json";
 
-if (!app.isPackaged) {
-  const quitAfterDevelopmentSignal = () => app.quit();
-  process.once("SIGINT", quitAfterDevelopmentSignal);
-  process.once("SIGTERM", quitAfterDevelopmentSignal);
-  process.once("SIGHUP", quitAfterDevelopmentSignal);
+// A server is stopped with SIGTERM (systemd, Docker). Without a handler, Electron ends at once and its
+// services do not stop. A hosted server's boat pre-stop hook stops it this way before the disk save
+// (`scripts/hosting/openbot-boat-pre-stop`).
+if (!app.isPackaged || hostedServer || serverMode) {
+  const quitAfterSignal = () => app.quit();
+  process.once("SIGINT", quitAfterSignal);
+  process.once("SIGTERM", quitAfterSignal);
+  process.once("SIGHUP", quitAfterSignal);
 }
 
 /**
@@ -329,6 +337,11 @@ const windows = createMainWindowController({
   forwardAgentEvent,
   onRendererLoadStarted: () => {
     deepLinkReceiverReady = false;
+    filePreviewPages.clear();
+  },
+  onRendererGone: () => {
+    deepLinkReceiverReady = false;
+    filePreviewPages.clear();
   },
   onMainWindowCreated: (window) => {
     attachWindowsSessionEndHandlers(window);
@@ -619,6 +632,7 @@ function registerIpcHandlers({
     ...attachmentIpcHandlers({ service, mailbox, remoteServers, getMainWindow, translate: language.translate }),
     ...storageIpcHandlers({
       storage: storageUsage,
+      providerRuntimes,
       mailbox,
       remoteServers,
       getMainWindow,
@@ -1172,6 +1186,8 @@ if (!hasSingleInstanceLock) {
         "browser-window-blur",
         () => void Effect.runPromise(remoteServers.setAppFocused(BrowserWindow.getFocusedWindow() !== null)),
       );
+      // A window that has no focus at start sends no blur event, and focus keeps a hosted server on.
+      void Effect.runPromise(remoteServers.setAppFocused(BrowserWindow.getFocusedWindow() !== null));
       const refreshMemberships = () => void Effect.runPromise(directoryRefresh.refresh(true));
       remoteServers.on("directoryInvalidated", refreshMemberships);
       let stopDirectoryWatch = () => {};
@@ -1211,8 +1227,12 @@ if (!hasSingleInstanceLock) {
       // A server has nobody at its virtual display to close the box, and the box blocks the quit.
       if (!serverMode && !hostedServer) {
         // The services, and with them the saved language, may not exist yet. Then the system language applies.
-        const translate = services?.language.translate ?? translateFor(resolveLocale("system", app.getLocale()));
-        dialog.showErrorBox(translate("startup.failedTitle"), translate("startup.failedBody", { message }));
+        const locale = services?.language.locale ?? resolveLocale("system", app.getLocale());
+        const translate = services?.language.translate ?? translateFor(locale);
+        dialog.showErrorBox(
+          translate("startup.failedTitle"),
+          translate("startup.failedBody", { message: localizeSourceText(message, locale) }),
+        );
       }
       app.quit();
     });

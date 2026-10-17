@@ -55,6 +55,11 @@ For Amazon ECS, see [AWS ECS](aws-ecs.md).
 
 The container publishes no port. OpenBot only connects out: to the account server, to the providers,
 and to Signal and TURN for remote use. The Team API listens on `127.0.0.1` in the container.
+The container does not serve a web interface. After `openbot login`, use
+[`openbot.run/app`](https://openbot.run/app) with the same account to select the server. A web
+client at your own origin is not included in this image. The
+[self-hosted account service](self-hosting.md#what-changes) is a separate deployment with its own
+client limits.
 
 ## Tags
 
@@ -288,11 +293,16 @@ openbot-instance restore main 20261014T040000Z --replace
 openbot-instance up main
 ```
 
-`restore` checks the checksums, stops the container and unpacks the backup next to the data. Only
-when the archive is unpacked does it replace `/data`. When the instance has data, `restore` needs
-`--replace`, which deletes that data, so back it up first. Because the old data stays until the end,
-the disk of the instance needs free space for the data of the backup. When it has less, copy the old
-data to another disk, delete it from `/srv/openbot/<name>/data`, and restore into the empty folder.
+`restore` checks the checksums and verifies the backup in a temporary folder before it stops the
+container. It uses the same checks and temporary space as `verify`, even if the backup was verified
+before. Thus `restore` also needs `sqlite3` 3.37 or later on the host. A failed verification keeps
+the target in its current state and its data unchanged. The verification status records the failure
+and keeps the last successful result. After verification, `restore` stops the container and unpacks
+the backup next to the data. Only when the archive is unpacked does it replace `/data`. When the
+instance has data, `restore` needs `--replace`, which deletes that data, so back it up first.
+Because the old data stays until the end, the disk of the instance needs free space for the data of
+the backup. When it has less, copy the old data to another disk, delete it from
+`/srv/openbot/<name>/data`, and restore into the empty folder.
 `restore` does not start the instance:
 
 - Start it only when the instance of the backup does not run anywhere else. Two copies would use the
@@ -311,6 +321,48 @@ OpenBot does not update itself in a container. A new image replaces it. An insta
 `docker/instances` can ask the host for that from the app, see
 [Updates from the app](#updates-from-the-app). Do not go back to an older tag: an older OpenBot cannot
 open a database that a newer one migrated, so it does not start.
+
+### Update automation
+
+`latest` follows the newest published release. The release workflow does not publish a floating
+minor tag such as `0.39`, or a separate `stable` tag. For a controlled upgrade, keep an exact
+version in your Compose file or `OPENBOT_TAG` in the instance env file.
+
+The [GitHub latest-release API](https://docs.github.com/en/rest/releases/releases#get-the-latest-release)
+is the machine-readable source for the newest full release. For example, this read-only command
+prints its tag:
+
+```sh
+gh api repos/nightly-labs/openbot/releases/latest --jq '.tag_name'
+```
+
+Automation can poll that metadata and download an image. Installation needs these checks:
+
+1. Read the release notes and check that the candidate is newer than the running version. Stop on
+   an API error or an unexpected tag. Do not substitute `latest` for a failed version lookup.
+2. Compare your deployment files with the files at the candidate release tag. Check
+   `docker/compose.yaml` and `docker/seccomp.json`. For an instance of `docker/instances`, check
+   the `docker/instances/` files too. These files can change between releases; there is no promise
+   that an old copy remains sufficient. Stop for operator review when they change. Keep local
+   settings.
+3. Pull the exact image tag and check its release version and architecture before replacing the
+   container. The release workflow publishes the GitHub release before the image tags, so a new
+   release can appear while its image is not available yet. A failed pull leaves installation pending.
+4. Back up the complete `/data` recovery unit, including the keyring and password file. For an
+   instance of `docker/instances`, run `openbot-instance backup <name> --verify`, see
+   [Backups](#backups). For a container from `docker/compose.yaml` or `docker run`, stop the
+   container, confirm that it stopped, and copy the volume, see [Data](#data). Keep the previous
+   complete backup.
+5. Replace the container with the chosen image and the same volume and runtime options. For an
+   instance of `docker/instances`, set `OPENBOT_TAG` in its env file and run
+   `openbot-instance upgrade <name>`. This command takes the lock of the instance, so no backup,
+   restore or update from the app runs at the same time. A manual replacement does not take the
+   lock. Check `openbot status` and the container log before the upgrade is reported as complete.
+
+An unattended image watcher does not perform these checks or make a consistent backup. Keep the
+installation step under operator control unless your own job implements them. A failed upgrade
+must not start an older image against the upgraded data. Recovery uses the complete backup with
+a compatible release, not an image-tag rollback of the live volume.
 
 ## Memory
 
@@ -341,6 +393,7 @@ environment of OpenBot, so they can read these values.
 | `XAI_API_KEY`, `CURSOR_API_KEY`, `CLINE_API_KEY` | A provider API key. |
 | `OPENBOT_CODEX_PATH`, `OPENBOT_CLAUDE_PATH`, `OPENBOT_GROK_PATH`, `OPENBOT_OPENCODE_PATH`, `OPENBOT_CURSOR_PATH`, `OPENBOT_CLINE_PATH`, `OPENBOT_ANTIGRAVITY_PATH` | Another provider executable. Mount it read-only in the container. |
 | `OPENBOT_AUTH_API_URL` | Another account server, for example a [self-hosted account service](self-hosting.md). |
+| `OPENBOT_DISPLAY_SIZE` | The size of the virtual display that computer use reads, as `WIDTHxHEIGHT` from 640x480 to 2576x2576. The default is 1280x800. A value that is not valid writes a warning in `docker logs`, and the container starts with 1280x800. See [Display size](self-hosted-server.md#display-size) for when to use 1920x1080. `docker/instances/compose.yaml` does not pass it, so an instance uses 1280x800. |
 
 ## Security
 
@@ -370,15 +423,18 @@ of a self-hosted server from that release. The workflow starts and stops each im
 the images to GHCR only after the GitHub Release is published.
 
 `tini` is process 1. It starts `resources/hosting/openbot-container` from the release, which checks
-that it can make a user namespace, starts D-Bus, a virtual display and the keyring, and then becomes
-OpenBot with `OPENBOT_SERVER=1`. On a stop, tini gives the signal to OpenBot and waits for it.
+that it can make a user namespace, starts D-Bus, two virtual displays and the keyring, and then
+becomes OpenBot with `OPENBOT_SERVER=1`. OpenBot shows its windows on `:0`, at 1280x800. The agents
+work on `:1`, at the size of `OPENBOT_DISPLAY_SIZE`, which the script names in
+`OPENBOT_AGENT_DISPLAY`. Computer Use and remote desktop use `:1`, so they do not show the OpenBot
+window. On a stop, tini gives the signal to OpenBot and waits for it.
 `/opt/OpenBot/hosted/mode` is `container`, so the `openbot` command talks to the control socket and
 does not use systemd.
 
 ## Limits
 
-- Remote desktop and Computer Use need a display. The container has a virtual display, but remote
-  desktop and Computer Use were not tested in it. The arm64 release has no remote desktop runtime.
+- Remote desktop and Computer Use need a display. The container has a virtual display for the
+  agents, but remote desktop and Computer Use were not tested in it. The arm64 release has no remote desktop runtime.
 - Voice prompts are not available on Linux.
 - Gemini signs in on a Google page in the browser of the container. An owner or admin opens it
   with Connect in the app, and signs in through the live view of that page. This needs a release
@@ -394,6 +450,8 @@ does not use systemd.
   Podman, Kubernetes, rootless Docker, and hosts that restrict user namespaces with AppArmor, such as
   Ubuntu 23.10 or newer. On such a host, the container can need an AppArmor profile that permits
   `userns`.
+- The two displays of the entrypoint were tested with a stand-in for OpenBot: `:0` is 1280x800 and
+  `:1` has the display size. Computer Use and remote desktop on `:1` were not tested.
 - Not tested: a Codex agent with Workspace only access in a container. Codex runs its commands in
   bubblewrap, which mounts its root in a user namespace. The seccomp profile allows `mount` only with
   `CAP_SYS_ADMIN` and always refuses `pivot_root`, and the `docker-default` AppArmor profile refuses

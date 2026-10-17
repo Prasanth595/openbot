@@ -19,9 +19,6 @@ export const AgentTemplateInstall = lazy(() =>
 export const AgentUsagePanel = lazy(() =>
   import("./features/usage/AgentUsagePanel").then((module) => ({ default: module.AgentUsagePanel })),
 );
-export const AccountDock = lazy(() =>
-  import("@openbot/ui/features/account/AccountDock").then((module) => ({ default: module.AccountDock })),
-);
 export const AccountLogin = lazy(() =>
   import("@openbot/ui/features/account/AccountLogin").then((module) => ({ default: module.AccountLogin })),
 );
@@ -61,4 +58,13 @@ export const SettingsModal = lazy(() =>
 );
 export const MarketplaceModal = lazy(() =>
   import("./features/settings/MarketplaceModal").then((module) => ({ default: module.MarketplaceModal })),
+);
+export const ScheduleView = lazy(() =>
+  import("./features/schedule/SchedulePanel").then((module) => ({ default: module.ScheduleView })),
+);
+export const ServerOnboarding = lazy(() =>
+  import("./features/onboarding/ServerOnboarding").then((module) => ({ default: module.ServerOnboarding })),
+);
+export const RoutineFlowsCanvas = lazy(() =>
+  import("./features/routine-flows/RoutineFlowsCanvas").then((module) => ({ default: module.RoutineFlowsCanvas })),
 );

@@ -4,18 +4,18 @@ import type { messages as source } from "../en/agentSettings";
 export const messages = {
   "agentSettings.session.title": "Anbietereinstellungen",
   "agentSettings.session.readFailed": "Die Anbietereinstellungen konnten nicht gelesen werden.",
-  "agentSettings.session.pending": "Gespeicherte Änderungen gelten vor dem nächsten Durchgang.",
+  "agentSettings.session.pending": "Gespeicherte Änderungen gelten vor dem nächsten Durchlauf.",
   "agentSettings.session.unavailable":
     "Der gespeicherte Wert {value} ist nicht verfügbar. Wähle einen anderen Wert oder setze ihn zurück.",
   "agentSettings.session.effective": "Aktueller Wert des Anbieters: {value}",
-  "agentSettings.session.reset": "Einstellung zurücksetzen",
+  "agentSettings.session.reset": "Zurücksetzen",
   "agentSettings.session.resetNamed": "{name} zurücksetzen",
   "agentSettings.label": "Agenteneinstellungen",
   "agentSettings.title": "Einstellungen",
   "agentSettings.backToDetails": "Zurück zu den Details",
   "agentSettings.closeDetails": "Details schließen",
   "agentSettings.backToSettings": "Zurück zu den Einstellungen",
-  "agentSettings.permissions.title": "Berechtigungen",
+  "agentSettings.permissions.title": "Zugriff",
   "agentSettings.advanced.title": "Erweitert",
   "agentSettings.backupModels.title": "Ersatzmodelle",
   "agentSettings.backupModels.valueAsk": "Erst fragen",
@@ -37,7 +37,7 @@ export const messages = {
   "agentSettings.backupModels.unavailable": "Gerade nicht verfügbar · übersprungen",
   "agentSettings.backupModels.withAccount": "{model} · {account}",
   "agentSettings.backupModels.note":
-    "{name} wechselt nie, nachdem es zu schreiben begonnen hat. Es kehrt zu {model} zurück, wenn das Limit endet.",
+    "{name} wechselt nie, nachdem das Schreiben begonnen hat. Wenn das Limit endet, kehrt {name} zu {model} zurück.",
   "agentSettings.groups.brain": "Gehirn",
   "agentSettings.groups.knows": "Wissen",
   "agentSettings.groups.does": "Aufgaben",
@@ -77,27 +77,32 @@ export const messages = {
   "agentSettings.runtime.reasoning": "Denkleistung",
   "agentSettings.runtime.reasoningLabel": "Denkleistungsstufe des Agenten",
   "agentSettings.runtime.selectReasoning": "Denkleistung auswählen",
-  "agentSettings.runtime.reasoningSetByProvider": "Von {provider} festgelegt",
+  "agentSettings.runtime.reasoningSetByProvider": "Von {provider}",
   "agentSettings.runtime.access": "Zugriff",
   "agentSettings.runtime.accessLabel": "Agentenzugriff",
   "agentSettings.runtime.busyMessage": "Während der Arbeit",
   "agentSettings.runtime.busyMessageLabel": "Nachrichten während der Arbeit des Agenten",
+  "agentSettings.runtime.taskLimit": "Aufgaben parallel",
+  "agentSettings.runtime.taskLimitLabel": "Aufgaben, die gleichzeitig laufen",
   "agentSettings.runtime.workingDirectory": "Arbeitsverzeichnis",
   "agentSettings.runtime.notAvailable": "Noch nicht verfügbar",
   "agentSettings.runtime.fullAccessNote":
     "Der Agent läuft von seinem Arbeitsbereich und dem gemeinsamen Ordner aus mit vollem Computerzugriff.",
-  "agentSettings.runtime.claudeApprovalNote":
-    "Claude handelt ohne nach einer Genehmigung zu fragen, abgesehen von Fragen, die es dir stellt.",
-  "agentSettings.runtime.providerApprovalNote":
-    "Je nach Anbieter können sensible Befehle zuerst um Genehmigung bitten.",
+  "agentSettings.runtime.askNote":
+    "Er fragt dich, bevor er ein OpenBot-Tool nutzt oder eine Website veröffentlicht, und wenn sein Anbieter eine Freigabe anfordert.",
+  "agentSettings.runtime.fullNote": "Er handelt ohne Rückfrage, außer bei Fragen, die er dir stellt.",
   "agentSettings.access.workspace": "Nur Arbeitsbereich",
+  "agentSettings.access.ask": "Erst fragen",
   "agentSettings.access.full": "Voller Zugriff",
   "agentSettings.busyMessage.appDefaultQueue": "App-Standard (Warteschlange)",
   "agentSettings.busyMessage.appDefaultSteer": "App-Standard (Steuern)",
   "agentSettings.busyMessage.queue": "Warteschlange",
   "agentSettings.busyMessage.steer": "Steuern",
   "agentSettings.busyMessage.steerUnsupported":
-    "{provider} kann einen laufenden Durchgang nicht steuern. Während der Arbeit gesendete Nachrichten warten in der Warteschlange.",
+    "{provider} kann einen laufenden Durchlauf nicht steuern. Während der Arbeit gesendete Nachrichten warten in der Warteschlange.",
+  "agentSettings.taskLimit.default": "Standard ({count})",
+  "agentSettings.taskLimit.oneTurn":
+    "{provider} führt immer nur einen Durchlauf aus. Die Aufgaben und der Chat dieses Agenten warten aufeinander.",
   "agentSettings.notifications.title": "Benachrichtigungen",
   "agentSettings.newChat.title": "Neuer Chat",
   "agentSettings.newChat.description": "Der Agent vergisst diesen Chat. Seine Einrichtung bleibt erhalten.",
@@ -108,10 +113,13 @@ export const messages = {
   "agentSettings.newChat.confirm": "Neuen Chat starten",
   "agentSettings.newChat.failed": "Ein neuer Chat konnte nicht gestartet werden.",
   "agentSettings.fullAccess.title": "Diesem Agenten vollen Zugriff geben?",
+  "agentSettings.fullAccess.askTitle": "Diesen Agenten außerhalb seines Arbeitsbereichs arbeiten lassen?",
   "agentSettings.fullAccess.description":
     "Der Agent kann dann jede Datei lesen, ändern und löschen, auf die dein Benutzerkonto zugreifen kann, jeden Befehl ausführen und das Netzwerk nutzen. Eine missverstandene Anweisung oder eine bösartige Webseite kann auf deine persönlichen Dateien zugreifen.",
-  "agentSettings.fullAccess.cancel": "Auf Arbeitsbereich beschränkt lassen",
+  "agentSettings.fullAccess.noApproval":
+    "Der Agent führt dann Befehle aus, ändert Dateien, nutzt Tools und veröffentlicht Websites, ohne dich vorher zu fragen.",
   "agentSettings.fullAccess.confirm": "Vollen Zugriff erlauben",
+  "agentSettings.fullAccess.askConfirm": "Erst fragen nutzen",
   "agentSettings.links.usage": "Nutzung",
   "agentSettings.links.memories": "Erinnerungen",
   "agentSettings.links.memoriesCount": {
@@ -135,11 +143,10 @@ export const messages = {
     other: "{count} eingerichtet",
   },
   "agentSettings.runtime.workspaceNote":
-    "Nur Arbeitsbereich beschränkt Schreibzugriffe auf den Arbeitsbereich dieses Agenten, den gemeinsamen Ordner und temporäre Ordner. Lesen und Netzwerkzugriff bleiben verfügbar.",
-  "agentSettings.runtime.workspaceEnforcedCommand":
-    "Ein Befehl, der außerhalb schreiben muss, fragt dich zuerst, auch wenn Automatisch genehmigen aktiviert ist.",
+    "„Nur Arbeitsbereich“ beschränkt Schreibzugriffe auf den Arbeitsbereich dieses Agenten, den gemeinsamen Ordner und temporäre Ordner. Lesen und Netzwerkzugriff bleiben verfügbar.",
+  "agentSettings.runtime.workspaceEnforcedCommand": "Ein Befehl, der außerhalb schreiben muss, fragt dich zuerst.",
   "agentSettings.runtime.workspaceEnforcedClaude":
-    "Eine Dateibearbeitung außerhalb fragt dich zuerst, auch wenn Automatisch genehmigen aktiviert ist. Ein Befehl kann nicht außerhalb schreiben.",
+    "Eine Dateibearbeitung außerhalb fragt dich zuerst. Ein Befehl kann nicht außerhalb schreiben.",
   "agentSettings.runtime.workspaceUnlimited":
     "Computersteuerung und der OpenBot-Browser sind nicht beschränkt. Du kannst Computersteuerung unten deaktivieren.",
   "agentSettings.computerUse.title": "Computersteuerung",

@@ -58,10 +58,11 @@ Install options go after `sudo bash -s --`:
 | --- | --- | --- |
 | `--user <name>` | the installed user, else `openbot` | The user that runs OpenBot and its agents. The install makes it when it does not exist, with its home folder in `/var/lib/<name>`. |
 | `--auth-api-url <origin>` | the installed one, else the URL in the build | Another account server, for example the `test` Worker or a [self-hosted account service](self-hosting.md). |
+| `--display-size <W>x<H>` | the installed one, else `1280x800` | The size of the virtual display that computer use reads (see [Display size](#display-size)). |
 
 Run the install again to reinstall or upgrade. The data stays in the home folder of the service
 user. A reinstall keeps the user and the account server, because the sign-in belongs to them, and
-refuses another `--user`. The install refuses an older release than the installed one, because an older OpenBot cannot
+refuses another `--user`. A reinstall without `--display-size` keeps the display size. The install refuses an older release than the installed one, because an older OpenBot cannot
 open a database that a newer one migrated. It also refuses a computer that is a hosted server.
 
 ## Commands
@@ -104,6 +105,89 @@ Turns at the same time: at most 4
 
 The guard reads cgroup v2. On a system with cgroup v1, it uses the machine memory and the log has
 one warning.
+
+## Display size
+
+A self-hosted server gives the agents a virtual display (Xvfb), and computer use reads that display.
+The default size is 1280x800. A [Docker](docker.md#environment) container uses the same setting
+and the same default. A hosted server gives the agents its boat desktop, and this setting does not
+change that desktop.
+
+The display size does not change the OpenBot browser (`openbot_browser`). Its pages have their own
+size, 1200x800 when no panel shows them, and its clicks go to page elements.
+
+To use another size, give it at the install with `--display-size 1920x1080`, or write this line in
+`/opt/OpenBot/hosted/openbot.env` and run `sudo openbot restart`:
+
+```text
+OPENBOT_DISPLAY_SIZE=1920x1080
+```
+
+The value is `WIDTHxHEIGHT` in digits, from 640x480 to 2576x2576. The install refuses a value that is
+not valid. At a start, a value that is not valid writes this warning in `openbot logs`, and the
+server starts with 1280x800:
+
+```text
+OPENBOT_DISPLAY_SIZE is not WIDTHxHEIGHT from 640x480 to 2576x2576. The display is 1280x800.
+```
+
+### Which size to use
+
+Keep 1280x800 unless the apps that agents use need more space. At 1280x800, computer use clicks
+more accurately, and a screenshot costs fewer tokens. Use 1920x1080 only with a model that reads a
+1920x1080 image at its full size (see [Screenshots and clicks](#screenshots-and-clicks)).
+
+A click test compared the two sizes. A model clicked a 26x17 px button in an `xmessage` window that
+almost filled the display, once from a full-display screenshot and once from a window screenshot.
+The models were the free OpenCode models with image input (OpenCode 1.18.30, Docker image 0.42.0,
+arm64):
+
+| Model | 1920x1080, full display | 1920x1080, window | 1280x800, full display | 1280x800, window |
+| --- | --- | --- | --- | --- |
+| MiMo v2.6 Flash | Hit | Miss | Hit | Hit |
+| DeepSeek v4.1 Flash | Miss | Miss | Hit | Hit |
+| GLM 5.3 Flash | Hit | Miss | Hit | Not tested (429) |
+| LongCat 2.5 Preview | Miss | Miss | Hit | Hit |
+| Muse Spark 1.3 | Miss | Miss | Miss | Hit |
+| Nemotron 3.5 Super VL | Miss | Miss | Hit | Hit |
+| Space Bunny | Hit | Hit | Hit | Hit |
+| **Hits** | **3 of 7** | **1 of 7** | **6 of 7** | **6 of 6** |
+
+Claude and Codex models were not in the test.
+
+An image costs `⌈width / 28⌉ × ⌈height / 28⌉` visual tokens on Claude. A full-display screenshot at
+1920x1080 costs about 2 times the tokens of one at 1280x800:
+
+| Display size | Visual tokens of one full-display screenshot |
+| --- | --- |
+| 1280x720 | 1196 |
+| 1280x800 | 1334 |
+| 1366x768 | 1372 |
+| 1920x1080 | 2691 |
+| 2560x1440 | 4784 |
+
+### Screenshots and clicks
+
+The computer use driver (cua-driver, `cua-driver-rs-v0.34.0`) has two screenshots on Linux:
+
+- **One window** (`get_window_state`). The driver makes the image 1.15 megapixels or less, with a long
+  edge of 1568 px or less, and changes the x and y of each click back to screen pixels. A 1260x780
+  window gets to the model at its full size. A 1900x1060 window gets to the model at 1435x801. Then
+  small controls are harder to hit, and some models send the x and y in screen pixels, so the click
+  lands outside the control. A window that goes past the edge of the display gives no screenshot.
+- **The full display** (`get_desktop_state`). The driver sends the image at its full size and uses
+  the x and y of a click as screen pixels. The clicks land correctly only when the model reads the
+  image at its full size.
+
+What a model reads of a full-display screenshot at 1920x1080:
+
+| Provider | Image |
+| --- | --- |
+| Claude 4.7 and later, all Claude 5 models | Full size, up to 2576 px on the long edge and 4784 visual tokens ([Vision](https://platform.claude.com/docs/en/build-with-claude/vision#resolution-and-token-cost)) |
+| Codex | Full size: the limit is 2048 px and 2,500 tiles of 32x32 px, and 1920x1080 is 2,040 tiles |
+| Grok, Gemini, OpenCode, Cursor, Cline, Pi | Not known |
+
+A 1280x800 screenshot is not made smaller by any Claude or Codex model.
 
 ## Phone app
 
@@ -155,6 +239,13 @@ It starts a D-Bus session with an unlocked keyring, as on a hosted server, and r
 Xvfb with `OPENBOT_SERVER=1`. Main (`src/main/server-mode.ts`) then opens the control socket
 `/run/openbot/control.sock` and publishes the host after each sign-in.
 
+The server has two Xvfb displays, one in each of two nested `xvfb-run` commands that share one
+authority file. The outer one starts the agent display, at the [display size](#display-size), and
+the script names it in `OPENBOT_AGENT_DISPLAY`. The inner one starts the display that OpenBot shows
+its windows on, at 1280x800. Main gives that display to Computer Use, to remote desktop and to the agent
+processes, so an agent's screenshot and remote desktop do not show the OpenBot window. See
+[Computer Use and remote desktop](architecture/computer-use.md#agent-display-on-a-server).
+
 Updates work as on a hosted server (see [Updates](hosted-servers.md#updates)): the timer stages a
 new release, and it starts at the next boot, or when an owner, an admin or a permitted member
 installs it in Server Settings > Updates. `sudo openbot update` stages, stops the service, applies
@@ -189,3 +280,16 @@ Threat model:
   to start there.
 - The full install was not run on a Linux computer before the first release that has the setup
   file. It needs a release build.
+- [Display size](#display-size): the display sizes, the warning and the start with a value that is
+  not valid were tested in the Docker image. An install with `--display-size` was not run. The click
+  test ran only on arm64, with one `xmessage` button and one run for each model, size and screenshot.
+  Claude and Codex were not in it. A window past the edge of the display was tested only with
+  `xmessage`. The window screenshot limits come from the cua-driver source
+  (`platform-linux/src/tools/impl_.rs`, `get_window_state` and `get_desktop_state`), and the Claude
+  limits from the Claude docs. The Codex limit comes from `codex-rs/utils/image` and was not checked
+  again. It is not known if Claude Code or Codex makes a screenshot smaller before it sends it to
+  the model.
+- The two displays were tested in an Ubuntu 24.04 container with a stand-in for OpenBot: OpenBot
+  gets 1280x800, the agent display the display size, and a process without the authority file cannot
+  open the agent display. Computer Use and remote desktop on the agent display were not tested on a
+  server.

@@ -1209,6 +1209,82 @@
   color: var(--openbot-text-readable);
 }
 
+/* A quote that opens its original. The button lies over the whole quote, its left mark included. */
+.message-reply-context[data-opens] {
+  position: relative;
+  transition: border-left-color var(--openbot-duration-hover) var(--openbot-ease-out);
+}
+
+/* The spinner takes the right column; the author and the text flow into the left one. */
+.message-reply-context[data-loading] {
+  display: grid;
+  align-items: center;
+  column-gap: var(--openbot-space-2);
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.message-reply-context[data-opens]:hover {
+  border-left-color: var(--openbot-accent);
+}
+
+.message-reply-context .message-reply-open,
+.message-reply-context .message-reply-open:hover:not(:disabled):not([data-disabled]) {
+  position: absolute;
+  z-index: 1;
+  inset: 0 0 0 -2px;
+  width: auto;
+  height: auto;
+  min-height: 0;
+  border-radius: var(--openbot-radius-xs);
+  background: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.message-reply-context .message-reply-open:focus-visible {
+  outline: 2px solid var(--openbot-border-focus);
+  outline-offset: 2px;
+}
+
+.message-reply-loading {
+  width: 14px;
+  height: 14px;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  animation: message-reply-spin 0.8s linear infinite;
+}
+
+.message-reply-context[data-unavailable] {
+  border-left-style: dashed;
+}
+
+.message-reply-unavailable {
+  display: flex;
+  align-items: center;
+  gap: var(--openbot-space-1);
+  margin: -1px 0 7px;
+  font-size: var(--openbot-text-sm);
+  line-height: 15px;
+}
+
+.message-reply-unavailable-icon {
+  width: 13px;
+  height: 13px;
+  flex: none;
+}
+
+@keyframes message-reply-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .message-reply-loading {
+    animation: none;
+  }
+}
+
 [data-slot="bubble"][data-author="user"] .message-copy {
   font-size: var(--openbot-text-lg);
 }

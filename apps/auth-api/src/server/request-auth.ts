@@ -7,12 +7,14 @@ import { AccountAttribution } from "./account-attribution";
 import { adminTokenMatches } from "./admin-token";
 import { AgentMarketplace, AgentMarketplaceError } from "./agent-marketplace";
 import { AgentTemplates } from "./agent-templates";
+import { type FcmRelaySender, sharedFcmSender } from "./android-notification-relay";
 import { AuthOperationError, AuthService, AuthServiceError } from "./auth-service";
 import { BillingError, type BillingService } from "./billing-service";
+import type { ContactMessageServices } from "./contact-message";
 import { D1AuthRepository } from "./d1-auth-repository";
 import { DiscordAppError, DiscordAppService } from "./discord-app";
 import { runApiEffect } from "./effect-runtime";
-import { createEmailCodeDelivery, createTeamInviteEmailDelivery } from "./email-delivery";
+import { createContactMessageDelivery, createEmailCodeDelivery, createTeamInviteEmailDelivery } from "./email-delivery";
 import { GitHubInstallationTokens, GitHubInstallationTokensError } from "./github-installation-tokens";
 import { createHostedBilling } from "./hosted-billing";
 import { type HostedServerService, HostedServerServiceError } from "./hosted-server-service";
@@ -194,11 +196,7 @@ export function requestApnsRelay(): {
   const { APNS_PRIVATE_KEY, APNS_KEY_ID, APNS_TEAM_ID, APNS_TOPIC, APNS_ORIGIN, LIVE_ACTIVITY_RATE_LIMITER } = bindings;
   if (!APNS_PRIVATE_KEY || !APNS_KEY_ID || !APNS_TEAM_ID || !APNS_TOPIC || !LIVE_ACTIVITY_RATE_LIMITER) return null;
   const origin = developmentApnsOrigin(APNS_ORIGIN);
-  const limit = (key: string) =>
-    Effect.tryPromise({
-      try: () => LIVE_ACTIVITY_RATE_LIMITER.limit({ key }),
-      catch: () => new AuthOperationError({ message: "Account operation failed." }),
-    }).pipe(Effect.map((result) => result.success));
+  const limit = relayLimit(LIVE_ACTIVITY_RATE_LIMITER);
   return {
     sender: sharedApnsSender({
       // A deploy passes the key as one line, with `\n` for each line break.
@@ -211,6 +209,31 @@ export function requestApnsRelay(): {
     allow: (hostId) => limit(`host:${hostId}`),
     allowNotification: (hostId) => limit(`notification:host:${hostId}`),
   };
+}
+
+/**
+ * The Firebase relay for Android notifications: the Firebase sender and the notification limit of
+ * each host, which it shares with iPhone notifications. `null` when this Worker has no valid service
+ * account key or no limiter, so the relay is off.
+ */
+export function requestFcmRelay(): {
+  sender: FcmRelaySender;
+  allowNotification(hostId: string): Effect.Effect<boolean, AuthOperationError>;
+} | null {
+  const { FCM_SERVICE_ACCOUNT, LIVE_ACTIVITY_RATE_LIMITER } = requireWorkerBindings(env);
+  if (!FCM_SERVICE_ACCOUNT || !LIVE_ACTIVITY_RATE_LIMITER) return null;
+  const sender = sharedFcmSender(FCM_SERVICE_ACCOUNT);
+  if (!sender) return null;
+  const limit = relayLimit(LIVE_ACTIVITY_RATE_LIMITER);
+  return { sender, allowNotification: (hostId) => limit(`notification:host:${hostId}`) };
+}
+
+function relayLimit(limiter: RateLimit) {
+  return (key: string) =>
+    Effect.tryPromise({
+      try: () => limiter.limit({ key }),
+      catch: () => new AuthOperationError({ message: "Account operation failed." }),
+    }).pipe(Effect.map((result) => result.success));
 }
 
 /** Only a development server on this computer can stand in for Apple. */
@@ -259,6 +282,16 @@ export const requireOperationsAdmin = Effect.fn("Auth.requireOperationsAdmin")(f
 export const requireServerClaimsAdmin = Effect.fn("Auth.requireServerClaimsAdmin")(function* (request: Request) {
   return yield* adminTokenMatches(requireWorkerBindings(env).SERVER_CLAIMS_ADMIN_TOKEN, bearerToken(request));
 });
+
+/** The limits and delivery of the site's contact form. */
+export function requestContactMessageServices(): ContactMessageServices {
+  const bindings = requireWorkerBindings(env);
+  return {
+    repository: new D1AuthRepository(bindings.DB),
+    now: () => Date.now(),
+    delivery: () => createContactMessageDelivery(bindings),
+  };
+}
 
 export function requestTeamInviteEmailDelivery(): TeamInviteEmailDelivery | null {
   const bindings = requireWorkerBindings(env);

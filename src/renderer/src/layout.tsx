@@ -53,10 +53,11 @@ function shouldAutoCompactSidebar(
  * `expandSidebar` clears both, because a user asking for the sidebar back means
  * both reasons at once.
  *
- * The user also chooses how servers are switched: the rail down the left edge,
- * which is the default, or a menu on the server name. That choice is persisted
- * on this computer. A compact sidebar hides the server name, so in the menu view
- * the user expands the sidebar to switch servers; the rail does not come back.
+ * The user also chooses how servers are switched: a menu on the server name,
+ * which is the default, or a server rail beside the page rail. That choice is
+ * persisted on this computer. A compact sidebar hides the server name, so in the
+ * menu view the user expands the sidebar to switch servers; the rail does not
+ * come back.
  *
  * The geometry itself is in `layout-constants.ts`; the view imports it directly
  * rather than reading constants through a context.
@@ -71,8 +72,10 @@ const Layout = createSimpleContext({
     const [leftPanelCollapsed, setLeftPanelCollapsed] = createSignal(
       window.localStorage.getItem(LEFT_PANEL_COLLAPSED_STORAGE_KEY) === "true",
     );
+    // The page rail is the left column of the window, so the server menu is the default. The rail
+    // shows only for a user who chose it; `setServerView` saves only an explicit choice.
     const [serverView, setServerViewSignal] = createSignal<ServerView>(
-      window.localStorage.getItem(SERVER_VIEW_STORAGE_KEY) === "menu" ? "menu" : "rail",
+      window.localStorage.getItem(SERVER_VIEW_STORAGE_KEY) === "rail" ? "rail" : "menu",
     );
     const [sidebarView, setSidebarViewSignal] = createSignal<SidebarView>(
       window.localStorage.getItem(SIDEBAR_VIEW_STORAGE_KEY) === "routines" ? "routines" : "agents",
@@ -80,8 +83,8 @@ const Layout = createSimpleContext({
     const [leftPanelAutoCompact, setLeftPanelAutoCompact] = createSignal(false);
     const leftPanelCompact = createMemo(() => leftPanelCollapsed() || leftPanelAutoCompact());
     /**
-     * Whether the window draws the vertical server rail. The frame class, the
-     * rail itself and the account dock all need the answer. `appInfo` is null
+     * Whether the window draws the vertical server rail. The frame class and
+     * the rail itself need the answer. `appInfo` is null
      * until main answers, and no rail is drawn before then.
      */
     const serverRailVisible = createMemo(() => platform.appInfo() !== null && serverView() === "rail");

@@ -7,7 +7,7 @@ export const messages = {
   "error.mcp.redirectNotSignIn": "Этот адрес не относится ко входу.",
   "error.mcp.redirectRefused": "Вход отклонён. Вернитесь в OpenBot и повторите попытку.",
   "error.mcp.redirectNoSignIn": "Нет входа, который ждал бы этого. Возможно, он уже завершён.",
-  "error.mcp.redirectSignedIn": "Вход в OpenBot выполнен. Это окно можно закрыть.",
+  "error.mcp.redirectSignedIn": "OpenBot выполнил вход. Это окно можно закрыть.",
   "error.mcp.signInFileUnreadable": "Файл входа MCP не читается.",
   "error.mcp.signInFileTooLarge": "Файл входа MCP слишком большой.",
   "error.mcp.unsupported": "Этот сервер не поддерживает серверы MCP.",
@@ -17,5 +17,6 @@ export const messages = {
   "error.mcp.relayEnded": "Этот вход завершён. Начните его снова.",
   "error.mcp.relayNoState":
     "Страница входа сервера не защищает свой обратный адрес, поэтому OpenBot не открывает её на этом компьютере.",
-  "error.mcp.relayAddressInvalid": "Это не адрес из конца этого входа. Скопируйте полный адрес из браузера.",
+  "error.mcp.relayAddressInvalid":
+    "Это не тот адрес, которым завершается этот вход. Скопируйте полный адрес из браузера.",
 } as const satisfies PartialTranslation<typeof source>;

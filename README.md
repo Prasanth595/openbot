@@ -225,6 +225,12 @@ In a new git worktree, run `bun run dev:bootstrap`. It copies the files that `.w
 lists from the main checkout when they are missing, installs dependencies, migrates the local API,
 and seeds the isolated profile. Set it as the worktree setup command of your agent harness.
 
+On macOS, a worktree's `node_modules` uses almost no new disk space. Bun clones packages from its
+cache, and the root `postinstall` clones Electron from `~/Library/Caches/OpenBot/electron-dist` and
+the React Native Skia libraries from their packages. `du` still shows the full size of each clone.
+The first install of an Electron version extracts it once and saves it there. Delete the directory
+to clear the cache; an entry that nobody used for 30 days is removed by the next save.
+
 To reset only the local development state, quit the dev app and test client, then run
 `bun run dev:reset`.
 The command deletes the app and test-client development profiles plus the legacy host profile,
@@ -294,7 +300,7 @@ See [web client delivery](docs/web-client.md) for the release gate and focused c
 | Command | Purpose |
 | --- | --- |
 | `bun run dev` | Start the local Auth API, Signal service, and Electron client with renderer HMR on its app profile. Ports are allocated through the dev registry, so a sibling worktree never takes one this stack won. It refuses a second stack in the same worktree unless you pass `--force`. Each worktree opens a profile of its own, keyed to its path; `--shared` opens the shared `OpenBot Dev` profile instead. `--isolated` is still accepted and changes nothing. A profile that you used before stays on disk unchanged. `--hosting=test` signs the app in to the `test` account Worker, on a profile that all worktrees share, so that a hosted server is a real VM; see [docs/hosted-servers.md](docs/hosted-servers.md#real-servers-from-a-development-build). A profile that does not exist yet is seeded with the showcase data of `bun run dev:seed` before the client starts, so a first start never opens an empty app; an existing profile is left as it is. An isolated profile still shares the computer's provider CLI store, so it does not download the pinned CLIs again. Before it starts, it runs `bun install --frozen-lockfile` and `bun run api:migrate:local` only when `bun.lock`, a workspace `package.json`, a patch, or a migration changed since their last successful run. The stamps are in `node_modules` and `apps/auth-api/.wrangler/state/v3/d1`, and each `bun install` writes the install stamp too; delete one to run its step again. |
-| `OPENBOT_SKIP_SKIA=1 bun install --frozen-lockfile` | Install without the ~700 MB copy of the React Native Skia native libraries that the root `postinstall` makes for mobile builds. Use it for desktop or API work. Before a native mobile build, run `bun run --cwd apps/mobile setup:skia`, or install again without the flag. |
+| `OPENBOT_SKIP_SKIA=1 bun install --frozen-lockfile` | Install without the ~700 MB copy of the React Native Skia native libraries that the root `postinstall` makes for mobile builds. On macOS APFS, the `postinstall` copy is a clone and uses almost no disk space; the flag still saves time. Use it for desktop or API work. Before a native mobile build, install again without the flag, or run `bun run --cwd apps/mobile setup:skia` (add `--bun` after `run` on macOS to make a clone). |
 | `bun run preview` | Preview the built Electron client with the green preview icon. |
 | `bun run mobile:go` | Start the mobile app in Expo Go and clear the Metro cache. |
 | `bun mobile:ios` | Build and launch the iOS simulator app without RocketSim. |
@@ -313,6 +319,8 @@ See [web client delivery](docs/web-client.md) for the release gate and focused c
 | `bun run api:stripe:bootstrap` | Create or update the Stripe plan catalog and the Customer Portal settings from `STRIPE_SECRET_KEY` in the encrypted `apps/auth-api/.env.dev` (shell values replace it). It refuses a live key unless you add `--live`. For local webhooks, run `stripe listen --forward-to localhost:<API port>/v1/stripe/webhook` and set the signing secret in `STRIPE_WEBHOOK_SECRET`. See [Billing](docs/architecture/servers.md#billing). |
 | `bun run hosting:setup --target=production\|test` | Set up the Stripe catalog, the Customer Portal, and the Stripe and boat webhooks of one account server, and store the webhook signing secrets: production in the `cloudflare-production` GitHub Environment, test in the encrypted `apps/auth-api/.env.dev`. See [hosted servers](docs/hosted-servers.md#production). |
 | `bun run hosting:template` | Build the boat named snapshot that new hosted servers start from. Needs `BOAT_TEMPLATE_API_KEY` and `--version`, `--appimage-url`, `--appimage-sha256` and `--auth-api-url`. See [hosted servers](docs/hosted-servers.md). |
+| `bun run status:build` | Build the public status page in `apps/status/dist`. The `status-page` workflow adds `status.json` and `feed.xml` and publishes it to GitHub Pages at `status.openbot.run`. |
+| `bun run status:smoke` | Run the status page smoke test: update runs against a local fake service, one read-only run against the live checks, and the built page in Chrome. It writes `.openbot-build/status-page/report.json`. |
 | `bun run remote:up` | Build and start the self-hosted Signal, coturn, and ACME stack. |
 | `bun run remote:check` | Check the Remote API and both Docker Compose configurations. |
 | `bun run remote:check:compose` | Validate both Docker Compose configurations alone, without a running daemon. |
@@ -366,7 +374,9 @@ See [web client delivery](docs/web-client.md) for the release gate and focused c
 | `bun run release:patch` | Create the next patch version commit and tag. |
 | `bun run mobile:release:patch` | Move the iPhone app notes from `apps/mobile/changelog.d` into `apps/mobile/CHANGELOG.md` and set the next patch version in `app.json`. Also `mobile:release:minor` and `mobile:release:major`. |
 | `bun run mobile:release:published <ios\|android\|both>` | Write today's date for a store that made the mobile build available. `/changelog` shows each store, and a store that still reviews the build as "In review". Add `--version x.y.z` for a version that is not in `app.json`. |
+| `bun run test:acp-directories` | Run three fake ACP agents through the `acp` provider driver: new, load and resume requests carry the workspace roots as `additionalDirectories` only when the agent advertises them. Offline; writes `.openbot-build/acp-additional-directories-e2e/report.json`. |
 | `bun run test:custom-agents` | Run two fake ACP agents through the agent store, Check agent and the `acp` provider router: equal session ids, restart and resume, switch, and delete. Offline; writes `.openbot-build/custom-acp-agent-e2e/report.json`. |
+| `bun run test:mcp-tool-consent` | Run the real Codex app-server with a fake model, a real MCP server and the real attention registry: tool consent at Ask first and Full access, Always allow and a restart, refusals, and the requests that stay with the user (forms, sign-in, look-alikes). Needs a Codex CLI; offline; writes `.openbot-build/mcp-tool-consent-e2e/report.json`. |
 | `bun run test:filesystem` | **Online/manual:** run real full-access Codex and Claude filesystem turns across private and shared workspaces. |
 | `bun run test:imagegen` | **Online/manual:** run a real full-access image-generation turn. |
 | `bun run test:workspace-only` | **Online/manual:** run real Workspace only Codex, Claude, Grok and OpenCode turns that try to write outside; writes a JSON report per provider to `.openbot-build/workspace-only-smoke/`. Add `--provider <id>` for one, and `--model <id>` to choose its model. |
@@ -471,6 +481,7 @@ Cloudflare Workers
 - `src/preload` exposes only the typed `window.openbot` API.
 - `src/renderer` contains the SolidJS interface.
 - `apps/auth-api` contains the TanStack Start account API, one-time email codes, rate limits, and D1 migrations. It also serves the public site: the landing page, `/news`, `/guides`, and the plugin pages at `/plugins` and `/plugins/<slug>`.
+- `apps/status` contains the public status page at `status.openbot.run` and the script that the `status-page` workflow runs to check the services. GitHub hosts it, so it stays up when Cloudflare does not.
 - `packages/contracts` contains process-boundary contracts, shared limits, and pure validation.
 - `packages/i18n` contains the interface text in English, French, Japanese, Brazilian Portuguese and Turkish for desktop, web and mobile. See [docs/i18n.md](docs/i18n.md) to add text or a language.
 
@@ -556,17 +567,20 @@ popover. Release signing secrets and the complete procedure are documented in
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). By contributing, you agree that your contribution is licensed
-under PolyForm Noncommercial 1.0.0. Community behavior is governed by the
+See [CONTRIBUTING.md](CONTRIBUTING.md). Before we merge a contribution, each
+author from outside the organization signs the [Contributor Assignment Agreement](CLA.md), which
+assigns its copyright to Synthetify Labs. Community behavior is governed by the
 [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License and attribution
 
-Copyright 2026 Norbert Bodziony.
+Copyright 2026 Synthetify Labs spółka z ograniczoną odpowiedzialnością.
 
 Licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE). You may use, modify, and
 distribute the code for permitted noncommercial purposes. Commercial use requires a separate license
-from the copyright owner. Versions up to and including 0.1.11 remain available under Apache-2.0.
+from the copyright owner. For a commercial license, contact
+[licenses@openbot.run](mailto:licenses@openbot.run). Versions up to and including 0.1.11 remain
+available under Apache-2.0.
 See [NOTICE](NOTICE) for attribution and third-party notices.
 
 OpenBot is an independent source-available project and is not affiliated with, endorsed by, or

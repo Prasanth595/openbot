@@ -3,6 +3,7 @@ import type { messages as source } from "../../en/error/backend";
 
 export const messages = {
   "error.backend.eventsUnavailable": "Auf diesem Host sind keine Ereignisse verfügbar.",
+  "error.backend.databaseIntegrity": "Die OpenBot-Datenbank hat die Integritätsprüfung nicht bestanden.",
   "error.backend.webhookRouteLimit": "Ein Host kann höchstens {limit} Webhook-Routinen haben.",
   "error.backend.webhookSettingsInvalid": "Prüfe die Webhook-Einstellungen und versuche es erneut.",
   "error.backend.webhookRouteUnavailable":
@@ -23,7 +24,7 @@ export const messages = {
   "error.backend.remoteDesktopStoppedWhileStarting": "Die Remote-Desktop-Laufzeit wurde während des Starts gestoppt.",
   "error.backend.sunshineNotStarted": "Sunshine wurde nicht auf einer reservierten Portfamilie gestartet.",
   "error.backend.moonlightNoHost": "Moonlight hat keinen gekoppelten lokalen Host.",
-  "error.backend.sunshineNoDesktop": "Sunshine hat die Anwendung Desktop nicht veröffentlicht.",
+  "error.backend.sunshineNoDesktop": "Sunshine hat die Anwendung „Desktop“ nicht veröffentlicht.",
   "error.backend.sunshineAmbiguousPairing": "Sunshine hat mehrdeutige lokale Kopplungsanfragen zurückgegeben.",
   "error.backend.sunshineNoPairingRequest": "Sunshine hat die erwartete lokale Kopplungsanfrage nicht erhalten.",
   "error.backend.moonlightPairingHttp": "Die Moonlight-Kopplung ist mit HTTP {status} fehlgeschlagen.",
@@ -57,7 +58,7 @@ export const messages = {
   "error.backend.channelArchived":
     "Stelle diesen Kanal wieder her, bevor du Nachrichten sendest oder Aufgaben änderst.",
   "error.backend.channelsRetired":
-    "Kanäle werden nicht mehr unterstützt. Lege Agenten in einen Seitenleistenbereich, damit sie zusammenarbeiten.",
+    "Kanäle werden nicht mehr unterstützt. Lege Agenten in einen Abschnitt der Seitenleiste, damit sie zusammenarbeiten.",
   "error.backend.channelReferenceUnavailable": "Die referenzierte Kanalnachricht ist nicht verfügbar.",
   "error.backend.channelTaskNotFound": "Kanalaufgabe nicht gefunden.",
   "error.backend.channelTaskComplete": "Diese Aufgabe ist bereits abgeschlossen.",
@@ -81,10 +82,10 @@ export const messages = {
   "error.backend.memoryOperationFailed": "Der Vorgang für die Erinnerung ist fehlgeschlagen. Versuche es erneut.",
   "error.backend.memoryGone": "Diese Erinnerung existiert nicht mehr.",
   "error.backend.routineGone": "Diese Routine existiert nicht mehr.",
-  "error.backend.turnNotStarted": "Der Anbieter hat diesen Durchgang nicht gestartet.",
+  "error.backend.turnNotStarted": "Der Anbieter hat diesen Durchlauf nicht gestartet.",
   "error.backend.routineResultConnectionOff":
     "Diese Messaging-Verbindung ist aus oder entfernt. Wähle einen anderen Ort.",
-  "error.backend.routineResultNoDelivery": "Dieser Lauf hat keine Antwort, die erneut gesendet werden kann.",
+  "error.backend.routineResultNoDelivery": "Diese Ausführung hat keine Antwort, die erneut gesendet werden kann.",
   "error.backend.channelMemoryLimit": "Ein Kanal kann bis zu {limit} Erinnerungen haben.",
   "error.backend.channelRoutineLimit": "Ein Kanal kann höchstens {limit} Routinen haben.",
   "error.backend.agentRoutineLimit": "Ein Agent kann höchstens {limit} Routinen haben.",
@@ -126,6 +127,7 @@ export const messages = {
     "Der Postfachzustand ist beschädigt oder stammt aus einer neueren OpenBot-Version. Er wird nicht überschrieben.",
   "error.backend.recipientDeleting":
     "Der Empfänger wird gelöscht. Versuche es nach Abschluss des Löschvorgangs erneut.",
+  "error.backend.recipientHidden": "Dieser Agent ist ausgeblendet. Stelle ihn wieder her, um Nachrichten zu senden.",
   "error.backend.attachBetween": "Hänge zwischen 1 und {limit} Dateien an.",
   "error.backend.attachmentNotFile": "Der Anhang ist keine Datei: {path}",
   "error.backend.generatedImageTooLarge": "Das erstellte Bild überschreitet die Grenze von 100 MB.",
@@ -252,13 +254,13 @@ export const messages = {
     "Diese Bearbeitung wurde bereits mit anderem Inhalt gespeichert. Deine Änderungen wurden nicht gespeichert.",
   "error.backend.useChannelTaskControlsWork": "Verwende für Kanalarbeit die Aufgabensteuerung des Kanals.",
   "error.backend.steerTurnChanged":
-    "Der aktive Durchlauf wurde geändert, bevor diese Nachricht eingesteuert werden konnte.",
+    "Der aktive Durchlauf wurde geändert, bevor diese Nachricht gesteuert werden konnte.",
   "error.backend.steerUnsupported":
-    "Dieser Anbieter kann einen laufenden Durchgang nicht steuern. Deine Nachricht bleibt in der Warteschlange.",
-  "error.backend.steerQueuedOnly": "Nur Nachrichten in der Warteschlange können eingesteuert werden.",
+    "Dieser Anbieter kann einen laufenden Durchlauf nicht steuern. Deine Nachricht bleibt in der Warteschlange.",
+  "error.backend.steerQueuedOnly": "Nur Nachrichten in der Warteschlange können gesteuert werden.",
   "error.backend.promptInactive": "Diese Rückfrage ist nicht mehr aktiv.",
   "error.backend.promptAnswerMismatch": "Eine Antwort passt zu keiner aktiven Frage.",
-  "error.backend.approvalInactive": "Diese Freigabe ist nicht mehr aktiv.",
+  "error.backend.approvalInactive": "Diese Genehmigung ist nicht mehr aktiv.",
   "error.backend.takeoverInactive": "Diese Browserübernahme ist nicht mehr aktiv.",
   "error.backend.authSubmitting": "Die Authentifizierung wird bereits übermittelt.",
   "error.backend.authRequestInactive": "Diese sichere Authentifizierungsanfrage ist nicht mehr aktiv.",
@@ -300,4 +302,21 @@ export const messages = {
   "error.backend.mcpSignInAppNoServer":
     "Speichere diesen MCP-Server als URL-Server, bevor du eine Anmelde-App hinzufügst.",
   "error.backend.mcpSignInAppUnavailable": "Dieser Computer kann keine Anmelde-App speichern.",
+  "error.backend.taskMoveRefused":
+    "Nur eine Nachricht, die du allein an diesen Agenten gesendet hast, kann als Aufgabe laufen.",
+  "error.backend.taskNotFound": "Diese Aufgabe ist nicht verfügbar.",
+  "error.backend.taskClosed": "Diese Aufgabe ist geschlossen. Öffne sie wieder, um eine Nachricht zu senden.",
+  "error.backend.taskStillRunning": "Diese Aufgabe läuft noch. Warte, bis sie stoppt, und schließe sie dann.",
+  "error.backend.taskTitleRequired": "Gib der Aufgabe einen kurzen Titel.",
+  "error.backend.taskToolInvalid":
+    "Gib der Aufgabe einen Titel mit höchstens 120 Zeichen und eine kurze Beschreibung, was zu tun ist.",
+  "error.backend.taskOwnChatOnly":
+    "Starte eine Aufgabe nur aus deinem eigenen Chat. Ein Kanal, eine Messaging-Unterhaltung oder eine andere Aufgabe kann keine starten.",
+  "error.backend.taskOpenLimit":
+    "Dieser Agent hat bereits {count} offene Aufgaben. Warte, bis der Benutzer eine schließt, bevor du eine weitere Aufgabe startest.",
+  "error.backend.taskOpenLimitReached":
+    "Dieser Agent hat {count} offene Aufgaben. Schließe eine Aufgabe und starte oder öffne dann eine andere.",
+  "error.backend.taskRemoteUnsupported": "Aufgaben sind nur für Agenten auf diesem Computer verfügbar.",
+  "error.backend.taskStartFailed":
+    "OpenBot konnte die Aufgabe nicht starten. Erledige die Arbeit stattdessen in diesem Durchlauf.",
 } as const satisfies PartialTranslation<typeof source>;

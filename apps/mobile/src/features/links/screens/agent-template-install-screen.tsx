@@ -1,11 +1,14 @@
-import type { AgentTemplateDetail, RoutineSchedule } from "@openbot/contracts/ipc";
+import { type AgentTemplateDetail, canAdministerServer, type RoutineSchedule } from "@openbot/contracts/ipc";
 import type { MobileTextKey } from "@openbot/i18n/mobile";
 import { useQuery } from "@tanstack/react-query";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
 import { Button, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { Check, ChevronDown, ChevronRight, X } from "lucide-react-native";
+import Check from "lucide-react-native/icons/check";
+import ChevronDown from "lucide-react-native/icons/chevron-down";
+import ChevronRight from "lucide-react-native/icons/chevron-right";
+import X from "lucide-react-native/icons/x";
 import { type PropsWithChildren, useEffect, useRef, useState } from "react";
 import { Pressable, View } from "react-native";
 import { useCSSVariable } from "uniwind";
@@ -14,7 +17,8 @@ import { useMobileSession } from "@/features/auth/context/mobile-session-context
 import { ThinkingTextGradient } from "@/features/chat/components/thinking-text-gradient";
 import { SettingsRow, SettingsSection } from "@/features/settings/components/settings-content";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
-import { serverStatusLabel } from "@/features/workspace/model/server-status";
+import { queryKeys } from "@/features/workspace/model/query-keys";
+import { serverStatusLabel, showsOnline } from "@/features/workspace/model/server-status";
 import type { MobileServer } from "@/features/workspace/model/workspace-types";
 import { AndroidHeaderButton } from "@/shared/components/android-header-button";
 import { BlurReveal } from "@/shared/components/blur-reveal";
@@ -45,7 +49,7 @@ function AgentTemplateInstall({ request }: { request?: string }) {
   const templateId = link.kind === "template" ? link.templateId : null;
   const apiUrl = session?.apiUrl ?? null;
   const template = useQuery({
-    queryKey: ["agent-template", apiUrl, templateId],
+    queryKey: queryKeys.agentTemplate(apiUrl, templateId),
     queryFn: ({ signal }) => {
       if (!apiUrl || !templateId) throw new AgentTemplateNotFoundError();
       return loadAgentTemplate(apiUrl, templateId, signal);
@@ -57,10 +61,8 @@ function AgentTemplateInstall({ request }: { request?: string }) {
   });
   // Owners and admins see each of their servers from the start. A server that is still connecting,
   // offline, or too old stays in the list as a disabled row, so the sheet does not change its layout.
-  const managed = workspace.servers.filter((server) => server.role !== "member");
-  const eligible = managed.filter(
-    (server) => server.state === "online" && workspace.canInstallAgentTemplate(server.id),
-  );
+  const managed = workspace.servers.filter((server) => canAdministerServer(server.role));
+  const eligible = managed.filter((server) => showsOnline(server) && workspace.canInstallAgentTemplate(server.id));
   const [chosenServerId, setChosenServerId] = useState<string | null>(null);
   // The default applies only until the user selects a server. After that, the choice stays: a
   // selected server that disconnects keeps its check mark and disables Add agent, so the agent never
@@ -390,12 +392,11 @@ function ServerChoices({
       {servers.length > 0 ? (
         servers.map((server) => {
           const eligible = eligibleIds.has(server.id);
-          const reason =
-            server.state !== "online"
-              ? serverStatusLabel(server, t)
-              : eligible
-                ? null
-                : t("mobile.link.template.server.updateRequired");
+          const reason = !showsOnline(server)
+            ? serverStatusLabel(server, t)
+            : eligible
+              ? null
+              : t("mobile.link.template.server.updateRequired");
           return (
             <Pressable
               key={server.id}

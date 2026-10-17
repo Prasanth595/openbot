@@ -1,5 +1,10 @@
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import { z } from "zod";
+import {
+  BROWSER_FILL_FIELDS_MAX_FIELDS,
+  BROWSER_FILL_FIELDS_MAX_TEXT_BYTES,
+  BROWSER_FILL_FIELDS_MAX_TIMEOUT_MS,
+} from "./browser-fill-fields";
 
 export const OPENBOT_BROWSER_NAMESPACE = "openbot_browser";
 
@@ -192,6 +197,27 @@ const BROWSER_TOOL_DEFINITIONS = [
       text: z.string().max(INPUT_LIMITS.browserActionText),
       mode: z.enum(["replace", "append"]).optional(),
       submit: z.boolean().optional(),
+    },
+  }),
+  browserTool({
+    name: "fill_fields",
+    description:
+      "Replace 1 to 16 already inspected ordinary main-frame text fields from one fresh snapshot, with at most 16 KiB combined UTF-8 text. Performs one queued operation and returns one final snapshot. Does not submit. Refuses known password, code, and payment fields. Partial results report confirmed and uncertain zero-based indices. Read the page before continuing; never automatically retry or undo a partial fill.",
+    shape: {
+      tabId,
+      revision,
+      fields: z
+        .array(z.strictObject({ ref: identifier, text: z.string().max(BROWSER_FILL_FIELDS_MAX_TEXT_BYTES) }))
+        .min(1)
+        .max(BROWSER_FILL_FIELDS_MAX_FIELDS)
+        .refine((fields) => new Set(fields.map((field) => field.ref)).size === fields.length, "Duplicate field refs.")
+        .refine(
+          (fields) =>
+            fields.reduce((bytes, field) => bytes + new TextEncoder().encode(field.text).byteLength, 0) <=
+            BROWSER_FILL_FIELDS_MAX_TEXT_BYTES,
+          "Combined field text exceeds 16 KiB UTF-8.",
+        ),
+      timeoutMs: z.number().int().min(1).max(BROWSER_FILL_FIELDS_MAX_TIMEOUT_MS).optional(),
     },
   }),
   browserTool({

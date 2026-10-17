@@ -3,7 +3,6 @@ import {
   type AccountUsageLimit,
   type AccountUsageWindow,
   type AgentProviderId,
-  accountUsageCoversModel,
   agentProviderDescriptor,
   agentProviderName,
   DEFAULT_PROVIDER_ACCOUNT_ID,
@@ -97,6 +96,11 @@ function usageRowKey(provider: AgentProviderId, accountId: string | null): strin
   return `${provider}\u0000${accountId ?? ""}`;
 }
 
+/** The identity of a row across readings. A list keyed by it keeps its items when a reading builds new rows. */
+export function accountUsageRowKey(row: AccountUsageProviderRow): string {
+  return usageRowKey(row.provider, row.accountId);
+}
+
 function usageRow(
   provider: AgentProviderId,
   accountId: string | null,
@@ -131,30 +135,6 @@ function usageRow(
     windows,
     reportsUsage: agentProviderDescriptor(provider).reportsUsage,
   };
-}
-
-/**
- * The row the dock chip shows. With an active agent it is that agent's provider account only, so a
- * spent Grok quota does not show as the limit of a ChatGPT agent. With no agent it is the lowest row.
- */
-export function accountUsageSummary(
-  rows: AccountUsageProviderRow[],
-  provider?: AgentProviderId | null,
-  model?: string | null,
-  accountId?: string | null,
-): AccountUsageProviderRow | null {
-  if (provider) {
-    if (!accountUsageCoversModel(provider, model)) return null;
-    const rowsOfProvider = rows.filter((row) => row.provider === provider);
-    return rowsOfProvider.find((row) => row.accountId === (accountId ?? null)) ?? rowsOfProvider[0] ?? null;
-  }
-  let lowest: AccountUsageProviderRow | null = null;
-  for (const row of rows) {
-    if (row.remainingPercent === null) continue;
-    if (lowest === null || lowest.remainingPercent === null || row.remainingPercent < lowest.remainingPercent)
-      lowest = row;
-  }
-  return lowest;
 }
 
 export function usageWindowLabel(durationMins: number | null, text: UsageText = currentText()): string {

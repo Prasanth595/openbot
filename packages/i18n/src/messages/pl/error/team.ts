@@ -59,6 +59,7 @@ export const messages = {
   "error.team.membersCannotArchiveChannels": "Członkowie nie mogą archiwizować kanałów.",
   "error.team.sharedDataUnsupported": "To połączenie nie obsługuje wspólnych danych.",
   "error.team.agentInstallUnsupported": "To połączenie nie obsługuje dodawania agentów.",
+  "error.team.agentHideUnsupported": "To połączenie nie obsługuje ukrywania agentów.",
   "error.team.agentPublishUnsupported": "To połączenie nie obsługuje publikowania agentów.",
   "error.team.agentUpdateUnsupported": "To połączenie nie obsługuje aktualizowania agentów.",
   "error.team.contextResetUnsupported": "To połączenie nie obsługuje rozpoczynania nowego czatu.",
@@ -68,7 +69,10 @@ export const messages = {
     "Ten serwer nie obsługuje przepływów rutyn. Zaktualizuj OpenBot na komputerze, na którym działa.",
   "error.team.routineCanvasTooLarge":
     "Ta kanwa rutyn jest za duża, aby wysłać ją na to urządzenie. Skróć instrukcje rutyn na komputerze, na którym działa serwer.",
+  "error.team.conversationPageTooLarge":
+    "Wiadomość w tej rozmowie jest za duża, aby wysłać ją na to urządzenie. Otwórz rozmowę na komputerze, na którym działa serwer.",
   "error.team.agentImportUnsupported": "To połączenie nie obsługuje importowania agentów.",
+  "error.team.instanceTransferUnsupported": "To połączenie nie obsługuje przenoszenia agentów.",
   "error.team.liveActivityUnsupported": "Ten host nie może aktualizować Live Activity telefonu.",
   "error.team.pushNotificationsUnsupported": "Ten host nie może wysyłać powiadomień na telefon.",
   "error.team.agentUpdateTargetRequired": "Wymagany jest agent do zaktualizowania.",
@@ -100,6 +104,7 @@ export const messages = {
   "error.team.searchQueryRequired": "Wymagane jest prawidłowe zapytanie wyszukiwania.",
   "error.team.agentAnalyticsUnsupported": "Ten klient nie obsługuje analityki agentów.",
   "error.team.membersCannotDeleteAgents": "Członkowie nie mogą usuwać agentów.",
+  "error.team.membersCannotHideAgents": "Członkowie nie mogą ukrywać ani przywracać agentów.",
   "error.team.avatarType": "Wybierz obraz PNG, JPEG lub WebP.",
   "error.team.avatarNotFound": "Nie znaleziono awatara agenta.",
   "error.team.secureAuthUnsupported": "Ten klient nie obsługuje bezpiecznego uwierzytelniania.",

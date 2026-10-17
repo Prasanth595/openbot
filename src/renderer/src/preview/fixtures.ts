@@ -593,6 +593,7 @@ export const STORY_SERVERS: ServerSummary[] = [
     active: false,
     hostedSleep: "sleeping",
     hostedIssue: null,
+    hostedStart: null,
   },
 ];
 

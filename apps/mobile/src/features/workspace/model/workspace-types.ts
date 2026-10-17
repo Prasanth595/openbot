@@ -84,6 +84,11 @@ export interface MobileServer {
   /** The last failed connection step and its code, until the server is online again. */
   connectionFailure?: RemoteConnectionFailure | null;
   recoveryStatus?: RemoteRecoveryStatus;
+  /**
+   * The server was online when the app left, and the first attempt after the return still runs in
+   * its quiet time. The app shows the server as online, and a request waits for the connection.
+   */
+  resuming?: boolean;
   address: string | null;
   accent: string;
   publicKey: string;
@@ -207,7 +212,10 @@ export interface MobileWorkspaceContextValue {
   hostedServerStarting: (serverId: string) => void;
   /** An owner or admin of an online host that serves `host-admin-v1`. The host checks the role again. */
   canEditServerIdentity: (serverId: string) => boolean;
-  /** An online host that sends notifications to this phone (`push-notifications-v1`). */
+  /**
+   * An online host that sends notifications to this phone: `push-notifications-v1` for an iPhone,
+   * `push-notifications-android-v1` for an Android phone.
+   */
   canSendNotifications: (serverId: string) => boolean;
   /** An absent field stays unchanged; a `null` logo removes it. */
   updateServerIdentity: (
@@ -297,6 +305,11 @@ export interface MobileWorkspaceContextValue {
   setAgentProviderAccount: (input: SetAgentProviderAccountInput, serverId: string) => Promise<void>;
   /** True when the host advertises `context-reset-v1`. Any member can start a new chat. */
   canStartNewChat: (serverId: string) => boolean;
+  /**
+   * True when the host advertises `agent-create-model`: a new agent can start on a chosen provider
+   * and model. Without it, the host drops the choice and starts its own default.
+   */
+  canChooseNewAgentModel: (serverId: string) => boolean;
   /** The agent forgets the messages before it. The host refuses while the agent works. */
   loadAgentSessionSettings: (agentId: string, serverId: string) => Promise<AgentSessionSettings | null>;
   setAgentSessionSetting: (input: SetAgentSessionSettingInput, serverId: string) => Promise<AgentSessionSettings>;
@@ -356,7 +369,19 @@ export interface MobileWorkspaceContextValue {
   ) => Promise<DraftAttachment>;
   downloadAttachment: (serverId: string, attachmentId: string) => Promise<RemoteFileUpload>;
   discardAttachment: (agentId: string, attachmentId: string, serverId?: string) => Promise<void>;
+  /**
+   * True when a hide goes to the host (`agent-hidden-v1`, and the user is an owner or admin), so each
+   * device shows it. A member hides on this phone only.
+   */
+  hidesAgentsOnServer: (serverId: string) => boolean;
+  /**
+   * True when the user can show a hidden agent of the active server again: this phone hid it, or the
+   * host hid it and the user is an owner or admin.
+   */
+  canUnhideAgent: (agentId: string) => boolean;
+  /** Hides an agent of the active server: on the host when it owns the list, else on this phone only. */
   hideAgent: (agentId: string) => void;
+  /** Shows a hidden agent of the active server again, on this phone and on the host. */
   unhideAgent: (agentId: string) => void;
   markAgentRead: (agentId: string, throughMessageId?: string, serverId?: string) => void;
   markAgentUnread: (agentId: string) => void;
@@ -364,3 +389,51 @@ export interface MobileWorkspaceContextValue {
   markAllRead: () => Promise<void>;
   toggleAgentPin: (agentId: string) => ToggleAgentPinResult;
 }
+
+/** The checks that read what a host advertised. Their answer changes when a server connects. */
+export type MobileWorkspaceCapabilityCheck =
+  | "browserViewSupport"
+  | "canEditQueue"
+  | "canRetryMessage"
+  | "attachmentSupport"
+  | "canStartNewChat"
+  | "canChooseNewAgentModel"
+  | "canInstallAgentTemplate"
+  | "canSearchFiles";
+
+type MobileWorkspaceStateKey =
+  | MobileWorkspaceCapabilityCheck
+  | "sidebarByServer"
+  | "servers"
+  | "defaultServerId"
+  | "serverDirectoryState"
+  | "serverDirectoryError"
+  | "agents"
+  | "activeServer"
+  | "activeAgents"
+  | "hiddenAgents"
+  | "pinnedAgentIds"
+  | "hidesAgentsOnServer"
+  | "canUnhideAgent"
+  | "canEditServerIdentity"
+  | "canSendNotifications"
+  | "canManageEvents"
+  | "canManageAgentSkills"
+  | "canManageAgentAccess"
+  | "canManageAgentHostSettings"
+  | "canManageProviderAccounts"
+  | "canManageSharedTables"
+  | "canPublishAgent";
+
+/**
+ * The workspace data, and the checks that a component calls while it renders. A change renders
+ * every component that reads the context again.
+ */
+export type MobileWorkspaceState = Pick<MobileWorkspaceContextValue, MobileWorkspaceStateKey>;
+
+/**
+ * The commands, and the stores and the directory of the session. They do not change while the
+ * session lasts, so a component that reads only these does not render again for a workspace change.
+ * A command reads the latest workspace when it runs.
+ */
+export type MobileWorkspaceActions = Omit<MobileWorkspaceContextValue, MobileWorkspaceStateKey>;

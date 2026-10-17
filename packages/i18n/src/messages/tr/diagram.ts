@@ -80,7 +80,7 @@ export const messages = {
   "diagram.routine.lens": "Gösterilecek rutin",
   "diagram.routine.all": "Tüm rutinler",
   "diagram.routine.does": "Ne yapar",
-  "diagram.routine.starts": "Başlattıkları",
+  "diagram.routine.starts": "Başlatır",
   "diagram.routine.startsNothing": "Bu rutine iş vermek için bir ajan bağlayın.",
   "diagram.routine.reach": {
     one: "Bu rutinden sonra {count} ajan {steps} adımda çalışır.",

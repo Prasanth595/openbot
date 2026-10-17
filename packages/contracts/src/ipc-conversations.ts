@@ -158,6 +158,8 @@ export interface SendMessageInput {
    * same agent, returns the first receipt instead of a new message, so a lost reply can be retried.
    */
   clientMessageId?: string;
+  /** The open task of this agent that takes the message. Without it, the agent's own chat takes it. */
+  taskId?: string;
 }
 
 export interface SetMessageReactionInput {

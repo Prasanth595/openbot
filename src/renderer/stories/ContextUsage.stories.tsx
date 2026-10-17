@@ -44,6 +44,14 @@ const CLAUDE: ContextUsageView = {
   nativeManaged: true,
   estimated: true,
   compacting: false,
+  categories: [
+    { category: "systemPrompt", tokens: 12_600 },
+    { category: "memoryFiles", tokens: 3_400 },
+    { category: "tools", tokens: 21_300 },
+    { category: "skills", tokens: 4_300 },
+    { category: "toolResults", tokens: 61_900 },
+    { category: "messages", tokens: 38_300 },
+  ],
 };
 
 const ACP_NO_SUMMARY: ContextUsageView = {
@@ -144,7 +152,7 @@ export const RingStates: Story = {
   ),
 };
 
-/** Claude reports an estimate. It compacts on its own near 92%. */
+/** Claude reports an estimate and what fills it. It compacts on its own near 92%. */
 export const ClaudeEstimate: Story = {
   args: { usage: CLAUDE },
   render: (args) => <Composer usage={args.usage} />,

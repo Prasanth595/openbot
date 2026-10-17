@@ -23,6 +23,7 @@ import type {
   CreateAgentInput,
   DuplicateAgentResult,
   EditQueuedMessageInput,
+  HiddenAgentsSnapshot,
   InvitePreview,
   QueueSnapshot,
   ReorderQueueInput,
@@ -32,6 +33,7 @@ import type {
   RespondToPromptInput,
   Routine,
   RoutineRun,
+  SetAgentHiddenInput,
   SetMessageReactionInput,
   SidebarLayoutAction,
   SidebarLayoutSnapshot,
@@ -46,6 +48,7 @@ import type {
   WorkspaceDirectory,
 } from "@openbot/contracts/ipc";
 import {
+  canAdministerServer,
   decodeWorkspaceDirectory,
   isAccountUsage,
   isAgentModelOption,
@@ -68,6 +71,7 @@ import {
   TEAM_BROWSER_VIEW_FRAME_POINT_CAPABILITY,
 } from "@openbot/contracts/team-protocol/browser-view-v1";
 import { TEAM_BROWSER_NAVIGATION_CAPABILITY } from "@openbot/contracts/team-protocol/current";
+import { FOCUS_USE_ROUTES } from "@openbot/contracts/team-protocol/focus-use-v1";
 import { PROVIDER_ACCOUNTS_CAPABILITY } from "@openbot/contracts/team-protocol/provider-accounts-v1";
 import { ROUTINE_FLOWS_CAPABILITY } from "@openbot/contracts/team-protocol/routine-flows-v1";
 import { type TeamProtocolSupportV1, teamProtocolUpdateDirection } from "@openbot/contracts/team-protocol/v1";
@@ -79,6 +83,7 @@ import {
   WORKSPACE_DIRECTORY_ROUTES,
 } from "@openbot/contracts/team-protocol/workspace-directory-v1";
 import { runTeamEffect } from "@openbot/team-client";
+import { bytesToBase64 } from "@openbot/team-client/base64";
 import { createRemoteBrowserView, type RemoteBrowserView } from "@openbot/team-client/browser-view";
 import {
   RemoteDirectoryError,
@@ -94,7 +99,7 @@ import {
   type RemoteTeamConnectionUpdate,
 } from "@openbot/team-client/remote-peer";
 import { remoteWorkspaceReadTimeout } from "@openbot/team-client/remote-recovery";
-import { setAgentProviderAccount } from "@openbot/team-client/team-admin-requests";
+import { listHiddenAgents, setAgentHidden, setAgentProviderAccount } from "@openbot/team-client/team-admin-requests";
 import {
   cancelQueuedMessage,
   deleteAgent,
@@ -185,6 +190,8 @@ export interface WebWorkspaceRuntime {
   markRead(agentId: string, throughMessageId: string | null): Promise<ConversationReadState>;
   /** This member's read state for each agent, keyed by agent id. Invalid entries are left out. */
   conversationReads(): Promise<Record<string, ConversationReadState>>;
+  /** Tells a hosted server that this tab has focus. Send it only to a host with `focus-use-v1`. */
+  focusUse(): Promise<void>;
   /** Resolves to the conversation message the host stored: the delivery id of the receipt. */
   send(
     agentId: string,
@@ -220,6 +227,10 @@ export interface WebWorkspaceRuntime {
   updateRoutine?: (input: UpdateRoutineInput) => Promise<Routine>;
   /** Runs an agent routine now. */
   testRoutine?: (input: TestRoutineInput) => Promise<RoutineRun>;
+  /** The agents that a user hid on the host. Any member can call it on a host with `agent-hidden-v1`. */
+  listHiddenAgents?: () => Promise<HiddenAgentsSnapshot>;
+  /** Hides or restores an agent, and returns the host's hidden list. Needs `agent-hidden-v1`. */
+  setAgentHidden?: (input: SetAgentHiddenInput) => Promise<HiddenAgentsSnapshot>;
   react(input: SetMessageReactionInput): Promise<void>;
   setAvatar(agentId: string, image: AvatarImageInput | null): Promise<void>;
   models(): Promise<AgentModelOption[]>;
@@ -842,6 +853,9 @@ export function createWebWorkspaceRuntime(
       if (!isConversationReadState(value)) throw new Error("The host returned an invalid read state.");
       return value;
     },
+    async focusUse() {
+      await request("POST", FOCUS_USE_ROUTES.ping);
+    },
     async conversationReads() {
       const value = await request("GET", TEAM_API_ROUTES.agents.conversationReads);
       const reads: Record<string, ConversationReadState> = {};
@@ -862,13 +876,11 @@ export function createWebWorkspaceRuntime(
         await request("DELETE", TEAM_API_ROUTES.agent.avatar(agentId));
         return;
       }
-      let binary = "";
-      for (const byte of image.bytes) binary += String.fromCharCode(byte);
       await request(
         "PUT",
         TEAM_API_ROUTES.agent.avatar(agentId),
         {},
-        { name: "avatar", mimeType: image.mimeType, base64: btoa(binary) },
+        { name: "avatar", mimeType: image.mimeType, base64: bytesToBase64(image.bytes) },
       );
     },
     async send(id, text, attachmentDraftIds, replyToMessageId = null, clientMessageId) {
@@ -918,11 +930,9 @@ export function createWebWorkspaceRuntime(
       const bytes = new Uint8Array(await file.arrayBuffer());
       if (currentUpload !== uploadGeneration || uploadHostGeneration !== generation)
         throw new Error(currentText().t("webClient.error.uploadCancelled"));
-      let binary = "";
-      for (const byte of bytes) binary += String.fromCharCode(byte);
       const mimeType = file.type || "application/octet-stream";
       const value = await Effect.runPromise(
-        uploadAttachmentDraft(teamApi, { name: file.name, mimeType, base64: btoa(binary) }).pipe(
+        uploadAttachmentDraft(teamApi, { name: file.name, mimeType, base64: bytesToBase64(bytes) }).pipe(
           Effect.mapError((error) => error.cause),
         ),
       );
@@ -970,6 +980,9 @@ export function createWebWorkspaceRuntime(
       runTeamEffect(updateAgentRoutine(teamApi, input).pipe(Effect.mapError((error) => error.cause))),
     testRoutine: (input) =>
       runTeamEffect(testAgentRoutine(teamApi, input).pipe(Effect.mapError((error) => error.cause))),
+    listHiddenAgents: () => runTeamEffect(listHiddenAgents(teamApi).pipe(Effect.mapError((error) => error.cause))),
+    setAgentHidden: (input) =>
+      runTeamEffect(setAgentHidden(teamApi, input).pipe(Effect.mapError((error) => error.cause))),
     async models() {
       return guardedListDecoder(isAgentModelOption, "models")(await request("GET", TEAM_API_ROUTES.agents.models));
     },
@@ -1015,7 +1028,8 @@ export function createWebWorkspaceRuntime(
       );
     },
     async deleteAgent(agentId) {
-      if (connectedHost?.role === "member") throw new Error(currentText().t("error.team.membersCannotDeleteAgents"));
+      if (connectedHost && !canAdministerServer(connectedHost.role))
+        throw new Error(currentText().t("error.team.membersCannotDeleteAgents"));
       await Effect.runPromise(deleteAgent(teamApi, agentId).pipe(Effect.mapError((error) => error.cause)));
     },
     async search(agentId, query, cursor) {

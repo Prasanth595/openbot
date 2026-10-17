@@ -101,6 +101,7 @@ import {
   remainingTime,
   runTabAction,
   runTabEvaluation,
+  runTabFillFields,
 } from "./browser-tab-operations";
 import {
   type BrowserDynamicToolHooks,
@@ -160,6 +161,13 @@ const VIEW_FRAME_MAX_WIDTH = 1_280;
 const VIEW_FRAME_MAX_HEIGHT = 800;
 /** How long after a live view's right-click the page's menu still belongs to that view. */
 const VIEW_CONTEXT_MENU_MS = 1_500;
+/**
+ * The download limits of one browser session, so that a page cannot fill the disk. A session
+ * starts no new download while `MAX_ACTIVE_DOWNLOADS` are in progress, and a download larger
+ * than `MAX_DOWNLOAD_BYTES` stops.
+ */
+const MAX_ACTIVE_DOWNLOADS = 4;
+const MAX_DOWNLOAD_BYTES = 2 * 1024 * 1024 * 1024;
 
 export interface BrowserViewOptions {
   /** Hears the page's mouse cursor when it changes. Not called while a secret is on the page. */
@@ -1440,6 +1448,18 @@ export class BrowserHost {
       }),
     click: (call, params, hooks) => this.#runInputTool(call, params, hooks),
     type: (call, params, hooks) => this.#runInputTool(call, params, hooks),
+    fill_fields: ({ args }, params) =>
+      Effect.gen({ self: this }, function* () {
+        yield* browserSync(() => this.#requireToolTab(params, args.tabId));
+        const tab = yield* this.#requireTab(args.tabId);
+        const result = yield* runTabFillFields(tab, args.revision, args.fields, args.timeoutMs ?? 10_000, () =>
+          this.#requireToolTab(params, args.tabId),
+        );
+        return {
+          ...textResult(result),
+          success: result.status === "completed",
+        };
+      }),
     press: (call, params, hooks) => this.#runInputTool(call, params, hooks),
     hover: (call, params, hooks) => this.#runInputTool(call, params, hooks),
     scroll: (call, params, hooks) => this.#runInputTool(call, params, hooks),
@@ -1826,8 +1846,13 @@ export class BrowserHost {
       callback(isAllowedBrowserPermission(permission)),
     );
     target.setPermissionCheckHandler((_webContents, permission) => isAllowedBrowserPermission(permission));
+    let activeDownloads = 0;
     target.on("will-download", (event, item, contents) => {
       if ([...this.#tabs.values()].some((tab) => tab.secret && tab.contents === contents)) {
+        event.preventDefault();
+        return;
+      }
+      if (activeDownloads >= MAX_ACTIVE_DOWNLOADS || item.getTotalBytes() > MAX_DOWNLOAD_BYTES) {
         event.preventDefault();
         return;
       }
@@ -1839,7 +1864,17 @@ export class BrowserHost {
       );
       this.#reservedDownloadPaths.add(downloadPath);
       item.setSavePath(downloadPath);
-      item.once("done", () => this.#reservedDownloadPaths.delete(downloadPath));
+      activeDownloads += 1;
+      // A server can send no size, or a wrong one, so the received bytes are checked as they arrive.
+      item.on("updated", () => {
+        if (item.getState() !== "progressing" || item.getReceivedBytes() <= MAX_DOWNLOAD_BYTES) return;
+        logger.warn("Browser download stopped at the size limit", { limitBytes: MAX_DOWNLOAD_BYTES });
+        item.cancel();
+      });
+      item.once("done", () => {
+        activeDownloads -= 1;
+        this.#reservedDownloadPaths.delete(downloadPath);
+      });
     });
   }
 

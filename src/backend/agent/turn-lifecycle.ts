@@ -8,10 +8,10 @@ import {
   type ConversationPlan,
   type ConversationSnapshot,
   conversationPlanText,
+  isAgentContextCategories,
   latestTurnAnswer,
 } from "@openbot/contracts/ipc";
 import { isString } from "@openbot/contracts/runtime-values";
-import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger } from "@openbot/logging";
 import { classifyFailure } from "@openbot/telemetry";
 import { Deferred, Effect, Exit, Schema, Scope } from "effect";
@@ -46,9 +46,8 @@ import type { ProviderRuntime } from "./provider-runtime";
 import { isNoUpdateAnswer, settleQuietRoutineTurn } from "./routine-quiet-runs";
 import { ThreadFileHistory } from "./thread-file-history";
 import {
-  isForeignReasoningError,
   isNonActionableCodexWarning,
-  providerLabel,
+  refusedSessionFailure,
   type ToolUsageSignal,
   toolProgressText,
   toolUsage,
@@ -98,6 +97,10 @@ export interface TurnHooks {
    * agent answers only the no-update marker or calls the no-update tool.
    */
   quietRoutineDelivery(deliveryId: string): boolean;
+  /** The task whose thread this is, or null for any other thread. */
+  taskForThread(threadId: string): string | null;
+  /** The error of a task turn. It shows in the task's panel, not in the agent's own chat. */
+  taskFailed(taskId: string, message: string): void;
   /**
    * The agent preview before the routine run of this delivery showed its task, and that task, once.
    * Null after a restart or for any other delivery.
@@ -307,6 +310,12 @@ export class TurnLifecycle {
     return this.#endedTurns.has(turnId);
   }
 
+  /** The task of a provider thread, or null for the agent's own chat and its other threads. */
+  #taskForThread(agentId: string, externalThreadId: string): string | null {
+    const threadId = this.#conversation.publicThreadId(agentId, externalThreadId);
+    return this.#conversation.isTaskThread(threadId) ? this.#hooks.taskForThread(threadId) : null;
+  }
+
   readonly handleNotification = Effect.fn("TurnLifecycle.handleNotification")(function* (
     this: TurnLifecycle,
     notification: AppServerNotification,
@@ -351,7 +360,9 @@ export class TurnLifecycle {
         this.#compaction.beginTurn(threadId);
         // The provider started this turn itself. A delivery that is starting now waits for its own turn.
         const unprompted = isRecord(params) && params.unprompted === true;
-        const starting = unprompted ? undefined : this.#mailbox.startingDeliveryForAgent(agentId)?.delivery;
+        // Each lane of the agent starts its own turns: a task turn takes only that task's delivery.
+        const taskId = this.#taskForThread(agentId, threadId);
+        const starting = unprompted ? undefined : this.#mailbox.startingDeliveryForAgent(agentId, taskId)?.delivery;
         const sentAt = starting ? Date.parse(starting.createdAt) : Number.NaN;
         this.#runningTurns.set(turnId, {
           client: source,
@@ -366,13 +377,13 @@ export class TurnLifecycle {
         const publicThreadId = this.#conversation.publicThreadId(agentId, threadId);
         const snapshot = this.#conversation.ensureSnapshot(agentId, publicThreadId);
         snapshot.activeTurnId = turnId;
-        this.#failedTurns.delete(agentId);
+        if (taskId === null) this.#failedTurns.delete(agentId);
         const origin = starting?.sender.kind ?? "unknown";
         if (!unprompted) {
           const association = Deferred.makeUnsafe<void, TurnOperationFailed>();
           this.#turnAssociations.set(turnId, association);
           yield* Effect.gen({ self: this }, function* () {
-            const exit = yield* Effect.exit(this.#associateStartedTurn(agentId, turnId, snapshot));
+            const exit = yield* Effect.exit(this.#associateStartedTurn(agentId, taskId, turnId, snapshot));
             yield* Deferred.done(association, exit);
             if (this.#turnAssociations.get(turnId) === association) this.#turnAssociations.delete(turnId);
           }).pipe(Effect.forkIn(this.#scope, { startImmediately: true }));
@@ -517,6 +528,7 @@ export class TurnLifecycle {
             source.contextCompaction === "native",
             source.contextCompaction === "events" || source.contextCompaction === "request" ? 0.8 : null,
             usage.estimated === true,
+            isAgentContextCategories(usage.categories) ? usage.categories : undefined,
           );
         return;
       }
@@ -534,7 +546,7 @@ export class TurnLifecycle {
         return;
       }
       case "account/rateLimits/updated": {
-        yield* this.#providers.refreshCodexUsage();
+        this.#providers.applyPushedUsage(source, params);
         return;
       }
       case USAGE_LIMIT_METHOD: {
@@ -562,7 +574,7 @@ export class TurnLifecycle {
         if (notification.method === "error" && errorTurnId && this.#runningTurns.has(errorTurnId)) {
           this.#turnErrors.set(errorTurnId, message);
           // The turn's completion runs it again or reports it in words the user can act on.
-          if (isForeignReasoningError(message)) return;
+          if (refusedSessionFailure(source.provider, message) !== null) return;
         }
         // A spent quota or balance is explained by the usage notice, so only a provider that reports
         // usage can leave it out of the banner. Gemini's 429 reads as a spent quota, and it failed
@@ -592,13 +604,19 @@ export class TurnLifecycle {
           yield* this.#providers.refreshUsageAfterLimit(source);
           return;
         }
-        this.#hooks.emitError(`agent_${notification.method}`, message, agentId, {
+        const context = {
           causeCode: classifyFailure(error ?? message),
           provider: source.provider,
           model: agentId && errorTurnId ? this.#hooks.turnModel(agentId, errorTurnId) : null,
           turnId: errorTurnId,
-          severity: notification.method === "warning" ? "warning" : "error",
-        });
+          severity: notification.method === "warning" ? ("warning" as const) : ("error" as const),
+        };
+        const taskId =
+          notification.method === "error" && agentId && threadId ? this.#taskForThread(agentId, threadId) : null;
+        if (taskId !== null) {
+          this.#hooks.emitFailure?.({ code: "agent_error", ...(agentId ? { agentId } : {}), ...context });
+          this.#hooks.taskFailed(taskId, message);
+        } else this.#hooks.emitError(`agent_${notification.method}`, message, agentId, context);
       }
     }
   }).bind(this);
@@ -658,11 +676,11 @@ export class TurnLifecycle {
     const reportedError = this.#turnErrors.get(turnId);
     this.#turnErrors.delete(turnId);
     // The error is kept only while the turn runs, so a refused turn always has its entry.
-    const refused =
-      running !== undefined &&
-      status === "failed" &&
-      reportedError !== undefined &&
-      isForeignReasoningError(reportedError);
+    const refusedFailure =
+      running !== undefined && status === "failed" && reportedError !== undefined
+        ? refusedSessionFailure(running.client.provider, reportedError)
+        : null;
+    const refused = running !== undefined && refusedFailure !== null;
     const limited = status === "failed" && this.#limitedTurns.has(turnId);
     const resetsAt = this.#limitedTurns.get(turnId) ?? null;
     this.#limitedTurns.delete(turnId);
@@ -678,12 +696,14 @@ export class TurnLifecycle {
     const snapshot = this.#conversation.ensureSnapshot(agentId, threadId);
     snapshot.activeTurnId = null;
     const deliveries = this.#mailbox.findDeliveriesByTurn(agentId, turnId);
+    // A task turn ends as a turn of the agent's own chat does, in the task's own lane.
+    const taskTurn = this.#conversation.isTaskThread(snapshot.threadId);
     // A channel task is not run again: an unfinished turn pauses it, and its Resume opens the new session.
     const retry =
       refused &&
       !running.produced &&
       deliveries.length > 0 &&
-      !this.#conversation.isExecutionThread(snapshot.threadId) &&
+      (taskTurn || !this.#conversation.isExecutionThread(snapshot.threadId)) &&
       deliveries.every(({ delivery }) => !this.#refusedRetries.has(delivery.id));
     if (retry) {
       yield* this.#retryRefusedTurn(agentId, threadId, turnId, snapshot, deliveries);
@@ -693,7 +713,7 @@ export class TurnLifecycle {
     // messages wait in the queue for the reset. A channel task goes back to its channel's queue
     // instead: an assignment that waited here would reserve the whole host until the reset.
     const repeatable = limited && running !== undefined && !running.acted && deliveries.length > 0;
-    const channelTurn = this.#conversation.isExecutionThread(snapshot.threadId);
+    const channelTurn = !taskTurn && this.#conversation.isExecutionThread(snapshot.threadId);
     const requeue = repeatable && !channelTurn;
     for (const message of snapshot.messages) {
       if (this.#itemTurns.get(message.id) !== turnId || message.status !== "streaming") continue;
@@ -722,14 +742,17 @@ export class TurnLifecycle {
       break;
     }
     const outcome = requeued ? "interrupted" : status;
-    if (outcome === "failed") this.#failedTurns.set(agentId, turnId);
-    else this.#failedTurns.delete(agentId);
-    const failure = refused
-      ? sourceText("error.provider.foreignReasoning", { provider: providerLabel(running.client.provider) })
-      : reportedError;
+    // The failed turn of the agent's own chat only: a task shows its outcome in its own row.
+    if (!taskTurn && outcome === "failed") this.#failedTurns.set(agentId, turnId);
+    else if (!taskTurn) this.#failedTurns.delete(agentId);
+    const failure = refusedFailure ?? reportedError;
     if (refused) {
       yield* this.#hooks.dropRefusedSession(agentId, threadId);
-      this.#hooks.emitError("agent_error", failure, agentId);
+      const taskId = taskTurn ? this.#taskForThread(agentId, threadId) : null;
+      if (taskId !== null && failure !== undefined) {
+        this.#hooks.emitFailure?.({ code: "agent_error", agentId, causeCode: classifyFailure(failure) });
+        this.#hooks.taskFailed(taskId, failure);
+      } else this.#hooks.emitError("agent_error", failure, agentId);
     }
     if (deliveries.some((delivery) => delivery.delivery.sender.kind === "agent")) {
       dropPlaceholderAnswers(snapshot, turnId);
@@ -867,10 +890,11 @@ export class TurnLifecycle {
   readonly #associateStartedTurn = Effect.fn("TurnLifecycle.associateStartedTurn")(function* (
     this: TurnLifecycle,
     agentId: string,
+    taskId: string | null,
     turnId: string,
     snapshot: ConversationSnapshot,
   ) {
-    const deliveries = yield* turnStep(() => this.#mailbox.startingDeliveriesForAgent(agentId));
+    const deliveries = yield* turnStep(() => this.#mailbox.startingDeliveriesForAgent(agentId, taskId));
     if (deliveries.length === 0) return;
     yield* Effect.gen({ self: this }, function* () {
       for (const { delivery } of deliveries) {

@@ -1,49 +1,29 @@
-import { classifyFailure } from "@openbot/telemetry";
+import { isAgentTaskActive } from "@openbot/ui/features/conversation/AgentTasks";
 import { ConversationHeader as SharedConversationHeader } from "@openbot/ui/features/conversation/ConversationHeader";
 import { useConversationViewScope } from "./conversation-scope";
 
 const loadAgentSettingsPanel = () => import("./AgentSettingsPanel");
 
 import { useText } from "@openbot/ui/text";
-import { createMemo } from "solid-js";
-import { actionToast } from "../../action-toast";
-import { serverHasStorage } from "../files/storage-usage";
 
 /** @internal Stable HMR boundary for conversation header. */
 export function ConversationHeader() {
-  const { t, errorMessage } = useText();
+  const { t } = useText();
   const {
     actingBrowserControl,
     agentActivity,
     browserControlAgent,
-    hideBrowserPanel,
     props,
-    screenOpen,
     selectAndConfirmModel,
     selectAndConfirmReasoning,
     setActiveRightPanel,
     settingsModel,
     settingsProvider,
     settingsReasoning,
-    showBrowserPanel,
-    filesOpen,
-    toggleFilesPanel,
+    sidePanelOpen,
+    toggleSidePanel,
   } = useConversationViewScope();
-  const changeAutoApprove = createMemo(() => {
-    const save = props.onSetAgentAutoApprove;
-    const name = props.agent?.name ?? t("conversation.header.thisAgent");
-    if (!save) return undefined;
-    return (next: boolean) => {
-      void save(next).catch((error) => {
-        actionToast.error(
-          next
-            ? errorMessage(error, t("conversation.header.grantFailed", { name }))
-            : t("settings.autoApprove.revokeFailed", { name }),
-          { report: { operation: "turn", source: "action", cause_code: classifyFailure(error) } },
-        );
-      });
-    };
-  });
+  const runningTasks = () => props.tasks?.snapshot?.tasks.filter(isAgentTaskActive).length ?? 0;
   return (
     <SharedConversationHeader
       agent={props.agent}
@@ -72,10 +52,6 @@ export function ConversationHeader() {
         providerAccountId: props.agent?.providerAccountId,
         onChange: (model, provider, accountId) => void selectAndConfirmModel(model, provider, accountId),
         onReasoningEffortChange: (effort) => void selectAndConfirmReasoning(effort),
-        autoApprove: props.agentAutoApproves,
-        agentName: props.agent?.name,
-        autoApproveLocked: props.agentAutoApproveLocked,
-        onAutoApproveChange: changeAutoApprove(),
       }}
       remoteControl={
         props.remoteDesktopEnabled !== false && props.server?.kind === "remote"
@@ -89,26 +65,14 @@ export function ConversationHeader() {
             }
           : undefined
       }
-      files={
-        // The web client has no conversation Files panel, and a chat without a thread has no files to list.
-        !props.runtime && props.agent?.threadId && serverHasStorage(props.server)
-          ? { open: filesOpen(), onToggle: toggleFilesPanel }
-          : undefined
-      }
-      browser={
-        props.browserEnabled !== false
-          ? {
-              acting: Boolean(actingBrowserControl()),
-              agentName: browserControlAgent()?.name,
-              open: screenOpen(),
-              disabled: props.browserVisibilitySuspended,
-              onToggle: () => {
-                if (screenOpen()) hideBrowserPanel();
-                else showBrowserPanel();
-              },
-            }
-          : undefined
-      }
+      sidePanel={{
+        open: sidePanelOpen(),
+        actingAgentName: actingBrowserControl()
+          ? (browserControlAgent()?.name ?? t("conversation.header.agentFallback"))
+          : undefined,
+        running: runningTasks(),
+        onToggle: toggleSidePanel,
+      }}
     />
   );
 }

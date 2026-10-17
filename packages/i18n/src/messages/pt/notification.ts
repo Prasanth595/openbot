@@ -14,8 +14,8 @@ export const messages = {
     other: "{count} agentes aguardam. O OpenBot tentará de novo mais tarde.",
   },
   "notification.usageLimit.bodyResets": {
-    one: "{count} agente aguarda. Reajusta {reset}.",
-    other: "{count} agentes aguardam. Reajusta {reset}.",
+    one: "{count} agente aguarda. O limite é renovado {reset}.",
+    other: "{count} agentes aguardam. O limite é renovado {reset}.",
   },
   "notification.test": "As notificações estão funcionando.",
   "notification.welcome": "O OpenBot avisará aqui quando um agente precisar de você.",

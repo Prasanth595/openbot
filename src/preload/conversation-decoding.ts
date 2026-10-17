@@ -5,21 +5,28 @@
 // carries, so a value the renderer reads always has the shape its type says.
 
 import {
+  type AgentTask,
+  type AgentTasksSnapshot,
   type AgentWaitsSnapshot,
   type ConversationFileSearchPage,
   type ConversationMessage,
   type ConversationPage,
   type ConversationReadState,
   type ConversationSearchPage,
+  type ConversationSnapshot,
   type ConversationWithReadState,
   type DraftAttachment,
   type FilePreview,
+  isAgentTask,
+  isAgentTasksSnapshot,
   isAgentWaitsSnapshot,
   isAttachmentSummary,
   isConversationMessage,
   isConversationReadState,
+  isConversationSnapshot,
   isConversationWithReadState,
   isFilePreviewKind,
+  isFilePreviewPageUrl,
   isQueuedMessageReceipt,
   isQueueSnapshot,
   type QueuedMessageReceipt,
@@ -43,7 +50,8 @@ export function decodeFilePreview(value: unknown): FilePreview {
     !isNumber(preview.size) ||
     !isString(preview.mimeType) ||
     !isFilePreviewKind(preview.previewKind) ||
-    (preview.bytes !== null && !(preview.bytes instanceof Uint8Array))
+    (preview.bytes !== null && !(preview.bytes instanceof Uint8Array)) ||
+    (preview.pageUrl !== undefined && !isFilePreviewPageUrl(preview.pageUrl))
   ) {
     throw new Error("Invalid file preview response.");
   }
@@ -53,6 +61,7 @@ export function decodeFilePreview(value: unknown): FilePreview {
     mimeType: preview.mimeType,
     previewKind: preview.previewKind,
     bytes: preview.bytes,
+    ...(preview.pageUrl === undefined ? {} : { pageUrl: preview.pageUrl }),
   };
 }
 
@@ -153,6 +162,27 @@ export function decodeReceipt(value: unknown): QueuedMessageReceipt {
 export function decodeWaits(value: unknown): AgentWaitsSnapshot {
   if (!isAgentWaitsSnapshot(value)) {
     throw new Error("Invalid open waits response.");
+  }
+  return value;
+}
+
+export function decodeAgentTasks(value: unknown): AgentTasksSnapshot {
+  if (!isAgentTasksSnapshot(value)) {
+    throw new Error("Invalid task list response.");
+  }
+  return value;
+}
+
+export function decodeAgentTask(value: unknown): AgentTask {
+  if (!isAgentTask(value)) {
+    throw new Error("Invalid task response.");
+  }
+  return value;
+}
+
+export function decodeTaskConversation(value: unknown): ConversationSnapshot {
+  if (!isConversationSnapshot(value)) {
+    throw new Error("Invalid task conversation response.");
   }
   return value;
 }

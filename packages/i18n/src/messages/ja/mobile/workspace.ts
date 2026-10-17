@@ -6,7 +6,7 @@ export const messages = {
   "mobile.workspace.status.online": "オンライン",
   "mobile.workspace.status.offline": "オフライン",
   "mobile.workspace.status.error": "接続エラー",
-  "mobile.workspace.status.reconnecting": "再接続しています",
+  "mobile.workspace.status.reconnecting": "再接続中",
   "mobile.workspace.status.attempt": "試行 {attempt}/{limit}",
   "mobile.workspace.status.attemptPrefix": "試行 ",
   "mobile.workspace.status.retryIn": "{seconds} 秒後に再試行します",
@@ -26,9 +26,6 @@ export const messages = {
   "mobile.workspace.error.approvalInactive":
     "このリクエストはもう待機していません。別のデバイスが回答したか、タスクが停止しました。",
   "mobile.workspace.error.approvalOffline": "このリクエストに回答するにはサーバーに接続してください。",
-  "mobile.workspace.notification.allow": "許可",
-  "mobile.workspace.notification.deny": "拒否",
-  "mobile.workspace.notification.answerFailed": "回答がサーバーに届きませんでした。OpenBot を開いて回答してください。",
   "mobile.workspace.alert.preferencesTitle": "チャットの設定を保存できませんでした",
   "mobile.workspace.alert.preferencesBody": "以前の設定を保持しました。もう一度お試しください。",
   "mobile.workspace.alert.updateRequiredTitle": "アップデートが必要です",

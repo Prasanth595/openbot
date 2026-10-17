@@ -5,16 +5,20 @@ import { skipToken, useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { Button, Chip, Skeleton, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { ChevronRight, CreditCard, Monitor, Ticket } from "lucide-react-native";
+import ChevronRight from "lucide-react-native/icons/chevron-right";
+import CreditCard from "lucide-react-native/icons/credit-card";
+import Monitor from "lucide-react-native/icons/monitor";
+import Ticket from "lucide-react-native/icons/ticket";
 import { type ReactNode, useMemo } from "react";
 import { View } from "react-native";
 import type { MobileSession } from "@/features/auth/api/mobile-auth";
-import { useMobileSession } from "@/features/auth/context/mobile-session-context";
+import { useMobileSession, useQueryScope } from "@/features/auth/context/mobile-session-context";
 import { hostedServerCalls } from "@/features/servers/api/hosted-servers";
 import { rememberHostedServer, useHostedServerAvailability } from "@/features/servers/model/hosted-server-availability";
 import { hostedServerInSetup } from "@/features/servers/model/hosted-server-plans";
 import { SettingsRow, SettingsSection } from "@/features/settings/components/settings-content";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import { queryKeys } from "@/features/workspace/model/query-keys";
 import { SheetScrollView } from "@/shared/components/sheet-scroll-view";
 import { devFeatureOverride } from "@/shared/lib/dev-feature-overrides";
 import { refreshMobileFeatures, useMobileFeature } from "@/shared/lib/mobile-features";
@@ -40,7 +44,8 @@ interface PlansData {
  */
 export function HostedServerPlansScreen() {
   const { t, errorMessage } = useText();
-  const { session, sessionScope } = useMobileSession();
+  const { session } = useMobileSession();
+  const queryScope = useQueryScope();
   const { servers } = useMobileWorkspace();
   const apiUrl = session?.apiUrl ?? null;
   const cloudServersOn = useMobileFeature(apiUrl ?? "", "cloudServers");
@@ -48,7 +53,7 @@ export function HostedServerPlansScreen() {
   // The last answer stays for the life of the app, one for each account, so the sheet opens with it
   // at once and reads again in the background. A failed read keeps the last answer on screen.
   const load = useQuery({
-    queryKey: ["hosted-server-plans", apiUrl, session?.user.id, sessionScope],
+    queryKey: queryKeys.hostedServerPlans(queryScope),
     queryFn: session ? () => readPlans(session) : skipToken,
     staleTime: 0,
     gcTime: Number.POSITIVE_INFINITY,

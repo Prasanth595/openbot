@@ -22,7 +22,7 @@ import { useServers } from "./servers-context";
 import { serverAdminPort, serversPort } from "./servers-port";
 
 /**
- * The settings dialog for one server: its identity, whether it is published,
+ * The settings page for one server: its identity, whether it is published,
  * and who can reach it.
  *
  * Global rather than scoped to the active server, and deliberately so - the
@@ -56,6 +56,8 @@ const ServerSettings = createSimpleContext({
     /** The section an opener asked for, such as Updates from the host version notice. */
     const [serverSettingsSection, setServerSettingsSection] = createSignal<ServerSettingsSection | null>(null);
     const [serverSettingsOpen, setServerSettingsOpen] = createSignal(false);
+    /** Counts each open request, so the settings page can tell a new request for the open server. */
+    const [serverSettingsOpenRequest, setServerSettingsOpenRequest] = createSignal(0);
     const [serverSettingsMembers, setServerSettingsMembers] = createSignal<TeamPresenceMember[]>([]);
     const [serverSettingsInvites, setServerSettingsInvites] = createSignal<TeamInviteSummary[]>([]);
     const [serverSettingsLoading, setServerSettingsLoading] = createSignal(false);
@@ -187,6 +189,7 @@ const ServerSettings = createSimpleContext({
       serverSettingsRestoreTarget = trigger;
       setServerSettingsTargetId(serverId);
       setServerSettingsOpen(true);
+      setServerSettingsOpenRequest((count) => count + 1);
       setServerSettingsMembers([]);
       setServerSettingsInvites([]);
       setServerSettingsMcp([]);
@@ -659,6 +662,7 @@ const ServerSettings = createSimpleContext({
       serverSettingsSection,
       serverSettingsOpen,
       setServerSettingsOpen,
+      serverSettingsOpenRequest,
       serverSettingsRestoreTarget: () => serverSettingsRestoreTarget,
       serverSettingsMembers,
       serverSettingsInvites,

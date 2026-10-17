@@ -16,6 +16,23 @@ import { supportLog, supportLogValue } from "@/features/support/model/support-lo
 import { referencedError } from "@/features/workspace/model/referenced-error";
 import { RemoteTeamTransport, type RemoteTeamTransportRef } from "./remote-team-transport";
 
+/**
+ * How long the first attempt after a return to the app runs without a reconnect status. The app
+ * stops its connection work in the background on iOS and Android, so the connection must come back
+ * on each return. Most returns are online again in this time, and the app looks as the user left it.
+ */
+const QUIET_RESUME_MS = 5_000;
+
+/** A failed attempt or a stop ends the quiet return: the user then sees the reconnect status. */
+function endsQuietResume(status: RemoteRecoveryStatus): boolean {
+  return (
+    status.phase === "online" ||
+    status.phase === "suspended" ||
+    status.phase === "cooldown" ||
+    (status.phase === "waiting" && status.attempt > 0)
+  );
+}
+
 export interface ServerConnectionHandle {
   client: RemoteTeamTransportRef;
   refresh(): void;
@@ -33,7 +50,13 @@ interface Props {
   directory: RemoteTeamDirectoryClient;
   register(hostId: string, handle: ServerConnectionHandle | null): void;
   load(hostId: string, publicKey: string, client: RemoteTeamTransportRef, context: ServerLoadContext): Promise<void>;
-  onStatus(hostId: string, status: RemoteRecoveryStatus, failure: RemoteConnectionFailure | null): void;
+  /** `resuming` is true while a return to the app connects again in its quiet time. */
+  onStatus(
+    hostId: string,
+    status: RemoteRecoveryStatus,
+    failure: RemoteConnectionFailure | null,
+    resuming: boolean,
+  ): void;
   onMembershipChanged?(): Promise<void>;
   onTeamEvent(hostId: string, event: AgentEvent | TeamRealtimeEvent): void;
 }
@@ -59,6 +82,23 @@ export function ServerConnection({
   const membershipRefreshPending = useRef(false);
   /** When this connection last became inactive, such as when the app went to the background. */
   const inactiveSince = useRef<number | null>(null);
+  const lastStatus = useRef<{ status: RemoteRecoveryStatus; failure: RemoteConnectionFailure | null } | null>(null);
+  const resuming = useRef(false);
+  const resumeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  /** Set when the connection becomes inactive online, or in its quiet return. */
+  const resumeOnReturn = useRef(false);
+  const onStatusRef = useRef(onStatus);
+  onStatusRef.current = onStatus;
+  /** Shows the status that the quiet time held back, such as an attempt that still connects. */
+  const endResume = useCallback(() => {
+    clearTimeout(resumeTimer.current);
+    resumeTimer.current = undefined;
+    if (!resuming.current) return;
+    resuming.current = false;
+    const last = lastStatus.current;
+    if (last && last.status.phase !== "online") onStatusRef.current(hostId, last.status, last.failure, false);
+  }, [hostId]);
+  useEffect(() => () => clearTimeout(resumeTimer.current), []);
   const attach = useCallback((value: RemoteTeamTransportRef | null) => setClient(value), []);
 
   useEffect(() => {
@@ -110,7 +150,13 @@ export function ServerConnection({
           );
         }
         if (status.phase === "online") failure = null;
-        onStatus(hostId, status, failure);
+        if (resuming.current && endsQuietResume(status)) {
+          clearTimeout(resumeTimer.current);
+          resumeTimer.current = undefined;
+          resuming.current = false;
+        }
+        lastStatus.current = { status, failure };
+        onStatus(hostId, status, failure, resuming.current);
       },
     );
     controller.current = recovery;
@@ -130,9 +176,24 @@ export function ServerConnection({
       generation.current += 1;
       analytics.background();
       inactiveSince.current ??= Date.now();
+      // The workspace keeps the server as the user left it. The next return starts a new quiet time.
+      resumeOnReturn.current ||= resuming.current || lastStatus.current?.status.phase === "online";
+      clearTimeout(resumeTimer.current);
+      resumeTimer.current = undefined;
+      resuming.current = false;
     } else if (inactiveSince.current !== null) {
+      // Set before the controller starts the attempt, so its first status is already quiet.
+      if (resumeOnReturn.current) {
+        resumeOnReturn.current = false;
+        resuming.current = true;
+        resumeTimer.current = setTimeout(endResume, QUIET_RESUME_MS);
+        // An attempt that still runs from the last visit sends no new status, so repeat the last one.
+        const last = lastStatus.current;
+        if (last && last.status.phase !== "online") onStatusRef.current(hostId, last.status, last.failure, true);
+      }
       // After this long the peer replaces its connection when it becomes active, so the first attempt
-      // shows that it connects instead of an online server whose requests fail.
+      // shows that it connects instead of an online server whose requests fail. In the quiet time
+      // the server still shows online, and its requests wait for the new connection.
       if (Date.now() - inactiveSince.current >= REMOTE_PEER_LOST_AFTER_MS) controller.current?.offline();
       inactiveSince.current = null;
     }
@@ -141,7 +202,7 @@ export function ServerConnection({
       membershipRefreshPending.current = false;
       void onMembershipChanged?.().catch(() => undefined);
     }
-  }, [active, onMembershipChanged, analytics]);
+  }, [active, hostId, onMembershipChanged, analytics, endResume]);
 
   return (
     <RemoteTeamTransport

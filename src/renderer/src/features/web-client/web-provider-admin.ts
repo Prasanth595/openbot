@@ -71,13 +71,16 @@ import { webProviderRelay } from "./web-provider-relay";
 const CODE_LOGIN_POLL_MS = 3000;
 
 /**
- * The pages the key dialog and the account menu link to. The desktop app keeps its table in main; the
+ * The pages the key dialog and the Help menu link to. The desktop app keeps its table in main; the
  * browser has no main process, so the pages it opens are listed here, and any other name is refused.
  */
 const WEB_EXTERNAL_DESTINATIONS: Partial<Record<ExternalDestination, string>> = {
   "opencode-auth": "https://opencode.ai/auth",
   feedback: "https://x.com/intent/post?text=Feedback%20for%20OpenBot%20%40norbertbodziony%3A%20",
   message: "https://x.com/norbertbodziony",
+  changelog: "https://openbot.run/changelog",
+  guides: "https://openbot.run/guides",
+  discord: "https://discord.openbot.run",
 };
 
 export function openWebDestination(destination: ExternalDestination): Promise<void> {

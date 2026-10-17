@@ -1,8 +1,9 @@
 import { AppLogo, PlatformLogo, ProviderLogo } from "@openbot/brand";
 import { onSettled } from "solid-js";
 import { landingAnalytics } from "../../lib/analytics";
-import { EXTERNAL_LINK_REL, OPENBOT_LINKS } from "../../lib/landing-links";
-import { Button } from "../ui/button";
+import { ContentCallToAction } from "../content/ContentCallToAction";
+import { ButtonLink } from "../ui/button";
+import { AgentNetworkSection } from "./AgentNetworkSection";
 import { DownloadSection } from "./DownloadSection";
 import { FaqSection } from "./FaqSection";
 import { FeaturesSection } from "./FeaturesSection";
@@ -12,6 +13,7 @@ import { LandingFooter } from "./LandingFooter";
 import { LandingGlow } from "./LandingGlow";
 import { PricingSection } from "./PricingSection";
 import { SiteHeader } from "./SiteHeader";
+import { TeamsSection } from "./TeamsSection";
 
 export function LandingPage() {
   onSettled(() => landingAnalytics.start(document, window.location.hostname));
@@ -96,26 +98,21 @@ export function LandingPage() {
 
             <div class="landing-actions landing-hero-line" style={{ "--landing-hero-line": 3 }}>
               <HeroDownloadSelector />
-              <Button
-                href={OPENBOT_LINKS.contact}
-                target="_blank"
-                rel={EXTERNAL_LINK_REL}
-                variant="secondary"
-                size="lg"
-                icon="contact"
-                class="landing-button-glass"
-              >
+              <ButtonLink to="/contact" variant="secondary" size="lg" icon="contact" class="landing-button-glass">
                 Contact
-              </Button>
+              </ButtonLink>
             </div>
           </div>
 
           <LandingAppPreview />
         </section>
+        <AgentNetworkSection />
         <FeaturesSection />
         <PricingSection />
+        <TeamsSection />
         <FaqSection />
         <DownloadSection />
+        <ContentCallToAction />
       </main>
       <LandingFooter />
       <LandingGlow />

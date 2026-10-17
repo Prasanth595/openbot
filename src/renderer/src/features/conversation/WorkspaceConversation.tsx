@@ -1,8 +1,12 @@
 import type { AgentProviderId } from "@openbot/contracts/agent-providers";
 import {
   type AgentModelChoice,
+  agentPermissionLevel,
+  agentPermissionUpdate,
   type CentralAuthUser,
+  DEFAULT_AGENT_ACCESS,
   sameAgentModelChoice,
+  type UpdateAgentAdminSettingsInput,
   type UpdateAgentInput,
 } from "@openbot/contracts/ipc";
 import { hasVisibleToasts } from "@openbot/ui";
@@ -22,7 +26,9 @@ import { createScopeGuard } from "../../scope-lifetime";
 import { useTurns } from "../../turns";
 import { turnsPort } from "../../turns-port";
 import { useAuth } from "../account/account-context";
+import { useAgentTasks } from "../agent-tasks/agent-tasks-context";
 import { useAgents } from "../agents/agents-context";
+import { agentsPort } from "../agents/agents-port";
 import { withHostAccountUsage } from "../agents/host-provider-accounts";
 import { createRemoteAgentAdmin, updateRemoteAgent } from "../agents/remote-agent-admin";
 import { useBrowserTabs } from "../browser/browser-context";
@@ -38,8 +44,10 @@ import { useSettings } from "../settings/settings-context";
 import { isReaderAuthor } from "../team/reader-identity";
 import { usePresence } from "../team/team-context";
 import { useUsage } from "../usage/usage-context";
+import { useWindowPage } from "../window/window-page-context";
 import { Conversation } from "./Conversation";
 import { useConversation } from "./conversation-context";
+import type { ConversationTasks } from "./conversation-types";
 
 /**
  * The transcript of the active Agent, with everything the composer needs to send
@@ -67,7 +75,6 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
     setSkillsMarketplaceOpen,
     setPendingPluginSlug,
     setPendingPluginConnect,
-    setAgentAutoApprove,
     agentAutoApproves,
     generalSettings,
   } = useSettings();
@@ -95,6 +102,7 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
     agentList,
     agentListConnecting,
     activeAgent,
+    userHiddenAgentIds,
     modelOptions,
     settingsRequest,
     updateAgent,
@@ -147,6 +155,7 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
   } = useBrowserTabs();
   const { activeRemoteDesktopSession, remoteDesktopWorkspaceVisible, openRemoteDesktopWorkspace } = useRemoteDesktop();
   const usage = useUsage();
+  const windowPage = useWindowPage();
   // The composer never asks for usage itself. It reads the dock's reading, which is scoped to the
   // active agent's provider and model and cleared on a switch, because a second request would hit
   // the provider's rate-limit endpoint for a card the user may never see.
@@ -185,40 +194,6 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
   });
   const remoteAgentSettings = remoteAgentAdmin.settings;
 
-  /**
-   * Who may grant an agent standing approval: this computer for its own agents, and an owner or
-   * admin of a joined server whose host has answered. The policy belongs to the computer that runs
-   * the agent, so a remote grant is written on that host.
-   */
-  const autoApproveEditable = () => activeServer()?.kind === "local" || remoteAgentSettings() !== null;
-
-  async function writeAgentAutoApprove(agentId: string, autoApprove: boolean): Promise<void> {
-    if (activeServer()?.kind === "local") return setAgentAutoApprove(agentId, autoApprove);
-    await remoteAgentAdmin.update({ agentId, autoApprove });
-  }
-
-  /** "Always allow", where the grant is the user's to give. */
-  const alwaysAllowApproval = createMemo(() => {
-    const agent = activeAgent();
-    const approval = activeApproval();
-    if (!agent || !approval || !autoApproveEditable()) return undefined;
-    return async () => {
-      await writeAgentAutoApprove(agent.id, true);
-      if (!scopeIsCurrent()) return false;
-      return respondToApprovalRequest(agent.id, approval.requestId, "accept");
-    };
-  });
-
-  /**
-   * The same grant as the approval card's, offered before an approval rather than during one, so an
-   * agent can be trusted without waiting for it to ask.
-   */
-  const setAgentAutoApproveForActiveAgent = createMemo(() => {
-    const agent = activeAgent();
-    if (!agent || !autoApproveEditable()) return undefined;
-    return (autoApprove: boolean) => writeAgentAutoApprove(agent.id, autoApprove);
-  });
-
   /** A new chat with the active agent, on this computer or on a host that serves `context-reset-v1`. */
   const clearActiveAgentContext = createMemo(() => {
     const agent = activeAgent();
@@ -240,6 +215,38 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
         }
       : agent;
   });
+  /**
+   * Who may change an agent's Permissions level: this computer for its own agents, and an owner or
+   * admin of a joined server whose host has answered. The level belongs to the computer that runs
+   * the agent, so a remote change is written on that host.
+   */
+  const permissionsEditable = () => activeServer()?.kind === "local" || remoteAgentSettings() !== null;
+
+  /** The agent is named by the caller, because an approval card can outlive a switch to another agent. */
+  async function writeAgentPermissions(input: UpdateAgentAdminSettingsInput): Promise<void> {
+    if (activeServer()?.kind === "local") await agentsPort().agent.updateAgentAdminSettings(input);
+    else await remoteAgentAdmin.update(input);
+  }
+
+  /** Read from the local preference, or from the host. Unknown until a host answers. */
+  const activeAgentAutoApproves = () =>
+    activeServer()?.kind === "local" ? agentAutoApproves(activeAgent()?.id ?? "") : remoteAgentAdmin.autoApproves();
+
+  /** "Always allow" moves an agent at Ask first to Full access. Other levels have nothing to move to. */
+  const alwaysAllowApproval = createMemo(() => {
+    const agent = conversationAgent();
+    const approval = activeApproval();
+    const autoApprove = activeAgentAutoApproves();
+    if (!agent || !approval || !permissionsEditable() || autoApprove === undefined) return undefined;
+    const access = agent.access ?? DEFAULT_AGENT_ACCESS;
+    if (agentPermissionLevel({ access, autoApprove }) !== "ask") return undefined;
+    return async () => {
+      await writeAgentPermissions(agentPermissionUpdate(agent.id, "full"));
+      if (!scopeIsCurrent()) return false;
+      return respondToApprovalRequest(agent.id, approval.requestId, "accept");
+    };
+  });
+
   /** Whether this window runs the sign-in of the agent's provider: on this computer, or on a server it administers. */
   const composerSignIn = () => {
     const provider = conversationAgent()?.provider;
@@ -283,6 +290,23 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
   const usageLimited = (choice: AgentModelChoice) =>
     usageLimitedModels().some((limited) => sameAgentModelChoice(limited, choice));
 
+  const agentTasks = useAgentTasks();
+  /** The active agent's tasks. Only this computer keeps tasks. */
+  const conversationTasks = createMemo((): ConversationTasks | undefined => {
+    const agentId = activeAgent()?.id;
+    if (!agentId || activeServer()?.kind !== "local" || !agentTasks.available()) return undefined;
+    return {
+      snapshot: agentTasks.snapshot(agentId),
+      conversation: agentTasks.conversation,
+      onOpen: (taskId) => agentTasks.openTask(agentId, taskId),
+      onStart: (text) => agentTasks.startTask(agentId, text),
+      onRunQueuedMessage: (deliveryId) => void agentTasks.runQueuedMessageAsTask(agentId, deliveryId),
+      onSend: (taskId, text) => agentTasks.sendToTask(agentId, taskId, text),
+      onStop: (taskId) => agentTasks.stopTask(agentId, taskId),
+      onClose: (taskId) => agentTasks.closeTask(agentId, taskId),
+      onReopen: (taskId) => agentTasks.reopenTask(agentId, taskId),
+    };
+  });
   /**
    * A usage limit holds the active agent's queued message on this computer. The chat asks where to
    * send it, unless the agent switches by itself to a saved backup model that is ready.
@@ -369,11 +393,13 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
         onManageProviders={manageProviders() ? openProviderSettings : undefined}
         agent={conversationAgent()}
         agents={agentList()}
+        mentionAgents={agentList().filter((agent) => !userHiddenAgentIds().has(agent.id))}
         availableRoutineIds={activeRoutineIds()}
         routines={activeRoutines()}
         modelOptions={modelOptions()}
         messages={activeMessages()}
         messageReferences={activeAgent() ? (conversations[activeAgent()?.id ?? ""]?.references ?? {}) : {}}
+        missingMessageReferences={activeAgent() ? conversations[activeAgent()?.id ?? ""]?.missingReferences : undefined}
         unreadCount={activeAgent() ? (conversations[activeAgent()?.id ?? ""]?.read?.unreadCount ?? 0) : 0}
         firstUnreadMessageId={
           activeAgent() ? (conversations[activeAgent()?.id ?? ""]?.read?.firstUnreadMessageId ?? null) : null
@@ -392,7 +418,7 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
         browserTabs={browserTabs()}
         activeBrowserTabId={activeBrowserTabId()}
         browserVisibilitySuspended={browserVisibilitySuspended()}
-        workspaceCovered={usage.state.serverId !== null}
+        workspaceCovered={windowPage.conversationCovered()}
         browserControlState={browserControlState()}
         server={activeServer()}
         presence={teamPresence()}
@@ -448,23 +474,15 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
         onPromptResolutionPresented={presentPromptResolution}
         onRespondToApproval={respondToApproval}
         onAlwaysAllowApproval={alwaysAllowApproval()}
-        agentAutoApproves={
-          activeServer()?.kind === "local"
-            ? agentAutoApproves(activeAgent()?.id ?? "")
-            : (remoteAgentSettings()?.autoApprove ?? false)
-        }
-        agentAutoApproveLocked={
-          activeServer()?.kind === "local"
-            ? generalSettings().turboMode
-            : (remoteAgentSettings()?.autoApproveLocked ?? false)
-        }
-        onSetAgentAutoApprove={setAgentAutoApproveForActiveAgent()}
+        agentAutoApproves={activeAgentAutoApproves()}
+        onUpdateAgentPermissions={permissionsEditable() ? writeAgentPermissions : undefined}
         defaultBusyMessageMode={generalSettings().busyMessageMode}
         agentMemoryLimit={generalSettings().agentMemoryLimit}
         onClearAgentContext={clearActiveAgentContext()}
         onRespondToBrowserTakeover={respondToBrowserTakeover}
         onCancelQueuedMessage={cancelQueuedMessage}
         waits={activeWaits()}
+        tasks={conversationTasks()}
         onCancelWait={cancelWait}
         onSteerQueuedMessage={steerQueuedMessage}
         onUpdateQueuedMessage={updateQueuedMessage}

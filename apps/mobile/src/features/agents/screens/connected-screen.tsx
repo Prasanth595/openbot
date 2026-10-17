@@ -1,10 +1,12 @@
-import { type MenuAction, MenuView } from "@expo/ui/community/menu";
 import type { SidebarLayoutSnapshot } from "@openbot/contracts/ipc";
 import { type Href, router, Stack } from "expo-router";
 import { HeaderHeightContext } from "expo-router/react-navigation";
 import { Button, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { EllipsisVertical, Layers3, Search, WifiOff } from "lucide-react-native";
+import EllipsisVertical from "lucide-react-native/icons/ellipsis-vertical";
+import Layers3 from "lucide-react-native/icons/layers";
+import Search from "lucide-react-native/icons/search";
+import WifiOff from "lucide-react-native/icons/wifi-off";
 import { memo, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import Animated, {
@@ -39,13 +41,19 @@ import { useAppDrawer } from "@/features/servers/components/app-drawer-shell";
 import { ConnectionHeaderStatus } from "@/features/workspace/components/connection-header-status";
 import { useWaitingAgentIds } from "@/features/workspace/components/use-agent-activity";
 import { useUnreadAgentIds } from "@/features/workspace/components/use-live-workspace";
-import { type MobileAgent, useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import {
+  type MobileAgent,
+  useMobileWorkspaceReader,
+  useMobileWorkspaceSelector,
+} from "@/features/workspace/context/mobile-workspace-context";
+import { showsOnline } from "@/features/workspace/model/server-status";
 import {
   type MobileSidebarItem,
   mobileSidebarItems,
   mobileWaitingItems,
 } from "@/features/workspace/model/sidebar-layout";
 import { useAppLoadingOverlay, useScreenLoadingLabel } from "@/shared/components/app-loading-overlay";
+import { type MenuAction, MenuView } from "@/shared/components/menu-view";
 import { SheetScrollEdgeEffect } from "@/shared/components/sheet-scroll-edge-effect";
 import { haptics } from "@/shared/lib/haptics";
 import { isAndroid, isIOS } from "@/shared/lib/platform";
@@ -185,20 +193,17 @@ export function ConnectedScreen() {
   const { t, sourceText } = useText();
   const { isLoaderPresent, isLoaderLeaving } = useAppLoadingOverlay();
   const { openDrawer } = useAppDrawer();
-  const {
-    sidebarByServer,
-    refreshServer,
-    agents,
-    activeAgents,
-    activeServer,
-    hiddenAgents,
-    markAllRead,
-    pinnedAgentIds,
-    refreshServers,
-    serverDirectoryError,
-    serverDirectoryState,
-    servers,
-  } = useMobileWorkspace();
+  const workspace = useMobileWorkspaceReader();
+  const sidebarByServer = useMobileWorkspaceSelector((current) => current.sidebarByServer);
+  const agents = useMobileWorkspaceSelector((current) => current.agents);
+  const activeAgents = useMobileWorkspaceSelector((current) => current.activeAgents);
+  const activeServer = useMobileWorkspaceSelector((current) => current.activeServer);
+  const hiddenAgents = useMobileWorkspaceSelector((current) => current.hiddenAgents);
+  const markAllRead = useMobileWorkspaceSelector((current) => current.markAllRead);
+  const pinnedAgentIds = useMobileWorkspaceSelector((current) => current.pinnedAgentIds);
+  const serverDirectoryError = useMobileWorkspaceSelector((current) => current.serverDirectoryError);
+  const serverDirectoryState = useMobileWorkspaceSelector((current) => current.serverDirectoryState);
+  const servers = useMobileWorkspaceSelector((current) => current.servers);
   const [collapsedByServer, setCollapsedByServer] = useState<Record<string, ReadonlySet<string>>>({});
   const collapsedSectionIds = collapsedByServer[activeServer.id];
   const [foreground, muted] = useThemeColor(["foreground", "muted"]);
@@ -243,7 +248,8 @@ export function ConnectedScreen() {
     return agents.some((agent) => agent.serverId === activeServer.id && unread.has(agent.id));
   }, [agents, activeServer.id, unreadAgentIds]);
   const [markingAllRead, setMarkingAllRead] = useState(false);
-  const canMarkAllRead = hasUnread && !markingAllRead && activeServer.state === "online";
+  const activeServerOnline = showsOnline(activeServer);
+  const canMarkAllRead = hasUnread && !markingAllRead && activeServerOnline;
   const markAllChatsRead = () => {
     if (!canMarkAllRead) return;
     void haptics.impact("soft");
@@ -292,7 +298,7 @@ export function ConnectedScreen() {
   // Pins and a sidebar error still need the list header, so they keep the scene in the list.
   const showAgentsScene =
     hasSelectedServer &&
-    activeServer.state === "online" &&
+    activeServerOnline &&
     activeAgents.length === 0 &&
     items.length === 0 &&
     !hasPins &&
@@ -433,7 +439,11 @@ export function ConnectedScreen() {
                   <Typography.Paragraph className="text-danger-text">{sourceText(sidebar.error)}</Typography.Paragraph>
                   <Button
                     variant="secondary"
-                    onPress={() => void refreshServer(activeServer.id).catch(() => undefined)}
+                    onPress={() =>
+                      void workspace()
+                        .refreshServer(activeServer.id)
+                        .catch(() => undefined)
+                    }
                   >
                     <Button.Label>{t("mobile.agent.home.retrySections")}</Button.Label>
                   </Button>
@@ -454,7 +464,15 @@ export function ConnectedScreen() {
                     {serverDirectoryError ? sourceText(serverDirectoryError) : t("mobile.agent.home.serversFailedBody")}
                   </Typography.Paragraph>
                 </View>
-                <Button size="md" variant="secondary" onPress={() => void refreshServers().catch(() => undefined)}>
+                <Button
+                  size="md"
+                  variant="secondary"
+                  onPress={() =>
+                    void workspace()
+                      .refreshServers()
+                      .catch(() => undefined)
+                  }
+                >
                   <Button.Label>{t("common.tryAgain")}</Button.Label>
                 </Button>
               </View>
@@ -481,7 +499,7 @@ export function ConnectedScreen() {
                   <Button.Label>{t("mobile.agent.home.openServers")}</Button.Label>
                 </Button>
               </View>
-            ) : activeAgents.length === 0 && activeServer.state !== "online" ? (
+            ) : activeAgents.length === 0 && !activeServerOnline ? (
               <View className="flex-1 items-center justify-center gap-5 px-8 py-16">
                 <WifiOff color={mutedColor} size={28} strokeWidth={1.6} />
                 <View className="items-center gap-1.5">

@@ -28,7 +28,7 @@ export const messages = {
   "webClient.connect.stepRemote": "Ative o acesso remoto.",
   "webClient.notice.download": "Baixar OpenBot",
   "webClient.notice.join": "Entrar com convite",
-  "webClient.notice.refreshHosts": "Atualizar computadores anfitriões",
+  "webClient.notice.refreshHosts": "Atualizar anfitriões",
   "webClient.agent.modelsFailed": "Não foi possível carregar os modelos do computador anfitrião.",
   "webClient.agent.refreshFailed":
     "O agente foi criado, mas não foi possível atualizar o espaço de trabalho. Recarregue antes de tentar novamente.",
@@ -51,7 +51,7 @@ export const messages = {
   "webClient.error.messageTooLong": "A mensagem é longa demais.",
   "webClient.error.deliveryUnconfirmed":
     "A entrega da mensagem não foi confirmada. Atualize e verifique a conversa antes de enviar novamente.",
-  "webClient.error.sidebarLayout": "Este computador anfitrião não permite alterar o layout da barra lateral.",
+  "webClient.error.sidebarLayout": "Este computador anfitrião não permite alterar a organização da barra lateral.",
   "webClient.error.deleteOffline": "Conecte-se ao seu computador anfitrião antes de excluir um agente.",
   "webClient.error.attachmentLimit": "Uma mensagem pode ter até {limit} anexos.",
   "webClient.error.linkBlocked": "Não é possível abrir este link.",

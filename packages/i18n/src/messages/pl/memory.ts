@@ -8,7 +8,7 @@ export const messages = {
   "memory.close": "Zamknij wspomnienia",
   "memory.new": "Nowe wspomnienie",
   "memory.newPlaceholder": "Dodaj trwały fakt lub preferencję",
-  "memory.save": "Zapisz wspomnienie",
+  "memory.save": "Zapisz",
   "memory.limitAgent":
     "Ten agent osiągnął limit wspomnień ({limit}). Edytuj, scal lub usuń wspomnienie, zanim dodasz kolejne.",
   "memory.limitChannel":
@@ -22,7 +22,7 @@ export const messages = {
   "memory.learned": "Zapamiętane automatycznie",
   "memory.manual": "Dodane ręcznie",
   "memory.unknownDate": "Nieznana data",
-  "memory.clearAll": "Wyczyść wszystkie wspomnienia",
+  "memory.clearAll": "Wyczyść wszystko",
   "memory.clearTitle": "Wyczyścić wszystkie wspomnienia?",
   "memory.clearDescription":
     "OpenBot trwale usunie wszystkie zapisane wspomnienia ({total}) dla: {name}. Oryginalne wiadomości pozostaną w historii rozmowy.",
@@ -31,7 +31,7 @@ export const messages = {
   "memory.updateFailed": "Nie udało się zaktualizować wspomnienia.",
   "memory.deleteFailed": "Nie udało się usunąć wspomnienia.",
   "memory.clearFailed": "Nie udało się wyczyścić wspomnień.",
-  "memory.inclusion.label": "Użycie pamięci",
+  "memory.inclusion.label": "Użycie wspomnienia",
   "memory.inclusion.essential": "Zawsze dołączane",
   "memory.inclusion.searchable": "Wyszukuj w razie potrzeby",
   "memory.inclusion.automatic": "Niech agent zdecyduje",
@@ -39,5 +39,5 @@ export const messages = {
   "memory.inclusion.agentControlled": "Agent może to zmienić",
   "memory.inclusion.explanation":
     "Wszystkie wspomnienia pozostają zapisane. Tylko kluczowe wspomnienia trafiają do każdego promptu. Pozostałe agent może przeszukiwać.",
-  "memory.inclusion.capacity": "Pojemność kluczowej pamięci: {used} z {total}",
+  "memory.inclusion.capacity": "Pojemność kluczowych wspomnień: {used} z {total}",
 } as const satisfies PartialTranslation<typeof source>;

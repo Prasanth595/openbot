@@ -1,20 +1,17 @@
-import { type MenuAction, type MenuComponentRef, MenuView } from "@expo/ui/community/menu";
 import type { BrowserViewContextMenu, BrowserViewInput } from "@openbot/contracts/team-protocol/browser-view-v1";
 import * as Clipboard from "expo-clipboard";
 import { GlassView } from "expo-glass-effect";
 import { router, useLocalSearchParams } from "expo-router";
 import { Button, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import {
-  ArrowLeft,
-  ChevronLeft,
-  ChevronRight,
-  CircleQuestionMark,
-  ClipboardList,
-  Ellipsis,
-  Keyboard,
-  Plus,
-} from "lucide-react-native";
+import ArrowLeft from "lucide-react-native/icons/arrow-left";
+import ChevronLeft from "lucide-react-native/icons/chevron-left";
+import ChevronRight from "lucide-react-native/icons/chevron-right";
+import CircleQuestionMark from "lucide-react-native/icons/circle-question-mark";
+import ClipboardList from "lucide-react-native/icons/clipboard-list";
+import Ellipsis from "lucide-react-native/icons/ellipsis";
+import Keyboard from "lucide-react-native/icons/keyboard";
+import Plus from "lucide-react-native/icons/plus";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import {
   ActionSheetIOS,
@@ -37,6 +34,7 @@ import {
 } from "@/features/workspace/components/use-live-workspace";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 import type { MobileAgent, MobileBrowserViewSupport } from "@/features/workspace/model/workspace-types";
+import { type MenuAction, type MenuComponentRef, MenuView } from "@/shared/components/menu-view";
 import { haptics } from "@/shared/lib/haptics";
 import { useReducedMotion } from "@/shared/lib/motion";
 import { isIOS } from "@/shared/lib/platform";

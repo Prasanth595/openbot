@@ -13,7 +13,10 @@ import { OutboxProvider } from "@/features/chat/context/outbox-context";
 import { QueuedMessagesProvider } from "@/features/chat/context/queued-messages-context";
 import { setLiveActivityNavigator } from "@/features/live-activity/model/live-activity-link";
 import { useNotificationTaps } from "@/features/push-notifications/use-notification-taps";
-import { AppDrawerShell } from "@/features/servers/components/app-drawer-shell";
+import type { QuickActionTarget } from "@/features/quick-actions/model/quick-action-items";
+import { setQuickActionNavigator } from "@/features/quick-actions/quick-actions-native";
+import { AppDrawerShell, useAppDrawer } from "@/features/servers/components/app-drawer-shell";
+import { setShareSheetOpener } from "@/features/share/model/share-sheet-opener";
 import { MobileWorkspaceProvider } from "@/features/workspace/context/mobile-workspace-context";
 import { useReducedMotion } from "@/shared/lib/motion";
 import { isAndroid, isIOS } from "@/shared/lib/platform";
@@ -29,6 +32,7 @@ function AuthenticatedStack() {
   const background = useThemeColor("background");
   const sheetBackground = String(useCSSVariable("--openbot-bg-sheet") ?? background);
   const [navigationGate] = useState(createChatNavigationGate);
+  const { closeDrawer } = useAppDrawer();
   const { agentId: openAgentId } = useGlobalSearchParams<{ agentId?: string }>();
   const openChat = useRef<string | null>(null);
   openChat.current = segments.at(-2) === "chat" && typeof openAgentId === "string" ? openAgentId : null;
@@ -37,6 +41,7 @@ function AuthenticatedStack() {
   /** Opens a chat, or the chat list for `null`, from a Live Activity or a notification. */
   const openFromOutside = useCallback(
     (agentId: string | null) => {
+      closeDrawer();
       // Opening the chat that shows already would mount it again and load it again.
       if (agentId !== null && openChat.current === agentId) return;
       // The chat opens on top of the main screen, so Back returns there and not to an earlier chat.
@@ -51,9 +56,30 @@ function AuthenticatedStack() {
         () => onChatList.current,
       );
     },
-    [navigationGate],
+    [closeDrawer, navigationGate],
+  );
+  /** Opens the screen of a quick action of the app icon, on top of the main screen. */
+  const openQuickAction = useCallback(
+    (target: QuickActionTarget) => {
+      if (target.type === "chat") {
+        openFromOutside(target.agentId);
+        return;
+      }
+      closeDrawer();
+      if (router.canDismiss()) router.dismissAll();
+      navigationGate.request(
+        () =>
+          target.type === "routines"
+            ? router.push({ pathname: "/server-routines", params: { serverId: target.serverId } })
+            : router.push("/search-agents"),
+        () => onChatList.current,
+      );
+    },
+    [closeDrawer, navigationGate, openFromOutside],
   );
   useEffect(() => setLiveActivityNavigator(openFromOutside), [openFromOutside]);
+  useEffect(() => setQuickActionNavigator(openQuickAction), [openQuickAction]);
+  useEffect(() => setShareSheetOpener(() => router.push("/share")), []);
   useNotificationTaps(openFromOutside, () => openChat.current);
 
   return (
@@ -263,6 +289,18 @@ function AuthenticatedStack() {
         />
         <Stack.Screen
           name="server-usage"
+          options={{
+            contentStyle: { backgroundColor: sheetBackground },
+            headerShown: false,
+            scrollEdgeEffects: { top: "hidden", bottom: "soft" },
+            presentation: "formSheet",
+            sheetAllowedDetents: [0.85],
+            sheetGrabberVisible: true,
+          }}
+        />
+        <Stack.Screen
+          name="share"
+          // The header comes from the route's `_layout.tsx`: Android draws no header on a formSheet route.
           options={{
             contentStyle: { backgroundColor: sheetBackground },
             headerShown: false,

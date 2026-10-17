@@ -4,13 +4,13 @@ import type { messages as source } from "../en/customProvider";
 export const messages = {
   "customProvider.registry.title": "Registro ACP",
   "customProvider.registry.description":
-    "Instala agentes en este host. Quitar entorno de ejecución conserva los ajustes, las credenciales y las conversaciones del agente.",
+    "Instala agentes en este host. Si quitas el entorno de ejecución, se conservan los ajustes, las credenciales y las conversaciones del agente.",
   "customProvider.registry.search": "Buscar en el registro",
   "customProvider.registry.empty": "Ningún agente coincide con esta búsqueda.",
   "customProvider.registry.agentId": "ID del agente personalizado",
   "customProvider.registry.install": "Instalar",
   "customProvider.registry.update": "Actualizar",
-  "customProvider.registry.remove": "Quitar entorno de ejecución",
+  "customProvider.registry.remove": "Quitar",
   "customProvider.registry.failed": "Falló la operación del registro.",
   "customProvider.error.providerIdRequired": "Introduce un ID de proveedor.",
   "customProvider.error.providerIdPattern":

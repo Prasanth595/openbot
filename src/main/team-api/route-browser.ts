@@ -1,3 +1,4 @@
+import { canAdministerServer } from "@openbot/contracts/ipc";
 // The embedded browser, driven from a remote client: its tabs, and who is holding the wheel.
 //
 // Every handler forwards straight to `BrowserHost`. The validation here is only about the wire -
@@ -26,7 +27,7 @@ export async function routeBrowser(
   const { method, url, request, member, sessionId, json, empty } = context;
   // A private tab holds an administrator's MCP sign-in (`mcp-sign-in-v1`). A member could watch the
   // password, or finish the sign-in with their own account, so to a member that tab does not exist.
-  const hidden = (tabId: string) => member.role === "member" && browser.isPrivate(tabId);
+  const hidden = (tabId: string) => !canAdministerServer(member.role) && browser.isPrivate(tabId);
   const tabId = (body: DynamicRecord) => {
     const id = stringField(body, "tabId");
     if (hidden(id)) throw new HttpError(404, sourceText("error.backend.browserTabNotFound"));

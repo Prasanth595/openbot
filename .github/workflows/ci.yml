@@ -94,11 +94,11 @@ jobs:
           else
             echo "docs=false" >> "$GITHUB_OUTPUT"
           fi
-          lane_unless desktop '^(apps/(auth-api|mobile|site-router)|docker|remote)/'
+          lane_unless desktop '^(apps/(auth-api|mobile|site-router|status)|docker|remote)/'
           lane api '^(apps/(auth-api|site-router)|src/renderer|resources)/|^(apps/mobile/)?CHANGELOG\.md$'
           lane remote '^(remote|scripts)/'
-          lane storybook '^(src|apps/auth-api|\.storybook|resources|marketplace|build)/'
-          lane surfaces '^(apps/mobile|apps/site-router|remote|scripts)/'
+          lane storybook '^(src|apps/(auth-api|status)|\.storybook|resources|marketplace|build)/'
+          lane surfaces '^(apps/(mobile|site-router|status)|remote|scripts)/'
           cat "$GITHUB_OUTPUT"
 
   check:
@@ -274,6 +274,9 @@ jobs:
           - name: Typecheck remote API
             run: bun run typecheck:remote
 
+          - name: Typecheck status page
+            run: bun run typecheck:status
+
       - parallel:
           - name: Typecheck logging
             run: bun run typecheck:logging
@@ -425,6 +428,7 @@ jobs:
           OPENBOT_GITHUB_APP_PRIVATE_KEY: ${{ secrets.OPENBOT_GITHUB_APP_PRIVATE_KEY }}
           APNS_PRIVATE_KEY: ${{ secrets.APNS_PRIVATE_KEY }}
           APNS_KEY_ID: ${{ secrets.APNS_KEY_ID }}
+          FCM_SERVICE_ACCOUNT: ${{ secrets.FCM_SERVICE_ACCOUNT }}
         run: |
           secrets_path="$RUNNER_TEMP/openbot-worker-secrets.json"
           umask 077
@@ -470,6 +474,18 @@ jobs:
             }
             const githubAppKey = process.env.OPENBOT_GITHUB_APP_PRIVATE_KEY?.trim();
             if (githubAppKey) optional.GITHUB_APP_PRIVATE_KEY = githubAppKey;
+            // The Android notification relay stays off until the Firebase service account key is set.
+            const fcmServiceAccount = process.env.FCM_SERVICE_ACCOUNT?.trim();
+            if (fcmServiceAccount) {
+              let parsed;
+              try {
+                parsed = JSON.parse(fcmServiceAccount);
+              } catch {
+                parsed = null;
+              }
+              if (parsed?.type !== "service_account") throw new Error("FCM_SERVICE_ACCOUNT is not a Firebase service account key file.");
+              optional.FCM_SERVICE_ACCOUNT = fcmServiceAccount;
+            }
             const stripeKey = optional.STRIPE_SECRET_KEY;
             if (stripeKey && !stripeKey.startsWith("sk_live_") && !stripeKey.startsWith("rk_live_")) {
               throw new Error("STRIPE_SECRET_KEY is not a live key.");

@@ -22,3 +22,14 @@ export function startProviderLog(logsDirectory: string): () => void {
     Effect.runFork(appendRemoteDiagnosticLog(directory, "providers", `${line}\n`));
   });
 }
+
+/**
+ * Keeps the agent deletion lines in `<logs>/agents/agents.log`, with the same size limit. A delete that
+ * fails names only its stage and an error code, so a support report can show which step failed.
+ */
+export function startAgentLog(logsDirectory: string): () => void {
+  const directory = join(logsDirectory, "agents");
+  return teeLogLines(["agent-removal"], (line) => {
+    Effect.runFork(appendRemoteDiagnosticLog(directory, "agents", `${line}\n`));
+  });
+}

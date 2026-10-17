@@ -10,9 +10,9 @@ export const messages = {
   "memory.newPlaceholder": "Füge eine dauerhafte Information oder Präferenz hinzu",
   "memory.save": "Erinnerung speichern",
   "memory.limitAgent":
-    "Dieser Agent hat das Limit von {limit} Erinnerungen erreicht. Bearbeite, verbinde oder lösche eine Erinnerung, bevor du eine weitere hinzufügst.",
+    "Dieser Agent hat das Limit von {limit} Erinnerungen erreicht. Bearbeite, lösche oder führe Erinnerungen zusammen, bevor du eine weitere hinzufügst.",
   "memory.limitChannel":
-    "Dieser Kanal hat das Limit von {limit} Erinnerungen erreicht. Bearbeite, verbinde oder lösche eine Erinnerung, bevor du eine weitere hinzufügst.",
+    "Dieser Kanal hat das Limit von {limit} Erinnerungen erreicht. Bearbeite, lösche oder führe Erinnerungen zusammen, bevor du eine weitere hinzufügst.",
   "memory.loading": "Erinnerungen werden geladen…",
   "memory.emptyAgent": "Dieser Agent hat noch keine gespeicherten Erinnerungen.",
   "memory.emptyChannel": "Dieser Kanal hat noch keine gespeicherten Erinnerungen.",

@@ -5,7 +5,6 @@ import { useText } from "@openbot/ui/text";
 import { actionToast } from "../../action-toast";
 import { usePlatform } from "../../platform";
 import { useSettings } from "../settings/settings-context";
-import { useUsage } from "../usage/usage-context";
 import { useServerSelection } from "./server-selection";
 import { useServerSettings } from "./server-settings";
 import { useServers } from "./servers-context";
@@ -17,9 +16,7 @@ import { useServers } from "./servers-context";
 export function useServerActions() {
   const platform = usePlatform();
   const { t, errorMessage } = useText();
-  const { openUsage, openSchedule } = useUsage();
   const {
-    activeServerId,
     servers,
     setServerMuted,
     setServerNotificationLevel,
@@ -70,17 +67,6 @@ export function useServerActions() {
   const callbacks = {
     onSetMuted: (serverId, muted, durationMs) => void setServerMuted(serverId, muted, durationMs),
     onSetNotificationLevel: (serverId, level) => void setServerNotificationLevel(serverId, level),
-    onOpenUsage: openUsage,
-    onOpenSchedule: (serverId, trigger) => {
-      if (serverId === activeServerId()) return openSchedule(serverId, trigger);
-      // The schedule opens agents and channels in the active server, so it shows the active one.
-      // The trigger goes with the old server.
-      // A selection can also end without the server, as when a newer selection replaces it.
-      void selectServer(serverId).then(
-        (selected) => selected && openSchedule(serverId, null),
-        (error) => selectFailed(error),
-      );
-    },
     onOpenSettings: openServerSettings,
     onLeave: requestLeaveServer,
     // The same confirmation: main removes an owned server from the account instead of leaving it.

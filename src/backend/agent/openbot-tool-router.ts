@@ -28,6 +28,7 @@ import { z } from "zod";
 import type { AgentClient, AgentProvider } from "../agent-client";
 import type { AgentTables } from "../agent-data/agent-tables";
 import type { AgentStore } from "../agent-store";
+import type { AgentTasks } from "../agent-tasks/agent-tasks";
 import type { AgentWaits } from "../agent-waits/agent-waits";
 import { OPENBOT_BROWSER_NAMESPACE } from "../browser-tools";
 import type { ChannelService } from "../channel-service";
@@ -138,6 +139,7 @@ export interface OpenBotToolRouterOptions {
   routines: RoutineScheduler;
   memories: AgentMemories;
   waits: AgentWaits;
+  tasks: AgentTasks;
   drain: DrainScheduler;
   tables: AgentTables | null;
   sidebarLayout: AgentSidebar | null;
@@ -174,6 +176,7 @@ export class OpenBotToolRouter {
   readonly #routines: RoutineScheduler;
   readonly #memories: AgentMemories;
   readonly #waits: AgentWaits;
+  readonly #tasks: AgentTasks;
   readonly #drain: DrainScheduler;
   readonly #tables: AgentTables | null;
   readonly #sidebarLayout: AgentSidebar | null;
@@ -205,6 +208,7 @@ export class OpenBotToolRouter {
     this.#routines = options.routines;
     this.#memories = options.memories;
     this.#waits = options.waits;
+    this.#tasks = options.tasks;
     this.#drain = options.drain;
     this.#tables = options.tables;
     this.#sidebarLayout = options.sidebarLayout;
@@ -658,28 +662,32 @@ export class OpenBotToolRouter {
     if (params.tool === "list_agents") {
       // A delivery that is starting holds no turn yet, and a channel turn runs on a thread of its own.
       const unresolved = new Set(this.#mailbox.unresolvedDeliveries().map(({ delivery }) => delivery.recipientAgentId));
-      const agents = this.#hooks.listAgents().map((agent) => {
-        const deliveries = this.#mailbox.listQueue(agent.id).deliveries;
-        const queuedMessages = deliveries.filter((delivery) => delivery.status === "queued").length;
-        const working = this.#hooks.runsTurn(agent.id) || unresolved.has(agent.id);
-        const activeTurnId = this.#conversation.workingSnapshot(agent.id)?.activeTurnId ?? null;
-        const { startedAt, lastEventAt } = this.#hooks.turnActivity(agent.id, activeTurnId);
-        // A restart loses the provider clock, so the newest message for the agent stands in for it.
-        const lastActivity = deliveries.reduce(
-          (latest, delivery) => Math.max(latest, Date.parse(delivery.createdAt) || 0),
-          Math.max(lastEventAt ?? 0, startedAt ?? 0),
-        );
-        return {
-          id: agent.id,
-          name: agent.name,
-          title: agent.title,
-          description: agent.description,
-          status: working ? "working" : queuedMessages > 0 ? "queued" : "ready",
-          queuedMessages,
-          ...(working && startedAt !== null ? { turnStartedAt: new Date(startedAt).toISOString() } : {}),
-          ...(lastActivity > 0 ? { lastActivityAt: new Date(lastActivity).toISOString() } : {}),
-        };
-      });
+      // A hidden agent takes no new messages, so the list leaves it out.
+      const agents = this.#hooks
+        .listAgents()
+        .filter((agent) => agent.hiddenAt === undefined)
+        .map((agent) => {
+          const deliveries = this.#mailbox.listQueue(agent.id).deliveries;
+          const queuedMessages = deliveries.filter((delivery) => delivery.status === "queued").length;
+          const working = this.#hooks.runsTurn(agent.id) || unresolved.has(agent.id);
+          const activeTurnId = this.#conversation.workingSnapshot(agent.id)?.activeTurnId ?? null;
+          const { startedAt, lastEventAt } = this.#hooks.turnActivity(agent.id, activeTurnId);
+          // A restart loses the provider clock, so the newest message for the agent stands in for it.
+          const lastActivity = deliveries.reduce(
+            (latest, delivery) => Math.max(latest, Date.parse(delivery.createdAt) || 0),
+            Math.max(lastEventAt ?? 0, startedAt ?? 0),
+          );
+          return {
+            id: agent.id,
+            name: agent.name,
+            title: agent.title,
+            description: agent.description,
+            status: working ? "working" : queuedMessages > 0 ? "queued" : "ready",
+            queuedMessages,
+            ...(working && startedAt !== null ? { turnStartedAt: new Date(startedAt).toISOString() } : {}),
+            ...(lastActivity > 0 ? { lastActivityAt: new Date(lastActivity).toISOString() } : {}),
+          };
+        });
       return openBotToolResult({ agents });
     }
 
@@ -734,13 +742,17 @@ export class OpenBotToolRouter {
     const memoryResult = this.#memories.handleTool(params, senderAgentId, this.#hooks.redactMcp);
     if (memoryResult) return memoryResult;
 
-    const waitResult = this.#waits.handleTool(params, {
+    const caller = {
       agentId: senderAgentId,
       inExecutionThread: this.#conversation.isExecutionThread(
         this.#conversation.publicThreadId(senderAgentId, params.threadId),
       ),
-    });
+    };
+    const waitResult = this.#waits.handleTool(params, caller);
     if (waitResult) return waitResult;
+
+    const taskResult = yield* this.#tasks.handleTool(params, caller);
+    if (taskResult) return taskResult;
 
     const tableResult = yield* handleDataTool(params.tool, params.arguments, senderAgentId, this.#tables);
     if (tableResult) return tableResult;
@@ -1251,9 +1263,13 @@ export class OpenBotToolRouter {
         throw new Error("Duplicate recipients are not allowed.");
       }
       if (recipientValues.includes(senderAgentId)) throw new Error("An agent cannot message itself.");
-      const knownIds = new Set(this.#hooks.listAgents().map((agent) => agent.id));
+      const known = new Map(this.#hooks.listAgents().map((agent) => [agent.id, agent]));
       for (const recipient of recipientValues) {
-        if (!knownIds.has(recipient)) throw new Error(`Unknown OpenBot agent: ${recipient}`);
+        const agent = known.get(recipient);
+        if (!agent) throw new Error(`Unknown OpenBot agent: ${recipient}`);
+        // A hidden agent receives no new messages until the user restores it.
+        if (agent.hiddenAt !== undefined)
+          throw new Error(`${recipient}: ${sourceText("error.backend.recipientHidden")}`);
       }
       const paths = params.arguments.paths ?? [];
       if (!Array.isArray(paths) || !paths.every((item) => isString(item))) {

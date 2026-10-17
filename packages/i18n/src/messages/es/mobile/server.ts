@@ -194,8 +194,8 @@ export const messages = {
     "Actualiza OpenBot en este servidor para cambiar aquí su nombre y logotipo.",
   "mobile.server.settings.identityOffline": "Conéctate a este servidor para cambiar su nombre y logotipo.",
   "mobile.server.route.cropLogo": "Recortar logotipo",
-  "mobile.server.members.makeMember": "Convertir en miembro",
-  "mobile.server.members.makeAdmin": "Convertir en administrador",
+  "mobile.server.members.makeMember": "Hacer miembro",
+  "mobile.server.members.makeAdmin": "Hacer administrador",
   "mobile.server.members.remove": "Eliminar miembro",
   "mobile.server.members.manage": "Gestiona el acceso a este servidor.",
   "mobile.server.members.invitePeople": "Invitar personas",
@@ -247,5 +247,5 @@ export const messages = {
   "mobile.server.usage.noAgents": "No hay uso de agentes registrado en este periodo.",
   "mobile.server.usage.allAgents": "Todos los agentes",
   "mobile.server.usage.agent": "Agente",
-  "mobile.server.usage.unsupported": "Este host no admite análisis de uso. Actualiza el host para usar esta vista.",
+  "mobile.server.usage.unsupported": "Este host no admite estadísticas de uso. Actualiza el host para usar esta vista.",
 } as const satisfies PartialTranslation<typeof source>;

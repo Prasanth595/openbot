@@ -6,6 +6,7 @@ import { type AgentProviderId, isAgentProvider } from "./agent-providers";
 import { INPUT_LIMITS } from "./input-limits";
 import { type AgentRuntimeSnapshot, isAgentRuntimeSnapshot } from "./ipc-agent-runtime";
 import type { AccountUsage, AgentStatus } from "./ipc-agent-status";
+import { type AgentTasksSnapshot, isAgentTasksSnapshot } from "./ipc-agent-tasks";
 import { type AgentWaitsSnapshot, isAgentWaitsSnapshot } from "./ipc-agent-waits";
 import { type AgentSummary, isAgentSummary } from "./ipc-agents";
 import {
@@ -23,6 +24,7 @@ import {
   isConversationReadState,
   isConversationSnapshot,
 } from "./ipc-conversations";
+import { type HiddenAgent, isHiddenAgentsSnapshot } from "./ipc-hidden-agents";
 import { isQueueSnapshot, type QueueSnapshot } from "./ipc-queue";
 import { isSidebarLayoutSnapshot, type SidebarLayoutSnapshot } from "./ipc-sidebar-layout";
 import { isBoolean, isDynamicRecord, isNumber, isString } from "./runtime-values";
@@ -47,6 +49,8 @@ export type AgentEvent =
   | { type: "channel-memories-changed"; channelId: string }
   | { type: "channel-routines-changed"; channelId: string }
   | { type: "sidebar-layout-changed"; layout: SidebarLayoutSnapshot }
+  /** The whole hidden list, in the `agent-hidden-v1` wire shape, so the Team API sends it as it is. */
+  | { type: "hidden-agents-changed"; agents: HiddenAgent[] }
   | { type: "conversation"; snapshot: ConversationSnapshot }
   | { type: "conversation-invalidated"; agentId: string; revision: number }
   | { type: "conversation-page"; page: ConversationPage }
@@ -64,6 +68,21 @@ export type AgentEvent =
   | { type: "queue-changed"; snapshot: QueueSnapshot }
   /** Local only: the Team API has no wait events, so a remote server never sends one. */
   | { type: "waits-changed"; snapshot: AgentWaitsSnapshot }
+  /** Local only, as the task events below: the Team API has no task events. */
+  | { type: "agent-tasks-changed"; snapshot: AgentTasksSnapshot }
+  /** The conversation of one task. Its turns never reach the agent's own chat events. */
+  | { type: "agent-task-conversation"; taskId: string; snapshot: ConversationSnapshot }
+  | {
+      type: "agent-task-conversation-delta";
+      taskId: string;
+      agentId: string;
+      threadId: string;
+      turnId: string;
+      messageId: string;
+      delta: string;
+      createdAt: string;
+      revision: number;
+    }
   | { type: "turn-progress"; agentId: string; threadId: string; turnId: string; detail: string }
   | { type: "turn-started"; agentId: string; threadId: string; turnId: string; origin?: AgentTurnOrigin }
   | {
@@ -144,6 +163,8 @@ export function isAgentEvent(value: unknown): value is AgentEvent {
       return isIdentifier(value.channelId);
     case "sidebar-layout-changed":
       return isSidebarLayoutSnapshot(value.layout);
+    case "hidden-agents-changed":
+      return isHiddenAgentsSnapshot({ agents: value.agents });
     case "conversation":
       return isConversationSnapshot(value.snapshot);
     case "conversation-invalidated":
@@ -186,6 +207,21 @@ export function isAgentEvent(value: unknown): value is AgentEvent {
       return isQueueSnapshot(value.snapshot);
     case "waits-changed":
       return isAgentWaitsSnapshot(value.snapshot);
+    case "agent-tasks-changed":
+      return isAgentTasksSnapshot(value.snapshot);
+    case "agent-task-conversation":
+      return isIdentifier(value.taskId) && isConversationSnapshot(value.snapshot);
+    case "agent-task-conversation-delta":
+      return (
+        isIdentifier(value.taskId) &&
+        isString(value.agentId) &&
+        isString(value.threadId) &&
+        isString(value.turnId) &&
+        isString(value.messageId) &&
+        isString(value.delta) &&
+        isString(value.createdAt) &&
+        isNumber(value.revision)
+      );
     case "turn-progress":
       return (
         isIdentifier(value.agentId) &&

@@ -140,6 +140,72 @@
   background: var(--openbot-border);
 }
 
+/* Breakdown -------------------------------------------------------------- */
+
+/* The storage bar hues in its order; the conversation itself stays neutral. */
+.context-meter-popover [data-category="systemPrompt"] {
+  --context-color: var(--openbot-chart-storage-workspaces);
+}
+.context-meter-popover [data-category="memoryFiles"] {
+  --context-color: var(--openbot-chart-storage-chats);
+}
+.context-meter-popover [data-category="tools"] {
+  --context-color: var(--openbot-chart-storage-downloads);
+}
+.context-meter-popover [data-category="skills"] {
+  --context-color: var(--openbot-chart-storage-runtimes);
+}
+.context-meter-popover [data-category="toolResults"] {
+  --context-color: var(--openbot-chart-storage-files);
+}
+.context-meter-popover [data-category="messages"] {
+  --context-color: var(--openbot-text-secondary);
+}
+.context-meter-popover [data-category="other"] {
+  --context-color: var(--openbot-text-dim);
+}
+.context-meter-popover .context-meter-category[data-category="free"] {
+  --context-color: var(--openbot-border);
+}
+
+.context-meter-categories {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.context-meter-category {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--openbot-space-2);
+  padding: var(--openbot-space-0-5) 0;
+  font-size: var(--openbot-text-sm);
+  line-height: var(--openbot-leading-sm);
+}
+
+.context-meter-swatch {
+  width: var(--openbot-space-2);
+  height: var(--openbot-space-2);
+  align-self: center;
+  border-radius: var(--openbot-radius-pill);
+  background: var(--context-color);
+}
+
+.context-meter-category-label {
+  overflow: hidden;
+  color: var(--openbot-text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.context-meter-category-tokens {
+  color: var(--openbot-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
 /* The automatic compaction point: a tick that stands just past the bar's edges. */
 .context-usage-threshold {
   position: absolute;

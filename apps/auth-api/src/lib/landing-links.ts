@@ -24,7 +24,9 @@ export const OPENBOT_DOWNLOAD_PAGE_LINKS = {
 } as const;
 
 export const OPENBOT_LINKS = {
-  contact: "https://x.com/OpenBot_",
+  /** The contact form page. */
+  contact: "/contact",
+  x: "https://x.com/OpenBot_",
   /** A Redirect Rule in the openbot.run Cloudflare zone sends this to the current Discord invite. */
   discord: "https://discord.openbot.run",
   download: "#download",
@@ -40,6 +42,8 @@ export const OPENBOT_LINKS = {
   privacy: "https://github.com/nightly-labs/openbot/blob/main/PRIVACY.md",
   documentation: "https://github.com/nightly-labs/openbot#readme",
   troubleshooting: "https://github.com/nightly-labs/openbot/blob/main/docs/TROUBLESHOOTING.md",
+  /** GitHub Pages hosts the status page, so it stays up when Cloudflare does not. */
+  status: "https://status.openbot.run",
   selfHostedServer: "https://github.com/nightly-labs/openbot/blob/main/docs/self-hosted-server.md",
   architecture: "https://github.com/nightly-labs/openbot#architecture",
   contributing: "https://github.com/nightly-labs/openbot/blob/main/CONTRIBUTING.md",
@@ -93,6 +97,7 @@ export const FOOTER_COLUMNS: readonly FooterColumn[] = [
     links: [
       { label: "Documentation", external: true, href: OPENBOT_LINKS.documentation },
       { label: "Troubleshooting", external: true, href: OPENBOT_LINKS.troubleshooting },
+      { label: "Status", external: true, href: OPENBOT_LINKS.status },
       { label: "Self-hosted server", external: true, href: OPENBOT_LINKS.selfHostedServer },
       { label: "Architecture", external: true, href: OPENBOT_LINKS.architecture },
       { label: "Contributing", external: true, href: OPENBOT_LINKS.contributing },
@@ -118,6 +123,7 @@ export const FOOTER_COLUMNS: readonly FooterColumn[] = [
   {
     title: "Compare",
     links: [
+      { label: "OpenBot vs Instinct", external: false, to: "/compare/$slug", slug: "instinct" },
       { label: "OpenBot vs ChatGPT dots", external: false, to: "/compare/$slug", slug: "chatgpt-dots" },
       { label: "OpenBot vs Grok Bot", external: false, to: "/compare/$slug", slug: "grok-bot" },
       { label: "OpenBot vs Muse", external: false, to: "/compare/$slug", slug: "muse" },

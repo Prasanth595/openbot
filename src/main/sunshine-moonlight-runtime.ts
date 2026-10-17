@@ -17,6 +17,7 @@ import type {
 import { sourceText } from "@openbot/i18n/source";
 import { Effect, Result, Schema } from "effect";
 import { runCauseEffect } from "../backend/effect-boundary";
+import { agentDisplayEnvironment } from "./agent-display";
 import { LifecycleGate } from "./lifecycle-gate";
 import { listenLoopback } from "./listen-loopback";
 import { desktopCall, desktopFailure, desktopSync, type RemoteDesktopOperationError } from "./remote-desktop-effects";
@@ -794,7 +795,7 @@ export class SunshineMoonlightRuntime {
     this.#sunshine = yield* desktopSync(() =>
       this.#spawn(this.#options.paths.sunshine, [join(this.#options.stateDirectory, "sunshine.conf")], {
         cwd: dirname(this.#options.paths.sunshine),
-        env: { ...process.env, OPENBOT_REMOTE_SETUP: "1" },
+        env: { ...process.env, ...agentDisplayEnvironment(this.#options.platform), OPENBOT_REMOTE_SETUP: "1" },
         stdio: ["ignore", "pipe", "pipe"],
         windowsHide: true,
       }),

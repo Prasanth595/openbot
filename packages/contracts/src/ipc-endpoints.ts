@@ -63,6 +63,7 @@ import type {
   SaveAgentProfileInput,
   SaveAgentProfileResult,
 } from "./ipc-agent-profile";
+import type { AskSideQuestionInput } from "./ipc-agent-side-question";
 import type {
   AccountUsage,
   AgentProviderId,
@@ -79,6 +80,13 @@ import type {
   SetProviderApiKeyInput,
   SubmitProviderCodeLoginInput,
 } from "./ipc-agent-status";
+import type {
+  AgentTask,
+  AgentTaskInput,
+  AgentTasksSnapshot,
+  RunQueuedMessageAsTaskInput,
+  StartAgentTaskInput,
+} from "./ipc-agent-tasks";
 import type {
   AgentTemplateDetail,
   AgentTemplatePreview,
@@ -123,7 +131,6 @@ import type {
   ApprovalAutomationPreference,
   RespondToApprovalInput,
   RespondToBrowserTakeoverInput,
-  SetApprovalAutomationInput,
 } from "./ipc-approvals";
 import type {
   ChooseAttachmentsInput,
@@ -172,6 +179,7 @@ import type {
   ConversationPage,
   ConversationReadState,
   ConversationSearchPage,
+  ConversationSnapshot,
   ConversationWithReadState,
   MarkConversationReadInput,
   OpenMessageLinkInput,
@@ -221,6 +229,7 @@ import type {
   WebhookSecret,
 } from "./ipc-events";
 import type { GitHubConnectorRepositories, GitHubConnectorStatus } from "./ipc-github-connector";
+import type { HiddenAgentsSnapshot, SetAgentHiddenInput } from "./ipc-hidden-agents";
 import type { HostAnalytics, HostAnalyticsInput } from "./ipc-host-analytics";
 import type { HostReleaseStatus } from "./ipc-host-release";
 import type { HostTimezoneSettings } from "./ipc-host-timezone";
@@ -369,6 +378,7 @@ import type {
   ClearStorageInput,
   DeleteStoredFileInput,
   GetStorageUsageInput,
+  OldRuntimeVersions,
   OpenStorageLocationInput,
   OpenStoredFileInput,
   StorageUsage,
@@ -512,9 +522,6 @@ export const IPC_ENDPOINTS = {
     getAnalyticsPreference: request<undefined, AnalyticsPreference>()("app:get-analytics-preference"),
     setAnalyticsPreference: request<SetAnalyticsPreferenceInput, AnalyticsPreference>()("app:set-analytics-preference"),
     getApprovalAutomation: request<undefined, ApprovalAutomationPreference>()("app:get-approval-automation"),
-    setApprovalAutomation: request<SetApprovalAutomationInput, ApprovalAutomationPreference>()(
-      "app:set-approval-automation",
-    ),
     // A remote owner or admin can change a grant from a phone or the web client, so main tells the
     // window instead of the window only reading the value at start.
     approvalAutomation: event<ApprovalAutomationPreference>()("app:approval-automation"),
@@ -1022,8 +1029,13 @@ export const IPC_ENDPOINTS = {
     deleteChannel: scopedRequest<string, void>()("agent:channels:delete"),
     getSidebarLayout: scopedQuery<SidebarLayoutSnapshot>()("agent:get-sidebar-layout"),
     mutateSidebarLayout: scopedRequest<SidebarLayoutAction, SidebarLayoutSnapshot>()("agent:mutate-sidebar-layout"),
+    // A joined server answers through `agent-hidden-v1`. A server without it has no hidden agents.
+    listHiddenAgents: scopedQuery<HiddenAgentsSnapshot>()("agent:hidden:list"),
+    setAgentHidden: scopedRequest<SetAgentHiddenInput, HiddenAgentsSnapshot>()("agent:hidden:set"),
     generateProfile: scopedRequest<GenerateAgentProfileInput, AgentProfileDraft>()("agent:generate-profile"),
     saveProfile: scopedRequest<SaveAgentProfileInput, SaveAgentProfileResult>()("agent:save-profile"),
+    // Only the computer that runs the agent answers. A joined server has no route for it.
+    askSideQuestion: scopedRequest<AskSideQuestionInput, string>()("agent:ask-side-question"),
     createAgent: scopedRequest<CreateAgentInput, AgentSummary>()("agent:create"),
     duplicateAgent: scopedRequest<string, DuplicateAgentResult>()("agent:duplicate"),
     updateAgent: scopedRequest<UpdateAgentInput, AgentSummary>()("agent:update"),
@@ -1053,6 +1065,14 @@ export const IPC_ENDPOINTS = {
     listQueue: scopedRequest<string, QueueSnapshot>()("agent:list-queue"),
     listWaits: scopedRequest<string, AgentWaitsSnapshot>()("agent:list-waits"),
     cancelWait: scopedRequest<CancelAgentWaitInput, void>()("agent:cancel-wait"),
+    // Tasks are local only: the Team API has no task route.
+    listTasks: scopedRequest<string, AgentTasksSnapshot>()("agent:tasks:list"),
+    readTask: scopedRequest<AgentTaskInput, ConversationSnapshot>()("agent:tasks:read"),
+    startTask: scopedRequest<StartAgentTaskInput, AgentTask>()("agent:tasks:start"),
+    runQueuedMessageAsTask: scopedRequest<RunQueuedMessageAsTaskInput, AgentTask>()("agent:tasks:run-queued-message"),
+    stopTask: scopedRequest<AgentTaskInput, void>()("agent:tasks:stop"),
+    closeTask: scopedRequest<AgentTaskInput, void>()("agent:tasks:close"),
+    reopenTask: scopedRequest<AgentTaskInput, void>()("agent:tasks:reopen"),
     acknowledgeFailedTurn: scopedRequest<AcknowledgeFailedTurnInput, void>()("agent:acknowledge-failed-turn"),
     cancelQueuedMessage: scopedRequest<CancelQueuedMessageInput, void>()("agent:cancel-queued-message"),
     steerQueuedMessage: scopedRequest<SteerQueuedMessageInput, void>()("agent:steer-queued-message"),
@@ -1149,6 +1169,8 @@ export const IPC_ENDPOINTS = {
     openWorkspaceFile: scopedRequest<OpenWorkspaceFileInput, void>()("agent:open-workspace-file"),
     previewSharedFile: scopedRequest<OpenSharedFileInput, FilePreview>()("agent:preview-shared-file"),
     previewWorkspaceFile: scopedRequest<OpenWorkspaceFileInput, FilePreview>()("agent:preview-workspace-file"),
+    /** Releases only this client's temporary HTML bytes, never a file on a host. */
+    releaseFilePreview: request<string, void>()("agent:release-file-preview"),
     listWorkspaceDirectory: scopedRequest<OpenWorkspaceFileInput, WorkspaceDirectory>()(
       "agent:list-workspace-directory",
     ),
@@ -1298,6 +1320,10 @@ export const IPC_ENDPOINTS = {
     clear: scopedRequest<ClearStorageInput, void, "required">()("storage:clear"),
     openFile: scopedRequest<OpenStoredFileInput, void, "required">()("storage:open-file"),
     openLocation: request<OpenStorageLocationInput, void>()("storage:open-location"),
+    // Local only, like `openLocation`: a server removes its own old provider CLI versions.
+    getOldRuntimeVersions: request<undefined, OldRuntimeVersions>()("storage:get-old-runtime-versions"),
+    /** Removes the old versions no instance uses now, and answers what is left. */
+    removeOldRuntimeVersions: request<undefined, OldRuntimeVersions>()("storage:remove-old-runtime-versions"),
   },
   // Bound against the agent import service, which holds the staged archives. A remote server is
   // reached with `agent-import-v1`; main still opens the file dialog and sends the file.

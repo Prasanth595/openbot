@@ -819,12 +819,6 @@
   color: var(--openbot-accent);
 }
 
-.computer-button[aria-expanded="true"] {
-  border-color: var(--openbot-border-strong);
-  background: var(--openbot-border);
-  color: var(--openbot-text-primary);
-}
-
 .computer-control-dot {
   position: absolute;
   top: 1px;

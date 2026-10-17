@@ -7,6 +7,7 @@ import type { ChannelService } from "../channel-service";
 import { causeHelpers } from "../effect-boundary";
 import type { MailboxStore } from "../mailbox-store";
 import type { MessagingThreads } from "../messaging/messaging-threads";
+import { isRecord } from "../protocol";
 import type { ContextCompaction } from "./context-compaction";
 import type { ConversationRuntime } from "./conversation-runtime";
 import type { DrainScheduler } from "./drain-scheduler";
@@ -19,6 +20,8 @@ import type { AgentBrowserHost, TurnLifecycle } from "./turn-lifecycle";
 export interface AgentRemovalHooks {
   emit(event: AgentEvent): void;
   listAgents(): AgentSummary[];
+  /** Removes the agent's tasks, with their threads and provider session files. */
+  deleteTasks(agentId: string): Effect.Effect<void, AgentRemovalFailed>;
 }
 
 export interface AgentRemovalOptions {
@@ -40,7 +43,7 @@ export interface AgentRemovalOptions {
     agentId: string,
     remove: () => Effect.Effect<void, AgentRemovalFailed>,
   ) => Effect.Effect<void, AgentRemovalFailed>;
-  /** The agent service logger, so a deletion keeps the `agent-service` prefix it always had. */
+  /** The `agent-removal` logger. The main process keeps its lines in the agent log file. */
   logger: Logger;
   hooks: AgentRemovalHooks;
 }
@@ -95,15 +98,13 @@ export class AgentRemoval {
     return this.#deleting;
   }
 
+  /** Fails as `delete` would when the agent is being deleted, has an active turn or an unfinished delivery. */
+  readonly ensureDeletable = Effect.fn("AgentRemoval.ensureDeletable")(function* (this: AgentRemoval, agentId: string) {
+    yield* removalStep(() => this.#deletable(agentId));
+  });
+
   readonly delete = Effect.fn("AgentRemoval.delete")(function* (this: AgentRemoval, agentId: string) {
-    const agent = yield* removalStep(() => {
-      if (this.#deleting.has(agentId)) throw new Error(sourceText("error.agent.deletionBusy"));
-      const candidate = this.#store.list().find((entry) => entry.id === agentId);
-      if (this.#mailbox.hasUnfinishedDelivery(agentId) || this.#conversation.workingSnapshot(agentId)?.activeTurnId) {
-        throw new Error(sourceText("error.agent.stopBeforeDelete"));
-      }
-      return candidate;
-    });
+    const agent = yield* removalStep(() => this.#deletable(agentId));
     yield* Effect.acquireUseRelease(
       removalStep(() => {
         const gate = this.#duplication.releaseForDelete(agentId);
@@ -131,6 +132,15 @@ export class AgentRemoval {
         }),
     );
   }, Effect.uninterruptible);
+
+  #deletable(agentId: string): AgentSummary | undefined {
+    if (this.#deleting.has(agentId)) throw new Error(sourceText("error.agent.deletionBusy"));
+    const candidate = this.#store.list().find((entry) => entry.id === agentId);
+    if (this.#mailbox.hasUnfinishedDelivery(agentId) || this.#conversation.anyWorkingSnapshot(agentId)?.activeTurnId) {
+      throw new Error(sourceText("error.agent.stopBeforeDelete"));
+    }
+    return candidate;
+  }
 
   readonly deleteData = Effect.fn("AgentRemoval.deleteData")(function* (
     this: AgentRemoval,
@@ -160,6 +170,8 @@ export class AgentRemoval {
           .pipe(toAgentRemovalFailed);
       stage = "messaging";
       yield* this.#messaging.deleteForAgent(agent.id).pipe(toAgentRemovalFailed);
+      stage = "tasks";
+      yield* this.#hooks.deleteTasks(agent.id);
       stage = "mailbox";
       yield* this.#mailbox
         .deleteAgentData(agent.id, this.#channels.store.allContextThreads())
@@ -167,9 +179,9 @@ export class AgentRemoval {
       stage = "agent-files-and-record";
       yield* this.#store.deleteAgent(agent.id).pipe(toAgentRemovalFailed);
     }).pipe(
-      Effect.mapError(() => {
-        // File-system errors can contain private paths. Log only the failed stage.
-        this.#logger.warn("Agent deletion failed.", { stage });
+      Effect.mapError((failure) => {
+        // File-system errors can contain private paths. Log only the failed stage and the error code.
+        this.#logger.warn("Agent deletion failed.", { stage, ...removalErrorCode(failure) });
         return new AgentRemovalFailed({ cause: new Error(sourceText("error.agent.deleteIncomplete")) });
       }),
     );
@@ -214,7 +226,7 @@ export class AgentRemoval {
     for (const tab of owned) {
       const result = yield* Effect.result(this.#browser.close(tab.id).pipe(toAgentRemovalFailed));
       if (Result.isSuccess(result)) closed += 1;
-      else this.#logger.warn("Could not close a deleted agent's browser tab.", { error: result.failure.cause });
+      else this.#logger.warn("Could not close a deleted agent's browser tab.", removalErrorCode(result.failure));
     }
     if (closed > 0) this.#logger.info("Closed a deleted agent's browser tabs.", { agentId: agent.id, count: closed });
   });
@@ -225,5 +237,17 @@ export class AgentRemovalFailed extends Schema.TaggedError<AgentRemovalFailed>()
 }) {}
 
 const { sync: removalStep, rewrap: toAgentRemovalFailed } = causeHelpers(AgentRemovalFailed);
+
+/** The first error code in the cause chain, such as `EBUSY` or `ERR_SQLITE_ERROR`. Never a message or a path. */
+function removalErrorCode(failure: unknown): { code?: string; errcode?: number } {
+  let cause = failure;
+  for (let depth = 0; depth < 8 && isRecord(cause); depth += 1) {
+    const { code, errcode } = cause;
+    if (typeof code === "string" && /^[A-Z][A-Z0-9_]{1,40}$/u.test(code))
+      return { code, ...(typeof errcode === "number" ? { errcode } : {}) };
+    cause = cause.cause;
+  }
+  return {};
+}
 
 export { toAgentRemovalFailed };

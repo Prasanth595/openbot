@@ -518,7 +518,8 @@ clients receive the host's filtered model list.
 `AgentClient` remains the provider boundary. ACP session ownership, history replay, and turn
 completion stay together. Boolean and select settings can include grouped choices. The client
 processes configuration notifications while idle. Model and reasoning continue to use their
-existing fields. Permission, access, and approval settings remain under OpenBot controls.
+existing fields. Permission, access, and approval settings remain under OpenBot controls: the agent's
+Permissions level decides them, not an ACP setting.
 
 Additional overrides are stored in validated agent JSON, by provider identity. A custom ACP
 identity includes its custom agent ID. Saved overrides are separate from the current descriptors
@@ -554,7 +555,10 @@ newer SDK versions must meet the three-day dependency rule before adoption. The 
 supplies `sessionMcp`, preserves native session identity, and reads durable items to recover missed
 events before completion. A cached model list does not prove authentication. Connect starts the
 `muse serve` device sign-in and opens its page, because `muse login` with no terminal never opens
-it; an explicit Meta API key uses OpenBot's encrypted credential store.
+it; an explicit Meta API key uses OpenBot's encrypted credential store. The account check asks a
+short-lived `muse serve` host, which gets the same key, for the experimental `account/read`. The
+session host does not opt in to experimental MSP, so its strict event decoders see no experimental
+variants. A Muse CLI without `account/read` stays "not verified" and keeps running.
 
 Muse profile generation fails before the CLI starts. The pinned native host still starts inherited
 MCP servers with `--disable-shell`, `--disable-write`, empty hooks, and session `mcpServers: {}`.
@@ -595,12 +599,17 @@ SDK `getContextUsage({ detail: "summary" })` result after a turn. This uses the 
 and local estimates; it avoids full per-category token-count requests. The read runs outside the
 stream consumer, has a two-second deadline, and cannot block the next turn. Old or unsupported
 reports stay absent. Claude counts carry an estimate flag, which the context ring and popover
-display. Native `status` and `compact_boundary` events drive Claude's compaction notice. Claude's
+display. The same result also gives the category rows. `claude-context-categories.ts` maps the row
+names to the fixed `AGENT_CONTEXT_CATEGORIES` ids, moves tool calls and results out of the messages
+row with `messageBreakdown`, and puts the rest of the total in `other`. Deferred tool rows, the
+free space and the compaction buffer are not in the total, so they are left out. Only the ids and
+counts leave the adapter: no row name, file path, tool or server name. Other providers give a
+total only, so the popover shows no breakdown for them. Native `status` and `compact_boundary` events drive Claude's compaction notice. Claude's
 `post_tokens` counts messages without the system prompt and tools, so its compaction marker omits
 the token comparison. Later local estimates do not restore that comparison.
 
 The progress percentage is an estimate based on elapsed time and the preceding compaction duration
 in this process. It never proves completion. Terminal provider events control success and failure.
 The latest marker and timing are runtime state, not new saved conversation messages. A provider
-summary is not copied into this state. The UI can render a breakdown or manual action, but this
-connection supplies neither: it adds no manual-compaction endpoint and makes no extra model turn.
+summary is not copied into this state. This connection adds no manual-compaction endpoint and
+makes no extra model turn.

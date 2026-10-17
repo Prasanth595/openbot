@@ -1,8 +1,8 @@
 // Starts the real Signal service (`remote/api`) on a free local port with throwaway secrets and a
 // fake account service, then checks its secret and authentication rules over real HTTP and
 // WebSocket connections: the Telegram secret header, the Slack signature, the signed account
-// events, the remote and route tickets, the generic webhook headers, and that no frame or log line
-// holds the Telegram bot token. Writes .openbot-build/signal-security-e2e/report.json and exits
+// events, the remote and route tickets, the generic webhook headers, the hello deadline, the reuse of
+// TURN credentials, and that no frame or log line holds the Telegram bot token. Writes .openbot-build/signal-security-e2e/report.json and exits
 // non-zero when a check fails. It makes no request to Telegram, Slack or Discord.
 import { type ChildProcess, spawn } from "node:child_process";
 import { createHmac, generateKeyPairSync, randomBytes, randomUUID } from "node:crypto";
@@ -551,6 +551,44 @@ try {
     return `closed with ${code}`;
   });
 
+  // 6. Idle sockets and TURN credentials. The idle check runs between the two refreshes, so the
+  // second refresh is at least one second later and new credentials would have a new username.
+  const refresh = async (): Promise<string> => {
+    const before = ingress.frames.length;
+    ingress.socket.send(JSON.stringify({ type: "turn-refresh", version: 1, connectionId: null }));
+    const answer = JSON.parse(
+      await ingress.next(
+        (frame) => ingress.frames.indexOf(frame) >= before && frame.includes('"type":"ready"'),
+        "ready after turn-refresh",
+      ),
+    );
+    const usernames: unknown[] = (answer.iceServers ?? []).map((server: { username?: unknown }) => server.username);
+    const username = usernames.find((value) => typeof value === "string");
+    expect(typeof username === "string", `ready: ${JSON.stringify(answer).slice(0, 200)}`);
+    return username;
+  };
+  const firstRefresh = await refresh();
+
+  await check("A socket that sends no hello is closed after the hello deadline", async () => {
+    const peer = await connect(signalUrl);
+    const code = await Promise.race([
+      peer.closed,
+      new Promise<number>((_, reject) => setTimeout(() => reject(new Error("The idle socket stayed open.")), 45_000)),
+    ]);
+    expect(code === 1008, `close code: ${code}`);
+    expect(
+      peer.frames.some((frame) => frame.includes('"code":"authentication_required"')),
+      `frames: ${peer.frames.join(" ").slice(0, 200)}`,
+    );
+    return `closed with ${code} and an authentication_required error`;
+  });
+
+  await check("A second turn-refresh soon after the first gets the same TURN credentials", async () => {
+    const second = await refresh();
+    expect(second !== "" && firstRefresh === second, "Signal made new TURN credentials for each turn-refresh.");
+    return "both answers have the same TURN username";
+  });
+
   await check("Signal signs each request to the account service", async () => {
     expect(controlPlaneCalls.length > 0, "Signal made no account service request.");
     const unsigned = controlPlaneCalls.filter((call) => !call.signed);
@@ -558,7 +596,7 @@ try {
     return `${controlPlaneCalls.length} requests, all signed: ${[...new Set(controlPlaneCalls.map((call) => call.path))].join(", ")}`;
   });
 
-  // 6. The bot token stays in Signal.
+  // 7. The bot token stays in Signal.
   await check("No frame and no log line holds the Telegram bot token", async () => {
     const framesWithToken = allFrames.filter((frame) => frame.includes(BOT_TOKEN_SECRET));
     const logsWithToken = serviceOutput.filter((line) => line.includes(BOT_TOKEN_SECRET));

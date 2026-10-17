@@ -20,7 +20,7 @@ export const messages = {
   "mobile.search.loading": "Buscando…",
   "mobile.search.failedTitle": "No se pudieron cargar todos los resultados",
   "mobile.search.errorBody": "Comprueba la conexión con este equipo y vuelve a intentarlo.",
-  "mobile.search.retry": "Volver a intentar",
+  "mobile.search.retry": "Reintentar",
   "mobile.search.showMore": "Mostrar más mensajes",
   "mobile.search.showMoreFiles": "Mostrar más archivos",
   "mobile.search.youWrote": "Tú: {text}",

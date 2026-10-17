@@ -2,6 +2,7 @@ import type { ServerSummary } from "@openbot/contracts/ipc";
 import { RemoteCompatibilityScreen } from "@openbot/ui/features/remote-desktop/RemoteCompatibilityScreen";
 import type { JSX } from "@solidjs/web";
 import { omit, type ParentProps, Show } from "solid-js";
+import { type WindowPage, windowPageKind } from "./features/window/window-page-context";
 import { useLayout } from "./layout";
 import { LEFT_PANEL_COMPACT } from "./layout-constants";
 import { usePlatform } from "./platform";
@@ -16,11 +17,11 @@ type WorkspaceFrameProps = ParentProps<
     /** A remote server this build cannot talk to. Its screen replaces the middle panes. */
     blockedServer: ServerSummary | null;
     onRetryServer: (serverId: string) => Promise<void>;
-    /** The rail, the sidebar and the account dock, in paint order. */
+    /** The rails and the sidebar, in paint order. */
     left: JSX.Element;
-    /** Whether the usage report is open. While it is, the middle panes are inert. */
-    usageOpen: boolean;
-    usage?: JSX.Element;
+    /** The page of the rail. A page other than the agents covers the middle panes, and makes them inert. */
+    windowPage: WindowPage;
+    page?: JSX.Element;
     connection?: JSX.Element;
     initialLoading?: boolean;
     /** Dialogs and overlays after the panes. */
@@ -30,7 +31,7 @@ type WorkspaceFrameProps = ParentProps<
 
 /**
  * The application frame that the desktop shell and the web client share: the grid classes, the left
- * column width and its resizer, the compatibility screen, and the usage report slot. The panes come
+ * column width and its resizer, the compatibility screen, and the slot of the rail page. The panes come
  * from the caller, because the desktop reads them from its contexts and the web passes props.
  *
  * The order of the children is the paint order the stylesheet expects.
@@ -38,6 +39,7 @@ type WorkspaceFrameProps = ParentProps<
 export function WorkspaceFrame(props: WorkspaceFrameProps) {
   const platform = usePlatform();
   const layout = useLayout();
+  const pageOpen = () => props.windowPage !== "agents";
   const rest = omit(
     props,
     "compact",
@@ -45,8 +47,8 @@ export function WorkspaceFrame(props: WorkspaceFrameProps) {
     "blockedServer",
     "onRetryServer",
     "left",
-    "usageOpen",
-    "usage",
+    "windowPage",
+    "page",
     "after",
     "children",
     "connection",
@@ -58,6 +60,8 @@ export function WorkspaceFrame(props: WorkspaceFrameProps) {
     <div
       {...rest}
       ref={platform.setAppFrameElement}
+      data-window-page={props.windowPage}
+      data-window-page-kind={windowPageKind(props.windowPage)}
       class={[
         "app-frame",
         props.class,
@@ -65,7 +69,7 @@ export function WorkspaceFrame(props: WorkspaceFrameProps) {
           "app-frame-sidebar-compact": props.compact,
           "app-frame-edge": platform.appInfo() !== null,
           "app-frame-with-server-rail": layout.serverRailVisible(),
-          "app-frame-usage-open": props.usageOpen,
+          "app-frame-page-open": pageOpen(),
           "app-frame-platform-darwin": platform.appInfo()?.platform === "darwin",
         },
       ]}
@@ -75,9 +79,9 @@ export function WorkspaceFrame(props: WorkspaceFrameProps) {
       {props.left}
       <WorkspaceLeftPanelResizer />
       <div
-        class="usage-workspace-content server-connection-workspace"
-        inert={props.usageOpen}
-        aria-hidden={props.usageOpen ? "true" : undefined}
+        class="app-frame-panes server-connection-workspace"
+        inert={pageOpen()}
+        aria-hidden={pageOpen() ? "true" : undefined}
       >
         {props.connection}
         <div class="server-connection-content" hidden={props.initialLoading && !props.blockedServer}>
@@ -86,8 +90,8 @@ export function WorkspaceFrame(props: WorkspaceFrameProps) {
           </Show>
         </div>
       </div>
-      <Show when={props.usageOpen}>
-        <div class="conversation-panel agent-usage-workspace">{props.usage}</div>
+      <Show when={pageOpen()}>
+        <div class="conversation-panel window-page">{props.page}</div>
       </Show>
       {props.after}
     </div>

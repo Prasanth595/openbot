@@ -8,9 +8,13 @@ starts it before its next routine run, and Signal starts it for a Slack, Discord
 that addresses OpenBot (see [Connector events](#connector-events)). A connected client counts as use for 5 minutes after its
 last user action (`CLIENT_USE_WINDOW_MS`): a request that changes data, or a typing event. Reads and
 the requests that a client sends with no user action (polls, previews, mark-read) do not count
-(`src/main/team-api/client-use.ts`). So an app that is open but not used does not keep the server on:
-it stops 15 to 30 minutes after the last action (see the cron interval below). The desktop and the web client then show the server
-as asleep, and the next key press or click wakes it.
+(`src/main/team-api/client-use.ts`). An app that has focus (a focused desktop window, a visible and
+focused browser tab, the phone app in the foreground) also counts, for at most 30 minutes after the
+last user action of its session or after the app gets focus again (`focus-use-v1`). So an app that has focus but is not used keeps the
+server on for 30 minutes, and then the server stops 15 to 30 minutes later. An app that is open
+without focus does not keep the server on: it stops 15 to 30 minutes after the last action (see the
+cron interval below). The desktop and the web client then show the server as asleep, and the next key
+press or click wakes it.
 
 To run the same build on your own computer, see [self-hosted servers](self-hosted-server.md). It
 uses the scripts and units of this page with `mode` set to `self`.
@@ -83,9 +87,22 @@ when a server is idle or boat stops a sandbox; and `error` and `deleted`. The Wo
    [server claim](self-hosted-server.md#sign-in-with-a-server-claim) of a self-hosted server.
 5. **In use.** OpenBot checks each minute whether the server is in use: an agent works, a remote
    desktop view is open, a file moves, or a remote client is connected (an open Team API event
-   stream) and sent a user action or a typing event in the last 5 minutes. A key press or pointer
+   stream) and sent a user action, a typing event or a focus ping in the last 5 minutes. A key press or pointer
    input in a browser view is a user action. An open browser view with no input does not count,
-   because a view that the user forgot would keep the server on. It sends
+   because a view that the user forgot would keep the server on.
+
+   **Focus.** Only a hosted server advertises `focus-use-v1`. While the app of a client has focus and
+   the server is online, the client sends `POST /v1/client/focus` with an empty body at once and then
+   each 4 minutes (`FOCUS_USE_INTERVAL_MS`): the desktop for its selected server while the window has
+   focus, the web client for its server while the tab is visible and has focus, and the mobile app for
+   its selected server while it is in the foreground. The host counts a ping as use only for 30 minutes
+   (`FOCUS_USE_LIMIT_MS`) after the later of the start of the focus period and the last user action of
+   the same session. A ping more than 8 minutes after the previous one starts a new focus period. The
+   ping is passive in `client-use.ts`, so it does not reset the limit and does not change which session
+   push notifications count as in use. Like other use, a focused app delays the automatic update
+   restart of a hosted server (`RequestedUpdate`, `clientInUse`).
+
+   It sends
    `POST /v2/hosting/servers/:id/activity` with `{inUse, nextRunAt}` and the session from its claim:
    at once when the use starts, then at most each 5 minutes while the use continues, and each time
    the next routine run changes. The Worker accepts only that session, not the owner's own sessions.
@@ -104,7 +121,8 @@ when a server is idle or boat stops a sandbox; and `error` and `deleted`. The Wo
    `desired_state = 'idle'`, and boat saves the disk. It does not stop a server whose next routine
    run is less than 10 minutes away. The webhook does not resume an idle server. The next wake
    (step 6) sets it to `running` and resumes it. A start and a resume count as activity, so the first
-   client has 15 minutes to connect.
+   client has 15 minutes to connect. A client that connects with focus keeps it on for 30 minutes
+   with no input.
 
    **Scheduled start.** The cron starts an idle server when its `next_run_at` is less than 10 minutes
    away (one cron interval and the start time), with the wake reason `schedule`. It clears
@@ -116,6 +134,26 @@ when a server is idle or boat stops a sandbox; and `error` and `deleted`. The Wo
    create and resume sends `ttlSeconds: 7200`, so boat stops a sandbox that the Worker loses. An
    activity report extends the time (`PATCH /sandboxes/:id`) when less than 1 hour is left
    (`lease_until`). When boat stops a server in use at the end of its lease, the Worker resumes it.
+
+   **Disk save at a stop.** boat saves the disk of a running server file by file, with no pause,
+   and a file that changes during its copy is restored torn. A SQLite checkpoint during the save
+   gave a damaged database ("OpenBot database failed its integrity check"). Thus a hosted server
+   stops OpenBot before the save. boat runs `/home/user/.boat/pre-stop` as `user` when a stop
+   starts, waits for it to end (at most 60 seconds), and then saves the disk. boat supports this
+   hook, but its documentation does not show it yet. `openbot-hosted-update` installs `scripts/hosting/openbot-boat-pre-stop` there
+   (`install_hosting`, and `trigger` at each start, so a server that an older release updated gets
+   it). The hook makes `/run/openbot-pre-stop` and runs `systemctl stop openbot.service`: OpenBot
+   gets `SIGTERM`, stops its services and closes `openbot.db` last. After 40 seconds the hook kills
+   the unit, which leaves a database that SQLite recovers. The file makes the unit condition
+   `ConditionPathExists=!/run/openbot-pre-stop` fail, so `Restart=` and the end of an update request
+   do not start OpenBot during the save. `/run` is empty at each boot. If boat does not complete the
+   stop after the hook, OpenBot stays stopped until the next stop and resume. A hook that OpenBot did
+   not write stays, and a self-hosted server gets no hook.
+
+   **Check at a start.** `PRAGMA quick_check` reads every page of `openbot.db`: on a 15.7 GB file
+   it stopped the main thread for 77 seconds to about 4 minutes. A clean close removes
+   `openbot.db-wal`. Thus OpenBot runs the check at a start only when that file is there (a crash,
+   a kill, or a save while OpenBot ran) or when a migration ran.
 6. **Start after a failure.** A client that cannot reach the host first calls
    `GET /v2/hosting/servers/:id/status` (owner or member; 404 for a host that is not a hosted
    server). It returns `{serverId, state, error, sleeping}` and writes nothing, so it does not count
@@ -130,10 +168,27 @@ when a server is idle or boat stops a sandbox; and `error` and `deleted`. The Wo
 
    The desktop asks for each stored hosted server when Signal answers `host_unavailable`, at most
    once a minute for each host, and wakes only the selected server while the app has focus. After a
-   wake, it connects again every 5 seconds for at most 5 minutes. The web client does the same for
-   its one server, and checks a sleeping server again every 5 minutes. The mobile app has no status
-   check: it wakes the selected server while the app is in the foreground. A server whose plan ended
-   answers `402 plan_required`.
+   wake, it connects again every 5 seconds, and reads the status every 30 seconds to show the step:
+   the machine starts (`waking`, `starting`, `stopping`, or `stopped` with no error, which also gets a
+   wake), OpenBot starts (`running`), or the provider refused the start (`waking` with
+   `provider_limit`). The client waits with no limit while the
+   machine starts. When the machine is `running` and its host does not connect in 15 minutes, the
+   client shows that the server did not start in time, as it does after 10 status reads in a row
+   that fail. Restart is not available while the machine starts. It is available when the machine
+   runs and OpenBot does not answer. The web client does the same for its one server, and checks a
+   sleeping server again every 5 minutes. The mobile app has no status check: it wakes the selected server while the app is in
+   the foreground, with the same limit for a `running` server. A server whose plan ended answers
+   `402 plan_required`.
+
+   **Rate limit.** When boat refuses a resume with `429`, the row stays `waking` and gets
+   `observed_error = 'provider_limit'`, so clients keep waiting. The next client wake, Signal route
+   wake or cron pass sends the resume again after a delay: the time from the wake
+   (`provider_event_at`) to the last refusal, from 30 seconds to 5 minutes. A retry keeps the wake time
+   and the error, and only one caller can claim it. A resume that boat accepts clears the error. The
+   cron does not ask boat about such a row, because boat reports the sandbox `archived` and the row
+   would become `stopped`. A `409` on a retry (boat already resumes the sandbox) clears the error, so
+   the cron reads boat again when the webhook does not come. Any other resume failure sets `error` as
+   before.
 
    A paid server whose setup failed has no sandbox. A wake (Retry in the add server dialog) sets
    it up again at once, and the cron does this 10 minutes after each failure. Each attempt sends
@@ -157,12 +212,20 @@ when a server is idle or boat stops a sandbox; and `error` and `deleted`. The Wo
    runs with no payment. A cancel at the period end (`cancel_at_period_end` or `cancel_at`)
    shows the end date and keeps the server running until then.
 
-   Refunds and disputes. A refund (`refund.*`) keeps the plan and the server: to end the plan,
-   cancel the subscription in the Stripe Dashboard and select a refund there. A dispute
-   (`charge.dispute.created`, an inquiry too) cancels the plan of the disputed invoice now, so
-   Stripe does not charge that card again; the server stops with `plan_ended` and keeps its disk.
-   The Worker finds the plan through the invoice of the PaymentIntent (`GET /v1/invoice_payments`).
-   A refund or dispute of a payment that is not an OpenBot plan invoice changes nothing.
+   Refunds and disputes. A full refund (`refund.created` or `refund.updated` with `succeeded`) of
+   the invoice that paid the current period cancels the plan now: the account paid nothing for that
+   period. That invoice is the subscription's `latest_invoice`, made for a new plan or a renewal
+   (`billing_reason` `subscription_create` or `subscription_cycle`). Partial refunds that add up to
+   the full amount count as a full refund (the charge is `refunded`). A partial refund, or a refund of
+   an earlier invoice or of a plan change, keeps the plan and the server. After a plan change in the
+   period, `latest_invoice` is the plan change invoice, so a refund of the renewal keeps the plan too.
+   To end the plan in these cases, cancel the subscription in the Stripe Dashboard. A dispute
+   (`charge.dispute.created`, an inquiry too) cancels the plan of the disputed invoice now, so Stripe
+   does not charge that card again. In both cases
+   the server stops with `plan_ended` and keeps its disk. The Worker finds the plan through the
+   invoice of the PaymentIntent (`GET /v1/invoice_payments`). A refund or dispute of a payment that
+   is not an OpenBot plan invoice changes nothing. A refund that fails after it succeeded does not
+   start the plan again.
 8. **Plan change.** In the Customer Portal an upgrade is charged at once, and a downgrade or a
    shorter interval starts at the next period. The Worker copies the new plan, interval and currency
    to the server. boat changes the machine of a sandbox only on a resume (`type`), so the Worker
@@ -326,7 +389,7 @@ servers, their webhooks and the cron continue.
    connect from the desktop and the web client. Delete the server at the end.
 
 The cron runs each 5 minutes in production. An idle server stops 15 to 30 minutes after its last
-use, and the checks that repair a missed webhook run at most 5 minutes late.
+use (a focus ping is use only for 30 minutes after the last user action or a new focus period), and the checks that repair a missed webhook run at most 5 minutes late.
 
 ### Sales reports
 
@@ -467,11 +530,17 @@ folder and in `/srv` stays.
 
 On a server, `openbot-hosted-server` starts a D-Bus session, unlocks a gnome-keyring with a
 random password for each server (so `safeStorage` can keep the account session), and runs OpenBot
-with `--password-store=gnome-libsecret`. OpenBot uses the boat desktop: the lightdm session of the
+with `--password-store=gnome-libsecret`. The agents use the boat desktop: the lightdm session of the
 sandbox user on `:0`, with openbox. So boat's desktop viewer and OpenBot remote desktop show the same
 screen, and a click moves the keyboard focus to another window. After a resume, the script waits up
-to 2 minutes for that session. With no session, OpenBot runs under `xvfb-run`. The keyring files are
-in `/srv/openbot-hosted/keyrings`:
+to 2 minutes for that session. OpenBot shows its own windows on a 1280x800 Xvfb display that
+`xvfb-run` starts. `xvfb-run` adds the key of that display to `~/.Xauthority`, which has the key of
+`:0`, and lightdm keeps the other keys when it writes the file. The script names `:0` in
+`OPENBOT_AGENT_DISPLAY`, so an agent's screenshot and remote desktop do not show the OpenBot window
+(see [Computer Use and remote desktop](architecture/computer-use.md#agent-display-on-a-server)). With
+no desktop session, the server starts two Xvfb displays, as a
+[self-hosted server](self-hosted-server.md#how-it-works) does. The keyring files are in
+`/srv/openbot-hosted/keyrings`:
 
 - not in `~/.local/share/keyrings`: the boat image has a locked `default` keyring there, and a
   snapshot restore resets that folder after the service starts;
@@ -660,6 +729,30 @@ A boat trial account refuses a sandbox with no auto-stop, or a TTL longer than 2
 `PATCH /sandboxes/:id {ttlSeconds}` sets `archiveAfter` to the current time plus the TTL. A trial
 allows only `small` and `default`, so a Pro server (`large`) needs a paid boat plan.
 
+A durability test on 2026-10-15 (`scripts/hosting/hosted-database-durability-e2e.ts`, one hosted
+sandbox) stopped the sandbox while a writer used SQLite in WAL mode in the home folder:
+
+- with automatic checkpoints, the database came back damaged after the second stop
+  (`btreeInitPage() returns error code 11`);
+- with an empty WAL and only small appends at the stop, 9 checks were healthy;
+- with no automatic checkpoint, the main file was not damaged, but in 3 of 6 restores the WAL
+  header was torn, and SQLite ignored the full WAL. The rows of that run were lost;
+- with `openbot-boat-pre-stop` for the writer unit (`--mode=pre-stop`), each of 4 stops during
+  writes gave a healthy database with every committed row, and no `/run` flag after the resume.
+
+A stop-order probe on the same day (a unit that records `SIGTERM` and writes each 200 ms) showed
+that boat saves the disk while the processes run, about 3 seconds after the stop call, and sends no
+`SIGTERM` before the save. A pre-stop hook that slept 20 seconds started at once after the stop
+call, and the last write that the restore kept was from after the hook ended. Thus boat waits for
+the hook before it saves the disk.
+
+An install test on the same sandbox put the new `openbot-hosted-update`, `openbot.service` and hook
+in place, as an older release does when it updates. At the next start, `trigger` installed the hook
+as `user` with mode 0755. It did not change a current hook, kept a hook that OpenBot did not write
+(a file, a link or a FIFO, with no wait), and replaced a changed OpenBot hook. At a stop of the real OpenBot, the hook
+stopped `openbot.service` in 0.3 seconds and ended with 0. After the resume (a new boot ID), the
+flag was gone, OpenBot ran, and `openbot.db` passed `quick_check`.
+
 ## Not confirmed
 
 These were not tested on boat. Test them before a user gets access:
@@ -684,7 +777,21 @@ These were not tested on boat. Test them before a user gets access:
 - the [memory guards](#memory) with real agents: the held message, the turn slots and the release of
   idle provider threads on a server with a signed-in account;
 - whether boat stops a sandbox that runs for weeks. The Worker restarts it, but work in progress
-  at that time stops.
+  at that time stops;
+- whether boat runs the pre-stop hook for a stop that it starts by itself: maintenance (the
+  `updating` state) or the end of `ttlSeconds`. A crash of the machine restores the last periodic
+  save, which also copies files while they change;
+- that OpenBot closes `openbot.db` at a `systemctl stop` on a server. The install test used a release
+  without the `SIGTERM` handler. The `ExecStop` of the unit stops OpenBot before its Xvfb displays
+  (see [Computer Use](architecture/computer-use.md#agent-display-on-a-server)). This was tested in a
+  container with a stand-in for OpenBot, not with systemd. When OpenBot does not close the database,
+  it is as after a crash, which SQLite recovers, because the save starts after the stop;
+- the agent display on boat with a release build. On 2026-10-16 one boat server ran a 0.42.0 build
+  with this change, from `openbot.service`: OpenBot was on Xvfb `:99` at 1280x800, and `:0` had no
+  OpenBot window. In an agent turn, the agent shell and `cua-driver` had `DISPLAY=:0`, and Computer
+  Use saw a 1920x1080 screen with only the panel and the dock. A local remote desktop session
+  captured `:0`. The session reported the size of the OpenBot display, 1280x800. The first start
+  after a resume, with this script in `/opt`, was not tested.
 
 
 ### Billing and server deletion

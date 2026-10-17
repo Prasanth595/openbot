@@ -12,9 +12,9 @@ export const messages = {
   "usage.exactCost": "{amount} USD",
   "usage.tokensAmount": "Токенов: {tokens}",
   "usage.chart.costDescription":
-    "Ежедневная примерная стоимость в USD по провайдерам. Точные значения доступны по ссылке «Показать данные по дням».",
+    "Ежедневная примерная стоимость в USD по провайдерам. Точные значения доступны по ссылке «Данные по дням».",
   "usage.chart.tokensDescription":
-    "Ежедневно обработанные токены по провайдерам. Точные значения доступны по ссылке «Показать данные по дням».",
+    "Ежедневно обработанные токены по провайдерам. Точные значения доступны по ссылке «Данные по дням».",
   "usage.chart.costLabel": "Ежедневная примерная стоимость в USD по провайдерам",
   "usage.chart.tokensLabel": "Ежедневно обработанные токены по провайдерам",
   "usage.column.cost": "Стоимость",
@@ -39,7 +39,7 @@ export const messages = {
   "usage.dailyTrend": "Динамика по дням",
   "usage.dailyCost": "Стоимость по дням",
   "usage.dailyTokens": "Токены по дням",
-  "usage.viewDailyData": "Показать данные по дням",
+  "usage.viewDailyData": "Данные по дням",
   "usage.totals.title": "Итого",
   "usage.totals.processedTokens": "Обработанные токены",
   "usage.totals.cachedInput": "Входные из кэша",

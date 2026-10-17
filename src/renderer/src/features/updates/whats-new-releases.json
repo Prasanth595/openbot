@@ -1,5 +1,102 @@
 [
   {
+    "version": "0.42.0",
+    "date": "2026-10-16",
+    "notices": [],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "A Help button in the page rail opens the newest release notes, the full changelog, the guides and Send feedback."
+        ]
+      },
+      {
+        "type": "changed",
+        "items": [
+          "A new page rail at the left of the window opens Agents, Routines, Schedule, Usage, Marketplace and Settings. It shows the plan limits of each provider as rings.",
+          "Settings is now a page with a search. Open Server settings from the server menu.",
+          "The server menu is now the default way to switch servers. If you chose the server rail before, it stays.",
+          "One panel button in the chat header opens the side panel, with Browser, Files, Tasks and Agent settings as tabs.",
+          "Sign out is now in Settings > Profile. The update notice shows at the bottom of the sidebar.",
+          "The routine calendar is now named Schedule."
+        ]
+      },
+      {
+        "type": "fixed",
+        "items": ["Message sends and queue changes stay fast when the chat history is long."]
+      }
+    ]
+  },
+  {
+    "version": "0.41.0",
+    "date": "2026-10-16",
+    "notices": [],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "An agent can work on tasks at the same time as its chat. Start one with \"New task\" in the chat menu, or select \"Run as task\" on a queued message.",
+          "Each task has its own conversation, progress, stop button and result. Closed tasks stay under \"Earlier tasks\".",
+          "Set how many tasks of an agent run at once in Agent settings > Advanced > \"Tasks at once\"."
+        ]
+      },
+      {
+        "type": "changed",
+        "items": ["The chat header has one menu for the computer, remote control, files, agent settings and tasks."]
+      },
+      {
+        "type": "fixed",
+        "items": [
+          "OpenBot starts faster after a clean stop when the database is large.",
+          "The database no longer grows each time you read a conversation. The first start after this update can take longer while OpenBot makes the file smaller.",
+          "Large chats open faster and no longer stall OpenBot.",
+          "Agents with very long messages open from a remote device without reconnects.",
+          "A hosted server stays on while you read it in a focused window, and the app waits while the server starts.",
+          "Muse shows \"Connected\" after you sign in.",
+          "Numbered lists in the message box keep their numbers in order."
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.40.0",
+    "date": "2026-10-15",
+    "notices": [],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "Backup models: when an agent's model reaches its usage limit, send the message to another connected model, or let the agent switch by itself. Set the order in Agent settings > Backup models.",
+          "A routine can run one time, at a date and time that you select.",
+          "A routine can send each answer to a Slack, Discord or Telegram place. Select it in \"Send answers to\" in the routine editor.",
+          "Set a server timezone in Server settings > General. Agents use it for new routines.",
+          "Connect 1Password on a joined server in Settings > Connectors.",
+          "Settings > Dynamic Island can hide the activity of each server.",
+          "Agents fill forms in the browser faster."
+        ]
+      },
+      {
+        "type": "changed",
+        "items": [
+          "After you delete an agent, Undo shows for 8 seconds.",
+          "The model picker shows only the providers that are ready. Select + to connect another one.",
+          "Admins of a hosted server can restart it."
+        ]
+      },
+      {
+        "type": "fixed",
+        "items": [
+          "Agents in Slack, Discord and Telegram no longer stop answering after a provider error or a restart.",
+          "A paused, deleted or changed routine no longer starts its old run.",
+          "Custom agents that need Node start when you open OpenBot from Finder or the Dock.",
+          "Gemini no longer fills the disk on Windows.",
+          "A failed provider CLI update keeps your sign-in and shows a short reason.",
+          "Large chats no longer stop the app for a second when old history is removed."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.39.1",
     "date": "2026-10-14",
     "notices": [],

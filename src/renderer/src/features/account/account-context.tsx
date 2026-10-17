@@ -187,13 +187,18 @@ const Auth = createSimpleContext({
 
     const accountUsage = () => accountUsageState.data;
     const accountUsageRefreshRevision = () => accountUsageState.refreshRevision;
+    const accountUsageTargetKey = () => accountUsageState.targetKey;
 
+    /**
+     * Selects the target of the reading. The reading stays until a refresh for the new target replaces it,
+     * so the rail rings do not go away while providers finish their checks. `invalidateAccountUsage`
+     * drops it.
+     */
     function selectAccountUsageTarget(targetKey: string | null): void {
       if (accountUsageState.targetKey === targetKey) return;
       accountUsageRequestGeneration += 1;
       setAccountUsageState((state) => {
         state.targetKey = targetKey;
-        state.data = null;
       });
     }
 
@@ -266,6 +271,7 @@ const Auth = createSimpleContext({
       visibleSignedInAccount,
       accountUsage,
       accountUsageRefreshRevision,
+      accountUsageTargetKey,
       selectAccountUsageTarget,
       invalidateAccountUsage,
       applyAccountUsage,

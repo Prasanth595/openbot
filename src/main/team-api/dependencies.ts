@@ -199,6 +199,9 @@ export type TeamApiStorage = Pick<StorageUsageService, "usage" | "deleteFile" | 
 /** `hosted-sites-v1`: the openbot.site sites of this server. Members list; only admins delete. */
 export type TeamApiHostedSites = Pick<HostedSiteDesktopService, "listServerSites" | "deleteServerSite">;
 
+/** Its presence is what `#protocolSupport` advertises `agent-hidden-v1` on. Any member can use it. */
+export type TeamApiHiddenAgents = Pick<AgentService, "listHiddenAgents" | "setAgentHidden">;
+
 /** Its presence is what `#protocolSupport` advertises `agent-import-v1` on. Any member can use it. */
 export type TeamApiAgentImport = Pick<AgentImportService, "stageUpload" | "apply" | "discard">;
 
@@ -349,6 +352,7 @@ export interface TeamApiOptions {
   agentImport?: TeamApiAgentImport;
   instanceTransfer?: TeamApiInstanceTransfer;
   routineFlows?: TeamApiRoutineFlows;
+  hiddenAgents?: TeamApiHiddenAgents;
   admin?: TeamApiAdmin;
   appVersion?: string;
   store: TeamStore;
@@ -373,11 +377,19 @@ export interface TeamApiOptions {
   onDirectMessage?: (event: DirectMessageRealtimeEvent) => void;
   onDirectTyping?: (event: DirectTypingRealtimeEvent) => void;
   createInvite?: OmitThisParameter<HostService["createInvite"]>;
+  /**
+   * Changes and removes members as the desktop app does. With an OpenBot account, the account
+   * directory holds the membership; a change only in the team file has no effect there.
+   */
+  updateMember?: OmitThisParameter<HostService["updateMember"]>;
+  removeMember?: OmitThisParameter<HostService["removeMember"]>;
   onSessionRevoked?: (sessionId: string) => Effect.Effect<void, RemoteWorkflowError>;
   /** Sends Live Activity updates to members' phones. Absent when this host has no account credential. */
   liveActivityPush?: LiveActivityPushService;
   /** Sends notifications to members' phones. Absent when this host has no account credential. */
   pushNotifications?: PushNotificationService;
+  /** `focus-use-v1`: true on a hosted server, where a focused app keeps the server running. */
+  focusUse?: boolean;
   rateLimitCapacity?: number;
   now?: () => number;
   logger?: Logger;

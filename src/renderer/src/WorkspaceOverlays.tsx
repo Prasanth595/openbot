@@ -8,7 +8,7 @@ import { LeaveServerDialog } from "@openbot/ui/features/servers/LeaveServerDialo
 import { RestartServerDialog } from "@openbot/ui/features/servers/RestartServerDialog";
 import type { HostedSiteDeleteResult } from "@openbot/ui/features/settings/stores/hosted-sites-store";
 import { currentText } from "@openbot/ui/text";
-import { createEffect, Loading, Show } from "solid-js";
+import { createEffect, Loading, Show, untrack } from "solid-js";
 import { actionToast } from "./action-toast";
 import { desktopAnalytics } from "./analytics";
 import { appPort } from "./app-port";
@@ -35,6 +35,7 @@ import type { HostProviderSettings } from "./features/settings/ProviderSettingsS
 import { useSettings } from "./features/settings/settings-context";
 import { useUpdates } from "./features/updates/updates-context";
 import { useWhatsNew } from "./features/updates/whats-new-context";
+import { useWindowPage } from "./features/window/window-page-context";
 import { useGlobalSearchSources } from "./global-search-sources";
 import { RemoteDesktopWorkspace, SettingsModal } from "./lazy-views";
 import { useNavigation } from "./navigation";
@@ -85,7 +86,6 @@ export function WorkspaceOverlays(props: AccountProps) {
   );
   return (
     <>
-      <SkillsMarketplace connectors={connectors.active} />
       <SharedAgentInstall />
       <JoinServer account={props.account} />
       <AddServer />
@@ -106,8 +106,10 @@ export function WorkspaceOverlays(props: AccountProps) {
  * browses and installs nothing. A marketplace agent is added to that joined server when its host
  * serves `agent-install-v1`, otherwise to this computer. An agent of a joined server is updated from
  * its listing only when its host serves `agent-update-v1`.
+ *
+ * It is a page of the window, so the shell shows it in the card rather than over the workspace.
  */
-function SkillsMarketplace(props: { connectors: ConnectorRegistry }) {
+export function SkillsMarketplace() {
   const {
     skillsMarketplaceOpen,
     setSkillsMarketplaceOpen,
@@ -120,6 +122,13 @@ function SkillsMarketplace(props: { connectors: ConnectorRegistry }) {
   const { selectAgent } = useNavigation();
   const { activeServer } = useServers();
   const { openInstalledMarketplaceAgent } = useServerSelection();
+  const connectors = useConnectors();
+  const { remoteDesktopWorkspaceVisible, hideRemoteDesktopWorkspace } = useRemoteDesktop();
+  // The remote desktop covers the window card, so a link or a search that opens the page hides it.
+  // The remote desktop session stays.
+  createEffect(skillsMarketplaceOpen, (open) => {
+    if (open && untrack(remoteDesktopWorkspaceVisible)) hideRemoteDesktopWorkspace();
+  });
 
   return (
     <MarketplaceOverlay
@@ -137,7 +146,8 @@ function SkillsMarketplace(props: { connectors: ConnectorRegistry }) {
         setPendingPluginSlug(null);
         setPendingPluginConnect(false);
       }}
-      connectors={props.connectors}
+      connectors={connectors.active}
+      variant="page"
     />
   );
 }
@@ -243,6 +253,7 @@ function RestartServer() {
  * active one - hence the target held by the domain instead of `activeServer()`.
  */
 function ServerSettings(props: { connectors: ConnectorRegistry }) {
+  const windowPage = useWindowPage();
   const platform = usePlatform();
   const { hostStatus, setServerMuted, setServerNotificationLevel, hostedServerIds, hostedServersLoaded } = useServers();
   const { selectAgent, selectGlobalSearchMessage } = useNavigation();
@@ -514,8 +525,9 @@ function ServerSettings(props: { connectors: ConnectorRegistry }) {
     <Show when={serverSettingsTarget()}>
       {(server) => (
         <ServerSettingsOverlay
-          open={serverSettingsOpen()}
-          onOpenChange={setServerSettingsOpen}
+          // The settings show only as a page of the window, so they wait for the page.
+          open={serverSettingsOpen() && windowPage.settingsPlacement("server") !== undefined}
+          page={windowPage.settingsPlacement("server")}
           restoreFocusTarget={serverSettingsRestoreTarget()}
           platform={platform.appInfo()?.platform ?? "darwin"}
           server={server()}
@@ -644,11 +656,11 @@ function trackHostedSiteDelete(): (result: HostedSiteDeleteResult) => void {
 }
 
 /**
- * Application settings. The only overlay without a `<Show>`: the modal owns its
- * own open state and its close animation, so unmounting it on `open` would cut
- * that animation off.
+ * Application settings, shown as a page of the window. The only overlay without a
+ * `<Show>`: the settings own their open state and wait for the page placement.
  */
 function AppSettings(props: AccountProps) {
+  const windowPage = useWindowPage();
   const platform = usePlatform();
   const auth = useAuth();
   const updates = useUpdates();
@@ -663,15 +675,15 @@ function AppSettings(props: AccountProps) {
     builtInDisplayGeometry,
     updateGeneralSettings,
     appSettingsRestoreTarget,
-    turboModePending,
     sendTestNotification,
     openNotificationSettings,
   } = useSettings();
   return (
     <Loading>
       <SettingsModal
-        open={appSettingsOpen()}
-        onOpenChange={setAppSettingsOpen}
+        // The settings show only as a page of the window, so they wait for the page.
+        open={appSettingsOpen() && windowPage.settingsPlacement("personal") !== undefined}
+        page={windowPage.settingsPlacement("personal")}
         value={generalSettings()}
         onValueChange={updateGeneralSettings}
         appInfo={platform.appInfo()}
@@ -702,13 +714,13 @@ function AppSettings(props: AccountProps) {
         onRevokeMobileConnectedDevice={auth.revokeMobileConnectedDevice}
         onListAccountSessions={auth.listAccountSessions}
         onRevokeAccountSession={auth.revokeAccountSession}
+        onSignOut={platform.landingPreview ? undefined : auth.logoutCentralAccount}
         billingApi={appPort().billing}
         hostedServersApi={appPort().hostedServers}
         onAddHostedServer={() => {
           setAppSettingsOpen(false);
           setAddServerOpen(true);
         }}
-        turboModePending={turboModePending()}
         onTestNotification={sendTestNotification}
         onOpenNotificationSettings={openNotificationSettings}
         restoreFocusTarget={appSettingsRestoreTarget()}

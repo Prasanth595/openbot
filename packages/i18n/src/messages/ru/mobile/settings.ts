@@ -101,12 +101,18 @@ export const messages = {
   "mobile.settings.notifications.title": "Уведомления",
   "mobile.settings.notifications.toggle": "Разрешить уведомления",
   "mobile.settings.notifications.footer":
-    "Агенты сообщают, когда заканчивают работу, останавливаются с ошибкой или ждут вашего ответа, подтверждения или шага в браузере. Уведомлений нет, пока вы пользуетесь OpenBot. Пока вы пользуетесь приложением для компьютера, приходит только то, что ждёт вас. Пока показана Live Activity, событие показывает она.",
-  "mobile.settings.notifications.denied": "Уведомления OpenBot выключены в Настройках iOS.",
+    "Агенты сообщают, когда заканчивают работу, останавливаются с ошибкой или ждут вашего ответа, подтверждения или шага в браузере. Уведомлений нет, пока вы пользуетесь OpenBot здесь или в приложении для компьютера. Пока показана Live Activity, событие показывает она.",
+  "mobile.settings.notifications.footerAndroid":
+    "Агенты сообщают, когда заканчивают работу, останавливаются с ошибкой или ждут вашего ответа, подтверждения или шага в браузере. Уведомлений нет, пока вы пользуетесь OpenBot здесь или в приложении для компьютера.",
+  "mobile.settings.notifications.denied": "Уведомления OpenBot выключены в «Настройках» iOS.",
+  "mobile.settings.notifications.deniedAndroid": "Уведомления OpenBot выключены в настройках Android.",
   "mobile.settings.notifications.openSettings": "Открыть Настройки iOS",
+  "mobile.settings.notifications.openSettingsAndroid": "Открыть настройки Android",
   "mobile.settings.notifications.preview": "Показывать начало ответа",
   "mobile.settings.notifications.previewFooter":
-    "Показывает начало ответа, вопрос или действие, которое нужно подтвердить. Apple и служба учётных записей OpenBot не могут его прочитать.",
+    "Показывает начало ответа, вопрос или действие, которое нужно подтвердить. Apple и служба аккаунтов OpenBot не могут его прочитать.",
+  "mobile.settings.notifications.previewFooterAndroid":
+    "Показывает начало ответа, вопрос или действие, которое нужно подтвердить. Google и служба аккаунтов OpenBot не могут его прочитать.",
   "mobile.settings.notifications.sound": "Звук",
   "mobile.settings.notifications.playSound": "Воспроизводить звук",
   "mobile.settings.notifications.sound.openbot": "OpenBot",
@@ -115,11 +121,14 @@ export const messages = {
   "mobile.settings.notifications.sound.bubble": "Пузырьковая",
   "mobile.settings.notifications.sound.press": "Щелчковая",
   "mobile.settings.notifications.sound.default": "Стандартный iOS",
+  "mobile.settings.notifications.sound.defaultAndroid": "Стандартный Android",
   "mobile.settings.notifications.soundFooter":
     "Уведомления и Live Activity воспроизводят этот звук. Live Activity также включает экран. Звук OpenBot — тот же звук, который играет приложение для компьютера, когда задача завершена. Следующие четыре звука — звуки звуковых тем приложения для компьютера.",
+  "mobile.settings.notifications.soundFooterAndroid":
+    "Уведомления воспроизводят этот звук. Звук OpenBot — тот же звук, который играет приложение для компьютера, когда задача завершена. Следующие четыре звука — звуки звуковых тем приложения для компьютера.",
   "mobile.settings.notifications.notifyAbout": "Уведомлять о",
   "mobile.settings.notifications.level.all": "Вся активность",
-  "mobile.settings.notifications.level.needsMe": "Только когда нужен я",
+  "mobile.settings.notifications.level.needsMe": "Только когда я нужен",
   "mobile.settings.notifications.level.nothing": "Ничего",
   "mobile.settings.notifications.mute": "Без звука",
   "mobile.settings.notifications.mute.off": "Выкл.",
@@ -134,6 +143,8 @@ export const messages = {
     "События этого сервера, о которых уведомляет этот телефон. У приложения для компьютера свои настройки.",
   "mobile.settings.notifications.serverUnsupported":
     "Этот сервер не может отправлять уведомления. Обновите OpenBot на компьютере, где он работает.",
+  "mobile.settings.notifications.channel": "Уведомления агентов ({sound})",
+  "mobile.settings.notifications.channelSilent": "Уведомления агентов (без звука)",
   "mobile.settings.privacy.title": "Конфиденциальность",
   "mobile.settings.privacy.footer":
     "Передавать данные об использовании функций и результатах подключения с этого телефона. Содержимое сообщений и файлы не отправляются.",

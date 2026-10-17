@@ -1,5 +1,5 @@
 import { useThemeColor } from "heroui-native/hooks";
-import { Reply } from "lucide-react-native";
+import Reply from "lucide-react-native/icons/reply";
 import { type PropsWithChildren, useMemo, useRef } from "react";
 import { View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";

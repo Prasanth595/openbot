@@ -3,6 +3,7 @@ import type {
   AgentStatus,
   AgentSummary,
   AvatarImageInput,
+  HiddenAgent,
   UpdateAgentInput,
 } from "@openbot/contracts/ipc";
 import { PROVIDER_ACCOUNTS_CAPABILITY } from "@openbot/contracts/team-protocol/provider-accounts-v1";
@@ -21,7 +22,7 @@ import type { AgentSettingsRequest } from "../conversation/conversation-types";
 import { useDirectMessages } from "../conversation/direct-messages-context";
 import { remoteAdminServer } from "../servers/server-capabilities";
 import { useServers } from "../servers/servers-context";
-import { useUsage } from "../usage/usage-context";
+import { useWindowPage } from "../window/window-page-context";
 import type { CreationPreference } from "./agent-creation-model";
 import { readAgentSelection, writeAgentSelection } from "./agent-selection";
 import { agentsPort } from "./agents-port";
@@ -73,7 +74,7 @@ const Agents = createSimpleContext({
   init: () => {
     const { activeServer, activeServerId } = useServers();
     const { activeDirectMember, setDirectTyping } = useDirectMessages();
-    const { dismissUsage } = useUsage();
+    const windowPage = useWindowPage();
     const { uiErrors, setUiErrors, appendUiError } = useUiErrors();
 
     const [agentList, setAgentList] = createSignal<AgentProfile[]>([]);
@@ -147,6 +148,18 @@ const Agents = createSimpleContext({
     let openedAgentChatId: string | null = null;
     /** Agents whose delete can still be undone. Main still has them, so each roster read leaves them out. */
     const hiddenAgentIds = new Set<string>();
+    /**
+     * The agents that a user hid on this server. They stay in the roster: the sidebar shows them in its
+     * Hidden group, and an open chat stays open. Not the same as `hiddenAgentIds` above.
+     */
+    const [userHiddenAgents, setUserHiddenAgents] = createSignal<HiddenAgent[]>([]);
+    const userHiddenAgentIds = createMemo(() => new Set(userHiddenAgents().map((agent) => agent.agentId)));
+
+    /** Applies the whole hidden list of this server, from a read, an event or a write. */
+    function applyUserHiddenAgents(agents: HiddenAgent[]): void {
+      if (!scopeIsCurrent()) return;
+      setUserHiddenAgents(agents);
+    }
 
     const activeAgent = createMemo(() => {
       if (activeDirectMember()) return undefined;
@@ -198,7 +211,9 @@ const Agents = createSimpleContext({
       setActiveAgentId((current) => {
         // Validate the saved choice before it can trigger conversation requests.
         const preferred = current || savedAgentId;
-        return profiles.some((agent) => agent.id === preferred) ? preferred : (profiles[0]?.id ?? "");
+        if (profiles.some((agent) => agent.id === preferred)) return preferred;
+        const hidden = untrack(userHiddenAgentIds);
+        return (profiles.find((agent) => !hidden.has(agent.id)) ?? profiles[0])?.id ?? "";
       });
       if (profiles.length === 0 && !agentSetupOpen()) {
         setAgentSetupDraft(createFirstAgentDraft());
@@ -235,13 +250,13 @@ const Agents = createSimpleContext({
     }
 
     function openBotSetup(): void {
-      // The form renders in the workspace content the Usage report covers, and the
+      // The form renders in the workspace content that a rail page covers, and the
       // sidebar button that asks for it is outside that markup. Above the guard
       // below, so a second press reveals a form that is already open rather than
       // doing nothing visible; the guard still protects the draft from a reset.
       // The automatic open above is deliberately not this: a server with no agents
       // must not take the report away from a user who asked for it.
-      dismissUsage();
+      windowPage.showAgents();
       if (agentSetupOpen()) return;
       setDirectTyping(false);
       setAgentSetupDraft(createFirstAgentDraft());
@@ -369,6 +384,9 @@ const Agents = createSimpleContext({
       applyStoredAgents,
       hideAgent,
       forgetHiddenAgent,
+      userHiddenAgents,
+      userHiddenAgentIds,
+      applyUserHiddenAgents,
       openBotSetup,
       cancelAgentSetup,
       updateAgent,

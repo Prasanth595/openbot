@@ -58,6 +58,7 @@
         "@types/node": "catalog:",
         "@types/qrcode": "^1.5.6",
         "@types/ws": "8.18.1",
+        "axe-core": "4.13.0",
         "electron": "44.7.0",
         "electron-builder": "26.15.7",
         "electron-vite": "5.0.0",
@@ -112,7 +113,7 @@
     },
     "apps/mobile": {
       "name": "@openbot/mobile",
-      "version": "1.3.1",
+      "version": "1.3.2",
       "dependencies": {
         "@expo/metro-runtime": "~57.0.16",
         "@expo/ui": "~57.0.19",
@@ -205,6 +206,25 @@
         "@cloudflare/workers-types": "catalog:",
         "typescript": "catalog:",
         "wrangler": "catalog:",
+      },
+    },
+    "apps/status": {
+      "name": "@openbot/status",
+      "version": "0.0.0",
+      "dependencies": {
+        "@fontsource-variable/inter": "catalog:",
+        "@openbot/brand": "workspace:*",
+        "@openbot/logging": "workspace:*",
+        "@solidjs/web": "catalog:",
+        "effect": "catalog:",
+        "lucide-solid": "catalog:",
+        "solid-js": "2.0.0-rc.0",
+      },
+      "devDependencies": {
+        "@solidjs/vite-plugin": "catalog:",
+        "@types/node": "catalog:",
+        "typescript": "catalog:",
+        "vite": "catalog:",
       },
     },
     "packages/brand": {
@@ -361,6 +381,7 @@
     "@solidjs/signals@2.0.0-rc.0": "patches/@solidjs%2Fsignals@2.0.0-rc.0.patch",
     "dmg-builder@26.15.7": "patches/dmg-builder@26.15.7.patch",
     "@solidjs/web@2.0.0-rc.0": "patches/@solidjs%2Fweb@2.0.0-rc.0.patch",
+    "react-native-reanimated@4.5.1": "patches/react-native-reanimated@4.5.1.patch",
   },
   "catalog": {
     "@cloudflare/workers-types": "5.20260815.1",
@@ -963,6 +984,8 @@
     "@openbot/remote-api": ["@openbot/remote-api@workspace:remote/api"],
 
     "@openbot/site-router": ["@openbot/site-router@workspace:apps/site-router"],
+
+    "@openbot/status": ["@openbot/status@workspace:apps/status"],
 
     "@openbot/team-client": ["@openbot/team-client@workspace:packages/team-client"],
 

@@ -50,11 +50,11 @@ export const messages = {
   "prompt.browser.cancelled": "Cancelado",
   "prompt.browser.actionRequired": "Ação necessária",
   "prompt.browser.reload":
-    "Conclua o acesso à conta e recarregue a página do navegador antes de escolher “Terminei”. A inspeção da página continua bloqueada até que a página seja recarregada.",
+    "Conclua o login e recarregue a página do navegador antes de escolher “Terminei”. A inspeção da página continua bloqueada até que a página seja recarregada.",
   "prompt.browser.continuing": "{name} está continuando.",
   "prompt.browser.cancelledBody": "A etapa no navegador foi cancelada.",
   "prompt.browser.pendingBody":
-    "Abra a página para concluir o acesso, a verificação ou o consentimento. Depois, deixe {name} continuar.",
+    "Abra a página para concluir o login, a verificação ou o consentimento. Depois, deixe {name} continuar.",
   "prompt.browser.openPage": "Abrir {title}",
   "prompt.browser.returning": "Voltando…",
   "prompt.browser.done": "Terminei",

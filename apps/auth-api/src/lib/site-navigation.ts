@@ -10,6 +10,7 @@ import { CHANGELOG_ROUTE } from "./changelog";
 import { HEADER_COLLECTIONS } from "./content";
 import type { CollectionArticle, ContentCollection } from "./content-collection";
 import { PLUGIN_INDEX_ROUTE, SITE_PLUGINS, type SitePlugin } from "./plugins";
+import { TEAMS_ROUTE } from "./teams-page";
 
 /** How many articles a panel lists: one featured, and the rest under it. */
 const PANEL_ARTICLE_COUNT = 4;
@@ -81,8 +82,11 @@ export const SITE_NAVIGATION_SECTIONS: readonly SiteNavigationSection[] = [
 /** A header entry with no panel: one page, reached in one press. */
 export interface SiteNavigationLink {
   label: string;
-  to: typeof CHANGELOG_ROUTE;
+  to: typeof CHANGELOG_ROUTE | typeof TEAMS_ROUTE;
 }
 
 /** After the sections, in both the desktop menu and the mobile sheet. */
-export const SITE_NAVIGATION_LINKS: readonly SiteNavigationLink[] = [{ label: "Changelog", to: CHANGELOG_ROUTE }];
+export const SITE_NAVIGATION_LINKS: readonly SiteNavigationLink[] = [
+  { label: "Changelog", to: CHANGELOG_ROUTE },
+  { label: "For Teams", to: TEAMS_ROUTE },
+];

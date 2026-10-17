@@ -80,7 +80,6 @@ const valid: [string, (value: unknown) => unknown, unknown][] = [
     "approval automation",
     decodeApprovalAutomationPreference,
     {
-      turbo: false,
       defaultAutoApprove: true,
       autoApproveOverrides: { "agent-1": false },
     } satisfies ApprovalAutomationPreference,
@@ -156,11 +155,7 @@ const malformed: [string, (value: unknown) => unknown, unknown][] = [
     { completed: true, preferredProvider: "other", preferredModel: null },
   ],
   ["analytics preference without a switch", decodeAnalyticsPreference, {}],
-  [
-    "approval automation without overrides",
-    decodeApprovalAutomationPreference,
-    { turbo: false, defaultAutoApprove: true },
-  ],
+  ["approval automation without overrides", decodeApprovalAutomationPreference, { defaultAutoApprove: true }],
   ["language preference with an unknown tag", decodeAppLanguagePreference, { language: "xx" }],
   ["an unknown account status", decodeCentralAuthState, { status: "banned" }],
   ["signed in without a user", decodeCentralAuthState, { status: "signed_in" }],

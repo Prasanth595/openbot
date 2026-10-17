@@ -8,8 +8,8 @@ export const messages = {
   "update.action.downloading": "Baixando atualização…",
   "update.action.restart": "Reiniciar para atualizar",
   "update.action.restarting": "Reiniciando…",
-  "update.action.retryDownload": "Tentar baixar novamente",
-  "update.managedByHost": "Gerenciado pelo computador anfitrião",
+  "update.action.retryDownload": "Baixar de novo",
+  "update.managedByHost": "Gerenciado pelo anfitrião",
   "update.upToDate": "Atualizado",
   "update.provider.update": "Atualizar",
   "update.provider.upToDate": "{name} está atualizado",
@@ -36,7 +36,7 @@ export const messages = {
   "update.idleRestart.updateTitle": "O OpenBot instala a atualização quando os agentes estiverem ociosos",
   "update.idleRestart.description": "Novas execuções de rotina aguardam até a reinicialização.",
   "update.idleRestart.waitingFor": "Aguardando {reasons}.",
-  "update.idleRestart.cancel": "Cancelar reinicialização",
+  "update.idleRestart.cancel": "Não reiniciar",
   "update.idleRestart.cancelFailed": "Não foi possível cancelar a reinicialização.",
   "update.idleRestart.requestFailed": "Não foi possível agendar a reinicialização.",
   "update.idleRestart.failedTitle": "O OpenBot não reiniciou",
@@ -57,6 +57,6 @@ export const messages = {
   "update.whatsNew.empty.title": "Nenhum recurso novo nesta versão",
   "update.whatsNew.empty.body":
     "Esta versão não tem notas para mostrar aqui. O histórico completo mostra todas as alterações.",
-  "update.whatsNew.changelog": "Histórico completo de alterações",
+  "update.whatsNew.changelog": "Todas as alterações",
   "update.whatsNew.done": "Entendi",
 } as const satisfies PartialTranslation<typeof source>;

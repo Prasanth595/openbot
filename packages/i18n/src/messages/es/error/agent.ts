@@ -44,6 +44,8 @@ export const messages = {
     "{provider} no tiene ningún modelo disponible, ni tampoco los demás proveedores con sesión iniciada. Inicia sesión en un proveedor o cambia el proveedor predeterminado en Proveedores y permisos.",
   "error.agent.waitBeforeProviderChange":
     "Espera a que terminen el turno activo y la cola antes de cambiar de proveedor.",
+  "error.agent.waitForTasksBeforeProviderChange":
+    "Hay tareas de este agente en ejecución. Espera a que terminen o detenlas antes de cambiar de proveedor.",
   "error.agent.waitBeforeClearContext":
     "Espera a que terminen el turno activo y la cola antes de iniciar un nuevo chat.",
   "error.agent.unknown": "Agente desconocido: {id}",
@@ -92,6 +94,7 @@ export const messages = {
     "El comportamiento de los mensajes mientras trabaja el agente solo se puede configurar en el equipo que lo ejecuta.",
   "error.agent.backupModelsLocalOnly":
     "Los modelos de respaldo solo se pueden configurar en el equipo que ejecuta el agente.",
+  "error.agent.taskLimitLocalOnly": "El límite de tareas solo se puede configurar en el equipo que ejecuta el agente.",
   "error.agent.localScriptsOff": "Este agente no permite scripts locales.",
   "error.agent.localScriptsRateLimited":
     "Los scripts locales enviaron {limit} solicitudes de mensajes o rutinas a este agente en la última hora. Inténtalo más tarde.",
@@ -100,11 +103,28 @@ export const messages = {
   "error.agent.automationRateLimited":
     "Los scripts locales ejecutaron las rutinas de este agente {limit} veces en la última hora. Inténtalo más tarde.",
   "error.agent.workspaceOnlyMacOnly":
-    "Solo espacio de trabajo está disponible para este proveedor únicamente en macOS. Elige Acceso completo en los ajustes del agente.",
+    "Con este proveedor, «Solo espacio de trabajo» únicamente está disponible en macOS. Elige Acceso completo en los ajustes del agente.",
   "error.agent.lowMemory":
     "Este servidor tiene poca memoria disponible. Tu mensaje espera en la cola y se iniciará cuando se libere memoria. Un plan superior proporciona más memoria al servidor.",
   "error.agent.lowMemoryServer":
     "Este servidor tiene poca memoria disponible. Tu mensaje espera en la cola y se iniciará cuando se libere memoria.",
   "error.agent.workspaceOnlyToolMissing":
     "Solo espacio de trabajo requiere {tool}, que OpenBot no encontró. Instálalo o elige Acceso completo en los ajustes del agente.",
+  "error.agent.screenCaptureOff":
+    "La captura de pantalla está desactivada para este agente. El usuario puede activar el uso del equipo en los ajustes del agente.",
+  "error.agent.screenCaptureUnavailable": "La captura de pantalla no está disponible en este equipo.",
+  "error.agent.screenCaptureShared":
+    "La captura de pantalla no funciona en un canal ni en una conversación de Slack, Discord o Telegram, porque otras personas reciben sus archivos.",
+  "error.agent.screenCaptureDeclined": "El usuario no permitió esta captura de pantalla. No se capturó nada.",
+  "error.agent.screenCaptureWindowMissing":
+    "Esa ventana no está abierta ahora. Llama a list_capture_sources para obtener los ID de ventana actuales.",
+  "error.agent.screenCaptureDisplayMissing":
+    "Esa pantalla no está conectada ahora. Llama a list_capture_sources para obtener los ID de pantalla actuales.",
+  "error.agent.screenCaptureRegionOutside":
+    "La región no está dentro de una sola pantalla. Usa puntos del escritorio dentro de los límites de una pantalla de list_capture_sources.",
+  "error.agent.screenCapturePermissionMissing":
+    "OpenBot no tiene el permiso de grabación de pantalla. Pide al usuario que abra Ajustes del Sistema > Privacidad y seguridad > Grabación de pantalla y audio del sistema, active OpenBot y después cierre OpenBot y vuelva a abrirlo.",
+  "error.agent.screenCaptureEmptyWindows":
+    "Windows devolvió una imagen vacía. Pide al usuario que desbloquee el equipo y cierre el contenido protegido. Una directiva de la organización también puede impedir la captura de pantalla.",
+  "error.agent.screenCaptureFailed": "La captura de pantalla falló. Inténtalo de nuevo.",
 } as const satisfies PartialTranslation<typeof source>;

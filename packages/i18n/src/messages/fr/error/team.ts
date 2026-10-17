@@ -62,6 +62,7 @@ export const messages = {
   "error.team.membersCannotArchiveChannels": "Les membres ne peuvent pas archiver de canaux.",
   "error.team.sharedDataUnsupported": "Les données partagées ne sont pas prises en charge par cette connexion.",
   "error.team.agentInstallUnsupported": "L’ajout d’agents n’est pas pris en charge par cette connexion.",
+  "error.team.agentHideUnsupported": "Le masquage d’agents n’est pas pris en charge par cette connexion.",
   "error.team.agentPublishUnsupported": "La publication d’agents n’est pas prise en charge par cette connexion.",
   "error.team.agentUpdateUnsupported": "La mise à jour des agents n’est pas prise en charge par cette connexion.",
   "error.team.contextResetUnsupported":
@@ -73,7 +74,10 @@ export const messages = {
     "Ce serveur ne prend pas en charge les flux de routines. Mettez à jour OpenBot sur l’ordinateur qui l’exécute.",
   "error.team.routineCanvasTooLarge":
     "Ce canevas de routines est trop volumineux pour être envoyé à cet appareil. Raccourcissez les instructions des routines sur l’ordinateur qui exécute le serveur.",
+  "error.team.conversationPageTooLarge":
+    "Un message de cette conversation est trop volumineux pour être envoyé à cet appareil. Ouvrez la conversation sur l’ordinateur qui exécute le serveur.",
   "error.team.agentImportUnsupported": "L’importation d’agents n’est pas prise en charge par cette connexion.",
+  "error.team.instanceTransferUnsupported": "Cette connexion ne prend pas en charge le transfert d’agents.",
   "error.team.liveActivityUnsupported": "Cet hôte ne peut pas mettre à jour l’activité en direct d’un téléphone.",
   "error.team.pushNotificationsUnsupported": "Cet hôte ne peut pas envoyer de notifications à un téléphone.",
   "error.team.agentUpdateTargetRequired": "Un agent à mettre à jour est requis.",
@@ -106,6 +110,7 @@ export const messages = {
   "error.team.searchQueryRequired": "Une requête de recherche valide est requise.",
   "error.team.agentAnalyticsUnsupported": "Les statistiques des agents ne sont pas prises en charge par ce client.",
   "error.team.membersCannotDeleteAgents": "Les membres ne peuvent pas supprimer d’agents.",
+  "error.team.membersCannotHideAgents": "Les membres ne peuvent pas masquer ni restaurer d’agents.",
   "error.team.avatarType": "Choisissez une image PNG, JPEG ou WebP.",
   "error.team.avatarNotFound": "Avatar de l’agent introuvable.",
   "error.team.secureAuthUnsupported": "L’authentification sécurisée n’est pas prise en charge par ce client.",
@@ -120,5 +125,5 @@ export const messages = {
   "error.team.signInRelayUnknown": "Cette connexion est terminée ou n’existe pas.",
   "error.team.signInRelayUsed": "Cette connexion a déjà été envoyée.",
   "error.team.signInRelayMismatch": "Cette adresse ne vient pas de cette connexion.",
-  "error.team.signInRelayLinkUnknown": "Aucun agent de ce serveur n'a affiché ce lien de connexion.",
+  "error.team.signInRelayLinkUnknown": "Aucun agent de ce serveur n’a affiché ce lien de connexion.",
 } as const satisfies PartialTranslation<typeof source>;

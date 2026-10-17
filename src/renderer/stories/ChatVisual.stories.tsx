@@ -265,7 +265,7 @@ function AppChatStage(props: { onOpenLink: (url: string) => void }) {
           onChange: fn(),
           onReasoningEffortChange: fn(),
         }}
-        browser={{ acting: false, open: false, onToggle: fn() }}
+        sidePanel={{ open: false, running: 0, onToggle: fn() }}
       />
       <section class="conversation-scroll" aria-label="Messages">
         <div class="virtual-chat-list virtual-chat-list-static">
@@ -354,7 +354,7 @@ function AppShellStage(props: { onOpenLink: (url: string) => void }) {
     if (!shell) return;
     const root = shell;
     const find = () => {
-      const element = root.querySelector<HTMLElement>(".usage-workspace-content");
+      const element = root.querySelector<HTMLElement>(".app-frame-panes");
       if (element) setContent(element);
     };
     const observer = new MutationObserver(find);

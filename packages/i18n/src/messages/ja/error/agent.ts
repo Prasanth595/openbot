@@ -40,11 +40,13 @@ export const messages = {
   "error.agent.reasoningEffortUnsupported":
     "モデル「{model}」は推論レベル「{effort}」に対応していません。対応している推論レベル: {efforts}。",
   "error.agent.noStartingModelInSettings":
-    "{provider} に利用可能なモデルがなく、ログイン済みの他のプロバイダーにもありません。プロバイダーにログインするか、サーバー設定 → プロバイダーでデフォルトのプロバイダーを変更してください。",
+    "{provider} に使用できるモデルがなく、サインイン済みのほかのプロバイダーにもありません。プロバイダーにサインインするか、サーバー設定 → プロバイダーでデフォルトのプロバイダーを変更してください。",
   "error.agent.noStartingModel":
     "{provider} に使用できるモデルがなく、サインイン済みのほかのプロバイダーにもありません。プロバイダーにサインインするか、「プロバイダーと権限」でデフォルトのプロバイダーを変更してください。",
   "error.agent.waitBeforeProviderChange":
     "プロバイダーを変更する前に、実行中のターンとキューが終わるまでお待ちください。",
+  "error.agent.waitForTasksBeforeProviderChange":
+    "このエージェントのタスクが実行中です。プロバイダーを変更する前に、タスクの完了を待つか、タスクを停止してください。",
   "error.agent.waitBeforeClearContext":
     "新しいチャットを始める前に、実行中のターンとキューが終わるまでお待ちください。",
   "error.agent.unknown": "不明なエージェントです: {id}",
@@ -88,11 +90,13 @@ export const messages = {
     "保存されたエージェントのプロフィール {id} に読み取れない「{field}」の値があります。OpenBot を起動する前にデータを更新してください。",
   "error.agent.queueEditRejected": "キューの編集が拒否されました: {reason}",
   "error.agent.computerUseLocalOnly": "Computer Use は、エージェントを実行しているコンピューターでのみ変更できます。",
-  "error.agent.automationLocalOnly": "ローカルスクリプトは、エージェントを実行しているコンピュータでのみ許可できます。",
+  "error.agent.automationLocalOnly":
+    "ローカルスクリプトは、エージェントを実行しているコンピューターでのみ許可できます。",
   "error.agent.busyMessageModeLocalOnly":
-    "エージェントの作業中のメッセージの扱いは、エージェントを実行しているコンピュータでのみ設定できます。",
+    "エージェントの作業中のメッセージの扱いは、エージェントを実行しているコンピューターでのみ設定できます。",
   "error.agent.backupModelsLocalOnly":
-    "バックアップモデルは、エージェントを実行しているコンピュータでのみ設定できます。",
+    "バックアップモデルは、エージェントを実行しているコンピューターでのみ設定できます。",
+  "error.agent.taskLimitLocalOnly": "タスクの上限は、エージェントを実行しているコンピューターでのみ設定できます。",
   "error.agent.localScriptsOff": "このエージェントはローカルスクリプトを許可していません。",
   "error.agent.localScriptsRateLimited":
     "過去 1 時間に、ローカルスクリプトがこのエージェントに {limit} 件のメッセージまたはルーティンのリクエストを送信しました。後でもう一度お試しください。",
@@ -103,9 +107,27 @@ export const messages = {
   "error.agent.workspaceOnlyMacOnly":
     "このプロバイダーの「ワークスペースのみ」は macOS でのみ利用できます。エージェントの設定で「フルアクセス」を選んでください。",
   "error.agent.lowMemory":
-    "このサーバーはメモリが不足しています。メッセージはキューで待機し、メモリが空くと開始します。より大きいプランにすると、サーバーのメモリが増えます。",
+    "このサーバーはメモリーが不足しています。メッセージはキューで待機し、メモリーが空くと開始します。より大きいプランにすると、サーバーのメモリーが増えます。",
   "error.agent.lowMemoryServer":
-    "このサーバーはメモリが不足しています。メッセージはキューで待機し、メモリが空くと開始します。",
+    "このサーバーはメモリーが不足しています。メッセージはキューで待機し、メモリーが空くと開始します。",
   "error.agent.workspaceOnlyToolMissing":
     "「ワークスペースのみ」には {tool} が必要ですが、OpenBot は見つけられませんでした。インストールするか、エージェントの設定で「フルアクセス」を選んでください。",
+  "error.agent.screenCaptureOff":
+    "このエージェントでは画面キャプチャがオフです。ユーザーはエージェントの設定で Computer Use をオンにできます。",
+  "error.agent.screenCaptureUnavailable": "このコンピューターでは画面キャプチャを利用できません。",
+  "error.agent.screenCaptureShared":
+    "画面キャプチャはチャンネルや Slack、Discord、Telegram の会話では使えません。ほかの人がそのファイルを受け取るためです。",
+  "error.agent.screenCaptureDeclined":
+    "ユーザーはこの画面キャプチャを許可しませんでした。何もキャプチャされていません。",
+  "error.agent.screenCaptureWindowMissing":
+    "そのウィンドウは現在開いていません。list_capture_sources を呼び出して、現在のウィンドウ ID を取得してください。",
+  "error.agent.screenCaptureDisplayMissing":
+    "そのディスプレイは現在接続されていません。list_capture_sources を呼び出して、現在のディスプレイ ID を取得してください。",
+  "error.agent.screenCaptureRegionOutside":
+    "この領域は 1 つのディスプレイの中に収まっていません。list_capture_sources が返す 1 つのディスプレイの範囲内で、デスクトップのポイント座標を使ってください。",
+  "error.agent.screenCapturePermissionMissing":
+    "OpenBot に画面収録の権限がありません。ユーザーに「システム設定」→「プライバシーとセキュリティ」→「画面収録とシステムオーディオ録音」を開いて OpenBot をオンにし、OpenBot を終了してから再度開くよう依頼してください。",
+  "error.agent.screenCaptureEmptyWindows":
+    "Windows が空の画像を返しました。コンピューターのロックを解除し、保護されたコンテンツを閉じるようユーザーに依頼してください。組織のポリシーによって画面キャプチャが止められている場合もあります。",
+  "error.agent.screenCaptureFailed": "画面キャプチャに失敗しました。もう一度お試しください。",
 } as const satisfies PartialTranslation<typeof source>;

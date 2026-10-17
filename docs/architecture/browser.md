@@ -4,8 +4,8 @@
 
 `apps/auth-api` serves `/app`. Its lazy route mounts the interactive client after browser startup.
 `src/renderer/src/features/web-client` owns the browser composition and its typed
-`WebWorkspaceRuntime` interface. It mounts the existing account login, server rail, sidebar,
-account dock, and full conversation view. `ConversationRuntime` routes host actions through
+`WebWorkspaceRuntime` interface. It mounts the existing account login, page rail, server rail,
+sidebar, and full conversation view. `ConversationRuntime` routes host actions through
 the browser connection; its desktop default is the preload API. The desktop `WorkspaceShell` and the
 web client draw the same `WorkspaceFrame` under `LayoutProvider`, so the rail geometry, the sidebar
 resizer and compact modes, the compatibility screen, and the usage report slot are the same on both.
@@ -30,8 +30,8 @@ remote session. Existing bearer-token endpoints retain their behavior. The brows
 account's name, avatar, and sessions through `v1/me/profile`, `v1/me/avatar`, and `v1/me/sessions`,
 which call the same `AuthService` methods and avatar storage (`avatar-storage.ts`) as the bearer
 routes. The avatar upload is the one write that is not JSON; the origin and `X-OpenBot-Browser`
-checks still apply. `web-account.ts` makes these calls, and the shared `AccountProfilePanel` shows
-them in the conversation's right panel.
+checks still apply. `web-account.ts` makes these calls, and the Profile tab of the web Settings dialog
+(`WebAccountSettings.tsx`) shows them.
 
 An owner or admin gets the host controls of a desktop remote admin. Shared components keep their
 desktop port as the default and take injected calls: `web-server-settings.ts` gives
@@ -41,8 +41,8 @@ desktop port as the default and take injected calls: `web-server-settings.ts` gi
 routes. A member or role change revokes every session on the host; the browser reconnects once when
 the directory still lists the host. `ConversationRuntime.admin` carries the skills and shared-table
 calls to the agent settings panel, which shows only Skills and Tables in the browser. Memories,
-routines, and files stay on the desktop. The auto-approve switch writes through the agent-admin
-route. `web-marketplace.ts` gives `MarketplaceModal` its calls: the public catalog routes of
+routines, and files stay on the desktop. The Permissions select writes access and auto-approve through
+the agent-admin route. `web-marketplace.ts` gives `MarketplaceModal` its calls: the public catalog routes of
 the account service that serves `/app` (`@openbot/team-client/marketplace-catalog`), and installs on
 the host over `skills-admin-v1`, `agent-install-v1`, `agent-update-v1`, and `mcp-servers-v1`. Try skill and a plugin
 prompt add a line to the agent's draft, as on desktop. A shared agent page also links
@@ -118,6 +118,52 @@ then verify authenticated navigation. This recovery does not run during secure h
 non-login work. The host does not rewrite site scripts or weaken cross-origin security policies.
 Input dispatch runs inside those checks and queues. Upload staging also uses the shared parser before
 it checks local file access.
+
+### Fill inspected ordinary fields
+
+`openbot_browser.fill_fields` is a deferred tool in the original browser catalog. It replaces
+1 to 16 main-frame native text inputs or textareas from one fresh snapshot revision. The combined
+literal text has a 16 KiB UTF-8 limit. The total operation deadline, including its final capture,
+is at most 30 seconds. It performs no submit, Enter, click, navigation, target search, or caller
+script. Existing individual controls keep their behavior. Its control event uses the released
+`type` action.
+
+The engine retains the exact native handles for every field in one CDP lease. Preflight resolves
+and checks the full set before any input. It refuses duplicate or unavailable refs, hidden,
+disabled or readonly fields, contenteditable, frames, password inputs, one-time-code autocomplete,
+and payment-card autocomplete. It accepts native input types `text`, `search`, `tel`, `url`, and
+`email`, plus textarea. HTML metadata is not a complete detector for secrets or form side effects.
+Agents must first inspect the ordinary form. Authentication, payments, and uncertain user
+decisions use the existing secure input or takeover flow.
+
+Each fill rechecks the same native handle, snapshot fingerprint, original field value, editable
+metadata, main-frame document and origin. It does not find a replacement for a changed target.
+The native navigation generation and document node identity detect same-URL reloads. Focus handlers
+receive a second check before trusted input. The host rechecks tab ownership, secret protection,
+and takeover before each field and before it releases a final capture. CDP emulates page focus;
+the operation requests no native window or application focus.
+
+One tab queue slot owns all fields, one final page settle, and one bounded final semantic snapshot. Successful input is
+confirmed by its native field value. The result contains zero-based `confirmed` indices,
+`failedIndex`, and `uncertainIndex`, without field text or page exceptions in the progress record.
+`partial` means earlier fields can remain changed. An input sent without confirmed completion is
+uncertain. `inputCompleted: true` with `status: snapshot_failed` means input completed but capture
+failed. Callers must read the page before they decide how to continue. No automatic retry, undo,
+or atomic transaction is promised.
+
+Cancellation prevents undispatched fields. Dispatched input and its confirmation drain before the
+queue slot ends. A response deadline can return sooner, but later tab operations still wait for
+that owned work. An external debugger that the host cannot cancel must drain its command. The
+engine releases retained handles and its lease at completion. Known failures use fixed reason
+codes; page exceptions do not enter the new progress result or diagnostic action.
+
+`bun scripts/browser-fill-fields-e2e.ts` compiles only its native fixture and uses an owned hidden
+Electron process with a temporary profile and synthetic loopback forms. It must not make a window
+visible or request native focus to obtain a passing result. It is a local check, not a CI step; on
+Linux, run it under `xvfb-run -a`. The report is `.openbot-build/browser-fill-fields-e2e/report.json`.
+It includes actual runtime versions, completed cases, three warm-up pairs and twenty measured pairs,
+serialized result bytes, and observed snapshot counts. Measurements include tool execution and loopback fixture
+confirmation. They do not measure provider tokens, model speed, or billable cost.
 
 ### Tab lifetime
 

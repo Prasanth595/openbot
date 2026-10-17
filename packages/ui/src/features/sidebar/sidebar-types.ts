@@ -2,6 +2,7 @@ import type {
   AvatarHue,
   ChannelSummary,
   DirectThreadSummary,
+  HiddenAgent,
   SidebarLayoutAction,
   SidebarLayoutSnapshot,
   TeamPresenceMember,
@@ -24,6 +25,13 @@ import type { SidebarPinnedItem } from "./sidebar-pins";
  * list itself is the same in both.
  */
 export type SidebarView = "agents" | "routines";
+
+/**
+ * The "Hidden" group is not a section of the layout, and it is collapsed by default. Its id in
+ * `collapsedSectionIds` therefore records that the user opened it, not that the user collapsed it.
+ * The colon keeps it apart from the section ids that the layout makes.
+ */
+export const SIDEBAR_HIDDEN_GROUP_OPEN_ID = "hidden-agents:open";
 
 export interface SidebarProps {
   /** The switch over the list is shown only when the caller handles `onViewChange`. */
@@ -80,6 +88,16 @@ export interface SidebarProps {
   duplicatingAgentIds?: ReadonlySet<string>;
   onDuplicateAgent?: (agentId: string) => Promise<void>;
   onDeleteAgent: (agentId: string) => Promise<void>;
+  /**
+   * The agents that a user hid on this server (`agent-hidden-v1`). They leave their sections, the
+   * pinned strip and "Needs you", and show only in the "Hidden" group at the end of the list. Each
+   * one keeps its section and its pin for a restore.
+   */
+  userHiddenAgents?: HiddenAgent[];
+  /** Hides an agent. Without it, the agent menu shows no hide item. */
+  onHideAgent?: ((agentId: string) => void) | undefined;
+  /** Puts a hidden agent back in its section. Without it, a hidden agent's menu shows no restore item. */
+  onRestoreAgent?: ((agentId: string) => void) | undefined;
   compact: boolean;
   /** A card under the chat list, such as an announcement. The compact sidebar has no room for it. */
   footer?: JSX.Element;

@@ -10,6 +10,7 @@ import { CURSOR_VS_CLAUDE_CODE } from "./cursor-vs-claude-code";
 import { DEVIN_COMPARISON } from "./devin";
 import { GROK_BOT_COMPARISON } from "./grok-bot";
 import { HERMES_AGENT_COMPARISON } from "./hermes-agent";
+import { INSTINCT_COMPARISON } from "./instinct";
 import { MANUS_COMPARISON } from "./manus";
 import { MUSE_COMPARISON } from "./muse";
 import { OPENCLAW_COMPARISON } from "./openclaw";
@@ -24,6 +25,7 @@ export const COMPARISONS: Readonly<Record<string, ComparePage>> = {
   devin: DEVIN_COMPARISON,
   "grok-bot": GROK_BOT_COMPARISON,
   "hermes-agent": HERMES_AGENT_COMPARISON,
+  instinct: INSTINCT_COMPARISON,
   manus: MANUS_COMPARISON,
   muse: MUSE_COMPARISON,
   openclaw: OPENCLAW_COMPARISON,

@@ -22,6 +22,11 @@ export function ConversationView(props: ConversationProps) {
     dropActive,
     filePreviewOpen,
     filesOpen,
+    taskPanelOpen,
+    activeRightPanel,
+    settingsOpen,
+    sidePanel,
+    sidePanelOpen,
     handleChatSearchShortcut,
     sendSelectionInstruction,
     setConversationPanelElement,
@@ -46,10 +51,18 @@ export function ConversationView(props: ConversationProps) {
           "conversation-panel",
           {
             "conversation-drop-active": dropActive(),
-            "browser-panel-active": browserSidebarOpen() || filePreviewOpen() || filesOpen(),
+            "browser-panel-active":
+              browserSidebarOpen() ||
+              filePreviewOpen() ||
+              filesOpen() ||
+              taskPanelOpen() ||
+              activeRightPanel() === "question" ||
+              activeRightPanel() === "side-panel",
+            "side-panel-docked": sidePanelOpen(),
+            "side-panel-maximized": sidePanelOpen() && sidePanel().maximized,
           },
         ]}
-        style={`--settings-panel-width: ${settingsPanelWidth()}px; --browser-panel-width: ${browserPanelWidth()}px`}
+        style={`--settings-panel-width: ${settingsPanelWidth()}px; --browser-panel-width: ${browserPanelWidth()}px; --side-panel-width: ${settingsOpen() ? settingsPanelWidth() : browserPanelWidth()}px`}
         onDragEnter={(event) => {
           if (!props.globalOverlayOpen && event.dataTransfer?.types.includes("Files")) setDropActive(true);
         }}

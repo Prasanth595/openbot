@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
+import { isDeepStrictEqual } from "node:util";
 import type { ConversationMessage, ConversationSnapshot } from "@openbot/contracts/ipc";
 import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import type { AgentRoster } from "./agent-roster";
 import { recordUsageMessage } from "./agent-usage";
-import { type DatabaseCore, deleteOrphanReceipts } from "./database-core";
+import { type DatabaseCore, deleteReceiptsOf } from "./database-core";
 import {
   databaseRow,
   databaseRows,
@@ -13,6 +14,7 @@ import {
   requiredStringColumn,
 } from "./database-rows";
 import { currentConversationMessage } from "./legacy-conversation-message";
+import { readOrderInputs, refreshChangedOrder, refreshThreadOrder } from "./thread-message-order";
 
 export interface ConversationWriterOptions {
   core: DatabaseCore;
@@ -27,7 +29,8 @@ export interface ConversationWriterOptions {
  * aggregate so the log keeps only the newest full snapshot and the streamed messages after it. Each
  * entry point runs inside a single dispatch, so a caller already in a transaction has these writes
  * pulled into it, and none of them opens a transaction of its own. The agent lookup and the thread
- * projection row come from the roster. The class never imports the facade.
+ * projection row come from the roster. Every entry point also keeps the stored shown-order keys of the
+ * rows it wrote, through `thread-message-order.ts`. The class never imports the facade.
  *
  * Pick by how much is known to have changed, not by convenience: `persistConversation` costs as
  * much as the thread is long, so a caller on a hot path that changed one message must use
@@ -101,6 +104,11 @@ export class ConversationWriter {
             message_json = excluded.message_json,
             last_event_sequence = excluded.last_event_sequence
         `);
+        const insertAttachment = db.prepare(`
+          INSERT OR REPLACE INTO projection_attachments
+            (attachment_id, owner_kind, owner_id, name, path, metadata_json, created_at, last_event_sequence)
+          VALUES (?, 'thread-message', ?, ?, '', ?, ?, ?)
+        `);
         snapshot.messages.forEach((message, ordinal) => {
           recordUsageMessage(db, agent.id, message, agent.provider, agent.model);
           upsert.run(
@@ -116,11 +124,7 @@ export class ConversationWriter {
             sequence,
           );
           for (const attachment of message.attachments ?? []) {
-            db.prepare(`
-              INSERT OR REPLACE INTO projection_attachments
-                (attachment_id, owner_kind, owner_id, name, path, metadata_json, created_at, last_event_sequence)
-              VALUES (?, 'thread-message', ?, ?, '', ?, ?, ?)
-            `).run(
+            insertAttachment.run(
               `${snapshot.threadId}:${message.id}:${attachment.id}`,
               `${snapshot.threadId}:${message.id}`,
               attachment.name,
@@ -172,6 +176,8 @@ export class ConversationWriter {
              WHERE thread_id = ? AND turn_id = ?`,
           ).run(status, new Date().toISOString(), sequence, snapshot.threadId, payload.turnId);
         }
+        // The ordinals follow the snapshot, so any turn can have moved.
+        refreshThreadOrder(db, threadId);
         pruneConversationSnapshots(db, threadId, sequence);
         return { revision: sequence };
       },
@@ -240,6 +246,7 @@ export class ConversationWriter {
         if (!agent) throw new Error(`Unknown agent for conversation: ${snapshot.agentId}`);
         this.#roster.ensureThreadProjection(db, agent, sequence);
         supersedeStreamedMessageEvents(db, threadId, messageId, input.eventType, sequence);
+        const orderBefore = readOrderInputs(db, threadId, [message.id]);
         db.prepare(`
           INSERT INTO projection_thread_messages (
             thread_id, message_id, turn_id, author, status, item_type, created_at,
@@ -266,6 +273,7 @@ export class ConversationWriter {
           JSON.stringify(message),
           sequence,
         );
+        refreshChangedOrder(db, threadId, orderBefore, [message.id]);
         // A no-op while the message streams - the helper ignores anything but a settled message -
         // and the one call that matters if a flush ever lands on a completed one.
         recordUsageMessage(db, agent.id, message, agent.provider, agent.model);
@@ -335,6 +343,7 @@ export class ConversationWriter {
           JSON.stringify(input.message),
           sequence,
         );
+        refreshChangedOrder(db, input.threadId, new Map(), [input.message.id]);
         recordUsageMessage(db, agent.id, input.message, agent.provider, agent.model);
         for (const attachment of input.message.attachments ?? []) {
           db.prepare(
@@ -371,6 +380,34 @@ export class ConversationWriter {
       },
     );
     return result.revision;
+  }
+
+  /**
+   * The messages that `persistConversationChanges` would store differently: a message with no row,
+   * or one whose merge into its row changes the stored value. Key order does not count, because
+   * the merge keeps the key order of the row.
+   */
+  changedConversationMessages(threadId: string, messages: readonly ConversationMessage[]): ConversationMessage[] {
+    if (messages.length === 0) return [];
+    const stored = new Map(
+      databaseRows(
+        this.#core.connection
+          .prepare(
+            `SELECT message_id, message_json FROM projection_thread_messages
+             WHERE thread_id = ? AND message_id IN (${messages.map(() => "?").join(", ")})`,
+          )
+          .all(threadId, ...messages.map((message) => message.id)),
+      ).map((row) => [
+        requiredStringColumn(row, "message_id"),
+        currentConversationMessage(JSON.parse(requiredStringColumn(row, "message_json"))),
+      ]),
+    );
+    return messages.filter((message) => {
+      const existing = stored.get(message.id);
+      if (!existing) return true;
+      // The JSON round trip drops `undefined` keys, as the stored row does.
+      return !isDeepStrictEqual(JSON.parse(JSON.stringify(mergeLiveMessage(existing, message))), existing);
+    });
   }
 
   /**
@@ -419,6 +456,8 @@ export class ConversationWriter {
           throw new Error(`Unknown agent for conversation changes: ${input.agentId}`);
         }
         if (!threadOwner) this.#roster.ensureThreadProjection(db, agent, sequence);
+        const writtenMessageIds = [...input.changedMessages.map((message) => message.id), ...removedMessageIds];
+        const orderBefore = readOrderInputs(db, input.threadId, writtenMessageIds);
         const findOrdinal = db.prepare(
           "SELECT ordinal, message_json FROM projection_thread_messages WHERE thread_id = ? AND message_id = ?",
         );
@@ -439,6 +478,14 @@ export class ConversationWriter {
             ordinal = excluded.ordinal,
             message_json = excluded.message_json,
             last_event_sequence = excluded.last_event_sequence
+        `);
+        const deleteAttachments = db.prepare(
+          "DELETE FROM projection_attachments WHERE owner_kind = 'thread-message' AND owner_id = ?",
+        );
+        const insertAttachment = db.prepare(`
+          INSERT OR REPLACE INTO projection_attachments
+            (attachment_id, owner_kind, owner_id, name, path, metadata_json, created_at, last_event_sequence)
+          VALUES (?, 'thread-message', ?, ?, '', ?, ?, ?)
         `);
         for (const imported of input.changedMessages) {
           const existingRow = databaseRow(findOrdinal.get(input.threadId, imported.id));
@@ -465,15 +512,9 @@ export class ConversationWriter {
             sequence,
           );
           recordUsageMessage(db, agent.id, message, agent.provider, agent.model);
-          db.prepare("DELETE FROM projection_attachments WHERE owner_kind = 'thread-message' AND owner_id = ?").run(
-            `${input.threadId}:${message.id}`,
-          );
+          deleteAttachments.run(`${input.threadId}:${message.id}`);
           for (const attachment of message.attachments ?? []) {
-            db.prepare(`
-              INSERT OR REPLACE INTO projection_attachments
-                (attachment_id, owner_kind, owner_id, name, path, metadata_json, created_at, last_event_sequence)
-              VALUES (?, 'thread-message', ?, ?, '', ?, ?, ?)
-            `).run(
+            insertAttachment.run(
               `${input.threadId}:${message.id}:${attachment.id}`,
               `${input.threadId}:${message.id}`,
               attachment.name,
@@ -483,9 +524,6 @@ export class ConversationWriter {
             );
           }
         }
-        const deleteAttachments = db.prepare(
-          "DELETE FROM projection_attachments WHERE owner_kind = 'thread-message' AND owner_id = ?",
-        );
         const deleteMessage = db.prepare(
           "DELETE FROM projection_thread_messages WHERE thread_id = ? AND message_id = ?",
         );
@@ -493,6 +531,7 @@ export class ConversationWriter {
           deleteAttachments.run(`${input.threadId}:${messageId}`);
           deleteMessage.run(input.threadId, messageId);
         }
+        refreshChangedOrder(db, input.threadId, orderBefore, writtenMessageIds);
         db.prepare(
           `UPDATE projection_threads
            SET active_turn_id = ?, updated_at = ?, last_event_sequence = ? WHERE thread_id = ?`,
@@ -634,6 +673,7 @@ export class ConversationWriter {
           ? currentConversationMessage(JSON.parse(requiredStringColumn(existingRow, "message_json")))
           : null;
         const message = existing ? mergeImportedMessage(existing, input.message) : input.message;
+        const orderBefore = readOrderInputs(db, input.threadId, [message.id]);
         const ordinal = existingRow
           ? requiredNumberColumn(existingRow, "ordinal")
           : requiredNumberColumn(
@@ -673,6 +713,7 @@ export class ConversationWriter {
           JSON.stringify(message),
           sequence,
         );
+        refreshChangedOrder(db, input.threadId, orderBefore, [message.id]);
         recordUsageMessage(db, agent.id, message, agent.provider, agent.model);
         for (const attachment of message.attachments ?? []) {
           db.prepare(
@@ -794,10 +835,9 @@ function conversationRecoveryState(
  * Drops the earlier events for a message that is still streaming, so the log holds one event per
  * streaming message instead of one per 100 ms flush.
  *
- * The receipt of each dropped event goes with it. `deleteOrphanReceipts` would find the same rows,
- * but it scans the whole receipts table to do it, and this runs on the flush path - the cost this
- * write path exists to remove. The command ids are read first so each receipt is deleted by key,
- * and the `NOT EXISTS` guard keeps a receipt whose command wrote more than the one event.
+ * The receipt of each dropped event goes with it. The command ids are read first so each receipt is
+ * deleted by key: this runs on the flush path, and a scan of the whole receipts table is the cost
+ * this write path exists to remove.
  */
 function supersedeStreamedMessageEvents(
   db: DatabaseSync,
@@ -825,12 +865,7 @@ function supersedeStreamedMessageEvents(
     retainedSequence,
     messageId,
   );
-  const deleteReceipt = db.prepare(
-    `DELETE FROM orchestration_command_receipts
-     WHERE command_id = ?
-       AND NOT EXISTS (SELECT 1 FROM orchestration_events WHERE command_id = ?)`,
-  );
-  for (const commandId of supersededCommandIds) deleteReceipt.run(commandId, commandId);
+  deleteReceiptsOf(db, supersededCommandIds);
 }
 
 function pruneConversationSnapshots(db: DatabaseSync, threadId: string, retainedSequence: number): void {
@@ -847,6 +882,10 @@ function pruneConversationSnapshots(db: DatabaseSync, threadId: string, retained
        SELECT sequence FROM orchestration_events WHERE ${supersededEvents}
      )`,
   ).run(threadId, threadId, retainedSequence);
-  db.prepare(`DELETE FROM orchestration_events WHERE ${supersededEvents}`).run(threadId, retainedSequence);
-  deleteOrphanReceipts(db);
+  const supersededCommandIds = databaseRows(
+    db
+      .prepare(`DELETE FROM orchestration_events WHERE ${supersededEvents} RETURNING command_id`)
+      .all(threadId, retainedSequence),
+  ).map((row) => requiredStringColumn(row, "command_id"));
+  deleteReceiptsOf(db, supersededCommandIds);
 }

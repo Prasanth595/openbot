@@ -15,7 +15,7 @@ export const messages = {
   "agentSettings.backToDetails": "Wróć do szczegółów",
   "agentSettings.closeDetails": "Zamknij szczegóły",
   "agentSettings.backToSettings": "Wróć do ustawień",
-  "agentSettings.permissions.title": "Uprawnienia",
+  "agentSettings.permissions.title": "Dostęp",
   "agentSettings.advanced.title": "Zaawansowane",
   "agentSettings.backupModels.title": "Modele zapasowe",
   "agentSettings.backupModels.valueAsk": "Najpierw zapytaj",
@@ -42,7 +42,7 @@ export const messages = {
   "agentSettings.backupModels.unavailable": "Chwilowo niedostępny · pominięto",
   "agentSettings.backupModels.withAccount": "{model} · {account}",
   "agentSettings.backupModels.note":
-    "{name} nigdy się nie przełącza po tym, jak zacznie pisać. Wraca do {model}, gdy limit się skończy.",
+    "{name} nigdy się nie przełącza po tym, jak zacznie pisać. Wraca do modelu {model}, gdy limit się skończy.",
   "agentSettings.groups.brain": "Mózg",
   "agentSettings.groups.knows": "Wie",
   "agentSettings.groups.does": "Robi",
@@ -58,13 +58,13 @@ export const messages = {
   "agentSettings.instructionsPlaceholder": "Do czego służy ten agent",
   "agentSettings.avatar.edit": "Edytuj awatar agenta",
   "agentSettings.avatar.editor": "Edytor awatara",
-  "agentSettings.avatar.attachFiles": "Dołącz pliki",
+  "agentSettings.avatar.attachFiles": "Załącz pliki",
   "agentSettings.avatar.image": "Obraz",
   "agentSettings.avatar.replaceImage": "Zastąp obraz",
   "agentSettings.avatar.uploadImage": "Prześlij obraz",
   "agentSettings.avatar.imageHint": "PNG, JPEG lub WebP · kwadratowe kadrowanie",
   "agentSettings.avatar.generatedFace": "Wygenerowana twarz",
-  "agentSettings.avatar.resetToId": "Przywróć z ID",
+  "agentSettings.avatar.resetToId": "Przywróć twarz z ID",
   "agentSettings.avatar.newSet": "Nowy zestaw",
   "agentSettings.avatar.faces": "Wygenerowane twarze awatara",
   "agentSettings.avatar.selected": "Wybrany awatar",
@@ -82,20 +82,22 @@ export const messages = {
   "agentSettings.runtime.reasoning": "Rozumowanie",
   "agentSettings.runtime.reasoningLabel": "Poziom rozumowania agenta",
   "agentSettings.runtime.selectReasoning": "Wybierz rozumowanie",
-  "agentSettings.runtime.reasoningSetByProvider": "Ustawia {provider}",
+  "agentSettings.runtime.reasoningSetByProvider": "Wg {provider}",
   "agentSettings.runtime.access": "Dostęp",
   "agentSettings.runtime.accessLabel": "Dostęp agenta",
   "agentSettings.runtime.busyMessage": "Podczas pracy",
   "agentSettings.runtime.busyMessageLabel": "Wiadomości podczas pracy agenta",
+  "agentSettings.runtime.taskLimit": "Zadania naraz",
+  "agentSettings.runtime.taskLimitLabel": "Zadania, które działają w tym samym czasie",
   "agentSettings.runtime.workingDirectory": "Katalog roboczy",
   "agentSettings.runtime.notAvailable": "Jeszcze niedostępne",
   "agentSettings.runtime.fullAccessNote":
     "Agent działa z pełnym dostępem do komputera ze swojego obszaru roboczego i folderu współdzielonego.",
-  "agentSettings.runtime.claudeApprovalNote":
-    "Claude działa bez pytania o zatwierdzenie, z wyjątkiem pytań, które zadaje tobie.",
-  "agentSettings.runtime.providerApprovalNote":
-    "Zależnie od dostawcy wrażliwe polecenia mogą najpierw prosić o zatwierdzenie.",
+  "agentSettings.runtime.askNote":
+    "Pyta cię, zanim użyje narzędzia OpenBot lub opublikuje witrynę, oraz gdy jego dostawca prosi o zgodę.",
+  "agentSettings.runtime.fullNote": "Działa bez pytania, z wyjątkiem pytań, które ci zadaje.",
   "agentSettings.access.workspace": "Tylko obszar roboczy",
+  "agentSettings.access.ask": "Najpierw pytaj",
   "agentSettings.access.full": "Pełny dostęp",
   "agentSettings.busyMessage.appDefaultQueue": "Domyślne aplikacji (Kolejka)",
   "agentSettings.busyMessage.appDefaultSteer": "Domyślne aplikacji (Pokieruj)",
@@ -103,6 +105,9 @@ export const messages = {
   "agentSettings.busyMessage.steer": "Pokieruj",
   "agentSettings.busyMessage.steerUnsupported":
     "{provider} nie może kierować trwającą turą. Wiadomości wysłane w trakcie pracy czekają w kolejce.",
+  "agentSettings.taskLimit.default": "Domyślnie ({count})",
+  "agentSettings.taskLimit.oneTurn":
+    "{provider} wykonuje jedną turę naraz. Zadania i czat tego agenta czekają na siebie nawzajem.",
   "agentSettings.notifications.title": "Powiadomienia",
   "agentSettings.newChat.title": "Nowy czat",
   "agentSettings.newChat.description": "Agent zapomni ten czat. Jego konfiguracja zostanie.",
@@ -113,10 +118,13 @@ export const messages = {
   "agentSettings.newChat.confirm": "Rozpocznij nowy czat",
   "agentSettings.newChat.failed": "Nie udało się rozpocząć nowego czatu.",
   "agentSettings.fullAccess.title": "Dać temu agentowi pełny dostęp?",
+  "agentSettings.fullAccess.askTitle": "Pozwolić temu agentowi pracować poza obszarem roboczym?",
   "agentSettings.fullAccess.description":
     "Agent będzie mógł odczytywać, zmieniać i usuwać każdy plik dostępny dla twojego konta użytkownika, uruchamiać dowolne polecenia i korzystać z sieci. Jedna źle zrozumiana instrukcja lub złośliwa strona internetowa może sięgnąć do twoich prywatnych plików.",
-  "agentSettings.fullAccess.cancel": "Zostaw tylko obszar roboczy",
+  "agentSettings.fullAccess.noApproval":
+    "Agent będzie wtedy uruchamiać polecenia, zmieniać pliki, używać narzędzi i publikować witryny bez pytania cię o zgodę.",
   "agentSettings.fullAccess.confirm": "Zezwól na pełny dostęp",
+  "agentSettings.fullAccess.askConfirm": "Najpierw pytaj",
   "agentSettings.links.usage": "Użycie",
   "agentSettings.links.memories": "Wspomnienia",
   "agentSettings.links.memoriesCount": {
@@ -150,9 +158,9 @@ export const messages = {
   "agentSettings.runtime.workspaceNote":
     "Tryb „Tylko obszar roboczy” ogranicza zapis do obszaru roboczego tego agenta, folderu współdzielonego i folderów tymczasowych. Odczyt i sieć pozostają dostępne.",
   "agentSettings.runtime.workspaceEnforcedCommand":
-    "Polecenie, które musi zapisać poza tymi folderami, najpierw zapyta cię o zgodę, także przy włączonym automatycznym zatwierdzaniu.",
+    "Polecenie, które musi zapisać poza tymi folderami, najpierw zapyta cię o zgodę.",
   "agentSettings.runtime.workspaceEnforcedClaude":
-    "Edycja pliku poza tymi folderami najpierw zapyta cię o zgodę, także przy włączonym automatycznym zatwierdzaniu. Polecenie nie może zapisać poza nimi.",
+    "Edycja pliku poza tymi folderami najpierw zapyta cię o zgodę. Polecenie nie może zapisać poza nimi.",
   "agentSettings.runtime.workspaceUnlimited":
     "Sterowanie komputerem i przeglądarka OpenBot nie są ograniczone; Sterowanie komputerem możesz wyłączyć poniżej.",
   "agentSettings.computerUse.title": "Sterowanie komputerem",

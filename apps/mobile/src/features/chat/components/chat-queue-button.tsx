@@ -1,7 +1,9 @@
 import { router } from "expo-router";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { ChevronUp, Clock, TriangleAlert } from "lucide-react-native";
+import ChevronUp from "lucide-react-native/icons/chevron-up";
+import Clock from "lucide-react-native/icons/clock";
+import TriangleAlert from "lucide-react-native/icons/triangle-alert";
 import { memo } from "react";
 import { View, type ViewStyle } from "react-native";
 import { haptics } from "@/shared/lib/haptics";

@@ -1,0 +1,248 @@
+import type { MenuAction, MenuComponentProps, MenuComponentRef } from "@expo/ui/community/menu";
+import { Menu, type MenuTriggerRef, Separator, SubMenu, Typography } from "heroui-native";
+import type { LucideIcon } from "lucide-react-native";
+import ArrowUpDown from "lucide-react-native/icons/arrow-up-down";
+import Calendar from "lucide-react-native/icons/calendar";
+import ChartColumn from "lucide-react-native/icons/chart-column";
+import CircleCheck from "lucide-react-native/icons/circle-check";
+import ClipboardPaste from "lucide-react-native/icons/clipboard-paste";
+import Code from "lucide-react-native/icons/code";
+import Copy from "lucide-react-native/icons/copy";
+import CopyPlus from "lucide-react-native/icons/copy-plus";
+import Crosshair from "lucide-react-native/icons/crosshair";
+import Ellipsis from "lucide-react-native/icons/ellipsis";
+import Eye from "lucide-react-native/icons/eye";
+import EyeOff from "lucide-react-native/icons/eye-off";
+import File from "lucide-react-native/icons/file";
+import Folder from "lucide-react-native/icons/folder";
+import Info from "lucide-react-native/icons/info";
+import LayoutGrid from "lucide-react-native/icons/layout-grid";
+import LogOut from "lucide-react-native/icons/log-out";
+import MailBadge from "lucide-react-native/icons/mail-badge";
+import MailOpen from "lucide-react-native/icons/mail-open";
+import MessagesSquare from "lucide-react-native/icons/messages-square";
+import MousePointerClick from "lucide-react-native/icons/mouse-pointer-click";
+import Pin from "lucide-react-native/icons/pin";
+import PinOff from "lucide-react-native/icons/pin-off";
+import Plus from "lucide-react-native/icons/plus";
+import RotateCw from "lucide-react-native/icons/rotate-cw";
+import Settings from "lucide-react-native/icons/settings";
+import Star from "lucide-react-native/icons/star";
+import StarOff from "lucide-react-native/icons/star-off";
+import TextWrap from "lucide-react-native/icons/text-wrap";
+import Trash2 from "lucide-react-native/icons/trash-2";
+import Users from "lucide-react-native/icons/users";
+import X from "lucide-react-native/icons/x";
+import { Fragment, type Ref, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { BackHandler, Pressable } from "react-native";
+import { useCSSVariable } from "uniwind";
+
+export type { MenuAction, MenuComponentRef } from "@expo/ui/community/menu";
+
+/** The Lucide icon for each SF Symbol that a menu action names. */
+const ICONS: Partial<Record<string, LucideIcon>> = {
+  "arrow.clockwise": RotateCw,
+  "arrow.up.arrow.down": ArrowUpDown,
+  "bubble.left.and.bubble.right": MessagesSquare,
+  calendar: Calendar,
+  "chart.bar": ChartColumn,
+  "checkmark.circle": CircleCheck,
+  "chevron.left.forwardslash.chevron.right": Code,
+  "cursorarrow.motionlines": MousePointerClick,
+  doc: File,
+  "doc.on.clipboard": ClipboardPaste,
+  "doc.on.doc": Copy,
+  ellipsis: Ellipsis,
+  "envelope.badge": MailBadge,
+  "envelope.open": MailOpen,
+  eye: Eye,
+  "eye.slash": EyeOff,
+  folder: Folder,
+  gearshape: Settings,
+  "info.circle": Info,
+  "person.2": Users,
+  pin: Pin,
+  "pin.slash": PinOff,
+  plus: Plus,
+  "plus.square.on.square": CopyPlus,
+  "rectangle.portrait.and.arrow.right": LogOut,
+  scope: Crosshair,
+  "square.grid.2x2": LayoutGrid,
+  star: Star,
+  "star.slash": StarOff,
+  "text.word.spacing": TextWrap,
+  trash: Trash2,
+  xmark: X,
+};
+
+/**
+ * OpenBot colors for the menu. HeroUI's `--muted`, `--danger`, `--separator` and `--default` keep the
+ * HeroUI palette, because uniwind ignores the `:root` aliases in `global.css`.
+ */
+type MenuColors = { text: string; muted: string; danger: string; separator: string; pressed: string };
+
+type ItemProps = {
+  action: MenuAction;
+  colors: MenuColors;
+  onPressAction: MenuComponentProps["onPressAction"];
+};
+
+function actionId(action: MenuAction): string {
+  return action.id ?? action.title;
+}
+
+function visible(actions: MenuAction[]): MenuAction[] {
+  return actions.filter((action) => !action.attributes?.hidden);
+}
+
+/** The top-level actions in groups. Each inline action is its own group, and dividers go between groups. */
+function groups(actions: MenuAction[]): MenuAction[][] {
+  const result: MenuAction[][] = [];
+  let loose: MenuAction[] = [];
+  for (const action of visible(actions)) {
+    if (!action.displayInline || !action.subactions) {
+      loose.push(action);
+      continue;
+    }
+    if (loose.length) result.push(loose);
+    loose = [];
+    result.push(visible(action.subactions));
+  }
+  if (loose.length) result.push(loose);
+  return result.filter((group) => group.length > 0);
+}
+
+function MenuItem({ action, colors, onPressAction }: ItemProps) {
+  const { subactions, state, attributes, title, titleColor, image } = action;
+  const color = attributes?.destructive ? colors.danger : colors.text;
+  const Icon = typeof image === "string" ? ICONS[image] : undefined;
+  const icon = Icon ? <Icon size={18} strokeWidth={2} color={color} /> : null;
+  if (subactions?.length) {
+    return (
+      <SubMenu isDisabled={attributes?.disabled}>
+        <SubMenu.Trigger textValue={title}>
+          {icon}
+          <Typography.Paragraph className="flex-1" weight="medium" numberOfLines={1} style={{ color }}>
+            {title}
+          </Typography.Paragraph>
+          <SubMenu.TriggerIndicator iconProps={{ color: colors.muted }} />
+        </SubMenu.Trigger>
+        <SubMenu.Content>
+          {visible(subactions).map((sub) => (
+            <MenuItem key={actionId(sub)} action={sub} colors={colors} onPressAction={onPressAction} />
+          ))}
+        </SubMenu.Content>
+      </SubMenu>
+    );
+  }
+  return (
+    <Menu.Item
+      variant={attributes?.destructive ? "danger" : "default"}
+      isDisabled={attributes?.disabled}
+      isSelected={state === "on"}
+      animation={{ backgroundColor: { value: colors.pressed } }}
+      onPress={() => onPressAction?.({ nativeEvent: { event: actionId(action) } })}
+    >
+      {icon}
+      <Menu.ItemTitle numberOfLines={1} style={{ color: titleColor ?? color }}>
+        {title}
+      </Menu.ItemTitle>
+      {state ? <Menu.ItemIndicator iconProps={{ color: colors.text }} /> : null}
+    </Menu.Item>
+  );
+}
+
+/**
+ * The Android `MenuView`, with the props of `@expo/ui/community/menu`. It draws the HeroUI menu of the
+ * app, because the Material menu takes the palette and shape of the device and does not match the app.
+ * iOS keeps the native menu. A string `image` names an SF Symbol, and Android shows its Lucide icon.
+ */
+export function MenuView({
+  ref,
+  title,
+  actions,
+  onPressAction,
+  onOpenMenu,
+  onCloseMenu,
+  shouldOpenOnLongPress,
+  style,
+  children,
+  testID,
+}: MenuComponentProps & { ref?: Ref<MenuComponentRef> }) {
+  const tokens = useCSSVariable([
+    "--openbot-text-primary",
+    "--openbot-text-muted",
+    "--openbot-danger-text",
+    "--openbot-border-grouped",
+    "--openbot-bg-control-active",
+  ]);
+  const colors: MenuColors = {
+    text: String(tokens[0]),
+    muted: String(tokens[1]),
+    danger: String(tokens[2]),
+    separator: String(tokens[3]),
+    pressed: String(tokens[4]),
+  };
+  const trigger = useRef<MenuTriggerRef>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  // A second call in the same tick must see the new state before React applies it.
+  const openRef = useRef(false);
+
+  const onOpenChange = useCallback(
+    (next: boolean) => {
+      if (openRef.current === next) return;
+      openRef.current = next;
+      setIsOpen(next);
+      if (next) onOpenMenu?.();
+      else onCloseMenu?.();
+    },
+    [onOpenMenu, onCloseMenu],
+  );
+
+  const open = useCallback(() => trigger.current?.open(), []);
+  useImperativeHandle(ref, () => ({ show: open }), [open]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      onOpenChange(false);
+      return true;
+    });
+    return () => subscription.remove();
+  }, [isOpen, onOpenChange]);
+
+  return (
+    <Menu isOpen={isOpen} onOpenChange={onOpenChange} style={style} testID={testID}>
+      {/* The trigger only measures the anchor. The inner Pressable opens the menu on a tap or a long press. */}
+      <Menu.Trigger ref={trigger} isDisabled accessible={false} aria-disabled={false}>
+        <Pressable
+          onPress={shouldOpenOnLongPress ? undefined : open}
+          onLongPress={shouldOpenOnLongPress ? open : undefined}
+          android_disableSound
+          focusable={false}
+          accessible={false}
+        >
+          {children}
+        </Pressable>
+      </Menu.Trigger>
+      <Menu.Portal>
+        <Menu.Overlay />
+        <Menu.Content presentation="popover" placement="bottom" align="start" className="min-w-52">
+          {title ? (
+            <Menu.Label className="mb-1" numberOfLines={3} style={{ color: colors.muted }}>
+              {title}
+            </Menu.Label>
+          ) : null}
+          {groups(actions).map((group, index) => (
+            <Fragment key={group.map(actionId).join("|")}>
+              {index > 0 ? <Separator className="mx-2.5 my-1.5" style={{ backgroundColor: colors.separator }} /> : null}
+              {group.map((action) => (
+                <MenuItem key={actionId(action)} action={action} colors={colors} onPressAction={onPressAction} />
+              ))}
+            </Fragment>
+          ))}
+        </Menu.Content>
+      </Menu.Portal>
+    </Menu>
+  );
+}

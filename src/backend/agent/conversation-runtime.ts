@@ -178,6 +178,8 @@ export class ConversationRuntime {
   readonly #cachedExecutionSnapshots = new Map<string, CachedSnapshot>();
   readonly #publicThreads = new Map<string, string>();
   readonly #forgottenExecutionThreads = new Set<string>();
+  /** The execution threads that are tasks: they run beside the agent's own chat, not after it. */
+  readonly #taskThreads = new Set<string>();
 
   constructor(store: AgentStore, emit: (event: AgentEvent) => void, listAgents: () => AgentSummary[]) {
     this.#store = store;
@@ -466,8 +468,43 @@ export class ConversationRuntime {
     ].values();
   }
 
+  /**
+   * The running turn of the agent's own chat, or of a channel or messaging thread it serves. A task
+   * runs beside these, so its turns are not here: see `anyWorkingSnapshot` and `workingTaskSnapshots`.
+   */
   workingSnapshot(agentId: string): ConversationSnapshot | undefined {
+    return [...this.activeSnapshots()].find(
+      ([id, snapshot]) => id === agentId && snapshot.activeTurnId && !this.isTaskThread(snapshot.threadId),
+    )?.[1];
+  }
+
+  /** Any running turn of this agent, a task turn included. */
+  anyWorkingSnapshot(agentId: string): ConversationSnapshot | undefined {
     return [...this.activeSnapshots()].find(([id, snapshot]) => id === agentId && snapshot.activeTurnId)?.[1];
+  }
+
+  /** The tasks of this agent that run a turn now. */
+  workingTaskSnapshots(agentId: string): ConversationSnapshot[] {
+    return [...this.#executionSnapshots.values()].filter(
+      (snapshot) => snapshot.agentId === agentId && snapshot.activeTurnId && this.isTaskThread(snapshot.threadId),
+    );
+  }
+
+  /** The snapshot whose running turn this is, in any thread of the agent. */
+  snapshotWithTurn(agentId: string, turnId: string): ConversationSnapshot | undefined {
+    return [...this.activeSnapshots()].find(
+      ([id, snapshot]) => id === agentId && snapshot.activeTurnId === turnId,
+    )?.[1];
+  }
+
+  registerTaskThread(agentId: string, threadId: string): void {
+    if (this.#forgottenExecutionThreads.has(threadId) || this.#store.ownsThread(threadId)) return;
+    this.#taskThreads.add(threadId);
+    this.registerExecutionThread(agentId, threadId);
+  }
+
+  isTaskThread(threadId: string | null): boolean {
+    return threadId !== null && this.#taskThreads.has(threadId);
   }
 
   registerExecutionThread(agentId: string, threadId: string): void {
@@ -699,6 +736,7 @@ export class ConversationRuntime {
 
   forgetExecutionThread(threadId: string): void {
     this.#forgottenExecutionThreads.add(threadId);
+    this.#taskThreads.delete(threadId);
     this.#executionSnapshots.delete(threadId);
     this.#dropCachedExecutionSnapshot(threadId);
     this.#conversationSignatures.delete(threadId);
@@ -711,6 +749,7 @@ export class ConversationRuntime {
   forgetAgent(agentId: string): void {
     for (const [id, snapshot] of this.#executionSnapshots) {
       if (snapshot.agentId !== agentId) continue;
+      this.#taskThreads.delete(id);
       this.#executionSnapshots.delete(id);
       this.#dropCachedExecutionSnapshot(id);
       this.#conversationSignatures.delete(id);

@@ -16,19 +16,21 @@ import { createAttachmentImportSounds } from "./attachment-import-sounds";
 import { useConversationController } from "./conversation-controller-context";
 import { agentConversationKey, composerDraftKey } from "./conversation-keys";
 import { conversationRuntime } from "./conversation-runtime";
-import type { ComposerDraft, ConversationProps, ConversationTarget } from "./conversation-types";
+import type { ComposerDraft, ConversationProps, ConversationTarget, SidePanelPane } from "./conversation-types";
 import { createActivityStore } from "./stores/activity-store";
 import { createBrowserStore } from "./stores/browser-store";
 import { createComposerActions } from "./stores/composer-actions";
 import { createComposerStore, currentConversationTarget } from "./stores/composer-store";
 import { createMcpServersStore } from "./stores/mcp-servers-store";
 import { createMessageActions } from "./stores/message-actions";
-import { createPanelsStore } from "./stores/panels-store";
+import { createPanelsStore, SIDE_PANEL_MODES } from "./stores/panels-store";
 import { PENDING_SEND_ID_PREFIX, pendingSendMessage } from "./stores/pending-send-store";
 import { createQueueStore } from "./stores/queue-store";
+import { createReplyJumpStore } from "./stores/reply-jump-store";
 import { createScrollStore } from "./stores/scroll-store";
 import { createSearchStore } from "./stores/search-store";
 import { createSettingsStore, runtimeSettingsEqual } from "./stores/settings-store";
+import { createSideQuestionStore } from "./stores/side-question-store";
 import { createSkillsStore } from "./stores/skills-store";
 import { createVoiceStore } from "./stores/voice-store";
 
@@ -129,6 +131,10 @@ export function createConversationViewScope(props: ConversationProps) {
     setBrowserPanelWidth,
     hiddenAwaitingReplyIds,
     setHiddenAwaitingReplyIds,
+    sideQuestions: sideQuestionStates,
+    setSideQuestions,
+    sidePanels,
+    setSidePanels,
     resources,
   } = controller;
   /**
@@ -170,6 +176,8 @@ export function createConversationViewScope(props: ConversationProps) {
     props,
     rightPanels,
     setRightPanels,
+    panels: sidePanels,
+    setPanels: setSidePanels,
     settingsProvider,
     settingsModel,
     settingsReasoning,
@@ -192,9 +200,16 @@ export function createConversationViewScope(props: ConversationProps) {
     routineSettingsRequest,
     activeRightPanel,
     settingsOpen,
-    profileOpen,
     filesOpen,
-    toggleFilesPanel,
+    taskPanelOpen,
+    taskPanelTaskId,
+    taskListOpen,
+    openTaskPanel,
+    showTaskList,
+    sidePanel,
+    sidePanelOpen,
+    setSidePanelMaximized,
+    removeSidePanelPane,
     filePreviewOpen,
     setActiveRightPanel,
     openRoutineSettings,
@@ -217,6 +232,20 @@ export function createConversationViewScope(props: ConversationProps) {
     revealSidebarFile,
     closeSidebarFilePreview,
   } = panels;
+  const sideQuestions = createSideQuestionStore({
+    props,
+    questions: sideQuestionStates,
+    setQuestions: setSideQuestions,
+    openPane: () => setActiveRightPanel("question"),
+  });
+  const {
+    sideQuestionAvailable,
+    sideQuestion,
+    setSideQuestionDraft,
+    openSideQuestion,
+    askSideQuestion,
+    deleteSideQuestion,
+  } = sideQuestions;
   const skills = createSkillsStore({ props, settingsOpen });
   const { installedSkills, installedSkillsLoadFailed } = skills;
   const { mcpServers } = createMcpServersStore({ props });
@@ -311,6 +340,30 @@ export function createConversationViewScope(props: ConversationProps) {
     setActiveRightPanel("browser");
     if (browserTabs().length === 0) void openBrowserAddress();
   }
+  function openSidePanelPane(pane: SidePanelPane) {
+    if (pane === "browser") showBrowserPanel();
+    else setActiveRightPanel(SIDE_PANEL_MODES[pane]);
+  }
+  /** The panel button opens the side panel at its last pane, or at the list of panes when none is open. */
+  function toggleSidePanel() {
+    if (sidePanelOpen()) {
+      hideBrowserPanel();
+      return;
+    }
+    const { panes, selected } = sidePanel();
+    const pane = selected && panes.includes(selected) ? selected : (panes[0] ?? null);
+    if (pane) openSidePanelPane(pane);
+    else setActiveRightPanel("side-panel");
+  }
+  /** Closes the tab of a pane. The next tab takes its place; with no tab, the panel lists the panes. */
+  function closeSidePanelPane(pane: SidePanelPane) {
+    if (pane === "question") deleteSideQuestion();
+    const shown = sidePanelOpen() && sidePanel().selected === pane;
+    const next = removeSidePanelPane(pane);
+    if (!shown) return;
+    if (next) openSidePanelPane(next);
+    else setActiveRightPanel("side-panel");
+  }
   const viewIsMounted = createScopeGuard();
   let attachmentPicker: HTMLInputElement | undefined;
   const currentPendingSends = createMemo(() => pendingSends.list(currentTarget()));
@@ -383,6 +436,15 @@ export function createConversationViewScope(props: ConversationProps) {
     jumpToUnreadMessages,
     jumpToLatestMessage,
   } = scroll;
+  const replyJump = createReplyJumpStore({
+    props,
+    scrollElement: () => scrollElement,
+    timelineIndexById,
+    scrollToIndex: (index) => messageVirtualizer.scrollToIndex(index),
+    setStickToLatest: (value) => {
+      stickToLatest = value;
+    },
+  });
   const search = createSearchStore({
     props,
     chatSearchOpen,
@@ -595,7 +657,6 @@ export function createConversationViewScope(props: ConversationProps) {
   let lastConversationIdentity: string | undefined;
   let lastPanelAgentId: string | undefined;
   let lastHandledSettingsRequestNonce: number | undefined;
-  let lastHandledProfileRequestNonce: number | undefined;
   let lastHandledMessageFocusNonce: number | undefined;
   let lastRuntimeSettingsSignature: string | undefined;
   async function saveAgentPatch(
@@ -655,10 +716,14 @@ export function createConversationViewScope(props: ConversationProps) {
     });
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || event.defaultPrevented) return;
-      // An open popover, such as a routine chip or the model picker, closes on this key from a
-      // document listener that runs after this one. Closing the panel under it too discards the
-      // edit the person was making.
-      if (event.target instanceof Element && event.target.closest('[role="dialog"]')) return;
+      // An open popover or menu, such as a routine chip, the model picker or the side panel's add
+      // menu, closes on this key from a document listener that runs after this one. Closing the
+      // panel under it too discards the edit the person was making.
+      if (
+        event.target instanceof Element &&
+        event.target.closest('[role="dialog"], [role="alertdialog"], [role="menu"]')
+      )
+        return;
       if (browserExpandedOpen() && !props.globalOverlayOpen) {
         event.preventDefault();
         setActiveRightPanel("browser");
@@ -891,7 +956,7 @@ export function createConversationViewScope(props: ConversationProps) {
     if (
       !previousAgentId ||
       !agentId ||
-      (panel !== "settings" && panel !== "profile" && panel !== "file-preview" && panel !== "files")
+      (panel !== "settings" && panel !== "file-preview" && panel !== "files" && panel !== "task")
     )
       return;
     setRightPanels((current) => ({ ...current, [agentId]: "none" }));
@@ -910,15 +975,6 @@ export function createConversationViewScope(props: ConversationProps) {
       lastHandledSettingsRequestNonce = request.nonce;
       if (request.routine) openRoutineSettings(request.routine);
       else setActiveRightPanel("settings", agentId);
-    },
-  );
-
-  createEffect(
-    () => ({ request: props.profileRequest, agentId: props.agent?.id }),
-    ({ request, agentId }) => {
-      if (!request || agentId !== request.agentId || request.nonce === lastHandledProfileRequestNonce) return;
-      lastHandledProfileRequestNonce = request.nonce;
-      setActiveRightPanel("profile", agentId);
     },
   );
 
@@ -1142,6 +1198,12 @@ export function createConversationViewScope(props: ConversationProps) {
   };
 
   return {
+    replyJump,
+    sideQuestionAvailable,
+    sideQuestion,
+    setSideQuestionDraft,
+    openSideQuestion,
+    askSideQuestion,
     conversationPanelElement,
     setAgentActivitySlotElement,
     setBrowserSurfaceElement,
@@ -1211,7 +1273,18 @@ export function createConversationViewScope(props: ConversationProps) {
     expandedEmojiMessageId,
     scrollFades,
     filesOpen,
-    toggleFilesPanel,
+    taskPanelOpen,
+    taskPanelTaskId,
+    activeRightPanel,
+    taskListOpen,
+    openTaskPanel,
+    showTaskList,
+    sidePanel,
+    sidePanelOpen,
+    setSidePanelMaximized,
+    openSidePanelPane,
+    toggleSidePanel,
+    closeSidePanelPane,
     filePreviewOpen,
     handleChatSearchShortcut,
     hideBrowserPanel,
@@ -1290,11 +1363,9 @@ export function createConversationViewScope(props: ConversationProps) {
     settingsModel,
     settingsProvider,
     settingsOpen,
-    profileOpen,
     settingsPanelWidth,
     settingsReasoning,
     sidebarFilePreview,
-    showBrowserPanel,
     showBrowserPip,
     showComposerActions,
     showScrollToLatest,

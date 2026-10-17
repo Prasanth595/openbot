@@ -102,6 +102,7 @@ const SALES_ANALYTICS_EVENT_PROPERTIES = {
     "checkout_mature_accounts",
     "checkout_converted_accounts",
     "checkout_pending_accounts",
+    "skipped_subscriptions",
   ],
 } as const satisfies Record<SalesAnalyticsEventName, readonly string[]>;
 
@@ -413,6 +414,7 @@ function eventPropertyValuesAreValid(properties: SalesAnalyticsProperties): bool
           "checkout_mature_accounts",
           "checkout_converted_accounts",
           "checkout_pending_accounts",
+          "skipped_subscriptions",
           "as_of",
           "reported_at",
         ].includes(key)

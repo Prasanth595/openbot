@@ -56,6 +56,9 @@ Bots
 mise.local.toml
 # Local provider credential export. Never commit.
 keys
+# A Firebase service account key sends Android notifications. It goes into the encrypted account
+# service settings only. Never commit.
+*firebase-adminsdk*.json
 # Agent task checklist. Local to one worktree.
 /TASKS.md
 

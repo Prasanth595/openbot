@@ -3,7 +3,7 @@ import { isDynamicRecord, isFunction } from "@openbot/contracts/runtime-values";
 import type { Effect } from "effect";
 import type { AuthStoreError } from "./d1-auth-repository";
 import type { EmailDeliveryError } from "./email-delivery";
-import type { SmtpFailure } from "./smtp-email-delivery";
+import type { SmtpContactMessage, SmtpFailure, SmtpWelcomeMessage } from "./smtp-email-delivery";
 
 export interface WorkerBindings {
   DB: D1Database;
@@ -92,6 +92,11 @@ export interface WorkerBindings {
   APNS_TOPIC?: string;
   /** Local development only: the development server that forwards to Apple over HTTP/2. */
   APNS_ORIGIN?: string;
+  /**
+   * The Firebase service account key file (JSON) that sends Android notifications through Firebase
+   * Cloud Messaging. The Android notification relay is off without it.
+   */
+  FCM_SERVICE_ACCOUNT?: string;
 }
 
 function isWorkerBindings(value: unknown): value is WorkerBindings {
@@ -188,6 +193,14 @@ export interface TeamInviteEmailDelivery {
     inviteUrl: string;
     role: "admin" | "member";
   }): Effect.Effect<void, EmailDeliveryError | SmtpFailure>;
+}
+
+export interface WelcomeEmailDelivery {
+  send(message: SmtpWelcomeMessage): Effect.Effect<void, SmtpFailure>;
+}
+
+export interface ContactMessageDelivery {
+  send(message: SmtpContactMessage): Effect.Effect<void, SmtpFailure>;
 }
 
 export type EmailVerificationResult =

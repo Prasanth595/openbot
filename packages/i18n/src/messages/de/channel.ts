@@ -41,7 +41,7 @@ export const messages = {
   "channel.create.noAgentsHint": "Erstelle einen Agenten, um ihn zu diesem Kanal hinzuzufügen.",
   "channel.form.name": "Kanalname",
   "channel.form.nameShort": "Name",
-  "channel.form.namePlaceholder": "Z. B.: Projekt Falcon",
+  "channel.form.namePlaceholder": "Z. B. Projekt Falcon",
   "channel.form.title": "Titel",
   "channel.form.titleLabel": "Kanaltitel",
   "channel.form.titlePlaceholder": "Beschreibe, was dieser Kanal macht",

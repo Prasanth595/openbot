@@ -2,7 +2,11 @@ import type { AttachmentSummary } from "@openbot/contracts/ipc";
 import { router, useLocalSearchParams } from "expo-router";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { ArrowUpToLine, CornerDownRight, ExternalLink, Pencil, Trash2 } from "lucide-react-native";
+import ArrowUpToLine from "lucide-react-native/icons/arrow-up-to-line";
+import CornerDownRight from "lucide-react-native/icons/corner-down-right";
+import ExternalLink from "lucide-react-native/icons/external-link";
+import Pencil from "lucide-react-native/icons/pencil";
+import Trash2 from "lucide-react-native/icons/trash-2";
 import { Alert } from "react-native";
 import { useCSSVariable } from "uniwind";
 import {

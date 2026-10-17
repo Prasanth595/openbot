@@ -3,7 +3,7 @@ import type { messages as source } from "../../en/error/billing";
 
 export const messages = {
   "error.billing.lifecycleFailed":
-    "Der Servertarif konnte nicht geändert werden. Aktualisiere die Abrechnung und versuche es erneut.",
+    "Der Servertarif konnte nicht geändert werden. Lade „Abrechnung“ neu und versuche es erneut.",
   "error.billing.confirmMismatch": "Gib den Servernamen ein, um ihn zu löschen.",
   "error.billing.restartBusy": "Der Server kann jetzt nicht neu starten. Versuche es in einer Minute erneut.",
   "error.billing.planRequired": "Der Tarif dieses Servers ist abgelaufen. Verlängere ihn, um den Server zu starten.",

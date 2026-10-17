@@ -49,7 +49,7 @@ export const messages = {
   "import.guide.agentMeta": "Agent Grok Bot · ma umiejętność eksportu",
   "import.guide.openAgent": "Otwórz agenta eksportu",
   "import.guide.agentNote": "Zainstaluj gotowego agenta z jego strony w Grok Bot. Eksport go pomija.",
-  "import.guide.skillCopied": "Skopiowano umiejętność",
+  "import.guide.skillCopied": "Skopiowano",
   "import.guide.saveFile": "Zapisz plik…",
   "import.guide.skillNote":
     "Dodaj tę umiejętność do nowego agenta w Grok Bot, używanego tylko do eksportu. Eksport go pomija.",

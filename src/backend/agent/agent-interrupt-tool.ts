@@ -79,11 +79,11 @@ export class AgentInterruptTool {
 
     // A delivery on its way to a turn has no turn id yet. Wait for the drain that starts it, as
     // routine deletion does, so the turn it starts can be checked and stopped.
-    if (this.#mailbox.startingDeliveryForAgent(agentId)) {
+    if (this.#mailbox.startingDeliveryForAgent(agentId, null)) {
       const task = this.#drain.taskFor(agentId);
       if (task) yield* task.pipe(toToolOperationFailed);
     }
-    if (this.#mailbox.startingDeliveryForAgent(agentId)) {
+    if (this.#mailbox.startingDeliveryForAgent(agentId, null)) {
       return openBotToolFailure(sourceText("error.backend.interruptStarting"));
     }
 
@@ -127,7 +127,10 @@ export class AgentInterruptTool {
     return (
       this.#mailbox
         .unresolvedDeliveries()
-        .find(({ delivery }) => delivery.recipientAgentId === agentId && delivery.turnId)?.delivery.turnId ?? null
+        .find(
+          ({ delivery }) =>
+            delivery.recipientAgentId === agentId && delivery.turnId && !this.#mailbox.taskIdForDelivery(delivery.id),
+        )?.delivery.turnId ?? null
     );
   }
 

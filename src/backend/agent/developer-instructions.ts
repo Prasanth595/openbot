@@ -28,6 +28,8 @@ export interface DeveloperInstructionOptions {
   memoriesInTurns?: boolean;
   /** The other agents in this agent's sidebar section. Omitted or null when it has no section. */
   sectionTeammates?: SectionTeammates | null;
+  /** The session is a task of an agent with Computer Use on. The agent's own chat keeps Computer Use. */
+  computerUseInOwnChat?: boolean;
 }
 
 /** A sidebar section and the other agents in it, in sidebar order. */
@@ -37,7 +39,7 @@ export interface SectionTeammates {
 }
 
 /** JSON for a prompt block. An escaped `<` keeps user text from closing the block's tag; the JSON stays valid. */
-function tagSafe(json: string): string {
+export function tagSafe(json: string): string {
   return json.replaceAll("<", "\\u003c");
 }
 
@@ -187,7 +189,9 @@ export function developerInstructions(
     "Use your working directory for your own persistent files and the shared directory for files that other OpenBot agents need. You may list, read, create, edit, move, and delete files and run local commands in both directories.",
     agentComputerUseEnabled(agent)
       ? `Use ${COMPUTER_USE_MCP_SERVER_NAME} for every GUI task outside the embedded browser, and never Codex Computer Use, the Sky computer use service, or another desktop-control plugin, because those drive the desktop outside OpenBot, show the user no OpenBot agent cursor, and can fight this one for the pointer. Read its structuredContent after every action, or, when your provider passes no structured content, the JSON copy of it at the end of the result text, because an effect of refused or suspected_noop means the action did not happen and you must not report it as done, an effect of unverifiable means the driver does not know, so read the window state again and report what you saw rather than what you sent, and a delivery.mode of foreground takes the screen away from the user. One application usually owns many windows, and most of them are small empty helpers, so select the window by its title and its size and never the first match, because a helper window holds no elements and every action sent to it fails or does nothing. The screen size and the desktop screenshot describe the main display alone, so a pixel coordinate means a point on that display only: work on a window on another display through its element token, or its element_index with the window_id and snapshot_id of the same read, or move the window to the main display first, and never take a coordinate from one display to act on another. Every step waits for your next answer, so take the shortest path: when the user names the application and the action, go to that window and act, and do not list other applications, inspect windows the task does not need, or repeat a read whose answer you already have. Every result stays in the conversation, and a long conversation makes each later step slower, so read a window again with query or include_screenshot false when you only need to find an element. Read skill://cua-driver/SKILL.md before the first GUI action of a conversation, not before each action.`
-      : "The user turned Computer Use off for you. Do not control desktop applications outside the embedded browser, and do not use Codex Computer Use, the Sky computer use service, or another desktop-control plugin. When a task needs one, delegate it to a teammate that has Computer Use on, which openbot.read_agent reports; when no teammate has it, say so, because the user can turn Computer Use on in your settings.",
+      : options.computerUseInOwnChat
+        ? "This conversation is a task that runs next to your own chat. Computer Use stays in your own chat, so that only one conversation drives the screen: do not control desktop applications outside the embedded browser here, and do not use another desktop-control plugin. When the task needs desktop control, say so in your answer, so that the user can continue that step in your own chat."
+        : "The user turned Computer Use off for you. Do not control desktop applications outside the embedded browser, and do not use Codex Computer Use, the Sky computer use service, or another desktop-control plugin. When a task needs one, delegate it to a teammate that has Computer Use on, which openbot.read_agent reports; when no teammate has it, say so, because the user can turn Computer Use on in your settings.",
     ...(agentAutomationAllowed(agent) ? [automationInstructions(agent.id, automationRoot)] : []),
     ...(options.memoriesInTurns
       ? [

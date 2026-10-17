@@ -22,7 +22,7 @@ attachment, persists, and queues the file path, not the transfer folder, in the 
 It keeps a path that another live record uses, and it deletes only a real path under the Transfers
 folder. `resolveAttachment` then returns null, so a file card shows "File not found" and a generated image
 shows its unavailable state. An older app ignores the field. Clear removes the remote-server caches and the `logs/remote`,
-`logs/update` and `logs/providers` files; it does not enter `logs/remote/transfers`. Runtimes are read-only.
+`logs/update`, `logs/providers` and `logs/agents` files; it does not enter `logs/remote/transfers`. Runtimes are read-only.
 
 `storage:*` IPC reaches the local service or a joined server. The optional `storage-v1` capability
 exposes `POST /v1/storage/usage`, `/v1/storage/delete-file` and `/v1/storage/clear` with the frozen
@@ -158,6 +158,17 @@ write, and that callback emits the event through `AgentService`, so this compute
 too. The event carries no skill data: a client reads the list again through `installed-skills` or
 `skills-admin-v1`. `team-protocol/optional-events.ts` is the one place where each transport
 recognizes the optional events that the frozen base vocabularies reject.
+
+### Focus use
+
+`focus-use-v1` adds `POST /v1/client/focus` with an empty body. Only a hosted server advertises it
+(`focusUse` in `TeamApiOptions`), and the capability is v7 only. A client sends it while its app has
+focus and the server is online, through `createFocusUsePing` in `packages/team-client`: the desktop
+main process, the web client and the mobile app each give it their own focus signal and transport.
+The host keeps the focus period of each session apart from `#sessionUse`, so a focused desktop does
+not stop the phone's push notifications. A ping moves `lastClientUseAt` only for 30 minutes after the
+later of the last user action of its session and the start of its focus period. The route is in `PASSIVE_ROUTES`, so the generic client use path
+does not count it. See [hosted servers](../hosted-servers.md) step 5.
 
 ### Admin capabilities
 

@@ -1,3 +1,4 @@
+import { AGENT_CONTEXT_CATEGORIES, type AgentContextCategory } from "@openbot/contracts/ipc";
 import type { AppTextKey } from "@openbot/i18n";
 import {
   Button,
@@ -11,7 +12,7 @@ import {
   TriangleAlert,
 } from "@openbot/ui";
 import { ContentExitMotion } from "@openbot/ui/menu-motion";
-import { createEffect, createSignal, Match, Show, Switch } from "solid-js";
+import { createEffect, createSignal, For, Match, Show, Switch } from "solid-js";
 import { useText } from "../../text";
 import { CloseIcon } from "./ConversationIcons";
 import { formatChatTimestamp } from "./chat-timestamp";
@@ -28,6 +29,27 @@ export interface ContextUsageView {
   estimated?: boolean;
   compacting: boolean;
   lastCompaction?: { beforeTokens: number; afterTokens: number } | undefined;
+  /** What fills `usedTokens`. Absent when the provider gives only a total. */
+  categories?: readonly { category: AgentContextCategory; tokens: number }[] | undefined;
+}
+
+const CATEGORY_LABEL = {
+  systemPrompt: "composer.context.category.systemPrompt",
+  memoryFiles: "composer.context.category.memoryFiles",
+  tools: "composer.context.category.tools",
+  skills: "composer.context.category.skills",
+  toolResults: "composer.context.category.toolResults",
+  messages: "composer.context.category.messages",
+  other: "composer.context.category.other",
+} as const satisfies Record<AgentContextCategory, AppTextKey>;
+
+/** The rows with tokens, in the fixed order that also gives each its colour. */
+function categoryRows(usage: ContextUsageView): { category: AgentContextCategory; tokens: number }[] {
+  const rows = usage.categories ?? [];
+  return AGENT_CONTEXT_CATEGORIES.flatMap((category) => {
+    const tokens = rows.find((row) => row.category === category)?.tokens ?? 0;
+    return tokens > 0 ? [{ category, tokens }] : [];
+  });
 }
 
 function usedShare(usage: ContextUsageView): number {
@@ -96,6 +118,26 @@ export function ContextUsageMeter(props: { usage: ContextUsageView }) {
               total: format.compact(props.usage.windowTokens),
             })}
           </p>
+          <Show when={categoryRows(props.usage).length > 0}>
+            <ul class="context-meter-categories" aria-label={t("composer.context.breakdown")}>
+              <For each={categoryRows(props.usage)}>
+                {(row) => (
+                  <li class="context-meter-category" data-category={row.category}>
+                    <span class="context-meter-swatch" aria-hidden="true" />
+                    <span class="context-meter-category-label">{t(CATEGORY_LABEL[row.category])}</span>
+                    <span class="context-meter-category-tokens">{format.compact(row.tokens)}</span>
+                  </li>
+                )}
+              </For>
+              <li class="context-meter-category" data-category="free">
+                <span class="context-meter-swatch" aria-hidden="true" />
+                <span class="context-meter-category-label">{t("composer.context.category.free")}</span>
+                <span class="context-meter-category-tokens">
+                  {format.compact(Math.max(0, props.usage.windowTokens - props.usage.usedTokens))}
+                </span>
+              </li>
+            </ul>
+          </Show>
           <Popover.Description class="context-meter-note">
             <Show
               when={props.usage.autoCompactAt}
@@ -123,12 +165,32 @@ export function ContextUsageMeter(props: { usage: ContextUsageView }) {
   );
 }
 
-/** The used share, then free space, with a tick where the automatic compaction runs. */
+/**
+ * The used share, split by category when the provider gives one, then free space, with a tick where
+ * the automatic compaction runs.
+ */
 function ContextUsageBar(props: { usage: ContextUsageView }) {
+  const rows = () => categoryRows(props.usage);
+  const rowsTotal = () => rows().reduce((sum, row) => sum + row.tokens, 0);
   return (
     <div class="context-usage-bar" aria-hidden="true">
-      <Show when={usedShare(props.usage) > 0}>
-        <span class="context-usage-segment" data-category="used" style={{ "flex-grow": usedShare(props.usage) }} />
+      <Show
+        when={rows().length > 0}
+        fallback={
+          <Show when={usedShare(props.usage) > 0}>
+            <span class="context-usage-segment" data-category="used" style={{ "flex-grow": usedShare(props.usage) }} />
+          </Show>
+        }
+      >
+        <For each={rows()}>
+          {(row) => (
+            <span
+              class="context-usage-segment"
+              data-category={row.category}
+              style={{ "flex-grow": (usedShare(props.usage) * row.tokens) / rowsTotal() }}
+            />
+          )}
+        </For>
       </Show>
       <span class="context-usage-segment" data-category="free" style={{ "flex-grow": 1 - usedShare(props.usage) }} />
       <Show when={props.usage.autoCompactAt}>

@@ -14,9 +14,9 @@ export const messages = {
   "remoteDesktop.viewerTitle": "Área de trabalho remota do Sunshine",
   "remoteDesktop.viewerLoadFailed": "Não foi possível carregar o visualizador Moonlight.",
   "remoteDesktop.streamNotReady":
-    "O host não iniciou a transmissão. O Sunshine pode ter parado no host. Tente de novo.",
+    "O computador anfitrião não iniciou a transmissão. O Sunshine pode ter parado no computador anfitrião. Tente de novo.",
   "remoteDesktop.hostOfflineTitle": "O computador anfitrião está offline",
-  "remoteDesktop.hostOfflineMessage": "Reconecte ao computador anfitrião antes de abrir sua área de trabalho.",
+  "remoteDesktop.hostOfflineMessage": "Reconecte-se ao computador anfitrião antes de abrir sua área de trabalho.",
   "remoteDesktop.openFailed": "Não foi possível abrir a área de trabalho",
   "remoteDesktop.notSharingTitle": "{name} não está compartilhando a tela",
   "remoteDesktop.notSharingDescription":
@@ -48,9 +48,9 @@ export const messages = {
   "remoteDesktop.setup.grantAccess": "Conceder acesso a {name}",
   "remoteDesktop.setup.grant": "Conceder",
   "remoteDesktop.setup.grantHelp":
-    "Mantenha a conta do Sunshine conectada no Mac. Nessa conta, conceda acesso em Ajustes do Sistema → Privacidade e Segurança. O botão Conceder abre uma janela auxiliar. Arraste Sunshine.app para a lista de permissões.",
+    "Mantenha a sessão da conta do Sunshine aberta no Mac. Nessa conta, conceda acesso em Ajustes do Sistema → Privacidade e Segurança. O botão Conceder abre uma janela auxiliar. Arraste Sunshine.app para a lista de permissões.",
   "remoteDesktop.setup.restartRequired":
-    "O Sunshine precisa reiniciar. Encerre as sessões ativas de área de trabalho remota e verifique novamente. As sessões ativas não serão reiniciadas.",
+    "O Sunshine precisa ser reiniciado. Encerre as sessões ativas de área de trabalho remota e verifique novamente. As sessões ativas não serão reiniciadas.",
   "remoteDesktop.setup.showInFinder": "Mostrar Sunshine no Finder",
   "remoteDesktop.setup.liveTest": "Teste de conexão ao vivo",
   "remoteDesktop.setup.liveTestLocal": "Teste a imagem, o mouse e o teclado neste Mac.",

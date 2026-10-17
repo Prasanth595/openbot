@@ -13,4 +13,7 @@ export const messages = {
   "dialog.chooseAgentExport": "Agentenexport auswählen",
   "dialog.filter.agentExports": "Agentenexporte",
   "dialog.saveExportSkill": "Exportfähigkeit speichern",
+  "dialog.saveTransfer": "Übertragungsdatei speichern",
+  "dialog.chooseTransfer": "Übertragungsdatei wählen",
+  "dialog.filter.transfer": "OpenBot-Übertragungsdateien",
 } as const satisfies PartialTranslation<typeof source>;

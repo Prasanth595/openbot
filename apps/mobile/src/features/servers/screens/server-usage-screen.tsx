@@ -8,7 +8,7 @@ import { AgentUsageReport } from "@/features/agents/components/agent-usage-repor
 import { UsageLoading } from "@/features/agents/components/usage-motion";
 import { lastUsageDays, UsageRangePicker } from "@/features/agents/components/usage-range-picker";
 import { mobileAnalytics } from "@/features/analytics/mobile-analytics";
-import { useMobileSession } from "@/features/auth/context/mobile-session-context";
+import { useQueryScope } from "@/features/auth/context/mobile-session-context";
 import {
   SettingsContent,
   SettingsNote,
@@ -17,6 +17,7 @@ import {
 } from "@/features/settings/components/settings-content";
 import { SettingsPicker } from "@/features/settings/components/settings-controls";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import { queryKeys } from "@/features/workspace/model/query-keys";
 import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
 
@@ -25,7 +26,7 @@ export function ServerUsageScreen() {
   const { t } = useText();
   const { theme } = useUniwind();
   const { serverId } = useLocalSearchParams<{ serverId: string }>();
-  const { session, sessionScope } = useMobileSession();
+  const queryScope = useQueryScope();
   const { servers, agents, loadHostAnalytics } = useMobileWorkspace();
   const server = servers.find((item) => item.id === serverId);
   const online = server?.state === "online";
@@ -36,7 +37,7 @@ export function ServerUsageScreen() {
     mobileAnalytics.track("usage_viewed", {});
   }, []);
   const usage = useQuery({
-    queryKey: ["server-usage", session?.apiUrl, session?.user.id, sessionScope, serverId, range, agentId],
+    queryKey: queryKeys.serverUsage(queryScope, serverId, range, agentId),
     queryFn: () => loadHostAnalytics({ ...range, ...(agentId ? { agentId } : {}) }, serverId),
     enabled: online,
     // The last report stays on screen while the next range or agent loads, so its values change in place.

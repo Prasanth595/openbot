@@ -4,7 +4,7 @@ import type { messages as source } from "../en/update";
 export const messages = {
   "update.action.check": "Cerca aggiornamenti",
   "update.action.checking": "Ricerca di aggiornamenti…",
-  "update.action.download": "Scarica l'aggiornamento",
+  "update.action.download": "Scarica aggiornamento",
   "update.action.downloading": "Download dell'aggiornamento…",
   "update.action.restart": "Riavvia per aggiornare",
   "update.action.restarting": "Riavvio…",

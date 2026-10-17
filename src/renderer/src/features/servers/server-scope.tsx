@@ -1,3 +1,4 @@
+import { AGENT_HIDDEN_CAPABILITY } from "@openbot/contracts/team-protocol/current";
 import { createRemoteConnectionRecovery, type RemoteRecoveryStatus } from "@openbot/team-client/remote-recovery";
 import { currentText } from "@openbot/ui/text";
 import type { UserErrorDetails } from "@openbot/user-errors";
@@ -13,6 +14,7 @@ import { useDirectMessages } from "../conversation/direct-messages-context";
 import { useSetup } from "../onboarding/onboarding-context";
 import { useSidebar } from "../sidebar/sidebar-context";
 import { usePresence } from "../team/team-context";
+import { serverSupportsCapability } from "./server-capabilities";
 import { useServerSwitch } from "./server-switch";
 import { useServers } from "./servers-context";
 import { serversPort } from "./servers-port";
@@ -54,7 +56,7 @@ const ServerScope = createSimpleContext({
       markDirectMessagesRead,
       conversationVisible,
     } = useDirectMessages();
-    const { setModelOptions, activeAgent, setAgentStatus, applyStoredAgents } = useAgents();
+    const { setModelOptions, activeAgent, setAgentStatus, applyStoredAgents, applyUserHiddenAgents } = useAgents();
     const {
       setBrowserControlState,
       supportsBrowser,
@@ -190,6 +192,17 @@ const ServerScope = createSimpleContext({
           })
           .catch(failed),
       ];
+      // A joined server without `agent-hidden-v1` has no hidden agents.
+      if (server && serverSupportsCapability(server, AGENT_HIDDEN_CAPABILITY)) {
+        reads.push(
+          serversPort()
+            .agent.listHiddenAgents(server.id)
+            .then((value) => {
+              if (isCurrent()) applyUserHiddenAgents(value.agents);
+            })
+            .catch(failed),
+        );
+      }
       if (supportsBrowser(server)) {
         const applyDisplayState = beginBrowserLoad();
         reads.push(

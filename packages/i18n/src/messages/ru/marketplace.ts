@@ -65,7 +65,7 @@ export const messages = {
   "marketplace.noMatch.filters": "Ничего не подходит под фильтры.",
   "marketplace.noMatch.showAgents": {
     one: "Показать {count} агента",
-    few: "Показать {count} агентов",
+    few: "Показать {count} агента",
     many: "Показать {count} агентов",
     other: "Показать {count} агента",
   },
@@ -201,7 +201,7 @@ export const messages = {
   "marketplace.plugin.vercel.app":
     "Проекты, деплои, логи сборки и выполнения через сервер MCP Vercel со входом через браузер.",
   "marketplace.plugin.vercel.prompt.failedBuild": "Почему не удался последний продакшен-деплой?",
-  "marketplace.plugin.vercel.prompt.recentDeployments": "Покажи сегодняшние деплои и их статус.",
+  "marketplace.plugin.vercel.prompt.recentDeployments": "Покажите сегодняшние деплои и их статус.",
   "marketplace.plugin.vercel.prompt.runtimeErrors": "На каких маршрутах были ошибки выполнения за последний час?",
   "marketplace.plugin.context7.tagline": "Актуальная документация библиотек",
   "marketplace.plugin.context7.description":

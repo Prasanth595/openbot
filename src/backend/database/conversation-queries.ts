@@ -43,12 +43,13 @@ export interface ConversationMarkerExclusions {
 }
 
 /**
- * A channel gives each of its members a thread of its own, under the same agent id as the normal
- * chat. A search result carries an agent id and a message, and opening one shows the normal
- * conversation of that agent, where a channel message does not exist. The thread stays out of the
- * search until a result can name the channel it belongs to.
+ * A channel gives each of its members a thread of its own, and a task has one too, under the same
+ * agent id as the normal chat. A search result carries an agent id and a message, and opening one
+ * shows the normal conversation of that agent, where a channel or task message does not exist. These
+ * threads stay out of the search until a result can name the channel or task it belongs to.
  */
-const CHANNEL_THREAD_EXCLUSION = "AND message.thread_id NOT IN (SELECT thread_id FROM projection_channel_contexts)";
+const SIDE_THREAD_EXCLUSION = `AND message.thread_id NOT IN (SELECT thread_id FROM projection_channel_contexts)
+             AND message.thread_id NOT IN (SELECT thread_id FROM projection_agent_tasks)`;
 
 /**
  * Every read of a thread's messages: the whole snapshot, one anchored page, a page's supported
@@ -349,51 +350,47 @@ export class ConversationQueries {
     const textParameters = terms.length > 1 ? [`%${escapeLike(longestTerm)}%`, pattern] : [pattern];
     const filter = agentId ? "AND thread.agent_id = ?" : "";
     const parameters = agentId ? [...textParameters, agentId] : textParameters;
-    const countRow = databaseRow(
-      this.#core.connection
-        .prepare(
-          `SELECT COUNT(*) AS count
-           FROM projection_thread_messages message
-           JOIN projection_threads thread ON thread.thread_id = message.thread_id
-           WHERE ${textFilter}
-             AND COALESCE(json_extract(message.message_json, '$.delivery.status'), '') NOT IN ('queued', 'cancelled')
-             AND COALESCE(message.item_type, '') NOT IN ('commentary', '${ROUTINE_QUIET_ANSWER_ITEM_TYPE}')
-             AND COALESCE(message.item_type, '') NOT LIKE '${SKILL_EVENT_ITEM_TYPE_PREFIX}%' AND COALESCE(message.item_type, '') NOT LIKE '${ROUTINE_EVENT_ITEM_TYPE_PREFIX}%'
-             AND COALESCE(message.item_type, '') NOT LIKE '${ROUTINE_RUN_EVENT_ITEM_TYPE_PREFIX}%'
-             AND COALESCE(message.item_type, '') NOT LIKE '${HOSTED_SITE_EVENT_ITEM_TYPE_PREFIX}%'
-             AND COALESCE(message.item_type, '') NOT LIKE '${MARKETPLACE_SUGGESTION_ITEM_TYPE_PREFIX}%'
-             AND json_extract(message.message_json, '$.routine') IS NULL
-             ${CHANNEL_THREAD_EXCLUSION}
-             ${filter}`,
-        )
-        .get(...parameters),
-    );
-    const total = countRow ? requiredNumberColumn(countRow, "count") : 0;
+    // The text filter reads every stored message, so it runs one time: the matches keep only their
+    // keys, the total counts them, and only the page's rows read their message (#2279). The left
+    // join gives the total also for a cursor past the last page.
     const rows = databaseRows(
       this.#core.connection
         .prepare(
-          `SELECT thread.agent_id, message.message_json
-           FROM projection_thread_messages message
-           JOIN projection_threads thread ON thread.thread_id = message.thread_id
-           WHERE ${textFilter}
-             AND COALESCE(json_extract(message.message_json, '$.delivery.status'), '') NOT IN ('queued', 'cancelled')
-             AND COALESCE(message.item_type, '') NOT IN ('commentary', '${ROUTINE_QUIET_ANSWER_ITEM_TYPE}')
-             AND COALESCE(message.item_type, '') NOT LIKE '${SKILL_EVENT_ITEM_TYPE_PREFIX}%' AND COALESCE(message.item_type, '') NOT LIKE '${ROUTINE_EVENT_ITEM_TYPE_PREFIX}%'
-             AND COALESCE(message.item_type, '') NOT LIKE '${ROUTINE_RUN_EVENT_ITEM_TYPE_PREFIX}%'
-             AND COALESCE(message.item_type, '') NOT LIKE '${HOSTED_SITE_EVENT_ITEM_TYPE_PREFIX}%'
-             AND COALESCE(message.item_type, '') NOT LIKE '${MARKETPLACE_SUGGESTION_ITEM_TYPE_PREFIX}%'
-             AND json_extract(message.message_json, '$.routine') IS NULL
-             ${CHANNEL_THREAD_EXCLUSION}
-             ${filter}
-           ORDER BY message.created_at DESC, message.ordinal DESC, message.message_id DESC
-           LIMIT ? OFFSET ?`,
+          `WITH matches AS MATERIALIZED (
+             SELECT message.rowid AS message_rowid, thread.agent_id, message.created_at, message.ordinal, message.message_id
+             FROM projection_thread_messages message
+             JOIN projection_threads thread ON thread.thread_id = message.thread_id
+             WHERE ${textFilter}
+               AND COALESCE(json_extract(message.message_json, '$.delivery.status'), '') NOT IN ('queued', 'cancelled')
+               AND COALESCE(message.item_type, '') NOT IN ('commentary', '${ROUTINE_QUIET_ANSWER_ITEM_TYPE}')
+               AND COALESCE(message.item_type, '') NOT LIKE '${SKILL_EVENT_ITEM_TYPE_PREFIX}%' AND COALESCE(message.item_type, '') NOT LIKE '${ROUTINE_EVENT_ITEM_TYPE_PREFIX}%'
+               AND COALESCE(message.item_type, '') NOT LIKE '${ROUTINE_RUN_EVENT_ITEM_TYPE_PREFIX}%'
+               AND COALESCE(message.item_type, '') NOT LIKE '${HOSTED_SITE_EVENT_ITEM_TYPE_PREFIX}%'
+               AND COALESCE(message.item_type, '') NOT LIKE '${MARKETPLACE_SUGGESTION_ITEM_TYPE_PREFIX}%'
+               AND json_extract(message.message_json, '$.routine') IS NULL
+               ${SIDE_THREAD_EXCLUSION}
+               ${filter}
+           )
+           SELECT counted.count, page.agent_id, message.message_json
+           FROM (SELECT COUNT(*) AS count FROM matches) counted
+           LEFT JOIN (
+             SELECT * FROM matches
+             ORDER BY created_at DESC, ordinal DESC, message_id DESC
+             LIMIT ? OFFSET ?
+           ) page
+           LEFT JOIN projection_thread_messages message ON message.rowid = page.message_rowid
+           ORDER BY page.created_at DESC, page.ordinal DESC, page.message_id DESC`,
         )
         .all(...parameters, limit, offset),
     );
-    const results = rows.map((row) => ({
-      agentId: requiredStringColumn(row, "agent_id"),
-      message: decodeConversationMessageJson(requiredStringColumn(row, "message_json")),
-    }));
+    const total = rows[0] ? requiredNumberColumn(rows[0], "count") : 0;
+    // An empty page is one row with the count only.
+    const results = rows.flatMap((row) => {
+      const messageJson = optionalStringColumn(row, "message_json");
+      return messageJson === null
+        ? []
+        : [{ agentId: requiredStringColumn(row, "agent_id"), message: decodeConversationMessageJson(messageJson) }];
+    });
     const nextOffset = offset + results.length;
     return {
       results,
@@ -429,7 +426,7 @@ export class ConversationQueries {
              AND instr(attachment.owner_id, ':') > 1
              AND COALESCE(json_extract(message.message_json, '$.delivery.status'), '') NOT IN ('queued', 'cancelled')
              ${nameFilter}
-             ${CHANNEL_THREAD_EXCLUSION}
+             ${SIDE_THREAD_EXCLUSION}
            ORDER BY attachment.created_at DESC, attachment.attachment_id DESC
            LIMIT ? OFFSET ?`,
         )
@@ -460,8 +457,7 @@ export class ConversationQueries {
   ): DynamicRecord[] {
     const rows = this.#conversationPageKeys(threadId, anchor, limit, exclusions);
     if (rows.length === 0) return [];
-    // The group order sorts every row of the thread, so it carries only the keys. The page's
-    // messages are read after it is chosen.
+    // The order index carries only the keys. The page's messages are read after it is chosen.
     const json = new Map(
       databaseRows(
         this.#core.connection
@@ -607,37 +603,14 @@ export class ConversationQueries {
 }
 
 /**
- * A thread's messages in the order `sortConversationMessages` shows them. A group is a turn, or a
- * message alone, and starts at its earliest message. A message queued while a turn ran then stays
- * after that turn's answer, which an ACP agent sends only when the turn ends (#1540).
- *
- * Inside a turn, `turn_rank` puts the user's and teammates' input first, then commentary and the plan,
- * then the answer. From a steer on, the turn's second input, every row has rank 4 and goes by time.
- * One window runs over each turn in time order, so it counts the inputs up to each row and starts at
- * the turn's first row. Two groups that start at the same time go by the ordinal of their first row,
- * as the shared order keeps the earlier of two equal groups.
- * Pages, cursors and read state use this one order. The one parameter is the thread id.
+ * A thread's messages with their stored shown-order keys, which `database/thread-message-order.ts`
+ * computes and documents. The order index serves a filter or sort on `ORDER_KEY_COLUMNS`, so a page
+ * reads only its range. Pages, cursors and read state use this one order. The one parameter is the
+ * thread id.
  */
-export const ORDERED_THREAD_MESSAGES = `WITH ranked AS (
-  SELECT created_at, ordinal, message_id, author, item_type, NULLIF(turn_id, '') AS turn,
-    CASE
-      WHEN author = 'user' THEN 0
-      WHEN author = 'assistant' THEN CASE WHEN item_type IN ('commentary', 'plan') THEN 1 ELSE 3 END
-      WHEN json_extract(message_json, '$.exchange.direction') = 'incoming' THEN 0
-      ELSE 2
-    END AS role_rank
+export const ORDERED_THREAD_MESSAGES = `WITH ordered AS (
+  SELECT created_at, ordinal, message_id, author, item_type, group_start, group_first, group_id, turn_rank
   FROM projection_thread_messages WHERE thread_id = ?
-), ordered AS (
-  SELECT created_at, ordinal, message_id, author, item_type,
-    CASE WHEN turn IS NULL THEN created_at ELSE MIN(created_at) OVER turn_by_time END AS group_start,
-    CASE WHEN turn IS NULL THEN ordinal
-      ELSE FIRST_VALUE(ordinal) OVER turn_by_time END AS group_first,
-    CASE WHEN turn IS NULL THEN 'message:' || message_id ELSE 'turn:' || turn END AS group_id,
-    CASE WHEN turn IS NULL THEN 0
-      WHEN SUM(role_rank = 0) OVER turn_by_time >= 2 THEN 4
-      ELSE role_rank END AS turn_rank
-  FROM ranked
-  WINDOW turn_by_time AS (PARTITION BY turn ORDER BY created_at, ordinal)
 )`;
 export const ORDER_KEY_COLUMNS = "group_start, group_first, group_id, turn_rank, created_at, ordinal, message_id";
 export const ORDER_KEY_DESC =

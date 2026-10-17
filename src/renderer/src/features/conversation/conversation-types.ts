@@ -6,12 +6,15 @@ import type {
   AgentModelOption,
   AgentProviderId,
   AgentStatus,
+  AgentTask,
+  AgentTasksSnapshot,
   AgentWait,
   AttachmentSummary,
   AvatarImageInput,
   BrowserControlState,
   BrowserTab,
   BusyMessageMode,
+  ConversationSnapshot,
   CustomAgentSummary,
   CustomProviderSummary,
   DraftAttachment,
@@ -21,6 +24,7 @@ import type {
   RoutineFields,
   ServerSummary,
   TeamPresenceSnapshot,
+  UpdateAgentAdminSettingsInput,
   UpdateAgentInput,
   WorkspaceDirectory,
 } from "@openbot/contracts/ipc";
@@ -28,7 +32,6 @@ import type { AgentMessage, AgentProfile } from "@openbot/ui/data";
 import type { BrowserViewRuntime } from "@openbot/ui/features/browser/BrowserLiveView";
 import type { UsageLimitAskCardProps } from "@openbot/ui/features/conversation/BackupModels";
 import type { UnloadedHistory } from "@openbot/ui/features/conversation/ChatScrollRail";
-import type { AccountProfilePanelProps } from "@openbot/ui/features/settings/AccountProfilePanel";
 import type { JSX } from "@solidjs/web";
 import type { ConnectorRegistry } from "../connectors/connector-registry";
 import type { ConversationRuntime } from "./conversation-runtime";
@@ -78,7 +81,7 @@ export interface ConversationProps {
   /** A joined server's agents are still on their way, so the composer says that it connects. */
   agentsConnecting?: boolean;
   /**
-   * The plan windows for the active agent's provider and model, when the account dock has them.
+   * The plan windows for the active agent's provider and model, when the account usage has them.
    * The composer reads them for one thing only: a window at 100% means the next send is refused by
    * the provider, so the notice has to say so before the user writes the message.
    */
@@ -108,12 +111,19 @@ export interface ConversationProps {
   onManageProviders?: (trigger: HTMLElement) => void;
   agent: AgentProfile | undefined;
   agents: AgentProfile[];
+  /**
+   * The agents that the composer offers for a mention. Absent means `agents`. A hidden agent gets no
+   * messages, so the desktop leaves it out; the timeline still names it from `agents`.
+   */
+  mentionAgents?: AgentProfile[];
   availableRoutineIds?: readonly string[];
   /** The agent's routines, for the chat card of a routine the agent created or changed. */
   routines?: readonly RoutineFields[];
   modelOptions: AgentModelOption[];
-  messages: AgentMessage[];
+  messages: readonly AgentMessage[];
   messageReferences?: Record<string, AgentMessage>;
+  /** The quoted originals that the host no longer has. Their replies show a note in place of the quote. */
+  missingMessageReferences?: Readonly<Record<string, true>>;
   unreadCount: number;
   firstUnreadMessageId: string | null;
   loaded: boolean;
@@ -128,23 +138,19 @@ export interface ConversationProps {
   skillsMarketplaceOpen?: boolean;
   /**
    * True while a surface that can add or remove one of the host's MCP servers is open: the server
-   * settings dialog and the marketplace, where a plugin installs its app. The composer reads the
+   * settings and the marketplace, where a plugin installs its app. The composer reads the
    * list again when the last of them closes, so a server added there can be tagged without a
    * restart.
    */
   mcpSettingsOpen?: boolean;
   globalOverlayOpen: boolean;
   settingsRequest: AgentSettingsRequest | null;
-  /** The account Profile panel, for a client that has no settings dialog. `profileRequest` opens it. */
-  accountProfile?: Pick<
-    AccountProfilePanelProps,
-    "account" | "onUpdateAccountName" | "onUpdateAccountAvatar" | "onListAccountSessions" | "onRevokeAccountSession"
-  >;
-  profileRequest?: { agentId: string; nonce: number } | null;
   messageFocusRequest: { agentId: string; messageId: string; nonce: number } | null;
   queue: QueueSnapshot | undefined;
   /** The agent's open waits. Absent where the host does not keep them. */
   waits?: readonly AgentWait[];
+  /** The agent's tasks. Absent where the host keeps no tasks. */
+  tasks?: ConversationTasks;
   browserTabs: BrowserTab[];
   activeBrowserTabId: string | null;
   browserVisibilitySuspended: boolean;
@@ -200,24 +206,21 @@ export interface ConversationProps {
   onPromptResolutionPresented?: (agentId: string, turnId: string, requestId: string | number) => void;
   onRespondToApproval: (decision: "accept" | "decline") => Promise<boolean>;
   /**
-   * Grants the agent a standing approval and accepts the request in hand. Absent where the grant
-   * cannot be given: the approval widens the agent's access, or the agent belongs to a remote
-   * server, whose own computer holds that choice.
+   * Moves an agent at Ask first to Full access and accepts the request in hand. Absent at any other
+   * level, and where the user may not change the agent's Permissions.
    */
   onAlwaysAllowApproval?: () => Promise<boolean>;
   /**
-   * Whether this agent acts without asking, by Turbo mode or by its own grant. Shown in the header,
-   * because standing consent the user cannot see is consent they cannot take back.
+   * Whether this agent acts without asking at Full access. Unknown while a remote host has not
+   * answered. Together with the agent's access it gives the Permissions level.
    */
   agentAutoApproves?: boolean;
-  /** Turbo mode covers every agent, so the per-agent switch is read-only while it is on. */
-  agentAutoApproveLocked?: boolean;
   /** The app default an agent without its own busy-message setting follows. Local agents only. */
   defaultBusyMessageMode?: BusyMessageMode;
   /** The app memory cap. Local agents only. */
   agentMemoryLimit?: number;
-  /** Absent for a remote agent: its own computer holds that choice. */
-  onSetAgentAutoApprove?: (autoApprove: boolean) => Promise<void>;
+  /** Writes the agent's Permissions level. Absent where the user may not change it. */
+  onUpdateAgentPermissions?: (input: UpdateAgentAdminSettingsInput) => Promise<void>;
   /** Starts a new chat with the agent. Absent when its host does not serve `context-reset-v1`. */
   onClearAgentContext?: () => Promise<void>;
   onRespondToBrowserTakeover: (decision: "complete" | "cancel") => Promise<boolean>;
@@ -269,10 +272,29 @@ export type SidebarFilePreview =
 
 export type RightPanelMode =
   | "none"
+  /** The side panel with no open pane. It lists the panes it can open. */
+  | "side-panel"
   | "browser"
   | "browser-expanded"
   | "browser-pip"
   | "settings"
-  | "profile"
   | "file-preview"
-  | "files";
+  | "files"
+  | "task"
+  | "question";
+
+export type { SidePanelPane } from "@openbot/ui/features/conversation/SidePanel";
+
+/** The tasks of the active agent, and the task actions. Each action names the task, not the agent. */
+export interface ConversationTasks {
+  snapshot: AgentTasksSnapshot | undefined;
+  /** The conversation of a task, after `onOpen` read it. */
+  conversation: (taskId: string) => ConversationSnapshot | undefined;
+  onOpen: (taskId: string) => void;
+  onStart: (text: string) => Promise<AgentTask | null>;
+  onRunQueuedMessage: (deliveryId: string) => void;
+  onSend: (taskId: string, text: string) => Promise<boolean>;
+  onStop: (taskId: string) => void;
+  onClose: (taskId: string) => void;
+  onReopen: (taskId: string) => void;
+}

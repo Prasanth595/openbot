@@ -1,7 +1,12 @@
 import { GlassView } from "expo-glass-effect";
 import { useIsFocused } from "expo-router";
 import { Button, Spinner, Typography } from "heroui-native";
-import { ArrowUp, Mic, Plus, Reply, Square, X } from "lucide-react-native";
+import ArrowUp from "lucide-react-native/icons/arrow-up";
+import Mic from "lucide-react-native/icons/mic";
+import Plus from "lucide-react-native/icons/plus";
+import Reply from "lucide-react-native/icons/reply";
+import Square from "lucide-react-native/icons/square";
+import X from "lucide-react-native/icons/x";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   AccessibilityInfo,
@@ -38,7 +43,7 @@ import { haptics } from "@/shared/lib/haptics";
 import { useMotionPreference, useReducedMotion } from "@/shared/lib/motion";
 import { useText } from "@/shared/lib/text";
 import { editMentionDraft, insertMention, mentionDraft, mentionQuery } from "../model/chat-mentions";
-import { markdownListReturn } from "../model/composer-lists";
+import { applyMarkdownListEdit, markdownListReturn } from "../model/composer-lists";
 import { largePastedText } from "../model/composer-paste";
 import { createComposerSendGate } from "../model/composer-send";
 import { composerAction } from "../model/voice-dictation";
@@ -971,9 +976,13 @@ export function ChatComposer({
                           });
                         return;
                       }
-                      const listEdit = markdownListReturn(mentionDraft(latestTextRef.current).text, text, cursor);
+                      const source = latestTextRef.current;
+                      const previous = mentionDraft(source).text;
+                      const listEdit = markdownListReturn(previous, text, cursor);
                       if (listEdit) pendingCursor.current = listEdit.caret;
-                      const next = editMentionDraft(latestTextRef.current, listEdit?.text ?? text);
+                      const next = listEdit
+                        ? applyMarkdownListEdit(source, previous, cursor, listEdit)
+                        : editMentionDraft(source, text);
                       latestTextRef.current = next;
                       onChangeDraft(next);
                     }}

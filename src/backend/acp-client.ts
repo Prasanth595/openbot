@@ -923,7 +923,17 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
     ).pipe(
       Effect.timeoutOrElse({
         duration: timeoutMs,
-        orElse: () => Effect.fail(providerFailure(new TimeoutError("ACP initialization timed out."))),
+        orElse: () =>
+          Effect.fail(
+            providerFailure(
+              new TimeoutError(
+                sourceText("error.provider.acpStartTimedOut", {
+                  provider: this.#label,
+                  seconds: String(Math.round(timeoutMs / 1_000)),
+                }),
+              ),
+            ),
+          ),
       }),
     );
     const initialization = this.#initialization;
@@ -995,7 +1005,7 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
     return this.#initialization?.agentCapabilities?.sessionCapabilities?.resume != null;
   }
 
-  /** Whether the agent advertises `additionalDirectories`. Grok refuses them on `session/resume` (#1729). */
+  /** Whether the agent advertises `additionalDirectories`. Grok refuses them unadvertised (#1729). */
   get #acceptsAdditionalDirectories(): boolean {
     return this.#initialization?.agentCapabilities?.sessionCapabilities?.additionalDirectories != null;
   }
@@ -1076,6 +1086,9 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
           try {
             const connection = providerResult(yield* Effect.result(providerSync(() => this.#requireConnection())));
             const additionalDirectories = getArray(params, "runtimeWorkspaceRoots").filter(isString);
+            // Sent only to an agent that advertises them: Grok 1.0.60 refuses them on every session
+            // request, so each new Grok session failed.
+            const directories = this.#acceptsAdditionalDirectories ? { additionalDirectories } : {};
             let id: string;
             let configOptions: SessionConfigOption[];
             let currentModelId: string | null;
@@ -1102,14 +1115,14 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
                         connection.resumeSession({
                           sessionId: requestedThreadId,
                           cwd,
-                          ...(this.#acceptsAdditionalDirectories ? { additionalDirectories } : {}),
+                          ...directories,
                           mcpServers,
                         } satisfies ResumeSessionRequest),
                       )
                     : this.#loadSessionEffect(connection, {
                         sessionId: requestedThreadId,
                         cwd,
-                        additionalDirectories,
+                        ...directories,
                         mcpServers,
                       }),
                 ),
@@ -1119,9 +1132,7 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
               currentModelId = currentModelFromSessionSetup(response);
             } else {
               const response = providerResult(
-                yield* Effect.result(
-                  providerCall(() => connection.newSession({ cwd, additionalDirectories, mcpServers })),
-                ),
+                yield* Effect.result(providerCall(() => connection.newSession({ cwd, ...directories, mcpServers }))),
               );
               id = response.sessionId;
               configOptions = response.configOptions ?? [];
@@ -1927,7 +1938,6 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
           command: params.toolCall.kind === "execute" ? printableInput(params.toolCall.rawInput) : null,
           reason: params.toolCall.title ?? null,
           permissions: requestedPermissions,
-          acpOptions: params.options,
         },
       )
       .pipe(toProviderClientOperationError);

@@ -24,7 +24,9 @@ interface ProviderHistoryImportDatabase {
     provider: AgentProviderId;
     externalSessionId: string;
   }): unknown;
-  stageProviderHistoryFragment(input: { sessionId: string; fragment: ProviderHistoryFragment }): unknown;
+  stageProviderHistoryFragment(input: { sessionId: string; fragment: ProviderHistoryFragment }): {
+    turnImported: boolean;
+  };
   stagedProviderHistoryItems(input: {
     sessionId: string;
     turnId: string;
@@ -86,6 +88,7 @@ interface ProviderHistoryPartial {
  * staging tables, then reads one bounded item page at a time and writes that page in one
  * transaction.
  * It never writes a full conversation snapshot and never deletes a message missing from a page.
+ * A completed turn that an earlier import committed, and that did not change, is not imported again.
  */
 export function importProviderHistory(
   input: ProviderHistoryImportInput,
@@ -104,11 +107,13 @@ export function importProviderHistory(
     let providerCovered = false;
     const consume: ProviderHistoryConsumer = (fragment) =>
       Effect.gen(function* () {
-        yield* providerSync(() =>
+        const staged = yield* providerSync(() =>
           input.database.stageProviderHistoryFragment({ sessionId: input.sessionId, fragment }),
         );
         if (!fragment.complete) return true;
         providerCovered = true;
+        // An earlier import committed this turn, and staging found no change since then.
+        if (staged.turnImported) return true;
         // ACP replay has stable item IDs only inside the provider transcript. It has no stable
         // OpenBot turn ID, so normalizing it into the conversation projection would duplicate a
         // live turn after release and reload. Keep the bounded raw records for handoff and reads;

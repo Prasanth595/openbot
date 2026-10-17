@@ -7,7 +7,7 @@ No deployment or pull request is made by these source changes.
 
 ## Shared application UI
 
-The browser uses the existing `AccountLogin`, `ServerRail`, `Sidebar`, `AccountDock`,
+The browser uses the existing `AccountLogin`, `PageRail`, `ServerRail`, `Sidebar`,
 `Conversation`, `AgentSettingsPanel`, and `FirstAgentSetup` components. After sign-in it
 connects to the first available host and selects a teammate. There is no web dashboard,
 welcome screen, separate conversation toolbar, or always-visible invitation form.
@@ -53,11 +53,10 @@ mock. The separate web preview implements the browser runtime with that same moc
   Every write needs the same origin and `X-OpenBot-Browser: 1`; all send JSON except the avatar
   upload, which sends the image bytes. A site delete also needs an `Idempotency-Key`. A host logo is
   given to a member of that host, for its current `logoKey` only.
-- The account dock uses the single-row layout on every browser. Its menu has usage, Profile, Billing,
-  Account settings, Settings (the connected host's settings), Marketplace, Send feedback, Message,
-  and Sign out. Profile opens the desktop Settings > Profile content in the right panel of the agent
-  on screen; it is not available in a channel. Account settings opens a dialog with the desktop
-  Profile tab, and Preferences: the interface language and the completion sound.
+- The page rail is the same as on desktop: Agents, Routines (when the host supports routines),
+  Schedule, Usage, Marketplace, Settings, and Help. Settings opens a page with the desktop Profile tab
+  (with Sign out), Preferences (the interface language and the completion sound), and a Billing
+  button below the tabs. The server menu opens the Server settings page of the connected host.
   This browser keeps both preferences, also before sign-in (`web-language-preference.ts`,
   `completion-sound.ts`). A browser session is listed as Desktop, and it can disconnect any other
   session of the account, as the desktop app can. Providers & permissions and app updates stay
@@ -113,7 +112,7 @@ mock. The separate web preview implements the browser runtime with that same moc
   server that the account pays for. Its actions open the Stripe Customer Portal in the same tab, only
   at a `billing.stripe.com` URL. Stripe returns to `/app?billing=portal`. The client removes the field
   and opens the dialog. The webhook can be later than the return, so the dialog loads again on focus.
-- The application Settings dialog, permissions review, and hosted site publishing are desktop only.
+- The application Settings page, permissions review, and hosted site publishing are desktop only.
   Publishing sends a folder of this computer through a folder picker and local file reads in the main
   process. The browser can list, open, and delete the account's sites.
 - Uploads and downloads retain the shared client's 10 MB limit. Message attachment count uses the
@@ -179,7 +178,7 @@ mock. The separate web preview implements the browser runtime with that same moc
   `events-v1`. On a phone the canvas takes the chat pane, and the pane button reads Routines.
 - No full remote desktop, push notifications, or offline operation is included. See
   [Remote desktop](#remote-desktop) for the reason.
-- These stay desktop only: the application Settings dialog (permissions, app updates),
+- These stay desktop only: the application Settings page (permissions, app updates),
   permissions review, hosted site publishing, marketplace publishing, Picture in Picture, the Memories, Routines and Files sections of agent settings, the
   conversation Files panel, and file reveal. The browser shows host files in Server settings >
   Storage.
@@ -355,8 +354,7 @@ older hosts keep a read-only default layout. Late responses from a previous host
 layout revisions after a newer event, cannot replace the current layout. Pins and collapsed
 sections use the desktop's `createSidebarPreferences`, scoped to the account and host.
 
-The existing shared AccountDock now shows its usage indicator and provider popover in the web
-client. Usage comes from the existing host Team API, with the same contract validation, refresh
+The page rail shows the usage rings and the Usage page in the web client. Usage comes from the existing host Team API, with the same contract validation, refresh
 controls, and visual components as desktop. Switching hosts clears usage and rejects stale UI
 updates. The web preview uses the desktop mock for usage and sidebar layout too.
 

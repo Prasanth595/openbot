@@ -9,7 +9,7 @@ import {
 import { isString } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
 import { redactText } from "@openbot/logging";
-import { Effect, Exit, Schema, Scope } from "effect";
+import { Effect, Exit, Option, Schema, Scope } from "effect";
 import { secretElicitationField } from "./agent/prompts";
 import { type AgentClient, type AgentProvider, type DiagnosticOrigin, RequestTimeoutError } from "./agent-client";
 import { type AgentCliInfo, cliSpawnTarget } from "./cli";
@@ -224,18 +224,22 @@ export class MuseAgentClient extends EventEmitter<ClientEvents> implements Agent
         yield* this.#ensureHost();
         return {};
       case "account/read": {
-        if (!this.#options.readAccount && !this.#reportedUnknownAuth) {
+        // A Muse CLI without `account/read` keeps the unverified state instead of failing the start.
+        const verified = this.#options.readAccount
+          ? yield* this.#options.readAccount().pipe(Effect.option)
+          : Option.none();
+        if (Option.isNone(verified) && !this.#reportedUnknownAuth) {
           this.#reportedUnknownAuth = true;
           this.emit(
             "diagnostic",
             "Muse authentication is not verified. The first model request will check the configured credentials.",
           );
         }
-        const status = this.#options.readAccount ? yield* this.#options.readAccount() : { authenticated: true };
+        const status = Option.getOrElse(verified, () => ({ authenticated: true, email: null, planType: null }));
         return {
           account: status.authenticated
             ? {
-                type: this.#options.readAccount ? "muse" : "muse-unverified",
+                type: Option.isSome(verified) ? "muse" : "muse-unverified",
                 email: status.email ?? null,
                 planType: status.planType ?? null,
               }
@@ -603,7 +607,7 @@ export class MuseAgentClient extends EventEmitter<ClientEvents> implements Agent
           ? {}
           : {
               input,
-              workspaceRoots: [thread.cwd, ...thread.roots],
+              workspaceRoots: [...new Set([thread.cwd, ...thread.roots])],
               ifBusy: "queue",
               ...(effort ? { reasoningEffort: effort } : {}),
             }),

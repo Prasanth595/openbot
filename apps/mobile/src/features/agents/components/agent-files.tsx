@@ -2,13 +2,13 @@ import type { StorageCategory, StorageUsage, StoredFileRow } from "@openbot/cont
 import type { MobileTextKey } from "@openbot/i18n/mobile";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { Trash2 } from "lucide-react-native";
+import Trash2 from "lucide-react-native/icons/trash-2";
 import { useState } from "react";
 import { Alert, Pressable } from "react-native";
 import { showFailureAlert } from "@/features/analytics/failure-reports";
 import { AttachmentThumbnail, useAttachmentFile } from "@/features/chat/components/attachment-preview";
 import { SettingsNote, SettingsRow, SettingsSection } from "@/features/settings/components/settings-content";
-import { type MobileAgent, useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import { type MobileAgent, useMobileWorkspaceActions } from "@/features/workspace/context/mobile-workspace-context";
 import { haptics } from "@/shared/lib/haptics";
 import { currentText, useText } from "@/shared/lib/text";
 
@@ -101,7 +101,7 @@ function StoredFile({
   onChanged: () => void;
 }) {
   const { t, format } = useText();
-  const { deleteStoredFile } = useMobileWorkspace();
+  const { deleteStoredFile } = useMobileWorkspaceActions();
   const danger = useThemeColor("danger");
   const [deleting, setDeleting] = useState(false);
   const image = file.kind === "image";

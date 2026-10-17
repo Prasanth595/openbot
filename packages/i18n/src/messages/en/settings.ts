@@ -50,15 +50,6 @@ export const messages = defineMessages("settings", {
   "settings.keepRemoteSessions.description":
     "Keep the connection to your joined servers between launches. OpenBot starts about a second faster. When you quit OpenBot, the OpenBot service does not close the connection.",
   "settings.permissions.title": "Permissions",
-  "settings.turbo.title": "Turbo mode",
-  "settings.turbo.description":
-    "Let every agent run commands, change files, widen its own filesystem and network access, and publish, update or delete public sites without asking.",
-  "settings.turbo.confirmTitle": "Turn on Turbo mode?",
-  "settings.turbo.confirmDescription":
-    "Agents will run commands, change files, widen their own access on this computer, and publish, update or delete public sites without asking you first. Turn this off here at any time.",
-  "settings.turbo.confirmAccept": "Turn on",
-  "settings.autoApprove.revokeFailed":
-    "Could not revoke the standing approval for {name}. It is still active. Try again.",
   "settings.notifications.title": "Notifications",
   "settings.alerts.title": "Alerts",
   "settings.desktopNotifications.title": "Desktop notifications",
@@ -139,10 +130,7 @@ export const messages = defineMessages("settings", {
   "settings.save.region": "Unsaved changes",
   "settings.save.notSaved": "Changes not saved",
   "settings.save.reset": "Reset",
-  "settings.dialog.close": "Close settings",
   "settings.panel.resize": "Resize right panel",
-  "settings.turbo.turnOffFailed": "Could not turn off Turbo mode. It is still active. Try again.",
-  "settings.turbo.turnOnFailed": "Could not turn on Turbo mode. Try again.",
   // The agent picker on the skill and plugin install pages.
   "settings.agentSelect.placeholder": "Choose an agent",
   "settings.agentSelect.empty": "No local agents",

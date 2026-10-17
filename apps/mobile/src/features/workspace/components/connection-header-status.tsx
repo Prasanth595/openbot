@@ -5,13 +5,20 @@ import { View } from "react-native";
 import { ConnectionCountdown } from "@/features/workspace/components/connection-countdown";
 import { AnimatedCounter } from "@/features/workspace/components/connection-counter";
 import { ConnectionStatusReveal } from "@/features/workspace/components/connection-status-reveal";
-import { recoveryAttempt, recoveryCountdown, serverStatusLabel } from "@/features/workspace/model/server-status";
+import { useLiveServerRecovery } from "@/features/workspace/context/server-recovery-countdown";
+import {
+  recoveryAttempt,
+  recoveryCountdown,
+  serverStatusLabel,
+  showsOnline,
+} from "@/features/workspace/model/server-status";
 import type { MobileServer } from "@/features/workspace/model/workspace-types";
 import { ErrorReference } from "@/shared/components/error-reference";
 import { useText } from "@/shared/lib/text";
 
-function StatusText({ server }: { server: MobileServer }) {
+function StatusText({ server: shown }: { server: MobileServer }) {
   const { t, sourceText } = useText();
+  const server = useLiveServerRecovery(shown);
   const recovery = server.recoveryStatus;
   const reconnecting = recovery && recovery.phase !== "online" && recovery.phase !== "suspended";
   const title = reconnecting ? t("mobile.workspace.status.reconnecting") : serverStatusLabel(server, t);
@@ -76,7 +83,7 @@ export function ConnectionHeaderStatus({ server }: { server: MobileServer | unde
     // Keep this native toolbar slot mounted: removing it would cut off the exit animation.
     <View className="justify-center" style={{ width: 164, height: 44 }}>
       <ConnectionStatusReveal
-        value={server && !server.initialConnectionPending && server.state !== "online" ? server : null}
+        value={server && !server.initialConnectionPending && !showsOnline(server) ? server : null}
       >
         {(displayed) => <StatusText server={displayed} />}
       </ConnectionStatusReveal>

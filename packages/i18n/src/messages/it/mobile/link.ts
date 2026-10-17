@@ -9,8 +9,10 @@ export const messages = {
   "mobile.link.invite.cancel": "Annulla invito",
   "mobile.link.pairing.title": "Collega questo telefono",
   "mobile.link.pairing.alreadySignedIn":
-    "Hai già effettuato l'accesso. Esci dalle Impostazioni prima di collegare un altro account.",
+    "Hai già effettuato l'accesso. Esci dall'account nelle Impostazioni prima di collegare un altro account.",
   "mobile.link.pairing.description": "Continua solo se hai richiesto tu questo link Mobile Connect dal computer.",
+  "mobile.link.pairing.accountService":
+    "Questo link si collega al servizio account su {origin}, non al servizio account di OpenBot.",
   "mobile.link.pairing.connect": "Connetti",
   "mobile.link.plugin.title": "Apri la pagina del plugin",
   "mobile.link.plugin.description": "Guarda questo plugin sul sito di OpenBot.",
@@ -40,7 +42,8 @@ export const messages = {
   "mobile.link.template.install.pending": "Aggiunta in corso…",
   "mobile.link.template.install.failed": "Impossibile aggiungere l'agente.",
   "mobile.link.template.notFound.title": "Agente non trovato",
-  "mobile.link.template.notFound.description": "Questo agente condiviso non esiste o il suo autore lo ha rimosso.",
+  "mobile.link.template.notFound.description":
+    "Questo agente condiviso non esiste o il suo autore ne ha annullato la pubblicazione.",
   "mobile.link.template.error.title": "Impossibile caricare l'agente",
   "mobile.link.template.error.loadFailed": "Impossibile leggere l'agente condiviso. Riprova.",
   "mobile.link.template.error.unsupported":

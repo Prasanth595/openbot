@@ -39,7 +39,7 @@ export const messages = {
   "error.skill.localLibraryUnavailable": "La libreria delle skill locali non è disponibile.",
   "error.skill.lockInvalid": "Il record della skill installata non è valido. È stato lasciato invariato.",
   "error.skill.installPathSymlink": "I percorsi di installazione delle skill non possono contenere link simbolici.",
-  "error.skill.duplicateSlug": 'Due skill si chiamano "{slug}". Rinomina una delle due prima di pubblicare.',
+  "error.skill.duplicateSlug": "Due skill si chiamano «{slug}». Rinomina una delle due prima di pubblicare.",
   "error.skill.publishNeedsRepair": "{name} ha modifiche locali o va riparata prima della pubblicazione.",
   "error.skill.publishUntracked":
     "{name} è stata installata prima del tracciamento della versione esatta. Aggiornala o riparala prima di pubblicare.",

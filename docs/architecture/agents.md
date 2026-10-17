@@ -33,6 +33,14 @@ expired handle cannot answer a later provider request. Pending details are not t
 snapshot budget. The HTTP boundary redacts outgoing values. Browser takeovers and secret questions
 are notices only and direct the person to OpenBot. Messages and routine runs share the rate limit.
 
+## Scheduled routine changes
+
+The agent scheduler reads the due list once per pass. It reads each routine again before it starts
+that occurrence, because queueing an earlier run can yield. A paused or deleted routine, a replaced
+trigger, or a moved due time leaves the old list without starting work. An edit that keeps the same
+trigger and due time uses the current instruction and policies. The run row still commits before
+the trigger advances or completes, so restart recovery keeps the same run and mailbox delivery.
+
 ## Quiet routine runs
 
 A scheduled, script or webhook run of an agent routine can end without news, in two ways. No person
@@ -127,6 +135,62 @@ on a joined host.
   and `disconnect_routine_agents` (`routine-flow-tools.ts`). `RoutineFlows` is built after the agent
   service, so the tool router reads it through a getter. The canvas chat panel sends the user's request
   to the open agent's own conversation and shows the answer of the turn that read it.
+
+## Hidden agents
+
+A user hides an agent from its sidebar menu in place of a delete. The agent keeps its thread, files,
+memories, settings, pin and section. `AgentSummary.hiddenAt` is in `projection_agents.agent_json`,
+so the state needs no SQL migration and a duplicate does not copy it. The host refuses new messages
+to a hidden agent with `error.backend.recipientHidden`, on IPC, channels, MCP `send_message`, the
+automation server and external messaging. Its routines do not run, and its queued messages wait
+behind the drain hold `"hidden"`. A turn that runs at the hide finishes. A hidden agent is not in
+`list_agents`, the teammates prompt, the mention picker, the counts or "Needs you".
+
+Restore marks the missed routine runs as skipped before it clears the flag, so the timer does not
+run a backlog. Then it arms the routines and drains the queue. IPC `agent:hidden:list` and
+`agent:hidden:set` change the state, and the event `hidden-agents-changed` carries the whole list.
+A joined desktop, the web client and the mobile app use the optional `agent-hidden-v1` capability
+(`packages/contracts/src/team-protocol/agent-hidden-v1.ts`). Any member reads the list; only an
+owner or an admin hides or restores an agent on a host.
+`/v1/agents` and the released agent codecs do not carry `hiddenAt`.
+
+## Agent tasks
+
+A task is a separate execution thread of one agent. The agent keeps one identity, workspace and
+provider settings; each task has its own provider thread, conversation, queue, progress and result.
+`projection_agent_tasks` (migration 38) links a task to its thread. A mailbox message with a
+`taskId` belongs to that task, and `DrainScheduler` drains each task as its own lane. The main chat
+lane does not count toward the task limit. At most `limit` task turns of one agent run at the same
+time. `agentTaskLimit` gives the limit: the agent's local `taskLimit` setting (1 to
+`AGENT_TASK_LIMIT_MAX`, in `agent_json`), else `AGENT_TASK_LIMIT_DEFAULT` (2). A provider whose
+descriptor has `concurrentTurns: false` (custom ACP agents) gets 1, and its chat and tasks run one
+turn at a time. Other task messages wait with a `hold` reason: `task-limit`, `agent-restarting`,
+`usage-limit`, `server-busy`, `agent-busy` or `one-turn`. The server-wide `TurnSlots` limit of a
+hosted server is separate.
+
+The user starts a task from the Tasks tab of the side panel ("New task") or moves a queued message to one ("Run as
+task"). The agent starts one with the `start_task` OpenBot tool, up to 8 open tasks. An agent has at most 50
+open tasks (`INPUT_LIMITS.agentTasks`, the size of the task list), so each open task stays visible. A message to a
+running task waits in the task, or steers the turn when the agent's busy-message mode is "steer"
+and the provider steers natively, as in the main chat. Stop interrupts the task turn; close moves
+the task to "Earlier tasks" when no message of it waits, starts or runs, and reopen moves it back. Boot recovery registers the task threads and
+starts queued tasks again. When a task's provider session ends, the next session gets a handoff of
+that task's own transcript, as the main chat does; channel threads still get none.
+
+Task events (`agent-tasks-changed`, `agent-task-conversation`, `agent-task-conversation-delta`) are
+local. The Team API has no task route, and its frozen codecs drop these events, so a joined server
+shows no tasks. Prompts, approvals and warnings of a task turn show in the main chat. A provider
+error of a task turn goes to the task: `AgentTasks` stores the redacted text in the task's `error`
+column, and the next turn of the task clears it. The panel shows it after a restart too.
+
+Shared writes: each task thread owns its own browser tabs and tab queue. Computer Use is an MCP
+server that the provider starts, so OpenBot cannot queue its calls; `ThreadLifecycle` starts a task
+session without it, and the instructions send desktop work to the agent's own chat. Tasks share the
+workspace, and OpenBot does not lock files; the `start_task` guidance warns the agent about this.
+
+A provider change is refused with `error.agent.waitForTasksBeforeProviderChange` while a task turn
+runs. After the change, `AgentService` retires the provider sessions of the chat and of each task
+thread, so each one gets a handoff on the new provider. The instance transfer file keeps `taskLimit`.
 
 ## Agent communication policy
 
@@ -240,7 +304,7 @@ environment values, URLs, or headers, because they can hold secrets. `install_lo
 it they act on the caller. `uninstall_skill` never removes skill files that the user changed.
 An agent can only restrict access and Computer Use, for itself or a teammate. The router writes
 only a restriction, so a user change between its check and the write is never undone. Only the
-user widens them again, and only the user changes auto-approve, MCP servers and local script runs. A new agent gets
+user widens them again, and only the user moves an agent between Ask first and Full access, and changes MCP servers and local script runs. A new agent gets
 the access and Computer Use limits of the agent that creates it, so a Workspace-only agent cannot
 get around its sandbox through a teammate. There is no creation step for skills or routines in
 the UI.
@@ -270,7 +334,21 @@ page as its file and does not run it: in react-native-webview, a script in any f
 bridge to the app. `html_preview` lets the agent look at a page before it publishes it: the main
 process draws it in a hidden window with its own in-memory session (`ChatVisualPreviewer`)
 and returns a PNG, the content height and the console lines. The file preview shows an HTML file in
-the same frame.
+the same frame. On desktop, a shared or workspace HTML file preview gives the client a temporary
+`openbot-visual://preview/<token>` page URL beside its bytes. `FilePreviewPages` keeps only local HTML
+that already passed the existing file-access checks, in a bounded in-memory registry. The page
+protocol accepts only an opaque token, never a file path, and uses the same sandbox response as
+HTML attachments. The server-owned preview state releases its page on replacement, close or
+disposal; stale preview responses release their unused pages. Main clears the registry before an
+application-controlled renderer load, after a main-frame document navigation commits, when the renderer
+exits, or when its web contents are destroyed. Cancelled navigations retain the live renderer's pages and
+deep-link readiness. A generation captured before file resolution prevents old requests from registering
+pages after a clear. Accepted
+addresses remain valid until release or clear, including when the user switches to source and back. At
+most eight pages can be held. A full registry or a page above the existing 8 MB limit falls back
+to source. Only local file previews use this HTML MIME override; attachment imports keep their
+existing MIME types. Downloaded remote files keep their existing preview path and are not registered here.
+`FilePreview` is local IPC data; this optional field does not cross the Team API or change its frozen adapters.
 
 Codex fixes dynamic tools at provider-session creation; resume does not update them. A local
 `provider-toolsets` manifest records the tool fingerprint for each new Codex session. Sessions with

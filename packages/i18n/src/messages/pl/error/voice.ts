@@ -11,8 +11,8 @@ export const messages = {
   "error.voice.prepareRequired":
     "Lokalna transkrypcja głosu jest niedostępna. Uruchom `bun run voice:prepare` i uruchom ponownie OpenBot.",
   "error.voice.transcriptionFailed": "Nie udało się przetranskrybować tego nagrania.",
-  "error.voice.cloud.keyRequired": "Dodaj klucz API ElevenLabs w Ustawienia → Głos.",
-  "error.voice.cloud.keyRejected": "ElevenLabs nie zaakceptował klucza API. Sprawdź klucz w Ustawienia → Głos.",
+  "error.voice.cloud.keyRequired": "Dodaj klucz API ElevenLabs w sekcji Ustawienia → Głos.",
+  "error.voice.cloud.keyRejected": "ElevenLabs nie zaakceptował klucza API. Sprawdź klucz w sekcji Ustawienia → Głos.",
   "error.voice.cloud.quotaExceeded": "Limit ElevenLabs został wyczerpany.",
   "error.voice.cloud.rateLimited": "ElevenLabs jest zajęty. Spróbuj ponownie za chwilę.",
   "error.voice.cloud.termsRequired": "Zaakceptuj warunki ElevenLabs na swoim koncie ElevenLabs i spróbuj ponownie.",

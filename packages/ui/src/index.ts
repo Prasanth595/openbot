@@ -14,6 +14,7 @@ export * from "./image-remove-button";
 export * from "./item";
 export * from "./marker";
 export * from "./message";
+export * from "./motion-tooltip";
 export * from "./progress";
 export * from "./qr-code";
 export * from "./questionnaire";

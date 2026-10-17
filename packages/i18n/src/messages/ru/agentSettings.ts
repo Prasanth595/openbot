@@ -15,7 +15,7 @@ export const messages = {
   "agentSettings.backToDetails": "Назад к описанию",
   "agentSettings.closeDetails": "Закрыть описание",
   "agentSettings.backToSettings": "Назад к настройкам",
-  "agentSettings.permissions.title": "Разрешения",
+  "agentSettings.permissions.title": "Доступ",
   "agentSettings.advanced.title": "Дополнительно",
   "agentSettings.backupModels.title": "Резервные модели",
   "agentSettings.backupModels.valueAsk": "Сначала спросить",
@@ -37,7 +37,7 @@ export const messages = {
   "agentSettings.backupModels.add": "Добавить резервную модель",
   "agentSettings.backupModels.moveUp": "Переместить {model} вверх",
   "agentSettings.backupModels.moveDown": "Переместить {model} вниз",
-  "agentSettings.backupModels.remove": "Удалить {model}",
+  "agentSettings.backupModels.remove": "Убрать {model}",
   "agentSettings.backupModels.limited": "Лимит использования исчерпан · пропущена",
   "agentSettings.backupModels.unavailable": "Сейчас недоступна · пропущена",
   "agentSettings.backupModels.withAccount": "{model} · {account}",
@@ -84,29 +84,33 @@ export const messages = {
   "agentSettings.runtime.modelUnavailable": "Модели станут доступны после подключения CLI агента.",
   "agentSettings.runtime.reasoning": "Рассуждение",
   "agentSettings.runtime.reasoningLabel": "Уровень рассуждения агента",
-  "agentSettings.runtime.selectReasoning": "Выберите рассуждение",
-  "agentSettings.runtime.reasoningSetByProvider": "Задаёт {provider}",
+  "agentSettings.runtime.selectReasoning": "Выберите уровень рассуждения",
+  "agentSettings.runtime.reasoningSetByProvider": "Как в {provider}",
   "agentSettings.runtime.access": "Доступ",
   "agentSettings.runtime.accessLabel": "Доступ агента",
   "agentSettings.runtime.busyMessage": "Во время работы",
   "agentSettings.runtime.busyMessageLabel": "Сообщения, пока агент работает",
+  "agentSettings.runtime.taskLimit": "Задач одновременно",
+  "agentSettings.runtime.taskLimitLabel": "Сколько задач выполняется одновременно",
   "agentSettings.runtime.workingDirectory": "Рабочая папка",
   "agentSettings.runtime.notAvailable": "Пока недоступно",
   "agentSettings.runtime.fullAccessNote":
     "Агент работает с полным доступом к компьютеру из своего рабочего пространства и общей папки.",
-  "agentSettings.runtime.claudeApprovalNote":
-    "Claude действует без запроса подтверждения, кроме вопросов, которые он задаёт вам.",
-  "agentSettings.runtime.providerApprovalNote":
-    "В зависимости от провайдера для опасных команд сначала может понадобиться подтверждение.",
+  "agentSettings.runtime.askNote":
+    "Агент спрашивает вас, прежде чем использовать инструмент OpenBot или опубликовать сайт, а также когда его провайдер запрашивает одобрение.",
+  "agentSettings.runtime.fullNote": "Агент действует без подтверждения, кроме вопросов, которые он задаёт вам.",
 
-  "agentSettings.access.workspace": "Только рабочее пространство",
+  "agentSettings.access.workspace": "Рабочее пространство",
+  "agentSettings.access.ask": "Сначала спрашивать",
   "agentSettings.access.full": "Полный доступ",
-  "agentSettings.busyMessage.appDefaultQueue": "Очередь (общая)",
-  "agentSettings.busyMessage.appDefaultSteer": "Направлять (общая)",
+  "agentSettings.busyMessage.appDefaultQueue": "По умолчанию (очередь)",
+  "agentSettings.busyMessage.appDefaultSteer": "По умолчанию (направлять)",
   "agentSettings.busyMessage.queue": "Очередь",
   "agentSettings.busyMessage.steer": "Направлять",
   "agentSettings.busyMessage.steerUnsupported":
     "{provider} не умеет направлять выполняемый ход. Сообщения, отправленные во время работы, ждут в очереди.",
+  "agentSettings.taskLimit.default": "По умолчанию ({count})",
+  "agentSettings.taskLimit.oneTurn": "{provider} выполняет один ход за раз. Задачи и чат этого агента ждут друг друга.",
 
   "agentSettings.notifications.title": "Уведомления",
 
@@ -120,10 +124,13 @@ export const messages = {
   "agentSettings.newChat.failed": "Не удалось начать новый чат.",
 
   "agentSettings.fullAccess.title": "Дать этому агенту полный доступ?",
+  "agentSettings.fullAccess.askTitle": "Разрешить этому агенту работать за пределами рабочего пространства?",
   "agentSettings.fullAccess.description":
     "Тогда агент сможет читать, изменять и удалять любые файлы, доступные вашему пользователю, выполнять любые команды и пользоваться сетью. Одна неверно понятая инструкция или вредоносная веб-страница могут добраться до ваших личных файлов.",
-  "agentSettings.fullAccess.cancel": "Оставить только рабочее пространство",
+  "agentSettings.fullAccess.noApproval":
+    "Тогда агент будет выполнять команды, изменять файлы, использовать инструменты и публиковать сайты, не спрашивая вас.",
   "agentSettings.fullAccess.confirm": "Разрешить полный доступ",
+  "agentSettings.fullAccess.askConfirm": "Сначала спрашивать",
 
   "agentSettings.links.usage": "Использование",
   "agentSettings.links.memories": "Память",
@@ -148,7 +155,7 @@ export const messages = {
     other: "{count} таблицы",
   },
   "agentSettings.links.files": "Файлы",
-  "agentSettings.links.routines": "Регулярные задачи",
+  "agentSettings.links.routines": "Автозадачи",
   "agentSettings.links.routinesCount": {
     one: "Настроено: {count}",
     few: "Настроено: {count}",
@@ -158,16 +165,16 @@ export const messages = {
   "agentSettings.runtime.workspaceNote":
     "Режим «Только рабочее пространство» ограничивает запись рабочим пространством агента, общей папкой и временными папками. Чтение и сеть остаются доступными.",
   "agentSettings.runtime.workspaceEnforcedCommand":
-    "Если команде нужно записать данные за пределами, сначала будет запрос к вам, в том числе при включённом автоодобрении.",
+    "Если команде нужно записать данные за пределами рабочего пространства, сначала она спросит вас.",
   "agentSettings.runtime.workspaceEnforcedClaude":
-    "Изменение файла за пределами сначала запрашивает ваше подтверждение, в том числе при включённом автоодобрении. Команда не может записывать за пределами.",
+    "Изменение файла за пределами рабочего пространства сначала требует вашего подтверждения. Команда не может записывать за его пределами.",
   "agentSettings.runtime.workspaceUnlimited":
     "Управление компьютером и браузер OpenBot не ограничены; управление компьютером можно отключить ниже.",
   "agentSettings.computerUse.title": "Управление компьютером",
   "agentSettings.computerUse.description": "Разрешить этому агенту управлять приложениями на этом компьютере",
   "agentSettings.automation.title": "Локальные скрипты",
   "agentSettings.automation.description":
-    "Разрешить скриптам на хосте отправлять сообщения, запускать процедуры, отвечать на вопросы и одобрять или отклонять запросы",
+    "Разрешить скриптам на хосте отправлять сообщения, запускать регулярные задачи, отвечать на вопросы, принимать и отклонять запросы на подтверждение",
   "agentSettings.runtime.workspaceEnforcedProcess":
-    "Весь процесс {provider} работает в песочнице, поэтому запись за пределами не удастся. Доступно только в macOS.",
+    "Весь процесс {provider} работает в песочнице, поэтому запись за пределами рабочего пространства не удастся. Доступно только в macOS.",
 } as const satisfies PartialTranslation<typeof source>;

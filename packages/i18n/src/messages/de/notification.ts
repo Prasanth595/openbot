@@ -14,8 +14,8 @@ export const messages = {
     other: "{count} Agenten warten. OpenBot versucht es später erneut.",
   },
   "notification.usageLimit.bodyResets": {
-    one: "{count} Agent wartet. Wird {reset} zurückgesetzt.",
-    other: "{count} Agenten warten. Wird {reset} zurückgesetzt.",
+    one: "{count} Agent wartet. Das Limit wird {reset} zurückgesetzt.",
+    other: "{count} Agenten warten. Das Limit wird {reset} zurückgesetzt.",
   },
   "notification.test": "Benachrichtigungen funktionieren.",
   "notification.welcome": "OpenBot informiert dich hier, wenn ein Agent dich braucht.",

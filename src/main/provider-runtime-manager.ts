@@ -2,9 +2,9 @@ import { execFile } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { createReadStream, createWriteStream } from "node:fs";
-import { access, mkdir, readdir, readFile, rename, rm, stat, statfs, utimes, writeFile } from "node:fs/promises";
+import { access, lstat, mkdir, readdir, readFile, rename, rm, stat, statfs, utimes, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { finished } from "node:stream/promises";
 import { promisify } from "node:util";
 import {
@@ -13,10 +13,11 @@ import {
   MANAGED_TOOL_RUNTIMES,
   type ManagedProviderId,
   type ManagedRuntimeId,
+  type OldRuntimeVersions,
   type ProviderRuntimeSnapshot,
   type ProviderRuntimeStatus,
 } from "@openbot/contracts/ipc";
-import { isDynamicRecord, isNumber, isString } from "@openbot/contracts/runtime-values";
+import { isBoolean, isDynamicRecord, isNumber, isString } from "@openbot/contracts/runtime-values";
 import { matchingSourceKeys, sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, type LogValue, redactText, toLogValue } from "@openbot/logging";
 import { Deferred, Effect, Exit, Fiber, Result, Scope, Stream } from "effect";
@@ -26,6 +27,7 @@ import { type BundledProviderExecutables, configuredCliPath } from "../backend/c
 import { runCauseEffect } from "../backend/effect-boundary";
 import { sha256File } from "../backend/file-hash";
 import { type McpToolRuntimes, NO_MCP_TOOL_RUNTIMES } from "../backend/mcp-provider-shapes";
+import { measureTree } from "../backend/storage-usage";
 import {
   type ArchiveDigest,
   bunxExecutableName,
@@ -62,8 +64,13 @@ const FREE_SPACE_HEADROOM = 100_000_000;
  * a crashed instance left behind.
  */
 const STALE_STAGING_MS = 6 * 60 * 60 * 1000;
-/** How long an unused version directory is kept, for the same reason: a sibling may still run it. */
-const VERSION_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+/**
+ * How long a version directory that this instance does not keep is left alone at start, for the same
+ * reason: a sibling may still run it. A sibling stamps its versions on every update check, but at
+ * start this instance cannot tell whether the computer has just woken, with every sibling's stamp
+ * as old as the sleep. The update check collects with a much shorter window, once it knows.
+ */
+const VERSION_RETENTION_MS = 2 * 24 * 60 * 60 * 1000;
 /**
  * How many times a commit re-reads a destination another instance is replacing.
  *
@@ -102,6 +109,13 @@ const HELD_STAGE_WAIT_MS = 60_000;
 const STAGING_PREFIXES = [".staging-", ".installing-", ".replaced-"];
 /** How often a running app asks upstream for a newer provider CLI. A user can also ask at any time. */
 const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
+/**
+ * How many check intervals a version no instance stamped is kept by the update check. A check
+ * uses it only one interval or more after the computer last started or woke, so every running
+ * sibling has stamped its versions since.
+ * Provider CLIs release every few days at 100-600 MB a copy, so each copy kept longer adds up.
+ */
+const AWAKE_RETENTION_CHECKS = 3;
 /** How long a first install waits for the release check before it takes the pinned version. */
 const RELEASE_CHECK_WAIT_MS = 10_000;
 
@@ -195,6 +209,12 @@ export class ProviderRuntimeManager extends EventEmitter<ProviderRuntimeManagerE
   #check: Deferred.Deferred<void, ProviderRuntimeFailure> | null = null;
   readonly #scope = Scope.makeUnsafe();
   #checkTimer: NodeJS.Timeout | null = null;
+  #checkIntervalMs = UPDATE_CHECK_INTERVAL_MS;
+  #lastCheckAt: number | null = null;
+  /** The first check after the start or after a sleep. */
+  #awakeSince = 0;
+  /** The window the last update check collected with. */
+  #checkRetentionMs = VERSION_RETENTION_MS;
   #revision = 0;
   #stopping = false;
 
@@ -237,16 +257,7 @@ export class ProviderRuntimeManager extends EventEmitter<ProviderRuntimeManagerE
         concurrency: "unbounded",
         discard: true,
       });
-      const target = this.#target;
-      if (target) {
-        // Settled, not all: collecting an old version is housekeeping, and a version another instance
-        // still runs refuses to be removed on Windows. Neither may stop the app from starting.
-        yield* Effect.forEach(
-          RUNTIMES,
-          (runtime) => Effect.result(this.#removeOldVersionsEffect(runtimeSpec(runtime, target, this.#lock))),
-          { concurrency: "unbounded", discard: true },
-        );
-      }
+      if (this.#target) yield* this.#collectVersionsEffect(this.#target, VERSION_RETENTION_MS);
       return this.getStatus();
     });
   }
@@ -288,9 +299,49 @@ export class ProviderRuntimeManager extends EventEmitter<ProviderRuntimeManagerE
     });
   }
 
+  /**
+   * The bytes of the old versions that `removeOldVersions` would remove now. The update check
+   * removes the same versions on its own; this lets the Storage page free them at once.
+   */
+  oldVersions(): Effect.Effect<OldRuntimeVersions> {
+    return Effect.gen({ self: this }, function* () {
+      if (!this.#target) return { bytes: 0 };
+      const paths = yield* this.#oldVersionPathsEffect(this.#target, Date.now() - this.#removalRetentionMs(), false);
+      const sizes = yield* Effect.forEach(
+        paths,
+        (path) =>
+          measureTree(path).pipe(
+            Effect.map((size) => size.bytes),
+            Effect.catch(() => Effect.succeed(0)),
+          ),
+        { concurrency: 4 },
+      );
+      return { bytes: sizes.reduce((total, bytes) => total + bytes, 0) };
+    });
+  }
+
+  /** Collects now, with the window the update check would use, and answers what is left. */
+  removeOldVersions(): Effect.Effect<OldRuntimeVersions> {
+    return Effect.gen({ self: this }, function* () {
+      if (this.#target) yield* this.#collectVersionsEffect(this.#target, this.#removalRetentionMs());
+      return yield* this.oldVersions();
+    });
+  }
+
+  /**
+   * The last check's window while that check is less than one interval old. After that the
+   * computer may have slept since, and a sibling's stamp may be as old as the sleep.
+   */
+  #removalRetentionMs(): number {
+    return this.#lastCheckAt !== null && Date.now() - this.#lastCheckAt < this.#checkIntervalMs
+      ? this.#checkRetentionMs
+      : VERSION_RETENTION_MS;
+  }
+
   /** Checks now and then every hour, until `stop`. The caller starts it once the app is up. */
   startUpdateChecks(intervalMs = UPDATE_CHECK_INTERVAL_MS): void {
     if (this.#checkTimer || !this.#target || this.#stopping) return;
+    this.#checkIntervalMs = intervalMs;
     const check = () => void runCauseEffect(this.checkForUpdates()).catch(() => undefined);
     this.#checkTimer = setInterval(check, intervalMs);
     this.#checkTimer.unref();
@@ -321,6 +372,17 @@ export class ProviderRuntimeManager extends EventEmitter<ProviderRuntimeManagerE
       if (Result.isSuccess(blocked)) this.#blocked = blocked.success;
       this.#revision += 1;
       this.emit("status", this.getStatus());
+      const now = Date.now();
+      // Timer checks are one interval apart while the computer is awake, so a longer gap is a sleep.
+      if (this.#lastCheckAt === null || now - this.#lastCheckAt > 1.5 * this.#checkIntervalMs) this.#awakeSince = now;
+      this.#lastCheckAt = now;
+      // Each sibling's timer fires within one interval of a wake. Until then its stamps can be as
+      // old as the sleep, so the start window applies, also to a check the user starts at once.
+      const awake = now - this.#awakeSince >= this.#checkIntervalMs;
+      this.#checkRetentionMs = awake ? AWAKE_RETENTION_CHECKS * this.#checkIntervalMs : VERSION_RETENTION_MS;
+      // Forked: the first collection after a long gap removes gigabytes, and a check the user asked
+      // for answers without waiting for it.
+      yield* Effect.forkIn(this.#collectVersionsEffect(target, this.#checkRetentionMs), this.#scope);
       if (releases.every(Result.isFailure))
         return yield* new ProviderRuntimeFailure({
           cause: new Error(sourceText("error.provider.releaseSourcesUnreachable")),
@@ -563,7 +625,7 @@ export class ProviderRuntimeManager extends EventEmitter<ProviderRuntimeManagerE
       for (const version of versions) {
         const spec = version === pinned.version ? pinned : recordedSpec(pinned, version);
         const installRoot = join(targetRoot, version);
-        if (!(yield* this.#verifiesEffect(installRoot, spec))) continue;
+        if (!(yield* this.#verifiesUnlessUnchangedEffect(installRoot, spec))) continue;
         yield* this.#stampInUseEffect(installRoot);
         return version;
       }
@@ -608,21 +670,33 @@ export class ProviderRuntimeManager extends EventEmitter<ProviderRuntimeManagerE
   #previousVersionEffect(spec: RuntimeSpec): Effect.Effect<string | null, ProviderRuntimeFailure> {
     return Effect.gen({ self: this }, function* (): Effect.fn.Return<string | null, ProviderRuntimeFailure> {
       const targetRoot = dirname(this.#installRoot(spec));
+      const version = yield* this.#workingBackupEffect(targetRoot, spec, spec.version);
+      // This is the CLI the agent service runs until the newer one arrives, so it is in use and
+      // the collector in every other instance has to leave it alone. A worktree that pins a newer
+      // version would otherwise take it away while this one is running from it.
+      if (version) yield* this.#stampInUseEffect(join(targetRoot, version));
+      return version;
+    });
+  }
+
+  /** The newest version older than `version` whose executable is still there. */
+
+  #workingBackupEffect(
+    targetRoot: string,
+    spec: RuntimeSpec,
+    version: string,
+  ): Effect.Effect<string | null, ProviderRuntimeFailure> {
+    return Effect.gen(function* (): Effect.fn.Return<string | null, ProviderRuntimeFailure> {
       const entries = yield* runtimeIO(async () => await readdir(targetRoot, { withFileTypes: true }).catch(() => []));
       const versions = entries
-        .filter((entry) => entry.isDirectory() && olderVersion(entry.name, spec.version))
+        .filter((entry) => entry.isDirectory() && olderVersion(entry.name, version))
         .map((entry) => entry.name)
         .sort((a, b) => compareReleases(b, a));
-      for (const version of versions) {
+      for (const candidate of versions) {
         const executable = yield* runtimeIO(
-          async () => await stat(join(targetRoot, version, "bin", spec.executableName)).catch(() => null),
+          async () => await stat(join(targetRoot, candidate, "bin", spec.executableName)).catch(() => null),
         );
-        if (!executable?.isFile()) continue;
-        // This is the CLI the agent service runs until the newer one arrives, so it is in use and
-        // the collector in every other instance has to leave it alone. A worktree that pins a newer
-        // version would otherwise take it away while this one is running from it.
-        yield* this.#stampInUseEffect(join(targetRoot, version));
-        return version;
+        if (executable?.isFile()) return candidate;
       }
       return null;
     });
@@ -947,6 +1021,13 @@ export class ProviderRuntimeManager extends EventEmitter<ProviderRuntimeManagerE
     );
   }
 
+  #verifiesUnlessUnchangedEffect(installRoot: string, spec: RuntimeSpec): Effect.Effect<boolean> {
+    return verifyChangedRuntime(installRoot, spec, this.#lock, this.#isProviderOn).pipe(
+      Effect.as(true),
+      Effect.catch(() => Effect.succeed(false)),
+    );
+  }
+
   #downloadSmallFileEffect(
     url: string,
     expectedSha256: string | null,
@@ -1107,36 +1188,102 @@ export class ProviderRuntimeManager extends EventEmitter<ProviderRuntimeManagerE
   }
 
   /**
-   * Collects versions no one has any use for.
+   * Stamps the versions this instance runs, so a sibling's collector keeps them, then collects the
+   * versions no instance stamped within `retentionMs`. Runs at start, on every update check, and
+   * when the user asks, so an update frees the version it replaced without a restart.
+   */
+
+  #collectVersionsEffect(target: RuntimeTarget, retentionMs: number): Effect.Effect<void> {
+    const stale = Date.now() - retentionMs;
+    return this.#oldVersionPathsEffect(target, stale, true).pipe(
+      Effect.flatMap((paths) =>
+        Effect.forEach(
+          paths,
+          (path) =>
+            removeStaleRuntimeDirectory(path, stale).pipe(
+              Effect.andThen(pathExists(path)),
+              Effect.flatMap((kept) =>
+                kept
+                  ? Effect.void
+                  : runtimeIO(() => rm(verificationRecordPath(path), { force: true })).pipe(Effect.ignore),
+              ),
+            ),
+          { concurrency: "unbounded", discard: true },
+        ),
+      ),
+      Effect.catch(() => Effect.void),
+    );
+  }
+
+  /**
+   * The version directories of every runtime that this instance does not keep and that no instance
+   * stamped after `stale`. With `stamp`, the kept versions are stamped first.
+   *
+   * Settled per runtime: collecting an old version is housekeeping, and a version another instance
+   * still runs refuses to be removed on Windows. Neither may stop the app from starting or a check
+   * from finishing.
+   */
+
+  #oldVersionPathsEffect(target: RuntimeTarget, stale: number, stamp: boolean): Effect.Effect<string[]> {
+    return Effect.forEach(
+      RUNTIMES,
+      (runtime) =>
+        Effect.gen({ self: this }, function* () {
+          const spec = runtimeSpec(runtime, target, this.#lock);
+          const version = this.#statuses[runtime].version;
+          const targetRoot = dirname(this.#installRoot(spec));
+          if (stamp && version) yield* this.#stampInUseEffect(join(targetRoot, version));
+          const backup = version ? yield* this.#workingBackupEffect(targetRoot, spec, version) : null;
+          if (stamp && backup) yield* this.#stampInUseEffect(join(targetRoot, backup));
+          return yield* this.#oldVersionsEffect(spec, backup, stale);
+        }).pipe(Effect.catch(() => Effect.succeed([]))),
+      { concurrency: "unbounded" },
+    ).pipe(Effect.map((paths) => paths.flat()));
+  }
+
+  /**
+   * The versions no one has any use for.
+   *
+   * This instance needs the version it runs, any newer one, and one older version that still works,
+   * to fall back on. An older pin is not kept for itself: the store never goes back to it.
    *
    * Rank alone decided this when the store belonged to one profile. It is now the computer's, and
    * another instance -- the released app beside a development build, or a worktree whose lock pins
-   * a different version -- may be running from a directory this build ranks last. `#inspect` stamps
-   * whatever it verifies on every start, so a version in use anywhere stays recent, and only a tree
-   * nothing has opened for a month is collected.
+   * a different version -- may be running from a directory this build would remove. `#inspect`
+   * stamps whatever it verifies on every start, and `#collectVersions` stamps it again on every
+   * update check, so a version in use anywhere stays recent, and only a tree nothing has run since
+   * `stale` is collected.
    */
 
-  #removeOldVersionsEffect(spec: RuntimeSpec): Effect.Effect<void, ProviderRuntimeFailure> {
-    return Effect.gen({ self: this }, function* (): Effect.fn.Return<void, ProviderRuntimeFailure> {
+  #oldVersionsEffect(
+    spec: RuntimeSpec,
+    backup: string | null,
+    stale: number,
+  ): Effect.Effect<string[], ProviderRuntimeFailure> {
+    return Effect.gen({ self: this }, function* (): Effect.fn.Return<string[], ProviderRuntimeFailure> {
       const targetRoot = join(this.#runtimeRoot(spec.runtime), spec.target);
       const entries = yield* runtimeIO(async () => await readdir(targetRoot, { withFileTypes: true }).catch(() => []));
       const versions = entries
         .filter((entry) => entry.isDirectory() && !entry.name.startsWith("."))
         .map((entry) => entry.name);
-      const keep = new Set([
-        spec.version,
-        this.#statuses[spec.runtime].version,
-        ...versions
-          .filter((version) => version !== spec.version)
-          .sort((a, b) => b.localeCompare(a, "en", { numeric: true }))
-          .slice(0, 1),
-      ]);
-      const stale = Date.now() - VERSION_RETENTION_MS;
-      yield* Effect.forEach(
-        versions.filter((version) => !keep.has(version)),
-        (version) => removeStaleRuntimeDirectory(join(targetRoot, version), stale),
-        { concurrency: "unbounded", discard: true },
+      const active = this.#statuses[spec.runtime].version;
+      // With nothing that runs, the pin and the newest directory are all there is to start from.
+      const keep = new Set(
+        active
+          ? [active, backup, ...versions.filter((version) => !olderVersion(version, active))]
+          : [spec.version, ...versions.sort((a, b) => compareReleases(b, a)).slice(0, 1)],
       );
+      const paths = versions.filter((version) => !keep.has(version)).map((version) => join(targetRoot, version));
+      const modified = yield* Effect.forEach(
+        paths,
+        (path) =>
+          runtimeIO(() => stat(path)).pipe(
+            Effect.map((value) => value.mtimeMs),
+            Effect.catch(() => Effect.succeed(Number.POSITIVE_INFINITY)),
+          ),
+        { concurrency: "unbounded" },
+      );
+      return paths.filter((_, index) => (modified[index] ?? Number.POSITIVE_INFINITY) <= stale);
     });
   }
 }
@@ -1179,6 +1326,92 @@ const verifyInstalledRuntime = Effect.fn("ProviderRuntime.verifyInstalledRuntime
   if ((yield* runtimeSync(() => descriptor.parseVersion(output))) !== spec.version) {
     return yield* new ProviderRuntimeFailure({ cause: new Error(sourceText("error.provider.unexpectedVersion")) });
   }
+});
+
+/** Bump when `verifyInstalledRuntime` checks something new, so a record from an older build is not trusted. */
+const VERIFICATION_RECORD_LAYOUT = 1;
+
+/**
+ * `verifyInstalledRuntime`, skipped when no file of the version changed since it last passed.
+ *
+ * The full check reads and hashes every installed CLI, more than 2 GB with every provider on, and
+ * runs each version command: about 1.5 s of every start, before the window could open. A pass writes
+ * the size, times and inode of each file beside the version directory. A write to a file changes its
+ * ctime, which no process without root can set back, so a changed, added or removed file runs the
+ * full check again, and so does a lock or a check that is new. Like the install record, this guards
+ * against a damaged or replaced install, not against a writer who can change the record as well.
+ * The directory itself is left out: `#stampInUse` changes its times on every start.
+ */
+const verifyChangedRuntime = Effect.fn("ProviderRuntime.verifyChangedRuntime")(function* (
+  root: string,
+  spec: RuntimeSpec,
+  lock: AgentRuntimeLock,
+  isProviderOn: (provider: ManagedProviderId) => boolean,
+): Effect.fn.Return<void, ProviderRuntimeFailure> {
+  const recordPath = verificationRecordPath(root);
+  const key = createHash("sha256")
+    .update(JSON.stringify([VERIFICATION_RECORD_LAYOUT, spec, lock[spec.runtime]]))
+    .digest("hex");
+  // A tool runtime and a provider that is on also had their version checked; one that is off did not.
+  const versionChecked = isManagedToolRuntime(spec.runtime) || isProviderOn(spec.runtime);
+  const before = yield* runtimeFingerprint(root);
+  const saved = yield* runtimeIO(() => readFile(recordPath, "utf8")).pipe(
+    // A crash can leave the record empty or cut; `runtimeSync` makes that a failure, not a defect.
+    Effect.flatMap((text) => runtimeSync(() => parseVerificationRecord(text))),
+    Effect.catch(() => Effect.succeed(null)),
+  );
+  if (
+    before !== null &&
+    saved?.key === key &&
+    (saved.versionChecked || !versionChecked) &&
+    saved.files.join("\n") === before.join("\n")
+  )
+    return;
+  yield* verifyInstalledRuntime(root, spec, lock, isProviderOn);
+  // A file that changed while it was read is checked again on the next start.
+  const after = before === null ? null : yield* runtimeFingerprint(root);
+  if (after === null || after.join("\n") !== before?.join("\n")) return;
+  const record = `${JSON.stringify({ key, versionChecked, files: after })}\n`;
+  const staged = `${recordPath}.${process.pid}-${randomBytes(4).toString("hex")}`;
+  // Best effort, as the stamp is: without a record the next start runs the full check.
+  yield* runtimeIO(async () => {
+    await writeFile(staged, record);
+    await rename(staged, recordPath);
+  }).pipe(Effect.catch(() => runtimeIO(() => rm(staged, { force: true })).pipe(Effect.ignore)));
+});
+
+/** Beside the version directory, so the install record's file count and the collector do not see it. */
+function verificationRecordPath(root: string): string {
+  return join(dirname(root), `.${basename(root)}.verified.json`);
+}
+
+function parseVerificationRecord(text: string): { key: string; versionChecked: boolean; files: string[] } | null {
+  const value = JSON.parse(text);
+  if (!isDynamicRecord(value) || !isString(value.key) || !isBoolean(value.versionChecked)) return null;
+  const files = value.files;
+  if (!Array.isArray(files) || !files.every(isString)) return null;
+  return { key: value.key, versionChecked: value.versionChecked, files };
+}
+
+/** One line per file under `root`, sorted, or `null` when something there is not a plain file or folder. */
+const runtimeFingerprint = Effect.fn("ProviderRuntime.runtimeFingerprint")(function* (
+  root: string,
+  prefix = "",
+): Effect.fn.Return<string[] | null, ProviderRuntimeFailure> {
+  const lines: string[] = [];
+  const entries = yield* runtimeIO(() => readdir(join(root, prefix), { withFileTypes: true }));
+  for (const entry of entries) {
+    const path = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) {
+      const nested = yield* runtimeFingerprint(root, path);
+      if (nested === null) return null;
+      lines.push(...nested);
+    } else if (entry.isFile()) {
+      const info = yield* runtimeIO(() => lstat(join(root, path), { bigint: true }));
+      lines.push([path, info.size, info.mtimeNs, info.ctimeNs, info.ino, info.dev].join("\0"));
+    } else return null;
+  }
+  return lines.sort();
 });
 
 /**

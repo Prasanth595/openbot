@@ -2,7 +2,7 @@ import type { PartialTranslation } from "../../message";
 import type { messages as source } from "../en/agent";
 
 export const messages = {
-  "agent.access.workspaceOnly": "Solo el espacio de trabajo",
+  "agent.access.workspaceOnly": "Solo espacio de trabajo",
   "agent.setup.nameFallback": "Nuevo agente",
   "agent.setup.titleAdditional": "Crear un nuevo agente",
   "agent.setup.titleFirst": "Crea tu primer agente",
@@ -20,10 +20,15 @@ export const messages = {
   "agent.setup.suggestions": "Sugerencias",
   "agent.deleteUndo.title": "{name} eliminado",
   "agent.deleteUndo.action": "Deshacer",
+  "agent.hideUndo.title": "{name} está oculto",
+  "agent.hideUndo.action": "Deshacer",
   "agent.error.createFailed": "No se pudo crear el agente.",
   "agent.error.duplicateTitle": "No se pudo duplicar el agente",
   "agent.error.duplicateFailed": "No se pudo duplicar este agente. Vuelve a intentarlo.",
   "agent.error.deleteFailed": "Error al eliminar",
+  "agent.error.hideFailed": "No se pudo ocultar el agente",
+  "agent.error.restoreFailed": "No se pudo restaurar el agente",
+  "agent.error.hiddenFailed": "No se guardó el cambio. Inténtalo de nuevo.",
   "agent.error.settingsFailed": "Error en los ajustes",
   "agent.error.avatarFailed": "Error al actualizar el avatar",
   "agent.error.adminOnly": "Solo un administrador del servidor puede cambiar los ajustes del agente.",

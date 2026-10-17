@@ -8,6 +8,7 @@ apps/
   mobile/            Expo React Native client for remote team hosts
   site-router/       Cloudflare Worker that serves published sites from private R2 storage
   slack-app/         Slack CLI projects with the OpenBot Slack app manifests (production, development)
+  status/            Public status page on GitHub Pages and the service check script of its workflow
 packages/
   ui/                Shared SolidJS controls and primitive styles for desktop, web, and Storybook
   brand/             Shared logos, avatars, and design tokens
@@ -88,13 +89,19 @@ SolidJS, provider, Cloudflare, and application code; and the account server to d
 - Stripe is the source of truth for paid plans. D1 `billing_subscriptions` is a copy that the Stripe
   webhook keeps current; see [Billing](servers.md#billing).
 - A local team host owns conversations, files, agents, and the local member projection used by Team API.
-- `openbot-approval-automation-v1.json` holds Turbo mode and the agents granted "Always allow". It
-  belongs to the computer that runs the agent and never crosses the Team API, whose released
+- `openbot-approval-automation-v3.json` holds which agents have Full access: the `autoApprove` half of
+  each agent's Permissions level (Workspace only, Ask first, Full access). OpenBot reads an older
+  `-v2` or `-v1` file when no v3 file exists and leaves it in place for a downgrade; Turbo mode on in
+  such a file gives every agent Full access. It belongs to the computer that runs the agent and never crosses the Team API, whose released
   adapters freeze an approval response to `accept` or `decline`: a remote host that has automation
   on answers its own approvals, so they never reach a client, and a client cannot grant one on a
   remote host's behalf. `AttentionRegistry` reads it at each approval, including hosted-site
   publishing, replacement and deletion. Site validation, ownership checks and activity markers
-  still apply. Questions and browser takeovers remain interactive.
+  still apply. The registry also accepts, once, Codex's consent to run an MCP tool (`_meta.codex_approval_kind`
+  `mcp_tool_call` with `persist` that offers `always`), and saves nothing: "Always allow" stays the user's
+  choice, which Codex keeps per server and tool. A Workspace only agent, a Computer Use tool and a tool set to
+  ask every time keep their card. Other questions, MCP forms and sign-in requests, and browser takeovers
+  remain interactive.
 - `browser-tabs.json` is the embedded browser's own durable state, outside `openbot.db` and outside the
   migration runner. It is versioned in the file (`v1` predates the per-tab `BrowserEnvironment`, `v2`
   carries it) and always rewritten as the current version, so a downgrade reads a file it does not know.
@@ -129,7 +136,7 @@ tokens and include the package source in Tailwind scanning. App-specific styles 
 the application. The desktop TypeScript project includes the package source for CI checks.
 
 The package also owns prop-driven feature UI: the complete sidebar and its scoped interaction
-stores, account login and dock, server rail and invitation dialog, message rendering, composer
+stores, account login, server rail and invitation dialog, message rendering, composer
 editor, attachment cards, preview renderers, agent setup, and reusable settings panels. Feature
 exports use explicit subpaths such as `@openbot/ui/features/sidebar/Sidebar`. Shared display
 models live at `@openbot/ui/data`. Source files are moved, not copied or re-exported from the

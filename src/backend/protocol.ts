@@ -254,6 +254,13 @@ export function decodeAccountRateLimitsReadResult(value: unknown): AccountRateLi
   };
 }
 
+/** A sparse `account/rateLimits/updated` push: only the windows it holds changed. */
+export function decodeAccountRateLimitsUpdated(value: unknown): AccountRateLimitResult {
+  const rateLimit = decodeRateLimit(decodeRecord(value, "rate limits update").rateLimits);
+  if (!rateLimit) throw new Error("Invalid rate limits update.");
+  return rateLimit;
+}
+
 export function decodeThreadResponse(value: unknown): ThreadResponse {
   const record = decodeRecord(value, "thread response");
   return { thread: decodeThreadRecord(record.thread) };

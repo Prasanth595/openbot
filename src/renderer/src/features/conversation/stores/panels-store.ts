@@ -6,10 +6,18 @@ import {
   type WorkspaceDirectory,
 } from "@openbot/contracts/ipc";
 import { currentText } from "@openbot/ui/text";
-import { createMemo, createSignal } from "solid-js";
+import { createMemo, createSignal, type Store, type StoreSetter } from "solid-js";
+import { createScopeGuard } from "../../../scope-lifetime";
 import { attachmentFilePreview } from "../attachment-preview";
+import { releaseFilePreviewPage } from "../conversation-port";
 import { conversationRuntime } from "../conversation-runtime";
-import type { ConversationProps, ConversationTarget, RightPanelMode, SidebarFilePreview } from "../conversation-types";
+import type {
+  ConversationProps,
+  ConversationTarget,
+  RightPanelMode,
+  SidebarFilePreview,
+  SidePanelPane,
+} from "../conversation-types";
 
 // Each member reads the interface language when it is called.
 const { t, errorMessage } = currentText();
@@ -21,10 +29,51 @@ export interface RoutineSettingsRequest {
   nonce: number;
 }
 
+/** The panes of one agent's side panel. The panel keeps them while it is closed. */
+export interface SidePanelState {
+  panes: readonly SidePanelPane[];
+  /** The pane on screen, or the last one before the panel closed. */
+  selected: SidePanelPane | null;
+  maximized: boolean;
+}
+
+/** The side panel of each agent, and the task in its Tasks pane. */
+export interface SidePanelsState {
+  side: Record<string, SidePanelState>;
+  /** A task of null is a new task, until its first message starts it; an agent with no entry shows the task list. */
+  tasks: Record<string, string | null>;
+}
+
+const SIDE_PANEL_EMPTY: SidePanelState = { panes: [], selected: null, maximized: false };
+
+/** The panel mode of each pane. */
+export const SIDE_PANEL_MODES = {
+  browser: "browser",
+  files: "files",
+  tasks: "task",
+  settings: "settings",
+  question: "question",
+} as const satisfies Record<SidePanelPane, RightPanelMode>;
+
+function isSidePanelPane(value: string): value is SidePanelPane {
+  return value in SIDE_PANEL_MODES;
+}
+
+/** The pane that shows a panel mode, or null for a mode outside the side panel. */
+function paneOfMode(mode: RightPanelMode): SidePanelPane | null {
+  for (const [pane, paneMode] of Object.entries(SIDE_PANEL_MODES)) {
+    if (paneMode === mode && isSidePanelPane(pane)) return pane;
+  }
+  return null;
+}
+
 export interface PanelsStoreDeps {
   props: ConversationProps;
   rightPanels: () => Record<string, RightPanelMode>;
   setRightPanels: (update: (current: Record<string, RightPanelMode>) => Record<string, RightPanelMode>) => void;
+  /** Owned with `rightPanels`, so that the tabs stay with the open pane when the view of the chat closes. */
+  panels: Store<SidePanelsState>;
+  setPanels: StoreSetter<SidePanelsState>;
   settingsProvider: () => import("@openbot/contracts/ipc").AgentProviderId;
   settingsModel: () => import("@openbot/contracts/ipc").AgentModelId;
   settingsReasoning: () => import("@openbot/contracts/ipc").AgentReasoningEffort;
@@ -38,6 +87,7 @@ export interface PanelsStoreDeps {
 }
 
 export function createPanelsStore(deps: PanelsStoreDeps) {
+  const scopeActive = createScopeGuard();
   const [skillSettingsRequest, setSkillSettingsRequest] = createSignal<{ agentId: string; skillId: string } | null>(
     null,
   );
@@ -54,9 +104,45 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
     const agentId = deps.props.agent?.id;
     return agentId ? (deps.rightPanels()[agentId] ?? "none") : "none";
   });
+  const { panels, setPanels } = deps;
+  const sidePanel = (): SidePanelState => {
+    const agentId = deps.props.agent?.id;
+    return (agentId && panels.side[agentId]) || SIDE_PANEL_EMPTY;
+  };
+  const sidePanelOpen = () => activeRightPanel() === "side-panel" || paneOfMode(activeRightPanel()) !== null;
+  function updateSidePanel(agentId: string, update: (state: SidePanelState) => SidePanelState) {
+    setPanels((draft) => {
+      draft.side[agentId] = update(draft.side[agentId] ?? SIDE_PANEL_EMPTY);
+    });
+  }
+  function setSidePanelMaximized(maximized: boolean) {
+    const agentId = deps.props.agent?.id;
+    if (agentId) updateSidePanel(agentId, (state) => ({ ...state, maximized }));
+  }
+  /** Removes the tab of a pane. Returns the pane to show in its place, or null when no tab stays. */
+  function removeSidePanelPane(pane: SidePanelPane): SidePanelPane | null {
+    const agentId = deps.props.agent?.id;
+    if (!agentId) return null;
+    const state = panels.side[agentId] ?? SIDE_PANEL_EMPTY;
+    const index = state.panes.indexOf(pane);
+    const panes = state.panes.filter((item) => item !== pane);
+    const selected =
+      state.selected === pane ? (panes[Math.min(Math.max(index, 0), panes.length - 1)] ?? null) : state.selected;
+    updateSidePanel(agentId, () => ({ panes, selected, maximized: panes.length > 0 && state.maximized }));
+    return selected;
+  }
   const settingsOpen = () => activeRightPanel() === "settings";
-  const profileOpen = () => activeRightPanel() === "profile";
   const filesOpen = () => activeRightPanel() === "files";
+  const taskPanelOpen = () => activeRightPanel() === "task" && deps.props.tasks !== undefined;
+  const taskPanelTaskId = (): string | null => {
+    const agentId = deps.props.agent?.id;
+    return agentId ? (panels.tasks[agentId] ?? null) : null;
+  };
+  /** The Tasks pane lists the tasks until the user opens one or starts a new one. */
+  const taskListOpen = () => {
+    const agentId = deps.props.agent?.id;
+    return taskPanelOpen() && agentId !== undefined && !(agentId in panels.tasks);
+  };
   const filePreviewOpen = () =>
     activeRightPanel() === "file-preview" && deps.sidebarFilePreview()?.ownerAgentId === deps.props.agent?.id;
 
@@ -67,10 +153,38 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
       setRoutineSettingsRequest((current) => (current?.agentId === agentId ? null : current));
     }
     deps.setRightPanels((current) => (current[agentId] === mode ? current : { ...current, [agentId]: mode }));
+    const pane = paneOfMode(mode);
+    if (pane)
+      updateSidePanel(agentId, (state) => ({
+        ...state,
+        panes: state.panes.includes(pane) ? state.panes : [...state.panes, pane],
+        selected: pane,
+      }));
+    else if (mode === "side-panel") updateSidePanel(agentId, (state) => ({ ...state, selected: null }));
+    else if (mode === "none" && panels.side[agentId]?.maximized) {
+      updateSidePanel(agentId, (state) => ({ ...state, maximized: false }));
+    }
   }
 
-  function toggleFilesPanel(): void {
-    setActiveRightPanel(filesOpen() ? "none" : "files");
+  /** Opens a task in the side panel, or a new task when `taskId` is null. */
+  function openTaskPanel(taskId: string | null): void {
+    const agentId = deps.props.agent?.id;
+    if (!agentId) return;
+    setPanels((draft) => {
+      draft.tasks[agentId] = taskId;
+    });
+    if (taskId) deps.props.tasks?.onOpen(taskId);
+    setActiveRightPanel("task", agentId);
+  }
+
+  /** The Tasks pane, at its list. */
+  function showTaskList(): void {
+    const agentId = deps.props.agent?.id;
+    if (!agentId) return;
+    setPanels((draft) => {
+      delete draft.tasks[agentId];
+    });
+    setActiveRightPanel("task", agentId);
   }
 
   function openRoutineSettings(routine: { routineId: string; name: string }): void {
@@ -163,12 +277,19 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
       .agent.previewSharedFile({ path })
       .then(
         (preview) => {
-          if (generation !== deps.currentFilePreviewGeneration() || deps.props.agent?.id !== ownerAgentId) return;
+          if (
+            !scopeActive() ||
+            generation !== deps.currentFilePreviewGeneration() ||
+            deps.props.agent?.id !== ownerAgentId
+          ) {
+            releaseFilePreviewPage(preview.pageUrl);
+            return;
+          }
           deps.setSidebarFilePreview({ ownerAgentId, source: { kind: "shared", path }, preview });
           setActiveRightPanel("file-preview", ownerAgentId);
         },
         (error) => {
-          if (generation !== deps.currentFilePreviewGeneration()) return;
+          if (!scopeActive() || generation !== deps.currentFilePreviewGeneration()) return;
           deps.setComposerError(filePreviewError(error, path), target);
         },
       );
@@ -184,12 +305,16 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
     const serverId = deps.props.server?.id ?? "local";
     const target = { agentId, serverId };
     const generation = deps.nextFilePreviewGeneration();
-    const current = () => generation === deps.currentFilePreviewGeneration() && deps.props.agent?.id === agentId;
+    const current = () =>
+      scopeActive() && generation === deps.currentFilePreviewGeneration() && deps.props.agent?.id === agentId;
     const agent = conversationRuntime(deps.props).agent;
     deps.setComposerError(null, target);
     void agent.previewWorkspaceFile({ agentId, path }).then(
       (preview) => {
-        if (!current()) return;
+        if (!current()) {
+          releaseFilePreviewPage(preview.pageUrl);
+          return;
+        }
         deps.setSidebarFilePreview({ ownerAgentId: agentId, source: { kind: "workspace", path, folder }, preview });
         setActiveRightPanel("file-preview", agentId);
       },
@@ -200,7 +325,7 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
             showWorkspaceFolder(agentId, path, directory);
           },
           () => {
-            if (generation !== deps.currentFilePreviewGeneration()) return;
+            if (!scopeActive() || generation !== deps.currentFilePreviewGeneration()) return;
             deps.setComposerError(filePreviewError(error, path), target);
           },
         ),
@@ -298,9 +423,16 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
     routineSettingsRequest,
     activeRightPanel,
     settingsOpen,
-    profileOpen,
     filesOpen,
-    toggleFilesPanel,
+    taskPanelOpen,
+    taskPanelTaskId,
+    taskListOpen,
+    openTaskPanel,
+    showTaskList,
+    sidePanel,
+    sidePanelOpen,
+    setSidePanelMaximized,
+    removeSidePanelPane,
     filePreviewOpen,
     setActiveRightPanel,
     openRoutineSettings,

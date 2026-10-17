@@ -2,8 +2,8 @@ import type { PartialTranslation } from "../../message";
 import type { messages as source } from "../en/dialog";
 
 export const messages = {
-  "dialog.chooseSiteDirectory": "静的サイトのフォルダを選択",
-  "dialog.chooseSkill": "スキルのフォルダまたは ZIP を選択",
+  "dialog.chooseSiteDirectory": "静的サイトのフォルダーを選択",
+  "dialog.chooseSkill": "スキルのフォルダーまたは ZIP を選択",
   "dialog.filter.skillPackages": "スキルパッケージ",
   "dialog.filter.images": "画像",
   "dialog.filter.supportedFiles": "対応ファイル",
@@ -13,4 +13,7 @@ export const messages = {
   "dialog.chooseAgentExport": "エージェントのエクスポートを選択",
   "dialog.filter.agentExports": "エージェントのエクスポート",
   "dialog.saveExportSkill": "エクスポート用スキルを保存",
+  "dialog.saveTransfer": "移行ファイルを保存",
+  "dialog.chooseTransfer": "移行ファイルを選択",
+  "dialog.filter.transfer": "OpenBot 移行ファイル",
 } as const satisfies PartialTranslation<typeof source>;

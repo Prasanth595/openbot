@@ -5,7 +5,16 @@ import { type Component, createSignal, flush, lazy, onSettled, Show } from "soli
 import "../../../../src/renderer/src/features/web-client/web-client.css";
 
 const loadWebApp = () => import("@openbot/renderer-web");
-const WebApp = lazy(() => loadWebApp().then((module) => ({ default: module.WebApp })));
+// The saved language loads with the code, so the first screen is not English for a moment. If it
+// fails, the web client starts in English and tries again when it shows the language.
+const WebApp = lazy(() =>
+  loadWebApp().then((module) =>
+    module
+      .loadSavedLanguage()
+      .catch(() => undefined)
+      .then(() => ({ default: module.WebApp })),
+  ),
+);
 
 export const Route = createLazyFileRoute("/app")({ component: BrowserAppPage });
 function BrowserAppPage() {

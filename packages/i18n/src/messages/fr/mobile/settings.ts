@@ -7,7 +7,7 @@ export const messages = {
   "mobile.settings.language.row": "Langue de l’app",
   "mobile.settings.language.system": "Langue du système",
   "mobile.settings.language.footer":
-    "Langue du système suit la première langue des réglages du téléphone. Le texte pas encore traduit s’affiche en anglais.",
+    "« Langue du système » suit la première langue des réglages du téléphone. Le texte pas encore traduit s’affiche en anglais.",
   "mobile.settings.dictation.language": "Langue de dictée",
   "mobile.settings.about.development": "Développement",
   "mobile.settings.about.openFailed": "Impossible d’ouvrir le lien. Réessayez.",
@@ -56,10 +56,10 @@ export const messages = {
   "mobile.settings.sessions.disconnect": "Déconnecter",
   "mobile.settings.dictation.title": "Dictée",
   "mobile.settings.dictation.footer":
-    "La langue que vous parlez quand vous dictez un message. Automatique utilise la première langue des réglages de votre téléphone que la reconnaissance vocale prend en charge.",
+    "La langue que vous parlez quand vous dictez un message. « Automatique » utilise la première langue des réglages de votre téléphone que la reconnaissance vocale prend en charge.",
   "mobile.settings.dictation.automatic": "Automatique",
   "mobile.settings.appearance.title": "Apparence",
-  "mobile.settings.appearance.footer": "Système suit l’apparence de votre appareil.",
+  "mobile.settings.appearance.footer": "« Système » suit l’apparence de votre appareil.",
   "mobile.settings.appearance.saveFailed": "Impossible d’enregistrer l’apparence. Réessayez.",
   "mobile.settings.appearance.system": "Système",
   "mobile.settings.appearance.light": "Clair",
@@ -67,12 +67,12 @@ export const messages = {
   "mobile.settings.appearance.theme": "Thème",
   "mobile.settings.appearance.agentColorMessages": "Couleur de l’agent sur mes messages",
   "mobile.settings.appearance.agentColorMessagesFooter":
-    "Vos messages dans une conversation avec un agent prennent la couleur de cet agent. Désactivez cette option si le texte est difficile à lire.",
+    "Vos messages dans une discussion avec un agent prennent la couleur de cet agent. Désactivez cette option si le texte est difficile à lire.",
   "mobile.settings.animations.title": "Animations",
   "mobile.settings.animations.footer":
-    "Désactivez Animations pour réduire les mouvements dans toute l’app. Quand Réduire les animations est activé dans les réglages du téléphone, l’app réduit aussi les mouvements. Les animations ci-dessous restent alors désactivées.",
+    "Désactivez « Animations » pour réduire les mouvements dans toute l’app. Quand « Réduire les animations » est activé dans les réglages du téléphone, l’app réduit aussi les mouvements. Les animations ci-dessous restent alors désactivées.",
   "mobile.settings.animations.all": "Animations",
-  "mobile.settings.animations.chatZoom": "Zoom vers les discussions",
+  "mobile.settings.animations.chatZoom": "Zoom sur les discussions",
   "mobile.settings.animations.chatZoomFooter":
     "Une discussion s’ouvre depuis son avatar dans la liste et s’y referme. Désactivé, la discussion glisse depuis le côté.",
   "mobile.settings.animations.agentFaces": "Visages animés des agents",
@@ -98,12 +98,19 @@ export const messages = {
   "mobile.settings.notifications.title": "Notifications",
   "mobile.settings.notifications.toggle": "Autoriser les notifications",
   "mobile.settings.notifications.footer":
-    "Les agents vous préviennent quand ils terminent, s’arrêtent sur une erreur ou attendent votre réponse, une approbation ou une étape dans le navigateur. Rien n’arrive pendant que vous utilisez OpenBot. Pendant que vous utilisez l’app de bureau, seul ce qui a besoin de vous arrive. Tant que l’activité en direct s’affiche, elle montre l’évènement à la place.",
+    "Les agents vous préviennent quand ils terminent, s’arrêtent sur une erreur ou attendent votre réponse, une approbation ou une étape dans le navigateur. Rien n’arrive pendant que vous utilisez OpenBot ici ou dans l’app de bureau. Tant que l’activité en direct s’affiche, elle montre l’événement à la place.",
+  "mobile.settings.notifications.footerAndroid":
+    "Les agents vous préviennent quand ils terminent, s’arrêtent sur une erreur ou attendent votre réponse, une approbation ou une étape dans le navigateur. Rien n’arrive pendant que vous utilisez OpenBot ici ou dans l’app de bureau.",
   "mobile.settings.notifications.denied": "Les notifications d’OpenBot sont désactivées dans les Réglages d’iOS.",
+  "mobile.settings.notifications.deniedAndroid":
+    "Les notifications d’OpenBot sont désactivées dans les paramètres d’Android.",
   "mobile.settings.notifications.openSettings": "Ouvrir les Réglages d’iOS",
+  "mobile.settings.notifications.openSettingsAndroid": "Ouvrir les paramètres d’Android",
   "mobile.settings.notifications.preview": "Afficher l’aperçu de la réponse",
   "mobile.settings.notifications.previewFooter":
     "Affiche le début d’une réponse, une question ou l’action à approuver. Apple et le service de compte OpenBot ne peuvent pas le lire.",
+  "mobile.settings.notifications.previewFooterAndroid":
+    "Affiche le début d’une réponse, une question ou l’action à approuver. Google et le service de compte OpenBot ne peuvent pas le lire.",
   "mobile.settings.notifications.sound": "Son",
   "mobile.settings.notifications.playSound": "Jouer un son",
   "mobile.settings.notifications.sound.openbot": "OpenBot",
@@ -112,8 +119,11 @@ export const messages = {
   "mobile.settings.notifications.sound.bubble": "Pétillant",
   "mobile.settings.notifications.sound.press": "Clavier",
   "mobile.settings.notifications.sound.default": "Son par défaut d’iOS",
+  "mobile.settings.notifications.sound.defaultAndroid": "Son par défaut d’Android",
   "mobile.settings.notifications.soundFooter":
     "Les notifications et l’activité en direct jouent ce son. L’activité en direct allume aussi l’écran. Le son OpenBot est celui que l’app de bureau joue quand une tâche se termine. Les quatre sons suivants sont ceux des thèmes sonores de l’app de bureau.",
+  "mobile.settings.notifications.soundFooterAndroid":
+    "Les notifications jouent ce son. Le son OpenBot est celui que l’app de bureau joue quand une tâche se termine. Les quatre sons suivants sont ceux des thèmes sonores de l’app de bureau.",
   "mobile.settings.notifications.notifyAbout": "Me notifier pour",
   "mobile.settings.notifications.level.all": "Toute l’activité",
   "mobile.settings.notifications.level.needsMe": "Seulement quand on a besoin de moi",
@@ -131,6 +141,8 @@ export const messages = {
     "Les événements de ce serveur qui notifient ce téléphone. L’app de bureau a ses propres réglages.",
   "mobile.settings.notifications.serverUnsupported":
     "Ce serveur ne peut pas envoyer de notifications. Mettez à jour OpenBot sur l’ordinateur qui l’exécute.",
+  "mobile.settings.notifications.channel": "Notifications des agents ({sound})",
+  "mobile.settings.notifications.channelSilent": "Notifications des agents (sans son)",
   "mobile.settings.privacy.title": "Confidentialité",
   "mobile.settings.privacy.footer":
     "Partagez l’utilisation des fonctions et les résultats de connexion de ce téléphone. Le contenu des messages et les fichiers ne sont pas envoyés.",

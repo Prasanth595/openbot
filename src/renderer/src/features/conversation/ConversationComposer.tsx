@@ -18,6 +18,7 @@ import {
   ImageRemoveButton,
   Input,
   LoaderCircle,
+  MessageCircleQuestionMark,
   Mic,
   Plus,
   Puzzle,
@@ -100,6 +101,8 @@ export function ConversationComposer() {
     voiceLiveText,
     voicePhase,
     voiceModelProgress,
+    sideQuestionAvailable,
+    openSideQuestion,
   } = useConversationViewScope();
   const { t, format } = useText();
   const messageLabel = () =>
@@ -321,6 +324,7 @@ export function ConversationComposer() {
                 editingDeliveryId={editingDeliveryId()}
                 canSteer={Boolean(props.activeTurnId)}
                 onSteer={props.onSteerQueuedMessage}
+                onRunAsTask={props.tasks?.onRunQueuedMessage}
                 onCancel={props.onCancelQueuedMessage}
                 onEdit={editQueuedMessage}
                 onReorder={reorderPresentedQueue}
@@ -513,7 +517,7 @@ export function ConversationComposer() {
         <div class="composer-input-label">
           <ComposerEditor
             agentId={props.agent?.id}
-            agents={props.agents}
+            agents={props.mentionAgents ?? props.agents}
             skills={installedSkills()}
             skillsLoadFailed={installedSkillsLoadFailed()}
             mcpServers={mcpServers()}
@@ -632,6 +636,24 @@ export function ConversationComposer() {
                   <File aria-hidden="true" />
                   <span>{t("composer.add.context")}</span>
                 </DropdownMenu.Item>
+                <Show when={sideQuestionAvailable()}>
+                  <DropdownMenu.Separator />
+                  <DropdownMenu.Item
+                    onSelectAfterClose={() => {
+                      // The draft goes to the side question, so that the chat gets nothing of it. A draft
+                      // with attachments stays: the side question cannot send files.
+                      const draft = currentDraft();
+                      const text = draft.attachments.length === 0 ? draft.text : "";
+                      if (text) updateCurrentDraft({ text: "" });
+                      // The menu gives the focus back first. A side panel tab that gets it selects its
+                      // pane, so open the side question after that.
+                      requestAnimationFrame(() => openSideQuestion(text));
+                    }}
+                  >
+                    <MessageCircleQuestionMark aria-hidden="true" />
+                    <span>{t("conversation.sidePanel.pane.question")}</span>
+                  </DropdownMenu.Item>
+                </Show>
               </DropdownMenu.Content>
             </DropdownMenu.Portal>
           </DropdownMenu.Root>

@@ -47,6 +47,7 @@ import { StoredStateFailure, storedIO, storedSync, toStoredStateFailure } from "
 
 export type { ExportedAttachmentFile, GeneratedAttachmentSource } from "./attachment-files";
 
+import { mailboxReactionRowKey } from "./database/mailbox-projection";
 import { MailboxDeliveryGate } from "./mailbox-delivery-gate";
 import { OpenBotDatabase } from "./openbot-database";
 import { isRecord } from "./protocol";
@@ -72,6 +73,11 @@ interface StoredMessage {
    * answer to it goes back to that conversation, not to the agent's own chat. Never sent to a client.
    */
   messagingReturn?: MessagingOrigin;
+  /**
+   * The task this message runs in, a conversation of its recipient beside its own chat. The queue
+   * and the public chat do not show it, like channel work. A task message has one recipient.
+   */
+  taskId?: string;
   id: string;
   sender:
     | { kind: "user" }
@@ -144,6 +150,7 @@ interface EnqueueInput {
   channelId?: string;
   messaging?: MessagingOrigin;
   messagingReturn?: MessagingOrigin;
+  taskId?: string;
   sender: StoredMessage["sender"];
   senderMember?: ConversationMessageSender;
   recipientAgentIds: string[];
@@ -204,6 +211,14 @@ export class MailboxStore {
   readonly #deliveryGate = new MailboxDeliveryGate();
   readonly #stagedGeneratedAttachments = new Map<string, StoredGeneratedAttachment>();
   #state: StoredState = structuredClone(EMPTY_STATE);
+  /** The rows changed, added or removed, since the last committed write. `#persist` writes only these. */
+  readonly #changes = {
+    messageIds: new Set<string>(),
+    deliveryIds: new Set<string>(),
+    draftIds: new Set<string>(),
+    generatedAttachmentIds: new Set<string>(),
+    reactionKeys: new Set<string>(),
+  };
 
   constructor(userDataPath: string, sharedRoot: string, database = new OpenBotDatabase(userDataPath)) {
     this.#statePath = join(userDataPath, "mailbox.json");
@@ -228,10 +243,15 @@ export class MailboxStore {
         const persisted = toCurrentMailboxState(stored);
         if (!persisted || !isStoredState(persisted)) throw new Error("Stored mailbox projection is invalid.");
         this.#state = normalizeStoredState(persisted);
+        // Each read accepts rows in an older form, and a write stores only the rows that changed. So
+        // rows that the read had to bring to the current form are all written once, here.
+        if (JSON.stringify(this.#state) !== JSON.stringify(stored)) {
+          this.#persist("mailbox.normalized", undefined, [], true);
+        }
       } else {
         this.#state = normalizeStoredState(yield* this.#readStateEffect());
         yield* this.#database.backupLegacyFile(this.#statePath);
-        this.#persist("mailbox.legacy-imported", "legacy-import:mailbox:v1");
+        this.#persist("mailbox.legacy-imported", "legacy-import:mailbox:v1", [], true);
       }
       const activeEdits = new Set(
         this.#state.deliveries
@@ -242,6 +262,7 @@ export class MailboxStore {
         (draft) => draft.preserveOnRestart || (draft.ownerEditId && activeEdits.has(draft.ownerEditId)),
       );
       if (retainedDrafts.length !== this.#state.drafts.length) {
+        for (const draft of this.#state.drafts) this.#changes.draftIds.add(draft.id);
         this.#state.drafts = retainedDrafts;
         this.#persist("mailbox.drafts-cleared");
       }
@@ -282,6 +303,7 @@ export class MailboxStore {
         .prepareDrafts(paths, data)
         .pipe(Effect.mapError(({ cause }) => new StoredStateFailure({ cause })));
       this.#state.drafts.push(...prepared);
+      for (const draft of prepared) this.#changes.draftIds.add(draft.id);
       try {
         this.#persist("attachments.prepared");
         return prepared.map(toAttachmentSummary);
@@ -307,6 +329,7 @@ export class MailboxStore {
       if (index < 0) return;
       const [draft] = this.#state.drafts.splice(index, 1);
       if (!draft) return;
+      this.#changes.draftIds.add(draft.id);
       try {
         this.#persist("attachment-draft.discarded");
       } catch (error) {
@@ -420,6 +443,7 @@ export class MailboxStore {
       const recipients = [...new Set(input.recipientAgentIds)];
       const validateRecipients = this.prepareDelivery(recipients);
       if (recipients.length === 0) throw new Error(sourceText("error.backend.recipientRequired"));
+      if (input.taskId !== undefined && recipients.length !== 1) throw new Error("A task message has one recipient.");
       if (recipients.length > INPUT_LIMITS.messageRecipients) {
         throw new Error(sourceText("error.backend.recipientLimit", { limit: INPUT_LIMITS.messageRecipients }));
       }
@@ -467,6 +491,7 @@ export class MailboxStore {
         channelId: input.channelId,
         ...(messaging ? { messaging } : {}),
         ...(input.messagingReturn ? { messagingReturn: input.messagingReturn } : {}),
+        ...(input.taskId ? { taskId: input.taskId } : {}),
         id: messageId,
         sender: input.sender,
         ...(input.sender.kind === "user" && input.senderMember ? { senderMember: input.senderMember } : {}),
@@ -495,6 +520,9 @@ export class MailboxStore {
       this.#state.deliveries.push(...deliveries);
       if (input.idempotencyKey) this.#state.idempotency[input.idempotencyKey] = messageId;
       this.#state.drafts = this.#state.drafts.filter((draft) => !(input.draftIds ?? []).includes(draft.id));
+      this.#changes.messageIds.add(messageId);
+      for (const delivery of deliveries) this.#changes.deliveryIds.add(delivery.id);
+      for (const draft of drafts) this.#changes.draftIds.add(draft.id);
       try {
         this.#persist();
       } catch (error) {
@@ -594,6 +622,8 @@ export class MailboxStore {
       };
       this.#state.messages.push(message);
       this.#state.drafts = this.#state.drafts.filter((draft) => !ids.has(draft.id));
+      this.#changes.messageIds.add(message.id);
+      for (const id of ids) this.#changes.draftIds.add(id);
       try {
         this.#persist("channel.attachments-committed", `mailbox:channel-attachments:${input.messageId}`);
       } catch (error) {
@@ -616,6 +646,8 @@ export class MailboxStore {
           ...before.drafts,
           ...drafts.filter((draft) => !before.drafts.some((candidate) => candidate.id === draft.id)),
         ];
+        this.#changes.messageIds.add(message.id);
+        for (const draft of drafts) this.#changes.draftIds.add(draft.id);
         try {
           this.#persist("channel.attachments-reverted", `mailbox:channel-attachments-reverted:${input.messageId}`);
         } catch (cause) {
@@ -641,6 +673,7 @@ export class MailboxStore {
   listQueue(agentId: string): QueueSnapshot {
     const executionMessageIds = this.#executionMessageIds();
     const positions = this.#queuedPositions();
+    const messages = this.#messagesById();
     return {
       agentId,
       // Queue order, not storage order: a restart reads the deliveries back sorted by their
@@ -648,12 +681,14 @@ export class MailboxStore {
       deliveries: [...this.#state.deliveries]
         .filter((delivery) => delivery.recipientAgentId === agentId && !executionMessageIds.has(delivery.messageId))
         .sort(compareQueueOrder)
-        .map((delivery) => this.#publicDelivery(delivery, positions)),
+        .map((delivery) =>
+          this.#publicDelivery(delivery, positions, this.#requireMessage(delivery.messageId, messages)),
+        ),
     };
   }
 
   /**
-   * The queued channel and messaging work of this agent, in queue order. `listQueue` hides it, so a
+   * The queued channel, messaging and task work of this agent, in queue order. `listQueue` hides it, so a
    * caller that reorders the queue the user sees has to put these ids back before the mailbox reads
    * the order.
    */
@@ -673,9 +708,103 @@ export class MailboxStore {
   /** Indexed once for a whole read: a queue holds one delivery for each message the agent has. */
   #executionMessageIds(): Set<string> {
     const ids = new Set<string>();
-    for (const message of this.#state.messages) if (message.channelId || message.messaging) ids.add(message.id);
+    for (const message of this.#state.messages)
+      if (message.channelId || message.messaging || message.taskId) ids.add(message.id);
     return ids;
   }
+
+  /** Indexed once for a whole read, so a read over many deliveries does not scan the messages for each one. */
+  #messagesById(): Map<string, StoredMessage> {
+    return new Map(this.#state.messages.map((message) => [message.id, message]));
+  }
+
+  /** The task a delivery runs in, or null for the agent's own chat. */
+  taskIdForDelivery(deliveryId: string): string | null {
+    const delivery = this.#state.deliveries.find((candidate) => candidate.id === deliveryId);
+    return delivery ? this.#taskIdOf(delivery) : null;
+  }
+
+  #taskIdOf(delivery: StoredDelivery): string | null {
+    return this.#state.messages.find((message) => message.id === delivery.messageId)?.taskId ?? null;
+  }
+
+  /** The tasks of this agent that have a queued message, in queue order of their first one. */
+  queuedTaskIds(agentId: string): string[] {
+    const ids = new Set<string>();
+    for (const delivery of this.#queuedFor(agentId)) {
+      const taskId = this.#taskIdOf(delivery);
+      if (taskId) ids.add(taskId);
+    }
+    return [...ids];
+  }
+
+  /** The messages of one task that wait to start, in queue order, for the task's panel. */
+  queuedTaskMessages(agentId: string, taskId: string): Array<{ deliveryId: string; text: string; createdAt: string }> {
+    return this.#queuedFor(agentId).flatMap((delivery) => {
+      const message = this.#requireMessage(delivery.messageId);
+      return message.taskId === taskId
+        ? [{ deliveryId: delivery.id, text: message.text, createdAt: message.createdAt }]
+        : [];
+    });
+  }
+
+  /** Whether a delivery of this lane is starting or running: the agent's own chat when `taskId` is null. */
+  laneActive(agentId: string, taskId: string | null): boolean {
+    return this.#state.deliveries.some(
+      (delivery) =>
+        delivery.recipientAgentId === agentId &&
+        (delivery.status === "starting" || delivery.status === "running") &&
+        this.#taskIdOf(delivery) === taskId,
+    );
+  }
+
+  /** Whether a message of this task is queued, starting or running. */
+  taskBusy(agentId: string, taskId: string): boolean {
+    return this.#state.deliveries.some(
+      (delivery) =>
+        delivery.recipientAgentId === agentId && isActiveDelivery(delivery) && this.#taskIdOf(delivery) === taskId,
+    );
+  }
+
+  /**
+   * Moves a queued message of the person into a task, so it runs beside the agent's own chat. Only a
+   * message with one recipient and no channel or external origin can move.
+   */
+  moveToTask = Effect.fn("MailboxStore.moveToTask")(function* (
+    this: MailboxStore,
+    agentId: string,
+    deliveryId: string,
+    taskId: string,
+  ): Effect.fn.Return<void, StoredStateFailure> {
+    try {
+      const delivery = this.#state.deliveries.find(
+        (candidate) => candidate.id === deliveryId && candidate.recipientAgentId === agentId,
+      );
+      if (delivery?.status !== "queued" || delivery.editId || this.#queueUpdates.has(deliveryId))
+        throw new Error(sourceText("error.backend.queuedMessageUnavailable"));
+      const message = this.#requireMessage(delivery.messageId);
+      const recipients = this.#state.deliveries.filter((candidate) => candidate.messageId === message.id);
+      if (
+        message.sender.kind !== "user" ||
+        message.channelId ||
+        message.messaging ||
+        message.taskId ||
+        recipients.length !== 1
+      )
+        throw new Error(sourceText("error.backend.taskMoveRefused"));
+      const previous = this.#state.messages;
+      this.#state.messages = previous.map((candidate) => (candidate === message ? { ...message, taskId } : candidate));
+      this.#changes.messageIds.add(message.id);
+      try {
+        this.#persist("mailbox.task-assigned", `mailbox:task-assigned:${deliveryId}`);
+      } catch (error) {
+        this.#state.messages = previous;
+        throw error;
+      }
+    } catch (cause) {
+      return yield* new StoredStateFailure({ cause });
+    }
+  }, Effect.uninterruptible).bind(this);
 
   listRuntimeWork(agentIds: readonly string[], failedTurns: ReadonlyMap<string, string>): AgentRuntimeWorkItem[] {
     const targetAgentIds = new Set(agentIds);
@@ -734,7 +863,7 @@ export class MailboxStore {
     let completedCount = 0;
     for (let index = this.#state.messages.length - 1; index >= 0; index -= 1) {
       const message = this.#state.messages[index];
-      if (!message || message.channelId || message.messaging) continue;
+      if (!message || message.channelId || message.messaging || message.taskId) continue;
       // A request the agent sent from a Slack thread belongs to that thread, not to its own chat.
       // The teammate it went to still sees it.
       if (message.messagingReturn && message.sender.kind === "agent" && message.sender.agentId === agentId) continue;
@@ -779,7 +908,7 @@ export class MailboxStore {
             replyToMessageId: message.replyToMessageId,
             ...(message.expectsReply === false ? { expectsReply: false } : {}),
             deliveries: deliveries.map((item) => {
-              const delivery = this.#publicDelivery(item, positions);
+              const delivery = this.#publicDelivery(item, positions, message);
               return {
                 id: delivery.id,
                 recipientAgentId: delivery.recipientAgentId,
@@ -797,7 +926,7 @@ export class MailboxStore {
 
       for (const storedDelivery of deliveries) {
         if (storedDelivery.recipientAgentId !== agentId) continue;
-        const delivery = this.#publicDelivery(storedDelivery, positions);
+        const delivery = this.#publicDelivery(storedDelivery, positions, message);
         messages.push({
           id: delivery.id,
           turnId: storedDelivery.turnId ?? undefined,
@@ -823,7 +952,7 @@ export class MailboxStore {
                   replyToMessageId: message.replyToMessageId,
                   ...(message.expectsReply === false ? { expectsReply: false } : {}),
                   deliveries: deliveries.map((item) => {
-                    const publicItem = this.#publicDelivery(item, positions);
+                    const publicItem = this.#publicDelivery(item, positions, message);
                     return {
                       id: publicItem.id,
                       recipientAgentId: publicItem.recipientAgentId,
@@ -918,6 +1047,7 @@ export class MailboxStore {
           updatedAt: new Date().toISOString(),
         });
       }
+      this.#changes.reactionKeys.add(mailboxReactionRowKey(agentId, messageId, actor));
       this.#persist("reaction.updated");
     } catch (cause) {
       return yield* new StoredStateFailure({ cause });
@@ -940,24 +1070,24 @@ export class MailboxStore {
 
   senderAgentIdsForRecipient(agentId: string): string[] {
     const result = new Set<string>();
+    const messages = this.#messagesById();
     for (const delivery of this.#state.deliveries) {
       if (delivery.recipientAgentId !== agentId) continue;
-      const sender = this.#requireMessage(delivery.messageId).sender;
+      const sender = this.#requireMessage(delivery.messageId, messages).sender;
       if (sender.kind === "agent") result.add(sender.agentId);
     }
     return [...result];
   }
 
-  nextQueued(agentId: string): DeliveryContext | null {
-    if (
-      this.#state.deliveries.some(
-        (delivery) =>
-          delivery.recipientAgentId === agentId && (delivery.status === "starting" || delivery.status === "running"),
-      )
-    ) {
-      return null;
-    }
-    const delivery = this.#queuedFor(agentId).find((candidate) => !this.#isHeldReply(candidate));
+  /**
+   * The delivery that starts the next turn in one lane of this agent: its own chat (`taskId` null,
+   * with its channel and messaging work), or one task. Each lane runs one turn at a time.
+   */
+  nextQueued(agentId: string, taskId: string | null = null): DeliveryContext | null {
+    if (this.laneActive(agentId, taskId)) return null;
+    const delivery = this.#queuedFor(agentId).find(
+      (candidate) => this.#taskIdOf(candidate) === taskId && !this.#isHeldReply(candidate),
+    );
     return delivery && this.#mayStart(delivery) ? this.#context(delivery) : null;
   }
 
@@ -972,9 +1102,11 @@ export class MailboxStore {
     const message = this.#requireMessage(next.messageId);
     const requestId = isAnswer(message) ? message.replyToMessageId : null;
     if (message.sender.kind !== "user" && !requestId) return [];
+    // A teammate's answer runs in the agent's own chat, so a task message starts alone.
+    if (message.taskId) return [];
     return this.#queuedFor(next.recipientAgentId)
       .filter((candidate) => {
-        if (candidate.id === next.id || !this.#mayStart(candidate)) return false;
+        if (candidate.id === next.id || !this.#mayStart(candidate) || this.#taskIdOf(candidate)) return false;
         if (!requestId) return this.#isHeldReply(candidate);
         const reply = this.#requireMessage(candidate.messageId);
         return isAnswer(reply) && reply.replyToMessageId === requestId;
@@ -1070,22 +1202,29 @@ export class MailboxStore {
       .map((delivery) => this.#context(delivery));
   }
 
-  startingDeliveryForAgent(agentId: string): DeliveryContext | null {
-    const delivery = this.#state.deliveries.find(
-      (candidate) =>
-        candidate.recipientAgentId === agentId && candidate.status === "starting" && candidate.turnId === null,
-    );
+  /** Without `taskId`, any lane of the agent; with it, only that lane (null: the agent's own chat). */
+  startingDeliveryForAgent(agentId: string, taskId?: string | null): DeliveryContext | null {
+    const delivery = this.#state.deliveries.find((candidate) => this.#startingIn(candidate, agentId, taskId));
     return delivery ? this.#context(delivery) : null;
   }
 
-  /** Every delivery that starts the next turn of this agent: one, or several teammate answers. */
-  startingDeliveriesForAgent(agentId: string): DeliveryContext[] {
+  /**
+   * Every delivery that starts the next turn of this agent: one, or several teammate answers.
+   * Without `taskId`, any lane of the agent; with it, only that lane (null: the agent's own chat).
+   */
+  startingDeliveriesForAgent(agentId: string, taskId?: string | null): DeliveryContext[] {
     return this.#state.deliveries
-      .filter(
-        (candidate) =>
-          candidate.recipientAgentId === agentId && candidate.status === "starting" && candidate.turnId === null,
-      )
+      .filter((candidate) => this.#startingIn(candidate, agentId, taskId))
       .map((delivery) => this.#context(delivery));
+  }
+
+  #startingIn(delivery: StoredDelivery, agentId: string, taskId: string | null | undefined): boolean {
+    return (
+      delivery.recipientAgentId === agentId &&
+      delivery.status === "starting" &&
+      delivery.turnId === null &&
+      (taskId === undefined || this.#taskIdOf(delivery) === taskId)
+    );
   }
 
   /**
@@ -1326,6 +1465,8 @@ export class MailboxStore {
     const persisted = toCurrentMailboxState(this.#database.readMailboxState());
     if (!persisted || !isStoredState(persisted)) throw new Error("Stored mailbox projection is invalid.");
     this.#state = normalizeStoredState(persisted);
+    // Inside a transaction this read sees rows that a later ROLLBACK can still undo, so the keys stay.
+    if (!this.#database.connection.isTransaction) this.#clearChanges();
   }
 
   #assertQueueNotEditing(deliveryId: string): void {
@@ -1343,6 +1484,7 @@ export class MailboxStore {
       throw new QueueEditRejectedError(sourceText("error.backend.editedOnOtherDevice"));
     const previous = delivery.editId;
     delivery.editId = editId;
+    this.#changes.deliveryIds.add(delivery.id);
     try {
       this.#persist("delivery.edit-started");
     } catch (error) {
@@ -1366,7 +1508,10 @@ export class MailboxStore {
     if (drafts.some((draft) => draft.ownerEditId && draft.ownerEditId !== editId))
       throw new Error(sourceText("error.backend.attachmentInOtherEdit"));
     const previous = drafts.map((draft) => draft.ownerEditId);
-    for (const draft of drafts) draft.ownerEditId = editId;
+    for (const draft of drafts) {
+      draft.ownerEditId = editId;
+      this.#changes.draftIds.add(draft.id);
+    }
     try {
       this.#persist("delivery.edit-attachments-retained");
     } catch (error) {
@@ -1426,7 +1571,9 @@ export class MailboxStore {
       // Release the lock, not the bytes: a disconnected editor can still restore its
       // backup, including after a lost cancellation response and host restart.
       draft.preserveOnRestart = true;
+      this.#changes.draftIds.add(draft.id);
     }
+    this.#changes.deliveryIds.add(delivery.id);
     try {
       this.#persist(cancelDelivery ? "delivery.cancelled" : "delivery.edit-finished");
     } catch (error) {
@@ -1578,6 +1725,9 @@ export class MailboxStore {
                 releasedOwned = this.#state.drafts.filter((draft) => draft.ownerEditId === editId);
                 for (const draft of releasedOwned) delete draft.ownerEditId;
               }
+              this.#changes.messageIds.add(message.id);
+              this.#changes.deliveryIds.add(delivery.id);
+              for (const id of [...draftIds, ...releasedOwned.map((draft) => draft.id)]) this.#changes.draftIds.add(id);
               this.#persist(
                 "message.updated",
                 `mailbox:message-updated:${deliveryId}:${randomUUID()}`,
@@ -1651,6 +1801,7 @@ export class MailboxStore {
       const orders = new Map(orderedIds.map((deliveryId, index) => [deliveryId, index]));
       for (const delivery of allQueued) {
         delivery.queueOrder = orders.get(delivery.id) ?? delivery.queueOrder;
+        this.#changes.deliveryIds.add(delivery.id);
       }
       this.#persist("queue.reordered");
     } catch (cause) {
@@ -1694,6 +1845,7 @@ export class MailboxStore {
       }
       Object.assign(delivery, { status: "queued", turnId: null, error: null });
       delete delivery.steeredAt;
+      this.#changes.deliveryIds.add(delivery.id);
       this.#persist("delivery.updated");
     } catch (cause) {
       return yield* new StoredStateFailure({ cause });
@@ -1875,6 +2027,14 @@ export class MailboxStore {
       const previous = structuredClone(this.#state);
       const deletedAt = new Date().toISOString();
       for (const target of targets) target.deletedAt = deletedAt;
+      for (const message of this.#state.messages) {
+        if (message.attachments.some((attachment) => targets.includes(attachment))) {
+          this.#changes.messageIds.add(message.id);
+        }
+      }
+      for (const attachment of this.#state.generatedAttachments) {
+        if (targets.includes(attachment)) this.#changes.generatedAttachmentIds.add(attachment.id);
+      }
       const inUse = new Set(records.filter((record) => !record.deletedAt).map((record) => record.path));
       const deletions: string[] = [];
       for (const path of new Set(targets.map((target) => target.path))) {
@@ -1959,15 +2119,18 @@ export class MailboxStore {
     const changedMessages = snapshot.messages.filter((message) =>
       message.attachments?.some((attachment) => attachmentIds.includes(attachment.id)),
     );
+    for (const attachment of staged) this.#changes.generatedAttachmentIds.add(attachment.id);
     const persisted = this.#database.persistConversationChangesAndMailbox(
       snapshot,
       changedMessages,
       eventType,
       detail,
       nextState,
+      this.#changes,
       "attachment.generated-batch",
     );
     this.#state = nextState;
+    this.#clearChanges();
     for (const id of attachmentIds) this.#stagedGeneratedAttachments.delete(id);
     return persisted;
   }
@@ -2009,6 +2172,7 @@ export class MailboxStore {
         .storeGenerated(input)
         .pipe(Effect.mapError(({ cause }) => new StoredStateFailure({ cause })));
       this.#state.generatedAttachments.push(attachment);
+      this.#changes.generatedAttachmentIds.add(attachment.id);
       try {
         this.#persist("attachment.generated");
         return toAttachmentSummary(attachment);
@@ -2162,6 +2326,7 @@ export class MailboxStore {
       if (!allowed.includes(delivery.status)) return;
       Object.assign(delivery, patch);
       if (patch.status === "queued") delete delivery.steeredAt;
+      this.#changes.deliveryIds.add(delivery.id);
       this.#persist("delivery.updated");
     } catch (cause) {
       return yield* new StoredStateFailure({ cause });
@@ -2171,11 +2336,13 @@ export class MailboxStore {
   /** The reason a steer waits is shown only while queued, so it goes when the delivery leaves the queue. */
   #clearSteerFallback(deliveryId: string): void {
     const delivery = this.#state.deliveries.find((candidate) => candidate.id === deliveryId);
-    if (delivery?.status === "queued") delete delivery.steerFallback;
+    if (delivery?.status !== "queued") return;
+    delete delivery.steerFallback;
+    this.#changes.deliveryIds.add(delivery.id);
   }
 
-  #requireMessage(id: string): StoredMessage {
-    const message = this.#state.messages.find((candidate) => candidate.id === id);
+  #requireMessage(id: string, messages?: ReadonlyMap<string, StoredMessage>): StoredMessage {
+    const message = messages ? messages.get(id) : this.#state.messages.find((candidate) => candidate.id === id);
     if (!message) throw new Error(`Mailbox message is missing: ${id}`);
     return message;
   }
@@ -2196,13 +2363,27 @@ export class MailboxStore {
     });
   });
 
+  /**
+   * Writes the rows in `#changes`, or with `replaceAll` the whole state. The keys are cleared only
+   * after a write that committed its own transaction: a caller's transaction can still roll back,
+   * and the next write must then write those rows again. A command that was already applied writes
+   * no row, so it keeps the keys too.
+   */
   #persist(
     eventType = "mailbox.updated",
     commandId = `mailbox:${eventType}:${randomUUID()}`,
     fileDeletions: string[] = [],
-    rebaseHistory = false,
+    replaceAll = false,
   ): void {
-    this.#database.replaceMailboxState(commandId, this.#state, eventType, fileDeletions, rebaseHistory);
+    const ownsTransaction = !this.#database.connection.isTransaction;
+    const wrote = replaceAll
+      ? this.#database.replaceMailboxState(commandId, this.#state, eventType, fileDeletions, true)
+      : this.#database.applyMailboxChanges(commandId, this.#state, this.#changes, eventType, fileDeletions);
+    if (wrote && ownsTransaction) this.#clearChanges();
+  }
+
+  #clearChanges(): void {
+    for (const keys of Object.values(this.#changes)) keys.clear();
   }
 
   #drainFileDeletionOutboxEffect = Effect.fn("MailboxStore.drainFileDeletionOutbox")(function* (this: MailboxStore) {
@@ -2405,6 +2586,7 @@ function isStoredMessage(value: unknown): value is StoredMessage {
     (value.channelId === undefined || isString(value.channelId)) &&
     (value.messaging === undefined || isMessagingOrigin(value.messaging)) &&
     (value.messagingReturn === undefined || isMessagingOrigin(value.messagingReturn)) &&
+    (value.taskId === undefined || isString(value.taskId)) &&
     isString(value.id) &&
     isRecord(value.sender) &&
     (value.sender.kind === "user" ||

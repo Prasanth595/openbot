@@ -4,6 +4,7 @@ import { MCP_SERVERS_CAPABILITY } from "../ipc-mcp-servers";
 import { STORAGE_CAPABILITY } from "../ipc-storage";
 import { ACP_REGISTRY_CAPABILITY } from "./acp-registry-v1";
 import { AGENT_ADMIN_CAPABILITY } from "./agent-admin-v1";
+import { AGENT_HIDDEN_CAPABILITY } from "./agent-hidden-v1";
 import { AGENT_HOST_SETTINGS_CAPABILITY } from "./agent-host-settings-v1";
 import { AGENT_IMPORT_CAPABILITY } from "./agent-import-v1";
 import { AGENT_INSTALL_CAPABILITY } from "./agent-install-v1";
@@ -24,6 +25,7 @@ import { CONNECTORS_CAPABILITY } from "./connectors-v1";
 import { CONTEXT_RESET_CAPABILITY } from "./context-reset-v1";
 import { CONVERSATION_FILE_SEARCH_CAPABILITY } from "./conversation-file-search-v1";
 import { EVENTS_CAPABILITY } from "./events-v1";
+import { FOCUS_USE_CAPABILITY } from "./focus-use-v1";
 import { TEAM_HISTORY_EXTENT_CAPABILITY } from "./history-extent-v1";
 import { HOST_ADMIN_CAPABILITY } from "./host-admin-v1";
 import { HOST_MEMBER_UPDATE_CAPABILITY } from "./host-member-update-v1";
@@ -44,6 +46,7 @@ import { PROVIDERS_RUNTIMES_V2_CAPABILITY } from "./providers-v2";
 import { PROVIDERS_SIGN_IN_V3_CAPABILITY } from "./providers-v3";
 import { PROVIDERS_V4_CAPABILITY } from "./providers-v4";
 import { PROVIDERS_V5_CAPABILITY } from "./providers-v5";
+import { ANDROID_PUSH_NOTIFICATIONS_CAPABILITY } from "./push-notifications-android-v1";
 import { PUSH_NOTIFICATIONS_CAPABILITY } from "./push-notifications-v1";
 import { TEAM_QUEUE_EDIT_CAPABILITY } from "./queue-edit-v1";
 import { QUIET_TURN_CAPABILITY } from "./quiet-turn-v1";
@@ -79,6 +82,7 @@ export const TEAM_MEMBER_LEAVE_CAPABILITY = "member-leave-v1";
 export {
   ACP_REGISTRY_CAPABILITY,
   AGENT_ADMIN_CAPABILITY,
+  AGENT_HIDDEN_CAPABILITY,
   AGENT_HOST_SETTINGS_CAPABILITY,
   AGENT_IMPORT_CAPABILITY,
   AGENT_INSTALL_CAPABILITY,
@@ -86,11 +90,13 @@ export {
   AGENT_PUBLISH_CAPABILITY,
   AGENT_SESSION_SETTINGS_CAPABILITY,
   AGENT_UPDATE_CAPABILITY,
+  ANDROID_PUSH_NOTIFICATIONS_CAPABILITY,
   CHANNEL_DELETE_CAPABILITY,
   CONNECTORS_CAPABILITY,
   CONTEXT_RESET_CAPABILITY,
   CONVERSATION_FILE_SEARCH_CAPABILITY,
   EVENTS_CAPABILITY,
+  FOCUS_USE_CAPABILITY,
   HOST_ADMIN_CAPABILITY,
   HOST_MEMBER_UPDATE_CAPABILITY,
   HOST_RELEASE_CAPABILITY,
@@ -196,10 +202,13 @@ export const TEAM_CURRENT_CAPABILITIES = [
   ROUTINE_FLOWS_CAPABILITY,
   TEAM_HISTORY_EXTENT_CAPABILITY,
   PUSH_NOTIFICATIONS_CAPABILITY,
+  ANDROID_PUSH_NOTIFICATIONS_CAPABILITY,
   PROVIDER_ACCOUNTS_CAPABILITY,
   ONEPASSWORD_CONNECTOR_CAPABILITY,
   HOST_TIMEZONE_CAPABILITY,
   ROUTINE_RECOVERY_CAPABILITY,
+  FOCUS_USE_CAPABILITY,
+  AGENT_HIDDEN_CAPABILITY,
 ] as const;
 
 export type TeamCurrentCapability = (typeof TEAM_CURRENT_CAPABILITIES)[number];
@@ -281,11 +290,14 @@ export const TEAM_BOOTSTRAP_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
     capability !== ROUTINE_FLOWS_CAPABILITY &&
     capability !== TEAM_HISTORY_EXTENT_CAPABILITY &&
     capability !== PUSH_NOTIFICATIONS_CAPABILITY &&
+    capability !== ANDROID_PUSH_NOTIFICATIONS_CAPABILITY &&
     capability !== PROVIDER_ACCOUNTS_CAPABILITY &&
     capability !== ONEPASSWORD_CONNECTOR_CAPABILITY &&
     capability !== HOST_TIMEZONE_CAPABILITY &&
     capability !== ROUTINE_RECOVERY_CAPABILITY &&
-    capability !== INSTANCE_TRANSFER_CAPABILITY,
+    capability !== INSTANCE_TRANSFER_CAPABILITY &&
+    capability !== FOCUS_USE_CAPABILITY &&
+    capability !== AGENT_HIDDEN_CAPABILITY,
 );
 export function teamCapabilitiesForProtocol(protocol: number | null | undefined): readonly TeamCurrentCapability[] {
   return protocol !== null && protocol !== undefined && protocol >= 7
@@ -308,10 +320,13 @@ export function legacyTeamCapabilities(capabilities: readonly string[]): string[
       capability !== ROUTINE_FLOWS_CAPABILITY &&
       capability !== TEAM_HISTORY_EXTENT_CAPABILITY &&
       capability !== PUSH_NOTIFICATIONS_CAPABILITY &&
+      capability !== ANDROID_PUSH_NOTIFICATIONS_CAPABILITY &&
       capability !== PROVIDER_ACCOUNTS_CAPABILITY &&
       capability !== ONEPASSWORD_CONNECTOR_CAPABILITY &&
       capability !== HOST_TIMEZONE_CAPABILITY &&
       capability !== ROUTINE_RECOVERY_CAPABILITY &&
-      capability !== INSTANCE_TRANSFER_CAPABILITY,
+      capability !== INSTANCE_TRANSFER_CAPABILITY &&
+      capability !== FOCUS_USE_CAPABILITY &&
+      capability !== AGENT_HIDDEN_CAPABILITY,
   );
 }

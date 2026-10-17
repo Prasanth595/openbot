@@ -185,6 +185,10 @@ export class RoutineScheduler implements RoutineDueSource {
     return undefined;
   }
 
+  #isHidden(agentId: string): boolean {
+    return this.#hooks.listAgents().some((agent) => agent.id === agentId && agent.hiddenAt !== undefined);
+  }
+
   /** The scheduler's clause in the drain mute registry. */
   mayDrain(agentId: string): boolean {
     return !this.#deletionAgents.has(agentId) && !this.#hooks.excludedAgents().has(agentId);
@@ -262,6 +266,12 @@ export class RoutineScheduler implements RoutineDueSource {
 
   skipMissed(now: Date, held?: RoutineHoldWindow): void {
     this.#routines.skipMissed(now, held);
+  }
+
+  /** Skips the occurrences that came due while the agent was hidden. The caller arms the timer. */
+  skipMissedFor(agentId: string, now: Date): void {
+    this.#routines.skipMissedFor(agentId, now);
+    this.stateChanged(agentId);
   }
 
   create(input: CreateRoutineInput, options: RoutineMutationOptions = {}): Routine {
@@ -461,6 +471,7 @@ export class RoutineScheduler implements RoutineDueSource {
     input: TestRoutineInput & { payload: string; source: "test" | "script"; waitId?: string },
   ) {
     const run = yield* routineStep(() => {
+      if (this.#isHidden(input.agentId)) throw new RoutineInputError(sourceText("error.backend.recipientHidden"));
       if (!this.mayDrain(input.agentId)) throw new RoutineInputError(sourceText("error.backend.routineWaitForAgent"));
       this.#conversation.requireKnownAgent(input.agentId);
       const routine = this.#routines.getRecord(input.agentId, input.routineId);
@@ -733,30 +744,40 @@ export class RoutineScheduler implements RoutineDueSource {
         if (!active()) break;
         if (this.#hooks.excludedAgents().has(due.routine.agentId)) continue;
         const run = yield* routineStep(() => {
+          // Enqueueing an earlier run can yield. A pause, edit or delete in that time must
+          // apply before this occurrence starts, rather than firing the saved due list.
+          const current = this.#routines.get(due.routine.agentId, due.routine.id);
+          if (!current?.active || current.trigger.id !== due.triggerId || current.trigger.nextRunAt !== due.nextRunAt)
+            return null;
           // A one-time trigger has no later run to make up for a dropped one, so it always queues.
           // A crash before it completes leaves the run, and `skipMissed` completes it on start.
-          if (due.schedule.kind === "once") {
-            const queued = this.#routines.createRun(due.routine, due.triggerId, "scheduled", due.nextRunAt);
-            this.#routines.completeTrigger(due.routine.id, due.triggerId, now);
-            changedAgents.add(due.routine.agentId);
+          if (current.trigger.schedule.kind === "once") {
+            const queued = this.#routines.createRun(
+              current,
+              current.trigger.id,
+              "scheduled",
+              current.trigger.nextRunAt,
+            );
+            this.#routines.completeTrigger(current.id, current.trigger.id, now);
+            changedAgents.add(current.agentId);
             return queued;
           }
           const { scheduledFor, nextRunAt } = collapseMissedOccurrences(
-            due.schedule,
-            due.routine.timezone,
-            new Date(due.nextRunAt),
+            current.trigger.schedule,
+            current.timezone,
+            new Date(current.trigger.nextRunAt),
             now,
           );
           // A run that has not finished already does this routine's work. Another one would only
           // queue behind it, and after a sleep the queue drains as a burst of identical runs. A routine
           // set to skip drops the occurrence while a spent plan would only make it wait.
           const queued =
-            this.#hasLiveRun(due.routine.agentId, due.routine.id) ||
-            (due.routine.limitPolicy === "skip" && this.#hooks.usageLimited(due.routine.agentId))
+            this.#hasLiveRun(current.agentId, current.id) ||
+            (current.limitPolicy === "skip" && this.#hooks.usageLimited(current.agentId))
               ? null
-              : this.#routines.createRun(due.routine, due.triggerId, "scheduled", scheduledFor.toISOString());
-          this.#routines.advanceTrigger(due.routine.id, due.triggerId, nextRunAt.toISOString());
-          changedAgents.add(due.routine.agentId);
+              : this.#routines.createRun(current, current.trigger.id, "scheduled", scheduledFor.toISOString());
+          this.#routines.advanceTrigger(current.id, current.trigger.id, nextRunAt.toISOString());
+          changedAgents.add(current.agentId);
           return queued;
         });
         if (run && !run.deliveryId)
@@ -806,6 +827,8 @@ export class RoutineScheduler implements RoutineDueSource {
     const agent = yield* routineStep(() => {
       const found = this.#hooks.listAgents().find((candidate) => candidate.id === input.agentId);
       if (!found) throw new Error(sourceText("error.agent.unknown", { id: input.agentId }));
+      // The next agent of the flow is hidden. It receives no new work until the user restores it.
+      if (found.hiddenAt !== undefined) throw new Error(sourceText("error.backend.recipientHidden"));
       return found;
     });
     const validateRecipient = yield* routineStep(() => this.#mailbox.prepareDelivery([agent.id]));

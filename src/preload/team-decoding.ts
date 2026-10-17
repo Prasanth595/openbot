@@ -11,6 +11,7 @@ import {
   type DirectMessage,
   type DirectThreadSummary,
   type HostedServerIssue,
+  type HostedServerStart,
   type HostStatus,
   type InvitePreview,
   type InviteSummary,
@@ -269,6 +270,7 @@ function server(summary: DynamicRecord): ServerSummary {
     hostRestart,
     hostedSleep,
     hostedIssue,
+    hostedStart,
     memberLimit,
     hosted,
   } = summary;
@@ -304,6 +306,7 @@ function server(summary: DynamicRecord): ServerSummary {
       ? {}
       : { hostedSleep: hostedSleep === "sleeping" || hostedSleep === "waking" ? hostedSleep : null }),
     ...(hostedIssue === undefined ? {} : { hostedIssue: decodeHostedIssue(hostedIssue) }),
+    ...(hostedStart === undefined ? {} : { hostedStart: decodeHostedStart(hostedStart) }),
     ...(memberLimit === undefined ? {} : { memberLimit }),
     ...(hosted === undefined ? {} : { hosted }),
   };
@@ -441,4 +444,12 @@ function teamRole(value: unknown): TeamRole {
 function decodeHostedIssue(value: unknown): HostedServerIssue | null {
   if (value === null || value === "plan_ended" || value === "wake_failed" || value === "start_timeout") return value;
   throw new Error("Invalid hostedIssue.");
+}
+
+function decodeHostedStart(value: unknown): HostedServerStart | null {
+  if (value === null) return null;
+  const start = decodeRecord(value, "hosted start");
+  const { step } = start;
+  if (step !== "machine" && step !== "openbot" && step !== "provider_limit") throw new Error("Invalid hostedStart.");
+  return { step, startedAt: requiredNumber(start, "startedAt") };
 }

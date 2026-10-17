@@ -7,6 +7,84 @@ the [root changelog](../../CHANGELOG.md).
 
 ## [Unreleased]
 
+## [1.3.2] - In review
+
+### Added
+
+- Touch and hold a server in the server list to leave it, or to remove a server that you own. Before, these actions were only in the server options.
+- You can react to a message with an emoji, and you can see the reactions of you and your agents under each message.
+- Select part of a message to Explain, Improve, Shorten, change the Tone or fix the Grammar of it, as in the desktop app. This works for the agent's replies and for your own messages. To describe your own edit, write it in the message box. Tap outside the message to end the selection.
+- Queued messages show above the message box, with Steer and Edit on each message.
+- An owner or admin of a server can select the provider account of an agent in the agent's Model settings. The choice shows when the provider has two or more accounts on the server.
+- A new account now starts with a short animated welcome. It helps you connect a server, then choose a starting role for your first agent or make your own from scratch, give it a name and a first task. You can skip it at any step. When you skip the welcome, its characters stay where they are, and its text and main button change into the home's.
+- A working agent has turning rings around its avatar on the home screen, as on the desktop.
+- Hold the app icon to open a recent agent, Routines or Search. The recent agents are the chats that
+  you opened last on this phone. Hidden chats do not show. The actions go away when you sign out, and
+  a shortcut that you pinned on Android then opens only the sign-in screen.
+- Share a link, text, a photo or a file from another app to an agent. Choose OpenBot in the share
+  sheet, then choose the agent. The agent that got your last share is selected first. The chat opens
+  with the shared content in the message field, so you can add a message before you send it. This
+  works when OpenBot is closed and when it is open. A file that is too large or of a type that agents
+  cannot read shows an error with its name. An image that you share from a web page comes as an
+  image, not as its link. iPhone photos in HEIC format are sent as JPEG.
+- Get agent notifications on Android: when an agent finishes, stops with an error, or needs your
+  input, an approval, or a step in the browser. Choose them in Settings > Notifications, with a
+  sound and the events of each server. The server must run the newest OpenBot desktop app.
+- When you create an agent, you can select its provider, model and reasoning level. The choice shows when the server supports it. "Host default" keeps the provider that the server selects for new agents.
+
+### Changed
+
+- Copy, React, Reply and the time are now in a row under each message. Before, they were in a sheet that opened only when you touched and held a message.
+- On iPhone, touch and hold a word in a message to select it, as in other apps. The formatting of the message stays while you select. Before, the text opened in a separate sheet as plain text. On Android, tap Select text under the message.
+- The home of a server with no agents now has the layout of the welcome: its group of characters, the text under it, and the Add agent button at the bottom. Before, smaller characters stood in a ring around the text and the button.
+- After you sign in, the OpenBot logo moves to the middle of the screen and turns into the loading animation, and your agents come in while it leaves. Before, the screen faded, the loader grew from a dot, and the list waited until the loader was gone.
+- When you open the app while signed in, the splash logo turns into the loading animation. Before, the loader showed on top of the splash logo.
+- Signing out now fades to the sign-in screen. Before, the sign-in screen slid in from the side.
+- While the app connects to a server, the home screen no longer shows the server, search and options buttons. They come in with your agents.
+- Admins of a hosted server can now restart it from Server settings. Before, only the owner could restart it.
+- The home screen stays smooth on a server with many agents. A new message updates only the row of
+  its agent, and the list keeps fewer rows ready off the screen.
+- Agent avatars draw with less work, mostly on Android. A working face plays at 30 frames per second
+  on Android, as on the desktop.
+- On Android, a chat slides in as soon as you tap its agent, and its messages show when it is in
+  place. Before, the chat came only after all its messages had rendered.
+- On Android, the home screen no longer keeps a long-press menu ready for each agent. The menu is
+  made when you touch and hold the agent.
+- A chat opens with less work. The app reads the phone's language once instead of once for each
+  message, keeps message rows from drawing again for each change in the chat, and reuses the
+  formatted text and highlighted code of messages it showed before.
+- Sheets with header buttons on Android, such as Create agent, no longer rebuild the header on each
+  key press. The colour glow and the face choices of Create agent change colour with less work.
+- When you come back to the app, it no longer shows "Reconnecting" while it connects again. For up to 5 seconds, servers, avatars and chats look as you left them, and actions that you start wait for the connection. The status shows only when the connection takes longer or fails.
+- The app is smaller and opens the chat list faster. It loads the math and code highlighting tools only when a message needs them.
+- A long reply streams more smoothly. Before, the app read the full reply again for each new part of it.
+- While a server reconnects, the app does less work each second. Before, the countdown made all of the open screens draw again.
+- When the server supports it and you are an owner or an admin, an agent that you hide on the phone is hidden on each device that shows the server, and an agent that you hide on the computer is hidden on the phone. The server does not run the routines of a hidden agent and does not send new messages to it. Restore removes the hide on the phone and on the server. A member hides an agent on the phone only.
+- On Android, popup menus have the OpenBot design: rounded corners, app colors, and icons. Before, they used the default Android menu with the colors of the device wallpaper.
+- The Android app is a smaller download.
+
+### Fixed
+
+- In Italian, the email sign-in screens now show in Italian. Before, they showed in English.
+- Some errors about open waits, routine flows and provider sign-in now show in the selected language. Before, they showed in English.
+- Edit on a message that waits to send no longer deletes the saved message. Before, when you left the chat or closed the app before you sent the change, the message and its files were lost. Now the message stays in the chat, stopped, until you send it again, edit it or cancel it.
+- The Live Activity showed "Working" after the agent finished its reply. It now stops when the turn
+  ends.
+- Keep the numbers in a Markdown list in order when you add an item between existing items in the
+  message box. Before, the new item and the item below it had the same number.
+- A swipe now closes the server list immediately after a swipe opens it. Before, for a short time, the swipe did not close the list, and a touch on the chat list behind it moved or held a chat row.
+- A notification, a Live Activity or an app icon quick action now closes the server list when it opens a screen. Before, the screen could open under the open server list.
+- On iPhone, agent avatars get their colors back when the server connects again. Before, some avatars stayed gray.
+- A hosted server no longer stops soon after it starts while you read it with the app in the foreground. Before, it stopped about 15 minutes after a wake when you did not type. The app in the foreground now keeps it on for at most 30 minutes after your last message, change or typing, or after you open the app again.
+- The app keeps starting a hosted server while the server starts. Before, it stopped after 5 minutes.
+  It now stops only when the machine runs and OpenBot on it does not connect in 15 minutes.
+- On iPhone, a long agent reply shows word by word for one second. Then, if the full reply is available, all its text shows at once, with a strong, a light and a strong knock. Before, the words continued to show one by one for a long time after desktop showed the full reply.
+- On Android, a message that waits for the server stays at the right edge of the chat. Before, it moved to the left.
+- On Android, file names and code in a reply paragraph align with the text. Before, they were too high, and a long file path was cut at the edge of the message.
+- On Android, screens with animations scroll more smoothly. Before, scrolling could stutter after an animated item closed.
+- On Android, a share from another app that starts OpenBot shows the share sheet with its Close and Share buttons. Before, the sheet filled the screen and the status bar covered the buttons.
+- When you swipe to close the server list, the agent list behind it does not respond. Before, the swipe could pin an agent, open a chat or press the server list button.
+
 ## [1.3.1] - 2026-10-14 (Android), 2026-10-15 (iOS)
 
 ### Added

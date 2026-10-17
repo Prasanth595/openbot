@@ -10,7 +10,7 @@ import type { HostedServerBindings } from "./hosted-server-service";
 import { HostedSiteService } from "./hosted-site-service";
 import { enforceMarketplaceIngress, MarketplaceRateLimitError } from "./marketplace-request-policy";
 import { pageMarkdownResponse } from "./page-markdown";
-import { deliverPendingRemoteAuthEvents, RemoteControlPlane } from "./remote-control-plane";
+import { deliverPendingRemoteAuthEvents, RemoteControlPlane, type RemoteFailure } from "./remote-control-plane";
 import { SalesAnalyticsDelivery } from "./sales-analytics-delivery";
 import type { WorkerBindings } from "./types";
 
@@ -190,7 +190,14 @@ function tickHostedServers(
     Partial<Pick<WorkerBindings, HostedServerTickBindingKey>>,
   now: number,
 ) {
-  const remote = new RemoteControlPlane(bindings);
+  // The check sends the queued auth events once, after its last change. A delivery reads the time when
+  // it starts, so it reads every event that the check queued.
+  let authEvents: Effect.Effect<void, RemoteFailure> | null = null;
+  const remote = new RemoteControlPlane(bindings, {
+    schedule: (delivery) => {
+      authEvents = delivery;
+    },
+  });
   // The cron waits for the analytics sends itself. They never reject.
   const sends: Effect.Effect<void>[] = [];
   return Effect.gen(function* () {
@@ -201,7 +208,20 @@ function tickHostedServers(
     }).hosting.tick(now);
     return result;
   }).pipe(
-    Effect.ensuring(Effect.suspend(() => Effect.all(sends, { concurrency: "unbounded", discard: true }))),
+    Effect.ensuring(
+      Effect.suspend(() =>
+        Effect.all(
+          [
+            ...sends,
+            // The next cron sends the events again.
+            (authEvents ?? Effect.void).pipe(
+              Effect.catch(() => Effect.sync(() => console.warn("Remote auth event delivery failed."))),
+            ),
+          ],
+          { concurrency: "unbounded", discard: true },
+        ),
+      ),
+    ),
     Effect.catch(() =>
       Effect.sync(() => {
         console.warn("Hosted server check failed.");

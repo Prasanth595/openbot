@@ -1,3 +1,5 @@
+import type { ConversationPage } from "@openbot/contracts/ipc";
+
 /**
  * Which messages a conversation shows after a page or a snapshot arrives.
  *
@@ -36,6 +38,22 @@ export function mergeConversationPage<Message extends { id: string }>(
   const pageIds = new Set(page.map((message) => message.id));
   const kept = loaded.filter((message) => !pageIds.has(message.id));
   return merge === "older" ? [...page, ...kept] : [...kept, ...page];
+}
+
+/**
+ * The originals that the replies of a host page quote and that the host no longer has. A page
+ * sends each quoted original that is not on it among its references, so an original that is in
+ * neither was deleted. A live message comes with no references, so only a page can tell.
+ */
+export function missingReplyOriginals(page: Pick<ConversationPage, "messages" | "references">): Record<string, true> {
+  const pageIds = new Set(page.messages.map((message) => message.id));
+  const missing: Record<string, true> = {};
+  for (const { replyToMessageId } of page.messages) {
+    if (replyToMessageId && !pageIds.has(replyToMessageId) && !(replyToMessageId in page.references)) {
+      missing[replyToMessageId] = true;
+    }
+  }
+  return missing;
 }
 
 /**

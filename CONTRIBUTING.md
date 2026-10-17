@@ -3,13 +3,52 @@
 Thanks for helping improve OpenBot. Pull requests with clear verification are the easiest to
 review.
 
+## What you can send
+
+These rules apply to people outside the `nightly-labs` organization. Organization members and
+users with write access to this repository skip them.
+
+You can open a pull request without an issue for:
+
+- Bug fixes.
+- Small improvements, alignments, and clean-ups that do not change how a feature works.
+- Translations and documentation.
+- A new provider, MCP app, or connector. Follow
+  [Integrations](docs/architecture/integrations.md) ("Add a provider", "Add an application",
+  "Add a connector").
+
+These need an issue with the `approved` label before you write code:
+
+- New features.
+- Changes to how an existing feature works or looks.
+- Large refactors, new dependencies, and changes to migrations, IPC contracts, the Team API,
+  security boundaries, or CI.
+
+To propose one, open a [feature request](https://github.com/nightly-labs/openbot/issues/new?template=feature_request.yml)
+and wait. A maintainer adds `approved` when the change fits OpenBot. Then link the issue in your
+pull request with `Closes #<number>`.
+
+The `Contribution policy` workflow applies these labels:
+
+| Label | Meaning |
+| --- | --- |
+| `external` | The author is outside the organization. The workflow adds it. |
+| `needs-approved-issue` | A maintainer decided that the pull request needs an approved issue. The `Contribution policy` check fails until the pull request closes an issue with the `approved` label. If it does not do this in 7 days, the workflow closes the pull request. |
+| `approved` | A maintainer accepts the issue. Pull requests that close it pass the check. |
+| `policy-exempt` | A maintainer turned off the check for this pull request. |
+
+A maintainer who reopens a closed pull request starts a new 7-day period.
+
 ## Before opening an issue
 
+- Use an issue form. The workflow closes an issue from outside the organization that does not
+  come from a form or that has an empty required answer.
 - Search existing issues first.
+- Use Discussions for questions and for ideas that are not yet a specific request.
 - Use the security process in `SECURITY.md` for vulnerabilities.
 - Remove credentials, private file paths, conversation contents, and personal data from diagnostics.
-- Include the OpenBot version, macOS version, Mac architecture, provider, CLI version, and
-  reproduction steps for bugs.
+- For a bug, give the platform, the OpenBot version, the operating system, the provider and its CLI
+  version, the exact steps, and the expected and actual results. The bug form asks for each one.
 
 ## Development setup
 
@@ -39,10 +78,12 @@ Type-only imports (`import type`) are erased by the compiler and stay allowed in
 
 ## Pull requests
 
-1. Create a branch from `main`.
-2. Test behavior changes and reproduced bugs as [AGENTS.md, Tests](AGENTS.md#tests) describes.
-3. Run `bun run check`. Coding agents do not: see [AGENTS.md, Checks](AGENTS.md#checks).
-4. Describe user-visible changes, risks, and manual verification in the pull request.
+1. Make sure that the change is one you can send: see [What you can send](#what-you-can-send).
+2. Create a branch from `main`.
+3. Test behavior changes and reproduced bugs as [AGENTS.md, Tests](AGENTS.md#tests) describes.
+4. Run `bun run check`. Coding agents do not: see [AGENTS.md, Checks](AGENTS.md#checks).
+5. Describe user-visible changes, risks, and manual verification in the pull request. Link the
+   issue that the pull request closes.
 
 Do not commit generated `out`, `dist`, coverage, local browser profiles, Electron `userData`, CLI
 state, `.env` files, credentials, real conversations, or user attachments.
@@ -139,7 +180,19 @@ reason in the `bunfig.toml` comment. `bun pm untrusted` shows the blocked script
 
 ## Licensing
 
-By submitting a contribution, you agree that it is your original work (or that you have the right to
-submit it) and that it is licensed under the repository's PolyForm Noncommercial 1.0.0 license. Do
-not submit copied UI assets, proprietary code, private plugin binaries, or material whose license is
-unclear.
+Each author of a pull request must sign the
+[OpenBot Contributor Assignment Agreement](CLA.md). The agreement assigns the copyright in your
+contributions to Synthetify Labs spółka z ograniczoną odpowiedzialnością. Organization members,
+users with write access to this repository and bots do not sign.
+
+To sign, tick the agreement box in the description of your pull request. The pull request template
+has no box, because most authors do not sign. When you must sign, the `CLA` workflow adds the box to
+the end of the description. A coding agent ticks the box only when you tell it to. An author of a
+commit in a pull request that a different person opened signs with a comment instead, as section 10
+of the agreement says. You sign one time for each version. The `CLA` workflow records the signature on the `cla-signatures` branch
+and sets the `CLA` status. Its rules are in `scripts/cla.ts`. Each commit author email must be
+linked to a GitHub account, so that the workflow can find who must sign.
+
+A contribution must be your original work, or you must identify the source and the license of the
+material that you did not write. Do not submit copied UI assets, proprietary code, private plugin
+binaries, or material whose license is unclear.

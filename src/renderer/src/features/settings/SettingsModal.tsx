@@ -17,7 +17,7 @@ import { BillingPanel } from "@openbot/ui/features/billing/BillingPanel";
 import { createBillingStore } from "@openbot/ui/features/billing/billing-store";
 import type { GeneralSettingsValue } from "@openbot/ui/features/settings/app-settings";
 import { ProfileNameSaveBar } from "@openbot/ui/features/settings/ProfileNameSaveBar";
-import { SettingsDialogShell } from "@openbot/ui/features/settings/SettingsDialogShell";
+import { SettingsDialogShell, type SettingsPagePlacement } from "@openbot/ui/features/settings/SettingsDialogShell";
 import { SettingsMobileConnectTab } from "@openbot/ui/features/settings/SettingsMobileConnectTab";
 import { SettingsProfileTab } from "@openbot/ui/features/settings/SettingsProfileTab";
 import { SettingsUpdatesTab } from "@openbot/ui/features/settings/SettingsUpdatesTab";
@@ -38,7 +38,6 @@ import { createSettingsVoiceStore } from "./settings-voice-store";
 
 export interface SettingsModalProps {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
   value: GeneralSettingsValue;
   onValueChange: (value: GeneralSettingsValue) => void;
   appInfo: AppInfo | null;
@@ -64,6 +63,7 @@ export interface SettingsModalProps {
   onRevokeMobileConnectedDevice?: (sessionId: string) => Promise<void>;
   onListAccountSessions?: () => Promise<AccountSession[]>;
   onRevokeAccountSession?: (sessionId: string) => Promise<void>;
+  onSignOut?: (() => Promise<void>) | undefined;
   processAvatarFile?: (file: File) => Promise<AvatarImageInput>;
   billingApi?: BillingDesktopApi;
   /** The account's hosted servers. The tab is shown only when the account server offers them. */
@@ -72,8 +72,6 @@ export interface SettingsModalProps {
   onAddHostedServer?: () => void;
   /** A hosted server that the server menu asked to delete. Each nonce opens its confirmation once. */
   hostedServerDeleteRequest?: { serverId: string; nonce: number } | null;
-  /** The agents granted a standing approval, so the user can see and undo each one. */
-  turboModePending?: boolean;
   onTestNotification?: () => void | Promise<void>;
   /** Opens the operating system notification settings. Shown only on macOS and Windows. */
   onOpenNotificationSettings?: () => void | Promise<void>;
@@ -82,6 +80,8 @@ export interface SettingsModalProps {
   initialTab?: SettingsTab;
   /** The tab shown each time the modal opens. Without it, the modal shows the tab that was open last. */
   openTab?: SettingsTab | undefined;
+  /** Where the settings page shows, or nothing while the page is not on screen. */
+  page: SettingsPagePlacement | undefined;
 }
 
 /**
@@ -176,8 +176,8 @@ export function SettingsModal(props: SettingsModalProps) {
     <Tabs.Root {...tabsProps} class="settings-modal-tabs-root">
       <SettingsDialogShell
         class="app-settings-modal-shell"
+        page={props.page}
         open={props.open}
-        onOpenChange={props.onOpenChange}
         title={title()}
         description={description()}
         contentKey={activeTab()}
@@ -210,7 +210,6 @@ export function SettingsModal(props: SettingsModalProps) {
             onUpdateSetting={updateSetting}
             onUpdateSettings={updateSettings}
             selectMount={modalElement}
-            turboModePending={props.turboModePending}
           />
         </Tabs.Content>
 
@@ -257,6 +256,7 @@ export function SettingsModal(props: SettingsModalProps) {
             account={props.account}
             canListSessions={Boolean(props.onListAccountSessions)}
             canRevokeSession={Boolean(props.onRevokeAccountSession)}
+            onSignOut={props.onSignOut}
           />
         </Tabs.Content>
 

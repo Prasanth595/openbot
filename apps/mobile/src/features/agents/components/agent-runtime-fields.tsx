@@ -9,10 +9,15 @@ import type { MobileTextKey } from "@openbot/i18n/mobile";
 import { useQuery } from "@tanstack/react-query";
 import { Button, Typography } from "heroui-native";
 import { useUniwind } from "uniwind";
-import { useMobileSession } from "@/features/auth/context/mobile-session-context";
+import { useQueryScope } from "@/features/auth/context/mobile-session-context";
 import { SettingsRow, SettingsSection } from "@/features/settings/components/settings-content";
 import { SettingsPicker } from "@/features/settings/components/settings-controls";
-import { type MobileAgent, useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import {
+  type MobileAgent,
+  useMobileWorkspaceActions,
+  useMobileWorkspaceSelector,
+} from "@/features/workspace/context/mobile-workspace-context";
+import { queryKeys } from "@/features/workspace/model/query-keys";
 import { useText } from "@/shared/lib/text";
 
 const EFFORT_LABELS = {
@@ -40,19 +45,11 @@ function pickerLabel(text: string): string {
  * member, for a host without `provider-accounts-v1`, and until the host answers.
  */
 export function useProviderAccounts(agent: MobileAgent, enabled: boolean) {
-  const workspace = useMobileWorkspace();
-  const { session, sessionScope } = useMobileSession();
-  const canManage = workspace.canManageProviderAccounts(agent.serverId);
+  const workspace = useMobileWorkspaceActions();
+  const queryScope = useQueryScope();
+  const canManage = useMobileWorkspaceSelector((current) => current.canManageProviderAccounts(agent.serverId));
   // Under "agent-info", so the host's agent events refresh it with the other agent records.
-  const queryKey = [
-    "agent-info",
-    session?.apiUrl,
-    session?.user.id,
-    sessionScope,
-    agent.serverId,
-    agent.id,
-    "provider-accounts",
-  ];
+  const queryKey = queryKeys.agentProviderAccounts(queryScope, agent.serverId, agent.id);
   const accounts = useQuery({
     queryKey,
     queryFn: () => workspace.loadProviderAccounts(agent.serverId),
@@ -65,54 +62,64 @@ export function useProviderAccounts(agent: MobileAgent, enabled: boolean) {
 }
 
 export function AgentRuntimeFields({
-  agent,
+  serverId,
   available,
   saving,
   provider,
   model,
   reasoningEffort,
-  accounts,
-  accountId,
+  hostDefault = false,
+  title,
+  accounts = [],
+  accountId = "",
   onChange,
   onAccountChange,
 }: {
-  agent: MobileAgent;
+  serverId: string;
   available: boolean;
   saving: boolean;
   provider?: AgentProviderId;
   model?: string;
   reasoningEffort?: AgentReasoningEffort;
+  /**
+   * A new agent: the provider list starts with the host's default, which sends no pair, so the host
+   * keeps its saved provider choice. The model rows show after the user picks a provider.
+   */
+  hostDefault?: boolean;
+  title?: string;
   /** The accounts of the provider. The choice shows only when there are two or more. */
-  accounts: readonly ProviderAccountStatus[];
-  accountId: string;
+  accounts?: readonly ProviderAccountStatus[];
+  accountId?: string;
   onChange: (value: Pick<UpdateAgentInput, "provider" | "model" | "reasoningEffort">) => void;
-  onAccountChange: (accountId: string) => void;
+  onAccountChange?: (accountId: string) => void;
 }) {
   const { t } = useText();
   // The name of an account, as on desktop: the user's name for it, its email, or its place in the list.
   const accountName = (account: ProviderAccountStatus, index: number) =>
     account.label || account.email || t("mobile.agent.runtime.accountNumbered", { number: index + 1 });
-  const workspace = useMobileWorkspace();
-  const { session, sessionScope } = useMobileSession();
+  const workspace = useMobileWorkspaceActions();
+  const queryScope = useQueryScope();
   const { theme } = useUniwind();
   const models = useQuery({
-    queryKey: ["agent-models", session?.apiUrl, session?.user.id, sessionScope, agent.serverId],
-    queryFn: () => workspace.loadAgentModels(agent.serverId),
+    queryKey: queryKeys.agentModels(queryScope, serverId),
+    queryFn: () => workspace.loadAgentModels(serverId),
     enabled: available,
     retry: false,
   });
   const options = models.data?.filter((option) => option.provider === provider) ?? [];
   const selected = options.find((option) => option.id === model);
   const enabled = available && !saving && options.length > 0;
+  const showsModel = !hostDefault || provider !== undefined;
   return (
     <>
-      <SettingsSection>
+      <SettingsSection title={title}>
         <SettingsRow
           trailing={
             <SettingsPicker<string>
               value={provider ?? ""}
               options={[
-                ...(!models.data?.some((option) => option.provider === provider)
+                ...(hostDefault ? [{ value: "", label: t("mobile.agent.runtime.hostDefault") }] : []),
+                ...(!models.data?.some((option) => option.provider === provider) && showsModel
                   ? [
                       {
                         value: provider ?? "",
@@ -129,6 +136,10 @@ export function AgentRuntimeFields({
               dark={theme === "dark"}
               label={t("mobile.agent.runtime.provider")}
               onChange={(value) => {
+                if (hostDefault && value === "") {
+                  onChange({ provider: undefined, model: undefined, reasoningEffort: undefined });
+                  return;
+                }
                 const next = models.data?.find((option) => option.provider === value);
                 if (next)
                   onChange({ provider: next.provider, model: next.id, reasoningEffort: next.defaultReasoningEffort });
@@ -138,7 +149,7 @@ export function AgentRuntimeFields({
         >
           <Typography.Paragraph>{t("mobile.agent.runtime.provider")}</Typography.Paragraph>
         </SettingsRow>
-        {accounts.length > 1 ? (
+        {onAccountChange && accounts.length > 1 ? (
           <SettingsRow
             trailing={
               <SettingsPicker<string>
@@ -162,60 +173,74 @@ export function AgentRuntimeFields({
             <Typography.Paragraph>{t("mobile.agent.runtime.account")}</Typography.Paragraph>
           </SettingsRow>
         ) : null}
-        <SettingsRow
-          trailing={
-            <SettingsPicker<string>
-              value={model ?? ""}
-              options={[
-                ...(!selected
-                  ? [{ value: model ?? "", label: model ? pickerLabel(model) : t("mobile.agent.runtime.unavailable") }]
-                  : []),
-                ...options.map((option) => ({ value: option.id, label: pickerLabel(option.name) })),
-              ]}
-              enabled={enabled}
-              dark={theme === "dark"}
-              label={t("mobile.agent.runtime.model")}
-              onChange={(id) => {
-                const next = options.find((option) => option.id === id);
-                if (!next) return;
-                onChange({
-                  model: next.id,
-                  reasoningEffort:
-                    reasoningEffort && next.supportedReasoningEfforts.includes(reasoningEffort)
-                      ? reasoningEffort
-                      : next.defaultReasoningEffort,
-                });
-              }}
-            />
-          }
-        >
-          <Typography.Paragraph>{t("mobile.agent.runtime.model")}</Typography.Paragraph>
-        </SettingsRow>
-        <SettingsRow
-          trailing={
-            <SettingsPicker<string>
-              value={reasoningEffort ?? ""}
-              options={[
-                ...(!reasoningEffort || !selected?.supportedReasoningEfforts.includes(reasoningEffort)
-                  ? [{ value: reasoningEffort ?? "", label: reasoningEffort ?? t("mobile.agent.runtime.unavailable") }]
-                  : []),
-                ...(selected?.supportedReasoningEfforts.map((effort) => ({
-                  value: effort,
-                  label: t(EFFORT_LABELS[effort]),
-                })) ?? []),
-              ]}
-              enabled={enabled && Boolean(selected?.supportedReasoningEfforts.length)}
-              dark={theme === "dark"}
-              label={t("mobile.agent.runtime.reasoning")}
-              onChange={(effort) => {
-                const next = selected?.supportedReasoningEfforts.find((option) => option === effort);
-                if (next) onChange({ reasoningEffort: next });
-              }}
-            />
-          }
-        >
-          <Typography.Paragraph>{t("mobile.agent.runtime.reasoning")}</Typography.Paragraph>
-        </SettingsRow>
+        {showsModel ? (
+          <SettingsRow
+            trailing={
+              <SettingsPicker<string>
+                value={model ?? ""}
+                options={[
+                  ...(!selected
+                    ? [
+                        {
+                          value: model ?? "",
+                          label: model ? pickerLabel(model) : t("mobile.agent.runtime.unavailable"),
+                        },
+                      ]
+                    : []),
+                  ...options.map((option) => ({ value: option.id, label: pickerLabel(option.name) })),
+                ]}
+                enabled={enabled}
+                dark={theme === "dark"}
+                label={t("mobile.agent.runtime.model")}
+                onChange={(id) => {
+                  const next = options.find((option) => option.id === id);
+                  if (!next) return;
+                  onChange({
+                    model: next.id,
+                    reasoningEffort:
+                      reasoningEffort && next.supportedReasoningEfforts.includes(reasoningEffort)
+                        ? reasoningEffort
+                        : next.defaultReasoningEffort,
+                  });
+                }}
+              />
+            }
+          >
+            <Typography.Paragraph>{t("mobile.agent.runtime.model")}</Typography.Paragraph>
+          </SettingsRow>
+        ) : null}
+        {showsModel ? (
+          <SettingsRow
+            trailing={
+              <SettingsPicker<string>
+                value={reasoningEffort ?? ""}
+                options={[
+                  ...(!reasoningEffort || !selected?.supportedReasoningEfforts.includes(reasoningEffort)
+                    ? [
+                        {
+                          value: reasoningEffort ?? "",
+                          label: reasoningEffort ?? t("mobile.agent.runtime.unavailable"),
+                        },
+                      ]
+                    : []),
+                  ...(selected?.supportedReasoningEfforts.map((effort) => ({
+                    value: effort,
+                    label: t(EFFORT_LABELS[effort]),
+                  })) ?? []),
+                ]}
+                enabled={enabled && Boolean(selected?.supportedReasoningEfforts.length)}
+                dark={theme === "dark"}
+                label={t("mobile.agent.runtime.reasoning")}
+                onChange={(effort) => {
+                  const next = selected?.supportedReasoningEfforts.find((option) => option === effort);
+                  if (next) onChange({ reasoningEffort: next });
+                }}
+              />
+            }
+          >
+            <Typography.Paragraph>{t("mobile.agent.runtime.reasoning")}</Typography.Paragraph>
+          </SettingsRow>
+        ) : null}
       </SettingsSection>
       {models.isError ? (
         <Button variant="ghost" onPress={() => void models.refetch()}>
@@ -223,7 +248,7 @@ export function AgentRuntimeFields({
         </Button>
       ) : available && models.isPending ? (
         <Typography.Paragraph>{t("mobile.agent.runtime.loadingModels")}</Typography.Paragraph>
-      ) : available && !options.length ? (
+      ) : available && showsModel && !options.length ? (
         <Typography.Paragraph>{t("mobile.agent.runtime.noModels")}</Typography.Paragraph>
       ) : null}
     </>

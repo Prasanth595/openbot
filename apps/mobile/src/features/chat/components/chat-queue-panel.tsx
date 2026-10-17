@@ -2,7 +2,8 @@ import type { QueueDelivery } from "@openbot/contracts/ipc";
 import { router } from "expo-router";
 import { Button, Spinner, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { CornerDownRight, Pencil } from "lucide-react-native";
+import CornerDownRight from "lucide-react-native/icons/corner-down-right";
+import Pencil from "lucide-react-native/icons/pencil";
 import { memo, useState } from "react";
 import { Pressable, View, type ViewStyle } from "react-native";
 import Animated, {

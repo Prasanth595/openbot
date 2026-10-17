@@ -4,10 +4,8 @@ import {
   type DynamicIslandGeometry,
 } from "@openbot/contracts/ipc";
 import { DEFAULT_GENERAL_SETTINGS, type GeneralSettingsValue } from "@openbot/ui/features/settings/app-settings";
-import { currentText } from "@openbot/ui/text";
 import { createEffect, createSignal, onSettled } from "solid-js";
 import { isActionSoundEnabled, readActionSoundTheme, setActionSoundChoice } from "../../action-sounds";
-import { actionToast } from "../../action-toast";
 import { desktopAnalytics } from "../../analytics";
 import { isCompletionSoundEnabled, setCompletionSoundEnabled } from "../../completion-sound";
 import { usePlatform } from "../../platform";
@@ -23,7 +21,7 @@ const ANALYTICS_APP_VERSION_STORAGE_KEY = "openbot:analytics-app-version";
 
 /**
  * Application-wide preferences and the two surfaces that edit them: the
- * settings dialog and the skills marketplace.
+ * settings page and the skills marketplace.
  *
  * Ungated - every preference has a default the app runs on, so nothing waits
  * for the three reads below. `analyticsPreferenceLoaded()` is `null` until the
@@ -65,6 +63,8 @@ const Settings = createSimpleContext({
      */
     const [pendingAgentTemplateId, setPendingAgentTemplateId] = createSignal<string | null>(null);
     const [appSettingsOpen, setAppSettingsOpen] = createSignal(false);
+    /** Counts each open request, so the settings page can tell a new request while it is open. */
+    const [appSettingsOpenRequest, setAppSettingsOpenRequest] = createSignal(0);
     /** The tab that the next opening shows. Undefined keeps the tab that was open last. */
     const [appSettingsTab, setAppSettingsTab] = createSignal<SettingsTab | undefined>();
     /** A hosted server that the server menu asked to delete. The nonce repeats a request for the same server. */
@@ -91,7 +91,6 @@ const Settings = createSimpleContext({
       },
     );
     const [approvalAutomation, setApprovalAutomation] = createSignal<ApprovalAutomationPreference>({
-      turbo: false,
       defaultAutoApprove: false,
       autoApproveOverrides: {},
     });
@@ -105,8 +104,6 @@ const Settings = createSimpleContext({
     let busyMessageModeChanged = false;
     let agentMemoryLimitChanged = false;
     let keepRemoteSessionsChanged = false;
-    let turboModeChanged = false;
-    const [turboModePending, setTurboModePending] = createSignal(false);
 
     createEffect(
       () => ({
@@ -157,8 +154,7 @@ const Settings = createSimpleContext({
           .catch(() => setGeneralSettings((current) => ({ ...current, [key]: previous[key] })));
       }
 
-      const turboMode = turboModePending() ? previous.turboMode : value.turboMode;
-      setGeneralSettings({ ...value, turboMode });
+      setGeneralSettings(value);
       if (previous.taskCompletionSound !== value.taskCompletionSound) {
         setCompletionSoundEnabled(value.taskCompletionSound);
       }
@@ -183,25 +179,6 @@ const Settings = createSimpleContext({
             setAnalyticsPreferenceLoaded(previous.productAnalytics);
             setGeneralSettings((current) => ({ ...current, productAnalytics: previous.productAnalytics }));
           });
-      }
-      if (previous.turboMode !== turboMode) {
-        turboModeChanged = true;
-        setTurboModePending(true);
-        void settingsPort()
-          .setApprovalAutomation({ turbo: turboMode })
-          .then((preference) => {
-            setGeneralSettings((current) => ({ ...current, turboMode: preference.turbo }));
-            setApprovalAutomation(preference);
-          })
-          .catch(() => {
-            setGeneralSettings((current) => ({ ...current, turboMode: previous.turboMode }));
-            const { t } = currentText();
-            actionToast.error(
-              previous.turboMode ? t("settings.turbo.turnOffFailed") : t("settings.turbo.turnOnFailed"),
-              { report: { operation: "settings", source: "action", cause_code: "unknown" } },
-            );
-          })
-          .finally(() => setTurboModePending(false));
       }
       if (previous.autoDownloadUpdates !== value.autoDownloadUpdates) {
         autoDownloadUpdatesChanged = true;
@@ -322,23 +299,9 @@ const Settings = createSimpleContext({
       }
     }
 
-    /**
-     * Grants or revokes one agent's standing approval.
-     *
-     * Not part of `updateGeneralSettings`: the grant is per agent rather than a field of the one
-     * settings record, and it is written from the approval card as well as from Settings. The
-     * promise is returned so the approval card only accepts the pending request once the grant is
-     * stored - accepting first would leave an agent the user believes is trusted still asking.
-     */
-    async function setAgentAutoApprove(agentId: string, autoApprove: boolean): Promise<void> {
-      const preference = await settingsPort().setApprovalAutomation({ agentId, autoApprove });
-      setApprovalAutomation(preference);
-      setGeneralSettings((current) => ({ ...current, turboMode: preference.turbo }));
-    }
-
-    /** Whether this agent acts without asking, by its own grant or because Turbo covers every agent. */
+    /** Whether this agent acts without asking at Full access. */
     function agentAutoApproves(agentId: string): boolean {
-      return agentAutoApprovalEnabled({ ...approvalAutomation(), turbo: generalSettings().turboMode }, agentId);
+      return agentAutoApprovalEnabled(approvalAutomation(), agentId);
     }
 
     /** Remembers what to focus when the dialog closes; the dialog itself restores it. */
@@ -347,6 +310,7 @@ const Settings = createSimpleContext({
       appSettingsRestoreTarget = target;
       setAppSettingsTab(tab);
       setAppSettingsOpen(true);
+      setAppSettingsOpenRequest((count) => count + 1);
     }
 
     /** Opens the Hosted servers tab with the delete confirmation of one server. */
@@ -398,13 +362,7 @@ const Settings = createSimpleContext({
         });
       void settingsPort()
         .getApprovalAutomation()
-        .then((preference) => {
-          setApprovalAutomation(preference);
-          // A toggle made before this read resolves has already been persisted, so the older value
-          // must not be painted back over it.
-          if (turboModeChanged) return;
-          setGeneralSettings((current) => ({ ...current, turboMode: preference.turbo }));
-        })
+        .then(setApprovalAutomation)
         .catch(() => undefined);
       void settingsPort()
         .update.getPreference()
@@ -480,14 +438,13 @@ const Settings = createSimpleContext({
       analyticsPreferenceLoaded,
       generalSettings,
       builtInDisplayGeometry,
-      turboModePending,
       updateGeneralSettings,
       sendTestNotification,
       openNotificationSettings,
-      setAgentAutoApprove,
       agentAutoApproves,
       appSettingsOpen,
       setAppSettingsOpen,
+      appSettingsOpenRequest,
       appSettingsRestoreTarget: () => appSettingsRestoreTarget,
       appSettingsTab,
       openAppSettings,

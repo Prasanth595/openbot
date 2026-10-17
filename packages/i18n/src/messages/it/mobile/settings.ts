@@ -96,12 +96,19 @@ export const messages = {
   "mobile.settings.notifications.title": "Notifiche",
   "mobile.settings.notifications.toggle": "Consenti notifiche",
   "mobile.settings.notifications.footer":
-    "Gli agenti ti avvisano quando finiscono, si fermano per un errore o hanno bisogno di una tua risposta, di un'approvazione o di un passaggio nel browser. Non arriva nulla mentre usi OpenBot. Mentre usi l'app desktop, arriva solo ciò che ha bisogno di te. Mentre la Live Activity è visibile, l'evento lo mostra lei.",
+    "Gli agenti ti avvisano quando finiscono, si fermano per un errore o hanno bisogno di una tua risposta, di un'approvazione o di un passaggio nel browser. Non arriva nulla mentre usi OpenBot qui o nell'app desktop. Mentre la Live Activity è visibile, l'evento lo mostra lei.",
+  "mobile.settings.notifications.footerAndroid":
+    "Gli agenti ti avvisano quando finiscono, si fermano per un errore o hanno bisogno di una tua risposta, di un'approvazione o di un passaggio nel browser. Non arriva nulla mentre usi OpenBot qui o nell'app desktop.",
   "mobile.settings.notifications.denied": "Le notifiche di OpenBot sono disattivate nelle Impostazioni di iOS.",
+  "mobile.settings.notifications.deniedAndroid":
+    "Le notifiche di OpenBot sono disattivate nelle impostazioni di Android.",
   "mobile.settings.notifications.openSettings": "Apri le Impostazioni di iOS",
+  "mobile.settings.notifications.openSettingsAndroid": "Apri le impostazioni di Android",
   "mobile.settings.notifications.preview": "Mostra l'anteprima della risposta",
   "mobile.settings.notifications.previewFooter":
     "Mostra l'inizio di una risposta, una domanda o l'azione da approvare. Apple e il servizio account di OpenBot non possono leggerla.",
+  "mobile.settings.notifications.previewFooterAndroid":
+    "Mostra l'inizio di una risposta, una domanda o l'azione da approvare. Google e il servizio account di OpenBot non possono leggerla.",
   "mobile.settings.notifications.sound": "Suono",
   "mobile.settings.notifications.playSound": "Riproduci suono",
   "mobile.settings.notifications.sound.openbot": "OpenBot",
@@ -110,8 +117,11 @@ export const messages = {
   "mobile.settings.notifications.sound.bubble": "Frizzante",
   "mobile.settings.notifications.sound.press": "Scattante",
   "mobile.settings.notifications.sound.default": "Predefinito di iOS",
+  "mobile.settings.notifications.sound.defaultAndroid": "Predefinito di Android",
   "mobile.settings.notifications.soundFooter":
     "Le notifiche e la Live Activity riproducono questo suono. La Live Activity accende anche lo schermo. Il suono OpenBot è quello che l'app desktop riproduce quando un'attività finisce. I quattro suoni successivi sono quelli dei temi sonori dell'app desktop.",
+  "mobile.settings.notifications.soundFooterAndroid":
+    "Le notifiche riproducono questo suono. Il suono OpenBot è quello che l'app desktop riproduce quando un'attività finisce. I quattro suoni successivi sono quelli dei temi sonori dell'app desktop.",
   "mobile.settings.notifications.notifyAbout": "Avvisami per",
   "mobile.settings.notifications.level.all": "Tutta l'attività",
   "mobile.settings.notifications.level.needsMe": "Solo quando ha bisogno di me",
@@ -129,6 +139,8 @@ export const messages = {
     "Gli eventi di questo server che inviano notifiche a questo telefono. L'app desktop ha le sue impostazioni.",
   "mobile.settings.notifications.serverUnsupported":
     "Questo server non può inviare notifiche. Aggiorna OpenBot sul computer che lo esegue.",
+  "mobile.settings.notifications.channel": "Notifiche degli agenti ({sound})",
+  "mobile.settings.notifications.channelSilent": "Notifiche degli agenti (senza suono)",
   "mobile.settings.privacy.title": "Privacy",
   "mobile.settings.privacy.footer":
     "Condividi l'uso delle funzioni e i risultati delle connessioni di questo telefono. Il contenuto dei messaggi e i file non vengono inviati.",

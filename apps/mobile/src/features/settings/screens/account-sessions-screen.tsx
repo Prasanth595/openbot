@@ -10,13 +10,14 @@ import {
   MobileSessionExpiredError,
   revokeMobileAccountSession,
 } from "@/features/auth/api/mobile-auth";
-import { useMobileSession } from "@/features/auth/context/mobile-session-context";
+import { useMobileSession, useQueryScope } from "@/features/auth/context/mobile-session-context";
 import {
   SettingsContent,
   SettingsNote,
   SettingsRow,
   SettingsSection,
 } from "@/features/settings/components/settings-content";
+import { queryKeys } from "@/features/workspace/model/query-keys";
 import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
 
@@ -37,10 +38,11 @@ const LAST_ACTIVE_FORMAT: Intl.DateTimeFormatOptions = {
 
 export function AccountSessionsScreen() {
   const { t, format } = useText();
-  const { session, sessionScope, handleSessionError } = useMobileSession();
+  const { session, handleSessionError } = useMobileSession();
+  const queryScope = useQueryScope();
   const revoking = useRef(false);
   const sessions = useQuery({
-    queryKey: ["account-sessions", session?.apiUrl, session?.user.id, sessionScope],
+    queryKey: queryKeys.accountSessions(queryScope),
     enabled: Boolean(session),
     queryFn: async ({ signal }) => {
       if (!session) return [];

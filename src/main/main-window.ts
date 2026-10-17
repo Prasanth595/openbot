@@ -80,8 +80,10 @@ export interface MainWindowContext {
   /** A function, not a value: the saved language is read after the first window opens. */
   getTranslate: () => AppTranslate;
   forwardAgentEvent: (serverId: string, event: AgentEvent) => void;
-  /** The renderer is about to be replaced, so a queued invitation has nobody to receive it. */
+  /** A renderer load or committed document navigation resets delivery of queued links. */
   onRendererLoadStarted: () => void;
+  /** Main must release resources when a renderer can no longer run its own cleanup. */
+  onRendererGone: () => void;
   /** Where the entry point attaches the Windows session-end handlers, which read its own flags. */
   onMainWindowCreated: (window: BrowserWindow) => void;
   reportError: (message: string, error: unknown) => void;
@@ -108,6 +110,7 @@ export function createMainWindowController({
   getTranslate,
   forwardAgentEvent,
   onRendererLoadStarted,
+  onRendererGone,
   onMainWindowCreated,
   reportError,
 }: MainWindowContext): MainWindowController {
@@ -147,7 +150,9 @@ export function createMainWindowController({
       // both of those rows. The setup window below uses the same offsets.
       ...(process.platform === "darwin"
         ? { titleBarStyle: "hidden" as const, trafficLightPosition: { x: 12, y: 13 } }
-        : {}),
+        : // Windows and Linux draw the application menu as a bar under the title bar. It stays set, so
+          // its shortcuts work, and the Alt key shows it.
+          { autoHideMenuBar: true }),
       webPreferences: {
         preload: join(__dirname, "../preload/index.cjs"),
         contextIsolation: true,
@@ -185,6 +190,10 @@ export function createMainWindowController({
     window.on("resize", () => rememberMainWindowBounds(window.getNormalBounds()));
 
     window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+    // A started navigation can still be cancelled without replacing the live renderer.
+    window.webContents.on("did-navigate", onRendererLoadStarted);
+    window.webContents.on("render-process-gone", onRendererGone);
+    window.webContents.once("destroyed", onRendererGone);
     window.webContents.on("before-input-event", (event, input) => {
       if (input.key.toLowerCase() === "shift") {
         inspectElementModifierPressed = input.type === "keyDown";

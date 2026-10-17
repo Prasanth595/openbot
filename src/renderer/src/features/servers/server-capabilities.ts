@@ -2,6 +2,7 @@ import {
   AGENT_PROVIDERS,
   type AgentProviderId,
   agentProviderDescriptor,
+  canAdministerServer,
   pasteCodeSignInSupported,
   type ServerSummary,
 } from "@openbot/contracts/ipc";
@@ -62,7 +63,8 @@ export function serverSupportsCapability(
       capability === "routine-flows-v1" ||
       capability === "routine-recovery-v1" ||
       capability === "agent-import-v1" ||
-      capability === "instance-transfer-v1") &&
+      capability === "instance-transfer-v1" ||
+      capability === "agent-hidden-v1") &&
     server?.kind === "remote"
   ) {
     return server.compatibility?.capabilities.includes(capability) === true;
@@ -119,7 +121,7 @@ export function relaySignInProviders(server: ServerSummary | undefined): readonl
 
 /** An owner or admin of a joined server. This computer is always its own administrator. */
 export function serverRoleCanAdminister(server: Pick<ServerSummary, "kind" | "role"> | undefined): boolean {
-  return server?.kind === "local" || server?.role === "owner" || server?.role === "admin";
+  return server?.kind === "local" || canAdministerServer(server?.role);
 }
 
 /**

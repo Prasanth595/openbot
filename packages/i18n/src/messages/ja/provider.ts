@@ -2,7 +2,7 @@ import type { PartialTranslation } from "../../message";
 import type { messages as source } from "../en/provider";
 
 export const messages = {
-  "provider.availableHere": "このコンピュータで利用できます",
+  "provider.availableHere": "このコンピューターで利用できます",
   "provider.availableOnHost": "{name} で実行されます",
   "provider.custom.name": "カスタムプロバイダー",
   "provider.custom.description": "自分のモデルエンドポイント",
@@ -20,7 +20,7 @@ export const messages = {
   "provider.status.connecting": "接続中",
   "provider.status.updateAvailable": "アップデートあり",
   "provider.status.settingUp": "準備中",
-  "provider.status.updateFailed": "更新失敗",
+  "provider.status.updateFailed": "アップデート失敗",
   "provider.status.setupFailed": "セットアップ失敗",
   "provider.status.connected": "接続済み",
   "provider.status.notDownloaded": "未ダウンロード",
@@ -58,7 +58,7 @@ export const messages = {
   "provider.aria.retry": "{name} を再試行",
   "provider.aria.cancelSignIn": "{name} のサインインをキャンセル",
   "provider.aria.apiKey": "{name} の API キー",
-  "provider.connecting.browserHint": "ブラウザのページが開いたら、サインインを完了してください。",
+  "provider.connecting.browserHint": "ブラウザーのページが開いたら、サインインを完了してください。",
   "provider.connecting.cancelFailed":
     "OpenBot は {name} のサインインをキャンセルできませんでした。もう一度お試しください。",
   "provider.aria.install": "{name} をインストール",
@@ -71,7 +71,7 @@ export const messages = {
   },
 
   "provider.codeLogin.title": "コードで {name} にログイン",
-  "provider.codeLogin.description": "スマートフォンか別のブラウザで完了してください。OpenBot はここで待機します。",
+  "provider.codeLogin.description": "スマートフォンか別のブラウザーで完了してください。OpenBot はここで待機します。",
   "provider.codeLogin.starting": "{name} からコードを取得しています…",
   "provider.codeLogin.qrLabel": "{name} のログインページの QR コード",
   "provider.codeLogin.open": "開く",
@@ -114,13 +114,11 @@ export const messages = {
   "provider.picker.noMatches": "検索に一致するモデルはありません。",
   "provider.picker.noModels": "{name} で利用できるモデルはありません。",
   "provider.picker.customEmpty":
-    "OpenAI 互換のエンドポイントを追加してください。このコンピュータ上のモデルサーバーでも、ベース URL とキーがあるサービスでも使えます。",
+    "OpenAI 互換のエンドポイントを追加してください。このコンピューター上のモデルサーバーでも、ベース URL とキーがあるサービスでも使えます。",
   "provider.picker.defaultModelLabel": "{name}、デフォルト",
   "provider.picker.effort": "推論の強さ",
   "provider.picker.effortLabel": "エージェントの推論の強さ",
   "provider.picker.selectEffort": "推論の強さを選択",
-  "provider.picker.autoApprove": "自動承認",
-  "provider.picker.autoApproveLabel": "このエージェントの操作を自動で承認",
   "provider.picker.custom": "カスタム",
   "provider.picker.cliReady": "{cli} 準備完了",
   "provider.status.signInRequired": "サインインが必要",
@@ -136,7 +134,7 @@ export const messages = {
   "provider.museKey.label": "Meta API キー",
   "provider.geminiKey.title": "Gemini API キー",
   "provider.geminiKey.description":
-    "このコンピュータに Gemini API キーを保存します。保存したキーは Google アカウントの代わりに使われます。Google でサインインするには、キーを削除してから Gemini の行で「接続」を選択してください。",
+    "このコンピューターに Gemini API キーを保存します。保存したキーは Google アカウントの代わりに使われます。Google でサインインするには、キーを削除してから Gemini の行で「接続」を選択してください。",
   "provider.geminiKey.label": "Gemini API キー",
 
   "provider.openCodeKey.title": "OpenCode Go にサインイン",

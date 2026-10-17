@@ -34,7 +34,7 @@ export const messages = {
   "mobile.browser.status.offline": "Sunucu bağlı değil.",
   "mobile.browser.status.noTab": "{name} için açık tarayıcı sekmesi yok.",
   "mobile.browser.status.unsupported":
-    "Bu sunucu tarayıcısını telefonda gösteremiyor. Bu sunucudaki OpenBot’u güncelleyin.",
+    "Bu sunucu tarayıcısını telefonda gösteremiyor. Bu sunucudaki OpenBot'u güncelleyin.",
   "mobile.browser.status.off": "Tarayıcı, uygulamanın bu sürümünde kullanılamıyor.",
   "mobile.browser.notice.copied": "Telefonunuza kopyalandı.",
   "mobile.browser.notice.nothingSelected": "Sayfada hiçbir şey seçili değil.",
@@ -56,10 +56,10 @@ export const messages = {
   "mobile.browser.help.rightClick.body": "İki parmakla dokunun veya basılı tutun.",
   "mobile.browser.help.zoom.title": "Yakınlaştır",
   "mobile.browser.help.zoom.body":
-    "Yakınlaştırmak için iki parmağınızı açın. Yakınlaştırıldığında iki parmak kaydırmak yerine görüntüyü kaydırır.",
+    "Yakınlaştırmak için iki parmağınızı açın. Yakınlaştırıldığında iki parmak sayfayı kaydırmak yerine görüntüyü taşır.",
   "mobile.browser.help.pages": "Sayfalar ve sekmeler",
   "mobile.browser.help.navigate.title": "Geri ve ileri",
-  "mobile.browser.help.navigate.body": "Alt çubuktaki oklara dokunun. Sayfayı yenile, ··· menüsündedir.",
+  "mobile.browser.help.navigate.body": "Alt çubuktaki oklara dokunun. “Sayfayı yenile” ··· menüsündedir.",
   "mobile.browser.help.tabs.title": "Sekmeler",
   "mobile.browser.help.tabs.body":
     "Sekme değiştirmek, yeni sekme açmak veya bu sekmeyi kapatmak için alt çubuktaki sekmeler düğmesine dokunun.",
@@ -68,7 +68,7 @@ export const messages = {
   "mobile.browser.help.type.body": "Alt çubuktaki klavye düğmesine dokunun.",
   "mobile.browser.help.clipboard.title": "Kopyala ve yapıştır",
   "mobile.browser.help.clipboard.body":
-    "Telefona kopyala ve Telefondan yapıştır için alt çubuktaki pano düğmesine dokunun.",
+    "“Telefona kopyala” ve “Telefondan yapıştır” için alt çubuktaki pano düğmesine dokunun.",
   "mobile.browser.help.pointer": "İşaretçi daha kolay olduğunda",
   "mobile.browser.help.trackpad.title": "İzleme dörtgeni modu",
   "mobile.browser.help.trackpad.body":
@@ -76,5 +76,5 @@ export const messages = {
   "mobile.browser.help.handingBack": "Kontrolü geri verme",
   "mobile.browser.help.handBack.title": "Kontrolü geri ver",
   "mobile.browser.help.handBack.body":
-    "Bir ajan sizden devralmanızı istediğinde ··· menüsünde Bitirdim’i seçin. Ajan bu sekmede devam eder.",
+    "Bir ajan sizden devralmanızı istediğinde ··· menüsünde “Bitirdim” seçeneğini seçin. Ajan bu sekmede devam eder.",
 } as const satisfies PartialTranslation<typeof source>;

@@ -44,4 +44,31 @@ export const messages = {
   "error.import.hostBusy": "Serwer odczytuje inne eksporty. Spróbuj ponownie za kilka minut.",
   "error.import.skillKept":
     "{name}: serwer ma już umiejętność „{skill}”, więc agent używa tej umiejętności. Poproś administratora o jej aktualizację.",
+  "error.import.transferRemoteTooLarge":
+    "Plik przeniesienia dla dołączonego serwera musi mieć mniej niż 100 MB. Wyłącz pliki obszaru roboczego albo wyeksportuj mniej agentów.",
+  "error.import.transferNotFile": "To nie jest plik przeniesienia OpenBot.",
+  "error.import.transferNewer": "Ten plik utworzyła nowsza wersja OpenBot. Zaktualizuj OpenBot i spróbuj ponownie.",
+  "error.import.transferEmpty": "Plik nie zawiera agentów ani ustawień.",
+  "error.import.transferTooLarge":
+    "Plik przeniesienia musi mieć mniej niż 2 GB i 50 000 plików. Wyłącz pliki obszaru roboczego albo wyeksportuj mniej agentów.",
+  "error.import.transferAgentInvalid": "Agent nr {number} w pliku jest nieprawidłowy, więc zostaje pominięty.",
+  "error.import.transferSettingsInvalid":
+    "Ustawienia aplikacji w pliku są nieprawidłowe, więc nie zostaną zaimportowane.",
+  "error.import.transferModelMissing":
+    "{name}: model „{model}” nie jest tu jeszcze dostępny, więc agent używa modelu domyślnego. Wybierz model ponownie, gdy jego dostawca będzie gotowy.",
+  "error.import.transferSettingSkipped": "Nie zaimportowano: {name}. {reason}",
+  "error.import.transferRoutineFlowSkipped": "Import pominął przepływ rutyny. {reason}",
+  "error.import.transferCustomAgentCommand":
+    "{name}: własni agenci nie są importowani, ponieważ uruchamiają polecenie. Sprawdź polecenie „{command}” i dodaj agenta ponownie w Ustawieniach.",
+  "error.import.transferSkillLimit":
+    "{name}: plik zawiera tylko początkowe umiejętności tego agenta ({limit} z {total}), ponieważ agent może mieć maksymalnie {limit} umiejętności.",
+  "error.import.transferFilesGone": "Liczba plików usuniętych podczas eksportu: {number}. Nie ma ich w pliku.",
+  "error.import.transferProviderKey": "{name}: wpisz ponownie klucz API w Ustawieniach.",
+  "error.import.transferAgentEnv": "{name}: wpisz ponownie wartości {names} w Ustawieniach.",
+  "error.import.transferMcpValues":
+    "{name}: serwer MCP został dodany jako wyłączony. Sprawdź jego polecenie, wpisz ponownie wartości i pełny adres, a potem włącz go w ustawieniach MCP.",
+  "error.import.transferValuesCleared":
+    "{name}: z argumentów lub adresu usunięto wartości, które mogą zawierać sekret. Wpisz je ponownie w Ustawieniach.",
+  "error.import.transferSharedKept":
+    "Liczba plików z folderu współdzielonego, które już tu są: {number}. Zostają bez zmian.",
 } as const satisfies PartialTranslation<typeof source>;

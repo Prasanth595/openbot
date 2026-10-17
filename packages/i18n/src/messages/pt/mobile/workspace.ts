@@ -26,9 +26,6 @@ export const messages = {
   "mobile.workspace.error.approvalInactive":
     "Esta solicitação não está mais aguardando. Outro dispositivo a respondeu ou a tarefa parou.",
   "mobile.workspace.error.approvalOffline": "Conecte-se ao servidor para responder a esta solicitação.",
-  "mobile.workspace.notification.allow": "Permitir",
-  "mobile.workspace.notification.deny": "Negar",
-  "mobile.workspace.notification.answerFailed": "Sua resposta não chegou ao servidor. Abra o OpenBot para responder.",
   "mobile.workspace.alert.preferencesTitle": "Não foi possível salvar as preferências do chat",
   "mobile.workspace.alert.preferencesBody": "Suas preferências anteriores foram mantidas. Tente novamente.",
   "mobile.workspace.alert.updateRequiredTitle": "Atualização necessária",
@@ -38,7 +35,7 @@ export const messages = {
   "mobile.workspace.alert.markUnreadBody": "Conecte-se novamente ao servidor e tente de novo.",
   "mobile.workspace.alert.markAllReadTitle": "Não foi possível marcar tudo como lido",
   "mobile.workspace.alert.markAllReadBody":
-    "Algumas conversas continuam não lidas. Conecte-se novamente ao servidor e tente de novo.",
+    "Alguns chats continuam não lidos. Conecte-se novamente ao servidor e tente de novo.",
   "mobile.workspace.alert.serverOrderTitle": "Não foi possível salvar a ordem dos servidores",
   "mobile.workspace.alert.serverOrderBody": "A ordem anterior foi mantida. Tente novamente.",
   "mobile.workspace.error.connectFailed": "A conexão com o servidor falhou.",

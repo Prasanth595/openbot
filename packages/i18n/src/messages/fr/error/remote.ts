@@ -97,6 +97,7 @@ export const messages = {
   "error.remote.fileTransportStopped": "Le transport de fichiers WebRTC s’est arrêté.",
   "error.remote.fileResumeExpired": "Le délai de reprise du transfert de fichier WebRTC a expiré.",
   "error.remote.hostRequestFailed": "L’hôte n’a pas pu terminer la requête.",
+  "error.remote.responseTooLarge": "La réponse de l’hôte est trop volumineuse pour être envoyée à cet appareil.",
   "error.remote.sessionNotReady": "La session distante n’est pas prête.",
   "error.remote.peerDisconnected": "Le pair WebRTC s’est déconnecté.",
   "error.remote.tooManyStreams": "Trop de flux de l’hôte sont ouverts.",
@@ -133,7 +134,7 @@ export const messages = {
     "L’identité de l’ordinateur associé est absente ou a changé. Scannez un nouveau code depuis cet ordinateur.",
   "error.remote.permanentInviteNoEmail": "Les invitations permanentes ne peuvent pas être envoyées par e-mail.",
   "error.remote.selfHostedInviteNoEmail":
-    "Une invitation d'un service de compte auto-hébergé ne peut pas être envoyée par e-mail. Copiez le lien.",
+    "Une invitation d’un service de compte auto-hébergé ne peut pas être envoyée par e-mail. Copiez le lien.",
   "error.remote.inviteOtherService": "Cette invitation appartient à un autre service OpenBot.",
   "error.remote.inviteFingerprintMismatch": "L’identité de l’hôte de l’invitation ne correspond pas à son empreinte.",
   "error.remote.inviteHostKeyMissing": "La clé de l’hôte de l’invitation est absente.",
@@ -150,7 +151,7 @@ export const messages = {
   "error.remote.uploadCancelled": "L’envoi de la pièce jointe a été annulé.",
   "error.remote.attachmentRejected": "L’hôte a refusé la pièce jointe.",
   "error.remote.attachmentTooLarge": "Les pièces jointes doivent faire 10 Mo au maximum.",
-  "error.remote.attachmentBusy": "Attendez la fin de la pièce jointe en cours.",
+  "error.remote.attachmentBusy": "Attendez la fin de l’envoi de la pièce jointe en cours.",
   "error.remote.uploadTimeout": "L’envoi de la pièce jointe a expiré.",
   "error.remote.hostSessionActive": "L’hôte a déjà une session distante active.",
   "error.remote.tooManyConnections": "Trop de connexions distantes actives.",
@@ -193,5 +194,5 @@ export const messages = {
   "error.remote.hostOtherAccount": "Cet hôte appartient à un autre compte.",
   "error.remote.remoteNotConfigured": "Les connexions à distance ne sont pas configurées sur ce service OpenBot.",
   "error.remote.hostRefused": "L’hôte a refusé la demande ({status}).",
-  "error.remote.hostedServerRemoval": "Utilisez Facturation pour supprimer un serveur hébergé.",
+  "error.remote.hostedServerRemoval": "Utilisez « Facturation » pour supprimer un serveur hébergé.",
 } as const satisfies PartialTranslation<typeof source>;

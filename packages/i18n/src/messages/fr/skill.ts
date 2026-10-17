@@ -48,7 +48,7 @@ export const messages = {
   "skill.unavailable.updateVersion": "Mettez à jour cette compétence pour essayer cette version.",
   "skill.unavailable.updateRevision": "Mettez à jour cette compétence pour essayer cette révision.",
   "skill.unavailable.saving": "Attendez la fin de l’enregistrement de cette compétence, puis essayez-la.",
-  "skill.unavailable.composer": "Le champ de message de l’agent n’est pas disponible.",
+  "skill.unavailable.composer": "La zone de message de l’agent n’est pas disponible.",
 
   "skill.toolbar.source": "Source des compétences",
   "skill.toolbar.all": "Toutes",
@@ -61,7 +61,7 @@ export const messages = {
   "skill.local.addFailed": "Impossible d’ajouter la compétence locale.",
   "skill.local.back": "Retour aux compétences locales",
   "skill.local.added": "Ajoutée",
-  "skill.local.add": "Ajouter la compétence",
+  "skill.local.add": "Ajouter",
   "skill.local.loading": "Chargement des compétences locales…",
   "skill.local.empty": "Aucune compétence locale pour le moment.",
 

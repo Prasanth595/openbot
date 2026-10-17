@@ -27,7 +27,7 @@ export const messages = {
   "webClient.connect.stepSignIn": "Connectez-vous avec votre adresse e-mail.",
   "webClient.connect.stepRemote": "Activez l’accès à distance.",
   "webClient.notice.download": "Télécharger OpenBot",
-  "webClient.notice.join": "Rejoindre avec une invitation",
+  "webClient.notice.join": "Rejoindre par invitation",
   "webClient.notice.refreshHosts": "Actualiser les hôtes",
   "webClient.agent.modelsFailed": "Impossible de charger les modèles de l’hôte.",
   "webClient.agent.refreshFailed":
@@ -75,7 +75,7 @@ export const messages = {
   "webClient.error.connectServerFirst": "Connectez-vous d’abord à ce serveur.",
   "webClient.error.agentInstallNotAllowed":
     "Seul un propriétaire ou un administrateur peut ajouter un agent ici, et l’hôte doit exécuter une version récente d’OpenBot.",
-  "webClient.error.linkDesktopOnly": "Ce lien s’ouvre uniquement dans l’app de bureau.",
+  "webClient.error.linkDesktopOnly": "Ce lien s’ouvre uniquement dans l’application de bureau.",
   "webClient.error.saveEndpointOffline": "Connectez-vous à votre hôte pour enregistrer un point de terminaison.",
   "webClient.error.removeEndpointOffline": "Connectez-vous à votre hôte pour supprimer un point de terminaison.",
   "webClient.error.hostNotConnected": "L’hôte n’est pas connecté.",

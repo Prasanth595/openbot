@@ -113,6 +113,76 @@ export const LANDING_TEAM_REPLY: LandingTeamMessage = {
   text: "Thanks. I closed the issue.",
 };
 
+/** The provider of each agent in the network picture. Ada starts on Codex, as in the persist picture. */
+export const LANDING_NETWORK_AGENTS: readonly { teammate: LandingTeammate; provider: ProviderLogoVariant }[] = [
+  { teammate: ADA, provider: "codex" },
+  { teammate: LINUS, provider: "claude" },
+  { teammate: GRACE, provider: "antigravity" },
+];
+
+/** The words of the network heading appear one at a time. */
+export const LANDING_NETWORK_TITLE: readonly string[] = ["Your", "agents", "talk", "to", "each", "other."];
+export const LANDING_NETWORK_DESCRIPTION =
+  "They ask, hand off and review. Add agents, and the team grows around the work.";
+/** The name under the mark at the centre of the network picture. */
+export const LANDING_NETWORK_HUB = "OpenBot";
+
+/** What the network says in its easter eggs. Each reaction chooses one line of its list at random. */
+export const LANDING_NETWORK_EGGS = {
+  /** The visitor types "hello". */
+  greetings: ["Hi!", "Hello.", "Hey there.", "Oh, hi.", "Good to see you.", "Hello, human.", "Welcome back."],
+  /** The visitor types the Konami code. */
+  konami: ["Cheat code accepted.", "Thirty extra agents.", "Achievement unlocked."],
+  /** The visitor types "party". */
+  party: ["Party mode.", "Who brought the confetti?", "Dance break."],
+  /** The visitor types "sudo". */
+  sudo: ["This incident will be reported.", "Nice try.", "You are not in the sudoers file."],
+  /** The hub after quick clicks: 3, 5 and 8 in a row. 12 makes it sneeze. */
+  tickle: ["That tickles.", "Hey.", "I felt that."],
+  awake: ["Okay, okay. I am awake.", "Yes? Can I help you?", "I am listening."],
+  busy: ["Please. I am routing messages.", "I have work to do.", "Stop that, please."],
+  /** The agents answer the hub at 5 clicks. */
+  wonder: ["What was that?", "Did you feel that?", "Is the hub okay?"],
+  sneeze: ["Achoo!", "Ah… choo!"],
+  blessings: ["Bless you.", "Gesundheit.", "Salud.", "Bless you!"],
+  /** The agents wake up after the visitor leaves the page alone. */
+  wake: [
+    "I was not asleep.",
+    "Just resting my tokens.",
+    "Back to work.",
+    "Who turned off the lights?",
+    "Five more minutes.",
+  ],
+  /** Agents answer a click: a signal from the hub, or a new network that grows from an agent. */
+  chats: [
+    "On it.",
+    "Got it. Starting now.",
+    "Tests pass on my side.",
+    "I can take the review.",
+    "I pushed a fix.",
+    "Who has the Safari task?",
+    "Done. Over to you.",
+    "I need one more file.",
+    "Merged.",
+    "The build is green.",
+    "I found the bug.",
+    "Can someone review my branch?",
+    "Ship it.",
+    "Give me five minutes.",
+    "I wrote the release notes.",
+  ],
+  /** An agent under a still pointer. */
+  hover: [
+    "I only look busy.",
+    "Ask me about the Safari task.",
+    "I read the whole repository. Twice.",
+    "My context window has room for you.",
+    "Please do not close this tab.",
+    "I fixed one bug and found three.",
+    "I run on your computer, not in a cloud.",
+  ],
+} satisfies Record<string, readonly string[]>;
+
 /** The channel the team picture shows, and the line OpenBot writes when the task changes owner. */
 export const LANDING_TEAM_CHANNEL = "launch";
 export const LANDING_TEAM_HANDOFF = "Ada gave the task to Linus";
@@ -221,3 +291,41 @@ export const LANDING_COMPARISON_LINKS: readonly LandingComparisonLink[] = COMPAR
         ]
       : [],
 );
+
+/** Each offer of OpenBot for Teams has its own colour and icon, which the section sets for this id. */
+export type LandingTeamsOfferId = "servers" | "environments" | "integrations" | "support";
+
+export interface LandingTeamsOffer {
+  id: LandingTeamsOfferId;
+  label: string;
+  title: string;
+  description: string;
+}
+
+/** In reading order. Each offer is one card of the stack. */
+export const LANDING_TEAMS_OFFERS: readonly LandingTeamsOffer[] = [
+  {
+    id: "servers",
+    label: "Managed servers",
+    title: "Always on",
+    description: "Agents run on managed servers, not on someone’s laptop.",
+  },
+  {
+    id: "environments",
+    label: "Team environments",
+    title: "Shared or personal",
+    description: "One company server, one per employee, or both.",
+  },
+  {
+    id: "integrations",
+    label: "Custom integrations",
+    title: "Your tools",
+    description: "We connect OpenBot to your systems, APIs and workflows.",
+  },
+  {
+    id: "support",
+    label: "Implementation and support",
+    title: "We launch it with you",
+    description: "Setup, testing, onboarding and ongoing support.",
+  },
+];

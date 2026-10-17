@@ -96,6 +96,7 @@ export const messages = {
   "error.remote.fileTransportStopped": "WebRTC ファイル転送が停止しました。",
   "error.remote.fileResumeExpired": "WebRTC ファイル転送の再開期限が切れました。",
   "error.remote.hostRequestFailed": "ホストがリクエストを完了できませんでした。",
+  "error.remote.responseTooLarge": "ホストからの応答が大きすぎるため、このデバイスに送信できません。",
   "error.remote.sessionNotReady": "リモートセッションの準備ができていません。",
   "error.remote.peerDisconnected": "WebRTC ピアの接続が切れました。",
   "error.remote.tooManyStreams": "開いているホストのストリームが多すぎます。",
@@ -166,7 +167,7 @@ export const messages = {
   "error.remote.signalNotConnected": "Signal に接続していません。",
   "error.remote.signalFrameUnreadable": "Signal から、このピアが読み取れないフレームが送信されました。",
   "error.remote.webRtcCommandFailed": "WebRTC コマンドが失敗しました。",
-  "error.remote.dataChannelFailed": "{kind} チャンネルが失敗しました。",
+  "error.remote.dataChannelFailed": "{kind} チャネルに失敗しました。",
   "error.remote.hostBusy": "ホストは別の接続を処理中です。しばらくしてからもう一度お試しください。",
   "error.remote.signalPermissionDenied":
     "あなたのアカウントにはこのホストへのアクセス権がありません。オーナーにアクセスを依頼してください。",

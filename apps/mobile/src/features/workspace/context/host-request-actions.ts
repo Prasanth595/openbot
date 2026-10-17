@@ -1,21 +1,26 @@
 import { isAvatarMimeType } from "@openbot/contracts/avatar-images";
 import {
   assertStorageUsageScope,
+  canAdministerServer,
   decodeAgentAdminSettings,
   decodeAgentHostSettings,
   decodeInstalledSkills,
   decodeStorageUsage,
+  type HiddenAgent,
   isAgentMemory,
   isAgentModelOption,
   isQueueSnapshot,
   isRoutine,
   isRoutineRun,
   type RoutineCalendarOwner,
+  type SetAgentHiddenInput,
   STORAGE_CAPABILITY,
+  type TeamRole,
 } from "@openbot/contracts/ipc";
 import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import { AGENT_ADMIN_CAPABILITY, AGENT_ADMIN_ROUTES } from "@openbot/contracts/team-protocol/agent-admin-v1";
+import { AGENT_HIDDEN_CAPABILITY } from "@openbot/contracts/team-protocol/agent-hidden-v1";
 import {
   AGENT_HOST_SETTINGS_CAPABILITY,
   AGENT_HOST_SETTINGS_ROUTES,
@@ -32,6 +37,7 @@ import {
   decodeConversationFileSearchResponse,
 } from "@openbot/contracts/team-protocol/conversation-file-search-v1";
 import {
+  TEAM_AGENT_CREATE_MODEL_CAPABILITY,
   TEAM_EML_ATTACHMENTS_CAPABILITY,
   TEAM_MEDIA_ATTACHMENTS_CAPABILITY,
   TEAM_MESSAGE_CLIENT_ID_CAPABILITY,
@@ -44,7 +50,8 @@ import { SHARED_TABLES_CAPABILITY } from "@openbot/contracts/team-protocol/share
 import { SKILLS_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/skills-admin-v1";
 import { STORAGE_ROUTES } from "@openbot/contracts/team-protocol/storage-v1";
 import type { TeamProtocolV2Json } from "@openbot/contracts/team-protocol/v2";
-import { readHostAnalytics, runTeamEffect } from "@openbot/team-client";
+import type { MobileTextKey } from "@openbot/i18n/mobile";
+import { readHostAnalytics } from "@openbot/team-client";
 import type { RemoteFileUpload } from "@openbot/team-client/remote-peer";
 import { buildRoutineCalendar, type RoutineCalendarSource } from "@openbot/team-client/routine-calendar";
 import {
@@ -54,6 +61,7 @@ import {
   listAgentSkills,
   listEventActivity,
   listEventRoutines,
+  listHiddenAgents,
   listProviderAccounts,
   listSharedTables,
   previewAgentTemplate,
@@ -62,6 +70,7 @@ import {
   resetAgentSessionSetting,
   rotateEventRoutineSecret,
   saveEventRoutine,
+  setAgentHidden,
   setAgentProviderAccount,
   setAgentSessionSetting,
   setAgentSkillEnabled,
@@ -82,10 +91,20 @@ import type { QueryClient } from "@tanstack/react-query";
 import { Effect } from "effect";
 import * as Crypto from "expo-crypto";
 import { decodeConversationSearchPage } from "@/features/workspace/model/conversation";
+import { type QueryScope, queryKeys } from "@/features/workspace/model/query-keys";
 import { saveAgentRecord } from "@/features/workspace/model/save-agent-record";
+import {
+  hasCapability,
+  requireCapability,
+  type ServerCapabilities,
+} from "@/features/workspace/model/server-capabilities";
+import { runTeamRequest } from "@/features/workspace/model/team-request";
 import { decodeAgentSummaries, ignoreResponse } from "@/features/workspace/model/workspace-records";
-import type { MobileWorkspaceContextValue } from "@/features/workspace/model/workspace-types";
-import { currentText } from "@/shared/lib/text";
+import type {
+  MobileWorkspaceActions,
+  MobileWorkspaceCapabilityCheck,
+  MobileWorkspaceState,
+} from "@/features/workspace/model/workspace-types";
 
 /** Sends one Team API request to a server; without a server ID it uses the active server. */
 export type WorkspaceRequest = <T>(
@@ -98,8 +117,11 @@ export type WorkspaceRequest = <T>(
   onUploadProgress?: (fraction: number) => void,
 ) => Promise<T>;
 
+/** The capability checks that only read what a host advertised. */
+type HostRequestChecks = Pick<MobileWorkspaceState, Exclude<MobileWorkspaceCapabilityCheck, "browserViewSupport">>;
+
 type HostRequestActions = Pick<
-  MobileWorkspaceContextValue,
+  MobileWorkspaceActions,
   | "saveAgentMemory"
   | "deleteAgentMemory"
   | "createAgentRoutine"
@@ -120,7 +142,6 @@ type HostRequestActions = Pick<
   | "listEventActivity"
   | "loadHostAnalytics"
   | "searchMessages"
-  | "canSearchFiles"
   | "searchFiles"
   | "loadAgentSkills"
   | "setAgentSkillEnabled"
@@ -132,7 +153,6 @@ type HostRequestActions = Pick<
   | "updateAgentHostSettings"
   | "loadProviderAccounts"
   | "setAgentProviderAccount"
-  | "canStartNewChat"
   | "startNewChat"
   | "loadAgentSessionSettings"
   | "setAgentSessionSetting"
@@ -143,23 +163,44 @@ type HostRequestActions = Pick<
   | "publishAgentTemplate"
   | "unpublishAgentTemplate"
   | "deleteStoredFile"
-  | "canInstallAgentTemplate"
   | "installAgentTemplate"
   | "loadAgentAvatar"
   | "duplicateAgent"
   | "loadQueue"
-  | "canEditQueue"
-  | "canRetryMessage"
-  | "attachmentSupport"
   | "editQueue"
   | "changeQueue"
   | "setMessageReaction"
   | "downloadAttachment"
 >;
 
-/** Runs a Team API request. A failure rejects with the error of the host, not its Effect wrapper. */
-function runTeamRequest<A>(operation: Effect.Effect<A, { readonly cause: unknown }>): Promise<A> {
-  return runTeamEffect(operation.pipe(Effect.mapError((error) => error.cause)));
+/** A host that serves `agent-hidden-v1` owns the hidden agents of its members. */
+function hidesAgentsOnHost(capabilities: readonly string[] | undefined): boolean {
+  return capabilities?.includes(AGENT_HIDDEN_CAPABILITY) ?? false;
+}
+
+/**
+ * An owner or an admin hides on the host. The host refuses a member, so a member hides on this phone
+ * only, as on a host without the capability.
+ */
+export function hostOwnsHide(capabilities: readonly string[] | undefined, role: TeamRole | undefined): boolean {
+  return hidesAgentsOnHost(capabilities) && canAdministerServer(role);
+}
+
+/** The hidden agents of a host that serves `agent-hidden-v1`, or null for an older host. */
+export async function readHostHiddenAgents(
+  request: TeamApiRequest,
+  capabilities: readonly string[],
+): Promise<HiddenAgent[] | null> {
+  if (!hidesAgentsOnHost(capabilities)) return null;
+  return (await runTeamRequest(listHiddenAgents(request))).agents;
+}
+
+/** Hides or restores one agent on the host. The host answers with its whole hidden list. */
+export async function writeHostAgentHidden(
+  request: TeamApiRequest,
+  input: SetAgentHiddenInput,
+): Promise<HiddenAgent[]> {
+  return (await runTeamRequest(setAgentHidden(request, input))).agents;
 }
 
 /** Workspace actions that only send host requests and read advertised capabilities. */
@@ -175,34 +216,30 @@ export function createHostRequestActions({
   teamApi: (serverId: string) => TeamApiRequest;
   queryClient: QueryClient;
   /** The API URL, user ID and session scope that start each account query key. */
-  queryScope: readonly [apiUrl: string, userId: string, sessionScope: number];
-  capabilities: ReadonlyMap<string, string[]>;
+  queryScope: QueryScope;
+  capabilities: ServerCapabilities;
   attachmentDownloads: { current: Promise<void> };
-}): HostRequestActions {
+}): { checks: HostRequestChecks; actions: HostRequestActions } {
+  const has = (serverId: string, capability: string) => hasCapability(capabilities, serverId, capability);
+  /** The Team API of a server that serves `capability`, for an optional admin route set. */
+  function capabilityApi(serverId: string, capability: string, unsupported: MobileTextKey): TeamApiRequest {
+    requireCapability(capabilities, serverId, capability, unsupported);
+    return teamApi(serverId);
+  }
   /** The shared admin requests, sent to one server that serves `skills-admin-v1`. */
-  function skillsAdmin(serverId: string): TeamApiRequest {
-    if (!capabilities.get(serverId)?.includes(SKILLS_ADMIN_CAPABILITY))
-      throw new Error(currentText().t("mobile.agent.skill.manageUnsupported"));
-    return teamApi(serverId);
-  }
+  const skillsAdmin = (serverId: string) =>
+    capabilityApi(serverId, SKILLS_ADMIN_CAPABILITY, "mobile.agent.skill.manageUnsupported");
   /** The shared tables are an optional admin route set. */
-  function sharedTablesAdmin(serverId: string): TeamApiRequest {
-    if (!capabilities.get(serverId)?.includes(SHARED_TABLES_CAPABILITY))
-      throw new Error(currentText().t("mobile.agent.tables.unsupported"));
-    return teamApi(serverId);
-  }
+  const sharedTablesAdmin = (serverId: string) =>
+    capabilityApi(serverId, SHARED_TABLES_CAPABILITY, "mobile.agent.tables.unsupported");
   /** Publishing is an optional admin route set. */
-  function publishAdmin(serverId: string): TeamApiRequest {
-    if (!capabilities.get(serverId)?.includes(AGENT_PUBLISH_CAPABILITY))
-      throw new Error(currentText().t("mobile.agent.publish.unsupported"));
-    return teamApi(serverId);
-  }
+  const publishAdmin = (serverId: string) =>
+    capabilityApi(serverId, AGENT_PUBLISH_CAPABILITY, "mobile.agent.publish.unsupported");
   /** The event admin routes are optional and reject members on the host. */
-  function eventsAdmin(serverId: string): TeamApiRequest {
-    if (!capabilities.get(serverId)?.includes(EVENTS_CAPABILITY))
-      throw new Error(currentText().t("mobile.agent.record.eventsUnsupported"));
-    return teamApi(serverId);
-  }
+  const eventsAdmin = (serverId: string) =>
+    capabilityApi(serverId, EVENTS_CAPABILITY, "mobile.agent.record.eventsUnsupported");
+  const sessionSettingsAdmin = (serverId: string) =>
+    capabilityApi(serverId, AGENT_SESSION_SETTINGS_CAPABILITY, "mobile.agent.session.unsupported");
   function memoryRequest(serverId: string): AgentMemoriesRequest<TeamRequestError> {
     return (method, path, decode, body) =>
       Effect.tryPromise({
@@ -210,14 +247,24 @@ export function createHostRequestActions({
         catch: (cause) => new TeamRequestError({ cause }),
       });
   }
-  function sessionSettingsAdmin(serverId: string): TeamApiRequest {
-    if (!capabilities.get(serverId)?.includes(AGENT_SESSION_SETTINGS_CAPABILITY))
-      throw new Error(currentText().t("mobile.agent.session.unsupported"));
-    return teamApi(serverId);
-  }
-  return {
+  const checks: HostRequestChecks = {
+    canSearchFiles: (serverId) => has(serverId, CONVERSATION_FILE_SEARCH_CAPABILITY),
+    canStartNewChat: (serverId) => has(serverId, CONTEXT_RESET_CAPABILITY),
+    canChooseNewAgentModel: (serverId) => has(serverId, TEAM_AGENT_CREATE_MODEL_CAPABILITY),
+    canInstallAgentTemplate: (serverId) => has(serverId, AGENT_INSTALL_CAPABILITY),
+    canEditQueue: (serverId) => has(serverId, TEAM_QUEUE_EDIT_CAPABILITY),
+    canRetryMessage: (serverId) => has(serverId, TEAM_MESSAGE_CLIENT_ID_CAPABILITY),
+    attachmentSupport: (serverId) => {
+      const advertised = capabilities.get(serverId) ?? [];
+      return {
+        eml: advertised.includes(TEAM_EML_ATTACHMENTS_CAPABILITY),
+        media: advertised.includes(TEAM_MEDIA_ATTACHMENTS_CAPABILITY),
+      };
+    },
+  };
+  const actions: HostRequestActions = {
     loadAgentSessionSettings: async (agentId, serverId) =>
-      capabilities.get(serverId)?.includes(AGENT_SESSION_SETTINGS_CAPABILITY)
+      has(serverId, AGENT_SESSION_SETTINGS_CAPABILITY)
         ? runTeamRequest(readAgentSessionSettings(sessionSettingsAdmin(serverId), agentId))
         : null,
     setAgentSessionSetting: async (input, serverId) =>
@@ -232,7 +279,7 @@ export function createHostRequestActions({
       runTeamRequest(rotateEventRoutineSecret(eventsAdmin(serverId), input)),
     listEventActivity: (input, serverId) => runTeamRequest(listEventActivity(eventsAdmin(serverId), input)),
     saveAgentMemory: async (agentId, text, serverId, memoryId) => {
-      await saveAgentRecord(queryClient, ["agent-info", ...queryScope, serverId, agentId, "memories"], () =>
+      await saveAgentRecord(queryClient, queryKeys.agentRecord(queryScope, serverId, agentId, "memories"), () =>
         request(
           memoryId ? "PATCH" : "POST",
           memoryId ? TEAM_API_ROUTES.agent.memory(agentId, memoryId) : TEAM_API_ROUTES.agent.memories(agentId),
@@ -250,7 +297,7 @@ export function createHostRequestActions({
       await request("DELETE", TEAM_API_ROUTES.agent.memory(agentId, memoryId), ignoreResponse, undefined, serverId);
     },
     createAgentRoutine: async (input, serverId) => {
-      await saveAgentRecord(queryClient, ["agent-info", ...queryScope, serverId, input.agentId, "routines"], () =>
+      await saveAgentRecord(queryClient, queryKeys.agentRecord(queryScope, serverId, input.agentId, "routines"), () =>
         request(
           "POST",
           TEAM_API_ROUTES.agent.routines(input.agentId),
@@ -271,7 +318,7 @@ export function createHostRequestActions({
       );
     },
     updateAgentRoutine: async (input, serverId) => {
-      await saveAgentRecord(queryClient, ["agent-info", ...queryScope, serverId, input.agentId, "routines"], () =>
+      await saveAgentRecord(queryClient, queryKeys.agentRecord(queryScope, serverId, input.agentId, "routines"), () =>
         request(
           "PATCH",
           TEAM_API_ROUTES.agent.routine(input.agentId, input.routineId),
@@ -310,14 +357,10 @@ export function createHostRequestActions({
       ),
     loadAgentMemorySelection: (agentId, serverId) =>
       runTeamRequest(
-        readAgentMemorySelection(
-          memoryRequest(serverId),
-          agentId,
-          capabilities.get(serverId)?.includes(AGENT_MEMORIES_CAPABILITY) ?? false,
-        ),
+        readAgentMemorySelection(memoryRequest(serverId), agentId, has(serverId, AGENT_MEMORIES_CAPABILITY)),
       ),
     setAgentMemoryInclusion: async (input, serverId) => {
-      const key = ["agent-info", ...queryScope, serverId, input.agentId, "memory-selection"];
+      const key = queryKeys.agentRecord(queryScope, serverId, input.agentId, "memory-selection");
       try {
         const state = await runTeamRequest(setAgentMemoryInclusion(memoryRequest(serverId), input));
         queryClient.setQueryData(key, state);
@@ -329,13 +372,7 @@ export function createHostRequestActions({
       }
     },
     loadAgentMemories: (agentId, serverId) =>
-      runTeamRequest(
-        readAgentMemories(
-          memoryRequest(serverId),
-          agentId,
-          capabilities.get(serverId)?.includes(AGENT_MEMORIES_CAPABILITY) ?? false,
-        ),
-      ),
+      runTeamRequest(readAgentMemories(memoryRequest(serverId), agentId, has(serverId, AGENT_MEMORIES_CAPABILITY))),
     loadAgentRoutines: (agentId, serverId) =>
       request(
         "GET",
@@ -367,7 +404,6 @@ export function createHostRequestActions({
         undefined,
         serverId,
       ),
-    canSearchFiles: (serverId) => capabilities.get(serverId)?.includes(CONVERSATION_FILE_SEARCH_CAPABILITY) ?? false,
     searchFiles: (query, serverId, cursor) => {
       const body: ConversationFileSearchRequest = { query, cursor: cursor || null, limit: 50 };
       return request(
@@ -381,14 +417,14 @@ export function createHostRequestActions({
     // A host too old to know the route answers 404, so ask its advertised capabilities first.
     loadAgentSkills: async (agentId, serverId, manage = false) => {
       if (manage) return runTeamRequest(listAgentSkills(skillsAdmin(serverId), agentId));
-      return capabilities.get(serverId)?.includes(TEAM_SEMANTIC_TAGS_CAPABILITY)
+      return has(serverId, TEAM_SEMANTIC_TAGS_CAPABILITY)
         ? request("GET", TEAM_API_ROUTES.agent.skills(agentId), decodeInstalledSkills, undefined, serverId)
         : null;
     },
     setAgentSkillEnabled: async (input, serverId) => runTeamRequest(setAgentSkillEnabled(skillsAdmin(serverId), input)),
     uninstallAgentSkill: async (input, serverId) => runTeamRequest(uninstallAgentSkill(skillsAdmin(serverId), input)),
     loadAgentStorage: async (agentId, serverId, force = false) => {
-      if (!capabilities.get(serverId)?.includes(STORAGE_CAPABILITY)) return null;
+      if (!has(serverId, STORAGE_CAPABILITY)) return null;
       const input = { scope: "agent" as const, agentId, ...(force ? { force: true } : {}) };
       return assertStorageUsageScope(
         await request("POST", STORAGE_ROUTES.usage, decodeStorageUsage, input, serverId),
@@ -396,37 +432,35 @@ export function createHostRequestActions({
       );
     },
     loadAgentAdminSettings: async (agentId, serverId) =>
-      capabilities.get(serverId)?.includes(AGENT_ADMIN_CAPABILITY)
+      has(serverId, AGENT_ADMIN_CAPABILITY)
         ? request("POST", AGENT_ADMIN_ROUTES.settings, decodeAgentAdminSettings, { agentId }, serverId)
         : null,
     updateAgentAdminSettings: async (input, serverId) => {
-      if (!capabilities.get(serverId)?.includes(AGENT_ADMIN_CAPABILITY))
-        throw new Error(currentText().t("mobile.agent.access.unsupported"));
+      requireCapability(capabilities, serverId, AGENT_ADMIN_CAPABILITY, "mobile.agent.access.unsupported");
       return request("POST", AGENT_ADMIN_ROUTES.update, decodeAgentAdminSettings, { ...input }, serverId);
     },
     loadAgentHostSettings: async (agentId, serverId) =>
-      capabilities.get(serverId)?.includes(AGENT_HOST_SETTINGS_CAPABILITY)
+      has(serverId, AGENT_HOST_SETTINGS_CAPABILITY)
         ? request("POST", AGENT_HOST_SETTINGS_ROUTES.settings, decodeAgentHostSettings, { agentId }, serverId)
         : null,
     updateAgentHostSettings: async (input, serverId) => {
-      if (!capabilities.get(serverId)?.includes(AGENT_HOST_SETTINGS_CAPABILITY))
-        throw new Error(currentText().t("mobile.agent.host.unsupported"));
+      requireCapability(capabilities, serverId, AGENT_HOST_SETTINGS_CAPABILITY, "mobile.agent.host.unsupported");
       return request("POST", AGENT_HOST_SETTINGS_ROUTES.update, decodeAgentHostSettings, { ...input }, serverId);
     },
     loadProviderAccounts: async (serverId) =>
-      capabilities.get(serverId)?.includes(PROVIDER_ACCOUNTS_CAPABILITY)
-        ? runTeamRequest(listProviderAccounts(teamApi(serverId)))
-        : null,
+      has(serverId, PROVIDER_ACCOUNTS_CAPABILITY) ? runTeamRequest(listProviderAccounts(teamApi(serverId))) : null,
     setAgentProviderAccount: async (input, serverId) => {
-      if (!capabilities.get(serverId)?.includes(PROVIDER_ACCOUNTS_CAPABILITY))
-        throw new Error(currentText().t("mobile.agent.runtime.accountUnsupported"));
+      requireCapability(
+        capabilities,
+        serverId,
+        PROVIDER_ACCOUNTS_CAPABILITY,
+        "mobile.agent.runtime.accountUnsupported",
+      );
       await runTeamRequest(setAgentProviderAccount(teamApi(serverId), input));
     },
-    canStartNewChat: (serverId) => capabilities.get(serverId)?.includes(CONTEXT_RESET_CAPABILITY) ?? false,
     startNewChat: async (agentId, serverId) => {
       // A host too old to know the route answers 404, so refuse before the request.
-      if (!capabilities.get(serverId)?.includes(CONTEXT_RESET_CAPABILITY))
-        throw new Error(currentText().t("mobile.agent.newChat.unsupported"));
+      requireCapability(capabilities, serverId, CONTEXT_RESET_CAPABILITY, "mobile.agent.newChat.unsupported");
       await runTeamRequest(clearAgentContext(teamApi(serverId), agentId));
     },
     // Async, so a host without the capability rejects the promise and does not throw at the call.
@@ -440,15 +474,12 @@ export function createHostRequestActions({
     unpublishAgentTemplate: async (agentId, serverId) =>
       runTeamRequest(unpublishAgentTemplate(publishAdmin(serverId), agentId)),
     deleteStoredFile: async (fileId, serverId) => {
-      if (!capabilities.get(serverId)?.includes(STORAGE_CAPABILITY))
-        throw new Error(currentText().t("mobile.workspace.error.filesUnsupported"));
+      requireCapability(capabilities, serverId, STORAGE_CAPABILITY, "mobile.workspace.error.filesUnsupported");
       await request("POST", STORAGE_ROUTES.deleteFile, ignoreResponse, { fileId }, serverId);
     },
-    canInstallAgentTemplate: (serverId) => capabilities.get(serverId)?.includes(AGENT_INSTALL_CAPABILITY) ?? false,
-    installAgentTemplate: (input, serverId) => {
+    installAgentTemplate: async (input, serverId) => {
       // A host too old to know the route answers 404, so refuse before the request.
-      if (!capabilities.get(serverId)?.includes(AGENT_INSTALL_CAPABILITY))
-        return Promise.reject(new Error(currentText().t("mobile.link.template.error.unsupported")));
+      requireCapability(capabilities, serverId, AGENT_INSTALL_CAPABILITY, "mobile.link.template.error.unsupported");
       return runTeamRequest(installAgentTemplate(teamApi(serverId), input));
     },
     loadAgentAvatar: (agentId, avatarUrl, serverId) => requestAgentAvatar(request, agentId, avatarUrl, serverId),
@@ -469,15 +500,6 @@ export function createHostRequestActions({
         undefined,
         serverId,
       ),
-    canEditQueue: (serverId) => capabilities.get(serverId)?.includes(TEAM_QUEUE_EDIT_CAPABILITY) ?? false,
-    canRetryMessage: (serverId) => capabilities.get(serverId)?.includes(TEAM_MESSAGE_CLIENT_ID_CAPABILITY) ?? false,
-    attachmentSupport: (serverId) => {
-      const advertised = capabilities.get(serverId) ?? [];
-      return {
-        eml: advertised.includes(TEAM_EML_ATTACHMENTS_CAPABILITY),
-        media: advertised.includes(TEAM_MEDIA_ATTACHMENTS_CAPABILITY),
-      };
-    },
     editQueue: async (agentId, serverId, input) => {
       return request(
         "POST",
@@ -530,6 +552,7 @@ export function createHostRequestActions({
       return result;
     },
   };
+  return { checks, actions };
 }
 
 /** The routes that the desktop calendar reads from a remote host, so both place the same runs. */

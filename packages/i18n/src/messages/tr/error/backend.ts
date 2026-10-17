@@ -3,6 +3,7 @@ import type { messages as source } from "../../en/error/backend";
 
 export const messages = {
   "error.backend.eventsUnavailable": "Bu ana makinede etkinlikler kullanılamıyor.",
+  "error.backend.databaseIntegrity": "OpenBot veritabanı bütünlük denetiminden geçemedi.",
   "error.backend.webhookRouteLimit": "Bir ana makinede en fazla {limit} webhook rutini olabilir.",
   "error.backend.webhookSettingsInvalid": "Webhook ayarlarını kontrol edin ve tekrar deneyin.",
   "error.backend.webhookRouteUnavailable":
@@ -87,7 +88,7 @@ export const messages = {
   "error.backend.agentRoutineLimit": "Bir ajan en fazla {limit} rutine sahip olabilir.",
   "error.backend.agentMemoryLimit": "Bir ajan en fazla {limit} belleğe sahip olabilir.",
   "error.backend.agentMemoryLimitReached":
-    "{limit} bellekten {saved} tanesi dolu. Yer açmak için ilgili iki belleğin birleşik metniyle bir belleği memoryId ile güncelleyin ve diğerini silin ya da artık doğru olmayan bir belleği silin. Sonra tekrar deneyin.",
+    "{limit} bellekten {saved} tanesi kayıtlı. Yer açmak için ilgili iki belleğin birleşik metniyle bir belleği memoryId ile güncelleyin ve diğerini silin ya da artık doğru olmayan bir belleği silin. Sonra tekrar deneyin.",
   "error.backend.agentMemoryLimitExceeded":
     "{saved} belleğiniz var ve sınır {limit}. Kullanıcı sınırı kayıtlı bellek sayısının altına ayarladı. Yer açmak için bellek silmeyin. Kullanıcıya bu belleğin kaydedilmediğini söyleyin.",
   "error.backend.channelHistoryLeadRequired": "Paylaşılan geçmişi hazırlamak için bir kanal lideri seçin.",
@@ -118,11 +119,12 @@ export const messages = {
   "error.backend.mailboxStateCorrupt":
     "Posta kutusu durumu bozuk veya daha yeni bir OpenBot sürümünden; üzerine yazılması reddedildi.",
   "error.backend.recipientDeleting": "Alıcı siliniyor. Silme işlemi tamamlandıktan sonra tekrar deneyin.",
+  "error.backend.recipientHidden": "Bu ajan gizli. Mesaj göndermek için onu geri yükleyin.",
   "error.backend.attachBetween": "1 ila {limit} dosya ekleyin.",
   "error.backend.attachmentNotFile": "Ek bir dosya değil: {path}",
   "error.backend.generatedImageTooLarge": "Oluşturulan görsel 100 MB sınırını aşıyor.",
   "error.backend.attachmentNotRegularFile": "Yalnızca normal dosyalar eklenebilir: {name}",
-  "error.backend.attachmentCopyFailed": "OpenBot {name} ögesini kopyalayamadı.",
+  "error.backend.attachmentCopyFailed": "OpenBot {name} öğesini kopyalayamadı.",
   "error.backend.routineNameRequired": "Bir rutin adı gereklidir.",
   "error.backend.routineNameTooLong": "Rutin adı çok uzun.",
   "error.backend.routineInstructionRequired": "Bir rutin talimatı gereklidir.",
@@ -134,8 +136,8 @@ export const messages = {
     "Rutin aralıkları en az {minutes} dakika olmalıdır. {minutes} dakika veya daha fazlasını ya da sabit bir zamanı kullanın.",
   "error.backend.routineCronTooOften": "Özel zamanlamalar her {minutes} dakikadan daha sık çalışmamalıdır.",
   "error.backend.routineAnchorInvalid": "Rutin aralık çıpası geçersiz.",
-  "error.backend.routineNoOccurrence": "Zamanlama önümüzdeki beş yıl içinde hiçbir gerçekleşmeye sahip değil.",
-  "error.backend.routineOncePassed": "Bu tek seferlik rutinin zamanı geçti. Daha sonraki bir tarih veya saat seç.",
+  "error.backend.routineNoOccurrence": "Bu zamanlamaya göre önümüzdeki beş yıl içinde hiç çalıştırma yok.",
+  "error.backend.routineOncePassed": "Bu tek seferlik rutinin zamanı geçti. Daha sonraki bir tarih veya saat seçin.",
   "error.backend.routineTimezoneInvalid": "Rutin saat dilimi geçersiz.",
   "error.backend.routineCronFields": "Özel zamanlamalar beş cron alanı kullanmalıdır.",
   "error.backend.routineCronValueInvalid": "Cron {field} değeri geçersiz.",
@@ -179,14 +181,14 @@ export const messages = {
   "error.backend.mcpCommandNotFound": "Komut bulunamadı: {command}",
   "error.backend.mcpRegistrationRefused":
     "Oturum açma sunucusu OpenBot'u henüz bir uygulama olarak kabul etmiyor. Hesabınız bunun nedeni değildir. Yerel bir MCP sunucusu gibi bağlanmanın başka bir yolunu kullanın.",
-  "error.backend.mcpSignInAbandonedGeneric": "Oturum açma iptal edildi.",
+  "error.backend.mcpSignInAbandonedGeneric": "Oturum açma yarıda bırakıldı.",
   "error.backend.mcpSignInForgotten": "MCP oturum açma işlemi çalışırken unutuldu.",
-  "error.backend.mcpSignInAbandoned": "MCP oturum açma işlemi iptal edildi.",
+  "error.backend.mcpSignInAbandoned": "MCP oturum açma işlemi yarıda bırakıldı.",
   "error.backend.mcpSignInNoBrowser": "Bu MCP oturum açma işlemi bir tarayıcı açamaz.",
   "error.backend.mcpSignInNotWebPage": "Oturum açma adresi bir web sayfası değil.",
   "error.backend.mcpSignInRequired":
     "Bu sunucu oturum açmanızı istiyor. Tarayıcınızda devam etmek için Oturum aç'ı seçin.",
-  "error.backend.mcpSignInOnHost": "Bu sunucu oturum açılmasını istiyor. Ana bilgisayardaki OpenBot'ta oturum açın.",
+  "error.backend.mcpSignInOnHost": "Bu sunucu oturum açılmasını istiyor. Ana makinedeki OpenBot'ta oturum açın.",
   "error.backend.mcpSignInNeedsHttps":
     "Bu sunucu oturum açılmasını istiyor ve OpenBot yalnızca https üzerinden oturum açar. URL'yi {url} olarak değiştirin.",
   "error.backend.mcpSignInCancelled": "Oturum açma iptal edildi.",
@@ -204,9 +206,9 @@ export const messages = {
   "error.backend.mcpRemoteBridge":
     "{reason} Bu komut mcp-remote köprüsünü çalıştırır. Bunun yerine {url} URL'siyle Streamable HTTP'yi seçin; OpenBot oturumunuzu açar.",
   "error.backend.oauthNotHttps": "OAuth uç noktası {origin} https değil, bu nedenle kimlik bilgileri gönderilmedi.",
-  "error.backend.oauthTooManyRedirects": "OAuth uç noktası çok fazla kez yönlendirdi.",
+  "error.backend.oauthTooManyRedirects": "OAuth uç noktası çok fazla yönlendirme yaptı.",
   "error.backend.oauthRedirectOrigin":
-    "OAuth uç noktası {origin} adresine yönlendirildi, bu nedenle kimlik bilgileri iletilmedi.",
+    "OAuth uç noktası {origin} adresine yönlendirme yaptı, bu nedenle kimlik bilgileri iletilmedi.",
   "error.backend.sidebarSectionLimit": "Bir sunucu en fazla {limit} kenar çubuğu bölümüne sahip olabilir.",
   "error.backend.sectionNameRequired": "Bölüm adı gereklidir.",
   "error.backend.sectionNameTooLong": "Bölüm adı çok uzun.",
@@ -273,4 +275,20 @@ export const messages = {
   "error.backend.mcpSignInAppNoServer":
     "Oturum açma uygulaması eklemeden önce bu MCP sunucusunu URL sunucusu olarak kaydedin.",
   "error.backend.mcpSignInAppUnavailable": "Bu bilgisayar oturum açma uygulaması saklayamaz.",
+  "error.backend.taskMoveRefused":
+    "Görev olarak yalnızca, doğrudan ve tek başına bu ajana gönderdiğiniz bir mesaj çalışabilir.",
+  "error.backend.taskNotFound": "Bu görev kullanılamıyor.",
+  "error.backend.taskClosed": "Bu görev kapalı. Mesaj göndermek için yeniden açın.",
+  "error.backend.taskStillRunning": "Bu görev hâlâ çalışıyor. Durmasını bekleyin, ardından kapatın.",
+  "error.backend.taskTitleRequired": "Göreve kısa bir başlık verin.",
+  "error.backend.taskToolInvalid":
+    "Göreve en fazla 120 karakterlik bir başlık ve ne yapılacağını anlatan kısa bir talimat verin.",
+  "error.backend.taskOwnChatOnly":
+    "Görevi yalnızca kendi sohbetinizden başlatın. Bir kanal, bir mesajlaşma konuşması veya başka bir görev yeni bir görev başlatamaz.",
+  "error.backend.taskOpenLimit":
+    "Bu ajanın zaten {count} açık görevi var. Başka bir görev başlatmadan önce kullanıcının birini kapatmasını bekleyin.",
+  "error.backend.taskOpenLimitReached":
+    "Bu ajanın {count} açık görevi var. Bir görevi kapatın, ardından başka bir görev başlatın veya açın.",
+  "error.backend.taskRemoteUnsupported": "Görevler yalnızca bu bilgisayardaki ajanlar için kullanılabilir.",
+  "error.backend.taskStartFailed": "OpenBot görevi başlatamadı. Bunun yerine işi bu turda yapın.",
 } as const satisfies PartialTranslation<typeof source>;

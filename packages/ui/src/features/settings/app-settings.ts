@@ -43,11 +43,6 @@ export interface GeneralSettingsValue {
   /** Short sounds that confirm the user's own actions, such as a click or a sent message. */
   soundFeedback: boolean;
   soundTheme: SoundTheme;
-  /**
-   * Turbo mode. Agents run commands and change files without asking. Permission grants and site
-   * publishing still ask, so this is not the same as "no boundary at all".
-   */
-  turboMode: boolean;
   autoDownloadUpdates: boolean;
   /** Owners and admins of a joined server can start an update of this computer. */
   allowRemoteUpdates: boolean;
@@ -78,7 +73,6 @@ export const DEFAULT_GENERAL_SETTINGS: GeneralSettingsValue = {
   keepRemoteSessions: true,
   soundFeedback: false,
   soundTheme: "default",
-  turboMode: false,
   autoDownloadUpdates: true,
   allowRemoteUpdates: true,
   autoInstallUpdates: false,

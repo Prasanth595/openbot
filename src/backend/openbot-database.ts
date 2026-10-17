@@ -22,13 +22,18 @@ import {
   HostedSiteEventLog,
   type PendingHostedSiteTerminalEvent,
 } from "./database/hosted-site-event-log";
-import { MailboxProjection, type MailboxProjectionState } from "./database/mailbox-projection";
+import {
+  MailboxProjection,
+  type MailboxProjectionChanges,
+  type MailboxProjectionState,
+} from "./database/mailbox-projection";
 import {
   type ProviderHistoryImportState,
   type ProviderHistorySessionInput,
   type ProviderHistoryStagedItem,
   type ProviderHistoryStagedTurn,
   type ProviderHistoryStagedTurnPage,
+  type ProviderHistoryStageResult,
   ProviderHistoryStore,
   type ProviderHistoryTurnCursor,
 } from "./database/provider-history-store";
@@ -50,6 +55,7 @@ export type {
   ProviderHistoryStagedItem,
   ProviderHistoryStagedTurn,
   ProviderHistoryStagedTurnPage,
+  ProviderHistoryStageResult,
   ProviderHistoryTurnCursor,
 } from "./database/provider-history-store";
 export type { ProviderSession } from "./database/provider-sessions";
@@ -280,6 +286,10 @@ export class OpenBotDatabase {
     return this.#conversationWrites.appendConversationMessage(input);
   }
 
+  changedConversationMessages(threadId: string, messages: readonly ConversationMessage[]): ConversationMessage[] {
+    return this.#conversationWrites.changedConversationMessages(threadId, messages);
+  }
+
   persistConversationChanges(input: {
     agentId: string;
     threadId: string;
@@ -371,12 +381,18 @@ export class OpenBotDatabase {
     eventType: string,
     payload: unknown,
     mailboxState: MailboxProjectionState,
+    mailboxChanges: MailboxProjectionChanges,
     mailboxEventType: string,
   ): ConversationSnapshot {
     const db = this.connection;
     db.exec("BEGIN IMMEDIATE");
     try {
-      this.replaceMailboxState(`mailbox:${mailboxEventType}:${randomUUID()}`, mailboxState, mailboxEventType);
+      this.applyMailboxChanges(
+        `mailbox:${mailboxEventType}:${randomUUID()}`,
+        mailboxState,
+        mailboxChanges,
+        mailboxEventType,
+      );
       if (!snapshot.threadId) {
         db.exec("COMMIT");
         return structuredClone(snapshot);
@@ -445,7 +461,7 @@ export class OpenBotDatabase {
     sessionId: string;
     fragment: import("./provider-history").ProviderHistoryFragment;
     cursor?: unknown;
-  }): ProviderHistoryImportState {
+  }): ProviderHistoryStageResult {
     return this.#providerHistory.stageProviderHistoryFragment(input);
   }
 
@@ -509,8 +525,18 @@ export class OpenBotDatabase {
     eventType: string,
     fileDeletions: string[] = [],
     rebaseHistory = false,
-  ): void {
-    this.#mailbox.replaceMailboxState(commandId, state, eventType, fileDeletions, rebaseHistory);
+  ): boolean {
+    return this.#mailbox.replaceMailboxState(commandId, state, eventType, fileDeletions, rebaseHistory);
+  }
+
+  applyMailboxChanges(
+    commandId: string,
+    state: MailboxProjectionState,
+    changes: MailboxProjectionChanges,
+    eventType: string,
+    fileDeletions: string[] = [],
+  ): boolean {
+    return this.#mailbox.applyMailboxChanges(commandId, state, changes, eventType, fileDeletions);
   }
 
   pendingFileDeletions(): Array<{ id: string; path: string }> {

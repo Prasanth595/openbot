@@ -49,7 +49,7 @@ export const messages = {
   "webClient.error.messageTooLong": "El mensaje es demasiado largo.",
   "webClient.error.deliveryUnconfirmed":
     "La entrega del mensaje no está confirmada. Actualiza y comprueba la conversación antes de volver a enviar.",
-  "webClient.error.sidebarLayout": "Este host no admite cambios en la disposición de la barra lateral.",
+  "webClient.error.sidebarLayout": "Este host no admite cambios en la distribución de la barra lateral.",
   "webClient.error.deleteOffline": "Conéctate a tu host antes de eliminar un agente.",
   "webClient.error.attachmentLimit": "Un mensaje puede tener hasta {limit} archivos adjuntos.",
   "webClient.error.linkBlocked": "Este enlace no se puede abrir.",

@@ -30,13 +30,13 @@ export const messages = {
   "error.remote.localTestNotFound": "Sessão de teste local não encontrada.",
   "error.remote.runtimeUnavailable": "O ambiente de execução da área de trabalho remota não está disponível.",
   "error.remote.sunshineStartFailed":
-    "O Sunshine não iniciou no host. Verifique os logs da área de trabalho remota no host e tente de novo.",
+    "O Sunshine não iniciou no computador anfitrião. Verifique os logs da área de trabalho remota no computador anfitrião e tente novamente.",
   "error.remote.moonlightStartFailed":
-    "O Moonlight Web não iniciou no host. Verifique os logs da área de trabalho remota no host e tente de novo.",
+    "O Moonlight Web não iniciou no computador anfitrião. Verifique os logs da área de trabalho remota no computador anfitrião e tente novamente.",
   "error.remote.pairingFailed":
-    "O Moonlight não conseguiu parear com o Sunshine no host. Tente de novo. Se o problema continuar, reinicie o OpenBot no host.",
+    "O Moonlight não conseguiu parear com o Sunshine no computador anfitrião. Tente novamente. Se o problema continuar, reinicie o OpenBot no computador anfitrião.",
   "error.remote.runtimeStartFailed":
-    "O ambiente de execução da área de trabalho remota não iniciou no host. Verifique os logs da área de trabalho remota no host e tente de novo.",
+    "O ambiente de execução da área de trabalho remota não iniciou no computador anfitrião. Verifique os logs da área de trabalho remota no computador anfitrião e tente novamente.",
   "error.remote.hostUnreachable": "Não é possível acessar o computador anfitrião.",
   "error.remote.signInToHostAgain": "Entre neste computador anfitrião novamente.",
   "error.remote.invalidData": "O computador anfitrião retornou dados inválidos.",
@@ -97,6 +97,8 @@ export const messages = {
   "error.remote.fileTransportStopped": "O transporte de arquivos WebRTC parou.",
   "error.remote.fileResumeExpired": "O prazo para retomar a transferência de arquivos WebRTC expirou.",
   "error.remote.hostRequestFailed": "O computador anfitrião não conseguiu concluir a solicitação.",
+  "error.remote.responseTooLarge":
+    "A resposta do computador anfitrião é grande demais para ser enviada a este dispositivo.",
   "error.remote.sessionNotReady": "A sessão remota não está pronta.",
   "error.remote.peerDisconnected": "O par WebRTC se desconectou.",
   "error.remote.tooManyStreams": "Há fluxos demais abertos no computador anfitrião.",
@@ -104,11 +106,11 @@ export const messages = {
   "error.remote.signalRecoveryFailed": "A recuperação do Remote Signal falhou.",
   "error.remote.signalTimeout": "O tempo da conexão com o Remote Signal esgotou.",
   "error.remote.serverConnectionReplaced": "A conexão com o servidor foi substituída.",
-  "error.remote.selectedServerOffline": "O servidor selecionado está desconectado.",
-  "error.remote.hostConnectionOffline": "A conexão com o computador anfitrião está inativa.",
+  "error.remote.selectedServerOffline": "O servidor selecionado está offline.",
+  "error.remote.hostConnectionOffline": "A conexão com o computador anfitrião está offline.",
   "error.remote.appInBackground": "O aplicativo está em segundo plano.",
   "error.remote.desktopRestoreNeeded": "A conexão com o computador precisa ser restaurada.",
-  "error.remote.desktopOffline": "O computador ficou desconectado.",
+  "error.remote.desktopOffline": "O computador ficou offline.",
   "error.remote.operationFailed": "A operação remota falhou.",
   "error.remote.connectionReplaced": "A conexão foi substituída.",
   "error.remote.desktopDidNotConnect": "O computador não se conectou.",
@@ -122,7 +124,7 @@ export const messages = {
   "error.remote.requestNotSent": "Não foi possível enviar a solicitação.",
   "error.remote.channelNotOpen": "O canal WebRTC não está aberto.",
   "error.remote.channelBackpressure": "O canal WebRTC permaneceu com dados pendentes acima da capacidade de envio.",
-  "error.remote.signalOffline": "O Signal está desconectado.",
+  "error.remote.signalOffline": "O Signal está offline.",
   "error.remote.webRtcConnectionFailed": "A conexão WebRTC falhou.",
   "error.remote.serverDisconnected": "O servidor se desconectou.",
   "error.remote.preferencesUnreadable": "Não foi possível ler as preferências salvas do chat.",
@@ -158,7 +160,7 @@ export const messages = {
   "error.remote.serverRequestFailed": "A solicitação ao servidor falhou.",
   "error.remote.sessionNotActive": "A sessão remota não está ativa.",
   "error.remote.accountSessionEnded": "A sessão da conta terminou.",
-  "error.remote.hostOffline": "O computador anfitrião está desconectado.",
+  "error.remote.hostOffline": "O computador anfitrião está offline.",
   "error.remote.sessionEnded": "A sessão remota terminou.",
   "error.remote.ticketInvalidOrExpired": "O tíquete remoto é inválido ou expirou.",
   "error.remote.signalInvalidMessage": "O Signal retornou uma mensagem inválida.",
@@ -175,7 +177,7 @@ export const messages = {
     "Sua conta não tem acesso a este computador anfitrião. Peça acesso ao proprietário.",
   "error.remote.signalRateLimited": "Muitas tentativas de conexão. O OpenBot tenta novamente em {seconds} segundos.",
   "error.remote.signalProtocolError":
-    "O Signal e este aplicativo não concordam sobre o protocolo de conexão. Atualize o OpenBot e tente novamente.",
+    "O Signal e este aplicativo usam protocolos de conexão incompatíveis. Atualize o OpenBot e tente novamente.",
   "error.remote.signalRefused": "O Signal recusou a conexão.",
   "error.remote.signalClosed": "A conexão com o Signal foi fechada antes de o computador anfitrião responder.",
   "error.remote.relayUnavailable":

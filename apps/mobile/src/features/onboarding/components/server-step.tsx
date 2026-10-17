@@ -1,6 +1,10 @@
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { ChevronRight, Cloud, type LucideIcon, Mail, Monitor } from "lucide-react-native";
+import type { LucideIcon } from "lucide-react-native";
+import ChevronRight from "lucide-react-native/icons/chevron-right";
+import Cloud from "lucide-react-native/icons/cloud";
+import Mail from "lucide-react-native/icons/mail";
+import Monitor from "lucide-react-native/icons/monitor";
 import { View } from "react-native";
 import Animated from "react-native-reanimated";
 import { GlassChoice } from "@/features/onboarding/components/onboarding-glass";

@@ -34,7 +34,6 @@ import type {
 } from "@openbot/contracts/ipc";
 import { conversationMessageSender, SIGNED_OUT_CHANNEL_MEMBER_ID } from "@openbot/contracts/ipc";
 import type { LiveActivityRelayPush } from "@openbot/contracts/live-activity-relay";
-import type { NotificationRelayPush } from "@openbot/contracts/notification-relay";
 import type { HostRestartState } from "@openbot/contracts/team-protocol/host-update-v1";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, toLogValue } from "@openbot/logging";
@@ -46,7 +45,11 @@ import { BrowserViewGateway } from "./browser-view-gateway";
 import type { VerifiedRemoteSessionTicket } from "./central-auth-manager";
 import { LiveActivityPushService, LiveActivitySendFailure } from "./live-activity-push";
 import type { PushNotificationStore } from "./push-notification-store";
-import { PushNotificationSendFailure, PushNotificationService } from "./push-notifications";
+import {
+  type NotificationRelayRequest,
+  PushNotificationSendFailure,
+  PushNotificationService,
+} from "./push-notifications";
 import type { RemoteDesktopRuntimePaths } from "./remote-desktop-runtime-artifact";
 import { appendRemoteDiagnosticLog } from "./remote-diagnostics";
 import { RemoteScreenGateway, type RemoteScreenGatewayCreateRuntime } from "./remote-screen-gateway";
@@ -91,7 +94,9 @@ interface HostServiceOptions {
   agentImport?: ForwardedApiOptions["agentImport"];
   instanceTransfer?: ForwardedApiOptions["instanceTransfer"];
   routineFlows?: ForwardedApiOptions["routineFlows"];
+  hiddenAgents?: ForwardedApiOptions["hiddenAgents"];
   admin?: ForwardedApiOptions["admin"];
+  focusUse?: ForwardedApiOptions["focusUse"];
   appVersion: string;
   store: TeamStore;
   agents: ForwardedApiOptions["agents"] & Pick<AgentService, "adoptConversationReads">;
@@ -149,7 +154,7 @@ interface HostServiceOptions {
   /** Sends one sealed notification through the account service. `gone` means the phone gets no more. */
   sendPushNotification?: (
     hostId: string,
-    push: NotificationRelayPush,
+    request: NotificationRelayRequest,
   ) => Effect.Effect<"sent" | "gone", RemoteWorkflowError>;
   /** The phones that get notifications, kept for the next start. */
   pushNotificationStore?: PushNotificationStore;
@@ -315,7 +320,7 @@ export class HostService extends EventEmitter<HostEvents> {
         ? new PushNotificationService({
             agents: options.agents,
             store: pushNotificationStore,
-            send: (push) => {
+            send: (request) => {
               const hostId = options.store.getIdentity()?.serverId;
               if (!hostId)
                 return Effect.fail(
@@ -323,7 +328,7 @@ export class HostService extends EventEmitter<HostEvents> {
                     cause: new Error(sourceText("error.auth.hostCredentialUnavailable")),
                   }),
                 );
-              return sendPushNotification(hostId, push).pipe(
+              return sendPushNotification(hostId, request).pipe(
                 Effect.mapError(({ cause }) => new PushNotificationSendFailure({ cause })),
               );
             },
@@ -363,6 +368,7 @@ export class HostService extends EventEmitter<HostEvents> {
       agentImport: options.agentImport,
       instanceTransfer: options.instanceTransfer,
       routineFlows: options.routineFlows,
+      hiddenAgents: options.hiddenAgents,
       // The identity route changes this host's name and logo through `updateIdentity`, so a change
       // from a joined admin runs every step a local one does.
       admin: {
@@ -381,9 +387,12 @@ export class HostService extends EventEmitter<HostEvents> {
       onDirectMessage: (event) => this.emit("directMessage", event),
       onDirectTyping: (event) => this.emit("directTyping", event),
       createInvite: (input) => this.createInvite(input),
+      updateMember: (input) => this.updateMember(input),
+      removeMember: (memberId) => this.removeMember(memberId),
       onSessionRevoked: (sessionId) => this.#revokeWebRtcSession(sessionId),
       liveActivityPush: this.#liveActivityPush,
       pushNotifications: this.#pushNotifications,
+      focusUse: options.focusUse,
     });
     this.#runtime = ManagedRuntime.make(
       Layer.succeed(
@@ -782,7 +791,7 @@ export class HostService extends EventEmitter<HostEvents> {
       if (yield* this.#cancelSupersededStartEffect(generation)) return this.getStatus();
       if (this.#usesAccountDirectory() && optionalListRemoteMembers) {
         const members = yield* optionalListRemoteMembers(identity.serverId);
-        yield* this.#options.store.syncRemoteDirectory(identity.serverId, members);
+        yield* this.#syncRemoteDirectory(identity.serverId, members);
         if (yield* this.#cancelSupersededStartEffect(generation)) return this.getStatus();
       }
       const bootstrap = yield* optionalIssueRemoteHostTicket(identity.serverId);
@@ -938,7 +947,7 @@ export class HostService extends EventEmitter<HostEvents> {
         // account's. Answer with the now-active host's own members rather than failing a
         // read with the store's cross-account guard.
         if (!this.#isActiveHost(hostId)) return this.#options.store.listMembers();
-        yield* this.#options.store.syncRemoteDirectory(hostId, members);
+        yield* this.#syncRemoteDirectory(hostId, members);
         // Recording the directory is a write, and the switch can land during it. The names,
         // addresses and roles below are the previous account's if it did.
         if (!this.#isActiveHost(hostId)) return this.#options.store.listMembers();
@@ -1109,10 +1118,12 @@ export class HostService extends EventEmitter<HostEvents> {
         const updated = members.find((member) => member.membershipId === input.memberId);
         if (!updated)
           return yield* new RemoteWorkflowError({ cause: new Error(sourceText("error.host.memberNotFound")) });
-        yield* this.#options.store.syncRemoteDirectory(hostId, members);
+        yield* this.#syncRemoteDirectory(hostId, members);
         // Recording the directory is a write too, so the switch can land inside it and the
         // member below would be the previous account's.
         yield* remoteDecode(() => this.#assertStillActiveHost(hostId));
+        if (updated.role !== current.role || updated.status !== current.status)
+          yield* this.#revokeMemberSessions(input.memberId);
         return {
           id: updated.membershipId,
           username: updated.email,
@@ -1144,8 +1155,9 @@ export class HostService extends EventEmitter<HostEvents> {
         yield* optionalRemoveRemoteMember(hostId, memberId);
         if (optionalListRemoteMembers) {
           const members = yield* optionalListRemoteMembers(hostId);
-          yield* this.#options.store.syncRemoteDirectory(hostId, members);
+          yield* this.#syncRemoteDirectory(hostId, members);
         }
+        yield* this.#revokeMemberSessions(memberId);
         return;
       }
       yield* this.#options.store.removeMember(memberId);
@@ -1165,6 +1177,50 @@ export class HostService extends EventEmitter<HostEvents> {
     },
     (operation) => this.#provide(operation),
   ).bind(this);
+
+  /** Records the directory, and closes the sessions that it no longer allows. */
+  readonly #syncRemoteDirectory = Effect.fn("HostService.syncRemoteDirectory")(function* (
+    this: HostService,
+    hostId: string,
+    members: RemoteDirectoryMember[],
+  ): Effect.fn.Return<void, RemoteWorkflowError> {
+    const closed = yield* this.#options.store.syncRemoteDirectory(hostId, members);
+    if (closed.length === 0) return;
+    for (const sessionId of closed) yield* this.#closeLocalSession(sessionId);
+    this.#api.refreshPresence();
+  });
+
+  /**
+   * Ends every session of a member after the account directory changed the membership. A WebRTC
+   * session keeps the role that the account service gave when it opened, so the change does not
+   * reach a connected member until this closes the session. The member connects again with the new
+   * role, or cannot connect. The account service already ended these sessions with the membership
+   * change, so only the local parts close here: one failed account call cannot leave a session open.
+   */
+  readonly #revokeMemberSessions = Effect.fn("HostService.revokeMemberSessions")(function* (
+    this: HostService,
+    memberId: string,
+  ): Effect.fn.Return<void, RemoteWorkflowError> {
+    for (const session of this.#options.store.listSessions()) {
+      if (session.memberId !== memberId) continue;
+      yield* this.#closeLocalSession(session.id);
+      yield* this.#options.store.revokeSession(session.id);
+    }
+    yield* this.#remoteScreen.revokeMember(memberId);
+    this.#api.refreshPresence();
+  });
+
+  /** Closes this computer's parts of one session. The account service ends the session itself. */
+  readonly #closeLocalSession = Effect.fn("HostService.closeLocalSession")(function* (
+    this: HostService,
+    sessionId: string,
+  ): Effect.fn.Return<void, RemoteWorkflowError> {
+    this.#liveActivityPush?.remove(sessionId);
+    this.#pushNotifications?.remove(sessionId);
+    if (this.#webrtcGateway) yield* this.#webrtcGateway.revokeSession(sessionId);
+    yield* this.#remoteScreen.revokeTeamSession(sessionId);
+    yield* this.#browserView.revokeTeamSession(sessionId);
+  });
 
   readonly #revokeWebRtcSession = Effect.fn("HostService.revokeWebRtcSession")(function* (
     this: HostService,

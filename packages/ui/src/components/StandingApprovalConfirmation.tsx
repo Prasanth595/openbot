@@ -1,7 +1,7 @@
 import { ConfirmDialog } from "@openbot/ui";
 import { useText } from "@openbot/ui/text";
 
-/** Explains the same standing grant from the approval card and the model picker. */
+/** Explains the Full access level that "Always allow" on an approval card gives. */
 export function StandingApprovalConfirmation(props: {
   open: boolean;
   agentName?: string;

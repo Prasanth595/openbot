@@ -58,6 +58,7 @@ export const messages = defineMessages("error.team", {
   "error.team.membersCannotArchiveChannels": "Members cannot archive channels.",
   "error.team.sharedDataUnsupported": "Shared data is not supported by this connection.",
   "error.team.agentInstallUnsupported": "Adding agents is not supported by this connection.",
+  "error.team.agentHideUnsupported": "Hiding agents is not supported by this connection.",
   "error.team.agentPublishUnsupported": "Publishing agents is not supported by this connection.",
   "error.team.agentUpdateUnsupported": "Updating agents is not supported by this connection.",
   "error.team.contextResetUnsupported": "Starting a new chat is not supported by this connection.",
@@ -67,6 +68,8 @@ export const messages = defineMessages("error.team", {
     "This server does not support routine flows. Update OpenBot on the computer that runs it.",
   "error.team.routineCanvasTooLarge":
     "This routine canvas is too large to send to this device. Shorten the routine instructions on the computer that runs the server.",
+  "error.team.conversationPageTooLarge":
+    "A message in this conversation is too large to send to this device. Open the conversation on the computer that runs the server.",
   "error.team.agentImportUnsupported": "Importing agents is not supported by this connection.",
   "error.team.instanceTransferUnsupported": "Transferring agents is not supported by this connection.",
   "error.team.liveActivityUnsupported": "This host cannot update the Live Activity of a phone.",
@@ -100,6 +103,7 @@ export const messages = defineMessages("error.team", {
   "error.team.searchQueryRequired": "A valid search query is required.",
   "error.team.agentAnalyticsUnsupported": "Agent analytics is not supported by this client.",
   "error.team.membersCannotDeleteAgents": "Members cannot delete agents.",
+  "error.team.membersCannotHideAgents": "Members cannot hide or restore agents.",
   "error.team.avatarType": "Choose a PNG, JPEG, or WebP image.",
   "error.team.avatarNotFound": "Agent avatar not found.",
   "error.team.secureAuthUnsupported": "Secure authentication is not supported by this client.",

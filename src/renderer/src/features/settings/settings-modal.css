@@ -2,21 +2,6 @@
   display: contents;
 }
 
-.settings-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: var(--openbot-layer-dialog);
-  display: grid;
-  place-items: center;
-  padding: var(--openbot-space-6);
-  animation: settings-modal-backdrop-in var(--openbot-duration-normal) var(--openbot-ease-out) both;
-  will-change: opacity;
-}
-
-.settings-modal-backdrop[data-motion="closing"] {
-  animation: settings-modal-backdrop-out var(--openbot-duration-fast) var(--openbot-ease-in-out) both;
-}
-
 .settings-modal {
   --openbot-bg-surface: var(--openbot-bg-control);
   --openbot-text-muted: var(--openbot-settings-text-muted);
@@ -35,21 +20,6 @@
   will-change: transform, opacity;
 }
 
-.settings-modal[data-motion="closing"] {
-  pointer-events: none;
-  animation: settings-modal-out var(--openbot-duration-fast) var(--openbot-ease-in-out) both;
-}
-
-.settings-modal-sidebar {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--openbot-space-3);
-  border-right: 1px solid var(--openbot-border);
-  background: var(--openbot-bg-sidebar);
-  padding: var(--openbot-space-6) var(--openbot-space-4);
-}
-
 .settings-modal-nav {
   display: grid;
   gap: var(--openbot-space-1);
@@ -58,6 +28,7 @@
 .settings-modal-nav-item {
   position: relative;
   width: 100%;
+  height: auto;
   min-height: var(--openbot-control-md);
   display: grid;
   grid-template-columns: var(--openbot-icon-md) minmax(0, 1fr) auto;
@@ -478,11 +449,6 @@
     0 0 0 1px var(--openbot-dialog-ring);
 }
 
-:is(.app-settings-modal-shell, .server-settings-modal-shell) .settings-modal-sidebar {
-  gap: 0;
-  padding: var(--openbot-space-4) var(--openbot-space-3);
-}
-
 :is(.app-settings-modal-shell, .server-settings-modal-shell) .settings-modal-nav {
   gap: var(--openbot-space-1);
 }
@@ -820,26 +786,6 @@
   }
 }
 
-@keyframes settings-modal-backdrop-in {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes settings-modal-backdrop-out {
-  from {
-    opacity: 1;
-  }
-
-  to {
-    opacity: 0;
-  }
-}
-
 @keyframes settings-modal-in {
   from {
     opacity: 0;
@@ -852,35 +798,12 @@
   }
 }
 
-@keyframes settings-modal-out {
-  from {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-
-  to {
-    opacity: 0;
-    transform: translateY(4px) scale(0.985);
-  }
-}
-
 @media (max-width: 720px) {
-  .settings-modal-backdrop {
-    padding: var(--openbot-space-3);
-  }
-
   .settings-modal {
     width: calc(100vw - 24px);
     height: calc(100dvh - 24px);
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
-  }
-
-  .settings-modal-sidebar {
-    gap: var(--openbot-space-2);
-    border-right: 0;
-    border-bottom: 1px solid var(--openbot-border);
-    padding: var(--openbot-space-3);
   }
 
   .settings-modal-nav {
@@ -907,13 +830,6 @@
     height: calc(100dvh - 24px);
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
-  }
-
-  :is(.app-settings-modal-shell, .server-settings-modal-shell) .settings-modal-sidebar {
-    gap: var(--openbot-space-2);
-    border-right: 0;
-    border-bottom: 1px solid var(--openbot-border);
-    padding: var(--openbot-space-3);
   }
 
   :is(.app-settings-modal-shell, .server-settings-modal-shell) .settings-modal-header {
@@ -996,10 +912,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .settings-modal-backdrop,
-  .settings-modal-backdrop[data-motion="closing"],
-  .settings-modal,
-  .settings-modal[data-motion="closing"] {
+  .settings-modal {
     animation: none;
   }
 

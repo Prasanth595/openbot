@@ -21,10 +21,12 @@ import {
   FILES_LAUNCH_ROWS,
   FILES_LONG_NAME_ROWS,
   FILES_NOW,
+  FILES_OLD_RUNTIME_BYTES,
   FILES_ROWS,
   FILES_STATUS_ROWS,
 } from "./files-fixtures";
 import { STORY_AGENT, STORY_AGENT_STATUS, STORY_MODELS } from "./fixtures";
+import { SettingsPageStory } from "./settings-page-story";
 
 const meta = {
   title: "Files/Storage",
@@ -54,6 +56,8 @@ const overviewArgs = (): OverviewArgs => ({
   onOpenAgent: fn(),
   onOpenConversation: fn(),
   onClear: fn(async () => undefined),
+  oldRuntimeBytes: FILES_OLD_RUNTIME_BYTES,
+  onRemoveOldRuntimes: fn(async () => undefined),
   onPreviewFile: fn(),
   onFileAction: fn(async () => undefined),
 });
@@ -166,34 +170,37 @@ const SERVER_SETTINGS_NAV = [
 function ServerSettingsStage(props: { args: OverviewArgs }) {
   const [tab, setTab] = createSignal("storage");
   return (
-    <Tabs.Root value={tab()} onChange={setTab} orientation="vertical" class="settings-modal-tabs-root">
-      <SettingsDialogShell
-        class="server-settings-modal-shell"
-        open
-        onOpenChange={() => undefined}
-        title="Storage"
-        description="See how much disk space this server uses."
-        contentKey={tab()}
-        closeLabel="Close server settings"
-        sidebar={
-          <Tabs.List class="settings-modal-nav" aria-label="Server settings sections">
-            {SERVER_SETTINGS_NAV.map((item) => {
-              const NavIcon = item.icon;
-              return (
-                <Tabs.Trigger class="settings-modal-nav-item" value={item.value}>
-                  <NavIcon aria-hidden="true" />
-                  <span>{item.label}</span>
-                </Tabs.Trigger>
-              );
-            })}
-          </Tabs.List>
-        }
-      >
-        <Tabs.Content value="storage" class="settings-modal-tab-panel server-settings-panel" data-tab="storage">
-          <StorageOverview {...props.args} />
-        </Tabs.Content>
-      </SettingsDialogShell>
-    </Tabs.Root>
+    <SettingsPageStory title="Server settings">
+      {(page) => (
+        <Tabs.Root value={tab()} onChange={setTab} orientation="vertical" class="settings-modal-tabs-root">
+          <SettingsDialogShell
+            class="server-settings-modal-shell"
+            open
+            page={page()}
+            title="Storage"
+            description="See how much disk space this server uses."
+            contentKey={tab()}
+            sidebar={
+              <Tabs.List class="settings-modal-nav" aria-label="Server settings sections">
+                {SERVER_SETTINGS_NAV.map((item) => {
+                  const NavIcon = item.icon;
+                  return (
+                    <Tabs.Trigger class="settings-modal-nav-item" value={item.value}>
+                      <NavIcon aria-hidden="true" />
+                      <span>{item.label}</span>
+                    </Tabs.Trigger>
+                  );
+                })}
+              </Tabs.List>
+            }
+          >
+            <Tabs.Content value="storage" class="settings-modal-tab-panel server-settings-panel" data-tab="storage">
+              <StorageOverview {...props.args} />
+            </Tabs.Content>
+          </SettingsDialogShell>
+        </Tabs.Root>
+      )}
+    </SettingsPageStory>
   );
 }
 

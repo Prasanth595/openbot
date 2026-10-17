@@ -66,7 +66,7 @@ export const messages = {
 
   "skill.preview.label": "Превью: {name}",
   "skill.preview.creator": "Автор: {name}",
-  "skill.preview.examplePrompt": "Помоги мне использовать этот навык.",
+  "skill.preview.examplePrompt": "Помогите мне использовать этот навык.",
   "skill.preview.try": "Попробовать навык",
   "skill.preview.linkFailed": "Не удалось открыть ссылку.",
 } as const satisfies PartialTranslation<typeof source>;

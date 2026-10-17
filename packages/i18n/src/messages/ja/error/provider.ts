@@ -5,7 +5,7 @@ export const messages = {
   "error.provider.mcpConfig":
     "OpenBot は Codex の設定に MCP サーバーを登録できませんでした。Codex の config.toml が有効で書き込み可能であることを確認してから、OpenBot を再起動してください。",
   "error.provider.computerUseConfig":
-    "OpenBot は Codex の設定に Computer Use を登録できませんでした。Codex の config.toml が有効で書き込み可能であることを確認してから、OpenBot を再起動してください。Computer Use なしで続行するには、チームメイトの設定で Computer Use をオフにできます。",
+    "OpenBot は Codex の設定に Computer Use を登録できませんでした。Codex の config.toml が有効で書き込み可能であることを確認してから、OpenBot を再起動してください。Computer Use なしで続行するには、エージェントの設定で Computer Use をオフにできます。",
   "error.provider.endpointsReadOnly":
     "保存されたエンドポイントは新しいバージョンの OpenBot で書き込まれたか、ファイルを読み取れません。変更するには OpenBot を更新してください。",
   "error.provider.endpointNoSecureStorage":
@@ -150,6 +150,10 @@ export const messages = {
     "{provider} が時間内に応答しませんでした。コンピューターの負荷が高い可能性があります。OpenBot が再試行します。",
   "error.provider.cliTimedOutRefresh":
     "{provider} が時間内に応答しませんでした。コンピューターの負荷が高い可能性があります。プロバイダーを更新して再試行してください。",
+  "error.provider.acpStartTimedOut":
+    "{provider} の起動が {seconds} 秒以内に完了しませんでした。コンピューターの負荷が高い可能性があります。",
+  "error.provider.acpModelsTimedOut":
+    "{provider} が {seconds} 秒以内にモデルを一覧表示しませんでした。コンピューターの負荷が高い可能性があります。",
   "error.provider.startStopped":
     "{provider} の起動に続けて何度も失敗したため、OpenBot は再試行を停止しました。プロバイダーを更新して再試行してください。",
   "error.provider.tempDiskSpace":
@@ -194,7 +198,7 @@ export const messages = {
   "error.provider.noneReady": "準備ができているエージェントのプロバイダーがありません。",
   "error.provider.claudeTurnActive": "コンテキストを更新する前に、実行中の Claude のターンが終わるまでお待ちください。",
   "error.provider.codexLoginRequired":
-    "Codex には ChatGPT サブスクリプションでのログインが必要です。`codex login` を実行してください。",
+    "Codex には ChatGPT サブスクリプションでのサインインが必要です。`codex login` を実行してください。",
   "error.provider.cliUpdateFailed": "OpenBot は {provider} CLI を更新できませんでした。{reason}",
   "error.provider.tryAgain": "もう一度お試しください。",
   "error.provider.noAgentProcess": "{provider} には、このエージェント用に実行中のプロセスがありません。",
@@ -234,6 +238,10 @@ export const messages = {
   "error.provider.usageLimitReached": "アカウントが使用量の上限に達しました。",
   "error.provider.foreignReasoning":
     "別のアカウントまたは API キーが受け取ったため、{provider} はこのチャットの以前の推論を受け付けませんでした。OpenBot はチャット履歴を引き継いだ新しい {provider} セッションを開始しました。もう一度お試しください。",
+  "error.provider.opencodeSessionRejected":
+    "OpenCode がリクエストを拒否しましたが、原因は示されていません。長いチャットやモデルの変更後に起こることがあります。OpenBot はチャット履歴を引き継いだ新しい OpenCode セッションを開始しました。もう一度お試しください。エラーが続く場合は、別のモデルを選ぶか推論レベルを下げてください。",
+  "error.provider.museMcpStartupFault":
+    "Muse が MCP サーバーを起動できず、このセッションで MCP をブロックしました。OpenBot はチャット履歴を引き継いだ新しい Muse セッションを開始しました。もう一度お試しください。エラーが続く場合は、このエージェントの Computer Use または失敗した MCP サーバーをオフにしてください。",
   "error.provider.grokSignIn": "Grok を使うには `grok login` を実行するか、XAI_API_KEY を設定してください。",
   "error.provider.acpSignInTimedOut": "サインインがタイムアウトしました。",
   "error.provider.acpSignInStopped": "サインインが完了する前に停止しました。",
@@ -242,8 +250,8 @@ export const messages = {
   "error.provider.acpSignInFailed": "サインインが完了しませんでした。",
   "error.provider.acpSignInFailedReason": "サインインが完了しませんでした: {reason}",
   "error.provider.acpSignInMethodMissing":
-    "このプロバイダはこのコンピュータでこのサインイン方法を提供していません。プロバイダを更新してから、もう一度お試しください。",
-  "error.provider.httpsSignInLinkOnly": "ブラウザで開けるのは HTTPS のサインインリンクだけです。",
+    "このプロバイダーはこのコンピューターでこのサインイン方法を提供していません。プロバイダーを更新してから、もう一度お試しください。",
+  "error.provider.httpsSignInLinkOnly": "ブラウザーで開けるのは HTTPS のサインインリンクだけです。",
   "error.provider.geminiKeyRefused":
     "Gemini は保存された API キーを拒否しました。設定でキーを置き換えるか削除してから、もう一度接続してください。",
   "error.provider.messageTooLarge":
@@ -288,7 +296,7 @@ export const messages = {
   "error.provider.accountNeedsConnection": "別のアカウントを追加する前に {provider} に接続してください。",
   "error.provider.accountLimit": "{provider} で使えるアカウントは最大 {limit} 個です。",
   "error.provider.accountNotFound":
-    "この {provider} アカウントはこのコンピュータにありません。更新してからもう一度お試しください。",
+    "この {provider} アカウントはこのコンピューターにありません。更新してからもう一度お試しください。",
   "error.provider.accountAlreadyAdded": "この {provider} アカウントはすでに接続されています。",
   "error.provider.accountDefault": "最初の {provider} アカウントは削除できません。",
   "error.provider.accountInUse":

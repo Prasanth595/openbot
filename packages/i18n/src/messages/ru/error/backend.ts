@@ -3,15 +3,16 @@ import type { messages as source } from "../../en/error/backend";
 
 export const messages = {
   "error.backend.eventsUnavailable": "События недоступны на этом хосте.",
+  "error.backend.databaseIntegrity": "База данных OpenBot не прошла проверку целостности.",
   "error.backend.webhookRouteLimit": "На хосте может быть не более {limit} регулярных задач с вебхуком.",
   "error.backend.webhookSettingsInvalid": "Проверьте настройки вебхука и повторите попытку.",
   "error.backend.webhookRouteUnavailable":
     "Публичный маршрут вебхука не готов. Проверьте подключение хоста и повторите попытку.",
-  "error.backend.browserViewRemoteOnly": "Живой вид браузера доступен только для удалённого хоста.",
-  "error.backend.browserViewUnsupported": "Этот удалённый хост не поддерживает живой вид браузера.",
+  "error.backend.browserViewRemoteOnly": "Просмотр браузера в реальном времени доступен только для удалённого хоста.",
+  "error.backend.browserViewUnsupported": "Этот удалённый хост не поддерживает просмотр браузера в реальном времени.",
   "error.backend.browserViewLimit": "На этом хосте открыто слишком много видов браузера.",
-  "error.backend.browserViewEnded": "Живой вид этой страницы завершён.",
-  "error.backend.browserViewFailed": "Живой вид этой страницы не удался.",
+  "error.backend.browserViewEnded": "Показ этой страницы в реальном времени завершён.",
+  "error.backend.browserViewFailed": "Не удалось показать эту страницу в реальном времени.",
   "error.backend.windowTemporarilyUnavailable": "Окно OpenBot временно недоступно.",
   "error.backend.windowUnavailable": "Окно OpenBot недоступно.",
   "error.backend.sunshineApiHttp": "API Sunshine вернул ошибку HTTP {status}.",
@@ -110,7 +111,7 @@ export const messages = {
   "error.backend.editedOnOtherDevice": "Это сообщение редактируется на другом устройстве.",
   "error.backend.editUnavailable": "Это изменение больше недоступно.",
   "error.backend.attachmentInOtherEdit": "Вложение относится к другому изменению.",
-  "error.backend.messageBeingSaved": "Это сообщение сохраняется. Повторите после завершения.",
+  "error.backend.messageBeingSaved": "Это сообщение сохраняется. Повторите попытку после завершения.",
   "error.backend.editQueuedOnly": "Редактировать можно только сообщения в очереди.",
   "error.backend.attachmentNotInMessage": "Вложение не относится к сообщению в очереди.",
   "error.backend.queueOrderStale": "Порядок очереди устарел. Обновите очередь и повторите попытку.",
@@ -118,7 +119,8 @@ export const messages = {
   "error.backend.managedAttachmentChanged": "Управляемое вложение отсутствует или изменилось: {name}",
   "error.backend.mailboxStateCorrupt":
     "Состояние почтового ящика повреждено или создано более новой версией OpenBot; перезапись отклонена.",
-  "error.backend.recipientDeleting": "Получатель удаляется. Повторите после завершения удаления.",
+  "error.backend.recipientDeleting": "Получатель удаляется. Повторите попытку, когда удаление завершится.",
+  "error.backend.recipientHidden": "Этот агент скрыт. Восстановите его, чтобы отправлять сообщения.",
   "error.backend.attachBetween": "Прикрепите от 1 до {limit} файлов.",
   "error.backend.attachmentNotFile": "Вложение не является файлом: {path}",
   "error.backend.generatedImageTooLarge": "Созданное изображение превышает лимит 100 МБ.",
@@ -136,20 +138,22 @@ export const messages = {
   "error.backend.routineCronTooOften": "Свои расписания должны срабатывать не чаще чем раз в {minutes} мин.",
   "error.backend.routineAnchorInvalid": "Точка отсчёта интервала регулярной задачи некорректна.",
   "error.backend.routineNoOccurrence": "У расписания нет срабатываний в ближайшие пять лет.",
-  "error.backend.routineOncePassed": "Время этой однократной задачи уже прошло. Выберите более позднюю дату или время.",
+  "error.backend.routineOncePassed":
+    "Время этой однократной регулярной задачи уже прошло. Выберите более позднюю дату или время.",
   "error.backend.routineTimezoneInvalid": "Часовой пояс регулярной задачи некорректен.",
   "error.backend.routineCronFields": "Свои расписания должны использовать пять полей cron.",
   "error.backend.routineCronValueInvalid": "Значение {field} в cron некорректно.",
   "error.backend.routineCronFieldEmpty": "Поле {field} в cron пусто.",
   "error.backend.routineDeletionBusy": "Для этого агента уже идёт удаление другой регулярной задачи.",
   "error.backend.routineWaitForAgent": "Дождитесь завершения операции агента, прежде чем запускать регулярную задачу.",
-  "error.backend.routineRunStarting": "Этот запуск регулярной задачи ещё начинается. Повторите после начала его хода.",
+  "error.backend.routineRunStarting":
+    "Этот запуск регулярной задачи ещё начинается. Повторите попытку, когда начнётся его ход.",
   "error.backend.routineRunNoSession":
     "OpenBot не может прервать активный запуск регулярной задачи, потому что сессия его провайдера недоступна.",
   "error.backend.interruptSelf": "Агент не может прервать сам себя.",
   "error.backend.interruptOtherWork":
     "Этот агент работает над задачей, которую начало не ваше сообщение. Остановить её могут только пользователь или отправитель этой задачи.",
-  "error.backend.interruptStarting": "Этот агент ещё начинает ход. Повторите после начала хода.",
+  "error.backend.interruptStarting": "Этот агент ещё начинает ход. Повторите попытку, когда ход начнётся.",
   "error.backend.interruptNoSession":
     "OpenBot не может прервать этого агента, потому что сессия его провайдера недоступна.",
   "error.backend.memoryTextRequired": "Нужен текст записи памяти.",
@@ -159,8 +163,9 @@ export const messages = {
   "error.backend.routineFlowSameAgent": "Агент не может передать работу самому себе.",
   "error.backend.routineFlowIntoOwner":
     "Регулярная задача начинается со своего агента, поэтому он не может получать работу от другого.",
-  "error.backend.routineFlowNotOnPath": "Этот агент ещё не участвует в задаче. Сначала подключите его к задаче.",
-  "error.backend.routineFlowDuplicate": "Эти агенты уже связаны в этой задаче.",
+  "error.backend.routineFlowNotOnPath":
+    "Этот агент ещё не участвует в регулярной задаче. Сначала подключите его к ней.",
+  "error.backend.routineFlowDuplicate": "Эти агенты уже связаны в этой регулярной задаче.",
   "error.backend.routineFlowCycle": "Эта связь создаст цикл.",
   "error.backend.routineFlowLinkLimit": "У регулярной задачи может быть не больше {limit} связей.",
   "error.backend.agentWaitLimit":
@@ -174,7 +179,7 @@ export const messages = {
   "error.backend.agentWaitNoRoutine":
     "Ожидание пробуждает только запуск одной из ваших регулярных задач, а у вас их нет. Создайте регулярную задачу с помощью openbot.create_routine, затем откройте ожидание.",
   "error.backend.agentWaitRemoteUnsupported": "Открытые ожидания доступны только для агентов на этом компьютере.",
-  "error.backend.routineFlowHandoffFailed": "Задаче не удалось передать работу этому агенту.",
+  "error.backend.routineFlowHandoffFailed": "Регулярной задаче не удалось передать работу этому агенту.",
   "error.backend.mcpServerLimit": "OpenBot хранит не более {limit} серверов MCP.",
   "error.backend.mcpServerNameTaken": "Сервер MCP с именем {name} уже существует.",
   "error.backend.mcpServerNoAnswer": "Сервер не ответил за {seconds} с.",
@@ -274,4 +279,19 @@ export const messages = {
   "error.backend.mcpSignInAppNoServer":
     "Сохраните этот MCP-сервер как URL-сервер, прежде чем добавлять приложение входа.",
   "error.backend.mcpSignInAppUnavailable": "Этот компьютер не может хранить приложение входа.",
+  "error.backend.taskMoveRefused":
+    "Задачей можно запустить только сообщение, которое вы отправили одному этому агенту.",
+  "error.backend.taskNotFound": "Эта задача недоступна.",
+  "error.backend.taskClosed": "Эта задача закрыта. Откройте её снова, чтобы отправить сообщение.",
+  "error.backend.taskStillRunning": "Эта задача ещё выполняется. Дождитесь её остановки, затем закройте её.",
+  "error.backend.taskTitleRequired": "Дайте задаче короткое название.",
+  "error.backend.taskToolInvalid": "Дайте задаче название не длиннее 120 символов и описание того, что нужно сделать.",
+  "error.backend.taskOwnChatOnly":
+    "Задачу можно начать только из своего чата. Канал, диалог в мессенджере или другая задача не может её начать.",
+  "error.backend.taskOpenLimit":
+    "У этого агента уже открыто задач: {count}. Дождитесь, пока пользователь закроет одну из них, прежде чем начинать новую.",
+  "error.backend.taskOpenLimitReached":
+    "У этого агента открыто задач: {count}. Закройте задачу, затем начните или откройте другую.",
+  "error.backend.taskRemoteUnsupported": "Задачи доступны только для агентов на этом компьютере.",
+  "error.backend.taskStartFailed": "OpenBot не удалось запустить задачу. Выполните работу в этом ходе.",
 } as const satisfies PartialTranslation<typeof source>;

@@ -11,7 +11,7 @@ export const messages = {
   "mobile.workspace.status.attemptPrefix": "Tentativo ",
   "mobile.workspace.status.retryIn": "Riprova tra {seconds} secondi",
   "mobile.workspace.section.agents": "Agenti",
-  "mobile.workspace.error.directoryUnavailable": "La cartella del server non è disponibile.",
+  "mobile.workspace.error.directoryUnavailable": "L'elenco dei server non è disponibile.",
   "mobile.workspace.error.sectionsLoadFailed": "Impossibile caricare le sezioni. Riprova.",
   "mobile.workspace.error.transportNotReady": "Il trasporto mobile non è pronto.",
   "mobile.workspace.error.sectionsUnsupported": "Questo host non supporta la modifica delle sezioni.",
@@ -26,10 +26,6 @@ export const messages = {
   "mobile.workspace.error.approvalInactive":
     "Questa richiesta non è più in attesa. Ha risposto un altro dispositivo, oppure l'attività si è fermata.",
   "mobile.workspace.error.approvalOffline": "Connettiti al server per rispondere a questa richiesta.",
-  "mobile.workspace.notification.allow": "Consenti",
-  "mobile.workspace.notification.deny": "Rifiuta",
-  "mobile.workspace.notification.answerFailed":
-    "La tua risposta non ha raggiunto il server. Apri OpenBot per rispondere.",
   "mobile.workspace.alert.preferencesTitle": "Impossibile salvare le preferenze della chat",
   "mobile.workspace.alert.preferencesBody": "Le preferenze precedenti sono state mantenute. Riprova.",
   "mobile.workspace.alert.updateRequiredTitle": "Aggiornamento necessario",

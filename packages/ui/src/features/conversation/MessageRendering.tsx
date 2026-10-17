@@ -2,9 +2,20 @@ import { chatPreviewKind } from "@openbot/contracts/chat-preview";
 import type { AttachmentSummary, InstalledSkill, MessageReaction } from "@openbot/contracts/ipc";
 import { canPreviewAttachment, MESSAGE_REACTIONS, MORE_MESSAGE_REACTIONS } from "@openbot/contracts/ipc";
 import { parseSelectionInstruction } from "@openbot/contracts/selection-instruction";
-import { type BubbleVariant, Button, DropdownMenu } from "@openbot/ui";
+import { type BubbleVariant, Button, DropdownMenu, Info, LoaderCircle } from "@openbot/ui";
 import { prefersReducedMotion } from "@openbot/ui/utils";
-import { createEffect, createMemo, createSignal, For, Match, onCleanup, Show, Switch, untrack } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  createUniqueId,
+  For,
+  Match,
+  onCleanup,
+  Show,
+  Switch,
+  untrack,
+} from "solid-js";
 import type { AgentMessage, AgentProfile } from "../../data";
 import { useText } from "../../text";
 import { AttachmentCards, type AttachmentMediaSource } from "./AttachmentCards";
@@ -85,6 +96,9 @@ function createStreamingBody(message: () => AgentMessage, animate?: boolean) {
   const [animateTail, setAnimateTail] = createSignal(false);
   const [smoothHeight, setSmoothHeight] = createSignal(targetStreaming || animateInitialText);
   let smoothingActive = targetStreaming || animateInitialText;
+  /* A plain copy, for the same reason as `shownBody`: true when the height smoothing, tail and
+     trail are all off and no timer will change them. */
+  let smoothingSettled = !smoothingActive;
   let timings: ReturnType<typeof streamingTimings> | undefined;
   const timing = () => {
     timings ??= streamingTimings();
@@ -106,13 +120,18 @@ function createStreamingBody(message: () => AgentMessage, animate?: boolean) {
   const keepHeightSmoothingActive = () => {
     if (smoothHeightTimer !== undefined) window.clearTimeout(smoothHeightTimer);
     smoothHeightTimer = undefined;
+    smoothingSettled = false;
     setSmoothHeight(true);
   };
   const settleHeightSmoothing = () => {
+    /* Each row that the virtual list mounts comes here. When nothing animated, there is nothing to
+       settle, and reading the timing tokens would force a style recalculation per row. */
+    if (smoothingSettled) return;
     if (smoothHeightTimer !== undefined) window.clearTimeout(smoothHeightTimer);
     smoothHeightTimer = window.setTimeout(
       () => {
         smoothHeightTimer = undefined;
+        smoothingSettled = true;
         setSmoothHeight(false);
         setAnimateTail(false);
         setTrail([]);
@@ -137,6 +156,7 @@ function createStreamingBody(message: () => AgentMessage, animate?: boolean) {
       ...steps.filter((chunk) => now - chunk.revealedAt < fadeMs),
       { length: step.length - shownBody.length, revealedAt: now },
     ]);
+    smoothingSettled = false;
     setAnimateTail(true);
     showBody(targetBody.slice(0, step.length));
     return true;
@@ -235,6 +255,14 @@ export function MessageBody(props: {
    * an agent chat names another person the reader quotes. Absent, the quote says "You" or "Agent".
    */
   referencedAuthorName?: string;
+  /** Opens the quoted message in the chat. Absent, the quote is not a control. */
+  onOpenReference?: () => void;
+  /**
+   * `loading` while the chat loads the history around the original. `unavailable` when the chat did
+   * not find it: a note says so. A quote stays open to a new try, because a load can fail for a
+   * time. With no quote, only the note shows.
+   */
+  referenceState?: "loading" | "unavailable" | undefined;
   agents: AgentProfile[];
   skills?: InstalledSkill[];
   onSelectAgent: (agentId: string) => void;
@@ -252,6 +280,8 @@ export function MessageBody(props: {
     untrack(() => props.animate),
   );
   const streamedBody = streamingBody.body;
+  const referenceOpens = () => Boolean(props.onOpenReference);
+  const referenceTextId = `message-reply-${createUniqueId()}`;
   const selectionInstruction = createMemo(() =>
     props.message.author === "you" && props.message.replyToMessageId
       ? parseSelectionInstruction(props.message.body)
@@ -390,12 +420,34 @@ export function MessageBody(props: {
       </Show>
       <Show when={props.referencedMessage}>
         {(referenced) => (
-          <div class="message-reply-context">
-            <span>
+          <div
+            class="message-reply-context"
+            data-opens={referenceOpens() ? "" : undefined}
+            data-loading={props.referenceState === "loading" ? "" : undefined}
+            data-unavailable={props.referenceState === "unavailable" ? "" : undefined}
+          >
+            {/*
+             * The button lies over the quote, not around it: the quote can hold links and mentions,
+             * and a button cannot hold a control. The quote under it is inert, so a click and the
+             * Tab key both reach the button only.
+             */}
+            <Show when={referenceOpens()}>
+              <Button
+                variant="ghost"
+                type="button"
+                class="message-reply-open"
+                aria-label={t("chat.reply.showOriginal")}
+                aria-describedby={referenceTextId}
+                aria-busy={props.referenceState === "loading" ? "true" : undefined}
+                data-cuelume-tap="navigate"
+                onClick={() => props.onOpenReference?.()}
+              />
+            </Show>
+            <span inert={referenceOpens() ? true : undefined}>
               {props.referencedAuthorName ??
                 (referenced().author === "you" ? t("chat.message.you") : t("chat.message.agentFallback"))}
             </span>
-            <p>
+            <p id={referenceTextId} inert={referenceOpens() ? true : undefined}>
               <RichMessageText
                 body={referenced().body || t("chat.message.attachment")}
                 agents={props.agents}
@@ -410,8 +462,18 @@ export function MessageBody(props: {
                 showCitationFooter={false}
               />
             </p>
+            <Show when={props.referenceState === "loading"}>
+              <LoaderCircle class="message-reply-loading" aria-hidden="true" />
+            </Show>
           </div>
         )}
+      </Show>
+      <Show when={props.referenceState === "unavailable"}>
+        {/* Only a jump that failed changes the note while the row shows. A row that mounts again must not repeat it. */}
+        <p class="message-reply-unavailable" role={props.referencedMessage ? "status" : undefined}>
+          <Info class="message-reply-unavailable-icon" aria-hidden="true" />
+          {t("chat.reply.originalUnavailable")}
+        </p>
       </Show>
       <div class="message-content-resize" ref={(element) => (messageContentResize = element)}>
         <div class="message-content-blocks" ref={(element) => (messageContent = element)}>

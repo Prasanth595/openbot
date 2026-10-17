@@ -1,10 +1,12 @@
-import { router, useLocalSearchParams, usePreventZoomTransitionDismissal } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams, usePreventZoomTransitionDismissal } from "expo-router";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { ArrowLeft } from "lucide-react-native";
+import ArrowLeft from "lucide-react-native/icons/arrow-left";
+import { useCallback } from "react";
 import { Pressable, View } from "react-native";
 
 import { MobileChatView } from "@/features/chat/components/agent-chat-view";
+import { noteChatOpened } from "@/features/quick-actions/model/recent-agents";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
@@ -21,6 +23,13 @@ export function AgentChatScreen() {
   const resolvedAgentId = Array.isArray(agentId) ? agentId[0] : agentId;
   const resolvedMessageId = Array.isArray(messageId) ? messageId[0] : messageId;
   const agent = agents.find((candidate) => candidate.id === resolvedAgentId);
+  const openedAgentId = agent?.id;
+  // The app icon offers the chats that the user opened last.
+  useFocusEffect(
+    useCallback(() => {
+      if (openedAgentId) noteChatOpened(openedAgentId);
+    }, [openedAgentId]),
+  );
 
   if (agent) {
     return (

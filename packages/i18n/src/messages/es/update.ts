@@ -31,7 +31,7 @@ export const messages = {
   "update.scheduled.automaticTitle": "OpenBot instala una actualización",
   "update.scheduled.whenIdle": "OpenBot se reinicia cuando los agentes están inactivos.",
   "update.scheduled.now": "OpenBot se reinicia cuando se descarga la actualización.",
-  "update.scheduled.cancel": "Cancelar actualización",
+  "update.scheduled.cancel": "Cancelar",
   "update.scheduled.cancelFailed": "No se pudo cancelar la actualización.",
   "update.idleRestart.relaunchTitle": "OpenBot se reinicia cuando los agentes están inactivos",
   "update.idleRestart.updateTitle": "OpenBot instala la actualización cuando los agentes están inactivos",
@@ -61,6 +61,6 @@ export const messages = {
   "update.whatsNew.empty.title": "No hay funciones nuevas en esta versión",
   "update.whatsNew.empty.body":
     "Esta versión no tiene notas que mostrar aquí. El registro de cambios completo muestra todos los cambios.",
-  "update.whatsNew.changelog": "Registro de cambios completo",
+  "update.whatsNew.changelog": "Todos los cambios",
   "update.whatsNew.done": "Entendido",
 } as const satisfies PartialTranslation<typeof source>;

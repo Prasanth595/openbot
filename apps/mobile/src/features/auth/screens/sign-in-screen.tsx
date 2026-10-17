@@ -1,7 +1,8 @@
 import { useIsFocused } from "expo-router/react-navigation";
 import { Accordion, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { type LucideIcon, X } from "lucide-react-native";
+import type { LucideIcon } from "lucide-react-native";
+import X from "lucide-react-native/icons/x";
 import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { BackHandler, Keyboard, Pressable, ScrollView, type TextInput, useWindowDimensions, View } from "react-native";
 import { useReanimatedKeyboardAnimation } from "react-native-keyboard-controller";

@@ -1,4 +1,3 @@
-import { MenuView } from "@expo/ui/community/menu";
 import type { RoutineCalendarRoutine, RoutineCalendarRun, RoutineCalendarRunStatus } from "@openbot/contracts/ipc";
 import type { MobileTextKey } from "@openbot/i18n/mobile";
 import {
@@ -12,12 +11,15 @@ import {
 import { useQueries } from "@tanstack/react-query";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { Typography } from "heroui-native";
-import { Check, ChevronDown, CirclePause, X } from "lucide-react-native";
+import Check from "lucide-react-native/icons/check";
+import ChevronDown from "lucide-react-native/icons/chevron-down";
+import CirclePause from "lucide-react-native/icons/circle-pause";
+import X from "lucide-react-native/icons/x";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
 import { useCSSVariable, useUniwind } from "uniwind";
 import { BloubAvatar } from "@/features/agents/components/bloub-avatar";
-import { useMobileSession } from "@/features/auth/context/mobile-session-context";
+import { useQueryScope } from "@/features/auth/context/mobile-session-context";
 import { DAY_STRIP_LENGTH, DayStrip } from "@/features/servers/components/day-strip";
 import {
   SettingsContent,
@@ -26,7 +28,9 @@ import {
   SettingsSection,
 } from "@/features/settings/components/settings-content";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import { queryKeys } from "@/features/workspace/model/query-keys";
 import type { MobileAgent } from "@/features/workspace/model/workspace-types";
+import { MenuView } from "@/shared/components/menu-view";
 import { haptics } from "@/shared/lib/haptics";
 import { isAndroid } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
@@ -92,7 +96,7 @@ export function ServerRoutinesScreen() {
   const { theme } = useUniwind();
   const foreground = String(useCSSVariable("--openbot-text-primary"));
   const { serverId } = useLocalSearchParams<{ serverId: string }>();
-  const { session, sessionScope } = useMobileSession();
+  const queryScope = useQueryScope();
   const { servers, agents, loadRoutineCalendar } = useMobileWorkspace();
   const server = servers.find((item) => item.id === serverId);
   const online = server?.state === "online";
@@ -117,7 +121,7 @@ export function ServerRoutinesScreen() {
     queries: loadedWeeks.map((weekStart) => {
       const range = rangeAround(weekStart, addCalendarDays(weekStart, 6));
       return {
-        queryKey: ["server-routines", session?.apiUrl, session?.user.id, sessionScope, serverId, range.from, range.to],
+        queryKey: queryKeys.serverRoutines(queryScope, serverId, range.from, range.to),
         enabled: online,
         retry: false,
         // Host events refresh a week; a swipe back to a loaded week does not ask the host again.

@@ -56,7 +56,7 @@ export const messages = {
   "prompt.browser.pendingBody":
     "Öffne die Seite, um die Anmeldung, Verifizierung oder Zustimmung abzuschließen. Lass {name} danach fortfahren.",
   "prompt.browser.openPage": "{title} öffnen",
-  "prompt.browser.returning": "Steuerung wird zurückgegeben…",
+  "prompt.browser.returning": "Wird zurückgegeben…",
   "prompt.browser.done": "Fertig",
   "prompt.browser.cancelling": "Wird abgebrochen…",
   "prompt.browser.pageFallback": "Browserseite",

@@ -13,14 +13,14 @@ export const messages = {
   "mobile.auth.scanner.readingInvitation": "Davet okunuyor…",
   "mobile.auth.scanner.scanDesktop": "Masaüstü kodunu tarayın",
   "mobile.auth.scanner.scanInvitation": "Davet kodunu tarayın",
-  "mobile.auth.scanner.verifying": "Tek seferlik kod doğrulanıyor.",
+  "mobile.auth.scanner.verifying": "Tek kullanımlık kod doğrulanıyor.",
   "mobile.auth.scanner.checkingServer": "Sunucu kimliği kontrol ediliyor.",
   "mobile.auth.scanner.keepCentered": "QR kodunu çerçevenin içinde ortalanmış tutun.",
   "mobile.auth.scanner.connectFallback": "OpenBot bu telefonu bağlayamadı.",
   "mobile.auth.scanner.cameraFailed": "Kamera başlatılamadı. Tekrar deneyin.",
   "mobile.auth.camera.title": "Kamera erişimi gerekli",
   "mobile.auth.camera.pairingReason":
-    "OpenBot kamerayı yalnızca masaüstü uygulamasında gösterilen tek seferlik QR kodunu taramak için kullanır.",
+    "OpenBot kamerayı yalnızca masaüstü uygulamasında gösterilen tek kullanımlık QR kodunu taramak için kullanır.",
   "mobile.auth.camera.invitationReason": "OpenBot kamerayı yalnızca davet QR kodunu taramak için kullanır.",
   "mobile.auth.camera.blocked":
     "Kamera erişimi engellendi. Cihaz ayarlarından OpenBot için kamerayı etkinleştirin, ardından kodu taramak için buraya dönün.",
@@ -31,7 +31,7 @@ export const messages = {
   "mobile.auth.signIn.helpTitle": "QR kodu nerede?",
   "mobile.auth.signIn.helpStep1": "1. Bilgisayarınızda OpenBot'u açın.",
   "mobile.auth.signIn.helpStep2": "2. Ayarlar → Mobile Connect bölümüne gidin.",
-  "mobile.auth.signIn.helpStep3": "3. QR kodu oluştur'u seçin, ardından buradan tarayın.",
+  "mobile.auth.signIn.helpStep3": "3. “QR kodu oluştur” seçeneğini seçin, ardından kodu buradan tarayın.",
   "mobile.auth.signIn.emailButton": "E-posta ile devam et",
   "mobile.auth.email.title": "E-posta ile oturum açın",
   "mobile.auth.email.description": "E-posta adresinizi girin. Size tek kullanımlık bir kod göndereceğiz.",
@@ -41,7 +41,7 @@ export const messages = {
   "mobile.auth.email.sending": "Kod gönderiliyor…",
   "mobile.auth.email.tryAgainIn": "{time} sonra tekrar deneyin",
   "mobile.auth.email.checkDelivery": "Teslimatı kontrol et",
-  "mobile.auth.email.checkAgainIn": "{time} sonra tekrar kontrol et",
+  "mobile.auth.email.checkAgainIn": "{time} sonra tekrar kontrol edin",
   "mobile.auth.email.codeTitle": "Gelen kutunuzu kontrol edin",
   "mobile.auth.email.codeSent": "{email} adresine bir kod gönderdik.",
   "mobile.auth.email.codeLabel": "Tek kullanımlık kod",
@@ -68,17 +68,17 @@ export const messages = {
   "mobile.auth.error.connectionInProgress": "Başka bir bağlantı işlemi sürüyor. Bitmesini bekleyin.",
   "mobile.auth.error.invalidCode": "Bu geçerli bir OpenBot Mobile Connect kodu değil.",
   "mobile.auth.error.codeOutdated": "Güncellenmiş bir masaüstü uygulamasında yeni bir Mobile Connect kodu oluşturun.",
-  "mobile.auth.error.alreadySignedIn": "Zaten giriş yapmış durumdasınız. Başka bir hesap bağlamadan önce çıkış yapın.",
+  "mobile.auth.error.alreadySignedIn": "Zaten oturum açtınız. Başka bir hesap bağlamadan önce oturumu kapatın.",
   "mobile.auth.error.desktopUnreachable":
     "OpenBot masaüstünüze ulaşamadı. Her iki cihazı da aynı Wi-Fi ağında tutun ve Yerel Ağ erişimine izin verin.",
   "mobile.auth.error.accountServiceUnreachable":
-    "OpenBot hesap servisine ulaşamadı. Bağlantınızı kontrol edip tekrar deneyin.",
+    "OpenBot hesap hizmetine ulaşamadı. Bağlantınızı kontrol edip tekrar deneyin.",
   "mobile.auth.error.codeExpired": "Bu Mobile Connect kodu geçersiz veya süresi dolmuş.",
   "mobile.auth.error.revokePreviousFailed":
     "Önceki mobil oturum iptal edilemedi. Bağlantınızı kontrol edin ve tekrar tarayın.",
   "mobile.auth.error.verifyFailed": "OpenBot bu mobil oturumu doğrulayamadı.",
   "mobile.auth.error.sessionsLoadFailed": "Hesap oturumları yüklenemedi. Tekrar deneyin.",
-  "mobile.auth.error.useSignOut": "Bu cihazın bağlantısını kesmek için Çıkış yap'ı kullanın.",
+  "mobile.auth.error.useSignOut": "Bu cihazın bağlantısını kesmek için “Oturumu kapat” seçeneğini kullanın.",
   "mobile.auth.error.desktopSession": "Masaüstü oturumlarının bağlantısı mobilden kesilemez.",
   "mobile.auth.error.disconnectFailed": "Bu oturumun bağlantısı kesilemedi. Yenileyin ve tekrar deneyin.",
   "mobile.auth.error.nameLength": "3 ile 20 karakter arasında bir görünen ad girin.",
@@ -87,5 +87,6 @@ export const messages = {
   "mobile.auth.error.tooManyChanges": "Çok fazla değişiklik. Bir süre bekleyip tekrar deneyin.",
   "mobile.auth.error.photoConflict": "Fotoğrafınız başka bir cihazda değiştirildi. Tekrar deneyin.",
   "mobile.auth.error.profileSaveFailed": "Profiliniz kaydedilemedi. Bağlantınızı kontrol edip tekrar deneyin.",
-  "mobile.auth.error.signOutUnconfirmed": "Çıkış onaylanamadı. Bağlantınızı kontrol edip tekrar deneyin.",
+  "mobile.auth.error.signOutUnconfirmed":
+    "Oturumun kapatıldığı doğrulanamadı. Bağlantınızı kontrol edip tekrar deneyin.",
 } as const satisfies PartialTranslation<typeof source>;

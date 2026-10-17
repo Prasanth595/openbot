@@ -27,6 +27,7 @@ import {
   decodeMcpSignInRelayPage,
   decodeMcpSignInStates,
   decodeMcpTestResult,
+  decodeOldRuntimeVersions,
   decodeOptionalStorageUsage,
   decodeProviderHostSignInStatus,
   decodeProviderRelaySignInStatus,
@@ -69,6 +70,7 @@ import {
   decodeAgents,
   decodeAutomationRunCommand,
   decodeDuplicateAgentResultFromMain,
+  decodeHiddenAgentsFromMain,
   decodeHostAnalyticsFromMain,
   decodeHostProviderAccountsFromMain,
   decodeMemories,
@@ -84,6 +86,7 @@ import {
   decodeRoutineRuns,
   decodeRoutines,
   decodeSidebarLayout,
+  decodeSideQuestionAnswer,
   decodeTables,
 } from "./agent-decoding";
 import { decodeScopedAgentEvent } from "./agent-event-decoding";
@@ -157,6 +160,8 @@ import {
   decodeComputerUseState,
 } from "./computer-use-decoding";
 import {
+  decodeAgentTask,
+  decodeAgentTasks,
   decodeAttachments,
   decodeConversation,
   decodeConversationFileSearchPage,
@@ -167,6 +172,7 @@ import {
   decodeReadState,
   decodeReadStates,
   decodeReceipt,
+  decodeTaskConversation,
   decodeWaits,
 } from "./conversation-decoding";
 import {
@@ -416,6 +422,8 @@ const agentGroup = bridgeGroup(IPC_ENDPOINTS.agent, {
   readAgentSessionSettings: decodeAgentSessionSettingsFromMain,
   setAgentSessionSetting: decodeAgentSessionSettingsFromMain,
   resetAgentSessionSetting: decodeAgentSessionSettingsFromMain,
+  listHiddenAgents: decodeHiddenAgentsFromMain,
+  setAgentHidden: decodeHiddenAgentsFromMain,
   listInstalledSkills: decodeInstalledSkillsFromMain,
   listChannels: decodeChannelSummaries,
   readChannel: decodeChannelPage,
@@ -425,6 +433,7 @@ const agentGroup = bridgeGroup(IPC_ENDPOINTS.agent, {
   mutateSidebarLayout: decodeSidebarLayout,
   generateProfile: decodeAgentProfileDraft,
   saveProfile: decodeSaveAgentProfileResult,
+  askSideQuestion: decodeSideQuestionAnswer,
   createAgent: decodeAgent,
   duplicateAgent: decodeDuplicateAgentResultFromMain,
   updateAgent: decodeAgent,
@@ -444,6 +453,13 @@ const agentGroup = bridgeGroup(IPC_ENDPOINTS.agent, {
   listQueue: decodeQueue,
   listWaits: decodeWaits,
   cancelWait: decodeVoid,
+  listTasks: decodeAgentTasks,
+  readTask: decodeTaskConversation,
+  startTask: decodeAgentTask,
+  runQueuedMessageAsTask: decodeAgentTask,
+  stopTask: decodeVoid,
+  closeTask: decodeVoid,
+  reopenTask: decodeVoid,
   acknowledgeFailedTurn: decodeVoid,
   cancelQueuedMessage: decodeVoid,
   steerQueuedMessage: decodeVoid,
@@ -509,7 +525,6 @@ const openbotApi: OpenBotDesktopApi = {
     getAnalyticsPreference: decodeAnalyticsPreference,
     setAnalyticsPreference: decodeAnalyticsPreference,
     getApprovalAutomation: decodeApprovalAutomationPreference,
-    setApprovalAutomation: decodeApprovalAutomationPreference,
     approvalAutomation: decodeApprovalAutomationPreference,
     getBusyMessageModePreference: decodeBusyMessageModePreference,
     setBusyMessageModePreference: decodeBusyMessageModePreference,
@@ -911,6 +926,7 @@ const openbotApi: OpenBotDesktopApi = {
       openWorkspaceFile: decodeVoid,
       previewSharedFile: decodeFilePreview,
       previewWorkspaceFile: decodeFilePreview,
+      releaseFilePreview: decodeVoid,
       listWorkspaceDirectory: decodeWorkspaceDirectory,
     }),
     onAttachmentImport: (listener) => {
@@ -1037,6 +1053,8 @@ const openbotApi: OpenBotDesktopApi = {
     clear: decodeVoid,
     openFile: decodeVoid,
     openLocation: decodeVoid,
+    getOldRuntimeVersions: decodeOldRuntimeVersions,
+    removeOldRuntimeVersions: decodeOldRuntimeVersions,
   }),
   remoteDesktop: bridgeGroup(IPC_ENDPOINTS.remoteDesktop, {
     checkSetup: decodeRemoteDesktopSetupFromMain,

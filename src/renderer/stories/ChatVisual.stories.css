@@ -6,6 +6,6 @@
 }
 
 /* The story's chat replaces the app's own conversation. */
-.chat-visual-app .usage-workspace-content > .conversation-panel:not(.chat-visual-chat) {
+.chat-visual-app .app-frame-panes > .conversation-panel:not(.chat-visual-chat) {
   display: none;
 }

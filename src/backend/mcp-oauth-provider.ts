@@ -429,7 +429,9 @@ export class McpOAuth implements McpOAuthAuthority {
 
   signedIn(url: string): boolean {
     const resource = normalizeResource(url);
-    return resource !== null && Boolean(this.#options.storage.read(resource)?.tokens);
+    const record = resource === null ? undefined : this.#options.storage.read(resource);
+    // An expired token with no refresh token is a sign-in the server refuses, not one to show as current.
+    return Boolean(record?.tokens && (record.tokens.refresh_token || !expiringSoon(record, 0)));
   }
 
   get redirectUrl(): string {
@@ -788,7 +790,11 @@ class McpOAuthClientProvider implements OAuthClientProvider {
         // the browser. Loopback http stays, for a sign-in server on the user's own machine.
         if (!isAuthorizationUrlSafe(authorizationUrl))
           return yield* mcpFailure(new Error(sourceText("error.backend.mcpSignInNotWebPage")));
-        yield* mcpCall(() => this.#options.openExternal(withAppScope(authorizationUrl, this.#record().app).toString()));
+        const { app } = this.#record();
+        const url = app?.scope
+          ? withAppScope(authorizationUrl, app)
+          : withOfflineAccess(authorizationUrl, this.#discoveryState?.authorizationServerMetadata);
+        yield* mcpCall(() => this.#options.openExternal(url.toString()));
       }),
     );
   }
@@ -1018,6 +1024,23 @@ function withAppScope(authorizationUrl: URL, app: McpOAuthApp | undefined): URL 
   return url;
 }
 
+/**
+ * The SDK asks for the scope of the protected-resource metadata, and an OpenID server that lists
+ * `offline_access` issues a refresh token only when the request names it. Vercel's tokens last one
+ * hour, so without it every sign-in stopped working an hour later. Added only to a scope the SDK
+ * already sends: a request with no scope gets the server's default grant, which a lone
+ * `offline_access` would replace.
+ */
+function withOfflineAccess(authorizationUrl: URL, metadata: OAuthDiscoveryState["authorizationServerMetadata"]): URL {
+  const scope = authorizationUrl.searchParams.get("scope");
+  if (!scope || !metadata?.scopes_supported?.includes("offline_access")) return authorizationUrl;
+  if (scope.split(/\s+/).includes("offline_access")) return authorizationUrl;
+  const url = new URL(authorizationUrl);
+  url.searchParams.set("scope", `${scope} offline_access`);
+  if (!url.searchParams.has("prompt")) url.searchParams.set("prompt", "consent");
+  return url;
+}
+
 /** Where a browser may be sent: a web page, or a sign-in server on the user's own machine. */
 function isAuthorizationUrlSafe(url: URL): boolean {
   if (url.protocol === "https:") return true;
@@ -1107,10 +1130,10 @@ function redirected(request: RequestInit, status: number): RequestInit {
 }
 
 /** Whether the stored access token is inside the margin, or already past its life. */
-function expiringSoon(record: McpOAuthRecord): boolean {
+function expiringSoon(record: McpOAuthRecord, marginMs = TOKEN_REFRESH_MARGIN_MS): boolean {
   const seconds = record.tokens?.expires_in;
   // A server that states no lifetime is taken at its word. Refreshing on a guess would spend a
   // refresh token on every thread start for a token that was never going to expire.
   if (seconds === undefined || record.obtainedAt === undefined) return false;
-  return record.obtainedAt + seconds * 1000 - TOKEN_REFRESH_MARGIN_MS <= Date.now();
+  return record.obtainedAt + seconds * 1000 - marginMs <= Date.now();
 }

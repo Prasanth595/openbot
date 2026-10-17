@@ -1,5 +1,6 @@
 import { attachmentMimeTypeForName, playableMediaKind } from "@openbot/contracts/attachment-files";
 import type { AttachmentSummary } from "@openbot/contracts/ipc";
+import { base64ToBytes } from "@openbot/team-client/base64";
 import { MOBILE_ATTACHMENT_BYTES } from "@openbot/team-client/remote-peer";
 import type { AttachmentMediaSource } from "@openbot/ui/features/conversation/AttachmentCards";
 import { createSignal } from "solid-js";
@@ -106,7 +107,7 @@ export function createWebAttachmentMedia(
     try {
       if (generation !== started) return false;
       const file = await remote.download(attachment.id);
-      const bytes = Uint8Array.from(atob(file.base64), (char) => char.charCodeAt(0));
+      const bytes = base64ToBytes(file.base64);
       if (bytes.byteLength > limit || generation !== started) return false;
       store(key, { url: urls.create(new Blob([bytes], { type })), bytes: bytes.byteLength });
       return true;

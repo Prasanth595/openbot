@@ -2,7 +2,7 @@ import type { PartialTranslation } from "../../../message";
 import type { messages as source } from "../../en/error/connector";
 
 export const messages = {
-  "error.connector.githubUnavailable": "В этой сборке OpenBot нет приложения GitHub App.",
+  "error.connector.githubUnavailable": "В этой сборке OpenBot нет GitHub App.",
   "error.connector.githubDenied": "Вход через GitHub отклонён.",
   "error.connector.githubCodeExpired": "Срок действия кода GitHub истёк. Подключите GitHub заново.",
   "error.connector.githubDeviceFlowDisabled": "GitHub App не разрешает вход с устройства.",

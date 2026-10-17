@@ -3,6 +3,7 @@ import { type ParentProps, Show } from "solid-js";
 import { AnsweredPromptsProvider } from "./answered-prompts";
 import { AppBootstrap } from "./app-bootstrap";
 import { AuthProvider } from "./features/account/account-context";
+import { AgentTasksProvider } from "./features/agent-tasks/agent-tasks-context";
 import { AgentActionsProvider } from "./features/agents/agent-actions";
 import { AgentEventBridge } from "./features/agents/agent-event-bridge";
 import { AgentReadTrackingProvider } from "./features/agents/agent-read-tracking";
@@ -36,6 +37,7 @@ import { notifyTeamTyping } from "./features/team/team-typing";
 import { UpdatesProvider } from "./features/updates/updates-context";
 import { WhatsNewProvider } from "./features/updates/whats-new-context";
 import { UsageProvider } from "./features/usage/usage-context";
+import { WindowPageProvider } from "./features/window/window-page-context";
 import { I18nProvider } from "./i18n-context";
 import { LayoutProvider } from "./layout";
 import { NavigationProvider } from "./navigation";
@@ -107,12 +109,14 @@ export function AppProviders(props: ParentProps<AppProps>): JSX.Element {
                                     <AnsweredPromptsProvider>
                                       <UiErrorsProvider>
                                         <UsageProvider>
-                                          <AgentReadTrackingProvider>
-                                            <AppBootstrap />
-                                            <ServerScopeBoundary stableConversation={stableConversation}>
-                                              {props.children}
-                                            </ServerScopeBoundary>
-                                          </AgentReadTrackingProvider>
+                                          <WindowPageProvider>
+                                            <AgentReadTrackingProvider>
+                                              <AppBootstrap />
+                                              <ServerScopeBoundary stableConversation={stableConversation}>
+                                                {props.children}
+                                              </ServerScopeBoundary>
+                                            </AgentReadTrackingProvider>
+                                          </WindowPageProvider>
                                         </UsageProvider>
                                       </UiErrorsProvider>
                                     </AnsweredPromptsProvider>
@@ -166,23 +170,25 @@ function ScopedProviders(props: ParentProps<ScopedConversationProps>): JSX.Eleme
             <ChannelsProvider>
               <ProvidersProvider>
                 <TurnsProvider>
-                  <ConversationProvider>
-                    <BrowserTabsProvider>
-                      <SidebarProvider>
-                        <NavigationProvider>
-                          <ServerSelectionProvider>
-                            <AgentActionsProvider>
-                              <ServerScopeProvider>
-                                <AgentEventBridge />
-                                <DynamicIslandBridge />
-                                {props.children}
-                              </ServerScopeProvider>
-                            </AgentActionsProvider>
-                          </ServerSelectionProvider>
-                        </NavigationProvider>
-                      </SidebarProvider>
-                    </BrowserTabsProvider>
-                  </ConversationProvider>
+                  <AgentTasksProvider>
+                    <ConversationProvider>
+                      <BrowserTabsProvider>
+                        <SidebarProvider>
+                          <NavigationProvider>
+                            <ServerSelectionProvider>
+                              <AgentActionsProvider>
+                                <ServerScopeProvider>
+                                  <AgentEventBridge />
+                                  <DynamicIslandBridge />
+                                  {props.children}
+                                </ServerScopeProvider>
+                              </AgentActionsProvider>
+                            </ServerSelectionProvider>
+                          </NavigationProvider>
+                        </SidebarProvider>
+                      </BrowserTabsProvider>
+                    </ConversationProvider>
+                  </AgentTasksProvider>
                 </TurnsProvider>
               </ProvidersProvider>
             </ChannelsProvider>

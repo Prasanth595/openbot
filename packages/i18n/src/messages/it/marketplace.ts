@@ -11,8 +11,8 @@ export const messages = {
   "marketplace.category.automation": "Automazione",
   "marketplace.category.other": "Altro",
   "marketplace.loadFailed": "Impossibile caricare il Marketplace.",
-  "marketplace.loading.skills": "Caricamento delle skill",
-  "marketplace.loading.agents": "Caricamento degli agenti",
+  "marketplace.loading.skills": "Caricamento skill",
+  "marketplace.loading.agents": "Caricamento agenti",
   "marketplace.noMatch.skills": "Nessuna skill corrisponde a questa ricerca.",
   "marketplace.noMatch.agents": "Nessun agente corrisponde a questa ricerca.",
   "marketplace.loadMore": "Carica altro",
@@ -26,13 +26,13 @@ export const messages = {
 
   "marketplace.plugins.missing": "Questo plugin non è nel catalogo di OpenBot.",
 
-  "marketplace.agents.loadingDetail": "Caricamento dei dettagli dell'agente…",
+  "marketplace.agents.loadingDetail": "Caricamento dettagli agente…",
   "marketplace.agents.skills": "Skill",
   "marketplace.agents.routines": "Routine",
   "marketplace.agents.routineActive": "Attiva",
   "marketplace.agents.routineInactive": "Non attiva",
 
-  "marketplace.skill.loading": "Caricamento della skill",
+  "marketplace.skill.loading": "Caricamento skill",
   "marketplace.skill.update": "Aggiorna skill",
   "marketplace.try.readFailed": "OpenBot non è riuscito a leggere le skill di questo agente. Riprova.",
   "marketplace.try.enable": "Attiva questa skill nelle impostazioni dell'agente per provarla.",
@@ -69,14 +69,14 @@ export const messages = {
   "marketplace.properties.creator": "Autore",
   "marketplace.properties.category": "Categoria",
   "marketplace.properties.version": "Versione",
-  "marketplace.properties.updated": "Aggiornata",
+  "marketplace.properties.updated": "Ultimo aggiornamento",
   "marketplace.properties.installs": "Installazioni",
 
   "marketplace.agent.add": "Aggiungi",
   "marketplace.agent.addNamed": "Aggiungi {name}",
   "marketplace.agent.addAgent": "Aggiungi agente",
   "marketplace.agent.added": "Aggiunto",
-  "marketplace.agent.updateAvailable": "Aggiornamento disponibile",
+  "marketplace.agent.updateAvailable": "Aggiornabile",
   "marketplace.agent.update": "Aggiorna",
   "marketplace.agent.openChat": "Apri chat",
 
@@ -86,7 +86,7 @@ export const messages = {
   "marketplace.app.reconnectNamed": "Riconnetti {name}",
   "marketplace.app.connected": "Connessa",
   "marketplace.app.attention": "Richiede attenzione",
-  "marketplace.app.notConnected": "Non collegata",
+  "marketplace.app.notConnected": "Non connessa",
   "marketplace.app.custom": "Server MCP",
   "marketplace.app.githubTagline": "Repository, issue e pull request",
   "marketplace.app.onePasswordTagline": "Accedi ai siti con le credenziali che condividi",
@@ -98,7 +98,7 @@ export const messages = {
   "marketplace.app.address": "Indirizzo",
   "marketplace.app.disconnect.title": "Disconnetti",
   "marketplace.app.disconnect.description":
-    "Rimuovi {name} e le sue skill da questo computer. Potrai collegarla di nuovo più tardi.",
+    "Rimuovi {name} e le sue skill da questo computer. Potrai connetterla di nuovo più tardi.",
   "marketplace.app.disconnect.action": "Disconnetti",
   "marketplace.app.remove.title": "Rimuovi server",
   "marketplace.app.remove.description":
@@ -178,12 +178,12 @@ export const messages = {
   "marketplace.plugin.sentry.prompt.releaseHealth": "Quanto è stabile la versione attuale rispetto alla precedente?",
   "marketplace.plugin.vercel.tagline": "Deploy, log di build e progetti",
   "marketplace.plugin.vercel.description":
-    "Vercel consente agli agenti di elencare i progetti e i deploy recenti, leggere i log di build e di runtime e capire perché una build non è riuscita. Ogni utente accede al proprio account Vercel dal browser e sceglie i team che gli agenti possono usare. In quei team gli agenti hanno gli stessi permessi dell’account dell’utente. Possono anche modificare variabili d’ambiente, domini, record DNS e deploy, e acquistare domini.",
+    "Vercel consente agli agenti di elencare i progetti e i deploy recenti, leggere i log di build e di runtime e capire perché una build non è riuscita. Ogni utente accede al proprio account Vercel dal browser e sceglie i team che gli agenti possono usare. In quei team gli agenti hanno gli stessi permessi dell'account dell'utente. Possono anche modificare variabili d'ambiente, domini, record DNS e deploy, e acquistare domini.",
   "marketplace.plugin.vercel.app":
     "Progetti, deploy, log di build e di runtime, tramite il server MCP di Vercel con accesso dal browser.",
-  "marketplace.plugin.vercel.prompt.failedBuild": "Perché l’ultimo deploy di produzione non è riuscito?",
+  "marketplace.plugin.vercel.prompt.failedBuild": "Perché l'ultimo deploy di produzione non è riuscito?",
   "marketplace.plugin.vercel.prompt.recentDeployments": "Elenca i deploy di oggi e il loro stato.",
-  "marketplace.plugin.vercel.prompt.runtimeErrors": "Quali route hanno avuto errori di runtime nell’ultima ora?",
+  "marketplace.plugin.vercel.prompt.runtimeErrors": "Quali route hanno avuto errori di runtime nell'ultima ora?",
   "marketplace.plugin.context7.tagline": "Documentazione aggiornata delle librerie",
   "marketplace.plugin.context7.description":
     "Context7 recupera la documentazione e i riferimenti API aggiornati di librerie e framework, così le risposte usano la versione che il progetto usa davvero. Non servono né un account né una chiave.",
@@ -227,7 +227,7 @@ export const messages = {
   "marketplace.plugin.firecrawl.prompt.monitor": "Cosa è cambiato questo mese nella nostra pagina del changelog?",
   "marketplace.plugin.braveSearch.tagline": "Ricerca web privata",
   "marketplace.plugin.braveSearch.description":
-    "Brave Search permette agli agenti di cercare sul web e risultati locali senza tracciamento. Una chiave API presa dalla dashboard di Brave Search API viene passata al server locale come variabile d'ambiente.",
+    "Brave Search permette agli agenti di cercare sul web e tra i risultati locali senza tracciamento. Una chiave API presa dalla dashboard di Brave Search API viene passata al server locale come variabile d'ambiente.",
   "marketplace.plugin.braveSearch.app":
     "Ricerca web e locale, tramite un server MCP locale con una chiave API di Brave.",
   "marketplace.plugin.braveSearch.prompt.search": "Cosa dicono i recensori di questa versione del framework?",
@@ -266,8 +266,8 @@ export const messages = {
 
   "marketplace.notice.agentAdded": "{name} aggiunto.",
   "marketplace.notice.agentUpdated": "{name} aggiornato.",
-  "marketplace.notice.appConnected": "{name} collegata.",
-  "marketplace.notice.appDisconnected": "{name} scollegata.",
+  "marketplace.notice.appConnected": "{name} connessa.",
+  "marketplace.notice.appDisconnected": "{name} disconnessa.",
   "marketplace.notice.serverRemoved": "{name} rimosso.",
   "marketplace.notice.skillInstalled": {
     one: "{name} installata su {count} agente.",

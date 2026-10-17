@@ -51,6 +51,9 @@ import type { AuthUser, WorkerBindings } from "./types";
 const TICKET_TTL_SECONDS = 180;
 const LEGACY_SHA256_HEX_PATTERN = /^[a-f0-9]{64}$/u;
 const AUTH_EVENT_RETRY_MS = 60_000;
+const AUTH_EVENT_SEND_CONCURRENCY = 6;
+/** Longer than one drain: 50 events, 6 at a time, each with a 5 s timeout. */
+const AUTH_EVENT_CLAIM_MS = 2 * 60_000;
 const MAX_OUTSTANDING_INVITES_PER_HOST = 50;
 const MAX_PERMANENT_INVITES_PER_HOST = 5;
 const MAX_TELEGRAM_LINK_CODES_PER_HOST = 10;
@@ -916,6 +919,49 @@ export class RemoteControlPlane {
     (operation) => operation.pipe(Effect.provide(this.#layer)),
   ).bind(this);
 
+  /**
+   * The host name for an invitation email. The caller must be an owner or admin of the host, and
+   * the token must identify an open single-use invitation of that host for this email and role.
+   */
+  readonly emailableInvite = Effect.fn("RemoteControlPlane.emailableInvite")(
+    function* (
+      this: RemoteControlPlane,
+      userId: string,
+      input: { hostId: string; token: string; email: string; role: Exclude<RemoteMemberRole, "owner"> },
+    ) {
+      const dependencies = yield* RemoteDependencies;
+      yield* this.#requireRole(input.hostId, userId, ["owner", "admin"]);
+      const validToken = yield* remoteValidate(() => requiredText(input.token, 512, "invite token"));
+      const tokenHash = yield* sha256(validToken).pipe(
+        Effect.mapError((error) => (error instanceof RemoteControlPlaneError ? error : new RemoteOperationError({}))),
+      );
+      const invite = yield* remoteCall(() =>
+        dependencies.database
+          .prepare(
+            `SELECT i.invite_id, i.host_id, i.email, i.role, i.expires_at, i.used_at, i.revoked_at,
+                i.max_uses, i.use_count, h.name
+         FROM remote_invites i JOIN remote_hosts h ON h.host_id = i.host_id
+         WHERE i.token_hash = ? AND i.host_id = ? LIMIT 1`,
+          )
+          .bind(tokenHash, input.hostId)
+          .first<RemoteInviteRow & { name: string }>(),
+      );
+      if (
+        !invite ||
+        invite.revoked_at ||
+        invite.expires_at <= dependencies.now() ||
+        invite.used_at ||
+        invite.max_uses === null ||
+        invite.email !== input.email ||
+        invite.role !== input.role
+      ) {
+        return yield* new RemoteControlPlaneError(404, "invite_invalid", "The invitation is invalid or expired.");
+      }
+      return { hostName: invite.name };
+    },
+    (operation) => operation.pipe(Effect.provide(this.#layer)),
+  ).bind(this);
+
   readonly acceptInvite = Effect.fn("RemoteControlPlane.acceptInvite")(
     function* (this: RemoteControlPlane, user: AuthUser, token: string) {
       const dependencies = yield* RemoteDependencies;
@@ -1097,7 +1143,7 @@ export class RemoteControlPlane {
         return yield* new RemoteControlPlaneError(404, "membership_not_found", "The membership does not exist.");
       }
       const leavingOwnMembership = input.revoke === true && membership.user_id === actorUserId;
-      if (!leavingOwnMembership) yield* this.#requireRole(input.hostId, actorUserId, ["owner"]);
+      if (!leavingOwnMembership) yield* this.#requireRole(input.hostId, actorUserId, ["owner", "admin"]);
       if (membership.role === "owner") {
         return yield* new RemoteControlPlaneError(
           409,
@@ -1318,7 +1364,26 @@ export class RemoteControlPlane {
           "session_inactive",
           "The remote session does not belong to this browser session.",
         );
-      if (session.user_id !== userId) yield* this.#requireRole(session.host_id, userId, ["owner"]);
+      if (session.user_id !== userId) {
+        const actor = yield* this.#requireRole(session.host_id, userId, ["owner", "admin"]);
+        // Admins manage members, not the owner: only the owner ends the owner's sessions.
+        const target =
+          actor.role === "owner"
+            ? null
+            : yield* remoteCall(() =>
+                dependencies.database
+                  .prepare("SELECT role FROM remote_memberships WHERE host_id = ? AND user_id = ? LIMIT 1")
+                  .bind(session.host_id, session.user_id)
+                  .first<{ role: string }>(),
+              );
+        if (target?.role === "owner") {
+          return yield* new RemoteControlPlaneError(
+            409,
+            "owner_membership_protected",
+            "The owner membership cannot be changed.",
+          );
+        }
+      }
       const now = dependencies.now();
       const event = { type: "remote-session-ended" as const, hostId: session.host_id, sessionId };
       yield* remoteCall(() =>
@@ -2550,13 +2615,16 @@ export class RemoteControlPlane {
     this: RemoteControlPlane,
   ): Effect.fn.Return<void, RemoteFailure, RemoteDependencies> {
     const dependencies = yield* RemoteDependencies;
-    const delivery = deliverRemoteAuthEvents({
-      database: dependencies.database,
-      webhookUrl: dependencies.webhookUrl,
-      webhookSecret: dependencies.webhookSecret,
-      fetch: dependencies.fetch,
-      now: dependencies.now(),
-    });
+    // The time is read when the delivery starts, which can be later than this flush.
+    const delivery = Effect.suspend(() =>
+      deliverRemoteAuthEvents({
+        database: dependencies.database,
+        webhookUrl: dependencies.webhookUrl,
+        webhookSecret: dependencies.webhookSecret,
+        fetch: dependencies.fetch,
+        now: dependencies.now(),
+      }),
+    );
     if (!dependencies.schedule) return yield* delivery;
     dependencies.schedule(delivery);
   });
@@ -2624,51 +2692,62 @@ const deliverRemoteAuthEvents = Effect.fn("RemoteControlPlane.deliverAuthEvents"
 }) {
   const { webhookUrl, webhookSecret } = input;
   if (!webhookUrl || !webhookSecret) return;
+  // The claim moves the events out of reach of other drains until it lapses, so each drain sends its own.
   const result = yield* remoteCall(() =>
     input.database
       .prepare(
-        "SELECT event_id, payload, attempts FROM remote_auth_events WHERE next_attempt_at <= ? ORDER BY created_at LIMIT 50",
+        `UPDATE remote_auth_events SET next_attempt_at = ?
+         WHERE event_id IN (SELECT event_id FROM remote_auth_events WHERE next_attempt_at <= ? ORDER BY created_at LIMIT 50)
+         RETURNING event_id, payload, attempts`,
       )
-      .bind(input.now)
+      .bind(input.now + AUTH_EVENT_CLAIM_MS, input.now)
       .all<RemoteAuthEventRow>(),
   );
-  for (const event of result.results ?? []) {
-    const delivery = yield* Effect.result(
+  // Each event saves its result after its send, so a drain that the Worker stops keeps what it did.
+  yield* Effect.forEach(
+    result.results ?? [],
+    (event) =>
       Effect.gen(function* () {
-        const timestamp = Math.floor(input.now / 1_000).toString();
-        const signature = yield* hmacSha256(webhookSecret, `${timestamp}.${event.payload}`).pipe(
-          Effect.mapError((error) => (error instanceof RemoteControlPlaneError ? error : new RemoteOperationError({}))),
+        const delivery = yield* Effect.result(
+          Effect.gen(function* () {
+            const timestamp = Math.floor(input.now / 1_000).toString();
+            const signature = yield* hmacSha256(webhookSecret, `${timestamp}.${event.payload}`).pipe(
+              Effect.mapError((error) =>
+                error instanceof RemoteControlPlaneError ? error : new RemoteOperationError({}),
+              ),
+            );
+            const response = yield* Effect.tryPromise({
+              try: (signal) =>
+                input.fetch(webhookUrl, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "OpenBot-Timestamp": timestamp,
+                    "OpenBot-Signature": signature,
+                  },
+                  body: event.payload,
+                  signal: AbortSignal.any([signal, AbortSignal.timeout(5_000)]),
+                }),
+              catch: () => new RemoteOperationError({}),
+            });
+            if (!response.ok) return yield* new RemoteOperationError({});
+            yield* remoteCall(() =>
+              input.database.prepare("DELETE FROM remote_auth_events WHERE event_id = ?").bind(event.event_id).run(),
+            );
+          }),
         );
-        const response = yield* Effect.tryPromise({
-          try: (signal) =>
-            input.fetch(webhookUrl, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "OpenBot-Timestamp": timestamp,
-                "OpenBot-Signature": signature,
-              },
-              body: event.payload,
-              signal: AbortSignal.any([signal, AbortSignal.timeout(5_000)]),
-            }),
-          catch: () => new RemoteOperationError({}),
-        });
-        if (!response.ok) return yield* new RemoteOperationError({});
-        yield* remoteCall(() =>
-          input.database.prepare("DELETE FROM remote_auth_events WHERE event_id = ?").bind(event.event_id).run(),
-        );
+        if (Result.isFailure(delivery)) {
+          const delay = Math.min(AUTH_EVENT_RETRY_MS * 2 ** Math.min(event.attempts, 6), 60 * 60_000);
+          yield* remoteCall(() =>
+            input.database
+              .prepare("UPDATE remote_auth_events SET attempts = attempts + 1, next_attempt_at = ? WHERE event_id = ?")
+              .bind(input.now + delay, event.event_id)
+              .run(),
+          );
+        }
       }),
-    );
-    if (Result.isFailure(delivery)) {
-      const delay = Math.min(AUTH_EVENT_RETRY_MS * 2 ** Math.min(event.attempts, 6), 60 * 60_000);
-      yield* remoteCall(() =>
-        input.database
-          .prepare("UPDATE remote_auth_events SET attempts = attempts + 1, next_attempt_at = ? WHERE event_id = ?")
-          .bind(input.now + delay, event.event_id)
-          .run(),
-      );
-    }
-  }
+    { concurrency: AUTH_EVENT_SEND_CONCURRENCY, discard: true },
+  );
 });
 
 function requiredIdentifier(value: string, name: string): string {

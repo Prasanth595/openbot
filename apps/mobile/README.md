@@ -34,6 +34,13 @@ Save in a one-page sheet that closes the sheet, no longer throws
 `ScreenStackFragment added into a non-stack container`. Remove the patch when a release
 contains that fix.
 
+react-native-reanimated 4.5.1 is patched in `patches/react-native-reanimated@4.5.1.patch` with the
+Android fix from upstream PR #10435. On React Native 0.86, Reanimated applies all animated props
+again on each event during a draw pass, including the props of views that are already removed. Each
+of these updates threw, and Reanimated logged a full stack trace on the UI thread, hundreds of
+times per second while an SVG list scrolled. The patch skips views that no longer exist. Remove the
+patch when the Reanimated version that Expo supports contains that fix.
+
 Expo Router 57.0.20 is patched in `patches/expo-router@57.0.20.patch` to apply zoom dismissal
 bounds when its enabler registers after the chat mounts. This keeps the avatar-to-header zoom
 interactive from the left edge without enabling dismissal from the middle of the chat.
@@ -320,9 +327,10 @@ One-time setup:
 3. Keep the iOS distribution certificate and provisioning profiles configured in EAS. CI downloads
    these existing credentials. If they expire or need repair, update them interactively through
    EAS before retrying; the upload API key is not passed to the build step. Each target has its own
-   profile: the app, `ExpoWidgetsTarget` (`run.openbot.mobile.ExpoWidgetsTarget`) and
+   profile: the app, `ExpoWidgetsTarget` (`run.openbot.mobile.ExpoWidgetsTarget`),
    `OpenBotNotificationService` (`run.openbot.mobile.NotificationService`, the Notification Service
-   Extension). Both extensions need the App Group `group.run.openbot.mobile`. When a release adds a
+   Extension) and `expo-sharing-extension` (`run.openbot.mobile.ShareExtension`, the share extension).
+   Each extension needs the App Group `group.run.openbot.mobile`. When a release adds a
    target, set up its profile interactively once (`bunx eas-cli credentials -p ios`) before CI builds
    it. Keep the saved push key; do not let EAS make a new one.
 4. Keep the OpenPanel variables in EAS `production` with `Plain text` or `Sensitive` visibility.
@@ -400,6 +408,10 @@ One-time setup:
    Play Console under **Test and release → Testing → Internal testing**. Until the app has a
    published release, Play accepts only draft releases: dispatch with `release_status` set to `draft`
    and roll out the release in Play Console.
+7. Commit `apps/mobile/google-services.json`, the Firebase file of the Android app
+   `run.openbot.mobile`. `app.config.js` adds it when it exists. Without it the build has no Firebase,
+   and Android gets no notifications. The file has public identifiers only. The account service has
+   the key that sends (`FCM_SERVICE_ACCOUNT` in [the account service](../auth-api/README.md)).
 
 After this workflow is merged into `main`, run from the repository root:
 

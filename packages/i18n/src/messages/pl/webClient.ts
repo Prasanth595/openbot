@@ -33,7 +33,7 @@ export const messages = {
   "webClient.agent.refreshFailed":
     "Agent został utworzony, ale nie udało się odświeżyć obszaru roboczego. Przeładuj stronę, zanim spróbujesz ponownie.",
   "webClient.agent.unconfirmed":
-    "Wynik nie jest potwierdzony. Zamknij ten formularz i sprawdź host, zanim spróbujesz ponownie.",
+    "Wynik nie jest potwierdzony. Zamknij ten formularz i sprawdź hosta, zanim spróbujesz ponownie.",
   "webClient.error.usageOffline": "Połącz się z hostem, aby zobaczyć użycie.",
   "webClient.error.desktopOnly": "Ta akcja jest dostępna w aplikacji na komputer.",
   "webClient.settings.preferences.title": "Preferencje",
@@ -67,10 +67,10 @@ export const messages = {
   "webClient.error.identityChanged": "Tożsamość hosta się zmieniła. Połączenie odrzucone.",
   "webClient.error.connectionUnavailable": "Połączenie z hostem jest niedostępne.",
   "webClient.error.incompatible":
-    "Ten host nie jest zgodny z OpenBot w przeglądarce. Zaktualizuj host i przeładuj tę stronę.",
+    "Ten host nie jest zgodny z OpenBot w przeglądarce. Zaktualizuj hosta i przeładuj tę stronę.",
   "webClient.error.sendUnconfirmed":
     "Dostarczenie wiadomości nie jest potwierdzone. Odśwież, zanim wyślesz ją ponownie.",
-  "webClient.error.fileType": "Zaktualizuj host, aby załączać pliki tego typu.",
+  "webClient.error.fileType": "Zaktualizuj hosta, aby załączać pliki tego typu.",
   "webClient.error.uploadCancelled": "Przesyłanie załącznika zostało anulowane.",
   "webClient.error.duplication": "Ten host nie obsługuje duplikowania agentów.",
   "webClient.error.connectServerFirst": "Najpierw połącz się z tym serwerem.",

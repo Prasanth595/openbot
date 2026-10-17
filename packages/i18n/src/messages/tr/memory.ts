@@ -20,7 +20,7 @@ export const messages = {
   "memory.edit": "Belleği düzenle",
   "memory.delete": "Belleği sil",
   "memory.learned": "Otomatik öğrenildi",
-  "memory.manual": "Manuel eklendi",
+  "memory.manual": "Elle eklendi",
   "memory.unknownDate": "Bilinmeyen tarih",
   "memory.clearAll": "Tüm bellekleri temizle",
   "memory.clearTitle": "Tüm bellekler temizlensin mi?",

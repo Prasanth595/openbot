@@ -3,12 +3,14 @@ import { Image } from "expo-image";
 import { type ReactNode, useId, useState } from "react";
 import { View } from "react-native";
 import Svg, { Defs, FeColorMatrix, Filter, Image as SvgImage } from "react-native-svg";
-import { useMobileSession } from "@/features/auth/context/mobile-session-context";
+import { useQueryScope } from "@/features/auth/context/mobile-session-context";
 import { DISCONNECTED_APPEARANCE } from "@/features/workspace/components/use-connection-appearance";
 import {
   useMobileWorkspaceReader,
   useMobileWorkspaceSelector,
 } from "@/features/workspace/context/mobile-workspace-context";
+import { queryKeys } from "@/features/workspace/model/query-keys";
+import { showsOnline } from "@/features/workspace/model/server-status";
 
 export interface AgentPhotoProps {
   agentId?: string;
@@ -26,17 +28,17 @@ export function AgentPhoto({
   children,
 }: AgentPhotoProps & { size: number; children: ReactNode }) {
   const workspace = useMobileWorkspaceReader();
-  const { session, sessionScope } = useMobileSession();
+  const queryScope = useQueryScope();
   const avatarUrl = useMobileWorkspaceSelector((current) =>
     imageUrl === undefined
       ? current.agents.find((candidate) => candidate.id === agentId && candidate.serverId === serverId)?.avatarUrl
       : undefined,
   );
   const online = useMobileWorkspaceSelector((current) =>
-    current.servers.some((server) => server.id === serverId && server.state === "online"),
+    current.servers.some((server) => server.id === serverId && showsOnline(server)),
   );
   const photo = useQuery({
-    queryKey: ["agent-avatar", session?.apiUrl, session?.user.id, sessionScope, serverId, agentId, avatarUrl],
+    queryKey: queryKeys.agentAvatar(queryScope, serverId, agentId, avatarUrl),
     enabled: imageUrl === undefined && Boolean(avatarUrl && agentId && serverId && online),
     queryFn: () => {
       if (!agentId || !serverId || !avatarUrl) throw new Error("The agent avatar is unavailable.");

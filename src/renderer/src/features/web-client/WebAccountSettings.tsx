@@ -2,6 +2,8 @@ import type { AppLanguage } from "@openbot/contracts/app-language";
 import type { CentralAuthUser } from "@openbot/contracts/ipc";
 import type { AppTextKey } from "@openbot/i18n";
 import {
+  Button,
+  CreditCard,
   Item,
   ItemActions,
   ItemContent,
@@ -17,7 +19,7 @@ import {
 import { LanguageSelect } from "@openbot/ui/features/settings/LanguageSelect";
 import { ProfileNameSaveBar } from "@openbot/ui/features/settings/ProfileNameSaveBar";
 import { SendShortcutSelect } from "@openbot/ui/features/settings/SendShortcutSelect";
-import { SettingsDialogShell } from "@openbot/ui/features/settings/SettingsDialogShell";
+import { SettingsDialogShell, type SettingsPagePlacement } from "@openbot/ui/features/settings/SettingsDialogShell";
 import { SettingsProfileTab } from "@openbot/ui/features/settings/SettingsProfileTab";
 import { SoundThemePicker } from "@openbot/ui/features/settings/SoundThemePicker";
 import { createSettingsProfileStore } from "@openbot/ui/features/settings/stores/profile-store";
@@ -51,10 +53,15 @@ const TAB_ITEMS = {
 export interface WebAccountSettingsProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Where the settings page shows, or nothing while the page is not on screen. */
+  page: SettingsPagePlacement | undefined;
   account: CentralAuthUser;
   calls: WebAccountCalls;
   language: AppLanguage;
   onChangeLanguage: (language: AppLanguage) => void;
+  /** Closes these settings and opens the plans and servers of the account. */
+  onOpenBilling: () => void;
+  onSignOut: () => Promise<void>;
 }
 
 /**
@@ -109,33 +116,55 @@ export default function WebAccountSettings(props: WebAccountSettingsProps) {
       <SettingsDialogShell
         class="app-settings-modal-shell"
         open={props.open}
-        onOpenChange={props.onOpenChange}
+        page={props.page}
         title={t(navItem().titleKey)}
         description={t(navItem().descriptionKey)}
         contentKey={activeTab()}
         onContentElement={(element) => (modalElement = element)}
         footer={<ProfileNameSaveBar store={profile} />}
         sidebar={
-          <Tabs.List class="settings-modal-nav" aria-label={t("settings.sections.label")}>
-            {TABS.map((tab) => {
-              const item = TAB_ITEMS[tab];
-              const NavIcon = item.icon;
-              return (
-                <Tabs.Trigger
-                  class="settings-modal-nav-item"
-                  value={tab}
-                  aria-current={activeTab() === tab ? "page" : undefined}
-                >
-                  <NavIcon aria-hidden="true" />
-                  <span>{t(item.titleKey)}</span>
-                </Tabs.Trigger>
-              );
-            })}
-          </Tabs.List>
+          <>
+            <Tabs.List class="settings-modal-nav" aria-label={t("settings.sections.label")}>
+              {TABS.map((tab) => {
+                const item = TAB_ITEMS[tab];
+                const NavIcon = item.icon;
+                return (
+                  <Tabs.Trigger
+                    class="settings-modal-nav-item"
+                    value={tab}
+                    aria-current={activeTab() === tab ? "page" : undefined}
+                  >
+                    <NavIcon aria-hidden="true" />
+                    <span>{t(item.titleKey)}</span>
+                  </Tabs.Trigger>
+                );
+              })}
+            </Tabs.List>
+            <div class="settings-modal-nav">
+              <Button
+                variant="ghost"
+                type="button"
+                class="settings-modal-nav-item"
+                onClick={() => {
+                  props.onOpenChange(false);
+                  props.onOpenBilling();
+                }}
+              >
+                <CreditCard aria-hidden="true" />
+                <span>{t("account.menu.billing")}</span>
+              </Button>
+            </div>
+          </>
         }
       >
         <Tabs.Content value="profile" class="settings-modal-tab-panel" data-tab="profile">
-          <SettingsProfileTab store={profile} account={props.account} canListSessions canRevokeSession />
+          <SettingsProfileTab
+            store={profile}
+            account={props.account}
+            canListSessions
+            canRevokeSession
+            onSignOut={props.onSignOut}
+          />
         </Tabs.Content>
 
         <Tabs.Content value="preferences" class="settings-modal-tab-panel" data-tab="preferences">

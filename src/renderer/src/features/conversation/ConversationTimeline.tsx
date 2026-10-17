@@ -3,6 +3,7 @@ import type { ConversationMessageSender } from "@openbot/contracts/ipc";
 import { Button } from "@openbot/ui";
 import type { AgentMessage, ChatActionMarkerModel } from "@openbot/ui/data";
 import { AgentActivityIndicator } from "@openbot/ui/features/conversation/AgentActivity";
+import { AgentTaskChips } from "@openbot/ui/features/conversation/AgentTasks";
 import { AttachmentCards } from "@openbot/ui/features/conversation/AttachmentCards";
 import { UsageLimitAskCard } from "@openbot/ui/features/conversation/BackupModels";
 import { ChatActionMarker } from "@openbot/ui/features/conversation/ChatActionMarker";
@@ -14,7 +15,7 @@ import { ChatVisual } from "@openbot/ui/features/conversation/ChatVisual";
 import { ContextCompactionMarker, type ContextCompactionView } from "@openbot/ui/features/conversation/ContextUsage";
 import { BrowserTakeoverCard } from "@openbot/ui/features/conversation/ConversationPrompts";
 import { dayMarkerLabel } from "@openbot/ui/features/conversation/chat-day-markers";
-import { ScrollToLatestButton } from "@openbot/ui/features/conversation/MessageNavigation";
+import { ReplyReturnButton, ScrollToLatestButton } from "@openbot/ui/features/conversation/MessageNavigation";
 import { MessageActions } from "@openbot/ui/features/conversation/MessageRendering";
 import { PendingSendStatus } from "@openbot/ui/features/conversation/PendingSendStatus";
 import { TaskList } from "@openbot/ui/features/conversation/TaskList";
@@ -122,6 +123,7 @@ export function ConversationTimeline() {
     props,
     reactToMessage,
     renderedAgentActivity,
+    replyJump,
     respondToBrowserTakeover,
     replyToMessage,
     retryPendingSend,
@@ -140,8 +142,10 @@ export function ConversationTimeline() {
     setStickToLatest,
     setUnreadMessagesDividerElement,
     setVirtualRootElement,
+    openTaskPanel,
   } = useConversationViewScope();
   const { t, format } = useText();
+  const openTasks = () => props.tasks?.snapshot?.tasks.filter((task) => task.state !== "closed") ?? [];
   const compaction = (): ContextCompactionView | null => {
     const state = props.contextState;
     if (state?.agentId !== props.agent?.id || state?.threadId !== props.agent?.threadId || !state?.compaction)
@@ -274,15 +278,23 @@ export function ConversationTimeline() {
           setStickToLatest(element.scrollHeight - element.scrollTop - element.clientHeight <= 80);
           updateScrollFade(element);
           updateUnreadDividerVisibility();
+          replyJump.updateReturnVisibility();
         }}
       >
         <ChatScrollRail {...rail.props} />
-        <Show when={showScrollToLatest() || props.discontinuous}>
-          <ScrollToLatestButton
-            onClick={() => void jumpToLatestMessage()}
-            newMessageCount={newMessageCount()}
-            onDismiss={clearNewMessages}
-          />
+        <Show
+          when={replyJump.returnReplyId()}
+          fallback={
+            <Show when={showScrollToLatest() || props.discontinuous}>
+              <ScrollToLatestButton
+                onClick={() => void jumpToLatestMessage()}
+                newMessageCount={newMessageCount()}
+                onDismiss={clearNewMessages}
+              />
+            </Show>
+          }
+        >
+          <ReplyReturnButton onBack={() => void replyJump.returnToReply()} onStay={replyJump.stayHere} />
         </Show>
         <Show when={props.loaded}>
           <Show when={props.loadingOlder || props.olderError}>
@@ -362,6 +374,10 @@ export function ConversationTimeline() {
                     props.messageReferences?.[replyToMessageId]
                   );
                 });
+                const openReference = () => {
+                  const current = message();
+                  if (current) void replyJump.openReference(current);
+                };
                 // A quote of another person's message names them; any other quote keeps its label.
                 const referencedAuthorName = () => {
                   const sender = otherSender(referencedMessage());
@@ -688,6 +704,8 @@ export function ConversationTimeline() {
                             skills={installedSkills()}
                             referencedMessage={referencedMessage()}
                             referencedAuthorName={referencedAuthorName()}
+                            onOpenReference={openReference}
+                            referenceState={replyJump.referenceState(message(), referencedMessage())}
                             reactions={displayedReactions()}
                             reactionOverflowCount={message()?.reactionSummary?.overflowCount}
                             onRemoveReaction={() => {
@@ -803,6 +821,15 @@ export function ConversationTimeline() {
               )}
             </Show>
           </div>
+          <Show when={props.tasks}>
+            {(tasks) => (
+              <AgentTaskChips
+                tasks={openTasks()}
+                onOpen={openTaskPanel}
+                onClose={(taskId) => tasks().onClose(taskId)}
+              />
+            )}
+          </Show>
           <Show when={keyedPrompt()} keyed>
             {(entry) => (
               <Loading>

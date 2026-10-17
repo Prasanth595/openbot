@@ -1,11 +1,15 @@
 import { CHANNEL_CHATS_CAPABILITY } from "@openbot/contracts/ipc";
 import { ROUTINE_FLOWS_CAPABILITY } from "@openbot/contracts/team-protocol/routine-flows-v1";
 import type { WebRuntimeFactory } from "../features/web-client/web-client-context";
-import { createMockOpenBot } from "./mock-openbot";
+import type { WebRuntimeEvents, WebWorkspaceRuntime } from "../features/web-client/web-runtime";
+import { createMockOpenBot, type MockOpenBotControls } from "./mock-openbot";
 
 /** Use the desktop preview's data and actions for the browser composition too. */
-export const createMockWebRuntime: WebRuntimeFactory = (_accountId, events) => {
-  const mock = createMockOpenBot();
+export const createMockWebRuntime: WebRuntimeFactory = (_accountId, events) =>
+  mockWebRuntimeFor(createMockOpenBot(), events);
+
+/** The browser composition over a given mock host, for a fixture that also drives that host. */
+export function mockWebRuntimeFor(mock: MockOpenBotControls, events: WebRuntimeEvents): WebWorkspaceRuntime {
   const agent = mock.api.agent;
   const host = {
     hostId: "preview-host",
@@ -68,6 +72,8 @@ export const createMockWebRuntime: WebRuntimeFactory = (_accountId, events) => {
       agent.readConversationPage({ agentId, limit: 50, anchor: { type: "around", messageId } }),
     markRead: (agentId, throughMessageId) => agent.markConversationRead({ agentId, throughMessageId }),
     conversationReads: () => agent.listConversationReads(),
+    // The preview host is not a hosted server.
+    focusUse: async () => undefined,
     send: async (agentId, text, attachmentDraftIds, replyToMessageId, clientMessageId) => {
       const receipt = await agent.sendMessage({
         agentId,
@@ -119,4 +125,4 @@ export const createMockWebRuntime: WebRuntimeFactory = (_accountId, events) => {
       mock.dispose();
     },
   };
-};
+}

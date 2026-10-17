@@ -6,10 +6,12 @@ import {
   type HostedServerCheckout,
   type HostedServerLifecycleInput,
   type HostedServerList,
+  type HostedServerStatus,
   type HostedServerSummary,
   parseHostedServerCatalog,
   parseHostedServerCheckout,
   parseHostedServerList,
+  parseHostedServerStatus,
   parseHostedServerSummary,
 } from "@openbot/contracts/hosted-servers";
 import { isDynamicRecord } from "@openbot/contracts/runtime-values";
@@ -72,14 +74,14 @@ export class HostedServerDesktopService {
   /**
    * `onRunning` gets each running server from a list, so the caller can refresh the joined servers
    * when a new server is ready and does not wait for the next directory poll. `onWake` gets each server
-   * that starts after a wake request, so the caller reconnects to it soon.
+   * that starts after a wake request, with the reply, so the caller reconnects to it soon.
    */
   constructor(
     auth: HostedServerAuthClient,
     openExternal: (url: string) => Promise<void>,
     private readonly now: () => number = Date.now,
     private readonly onRunning: (serverId: string) => void = () => {},
-    private readonly onWake: (serverId: string) => void = () => {},
+    private readonly onWake: (serverId: string, server: HostedServerSummary) => void = () => {},
   ) {
     this.#platform = AccountServicePlatform.layer(auth, openExternal);
     const wake = createHostedServerWake(
@@ -225,11 +227,25 @@ export class HostedServerDesktopService {
         decodeSummary,
         30_000,
       );
-      if (WAKE_RECONNECT_STATES.has(server.state)) this.onWake(serverId);
+      if (WAKE_RECONNECT_STATES.has(server.state)) this.onWake(serverId, server);
       return server;
     },
     (operation) => operation.pipe(Effect.provide(this.#platform)),
   ).bind(this);
+
+  /** The state of a server that starts. It changes nothing on the account server. */
+  readonly status = Effect.fn("HostedServer.status")(
+    function* (serverId: string) {
+      const platform = yield* AccountServicePlatform;
+      return yield* platform.request(
+        `/v2/hosting/servers/${encodeURIComponent(serverId)}/status`,
+        { method: "GET" },
+        decodeStatus,
+        15_000,
+      );
+    },
+    (operation) => operation.pipe(Effect.provide(this.#platform)),
+  );
 
   unavailableHost(serverId: string, wake: boolean): Effect.Effect<HostedServerAvailability> {
     return this.#statusCheck.unavailable(serverId, { wake });
@@ -246,7 +262,7 @@ export class HostedServerDesktopService {
       decodeSummary,
       15_000,
     );
-    if (WAKE_RECONNECT_STATES.has(server.state)) this.onWake(serverId);
+    if (WAKE_RECONNECT_STATES.has(server.state)) this.onWake(serverId, server);
     return server;
   });
 
@@ -291,6 +307,12 @@ function decodeSummary(value: unknown): HostedServerSummary {
   const summary = parseHostedServerSummary(value);
   if (!summary) throw new Error(sourceText("error.auth.invalidHostedServer"));
   return summary;
+}
+
+function decodeStatus(value: unknown): HostedServerStatus {
+  const status = parseHostedServerStatus(value);
+  if (!status) throw new Error(sourceText("error.auth.invalidHostedServer"));
+  return status;
 }
 
 function decodeCheckout(value: unknown): HostedServerCheckout {

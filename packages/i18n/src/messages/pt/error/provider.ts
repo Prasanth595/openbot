@@ -5,7 +5,7 @@ export const messages = {
   "error.provider.mcpConfig":
     "O OpenBot não conseguiu registrar os servidores MCP na configuração do Codex. Verifique se seu config.toml do Codex é válido e gravável, depois reinicie o OpenBot.",
   "error.provider.computerUseConfig":
-    "O OpenBot não conseguiu registrar o Uso do Computador na configuração do Codex. Verifique se seu config.toml do Codex é válido e gravável, depois reinicie o OpenBot. Você pode desligar o Uso do Computador nas configurações do agente para continuar sem ele.",
+    "O OpenBot não conseguiu registrar o Uso do computador na configuração do Codex. Verifique se seu config.toml do Codex é válido e gravável, depois reinicie o OpenBot. Você pode desativar o Uso do computador nas configurações do agente para continuar sem ele.",
   "error.provider.endpointsReadOnly":
     "Os endpoints salvos foram gravados por uma versão mais recente do OpenBot, ou o arquivo não pode ser lido. Atualize o OpenBot para alterá-los.",
   "error.provider.endpointNoSecureStorage":
@@ -14,7 +14,7 @@ export const messages = {
     "Já existe um endpoint salvo com este ID de provedor. Remova-o primeiro ou use outro ID.",
   "error.provider.endpointNotSaved": "Este endpoint não está salvo. Atualize a lista e tente novamente.",
   "error.provider.endpointKeyForNewAddress":
-    "O endereço tem um novo computador anfitrião ou porta. Digite a chave de API e os cabeçalhos novamente para evitar que os dados salvos sejam enviados a ele.",
+    "O endereço aponta para outro servidor ou outra porta. Digite a chave de API e os cabeçalhos novamente para evitar que os dados salvos sejam enviados a ele.",
   "error.provider.endpointSecretUnreadable":
     "Este computador não consegue ler a chave de API e os cabeçalhos salvos. Digite a chave de API e os cabeçalhos novamente para que nenhum deles seja perdido.",
   "error.provider.discoveryTimeout": "{host} não respondeu a tempo.",
@@ -68,7 +68,7 @@ export const messages = {
   "error.provider.runtimeReplacing":
     "Não foi possível instalar o ambiente de execução porque outra instância está substituindo-o.",
   "error.provider.runtimeFilesInUse":
-    "O runtime não pôde ser instalado porque outro programa tem seus arquivos abertos. Feche-o e tente de novo.",
+    "Não foi possível instalar o ambiente de execução porque outro programa está com os arquivos dele abertos. Feche esse programa e tente de novo.",
   "error.provider.metadataHttp": "O download dos metadados do ambiente de execução falhou com HTTP {status}.",
   "error.provider.metadataIntegrity": "Os metadados do ambiente de execução falharam na verificação de integridade.",
   "error.provider.diskSpace": "Não há espaço livre em disco suficiente para este provedor.",
@@ -151,25 +151,28 @@ export const messages = {
     "{provider} não respondeu a tempo. O computador pode estar ocupado. O OpenBot tentará de novo.",
   "error.provider.cliTimedOutRefresh":
     "{provider} não respondeu a tempo. O computador pode estar ocupado. Atualize os provedores para tentar de novo.",
+  "error.provider.acpStartTimedOut":
+    "{provider} não terminou de iniciar em {seconds} s. O computador pode estar ocupado.",
+  "error.provider.acpModelsTimedOut":
+    "{provider} não listou seus modelos em {seconds} s. O computador pode estar ocupado.",
   "error.provider.startStopped":
     "{provider} não iniciou várias vezes seguidas, então o OpenBot parou de tentar. Atualize os provedores para tentar de novo.",
   "error.provider.tempDiskSpace":
     "{provider} precisa de pelo menos 1 GB de espaço livre em disco para iniciar. Libere espaço e depois atualize os provedores.",
   "error.provider.noCodeSignIn": "Não é possível entrar em {provider} com um código.",
-  "error.provider.codeLoginNoLink": "O provedor não mostrou um link para entrar. Tente novamente.",
-  "error.provider.hostSignInEnded": "A entrada em {provider} não foi concluída. Tente novamente.",
-  "error.provider.codeLoginNotWaiting":
-    "Nenhum processo de entrada está aguardando um código. Inicie o processo novamente.",
-  "error.provider.codeLoginBadCode": "Cole o código mostrado na página de entrada.",
-  "error.provider.codeLoginRefused": "O provedor não aceitou o código. Inicie o processo de entrada novamente.",
+  "error.provider.codeLoginNoLink": "O provedor não mostrou um link de login. Tente novamente.",
+  "error.provider.hostSignInEnded": "O login em {provider} não foi concluído. Tente novamente.",
+  "error.provider.codeLoginNotWaiting": "Nenhum login está aguardando um código. Inicie o login novamente.",
+  "error.provider.codeLoginBadCode": "Cole o código mostrado na página de login.",
+  "error.provider.codeLoginRefused": "O provedor não aceitou o código. Inicie o login novamente.",
   "error.provider.codeLoginUnsupported":
     "Este servidor não permite entrar com um código colado. Entre pelo navegador no computador do servidor.",
   "error.provider.cliBusyRetry": "A CLI de {provider} está executando um turno. Aguarde o término e tente novamente.",
-  "error.provider.cliSigningIn": "A CLI de {provider} está entrando na conta. Conclua ou cancele a entrada e atualize.",
+  "error.provider.cliSigningIn": "A CLI de {provider} está entrando na conta. Conclua ou cancele o login e atualize.",
   "error.provider.cliBusyUpdate": "A CLI de {provider} está executando um turno. Aguarde o término e atualize.",
   "error.provider.cliSelectFailed": "O OpenBot não conseguiu selecionar a CLI instalada e gerenciada.",
   "error.provider.noAuthenticatedAccount": "{provider} não retornou uma conta autenticada.",
-  "error.provider.signInExpired": "Seu login no {provider} expirou. Entre novamente para continuar.",
+  "error.provider.signInExpired": "Seu login em {provider} expirou. Entre novamente para continuar.",
   "error.provider.cliActivateFailed": "O OpenBot não conseguiu ativar a CLI gerenciada.",
   "error.provider.cliBusyReconnect": "A CLI de {provider} está executando um turno. Aguarde o término e reconecte.",
   "error.provider.opencodeCredentialsRejected":
@@ -193,7 +196,7 @@ export const messages = {
   "error.provider.chatgptPageFailed": "O OpenBot não conseguiu abrir a página de conexão do ChatGPT.",
   "error.provider.noneReady": "Nenhum provedor de agentes está pronto.",
   "error.provider.claudeTurnActive": "Aguarde o turno ativo do Claude terminar antes de atualizar seu contexto.",
-  "error.provider.codexLoginRequired": "O Codex exige entrar com uma assinatura do ChatGPT. Execute `codex login`.",
+  "error.provider.codexLoginRequired": "O Codex exige login com uma assinatura do ChatGPT. Execute `codex login`.",
   "error.provider.cliUpdateFailed": "O OpenBot não conseguiu atualizar a CLI de {provider}. {reason}",
   "error.provider.tryAgain": "Tente novamente.",
   "error.provider.noAgentProcess": "{provider} não tem nenhum processo em execução para este agente.",
@@ -208,7 +211,7 @@ export const messages = {
   "error.provider.antigravityVersionUnreadable": "Não foi possível ler a versão do servidor do Gemini.",
   "error.provider.antigravitySignIn": "Entre com o Google para usar o Gemini.",
   "error.provider.antigravityRateLimited":
-    "O Gemini recusou a solicitação porque um limite de taxa ou a cota do plano foi atingido. Aguarde alguns minutos ou escolha outro modelo e tente novamente.\n{detail}",
+    "O Gemini recusou a solicitação porque um limite de requisições ou a cota do plano foi atingido. Aguarde alguns minutos ou escolha outro modelo e tente novamente.\n{detail}",
   "error.provider.antigravityModelUnavailable":
     "O Gemini não pode usar este modelo agora. Escolha outro modelo e tente novamente.\n{detail}",
   "error.provider.antigravityServiceFailure":
@@ -232,18 +235,22 @@ export const messages = {
   "error.provider.usageLimitReached": "A conta atingiu seu limite de uso.",
   "error.provider.foreignReasoning":
     "{provider} não aceitou o raciocínio anterior neste chat porque ele foi recebido por outra conta ou chave de API. O OpenBot iniciou uma nova sessão de {provider} com o histórico do chat. Tente novamente.",
+  "error.provider.opencodeSessionRejected":
+    "O OpenCode recusou a solicitação e não informou a causa. Isso pode acontecer em um chat longo ou depois de trocar de modelo. O OpenBot iniciou uma nova sessão do OpenCode com o histórico do chat. Tente novamente. Se o erro continuar, escolha outro modelo ou um esforço menor.",
+  "error.provider.museMcpStartupFault":
+    "O Muse não conseguiu iniciar um servidor MCP e bloqueou o MCP nesta sessão. O OpenBot iniciou uma nova sessão do Muse com o histórico do chat. Tente novamente. Se o erro continuar, desative o Uso do computador ou o servidor MCP que falhou para este agente.",
   "error.provider.grokSignIn": "Execute `grok login` ou defina XAI_API_KEY para usar o Grok.",
-  "error.provider.acpSignInTimedOut": "O tempo para entrar esgotou.",
-  "error.provider.acpSignInStopped": "O processo de entrada parou antes de terminar.",
+  "error.provider.acpSignInTimedOut": "O tempo do login esgotou.",
+  "error.provider.acpSignInStopped": "O login parou antes de terminar.",
   "error.provider.geminiBrowserUnavailable":
-    "O Gemini não conseguiu abrir a página de login. Instale um navegador e o xdg-utils, depois conecte a partir de uma sessão de desktop neste host. Um servidor sem desktop não consegue concluir este login.",
-  "error.provider.acpSignInFailed": "O processo de entrada não foi concluído.",
-  "error.provider.acpSignInFailedReason": "O processo de entrada não foi concluído: {reason}",
+    "O Gemini não conseguiu abrir a página de login. Instale um navegador e o xdg-utils, depois conecte a partir de uma sessão de área de trabalho neste computador anfitrião. Um servidor sem área de trabalho não consegue concluir este login.",
+  "error.provider.acpSignInFailed": "O login não foi concluído.",
+  "error.provider.acpSignInFailedReason": "O login não foi concluído: {reason}",
   "error.provider.acpSignInMethodMissing":
-    "Este provedor não oferece esta forma de entrada neste computador. Atualize o provedor e tente novamente.",
-  "error.provider.httpsSignInLinkOnly": "Só links de entrada HTTPS podem abrir no navegador.",
+    "Este provedor não oferece esta forma de login neste computador. Atualize o provedor e tente novamente.",
+  "error.provider.httpsSignInLinkOnly": "Somente links de login HTTPS podem abrir no navegador.",
   "error.provider.geminiKeyRefused":
-    "O Gemini recusou a chave de API salva. Substitua ou remova a chave nos Ajustes e conecte novamente.",
+    "O Gemini recusou a chave de API salva. Substitua ou remova a chave nas Configurações e conecte novamente.",
   "error.provider.messageTooLarge": "O OpenBot interrompeu {provider} porque enviou uma mensagem maior que {limit} MB.",
   "error.provider.customAgentIdInvalid":
     "Um ID de agente deve conter letras minúsculas, dígitos ou `-`, e não pode ser o ID de um provedor integrado.",
@@ -305,11 +312,11 @@ export const messages = {
   "error.provider.piSessionIdentity": "O Pi retornou uma sessão diferente. A sessão salva não foi substituída.",
   "error.provider.piModelInvalid": "Selecione um modelo do Pi que inclua seu provedor.",
   "error.provider.piToolInvalid": "A ferramenta retornou um resultado inválido.",
-  "error.provider.piSignIn": "Use /login no Pi no computador host. Feche o Pi quando o login terminar.",
+  "error.provider.piSignIn": "Use /login no Pi no computador anfitrião. Feche o Pi quando o login terminar.",
   "error.provider.museBusy": "A sessão do Muse está ocupada.",
   "error.provider.museStopped": "O cliente Muse não está rodando.",
   "error.provider.museUnexpectedProvider": "O Muse retornou um provedor de modelo inesperado.",
-  "error.provider.museNoActiveTurn": "O Muse não tem um turno ativo para direcionar.",
+  "error.provider.museNoActiveTurn": "O Muse não tem um turno ativo para orientar.",
   "error.provider.museInvalidProtocol": "O Muse retornou uma resposta de protocolo inválida.",
   "error.provider.museNotStarted": "O Muse não iniciou.",
   "error.provider.museNativeWindows": "O Muse exige um executável nativo no Windows.",
@@ -338,10 +345,10 @@ export const messages = {
   "error.provider.museProfileUnsupported":
     "O Muse não consegue gerar um perfil sem acesso a ferramentas externas. Use outro provedor para gerar o perfil e depois selecione o Muse para o agente.",
   "error.provider.museAuthUnverified":
-    "A autenticação do Muse não está verificada. Conecte no computador host ou defina uma chave de API da Meta.",
-  "error.provider.museSignIn": "Entre no Muse no computador host para continuar.",
+    "A autenticação do Muse não está verificada. Conecte-se no computador anfitrião ou defina uma chave de API da Meta.",
+  "error.provider.museSignIn": "Entre no Muse no computador anfitrião para continuar.",
   "error.provider.terminalLoginFailed":
-    "O terminal de login não pôde abrir. Abra a CLI do provedor neste host e entre por lá, depois atualize os provedores.",
+    "O terminal de login não pôde abrir. Abra a CLI do provedor neste computador anfitrião e entre por lá, depois atualize os provedores.",
   "error.provider.nativeArchiveInvalid": "O download do provedor não contém uma instalação válida.",
   "error.provider.nativeChecksum": "A instalação do provedor não passou na verificação de integridade.",
   "error.provider.registryUnavailable": "O registro ACP não está disponível. Tente de novo.",
@@ -349,7 +356,7 @@ export const messages = {
   "error.provider.registryMissing": "Este agente não está no registro ACP.",
   "error.provider.registryBusy": "Já há uma instalação em andamento para este agente.",
   "error.provider.registryCancelled": "A instalação do agente foi cancelada.",
-  "error.provider.registryPrerequisite": "Instale {tool} no host antes de instalar este agente.",
+  "error.provider.registryPrerequisite": "Instale {tool} no computador anfitrião antes de instalar este agente.",
   "error.provider.registryBindingChanged": "O agente personalizado mudou durante a instalação. Tente de novo.",
   "error.provider.registryInstallFailed": "A instalação do agente falhou. A instalação anterior permanece inalterada.",
   "error.provider.registryRemoveBusy":

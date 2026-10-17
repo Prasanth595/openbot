@@ -7,7 +7,7 @@ export const messages = {
   "diagram.board.emptyTitle": "Beginne mit einer Routine",
   "diagram.board.emptyBody": "Füge eine Routine hinzu, die die Arbeit startet, und verbinde dann Agenten mit ihr.",
   "diagram.menu.label": "Zeichenfläche",
-  "diagram.menu.addAgent": "Agent hier hinzufügen",
+  "diagram.menu.addAgent": "Agenten hier hinzufügen",
   "diagram.menu.noAgents": "Alle Agenten sind auf der Zeichenfläche",
   "diagram.menu.newAgent": "Neuer Agent hier…",
   "diagram.newAgent.label": "Neuer Agent",
@@ -100,7 +100,7 @@ export const messages = {
   "diagram.flows.unsupported":
     "Dieser Server unterstützt keine Routinenabläufe. Aktualisiere OpenBot auf dem Computer, auf dem er läuft.",
   "diagram.flows.webhookAdminOnly":
-    "Nur ein Besitzer oder Admin dieses Servers kann eine Webhook-Routine ändern oder ausführen.",
+    "Nur ein Eigentümer oder Administrator dieses Servers kann eine Webhook-Routine ändern oder ausführen.",
   "diagram.flows.loadFailed": "Die Routinen dieses Agenten konnten nicht geladen werden.",
   "diagram.flows.saveFailed": "Diese Änderung an den Routinen konnte nicht gespeichert werden.",
   "diagram.flows.runFailed": "Diese Routine konnte nicht gestartet werden.",

@@ -1,13 +1,16 @@
 import type { ServerSummary } from "@openbot/contracts/ipc";
 import { classifyFailure } from "@openbot/telemetry";
 import { SETTINGS_PANEL_DEFAULT, SETTINGS_PANEL_MAX } from "@openbot/ui/components/SettingsPanel";
+import type { AgentMessage } from "@openbot/ui/data";
+import { AgentTaskList, AgentTaskPanel } from "@openbot/ui/features/conversation/AgentTasks";
+import { SidePanelHeader, SidePanelLauncher, type SidePanelPane } from "@openbot/ui/features/conversation/SidePanel";
+import { SideQuestionPanel } from "@openbot/ui/features/conversation/SideQuestionPanel";
 import { McpSignInRelayDialog } from "@openbot/ui/features/settings/McpSignInPage";
 import { useText } from "@openbot/ui/text";
 import { actionToast } from "../../action-toast";
-import { createSettingsPanelWidth, saveSettingsPanelWidth } from "../../components/settings-panel-width";
+import { toAgentMessages } from "../../app-message-projection";
 import { agentTemplatesPort } from "../agent-templates/agent-templates-port";
 import { createPublishAgent } from "../agent-templates/PublishAgent";
-import { serverCanAdministerAgents } from "../agents/remote-agent-admin";
 import type { AgentFilesOptions } from "../files/AgentFilesSettings";
 import { canManageStorage, serverHasStorage } from "../files/storage-usage";
 import { remoteRoutineRecovery, serverCanAdminister, serverSupportsCapability } from "../servers/server-capabilities";
@@ -23,7 +26,7 @@ const CONVERSATION_PANEL_MIN = 96;
 const loadAgentSettingsPanel = () => import("./AgentSettingsPanel");
 
 import { Portal } from "@solidjs/web";
-import { createEffect, Loading, lazy, onSettled, Show } from "solid-js";
+import { createEffect, createMemo, createProjection, Loading, lazy, onSettled, Show } from "solid-js";
 import { conversationPort } from "./conversation-port";
 
 /** @internal Stable HMR boundary for conversation panels. */
@@ -73,7 +76,6 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
     handleRoutineSettingsRequest,
     sidebarFilePreview,
     settingsOpen,
-    profileOpen,
     skillSettingsRequest,
     routineSettingsRequest,
     settingsModel,
@@ -84,6 +86,22 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
     openMessageLinkRelay,
     pasteMessageLinkRelay,
     cancelMessageLinkRelay,
+    attachmentAction,
+    taskPanelOpen,
+    taskPanelTaskId,
+    taskListOpen,
+    openTaskPanel,
+    showTaskList,
+    activeRightPanel,
+    sidePanel,
+    sidePanelOpen,
+    setSidePanelMaximized,
+    openSidePanelPane,
+    toggleSidePanel,
+    closeSidePanelPane,
+    sideQuestion,
+    setSideQuestionDraft,
+    askSideQuestion,
   } = useConversationViewScope();
   const { t, errorMessage } = useText();
   const publishAgent = createPublishAgent(
@@ -96,6 +114,38 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
       ? props.runtime.admin !== undefined && serverCanAdminister(props.server, "agent-publish-v1")
       : props.server?.kind === "local";
   let browserPreviewTrigger: HTMLButtonElement | undefined;
+  /** The panes this chat can open. The web client has no Files pane, and a chat without a thread has no files. */
+  const sidePanelPanes = createMemo((): SidePanelPane[] => [
+    ...(props.browserEnabled !== false ? (["browser"] as const) : []),
+    ...(!props.runtime && props.agent?.threadId && serverHasStorage(props.server) ? (["files"] as const) : []),
+    ...(props.tasks ? (["tasks"] as const) : []),
+    ...(props.agent ? (["settings"] as const) : []),
+  ]);
+  const panelTask = createMemo(() => {
+    const taskId = taskPanelTaskId();
+    return taskId ? (props.tasks?.snapshot?.tasks.find((task) => task.id === taskId) ?? null) : null;
+  });
+  /** Reconciled by id, so a stream chunk redraws only the message that changed. */
+  const panelTaskMessages = createProjection<AgentMessage[]>(
+    () => {
+      const taskId = taskPanelTaskId();
+      const conversation = taskId ? props.tasks?.conversation(taskId) : undefined;
+      return conversation ? toAgentMessages(conversation.messages, props.agent?.id) : [];
+    },
+    [],
+    { key: "id" },
+  );
+  /** A message in a task steers or continues it. In a new task, the first message starts it. */
+  async function sendToTaskPanel(text: string): Promise<boolean> {
+    const tasks = props.tasks;
+    if (!tasks) return false;
+    const task = panelTask();
+    if (task) return tasks.onSend(task.id, text);
+    const created = await tasks.onStart(text);
+    if (!created) return false;
+    if (taskPanelOpen() && taskPanelTaskId() === null) openTaskPanel(created.id);
+    return true;
+  }
   const settingsMaxWidth = () =>
     Math.min(
       SETTINGS_PANEL_MAX,
@@ -149,6 +199,25 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
   });
   return (
     <>
+      <Show when={sidePanelOpen()}>
+        <SidePanelHeader
+          panes={sidePanel().panes}
+          selected={activeRightPanel() === "side-panel" ? null : sidePanel().selected}
+          available={sidePanelPanes()}
+          maximized={sidePanel().maximized}
+          onSelect={openSidePanelPane}
+          onClose={closeSidePanelPane}
+          onToggleMaximized={() => setSidePanelMaximized(!sidePanel().maximized)}
+          onCollapse={toggleSidePanel}
+        />
+      </Show>
+
+      <Show when={activeRightPanel() === "side-panel"}>
+        <aside class="browser-panel side-panel-empty" aria-label={t("conversation.sidePanel.label")}>
+          <SidePanelLauncher available={sidePanelPanes()} onOpen={openSidePanelPane} />
+        </aside>
+      </Show>
+
       <Show when={filePreviewOpen() && sidebarFilePreview()}>
         {(file) => {
           const attached = () => {
@@ -181,7 +250,7 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
                 onOpenWorkspaceFolder={openWorkspaceFolder}
                 onBack={sidebarFileBack() === null ? undefined : openSidebarFileBack}
                 sourceUrl={attached()?.previewUrl ?? null}
-                pageUrl={htmlAttachmentPageUrl(attached())}
+                pageUrl={htmlAttachmentPageUrl(attached()) ?? file().preview?.pageUrl}
                 pageHtml={props.runtime?.visualPage ? htmlAttachmentPageHtml(attached(), file().preview) : undefined}
                 onOpenExternally={openSidebarFileExternally}
                 onDownload={downloadSidebarFile}
@@ -204,13 +273,71 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
                   conversationId={threadId()}
                   conversationTitle={props.agent?.name ?? "this chat"}
                   canManage={canManageStorage(server())}
-                  onClose={() => setActiveRightPanel("none")}
+                  onClose={() => closeSidePanelPane("files")}
                   onPreviewFile={(file) => void previewAttachment(file)}
                   onShowMessage={(messageId) => void props.onOpenSearchMessage?.(messageId)}
                 />
               </Loading>
             )}
           </Show>
+        )}
+      </Show>
+
+      <Show when={taskListOpen() && props.tasks}>
+        {(tasks) => (
+          <AgentTaskList
+            tasks={tasks().snapshot?.tasks ?? []}
+            onNew={() => openTaskPanel(null)}
+            onOpen={openTaskPanel}
+            onClosePanel={() => closeSidePanelPane("tasks")}
+          />
+        )}
+      </Show>
+
+      <Show when={taskPanelOpen() && !taskListOpen() && props.tasks && props.agent}>
+        {(agent) => (
+          <AgentTaskPanel
+            task={panelTask()}
+            limit={props.tasks?.snapshot?.limit ?? 1}
+            agent={agent()}
+            agents={props.agents}
+            messages={panelTaskMessages}
+            onSend={sendToTaskPanel}
+            onStop={() => {
+              const task = panelTask();
+              if (task) props.tasks?.onStop(task.id);
+            }}
+            onCloseTask={() => {
+              const task = panelTask();
+              if (task) props.tasks?.onClose(task.id);
+            }}
+            onReopen={() => {
+              const task = panelTask();
+              if (task) props.tasks?.onReopen(task.id);
+            }}
+            onClosePanel={() => closeSidePanelPane("tasks")}
+            onBack={showTaskList}
+            onOpenLink={(url) => void openExternalMessageUrl(url)}
+            onPreview={(attachment) => void previewAttachment(attachment)}
+            onAttachmentAction={attachmentAction}
+          />
+        )}
+      </Show>
+
+      <Show when={activeRightPanel() === "question" && props.agent}>
+        {(agent) => (
+          <SideQuestionPanel
+            agent={agent()}
+            agents={props.agents}
+            exchanges={sideQuestion().exchanges}
+            error={sideQuestion().error}
+            draft={sideQuestion().draft}
+            focusRequest={sideQuestion().focusRequest}
+            onDraftChange={setSideQuestionDraft}
+            onAsk={askSideQuestion}
+            onClosePanel={() => closeSidePanelPane("question")}
+            onOpenLink={(url) => void openExternalMessageUrl(url)}
+          />
         )}
       </Show>
 
@@ -286,6 +413,7 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
               sessionSettingsEditable={serverCanAdminister(props.server, "agent-session-settings-v1")}
               adminCalls={props.runtime?.admin}
               skillsMarketplaceOpen={props.skillsMarketplaceOpen}
+              workspaceCovered={props.workspaceCovered}
               onAddFromMarketplace={
                 serverCanAdminister(props.server, "skills-admin-v1") ? props.onOpenMarketplace : undefined
               }
@@ -305,13 +433,15 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
                 (!props.runtime || props.runtime.admin !== undefined) &&
                 serverCanAdminister(props.server, "shared-tables-v1")
               }
-              accessEditable={props.server?.kind === "local" || serverCanAdministerAgents(props.server)}
+              autoApprove={props.agentAutoApproves}
+              onUpdatePermissions={props.onUpdateAgentPermissions}
               computerUseEditable={props.server?.kind === "local"}
               automationEditable={
                 props.server?.kind === "local" ||
                 (serverCanAdminister(props.server, "agent-host-settings-v1") && agent().allowAutomation !== undefined)
               }
               busyMessageModeEditable={props.server?.kind === "local"}
+              taskLimitEditable={props.server?.kind === "local"}
               backupModelsEditable={props.server?.kind === "local"}
               usageLimited={props.usageLimited}
               defaultBusyMessageMode={props.defaultBusyMessageMode}
@@ -364,7 +494,7 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
               modelOptions={props.modelOptions}
               working={agentActivity() === "Working"}
               maxWidth={settingsMaxWidth}
-              onClose={() => setActiveRightPanel("none")}
+              onClose={() => closeSidePanelPane("settings")}
               onWidthChange={setSettingsPanelWidth}
               onUpdateAgent={props.onUpdateAgent}
               onUpdateRuntimeSettings={updateRuntimeSettings}
@@ -386,32 +516,6 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
         )}
       </Show>
 
-      <Show when={profileOpen() && props.accountProfile}>
-        {(profile) => {
-          // Read on each open, as the agent settings panel does, so the two share the last saved width
-          // and the layout reserves this panel's width.
-          const [width, setWidth] = createSettingsPanelWidth();
-          createEffect(width, (value) => {
-            setSettingsPanelWidth(value);
-          });
-          return (
-            <Loading>
-              <AccountProfilePanel
-                account={profile().account}
-                onUpdateAccountName={profile().onUpdateAccountName}
-                onUpdateAccountAvatar={profile().onUpdateAccountAvatar}
-                onListAccountSessions={profile().onListAccountSessions}
-                onRevokeAccountSession={profile().onRevokeAccountSession}
-                width={width()}
-                maxWidth={settingsMaxWidth}
-                onResize={setWidth}
-                onResizeEnd={saveSettingsPanelWidth}
-                onClose={() => setActiveRightPanel("none")}
-              />
-            </Loading>
-          );
-        }}
-      </Show>
       {publishAgent.dialog()}
       {/* A sign-in link of the host's agent, when this computer cannot take its callback: the user pastes
           the address that the browser shows. */}
@@ -432,7 +536,6 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
 }
 
 const AgentSettingsPanel = lazy(loadAgentSettingsPanel);
-const AccountProfilePanel = lazy(() => import("@openbot/ui/features/settings/AccountProfilePanel"));
 const BrowserPanel = lazy(() => import("@openbot/ui/features/browser/BrowserPanel"));
 const FilePreviewPanel = lazy(() => import("./FilePreviewPanel"));
 const ChatFilesPanel = lazy(() => import("../files/ChatFilesPanel"));

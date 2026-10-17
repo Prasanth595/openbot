@@ -89,6 +89,25 @@
   gap: var(--openbot-space-4);
 }
 
+.routine-planner-grid {
+  display: grid;
+  min-width: 0;
+  gap: var(--openbot-space-1);
+}
+
+.routine-planner-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--openbot-space-1);
+  color: var(--openbot-text-muted);
+  font-size: var(--openbot-text-sm);
+}
+
+/* The day cell's border and padding, so that each head starts where its day starts. */
+.routine-planner-weekdays > * {
+  padding-inline: calc(1px + var(--openbot-space-1-5));
+}
+
 /* Each day is a list, not a time grid: runs at the same minute stack and stay readable. */
 .routine-planner-week {
   display: grid;
@@ -259,6 +278,42 @@
   color: var(--openbot-text-muted);
 }
 
+/* A month has up to six rows of days: a run is one line, and the column heads name the weekdays. */
+.routine-planner[data-view="month"] .routine-planner-day {
+  min-height: 7rem;
+}
+
+.routine-planner[data-view="month"] .routine-planner-day-button > span {
+  display: none;
+}
+
+.routine-planner[data-view="month"] .routine-planner-run.ui-button {
+  grid-template-columns: auto auto minmax(0, 1fr);
+  grid-template-areas: "mark time name";
+}
+
+.routine-planner[data-view="month"] .routine-planner-run-name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.routine-planner[data-view="month"] .routine-planner-run .routine-planner-avatars {
+  display: none;
+}
+
+/* Days of the months before and after only fill the rows. */
+.routine-planner-day[data-outside] {
+  border-color: var(--openbot-border);
+  background: var(--openbot-transparent);
+}
+
+.routine-planner-day[data-outside] .routine-planner-day-button strong {
+  color: var(--openbot-text-muted);
+  font-weight: var(--openbot-weight-regular);
+}
+
 .routine-planner-upcoming,
 .routine-planner-day-view {
   display: grid;
@@ -404,5 +459,19 @@
 
   .routine-planner-loading .routine-planner-day > * {
     grid-column: 1;
+  }
+
+  /* The month becomes a list of its own days: each day names its weekday again. */
+  .routine-planner-weekdays,
+  .routine-planner-day[data-outside] {
+    display: none;
+  }
+
+  .routine-planner[data-view="month"] .routine-planner-day {
+    min-height: 0;
+  }
+
+  .routine-planner[data-view="month"] .routine-planner-day-button > span {
+    display: inline;
   }
 }

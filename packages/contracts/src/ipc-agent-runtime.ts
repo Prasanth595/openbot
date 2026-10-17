@@ -133,6 +133,24 @@ function isRuntimePathList(value: unknown): value is string[] {
   );
 }
 
+/** What fills a part of the context window, in the order the popover lists it. */
+export const AGENT_CONTEXT_CATEGORIES = [
+  "systemPrompt",
+  "memoryFiles",
+  "tools",
+  "skills",
+  "toolResults",
+  "messages",
+  "other",
+] as const;
+
+export type AgentContextCategory = (typeof AGENT_CONTEXT_CATEGORIES)[number];
+
+export interface AgentContextCategoryUsage {
+  category: AgentContextCategory;
+  tokens: number;
+}
+
 /** Local desktop context state. Frozen Team adapters do not carry this field. */
 export interface AgentContextState {
   agentId: string;
@@ -143,6 +161,8 @@ export interface AgentContextState {
     autoCompactAt: number | null;
     nativeManaged: boolean;
     estimated?: boolean;
+    /** The provider's estimate of what fills `usedTokens`. Absent when the provider gives only a total. */
+    categories?: AgentContextCategoryUsage[];
   } | null;
   compaction: {
     id: string;
@@ -158,6 +178,18 @@ function isContextCount(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0;
 }
 
+/** One row per category at most, each a token count. */
+export function isAgentContextCategories(value: unknown): value is AgentContextCategoryUsage[] {
+  return (
+    Array.isArray(value) &&
+    value.length <= AGENT_CONTEXT_CATEGORIES.length &&
+    value.every(
+      (row) => isDynamicRecord(row) && isOneOf(AGENT_CONTEXT_CATEGORIES, row.category) && isContextCount(row.tokens),
+    ) &&
+    new Set(value.map((row) => row.category)).size === value.length
+  );
+}
+
 function isAgentContextState(value: unknown): value is AgentContextState {
   if (!isDynamicRecord(value) || !isIdentifier(value.agentId) || !isIdentifier(value.threadId)) return false;
   const usage = value.usage;
@@ -170,6 +202,7 @@ function isAgentContextState(value: unknown): value is AgentContextState {
         usage.windowTokens > 0 &&
         isBoolean(usage.nativeManaged) &&
         (usage.estimated === undefined || isBoolean(usage.estimated)) &&
+        (usage.categories === undefined || isAgentContextCategories(usage.categories)) &&
         (usage.autoCompactAt === null || (isContextCount(usage.autoCompactAt) && usage.autoCompactAt <= 1)))) &&
     (compaction === null ||
       (isDynamicRecord(compaction) &&

@@ -31,7 +31,7 @@ export const messages = {
   "remoteDesktop.setup.state.allowed": "Dozwolone",
   "remoteDesktop.setup.state.blocked": "Zablokowane",
   "remoteDesktop.setup.state.unavailable": "Niedostępne",
-  "remoteDesktop.setup.state.failed": "Sprawdzanie nieudane",
+  "remoteDesktop.setup.state.failed": "Błąd sprawdzania",
   "remoteDesktop.setup.state.available": "Dostępne",
   "remoteDesktop.setup.checkFailed": "Nie udało się sprawdzić konfiguracji zdalnego pulpitu.",
   "remoteDesktop.setup.openFailed": "Nie udało się otworzyć ustawień macOS.",

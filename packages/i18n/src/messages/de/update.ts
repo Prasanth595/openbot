@@ -6,9 +6,9 @@ export const messages = {
   "update.action.checking": "Updates werden gesucht…",
   "update.action.download": "Update herunterladen",
   "update.action.downloading": "Update wird heruntergeladen…",
-  "update.action.restart": "Zum Aktualisieren neu starten",
+  "update.action.restart": "Neustart für Update",
   "update.action.restarting": "Neustart läuft…",
-  "update.action.retryDownload": "Download erneut versuchen",
+  "update.action.retryDownload": "Download wiederholen",
   "update.managedByHost": "Vom Host verwaltet",
   "update.upToDate": "Aktuell",
   "update.provider.update": "Aktualisieren",
@@ -60,6 +60,6 @@ export const messages = {
   "update.whatsNew.empty.title": "Keine neuen Funktionen in dieser Version",
   "update.whatsNew.empty.body":
     "Für diese Version gibt es hier keine Hinweise. Das vollständige Änderungsprotokoll zeigt alle Änderungen.",
-  "update.whatsNew.changelog": "Vollständiges Änderungsprotokoll",
+  "update.whatsNew.changelog": "Alle Änderungen",
   "update.whatsNew.done": "Verstanden",
 } as const satisfies PartialTranslation<typeof source>;

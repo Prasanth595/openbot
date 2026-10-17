@@ -1,9 +1,15 @@
+import type { RespondToPromptInput } from "@openbot/contracts/ipc";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useMobileSession } from "@/features/auth/context/mobile-session-context";
 import { useAgentActivity } from "@/features/workspace/components/use-agent-activity";
 import { useApprovalRequests } from "@/features/workspace/components/use-live-workspace";
-import { type MobileAgent, useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import {
+  type MobileAgent,
+  useMobileWorkspaceReader,
+  useMobileWorkspaceSelector,
+} from "@/features/workspace/context/mobile-workspace-context";
 import { openTurnActivity } from "@/features/workspace/model/agent-activity";
+import { showsOnline } from "@/features/workspace/model/server-status";
 import { chatRowIndex, latestReadableMessage, projectChatMessages, withFailureReasons } from "../model/chat-messages";
 import { ChatView } from "./chat-view";
 import { useChatQueue } from "./use-chat-queue";
@@ -11,26 +17,27 @@ import { useQuestionPrompt } from "./use-question-prompt";
 
 /** `focusMessageId` opens the chat at a message from search instead of at the latest message. */
 export function MobileChatView({ agent, focusMessageId }: { agent: MobileAgent; focusMessageId?: string }) {
-  const {
-    agents,
-    conversationStore,
-    servers,
-    loadConversation,
-    loadConversationAround,
-    loadLatestMessages,
-    loadOlderMessages,
-    interruptTurn,
-    markAgentRead,
-    respondToPrompt,
-  } = useMobileWorkspace();
+  const workspace = useMobileWorkspaceReader();
+  const agents = useMobileWorkspaceSelector((current) => current.agents);
+  const conversationStore = useMobileWorkspaceSelector((current) => current.conversationStore);
+  const server = useMobileWorkspaceSelector((current) => current.servers.find((item) => item.id === agent.serverId));
+  const loadConversation = useMobileWorkspaceSelector((current) => current.loadConversation);
+  const loadConversationAround = useMobileWorkspaceSelector((current) => current.loadConversationAround);
+  const loadLatestMessages = useMobileWorkspaceSelector((current) => current.loadLatestMessages);
+  const loadOlderMessages = useMobileWorkspaceSelector((current) => current.loadOlderMessages);
+  const markAgentRead = useMobileWorkspaceSelector((current) => current.markAgentRead);
+  const respondToPrompt = useCallback(
+    (agentId: string, input: RespondToPromptInput) => workspace().respondToPrompt(agentId, input),
+    [workspace],
+  );
   const subscribe = useCallback(
     (notify: () => void) => conversationStore.subscribe(agent.id, notify),
     [agent.id, conversationStore],
   );
   const snapshot = useCallback(() => conversationStore.get(agent.id), [agent.id, conversationStore]);
   const stopTurn = useCallback(
-    (turnId: string) => interruptTurn(agent.id, turnId, agent.serverId),
-    [agent.id, agent.serverId, interruptTurn],
+    (turnId: string) => workspace().interruptTurn(agent.id, turnId, agent.serverId),
+    [agent.id, agent.serverId, workspace],
   );
   const conversation = useSyncExternalStore(subscribe, snapshot);
   const serverAgents = useMemo(
@@ -38,7 +45,7 @@ export function MobileChatView({ agent, focusMessageId }: { agent: MobileAgent; 
     [agents, agent.serverId],
   );
   const mentionAgents = useMemo(() => serverAgents.filter((item) => item.id !== agent.id), [serverAgents, agent.id]);
-  const memberId = servers.find((item) => item.id === agent.serverId)?.membershipId ?? null;
+  const memberId = server?.membershipId ?? null;
   const accountUserId = useMobileSession().session?.user.id ?? null;
   const projected = useMemo(
     () => projectChatMessages(conversation?.messages ?? [], memberId, accountUserId),
@@ -59,7 +66,8 @@ export function MobileChatView({ agent, focusMessageId }: { agent: MobileAgent; 
       ),
     [serverApprovals, agent.id, threadId],
   );
-  const online = servers.find((item) => item.id === agent.serverId)?.state === "online";
+  // The history and the queue load again when the connection is back, so they read the live state.
+  const online = server?.state === "online";
   const queue = useChatQueue(
     agent.id,
     agent.serverId,
@@ -143,7 +151,7 @@ export function MobileChatView({ agent, focusMessageId }: { agent: MobileAgent; 
   const questionForm = useQuestionPrompt(
     agent.id,
     activePrompt?.kind === "question" ? activePrompt : undefined,
-    online,
+    showsOnline(server),
     respondToPrompt,
   );
   return (

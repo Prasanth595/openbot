@@ -2,7 +2,7 @@ import type { PartialTranslation } from "../../message";
 import type { messages as source } from "../en/prompt";
 
 export const messages = {
-  "prompt.inputRequired": "Se necesita tu respuesta",
+  "prompt.inputRequired": "Requiere respuesta",
   "prompt.question.label": "Preguntas del agente",
   "prompt.question.cancelled": "Preguntas canceladas",
   "prompt.question.expired": "Preguntas caducadas",
@@ -56,7 +56,7 @@ export const messages = {
   "prompt.browser.pendingBody":
     "Abre la página para completar el inicio de sesión, la verificación o el consentimiento. Después, permite que {name} continúe.",
   "prompt.browser.openPage": "Abrir {title}",
-  "prompt.browser.returning": "Devolviendo el control…",
+  "prompt.browser.returning": "Volviendo…",
   "prompt.browser.done": "He terminado",
   "prompt.browser.cancelling": "Cancelando…",
   "prompt.browser.pageFallback": "Página del navegador",

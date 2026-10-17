@@ -12,9 +12,9 @@ export const messages = {
   "usage.exactCost": "{amount} USD",
   "usage.tokensAmount": "{tokens} token",
   "usage.chart.costDescription":
-    "Sağlayıcıya göre günlük tahmini maliyet (USD). Kesin değerler Günlük verileri görüntüle ile görülebilir.",
+    "Sağlayıcıya göre günlük tahmini maliyet (USD). Kesin değerleri görmek için “Günlük verileri gör” seçeneğini kullanın.",
   "usage.chart.tokensDescription":
-    "Sağlayıcıya göre günlük işlenen token'lar. Kesin değerler Günlük verileri görüntüle ile görülebilir.",
+    "Sağlayıcıya göre günlük işlenen token'lar. Kesin değerleri görmek için “Günlük verileri gör” seçeneğini kullanın.",
   "usage.chart.costLabel": "Sağlayıcıya göre günlük tahmini maliyet (USD)",
   "usage.chart.tokensLabel": "Sağlayıcıya göre günlük işlenen token'lar",
   "usage.column.cost": "Maliyet",
@@ -34,7 +34,7 @@ export const messages = {
   "usage.dailyTrend": "Günlük eğilim",
   "usage.dailyCost": "Günlük maliyet",
   "usage.dailyTokens": "Günlük token'lar",
-  "usage.viewDailyData": "Günlük verileri görüntüle",
+  "usage.viewDailyData": "Günlük verileri gör",
   "usage.totals.title": "Toplamlar",
   "usage.totals.processedTokens": "İşlenen token'lar",
   "usage.totals.cachedInput": "Önbelleğe alınan girdi",
@@ -52,7 +52,7 @@ export const messages = {
   "usage.breakdown.byAgent": "Ajana göre kullanım",
   "usage.breakdown.byDay": "Günlük kullanım ve maliyet",
   "usage.unknownModel": "Bilinmeyen model",
-  "usage.footer": "Toplama başlandı: {started} · Güncellendi: {updated}",
+  "usage.footer": "Veri toplama başladı: {started} · Güncellendi: {updated}",
   "usage.updatedNever": "hiçbir zaman",
   "usage.about.title": "Bu tahminler hakkında",
   "usage.about.body":

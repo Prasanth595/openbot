@@ -40,13 +40,22 @@ export const INPUT_LIMITS = {
   // at once is a loop that opens waits, not work.
   agentWaits: 20,
   agentWaitNote: 500,
+  // Tasks of one agent in one list: the open ones, then the newest closed ones.
+  agentTasks: 50,
+  agentTaskTitle: 120,
+  agentTaskProgress: 500,
+  agentTaskError: 2_000,
   // The text a local script adds to a routine run through the automation server.
   automationPayload: 4_000,
-  // Six weeks: the longest range the routine calendar reads, with room for a month view.
-  routineCalendarDays: 42,
+  // The longest range the routine calendar reads: a six-week month view, with one day before it and
+  // two after it for the viewer's time zone.
+  routineCalendarDays: 44,
   routineCron: 255,
   messageText: 100_000,
   directMessageText: 20_000,
+  // A side question carries its earlier questions and answers, because nothing on the host keeps them.
+  sideQuestionTurns: 20,
+  sideQuestionAnswer: 32_000,
   promptQuestions: 32,
   promptOptions: 5,
   promptHeader: 120,

@@ -9,18 +9,18 @@ export const messages = {
   "error.provider.endpointsReadOnly":
     "Los endpoints guardados se escribieron con una versión más reciente de OpenBot o el archivo no se puede leer. Actualiza OpenBot para cambiarlos.",
   "error.provider.endpointNoSecureStorage":
-    "Este equipo no tiene almacenamiento seguro, por lo que no se puede guardar una clave API ni una cabecera. Elimínalas o usa un endpoint que no necesite credenciales.",
+    "Este equipo no tiene almacenamiento seguro, por lo que no se puede guardar una clave de API ni una cabecera. Elimínalas o usa un endpoint que no necesite credenciales.",
   "error.provider.endpointDuplicate":
     "Ya hay un endpoint guardado con este ID de proveedor. Elimínalo primero o usa otro ID.",
   "error.provider.endpointNotSaved": "Este endpoint no está guardado. Actualiza la lista e inténtalo de nuevo.",
   "error.provider.endpointKeyForNewAddress":
-    "La dirección tiene un nuevo host o puerto. Introduce la clave API y las cabeceras de nuevo para no enviar las guardadas a esa dirección.",
+    "La dirección tiene un nuevo host o puerto. Introduce la clave de API y las cabeceras de nuevo para no enviar las guardadas a esa dirección.",
   "error.provider.endpointSecretUnreadable":
-    "Este equipo no puede leer la clave API ni las cabeceras guardadas. Introdúcelas de nuevo para que no se pierda ninguna.",
+    "Este equipo no puede leer la clave de API ni las cabeceras guardadas. Introdúcelas de nuevo para que no se pierda ninguna.",
   "error.provider.discoveryTimeout": "{host} no respondió a tiempo.",
   "error.provider.discoveryUnreachable": "OpenBot no pudo conectarse a {host}.",
   "error.provider.discoveryRedirect": "{host} envió una redirección. Introduce la dirección final del servidor.",
-  "error.provider.discoveryRefused": "{host} rechazó la solicitud. Comprueba la clave API y las cabeceras.",
+  "error.provider.discoveryRefused": "{host} rechazó la solicitud. Comprueba la clave de API y las cabeceras.",
   "error.provider.discoveryHttp": "{host} respondió con HTTP {status}.",
   "error.provider.discoveryTooLarge": "La lista de modelos de {host} es demasiado grande.",
   "error.provider.discoveryInvalid": "{host} no envió una lista de modelos compatible con OpenAI.",
@@ -102,7 +102,7 @@ export const messages = {
   "error.provider.headerNameTooLong": "El nombre de una cabecera es demasiado largo.",
   "error.provider.headerNameDuplicate": "Dos cabeceras tienen el mismo nombre.",
   "error.provider.headerValueInvalid": "Falta el valor de una cabecera o es demasiado largo.",
-  "error.provider.apiKeyTooLong": "La clave API es demasiado larga.",
+  "error.provider.apiKeyTooLong": "La clave de API es demasiado larga.",
   "error.provider.localOnly": "Los proveedores solo se pueden cambiar en el equipo que ejecuta los agentes.",
   "error.provider.keyRequired": "Se requiere una clave de proveedor.",
   "error.provider.keyTooLong": "La clave del proveedor es demasiado larga.",
@@ -150,6 +150,9 @@ export const messages = {
     "{provider} no respondió a tiempo. El equipo puede estar ocupado. OpenBot lo intentará de nuevo.",
   "error.provider.cliTimedOutRefresh":
     "{provider} no respondió a tiempo. El equipo puede estar ocupado. Actualiza los proveedores para intentarlo de nuevo.",
+  "error.provider.acpStartTimedOut":
+    "{provider} no terminó de iniciarse en {seconds} s. El equipo puede estar ocupado.",
+  "error.provider.acpModelsTimedOut": "{provider} no listó sus modelos en {seconds} s. El equipo puede estar ocupado.",
   "error.provider.startStopped":
     "{provider} no se inició varias veces seguidas, así que OpenBot dejó de intentarlo. Actualiza los proveedores para intentarlo de nuevo.",
   "error.provider.tempDiskSpace":
@@ -175,7 +178,7 @@ export const messages = {
   "error.provider.cliBusyReconnect":
     "La CLI de {provider} está procesando un turno. Espera a que termine y vuelve a conectar.",
   "error.provider.opencodeCredentialsRejected":
-    "El proveedor del modelo rechazó la clave API. Corrige la clave de OpenCode en Ajustes o la clave del proveedor con `opencode auth login`. Luego inténtalo de nuevo o elige otro modelo.\n{detail}",
+    "El proveedor del modelo rechazó la clave de API. Corrige la clave de OpenCode en Ajustes o la clave del proveedor con `opencode auth login`. Luego inténtalo de nuevo o elige otro modelo.\n{detail}",
   "error.provider.opencodeServiceFailure":
     "OpenCode no pudo completar este turno porque falló su servicio local. Inténtalo de nuevo. Si el error continúa, vuelve a conectar OpenCode en Ajustes.",
   "error.provider.opencodeRateLimited":
@@ -234,7 +237,11 @@ export const messages = {
   "error.provider.clineSignIn": "Inicia sesión con Cline o define CLINE_API_KEY para usar Cline.",
   "error.provider.usageLimitReached": "La cuenta alcanzó su límite de uso.",
   "error.provider.foreignReasoning":
-    "{provider} no aceptó el razonamiento anterior de este chat porque lo recibió otra cuenta o clave API. OpenBot inició una nueva sesión de {provider} con el historial del chat. Inténtalo de nuevo.",
+    "{provider} no aceptó el razonamiento anterior de este chat porque lo recibió otra cuenta o clave de API. OpenBot inició una nueva sesión de {provider} con el historial del chat. Inténtalo de nuevo.",
+  "error.provider.opencodeSessionRejected":
+    "OpenCode rechazó la solicitud y no indicó la causa. Esto puede ocurrir en un chat largo o después de cambiar de modelo. OpenBot inició una nueva sesión de OpenCode con el historial del chat. Inténtalo de nuevo. Si el error continúa, elige otro modelo o un esfuerzo menor.",
+  "error.provider.museMcpStartupFault":
+    "Muse no pudo iniciar un servidor MCP y bloqueó MCP en esta sesión. OpenBot inició una nueva sesión de Muse con el historial del chat. Inténtalo de nuevo. Si el error continúa, desactiva Uso del equipo o el servidor MCP que falló para este agente.",
   "error.provider.grokSignIn": "Ejecuta `grok login` o define XAI_API_KEY para usar Grok.",
   "error.provider.acpSignInTimedOut": "Se agotó el tiempo del inicio de sesión.",
   "error.provider.acpSignInStopped": "El inicio de sesión se detuvo antes de completarse.",
@@ -243,7 +250,7 @@ export const messages = {
   "error.provider.acpSignInFailed": "El inicio de sesión no se completó.",
   "error.provider.acpSignInFailedReason": "El inicio de sesión no se completó: {reason}",
   "error.provider.acpSignInMethodMissing":
-    "Este proveedor no ofrece este inicio de sesión en este ordenador. Actualiza el proveedor y vuelve a intentarlo.",
+    "Este proveedor no ofrece este inicio de sesión en este equipo. Actualiza el proveedor y vuelve a intentarlo.",
   "error.provider.httpsSignInLinkOnly": "Solo se pueden abrir en el navegador enlaces de inicio de sesión HTTPS.",
   "error.provider.geminiKeyRefused":
     "Gemini rechazó la clave de API guardada. Reemplaza o elimina la clave en Ajustes y vuelve a conectar.",
@@ -286,8 +293,7 @@ export const messages = {
   "error.provider.accountsUnsupported": "{provider} solo admite una cuenta.",
   "error.provider.accountNeedsConnection": "Conecta {provider} antes de añadir otra cuenta.",
   "error.provider.accountLimit": "{provider} admite como máximo {limit} cuentas.",
-  "error.provider.accountNotFound":
-    "Esta cuenta de {provider} no está en este ordenador. Actualiza e inténtalo de nuevo.",
+  "error.provider.accountNotFound": "Esta cuenta de {provider} no está en este equipo. Actualiza e inténtalo de nuevo.",
   "error.provider.accountAlreadyAdded": "Esta cuenta de {provider} ya está conectada.",
   "error.provider.accountDefault": "No se puede eliminar la primera cuenta de {provider}.",
   "error.provider.accountInUse":
@@ -310,7 +316,7 @@ export const messages = {
   "error.provider.piSessionIdentity": "Pi devolvió una sesión diferente. La sesión guardada no se reemplazó.",
   "error.provider.piModelInvalid": "Selecciona un modelo de Pi que incluya su proveedor.",
   "error.provider.piToolInvalid": "La herramienta devolvió un resultado no válido.",
-  "error.provider.piSignIn": "Usa /login en Pi en el equipo anfitrión. Cierra Pi cuando termines de iniciar sesión.",
+  "error.provider.piSignIn": "Usa /login en Pi en el equipo host. Cierra Pi cuando termines de iniciar sesión.",
   "error.provider.museBusy": "La sesión de Muse está ocupada.",
   "error.provider.museStopped": "El cliente de Muse no se está ejecutando.",
   "error.provider.museUnexpectedProvider": "Muse devolvió un proveedor de modelo inesperado.",
@@ -343,8 +349,8 @@ export const messages = {
   "error.provider.museProfileUnsupported":
     "Muse no puede generar un perfil sin acceso a herramientas externas. Usa otro proveedor para generar el perfil y luego selecciona Muse para el agente.",
   "error.provider.museAuthUnverified":
-    "La autenticación de Muse no está verificada. Conéctate en el equipo anfitrión o define una clave de API de Meta.",
-  "error.provider.museSignIn": "Inicia sesión en Muse en el equipo anfitrión para continuar.",
+    "La autenticación de Muse no está verificada. Conéctate en el equipo host o define una clave de API de Meta.",
+  "error.provider.museSignIn": "Inicia sesión en Muse en el equipo host para continuar.",
   "error.provider.terminalLoginFailed":
     "No se pudo abrir la terminal de inicio de sesión. Abre la CLI del proveedor en este host, inicia sesión allí y actualiza los proveedores.",
   "error.provider.nativeArchiveInvalid": "La descarga del proveedor no contiene una instalación válida.",

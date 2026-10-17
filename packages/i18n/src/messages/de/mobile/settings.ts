@@ -55,7 +55,7 @@ export const messages = {
   "mobile.settings.sessions.disconnectTitle": "Verbindung zu {name} trennen?",
   "mobile.settings.sessions.disconnectBody":
     "Dies beendet auch die aktiven Remote-Verbindungen des Kontos. Das Gerät kann sich erneut anmelden.",
-  "mobile.settings.sessions.disconnect": "Verbindung trennen",
+  "mobile.settings.sessions.disconnect": "Trennen",
   "mobile.settings.dictation.title": "Diktat",
   "mobile.settings.dictation.footer":
     "Die Sprache, in der du eine Nachricht diktierst. Automatisch verwendet die erste Sprache in den Telefoneinstellungen, die von der Spracherkennung unterstützt wird.",
@@ -100,12 +100,19 @@ export const messages = {
   "mobile.settings.notifications.title": "Mitteilungen",
   "mobile.settings.notifications.toggle": "Mitteilungen erlauben",
   "mobile.settings.notifications.footer":
-    "Agenten melden sich, wenn sie fertig sind, mit einem Fehler anhalten oder deine Eingabe, eine Freigabe oder einen Schritt im Browser brauchen. Nichts kommt, während du OpenBot benutzt. Während du die Desktop-App benutzt, kommt nur, was dich braucht. Solange die Live-Aktivität angezeigt wird, zeigt sie das Ereignis stattdessen.",
+    "Agenten melden sich, wenn sie fertig sind, mit einem Fehler anhalten oder deine Eingabe, eine Genehmigung oder einen Schritt im Browser brauchen. Nichts kommt, während du OpenBot hier oder in der Desktop-App benutzt. Solange die Live-Aktivität angezeigt wird, zeigt sie das Ereignis stattdessen.",
+  "mobile.settings.notifications.footerAndroid":
+    "Agenten melden sich, wenn sie fertig sind, mit einem Fehler anhalten oder deine Eingabe, eine Genehmigung oder einen Schritt im Browser brauchen. Nichts kommt, während du OpenBot hier oder in der Desktop-App benutzt.",
   "mobile.settings.notifications.denied": "Mitteilungen für OpenBot sind in den iOS-Einstellungen ausgeschaltet.",
+  "mobile.settings.notifications.deniedAndroid":
+    "Benachrichtigungen für OpenBot sind in den Android-Einstellungen ausgeschaltet.",
   "mobile.settings.notifications.openSettings": "iOS-Einstellungen öffnen",
+  "mobile.settings.notifications.openSettingsAndroid": "Android-Einstellungen öffnen",
   "mobile.settings.notifications.preview": "Vorschau der Antwort zeigen",
   "mobile.settings.notifications.previewFooter":
-    "Zeigt den Anfang einer Antwort, eine Frage oder die freizugebende Aktion. Apple und der OpenBot-Kontodienst können sie nicht lesen.",
+    "Zeigt den Anfang einer Antwort, eine Frage oder die zu genehmigende Aktion. Apple und der OpenBot-Kontodienst können sie nicht lesen.",
+  "mobile.settings.notifications.previewFooterAndroid":
+    "Zeigt den Anfang einer Antwort, eine Frage oder die zu genehmigende Aktion. Google und der OpenBot-Kontodienst können sie nicht lesen.",
   "mobile.settings.notifications.sound": "Ton",
   "mobile.settings.notifications.playSound": "Ton abspielen",
   "mobile.settings.notifications.sound.openbot": "OpenBot",
@@ -114,8 +121,11 @@ export const messages = {
   "mobile.settings.notifications.sound.bubble": "Blubbernd",
   "mobile.settings.notifications.sound.press": "Klickend",
   "mobile.settings.notifications.sound.default": "iOS-Standard",
+  "mobile.settings.notifications.sound.defaultAndroid": "Android-Standard",
   "mobile.settings.notifications.soundFooter":
     "Mitteilungen und die Live-Aktivität spielen diesen Ton. Die Live-Aktivität schaltet dabei auch den Bildschirm ein. Der OpenBot-Ton ist der Ton, den die Desktop-App spielt, wenn eine Aufgabe fertig ist. Die vier Töne danach sind die Töne der Klangthemen der Desktop-App.",
+  "mobile.settings.notifications.soundFooterAndroid":
+    "Benachrichtigungen spielen diesen Ton. Der OpenBot-Ton ist der Ton, den die Desktop-App spielt, wenn eine Aufgabe fertig ist. Die vier Töne danach sind die Töne der Klangthemen der Desktop-App.",
   "mobile.settings.notifications.notifyAbout": "Benachrichtige mich über",
   "mobile.settings.notifications.level.all": "Alle Aktivitäten",
   "mobile.settings.notifications.level.needsMe": "Nur wenn ich gebraucht werde",
@@ -133,6 +143,8 @@ export const messages = {
     "Die Ereignisse dieses Servers, die dieses Telefon benachrichtigen. Die Desktop-App hat eigene Einstellungen.",
   "mobile.settings.notifications.serverUnsupported":
     "Dieser Server kann keine Mitteilungen senden. Aktualisiere OpenBot auf dem Computer, auf dem er läuft.",
+  "mobile.settings.notifications.channel": "Agenten-Benachrichtigungen ({sound})",
+  "mobile.settings.notifications.channelSilent": "Agenten-Benachrichtigungen (ohne Ton)",
   "mobile.settings.privacy.title": "Datenschutz",
   "mobile.settings.privacy.footer":
     "Teile die Nutzung von Funktionen und Verbindungsergebnisse dieses Telefons. Nachrichteninhalte und Dateien werden nicht gesendet.",

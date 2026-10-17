@@ -9,11 +9,11 @@ export const messages = {
   "mobile.agent.session.reset": "{name} zurücksetzen",
   "mobile.agent.session.unavailable":
     "Der gespeicherte Wert {value} ist nicht verfügbar. Wähle einen anderen Wert oder setze ihn zurück.",
-  "mobile.agent.session.pending": "Änderungen gelten ab dem nächsten Durchgang.",
+  "mobile.agent.session.pending": "Änderungen gelten ab dem nächsten Durchlauf.",
   "mobile.agent.pin.pin": "Anheften",
-  "mobile.agent.pin.unpin": "Loslösen",
+  "mobile.agent.pin.unpin": "Lösen",
   "mobile.agent.pin.pinNamed": "{name} anheften",
-  "mobile.agent.pin.unpinNamed": "{name} loslösen",
+  "mobile.agent.pin.unpinNamed": "{name} lösen",
   "mobile.agent.pin.limitReached": "Maximale Anzahl angehefteter Chats erreicht. Löse zuerst einen Chat los.",
   "mobile.agent.pin.closeAction": "Anheftaktion für {name} schließen",
   "mobile.agent.appearance.preview": "Avatarvorschau für {name}",
@@ -36,6 +36,7 @@ export const messages = {
   "mobile.agent.appearance.hue.magenta": "Magenta",
   "mobile.agent.menu.deleteFailed": "Agent konnte nicht gelöscht werden",
   "mobile.agent.menu.duplicateFailed": "Agent konnte nicht dupliziert werden",
+  "mobile.agent.menu.hideFailed": "Agent konnte nicht ausgeblendet werden",
   "mobile.agent.menu.actionFailed": "Der Server konnte diese Aktion nicht abschließen. Versuche es erneut.",
   "mobile.agent.menu.deleteTitle": "{name} löschen?",
   "mobile.agent.menu.deleteBody": "Dadurch wird der Agent von diesem Server entfernt.",
@@ -125,7 +126,7 @@ export const messages = {
   "mobile.agent.info.noSkills": "Noch keine Fähigkeiten.",
   "mobile.agent.info.skillsManaged": "Die Fähigkeiten dieses Agenten werden auf dem Host verwaltet.",
   "mobile.agent.info.skillsAddOnComputer":
-    "Verwende +, um mit diesem Agenten eine Fähigkeit zu erstellen. Füge Fähigkeiten aus dem Marktplatz in OpenBot auf einem Computer oder in der Web-App hinzu.",
+    "Verwende +, um mit diesem Agenten eine Fähigkeit zu erstellen. Füge Fähigkeiten aus dem Marketplace in OpenBot auf einem Computer oder in der Web-App hinzu.",
   "mobile.agent.info.filesUnsupported":
     "Dieser Host unterstützt keine Dateiverwaltung. Aktualisiere OpenBot auf dem Host.",
   "mobile.agent.info.memoryGone": "Diese Erinnerung ist nicht mehr verfügbar.",
@@ -176,7 +177,8 @@ export const messages = {
   "mobile.agent.record.eventType": "Ereignistyp",
   "mobile.agent.record.eventTypePlaceholder": "build.completed",
   "mobile.agent.record.eventTypeHint": "Lass das Feld leer, um jeden Ereignistyp zu akzeptieren.",
-  "mobile.agent.record.eventFiltersHint": "Ein Lauf startet nur, wenn jeder Filter mit den Anfragedaten übereinstimmt.",
+  "mobile.agent.record.eventFiltersHint":
+    "Eine Ausführung startet nur, wenn jeder Filter mit den Anfragedaten übereinstimmt.",
   "mobile.agent.record.eventFilterPointer": "JSON Pointer",
   "mobile.agent.record.eventFilterPointerInvalid":
     "Beginne den JSON Pointer mit / oder lass ihn leer, um alle Daten abzugleichen.",
@@ -265,6 +267,7 @@ export const messages = {
   "mobile.agent.permissions.title": "Berechtigungen",
   "mobile.agent.advanced.title": "Erweitert",
   "mobile.agent.runtime.unavailable": "Nicht verfügbar",
+  "mobile.agent.runtime.hostDefault": "Host-Standard",
   "mobile.agent.runtime.provider": "Anbieter",
   "mobile.agent.runtime.account": "Konto",
   "mobile.agent.runtime.accountNumbered": "Konto {number}",
@@ -283,19 +286,26 @@ export const messages = {
   "mobile.agent.access.title": "Zugriff",
   "mobile.agent.access.label": "Agentenzugriff",
   "mobile.agent.access.workspace": "Nur Arbeitsbereich",
+  "mobile.agent.access.ask": "Erst fragen",
   "mobile.agent.access.full": "Voller Zugriff",
-  "mobile.agent.access.autoApprove": "Automatisch genehmigen",
-  "mobile.agent.access.autoApproveNote": "Der Host beantwortet die Genehmigungsanfragen dieses Agenten selbst.",
   "mobile.agent.access.autoApproveLocked":
     "Der Turbo-Modus ist für diesen Host aktiv, daher genehmigt jeder Agent automatisch.",
+  "mobile.agent.access.workspaceNote":
+    "Der Agent arbeitet in seinem Arbeitsbereich und im gemeinsamen Ordner auf dem Host.",
+  "mobile.agent.access.askNote":
+    "Der Agent fragt dich, bevor er ein OpenBot-Tool nutzt oder eine Website veröffentlicht, und wenn sein Anbieter eine Freigabe anfordert.",
+  "mobile.agent.access.fullNote": "Der Agent handelt ohne Rückfrage, außer bei Fragen, die er dir stellt.",
   "mobile.agent.access.fullTitle": "Diesem Agenten vollen Zugriff geben?",
+  "mobile.agent.access.askTitle": "Diesen Agenten außerhalb seines Arbeitsbereichs arbeiten lassen?",
   "mobile.agent.access.fullBody":
     "Der Agent kann dann jede Datei lesen, ändern und löschen, auf die das Benutzerkonto des Hosts zugreifen kann, jeden Befehl ausführen und das Netzwerk nutzen.",
-  "mobile.agent.access.fullCancel": "Nur Arbeitsbereich beibehalten",
+  "mobile.agent.access.noApproval":
+    "Der Agent führt dann Befehle aus, ändert Dateien, nutzt Tools und veröffentlicht Websites, ohne dich vorher zu fragen.",
   "mobile.agent.access.fullConfirm": "Vollen Zugriff erlauben",
+  "mobile.agent.access.askConfirm": "Erst fragen nutzen",
   "mobile.agent.access.failed": "Der Agentenzugriff konnte nicht geändert werden.",
   "mobile.agent.access.unsupported": "Dieser Host kann den Agentenzugriff nicht von einem Remote-Gerät aus ändern.",
-  "mobile.agent.host.computerUse": "Computer Use",
+  "mobile.agent.host.computerUse": "Computersteuerung",
   "mobile.agent.host.computerUseFooter": "Diesem Agenten erlauben, Apps auf dem Host-Computer zu steuern.",
   "mobile.agent.host.automation": "Lokale Skripte",
   "mobile.agent.host.automationFooter":
@@ -304,13 +314,13 @@ export const messages = {
   "mobile.agent.host.unsupported": "Dieser Host kann diese Einstellungen nicht von einem Remote-Gerät aus ändern.",
   "mobile.agent.busyMessage.label": "Während der Arbeit",
   "mobile.agent.busyMessage.footer":
-    "Was mit einer Nachricht passiert, die du sendest, während der Agent arbeitet. Warteschlange behält sie, bis der Durchgang endet. Steuern gibt sie dem Agenten während des Durchgangs.",
+    "Was mit einer Nachricht passiert, die du sendest, während der Agent arbeitet. Warteschlange behält sie, bis der Durchlauf endet. Steuern gibt sie dem Agenten während des Durchlaufs.",
   "mobile.agent.busyMessage.queue": "Warteschlange",
   "mobile.agent.busyMessage.steer": "Steuern",
   "mobile.agent.busyMessage.hostDefaultQueue": "Host-Standard (Warteschlange)",
   "mobile.agent.busyMessage.hostDefaultSteer": "Host-Standard (Steuern)",
   "mobile.agent.busyMessage.steerUnsupported":
-    "{provider} kann einen laufenden Durchgang nicht steuern. Während der Arbeit gesendete Nachrichten warten in der Warteschlange.",
+    "{provider} kann einen laufenden Durchlauf nicht steuern. Während der Arbeit gesendete Nachrichten warten in der Warteschlange.",
   "mobile.agent.workspace.title": "Arbeitsbereichsordner",
   "mobile.agent.workspace.footer": "Der Ordner dieses Agenten auf dem Host-Computer.",
   "mobile.agent.notifications.title": "Benachrichtigungen",
@@ -333,7 +343,7 @@ export const messages = {
   "mobile.agent.tables.failed": "Die Tabellen konnten nicht geladen werden.",
   "mobile.agent.tables.retry": "Tabellen erneut laden",
   "mobile.agent.tables.empty":
-    "Noch keine Tabellen. Ein Agent erstellt eine, wenn eine Aufgabe Daten über mehrere Durchgänge benötigt. Jeder Agent kann sie nutzen.",
+    "Noch keine Tabellen. Ein Agent erstellt eine, wenn eine Aufgabe Daten über mehrere Durchläufe benötigt. Jeder Agent kann sie nutzen.",
   "mobile.agent.tables.note":
     "Alle Agenten auf diesem Host teilen diese Tabellen. Eine gelöschte Tabelle ist für jeden Agenten weg.",
   "mobile.agent.tables.madeOutside": "Außerhalb von OpenBot erstellt · jeder Agent kann sie löschen",
@@ -353,7 +363,7 @@ export const messages = {
   "mobile.agent.publish.loading": "Wird geladen…",
   "mobile.agent.publish.reconnect": "Verbinde dich erneut, um diesen Agenten zu veröffentlichen.",
   "mobile.agent.publish.failed": "Der Agent konnte nicht gelesen werden.",
-  "mobile.agent.publish.retry": "Erneut versuchen",
+  "mobile.agent.publish.retry": "Wiederholen",
   "mobile.agent.publish.published": "Veröffentlicht",
   "mobile.agent.publish.notPublished": "Nicht veröffentlicht",
   "mobile.agent.publish.publishedOn": "Veröffentlicht am {date}",
@@ -409,10 +419,10 @@ export const messages = {
   "mobile.agent.usage.share": "{percent} der bekannten Tokens",
   "mobile.agent.usage.noModels": "In diesem Zeitraum wurde keine Modellnutzung erfasst.",
   "mobile.agent.usage.partial":
-    "Unvollständige Daten: {missingUsage} Durchgänge ohne Nutzung, {incomplete} unvollständige Einträge, {unpriced} Einträge ohne Kostenschätzung.",
+    "Unvollständige Daten: {missingUsage} Durchläufe ohne Nutzung, {incomplete} unvollständige Einträge, {unpriced} Einträge ohne Kostenschätzung.",
   "mobile.agent.usage.costNote":
     "API-äquivalente Kosten in USD. Diese Schätzung enthält keine Abonnementgebühren und keine Werkzeug- und Mediengebühren.",
-  "mobile.agent.usage.collection": "Erfassung begonnen {started}. Aktualisiert {updated}.",
+  "mobile.agent.usage.collection": "Erfasst seit {started}. Aktualisiert {updated}.",
   "mobile.agent.usage.never": "nie",
   "mobile.agent.record.time": "Uhrzeit",
   "mobile.agent.section.changeFailed": "Abschnitt konnte nicht geändert werden",
@@ -423,7 +433,7 @@ export const messages = {
   "mobile.agent.section.expand": "{name} aufklappen",
   "mobile.agent.section.collapse": "{name} zuklappen",
   "mobile.agent.section.deleteTitle": "{name} löschen?",
-  "mobile.agent.section.deleteBody": "Chats in diesem Abschnitt werden nach Agenten verschoben.",
+  "mobile.agent.section.deleteBody": "Chats in diesem Abschnitt werden nach „Agenten“ verschoben.",
   "mobile.agent.section.options": "Optionen für Abschnitt {name}",
   "mobile.agent.section.empty": "Keine Chats in diesem Abschnitt",
   "mobile.agent.section.unassigned": "Agenten",
@@ -472,8 +482,11 @@ export const messages = {
   "mobile.agent.hidden.title": "Ausgeblendete Chats",
   "mobile.agent.hidden.body":
     "Ausgeblendete Chats arbeiten weiter. Sie werden nur nicht auf dem Startbildschirm angezeigt.",
+  "mobile.agent.hidden.bodySynced":
+    "Ein ausgeblendeter Chat behält seinen Verlauf. Sein Agent führt keine Routinen aus und erhält keine neuen Nachrichten. Jedes Gerät auf diesem Server blendet ihn aus.",
   "mobile.agent.hidden.showNamed": "{name} anzeigen",
   "mobile.agent.hidden.show": "Anzeigen",
+  "mobile.agent.hidden.showFailed": "Agent konnte nicht angezeigt werden",
   "mobile.agent.home.connecting": "Verbindung zum Server wird hergestellt",
   "mobile.agent.home.loadingServers": "Deine Server werden geladen",
   "mobile.agent.home.addAgent": "Agent hinzufügen",

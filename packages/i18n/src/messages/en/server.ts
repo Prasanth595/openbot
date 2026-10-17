@@ -6,6 +6,8 @@ export const messages = defineMessages("server", {
   "server.connection.startTimeout": "{name} did not start in time",
   "server.connection.sleeping": "{name} is asleep",
   "server.connection.waking": "Starting {name}",
+  "server.connection.startProgress": "{step} · {time}",
+  "server.connection.providerLimit": "The cloud provider limits new starts now. OpenBot tries again soon.",
   "server.connection.updating": "Updating {name}",
   "server.connection.loading": "Loading {name}",
   "server.connection.connecting": "Connecting to {name}",
@@ -92,8 +94,9 @@ export const messages = defineMessages("server", {
   "server.add.regularPrice": "Regular price {price}",
   "server.add.choosePlan": "Choose {plan}",
   // The footer under the plans, for needs that the plans do not cover.
-  "server.add.custom.title": "Need a Mac or a custom setup?",
-  "server.add.custom.description": "We can run OpenBot on a dedicated Mac mini, or make a plan for your company.",
+  "server.add.custom.title": "Need more power or a custom solution?",
+  "server.add.custom.description":
+    "Get dedicated infrastructure, additional storage, or features tailored to your workflow.",
   "server.add.custom.action": "Contact us",
   "server.add.join.title": "Have an invite?",
   "server.add.join.action": "Join a server",
@@ -170,8 +173,6 @@ export const messages = defineMessages("server", {
   "server.rail.unmute": "Unmute server",
   "server.rail.mute": "Mute server",
   "server.rail.notificationSettings": "Notification settings",
-  "server.rail.usage": "Usage",
-  "server.rail.schedule": "Routines",
   "server.rail.settings": "Server settings",
   // The last items of the server menu. Leave is for a joined server; restart and delete are for a hosted server that the user owns.
   "server.rail.remove": "Remove server",
@@ -244,7 +245,6 @@ export const messages = defineMessages("server", {
   "server.settings.imageReadFailed": "OpenBot could not read this image.",
   "server.settings.copyFailedTitle": "Copy failed",
   "server.settings.copyFailed": "OpenBot could not copy this value.",
-  "server.settings.close": "Close server settings",
   "server.settings.unavailableTitle": "Server settings unavailable",
   "server.settings.unsavedMcpChanges": "Unsaved MCP changes",
   "server.settings.reset": "Reset",

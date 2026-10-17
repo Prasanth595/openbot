@@ -7,6 +7,7 @@ import {
   type AgentEvent,
   type AgentSummary,
   AnalyticsInputError,
+  canAdministerServer,
   type DirectConversationPage,
   type DirectConversationPageAnchor,
   type DirectConversationSnapshot,
@@ -23,8 +24,10 @@ import {
   type TeamPresenceSnapshot,
   type TeamRealtimeEvent,
 } from "@openbot/contracts/ipc";
+import { isString } from "@openbot/contracts/runtime-values";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import { ACP_REGISTRY_CAPABILITY } from "@openbot/contracts/team-protocol/acp-registry-v1";
+import { AGENT_HIDDEN_CAPABILITY } from "@openbot/contracts/team-protocol/agent-hidden-v1";
 import { AGENT_SESSION_SETTINGS_CAPABILITY } from "@openbot/contracts/team-protocol/agent-session-settings-v1";
 import {
   AGENT_ADMIN_CAPABILITY,
@@ -33,9 +36,11 @@ import {
   AGENT_INSTALL_CAPABILITY,
   AGENT_PUBLISH_CAPABILITY,
   AGENT_UPDATE_CAPABILITY,
+  ANDROID_PUSH_NOTIFICATIONS_CAPABILITY,
   CHANNEL_DELETE_CAPABILITY,
   CONNECTORS_CAPABILITY,
   EVENTS_CAPABILITY,
+  FOCUS_USE_CAPABILITY,
   HOST_ADMIN_CAPABILITY,
   HOST_MEMBER_UPDATE_CAPABILITY,
   HOST_RELEASE_CAPABILITY,
@@ -72,6 +77,7 @@ import {
   TEAM_HISTORY_EXTENT_CAPABILITY,
   type TeamCurrentCapability,
 } from "@openbot/contracts/team-protocol/current";
+import { FOCUS_USE_INTERVAL_MS } from "@openbot/contracts/team-protocol/focus-use-v1";
 import {
   HOST_RESTART_EVENT,
   type HostRestartEvent,
@@ -99,7 +105,7 @@ import { TEAM_CURSOR_CLINE_CAPABILITY } from "@openbot/contracts/team-protocol/v
 import { encodeTeamProtocolV6BaseCurrentEvent } from "@openbot/contracts/team-protocol/v6-base-adapter";
 import { TEAM_PI_MUSE_CAPABILITY, TEAM_PROTOCOL_V7 } from "@openbot/contracts/team-protocol/v7";
 import { encodeTeamProtocolV7BaseCurrentEvent } from "@openbot/contracts/team-protocol/v7-base-adapter";
-import { sourceText } from "@openbot/i18n/source";
+import { isFixedSourceText, sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, toLogValue } from "@openbot/logging";
 import { Deferred, Effect, Exit, Scope } from "effect";
 import type * as Ws from "ws";
@@ -136,6 +142,7 @@ import {
 } from "./team-api/request-helpers";
 import { routeAcpRegistry } from "./team-api/route-acp-registry";
 import { routeAgentAdmin, routeAgentHostSettings } from "./team-api/route-agent-admin";
+import { routeAgentHidden, visibleSnapshot } from "./team-api/route-agent-hidden";
 import { routeAgentImport } from "./team-api/route-agent-import";
 import { routeAgentInstall } from "./team-api/route-agent-install";
 import { routeAgentMemoryPage } from "./team-api/route-agent-memories";
@@ -150,6 +157,7 @@ import { routeConversationFiles } from "./team-api/route-conversation-files";
 import { routeDirect } from "./team-api/route-direct";
 import { routeEvents } from "./team-api/route-events";
 import { routeFiles } from "./team-api/route-files";
+import { routeFocusUse } from "./team-api/route-focus-use";
 import { routeHostAdmin } from "./team-api/route-host-admin";
 import { routeHostTimezone } from "./team-api/route-host-timezone";
 import { routeHostUpdate } from "./team-api/route-host-update";
@@ -179,6 +187,10 @@ const TYPING_TIMEOUT_MS = 5_000;
 /** Past this many sessions, the user actions older than the age below are dropped. */
 const SESSION_USE_LIMIT = 200;
 const SESSION_USE_MAX_AGE_MS = 60 * 60 * 1000;
+/** A focused app counts as use for at most this long after the last user action of its session. */
+const FOCUS_USE_LIMIT_MS = 30 * 60_000;
+/** A focus ping after a longer gap starts a new focus period: the app lost focus or its connection. */
+const FOCUS_GAP_MS = 2 * FOCUS_USE_INTERVAL_MS;
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1_000;
 const RATE_LIMIT_SWEEP_MS = 60_000;
 const RATE_LIMIT_ATTEMPTS = 5;
@@ -265,6 +277,8 @@ export class TeamApiServer {
   #lastClientUseAt: number | null = null;
   /** The last user action of each session, so a phone can stay quiet while its member uses another app. */
   readonly #sessionUse = new Map<string, { memberId: string; at: number }>();
+  /** When the focus period of each session started, and its last focus ping. Push notifications do not read it. */
+  readonly #sessionFocus = new Map<string, { since: number; at: number }>();
   #agentListener: ((event: AgentEvent) => void) | null = null;
   #sidebarLayoutListener: ((layout: SidebarLayoutSnapshot) => void) | null = null;
   #localTypingAgentId: string | null = null;
@@ -444,8 +458,10 @@ export class TeamApiServer {
   }
 
   /**
-   * The last user action from a client - a send, a change, or a typing event - or null for none. Reads,
-   * polls and mark-read do not count: a client that is only open does not keep a hosted server running.
+   * The last user action from a client - a send, a change, or a typing event - or null for none. A focus
+   * ping (`focus-use-v1`) also counts, for at most 30 minutes after the last user action of its session or
+   * after the app got focus again.
+   * Reads, polls and mark-read do not count: a client that is only open does not keep a hosted server running.
    */
   lastClientUseAt(): number | null {
     return this.#lastClientUseAt;
@@ -465,11 +481,18 @@ export class TeamApiServer {
     this.#lastClientUseAt = now;
     if (!sessionId) return;
     this.#sessionUse.set(sessionId, { memberId, at: now });
-    // A session that has ended stays until it is old, so the map keeps one entry for each recent session.
-    if (this.#sessionUse.size > SESSION_USE_LIMIT) {
-      for (const [other, use] of this.#sessionUse)
-        if (now - use.at > SESSION_USE_MAX_AGE_MS) this.#sessionUse.delete(other);
-    }
+    pruneSessions(this.#sessionUse, now);
+  }
+
+  #recordFocusUse(sessionId: string): void {
+    const now = Date.now();
+    const previous = this.#sessionFocus.get(sessionId);
+    const start = previous && now - previous.at <= FOCUS_GAP_MS ? previous.since : now;
+    // A send, a change or a typing event of the session starts the limit again.
+    const since = Math.max(start, this.#sessionUse.get(sessionId)?.at ?? 0);
+    this.#sessionFocus.set(sessionId, { since, at: now });
+    pruneSessions(this.#sessionFocus, now);
+    if (now - since < FOCUS_USE_LIMIT_MS) this.#lastClientUseAt = now;
   }
 
   setLocalTyping(agentId: string | null, typing: boolean): void {
@@ -767,6 +790,7 @@ export class TeamApiServer {
       if ((await routeAgentAdmin(context, this.#options.admin, hidden)) === "handled") return;
       if ((await routeAgentHostSettings(context, this.#options.admin, hidden)) === "handled") return;
       if ((await routeAgentSessionSettings(context, this.#options.admin, hidden)) === "handled") return;
+      if ((await routeAgentHidden(context, this.#options.hiddenAgents, hidden)) === "handled") return;
       if ((await routeSkillsAdmin(context, this.#options.admin, hidden)) === "handled") return;
       if ((await routeSharedTables(context, this.#options.admin)) === "handled") return;
       if ((await routeAgentInstall(context, this.#options.admin, hidden, newAgentHidden)) === "handled") return;
@@ -792,6 +816,11 @@ export class TeamApiServer {
       )
         return;
       if ((await routePushNotifications(context, this.#options.pushNotifications)) === "handled") return;
+      if (
+        (await routeFocusUse(context, this.#options.focusUse ? (id) => this.#recordFocusUse(id) : undefined)) ===
+        "handled"
+      )
+        return;
       if ((await this.#routeAgents(context)) === "handled") return;
 
       // The only 404 in the Team API.
@@ -808,7 +837,12 @@ export class TeamApiServer {
         error instanceof AgentMemorySelectionError;
       const status =
         error instanceof HttpError || error instanceof RemoteScreenError ? error.status : expected ? 400 : 500;
-      const message = expected ? error.message : sourceText("error.team.requestFailed");
+      // Catalog text with no placeholder is safe to show, and the user can act on it. Any other
+      // unexpected text stays private.
+      const message =
+        expected || (error instanceof Error && isFixedSourceText(error.message))
+          ? error.message
+          : sourceText("error.team.requestFailed");
       const code = error instanceof RemoteScreenError ? error.code : undefined;
       if (!expected) (this.#options.logger ?? logger).error("Team API request failed:", toLogValue(error));
       // A streamed file can fail after its head is on the wire. A second head is not possible, so
@@ -828,6 +862,8 @@ export class TeamApiServer {
       store: this.#options.store,
       remoteScreen: this.#options.remoteScreen,
       createInvite: this.#options.createInvite,
+      updateMember: this.#options.updateMember,
+      removeMember: this.#options.removeMember,
       onSessionRevoked: this.#options.onSessionRevoked,
       getPresence: () => this.getPresence(),
       refreshPresence: () => this.refreshPresence(),
@@ -875,7 +911,8 @@ export class TeamApiServer {
   }
 
   #checkRate(request: IncomingMessage, username: string): void {
-    const key = `${request.socket.remoteAddress ?? "local"}:${username.toLowerCase()}`;
+    // The same form of the name as the team store compares, so spaces around it do not start a new count.
+    const key = `${this.#rateLimitSource(request)}:${username.trim().toLowerCase()}`;
     const now = this.#now();
     this.#pruneRateLimits(now, this.#rateLimits.size >= this.#rateLimitCapacity);
     const current = this.#rateLimits.get(key);
@@ -890,6 +927,21 @@ export class TeamApiServer {
     if (current.attempts > RATE_LIMIT_ATTEMPTS) {
       throw new HttpError(429, sourceText("error.team.tooManySignInAttempts"));
     }
+  }
+
+  /**
+   * The caller that the sign-in limit counts. The WebRTC host peer sends the requests of all its
+   * peers from this computer, so the address is the same for each peer, and one peer could use
+   * all the attempts for a user name. A forwarded request has the session token of its peer and
+   * the session ID in a header; both must agree, so a header alone does not select a new count.
+   */
+  #rateLimitSource(request: IncomingMessage): string {
+    const address = request.socket.remoteAddress ?? "local";
+    const webRtcSession = request.headers["x-openbot-webrtc-session"];
+    const token = bearerToken(request.headers.authorization);
+    if (!isString(webRtcSession) || !token) return address;
+    const authenticated = this.#options.store.authenticateSession(token);
+    return authenticated?.sessionId === webRtcSession ? `webrtc:${webRtcSession}` : address;
   }
 
   #pruneRateLimits(now: number, force: boolean): void {
@@ -1065,7 +1117,18 @@ export class TeamApiServer {
           )
         )
           continue;
-        outgoing = JSON.stringify(optional);
+        // The list of hidden agents does not name an agent that this peer cannot see, as `/v1/hidden-agents` does.
+        outgoing = JSON.stringify(
+          optional.type === "hidden-agents-changed"
+            ? {
+                type: optional.type,
+                ...visibleSnapshot(
+                  optional,
+                  this.hiddenAgentIds(eventProtocol(connection.capabilities), connection.capabilities),
+                ),
+              }
+            : optional,
+        );
       } else if (event.type === "conversation" && supportsRuntimeSnapshots) {
         conversationInvalidation ??=
           encodeEvent({
@@ -1144,7 +1207,7 @@ export class TeamApiServer {
     const { browser, store } = this.#options;
     if (!event.tabs.some((tab) => browser.isPrivate(tab.id))) return event;
     const role = store.authenticate(connection.token)?.role;
-    if (role && role !== "member") return event;
+    if (canAdministerServer(role)) return event;
     const tabs = event.tabs.filter((tab) => !browser.isPrivate(tab.id));
     return { ...event, tabs, activeTabId: tabs.some((tab) => tab.id === event.activeTabId) ? event.activeTabId : null };
   }
@@ -1569,6 +1632,7 @@ export class TeamApiServer {
         if (capability === AGENT_ADMIN_CAPABILITY) return this.#options.admin?.agents !== undefined;
         if (capability === ACP_REGISTRY_CAPABILITY) return this.#options.admin?.acpRegistry !== undefined;
         if (capability === AGENT_SESSION_SETTINGS_CAPABILITY) return this.#options.admin?.sessionSettings !== undefined;
+        if (capability === AGENT_HIDDEN_CAPABILITY) return this.#options.hiddenAgents !== undefined;
         if (capability === AGENT_HOST_SETTINGS_CAPABILITY) return this.#options.admin?.agentHost !== undefined;
         if (capability === SKILLS_ADMIN_CAPABILITY) return this.#options.admin?.skills !== undefined;
         if (capability === SKILLS_EVENTS_CAPABILITY) return this.#options.skills !== undefined;
@@ -1598,7 +1662,9 @@ export class TeamApiServer {
         if (capability === INSTANCE_TRANSFER_CAPABILITY) return this.#options.instanceTransfer !== undefined;
         if (capability === LIVE_ACTIVITY_PUSH_CAPABILITY) return this.#options.liveActivityPush !== undefined;
         if (capability === ROUTINE_FLOWS_CAPABILITY) return this.#options.routineFlows !== undefined;
-        if (capability === PUSH_NOTIFICATIONS_CAPABILITY) return this.#options.pushNotifications !== undefined;
+        if (capability === PUSH_NOTIFICATIONS_CAPABILITY || capability === ANDROID_PUSH_NOTIFICATIONS_CAPABILITY)
+          return this.#options.pushNotifications !== undefined;
+        if (capability === FOCUS_USE_CAPABILITY) return this.#options.focusUse === true;
         return true;
       }),
     };
@@ -1679,6 +1745,12 @@ export class TeamApiServer {
   }
 }
 
+/** A session that has ended stays until it is old, so the map keeps one entry for each recent session. */
+function pruneSessions(sessions: Map<string, { at: number }>, now: number): void {
+  if (sessions.size <= SESSION_USE_LIMIT) return;
+  for (const [sessionId, use] of sessions) if (now - use.at > SESSION_USE_MAX_AGE_MS) sessions.delete(sessionId);
+}
+
 function unavailableSidebarLayout(): TeamApiSidebarLayout {
   return {
     getSnapshot: () => ({
@@ -1730,6 +1802,7 @@ function eventCapability(event: AgentEvent): TeamCurrentCapability | null {
   )
     return "channel-chats-v1";
   if (event.type === "agent-session-settings-changed") return AGENT_SESSION_SETTINGS_CAPABILITY;
+  if (event.type === "hidden-agents-changed") return AGENT_HIDDEN_CAPABILITY;
   if (event.type === "skills-changed") return SKILLS_EVENTS_CAPABILITY;
   if (event.type === "routine-flows-changed") return ROUTINE_FLOWS_CAPABILITY;
   if (event.type === "turn-progress") return TEAM_AGENT_ACTIVITY_CAPABILITY;

@@ -83,7 +83,7 @@ interface TreeSize {
  * Bytes of the regular files under `root`. A symbolic link is never followed, so a workspace that
  * links to a large folder does not count it, and a loop cannot run forever.
  */
-const measureTree = Effect.fn("StorageUsage.measureTree")(function* (
+export const measureTree = Effect.fn("StorageUsage.measureTree")(function* (
   root: string,
   entryLimit = STORAGE_WALK_ENTRY_LIMIT,
 ): Effect.fn.Return<TreeSize, StoredStateFailure> {

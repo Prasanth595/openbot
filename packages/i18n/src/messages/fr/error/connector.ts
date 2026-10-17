@@ -26,5 +26,5 @@ export const messages = {
   "error.connector.onePasswordFileUnreadable": "Le fichier de connexion 1Password est illisible.",
   "error.connector.onePasswordFileTooLarge": "Le fichier de connexion 1Password est trop volumineux.",
   "error.connector.bitwardenFailed":
-    "Impossible de lire Bitwarden. Installez la CLI bw, connectez-vous, déverrouillez-la et créez un dossier nommé Shared with OpenBot. Connectez-vous avec une nouvelle clé de session.",
+    "Impossible de lire Bitwarden. Installez la CLI bw, connectez-vous, déverrouillez-la et créez un dossier nommé « Shared with OpenBot ». Connectez-vous avec une nouvelle clé de session.",
 } as const satisfies PartialTranslation<typeof source>;

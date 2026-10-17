@@ -25,7 +25,7 @@ Native system chrome is the intentional exception. Navigation and operating-syst
 | Search integrated with navigation | `Stack.SearchBar` and native toolbar search slots | Do not place a HeroUI input inside a handmade navigation bar. |
 | Header and bottom toolbar actions or menus | `Stack.Toolbar` native items | Let the platform render placement, materials, menus, and interaction behavior. |
 | Route-level modals and form sheets | Expo Router native presentations | Prefer native modal or form-sheet presentation over a custom full-screen overlay. |
-| Native pickers, switches, sliders, menus, and grouped system forms | `@expo/ui` | Use when the interaction should look and behave like a platform control. Keep every `@expo/ui` tree inside `Host`. |
+| Native pickers, switches, sliders, menus, and grouped system forms | `@expo/ui` | Use when the interaction should look and behave like a platform control. Keep every `@expo/ui` tree inside `Host`. Import `MenuView` from `@/shared/components/menu-view`, not `@expo/ui/community/menu`. iOS keeps the native menu. Android draws the HeroUI `Menu`, because the Material menu takes the device palette and shape, and shows a Lucide icon for each SF Symbol `image` that the component maps. Add the mapping when you use a new symbol. |
 | Large or unbounded data lists | React Native `FlatList` or an approved virtualized list | Do not use a non-virtualized component for feeds or large search results. |
 | Custom in-content glass surface | `expo-glass-effect` | Use sparingly, only when glass is part of the product content rather than navigation chrome. Provide non-glass and reduced-transparency behavior. |
 

@@ -11,16 +11,34 @@ import { NotificationObserver, Toaster, toast } from "@openbot/ui";
 import { AccountLogin } from "@openbot/ui/features/account/AccountLogin";
 import { AppLoadingScreen } from "@openbot/ui/features/account/AppLoadingScreen";
 import { currentText } from "@openbot/ui/text";
+import { Dynamic } from "@solidjs/web";
 import { createEffect, createSignal, createStore, onSettled, Show } from "solid-js";
 import { configureWebReports, reportNotification } from "../../error-reports";
-// Copying a selection with a formula in it gives its LaTeX source, as on desktop.
-import "katex/contrib/copy-tex";
 import { StaticI18nProvider } from "../../i18n-context";
-import { WebWorkspace } from "./WebWorkspace";
+import type { WebWorkspace } from "./WebWorkspace";
 import { WEB_APP_BILLING_PARAM } from "./web-billing";
 import type { WebRuntimeFactory } from "./web-client-context";
 import { takeHostingReturn } from "./web-hosted-servers";
 import { createWebLanguagePreference } from "./web-language-preference";
+
+// The site loads this before it mounts `WebApp` (`apps/auth-api/src/routes/app.lazy.tsx`).
+export { loadSavedLanguage } from "./web-language-preference";
+
+/**
+ * The workspace is its own chunk, so the sign-in screen does not wait for it. A signed-in account
+ * loads it after the session check; the sign-in screen loads it after it shows. A failed import is
+ * tried again on the next check.
+ */
+let workspaceImport: Promise<typeof WebWorkspace> | null = null;
+function loadWorkspace(): Promise<typeof WebWorkspace> {
+  if (!workspaceImport) {
+    workspaceImport = import("./WebWorkspace").then((module) => module.WebWorkspace);
+    workspaceImport.catch(() => {
+      workspaceImport = null;
+    });
+  }
+  return workspaceImport;
+}
 
 /** A sign-in refusal that the login form already shows. */
 class SignInIssueShown extends Error {}
@@ -97,6 +115,13 @@ export function WebApp(props: { createRuntime?: WebRuntimeFactory } = {}) {
   const [pluginSlug, setPluginSlug] = createSignal(takePluginLink());
   const [billingReturn, setBillingReturn] = createSignal(takeBillingReturn());
   const [hostingReturn, setHostingReturn] = createSignal(takeHostingReturn());
+  const [workspace, setWorkspace] = createSignal<typeof WebWorkspace>();
+  /** Sets the account when the workspace code is ready to show it. */
+  async function showAccount(account: CentralAuthUser) {
+    const view = await loadWorkspace();
+    setWorkspace(() => view);
+    return account;
+  }
   // The loading screen stays over the app until its exit ends.
   const [loadingShown, setLoadingShown] = createSignal(true);
   let channel: BroadcastChannel | null = null;
@@ -199,7 +224,7 @@ export function WebApp(props: { createRuntime?: WebRuntimeFactory } = {}) {
   async function checkSession() {
     const generation = sessionGeneration;
     try {
-      const account = accountFrom(await request("session"));
+      const account = await showAccount(accountFrom(await request("session")));
       if (!disposed && generation === sessionGeneration) {
         sessionEnded = false;
         setState((draft) => {
@@ -258,6 +283,18 @@ export function WebApp(props: { createRuntime?: WebRuntimeFactory } = {}) {
     sessionGeneration += 1;
     sessionEnded = false;
     channel?.postMessage("session-changed");
+    try {
+      await showAccount(account);
+    } catch {
+      // The server has used the code and set the session, so the retry checks the session again.
+      setState((draft) => {
+        draft.login = {
+          status: "error",
+          issue: { code: "auth_api_unavailable", message: sourceText("error.auth.serviceUnavailable") },
+        };
+      });
+      return;
+    }
     setState((draft) => {
       draft.account = account;
     });
@@ -317,7 +354,8 @@ export function WebApp(props: { createRuntime?: WebRuntimeFactory } = {}) {
               }
             >
               {(accountId) => (
-                <WebWorkspace
+                <Dynamic
+                  component={workspace()}
                   accountId={accountId}
                   accountEmail={state.account?.email ?? ""}
                   accountName={state.account?.name ?? null}
@@ -344,7 +382,13 @@ export function WebApp(props: { createRuntime?: WebRuntimeFactory } = {}) {
             </Show>
           </Show>
           <Show when={loadingShown()}>
-            <AppLoadingScreen ready={state.loaded} onExited={() => setLoadingShown(false)} />
+            <AppLoadingScreen
+              ready={state.loaded}
+              onExited={() => {
+                setLoadingShown(false);
+                void loadWorkspace().catch(() => undefined);
+              }}
+            />
           </Show>
         </div>
       </NotificationObserver>
