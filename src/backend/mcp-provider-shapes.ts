@@ -47,14 +47,29 @@ export const NO_MCP_TOOL_RUNTIMES: McpToolRuntimes = { binDirectories: [], comma
 export type McpToolRuntimeSource = () => McpToolRuntimes;
 
 /**
- * The bearer token for an http server this machine has signed in to, or `null` for every other one.
+ * Where one http server is reached, and the bearer OpenBot adds, asked at each spawn.
  *
- * Read at each spawn and never stored on the row: the token is OpenBot's to refresh, and a value in
- * the configuration would be a credential the panel shows, the Team API carries and a user edits.
- * Asked per configuration rather than per URL, so a listing that grows a second way in can answer
- * differently without this signature moving.
+ * The bearer is never stored on the row: a value in the configuration would be a credential the
+ * panel shows, the Team API carries and a user edits. A server OpenBot signed in to is reached
+ * through the loopback OAuth proxy (`McpOAuthProxy`): `url` is then the proxy route, `authorization`
+ * is that route's own bearer, and the OAuth token never leaves this process. Asked per
+ * configuration rather than per URL, because two rows on one URL are two routes.
  */
-export type McpAuthorizationSource = (config: McpServerConfig) => Effect.Effect<string | null, McpOperationError>;
+export interface McpEndpoint {
+  url: string;
+  authorization: string | null;
+  /** Through the proxy, which adds the row's own headers upstream; the provider is given none of them. */
+  proxied: boolean;
+}
+
+/** An http server that cannot be handed over, with the sentence the drop report shows. */
+export interface McpEndpointRefusal {
+  error: string;
+}
+
+export type McpEndpointSource = (
+  config: McpServerConfig,
+) => Effect.Effect<McpEndpoint | McpEndpointRefusal, McpOperationError>;
 
 /**
  * Why an enabled configuration was not given to a provider.
@@ -109,8 +124,12 @@ export type UsableMcpServer =
       command: string;
       workingDirectory: string;
       path: string | null;
-      /** The bearer token OpenBot holds for this server, added at hand-off. `null` for all others. */
+      /** Where an http server is reached: its own URL, or a route of the OAuth proxy. `""` for stdio. */
+      url: string;
+      /** The bearer OpenBot adds at hand-off. `null` for all others. */
       authorization: string | null;
+      /** See `McpEndpoint.proxied`. */
+      proxied: boolean;
       error?: undefined;
       reason?: undefined;
     }
@@ -119,7 +138,9 @@ export type UsableMcpServer =
       command?: undefined;
       workingDirectory?: undefined;
       path?: undefined;
+      url?: undefined;
       authorization?: undefined;
+      proxied?: undefined;
       error: string;
       /** Machine-readable beside the sentence, so a reporter never has to match on the wording. */
       reason: Exclude<McpDropReason, "working_directory_unsupported" | "name_conflict">;
@@ -156,10 +177,10 @@ export function computerUseParam(params: unknown): boolean {
 export const usableMcpServers = Effect.fnUntraced(function* (
   configs: readonly McpServerConfig[],
   tools: McpToolRuntimes = NO_MCP_TOOL_RUNTIMES,
-  authorization?: McpAuthorizationSource,
+  endpoint?: McpEndpointSource,
 ) {
   const candidates = configs.filter((config) => config.enabled && !isReservedMcpServerName(config.name));
-  return yield* Effect.forEach(candidates, (config) => usableMcpServer(config, tools, authorization), {
+  return yield* Effect.forEach(candidates, (config) => usableMcpServer(config, tools, endpoint), {
     concurrency: "unbounded",
   });
 });
@@ -167,20 +188,17 @@ export const usableMcpServers = Effect.fnUntraced(function* (
 export const usableMcpServer = Effect.fnUntraced(function* (
   config: McpServerConfig,
   tools: McpToolRuntimes = NO_MCP_TOOL_RUNTIMES,
-  authorization?: McpAuthorizationSource,
+  endpoint?: McpEndpointSource,
 ): Effect.fn.Return<UsableMcpServer, McpShapeFailed> {
   // An http server starts no process, so it needs neither a command nor a `PATH`. It is the only
   // kind that can carry a sign-in, because a token travels in a header.
   if (config.transport !== "stdio") {
-    return {
-      config,
-      command: "",
-      workingDirectory: "",
-      path: null,
-      authorization: authorization
-        ? yield* authorization(config).pipe(Effect.mapError(({ cause }) => new McpShapeFailed({ cause })))
-        : null,
-    };
+    const resolved = endpoint
+      ? yield* endpoint(config).pipe(Effect.mapError(({ cause }) => new McpShapeFailed({ cause })))
+      : { url: config.url, authorization: null, proxied: false };
+    // Never the raw token instead: a proxy that cannot start is a server this hand-off leaves out.
+    if ("error" in resolved) return { config, error: resolved.error, reason: "unusable" };
+    return { config, command: "", workingDirectory: "", path: null, ...resolved };
   }
   // A `PATH` the configuration carries is the one the server runs with, so it is the one the command
   // is looked up in: `python` with a virtual environment's `PATH` names that interpreter, and the
@@ -199,7 +217,9 @@ export const usableMcpServer = Effect.fnUntraced(function* (
     command,
     workingDirectory: expandHomePath(config.workingDirectory),
     path,
+    url: "",
     authorization: null,
+    proxied: false,
   };
 });
 
@@ -466,7 +486,7 @@ export function claudeMcpServers(servers: readonly UsableMcpServer[]): McpHandof
             env: mcpLaunchEnvironment(server),
             ...(server.workingDirectory ? { cwd: server.workingDirectory } : {}),
           }
-        : { type: "http", url: config.url, headers: mcpHandoffHeaders(server) };
+        : { type: "http", url: server.url, headers: mcpHandoffHeaders(server) };
   }
   return { servers: record, dropped };
 }
@@ -512,7 +532,7 @@ export function acpMcpServers(servers: readonly UsableMcpServer[]): McpHandoff<A
       entries.push({
         type: "http",
         name: config.name,
-        url: config.url,
+        url: server.url,
         headers: Object.entries(mcpHandoffHeaders(server)).map(([name, value]) => ({ name, value })),
       });
     }
@@ -597,7 +617,7 @@ export function codexMcpServers(servers: readonly UsableMcpServer[]): McpHandoff
       };
     } else {
       record[name] = {
-        url: server.config.url,
+        url: server.url,
         http_headers: mcpHandoffHeaders(server),
       };
     }
@@ -640,20 +660,22 @@ function secretDigest(config: McpServerConfig): string {
 }
 
 /**
- * The headers one http server is handed, with the OAuth token added here and only here.
+ * The headers one http server is handed, with OpenBot's bearer added here and only here.
  *
- * The token is never written to the row. That is the whole reason this stage exists: a credential
- * `mcp-remote` kept in a file of its own was one OpenBot could not redact, and a credential written
- * into `McpServerConfig.headers` would be one the panel shows, the Team API carries to a remote
- * administrator, and a user can edit into something OpenBot then refreshes over. Injected at the
- * hand-off, it is a value `McpHandoffLog` has already seen, so every log, export and send path
- * removes it.
+ * The bearer is never written to the row: a credential written into `McpServerConfig.headers`
+ * would be one the panel shows, the Team API carries to a remote administrator, and a user can edit
+ * into something OpenBot then refreshes over. Added at the hand-off, it is a value `McpHandoffLog`
+ * has already seen, so every log, export and send path removes it.
  *
- * A header the user typed wins. Someone who pasted their own `Authorization` has said which
- * credential this server takes, and silently replacing it would be OpenBot overruling them with an
- * account they did not choose.
+ * A proxied server is handed the proxy bearer alone. The proxy adds the row's own headers upstream,
+ * so a key the user typed beside a sign-in stays in this process too.
+ *
+ * A header the user typed wins otherwise. Someone who pasted their own `Authorization` has said
+ * which credential this server takes, and silently replacing it would be OpenBot overruling them
+ * with an account they did not choose. Such a row is never proxied: see `McpGateway.endpoint`.
  */
 export function mcpHandoffHeaders(server: ResolvedMcpServer): Record<string, string> {
+  if (server.proxied) return server.authorization ? { Authorization: `Bearer ${server.authorization}` } : {};
   const headers = Object.fromEntries(server.config.headers.map((pair) => [pair.key, pair.value]));
   const named = Object.keys(headers).some((key) => key.toLowerCase() === "authorization");
   if (server.authorization && !named) headers.Authorization = `Bearer ${server.authorization}`;

@@ -859,22 +859,24 @@ export class TeamApiServer {
   // One method per module, so the dispatcher above reads as a list of domains and the wiring of
   // each narrow `*RouteDependencies` sits next to nothing else.
   #routeTeam(context: TeamApiRequestContext): Promise<RouteOutcome> {
+    const { remoteScreen, createInvite, updateMember, removeMember, onSessionRevoked } = this.#options;
     return routeTeam(context, {
       store: this.#options.store,
-      remoteScreen: this.#options.remoteScreen,
-      createInvite: this.#options.createInvite,
-      updateMember: this.#options.updateMember,
-      removeMember: this.#options.removeMember,
-      onSessionRevoked: this.#options.onSessionRevoked,
+      ...(remoteScreen === undefined ? {} : { remoteScreen }),
+      ...(createInvite === undefined ? {} : { createInvite }),
+      ...(updateMember === undefined ? {} : { updateMember }),
+      ...(removeMember === undefined ? {} : { removeMember }),
+      ...(onSessionRevoked === undefined ? {} : { onSessionRevoked }),
       getPresence: () => this.getPresence(),
       refreshPresence: () => this.refreshPresence(),
     });
   }
 
   #routeRemoteScreen(context: TeamApiRequestContext): Promise<RouteOutcome> {
+    const remoteScreen = this.#options.remoteScreen;
     return routeRemoteScreen(context, {
       store: this.#options.store,
-      remoteScreen: this.#options.remoteScreen,
+      ...(remoteScreen === undefined ? {} : { remoteScreen }),
     });
   }
 
@@ -891,7 +893,11 @@ export class TeamApiServer {
   }
 
   #routeBrowser(context: TeamApiRequestContext): Promise<RouteOutcome> {
-    return routeBrowser(context, { browser: this.#options.browser, browserView: this.#options.browserView });
+    const browserView = this.#options.browserView;
+    return routeBrowser(context, {
+      browser: this.#options.browser,
+      ...(browserView === undefined ? {} : { browserView }),
+    });
   }
 
   #routeFiles(context: TeamApiRequestContext): Promise<RouteOutcome> {

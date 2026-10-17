@@ -191,14 +191,16 @@ function normalizeKey(key: string): {
   text?: string;
 } {
   const alias = KEY_ALIASES[key.toLowerCase()];
-  if (alias)
+  if (alias) {
+    const nativeVirtualKeyCode = macNativeVirtualKeyCode(alias[0]);
     return {
       ...(alias[3] === undefined ? {} : { text: alias[3] }),
       key: alias[0],
       code: alias[1],
-      windowsVirtualKeyCode: alias[2],
-      nativeVirtualKeyCode: macNativeVirtualKeyCode(alias[0]),
+      ...(alias[2] === undefined ? {} : { windowsVirtualKeyCode: alias[2] }),
+      ...(nativeVirtualKeyCode === undefined ? {} : { nativeVirtualKeyCode }),
     };
+  }
   if (!/^[\w\-.,/;='[\]`]{1,20}$/u.test(key)) throw new Error(`Unsupported browser key: ${key}`);
   const upper = key.length === 1 ? key.toUpperCase() : key;
   return { key, code: key.length === 1 && /[a-z]/i.test(key) ? `Key${upper}` : upper };

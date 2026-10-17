@@ -18,8 +18,9 @@ import {
   FolderOpen,
   Hash,
   Info,
+  LabelTooltip,
+  LabelTooltipTrigger,
   SlidingTabs,
-  Tooltip,
   TriangleAlert,
   Upload,
 } from "@openbot/ui";
@@ -496,14 +497,11 @@ function NameExistsHint(props: { name: string }) {
   const { t } = useText();
   const text = () => t("import.review.nameExists", { name: props.name });
   return (
-    <Tooltip.Root openDelay={250} closeDelay={75} placement="top" gutter={8}>
-      <Tooltip.Trigger as="span" tabindex={0} class="agent-import-name-hint" aria-label={text()}>
+    <LabelTooltip content={text()}>
+      <LabelTooltipTrigger as="span" tabindex={0} class="agent-import-name-hint" aria-label={text()}>
         <Info aria-hidden="true" />
-      </Tooltip.Trigger>
-      <Tooltip.Portal>
-        <Tooltip.Content class="ui-tooltip agent-import-name-tooltip">{text()}</Tooltip.Content>
-      </Tooltip.Portal>
-    </Tooltip.Root>
+      </LabelTooltipTrigger>
+    </LabelTooltip>
   );
 }
 

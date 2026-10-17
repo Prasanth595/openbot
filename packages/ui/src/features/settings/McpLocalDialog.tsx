@@ -36,13 +36,7 @@ export function McpLocalDialog(props: McpLocalDialogProps) {
       description={t("mcp.local.description", { name: props.subject.name })}
       onSubmit={() => void attempt(async () => props.subject.config)}
       action={
-        <Button
-          class="mcp-connect-primary"
-          type="submit"
-          loading={busy()}
-          loadingLabel={t("common.connecting")}
-          disabled={busy()}
-        >
+        <Button class="mcp-connect-primary" type="submit" loading={busy()} loadingLabel={t("common.connecting")}>
           {state.phase === "failed" ? t("common.tryAgain") : t("mcp.connect.connect")}
         </Button>
       }

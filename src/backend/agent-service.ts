@@ -384,7 +384,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   readonly #removal: AgentRemoval;
   readonly #tools: OpenBotToolRouter;
   readonly #sidebarLayout: AgentSidebar | null;
-  readonly #localSkillTools?: () => LocalSkillTools;
+  readonly #localSkillTools: (() => LocalSkillTools) | undefined;
   readonly #routineFlowTools: (() => RoutineFlowTools) | undefined;
   readonly #developmentDefaults: boolean;
   readonly #busyMessageMode: () => BusyMessageMode;
@@ -672,7 +672,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         // `enabledMcpServers`, which the Codex thread configuration reads.
         mcpServers: () => this.#mcp.record(credentials.mcpServers()),
         reportMcpDrops: (provider, drops) => this.#mcp.reportDrops(provider, drops),
-        mcpAuthorization: (config) => this.#mcp.authorization(config).pipe(toMcpOperationError),
+        mcpEndpoint: (config) => this.#mcp.endpoint(config).pipe(toMcpOperationError),
       },
       mcpHandoff: this.#mcp.handoffLog(),
       redactMcp: (text) => this.#mcp.redact(text),
@@ -706,7 +706,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       browser: this.#browser,
       hostedSites: this.#hostedSites,
       routines: this.#routines,
-      approvalAutomation: options.approvalAutomation,
+      ...(options.approvalAutomation === undefined ? {} : { approvalAutomation: options.approvalAutomation }),
       workspaceSandboxed: (agentId) => {
         const agent = store.list().find((candidate) => candidate.id === agentId);
         return agent !== undefined && workspaceAccessEnforced(agent);
@@ -715,7 +715,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       emit: (event) => this.#emit(event),
       emitError: (code, error, agentId) => this.#emitError(code, error, agentId),
       emitRuntimeSnapshot: () => this.#emitRuntimeSnapshot(),
-      passwordVault: options.passwordVault,
+      ...(options.passwordVault === undefined ? {} : { passwordVault: options.passwordVault }),
     });
     this.#duplication = new DuplicationGate({
       store,
@@ -798,7 +798,8 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       compaction: this.#compaction,
       mcpServers: () => this.#mcp.enabled(),
       mcpToolRuntimes: () => this.#mcp.toolRuntimes(),
-      mcpAuthorization: (config) => this.#mcp.authorization(config).pipe(toMcpOperationError),
+      mcpEndpoint: (config) => this.#mcp.endpoint(config).pipe(toMcpOperationError),
+      mcpProxyFingerprint: (configs) => this.#mcp.proxyFingerprint(configs).pipe(toMcpOperationError),
       ...(credentials.agentEnvironment ? { agentEnvironment: credentials.agentEnvironment } : {}),
       passwordVaultConnected: () => options.passwordVault?.connected() ?? false,
       sectionTeammates: (agentId) => this.sectionTeammates(agentId),
@@ -1177,11 +1178,11 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       drain: this.#drain,
       tables: this.#tables,
       sidebarLayout: this.#sidebarLayout,
-      localSkillTools: this.#localSkillTools,
-      routineFlowTools: this.#routineFlowTools,
-      approvalAutomation: options.approvalAutomation,
-      visualPreview: options.visualPreview,
-      screenCapture: options.screenCapture,
+      ...(this.#localSkillTools === undefined ? {} : { localSkillTools: this.#localSkillTools }),
+      ...(this.#routineFlowTools === undefined ? {} : { routineFlowTools: this.#routineFlowTools }),
+      ...(options.approvalAutomation === undefined ? {} : { approvalAutomation: options.approvalAutomation }),
+      ...(options.visualPreview === undefined ? {} : { visualPreview: options.visualPreview }),
+      ...(options.screenCapture === undefined ? {} : { screenCapture: options.screenCapture }),
       hooks: {
         listAgents: () => this.listAgents(),
         listModels: () => this.listModels(),
@@ -3116,6 +3117,8 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       discard: true,
     });
     yield* Fiber.join(channelStop);
+    // After the clients: a provider that still runs would see its MCP servers fail.
+    yield* this.#mcp.close();
     yield* settleLifecycleTasks("finish drain", this.#drain.pendingTasks());
     yield* settleLifecycleTasks("finish image requests", this.#images.pendingOperations());
     yield* this.#images.dispose();
@@ -3856,7 +3859,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     });
     this.#emit({
       type: "error",
-      agentId,
+      ...(agentId !== undefined ? { agentId } : {}),
       code,
       // Redacted, because every error from a provider CLI arrives here on its way to the renderer
       // and the log, and a CLI quotes what it was given: a failure against a custom endpoint can

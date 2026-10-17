@@ -169,6 +169,15 @@ export const messages = {
   "marketplace.plugin.notion.prompt.meetingNotes":
     "Bu maddeleri ekip alanımda yapılandırılmış bir toplantı notuna dönüştür.",
   "marketplace.plugin.notion.prompt.updateDoc": "Katılım belgesini yeni sürüm kontrol listesiyle güncelle.",
+  "marketplace.plugin.cobrain.tagline": "AI ajanlarınız için ortak bellek",
+  "marketplace.plugin.cobrain.description":
+    "Cobrain, bağladığınız her yapay zekânın okuyup yazabildiği bir Markdown belleğidir. Ajanlar çalışmadan önce bir müşterinin veya projenin bağlamını yükler, geçmiş notları ve kararları arar ve öğrendiklerini kaydeder; böylece bir sonraki konuşma, öncekinin bittiği yerden başlar. Her kullanıcı kendi Cobrain hesabında oturum açar.",
+  "marketplace.plugin.cobrain.app":
+    "Tek bir MCP sunucusu üzerinden Cobrain beyninizdeki notları okuma, arama ve yazma.",
+  "marketplace.plugin.cobrain.prompt.startSession": "Başlamadan önce bu proje için Cobrain bağlamımı yükle.",
+  "marketplace.plugin.cobrain.prompt.searchDecision":
+    "Fiyatlandırma hakkında ne karar verdiğimizi Cobrain notlarımda ara.",
+  "marketplace.plugin.cobrain.prompt.saveNote": "Bugün ne yaptığımızı ve neyin kaldığını Cobrain'e not olarak kaydet.",
   "marketplace.plugin.figma.tagline": "Tasarımlar ve prototipler",
   "marketplace.plugin.figma.description":
     "Figma, ajanların tasarım dosyalarını okumasına, bileşenleri, stilleri ve değişkenleri incelemesine ve üretim şartnamelerini mühendislere teslim etmesine olanak tanır. Bu bilgisayardaki Figma masaüstü uygulamasındaki MCP sunucusuna bağlanır. Sunucu yalnızca tasarımları okuyabilir; yazma desteği üzerinde çalışılıyor.",
@@ -269,6 +278,14 @@ export const messages = {
     "Okunmamış e-postalarımı özetle ve acil olanlara yanıt taslakları hazırla.",
   "marketplace.plugin.composio.prompt.handoff": "Bu çekme isteğinin özetini ekip kanalımıza gönder.",
   "marketplace.plugin.composio.prompt.apps": "Composio üzerinden hangi uygulamaları ve eylemleri kullanabilirsin?",
+  "marketplace.plugin.composio.hint.url": "Composio hesabınızdaki bir MCP sunucusunun URL'si",
+  "marketplace.plugin.composio.hint.apiKey":
+    "Yalnızca sunucunuz gerektiriyorsa. Composio hesap ayarlarınızda bulabilirsiniz.",
+  "marketplace.auth.apiKey": "API anahtarı",
+  "marketplace.auth.personalApiKey": "Kişisel API anahtarı",
+  "marketplace.auth.mcpUrl": "MCP URL'si",
+  "marketplace.auth.createKey": "Anahtar oluştur",
+  "marketplace.auth.createServer": "Sunucu oluştur",
 
   // Skills. {label} is the install button text: an agent name, "All agents" or "2 agents".
   "marketplace.skill.installMenu.install": "Kur",

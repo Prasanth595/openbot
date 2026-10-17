@@ -147,6 +147,16 @@ export const messages = {
     "Trasforma questi punti in una nota di riunione strutturata nello spazio del mio team.",
   "marketplace.plugin.notion.prompt.updateDoc":
     "Aggiorna il documento di onboarding con la nuova checklist di rilascio.",
+  "marketplace.plugin.cobrain.tagline": "Memoria condivisa per i tuoi agenti IA",
+  "marketplace.plugin.cobrain.description":
+    "Cobrain è una memoria in Markdown che ogni IA collegata può leggere e scrivere. Gli agenti caricano il contesto di un cliente o di un progetto prima di lavorare, cercano note e decisioni passate e salvano ciò che imparano, così la conversazione successiva riparte da dove si era fermata la precedente. Ogni utente accede al proprio account Cobrain.",
+  "marketplace.plugin.cobrain.app":
+    "Lettura, ricerca e scrittura di note nel tuo cervello Cobrain, tramite un server MCP.",
+  "marketplace.plugin.cobrain.prompt.startSession":
+    "Carica il mio contesto Cobrain per questo progetto prima di iniziare.",
+  "marketplace.plugin.cobrain.prompt.searchDecision": "Cerca nelle mie note Cobrain cosa abbiamo deciso sui prezzi.",
+  "marketplace.plugin.cobrain.prompt.saveNote":
+    "Salva una nota in Cobrain con quello che abbiamo fatto oggi e quello che resta.",
   "marketplace.plugin.figma.tagline": "Design e prototipi",
   "marketplace.plugin.figma.description":
     "Figma permette agli agenti di leggere i file di design, ispezionare componenti, stili e variabili e passare le specifiche di produzione agli sviluppatori. Si collega al server MCP dell'app desktop di Figma, su questo computer. Il server può solo leggere i design; il supporto alla scrittura è in sviluppo.",
@@ -251,6 +261,14 @@ export const messages = {
   "marketplace.plugin.composio.prompt.handoff":
     "Pubblica nel canale del nostro team un riassunto di questa pull request.",
   "marketplace.plugin.composio.prompt.apps": "Quali app e azioni puoi usare tramite Composio?",
+  "marketplace.plugin.composio.hint.url": "L'URL di un server MCP nel tuo account Composio",
+  "marketplace.plugin.composio.hint.apiKey":
+    "Solo se il tuo server la richiede. La trovi nelle impostazioni del tuo account Composio.",
+  "marketplace.auth.apiKey": "Chiave API",
+  "marketplace.auth.personalApiKey": "Chiave API personale",
+  "marketplace.auth.mcpUrl": "URL MCP",
+  "marketplace.auth.createKey": "Crea una chiave",
+  "marketplace.auth.createServer": "Crea un server",
 
   "marketplace.skill.installMenu.install": "Installa",
   "marketplace.skill.installMenu.installNamed": "Installa {name}",

@@ -177,7 +177,6 @@ export class RemoteServerClient {
       const value = yield* requestJson(server.apiUrl, path, decoder, {
         ...init,
         token: this.#servers.token(server),
-        timeoutMs: init.timeoutMs,
         // A host without the capability drops the fields in its frozen projection and starts the
         // agent on its own default, so the pair is only encoded for hosts that read it.
         agentCreateModel: this.supportsAgentCreateModel(path, init, compatibility.capabilities),
@@ -224,10 +223,10 @@ export class RemoteServerClient {
           const contentType = new Headers(init.headers).get("Content-Type") ?? undefined;
           const requestBody = yield* remoteDecode(() => webRtcRequestBody(init.body, contentType));
           const response = yield* transport.requestResponse(server.id, `${url.pathname}${url.search}`, {
-            method: init.method,
-            body: requestBody,
-            contentType,
-            timeoutMs,
+            ...(init.method === undefined ? {} : { method: init.method }),
+            ...(requestBody === undefined ? {} : { body: requestBody }),
+            ...(contentType === undefined ? {} : { contentType }),
+            ...(timeoutMs === undefined ? {} : { timeoutMs }),
             preserveSemanticTags: supportsTeamSemanticTags(compatibility.capabilities),
           });
           const headers = new Headers();
@@ -291,10 +290,12 @@ export class RemoteServerClient {
     capabilities?: readonly TeamCurrentCapability[];
     preserveSemanticTags?: boolean;
   } {
+    const protocol = compatibility.negotiatedProtocol;
+    const appVersion = this.#appVersion;
     return {
-      protocol: compatibility.negotiatedProtocol ?? undefined,
-      appVersion: this.#appVersion ?? undefined,
-      capabilities: this.#appVersion ? teamCapabilitiesForProtocol(compatibility.negotiatedProtocol) : undefined,
+      ...(protocol === null ? {} : { protocol }),
+      ...(appVersion === null ? {} : { appVersion }),
+      ...(appVersion ? { capabilities: teamCapabilitiesForProtocol(protocol) } : {}),
       preserveSemanticTags: supportsTeamSemanticTags(compatibility.capabilities),
     };
   }

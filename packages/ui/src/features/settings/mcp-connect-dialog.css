@@ -10,13 +10,7 @@
  */
 
 .mcp-connect-backdrop {
-  position: fixed;
-  inset: 0;
   z-index: calc(var(--openbot-layer-dialog-host) + 2);
-  display: grid;
-  place-items: center;
-  padding: var(--openbot-space-6);
-  animation: mcp-connect-backdrop-in var(--openbot-duration-normal) var(--openbot-ease-out) both;
 }
 
 .mcp-connect-dialog {
@@ -222,12 +216,6 @@
   width: var(--openbot-icon-sm);
   height: var(--openbot-icon-sm);
   color: var(--openbot-text-muted);
-}
-
-@keyframes mcp-connect-backdrop-in {
-  from {
-    opacity: 0;
-  }
 }
 
 @keyframes mcp-connect-dots-run {

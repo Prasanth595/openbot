@@ -521,7 +521,7 @@ export function createWebWorkspaceRuntime(
     team: {
       async getPresence() {
         const value = await request("GET", TEAM_API_ROUTES.team.presence);
-        if (!isTeamPresenceSnapshot(value)) throw new Error("The host returned invalid presence.");
+        if (!isTeamPresenceSnapshot(value)) throw new Error(currentText().t("error.remote.invalidData"));
         return value;
       },
       listMembers,
@@ -703,7 +703,7 @@ export function createWebWorkspaceRuntime(
     },
     async browserTabs() {
       const value = await request("GET", TEAM_API_ROUTES.browser.tabs);
-      if (!Array.isArray(value)) throw new Error("The host returned an invalid tab list.");
+      if (!Array.isArray(value)) throw new Error(currentText().t("error.remote.invalidData"));
       return value.map(decodeWebBrowserTab);
     },
     async openBrowserTab(input) {
@@ -731,12 +731,12 @@ export function createWebWorkspaceRuntime(
     },
     async getSidebarLayout() {
       const value = await request("GET", TEAM_API_ROUTES.sidebarLayout.state);
-      if (!isSidebarLayoutSnapshot(value)) throw new Error("The host returned an invalid sidebar layout.");
+      if (!isSidebarLayoutSnapshot(value)) throw new Error(currentText().t("error.remote.invalidData"));
       return value;
     },
     async mutateSidebarLayout(action) {
       const value = await request("POST", TEAM_API_ROUTES.sidebarLayout.actions, { ...action });
-      if (!isSidebarLayoutSnapshot(value)) throw new Error("The host returned an invalid sidebar layout.");
+      if (!isSidebarLayoutSnapshot(value)) throw new Error(currentText().t("error.remote.invalidData"));
       return value;
     },
     channels: {
@@ -767,7 +767,7 @@ export function createWebWorkspaceRuntime(
     },
     async currentMemberId() {
       const value = await request("GET", TEAM_API_ROUTES.me);
-      if (!isDynamicRecord(value)) throw new Error("The host returned an invalid team member.");
+      if (!isDynamicRecord(value)) throw new Error(currentText().t("error.remote.invalidData"));
       return requiredString(value, "id");
     },
     respondToBrowserSecret: (input) =>
@@ -835,7 +835,7 @@ export function createWebWorkspaceRuntime(
       }
     },
     async listAgents() {
-      return guardedListDecoder(isAgentSummary, "teammates")(await request("GET", TEAM_API_ROUTES.agents.all));
+      return guardedListDecoder(isAgentSummary, "agents")(await request("GET", TEAM_API_ROUTES.agents.all));
     },
     async conversation(id, before) {
       if (!capabilities.includes("conversation-pagination")) {
@@ -852,7 +852,7 @@ export function createWebWorkspaceRuntime(
     },
     async markRead(id, throughMessageId) {
       const value = await request("POST", TEAM_API_ROUTES.agent.conversationRead(id), { throughMessageId });
-      if (!isConversationReadState(value)) throw new Error("The host returned an invalid read state.");
+      if (!isConversationReadState(value)) throw new Error(currentText().t("error.remote.invalidData"));
       return value;
     },
     async focusUse() {
@@ -990,17 +990,17 @@ export function createWebWorkspaceRuntime(
     },
     async status() {
       const value = await request("GET", TEAM_API_ROUTES.agents.status);
-      if (!isAgentStatus(value)) throw new Error("The host returned an invalid status.");
+      if (!isAgentStatus(value)) throw new Error(currentText().t("error.remote.invalidData"));
       return value;
     },
     async accountUsage() {
       const value = await request("GET", TEAM_API_ROUTES.agents.usage);
-      if (!isAccountUsage(value)) throw new Error("The host returned invalid account usage.");
+      if (!isAccountUsage(value)) throw new Error(currentText().t("error.remote.invalidData"));
       return value;
     },
     async createAgent(input) {
       const value = await request("POST", TEAM_API_ROUTES.agents.all, { ...input });
-      if (!isAgentSummary(value)) throw new Error("The host returned an invalid teammate.");
+      if (!isAgentSummary(value)) throw new Error(currentText().t("error.remote.invalidData"));
       return value;
     },
     async duplicateAgent(agentId) {
@@ -1010,7 +1010,7 @@ export function createWebWorkspaceRuntime(
       duplicateOperationIds.set(operationKey, operationId);
       const value = await request("POST", TEAM_API_ROUTES.agent.duplicate(agentId), { operationId });
       if (!isDynamicRecord(value) || !isAgentSummary(value.agent) || !isSidebarLayoutSnapshot(value.layout))
-        throw new Error("The host returned an invalid duplicated agent.");
+        throw new Error(currentText().t("error.remote.invalidData"));
       duplicateOperationIds.delete(operationKey);
       return { agent: value.agent, layout: value.layout } satisfies DuplicateAgentResult;
     },
@@ -1048,10 +1048,10 @@ export function createWebWorkspaceRuntime(
         typeof value.total !== "number" ||
         (value.nextCursor !== null && typeof value.nextCursor !== "string")
       )
-        throw new Error("The host returned invalid search results.");
+        throw new Error(currentText().t("error.remote.invalidData"));
       const results = value.results.map((item) => {
         if (!isDynamicRecord(item) || typeof item.agentId !== "string" || !isConversationMessage(item.message))
-          throw new Error("The host returned an invalid search result.");
+          throw new Error(currentText().t("error.remote.invalidData"));
         return { agentId: item.agentId, message: item.message };
       });
       return { results, total: value.total, nextCursor: value.nextCursor };
@@ -1078,7 +1078,7 @@ export function createWebWorkspaceRuntime(
 }
 
 function decodeWebFile(value: unknown): WebFile {
-  if (!isDynamicRecord(value)) throw new Error("The host returned an invalid file.");
+  if (!isDynamicRecord(value)) throw new Error(currentText().t("error.remote.invalidData"));
   const base64 = requiredString(value, "base64");
   if (base64.length > Math.ceil(MOBILE_ATTACHMENT_BYTES / 3) * 4)
     throw new Error(currentText().t("error.remote.attachmentTooLarge"));
@@ -1137,7 +1137,7 @@ function decodeWebBrowserTab(tab: unknown): BrowserTab {
     (tab.ownerThreadId !== null && typeof tab.ownerThreadId !== "string") ||
     (tab.ownerAgentId !== null && typeof tab.ownerAgentId !== "string")
   )
-    throw new Error("The host returned an invalid tab.");
+    throw new Error(currentText().t("error.remote.invalidData"));
   return {
     id: requiredString(tab, "id"),
     title: requiredString(tab, "title"),
@@ -1163,12 +1163,12 @@ function decodeWebBrowserPreview(value: unknown): BrowserPreview {
     value.height < 1 ||
     value.height > 600
   )
-    throw new Error("The host returned an invalid browser preview.");
+    throw new Error(currentText().t("error.remote.invalidData"));
   return { dataUrl: value.dataUrl, width: value.width, height: value.height };
 }
 
 function decodeWebConversationSnapshot(value: unknown): ConversationPage {
-  if (!isConversationWithReadState(value)) throw new Error("The host returned an invalid conversation.");
+  if (!isConversationWithReadState(value)) throw new Error(currentText().t("error.remote.invalidData"));
   return { ...value, references: {}, pageInfo: { hasOlder: false, olderCursor: null } };
 }
 
@@ -1182,10 +1182,10 @@ function decodeWebConversationPage(value: unknown): ConversationPage {
     (value.pageInfo.hasOlder && !value.pageInfo.olderCursor) ||
     !isDynamicRecord(value.references)
   )
-    throw new Error("The host returned an invalid conversation page.");
+    throw new Error(currentText().t("error.remote.invalidData"));
   const references: ConversationPage["references"] = {};
   for (const [id, message] of Object.entries(value.references)) {
-    if (!isConversationMessage(message)) throw new Error("The host returned an invalid referenced message.");
+    if (!isConversationMessage(message)) throw new Error(currentText().t("error.remote.invalidData"));
     references[id] = message;
   }
   return {

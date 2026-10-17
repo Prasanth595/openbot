@@ -71,6 +71,8 @@ export const messages = {
   "connector.github.keepConnected": "接続を維持",
   "connector.github.close": "閉じる",
   "connector.dangerZone": "危険な操作",
+  "connector.statusUnknown": "不明",
+  "connector.readFailed": "OpenBot はこの接続の状態を読み取れませんでした。",
 
   // Server settings > Connectors: the list of integrations. Each row opens its page.
   "connector.hub.onThisComputer": "このコンピューター上",
@@ -105,6 +107,7 @@ export const messages = {
     "OpenBot には Slack で次の権限がありません: {scopes}。ワークスペースを切断してから、もう一度接続してください。",
   "connector.slack.retryAt": "Slack から待機するよう求められました。{time} に再試行します。",
   "connector.slack.reconnect": "再接続",
+  "connector.slack.pause": "一時停止",
   "connector.slack.resume": "再開",
   "connector.slack.rowAction": "{action}: {name}",
   "connector.slack.orchestratorTitle": "Slack Orchestrator",
@@ -175,6 +178,7 @@ export const messages = {
     "OpenBot には Discord で次の権限がありません: {scopes}。Discord サーバーを切断してから、もう一度接続してください。",
   "connector.discord.retryAt": "Discord から待機するよう求められました。{time} に再試行します。",
   "connector.discord.reconnect": "再接続",
+  "connector.discord.pause": "一時停止",
   "connector.discord.resume": "再開",
   "connector.discord.rowAction": "{action}: {name}",
   "connector.discord.orchestratorTitle": "Discord Orchestrator",
@@ -319,6 +323,7 @@ export const messages = {
     "1Password アプリで「設定」>「開発者」を開き、「1Password CLI と連携」をオンにしてください。",
   "connector.onePassword.stepAppReady": "1Password アプリで、CLI が共有保管庫を作成できるようになっています。",
   "connector.onePassword.openApp": "1Password を開く",
+  "connector.onePassword.openAppFailed": "OpenBot は 1Password を開けませんでした。",
   "connector.onePassword.checkAgain": "再確認",
   "connector.onePassword.stepVaultTitle": "共有保管庫を作成",
   "connector.onePassword.stepVaultDescription":

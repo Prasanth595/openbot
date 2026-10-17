@@ -80,6 +80,13 @@
   gap: 0;
 }
 
+.agent-routine-list-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px;
+  align-items: center;
+}
+
 .agent-routine-row {
   display: grid;
   width: 100%;
@@ -304,6 +311,18 @@
   font-size: var(--openbot-text-sm);
 }
 
+/* The shared field puts the label first and fills the row. Here the switch comes first, beside its state word. */
+.ui-switch-field.agent-routine-active-toggle {
+  width: auto;
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+}
+
+.agent-routine-active-toggle .ui-switch-label {
+  font-size: var(--openbot-text-sm);
+  font-weight: inherit;
+}
+
 .agent-routine-action-buttons {
   display: flex;
   flex-wrap: nowrap;
@@ -498,19 +517,7 @@
   color: var(--openbot-text-muted);
 }
 
-.agent-memories-overlay {
-  position: fixed;
-  inset: 0;
-}
-
-.agent-memories-overlay {
-  z-index: var(--openbot-layer-dialog);
-}
-
-.agent-memories-overlay[data-expanded] {
-  animation: agent-dialog-overlay-in var(--openbot-duration-dialog) ease;
-}
-
+/* The overlay fades out with the modal, which is not one of its children. */
 .agent-memories-overlay[data-closed] {
   animation: agent-dialog-overlay-out var(--openbot-duration-dialog) ease;
 }
@@ -1029,12 +1036,6 @@
 
 .agent-memories-modal[data-closed] {
   animation: agent-dialog-content-out var(--openbot-duration-dialog) ease;
-}
-
-@keyframes agent-dialog-overlay-in {
-  from {
-    opacity: 0;
-  }
 }
 
 @keyframes agent-dialog-overlay-out {

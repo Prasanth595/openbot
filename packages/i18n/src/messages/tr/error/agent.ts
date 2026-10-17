@@ -85,6 +85,9 @@ export const messages = {
   "error.agent.queueEditRejected": "Kuyruk düzenlemesi reddedildi: {reason}",
   "error.agent.computerUseLocalOnly": "Bilgisayar Kullanımı yalnızca ajanı çalıştıran bilgisayarda değiştirilebilir.",
   "error.agent.automationLocalOnly": "Yerel betiklere yalnızca ajanı çalıştıran bilgisayarda izin verilebilir.",
+  "error.agent.sideQuestionLocalOnly": "Yan sorular yalnızca ajanı çalıştıran bilgisayarda kullanılabilir.",
+  "error.agent.sideQuestionBusy": "Çok fazla yan soru çalışıyor. Kısa bir süre sonra tekrar deneyin.",
+  "error.agent.sideQuestionFailed": "Ajan yan soruyu yanıtlayamadı. Tekrar deneyin.",
   "error.agent.busyMessageModeLocalOnly":
     "Ajan çalışırken mesajların ne yapacağı yalnızca ajanı çalıştıran bilgisayarda ayarlanabilir.",
   "error.agent.backupModelsLocalOnly": "Yedek modeller yalnızca ajanı çalıştıran bilgisayarda ayarlanabilir.",

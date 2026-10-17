@@ -210,7 +210,7 @@
   font-weight: var(--openbot-weight-regular);
 }
 
-.agent-import-picker.ui-button:hover:not(:disabled) {
+.agent-import-picker.ui-button:hover:not(:disabled, [aria-disabled="true"]) {
   border-color: var(--openbot-border-strong);
   background: var(--openbot-bg-control-hover);
 }
@@ -327,12 +327,6 @@ label.agent-import-row:has(input:disabled) {
   width: var(--openbot-icon-xs);
   height: var(--openbot-icon-xs);
   stroke-width: var(--openbot-icon-stroke);
-}
-
-/* The review is inside Server settings, on the dialog layer. The shared tooltip layer is below it,
-   and Kobalte gives the positioner the content's z-index, so this one takes the step above. */
-.agent-import-name-tooltip.ui-tooltip {
-  z-index: calc(var(--openbot-layer-dialog) + 1);
 }
 
 /* A channel row shows up to three of its members, overlapped, where an agent row has one avatar. */

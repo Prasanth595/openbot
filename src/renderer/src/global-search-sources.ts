@@ -31,7 +31,7 @@ export function useGlobalSearchSources(open: () => boolean) {
   const { t } = useText();
   const platform = usePlatform();
   const channels = useChannels();
-  const { agentList, agentSetupOpen, creatingAgent, openBotSetup, setSettingsRequest } = useAgents();
+  const { agentList, agentSetupOpen, creatingAgent, openAgentSetup, setSettingsRequest } = useAgents();
   const { selectAgent, globalSearchOpener } = useNavigation();
   const { activeServer } = useServers();
   const { openServerSettings } = useServerSettings();
@@ -118,7 +118,7 @@ export function useGlobalSearchSources(open: () => boolean) {
           icon: Bot,
           run: () => {
             channels.close();
-            openBotSetup();
+            openAgentSetup();
           },
         },
       ];

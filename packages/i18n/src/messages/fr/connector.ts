@@ -72,6 +72,8 @@ export const messages = {
   "connector.github.keepConnected": "Rester connecté",
   "connector.github.close": "Fermer",
   "connector.dangerZone": "Zone de danger",
+  "connector.statusUnknown": "Inconnu",
+  "connector.readFailed": "OpenBot n'a pas pu lire l'état de cette connexion.",
 
   "connector.hub.onThisComputer": "Sur cet ordinateur",
   "connector.hub.onHost": "Sur {host}",
@@ -105,6 +107,7 @@ export const messages = {
     "OpenBot n’a pas ces autorisations dans Slack : {scopes}. Déconnectez l’espace de travail, puis connectez-le à nouveau.",
   "connector.slack.retryAt": "Slack a demandé à OpenBot de patienter. Nouvel essai à {time}.",
   "connector.slack.reconnect": "Reconnecter",
+  "connector.slack.pause": "Mettre en pause",
   "connector.slack.resume": "Reprendre",
   "connector.slack.rowAction": "{action} : {name}",
   "connector.slack.orchestratorTitle": "Slack Orchestrator",
@@ -171,6 +174,7 @@ export const messages = {
     "OpenBot n’a pas ces autorisations dans Discord : {scopes}. Déconnectez le serveur Discord, puis connectez-le à nouveau.",
   "connector.discord.retryAt": "Discord a demandé à OpenBot de patienter. Nouvel essai à {time}.",
   "connector.discord.reconnect": "Reconnecter",
+  "connector.discord.pause": "Mettre en pause",
   "connector.discord.resume": "Reprendre",
   "connector.discord.rowAction": "{action} : {name}",
   "connector.discord.orchestratorTitle": "Discord Orchestrator",
@@ -313,6 +317,7 @@ export const messages = {
     "Dans l’app 1Password, ouvrez Réglages > Développeur et activez « Intégrer avec 1Password CLI ».",
   "connector.onePassword.stepAppReady": "L’app 1Password permet à la CLI de créer le coffre partagé.",
   "connector.onePassword.openApp": "Ouvrir 1Password",
+  "connector.onePassword.openAppFailed": "OpenBot n'a pas pu ouvrir 1Password.",
   "connector.onePassword.checkAgain": "Revérifier",
   "connector.onePassword.stepVaultTitle": "Créer le coffre partagé",
   "connector.onePassword.stepVaultDescription":

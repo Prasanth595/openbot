@@ -448,9 +448,13 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
   readonly listMobileConnectedDevices = Effect.fn("CentralAuth.listMobileConnectedDevices")(
     function* (
       this: CentralAuthManager,
+      host: MobileConnectHostBinding | null,
     ): Effect.fn.Return<MobileConnectedDevice[], CentralAuthOperationError, CentralAuthTransport> {
+      // A phone signs in to the account and opens each host of the account directory. The list shows
+      // the phones that can open this computer, so a computer with no host identity has none (#2356).
+      if (!host) return [];
       const result = yield* this.#authorizedRequestEffect(
-        "/v1/mobile-auth/devices",
+        `/v1/mobile-auth/devices?host=${encodeURIComponent(host.hostId)}`,
         { method: "GET" },
         decodeMobileConnectedDevices,
       );
@@ -1342,7 +1346,8 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
   ): Effect.fn.Return<CentralAuthState, CentralAuthOperationError, CentralAuthTransport> {
     const existingChallenge = this.#state.status === "code_sent" ? this.#state : null;
     if (existingChallenge) {
-      this.#setState({ ...existingChallenge, issue: undefined });
+      const { issue: _previousIssue, ...challenge } = existingChallenge;
+      this.#setState(challenge);
     } else {
       this.#setState({ status: "signing_in" });
     }
@@ -1408,7 +1413,10 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
       code: string,
     ): Effect.fn.Return<CentralAuthState, CentralAuthOperationError, CentralAuthTransport> {
       const challenge = this.#state.status === "code_sent" ? this.#state : null;
-      if (challenge) this.#setState({ ...challenge, issue: undefined });
+      if (challenge) {
+        const { issue: _previousIssue, ...pendingChallenge } = challenge;
+        this.#setState(pendingChallenge);
+      }
       let sessionApplied = false;
       return yield* Effect.gen({ self: this }, function* () {
         const session = yield* this.#requestEffect(
@@ -1675,7 +1683,7 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
         path,
         {
           ...init,
-          headers: sessionToken ? { ...init.headers, Authorization: `Bearer ${sessionToken}` } : init.headers,
+          ...(sessionToken ? { headers: { ...init.headers, Authorization: `Bearer ${sessionToken}` } } : {}),
         },
         decoder,
         timeoutMs,

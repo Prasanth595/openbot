@@ -590,7 +590,7 @@ export class RoutineScheduler implements RoutineDueSource {
           schedule: routineToolSchedule(args.schedule),
           ...routineToolPolicies(args),
         },
-        { turnId: agentId === senderAgentId ? params.turnId : undefined },
+        agentId === senderAgentId ? { turnId: params.turnId } : {},
       );
       return openBotToolResult(routine);
     }
@@ -636,9 +636,7 @@ export class RoutineScheduler implements RoutineDueSource {
         hasUpdate = true;
       }
       if (!hasUpdate) throw new RoutineInputError("At least one routine update is required.");
-      return openBotToolResult(
-        this.update(input, { turnId: input.agentId === senderAgentId ? params.turnId : undefined }),
-      );
+      return openBotToolResult(this.update(input, input.agentId === senderAgentId ? { turnId: params.turnId } : {}));
     }
 
     if (params.tool === "delete_routine") {
@@ -650,7 +648,7 @@ export class RoutineScheduler implements RoutineDueSource {
         INPUT_LIMITS.identifier,
         "routineId is required.",
       );
-      yield* this.delete({ agentId, routineId }, { turnId: agentId === senderAgentId ? params.turnId : undefined });
+      yield* this.delete({ agentId, routineId }, agentId === senderAgentId ? { turnId: params.turnId } : {});
       return openBotToolResult({ deleted: true, agentId, routineId });
     }
 

@@ -15,8 +15,8 @@ import {
   agentMcpServers,
   claudeMcpServers,
   computerUseParam,
-  type McpAuthorizationSource,
   type McpDropReporter,
+  type McpEndpointSource,
   type McpServerSource,
   type McpToolRuntimeSource,
   usableMcpServers,
@@ -74,7 +74,7 @@ export interface PiProviderOptions {
   mcpServers?: McpServerSource;
   reportMcpDrops?: McpDropReporter;
   mcpToolRuntimes?: McpToolRuntimeSource;
-  mcpAuthorization?: McpAuthorizationSource;
+  mcpEndpoint?: McpEndpointSource;
   history?: {
     read?: ReadProviderHistory;
     complete?: (request: ProviderHistoryRequest) => Effect.Effect<boolean, ProviderClientOperationError>;
@@ -378,7 +378,7 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
         yield* usableMcpServers(
           agentMcpServers(this.options.mcpServers?.() ?? [], computerUseParam(params)),
           this.options.mcpToolRuntimes?.(),
-          this.options.mcpAuthorization,
+          this.options.mcpEndpoint,
         ).pipe(toProviderClientOperationError),
       );
       this.options.reportMcpDrops?.("pi", handoff.dropped);

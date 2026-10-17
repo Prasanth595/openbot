@@ -122,6 +122,11 @@ and answers the new agents by id and name, which the client reads with the agent
 the file (`instance-transfer:*` is server-scoped). The web client does not show the Transfer section: its
 downloads are limited to 10 MB.
 
+After a restart, the first upload or export removes old files from `instance-transfer-uploads/`,
+including unfinished `.part` files, before it writes a new file. Concurrent uploads and exports wait
+for this cleanup. If cleanup fails, the operation fails; the next upload or export retries it.
+Later operations keep the current process's files. Local files selected by the user are kept.
+
 ### Routine flows
 
 `routine-flows-v1` serves the routine canvas (see [Routine flows](agents.md#routine-flows)) to a
@@ -164,6 +169,27 @@ in words on a block that has one, is for the owner and admins only; the host ans
 403. A secret form value goes to the agent in the tool result. The stored block and the prompt
 resolution leave it out. The provider transcript of the tool call can keep it, and the agent can
 repeat it in a reply or a thought, which the conversation stores as any other message.
+
+### Queue window
+
+`queue-window-v1` keeps the queue snapshot of a long-lived agent inside one WebRTC frame. The
+mailbox keeps every finished delivery, and the released `GET /v1/agents/:id/queue` answers all of
+them. After some weeks of use, that answer is larger than the 2 MiB JSON frame, so the host peer
+answers `error.remote.responseTooLarge` and the phone and the web client cannot read the queue.
+
+On protocol 7, when the request advertises the capability, `GET /v1/agents/:id/queue` and
+`POST /v1/agents/:id/queue/edit` keep every queued, starting and running delivery, the `editing`
+mark included. Then they keep every failed, interrupted and cancelled delivery, newest first, while
+it fits in `WEBRTC_FRAME_BODY_BUDGET`: the phone and the web client show the failure reason of a
+failed message, and hide a cancelled message, at any age. Only completed deliveries leave the
+window: the newest 100 by `createdAt` stay, while they fit, for the receipts of recent messages.
+The kept deliveries stay in queue order, and the wire shape and keys do not change. A request
+without the capability, and every protocol 6 or older request, gets the full list as before.
+
+Every current client sends `teamCapabilitiesForProtocol(7)`, so the phone, the web client and a
+joined desktop get the window without other client code. A released phone keeps the full list
+until it updates. `scripts/queue-window-e2e.ts` checks the frame size with and without the
+capability.
 
 ### Skill events
 

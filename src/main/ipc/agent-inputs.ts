@@ -415,9 +415,11 @@ export function parseListChannelRoutineRuns(value: unknown): ListChannelRoutineR
 
 export function parseReadConversationPage(value: unknown): ReadConversationPageInput {
   if (!isObject(value)) throw new Error("Invalid conversation page request.");
+  const agentId = requireString(value.agentId, "agentId", INPUT_LIMITS.identifier);
+  const anchor = parsePageAnchor(value.anchor);
   return {
-    agentId: requireString(value.agentId, "agentId", INPUT_LIMITS.identifier),
-    anchor: parsePageAnchor(value.anchor),
+    agentId,
+    ...(anchor === undefined ? {} : { anchor }),
     limit: parsePageLimit(value.limit),
   };
 }
