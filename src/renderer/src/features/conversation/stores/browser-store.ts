@@ -1,5 +1,6 @@
 import type { BrowserControlSession, BrowserPreview, BrowserTab } from "@openbot/contracts/ipc";
 import { TEAM_BROWSER_NAVIGATION_CAPABILITY } from "@openbot/contracts/team-protocol/current";
+import { browserAddressUrl } from "@openbot/ui/features/browser/browser-suggestions";
 import { currentText } from "@openbot/ui/text";
 import { createEffect, createMemo, createSignal, untrack } from "solid-js";
 import { desktopAnalytics } from "../../../analytics";
@@ -28,24 +29,6 @@ function canonicalBrowserUrl(url: string): string {
   }
 }
 
-function browserAddressUrl(value: string): string {
-  const hasProtocol = /^https?:\/\//i.test(value);
-  const candidate = hasProtocol ? value : `https://${value}`;
-  try {
-    const url = new URL(candidate);
-    if (
-      !/\s/.test(value) &&
-      (hasProtocol || url.hostname.includes(".") || url.hostname === "localhost" || url.hostname.startsWith("["))
-    ) {
-      return candidate;
-    }
-  } catch {
-    // Text that is not a web address is a search query.
-  }
-  const query = value.replace(/^https?:\/\//i, "");
-  return `https://www.google.com/search?q=${encodeURIComponent(query)}`;
-}
-
 interface BrowserPanels {
   activeRightPanel: () => RightPanelMode;
   setActiveRightPanel: (mode: RightPanelMode) => void;
@@ -56,7 +39,7 @@ export interface BrowserStoreDeps {
   browserOpenRequests: Map<
     string,
     {
-      promise: Promise<void>;
+      promise: Promise<BrowserTab | undefined>;
       serverId: string;
       agentId: string | null;
       url: string;
@@ -281,7 +264,8 @@ export function createBrowserStore(deps: BrowserStoreDeps) {
     return control ? agentsByThreadId().get(control.threadId) : undefined;
   };
 
-  async function openBrowserAddress(address = deps.browserAddress(), newTab = false) {
+  /** Opens the address in the shown tab, or in a new tab. Resolves with the new tab, if one opened. */
+  async function openBrowserAddress(address = deps.browserAddress(), newTab = false): Promise<BrowserTab | undefined> {
     if (!browserInteractionAvailable()) return;
     const value = address.trim();
     if (!value) return;
@@ -319,6 +303,7 @@ export function createBrowserStore(deps: BrowserStoreDeps) {
         });
         deps.setBrowserAddress(tab.url);
         analytics.track("browser_action", { action: "open", result: "succeeded" });
+        return tab;
       } catch {
         deps.setBrowserAddress(url);
         analytics.track("browser_action", {
@@ -326,6 +311,7 @@ export function createBrowserStore(deps: BrowserStoreDeps) {
           result: "failed",
           failure_code: "browser_open_failed",
         });
+        return undefined;
       }
     })();
     const pendingRequestState = {
@@ -337,7 +323,7 @@ export function createBrowserStore(deps: BrowserStoreDeps) {
     };
     deps.browserOpenRequests.set(requestKey, pendingRequestState);
     try {
-      await request;
+      return await request;
     } finally {
       if (deps.browserOpenRequests.get(requestKey) === pendingRequestState) {
         deps.browserOpenRequests.delete(requestKey);

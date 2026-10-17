@@ -334,6 +334,8 @@ export function createConversationViewScope(props: ConversationProps) {
     activateBrowserTab,
     reloadBrowserTab,
     navigateBrowserTab,
+    takeBrowserControl,
+    releaseBrowserControl,
   } = browser;
   function showBrowserPanel() {
     setActiveRightPanel("browser");
@@ -1232,6 +1234,8 @@ export function createConversationViewScope(props: ConversationProps) {
     chatSearchQuery,
     chatSearchTotal,
     closeBrowserTab,
+    takeBrowserControl,
+    releaseBrowserControl,
     closeChatSearch,
     clearNewMessages,
     closeSidebarFilePreview,

@@ -831,8 +831,6 @@
   animation: browser-control-pulse 1.25s ease-in-out infinite;
 }
 
-.browser-tab-close:active,
-.browser-new-tab:active,
 .browser-toolbar-button:active:not(:disabled) {
   transform: scale(0.92);
   transition-duration: var(--openbot-duration-fast);

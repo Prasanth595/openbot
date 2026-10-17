@@ -78,7 +78,7 @@
 
   .app-window > .app-frame-edge > .sidebar,
   .app-window > .app-frame-edge :is(.conversation-panel, .direct-conversation, .diagram-view),
-  .app-window > .app-frame-edge :is(.settings-panel, .browser-panel:not(.browser-panel-expanded)) {
+  .app-window > .app-frame-edge :is(.settings-panel, .browser-panel) {
     background: transparent;
   }
 
@@ -99,8 +99,8 @@
   .app-window > .app-frame-edge > .sidebar:not(.sidebar-compact) .sidebar-topbar::after,
   .app-window
     > .app-frame-edge
-    :is(.settings-panel, .browser-panel:not(.browser-panel-expanded))
-    > :is(.settings-panel-header, .file-preview-header, .browser-preview-header, .browser-panel-header)::before {
+    :is(.settings-panel, .browser-panel)
+    > :is(.settings-panel-header, .file-preview-header, .browser-preview-header)::before {
     position: absolute;
     top: 50%;
     width: 1px;
@@ -116,11 +116,11 @@
   }
 
   /* A side panel is the right part of the card. Its line to the chat starts at the card's top line. */
-  .app-window > .app-frame-edge :is(.settings-panel, .browser-panel:not(.browser-panel-expanded)) {
+  .app-window > .app-frame-edge :is(.settings-panel, .browser-panel) {
     border-left: 0;
   }
 
-  .app-window > .app-frame-edge :is(.settings-panel, .browser-panel:not(.browser-panel-expanded))::before {
+  .app-window > .app-frame-edge :is(.settings-panel, .browser-panel)::before {
     inset: calc(var(--left-header-height) - 1px) auto 0 0;
     width: 1px;
     border: 0;
@@ -130,41 +130,35 @@
 
   .app-window
     > .app-frame-edge
-    :is(.settings-panel, .browser-panel:not(.browser-panel-expanded))
-    > :is(.settings-panel-header, .file-preview-header, .browser-preview-header, .browser-panel-header) {
+    :is(.settings-panel, .browser-panel)
+    > :is(.settings-panel-header, .file-preview-header, .browser-preview-header) {
     position: relative;
   }
 
   .app-window
     > .app-frame-edge
-    :is(.settings-panel, .browser-panel:not(.browser-panel-expanded))
-    > :is(.settings-panel-header, .file-preview-header, .browser-preview-header, .browser-panel-header)::before {
+    :is(.settings-panel, .browser-panel)
+    > :is(.settings-panel-header, .file-preview-header, .browser-preview-header)::before {
     left: 0;
   }
 
   /* In the side panel, the tab row is in the top row and a pane starts under it, so the pane's line to
    * the chat starts at the pane's top, and its own header has no short line. */
-  .app-window
-    > .app-frame-edge
-    .side-panel-docked
-    > :is(.settings-panel, .browser-panel:not(.browser-panel-expanded))::before {
+  .app-window > .app-frame-edge .side-panel-docked > :is(.settings-panel, .browser-panel)::before {
     top: 0;
   }
 
   .app-window
     > .app-frame-edge
     .side-panel-docked
-    > :is(.settings-panel, .browser-panel:not(.browser-panel-expanded))
-    > :is(.settings-panel-header, .file-preview-header, .browser-preview-header, .browser-panel-header)::before {
+    > :is(.settings-panel, .browser-panel)
+    > :is(.settings-panel-header, .file-preview-header, .browser-preview-header)::before {
     content: none;
   }
 
   /* A maximized pane covers the hidden chat. A chat preview frame keeps its own visibility, so the
    * pane paints the card under it. */
-  .app-window
-    > .app-frame-edge
-    .side-panel-maximized
-    > :is(.settings-panel, .browser-panel:not(.browser-panel-expanded)) {
+  .app-window > .app-frame-edge .side-panel-maximized > :is(.settings-panel, .browser-panel) {
     border-bottom-right-radius: calc(var(--openbot-radius-card) - 1px);
     background: var(--openbot-bg-canvas);
   }
@@ -174,42 +168,6 @@
     border-top: 0;
     border-right: 0;
     border-radius: 0 0 calc(var(--openbot-radius-card) - 1px) 0;
-  }
-
-  /* The browser tabs are in the top row, as chips at the height of the other top row controls. */
-  .app-window > .app-frame-edge .browser-panel:not(.browser-panel-expanded) .browser-panel-header {
-    height: var(--left-header-height);
-    align-items: center;
-    border-bottom: 0;
-  }
-
-  .app-window > .app-frame-edge .browser-panel:not(.browser-panel-expanded) :is(.browser-tabs, .browser-tab-strip) {
-    align-items: center;
-  }
-
-  .app-window > .app-frame-edge .browser-panel:not(.browser-panel-expanded) .browser-tab-wrap {
-    height: var(--openbot-control-sm);
-  }
-
-  .app-window > .app-frame-edge .browser-panel:not(.browser-panel-expanded) .browser-tab {
-    height: var(--openbot-control-sm);
-    border-radius: var(--openbot-radius-md);
-    color: var(--openbot-text-secondary);
-  }
-
-  .app-window > .app-frame-edge .browser-panel:not(.browser-panel-expanded) .browser-tab:hover {
-    background: var(--openbot-bg-control-hover);
-    color: var(--openbot-text-primary);
-  }
-
-  .app-window > .app-frame-edge .browser-panel:not(.browser-panel-expanded) .browser-tab[data-selected] {
-    background: var(--openbot-bg-control-active);
-    color: var(--openbot-text-primary);
-  }
-
-  .app-window > .app-frame-edge .browser-panel:not(.browser-panel-expanded) .browser-tab-close {
-    top: 50%;
-    translate: 0 -50%;
   }
 
   /* The top row controls are flat: one height and one radius, with no line. A control fills on hover,

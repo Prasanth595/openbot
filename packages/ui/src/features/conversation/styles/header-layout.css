@@ -125,10 +125,3 @@
     border-color var(--openbot-duration-slow) ease,
     box-shadow var(--openbot-duration-slow) ease;
 }
-
-.browser-panel-controlled {
-  border-left-color: var(--openbot-accent);
-  box-shadow:
-    -1px 0 0 var(--openbot-accent-soft),
-    -10px 0 28px var(--openbot-accent-soft);
-}

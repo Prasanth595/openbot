@@ -33,6 +33,7 @@ import {
   type BrowserWindow,
   type BrowserWindowConstructorOptions,
   clipboard,
+  type Input,
   Menu,
   type NativeImage,
   type Session,
@@ -78,6 +79,7 @@ import {
   type BrowserContextMenuItem,
   browserContextMenuItems,
   EDITABLE_FOCUS_SCRIPT,
+  isBrowserViewShortcut,
   isCloseBrowserTabShortcut,
   isCollapseBrowserShortcut,
   isGlobalSearchShortcut,
@@ -163,6 +165,8 @@ const VIEW_FRAME_MAX_WIDTH = 1_280;
 const VIEW_FRAME_MAX_HEIGHT = 800;
 /** How long after a live view's right-click the page's menu still belongs to that view. */
 const VIEW_CONTEXT_MENU_MS = 1_500;
+/** The `keyCode` of `sendInputEvent` for a key whose `Input.key` name is different. */
+const FORWARDED_KEY_CODES: Partial<Record<string, string>> = { ArrowLeft: "Left", ArrowRight: "Right" };
 
 export interface BrowserViewOptions {
   /** Hears the page's mouse cursor when it changes. Not called while a secret is on the page. */
@@ -2055,6 +2059,15 @@ export class BrowserHost {
         this.#collapseOnEscape(tab);
         return;
       }
+      if (
+        isBrowserViewShortcut(input, process.platform === "darwin") &&
+        this.#mountedViews.get(tab.view) === this.#window
+      ) {
+        // The full view owns the tab keys: it keeps the order and the closed tabs that the keys use.
+        event.preventDefault();
+        this.#forwardKeyToWindow(input);
+        return;
+      }
       if (!isCloseBrowserTabShortcut(input)) return;
       event.preventDefault();
       setImmediate(() => void runCauseEffect(this.close(tab.id)).catch(() => undefined));
@@ -2275,6 +2288,20 @@ export class BrowserHost {
    * have; a preload or a permanent debugger attach would answer synchronously but weaken the
    * sandboxed view or fight the automation recorder.
    */
+  /** Sends a key press of the page to the window, with its modifiers, and gives the window the focus. */
+  #forwardKeyToWindow(input: Input): void {
+    if (this.#window.isDestroyed()) return;
+    const keyCode = FORWARDED_KEY_CODES[input.key] ?? (input.key.length === 1 ? input.key.toUpperCase() : input.key);
+    const modifiers: Array<"shift" | "control" | "alt" | "meta"> = [];
+    if (input.shift) modifiers.push("shift");
+    if (input.control) modifiers.push("control");
+    if (input.alt) modifiers.push("alt");
+    if (input.meta) modifiers.push("meta");
+    this.#window.webContents.focus();
+    this.#window.webContents.sendInputEvent({ type: "keyDown", keyCode, modifiers });
+    this.#window.webContents.sendInputEvent({ type: "keyUp", keyCode, modifiers });
+  }
+
   #collapseOnEscape(tab: BrowserHostTab): void {
     if (!this.#collapsesOnEscape(tab)) return;
     const frame = tab.contents.focusedFrame ?? tab.contents.mainFrame;

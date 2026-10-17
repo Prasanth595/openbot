@@ -3,6 +3,7 @@ import type {
   AgentProviderId,
   AgentReasoningEffort,
   BrowserBounds,
+  BrowserTab,
   MarketplaceSkillDetail,
 } from "@openbot/contracts/ipc";
 import type { AgentActivityLabel } from "@openbot/ui/features/conversation/AgentActivity";
@@ -51,7 +52,7 @@ interface ConversationResources {
   browserOpenRequests: Map<
     string,
     {
-      promise: Promise<void>;
+      promise: Promise<BrowserTab | undefined>;
       serverId: string;
       agentId: string | null;
       url: string;

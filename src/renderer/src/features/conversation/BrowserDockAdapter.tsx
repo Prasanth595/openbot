@@ -1,9 +1,11 @@
 import type { BrowserTab } from "@openbot/contracts/ipc";
+import { BROWSER_USER_CONTROL_CAPABILITY } from "@openbot/contracts/team-protocol/browser-user-control-v1";
 import { BrowserDock, type BrowserIslandContent } from "@openbot/ui/features/browser/BrowserDock";
 import { browserActionLabel } from "@openbot/ui/features/browser/browser-action-labels";
 import { useText } from "@openbot/ui/text";
 import { createMemo, createSignal, Show, untrack } from "solid-js";
 import { deviceSendShortcut } from "../../send-shortcut-preference";
+import { serverSupportsCapability } from "../servers/server-capabilities";
 import { conversationRuntime } from "./conversation-runtime";
 import { useConversationViewScope } from "./conversation-scope";
 
@@ -28,6 +30,8 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined }
     reorderPresentedQueue,
     browserControlForTab,
     respondToBrowserTakeover,
+    takeBrowserControl,
+    releaseBrowserControl,
     openExternalMessageUrl,
     setActiveRightPanel,
   } = useConversationViewScope();
@@ -74,6 +78,7 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined }
     const request = takeover();
     if (request?.secret) return { kind: "secret", request };
     if (request) return { kind: "activity", control: "request" };
+    if (adapterProps.tab?.userControl) return { kind: "activity", control: "user" };
     const asked = question();
     if (asked) {
       const id = `prompt:${asked.prompt.requestId}`;
@@ -93,15 +98,31 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined }
     return answer ? { kind: "reply", id: answer.id, body: answer.body } : null;
   });
 
-  async function handoff() {
-    if (!takeover() || handoffPending()) return;
+  /** The user takes the page from the agent, or gives it back. A request of the agent ends when the user is done. */
+  const handoffAction = (): (() => Promise<void>) | undefined => {
+    const tab = adapterProps.tab;
+    const content = island();
+    if (!tab || content?.kind !== "activity") return undefined;
+    if (content.control === "request") return async () => void (await respondToBrowserTakeover("complete"));
+    if (content.control === "user") return () => releaseBrowserControl(tab.id);
+    if (foreign() || !serverSupportsCapability(props.server, BROWSER_USER_CONTROL_CAPABILITY)) return undefined;
+    return () => takeBrowserControl(tab.id);
+  };
+
+  async function handoff(action: () => Promise<void>) {
+    if (handoffPending()) return;
     setHandoffPending(true);
     try {
-      await respondToBrowserTakeover("complete");
+      await action();
     } finally {
       setHandoffPending(false);
     }
   }
+
+  const onHandoff = createMemo(() => {
+    const action = handoffAction();
+    return action ? () => void handoff(action) : undefined;
+  });
 
   function send(text: string) {
     const asked = question();
@@ -143,7 +164,7 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined }
           onEdit={(delivery) => void editQueuedMessage(delivery)}
           onCancelEdit={() => void cancelQueuedMessageEdit()}
           onReorder={reorderPresentedQueue}
-          onHandoff={takeover() ? () => void handoff() : undefined}
+          onHandoff={onHandoff()}
           onRespondSecret={(input) => conversationRuntime(props).agent.respondToBrowserSecret(input)}
           onDismissReply={(id) => setDismissedReplies((ids) => new Set(ids).add(id))}
           onOpenChat={() => setActiveRightPanel("browser")}

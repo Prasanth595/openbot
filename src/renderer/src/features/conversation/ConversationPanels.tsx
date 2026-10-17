@@ -2,6 +2,7 @@ import type { ServerSummary } from "@openbot/contracts/ipc";
 import { classifyFailure } from "@openbot/telemetry";
 import { SETTINGS_PANEL_DEFAULT, SETTINGS_PANEL_MAX } from "@openbot/ui/components/SettingsPanel";
 import type { AgentMessage } from "@openbot/ui/data";
+import { BROWSER_NEW_TAB_URL } from "@openbot/ui/features/browser/browser-suggestions";
 import { AgentTaskList, AgentTaskPanel } from "@openbot/ui/features/conversation/AgentTasks";
 import { SidePanelHeader, SidePanelLauncher, type SidePanelPane } from "@openbot/ui/features/conversation/SidePanel";
 import { SideQuestionPanel } from "@openbot/ui/features/conversation/SideQuestionPanel";
@@ -14,8 +15,7 @@ import { createPublishAgent } from "../agent-templates/PublishAgent";
 import { serverCanAdministerAgents } from "../agents/remote-agent-admin";
 import type { AgentFilesOptions } from "../files/AgentFilesSettings";
 import { canManageStorage, serverHasStorage } from "../files/storage-usage";
-import { remoteRoutineRecovery, serverCanAdminister, serverSupportsCapability } from "../servers/server-capabilities";
-import { BrowserDockAdapter } from "./BrowserDockAdapter";
+import { remoteRoutineRecovery, serverCanAdminister } from "../servers/server-capabilities";
 import { htmlAttachmentPageHtml, htmlAttachmentPageUrl } from "./chat-visual-url";
 import { useConversationController } from "./conversation-controller-context";
 import { useConversationViewScope } from "./conversation-scope";
@@ -37,12 +37,8 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
   const {
     agentReady,
     activateBrowserTab,
-    activeBrowserControl,
     activeBrowserTab,
     agentActivity,
-    browserAddress,
-    browserControlForTab,
-    browserControllerForTab,
     browserSidebarOpen,
     browserExpandedOpen,
     hideBrowserPanel,
@@ -65,16 +61,10 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
     openWorkspaceFolderEntry,
     sidebarFileBack,
     openSidebarFileBack,
-    navigateBrowserTab,
     props,
-    reloadBrowserTab,
     setActiveRightPanel,
-    setBrowserAddress,
-    setBrowserAddressEditing,
     setBrowserPanelWidth,
-    setBrowserSurfaceElement,
     setSettingsPanelWidth,
-    showBrowserPip,
     handleRoutineSettingsRequest,
     sidebarFilePreview,
     settingsOpen,
@@ -367,7 +357,7 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
             setActiveRightPanel("browser-expanded");
           }}
           onCloseTab={(tabId) => void closeBrowserTab(tabId)}
-          onNewTab={() => void openBrowserAddress("https://www.google.com", true)}
+          onNewTab={() => void openBrowserAddress(BROWSER_NEW_TAB_URL, true)}
           onCollapse={hideBrowserPanel}
         />
       </Show>
@@ -375,35 +365,7 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
       <Show when={browserSidebarOpen() || browserExpandedOpen()}>
         <Portal>
           <div class="ui-dialog-overlay browser-expanded-backdrop" hidden={!browserExpandedOpen()} aria-hidden="true" />
-          <BrowserPanel
-            open={browserExpandedOpen()}
-            macWindowControls={props.platform === "darwin"}
-            tabs={browserTabs()}
-            activeTab={activeBrowserTab()}
-            activeControl={activeBrowserControl()}
-            address={browserAddress()}
-            controlForTab={browserControlForTab}
-            controllerForTab={browserControllerForTab}
-            onAddressChange={setBrowserAddress}
-            onAddressEditingChange={setBrowserAddressEditing}
-            onOpenAddress={(address) => void openBrowserAddress(address, address !== undefined)}
-            onNavigate={(tabId, direction) => void navigateBrowserTab(tabId, direction)}
-            onReload={(tabId) => void reloadBrowserTab(tabId)}
-            onActivateTab={activateBrowserTab}
-            onCloseTab={(tabId) => void closeBrowserTab(tabId)}
-            canEnterPip={!props.runtime}
-            onSurface={setBrowserSurfaceElement}
-            liveViewTabId={
-              props.server?.kind === "remote" && serverSupportsCapability(props.server, "browser-view")
-                ? (activeBrowserTab()?.id ?? null)
-                : null
-            }
-            liveViewRuntime={props.browserRuntime ?? conversationPort().browser}
-            liveViewClipboard={serverSupportsCapability(props.server, "browser-view-clipboard")}
-            onBack={() => setActiveRightPanel("browser")}
-            onEnterPip={props.runtime ? () => undefined : showBrowserPip}
-            dock={<BrowserDockAdapter tab={activeBrowserTab()} />}
-          />
+          <BrowserFullViewAdapter />
         </Portal>
       </Show>
 
@@ -538,7 +500,7 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
 }
 
 const AgentSettingsPanel = lazy(loadAgentSettingsPanel);
-const BrowserPanel = lazy(() => import("@openbot/ui/features/browser/BrowserPanel"));
+const BrowserFullViewAdapter = lazy(() => import("./BrowserFullViewAdapter"));
 const FilePreviewPanel = lazy(() => import("./FilePreviewPanel"));
 const ChatFilesPanel = lazy(() => import("../files/ChatFilesPanel"));
 
