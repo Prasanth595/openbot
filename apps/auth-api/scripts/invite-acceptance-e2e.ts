@@ -1,8 +1,8 @@
 // Runs the real invitation acceptance of the account server on a migrated SQLite database. A member who
 // opens a link again keeps their role, their sessions and the host auth epoch, and does not use a
-// single-use link. A removed member cannot join again with a link that they still have, and a member who
-// left joins again with a new invitation. The cap of
-// outstanding single-use invitations holds when owners create them at the same time.
+// single-use link. A removed member cannot join again with a link that they still have, and a new
+// invitation brings them back. The cap of outstanding single-use invitations holds when owners create
+// them at the same time.
 //
 // Run: bun run test:invite-acceptance
 // It writes .openbot-build/invite-acceptance-e2e/report.json and exits non-zero on a failure.
@@ -177,22 +177,20 @@ async function aRemovedMemberStaysRemoved() {
   check("a refused accept keeps the host auth epoch", epoch() === before, { before, after: epoch() });
 }
 
-async function aMemberWhoLeftJoinsWithANewInvitation() {
+async function aRemovedMemberJoinsWithANewInvitation() {
   const { plane, membership, advance, createInvite } = await setup();
   const old = await createInvite("member", true);
   await failureCode(plane.acceptInvite(MEMBER, old.token));
   const joined = membership();
   if (!joined) throw new Error("The member did not join.");
   advance(1000);
-  await Effect.runPromise(
-    plane.changeMembership(MEMBER.id, { hostId: HOST_ID, membershipId: joined.id, revoke: true }),
-  );
+  await Effect.runPromise(plane.changeMembership(OWNER.id, { hostId: HOST_ID, membershipId: joined.id, revoke: true }));
   const withOld = await failureCode(plane.acceptInvite(MEMBER, old.token));
-  check("a member who left cannot join with a link from before", withOld.code === "invite_invalid", withOld);
+  check("a removed member cannot join with a link from before", withOld.code === "invite_invalid", withOld);
   advance(1000);
   const fresh = await createInvite("admin", false);
   const accepted = await failureCode(plane.acceptInvite(MEMBER, fresh.token));
-  check("a member who left joins again with a new invitation", accepted.code === null, accepted);
+  check("a removed member joins again with a new invitation", accepted.code === null, accepted);
   check(
     "the member who joins again is active, with the role of the new invitation",
     membership()?.status === "active" && membership()?.role === "admin" && membership()?.id === joined.id,
@@ -248,7 +246,7 @@ const scenarios = [
   aMemberAcceptsAgain,
   anAdminKeepsTheRole,
   aRemovedMemberStaysRemoved,
-  aMemberWhoLeftJoinsWithANewInvitation,
+  aRemovedMemberJoinsWithANewInvitation,
   aSingleUseLinkStaysUnusedForAMember,
   singleUseCapHolds,
 ];
