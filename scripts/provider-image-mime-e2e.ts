@@ -1,6 +1,6 @@
 // Runs real provider clients against owned stdio CLIs. No account or model request is used.
-// bun scripts/provider-image-mime-e2e.ts --phase=before|after
-// Both phases require correct MIME types and unchanged bytes. The phase changes only the output folder.
+// bun scripts/provider-image-mime-e2e.ts
+// Each image must reach the protocol child with its correct MIME type and unchanged bytes.
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -14,9 +14,7 @@ import { PiAgentClient } from "../src/backend/pi-client";
 import { type AppServerNotification, getString, isRecord } from "../src/backend/protocol";
 import { requireProviderDriver } from "../src/backend/provider-drivers";
 
-const phase = process.argv.find((arg) => arg.startsWith("--phase="))?.slice(8) ?? "before";
-assert.ok(phase === "before" || phase === "after", "Use --phase=before or --phase=after.");
-const out = resolve(import.meta.dirname, "../.openbot-build/provider-image-mime-e2e", phase);
+const out = resolve(import.meta.dirname, "../.openbot-build/provider-image-mime-e2e");
 const root = await mkdtemp(join(tmpdir(), "openbot-image-mime-"));
 const consumers = ["acp", "muse", "pi"] as const;
 type Consumer = (typeof consumers)[number];
@@ -143,7 +141,6 @@ interface ConsumerResult {
   cleanup: { pid: number; stopped: boolean }[];
 }
 interface Report {
-  phase: string;
   passed: boolean;
   defect: string;
   networkModelRequests: boolean;
@@ -156,7 +153,6 @@ function notRun(): ConsumerResult {
   return { status: "NOT_RUN", reason: "Not started", cases: [], traffic: [], cleanup: [] };
 }
 const report: Report = {
-  phase,
   passed: false,
   defect: "Local image format preservation across provider consumers",
   networkModelRequests: false,
