@@ -1231,7 +1231,8 @@ if (!hasSingleInstanceLock) {
         logger.warn("The quit stopped the start:", toLogValue(error));
         return;
       }
-      const message = error instanceof Error ? error.message : String(error);
+      // The Windows error box ends the text at a NUL character, so control characters are replaced.
+      const message = (error instanceof Error ? error.message : String(error)).replace(/[^\P{Cc}\n\t]/gu, "�");
       logger.error("OpenBot failed to start:", toLogValue(error));
       // A server has nobody at its virtual display to close the box, and the box blocks the quit.
       if (!serverMode && !hostedServer) {

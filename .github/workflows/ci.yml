@@ -293,7 +293,8 @@ jobs:
   reverse-actions-e2e:
     # Runs the released Team API adapters and the reverse actions (revoke and reconnect, mute and
     # unmute, pause and resume, hide and restore) against the real host services on a temporary
-    # profile, with loopback HTTP and WebSocket. It needs no Electron, display or external service.
+    # profile, with loopback HTTP and WebSocket. It also starts the host stores on settings files that
+    # a power loss filled with zeros. It needs no Electron, display or external service.
     name: Team API and reverse actions E2E
     needs: detect
     if: needs.detect.outputs.desktop == 'true'
@@ -332,6 +333,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: bun run test:messaging-pause-resume
 
+      - name: Run the zero-filled settings file E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:zero-filled-settings
+
       - name: Upload the reports
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -344,6 +349,7 @@ jobs:
             .openbot-build/routine-pause-resume-e2e/
             .openbot-build/agent-hide-restore-e2e/
             .openbot-build/messaging-pause-resume-e2e/
+            .openbot-build/zero-filled-settings-e2e/
           if-no-files-found: ignore
 
   surfaces:

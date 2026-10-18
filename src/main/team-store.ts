@@ -26,7 +26,13 @@ import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { normalizeEmailAddress, slugifyTeamServerName } from "@openbot/contracts/validation";
 import { sourceText } from "@openbot/i18n/source";
 import { Context, Deferred, Effect, Layer, Result, Schema } from "effect";
-import { type WriteJsonFileOptions, writeFileAtomically } from "../backend/atomic-json-file";
+import {
+  isZeroFilledFile,
+  parseStoredJson,
+  setAsideDamagedFile,
+  type WriteJsonFileOptions,
+  writeFileAtomically,
+} from "../backend/atomic-json-file";
 import { RemoteWorkflowError, remoteCall, remoteDecode } from "./remote-service-effects";
 
 class TeamStoreFiles extends Context.Service<
@@ -36,6 +42,7 @@ class TeamStoreFiles extends Context.Service<
     mkdir(path: string): Effect.Effect<void, RemoteWorkflowError>;
     copyExclusive(from: string, to: string): Effect.Effect<void, RemoteWorkflowError>;
     remove(path: string): Effect.Effect<void, RemoteWorkflowError>;
+    setAside(path: string): Effect.Effect<void>;
     write(
       path: string,
       content: string | Uint8Array,
@@ -50,6 +57,7 @@ class TeamStoreFiles extends Context.Service<
       mkdir: (path) => remoteCall(() => mkdir(path, { recursive: true, mode: 0o700 })).pipe(Effect.asVoid),
       copyExclusive: (from, to) => remoteCall(() => copyFile(from, to, constants.COPYFILE_EXCL)),
       remove: (path) => remoteCall(() => rm(path, { force: true })),
+      setAside: setAsideDamagedFile,
       write: (path, content, options) =>
         writeFileAtomically(path, content, options).pipe(
           Effect.mapError(({ cause }) => new RemoteWorkflowError({ cause })),
@@ -216,7 +224,14 @@ export class TeamStore {
       let found = false;
       const attempt0 = yield* Effect.gen({ self: this }, function* () {
         const contents = yield* TeamStoreFiles.use((files) => files.readText(this.#path));
-        const parsed = yield* remoteDecode(() => JSON.parse(contents));
+        // A power loss left the file without content. It holds no host to keep, so the start
+        // continues as if the file were missing.
+        if (isZeroFilledFile(contents)) return yield* TeamStoreFiles.use((files) => files.setAside(this.#path));
+        const parsed = yield* remoteDecode(() =>
+          parseStoredJson(this.#path, contents, (value) =>
+            isStoredTeamFile(value) || isStoredTeam(value) ? value : null,
+          ),
+        );
         found = true;
         if (isStoredTeamFile(parsed)) {
           this.#file = parsed;

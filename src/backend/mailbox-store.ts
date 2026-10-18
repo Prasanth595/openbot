@@ -47,6 +47,7 @@ import { StoredStateFailure, storedIO, storedSync, toStoredStateFailure } from "
 
 export type { ExportedAttachmentFile, GeneratedAttachmentSource } from "./attachment-files";
 
+import { isZeroFilledFile, parseStoredJson } from "./atomic-json-file";
 import { mailboxReactionRowKey } from "./database/mailbox-projection";
 import { MailboxDeliveryGate } from "./mailbox-delivery-gate";
 import { OpenBotDatabase } from "./openbot-database";
@@ -2403,8 +2404,10 @@ export class MailboxStore {
       if (isRecord(error) && error.code === "ENOENT") return structuredClone(EMPTY_STATE);
       return yield* loaded.failure;
     }
+    // A power loss left the file without content: no message in it can be recovered.
+    if (isZeroFilledFile(loaded.success)) return structuredClone(EMPTY_STATE);
     return yield* storedSync(() => {
-      const value = toCurrentMailboxState(JSON.parse(loaded.success));
+      const value = parseStoredJson(this.#statePath, loaded.success, toCurrentMailboxState);
       if (!value || !isStoredState(value)) throw new Error(sourceText("error.backend.mailboxStateCorrupt"));
       return value;
     });
