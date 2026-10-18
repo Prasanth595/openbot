@@ -1,10 +1,10 @@
 {
-  "version": "0.43.0",
+  "version": "0.44.0",
   "highlights": [
-    "Sign in to Vercel and other OAuth MCP servers again after you upgrade. After that, they stay signed in.",
-    "Set what an agent may do with one Permissions setting: Workspace only, Ask first or Full access.",
-    "Hide an agent that you do not use now, and restore it later with its thread and files.",
-    "Ask the agent a side question, and quote text from a message in a new message.",
-    "Gemini connects on Windows when its server starts slowly, and OpenBot opens faster."
+    "Agents can ask with buttons, reply chips, lists and short forms, and you answer in the chat.",
+    "A new Tasks page shows the tasks of all agents by what they need, and you can send a task to any agent.",
+    "The full browser view has tabs in one row, and you can talk to the agent of a tab while you look at the page.",
+    "Settings > Profile shows the activity of this computer in the past year, and you can share an image of it.",
+    "A message no longer stays running after a failed turn, and the next messages in the queue start."
   ]
 }

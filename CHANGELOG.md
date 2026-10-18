@@ -6,6 +6,146 @@ All notable changes to OpenBot will be documented here. The project follows
 
 ## [Unreleased]
 
+## [0.44.0] - 2026-10-18
+
+### Added
+
+- Agents can ask with interactive blocks: a confirmation with buttons, reply chips, a list to choose from, or a short form. The agent waits for your answer, as it does for a question. Every provider can use them, Claude too. The blocks show as cards in the desktop app and the web app, and you can skip one as you skip a question. Only the server owner or an admin can press a dangerous button, or answer a block that has one in words. A form can ask for a password or a key: the agent gets it, but OpenBot does not keep it on the card or in your answer. The agent can still repeat it in its reply or its thinking. If you cannot hold a button, press it and confirm in a second step. An app or a mobile app that does not show the blocks yet shows them as an ordinary question that you can answer.
+- Settings > Profile shows the activity of this computer in the past year: a calendar of active days, the tokens, the messages, the peak day, the streaks, the providers, the models and the teammates that you use most.
+- Share in Settings > Profile makes an image of your last six months. You can copy the image or save it as a file. The image stays on your computer until you send it.
+- Add a Tasks page to the page rail, on desktop and on the web. Write a task, choose the agent, and send it; you can undo the send for 6 seconds. The page groups the tasks of all agents by what they need: Needs you, Working, Waiting and Closed. Click a task to open its conversation beside the list. On desktop, you can also dictate a task. A joined server shows the page when it supports tasks.
+- Take over a browser tab from its agent at any time, and give it back with "I'm done". The agent waits while
+  you control the page, then continues from a fresh look at the page.
+- Right-click a browser tab to open a new tab to its right, duplicate it, move it, or close the tabs to its left,
+  to its right, or all other tabs. Reopen a closed tab at its old place.
+- The address bar suggests open tabs, pages you visited in this session, and a search as you type, and it
+  completes a visited address.
+- Stop a page that loads from the address bar. Back and Forward are off when the tab has no page to go to.
+- In the full browser view, the keys of other browsers work: new tab, close, reopen, select a tab by number,
+  next and previous tab, address bar, reload, back and forward.
+
+### Changed
+
+- Signing out of an MCP server, or removing it, now asks the server's authorization service to revoke the tokens.
+- Agents no longer get the OAuth token of an MCP server that you signed in to. They reach the server through a local address in OpenBot, which adds the token to each call.
+- Save on a new HTTP MCP server now tests it first. When the server asks for a sign-in, OpenBot signs in and then saves. When the server refuses the typed credentials, OpenBot does not save and goes to Headers.
+- A web address pasted or typed into "Command to launch" now moves to Server URL and selects Streamable HTTP.
+- Profile is now the second tab in Settings, after General.
+- You change your photo and your display name in one Edit profile dialog, in the desktop app and in the web client.
+- Reply on a message in a chat or a channel now puts the caret at the end of the message box, so you can type at once. Before, you had to click the message box first. Text that you selected in the message box stays selected.
+- Agents with a long message history start queued work faster.
+- The web app uses less memory when you open many long conversations.
+- The full browser view shows every tab in its top row, with the address bar above the page. In a narrow window,
+  one button with the tab count opens the list of tabs.
+- The composer, the queue and the agent status float over the page in the full browser view, so you can talk to
+  the agent of the tab while you look at the page. The agent's reply shows over the page and closes by itself.
+- Select a tab of a different agent in the full browser view to open that agent's chat. The page stays open,
+  and the floating composer sends to the agent of the tab.
+- The card where an agent asks for a code or a password has a new design.
+
+### Fixed
+
+- Open the sign-in page when you click **Sign in** for an MCP server that shows its tools without a
+  sign-in, such as the Google Sheets and Google Chat MCP servers. Before, the click did nothing, and
+  the server stayed signed out.
+- Connected devices in Mobile Connect now shows only the phones that can open this computer. A phone that you connected to a joined server no longer shows on a computer that it cannot open.
+- Keep messages with unknown code language labels visible when a label is `constructor` or `__proto__`.
+- Wrap a long agent reply inside its bubble when it names a file by a long path. Before, the text ran
+  past the right edge of the bubble and was cut off, and the chat column could grow wider than the
+  window.
+- Remove temporary instance transfer ZIP files left after a restart when the next upload or export starts.
+- Complete marketplace skill installation and refresh the agent runtime when the install receipt request fails after local files and the skill lock are saved.
+- Prevent service restarts from interrupting a teammate file download while its input stream is still being written to disk.
+- Routines now use the earliest next scheduled time when clocks move back. Some schedules skipped a run in the first occurrence of a repeated hour or missed a run when the clock moved back several hours.
+- Reject malformed custom cron list and step syntax when saving a new or changed routine schedule. Keep saved schedules readable and editable.
+- Keep all attached files when the file system treats different filenames as equal. Previously, one attachment could overwrite another and become unavailable.
+- An MCP server that refuses a saved sign-in now shows "Sign-in needed" with a Sign in button. Before, its row looked signed in until a test failed.
+- A background token renewal no longer registers a new OAuth client with the MCP server.
+- Agents no longer get an MCP token that the server has already refused.
+- An MCP token that expires during a long agent session is now renewed. Before, the agent kept the old token until its session restarted.
+- After you sign out of an MCP server, or the server ends the sign-in, an agent that calls one of its tools now gets a message that tells it to sign in again in OpenBot.
+- After you cancel a checkout from the desktop app, the billing page now says that the checkout was
+  cancelled and that nothing was charged. Before, it said "Billing updated".
+- The form to report a hosted site now has the site style and shows a clear result or error. Before,
+  it had no style and showed raw data after you sent it. You can now type the site address when the
+  form opens without one.
+- "New URL" and "Turn off" for the routine calendar feed now ask before they stop the current URL.
+  The panel also shows a loading state, a Retry button after a failed load, and a note when the
+  agents cannot load.
+- The routine calendar no longer shows channel routines that cannot open. Before, a click on one
+  could leave a pane that loaded without end.
+- The first-agent setup screen and the side-question panel now show in your language.
+- When a side question gets no answer, the panel now says that it failed and has a Retry button.
+- Reject custom cron numbers that are not plain decimal digits, such as `0x5`, `1e1`, `+5` or `5.0`, when saving a new or changed routine schedule. Keep saved schedules readable and editable.
+- Complete the installation of a marketplace agent when the install receipt request fails after the agent is saved.
+- When a setting does not save, a message now tells you why the switch went back. When settings do
+  not load, the settings page says so and has a Retry button. Before, it showed default values.
+- When OpenBot cannot read your saved setup at start, it now shows Retry. Before, it opened first-run
+  setup.
+- 1Password, Bitwarden, Slack, Discord and Telegram now show "Unknown" and Retry when their status
+  does not load. Before, they showed "Not set up". A failed "Open app" for 1Password now shows an
+  error.
+- Slack and Discord now have Pause, as Telegram does.
+- Disconnect for an account session now asks first.
+- You can undo the delete of one memory.
+- Each routine in the list now has Pause or Resume. "Delete now" shows that it is in progress.
+- Failed actions in the browser picture-in-picture controls, the What's New link and the routine
+  webhook status now show an error.
+- The join, Slack, Discord, billing, site report and error pages on the website now have the same
+  header, card and footer. The page-not-found page has its own title.
+- The Slack and Discord connect pages now say what went wrong for each error and offer "Try again"
+  and help when OpenBot does not open.
+- The join page now says "server", explains how invitation links work, and has link previews.
+- Download links on the website now open the download page. The footer now links to Teams and
+  Contact.
+- A shared agent that is no longer shared now shows a clear page, not a generic error.
+- Hosted sites now show a branded error page in the browser, and their report link uses the correct
+  account service address.
+- The web app can now create a hosted server when you have no server to connect to.
+- Stop the provider processes when OpenBot quits while it changes a provider key, updates a provider CLI or reconnects a provider. Before, the new process, or the process that it replaced, could continue to run after OpenBot stopped.
+- The app and the web app now use "server" for a computer that you connect to or join. Before, they
+  also said "host" or "computer".
+- Error labels in a conversation now say what failed, for example "Could not send your answer".
+  Agent errors now tell you what to do next.
+- Errors in the agent registry now name the action that failed: search, install, update, remove or
+  cancel. Before, all of them said "The registry operation failed".
+- The join, Slack, Discord, billing, site report and error pages on the website now show in the
+  language of your browser.
+- More text in the web app, the sidebar, the marketplace and the Cobrain listing now shows in your
+  language.
+- Settings search now finds settings on every tab. A result opens the tab and marks the setting.
+- Icon button tooltips now use the app style and close with Escape. Before, some used the plain
+  system tooltip.
+- A button that is busy now keeps keyboard focus.
+- All dialogs now use the same dimmed background.
+- The web client and a joined desktop can now read the queue of an agent with a long history on a server. Before, after some weeks of use, the queue answer was too large for the connection, and the chat showed a "response too large" error (#2368).
+- Show the correct reason when a direct message cannot go to its recipient, for example when the
+  member left the team or is disabled. Before, the server answered "Request failed." and wrote an
+  error to its log.
+- A message no longer stays "running" after its turn ended with an error. Before, a failure at the end of a turn or during the recovery after a restart could keep the message running, and the agent's next messages waited in the queue. Stop did not clear it. Now the message ends as interrupted or failed, the next message starts, and Stop clears a message that no provider runs.
+- `PRIVACY.md` now lists the hosted site files, marketplace skill bundles and site reports that the account service stores.
+- Opening a server invitation link again no longer disconnects every member of the server. A
+  member keeps their role, and a removed member cannot join again with an old link.
+- When a provider process stops, agents on other processes keep their browser controls, and a
+  compaction of the stopped process shows as failed instead of staying hidden.
+- Signing out, or ending a session from a phone or the web, now also closes the live browser view
+  of that session.
+- The Live Activity updates that OpenBot sends to your iPhone show a link that an agent reply writes
+  in angle brackets, such as `<https://example.com>`. Before, the update removed the link.
+
+### Security
+
+- An MCP sign-in now stops an OAuth answer that is larger than 1 MiB or slower than 20 seconds.
+- A public MCP server can no longer send its sign-in to an OAuth endpoint on a private network.
+- A member that the owner or an admin removed could rejoin a server with an invitation or a team link from before the removal. Now that member needs a new invitation or a reactivation. A member who left by their own choice can still rejoin with an earlier invitation.
+- An invitation from an admin stayed valid after the admin left, was removed or was demoted. Now it closes, and it no longer counts against the invitation limits.
+- If the public ticket key set had a private key by mistake, `/.well-known/jwks.json` published the private key. Now it publishes only the public members.
+- A checkout return address that starts with `//` or `/\` could send the browser to another site. The account server never made such an address, but now it refuses one.
+- A hosted site address such as `/constructor` made the site router read storage for a file that does not exist. Now the router finds only the files of the site.
+- A request with no Cloudflare client address got its rate limit key from `X-Forwarded-For`, which the client sets. Now only the Cloudflare address sets the key.
+- An IPv6 client got a new per-address rate limit for each address in its /64. Now all addresses of one /64 share a limit.
+- Signal read the full body of a Slack request or an account event before it checked the size. Now it stops reading at the limit and answers 413.
+
 ## [0.43.0] - 2026-10-17
 
 ### Added

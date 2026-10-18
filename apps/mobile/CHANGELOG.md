@@ -7,6 +7,34 @@ the [root changelog](../../CHANGELOG.md).
 
 ## [Unreleased]
 
+## [1.3.3] - In review
+
+### Changed
+
+- Shorten button and tab labels in all 9 translations, so that more labels show in full.
+- Admins can now change a member's role and remove a member on the Members screen, as the owner
+  can. Nobody can change or remove the owner.
+- Set what an agent may do with one picker: Workspace only, Ask first or Full access. It replaces the
+  Access picker and the Auto approve switch. Claude agents show Workspace only and Full access.
+- Show a quote that a desktop message contains as its text in quotation marks.
+
+### Fixed
+
+- Fix translations with the wrong meaning or a mixed term. Before, the Polish app showed some
+  Russian text.
+- Routine calendars now use the earliest next scheduled time when clocks move back. Some schedules skipped a run in the first occurrence of a repeated hour or missed a run when the clock moved back several hours.
+- The Live Activity now follows the notification choices of each server. Before, it showed the
+  agents of a server that you muted or set to Nothing. Now it stops showing that server at once when
+  you mute it or turn its notifications off, and it shows the server again when the mute ends.
+- The app can now read the queue of an agent with a long history. Before, after some weeks of use, the queue answer was too large for the connection, and the chat showed a "response too large" error. The server must also run the version of OpenBot with this fix (#2368).
+- Live Activities show a link that an agent reply writes in angle brackets, such as
+  `<https://example.com>`. Before, the Live Activity removed the link.
+
+### Security
+
+- Show the account service address on the Mobile Connect screen when a link uses a service that is
+  not the OpenBot account service. Before, the screen did not show where the phone connects.
+
 ## [1.3.2] - 2026-10-17
 
 ### Added

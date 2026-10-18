@@ -1,5 +1,39 @@
 [
   {
+    "version": "0.44.0",
+    "date": "2026-10-18",
+    "notices": [],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "Agents can ask with interactive blocks: buttons, reply chips, a list to choose from, or a short form. Answer them in the chat, or skip them as you skip a question.",
+          "A Tasks page in the page rail shows the tasks of all agents by what they need. Write a task, choose the agent, and send it.",
+          "Settings > Profile shows the activity of this computer in the past year. Share makes an image of your last six months.",
+          "Take over a browser tab from its agent at any time, and give it back with \"I'm done\".",
+          "Right-click a browser tab for more tab actions, and reopen a closed tab at its old place."
+        ]
+      },
+      {
+        "type": "changed",
+        "items": [
+          "The full browser view shows every tab in its top row. The composer floats over the page, so you can talk to the agent of the tab.",
+          "Agents no longer get the OAuth token of an MCP server. OpenBot adds the token to each call.",
+          "Save on a new HTTP MCP server tests it first, and signs in when the server asks for it.",
+          "Agents with a long message history start queued work faster."
+        ]
+      },
+      {
+        "type": "fixed",
+        "items": [
+          "A message no longer stays \"running\" after its turn ended with an error, so the next messages start.",
+          "Opening a server invitation link again no longer disconnects every member of the server.",
+          "Settings, connectors and routines now tell you when something did not load or save, and have a Retry button."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.43.0",
     "date": "2026-10-17",
     "notices": [
