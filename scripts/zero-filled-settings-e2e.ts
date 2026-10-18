@@ -23,7 +23,7 @@ const ZEROS = "\0".repeat(4_096);
 const cipher = { encrypt: (value: string) => Buffer.from(value), decrypt: (value: Buffer) => value.toString() };
 
 const root = await mkdtemp(join(tmpdir(), "openbot-zero-filled-"));
-const results: { name: string; passed: boolean; detail?: string }[] = [];
+const results: { name: string; passed: boolean; detail: string | undefined }[] = [];
 
 async function check(name: string, run: () => Promise<string | undefined>): Promise<void> {
   try {
