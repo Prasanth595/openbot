@@ -63,7 +63,7 @@ import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, toLogValue } from "@openbot/logging";
 import { Effect, Result, Semaphore, Stream } from "effect";
 import { ProfileCreationRecovery } from "./agent/profile-creation-recovery";
-import { isZeroFilledFile, parseStoredJson, writeFileAtomically } from "./atomic-json-file";
+import { isEmptyStoredFile, parseStoredJson, writeFileAtomically } from "./atomic-json-file";
 import { automationRoot } from "./automation-command";
 import type { AgentModelChange } from "./database/agent-roster";
 import { OpenBotDatabase, type ProviderSession, stableThreadId } from "./openbot-database";
@@ -1435,7 +1435,7 @@ export class AgentStore {
             try {
               const contents = yield* storedIO(() => readFile(this.#statePath, "utf8"));
               // A power loss left the file without content: no agent in it can be recovered.
-              if (isZeroFilledFile(contents)) {
+              if (isEmptyStoredFile(contents)) {
                 const empty: StoredState = { version: 2, examplesInitialized: false, agents: [] };
                 return empty;
               }

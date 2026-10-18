@@ -27,7 +27,7 @@ import { normalizeEmailAddress, slugifyTeamServerName } from "@openbot/contracts
 import { sourceText } from "@openbot/i18n/source";
 import { Context, Deferred, Effect, Layer, Result, Schema } from "effect";
 import {
-  isZeroFilledFile,
+  isEmptyStoredFile,
   parseStoredJson,
   setAsideDamagedFile,
   type WriteJsonFileOptions,
@@ -226,7 +226,7 @@ export class TeamStore {
         const contents = yield* TeamStoreFiles.use((files) => files.readText(this.#path));
         // A power loss left the file without content. It holds no host to keep, so the start
         // continues as if the file were missing.
-        if (isZeroFilledFile(contents)) return yield* TeamStoreFiles.use((files) => files.setAside(this.#path));
+        if (isEmptyStoredFile(contents)) return yield* TeamStoreFiles.use((files) => files.setAside(this.#path));
         const parsed = yield* remoteDecode(() =>
           parseStoredJson(this.#path, contents, (value) =>
             isStoredTeamFile(value) || isStoredTeam(value) ? value : null,

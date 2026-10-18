@@ -20,7 +20,7 @@ import { isString } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
 import { Effect, Result, Semaphore } from "effect";
 import {
-  isZeroFilledFile,
+  isEmptyStoredFile,
   parseStoredJson,
   setAsideDamagedFile,
   writeJsonFileAtomically,
@@ -110,7 +110,7 @@ export class RemoteServerStore implements RemoteServerDirectory {
         return yield* new RemoteWorkflowError({ cause: error });
       return;
     }
-    if (isZeroFilledFile(attempt0.success)) return yield* setAsideDamagedFile(this.#path);
+    if (isEmptyStoredFile(attempt0.success)) return yield* setAsideDamagedFile(this.#path);
     const stored = yield* remoteDecode(() => parseStoredJson(this.#path, attempt0.success, readStoredRemoteServers));
     // Null means the *file* made no sense -- a `version` from a newer build, or no `servers` array at
     // all. An unreadable entry is not this: the reader drops it and returns the rest. Keeping the

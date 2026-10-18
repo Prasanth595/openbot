@@ -1,8 +1,9 @@
 // Runs the real team and remote server stores against settings files that a power loss on NTFS
 // filled with zeros. JSON.parse rejected such a file with "Unexpected token '\0'", and the Windows
 // error box showed only "Unexpected token '", so OpenBot did not start. The stores must move the file
-// aside and start empty. A file that is not JSON must still stop the start, with an error that names
-// the file and quotes nothing from it. A byte order mark must not stop the start.
+// aside and start empty. An empty file gets the same result. A file that is not JSON must still stop
+// the start, with an error that names the file and quotes nothing from it. A byte order mark must not
+// stop the start.
 //
 // Run: bun scripts/zero-filled-settings-e2e.ts
 // It writes .openbot-build/zero-filled-settings-e2e/report.json and exits non-zero on a failure.
@@ -73,6 +74,18 @@ try {
     return copies[0];
   });
 
+  await check("an empty remote server file is moved aside and the store starts", async () => {
+    const directory = join(root, "empty");
+    await mkdir(directory);
+    const path = join(directory, "openbot-remote-servers-v1.json");
+    await writeFile(path, "");
+    const store = new RemoteServerStore({ path, cipher });
+    await runCauseEffect(store.load());
+    assert.equal(store.servers.length, 0);
+    assert.equal((await setAsideCopies(directory, "openbot-remote-servers-v1.json")).length, 1);
+    return undefined;
+  });
+
   await check("a remote server file that is not JSON stops the start and names the file", async () => {
     const directory = join(root, "malformed");
     await mkdir(directory);
@@ -107,7 +120,7 @@ try {
   });
 } finally {
   await rm(root, { recursive: true, force: true });
-  const passed = results.length === 5 && results.every((result) => result.passed);
+  const passed = results.length === 6 && results.every((result) => result.passed);
   await mkdir(OUT, { recursive: true });
   await writeFile(join(OUT, "report.json"), `${JSON.stringify({ passed, results }, null, 2)}\n`);
   for (const result of results) {

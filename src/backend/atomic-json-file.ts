@@ -24,11 +24,12 @@ export function writeJsonFileAtomically<Content extends VersionedJsonFile>(
 }
 
 /**
- * True when the file has its size but none of its content. A power loss can leave a file this way
- * on NTFS, which records the size before the data. Nothing in such a file can be recovered.
+ * True when the file is empty, or has its size but none of its content. A power loss can leave a
+ * file this way on NTFS, which records the size before the data. Nothing in such a file can be
+ * recovered.
  */
-export function isZeroFilledFile(contents: string): boolean {
-  return contents.includes("\0") && contents.replaceAll("\0", "").trim() === "";
+export function isEmptyStoredFile(contents: string): boolean {
+  return contents.replaceAll("\0", "").trim() === "";
 }
 
 /**
@@ -91,9 +92,12 @@ export const writeFileAtomically = Effect.fn("AtomicFile.write")(function* (
             try {
               await handle.writeFile(content);
               await handle.sync();
-            } finally {
-              await handle.close();
+            } catch (cause) {
+              // A close failure must not replace the write failure.
+              await handle.close().catch(() => undefined);
+              throw cause;
             }
+            await handle.close();
           },
           catch: (cause) => new AtomicFileWriteError({ operation: "write", cause }),
         });
