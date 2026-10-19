@@ -51,6 +51,8 @@ All notable changes to OpenBot will be documented here. The project follows
 - Let a Claude agent answer again after you switch it to OpenCode and back. Before, each message
   failed with "--resume requires a valid session ID", also after a restart. An agent that has this
   fault now starts a new Claude session and keeps its conversation.
+- A provider account that is signing in now says to finish the sign-in in the browser, and its menu has Cancel sign-in. Before, the account showed "Connecting" with only Rename and Remove until the sign-in timed out.
+- A new account sign-in on a joined server's host now stops the earlier one. Before, the earlier account could stay "Connecting" for up to 10 minutes, and Cancel could not stop it.
 
 ## [0.44.0] - 2026-10-18
 

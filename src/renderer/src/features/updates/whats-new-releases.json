@@ -16,6 +16,7 @@
           "Settings opens again. In 0.44.0, Settings showed an empty page and the app stopped responding.",
           "A provider CLI update waits for the current turn to end, then starts by itself.",
           "A Claude agent answers again after you switch it to OpenCode and back.",
+          "A provider account that is signing in has Cancel sign-in in its menu.",
           "A role change of a member no longer disconnects the server and every connected member.",
           "A message that runs again after a refused turn now runs to its end, and Claude agents accept new messages.",
           "Claude agents can run tools from your shell PATH, such as Homebrew, when you open OpenBot from Finder or the Dock.",
