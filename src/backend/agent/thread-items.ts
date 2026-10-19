@@ -2,7 +2,7 @@ import { RequestError } from "@agentclientprotocol/sdk";
 import { agentProviderName, COMPUTER_USE_MCP_SERVER_NAME, DEFAULT_PROVIDER_ACCOUNT_ID } from "@openbot/contracts/ipc";
 import { type DynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
-import { type AgentProvider, RequestTimeoutError } from "../agent-client";
+import { type AgentProvider, MissingClaudeSessionError, RequestTimeoutError } from "../agent-client";
 import { AppServerError } from "../app-server-client";
 import {
   bridgedToolName,
@@ -80,6 +80,7 @@ export function isMissingProviderSessionError(error: unknown, provider: AgentPro
   // ACP clients convert confirmed missing-session responses before this boundary.
   // Provider diagnostics can mention missing resources without proving that this session is gone.
   if (error instanceof RequestError) return false;
+  if (provider === "claude") return error instanceof MissingClaudeSessionError;
   if (
     (provider !== "grok" &&
       provider !== "opencode" &&

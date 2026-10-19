@@ -91,6 +91,17 @@ export class ProviderTurnActiveError extends Error {
   }
 }
 
+/**
+ * Claude cannot resume this session ID, because another provider made it. Nothing ran, so
+ * `isMissingProviderSessionError` reads it as a missing session and the caller opens a new one.
+ */
+export class MissingClaudeSessionError extends Error {
+  constructor(threadId: string) {
+    super(`Claude session not found: ${threadId}`);
+    this.name = "MissingClaudeSessionError";
+  }
+}
+
 /** What of the CLI's last stderr line a status message carries. The full line is in the log. */
 const EXIT_DETAIL_LIMIT = 300;
 

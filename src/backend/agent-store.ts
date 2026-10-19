@@ -1398,12 +1398,12 @@ export class AgentStore {
     return this.#database.activeProviderSession(agent.threadId, agent.provider);
   }
 
-  bindProviderSession(id: string, externalSessionId: string): ProviderSession {
+  bindProviderSession(id: string, provider: AgentProviderId, externalSessionId: string): ProviderSession {
     const agent = this.#requireAgent(id);
     if (!agent.threadId) throw new Error(`Agent ${id} does not have an OpenBot thread.`);
     return this.#database.bindProviderSession({
       threadId: agent.threadId,
-      provider: agent.provider,
+      provider,
       externalSessionId,
       model: agent.model,
       effort: agent.reasoningEffort,

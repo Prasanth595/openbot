@@ -314,7 +314,7 @@ export class ThreadLifecycle {
     if (executionThreadId) this.#conversation.registerExecutionThread(agent.id, executionThreadId);
     const { currentAgent, session } = yield* threadStep(() => ({
       currentAgent: this.#store.list().find((candidate) => candidate.id === agent.id) ?? agent,
-      session: this.#store.database.activeProviderSession(publicThreadId, agent.provider),
+      session: this.#store.database.activeProviderSession(publicThreadId, client.provider),
     }));
     if (session) {
       this.#conversation.bindThread(session.externalSessionId, agent.id, publicThreadId);
@@ -482,11 +482,14 @@ export class ThreadLifecycle {
           this.#pendingHandoffs.set(externalThreadId, handoff);
         }
         yield* threadStep(() => {
-          if (publicThreadId === agent.threadId) this.#store.bindProviderSession(agent.id, externalThreadId);
+          // The provider that made the ID, not the agent's: the agent can change provider while
+          // `thread/start` runs, and that ID must never reach the new provider (#2475).
+          if (publicThreadId === agent.threadId)
+            this.#store.bindProviderSession(agent.id, client.provider, externalThreadId);
           else
             this.#store.database.bindProviderSession({
               threadId: publicThreadId,
-              provider: agent.provider,
+              provider: client.provider,
               externalSessionId: externalThreadId,
               model: agent.model,
               effort: agent.reasoningEffort,

@@ -33,7 +33,12 @@ import {
 import { isBalanceDiagnostic, isPlanLimitDiagnostic } from "./agent/provider-diagnostics";
 import { claudeBridgedToolName, VISIBLE_TOOL_DEFINITIONS } from "./agent/tool-catalog";
 import { USAGE_LIMIT_METHOD } from "./agent/usage-limit-gate";
-import { type AgentProvider, ProviderTurnActiveError, RequestTimeoutError } from "./agent-client";
+import {
+  type AgentProvider,
+  MissingClaudeSessionError,
+  ProviderTurnActiveError,
+  RequestTimeoutError,
+} from "./agent-client";
 import { claudeContextCategories } from "./claude-context-categories";
 import { type ClaudeHistoryOptions, claudeHistoryFromMessages, claudeHistoryReader } from "./claude-history";
 import {
@@ -406,6 +411,9 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
       }
       case "thread/resume": {
         const threadId = yield* providerSync(() => requiredString(params, "threadId"));
+        // Claude names its sessions with UUIDs. Another ID came from another provider, and every
+        // turn with it in `--resume` would fail, so the caller opens a new session instead (#2475).
+        if (!isUuid(threadId)) return yield* providerFailure(new MissingClaudeSessionError(threadId));
         const config = readThreadConfig(params);
         this.#setMemoryContext(threadId, params);
         const previous = this.#threadResumes.get(threadId);
