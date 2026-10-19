@@ -36,11 +36,13 @@ import {
   deleteHostedSite,
   deleteStoredFile,
   getAgentAdminSettings,
+  getHostAgentMemoryLimit,
   getHostReleaseStatus,
   getHostTimezone,
   getHostUpdateStatus,
   getStorageUsage,
   listHostedSites,
+  setHostAgentMemoryLimit,
   setHostTimezone,
   setHostUpdateSettings,
   startHostUpdate,
@@ -128,6 +130,7 @@ import type { FilesPort } from "../files/files-port";
 import { hostSetupProviderProps } from "../onboarding/host-setup-provider-props";
 import type { ScheduleRoutine } from "../schedule/SchedulePanel";
 import { AddServerOverlay, type AddServerResume } from "../servers/AddServerOverlay";
+import type { HostMemoryLimitCalls } from "../servers/ServerMemoryLimitSetting";
 import type { ServerHostedSitesOptions, ServerSettingsSection } from "../servers/ServerSettingsModal";
 import type { HostTimezoneCalls } from "../servers/ServerTimezoneSetting";
 import type { HostUpdateCalls } from "../servers/ServerUpdatePanel";
@@ -837,6 +840,14 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
       runTeamEffect(getHostTimezone(hostRequest(serverId)).pipe(Effect.mapError((error) => error.cause))),
     setTimezone: async (timezone, serverId) =>
       runTeamEffect(setHostTimezone(hostRequest(serverId), timezone).pipe(Effect.mapError((error) => error.cause))),
+  };
+  const hostMemoryLimitCalls: HostMemoryLimitCalls = {
+    getAgentMemoryLimit: async (serverId) =>
+      runTeamEffect(getHostAgentMemoryLimit(hostRequest(serverId)).pipe(Effect.mapError((error) => error.cause))),
+    setAgentMemoryLimit: async (limit, serverId) =>
+      runTeamEffect(
+        setHostAgentMemoryLimit(hostRequest(serverId), limit).pipe(Effect.mapError((error) => error.cause)),
+      ),
   };
   const [serverSettingsSection, setServerSettingsSection] = createSignal<ServerSettingsSection | null>(null);
   async function openServerSettings(
@@ -1731,6 +1742,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                       providers={providerSettings()}
                       hostUpdate={{ calls: hostUpdateCalls }}
                       hostTimezone={{ calls: hostTimezoneCalls }}
+                      hostMemoryLimit={{ calls: hostMemoryLimitCalls }}
                       // Any member imports into a host with `agent-import-v1`.
                       agentImport={
                         workspace.state.capabilities.includes(AGENT_IMPORT_CAPABILITY)

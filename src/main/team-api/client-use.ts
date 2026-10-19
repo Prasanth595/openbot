@@ -5,6 +5,7 @@ import {
   AGENT_MEMORIES_PAGE_ROUTE,
   AGENT_MEMORY_SELECTION_PAGE_ROUTE,
 } from "@openbot/contracts/team-protocol/agent-memories-v1";
+import { AGENT_MEMORY_LIMIT_ROUTES } from "@openbot/contracts/team-protocol/agent-memory-limit-v1";
 import { AGENT_PUBLISH_ROUTES } from "@openbot/contracts/team-protocol/agent-publish-v1";
 import { CHANNEL_ROUTES } from "@openbot/contracts/team-protocol/channels-v1";
 import { FOCUS_USE_ROUTES } from "@openbot/contracts/team-protocol/focus-use-v1";
@@ -40,6 +41,7 @@ const PASSIVE_ROUTES: ReadonlySet<string> = new Set([
   HOST_RELEASE_ROUTES.status,
   HOST_MEMBER_UPDATE_ROUTES.status,
   HOST_TIMEZONE_ROUTES.settings,
+  AGENT_MEMORY_LIMIT_ROUTES.settings,
   LIVE_ACTIVITY_PUSH_ROUTES.register,
   LIVE_ACTIVITY_PUSH_ROUTES.remove,
   PUSH_NOTIFICATIONS_ROUTES.register,

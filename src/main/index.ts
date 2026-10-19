@@ -608,7 +608,7 @@ function registerIpcHandlers({
       agentTemplates,
       remoteServers,
     }),
-    ...hostAdminIpcHandlers({ host, remoteServers, serverTimezone }),
+    ...hostAdminIpcHandlers({ host, remoteServers, serverTimezone, agentMemoryLimit }),
     ...providerAdminIpcHandlers({
       service,
       credentials: providerCredentials,
@@ -1062,6 +1062,11 @@ if (!hasSingleInstanceLock) {
       built.approvalAutomation.subscribe((preference) => {
         for (const window of BrowserWindow.getAllWindows()) {
           sendToRenderer(window, IPC_ENDPOINTS.app.approvalAutomation, preference);
+        }
+      });
+      built.agentMemoryLimit.subscribe((preference) => {
+        for (const window of BrowserWindow.getAllWindows()) {
+          sendToRenderer(window, IPC_ENDPOINTS.app.agentMemoryLimitPreference, preference);
         }
       });
       host.on("changed", onHostChanged);

@@ -107,7 +107,11 @@ import { TeamChatStore } from "../backend/team-chat-store";
 import { AgentImportService } from "./agent-import-service";
 import { AgentInitializationGate } from "./agent-initialization";
 import { AgentMarketplaceService } from "./agent-marketplace-service";
-import { AgentMemoryLimitPreferenceStore } from "./agent-memory-limit-preference-store";
+import {
+  AgentMemoryLimitPreferenceStore,
+  type AgentMemoryLimitSetting,
+  reloadingAgentMemoryLimit,
+} from "./agent-memory-limit-preference-store";
 import { AgentTemplateService } from "./agent-template-service";
 import { HostAnalytics } from "./analytics";
 import { analyticsInventoryDayStore, collectAnalyticsInventory } from "./analytics-inventory";
@@ -455,7 +459,7 @@ export interface ApplicationServices {
   logoColor: LogoColorService;
   notificationPreference: NotificationPreferenceStore;
   busyMessageMode: BusyMessageModePreferenceStore;
-  agentMemoryLimit: AgentMemoryLimitPreferenceStore;
+  agentMemoryLimit: AgentMemoryLimitSetting;
   serverTimezone: ServerTimezonePreferenceStore;
   remoteSessionReuse: RemoteSessionReusePreferenceStore;
   remoteSessionCache: RemoteSessionCache;
@@ -1463,6 +1467,7 @@ export async function createApplicationServices({
     tables,
   });
   teardown.push(TEARDOWN_ORDER.service, "the agent service", () => runCauseEffect(service.stop()));
+  const agentMemoryLimitSetting = reloadingAgentMemoryLimit(agentMemoryLimit, service);
   /** The answer an agent gave in one turn, for routine flows, routine results and local scripts. */
   const turnAnswer = (agentId: string, turnId: string): string | null => {
     const threadId = store.list().find((agent) => agent.id === agentId)?.threadId;
@@ -1954,6 +1959,7 @@ export async function createApplicationServices({
         changeSettings: (change) => scheduledUpdate().changeSettings(change),
       },
       timezone: serverTimezone,
+      memoryLimit: agentMemoryLimitSetting,
     },
     // The host's Team API routes share the IPC handlers' runtime preparation: a first server
     // saved, enabled, or tested remotely must start and await the managed download like a local one.
@@ -2581,7 +2587,7 @@ export async function createApplicationServices({
     logoColor,
     notificationPreference,
     busyMessageMode,
-    agentMemoryLimit,
+    agentMemoryLimit: agentMemoryLimitSetting,
     serverTimezone,
     remoteSessionReuse,
     remoteSessionCache,

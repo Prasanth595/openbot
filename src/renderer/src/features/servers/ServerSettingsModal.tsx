@@ -59,6 +59,7 @@ import { createServerGeneralSection } from "./ServerGeneralSection";
 import { type ServerImportOptions, ServerImportPanel } from "./ServerImportPanel";
 import { type McpPanelDetail, type McpPanelSignIn, ServerMcpPanel } from "./ServerMcpPanel";
 import { createServerMembersSection } from "./ServerMembersSection";
+import type { ServerMemoryLimitOptions } from "./ServerMemoryLimitSetting";
 import { type ServerRoutineFeedOptions, ServerRoutineFeedPanel } from "./ServerRoutineFeedPanel";
 import type { ServerTimezoneOptions } from "./ServerTimezoneSetting";
 import { type ServerTransferOptions, ServerTransferPanel } from "./ServerTransferPanel";
@@ -172,6 +173,12 @@ export interface ServerSettingsModalProps {
    * server or a remote host with `host-timezone-v1` that this member administers.
    */
   hostTimezone?: ServerTimezoneOptions | undefined;
+  /**
+   * General shows how many memories each agent keeps only when a caller supplies this, and only for
+   * a joined server with `agent-memory-limit-v1` that this member administers. App Settings holds the
+   * value of this computer.
+   */
+  hostMemoryLimit?: ServerMemoryLimitOptions | undefined;
   /**
    * The Routines section appears only when a caller supplies this: the feed listens on this
    * computer, so a remote server passes nothing.

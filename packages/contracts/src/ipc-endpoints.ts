@@ -54,6 +54,7 @@ import type {
   AgentMemorySelectionState,
   CreateAgentMemoryInput,
   DeleteAgentMemoryInput,
+  HostAgentMemoryLimit,
   SetAgentMemoryInclusionInput,
   UpdateAgentMemoryInput,
 } from "./ipc-agent-memories";
@@ -534,6 +535,8 @@ export const IPC_ENDPOINTS = {
     setAgentMemoryLimitPreference: request<AgentMemoryLimitPreference, AgentMemoryLimitPreference>()(
       "app:set-agent-memory-limit",
     ),
+    // An admin of a joined server can change the limit of this computer, so main tells the window.
+    agentMemoryLimitPreference: event<AgentMemoryLimitPreference>()("app:agent-memory-limit"),
     getRemoteSessionReusePreference: request<undefined, RemoteSessionReusePreference>()("app:get-remote-session-reuse"),
     setRemoteSessionReusePreference: request<RemoteSessionReusePreference, RemoteSessionReusePreference>()(
       "app:set-remote-session-reuse",
@@ -858,7 +861,7 @@ export const IPC_ENDPOINTS = {
       "messaging:host-add-orchestrator",
     ),
   },
-  // The server name, logo, timezone and app update of one server's host. `host.updateIdentity` and `update`
+  // The server name, logo, timezone, agent memory limit and app update of one server's host. `host.updateIdentity` and `update`
   // reach this computer only; these take the server, so a remote admin reaches the host. The
   // identity result is the server as the list shows it after the change.
   hostAdmin: {
@@ -875,6 +878,9 @@ export const IPC_ENDPOINTS = {
     // The server timezone. `null` is automatic: the host system zone.
     getTimezone: scopedQuery<HostTimezoneSettings, "required">()("host-admin:get-timezone"),
     setTimezone: scopedRequest<string | null, HostTimezoneSettings, "required">()("host-admin:set-timezone"),
+    // How many memories each agent of the server can keep, and the values its host permits.
+    getAgentMemoryLimit: scopedQuery<HostAgentMemoryLimit, "required">()("host-admin:get-agent-memory-limit"),
+    setAgentMemoryLimit: scopedRequest<number, HostAgentMemoryLimit, "required">()("host-admin:set-agent-memory-limit"),
   },
   // The built-in GitHub connection of this computer. The token stays in main; every answer is the
   // status only. The `host*` endpoints reach the connection of a joined server (`connectors-v1`): the

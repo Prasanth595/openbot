@@ -16,7 +16,7 @@ import { version as developmentVersion } from "../../../package.json";
 import type { AgentService } from "../../backend/agent-service";
 import type { BrowserHost } from "../../backend/browser-host";
 import type { MailboxStore } from "../../backend/mailbox-store";
-import type { AgentMemoryLimitPreferenceStore } from "../agent-memory-limit-preference-store";
+import type { AgentMemoryLimitSetting } from "../agent-memory-limit-preference-store";
 import { readAnalyticsPreference, writeAnalyticsPreference } from "../analytics-preference-store";
 import type { ApprovalAutomation } from "../approval-automation-store";
 import type { BusyMessageModePreferenceStore } from "../busy-message-mode-preference-store";
@@ -82,7 +82,7 @@ export interface AppIpcDependencies {
   analyticsPreferenceFile: string;
   approvalAutomation: ApprovalAutomation;
   busyMessageMode: BusyMessageModePreferenceStore;
-  agentMemoryLimit: AgentMemoryLimitPreferenceStore;
+  agentMemoryLimit: AgentMemoryLimitSetting;
   remoteSessionReuse: RemoteSessionReusePreferenceStore;
   remoteSessionCache: RemoteSessionCache;
   language: LanguageService;
@@ -156,9 +156,7 @@ export function appIpcHandlers({
       ),
       getAgentMemoryLimitPreference: handler(() => agentMemoryLimit.get()),
       setAgentMemoryLimitPreference: payloadHandler(parseAgentMemoryLimitPreference, (parsed) =>
-        runCauseEffect(
-          agentMemoryLimit.set(parsed).pipe(Effect.tap(() => Effect.sync(() => service.memoryLimitChanged()))),
-        ),
+        runCauseEffect(agentMemoryLimit.set(parsed)),
       ),
       getRemoteSessionReusePreference: handler(() => remoteSessionReuse.get()),
       // Off removes the kept sessions at once. The sessions of this run then end when the app quits.

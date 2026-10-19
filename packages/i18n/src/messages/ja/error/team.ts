@@ -83,6 +83,7 @@ export const messages = {
   "error.team.hostIdentityUnsupported": "この接続ではサーバーの ID を変更できません。",
   "error.team.hostUpdateUnsupported": "この接続ではホストをアップデートできません。",
   "error.team.hostTimezoneUnsupported": "この接続はサーバーのタイムゾーンに対応していません。",
+  "error.team.agentMemoryLimitUnsupported": "この接続はエージェントのメモリー上限に対応していません。",
   "error.team.attachmentNameRequired": "安全な添付ファイル名が必要です。",
   "error.team.attachmentNotFound": "添付ファイルが見つかりません。",
   "error.team.sharedFileTooLarge": "共有ファイルが 100 MB の上限を超えています。",

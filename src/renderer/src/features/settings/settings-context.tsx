@@ -354,6 +354,11 @@ const Settings = createSimpleContext({
       const unsubscribe = settingsPort().onOpenSettings(() => openAppSettings());
       // A remote owner or admin can change an agent's grant from a phone or the web client.
       const unsubscribeApprovals = settingsPort().onApprovalAutomation(setApprovalAutomation);
+      // An admin of a joined server can change how many memories each agent of this computer keeps.
+      const unsubscribeMemoryLimit = settingsPort().onAgentMemoryLimitPreference(({ limit }) => {
+        agentMemoryLimitChanged = true;
+        setGeneralSettings((current) => ({ ...current, agentMemoryLimit: limit }));
+      });
       // An admin of a joined server can change the update switches of this computer.
       const unsubscribeUpdates = settingsPort().update.onPreference((preference) => {
         autoDownloadUpdatesChanged = true;
@@ -368,6 +373,7 @@ const Settings = createSimpleContext({
         window.removeEventListener("keydown", handleSettingsShortcut);
         unsubscribe();
         unsubscribeApprovals();
+        unsubscribeMemoryLimit();
         unsubscribeUpdates();
       };
     });

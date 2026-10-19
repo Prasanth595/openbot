@@ -5,16 +5,18 @@ import {
 import { HOST_RELEASE_CAPABILITY, HOST_RELEASE_ROUTES } from "@openbot/contracts/team-protocol/host-release-v1";
 import type { Effect } from "effect";
 import type { RemoteWorkflowError } from "../remote-service-effects";
-// The server name, logo, timezone and app update of one server's host. On a joined server the request
-// goes to the host. Identity, timezone, settings, cancellation, and forced restarts require an owner
-// or admin.
+// The server name, logo, timezone, agent memory limit and app update of one server's host. On a
+// joined server the request goes to the host. Identity, timezone, memory limit, settings,
+// cancellation, and forced restarts require an owner or admin.
 // Ordinary members can check and request an idle update through host-member-update-v1.
 
 import {
+  decodeHostAgentMemoryLimit,
   decodeHostTimezoneSettings,
   decodeHostUpdateStatus,
   type HostUpdateSettingsChange,
   type HostUpdateStatus,
+  hostAgentMemoryLimit,
   LOCAL_SERVER_ID,
   type ServerSummary,
   UPDATE_RESTART_MODES,
@@ -22,17 +24,22 @@ import {
   type UpdateRestartMode,
 } from "@openbot/contracts/ipc";
 import { isOneOf } from "@openbot/contracts/runtime-values";
+import {
+  AGENT_MEMORY_LIMIT_CAPABILITY,
+  AGENT_MEMORY_LIMIT_ROUTES,
+} from "@openbot/contracts/team-protocol/agent-memory-limit-v1";
 import type { TeamCurrentCapability } from "@openbot/contracts/team-protocol/current";
 import { HOST_ADMIN_CAPABILITY, HOST_ADMIN_ROUTES } from "@openbot/contracts/team-protocol/host-admin-v1";
 import { HOST_TIMEZONE_CAPABILITY, HOST_TIMEZONE_ROUTES } from "@openbot/contracts/team-protocol/host-timezone-v1";
 import { HOST_UPDATE_CAPABILITY, HOST_UPDATE_ROUTES } from "@openbot/contracts/team-protocol/host-update-v1";
 import { sourceText } from "@openbot/i18n/source";
 import { runCauseEffect } from "../../backend/effect-boundary";
+import type { AgentMemoryLimitSetting } from "../agent-memory-limit-preference-store";
 import type { HostService } from "../host-service";
 import { acceptEmpty, decodeHostReleaseStatusFromHost, type ResponseDecoder } from "../remote-host-decoding";
 import type { RemoteRequestInit } from "../remote-server-client";
 import { parseServerTimezone, type ServerTimezonePreferenceStore } from "../server-timezone-preference-store";
-import { parseHostUpdateSettings } from "./app-inputs";
+import { parseAgentMemoryLimitPreference, parseHostUpdateSettings } from "./app-inputs";
 import type { IpcGroupHandlers } from "./define-ipc-group";
 import { scopedHandler, scopedQueryHandler } from "./scoped-handler";
 import { parseHostIdentity } from "./server-inputs";
@@ -54,6 +61,7 @@ interface HostAdminIpcDependencies {
   host: Pick<HostService, "updateIdentity">;
   remoteServers: HostAdminRemoteServers;
   serverTimezone: Pick<ServerTimezonePreferenceStore, "get" | "set">;
+  agentMemoryLimit: AgentMemoryLimitSetting;
 }
 
 /** The body of a `host-update-v1` route: `start` carries the mode, `settings` the switches. */
@@ -63,6 +71,7 @@ export function hostAdminIpcHandlers({
   host,
   remoteServers,
   serverTimezone,
+  agentMemoryLimit,
 }: HostAdminIpcDependencies): Pick<IpcGroupHandlers, "hostAdmin"> {
   function remoteUpdate(serverId: string, route: string, body: HostUpdateBody): Promise<HostUpdateStatus> {
     const role = remoteServers.list().find((server) => server.id === serverId)?.role;
@@ -80,6 +89,11 @@ export function hostAdminIpcHandlers({
     if (!remoteServers.supportsCapability(serverId, HOST_TIMEZONE_CAPABILITY))
       throw new Error(sourceText("error.team.hostTimezoneUnsupported"));
     return runCauseEffect(remoteServers.request(serverId, route, decodeHostTimezoneSettings, { method: "POST", body }));
+  }
+  function remoteMemoryLimit(serverId: string, route: string, body: { limit?: number }) {
+    if (!remoteServers.supportsCapability(serverId, AGENT_MEMORY_LIMIT_CAPABILITY))
+      throw new Error(sourceText("error.team.agentMemoryLimitUnsupported"));
+    return runCauseEffect(remoteServers.request(serverId, route, decodeHostAgentMemoryLimit, { method: "POST", body }));
   }
   // This computer updates from Settings. The renderer shows the tab for a joined server only.
   const localUpdate = (): never => {
@@ -161,6 +175,16 @@ export function hostAdminIpcHandlers({
         local: (timezone) => runCauseEffect(serverTimezone.set(timezone)),
         remote: (timezone, serverId) => remoteTimezone(serverId, HOST_TIMEZONE_ROUTES.update, { timezone }),
       }),
+      getAgentMemoryLimit: scopedQueryHandler({
+        local: () => hostAgentMemoryLimit(agentMemoryLimit.get()),
+        remote: (serverId) => remoteMemoryLimit(serverId, AGENT_MEMORY_LIMIT_ROUTES.settings, {}),
+      }),
+      // The host checks the value against its own choices, so a remote limit is any positive count.
+      setAgentMemoryLimit: scopedHandler(parseMemoryLimitCount, {
+        local: async (limit) =>
+          hostAgentMemoryLimit(await runCauseEffect(agentMemoryLimit.set(parseAgentMemoryLimitPreference({ limit })))),
+        remote: (limit, serverId) => remoteMemoryLimit(serverId, AGENT_MEMORY_LIMIT_ROUTES.update, { limit }),
+      }),
     },
   };
 }
@@ -176,6 +200,12 @@ function wireIdentity(input: UpdateHostIdentityInput) {
             : null,
         }),
   };
+}
+
+function parseMemoryLimitCount(value: unknown): number {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value <= 0)
+    throw new Error("Agent memory limit is required.");
+  return value;
 }
 
 function parseRestartMode(value: unknown): UpdateRestartMode {

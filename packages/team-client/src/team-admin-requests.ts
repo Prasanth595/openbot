@@ -8,13 +8,14 @@ import {
   type SetAgentSessionSettingInput,
 } from "@openbot/contracts/ipc";
 import { AGENT_HIDDEN_ROUTES } from "@openbot/contracts/team-protocol/agent-hidden-v1";
+import { AGENT_MEMORY_LIMIT_ROUTES } from "@openbot/contracts/team-protocol/agent-memory-limit-v1";
 import { AGENT_SESSION_SETTINGS_ROUTES } from "@openbot/contracts/team-protocol/agent-session-settings-v1";
 import { HOST_MEMBER_UPDATE_ROUTES } from "@openbot/contracts/team-protocol/host-member-update-v1";
 import { HOST_RELEASE_ROUTES } from "@openbot/contracts/team-protocol/host-release-v1";
 import { HOST_TIMEZONE_ROUTES } from "@openbot/contracts/team-protocol/host-timezone-v1";
 import type { PROVIDERS_V5_ROUTES } from "@openbot/contracts/team-protocol/providers-v5";
 // Admin requests to one host: agent settings and skills, shared tables, agent share links, the server name and logo,
-// the server timezone, the app update, MCP servers, storage, hosted sites and providers.
+// the server timezone, the agent memory limit, the app update, MCP servers, storage, hosted sites and providers.
 //
 // The desktop sends the same routes from the main process. The web client and the mobile app send
 // them through their own transport, so the path, body and decoding of each request are here once.
@@ -43,6 +44,7 @@ import {
   decodeCustomProviderResult,
   decodeCustomProviderSummaries,
   decodeHostAddedAgent,
+  decodeHostAgentMemoryLimit,
   decodeHostAgentTemplatePreview,
   decodeHostAgentTemplatePublication,
   decodeHostGitHubConnectorRepositories,
@@ -70,6 +72,7 @@ import {
   type GetStorageUsageInput,
   type GitHubConnectorRepositories,
   type HostAddMessagingOrchestratorInput,
+  type HostAgentMemoryLimit,
   type HostedSiteList,
   type HostGitHubConnectorStatus,
   type HostMessagingConnectInput,
@@ -474,6 +477,20 @@ export function setHostTimezone(
   timezone: string | null,
 ): Effect.Effect<HostTimezoneSettings, TeamAdminRequestError> {
   return adminCall(() => request("POST", HOST_TIMEZONE_ROUTES.update, decodeHostTimezoneSettings, { timezone }));
+}
+
+export function getHostAgentMemoryLimit(
+  request: TeamApiRequest,
+): Effect.Effect<HostAgentMemoryLimit, TeamAdminRequestError> {
+  return adminCall(() => request("POST", AGENT_MEMORY_LIMIT_ROUTES.settings, decodeHostAgentMemoryLimit, {}));
+}
+
+/** The host refuses a value that its snapshot does not list in `choices`. */
+export function setHostAgentMemoryLimit(
+  request: TeamApiRequest,
+  limit: number,
+): Effect.Effect<HostAgentMemoryLimit, TeamAdminRequestError> {
+  return adminCall(() => request("POST", AGENT_MEMORY_LIMIT_ROUTES.update, decodeHostAgentMemoryLimit, { limit }));
 }
 
 /** The one MCP read route, and the only one the host answers to a GET. */

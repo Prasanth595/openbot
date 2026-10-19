@@ -82,6 +82,7 @@ export const messages = defineMessages("error.team", {
   "error.team.hostIdentityUnsupported": "Server identity changes are not supported by this connection.",
   "error.team.hostUpdateUnsupported": "Host updates are not supported by this connection.",
   "error.team.hostTimezoneUnsupported": "The server timezone is not supported by this connection.",
+  "error.team.agentMemoryLimitUnsupported": "The agent memory limit is not supported by this connection.",
   "error.team.attachmentNameRequired": "A safe attachment name is required.",
   "error.team.attachmentNotFound": "Attachment not found.",
   "error.team.sharedFileTooLarge": "The shared file exceeds the 100 MB limit.",

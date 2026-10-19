@@ -4,6 +4,7 @@ import type { AcpRegistry } from "../acp-registry";
 import type { AgentAdminSettingsService } from "../agent-admin-settings";
 import type { AgentHostSettingsService } from "../agent-host-settings";
 import type { AgentMarketplaceService } from "../agent-marketplace-service";
+import type { AgentMemoryLimitSetting } from "../agent-memory-limit-preference-store";
 import type { AgentTemplateService } from "../agent-template-service";
 import type { PeerCustomProviderChanges } from "../custom-provider-changes";
 import type { HostEventsApi } from "../host-events-api";
@@ -268,6 +269,8 @@ export interface TeamApiAdmin {
   update?: Pick<RequestedUpdate, "snapshot" | "check" | "start" | "requestWhenIdle" | "cancel" | "changeSettings">;
   /** `host-timezone-v1`: the server timezone. */
   timezone?: Pick<ServerTimezonePreferenceStore, "get" | "set">;
+  /** `agent-memory-limit-v1`: how many memories each agent of this computer can keep. */
+  memoryLimit?: AgentMemoryLimitSetting;
 }
 
 interface TeamApiHostIdentity {

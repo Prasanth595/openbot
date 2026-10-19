@@ -612,6 +612,7 @@ function ServerSettings(props: { connectors: ConnectorRegistry }) {
           }
           hostUpdate={{}}
           hostTimezone={{}}
+          hostMemoryLimit={{}}
           initialSection={serverSettingsSection()}
           // Any member imports into this computer or a remote host with `agent-import-v1`.
           agentImport={

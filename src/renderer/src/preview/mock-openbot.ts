@@ -60,6 +60,8 @@ import {
   type FilePreview,
   type HostedSiteSummary,
   type HostStatus,
+  hostAgentMemoryLimit,
+  isAgentMemoryLimit,
   isReleasedRoutineSchedule,
   type MacPermissionId,
   normalizeMcpConfig,
@@ -789,6 +791,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       agentMemoryLimit = { limit };
       return clone(agentMemoryLimit);
     },
+    onAgentMemoryLimitPreference: () => () => undefined,
     getAppLanguagePreference: async () => clone(languagePreference),
     setAppLanguagePreference: async ({ language }) => {
       languagePreference = { language };
@@ -2361,6 +2364,13 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       },
       ...createMockHostUpdate(options),
       ...createMockHostTimezone(),
+      // Preview has one host, so every server shares the limit of Settings.
+      getAgentMemoryLimit: async () => hostAgentMemoryLimit(agentMemoryLimit),
+      setAgentMemoryLimit: async (limit) => {
+        if (!isAgentMemoryLimit(limit)) throw new Error("Agent memory limit is required.");
+        agentMemoryLimit = { limit };
+        return hostAgentMemoryLimit(agentMemoryLimit);
+      },
     },
     storage: createMockStorage(),
     agentImport: {

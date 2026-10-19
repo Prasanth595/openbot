@@ -9,6 +9,7 @@ import { AGENT_HOST_SETTINGS_CAPABILITY } from "./agent-host-settings-v1";
 import { AGENT_IMPORT_CAPABILITY } from "./agent-import-v1";
 import { AGENT_INSTALL_CAPABILITY } from "./agent-install-v1";
 import { AGENT_MEMORIES_CAPABILITY } from "./agent-memories-v1";
+import { AGENT_MEMORY_LIMIT_CAPABILITY } from "./agent-memory-limit-v1";
 import { AGENT_PUBLISH_CAPABILITY } from "./agent-publish-v1";
 import { AGENT_SESSION_SETTINGS_CAPABILITY } from "./agent-session-settings-v1";
 import { AGENT_TASKS_CAPABILITY } from "./agent-tasks-v1";
@@ -102,6 +103,7 @@ export {
   AGENT_IMPORT_CAPABILITY,
   AGENT_INSTALL_CAPABILITY,
   AGENT_MEMORIES_CAPABILITY,
+  AGENT_MEMORY_LIMIT_CAPABILITY,
   AGENT_PUBLISH_CAPABILITY,
   AGENT_SESSION_SETTINGS_CAPABILITY,
   AGENT_TASKS_CAPABILITY,
@@ -233,6 +235,7 @@ export const TEAM_CURRENT_CAPABILITIES = [
   AGENT_TASKS_CAPABILITY,
   BROWSER_USER_CONTROL_CAPABILITY,
   BROWSER_PAGE_STATE_CAPABILITY,
+  AGENT_MEMORY_LIMIT_CAPABILITY,
 ] as const;
 
 export type TeamCurrentCapability = (typeof TEAM_CURRENT_CAPABILITIES)[number];
@@ -326,7 +329,8 @@ export const TEAM_BOOTSTRAP_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
     capability !== BROWSER_USER_CONTROL_CAPABILITY &&
     capability !== BROWSER_PAGE_STATE_CAPABILITY &&
     capability !== TEAM_UI_BLOCKS_CAPABILITY &&
-    capability !== AGENT_TASKS_CAPABILITY,
+    capability !== AGENT_TASKS_CAPABILITY &&
+    capability !== AGENT_MEMORY_LIMIT_CAPABILITY,
 );
 export function teamCapabilitiesForProtocol(protocol: number | null | undefined): readonly TeamCurrentCapability[] {
   return protocol !== null && protocol !== undefined && protocol >= 7
@@ -361,6 +365,7 @@ export function legacyTeamCapabilities(capabilities: readonly string[]): string[
       capability !== BROWSER_USER_CONTROL_CAPABILITY &&
       capability !== BROWSER_PAGE_STATE_CAPABILITY &&
       capability !== TEAM_UI_BLOCKS_CAPABILITY &&
-      capability !== AGENT_TASKS_CAPABILITY,
+      capability !== AGENT_TASKS_CAPABILITY &&
+      capability !== AGENT_MEMORY_LIMIT_CAPABILITY,
   );
 }
