@@ -11,6 +11,12 @@ import { isMissingFileError } from "../backend/file-errors";
 import { isPathInside } from "../backend/path-containment";
 
 const MANAGED_SKILL_SLUG = "openbot-site-hosting";
+/** The skills OpenBot writes into every agent workspace. */
+export const MANAGED_SKILL_SLUGS: ReadonlySet<string> = new Set([
+  MANAGED_SKILL_SLUG,
+  "openbot-skill-creator",
+  "openbot-data",
+]);
 export const OWNERSHIP_MARKER = ".openbot-managed.json";
 /** The workspace skill folders OpenBot writes. Each provider reads at least one of them. */
 export const MANAGED_SKILL_FOLDERS = [".agents/skills", ".claude/skills"] as const;
