@@ -6,6 +6,21 @@ All notable changes to OpenBot will be documented here. The project follows
 
 ## [Unreleased]
 
+## [0.44.2] - 2026-10-19
+
+### Fixed
+
+- Show the whole tab menu in the browser view. Before, a right-click on a tab showed only the first
+  rows of the menu, and the page covered the other rows. Now the page is hidden while a menu of the
+  browser view or the address suggestions are open, and it comes back when the menu closes.
+- The page of a shared agent, and the dialogs that add or publish an agent in the desktop app and the web app, show headings, lists and links in the agent's instructions. Before, they showed the Markdown marks, such as `##` and `-`, as text, and the page centered the instructions.
+- You can now scroll up in a chat while the agent works on a reply. Before, a short scroll up with a
+  trackpad or a mouse wheel moved the chat back to the newest text each time the reply grew, so the
+  chat jumped and you could not read the earlier messages. The chat follows the reply again when
+  you scroll back to the bottom or send a message.
+- Let an agent open pull requests and post comments with `gh` when GitHub is not connected. Before,
+  the agent refused and asked for GitHub MCP tools that it did not have.
+
 ## [0.44.1] - 2026-10-19
 
 ### Added

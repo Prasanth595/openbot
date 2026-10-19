@@ -1,9 +1,9 @@
 {
-  "version": "0.44.1",
+  "version": "0.44.2",
   "highlights": [
-    "Settings opens again. In 0.44.0, it showed an empty page and the app stopped responding.",
-    "A role change of a member no longer disconnects the server and every connected member.",
-    "A message that runs again after a refused turn now runs to its end, and Claude agents accept new messages.",
-    "Claude agents can run tools from your shell PATH, such as Homebrew, when you open OpenBot from Finder or the Dock."
+    "You can scroll up in a chat while the agent writes a reply, and the chat no longer jumps to the newest text.",
+    "A right-click on a browser tab shows the whole tab menu.",
+    "Shared agent pages and the add and publish dialogs show headings, lists and links in agent instructions.",
+    "Agents can open pull requests and post comments with gh when GitHub is not connected."
   ]
 }

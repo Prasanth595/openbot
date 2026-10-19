@@ -1,5 +1,21 @@
 [
   {
+    "version": "0.44.2",
+    "date": "2026-10-19",
+    "notices": [],
+    "groups": [
+      {
+        "type": "fixed",
+        "items": [
+          "You can scroll up in a chat while the agent writes a reply. Before, the chat moved back to the newest text each time the reply grew.",
+          "A right-click on a browser tab shows the whole tab menu.",
+          "Shared agent pages and the dialogs that add or publish an agent show headings, lists and links in the instructions.",
+          "An agent can open pull requests and post comments with gh when GitHub is not connected."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.44.1",
     "date": "2026-10-19",
     "notices": [],
