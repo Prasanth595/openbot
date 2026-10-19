@@ -6,6 +6,29 @@ All notable changes to OpenBot will be documented here. The project follows
 
 ## [Unreleased]
 
+## [0.44.3] - 2026-10-19
+
+### Changed
+
+- The rail on the right side of a long chat now shows your messages, not the days. Point at the rail
+  and select a message to go to it and to the replies under it. The rail is there when a chat has
+  two or more of your messages.
+- The rail of a long chat stays in view when you do not scroll. When you point at it, the chat behind
+  the titles is blurred, so the titles are easier to read.
+
+### Fixed
+
+- The results of the settings search now show their text on the left. Before, the section name and
+  the row title of each result were in the center of the row.
+- The rail of a long chat no longer shows days out of order or the same day two times.
+- The rail of a long chat stays smooth while you scroll, and its titles no longer come in slowly in
+  a long list.
+- "Side question" in the composer "+" menu now opens the side question pane. Before, a click with
+  the mouse closed the menu and did nothing.
+- An agent template that contains the OpenBot skills `openbot-data`, `openbot-site-hosting` or
+  `openbot-skill-creator` installs again. Before, the install stopped with an error, because the new
+  agent already has these skills. A new publish no longer adds these skills to the template.
+
 ## [0.44.2] - 2026-10-19
 
 ### Fixed

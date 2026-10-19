@@ -1,5 +1,27 @@
 [
   {
+    "version": "0.44.3",
+    "date": "2026-10-19",
+    "notices": [],
+    "groups": [
+      {
+        "type": "changed",
+        "items": [
+          "The rail on the right side of a long chat shows your messages, not the days. Select a message to go to it and to the replies under it.",
+          "The rail of a long chat stays in view. When you point at it, the chat behind the titles is blurred, so the titles are easier to read."
+        ]
+      },
+      {
+        "type": "fixed",
+        "items": [
+          "The rail of a long chat stays smooth while you scroll.",
+          "Side question in the composer + menu opens the side question pane.",
+          "An agent template that contains OpenBot's own skills installs again."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.44.2",
     "date": "2026-10-19",
     "notices": [],

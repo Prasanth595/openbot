@@ -1,9 +1,9 @@
 {
-  "version": "0.44.2",
+  "version": "0.44.3",
   "highlights": [
-    "You can scroll up in a chat while the agent writes a reply, and the chat no longer jumps to the newest text.",
-    "A right-click on a browser tab shows the whole tab menu.",
-    "Shared agent pages and the add and publish dialogs show headings, lists and links in agent instructions.",
-    "Agents can open pull requests and post comments with gh when GitHub is not connected."
+    "The rail on the right side of a long chat now shows your messages. Select one to go to it and its replies.",
+    "The chat rail stays in view and stays smooth while you scroll.",
+    "Side question in the composer + menu opens the side question pane again.",
+    "Agent templates that contain OpenBot's own skills install again."
   ]
 }
