@@ -60,8 +60,11 @@ export interface AcpModel {
   reasoningEffortConfigurable: boolean;
   reasoningEffortWireValues: Map<string, string>;
   usesModelReasoningEffort: boolean | null;
-  /** A model that OpenBot adds and the agent does not list, but takes as its `model` option value. */
-  unlisted?: boolean;
+  /**
+   * A model that OpenBot adds and the agent does not list. The agent takes it as the value of its
+   * `model` option after each option in `config` has the value given there.
+   */
+  unlisted?: { config: Readonly<Record<string, string>> };
 }
 
 export interface AcpConfigurationState {
@@ -267,11 +270,14 @@ export class AcpConfiguration {
         (candidate): candidate is Extract<SessionConfigOption, { type: "select" }> =>
           candidate.category === category && candidate.type === "select",
       );
+      const unlisted = category === "model" ? models.find((candidate) => candidate.id === value)?.unlisted : undefined;
       // Cline puts a provider option of the model category before its model option. The first option
-      // of the category did not list the model, and the model was never sent.
+      // of the category did not list the model, and the model was never sent. A model OpenBot added
+      // goes to the agent's `model` option, which takes a value it did not list.
       const option =
         (category === "model" &&
           options.find((candidate) => selectValues(candidate).some((entry) => entry.value === value))) ||
+        (unlisted && options.find((candidate) => candidate.id === "model")) ||
         options[0];
       if (!option) {
         if (category === "model" && thread.currentModelId !== value) {
@@ -290,23 +296,26 @@ export class AcpConfiguration {
       const values = selectValues(option);
       const wanted =
         category === "thought_level" ? reasoningEffortWireValues(values.map((entry) => entry.value)).get(value) : value;
-      const listed = values.find((candidate) => candidate.value === wanted)?.value;
-      // A model OpenBot added goes to the agent's `model` option, which takes a value it did not list.
-      const unlisted =
-        category === "model" && models.some((model) => model.unlisted && model.id === value)
-          ? options.find((candidate) => candidate.id === "model")
-          : undefined;
-      const target = listed ? { id: option.id, value: listed } : unlisted ? { id: unlisted.id, value } : null;
-      if (!target) continue;
+      const listed = values.some((candidate) => candidate.value === wanted);
+      const selected = listed ? wanted : unlisted && option.id === "model" ? value : undefined;
+      if (!selected) continue;
+      for (const [configId, configValue] of listed ? [] : Object.entries(unlisted?.config ?? {})) {
+        const required = thread.configOptions.find((candidate) => candidate.id === configId);
+        if (!required || required.currentValue === configValue) continue;
+        const response = yield* providerCall(() =>
+          this.options.connection().setSessionConfigOption({ sessionId: thread.id, configId, value: configValue }),
+        );
+        thread.configOptions = response.configOptions;
+      }
       const response = yield* providerCall(() =>
         this.options.connection().setSessionConfigOption({
           sessionId: thread.id,
-          configId: target.id,
-          value: target.value,
+          configId: option.id,
+          value: selected,
         }),
       );
       thread.configOptions = response.configOptions;
-      if (category === "model") thread.currentModelId = target.value;
+      if (category === "model") thread.currentModelId = selected;
     }
   });
 

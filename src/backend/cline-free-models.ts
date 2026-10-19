@@ -44,15 +44,21 @@ export function clineFreeModels(): () => Effect.Effect<AcpModel[]> {
   let last: AcpModel[] = CLINE_FREE_MODEL_FALLBACKS.map(freeModel);
   return Effect.fn("ClineFreeModels.read")(
     function* () {
-      const response = yield* Effect.tryPromise({
-        try: (signal) => fetch(CLINE_RECOMMENDED_MODELS_URL, { signal, headers: { accept: "application/json" } }),
+      // One deadline for the headers and the body: a body that stalls must not hold the model list.
+      const body = yield* Effect.tryPromise({
+        try: async (signal) => {
+          const response = await fetch(CLINE_RECOMMENDED_MODELS_URL, {
+            signal,
+            headers: { accept: "application/json" },
+          });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return await response.json();
+        },
         catch: (cause) => cause,
       }).pipe(Effect.timeout(FETCH_TIMEOUT_MS));
-      if (!response.ok) return yield* Effect.fail(new Error(`HTTP ${response.status}`));
-      const body = yield* Effect.tryPromise({ try: () => response.json(), catch: (cause) => cause });
       const { free } = yield* Schema.decodeUnknownEffect(RecommendedModels)(body);
-      const models = free.filter((entry) => isAgentModel(entry.id)).map(freeModel);
-      if (models.length > 0) last = models;
+      // An empty free tier is an answer: Cline can end it, and the picker must not keep the old one.
+      last = free.filter((entry) => isAgentModel(entry.id)).map(freeModel);
       return last;
     },
     Effect.catch((cause) => {
@@ -68,12 +74,13 @@ function freeModel(entry: { id: string; name?: string | undefined; description?:
     id: entry.id,
     // As the Cline CLI names them, and what the picker's search for "free" finds.
     name: /\(free\)$/i.test(name) ? name : `${name} (free)`,
-    description: entry.description?.trim() || "Free model from Cline.",
+    description: entry.description?.trim() ?? "",
     defaultReasoningEffort: "medium",
     supportedReasoningEfforts: ["medium"],
     reasoningEffortConfigurable: false,
     reasoningEffortWireValues: new Map([["medium", "medium"]]),
     usesModelReasoningEffort: null,
-    unlisted: true,
+    // The free tier is on Cline's own billing, so the session uses the `cline` provider for it.
+    unlisted: { config: { provider: "cline" } },
   };
 }

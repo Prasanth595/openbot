@@ -921,6 +921,8 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
       [this.#configuration.discoverModels(timeoutMs), this.options.additionalModels?.() ?? Effect.succeed([])],
       { concurrency: "unbounded" },
     );
+    // An agent that lists no model still reports that: the additional models must not hide it.
+    if (listed.length === 0) return listed;
     const ids = new Set(listed.map((model) => model.id));
     return [...listed, ...additional.filter((model) => !ids.has(model.id))];
   });

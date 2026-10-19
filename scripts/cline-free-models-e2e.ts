@@ -3,7 +3,8 @@
 // option, the model option does not list the `cline-free/*` models, and the agent takes any model
 // value. Cline's recommended-models endpoint is answered in this process. Checks that the picker gets
 // the free models with a "(free)" name, that a listed and a free model each reach the session through
-// the `model` option, and that a list that cannot be read gives the last good one, then the bundled one.
+// the `model` option, that a free model moves the session to the `cline` provider, that a list that
+// cannot be read gives the last good one, then the bundled one, and that an empty free tier is kept.
 // `bun scripts/cline-free-models-e2e.ts`. Writes .openbot-build/cline-free-models-e2e/report.json.
 import assert from "node:assert/strict";
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -55,7 +56,7 @@ function handle(message) {
   if (message.method === "session/new") {
     count += 1;
     const sessionId = "s-" + count;
-    const session = { provider: "cline", model: LISTED[0].modelId };
+    const session = { provider: "cline-pass", model: LISTED[0].modelId };
     sessions.set(sessionId, session);
     write({ id: message.id, result: { sessionId, configOptions: configOptions(session),
       models: { availableModels: LISTED, currentModelId: session.model } } });
@@ -125,6 +126,7 @@ interface Report {
   turns?: { model: string; set: LogEntry[]; sessionProvider: string | null; sessionModel: string | null }[];
   lastGood?: string[];
   bundled?: string[];
+  ended?: string[];
 }
 
 const root = await mkdtemp(join(tmpdir(), "openbot-cline-free-models-e2e-"));
@@ -135,6 +137,7 @@ process.env.FAKE_CLINE_LOG = log;
 
 // Cline's endpoint, answered here: `status` 200 with `RECOMMENDED`, or the error status set below.
 let status = 200;
+let free: { id: string; name: string; description: string; tags: string[] }[] = RECOMMENDED.free;
 const requests: NonNullable<Report["requests"]> = [];
 const realFetch = globalThis.fetch;
 globalThis.fetch = Object.assign(
@@ -145,7 +148,10 @@ globalThis.fetch = Object.assign(
       credentials: init?.credentials ?? null,
     });
     return status === 200
-      ? new Response(JSON.stringify(RECOMMENDED), { status, headers: { "content-type": "application/json" } })
+      ? new Response(JSON.stringify({ ...RECOMMENDED, free }), {
+          status,
+          headers: { "content-type": "application/json" },
+        })
       : new Response("unavailable", { status });
   },
   { preconnect: realFetch.preconnect },
@@ -226,6 +232,7 @@ try {
   report.requests = requests;
 
   // 2. A listed and a free model each reach the session through the `model` option, not `provider`.
+  // The session starts on `cline-pass`: a listed model keeps it, and a free one moves it to `cline`.
   await rm(log, { force: true });
   const started = await runCauseEffect(
     client.request("thread/start", { model: "openai/gpt-6-astra", cwd: workspace }, (value) => value),
@@ -233,14 +240,24 @@ try {
   const thread = JSON.stringify(started).match(/"id":"([^"]+)"/)?.[1];
   assert.ok(thread, "thread/start answers a thread id.");
   report.turns = [];
-  for (const model of ["openai/gpt-6-astra", "cline-free/minimax-m3.1-flash"]) {
+  for (const [model, provider] of [
+    ["openai/gpt-6-astra", "cline-pass"],
+    ["cline-free/minimax-m3.1-flash", "cline"],
+  ] as const) {
+    await rm(log, { force: true });
     await runTurn(client, thread, model);
     const entries: LogEntry[] = (await readLog()).filter((entry) => entry.sessionId === thread);
-    const set = entries.filter((entry) => entry.event === "set" && entry.value === model);
+    const set = entries.filter((entry) => entry.event === "set");
     const prompt = entries.filter((entry) => entry.event === "prompt").at(-1);
-    assert.ok(set.length > 0, `${model} is sent to the session.`);
-    for (const entry of set) assert.equal(entry.configId, "model", `${model} is sent as the model option.`);
-    assert.equal(prompt?.provider, "cline", `${model} keeps the cline provider.`);
+    const modelSet = set.findIndex((entry) => entry.configId === "model" && entry.value === model);
+    assert.ok(modelSet >= 0, `${model} is sent as the model option.`);
+    if (provider === "cline") {
+      const providerSet = set.findIndex((entry) => entry.configId === "provider" && entry.value === "cline");
+      assert.ok(providerSet >= 0 && providerSet < modelSet, `${model} sets the cline provider first.`);
+    } else {
+      assert.ok(!set.some((entry) => entry.configId === "provider"), `${model} does not change the provider.`);
+    }
+    assert.equal(prompt?.provider, provider, `The turn on ${model} uses the ${provider} provider.`);
     assert.equal(prompt?.model, model, `The turn on ${model} runs on it.`);
     report.turns.push({ model, set, sessionProvider: prompt?.provider ?? null, sessionModel: prompt?.model ?? null });
   }
@@ -273,6 +290,17 @@ try {
     "With no good read, the bundled free tier is listed.",
   );
   report.bundled = bundled;
+
+  // 5. An empty free tier is an answer: the picker does not keep the old free models.
+  status = 200;
+  free = [];
+  const ended = (await listModels(client)).map((model) => model.model ?? "");
+  assert.deepEqual(
+    ended,
+    ["anthropic/claude-sonnet-5.5", "openai/gpt-6-astra"],
+    "An empty free tier removes the free models.",
+  );
+  report.ended = ended;
   report.passed = true;
 } finally {
   globalThis.fetch = realFetch;

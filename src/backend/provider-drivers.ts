@@ -708,6 +708,7 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
         argv: CLINE_ARGV,
         profileGeneration: true,
         env: { ...CLINE_ENV },
+        additionalModels: clineFreeModels(),
         signInMessage: sourceText("error.provider.clineSignIn"),
         servesModel: context.servesModel,
       }),
