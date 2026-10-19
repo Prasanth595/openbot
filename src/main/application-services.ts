@@ -186,7 +186,7 @@ import {
   sendComputerUseHighlightPlacement,
   showMainWindow,
 } from "./main-window";
-import { ManagedSkillService } from "./managed-skill-service";
+import { DATA_SKILL_SLUG, ManagedSkillService, SKILL_CREATOR_SKILL_SLUG } from "./managed-skill-service";
 import { McpHostSignIns } from "./mcp-host-sign-ins";
 import { McpOAuthProxySettingsFile } from "./mcp-oauth-proxy-store";
 import {
@@ -862,7 +862,7 @@ export async function createApplicationServices({
       : resolve(__dirname, "../../resources/managed-skills/openbot-skill-creator/SKILL.md"),
     undefined,
     undefined,
-    "openbot-skill-creator",
+    SKILL_CREATOR_SKILL_SLUG,
   );
   const dataSkill = new ManagedSkillService(
     app.isPackaged
@@ -870,7 +870,7 @@ export async function createApplicationServices({
       : resolve(__dirname, "../../resources/managed-skills/openbot-data/SKILL.md"),
     undefined,
     undefined,
-    "openbot-data",
+    DATA_SKILL_SLUG,
   );
   await Effect.runPromise(managedSkills.syncAll(store.list()));
   await Effect.runPromise(skillCreator.syncAll(store.list()));
