@@ -43,6 +43,12 @@ class ComposerPasteView(context: Context, appContext: AppContext) : ExpoView(con
     split.second
   }
 
+  override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+    setMeasuredDimension(View.MeasureSpec.getSize(widthMeasureSpec), View.MeasureSpec.getSize(heightMeasureSpec))
+  }
+
+  override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) = Unit
+
   override fun onViewAdded(child: View) {
     super.onViewAdded(child)
     if (child is EditText) ViewCompat.setOnReceiveContentListener(child, FILE_TYPES, receiver)
