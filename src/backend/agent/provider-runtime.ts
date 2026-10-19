@@ -1194,12 +1194,13 @@ export class ProviderRuntime implements ProviderPort {
     const error = yield* Effect.acquireUseRelease(
       accounts.connect(provider, accountId, openPage, true).pipe(toProviderOperationFailed),
       (signIn) => signIn.ended,
-      (signIn, exit) => (Exit.hasInterrupts(exit) ? accounts.cancel(provider, signIn.accountId) : Effect.void),
+      (signIn, exit) =>
+        Exit.hasInterrupts(exit) ? accounts.cancel(provider, signIn.accountId, signIn.signIn) : Effect.void,
     );
     if (error) return yield* new ProviderOperationFailed({ cause: new Error(error) });
   }).bind(this);
 
-  /** Stops the sign-in of an account. A new account goes with its folder; another one is signed out. */
+  /** Stops the sign-in of an account. A new account goes with its folder; another one shows as signed out. */
   readonly cancelProviderAccountSignIn = Effect.fn("ProviderRuntime.cancelProviderAccountSignIn")(function* (
     this: ProviderRuntime,
     provider: AgentProvider,

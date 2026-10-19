@@ -217,7 +217,9 @@ const Providers = createSimpleContext({
         return {
           connect: async (provider, accountId) => connection.connectAccount(provider, accountId),
           // The host runs one account sign-in for each provider, so the released cancel names only the provider.
-          cancel: (provider) => changed(providerAdmin().cancelAccountSignIn(provider, hostServerId)),
+          cancel: async (provider) => {
+            await accountSignIn(hostServerId).cancel(provider);
+          },
           rename: (provider, accountId, label) =>
             changed(providerAdmin().renameAccount({ provider, accountId, label }, hostServerId)),
           remove: (provider, accountId) =>

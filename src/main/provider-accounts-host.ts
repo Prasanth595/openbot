@@ -3,7 +3,7 @@
 import { type AgentProviderId, DEFAULT_PROVIDER_ACCOUNT_ID } from "@openbot/contracts/ipc";
 import { PROVIDER_ACCOUNTS_MESSAGE_LIMIT } from "@openbot/contracts/team-protocol/provider-accounts-v1";
 import { sourceText } from "@openbot/i18n/source";
-import { Cause, Effect, Exit, Option } from "effect";
+import { Cause, Effect, Exit, Option, Semaphore } from "effect";
 import { providerLabel } from "../backend/agent/thread-items";
 import type { AgentService } from "../backend/agent-service";
 import type { BrowserHost } from "../backend/browser-host";
@@ -34,6 +34,8 @@ export interface ProviderAccountsHostDependencies {
 export class ProviderAccountsHost {
   readonly #dependencies: ProviderAccountsHostDependencies;
   readonly #pages: HostSignInPages<AgentProviderId, { error: string | null }>;
+  /** One start at a time, so each start stops the sign-in that it replaces. */
+  readonly #starting = Semaphore.makeUnsafe(1);
 
   constructor(dependencies: ProviderAccountsHostDependencies) {
     this.#dependencies = dependencies;
@@ -80,6 +82,7 @@ export class ProviderAccountsHost {
           (exit) => resultOf(provider, exit),
         ),
       ),
+      (start) => this.#starting.withPermit(start),
     );
   }
 

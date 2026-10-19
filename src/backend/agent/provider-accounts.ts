@@ -214,7 +214,7 @@ export class ProviderAccounts {
     const fiber = yield* signIn.pipe(Effect.forkIn(this.#host.scope(), { startImmediately: true }));
     // A sign-in that already ended has removed itself; do not hold its fiber.
     if (fiber.pollUnsafe() === undefined) this.#signIns.set(account.id, fiber);
-    return { accountId: account.id, ended: Fiber.join(fiber) };
+    return { accountId: account.id, signIn: fiber, ended: Fiber.join(fiber) };
   }).bind(this);
 
   /**
@@ -225,9 +225,12 @@ export class ProviderAccounts {
     this: ProviderAccounts,
     provider: AgentProviderId,
     accountId: string,
+    /** Only this sign-in: a later sign-in of the same account goes on. */
+    signIn?: Fiber.Fiber<string | null>,
   ) {
     const account = this.account(provider, accountId);
-    if (!account || !this.#signIns.has(accountId)) return;
+    const running = this.#signIns.get(accountId);
+    if (!account || !running || (signIn && running !== signIn)) return;
     const added = this.#added.has(accountId);
     logger.info("A provider account sign-in was canceled.", { provider, accountId, added });
     yield* this.#interrupt(accountId);
