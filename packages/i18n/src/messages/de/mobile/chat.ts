@@ -177,6 +177,13 @@ export const messages = {
   "mobile.chat.imageViewer.share": "{name} teilen",
   "mobile.chat.imageViewer.saved": "In Fotos gespeichert",
   "mobile.chat.imageViewer.save": "{name} in Fotos speichern",
+  "mobile.chat.video.play": "{name} abspielen",
+  "mobile.chat.video.retry": "Video neu laden",
+  "mobile.chat.video.share": "{name} teilen",
+  "mobile.chat.video.save": "{name} in Fotos sichern",
+  "mobile.chat.video.photosPermission":
+    "Erlaube OpenBot in den Einstellungen, Fotos hinzuzufügen, um dieses Video zu sichern.",
+  "mobile.chat.video.saveFailed": "Video konnte nicht gespeichert werden",
   "mobile.chat.browserSecret.password": "Passwort",
   "mobile.chat.browserSecret.authenticatorCode": "Authentifizierungscode",
   "mobile.chat.browserSecret.oneTimeCode": "Einmalcode",

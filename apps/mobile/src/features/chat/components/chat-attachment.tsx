@@ -1,5 +1,7 @@
+import { playableMediaKind } from "@openbot/contracts/attachment-files";
 import type { AttachmentSummary } from "@openbot/contracts/ipc";
 import { MOBILE_ATTACHMENT_BYTES } from "@openbot/team-client/remote-peer";
+import { requireOptionalNativeModule } from "expo";
 import { Image } from "expo-image";
 import { Button, Skeleton, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
@@ -10,53 +12,51 @@ import { Pressable, useWindowDimensions, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
+import { attachmentFrame, FILL, FRAME_RADIUS, MAX_FRAME_WIDTH } from "../model/attachment-frame";
 import type { ImageDimensions } from "../model/image-dimensions";
 import { attachmentTypeLabel, rememberImageDimensions, useAttachmentFile } from "./attachment-preview";
 import { ImageViewer } from "./image-viewer";
 import { UPLOAD_BLUR_RADIUS, UPLOAD_SETTLE_MS, UploadProgressCircle, useUploadRevealStyle } from "./upload-progress";
 
-// An image is this tall unless it is too wide for the column. The host sends no image size, so a
-// height taken from the image changes once it downloads and moves every message below it; a
-// fixed height keeps that change to the image's own width. Portrait photos and screenshots,
-// the usual case, never move the chat.
-const IMAGE_HEIGHT = 240;
-const MAX_IMAGE_WIDTH = 280;
-// An extremely narrow image keeps a frame wide enough to tap, and shows whole inside it.
-const MIN_IMAGE_WIDTH = 72;
 // The width reserved while the shape is still unknown: a portrait phone photo.
 const UNKNOWN_RATIO = 3 / 4;
-// Every layer of an image fills its frame exactly, with no padding or percentage in between.
-const FILL = { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 } as const;
 
 /**
- * The frame an image draws in, always showing the whole image. It is 240 pt tall with the
- * image's own width; an image too wide for the column scales down to the column's width
- * instead, so nothing is cropped.
+ * The video player, loaded only when this app build has its native module. An older development
+ * build has none, and `expo-video` requires the module when it loads, so a video there stays a file.
  */
-function imageFrame(dimensions: ImageDimensions | null, maxWidth: number) {
-  const ratio = dimensions ? dimensions.width / dimensions.height : UNKNOWN_RATIO;
-  const width = IMAGE_HEIGHT * ratio;
-  if (width > maxWidth) return { width: maxWidth, height: Math.round(maxWidth / ratio) };
-  return { width: Math.max(MIN_IMAGE_WIDTH, Math.round(width)), height: IMAGE_HEIGHT };
-}
+const chatVideo: typeof import("./chat-video.native") | null = requireOptionalNativeModule("ExpoVideo")
+  ? require("./chat-video.native")
+  : null;
 
 /** Two sizes with the same shape, allowing for rounding in a scaled copy. */
 function sameShape(left: ImageDimensions, right: ImageDimensions) {
   return Math.abs(left.width / left.height - right.width / right.height) < 0.01;
 }
 
-export function ChatAttachmentView({
-  attachment,
-  serverId,
-  alignment = "left",
-  upload,
-}: {
+interface ChatAttachmentProps {
   attachment: AttachmentSummary;
   serverId: string;
   alignment?: "left" | "right";
   /** The sent fraction of this file, from 0 to 1, while the message that carries it is sending. */
   upload?: number;
-}) {
+}
+
+export function ChatAttachmentView(props: ChatAttachmentProps) {
+  const { attachment } = props;
+  // A video plays once it is on the host. While it uploads, the file card shows the progress.
+  if (
+    chatVideo &&
+    props.upload === undefined &&
+    playableMediaKind(attachment.mimeType) === "video" &&
+    attachment.size <= MOBILE_ATTACHMENT_BYTES &&
+    !attachment.id.startsWith("mobile-draft-attachment-")
+  )
+    return <chatVideo.ChatVideoAttachment {...props} />;
+  return <ChatFileAttachment {...props} />;
+}
+
+function ChatFileAttachment({ attachment, serverId, alignment = "left", upload }: ChatAttachmentProps) {
   const { t, format, sourceText } = useText();
   const [fileColor, muted] = useThemeColor(["success", "muted"]);
   const [decoded, setDecoded] = useState<ImageDimensions | null>(null);
@@ -88,9 +88,9 @@ export function ChatAttachmentView({
     attachment,
     image,
   );
-  const maxWidth = Math.min(MAX_IMAGE_WIDTH, width - 80);
+  const maxWidth = Math.min(MAX_FRAME_WIDTH, width - 80);
   const shape = decoded ?? dimensions;
-  const frame = imageFrame(shape, maxWidth);
+  const frame = attachmentFrame(shape, maxWidth, UNKNOWN_RATIO);
   const failed = Boolean(query.error) || imageFailed;
   const busy = sharing || query.isFetching;
 
@@ -102,7 +102,7 @@ export function ChatAttachmentView({
             width: frame.width,
             height: frame.height,
             maxWidth: "100%",
-            borderRadius: 18,
+            borderRadius: FRAME_RADIUS,
             borderCurve: "continuous",
             overflow: "hidden",
           }}
@@ -211,7 +211,7 @@ export function ChatAttachmentView({
                 ? frameRef.current.measureInWindow((x, y, width, height) => report({ x, y, width, height }))
                 : report(null)
             }
-            originRadius={18}
+            originRadius={FRAME_RADIUS}
             busy={busy}
             onShare={share}
             onSave={saveToPhotos}

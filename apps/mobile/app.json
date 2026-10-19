@@ -35,6 +35,7 @@
     "plugins": [
       "./plugins/with-rocketsim",
       "expo-router",
+      "expo-video",
       [
         "expo-splash-screen",
         {
@@ -68,7 +69,7 @@
         "expo-media-library",
         {
           "photosPermission": "Allow OpenBot to access the photos you choose to share.",
-          "savePhotosPermission": "Allow OpenBot to save images you download from a chat to your photo library.",
+          "savePhotosPermission": "Allow OpenBot to save images and videos you download from a chat to your photo library.",
           "granularPermissions": ["photo"]
         }
       ],

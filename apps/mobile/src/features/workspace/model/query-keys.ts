@@ -115,4 +115,5 @@ export const queryKeys = {
   ],
   chatQueue: (...target: [] | [serverId: string] | [serverId: string, agentId: string]) => ["chat-queue", ...target],
   chatAttachment: (serverId: string, attachmentId: string) => ["chat-attachment", serverId, attachmentId],
+  chatVideoFile: (serverId: string, attachmentId: string) => ["chat-video-file", serverId, attachmentId],
 };

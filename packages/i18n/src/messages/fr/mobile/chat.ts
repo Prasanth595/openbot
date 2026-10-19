@@ -178,6 +178,13 @@ export const messages = {
   "mobile.chat.imageViewer.share": "Partager {name}",
   "mobile.chat.imageViewer.saved": "Enregistrée dans Photos",
   "mobile.chat.imageViewer.save": "Enregistrer {name} dans Photos",
+  "mobile.chat.video.play": "Lire {name}",
+  "mobile.chat.video.retry": "Recharger la vidéo",
+  "mobile.chat.video.share": "Partager {name}",
+  "mobile.chat.video.save": "Enregistrer {name} dans Photos",
+  "mobile.chat.video.photosPermission":
+    "Autorisez OpenBot à ajouter des photos dans Réglages pour enregistrer cette vidéo.",
+  "mobile.chat.video.saveFailed": "Impossible d’enregistrer la vidéo",
   "mobile.chat.browserSecret.password": "Mot de passe",
   "mobile.chat.browserSecret.authenticatorCode": "Code d’authentification",
   "mobile.chat.browserSecret.oneTimeCode": "Code à usage unique",

@@ -1,4 +1,4 @@
-import { GlassView } from "expo-glass-effect";
+import { type GlassColorScheme, GlassView } from "expo-glass-effect";
 import type { PropsWithChildren } from "react";
 import { Pressable, type ViewStyle } from "react-native";
 import Animated, { type CSSTransitionProperties, cubicBezier } from "react-native-reanimated";
@@ -12,6 +12,8 @@ const FADE: CSSTransitionProperties = {
 interface ChatGlassButtonProps extends PropsWithChildren {
   accessibilityLabel: string;
   className?: string;
+  /** The glass follows the system appearance unless a surface that is always dark asks for dark. */
+  colorScheme?: GlassColorScheme;
   disabled?: boolean;
   fallbackBackground: ViewStyle["backgroundColor"];
   height?: number;
@@ -30,6 +32,7 @@ export function ChatGlassButton({
   accessibilityLabel,
   children,
   className = "flex-1 flex-row items-center justify-center",
+  colorScheme,
   disabled = false,
   fallbackBackground,
   height = 48,
@@ -45,6 +48,7 @@ export function ChatGlassButton({
         animate: true,
         animationDuration: 0.2,
       }}
+      colorScheme={colorScheme}
       isInteractive={liquidGlassAvailable && !disabled && !hidden}
       pointerEvents={hidden ? "none" : "auto"}
       style={{
