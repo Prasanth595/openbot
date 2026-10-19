@@ -24,6 +24,7 @@ import { type TextValue, useText } from "@openbot/ui/text";
 import { createEffect, createMemo, createSignal, For, onCleanup, onSettled, Show } from "solid-js";
 import { ChatScrollRail, createChatScrollRail, type UnloadedHistory } from "./ChatScrollRail";
 import { calculateChatScrollMargin, chatHistoryBoundaryReached, createChatVirtualizer } from "./createChatVirtualizer";
+import { createReaderFollow } from "./createReaderFollow";
 import { anchorNewMessages, type NewMessageTally, tallyNewMessages } from "./new-message-tally";
 import { isSendShortcutKey, type SendShortcut, sendShortcutAriaKey, sendShortcutHintKey } from "./send-shortcut";
 
@@ -68,7 +69,7 @@ export function DirectConversation(props: DirectConversationProps) {
   let unreadVisibilityFrame: number | undefined;
   let currentUnreadCount = 0;
   let typingIdleTimer: ReturnType<typeof setTimeout> | undefined;
-  let stickToLatest = true;
+  const readerFollow = createReaderFollow();
   let lastThreadId: string | undefined;
   let newMessages: NewMessageTally = { count: 0, anchorId: undefined };
   /* Every message anchors the count, but the reader's own arrival is not news to them. */
@@ -93,6 +94,7 @@ export function DirectConversation(props: DirectConversationProps) {
       return `${messages?.[0]?.id ?? ""}:${messages?.at(-1)?.id ?? ""}`;
     },
     scrollMargin: virtualScrollMargin,
+    stickToLatest: readerFollow.following,
     onChange: (instance) => {
       const first = instance.getVirtualItems()[0];
       if (!first) return;
@@ -110,7 +112,7 @@ export function DirectConversation(props: DirectConversationProps) {
     virtualizer: messageVirtualizer,
     onLoadOlder: () => props.onLoadOlder?.(),
     onJump: () => {
-      stickToLatest = false;
+      readerFollow.stop();
     },
   });
   const unreadBannerReady = (): boolean => {
@@ -137,18 +139,18 @@ export function DirectConversation(props: DirectConversationProps) {
       const rows = timelineRows();
       if (threadId !== lastThreadId) {
         lastThreadId = threadId;
-        stickToLatest = true;
+        readerFollow.follow();
         newMessages = anchorNewMessages(rows);
         setNewMessageCount(0);
       } else {
         // The sticky flag has to be read here: the frame below has already moved the view.
-        newMessages = tallyNewMessages(newMessages, rows, stickToLatest);
+        newMessages = tallyNewMessages(newMessages, rows, readerFollow.following());
         setNewMessageCount(newMessages.count);
       }
       requestAnimationFrame(() => {
         if (!messageList) return;
         updateVirtualScrollMargin();
-        if (stickToLatest) messageList.scrollTop = messageList.scrollHeight;
+        if (readerFollow.following()) messageList.scrollTop = messageList.scrollHeight;
         updateScrollState(messageList);
         updateUnreadDividerVisibility();
       });
@@ -168,7 +170,11 @@ export function DirectConversation(props: DirectConversationProps) {
     });
     if (messageList) resizeObserver.observe(messageList);
     if (virtualRoot) resizeObserver.observe(virtualRoot);
-    return () => resizeObserver.disconnect();
+    const stopReaderInput = messageList ? readerFollow.listen(messageList) : undefined;
+    return () => {
+      resizeObserver.disconnect();
+      stopReaderInput?.();
+    };
   });
 
   function updateText(value: string): void {
@@ -216,6 +222,8 @@ export function DirectConversation(props: DirectConversationProps) {
     if (!body || sending() || props.connectionReady === false) return;
     if (typingIdleTimer) clearTimeout(typingIdleTimer);
     props.onTypingChange(false);
+    // The reader's own message returns the chat to the latest message.
+    readerFollow.follow();
     setSending(true);
     setError(null);
     try {
@@ -265,7 +273,7 @@ export function DirectConversation(props: DirectConversationProps) {
 
   function jumpToLatestMessage(): void {
     if (!messageList) return;
-    stickToLatest = true;
+    readerFollow.follow();
     clearNewMessages();
     scrollToLatestMessage(messageList);
   }
@@ -310,7 +318,7 @@ export function DirectConversation(props: DirectConversationProps) {
         role="log"
         onScroll={(event) => {
           const element = event.currentTarget;
-          stickToLatest = element.scrollHeight - element.scrollTop - element.clientHeight <= 80;
+          readerFollow.scrolled(element);
           updateScrollState(element);
           updateUnreadDividerVisibility();
         }}

@@ -1615,6 +1615,56 @@ export const StreamingWhileReadingLongHistory: Story = {
   render: (storyArgs) => <StreamingWhileReadingHistoryConversation args={storyArgs} history={longReadingHistory} />,
 };
 
+/**
+ * A new agent message arrives every 400ms for as long as the story is open, and the newest one is still
+ * streaming, as when several agents report in a row. The reader can scroll up and read.
+ */
+function ReplyBurstConversation(props: { args: Parameters<typeof Conversation>[0]; history: RendererAgentMessage[] }) {
+  const [count, setCount] = createSignal(1);
+  const replies = () =>
+    Array.from(
+      { length: count() },
+      (_, index): RendererAgentMessage => ({
+        id: `reply-burst-${index + 1}`,
+        author: "agent",
+        body: `Update ${index + 1}: I finished one more step of the release plan and noted its owner and date.`,
+        time: "10:01",
+        kind: "text",
+        ...(index === count() - 1 ? { streaming: true } : {}),
+      }),
+    );
+  const interval = window.setInterval(() => setCount((current) => current + 1), 400);
+  onCleanup(() => window.clearInterval(interval));
+
+  return (
+    <MockedConversation
+      args={{ ...props.args, activeTurnId: "reply-burst-turn" }}
+      messages={[...props.history, ...replies()]}
+    />
+  );
+}
+
+export const ReplyBurstWhileReadingHistory: Story = {
+  args: {
+    messages: shortReadingHistory,
+    activeTurnId: "reply-burst-turn",
+    unreadCount: 0,
+    firstUnreadMessageId: null,
+  },
+  render: (storyArgs) => <ReplyBurstConversation args={storyArgs} history={shortReadingHistory} />,
+};
+
+/** More than 100 rows, so the timeline draws only the rows near the screen. */
+export const ReplyBurstWhileReadingLongHistory: Story = {
+  args: {
+    messages: longReadingHistory,
+    activeTurnId: "reply-burst-turn",
+    unreadCount: 0,
+    firstUnreadMessageId: null,
+  },
+  render: (storyArgs) => <ReplyBurstConversation args={storyArgs} history={longReadingHistory} />,
+};
+
 export const ComparisonTableInChat: Story = {
   name: "Comparison table in chat",
   args: {
