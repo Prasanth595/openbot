@@ -16,6 +16,8 @@ import expo.modules.kotlin.modules.ModuleDefinition
 import expo.modules.kotlin.viewevent.EventDispatcher
 import expo.modules.kotlin.views.ExpoView
 import java.io.File
+import java.io.InputStream
+import java.io.OutputStream
 import java.util.UUID
 import java.util.concurrent.Executors
 
@@ -30,6 +32,9 @@ private val copier = Executors.newSingleThreadExecutor()
  */
 class ComposerPasteView(context: Context, appContext: AppContext) : ExpoView(context, appContext) {
   private val onPasteFiles by EventDispatcher()
+
+  /** The largest file that the app attaches. The copy thread reads it. */
+  @Volatile var maxBytes = Long.MAX_VALUE - 1
 
   private val receiver = OnReceiveContentListener { _, payload ->
     // A clip item with a content address is a file. Text, and a link as text, stay for the field.
@@ -70,8 +75,25 @@ class ComposerPasteView(context: Context, appContext: AppContext) : ExpoView(con
     }
     val target = File(context.cacheDir, "openbot-paste-${UUID.randomUUID()}$suffix")
     val input = resolver.openInputStream(uri) ?: error("The pasted file cannot be read.")
-    input.use { source -> target.outputStream().use { source.copyTo(it) } }
+    try {
+      // One byte over the limit is enough for JavaScript to refuse the file with its name.
+      input.use { source -> target.outputStream().use { sink -> copyAtMost(source, sink, maxBytes + 1) } }
+    } catch (error: Exception) {
+      target.delete()
+      throw error
+    }
     return mapOf("uri" to Uri.fromFile(target).toString(), "name" to name)
+  }
+
+  private fun copyAtMost(source: InputStream, sink: OutputStream, limit: Long) {
+    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+    var left = limit
+    while (left > 0) {
+      val read = source.read(buffer, 0, minOf(buffer.size.toLong(), left).toInt())
+      if (read < 0) return
+      sink.write(buffer, 0, read)
+      left -= read
+    }
   }
 
   private fun displayName(resolver: ContentResolver, uri: Uri): String? =
@@ -86,6 +108,10 @@ class ComposerPasteModule : Module() {
 
     View(ComposerPasteView::class) {
       Events("onPasteFiles")
+
+      Prop("maxBytes") { view: ComposerPasteView, maxBytes: Int ->
+        view.maxBytes = maxBytes.toLong()
+      }
     }
   }
 }

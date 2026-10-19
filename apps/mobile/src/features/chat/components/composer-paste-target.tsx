@@ -1,4 +1,5 @@
 import { ATTACHMENT_FILE_EXTENSIONS } from "@openbot/contracts/attachment-files";
+import { MOBILE_ATTACHMENT_BYTES } from "@openbot/team-client/remote-peer";
 import { requireNativeView, requireOptionalNativeModule } from "expo";
 import type { ReactNode } from "react";
 import type { NativeSyntheticEvent, ViewProps } from "react-native";
@@ -12,6 +13,8 @@ export interface PastedFiles {
 
 interface NativeProps extends ViewProps {
   extensions: readonly string[];
+  /** Android stops a copy one byte after this, so a large file is refused without a full copy. */
+  maxBytes: number;
   onPasteFiles: (event: NativeSyntheticEvent<PastedFiles>) => void;
 }
 
@@ -36,6 +39,7 @@ export function ComposerPasteTarget({
     <NativePasteTarget
       style={{ flex: 1, minWidth: 0 }}
       extensions={ATTACHMENT_FILE_EXTENSIONS}
+      maxBytes={MOBILE_ATTACHMENT_BYTES}
       onPasteFiles={({ nativeEvent }) => onPasteFiles(nativeEvent)}
     >
       {children}
