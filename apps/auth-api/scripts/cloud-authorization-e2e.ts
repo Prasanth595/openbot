@@ -190,22 +190,35 @@ async function aRoleChangeKeepsANewInviteValid() {
   });
 }
 
-/** The host's auth epoch, its queued epoch events, and whether a session is open and has an end event. */
-function hostAuthState(database: DatabaseSync, sessionId: string) {
-  const events = database
-    .prepare(
-      "SELECT json_extract(payload, '$.type') AS type, json_extract(payload, '$.sessionId') AS sessionId FROM remote_auth_events",
-    )
-    .all();
-  const session = database.prepare("SELECT ended_at FROM remote_sessions WHERE session_id = ?").get(sessionId);
+/** The host's auth epoch and its queued epoch events. */
+function hostEpoch(database: DatabaseSync) {
   return {
     authEpoch: Number(
       database.prepare("SELECT auth_epoch FROM remote_hosts WHERE host_id = ?").get(HOST_ID)?.auth_epoch,
     ),
-    epochEvents: events.filter((event) => event.type === "remote-auth-changed").length,
-    sessionOpen: session?.ended_at === null,
-    sessionEndedEvents: events.filter((event) => event.type === "remote-session-ended" && event.sessionId === sessionId)
-      .length,
+    epochEvents: Number(
+      database
+        .prepare(
+          "SELECT count(*) AS count FROM remote_auth_events WHERE json_extract(payload, '$.type') = 'remote-auth-changed'",
+        )
+        .get()?.count,
+    ),
+  };
+}
+
+/** Whether a session is open, and how many end events it has. */
+function sessionState(database: DatabaseSync, sessionId: string) {
+  return {
+    open:
+      database.prepare("SELECT ended_at FROM remote_sessions WHERE session_id = ?").get(sessionId)?.ended_at === null,
+    endedEvents: Number(
+      database
+        .prepare(
+          `SELECT count(*) AS count FROM remote_auth_events
+            WHERE json_extract(payload, '$.type') = 'remote-session-ended' AND json_extract(payload, '$.sessionId') = ?`,
+        )
+        .get(sessionId)?.count,
+    ),
   };
 }
 
@@ -229,7 +242,7 @@ async function aRoleChangeKeepsTheHostConnected() {
   clock.now += 1_000;
   await Effect.runPromise(remote.acceptInvite(member, invite.token));
   const id = membershipId(database, member.id);
-  const before = hostAuthState(database, "none");
+  const before = hostEpoch(database);
   for (const [sessionId, role] of [
     ["session-promote", "admin"],
     ["session-demote", "member"],
@@ -237,28 +250,30 @@ async function aRoleChangeKeepsTheHostConnected() {
     clock.now += 1_000;
     openSession(database, sessionId, member.id, clock.now);
     await Effect.runPromise(remote.changeMembership(owner.id, { hostId: HOST_ID, membershipId: id, role }));
-    const after = hostAuthState(database, sessionId);
+    const after = hostEpoch(database);
+    const session = sessionState(database, sessionId);
     check(
       `a change to ${role} keeps the host auth epoch and ends only the member's session`,
       membershipStatus(database, member.id) === `active:${role}` &&
         after.authEpoch === before.authEpoch &&
         after.epochEvents === before.epochEvents &&
-        !after.sessionOpen &&
-        after.sessionEndedEvents === 1,
-      { before, after },
+        !session.open &&
+        session.endedEvents === 1,
+      { before, after, session },
     );
   }
   clock.now += 1_000;
   openSession(database, "session-revoke", member.id, clock.now);
   await Effect.runPromise(remote.changeMembership(owner.id, { hostId: HOST_ID, membershipId: id, revoke: true }));
-  const revoked = hostAuthState(database, "session-revoke");
+  const revoked = hostEpoch(database);
+  const session = sessionState(database, "session-revoke");
   check(
     "a removal still changes the host auth epoch",
     revoked.authEpoch === before.authEpoch + 1 &&
       revoked.epochEvents === before.epochEvents + 1 &&
-      !revoked.sessionOpen &&
-      revoked.sessionEndedEvents === 1,
-    { before, revoked },
+      !session.open &&
+      session.endedEvents === 1,
+    { before, revoked, session },
   );
 }
 

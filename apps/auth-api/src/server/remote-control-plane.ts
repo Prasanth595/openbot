@@ -1254,14 +1254,8 @@ export class RemoteControlPlane {
         activating,
       });
       const now = dependencies.now();
-      const activeSessions = yield* remoteCall(() =>
-        dependencies.database
-          .prepare("SELECT session_id FROM remote_sessions WHERE host_id = ? AND user_id = ? AND ended_at IS NULL")
-          .bind(input.hostId, membership.user_id)
-          .all<{ session_id: string }>(),
-      );
       // The writes after the membership apply only when it took its seat. A refused UPDATE leaves the
-      // member inactive, so the member keeps their sessions and invitations.
+      // membership as it was, so the member keeps their sessions and invitations.
       const applied = activating
         ? {
             sql: "EXISTS(SELECT 1 FROM remote_memberships WHERE membership_id = ? AND status = 'active')",
@@ -1307,19 +1301,24 @@ export class RemoteControlPlane {
                   .bind(now, input.hostId),
               ]
             : []),
+          // The events come from the same batch as the UPDATE below, so a session that opened during
+          // this change also ends on Signal. With no epoch bump, nothing else would drop it.
+          dependencies.database
+            .prepare(
+              `INSERT INTO remote_auth_events(event_id, payload, created_at, attempts, next_attempt_at)
+            SELECT lower(hex(randomblob(16))),
+                   json_object('type', 'remote-session-ended', 'hostId', host_id, 'sessionId', session_id),
+                   ?, 0, ?
+              FROM remote_sessions
+             WHERE host_id = ? AND user_id = ? AND ended_at IS NULL${applied ? ` AND ${applied.sql}` : ""}`,
+            )
+            .bind(now, now, input.hostId, membership.user_id, ...(applied?.binds ?? [])),
           dependencies.database
             .prepare(
               `UPDATE remote_sessions SET ended_at = ?
             WHERE host_id = ? AND user_id = ? AND ended_at IS NULL${applied ? ` AND ${applied.sql}` : ""}`,
             )
             .bind(now, input.hostId, membership.user_id, ...(applied?.binds ?? [])),
-          ...activeSessions.results.map((session) =>
-            this.#authEventStatement(
-              { type: "remote-session-ended", hostId: input.hostId, sessionId: session.session_id },
-              now,
-              applied,
-            ),
-          ),
           ...(revokingAccess ? [this.#authEpochEventStatement(input.hostId, now)] : []),
           // The member whose membership this is, and not the owner who changed it: a revoked server
           // has to leave that member's list on every device they are signed in on.
@@ -2695,27 +2694,14 @@ export class RemoteControlPlane {
     return authEventStatement(this.#database, event, now, condition);
   }
 
-  #authEpochEventStatement(
-    hostId: string,
-    now: number,
-    ownerUserId?: string,
-    condition?: SqlCondition,
-  ): D1PreparedStatement {
+  #authEpochEventStatement(hostId: string, now: number, ownerUserId?: string): D1PreparedStatement {
     return this.#database
       .prepare(
         `INSERT INTO remote_auth_events(event_id, payload, created_at, attempts, next_attempt_at)
          SELECT ?, json_object('type', 'remote-auth-changed', 'hostId', host_id, 'authEpoch', auth_epoch), ?, 0, ?
-         FROM remote_hosts WHERE host_id = ? AND (? IS NULL OR owner_user_id = ?)${condition ? ` AND ${condition.sql}` : ""}`,
+         FROM remote_hosts WHERE host_id = ? AND (? IS NULL OR owner_user_id = ?)`,
       )
-      .bind(
-        crypto.randomUUID(),
-        now,
-        now,
-        hostId,
-        ownerUserId ?? null,
-        ownerUserId ?? null,
-        ...(condition?.binds ?? []),
-      );
+      .bind(crypto.randomUUID(), now, now, hostId, ownerUserId ?? null, ownerUserId ?? null);
   }
 
   /**
