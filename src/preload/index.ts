@@ -563,6 +563,7 @@ const openbotApi: OpenBotDesktopApi = {
     startProviderCodeLogin: decodeProviderCodeLoginStart,
     cancelProviderCodeLogin: decodeAgentStatusFromMain,
     connectProviderAccount: decodeAgentStatusFromMain,
+    cancelProviderAccountSignIn: decodeAgentStatusFromMain,
     renameProviderAccount: decodeAgentStatusFromMain,
     removeProviderAccount: decodeAgentStatusFromMain,
   }),

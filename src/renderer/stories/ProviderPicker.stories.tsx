@@ -335,11 +335,15 @@ export const ProviderAccounts: Story = {
         name: "Claude",
         state: "available",
         email: "person@example.com",
-        accounts: [{ id: "default", label: null, email: "person@example.com", state: "available", message: null }],
+        accounts: [
+          { id: "default", label: null, email: "person@example.com", state: "available", message: null },
+          { id: "a00000000000000002", label: null, email: null, state: "connecting", message: null },
+        ],
       },
     ],
     accountActions: {
       connect: fn(async () => undefined),
+      cancel: fn(async () => undefined),
       rename: fn(async () => undefined),
       remove: fn(async () => undefined),
     },

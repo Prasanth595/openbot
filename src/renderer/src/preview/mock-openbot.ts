@@ -935,6 +935,8 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       );
       return clone(changed);
     },
+    // The preview signs in at once, so no sign-in runs to cancel.
+    cancelProviderAccountSignIn: async () => clone(agentStatus),
     renameProviderAccount: async ({ provider, accountId, label }) =>
       clone(
         changeProviderAccounts(provider, (accounts) =>

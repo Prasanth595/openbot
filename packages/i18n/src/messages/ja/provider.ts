@@ -160,6 +160,8 @@ export const messages = {
   "provider.account.moreActions": "{name} のその他の操作",
   "provider.account.renameLabel": "{name} の名前",
   "provider.account.signInAgain": "もう一度サインイン",
+  "provider.account.cancelSignIn": "サインインをキャンセル",
+  "provider.account.finishSignIn": "ブラウザーでサインインを完了してください。",
   "provider.account.remove": "アカウントを削除",
   "provider.account.actionFailed": "{name} のアカウントを変更できませんでした。",
 } as const satisfies PartialTranslation<typeof source>;

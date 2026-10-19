@@ -160,6 +160,8 @@ export const messages = {
   "provider.account.moreActions": "{name} için diğer eylemler",
   "provider.account.renameLabel": "{name} adı",
   "provider.account.signInAgain": "Tekrar oturum aç",
+  "provider.account.cancelSignIn": "Oturum açmayı iptal et",
+  "provider.account.finishSignIn": "Oturum açma işlemini tarayıcıda tamamlayın.",
   "provider.account.remove": "Hesabı kaldır",
   "provider.account.actionFailed": "{name} hesabı değiştirilemedi.",
 } as const satisfies PartialTranslation<typeof source>;

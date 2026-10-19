@@ -181,6 +181,8 @@ export const messages = {
   "provider.account.moreActions": "Другие действия для {name}",
   "provider.account.renameLabel": "Имя: {name}",
   "provider.account.signInAgain": "Войти снова",
+  "provider.account.cancelSignIn": "Отменить вход",
+  "provider.account.finishSignIn": "Завершите вход в браузере.",
   "provider.account.remove": "Удалить аккаунт",
   "provider.account.actionFailed": "Не удалось изменить аккаунт {name}.",
 } as const satisfies PartialTranslation<typeof source>;

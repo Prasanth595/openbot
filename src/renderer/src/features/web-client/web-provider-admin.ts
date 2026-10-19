@@ -336,6 +336,10 @@ export function createWebProviderSettings(options: WebProviderSettingsOptions) {
     };
     return {
       connect: async (provider, accountId) => connection.connectAccount(provider, accountId),
+      // The host runs one account sign-in for each provider, so the released cancel names only the provider.
+      cancel: async (provider) => {
+        await accountSignIn(id).cancel(provider);
+      },
       rename: (provider, accountId, label) => changed(admin.renameAccount({ provider, accountId, label }, id)),
       remove: (provider, accountId) => changed(admin.removeAccount({ provider, accountId }, id)),
     };

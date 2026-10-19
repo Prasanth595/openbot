@@ -616,6 +616,10 @@ export const IPC_ENDPOINTS = {
      * `connecting` account cancels its sign-in.
      */
     connectProviderAccount: request<ConnectProviderAccountInput, AgentStatus>()("app:connect-provider-account"),
+    /** Stops a `connecting` account's sign-in: a new account goes, another one shows as signed out. */
+    cancelProviderAccountSignIn: request<RemoveProviderAccountInput, AgentStatus>()(
+      "app:cancel-provider-account-sign-in",
+    ),
     renameProviderAccount: request<RenameProviderAccountInput, AgentStatus>()("app:rename-provider-account"),
     removeProviderAccount: request<RemoveProviderAccountInput, AgentStatus>()("app:remove-provider-account"),
   },

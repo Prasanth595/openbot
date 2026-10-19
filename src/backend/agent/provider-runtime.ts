@@ -1195,9 +1195,25 @@ export class ProviderRuntime implements ProviderPort {
   ) {
     yield* providerStep(() => this.requireProviderOn(provider));
     const accounts = yield* this.#requireAccounts(provider);
-    const signIn = yield* accounts.connect(provider, accountId, openPage, true).pipe(toProviderOperationFailed);
-    const error = yield* signIn.ended.pipe(Effect.onInterrupt(() => accounts.cancel(provider, signIn.accountId)));
+    // The start runs uninterruptible, so an interrupt at any point cancels the sign-in it started.
+    const error = yield* Effect.acquireUseRelease(
+      accounts.connect(provider, accountId, openPage, true).pipe(toProviderOperationFailed),
+      (signIn) => signIn.ended,
+      (signIn, exit) =>
+        Exit.hasInterrupts(exit) ? accounts.cancel(provider, signIn.accountId, signIn.signIn) : Effect.void,
+    );
     if (error) return yield* new ProviderOperationFailed({ cause: new Error(error) });
+  }).bind(this);
+
+  /** Stops the sign-in of an account. A new account goes with its folder; another one shows as signed out. */
+  readonly cancelProviderAccountSignIn = Effect.fn("ProviderRuntime.cancelProviderAccountSignIn")(function* (
+    this: ProviderRuntime,
+    provider: AgentProvider,
+    accountId: string,
+  ) {
+    const accounts = yield* this.#requireAccounts(provider);
+    yield* accounts.cancel(provider, accountId);
+    return this.status();
   }).bind(this);
 
   readonly renameProviderAccount = Effect.fn("ProviderRuntime.renameProviderAccount")(function* (

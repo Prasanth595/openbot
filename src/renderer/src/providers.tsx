@@ -216,6 +216,10 @@ const Providers = createSimpleContext({
         };
         return {
           connect: async (provider, accountId) => connection.connectAccount(provider, accountId),
+          // The host runs one account sign-in for each provider, so the released cancel names only the provider.
+          cancel: async (provider) => {
+            await accountSignIn(hostServerId).cancel(provider);
+          },
           rename: (provider, accountId, label) =>
             changed(providerAdmin().renameAccount({ provider, accountId, label }, hostServerId)),
           remove: (provider, accountId) =>
@@ -228,8 +232,15 @@ const Providers = createSimpleContext({
         const status = await request;
         if (activeServer()?.id === serverId) flush(() => applyAgentStatus(status));
       };
+      // A sign-in ends after its answer, and the status has no order, so an older answer could hide how it
+      // ended. The `status` events carry the account's state.
       return {
-        connect: (provider, accountId) => apply(providersPort().connectProviderAccount({ provider, accountId })),
+        connect: async (provider, accountId) => {
+          await providersPort().connectProviderAccount({ provider, accountId });
+        },
+        cancel: async (provider, accountId) => {
+          await providersPort().cancelProviderAccountSignIn({ provider, accountId });
+        },
         rename: (provider, accountId, label) =>
           apply(providersPort().renameProviderAccount({ provider, accountId, label })),
         remove: (provider, accountId) => apply(providersPort().removeProviderAccount({ provider, accountId })),

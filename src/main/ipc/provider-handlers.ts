@@ -110,6 +110,9 @@ export function providerIpcHandlers({
           }),
         ),
       ),
+      cancelProviderAccountSignIn: payloadHandler(parseRemoveProviderAccountInput, ({ provider, accountId }) =>
+        runCauseEffect(service.cancelProviderAccountSignIn(provider, accountId)),
+      ),
       renameProviderAccount: payloadHandler(parseRenameProviderAccountInput, ({ provider, accountId, label }) =>
         runCauseEffect(service.renameProviderAccount(provider, accountId, label)),
       ),

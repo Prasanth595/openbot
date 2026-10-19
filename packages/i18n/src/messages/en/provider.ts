@@ -173,6 +173,8 @@ export const messages = defineMessages("provider", {
   "provider.account.moreActions": "More actions for {name}",
   "provider.account.renameLabel": "Name of {name}",
   "provider.account.signInAgain": "Sign in again",
+  "provider.account.cancelSignIn": "Cancel sign-in",
+  "provider.account.finishSignIn": "Finish the sign-in in the browser.",
   "provider.account.remove": "Remove account",
   "provider.account.actionFailed": "Could not change the {name} account.",
 });
