@@ -1,6 +1,5 @@
 import type { McpSignInRelayPage, UpdateAgentInput } from "@openbot/contracts/ipc";
 import type { QuoteRequest } from "@openbot/ui/features/conversation/ComposerEditor";
-import { createReaderFollow } from "@openbot/ui/features/conversation/createReaderFollow";
 import { currentText } from "@openbot/ui/text";
 import { errorReference } from "@openbot/user-errors";
 import {
@@ -39,6 +38,8 @@ import { createVoiceStore } from "./stores/voice-store";
 
 /** At 9 encoded characters each, this many stays far below the message limit. */
 const QUOTE_TEXT_LIMIT = 2000;
+/** A keyboard or wheel scroll moves the chat within a few frames of its input. */
+const READER_INPUT_WINDOW_MS = 250;
 
 function followConversationBottom(element: HTMLDivElement): void {
   element.scrollTop = element.scrollHeight;
@@ -419,7 +420,7 @@ export function createConversationViewScope(props: ConversationProps) {
       unreadMessagesDivider: () => unreadMessagesDivider,
     },
     sticky: {
-      getStickToLatest: () => readerFollow.following(),
+      getStickToLatest: () => stickToLatest,
       setStickToLatest,
       getCurrentUnreadCount: () => currentUnreadCount,
     },
@@ -457,7 +458,7 @@ export function createConversationViewScope(props: ConversationProps) {
     activeChatSearchIndex,
     scrollElement: () => scrollElement,
     revealMatch: () => {
-      readerFollow.stop();
+      stickToLatest = false;
     },
     setChatSearchOpen,
     setChatSearchQuery,
@@ -643,6 +644,11 @@ export function createConversationViewScope(props: ConversationProps) {
   let unreadMessagesDivider: HTMLDivElement | undefined;
   let latestScrollFrame: number | undefined;
   let latestScrollSettleFrame: number | undefined;
+  let lastScrollTop = 0;
+  let readerLeftLatest = false;
+  let readerDragging = false;
+  let readerIntent: { up: boolean; at: number } | undefined;
+  let lastTouchY: number | undefined;
   let currentUnreadCount = 0;
   let conversationPanel: HTMLElement | undefined;
   const [browserSurface, setBrowserSurface] = createSignal<HTMLDivElement>();
@@ -657,13 +663,7 @@ export function createConversationViewScope(props: ConversationProps) {
   let browserVisibilityFrame: number | undefined;
   let browserBoundsFrame: number | undefined;
   let browserVisibilityGeneration = 0;
-  /* The follow that the chat queued is cancelled when the reader leaves the latest message. */
-  const readerFollow = createReaderFollow(() => {
-    if (latestScrollFrame !== undefined) cancelAnimationFrame(latestScrollFrame);
-    if (latestScrollSettleFrame !== undefined) cancelAnimationFrame(latestScrollSettleFrame);
-    latestScrollFrame = undefined;
-    latestScrollSettleFrame = undefined;
-  });
+  let stickToLatest = true;
   let lastConversationIdentity: string | undefined;
   let lastPanelAgentId: string | undefined;
   let lastHandledSettingsRequestNonce: number | undefined;
@@ -799,10 +799,21 @@ export function createConversationViewScope(props: ConversationProps) {
     keyboardWindow.addEventListener("keydown", closeActiveRemoteBrowserTab);
     keyboardTarget.addEventListener("keydown", chatSearchListener);
     window.addEventListener("pointerdown", closeMessageMenus);
-    const stopReaderInput = scrollElement ? readerFollow.listen(scrollElement) : undefined;
+    const readerInput = scrollElement;
+    const endReaderDrag = () => {
+      readerDragging = false;
+    };
+    readerInput?.addEventListener("wheel", readerWheel, { passive: true });
+    readerInput?.addEventListener("touchmove", readerTouchMove, { passive: true });
+    readerInput?.addEventListener("touchend", readerTouchEnd);
+    readerInput?.addEventListener("touchcancel", readerTouchEnd);
+    readerInput?.addEventListener("pointerdown", readerPointerDown);
+    keyboardTarget.addEventListener("keydown", readerKeyDown);
+    keyboardWindow.addEventListener("pointerup", endReaderDrag);
+    keyboardWindow.addEventListener("pointercancel", endReaderDrag);
     scrollResizeObserver = new ResizeObserver(() => {
       updateVirtualScrollMargin();
-      if (scrollElement && readerFollow.following()) followConversationBottom(scrollElement);
+      if (scrollElement && stickToLatest) followConversationBottom(scrollElement);
       updateScrollFade();
       updateUnreadDividerVisibility();
     });
@@ -813,7 +824,7 @@ export function createConversationViewScope(props: ConversationProps) {
     requestAnimationFrame(() => {
       if (!scrollElement) return;
       updateVirtualScrollMargin();
-      if (readerFollow.following()) scrollElement.scrollTop = scrollElement.scrollHeight;
+      if (stickToLatest) scrollElement.scrollTop = scrollElement.scrollHeight;
       updateScrollFade(scrollElement);
       updateUnreadDividerVisibility();
     });
@@ -826,7 +837,14 @@ export function createConversationViewScope(props: ConversationProps) {
       keyboardWindow.removeEventListener("keydown", closeActiveRemoteBrowserTab);
       keyboardTarget.removeEventListener("keydown", chatSearchListener);
       window.removeEventListener("pointerdown", closeMessageMenus);
-      stopReaderInput?.();
+      readerInput?.removeEventListener("wheel", readerWheel);
+      readerInput?.removeEventListener("touchmove", readerTouchMove);
+      readerInput?.removeEventListener("touchend", readerTouchEnd);
+      readerInput?.removeEventListener("touchcancel", readerTouchEnd);
+      readerInput?.removeEventListener("pointerdown", readerPointerDown);
+      keyboardTarget.removeEventListener("keydown", readerKeyDown);
+      keyboardWindow.removeEventListener("pointerup", endReaderDrag);
+      keyboardWindow.removeEventListener("pointercancel", endReaderDrag);
     };
   });
 
@@ -847,7 +865,7 @@ export function createConversationViewScope(props: ConversationProps) {
         );
         if (!target) return;
         lastHandledMessageFocusNonce = request.nonce;
-        readerFollow.stop();
+        stickToLatest = false;
         // A page that loaded just before the request queued a scroll to the latest message. That scroll
         // must not move the transcript away from the message the user picked, so it is cancelled and
         // its other updates run here.
@@ -886,7 +904,7 @@ export function createConversationViewScope(props: ConversationProps) {
     const blocks = scrollElement ? messageTextBlocks(scrollElement, messageId) : [];
     const firstBlock = blocks[0];
     if (!firstBlock) return false;
-    readerFollow.stop();
+    stickToLatest = false;
     const range = highlightQuotedText(blocks, text);
     (range?.startContainer.parentElement ?? firstBlock).scrollIntoView({
       behavior: "auto",
@@ -927,7 +945,7 @@ export function createConversationViewScope(props: ConversationProps) {
       }
       if (latestScrollFrame !== undefined) cancelAnimationFrame(latestScrollFrame);
       if (latestScrollSettleFrame !== undefined) cancelAnimationFrame(latestScrollSettleFrame);
-      const followLatest = readerFollow.following();
+      const followLatest = stickToLatest;
       latestScrollFrame = requestAnimationFrame(() => {
         latestScrollFrame = undefined;
         if (!scrollElement) return;
@@ -939,7 +957,7 @@ export function createConversationViewScope(props: ConversationProps) {
           latestScrollSettleFrame = undefined;
           if (!scrollElement) return;
           if (followLatest) {
-            readerFollow.follow();
+            stickToLatest = true;
             followConversationBottom(scrollElement);
           }
           updateScrollFade(scrollElement);
@@ -1220,8 +1238,63 @@ export function createConversationViewScope(props: ConversationProps) {
   };
   /* Following the latest message again, by request or because the reader came back, ends the reader's hold. */
   function setStickToLatest(value: boolean) {
-    if (value) readerFollow.follow();
-    else readerFollow.stop();
+    stickToLatest = value;
+    if (value) readerLeftLatest = false;
+  }
+  /**
+   * The reader moved up, so the chat stops following new content until the reader moves down again
+   * or asks for the latest message. While a reply streams, the content grows many times a second and
+   * each growth moves a following chat back to the bottom; a scroll of less than 80px still counts as
+   * the bottom, and a scroll event that the chat's own follow queued can arrive after the reader's
+   * input. So the reader decides, not the distance. The queued follow is cancelled too.
+   */
+  function leaveLatest() {
+    readerLeftLatest = true;
+    stickToLatest = false;
+    if (latestScrollFrame !== undefined) cancelAnimationFrame(latestScrollFrame);
+    if (latestScrollSettleFrame !== undefined) cancelAnimationFrame(latestScrollSettleFrame);
+    latestScrollFrame = undefined;
+    latestScrollSettleFrame = undefined;
+  }
+  /**
+   * A scroll is the reader's when the chat moves the way that the reader's last input asked, soon after
+   * it, or while the reader drags the scroll bar or a text selection. Input that moves something else,
+   * such as a code block that scrolls, a sideways swipe or a key in a field, does not move the chat.
+   */
+  const followReaderScroll = (element: HTMLElement) => {
+    const moved = element.scrollTop - lastScrollTop;
+    lastScrollTop = element.scrollTop;
+    const intent = readerIntent && performance.now() - readerIntent.at < READER_INPUT_WINDOW_MS ? readerIntent : null;
+    if (moved < 0 && (readerDragging || intent?.up === true)) leaveLatest();
+    else if (moved > 0 && (readerDragging || intent?.up === false)) readerLeftLatest = false;
+    if (element.scrollHeight - element.scrollTop - element.clientHeight > 80) stickToLatest = false;
+    else if (!readerLeftLatest) stickToLatest = true;
+  };
+  function noteReaderIntent(up: boolean) {
+    readerIntent = { up, at: performance.now() };
+  }
+  function readerWheel(event: WheelEvent) {
+    // Ctrl with the wheel zooms, and a sideways swipe can report a small vertical delta.
+    if (event.ctrlKey || event.deltaY === 0 || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
+    noteReaderIntent(event.deltaY < 0);
+  }
+  function readerKeyDown(event: KeyboardEvent) {
+    if (event.key === "ArrowUp" || event.key === "PageUp" || event.key === "Home") noteReaderIntent(true);
+    else if (event.key === "ArrowDown" || event.key === "PageDown" || event.key === "End") noteReaderIntent(false);
+    else if (event.key === " ") noteReaderIntent(event.shiftKey);
+  }
+  function readerTouchMove(event: TouchEvent) {
+    const y = event.touches.length === 1 ? event.touches[0]?.clientY : undefined;
+    // A finger that moves down scrolls the chat up.
+    if (y !== undefined && lastTouchY !== undefined && y !== lastTouchY) noteReaderIntent(y > lastTouchY);
+    lastTouchY = y;
+  }
+  function readerTouchEnd() {
+    lastTouchY = undefined;
+  }
+  /* Only the main button drags. A context menu can take the release of another button. */
+  function readerPointerDown(event: PointerEvent) {
+    if (event.button === 0) readerDragging = true;
   }
   const setVirtualRootElement = (element: HTMLDivElement) => {
     virtualRoot = element;
@@ -1262,7 +1335,7 @@ export function createConversationViewScope(props: ConversationProps) {
     setAttachmentPickerElement,
     setScrollElement,
     setStickToLatest,
-    followReaderScroll: readerFollow.scrolled,
+    followReaderScroll,
     setUnreadMessagesDividerElement,
     setVirtualRootElement,
     activeBrowserControl,

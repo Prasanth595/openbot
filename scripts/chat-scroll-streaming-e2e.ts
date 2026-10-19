@@ -1,6 +1,6 @@
 // Checks that the reader can scroll away from a reply that is still arriving, and from new messages
-// that arrive in a burst, in a running Storybook that renders the real agent chat and direct chat
-// against the preview mock. Read-only. Pass the URL that `bun run storybook` reports:
+// that arrive in a burst, in a running Storybook that renders the real agent chat against the
+// preview mock. Read-only. Pass the URL that `bun run storybook` reports:
 // `bun scripts/chat-scroll-streaming-e2e.ts --storybook=http://localhost:6006 [--stories=burst,channel]`.
 // The chat must follow new content while the reader is at the bottom, also after a sideways swipe, hold
 // still after a short scroll up and after a long one, follow again when the reader goes back to the
@@ -41,11 +41,6 @@ const STORIES: StoryCase[] = [
     id: "conversation-conversation--reply-burst-while-reading-long-history",
     scroll: AGENT_SCROLL,
     composer: AGENT_COMPOSER,
-  },
-  {
-    id: "team-directconversation--message-burst-while-reading-history",
-    scroll: ".direct-message-list",
-    composer: ".direct-conversation textarea",
   },
 ];
 /* Enough growth for several reveal steps of a reply, several resizes of the thinking line, or several new rows. */

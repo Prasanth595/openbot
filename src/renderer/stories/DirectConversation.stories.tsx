@@ -1,6 +1,6 @@
 import type { DirectMessage } from "@openbot/contracts/ipc";
 import { DirectConversation } from "@openbot/ui/features/conversation/DirectConversation";
-import { createEffect, createSignal, onCleanup } from "solid-js";
+import { createEffect, createSignal } from "solid-js";
 import { fn } from "storybook/test";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { requireFixture, STORY_DIRECT_SNAPSHOTS, STORY_PRESENCE } from "./fixtures";
@@ -180,57 +180,4 @@ export const MessageDates: Story = {
       }),
     },
   },
-};
-
-/**
- * A new message from the other person arrives every 400ms for as long as the story is open. The reader
- * can scroll up and read, and a message the reader sends returns the chat to the latest message.
- */
-function MessageBurstDirectConversation(props: { args: Parameters<typeof DirectConversation>[0] }) {
-  const [messages, setMessages] = createSignal(unreadDirectMessages);
-  const append = (message: Omit<DirectMessage, "sequence">): DirectMessage => {
-    const next = { ...message, sequence: messages().length + 1 };
-    setMessages((current) => [...current, next]);
-    return next;
-  };
-  const interval = window.setInterval(
-    () =>
-      append({
-        id: `direct-burst-${messages().length + 1}`,
-        threadId: "direct-alice",
-        senderMemberId: member.id,
-        recipientMemberId: "member-self",
-        text: `Burst update ${messages().length + 1}: one more launch step is checked, with its owner and date.`,
-        createdAt: "2026-08-19T10:00:00.000Z",
-      }),
-    400,
-  );
-  onCleanup(() => window.clearInterval(interval));
-  return (
-    <div class="conversation-story-frame">
-      <DirectConversation
-        {...props.args}
-        snapshot={{
-          ...memberSnapshot,
-          revision: messages().length,
-          messages: messages(),
-          readState: { unreadCount: 0, firstUnreadMessageId: null, throughSequence: messages().length },
-        }}
-        onSend={async (text, clientMessageId) => ({
-          message: append({
-            id: clientMessageId,
-            threadId: "direct-alice",
-            senderMemberId: "member-self",
-            recipientMemberId: member.id,
-            text,
-            createdAt: "2026-08-19T10:00:00.000Z",
-          }),
-        })}
-      />
-    </div>
-  );
-}
-
-export const MessageBurstWhileReadingHistory: Story = {
-  render: (storyArgs) => <MessageBurstDirectConversation args={storyArgs} />,
 };
