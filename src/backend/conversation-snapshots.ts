@@ -360,7 +360,7 @@ function reconcileClaudeHistoryMessages(
       continue;
     }
     const answer = storedMessages.get(`${turnId}:assistant`);
-    if (!answer || !isClaudeAnswer(answer) || answer.turnId !== turnId) continue;
+    if (answer?.author !== "assistant" || answer.itemType !== "agentMessage" || answer.turnId !== turnId) continue;
     if (narration.some((part) => storedMessages.has(part.id))) continue;
     const text = narration.map((part) => part.text).join("");
     if (!answer.text || answer.text !== text) continue;
