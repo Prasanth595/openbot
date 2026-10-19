@@ -341,9 +341,12 @@
     padding: var(--left-header-height) calc(var(--window-edge) + 1px) calc(var(--window-edge) + 1px) 0;
   }
 
+  /* The header spans the rest of the top row, and its title is plain text, so the whole row moves the
+   * window, as the schedule and usage titles do. */
   .app-window > .app-frame-edge > .window-page .tasks-page-header {
     position: absolute;
     top: 0;
+    right: 0;
     left: var(--left-panel-width);
     height: var(--left-header-height);
     padding: 0 var(--openbot-space-3);
@@ -354,7 +357,6 @@
     font-size: var(--openbot-text-md);
     font-weight: var(--openbot-weight-medium);
     white-space: nowrap;
-    -webkit-app-region: no-drag;
   }
 
   .app-window > .app-frame-edge > .window-page .tasks-page-column {
