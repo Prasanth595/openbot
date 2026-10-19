@@ -702,6 +702,7 @@ export class ProviderRuntime implements ProviderPort {
       this.#providerConnectionCommands.size +
       this.#replacingCli.size +
       this.#restartsWhenIdle.size +
+      this.#updatesWhenIdle.size +
       (this.#codexLogin.pending ? 1 : 0)
     );
   }
@@ -737,8 +738,7 @@ export class ProviderRuntime implements ProviderPort {
         this.#hooks.isProviderBusy(provider) ||
         this.#providerStarts.has(provider) ||
         this.#providerConnectionCommands.has(provider) ||
-        this.#replacingCli.has(provider) ||
-        this.#restartsWhenIdle.has(provider) ||
+        this.isReplacingCli(provider) ||
         this.#cliLogin.has(provider) ||
         (provider === "codex" && this.#codexLogin.pending)
       ) {

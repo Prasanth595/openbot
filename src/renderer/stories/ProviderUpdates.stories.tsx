@@ -1,5 +1,6 @@
 import { isManagedRuntimeProvider, type ManagedProviderId } from "@openbot/contracts/agent-providers";
 import type { AgentProviderId, ProviderRuntimeStatus } from "@openbot/contracts/ipc";
+import { sourceText } from "@openbot/i18n/source";
 import { Button, Checkbox, Heading, Text, Toaster, toast } from "@openbot/ui";
 import type { ProviderPickerOption } from "@openbot/ui/components/ProviderPicker";
 import { ProviderPicker } from "@openbot/ui/components/ProviderPicker";
@@ -125,7 +126,7 @@ function ProviderUpdateFlow(props: {
       runDownload(id);
       return;
     }
-    setRuntime(id, { phase: "downloading", progress: 0, message: "The update starts when the current turn ends." });
+    setRuntime(id, { phase: "downloading", progress: 0, message: sourceText("status.provider.updateWaiting") });
     timers.add(window.setTimeout(() => runDownload(id), waitMs));
   }
 

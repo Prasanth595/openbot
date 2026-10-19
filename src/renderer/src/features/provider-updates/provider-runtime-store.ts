@@ -217,7 +217,7 @@ export function createProviderRuntimeStore(
       updating.add(provider);
       failed.delete(provider);
       showProviderUpdateToast(
-        { ...update, runtime: { ...update.runtime, phase: "downloading", progress: 0 } },
+        { ...update, runtime: { ...update.runtime, phase: "downloading", progress: 0, message: null } },
         () => void downloadProviderRuntime(provider),
       );
     }

@@ -1,8 +1,9 @@
 // Updates a managed provider CLI end to end on the real driver and `ProviderRuntime` while a turn
 // runs on the provider (#2473), with a fake Gemini ACP server for the installed and the new version.
-// Checks that the update waits for the turn instead of failing, holds new turns meanwhile, installs
-// when the turn ends without a restart of the app, never runs two installs at once when it is asked
-// for again while it waits, and that a cancel ends the wait with nothing installed.
+// Checks that the update waits for the turn instead of failing, holds new turns meanwhile, keeps an
+// idle restart of the app away while it waits, installs when the turn ends without a restart of the
+// app, never runs two installs at once when it is asked for again while it waits, and that a cancel
+// ends the wait with nothing installed.
 // `bun scripts/provider-update-busy-e2e.ts`. Writes .openbot-build/provider-update-busy-e2e/report.json.
 import assert from "node:assert/strict";
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -55,7 +56,13 @@ setInterval(() => {}, 1000);
 
 interface Report {
   passed: boolean;
-  queued?: { waited: boolean; installs: number; holdsNewTurns: boolean; state: string | undefined };
+  queued?: {
+    waited: boolean;
+    installs: number;
+    holdsNewTurns: boolean;
+    countsAsActiveWork: boolean;
+    state: string | undefined;
+  };
   turnEnded?: { installs: number; version: string | null | undefined; holdsNewTurns: boolean; resumed: number };
   askedAgain?: { installs: number; maxConcurrentInstalls: number; holdsNewTurns: boolean };
   cancelled?: { failure: string | undefined; installs: number; holdsNewTurns: boolean; resumed: number };
@@ -163,10 +170,12 @@ try {
     waited,
     installs,
     holdsNewTurns: providers.isReplacingCli("antigravity"),
+    countsAsActiveWork: providers.activeProcessCount() > 0,
     state: row()?.state,
   };
   assert.equal(installs, 0, "nothing is installed while the turn runs");
   assert.ok(report.queued.holdsNewTurns, "new turns wait for the update");
+  assert.ok(report.queued.countsAsActiveWork, "an idle restart of the app does not cut the wait");
   assert.equal(row()?.state, "available", "the provider keeps its row while the update waits");
 
   // 2. The turn ends: the update installs, the provider runs the new version, and turns go on.
