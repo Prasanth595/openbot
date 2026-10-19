@@ -172,10 +172,18 @@ export class DiscordGateway extends Context.Service<DiscordGateway, { readonly a
           );
         };
 
-        /** Connects a manager, and tries again until Signal stops; the library reconnects by itself after. */
+        /**
+         * Connects a manager, and tries again until Signal stops; the library reconnects by itself after.
+         * A manager that the intent fallback replaced is not tried again: its first connect fails too,
+         * because the refused intent ends it.
+         */
         const connect = (gateway: WebSocketManager) =>
           run(
-            Effect.tryPromise({ try: () => gateway.connect(), catch: () => new DiscordGatewayConnectError() }).pipe(
+            Effect.suspend(() =>
+              current === gateway
+                ? Effect.tryPromise({ try: () => gateway.connect(), catch: () => new DiscordGatewayConnectError() })
+                : Effect.void,
+            ).pipe(
               Effect.tapError(() => Effect.sync(() => console.error("OpenBot Discord Gateway could not connect."))),
               Effect.retry(DISCORD_CONNECT_RETRY),
               Effect.ignore,
