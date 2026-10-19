@@ -25,9 +25,13 @@ export type AvatarHue = (typeof AVATAR_HUES)[number];
 // this build happens to know: no whitespace, quotes, control characters or path separators beyond
 // the `/` a provider prefix uses, and nothing downstream builds a filesystem path or a URL out of
 // one -- `/v1/agents/models` takes no model parameter.
+//
+// A leading `~` is there for the same reason: Cline 3.0.73 lists its provider aliases as
+// `~deepseek/deepseek-flash-latest`, and takes those ids back whole. A tilde may lead only, so the
+// home-directory shape a shell expands (`~/x`) still fails the guard.
 export function isAgentModel(value: unknown): value is AgentModelId {
   return (
-    isString(value) && value.length > 0 && value.length <= 160 && /^[A-Za-z0-9][A-Za-z0-9._:/[\],=-]*$/.test(value)
+    isString(value) && value.length > 0 && value.length <= 160 && /^~?[A-Za-z0-9][A-Za-z0-9._:/[\],=-]*$/.test(value)
   );
 }
 
