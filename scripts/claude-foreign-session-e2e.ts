@@ -28,6 +28,7 @@ import {
   type ResponseDecoder,
 } from "../src/backend/protocol";
 import { providerFailure, providerSync, requiredString } from "../src/backend/provider-client-effects";
+import type { ReadProviderHistory } from "../src/backend/provider-history";
 
 const OUT = resolve(import.meta.dirname, "../.openbot-build/claude-foreign-session-e2e");
 const root = await mkdtemp(join(tmpdir(), "openbot-claude-foreign-session-"));
@@ -115,7 +116,7 @@ class ClaudeStandIn extends EventEmitter<ClientEvents> implements AgentClient {
   readonly provider = "claude";
   readonly contextCompaction = "native";
   readonly #real: InstanceType<typeof ClaudeAgentClient>;
-  readonly readHistory: AgentClient["readHistory"];
+  readonly readHistory: ReadProviderHistory;
 
   constructor(cli: ClaudeCliInfo) {
     super();
