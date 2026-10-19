@@ -1,4 +1,4 @@
-import { router, useFocusEffect, useLocalSearchParams, usePreventZoomTransitionDismissal } from "expo-router";
+import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
 import ArrowLeft from "lucide-react-native/icons/arrow-left";
@@ -6,6 +6,7 @@ import { useCallback } from "react";
 import { Pressable, View } from "react-native";
 
 import { MobileChatView } from "@/features/chat/components/agent-chat-view";
+import { useLeaveChat } from "@/features/chat/components/use-leave-chat";
 import { noteChatOpened } from "@/features/quick-actions/model/recent-agents";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 import { haptics } from "@/shared/lib/haptics";
@@ -13,9 +14,7 @@ import { useText } from "@/shared/lib/text";
 
 export function AgentChatScreen() {
   const { t } = useText();
-  usePreventZoomTransitionDismissal({
-    unstable_dismissalBoundsRect: { minX: 0, maxX: 24 },
-  });
+  const leaveChat = useLeaveChat();
 
   const { agentId, messageId } = useLocalSearchParams<{ agentId: string; messageId?: string }>();
   const { agents } = useMobileWorkspace();
@@ -37,6 +36,7 @@ export function AgentChatScreen() {
         key={`${agent.serverId}:${agent.id}`}
         agent={agent}
         focusMessageId={resolvedMessageId || undefined}
+        onLeave={leaveChat}
       />
     );
   }
@@ -54,8 +54,7 @@ export function AgentChatScreen() {
         className="min-h-12 flex-row items-center gap-2 rounded-full bg-control px-5"
         onPress={() => {
           void haptics.impact("soft");
-          if (router.canGoBack()) router.back();
-          else router.replace("/connected");
+          leaveChat();
         }}
       >
         <ArrowLeft color={String(foreground)} size={20} strokeWidth={2} />

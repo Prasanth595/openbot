@@ -13,7 +13,7 @@ import ArrowDown from "lucide-react-native/icons/arrow-down";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, Keyboard, useColorScheme, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import { KeyboardController, KeyboardGestureArea } from "react-native-keyboard-controller";
+import { KeyboardGestureArea } from "react-native-keyboard-controller";
 import Animated, { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { scheduleOnRN } from "react-native-worklets";
@@ -109,6 +109,8 @@ export interface ChatViewProps {
   detached?: boolean;
   /** Loads the latest messages in place of the window around a searched message. */
   showLatestMessages?: () => Promise<void>;
+  /** Leaves the chat, from the back button and the Android edge swipe. */
+  onLeave: () => void;
 }
 
 const CHAT_BACK_EDGE_WIDTH = 24;
@@ -155,39 +157,6 @@ function useRowsAfterOpenTransition(): boolean {
   return shown;
 }
 
-/**
- * Leaves the chat, once. The back button sits in the edge that the iOS swipe back starts from, so
- * one swipe can press it too. A pop from JS while the native close runs puts the native stack out
- * of step with JS, and iOS then starts the zoom back from a removed view and stops the app.
- */
-function useLeaveConversation(): () => void {
-  const navigation = useNavigation<NativeStackNavigationProp<ParamListBase>>();
-  const closing = useRef(false);
-  useEffect(() => {
-    const unsubscribes = [
-      navigation.addListener("transitionStart", (event) => {
-        if (event.data.closing) closing.current = true;
-      }),
-      navigation.addListener("transitionEnd", (event) => {
-        if (!event.data.closing) closing.current = false;
-      }),
-      navigation.addListener("gestureCancel", () => {
-        closing.current = false;
-      }),
-    ];
-    return () => {
-      for (const unsubscribe of unsubscribes) unsubscribe();
-    };
-  }, [navigation]);
-  return useCallback(() => {
-    if (closing.current) return;
-    closing.current = true;
-    void KeyboardController.dismiss();
-    if (router.canGoBack()) router.back();
-    else router.replace("/connected");
-  }, []);
-}
-
 export function ChatView({
   target,
   queue,
@@ -215,6 +184,7 @@ export function ChatView({
   onFocusPlaced,
   detached = false,
   showLatestMessages,
+  onLeave: leaveConversation,
 }: ChatViewProps) {
   const { t, errorMessage } = useText();
   const workspace = useMobileWorkspaceReader();
@@ -547,7 +517,6 @@ export function ChatView({
     voiceBack.current = voice.back;
   });
   const leaveVoiceMode = useCallback(() => voiceBack.current(), []);
-  const leaveConversation = useLeaveConversation();
   const edgeBackGesture = useMemo(
     () =>
       Gesture.Pan()
