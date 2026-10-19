@@ -259,7 +259,9 @@ Mobile file attachments are currently disabled by `CHAT_ATTACHMENTS_ENABLED` in
 `use-chat-attachments.ts`. The plus button shows a native Coming soon dialog; large pasted text
 stays in the input. When enabled, the native menu on the plus button opens Files. The plus button and input share one row; there is
 no separate paste button. The native multiline input grows to five lines, then scrolls internally;
-its height limit follows the system font scale. Large text pasted into the input becomes a text attachment. Mobile uploads
+its height limit follows the system font scale. Large text pasted into the input becomes a text attachment.
+Photos, videos and other files pasted into the input become attachments through the local
+`modules/composer-paste` native module; Expo Go does not have it and pastes text only. Mobile uploads
 use the released file-transfer protocol and are limited to 10 MB per file. Sending dismisses the
 keyboard. The gesture area covers the chat and uses the measured composer height for dismissal.
 The installed Keyboard Controller content-inset hit-test workaround enables scrolling in blank space.

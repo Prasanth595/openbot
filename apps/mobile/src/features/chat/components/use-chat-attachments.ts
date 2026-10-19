@@ -7,7 +7,6 @@ import {
 } from "@openbot/contracts/attachment-files";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import { MOBILE_ATTACHMENT_BYTES, type RemoteFileUpload } from "@openbot/team-client/remote-peer";
-import type * as Clipboard from "expo-clipboard";
 import * as DocumentPicker from "expo-document-picker";
 import { File } from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
@@ -226,20 +225,14 @@ export function useChatAttachments(
       mobileAnalytics.track("attachment_action", { action: "select", result: "cancelled", attachment_count: 0 });
     else for (const asset of result.assets) await addFile(asset.uri, photoName(asset));
   }
-  function paste(data: Clipboard.PasteEventPayload, onText: (text: string) => void) {
-    if (data.type === "image")
-      return add({
-        name: "pasted-image.png",
-        mimeType: "image/png",
-        base64: data.data.slice(data.data.indexOf(",") + 1),
-      });
-    else if (data.text.length > LARGE_TEXT_LENGTH)
+  function pasteText(text: string, onText: (text: string) => void) {
+    if (text.length > LARGE_TEXT_LENGTH)
       return add({
         name: "pasted-text.txt",
         mimeType: "text/plain",
-        base64: base64(new TextEncoder().encode(data.text)),
+        base64: base64(new TextEncoder().encode(text)),
       });
-    else onText(data.text);
+    onText(text);
   }
   function reportFailures(failures: unknown[]) {
     mobileAnalytics.track("attachment_action", {
@@ -324,7 +317,7 @@ export function useChatAttachments(
     requestCamera,
     chooseFiles: () => report(chooseFiles),
     replace: (id: string) => report(() => replaceItem(id)),
-    paste,
+    pasteText,
     addShared,
     remove: (id: string) => {
       void report(() => persistItems(itemsRef.current.filter((item) => item.id !== id)));

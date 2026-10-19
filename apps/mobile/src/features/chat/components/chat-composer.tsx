@@ -45,11 +45,13 @@ import { useText } from "@/shared/lib/text";
 import { editMentionDraft, insertMention, mentionDraft, mentionQuery } from "../model/chat-mentions";
 import { applyMarkdownListEdit, markdownListReturn } from "../model/composer-lists";
 import { largePastedText } from "../model/composer-paste";
+import { deleteComposerFiles } from "../model/composer-requests";
 import { createComposerSendGate } from "../model/composer-send";
 import { composerAction } from "../model/voice-dictation";
 import { attachmentTypeLabel, shareLocalAttachment } from "./attachment-preview";
 import { AttachmentPreviewSheet } from "./attachment-preview-sheet";
 import { ComposerAttachmentTile, localPreviewUri } from "./composer-attachment-tile";
+import { ComposerPasteTarget, type PastedFiles } from "./composer-paste-target";
 import type { ChatAttachments } from "./use-chat-attachments";
 import type { VoiceMode } from "./use-voice-mode";
 
@@ -268,6 +270,22 @@ export function ChatComposer({
     }, FOCUS_RETRY_INTERVAL_MS);
     return () => clearInterval(retry);
   }, [isFocused, disabled, handoffFocusVersion]);
+  // The copies are read as attachments in the same way as a share from another app, then deleted.
+  const pasteFiles = ({ files, failed }: PastedFiles) => {
+    void attachments
+      .addShared("", files, () => {})
+      .finally(() => {
+        deleteComposerFiles(files);
+        if (failed === 0) return;
+        void haptics.notification("error");
+        showFailureAlert(
+          undefined,
+          "turn",
+          t("mobile.chat.attachment.addFailed"),
+          t("mobile.chat.attachment.unavailable"),
+        );
+      });
+  };
   const pendingCursor = useRef<number | null>(null);
   useLayoutEffect(() => {
     if (pendingCursor.current === null) return;
@@ -916,100 +934,102 @@ export function ChatComposer({
                 <Animated.View
                   style={[{ position: "absolute", left: FIELD_INSET, right: FIELD_INSET, bottom: 0 }, fieldSlideStyle]}
                 >
-                  <TextInput
-                    ref={inputRef}
-                    nativeID="chat-composer-input"
-                    accessibilityLabel={t("mobile.chat.composer.messageAgent", { name: agentName })}
-                    accessibilityState={{ disabled: disabled || voiceOpen }}
-                    accessibilityElementsHidden={voiceOpen}
-                    importantForAccessibility={voiceOpen ? "no-hide-descendants" : "auto"}
-                    editable={!disabled && !voiceOpen}
-                    showSoftInputOnFocus={!disabled && !voiceOpen}
-                    className="min-w-0 font-sans text-foreground"
-                    autoCorrect
-                    autoCapitalize="sentences"
-                    multiline
-                    scrollEnabled={wrap.lines > MAX_INPUT_LINES}
-                    returnKeyType="default"
-                    submitBehavior="newline"
-                    selectionColor={foreground}
-                    style={{
-                      flex: 1,
-                      minWidth: 0,
-                      fontSize: 16,
-                      lineHeight: 22,
-                      paddingVertical: FIELD_VERTICAL_PADDING / 2,
-                      textAlignVertical: "top",
-                    }}
-                    onSelectionChange={({ nativeEvent }) =>
-                      setCursor(
-                        nativeEvent.selection.start === nativeEvent.selection.end ? nativeEvent.selection.end : -1,
-                      )
-                    }
-                    onFocus={() => {
-                      sendGate.focus();
-                      setFocused(true);
-                    }}
-                    onBlur={() => setFocused(false)}
-                    onChangeText={(text) => {
-                      sendGate.edit();
-                      const pasted = largePastedText(latestTextRef.current, text);
-                      if (pasted) {
-                        // Keep the pasted text until its attachment is durable. A failed write must not lose it.
-                        latestTextRef.current = text;
-                        onChangeDraft(text);
-                        void Promise.resolve()
-                          .then(() => attachments.paste({ type: "text", text: pasted.text }, () => {}))
-                          .then(() => {
-                            if (latestTextRef.current !== text) return;
-                            latestTextRef.current = pasted.draft;
-                            onChangeDraft(pasted.draft);
-                          })
-                          .catch((error) => {
-                            void haptics.notification("error");
-                            showFailureAlert(
-                              error,
-                              "turn",
-                              t("mobile.chat.composer.pasteFailed"),
-                              error instanceof Error ? sourceText(error.message) : t("mobile.chat.tryAgain"),
-                            );
-                          });
-                        return;
+                  <ComposerPasteTarget onPasteFiles={pasteFiles}>
+                    <TextInput
+                      ref={inputRef}
+                      nativeID="chat-composer-input"
+                      accessibilityLabel={t("mobile.chat.composer.messageAgent", { name: agentName })}
+                      accessibilityState={{ disabled: disabled || voiceOpen }}
+                      accessibilityElementsHidden={voiceOpen}
+                      importantForAccessibility={voiceOpen ? "no-hide-descendants" : "auto"}
+                      editable={!disabled && !voiceOpen}
+                      showSoftInputOnFocus={!disabled && !voiceOpen}
+                      className="min-w-0 font-sans text-foreground"
+                      autoCorrect
+                      autoCapitalize="sentences"
+                      multiline
+                      scrollEnabled={wrap.lines > MAX_INPUT_LINES}
+                      returnKeyType="default"
+                      submitBehavior="newline"
+                      selectionColor={foreground}
+                      style={{
+                        flex: 1,
+                        minWidth: 0,
+                        fontSize: 16,
+                        lineHeight: 22,
+                        paddingVertical: FIELD_VERTICAL_PADDING / 2,
+                        textAlignVertical: "top",
+                      }}
+                      onSelectionChange={({ nativeEvent }) =>
+                        setCursor(
+                          nativeEvent.selection.start === nativeEvent.selection.end ? nativeEvent.selection.end : -1,
+                        )
                       }
-                      const source = latestTextRef.current;
-                      const previous = mentionDraft(source).text;
-                      const listEdit = markdownListReturn(previous, text, cursor);
-                      if (listEdit) pendingCursor.current = listEdit.caret;
-                      const next = listEdit
-                        ? applyMarkdownListEdit(source, previous, cursor, listEdit)
-                        : editMentionDraft(source, text);
-                      latestTextRef.current = next;
-                      onChangeDraft(next);
-                    }}
-                    onSubmitEditing={({ nativeEvent }) => {
-                      if (!disabled && sendGate.submit())
-                        onSend(editMentionDraft(latestTextRef.current, nativeEvent.text));
-                    }}
-                    onEndEditing={({ nativeEvent: { text } }) => {
-                      // Native editing can end before the send button's release event,
-                      // while TextInput.isFocused() is still waiting for onBlur.
-                      latestTextRef.current = editMentionDraft(latestTextRef.current, text);
-                      if (sendGate.commit() && !disabled) onSend(latestTextRef.current);
-                    }}
-                  >
-                    {/* TextInput requires native text children for editable attributed text. */}
-                    <NativeText>
-                      {display.mentions.map((mention, index) => (
-                        <NativeText key={mention.start}>
-                          {displayText.slice(index ? (display.mentions[index - 1]?.end ?? 0) : 0, mention.start)}
-                          <NativeText style={{ color: action }}>
-                            {displayText.slice(mention.start, mention.end)}
+                      onFocus={() => {
+                        sendGate.focus();
+                        setFocused(true);
+                      }}
+                      onBlur={() => setFocused(false)}
+                      onChangeText={(text) => {
+                        sendGate.edit();
+                        const pasted = largePastedText(latestTextRef.current, text);
+                        if (pasted) {
+                          // Keep the pasted text until its attachment is durable. A failed write must not lose it.
+                          latestTextRef.current = text;
+                          onChangeDraft(text);
+                          void Promise.resolve()
+                            .then(() => attachments.pasteText(pasted.text, () => {}))
+                            .then(() => {
+                              if (latestTextRef.current !== text) return;
+                              latestTextRef.current = pasted.draft;
+                              onChangeDraft(pasted.draft);
+                            })
+                            .catch((error) => {
+                              void haptics.notification("error");
+                              showFailureAlert(
+                                error,
+                                "turn",
+                                t("mobile.chat.composer.pasteFailed"),
+                                error instanceof Error ? sourceText(error.message) : t("mobile.chat.tryAgain"),
+                              );
+                            });
+                          return;
+                        }
+                        const source = latestTextRef.current;
+                        const previous = mentionDraft(source).text;
+                        const listEdit = markdownListReturn(previous, text, cursor);
+                        if (listEdit) pendingCursor.current = listEdit.caret;
+                        const next = listEdit
+                          ? applyMarkdownListEdit(source, previous, cursor, listEdit)
+                          : editMentionDraft(source, text);
+                        latestTextRef.current = next;
+                        onChangeDraft(next);
+                      }}
+                      onSubmitEditing={({ nativeEvent }) => {
+                        if (!disabled && sendGate.submit())
+                          onSend(editMentionDraft(latestTextRef.current, nativeEvent.text));
+                      }}
+                      onEndEditing={({ nativeEvent: { text } }) => {
+                        // Native editing can end before the send button's release event,
+                        // while TextInput.isFocused() is still waiting for onBlur.
+                        latestTextRef.current = editMentionDraft(latestTextRef.current, text);
+                        if (sendGate.commit() && !disabled) onSend(latestTextRef.current);
+                      }}
+                    >
+                      {/* TextInput requires native text children for editable attributed text. */}
+                      <NativeText>
+                        {display.mentions.map((mention, index) => (
+                          <NativeText key={mention.start}>
+                            {displayText.slice(index ? (display.mentions[index - 1]?.end ?? 0) : 0, mention.start)}
+                            <NativeText style={{ color: action }}>
+                              {displayText.slice(mention.start, mention.end)}
+                            </NativeText>
                           </NativeText>
-                        </NativeText>
-                      ))}
-                      {displayText.slice(display.mentions.at(-1)?.end ?? 0)}
-                    </NativeText>
-                  </TextInput>
+                        ))}
+                        {displayText.slice(display.mentions.at(-1)?.end ?? 0)}
+                      </NativeText>
+                    </TextInput>
+                  </ComposerPasteTarget>
                 </Animated.View>
                 {displayText ? null : (
                   <Animated.View
