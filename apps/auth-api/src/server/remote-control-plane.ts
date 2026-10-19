@@ -1261,7 +1261,7 @@ export class RemoteControlPlane {
           .all<{ session_id: string }>(),
       );
       // The writes after the membership apply only when it took its seat. A refused UPDATE leaves the
-      // member inactive, so the host keeps its auth epoch and its connections.
+      // member inactive, so the member keeps their sessions and invitations.
       const applied = activating
         ? {
             sql: "EXISTS(SELECT 1 FROM remote_memberships WHERE membership_id = ? AND status = 'active')",
@@ -1271,6 +1271,9 @@ export class RemoteControlPlane {
       // An admin who leaves, is removed or is demoted can no longer invite, so their open invitations
       // close. Then they leave the invitation limits and the list.
       const closingInvites = membership.role === "admin" && (input.revoke === true || role !== "admin");
+      // Only a removal or a leave bumps the host's auth epoch. A new epoch makes Signal drop the host
+      // and every connected member. A role change or reactivation ends this member's sessions below.
+      const revokingAccess = input.revoke === true;
       const changed = yield* remoteCall(() =>
         dependencies.database.batch([
           dependencies.database
@@ -1297,12 +1300,13 @@ export class RemoteControlPlane {
                   .bind(now, input.hostId, membership.user_id, ...(applied?.binds ?? [])),
               ]
             : []),
-          dependencies.database
-            .prepare(
-              `UPDATE remote_hosts SET auth_epoch = auth_epoch + 1, updated_at = ?
-            WHERE host_id = ?${applied ? ` AND ${applied.sql}` : ""}`,
-            )
-            .bind(now, input.hostId, ...(applied?.binds ?? [])),
+          ...(revokingAccess
+            ? [
+                dependencies.database
+                  .prepare("UPDATE remote_hosts SET auth_epoch = auth_epoch + 1, updated_at = ? WHERE host_id = ?")
+                  .bind(now, input.hostId),
+              ]
+            : []),
           dependencies.database
             .prepare(
               `UPDATE remote_sessions SET ended_at = ?
@@ -1316,7 +1320,7 @@ export class RemoteControlPlane {
               applied,
             ),
           ),
-          this.#authEpochEventStatement(input.hostId, now, undefined, applied),
+          ...(revokingAccess ? [this.#authEpochEventStatement(input.hostId, now)] : []),
           // The member whose membership this is, and not the owner who changed it: a revoked server
           // has to leave that member's list on every device they are signed in on.
           this.#authEventStatement({ type: "account-servers-changed", userId: membership.user_id }, now, applied),
