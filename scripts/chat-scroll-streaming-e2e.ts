@@ -1,8 +1,9 @@
 // Checks that the reader can scroll away from a reply that is still arriving, in a running Storybook
 // that renders the real conversation timeline against the preview mock. Read-only. Pass the URL that
 // `bun run storybook` reports: `bun scripts/chat-scroll-streaming-e2e.ts --storybook=http://localhost:6006`.
-// The chat must follow the reply while the reader is at the bottom, hold still after a short scroll up
-// and after a long one, and follow again when the reader goes back to the bottom.
+// The chat must follow the reply while the reader is at the bottom, also after a sideways swipe, hold
+// still after a short scroll up and after a long one, follow again when the reader goes back to the
+// bottom, and hold still after a scroll up with the arrow key.
 // It checks a history of 40 rows, which the timeline draws whole, and one of 120, which it virtualizes.
 // Writes .openbot-build/chat-scroll-streaming-e2e/report.json and one screenshot per story.
 import assert from "node:assert/strict";
@@ -38,9 +39,11 @@ interface HoldResult {
 
 interface StoryResult {
   follows?: Position;
+  followsAfterSidewaysSwipe?: Position;
   shortScrollUp?: HoldResult;
   longScrollUp?: HoldResult;
   followsAgain?: Position;
+  arrowKeyScrollUp?: HoldResult;
 }
 
 interface Report {
@@ -76,29 +79,33 @@ async function waitForGrowth(page: Page, from: number): Promise<void> {
 }
 
 /*
- * One wheel step, then the scroll event that moves the chat in its direction. A scroll event that the
- * chat's own follow queued before the step can arrive first.
+ * An input, then the scroll event that moves the chat in its direction. A scroll event that the chat's
+ * own follow queued before the input can arrive first.
  */
-async function wheel(page: Page, deltaY: number): Promise<void> {
-  const scrolled = page.evaluate((up) => {
+async function scrollWith(page: Page, up: boolean, input: () => Promise<void>): Promise<void> {
+  const scrolled = page.evaluate((towardTop) => {
     const scroll = document.querySelector<HTMLElement>(".conversation-scroll");
     if (!scroll) throw new Error("The conversation is missing.");
     const from = scroll.scrollTop;
     return new Promise((done) => {
       const onScroll = () => {
-        if (up ? scroll.scrollTop >= from : scroll.scrollTop <= from) return;
+        if (towardTop ? scroll.scrollTop >= from : scroll.scrollTop <= from) return;
         scroll.removeEventListener("scroll", onScroll);
         done(undefined);
       };
       scroll.addEventListener("scroll", onScroll);
     });
-  }, deltaY < 0);
-  await page.mouse.wheel(0, deltaY);
+  }, up);
+  await input();
   await scrolled;
 }
 
-async function holdsAfterScrollUp(page: Page, steps: number): Promise<HoldResult> {
-  for (let step = 0; step < steps; step += 1) await wheel(page, -40);
+function wheel(page: Page, deltaY: number): Promise<void> {
+  return scrollWith(page, deltaY < 0, () => page.mouse.wheel(0, deltaY));
+}
+
+async function holds(page: Page, scrollUp: () => Promise<void>): Promise<HoldResult> {
+  await scrollUp();
   const before = await position(page);
   await waitForGrowth(page, before.scrollHeight);
   const after = await position(page);
@@ -108,6 +115,12 @@ async function holdsAfterScrollUp(page: Page, steps: number): Promise<HoldResult
     scrollTopMoved: after.scrollTop - before.scrollTop,
     replyMoved: after.replyTop - before.replyTop,
   };
+}
+
+function assertHolds(story: string, name: string, hold: HoldResult): void {
+  assert.ok(hold.after.distanceFromBottom > 80, `${story}: the chat went back to the bottom after ${name}.`);
+  assert.ok(Math.abs(hold.scrollTopMoved) <= TOLERANCE, `${story}: the chat moved after ${name}.`);
+  assert.ok(Math.abs(hold.replyMoved) <= TOLERANCE, `${story}: the reply moved after ${name}.`);
 }
 
 async function checkStory(page: Page, story: string, result: StoryResult): Promise<void> {
@@ -122,22 +135,24 @@ async function checkStory(page: Page, story: string, result: StoryResult): Promi
   result.follows = await position(page);
   assert.ok(result.follows.distanceFromBottom <= 80, `${story}: the chat does not follow the reply at the bottom.`);
 
+  // A sideways swipe with a small vertical delta, as a trackpad sends, does not stop the follow.
+  await page.mouse.wheel(-60, -1);
+  await waitForGrowth(page, (await position(page)).scrollHeight);
+  result.followsAfterSidewaysSwipe = await position(page);
+  assert.ok(
+    result.followsAfterSidewaysSwipe.distanceFromBottom <= 80,
+    `${story}: the chat stopped following the reply after a sideways swipe.`,
+  );
+
   // A short scroll up, less than the distance that counted as the bottom, holds the chat still.
   // A longer scroll up holds it still too. Both are measured before either is checked.
-  result.shortScrollUp = await holdsAfterScrollUp(page, 1);
-  result.longScrollUp = await holdsAfterScrollUp(page, 8);
+  result.shortScrollUp = await holds(page, () => wheel(page, -40));
+  result.longScrollUp = await holds(page, async () => {
+    for (let step = 0; step < 8; step += 1) await wheel(page, -40);
+  });
   await page.screenshot({ path: resolve(OUT, `${story.split("--")[1]}.png`) });
-  for (const [name, hold] of [
-    ["short", result.shortScrollUp],
-    ["long", result.longScrollUp],
-  ] as const) {
-    assert.ok(
-      hold.after.distanceFromBottom > 80,
-      `${story}: the chat went back to the bottom after a ${name} scroll up.`,
-    );
-    assert.ok(Math.abs(hold.scrollTopMoved) <= TOLERANCE, `${story}: the chat moved after a ${name} scroll up.`);
-    assert.ok(Math.abs(hold.replyMoved) <= TOLERANCE, `${story}: the reply moved after a ${name} scroll up.`);
-  }
+  assertHolds(story, "a short scroll up", result.shortScrollUp);
+  assertHolds(story, "a long scroll up", result.longScrollUp);
 
   // Back at the bottom, the chat follows the reply again.
   await wheel(page, 100_000);
@@ -147,6 +162,12 @@ async function checkStory(page: Page, story: string, result: StoryResult): Promi
     result.followsAgain.distanceFromBottom <= 80,
     `${story}: the chat does not follow the reply again at the bottom.`,
   );
+
+  // A click on the reply leaves the focus on the page; the arrow key then scrolls the chat up. The reply
+  // keeps growing, so the click goes to a point and does not wait for the row to stop moving.
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  result.arrowKeyScrollUp = await holds(page, () => scrollWith(page, true, () => page.keyboard.press("ArrowUp")));
+  assertHolds(story, "a scroll up with the arrow key", result.arrowKeyScrollUp);
 }
 
 mkdirSync(OUT, { recursive: true });
