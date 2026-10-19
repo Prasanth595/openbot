@@ -118,7 +118,7 @@ const ESTIMATED_ROW_SIZE = 150;
 // prepares less than one row, and a quick scroll showed empty space and rows that grew in place.
 const DRAW_SCREENS = 1;
 // A scroll faster than about a screen per half second marks the list "light". A row that mounts then
-// keeps the space of its buttons, previews and media, and draws them when the list slows down. The
+// keeps the space of its previews and media, and draws them when the list slows down. The
 // default threshold is three times faster, so an ordinary quick scroll rendered every row in full.
 const ADAPTIVE_RENDER = { enterVelocity: 1.5, exitVelocity: 0.5 };
 // Older messages that a page adds at the top, and rows that change size above the visible rows, do
