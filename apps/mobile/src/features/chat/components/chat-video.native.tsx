@@ -114,10 +114,17 @@ function useVideoPoster(key: string, uri: string | null) {
     const release = () => {
       if (released) return;
       released = true;
-      subscription.remove();
+      loaded.remove();
+      failed.remove();
       player.release();
     };
-    const subscription = player.addListener("sourceLoad", ({ duration }) => {
+    // A file the device cannot decode gives no `sourceLoad`, only an error status.
+    const failed = player.addListener("statusChange", ({ status }) => {
+      if (status !== "error") return;
+      if (active) setMissing(true);
+      release();
+    });
+    const loaded = player.addListener("sourceLoad", ({ duration }) => {
       void player
         .generateThumbnailsAsync(0, { maxWidth: POSTER_PIXELS, maxHeight: POSTER_PIXELS })
         .then(([thumbnail]) => {
