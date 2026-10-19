@@ -129,6 +129,7 @@ export function useChatMotion(
   const [latestGeneration, setLatestGeneration] = useState(0);
   const lastRequiredInputId = useRef(requiredInputId);
   const requiredInputFrame = useRef<number | null>(null);
+  const sendScrollFrame = useRef<number | null>(null);
   const measurements = useRef({ viewport: 0, content: 0, composer: 0 });
   // Whether the list had rows when it last finished its first position. Null until it does once.
   const [placedWithRows, setPlacedWithRows] = useState<boolean | null>(null);
@@ -178,6 +179,7 @@ export function useChatMotion(
   useEffect(
     () => () => {
       if (requiredInputFrame.current !== null) cancelAnimationFrame(requiredInputFrame.current);
+      if (sendScrollFrame.current !== null) cancelAnimationFrame(sendScrollFrame.current);
     },
     [],
   );
@@ -217,9 +219,18 @@ export function useChatMotion(
       reveal();
       // From older messages the list jumps: a long animated scroll would render every row on the way.
       const animated = !send.first && send.fromLatest && !reducedMotion;
-      void (info.anchorIndex === undefined
-        ? list.scrollToEnd({ animated })
-        : list.scrollToIndex({ index: info.anchorIndex, viewOffset: header, animated }));
+      if (sendScrollFrame.current !== null) cancelAnimationFrame(sendScrollFrame.current);
+      if (animated) {
+        sendScrollFrame.current = requestAnimationFrame(() => {
+          sendScrollFrame.current = requestAnimationFrame(() => {
+            sendScrollFrame.current = null;
+            void listRef.current?.scrollToEnd({ animated: true });
+          });
+        });
+      } else {
+        sendScrollFrame.current = null;
+        void list.scrollToEnd({ animated: false });
+      }
       if (!send.first || info.anchorIndex === undefined) return;
       const m = measurements.current;
       const lift = Math.max(0, keyboardHeight.get() - keyboardOffset);
@@ -295,6 +306,8 @@ export function useChatMotion(
   }, [firstOpacity, responseOpacity]);
   const cancelSend = useCallback(() => {
     pending.current = null;
+    if (sendScrollFrame.current !== null) cancelAnimationFrame(sendScrollFrame.current);
+    sendScrollFrame.current = null;
     cancelAnimation(firstOffset);
     firstOffset.set(0);
     firstOpacity.set(1);
