@@ -41,7 +41,7 @@ export interface RichMessageTextProps {
    * False shows only the link icon, so that no linked site is asked for its favicon. Use it for
    * text that another person wrote, such as the instructions of a shared agent.
    */
-  linkFavicons?: boolean;
+  linkFavicons?: boolean | undefined;
 }
 
 const UNAVAILABLE_TAG_LABELS = {
