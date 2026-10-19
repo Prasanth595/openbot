@@ -216,7 +216,10 @@ export function useChatMotion(
       pending.current = null;
       reveal();
       // From older messages the list jumps: a long animated scroll would render every row on the way.
-      void list.scrollToEnd({ animated: !send.first && send.fromLatest && !reducedMotion });
+      const animated = !send.first && send.fromLatest && !reducedMotion;
+      void (info.anchorIndex === undefined
+        ? list.scrollToEnd({ animated })
+        : list.scrollToIndex({ index: info.anchorIndex, viewOffset: header, animated }));
       if (!send.first || info.anchorIndex === undefined) return;
       const m = measurements.current;
       const lift = Math.max(0, keyboardHeight.get() - keyboardOffset);
