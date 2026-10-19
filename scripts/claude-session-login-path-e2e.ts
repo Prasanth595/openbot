@@ -54,14 +54,20 @@ try {
 
   // The SDK starts the process when the query is made; wait for the file it writes.
   const sessionPath = await new Promise<string>((done, fail) => {
-    const deadline = setTimeout(() => fail(new Error("The Claude process did not start.")), 10_000);
+    let expired = false;
+    const deadline = setTimeout(() => {
+      expired = true;
+      fail(new Error("The Claude process did not start."));
+    }, 10_000);
     const poll = () =>
       readFile(recorded, "utf8").then(
         (text) => {
           clearTimeout(deadline);
           done(text);
         },
-        () => setTimeout(poll, 50),
+        () => {
+          if (!expired) setTimeout(poll, 50);
+        },
       );
     poll();
   });
