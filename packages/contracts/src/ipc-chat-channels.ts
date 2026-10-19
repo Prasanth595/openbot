@@ -88,7 +88,7 @@ export interface ChannelPage {
   tasks: ChannelTask[];
   olderCursor: number | null;
   throughSequence: number;
-  /** As in `ConversationPageInfo`: the unloaded length, for the day rail. Absent from a remote host. */
+  /** As in `ConversationPageInfo`: the unloaded length, for the scroll rail. Absent from a remote host. */
   olderCount?: number;
   oldestAt?: string;
 }

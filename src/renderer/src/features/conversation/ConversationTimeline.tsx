@@ -230,7 +230,9 @@ export function ConversationTimeline() {
   const rail = createChatScrollRail({
     rows: timelineMessages,
     // A change the person made in the app, such as to a routine, is a marker, not a message they wrote.
-    question: (message) => (message.author === "you" && !message.actionMarker ? message.body : undefined),
+    // In a shared chat, a message from another member is theirs.
+    question: (message) =>
+      message.author === "you" && !message.actionMarker && !otherSender(message) ? message.body : undefined,
     storedCount: () => props.messages.length,
     unloaded: () => props.unloadedHistory,
     virtualizer: messageVirtualizer,

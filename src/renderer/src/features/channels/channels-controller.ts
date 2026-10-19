@@ -7,7 +7,7 @@ import { mergeChannelPage } from "./channel-page-merge";
 
 /**
  * Takes the older edge of a page: its cursor, and the unloaded length that belongs to that cursor. A
- * page with no length removes the old one, so the day rail never draws a length for another window.
+ * page with no length removes the old one, so the scroll rail never draws a length for another window.
  */
 function takeOlderWindow(target: ChannelPage, source: ChannelPage): void {
   target.olderCursor = source.olderCursor;

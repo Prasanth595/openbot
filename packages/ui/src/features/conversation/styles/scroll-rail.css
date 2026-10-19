@@ -173,11 +173,12 @@
   text-underline-offset: 4px;
 }
 
-/* A hit area wider than the 2px bar it holds. The bar is 5-7px from the edge, inside the 12px
-   padding the narrowest transcript keeps, so it does not cover a message. */
+/* A hit area wider than the 2px bar it holds. The bars always take the pointer, so the hit area stays
+   inside the container's side padding and does not cover the edge of a message. The bar is 3-9px
+   from the edge, inside the 12px padding the narrowest transcript keeps. */
 .chat-scroll-rail-bar {
   position: relative;
-  width: 20px;
+  width: clamp(12px, var(--chat-scroll-rail-inset, 20px), 20px);
   flex: none;
   padding-bottom: var(--openbot-space-1);
 }

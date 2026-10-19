@@ -34,7 +34,7 @@ interface DirectConversationProps {
   loading: boolean;
   loadError: string | null;
   hasOlder?: boolean;
-  /** The messages above the loaded page, for the day rail. Absent when the host does not count them. */
+  /** The messages above the loaded page, for the scroll rail. Absent when the host does not count them. */
   unloadedHistory?: UnloadedHistory | undefined;
   loadingOlder?: boolean;
   olderError?: string | null;

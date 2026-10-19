@@ -109,8 +109,14 @@ export function chatScrollSections(input: {
     row: question.index,
   }));
   const unloaded = input.unloaded;
-  if (!unloaded || unloaded.count === 0 || input.rowCount === 0 || input.storedCount === 0) return loaded;
   const firstStart = input.itemStart(0) ?? 0;
+  if (!unloaded || unloaded.count === 0 || input.rowCount === 0 || input.storedCount === 0) {
+    // With no part above, the first section also holds the rows above its message, such as an agent's
+    // introduction, so the rail covers the whole chat.
+    const first = loaded[0];
+    if (first && first.start !== undefined) first.start = Math.min(first.start, firstStart);
+    return loaded;
+  }
   const heightPerMessage = input.totalSize / input.storedCount;
   const { t, format } = input.text;
   const oldest = unloaded.oldestAt ? new Date(unloaded.oldestAt) : undefined;

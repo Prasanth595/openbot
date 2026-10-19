@@ -1439,7 +1439,7 @@ export const ScrollToLatest: Story = {
   },
 };
 
-/** Five days of history, 120 messages: scroll to bring in the day rail on the right edge. */
+/** Five days of history, 120 messages: the scroll rail is on the right edge. */
 export const LongHistory: Story = {
   args: {
     messages: Array.from({ length: 120 }, (_, index): RendererAgentMessage => {
