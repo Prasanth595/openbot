@@ -37,7 +37,7 @@ export interface RemoteApiConfig {
 export interface DiscordBotConfig {
   botToken: string;
   applicationId: string;
-  /** Asks for the privileged Message Content intent. Signal falls back without it when Discord refuses. */
+  /** Asks for the privileged Message Content intent, by default. Signal falls back without it when Discord refuses. */
   messageContent: boolean;
 }
 
@@ -124,7 +124,7 @@ function httpsOrigin(value: string): string | null {
 /**
  * `DISCORD_BOT_TOKEN` and `DISCORD_APPLICATION_ID` turn on the Discord bot together. A missing or
  * malformed value turns off only Discord: the remote sessions and the Slack route keep running.
- * `DISCORD_MESSAGE_CONTENT=true` asks for the Message Content intent.
+ * Signal asks for the Message Content intent unless `DISCORD_MESSAGE_CONTENT` is `false`.
  */
 function readDiscordBot(
   token: string | undefined,
@@ -136,7 +136,7 @@ function readDiscordBot(
   if (!botToken || !id) return null;
   if (!/^[A-Za-z0-9_-]{1,128}\.[A-Za-z0-9_-]{1,128}\.[A-Za-z0-9_-]{1,256}$/u.test(botToken)) return null;
   if (!/^[0-9]{17,20}$/u.test(id)) return null;
-  return { botToken, applicationId: id, messageContent: messageContent === "true" };
+  return { botToken, applicationId: id, messageContent: messageContent !== "false" };
 }
 
 export function readRemoteApiConfig(environment: Record<string, string | undefined> = process.env): RemoteApiConfig {

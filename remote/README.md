@@ -62,13 +62,13 @@ malformed value, Discord is off: Signal logs one line without the value, keeps n
 connection, and `POST /v1/discord/api` answers 503. The remote sessions and the Slack route keep
 running.
 
-`DISCORD_MESSAGE_CONTENT=true` asks for the privileged Message Content intent, so that OpenBot gets
-the text of the message a person replies to and of the conversation history. Turn on **Message Content
-Intent** in the Developer Portal first. When Discord refuses the intent (close code 4014), Signal logs
-one line and connects without it.
+Signal asks for the privileged Message Content intent, so that OpenBot gets the text of the message
+a person replies to and of the conversation history. Turn on **Message Content Intent** in the
+Developer Portal. When Discord refuses the intent (close code 4014), Signal logs one line and connects
+without it. `DISCORD_MESSAGE_CONTENT=false` stops Signal asking for it.
 
 Signal keeps the bot's Gateway connection with the intents `Guilds`, `GuildMessages` and
-`DirectMessages`, plus `MessageContent` when `DISCORD_MESSAGE_CONTENT` is `true`. Without the
+`DirectMessages`, plus `MessageContent` unless `DISCORD_MESSAGE_CONTENT` is `false`. Without the
 Message Content intent, Discord gives the bot the text of a message only when the message mentions
 the bot. With it, Discord sends the text of every message in the channels the bot can see; Signal
 still passes on only the messages that mention the bot. From the Gateway, Signal reads:

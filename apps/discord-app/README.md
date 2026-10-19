@@ -27,15 +27,15 @@ Make one application for production and one for development at
   - Turn off **Requires OAuth2 Code Grant**.
   - Turn on **Message Content Intent**, and leave the other privileged intents off. With it,
     OpenBot reads the message that a person replies to and the earlier messages of a conversation.
-    Then set `DISCORD_MESSAGE_CONTENT=true` for Signal. A bot that is verified, or in 100 or more
-    servers, needs Discord's approval for the intent first.
+    Signal asks for it by default. A bot that is verified, or in 100 or more servers, needs
+    Discord's approval for the intent first.
   - Select **Reset Token** and copy the bot token once.
 
 The install asks for the permissions in `DISCORD_BOT_PERMISSIONS`
 (`packages/contracts/src/discord-app.ts`): view channels, send messages, send messages in threads,
 embed links, attach files, read message history and add reactions. Signal asks for the intents in
 `DISCORD_GATEWAY_INTENTS`: guilds, guild messages and direct messages, and adds
-`DISCORD_MESSAGE_CONTENT_INTENT` when `DISCORD_MESSAGE_CONTENT` is `true`.
+`DISCORD_MESSAGE_CONTENT_INTENT` unless `DISCORD_MESSAGE_CONTENT` is `false`.
 
 ## Secrets
 
@@ -47,7 +47,7 @@ embed links, attach files, read message history and add reactions. Signal asks f
 | Worker | `DISCORD_ROUTE_PRIVATE_JWK`, `DISCORD_ROUTE_KEY_ID` | An ES256 key that signs route tickets. Put its public key in `REMOTE_TICKET_PUBLIC_JWKS`. |
 | Signal | `DISCORD_BOT_TOKEN` | The bot token. |
 | Signal | `DISCORD_APPLICATION_ID` | The application ID. |
-| Signal | `DISCORD_MESSAGE_CONTENT` | `true` after **Message Content Intent** is on. Not a secret. |
+| Signal | `DISCORD_MESSAGE_CONTENT` | Optional. `false` stops Signal asking for the Message Content intent. Not a secret. |
 
 `scripts/deploy-auth-api.ts` (`bun run --cwd apps/auth-api deploy`) sets the Worker secrets when they are in the environment. Without them, the
 Discord routes answer 503 `discord_not_configured`. Without the Signal values, Signal keeps no Gateway

@@ -22,9 +22,9 @@ export const DISCORD_BOT_PERMISSIONS = (
 export const DISCORD_GATEWAY_INTENTS = (1 << 0) | (1 << 9) | (1 << 12);
 
 /**
- * The privileged Message Content intent. Signal adds it when `DISCORD_MESSAGE_CONTENT` is `true`, so
- * that the message a person replies to, and the conversation history, have their text. It must be
- * turned on in the Developer Portal first.
+ * The privileged Message Content intent. Signal adds it unless `DISCORD_MESSAGE_CONTENT` is `false`, so
+ * that the message a person replies to, and the conversation history, have their text. When the
+ * Developer Portal has it off, Discord refuses it and Signal connects without it.
  */
 export const DISCORD_MESSAGE_CONTENT_INTENT = 1 << 15;
 
