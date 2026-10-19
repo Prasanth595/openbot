@@ -20,6 +20,7 @@ export function TemplateInstructions(props: { title: string; description: string
       <div class="agent-template-prose message-markdown">
         <MarkdownMessageText
           imagesAsLinks
+          linkFavicons={false}
           body={props.description}
           agents={[]}
           onSelectAgent={() => undefined}

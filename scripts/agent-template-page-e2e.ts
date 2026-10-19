@@ -150,6 +150,10 @@ try {
       const page = await browser.newPage({ viewport: { width: view.width, height: view.height } });
       const errors: string[] = [];
       page.on("pageerror", (error) => errors.push(error.message));
+      const faviconRequests: string[] = [];
+      page.on("request", (request) => {
+        if (new URL(request.url()).hostname === "example.com") faviconRequests.push(request.url());
+      });
       page.on("console", (message) => {
         if (message.type() === "error") errors.push(message.text());
       });
@@ -197,6 +201,9 @@ try {
       assert.equal(await instructions.getByRole("link", { name: "this link" }).count(), 0);
       assert.ok(text.includes("<script>window.agentShareInjected = true</script>"), text);
       assert.equal(await instructions.locator("script, img[onerror]").count(), 0);
+      // A link in another person's text never asks its site for a favicon.
+      assert.equal(await instructions.locator(".message-link-icon img").count(), 0);
+      assert.deepEqual(faviconRequests, []);
       assert.equal(await page.evaluate(() => "agentShareInjected" in window), false);
       assert.deepEqual(errors, []);
 

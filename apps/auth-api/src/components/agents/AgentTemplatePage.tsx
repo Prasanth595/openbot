@@ -2,7 +2,7 @@ import { createOpenBotAgentTemplateUrl, createWebAppAgentTemplatePath } from "@o
 import type { AgentTemplateDetail } from "@openbot/contracts/ipc";
 import { markdownPlainText, markdownPreviewText } from "@openbot/contracts/markdown-preview-text";
 import { Link } from "@tanstack/solid-router";
-import { createSignal, For, Loading, lazy, onSettled, Show } from "solid-js";
+import { createMemo, createSignal, For, Loading, lazy, onSettled, Show } from "solid-js";
 import { agentTemplatePath } from "../../lib/agent-template-path";
 import { landingAnalytics } from "../../lib/analytics";
 import { LandingFooter } from "../landing/LandingFooter";
@@ -55,8 +55,8 @@ export function AgentTemplatePage(props: AgentTemplatePageProps) {
 
   // Closed, the instructions are one paragraph of plain text. Opened, they show their Markdown, so
   // "Read more" is there also when the text fits but has headings, lists or other formatting.
-  const preview = () => markdownPreviewText(props.template.description);
-  const hasMore = () => clamped() || preview() !== props.template.description.trim();
+  const preview = createMemo(() => markdownPreviewText(props.template.description));
+  const hasMore = () => clamped() || preview() !== props.template.description.replace(/\s+/gu, " ").trim();
   const openUrl = () => createOpenBotAgentTemplateUrl(props.template.id);
   const counts = () =>
     [countLabel(props.template.skills.length, "skill"), countLabel(props.template.routines.length, "routine")].filter(
@@ -111,6 +111,7 @@ export function AgentTemplatePage(props: AgentTemplatePageProps) {
                 >
                   <MarkdownMessageText
                     imagesAsLinks
+                    linkFavicons={false}
                     body={props.template.description}
                     agents={[]}
                     onSelectAgent={() => undefined}
