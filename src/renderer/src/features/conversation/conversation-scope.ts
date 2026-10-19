@@ -419,9 +419,7 @@ export function createConversationViewScope(props: ConversationProps) {
     },
     sticky: {
       getStickToLatest: () => stickToLatest,
-      setStickToLatest: (value: boolean) => {
-        stickToLatest = value;
-      },
+      setStickToLatest,
       getCurrentUnreadCount: () => currentUnreadCount,
     },
   });
@@ -449,9 +447,7 @@ export function createConversationViewScope(props: ConversationProps) {
     scrollElement: () => scrollElement,
     timelineIndexById,
     scrollToIndex: (index) => messageVirtualizer.scrollToIndex(index),
-    setStickToLatest: (value) => {
-      stickToLatest = value;
-    },
+    setStickToLatest,
   });
   const search = createSearchStore({
     props,
@@ -573,9 +569,7 @@ export function createConversationViewScope(props: ConversationProps) {
     clearConversationError,
     clearSubmittedDraft,
     setConversationError,
-    setStickToLatest: (value: boolean) => {
-      stickToLatest = value;
-    },
+    setStickToLatest,
     pendingSends,
     attachmentPicker: () => attachmentPicker,
   });
@@ -648,6 +642,10 @@ export function createConversationViewScope(props: ConversationProps) {
   let unreadMessagesDivider: HTMLDivElement | undefined;
   let latestScrollFrame: number | undefined;
   let latestScrollSettleFrame: number | undefined;
+  let lastScrollTop = 0;
+  let readerLeftLatest = false;
+  let readerDragging = false;
+  let lastTouchY: number | undefined;
   let currentUnreadCount = 0;
   let conversationPanel: HTMLElement | undefined;
   const [browserSurface, setBrowserSurface] = createSignal<HTMLDivElement>();
@@ -798,6 +796,17 @@ export function createConversationViewScope(props: ConversationProps) {
     keyboardWindow.addEventListener("keydown", closeActiveRemoteBrowserTab);
     keyboardTarget.addEventListener("keydown", chatSearchListener);
     window.addEventListener("pointerdown", closeMessageMenus);
+    const readerInput = scrollElement;
+    const endReaderDrag = () => {
+      readerDragging = false;
+    };
+    readerInput?.addEventListener("wheel", readerWheel, { passive: true });
+    readerInput?.addEventListener("keydown", readerKeyDown);
+    readerInput?.addEventListener("touchmove", readerTouchMove, { passive: true });
+    readerInput?.addEventListener("touchend", readerTouchEnd);
+    readerInput?.addEventListener("pointerdown", readerPointerDown);
+    window.addEventListener("pointerup", endReaderDrag);
+    window.addEventListener("pointercancel", endReaderDrag);
     scrollResizeObserver = new ResizeObserver(() => {
       updateVirtualScrollMargin();
       if (scrollElement && stickToLatest) followConversationBottom(scrollElement);
@@ -824,6 +833,13 @@ export function createConversationViewScope(props: ConversationProps) {
       keyboardWindow.removeEventListener("keydown", closeActiveRemoteBrowserTab);
       keyboardTarget.removeEventListener("keydown", chatSearchListener);
       window.removeEventListener("pointerdown", closeMessageMenus);
+      readerInput?.removeEventListener("wheel", readerWheel);
+      readerInput?.removeEventListener("keydown", readerKeyDown);
+      readerInput?.removeEventListener("touchmove", readerTouchMove);
+      readerInput?.removeEventListener("touchend", readerTouchEnd);
+      readerInput?.removeEventListener("pointerdown", readerPointerDown);
+      window.removeEventListener("pointerup", endReaderDrag);
+      window.removeEventListener("pointercancel", endReaderDrag);
     };
   });
 
@@ -919,7 +935,7 @@ export function createConversationViewScope(props: ConversationProps) {
       if (conversationIdentity !== lastConversationIdentity) {
         if (lastConversationIdentity !== undefined) closeChatSearch(false);
         lastConversationIdentity = conversationIdentity;
-        stickToLatest = true;
+        setStickToLatest(true);
         setAgentActivitySpaceReserved(false);
       }
       if (latestScrollFrame !== undefined) cancelAnimationFrame(latestScrollFrame);
@@ -1215,9 +1231,57 @@ export function createConversationViewScope(props: ConversationProps) {
     scrollFades.adopt(element);
     updateVirtualScrollMargin();
   };
-  const setStickToLatest = (value: boolean) => {
+  /* Following the latest message again, by request or because the reader came back, ends the reader's hold. */
+  function setStickToLatest(value: boolean) {
     stickToLatest = value;
+    if (value) readerLeftLatest = false;
+  }
+  /**
+   * The reader moved up, so the chat stops following new content until the reader moves down again
+   * or asks for the latest message. While a reply streams, the content grows many times a second and
+   * each growth moves a following chat back to the bottom; a scroll of less than 80px still counts as
+   * the bottom, and a scroll event that the chat's own follow queued can arrive after the reader's
+   * input. So the reader's input decides, not the distance. The queued follow is cancelled too.
+   */
+  function leaveLatest() {
+    if (!scrollElement || scrollElement.scrollTop <= 0) return;
+    readerLeftLatest = true;
+    stickToLatest = false;
+    if (latestScrollFrame !== undefined) cancelAnimationFrame(latestScrollFrame);
+    if (latestScrollSettleFrame !== undefined) cancelAnimationFrame(latestScrollSettleFrame);
+    latestScrollFrame = undefined;
+    latestScrollSettleFrame = undefined;
+  }
+  /* A pointer drag covers the scroll bar and a text selection that scrolls the chat. */
+  const followReaderScroll = (element: HTMLElement) => {
+    if (readerDragging && element.scrollTop < lastScrollTop) leaveLatest();
+    else if (readerDragging && element.scrollTop > lastScrollTop) readerLeftLatest = false;
+    lastScrollTop = element.scrollTop;
+    if (element.scrollHeight - element.scrollTop - element.clientHeight > 80) stickToLatest = false;
+    else if (!readerLeftLatest) stickToLatest = true;
   };
+  function readerWheel(event: WheelEvent) {
+    if (event.deltaY < 0) leaveLatest();
+    else if (event.deltaY > 0) readerLeftLatest = false;
+  }
+  function readerKeyDown(event: KeyboardEvent) {
+    if (event.key === "ArrowUp" || event.key === "PageUp" || event.key === "Home") leaveLatest();
+    else if (event.key === "ArrowDown" || event.key === "PageDown" || event.key === "End") readerLeftLatest = false;
+  }
+  function readerTouchMove(event: TouchEvent) {
+    const y = event.touches[0]?.clientY;
+    if (y !== undefined && lastTouchY !== undefined) {
+      if (y > lastTouchY) leaveLatest();
+      else if (y < lastTouchY) readerLeftLatest = false;
+    }
+    lastTouchY = y;
+  }
+  function readerTouchEnd() {
+    lastTouchY = undefined;
+  }
+  function readerPointerDown() {
+    readerDragging = true;
+  }
   const setVirtualRootElement = (element: HTMLDivElement) => {
     virtualRoot = element;
     updateVirtualScrollMargin();
@@ -1257,6 +1321,7 @@ export function createConversationViewScope(props: ConversationProps) {
     setAttachmentPickerElement,
     setScrollElement,
     setStickToLatest,
+    followReaderScroll,
     setUnreadMessagesDividerElement,
     setVirtualRootElement,
     activeBrowserControl,
