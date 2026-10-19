@@ -16,7 +16,15 @@ import { useChatQueue } from "./use-chat-queue";
 import { useQuestionPrompt } from "./use-question-prompt";
 
 /** `focusMessageId` opens the chat at a message from search instead of at the latest message. */
-export function MobileChatView({ agent, focusMessageId }: { agent: MobileAgent; focusMessageId?: string }) {
+export function MobileChatView({
+  agent,
+  focusMessageId,
+  onLeave,
+}: {
+  agent: MobileAgent;
+  focusMessageId?: string;
+  onLeave: () => void;
+}) {
   const workspace = useMobileWorkspaceReader();
   const agents = useMobileWorkspaceSelector((current) => current.agents);
   const conversationStore = useMobileWorkspaceSelector((current) => current.conversationStore);
@@ -186,6 +194,7 @@ export function MobileChatView({ agent, focusMessageId }: { agent: MobileAgent; 
       onFocusPlaced={clearFocus}
       detached={detached}
       showLatestMessages={showLatestMessages}
+      onLeave={onLeave}
     />
   );
 }

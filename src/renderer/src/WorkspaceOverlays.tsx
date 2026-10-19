@@ -165,6 +165,7 @@ function SharedAgentInstall() {
     <SharedAgentInstallOverlay
       templateId={pendingAgentTemplateId()}
       server={activeServer()}
+      onOpenLink={(url) => void appPort().openUrl(url)}
       onClose={() => setPendingAgentTemplateId(null)}
       onInstalled={openInstalledMarketplaceAgent}
     />

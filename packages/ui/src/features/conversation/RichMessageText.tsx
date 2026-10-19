@@ -37,6 +37,11 @@ export interface RichMessageTextProps {
   showCitationFooter?: boolean;
   /** The characters of a streaming body after this text. It fades the words revealed last. */
   streamingTailAfter?: number | undefined;
+  /**
+   * False shows only the link icon, so that no linked site is asked for its favicon. Use it for
+   * text that another person wrote, such as the instructions of a shared agent.
+   */
+  linkFavicons?: boolean;
 }
 
 const UNAVAILABLE_TAG_LABELS = {
@@ -136,7 +141,12 @@ export function RichMessageText(props: RichMessageTextProps) {
           }
           if (part.url) {
             return (
-              <MessageLink url={part.url} title={linkTitle(part.text, part.url)} onOpenLink={props.onOpenLink}>
+              <MessageLink
+                url={part.url}
+                title={linkTitle(part.text, part.url)}
+                favicon={props.linkFavicons !== false}
+                onOpenLink={props.onOpenLink}
+              >
                 {part.text}
               </MessageLink>
             );
@@ -287,6 +297,8 @@ export function MessageLink(props: {
   /** The native tooltip. Omit it when the link text already shows the URL. */
   title?: string | undefined;
   children: JSX.Element;
+  /** False keeps the request for the linked site's favicon from being made. */
+  favicon?: boolean;
   onOpenLink: (url: string) => void;
 }) {
   return (
@@ -303,14 +315,16 @@ export function MessageLink(props: {
     >
       <span class="message-link-icon" aria-hidden="true">
         <LinkIcon />
-        <img
-          src={faviconUrl(props.url)}
-          alt=""
-          loading="lazy"
-          decoding="async"
-          referrerpolicy="no-referrer"
-          onError={(event) => event.currentTarget.remove()}
-        />
+        <Show when={props.favicon !== false}>
+          <img
+            src={faviconUrl(props.url)}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            referrerpolicy="no-referrer"
+            onError={(event) => event.currentTarget.remove()}
+          />
+        </Show>
       </span>
       {props.children}
     </a>

@@ -8639,8 +8639,8 @@ a {
   font-size: 12px;
 }
 
-/* Clamped, the instructions read as one paragraph, so the ellipsis never lands on a blank line.
-   Opened, they keep their line breaks: they are what the agent will do. */
+/* Clamped, the instructions read as one paragraph of plain text, so the ellipsis never lands on a
+   blank line. Opened, they show their Markdown: they are what the agent will do. */
 .agent-share-description {
   display: -webkit-box;
   margin: 14px 0 0;
@@ -8653,11 +8653,93 @@ a {
   line-clamp: 3;
 }
 
-.agent-share-description[data-expanded] {
-  display: block;
+/* Headings and lists read from the left edge, so the opened instructions are not centered. The
+   site has no chat stylesheet, so the Markdown elements are styled here. */
+.agent-share-instructions {
+  width: 100%;
+  margin: 14px 0 0;
+  color: var(--openbot-text-secondary);
+  font-size: 16px;
+  line-height: 1.55;
+  text-align: start;
+  overflow-wrap: anywhere;
+}
+
+.agent-share-instructions > :not(:first-child) {
+  margin-top: 12px;
+}
+
+.agent-share-instructions-text {
   white-space: pre-wrap;
-  -webkit-line-clamp: unset;
-  line-clamp: unset;
+}
+
+.agent-share-instructions .message-markdown-heading {
+  margin: 0;
+  color: var(--openbot-text-primary);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.agent-share-instructions .message-markdown-heading:is([data-level="1"], [data-level="2"]) {
+  font-size: 19px;
+}
+
+.agent-share-instructions * + .message-markdown-heading {
+  margin-top: 20px;
+}
+
+.agent-share-instructions :is(ul, ol) {
+  padding-left: 22px;
+}
+
+.agent-share-instructions ul {
+  list-style: disc;
+}
+
+.agent-share-instructions ul ul {
+  list-style: circle;
+}
+
+.agent-share-instructions ol {
+  list-style: decimal;
+}
+
+.agent-share-instructions li + li,
+.agent-share-instructions li > :is(ul, ol) {
+  margin-top: 4px;
+}
+
+.agent-share-instructions strong {
+  color: var(--openbot-text-primary);
+  font-weight: 600;
+}
+
+.agent-share-instructions code {
+  font-family: var(--openbot-font-mono);
+  font-size: 0.9em;
+}
+
+.agent-share-instructions .message-link {
+  color: var(--openbot-text-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.agent-share-instructions .message-link-icon {
+  position: relative;
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+  margin-right: 4px;
+  vertical-align: -2px;
+}
+
+.agent-share-instructions .message-link-icon :is(svg, img) {
+  position: absolute;
+  inset: 0;
+  width: 14px;
+  height: 14px;
 }
 
 .agent-share-more {

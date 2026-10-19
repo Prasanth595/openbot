@@ -675,6 +675,69 @@ function StreamingMarkdownConversation(props: { args: Parameters<typeof Conversa
   return <MockedConversation args={{ ...props.args, activeTurnId: "streaming-markdown" }} messages={stableMessages} />;
 }
 
+const readingHistoryMessages = (length: number) =>
+  Array.from(
+    { length },
+    (_, index): RendererAgentMessage => ({
+      id: `reading-history-${index + 1}`,
+      author: index % 2 === 0 ? "you" : "agent",
+      body:
+        index % 2 === 0
+          ? `Can you check step ${index + 1} of the release plan?`
+          : `I checked step ${index + 1}. The owner, the date and the open risk are in the plan now.`,
+      time: "10:00",
+      kind: "text",
+    }),
+  );
+
+const readingHistoryStreamSentence = "I am still checking the release plan and adding each finding to this reply. ";
+
+/**
+ * A reply that grows and a thinking line that changes for as long as the story is open, under a
+ * history that is long enough to scroll. The reader can scroll up while the agent is working.
+ */
+function StreamingWhileReadingHistoryConversation(props: {
+  args: Parameters<typeof Conversation>[0];
+  history: RendererAgentMessage[];
+}) {
+  const [tick, setTick] = createSignal(0);
+  const thinkingMessage: RendererAgentMessage = {
+    id: "reading-history-thinking",
+    author: "agent",
+    body: "",
+    time: "10:01",
+    kind: "thinking",
+    streaming: true,
+  };
+  Object.defineProperty(thinkingMessage, "items", {
+    configurable: true,
+    enumerable: true,
+    get: () => [`Checking step ${Math.floor(tick() / 4) + 1} of the release plan`],
+  });
+  const streamingMessage: RendererAgentMessage = {
+    id: "reading-history-reply",
+    author: "agent",
+    body: "",
+    time: "10:01",
+    kind: "text",
+    streaming: true,
+  };
+  Object.defineProperty(streamingMessage, "body", {
+    configurable: true,
+    enumerable: true,
+    get: () => readingHistoryStreamSentence.repeat(tick() + 1),
+  });
+  const interval = window.setInterval(() => setTick((current) => current + 1), 150);
+  onCleanup(() => window.clearInterval(interval));
+
+  return (
+    <MockedConversation
+      args={{ ...props.args, activeTurnId: "reading-history-turn" }}
+      messages={[...props.history, thinkingMessage, streamingMessage]}
+    />
+  );
+}
+
 const comparisonTableMessages: RendererAgentMessage[] = [
   {
     id: "comparison-table-user",
@@ -1525,6 +1588,31 @@ export const StreamingMarkdownInChat: Story = {
     activeTurnId: "streaming-markdown",
   },
   render: (storyArgs) => <StreamingMarkdownConversation args={storyArgs} />,
+};
+
+const shortReadingHistory = readingHistoryMessages(40);
+
+export const StreamingWhileReadingHistory: Story = {
+  args: {
+    messages: shortReadingHistory,
+    activeTurnId: "reading-history-turn",
+    unreadCount: 0,
+    firstUnreadMessageId: null,
+  },
+  render: (storyArgs) => <StreamingWhileReadingHistoryConversation args={storyArgs} history={shortReadingHistory} />,
+};
+
+/** More than 100 rows, so the timeline draws only the rows near the screen. */
+const longReadingHistory = readingHistoryMessages(120);
+
+export const StreamingWhileReadingLongHistory: Story = {
+  args: {
+    messages: longReadingHistory,
+    activeTurnId: "reading-history-turn",
+    unreadCount: 0,
+    firstUnreadMessageId: null,
+  },
+  render: (storyArgs) => <StreamingWhileReadingHistoryConversation args={storyArgs} history={longReadingHistory} />,
 };
 
 export const ComparisonTableInChat: Story = {

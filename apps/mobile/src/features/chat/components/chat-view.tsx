@@ -13,7 +13,7 @@ import ArrowDown from "lucide-react-native/icons/arrow-down";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, Keyboard, useColorScheme, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import { KeyboardController, KeyboardGestureArea } from "react-native-keyboard-controller";
+import { KeyboardGestureArea } from "react-native-keyboard-controller";
 import Animated, { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { scheduleOnRN } from "react-native-worklets";
@@ -109,6 +109,8 @@ export interface ChatViewProps {
   detached?: boolean;
   /** Loads the latest messages in place of the window around a searched message. */
   showLatestMessages?: () => Promise<void>;
+  /** Leaves the chat, from the back button and the Android edge swipe. */
+  onLeave: () => void;
 }
 
 const CHAT_BACK_EDGE_WIDTH = 24;
@@ -155,12 +157,6 @@ function useRowsAfterOpenTransition(): boolean {
   return shown;
 }
 
-function leaveConversation(): void {
-  void KeyboardController.dismiss();
-  if (router.canGoBack()) router.back();
-  else router.replace("/connected");
-}
-
 export function ChatView({
   target,
   queue,
@@ -188,6 +184,7 @@ export function ChatView({
   onFocusPlaced,
   detached = false,
   showLatestMessages,
+  onLeave: leaveConversation,
 }: ChatViewProps) {
   const { t, errorMessage } = useText();
   const workspace = useMobileWorkspaceReader();
@@ -533,7 +530,7 @@ export function ChatView({
           if (event.translationX < 48 && event.velocityX < 650) return;
           scheduleOnRN(voiceOpenValue.get() ? leaveVoiceMode : leaveConversation);
         }),
-    [menuOpenValue, voiceOpenValue, leaveVoiceMode],
+    [menuOpenValue, voiceOpenValue, leaveVoiceMode, leaveConversation],
   );
 
   // Hold the turn the stop was asked for, not a flag: the host clears the turn

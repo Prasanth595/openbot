@@ -148,6 +148,7 @@ export function ConversationTimeline() {
     setChatSearchInputElement,
     setScrollElement,
     setStickToLatest,
+    followReaderScroll,
     setUnreadMessagesDividerElement,
     setVirtualRootElement,
     openTaskPanel,
@@ -288,7 +289,7 @@ export function ConversationTimeline() {
         }}
         onScroll={(event) => {
           const element = event.currentTarget;
-          setStickToLatest(element.scrollHeight - element.scrollTop - element.clientHeight <= 80);
+          followReaderScroll(element);
           updateScrollFade(element);
           updateUnreadDividerVisibility();
           replyJump.updateReturnVisibility();

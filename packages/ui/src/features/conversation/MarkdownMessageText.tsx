@@ -223,6 +223,7 @@ export function MarkdownMessageText(props: MarkdownMessageTextProps) {
       onOpenSharedFile: props.onOpenSharedFile,
       onOpenWorkspaceFile: props.onOpenWorkspaceFile,
       onOpenQuote: props.onOpenQuote,
+      linkFavicons: props.linkFavicons,
       fileDirectory: fileDirectory(),
     }),
   );
@@ -260,6 +261,7 @@ export function MarkdownInlineText(
     onOpenSharedFile: props.onOpenSharedFile,
     onOpenWorkspaceFile: props.onOpenWorkspaceFile,
     onOpenQuote: props.onOpenQuote,
+    linkFavicons: props.linkFavicons,
     fileDirectory: messageFileDirectory(props.body),
   });
   return <MarkdownInline tokens={tokens()} content={contentProps()} />;
@@ -652,6 +654,7 @@ function MarkdownInline(props: {
               <MessageLink
                 url={url}
                 title={token.title || linkTitle(token.text, url)}
+                favicon={props.content.linkFavicons !== false}
                 onOpenLink={props.content.onOpenLink}
               >
                 {token.text === token.href ? (
@@ -687,7 +690,12 @@ function MarkdownInline(props: {
             const url = safeBrowserUrl(token.href);
             if (url && props.content.imagesAsLinks) {
               return (
-                <MessageLink url={url} title={url} onOpenLink={props.content.onOpenLink}>
+                <MessageLink
+                  url={url}
+                  title={url}
+                  favicon={props.content.linkFavicons !== false}
+                  onOpenLink={props.content.onOpenLink}
+                >
                   {token.text || t("chat.image.view")}
                 </MessageLink>
               );

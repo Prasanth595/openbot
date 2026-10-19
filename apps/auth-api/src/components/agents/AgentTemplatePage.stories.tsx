@@ -112,6 +112,31 @@ export const LongInstructions: Story = {
   },
 };
 
+/**
+ * Instructions in Markdown. Closed, they read as plain text; "Read more" shows the headings and lists.
+ * The raw HTML shows as text and never runs.
+ */
+export const MarkdownInstructions: Story = {
+  args: {
+    template: {
+      ...TEMPLATE,
+      name: "Sentinel",
+      title: "",
+      avatarSeed: "sentinel",
+      avatarHue: 150,
+      description: [
+        "## Identity and Mission",
+        "You keep the **production systems** healthy. Read the [runbook](https://example.com/runbook) first.",
+        "## 1. Operating Principles",
+        "- Prefer actual system state over assumptions.\n- Report what changed and why.\n  - Name the command you ran.",
+        "## 2. Daily checks",
+        "1. Read the error logs.\n2. Check the queue depth.\n3. Write a short summary.",
+        '<script>window.agentShareInjected = true</script> <img src="x" onerror="window.agentShareInjected = true">',
+      ].join("\n\n"),
+    },
+  },
+};
+
 /** The owner unpublished the agent, or the id is unknown: the loader's 404 shows this page. */
 export const NoLongerShared: Story = {
   render: () => <WithRouter>{() => <AgentTemplateNotSharedPage />}</WithRouter>,

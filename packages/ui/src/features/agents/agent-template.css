@@ -148,9 +148,23 @@
   gap: var(--openbot-space-1);
 }
 
+/* The instructions as Markdown, at the body size of the dialog. Headings stay below the agent's name. */
 .agent-template-prose {
+  color: var(--openbot-text-secondary);
+  font-size: var(--openbot-text-md);
+  line-height: var(--openbot-leading-md);
   overflow-wrap: anywhere;
-  white-space: pre-wrap;
+}
+
+.agent-template-prose .message-markdown-heading[data-level] {
+  color: var(--openbot-text-primary);
+  font-size: var(--openbot-text-lg);
+  line-height: var(--openbot-leading-lg);
+}
+
+.agent-template-prose .message-markdown-heading:not([data-level="1"], [data-level="2"]) {
+  font-size: var(--openbot-text-md);
+  line-height: var(--openbot-leading-md);
 }
 
 .agent-template-list {

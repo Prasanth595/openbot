@@ -160,6 +160,7 @@ export function SharedAgentInstallOverlay(props: {
   server: ServerSummary | undefined;
   /** Absent: this computer's bridge. */
   calls?: AgentTemplateInstallCalls | undefined;
+  onOpenLink: (url: string) => void;
   onClose: () => void;
   onInstalled: (agent: AddedAgent, serverId?: string) => Promise<void>;
 }) {
@@ -171,6 +172,7 @@ export function SharedAgentInstallOverlay(props: {
             templateId={templateId()}
             server={remoteAdminServer(props.server, "agent-install-v1")}
             calls={props.calls}
+            onOpenLink={props.onOpenLink}
             onClose={props.onClose}
             onInstalled={props.onInstalled}
           />
