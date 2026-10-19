@@ -1,10 +1,9 @@
 {
-  "version": "0.44.0",
+  "version": "0.44.1",
   "highlights": [
-    "Agents can ask with buttons, reply chips, lists and short forms, and you answer in the chat.",
-    "A new Tasks page shows the tasks of all agents by what they need, and you can send a task to any agent.",
-    "The full browser view has tabs in one row, and you can talk to the agent of a tab while you look at the page.",
-    "Settings > Profile shows the activity of this computer in the past year, and you can share an image of it.",
-    "A message no longer stays running after a failed turn, and the next messages in the queue start."
+    "Settings opens again. In 0.44.0, it showed an empty page and the app stopped responding.",
+    "A role change of a member no longer disconnects the server and every connected member.",
+    "A message that runs again after a refused turn now runs to its end, and Claude agents accept new messages.",
+    "Claude agents can run tools from your shell PATH, such as Homebrew, when you open OpenBot from Finder or the Dock."
   ]
 }

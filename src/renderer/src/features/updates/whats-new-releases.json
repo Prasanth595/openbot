@@ -1,5 +1,22 @@
 [
   {
+    "version": "0.44.1",
+    "date": "2026-10-19",
+    "notices": [],
+    "groups": [
+      {
+        "type": "fixed",
+        "items": [
+          "Settings opens again. In 0.44.0, Settings showed an empty page and the app stopped responding.",
+          "A role change of a member no longer disconnects the server and every connected member.",
+          "A message that runs again after a refused turn now runs to its end, and Claude agents accept new messages.",
+          "Claude agents can run tools from your shell PATH, such as Homebrew, when you open OpenBot from Finder or the Dock.",
+          "OpenBot starts when a power loss left a settings file empty, and a local file link over 100 MB opens the file panel."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.44.0",
     "date": "2026-10-18",
     "notices": [],

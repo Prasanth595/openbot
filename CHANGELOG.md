@@ -6,6 +6,38 @@ All notable changes to OpenBot will be documented here. The project follows
 
 ## [Unreleased]
 
+## [0.44.1] - 2026-10-19
+
+### Fixed
+
+- Start OpenBot when a power loss left the joined server list or the team server settings file
+  empty. Before, the start stopped with the error "Unexpected token '". The damaged file stays
+  beside the new one with a `.corrupt-<time>` name. OpenBot also flushes each settings file to the
+  disk before it replaces the old one, so a power loss cannot empty the file.
+- Name the damaged file when a settings file stops the start. Before, the error quoted the start
+  of the file and did not say which file it was.
+- Open the file panel for a local file link over 100 MB. Before, a click on the link showed the
+  error "The file exceeds the 100 MB limit." and no panel opened, so you could not open the file,
+  show it in the folder or save it. Now the panel shows that no preview is available and gives
+  these actions. OpenBot does not read the file to show the panel.
+- Let Claude agents run tools from Homebrew, `~/.local/bin` and other folders of your shell `PATH`
+  when you open OpenBot from Finder, the Dock, or a login item. Before, the Bash tool and hooks
+  reported `command not found`. An `env.PATH` in your Claude settings still wins.
+- Keep the server and its members connected when an owner or admin changes the role of a member.
+  Before, each change to Admin or Member disconnected the host and every connected member, and the
+  server showed as offline until it connected again. Now only the member whose role changed
+  connects again, with the new role.
+- Show the full day tooltip on the status page. Before, the card cut off the tooltip of the first
+  and last days.
+- Run a message again to its end after the provider refused its first turn. Before, the second run
+  of the message showed as interrupted while a Claude, ACP or Pi agent still worked on it. A Claude
+  agent then refused each new message with "The Claude thread already has an active turn." until
+  OpenBot restarted.
+- Move the window by dragging the top row of the Tasks page. Before, only a thin strip beside the
+  "Tasks" title moved the window.
+- Open Settings again. In 0.44.0, Settings showed an empty page and the app stopped responding
+  until it restarted.
+
 ## [0.44.0] - 2026-10-18
 
 ### Added
