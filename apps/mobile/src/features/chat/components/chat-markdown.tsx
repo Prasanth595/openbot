@@ -132,19 +132,16 @@ function textContainerStyle(source: string, presentation: TextPresentation): Tex
     : presentation.style;
 }
 
-/** Space beside the text in a reply bubble, list indent included. An inline chip is never wider than the rest. */
-const INLINE_CHIP_SIDE_SPACE = 96;
-
 /**
  * Android puts the bottom of a view inside text on the text baseline, so a chip sits too high. It
- * moves down by the descender, as a mention does, and is never wider than a line, so a long file
- * name goes to the next line and ends with an ellipsis instead of being cut at the bubble edge.
+ * moves down by the descender, as a mention does.
  */
-function inlineChipStyle(presentation: TextPresentation, screenWidth: number): ViewStyle | undefined {
-  return Platform.OS === "android"
-    ? { maxWidth: screenWidth - INLINE_CHIP_SIDE_SPACE, transform: [{ translateY: presentation.mentionOffset }] }
-    : undefined;
+function inlineChipStyle(presentation: TextPresentation): ViewStyle | undefined {
+  return Platform.OS === "android" ? { transform: [{ translateY: presentation.mentionOffset }] } : undefined;
 }
+
+/** Joins the type badge of a file to the first characters of its name, so a line never ends between them. */
+const WORD_JOINER = "\u2060";
 
 function webLink(href: string): string | null {
   try {
@@ -183,28 +180,26 @@ const FILE_TONE_COLORS: Record<FileReferenceTone, [string, string]> = {
  */
 function FileReference({ text, presentation }: { text: string; presentation: TextPresentation }) {
   const name = fileReferenceName(text.trim());
-  const badge = fileReferenceBadge(name);
   const [color, soft] = useCSSVariable(FILE_TONE_COLORS[fileReferenceTone(name)]);
-  const { width } = useWindowDimensions();
   const small = presentation.type === "body-sm";
+  if (Platform.OS === "android") {
+    // Android does not move a view that is wider than the rest of the line to the next line, so a long
+    // path was cut at the edge of the message. Only the small badge is a view; the name is text of the
+    // paragraph and wraps as text does.
+    return (
+      <>
+        <View collapsable={false} className="pl-0.5 pr-1" style={inlineChipStyle(presentation)}>
+          <FileBadge name={name} color={String(color)} soft={String(soft)} />
+        </View>
+        <Text style={{ color: String(color), fontWeight: "600", ...(small ? { fontSize: 12 } : null) }}>
+          {`${WORD_JOINER}${text.trim()}`}
+        </Text>
+      </>
+    );
+  }
   return (
-    <View
-      collapsable={false}
-      className="max-w-full shrink flex-row items-center gap-1 self-start px-0.5"
-      style={inlineChipStyle(presentation, width)}
-    >
-      <View
-        className="h-4 min-w-4 items-center justify-center rounded px-0.5"
-        style={{ backgroundColor: String(soft) }}
-      >
-        {badge ? (
-          <Typography style={{ color: String(color), fontSize: 8, lineHeight: 10, fontWeight: "800" }}>
-            {badge}
-          </Typography>
-        ) : (
-          <FileText size={11} color={String(color)} strokeWidth={2} />
-        )}
-      </View>
+    <View collapsable={false} className="max-w-full shrink flex-row items-center gap-1 self-start px-0.5">
+      <FileBadge name={name} color={String(color)} soft={String(soft)} />
       <Typography
         selectable={presentation.selectable}
         numberOfLines={1}
@@ -214,6 +209,20 @@ function FileReference({ text, presentation }: { text: string; presentation: Tex
       >
         {text.trim()}
       </Typography>
+    </View>
+  );
+}
+
+/** The type of a file, as two or three letters or a document icon, on the soft colour of its family. */
+function FileBadge({ name, color, soft }: { name: string; color: string; soft: string }) {
+  const badge = fileReferenceBadge(name);
+  return (
+    <View className="h-4 min-w-4 items-center justify-center rounded px-0.5" style={{ backgroundColor: soft }}>
+      {badge ? (
+        <Typography style={{ color, fontSize: 8, lineHeight: 10, fontWeight: "800" }}>{badge}</Typography>
+      ) : (
+        <FileText size={11} color={color} strokeWidth={2} />
+      )}
     </View>
   );
 }
@@ -235,10 +244,9 @@ function codePieces(text: string): string[] {
 }
 
 function CodeSpan({ text, presentation }: { text: string; presentation: TextPresentation }) {
-  const { width } = useWindowDimensions();
   if (isFileReference(text.trim())) return <FileReference text={text} presentation={presentation} />;
   const pieces = codePieces(text);
-  const chipStyle = inlineChipStyle(presentation, width);
+  const chipStyle = inlineChipStyle(presentation);
   return sourceEntries(pieces, (piece) => piece).map(({ value: piece, offset }, index) => (
     // Only the ends of the span are rounded, so touching pieces read as one chip.
     <View
