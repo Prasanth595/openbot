@@ -41,6 +41,12 @@ of these updates threw, and Reanimated logged a full stack trace on the UI threa
 times per second while an SVG list scrolled. The patch skips views that no longer exist. Remove the
 patch when the installed Reanimated release contains that fix.
 
+react-native-uitextview 2.7.1 is patched in `patches/react-native-uitextview@2.7.1.patch` so the
+native selectable message text applies the same baseline offset as React Native `Text`. React Native
+centers each line in its `lineHeight`. Without the offset, the text view drew each line at the bottom
+of its line box, so iOS message bubbles had more space above the text than below it. Remove the
+patch when a release applies the offset.
+
 The app uses Reanimated 4.5.5, not the 4.5.1 that Expo SDK 57 pins. Reanimated 4.5.3 has the fix
 from upstream PR #9987: before it, a JS stall or an app pause could put an animated view back to
 its first style, and agents disappeared from the home list after a chat. The
