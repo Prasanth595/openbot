@@ -393,6 +393,7 @@ export function ChannelConversation(props: ChannelConversationProps) {
   const timelineMessages = createMemo(() => timeline().map((entry) => entry.message));
   const rail = createChatScrollRail({
     rows: timelineMessages,
+    question: (message) => (message.author === "you" && !message.actionMarker ? message.body : undefined),
     storedCount: () => channels.state.page?.messages.length ?? 0,
     unloaded: () => unloadedHistory(channels.state.page),
     virtualizer: messageVirtualizer,

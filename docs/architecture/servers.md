@@ -145,7 +145,7 @@ in the Routines view; the web client shows the view switch only when the host se
 
 ### History extent
 
-`history-extent-v1` lets the chat's day rail draw the history that is not loaded on a joined server.
+`history-extent-v1` lets the chat's scroll rail draw the history that is not loaded on a joined server.
 It adds `olderCount` and `oldestAt` (at most 64 characters) beside the frozen keys of `pageInfo` on
 `GET /v1/agents/:id/conversation-page` and `GET /v1/direct/conversations/:id/page`, and at the top
 level of the `POST /v1/channels/read` page. The host adds them only on protocol 7 and only when the
