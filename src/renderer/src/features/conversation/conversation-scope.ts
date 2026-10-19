@@ -1292,8 +1292,9 @@ export function createConversationViewScope(props: ConversationProps) {
   function readerTouchEnd() {
     lastTouchY = undefined;
   }
-  function readerPointerDown() {
-    readerDragging = true;
+  /* Only the main button drags. A context menu can take the release of another button. */
+  function readerPointerDown(event: PointerEvent) {
+    if (event.button === 0) readerDragging = true;
   }
   const setVirtualRootElement = (element: HTMLDivElement) => {
     virtualRoot = element;
