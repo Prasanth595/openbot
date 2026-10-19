@@ -13,6 +13,7 @@ import { BrowserPageMenu } from "./BrowserPageMenu";
 import { BrowserOwnerIcon } from "./BrowserTabIcon";
 import { browserActionLabel } from "./browser-action-labels";
 import { type BrowserFullViewProps, browserTabStoppable } from "./browser-full-view-types";
+import { useBrowserPageCover } from "./browser-page-cover";
 import {
   type BrowserSuggestion,
   browserAddressUrl,
@@ -91,6 +92,7 @@ export function BrowserAddressRow(props: {
     });
   });
   const listOpen = () => address.open && rows().length > 0;
+  useBrowserPageCover(listOpen);
 
   const edit = (element: HTMLInputElement, typed: string, complete: boolean) => {
     const completion = complete ? browserCompletion(typed, props.view.history) : undefined;

@@ -1,10 +1,11 @@
 import { Button, buttonVariants, ChevronDown, ContextMenu, DropdownMenu, Tabs, X } from "@openbot/ui";
 import { useText } from "@openbot/ui/text";
 import { clamp, motionDuration, prefersReducedMotion } from "@openbot/ui/utils";
-import { createEffect, createStore, For, onSettled, Show } from "solid-js";
+import { createEffect, createSignal, createStore, For, onSettled, Show } from "solid-js";
 import { BrowserTabIcon, useBrowserTabTitle } from "./BrowserTabIcon";
 import { BrowserTabMenu } from "./BrowserTabMenu";
 import type { BrowserFullViewProps } from "./browser-full-view-types";
+import { useBrowserPageCover } from "./browser-page-cover";
 
 /** A press that travels this far becomes a drag; a shorter one stays a click on the tab or its X. */
 const DRAG_START_PX = 6;
@@ -100,6 +101,9 @@ export function BrowserTabStrip(props: {
   const { t } = useText();
   const tabTitle = useBrowserTabTitle();
   const [row, setRow] = createStore<TabRow>({ hidden: [], fadeStart: false, fadeEnd: false, frozen: 0 });
+  const [hiddenMenuOpen, setHiddenMenuOpen] = createSignal(false);
+  // The menu goes away with its button when every tab fits again, without a close.
+  useBrowserPageCover(() => hiddenMenuOpen() && row.hidden.length > 0);
   let strip: HTMLElement | undefined;
   let drag: TabDrag | undefined;
   let swallowClick = false;
@@ -371,8 +375,10 @@ export function BrowserTabStrip(props: {
             const title = () => tabTitle(tab());
             const selected = () => activeId() === tab().id;
             const acting = () => props.view.controlForTab(tab())?.phase === "acting";
+            const [menuOpen, setMenuOpen] = createSignal(false);
+            useBrowserPageCover(menuOpen);
             return (
-              <ContextMenu.Root modal={false}>
+              <ContextMenu.Root modal={false} onOpenChange={setMenuOpen}>
                 <ContextMenu.Trigger
                   role="presentation"
                   class="side-panel-tab browser-full-chip"
@@ -442,7 +448,7 @@ export function BrowserTabStrip(props: {
         </For>
       </Tabs.List>
       <Show when={row.hidden.length > 0}>
-        <DropdownMenu.Root modal={false} placement="bottom-end" gutter={4}>
+        <DropdownMenu.Root modal={false} placement="bottom-end" gutter={4} onOpenChange={setHiddenMenuOpen}>
           <DropdownMenu.Trigger
             class={`${buttonVariants({ variant: "ghost", size: "icon-sm" })} no-drag`}
             aria-label={t("browser.tabs.more", { count: row.hidden.length })}

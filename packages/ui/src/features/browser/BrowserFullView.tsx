@@ -8,6 +8,7 @@ import BrowserLiveView from "./BrowserLiveView";
 import { BrowserTabStrip } from "./BrowserTabStrip";
 import { BrowserTabSwitcher } from "./BrowserTabSwitcher";
 import type { BrowserFullViewProps } from "./browser-full-view-types";
+import { BrowserPageCover } from "./browser-page-cover";
 import { type BrowserViewCommand, browserAriaShortcut, browserViewCommand } from "./browser-view-shortcuts";
 
 export type { BrowserFullViewProps } from "./browser-full-view-types";
@@ -49,26 +50,45 @@ export default function BrowserFullView(props: BrowserFullViewProps) {
   let surfaceElement: HTMLDivElement | undefined;
   let address: HTMLInputElement | undefined;
 
+  const [settled, setSettled] = createSignal(false);
+  const [covers, setCovers] = createSignal<ReadonlySet<symbol>>(new Set());
+  const cover = () => {
+    const key = Symbol();
+    setCovers((current) => new Set(current).add(key));
+    return () =>
+      setCovers((current) => {
+        const next = new Set(current);
+        next.delete(key);
+        return next;
+      });
+  };
+
   createEffect(
     () => props.open,
     (open) => {
-      props.onSurface(undefined);
+      setSettled(false);
       if (!open) return;
       let disposed = false;
       onSettled(() => {
         hideButton?.focus();
         // Chromium is a native child view. Attach it only after the CSS view settles.
         const animations = view?.getAnimations() ?? [];
-        const showSurface = () => {
-          if (!disposed) props.onSurface(surfaceElement);
+        const settle = () => {
+          if (!disposed) setSettled(true);
         };
-        if (animations.length === 0) showSurface();
-        else void Promise.all(animations.map((animation) => animation.finished)).then(showSurface, () => undefined);
+        if (animations.length === 0) settle();
+        else void Promise.all(animations.map((animation) => animation.finished)).then(settle, () => undefined);
       });
       return () => {
         disposed = true;
       };
     },
+  );
+
+  // The page is drawn above this window, so it steps aside while a menu of the view is open.
+  createEffect(
+    () => props.open && settled() && covers().size === 0,
+    (shown) => props.onSurface(shown ? surfaceElement : undefined),
   );
 
   const focusAddress = () => {
@@ -187,27 +207,29 @@ export default function BrowserFullView(props: BrowserFullViewProps) {
       activationMode="automatic"
     >
       <div class="browser-full-top window-drag">
-        <Show
-          when={narrow()}
-          fallback={
-            <>
-              <BrowserTabStrip view={props} onNewTab={newTab} onClose={closeTabs} />
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                class="no-drag"
-                aria-label={t("browser.newTab")}
-                aria-keyshortcuts={browserAriaShortcut("newTab", props.shortcuts)}
-                title={t("browser.newTab")}
-                onClick={() => newTab()}
-              >
-                <PlusIcon />
-              </Button>
-            </>
-          }
-        >
-          <BrowserTabSwitcher view={props} onNewTab={() => newTab()} onClose={closeTabs} />
-        </Show>
+        <BrowserPageCover value={cover}>
+          <Show
+            when={narrow()}
+            fallback={
+              <>
+                <BrowserTabStrip view={props} onNewTab={newTab} onClose={closeTabs} />
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  class="no-drag"
+                  aria-label={t("browser.newTab")}
+                  aria-keyshortcuts={browserAriaShortcut("newTab", props.shortcuts)}
+                  title={t("browser.newTab")}
+                  onClick={() => newTab()}
+                >
+                  <PlusIcon />
+                </Button>
+              </>
+            }
+          >
+            <BrowserTabSwitcher view={props} onNewTab={() => newTab()} onClose={closeTabs} />
+          </Show>
+        </BrowserPageCover>
         <div class="browser-full-top-spacer" />
         {hideBrowserButton()}
       </div>
@@ -219,14 +241,16 @@ export default function BrowserFullView(props: BrowserFullViewProps) {
           aria-label={!narrow() && props.activeTab ? undefined : t("browser.panel.label")}
           class="browser-full-browser"
         >
-          <BrowserAddressRow
-            view={props}
-            narrow={narrow()}
-            onNewTab={() => newTab()}
-            ref={(element) => {
-              address = element;
-            }}
-          />
+          <BrowserPageCover value={cover}>
+            <BrowserAddressRow
+              view={props}
+              narrow={narrow()}
+              onNewTab={() => newTab()}
+              ref={(element) => {
+                address = element;
+              }}
+            />
+          </BrowserPageCover>
           <Show when={popupFailure() && !dismissedPopupFailures().has(popupFailure()?.id ?? "")}>
             <Alert tone="warning" role="alert" class="browser-full-alert">
               <AlertContent>

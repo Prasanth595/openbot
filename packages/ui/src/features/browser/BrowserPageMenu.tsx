@@ -1,15 +1,18 @@
 import { buttonVariants, DropdownMenu, Ellipsis } from "@openbot/ui";
 import { useText } from "@openbot/ui/text";
-import { Show } from "solid-js";
+import { createSignal, Show } from "solid-js";
 import { BrowserShortcutHint } from "./BrowserTabIcon";
 import { type BrowserFullViewProps, browserTabStoppable } from "./browser-full-view-types";
+import { useBrowserPageCover } from "./browser-page-cover";
 
 /** The actions of the view in one menu: a new tab, reopen, Picture in Picture, hide. */
 export function BrowserPageMenu(props: { view: BrowserFullViewProps; narrow: boolean; onNewTab: () => void }) {
   const { t } = useText();
   const tab = () => props.view.activeTab;
+  const [open, setOpen] = createSignal(false);
+  useBrowserPageCover(open);
   return (
-    <DropdownMenu.Root placement="bottom-end" gutter={4}>
+    <DropdownMenu.Root placement="bottom-end" gutter={4} onOpenChange={setOpen}>
       <DropdownMenu.Trigger
         class={buttonVariants({ variant: "ghost", size: "icon-sm" })}
         aria-label={t("browser.pageActions")}

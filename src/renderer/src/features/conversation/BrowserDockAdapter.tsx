@@ -288,39 +288,44 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined; 
 
   return (
     <Show when={!overlayShown() && props.agent}>
-      {(agent) => (
-        <BrowserDock
-          agent={agent()}
-          agents={props.agents}
-          skills={installedSkills()}
-          mcpServers={mcpServers()}
-          value={currentDraft().text}
-          focusRequest={composerFocusRequest()}
-          sendShortcut={deviceSendShortcut(props.platform)}
-          working={working()}
-          deliveries={deliveries()}
-          hold={hold()}
-          editingDeliveryId={editingDeliveryId()}
-          canSteer={Boolean(props.activeTurnId)}
-          island={island()}
-          handoffPending={handoffPending()}
-          onValueChange={(text) => updateCurrentDraft({ text })}
-          onSend={send}
-          onStop={props.onStop}
-          onSteer={props.onSteerQueuedMessage}
-          onRunAsTask={props.tasks?.onRunQueuedMessage}
-          onCancel={props.onCancelQueuedMessage}
-          onEdit={(delivery) => void editQueuedMessage(delivery)}
-          onCancelEdit={() => void cancelQueuedMessageEdit()}
-          onReorder={reorderPresentedQueue}
-          onHandoff={onHandoff()}
-          onRespondSecret={(input) => conversationRuntime(props).agent.respondToBrowserSecret(input)}
-          onDismissReply={dismissReply}
-          onOpenChat={() => setActiveRightPanel("browser")}
-          onSelectAgent={props.onSelectAgent}
-          onOpenLink={(url) => void openExternalMessageUrl(url)}
-        />
-      )}
+      {(agent) => {
+        // Main hides the overlay while a menu covers the page, and this dock shows in its place. A
+        // focus request from before it showed is not for it: it would take the focus from the menu.
+        const shownAt = untrack(composerFocusRequest);
+        return (
+          <BrowserDock
+            agent={agent()}
+            agents={props.agents}
+            skills={installedSkills()}
+            mcpServers={mcpServers()}
+            value={currentDraft().text}
+            focusRequest={composerFocusRequest() > shownAt ? composerFocusRequest() : undefined}
+            sendShortcut={deviceSendShortcut(props.platform)}
+            working={working()}
+            deliveries={deliveries()}
+            hold={hold()}
+            editingDeliveryId={editingDeliveryId()}
+            canSteer={Boolean(props.activeTurnId)}
+            island={island()}
+            handoffPending={handoffPending()}
+            onValueChange={(text) => updateCurrentDraft({ text })}
+            onSend={send}
+            onStop={props.onStop}
+            onSteer={props.onSteerQueuedMessage}
+            onRunAsTask={props.tasks?.onRunQueuedMessage}
+            onCancel={props.onCancelQueuedMessage}
+            onEdit={(delivery) => void editQueuedMessage(delivery)}
+            onCancelEdit={() => void cancelQueuedMessageEdit()}
+            onReorder={reorderPresentedQueue}
+            onHandoff={onHandoff()}
+            onRespondSecret={(input) => conversationRuntime(props).agent.respondToBrowserSecret(input)}
+            onDismissReply={dismissReply}
+            onOpenChat={() => setActiveRightPanel("browser")}
+            onSelectAgent={props.onSelectAgent}
+            onOpenLink={(url) => void openExternalMessageUrl(url)}
+          />
+        );
+      }}
     </Show>
   );
 }

@@ -4,6 +4,7 @@ import { useText } from "@openbot/ui/text";
 import { createSignal, For, Show } from "solid-js";
 import { BrowserTabIcon, useBrowserTabTitle } from "./BrowserTabIcon";
 import type { BrowserFullViewProps } from "./browser-full-view-types";
+import { useBrowserPageCover } from "./browser-page-cover";
 import { browserDisplayUrl } from "./browser-suggestions";
 
 /** On a narrow window the top row has no room for the chips: one button names the tab and opens the list. */
@@ -15,6 +16,7 @@ export function BrowserTabSwitcher(props: {
   const { t } = useText();
   const tabTitle = useBrowserTabTitle();
   const [open, setOpen] = createSignal(false);
+  useBrowserPageCover(open);
   // A new tab puts the focus in the address field, so the popover does not give it back to its button.
   let keepFocus = false;
   const active = () => props.view.activeTab;
