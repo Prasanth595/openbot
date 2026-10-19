@@ -435,6 +435,8 @@ export function ChatView({
     keyboardOffset,
     // The list takes its place at the latest message once its rows render.
     ready && rowsShown,
+    // The list draws a row for each message except the thinking steps, which the activity row shows.
+    rowsShown && messages.some((message) => message.kind !== "thinking"),
     lastUserId,
     questionForm?.question ? (questionForm.messageId ?? null) : null,
     holdOpening,

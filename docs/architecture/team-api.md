@@ -109,16 +109,19 @@ bridge. Mobile queues downloads to limit concurrent copies. Image previews prese
 other files use the system share sheet through a temporary cache file.
 
 Mobile chat loads the latest 50 messages through `conversation-page` and loads older pages by cursor.
-Its `FlatList` virtualizes messages and retains the visible position when older pages are added.
+Its Legend List (`KeyboardAwareLegendList` from `@legendapp/list/keyboard`) renders only the rows near
+the viewport, gets every loaded message, and retains the visible position when older pages are added.
+A row renders again only when its message changes; other row state comes from a React context.
 Reply references travel with each page. A page with no overlap replaces the cached window so a
 reconnect cannot leave an invisible gap. Older-page responses do not advance the live revision.
 The in-memory conversation store notifies subscribers per agent and combines streamed text once
 per animation frame. Windows above 50 messages are released when their last subscriber leaves;
 the complete history remains in the host database. Connection recovery prioritizes observed chats.
-Mobile chat keeps viewport, latest-user, and composer measurements in its motion controller. The
-last user message anchors a native blank-space inset; streamed replies consume that inset without
-autoscrolling. Initial history positioning and the first-send/first-response animation are separate
-states. Pending message bubbles reconcile through the host receipt ID, not message text.
+Mobile chat keeps viewport and composer measurements in its motion controller. The last user
+message is the list's `anchoredEndSpace` anchor: the list adds a blank-space inset under it, and
+streamed replies consume that inset without autoscrolling. Initial history positioning and the
+first-send/first-response animation are separate states. Pending message bubbles reconcile through
+the host receipt ID, not message text.
 Mobile replies use the existing `replyToMessageId` field and retain their source after delivery.
 Agent bubbles support swipe-to-reply and a long-press action sheet with haptic feedback. The
 sheet has one nested native stack for actions and text selection; message text stays in memory,

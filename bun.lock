@@ -117,6 +117,7 @@
       "dependencies": {
         "@expo/metro-runtime": "~57.0.16",
         "@expo/ui": "~57.0.19",
+        "@legendapp/list": "3.6.0",
         "@norbert_bodziony/bloub": "catalog:",
         "@openbot/brand": "workspace:*",
         "@openbot/contracts": "workspace:*",
@@ -939,6 +940,8 @@
     "@kobalte/core": ["@kobalte/core@2.0.0-alpha.0", "", { "dependencies": { "@floating-ui/dom": "^1.5.1", "@internationalized/number": "^3.2.1", "@kobalte/utils": "2.0.0-alpha.0", "@solid-primitives/a11y": "1.0.0-next.3", "@solid-primitives/controlled-signal": "1.0.0-next.3", "@solid-primitives/event-listener": "3.0.0-next.3", "@solid-primitives/focus": "1.0.0-next.4", "@solid-primitives/form": "1.0.0-next.2", "@solid-primitives/i18n": "3.0.0-next.4", "@solid-primitives/interaction": "1.0.0-next.4", "@solid-primitives/keyboard": "2.0.0-next.5", "@solid-primitives/platform": "1.0.0-next.2", "@solid-primitives/presence": "1.0.0-next.2", "@solid-primitives/props": "4.0.0-next.3", "@solid-primitives/refs": "3.0.0-next.2", "@solid-primitives/resize-observer": "4.0.0-next.3", "@solid-primitives/scroll": "3.0.0-next.4", "@solid-primitives/upload": "1.0.0-next.3", "@solid-primitives/utils": "7.0.0-next.4" }, "peerDependencies": { "@solidjs/web": "2.0.0-rc.0", "solid-js": "2.0.0-rc.0" } }, "sha512-6l5wJRkk/CRXWzbzwYeNfv38XHWKoL3Bj9ykJQexGcmyM2TQV4IpR1E/wDbhygT9TsI3LYP5qgdLj/l2xx+qiw=="],
 
     "@kobalte/utils": ["@kobalte/utils@2.0.0-alpha.0", "", { "dependencies": { "@solid-primitives/event-listener": "3.0.0-next.3", "@solid-primitives/keyed": "3.0.0-next.2", "@solid-primitives/map": "1.0.0-next.2", "@solid-primitives/media": "4.0.0-next.2", "@solid-primitives/props": "4.0.0-next.3", "@solid-primitives/refs": "3.0.0-next.2", "@solid-primitives/utils": "7.0.0-next.4" }, "peerDependencies": { "@solidjs/web": "2.0.0-rc.0", "solid-js": "2.0.0-rc.0" } }, "sha512-LtMNLEDDJICPJXZiy5yQL23cBfbYSqzT02ItXky9sAaiLfVlasvguE5MmC/9BxC0FnwKrTDU1R3ysM18+TGd0A=="],
+
+    "@legendapp/list": ["@legendapp/list@3.6.0", "", { "dependencies": { "use-sync-external-store": "^1.5.0" }, "peerDependencies": { "react": "*", "react-dom": "*", "react-native": "*" }, "optionalPeers": ["react-dom", "react-native"] }, "sha512-ndGQjSYdA32LWErJYbXEm4+eta+4bo0NxQO7eA3Xcvh0rXSb1mTGPbUtUkpea5w4MYciLKaE+0hoPxlMcaMtrw=="],
 
     "@malept/cross-spawn-promise": ["@malept/cross-spawn-promise@2.0.0", "", { "dependencies": { "cross-spawn": "^7.0.1" } }, "sha512-1DpKU0Z5ThltBwjNySMC14g0CkbyhCaz9FkhxqNsZI6uAPJXFS8cMXlBKo26FJ8ZuW6S9GCMcR9IO5k2X5/9Fg=="],
 

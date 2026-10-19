@@ -17,6 +17,7 @@ import { queryKeys } from "@/features/workspace/model/query-keys";
 import { haptics } from "@/shared/lib/haptics";
 import { type MobileText, useText } from "@/shared/lib/text";
 import { attachmentFrame, FILL, FRAME_RADIUS, MAX_FRAME_WIDTH } from "../model/attachment-frame";
+import { useListSettled } from "./use-list-settled";
 import { VideoViewer } from "./video-viewer";
 
 // The width reserved while the shape is still unknown: a screen recording from a desktop.
@@ -74,10 +75,14 @@ function videoFile(serverId: string, attachment: AttachmentSummary) {
   return new File(videoFolder(), segment(serverId), segment(attachment.id), name);
 }
 
-/** The video as a local file. A file from an earlier download is used again when it is whole. */
-function useVideoFile(serverId: string, attachment: AttachmentSummary) {
+/**
+ * The video as a local file. A file from an earlier download is used again when it is whole.
+ * `enabled` is false while the card passes in a fast fling: the download waits until the list slows.
+ */
+function useVideoFile(serverId: string, attachment: AttachmentSummary, enabled: boolean) {
   const { downloadAttachment } = useMobileWorkspaceActions();
   return useQuery({
+    enabled,
     queryKey: queryKeys.chatVideoFile(serverId, attachment.id),
     queryFn: async () => {
       const file = videoFile(serverId, attachment);
@@ -191,9 +196,10 @@ export function ChatVideoAttachment({
   const { t, format, sourceText } = text;
   const muted = useThemeColor("muted");
   const { width } = useWindowDimensions();
-  const query = useVideoFile(serverId, attachment);
+  const settled = useListSettled();
+  const query = useVideoFile(serverId, attachment, settled);
   const uri = query.data ?? null;
-  const { poster, missing } = useVideoPoster(`${serverId}:${attachment.id}`, uri);
+  const { poster, missing } = useVideoPoster(`${serverId}:${attachment.id}`, settled ? uri : null);
   const [posterLoaded, setPosterLoaded] = useState(false);
   const [viewing, setViewing] = useState(false);
   const [busy, setBusy] = useState(false);

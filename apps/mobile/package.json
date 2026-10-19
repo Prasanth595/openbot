@@ -15,6 +15,7 @@
   "dependencies": {
     "@expo/metro-runtime": "~57.0.16",
     "@expo/ui": "~57.0.19",
+    "@legendapp/list": "3.6.0",
     "@norbert_bodziony/bloub": "catalog:",
     "@openbot/brand": "workspace:*",
     "@openbot/contracts": "workspace:*",

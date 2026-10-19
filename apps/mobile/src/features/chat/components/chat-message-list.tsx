@@ -1,3 +1,5 @@
+import { KeyboardAwareLegendList } from "@legendapp/list/keyboard";
+import type { AnchoredEndSpaceConfig } from "@legendapp/list/react-native";
 import { expandAttachmentReferences } from "@openbot/contracts/attachment-references";
 import { expandChatTagReferences } from "@openbot/contracts/chat-tag-references";
 import type { BrowserTakeoverRequest } from "@openbot/contracts/ipc";
@@ -20,7 +22,6 @@ import X from "lucide-react-native/icons/x";
 import {
   type ComponentProps,
   createContext,
-  forwardRef,
   memo,
   type PropsWithChildren,
   useCallback,
@@ -32,15 +33,13 @@ import {
 } from "react";
 import {
   AccessibilityInfo,
-  type CellRendererProps,
-  FlatList,
   type GestureResponderEvent,
   Pressable,
   StyleSheet,
+  useWindowDimensions,
   View,
   type ViewStyle,
 } from "react-native";
-import { KeyboardChatScrollView, type KeyboardChatScrollViewProps } from "react-native-keyboard-controller";
 import Animated, {
   Easing,
   FadeInDown,
@@ -58,7 +57,7 @@ import { ChatMarkdown } from "@/features/chat/components/chat-markdown";
 import { ChatPlan } from "@/features/chat/components/chat-plan";
 import { ChatQuestionPrompt } from "@/features/chat/components/chat-question-prompt";
 import { useActivityPresence } from "@/features/chat/components/use-activity-presence";
-import type { ChatMotion } from "@/features/chat/components/use-chat-motion";
+import { CHAT_ROW_GAP, type ChatMotion } from "@/features/chat/components/use-chat-motion";
 import { useMessageArrivals } from "@/features/chat/components/use-message-arrivals";
 import type { QuestionPromptController } from "@/features/chat/components/use-question-prompt";
 import {
@@ -79,7 +78,6 @@ import { haptics } from "@/shared/lib/haptics";
 import { useMotionPreference, useReducedMotion } from "@/shared/lib/motion";
 import { isAndroid } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
-import { CHAT_HISTORY_BATCH, type ChatHistoryBoundary, chatHistoryStart } from "../model/chat-layout";
 import { mentionDraft } from "../model/chat-mentions";
 import type { ChatTarget } from "../model/chat-target";
 import { nativeTextSelection } from "../model/native-text-selection";
@@ -101,47 +99,29 @@ const HANDLE_MARGIN = 24;
 
 /** A row of the list. Thinking steps show in the activity row instead. */
 type VisibleMessage = Exclude<ChatMessage, { kind: "thinking" }> | ExchangeGroup;
-const RowLayoutContext = createContext<{
-  id: string | null;
-  onTailStartLayout: ChatMotion["onTailStartLayout"];
-  /** The row of a message from search, until the chat opens at it. */
-  focusId: string | null;
-  onFocusLayout: (id: string, y: number) => void;
-} | null>(null);
-/** Rows above a message from search, so the reader sees what led to it. */
-const FOCUS_CONTEXT_ROWS = 2;
 const NO_ROWS: VisibleMessage[] = [];
+const ROW_STYLE = { paddingBottom: CHAT_ROW_GAP };
 
-function MessageCell({ children, item, onLayout, onFocusCapture, style }: CellRendererProps<VisibleMessage>) {
-  const rows = useContext(RowLayoutContext);
-  const nativeProps = { style, onFocusCapture };
-  return (
-    <View
-      {...nativeProps}
-      onLayout={(event) => {
-        onLayout?.(event);
-        if (item.id === rows?.id) rows.onTailStartLayout(item.id, event);
-        if (item.id === rows?.focusId) rows.onFocusLayout(item.id, event.nativeEvent.layout.y);
-      }}
-    >
-      {children}
-    </View>
-  );
+/** The list keeps the sizes it measured by message, so rows that stay keep their place when the data changes. */
+function rowKey(message: VisibleMessage): string {
+  return message.id;
 }
-
-const ChatScrollView = forwardRef<Animated.ScrollView, KeyboardChatScrollViewProps & { motion: ChatMotion }>(
-  function ChatScrollView({ motion, ...props }, ref) {
-    const setRef = useCallback(
-      (instance: Animated.ScrollView | null) => {
-        motion.setScrollRef(instance);
-        if (typeof ref === "function") ref(instance);
-        else if (ref) ref.current = instance;
-      },
-      [motion.setScrollRef, ref],
-    );
-    return <KeyboardChatScrollView {...props} ref={setRef} />;
-  },
-);
+/** The size of a user bubble, an agent reply and a marker line differ a lot, so each kind has its own average. */
+function rowType(message: VisibleMessage): string {
+  return message.kind === "message" ? message.author : message.kind;
+}
+// A typical row of a mixed chat: a short reply with its action row. It decides how many rows the
+// list prepares before it has measured any.
+const ESTIMATED_ROW_SIZE = 150;
+// About half a phone screen above and below the visible rows. Chat rows are tall, so the default of
+// 250 often prepares less than one row, and a fling shows empty space.
+const DRAW_DISTANCE = 400;
+// A fast fling marks the list "light", so a row that mounts on the way waits with its expensive parts.
+const ADAPTIVE_RENDER = {};
+// Older messages that a page adds at the top, and rows that change size above the visible rows, do
+// not move the messages that the reader sees.
+const KEEP_VISIBLE_POSITION = { data: true, size: true };
+const FOLLOW_END = { animated: false, on: { dataChange: true, itemLayout: true, footerLayout: true, layout: true } };
 
 const STARTER_OPTIONS = [
   { id: "plan", label: "mobile.chat.starter.planLabel", detail: "mobile.chat.starter.planDetail" },
@@ -312,7 +292,6 @@ interface MessageRowShared {
   /** Unset when the user's messages do not use the agent color. */
   userBubbleStyle: ComponentProps<typeof Animated.View>["style"] | undefined;
   firstMessageStyle: ComponentProps<typeof Animated.View>["style"];
-  onUserLayout: ChatMotion["onUserLayout"];
   arrivals: ReadonlySet<string>;
   /** Arriving replies animate: the screen is focused, online, active, and shows the response. */
   animationActive: boolean;
@@ -423,7 +402,6 @@ function awaitingFirstWord(message: VisibleMessage, shared: MessageRowShared) {
 
 const MessageRow = memo(function MessageRow({
   message,
-  isTailUser,
   isFirstUser,
   source,
   questionForm,
@@ -433,7 +411,7 @@ const MessageRow = memo(function MessageRow({
   shared,
 }: {
   message: VisibleMessage;
-  isTailUser: boolean;
+  /** The first message of the chat, sent from this phone: it rises from the composer. */
   isFirstUser: boolean;
   /** The message this one replies to. */
   source?: ChatMessage;
@@ -480,7 +458,6 @@ const MessageRow = memo(function MessageRow({
     userForeground,
     userBubbleStyle,
     firstMessageStyle,
-    onUserLayout,
     arrivals,
     replySession,
     markRevealed,
@@ -657,7 +634,6 @@ const MessageRow = memo(function MessageRow({
             ? "max-w-full self-end gap-1"
             : "max-w-[88%] self-end gap-1"
       }
-      onLayout={isTailUser ? onUserLayout : undefined}
     >
       {message.replyToMessageId ? (
         <View className={`flex-row items-center gap-1 ${message.author === "user" ? "self-end" : "self-start"}`}>
@@ -703,6 +679,58 @@ const MessageRow = memo(function MessageRow({
     </View>
   );
 });
+
+/**
+ * What the rows read besides their message. The list renders a row again only when its message
+ * changes, so the rows read the rest from this context and render again when it changes.
+ */
+interface RowContextValue {
+  shared: MessageRowShared;
+  /** The rows after the latest user message, which hide while the first message rises. */
+  responseIds: ReadonlySet<string>;
+  responseVisible: boolean;
+  responseStyle: ComponentProps<typeof Animated.View>["style"];
+  firstUserId: string | null;
+  messagesById: ReadonlyMap<string, ChatMessage>;
+  promptController: QuestionPromptController | undefined;
+  upload: ChatUpload | null | undefined;
+  outboxStatuses: ReadonlyMap<string, OutboxRowStatus> | undefined;
+  selectingMessageId: string | null;
+}
+
+const RowContext = createContext<RowContextValue | null>(null);
+
+function ChatRow({ message }: { message: VisibleMessage }) {
+  const row = useContext(RowContext);
+  if (!row) return null;
+  const response = row.responseIds.has(message.id);
+  return (
+    <Animated.View
+      style={[ROW_STYLE, response ? row.responseStyle : undefined]}
+      accessibilityElementsHidden={response && !row.responseVisible}
+      importantForAccessibility={response && !row.responseVisible ? "no-hide-descendants" : "auto"}
+    >
+      <MessageRow
+        message={message}
+        isFirstUser={message.id === row.firstUserId}
+        source={
+          message.kind === "message" && message.replyToMessageId
+            ? row.messagesById.get(message.replyToMessageId)
+            : undefined
+        }
+        questionForm={message.id === row.promptController?.messageId ? row.promptController : undefined}
+        upload={row.upload?.messageId === message.id ? row.upload : undefined}
+        outbox={row.outboxStatuses?.get(message.id)}
+        selecting={message.id === row.selectingMessageId}
+        shared={row.shared}
+      />
+    </Animated.View>
+  );
+}
+
+function renderRow({ item }: { item: VisibleMessage }) {
+  return <ChatRow message={item} />;
+}
 
 /** The text that Copy puts on the clipboard: tags and file references show their names. */
 function messageCopyText(message: ChatBubbleMessage): string {
@@ -872,51 +900,39 @@ export function ChatMessageList({
     () => groupExchangeMarkers(messages.filter((message) => message.kind !== "thinking")),
     [messages],
   );
-  const tailIndex = visibleMessages.findLastIndex((message) => message.kind === "message" && message.author === "user");
-  const tailId = visibleMessages[tailIndex]?.id ?? null;
-  const generation = motion.latestGeneration;
-  const [boundary, setBoundary] = useState<ChatHistoryBoundary & { generation: number }>({
-    firstId: null,
-    headId: null,
-    generation,
-  });
-  // The latest messages after a window around a searched message start again at the recent rows.
-  const currentBoundary = boundary.generation === generation ? boundary : { firstId: null, headId: null };
-  const promptIndex = visibleMessages.findIndex((message) => message.id === questionForm?.messageId);
-  const focusIndex = focusMessageId ? chatRowIndex(visibleMessages, focusMessageId) : -1;
-  const historyStart = chatHistoryStart(visibleMessages, tailIndex, currentBoundary);
-  // A message from search starts the window just above its row, so the row renders at once while the
-  // list waits for it. A start further up can leave the row past the rows that the list renders.
-  const windowStart =
-    focusIndex >= 0
-      ? Math.max(0, focusIndex - FOCUS_CONTEXT_ROWS)
-      : promptIndex >= 0
-        ? Math.min(historyStart, promptIndex)
-        : historyStart;
-  const firstId = visibleMessages[windowStart]?.id ?? null;
-  const headId = visibleMessages[0]?.id ?? null;
-  if (boundary.firstId !== firstId || boundary.headId !== headId || boundary.generation !== generation)
-    setBoundary({ firstId, headId, generation });
-  const windowMessages = useMemo(() => visibleMessages.slice(windowStart), [visibleMessages, windowStart]);
-  const hasCachedOlder = windowStart > 0;
-  const canLoadOlder = hasCachedOlder || (online && hasOlder && !olderLoading);
-  const loadPrevious = () => {
-    if (hasCachedOlder) {
-      const first = visibleMessages[Math.max(0, windowStart - CHAT_HISTORY_BATCH)];
-      if (first) setBoundary({ firstId: first.id, headId, generation });
-    } else if (canLoadOlder) onLoadOlder();
-  };
-  // The chat opens at the row of a message from search after the row has its place in the list.
+  // The list renders only the rows in and near the view, so it gets every loaded message.
+  const rows = rowsShown ? visibleMessages : NO_ROWS;
+  const tailIndex = rows.findLastIndex((message) => message.kind === "message" && message.author === "user");
+  const focusIndex = focusMessageId ? chatRowIndex(rows, focusMessageId) : -1;
+  const canLoadOlder = online && hasOlder && !olderLoading;
+  // The chat opens at the row of a message from search after the list has its rows in place.
   const placedFocus = useRef<string | null>(null);
-  const focusId = historyState === "ready" && focusIndex >= 0 ? (visibleMessages[focusIndex]?.id ?? null) : null;
+  const focusId = historyState === "ready" && focusIndex >= 0 ? (rows[focusIndex]?.id ?? null) : null;
   const focusHandlers = useRef({ openAt: motion.openAt, onFocusPlaced });
   focusHandlers.current = { openAt: motion.openAt, onFocusPlaced };
-  const onFocusLayout = useCallback((id: string, y: number) => {
-    if (placedFocus.current === id) return;
-    placedFocus.current = id;
-    focusHandlers.current.openAt(y);
-    focusHandlers.current.onFocusPlaced?.();
-  }, []);
+  useEffect(() => {
+    if (!focusId || !motion.listPlaced || placedFocus.current === focusId) return;
+    placedFocus.current = focusId;
+    // The search hold ends after the row is in view, so the chat does not move to the latest message first.
+    void focusHandlers.current.openAt(focusIndex).then(() => focusHandlers.current.onFocusPlaced?.());
+  }, [focusId, focusIndex, motion.listPlaced]);
+  const header = topInset + 84;
+  // The latest user message can always move to the top of the chat: the list adds blank space
+  // under it while the rows after it are shorter than the screen.
+  const anchoredEndSpace = useMemo<AnchoredEndSpaceConfig | undefined>(
+    () =>
+      tailIndex >= 0 ? { anchorIndex: tailIndex, anchorOffset: header, onReady: motion.onAnchorReady } : undefined,
+    [tailIndex, header, motion.onAnchorReady],
+  );
+  const sharedValues = useMemo(() => ({ scrollOffset: motion.scrollOffset }), [motion.scrollOffset]);
+  const screen = useWindowDimensions();
+  const estimatedListSize = useMemo(
+    () => ({ width: screen.width, height: screen.height }),
+    [screen.width, screen.height],
+  );
+  const onListReady = motion.onListReady;
+  const hasRows = rows.length > 0;
+  const onReady = useCallback(() => onListReady(hasRows), [onListReady, hasRows]);
   const selectionArea = useRef<View | null>(null);
   const actionHandlers = useRef({ onReply, onReact, onSelectText, onSelectionChange, onNativeSelection });
   actionHandlers.current = { onReply, onReact, onSelectText, onSelectionChange, onNativeSelection };
@@ -977,7 +993,6 @@ export function ChatMessageList({
       userForeground,
       userBubbleStyle: agentColorMessages ? userBubbleStyle : undefined,
       firstMessageStyle: motion.firstMessageStyle,
-      onUserLayout: motion.onUserLayout,
       arrivals,
       animationActive,
       playbackActive: animationActive && textReveal && !screenReaderEnabled,
@@ -1003,7 +1018,6 @@ export function ChatMessageList({
       userBubbleStyle,
       agentColorMessages,
       motion.firstMessageStyle,
-      motion.onUserLayout,
       screenReaderEnabled,
       arrivals,
       animationActive,
@@ -1018,65 +1032,37 @@ export function ChatMessageList({
       actions,
     ],
   );
-  const listRef = useRef<FlatList<VisibleMessage>>(null);
-  const rowLayout = useMemo(
-    () => ({
-      id: tailId,
-      onTailStartLayout: motion.onTailStartLayout,
-      focusId,
-      onFocusLayout,
-    }),
-    [tailId, motion.onTailStartLayout, focusId, onFocusLayout],
-  );
-  const seekLatest = useCallback(() => {
-    if (motion.needsInitialPosition() && visibleMessages.length) listRef.current?.scrollToEnd({ animated: false });
-  }, [motion.needsInitialPosition, visibleMessages.length]);
-  useEffect(() => {
-    if (tailId && motion.needsSendPosition() && !motion.atLatest) listRef.current?.scrollToEnd({ animated: false });
-  }, [tailId, motion.needsSendPosition, motion.atLatest]);
   const pendingReveal = visibleMessages.some((message) => awaitingFirstWord(message, shared));
   const { responseStyle, responseVisible } = motion;
-  const firstRowIsHead = !hasOlder && !hasCachedOlder;
   // The prompt controller is a new object on each render. Without a prompt it is left out, so the
   // list does not render every row again.
   const promptController = questionForm?.messageId ? questionForm : undefined;
-  const renderItem = useCallback(
-    ({ item, index }: { item: VisibleMessage; index: number }) => {
-      const response = index + windowStart > tailIndex;
-      return (
-        <Animated.View
-          style={[{ paddingBottom: 10 }, response ? responseStyle : undefined]}
-          accessibilityElementsHidden={response && !responseVisible}
-          importantForAccessibility={response && !responseVisible ? "no-hide-descendants" : "auto"}
-        >
-          <MessageRow
-            message={item}
-            isTailUser={index + windowStart === tailIndex}
-            isFirstUser={index === 0 && firstRowIsHead}
-            source={
-              item.kind === "message" && item.replyToMessageId ? messagesById.get(item.replyToMessageId) : undefined
-            }
-            questionForm={item.id === promptController?.messageId ? promptController : undefined}
-            upload={upload?.messageId === item.id ? upload : undefined}
-            outbox={outboxStatuses?.get(item.id)}
-            selecting={item.id === selectingMessageId}
-            shared={shared}
-          />
-        </Animated.View>
-      );
-    },
-    [
-      windowStart,
-      tailIndex,
-      responseStyle,
+  const responseIds = useMemo(() => new Set(rows.slice(tailIndex + 1).map((row) => row.id)), [rows, tailIndex]);
+  const firstUserId = tailIndex === 0 && !hasOlder ? (rows[0]?.id ?? null) : null;
+  const rowContext = useMemo<RowContextValue>(
+    () => ({
+      shared,
+      responseIds,
       responseVisible,
-      firstRowIsHead,
+      responseStyle,
+      firstUserId,
       messagesById,
       promptController,
       upload,
       outboxStatuses,
       selectingMessageId,
+    }),
+    [
       shared,
+      responseIds,
+      responseVisible,
+      responseStyle,
+      firstUserId,
+      messagesById,
+      promptController,
+      upload,
+      outboxStatuses,
+      selectingMessageId,
     ],
   );
   const activitySpec = (activity?: MobileAgentActivity): ChatActivitySpec | null => {
@@ -1147,64 +1133,58 @@ export function ChatMessageList({
         !accessibilityHidden && (historyState !== "ready" || motion.historyVisible) ? "auto" : "no-hide-descendants"
       }
     >
-      <RowLayoutContext.Provider value={rowLayout}>
-        <FlatList
-          ref={listRef}
-          data={rowsShown ? windowMessages : NO_ROWS}
-          keyExtractor={(message) => message.id}
-          CellRendererComponent={MessageCell}
-          initialNumToRender={CHAT_HISTORY_BATCH}
-          maxToRenderPerBatch={8}
-          windowSize={7}
-          removeClippedSubviews={false}
-          maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+      <RowContext value={rowContext}>
+        <KeyboardAwareLegendList
+          ref={motion.listRef}
+          data={rows}
+          // A new data set when the latest messages replace a window around a searched message.
+          dataKey={`${conversationKey}:${motion.latestGeneration}`}
+          keyExtractor={rowKey}
+          getItemType={rowType}
+          renderItem={renderRow}
+          // Rows hold their own state: reveal progress, selection, media and animated sizes. A row
+          // reused for another message would show the state of the message before it.
+          recycleItems={false}
+          estimatedItemSize={ESTIMATED_ROW_SIZE}
+          estimatedListSize={estimatedListSize}
+          drawDistance={DRAW_DISTANCE}
+          experimental_adaptiveRender={ADAPTIVE_RENDER}
+          initialScrollAtEnd={motion.startsAtEnd}
+          anchoredEndSpace={anchoredEndSpace}
+          maintainVisibleContentPosition={KEEP_VISIBLE_POSITION}
+          maintainScrollAtEnd={motion.followsRequiredInput ? FOLLOW_END : false}
+          sharedValues={sharedValues}
+          contentInsetEndAdjustment={motion.composerHeight}
+          keyboardOffset={keyboardOffset}
+          keyboardLiftBehavior={motion.keyboardLiftBehavior}
+          applyWorkaroundForContentInsetHitTestBug
+          automaticallyAdjustKeyboardInsets={false}
+          onReady={onReady}
           onStartReached={() => {
-            if (motion.historyVisible && canLoadOlder && (hasCachedOlder || !olderError)) loadPrevious();
+            if (motion.historyVisible && canLoadOlder && !olderError) onLoadOlder();
           }}
           onStartReachedThreshold={0.5}
-          renderItem={renderItem}
-          renderScrollComponent={(props) => (
-            <ChatScrollView
-              {...props}
-              motion={motion}
-              automaticallyAdjustKeyboardInsets={false}
-              keyboardLiftBehavior={motion.keyboardLiftBehavior}
-              offset={keyboardOffset}
-              applyWorkaroundForContentInsetHitTestBug
-              blankSpace={motion.blankSpace}
-              extraContentPadding={motion.composerHeight}
-              onContentInsetChange={motion.onContentInsetChange}
-            />
-          )}
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: topInset + 84 }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: header }}
           contentInsetAdjustmentBehavior="never"
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
           alwaysBounceVertical
-          onContentSizeChange={(width, height) => {
-            motion.onContentSizeChange(width, height);
-            seekLatest();
-          }}
-          onLayout={(event) => {
-            motion.onViewportLayout(event);
-            seekLatest();
-          }}
-          onScroll={motion.onScroll}
+          onContentSizeChange={motion.onContentSizeChange}
+          onLayout={motion.onViewportLayout}
           onScrollBeginDrag={motion.onScrollBeginDrag}
           onScrollEndDrag={motion.onScrollEndDrag}
           onMomentumScrollEnd={motion.onScrollEndDrag}
-          scrollEventThrottle={16}
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={
             <>
-              {hasOlder || hasCachedOlder ? (
+              {hasOlder ? (
                 <View className="items-center pb-3">
-                  <Button variant="tertiary" isDisabled={!canLoadOlder} onPress={loadPrevious}>
+                  <Button variant="tertiary" isDisabled={!canLoadOlder} onPress={onLoadOlder}>
                     <Button.Label>
-                      {!hasCachedOlder && olderLoading
+                      {olderLoading
                         ? t("mobile.chat.history.loadingOlder")
-                        : !hasCachedOlder && olderError
+                        : olderError
                           ? t("mobile.chat.history.retryOlder")
                           : t("mobile.chat.history.loadOlder")}
                     </Button.Label>
@@ -1323,7 +1303,7 @@ export function ChatMessageList({
             </>
           }
         />
-      </RowLayoutContext.Provider>
+      </RowContext>
     </Animated.View>
   );
 }

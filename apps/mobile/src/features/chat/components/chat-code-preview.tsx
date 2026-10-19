@@ -17,6 +17,7 @@ import { haptics } from "@/shared/lib/haptics";
 import { useReducedMotion } from "@/shared/lib/motion";
 import { useText } from "@/shared/lib/text";
 import HtmlPreview from "./html-preview.dom";
+import { useListSettled } from "./use-list-settled";
 
 /** The lines of code that the card shows while the block streams, or when it cannot draw it. */
 const EXCERPT_LINES = 4;
@@ -46,6 +47,8 @@ export const ChatCodePreview = memo(function ChatCodePreview({
 }) {
   const { t } = useText();
   const reducedMotion = useReducedMotion();
+  // A card that mounts during a fast fling of the chat draws its page or diagram when the list slows down.
+  const settled = useListSettled();
   const [muted, foreground] = useThemeColor(["muted", "foreground"]);
   const [pressed, setPressed] = useState(false);
   const [width, setWidth] = useState(0);
@@ -96,7 +99,9 @@ export const ChatCodePreview = memo(function ChatCodePreview({
         <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
           {streaming ? (
             <CodeExcerpt text={text} />
-          ) : width <= 0 ? null : kind === "html" ? (
+          ) : width <= 0 ? null : !settled ? (
+            <View style={{ height: previewHeight }} />
+          ) : kind === "html" ? (
             <HtmlCardPreview text={text} title={title} height={previewHeight} />
           ) : (
             <DiagramCardPreview text={text} title={title} width={width} height={previewHeight} />

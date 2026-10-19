@@ -15,7 +15,15 @@ import { useThemeColor } from "heroui-native/hooks";
 import FileText from "lucide-react-native/icons/file-text";
 import type { Token, Tokens } from "marked";
 import { Fragment, memo, type ReactNode, useEffect, useId, useMemo, useRef } from "react";
-import { type ColorValue, Platform, ScrollView, type TextStyle, useWindowDimensions, View } from "react-native";
+import {
+  type ColorValue,
+  Platform,
+  ScrollView,
+  type TextStyle,
+  useWindowDimensions,
+  View,
+  type ViewStyle,
+} from "react-native";
 import { UITextView } from "react-native-uitextview";
 import { useCSSVariable } from "uniwind";
 import { BloubAvatarThumbnail } from "@/features/agents/components/bloub-avatar";
@@ -116,9 +124,25 @@ function textContainerStyle(source: string, presentation: TextPresentation): Tex
     plainMentionParts(source, presentation.agents).some((part) => part.agent);
   // Inline math is moved down to the math axis in the same way.
   const hasMath = chatMathStart(source) !== undefined;
-  return hasMention || hasMath
+  // Android moves code chips down as well; see `inlineChipStyle`.
+  const hasAndroidChip = Platform.OS === "android" && source.includes("`");
+  return hasMention || hasMath || hasAndroidChip
     ? { ...presentation.style, paddingBottom: presentation.mentionOffset, overflow: "visible" }
     : presentation.style;
+}
+
+/** Space beside the text in a reply bubble, list indent included. An inline chip is never wider than the rest. */
+const INLINE_CHIP_SIDE_SPACE = 96;
+
+/**
+ * Android puts the bottom of a view inside text on the text baseline, so a chip sits too high. It
+ * moves down by the descender, as a mention does, and is never wider than a line, so a long file
+ * name goes to the next line and ends with an ellipsis instead of being cut at the bubble edge.
+ */
+function inlineChipStyle(presentation: TextPresentation, screenWidth: number): ViewStyle | undefined {
+  return Platform.OS === "android"
+    ? { maxWidth: screenWidth - INLINE_CHIP_SIDE_SPACE, transform: [{ translateY: presentation.mentionOffset }] }
+    : undefined;
 }
 
 function webLink(href: string): string | null {
@@ -160,9 +184,14 @@ function FileReference({ text, presentation }: { text: string; presentation: Tex
   const name = fileReferenceName(text.trim());
   const badge = fileReferenceBadge(name);
   const [color, soft] = useCSSVariable(FILE_TONE_COLORS[fileReferenceTone(name)]);
+  const { width } = useWindowDimensions();
   const small = presentation.type === "body-sm";
   return (
-    <View collapsable={false} className="max-w-full shrink flex-row items-center gap-1 self-start px-0.5">
+    <View
+      collapsable={false}
+      className="max-w-full shrink flex-row items-center gap-1 self-start px-0.5"
+      style={inlineChipStyle(presentation, width)}
+    >
       <View
         className="h-4 min-w-4 items-center justify-center rounded px-0.5"
         style={{ backgroundColor: String(soft) }}
@@ -205,14 +234,17 @@ function codePieces(text: string): string[] {
 }
 
 function CodeSpan({ text, presentation }: { text: string; presentation: TextPresentation }) {
+  const { width } = useWindowDimensions();
   if (isFileReference(text.trim())) return <FileReference text={text} presentation={presentation} />;
   const pieces = codePieces(text);
+  const chipStyle = inlineChipStyle(presentation, width);
   return sourceEntries(pieces, (piece) => piece).map(({ value: piece, offset }, index) => (
     // Only the ends of the span are rounded, so touching pieces read as one chip.
     <View
       key={offset}
       collapsable={false}
       className={`max-w-full self-start bg-control ${index === 0 ? "rounded-l-xl pl-1" : ""} ${index === pieces.length - 1 ? "rounded-r-xl pr-1" : ""} ${presentation.type === "body-sm" ? "py-px" : "py-0.5"}`}
+      style={chipStyle}
     >
       <Typography.Code
         selectable={presentation.selectable}
@@ -635,7 +667,9 @@ function MarkdownBlocks({
         // The list row draws the task mark, so the checkbox token adds nothing.
         if (token.type === "space" || token.type === "def" || token.type === "checkbox") return null;
         if (tokenIs(token, "paragraph") || tokenIs(token, "text")) {
-          if ((inList || Platform.OS === "android") && token.tokens?.some((child) => tokenIs(child, "codespan"))) {
+          // Android keeps code chips inside the paragraph's one text view. The wrapping row draws a
+          // native text view for each word, which made long replies slow to scroll on Android.
+          if (inList && Platform.OS !== "android" && token.tokens?.some((child) => tokenIs(child, "codespan"))) {
             return <ListParagraph key={offset} tokens={token.tokens} presentation={presentation} />;
           }
           const { nativeSelection } = presentation;
