@@ -240,9 +240,11 @@ try {
   const thread = JSON.stringify(started).match(/"id":"([^"]+)"/)?.[1];
   assert.ok(thread, "thread/start answers a thread id.");
   report.turns = [];
-  for (const [model, provider] of [
-    ["openai/gpt-6-astra", "cline-pass"],
-    ["cline-free/minimax-m3.1-flash", "cline"],
+  // A listed model after the free one sets the session's own provider back.
+  for (const [model, provider, providerChange] of [
+    ["openai/gpt-6-astra", "cline-pass", false],
+    ["cline-free/minimax-m3.1-flash", "cline", true],
+    ["openai/gpt-6-astra", "cline-pass", true],
   ] as const) {
     await rm(log, { force: true });
     await runTurn(client, thread, model);
@@ -251,9 +253,9 @@ try {
     const prompt = entries.filter((entry) => entry.event === "prompt").at(-1);
     const modelSet = set.findIndex((entry) => entry.configId === "model" && entry.value === model);
     assert.ok(modelSet >= 0, `${model} is sent as the model option.`);
-    if (provider === "cline") {
-      const providerSet = set.findIndex((entry) => entry.configId === "provider" && entry.value === "cline");
-      assert.ok(providerSet >= 0 && providerSet < modelSet, `${model} sets the cline provider first.`);
+    if (providerChange) {
+      const providerSet = set.findIndex((entry) => entry.configId === "provider" && entry.value === provider);
+      assert.ok(providerSet >= 0 && providerSet < modelSet, `${model} sets the ${provider} provider first.`);
     } else {
       assert.ok(!set.some((entry) => entry.configId === "provider"), `${model} does not change the provider.`);
     }

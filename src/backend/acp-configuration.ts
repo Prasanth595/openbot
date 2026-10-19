@@ -71,6 +71,8 @@ export interface AcpConfigurationState {
   id: string;
   configOptions: SessionConfigOption[];
   currentModelId: string | null;
+  /** The session's own values of the options that an unlisted model changed, set back for a listed one. */
+  unlistedOverrides?: Map<string, string>;
 }
 export interface AcpConfigurationOptions {
   connection(): ClientSideConnection;
@@ -266,11 +268,22 @@ export class AcpConfiguration {
           continue;
         }
       }
+      const unlisted = category === "model" ? models.find((candidate) => candidate.id === value)?.unlisted : undefined;
+      // A listed model after an unlisted one runs with the options the session had before: Cline's
+      // `provider` goes back to the one whose models the session listed.
+      if (category === "model" && !unlisted && thread.unlistedOverrides) {
+        for (const [configId, original] of thread.unlistedOverrides) {
+          const response = yield* providerCall(() =>
+            this.options.connection().setSessionConfigOption({ sessionId: thread.id, configId, value: original }),
+          );
+          thread.configOptions = response.configOptions;
+        }
+        delete thread.unlistedOverrides;
+      }
       const options = thread.configOptions.filter(
         (candidate): candidate is Extract<SessionConfigOption, { type: "select" }> =>
           candidate.category === category && candidate.type === "select",
       );
-      const unlisted = category === "model" ? models.find((candidate) => candidate.id === value)?.unlisted : undefined;
       // Cline puts a provider option of the model category before its model option. The first option
       // of the category did not list the model, and the model was never sent. A model OpenBot added
       // goes to the agent's `model` option, which takes a value it did not list.
@@ -301,7 +314,9 @@ export class AcpConfiguration {
       if (!selected) continue;
       for (const [configId, configValue] of listed ? [] : Object.entries(unlisted?.config ?? {})) {
         const required = thread.configOptions.find((candidate) => candidate.id === configId);
-        if (!required || required.currentValue === configValue) continue;
+        if (required?.type !== "select" || required.currentValue === configValue) continue;
+        thread.unlistedOverrides ??= new Map();
+        if (!thread.unlistedOverrides.has(configId)) thread.unlistedOverrides.set(configId, required.currentValue);
         const response = yield* providerCall(() =>
           this.options.connection().setSessionConfigOption({ sessionId: thread.id, configId, value: configValue }),
         );
