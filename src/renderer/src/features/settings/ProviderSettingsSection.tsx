@@ -100,6 +100,7 @@ function ProviderSettingsSection(props: ProviderSettingsSectionProps) {
     pending: { provider: AgentProviderId; custom: boolean } | null;
     error: string;
   }>({ pending: null, error: "" });
+  const [downloadError, setDownloadError] = createSignal("");
   const defaultCustomModel = () => {
     const choice = props.defaultProvider;
     return choice ? savedCustomModel(choice.preferredProvider, choice.preferredModel, customProviders()) : null;
@@ -142,18 +143,13 @@ function ProviderSettingsSection(props: ProviderSettingsSectionProps) {
   async function downloadProvider(provider: AgentProviderId): Promise<void> {
     const download = props.onDownloadProvider;
     if (!download) return;
-    setSaving((state) => {
-      state.error = "";
-    });
+    setDownloadError("");
     try {
       await download(provider);
     } catch (error) {
-      setSaving((state) => {
-        state.error = i18n.errorMessage(
-          error,
-          i18n.t("onboarding.error.download", { provider: agentProviderName(provider) }),
-        );
-      });
+      setDownloadError(
+        i18n.errorMessage(error, i18n.t("onboarding.error.download", { provider: agentProviderName(provider) })),
+      );
     }
   }
   async function selectSavedEndpoint(value: SaveCustomProviderInput): Promise<void> {
@@ -253,6 +249,9 @@ function ProviderSettingsSection(props: ProviderSettingsSectionProps) {
       />
       <Show when={!host.state.manageOpen && saving.error}>
         <Text role="alert">{saving.error}</Text>
+      </Show>
+      <Show when={!host.state.manageOpen && downloadError()}>
+        <Text role="alert">{downloadError()}</Text>
       </Show>
       {/* The outcome is shown where the user is looking. While the list is open the section behind
         it is hidden from assistive technology, so a status left here could not be read. */}
