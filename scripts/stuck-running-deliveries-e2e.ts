@@ -47,8 +47,9 @@ const { StoredStateFailure } = await import("../src/backend/stored-state-effects
  * A Codex app-server with the methods that the service calls. `control.json` sets whether a new
  * turn is held until `turn/interrupt` or the process exits, how long a turn that is not held runs, and
  * whether `turn/started` comes before the `turn/start` answer. With `clientTurnIds`, a turn takes the
- * `clientUserMessageId` as its id, as Claude, ACP and Pi do. With `refuseOnce`, the first turn of each
- * id fails as a refused session.
+ * `clientUserMessageId` as its id, as Claude, ACP and Pi do, and a new turn is refused while a turn of
+ * the thread runs, as Claude refuses it. With `refuseOnce`, the first turn of each id fails as a
+ * refused session.
  * Like Codex, `turn/interrupt` for a turn that does not run is refused.
  */
 const FAKE_CODEX = `#!/usr/bin/env node
@@ -104,6 +105,8 @@ const answer = (message) => {
     case "turn/start": {
       const { holdTurns, turnMs, startedFirst, clientTurnIds, refuseOnce } = control();
       const turnId = clientTurnIds && params.clientUserMessageId ? params.clientUserMessageId : prefix + "turn-" + (++turns);
+      if (clientTurnIds && [...running.values()].some((turn) => turn.threadId === params.threadId))
+        return write({ id: message.id, error: { code: -32600, message: "The thread already has an active turn." } });
       const started = { method: "turn/started", params: { threadId: params.threadId, turn: { id: turnId } } };
       if (startedFirst) write(started);
       write({ id: message.id, result: { turn: { id: turnId, status: "inProgress", items: [] } } });
@@ -635,10 +638,12 @@ try {
     details.turnStarts = starts;
     details.first = status(mailbox, deliveryId);
     details.next = status(mailbox, nextId);
-    details.turnRow = turnRow(second.database, deliveryId);
+    const row = turnRow(second.database, deliveryId);
+    details.turnRow = row;
     if (starts !== 2) return "The refused delivery did not run again under the same turn id.";
     if (status(mailbox, deliveryId) !== "completed") return "The second run of the delivery did not complete.";
     if (status(mailbox, nextId) !== "completed") return "The next message did not run.";
+    if (row?.status !== "completed") return "The stored turn of the second run did not complete.";
     return null;
   });
 
