@@ -15,14 +15,12 @@ import { resolve } from "node:path";
 import { chromium, type Page } from "playwright-core";
 
 const OUT = resolve(import.meta.dirname, "../.openbot-build/chat-scroll-streaming-e2e");
-const AGENT_SCROLL = ".conversation-scroll";
+const SCROLL = ".conversation-scroll";
 const AGENT_COMPOSER = ".composer [contenteditable='true']";
 const REPLY = '[data-chat-search-message="reading-history-reply"]';
 
 interface StoryCase {
   id: string;
-  /** The element that scrolls the chat. */
-  scroll: string;
   /** An element that must hold still; by default the top row on the screen. */
   anchor?: string;
   /** The composer of a burst story, for the checks of the jump button and of a send. */
@@ -30,16 +28,16 @@ interface StoryCase {
 }
 
 const STORIES: StoryCase[] = [
-  { id: "conversation-conversation--streaming-while-reading-history", scroll: AGENT_SCROLL, anchor: REPLY },
-  { id: "conversation-conversation--streaming-while-reading-long-history", scroll: AGENT_SCROLL, anchor: REPLY },
+  { id: "conversation-conversation--streaming-while-reading-history", anchor: REPLY },
+  { id: "conversation-conversation--streaming-while-reading-long-history", anchor: REPLY },
   {
     id: "conversation-conversation--reply-burst-while-reading-history",
-    scroll: AGENT_SCROLL,
+
     composer: AGENT_COMPOSER,
   },
   {
     id: "conversation-conversation--reply-burst-while-reading-long-history",
-    scroll: AGENT_SCROLL,
+
     composer: AGENT_COMPOSER,
   },
 ];
@@ -106,19 +104,19 @@ function position(page: Page, story: StoryCase, anchorIndex?: string): Promise<P
         anchorTop: row ? row.getBoundingClientRect().top - scroll.getBoundingClientRect().top : Number.NaN,
       };
     },
-    { scrollSelector: story.scroll, anchor: story.anchor, index: anchorIndex },
+    { scrollSelector: SCROLL, anchor: story.anchor, index: anchorIndex },
   );
 }
 
 /* The index of the first row whose bottom is on the screen. */
-function topRowIndex(page: Page, story: StoryCase): Promise<string | undefined> {
+function topRowIndex(page: Page): Promise<string | undefined> {
   return page.evaluate((scrollSelector) => {
     const scroll = document.querySelector<HTMLElement>(scrollSelector);
     if (!scroll) throw new Error("The conversation is missing.");
     const top = scroll.getBoundingClientRect().top;
     const rows = [...scroll.querySelectorAll<HTMLElement>("[data-index]")];
     return rows.find((row) => row.getBoundingClientRect().bottom > top)?.dataset.index;
-  }, story.scroll);
+  }, SCROLL);
 }
 
 /* The chat grows by itself; this waits for it to grow, then for the next two frames to paint. */
@@ -127,7 +125,7 @@ async function waitForGrowth(page: Page, story: StoryCase): Promise<void> {
   await page.waitForFunction(
     ([scrollSelector, height, growth]) =>
       (document.querySelector(scrollSelector)?.scrollHeight ?? 0) >= height + growth,
-    [story.scroll, from, GROWTH] as const,
+    [SCROLL, from, GROWTH] as const,
   );
   await page.evaluate(
     () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => done(undefined)))),
@@ -138,7 +136,7 @@ async function waitForGrowth(page: Page, story: StoryCase): Promise<void> {
  * An input, then the scroll event that moves the chat in its direction. A scroll event that the chat's
  * own follow queued before the input can arrive first.
  */
-async function scrollWith(page: Page, story: StoryCase, up: boolean, input: () => Promise<void>): Promise<void> {
+async function scrollWith(page: Page, up: boolean, input: () => Promise<void>): Promise<void> {
   const scrolled = page.evaluate(
     ({ scrollSelector, towardTop }) => {
       const scroll = document.querySelector<HTMLElement>(scrollSelector);
@@ -153,23 +151,23 @@ async function scrollWith(page: Page, story: StoryCase, up: boolean, input: () =
         scroll.addEventListener("scroll", onScroll);
       });
     },
-    { scrollSelector: story.scroll, towardTop: up },
+    { scrollSelector: SCROLL, towardTop: up },
   );
   await input();
   await scrolled;
 }
 
-function wheel(page: Page, story: StoryCase, deltaY: number): Promise<void> {
-  return scrollWith(page, story, deltaY < 0, () => page.mouse.wheel(0, deltaY));
+function wheel(page: Page, deltaY: number): Promise<void> {
+  return scrollWith(page, deltaY < 0, () => page.mouse.wheel(0, deltaY));
 }
 
-async function longScrollUp(page: Page, story: StoryCase): Promise<void> {
-  for (let step = 0; step < 8; step += 1) await wheel(page, story, -40);
+async function longScrollUp(page: Page): Promise<void> {
+  for (let step = 0; step < 8; step += 1) await wheel(page, -40);
 }
 
 async function holds(page: Page, story: StoryCase, scrollUp: () => Promise<void>): Promise<HoldResult> {
   await scrollUp();
-  const anchorIndex = story.anchor ? undefined : await topRowIndex(page, story);
+  const anchorIndex = story.anchor ? undefined : await topRowIndex(page);
   const before = await position(page, story, anchorIndex);
   await waitForGrowth(page, story);
   const after = await position(page, story, anchorIndex);
@@ -201,8 +199,8 @@ async function newMessageCount(page: Page): Promise<number> {
 
 async function checkStory(page: Page, story: StoryCase, result: StoryResult): Promise<void> {
   await page.goto(`${storybook}/iframe.html?id=${story.id}&viewMode=story`);
-  await page.locator(`${story.scroll} [data-index]`).first().waitFor();
-  const box = await page.locator(story.scroll).boundingBox();
+  await page.locator(`${SCROLL} [data-index]`).first().waitFor();
+  const box = await page.locator(SCROLL).boundingBox();
   assert.ok(box, `${story.id}: the conversation has no box.`);
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
 
@@ -215,21 +213,21 @@ async function checkStory(page: Page, story: StoryCase, result: StoryResult): Pr
 
   // A short scroll up, less than the distance that counted as the bottom, holds the chat still.
   // A longer scroll up holds it still too. Both are measured before either is checked.
-  result.shortScrollUp = await holds(page, story, () => wheel(page, story, -40));
-  result.longScrollUp = await holds(page, story, () => longScrollUp(page, story));
+  result.shortScrollUp = await holds(page, story, () => wheel(page, -40));
+  result.longScrollUp = await holds(page, story, () => longScrollUp(page));
   await page.screenshot({ path: resolve(OUT, `${story.id.split("--")[1]}.png`) });
   assertHolds(story.id, "a short scroll up", result.shortScrollUp);
   assertHolds(story.id, "a long scroll up", result.longScrollUp);
 
   // Back at the bottom, the chat follows again.
-  await wheel(page, story, 100_000);
+  await wheel(page, 100_000);
   result.followsAgain = await assertFollows(page, story, "new content again at the bottom");
 
   // A click on a row leaves the focus on the page; the arrow key then scrolls the chat up. The content
   // keeps growing, so the click goes to a point and does not wait for a row to stop moving.
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
   result.arrowKeyScrollUp = await holds(page, story, () =>
-    scrollWith(page, story, true, () => page.keyboard.press("ArrowUp")),
+    scrollWith(page, true, () => page.keyboard.press("ArrowUp")),
   );
   assertHolds(story.id, "a scroll up with the arrow key", result.arrowKeyScrollUp);
 
@@ -247,7 +245,7 @@ async function checkStory(page: Page, story: StoryCase, result: StoryResult): Pr
   result.followsAfterJump = await assertFollows(page, story, "new content after the jump to the latest message");
 
   // A message the reader sends while scrolled up returns the chat to the bottom.
-  await longScrollUp(page, story);
+  await longScrollUp(page);
   await page.locator(story.composer).click();
   await page.keyboard.type("Thanks, keep going.");
   await page.keyboard.press("Enter");
