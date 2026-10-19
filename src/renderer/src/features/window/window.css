@@ -587,6 +587,7 @@
   width: 100%;
   height: auto;
   flex-direction: column;
+  align-items: stretch;
   gap: var(--openbot-space-0-5);
   border: 0;
   border-radius: var(--openbot-radius-md);
