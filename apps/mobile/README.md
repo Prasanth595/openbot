@@ -34,12 +34,19 @@ Save in a one-page sheet that closes the sheet, no longer throws
 `ScreenStackFragment added into a non-stack container`. Remove the patch when a release
 contains that fix.
 
-react-native-reanimated 4.5.1 is patched in `patches/react-native-reanimated@4.5.1.patch` with the
+react-native-reanimated 4.5.5 is patched in `patches/react-native-reanimated@4.5.5.patch` with the
 Android fix from upstream PR #10435. On React Native 0.86, Reanimated applies all animated props
 again on each event during a draw pass, including the props of views that are already removed. Each
 of these updates threw, and Reanimated logged a full stack trace on the UI thread, hundreds of
 times per second while an SVG list scrolled. The patch skips views that no longer exist. Remove the
-patch when the Reanimated version that Expo supports contains that fix.
+patch when the installed Reanimated release contains that fix.
+
+The app uses Reanimated 4.5.5, not the 4.5.1 that Expo SDK 57 pins. Reanimated 4.5.3 has the fix
+from upstream PR #9987: before it, a JS stall or an app pause could put an animated view back to
+its first style, and agents disappeared from the home list after a chat. The
+`expo.install.exclude` entry in `package.json` stops `expo install` from setting 4.5.1 again.
+Remove the entry when Expo pins 4.5.3 or later. Expo Go has its own native Reanimated, so it does
+not get this fix.
 
 Expo Router 57.0.20 is patched in `patches/expo-router@57.0.20.patch` to apply zoom dismissal
 bounds when its enabler registers after the chat mounts. This keeps the avatar-to-header zoom
