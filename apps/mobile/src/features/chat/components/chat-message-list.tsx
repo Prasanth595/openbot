@@ -113,11 +113,14 @@ function rowType(message: VisibleMessage): string {
 // A typical row of a mixed chat: a short reply with its action row. It decides how many rows the
 // list prepares before it has measured any.
 const ESTIMATED_ROW_SIZE = 150;
-// About half a phone screen above and below the visible rows. Chat rows are tall, so the default of
-// 250 often prepares less than one row, and a fling shows empty space.
-const DRAW_DISTANCE = 400;
-// A fast fling marks the list "light", so a row that mounts on the way waits with its expensive parts.
-const ADAPTIVE_RENDER = {};
+// The list renders one screen of rows above and below the visible rows, so a row has mounted and
+// has its size before it comes into view. Chat rows are tall: the default of 250 pixels often
+// prepares less than one row, and a quick scroll showed empty space and rows that grew in place.
+const DRAW_SCREENS = 1;
+// A scroll faster than about a screen per half second marks the list "light". A row that mounts then
+// keeps the space of its buttons, previews and media, and draws them when the list slows down. The
+// default threshold is three times faster, so an ordinary quick scroll rendered every row in full.
+const ADAPTIVE_RENDER = { enterVelocity: 1.5, exitVelocity: 0.5 };
 // Older messages that a page adds at the top, and rows that change size above the visible rows, do
 // not move the messages that the reader sees.
 const KEEP_VISIBLE_POSITION = { data: true, size: true };
@@ -1147,8 +1150,11 @@ export function ChatMessageList({
           recycleItems={false}
           estimatedItemSize={ESTIMATED_ROW_SIZE}
           estimatedListSize={estimatedListSize}
-          drawDistance={DRAW_DISTANCE}
+          drawDistance={Math.round(screen.height * DRAW_SCREENS)}
           experimental_adaptiveRender={ADAPTIVE_RENDER}
+          // A reply can be many times taller than the estimate. Until the list has its size, the row
+          // is laid out but not drawn, so the reader never sees it cut by the next row.
+          experimental_hideItemsUntilMeasured
           initialScrollAtEnd={motion.startsAtEnd}
           anchoredEndSpace={anchoredEndSpace}
           maintainVisibleContentPosition={KEEP_VISIBLE_POSITION}

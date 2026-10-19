@@ -19,6 +19,7 @@ import {
   type ColorValue,
   Platform,
   ScrollView,
+  Text,
   type TextStyle,
   useWindowDimensions,
   View,
@@ -41,7 +42,7 @@ import { useMotionPreference } from "@/shared/lib/motion";
 import { currentText, useText } from "@/shared/lib/text";
 import { parseFinishedChatMarkdown, parseStreamingChatMarkdown } from "../model/chat-markdown-parser";
 import { plainMentionParts } from "../model/chat-mentions";
-import { createReplyReveal } from "../model/reply-reveal";
+import { createReplyReveal, finishedReplyReveal } from "../model/reply-reveal";
 import { ChatCodeBlock } from "./chat-code-block";
 import { ChatCodePreview } from "./chat-code-preview";
 import { ChatMath } from "./chat-math";
@@ -296,20 +297,19 @@ function openMessageLink(url: string): void {
   });
 }
 
+/**
+ * The inline tokens of a block, always drawn inside the block's text. A nested text takes the size,
+ * line height and font of the text around it, so a span needs only what it changes. It is a plain
+ * native text span, not a HeroUI `Typography`: a long reply has hundreds of spans, and each
+ * `Typography` adds four components and its class names to every row the chat mounts.
+ */
 function inline(tokens: Token[], parentPresentation: TextPresentation): ReactNode {
   return sourceEntries(tokens, (token) => token.raw).map(({ value: token, offset }) => {
     const presentation = { ...parentPresentation, animateTail: parentPresentation.animateTail };
     if (token.type === "agentMention") {
       const reference = chatTagReferences(token.raw)[0];
       const agent = presentation.agents.find((candidate) => candidate.id === reference?.id);
-      if (!agent)
-        return (
-          <Typography
-            key={offset}
-            type={presentation.type}
-            style={presentation.style}
-          >{`@${reference?.name ?? "Agent"}`}</Typography>
-        );
+      if (!agent) return <Text key={offset} style={presentation.style}>{`@${reference?.name ?? "Agent"}`}</Text>;
       return <AgentMention key={offset} agent={agent} presentation={presentation} />;
     }
     if (token.type === "br") return "\n";
@@ -336,14 +336,17 @@ function inline(tokens: Token[], parentPresentation: TextPresentation): ReactNod
             ({ value: part, offset: partOffset }) =>
               part.agent ? (
                 <AgentMention key={partOffset} agent={part.agent} presentation={presentation} />
-              ) : (
+              ) : presentation.animateTail ? (
                 <StreamingTailText
                   key={partOffset}
                   body={part.text}
-                  enabled={presentation.animateTail}
+                  enabled
                   type={presentation.type}
                   style={presentation.style}
                 />
+              ) : (
+                // Text that does not animate is a plain string of the block's text.
+                part.text
               ),
           )}
         </Fragment>
@@ -363,9 +366,9 @@ function inline(tokens: Token[], parentPresentation: TextPresentation): ReactNod
             : { textDecorationLine: "line-through" }),
       };
       return (
-        <Typography key={offset} type={presentation.type} style={style}>
+        <Text key={offset} style={style}>
           {inline(token.tokens, { ...presentation, style })}
-        </Typography>
+        </Text>
       );
     }
     if (tokenIs(token, "link") || tokenIs(token, "image")) {
@@ -375,9 +378,8 @@ function inline(tokens: Token[], parentPresentation: TextPresentation): ReactNod
         : inline(token.tokens, { ...presentation, agents: [] });
       if (!url) return <Fragment key={offset}>{label}</Fragment>;
       return (
-        <Typography
+        <Text
           key={offset}
-          type={presentation.type}
           style={{ ...presentation.style, textDecorationLine: "underline" }}
           accessibilityRole="link"
           accessibilityHint={url}
@@ -390,7 +392,7 @@ function inline(tokens: Token[], parentPresentation: TextPresentation): ReactNod
             </>
           ) : null}
           {label}
-        </Typography>
+        </Text>
       );
     }
     // HTML remains inert text; Markdown images are opened only after an explicit tap.
@@ -880,7 +882,10 @@ export const ChatMarkdown = memo(function ChatMarkdown({
     () => (finished ? parseFinishedChatMarkdown(body) : parseStreamingChatMarkdown(body)),
     [body, finished],
   );
-  const reveal = useMemo(() => createReplyReveal(tokens), [tokens]);
+  const reveal = useMemo(
+    () => (finished ? finishedReplyReveal(tokens) : createReplyReveal(tokens)),
+    [tokens, finished],
+  );
   const { tokens: visibleTokens, flushed } = useReplyPlayback(reveal, playback);
   const codeColor = useThemeColor("foreground");
   const { t } = useText();

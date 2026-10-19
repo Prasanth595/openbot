@@ -7,34 +7,24 @@ import SmilePlus from "lucide-react-native/icons/face-slightly-smiling-plus";
 import Plus from "lucide-react-native/icons/plus";
 import Reply from "lucide-react-native/icons/reply";
 import TextSelect from "lucide-react-native/icons/square-dashed-text";
-import { useState } from "react";
-import { View } from "react-native";
+import { memo, useState } from "react";
+import { useWindowDimensions, View } from "react-native";
 import Animated, { FadeIn, FadeOut, ReduceMotion } from "react-native-reanimated";
 import { showFailureAlert } from "@/features/analytics/failure-reports";
 import type { MobileAgent } from "@/features/workspace/context/mobile-workspace-context";
 import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
 import { useCopyMessage } from "./use-copy-message";
+import { useListSettled } from "./use-list-settled";
 
 const PICKER_IN = FadeIn.duration(160).reduceMotion(ReduceMotion.System);
 const PICKER_OUT = FadeOut.duration(120).reduceMotion(ReduceMotion.System);
 const ICON_SIZE = 18;
+/** The height of a small HeroUI button, and of the time's text line at the default text size. */
+const BUTTON_HEIGHT = 40;
+const TIME_LINE_HEIGHT = 20;
 
-/**
- * The row under a message: its reactions, Copy, React, Reply, Select text and the time. A phone has
- * no hover, so the row always shows, and each action takes one tap.
- */
-export function ChatMessageActions({
-  align,
-  copyText,
-  createdAt,
-  reactions,
-  agentsById,
-  onReact,
-  onReply,
-  onSelectText,
-  selecting = false,
-}: {
+interface ChatMessageActionsProps {
   align: "start" | "end";
   /** The text that Copy puts on the clipboard. Empty for a message of files only. */
   copyText: string;
@@ -47,7 +37,39 @@ export function ChatMessageActions({
   /** Starts the selection of the text in the bubble, or ends it while `selecting`. */
   onSelectText?: () => void;
   selecting?: boolean;
-}) {
+}
+
+/**
+ * The row under a message. A row that mounts during a fast fling of the chat keeps the space of its
+ * buttons and draws them when the list slows down: each message has four animated buttons with
+ * icons, and they cost more to mount than most message text.
+ */
+export function ChatMessageActions(props: ChatMessageActionsProps) {
+  const settled = useListSettled();
+  const { fontScale } = useWindowDimensions();
+  if (settled) return <MessageActionsRow {...props} />;
+  return (
+    <View className={`pb-2 ${props.align === "end" ? "self-end" : "self-start"}`}>
+      <View style={{ height: Math.max(BUTTON_HEIGHT, TIME_LINE_HEIGHT * fontScale) }} />
+    </View>
+  );
+}
+
+/**
+ * The row under a message: its reactions, Copy, React, Reply, Select text and the time. A phone has
+ * no hover, so the row always shows, and each action takes one tap.
+ */
+const MessageActionsRow = memo(function MessageActionsRow({
+  align,
+  copyText,
+  createdAt,
+  reactions,
+  agentsById,
+  onReact,
+  onReply,
+  onSelectText,
+  selecting = false,
+}: ChatMessageActionsProps) {
   const { t, format } = useText();
   const [mutedColor, foregroundColor] = useThemeColor(["muted", "foreground"]);
   const muted = String(mutedColor);
@@ -222,4 +244,4 @@ export function ChatMessageActions({
       ) : null}
     </View>
   );
-}
+});

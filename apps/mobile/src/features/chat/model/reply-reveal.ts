@@ -122,3 +122,18 @@ export function createReplyReveal(tokens: Token[]) {
   }
   return { words, at: (count: number) => (count >= words.length ? tokens : clip(count)) };
 }
+
+const finishedReveals = new WeakMap<Token[], ReturnType<typeof createReplyReveal>>();
+
+/**
+ * The reveal of a parse that does not change. The parse of a finished reply is shared across mounts,
+ * so its reveal is too: a row that scrolls into view again does not collect its words again.
+ */
+export function finishedReplyReveal(tokens: Token[]): ReturnType<typeof createReplyReveal> {
+  let reveal = finishedReveals.get(tokens);
+  if (!reveal) {
+    reveal = createReplyReveal(tokens);
+    finishedReveals.set(tokens, reveal);
+  }
+  return reveal;
+}
