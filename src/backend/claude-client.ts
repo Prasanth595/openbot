@@ -19,6 +19,7 @@ import { type DynamicRecord, isDynamicRecord, isNumber, isOneOf, isString } from
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger } from "@openbot/logging";
 import { Deferred, Effect, Exit, Fiber, Scope } from "effect";
+import { agentLaunchPath } from "./acp-agent-command";
 import { isMemoryContextBlock, type MemoryContext, memoryContextUpdate } from "./agent/developer-instructions";
 import {
   type ClaudePlanState,
@@ -728,6 +729,7 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
     const stateDirectory = this.#stateDirectory;
     const skillPlugin =
       config.workspaceOnly && stateDirectory ? yield* claudeWorkspaceSkillPlugin(stateDirectory, config.cwd) : null;
+    const launchPath = yield* agentLaunchPath();
     // `stop()` may have run during the await: a query created now would outlive the client.
     if (!this.#running) return yield* providerFailure(new Error("Claude Agent SDK is not running."));
     if (handoff) this.#reportMcpDrops?.(this.provider, handoff.dropped);
@@ -783,6 +785,9 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
           mcpServers,
           env: {
             ...claudeEnvironment(this.#cli),
+            // The login shell's `PATH`, so the Bash tool and hooks find Homebrew and `~/.local/bin`
+            // tools when Finder starts OpenBot. An `env.PATH` in the Claude settings still wins.
+            ...(launchPath ? { PATH: launchPath } : {}),
             ...this.#agentEnvironment?.(),
             CLAUDE_AGENT_SDK_CLIENT_APP: "openbot/0.1.0",
             // Without a terminal, the CLI gives the newer models no TodoWrite or task tools, so the

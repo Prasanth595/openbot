@@ -484,10 +484,11 @@ stops its process group. The scan (`src/backend/acp-agent-scan.ts`) looks up the
 login-shell `PATH` and in the user's folders, and never starts a file. An agent and its check start
 with the `PATH` that its command was looked up in (`agentLaunchPath`): the absolute folders of the
 login-shell `PATH`, then those of OpenBot's own, so an app that Finder starts can still run a
-`#!/usr/bin/env node` agent. A `PATH` saved on the agent wins. The agents run confined with
-no state paths. Migration 23 adds `acp` to `projection_provider_sessions`. The host hides `acp`
-agents, models, status, and sign-in state from peers before protocol 5, and the `customAgents` IPC
-group is local only.
+`#!/usr/bin/env node` agent. A `PATH` saved on the agent wins. Claude agent sessions start with the
+same `PATH`, so their Bash tool and hooks find the user's tools; an `env.PATH` in the Claude settings
+wins. The agents run confined with no state paths. Migration 23 adds `acp` to
+`projection_provider_sessions`. The host hides `acp` agents, models, status, and sign-in state from
+peers before protocol 5, and the `customAgents` IPC group is local only.
 
 ### Local detection and endpoint edit
 

@@ -128,10 +128,11 @@ const searchPath = Effect.fn("AcpAgentCommand.searchPath")(function* () {
 }, Effect.uninterruptible);
 
 /**
- * The `PATH` that a custom agent's process starts with, or null where none is needed. It is the
- * folders `resolveAgentCommand` looks in, so a command found there can find its own interpreter: an
- * app that Finder, the Dock or a login item starts has a short `PATH`, and `#!/usr/bin/env node`
- * fails with exit code 127 without the login shell's folders. Windows has no login shell.
+ * The `PATH` that a custom agent's process and a Claude session start with, or null where none is
+ * needed. It is the folders `resolveAgentCommand` looks in, so a command found there can find its
+ * own interpreter: an app that Finder, the Dock or a login item starts has a short `PATH`, and
+ * `#!/usr/bin/env node` fails with exit code 127 without the login shell's folders. Windows has no
+ * login shell.
  */
 export const agentLaunchPath = Effect.fn("AcpAgentCommand.launchPath")(function* (
   platform: NodeJS.Platform = process.platform,
