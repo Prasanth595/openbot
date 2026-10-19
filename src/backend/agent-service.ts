@@ -1080,6 +1080,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         servesModel: (model) => this.#endpoints.serves(model),
         requeueChannelDelivery: (deliveryId) => this.#requeueChannelDelivery(deliveryId),
         turnEnded: (turnId) => this.#turn.hasEnded(turnId),
+        turnRestarting: (turnId) => this.#turn.forgetEnded(turnId),
         followUsageLimit: (agentId) => {
           if (!this.#usageLimitMove(agentId)) return false;
           Effect.runFork(

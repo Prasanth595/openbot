@@ -329,6 +329,11 @@ export class TurnLifecycle {
     return this.#endedTurns.has(turnId);
   }
 
+  /** A turn id that starts again, as a requeued delivery's does, has not ended. */
+  forgetEnded(turnId: string): void {
+    this.#endedTurns.delete(turnId);
+  }
+
   /** True while the normal end of this turn runs: it settles the turn itself. */
   isCompleting(turnId: string): boolean {
     return this.#completingTurns.has(turnId);

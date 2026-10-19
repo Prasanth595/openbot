@@ -6,7 +6,8 @@
 // (c) a late write after the turn ended does not open the turn row again;
 // (d) Stop on a delivery that stays running after its turn ended frees the queue;
 // (e) Stop while the normal turn end runs does not settle the completed turn as interrupted;
-// (f) a turn end that fails after its deliveries settled still closes the stored turn.
+// (f) a turn end that fails after its deliveries settled still closes the stored turn;
+// (g) a delivery that runs again under the same turn id, after its session was refused, runs to its end (#2468).
 // `bun scripts/stuck-running-deliveries-e2e.ts`. Writes .openbot-build/stuck-running-deliveries-e2e/report.json.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
@@ -15,7 +16,7 @@ import { join, resolve } from "node:path";
 import { AGENT_PROVIDERS, type AgentEvent } from "@openbot/contracts/ipc";
 import { Effect } from "effect";
 import type { AgentBrowserHost } from "../src/backend/agent/turn-lifecycle";
-import { getString, isRecord } from "../src/backend/protocol";
+import { getRecord, getString, isRecord } from "../src/backend/protocol";
 
 const OUT = resolve(import.meta.dirname, "../.openbot-build/stuck-running-deliveries-e2e");
 const root = await mkdtemp(join(tmpdir(), "openbot-stuck-deliveries-"));
@@ -45,7 +46,9 @@ const { StoredStateFailure } = await import("../src/backend/stored-state-effects
 /**
  * A Codex app-server with the methods that the service calls. `control.json` sets whether a new
  * turn is held until `turn/interrupt` or the process exits, how long a turn that is not held runs, and
- * whether `turn/started` comes before the `turn/start` answer.
+ * whether `turn/started` comes before the `turn/start` answer. With `clientTurnIds`, a turn takes the
+ * `clientUserMessageId` as its id, as Claude, ACP and Pi do. With `refuseOnce`, the first turn of each
+ * id fails as a refused session.
  * Like Codex, `turn/interrupt` for a turn that does not run is refused.
  */
 const FAKE_CODEX = `#!/usr/bin/env node
@@ -63,6 +66,8 @@ let threads = 0;
 let turns = 0;
 /** turnId -> { threadId, timer } of each turn that runs. */
 const running = new Map();
+/** The turn ids that refuseOnce already refused. */
+const refused = new Set();
 process.stdout.on("error", (error) => {
   if (error.code === "EPIPE") process.exit(0);
   throw error;
@@ -97,12 +102,22 @@ const answer = (message) => {
     case "thread/items/list": return write({ id: message.id, result: { data: [], nextCursor: null } });
     case "thread/read": return write({ id: message.id, result: { thread: { id: params.threadId, turns: [] } } });
     case "turn/start": {
-      const { holdTurns, turnMs, startedFirst } = control();
-      const turnId = prefix + "turn-" + (++turns);
+      const { holdTurns, turnMs, startedFirst, clientTurnIds, refuseOnce } = control();
+      const turnId = clientTurnIds && params.clientUserMessageId ? params.clientUserMessageId : prefix + "turn-" + (++turns);
       const started = { method: "turn/started", params: { threadId: params.threadId, turn: { id: turnId } } };
       if (startedFirst) write(started);
       write({ id: message.id, result: { turn: { id: turnId, status: "inProgress", items: [] } } });
       if (!startedFirst) write(started);
+      if (refuseOnce && !refused.has(turnId)) {
+        refused.add(turnId);
+        const refuse = () => {
+          const error = { message: "Item with encrypted_content was not issued to this caller." };
+          write({ method: "error", params: { threadId: params.threadId, turnId, error, willRetry: false } });
+          finish(turnId, "failed");
+        };
+        running.set(turnId, { threadId: params.threadId, timer: setTimeout(refuse, 200) });
+        return;
+      }
       const timer = holdTurns ? undefined : setTimeout(() => finish(turnId, "completed"), turnMs);
       running.set(turnId, { threadId: params.threadId, timer });
       return;
@@ -212,7 +227,13 @@ async function need<T>(label: string, read: () => T | null | undefined | false):
   return value;
 }
 
-async function control(value: { holdTurns: boolean; turnMs: number; startedFirst?: boolean }): Promise<void> {
+async function control(value: {
+  holdTurns: boolean;
+  turnMs: number;
+  startedFirst?: boolean;
+  clientTurnIds?: boolean;
+  refuseOnce?: boolean;
+}): Promise<void> {
   await writeFile(controlPath, JSON.stringify(value));
 }
 
@@ -584,7 +605,44 @@ try {
     return null;
   });
 
-  report.passed = report.cases.length === 7 && report.cases.every((entry) => entry.passed);
+  await runCase("g: a delivery that runs again under the same turn id runs to its end", async (details) => {
+    await control({ holdTurns: false, turnMs: 1_000, clientTurnIds: true, refuseOnce: true });
+    const agent = await runCauseEffect(
+      second.agents.createAgent({
+        name: "Same turn id",
+        description: "Checks that a retried delivery is not taken for its first, ended turn.",
+        avatarSeed: "same-turn-id",
+        avatarHue: null,
+        initialMessage: "First message.",
+      }),
+    );
+    const deliveryId = await need("the first delivery", () => second.agents.listQueue(agent.id).deliveries[0]?.id);
+    await waitFor(() => isTerminal(status(mailbox, deliveryId)));
+    const nextId = (await runCauseEffect(second.agents.sendMessage({ agentId: agent.id, text: "Next message." })))
+      .deliveries[0]?.id;
+    if (!nextId) return "The next message has no delivery.";
+    await waitFor(() => isTerminal(status(mailbox, nextId)));
+    const starts = readFileSync(logPath, "utf8")
+      .split("\n")
+      .filter(Boolean)
+      .map((line): unknown => JSON.parse(line))
+      .filter(
+        (entry) =>
+          isRecord(entry) &&
+          getString(entry, "method") === "turn/start" &&
+          getString(getRecord(entry, "params"), "clientUserMessageId") === deliveryId,
+      ).length;
+    details.turnStarts = starts;
+    details.first = status(mailbox, deliveryId);
+    details.next = status(mailbox, nextId);
+    details.turnRow = turnRow(second.database, deliveryId);
+    if (starts !== 2) return "The refused delivery did not run again under the same turn id.";
+    if (status(mailbox, deliveryId) !== "completed") return "The second run of the delivery did not complete.";
+    if (status(mailbox, nextId) !== "completed") return "The next message did not run.";
+    return null;
+  });
+
+  report.passed = report.cases.length === 8 && report.cases.every((entry) => entry.passed);
   if (!report.passed) process.exitCode = 1;
 } catch (error) {
   report.error = error instanceof Error ? (error.stack ?? error.message) : String(error);

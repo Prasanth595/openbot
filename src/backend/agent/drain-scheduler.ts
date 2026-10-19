@@ -69,6 +69,8 @@ export interface DrainHooks {
   followUsageLimit(agentId: string): boolean;
   /** Whether this turn already ended. A provider can end a turn before its `turn/start` answer is read. */
   turnEnded(turnId: string): boolean;
+  /** Forgets the end of an earlier turn with this id: a requeued delivery starts again under the same turn id. */
+  turnRestarting(turnId: string): void;
 }
 
 /** The tasks of the agents, as the drain reads them. */
@@ -699,6 +701,9 @@ export class DrainScheduler {
             )
             .pipe(toDeliveryStartFailed);
         });
+      // Claude, ACP and Pi take the delivery id as the turn id. A delivery that a refused turn put back
+      // in the queue keeps its id, and the end of that turn must not end this new run (#2468).
+      this.#hooks.turnRestarting(delivery.id);
       const firstStart = yield* Effect.result(startTurn(threadId));
       let response: Effect.Success<ReturnType<typeof startTurn>>;
       if (Result.isSuccess(firstStart)) response = firstStart.success;
