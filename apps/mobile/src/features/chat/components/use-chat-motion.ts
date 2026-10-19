@@ -155,9 +155,11 @@ export function useChatMotion(
 
   // The list shows once it has its place at the latest message. A message from search shows it itself.
   useLayoutEffect(() => {
-    const held = heldOpening.current;
-    heldOpening.current = holdOpening;
+    // The hold stays recorded until the list shows: it can end while the history still loads.
+    if (holdOpening) heldOpening.current = true;
     if (shown.current || !listPlaced || !ready || holdOpening) return;
+    const held = heldOpening.current;
+    heldOpening.current = false;
     // The message from search did not open the chat, and the list did not take the end while it waited.
     if (held) void (listRef.current?.scrollToEnd({ animated: false }) ?? Promise.resolve()).then(reveal, reveal);
     else reveal();
