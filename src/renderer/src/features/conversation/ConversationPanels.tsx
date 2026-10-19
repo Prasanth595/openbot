@@ -17,6 +17,7 @@ import { canManageStorage, serverHasStorage } from "../files/storage-usage";
 import { remoteRoutineRecovery, serverCanAdminister } from "../servers/server-capabilities";
 import { htmlAttachmentPageHtml, htmlAttachmentPageUrl } from "./chat-visual-url";
 import { useConversationController } from "./conversation-controller-context";
+import { conversationRuntime } from "./conversation-runtime";
 import { useConversationViewScope } from "./conversation-scope";
 import { desktopEventRoutinesApi } from "./routine-webhooks-api";
 
@@ -96,6 +97,7 @@ export function ConversationPanels(panelProps: { onOpenUsage?: ((trigger: HTMLBu
   } = useConversationViewScope();
   const { t, errorMessage } = useText();
   const publishAgent = createPublishAgent(
+    (url) => void conversationRuntime(props).openUrl(url),
     () => props.runtime?.admin?.agentTemplates ?? agentTemplatesPort().agentTemplates,
   );
   // This computer reads the skills of its own agents from the workspace. A joined host publishes its

@@ -1631,6 +1631,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   templateId={props.agentTemplateId}
                   server={server()}
                   calls={agentTemplateCalls}
+                  onOpenLink={(url) => void openWebLink(url)}
                   onClose={() => props.onAgentTemplateClose?.()}
                   onInstalled={openAddedAgent}
                 />

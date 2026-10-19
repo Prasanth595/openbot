@@ -21,6 +21,8 @@ export function AgentTemplateInstall(props: {
   server?: ServerSummary | undefined;
   /** Defaults to the desktop port. */
   calls?: AgentTemplateInstallCalls | undefined;
+  /** Opens a link from the instructions. */
+  onOpenLink: (url: string) => void;
   onClose: () => void;
   onInstalled: (agent: AddedAgent, serverId?: string) => Promise<void>;
 }) {
@@ -97,6 +99,7 @@ export function AgentTemplateInstall(props: {
       detail={state.detail}
       loading={state.loading}
       onInstall={install}
+      onOpenLink={props.onOpenLink}
     />
   );
 }

@@ -19,9 +19,12 @@ interface PublishState {
 /**
  * The publish dialog for agent settings and the calls behind it. `open` is what the settings
  * action runs; `dialog` is mounted once beside the conversation panels. `calls` is read on each call; by default
- * it is this computer's.
+ * it is this computer's. `openLink` opens a link from the instructions.
  */
-export function createPublishAgent(calls: () => AgentTemplatePublishCalls = () => agentTemplatesPort().agentTemplates) {
+export function createPublishAgent(
+  openLink: (url: string) => void,
+  calls: () => AgentTemplatePublishCalls = () => agentTemplatesPort().agentTemplates,
+) {
   const [state, setState] = createStore<PublishState>({
     open: false,
     agentId: null,
@@ -128,6 +131,7 @@ export function createPublishAgent(calls: () => AgentTemplatePublishCalls = () =
       onPublish={publish}
       onUnpublish={unpublish}
       onCopyLink={copyLink}
+      onOpenLink={openLink}
     />
   );
 
