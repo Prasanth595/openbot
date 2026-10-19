@@ -153,6 +153,8 @@ export const messages = {
   "provider.account.moreActions": "Mais ações para {name}",
   "provider.account.renameLabel": "Nome de {name}",
   "provider.account.signInAgain": "Entrar novamente",
+  "provider.account.cancelSignIn": "Cancelar entrada",
+  "provider.account.finishSignIn": "Conclua a entrada no navegador.",
   "provider.account.remove": "Remover conta",
   "provider.account.actionFailed": "Não foi possível alterar a conta de {name}.",
 } as const satisfies PartialTranslation<typeof source>;

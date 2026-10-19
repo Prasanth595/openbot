@@ -229,6 +229,7 @@ export class ProviderAccounts {
     const account = this.account(provider, accountId);
     if (!account || !this.#signIns.has(accountId)) return;
     const added = this.#added.has(accountId);
+    logger.info("A provider account sign-in was canceled.", { provider, accountId, added });
     yield* this.#interrupt(accountId);
     if (!added) {
       this.#setState(accountId, { state: "signed-out", message: null });
@@ -485,6 +486,9 @@ export class ProviderAccounts {
 
   #setState(accountId: string, patch: Partial<Omit<AccountState, "checkedAt">>): void {
     const current = this.#states.get(accountId);
+    // The state only: the message and email can hold what the CLI printed.
+    if (patch.state && patch.state !== current?.state)
+      logger.info("A provider account changed state.", { accountId, from: current?.state ?? null, to: patch.state });
     this.#states.set(accountId, {
       state: patch.state ?? current?.state ?? "checking",
       email: patch.email !== undefined ? patch.email : (current?.email ?? null),

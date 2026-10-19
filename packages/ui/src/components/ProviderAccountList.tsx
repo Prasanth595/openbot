@@ -5,7 +5,7 @@ import {
   type ProviderAccountState,
 } from "@openbot/contracts/ipc";
 import type { AppTextKey } from "@openbot/i18n";
-import { Badge, buttonVariants, DropdownMenu, Ellipsis, Input, LogIn, Pencil, Trash2 } from "@openbot/ui";
+import { Badge, buttonVariants, DropdownMenu, Ellipsis, Input, LogIn, Pencil, Trash2, X } from "@openbot/ui";
 import { createSignal, For, Show } from "solid-js";
 import { useText } from "../text";
 import { type ProviderAccountActions, type ProviderPickerAccount, providerAccountName } from "./provider-accounts";
@@ -73,6 +73,7 @@ export function ProviderAccountList(props: ProviderAccountListProps) {
             const state = (): ProviderAccountState =>
               Object.hasOwn(ACCOUNT_STATE_TEXT, account().state) ? account().state : "error";
             const signInOffered = () => !own() && (state() === "signed-out" || state() === "error");
+            const connecting = () => !own() && state() === "connecting";
             return (
               <li class="provider-picker-account">
                 <span class="provider-picker-account-copy">
@@ -94,6 +95,9 @@ export function ProviderAccountList(props: ProviderAccountListProps) {
                   <Show when={detail()}>{(text) => <small class="provider-picker-email">{text()}</small>}</Show>
                   <Show when={account().state !== "connected" ? account().message : null}>
                     {(message) => <small class="provider-picker-check-error">{message()}</small>}
+                  </Show>
+                  <Show when={connecting() && !account().message}>
+                    <small class="provider-picker-email">{t("provider.account.finishSignIn")}</small>
                   </Show>
                 </span>
                 <Badge class="provider-picker-status" variant={ACCOUNT_STATE_VARIANT[state()]}>
@@ -119,6 +123,14 @@ export function ProviderAccountList(props: ProviderAccountListProps) {
                         >
                           <LogIn aria-hidden="true" />
                           {t("provider.account.signInAgain")}
+                        </DropdownMenu.Item>
+                      </Show>
+                      <Show when={connecting()}>
+                        <DropdownMenu.Item
+                          onSelect={() => run(name(), () => props.actions.cancel(props.provider, account().id))}
+                        >
+                          <X aria-hidden="true" />
+                          {t("provider.account.cancelSignIn")}
                         </DropdownMenu.Item>
                       </Show>
                       <Show when={!own()}>

@@ -2875,6 +2875,20 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       );
   }
 
+  /** See `ProviderRuntime.cancelProviderAccountSignIn`. */
+  cancelProviderAccountSignIn(
+    provider: AgentProvider,
+    accountId: string,
+  ): Effect.Effect<AgentStatus, AgentLifecycleFailed> {
+    return this.#providers
+      .cancelProviderAccountSignIn(provider, accountId)
+      .pipe(
+        Effect.mapError(
+          (failure) => new AgentLifecycleFailed({ operation: "cancelProviderAccountSignIn", cause: failure.cause }),
+        ),
+      );
+  }
+
   renameProviderAccount(
     provider: AgentProvider,
     accountId: string,

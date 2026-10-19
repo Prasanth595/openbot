@@ -70,11 +70,16 @@ export class ProviderAccountsHost {
     return yield* this.#dependencies.service.getProviderAccountUsage();
   }).bind(this);
 
+  /** The sign-in it replaces ends first, so that account does not stay connecting where no cancel reaches it. */
   startSignIn(provider: AgentProviderId, accountId: string | null) {
-    return this.#pages.start(
-      provider,
-      (openPage) => this.#dependencies.service.signInProviderAccountOnHost(provider, accountId, openPage),
-      (exit) => resultOf(provider, exit),
+    return this.#pages.interrupt(provider).pipe(
+      Effect.andThen(
+        this.#pages.start(
+          provider,
+          (openPage) => this.#dependencies.service.signInProviderAccountOnHost(provider, accountId, openPage),
+          (exit) => resultOf(provider, exit),
+        ),
+      ),
     );
   }
 

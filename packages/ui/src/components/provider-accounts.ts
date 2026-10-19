@@ -13,6 +13,8 @@ export interface ProviderPickerAccount extends ProviderAccountStatus {
 export interface ProviderAccountActions {
   /** Signs a new account in when `accountId` is null, or signs that account in again. */
   connect: (provider: AgentProviderId, accountId: string | null) => Promise<void>;
+  /** Stops a `connecting` account's sign-in. A new account goes; another one is signed out. */
+  cancel: (provider: AgentProviderId, accountId: string) => Promise<void>;
   /** A null label returns the account to its email. */
   rename: (provider: AgentProviderId, accountId: string, label: string | null) => Promise<void>;
   /** Removes the account and its credentials. Its agents move to the provider's first account. */
