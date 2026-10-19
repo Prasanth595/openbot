@@ -10,7 +10,7 @@ import { MOBILE_ATTACHMENT_BYTES, type RemoteFileUpload } from "@openbot/team-cl
 import * as DocumentPicker from "expo-document-picker";
 import { File } from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { attachmentSizeBucket } from "@/features/analytics/events";
 import { showFailureAlert } from "@/features/analytics/failure-reports";
 import { mobileAnalytics } from "@/features/analytics/mobile-analytics";
@@ -302,11 +302,7 @@ export function useChatAttachments(
         endPreparing();
       });
   }
-  return {
-    items,
-    preparing,
-    menuAnchor,
-    menuOpen: menuAnchor !== null,
+  const actions = {
     openMenu: (anchor: ChatAttachmentAnchor) => setMenuAnchor(anchor),
     closeMenu: () => setMenuAnchor(null),
     // Held after the card has left, so the file read, the base64 encode and
@@ -331,6 +327,27 @@ export function useChatAttachments(
         ...files.map((file) => ({ ...file, id: `mobile-draft-attachment-${++sequence.current}` })),
       ]),
   };
+  const latestActions = useRef(actions);
+  latestActions.current = actions;
+  const [stableActions] = useState(() => ({
+    openMenu: (anchor: ChatAttachmentAnchor) => latestActions.current.openMenu(anchor),
+    closeMenu: () => latestActions.current.closeMenu(),
+    addPhoto: (uri: string) => latestActions.current.addPhoto(uri),
+    choosePhotos: () => latestActions.current.choosePhotos(),
+    requestCamera: () => latestActions.current.requestCamera(),
+    chooseFiles: () => latestActions.current.chooseFiles(),
+    replace: (id: string) => latestActions.current.replace(id),
+    pasteText: (text: string, onText: (text: string) => void) => latestActions.current.pasteText(text, onText),
+    addShared: (text: string, files: readonly { uri: string; name: string }[], onText: (text: string) => void) =>
+      latestActions.current.addShared(text, files, onText),
+    remove: (id: string) => latestActions.current.remove(id),
+    clear: () => latestActions.current.clear(),
+    restore: (files: readonly ChatAttachment[]) => latestActions.current.restore(files),
+  }));
+  return useMemo(
+    () => ({ items, preparing, menuAnchor, menuOpen: menuAnchor !== null, ...stableActions }),
+    [items, preparing, menuAnchor, stableActions],
+  );
 }
 
 export type ChatAttachments = ReturnType<typeof useChatAttachments>;

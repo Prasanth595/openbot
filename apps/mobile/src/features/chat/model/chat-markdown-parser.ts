@@ -1,5 +1,6 @@
 import { blockChatMath, chatMathBlockStart, chatMathStart, inlineChatMath } from "@openbot/contracts/chat-math";
 import { chatTagReferences } from "@openbot/contracts/chat-tag-references";
+import { replaceEqualDeep } from "@tanstack/react-query";
 import { Marked, type Token, type TokensList } from "marked";
 
 const markdown = new Marked({
@@ -99,10 +100,18 @@ export function parseStreamingChatMarkdown(body: string): TokensList {
       index = candidate;
   }
   const previous = index >= 0 ? streamingBodies.splice(index, 1)[0] : undefined;
-  const tokens = previous ? continueParse(body, previous) : parseChatMarkdown(body);
+  const tokens = previous ? shareUnchanged(previous.tokens, continueParse(body, previous)) : parseChatMarkdown(body);
   if (streamingBodies.length >= MAX_STREAMING_BODIES) streamingBodies.shift();
   streamingBodies.push({ body, tokens });
   return tokens;
+}
+
+function shareUnchanged(previous: TokensList, tokens: TokensList): TokensList {
+  if (tokens === previous) return tokens;
+  return Object.assign(
+    tokens.map((token, index) => replaceEqualDeep(previous[index], token)),
+    { links: tokens.links },
+  );
 }
 
 function continueParse(body: string, previous: { body: string; tokens: TokensList }): TokensList {

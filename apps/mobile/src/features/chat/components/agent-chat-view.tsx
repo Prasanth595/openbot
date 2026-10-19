@@ -144,6 +144,10 @@ export function MobileChatView({
     () => loadLatestMessages(agent.id, agent.serverId),
     [agent.id, agent.serverId, loadLatestMessages],
   );
+  const loadOlder = useCallback(() => {
+    void loadOlderMessages(agent.id, agent.serverId);
+  }, [agent.id, agent.serverId, loadOlderMessages]);
+  const target = useMemo(() => ({ ...agent, kind: "agent" as const }), [agent]);
   const latest = latestReadableMessage(conversation?.messages ?? []);
   const latestId = latest?.id;
   const markRead = useCallback(() => {
@@ -164,7 +168,7 @@ export function MobileChatView({
   );
   return (
     <ChatView
-      target={{ ...agent, kind: "agent" }}
+      target={target}
       queue={queue}
       agents={serverAgents}
       mentionAgents={mentionAgents}
@@ -185,9 +189,7 @@ export function MobileChatView({
       hasOlder={conversation?.pageInfo.hasOlder ?? false}
       olderLoading={conversation?.olderLoading ?? false}
       olderError={conversation?.olderError ?? false}
-      loadOlder={() => {
-        void loadOlderMessages(agent.id, agent.serverId);
-      }}
+      loadOlder={loadOlder}
       focusMessageId={focus?.messageId ?? null}
       // Offline, the chat shows what the phone has and moves to the message when its page loads.
       holdOpening={focus !== null && online}

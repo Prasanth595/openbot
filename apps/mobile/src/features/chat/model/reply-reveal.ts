@@ -68,6 +68,19 @@ function collectWords(entries: Token[], words: string[]): void {
   }
 }
 
+const wordCounts = new WeakMap<Token, number>();
+
+function wordCount(token: Token): number {
+  let count = wordCounts.get(token);
+  if (count === undefined) {
+    const words: string[] = [];
+    collectWords([token], words);
+    count = words.length;
+    wordCounts.set(token, count);
+  }
+  return count;
+}
+
 /** Reveal parsed leaves without reparsing Markdown at every animation step. */
 export function createReplyReveal(tokens: Token[]) {
   const words: string[] = [];
@@ -78,10 +91,22 @@ export function createReplyReveal(tokens: Token[]) {
       const result: Token[] = [];
       for (const token of entries) {
         if (remaining <= 0) break;
+        const count = wordCount(token);
+        if (remaining > count) {
+          remaining -= count;
+          result.push(token);
+          continue;
+        }
         if (isList(token)) {
           const items: Tokens.ListItem[] = [];
           for (const item of token.items) {
             if (remaining <= 0) break;
+            const itemCount = wordCount(item);
+            if (remaining > itemCount) {
+              remaining -= itemCount;
+              items.push(item);
+              continue;
+            }
             items.push({ ...item, tokens: visit(item.tokens) });
           }
           result.push({ ...token, items });

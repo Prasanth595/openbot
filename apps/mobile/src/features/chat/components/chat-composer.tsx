@@ -7,7 +7,7 @@ import Plus from "lucide-react-native/icons/plus";
 import Reply from "lucide-react-native/icons/reply";
 import Square from "lucide-react-native/icons/square";
 import X from "lucide-react-native/icons/x";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   AccessibilityInfo,
   Text as NativeText,
@@ -182,7 +182,7 @@ function VoiceLevelBar({ level, weight, color }: { level: SharedValue<number>; w
 const FOCUS_RETRY_MS = 1500;
 const FOCUS_RETRY_INTERVAL_MS = 100;
 
-export function ChatComposer({
+export const ChatComposer = memo(function ChatComposer({
   sendLabel,
   action,
   actionForeground,
@@ -1216,4 +1216,4 @@ export function ChatComposer({
       />
     </View>
   );
-}
+});

@@ -660,7 +660,7 @@ function ListParagraph({ tokens, presentation }: { tokens: Token[]; presentation
 
 function MarkdownBlocks({
   tokens,
-  presentation: parentPresentation,
+  presentation,
   inList = false,
 }: {
   tokens: Token[];
@@ -669,192 +669,172 @@ function MarkdownBlocks({
 }) {
   return (
     <View className="min-w-0 gap-3">
-      {sourceEntries(tokens, (token) => token.raw).map(({ value: token, offset }) => {
-        const presentation = {
-          ...parentPresentation,
-          animateTail: parentPresentation.animateTail,
-        };
-        // The list row draws the task mark, so the checkbox token adds nothing.
-        if (token.type === "space" || token.type === "def" || token.type === "checkbox") return null;
-        if (tokenIs(token, "paragraph") || tokenIs(token, "text")) {
-          // Android keeps code chips inside the paragraph's one text view. The wrapping row draws a
-          // native text view for each word, which made long replies slow to scroll on Android.
-          if (inList && Platform.OS !== "android" && token.tokens?.some((child) => tokenIs(child, "codespan"))) {
-            return <ListParagraph key={offset} tokens={token.tokens} presentation={presentation} />;
-          }
-          const { nativeSelection } = presentation;
-          if (nativeSelection) {
-            return (
-              <SelectableParagraph
-                key={offset}
-                tokens={token.tokens ?? [{ type: "text", raw: token.text, text: token.text, escaped: false }]}
-                presentation={{ ...presentation, nativeSelection }}
-                style={textContainerStyle(token.raw, presentation)}
-              />
-            );
-          }
-          return (
-            <Typography
-              key={offset}
-              selectable={presentation.selectable}
-              type={presentation.type}
-              style={textContainerStyle(token.raw, presentation)}
-            >
-              {token.tokens ? inline(token.tokens, presentation) : token.text}
-            </Typography>
-          );
-        }
-        if (tokenIs(token, "heading")) {
-          const heading: TextPresentation = { ...presentation, type: token.depth <= 2 ? "h4" : "h5" };
-          const { nativeSelection } = heading;
-          if (nativeSelection) {
-            return (
-              <SelectableParagraph
-                key={offset}
-                heading
-                tokens={token.tokens}
-                presentation={{ ...heading, nativeSelection }}
-                style={textContainerStyle(token.raw, presentation)}
-              />
-            );
-          }
-          return (
-            <Typography.Heading
-              key={offset}
-              selectable={presentation.selectable}
-              type={heading.type === "h4" ? "h4" : "h5"}
-              style={textContainerStyle(token.raw, presentation)}
-            >
-              {inline(token.tokens, heading)}
-            </Typography.Heading>
-          );
-        }
-        if (tokenIs(token, "blockMath") || (tokenIs(token, "code") && token.lang?.trim().toLowerCase() === "math")) {
-          return (
-            <StreamingBlock key={offset} enabled={presentation.animateTail}>
-              <ChatMath
-                tex={token.text}
-                display
-                block
-                textSize={textSize(presentation)}
-                color={presentation.style.color}
-                fallback={
-                  <ChatCodeBlock
-                    selectable={presentation.selectable}
-                    text={token.text}
-                    language="latex"
-                    finished={presentation.finished}
-                  />
-                }
-              />
-            </StreamingBlock>
-          );
-        }
-        if (tokenIs(token, "code")) {
-          const preview = chatPreviewKind(token.lang);
-          return (
-            <StreamingBlock key={offset} enabled={presentation.animateTail}>
-              {preview ? (
-                <ChatCodePreview
-                  kind={preview}
-                  text={token.text}
-                  language={token.lang}
-                  streaming={presentation.streaming}
-                />
-              ) : (
-                <ChatCodeBlock
-                  selectable={presentation.selectable}
-                  text={token.text}
-                  language={token.lang}
-                  finished={presentation.finished}
-                />
-              )}
-            </StreamingBlock>
-          );
-        }
-        if (tokenIs(token, "blockquote")) {
-          return (
-            <View key={offset} className="border-l-2 border-separator pl-3">
-              <MarkdownBlocks tokens={token.tokens} presentation={presentation} inList={inList} />
-            </View>
-          );
-        }
-        if (tokenIs(token, "list")) {
-          return (
-            <View key={offset} className="gap-2">
-              {sourceEntries(token.items, (item) => item.raw).map(({ value: item, offset: itemOffset }, itemIndex) => (
-                <View key={itemOffset} className="flex-row items-start gap-2">
-                  <Typography type={presentation.type} style={presentation.style}>
-                    {item.task
-                      ? item.checked
-                        ? "☑"
-                        : "☐"
-                      : token.ordered
-                        ? `${Number(token.start) + itemIndex}.`
-                        : "•"}
-                  </Typography>
-                  <View className="min-w-0 shrink">
-                    <MarkdownBlocks
-                      tokens={item.tokens}
-                      inList
-                      presentation={{
-                        ...presentation,
-                        animateTail: presentation.animateTail,
-                      }}
-                    />
-                  </View>
-                </View>
-              ))}
-            </View>
-          );
-        }
-        if (tokenIs(token, "table")) {
-          return (
-            <ScrollView key={offset} horizontal alwaysBounceHorizontal={false} style={{ flexGrow: 0, flexShrink: 0 }}>
-              <View>
-                {sourceEntries([token.header, ...token.rows], (row) => row.map((cell) => cell.text).join("|")).map(
-                  ({ value: row, offset: rowOffset }) => (
-                    <View key={rowOffset} className="flex-row border-b border-separator">
-                      {sourceEntries(row, (cell) => cell.text).map(({ value: cell, offset: cellOffset }) => (
-                        <View key={cellOffset} className="w-44 px-2 py-2">
-                          <Typography
-                            selectable={presentation.selectable}
-                            type={presentation.type}
-                            style={{
-                              ...textContainerStyle(cell.text, presentation),
-                              textAlign: cell.align ?? "left",
-                              fontWeight: cell.header ? "600" : "400",
-                            }}
-                          >
-                            {inline(cell.tokens, {
-                              ...presentation,
-                              animateTail: presentation.animateTail,
-                            })}
-                          </Typography>
-                        </View>
-                      ))}
-                    </View>
-                  ),
-                )}
-              </View>
-            </ScrollView>
-          );
-        }
-        if (token.type === "hr") return <View key={offset} className="h-px bg-separator" />;
-        return (
-          <Typography
-            key={offset}
-            selectable={presentation.selectable}
-            type={presentation.type}
-            style={presentation.style}
-          >
-            {token.raw}
-          </Typography>
-        );
-      })}
+      {sourceEntries(tokens, (token) => token.raw).map(({ value: token, offset }) => (
+        <MarkdownBlock key={offset} token={token} presentation={presentation} inList={inList} />
+      ))}
     </View>
   );
 }
+
+const MarkdownBlock = memo(function MarkdownBlock({
+  token,
+  presentation,
+  inList,
+}: {
+  token: Token;
+  presentation: TextPresentation;
+  inList: boolean;
+}) {
+  // The list row draws the task mark, so the checkbox token adds nothing.
+  if (token.type === "space" || token.type === "def" || token.type === "checkbox") return null;
+  if (tokenIs(token, "paragraph") || tokenIs(token, "text")) {
+    // Android keeps code chips inside the paragraph's one text view. The wrapping row draws a
+    // native text view for each word, which made long replies slow to scroll on Android.
+    if (inList && Platform.OS !== "android" && token.tokens?.some((child) => tokenIs(child, "codespan"))) {
+      return <ListParagraph tokens={token.tokens} presentation={presentation} />;
+    }
+    const { nativeSelection } = presentation;
+    if (nativeSelection) {
+      return (
+        <SelectableParagraph
+          tokens={token.tokens ?? [{ type: "text", raw: token.text, text: token.text, escaped: false }]}
+          presentation={{ ...presentation, nativeSelection }}
+          style={textContainerStyle(token.raw, presentation)}
+        />
+      );
+    }
+    return (
+      <Typography
+        selectable={presentation.selectable}
+        type={presentation.type}
+        style={textContainerStyle(token.raw, presentation)}
+      >
+        {token.tokens ? inline(token.tokens, presentation) : token.text}
+      </Typography>
+    );
+  }
+  if (tokenIs(token, "heading")) {
+    const heading: TextPresentation = { ...presentation, type: token.depth <= 2 ? "h4" : "h5" };
+    const { nativeSelection } = heading;
+    if (nativeSelection) {
+      return (
+        <SelectableParagraph
+          heading
+          tokens={token.tokens}
+          presentation={{ ...heading, nativeSelection }}
+          style={textContainerStyle(token.raw, presentation)}
+        />
+      );
+    }
+    return (
+      <Typography.Heading
+        selectable={presentation.selectable}
+        type={heading.type === "h4" ? "h4" : "h5"}
+        style={textContainerStyle(token.raw, presentation)}
+      >
+        {inline(token.tokens, heading)}
+      </Typography.Heading>
+    );
+  }
+  if (tokenIs(token, "blockMath") || (tokenIs(token, "code") && token.lang?.trim().toLowerCase() === "math")) {
+    return (
+      <StreamingBlock enabled={presentation.animateTail}>
+        <ChatMath
+          tex={token.text}
+          display
+          block
+          textSize={textSize(presentation)}
+          color={presentation.style.color}
+          fallback={
+            <ChatCodeBlock
+              selectable={presentation.selectable}
+              text={token.text}
+              language="latex"
+              finished={presentation.finished}
+            />
+          }
+        />
+      </StreamingBlock>
+    );
+  }
+  if (tokenIs(token, "code")) {
+    const preview = chatPreviewKind(token.lang);
+    return (
+      <StreamingBlock enabled={presentation.animateTail}>
+        {preview ? (
+          <ChatCodePreview kind={preview} text={token.text} language={token.lang} streaming={presentation.streaming} />
+        ) : (
+          <ChatCodeBlock
+            selectable={presentation.selectable}
+            text={token.text}
+            language={token.lang}
+            finished={presentation.finished}
+          />
+        )}
+      </StreamingBlock>
+    );
+  }
+  if (tokenIs(token, "blockquote")) {
+    return (
+      <View className="border-l-2 border-separator pl-3">
+        <MarkdownBlocks tokens={token.tokens} presentation={presentation} inList={inList} />
+      </View>
+    );
+  }
+  if (tokenIs(token, "list")) {
+    return (
+      <View className="gap-2">
+        {sourceEntries(token.items, (item) => item.raw).map(({ value: item, offset: itemOffset }, itemIndex) => (
+          <View key={itemOffset} className="flex-row items-start gap-2">
+            <Typography type={presentation.type} style={presentation.style}>
+              {item.task ? (item.checked ? "☑" : "☐") : token.ordered ? `${Number(token.start) + itemIndex}.` : "•"}
+            </Typography>
+            <View className="min-w-0 shrink">
+              <MarkdownBlocks tokens={item.tokens} inList presentation={presentation} />
+            </View>
+          </View>
+        ))}
+      </View>
+    );
+  }
+  if (tokenIs(token, "table")) {
+    return (
+      <ScrollView horizontal alwaysBounceHorizontal={false} style={{ flexGrow: 0, flexShrink: 0 }}>
+        <View>
+          {sourceEntries([token.header, ...token.rows], (row) => row.map((cell) => cell.text).join("|")).map(
+            ({ value: row, offset: rowOffset }) => (
+              <View key={rowOffset} className="flex-row border-b border-separator">
+                {sourceEntries(row, (cell) => cell.text).map(({ value: cell, offset: cellOffset }) => (
+                  <View key={cellOffset} className="w-44 px-2 py-2">
+                    <Typography
+                      selectable={presentation.selectable}
+                      type={presentation.type}
+                      style={{
+                        ...textContainerStyle(cell.text, presentation),
+                        textAlign: cell.align ?? "left",
+                        fontWeight: cell.header ? "600" : "400",
+                      }}
+                    >
+                      {inline(cell.tokens, presentation)}
+                    </Typography>
+                  </View>
+                ))}
+              </View>
+            ),
+          )}
+        </View>
+      </ScrollView>
+    );
+  }
+  if (token.type === "hr") return <View className="h-px bg-separator" />;
+  return (
+    <Typography selectable={presentation.selectable} type={presentation.type} style={presentation.style}>
+      {token.raw}
+    </Typography>
+  );
+});
+
+const NO_AGENTS: readonly MobileAgent[] = [];
 
 export const ChatMarkdown = memo(function ChatMarkdown({
   body,
@@ -864,7 +844,7 @@ export const ChatMarkdown = memo(function ChatMarkdown({
   animationEnabled = true,
   playback,
   selectable = true,
-  agents = [],
+  agents = NO_AGENTS,
   nativeSelection,
   finished = false,
 }: {

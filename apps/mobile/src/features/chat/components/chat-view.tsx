@@ -22,6 +22,7 @@ import { MobileConversationAnalytics } from "@/features/analytics/conversation";
 import { reportMobileNotification } from "@/features/analytics/failure-reports";
 import { mobileAnalytics } from "@/features/analytics/mobile-analytics";
 import { useBrowserFeature } from "@/features/browser/components/use-browser-feature";
+import type { ApprovalDecision } from "@/features/chat/components/chat-approval-card";
 import { ChatComposer, VOICE_BUTTON_SIZE } from "@/features/chat/components/chat-composer";
 import { ChatGlassIconButton } from "@/features/chat/components/chat-glass-icon-button";
 import { ChatHeader } from "@/features/chat/components/chat-header";
@@ -720,10 +721,58 @@ export function ChatView({
     return statuses;
   }, [outboxMessages, serverOnline, outbox]);
 
-  const replyToMessage = (message: ChatBubbleMessage) => {
+  const replyToMessage = useCallback((message: ChatBubbleMessage) => {
     setReplyTarget(message);
     setReplyFocusVersion((version) => version + 1);
-  };
+  }, []);
+  const latestSend = useRef(sendMessage);
+  latestSend.current = sendMessage;
+  const send = useCallback((value: string) => latestSend.current(value), []);
+  const cancelReply = useCallback(() => setReplyTarget(null), []);
+  const dismissStarter = useCallback(() => setShowStarter(false), []);
+  const respondToApproval = useCallback(
+    (approval: PendingApproval, decision: ApprovalDecision) =>
+      workspace().respondToApproval(target.serverId, { requestId: approval.requestId, decision }),
+    [workspace, target.serverId],
+  );
+  const react = useCallback(
+    (message: ChatBubbleMessage, emoji: string | null) =>
+      workspace().setMessageReaction(target.id, target.serverId, hostMessageIds.get(message.id) ?? message.id, emoji),
+    [workspace, target.id, target.serverId, hostMessageIds],
+  );
+  // Select text starts the selection, and a second tap on it ends the selection.
+  const selectText = useCallback((message: ChatBubbleMessage) => {
+    Keyboard.dismiss();
+    setSelection((current) => (current?.message.id === message.id ? null : { message, selected: "" }));
+  }, []);
+  const changeSelection = useCallback(
+    (selected: string) =>
+      setSelection((current) => (current && current.selected !== selected ? { ...current, selected } : current)),
+    [],
+  );
+  const selectNatively = useCallback(
+    (message: ChatBubbleMessage, selected: string) =>
+      setSelection((current) => {
+        if (selected) {
+          return current?.message.id === message.id && current.selected === selected ? current : { message, selected };
+        }
+        // An empty selection ends only the selection of its own message.
+        return current?.message.id === message.id ? null : current;
+      }),
+    [],
+  );
+  const dismissSelection = useCallback(() => setSelection(null), []);
+  const listUpload = useMemo(
+    () =>
+      sendingMessage && sendingUpload && !sendsToQueue
+        ? {
+            messageId: outboxRowId(sendingMessage),
+            ...sendingUpload,
+            cancel: () => outbox.cancelUpload(sendingMessage.clientMessageId),
+          }
+        : null,
+    [sendingMessage, sendingUpload, sendsToQueue, outbox],
+  );
 
   return (
     <GestureDetector gesture={edgeBackGesture}>
@@ -790,9 +839,7 @@ export function ChatView({
               approvals={approvals}
               browserRequests={chatBrowserRequests}
               serverName={server?.name ?? ""}
-              onRespondApproval={(approval, decision) =>
-                workspace().respondToApproval(target.serverId, { requestId: approval.requestId, decision })
-              }
+              onRespondApproval={respondToApproval}
               fieldBackground={fieldBackground}
               foreground={foreground}
               messages={messages}
@@ -803,52 +850,24 @@ export function ChatView({
               olderError={olderError}
               onLoadOlder={loadOlder}
               onReply={replyToMessage}
-              onReact={(message, emoji) =>
-                workspace().setMessageReaction(target.id, target.serverId, hostMessageId(message.id), emoji)
-              }
+              onReact={react}
               selectingMessageId={selection?.message.id ?? null}
-              // Select text starts the selection, and a second tap on it ends the selection.
-              onSelectText={(message) => {
-                Keyboard.dismiss();
-                setSelection((current) => (current?.message.id === message.id ? null : { message, selected: "" }));
-              }}
-              onSelectionChange={(selected) =>
-                setSelection((current) =>
-                  current && current.selected !== selected ? { ...current, selected } : current,
-                )
-              }
-              onNativeSelection={(message, selected) =>
-                setSelection((current) => {
-                  if (selected) {
-                    return current?.message.id === message.id && current.selected === selected
-                      ? current
-                      : { message, selected };
-                  }
-                  // An empty selection ends only the selection of its own message.
-                  return current?.message.id === message.id ? null : current;
-                })
-              }
-              onDismissSelection={() => setSelection(null)}
+              onSelectText={selectText}
+              onSelectionChange={changeSelection}
+              onNativeSelection={selectNatively}
+              onDismissSelection={dismissSelection}
               muted={muted}
               raised={raised}
               showStarter={
                 showStarter && serverOnline && canSend && ready && !activity && projectedMessages.length === 0
               }
               topInset={insets.top}
-              onDismissStarter={() => setShowStarter(false)}
-              onSelectStarter={sendMessage}
+              onDismissStarter={dismissStarter}
+              onSelectStarter={send}
               onRetryHistory={fetchHistory}
               focusMessageId={focusMessageId}
               onFocusPlaced={onFocusPlaced}
-              upload={
-                sendingMessage && sendingUpload && !sendsToQueue
-                  ? {
-                      messageId: outboxRowId(sendingMessage),
-                      ...sendingUpload,
-                      cancel: () => outbox.cancelUpload(sendingMessage.clientMessageId),
-                    }
-                  : null
-              }
+              upload={listUpload}
               outboxStatuses={outboxStatuses}
             />
             {voiceOpen ? (
@@ -966,7 +985,7 @@ export function ChatView({
                   replyFocusVersion={replyFocusVersion}
                   focusVersion={answerFocusVersion}
                   handoffFocusVersion={handoffFocusVersion}
-                  onCancelReply={() => setReplyTarget(null)}
+                  onCancelReply={cancelReply}
                   mentionAgents={mentionAgents}
                   key={target.id}
                   action={action}
@@ -989,7 +1008,7 @@ export function ChatView({
                   muted={muted}
                   raised={raised}
                   onChangeDraft={setDraft}
-                  onSend={sendMessage}
+                  onSend={send}
                   onStop={requestStop}
                   keyboardProgress={motion.keyboardProgress}
                   menuOpen={attachments.menuOpen}

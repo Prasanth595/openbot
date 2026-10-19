@@ -295,7 +295,6 @@ interface MessageRowShared {
   /** Unset when the user's messages do not use the agent color. */
   userBubbleStyle: ComponentProps<typeof Animated.View>["style"] | undefined;
   firstMessageStyle: ComponentProps<typeof Animated.View>["style"];
-  arrivals: ReadonlySet<string>;
   /** Arriving replies animate: the screen is focused, online, active, and shows the response. */
   animationActive: boolean;
   /** Arriving replies also play back word by word: motion and screen reader settings allow it. */
@@ -303,8 +302,6 @@ interface MessageRowShared {
   /** Replies animate as they arrive: Settings and reduced motion allow it. */
   textReveal: boolean;
   replySession: { progress: Map<string, number>; revealed: Set<string> };
-  /** Changes when a reply reveals its first word, so a waiting row renders its bubble. */
-  revealedCount: number;
   markRevealed: (id: string) => void;
   replyHaptics: ReturnType<typeof useReplyHaptics>;
   canReply: boolean;
@@ -387,18 +384,18 @@ function playbackEligible(message: VisibleMessage) {
   );
 }
 
-function playbackEnabled(message: VisibleMessage, shared: MessageRowShared) {
-  return playbackEligible(message) && shared.playbackActive && shared.arrivals.has(message.id);
+function playbackEnabled(message: VisibleMessage, shared: MessageRowShared, arriving: boolean) {
+  return playbackEligible(message) && shared.playbackActive && arriving;
 }
 
 // The activity row stands in for a reply until its first word is played back. Rendering the
 // padded bubble before then leaves an empty pill beside the row.
-function awaitingFirstWord(message: VisibleMessage, shared: MessageRowShared) {
+function awaitingFirstWord(message: VisibleMessage, shared: MessageRowShared, arriving: boolean, revealed: boolean) {
   return (
     message.kind === "message" &&
     message.body.trim().length > 0 &&
-    playbackEnabled(message, shared) &&
-    !shared.replySession.revealed.has(message.id) &&
+    playbackEnabled(message, shared, arriving) &&
+    !revealed &&
     (shared.replySession.progress.get(message.id) ?? 0) === 0
   );
 }
@@ -411,11 +408,15 @@ const MessageRow = memo(function MessageRow({
   upload,
   outbox,
   selecting = false,
+  arriving,
+  revealed,
   shared,
 }: {
   message: VisibleMessage;
   /** The first message of the chat, sent from this phone: it rises from the composer. */
   isFirstUser: boolean;
+  arriving: boolean;
+  revealed: boolean;
   /** The message this one replies to. */
   source?: ChatMessage;
   /** Set only on the row of the question it controls. */
@@ -438,7 +439,7 @@ const MessageRow = memo(function MessageRow({
     if (wasSelecting.current && !selecting) setSelectionGeneration((generation) => generation + 1);
     wasSelecting.current = selecting;
   }, [selecting]);
-  const waiting = awaitingFirstWord(message, shared);
+  const waiting = awaitingFirstWord(message, shared, arriving, revealed);
   // A message that the host does not have yet, or that still streams, has no host ID to act on:
   // it has no actions and no native selection.
   const bubble = message.kind === "message" && !outbox && !message.streaming && !waiting ? message : null;
@@ -461,14 +462,13 @@ const MessageRow = memo(function MessageRow({
     userForeground,
     userBubbleStyle,
     firstMessageStyle,
-    arrivals,
     replySession,
     markRevealed,
     replyHaptics,
     actions,
   } = shared;
   const eligible = playbackEligible(message);
-  const enabled = playbackEnabled(message, shared);
+  const enabled = playbackEnabled(message, shared, arriving);
   const complete = message.kind === "message" && message.status === "completed";
   const playback = useMemo(
     () =>
@@ -518,11 +518,7 @@ const MessageRow = memo(function MessageRow({
       <Animated.View
         key={message.id}
         entering={
-          arrivals.has(message.id) && !isFirstUser
-            ? message.author === "user"
-              ? USER_MESSAGE_ENTRANCE
-              : undefined
-            : undefined
+          arriving && !isFirstUser ? (message.author === "user" ? USER_MESSAGE_ENTRANCE : undefined) : undefined
         }
         className={
           message.author === "user" ? "max-w-full items-end self-end gap-2" : "max-w-full items-start self-start gap-2"
@@ -599,7 +595,7 @@ const MessageRow = memo(function MessageRow({
                   selectable={message.author === "user"}
                   color={textColor}
                   playback={playback}
-                  animationEnabled={shared.animationActive && arrivals.has(message.id)}
+                  animationEnabled={shared.animationActive && arriving}
                   nativeSelection={nativeSelection}
                 />
               </View>
@@ -689,6 +685,8 @@ const MessageRow = memo(function MessageRow({
  */
 interface RowContextValue {
   shared: MessageRowShared;
+  arrivals: ReadonlySet<string>;
+  revealedIds: ReadonlySet<string>;
   /** The rows after the latest user message, which hide while the first message rises. */
   responseIds: ReadonlySet<string>;
   responseVisible: boolean;
@@ -725,6 +723,8 @@ function ChatRow({ message }: { message: VisibleMessage }) {
         upload={row.upload?.messageId === message.id ? row.upload : undefined}
         outbox={row.outboxStatuses?.get(message.id)}
         selecting={message.id === row.selectingMessageId}
+        arriving={row.arrivals.has(message.id)}
+        revealed={row.revealedIds.has(message.id)}
         shared={row.shared}
       />
     </Animated.View>
@@ -765,8 +765,9 @@ function TurnFailure({ reason }: { reason: string | undefined }) {
 
 const NO_APPROVALS: readonly PendingApproval[] = [];
 const NO_BROWSER_REQUESTS: readonly BrowserTakeoverRequest[] = [];
+const NO_IDS: ReadonlySet<string> = new Set();
 
-export function ChatMessageList({
+export const ChatMessageList = memo(function ChatMessageList({
   upload,
   outboxStatuses,
   target,
@@ -873,12 +874,16 @@ export function ChatMessageList({
     () => ({ key: conversationKey, progress: new Map<string, number>(), revealed: new Set<string>() }),
     [conversationKey],
   );
-  const [revealedCount, setRevealedCount] = useState(0);
+  const [revealedState, setRevealedState] = useState<{ session: typeof replySession; ids: ReadonlySet<string> }>({
+    session: replySession,
+    ids: NO_IDS,
+  });
+  const revealedIds = revealedState.session === replySession ? revealedState.ids : NO_IDS;
   const markRevealed = useCallback(
     (id: string) => {
       if (replySession.revealed.has(id)) return;
       replySession.revealed.add(id);
-      setRevealedCount((count) => count + 1);
+      setRevealedState({ session: replySession, ids: new Set(replySession.revealed) });
     },
     [replySession],
   );
@@ -996,12 +1001,10 @@ export function ChatMessageList({
       userForeground,
       userBubbleStyle: agentColorMessages ? userBubbleStyle : undefined,
       firstMessageStyle: motion.firstMessageStyle,
-      arrivals,
       animationActive,
       playbackActive: animationActive && textReveal && !screenReaderEnabled,
       textReveal,
       replySession,
-      revealedCount,
       markRevealed,
       replyHaptics,
       canReply,
@@ -1022,11 +1025,9 @@ export function ChatMessageList({
       agentColorMessages,
       motion.firstMessageStyle,
       screenReaderEnabled,
-      arrivals,
       animationActive,
       textReveal,
       replySession,
-      revealedCount,
       markRevealed,
       replyHaptics,
       canReply,
@@ -1035,7 +1036,9 @@ export function ChatMessageList({
       actions,
     ],
   );
-  const pendingReveal = visibleMessages.some((message) => awaitingFirstWord(message, shared));
+  const pendingReveal = visibleMessages.some((message) =>
+    awaitingFirstWord(message, shared, arrivals.has(message.id), revealedIds.has(message.id)),
+  );
   const { responseStyle, responseVisible } = motion;
   // The prompt controller is a new object on each render. Without a prompt it is left out, so the
   // list does not render every row again.
@@ -1045,6 +1048,8 @@ export function ChatMessageList({
   const rowContext = useMemo<RowContextValue>(
     () => ({
       shared,
+      arrivals,
+      revealedIds,
       responseIds,
       responseVisible,
       responseStyle,
@@ -1057,6 +1062,8 @@ export function ChatMessageList({
     }),
     [
       shared,
+      arrivals,
+      revealedIds,
       responseIds,
       responseVisible,
       responseStyle,
@@ -1312,4 +1319,4 @@ export function ChatMessageList({
       </RowContext>
     </Animated.View>
   );
-}
+});
