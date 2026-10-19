@@ -41,9 +41,7 @@ export function SidebarAgentContextMenu(menuProps: { agent: AgentProfile; pinned
         </ContextMenu.Item>
         <Show when={props.duplicateSupported !== false && props.onDuplicateAgent}>
           <ContextMenu.Item
-            {...(props.duplicatingAgentIds === undefined
-              ? {}
-              : { disabled: props.duplicatingAgentIds.has(menuProps.agent.id) })}
+            disabled={props.duplicatingAgentIds?.has(menuProps.agent.id) ?? false}
             onSelect={() => void props.onDuplicateAgent?.(menuProps.agent.id).catch(() => undefined)}
           >
             <Copy class="agent-context-icon size-4" aria-hidden="true" />

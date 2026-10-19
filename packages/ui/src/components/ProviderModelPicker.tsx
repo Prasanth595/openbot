@@ -35,7 +35,6 @@ import {
   SelectTrigger,
   SelectValue,
   SlidersHorizontal,
-  selectValue,
   Tabs,
   Tooltip,
 } from "@openbot/ui";
@@ -872,7 +871,7 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
                               options={effortOptions()}
                               optionValue="id"
                               optionTextValue="name"
-                              {...selectValue(effortOptions().find((option) => option.id === effortValue()))}
+                              value={effortOptions().find((option) => option.id === effortValue())}
                               onChange={(option) => option && chooseEffort(option.id)}
                               itemComponent={(item) => (
                                 <SelectItem item={item.item}>{item.item.rawValue.name}</SelectItem>

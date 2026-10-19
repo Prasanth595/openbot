@@ -1,15 +1,5 @@
 import type { RemoteDesktopErrorCode, RemoteDesktopSession, ServerSummary } from "@openbot/contracts/ipc";
-import {
-  ArrowLeft,
-  Button,
-  Monitor,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  selectValue,
-} from "@openbot/ui";
+import { ArrowLeft, Button, Monitor, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@openbot/ui";
 import { AgentAvatar } from "@openbot/ui/features/agents/AgentAvatar";
 import { useText } from "@openbot/ui/text";
 import { type JSX, Portal } from "@solidjs/web";
@@ -204,7 +194,7 @@ export function RemoteDesktopWorkspace(props: RemoteDesktopWorkspaceProps) {
                   options={displays()}
                   optionValue="id"
                   optionTextValue="label"
-                  {...selectValue(selectedDisplay())}
+                  value={selectedDisplay()}
                   disabled={actionBusy() !== null}
                   onChange={(display) => display && void selectDisplay(display.id)}
                   itemComponent={(item) => <SelectItem item={item.item}>{item.item.rawValue.label}</SelectItem>}

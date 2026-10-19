@@ -30,7 +30,7 @@ export function RoutineChipSelect(props: RoutineChipSelectProps) {
       value={selected()}
       optionValue="value"
       optionTextValue="label"
-      {...(props.disabled === undefined ? {} : { disabled: props.disabled })}
+      disabled={props.disabled ?? false}
       sameWidth={false}
       placement="bottom-start"
       gutter={6}
