@@ -102,7 +102,14 @@ export function BrowserTabStrip(props: {
   const tabTitle = useBrowserTabTitle();
   const [row, setRow] = createStore<TabRow>({ hidden: [], fadeStart: false, fadeEnd: false, frozen: 0 });
   const [hiddenMenuOpen, setHiddenMenuOpen] = createSignal(false);
-  // The menu goes away with its button when every tab fits again, without a close.
+  // The menu goes away with its button when every tab fits again, without a close, and a new button
+  // starts closed.
+  createEffect(
+    () => row.hidden.length > 0,
+    (shown) => {
+      if (!shown) setHiddenMenuOpen(false);
+    },
+  );
   useBrowserPageCover(() => hiddenMenuOpen() && row.hidden.length > 0);
   let strip: HTMLElement | undefined;
   let drag: TabDrag | undefined;

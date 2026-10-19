@@ -85,7 +85,7 @@ export default function BrowserFullView(props: BrowserFullViewProps) {
     },
   );
 
-  // The page is drawn above this window, so it steps aside while a menu of the view is open.
+  // The page is drawn above this window, so it is hidden while a menu of the view is open.
   createEffect(
     () => props.open && settled() && covers().size === 0,
     (shown) => props.onSurface(shown ? surfaceElement : undefined),
