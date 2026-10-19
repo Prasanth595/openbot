@@ -478,10 +478,9 @@ export function ConversationComposer() {
         data-has-attachments={unreferencedDraftAttachments().length > 0 ? "" : undefined}
         onPointerDown={(event) => {
           if (!(event.target instanceof Element)) return;
-          // A portal, such as the "+" menu, sends its events here too. Focus taken from it closes the menu
+          // The "+" menu is in a portal, but its events come here too. Focus taken from it closes the menu
           // before the item gets the pointerup.
-          if (!event.currentTarget.contains(event.target)) return;
-          if (event.target.closest("button, .composer-editor-surface")) return;
+          if (event.target.closest("button, .composer-editor-surface, .ui-action-menu")) return;
           event.preventDefault();
           setComposerFocusRequest((current) => current + 1);
         }}
