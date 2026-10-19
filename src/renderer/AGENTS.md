@@ -3,8 +3,9 @@
 The UI stack sits on prerelease channels your training data does not cover: `solid-js@2.0.0-rc.0`
 with `@solidjs/signals` and `@solidjs/web` at the same RC, `@kobalte/core@2.0.0-alpha.0` (patched
 here), plus patched `lucide-solid` and `solid-sonner`. `@solidjs/signals` is patched to dispose the
-children of a memo run that a list-row removal interrupts. Check that the patch still applies when
-you upgrade Solid. `@solidjs/web` has the rc.9 event delegation fix backported: a delegated event
+children of a memo run that a list-row removal interrupts, and so that `flatten` keeps a function child
+that comes before an array child (`[memo, <Tab />]`), which otherwise reaches `insertBefore` and halts
+the UI. Check that the patch still applies when you upgrade Solid. `@solidjs/web` has the rc.9 event delegation fix backported: a delegated event
 stops when its target leaves the DOM. Drop the patch when you upgrade to rc.9 or later. Do not
 trust your memory of these APIs —
 check `package.json` for what is actually installed, and load the reference that matches the work:
