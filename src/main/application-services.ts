@@ -1037,15 +1037,19 @@ export async function createApplicationServices({
       userDataOverride: app.commandLine.getSwitchValue("user-data-dir"),
     }),
     downloadRoot: join(app.getPath("userData"), "provider-runtimes", ".downloads"),
-    updateRuntime: (runtime, install) => {
+    updateRuntime: (runtime, install, signal, onWait) => {
       if (isManagedToolRuntime(runtime)) return install().pipe(Effect.asVoid);
       return service
-        .updateProviderCli(runtime, () =>
-          install().pipe(
-            Effect.mapError(
-              (error) => new AgentLifecycleFailed({ operation: "updateProviderCli.install", cause: error.cause }),
+        .updateProviderCli(
+          runtime,
+          () =>
+            install().pipe(
+              Effect.mapError(
+                (error) => new AgentLifecycleFailed({ operation: "updateProviderCli.install", cause: error.cause }),
+              ),
             ),
-          ),
+          signal,
+          onWait,
         )
         .pipe(Effect.asVoid, toProviderRuntimeFailure);
     },

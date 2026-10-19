@@ -372,6 +372,11 @@ export class ProviderRuntime implements ProviderPort {
    * is the next check, or `null` while the restart runs and can no longer be cancelled.
    */
   readonly #restartsWhenIdle = new Map<AgentProvider, NodeJS.Timeout | null>();
+  /**
+   * Managed runtime updates that wait for the provider's turns to end. The provider is held as
+   * `isReplacingCli` meanwhile, so new turns do not keep the update waiting.
+   */
+  readonly #updatesWhenIdle = new Set<AgentProvider>();
   /** A custom agent change that a turn delayed. The idle check applies it when the turn stops. */
   #customAgentsReloadPending = false;
   /** Providers that a turn kept on the old agent environment. The idle check restarts each after its turn. */
@@ -1558,14 +1563,65 @@ export class ProviderRuntime implements ProviderPort {
     return yield* this.#reprobeProvider(provider);
   }, Effect.uninterruptible);
 
-  /** Keeps this provider idle until its managed runtime is installed and activated. */
+  /**
+   * Keeps this provider idle until its managed runtime is installed and activated. While a turn runs
+   * on the provider, the update waits for its turns to end and new turns wait for the update, as for
+   * `restartProviderWhenIdle`. `onWait` runs when such a wait starts. `signal` ends the wait when the
+   * download is cancelled or the app stops.
+   */
   updateProviderCli(
     provider: AgentProvider,
     install: () => Effect.Effect<string, ProviderOperationFailed>,
+    signal: AbortSignal,
+    onWait: () => void,
   ): Effect.Effect<AgentStatus, ProviderOperationFailed> {
-    return this.#runProviderConnectionCommand(provider, () => this.#updateProviderCli(provider, install));
+    return this.#updateProviderCliWhenIdle(provider, install, signal, onWait).pipe(
+      Effect.ensuring(Effect.sync(() => this.#endUpdateWhenIdle(provider))),
+    );
   }
 
+  readonly #updateProviderCliWhenIdle = Effect.fn("ProviderRuntime.updateCliWhenIdle")(function* (
+    this: ProviderRuntime,
+    provider: AgentProvider,
+    install: () => Effect.Effect<string, ProviderOperationFailed>,
+    signal: AbortSignal,
+    onWait: () => void,
+  ) {
+    while (true) {
+      yield* this.#awaitIdleForUpdate(provider, signal, onWait);
+      const status = yield* this.#runProviderConnectionCommand(provider, () =>
+        this.#updateProviderCli(provider, install),
+      );
+      if (status) return status;
+    }
+  });
+
+  readonly #awaitIdleForUpdate = Effect.fn("ProviderRuntime.awaitIdleForUpdate")(function* (
+    this: ProviderRuntime,
+    provider: AgentProvider,
+    signal: AbortSignal,
+    onWait: () => void,
+  ) {
+    while (true) {
+      if (signal.aborted) return yield* new ProviderOperationFailed({ cause: signal.reason });
+      if (this.#hooks.isStopping())
+        return yield* new ProviderOperationFailed({ cause: new Error(sourceText("error.provider.closing")) });
+      if (!this.#hooks.isProviderBusy(provider)) return;
+      if (!this.#updatesWhenIdle.has(provider)) {
+        this.#updatesWhenIdle.add(provider);
+        recordRestartActivity();
+        onWait();
+      }
+      yield* Effect.sleep(PROVIDER_RESTART_POLL_MS);
+    }
+  });
+
+  /** Ends a wait that did not reach the install, because it was cancelled or failed. */
+  #endUpdateWhenIdle(provider: AgentProvider): void {
+    if (this.#updatesWhenIdle.delete(provider)) this.#hooks.onProviderResumed(provider);
+  }
+
+  /** Answers null, and installs nothing, when a turn started on the provider after the wait. */
   readonly #updateProviderCli = Effect.fn("ProviderRuntime.updateCli")(function* (
     this: ProviderRuntime,
     provider: AgentProvider,
@@ -1573,12 +1629,12 @@ export class ProviderRuntime implements ProviderPort {
   ) {
     const start = this.#providerStarts.get(provider);
     if (start) yield* Deferred.await(start);
-    yield* providerStep(() => {
+    const busy = yield* providerStep(() => {
       if ((provider === "codex" && this.#codexLogin.pending) || this.#cliLogin.has(provider))
         throw new Error(sourceText("error.provider.cliSigningIn", { provider: providerLabel(provider) }));
-      if (this.#hooks.isProviderBusy(provider))
-        throw new Error(sourceText("error.provider.cliBusyUpdate", { provider: providerLabel(provider) }));
+      return this.#hooks.isProviderBusy(provider);
     });
+    if (busy) return null;
     const previousVersion = this.#cli.get(provider)?.version ?? null;
     const previousExecutable = this.#bundledExecutables[provider];
     // A reprobe that finds no account leaves the provider released, so only an available row keeps it.
@@ -1586,6 +1642,8 @@ export class ProviderRuntime implements ProviderPort {
     let installed = false;
     yield* Effect.acquireUseRelease(
       providerStep(() => {
+        // The hold passes from the wait to the install with no gap in which a turn could start.
+        this.#updatesWhenIdle.delete(provider);
         this.#setProviderConnectionState(provider, "connecting");
         this.#replacingCli.add(provider);
         recordRestartActivity();
@@ -1815,10 +1873,12 @@ export class ProviderRuntime implements ProviderPort {
 
   /**
    * True while a managed runtime is installed and its previous client is replaced, and while a
-   * restart the user asked for waits for the provider's turns to end.
+   * restart the user asked for, or an update, waits for the provider's turns to end.
    */
   isReplacingCli(provider: AgentProvider): boolean {
-    return this.#replacingCli.has(provider) || this.#restartsWhenIdle.has(provider);
+    return (
+      this.#replacingCli.has(provider) || this.#restartsWhenIdle.has(provider) || this.#updatesWhenIdle.has(provider)
+    );
   }
 
   /**

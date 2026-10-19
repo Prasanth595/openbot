@@ -17,6 +17,7 @@ export const messages = {
   "update.provider.checking": "{name} güncellemeleri denetleniyor",
   "update.provider.available": "{name} güncellemesi mevcut",
   "update.provider.updating": "{name} güncelleniyor",
+  "update.provider.waiting": "{name} güncellemesi bekliyor",
   "update.provider.failed": "{name} güncellemesi başarısız oldu",
   "update.provider.settingUp": "Ayarlanıyor",
   "update.provider.failedRetry": "Güncelleme başarısız oldu. Tekrar deneyin.",

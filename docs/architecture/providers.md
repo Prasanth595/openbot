@@ -230,8 +230,11 @@ the replacement held back.
 
 The update replaces the binary under a running client. A provider that has an agent in a turn -
 a delivery on its way to one, which holds no turn id yet, or a context compaction, whose
-`turn/started` `ContextCompaction.claimTurn` takes away from the agent - therefore refuses the
-command and tells the user to wait. No turn may start on that provider until the new client is ready: the drain
+`turn/started` `ContextCompaction.claimTurn` takes away from the agent - therefore makes the
+update wait, as a restart the user asked for waits, before anything is downloaded. Main shows the
+wait as a `downloading` runtime with no progress and the message `status.provider.updateWaiting`;
+its Cancel aborts the wait. New turns of the provider wait for the update from the start of the
+wait, so a busy provider still gets a moment without turns. No turn may start on that provider until the new client is ready: the drain
 scheduler skips an agent whose provider reports `isReplacingCli`, before it can reschedule the
 delivery, and `onProviderResumed` schedules the held deliveries when the replacement ends, after a
 failure as well as after a success.

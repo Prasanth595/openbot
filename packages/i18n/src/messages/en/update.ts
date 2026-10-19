@@ -18,6 +18,7 @@ export const messages = defineMessages("update", {
   "update.provider.checking": "Checking for {name} updates",
   "update.provider.available": "{name} update available",
   "update.provider.updating": "Updating {name}",
+  "update.provider.waiting": "Waiting to update {name}",
   "update.provider.failed": "{name} update failed",
   "update.provider.settingUp": "Setting up",
   "update.provider.failedRetry": "The update failed. Try again.",

@@ -20,6 +20,7 @@ export const messages = {
   "provider.status.updateAvailable": "Güncelleme mevcut",
   "provider.status.settingUp": "Ayarlanıyor",
   "provider.status.updateFailed": "Güncelleme başarısız",
+  "provider.status.updateWaiting": "Bekliyor",
   "provider.status.setupFailed": "Kurulum başarısız",
   "provider.status.connected": "Bağlandı",
   "provider.status.notDownloaded": "İndirilmedi",

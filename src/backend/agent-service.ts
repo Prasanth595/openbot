@@ -2979,9 +2979,11 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   updateProviderCli(
     provider: AgentProvider,
     install: () => Effect.Effect<string, AgentLifecycleFailed>,
+    signal: AbortSignal,
+    onWait: () => void,
   ): Effect.Effect<AgentStatus, AgentLifecycleFailed> {
     return this.#providers
-      .updateProviderCli(provider, () => install().pipe(toProviderOperationFailed))
+      .updateProviderCli(provider, () => install().pipe(toProviderOperationFailed), signal, onWait)
       .pipe(
         Effect.mapError(
           (failure) => new AgentLifecycleFailed({ operation: "updateProviderCli", cause: failure.cause }),

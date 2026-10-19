@@ -16,6 +16,7 @@ export const messages = {
   "update.provider.checking": "Buscando atualizações de {name}",
   "update.provider.available": "Atualização de {name} disponível",
   "update.provider.updating": "Atualizando {name}",
+  "update.provider.waiting": "Atualização de {name} aguardando",
   "update.provider.failed": "Falha na atualização de {name}",
   "update.provider.settingUp": "Configurando",
   "update.provider.failedRetry": "A atualização falhou. Tente novamente.",

@@ -22,6 +22,7 @@ export const messages = defineMessages("provider", {
   "provider.status.updateAvailable": "Update available",
   "provider.status.settingUp": "Setting up",
   "provider.status.updateFailed": "Update failed",
+  "provider.status.updateWaiting": "Waiting",
   "provider.status.setupFailed": "Setup failed",
   "provider.status.connected": "Connected",
   "provider.status.notDownloaded": "Not downloaded",

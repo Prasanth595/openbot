@@ -536,6 +536,8 @@ export function ProviderPicker(props: ProviderPickerProps) {
                 if (off() || connecting() || hostSignInHint()) return undefined;
                 const runtime = runtimeStatus();
                 if (runtime?.phase === "download-error") return runtime.message ?? undefined;
+                // An update that waits for the provider's turns to end says so.
+                if (runtime?.phase === "downloading" && runtime.message) return runtime.message;
                 const message = option().message;
                 if (!message || state() === "not-installed") return undefined;
                 return message === option().checkError || message === option().lastError ? undefined : message;
@@ -1139,7 +1141,10 @@ function providerStatusLabel(
   runtimeStatus?: ProviderRuntimeStatus,
   updatable = false,
 ): string {
-  // Downloads outrank connection words; the row reports progress until it ends.
+  // Downloads outrank connection words; the row reports progress until it ends. An update that waits
+  // for the provider's turns to end has a message and no progress yet.
+  if (runtimeStatus?.phase === "downloading" && runtimeStatus.message)
+    return translate("provider.status.updateWaiting");
   if (runtimeStatus?.phase === "downloading") {
     return format.percent(Math.round(Math.max(0, Math.min(100, runtimeStatus.progress ?? 0))) / 100);
   }

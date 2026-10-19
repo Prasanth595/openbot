@@ -35,6 +35,7 @@ export const messages = {
   "provider.status.updateAvailable": "Доступно обновление",
   "provider.status.settingUp": "Настройка",
   "provider.status.updateFailed": "Ошибка обновления",
+  "provider.status.updateWaiting": "Ожидание",
   "provider.status.setupFailed": "Ошибка настройки",
   "provider.status.connected": "Подключено",
   "provider.status.notDownloaded": "Не загружено",

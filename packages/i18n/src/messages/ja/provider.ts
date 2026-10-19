@@ -21,6 +21,7 @@ export const messages = {
   "provider.status.updateAvailable": "アップデートあり",
   "provider.status.settingUp": "準備中",
   "provider.status.updateFailed": "アップデート失敗",
+  "provider.status.updateWaiting": "待機中",
   "provider.status.setupFailed": "セットアップ失敗",
   "provider.status.connected": "接続済み",
   "provider.status.notDownloaded": "未ダウンロード",

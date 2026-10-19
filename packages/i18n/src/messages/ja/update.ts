@@ -17,6 +17,7 @@ export const messages = {
   "update.provider.checking": "{name} のアップデートを確認しています",
   "update.provider.available": "{name} のアップデートがあります",
   "update.provider.updating": "{name} をアップデートしています",
+  "update.provider.waiting": "{name} のアップデートを待機中",
   "update.provider.failed": "{name} のアップデートに失敗しました",
   "update.provider.settingUp": "準備中",
   "update.provider.failedRetry": "アップデートに失敗しました。もう一度お試しください。",

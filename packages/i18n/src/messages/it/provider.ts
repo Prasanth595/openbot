@@ -20,6 +20,7 @@ export const messages = {
   "provider.status.updateAvailable": "Aggiornamento disponibile",
   "provider.status.settingUp": "Configurazione",
   "provider.status.updateFailed": "Aggiornamento non riuscito",
+  "provider.status.updateWaiting": "In attesa",
   "provider.status.setupFailed": "Configurazione non riuscita",
   "provider.status.connected": "Connesso",
   "provider.status.notDownloaded": "Non scaricato",
