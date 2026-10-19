@@ -462,14 +462,6 @@ try {
 } finally {
   await runCauseEffect(agents.stop()).catch(() => {});
   database.close();
-  // A failed step can leave a stand-in that this script started; stop it.
-  for (const { pid } of claudeSpawns()) {
-    try {
-      process.kill(pid);
-    } catch {
-      /* Already ended. */
-    }
-  }
   mkdirSync(OUT, { recursive: true });
   writeFileSync(join(OUT, "report.json"), `${JSON.stringify(report, null, 2)}\n`);
   await rm(root, { recursive: true, force: true });

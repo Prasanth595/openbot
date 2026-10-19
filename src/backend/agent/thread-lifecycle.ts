@@ -314,7 +314,7 @@ export class ThreadLifecycle {
     if (executionThreadId) this.#conversation.registerExecutionThread(agent.id, executionThreadId);
     const { currentAgent, session } = yield* threadStep(() => ({
       currentAgent: this.#store.list().find((candidate) => candidate.id === agent.id) ?? agent,
-      session: this.#store.database.activeProviderSession(publicThreadId, client.provider),
+      session: this.#store.database.activeProviderSession(publicThreadId, agent.provider),
     }));
     if (session) {
       this.#conversation.bindThread(session.externalSessionId, agent.id, publicThreadId);
