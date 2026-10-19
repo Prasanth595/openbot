@@ -1,13 +1,14 @@
-import type {
-  AgentModelId,
-  AgentProviderId,
-  AgentStatus,
-  AppSetupState,
-  CustomProviderRestart,
-  CustomProviderSummary,
-  ProviderApiKeyStatus,
-  ProviderRuntimeStatus,
-  SaveCustomProviderInput,
+import {
+  type AgentModelId,
+  type AgentProviderId,
+  type AgentStatus,
+  type AppSetupState,
+  agentProviderName,
+  type CustomProviderRestart,
+  type CustomProviderSummary,
+  type ProviderApiKeyStatus,
+  type ProviderRuntimeStatus,
+  type SaveCustomProviderInput,
 } from "@openbot/contracts/ipc";
 import { Text } from "@openbot/ui";
 import { ProviderPicker } from "@openbot/ui/components/ProviderPicker";
@@ -137,6 +138,24 @@ function ProviderSettingsSection(props: ProviderSettingsSectionProps) {
       });
     }
   }
+  /** A first download that fails rejects with no notification of its own, so its reason is shown here. */
+  async function downloadProvider(provider: AgentProviderId): Promise<void> {
+    const download = props.onDownloadProvider;
+    if (!download) return;
+    setSaving((state) => {
+      state.error = "";
+    });
+    try {
+      await download(provider);
+    } catch (error) {
+      setSaving((state) => {
+        state.error = i18n.errorMessage(
+          error,
+          i18n.t("onboarding.error.download", { provider: agentProviderName(provider) }),
+        );
+      });
+    }
+  }
   async function selectSavedEndpoint(value: SaveCustomProviderInput): Promise<void> {
     const firstModel = value.models[0];
     if (props.defaultProvider && firstModel) {
@@ -197,7 +216,7 @@ function ProviderSettingsSection(props: ProviderSettingsSectionProps) {
           props.defaultProvider ? (saving.pending?.custom ?? Boolean(defaultCustomModel())) : customSelected()
         }
         onChange={(provider) => void selectProvider(provider)}
-        onDownloadProvider={props.onDownloadProvider}
+        onDownloadProvider={props.onDownloadProvider ? downloadProvider : undefined}
         onCancelProviderDownload={props.onCancelProviderDownload}
         onUpdateProvider={props.onUpdateProvider}
         onRestartProvider={props.onRestartProvider}
