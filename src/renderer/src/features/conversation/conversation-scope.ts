@@ -211,6 +211,8 @@ export function createConversationViewScope(props: ConversationProps) {
     taskListOpen,
     openTaskPanel,
     showTaskList,
+    panelSubagentId,
+    openSubagentPanel,
     sidePanel,
     sidePanelOpen,
     setSidePanelMaximized,
@@ -364,6 +366,13 @@ export function createConversationViewScope(props: ConversationProps) {
     const pane = selected && panes.includes(selected) ? selected : (panes[0] ?? null);
     if (pane) openSidePanelPane(pane);
     else setActiveRightPanel("side-panel");
+  }
+  /** The subagent that the side panel shows now, or null. */
+  const shownSubagentId = () => (activeRightPanel() === "subagent" ? panelSubagentId() : null);
+  /** A click on a subagent opens it on the side; a click on the subagent that shows closes its pane. */
+  function toggleSubagentPanel(subagentId: string) {
+    if (shownSubagentId() === subagentId) closeSidePanelPane("subagent");
+    else openSubagentPanel(subagentId);
   }
   /** Closes the tab of a pane. The next tab takes its place; with no tab, the panel lists the panes. */
   function closeSidePanelPane(pane: SidePanelPane) {
@@ -1474,6 +1483,9 @@ export function createConversationViewScope(props: ConversationProps) {
     taskListOpen,
     openTaskPanel,
     showTaskList,
+    panelSubagentId,
+    shownSubagentId,
+    toggleSubagentPanel,
     sidePanel,
     sidePanelOpen,
     setSidePanelMaximized,

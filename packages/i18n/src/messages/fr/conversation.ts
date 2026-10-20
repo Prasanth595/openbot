@@ -67,6 +67,7 @@ export const messages = {
   "conversation.sidePanel.pane.tasks": "Tâches",
   "conversation.sidePanel.pane.settings": "Réglages de l’agent",
   "conversation.sidePanel.pane.question": "Question annexe",
+  "conversation.sidePanel.pane.subagent": "Sous-agent",
   "conversation.sideQuestion.emptyTitle": "Question sur ce chat",
   "conversation.sideQuestion.emptyBody": "{name} lit ce chat pour répondre. Rien d’ici n’est ajouté au chat.",
   "conversation.sideQuestion.messages": "Messages de la question annexe",

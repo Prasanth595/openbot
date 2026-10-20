@@ -67,6 +67,7 @@ export const messages = {
   "conversation.sidePanel.pane.tasks": "Задачи",
   "conversation.sidePanel.pane.settings": "Настройки агента",
   "conversation.sidePanel.pane.question": "Побочный вопрос",
+  "conversation.sidePanel.pane.subagent": "Субагент",
   "conversation.sideQuestion.emptyTitle": "Спросите об этом чате",
   "conversation.sideQuestion.emptyBody": "{name} читает этот чат, чтобы ответить. Ничего отсюда не попадает в чат.",
   "conversation.sideQuestion.messages": "Сообщения побочного вопроса",

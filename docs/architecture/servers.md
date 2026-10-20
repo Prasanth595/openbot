@@ -170,6 +170,20 @@ in words on a block that has one, is for the owner and admins only; the host ans
 resolution leave it out. The provider transcript of the tool call can keep it, and the agent can
 repeat it in a reply or a thought, which the conversation stores as any other message.
 
+### Subagents
+
+`subagents-v1` carries the subagents that an agent started in one turn (see
+`packages/contracts/src/ipc-conversation-subagents.ts` and `team-protocol/subagents-v1.ts`). It adds
+`subagents` beside the frozen keys of a message in `GET /v1/agents/:id/conversation` and
+`conversation-page` (messages and references), and in the `conversation` and `conversation-page`
+events. The host adds it only on protocol 7 and only for a connection that advertises the capability.
+A released client reads the message as its fallback: a `subagents` message whose text lists the
+subagents by title. A host without the capability never sends `subagents`, so a client keeps it
+whenever it is present, and a list that the contract refuses fails closed. The host sends each list
+through `clampConversationSubagents`, so only known keys go out, and the lists of one page share a
+wire budget, newest first. The task conversations of `agent-tasks-v1` do not carry it. The WebRTC
+host peer encodes the local response and the events again with the same option.
+
 ### Queue window
 
 `queue-window-v1` keeps the queue snapshot of a long-lived agent inside one WebRTC frame. The

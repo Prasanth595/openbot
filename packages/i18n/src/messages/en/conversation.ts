@@ -66,6 +66,7 @@ export const messages = defineMessages("conversation", {
   "conversation.sidePanel.pane.tasks": "Tasks",
   "conversation.sidePanel.pane.settings": "Agent settings",
   "conversation.sidePanel.pane.question": "Side question",
+  "conversation.sidePanel.pane.subagent": "Subagent",
   "conversation.sideQuestion.emptyTitle": "Ask about this chat",
   "conversation.sideQuestion.emptyBody": "{name} reads this chat to answer. Nothing here goes back into it.",
   "conversation.sideQuestion.messages": "Side question messages",

@@ -3,6 +3,7 @@ import {
   type AgentSummary,
   type AskSideQuestionInput,
   CONVERSATION_PLAN_ITEM_TYPE,
+  CONVERSATION_SUBAGENTS_ITEM_TYPE,
   type ConversationMessage,
   ROUTINE_QUIET_ANSWER_ITEM_TYPE,
 } from "@openbot/contracts/ipc";
@@ -29,6 +30,7 @@ function chatMessage(message: ConversationMessage): boolean {
     message.itemType !== "agent_attachment" &&
     !message.itemType?.startsWith(CHAT_VISUAL_ITEM_TYPE_PREFIX) &&
     message.itemType !== CONVERSATION_PLAN_ITEM_TYPE &&
+    message.itemType !== CONVERSATION_SUBAGENTS_ITEM_TYPE &&
     message.itemType !== ROUTINE_QUIET_ANSWER_ITEM_TYPE
   );
 }

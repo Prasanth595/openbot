@@ -137,6 +137,7 @@ export function reduceAgentActivity(
         message.author === "assistant" &&
         message.itemType !== "commentary" &&
         message.itemType !== "plan" &&
+        message.itemType !== "subagents" &&
         message.status === "streaming" &&
         message.text.trim().length > 0,
     );

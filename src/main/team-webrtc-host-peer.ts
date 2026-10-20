@@ -10,6 +10,7 @@ import {
   TEAM_AGENT_CREATE_MODEL_CAPABILITY,
   TEAM_CURRENT_CAPABILITIES,
   TEAM_HISTORY_EXTENT_CAPABILITY,
+  TEAM_SUBAGENTS_CAPABILITY,
   TEAM_UI_BLOCKS_CAPABILITY,
 } from "@openbot/contracts/team-protocol/current";
 import { optionalTeamEvent } from "@openbot/contracts/team-protocol/optional-events";
@@ -689,11 +690,13 @@ export class TeamWebRtcHostPeer {
               file: { transferId, name, mimeType: contentType || "application/octet-stream", size },
             };
           }
-          // A variable, not a literal: only the V7 encoder declares `historyExtent` and `uiBlocks`.
+          // A variable, not a literal: only the V7 encoder declares `historyExtent`, `uiBlocks` and
+          // `subagents`.
           const responseOptions = {
             preserveSemanticTags,
             historyExtent: peerCapabilities.has(TEAM_HISTORY_EXTENT_CAPABILITY),
             uiBlocks: peerCapabilities.has(TEAM_UI_BLOCKS_CAPABILITY),
+            subagents: peerCapabilities.has(TEAM_SUBAGENTS_CAPABILITY),
           };
           return yield* remoteDecode(() => ({
             status: response.status,
@@ -765,8 +768,9 @@ export class TeamWebRtcHostPeer {
                       : createTeamProtocolV2Event)(this.#nextEventSequence, event, {
                 preserveSemanticTags: supportsTeamSemanticTags(this.#peerCapabilities),
                 preserveBrowserSecrets: this.#peerCapabilities.has("browser-secret-handoff"),
-                // Only the V7 event reads it.
+                // Only the V7 event reads them.
                 uiBlocks: this.#peerCapabilities.has(TEAM_UI_BLOCKS_CAPABILITY),
+                subagents: this.#peerCapabilities.has(TEAM_SUBAGENTS_CAPABILITY),
               }),
         );
       } catch {

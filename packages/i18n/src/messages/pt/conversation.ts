@@ -67,6 +67,7 @@ export const messages = {
   "conversation.sidePanel.pane.tasks": "Tarefas",
   "conversation.sidePanel.pane.settings": "Configurações do agente",
   "conversation.sidePanel.pane.question": "Pergunta à parte",
+  "conversation.sidePanel.pane.subagent": "Subagente",
   "conversation.sideQuestion.emptyTitle": "Pergunte sobre este chat",
   "conversation.sideQuestion.emptyBody": "{name} lê este chat para responder. Nada daqui volta para o chat.",
   "conversation.sideQuestion.messages": "Mensagens da pergunta à parte",

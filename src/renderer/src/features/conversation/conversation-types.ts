@@ -296,7 +296,8 @@ export type RightPanelMode =
   | "file-preview"
   | "files"
   | "task"
-  | "question";
+  | "question"
+  | "subagent";
 
 export type { SidePanelPane } from "@openbot/ui/features/conversation/SidePanel";
 

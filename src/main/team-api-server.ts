@@ -80,6 +80,7 @@ import {
   TEAM_AGENT_ACTIVITY_CAPABILITY,
   TEAM_CURRENT_CAPABILITIES,
   TEAM_HISTORY_EXTENT_CAPABILITY,
+  TEAM_SUBAGENTS_CAPABILITY,
   TEAM_UI_BLOCKS_CAPABILITY,
   type TeamCurrentCapability,
 } from "@openbot/contracts/team-protocol/current";
@@ -1003,8 +1004,9 @@ export class TeamApiServer {
       )(visible, {
         ...options,
         preserveBrowserSecrets: capabilities.has("browser-secret-handoff"),
-        // Only the V7 encoder reads it.
+        // Only the V7 encoder reads them.
         uiBlocks: capabilities.has(TEAM_UI_BLOCKS_CAPABILITY),
+        subagents: capabilities.has(TEAM_SUBAGENTS_CAPABILITY),
       });
     return encodeTeamProtocolV1CurrentEvent(visible, options);
   }
@@ -1631,6 +1633,7 @@ export class TeamApiServer {
       preserveSemanticTags: supportsTeamSemanticTags(route.capabilities),
       historyExtent: route.capabilities.has(TEAM_HISTORY_EXTENT_CAPABILITY),
       uiBlocks: route.capabilities.has(TEAM_UI_BLOCKS_CAPABILITY),
+      subagents: route.capabilities.has(TEAM_SUBAGENTS_CAPABILITY),
     };
     // The body is encoded before the head is written. A response the negotiated protocol cannot
     // represent - a route its frozen adapter does not classify - makes the encoder throw, and with

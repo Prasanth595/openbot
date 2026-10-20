@@ -47,6 +47,7 @@ import {
   decodeRemoteDesktopSetupResponse,
   isRemoteDesktopSetupRoute,
 } from "./remote-desktop-setup-v1";
+import { withConversationSubagents } from "./subagents-v1";
 import { withConversationUiBlocks } from "./ui-blocks-v1";
 import { decodeTeamProtocolV7HttpRequest, decodeTeamProtocolV7HttpResponse } from "./v7";
 import type { TeamProtocolV7BaseJsonObject, TeamProtocolV7BaseJsonValue } from "./v7-base";
@@ -207,25 +208,28 @@ export function decodeTeamProtocolV7CurrentHttpRequest(
 /**
  * `historyExtent` is the negotiated history-extent-v1 capability: only then does a page carry its
  * unloaded length beside the frozen keys. `uiBlocks` is the negotiated ui-blocks-v1 capability: only
- * then does a conversation message carry its `uiBlock`. Without them the output is the released
- * projection.
+ * then does a conversation message carry its `uiBlock`. `subagents` is the negotiated subagents-v1
+ * capability: only then does a conversation message carry its `subagents`. Without them the output is
+ * the released projection.
  */
 export function encodeTeamProtocolV7CurrentHttpResponse(
   method: string,
   path: string,
   status: number,
   value: unknown,
-  options: { preserveSemanticTags?: boolean; historyExtent?: boolean; uiBlocks?: boolean } = {},
+  options: { preserveSemanticTags?: boolean; historyExtent?: boolean; uiBlocks?: boolean; subagents?: boolean } = {},
 ): string {
-  const { historyExtent, uiBlocks, ...frozen } = options;
+  const { historyExtent, uiBlocks, subagents, ...frozen } = options;
   const encoded = encodeFrozenResponse(method, path, status, value, frozen);
   if (status >= 400) return encoded;
   const withExtent = historyExtent && isHistoryExtentRoute(method, path);
   const withBlocks = uiBlocks && isConversationRoute(method, path);
-  if (!withExtent && !withBlocks) return encoded;
+  const withSubagents = subagents && isConversationRoute(method, path);
+  if (!withExtent && !withBlocks && !withSubagents) return encoded;
   let output: TeamProtocolV7BaseJsonValue = JSON.parse(encoded);
   if (withExtent) output = withPageHistoryExtent(output, value);
   if (withBlocks) output = withConversationUiBlocks(output, value);
+  if (withSubagents) output = withConversationSubagents(output, value);
   return JSON.stringify(output);
 }
 
@@ -290,8 +294,8 @@ function encodeFrozenResponse(
 }
 
 /**
- * A host sends the history extent only under history-extent-v1, and a UI block only under
- * ui-blocks-v1, so a present one is always kept.
+ * A host sends the history extent only under history-extent-v1, a UI block only under ui-blocks-v1,
+ * and the subagents only under subagents-v1, so a present one is always kept.
  */
 export function decodeTeamProtocolV7CurrentHttpResponse(
   method: string,
@@ -301,9 +305,10 @@ export function decodeTeamProtocolV7CurrentHttpResponse(
 ): TeamProtocolV7BaseJsonValue {
   const decoded = decodeFrozenResponse(method, path, status, value);
   if (status >= 400) return decoded;
-  // The conversation page route carries both.
+  // The conversation page route carries all three.
   const withExtent = isHistoryExtentRoute(method, path) ? withPageHistoryExtent(decoded, value) : decoded;
-  return isConversationRoute(method, path) ? withConversationUiBlocks(withExtent, value) : withExtent;
+  if (!isConversationRoute(method, path)) return withExtent;
+  return withConversationSubagents(withConversationUiBlocks(withExtent, value), value);
 }
 
 function decodeFrozenResponse(

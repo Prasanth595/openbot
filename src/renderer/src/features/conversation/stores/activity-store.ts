@@ -31,8 +31,9 @@ export function createActivityStore(deps: ActivityStoreDeps) {
   const streamingAgentMessage = createMemo(() => {
     for (let index = deps.props.messages.length - 1; index >= 0; index -= 1) {
       const message = deps.props.messages[index];
-      // A plan streams for the whole turn. It is not the text that the turn writes now.
-      if (message?.author === "agent" && message.streaming && message.kind !== "plan") return message;
+      // A plan and the subagents stream for the whole turn. They are not the text that the turn writes now.
+      if (message?.author === "agent" && message.streaming && message.kind !== "plan" && message.kind !== "subagents")
+        return message;
     }
     return null;
   });
