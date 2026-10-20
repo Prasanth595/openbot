@@ -21,6 +21,7 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
+import { scheduleOnRN } from "react-native-worklets";
 import { useCSSVariable, useUniwind } from "uniwind";
 import { showFailureAlert } from "@/features/analytics/failure-reports";
 import type { MobileSession } from "@/features/auth/api/mobile-auth";
@@ -51,6 +52,7 @@ const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 const SERVER_LIST_MOTION = { duration: 240, easing: EASE_OUT };
 const SERVER_AVATAR_SIZE = 40;
 const DRAWER_ROW_HEIGHT = 46;
+const CLOSED_LIST = { height: 0, overflow: "hidden" } as const;
 
 interface ServerDrawerContentProps {
   activeServerId: string;
@@ -264,8 +266,7 @@ export function ServerDrawerContent({
         <ServerAvatar server={serverItem} size={SERVER_AVATAR_SIZE} />
         <View className="min-w-0 flex-1">
           <Typography.Paragraph
-            weight="medium"
-            className={showsOnline(serverItem) ? undefined : "text-text-secondary"}
+            className={showsOnline(serverItem) ? "font-medium" : "font-medium text-text-secondary"}
             numberOfLines={1}
             style={typeScale.rowTitle}
           >
@@ -353,7 +354,7 @@ export function ServerDrawerContent({
                 setListOpen((current) => !current);
               }}
             >
-              <Typography.Heading weight="bold" className="shrink" numberOfLines={1} style={typeScale.drawerTitle}>
+              <Typography.Heading className="font-bold shrink" numberOfLines={1} style={typeScale.drawerTitle}>
                 {activeServer.name}
               </Typography.Heading>
               <Animated.View
@@ -369,7 +370,7 @@ export function ServerDrawerContent({
               </Animated.View>
             </Pressable>
           ) : (
-            <Typography.Heading weight="bold" className="shrink" numberOfLines={1} style={typeScale.drawerTitle}>
+            <Typography.Heading className="font-bold shrink" numberOfLines={1} style={typeScale.drawerTitle}>
               {t("mobile.server.drawer.title")}
             </Typography.Heading>
           )}
@@ -470,7 +471,7 @@ export function ServerDrawerContent({
         <View className="min-h-14 min-w-0 flex-1 flex-row items-center gap-2.5 rounded-2xl px-2 py-2">
           <ProfileAvatar neutral name={displayName} imageUrl={avatarUrl} size={36} />
           <View className="min-w-0 flex-1">
-            <Typography.Paragraph weight="semibold" numberOfLines={1} style={typeScale.preview}>
+            <Typography.Paragraph className="font-semibold" numberOfLines={1} style={typeScale.preview}>
               {displayName}
             </Typography.Paragraph>
             <Typography.Paragraph className="text-text-secondary" numberOfLines={1} selectable style={typeScale.small}>
@@ -500,26 +501,52 @@ function ServerListCollapse({
   reducedMotion,
   children,
 }: PropsWithChildren<{ open: boolean; reducedMotion: boolean }>) {
-  const [height, setHeight] = useState<number | null>(null);
+  const [height, setHeight] = useState(0);
+  // At rest the list has no animated style: open, it takes its own height; closed, none. A later
+  // render then cannot put back a first-render style when the animated value has not reached React.
+  const [moving, setMoving] = useState(false);
   const progress = useSharedValue(open ? 1 : 0);
+  const shown = useRef(open);
   useEffect(() => {
-    progress.set(reducedMotion ? (open ? 1 : 0) : withTiming(open ? 1 : 0, SERVER_LIST_MOTION));
+    if (shown.current === open) {
+      // A change of the motion setting cuts a move short: the list goes to rest where it is going.
+      progress.set(open ? 1 : 0);
+      setMoving(false);
+      return;
+    }
+    shown.current = open;
+    if (reducedMotion) {
+      progress.set(open ? 1 : 0);
+      return;
+    }
+    let active = true;
+    const stop = () => {
+      if (active) setMoving(false);
+    };
+    setMoving(true);
+    progress.set(
+      withTiming(open ? 1 : 0, SERVER_LIST_MOTION, (finished) => {
+        if (finished) scheduleOnRN(stop);
+      }),
+    );
+    return () => {
+      active = false;
+    };
   }, [open, progress, reducedMotion]);
-  const frameStyle = useAnimatedStyle(() => ({ height: (height ?? 0) * progress.get(), overflow: "hidden" }));
+  const frameStyle = useAnimatedStyle(() => ({ height: height * progress.get(), overflow: "hidden" }));
   const contentStyle = useAnimatedStyle(() => ({
     opacity: interpolate(progress.get(), [0, 0.8], [0, 1], Extrapolation.CLAMP),
     transform: [{ translateY: reducedMotion ? 0 : (1 - progress.get()) * -6 }],
   }));
   return (
     <Animated.View
-      // Until the rows are measured, an open list takes its own height and a closed one none.
-      style={height === null ? (open ? undefined : { height: 0, overflow: "hidden" }) : frameStyle}
+      style={moving ? frameStyle : open ? undefined : CLOSED_LIST}
       pointerEvents={open ? "auto" : "none"}
       accessibilityElementsHidden={!open}
       importantForAccessibility={open ? "auto" : "no-hide-descendants"}
     >
       <Animated.View
-        style={[height === null ? undefined : { position: "absolute", top: 0, left: 0, right: 0 }, contentStyle]}
+        style={moving ? [{ position: "absolute", top: 0, left: 0, right: 0 }, contentStyle] : undefined}
         onLayout={(event) => setHeight(event.nativeEvent.layout.height)}
       >
         {children}

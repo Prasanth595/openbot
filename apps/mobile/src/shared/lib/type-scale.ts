@@ -14,6 +14,8 @@ export const typeScale = {
   barTitle: { fontSize: 17, lineHeight: 22 },
   /** A row name: a chat, a server, a drawer row. */
   rowTitle: { fontSize: 16, lineHeight: 21 },
+  /** A task or search row name, a little smaller than a chat name. */
+  body: { fontSize: 15.5, lineHeight: 20 },
   /** One line under a row name, such as a chat preview, and a drawer row value. */
   preview: { fontSize: 14, lineHeight: 19 },
   /** Section headings, times and supporting lines. */

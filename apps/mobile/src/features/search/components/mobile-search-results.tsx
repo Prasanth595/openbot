@@ -387,7 +387,7 @@ export function SearchCaption({
 }) {
   return (
     <View className="min-h-9 flex-row items-center justify-between gap-3 pt-3.5 pr-3 pl-5">
-      <Typography.Paragraph weight="medium" accessibilityRole="header" className="text-muted" style={typeScale.caption}>
+      <Typography.Paragraph accessibilityRole="header" className="font-medium text-muted" style={typeScale.caption}>
         {label}
       </Typography.Paragraph>
       {action ? (
@@ -404,7 +404,7 @@ function SearchNotice({ title, body, onRetry }: { title: string; body?: string; 
   return (
     <View className="items-center gap-3 px-8 py-12">
       <View className="items-center gap-1">
-        <Typography.Paragraph align="center" weight="semibold">
+        <Typography.Paragraph className="font-semibold" align="center">
           {title}
         </Typography.Paragraph>
         {body ? (

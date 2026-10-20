@@ -12,6 +12,7 @@ import type {
   AgentProviderId,
   AgentReasoningEffort,
   AgentSessionSettings,
+  AgentTask,
   AgentTemplatePreview,
   AgentTemplatePublication,
   AvatarHue,
@@ -316,6 +317,10 @@ export interface MobileWorkspaceContextValue {
   setAgentSessionSetting: (input: SetAgentSessionSettingInput, serverId: string) => Promise<AgentSessionSettings>;
   resetAgentSessionSetting: (input: ResetAgentSessionSettingInput, serverId: string) => Promise<AgentSessionSettings>;
   startNewChat: (agentId: string, serverId: string) => Promise<void>;
+  /** True when the host advertises `agent-tasks-v1`. */
+  canStartTasks: (serverId: string) => boolean;
+  /** Starts a task of the agent with this text. The host refuses an agent the member cannot message. */
+  startAgentTask: (agentId: string, text: string, serverId: string) => Promise<AgentTask>;
   /** An owner or admin of an online host that serves `shared-tables-v1`. The host checks the role again. */
   canManageSharedTables: (serverId: string) => boolean;
   /** Every table that the agents of the host share. Owners and admins only. */
@@ -400,7 +405,8 @@ export type MobileWorkspaceCapabilityCheck =
   | "canStartNewChat"
   | "canChooseNewAgentModel"
   | "canInstallAgentTemplate"
-  | "canSearchFiles";
+  | "canSearchFiles"
+  | "canStartTasks";
 
 type MobileWorkspaceStateKey =
   | MobileWorkspaceCapabilityCheck

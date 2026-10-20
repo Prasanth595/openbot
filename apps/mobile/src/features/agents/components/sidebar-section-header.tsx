@@ -99,12 +99,7 @@ export const SidebarSectionHeader = memo(function SidebarSectionHeader({
           hitSlop={{ top: 6, bottom: 6 }}
           style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
         >
-          <Typography.Paragraph
-            weight="medium"
-            className="shrink text-muted"
-            numberOfLines={1}
-            style={typeScale.caption}
-          >
+          <Typography.Paragraph className="font-medium shrink text-muted" numberOfLines={1} style={typeScale.caption}>
             {name}
           </Typography.Paragraph>
           <Animated.View

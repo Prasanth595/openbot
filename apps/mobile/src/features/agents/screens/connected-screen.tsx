@@ -89,13 +89,20 @@ const TransitioningChatRow = memo(function TransitioningChatRow({
   const [initiallyExpanded] = useState(!collapsed);
   const [contentMounted, setContentMounted] = useState(!collapsed);
   const [measuredHeight, setMeasuredHeight] = useState<number | null>(null);
+  // An expanded row at rest lays out in the flow with no animated height. A later render then
+  // cannot put back a first-render height of 0 when the animated value has not reached React.
+  const [settled, setSettled] = useState(!collapsed);
   const height = useSharedValue(0);
   useLayoutEffect(() => {
     if (!collapsed) setContentMounted(true);
+    else setSettled(false);
     if (measuredHeight === null) return;
     let active = true;
     const releaseContent = () => {
       if (active) setContentMounted(false);
+    };
+    const settle = () => {
+      if (active) setSettled(true);
     };
     height.set(
       withTiming(
@@ -106,7 +113,8 @@ const TransitioningChatRow = memo(function TransitioningChatRow({
           reduceMotion: ReduceMotion.System,
         },
         (finished) => {
-          if (finished && collapsed) scheduleOnRN(releaseContent);
+          if (!finished) return;
+          scheduleOnRN(collapsed ? releaseContent : settle);
         },
       ),
     );
@@ -130,24 +138,22 @@ const TransitioningChatRow = memo(function TransitioningChatRow({
           : 0,
   }));
 
+  const resting = !collapsed && (settled || (measuredHeight === null && initiallyExpanded));
+
   return (
     <Animated.View
-      style={bodyStyle}
+      style={resting ? undefined : bodyStyle}
       pointerEvents={collapsed ? "none" : "auto"}
       accessibilityElementsHidden={collapsed}
       importantForAccessibility={collapsed ? "no-hide-descendants" : "auto"}
     >
       {contentMounted ? (
         <Animated.View
-          style={[
-            measuredHeight === null && initiallyExpanded
-              ? undefined
-              : { position: "absolute", top: 0, left: 0, right: 0 },
-            contentStyle,
-          ]}
+          style={resting ? undefined : [{ position: "absolute", top: 0, left: 0, right: 0 }, contentStyle]}
           onLayout={({ nativeEvent }) => {
             const nextHeight = nativeEvent.layout.height;
-            if (measuredHeight === null && initiallyExpanded) height.set(nextHeight);
+            // At rest the row takes its own height, so a collapse starts from the height it has now.
+            if (resting) height.set(nextHeight);
             setMeasuredHeight(nextHeight);
           }}
         >

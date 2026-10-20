@@ -71,7 +71,11 @@ export function AgentWaitChip({ reason }: { reason: MobileAgentWaitReason }) {
     >
       {/* Thin strokes on the tinted fill read darker than the solid mark, so the label is heavier. */}
       <Icon color={String(warning)} size={13} strokeWidth={2.8} />
-      <Typography.Paragraph weight="bold" style={[typeScale.small, { color: String(warning) }]} numberOfLines={1}>
+      <Typography.Paragraph
+        className="font-bold"
+        style={[typeScale.small, { color: String(warning) }]}
+        numberOfLines={1}
+      >
         {t(WAIT_ACTION[reason])}
       </Typography.Paragraph>
     </View>
@@ -94,14 +98,14 @@ export function AgentWaitingGroupHeader({ count }: { count: number }) {
       accessibilityLabel={t("mobile.agent.list.waiting.label", { count })}
       className="flex-row items-center gap-1.5 px-5 pt-5 pb-1.5"
     >
-      <Typography.Paragraph weight="medium" className="text-muted" style={typeScale.caption}>
+      <Typography.Paragraph className="font-medium text-muted" style={typeScale.caption}>
         {t("mobile.agent.list.waiting.title")}
       </Typography.Paragraph>
       <View
         className="h-5 min-w-5 items-center justify-center rounded-full px-1.5"
         style={{ backgroundColor: String(warning) }}
       >
-        <Typography.Paragraph weight="semibold" style={[typeScale.small, { color: String(background) }]}>
+        <Typography.Paragraph className="font-semibold" style={[typeScale.small, { color: String(background) }]}>
           {format.number(count)}
         </Typography.Paragraph>
       </View>

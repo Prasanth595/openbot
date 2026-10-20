@@ -167,8 +167,7 @@ export const AgentListRow = memo(function AgentListRow({ agent, leftInset = 20, 
               <View className="flex-row items-center gap-2">
                 {isUnread ? <View className="size-2 rounded-full bg-accent" /> : null}
                 <Typography.Paragraph
-                  className="min-w-0 flex-1"
-                  weight="semibold"
+                  className="font-semibold min-w-0 flex-1"
                   numberOfLines={1}
                   style={typeScale.rowTitle}
                 >

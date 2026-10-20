@@ -1,9 +1,9 @@
 import { HeaderHeightContext } from "expo-router/react-navigation";
 import { Typography } from "heroui-native";
-import { type PropsWithChildren, useContext } from "react";
+import { type PropsWithChildren, useContext, useState } from "react";
 import { Pressable, View } from "react-native";
 import Animated, {
-  Easing,
+  cubicBezier,
   Extrapolation,
   interpolate,
   type SharedValue,
@@ -11,15 +11,15 @@ import Animated, {
   useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
-  withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { scheduleOnRN } from "react-native-worklets";
 import { SheetScrollEdgeEffect } from "@/shared/components/sheet-scroll-edge-effect";
 import { useReducedMotion } from "@/shared/lib/motion";
 import { isAndroid, isIOS } from "@/shared/lib/platform";
 import { typeScale } from "@/shared/lib/type-scale";
 
-const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
+const TITLE_EASE = cubicBezier(0.23, 1, 0.32, 1);
 /** The small title shows when the text of the big title reaches the bottom of the bar. */
 const TITLE_BOTTOM_PADDING = 10;
 /** The side room of the small title: a 44 pt bar button, 16 pt from the edge, and an 8 pt gap. */
@@ -81,7 +81,13 @@ export function LargeTitle({
   });
   const heading = (
     <Animated.View style={[{ transformOrigin: "left center" }, titleStyle]}>
-      <Typography.Heading weight="bold" numberOfLines={2} style={typeScale.largeTitle}>
+      <Typography.Heading
+        className="font-bold"
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.82}
+        style={typeScale.largeTitle}
+      >
         {title}
       </Typography.Heading>
     </Animated.View>
@@ -139,23 +145,19 @@ export function LargeTitleBar({
 }) {
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
-  const progress = useSharedValue(0);
+  const [collapsed, setCollapsed] = useState(false);
   const { scrolled, titleHeight } = scroll;
+  // The scroll crosses the line on the UI thread; React learns of it only at the crossing. React then
+  // owns the style, so a later render cannot put back a stale first-render opacity.
   useAnimatedReaction(
     () => {
       const height = titleHeight.get();
       return height > 0 && scrolled.get() > height - TITLE_BOTTOM_PADDING;
     },
-    (collapsed, previous) => {
-      if (collapsed === previous) return;
-      progress.set(withTiming(collapsed ? 1 : 0, { duration: reduced ? 150 : 200, easing: EASE_OUT }));
+    (next, previous) => {
+      if (next !== previous) scheduleOnRN(setCollapsed, next);
     },
-    [reduced],
   );
-  const titleStyle = useAnimatedStyle(() => ({
-    opacity: progress.get(),
-    transform: [{ translateY: reduced ? 0 : (1 - progress.get()) * 4 }],
-  }));
   return (
     <>
       <SheetScrollEdgeEffect
@@ -181,11 +183,15 @@ export function LargeTitleBar({
               left: insetLeft,
               right: insetRight,
               justifyContent: "center",
+              opacity: collapsed ? 1 : 0,
+              transform: [{ translateY: collapsed || reduced ? 0 : 4 }],
+              transitionProperty: ["opacity", "transform"],
+              transitionDuration: reduced ? 150 : 200,
+              transitionTimingFunction: TITLE_EASE,
             },
-            titleStyle,
           ]}
         >
-          <Typography.Paragraph weight="semibold" numberOfLines={1} style={typeScale.barTitle}>
+          <Typography.Paragraph className="font-semibold" numberOfLines={1} style={typeScale.barTitle}>
             {title}
           </Typography.Paragraph>
         </Animated.View>

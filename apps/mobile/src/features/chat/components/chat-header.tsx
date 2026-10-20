@@ -106,12 +106,7 @@ export function ChatHeader({
                 />
               </AgentPinAvatar>
             </Link.AppleZoomTarget>
-            <Typography.Paragraph
-              className="min-w-0 shrink"
-              weight="semibold"
-              numberOfLines={1}
-              style={typeScale.rowTitle}
-            >
+            <Typography.Paragraph className="font-semibold min-w-0 shrink" numberOfLines={1} style={typeScale.rowTitle}>
               {target.name}
             </Typography.Paragraph>
           </Pressable>

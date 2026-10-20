@@ -29,6 +29,7 @@ import { AGENT_INSTALL_CAPABILITY } from "@openbot/contracts/team-protocol/agent
 import { AGENT_MEMORIES_CAPABILITY } from "@openbot/contracts/team-protocol/agent-memories-v1";
 import { AGENT_PUBLISH_CAPABILITY } from "@openbot/contracts/team-protocol/agent-publish-v1";
 import { AGENT_SESSION_SETTINGS_CAPABILITY } from "@openbot/contracts/team-protocol/agent-session-settings-v1";
+import { AGENT_TASKS_CAPABILITY } from "@openbot/contracts/team-protocol/agent-tasks-v1";
 import { CONTEXT_RESET_CAPABILITY } from "@openbot/contracts/team-protocol/context-reset-v1";
 import {
   CONVERSATION_FILE_SEARCH_CAPABILITY,
@@ -84,6 +85,7 @@ import {
   readAgentMemories,
   readAgentMemorySelection,
   setAgentMemoryInclusion,
+  startAgentTask,
   type TeamApiRequest,
   TeamRequestError,
 } from "@openbot/team-client/team-api-requests";
@@ -154,6 +156,7 @@ type HostRequestActions = Pick<
   | "loadProviderAccounts"
   | "setAgentProviderAccount"
   | "startNewChat"
+  | "startAgentTask"
   | "loadAgentSessionSettings"
   | "setAgentSessionSetting"
   | "resetAgentSessionSetting"
@@ -249,6 +252,7 @@ export function createHostRequestActions({
   }
   const checks: HostRequestChecks = {
     canSearchFiles: (serverId) => has(serverId, CONVERSATION_FILE_SEARCH_CAPABILITY),
+    canStartTasks: (serverId) => has(serverId, AGENT_TASKS_CAPABILITY),
     canStartNewChat: (serverId) => has(serverId, CONTEXT_RESET_CAPABILITY),
     canChooseNewAgentModel: (serverId) => has(serverId, TEAM_AGENT_CREATE_MODEL_CAPABILITY),
     canInstallAgentTemplate: (serverId) => has(serverId, AGENT_INSTALL_CAPABILITY),
@@ -463,6 +467,14 @@ export function createHostRequestActions({
       requireCapability(capabilities, serverId, CONTEXT_RESET_CAPABILITY, "mobile.agent.newChat.unsupported");
       await runTeamRequest(clearAgentContext(teamApi(serverId), agentId));
     },
+    startAgentTask: async (agentId, text, serverId) =>
+      runTeamRequest(
+        startAgentTask(capabilityApi(serverId, AGENT_TASKS_CAPABILITY, "mobile.search.task.unsupported"), {
+          agentId,
+          text,
+          clientMessageId: Crypto.randomUUID(),
+        }),
+      ),
     // Async, so a host without the capability rejects the promise and does not throw at the call.
     listSharedTables: async (serverId) => runTeamRequest(listSharedTables(sharedTablesAdmin(serverId))),
     deleteSharedTable: async (name, serverId) => runTeamRequest(deleteSharedTable(sharedTablesAdmin(serverId), name)),

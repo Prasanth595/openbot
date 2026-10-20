@@ -48,7 +48,7 @@ function Highlighted({ text, query }: { text: string; query: string }) {
     const key = start;
     start += part.text.length;
     return part.match ? (
-      <Typography.Paragraph key={key} weight="medium" className="text-foreground" style={typeScale.preview}>
+      <Typography.Paragraph key={key} className="font-medium text-foreground" style={typeScale.preview}>
         {part.text}
       </Typography.Paragraph>
     ) : (
@@ -87,12 +87,7 @@ function SearchRow({
       {leading}
       <View className="min-w-0 flex-1 gap-0.5">
         <View className="flex-row items-center gap-2">
-          <Typography.Paragraph
-            className="min-w-0 flex-1"
-            weight="semibold"
-            numberOfLines={1}
-            style={typeScale.rowTitle}
-          >
+          <Typography.Paragraph className="font-semibold min-w-0 flex-1" numberOfLines={1} style={typeScale.rowTitle}>
             {title}
           </Typography.Paragraph>
           {trailing ? (
