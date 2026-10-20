@@ -75,6 +75,7 @@ import { ServerRail } from "@openbot/ui/features/servers/ServerRail";
 import type { SettingsPagePlacement } from "@openbot/ui/features/settings/SettingsDialogShell";
 import { createSettingsHostedServersStore } from "@openbot/ui/features/settings/stores/hosted-servers-store";
 import { Sidebar } from "@openbot/ui/features/sidebar/Sidebar";
+import { SidebarCommunityCard } from "@openbot/ui/features/sidebar/SidebarCommunityCard";
 import { computeSidebarAgentStates } from "@openbot/ui/features/sidebar/sidebar-agent-states";
 import type { SidebarView } from "@openbot/ui/features/sidebar/sidebar-types";
 import { PageRail, type PageRailPage } from "@openbot/ui/features/window/PageRail";
@@ -152,6 +153,7 @@ import {
   serverUpdateBadge,
   showServerUpdate,
 } from "../servers/server-update-flow";
+import { createCommunityCardVisibility } from "../sidebar/community-card";
 import { isReaderAuthor } from "../team/reader-identity";
 import { RailHelpMenu } from "../window/RailHelpMenu";
 import { ServerSettingsPageTitle, SettingsPageFrame } from "../window/SettingsPageFrame";
@@ -505,6 +507,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     onOpen: (hostId, agentId) => void openNotified(hostId, agentId),
   });
   const [searchOpen, setSearchOpen] = createSignal(false);
+  const communityCard = createCommunityCardVisibility();
   const [messageFocusRequest, setMessageFocusRequest] = createSignal<{
     agentId: string;
     messageId: string;
@@ -1585,6 +1588,15 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   onExpand={layout.expandSidebar}
                   onOpenSearch={() => setSearchOpen(true)}
                   onOpenMarketplace={() => setMarketplaceOpen(true)}
+                  footer={
+                    <Show when={!communityCard.dismissed()}>
+                      <SidebarCommunityCard
+                        onJoinDiscord={() => void openWebDestination("discord")}
+                        onFollowX={() => void openWebDestination("x")}
+                        onDismiss={communityCard.dismiss}
+                      />
+                    </Show>
+                  }
                   emptyAction={
                     firstAgent()
                       ? {

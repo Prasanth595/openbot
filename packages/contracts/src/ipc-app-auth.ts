@@ -347,6 +347,8 @@ export type ExternalDestination =
   | "changelog"
   | "guides"
   | "discord"
+  // The OpenBot account on X, from the community card of the sidebar.
+  | "x"
   // The x.ai marketplace listing of the Grok Bot agent that exports agents for OpenBot.
   | "grok-bot-export"
   // The email for a hosted server plan that the add server dialog does not have, such as a Mac.
