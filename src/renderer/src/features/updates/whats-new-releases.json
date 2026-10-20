@@ -22,7 +22,7 @@
         "type": "fixed",
         "items": [
           "On Windows and Linux, \"Keep OpenBot running in the background\" works, with an icon in the system tray.",
-          "On Windows and Linux, \"Launch OpenBot at login\" opens OpenBot when you sign in to your computer.",
+          "\"Launch OpenBot at login\" opens OpenBot when you sign in to your computer.",
           "OpenBot keeps your account sign-in when it cannot read it at one start.",
           "A question from a ChatGPT agent stays open until you answer it.",
           "An OpenCode agent continues in a new session when OpenCode cannot read its old session."

@@ -3,8 +3,8 @@
   "highlights": [
     "OpenBot can read replies aloud on this computer, in 31 languages and ten voices.",
     "Talk to an agent in the new Voice pane: speak, and the agent reads its reply aloud.",
-    "On Windows and Linux, OpenBot can run in the background from the system tray and open at login.",
-    "OpenBot keeps your account sign-in after a restart or an update.",
+    "On Windows and Linux, OpenBot can keep running in the background from the system tray.",
+    "Launch OpenBot at login now works, and OpenBot keeps your account sign-in after a restart.",
     "OpenCode agents continue in a new session when OpenCode cannot read the old one."
   ]
 }
