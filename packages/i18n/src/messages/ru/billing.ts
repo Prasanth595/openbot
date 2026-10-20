@@ -79,6 +79,7 @@ export const messages = {
   "billing.license.description": "Для работы в компании. Сервер в неё не входит.",
   "billing.license.loadFailed": "Не удалось загрузить лицензию.",
   "billing.license.actionFailed": "Не удалось изменить лицензию.",
+  "billing.license.contactSales": "Подробнее — по адресу licenses@openbot.run.",
   "billing.license.saving": "Сохранение…",
   "billing.license.personal.title": "Личное использование",
   "billing.license.personal.description":

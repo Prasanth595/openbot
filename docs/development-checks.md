@@ -17,10 +17,18 @@ and was omitted. It now has `typecheck:mobile`; the old name remains an alias fo
 `@openbot/brand`, `@openbot/contracts`, and `@openbot/team-client`. Its Expo and Uniwind generation
 writes ignored files before TypeScript runs.
 
-Each `typecheck` script starts TypeScript through `node_modules/typescript/bin/tsc`, not a bare
-`tsc`. `storybook-solidjs-vite` installs typescript@6 as `@typescript/old`, and bun links that
-package's `tsc` into `node_modules/.bin` in place of the TypeScript 7 one. A bare `tsc` therefore
-checks with TypeScript 6 without a warning.
+Each `typecheck` script starts `scripts/type-checker.ts`, not a bare `tsc`. The script runs tsrs, the
+Rust port of TypeScript, when tsrs has a binary for the computer: macOS arm64 and Linux, so CI too.
+On Windows and Intel Macs it runs `node_modules/typescript/bin/tsc`. tsrs checked the 14 projects in
+about 2.6 seconds and 1 GB per large project; `tsc` took about 13 seconds and 2.5 GB (M4 Pro,
+2026-10-20). tsrs follows a TypeScript 7.1 build and the catalog `typescript` is 7.0, so the two can
+report different errors. CI uses tsrs; for this reason the Windows release job does not check types.
+Editors still use the catalog `typescript`. The script calls
+`tsc` by path because `storybook-solidjs-vite` installs typescript@6 as `@typescript/old`, and bun
+links that package's `tsc` into `node_modules/.bin` in place of the TypeScript 7 one. A bare `tsc`
+therefore checks with TypeScript 6 without a warning.
+
+The `tsrs` version is exact and must be older than `minimumReleaseAge` in `bunfig.toml` (3 days).
 
 Signal had a similar gap: `remote:check` was its only entry point and also required Compose
 validation. `typecheck:remote` now runs in CI. `remote:check:compose` validates both
@@ -352,15 +360,16 @@ with `[<name>]`. A new GritQL rule must start with no findings.
 ### Type debt ratchet
 
 `bun run types:ratchet` holds TypeScript options that are not on yet to a baseline. For each option
-in `tools/typescript/type-baseline.json`, it runs `tsc` with the option on for every project that
-extends `tsconfig.base.json` (listed in `scripts/type-ratchet.ts`), and compares the errors of each
-file to the baseline. An error that two projects report counts once. `apps/mobile` extends the Expo
-base config, so the ratchet does not check it. A higher count fails, so an option stops new debt
-before the old debt is fixed. A lower count also fails until `--write` lowers the baseline: this
-keeps the baseline tight. The script never raises a count; a higher count is a hand edit that a
-reviewer sees. `--add=<option>` starts an option at its current counts. `scripts/debt-ratchet.ts`
-holds these rules. The run takes about 4 seconds. When an option has no errors left, turn it on in
-`tsconfig.base.json` and remove it from the baseline. Do not name the script `typecheck:*`:
+in `tools/typescript/type-baseline.json`, it runs `scripts/type-checker.ts` with the option on for
+every project that extends `tsconfig.base.json` (listed in `scripts/type-ratchet.ts`), and compares
+the errors of each file to the baseline. An error that two projects report counts once.
+`apps/mobile` extends the Expo base config, so the ratchet does not check it. A higher count fails,
+so an option stops new debt before the old debt is fixed. A lower count also fails until `--write`
+lowers the baseline: this keeps the baseline tight. The script never raises a count; a higher count
+is a hand edit that a reviewer sees. `--add=<option>` starts an option at its current counts.
+`scripts/debt-ratchet.ts` holds these rules. The run takes about 2 seconds with tsrs and 4 with
+`tsc`. When an option has no errors left, turn it on in `tsconfig.base.json` and remove it from the
+baseline. Do not name the script `typecheck:*`:
 `bun run typecheck` runs every script that matches that pattern.
 
 ### Plugin cost

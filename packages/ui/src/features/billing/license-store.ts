@@ -4,8 +4,10 @@ import type {
   LicenseState,
   LicenseUsersRequest,
 } from "@openbot/contracts/license";
+import { classifyFailure } from "@openbot/telemetry";
 import { createStore } from "solid-js";
 import { currentText } from "../../text";
+import { toast } from "../../toast";
 import { createStripeReturnLoad } from "./billing-store";
 
 /** The license calls of one surface: desktop IPC or the web client's account server requests. */
@@ -66,7 +68,7 @@ export function createLicenseStore(calls: () => LicenseCalls | undefined, isActi
     },
   });
 
-  /** Runs one action. Returns false when it did not run or failed; `actionError` then has the reason. */
+  /** Runs one action. Returns false when it did not run or failed; a toast or `actionError` then has the reason. */
   async function run(action: LicenseAction, call: (api: LicenseCalls) => Promise<LicenseState | undefined>) {
     const api = calls();
     if (!api || state.pending) return false;
@@ -86,10 +88,20 @@ export function createLicenseStore(calls: () => LicenseCalls | undefined, isActi
       }
       return true;
     } catch (error) {
-      setState((draft) => {
-        const text = currentText();
-        draft.actionError = text.errorMessage(error, text.t("billing.license.actionFailed"));
-      });
+      const text = currentText();
+      const message = text.errorMessage(error, text.t("billing.license.actionFailed"));
+      // A checkout failure shows as a toast with the sales address. The address is catalog text: an
+      // error message loses it to redaction.
+      if (action === "checkout")
+        toast.error(message, {
+          description: text.t("billing.license.contactSales"),
+          error,
+          report: { operation: "other", source: "action", cause_code: classifyFailure(error) },
+        });
+      else
+        setState((draft) => {
+          draft.actionError = message;
+        });
       return false;
     } finally {
       setState((draft) => {

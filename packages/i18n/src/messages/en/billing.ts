@@ -82,6 +82,7 @@ export const messages = defineMessages("billing", {
   "billing.license.description": "For work at a company. It does not include a server.",
   "billing.license.loadFailed": "Could not load the license.",
   "billing.license.actionFailed": "Could not change the license.",
+  "billing.license.contactSales": "Reach out to licenses@openbot.run for more information.",
   "billing.license.saving": "Saving…",
   "billing.license.personal.title": "Personal use",
   "billing.license.personal.description": "Free for personal and noncommercial use. Work at a company needs a license.",

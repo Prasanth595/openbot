@@ -148,4 +148,9 @@ export const messages = {
   "sidebar.mobileApp.body": "Приложение теперь доступно для iPhone и Android.",
   "sidebar.mobileApp.howToInstall": "Как установить",
   "sidebar.mobileApp.dismiss": "Закрыть объявление о мобильном приложении",
+  "sidebar.community.title": "Присаживайтесь.",
+  "sidebar.community.body": "В будущем ИИ есть место для вас. Присоединяйтесь к сообществу в Discord и X.",
+  "sidebar.community.joinDiscord": "Войти в Discord",
+  "sidebar.community.followX": "Читать OpenBot в X",
+  "sidebar.community.dismiss": "Закрыть приглашение в сообщество",
 } as const satisfies PartialTranslation<typeof source>;

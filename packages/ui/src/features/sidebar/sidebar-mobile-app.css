@@ -53,3 +53,20 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* The community invitation uses the same card. Discord takes the free width; X is an icon button. */
+.sidebar-community-actions {
+  display: flex;
+  gap: var(--openbot-space-1-5);
+}
+
+.sidebar-community-actions > .ui-button:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.sidebar-community-mark {
+  flex: 0 0 auto;
+  width: var(--openbot-icon-sm);
+  height: var(--openbot-icon-sm);
+}

@@ -111,4 +111,9 @@ export const messages = {
   "sidebar.mobileApp.body": "L'app è ora disponibile su iPhone e Android.",
   "sidebar.mobileApp.howToInstall": "Come installarla",
   "sidebar.mobileApp.dismiss": "Chiudi l'annuncio dell'app mobile",
+  "sidebar.community.title": "Accomodati.",
+  "sidebar.community.body": "C'è un posto per te nel futuro dell'IA. Unisciti alla community su Discord e X.",
+  "sidebar.community.joinDiscord": "Entra su Discord",
+  "sidebar.community.followX": "Segui OpenBot su X",
+  "sidebar.community.dismiss": "Chiudi l'invito alla community",
 } as const satisfies PartialTranslation<typeof source>;

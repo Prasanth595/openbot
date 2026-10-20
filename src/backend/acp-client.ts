@@ -1136,19 +1136,11 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
             if (resume && requestedThreadId) {
               const response = providerResult(
                 yield* Effect.result(
-                  this.#supportsSessionResume
-                    ? this.#resumeSessionEffect(connection, {
-                        sessionId: requestedThreadId,
-                        cwd,
-                        ...directories,
-                        mcpServers,
-                      })
-                    : this.#loadSessionEffect(connection, {
-                        sessionId: requestedThreadId,
-                        cwd,
-                        ...directories,
-                        mcpServers,
-                      }),
+                  this.#restoreSessionEffect(
+                    connection,
+                    { sessionId: requestedThreadId, cwd, ...directories, mcpServers },
+                    this.#supportsSessionResume ? "resume" : "load",
+                  ),
                 ),
               );
               id = requestedThreadId;
@@ -1212,22 +1204,47 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
    * the session shows it is missing: the caller then replaces it and hands it the transcript. A
    * session that is listed, a list that fails, or an OpenCode without `session/list` leaves the
    * session kept: one more attempt, then the fault is reported.
+   *
+   * `session/resume` gets the same OpenCode check. OpenCode 1.19.3 advertises resume, and it cannot
+   * read a session that OpenCode 2.0 wrote in its `session_v2` table: each resume failed this way and
+   * the agent never got a new session.
+   *
+   * OpenCode 2.1.1 can fail a `session/resume` in its first seconds with "Internal service failure"
+   * and `ServiceUnavailableError`, because its plugins have not started yet (OpenCode issue #57204).
+   * The session is there, and a resume a few seconds later works, so OpenBot tries once more.
    */
 
-  readonly #loadSessionEffect = Effect.fn("AcpAgentClient.loadSession")(function* (
+  readonly #restoreSessionEffect = Effect.fn("AcpAgentClient.restoreSession")(function* (
     this: AcpAgentClient,
     connection: ClientSideConnection,
     request: LoadSessionRequest,
-  ): Effect.fn.Return<LoadSessionResponse, ProviderClientOperationError> {
+    method: "load" | "resume",
+  ): Effect.fn.Return<LoadSessionResponse | ResumeSessionResponse, ProviderClientOperationError> {
+    const restore = (current: ClientSideConnection) =>
+      providerCall(() =>
+        method === "resume"
+          ? current.resumeSession(request satisfies ResumeSessionRequest)
+          : current.loadSession(request),
+      );
     let failure: unknown;
+    let starting = false;
     try {
-      return providerResult(yield* Effect.result(providerCall(() => connection.loadSession(request))));
+      return providerResult(yield* Effect.result(restore(connection)));
     } catch (error) {
-      if (isSessionNotFound(error, request.sessionId, this.provider)) {
+      // For `thread/resume` and `turn/start`, `request` forgets the session and converts this response.
+      if (method === "load" && isSessionNotFound(error, request.sessionId, this.provider)) {
         return yield* providerFailure(new MissingAcpSessionError(`ACP session not found: ${request.sessionId}`, error));
       }
-      if (this.provider !== "opencode" || !isOpenCodeServiceFailure(error)) return yield* providerFailure(error);
+      starting = this.provider === "opencode" && method === "resume" && isOpenCodeStarting(error);
+      if (!starting && (this.provider !== "opencode" || !isOpenCodeServiceFailure(error))) {
+        return yield* providerFailure(error);
+      }
       failure = error;
+    }
+    if (starting) {
+      yield* Effect.sleep(OPENCODE_RESUME_RETRY_MS);
+      // The process can have stopped during the wait; this reports that instead of a closed stream.
+      return yield* restore(this.#requireConnection());
     }
     const listing = yield* this.#sessionListingEffect(connection, request);
     if (listing === "absent")
@@ -1240,31 +1257,11 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
     yield* Effect.sleep(OPENCODE_LOAD_RETRY_MS);
     try {
       // The process can have stopped during the wait; this reports that instead of a closed stream.
-      return providerResult(yield* Effect.result(providerCall(() => this.#requireConnection().loadSession(request))));
+      return providerResult(yield* Effect.result(restore(this.#requireConnection())));
     } catch (error) {
       if (!isOpenCodeServiceFailure(error)) return yield* providerFailure(error);
       return yield* providerFailure(new Error(sourceText("error.provider.opencodeServiceFailure"), { cause: error }));
     }
-  });
-
-  /**
-   * OpenCode 2.1.1 can fail a `session/resume` in its first seconds with "Internal service failure"
-   * and `ServiceUnavailableError`, because its plugins have not started yet (OpenCode issue #57204).
-   * The session is there, and a resume a few seconds later works, so OpenBot tries once more.
-   */
-  readonly #resumeSessionEffect = Effect.fn("AcpAgentClient.resumeSession")(function* (
-    this: AcpAgentClient,
-    connection: ClientSideConnection,
-    request: ResumeSessionRequest,
-  ): Effect.fn.Return<ResumeSessionResponse, ProviderClientOperationError> {
-    try {
-      return providerResult(yield* Effect.result(providerCall(() => connection.resumeSession(request))));
-    } catch (error) {
-      if (this.provider !== "opencode" || !isOpenCodeStarting(error)) return yield* providerFailure(error);
-    }
-    yield* Effect.sleep(OPENCODE_RESUME_RETRY_MS);
-    // The process can have stopped during the wait; this reports that instead of a closed stream.
-    return yield* providerCall(() => this.#requireConnection().resumeSession(request));
   });
 
   /** Queue one replay fragment without retaining the provider transcript in this client. */
@@ -2191,14 +2188,14 @@ function isSessionNotFound(error: unknown, sessionId: string, provider: AgentPro
     if (error.code === -32603) return error.data.details === `Session not found: ${sessionId}`;
     return error.code === -32002 && (error.data.sessionId === sessionId || error.data.uri === `session ${sessionId}`);
   }
-  // OpenCode 2.1.1 answers a load or resume of a session missing from its store with "Invalid
-  // params: session not found: <id>" and the ID in data.sessionId. A session of another folder has
-  // the same code and data.sessionId, and it is not missing.
+  // OpenCode 2.x has a session that 1.x wrote after the one-time `session_v2` copy. It answers with
+  // invalid params and the ID in data.sessionId. The same code with another message is a session of
+  // another directory, which is not missing.
   if (provider === "opencode" && error.code === -32602) {
     return (
       isRecord(error.data) &&
       error.data.sessionId === sessionId &&
-      error.message.endsWith(`session not found: ${sessionId}`)
+      error.message === `Invalid params: session not found: ${sessionId}`
     );
   }
   if (error.code !== -32002) return false;

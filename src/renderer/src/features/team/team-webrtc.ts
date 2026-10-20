@@ -853,7 +853,11 @@ function replaceSignal(state: PeerState): void {
 
 function scheduleSignalReconnect(state: PeerState): void {
   if (state.reconnectTimer !== null) return;
-  const delay = Math.max(signalRetryAt - Date.now(), Math.min(30_000, 500 * 2 ** state.reconnectAttempt++));
+  // The jitter spreads the hosts that a Signal restart disconnects at the same time.
+  const delay = Math.max(
+    signalRetryAt - Date.now(),
+    Math.min(30_000, 500 * 2 ** state.reconnectAttempt++) * (0.5 + Math.random() / 2),
+  );
   state.reconnectTimer = window.setTimeout(() => {
     state.reconnectTimer = null;
     connectSignal(state);
