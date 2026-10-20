@@ -120,8 +120,9 @@ function customProviderEntries(
 /**
  * Merges the custom providers and the stored key into a base layer. Providers only ever land under
  * the `provider` key, so no provider id can reach a sibling setting: an endpoint named `permission`
- * is a provider named `permission`, not a permission rule. The key entries come last, so an
- * endpoint named `opencode-go` cannot drop the stored key.
+ * is a provider named `permission`, not a permission rule. The custom entries come last: an
+ * endpoint saved as `opencode-go` replaces that built-in provider, so the stored key must not drop
+ * its URL and models.
  */
 function mergeOpenCodeConfig(
   base: OpenCodeConfigBase,
@@ -129,8 +130,8 @@ function mergeOpenCodeConfig(
   apiKey: string | null,
 ): OpenCodeConfig | null {
   const entries = {
-    ...customProviderEntries(providers),
     ...(apiKey ? Object.fromEntries(OPENCODE_KEY_PROVIDERS.map((id) => [id, { options: { apiKey } }])) : {}),
+    ...customProviderEntries(providers),
   };
   if (Object.keys(entries).length === 0) return Object.keys(base).length > 0 ? { ...base } : null;
   return { ...base, provider: entries };
