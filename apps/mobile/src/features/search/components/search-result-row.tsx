@@ -149,7 +149,7 @@ const SETTING_ICON = {
 } as const satisfies Record<MobileSearchSettingId, LucideIcon>;
 
 /** Opens a settings page in its sheet. The sheet stack puts its first page under it, for the back button. */
-export function openSetting(id: MobileSearchSettingId, serverId: string) {
+function openSetting(id: MobileSearchSettingId, serverId: string) {
   switch (id) {
     case "profile":
       return router.push("/settings/profile");

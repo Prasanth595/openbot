@@ -49,7 +49,7 @@ function continuesSearch(previous: readonly unknown[] | undefined, next: readonl
 }
 
 /** The pages of the Settings sheet and of the server sheets and screens. They are not the desktop settings. */
-export function useSearchSettings(): MobileSearchSetting[] {
+function useSearchSettings(): MobileSearchSetting[] {
   const { t } = useText();
   const serverName = useMobileWorkspace().activeServer.name;
   return useMemo(() => {

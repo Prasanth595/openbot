@@ -26,7 +26,7 @@ const TITLE_BOTTOM_PADDING = 10;
 const TITLE_FADE = 24;
 const IOS_BAR_HEIGHT = 44;
 /** The side room of the small title: the glass bar button, 16 pt from the edge, and a 16 pt gap. */
-export const BAR_TITLE_INSET = 78;
+const BAR_TITLE_INSET = 78;
 
 export interface LargeTitleScroll {
   onScroll: ReturnType<typeof useAnimatedScrollHandler>;

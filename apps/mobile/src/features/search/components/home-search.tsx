@@ -159,7 +159,7 @@ const contentEnter: EntryExitAnimationFunction = () => {
 };
 
 /** What happened to the last task start. A failure keeps the agent and the text for a new try. */
-export interface TaskStartResult {
+interface TaskStartResult {
   id: number;
   agent: MobileAgent;
   text: string;
