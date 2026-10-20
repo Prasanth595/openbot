@@ -131,6 +131,12 @@ import type { FilesPort } from "../files/files-port";
 import { hostSetupProviderProps } from "../onboarding/host-setup-provider-props";
 import type { ScheduleRoutine } from "../schedule/SchedulePanel";
 import { AddServerOverlay, type AddServerResume } from "../servers/AddServerOverlay";
+import {
+  HostedServerUpsell,
+  hostedUpsellOffline,
+  hostedUpsellRoutineCreated,
+  routineIsRecent,
+} from "../servers/hosted-server-upsell-controller";
 import type { HostMemoryLimitCalls } from "../servers/ServerMemoryLimitSetting";
 import type { ServerHostedSitesOptions, ServerSettingsSection } from "../servers/ServerSettingsModal";
 import type { HostTimezoneCalls } from "../servers/ServerTimezoneSetting";
@@ -1127,6 +1133,27 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     remoteAgentAdmin,
     hidden: () => creating() || channelOpen(),
   });
+  // A routine that an agent makes leaves a marker in its turn. The offer of a hosted server waits until that turn ends.
+  createEffect(
+    () => {
+      const agentId = workspace.conversation()?.page?.agentId;
+      if (!agentId) return [];
+      return view.messages.flatMap((message) => {
+        const marker = message.actionMarker;
+        return message.turnId && marker?.kind === "routine-lifecycle" && marker.action === "created"
+          ? [{ id: marker.routineId, name: marker.routineName, createdAt: marker.timestamp, agentId }]
+          : [];
+      });
+    },
+    (created) => {
+      const now = Date.now();
+      for (const routine of created) {
+        if (routineIsRecent(routine.createdAt, now)) {
+          hostedUpsellRoutineCreated({ id: routine.id, name: routine.name, agentId: routine.agentId });
+        }
+      }
+    },
+  );
   createEffect(
     () => workspace.state.error,
     (error) => {
@@ -1345,6 +1372,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                     busy={workspace.state.status === "connecting" || !workspace.state.host}
                     onRetry={() => void workspace.run(workspace.reconnect)}
                     onManage={() => setBillingOpen(true)}
+                    upsell={workspace.state.status === "offline" ? hostedUpsellOffline() : null}
                   />
                 </Show>
                 <Show when={workspace.state.status === "online" && workspace.state.panelsFailed}>
@@ -1567,6 +1595,20 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
             after={
               <>
                 <ServerUpdateDialogHost hosts={workspace.hostViews()} />
+                <HostedServerUpsell
+                  accountId={props.accountId}
+                  canOffer={
+                    hostedServers.available() &&
+                    hostedServers.loaded() &&
+                    !hostedServers.ownsHostedServer() &&
+                    server() !== undefined &&
+                    server()?.hosted !== true
+                  }
+                  serverId={server()?.id ?? ""}
+                  host={{ name: server()?.name ?? "" }}
+                  busy={(agentId) => Boolean(workspace.state.conversations[agentId]?.page?.activeTurnId)}
+                  openPlans={hostedServers.openAddServer}
+                />
                 <AddServerOverlay
                   open={hostedServers.addServer() !== null}
                   calls={hostedServers.calls}

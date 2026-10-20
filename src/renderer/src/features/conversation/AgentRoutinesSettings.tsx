@@ -16,7 +16,7 @@ import {
   type RoutineRunFields,
   type RoutineSchedule,
 } from "@openbot/contracts/ipc";
-import type { EventRoutine, RoutineWebhookTriggerInput } from "@openbot/contracts/ipc-events";
+import type { RoutineWebhookTriggerInput } from "@openbot/contracts/ipc-events";
 import type { AppTextKey } from "@openbot/i18n";
 import {
   Button,
@@ -50,7 +50,6 @@ import { RoutineWebhookTrigger } from "@openbot/ui/features/conversation/Routine
 import {
   ROUTINE_EVERY_DAY,
   type RoutineScheduleDraft,
-  routineDraftSummary,
   switchDraftKind,
 } from "@openbot/ui/features/conversation/routine-schedule-draft";
 import {
@@ -62,13 +61,14 @@ import {
   routineScheduleFromDraft,
   routineScheduleToDraft,
 } from "@openbot/ui/features/conversation/routine-schedule-saved";
-import { type RoutineText, routineScheduleSummary } from "@openbot/ui/features/conversation/routine-schedule-ui";
 import { useText } from "@openbot/ui/text";
 import type { JSX } from "@solidjs/web";
 import { createEffect, createMemo, createSignal, createStore, For, onCleanup, Show, untrack } from "solid-js";
 import { actionToast } from "../../action-toast";
 import { type DesktopAnalyticsScope, desktopAnalytics } from "../../analytics";
 import { writeClipboardText } from "../../clipboard";
+import { HostedUpsellRoutinesNotice, hostedUpsellRoutineCreated } from "../servers/hosted-server-upsell-controller";
+import { isEventRoutine, routineListSummary, routineScheduleOf } from "./routine-summary";
 import type { RoutineEditorRecord, RoutinesPort } from "./routines-port";
 
 export interface RoutineSelectionRequest {
@@ -499,6 +499,14 @@ export function AgentRoutinesSettings(props: AgentRoutinesSettingsProps) {
         });
       }
       trackRoutineAction(analytics, action, current, startedAt, "succeeded");
+      if (action === "create" && saved.active) {
+        hostedUpsellRoutineCreated({
+          id: saved.id,
+          name: saved.name,
+          schedule: routineListSummary(saved, text),
+          agentId: null,
+        });
+      }
     } catch (caught) {
       trackRoutineAction(analytics, action, current, startedAt, "failed");
       setError(errorMessage(caught, t("routine.settings.saveFailed")));
@@ -741,6 +749,7 @@ export function AgentRoutinesSettings(props: AgentRoutinesSettingsProps) {
                   when={routines().length > 0}
                   fallback={<p class="agent-routines-empty">{t("routine.settings.empty")}</p>}
                 >
+                  <HostedUpsellRoutinesNotice count={routines().filter((routine) => routine.active).length} />
                   <div class="agent-routines-list">
                     <For each={routines()}>
                       {(routine) => (
@@ -1036,23 +1045,6 @@ export function AgentRoutinesSettings(props: AgentRoutinesSettingsProps) {
   );
 }
 
-/**
- * The list row reads the schedule as the chips do. A schedule the chips show only as cron, such
- * as an interval, keeps its own summary: "Every 15 minutes", not the cron text.
- */
-function routineListSummary(routine: RoutineEditorRecord, text: RoutineText): string {
-  if (isEventRoutine(routine) && routine.trigger.kind === "webhook") {
-    const eventType = routine.trigger.eventType;
-    return eventType
-      ? text.t("routine.settings.webhookSummary", { eventType })
-      : text.t("routine.settings.webhookSummaryAny");
-  }
-  const schedule = routineScheduleOf(routine);
-  const draft = routineScheduleToDraft(schedule);
-  if (draft.kind === "custom") return routineScheduleSummary(schedule, false, text);
-  return routineDraftSummary(draft, text);
-}
-
 function routineCompleted(routine: RoutineEditorRecord): boolean {
   if (routineTriggerKind(routine) === "webhook") return false;
   return routineOnceCompleted({
@@ -1079,19 +1071,8 @@ function withSchedule(value: RoutineDraft, scheduleDraft: RoutineScheduleDraft):
   };
 }
 
-function isEventRoutine(routine: RoutineEditorRecord): routine is EventRoutine {
-  return "owner" in routine;
-}
-
 function routineTriggerKind(routine: RoutineEditorRecord): RoutineDraft["triggerKind"] {
   return isEventRoutine(routine) && routine.trigger.kind === "webhook" ? "webhook" : "schedule";
-}
-
-function routineScheduleOf(routine: RoutineEditorRecord): RoutineSchedule {
-  if (isEventRoutine(routine)) {
-    return routine.trigger.kind === "schedule" ? routine.trigger.schedule : { kind: "daily", time: "09:00" };
-  }
-  return routine.trigger.schedule;
 }
 
 /** The trigger fields of a draft that opens `routine`. */

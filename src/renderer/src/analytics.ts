@@ -17,7 +17,7 @@ import { MARKETPLACE_PLUGINS } from "./features/settings/marketplace-plugin-cata
 const OPENPANEL_API_URL = "https://analytics.openbot.run/api";
 const OPENPANEL_CLIENT_ID = "6c989975-87ef-4f0c-857e-ab449a65b5c2";
 const MAX_PENDING_EVENTS = 100;
-const ANALYTICS_SCHEMA_VERSION = 7;
+const ANALYTICS_SCHEMA_VERSION = 8;
 const CURATED_LISTING_PATTERN = /^openbot-curated-(?:skill|agent)-([a-z0-9][a-z0-9-]{0,63})$/u;
 const PLUGIN_SLUGS = new Set(MARKETPLACE_PLUGINS.map((plugin) => plugin.slug));
 
@@ -176,6 +176,10 @@ interface DesktopAnalyticsEvents {
     result: AnalyticsResult;
     failure_code?: string;
   };
+  hosted_server_upsell: {
+    action: "shown" | "see_plans" | "dismissed";
+    entry_point: "routine_created" | "routines_list" | "server_offline";
+  };
 }
 
 type AnalyticsEventName = keyof DesktopAnalyticsEvents;
@@ -234,6 +238,7 @@ const EVENT_PROPERTY_ALLOWLIST = {
   reaction_action: ["action", "result", "failure_code"],
   maintenance_action: ["action", "result", "failure_code"],
   hosted_site_action: ["action", "entry_point", "result", "failure_code"],
+  hosted_server_upsell: ["action", "entry_point"],
 } as const satisfies Record<AnalyticsEventName, readonly string[]>;
 
 type AnalyticsPropertyName = (typeof EVENT_PROPERTY_ALLOWLIST)[AnalyticsEventName][number];
@@ -349,6 +354,7 @@ const EVENT_ACTIONS: Partial<Record<AnalyticsEventName, readonly string[]>> = {
   reaction_action: ["add", "remove"],
   maintenance_action: ["export_data", "export_diagnostics"],
   hosted_site_action: ["publish", "replace", "delete"],
+  hosted_server_upsell: ["shown", "see_plans", "dismissed"],
 };
 
 const CHANGED_FIELDS = new Map<string, string>([
@@ -441,7 +447,9 @@ function sanitizeDesktopProperty(
     return isBoolean(value) ? value : undefined;
   }
   if (key === "entry_point") {
-    return safeEnum(value, name === "hosted_site_action" ? ["agent", "settings"] : ["in_app", "invite_deep_link"]);
+    if (name === "hosted_site_action") return safeEnum(value, ["agent", "settings"]);
+    if (name === "hosted_server_upsell") return safeEnum(value, ["routine_created", "routines_list", "server_offline"]);
+    return safeEnum(value, ["in_app", "invite_deep_link"]);
   }
   const enumValues: Record<string, readonly string[] | undefined> = {
     channel: ["agent", "direct"],

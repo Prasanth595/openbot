@@ -108,6 +108,26 @@ export const messages = defineMessages("server", {
   },
   // Opens the list of the account's hosted servers, where the user can delete one.
   "server.add.limit.manage": "Manage servers",
+  // The offer of a hosted server when a routine depends on a computer that can be off. {name} is the routine.
+  "server.upsell.modal.title": "Keep {name} running 24/7",
+  "server.upsell.modal.description.local":
+    "Routines run only while this computer is on and OpenBot is open. An OpenBot server runs them all the time.",
+  // {server} is the name of the user's own computer that runs the routines.
+  "server.upsell.modal.description.remote":
+    "Routines run only while {server} is on and OpenBot is open. An OpenBot server runs them all the time.",
+  "server.upsell.notice.title.local": {
+    one: "{count} routine needs this computer on",
+    other: "{count} routines need this computer on",
+  },
+  "server.upsell.notice.title.remote": {
+    one: "{count} routine needs {server} on",
+    other: "{count} routines need {server} on",
+  },
+  "server.upsell.notice.description": "An OpenBot server runs them 24/7.",
+  // One line under the notice that the user's computer is offline.
+  "server.upsell.offline": "An OpenBot server stays on 24/7, so routines keep running.",
+  "server.upsell.seePlans": "See plans",
+  "server.upsell.notNow": "Not now",
   "server.hosted.progressTitle": "Setting up {name}",
   // The setup waits for the first payment on the Stripe page in the browser.
   "server.hosted.paymentTitle": "Finish the payment in your browser",

@@ -121,7 +121,7 @@ download pages, the news and guide indexes, and published articles. It also reco
 clicks on allowlisted public links, invitation validity, and open-app actions on invitation pages.
 The production desktop app records application, sign-in, onboarding, agent, message, turn, prompt,
 approval, queue, routine, team, browser, search, Remote Desktop, update, marketplace, memory,
-provider, voice transcription, reaction, maintenance, Hosted Site, and confirmed
+provider, voice transcription, reaction, maintenance, Hosted Site, hosted server offer, and confirmed
 application-version-change actions. Event properties are limited to metadata such as counts, result
 states, timing, provider, model, reasoning effort, application version, operating system, and coarse
 failure codes.

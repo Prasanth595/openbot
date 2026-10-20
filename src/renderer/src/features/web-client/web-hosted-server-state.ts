@@ -58,6 +58,8 @@ export function createWebHostedServers(options: WebHostedServersOptions) {
     available,
     loaded,
     isHosted: (serverId: string) => hostedIds().has(serverId),
+    /** True when the account has a hosted server in any state, also one that waits for payment. */
+    ownsHostedServer: () => hostedIds().size > 0,
     /** The add server dialog when it is open, with the checkout that it continues. */
     addServer,
     closeAddServer: () => setAddServer(null),

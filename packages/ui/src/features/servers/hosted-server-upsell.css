@@ -1,0 +1,224 @@
+/*
+ * The offer of a hosted server: a notice at the routine list, a modal after a new routine, and a
+ * line in the offline notice. A border beam marks it as an offer, not a fault.
+ */
+
+/* The notice: the icon on the title line, and the actions under the text. */
+.hosted-upsell-notice {
+  flex: none;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  margin-top: var(--openbot-space-3);
+  padding: var(--openbot-space-3);
+}
+
+.hosted-upsell-notice .ui-alert-icon {
+  width: var(--openbot-space-8);
+  height: var(--openbot-space-8);
+  padding: var(--openbot-space-1-5);
+  border-radius: var(--openbot-radius-md);
+  background: linear-gradient(135deg, var(--openbot-beam-blue), var(--openbot-beam-pink));
+  color: var(--openbot-text-on-accent);
+}
+
+.hosted-upsell-notice .ui-alert-title {
+  text-wrap: balance;
+}
+
+.hosted-upsell-notice .ui-alert-actions {
+  justify-content: flex-start;
+  margin-top: var(--openbot-space-2);
+}
+
+/*
+ * The border beam, after libraries.dev/beam: a conic gradient that turns around the border, and a
+ * soft glow outside it.
+ */
+@property --hosted-upsell-beam-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.hosted-upsell-beam {
+  position: relative;
+  border-color: transparent;
+  background:
+    radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--openbot-beam-blue) 12%, transparent), transparent 60%),
+    var(--openbot-bg-surface-raised);
+}
+
+/* The sharp line: the gradient, masked to a 1px ring. */
+.hosted-upsell-beam::before,
+.hosted-upsell-beam-glow > span {
+  position: absolute;
+  border-radius: inherit;
+  content: "";
+  pointer-events: none;
+  mask:
+    linear-gradient(currentColor 0 0) content-box exclude,
+    linear-gradient(currentColor 0 0);
+  animation: hosted-upsell-beam-turn 6s linear infinite;
+}
+
+.hosted-upsell-beam::before {
+  inset: 0;
+  padding: 1px;
+  background: conic-gradient(
+    from var(--hosted-upsell-beam-angle),
+    color-mix(in srgb, var(--openbot-beam-blue) 18%, transparent) 0deg,
+    color-mix(in srgb, var(--openbot-beam-blue) 18%, transparent) 180deg,
+    var(--openbot-beam-teal) 240deg,
+    var(--openbot-beam-blue) 290deg,
+    var(--openbot-beam-pink) 330deg,
+    color-mix(in srgb, var(--openbot-beam-blue) 18%, transparent) 360deg
+  );
+}
+
+/* The glow: a wider ring of the beam colours, blurred by its parent, so the mask does not cut the blur. */
+.hosted-upsell-beam-glow {
+  position: absolute;
+  inset: calc(-1 * var(--openbot-space-3));
+  border-radius: inherit;
+  filter: blur(6px);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.hosted-upsell-beam-glow > span {
+  inset: var(--openbot-space-3);
+  padding: 2px;
+  background: conic-gradient(
+    from var(--hosted-upsell-beam-angle),
+    transparent 0deg,
+    transparent 210deg,
+    var(--openbot-beam-teal) 250deg,
+    var(--openbot-beam-blue) 290deg,
+    var(--openbot-beam-pink) 330deg,
+    transparent 360deg
+  );
+}
+
+@keyframes hosted-upsell-beam-turn {
+  to {
+    --hosted-upsell-beam-angle: 360deg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hosted-upsell-beam::before,
+  .hosted-upsell-beam-glow > span {
+    animation: none;
+  }
+}
+
+/* The modal. It portals out of the workspace, so the rules match the content element itself. */
+.hosted-upsell-modal {
+  width: min(440px, 100%);
+  display: grid;
+  gap: var(--openbot-space-3);
+  padding: var(--openbot-space-6);
+  border-radius: var(--openbot-radius-xl);
+  outline: 0;
+  color: var(--openbot-text-primary);
+  background:
+    radial-gradient(90% 70% at 50% 0%, color-mix(in srgb, var(--openbot-beam-blue) 18%, transparent), transparent 70%),
+    var(--openbot-bg-sidebar);
+}
+
+.hosted-upsell-modal .hosted-upsell-modal-close {
+  position: absolute;
+  top: var(--openbot-space-3);
+  right: var(--openbot-space-3);
+}
+
+.hosted-upsell-modal .hosted-upsell-modal-icon {
+  width: calc(2 * var(--openbot-space-6));
+  height: calc(2 * var(--openbot-space-6));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--openbot-space-1);
+  border-radius: var(--openbot-radius-lg);
+  background: linear-gradient(135deg, var(--openbot-beam-teal), var(--openbot-beam-blue) 50%, var(--openbot-beam-pink));
+  color: var(--openbot-text-on-accent);
+}
+
+.hosted-upsell-modal .hosted-upsell-modal-icon svg {
+  width: var(--openbot-icon-lg);
+  height: var(--openbot-icon-lg);
+}
+
+.hosted-upsell-modal .hosted-upsell-modal-title {
+  margin: 0;
+  padding-right: var(--openbot-space-8);
+  font-size: var(--openbot-text-xl);
+  font-weight: var(--openbot-weight-semibold);
+  line-height: var(--openbot-leading-xl);
+  text-wrap: balance;
+}
+
+.hosted-upsell-modal .hosted-upsell-modal-description {
+  margin: 0;
+  color: var(--openbot-text-secondary);
+  font-size: var(--openbot-text-sm);
+  line-height: var(--openbot-leading-sm);
+}
+
+.hosted-upsell-modal .hosted-upsell-modal-routine {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--openbot-space-2);
+  margin-top: var(--openbot-space-1);
+  padding: var(--openbot-space-2) var(--openbot-space-3);
+  border: 1px solid var(--openbot-border);
+  border-radius: var(--openbot-radius-lg);
+  font-size: var(--openbot-text-sm);
+}
+
+.hosted-upsell-modal .hosted-upsell-modal-routine svg {
+  width: var(--openbot-icon-sm);
+  height: var(--openbot-icon-sm);
+  color: var(--openbot-text-muted);
+}
+
+.hosted-upsell-modal .hosted-upsell-modal-routine > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hosted-upsell-modal .hosted-upsell-modal-routine > span + span {
+  color: var(--openbot-text-muted);
+}
+
+.hosted-upsell-modal .hosted-upsell-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--openbot-space-2);
+  margin-top: var(--openbot-space-3);
+}
+
+/* At phone width, the two buttons share the row. */
+@media (max-width: 480px) {
+  .hosted-upsell-modal .hosted-upsell-modal-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* The line in the offline notice. */
+.hosted-upsell-offline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--openbot-space-2);
+  margin: var(--openbot-space-1) 0 0;
+  color: var(--openbot-text-secondary);
+  font-size: var(--openbot-text-sm);
+}
+
+.app-loading .hosted-upsell-offline {
+  justify-content: center;
+}

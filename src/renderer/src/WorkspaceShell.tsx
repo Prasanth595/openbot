@@ -20,6 +20,7 @@ import { WorkspaceDirectConversation } from "./features/conversation/WorkspaceDi
 import { WorkspaceServerOnboarding } from "./features/onboarding/WorkspaceServerOnboarding";
 import { useRemoteDesktop } from "./features/remote-desktop/remote-desktop-context";
 import { WorkspaceRoutineFlows } from "./features/routine-flows/WorkspaceRoutineFlows";
+import { hostedUpsellOffline } from "./features/servers/hosted-server-upsell-controller";
 import { createServerConnectionToast } from "./features/servers/server-connection-toast";
 import { useServerScope } from "./features/servers/server-scope";
 import { followsServerUpdate, ServerUpdateDialogHost } from "./features/servers/server-update-flow";
@@ -194,6 +195,7 @@ export function WorkspaceShell(props: { account: () => CentralAuthUser }) {
                   }
                   onRetry={retry}
                   onManage={() => settings.openAppSettings(null, "hosted-servers")}
+                  upsell={remote() && activeServer()?.state === "offline" ? hostedUpsellOffline() : null}
                 />
               </Show>
               <Show when={scope.loaded() && agentChatOpen() && !serverOnboardingOpen()}>
