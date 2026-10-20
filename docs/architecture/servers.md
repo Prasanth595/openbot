@@ -96,8 +96,9 @@ sends the request only when the host advertises the capability.
 `{ answer }`. Any member who can see the agent can send it. The host answers with the agent's provider
 and model, from the agent's profile and the end of its chat, with no tools. The question and the
 answer do not go into the chat, and the host keeps nothing, so `earlier` carries at most 20 earlier
-questions and answers of the side question. A failed generation, such as a busy provider or a usage
-limit, answers 409 with a sentence for the member. The capability is advertised only to protocol 7
+questions and answers of the side question. An earlier answer has at most 32,000 characters. A
+failed generation, such as a busy provider or a usage limit, answers 409 with a sentence for the
+member. The capability is advertised only to protocol 7
 clients. The desktop on a joined server and the web client show the side question only when the host
 advertises it.
 

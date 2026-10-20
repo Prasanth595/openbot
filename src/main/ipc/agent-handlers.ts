@@ -378,7 +378,12 @@ export function agentIpcHandlers({
           return runCauseEffect(
             remoteServers.request(serverId, SIDE_QUESTION_ROUTES.ask, decodeSideQuestionResponse, {
               method: "POST",
-              body: input,
+              // The wire fields only, so that a new IPC field does not cross the frozen contract.
+              body: {
+                agentId: input.agentId,
+                question: input.question,
+                earlier: input.earlier.map(({ question, answer }) => ({ question, answer })),
+              },
               timeoutMs: 150_000,
             }),
           );

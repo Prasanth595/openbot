@@ -212,7 +212,8 @@ export function createWebConversationRuntime(
     // Any member can ask, so the request is not limited to an admin.
     get askSideQuestion() {
       if (!adminRequest || sideQuestionEnabled?.() !== true) return undefined;
-      return (input: AskSideQuestionInput) =>
+      // Async, so that a host change rejects the promise and the store shows the error.
+      return async (input: AskSideQuestionInput) =>
         adminRequest()("POST", SIDE_QUESTION_ROUTES.ask, decodeSideQuestionResponse, {
           agentId: input.agentId,
           question: input.question,
