@@ -1244,7 +1244,8 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
     if (starting) {
       yield* Effect.sleep(OPENCODE_RESUME_RETRY_MS);
       // The process can have stopped during the wait; this reports that instead of a closed stream.
-      return yield* restore(this.#requireConnection());
+      const current = yield* providerSync(() => this.#requireConnection());
+      return yield* restore(current);
     }
     const listing = yield* this.#sessionListingEffect(connection, request);
     if (listing === "absent")
