@@ -1,6 +1,10 @@
 import {
   AUTOMATIC_VOICE_LANGUAGE,
   ELEVENLABS_VOICE_MODEL_ID,
+  SPEECH_MODEL,
+  SPEECH_VOICES,
+  type SpeechModelStatus,
+  type SpeechVoice,
   VOICE_MODELS,
   type VoiceLanguage,
   type VoiceModelInfo,
@@ -20,6 +24,7 @@ import {
   ItemDescription,
   ItemGroup,
   ItemTitle,
+  Play,
   Progress,
   RefreshCw,
   Select,
@@ -28,6 +33,8 @@ import {
   SelectTrigger,
   SelectValue,
   SettingsSection,
+  Square,
+  SwitchField,
 } from "@openbot/ui";
 import { useText } from "@openbot/ui/text";
 import { createMemo, createStore, For, Show } from "solid-js";
@@ -165,17 +172,27 @@ export function SettingsVoiceTab(props: SettingsVoiceTabProps) {
     });
   };
 
+  const downloadText = (bytes: number, status: VoiceModelStatus | SpeechModelStatus | null) => {
+    if (status?.phase === "downloading")
+      return t("settings.voice.model.downloading", {
+        received: format.fileSize(Math.round((bytes * (status.progress ?? 0)) / 100)),
+        total: format.fileSize(bytes),
+      });
+    if (status?.phase === "error") return errorMessage(status.message, t("settings.voice.model.failed"));
+    return t("settings.voice.model.size", { size: format.fileSize(bytes) });
+  };
   const statusText = (model: VoiceModelInfo, status: VoiceModelStatus | null) => {
     if (model.kind === "cloud")
       return status?.phase === "ready" ? t("settings.voice.model.keySaved") : t("settings.voice.model.keyMissing");
-    if (status?.phase === "downloading")
-      return t("settings.voice.model.downloading", {
-        received: format.fileSize(Math.round((model.bytes * (status.progress ?? 0)) / 100)),
-        total: format.fileSize(model.bytes),
-      });
-    if (status?.phase === "error") return errorMessage(status.message, t("settings.voice.model.failed"));
-    return t("settings.voice.model.size", { size: format.fileSize(model.bytes) });
+    return downloadText(model.bytes, status);
   };
+
+  const speech = () => props.store.state.speech;
+  const speechPhase = () => speech().status?.phase;
+  const voiceName = (voice: SpeechVoice) =>
+    t(voice.startsWith("F") ? "settings.voice.speech.voice.female" : "settings.voice.speech.voice.male", {
+      number: voice.slice(1),
+    });
 
   const LanguageLabel = (labelProps: { language: VoiceLanguage | undefined }) => (
     <Show when={labelProps.language}>
@@ -332,6 +349,106 @@ export function SettingsVoiceTab(props: SettingsVoiceTabProps) {
                 <SelectTrigger size="sm" aria-label={t("settings.voice.language.title")}>
                   <SelectValue<VoiceLanguage>>
                     {(state) => <LanguageLabel language={state.selectedOption()} />}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent mount={props.selectMount} />
+              </Select>
+            </ItemActions>
+          </Item>
+        </ItemGroup>
+      </SettingsSection>
+
+      <SettingsSection title={t("settings.voice.speech.section")}>
+        <ItemGroup class="settings-modal-card">
+          <Item class="settings-modal-row">
+            <ItemContent>
+              <ItemTitle>{SPEECH_MODEL.name}</ItemTitle>
+              <ItemDescription>{t("settings.voice.speech.model.description")}</ItemDescription>
+              <ItemDescription aria-live="polite">{downloadText(SPEECH_MODEL.bytes, speech().status)}</ItemDescription>
+              <Show when={speechPhase() === "downloading"}>
+                <Progress
+                  value={speech().status?.progress ?? 0}
+                  aria-label={t("settings.voice.model.progressLabel", { name: SPEECH_MODEL.name })}
+                />
+              </Show>
+            </ItemContent>
+            <ItemActions>
+              <Show when={speechPhase() === "missing"}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  type="button"
+                  aria-label={t("settings.voice.model.downloadLabel", { name: SPEECH_MODEL.name })}
+                  onClick={() => props.store.downloadSpeech()}
+                >
+                  <Download size={14} aria-hidden="true" />
+                  {t("common.download")}
+                </Button>
+              </Show>
+              <Show when={speechPhase() === "downloading"}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  type="button"
+                  aria-label={t("settings.voice.model.cancelLabel", { name: SPEECH_MODEL.name })}
+                  onClick={() => props.store.cancelSpeech()}
+                >
+                  {t("common.cancel")}
+                </Button>
+              </Show>
+              <Show when={speechPhase() === "error"}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  type="button"
+                  aria-label={t("settings.voice.model.retryLabel", { name: SPEECH_MODEL.name })}
+                  onClick={() => props.store.downloadSpeech()}
+                >
+                  <RefreshCw size={14} aria-hidden="true" />
+                  {t("common.tryAgain")}
+                </Button>
+              </Show>
+            </ItemActions>
+          </Item>
+          <SwitchField
+            data-settings-row="settings.voice.speech.readReplies.title"
+            checked={speech().settings?.readReplies ?? false}
+            disabled={!speech().settings}
+            onChange={(checked) => props.store.setReadReplies(checked)}
+            label={t("settings.voice.speech.readReplies.title")}
+            description={t("settings.voice.speech.readReplies.description")}
+          />
+          <Item data-settings-row="settings.voice.speech.voice.title" class="settings-modal-row">
+            <ItemContent>
+              <ItemTitle>{t("settings.voice.speech.voice.title")}</ItemTitle>
+            </ItemContent>
+            <ItemActions>
+              <Button
+                variant="ghost"
+                size="sm"
+                type="button"
+                disabled={speechPhase() !== "ready"}
+                onClick={() => void props.store.listen(t("settings.voice.speech.sample"))}
+              >
+                <Show when={speech().listening} fallback={<Play size={14} aria-hidden="true" />}>
+                  <Square size={14} aria-hidden="true" />
+                </Show>
+                {speech().listening ? t("settings.voice.speech.voice.stop") : t("settings.voice.speech.voice.listen")}
+              </Button>
+              <Select<SpeechVoice>
+                class="settings-modal-select"
+                options={[...SPEECH_VOICES]}
+                value={speech().settings?.voice ?? null}
+                onChange={(next) => next && props.store.setSpeechVoice(next)}
+                disabled={!speech().settings}
+                placement="bottom-end"
+                itemComponent={(selectProps) => (
+                  <SelectItem item={selectProps.item}>{voiceName(selectProps.item.rawValue)}</SelectItem>
+                )}
+              >
+                <SelectTrigger size="sm" aria-label={t("settings.voice.speech.voice.title")}>
+                  <SelectValue<SpeechVoice>>
+                    {(state) => <Show when={state.selectedOption()}>{(voice) => voiceName(voice())}</Show>}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent mount={props.selectMount} />

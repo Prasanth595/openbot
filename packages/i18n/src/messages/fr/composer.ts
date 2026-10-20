@@ -95,6 +95,7 @@ export const messages = {
   "composer.voice.prepareFailed": "Impossible de préparer le modèle vocal. Réessayez.",
   "composer.voice.noSpeechRecorded": "Aucune parole n’a été enregistrée.",
   "composer.voice.noSpeechDetected": "Aucune parole n’a été détectée.",
+  "composer.voice.readFailed": "Impossible de lire la réponse à voix haute.",
   "composer.error.saveEditTryAgain": "Impossible d’enregistrer cette modification sur cet ordinateur. Réessayez.",
   "composer.error.saveUnconfirmed":
     "L’enregistrement n’est pas confirmé. Relancez l’enregistrement pour vérifier le résultat.",

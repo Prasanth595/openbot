@@ -21,11 +21,22 @@ import { MessageActions } from "@openbot/ui/features/conversation/MessageRenderi
 import { PendingSendStatus } from "@openbot/ui/features/conversation/PendingSendStatus";
 import { TaskList } from "@openbot/ui/features/conversation/TaskList";
 import { UnreadMessagesBanner, UnreadMessagesDivider } from "@openbot/ui/features/conversation/UnreadMessages";
+import { VoicePlayer } from "@openbot/ui/features/conversation/VoicePlayer";
 import { teamMemberName } from "@openbot/ui/features/team/TeamPersonAvatar";
 import { useText } from "@openbot/ui/text";
 import { createMemo, createSignal, For, Loading, lazy, onCleanup, Show, untrack } from "solid-js";
 import { planItems, planTitle } from "../../app-message-projection";
 import { deviceSendShortcut } from "../../send-shortcut-preference";
+import { speechModelReady } from "../speech/speech-model";
+import { recordingGone, speechReading, spokenReply } from "../speech/speech-playback";
+import {
+  recordingWaveform,
+  seekRecording,
+  seekSpokenReply,
+  toggleReadAloud,
+  toggleRecording,
+  toggleSpokenReply,
+} from "../speech/speech-replies";
 import { groupedMessageIds } from "./agent-message-timeline";
 import { continuesSenderRun } from "./chat-grouping";
 import { chatVisualPageUrl } from "./chat-visual-url";
@@ -154,6 +165,68 @@ export function ConversationTimeline() {
     openTaskPanel,
   } = useConversationViewScope();
   const { t, format } = useText();
+  /** An agent reply can be read aloud by this computer's speech model, in this chat's voice. */
+  const readAloudAction = (message: AgentMessage) => {
+    const agentId = props.agent?.id;
+    if (props.runtime || !agentId || message.author !== "agent" || message.streaming || !message.body.trim()) return;
+    if (!speechModelReady()) return;
+    return {
+      reading: speechReading()?.messageId === message.id,
+      onToggle: () =>
+        toggleReadAloud({ serverId: props.server?.id ?? "local", agentId, messageId: message.id }, message.body),
+    };
+  };
+  /** The last agent text of each turn the user spoke: it shows a play control at all times. */
+  const spokenReplyIds = createMemo(() => {
+    const ids = new Set<string>();
+    let spoken = false;
+    let reply: string | undefined;
+    for (const message of timelineMessages()) {
+      if (message.author === "you") {
+        if (reply) ids.add(reply);
+        spoken = message.voiceRecording !== undefined;
+        reply = undefined;
+      } else if (spoken && (message.kind ?? "text") === "text" && message.body.trim()) reply = message.id;
+    }
+    if (reply) ids.add(reply);
+    return ids;
+  });
+  /** Plays a spoken turn again: the user's own recording, or the agent's reply read aloud. */
+  const voicePlayer = (message: AgentMessage | undefined) => {
+    if (!message) return;
+    const reading = speechReading();
+    const own = reading?.messageId === message.id ? reading : undefined;
+    const state = !own ? ("idle" as const) : own.paused ? ("paused" as const) : ("playing" as const);
+    const url = message.voiceRecording?.previewUrl;
+    // The user can delete a recording in Storage; its message then keeps only the text.
+    if (message.author === "you" && url && !recordingGone(url)) {
+      const waveform = recordingWaveform(url);
+      return {
+        kind: "message" as const,
+        state,
+        peaks: waveform?.peaks,
+        duration: waveform?.duration ?? own?.duration ?? undefined,
+        elapsed: own?.elapsed,
+        onToggle: () => toggleRecording(message.id, url),
+        onSeek: (seconds: number) => seekRecording(message.id, url, seconds),
+        levels: undefined,
+      };
+    }
+    const agentId = props.agent?.id;
+    if (!agentId || !spokenReplyIds().has(message.id) || !readAloudAction(message)) return;
+    const summary = spokenReply(message.id);
+    return {
+      kind: "reply" as const,
+      state,
+      levels: own?.levels,
+      peaks: summary?.peaks,
+      duration: summary?.duration ?? own?.duration ?? undefined,
+      elapsed: own?.elapsed,
+      onSeek: (seconds: number) => seekSpokenReply(message.id, seconds),
+      onToggle: () =>
+        toggleSpokenReply({ serverId: props.server?.id ?? "local", agentId, messageId: message.id }, message.body),
+    };
+  };
   const openTasks = () => props.tasks?.snapshot?.tasks.filter((task) => task.state !== "closed") ?? [];
   const compaction = (): ContextCompactionView | null => {
     const state = props.contextState;
@@ -410,6 +483,8 @@ export function ConversationTimeline() {
                 });
                 // The status line stays one element while its state changes, so its live region speaks.
                 const pending = createMemo(() => pendingSend() !== undefined);
+                // Only the kind rebuilds the player, so its controls keep focus when it starts or stops.
+                const playerKind = createMemo(() => voicePlayer(message())?.kind);
                 const pendingState = () => {
                   const state = pendingSend()?.state;
                   return state === "failed" || state === "waiting" ? state : "sending";
@@ -794,10 +869,30 @@ export function ConversationTimeline() {
                                     const currentMessage = message();
                                     if (currentMessage) void copyMessage(currentMessage);
                                   }}
+                                  readAloud={
+                                    spokenReplyIds().has((message() ?? initialMessage).id)
+                                      ? undefined
+                                      : readAloudAction(message() ?? initialMessage)
+                                  }
                                 />
                               </Show>
                             }
-                          />
+                          >
+                            <Show when={playerKind()}>
+                              {(kind) => (
+                                <VoicePlayer
+                                  kind={kind()}
+                                  state={voicePlayer(message())?.state ?? "idle"}
+                                  peaks={voicePlayer(message())?.peaks}
+                                  duration={voicePlayer(message())?.duration}
+                                  elapsed={voicePlayer(message())?.elapsed}
+                                  levels={voicePlayer(message())?.levels}
+                                  onToggle={() => voicePlayer(message())?.onToggle()}
+                                  onSeek={(seconds) => voicePlayer(message())?.onSeek?.(seconds)}
+                                />
+                              )}
+                            </Show>
+                          </ChatMessageRow>
                         }
                       >
                         {(questionPrompt) => (

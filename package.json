@@ -215,6 +215,7 @@
     "test:storage-live": "bun scripts/provider-storage-smoke.ts",
     "test:grok-live": "bun scripts/provider-storage-smoke.ts --grok-only",
     "test:team-live": "electron scripts/team-webrtc-live-smoke-app",
+    "test:voice-speech": "bun scripts/voice-speech-smoke.ts",
     "test:remote-desktop-runtime": "bun scripts/remote-desktop-runtime-smoke.ts",
     "test:signal": "bun scripts/signal-security-e2e.ts",
     "test:ipc-input": "bun scripts/ipc-input-e2e.ts",

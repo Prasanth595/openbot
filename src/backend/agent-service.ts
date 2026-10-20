@@ -3289,6 +3289,19 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       );
   }
 
+  /** Keeps the Opus/WebM recording of a spoken message as a draft, for the message to replay. */
+  prepareVoiceRecording(audio: Uint8Array): Effect.Effect<DraftAttachment[], AgentLifecycleFailed> {
+    return this.#mailbox
+      .prepareImportedAttachments([], [{ name: "voice.webm", mimeType: "audio/webm", bytes: audio }], {
+        voiceRecording: true,
+      })
+      .pipe(
+        Effect.mapError(
+          (failure) => new AgentLifecycleFailed({ operation: "prepareVoiceRecording", cause: failure.cause }),
+        ),
+      );
+  }
+
   discardDraftAttachment(id: string): Effect.Effect<void, AgentLifecycleFailed> {
     return this.#mailbox
       .discardDraft(id)
@@ -3626,6 +3639,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         recipientAgentIds: [agent.id],
         text: input.text,
         draftIds: input.attachmentDraftIds ?? [],
+        ...(input.voiceRecordingDraftId ? { voiceRecordingDraftId: input.voiceRecordingDraftId } : {}),
         // A reply names a message of the agent's own chat, which a task does not show.
         replyToMessageId: task ? null : (input.replyToMessageId ?? null),
         ...(idempotencyKey ? { idempotencyKey } : {}),

@@ -299,6 +299,7 @@ const {
   forwardUpdatePreference,
   forwardVoiceModelStatus,
   forwardVoiceStreamTranscript,
+  forwardSpeechModelStatus,
   forwardProviderRuntimeStatus,
   forwardGitHubConnectorStatus,
   forwardOnePasswordConnectorStatus,
@@ -499,6 +500,7 @@ function registerIpcHandlers({
   agentImport,
   instanceTransfer,
   voice,
+  speech,
   dynamicIsland,
   cuaDriver,
   computerUsePermissionHelp,
@@ -547,7 +549,7 @@ function registerIpcHandlers({
       permissionHelp: computerUsePermissionHelp,
     }),
     ...providerIpcHandlers({ service, providerRuntimes, credentials: providerCredentials }),
-    ...voiceIpcHandlers({ voice }),
+    ...voiceIpcHandlers({ voice, speech, service }),
     ...accountIpcHandlers({ centralAuth, host }),
     ...skillIpcHandlers({ skills, getMainWindow, translate: language.translate }),
     ...hostedSiteIpcHandlers({ hostedSites, remoteServers, getMainWindow, translate: language.translate }),
@@ -969,6 +971,7 @@ if (!hasSingleInstanceLock) {
         forwardProviderRuntimeStatus,
         forwardVoiceModelStatus,
         forwardVoiceStreamTranscript,
+        forwardSpeechModelStatus,
         prepareForUpdateInstall,
       });
       services = built;

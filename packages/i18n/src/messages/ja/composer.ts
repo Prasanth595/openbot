@@ -94,6 +94,7 @@ export const messages = {
   "composer.voice.prepareFailed": "音声モデルを準備できませんでした。もう一度お試しください。",
   "composer.voice.noSpeechRecorded": "音声が録音されませんでした。",
   "composer.voice.noSpeechDetected": "音声が検出されませんでした。",
+  "composer.voice.readFailed": "返信を読み上げられませんでした。",
   "composer.error.saveEditTryAgain": "このコンピューターに編集を保存できませんでした。もう一度お試しください。",
   "composer.error.saveUnconfirmed": "保存は確認されていません。結果を確認するには、もう一度保存してください。",
   "composer.error.changeModel": "モデルを変更できませんでした。もう一度お試しください。",

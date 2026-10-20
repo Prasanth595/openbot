@@ -1,5 +1,9 @@
 import {
   ELEVENLABS_VOICE_MODEL_ID,
+  isSpeechLanguage,
+  type SpeechModelStatus,
+  type SpeechSettings,
+  type SpeechVoice,
   type VoiceLanguage,
   type VoiceModelId,
   type VoiceModelStatus,
@@ -8,12 +12,15 @@ import {
 import { toast } from "@openbot/ui";
 import { currentText } from "@openbot/ui/text";
 import { createEffect, createStore } from "solid-js";
+import { readAloud, stopSpeech } from "../speech/speech-playback";
 import { voicePort } from "./voice-port";
 
 interface SettingsVoiceState {
   /** One status for each model in `VOICE_MODELS`, or null before main answers. */
   statuses: Record<VoiceModelId, VoiceModelStatus | null>;
   settings: VoiceSettings | null;
+  /** The model that reads replies aloud, and its settings, or null before main answers. */
+  speech: { status: SpeechModelStatus | null; settings: SpeechSettings | null; listening: boolean };
 }
 
 const EMPTY_STATUSES: SettingsVoiceState["statuses"] = {
@@ -28,32 +35,54 @@ type FailureKey =
   | "settings.voice.downloadFailed"
   | "settings.voice.cancelFailed"
   | "settings.voice.apiKey.saveFailed"
-  | "settings.voice.apiKey.removeFailed";
+  | "settings.voice.apiKey.removeFailed"
+  | "settings.voice.speech.listenFailed";
 
 /**
  * The Voice tab's view of the dictation models and settings. It is created by the settings page,
  * so a download that runs keeps its row while another tab is open.
  */
 export function createSettingsVoiceStore(active: () => boolean) {
-  const [state, setState] = createStore<SettingsVoiceState>({ statuses: { ...EMPTY_STATUSES }, settings: null });
+  const [state, setState] = createStore<SettingsVoiceState>({
+    statuses: { ...EMPTY_STATUSES },
+    settings: null,
+    speech: { status: null, settings: null, listening: false },
+  });
   const setStatus = (status: VoiceModelStatus) =>
     setState((draft) => {
       draft.statuses[status.modelId] = status;
     });
 
+  const setSpeechStatus = (status: SpeechModelStatus) =>
+    setState((draft) => {
+      draft.speech.status = status;
+    });
+
   // The tab listens only while it is open, and reads every status again each time it opens.
   createEffect(active, (isActive) => {
     if (!isActive) return;
-    const stop = voicePort().voice.onModelStatus(setStatus);
-    void Promise.all([voicePort().voice.getModelStatuses(), voicePort().voice.getSettings()])
-      .then(([statuses, settings]) => {
+    const voice = voicePort().voice;
+    const stopModel = voice.onModelStatus(setStatus);
+    const stopSpeechModel = voice.onSpeechModelStatus(setSpeechStatus);
+    void Promise.all([
+      voice.getModelStatuses(),
+      voice.getSettings(),
+      voice.getSpeechModelStatus(),
+      voice.getSpeechSettings(),
+    ])
+      .then(([statuses, settings, speechStatus, speechSettings]) => {
         for (const status of statuses) setStatus(status);
         setState((draft) => {
           draft.settings = settings;
+          draft.speech.status = speechStatus;
+          draft.speech.settings = speechSettings;
         });
       })
       .catch((error: unknown) => fail(error, "settings.voice.loadFailed"));
-    return stop;
+    return () => {
+      stopModel();
+      stopSpeechModel();
+    };
   });
 
   function fail(error: unknown, fallback: FailureKey): void {
@@ -114,6 +143,73 @@ export function createSettingsVoiceStore(active: () => boolean) {
       });
   }
 
+  function downloadSpeech(): void {
+    void voicePort()
+      .voice.downloadSpeechModel()
+      .then(setSpeechStatus)
+      .catch((error: unknown) => fail(error, "settings.voice.downloadFailed"));
+  }
+
+  function cancelSpeech(): void {
+    void voicePort()
+      .voice.cancelSpeechModelDownload()
+      .then(setSpeechStatus)
+      .catch((error: unknown) => fail(error, "settings.voice.cancelFailed"));
+  }
+
+  function saveSpeech(patch: Partial<SpeechSettings>): Promise<boolean> {
+    const current = state.speech.settings;
+    if (!current) return Promise.resolve(false);
+    const next = { ...current, ...patch };
+    setState((draft) => {
+      draft.speech.settings = next;
+    });
+    return voicePort()
+      .voice.setSpeechSettings(next)
+      .then((saved) => {
+        setState((draft) => {
+          draft.speech.settings = saved;
+        });
+        return true;
+      })
+      .catch((error: unknown) => {
+        setState((draft) => {
+          draft.speech.settings = current;
+        });
+        fail(error, "settings.voice.saveFailed");
+        return false;
+      });
+  }
+
+  /** Turning it on downloads the model, as the first dictation does. */
+  function setReadReplies(readReplies: boolean): void {
+    void saveSpeech({ readReplies }).then((saved) => {
+      const phase = state.speech.status?.phase;
+      if (saved && readReplies && (phase === "missing" || phase === "error")) downloadSpeech();
+    });
+  }
+
+  /** Reads a sample in the language of the interface with the voice in the settings. */
+  async function listen(sample: string): Promise<void> {
+    if (state.speech.listening) {
+      stopSpeech();
+      return;
+    }
+    const locale = currentText().locale();
+    setState((draft) => {
+      draft.speech.listening = true;
+    });
+    try {
+      await readAloud(sample, isSpeechLanguage(locale) ? locale : "en");
+    } catch (error) {
+      fail(error, "settings.voice.speech.listenFailed");
+    } finally {
+      setState((draft) => {
+        draft.speech.listening = false;
+      });
+    }
+  }
+
   return {
     state,
     download,
@@ -122,6 +218,11 @@ export function createSettingsVoiceStore(active: () => boolean) {
     removeApiKey: () => setApiKey(null),
     useModel: (modelId: VoiceModelId) => save({ modelId }),
     setLanguage: (language: VoiceLanguage) => save({ language }),
+    downloadSpeech,
+    cancelSpeech,
+    setReadReplies,
+    setSpeechVoice: (voice: SpeechVoice) => void saveSpeech({ voice }),
+    listen,
   };
 }
 

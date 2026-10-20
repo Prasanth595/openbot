@@ -66,6 +66,7 @@ import type {
   CentralAuthState,
   ComputerUseState,
   ProviderRuntimeSnapshot,
+  SpeechModelStatus,
   VoiceModelStatus,
   VoiceStreamTranscript,
 } from "@openbot/contracts/ipc";
@@ -240,6 +241,7 @@ import { agentPrintedLink, SignInRelayHost } from "./sign-in-relay-host";
 import { SignalIngress } from "./signal-ingress";
 import { SkillMarketplaceService } from "./skill-marketplace-service";
 import { SLACK_DEV_CALLBACK_PATH, startSlackDevCallbackServer } from "./slack-dev-callback-server";
+import { SpeechPreferenceStore } from "./speech-preference-store";
 import { TeamStore } from "./team-store";
 import { TeamWebRtcBridge } from "./team-webrtc-bridge";
 import { TeamWebRtcClientTransport } from "./team-webrtc-client-transport";
@@ -260,9 +262,12 @@ import { openScribeSocket } from "./voice-cloud-stream";
 import {
   PARAKEET_MODEL_DIRECTORY,
   removeLegacyWhisperCache,
+  SUPERTONIC_MODEL_DIRECTORY,
   WHISPER_TURBO_MODEL_DIRECTORY,
 } from "./voice-model-service";
 import { VoicePreferenceStore } from "./voice-preference-store";
+import { spawnVoiceSpeechHost } from "./voice-speech-host-process";
+import { VoiceSpeechService } from "./voice-speech-service";
 import { spawnVoiceTranscriptionHost } from "./voice-transcription-host-process";
 import { VoiceTranscriptionService } from "./voice-transcription-service";
 import { WebhookRelay } from "./webhook-relay";
@@ -349,6 +354,7 @@ const TEARDOWN_ORDER = {
   cuaDriver: 55,
   remoteServers: 60,
   voice: 70,
+  speech: 71,
   remoteDesktop: 80,
   // Before messaging, so no routine answer starts a post while the connections stop.
   routineResults: 84,
@@ -414,6 +420,7 @@ export interface ApplicationServiceContext {
   forwardProviderRuntimeStatus: (snapshot: ProviderRuntimeSnapshot) => void;
   forwardVoiceModelStatus: (status: VoiceModelStatus) => void;
   forwardVoiceStreamTranscript: (transcript: VoiceStreamTranscript) => void;
+  forwardSpeechModelStatus: (status: SpeechModelStatus) => void;
   prepareForUpdateInstall: () => Promise<void>;
 }
 
@@ -489,6 +496,7 @@ export interface ApplicationServices {
   agentImport: AgentImportService;
   instanceTransfer: InstanceTransferService;
   voice: VoiceTranscriptionService;
+  speech: VoiceSpeechService;
   dynamicIsland: DynamicIslandWindowController;
   cuaDriver: CuaDriverRuntime;
   computerUseHighlight: ComputerUseHighlightController;
@@ -744,6 +752,7 @@ export async function createApplicationServices({
   forwardProviderRuntimeStatus,
   forwardVoiceModelStatus,
   forwardVoiceStreamTranscript,
+  forwardSpeechModelStatus,
   prepareForUpdateInstall,
 }: ApplicationServiceContext): Promise<ApplicationServices> {
   // First, so the provider lines of the whole startup reach the file.
@@ -2305,6 +2314,18 @@ export async function createApplicationServices({
   teardown.push(TEARDOWN_ORDER.voice, "voice transcription", () => Effect.runPromise(voice.shutdown()));
   voice.on("modelStatus", forwardVoiceModelStatus);
   voice.on("streamTranscript", forwardVoiceStreamTranscript);
+  const speechPreferences = new SpeechPreferenceStore(join(app.getPath("userData"), "speech-preference.json"));
+  await runCauseEffect(speechPreferences.load());
+  const speech = new VoiceSpeechService({
+    resourcesRoot: app.isPackaged ? join(process.resourcesPath, "voice") : resolve(".openbot-build/voice"),
+    modelDirectory: app.isPackaged
+      ? join(app.getPath("userData"), "runtimes", SUPERTONIC_MODEL_DIRECTORY)
+      : resolve(".openbot-build/voice", SUPERTONIC_MODEL_DIRECTORY),
+    preferences: speechPreferences,
+    spawnHost: spawnVoiceSpeechHost,
+  });
+  teardown.push(TEARDOWN_ORDER.speech, "speech", () => Effect.runPromise(speech.shutdown()));
+  speech.on("modelStatus", forwardSpeechModelStatus);
   const currentVersion = app.getVersion();
   // Skip the file check in dev: unpacked runs never enable updates, so avoid touching resourcesPath.
   const updateMetadataAvailable = app.isPackaged && existsSync(join(process.resourcesPath, "app-update.yml"));
@@ -2624,6 +2645,7 @@ export async function createApplicationServices({
     agentImport,
     instanceTransfer,
     voice,
+    speech,
     dynamicIsland,
     cuaDriver,
     computerUseHighlight,

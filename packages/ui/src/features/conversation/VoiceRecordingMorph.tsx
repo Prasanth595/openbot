@@ -97,7 +97,7 @@ export function VoiceRecordingMorph(props: {
  * places, so the track is moved back by one step and slides home over the time until the next level:
  * the waveform scrolls instead of jumping.
  */
-function VoiceWaveform(props: { levels: readonly number[] }): JSX.Element {
+export function VoiceWaveform(props: { levels: readonly number[]; class?: string }): JSX.Element {
   let track: HTMLSpanElement | undefined;
   let lastUpdate = 0;
   createEffect(
@@ -114,7 +114,7 @@ function VoiceWaveform(props: { levels: readonly number[] }): JSX.Element {
     },
   );
   return (
-    <span class="voice-waveform" aria-hidden="true">
+    <span class={["voice-waveform", props.class]} aria-hidden="true">
       <span
         ref={(element) => {
           track = element;

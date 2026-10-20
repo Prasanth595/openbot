@@ -468,6 +468,18 @@ export const messages = {
   "settings.voice.apiKey.remove": "Schlüssel entfernen",
   "settings.voice.apiKey.saveFailed": "Der API-Schlüssel konnte nicht gespeichert werden. Versuche es erneut.",
   "settings.voice.apiKey.removeFailed": "Der API-Schlüssel konnte nicht entfernt werden. Versuche es erneut.",
+  "settings.voice.speech.section": "Gesprochene Antworten",
+  "settings.voice.speech.model.description": "Liest Antworten auf diesem Computer vor, in 31 Sprachen.",
+  "settings.voice.speech.readReplies.title": "Antworten vorlesen",
+  "settings.voice.speech.readReplies.description":
+    "Wenn du eine Nachricht diktierst, wird die Antwort vorgelesen. Diktiere erneut, um sie zu stoppen.",
+  "settings.voice.speech.voice.title": "Stimme",
+  "settings.voice.speech.voice.female": "Weibliche Stimme {number}",
+  "settings.voice.speech.voice.male": "Männliche Stimme {number}",
+  "settings.voice.speech.voice.listen": "Anhören",
+  "settings.voice.speech.voice.stop": "Stoppen",
+  "settings.voice.speech.sample": "Hallo. So klingen deine Antworten.",
+  "settings.voice.speech.listenFailed": "Die Probe konnte nicht abgespielt werden.",
   "settings.transfer.title": "Diesen Server auf einen anderen Computer umziehen",
   "settings.transfer.lede":
     "Deine Agenten mit ihren Fähigkeiten, Routinen, Erinnerungen und Dateien kommen in eine Datei.",

@@ -170,6 +170,8 @@ export interface AgentMessage {
   senderMember?: ConversationMessageSender | undefined;
   replyToMessageId?: string | null | undefined;
   attachments?: AttachmentSummary[] | undefined;
+  /** The user's own recording of a spoken message. It stays on this computer; the agent gets the text. */
+  voiceRecording?: AttachmentSummary | undefined;
   imageGeneration?: ImageGenerationInfo | undefined;
   questionPrompt?: ConversationQuestionPrompt | undefined;
   /** The interactive block an agent drew. A blocking block sits beside `questionPrompt`. */

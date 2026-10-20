@@ -2,7 +2,7 @@ import { chatPreviewKind } from "@openbot/contracts/chat-preview";
 import type { AttachmentSummary, InstalledSkill, MessageReaction } from "@openbot/contracts/ipc";
 import { canPreviewAttachment, MESSAGE_REACTIONS, MORE_MESSAGE_REACTIONS } from "@openbot/contracts/ipc";
 import { parseSelectionInstruction } from "@openbot/contracts/selection-instruction";
-import { type BubbleVariant, Button, DropdownMenu, Info, LoaderCircle } from "@openbot/ui";
+import { AudioLines, type BubbleVariant, Button, DropdownMenu, Info, LoaderCircle } from "@openbot/ui";
 import { prefersReducedMotion } from "@openbot/ui/utils";
 import {
   createEffect,
@@ -22,7 +22,7 @@ import { AttachmentCards, type AttachmentMediaSource } from "./AttachmentCards";
 import { CodeBlock } from "./CodeBlock";
 import { CodePreview } from "./CodePreview";
 import { ComparisonTable } from "./ComparisonTable";
-import { CheckIcon, CopyIcon, PlusIcon, ReactionIcon, ReplyIcon } from "./ConversationIcons";
+import { CheckIcon, CopyIcon, PlusIcon, ReactionIcon, ReplyIcon, StopIcon } from "./ConversationIcons";
 import { createSmoothHeightResize } from "./createSmoothHeightResize";
 import { DataTable, type MessageContentBlock, messageContentBlocks, reuseUnchangedBlocks } from "./DataTable";
 import { messageFileReferences } from "./FileReference";
@@ -638,6 +638,8 @@ export function MessageActions(props: {
   onReact: (emoji: MessageReaction | null) => void;
   onReply?: (() => void) | undefined;
   onCopy: () => void;
+  /** Reads the message aloud, or stops it while it is read. Absent where replies cannot be read aloud. */
+  readAloud?: { reading: boolean; onToggle: () => void } | undefined;
 }) {
   const { t } = useText();
   const authorName = () => props.authorName ?? t("chat.message.agentFallback");
@@ -658,6 +660,19 @@ export function MessageActions(props: {
       >
         {props.copied ? <CheckIcon /> : <CopyIcon />}
       </Button>
+      <Show when={props.readAloud}>
+        {(readAloud) => (
+          <Button
+            variant="ghost"
+            type="button"
+            class="message-action-button"
+            aria-label={readAloud().reading ? t("chat.actions.stopReading") : t("chat.actions.readAloud")}
+            onClick={() => readAloud().onToggle()}
+          >
+            {readAloud().reading ? <StopIcon /> : <AudioLines aria-hidden="true" />}
+          </Button>
+        )}
+      </Show>
       <Show when={props.reactions !== false}>
         <div class="message-action-popover-anchor">
           <DropdownMenu.Root

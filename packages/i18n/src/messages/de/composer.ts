@@ -96,6 +96,7 @@ export const messages = {
   "composer.voice.prepareFailed": "Das Sprachmodell konnte nicht vorbereitet werden. Versuche es erneut.",
   "composer.voice.noSpeechRecorded": "Es wurde keine Sprache aufgenommen.",
   "composer.voice.noSpeechDetected": "Es wurde keine Sprache erkannt.",
+  "composer.voice.readFailed": "Die Antwort konnte nicht vorgelesen werden.",
   "composer.error.saveEditTryAgain":
     "Diese Änderung konnte nicht auf diesem Computer gespeichert werden. Versuche es erneut.",
   "composer.error.saveUnconfirmed":

@@ -54,11 +54,12 @@ const MAX_ACTIVE_TURNS = 1_000;
 const MAX_PENDING_GONE = 1_000;
 /** The histogram's timer interval. Each recorded delay includes it, so it is subtracted. */
 const LOOP_RESOLUTION_MS = 20;
-// The `serviceName` that `agent-database-host-process.ts` and `voice-transcription-host-process.ts`
+// The `serviceName` that `agent-database-host-process.ts` and the voice `*-host-process.ts` files
 // give `utilityProcess.fork`. Electron reports it as the metric's `name`.
 const UTILITY_GROUPS = new Map<string, ProcessGroup>([
   ["OpenBot databases", "database_host"],
   ["OpenBot voice transcription", "voice_host"],
+  ["OpenBot speech", "voice_host"],
 ]);
 
 export interface ResourceMonitorOptions {

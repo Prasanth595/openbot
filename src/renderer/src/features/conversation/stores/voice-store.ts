@@ -3,6 +3,7 @@ import { currentText } from "@openbot/ui/text";
 import { onCleanup } from "solid-js";
 import { desktopAnalytics } from "../../../analytics";
 import { appendVoiceTranscript, encodePcm16, recordingToSamples, recordingToWav } from "../../../voice-recording";
+import { forgetDictatedMessage, noteDictatedMessage, stopSpokenReply } from "../../speech/speech-replies";
 import { EMPTY_DRAFT } from "../composer-draft";
 import { composerDraftKey } from "../conversation-keys";
 import { conversationRuntime } from "../conversation-runtime";
@@ -111,6 +112,8 @@ export function createVoiceStore(deps: VoiceStoreDeps) {
     const agentId = deps.props.agent?.id;
     const serverId = deps.props.server?.id ?? "local";
     if (!agentId || deps.voicePhase() !== "idle") return;
+    // The user speaks again: the reply that is read aloud stops.
+    stopSpokenReply();
     const target = { agentId, serverId };
     deps.clearConversationError(target);
     resources.voiceSubmitRequest = undefined;
@@ -440,8 +443,11 @@ export function createVoiceStore(deps: VoiceStoreDeps) {
       deps.clearConversationError(recordingTarget);
       const draft = submitRequest?.draft ?? deps.drafts()[composerDraftKey(recordingTarget)] ?? EMPTY_DRAFT;
       const transcribedDraft = { ...draft, text: appendVoiceTranscript(draft.text, result.text) };
+      // Only the desktop app reads replies aloud; the web client has its own runtime.
+      const spokenReply = !deps.props.runtime;
       if (submitRequest) {
         const target = { agentId: submitRequest.agentId, serverId: submitRequest.serverId };
+        if (spokenReply) noteDictatedMessage(target, result.text);
         let delivered: boolean;
         if (submitRequest.queuedEdit) {
           delivered = await deps.hooks.saveEdit(
@@ -455,8 +461,12 @@ export function createVoiceStore(deps: VoiceStoreDeps) {
         } else {
           delivered = await deps.hooks.submit(transcribedDraft, target, submitRequest.draft);
         }
-        if (!delivered) deps.hooks.restoreTranscript(target, result.text);
+        if (!delivered) {
+          if (spokenReply) forgetDictatedMessage(target);
+          deps.hooks.restoreTranscript(target, result.text);
+        }
       } else {
+        if (spokenReply) noteDictatedMessage(recordingTarget, result.text);
         const key = composerDraftKey(recordingTarget);
         deps.setDrafts((current) => ({ ...current, [key]: transcribedDraft }));
         if (deps.props.agent?.id === targetAgentId && (deps.props.server?.id ?? "local") === targetServerId) {

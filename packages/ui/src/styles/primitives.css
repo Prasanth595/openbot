@@ -1033,6 +1033,49 @@
   cursor: grabbing;
 }
 
+/* The seek slider draws its picture on the track; the playhead shows on hover, focus and drag. */
+.ui-seek-slider {
+  display: flex;
+  touch-action: none;
+}
+
+.ui-seek-slider-track {
+  position: relative;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.ui-seek-slider-picture {
+  display: flex;
+}
+
+.ui-seek-slider[data-disabled] .ui-seek-slider-track {
+  cursor: default;
+}
+
+.ui-seek-slider-thumb {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  display: block;
+  border-radius: var(--openbot-radius-pill);
+  outline: none;
+  background: var(--openbot-text-primary);
+  opacity: 0;
+}
+
+.ui-seek-slider-track:hover .ui-seek-slider-thumb,
+.ui-seek-slider-thumb:focus-visible,
+.ui-seek-slider-thumb[data-dragging] {
+  opacity: 1;
+}
+
+.ui-seek-slider-thumb:focus-visible {
+  box-shadow: var(--openbot-focus-ring);
+}
+
 .ui-slider-field[data-disabled] {
   opacity: 0.5;
 }

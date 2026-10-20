@@ -1,5 +1,6 @@
 import type { AppTextKey } from "@openbot/i18n";
 import {
+  AudioLines,
   Button,
   buttonVariants,
   DropdownMenu,
@@ -23,7 +24,7 @@ import { For, flush, onSettled, Show } from "solid-js";
  * A pane of the side panel. Each open pane has a tab at the top of the panel. A side question opens
  * from the composer only, so the launcher and Add do not list it.
  */
-export type SidePanelPane = "browser" | "files" | "tasks" | "settings" | "question";
+export type SidePanelPane = "browser" | "files" | "tasks" | "settings" | "question" | "voice";
 
 const PANE_LABELS: Record<SidePanelPane, AppTextKey> = {
   browser: "conversation.sidePanel.pane.browser",
@@ -31,6 +32,7 @@ const PANE_LABELS: Record<SidePanelPane, AppTextKey> = {
   tasks: "conversation.sidePanel.pane.tasks",
   settings: "conversation.sidePanel.pane.settings",
   question: "conversation.sidePanel.pane.question",
+  voice: "conversation.sidePanel.pane.voice",
 };
 
 /** The same glyphs as the rest of the app: the browser is the computer. */
@@ -46,6 +48,8 @@ function PaneIcon(props: { pane: SidePanelPane }): JSX.Element {
       return <Settings aria-hidden="true" />;
     case "question":
       return <MessageCircleQuestionMark aria-hidden="true" />;
+    case "voice":
+      return <AudioLines aria-hidden="true" />;
   }
 }
 

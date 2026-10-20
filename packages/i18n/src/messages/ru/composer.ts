@@ -94,6 +94,7 @@ export const messages = {
   "composer.voice.prepareFailed": "Не удалось подготовить голосовую модель. Повторите попытку.",
   "composer.voice.noSpeechRecorded": "Речь не записана.",
   "composer.voice.noSpeechDetected": "Речь не обнаружена.",
+  "composer.voice.readFailed": "Не удалось прочитать ответ вслух.",
   "composer.error.saveEditTryAgain": "Не удалось сохранить это изменение на этом компьютере. Повторите попытку.",
   "composer.error.saveUnconfirmed":
     "Сохранение не подтверждено. Нажмите «Сохранить» ещё раз, чтобы проверить результат.",

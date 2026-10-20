@@ -607,6 +607,18 @@ Network traffic can also occur when:
   `api.elevenlabs.io` with the user's own API key, and receives the text. Nothing else is sent:
   no conversation, file or agent instruction. ElevenLabs handles the audio and the text under its
   own policy and the user's ElevenLabs plan. The local models send nothing;
+- the user turns on Read replies aloud, or presses Download in the Spoken replies section of
+  **Settings → Voice**. OpenBot downloads the Supertonic 3 voice model that it pins from
+  `huggingface.co`, checks its size and SHA-256, and keeps it in `runtimes` in the application data
+  folder. The request carries no user data. The text of a reply that is read aloud, and its audio,
+  stay on the computer. The setting and the chosen voice are saved in `speech-preference.json` in
+  the same folder. In the Voice pane, speech recognition and the spoken reply run on this computer,
+  also for an agent on a remote server. A message that the user speaks to an agent on this computer
+  keeps its recording, a WebM/Opus file in the message's own transfer folder, so that the user can
+  play it again in the chat. The agent, its provider and team members get only the text. A remote
+  server gets only the text, as for a typed message, and no recording is kept. Recordings show in
+  the Storage tab of **Server Settings**, where the user can delete them, and are part of a data
+  export. A recording is deleted with the agent's or channel's data;
 - the user connects Bitwarden. OpenBot runs the installed `bw` CLI to sync with the server already
   configured in that CLI, including a self-hosted server. It syncs before listing or filling logins.
   These calls send no OpenBot conversations, files, or agent instructions to Bitwarden;

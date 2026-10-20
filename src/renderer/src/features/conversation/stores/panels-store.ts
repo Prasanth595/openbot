@@ -53,6 +53,7 @@ export const SIDE_PANEL_MODES = {
   tasks: "task",
   settings: "settings",
   question: "question",
+  voice: "voice",
 } as const satisfies Record<SidePanelPane, RightPanelMode>;
 
 function isSidePanelPane(value: string): value is SidePanelPane {

@@ -34,7 +34,9 @@ import { createSearchStore } from "./stores/search-store";
 import { createSettingsStore, runtimeSettingsEqual } from "./stores/settings-store";
 import { createSideQuestionStore } from "./stores/side-question-store";
 import { createSkillsStore } from "./stores/skills-store";
+import { createVoiceConversation } from "./stores/voice-conversation-store";
 import { createVoiceStore } from "./stores/voice-store";
+import { voiceSupported } from "./voice-status";
 
 /** At 9 encoded characters each, this many stays far below the message limit. */
 const QUOTE_TEXT_LIMIT = 2000;
@@ -1319,9 +1321,26 @@ export function createConversationViewScope(props: ConversationProps) {
   const setAttachmentPickerElement = (element: HTMLInputElement) => {
     attachmentPicker = element;
   };
+  /**
+   * A voice conversation hears and speaks on this computer, so it needs its speech models. A remote
+   * server gets the text only.
+   */
+  const voiceConversationAvailable = () => !props.runtime && voiceSupported(props.platform);
+  /** Starts a voice conversation with an agent. It ends with the owner that calls this. */
+  const startVoiceConversation = (agentId: string) =>
+    createVoiceConversation({
+      agentId,
+      serverId: props.server?.id ?? "local",
+      voice: conversationRuntime(props).voice,
+      submit: (draft, target, submittedSnapshot, voice) =>
+        actions.submitMessage(draft, target, submittedSnapshot, voice),
+      serverOnline: () => props.server?.kind !== "remote" || props.server.state === "online",
+    });
 
   return {
     replyJump,
+    voiceConversationAvailable,
+    startVoiceConversation,
     sideQuestionAvailable,
     sideQuestion,
     setSideQuestionDraft,

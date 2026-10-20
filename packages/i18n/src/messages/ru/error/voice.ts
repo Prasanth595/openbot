@@ -19,4 +19,8 @@ export const messages = {
   "error.voice.cloud.streamEnded": "Передача диктовки прервалась. Запишите ещё раз.",
   "error.voice.cloud.tooLong": "Запись слишком длинная.",
   "error.voice.cloud.keySaveFailed": "Не удалось сохранить API-ключ ElevenLabs.",
+  "error.voice.speech.runtimeUnavailable": "Локальный синтез речи недоступен на этой платформе.",
+  "error.voice.speech.modelRequired": "Скачайте модель синтеза речи в разделе «Настройки» → «Голос».",
+  "error.voice.speech.timedOut": "Время чтения ответа вслух истекло.",
+  "error.voice.speech.failed": "OpenBot не смог прочитать ответ вслух.",
 } as const satisfies PartialTranslation<typeof source>;

@@ -202,6 +202,8 @@ export class AttachmentFiles {
     this: AttachmentFiles,
     paths: string[],
     data: AttachmentDataInput[],
+    /** A voice recording is a WAV, which the user cannot attach. It never reaches a provider. */
+    options: { voiceRecording?: boolean } = {},
   ): Effect.fn.Return<StoredDraft[], AttachmentOperationError> {
     if (paths.some((path) => !path || path.length > INPUT_LIMITS.path)) {
       return yield* attachmentFailure(new Error("An attachment path is invalid."));
@@ -268,7 +270,7 @@ export class AttachmentFiles {
           const targetDirectory = join(this.#draftsRoot, id);
           preparedRoots.push(targetDirectory);
           const name = sanitizeName(item.name || "pasted-image.png");
-          assertSupportedAttachmentName(name);
+          if (!options.voiceRecording) assertSupportedAttachmentName(name);
           const targetPath = join(targetDirectory, name);
           yield* attachmentCall(() => mkdir(targetDirectory, { recursive: true, mode: 0o700 })).pipe(
             Effect.uninterruptible,

@@ -95,6 +95,7 @@ export const messages = {
   "composer.voice.prepareFailed": "Ses modeli hazırlanamadı. Tekrar deneyin.",
   "composer.voice.noSpeechRecorded": "Hiçbir konuşma kaydedilmedi.",
   "composer.voice.noSpeechDetected": "Hiçbir konuşma algılanmadı.",
+  "composer.voice.readFailed": "Yanıt sesli okunamadı.",
   "composer.error.saveEditTryAgain": "Bu düzenleme bu bilgisayarda kaydedilemedi. Tekrar deneyin.",
   "composer.error.saveUnconfirmed": "Kaydetme doğrulanmadı. Sonucu kontrol etmek için Kaydet'i tekrar deneyin.",
   "composer.error.changeModel": "Model değiştirilemedi. Tekrar deneyin.",

@@ -93,6 +93,7 @@ export const messages = {
   "composer.voice.prepareFailed": "No se pudo preparar el modelo de voz. Vuelve a intentarlo.",
   "composer.voice.noSpeechRecorded": "No se grabó ninguna voz.",
   "composer.voice.noSpeechDetected": "No se detectó ninguna voz.",
+  "composer.voice.readFailed": "No se pudo leer la respuesta en voz alta.",
   "composer.error.saveEditTryAgain": "No se pudo guardar esta edición en este equipo. Vuelve a intentarlo.",
   "composer.error.saveUnconfirmed":
     "No se ha confirmado que se haya guardado. Vuelve a pulsar Guardar para comprobar el resultado.",

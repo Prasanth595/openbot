@@ -520,6 +520,16 @@ export function parseSendMessage(value: unknown): SendMessageInput {
   if (taskId !== undefined && (!isString(taskId) || !taskId || taskId.length > INPUT_LIMITS.identifier)) {
     throw new Error("Invalid task id.");
   }
+  const voiceRecordingDraftId = value.voiceRecordingDraftId;
+  if (
+    voiceRecordingDraftId !== undefined &&
+    (!isString(voiceRecordingDraftId) ||
+      !voiceRecordingDraftId ||
+      voiceRecordingDraftId.length > INPUT_LIMITS.identifier ||
+      attachmentDraftIds.includes(voiceRecordingDraftId))
+  ) {
+    throw new Error("Invalid voice recording draft.");
+  }
   return {
     agentId: requireString(value.agentId, "agentId"),
     text: value.text,
@@ -527,6 +537,7 @@ export function parseSendMessage(value: unknown): SendMessageInput {
     replyToMessageId: replyToMessageId?.trim() || null,
     ...(clientMessageId === undefined ? {} : { clientMessageId }),
     ...(taskId === undefined ? {} : { taskId }),
+    ...(voiceRecordingDraftId === undefined ? {} : { voiceRecordingDraftId }),
   };
 }
 

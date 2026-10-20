@@ -469,6 +469,18 @@ export const messages = defineMessages("settings", {
   "settings.voice.apiKey.remove": "Remove key",
   "settings.voice.apiKey.saveFailed": "Could not save the API key. Try again.",
   "settings.voice.apiKey.removeFailed": "Could not remove the API key. Try again.",
+  "settings.voice.speech.section": "Spoken replies",
+  "settings.voice.speech.model.description": "Reads replies aloud on this computer, in 31 languages.",
+  "settings.voice.speech.readReplies.title": "Read replies aloud",
+  "settings.voice.speech.readReplies.description":
+    "When you dictate a message, the reply is read aloud. Dictate again to stop it.",
+  "settings.voice.speech.voice.title": "Voice",
+  "settings.voice.speech.voice.female": "Female voice {number}",
+  "settings.voice.speech.voice.male": "Male voice {number}",
+  "settings.voice.speech.voice.listen": "Listen",
+  "settings.voice.speech.voice.stop": "Stop",
+  "settings.voice.speech.sample": "Hello. This is how your replies will sound.",
+  "settings.voice.speech.listenFailed": "Could not play the sample.",
   // No value may end with the word "import": the CommonJS shim of electron-vite reads `import"` in the
   // main bundle as an import statement and inserts its code inside the string.
   "settings.transfer.title": "Move this server to another computer",

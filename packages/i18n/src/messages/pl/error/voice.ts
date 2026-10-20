@@ -19,4 +19,8 @@ export const messages = {
   "error.voice.cloud.streamEnded": "Przesyłanie dyktowania zostało przerwane. Nagraj ponownie.",
   "error.voice.cloud.tooLong": "Nagranie jest za długie.",
   "error.voice.cloud.keySaveFailed": "Nie udało się zapisać klucza API ElevenLabs.",
+  "error.voice.speech.runtimeUnavailable": "Lokalna synteza mowy nie jest dostępna na tej platformie.",
+  "error.voice.speech.modelRequired": "Pobierz model syntezy mowy w Ustawienia → Głos.",
+  "error.voice.speech.timedOut": "Czytanie odpowiedzi na głos trwało zbyt długo.",
+  "error.voice.speech.failed": "OpenBot nie mógł przeczytać odpowiedzi na głos.",
 } as const satisfies PartialTranslation<typeof source>;

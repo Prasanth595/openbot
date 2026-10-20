@@ -33,8 +33,9 @@ files:
 asarUnpack:
   # The database host is loaded by path as a separate process, not required into the main bundle.
   - out/main/agent-database-host.js
-  # The voice transcription host is started by path in the same way.
+  # The voice transcription and speech hosts are started by path in the same way.
   - out/main/voice-transcription-host.js
+  - out/main/voice-speech-host.js
   # The unpacked host resolves Effect without loading any application module from asar.
   - node_modules/effect/**/*
 extraResources:
@@ -69,6 +70,8 @@ extraResources:
     to: licenses/NVIDIA-Parakeet-TDT-0.6B-v3-LICENSE
   - from: build/licenses/OpenAI-Whisper-LICENSE
     to: licenses/OpenAI-Whisper-LICENSE
+  - from: build/licenses/Supertone-Supertonic-3-LICENSE
+    to: licenses/Supertone-Supertonic-3-LICENSE
 # Voice and remote desktop are prepared for macOS and Windows only, and each Computer Use driver
 # is built for one target, so their resources are listed under each platform instead of here.
 # electron-builder merges the root and platform lists, so every build still gets its own, while a

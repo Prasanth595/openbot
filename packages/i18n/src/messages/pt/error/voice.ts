@@ -19,4 +19,8 @@ export const messages = {
   "error.voice.cloud.streamEnded": "A transmissão do ditado terminou. Grave de novo.",
   "error.voice.cloud.tooLong": "A gravação é longa demais.",
   "error.voice.cloud.keySaveFailed": "Não foi possível salvar a chave de API da ElevenLabs.",
+  "error.voice.speech.runtimeUnavailable": "A voz local não está disponível nesta plataforma.",
+  "error.voice.speech.modelRequired": "Baixe o modelo de voz em Configurações → Voz.",
+  "error.voice.speech.timedOut": "A leitura da resposta em voz alta expirou.",
+  "error.voice.speech.failed": "O OpenBot não conseguiu ler a resposta em voz alta.",
 } as const satisfies PartialTranslation<typeof source>;

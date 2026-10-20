@@ -21,4 +21,8 @@ export const messages = {
   "error.voice.cloud.streamEnded": "Die Diktat-Übertragung wurde beendet. Nimm erneut auf.",
   "error.voice.cloud.tooLong": "Die Aufnahme ist zu lang.",
   "error.voice.cloud.keySaveFailed": "Der ElevenLabs-API-Schlüssel konnte nicht gespeichert werden.",
+  "error.voice.speech.runtimeUnavailable": "Lokale Sprachausgabe ist auf dieser Plattform nicht verfügbar.",
+  "error.voice.speech.modelRequired": "Lade das Sprachausgabemodell unter Einstellungen → Diktat herunter.",
+  "error.voice.speech.timedOut": "Das Vorlesen der Antwort hat zu lange gedauert.",
+  "error.voice.speech.failed": "OpenBot konnte die Antwort nicht vorlesen.",
 } as const satisfies PartialTranslation<typeof source>;
