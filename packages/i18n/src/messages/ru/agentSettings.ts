@@ -175,6 +175,12 @@ export const messages = {
   "agentSettings.automation.title": "Локальные скрипты",
   "agentSettings.automation.description":
     "Разрешить скриптам на хосте отправлять сообщения, запускать регулярные задачи, отвечать на вопросы, принимать и отклонять запросы на подтверждение",
+  "agentSettings.agentNewChat.title": "Агент начинает новые чаты",
+  "agentSettings.agentNewChat.description":
+    "Агент может начать новый чат, когда его чат становится длинным. Сначала он сохраняет заметки.",
+  "agentSettings.quickAcknowledgement.title": "Показывать план перед долгими задачами",
+  "agentSettings.quickAcknowledgement.description":
+    "Перед долгой задачей агент показывает свой план. Он начинает через 10 с или когда вы нажимаете «Начать».",
   "agentSettings.runtime.workspaceEnforcedProcess":
     "Весь процесс {provider} работает в песочнице, поэтому запись за пределами рабочего пространства не удастся. Доступно только в macOS.",
 } as const satisfies PartialTranslation<typeof source>;

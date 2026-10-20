@@ -154,6 +154,12 @@ export const messages = {
   "agentSettings.automation.title": "Lokale Skripte",
   "agentSettings.automation.description":
     "Skripten auf dem Host erlauben, Nachrichten zu senden, Routinen auszuführen, Fragen zu beantworten und Anfragen zu genehmigen oder abzulehnen",
+  "agentSettings.agentNewChat.title": "Agent startet neue Chats",
+  "agentSettings.agentNewChat.description":
+    "Der Agent darf einen neuen Chat starten, wenn sein Chat lang wird. Er speichert vorher Notizen.",
+  "agentSettings.quickAcknowledgement.title": "Plan vor langen Aufgaben zeigen",
+  "agentSettings.quickAcknowledgement.description":
+    "Vor einer langen Aufgabe zeigt der Agent seinen Plan. Er beginnt nach 10 s oder wenn du auf Start drückst.",
   "agentSettings.runtime.workspaceEnforcedProcess":
     "Der gesamte Prozess von {provider} läuft in einer Sandbox, daher schlagen Schreibzugriffe außerhalb fehl. Nur unter macOS verfügbar.",
 } as const satisfies PartialTranslation<typeof source>;

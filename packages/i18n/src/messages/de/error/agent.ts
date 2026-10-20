@@ -103,7 +103,9 @@ export const messages = {
     "Die Computersteuerung kann nur auf dem Computer geändert werden, auf dem der Agent läuft.",
   "error.agent.automationLocalOnly":
     "Lokale Skripte können nur auf dem Computer erlaubt werden, auf dem der Agent läuft.",
-  "error.agent.sideQuestionLocalOnly": "Nebenfragen funktionieren nur auf dem Computer, auf dem der Agent läuft.",
+  "error.agent.newChatLocalOnly": "Nur der Computer, auf dem der Agent läuft, kann ihm neue Chats erlauben.",
+  "error.agent.quickAcknowledgementLocalOnly":
+    "Nur der Computer, auf dem der Agent läuft, kann diese Einstellung ändern.",
   "error.agent.sideQuestionBusy": "Es laufen zu viele Nebenfragen. Versuche es gleich noch einmal.",
   "error.agent.sideQuestionFailed": "Der Agent konnte die Nebenfrage nicht beantworten. Versuche es erneut.",
   "error.agent.busyMessageModeLocalOnly":

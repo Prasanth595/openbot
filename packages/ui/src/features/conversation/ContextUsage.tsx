@@ -6,6 +6,7 @@ import {
   LoaderCircle,
   Marker,
   MarkerContent,
+  MessageCirclePlus,
   Popover,
   RadialProgress,
   type RadialProgressTone,
@@ -13,7 +14,9 @@ import {
 } from "@openbot/ui";
 import { ContentExitMotion } from "@openbot/ui/menu-motion";
 import { createEffect, createSignal, For, Match, Show, Switch } from "solid-js";
+import type { AgentProfile } from "../../data";
 import { useText } from "../../text";
+import { AgentNewChatDialog } from "./AgentNewChatDialog";
 import { CloseIcon } from "./ConversationIcons";
 import { formatChatTimestamp } from "./chat-timestamp";
 
@@ -70,10 +73,21 @@ function meterLevel(usage: ContextUsageView): "quiet" | "normal" | RadialProgres
 
 /**
  * The composer's context ring and the popover it opens. It shows how full the agent's provider
- * thread is and when it compacts.
+ * thread is and when it compacts. `newChat` adds the New chat action, which asks first.
  */
-export function ContextUsageMeter(props: { usage: ContextUsageView }) {
+export function ContextUsageMeter(props: {
+  usage: ContextUsageView;
+  newChat?:
+    | {
+        agent: Pick<AgentProfile, "name" | "avatarSeed" | "avatarHue" | "avatarUrl">;
+        start: () => Promise<void>;
+      }
+    | undefined;
+}) {
   const { t, format } = useText();
+  const [open, setOpen] = createSignal(false);
+  const [confirming, setConfirming] = createSignal(false);
+  const [trigger, setTrigger] = createSignal<HTMLElement>();
   const percent = () => format.percent(usedShare(props.usage), { maximumFractionDigits: 0 });
   const level = () => meterLevel(props.usage);
   const ringTone = (): RadialProgressTone => {
@@ -82,86 +96,119 @@ export function ContextUsageMeter(props: { usage: ContextUsageView }) {
   };
   let popover: HTMLElement | undefined;
   return (
-    <Popover.Root placement="top-end" gutter={8}>
-      <Popover.Trigger
-        class="composer-button context-meter-trigger"
-        aria-label={
-          props.usage.compacting
-            ? t("composer.context.labelCompacting")
-            : t(props.usage.estimated ? "composer.context.labelEstimated" : "composer.context.label", {
-                percent: percent(),
-              })
-        }
-      >
-        <RadialProgress
-          class="context-meter-ring"
-          aria-hidden="true"
-          value={props.usage.compacting ? 28 : usedShare(props.usage) * 100}
-          tone={ringTone()}
-          data-level={level()}
-          data-compacting={props.usage.compacting ? "" : undefined}
-        />
-      </Popover.Trigger>
-      <Popover.Portal>
-        <Popover.Content ref={(element) => (popover = element)} class="ui-popover-menu-surface context-meter-popover">
-          <ContentExitMotion panel={() => popover} />
-          <header class="context-meter-header">
-            <Popover.Title class="context-meter-title">{t("composer.context.title")}</Popover.Title>
-            <span class="context-meter-percent" data-level={level()}>
-              {t("composer.context.percent", { percent: percent() })}
-            </span>
-          </header>
-          <ContextUsageBar usage={props.usage} />
-          <p class="context-meter-tokens">
-            {t(props.usage.estimated ? "composer.context.tokensEstimated" : "composer.context.tokens", {
-              used: format.compact(props.usage.usedTokens),
-              total: format.compact(props.usage.windowTokens),
-            })}
-          </p>
-          <Show when={categoryRows(props.usage).length > 0}>
-            <ul class="context-meter-categories" aria-label={t("composer.context.breakdown")}>
-              <For each={categoryRows(props.usage)}>
-                {(row) => (
-                  <li class="context-meter-category" data-category={row.category}>
-                    <span class="context-meter-swatch" aria-hidden="true" />
-                    <span class="context-meter-category-label">{t(CATEGORY_LABEL[row.category])}</span>
-                    <span class="context-meter-category-tokens">{format.compact(row.tokens)}</span>
-                  </li>
+    <>
+      <Popover.Root open={open()} onOpenChange={setOpen} placement="top-end" gutter={8}>
+        <Popover.Trigger
+          ref={setTrigger}
+          class="composer-button context-meter-trigger"
+          aria-label={
+            props.usage.compacting
+              ? t("composer.context.labelCompacting")
+              : t(props.usage.estimated ? "composer.context.labelEstimated" : "composer.context.label", {
+                  percent: percent(),
+                })
+          }
+        >
+          <RadialProgress
+            class="context-meter-ring"
+            aria-hidden="true"
+            value={props.usage.compacting ? 28 : usedShare(props.usage) * 100}
+            tone={ringTone()}
+            data-level={level()}
+            data-compacting={props.usage.compacting ? "" : undefined}
+          />
+        </Popover.Trigger>
+        <Popover.Portal>
+          <Popover.Content ref={(element) => (popover = element)} class="ui-popover-menu-surface context-meter-popover">
+            <ContentExitMotion panel={() => popover} />
+            <header class="context-meter-header">
+              <Popover.Title class="context-meter-title">{t("composer.context.title")}</Popover.Title>
+              <span class="context-meter-percent" data-level={level()}>
+                {t("composer.context.percent", { percent: percent() })}
+              </span>
+            </header>
+            <ContextUsageBar usage={props.usage} />
+            <p class="context-meter-tokens">
+              {t(props.usage.estimated ? "composer.context.tokensEstimated" : "composer.context.tokens", {
+                used: format.compact(props.usage.usedTokens),
+                total: format.compact(props.usage.windowTokens),
+              })}
+            </p>
+            <Show when={categoryRows(props.usage).length > 0}>
+              <ul class="context-meter-categories" aria-label={t("composer.context.breakdown")}>
+                <For each={categoryRows(props.usage)}>
+                  {(row) => (
+                    <li class="context-meter-category" data-category={row.category}>
+                      <span class="context-meter-swatch" aria-hidden="true" />
+                      <span class="context-meter-category-label">{t(CATEGORY_LABEL[row.category])}</span>
+                      <span class="context-meter-category-tokens">{format.compact(row.tokens)}</span>
+                    </li>
+                  )}
+                </For>
+                <li class="context-meter-category" data-category="free">
+                  <span class="context-meter-swatch" aria-hidden="true" />
+                  <span class="context-meter-category-label">{t("composer.context.category.free")}</span>
+                  <span class="context-meter-category-tokens">
+                    {format.compact(Math.max(0, props.usage.windowTokens - props.usage.usedTokens))}
+                  </span>
+                </li>
+              </ul>
+            </Show>
+            <Popover.Description class="context-meter-note">
+              <Show
+                when={props.usage.autoCompactAt}
+                fallback={t(props.usage.nativeManaged ? "composer.context.nativeAuto" : "composer.context.noAuto")}
+              >
+                {(at) => (
+                  <>{t("composer.context.autoAt", { percent: format.percent(at(), { maximumFractionDigits: 0 }) })}</>
                 )}
-              </For>
-              <li class="context-meter-category" data-category="free">
-                <span class="context-meter-swatch" aria-hidden="true" />
-                <span class="context-meter-category-label">{t("composer.context.category.free")}</span>
-                <span class="context-meter-category-tokens">
-                  {format.compact(Math.max(0, props.usage.windowTokens - props.usage.usedTokens))}
-                </span>
-              </li>
-            </ul>
-          </Show>
-          <Popover.Description class="context-meter-note">
-            <Show
-              when={props.usage.autoCompactAt}
-              fallback={t(props.usage.nativeManaged ? "composer.context.nativeAuto" : "composer.context.noAuto")}
-            >
-              {(at) => (
-                <>{t("composer.context.autoAt", { percent: format.percent(at(), { maximumFractionDigits: 0 }) })}</>
-              )}
+              </Show>
+              <Show when={props.usage.lastCompaction}>
+                {(last) => (
+                  <>
+                    {" "}
+                    {t("composer.context.lastCompaction", {
+                      before: format.compact(last().beforeTokens),
+                      after: format.compact(last().afterTokens),
+                    })}
+                  </>
+                )}
+              </Show>
+            </Popover.Description>
+            <Show when={props.newChat}>
+              {/* A menu row under a divider: it acts on the whole context, so it sits apart from the figures. */}
+              <footer class="context-meter-footer">
+                <Button
+                  variant="ghost"
+                  type="button"
+                  class="context-meter-new-chat"
+                  aria-haspopup="dialog"
+                  disabled={props.usage.compacting}
+                  onClick={() => {
+                    setOpen(false);
+                    setConfirming(true);
+                  }}
+                >
+                  <MessageCirclePlus aria-hidden="true" />
+                  <span>{t("composer.newChat.action")}</span>
+                </Button>
+              </footer>
             </Show>
-            <Show when={props.usage.lastCompaction}>
-              {(last) => (
-                <>
-                  {" "}
-                  {t("composer.context.lastCompaction", {
-                    before: format.compact(last().beforeTokens),
-                    after: format.compact(last().afterTokens),
-                  })}
-                </>
-              )}
-            </Show>
-          </Popover.Description>
-        </Popover.Content>
-      </Popover.Portal>
-    </Popover.Root>
+          </Popover.Content>
+        </Popover.Portal>
+      </Popover.Root>
+      <Show when={props.newChat}>
+        {(newChat) => (
+          <AgentNewChatDialog
+            agent={newChat().agent}
+            open={confirming()}
+            onClose={() => setConfirming(false)}
+            start={() => newChat().start()}
+            restoreFocusTarget={trigger()}
+          />
+        )}
+      </Show>
+    </>
   );
 }
 

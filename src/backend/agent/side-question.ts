@@ -1,4 +1,5 @@
 import { CHAT_VISUAL_ITEM_TYPE_PREFIX } from "@openbot/contracts/chat-visual";
+import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import {
   type AgentSummary,
   type AskSideQuestionInput,
@@ -11,7 +12,7 @@ import { tagSafe } from "./developer-instructions";
 
 /** The chat messages a side question reads, newest last. */
 export const SIDE_QUESTION_CHAT_MESSAGES = 60;
-const MESSAGE_CHARACTERS = 4_000;
+const MESSAGE_CHARACTERS = INPUT_LIMITS.sideQuestionEarlierText;
 const CHAT_CHARACTERS = 60_000;
 const EARLIER_CHARACTERS = 60_000;
 

@@ -14,6 +14,8 @@ import type {
 } from "@openbot/contracts/ipc";
 import {
   agentComputerUseEnabled,
+  agentNewChatAllowed,
+  agentQuickAcknowledgementEnabled,
   isMessageReaction,
   marketplaceSuggestionItemType,
   skillConversationEventItemType,
@@ -39,6 +41,8 @@ import { agentMcpServers } from "../mcp-provider-shapes";
 import type { MessagingThreads } from "../messaging/messaging-threads";
 import { MESSAGING_OUTBOUND_TOOLS } from "../messaging/messaging-tools";
 import {
+  ACKNOWLEDGE_REQUEST_ACTIONS,
+  acknowledgeRequestToolSchema,
   askUiToolSchema,
   CHAT_VISUAL_PREVIEW_DEFAULT_WIDTH,
   htmlPreviewToolSchema,
@@ -99,6 +103,9 @@ import type { AgentBrowserHost } from "./turn-lifecycle";
 
 const logger = createOpenBotLogger("openbot-tool-router");
 
+/** How long the plan card of `acknowledge_request` waits before the host presses its start button. */
+const ACKNOWLEDGE_START_MS = 10_000;
+
 /** The reason says what to grant or to correct, and holds no screen content. */
 function captureFailure(failure: ScreenCaptureFailed) {
   return openBotToolFailure(failure.reason);
@@ -128,6 +135,8 @@ export interface OpenBotToolRouterHooks {
   turnActivity(agentId: string, turnId: string | null): { startedAt: number | null; lastEventAt: number | null };
   /** Records a no-update tool call for the turn; null when no routine run started the turn. */
   requestNoUpdate(agentId: string, threadId: string, turnId: string): "quiet" | "shown" | null;
+  /** Starts a new chat with the agent when its turn ends and its queue is empty. */
+  requestNewChat(agentId: string): void;
 }
 
 export interface OpenBotToolRouterOptions {
@@ -380,6 +389,10 @@ export class OpenBotToolRouter {
               this.#askUi(client, toolRequest, toolRequest.params);
               return;
             }
+            if (toolRequest.params.tool === "acknowledge_request") {
+              this.#acknowledgeRequest(client, toolRequest, toolRequest.params);
+              return;
+            }
             if (isHostedSiteMutationTool(toolRequest.params.tool)) {
               yield* this.#attention.surfaceHostedSiteApproval(
                 client,
@@ -464,6 +477,53 @@ export class OpenBotToolRouter {
       return;
     }
     this.#attention.surfaceUiBlock(client, request, { blockId, spec });
+  }
+
+  /**
+   * Shows the plan card of `acknowledge_request` and waits like `ask_ui`. When nobody answers in
+   * `ACKNOWLEDGE_START_MS`, the host presses the start button, so the work never waits long for a
+   * person who is away.
+   */
+  #acknowledgeRequest(client: AgentClient, request: AppServerRequest, params: DynamicToolCallParams): void {
+    const refuse = (message: string) => client.respond(request.id, openBotToolFailure(message));
+    const agentId = this.#conversation.agentForThread(params.threadId);
+    const agent = agentId ? this.#store.list().find((candidate) => candidate.id === agentId) : undefined;
+    if (!agent || !agentQuickAcknowledgementEnabled(agent)) {
+      refuse("The user has not turned on the plan card for you. Start the work without it.");
+      return;
+    }
+    const threadId = this.#conversation.publicThreadId(agent.id, params.threadId);
+    // Nobody presses a button in a channel or on Slack, Discord or Telegram.
+    if (this.#messaging.store.linkForThread(threadId) || this.#channels.store.channelForThread(threadId)) {
+      refuse("This chat cannot show the plan card. Do not call it here; start the work.");
+      return;
+    }
+    const parsed = acknowledgeRequestToolSchema.safeParse(params.arguments);
+    if (!parsed.success) {
+      refuse(`${z.prettifyError(parsed.error)}\nCorrect the arguments and retry.`);
+      return;
+    }
+    const { message, steps, startLabel, cancelLabel, alternativeLabel } = parsed.data;
+    const spec = normalizeUiBlockSpec({
+      type: "confirm",
+      title: message,
+      fields: steps.map((step) => ({ label: step.label, value: step.step })),
+      actions: [
+        { id: ACKNOWLEDGE_REQUEST_ACTIONS.start, label: startLabel, style: "primary" },
+        ...(alternativeLabel ? [{ id: ACKNOWLEDGE_REQUEST_ACTIONS.alternative, label: alternativeLabel }] : []),
+        { id: ACKNOWLEDGE_REQUEST_ACTIONS.cancel, label: cancelLabel, style: "ghost" },
+      ],
+    });
+    if (!spec) {
+      refuse("Each button needs a different label. Correct the labels and retry.");
+      return;
+    }
+    this.#attention.surfaceUiBlock(
+      client,
+      request,
+      { blockId: randomUUID(), spec },
+      { actionId: ACKNOWLEDGE_REQUEST_ACTIONS.start, afterMs: ACKNOWLEDGE_START_MS },
+    );
   }
 
   #requireAgent(agentId: string): AgentSummary {
@@ -717,6 +777,21 @@ export class OpenBotToolRouter {
     if (params.tool === "create_agent") return yield* this.#createAgent(params, senderAgentId);
 
     if (params.tool === "update_profile") return yield* this.#updateProfile(params, senderAgentId);
+
+    if (params.tool === "start_new_chat") {
+      const agent = this.#store.list().find((candidate) => candidate.id === senderAgentId);
+      if (!agent || !agentNewChatAllowed(agent))
+        return openBotToolFailure(
+          "The user has not allowed you to start a new chat. Ask the user to allow it in your settings, or to start a new chat there.",
+        );
+      if (agent.threadId !== this.#conversation.publicThreadId(senderAgentId, params.threadId))
+        return openBotToolFailure("You can start a new chat only from your own chat, not from a task or a channel.");
+      this.#hooks.requestNewChat(senderAgentId);
+      return openBotToolResult({
+        status: "requested",
+        note: "The new chat starts when this turn ends and your queue is empty. A queued message that runs first ends the request. Finish your answer now.",
+      });
+    }
 
     if (params.tool === ROUTINE_NO_UPDATE_TOOL) {
       const outcome = this.#hooks.requestNoUpdate(senderAgentId, executionThreadId, params.turnId);

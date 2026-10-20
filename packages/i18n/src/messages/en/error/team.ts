@@ -66,6 +66,7 @@ export const messages = defineMessages("error.team", {
   "error.team.contextResetUnsupported": "Starting a new chat is not supported by this connection.",
   "error.team.workspaceDirectoryUnsupported": "Showing folders is not supported by this connection.",
   "error.team.conversationFileSearchUnsupported": "Searching files is not supported by this connection.",
+  "error.team.sideQuestionUnsupported": "Side questions are not supported by this connection.",
   "error.team.routineFlowsUnsupported":
     "This server does not support routine flows. Update OpenBot on the computer that runs it.",
   "error.team.routineCanvasTooLarge":

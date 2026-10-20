@@ -15,9 +15,11 @@ import {
   type AvatarImageInput,
   agentAutomationAllowed,
   agentComputerUseEnabled,
+  agentNewChatAllowed,
   agentPermissionLevel,
   agentPermissionLevels,
   agentPermissionUpdate,
+  agentQuickAcknowledgementEnabled,
   type BusyMessageMode,
   type CustomAgentSummary,
   type CustomProviderSummary,
@@ -67,7 +69,7 @@ import {
 } from "@openbot/ui/components/SettingsPanel";
 import type { AgentProfile } from "@openbot/ui/data";
 import { AgentAvatar } from "@openbot/ui/features/agents/AgentAvatar";
-import { errorReference, type UserErrorDetails } from "@openbot/user-errors";
+import { errorReference } from "@openbot/user-errors";
 import type { JSX } from "@solidjs/web";
 import {
   createEffect,
@@ -82,6 +84,7 @@ import {
 } from "solid-js";
 import { useText } from "../../text";
 import { AVATAR_HUE_LABEL } from "../agents/avatar-hue-label";
+import { AgentNewChatDialog } from "./AgentNewChatDialog";
 import { BackupModelsPage } from "./BackupModels";
 
 export interface AgentRuntimeSettings {
@@ -109,6 +112,10 @@ export interface AgentSettingsPanelProps {
   computerUseEditable?: boolean;
   /** Local scripts can be changed locally or through the host's administrator route. */
   automationEditable?: boolean;
+  /** Whether the agent can start a new chat. Local-only: the Team API does not carry it. */
+  newChatEditable?: boolean;
+  /** Whether the agent shows its plan before a long task. Local-only: the Team API does not carry it. */
+  quickAcknowledgementEditable?: boolean;
   /** The busy-message setting is local-only too: the Team API does not carry it. */
   busyMessageModeEditable?: boolean;
   /** Tasks run only on this computer: the Team API has no task route. */
@@ -196,6 +203,8 @@ interface AgentSettingsDraft {
   permission: AgentPermissionLevel;
   computerUse: boolean;
   allowAutomation: boolean;
+  allowNewChat: boolean;
+  quickAcknowledgement: boolean;
   /** `default` follows the app setting. */
   busyMessage: BusyMessageChoice;
   /** `default` is `AGENT_TASK_LIMIT_DEFAULT`. */
@@ -220,19 +229,6 @@ interface TextSaveRequest {
 export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
   const { t, errorMessage, format } = useText();
   const [newChatOpen, setNewChatOpen] = createSignal(false);
-  const [newChatError, setNewChatError] = createSignal<UserErrorDetails | null>(null);
-  async function startNewChat(start: () => Promise<void>): Promise<void> {
-    setNewChatError(null);
-    try {
-      await start();
-      setNewChatOpen(false);
-    } catch (error) {
-      setNewChatError({
-        message: errorMessage(error, t("agentSettings.newChat.failed")),
-        reference: errorReference(error),
-      });
-    }
-  }
   const [draft, setDraft] = createStore<AgentSettingsDraft>({
     avatar: {
       batch: 0,
@@ -248,6 +244,8 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
     permission: untrack(() => currentPermission()),
     computerUse: true,
     allowAutomation: false,
+    allowNewChat: false,
+    quickAcknowledgement: false,
     busyMessage: "default",
     taskLimit: "default",
     backupModels: null,
@@ -363,6 +361,8 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
           currentPermission(),
           String(agentComputerUseEnabled(agent)),
           String(agentAutomationAllowed(agent)),
+          String(agentNewChatAllowed(agent)),
+          String(agentQuickAcknowledgementEnabled(agent)),
           agent.busyMessageMode ?? "default",
           String(agent.taskLimit ?? "default"),
           JSON.stringify(agent.backupModels ?? null),
@@ -405,6 +405,8 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
           state.permission = currentPermission();
           state.computerUse = agentComputerUseEnabled(agent);
           state.allowAutomation = agentAutomationAllowed(agent);
+          state.allowNewChat = agentNewChatAllowed(agent);
+          state.quickAcknowledgement = agentQuickAcknowledgementEnabled(agent);
           state.busyMessage = agent.busyMessageMode ?? "default";
           state.taskLimit = taskLimitChoice(agent.taskLimit);
           state.backupModels = agent.backupModels ?? null;
@@ -816,6 +818,32 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
     if (!disposed && props.agent.id === agentId && draft.allowAutomation === next) {
       setDraft((state) => {
         state.allowAutomation = !next;
+      });
+    }
+  }
+
+  async function saveAllowNewChat(next: boolean): Promise<void> {
+    const agentId = props.agent.id;
+    setDraft((state) => {
+      state.allowNewChat = next;
+    });
+    if (await saveAgentPatch({ allowNewChat: next }, agentId)) return;
+    if (!disposed && props.agent.id === agentId && draft.allowNewChat === next) {
+      setDraft((state) => {
+        state.allowNewChat = !next;
+      });
+    }
+  }
+
+  async function saveQuickAcknowledgement(next: boolean): Promise<void> {
+    const agentId = props.agent.id;
+    setDraft((state) => {
+      state.quickAcknowledgement = next;
+    });
+    if (await saveAgentPatch({ quickAcknowledgement: next }, agentId)) return;
+    if (!disposed && props.agent.id === agentId && draft.quickAcknowledgement === next) {
+      setDraft((state) => {
+        state.quickAcknowledgement = !next;
       });
     }
   }
@@ -1377,13 +1405,38 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
                     aria-label={t("agentSettings.newChat.confirm")}
                     aria-haspopup="dialog"
                     disabled={props.working}
-                    onClick={() => {
-                      setNewChatError(null);
-                      setNewChatOpen(true);
-                    }}
+                    onClick={() => setNewChatOpen(true)}
                   >
                     {t("agentSettings.newChat.button")}
                   </Button>
+                </div>
+              </Show>
+              <Show when={props.newChatEditable}>
+                <div class="agent-settings-notifications">
+                  <div>
+                    <strong>{t("agentSettings.agentNewChat.title")}</strong>
+                    <span>{t("agentSettings.agentNewChat.description")}</span>
+                  </div>
+                  <Switch
+                    size="sm"
+                    aria-label={t("agentSettings.agentNewChat.title")}
+                    checked={draft.allowNewChat}
+                    onChange={(next) => void saveAllowNewChat(next)}
+                  />
+                </div>
+              </Show>
+              <Show when={props.quickAcknowledgementEditable}>
+                <div class="agent-settings-notifications">
+                  <div>
+                    <strong>{t("agentSettings.quickAcknowledgement.title")}</strong>
+                    <span>{t("agentSettings.quickAcknowledgement.description")}</span>
+                  </div>
+                  <Switch
+                    size="sm"
+                    aria-label={t("agentSettings.quickAcknowledgement.title")}
+                    checked={draft.quickAcknowledgement}
+                    onChange={(next) => void saveQuickAcknowledgement(next)}
+                  />
                 </div>
               </Show>
             </Show>
@@ -1399,24 +1452,11 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
         </SettingsPanelContent>
         <Show when={props.onStartNewChat}>
           {(start) => (
-            <ConfirmDialog
+            <AgentNewChatDialog
+              agent={props.agent}
               open={newChatOpen()}
-              tone="default"
-              initialFocus="cancel"
-              media={<AgentAvatar agent={props.agent} style={{ width: "44px", height: "44px" }} />}
-              title={t("agentSettings.newChat.confirmTitle", { name: props.agent.name })}
-              description={t("agentSettings.newChat.confirmDescription")}
-              confirmLabel={t("agentSettings.newChat.confirm")}
-              error={
-                newChatError() ? (
-                  <>
-                    {newChatError()?.message}
-                    <ErrorReference reference={newChatError()?.reference} />
-                  </>
-                ) : undefined
-              }
-              onCancel={() => setNewChatOpen(false)}
-              onConfirm={() => startNewChat(start())}
+              onClose={() => setNewChatOpen(false)}
+              start={() => start()()}
             />
           )}
         </Show>

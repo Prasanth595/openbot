@@ -11,6 +11,7 @@ export const messages = {
   "composer.signIn.pending": "Anmeldung läuft…",
   "composer.signIn.label": "Bei {provider} anmelden",
   "composer.signIn.action": "Anmelden",
+  "composer.updateKey.action": "Schlüssel ändern",
   "composer.update.body": "Aktualisiere {provider}, um fortzufahren.",
   "composer.update.manual": "Aktualisiere {provider} auf dem Computer, auf dem es läuft, um fortzufahren.",
   "composer.update.pending": "Wird aktualisiert…",
@@ -124,4 +125,5 @@ export const messages = {
   "composer.context.noAuto": "Dieser Agent komprimiert seinen Kontext nicht.",
   "composer.context.lastCompaction": "Letzte Komprimierung: {before} → {after} Tokens",
   "composer.compaction.elapsed": "{minutes}:{seconds}",
+  "composer.newChat.action": "Neuer Chat",
 } as const satisfies PartialTranslation<typeof source>;

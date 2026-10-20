@@ -1922,6 +1922,9 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
   #openCodeRequestFailure(error: unknown, detail: string): string {
     if (this.provider !== "opencode" || !(error instanceof RequestError) || error.code !== -32603) return detail;
     const reason = error.message.replace(/^Internal error:\s*/u, "");
+    // OpenCode Console's own text says to replace the key in "your client"; here that is Settings (#2544).
+    if (/\bapi key has expired\b[\s\S]*\bopencode console\b/iu.test(detail))
+      return sourceText("error.provider.opencodeKeyExpired");
     // The usage notice reports an exhausted usage limit, and it reads the whole text to find one.
     if (isUsageLimitDiagnostic(reason)) return detail;
     const key = OPENCODE_REQUEST_FAILURES.find(([, pattern]) => pattern.test(reason))?.[0];

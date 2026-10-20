@@ -10,6 +10,7 @@ export const messages = {
   "composer.signIn.pending": "Logowanie…",
   "composer.signIn.label": "Zaloguj się do {provider}",
   "composer.signIn.action": "Zaloguj się",
+  "composer.updateKey.action": "Zmień klucz",
   "composer.update.body": "Zaktualizuj {provider}, aby kontynuować.",
   "composer.update.manual": "Zaktualizuj {provider} na komputerze, na którym działa, aby kontynuować.",
   "composer.update.pending": "Aktualizowanie…",
@@ -119,4 +120,5 @@ export const messages = {
   "composer.context.noAuto": "Ten agent nie kompaktuje swojego kontekstu.",
   "composer.context.lastCompaction": "Ostatnie kompaktowanie: {before} → {after} tokenów",
   "composer.compaction.elapsed": "{minutes}:{seconds}",
+  "composer.newChat.action": "Nowy czat",
 } as const satisfies PartialTranslation<typeof source>;

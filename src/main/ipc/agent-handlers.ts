@@ -44,6 +44,11 @@ import {
   PROVIDER_ACCOUNTS_CAPABILITY,
   PROVIDER_ACCOUNTS_ROUTES,
 } from "@openbot/contracts/team-protocol/provider-accounts-v1";
+import {
+  decodeSideQuestionResponse,
+  SIDE_QUESTION_CAPABILITY,
+  SIDE_QUESTION_ROUTES,
+} from "@openbot/contracts/team-protocol/side-question-v1";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger } from "@openbot/logging";
 import { duplicateAgentIntoLayout } from "../../backend/agent/duplication-gate";
@@ -367,8 +372,21 @@ export function agentIpcHandlers({
       }),
       askSideQuestion: scopedHandler(parseAskSideQuestion, {
         local: (input) => runCauseEffect(service.askSideQuestion(input)),
-        remote: () => {
-          throw new Error(sourceText("error.agent.sideQuestionLocalOnly"));
+        remote: (input, serverId) => {
+          if (!remoteServers.supportsCapability(serverId, SIDE_QUESTION_CAPABILITY))
+            throw new Error(sourceText("error.team.sideQuestionUnsupported"));
+          return runCauseEffect(
+            remoteServers.request(serverId, SIDE_QUESTION_ROUTES.ask, decodeSideQuestionResponse, {
+              method: "POST",
+              // The wire fields only, so that a new IPC field does not cross the frozen contract.
+              body: {
+                agentId: input.agentId,
+                question: input.question,
+                earlier: input.earlier.map(({ question, answer }) => ({ question, answer })),
+              },
+              timeoutMs: 150_000,
+            }),
+          );
         },
       }),
       saveProfile: scopedHandler(parseSaveAgentProfile, {
@@ -407,6 +425,12 @@ export function agentIpcHandlers({
           }
           if (input.allowAutomation !== undefined) {
             throw new Error(sourceText("error.agent.automationLocalOnly"));
+          }
+          if (input.allowNewChat !== undefined) {
+            throw new Error(sourceText("error.agent.newChatLocalOnly"));
+          }
+          if (input.quickAcknowledgement !== undefined) {
+            throw new Error(sourceText("error.agent.quickAcknowledgementLocalOnly"));
           }
           if (input.busyMessageMode !== undefined) {
             throw new Error(sourceText("error.agent.busyMessageModeLocalOnly"));

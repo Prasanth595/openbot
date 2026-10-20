@@ -81,6 +81,10 @@ type PersistedStoredAgent = Omit<StoredAgent, "avatarUrl" | "provider" | "access
   computerUse?: boolean;
   // Absent on every agent stored before the setting existed, which keeps automation off.
   allowAutomation?: boolean;
+  // Absent on every agent stored before the setting existed, which keeps the agent from starting a new chat.
+  allowNewChat?: boolean;
+  // Absent on every agent stored before the setting existed, which keeps the acknowledgement off.
+  quickAcknowledgement?: boolean;
   // Absent means the app default, as for every agent stored before the setting existed.
   busyMessageMode?: BusyMessageMode;
   // Absent means the default task limit, as for every agent stored before tasks existed.
@@ -677,6 +681,14 @@ export class AgentStore {
       if (input.allowAutomation !== undefined) {
         if (!isBoolean(input.allowAutomation)) throw new Error("Invalid automation value.");
         next.allowAutomation = input.allowAutomation;
+      }
+      if (input.allowNewChat !== undefined) {
+        if (!isBoolean(input.allowNewChat)) throw new Error("Invalid new chat value.");
+        next.allowNewChat = input.allowNewChat;
+      }
+      if (input.quickAcknowledgement !== undefined) {
+        if (!isBoolean(input.quickAcknowledgement)) throw new Error("Invalid quick acknowledgement value.");
+        next.quickAcknowledgement = input.quickAcknowledgement;
       }
       // A provider change without an account returns the agent to the new provider's own sign-in.
       if (
@@ -1760,6 +1772,8 @@ function isStoredAgent(value: unknown): value is PersistedStoredAgent {
     (record.access === undefined || isAgentAccess(record.access)) &&
     (record.computerUse === undefined || isBoolean(record.computerUse)) &&
     (record.allowAutomation === undefined || isBoolean(record.allowAutomation)) &&
+    (record.allowNewChat === undefined || isBoolean(record.allowNewChat)) &&
+    (record.quickAcknowledgement === undefined || isBoolean(record.quickAcknowledgement)) &&
     (record.busyMessageMode === undefined || isBusyMessageMode(record.busyMessageMode)) &&
     (record.taskLimit === undefined || isAgentTaskLimit(record.taskLimit)) &&
     (record.providerAccountId === undefined || isProviderAccountId(record.providerAccountId)) &&
@@ -1824,6 +1838,14 @@ function readStoredAgent(value: unknown): ReadStoredAgent | UnreadableStoredAgen
     value.allowAutomation === undefined || isBoolean(value.allowAutomation)
       ? value.allowAutomation
       : reset("allowAutomation", undefined);
+  const allowNewChat =
+    value.allowNewChat === undefined || isBoolean(value.allowNewChat)
+      ? value.allowNewChat
+      : reset("allowNewChat", undefined);
+  const quickAcknowledgement =
+    value.quickAcknowledgement === undefined || isBoolean(value.quickAcknowledgement)
+      ? value.quickAcknowledgement
+      : reset("quickAcknowledgement", undefined);
   const busyMessageMode =
     value.busyMessageMode === undefined || isBusyMessageMode(value.busyMessageMode)
       ? value.busyMessageMode
@@ -1890,6 +1912,8 @@ function readStoredAgent(value: unknown): ReadStoredAgent | UnreadableStoredAgen
     ...(access === undefined ? {} : { access }),
     ...(computerUse === undefined ? {} : { computerUse }),
     ...(allowAutomation === undefined ? {} : { allowAutomation }),
+    ...(allowNewChat === undefined ? {} : { allowNewChat }),
+    ...(quickAcknowledgement === undefined ? {} : { quickAcknowledgement }),
     ...(busyMessageMode === undefined ? {} : { busyMessageMode }),
     ...(taskLimit === undefined ? {} : { taskLimit }),
     ...(providerAccountId === undefined ? {} : { providerAccountId }),

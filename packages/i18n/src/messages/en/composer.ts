@@ -9,6 +9,7 @@ export const messages = defineMessages("composer", {
   "composer.signIn.pending": "Signing in…",
   "composer.signIn.label": "Sign in to {provider}",
   "composer.signIn.action": "Sign in",
+  "composer.updateKey.action": "Update key",
   "composer.update.body": "Update {provider} to continue.",
   "composer.update.manual": "Update {provider} on the computer that runs it to continue.",
   "composer.update.pending": "Updating…",
@@ -117,4 +118,5 @@ export const messages = defineMessages("composer", {
   "composer.context.noAuto": "This agent does not compact its context.",
   "composer.context.lastCompaction": "Last compaction: {before} → {after} tokens",
   "composer.compaction.elapsed": "{minutes}:{seconds}",
+  "composer.newChat.action": "New chat",
 });

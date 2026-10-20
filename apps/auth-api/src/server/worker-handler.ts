@@ -202,7 +202,7 @@ function tickHostedServers(
       authEvents = delivery;
     },
   });
-  // The cron waits for the analytics sends itself. They never reject.
+  // The cron waits for the analytics sends and server start commands itself. They never reject.
   const sends: Effect.Effect<void>[] = [];
   return Effect.gen(function* () {
     const result = yield* createHostedBilling(bindings, {

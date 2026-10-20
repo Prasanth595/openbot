@@ -1,5 +1,6 @@
 import type {
   AgentSessionSettings,
+  AskSideQuestionInput,
   AttachmentSummary,
   FilePreview,
   OpenBotDesktopApi,
@@ -60,6 +61,8 @@ export interface ConversationRuntime {
     | "onStreamTranscript"
   >;
   openUrl: OpenBotDesktopApi["openUrl"];
+  /** Asks the connected host a side question. Absent, the host does not serve `side-question-v1`. */
+  askSideQuestion?: ((input: AskSideQuestionInput) => Promise<string>) | undefined;
   previewAttachment?: (attachment: AttachmentSummary) => Promise<FilePreview>;
   /** Loads attachment images and media for a client that gets no `previewUrl`. */
   attachmentMedia?: AttachmentMediaSource;

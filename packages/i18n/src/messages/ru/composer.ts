@@ -11,6 +11,7 @@ export const messages = {
   "composer.signIn.pending": "Вход…",
   "composer.signIn.label": "Войти в {provider}",
   "composer.signIn.action": "Войти",
+  "composer.updateKey.action": "Сменить ключ",
   "composer.update.body": "Обновите {provider}, чтобы продолжить.",
   "composer.update.manual": "Обновите {provider} на компьютере, где он запущен, чтобы продолжить.",
   "composer.update.pending": "Обновление…",
@@ -121,4 +122,5 @@ export const messages = {
   "composer.context.noAuto": "Этот агент не сжимает свой контекст.",
   "composer.context.lastCompaction": "Последнее сжатие: {before} → {after} токенов",
   "composer.compaction.elapsed": "{minutes}:{seconds}",
+  "composer.newChat.action": "Новый чат",
 } as const satisfies PartialTranslation<typeof source>;
