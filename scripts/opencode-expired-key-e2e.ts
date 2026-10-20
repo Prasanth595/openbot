@@ -3,7 +3,8 @@
 // `OPENCODE_API_KEY`. An old key in `auth.json` used to win over the key pasted into OpenBot (#2544).
 // Checks that an expired key reads as the expired-key error, not "Internal error"; that a replaced
 // key reaches a new process and the same thread there, although `auth.json` still holds the old
-// key; and that with no stored key the config names no key, so the user's own sign-in stays in use.
+// key; that with no stored key the config names no key, so the user's own sign-in stays in use; and
+// that a custom endpoint saved as `opencode-go` keeps its URL when a key is stored.
 // `bun run test:opencode-expired-key`. Writes .openbot-build/opencode-expired-key-e2e/report.json.
 import assert from "node:assert/strict";
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -13,6 +14,7 @@ import { sourceText } from "@openbot/i18n/source";
 import type { AgentClient } from "../src/backend/agent-client";
 import type { AgentCliInfo } from "../src/backend/cli";
 import { runCauseEffect } from "../src/backend/effect-boundary";
+import type { CustomProviderConfig } from "../src/backend/opencode-config";
 import { type AppServerNotification, getString } from "../src/backend/protocol";
 import { NO_PROVIDER_CREDENTIALS, requireProviderDriver } from "../src/backend/provider-drivers";
 
@@ -32,7 +34,8 @@ const write = (message) => process.stdout.write(JSON.stringify({ jsonrpc: "2.0",
 const MODEL = "opencode-go/glm-5.3";
 const setup = (sessionId) => ({ sessionId,
   models: { availableModels: [{ modelId: MODEL, name: "GLM 5.3" }], currentModelId: MODEL } });
-log({ event: "spawn", configKey });
+log({ event: "spawn", configKey, baseURL: config.provider?.["opencode-go"]?.options?.baseURL ?? null,
+  zenKey: config.provider?.opencode?.options?.apiKey ?? null });
 let count = 0;
 function handle(message) {
   if (message.id === undefined) return;
@@ -81,6 +84,8 @@ setInterval(() => {}, 1000);
 interface LogEntry {
   event: "spawn" | "load" | "prompt";
   configKey?: string | null;
+  baseURL?: string | null;
+  zenKey?: string | null;
   sessionId?: string;
   key?: string | null;
 }
@@ -90,6 +95,7 @@ interface Report {
   expired?: { error: string };
   replaced?: { thread: string; loaded: boolean; key: string | null };
   noStoredKey?: { configKey: string | null; key: string | null };
+  endpoint?: { baseURL: string | null; zenKey: string | null };
 }
 
 const root = await mkdtemp(join(tmpdir(), "openbot-opencode-expired-key-e2e-"));
@@ -97,6 +103,7 @@ const log = join(root, "opencode.jsonl");
 const report: Report = { passed: false };
 const clients: AgentClient[] = [];
 let storedKey: string | null = "expired";
+let endpoints: CustomProviderConfig[] = [];
 process.env.FAKE_OPENCODE_LOG = log;
 process.env.FAKE_AUTH_KEY = "expired";
 
@@ -113,6 +120,7 @@ function open(cli: AgentCliInfo): AgentClient {
   const client = requireProviderDriver("opencode").createClient(cli, 10_000, {
     ...NO_PROVIDER_CREDENTIALS,
     apiKey: (provider) => (provider === "opencode" ? storedKey : null),
+    customProviders: () => endpoints,
   });
   clients.push(client);
   client.start();
@@ -143,6 +151,15 @@ async function runTurn(client: AgentClient, thread: string): Promise<string | nu
   );
   await done;
   return failure;
+}
+
+async function waitForSpawn(): Promise<LogEntry> {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const spawn = (await readLog()).find((entry) => entry.event === "spawn");
+    if (spawn) return spawn;
+    await new Promise((settle) => setTimeout(settle, 50));
+  }
+  throw new Error("The fake OpenCode did not start.");
 }
 
 async function startThread(client: AgentClient, cwd: string): Promise<string> {
@@ -196,6 +213,28 @@ try {
   const ownPrompt = own.find((entry) => entry.event === "prompt");
   assert.equal(ownPrompt?.key, "own", "The user's own key is used.");
   report.noStoredKey = { configKey: spawn?.configKey ?? null, key: ownPrompt?.key ?? null };
+  await runCauseEffect(third.stop());
+
+  // 4. A custom endpoint saved as `opencode-go` replaces that built-in provider, so the stored key
+  // must not drop its URL. The `opencode` provider still gets the key.
+  storedKey = "fresh";
+  endpoints = [
+    {
+      id: "opencode-go",
+      name: "Local",
+      baseUrl: "http://127.0.0.1:1234/v1",
+      apiKey: null,
+      models: [{ id: "m", name: "M" }],
+      headers: [],
+    },
+  ];
+  await rm(log, { force: true });
+  open(cli);
+  const endpointSpawn = await waitForSpawn();
+  assert.equal(endpointSpawn.baseURL, "http://127.0.0.1:1234/v1", "The endpoint keeps its URL.");
+  assert.equal(endpointSpawn.configKey, null, "The stored key does not replace the endpoint's options.");
+  assert.equal(endpointSpawn.zenKey, "fresh", "The OpenCode provider gets the stored key.");
+  report.endpoint = { baseURL: endpointSpawn.baseURL ?? null, zenKey: endpointSpawn.zenKey ?? null };
   report.passed = true;
 } finally {
   await Promise.all(clients.map((client) => runCauseEffect(client.stop()).catch(() => undefined)));
