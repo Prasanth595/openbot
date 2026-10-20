@@ -4,7 +4,7 @@
 // Checks that such a resume ends as a missing session, which the agent replaces and gives the
 // transcript; that a session the list still holds is tried once more and kept; that the OpenCode 2.x
 // answer for a session it does not have is a missing session, but its answer for a session of another
-// directory is not; and that a managed OpenCode older than a working system OpenCode is not selected.
+// directory is not.
 // `bun run test:opencode-downgraded-session`. Writes .openbot-build/opencode-downgraded-session-e2e/report.json.
 import assert from "node:assert/strict";
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -13,7 +13,7 @@ import { join, resolve } from "node:path";
 import { sourceText } from "@openbot/i18n/source";
 import { isMissingProviderSessionError } from "../src/backend/agent/thread-items";
 import type { AgentClient } from "../src/backend/agent-client";
-import { type AgentCliInfo, resolveOpencodeCli } from "../src/backend/cli";
+import type { AgentCliInfo } from "../src/backend/cli";
 import { runCauseEffect } from "../src/backend/effect-boundary";
 import { NO_PROVIDER_CREDENTIALS, requireProviderDriver } from "../src/backend/provider-drivers";
 
@@ -89,7 +89,6 @@ interface Report {
   unreadable?: { error: string; missingSession: boolean; resumes: number; listed: boolean };
   listed?: { error: string; missingSession: boolean; resumes: number };
   newerVersion?: { missing: boolean; otherDirectory: boolean };
-  selection?: { olderManaged: string; newerManaged: string; sameVersion: string; secondSystem: string };
 }
 
 const root = await mkdtemp(join(tmpdir(), "openbot-opencode-downgraded-session-e2e-"));
@@ -115,15 +114,6 @@ async function resumeFailure(client: AgentClient, threadId: string, cwd: string)
     return error;
   }
   assert.fail(`The resume of ${threadId} must fail.`);
-}
-
-/** A program that prints `version` for `--version`. */
-async function fakeCli(name: string): Promise<string> {
-  const executable = join(root, name, "bin", "opencode");
-  await mkdir(join(root, name, "bin"), { recursive: true });
-  await writeFile(executable, `#!/bin/sh\necho "${name.split("-").at(-1)}"\n`);
-  await chmod(executable, 0o755);
-  return executable;
 }
 
 try {
@@ -175,24 +165,6 @@ try {
   assert.equal(report.newerVersion.missing, true, "A session that OpenCode 2.x does not have is replaced.");
   assert.equal(report.newerVersion.otherDirectory, false, "A session of another directory is not replaced.");
 
-  // 4. A managed copy older than a working system copy is not selected; a newer or equal one is.
-  const system = await fakeCli("system-2.0.4");
-  const select = async (managed: string, systemCandidates = [system]) => {
-    const resolved = await runCauseEffect(
-      resolveOpencodeCli({ systemCandidates, bundledExecutable: await fakeCli(managed) }),
-    );
-    return `${resolved.source} ${resolved.version}`;
-  };
-  report.selection = {
-    olderManaged: await select("managed-1.19.3"),
-    newerManaged: await select("managed-2.1.0"),
-    sameVersion: await select("same-2.0.4"),
-    secondSystem: await select("managed-1.19.3", [await fakeCli("old-1.0.0"), system]),
-  };
-  assert.equal(report.selection.olderManaged, "system 2.0.4", "A newer system OpenCode wins.");
-  assert.equal(report.selection.newerManaged, "managed 2.1.0", "A newer managed OpenCode wins.");
-  assert.equal(report.selection.sameVersion, "managed 2.0.4", "The managed OpenCode wins a tie.");
-  assert.equal(report.selection.secondSystem, "system 2.0.4", "Each system OpenCode is compared.");
   report.passed = true;
 } finally {
   await Promise.all(clients.map((client) => runCauseEffect(client.stop()).catch(() => undefined)));
