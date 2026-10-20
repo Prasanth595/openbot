@@ -940,15 +940,15 @@ const { sync: drainStep, rewrap: toDeliveryStartFailed } = causeHelpers(Delivery
 /**
  * The Codex service tier of a turn. Codex keeps the tier for the next turns of the thread. An agent
  * that never set fast mode sends nothing, so Codex keeps its own tier; `null` returns the thread to
- * the standard tier.
+ * the standard tier. While the catalog does not know the fast tier of the model, such as before
+ * Codex lists its models, the turn sends nothing and keeps the tier of the thread.
  */
 function codexServiceTier(
   agent: Pick<AgentSummary, "fastMode" | "model">,
   models: readonly AgentModelOption[],
 ): { serviceTier?: string | null } {
   if (agent.fastMode === undefined) return {};
-  const tier = agent.fastMode
-    ? models.find((model) => model.provider === "codex" && model.id === agent.model)?.fastServiceTier
-    : undefined;
-  return { serviceTier: tier ?? null };
+  if (!agent.fastMode) return { serviceTier: null };
+  const tier = models.find((model) => model.provider === "codex" && model.id === agent.model)?.fastServiceTier;
+  return tier ? { serviceTier: tier } : {};
 }
