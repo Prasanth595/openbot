@@ -1,6 +1,5 @@
 import type { McpSignInRelayPage, UpdateAgentInput } from "@openbot/contracts/ipc";
 import type { QuoteRequest } from "@openbot/ui/features/conversation/ComposerEditor";
-import { scrollToUnreadBoundary } from "@openbot/ui/features/conversation/UnreadMessages";
 import { currentText } from "@openbot/ui/text";
 import { errorReference } from "@openbot/user-errors";
 import {
@@ -651,8 +650,11 @@ export function createConversationViewScope(props: ConversationProps) {
   let readerIntent: { up: boolean; at: number } | undefined;
   let lastTouchY: number | undefined;
   let currentUnreadCount = 0;
-  let unreadOpeningIdentity: string | undefined;
-  let unreadOpeningPending = false;
+  let unreadOpening: { identity: string | undefined; pending: boolean; boundaryId: string | null | undefined } = {
+    identity: undefined,
+    pending: false,
+    boundaryId: undefined,
+  };
   let conversationPanel: HTMLElement | undefined;
   const [browserSurface, setBrowserSurface] = createSignal<HTMLDivElement>();
   /** A link sign-in that the host relays, while it waits for the address that the browser shows. */
@@ -971,8 +973,10 @@ export function createConversationViewScope(props: ConversationProps) {
   );
 
   /*
-   * A chat with unread messages opens at the divider, with one read row above it, so the reader
-   * sees where they stopped. It runs after the effect above, so it cancels that effect's follow.
+   * A chat with unread messages opens at the divider, with the end of the last read row above it, so
+   * the reader sees where they stopped. It runs after the effect above, so it cancels that effect's
+   * follow. A boundary that the chat has not loaded yet waits for its page; a different boundary,
+   * such as a message that arrives later, or a scroll by the reader ends the wait.
    */
   createEffect(
     () => {
@@ -980,30 +984,41 @@ export function createConversationViewScope(props: ConversationProps) {
       return {
         identity: `${props.server?.id ?? "local"}:${props.agent?.id ?? ""}`,
         loaded: props.loaded,
+        boundaryId,
         boundaryIndex: boundaryId ? timelineIndexById().get(boundaryId) : undefined,
       };
     },
-    ({ identity, loaded, boundaryIndex }) => {
-      if (identity !== unreadOpeningIdentity) {
-        unreadOpeningIdentity = identity;
-        unreadOpeningPending = true;
+    ({ identity, loaded, boundaryId, boundaryIndex }) => {
+      if (identity !== unreadOpening.identity) {
+        unreadOpening = { identity, pending: true, boundaryId: undefined };
       }
-      if (!unreadOpeningPending || !loaded) return;
-      unreadOpeningPending = false;
-      if (boundaryIndex === undefined || readerLeftLatest) return;
+      if (!unreadOpening.pending || !loaded) return;
+      unreadOpening.boundaryId ??= boundaryId;
+      if (!boundaryId || boundaryId !== unreadOpening.boundaryId || readerLeftLatest) {
+        unreadOpening.pending = false;
+        return;
+      }
+      if (boundaryIndex === undefined) return;
+      unreadOpening.pending = false;
       stickToLatest = false;
       if (latestScrollFrame !== undefined) cancelAnimationFrame(latestScrollFrame);
       if (latestScrollSettleFrame !== undefined) cancelAnimationFrame(latestScrollSettleFrame);
       latestScrollFrame = undefined;
       latestScrollSettleFrame = undefined;
-      messageVirtualizer.scrollToIndex(boundaryIndex);
+      // A virtualized chat draws only the rows near the view, so the divider row is drawn first.
+      if (!unreadMessagesDivider?.isConnected) messageVirtualizer.scrollToIndex(boundaryIndex);
       const openAtDivider = (settle: boolean) =>
         requestAnimationFrame(() => {
-          if (unreadOpeningIdentity !== identity || readerLeftLatest || !scrollElement) return;
+          if (unreadOpening.identity !== identity || readerLeftLatest || !scrollElement) return;
           const divider = unreadMessagesDivider;
           if (divider?.isConnected) {
             const readRow = divider.closest(".virtual-chat-row")?.previousElementSibling;
-            scrollToUnreadBoundary(scrollElement, readRow instanceof HTMLElement ? readRow : divider, "instant");
+            const viewTop = scrollElement.getBoundingClientRect().top - scrollElement.scrollTop;
+            const dividerTop = divider.getBoundingClientRect().top - viewTop;
+            const readTop = readRow instanceof HTMLElement ? readRow.getBoundingClientRect().top - viewTop : dividerTop;
+            // A long read row shows only its end, so the divider stays in view. An offset, not an index:
+            // the virtualizer would otherwise move back to the divider row as rows measure.
+            messageVirtualizer.scrollToOffset(Math.max(0, readTop, dividerTop - scrollElement.clientHeight / 3));
           }
           updateScrollFade(scrollElement);
           updateUnreadDividerVisibility();
