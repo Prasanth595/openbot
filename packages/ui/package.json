@@ -76,6 +76,8 @@
     "./features/billing/BillingPanel": "./src/features/billing/BillingPanel.tsx",
     "./features/billing/billing-store": "./src/features/billing/billing-store.ts",
     "./features/billing/billing.css": "./src/features/billing/billing.css",
+    "./features/billing/LicenseSection": "./src/features/billing/LicenseSection.tsx",
+    "./features/billing/license-store": "./src/features/billing/license-store.ts",
     "./features/channels/ChannelActivityIndicator": "./src/features/channels/ChannelActivityIndicator.tsx",
     "./features/channels/ChannelAvatar": "./src/features/channels/ChannelAvatar.tsx",
     "./features/channels/ChannelMemberRow": "./src/features/channels/ChannelMemberRow.tsx",

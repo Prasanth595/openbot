@@ -120,7 +120,7 @@ export const messages = {
   "settings.tab.updates.title": "Обновления",
   "settings.tab.updates.description": "Поддерживайте OpenBot на этом компьютере в актуальном состоянии.",
   "settings.tab.billing.title": "Оплата",
-  "settings.tab.billing.description": "Тарифы серверов, способ оплаты и счета.",
+  "settings.tab.billing.description": "Лицензия, тарифы серверов, способ оплаты и счета.",
   "settings.tab.hostedServers.title": "Облачные серверы",
   "settings.tab.hostedServers.description": "Серверы OpenBot, которые работают, даже когда этот компьютер выключен.",
   "settings.sections.label": "Разделы настроек",

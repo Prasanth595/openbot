@@ -437,6 +437,7 @@ import type {
   VoiceTranscriptionInput,
   VoiceTranscriptionResult,
 } from "./ipc-voice";
+import type { LicenseCheckoutRequest, LicenseRenewalRequest, LicenseState, LicenseUsersRequest } from "./license";
 import type { AccountSession, MobileConnectedDevice, MobileConnectLink, MobileConnectTicket } from "./mobile-connect";
 
 declare const payloadType: unique symbol;
@@ -976,6 +977,13 @@ export const IPC_ENDPOINTS = {
     getState: request<undefined, BillingState>()("billing:get-state"),
     openPortal: request<BillingPortalRequest, void>()("billing:open-portal"),
   },
+  // The commercial license of the account. Main opens the Checkout page; the renderer never sends a URL.
+  license: {
+    getState: request<undefined, LicenseState>()("license:get-state"),
+    openCheckout: request<LicenseCheckoutRequest, void>()("license:open-checkout"),
+    setUsers: request<LicenseUsersRequest, LicenseState>()("license:set-users"),
+    setRenewal: request<LicenseRenewalRequest, LicenseState>()("license:set-renewal"),
+  },
   // OpenBot servers that the account server runs for this account. `wake` also works for a server
   // that the account is a member of; it answers 404 for a host that is not a hosted server.
   hostedServers: {
@@ -1488,6 +1496,7 @@ export const IPC_GROUP_PATHS = {
   routineFlows: "routineFlows",
   routineResults: "routineResults",
   billing: "billing",
+  license: "license",
   hostedServers: "hostedServers",
   marketplaceAgents: "marketplaceAgents",
   agentTemplates: "agentTemplates",

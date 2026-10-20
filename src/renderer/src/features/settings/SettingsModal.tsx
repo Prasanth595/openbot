@@ -6,6 +6,7 @@ import type {
   CentralAuthUser,
   DynamicIslandGeometry,
   HostedServersDesktopApi,
+  LicenseDesktopApi,
   MobileConnectedDevice,
   MobileConnectLink,
   MobileConnectTicket,
@@ -24,6 +25,8 @@ import {
 } from "@openbot/ui";
 import { BillingPanel } from "@openbot/ui/features/billing/BillingPanel";
 import { createBillingStore } from "@openbot/ui/features/billing/billing-store";
+import { LicenseSection } from "@openbot/ui/features/billing/LicenseSection";
+import { createLicenseStore } from "@openbot/ui/features/billing/license-store";
 import type { GeneralSettingsValue } from "@openbot/ui/features/settings/app-settings";
 import { SettingsDialogShell, type SettingsPagePlacement } from "@openbot/ui/features/settings/SettingsDialogShell";
 import { SettingsMobileConnectTab } from "@openbot/ui/features/settings/SettingsMobileConnectTab";
@@ -80,6 +83,10 @@ export interface SettingsModalProps {
   onSignOut?: (() => Promise<void>) | undefined;
   processAvatarFile?: (file: File) => Promise<AvatarImageInput>;
   billingApi?: BillingDesktopApi;
+  /** The commercial license of the account. It shows only when the account server sells licenses. */
+  licenseApi?: LicenseDesktopApi | undefined;
+  /** Opens the sales contact, for a license with more users than the app sells. */
+  onContactUs?: (() => void) | undefined;
   /** The account's hosted servers. The tab is shown only when the account server offers them. */
   hostedServersApi?: HostedServersDesktopApi | undefined;
   /** Opens the add server dialog from the Hosted servers tab. */
@@ -120,6 +127,10 @@ export function SettingsModal(props: SettingsModalProps) {
   const updates = createSettingsUpdatesStore(props);
   const billing = createBillingStore(
     () => props.billingApi,
+    () => props.open && activeTab() === "billing",
+  );
+  const license = createLicenseStore(
+    () => props.licenseApi,
     () => props.open && activeTab() === "billing",
   );
   const hostedServers = createSettingsHostedServersStore(props, () => activeTab() === "billing");
@@ -303,6 +314,13 @@ export function SettingsModal(props: SettingsModalProps) {
             available={Boolean(props.billingApi)}
             hostedServers={hostedServers}
             onAddServer={hostedServers.state.available ? props.onAddHostedServer : undefined}
+            license={
+              <LicenseSection
+                store={license}
+                onManagePayment={() => void billing.openPortal({ flow: "manage" })}
+                onContactUs={props.onContactUs}
+              />
+            }
           />
         </Tabs.Content>
 

@@ -8,6 +8,13 @@ export const messages = {
   "error.billing.restartBusy": "サーバーは今は再起動できません。1 分後にもう一度お試しください。",
   "error.billing.planRequired": "このサーバーのプランは終了しました。サーバーを起動するにはプランを更新してください。",
   // Billing errors.
+  "error.billing.licenseExists": "このアカウントにはすでにライセンスがあります。代わりにユーザー数を変更してください。",
+  "error.billing.licenseCurrency": "ライセンスは他のプランと同じ通貨を使う必要があります。",
+  "error.billing.licenseUsersInUse": "ライセンスのユーザー数を、現在使っている人数より少なくすることはできません。",
+  "error.billing.licensePaymentFailed":
+    "追加ユーザーの支払いに失敗しました。支払い方法を更新して、もう一度お試しください。",
+  "error.billing.licenseUnavailable": "現在ライセンスは利用できません。",
+  "error.billing.noLicense": "このアカウントにはライセンスがありません。",
   "error.billing.invalidRequest": "お支払いのリクエストが無効です。",
   "error.billing.invalidResponse": "お支払いの応答が無効です。",
   "error.billing.notStripePage": "お支払いページが Stripe のページではありません。",

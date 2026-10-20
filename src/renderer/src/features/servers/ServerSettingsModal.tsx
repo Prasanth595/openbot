@@ -36,6 +36,7 @@ import {
   Text,
   UsersRound,
 } from "@openbot/ui";
+import type { LicenseCalls } from "@openbot/ui/features/billing/license-store";
 import {
   SaveBarDock,
   SettingsDialogShell,
@@ -86,6 +87,11 @@ export interface ServerSettingsModalProps {
   onSetMuted?: (muted: boolean) => Promise<void>;
   onSetNotificationLevel?: (level: ServerNotificationLevel) => Promise<void>;
   onCreateInvite: (input: { role: "admin" | "member"; email?: string; permanent?: boolean }) => Promise<InviteSummary>;
+  /**
+   * The license of the signed-in account. When the owner invites a person to a full license, the
+   * Members section first asks to add a user to it. Absent on surfaces with no account license.
+   */
+  license?: Pick<LicenseCalls, "getState" | "setUsers"> | undefined;
   onUpdateMember: (input: UpdateTeamMemberInput) => Promise<void>;
   onRemoveMember: (memberId: string) => Promise<void>;
   onRevokeInvite: (inviteId: string) => Promise<void>;

@@ -136,6 +136,7 @@ import { createMockGitHubConnector } from "./mock-github-connector";
 import { createMockHostTimezone } from "./mock-host-timezone";
 import { createMockHostUpdate, type MockHostUpdateOptions } from "./mock-host-update";
 import { createMockHostedServers } from "./mock-hosted-servers";
+import { createMockLicense } from "./mock-license";
 import { createMockMessaging } from "./mock-messaging";
 import { createMockOnePasswordConnector } from "./mock-onepassword-connector";
 import { createMockProviderRuntimes, type MockProviderRuntimeOptions } from "./mock-provider-runtimes";
@@ -1019,6 +1020,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
     onePasswordConnector: createMockOnePasswordConnector(),
     bitwardenConnector: createMockBitwardenConnector(),
     billing: createMockBilling(billingPlans),
+    license: createMockLicense(),
     routineFeed: createMockRoutineFeed(),
     hostedServers: createMockHostedServers(billingPlans),
     customProviders: {

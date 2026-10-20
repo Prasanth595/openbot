@@ -266,7 +266,8 @@ The service stores:
   workspace files, memories, conversations, or integration credentials.
 - billing records when the account starts a paid plan: the Stripe customer ID, and for
   each subscription the Stripe subscription ID, plan, billing period, currency, price, status, period end,
-  and whether it ends at the period end. The service also keeps the ID, type and receive time of each
+  and whether it ends at the period end. For a license, it keeps the same fields and the number of
+  users in place of the plan. The service also keeps the ID, type and receive time of each
   Stripe webhook event for 7 days, to ignore a repeated event. These records hold no card data.
 - hosted sites: the hostname, title, description, framework, state, owner account ID, lifecycle
   times, and for each deployment the file list, sizes and content types. The published site files
@@ -451,7 +452,8 @@ Stripe sends the account service the subscription state, the plan, its price, th
 account and server IDs that the subscription names, never the card number. When you choose a plan
 for a new hosted server, the account service sends Stripe your account email and account ID (to
 make the Stripe customer), and the server ID, the plan, the billing period and the currency (to
-open Stripe Checkout, `checkout.stripe.com`). When you delete a hosted server, the account service
+open Stripe Checkout, `checkout.stripe.com`). When you buy or change a license, it sends Stripe
+your account ID, the number of users and the currency, and no names or emails of the users. When you delete a hosted server, the account service
 tells Stripe to cancel its plan. When you manage billing,
 the account service sends Stripe your Stripe customer ID, and the subscription ID of the plan you
 change or cancel, to open the Stripe Customer Portal (`billing.stripe.com`). Stripe keeps the

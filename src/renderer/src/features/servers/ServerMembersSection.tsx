@@ -1,5 +1,6 @@
 import { DEFAULT_TEAM_MEMBER_LIMIT, INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import type { InviteSummary, TeamPresenceMember, TeamRole } from "@openbot/contracts/ipc";
+import { isLicenseOpen, LICENSE_MAX_USERS, type License } from "@openbot/contracts/license";
 import { normalizeEmailAddress } from "@openbot/contracts/validation";
 import type { AppTextKey } from "@openbot/i18n";
 import {
@@ -41,6 +42,7 @@ import {
   Trash2,
   UserRound,
 } from "@openbot/ui";
+import { formatLicenseMoney, licenseNextUserPrice } from "@openbot/ui/features/billing/LicenseSection";
 import { teamMemberName } from "@openbot/ui/features/team/TeamPersonAvatar";
 import { useText } from "@openbot/ui/text";
 import { prefersReducedMotion } from "@openbot/ui/utils";
@@ -115,6 +117,8 @@ export function createServerMembersSection(host: ServerSettingsSectionHost): Ser
   });
   /** A clock, not panel state: it retires an invite row as its `expiresAt` passes. */
   const [now, setNow] = createSignal(Date.now());
+  /** The full license that the next invite would add a user to, while the owner confirms it. */
+  const [licenseStep, setLicenseStep] = createSignal<{ license: License; error: string | null } | null>(null);
   let inviteLinkInput: HTMLInputElement | undefined;
   let expiryTimer: ReturnType<typeof setTimeout> | undefined;
   let inviteLinkSwapTimer: ReturnType<typeof setTimeout> | undefined;
@@ -242,13 +246,37 @@ export function createServerMembersSection(host: ServerSettingsSectionHost): Ser
     }, duration);
   }
 
-  async function createInvite(): Promise<void> {
+  /**
+   * The owner's open license when it is full and the invite can add a person that it does not count
+   * yet. Admins get null: the license is the owner's. A failed read gets null, so it never blocks an invite.
+   */
+  async function fullLicense(email: string | null): Promise<License | null> {
+    const calls = props.license;
+    if (!calls || props.server.role !== "owner") return null;
+    const state = await calls.getState().catch(() => null);
+    const license = state?.license;
+    if (!state || !license || !isLicenseOpen(license) || state.used < license.users) return null;
+    if (email && state.users.some((user) => normalizeEmailAddress(user.email) === email)) return null;
+    return license;
+  }
+
+  async function createInvite(licenseChecked = false): Promise<void> {
     const email = panels.invite.mode === "email" ? normalizeEmailAddress(panels.invite.email) : null;
     if (panels.invite.mode === "email" && !email) {
       setPanels((state) => {
         state.invite.emailError = t("server.invite.invalidEmail");
       });
       return;
+    }
+    if (!licenseChecked) {
+      let license: License | null = null;
+      await run("invite", async () => {
+        license = await fullLicense(email);
+      });
+      if (license) {
+        setLicenseStep({ license, error: null });
+        return;
+      }
     }
     let result: InviteSummary | undefined;
     const role = panels.invite.role;
@@ -695,6 +723,7 @@ export function createServerMembersSection(host: ServerSettingsSectionHost): Ser
         <RemoveDialog />
         <RoleDialog />
         <RevokeInviteDialog />
+        <LicenseUserDialog />
       </>
     );
   }
@@ -792,6 +821,59 @@ export function createServerMembersSection(host: ServerSettingsSectionHost): Ser
             }}
           />
         )}
+      </Show>
+    );
+  }
+
+  /** Asks the owner to add a user to the full license, then sends the invite. At the maximum it only warns. */
+  function LicenseUserDialog() {
+    const { errorMessage } = useText();
+    return (
+      <Show when={licenseStep()}>
+        {(step) => {
+          const price = () => licenseNextUserPrice(step().license);
+          return (
+            <ConfirmDialog
+              open
+              tone="default"
+              icon={<UserRound />}
+              pending={busy() === "invite"}
+              title={t("billing.license.invite.title")}
+              description={
+                <Show when={price()} fallback={t("billing.license.invite.max", { count: LICENSE_MAX_USERS })}>
+                  {(amount) =>
+                    t("billing.license.invite.description", {
+                      price: formatLicenseMoney(format, amount(), step().license.currency),
+                    })
+                  }
+                </Show>
+              }
+              confirmLabel={
+                price() !== null
+                  ? t("billing.license.invite.confirm")
+                  : panels.invite.mode === "email"
+                    ? t("server.invite.send")
+                    : t("server.invite.createLink")
+              }
+              error={step().error ?? undefined}
+              onCancel={() => setLicenseStep(null)}
+              onConfirm={async () => {
+                const { license } = step();
+                const calls = props.license;
+                if (calls && price() !== null) {
+                  try {
+                    await calls.setUsers({ users: license.users + 1 });
+                  } catch (error) {
+                    setLicenseStep({ license, error: errorMessage(error, t("billing.license.actionFailed")) });
+                    return;
+                  }
+                }
+                setLicenseStep(null);
+                await createInvite(true);
+              }}
+            />
+          );
+        }}
       </Show>
     );
   }
