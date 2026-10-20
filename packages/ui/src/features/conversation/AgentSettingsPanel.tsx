@@ -68,7 +68,7 @@ import {
 } from "@openbot/ui/components/SettingsPanel";
 import type { AgentProfile } from "@openbot/ui/data";
 import { AgentAvatar } from "@openbot/ui/features/agents/AgentAvatar";
-import { errorReference, type UserErrorDetails } from "@openbot/user-errors";
+import { errorReference } from "@openbot/user-errors";
 import type { JSX } from "@solidjs/web";
 import {
   createEffect,
@@ -83,6 +83,7 @@ import {
 } from "solid-js";
 import { useText } from "../../text";
 import { AVATAR_HUE_LABEL } from "../agents/avatar-hue-label";
+import { AgentNewChatDialog } from "./AgentNewChatDialog";
 import { BackupModelsPage } from "./BackupModels";
 
 export interface AgentRuntimeSettings {
@@ -224,19 +225,6 @@ interface TextSaveRequest {
 export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
   const { t, errorMessage, format } = useText();
   const [newChatOpen, setNewChatOpen] = createSignal(false);
-  const [newChatError, setNewChatError] = createSignal<UserErrorDetails | null>(null);
-  async function startNewChat(start: () => Promise<void>): Promise<void> {
-    setNewChatError(null);
-    try {
-      await start();
-      setNewChatOpen(false);
-    } catch (error) {
-      setNewChatError({
-        message: errorMessage(error, t("agentSettings.newChat.failed")),
-        reference: errorReference(error),
-      });
-    }
-  }
   const [draft, setDraft] = createStore<AgentSettingsDraft>({
     avatar: {
       batch: 0,
@@ -1397,10 +1385,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
                     aria-label={t("agentSettings.newChat.confirm")}
                     aria-haspopup="dialog"
                     disabled={props.working}
-                    onClick={() => {
-                      setNewChatError(null);
-                      setNewChatOpen(true);
-                    }}
+                    onClick={() => setNewChatOpen(true)}
                   >
                     {t("agentSettings.newChat.button")}
                   </Button>
@@ -1433,24 +1418,11 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
         </SettingsPanelContent>
         <Show when={props.onStartNewChat}>
           {(start) => (
-            <ConfirmDialog
+            <AgentNewChatDialog
+              agent={props.agent}
               open={newChatOpen()}
-              tone="default"
-              initialFocus="cancel"
-              media={<AgentAvatar agent={props.agent} style={{ width: "44px", height: "44px" }} />}
-              title={t("agentSettings.newChat.confirmTitle", { name: props.agent.name })}
-              description={t("agentSettings.newChat.confirmDescription")}
-              confirmLabel={t("agentSettings.newChat.confirm")}
-              error={
-                newChatError() ? (
-                  <>
-                    {newChatError()?.message}
-                    <ErrorReference reference={newChatError()?.reference} />
-                  </>
-                ) : undefined
-              }
-              onCancel={() => setNewChatOpen(false)}
-              onConfirm={() => startNewChat(start())}
+              onClose={() => setNewChatOpen(false)}
+              start={() => start()()}
             />
           )}
         </Show>

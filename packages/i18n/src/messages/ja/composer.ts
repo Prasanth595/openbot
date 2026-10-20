@@ -121,5 +121,4 @@ export const messages = {
   "composer.context.lastCompaction": "前回の圧縮: {before} → {after} トークン",
   "composer.compaction.elapsed": "{minutes}:{seconds}",
   "composer.newChat.action": "新しいチャット",
-  "composer.newChat.pending": "新しいチャットを開始しています",
 } as const satisfies PartialTranslation<typeof source>;

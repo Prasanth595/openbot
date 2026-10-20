@@ -122,5 +122,4 @@ export const messages = {
   "composer.context.lastCompaction": "Son sıkıştırma: {before} → {after} token",
   "composer.compaction.elapsed": "{minutes}:{seconds}",
   "composer.newChat.action": "Yeni sohbet",
-  "composer.newChat.pending": "Yeni sohbet başlatılıyor",
 } as const satisfies PartialTranslation<typeof source>;

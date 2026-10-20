@@ -118,5 +118,4 @@ export const messages = defineMessages("composer", {
   "composer.context.lastCompaction": "Last compaction: {before} → {after} tokens",
   "composer.compaction.elapsed": "{minutes}:{seconds}",
   "composer.newChat.action": "New chat",
-  "composer.newChat.pending": "Starting a new chat",
 });

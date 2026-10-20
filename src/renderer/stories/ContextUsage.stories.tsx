@@ -69,7 +69,10 @@ function ComposerToolbar(props: { usage: ContextUsageView; onStartNewChat?: (() 
         <Plus aria-hidden="true" />
       </Button>
       <div class="composer-primary-actions">
-        <ContextUsageMeter usage={props.usage} onStartNewChat={props.onStartNewChat} />
+        <ContextUsageMeter
+          usage={props.usage}
+          newChat={props.onStartNewChat ? { agent: STORY_AGENT, start: props.onStartNewChat } : undefined}
+        />
         <Button type="button" variant="ghost" class="dictation-button" aria-label="Dictate">
           <Mic aria-hidden="true" />
         </Button>
