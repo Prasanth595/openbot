@@ -3,7 +3,7 @@
 // with no boot (`"status": "running"`). Then the flag of the pre-stop hook stays in /run and OpenBot
 // does not start, so the Worker must run the command that removes the flag. A start with a boot
 // (`"status": "resuming"`) and a refused start must not run a command, and a failed command must not
-// fail the wake.
+// fail the wake. The command runs after the wake reply.
 //
 // Run: bun run test:hosted-held-resume
 // It writes .openbot-build/hosted-held-resume-e2e/report.json and exits non-zero on a failure.
@@ -11,6 +11,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { setTimeout as delay } from "node:timers/promises";
 import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { Effect } from "effect";
 import { HostedServerService } from "../src/server/hosted-server-service";
@@ -50,6 +51,12 @@ async function wakeWith(resume: ResumeAnswer, command: CommandAnswer) {
     .run(SERVER_ID, OWNER.id, SANDBOX_ID, now - 10 * 60_000);
 
   const calls: { method: string; path: string; body: unknown }[] = [];
+  // The command waits until the wake has its reply, as a slow boat command would.
+  let release = () => {};
+  const replied = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let commandEnded = false;
   const boatFetch = async (input: string, init: RequestInit) => {
     const path = new URL(input).pathname.replace("/api/v1", "");
     const body = typeof init.body === "string" ? JSON.parse(init.body) : null;
@@ -63,6 +70,8 @@ async function wakeWith(resume: ResumeAnswer, command: CommandAnswer) {
       });
     }
     if (path.endsWith("/commands")) {
+      await replied;
+      commandEnded = true;
       if (command === "unavailable") return Response.json({ ok: false, code: "sandbox_not_ready" }, { status: 503 });
       return Response.json({
         ok: true,
@@ -76,15 +85,23 @@ async function wakeWith(resume: ResumeAnswer, command: CommandAnswer) {
   };
   const service = new HostedServerService(
     { DB: sqliteD1(database), HOSTED_SERVERS_ENABLED: "true", BOAT_API_KEY: "boat-key" },
-    { fetch: boatFetch, now: () => now },
+    { fetch: boatFetch, now: () => now, schedule: (work) => scheduled.push(Effect.runPromise(work)) },
   );
-  const reply = await Effect.runPromise(service.wake(OWNER, SERVER_ID));
+  const scheduled: Promise<void>[] = [];
+  // A wake that waits for the command never gets its reply; the time limit ends that wait.
+  const wake = Effect.runPromise(service.wake(OWNER, SERVER_ID));
+  const first = await Promise.race([wake, delay(5_000).then(() => null)]);
+  const replyBeforeCommand = first !== null && !commandEnded;
+  release();
+  const reply = first ?? (await wake);
+  await Promise.all(scheduled);
   const row = database
     .prepare("SELECT desired_state, observed_state, observed_error FROM hosted_servers WHERE server_id = ?")
     .get(SERVER_ID);
   const commands = calls.filter((call) => call.path.endsWith("/commands"));
   return {
     reply: { state: reply.state, error: reply.error },
+    replyBeforeCommand,
     row,
     calls: calls.map((c) => `${c.method} ${c.path}`),
     commands,
@@ -110,6 +127,7 @@ let passed = false;
 try {
   const held = await wakeWith("running", "started");
   check("a start from memory runs the flag command once", commandClearsOnlyTheFlag(held.commands), held);
+  check("the wake replies before the command ends", held.replyBeforeCommand, held);
   check(
     "a start from memory leaves the server waking with no error",
     held.reply.state === "waking" && held.reply.error === null && held.row?.desired_state === "running",
