@@ -1,6 +1,7 @@
 // Runs the real central auth manager against a local account server. A stored session that the
 // Keychain cannot decrypt at startup, or a later write that fails, must leave the session file on
-// disk: before this, both deleted it and the app was signed out after the next restart.
+// disk: before this, both deleted it and the app was signed out after the next restart. A failed
+// write after an email sign-in must still remove a file that holds the previous session.
 //
 // Run: bun scripts/central-auth-session-file-e2e.ts
 // It writes .openbot-build/central-auth-session-file-e2e/report.json and exits non-zero on a failure.
@@ -16,6 +17,7 @@ import { CentralAuthManager } from "../src/main/central-auth-manager";
 const ROOT = resolve(import.meta.dirname, "..");
 const OUT = join(ROOT, ".openbot-build", "central-auth-session-file-e2e");
 const SESSION_TOKEN = "s".repeat(48);
+const NEW_SESSION_TOKEN = "n".repeat(48);
 const HOST_ID = "00000000-0000-4000-8000-000000000001";
 
 const server = createServer((request, response) => {
@@ -24,6 +26,12 @@ const server = createServer((request, response) => {
     response.end(JSON.stringify(body));
   };
   if (request.url === "/health/live") return answer(200, { status: "ok" });
+  if (request.url === "/v1/auth/email/verify") {
+    return answer(200, {
+      sessionToken: NEW_SESSION_TOKEN,
+      user: { id: "user-2", email: "b@example.com", name: null, avatarUrl: null },
+    });
+  }
   if (request.headers.authorization !== `Bearer ${SESSION_TOKEN}`) return answer(401, { error: "unauthorized" });
   if (request.url === "/v1/me")
     return answer(200, { id: "user-1", email: "a@example.com", name: null, avatarUrl: null });
@@ -102,7 +110,24 @@ try {
   await runCauseEffect(restarted.dispose());
   assert.equal(results.afterWriteFailure, "signed_in");
 
-  // 5. The account log names each failed stage and holds no token.
+  // 5. An email sign-in cannot store its new session. The file holds the previous one, which the next
+  // start must not sign in to.
+  const switching = manager({
+    encrypt: () => {
+      throw new Error("Error while encrypting the text provided to safeStorage.encryptString.");
+    },
+  });
+  results.beforeSignIn = (await runCauseEffect(switching.initialize())).status;
+  results.signIn = (await runCauseEffect(switching.verifyEmailCode("challenge-1", "123456"))).status;
+  await runCauseEffect(switching.dispose());
+  assert.equal(results.signIn, "signed_in");
+  await assert.rejects(readFile(storagePath), { code: "ENOENT" }, "the previous session must not stay on disk");
+  const afterSignIn = manager();
+  results.afterFailedSignInWrite = (await runCauseEffect(afterSignIn.initialize())).status;
+  await runCauseEffect(afterSignIn.dispose());
+  assert.equal(results.afterFailedSignInWrite, "signed_out");
+
+  // 6. The account log names each failed stage and holds no token.
   assert.ok(
     logLines.some((line) => line.includes('"decrypt"')),
     "the decrypt failure must be logged",
@@ -111,7 +136,10 @@ try {
     logLines.some((line) => line.includes('"encrypt"')),
     "the write failure must be logged",
   );
-  assert.ok(!logLines.some((line) => line.includes(SESSION_TOKEN)), "the log must not hold the session token");
+  assert.ok(
+    !logLines.some((line) => line.includes(SESSION_TOKEN) || line.includes(NEW_SESSION_TOKEN)),
+    "the log must not hold a session token",
+  );
   passed = true;
 } catch (cause) {
   error = cause instanceof Error ? cause.message : String(cause);

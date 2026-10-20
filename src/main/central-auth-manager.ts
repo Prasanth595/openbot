@@ -159,6 +159,8 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
   readonly #transport: Layer.Layer<CentralAuthTransport>;
   #state: CentralAuthState = { status: "loading" };
   #sessionToken: string | null = null;
+  /** The session token in the stored file, or null when the file holds none that this start could read. */
+  #storedSessionToken: string | null = null;
   readonly #teamHostTokens = new Map<string, string>();
   /** Belongs to the session that made it: the account service rejects it when that session ends. */
   #mobileConnectLink: StoredMobileConnectLink | null = null;
@@ -1312,6 +1314,7 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
         const value = yield* authDecode(() => this.#options.decrypt(encrypted));
         stage = "decode";
         yield* authDecode(() => this.#restoreStoredSession(value));
+        this.#storedSessionToken = this.#sessionToken;
       }).pipe(Effect.result);
       if (Result.isFailure(attempt4)) {
         const error = attempt4.failure.cause;
@@ -1551,8 +1554,7 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
 
   /**
    * Stores the session that a claim gave and signs in. A session that is not stored ends at the next
-   * start, so a failed write fails, and the session is not kept in memory. A failed write also removes
-   * the stored session file.
+   * start, so a failed write fails, and the previous session that the stored file holds is put back.
    */
   readonly #applyClaimedSession = Effect.fn("CentralAuth.applyClaimedSession")(function* (
     this: CentralAuthManager,
@@ -1760,11 +1762,13 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
     this: CentralAuthManager,
     required: boolean,
   ): Effect.fn.Return<void, CentralAuthOperationError, CentralAuthTransport> {
-    if (!this.#sessionToken) return;
+    const sessionToken = this.#sessionToken;
+    if (!sessionToken) return;
     if (!this.#options.canPersist()) {
       logger.warn("The account session was not stored: secure storage is unavailable.");
-      if (!required) return;
+      if (!required) return yield* this.#removeOtherStoredSession(sessionToken);
       yield* authCall(() => rm(this.#options.storagePath, { force: true }));
+      this.#storedSessionToken = null;
       return yield* new CentralAuthOperationError({ cause: new Error("The session could not be stored.") });
     }
     const temporaryPath = `${this.#options.storagePath}.${randomUUID()}.tmp`;
@@ -1772,7 +1776,7 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
     yield* Effect.gen({ self: this }, function* () {
       const value = JSON.stringify({
         version: 2,
-        sessionToken: this.#sessionToken,
+        sessionToken,
         teamHostTokens: Object.fromEntries(this.#teamHostTokens),
         ...(this.#mobileConnectLink ? { mobileConnectLink: this.#mobileConnectLink } : {}),
       });
@@ -1782,12 +1786,12 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
       yield* authCall(() => writeFile(temporaryPath, encrypted, { mode: 0o600 }));
       yield* authCall(() => chmod(temporaryPath, 0o600));
       yield* authCall(() => rename(temporaryPath, this.#options.storagePath));
+      this.#storedSessionToken = sessionToken;
     }).pipe(
-      // The stored file keeps the previous write, which holds the same session token. A failed
-      // sign-in clears it in its own handler.
+      // A required write fails, and its caller puts back the session that the file still holds.
       Effect.catch((failure) => {
         logger.warn("The account session was not stored.", storedSessionFailure(stage, failure.cause));
-        return required ? Effect.fail(failure) : Effect.void;
+        return required ? Effect.fail(failure) : this.#removeOtherStoredSession(sessionToken);
       }),
       Effect.ensuring(authCall(() => rm(temporaryPath, { force: true })).pipe(Effect.catch(() => Effect.void))),
     );
@@ -1802,7 +1806,21 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
     yield* this.#sessionWrites
       .withPermit(authCall(() => rm(this.#options.storagePath, { force: true })))
       .pipe(Effect.uninterruptible);
+    this.#storedSessionToken = null;
   });
+
+  /**
+   * After a write that failed, keeps a stored file with the same session token: only its host
+   * credentials or Mobile Connect link are older. A file with a different session, such as the one
+   * before an email sign-in, is removed, so that the next start does not sign in to that session.
+   */
+  #removeOtherStoredSession(sessionToken: string) {
+    return Effect.gen({ self: this }, function* () {
+      if (this.#storedSessionToken === sessionToken) return;
+      yield* authCall(() => rm(this.#options.storagePath, { force: true }));
+      this.#storedSessionToken = null;
+    });
+  }
 
   #forgetSession(): void {
     this.#sessionToken = null;
