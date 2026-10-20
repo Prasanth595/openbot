@@ -6,6 +6,69 @@ All notable changes to OpenBot will be documented here. The project follows
 
 ## [Unreleased]
 
+## [0.45.0] - 2026-10-20
+
+### Added
+
+- One OpenBot server can connect more than one Slack workspace or Discord server. Settings › Connectors shows "Add workspace" or "Add Discord server" after the first one is set up. One Slack Orchestrator answers every Slack workspace, and one Discord Orchestrator answers every Discord server, as one Telegram Orchestrator already answers every Telegram chat.
+- You can choose which Discord roles can use OpenBot in each Discord server. OpenBot ignores a mention from a member who has none of the roles. With no role chosen, everyone can mention OpenBot, as before.
+- The context meter in the composer has a New chat button. The earlier messages stay visible, and
+  each new message sends less context.
+- An agent can start a new chat for itself with the `start_new_chat` tool, for example from a
+  routine. It saves notes first. Turn on "Agent starts new chats" in the agent's settings to allow
+  it. It is off by default.
+- Ask side questions in the web client and on joined servers. Before, side questions worked only on
+  the computer that runs the agent. The server must have this version of OpenBot.
+- An agent can show its plan before a long task. Turn on "Show the plan before long tasks" in the
+  agent's settings. The agent then posts a short card with its plan and Start, Cancel, and sometimes
+  a smaller option. The agent starts after 10 s if nobody answers. It does not show the card for
+  quick answers. The setting is off by default.
+- The chat shows the subagents that a Claude or Codex agent starts. One card for each turn shows how
+  many subagents finished, what each one does now, and how long it took. Click a subagent to see its
+  task and all of its steps in the side panel.
+- When you make a routine on this computer or on your own remote computer, OpenBot offers an OpenBot
+  server, which runs routines 24/7. The offer shows after an agent's turn ends, at most once in 30
+  days. The routine list and the offline notice of a remote computer also show the offer. "Not now"
+  hides it for longer each time.
+- Settings → Billing has a License section for work at a company. Buy a license for 5 to 25 users,
+  in EUR, USD or PLN. See who uses it, change the number of users, update the payment method, or
+  cancel it. A larger team can contact us.
+- A license limits the people on the owner's servers. When it is full, a new person cannot join. The
+  server owner sees the extra price at a new invite and can add 1 user.
+- A member of a server whose owner has a license sees that the license covers them.
+
+### Fixed
+
+- On Windows, OpenBot now finds an OpenCode that you installed with the OpenCode installer or WinGet. Before, it said that OpenCode was not downloaded.
+- On Windows, the Download button of a provider works again after a shutdown or sign-out that was cancelled. Before, each click failed and showed nothing.
+- In Settings, a provider download that fails now shows why. Before, the Download button did nothing.
+- The Cline model picker shows Cline's free models, such as MiniMax M3.1 Flash, MiMo V2.6 Flash and Muse Spark 1.3 Contributor. Before, only the Cline CLI showed them.
+- A Cline agent runs on the model that you select. Before, the agent stayed on Cline's default model.
+- Steer on a remote server now shows why it did not steer when the provider, such as OpenCode or
+  Grok, cannot steer a running turn. Before, it showed only "Request failed". The message still
+  stays in the queue.
+- When you mention OpenBot in a Discord reply to someone else's message, OpenBot now reads the message you replied to. Before, OpenBot said that it could not see what "this" was.
+- The delete server dialog keeps its height and position when you change between "At period end"
+  and "Immediately". Before, it moved because the description and details have different lengths.
+- A Claude agent now makes a routine in OpenBot when you ask for one. Before, it sometimes used
+  Claude's own `schedule` skill and made a claude.ai cloud routine that OpenBot did not show.
+  Claude's own scheduling tools are now off in OpenBot.
+- A chat with unread messages now opens at the "NEW" divider, with the last read message above it.
+  The divider stays while you read and goes when you leave the chat. Before, the chat opened at the
+  newest message and the divider went away at once, because the open chat marked the messages read.
+- An OpenCode agent now uses the OpenCode Go key that you paste into OpenBot. Before, an old key that `opencode auth login` saved took its place, so a turn failed with "This API key has expired" again after you replaced the key.
+- An expired OpenCode key now shows "Your OpenCode API key expired" with an Update key button that opens the provider settings. Before, the chat showed "Internal error".
+- A Workspace-only agent now uses a new provider key on its next turn. Before, it could keep the old key until it was idle for 10 minutes.
+- A cloud server that started again soon after it stopped sometimes stayed at "Starting Cloud
+  server" with `signal/host_unavailable`. The machine continued from memory, and OpenBot did not
+  start on it. The account server now starts OpenBot after such a start.
+- The update banner now shows the full button label in every language. Before, a long label such
+  as "Uruchom ponownie" (Restart) in Polish went past the button and the banner cut it off. In
+  Polish, the button now says "Restart". In Turkish, the "managed by host" button now says "Ana
+  makine yönetiyor".
+- Renew in Settings → Billing works again for a server plan that you cancelled. Stripe refused the
+  request before.
+
 ## [0.44.3] - 2026-10-19
 
 ### Changed

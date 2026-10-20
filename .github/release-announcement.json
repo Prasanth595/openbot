@@ -1,9 +1,10 @@
 {
-  "version": "0.44.3",
+  "version": "0.45.0",
   "highlights": [
-    "The rail on the right side of a long chat now shows your messages. Select one to go to it and its replies.",
-    "The chat rail stays in view and stays smooth while you scroll.",
-    "Side question in the composer + menu opens the side question pane again.",
-    "Agent templates that contain OpenBot's own skills install again."
+    "Settings → Billing has a License for work at a company: 5 to 25 users, in EUR, USD or PLN.",
+    "The chat shows the subagents that a Claude or Codex agent starts, with their tasks and steps.",
+    "An agent can show its plan before a long task, and the context meter has a New chat button.",
+    "Side questions work in the web client and on joined servers.",
+    "One server can connect more than one Slack workspace or Discord server, with Discord role limits."
   ]
 }
