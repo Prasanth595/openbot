@@ -25,4 +25,5 @@ export const messages = {
   "error.voice.speech.modelRequired": "Konuşma modelini Ayarlar → Ses bölümünden indirin.",
   "error.voice.speech.timedOut": "Yanıtı sesli okuma zaman aşımına uğradı.",
   "error.voice.speech.failed": "OpenBot yanıtı sesli okuyamadı.",
+  "error.voice.recordingNotKept": "OpenBot ses kaydını saklayamadı.",
 } as const satisfies PartialTranslation<typeof source>;

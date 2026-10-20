@@ -237,13 +237,17 @@ export function createVoiceConversation(deps: VoiceConversationDeps) {
             });
         }, LIVE_TRANSCRIPT_INTERVAL_MS),
       );
+    // One second under the limit: the recording can run a little longer than its timer.
     current.timers.push(
-      setTimeout(() => {
-        // A turn with no speech starts again, so the recording does not keep the silence.
-        if (turn !== current) return;
-        if (current.spoke) endTurn(current);
-        else void listen();
-      }, VOICE_AUDIO_LIMITS.maximumSeconds * 1_000),
+      setTimeout(
+        () => {
+          // A turn with no speech starts again, so the recording does not keep the silence.
+          if (turn !== current) return;
+          if (current.spoke) endTurn(current);
+          else void listen();
+        },
+        (VOICE_AUDIO_LIMITS.maximumSeconds - 1) * 1_000,
+      ),
     );
   }
 

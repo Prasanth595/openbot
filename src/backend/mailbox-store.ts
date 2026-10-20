@@ -516,7 +516,7 @@ export class MailboxStore {
         ? yield* this.#files
             .commitMessageTransfer(voiceTransferId, input.sender, recipients, messageId, createdAt, [voiceDraft.path])
             .pipe(
-              // The commit types a file by its name, and WAV has no type there; the draft has it.
+              // The commit types a file by its name, and WebM has no type there; the draft has it.
               Effect.map(([committed]) => committed && { ...committed, mimeType: voiceDraft.mimeType }),
               Effect.mapError(({ cause }) => new StoredStateFailure({ cause })),
               Effect.tapError(() => removeTransfers),

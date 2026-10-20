@@ -24,4 +24,5 @@ export const messages = {
   "error.voice.speech.modelRequired": "設定 → 音声 で音声合成モデルをダウンロードしてください。",
   "error.voice.speech.timedOut": "返信の読み上げがタイムアウトしました。",
   "error.voice.speech.failed": "OpenBot は返信を読み上げられませんでした。",
+  "error.voice.recordingNotKept": "OpenBot は音声録音を保存できませんでした。",
 } as const satisfies PartialTranslation<typeof source>;

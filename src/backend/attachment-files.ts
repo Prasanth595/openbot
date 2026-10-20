@@ -202,7 +202,7 @@ export class AttachmentFiles {
     this: AttachmentFiles,
     paths: string[],
     data: AttachmentDataInput[],
-    /** A voice recording is a WAV, which the user cannot attach. It never reaches a provider. */
+    /** A voice recording is a WebM file, which the user cannot attach. It never reaches a provider. */
     options: { voiceRecording?: boolean } = {},
   ): Effect.fn.Return<StoredDraft[], AttachmentOperationError> {
     if (paths.some((path) => !path || path.length > INPUT_LIMITS.path)) {

@@ -44,10 +44,10 @@ const SPEECH_READY: SpeechModelStatus = { modelId: "supertonic-3", phase: "ready
 
 const RECORDING: DraftAttachment = {
   id: "recording-1",
-  name: "voice.wav",
+  name: "voice.webm",
   size: 44,
   kind: "file",
-  mimeType: "audio/wav",
+  mimeType: "audio/webm",
   previewKind: "none",
   previewUrl: null,
 };

@@ -25,4 +25,5 @@ export const messages = {
   "error.voice.speech.modelRequired": "Lade das Sprachausgabemodell unter Einstellungen → Diktat herunter.",
   "error.voice.speech.timedOut": "Das Vorlesen der Antwort hat zu lange gedauert.",
   "error.voice.speech.failed": "OpenBot konnte die Antwort nicht vorlesen.",
+  "error.voice.recordingNotKept": "OpenBot konnte die Sprachaufnahme nicht speichern.",
 } as const satisfies PartialTranslation<typeof source>;

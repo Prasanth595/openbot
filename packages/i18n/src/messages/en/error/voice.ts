@@ -23,4 +23,5 @@ export const messages = defineMessages("error.voice", {
   "error.voice.speech.modelRequired": "Download the speech model in Settings → Voice.",
   "error.voice.speech.timedOut": "Reading the reply aloud timed out.",
   "error.voice.speech.failed": "OpenBot could not read the reply aloud.",
+  "error.voice.recordingNotKept": "OpenBot could not keep the voice recording.",
 });

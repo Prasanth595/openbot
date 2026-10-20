@@ -11,6 +11,7 @@ import type {
   VoiceStream,
   VoiceTranscriptionResult,
 } from "@openbot/contracts/ipc";
+import { sourceText } from "@openbot/i18n/source";
 import type { AgentService } from "../../backend/agent-service";
 import { runCauseEffect } from "../../backend/effect-boundary";
 import type { VoiceSpeechService } from "../voice-speech-service";
@@ -86,7 +87,7 @@ export function voiceIpcHandlers({ voice, speech, service }: VoiceIpcDependencie
       warmSpeech: handler((): Promise<void> => runCauseEffect(speech.warm())),
       keepRecording: payloadHandler(parseVoiceRecording, async ({ audio }): Promise<DraftAttachment> => {
         const [draft] = await runCauseEffect(service.prepareVoiceRecording(audio));
-        if (!draft) throw new Error("The voice recording was not kept.");
+        if (!draft) throw new Error(sourceText("error.voice.recordingNotKept"));
         return draft;
       }),
     },

@@ -24,4 +24,5 @@ export const messages = {
   "error.voice.speech.modelRequired": "Descarga el modelo de voz en Ajustes → Voz.",
   "error.voice.speech.timedOut": "Se agotó el tiempo al leer la respuesta en voz alta.",
   "error.voice.speech.failed": "OpenBot no pudo leer la respuesta en voz alta.",
+  "error.voice.recordingNotKept": "OpenBot no pudo guardar la grabación de voz.",
 } as const satisfies PartialTranslation<typeof source>;

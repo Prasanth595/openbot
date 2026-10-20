@@ -23,4 +23,5 @@ export const messages = {
   "error.voice.speech.modelRequired": "Pobierz model syntezy mowy w Ustawienia → Głos.",
   "error.voice.speech.timedOut": "Czytanie odpowiedzi na głos trwało zbyt długo.",
   "error.voice.speech.failed": "OpenBot nie mógł przeczytać odpowiedzi na głos.",
+  "error.voice.recordingNotKept": "OpenBot nie mógł zachować nagrania głosowego.",
 } as const satisfies PartialTranslation<typeof source>;

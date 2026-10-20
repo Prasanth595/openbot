@@ -484,7 +484,8 @@ export function ConversationTimeline() {
                 // The status line stays one element while its state changes, so its live region speaks.
                 const pending = createMemo(() => pendingSend() !== undefined);
                 // Only the kind rebuilds the player, so its controls keep focus when it starts or stops.
-                const playerKind = createMemo(() => voicePlayer(message())?.kind);
+                const player = createMemo(() => voicePlayer(message()));
+                const playerKind = createMemo(() => player()?.kind);
                 const pendingState = () => {
                   const state = pendingSend()?.state;
                   return state === "failed" || state === "waiting" ? state : "sending";
@@ -882,13 +883,13 @@ export function ConversationTimeline() {
                               {(kind) => (
                                 <VoicePlayer
                                   kind={kind()}
-                                  state={voicePlayer(message())?.state ?? "idle"}
-                                  peaks={voicePlayer(message())?.peaks}
-                                  duration={voicePlayer(message())?.duration}
-                                  elapsed={voicePlayer(message())?.elapsed}
-                                  levels={voicePlayer(message())?.levels}
-                                  onToggle={() => voicePlayer(message())?.onToggle()}
-                                  onSeek={(seconds) => voicePlayer(message())?.onSeek?.(seconds)}
+                                  state={player()?.state ?? "idle"}
+                                  peaks={player()?.peaks}
+                                  duration={player()?.duration}
+                                  elapsed={player()?.elapsed}
+                                  levels={player()?.levels}
+                                  onToggle={() => player()?.onToggle()}
+                                  onSeek={(seconds) => player()?.onSeek?.(seconds)}
                                 />
                               )}
                             </Show>
