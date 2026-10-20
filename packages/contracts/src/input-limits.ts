@@ -16,6 +16,8 @@ export const INPUT_LIMITS = {
   // adapter already accepts 160 — so the agent-name limit would reject a model list a shipped peer
   // is entitled to send.
   modelName: 160,
+  // A provider service tier id, such as Codex `priority`.
+  serviceTier: 64,
   agentTitle: 120,
   agentDescription: 2_000,
   // The default of the app setting `AGENT_MEMORY_LIMITS`; a user can raise it.

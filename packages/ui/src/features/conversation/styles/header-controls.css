@@ -123,6 +123,13 @@
   content: "·";
 }
 
+.provider-model-trigger-fast svg {
+  width: 12px;
+  height: 12px;
+  margin-right: var(--openbot-space-0-5);
+  stroke-width: var(--openbot-icon-stroke);
+}
+
 /* An email can be long: the account gives way before the model name does. */
 .provider-model-trigger-account {
   min-width: 0;

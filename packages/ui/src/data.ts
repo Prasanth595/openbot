@@ -227,6 +227,8 @@ export interface AgentProfile {
   allowNewChat?: boolean | undefined;
   /** Absent means off. Absent for an agent on a remote host too, which does not share it. */
   quickAcknowledgement?: boolean | undefined;
+  /** Absent means off. Absent for an agent on a remote host too, which does not share it. */
+  fastMode?: boolean | undefined;
   /** Absent means the app default. Absent for an agent on a remote host too, which does not share it. */
   busyMessageMode?: AgentSummary["busyMessageMode"];
   /** Absent means the default task limit. Absent for an agent on a remote host too, which runs no tasks. */

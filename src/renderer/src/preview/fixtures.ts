@@ -143,6 +143,7 @@ export const STORY_MODELS: AgentModelOption[] = [
     description: "Fast and efficient for everyday agent work.",
     defaultReasoningEffort: "medium",
     supportedReasoningEfforts: ["low", "medium", "high"],
+    fastServiceTier: "priority",
   },
   {
     provider: "codex",
@@ -167,6 +168,7 @@ export const STORY_MODELS: AgentModelOption[] = [
     description: "Most capable for complex, long-running work.",
     defaultReasoningEffort: "high",
     supportedReasoningEfforts: ["medium", "high", "xhigh"],
+    fastServiceTier: "priority",
   },
   {
     provider: "claude",

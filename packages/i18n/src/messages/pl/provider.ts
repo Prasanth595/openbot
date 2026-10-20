@@ -135,6 +135,8 @@ export const messages = {
   "provider.picker.defaultModelLabel": "{name}, domyślny",
   "provider.picker.effort": "Wysiłek",
   "provider.picker.effortLabel": "Wysiłek rozumowania agenta",
+  "provider.picker.fast": "Szybki",
+  "provider.picker.fastLabel": "Tryb szybki",
   "provider.picker.selectEffort": "Wybierz wysiłek",
   "provider.picker.custom": "Własny",
   "provider.picker.cliReady": "{cli} gotowy",

@@ -101,6 +101,7 @@ export const messages = {
     "Сохранение не подтверждено. Нажмите «Сохранить» ещё раз, чтобы проверить результат.",
   "composer.error.changeModel": "Не удалось сменить модель. Повторите попытку.",
   "composer.error.changeEffort": "Не удалось изменить уровень усилий. Повторите попытку.",
+  "composer.error.changeFastMode": "Не удалось изменить быстрый режим. Повторите попытку.",
   "composer.context.label": "Контекст заполнен на {percent}",
   "composer.context.labelEstimated": "Контекст заполнен примерно на {percent}",
   "composer.context.labelCompacting": "Сжатие контекста",

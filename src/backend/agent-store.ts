@@ -85,6 +85,8 @@ type PersistedStoredAgent = Omit<StoredAgent, "avatarUrl" | "provider" | "access
   allowNewChat?: boolean;
   // Absent on every agent stored before the setting existed, which keeps the acknowledgement off.
   quickAcknowledgement?: boolean;
+  // Absent on every agent stored before the setting existed, which leaves the service tier to Codex.
+  fastMode?: boolean;
   // Absent means the app default, as for every agent stored before the setting existed.
   busyMessageMode?: BusyMessageMode;
   // Absent means the default task limit, as for every agent stored before tasks existed.
@@ -689,6 +691,10 @@ export class AgentStore {
       if (input.quickAcknowledgement !== undefined) {
         if (!isBoolean(input.quickAcknowledgement)) throw new Error("Invalid quick acknowledgement value.");
         next.quickAcknowledgement = input.quickAcknowledgement;
+      }
+      if (input.fastMode !== undefined) {
+        if (!isBoolean(input.fastMode)) throw new Error("Invalid fast mode value.");
+        next.fastMode = input.fastMode;
       }
       // A provider change without an account returns the agent to the new provider's own sign-in.
       if (
@@ -1774,6 +1780,7 @@ function isStoredAgent(value: unknown): value is PersistedStoredAgent {
     (record.allowAutomation === undefined || isBoolean(record.allowAutomation)) &&
     (record.allowNewChat === undefined || isBoolean(record.allowNewChat)) &&
     (record.quickAcknowledgement === undefined || isBoolean(record.quickAcknowledgement)) &&
+    (record.fastMode === undefined || isBoolean(record.fastMode)) &&
     (record.busyMessageMode === undefined || isBusyMessageMode(record.busyMessageMode)) &&
     (record.taskLimit === undefined || isAgentTaskLimit(record.taskLimit)) &&
     (record.providerAccountId === undefined || isProviderAccountId(record.providerAccountId)) &&
@@ -1846,6 +1853,8 @@ function readStoredAgent(value: unknown): ReadStoredAgent | UnreadableStoredAgen
     value.quickAcknowledgement === undefined || isBoolean(value.quickAcknowledgement)
       ? value.quickAcknowledgement
       : reset("quickAcknowledgement", undefined);
+  const fastMode =
+    value.fastMode === undefined || isBoolean(value.fastMode) ? value.fastMode : reset("fastMode", undefined);
   const busyMessageMode =
     value.busyMessageMode === undefined || isBusyMessageMode(value.busyMessageMode)
       ? value.busyMessageMode
@@ -1914,6 +1923,7 @@ function readStoredAgent(value: unknown): ReadStoredAgent | UnreadableStoredAgen
     ...(allowAutomation === undefined ? {} : { allowAutomation }),
     ...(allowNewChat === undefined ? {} : { allowNewChat }),
     ...(quickAcknowledgement === undefined ? {} : { quickAcknowledgement }),
+    ...(fastMode === undefined ? {} : { fastMode }),
     ...(busyMessageMode === undefined ? {} : { busyMessageMode }),
     ...(taskLimit === undefined ? {} : { taskLimit }),
     ...(providerAccountId === undefined ? {} : { providerAccountId }),

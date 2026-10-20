@@ -117,6 +117,8 @@ export const messages = {
   "provider.picker.defaultModelLabel": "{name}, varsayılan",
   "provider.picker.effort": "Efor",
   "provider.picker.effortLabel": "Ajan akıl yürütme eforu",
+  "provider.picker.fast": "Hızlı",
+  "provider.picker.fastLabel": "Hızlı mod",
   "provider.picker.selectEffort": "Efor seçin",
   "provider.picker.custom": "Özel",
   "provider.picker.cliReady": "{cli} hazır",

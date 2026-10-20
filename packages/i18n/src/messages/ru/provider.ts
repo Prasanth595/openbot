@@ -135,6 +135,8 @@ export const messages = {
   "provider.picker.defaultModelLabel": "{name}, по умолчанию",
   "provider.picker.effort": "Усилие",
   "provider.picker.effortLabel": "Уровень усилий агента",
+  "provider.picker.fast": "Быстро",
+  "provider.picker.fastLabel": "Быстрый режим",
   "provider.picker.selectEffort": "Выбрать уровень усилий",
   "provider.picker.custom": "Свой",
   "provider.picker.cliReady": "{cli} готов",

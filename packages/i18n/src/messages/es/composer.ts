@@ -100,6 +100,7 @@ export const messages = {
     "No se ha confirmado que se haya guardado. Vuelve a pulsar Guardar para comprobar el resultado.",
   "composer.error.changeModel": "No se pudo cambiar el modelo. Vuelve a intentarlo.",
   "composer.error.changeEffort": "No se pudo cambiar el esfuerzo. Vuelve a intentarlo.",
+  "composer.error.changeFastMode": "No se pudo cambiar el modo rápido. Vuelve a intentarlo.",
   "composer.context.label": "Contexto lleno al {percent}",
   "composer.context.labelEstimated": "Contexto lleno aproximadamente al {percent}",
   "composer.context.labelCompacting": "Compactando el contexto",

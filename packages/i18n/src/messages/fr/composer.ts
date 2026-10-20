@@ -102,6 +102,7 @@ export const messages = {
     "L’enregistrement n’est pas confirmé. Relancez l’enregistrement pour vérifier le résultat.",
   "composer.error.changeModel": "Impossible de changer de modèle. Réessayez.",
   "composer.error.changeEffort": "Impossible de changer le niveau d’effort. Réessayez.",
+  "composer.error.changeFastMode": "Impossible de changer le mode rapide. Réessayez.",
   "composer.context.label": "Contexte rempli à {percent}",
   "composer.context.labelEstimated": "Contexte rempli à environ {percent}",
   "composer.context.labelCompacting": "Compactage du contexte",

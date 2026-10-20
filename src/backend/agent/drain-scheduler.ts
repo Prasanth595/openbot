@@ -1,4 +1,4 @@
-import { AGENT_PROVIDERS } from "@openbot/contracts/ipc";
+import { AGENT_PROVIDERS, type AgentModelOption, type AgentSummary } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger } from "@openbot/logging";
 import { Deferred, Effect, Result, Schema } from "effect";
@@ -705,6 +705,7 @@ export class DrainScheduler {
                 runtimeWorkspaceRoots: workspaceWritableRoots(agent, this.#store.sharedRoot),
                 approvalPolicy: "on-request",
                 sandboxPolicy: codexSandboxPolicy(agent, this.#store.sharedRoot),
+                ...(client.provider === "codex" ? codexServiceTier(agent, this.#providers.listModels()) : {}),
               },
               decodeTurnResponse,
             )
@@ -935,3 +936,19 @@ export class DeliveryStartFailed extends Schema.TaggedError<DeliveryStartFailed>
 }) {}
 
 const { sync: drainStep, rewrap: toDeliveryStartFailed } = causeHelpers(DeliveryStartFailed);
+
+/**
+ * The Codex service tier of a turn. Codex keeps the tier for the next turns of the thread. An agent
+ * that never set fast mode sends nothing, so Codex keeps its own tier; `null` returns the thread to
+ * the standard tier.
+ */
+function codexServiceTier(
+  agent: Pick<AgentSummary, "fastMode" | "model">,
+  models: readonly AgentModelOption[],
+): { serviceTier?: string | null } {
+  if (agent.fastMode === undefined) return {};
+  const tier = agent.fastMode
+    ? models.find((model) => model.provider === "codex" && model.id === agent.model)?.fastServiceTier
+    : undefined;
+  return { serviceTier: tier ?? null };
+}

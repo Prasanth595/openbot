@@ -179,6 +179,11 @@ export interface AgentSummary {
    */
   quickAcknowledgement?: boolean;
   /**
+   * Whether the agent asks Codex for the fast service tier of its model. Local-only, like `access`.
+   * Absent means that OpenBot leaves the tier to Codex.
+   */
+  fastMode?: boolean;
+  /**
    * What a message sent while the agent is busy does. Local-only, like `access`. Absent means the
    * app default.
    */
@@ -239,6 +244,7 @@ export function isAgentSummary(value: unknown): value is AgentSummary {
     (value.allowAutomation === undefined || isBoolean(value.allowAutomation)) &&
     (value.allowNewChat === undefined || isBoolean(value.allowNewChat)) &&
     (value.quickAcknowledgement === undefined || isBoolean(value.quickAcknowledgement)) &&
+    (value.fastMode === undefined || isBoolean(value.fastMode)) &&
     (value.busyMessageMode === undefined || isBusyMessageMode(value.busyMessageMode)) &&
     (value.taskLimit === undefined || isAgentTaskLimit(value.taskLimit)) &&
     (value.providerAccountId === undefined || isProviderAccountId(value.providerAccountId)) &&
@@ -287,6 +293,7 @@ export interface UpdateAgentInput {
   allowAutomation?: boolean;
   allowNewChat?: boolean;
   quickAcknowledgement?: boolean;
+  fastMode?: boolean;
   /** `null` returns the agent to the app default. */
   busyMessageMode?: BusyMessageMode | null;
   /** `null` returns the agent to the default task limit. */

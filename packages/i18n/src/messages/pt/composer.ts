@@ -101,6 +101,7 @@ export const messages = {
   "composer.error.saveUnconfirmed": "O salvamento não foi confirmado. Tente Salvar de novo para verificar o resultado.",
   "composer.error.changeModel": "Não foi possível mudar de modelo. Tente novamente.",
   "composer.error.changeEffort": "Não foi possível alterar o esforço. Tente novamente.",
+  "composer.error.changeFastMode": "Não foi possível alterar o modo rápido. Tente novamente.",
   "composer.context.label": "Contexto: {percent} usado",
   "composer.context.labelEstimated": "Contexto: cerca de {percent} usado",
   "composer.context.labelCompacting": "Compactando o contexto",

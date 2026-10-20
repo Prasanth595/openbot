@@ -101,6 +101,7 @@ export const messages = {
   "composer.error.saveUnconfirmed": "Kaydetme doğrulanmadı. Sonucu kontrol etmek için Kaydet'i tekrar deneyin.",
   "composer.error.changeModel": "Model değiştirilemedi. Tekrar deneyin.",
   "composer.error.changeEffort": "Efor değiştirilemedi. Tekrar deneyin.",
+  "composer.error.changeFastMode": "Hızlı mod değiştirilemedi. Tekrar deneyin.",
   "composer.context.label": "Bağlam {percent} dolu",
   "composer.context.labelEstimated": "Bağlam yaklaşık {percent} dolu",
   "composer.context.labelCompacting": "Bağlam sıkıştırılıyor",

@@ -121,3 +121,4 @@ export { default as Webhook } from "lucide-solid/icons/webhook";
 export { default as Workflow } from "lucide-solid/icons/workflow";
 export { default as WrapText } from "lucide-solid/icons/wrap-text";
 export { default as X } from "lucide-solid/icons/x";
+export { default as Zap } from "lucide-solid/icons/zap";

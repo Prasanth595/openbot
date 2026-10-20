@@ -104,6 +104,7 @@ export const messages = {
     "Das Speichern ist nicht bestätigt. Wähle erneut „Speichern“, um das Ergebnis zu prüfen.",
   "composer.error.changeModel": "Das Modell konnte nicht geändert werden. Versuche es erneut.",
   "composer.error.changeEffort": "Der Denkaufwand konnte nicht geändert werden. Versuche es erneut.",
+  "composer.error.changeFastMode": "Der Schnellmodus konnte nicht geändert werden. Versuche es erneut.",
   "composer.context.label": "Kontext zu {percent} voll",
   "composer.context.labelEstimated": "Kontext zu etwa {percent} voll",
   "composer.context.labelCompacting": "Kontext wird komprimiert",

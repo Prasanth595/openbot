@@ -100,6 +100,7 @@ export const messages = {
   "composer.error.saveUnconfirmed": "保存は確認されていません。結果を確認するには、もう一度保存してください。",
   "composer.error.changeModel": "モデルを変更できませんでした。もう一度お試しください。",
   "composer.error.changeEffort": "推論レベルを変更できませんでした。もう一度お試しください。",
+  "composer.error.changeFastMode": "高速モードを変更できませんでした。もう一度お試しください。",
   "composer.context.label": "コンテキスト使用率 {percent}",
   "composer.context.labelEstimated": "コンテキスト使用率 約 {percent}",
   "composer.context.labelCompacting": "コンテキストを圧縮しています",

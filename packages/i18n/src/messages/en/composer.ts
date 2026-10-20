@@ -97,6 +97,7 @@ export const messages = defineMessages("composer", {
   "composer.error.saveUnconfirmed": "Save is not confirmed. Retry Save to check the result.",
   "composer.error.changeModel": "Could not change model. Try again.",
   "composer.error.changeEffort": "Could not change effort. Try again.",
+  "composer.error.changeFastMode": "Could not change fast mode. Try again.",
   "composer.context.label": "Context {percent} full",
   "composer.context.labelEstimated": "Context about {percent} full",
   "composer.context.labelCompacting": "Compacting context",

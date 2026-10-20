@@ -699,6 +699,24 @@ export function createConversationViewScope(props: ConversationProps) {
       return false;
     }
   }
+  // The switch shows the new value while the save runs. The saved agent then holds it.
+  const [fastModeDraft, setFastModeDraft] = createSignal<{ agentId: string; fastMode: boolean }>();
+  const fastMode = () => {
+    const draft = fastModeDraft();
+    return draft && draft.agentId === props.agent?.id ? draft.fastMode : props.agent?.fastMode === true;
+  };
+  async function changeFastMode(next: boolean): Promise<void> {
+    const agentId = props.agent?.id;
+    if (!agentId) return;
+    const draft = { agentId, fastMode: next };
+    setFastModeDraft(draft);
+    const saved = await saveAgentPatch({ fastMode: next }, agentId);
+    if (fastModeDraft() !== draft) return;
+    setFastModeDraft(undefined);
+    if (!saved && props.agent?.id === agentId) {
+      setScopedComposerError(currentText().t("composer.error.changeFastMode"));
+    }
+  }
 
   onSettled(() => {
     const importSounds = createAttachmentImportSounds();
@@ -1581,6 +1599,8 @@ export function createConversationViewScope(props: ConversationProps) {
     setBrowserPanelWidth,
     setChatSearchQuery,
     setComposerError: setScopedComposerError,
+    changeFastMode,
+    fastMode,
     setComposerFocusRequest,
     setDropActive,
     setExpandedEmojiMessageId,
