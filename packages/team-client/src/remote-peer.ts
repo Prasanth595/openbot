@@ -1583,7 +1583,8 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
     const delay = Math.max(
       signalRetryAt - Date.now(),
       isPeerOnline(state) || canRecoverPeer(state) || state.waitingForHost
-        ? Math.min(30_000, 500 * 2 ** state.reconnectAttempt++)
+        ? // The jitter spreads the clients that a Signal restart disconnects at the same time.
+          Math.min(30_000, 500 * 2 ** state.reconnectAttempt++) * (0.5 + Math.random() / 2)
         : 60_000,
     );
     diagnose(state, "signal-retry", `in ${delay} ms`);

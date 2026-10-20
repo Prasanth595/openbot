@@ -34,7 +34,7 @@ import {
   type WebhookDeliveryStatus,
 } from "./protocol";
 import { runTelegramCall, type SignalTelegram, type TelegramAnswer, telegramFailure } from "./telegram";
-import { RemoteTokenError, type TelegramChatLink } from "./tokens";
+import { RemoteTokenError, type RemoteTokenUnavailableError, type TelegramChatLink } from "./tokens";
 
 /** The workspaces a verified route ticket names, each with the time it was linked to the host. */
 interface SlackRoute {
@@ -57,8 +57,8 @@ interface TelegramRoute {
 
 export interface RemoteTokenProvider {
   verifyTicket(token: string): Effect.Effect<RemoteTicketClaims, RemoteTokenError>;
-  verifyResumeToken(token: string): Effect.Effect<RemoteTicketClaims, RemoteTokenError>;
-  validateClaims(claims: RemoteTicketClaims): Effect.Effect<boolean, RemoteTokenError>;
+  verifyResumeToken(token: string): Effect.Effect<RemoteTicketClaims, RemoteTokenError | RemoteTokenUnavailableError>;
+  validateClaims(claims: RemoteTicketClaims): Effect.Effect<boolean, RemoteTokenUnavailableError>;
   issueResumeToken(claims: RemoteTicketClaims): Effect.Effect<string, RemoteTokenError>;
   iceServers(claims: RemoteTicketClaims): IceServer[];
   /** Without a route verifier, no ingress socket connects. */
@@ -1142,6 +1142,7 @@ export class SignalService {
           }).pipe(Effect.result);
           let claims: RemoteTicketClaims;
           if (Result.isFailure(initial)) {
+            if (initial.failure._tag === "RemoteTokenUnavailableError") return yield* initial.failure;
             usedInitialTicket = false;
             claims = yield* tokens.verifyResumeToken(message.token);
           } else claims = initial.success;
@@ -1223,6 +1224,13 @@ export class SignalService {
           return { claims, slackRoute, telegramRoute, discordRoute, webhookRoute, resumeToken };
         }).pipe(Effect.result);
         if (Result.isFailure(authentication)) {
+          // After a restart every resume asks the account service. When it does not answer, the
+          // session can still be active: close without an error frame, so that the peer keeps its
+          // data channels and connects again after its backoff.
+          if (authentication.failure._tag === "RemoteTokenUnavailableError") {
+            socket.close(1013, "The account service is unavailable.");
+            return;
+          }
           this.#metrics.authenticationFailures += 1;
           this.#fail(socket, "authentication_required", "Remote ticket is invalid or expired.", 1008);
           return;
