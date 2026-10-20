@@ -2,6 +2,7 @@ import { LOCAL_SERVER_ID, VOICE_AUDIO_LIMITS, VOICE_MODELS, VOICE_STREAM_LIMITS 
 import type { VoicePanelPhase } from "@openbot/ui/features/conversation/VoicePanel";
 import { currentText } from "@openbot/ui/text";
 import { createEffect, createStore, onCleanup } from "solid-js";
+import { desktopAnalytics } from "../../../analytics";
 import { encodePcm16, recordingToSamples, recordingToWav } from "../../../voice-recording";
 import { SPEECH_LEVEL_COUNT, speechReading } from "../../speech/speech-playback";
 import { speechPort } from "../../speech/speech-port";
@@ -83,6 +84,8 @@ interface Turn {
   chunks: Blob[];
   context: AudioContext | undefined;
   timers: Array<ReturnType<typeof setInterval>>;
+  /** When the recording started, on the `performance.now()` clock. */
+  startedAt: number;
   /** The user spoke in this turn. */
   spoke: boolean;
   livePreview: Promise<void> | undefined;
@@ -115,6 +118,12 @@ export function createVoiceConversation(deps: VoiceConversationDeps) {
   let step: VoiceConversationStep = "starting";
   let muted = false;
   let online = true;
+  const startedAt = performance.now();
+  /** The turns that were sent to the chat. */
+  let sentTurns = 0;
+  const serverKind = deps.serverId === LOCAL_SERVER_ID ? "local" : "remote";
+  const transcription = () => (streamed ? "cloud" : "local");
+  const elapsedMs = (since: number) => Math.max(0, Math.round(performance.now() - since));
 
   function setStep(next: VoiceConversationStep): void {
     step = next;
@@ -160,10 +169,32 @@ export function createVoiceConversation(deps: VoiceConversationDeps) {
 
   async function start(): Promise<void> {
     const own = generation;
+    const analytics = desktopAnalytics.scope();
+    const startingAt = performance.now();
     try {
       const speech = speechPort().voice;
       if ((await speech.getSpeechModelStatus()).phase !== "ready") {
-        const status = await speech.downloadSpeechModel();
+        const downloadAt = performance.now();
+        const status = await speech.downloadSpeechModel().catch((error: unknown) => {
+          analytics.track("speech_model_action", {
+            action: "download",
+            entry_point: "voice_conversation",
+            result: "failed",
+            duration_ms: elapsedMs(downloadAt),
+            failure_code: "download_failed",
+          });
+          throw error;
+        });
+        analytics.track("speech_model_action", {
+          action: "download",
+          entry_point: "voice_conversation",
+          result: status.phase === "ready" ? "succeeded" : "failed",
+          duration_ms: elapsedMs(downloadAt),
+          // A download that the settings cancelled ends as "missing".
+          ...(status.phase === "ready"
+            ? {}
+            : { failure_code: status.phase === "missing" ? "cancelled" : "download_failed" }),
+        });
         if (status.phase !== "ready") throw new Error(status.message ?? currentText().t("conversation.voice.error"));
       }
       const [settings, model] = await Promise.all([deps.voice.getSettings(), deps.voice.prepareModel()]);
@@ -174,9 +205,23 @@ export function createVoiceConversation(deps: VoiceConversationDeps) {
       streamed = selected?.kind === "cloud";
       livePreview = !streamed && (selected?.livePreview ?? true);
       ready = true;
+      analytics.track("voice_conversation_action", {
+        action: "start",
+        server_kind: serverKind,
+        result: "succeeded",
+        transcription: transcription(),
+        duration_ms: elapsedMs(startingAt),
+      });
       await listen();
     } catch (error) {
       if (own !== generation || disposed) return;
+      analytics.track("voice_conversation_action", {
+        action: "start",
+        server_kind: serverKind,
+        result: "failed",
+        duration_ms: elapsedMs(startingAt),
+        failure_code: "load_failed",
+      });
       setStep("listening");
       setMuted(true);
       setState((draft) => {
@@ -199,6 +244,13 @@ export function createVoiceConversation(deps: VoiceConversationDeps) {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
     } catch (error) {
       if (own !== generation || disposed) return;
+      desktopAnalytics.track("voice_turn", {
+        server_kind: serverKind,
+        transcription: transcription(),
+        result: "failed",
+        audio_duration_seconds: 0,
+        failure_code: "microphone_failed",
+      });
       setMuted(true);
       setState((draft) => {
         draft.error = voiceCaptureError(error);
@@ -216,6 +268,7 @@ export function createVoiceConversation(deps: VoiceConversationDeps) {
       chunks: [],
       context: undefined,
       timers: [],
+      startedAt: performance.now(),
       spoke: false,
       livePreview: undefined,
     };
@@ -334,6 +387,13 @@ export function createVoiceConversation(deps: VoiceConversationDeps) {
   async function finishTurn(current: Turn, own: number): Promise<void> {
     turn = undefined;
     const mimeType = current.recorder.mimeType;
+    const analytics = desktopAnalytics.scope();
+    const turnProperties = {
+      server_kind: serverKind,
+      transcription: transcription(),
+      audio_duration_seconds: Math.round(performance.now() - current.startedAt) / 1_000,
+    } as const;
+    const transcribingAt = performance.now();
     let text: string;
     let recording: Blob;
     try {
@@ -345,6 +405,12 @@ export function createVoiceConversation(deps: VoiceConversationDeps) {
       text = (streamed ? await transcribeStreamed(recording) : await deps.voice.transcribe({ audio })).text.trim();
     } catch (error) {
       if (own !== generation || disposed) return;
+      analytics.track("voice_turn", {
+        ...turnProperties,
+        result: "failed",
+        duration_ms: elapsedMs(transcribingAt),
+        failure_code: "transcription_failed",
+      });
       await listen();
       setState((draft) => {
         draft.error = voiceTranscriptionError(error);
@@ -352,7 +418,14 @@ export function createVoiceConversation(deps: VoiceConversationDeps) {
       return;
     }
     if (own !== generation || disposed) return;
+    const transcribedMs = elapsedMs(transcribingAt);
     if (!text) {
+      analytics.track("voice_turn", {
+        ...turnProperties,
+        result: "failed",
+        duration_ms: transcribedMs,
+        failure_code: "no_speech",
+      });
       await listen();
       return;
     }
@@ -382,7 +455,17 @@ export function createVoiceConversation(deps: VoiceConversationDeps) {
       recordingDraftId: recordingId,
       onFailed: notSent,
     });
-    if (delivered) return;
+    analytics.track("voice_turn", {
+      ...turnProperties,
+      result: delivered ? "succeeded" : "failed",
+      duration_ms: transcribedMs,
+      recording_kept: recordingId !== undefined,
+      ...(delivered ? {} : { failure_code: "send_failed" }),
+    });
+    if (delivered) {
+      sentTurns += 1;
+      return;
+    }
     discardRecording(recordingId);
     notSent();
   }
@@ -446,6 +529,11 @@ export function createVoiceConversation(deps: VoiceConversationDeps) {
 
   function toggleMute(): void {
     setMuted(!muted);
+    desktopAnalytics.track("voice_conversation_action", {
+      action: muted ? "mute" : "unmute",
+      server_kind: serverKind,
+      result: "succeeded",
+    });
     if (!muted)
       setState((draft) => {
         draft.error = null;
@@ -470,6 +558,11 @@ export function createVoiceConversation(deps: VoiceConversationDeps) {
   /** Stops the reply, or the wait for it, and listens again. The agent's turn goes on. */
   function interrupt(): void {
     if (step !== "waiting" && step !== "transcribing") return;
+    desktopAnalytics.track("voice_conversation_action", {
+      action: "interrupt",
+      server_kind: serverKind,
+      result: "succeeded",
+    });
     dropDictatedReply(target);
     void listen();
   }
@@ -477,6 +570,14 @@ export function createVoiceConversation(deps: VoiceConversationDeps) {
   function dispose(): void {
     if (disposed) return;
     disposed = true;
+    desktopAnalytics.track("voice_conversation_action", {
+      action: "end",
+      server_kind: serverKind,
+      result: "succeeded",
+      ...(ready ? { transcription: transcription() } : {}),
+      duration_ms: elapsedMs(startedAt),
+      turn_count: sentTurns,
+    });
     generation += 1;
     stopReplyEnd();
     releaseTurn();

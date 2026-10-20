@@ -18,14 +18,15 @@ Every event has these low-cardinality properties:
 
 - `surface`: `desktop`, `desktop_host`, `landing`, `web`, `mobile`, or `account_api`;
 - `environment`: currently `production` only;
-- `event_schema_version`: the integer schema generation of that surface: currently `8` on `desktop`,
-  `desktop_host` and `landing`, `10` on `account_api`, `2` on `mobile`, and `1` on `web`;
+- `event_schema_version`: the integer schema generation of that surface: currently `9` on `desktop`,
+  `8` on `desktop_host` and `landing`, `10` on `account_api`, `2` on `mobile`, and `1` on `web`;
 - `app_version` and `platform` on desktop surfaces;
 - `acquisition_source` on landing surfaces: `direct`, `search`, `social`, `github`, or `other`;
 - `source_platform` on landing surfaces: an allowlisted platform name, or `unknown`.
 
 Each surface counts its own generations, so a report filters by `surface` and that surface's current
-generation. Desktop generation 8 adds `hosted_server_upsell`. Host generation 8 adds `system_resources`. Desktop and host generation 7 adds safe error causes and durable failure delivery. Generation 6 added the usage events below (`system_tool_used`,
+generation. Desktop generation 9 adds `voice_conversation_action`, `voice_turn`, `speech_reply`,
+`speech_model_action` and `speech_settings_action`. Desktop generation 8 adds `hosted_server_upsell`. Host generation 8 adds `system_resources`. Desktop and host generation 7 adds safe error causes and durable failure delivery. Generation 6 added the usage events below (`system_tool_used`,
 `system_site_visited`, `system_routine_run`, `system_inventory`), `agent_source` and `agent_listing`
 on host turn and input events, and `plugin` entities and `listing_slug` on `marketplace_action`.
 Account service generation 10 adds `account_created`, `account_attributed`, the `first_touch_*`
@@ -104,6 +105,11 @@ lifecycle. A malformed preference fails closed; a missing preference uses the do
 | `marketplace_action` | Do marketplace views convert to installs/updates? | Marketplace operation completed. `entity` is `skill`, `agent`, or `plugin`; `listing_slug` names only a curated skill or agent or a catalog plugin |
 | `memory_action` | Are manual memories used? | Memory persistence operation completed |
 | `voice_transcription` | Is local voice input reliable and fast? | Transcription returned text without sending it to analytics |
+| `voice_conversation_action` | Do users talk to agents in the Voice pane, and for how long? | `action`: `start` (both voice models are ready; `duration_ms` includes a speech model download; fails with `load_failed`), `end` (the pane closed; `duration_ms` of the conversation and `turn_count` of sent turns), `interrupt`, `mute`, or `unmute`. `server_kind` is `local` or `remote`; `transcription` is `local` or `cloud` |
+| `voice_turn` | Does a spoken turn reach the chat? | The transcribed text was handed to the send queue; delivery itself is `message_send`. `audio_duration_seconds` of the recording, `duration_ms` to transcribe, `recording_kept` (local server only). Failures: `microphone_failed`, `transcription_failed`, `no_speech` (the turn ended with no words), `send_failed` |
+| `speech_reply` | Are spoken replies fast and listened to? | A reading ended. `trigger` is `voice_conversation`, `dictation` or `read_aloud`; `completed` is false when the user or a new turn stopped it; `first_audio_ms` from the start of the reading to its first sound, without the agent's turn; `audio_duration_seconds` of the parts that played. Failures: `load_failed` (the reply did not load), `speech_failed` |
+| `speech_model_action` | Does the voice model download? | `action` `download` returned a ready model. `entry_point` is `settings` or `voice_conversation`; `duration_ms`; failures `download_failed` or `cancelled` |
+| `speech_settings_action` | Is "Read replies aloud" used, and which voices? | The setting was saved. `action` is `read_replies_on`, `read_replies_off`, or `voice_changed` with `voice` (`F1`–`F5`, `M1`–`M5`) |
 | `reaction_action` | Are reactions used? | Reaction operation completed |
 | `maintenance_action` | Can accounts export data and diagnostics? | Export reported a saved artifact |
 | `hosted_site_action` | Can accounts publish, replace, and delete Hosted Sites? | A terminal Hosted Site operation result; site metadata is never sent |

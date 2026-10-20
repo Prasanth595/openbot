@@ -121,10 +121,13 @@ download pages, the news and guide indexes, and published articles. It also reco
 clicks on allowlisted public links, invitation validity, and open-app actions on invitation pages.
 The production desktop app records application, sign-in, onboarding, agent, message, turn, prompt,
 approval, queue, routine, team, browser, search, Remote Desktop, update, marketplace, memory,
-provider, voice transcription, reaction, maintenance, Hosted Site, hosted server offer, and confirmed
-application-version-change actions. Event properties are limited to metadata such as counts, result
-states, timing, provider, model, reasoning effort, application version, operating system, and coarse
-failure codes.
+provider, voice transcription, Voice pane, spoken reply, voice model download, spoken reply setting,
+reaction, maintenance, Hosted Site, hosted server offer, and confirmed application-version-change
+actions. Event properties are limited to metadata such as counts, result states, timing, provider,
+model, reasoning effort, application version, operating system, and coarse failure codes. Voice events
+send only lengths, times, counts, the chosen voice (for example `F1`), whether the server is local or
+remote, and whether speech recognition runs on the computer or in the cloud. They never send what
+the user said, the reply, a transcript, or audio.
 
 The configured production mobile app records app opens and foreground returns, sign-in QR pairing
 and camera-permission outcomes, host connection attempts and losses, conversation-load outcomes,

@@ -8,8 +8,12 @@
 //   4. Offline: the host stops serving. The client's pane releases the microphone, shows the offline
 //      error and does not listen. The client stays disconnected after this case: run
 //      `bun run dev:stop` and `bun run dev:test-client` before the next run.
-// Writes .openbot-build/voice-pane/report.json and screenshots. Needs `--allow-mutations`:
-// `bun scripts/voice-pane-e2e.ts --allow-mutations`.
+//   5. Analytics: each window's OpenPanel requests are captured. The pane, turn and spoken reply
+//      events arrive with their metadata, and no request holds what the user said.
+// Start the harness with the capture address, then run the script with `--allow-mutations`:
+//   OPENBOT_ANALYTICS_CAPTURE_URL=http://localhost:47322 bun run dev:test-client
+//   bun scripts/voice-pane-e2e.ts --allow-mutations
+// Writes .openbot-build/voice-pane/report.json and screenshots.
 import assert from "node:assert/strict";
 import { mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -17,6 +21,7 @@ import { join, resolve } from "node:path";
 import type { OpenBotDesktopApi, StoredFileRow } from "@openbot/contracts/ipc";
 import { createOpenBotLogger } from "@openbot/logging";
 import type { Page } from "playwright-core";
+import { z } from "zod";
 import { assertMutationAllowed, connectToDevApp } from "./dev-automation/cdp-client";
 import { type DevInstanceRecord, readDevInstanceRecords } from "./dev-automation/instance-registry";
 
@@ -34,6 +39,9 @@ const QUESTION = "What is two plus two? Answer in five words or fewer.";
 /** 120 s of Opus at 32 kbps is about 480 KB; a short question must stay far below this. */
 const MAXIMUM_RECORDING_BYTES = 600_000;
 const TURN_TIMEOUT_MS = 180_000;
+/** The app sends analytics here only when it starts with this capture address; no server listens on it. */
+const ANALYTICS_URL = "http://localhost:47322";
+const EVENT_TIMEOUT_MS = 15_000;
 
 interface Check {
   name: string;
@@ -68,7 +76,26 @@ for (const page of [host, client]) page.setDefaultTimeout(30_000);
 mkdirSync(OUT, { recursive: true });
 const checks: Check[] = [];
 type Turn = Awaited<ReturnType<typeof speakOneTurn>>;
-const report: { checks: Check[]; local?: Turn; remote?: Turn; recording?: StoredFileRow | null } = { checks };
+const trackBody = z.object({
+  type: z.literal("track"),
+  payload: z.object({ name: z.string(), properties: z.record(z.string(), z.json()) }),
+});
+type EventProperties = z.infer<typeof trackBody>["payload"]["properties"];
+interface AnalyticsEvent {
+  window: "host" | "client";
+  name: string;
+  properties: EventProperties;
+}
+const events: AnalyticsEvent[] = [];
+/** Every analytics request body, to check that none holds what the user said. */
+const analyticsBodies: string[] = [];
+const report: {
+  checks: Check[];
+  local?: Turn;
+  remote?: Turn;
+  recording?: StoredFileRow | null;
+  analytics: AnalyticsEvent[];
+} = { checks, analytics: events };
 const check = (name: string, passed: boolean, detail: unknown = null) => {
   checks.push({ name, passed, detail });
   logger.info(`${passed ? "Passed" : "Failed"}: ${name}.`);
@@ -110,6 +137,57 @@ async function installMicrophone(page: Page): Promise<void> {
     };
   }, QUESTION);
 }
+
+/** Answers the window's OpenPanel requests in the page and keeps each event. */
+async function captureAnalytics(page: Page, window: AnalyticsEvent["window"]): Promise<void> {
+  const info = await page.evaluate(() => globalThis.window.openbot.getAppInfo());
+  assert.equal(
+    info.analyticsCaptureUrl,
+    ANALYTICS_URL,
+    `Start the harness with OPENBOT_ANALYTICS_CAPTURE_URL=${ANALYTICS_URL} bun run dev:test-client.`,
+  );
+  await page.route(`${ANALYTICS_URL}/**`, async (route) => {
+    const body = route.request().postData() ?? "";
+    if (body) {
+      analyticsBodies.push(body);
+      const parsed = trackBody.safeParse(JSON.parse(body));
+      if (parsed.success)
+        events.push({ window, name: parsed.data.payload.name, properties: parsed.data.payload.properties });
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "*" },
+      body: "{}",
+    });
+  });
+}
+
+/** Waits for an event that the app sends after a state the script already waited for. */
+async function waitForEvent(
+  window: AnalyticsEvent["window"],
+  name: string,
+  match: (properties: EventProperties) => boolean,
+): Promise<AnalyticsEvent | null> {
+  const deadline = Date.now() + EVENT_TIMEOUT_MS;
+  for (;;) {
+    const event = events.find((entry) => entry.window === window && entry.name === name && match(entry.properties));
+    if (event || Date.now() > deadline) return event ?? null;
+    await new Promise((done) => setTimeout(done, 100));
+  }
+}
+
+async function checkEvent(
+  label: string,
+  window: AnalyticsEvent["window"],
+  name: string,
+  match: (properties: EventProperties) => boolean,
+): Promise<void> {
+  const event = await waitForEvent(window, name, match);
+  check(label, event !== null, event ?? events.filter((entry) => entry.window === window && entry.name === name));
+}
+
+const isDuration = (value: unknown) => typeof value === "number" && value > 0;
 
 async function openAgent(page: Page): Promise<void> {
   await page.getByRole("button", { name: new RegExp(`^${AGENT},`) }).click();
@@ -193,6 +271,8 @@ function draftEntries(record: DevInstanceRecord): string[] {
 
 let hostStopped = false;
 try {
+  await captureAnalytics(host, "host");
+  await captureAnalytics(client, "client");
   await installMicrophone(host);
   await installMicrophone(client);
 
@@ -207,6 +287,40 @@ try {
   check("local: the reply is read aloud", local.spoke && local.error === null, local.phases);
   check("local: the spoken message shows a player", local.hasPlayer, local.userMessage);
   await closeVoicePane(host);
+  await checkEvent(
+    "analytics: the local pane start is sent",
+    "host",
+    "voice_conversation_action",
+    (event) => event.action === "start" && event.result === "succeeded" && event.server_kind === "local",
+  );
+  await checkEvent(
+    "analytics: the local turn is sent with its kept recording",
+    "host",
+    "voice_turn",
+    (event) =>
+      event.result === "succeeded" &&
+      event.server_kind === "local" &&
+      event.recording_kept === true &&
+      isDuration(event.audio_duration_seconds) &&
+      isDuration(event.duration_ms),
+  );
+  await checkEvent(
+    "analytics: the spoken reply is sent with its first audio time",
+    "host",
+    "speech_reply",
+    (event) =>
+      event.trigger === "voice_conversation" &&
+      event.result === "succeeded" &&
+      event.completed === true &&
+      isDuration(event.first_audio_ms) &&
+      isDuration(event.audio_duration_seconds),
+  );
+  await checkEvent(
+    "analytics: the local pane end is sent with its turn count",
+    "host",
+    "voice_conversation_action",
+    (event) => event.action === "end" && event.turn_count === 1 && isDuration(event.duration_ms),
+  );
   const recording = (await hostFiles()).find(
     (file) => file.mimeType.startsWith("audio/") && !recordingsBefore.has(file.id),
   );
@@ -230,6 +344,12 @@ try {
   report.remote = remoteTurn;
   check("remote: the reply is read aloud", remoteTurn.spoke && remoteTurn.error === null, remoteTurn.phases);
   check("remote: the message has text and no player", !remoteTurn.hasPlayer, remoteTurn.userMessage);
+  await checkEvent(
+    "analytics: the remote turn is sent with no kept recording",
+    "client",
+    "voice_turn",
+    (event) => event.result === "succeeded" && event.server_kind === "remote" && event.recording_kept === false,
+  );
   const draftsAfter = draftEntries(clientRecord);
   check(
     "remote: no recording draft stays on the client",
@@ -298,6 +418,22 @@ try {
     later,
   );
   await closeVoicePane(client);
+  await checkEvent(
+    "analytics: the remote pane end is sent",
+    "client",
+    "voice_conversation_action",
+    (event) => event.action === "end" && event.server_kind === "remote",
+  );
+  const said = analyticsBodies.filter((body) => body.toLowerCase().includes("two plus two"));
+  check("analytics: no request holds what the user said", said.length === 0, said);
+  const versions = [
+    ...new Set(
+      events
+        .filter((event) => /^(?:voice_conversation_action|voice_turn|speech_reply)$/u.test(event.name))
+        .map((event) => event.properties.event_schema_version),
+    ),
+  ];
+  check("analytics: voice events use desktop schema 9", versions.length === 1 && versions[0] === 9, versions);
 } finally {
   if (hostStopped) await host.evaluate(() => window.openbot.host.start()).catch(() => undefined);
   writeFileSync(join(OUT, "report.json"), `${JSON.stringify(report, null, 2)}\n`);
