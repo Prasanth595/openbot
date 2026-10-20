@@ -24,6 +24,7 @@ import {
   createContext,
   memo,
   type PropsWithChildren,
+  type ReactNode,
   useCallback,
   useContext,
   useEffect,
@@ -226,6 +227,8 @@ interface ChatMessageListProps {
   appActive: boolean;
   activeTurnId: string | null;
   questionForm?: QuestionPromptController;
+  /** Rows under the activity, such as the tasks that the agent works on. */
+  activityAccessory?: ReactNode;
   /** The approvals that this chat's agents wait on, shown below the activity as on the desktop. */
   approvals?: readonly PendingApproval[];
   /** The browser requests that this chat's agents wait on. The phone shows them above the composer. */
@@ -783,6 +786,7 @@ export function ChatMessageList({
   appActive,
   activeTurnId,
   questionForm,
+  activityAccessory,
   approvals = NO_APPROVALS,
   browserRequests = NO_BROWSER_REQUESTS,
   serverName = "",
@@ -1232,6 +1236,7 @@ export function ChatMessageList({
                   />
                 ))}
               </Animated.View>
+              {activityAccessory}
               {onRespondApproval && approvals.length ? (
                 <View className="gap-3 pb-3">
                   {approvals.map((approval) => (

@@ -360,4 +360,6 @@ export const messages = {
   "mobile.chat.queue.addedOnPhone": "Auf diesem Telefon hinzugefügt",
   "mobile.chat.queue.addFiles": "Dateien hinzufügen",
   "mobile.chat.queue.addPhotos": "Fotos hinzufügen",
+  "mobile.chat.tasks.open": "Aufgabe {title} öffnen, {status}",
+  "mobile.chat.tasks.close": "Aufgabe {title} schließen",
 } as const satisfies PartialTranslation<typeof source>;

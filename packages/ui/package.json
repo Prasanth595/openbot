@@ -275,7 +275,6 @@
     "./features/sidebar/stores/layout-actions": "./src/features/sidebar/stores/layout-actions.ts",
     "./features/sidebar/stores/pending-store": "./src/features/sidebar/stores/pending-store.ts",
     "./features/tasks/TasksPage": "./src/features/tasks/TasksPage.tsx",
-    "./features/tasks/tasks-view": "./src/features/tasks/tasks-view.ts",
     "./features/team/TeamPersonAvatar": "./src/features/team/TeamPersonAvatar.tsx",
     "./features/updates/HelpMenu": "./src/features/updates/HelpMenu.tsx",
     "./features/updates/restart-reasons": "./src/features/updates/restart-reasons.ts",

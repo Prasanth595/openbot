@@ -347,4 +347,6 @@ export const messages = defineMessages("mobile.chat", {
   "mobile.chat.queue.addedOnPhone": "Added on this phone",
   "mobile.chat.queue.addFiles": "Add files",
   "mobile.chat.queue.addPhotos": "Add photos",
+  "mobile.chat.tasks.open": "Open task {title}, {status}",
+  "mobile.chat.tasks.close": "Close task {title}",
 });

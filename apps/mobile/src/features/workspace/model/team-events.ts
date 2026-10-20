@@ -5,6 +5,7 @@ import { decodeMobileBrowserTabs } from "@/features/browser/model/browser-tabs";
 import type { LiveWorkspaceStore } from "./live-workspace-store";
 import { AGENT_SETTINGS_PARTS, type QueryScope, queryKeys } from "./query-keys";
 import { applyMobileQueueEvent } from "./queue-cache";
+import { applyTaskEvent } from "./task-cache";
 
 export type WorkspaceTeamEvent = AgentEvent | TeamRealtimeEvent;
 
@@ -54,6 +55,7 @@ export function syncEventQueries(
   if (event.type === "queue-changed" || event.type === "queue-invalidated") {
     void applyMobileQueueEvent(queryClient, serverId, event);
   }
+  applyTaskEvent(queryClient, scope, serverId, event);
   if (
     event.type === "routines-changed" ||
     event.type === "agents-changed" ||

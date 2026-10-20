@@ -141,11 +141,12 @@ interface ChatComposerProps {
   /** 0 with the keyboard down, 1 with it up, and every value a swipe passes through. */
   keyboardProgress: SharedValue<number>;
   /** The attachment card is open on the plus, which then has to hold still. */
-  menuOpen: boolean;
+  menuOpen?: boolean;
   /** The card's open progress, so the plus can cross-fade against the card. */
-  menuProgress: SharedValue<number>;
+  menuProgress?: SharedValue<number>;
   stopping?: boolean;
-  attachments: ChatAttachments;
+  /** Absent for a text-only composer: no plus, and a paste adds no file. */
+  attachments?: ChatAttachments;
   sendRetryVersion: number;
   replyTarget: ChatBubbleMessage | null;
   replyFocusVersion: number;
@@ -154,10 +155,13 @@ interface ChatComposerProps {
   /** Focuses the field after another screen, such as Agent info > Skills, handed text to it. */
   handoffFocusVersion?: number;
   onCancelReply: () => void;
-  voice: VoiceMode;
+  /** Absent for a text-only composer: the control never dictates. */
+  voice?: VoiceMode;
   /** The agent's colour for the filled voice controls, the glyph colour on it, and the glass tint. */
-  voiceAccent: { fill: string; glyph: string; tint: string };
+  voiceAccent?: { fill: string; glyph: string; tint: string };
 }
+
+const NO_FILES: ChatAttachments["items"] = [];
 
 /** Bars that follow the microphone level, drawn in the listening voice button. */
 function VoiceLevelBars({ level, color }: { level: SharedValue<number>; color: string }) {
@@ -201,7 +205,7 @@ export function ChatComposer({
   onSend,
   onStop,
   keyboardProgress,
-  menuOpen,
+  menuOpen = false,
   menuProgress,
   stopping = false,
   attachments,
@@ -215,12 +219,19 @@ export function ChatComposer({
   voiceAccent,
 }: ChatComposerProps) {
   const { t, format, sourceText } = useText();
+  // A text-only composer has no menu or voice motion of its own; these stay at rest.
+  const still = useSharedValue(0);
+  const menuMotion = menuProgress ?? still;
+  const morph = voice?.presence ?? still;
+  const voiceSplit = voice?.split ?? still;
+  const files = attachments?.items ?? NO_FILES;
+  const preparing = attachments?.preparing ?? false;
   const display = mentionDraft(draft);
   const displayText = display.text;
   const [cursor, setCursor] = useState(0);
   // The file whose preview is open. An ID, not a copy: a removed file closes its own preview.
   const [previewId, setPreviewId] = useState<string | null>(null);
-  const previewItem = attachments.items.find((item) => item.id === previewId) ?? null;
+  const previewItem = files.find((item) => item.id === previewId) ?? null;
   const query = mentionQuery(draft, cursor);
   const suggestions = query
     ? mentionAgents
@@ -231,15 +242,14 @@ export function ChatComposer({
     : [];
   // What the bar has to stay open for. A send takes the text and the files out of
   // the composer at once, so a draft is always a new one.
-  const hasDraft = Boolean(draft.trim()) || attachments.items.length > 0;
+  const hasDraft = Boolean(draft.trim()) || files.length > 0;
   const inputRef = useRef<TextInput>(null);
   const isFocused = useIsFocused();
   const latestTextRef = useRef(draft);
   const [sendGate] = useState(createComposerSendGate);
   // The chat owns the voice mode: its overlay covers the whole chat. The
   // composer only changes shape for it.
-  const voiceOpen = voice.stage !== "closed";
-  const morph = voice.presence;
+  const voiceOpen = voice !== undefined && voice.stage !== "closed";
   const focusedReplyVersion = useRef(0);
   useEffect(() => {
     if (isFocused && !disabled && replyTarget && focusedReplyVersion.current !== replyFocusVersion) {
@@ -271,11 +281,15 @@ export function ChatComposer({
     return () => clearInterval(retry);
   }, [isFocused, disabled, handoffFocusVersion]);
   // The copies are read as attachments in the same way as a share from another app, then deleted.
-  const pasteFiles = ({ files, failed }: PastedFiles) => {
+  const pasteFiles = ({ files: pasted, failed }: PastedFiles) => {
+    if (!attachments) {
+      deleteComposerFiles(pasted);
+      return;
+    }
     void attachments
-      .addShared("", files, () => {})
+      .addShared("", pasted, () => {})
       .finally(() => {
-        deleteComposerFiles(files);
+        deleteComposerFiles(pasted);
         if (failed === 0) return;
         void haptics.notification("error");
         showFailureAlert(
@@ -295,7 +309,9 @@ export function ChatComposer({
   }, [displayText]);
   const { fontScale, width: windowWidth } = useWindowDimensions();
   const lineHeight = 22 * fontScale;
-  const rowTextWidth = windowWidth - BAR_INSET * 2 - ROW_CONTROL_INSET * 2;
+  // Without the plus, the text starts at the card's own inset.
+  const leadingInset = attachments ? ROW_CONTROL_INSET : FIELD_INSET;
+  const rowTextWidth = windowWidth - BAR_INSET * 2 - ROW_CONTROL_INSET - leadingInset;
   // One reading drives both the shape and the height. Measuring the two widths
   // separately gave the card two targets in two frames, so it animated twice.
   const [wrap, setWrap] = useState({ lines: 1, width: 0 });
@@ -306,7 +322,7 @@ export function ChatComposer({
     TOOLBAR_HEIGHT,
     Math.min(MAX_INPUT_LINES, wrap.lines) * lineHeight + FIELD_VERTICAL_PADDING,
   );
-  const attachmentsOpen = attachments.items.length > 0;
+  const attachmentsOpen = files.length > 0;
   const reducedMotion = useReducedMotion();
   const shapeDuration = reducedMotion ? 0 : SHAPE_DURATION;
   // Settings can keep the composer open, and reduced motion always does.
@@ -329,9 +345,12 @@ export function ChatComposer({
   const restControlShift = TOOLBAR_PADDING + (CONTROL_SIZE - restHeight) / 2;
   const restControlDrawn = CONTROL_SIZE * REST_CONTROL_SCALE;
   const restTextInset = (restHeight - restControlDrawn) / 2 + restControlDrawn + REST_TEXT_GAP;
+  // Without the plus, the placeholder starts at the card's own inset.
+  const restLeadingInset = attachments ? restTextInset : FIELD_INSET;
   // Sized from the placeholder, so the bar carries no empty space. Full width
   // until the measurement lands: a bar that starts narrow would jump open.
-  const restWidth = placeholderWidth > 0 ? Math.min(cardWidth, placeholderWidth + restTextInset * 2) : cardWidth;
+  const restWidth =
+    placeholderWidth > 0 ? Math.min(cardWidth, placeholderWidth + restLeadingInset + restTextInset) : cardWidth;
   // The worklets read the resting width from here, so a new placeholder tweens the bar instead of
   // snapping it. The first measurement is taken at once, as before: the bar must not shrink in
   // from full width when the chat opens.
@@ -415,10 +434,10 @@ export function ChatComposer({
   // With Liquid Glass the round button stays glass, so the glow under it shows
   // through and spreads on it. Without glass the card is opaque, so the agent's
   // colour fills it while it listens. Continue is the card again.
-  const voiceFilled = !liquidGlassAvailable;
-  const listeningGlyph = voiceFilled ? voiceAccent.glyph : String(foreground);
+  const voiceFilled = !liquidGlassAvailable && voiceAccent !== undefined;
+  const listeningGlyph = voiceFilled && voiceAccent ? voiceAccent.glyph : String(foreground);
   const voiceFill = useSharedValue(0);
-  const listening = voice.stage === "listening" && !voice.exit;
+  const listening = voice?.stage === "listening" && !voice.exit;
   useEffect(() => {
     voiceFill.set(
       withTiming(listening ? 1 : 0, {
@@ -439,14 +458,14 @@ export function ChatComposer({
     return interpolate(open, [0, 0.5], [0, 1], Extrapolation.CLAMP);
   };
   const cancelSideStyle = useAnimatedStyle(() => {
-    const open = voice.split.get();
+    const open = voiceSplit.get();
     return {
       opacity: sideOpacity(open),
       transform: [{ translateX: -VOICE_SIDE_OFFSET * open }, { scale: 0.5 + 0.5 * open }],
     };
   });
   const sendSideStyle = useAnimatedStyle(() => {
-    const open = voice.split.get();
+    const open = voiceSplit.get();
     return {
       opacity: sideOpacity(open),
       transform: [{ translateX: VOICE_SIDE_OFFSET * open }, { scale: 0.5 + 0.5 * open }],
@@ -509,8 +528,8 @@ export function ChatComposer({
   // Centred at rest, and never further left than the plus: a placeholder wider
   // than the smaller bar, or one not measured yet, keeps the open position and
   // truncates instead of starting under a control.
-  const openTextOffset = ROW_CONTROL_INSET - FIELD_INSET;
-  const restTextOffset = placeholderWidth > 0 ? restTextInset - FIELD_INSET : openTextOffset;
+  const openTextOffset = leadingInset - FIELD_INSET;
+  const restTextOffset = placeholderWidth > 0 ? restLeadingInset - FIELD_INSET : openTextOffset;
   const fieldSlideStyle = useAnimatedStyle(() => ({
     height: fieldHeightValue.get(),
     transform: [
@@ -540,8 +559,8 @@ export function ChatComposer({
 
   useLayoutEffect(() => {
     // Selecting a file is a draft edit even when TextInput never receives focus.
-    if (attachments.items.length > 0) sendGate.edit();
-  }, [attachments.items, sendGate]);
+    if (files.length > 0) sendGate.edit();
+  }, [files, sendGate]);
 
   useLayoutEffect(() => {
     if (sendRetryVersion > 0) sendGate.allowRetry();
@@ -572,15 +591,15 @@ export function ChatComposer({
     );
   }, [suggestionsVisible, suggestions.length, query?.query]);
 
-  const busy = attachments.preparing;
-  const attachmentsBlocked = disabled || attachments.preparing;
+  const busy = preparing;
+  const attachmentsBlocked = disabled || preparing;
   const leadingBlocked = attachmentsBlocked;
   // The card covers this glyph and draws the same corner, so the two trade
   // places on one progress: the glyph is gone by the time the card is drawn,
   // and back on the frames the card fades out. Waiting for the card to
   // unmount left the corner empty for the whole length of its collapse.
   const plusGlyphStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(menuProgress.get(), [0, 0.2], [1, 0], Extrapolation.CLAMP) * (leadingBlocked ? 0.45 : 1),
+    opacity: interpolate(menuMotion.get(), [0, 0.2], [1, 0], Extrapolation.CLAMP) * (leadingBlocked ? 0.45 : 1),
   }));
   // Where the plus is drawn, in either shape, from the constants that draw it.
   // Measuring it cannot work: `measureInWindow` reads the layout tree, and the
@@ -601,11 +620,11 @@ export function ChatComposer({
     busy,
     canStop: Boolean(onStop),
     stopping,
-    voiceAvailable: voice.available,
+    voiceAvailable: voice?.available ?? false,
   });
 
   function requestSend(): void {
-    if (disabled || attachments.preparing) return;
+    if (disabled || preparing) return;
     const action = sendGate.request();
     if (action === "blur") inputRef.current?.blur();
     else if (action === "send") onSend(latestTextRef.current);
@@ -620,7 +639,7 @@ export function ChatComposer({
         // The keyboard has no place in the voice mode, and the field is
         // read-only until it closes.
         inputRef.current?.blur();
-        voice.open();
+        voice?.open();
         return;
       case "send":
         requestSend();
@@ -634,10 +653,10 @@ export function ChatComposer({
   }[control.mode];
   // The round button: Stop while it listens, Continue after.
   const voiceLabel =
-    voice.stage === "listening" ? t("mobile.chat.composer.stopDictation") : t("mobile.chat.voice.continue");
+    voice?.stage === "listening" ? t("mobile.chat.composer.stopDictation") : t("mobile.chat.voice.continue");
   // Stop is pressable while the recognizer starts too, and then closes the
   // voice mode. Continue waits until the chat can listen again.
-  const voicePressable = !voice.exit && (voice.stage === "listening" || voice.canResume);
+  const voicePressable = voice !== undefined && !voice.exit && (voice.stage === "listening" || voice.canResume);
 
   const focusInput = useCallback(() => {
     if (!disabled) inputRef.current?.focus();
@@ -730,7 +749,7 @@ export function ChatComposer({
         >
           {placeholderText}
         </NativeText>
-        {voiceOpen ? (
+        {voiceOpen && voice ? (
           // Drawn before the card, so the two buttons come out from under it.
           <View
             pointerEvents={voice.stage === "review" && !voice.exit ? "box-none" : "none"}
@@ -772,7 +791,7 @@ export function ChatComposer({
                 // would stop iOS from drawing it.
                 <GlassView
                   glassEffectStyle="regular"
-                  tintColor={voice.canSend ? voiceAccent.tint : undefined}
+                  tintColor={voice.canSend ? voiceAccent?.tint : undefined}
                   style={{
                     width: VOICE_SIDE_SIZE,
                     height: VOICE_SIDE_SIZE,
@@ -803,12 +822,12 @@ export function ChatComposer({
                   style={{
                     width: VOICE_SIDE_SIZE,
                     height: VOICE_SIDE_SIZE,
-                    backgroundColor: voiceAccent.fill,
+                    backgroundColor: voiceAccent?.fill ?? action,
                     opacity: voice.canSend ? 1 : 0.45,
                   }}
                   onPress={voice.send}
                 >
-                  <ArrowUp color={voiceAccent.glyph} size={24} strokeWidth={2.2} />
+                  <ArrowUp color={voiceAccent?.glyph ?? String(actionForeground)} size={24} strokeWidth={2.2} />
                 </Pressable>
               )}
             </Animated.View>
@@ -828,7 +847,7 @@ export function ChatComposer({
               cardStyle,
             ]}
           >
-            {voiceFilled ? (
+            {voiceFilled && voiceAccent ? (
               <Animated.View
                 pointerEvents="none"
                 style={[{ position: "absolute", inset: 0, backgroundColor: voiceAccent.fill }, voiceFillStyle]}
@@ -898,13 +917,13 @@ export function ChatComposer({
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={{ gap: 8, paddingHorizontal: 8, paddingTop: 8 }}
                 >
-                  {attachments.items.map((item, index) => (
+                  {files.map((item, index) => (
                     <ComposerAttachmentTile
                       key={item.id}
                       item={item}
                       index={index}
-                      count={attachments.items.length}
-                      disabled={attachments.preparing}
+                      count={files.length}
+                      disabled={preparing}
                       foreground={foreground}
                       raised={raised}
                       onPreview={() => {
@@ -913,7 +932,7 @@ export function ChatComposer({
                       }}
                       onRemove={() => {
                         void haptics.selection();
-                        attachments.remove(item.id);
+                        attachments?.remove(item.id);
                       }}
                     />
                   ))}
@@ -972,13 +991,14 @@ export function ChatComposer({
                       onBlur={() => setFocused(false)}
                       onChangeText={(text) => {
                         sendGate.edit();
-                        const pasted = largePastedText(latestTextRef.current, text);
-                        if (pasted) {
+                        // A text-only composer keeps a long paste as text: it has no file to turn it into.
+                        const pasted = attachments ? largePastedText(latestTextRef.current, text) : null;
+                        if (pasted && attachments) {
                           // Keep the pasted text until its attachment is durable. A failed write must not lose it.
                           latestTextRef.current = text;
                           onChangeDraft(text);
                           void Promise.resolve()
-                            .then(() => attachments.pasteText(pasted.text, () => {}))
+                            .then(() => attachments?.pasteText(pasted.text, () => {}))
                             .then(() => {
                               if (latestTextRef.current !== text) return;
                               latestTextRef.current = pasted.draft;
@@ -1087,7 +1107,7 @@ export function ChatComposer({
                 }}
               >
                 <Animated.View style={controlStyle}>
-                  {voiceOpen ? (
+                  {voiceOpen && voice ? (
                     <Pressable
                       accessibilityLabel={voiceLabel}
                       accessibilityRole="button"
@@ -1153,33 +1173,35 @@ export function ChatComposer({
         {/* Outside the glass container on purpose. A SwiftUI Menu anchored
             inside one makes iOS morph that container into the menu, which ate
             the whole composer whenever the card was no taller than the row. */}
-        <Animated.View
-          // The plus fades out with the morph, and the voice mode has no attachments.
-          pointerEvents={voiceOpen ? "none" : "box-none"}
-          accessibilityElementsHidden={voiceOpen}
-          importantForAccessibility={voiceOpen ? "no-hide-descendants" : "auto"}
-          // Absolute insets here are measured from the bar's outer edge, so they
-          // have to carry the bar's own padding to land on the card.
-          style={[{ position: "absolute", left: BAR_INSET + 8, bottom: Math.max(bottomInset, 10) + 4 }, plusStyle]}
-        >
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("mobile.chat.composer.addAttachment")}
-            accessibilityState={{ disabled: leadingBlocked }}
-            disabled={leadingBlocked}
-            hitSlop={4}
-            className="size-10 items-center justify-center rounded-full"
-            onPress={() => {
-              void haptics.selection();
-              setOpenedWith({ expanded: !restingPlus, focused });
-              attachments.openMenu(attachmentAnchor);
-            }}
+        {attachments ? (
+          <Animated.View
+            // The plus fades out with the morph, and the voice mode has no attachments.
+            pointerEvents={voiceOpen ? "none" : "box-none"}
+            accessibilityElementsHidden={voiceOpen}
+            importantForAccessibility={voiceOpen ? "no-hide-descendants" : "auto"}
+            // Absolute insets here are measured from the bar's outer edge, so they
+            // have to carry the bar's own padding to land on the card.
+            style={[{ position: "absolute", left: BAR_INSET + 8, bottom: Math.max(bottomInset, 10) + 4 }, plusStyle]}
           >
-            <Animated.View style={plusGlyphStyle}>
-              <Plus color={String(foreground)} size={24} strokeWidth={1.8} />
-            </Animated.View>
-          </Pressable>
-        </Animated.View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("mobile.chat.composer.addAttachment")}
+              accessibilityState={{ disabled: leadingBlocked }}
+              disabled={leadingBlocked}
+              hitSlop={4}
+              className="size-10 items-center justify-center rounded-full"
+              onPress={() => {
+                void haptics.selection();
+                setOpenedWith({ expanded: !restingPlus, focused });
+                attachments?.openMenu(attachmentAnchor);
+              }}
+            >
+              <Animated.View style={plusGlyphStyle}>
+                <Plus color={String(foreground)} size={24} strokeWidth={1.8} />
+              </Animated.View>
+            </Pressable>
+          </Animated.View>
+        ) : null}
       </View>
       <AttachmentPreviewSheet
         preview={
@@ -1200,14 +1222,14 @@ export function ChatComposer({
                   : [{ label: t("common.open"), onPress: () => void shareLocalAttachment(previewItem) }]),
                 {
                   label: t("mobile.chat.attachment.replace"),
-                  disabled: attachments.preparing,
-                  onPress: () => void attachments.replace(previewItem.id),
+                  disabled: preparing,
+                  onPress: () => void attachments?.replace(previewItem.id),
                 },
                 {
                   label: t("common.remove"),
                   variant: "danger-soft" as const,
-                  disabled: attachments.preparing,
-                  onPress: () => attachments.remove(previewItem.id),
+                  disabled: preparing,
+                  onPress: () => attachments?.remove(previewItem.id),
                 },
               ]
             : []

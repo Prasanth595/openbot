@@ -1,4 +1,4 @@
-import { isAgentTaskActive } from "@openbot/ui/features/conversation/AgentTasks";
+import { isAgentTaskActive } from "@openbot/team-client/agent-tasks";
 import { ConversationHeader as SharedConversationHeader } from "@openbot/ui/features/conversation/ConversationHeader";
 import { useConversationViewScope } from "./conversation-scope";
 

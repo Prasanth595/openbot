@@ -1,5 +1,6 @@
 import type { AgentTask, AgentTaskHold, AgentTaskOutcome, AttachmentSummary } from "@openbot/contracts/ipc";
 import type { AppTextKey } from "@openbot/i18n";
+import { isAgentTaskActive, isAgentTaskOpen } from "@openbot/team-client/agent-tasks";
 import { ArrowUp, Button, ChevronLeft, ChevronRight, Plus, X } from "@openbot/ui";
 import type { AgentMessage, AgentProfile } from "@openbot/ui/data";
 import { AgentActivityIndicator, nextAgentActivityLabel } from "@openbot/ui/features/conversation/AgentActivity";
@@ -24,9 +25,6 @@ const OUTCOME_TEXT = {
   failed: "conversation.tasks.state.failed",
   interrupted: "conversation.tasks.state.interrupted",
 } as const satisfies Record<AgentTaskOutcome, AppTextKey>;
-
-export const isAgentTaskOpen = (task: AgentTask): boolean => task.state !== "closed";
-export const isAgentTaskActive = (task: AgentTask): boolean => task.state === "running" || task.state === "queued";
 
 function taskMarkState(task: AgentTask): TaskMarkState {
   if (task.state === "running") return "active";
