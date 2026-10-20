@@ -22,7 +22,8 @@ Rust port of TypeScript, when tsrs has a binary for the computer: macOS arm64 an
 On Windows and Intel Macs it runs `node_modules/typescript/bin/tsc`. tsrs checked the 14 projects in
 about 2.6 seconds and 1 GB per large project; `tsc` took about 13 seconds and 2.5 GB (M4 Pro,
 2026-10-20). tsrs follows a TypeScript 7.1 build and the catalog `typescript` is 7.0, so the two can
-report different errors. CI uses tsrs. Editors still use the catalog `typescript`. The script calls
+report different errors. CI uses tsrs; for this reason the Windows release job does not check types.
+Editors still use the catalog `typescript`. The script calls
 `tsc` by path because `storybook-solidjs-vite` installs typescript@6 as `@typescript/old`, and bun
 links that package's `tsc` into `node_modules/.bin` in place of the TypeScript 7 one. A bare `tsc`
 therefore checks with TypeScript 6 without a warning.

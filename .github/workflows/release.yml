@@ -570,8 +570,10 @@ jobs:
       - name: Set up Bun
         uses: ./.github/actions/setup-bun
 
+      # The Linux job checks types with tsrs, as PR CI does. tsrs has no Windows binary, so a type check
+      # here would use `tsc` from another TypeScript version and could stop a release that CI passed.
       - name: Run Windows checks
-        run: bun run lint && bun run typecheck
+        run: bun run lint
 
       # Without a token, the GitHub API rate limit for the runner's address can refuse the release
       # lookup with HTTP 403.
