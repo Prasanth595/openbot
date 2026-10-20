@@ -153,15 +153,6 @@ async function runTurn(client: AgentClient, thread: string): Promise<string | nu
   return failure;
 }
 
-async function waitForSpawn(): Promise<LogEntry> {
-  for (let attempt = 0; attempt < 100; attempt += 1) {
-    const spawn = (await readLog()).find((entry) => entry.event === "spawn");
-    if (spawn) return spawn;
-    await new Promise((settle) => setTimeout(settle, 50));
-  }
-  throw new Error("The fake OpenCode did not start.");
-}
-
 async function startThread(client: AgentClient, cwd: string): Promise<string> {
   const started = await runCauseEffect(client.request("thread/start", { cwd }, (value) => value));
   const thread = JSON.stringify(started).match(/"id":"([^"]+)"/)?.[1];
@@ -229,8 +220,9 @@ try {
     },
   ];
   await rm(log, { force: true });
-  open(cli);
-  const endpointSpawn = await waitForSpawn();
+  await startThread(open(cli), workspace);
+  const endpointSpawn = (await readLog()).find((entry) => entry.event === "spawn");
+  assert.ok(endpointSpawn, "The fake OpenCode started.");
   assert.equal(endpointSpawn.baseURL, "http://127.0.0.1:1234/v1", "The endpoint keeps its URL.");
   assert.equal(endpointSpawn.configKey, null, "The stored key does not replace the endpoint's options.");
   assert.equal(endpointSpawn.zenKey, "fresh", "The OpenCode provider gets the stored key.");
