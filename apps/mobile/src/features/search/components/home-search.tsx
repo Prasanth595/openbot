@@ -350,11 +350,6 @@ export function useHomeSearch(): HomeSearch {
   useEffect(() => {
     if (serverId) setTarget(null);
   }, [serverId]);
-  // A quick action of the app icon opens the search with the keyboard.
-  useEffect(() => {
-    setHomeSearchOpener(() => input.current?.focus());
-    return () => setHomeSearchOpener(null);
-  }, []);
   // Android Back closes the results before it leaves the app.
   useEffect(() => {
     if (!open) return;
@@ -535,6 +530,13 @@ function TaskTargetRow({ agent, onPress }: { agent: MobileAgent; onPress: () => 
 /** The field at the bottom of home. It rides on the keyboard, and a close button comes in beside it. */
 export function HomeSearchBar({ search }: { search: HomeSearch }) {
   const { t } = useText();
+  const { input } = search;
+  // A quick action of the app icon opens the search with the keyboard. The field registers it, so a
+  // request that comes while the list loads waits until the field and its input are mounted.
+  useEffect(() => {
+    setHomeSearchOpener(() => input.current?.focus());
+    return () => setHomeSearchOpener(null);
+  }, [input]);
   const insets = useSafeAreaInsets();
   const liquidGlass = useLiquidGlass();
   const reduced = useReducedMotion();
