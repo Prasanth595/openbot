@@ -1177,10 +1177,15 @@ export class TurnLifecycle {
       snapshot.messages.push(message);
       this.#itemTurns.set(id, turnId);
     }
+    const previous = message.subagents;
     message.itemType = CONVERSATION_SUBAGENTS_ITEM_TYPE;
     message.text = conversationSubagentsText(subagents);
     message.subagents = subagents;
-    this.#conversation.emitConversation(snapshot);
+    // A new step replaces the last one in the event log, so a long run does not keep a copy of the
+    // list for each step. A new subagent or a new state keeps its own event.
+    if (previous && subagentStates(previous) === subagentStates(subagents))
+      this.#conversation.emitReplacedMessage(snapshot, id, "turn.subagents-updated");
+    else this.#conversation.emitConversation(snapshot);
   }
 
   /** Codex reports its subagents as tool items of the parent thread. */
@@ -1258,4 +1263,9 @@ function isRepeatedWork(item: { type?: unknown; phase?: unknown; text?: unknown 
   if (item.type === "userMessage" || item.type === "reasoning" || item.type === "contextCompaction") return false;
   if (item.type !== "agentMessage") return true;
   return item.phase !== "commentary" && isString(item.text) && item.text.trim() !== "";
+}
+
+/** Which subagents a list holds and the state of each, without their steps. */
+function subagentStates(subagents: readonly ConversationSubagent[]): string {
+  return subagents.map((subagent) => `${subagent.id}:${subagent.status}`).join("\n");
 }

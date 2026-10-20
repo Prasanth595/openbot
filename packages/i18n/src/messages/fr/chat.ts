@@ -34,7 +34,6 @@ export const messages = {
   "chat.subagents.state.completed": "Terminé",
   "chat.subagents.state.failed": "Échec",
   "chat.subagents.state.stopped": "Arrêté",
-  "chat.subagents.starting": "Démarrage…",
   "chat.subagents.taskFrom": "Tâche de {name}",
   "chat.subagents.steps": "Étapes de « {title} »",
   "chat.subagents.stepCount": { one: "{count} étape", other: "{count} étapes" },

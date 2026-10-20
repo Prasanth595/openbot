@@ -134,7 +134,7 @@ function LiveLine(props: { subagent: ConversationSubagent }) {
   const text = () => {
     const subagent = props.subagent;
     if (subagent.status === "failed") return subagent.error ?? t(STATE_LABEL.failed);
-    return shown()?.text ?? t(subagent.status === "running" ? "chat.subagents.starting" : STATE_LABEL[subagent.status]);
+    return shown()?.text ?? t(STATE_LABEL[subagent.status]);
   };
   return (
     <span class="subagents-live" data-state={props.subagent.status}>

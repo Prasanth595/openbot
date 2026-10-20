@@ -33,7 +33,6 @@ export const messages = defineMessages("chat", {
   "chat.subagents.state.completed": "Done",
   "chat.subagents.state.failed": "Failed",
   "chat.subagents.state.stopped": "Stopped",
-  "chat.subagents.starting": "Starting…",
   "chat.subagents.taskFrom": "Task from {name}",
   "chat.subagents.steps": "Steps of “{title}”",
   "chat.subagents.stepCount": { one: "{count} step", other: "{count} steps" },
