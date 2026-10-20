@@ -4,8 +4,9 @@ import type {
   LicenseState,
   LicenseUsersRequest,
 } from "@openbot/contracts/license";
-import { createEffect, createStore, untrack } from "solid-js";
+import { createStore } from "solid-js";
 import { currentText } from "../../text";
+import { createStripeReturnLoad } from "./billing-store";
 
 /** The license calls of one surface: desktop IPC or the web client's account server requests. */
 export interface LicenseCalls {
@@ -40,62 +41,30 @@ export function createLicenseStore(calls: () => LicenseCalls | undefined, isActi
     pending: null,
     license: null,
   });
-  let reloadRequested = false;
-  let loadPromise: Promise<void> | null = null;
-
-  function load(): Promise<void> {
-    if (!calls()) return Promise.resolve();
-    reloadRequested = true;
-    if (loadPromise) return loadPromise;
-    loadPromise = Promise.resolve().then(async () => {
+  const load = createStripeReturnLoad({
+    available: () => calls() !== undefined,
+    isActive,
+    setLoading: (loading) =>
+      setState((draft) => {
+        draft.loading = loading;
+        if (loading) draft.error = null;
+      }),
+    loadOnce: async () => {
       try {
-        while (reloadRequested) {
-          reloadRequested = false;
-          setState((draft) => {
-            draft.loading = true;
-            draft.error = null;
-          });
-          try {
-            const api = calls();
-            if (api) {
-              const license = await api.getState();
-              setState((draft) => {
-                draft.license = license;
-              });
-            }
-          } catch (error) {
-            setState((draft) => {
-              const text = currentText();
-              draft.error = text.errorMessage(error, text.t("billing.license.loadFailed"));
-            });
-          }
-        }
-      } finally {
-        loadPromise = null;
+        const api = calls();
+        if (!api) return;
+        const license = await api.getState();
         setState((draft) => {
-          draft.loading = false;
+          draft.license = license;
+        });
+      } catch (error) {
+        setState((draft) => {
+          const text = currentText();
+          draft.error = text.errorMessage(error, text.t("billing.license.loadFailed"));
         });
       }
-    });
-    return loadPromise;
-  }
-
-  createEffect(
-    () => isActive() && calls() !== undefined,
-    (shouldLoad) => {
-      if (!shouldLoad) return;
-      untrack(() => void load());
-      const reload = () => {
-        if (document.visibilityState !== "hidden") void load();
-      };
-      window.addEventListener("focus", reload);
-      document.addEventListener("visibilitychange", reload);
-      return () => {
-        window.removeEventListener("focus", reload);
-        document.removeEventListener("visibilitychange", reload);
-      };
     },
-  );
+  });
 
   /** Runs one action. Returns false when it did not run or failed; `actionError` then has the reason. */
   async function run(action: LicenseAction, call: (api: LicenseCalls) => Promise<LicenseState | undefined>) {

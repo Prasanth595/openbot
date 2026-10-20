@@ -68,6 +68,7 @@ const SCENARIOS = [
   "license-failed-renewal",
   "license-currency",
   "license-isolation",
+  "license-limit",
 ] as const;
 type Scenario = (typeof SCENARIOS)[number];
 const DAY = 86_400;
@@ -94,7 +95,9 @@ const subscriptionSchema = z.object({
   items: z.object({ data: z.array(z.object({ id: z.string() })) }),
 });
 const invoiceListSchema = z.object({
-  data: z.array(z.object({ billing_reason: z.string().nullable(), status: z.string(), amount_paid: z.number() })),
+  data: z.array(
+    z.object({ id: z.string(), billing_reason: z.string().nullable(), status: z.string(), amount_paid: z.number() }),
+  ),
 });
 const checkoutSessionSchema = z.object({ status: z.string().nullable(), customer: z.string().nullable() });
 const scheduleSchema = z.object({
@@ -203,6 +206,8 @@ type BrowserApiBody =
   | LicenseCheckoutRequest
   | LicenseUsersRequest
   | LicenseRenewalRequest
+  | { role: "member"; reactivate?: true }
+  | { token: string }
   | Record<string, never>;
 
 function print(line: string) {
@@ -360,15 +365,16 @@ class Account {
   }
 
   async request(
-    method: "GET" | "POST" | "DELETE",
+    method: "GET" | "POST" | "PATCH" | "DELETE",
     path: string,
     body?: BrowserApiBody,
     headers: Record<string, string> = {},
+    token = this.token,
   ) {
     const response = await fetch(`${this.api}/api/browser/${path}`, {
       method,
       headers: {
-        Cookie: `__Host-openbot-web=${this.token}`,
+        Cookie: `__Host-openbot-web=${token}`,
         ...(method === "GET" ? {} : { Origin: this.api, "X-OpenBot-Browser": "1", "Content-Type": "application/json" }),
         ...headers,
       },
@@ -518,20 +524,37 @@ class Account {
     return `${this.id}-member-${key}`;
   }
 
-  /** The license state that a member of this account's servers sees. */
-  async memberLicense(key: string): Promise<LicenseView> {
+  /** A browser session of a member of this account's servers. A new key is a new account. */
+  memberSession(key: string) {
     const token = randomBytes(24).toString("base64url");
     const now = Date.now();
+    const memberId = this.memberId(key);
     d1(
-      `INSERT INTO auth_sessions(id, user_id, token_hash, expires_at, created_at, last_used_at)
-       VALUES (${quote(crypto.randomUUID())}, ${quote(this.memberId(key))},
+      `INSERT OR IGNORE INTO users(id, identity_key, email, name, created_at, updated_at)
+       VALUES (${quote(memberId)}, ${quote(`e2e:${memberId}`)}, ${quote(`${memberId}@example.com`)},
+               ${quote(`Member ${key}`)}, ${now}, ${now});
+       INSERT INTO auth_sessions(id, user_id, token_hash, expires_at, created_at, last_used_at)
+       VALUES (${quote(crypto.randomUUID())}, ${quote(memberId)},
                ${quote(createHash("sha256").update(token).digest("base64url"))}, ${now + DAY * 1_000}, ${now}, ${now})`,
       z.unknown(),
     );
-    const response = await fetch(`${this.api}/api/browser/v1/me/license`, {
-      headers: { Cookie: `__Host-openbot-web=${token}` },
+    return token;
+  }
+
+  /** The license state that a member of this account's servers sees. */
+  async memberLicense(key: string): Promise<LicenseView> {
+    return licenseStateSchema.parse(
+      (await this.request("GET", "v1/me/license", undefined, {}, this.memberSession(key))).body,
+    );
+  }
+
+  /** A member opens a new member invitation of the server at this `addServers` index. */
+  async memberJoins(key: string, server: number) {
+    const invite = await this.request("POST", `v2/remote/hosts/e2e-${this.scenario}-${server}/invites`, {
+      role: "member",
     });
-    return licenseStateSchema.parse(await response.json());
+    const token = z.object({ token: z.string() }).parse(invite.body).token;
+    return this.request("POST", "v2/remote/invites/accept", { token }, {}, this.memberSession(key));
   }
 
   /** Moves the test clock and waits until Stripe has run everything that the move made due. */
@@ -728,8 +751,9 @@ async function priceId(plan: string, interval: string): Promise<string> {
 const subscription = (id: string) => stripe("GET", `/v1/subscriptions/${id}`, subscriptionSchema);
 
 async function invoices(subscriptionId: string) {
-  const list = await stripe("GET", "/v1/invoices", invoiceListSchema, { subscription: subscriptionId, limit: "3" });
+  const list = await stripe("GET", "/v1/invoices", invoiceListSchema, { subscription: subscriptionId, limit: "10" });
   return list.data.map((invoice) => ({
+    id: invoice.id,
     reason: invoice.billing_reason,
     status: invoice.status,
     amount: invoice.amount_paid,
@@ -1852,6 +1876,86 @@ const scenarios: Record<Scenario, (account: Account) => Promise<void>> = {
       "an increase with a failing card: 402 license_payment_failed, and the license keeps 8 users",
       declined.status === 402 && declined.code === "license_payment_failed" && after.license?.users === 8,
       { status: declined.status, code: declined.code, users: after.license?.users },
+    );
+    await account.useCard("pm_card_visa");
+    const paidBack = await account.request("POST", "v1/me/license/users", { users: 10 });
+    const paidBackInvoices = await invoices(sub);
+    record(
+      "license-users",
+      "8 → 10 users in the period that paid for 11: no new invoice",
+      paidBack.status === 200 && paidBackInvoices.length === moreInvoices.length,
+      { status: paidBack.status, invoices: paidBackInvoices },
+    );
+    const extra = await account.request("POST", "v1/me/license/users", { users: 12 });
+    const extraInvoices = await invoices(sub);
+    record(
+      "license-users",
+      "10 → 12 users: one paid invoice for the 12th user only, less than the 9 → 11 invoice",
+      extra.status === 200 &&
+        licenseStateSchema.parse(extra.body).license?.users === 12 &&
+        extraInvoices.length === paidBackInvoices.length + 1 &&
+        extraInvoices[0]?.status === "paid" &&
+        extraInvoices[0].amount > 0 &&
+        extraInvoices[0].amount < (moreInvoices[0]?.amount ?? 0),
+      { status: extra.status, invoices: extraInvoices },
+    );
+  },
+
+  async "license-limit"(account) {
+    // Servers with no plan take 3 active members, so each has the owner and one member: the license
+    // stops a join before the member limit does. The owner and a, b, c, lab use all 5 users.
+    account.addServers([
+      { name: "Office", members: [{ key: "a" }] },
+      { name: "Studio", members: [{ key: "b" }, { key: "gone", active: false }] },
+      { name: "Shop", members: [{ key: "c" }] },
+      { name: "Lab", members: [{ key: "lab" }] },
+    ]);
+    await account.buyLicense(5);
+    await licenseWhere(account, "license active", (state) => state.license?.users === 5 && state.used === 5);
+    const refused = await account.memberJoins("new", 0);
+    record(
+      "license-limit",
+      "5 of 5 users: a new person cannot join, 409 license_users_full",
+      refused.status === 409 && refused.code === "license_users_full",
+      { status: refused.status, code: refused.code },
+    );
+    const counted = await account.memberJoins("lab", 0);
+    record("license-limit", "5 of 5 users: a member of another server of the owner joins", counted.status === 200, {
+      status: counted.status,
+      code: counted.code,
+    });
+    const [gone] = d1(
+      `SELECT membership_id FROM remote_memberships
+        WHERE host_id = ${quote(`e2e-${account.scenario}-1`)} AND user_id = ${quote(account.memberId("gone"))}`,
+      z.object({ membership_id: z.string() }),
+    );
+    const reactivate = () =>
+      account.request("PATCH", `v2/remote/hosts/e2e-${account.scenario}-1/members/${gone?.membership_id}`, {
+        role: "member",
+        reactivate: true,
+      });
+    const reactivated = await reactivate();
+    record(
+      "license-limit",
+      "5 of 5 users: the owner cannot reactivate a removed member, 409 license_users_full",
+      reactivated.status === 409 && reactivated.code === "license_users_full",
+      { status: reactivated.status, code: reactivated.code },
+    );
+    const more = await account.request("POST", "v1/me/license/users", { users: 6 });
+    const joined = await account.memberJoins("new", 2);
+    const state = await account.license();
+    record(
+      "license-limit",
+      "after the owner adds a user to the license, the new person joins and uses it",
+      more.status === 200 && joined.status === 200 && state.used === 6,
+      { users: more.status, join: joined.status, code: joined.code, used: state.used },
+    );
+    const again = await reactivate();
+    record(
+      "license-limit",
+      "6 of 6 users: the reactivation is refused again",
+      again.status === 409 && again.code === "license_users_full",
+      { status: again.status, code: again.code },
     );
   },
 

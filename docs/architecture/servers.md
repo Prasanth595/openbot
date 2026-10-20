@@ -408,8 +408,13 @@ subscription quantity is the number of users.
 
 - Users are people, not servers or computers: the owner, plus each distinct account that is an
   active member (`remote_memberships`) of a server that the owner owns. AI agents and chat-app
-  participants do not count. The license does not limit invites or members; the server plan limit
-  (`getServerEntitlement`) stays the only member limit.
+  participants do not count.
+- While the license is open, it is a hard limit. `RemoteControlPlane` adds
+  `LICENSE_SEAT_AVAILABLE_SQL` to the member seat check of an invite accept and a reactivation, in the
+  same statement as the server plan limit. A full license refuses a new person with 409
+  `license_users_full`. A person that the license already counts can join another server of the
+  owner. Members who joined before are never removed. Without an open license, only the server plan
+  limit (`getServerEntitlement`) applies.
 - `apps/auth-api/src/server/license-service.ts` owns the `licenses` D1 table (migration `0038`).
   The billing webhook gives a subscription with the license lookup key to `LicenseService.sync` and
   writes nothing to `billing_subscriptions`. A Worker before the license sees an unknown plan and
@@ -418,15 +423,19 @@ subscription quantity is the number of users.
   state is `available: false` until Stripe has the license price, and the app then shows nothing.
   An app on a Worker without these routes gets 404 and also shows nothing.
 - A Stripe customer pays in one currency, so a new license uses the currency of the account's open
-  subscriptions. An increase is charged at once (`always_invoice`). A decrease starts at the next
-  invoice and cannot go below the users in use or below 5.
+  subscriptions. Checkout cannot buy fewer users than are in use. An increase is charged at once
+  (`always_invoice`). A decrease starts at the next invoice and cannot go below the users in use or
+  below 5. The subscription metadata `openbot_paid_users` and `openbot_paid_period_end` keep the
+  users paid in the current period, so an increase after a decrease charges only the users above
+  that number.
 - Checkout keeps one open license page for each account. After it makes a page, it closes the
   older license pages of the customer, so two requests at the same time return the same page. It
   then reads the customer's subscriptions in Stripe, not only D1, so a license paid before its
   webhook stops the new page with `license_exists`. A second open license can still come from the
   Stripe Dashboard; `sync` logs a warning, and a person refunds it.
 - When the owner of a full license creates an invite, the members section asks to add 1 user and
-  shows the extra price. At 25 users the invite still works, and the text says to contact us.
+  shows the extra price, then adds the user and creates the invite. At 25 users it shows "Contact
+  us" and creates no invite. Admins get no step; the join tells the person that the license is full.
 - Desktop calls the `license` IPC group; the web client calls the browser routes. Both render
   `@openbot/ui/features/billing/LicenseSection` in the license slot of `BillingPanel`.
 

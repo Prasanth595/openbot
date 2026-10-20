@@ -92,6 +92,8 @@ export interface ServerSettingsModalProps {
    * Members section first asks to add a user to it. Absent on surfaces with no account license.
    */
   license?: Pick<LicenseCalls, "getState" | "setUsers"> | undefined;
+  /** Opens the contact page when a full license already has the most users that the app sells. */
+  onContactUs?: () => void;
   onUpdateMember: (input: UpdateTeamMemberInput) => Promise<void>;
   onRemoveMember: (memberId: string) => Promise<void>;
   onRevokeInvite: (inviteId: string) => Promise<void>;

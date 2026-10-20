@@ -199,13 +199,20 @@ export class StripeClient {
 
   readonly setSubscriptionQuantity = Effect.fn("StripeClient.setSubscriptionQuantity")(function* (
     this: StripeClient,
-    input: { subscriptionId: string; itemId: string; quantity: number; proration: "always_invoice" | "none" },
+    input: {
+      subscriptionId: string;
+      itemId: string;
+      quantity: number;
+      proration: "always_invoice" | "none";
+      metadata?: Readonly<Record<string, string>>;
+    },
   ): Effect.fn.Return<StripeSubscription, StripeRequestError | StripeTransportError> {
     const body = new URLSearchParams({
       "items[0][id]": input.itemId,
       "items[0][quantity]": String(input.quantity),
       proration_behavior: input.proration,
     });
+    for (const [key, value] of Object.entries(input.metadata ?? {})) body.set(`metadata[${key}]`, value);
     if (input.proration === "always_invoice") body.set("payment_behavior", "error_if_incomplete");
     return yield* this.#requestEffect(
       "POST",

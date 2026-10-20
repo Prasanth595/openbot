@@ -1,6 +1,5 @@
-import type { BillingCurrency, BillingSubscriptionStatus } from "@openbot/contracts/billing";
+import { type BillingCurrency, type BillingSubscriptionStatus, isOpenBillingStatus } from "@openbot/contracts/billing";
 import {
-  isLicenseOpen,
   LICENSE_INCLUDED_USERS,
   LICENSE_MAX_USERS,
   LICENSE_PRICES,
@@ -104,7 +103,7 @@ export function LicenseSection(props: LicenseSectionProps): JSX.Element {
   const state = () => props.store.state.license;
   const open = () => {
     const license = state()?.license;
-    return license && isLicenseOpen(license) ? license : null;
+    return license && isOpenBillingStatus(license.status) ? license : null;
   };
 
   return (
@@ -727,13 +726,4 @@ function LicenseUsersDialog(props: { users: LicenseUser[]; license: License; onC
       </ItemGroup>
     </ConfirmDialog>
   );
-}
-
-/**
- * The price of one more user, or null when the license already has the most users that the app sells.
- * The invite step shows it before an invite that makes the license too small.
- */
-export function licenseNextUserPrice(license: License): number | null {
-  if (license.users >= LICENSE_MAX_USERS) return null;
-  return licenseAmount(license.users + 1, license.currency) - licenseAmount(license.users, license.currency);
 }

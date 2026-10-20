@@ -108,7 +108,7 @@ export const messages = {
   "billing.license.paymentFailed":
     "ライセンスのお支払いに失敗しました。ライセンスを維持するには支払い方法を更新してください。",
   "billing.license.overLimit":
-    "{used} 人がライセンスを使っていますが、ライセンスは {users} ユーザー分です。ライセンスにユーザーを追加してください。",
+    "{used} 人がライセンスを使っていますが、ライセンスは {users} ユーザー分です。ライセンスにユーザーを追加するまで、新しい人は参加できません。",
   "billing.license.covered.title": "ライセンス適用済み",
   "billing.license.covered.description": "{owners} のサーバーでの作業は、そのライセンスの対象です。",
   "billing.license.change.title": "ユーザー数を変更",
@@ -137,6 +137,6 @@ export const messages = {
   "billing.license.invite.confirm": "追加して招待",
   "billing.license.invite.max": {
     other:
-      "ライセンスのユーザー数は上限の {count} 人です。より大きなライセンスについてはお問い合わせください。招待は引き続きできます。",
+      "ライセンスのユーザー数は上限の {count} 人です。より大きなライセンスについてはお問い合わせください。新しい人はサーバーに参加できません。",
   },
 } as const satisfies PartialTranslation<typeof source>;

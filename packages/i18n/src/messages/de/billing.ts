@@ -110,7 +110,7 @@ export const messages = {
   "billing.license.paymentFailed":
     "Eine Lizenzzahlung ist fehlgeschlagen. Aktualisiere die Zahlungsmethode, um die Lizenz zu behalten.",
   "billing.license.overLimit":
-    "{used} Personen nutzen die Lizenz, sie gilt aber nur für {users} Nutzer. Füge der Lizenz Nutzer hinzu.",
+    "{used} Personen nutzen die Lizenz, sie gilt aber nur für {users} Nutzer. Neue Personen können erst beitreten, wenn du der Lizenz Nutzer hinzufügst.",
   "billing.license.covered.title": "Durch eine Lizenz abgedeckt",
   "billing.license.covered.description": "Die Arbeit auf Servern von {owners} ist durch deren Lizenz abgedeckt.",
   "billing.license.change.title": "Nutzer ändern",
@@ -138,8 +138,8 @@ export const messages = {
   "billing.license.invite.description": "Diese Einladung fügt deiner Lizenz 1 Nutzer hinzu: {price} mehr pro Monat.",
   "billing.license.invite.confirm": "Hinzufügen und einladen",
   "billing.license.invite.max": {
-    one: "Deine Lizenz hat {count} Nutzer, das Maximum. Kontaktiere uns für eine größere Lizenz. Du kannst trotzdem einladen.",
+    one: "Deine Lizenz hat {count} Nutzer, das Maximum. Kontaktiere uns für eine größere Lizenz. Neue Personen können deinen Servern nicht beitreten.",
     other:
-      "Deine Lizenz hat {count} Nutzer, das Maximum. Kontaktiere uns für eine größere Lizenz. Du kannst trotzdem einladen.",
+      "Deine Lizenz hat {count} Nutzer, das Maximum. Kontaktiere uns für eine größere Lizenz. Neue Personen können deinen Servern nicht beitreten.",
   },
 } as const satisfies PartialTranslation<typeof source>;

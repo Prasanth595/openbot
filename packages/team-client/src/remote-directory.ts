@@ -111,6 +111,7 @@ const DIRECTORY_ERROR_TEXT = new Map<string, string>([
   ["invite_already_used", sourceText("error.remote.inviteAlreadyUsed")],
   ["invite_not_found", sourceText("error.remote.inviteNotFound")],
   ["member_limit_reached", sourceText("error.remote.memberLimitReached")],
+  ["license_users_full", sourceText("error.remote.licenseUsersFull")],
   ["host_not_found", sourceText("error.remote.hostNotRegistered")],
   ["membership_not_found", sourceText("error.remote.membershipEnded")],
   ["session_inactive", sourceText("error.remote.accountSessionInactive")],

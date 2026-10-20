@@ -188,6 +188,11 @@ export class LicenseService {
       const price = yield* this.#price();
       if (!price) return yield* licenseUnavailable();
       if (yield* this.#openLicense(user.id)) return yield* licenseExists();
+      // The account service refuses a join above the license, so a license cannot start below the
+      // people that it counts now.
+      const { used } = yield* this.getState(user.id);
+      if (request.users < used)
+        return yield* new BillingError(409, "license_users_in_use", sourceText("error.billing.licenseUsersInUse"));
       // A Stripe customer pays all its subscriptions in one currency.
       const locked = yield* this.#lockedCurrency(user.id);
       if (locked && locked !== request.currency)
@@ -258,25 +263,63 @@ export class LicenseService {
       if (users < Math.max(LICENSE_INCLUDED_USERS, state.used) || users > LICENSE_MAX_USERS)
         return yield* new BillingError(409, "license_users_in_use", sourceText("error.billing.licenseUsersInUse"));
       if (users === license.users) return state;
-      const readAt = dependencies.now();
       const current = yield* this.#stripeCall(() =>
         dependencies.stripe.getSubscription(license.stripe_subscription_id),
       );
       const item = current.items.data[0];
       if (!item || !isLicensePrice(item.price)) return yield* noLicense();
-      const proration = users > (item.quantity ?? 1) ? "always_invoice" : "none";
-      const updated = yield* stripeRequest(() =>
-        dependencies.stripe.setSubscriptionQuantity({
-          subscriptionId: current.id,
-          itemId: item.id,
-          quantity: users,
-          proration,
-        }),
-      ).pipe(
-        Effect.mapError((error) =>
-          error instanceof StripeRequestError && error.status === 402
-            ? new BillingError(402, "license_payment_failed", sourceText("error.billing.licensePaymentFailed"))
-            : stripeFailure(error),
+      const quantity = item.quantity ?? 1;
+      // Fewer users apply with no refund, so the users that this period already paid for stay paid. Only
+      // users above that count are invoiced now.
+      const periodEnd = String(subscriptionPeriodEnd(current) ?? "");
+      const paidUsers = Number(current.metadata[LICENSE_METADATA.paidUsers]);
+      const paid =
+        current.metadata[LICENSE_METADATA.paidPeriodEnd] === periodEnd && Number.isSafeInteger(paidUsers)
+          ? Math.max(quantity, paidUsers)
+          : quantity;
+      // Each write gets the time after Stripe answers: the webhook of an earlier write in this change can
+      // read Stripe after this change started, and its older state must not replace this one.
+      const setQuantity = (next: number, proration: "always_invoice" | "none") =>
+        stripeRequest(() =>
+          dependencies.stripe.setSubscriptionQuantity({
+            subscriptionId: current.id,
+            itemId: item.id,
+            quantity: next,
+            proration,
+            metadata: {
+              [LICENSE_METADATA.paidUsers]: String(Math.max(paid, proration === "always_invoice" ? next : 0)),
+              [LICENSE_METADATA.paidPeriodEnd]: periodEnd,
+            },
+          }),
+        ).pipe(Effect.map((updated) => ({ updated, readAt: dependencies.now() })));
+      if (users <= paid) {
+        const { updated, readAt } = yield* setQuantity(users, "none").pipe(Effect.mapError(stripeFailure));
+        yield* this.sync(updated, userId, readAt);
+        return yield* this.getState(userId);
+      }
+      // Stripe prorates from the current quantity, so the license first goes back to the paid users at no
+      // charge. When the payment fails, Stripe keeps the paid users and the license goes back to as it was.
+      if (quantity !== paid) yield* setQuantity(paid, "none").pipe(Effect.mapError(stripeFailure));
+      const sync = (written: { updated: StripeSubscription; readAt: number }) =>
+        this.sync(written.updated, userId, written.readAt);
+      const { updated, readAt } = yield* setQuantity(users, "always_invoice").pipe(
+        Effect.catch((error) =>
+          Effect.gen(function* () {
+            if (quantity !== paid)
+              yield* setQuantity(quantity, "none").pipe(
+                Effect.flatMap(sync),
+                Effect.catch(() =>
+                  Effect.sync(() =>
+                    console.warn("billing: license users were not restored", { subscriptionId: current.id }),
+                  ),
+                ),
+              );
+            return yield* Effect.fail(
+              error instanceof StripeRequestError && error.status === 402
+                ? new BillingError(402, "license_payment_failed", sourceText("error.billing.licensePaymentFailed"))
+                : stripeFailure(error),
+            );
+          }),
         ),
       );
       yield* this.sync(updated, userId, readAt);

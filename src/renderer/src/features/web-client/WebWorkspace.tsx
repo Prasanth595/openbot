@@ -1677,6 +1677,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                       onSetPublished={unavailable}
                       onCreateInvite={serverSettings.createInvite}
                       license={licenseCalls}
+                      onContactUs={() => window.location.assign(HOSTED_SERVER_CONTACT_URL)}
                       onUpdateMember={serverSettings.updateMember}
                       onRemoveMember={serverSettings.removeMember}
                       onRevokeInvite={serverSettings.revokeInvite}

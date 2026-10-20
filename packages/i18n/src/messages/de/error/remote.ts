@@ -185,6 +185,8 @@ export const messages = {
   "error.remote.directoryTimeout": "Der OpenBot-Dienst hat nicht rechtzeitig geantwortet. Versuche es erneut.",
   "error.remote.inviteAlreadyUsed": "Diese Einladung wurde bereits verwendet. Bitte um eine neue Einladung.",
   "error.remote.inviteNotFound": "Diese Einladung existiert nicht oder ist abgelaufen. Bitte um eine neue Einladung.",
+  "error.remote.licenseUsersFull":
+    "Die Lizenz des Serverbesitzers hat keinen freien Benutzer. Bitte den Besitzer, der Lizenz einen Benutzer hinzuzufügen.",
   "error.remote.memberLimitReached":
     "Dieser Host hat sein Mitgliederlimit erreicht. Bitte den Eigentümer, Platz zu schaffen.",
   "error.remote.hostNotRegistered": "Dieser Host ist nicht mehr beim OpenBot-Dienst registriert.",

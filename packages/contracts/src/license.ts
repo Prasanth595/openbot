@@ -21,7 +21,16 @@ export const LICENSE_PRODUCT_ID = "openbot_license";
  * The subscription metadata of a license. It names the account with `BILLING_METADATA.userId` and has
  * no server id, so a Worker that knows only server plans ignores it.
  */
-export const LICENSE_METADATA = { kind: "openbot_kind" } as const;
+export const LICENSE_METADATA = {
+  kind: "openbot_kind",
+  /**
+   * The most users that Stripe invoiced in the period that ends at `paidPeriodEnd`. Fewer users apply
+   * with no refund, so a later increase up to this count is already paid.
+   */
+  paidUsers: "openbot_paid_users",
+  /** The end of the period that `paidUsers` is for, in milliseconds since the epoch. */
+  paidPeriodEnd: "openbot_paid_period_end",
+} as const;
 export const LICENSE_METADATA_KIND = "license";
 
 /** The base price includes this many users. */
@@ -45,19 +54,6 @@ export function licenseAmount(users: number, currency: BillingCurrency): number 
 /** True for a user count that the app can buy or set. */
 export function isLicenseUserCount(value: unknown): value is number {
   return isNumber(value) && Number.isInteger(value) && value >= LICENSE_INCLUDED_USERS && value <= LICENSE_MAX_USERS;
-}
-
-/** A license in one of these statuses counts as open: the account has it and cannot buy another. */
-const OPEN_LICENSE_STATUSES: readonly BillingSubscriptionStatus[] = [
-  "active",
-  "trialing",
-  "past_due",
-  "unpaid",
-  "paused",
-];
-
-export function isLicenseOpen(license: Pick<License, "status">): boolean {
-  return OPEN_LICENSE_STATUSES.includes(license.status);
 }
 
 export interface License {

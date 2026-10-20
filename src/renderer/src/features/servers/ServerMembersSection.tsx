@@ -1,6 +1,7 @@
+import { isOpenBillingStatus } from "@openbot/contracts/billing";
 import { DEFAULT_TEAM_MEMBER_LIMIT, INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import type { InviteSummary, TeamPresenceMember, TeamRole } from "@openbot/contracts/ipc";
-import { isLicenseOpen, LICENSE_MAX_USERS, type License } from "@openbot/contracts/license";
+import { LICENSE_MAX_USERS, type License, licenseAmount } from "@openbot/contracts/license";
 import { normalizeEmailAddress } from "@openbot/contracts/validation";
 import type { AppTextKey } from "@openbot/i18n";
 import {
@@ -42,7 +43,7 @@ import {
   Trash2,
   UserRound,
 } from "@openbot/ui";
-import { formatLicenseMoney, licenseNextUserPrice } from "@openbot/ui/features/billing/LicenseSection";
+import { formatLicenseMoney } from "@openbot/ui/features/billing/LicenseSection";
 import { teamMemberName } from "@openbot/ui/features/team/TeamPersonAvatar";
 import { useText } from "@openbot/ui/text";
 import { prefersReducedMotion } from "@openbot/ui/utils";
@@ -118,7 +119,9 @@ export function createServerMembersSection(host: ServerSettingsSectionHost): Ser
   /** A clock, not panel state: it retires an invite row as its `expiresAt` passes. */
   const [now, setNow] = createSignal(Date.now());
   /** The full license that the next invite would add a user to, while the owner confirms it. */
-  const [licenseStep, setLicenseStep] = createSignal<{ license: License; error: string | null } | null>(null);
+  const [licenseStep, setLicenseStep] = createSignal<{ license: License; used: number; error: string | null } | null>(
+    null,
+  );
   let inviteLinkInput: HTMLInputElement | undefined;
   let expiryTimer: ReturnType<typeof setTimeout> | undefined;
   let inviteLinkSwapTimer: ReturnType<typeof setTimeout> | undefined;
@@ -247,17 +250,19 @@ export function createServerMembersSection(host: ServerSettingsSectionHost): Ser
   }
 
   /**
-   * The owner's open license when it is full and the invite can add a person that it does not count
-   * yet. Admins get null: the license is the owner's. A failed read gets null, so it never blocks an invite.
+   * The owner's open license and the people that it counts, when it is full and the invite can add a
+   * person that it does not count yet. The account service refuses a join above the license, so the
+   * owner adds a user first. Admins get null: the license is the owner's, and the join tells the person
+   * that it is full. A failed read gets null, so it never blocks an invite.
    */
-  async function fullLicense(email: string | null): Promise<License | null> {
+  async function fullLicense(email: string | null): Promise<{ license: License; used: number } | null> {
     const calls = props.license;
     if (!calls || props.server.role !== "owner") return null;
     const state = await calls.getState().catch(() => null);
     const license = state?.license;
-    if (!state || !license || !isLicenseOpen(license) || state.used < license.users) return null;
+    if (!state || !license || !isOpenBillingStatus(license.status) || state.used < license.users) return null;
     if (email && state.users.some((user) => normalizeEmailAddress(user.email) === email)) return null;
-    return license;
+    return { license, used: state.used };
   }
 
   async function createInvite(licenseChecked = false): Promise<void> {
@@ -269,12 +274,12 @@ export function createServerMembersSection(host: ServerSettingsSectionHost): Ser
       return;
     }
     if (!licenseChecked) {
-      let license: License | null = null;
+      const check: { full: { license: License; used: number } | null } = { full: null };
       await run("invite", async () => {
-        license = await fullLicense(email);
+        check.full = await fullLicense(email);
       });
-      if (license) {
-        setLicenseStep({ license, error: null });
+      if (check.full) {
+        setLicenseStep({ ...check.full, error: null });
         return;
       }
     }
@@ -825,13 +830,22 @@ export function createServerMembersSection(host: ServerSettingsSectionHost): Ser
     );
   }
 
-  /** Asks the owner to add a user to the full license, then sends the invite. At the maximum it only warns. */
+  /**
+   * Asks the owner to add a user to the full license, then sends the invite. A license at the maximum
+   * cannot grow, so the dialog offers the contact page and sends no invite.
+   */
   function LicenseUserDialog() {
     const { errorMessage } = useText();
     return (
       <Show when={licenseStep()}>
         {(step) => {
-          const price = () => licenseNextUserPrice(step().license);
+          // A license can count more people than it pays for, when they joined before a lower limit.
+          const users = () => Math.max(step().license.users, step().used) + 1;
+          const price = () =>
+            users() > LICENSE_MAX_USERS
+              ? null
+              : licenseAmount(users(), step().license.currency) -
+                licenseAmount(step().license.users, step().license.currency);
           return (
             <ConfirmDialog
               open
@@ -849,22 +863,22 @@ export function createServerMembersSection(host: ServerSettingsSectionHost): Ser
                 </Show>
               }
               confirmLabel={
-                price() !== null
-                  ? t("billing.license.invite.confirm")
-                  : panels.invite.mode === "email"
-                    ? t("server.invite.send")
-                    : t("server.invite.createLink")
+                price() !== null ? t("billing.license.invite.confirm") : t("billing.license.contact.action")
               }
               error={step().error ?? undefined}
               onCancel={() => setLicenseStep(null)}
               onConfirm={async () => {
-                const { license } = step();
                 const calls = props.license;
-                if (calls && price() !== null) {
+                if (price() === null) {
+                  setLicenseStep(null);
+                  props.onContactUs?.();
+                  return;
+                }
+                if (calls) {
                   try {
-                    await calls.setUsers({ users: license.users + 1 });
+                    await calls.setUsers({ users: users() });
                   } catch (error) {
-                    setLicenseStep({ license, error: errorMessage(error, t("billing.license.actionFailed")) });
+                    setLicenseStep({ ...step(), error: errorMessage(error, t("billing.license.actionFailed")) });
                     return;
                   }
                 }

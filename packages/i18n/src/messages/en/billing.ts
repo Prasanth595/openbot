@@ -111,7 +111,8 @@ export const messages = defineMessages("billing", {
   "billing.license.action.cancel": "Cancel license",
   "billing.license.action.renew": "Renew license",
   "billing.license.paymentFailed": "A license payment failed. Update the payment method to keep the license.",
-  "billing.license.overLimit": "{used} people use the license, but it is for {users} users. Add users to the license.",
+  "billing.license.overLimit":
+    "{used} people use the license, but it is for {users} users. New people cannot join until you add users to the license.",
   "billing.license.covered.title": "Covered by a license",
   // {owners} is a list of names, for example "Ana and Jan".
   "billing.license.covered.description": "Work on servers of {owners} is covered by their license.",
@@ -140,7 +141,8 @@ export const messages = defineMessages("billing", {
   "billing.license.invite.description": "This invite adds 1 user to your license: {price} more a month.",
   "billing.license.invite.confirm": "Add user and invite",
   "billing.license.invite.max": {
-    one: "Your license has {count} user, the maximum. Contact us for a larger license. You can still invite.",
-    other: "Your license has {count} users, the maximum. Contact us for a larger license. You can still invite.",
+    one: "Your license has {count} user, the maximum. Contact us for a larger license. New people cannot join your servers.",
+    other:
+      "Your license has {count} users, the maximum. Contact us for a larger license. New people cannot join your servers.",
   },
 });

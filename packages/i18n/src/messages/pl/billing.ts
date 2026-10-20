@@ -122,7 +122,7 @@ export const messages = {
   "billing.license.paymentFailed":
     "Płatność za licencję nie powiodła się. Zaktualizuj metodę płatności, aby zachować licencję.",
   "billing.license.overLimit":
-    "Z licencji korzysta osób: {used}, ale obejmuje ona tylko {users} użytkowników. Dodaj użytkowników do licencji.",
+    "Z licencji korzysta osób: {used}, ale obejmuje ona tylko {users} użytkowników. Nowe osoby nie mogą dołączyć, dopóki nie dodasz użytkowników do licencji.",
   "billing.license.covered.title": "Objęte licencją",
   "billing.license.covered.description": "Praca na serwerach należących do: {owners} jest objęta ich licencją.",
   "billing.license.change.title": "Zmień użytkowników",
@@ -155,10 +155,10 @@ export const messages = {
     "To zaproszenie dodaje 1 użytkownika do twojej licencji: {price} więcej miesięcznie.",
   "billing.license.invite.confirm": "Dodaj i zaproś",
   "billing.license.invite.max": {
-    one: "Twoja licencja ma maksymalną liczbę użytkowników: {count}. Skontaktuj się z nami w sprawie większej licencji. Nadal możesz zapraszać.",
-    few: "Twoja licencja ma maksymalną liczbę użytkowników: {count}. Skontaktuj się z nami w sprawie większej licencji. Nadal możesz zapraszać.",
-    many: "Twoja licencja ma maksymalną liczbę użytkowników: {count}. Skontaktuj się z nami w sprawie większej licencji. Nadal możesz zapraszać.",
+    one: "Twoja licencja ma maksymalną liczbę użytkowników: {count}. Skontaktuj się z nami w sprawie większej licencji. Nowe osoby nie mogą dołączyć do Twoich serwerów.",
+    few: "Twoja licencja ma maksymalną liczbę użytkowników: {count}. Skontaktuj się z nami w sprawie większej licencji. Nowe osoby nie mogą dołączyć do Twoich serwerów.",
+    many: "Twoja licencja ma maksymalną liczbę użytkowników: {count}. Skontaktuj się z nami w sprawie większej licencji. Nowe osoby nie mogą dołączyć do Twoich serwerów.",
     other:
-      "Twoja licencja ma maksymalną liczbę użytkowników: {count}. Skontaktuj się z nami w sprawie większej licencji. Nadal możesz zapraszać.",
+      "Twoja licencja ma maksymalną liczbę użytkowników: {count}. Skontaktuj się z nami w sprawie większej licencji. Nowe osoby nie mogą dołączyć do Twoich serwerów.",
   },
 } as const satisfies PartialTranslation<typeof source>;

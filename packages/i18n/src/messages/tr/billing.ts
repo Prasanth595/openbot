@@ -110,7 +110,7 @@ export const messages = {
   "billing.license.paymentFailed":
     "Bir lisans ödemesi başarısız oldu. Lisansı sürdürmek için ödeme yöntemini güncelleyin.",
   "billing.license.overLimit":
-    "Lisansı {used} kişi kullanıyor, ancak lisans {users} kullanıcı içindir. Lisansa kullanıcı ekleyin.",
+    "Lisansı {used} kişi kullanıyor, ancak lisans {users} kullanıcı içindir. Lisansa kullanıcı ekleyene kadar yeni kişiler katılamaz.",
   "billing.license.covered.title": "Lisans kapsamında",
   "billing.license.covered.description":
     "Sahipleri {owners} olan sunuculardaki çalışma, onların lisansı kapsamındadır.",
@@ -139,8 +139,8 @@ export const messages = {
   "billing.license.invite.description": "Bu davet lisansınıza 1 kullanıcı ekler: ayda {price} daha fazla.",
   "billing.license.invite.confirm": "Ekle ve davet et",
   "billing.license.invite.max": {
-    one: "Lisansınızda azami sayı olan {count} kullanıcı var. Daha büyük bir lisans için bize ulaşın. Yine de davet gönderebilirsiniz.",
+    one: "Lisansınızda azami sayı olan {count} kullanıcı var. Daha büyük bir lisans için bize ulaşın. Yeni kişiler sunucularınıza katılamaz.",
     other:
-      "Lisansınızda azami sayı olan {count} kullanıcı var. Daha büyük bir lisans için bize ulaşın. Yine de davet gönderebilirsiniz.",
+      "Lisansınızda azami sayı olan {count} kullanıcı var. Daha büyük bir lisans için bize ulaşın. Yeni kişiler sunucularınıza katılamaz.",
   },
 } as const satisfies PartialTranslation<typeof source>;
