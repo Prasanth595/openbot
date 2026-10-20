@@ -1,7 +1,7 @@
 import { isAgentTaskOpen, taskNeedsYou } from "@openbot/team-client/agent-tasks";
 import * as Crypto from "expo-crypto";
 import { GlassView } from "expo-glass-effect";
-import { type Href, router } from "expo-router";
+import { type Href, router, useFocusEffect } from "expo-router";
 import { Spinner, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
 import type { LucideIcon } from "lucide-react-native";
@@ -350,15 +350,18 @@ export function useHomeSearch(): HomeSearch {
   useEffect(() => {
     if (serverId) setTarget(null);
   }, [serverId]);
-  // Android Back closes the results before it leaves the app.
-  useEffect(() => {
-    if (!open) return;
-    const back = BackHandler.addEventListener("hardwareBackPress", () => {
-      closeSearch();
-      return true;
-    });
-    return () => back.remove();
-  }, [open, closeSearch]);
+  // Android Back closes the results before it leaves the app. Only while home has focus: a chat that
+  // a notification opens over the search keeps its own Back.
+  useFocusEffect(
+    useCallback(() => {
+      if (!open) return;
+      const back = BackHandler.addEventListener("hardwareBackPress", () => {
+        closeSearch();
+        return true;
+      });
+      return () => back.remove();
+    }, [open, closeSearch]),
+  );
 
   return {
     open,
