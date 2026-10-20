@@ -47,7 +47,7 @@ export interface VoiceRecordingSummary {
 }
 
 /** How many bars the waveform of a recording has. */
-export const RECORDING_PEAK_COUNT = 40;
+const RECORDING_PEAK_COUNT = 40;
 /**
  * How many replies keep their audio after a full reading, and how long they can be together, in
  * seconds. One minute of speech is about 10 MB.

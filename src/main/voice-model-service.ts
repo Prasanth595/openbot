@@ -93,7 +93,7 @@ export const SUPERTONIC_MODEL_DIRECTORY = "supertonic-3-int8";
  * Supertone Supertonic 3 (OpenRAIL-M weights, MIT code), int8 ONNX export for sherpa-onnx. The
  * export's MIT notice is a file of the model, so it stays next to the weights.
  */
-export const SUPERTONIC_MODEL_FILES: readonly VoiceModelFile[] = [
+const SUPERTONIC_MODEL_FILES: readonly VoiceModelFile[] = [
   {
     name: "duration_predictor.int8.onnx",
     url: `${SUPERTONIC_MODEL_BASE_URL}/duration_predictor.int8.onnx`,
