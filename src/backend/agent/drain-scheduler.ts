@@ -73,6 +73,8 @@ export interface DrainHooks {
   turnRestarting(turnId: string): void;
   /** Starts the new chat that the agent asked for, if it did. The agent's own chat has nothing to start. */
   startRequestedNewChat(agentId: string): Effect.Effect<void>;
+  /** Drops that request: a turn in the agent's own chat starts first, so the agent's notes do not cover it. */
+  dropRequestedNewChat(agentId: string): void;
 }
 
 /** The tasks of the agents, as the drain reads them. */
@@ -495,6 +497,7 @@ export class DrainScheduler {
         const publicThreadId = assignment
           ? this.#channels?.store.context(assignment.channelId, assignment.agentId).threadId
           : (this.#messaging?.threadForDelivery(context.delivery.id) ?? agent?.threadId);
+        if (agent && publicThreadId === agent.threadId) this.#hooks.dropRequestedNewChat(agentId);
         const session =
           agent && publicThreadId ? this.#store.database.activeProviderSession(publicThreadId, agent.provider) : null;
         if (session && this.#compaction.reserve(agentId, session.externalSessionId)) {

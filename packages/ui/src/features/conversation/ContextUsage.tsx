@@ -81,7 +81,7 @@ function createNewChatAction(start: () => Promise<void> | undefined) {
     try {
       await start();
     } catch (error) {
-      setFailure(errorMessage(error, t("composer.newChat.failed")));
+      setFailure(errorMessage(error, t("agentSettings.newChat.failed")));
     } finally {
       setPending(false);
     }

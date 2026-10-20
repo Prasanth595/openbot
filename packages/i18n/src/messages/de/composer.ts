@@ -126,5 +126,4 @@ export const messages = {
   "composer.compaction.elapsed": "{minutes}:{seconds}",
   "composer.newChat.action": "Neuer Chat",
   "composer.newChat.pending": "Neuer Chat wird gestartet",
-  "composer.newChat.failed": "Neuer Chat konnte nicht gestartet werden.",
 } as const satisfies PartialTranslation<typeof source>;

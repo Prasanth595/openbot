@@ -123,5 +123,4 @@ export const messages = {
   "composer.compaction.elapsed": "{minutes}:{seconds}",
   "composer.newChat.action": "Yeni sohbet",
   "composer.newChat.pending": "Yeni sohbet başlatılıyor",
-  "composer.newChat.failed": "Yeni sohbet başlatılamadı.",
 } as const satisfies PartialTranslation<typeof source>;
