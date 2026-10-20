@@ -538,10 +538,8 @@ export const IPC_ENDPOINTS = {
       "app:set-busy-message-mode",
     ),
     getAgentMemoryLimitPreference: request<undefined, AgentMemoryLimitPreference>()("app:get-agent-memory-limit"),
-    setAgentMemoryLimitPreference: request<AgentMemoryLimitPreference, AgentMemoryLimitPreference>()(
-      "app:set-agent-memory-limit",
-    ),
-    // An admin of a joined server can change the limit of this computer, so main tells the window.
+    // Server settings set the limit of this computer (`hostAdmin.setAgentMemoryLimit`), here or from a
+    // joined admin, so main tells the window.
     agentMemoryLimitPreference: event<AgentMemoryLimitPreference>()("app:agent-memory-limit"),
     getRemoteSessionReusePreference: request<undefined, RemoteSessionReusePreference>()("app:get-remote-session-reuse"),
     setRemoteSessionReusePreference: request<RemoteSessionReusePreference, RemoteSessionReusePreference>()(

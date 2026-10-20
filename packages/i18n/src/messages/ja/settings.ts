@@ -40,8 +40,6 @@ export const messages = {
   "settings.busyMessage.title": "作業中のエージェントの方向を修正",
   "settings.busyMessage.description":
     "新しいメッセージはキューに入らず、エージェントの現在の作業に加わります。ChatGPT と Claude で使えます。",
-  "settings.agentMemoryLimit.title": "エージェントごとのメモリー数",
-  "settings.agentMemoryLimit.description": "このコンピューターの各エージェントが保存できるメモリーの数です。",
   "settings.keepRemoteSessions.title": "サーバーへの高速接続",
   "settings.keepRemoteSessions.description":
     "参加しているサーバーへの接続を起動の間も維持します。OpenBot の起動が約 1 秒速くなります。OpenBot を終了しても、OpenBot サービスは接続を閉じません。",

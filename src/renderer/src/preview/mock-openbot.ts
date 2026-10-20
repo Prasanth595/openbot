@@ -790,10 +790,6 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       return clone(busyMessageMode);
     },
     getAgentMemoryLimitPreference: async () => clone(agentMemoryLimit),
-    setAgentMemoryLimitPreference: async ({ limit }) => {
-      agentMemoryLimit = { limit };
-      return clone(agentMemoryLimit);
-    },
     onAgentMemoryLimitPreference: () => () => undefined,
     getAppLanguagePreference: async () => clone(languagePreference),
     setAppLanguagePreference: async ({ language }) => {

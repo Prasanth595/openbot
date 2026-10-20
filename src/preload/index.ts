@@ -538,7 +538,6 @@ const openbotApi: OpenBotDesktopApi = {
     getBusyMessageModePreference: decodeBusyMessageModePreference,
     setBusyMessageModePreference: decodeBusyMessageModePreference,
     getAgentMemoryLimitPreference: decodeAgentMemoryLimitPreference,
-    setAgentMemoryLimitPreference: decodeAgentMemoryLimitPreference,
     agentMemoryLimitPreference: decodeAgentMemoryLimitPreference,
     getRemoteSessionReusePreference: decodeRemoteSessionReusePreference,
     setRemoteSessionReusePreference: decodeRemoteSessionReusePreference,

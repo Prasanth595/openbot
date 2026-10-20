@@ -250,14 +250,6 @@ const Settings = createSimpleContext({
           (preference) => preference.mode,
         );
       }
-      if (previous.agentMemoryLimit !== value.agentMemoryLimit) {
-        agentMemoryLimitChanged = true;
-        persistField(
-          "agentMemoryLimit",
-          settingsPort().setAgentMemoryLimitPreference({ limit: value.agentMemoryLimit }),
-          (preference) => preference.limit,
-        );
-      }
       if (previous.keepRemoteSessions !== value.keepRemoteSessions) {
         keepRemoteSessionsChanged = true;
         persistField(

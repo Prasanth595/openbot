@@ -41,8 +41,6 @@ export const messages = {
   "settings.busyMessage.title": "Orientar agentes enquanto trabalham",
   "settings.busyMessage.description":
     "Novas mensagens entram no trabalho atual do agente, não na fila. Funciona com ChatGPT e Claude.",
-  "settings.agentMemoryLimit.title": "Memórias por agente",
-  "settings.agentMemoryLimit.description": "Quantas memórias cada agente neste computador pode guardar.",
   "settings.keepRemoteSessions.title": "Conexão rápida a servidores",
   "settings.keepRemoteSessions.description":
     "Mantenha a conexão com os servidores em que você entrou entre as inicializações. O OpenBot inicia cerca de um segundo mais rápido. Ao sair do OpenBot, o serviço do OpenBot não fecha a conexão.",

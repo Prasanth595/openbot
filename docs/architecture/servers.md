@@ -327,12 +327,13 @@ zone stays in memory only, so after a restart a queued message uses the server t
 and instance transfer use it in place of the system zone. A change does not move existing routines.
 
 `agent-memory-limit-v1` reads and sets how many memories each agent of the host can keep. It is the
-same value as "Memories per agent" in the host's own Settings. The snapshot gives the limit and the
-values that the host permits; the host refuses other values. A change reloads the threads of each
-agent, because their instructions state the limit, and the host's Settings window shows the new value
-(`app:agent-memory-limit`). A lower limit deletes no memories. The limit
-does not change the 8,192-byte budget of essential memories. The desktop shows the row for a joined
-server only; App Settings holds the value of this computer.
+same value as "Memories per agent" in the host's own Server settings. The snapshot gives the limit and
+the values that the host permits; the host refuses other values. A change reloads the threads of each
+agent, because their instructions state the limit, and the host's window shows the new value in each
+agent's memories (`app:agent-memory-limit`). A lower limit deletes no memories. The limit does not
+change the 8,192-byte budget of essential memories. Server settings → General → Agents is the only
+place that sets the limit, for this computer (`hostAdmin.setAgentMemoryLimit`, local handler) and for a
+joined server. App Settings does not show it, so that one name does not have two values.
 
 `host-update-v1` runs the same update as the host's own Settings. `src/main/requested-update.ts`
 keeps the schedule in memory: who asked, and whether the restart waits until

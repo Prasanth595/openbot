@@ -29,7 +29,6 @@ import type { RemoteSessionReusePreferenceStore } from "../remote-session-reuse-
 import { readSetupState, writeSetupState } from "../setup-store";
 import type { UpdateService } from "../update-service";
 import {
-  parseAgentMemoryLimitPreference,
   parseAnalyticsPreference,
   parseAppLanguagePreference,
   parseAppLogoColorPreference,
@@ -155,9 +154,6 @@ export function appIpcHandlers({
         runCauseEffect(busyMessageMode.set(parsed)),
       ),
       getAgentMemoryLimitPreference: handler(() => agentMemoryLimit.get()),
-      setAgentMemoryLimitPreference: payloadHandler(parseAgentMemoryLimitPreference, (parsed) =>
-        runCauseEffect(agentMemoryLimit.set(parsed)),
-      ),
       getRemoteSessionReusePreference: handler(() => remoteSessionReuse.get()),
       // Off removes the kept sessions at once. The sessions of this run then end when the app quits.
       setRemoteSessionReusePreference: payloadHandler(parseRemoteSessionReusePreference, async (parsed) => {
