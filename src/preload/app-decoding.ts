@@ -19,6 +19,7 @@ import {
   type AccountSession,
   type AgentMemoryLimitPreference,
   type AnalyticsPreference,
+  type AppBehaviorPreference,
   type AppInfo,
   type AppLanguagePreference,
   type AppLogoColorPreference,
@@ -92,6 +93,7 @@ import {
   decodeRecord,
   emptyDecoder,
   guardedDecoder,
+  nullableBoolean,
   nullableNumber,
   nullableString,
   requiredBoolean,
@@ -290,6 +292,14 @@ export function decodeUpdatePreference(value: unknown): UpdatePreference {
     autoDownload: requiredBoolean(preference, "autoDownload"),
     allowRemoteUpdates: requiredBoolean(preference, "allowRemoteUpdates"),
     autoInstall: requiredBoolean(preference, "autoInstall"),
+  };
+}
+
+export function decodeAppBehaviorPreference(value: unknown): AppBehaviorPreference {
+  const preference = decodeRecord(value, "app behavior preference");
+  return {
+    launchAtLogin: nullableBoolean(preference, "launchAtLogin"),
+    keepRunningInBackground: nullableBoolean(preference, "keepRunningInBackground"),
   };
 }
 

@@ -7,6 +7,7 @@ import type { OpenBotDesktopApi } from "@openbot/contracts/ipc";
 export interface SettingsPort {
   getAgentMemoryLimitPreference: OpenBotDesktopApi["getAgentMemoryLimitPreference"];
   getAnalyticsPreference: OpenBotDesktopApi["getAnalyticsPreference"];
+  getAppBehaviorPreference: OpenBotDesktopApi["getAppBehaviorPreference"];
   getApprovalAutomation: OpenBotDesktopApi["getApprovalAutomation"];
   getBusyMessageModePreference: OpenBotDesktopApi["getBusyMessageModePreference"];
   getRemoteSessionReusePreference: OpenBotDesktopApi["getRemoteSessionReusePreference"];
@@ -14,6 +15,7 @@ export interface SettingsPort {
   onApprovalAutomation: OpenBotDesktopApi["onApprovalAutomation"];
   onOpenSettings: OpenBotDesktopApi["onOpenSettings"];
   setAnalyticsPreference: OpenBotDesktopApi["setAnalyticsPreference"];
+  setAppBehaviorPreference: OpenBotDesktopApi["setAppBehaviorPreference"];
   setBusyMessageModePreference: OpenBotDesktopApi["setBusyMessageModePreference"];
   setRemoteSessionReusePreference: OpenBotDesktopApi["setRemoteSessionReusePreference"];
   dynamicIsland: Pick<

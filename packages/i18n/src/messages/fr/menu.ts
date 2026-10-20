@@ -8,4 +8,7 @@ export const messages = {
   "menu.checkForUpdates": "Rechercher des mises à jour…",
   "menu.preferences": "Réglages…",
   "menu.copyLink": "Copier le lien",
+  "menu.trayOpen": "Ouvrir OpenBot",
+  "menu.trayQuit": "Quitter OpenBot",
+  "menu.trayTooltip": "OpenBot",
 } as const satisfies PartialTranslation<typeof source>;

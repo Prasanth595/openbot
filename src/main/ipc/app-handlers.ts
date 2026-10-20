@@ -18,6 +18,7 @@ import type { BrowserHost } from "../../backend/browser-host";
 import type { MailboxStore } from "../../backend/mailbox-store";
 import type { AgentMemoryLimitSetting } from "../agent-memory-limit-preference-store";
 import { readAnalyticsPreference, writeAnalyticsPreference } from "../analytics-preference-store";
+import type { AppBehaviorService } from "../app-behavior-service";
 import type { ApprovalAutomation } from "../approval-automation-store";
 import type { BusyMessageModePreferenceStore } from "../busy-message-mode-preference-store";
 import type { LanguageService } from "../language-service";
@@ -30,6 +31,7 @@ import { readSetupState, writeSetupState } from "../setup-store";
 import type { UpdateService } from "../update-service";
 import {
   parseAnalyticsPreference,
+  parseAppBehaviorPreferenceChange,
   parseAppLanguagePreference,
   parseAppLogoColorPreference,
   parseBusyMessageModePreference,
@@ -84,6 +86,7 @@ export interface AppIpcDependencies {
   agentMemoryLimit: AgentMemoryLimitSetting;
   remoteSessionReuse: RemoteSessionReusePreferenceStore;
   remoteSessionCache: RemoteSessionCache;
+  appBehavior: AppBehaviorService;
   language: LanguageService;
   logoColor: LogoColorService;
   initializeAgent: () => Promise<void>;
@@ -107,6 +110,7 @@ export function appIpcHandlers({
   agentMemoryLimit,
   remoteSessionReuse,
   remoteSessionCache,
+  appBehavior,
   language,
   logoColor,
   initializeAgent,
@@ -161,6 +165,10 @@ export function appIpcHandlers({
         await Effect.runPromise(remoteSessionCache.setEnabled(saved.keepBetweenRuns));
         return saved;
       }),
+      getAppBehaviorPreference: handler(() => runCauseEffect(appBehavior.get())),
+      setAppBehaviorPreference: payloadHandler(parseAppBehaviorPreferenceChange, (parsed) =>
+        runCauseEffect(appBehavior.set(parsed)),
+      ),
       getAppLanguagePreference: handler(() => language.preference),
       setAppLanguagePreference: payloadHandler(parseAppLanguagePreference, (parsed) =>
         runCauseEffect(language.set(parsed)),

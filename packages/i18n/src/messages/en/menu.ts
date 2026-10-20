@@ -7,4 +7,7 @@ export const messages = defineMessages("menu", {
   "menu.checkForUpdates": "Check for Updates…",
   "menu.preferences": "Settings…",
   "menu.copyLink": "Copy Link",
+  "menu.trayOpen": "Open OpenBot",
+  "menu.trayQuit": "Quit OpenBot",
+  "menu.trayTooltip": "OpenBot",
 });

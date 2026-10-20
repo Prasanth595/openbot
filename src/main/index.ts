@@ -28,6 +28,7 @@ import {
 import { runCauseEffect } from "../backend/effect-boundary";
 import { readAppVariant, resolveAppIconPath, resolveLogoColorIconPath } from "./app-icon";
 import { type ApplicationServices, createApplicationServices } from "./application-services";
+import { createBackgroundTray } from "./background-tray";
 import { type DeepLink, findDeepLink, parseDeepLink } from "./deep-link-router";
 import { requestNotificationPermission, showRetainedNotification } from "./desktop-notifications";
 import { guardDevelopmentOutput } from "./development-output";
@@ -334,6 +335,7 @@ const windows = createMainWindowController({
   developmentRemoteRole,
   developmentTestClientEnabled,
   isQuitting: () => isQuitting,
+  keepRunningInBackground: () => services?.appBehavior.keepRunningInBackground ?? false,
   getServices: () => services,
   getTranslate: () => services?.language.translate ?? translateFor(resolveLocale("system", app.getLocale())),
   forwardAgentEvent,
@@ -386,7 +388,8 @@ function applyAppIconColor(color: AppLogoColor): void {
 }
 
 /**
- * Outside macOS, closing the main window ends OpenBot.
+ * Outside macOS, closing the main window ends OpenBot, unless the user chose to keep it running in
+ * the background. The window is then hidden, not closed, so this event does not come.
  *
  * `window-all-closed` cannot carry that on its own any more. The Computer Use overlays are hidden
  * between actions and closed only after a minute of idle, and a hidden window is still a window,
@@ -475,6 +478,7 @@ function registerIpcHandlers({
   serverTimezone,
   remoteSessionReuse,
   remoteSessionCache,
+  appBehavior,
   agentInitialization,
   sidebarLayout,
   host,
@@ -531,6 +535,7 @@ function registerIpcHandlers({
       agentMemoryLimit,
       remoteSessionReuse,
       remoteSessionCache,
+      appBehavior,
       language,
       logoColor,
       initializeAgent: () => runCauseEffect(agentInitialization.start()),
@@ -1004,6 +1009,7 @@ if (!hasSingleInstanceLock) {
         language,
         logoColor,
         trace,
+        appBehavior,
       } = built;
 
       crashTrace = trace;
@@ -1119,8 +1125,22 @@ if (!hasSingleInstanceLock) {
       // One place turns a language change into every visible consequence: the menu is built again
       // because a native label cannot be changed in place, and every window is told, including the
       // Dynamic Island, which has no Settings of its own to read the new value from.
+      // The way back to a window hidden in the background on Windows and Linux.
+      const backgroundTray = createBackgroundTray({
+        iconPath: appIconPath,
+        translate: language.translate,
+        open: reopenMainWindow,
+        quit: () => app.quit(),
+      });
+      backgroundTray.sync(appBehavior.keepRunningInBackground);
+      const unsubscribeBackgroundTray = appBehavior.subscribe(backgroundTray.sync);
+      teardown.push(0, "background tray", () => {
+        unsubscribeBackgroundTray();
+        backgroundTray.destroy();
+      });
       language.subscribe((preference) => {
         configureApplicationMenu(service, updater, language.translate);
+        backgroundTray.relabel();
         for (const window of BrowserWindow.getAllWindows()) {
           sendToRenderer(window, IPC_ENDPOINTS.app.appLanguagePreference, preference);
         }

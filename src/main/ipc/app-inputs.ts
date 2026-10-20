@@ -2,6 +2,7 @@ import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import type {
   AgentMemoryLimitPreference,
   AgentProviderId,
+  AppBehaviorPreferenceChange,
   BrowserDockAction,
   BrowserDockFrame,
   BrowserDockPresentation,
@@ -113,6 +114,10 @@ export function parseAppLogoColorPreference(input: unknown): SetAppLogoColorPref
 export function parseIdleRestartTarget(input: unknown): IdleRestartTarget {
   if (!isOneOf(IDLE_RESTART_TARGETS, input)) throw new Error("A restart target is required.");
   return input;
+}
+
+export function parseAppBehaviorPreferenceChange(input: unknown): AppBehaviorPreferenceChange {
+  return parseSwitches(input, ["launchAtLogin", "keepRunningInBackground"], "The app behavior setting is required.");
 }
 
 export function parseUpdatePreference(input: unknown): UpdatePreferenceChange {

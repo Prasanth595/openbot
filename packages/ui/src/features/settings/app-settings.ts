@@ -13,8 +13,10 @@ export type SoundTheme = (typeof SOUND_THEMES)[number];
 export type SoundChoice = "off" | SoundTheme;
 
 export interface GeneralSettingsValue {
-  launchAtLogin: boolean;
-  keepRunningInBackground: boolean;
+  /** Null hides the switch: a development run and a server cannot open at login. */
+  launchAtLogin: boolean | null;
+  /** Null hides the switch: macOS always keeps running, and a server has no window. */
+  keepRunningInBackground: boolean | null;
   restoreLastWorkspace: boolean;
   externalLinkTarget: ExternalLinkTarget;
   desktopNotifications: boolean;
@@ -52,8 +54,8 @@ export interface GeneralSettingsValue {
 }
 
 export const DEFAULT_GENERAL_SETTINGS: GeneralSettingsValue = {
-  launchAtLogin: true,
-  keepRunningInBackground: false,
+  launchAtLogin: null,
+  keepRunningInBackground: null,
   restoreLastWorkspace: true,
   externalLinkTarget: "Default browser",
   desktopNotifications: true,

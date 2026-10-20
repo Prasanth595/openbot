@@ -128,6 +128,7 @@ import type {
   UpdateStatus,
   VerifyEmailCodeInput,
 } from "./ipc-app-auth";
+import type { AppBehaviorPreference, AppBehaviorPreferenceChange } from "./ipc-app-behavior";
 import type {
   ApprovalAutomationPreference,
   RespondToApprovalInput,
@@ -544,6 +545,10 @@ export const IPC_ENDPOINTS = {
     getRemoteSessionReusePreference: request<undefined, RemoteSessionReusePreference>()("app:get-remote-session-reuse"),
     setRemoteSessionReusePreference: request<RemoteSessionReusePreference, RemoteSessionReusePreference>()(
       "app:set-remote-session-reuse",
+    ),
+    getAppBehaviorPreference: request<undefined, AppBehaviorPreference>()("app:get-behavior-preference"),
+    setAppBehaviorPreference: request<AppBehaviorPreferenceChange, AppBehaviorPreference>()(
+      "app:set-behavior-preference",
     ),
     getAppLanguagePreference: request<undefined, AppLanguagePreference>()("app:get-language-preference"),
     setAppLanguagePreference: request<SetAppLanguagePreferenceInput, AppLanguagePreference>()(

@@ -130,13 +130,15 @@ export function SettingsGeneralTab(props: SettingsGeneralTabProps) {
 
       <SettingsSection title={i18n.t("settings.appBehavior.title")}>
         <ItemGroup class="settings-modal-card">
-          <SwitchField
-            data-settings-row="settings.launchAtLogin.title"
-            checked={props.value.launchAtLogin}
-            onChange={(checked) => props.onUpdateSetting("launchAtLogin", checked)}
-            label={i18n.t("settings.launchAtLogin.title")}
-            description={i18n.t("settings.launchAtLogin.description")}
-          />
+          <Show when={props.value.launchAtLogin !== null}>
+            <SwitchField
+              data-settings-row="settings.launchAtLogin.title"
+              checked={props.value.launchAtLogin === true}
+              onChange={(checked) => props.onUpdateSetting("launchAtLogin", checked)}
+              label={i18n.t("settings.launchAtLogin.title")}
+              description={i18n.t("settings.launchAtLogin.description")}
+            />
+          </Show>
           <SwitchField
             data-settings-row="settings.keepRemoteSessions.title"
             checked={props.value.keepRemoteSessions}
@@ -144,13 +146,15 @@ export function SettingsGeneralTab(props: SettingsGeneralTabProps) {
             label={i18n.t("settings.keepRemoteSessions.title")}
             description={i18n.t("settings.keepRemoteSessions.description")}
           />
-          <SwitchField
-            data-settings-row="settings.keepRunning.title"
-            checked={props.value.keepRunningInBackground}
-            onChange={(checked) => props.onUpdateSetting("keepRunningInBackground", checked)}
-            label={i18n.t("settings.keepRunning.title")}
-            description={i18n.t("settings.keepRunning.description")}
-          />
+          <Show when={props.value.keepRunningInBackground !== null}>
+            <SwitchField
+              data-settings-row="settings.keepRunning.title"
+              checked={props.value.keepRunningInBackground === true}
+              onChange={(checked) => props.onUpdateSetting("keepRunningInBackground", checked)}
+              label={i18n.t("settings.keepRunning.title")}
+              description={i18n.t("settings.keepRunning.description")}
+            />
+          </Show>
           <SwitchField
             data-settings-row="settings.restoreWorkspace.title"
             checked={props.value.restoreLastWorkspace}

@@ -85,6 +85,8 @@ export interface MainWindowContext {
   developmentTestClientEnabled: boolean;
   /** A function, not a flag: the window is built long before the first quit is requested. */
   isQuitting: () => boolean;
+  /** A function, not a value: the user can change the choice while the window is open. */
+  keepRunningInBackground: () => boolean;
   /** A function, not a value: nothing exists yet when the first window is created. */
   getServices: () => MainWindowApplicationServices | null;
   /** A function, not a value: the saved language is read after the first window opens. */
@@ -116,6 +118,7 @@ export function createMainWindowController({
   developmentRemoteRole,
   developmentTestClientEnabled,
   isQuitting,
+  keepRunningInBackground,
   getServices,
   getTranslate,
   forwardAgentEvent,
@@ -188,8 +191,9 @@ export function createMainWindowController({
       rememberMainWindowBounds(window.getNormalBounds());
       // Nobody can use a tab without the window, so the agents waiting on it continue.
       getServices()?.browser.releaseUserControlHeldBy({ kind: "local" });
-      if (process.platform === "darwin" && !isQuitting()) {
-        // The hidden renderer owns the cross-host Dynamic Island coordinator and must outlive its visible window.
+      // The hidden renderer owns the cross-host Dynamic Island coordinator and must outlive its visible
+      // window. On Windows and Linux the user chooses it, and the tray icon is the way back.
+      if ((process.platform === "darwin" || keepRunningInBackground()) && !isQuitting()) {
         event.preventDefault();
         window.hide();
       }

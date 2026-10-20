@@ -22,6 +22,7 @@ import {
   type AgentTasksSnapshot,
   type AgentTemplatePublication,
   type AnalyticsPreference,
+  type AppBehaviorPreference,
   type AppInfo,
   type AppLanguagePreference,
   type AppLogoColorPreference,
@@ -286,6 +287,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
   let agentMemoryLimit: AgentMemoryLimitPreference = { limit: DEFAULT_AGENT_MEMORY_LIMIT };
   const agentMemoryLimitListeners = new Set<(preference: AgentMemoryLimitPreference) => void>();
   let remoteSessionReuse: RemoteSessionReusePreference = { ...DEFAULT_REMOTE_SESSION_REUSE_PREFERENCE };
+  let appBehavior: AppBehaviorPreference = { launchAtLogin: false, keepRunningInBackground: false };
   let languagePreference = clone<AppLanguagePreference>(options.languagePreference ?? { language: "system" });
   const languageListeners = new Set<(preference: AppLanguagePreference) => void>();
   let logoColorPreference: AppLogoColorPreference = { color: DEFAULT_APP_LOGO_COLOR };
@@ -781,6 +783,11 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       return () => approvalAutomationListeners.delete(listener);
     },
     getBusyMessageModePreference: async () => clone(busyMessageMode),
+    getAppBehaviorPreference: async () => clone(appBehavior),
+    setAppBehaviorPreference: async (change) => {
+      appBehavior = { ...appBehavior, ...change };
+      return clone(appBehavior);
+    },
     getRemoteSessionReusePreference: async () => clone(remoteSessionReuse),
     setRemoteSessionReusePreference: async ({ keepBetweenRuns }) => {
       remoteSessionReuse = { keepBetweenRuns };
