@@ -870,6 +870,8 @@ export function createConversationViewScope(props: ConversationProps) {
         );
         if (!target) return;
         lastHandledMessageFocusNonce = request.nonce;
+        // The message the user picked replaces the opening at the unread divider.
+        unreadOpening = { ...unreadOpening, pending: false };
         stickToLatest = false;
         // A page that loaded just before the request queued a scroll to the latest message. That scroll
         // must not move the transcript away from the message the user picked, so it is cancelled and
@@ -1007,9 +1009,10 @@ export function createConversationViewScope(props: ConversationProps) {
       latestScrollSettleFrame = undefined;
       // A virtualized chat draws only the rows near the view, so the divider row is drawn first.
       if (!unreadMessagesDivider?.isConnected) messageVirtualizer.scrollToIndex(boundaryIndex);
+      const opening = unreadOpening;
       const openAtDivider = (settle: boolean) =>
         requestAnimationFrame(() => {
-          if (unreadOpening.identity !== identity || readerLeftLatest || !scrollElement) return;
+          if (unreadOpening !== opening || readerLeftLatest || !scrollElement) return;
           const divider = unreadMessagesDivider;
           if (divider?.isConnected) {
             const readRow = divider.closest(".virtual-chat-row")?.previousElementSibling;
