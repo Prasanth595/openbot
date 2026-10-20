@@ -39,15 +39,23 @@ function storageKey(accountId: string): string {
   return `${HOSTED_UPSELL_KEY_PREFIX}${accountId}`;
 }
 
-/** Null when the browser storage cannot be read: then nothing shows, so nothing can repeat. */
+/**
+ * Null when the browser storage cannot be read: then nothing shows, so nothing can repeat. A damaged
+ * saved value starts again from the empty state, and the next write replaces it.
+ */
 export function readHostedUpsellState(storage: UpsellStorage, accountId: string): HostedUpsellState | null {
+  let saved: string | null;
   try {
-    const saved = storage.getItem(storageKey(accountId));
-    if (saved === null) return EMPTY_STATE;
+    saved = storage.getItem(storageKey(accountId));
+  } catch {
+    return null;
+  }
+  if (saved === null) return EMPTY_STATE;
+  try {
     const parsed = upsellStateSchema.safeParse(JSON.parse(saved));
     return parsed.success ? parsed.data : EMPTY_STATE;
   } catch {
-    return null;
+    return EMPTY_STATE;
   }
 }
 

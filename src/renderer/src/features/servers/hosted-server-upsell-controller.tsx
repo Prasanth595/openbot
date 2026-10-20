@@ -2,7 +2,7 @@ import type { RoutineFields } from "@openbot/contracts/ipc";
 import { HostedServerUpsellDialog } from "@openbot/ui/features/servers/HostedServerUpsellDialog";
 import { HostedServerUpsellNotice } from "@openbot/ui/features/servers/HostedServerUpsellNotice";
 import type { HostedUpsellHost } from "@openbot/ui/features/servers/hosted-server-upsell-host";
-import { createEffect, createSignal, onSettled, Show, untrack } from "solid-js";
+import { createEffect, createMemo, createSignal, onSettled, Show, untrack } from "solid-js";
 import { usePlatform } from "../../platform";
 import {
   type HostedUpsellState,
@@ -29,8 +29,8 @@ interface HostedUpsellRoutine {
 interface HostedServerUpsellProps {
   accountId: string | null;
   /**
-   * The account can buy a hosted server and has none, and the open host is a computer, not a
-   * hosted server.
+   * The account can buy a hosted server and has none, and the open host is a computer that the user
+   * owns, not a hosted server.
    */
   canOffer: boolean;
   /** A routine that waits for the modal is dropped when the user opens another server. */
@@ -56,16 +56,34 @@ interface HostedUpsellController {
  * offer registers itself here. Desktop and web each mount one.
  */
 const [controller, setController] = createSignal<HostedUpsellController | null>(null);
+/*
+ * A server switch mounts the offer again on desktop, so what one sitting already showed stays here,
+ * for the life of this window.
+ */
+const reported = new Set<string>();
+const [modalThisSession, setModalThisSession] = createSignal(false);
 
 /** Called when a routine is new on the open host, from the editor or from an agent. */
 export function hostedUpsellRoutineCreated(routine: HostedUpsellRoutine): void {
   untrack(controller)?.routineCreated(routine);
 }
 
-/** The offer in the offline notice, or null when there is nothing to offer. */
-export function hostedUpsellOffline(): { onSeePlans: () => void } | null {
-  const current = controller();
-  return current?.canOffer() ? { onSeePlans: () => current.seePlans("server_offline") } : null;
+/**
+ * The offer in the offline notice while `offline()` is true, or null when there is nothing to offer.
+ * It counts as shown each time it appears.
+ */
+export function createHostedUpsellOffline(offline: () => boolean): () => { onSeePlans: () => void } | null {
+  const offer = createMemo(() => {
+    const current = offline() ? controller() : null;
+    return current?.canOffer() ? current : null;
+  });
+  createEffect(offer, (current) => {
+    current?.track("shown", "server_offline");
+  });
+  return () => {
+    const current = offer();
+    return current ? { onSeePlans: () => current.seePlans("server_offline") } : null;
+  };
 }
 
 const WINDOW_OPENED_AT = Date.now();
@@ -93,11 +111,8 @@ export function createdRoutines(
 
 export function HostedServerUpsell(props: HostedServerUpsellProps) {
   const platform = usePlatform();
-  // Each routine counts once, also when the editor and the routine list both report it.
-  const reported = new Set<string>();
   const [pending, setPending] = createSignal<{ routine: HostedUpsellRoutine; serverId: string } | null>(null);
   const [openRoutine, setOpenRoutine] = createSignal<HostedUpsellRoutine | null>(null);
-  const [modalThisSession, setModalThisSession] = createSignal(false);
   const [state, setState] = createSignal<HostedUpsellState | null>(null);
 
   createEffect(
@@ -165,6 +180,7 @@ export function HostedServerUpsell(props: HostedServerUpsellProps) {
 
   const api: HostedUpsellController = {
     routineCreated(routine) {
+      // Each routine counts once, also when the editor and the routine list both report it.
       if (reported.has(routine.id)) return;
       reported.add(routine.id);
       if (untrack(modalThisSession) || untrack(pending)) return;

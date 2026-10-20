@@ -262,7 +262,7 @@ function HostedUpsell(props: AccountProps) {
         hostedServersAvailable() &&
         hostedServersLoaded() &&
         hostedServerIds().size === 0 &&
-        activeServer() !== undefined &&
+        (activeServer()?.kind === "local" || activeServer()?.role === "owner") &&
         activeServer()?.hosted !== true
       }
       serverId={activeServer()?.id ?? "local"}

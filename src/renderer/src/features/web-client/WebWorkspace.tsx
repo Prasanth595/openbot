@@ -132,8 +132,8 @@ import { hostSetupProviderProps } from "../onboarding/host-setup-provider-props"
 import type { ScheduleRoutine } from "../schedule/SchedulePanel";
 import { AddServerOverlay, type AddServerResume } from "../servers/AddServerOverlay";
 import {
+  createHostedUpsellOffline,
   HostedServerUpsell,
-  hostedUpsellOffline,
   hostedUpsellRoutineCreated,
   routineMadeThisSession,
 } from "../servers/hosted-server-upsell-controller";
@@ -1128,12 +1128,14 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     return () =>
       Effect.runPromise(clearAgentContext(hostRequest(), agent.id).pipe(Effect.mapError((error) => error.cause)));
   });
+  const offlineUpsell = createHostedUpsellOffline(() => workspace.state.status === "offline");
   const view = createWebConversationView({
     workspace,
     remoteAgentAdmin,
     hidden: () => creating() || channelOpen(),
   });
   // A routine that an agent makes leaves a marker in its turn. The offer of a hosted server waits until that turn ends.
+  // The marker does not tell whether the routine is paused; an agent makes an active routine unless told otherwise.
   createEffect(
     () => {
       const agentId = workspace.conversation()?.page?.agentId;
@@ -1371,7 +1373,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                     busy={workspace.state.status === "connecting" || !workspace.state.host}
                     onRetry={() => void workspace.run(workspace.reconnect)}
                     onManage={() => setBillingOpen(true)}
-                    upsell={workspace.state.status === "offline" ? hostedUpsellOffline() : null}
+                    upsell={offlineUpsell()}
                   />
                 </Show>
                 <Show when={workspace.state.status === "online" && workspace.state.panelsFailed}>
@@ -1600,7 +1602,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                     hostedServers.available() &&
                     hostedServers.loaded() &&
                     !hostedServers.ownsHostedServer() &&
-                    server() !== undefined &&
+                    server()?.role === "owner" &&
                     server()?.hosted !== true
                   }
                   serverId={server()?.id ?? ""}
