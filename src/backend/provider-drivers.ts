@@ -33,6 +33,7 @@ import {
   type CustomProviderSource,
   OPENCODE_PROFILE_CONFIG,
   openCodeConfigEnv,
+  openCodeModelName,
   openCodeSignInMessage,
 } from "./opencode-config";
 import { readOpenCodeGoUsage } from "./opencode-usage";
@@ -555,6 +556,7 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
           ...(confinement ? OPENCODE_CONFINED_ENV : {}),
         }),
         signInMessage: openCodeSignInMessage(context.customProviders().length),
+        modelName: (id, name) => openCodeModelName(id, name, context.customProviders),
         servesModel: context.servesModel,
         mcpServers: context.mcpServers,
         reportMcpDrops: context.reportMcpDrops,
@@ -577,6 +579,7 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
           ...openCodeConfigEnv(OPENCODE_PROFILE_CONFIG, context.customProviders, context.apiKey("opencode")),
         }),
         signInMessage: openCodeSignInMessage(context.customProviders().length),
+        modelName: (id, name) => openCodeModelName(id, name, context.customProviders),
         servesModel: context.servesModel,
       }),
     authState: (account) => ({ kind: "opencode", email: account?.email ?? null }),

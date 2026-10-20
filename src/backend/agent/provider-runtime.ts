@@ -124,6 +124,8 @@ const START_FAILURE_LIMIT = 3;
 const STABLE_RUN_MS = 2 * 60_000;
 /** How often a restart the user asked for checks whether the provider's turns have ended. */
 const PROVIDER_RESTART_POLL_MS = 1_000;
+/** The start failure of OpenCode 1 on a database that OpenCode 2 made. */
+const OPENCODE_NEWER_DATABASE = /\bDatabase is not empty and has no session table\b/u;
 /**
  * The providers whose shared process reads the agent environment only when it starts. Claude reads
  * it at each session start, and Codex with each thread's config.
@@ -2223,7 +2225,13 @@ export class ProviderRuntime implements ProviderPort {
 
   /** A CLI exit with its last stderr line in the message, after the MCP values are out of it. */
   #withExitDetail(error: unknown): unknown {
-    return error instanceof AgentProcessExitError ? error.withDetail(this.#redactMcp) : error;
+    if (!(error instanceof AgentProcessExitError)) return error;
+    const detailed = error.withDetail(this.#redactMcp);
+    // OpenCode 2 makes a database with only `session_v2`, and OpenCode 1 refuses it (OpenCode issue #53221).
+    // The catalog text tells the user what fixes it; onboarding shows only catalog text.
+    return OPENCODE_NEWER_DATABASE.test(detailed.message)
+      ? new AgentProcessExitError(sourceText("error.provider.opencodeDatabaseNewer"), null, { cause: detailed })
+      : detailed;
   }
 
   readonly #initializeProviderClient = Effect.fn("ProviderRuntime.initializeProviderClient")(function* (

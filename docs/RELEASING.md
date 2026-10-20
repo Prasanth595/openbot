@@ -287,14 +287,16 @@ packages have no license file, so set `licenseSha256` to the SHA-256 of `LICENSE
 ## Pin the OpenCode CLI
 
 `native-runtime.lock.json` also pins the OpenCode CLI that OpenBot downloads for the OpenCode
-provider before its first update check answers, by npm platform package, asset SHA-256, extracted binary SHA-256, byte counts, and the
-MIT license file it takes from the `opencode-ai` npm package. Codex, Claude, and Grok are pinned
-in the same file by hand; OpenCode has a script, because the version, all five platform packages, and
-the license have to agree:
+provider before its first update check answers, by `@opencode/cli-*` npm platform package (OpenCode 2), asset SHA-256,
+extracted binary SHA-256, byte counts, and the MIT license file. The OpenCode 2 tarballs carry no license, so the lock
+names an `opencode-ai` (OpenCode 1) release in `licensePackage` and the app installs the same MIT file from it. Codex,
+Claude, and Grok are pinned in the same file by hand; OpenCode has a script, because the version, all five platform
+packages, and the license have to agree:
 
 ```bash
-bun run pin:opencode-runtime          # the newest published release
-bun run pin:opencode-runtime 1.18.30  # one exact version
+bun run pin:opencode-runtime                # the newest published release
+bun run pin:opencode-runtime 2.1.1          # one exact version
+bun run pin:opencode-runtime 2.1.1 1.19.3   # and one exact `opencode-ai` release for the license
 ```
 
 The script downloads all five platform tarballs, checks that `package/package.json` names the package
