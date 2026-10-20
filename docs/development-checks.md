@@ -362,12 +362,13 @@ with `[<name>]`. A new GritQL rule must start with no findings.
 in `tools/typescript/type-baseline.json`, it runs `scripts/type-checker.ts` with the option on for
 every project that extends `tsconfig.base.json` (listed in `scripts/type-ratchet.ts`), and compares
 the errors of each file to the baseline. An error that two projects report counts once.
-`apps/mobile` extends the Expo base config, so the ratchet does not check it. A higher count fails, so an option stops new debt
-before the old debt is fixed. A lower count also fails until `--write` lowers the baseline: this
-keeps the baseline tight. The script never raises a count; a higher count is a hand edit that a
-reviewer sees. `--add=<option>` starts an option at its current counts. `scripts/debt-ratchet.ts`
-holds these rules. The run takes about 2 seconds. When an option has no errors left, turn it on in
-`tsconfig.base.json` and remove it from the baseline. Do not name the script `typecheck:*`:
+`apps/mobile` extends the Expo base config, so the ratchet does not check it. A higher count fails,
+so an option stops new debt before the old debt is fixed. A lower count also fails until `--write`
+lowers the baseline: this keeps the baseline tight. The script never raises a count; a higher count
+is a hand edit that a reviewer sees. `--add=<option>` starts an option at its current counts.
+`scripts/debt-ratchet.ts` holds these rules. The run takes about 2 seconds with tsrs and 4 with
+`tsc`. When an option has no errors left, turn it on in `tsconfig.base.json` and remove it from the
+baseline. Do not name the script `typecheck:*`:
 `bun run typecheck` runs every script that matches that pattern.
 
 ### Plugin cost

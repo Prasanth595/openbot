@@ -28,5 +28,6 @@ export function typeCheckerScript(): string {
 
 if (import.meta.main) {
   const result = spawnSync(process.execPath, [typeCheckerScript(), ...process.argv.slice(2)], { stdio: "inherit" });
+  if (result.error) throw result.error;
   process.exit(result.status ?? 1);
 }
