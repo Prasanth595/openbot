@@ -1,4 +1,4 @@
-import { access, rm } from "node:fs/promises";
+import { readFile, rm } from "node:fs/promises";
 import { homedir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import type { AppVariant } from "@openbot/contracts/ipc";
@@ -63,7 +63,8 @@ function electronLoginItem(): LoginItem {
 
 /**
  * Linux has no Electron login item. The desktop opens each entry in the XDG autostart directory at
- * sign-in, so the file is the switch.
+ * sign-in, so the file is the switch. A desktop settings app can turn the entry off in place, with
+ * `Hidden=true` or, on GNOME, `X-GNOME-Autostart-enabled=false`; such an entry reads as off.
  *
  * An update of the AppImage can give it a new file name, so `refresh` writes the entry again with
  * the path of the running copy.
@@ -73,13 +74,10 @@ function linuxAutostartLoginItem(options: { configHome: string; fileName: string
   const read = () =>
     Effect.tryPromise({
       try: () =>
-        access(path).then(
-          () => true,
-          (error: unknown) => {
-            if (isMissingFileError(error)) return false;
-            throw error;
-          },
-        ),
+        readFile(path, "utf8").then(isEnabledAutostartEntry, (error: unknown) => {
+          if (isMissingFileError(error)) return false;
+          throw error;
+        }),
       catch: (cause) => new LoginItemFailure({ cause }),
     });
   const create = () =>
@@ -103,6 +101,21 @@ function linuxAutostartLoginItem(options: { configHome: string; fileName: string
     write: (enabled) => (enabled ? create() : remove()),
     refresh: () => Effect.flatMap(read(), (enabled) => (enabled ? create() : Effect.void)),
   };
+}
+
+/** Reads only the `[Desktop Entry]` group, where the XDG Autostart Specification puts both keys. */
+function isEnabledAutostartEntry(contents: string): boolean {
+  let group = "";
+  for (const line of contents.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith("[")) group = trimmed;
+    else if (group === "[Desktop Entry]") {
+      const [key, value] = trimmed.split("=", 2).map((part) => part.trim());
+      if ((key === "Hidden" && value === "true") || (key === "X-GNOME-Autostart-enabled" && value === "false"))
+        return false;
+    }
+  }
+  return true;
 }
 
 function autostartEntry(executablePath: string): string {
