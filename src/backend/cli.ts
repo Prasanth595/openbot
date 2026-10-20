@@ -248,6 +248,10 @@ export const resolveGrokCli: (input?: {
 /**
  * There is deliberately no minimum version here. OpenBot downloads and pins OpenCode now, but a
  * user who already has the CLI keeps it, and a floor would newly lock out an install that works.
+ *
+ * A managed copy that is older than a working system copy is not used. OpenCode 2.0 keeps its
+ * sessions in a table that 1.19 cannot read, so an older managed copy made each agent that 2.0 had
+ * started fail on every turn with "OpenCode service failure".
  */
 export const resolveOpencodeCli: (input?: {
   systemCandidates?: string[];
@@ -260,6 +264,7 @@ export const resolveOpencodeCli: (input?: {
       input.bundledExecutable === undefined ? bundledOpencodeExecutable() : input.bundledExecutable;
     const candidates = yield* cliCandidates("opencode", input.systemCandidates, bundledExecutable);
     let found = false;
+    let managed: OpencodeCliInfo | null = null;
     for (const candidate of candidates) {
       if (!(yield* isExecutable(candidate.executable))) continue;
       found = true;
@@ -272,12 +277,23 @@ export const resolveOpencodeCli: (input?: {
           return { executable: candidate.executable, version, source: candidate.source };
         }).pipe(Effect.catchDefect((cause) => Effect.fail(providerFailure(cause)))),
       );
-      if (Result.isSuccess(attempt)) return attempt.success;
+      if (Result.isSuccess(attempt)) {
+        const cli = attempt.success;
+        // The managed copy comes first unless `OPENBOT_OPENCODE_PATH` is set, so a system copy found
+        // after it is used only when it is newer.
+        if (cli.source === "managed") managed = cli;
+        else return managed && !newerRelease(cli.version, managed.version) ? managed : cli;
+        continue;
+      }
       const error = attempt.failure.cause;
 
-      if (isCliTimeout(error)) throw error;
+      if (isCliTimeout(error)) {
+        if (managed) return managed;
+        throw error;
+      }
       /* Try the remaining installed candidates. */
     }
+    if (managed) return managed;
     throw new CodexCliError(
       found ? sourceText("error.provider.opencodeNotStarted") : sourceText("error.provider.opencodeMissing"),
       found ? "invalid" : "missing",
@@ -528,6 +544,11 @@ export function parseOpencodeVersion(output: string): string {
   const match = output.trim().match(/^(?:opencode\s+)?v?(\d+)\.(\d+)\.(\d+)(?:[-+][\w.-]+)?$/i);
   if (!match) throw new CodexCliError(sourceText("error.provider.opencodeVersionUnreadable"), "invalid");
   return `${Number(match[1])}.${Number(match[2])}.${Number(match[3])}`;
+}
+
+/** Whether `version` is a later `major.minor.patch` than `than`. */
+function newerRelease(version: string, than: string): boolean {
+  return version.localeCompare(than, "en", { numeric: true }) > 0;
 }
 
 /** Cline prints a bare `3.0.68`, the npm version of its package. */
