@@ -70,11 +70,13 @@ export function LargeTitle({
   onPress?: () => void;
 }) {
   const reduced = useReducedMotion();
+  // Worklets take the shared values only: the scroll handler beside them cannot go to the UI thread.
+  const { scrolled, titleHeight } = scroll;
   const titleStyle = useAnimatedStyle(() => {
     if (!isIOS || reduced) return { transform: [{ scale: 1 }] };
     // A pull past the top grows the title a little, as the native large title does.
     return {
-      transform: [{ scale: interpolate(scroll.scrolled.get(), [-160, 0], [1.08, 1], Extrapolation.CLAMP) }],
+      transform: [{ scale: interpolate(scrolled.get(), [-160, 0], [1.08, 1], Extrapolation.CLAMP) }],
     };
   });
   const heading = (
@@ -88,7 +90,7 @@ export function LargeTitle({
     <View
       className="px-5"
       style={{ paddingBottom: TITLE_BOTTOM_PADDING }}
-      onLayout={(event) => scroll.titleHeight.set(event.nativeEvent.layout.height)}
+      onLayout={(event) => titleHeight.set(event.nativeEvent.layout.height)}
     >
       {caption ? (
         <Typography.Paragraph className="text-muted" numberOfLines={1} style={typeScale.caption}>
@@ -138,10 +140,11 @@ export function LargeTitleBar({
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
   const progress = useSharedValue(0);
+  const { scrolled, titleHeight } = scroll;
   useAnimatedReaction(
     () => {
-      const height = scroll.titleHeight.get();
-      return height > 0 && scroll.scrolled.get() > height - TITLE_BOTTOM_PADDING;
+      const height = titleHeight.get();
+      return height > 0 && scrolled.get() > height - TITLE_BOTTOM_PADDING;
     },
     (collapsed, previous) => {
       if (collapsed === previous) return;

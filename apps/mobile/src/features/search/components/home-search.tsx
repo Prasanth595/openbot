@@ -211,11 +211,9 @@ export function HomeSearchBar({ search }: { search: HomeSearch }) {
     "background",
   ]);
   const bottomGap = Math.max(insets.bottom - 8, 12);
-  const keyboard = useReanimatedKeyboardAnimation();
+  const { height: keyboardHeight, progress: keyboardProgress } = useReanimatedKeyboardAnimation();
   const barStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateY: -Math.abs(keyboard.height.get()) + keyboard.progress.get() * (bottomGap - KEYBOARD_GAP) },
-    ],
+    transform: [{ translateY: -Math.abs(keyboardHeight.get()) + keyboardProgress.get() * (bottomGap - KEYBOARD_GAP) }],
   }));
   const layout = reduced ? undefined : FIELD_LAYOUT;
 
