@@ -151,8 +151,9 @@ export function readDictatedReplies(event: AgentEvent, serverId: string): void {
   if (event.type === "queue-changed") {
     const message = dictated.get(agentKey({ serverId, agentId: event.snapshot.agentId }));
     if (!message || message.turnId) return;
+    // A steer that is not confirmed yet can fail, and the message then starts its own turn.
     for (const delivery of event.snapshot.deliveries)
-      if (delivery.turnId && delivery.sender.kind === "user")
+      if (delivery.turnId && delivery.status === "running" && delivery.sender.kind === "user")
         message.deliveryTurns.set(delivery.messageId, delivery.turnId);
     takeDeliveryTurn(message);
     return;
