@@ -710,6 +710,7 @@ export function createConversationViewScope(props: ConversationProps) {
     if (!agentId) return;
     const draft = { agentId, fastMode: next };
     setFastModeDraft(draft);
+    setScopedComposerError(null);
     const saved = await saveAgentPatch({ fastMode: next }, agentId);
     if (fastModeDraft() !== draft) return;
     setFastModeDraft(undefined);
