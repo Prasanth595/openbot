@@ -268,7 +268,8 @@ export function agentMessagesEqual(left: AgentMessage, right: AgentMessage): boo
     JSON.stringify(left.actionMarker) === JSON.stringify(right.actionMarker) &&
     JSON.stringify(left.items) === JSON.stringify(right.items) &&
     JSON.stringify(left.itemIds) === JSON.stringify(right.itemIds) &&
-    JSON.stringify(left.plan) === JSON.stringify(right.plan)
+    JSON.stringify(left.plan) === JSON.stringify(right.plan) &&
+    JSON.stringify(left.subagents) === JSON.stringify(right.subagents)
   );
 }
 
