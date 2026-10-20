@@ -90,6 +90,17 @@ gets the next page. Channel threads and the files of an agent hidden from the cl
 The capability is advertised only to protocol 7 clients. An older host answers 404, so a client
 sends the request only when the host advertises the capability.
 
+### Side questions
+
+`side-question-v1` adds `POST /v1/side-questions/ask` with `{ agentId, question, earlier }` and answers
+`{ answer }`. Any member who can see the agent can send it. The host answers with the agent's provider
+and model, from the agent's profile and the end of its chat, with no tools. The question and the
+answer do not go into the chat, and the host keeps nothing, so `earlier` carries at most 20 earlier
+questions and answers of the side question. A failed generation, such as a busy provider or a usage
+limit, answers 409 with a sentence for the member. The capability is advertised only to protocol 7
+clients. The desktop on a joined server and the web client show the side question only when the host
+advertises it.
+
 ### Agent import from a joined server
 
 `agent-import-v1` lets any member, not only an owner or admin, import a Grok Bot export into the host.

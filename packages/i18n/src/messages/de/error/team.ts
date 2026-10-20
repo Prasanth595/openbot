@@ -70,6 +70,7 @@ export const messages = {
   "error.team.contextResetUnsupported": "Diese Verbindung unterstützt das Starten eines neuen Chats nicht.",
   "error.team.workspaceDirectoryUnsupported": "Diese Verbindung unterstützt das Anzeigen von Ordnern nicht.",
   "error.team.conversationFileSearchUnsupported": "Diese Verbindung unterstützt das Suchen von Dateien nicht.",
+  "error.team.sideQuestionUnsupported": "Diese Verbindung unterstützt keine Nebenfragen.",
   "error.team.routineFlowsUnsupported":
     "Dieser Server unterstützt keine Routinenabläufe. Aktualisiere OpenBot auf dem Computer, auf dem er läuft.",
   "error.team.routineCanvasTooLarge":

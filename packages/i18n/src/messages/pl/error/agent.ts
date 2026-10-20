@@ -86,7 +86,6 @@ export const messages = {
   "error.agent.computerUseLocalOnly":
     "Sterowanie komputerem można zmienić tylko na komputerze, na którym działa agent.",
   "error.agent.automationLocalOnly": "Na lokalne skrypty można zezwolić tylko na komputerze, na którym działa agent.",
-  "error.agent.sideQuestionLocalOnly": "Pytania poboczne działają tylko na komputerze, na którym działa agent.",
   "error.agent.sideQuestionBusy": "Trwa zbyt wiele pytań pobocznych. Spróbuj ponownie za chwilę.",
   "error.agent.sideQuestionFailed": "Agent nie mógł odpowiedzieć na pytanie poboczne. Spróbuj ponownie.",
   "error.agent.busyMessageModeLocalOnly":

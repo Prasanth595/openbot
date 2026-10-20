@@ -90,7 +90,6 @@ export const messages = {
   "error.agent.computerUseLocalOnly":
     "Il Controllo del computer si può cambiare solo sul computer che esegue l'agente.",
   "error.agent.automationLocalOnly": "Gli script locali si possono consentire solo sul computer che esegue l'agente.",
-  "error.agent.sideQuestionLocalOnly": "Le domande a parte funzionano solo sul computer che esegue l'agente.",
   "error.agent.sideQuestionBusy": "Ci sono troppe domande a parte in corso. Riprova tra poco.",
   "error.agent.sideQuestionFailed": "L'agente non è riuscito a rispondere alla domanda a parte. Riprova.",
   "error.agent.busyMessageModeLocalOnly":

@@ -1,5 +1,12 @@
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
-import type { AgentEvent, AttachmentImportEvent, AttachmentSummary, TeamRealtimeEvent } from "@openbot/contracts/ipc";
+import type {
+  AgentEvent,
+  AskSideQuestionInput,
+  AttachmentImportEvent,
+  AttachmentSummary,
+  TeamRealtimeEvent,
+} from "@openbot/contracts/ipc";
+import { decodeSideQuestionResponse, SIDE_QUESTION_ROUTES } from "@openbot/contracts/team-protocol/side-question-v1";
 import { runTeamEffect } from "@openbot/team-client";
 import {
   deleteSharedTable,
@@ -109,6 +116,7 @@ export function createWebConversationRuntime(
   sessionSettingsEnabled?: () => boolean,
   signInRelayEnabled?: () => boolean,
   routineRecoveryEnabled?: () => boolean,
+  sideQuestionEnabled?: () => boolean,
 ): ConversationRuntime {
   const listeners = new Set<(event: AttachmentImportEvent) => void>();
   const files = createWebAttachmentFiles(remote, hostId);
@@ -201,6 +209,16 @@ export function createWebConversationRuntime(
       onStreamTranscript: () => () => {},
     },
     openUrl: openWebLink,
+    // Any member can ask, so the request is not limited to an admin.
+    get askSideQuestion() {
+      if (!adminRequest || sideQuestionEnabled?.() !== true) return undefined;
+      return (input: AskSideQuestionInput) =>
+        adminRequest()("POST", SIDE_QUESTION_ROUTES.ask, decodeSideQuestionResponse, {
+          agentId: input.agentId,
+          question: input.question,
+          earlier: input.earlier.map(({ question, answer }) => ({ question, answer })),
+        });
+    },
     previewAttachment: files.preview,
     attachmentMedia,
     visualPage: files.visualPage,

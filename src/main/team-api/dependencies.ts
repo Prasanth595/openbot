@@ -72,6 +72,7 @@ type TeamApiAgentMethods = Pick<
   | "sidebarChatIds"
   | "listConversationReads"
   | "generateProfile"
+  | "askSideQuestion"
   | "saveProfile"
   | "createAgent"
   | "committedAgentDuplication"
