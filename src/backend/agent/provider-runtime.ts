@@ -25,7 +25,7 @@ import { Deferred, Effect, Exit, Result, Schema, Scope, Semaphore } from "effect
 import { startAcpAuthentication } from "./../acp-sign-in";
 import { type AgentClient, AgentProcessExitError, type AgentProvider } from "./../agent-client";
 import { CodexAppServerClient } from "./../app-server-client";
-import { type AgentCliInfo, type BundledProviderExecutables, CodexCliError } from "./../cli";
+import { type AgentCliInfo, type BundledProviderExecutables, CodexCliError, configuredCliPath } from "./../cli";
 import { causeHelpers } from "../effect-boundary";
 import { McpHandoffLog } from "./../mcp-handoff-log";
 import { openCodeSignInMessage } from "./../opencode-config";
@@ -1673,7 +1673,9 @@ export class ProviderRuntime implements ProviderPort {
           installed = true;
           this.#bundledExecutables[provider] = executable;
           const cli = yield* this.#resolveProviderCli(provider);
-          if (cli.source !== "managed" || cli.executable !== executable)
+          // A newer OpenCode on the computer runs in place of the managed one, which stays installed.
+          const newerSystemCopy = provider === "opencode" && cli.source === "system" && !configuredCliPath(provider);
+          if (!newerSystemCopy && (cli.source !== "managed" || cli.executable !== executable))
             return yield* new ProviderOperationFailed({
               cause: new Error(sourceText("error.provider.cliSelectFailed")),
             });

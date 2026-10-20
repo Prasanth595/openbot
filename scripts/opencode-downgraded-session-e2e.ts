@@ -79,7 +79,7 @@ interface Report {
   passed: boolean;
   unreadable?: { error: string; missingSession: boolean; resumes: number; listed: boolean };
   listed?: { error: string; missingSession: boolean; resumes: number };
-  selection?: { olderManaged: string; newerManaged: string; sameVersion: string };
+  selection?: { olderManaged: string; newerManaged: string; sameVersion: string; secondSystem: string };
 }
 
 const root = await mkdtemp(join(tmpdir(), "openbot-opencode-downgraded-session-e2e-"));
@@ -158,9 +158,9 @@ try {
 
   // 3. A managed copy older than a working system copy is not selected; a newer or equal one is.
   const system = await fakeCli("system-2.0.4");
-  const select = async (managed: string) => {
+  const select = async (managed: string, systemCandidates = [system]) => {
     const resolved = await runCauseEffect(
-      resolveOpencodeCli({ systemCandidates: [system], bundledExecutable: await fakeCli(managed) }),
+      resolveOpencodeCli({ systemCandidates, bundledExecutable: await fakeCli(managed) }),
     );
     return `${resolved.source} ${resolved.version}`;
   };
@@ -168,10 +168,12 @@ try {
     olderManaged: await select("managed-1.19.3"),
     newerManaged: await select("managed-2.1.0"),
     sameVersion: await select("same-2.0.4"),
+    secondSystem: await select("managed-1.19.3", [await fakeCli("old-1.0.0"), system]),
   };
   assert.equal(report.selection.olderManaged, "system 2.0.4", "A newer system OpenCode wins.");
   assert.equal(report.selection.newerManaged, "managed 2.1.0", "A newer managed OpenCode wins.");
   assert.equal(report.selection.sameVersion, "managed 2.0.4", "The managed OpenCode wins a tie.");
+  assert.equal(report.selection.secondSystem, "system 2.0.4", "Each system OpenCode is compared.");
   report.passed = true;
 } finally {
   await Promise.all(clients.map((client) => runCauseEffect(client.stop()).catch(() => undefined)));

@@ -282,7 +282,7 @@ export const resolveOpencodeCli: (input?: {
         // The managed copy comes first unless `OPENBOT_OPENCODE_PATH` is set, so a system copy found
         // after it is used only when it is newer.
         if (cli.source === "managed") managed = cli;
-        else return managed && !newerRelease(cli.version, managed.version) ? managed : cli;
+        else if (!managed || !isMinimumVersion(managed.version, cli.version.split(".").map(Number))) return cli;
         continue;
       }
       const error = attempt.failure.cause;
@@ -544,11 +544,6 @@ export function parseOpencodeVersion(output: string): string {
   const match = output.trim().match(/^(?:opencode\s+)?v?(\d+)\.(\d+)\.(\d+)(?:[-+][\w.-]+)?$/i);
   if (!match) throw new CodexCliError(sourceText("error.provider.opencodeVersionUnreadable"), "invalid");
   return `${Number(match[1])}.${Number(match[2])}.${Number(match[3])}`;
-}
-
-/** Whether `version` is a later `major.minor.patch` than `than`. */
-function newerRelease(version: string, than: string): boolean {
-  return version.localeCompare(than, "en", { numeric: true }) > 0;
 }
 
 /** Cline prints a bare `3.0.68`, the npm version of its package. */

@@ -1219,7 +1219,7 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
     try {
       return providerResult(yield* Effect.result(restore(connection)));
     } catch (error) {
-      // `request` converts a resume's missing-session response, after it forgets the session.
+      // For `thread/resume` and `turn/start`, `request` forgets the session and converts this response.
       if (method === "load" && isSessionNotFound(error, request.sessionId, this.provider)) {
         return yield* providerFailure(new MissingAcpSessionError(`ACP session not found: ${request.sessionId}`, error));
       }
