@@ -288,7 +288,8 @@ export function useHomeSearch(): HomeSearch {
       if (!task || sending) return;
       setSending(true);
       workspace()
-        .startAgentTask({ agentId: agent.id, text: task, clientMessageId: Crypto.randomUUID() }, serverId)
+        // The agent's own server: the person can change server while the task starts.
+        .startAgentTask({ agentId: agent.id, text: task, clientMessageId: Crypto.randomUUID() }, agent.serverId)
         .then(
           () => {
             void haptics.notification("success");
@@ -305,7 +306,7 @@ export function useHomeSearch(): HomeSearch {
         )
         .finally(() => setSending(false));
     },
-    [workspace, serverId, sending, closeSearch],
+    [workspace, sending, closeSearch],
   );
   const submit = useCallback(() => {
     if (targetMatches) {
@@ -321,7 +322,8 @@ export function useHomeSearch(): HomeSearch {
   const finishResult = useCallback(
     (ended: TaskStartResult, reopen: boolean) => {
       setResult((current) => (current?.id === ended.id ? null : current));
-      if (ended.ok) return;
+      // A failed task comes back only on its own server: another server has other agents.
+      if (ended.ok || ended.agent.serverId !== serverId) return;
       setTarget(ended.agent);
       setQuery(ended.text);
       if (reopen) {
@@ -329,7 +331,7 @@ export function useHomeSearch(): HomeSearch {
         input.current?.focus();
       }
     },
-    [openSearch],
+    [openSearch, serverId],
   );
   const dismissResult = useCallback(() => {
     if (result) finishResult(result, true);

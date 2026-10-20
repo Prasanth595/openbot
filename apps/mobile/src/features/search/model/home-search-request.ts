@@ -10,6 +10,14 @@ export function requestHomeSearch(): void {
   else pending = true;
 }
 
+/**
+ * Drops a waiting request. Home calls it when its list is ready but the field cannot show, such as
+ * with no agents, so the field does not take the keyboard later with no request.
+ */
+export function dropHomeSearchRequest(): void {
+  pending = false;
+}
+
 /** The home screen registers how it opens its search, and `null` when it unmounts. */
 export function setHomeSearchOpener(open: (() => void) | null): void {
   opener = open;

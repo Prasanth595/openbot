@@ -41,6 +41,7 @@ import {
   HomeSearchResults,
   useHomeSearch,
 } from "@/features/search/components/home-search";
+import { dropHomeSearchRequest } from "@/features/search/model/home-search-request";
 import { useAppDrawer } from "@/features/servers/components/app-drawer-shell";
 import { ConnectionHeaderStatus } from "@/features/workspace/components/connection-header-status";
 import { useWaitingAgentIds } from "@/features/workspace/components/use-agent-activity";
@@ -333,6 +334,10 @@ export function ConnectedScreen() {
   useEffect(() => {
     if (!searchShows && searchOpen) closeSearch();
   }, [searchShows, searchOpen, closeSearch]);
+  // A quick action waits while the list loads. A ready home without the field drops it.
+  useEffect(() => {
+    if (listReady && !searchShows) dropHomeSearchRequest();
+  }, [listReady, searchShows]);
   const finishGate = onboarding.finish;
   const finishOnboarding = useCallback(
     (welcome?: WelcomeHandOff) => {
