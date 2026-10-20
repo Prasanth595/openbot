@@ -102,6 +102,10 @@ const HANDLE_MARGIN = 24;
 type VisibleMessage = Exclude<ChatMessage, { kind: "thinking" }> | ExchangeGroup;
 const NO_ROWS: VisibleMessage[] = [];
 const ROW_STYLE = { paddingBottom: CHAT_ROW_GAP };
+/** The side padding of the list. */
+const LIST_PADDING = 16;
+/** A user's bubble is at most this part of the list width, as `max-w-[88%]` on its row. */
+const USER_BUBBLE_WIDTH = 0.88;
 
 /** The list keeps the sizes it measured by message, so rows that stay keep their place when the data changes. */
 function rowKey(message: VisibleMessage): string {
@@ -310,6 +314,8 @@ interface MessageRowShared {
   canReply: boolean;
   canReact: boolean;
   canSelectText: boolean;
+  /** The width of a user's bubble that waits on the phone. Its iOS menu does not limit it. */
+  outboxBubbleWidth: number;
   actions: {
     reply: (message: ChatBubbleMessage) => void;
     react: (message: ChatBubbleMessage, emoji: string | null) => Promise<void>;
@@ -659,7 +665,9 @@ const MessageRow = memo(function MessageRow({
           {rendered}
         </ChatMessageGesture>
       ) : outbox ? (
-        <OutboxMessageMenu status={outbox}>{rendered}</OutboxMessageMenu>
+        <OutboxMessageMenu status={outbox} maxWidth={shared.outboxBubbleWidth}>
+          {rendered}
+        </OutboxMessageMenu>
       ) : (
         rendered
       )}
@@ -993,6 +1001,7 @@ export const ChatMessageList = memo(function ChatMessageList({
   const canReply = Boolean(onReply);
   const canReact = Boolean(onReact);
   const canSelectText = Boolean(onSelectText);
+  const outboxBubbleWidth = (screen.width - LIST_PADDING * 2) * USER_BUBBLE_WIDTH;
   const shared = useMemo<MessageRowShared>(
     () => ({
       agents,
@@ -1014,6 +1023,7 @@ export const ChatMessageList = memo(function ChatMessageList({
       canReply,
       canReact,
       canSelectText,
+      outboxBubbleWidth,
       actions,
     }),
     [
@@ -1037,6 +1047,7 @@ export const ChatMessageList = memo(function ChatMessageList({
       canReply,
       canReact,
       canSelectText,
+      outboxBubbleWidth,
       actions,
     ],
   );
@@ -1182,7 +1193,7 @@ export const ChatMessageList = memo(function ChatMessageList({
           }}
           onStartReachedThreshold={0.5}
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: header }}
+          contentContainerStyle={{ paddingHorizontal: LIST_PADDING, paddingTop: header }}
           contentInsetAdjustmentBehavior="never"
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
