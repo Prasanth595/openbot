@@ -10,6 +10,9 @@ import { indexedReportStorage } from "@openbot/telemetry/browser";
 import { Effect } from "effect";
 import { version } from "../../../package.json";
 
+/** The desktop schema generation. Product events and failure reports send the same value. */
+export const ANALYTICS_SCHEMA_VERSION = 8;
+
 let queue: ReportQueue | undefined;
 let enabled = false;
 let configured = false;
@@ -30,7 +33,12 @@ export function configureDesktopReports(
       clientId: "6c989975-87ef-4f0c-857e-ab449a65b5c2",
       ...(capture === undefined ? {} : { endpoint: `${capture}/track` }),
     }),
-    { surface: "desktop", platform: info.platform, app_version: info.version, event_schema_version: 7 },
+    {
+      surface: "desktop",
+      platform: info.platform,
+      app_version: info.version,
+      event_schema_version: ANALYTICS_SCHEMA_VERSION,
+    },
   );
   configureErrorReports(tracking, user?.id ?? null);
 }
