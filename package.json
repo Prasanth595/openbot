@@ -231,6 +231,7 @@
     "test:central-auth-startup": "bun scripts/central-auth-startup-stall-e2e.ts",
     "test:zero-filled-settings": "bun scripts/zero-filled-settings-e2e.ts",
     "test:hosted-start-wait": "bun apps/auth-api/scripts/hosted-start-wait-e2e.ts",
+    "test:hosted-held-resume": "bun apps/auth-api/scripts/hosted-held-resume-e2e.ts",
     "test:remote-auth-events": "bun apps/auth-api/scripts/remote-auth-events-e2e.ts",
     "test:invite-acceptance": "bun apps/auth-api/scripts/invite-acceptance-e2e.ts",
     "test:cloud-authorization": "bun apps/auth-api/scripts/cloud-authorization-e2e.ts",
