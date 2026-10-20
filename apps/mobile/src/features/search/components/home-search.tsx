@@ -8,6 +8,7 @@ import type { LucideIcon } from "lucide-react-native";
 import ArrowUp from "lucide-react-native/icons/arrow-up";
 import CalendarClock from "lucide-react-native/icons/calendar-clock";
 import ChartColumn from "lucide-react-native/icons/chart-column";
+import Check from "lucide-react-native/icons/check";
 import ChevronDown from "lucide-react-native/icons/chevron-down";
 import CircleX from "lucide-react-native/icons/circle-x";
 import EyeOff from "lucide-react-native/icons/eye-off";
@@ -28,7 +29,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { BackHandler, Keyboard, Pressable, ScrollView, TextInput, View } from "react-native";
+import { AccessibilityInfo, BackHandler, Keyboard, Pressable, ScrollView, TextInput, View } from "react-native";
 import { KeyboardAwareScrollView, useReanimatedKeyboardAnimation } from "react-native-keyboard-controller";
 import Animated, {
   cubicBezier,
@@ -46,10 +47,11 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { scheduleOnRN } from "react-native-worklets";
+import { useCSSVariable } from "uniwind";
 import { BloubAvatar } from "@/features/agents/components/bloub-avatar";
 import { ChatNavigationGateContext } from "@/features/agents/components/chat-link-pressable";
 import { getBloubAvatarColor } from "@/features/agents/model/bloub-activity";
-import { showFailureAlert } from "@/features/analytics/failure-reports";
+import { reportMobileNotification } from "@/features/analytics/failure-reports";
 import { MobileSearchResults, SearchCaption } from "@/features/search/components/mobile-search-results";
 import { setHomeSearchOpener } from "@/features/search/model/home-search-request";
 import { useAppDrawer } from "@/features/servers/components/app-drawer-shell";
@@ -76,8 +78,8 @@ const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 const OPEN = { duration: 220, easing: EASE_OUT };
 const CLOSE = { duration: 160, easing: EASE_OUT };
 const FIELD_LAYOUT = LinearTransition.duration(220).easing(EASE_OUT);
-/** How long the confirmation of a started task stays above the field. */
-const NOTICE_DURATION = 3_200;
+/** How long the field shows the result of a task start before it returns. */
+const RESULT_DURATION = 2_000;
 const PRESS_SCALE = {
   transitionProperty: "transform",
   transitionDuration: 120,
@@ -125,27 +127,43 @@ const closeButtonExit: EntryExitAnimationFunction = () => {
   };
 };
 
-/** The confirmation comes up 12 pt as it fades in, and leaves the way it came. */
-const noticeEnter: EntryExitAnimationFunction = () => {
+/**
+ * The result of a task start takes the place of the field's content: it fades in from 97% as the
+ * glass takes the tint, so it reads as the same field saying what happened.
+ */
+const resultEnter: EntryExitAnimationFunction = () => {
   "worklet";
   return {
-    initialValues: { opacity: 0, transform: [{ translateY: 12 }] },
+    initialValues: { opacity: 0, transform: [{ scale: 0.97 }] },
     animations: {
       opacity: withTiming(1, { duration: 200, easing: EASE_OUT }),
-      transform: [{ translateY: withTiming(0, { duration: 240, easing: EASE_OUT }) }],
+      transform: [{ scale: withTiming(1, { duration: 260, easing: EASE_OUT }) }],
     },
   };
 };
-const noticeExit: EntryExitAnimationFunction = () => {
+/** The field's content and the result leave faster than they come. */
+const contentExit: EntryExitAnimationFunction = () => {
   "worklet";
   return {
-    initialValues: { opacity: 1, transform: [{ translateY: 0 }] },
-    animations: {
-      opacity: withTiming(0, { duration: 180, easing: EASE_OUT }),
-      transform: [{ translateY: withTiming(12, { duration: 200, easing: EASE_OUT }) }],
-    },
+    initialValues: { opacity: 1 },
+    animations: { opacity: withTiming(0, { duration: 120, easing: EASE_OUT }) },
   };
 };
+const contentEnter: EntryExitAnimationFunction = () => {
+  "worklet";
+  return {
+    initialValues: { opacity: 0 },
+    animations: { opacity: withTiming(1, { duration: 180, easing: EASE_OUT }) },
+  };
+};
+
+/** What happened to the last task start. A failure keeps the agent and the text for a new try. */
+export interface TaskStartResult {
+  id: number;
+  agent: MobileAgent;
+  text: string;
+  ok: boolean;
+}
 
 export interface HomeSearch {
   open: boolean;
@@ -177,8 +195,10 @@ export interface HomeSearch {
   /** Return in the field: chooses the first `@name` match, or starts the task. */
   submit: () => void;
   sending: boolean;
-  /** The confirmation of the last task that started. */
-  notice: { id: number; text: string } | null;
+  /** The result of the last task start, which the field shows for a short time. */
+  result: TaskStartResult | null;
+  /** Ends the result early. After a failure, the task opens again with its agent and text. */
+  dismissResult: () => void;
 }
 
 /** The agents whose name or title starts with the text after `@`. */
@@ -208,7 +228,7 @@ export function useHomeSearch(): HomeSearch {
   const [settled, setSettled] = useState(false);
   const [target, setTarget] = useState<MobileAgent | null>(null);
   const [sending, setSending] = useState(false);
-  const [notice, setNotice] = useState<{ id: number; text: string } | null>(null);
+  const [result, setResult] = useState<TaskStartResult | null>(null);
   // The task text while the person chooses another agent.
   const draft = useRef("");
   const progress = useSharedValue(0);
@@ -271,21 +291,15 @@ export function useHomeSearch(): HomeSearch {
         .then(
           () => {
             void haptics.notification("success");
-            setNotice({
-              id: Date.now(),
-              text: currentText().t("mobile.search.task.started", { name: agent.name, text: task }),
-            });
             closeSearch();
+            setResult({ id: Date.now(), agent, text: task, ok: true });
           },
           (error: unknown) => {
+            // The field says that the task failed, so the failure is reported without an alert.
+            reportMobileNotification(error, "agent", "banner");
             void haptics.notification("error");
-            const text = currentText();
-            showFailureAlert(
-              error,
-              "agent",
-              text.t("mobile.search.task.failedTitle"),
-              text.errorMessage(error, text.t("mobile.search.task.failedBody")),
-            );
+            closeSearch();
+            setResult({ id: Date.now(), agent, text: task, ok: false });
           },
         )
         .finally(() => setSending(false));
@@ -302,12 +316,35 @@ export function useHomeSearch(): HomeSearch {
   }, [targetMatches, target, query, chooseTarget, startTask]);
 
   useEffect(() => () => setOpeningBlocked(false), [setOpeningBlocked]);
-  // The confirmation goes after a short read.
+  /** The field returns. After a failure it holds the task again; `reopen` also opens it for editing. */
+  const finishResult = useCallback(
+    (ended: TaskStartResult, reopen: boolean) => {
+      setResult((current) => (current?.id === ended.id ? null : current));
+      if (ended.ok) return;
+      setTarget(ended.agent);
+      setQuery(ended.text);
+      if (reopen) {
+        openSearch();
+        input.current?.focus();
+      }
+    },
+    [openSearch],
+  );
+  const dismissResult = useCallback(() => {
+    if (result) finishResult(result, true);
+  }, [result, finishResult]);
+  // The result goes after a short read. VoiceOver and TalkBack read it when it shows.
   useEffect(() => {
-    if (!notice) return;
-    const timer = setTimeout(() => setNotice(null), NOTICE_DURATION);
+    if (!result) return;
+    const { t } = currentText();
+    AccessibilityInfo.announceForAccessibility(
+      result.ok
+        ? t("mobile.search.task.startedBy", { name: result.agent.name })
+        : t("mobile.search.task.failedFor", { name: result.agent.name }),
+    );
+    const timer = setTimeout(() => finishResult(result, false), RESULT_DURATION);
     return () => clearTimeout(timer);
-  }, [notice]);
+  }, [result, finishResult]);
   // A task names an agent of the open server, so another server starts without one.
   useEffect(() => {
     if (serverId) setTarget(null);
@@ -347,7 +384,8 @@ export function useHomeSearch(): HomeSearch {
     startTask,
     submit,
     sending,
-    notice,
+    result,
+    dismissResult,
   };
 }
 
@@ -502,6 +540,14 @@ export function HomeSearchBar({ search }: { search: HomeSearch }) {
     "default",
     "background",
   ]);
+  const danger = String(useCSSVariable("--openbot-danger-text"));
+  const resultColor = search.result
+    ? search.result.ok
+      ? getBloubAvatarColor(search.result.agent.avatarSeed, search.result.agent.avatarHue)
+      : danger
+    : danger;
+  // As the prototype: the color at 18% over the field, so the text in the same color stays readable.
+  const resultTint = `${resultColor}2e`;
   const bottomGap = Math.max(insets.bottom - 8, 12);
   const { height: keyboardHeight, progress: keyboardProgress } = useReanimatedKeyboardAnimation();
   const barStyle = useAnimatedStyle(() => ({
@@ -519,134 +565,200 @@ export function HomeSearchBar({ search }: { search: HomeSearch }) {
       : t("common.search");
 
   return (
-    <>
-      {search.notice ? (
+    <Animated.View
+      className="absolute right-4 left-4 flex-row items-center gap-2"
+      pointerEvents="box-none"
+      style={[{ bottom: bottomGap }, barStyle]}
+    >
+      {search.open ? (
         <Animated.View
-          key={search.notice.id}
-          entering={reduced ? FadeIn.duration(160) : noticeEnter}
-          exiting={reduced ? FadeOut.duration(120) : noticeExit}
-          pointerEvents="none"
-          accessibilityLiveRegion="polite"
-          className="absolute right-5 left-5 rounded-2xl px-3.5 py-3"
-          style={{ bottom: bottomGap + HOME_SEARCH_HEIGHT + 16, backgroundColor: String(foreground) }}
+          entering={reduced ? undefined : closeButtonGrow}
+          exiting={reduced ? undefined : closeButtonShrink}
         >
-          <Typography.Paragraph numberOfLines={1} style={[typeScale.preview, { color: String(background) }]}>
-            {search.notice.text}
-          </Typography.Paragraph>
-        </Animated.View>
-      ) : null}
-      <Animated.View
-        className="absolute right-4 left-4 flex-row items-center gap-2"
-        pointerEvents="box-none"
-        style={[{ bottom: bottomGap }, barStyle]}
-      >
-        {search.open ? (
-          <Animated.View
-            entering={reduced ? undefined : closeButtonGrow}
-            exiting={reduced ? undefined : closeButtonShrink}
+          <GlassCapsule
+            liquidGlass={liquidGlass}
+            fallbackBackground={fieldBackground}
+            width={HOME_SEARCH_HEIGHT}
+            animateGlass
           >
-            <GlassCapsule
-              liquidGlass={liquidGlass}
-              fallbackBackground={fieldBackground}
-              width={HOME_SEARCH_HEIGHT}
-              animateGlass
-            >
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t("mobile.search.close")}
-                className="flex-1 items-center justify-center"
-                hitSlop={4}
-                style={({ pressed }) => ({ opacity: pressed ? 0.55 : 1 })}
-                onPress={() => {
-                  void haptics.impact("soft");
-                  search.closeSearch();
-                }}
-              >
-                <ChevronDown color={String(foreground)} size={22} strokeWidth={2.2} />
-              </Pressable>
-            </GlassCapsule>
-          </Animated.View>
-        ) : null}
-        <Animated.View className="min-w-0 flex-1" layout={layout}>
-          <GlassCapsule liquidGlass={liquidGlass} fallbackBackground={fieldBackground}>
-            {/* The field is shorter than the capsule, so a tap anywhere on the capsule focuses it. */}
             <Pressable
-              accessible={false}
-              className="flex-1 flex-row items-center gap-2 pr-2 pl-4"
-              onPress={() => search.input.current?.focus()}
+              accessibilityRole="button"
+              accessibilityLabel={t("mobile.search.close")}
+              className="flex-1 items-center justify-center"
+              hitSlop={4}
+              style={({ pressed }) => ({ opacity: pressed ? 0.55 : 1 })}
+              onPress={() => {
+                void haptics.impact("soft");
+                search.closeSearch();
+              }}
             >
-              {target ? (
-                <Animated.View entering={enter} exiting={exit} layout={layout}>
-                  <TargetChip agent={target} onPress={search.clearTarget} />
-                </Animated.View>
-              ) : (
-                <Search color={String(muted)} size={18} strokeWidth={2} />
-              )}
-              <TextInput
-                ref={search.input}
-                accessibilityLabel={target ? t("mobile.search.task.fieldLabel", { name: target.name }) : placeholder}
-                autoCapitalize={target ? "sentences" : "none"}
-                autoCorrect={Boolean(target)}
-                className="h-10 min-w-0 flex-1 font-sans text-foreground"
-                placeholder={placeholder}
-                placeholderTextColor={muted}
-                returnKeyType={target ? "send" : "search"}
-                submitBehavior="submit"
-                selectionColor={foreground}
-                style={{ fontSize: 16, lineHeight: 20, paddingBottom: 0, paddingTop: 0, textAlignVertical: "center" }}
-                value={search.query}
-                onChangeText={search.setQuery}
-                onSubmitEditing={search.submit}
-                onKeyPress={({ nativeEvent }) => {
-                  // Backspace in an empty field removes the agent, as in a mail address field.
-                  if (nativeEvent.key === "Backspace" && !search.query && target) search.clearTarget();
-                }}
-                onFocus={() => {
-                  if (!search.open) search.openSearch();
-                }}
-              />
-              {search.query && !target ? (
-                <Animated.View entering={enter} exiting={exit}>
-                  <Pressable
-                    accessibilityLabel={t("mobile.search.clear")}
-                    accessibilityRole="button"
-                    className="size-9 items-center justify-center"
-                    hitSlop={6}
-                    onPress={() => search.setQuery("")}
-                  >
-                    <CircleX color={String(background)} fill={String(muted)} size={20} strokeWidth={2} />
-                  </Pressable>
-                </Animated.View>
-              ) : null}
-              {/* Search updates as you type; only a task has a send button. */}
-              {target ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={t("mobile.search.task.send")}
-                  accessibilityState={{ disabled: !canSend, busy: search.sending }}
-                  className="size-9 items-center justify-center rounded-full"
-                  hitSlop={4}
-                  style={{
-                    backgroundColor: String(foreground),
-                    opacity: canSend || search.sending ? 1 : 0.35,
-                  }}
-                  onPress={() => {
-                    if (canSend) search.submit();
-                    else search.input.current?.focus();
-                  }}
-                >
-                  {search.sending ? (
-                    <Spinner size="sm" color={String(background)} />
-                  ) : (
-                    <ArrowUp color={String(background)} size={18} strokeWidth={2.2} />
-                  )}
-                </Pressable>
-              ) : null}
+              <ChevronDown color={String(foreground)} size={22} strokeWidth={2.2} />
             </Pressable>
           </GlassCapsule>
         </Animated.View>
+      ) : null}
+      <Animated.View className="min-w-0 flex-1" layout={layout}>
+        <GlassCapsule
+          liquidGlass={liquidGlass}
+          fallbackBackground={fieldBackground}
+          tint={search.result ? resultTint : undefined}
+        >
+          {search.result ? (
+            <Animated.View
+              key={search.result.id}
+              className="flex-1"
+              entering={reduced ? FadeIn.duration(160) : resultEnter}
+              exiting={reduced ? FadeOut.duration(120) : contentExit}
+            >
+              <TaskResultContent result={search.result} color={resultColor} onPress={search.dismissResult} />
+            </Animated.View>
+          ) : (
+            <Animated.View
+              className="flex-1"
+              entering={reduced ? FadeIn.duration(160) : contentEnter}
+              exiting={reduced ? FadeOut.duration(120) : contentExit}
+            >
+              {/* The field is shorter than the capsule, so a tap anywhere on the capsule focuses it. */}
+              <Pressable
+                accessible={false}
+                className="flex-1 flex-row items-center gap-2 pr-2 pl-4"
+                onPress={() => search.input.current?.focus()}
+              >
+                {target ? (
+                  <Animated.View entering={enter} exiting={exit} layout={layout}>
+                    <TargetChip agent={target} onPress={search.clearTarget} />
+                  </Animated.View>
+                ) : (
+                  <Search color={String(muted)} size={18} strokeWidth={2} />
+                )}
+                <TextInput
+                  ref={search.input}
+                  accessibilityLabel={target ? t("mobile.search.task.fieldLabel", { name: target.name }) : placeholder}
+                  autoCapitalize={target ? "sentences" : "none"}
+                  autoCorrect={Boolean(target)}
+                  className="h-10 min-w-0 flex-1 font-sans text-foreground"
+                  placeholder={placeholder}
+                  placeholderTextColor={muted}
+                  returnKeyType={target ? "send" : "search"}
+                  submitBehavior="submit"
+                  selectionColor={foreground}
+                  style={{
+                    fontSize: 16,
+                    lineHeight: 20,
+                    paddingBottom: 0,
+                    paddingTop: 0,
+                    textAlignVertical: "center",
+                  }}
+                  value={search.query}
+                  onChangeText={search.setQuery}
+                  onSubmitEditing={search.submit}
+                  onKeyPress={({ nativeEvent }) => {
+                    // Backspace in an empty field removes the agent, as in a mail address field.
+                    if (nativeEvent.key === "Backspace" && !search.query && target) search.clearTarget();
+                  }}
+                  onFocus={() => {
+                    if (!search.open) search.openSearch();
+                  }}
+                />
+                {search.query && !target ? (
+                  <Animated.View entering={enter} exiting={exit}>
+                    <Pressable
+                      accessibilityLabel={t("mobile.search.clear")}
+                      accessibilityRole="button"
+                      className="size-9 items-center justify-center"
+                      hitSlop={6}
+                      onPress={() => search.setQuery("")}
+                    >
+                      <CircleX color={String(background)} fill={String(muted)} size={20} strokeWidth={2} />
+                    </Pressable>
+                  </Animated.View>
+                ) : null}
+                {/* Search updates as you type; only a task has a send button. */}
+                {target ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t("mobile.search.task.send")}
+                    accessibilityState={{ disabled: !canSend, busy: search.sending }}
+                    className="size-9 items-center justify-center rounded-full"
+                    hitSlop={4}
+                    style={{
+                      backgroundColor: String(foreground),
+                      opacity: canSend || search.sending ? 1 : 0.35,
+                    }}
+                    onPress={() => {
+                      if (canSend) search.submit();
+                      else search.input.current?.focus();
+                    }}
+                  >
+                    {search.sending ? (
+                      <Spinner size="sm" color={String(background)} />
+                    ) : (
+                      <ArrowUp color={String(background)} size={18} strokeWidth={2.2} />
+                    )}
+                  </Pressable>
+                ) : null}
+              </Pressable>
+            </Animated.View>
+          )}
+        </GlassCapsule>
       </Animated.View>
-    </>
+    </Animated.View>
+  );
+}
+
+/**
+ * The result of a task start in the field: the agent, what happened, and a check, or "Try again"
+ * after a failure. A tap ends it early; after a failure it opens the task again.
+ */
+function TaskResultContent({
+  result,
+  color,
+  onPress,
+}: {
+  result: TaskStartResult;
+  color: string;
+  onPress: () => void;
+}) {
+  const { t } = useText();
+  const { agent, ok } = result;
+  const label = ok
+    ? t("mobile.search.task.startedBy", { name: agent.name })
+    : t("mobile.search.task.failedFor", { name: agent.name });
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityHint={ok ? undefined : t("mobile.search.task.tryAgain")}
+      className="flex-1 flex-row items-center gap-2.5 pr-4 pl-3"
+      style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+      onPress={() => {
+        void haptics.impact("soft");
+        onPress();
+      }}
+    >
+      <BloubAvatar
+        agentId={agent.id}
+        serverId={agent.serverId}
+        hue={agent.avatarHue}
+        seed={agent.avatarSeed}
+        size={26}
+        animateIdle={false}
+      />
+      <Typography.Paragraph
+        className="min-w-0 flex-1 font-semibold"
+        numberOfLines={1}
+        style={[typeScale.body, { color }]}
+      >
+        {label}
+      </Typography.Paragraph>
+      {ok ? (
+        <Check color={color} size={18} strokeWidth={2.4} />
+      ) : (
+        <Typography.Paragraph className="font-medium" style={[typeScale.caption, { color, opacity: 0.8 }]}>
+          {t("mobile.search.task.tryAgain")}
+        </Typography.Paragraph>
+      )}
+    </Pressable>
   );
 }
 
@@ -657,7 +769,6 @@ const TARGET_NAME_WIDTH = 80;
  * The agent that gets the task: its avatar and name in its own color. A tap chooses another agent,
  * as Backspace in the empty field does; it has no remove mark, so the text field keeps the width.
  */
-
 function TargetChip({ agent, onPress }: { agent: MobileAgent; onPress: () => void }) {
   const { t } = useText();
   const color = getBloubAvatarColor(agent.avatarSeed, agent.avatarHue);
@@ -697,11 +808,14 @@ function GlassCapsule({
   fallbackBackground,
   width,
   animateGlass = false,
+  tint,
   children,
 }: PropsWithChildren<{
   liquidGlass: boolean;
   fallbackBackground: unknown;
   width?: number;
+  /** A color over the glass, such as the agent color of a task result. */
+  tint?: string;
   /** The glass comes in with the native glass animation, for a capsule that mounts on screen. */
   animateGlass?: boolean;
 }>) {
@@ -715,6 +829,7 @@ function GlassCapsule({
             : "none"
       }
       isInteractive={liquidGlass}
+      tintColor={liquidGlass ? tint : undefined}
       style={{
         backgroundColor: liquidGlass ? "transparent" : String(fallbackBackground),
         borderCurve: "continuous",
@@ -725,6 +840,10 @@ function GlassCapsule({
         boxShadow: liquidGlass ? undefined : "0 6px 18px rgba(0, 0, 0, 0.07)",
       }}
     >
+      {/* The solid capsule has no glass to tint, so the tint lies over it. */}
+      {!liquidGlass && tint ? (
+        <View pointerEvents="none" className="absolute inset-0" style={{ backgroundColor: tint }} />
+      ) : null}
       {children}
     </GlassView>
   );
@@ -934,7 +1053,6 @@ function TaskEditorPage({ agent, search }: { agent: MobileAgent; search: HomeSea
             <TaskListRow
               key={task.id}
               task={task}
-              tintAgent={agent}
               onPress={() => {
                 search.leave();
                 router.push({

@@ -114,7 +114,6 @@ export function ServerTasksScreen() {
                 key={task.id}
                 task={task}
                 agent={agent ? undefined : agentOf(task.agentId)}
-                tintAgent={agent ?? agentOf(task.agentId)}
                 dimmed={section.id === "closed"}
                 onPress={() => open(task)}
               />

@@ -2,8 +2,8 @@ import type { AgentTask } from "@openbot/contracts/ipc";
 import { taskTone } from "@openbot/team-client/agent-tasks";
 import { Typography } from "heroui-native";
 import { Pressable, View } from "react-native";
+import { useCSSVariable } from "uniwind";
 import { BloubAvatar } from "@/features/agents/components/bloub-avatar";
-import { getBloubAvatarColor } from "@/features/agents/model/bloub-activity";
 import { AgentTaskMark } from "@/features/servers/components/agent-task-mark";
 import { agentTaskStatus } from "@/features/servers/model/agent-task-text";
 import type { MobileAgent } from "@/features/workspace/model/workspace-types";
@@ -16,27 +16,20 @@ const AVATAR_SIZE = 36;
 /** Marks the place of the status in the translated line, so the status can have its own color. */
 const STATUS_MARK = "⁣";
 
-const TONE_CLASS = {
-  danger: "text-danger-text",
-  working: "text-muted",
-} as const;
-
 /**
  * One task as the Tasks screen and the search show it: the agent, the title, and a line with the
  * agent, the state in its color and the time. Without `agent`, the screen of one agent, the row
- * leaves out the avatar and the name. A state that needs the person has the agent's color.
+ * leaves out the avatar and the name. A task that needs the person shows its state in bold, green
+ * for an answer and red for a failure or a stop, with a dot in the same color.
  */
 export function TaskListRow({
   task,
   agent,
-  tintAgent = agent,
   dimmed = false,
   onPress,
 }: {
   task: AgentTask;
   agent?: MobileAgent;
-  /** The agent whose color marks a state that needs the person, when the row does not show `agent`. */
-  tintAgent?: MobileAgent;
   /** A closed task. */
   dimmed?: boolean;
   onPress: () => void;
@@ -49,7 +42,9 @@ export function TaskListRow({
     : t("mobile.server.tasks.rowMetaTimeOnly", { status: STATUS_MARK, when });
   const [before = "", after = ""] = line.split(STATUS_MARK);
   const tone = taskTone(task);
-  const tint = tintAgent ? getBloubAvatarColor(tintAgent.avatarSeed, tintAgent.avatarHue) : undefined;
+  const [success, danger] = useCSSVariable(["--openbot-success-text", "--openbot-danger-text"]);
+  // `taskTone` says "attention" for an answer and "danger" for a failure or a stop.
+  const mark = tone === "attention" ? String(success) : tone === "danger" ? String(danger) : null;
   return (
     <Pressable
       accessibilityRole="button"
@@ -84,24 +79,27 @@ export function TaskListRow({
         <Typography.Paragraph className="text-muted" numberOfLines={1} style={typeScale.caption}>
           {before}
           <Typography.Paragraph
-            className={
-              tone === "attention" ? (tint ? undefined : "text-accent-text") : tone ? TONE_CLASS[tone] : "text-muted"
-            }
-            style={[typeScale.caption, tone === "attention" && tint ? { color: tint } : null]}
+            className={mark ? "font-semibold" : "text-muted"}
+            style={[typeScale.caption, mark ? { color: mark } : null]}
           >
             {status}
           </Typography.Paragraph>
-          {after}
+          {/* As the design: the time after the state has the color of the state too. */}
+          {mark ? (
+            <Typography.Paragraph style={[typeScale.caption, { color: mark }]}>{after}</Typography.Paragraph>
+          ) : (
+            after
+          )}
         </Typography.Paragraph>
       </View>
-      {tone === "attention" && tint ? (
-        // As the prototype: a task that needs the person has a dot in the agent's color.
+      {mark ? (
+        // A task that needs the person: a dot in the color of its state.
         <View
           className="size-4 items-center justify-center"
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
         >
-          <View className="size-2 rounded-full" style={{ backgroundColor: tint }} />
+          <View className="size-2 rounded-full" style={{ backgroundColor: mark }} />
         </View>
       ) : (
         <AgentTaskMark task={task} />
