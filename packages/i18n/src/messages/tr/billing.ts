@@ -79,6 +79,7 @@ export const messages = {
   "billing.license.description": "Bir şirketteki iş için. Sunucu içermez.",
   "billing.license.loadFailed": "Lisans yüklenemedi.",
   "billing.license.actionFailed": "Lisans değiştirilemedi.",
+  "billing.license.contactSales": "Daha fazla bilgi için licenses@openbot.run adresine yazın.",
   "billing.license.saving": "Kaydediliyor…",
   "billing.license.personal.title": "Kişisel kullanım",
   "billing.license.personal.description":

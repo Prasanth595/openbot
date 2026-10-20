@@ -119,7 +119,6 @@ export class LicenseService {
       userId: string,
     ): Effect.fn.Return<LicenseState, BillingError | BillingOperationError, LicenseDependencies> {
       const dependencies = yield* LicenseDependencies;
-      const price = yield* this.#price();
       const [license, currency, userRows, coveredBy] = yield* Effect.all(
         [
           this.#latestLicense(userId),
@@ -158,7 +157,9 @@ export class LicenseService {
       );
       const users = licenseUsers(userId, userRows.results);
       return {
-        available: price !== null,
+        // Sales pause when the Stripe price is archived. The section still shows, and checkout then
+        // tells the user whom to contact.
+        available: true,
         currency,
         license: license ? licenseFromRow(license) : null,
         used: users.length,
