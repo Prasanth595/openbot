@@ -305,6 +305,15 @@ export class LicenseService {
       const { updated, readAt } = yield* setQuantity(users, "always_invoice").pipe(
         Effect.catch((error) =>
           Effect.gen(function* () {
+            // With no answer from Stripe, the increase can be applied and paid. Read it again, so that a paid
+            // increase is kept and not charged a second time.
+            if (!(error instanceof StripeRequestError)) {
+              const readAt = dependencies.now();
+              const after = yield* stripeRequest(() => dependencies.stripe.getSubscription(current.id)).pipe(
+                Effect.mapError(stripeFailure),
+              );
+              if (after.items.data[0]?.quantity === users) return { updated: after, readAt };
+            }
             if (quantity !== paid)
               yield* setQuantity(quantity, "none").pipe(
                 Effect.flatMap(sync),
