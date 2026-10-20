@@ -87,6 +87,7 @@ export const messages = {
   "error.agent.computerUseLocalOnly": "Управление компьютером можно изменить только на компьютере, где работает агент.",
   "error.agent.automationLocalOnly": "Локальные скрипты можно разрешить только на компьютере, где работает агент.",
   "error.agent.newChatLocalOnly": "Разрешить агенту начинать новые чаты можно только на компьютере, где он работает.",
+  "error.agent.quickAcknowledgementLocalOnly": "Изменить этот параметр можно только на компьютере, где работает агент.",
   "error.agent.sideQuestionLocalOnly": "Побочные вопросы работают только на компьютере, где работает агент.",
   "error.agent.sideQuestionBusy": "Выполняется слишком много побочных вопросов. Повторите попытку чуть позже.",
   "error.agent.sideQuestionFailed": "Агенту не удалось ответить на побочный вопрос. Повторите попытку.",

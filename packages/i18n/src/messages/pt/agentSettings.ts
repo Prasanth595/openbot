@@ -145,6 +145,9 @@ export const messages = {
   "agentSettings.agentNewChat.title": "O agente inicia novos chats",
   "agentSettings.agentNewChat.description":
     "Permite que o agente inicie um novo chat quando o chat dele ficar longo. Ele salva notas antes.",
+  "agentSettings.quickAcknowledgement.title": "Mostrar o plano antes de tarefas longas",
+  "agentSettings.quickAcknowledgement.description":
+    "Antes de uma tarefa longa, o agente mostra o plano. Ele começa após 10 s ou quando você toca em Iniciar.",
   "agentSettings.runtime.workspaceEnforcedProcess":
     "Todo o processo do {provider} é executado em um ambiente isolado, por isso a gravação fora desses locais falha. Disponível somente no macOS.",
 } as const satisfies PartialTranslation<typeof source>;

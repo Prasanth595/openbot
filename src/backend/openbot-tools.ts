@@ -137,6 +137,29 @@ const uiFormOptionsField = (kind: "select" | "segmented", max: number) =>
     value: uiLabelSchema.optional().describe("One of options."),
   });
 
+/** `acknowledge_request`: the action ids of its plan card. */
+export const ACKNOWLEDGE_REQUEST_ACTIONS = { start: "start", alternative: "alternative", cancel: "cancel" } as const;
+
+export const acknowledgeRequestToolSchema = z.object({
+  message: uiTextSchema(UI_BLOCK_LIMITS.title).describe(
+    "One short sentence: you are on it, and what the work is. Such as: On it. This is my plan for the 502 on staging.",
+  ),
+  steps: z
+    .array(
+      z.strictObject({
+        label: uiLabelSchema.describe("Such as First or Then."),
+        step: uiTextSchema(UI_BLOCK_LIMITS.text).describe("What you will do, in one line."),
+      }),
+    )
+    .min(1)
+    .max(4),
+  startLabel: uiLabelSchema.describe("The start button, such as Start."),
+  cancelLabel: uiLabelSchema.describe("The cancel button, such as Cancel."),
+  alternativeLabel: uiLabelSchema
+    .optional()
+    .describe("A smaller option that the user may prefer, such as Only find the cause."),
+});
+
 export const askUiToolSchema = z.object({
   blockId: uiBlockIdSchema.optional().describe("Your id for this block. OpenBot makes one when you omit it."),
   block: z.discriminatedUnion("type", [
@@ -476,6 +499,19 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
         .min(1)
         .max(3),
     },
+  },
+  {
+    name: "acknowledge_request",
+    description: [
+      "Before a long task, show the user a short acknowledgement and your plan in one card, and wait for the answer.",
+      "Call it first, before other tools, when the work takes more than about a minute: a fix, a build, research, or a change in many files.",
+      "Do not call it for a quick answer, a question, a small change, a routine run, or work that the user already approved in this chat.",
+      "The card has your start button, an optional alternative and a cancel button. When nobody answers in 10 s, OpenBot presses start.",
+      'The result is JSON {"status":"answered","actionId":…}: "start" means do the plan; "alternative" means do only the alternative; "cancel" means do not start and ask in one sentence what the user wants;',
+      '"_text" with "text" means follow the user\'s words. {"status":"skipped"} or {"status":"expired"} means do not start; answer briefly.',
+      "Write in the user's language. It works only when the user turned it on in your settings, and not in a channel or a Slack, Discord or Telegram chat.",
+    ].join(" "),
+    shape: acknowledgeRequestToolSchema.shape,
   },
   {
     name: "ask_ui",

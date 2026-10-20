@@ -98,6 +98,7 @@ export const messages = {
     "Les scripts locaux ne peuvent être autorisés que sur l’ordinateur qui exécute l’agent.",
   "error.agent.newChatLocalOnly":
     "Seul l’ordinateur qui exécute l’agent peut l’autoriser à démarrer de nouvelles discussions.",
+  "error.agent.quickAcknowledgementLocalOnly": "Seul l’ordinateur qui exécute l’agent peut modifier ce réglage.",
   "error.agent.sideQuestionLocalOnly":
     "Les questions annexes ne fonctionnent que sur l’ordinateur qui exécute l’agent.",
   "error.agent.sideQuestionBusy": "Trop de questions annexes sont en cours. Réessayez dans un instant.",

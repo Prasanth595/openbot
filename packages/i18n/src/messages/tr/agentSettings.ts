@@ -145,6 +145,9 @@ export const messages = {
   "agentSettings.agentNewChat.title": "Ajan yeni sohbetler başlatır",
   "agentSettings.agentNewChat.description":
     "Sohbeti uzadığında ajanın yeni bir sohbet başlatmasına izin verir. Önce notlarını kaydeder.",
+  "agentSettings.quickAcknowledgement.title": "Uzun görevlerden önce planı göster",
+  "agentSettings.quickAcknowledgement.description":
+    "Uzun bir görevden önce ajan planını gösterir. 10 sn sonra veya Başlat'a bastığınızda başlar.",
   "agentSettings.runtime.workspaceEnforcedProcess":
     "Tüm {provider} süreci bir korumalı alanda (sandbox) çalışır, bu nedenle dışarıya yazma işlemi başarısız olur. Yalnızca macOS'ta kullanılabilir.",
 } as const satisfies PartialTranslation<typeof source>;

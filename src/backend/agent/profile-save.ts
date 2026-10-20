@@ -8,6 +8,7 @@ import type {
 import {
   agentAutomationAllowed,
   agentComputerUseEnabled,
+  agentQuickAcknowledgementEnabled,
   decodeSaveAgentProfileResult,
   workspaceAccessEnforced,
 } from "@openbot/contracts/ipc";
@@ -164,6 +165,7 @@ export function standingProfileChanged(previous: AgentSummary | null | undefined
     previous.provider !== agent.provider ||
     workspaceAccessEnforced(previous) !== workspaceAccessEnforced(agent) ||
     agentComputerUseEnabled(previous) !== agentComputerUseEnabled(agent) ||
-    agentAutomationAllowed(previous) !== agentAutomationAllowed(agent)
+    agentAutomationAllowed(previous) !== agentAutomationAllowed(agent) ||
+    agentQuickAcknowledgementEnabled(previous) !== agentQuickAcknowledgementEnabled(agent)
   );
 }

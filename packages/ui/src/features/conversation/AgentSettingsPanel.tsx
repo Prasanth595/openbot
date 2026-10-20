@@ -19,6 +19,7 @@ import {
   agentPermissionLevel,
   agentPermissionLevels,
   agentPermissionUpdate,
+  agentQuickAcknowledgementEnabled,
   type BusyMessageMode,
   type CustomAgentSummary,
   type CustomProviderSummary,
@@ -113,6 +114,8 @@ export interface AgentSettingsPanelProps {
   automationEditable?: boolean;
   /** Whether the agent can start a new chat. Local-only: the Team API does not carry it. */
   newChatEditable?: boolean;
+  /** Whether the agent shows its plan before a long task. Local-only: the Team API does not carry it. */
+  quickAcknowledgementEditable?: boolean;
   /** The busy-message setting is local-only too: the Team API does not carry it. */
   busyMessageModeEditable?: boolean;
   /** Tasks run only on this computer: the Team API has no task route. */
@@ -201,6 +204,7 @@ interface AgentSettingsDraft {
   computerUse: boolean;
   allowAutomation: boolean;
   allowNewChat: boolean;
+  quickAcknowledgement: boolean;
   /** `default` follows the app setting. */
   busyMessage: BusyMessageChoice;
   /** `default` is `AGENT_TASK_LIMIT_DEFAULT`. */
@@ -241,6 +245,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
     computerUse: true,
     allowAutomation: false,
     allowNewChat: false,
+    quickAcknowledgement: false,
     busyMessage: "default",
     taskLimit: "default",
     backupModels: null,
@@ -357,6 +362,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
           String(agentComputerUseEnabled(agent)),
           String(agentAutomationAllowed(agent)),
           String(agentNewChatAllowed(agent)),
+          String(agentQuickAcknowledgementEnabled(agent)),
           agent.busyMessageMode ?? "default",
           String(agent.taskLimit ?? "default"),
           JSON.stringify(agent.backupModels ?? null),
@@ -400,6 +406,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
           state.computerUse = agentComputerUseEnabled(agent);
           state.allowAutomation = agentAutomationAllowed(agent);
           state.allowNewChat = agentNewChatAllowed(agent);
+          state.quickAcknowledgement = agentQuickAcknowledgementEnabled(agent);
           state.busyMessage = agent.busyMessageMode ?? "default";
           state.taskLimit = taskLimitChoice(agent.taskLimit);
           state.backupModels = agent.backupModels ?? null;
@@ -824,6 +831,19 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
     if (!disposed && props.agent.id === agentId && draft.allowNewChat === next) {
       setDraft((state) => {
         state.allowNewChat = !next;
+      });
+    }
+  }
+
+  async function saveQuickAcknowledgement(next: boolean): Promise<void> {
+    const agentId = props.agent.id;
+    setDraft((state) => {
+      state.quickAcknowledgement = next;
+    });
+    if (await saveAgentPatch({ quickAcknowledgement: next }, agentId)) return;
+    if (!disposed && props.agent.id === agentId && draft.quickAcknowledgement === next) {
+      setDraft((state) => {
+        state.quickAcknowledgement = !next;
       });
     }
   }
@@ -1402,6 +1422,20 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
                     aria-label={t("agentSettings.agentNewChat.title")}
                     checked={draft.allowNewChat}
                     onChange={(next) => void saveAllowNewChat(next)}
+                  />
+                </div>
+              </Show>
+              <Show when={props.quickAcknowledgementEditable}>
+                <div class="agent-settings-notifications">
+                  <div>
+                    <strong>{t("agentSettings.quickAcknowledgement.title")}</strong>
+                    <span>{t("agentSettings.quickAcknowledgement.description")}</span>
+                  </div>
+                  <Switch
+                    size="sm"
+                    aria-label={t("agentSettings.quickAcknowledgement.title")}
+                    checked={draft.quickAcknowledgement}
+                    onChange={(next) => void saveQuickAcknowledgement(next)}
                   />
                 </div>
               </Show>

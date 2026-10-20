@@ -19,6 +19,8 @@ const meta = {
     autoApprove: true,
     onUpdatePermissions: fn(async () => undefined),
     busyMessageModeEditable: true,
+    newChatEditable: true,
+    quickAcknowledgementEditable: true,
     defaultBusyMessageMode: "queue",
     width: 296,
     maxWidth: () => 640,
@@ -56,7 +58,14 @@ export const SteerUnsupportedProvider: Story = {
   },
 };
 /** An agent on a remote host: the setting belongs to that host, so the row is hidden. */
-export const RemoteAgent: Story = { args: { onUpdatePermissions: undefined, busyMessageModeEditable: false } };
+export const RemoteAgent: Story = {
+  args: {
+    onUpdatePermissions: undefined,
+    busyMessageModeEditable: false,
+    newChatEditable: false,
+    quickAcknowledgementEditable: false,
+  },
+};
 /** An OpenCode model with no reasoning setting: OpenCode decides, and the row says so. */
 export const ReasoningSetByProvider: Story = {
   args: {

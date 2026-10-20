@@ -1,7 +1,7 @@
 import type { UiAction, UiActionStyle, UiConfirmBlock as UiConfirmSpec } from "@openbot/contracts/ui-blocks";
 import { Button, NativeSelect, Spinner } from "@openbot/ui";
 import type { JSX } from "@solidjs/web";
-import { createSignal, createUniqueId, For, flush, Match, Show, Switch } from "solid-js";
+import { createEffect, createSignal, createUniqueId, For, flush, Match, Show, Switch } from "solid-js";
 import { useText } from "../../../text";
 import { cx } from "../../../utils";
 import { UiBlockCard } from "./UiBlockCard";
@@ -38,6 +38,30 @@ export function UiConfirmBlock(props: UiConfirmBlockProps) {
   const isHeld = (action: UiAction) =>
     actionStyle(action) === "danger" || (holdsPrimary() && actionStyle(action) === "primary");
   const anyHeld = () => props.spec.actions.some(isHeld);
+  // The host answers the block itself at `autoAnswer.at`. Its button counts down to that time.
+  const autoAnswer = () => state().autoAnswer;
+  const [now, setNow] = createSignal(Date.now());
+  createEffect(
+    () => (frozen() ? undefined : autoAnswer()?.at),
+    (at) => {
+      if (!at) return;
+      setNow(Date.now());
+      const timer = window.setInterval(() => setNow(Date.now()), 1_000);
+      return () => window.clearInterval(timer);
+    },
+  );
+  const secondsLeft = () => {
+    const at = autoAnswer()?.at;
+    return at ? Math.max(0, Math.ceil((Date.parse(at) - now()) / 1_000)) : 0;
+  };
+  const actionLabel = (action: UiAction) =>
+    autoAnswer()?.actionId === action.id && secondsLeft() > 0
+      ? t("uiBlock.confirm.autoActionLabel", { action: action.label, seconds: secondsLeft() })
+      : action.label;
+  const outcome = () =>
+    autoAnswer()?.done && state().outcome
+      ? t("uiBlock.outcome.autoAnswered", { outcome: state().outcome ?? "" })
+      : state().outcome;
 
   const [selected, setSelected] = createSignal<Record<string, string>>({});
   // A `confirm: true` action, or a held action that was clicked instead of held. The card asks for it
@@ -83,11 +107,11 @@ export function UiConfirmBlock(props: UiConfirmBlockProps) {
       class={cx("ui-block-confirm", props.class)}
       title={props.spec.title}
       status={state().status}
-      outcome={state().outcome}
+      outcome={outcome()}
       danger={props.spec.danger}
       busy={props.busy}
       error={props.error}
-      onSkip={props.disabled ? undefined : props.onSkip}
+      onSkip={props.disabled || autoAnswer() ? undefined : props.onSkip}
       elementRef={props.elementRef}
     >
       <Show when={(props.spec.fields?.length ?? 0) > 0}>
@@ -151,7 +175,7 @@ export function UiConfirmBlock(props: UiConfirmBlockProps) {
         )}
       </Show>
       <Show when={!frozen() && !confirming()}>
-        <div class="ui-block-actions">
+        <div class={cx("ui-block-actions", autoAnswer() && "ui-block-actions-auto")}>
           <For each={props.spec.actions}>
             {(action) => (
               <Switch>
@@ -178,7 +202,7 @@ export function UiConfirmBlock(props: UiConfirmBlockProps) {
                     }}
                     onClick={() => (action.confirm === true ? askAgain(action) : respond(action))}
                   >
-                    {action.label}
+                    {actionLabel(action)}
                   </Button>
                 </Match>
               </Switch>

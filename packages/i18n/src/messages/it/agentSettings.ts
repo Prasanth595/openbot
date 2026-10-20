@@ -152,6 +152,9 @@ export const messages = {
   "agentSettings.agentNewChat.title": "L'agente avvia nuove chat",
   "agentSettings.agentNewChat.description":
     "L'agente può avviare una nuova chat quando la sua diventa lunga. Prima salva delle note.",
+  "agentSettings.quickAcknowledgement.title": "Mostra il piano prima delle attività lunghe",
+  "agentSettings.quickAcknowledgement.description":
+    "Prima di un'attività lunga, l'agente mostra il suo piano. Inizia dopo 10 s o quando premi Avvia.",
   "agentSettings.runtime.workspaceEnforcedProcess":
     "L'intero processo di {provider} gira in una sandbox, quindi una scrittura all'esterno non riesce. Disponibile solo su macOS.",
 } as const satisfies PartialTranslation<typeof source>;
