@@ -1,10 +1,10 @@
 {
-  "version": "0.45.0",
+  "version": "0.46.0",
   "highlights": [
-    "Settings → Billing has a License for work at a company: 5 to 25 users, in EUR, USD or PLN.",
-    "The chat shows the subagents that a Claude or Codex agent starts, with their tasks and steps.",
-    "An agent can show its plan before a long task, and the context meter has a New chat button.",
-    "Side questions work in the web client and on joined servers.",
-    "One server can connect more than one Slack workspace or Discord server, with Discord role limits."
+    "OpenBot can read replies aloud on this computer, in 31 languages and ten voices.",
+    "Talk to an agent in the new Voice pane: speak, and the agent reads its reply aloud.",
+    "On Windows and Linux, OpenBot can run in the background from the system tray and open at login.",
+    "OpenBot keeps your account sign-in after a restart or an update.",
+    "OpenCode agents continue in a new session when OpenCode cannot read the old one."
   ]
 }
