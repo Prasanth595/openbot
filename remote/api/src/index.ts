@@ -271,9 +271,18 @@ const controlPlaneService = await controlPlane.runPromise(ControlPlane);
 const tokens = new RemoteTokenService(
   config,
   (claims) =>
-    controlPlaneService
-      .validateResume(claims)
-      .pipe(Effect.mapError((error) => new RemoteTokenUnavailableError({ message: error.message }))),
+    controlPlaneService.validateResume(claims).pipe(
+      Effect.mapError(
+        (error) =>
+          new RemoteTokenUnavailableError({
+            message: error.message,
+            hostId: claims.hostId,
+            sessionId: claims.sessionId,
+            role: claims.role,
+            authEpoch: claims.authEpoch,
+          }),
+      ),
+    ),
   {
     validateSlackRoute: (hostId, teams) =>
       controlPlaneService

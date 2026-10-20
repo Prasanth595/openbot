@@ -113,7 +113,14 @@ export class RemoteTokenError extends Schema.TaggedError<RemoteTokenError>()("Re
 /** The account service did not answer, so it did not say whether the session is active. */
 export class RemoteTokenUnavailableError extends Schema.TaggedError<RemoteTokenUnavailableError>()(
   "RemoteTokenUnavailableError",
-  { message: Schema.String },
+  {
+    message: Schema.String,
+    // The unchecked claims. Signal still refuses a session that it knows is revoked or ended.
+    hostId: Schema.String,
+    sessionId: Schema.String,
+    role: Schema.String,
+    authEpoch: Schema.Number,
+  },
 ) {}
 
 const tokenError = (error: unknown) =>

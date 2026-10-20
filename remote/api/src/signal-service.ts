@@ -137,6 +137,7 @@ interface ActiveConnection {
 export interface SignalMetrics {
   acceptedConnections: number;
   authenticationFailures: number;
+  authenticationUnavailable: number;
   protocolFailures: number;
   relayedMessages: number;
   activeSockets: number;
@@ -340,6 +341,7 @@ export class SignalService {
   readonly #metrics: SignalMetrics = {
     acceptedConnections: 0,
     authenticationFailures: 0,
+    authenticationUnavailable: 0,
     protocolFailures: 0,
     relayedMessages: 0,
     activeSockets: 0,
@@ -1213,11 +1215,8 @@ export class SignalService {
           }
           // Finish signing before admission. No quota slot is held while signing waits or fails.
           const resumeToken = yield* tokens.issueResumeToken(claims);
-          if ((this.#revokedEpochs.get(claims.hostId) ?? 0) > claims.authEpoch) {
-            return yield* new RemoteTokenError({ message: "Revoked ticket." });
-          }
-          if (claims.role !== "host" && this.#revokedSessions.has(claims.sessionId))
-            return yield* new RemoteTokenError({ message: "Ended session." });
+          if (this.#isRevoked(claims))
+            return yield* new RemoteTokenError({ message: "Revoked ticket or ended session." });
           this.#pruneReplayCache();
           if (usedInitialTicket && this.#usedTicketIds.has(claims.jti))
             return yield* new RemoteTokenError({ message: "Ticket was already used." });
@@ -1227,7 +1226,9 @@ export class SignalService {
           // After a restart every resume asks the account service. When it does not answer, the
           // session can still be active: close without an error frame, so that the peer keeps its
           // data channels and connects again after its backoff.
-          if (authentication.failure._tag === "RemoteTokenUnavailableError") {
+          const failure = authentication.failure;
+          if (failure._tag === "RemoteTokenUnavailableError" && !this.#isRevoked(failure)) {
+            this.#metrics.authenticationUnavailable += 1;
             socket.close(1013, "The account service is unavailable.");
             return;
           }
@@ -1677,6 +1678,11 @@ export class SignalService {
 
   #send(socket: SignalSocket, message: SignalServerMessage): void {
     socket.send(encodeSignalServerMessage(message));
+  }
+
+  #isRevoked(claims: { hostId: string; sessionId: string; role: string; authEpoch: number }): boolean {
+    if ((this.#revokedEpochs.get(claims.hostId) ?? 0) > claims.authEpoch) return true;
+    return claims.role !== "host" && this.#revokedSessions.has(claims.sessionId);
   }
 
   #fail(socket: SignalSocket, code: SignalErrorCode, message: string, closeCode?: number): void {

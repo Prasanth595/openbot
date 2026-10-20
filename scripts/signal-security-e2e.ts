@@ -1,7 +1,7 @@
 // Starts the real Signal service (`remote/api`) on a free local port with throwaway secrets and a
 // fake account service, then checks its secret and authentication rules over real HTTP and
 // WebSocket connections: the Telegram secret header, the Slack signature, the signed account
-// events, the body limits, the remote and route tickets, a failed account service during a resume check, the generic webhook headers, the hello deadline, the reuse of
+// events, the body limits, the remote and route tickets, a failed account service during an initial ticket check after a start, the generic webhook headers, the hello deadline, the reuse of
 // TURN credentials, and that no frame or log line holds the Telegram bot token. Writes .openbot-build/signal-security-e2e/report.json and exits
 // non-zero when a check fails. It makes no request to Telegram, Slack or Discord.
 import { type ChildProcess, spawn } from "node:child_process";
@@ -596,6 +596,32 @@ try {
     expect(code === 1013, `close code: ${code}`);
     expect(peer.frames.length === 0, `frames: ${peer.frames.join(" ").slice(0, 200)}`);
     return `closed with ${code} and no frame`;
+  });
+  await check("A revoked session that the account service cannot check is still refused", async () => {
+    const body = JSON.stringify({ type: "remote-auth-changed", hostId: UNAVAILABLE_HOST_ID, authEpoch: 2 });
+    const timestamp = nowSeconds();
+    const revoked = await postAuthEvent(
+      body,
+      timestamp,
+      hmac(AUTH_WEBHOOK_SECRET, `${timestamp}.${body}`, "base64url"),
+    );
+    expect(revoked.status === 204, `signed revoke: ${revoked.status}`);
+    const peer = await connect(signalUrl);
+    peer.socket.send(
+      JSON.stringify({
+        type: "hello",
+        version: 1,
+        peer: "host",
+        token: await remoteTicket({ hostId: UNAVAILABLE_HOST_ID, membershipId: `${UNAVAILABLE_HOST_ID}:host` }),
+      }),
+    );
+    const code = await withDeadline(peer.closed, "close after a revoked unchecked hello");
+    expect(code === 1008, `close code: ${code}`);
+    expect(
+      peer.frames.some((frame) => frame.includes('"code":"authentication_required"')),
+      `frames: ${peer.frames.join(" ").slice(0, 200)}`,
+    );
+    return `closed with ${code} and an authentication_required error`;
   });
   await check("A session that the account service calls inactive is refused", async () => {
     const peer = await connect(signalUrl);
