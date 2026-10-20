@@ -41,7 +41,7 @@ import {
   HomeSearchResults,
   useHomeSearch,
 } from "@/features/search/components/home-search";
-import { dropHomeSearchRequest } from "@/features/search/model/home-search-request";
+import { setHomeSearchUnavailable } from "@/features/search/model/home-search-request";
 import { useAppDrawer } from "@/features/servers/components/app-drawer-shell";
 import { ConnectionHeaderStatus } from "@/features/workspace/components/connection-header-status";
 import { useWaitingAgentIds } from "@/features/workspace/components/use-agent-activity";
@@ -334,9 +334,11 @@ export function ConnectedScreen() {
   useEffect(() => {
     if (!searchShows && searchOpen) closeSearch();
   }, [searchShows, searchOpen, closeSearch]);
-  // A quick action waits while the list loads. A ready home without the field drops it.
+  // A quick action waits while the list loads. A ready home without the field drops it. When home
+  // leaves, a request waits again for the next home.
   useEffect(() => {
-    if (listReady && !searchShows) dropHomeSearchRequest();
+    setHomeSearchUnavailable(listReady && !searchShows);
+    return () => setHomeSearchUnavailable(false);
   }, [listReady, searchShows]);
   const finishGate = onboarding.finish;
   const finishOnboarding = useCallback(
