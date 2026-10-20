@@ -184,6 +184,7 @@ export function MobileChatView({
       stopTurn={stopTurn}
       questionForm={questionForm}
       activityAccessory={<ChatTaskRows tasks={tasks} serverId={agent.serverId} />}
+      threadId={threadId}
       approvals={approvals}
       readBoundary={latest ? `${latest.id}:${latest.status}` : null}
       markRead={markRead}

@@ -93,6 +93,8 @@ export interface ChatViewProps {
   questionForm?: QuestionPromptController;
   /** Rows under the agent's activity, such as the tasks that the agent works on. */
   activityAccessory?: ReactNode;
+  /** This chat's thread. Browser requests of the agent's other threads, such as its tasks, do not show here. */
+  threadId?: string | null;
   /** The approvals of this chat's agents, from the caller that knows which thread is this chat's. */
   approvals?: readonly PendingApproval[];
   readBoundary: string | null;
@@ -174,6 +176,7 @@ export function ChatView({
   stopTurn,
   questionForm,
   activityAccessory,
+  threadId = null,
   approvals,
   readBoundary,
   markRead,
@@ -196,8 +199,11 @@ export function ChatView({
   );
   const browserRequests = useBrowserRequests(target.serverId);
   const chatBrowserRequests = useMemo(
-    () => browserRequests.filter((request) => request.agentId === target.id),
-    [browserRequests, target.id],
+    () =>
+      browserRequests.filter(
+        (request) => request.agentId === target.id && (threadId === null || request.threadId === threadId),
+      ),
+    [browserRequests, target.id, threadId],
   );
   const browserAllowed = useBrowserFeature();
   const isFocused = useIsFocused();

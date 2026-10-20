@@ -17,6 +17,12 @@ import { useUniwind } from "uniwind";
 import { getBloubAvatarColor } from "@/features/agents/model/bloub-activity";
 import { showFailureAlert } from "@/features/analytics/failure-reports";
 import { useQueryScope } from "@/features/auth/context/mobile-session-context";
+import { useBrowserFeature } from "@/features/browser/components/use-browser-feature";
+import {
+  asksForSecret,
+  BrowserSecretComposer,
+  BrowserTakeoverCard,
+} from "@/features/chat/components/browser-secret-card";
 import { ChatComposer, VOICE_BUTTON_SIZE } from "@/features/chat/components/chat-composer";
 import { ChatHeader } from "@/features/chat/components/chat-header";
 import { ChatMessageList } from "@/features/chat/components/chat-message-list";
@@ -31,7 +37,7 @@ import type { ChatTarget } from "@/features/chat/model/chat-target";
 import { voiceAccent, voicePalette } from "@/features/chat/model/voice-palette";
 import { agentTaskHoldText } from "@/features/servers/model/agent-task-text";
 import { ConnectionStatus } from "@/features/workspace/components/connection-status";
-import { useApprovalRequests } from "@/features/workspace/components/use-live-workspace";
+import { useApprovalRequests, useBrowserRequests } from "@/features/workspace/components/use-live-workspace";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 import type { MobileAgentActivity } from "@/features/workspace/model/agent-activity";
 import { queryKeys } from "@/features/workspace/model/query-keys";
@@ -39,6 +45,7 @@ import { showsOnline } from "@/features/workspace/model/server-status";
 import { MenuView } from "@/shared/components/menu-view";
 import { haptics } from "@/shared/lib/haptics";
 import { currentText, useText } from "@/shared/lib/text";
+import { useAppForeground } from "@/shared/lib/use-app-foreground";
 import { useReducedTransparency } from "@/shared/lib/use-reduced-transparency";
 
 type TaskAction = "stop" | "close" | "reopen";
@@ -122,6 +129,9 @@ function AgentTaskChat({ target, taskId }: { target: ChatTarget; taskId: string 
     controlAgentTask,
     respondToTaskPrompt,
     respondToApproval,
+    respondToBrowserTakeover,
+    respondToBrowserSecret,
+    browserViewSupport,
   } = useMobileWorkspace();
   const server = servers.find((item) => item.id === serverId);
   const online = showsOnline(server);
@@ -161,18 +171,28 @@ function AgentTaskChat({ target, taskId }: { target: ChatTarget; taskId: string 
   );
   // The composer answers only after the person chooses it in the form. A private answer has its own field.
   const answersQuestion = Boolean(questionForm.question && !questionForm.question.isSecret && questionForm.replyInChat);
+  const threadId = conversation.data?.threadId ?? null;
+  const browserRequests = useBrowserRequests(serverId);
+  // Only the browser requests of the task's own thread; the agent's chat shows those of its thread.
+  const taskBrowserRequests = useMemo(
+    () =>
+      threadId === null
+        ? []
+        : browserRequests.filter((request) => request.agentId === agentId && request.threadId === threadId),
+    [browserRequests, agentId, threadId],
+  );
+  const waitReason = questionForm.question ? "question" : taskBrowserRequests.length > 0 ? "takeover" : null;
   // A task turn is not in the agent's live activity, so the row comes from the task.
   const activity = useMemo<MobileAgentActivity | undefined>(
     () =>
       task?.state === "running"
-        ? questionForm.question
-          ? { agentId, turnId: activeTurnId, phase: "waiting", detail: null, reason: "question" }
+        ? waitReason
+          ? { agentId, turnId: activeTurnId, phase: "waiting", detail: null, reason: waitReason }
           : { agentId, turnId: activeTurnId, phase: "working", detail: null }
         : undefined,
-    [task?.state, questionForm.question, agentId, activeTurnId],
+    [task?.state, waitReason, agentId, activeTurnId],
   );
   const serverApprovals = useApprovalRequests(serverId);
-  const threadId = conversation.data?.threadId ?? null;
   // Only the approvals of the task's own thread, as the agent's chat shows only its own.
   const approvals = useMemo(
     () =>
@@ -183,6 +203,9 @@ function AgentTaskChat({ target, taskId }: { target: ChatTarget; taskId: string 
   );
 
   const isFocused = useIsFocused();
+  const foregroundVisit = useAppForeground();
+  const browserAllowed = useBrowserFeature();
+  const browserViewAvailable = browserViewSupport(serverId).view;
   const insets = useSafeAreaInsets();
   const keyboardOffset = Math.max(insets.bottom, 10) - 10;
   const reducedTransparency = useReducedTransparency();
@@ -228,6 +251,9 @@ function AgentTaskChat({ target, taskId }: { target: ChatTarget; taskId: string 
     onSend: (text) => void send(text),
   });
   const voiceOpen = voice.stage !== "closed";
+  // As in the agent's chat: a password or a code is typed where the composer is.
+  const showBrowserRequests = online && foregroundVisit && isFocused;
+  const secretRequest = showBrowserRequests && !voiceOpen ? taskBrowserRequests.find(asksForSecret) : undefined;
   const dark = useColorScheme() === "dark";
   const palette = useMemo(
     () => voicePalette(getBloubAvatarColor(target.avatarSeed, target.avatarHue), dark),
@@ -425,6 +451,7 @@ function AgentTaskChat({ target, taskId }: { target: ChatTarget; taskId: string 
           questionForm={questionForm}
           activityAccessory={taskNotes}
           approvals={approvals}
+          browserRequests={taskBrowserRequests}
           serverName={server?.name ?? ""}
           onRespondApproval={(approval, decision) =>
             respondToApproval(serverId, { requestId: approval.requestId, decision })
@@ -467,6 +494,28 @@ function AgentTaskChat({ target, taskId }: { target: ChatTarget; taskId: string 
           onLayout={motion.onComposerLayout}
         >
           <ConnectionStatus server={server} />
+          {showBrowserRequests
+            ? taskBrowserRequests
+                .filter((request) => !asksForSecret(request))
+                .map((request) => (
+                  <BrowserTakeoverCard
+                    key={`${serverId}:${request.requestId}`}
+                    request={request}
+                    respondToTakeover={(decision) =>
+                      respondToBrowserTakeover(serverId, { requestId: request.requestId, decision })
+                    }
+                    openBrowser={
+                      browserAllowed && browserViewAvailable
+                        ? () =>
+                            router.push({
+                              pathname: "/browser/[agentId]",
+                              params: { agentId: request.agentId, serverId, tabId: request.tabId },
+                            })
+                        : undefined
+                    }
+                  />
+                ))
+            : null}
           {sendError ? (
             <Typography.Paragraph accessibilityRole="alert" className="bg-background px-4 py-2 text-danger-text">
               {sendError}
@@ -482,6 +531,19 @@ function AgentTaskChat({ target, taskId }: { target: ChatTarget; taskId: string 
             >
               {t("mobile.server.tasks.closedNote")}
             </Typography.Paragraph>
+          ) : secretRequest ? (
+            <BrowserSecretComposer
+              key={`${serverId}:${secretRequest.requestId}`}
+              request={secretRequest}
+              respond={(input) => respondToBrowserSecret(serverId, input)}
+              bottomInset={insets.bottom}
+              liquidGlassAvailable={liquidGlassAvailable}
+              fallbackBackground={fieldBackground}
+              foreground={foreground}
+              muted={muted}
+              action={action}
+              actionForeground={actionForeground}
+            />
           ) : (
             <ChatComposer
               sendRetryVersion={0}
