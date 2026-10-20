@@ -2,8 +2,9 @@
 // session that OpenCode 2.0 wrote in its `session_v2` table: it advertises `session/resume` and
 // `session/list`, does not list the session, and answers each resume with "OpenCode service failure".
 // Checks that such a resume ends as a missing session, which the agent replaces and gives the
-// transcript; that a session the list still holds is tried once more and kept; and that a managed
-// OpenCode older than a working system OpenCode is not selected.
+// transcript; that a session the list still holds is tried once more and kept; that the OpenCode 2.x
+// answer for a session it does not have is a missing session, but its answer for a session of another
+// directory is not; and that a managed OpenCode older than a working system OpenCode is not selected.
 // `bun run test:opencode-downgraded-session`. Writes .openbot-build/opencode-downgraded-session-e2e/report.json.
 import assert from "node:assert/strict";
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -19,7 +20,8 @@ import { NO_PROVIDER_CREDENTIALS, requireProviderDriver } from "../src/backend/p
 const OUT = resolve(import.meta.dirname, "../.openbot-build/opencode-downgraded-session-e2e");
 
 // Sessions named `v2-…` are in the table this version cannot read: not listed, and not resumable.
-// `kept-…` sessions are listed but fail to resume, as an internal fault does.
+// `kept-…` sessions are listed but fail to resume, as an internal fault does. `v1only-…` and
+// `othercwd-…` get the OpenCode 2.x answers for a session it does not have and for another directory.
 const FAKE_OPENCODE = `#!/usr/bin/env node
 const fs = require("node:fs");
 const NL = String.fromCharCode(10);
@@ -29,6 +31,10 @@ const MODEL = "opencode/minimax-m3.1-flash-free";
 const setup = (sessionId) => ({ sessionId,
   models: { availableModels: [{ modelId: MODEL, name: "MiniMax" }], currentModelId: MODEL } });
 const failure = { code: -32603, message: "Internal error: OpenCode service failure", data: { service: "session" } };
+const missing = (sessionId) => ({ code: -32602, message: "Invalid params: session not found: " + sessionId,
+  data: { sessionId } });
+const otherCwd = (sessionId, cwd) => ({ code: -32602,
+  message: "Invalid params: session " + sessionId + " does not belong to cwd: " + cwd, data: { sessionId, cwd } });
 let count = 0;
 function handle(message) {
   if (message.id === undefined) return;
@@ -46,6 +52,9 @@ function handle(message) {
   if (message.method === "session/resume" || message.method === "session/load") {
     log({ event: message.method, sessionId: params.sessionId });
     if (/^(?:v2|kept)-/.test(params.sessionId)) write({ id: message.id, error: failure });
+    else if (params.sessionId.startsWith("v1only-")) write({ id: message.id, error: missing(params.sessionId) });
+    else if (params.sessionId.startsWith("othercwd-"))
+      write({ id: message.id, error: otherCwd(params.sessionId, params.cwd) });
     else write({ id: message.id, result: setup(params.sessionId) });
     return;
   }
@@ -79,6 +88,7 @@ interface Report {
   passed: boolean;
   unreadable?: { error: string; missingSession: boolean; resumes: number; listed: boolean };
   listed?: { error: string; missingSession: boolean; resumes: number };
+  newerVersion?: { missing: boolean; otherDirectory: boolean };
   selection?: { olderManaged: string; newerManaged: string; sameVersion: string; secondSystem: string };
 }
 
@@ -156,7 +166,16 @@ try {
   assert.equal(keptReport.resumes, 2, "A listed session is resumed once more.");
   assert.equal(keptReport.error, sourceText("error.provider.opencodeServiceFailure"));
 
-  // 3. A managed copy older than a working system copy is not selected; a newer or equal one is.
+  // 3. OpenCode 2.x copies 1.x sessions once, so it does not have a session that 1.x wrote later.
+  // That session is replaced; a session of another directory is not.
+  report.newerVersion = {
+    missing: isMissingProviderSessionError(await resumeFailure(client, "v1only-1", workspace), "opencode"),
+    otherDirectory: isMissingProviderSessionError(await resumeFailure(client, "othercwd-1", workspace), "opencode"),
+  };
+  assert.equal(report.newerVersion.missing, true, "A session that OpenCode 2.x does not have is replaced.");
+  assert.equal(report.newerVersion.otherDirectory, false, "A session of another directory is not replaced.");
+
+  // 4. A managed copy older than a working system copy is not selected; a newer or equal one is.
   const system = await fakeCli("system-2.0.4");
   const select = async (managed: string, systemCandidates = [system]) => {
     const resolved = await runCauseEffect(
