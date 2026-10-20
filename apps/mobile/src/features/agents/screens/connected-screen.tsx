@@ -555,8 +555,6 @@ export function ConnectedScreen() {
         />
       ) : null}
 
-      {searchShows ? <HomeSearchResults search={search} /> : null}
-
       {/* The list scrolls under the transparent header, which gets the blur of the chat header. iOS 27
           shows no native scroll edge effect here. The native top edge is hidden to avoid two effects. */}
       {onboarding.active ? null : (
@@ -567,6 +565,9 @@ export function ConnectedScreen() {
           hidden={!searchShows || statusShows || search.open}
         />
       )}
+
+      {/* The results lie over the bar's edge, so its blur cannot soften them; they have their own. */}
+      {searchShows ? <HomeSearchResults search={search} /> : null}
 
       {searchShows ? <HomeSearchBar search={search} /> : null}
 

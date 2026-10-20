@@ -183,7 +183,8 @@ export function LargeTitleBar({
           top: 0,
           left: 0,
           right: 0,
-          height: scroll.headerHeight + (surface === "sheet" ? 48 : 20),
+          // The same depth on every surface, so the blur fades as it does in the sheets.
+          height: scroll.headerHeight + 48,
         }}
       />
       {hidden ? null : (

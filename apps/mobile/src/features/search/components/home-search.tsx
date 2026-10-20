@@ -63,6 +63,7 @@ import {
   useMobileWorkspaceSelector,
 } from "@/features/workspace/context/mobile-workspace-context";
 import { BlurSwap } from "@/shared/components/blur-swap";
+import { SheetScrollEdgeEffect } from "@/shared/components/sheet-scroll-edge-effect";
 import { haptics } from "@/shared/lib/haptics";
 import { useReducedMotion, useTransitionMode } from "@/shared/lib/motion";
 import { currentText, useText } from "@/shared/lib/text";
@@ -431,6 +432,9 @@ export function HomeSearchResults({ search }: { search: HomeSearch }) {
       >
         <HomeSearchBody search={search} />
       </KeyboardAwareScrollView>
+      {/* Results scroll up under the status bar with the edge of the other screens. It ends at the
+          status bar, so the first heading is clear of the blur when the list is at the top. */}
+      <SheetScrollEdgeEffect style={{ position: "absolute", top: 0, left: 0, right: 0, height: insets.top }} />
     </Animated.View>
   );
 }
