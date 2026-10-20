@@ -4,6 +4,7 @@ import type {
   LicenseState,
   LicenseUsersRequest,
 } from "@openbot/contracts/license";
+import { classifyFailure } from "@openbot/telemetry";
 import { createStore } from "solid-js";
 import { currentText } from "../../text";
 import { toast } from "../../toast";
@@ -89,9 +90,14 @@ export function createLicenseStore(calls: () => LicenseCalls | undefined, isActi
     } catch (error) {
       const text = currentText();
       const message = text.errorMessage(error, text.t("billing.license.actionFailed"));
-      // The buy form has no alert of its own, so a checkout failure shows as a toast. The address is
-      // catalog text: an error message loses it to redaction.
-      if (action === "checkout") toast.error(message, { description: text.t("billing.license.contactSales") });
+      // A checkout failure shows as a toast with the sales address. The address is catalog text: an
+      // error message loses it to redaction.
+      if (action === "checkout")
+        toast.error(message, {
+          description: text.t("billing.license.contactSales"),
+          error,
+          report: { operation: "other", source: "action", cause_code: classifyFailure(error) },
+        });
       else
         setState((draft) => {
           draft.actionError = message;

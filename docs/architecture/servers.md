@@ -447,8 +447,10 @@ subscription quantity is the number of users.
   writes nothing to `billing_subscriptions`. A Worker before the license sees an unknown plan and
   skips the event, so an old Worker keeps working.
 - Routes: `GET /v1/me/license`, and `POST /v1/me/license/checkout`, `/users` and `/renewal`. The
-  state is `available: false` until Stripe has the license price, and the app then shows nothing.
-  An app on a Worker without these routes gets 404 and also shows nothing.
+  state is `available: false` only when the Worker has no billing, and the app then shows nothing.
+  When Stripe has no active license price (it is archived to pause sales), checkout returns 503
+  `license_unavailable`, and the app shows a toast with the sales address. An app on a Worker
+  without these routes gets 404 and also shows nothing.
 - A Stripe customer pays in one currency, so a new license uses the currency of the account's open
   subscriptions. Checkout cannot buy fewer users than are in use. An increase is charged at once
   (`always_invoice`). A decrease starts at the next invoice and cannot go below the users in use or
