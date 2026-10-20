@@ -64,14 +64,14 @@ import {
 } from "../model/composer-requests";
 import { type OutboxMessage, outboxChatKey, outboxChatMessage, outboxRowId, outboxTargetKey } from "../model/outbox";
 import type { OutboxDraft, OutboxStore } from "../model/outbox-store";
-import { queueReceiptMessages } from "../model/queue-edit-draft";
+import { queueReceiptMessages, queueRowsWithHeldEdit } from "../model/queue-edit-draft";
 import { retainConfirmedAttachments } from "../model/upload-chat-attachments";
 import { voiceAccent, voicePalette } from "../model/voice-palette";
 import { rememberImageDimensions } from "./attachment-preview";
 import { asksForSecret, BrowserSecretComposer, BrowserTakeoverCard } from "./browser-secret-card";
 import { ChatAttachmentPanel } from "./chat-attachment-panel";
 import type { OutboxRowStatus } from "./chat-outbox-status";
-import { ChatQueuePanel } from "./chat-queue-panel";
+import { ChatQueueButton } from "./chat-queue-button";
 import { ChatSelectionBar } from "./chat-selection-bar";
 import type { ChatQueueController } from "./use-chat-queue";
 import { useVoiceMode } from "./use-voice-mode";
@@ -277,6 +277,14 @@ export function ChatView({
           }
         : null,
     [sendsToQueue, sendingMessage, sendingUpload?.completed, outbox],
+  );
+  // The sheet keeps a held edit in its rows when the host hides it. Count it here as
+  // well, so a saved edit with a lost response stays reachable after a restart.
+  const queued = queue?.queued;
+  const heldQueueEdit = queue?.edit?.delivery ?? null;
+  const queueCount = useMemo(
+    () => (queued ? queueRowsWithHeldEdit(queued, heldQueueEdit).length : 0) + (queuePending ? 1 : 0),
+    [queued, heldQueueEdit, queuePending],
   );
   usePublishedQueuedChat(queue?.chatId ?? `${target.serverId}:${target.id}`, queue ?? null, queuePending);
   const queuedMessageIds = useMemo(
@@ -950,9 +958,11 @@ export function ChatView({
                 </Typography.Paragraph>
               ) : null}
               {queue ? (
-                <ChatQueuePanel
-                  queue={queue}
-                  pending={queuePending}
+                <ChatQueueButton
+                  chatId={queue.chatId}
+                  count={queueCount}
+                  error={Boolean(queue.error)}
+                  waiting={queue.waiting.length > 0}
                   liquidGlassAvailable={liquidGlassAvailable}
                   fallbackBackground={fieldBackground}
                 />
