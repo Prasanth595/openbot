@@ -36,7 +36,8 @@ import Trash2 from "lucide-react-native/icons/trash-2";
 import Users from "lucide-react-native/icons/users";
 import X from "lucide-react-native/icons/x";
 import { Fragment, type Ref, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { BackHandler, Pressable, ScrollView, useWindowDimensions } from "react-native";
+import { BackHandler, Pressable, useWindowDimensions } from "react-native";
+import { ScrollView } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCSSVariable } from "uniwind";
 
@@ -229,7 +230,8 @@ export function MenuView({
   // HeroUI does not limit the height of the menu, and moves a menu that is taller than the screen above
   // its top edge. A long list, such as the dictation languages, scrolls in the screen instead, with the
   // 12 px edge space of HeroUI. A sub-menu opens as a layer over the menu, so a ScrollView would clip it:
-  // a menu with a sub-menu keeps its full height.
+  // a menu with a sub-menu keeps its full height. The React Native ScrollView does not get the drag in
+  // the portal of the menu; the gesture-handler ScrollView does.
   const scrolls = !visible(actions).some((action) => action.subactions?.length && !action.displayInline);
 
   return (
