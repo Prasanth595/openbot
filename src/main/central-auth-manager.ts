@@ -33,6 +33,7 @@ import {
   type RemoteTicketClaims,
 } from "@openbot/contracts/signal-protocol/ticket";
 import { sourceText } from "@openbot/i18n/source";
+import { createOpenBotLogger } from "@openbot/logging";
 import { referenceFrom, safeReference } from "@openbot/user-errors";
 import { Deferred, Effect, type Layer, Result, Schema, Semaphore } from "effect";
 import { createLocalJWKSet, jwtVerify } from "jose";
@@ -91,6 +92,20 @@ interface StoredMobileConnectLink {
 }
 
 const MOBILE_CONNECT_LINK_TOKEN = /^[A-Za-z0-9_-]{32,128}$/u;
+
+const logger = createOpenBotLogger("central-auth");
+
+/** The step of a session file read or write that failed, for the account log. */
+type StoredSessionStage = "read" | "decrypt" | "decode" | "encrypt" | "write";
+
+/**
+ * The stage, error name and system code only. A decode message can quote the decrypted text, and a
+ * file system message names the path.
+ */
+function storedSessionFailure(stage: StoredSessionStage, error: unknown) {
+  const code = isDynamicRecord(error) && isString(error.code) ? error.code : null;
+  return { stage, error: error instanceof Error ? error.name : typeof error, code };
+}
 
 interface EmailCodeRequest {
   email: string;
@@ -1287,19 +1302,26 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
     this: CentralAuthManager,
   ): Effect.fn.Return<CentralAuthState, CentralAuthOperationError, CentralAuthTransport> {
     this.#setState({ status: "loading" });
+    // A session that cannot be read now stays on disk: a Keychain that is locked or asks for
+    // permission at startup can open it at the next start, and the next sign-in replaces it.
     if (this.#options.canPersist()) {
+      let stage: StoredSessionStage = "read";
       const attempt4 = yield* Effect.gen({ self: this }, function* () {
         const encrypted = Buffer.from(yield* authCall(() => readFile(this.#options.storagePath, "utf8")), "base64");
-        yield* authDecode(() => this.#restoreStoredSession(this.#options.decrypt(encrypted)));
+        stage = "decrypt";
+        const value = yield* authDecode(() => this.#options.decrypt(encrypted));
+        stage = "decode";
+        yield* authDecode(() => this.#restoreStoredSession(value));
       }).pipe(Effect.result);
       if (Result.isFailure(attempt4)) {
         const error = attempt4.failure.cause;
         if (!isMissingFileError(error)) {
-          yield* this.#clearStoredSessionEffect();
+          this.#forgetSession();
+          logger.warn("The stored account session could not be restored.", storedSessionFailure(stage, error));
         }
       }
     } else {
-      yield* authCall(() => rm(this.#options.storagePath, { force: true }));
+      logger.warn("The stored account session was not read: secure storage is unavailable.");
     }
     if (!this.#sessionToken) {
       yield* this.#startupRequestEffect("/health/live", { method: "GET" }, decodeRecordHealth);
@@ -1740,12 +1762,13 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
   ): Effect.fn.Return<void, CentralAuthOperationError, CentralAuthTransport> {
     if (!this.#sessionToken) return;
     if (!this.#options.canPersist()) {
+      logger.warn("The account session was not stored: secure storage is unavailable.");
+      if (!required) return;
       yield* authCall(() => rm(this.#options.storagePath, { force: true }));
-      if (required)
-        return yield* new CentralAuthOperationError({ cause: new Error("The session could not be stored.") });
-      return;
+      return yield* new CentralAuthOperationError({ cause: new Error("The session could not be stored.") });
     }
     const temporaryPath = `${this.#options.storagePath}.${randomUUID()}.tmp`;
+    let stage: StoredSessionStage = "encrypt";
     yield* Effect.gen({ self: this }, function* () {
       const value = JSON.stringify({
         version: 2,
@@ -1754,22 +1777,18 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
         ...(this.#mobileConnectLink ? { mobileConnectLink: this.#mobileConnectLink } : {}),
       });
       const encrypted = yield* authDecode(() => this.#options.encrypt(value).toString("base64"));
+      stage = "write";
       yield* authCall(() => mkdir(dirname(this.#options.storagePath), { recursive: true }));
       yield* authCall(() => writeFile(temporaryPath, encrypted, { mode: 0o600 }));
       yield* authCall(() => chmod(temporaryPath, 0o600));
       yield* authCall(() => rename(temporaryPath, this.#options.storagePath));
     }).pipe(
-      Effect.catch((failure) =>
-        Effect.gen({ self: this }, function* () {
-          yield* Effect.all(
-            [this.#options.storagePath, temporaryPath].map((path) =>
-              authCall(() => rm(path, { force: true })).pipe(Effect.catch(() => Effect.void)),
-            ),
-            { concurrency: "unbounded" },
-          );
-          if (required) return yield* failure;
-        }),
-      ),
+      // The stored file keeps the previous write, which holds the same session token. A failed
+      // sign-in clears it in its own handler.
+      Effect.catch((failure) => {
+        logger.warn("The account session was not stored.", storedSessionFailure(stage, failure.cause));
+        return required ? Effect.fail(failure) : Effect.void;
+      }),
       Effect.ensuring(authCall(() => rm(temporaryPath, { force: true })).pipe(Effect.catch(() => Effect.void))),
     );
   });
@@ -1777,16 +1796,20 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
   readonly #clearStoredSessionEffect = Effect.fn("CentralAuth.clearStoredSession")(function* (
     this: CentralAuthManager,
   ): Effect.fn.Return<void, CentralAuthOperationError, CentralAuthTransport> {
-    this.#sessionToken = null;
-    this.#sessionAccountId = null;
-    this.#teamHostTokens.clear();
-    this.#mobileConnectLink = null;
+    this.#forgetSession();
     // Through the same chain as the writes, so a write already in flight cannot put the
     // file back after it is removed.
     yield* this.#sessionWrites
       .withPermit(authCall(() => rm(this.#options.storagePath, { force: true })))
       .pipe(Effect.uninterruptible);
   });
+
+  #forgetSession(): void {
+    this.#sessionToken = null;
+    this.#sessionAccountId = null;
+    this.#teamHostTokens.clear();
+    this.#mobileConnectLink = null;
+  }
 
   #restoreStoredSession(value: string): void {
     if (!value.trimStart().startsWith("{")) {
