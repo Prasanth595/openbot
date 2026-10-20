@@ -28,7 +28,7 @@ import {
 import { runCauseEffect } from "../backend/effect-boundary";
 import { readAppVariant, resolveAppIconPath, resolveLogoColorIconPath } from "./app-icon";
 import { type ApplicationServices, createApplicationServices } from "./application-services";
-import { createBackgroundTray } from "./background-tray";
+import { type BackgroundTray, createBackgroundTray } from "./background-tray";
 import { type DeepLink, findDeepLink, parseDeepLink } from "./deep-link-router";
 import { requestNotificationPermission, showRetainedNotification } from "./desktop-notifications";
 import { guardDevelopmentOutput } from "./development-output";
@@ -356,6 +356,7 @@ const windows = createMainWindowController({
 });
 
 let appIconColorImage: NativeImage | undefined;
+let backgroundTray: BackgroundTray | null = null;
 
 /**
  * Shows the chosen logo color on the Dock icon, or on each window icon where there is no Dock. A dev
@@ -385,6 +386,7 @@ function applyAppIconColor(color: AppLogoColor): void {
     app.on("browser-window-created", (_event, window) => window.setIcon(appIconColorImage ?? icon));
   appIconColorImage = icon;
   for (const window of BrowserWindow.getAllWindows()) window.setIcon(icon);
+  backgroundTray?.setIcon(icon);
 }
 
 /**
@@ -1122,25 +1124,26 @@ if (!hasSingleInstanceLock) {
         logger.warn("Unable to ask for notification permission:", toLogValue(error)),
       );
       configureApplicationMenu(service, updater, language.translate);
-      // One place turns a language change into every visible consequence: the menu is built again
-      // because a native label cannot be changed in place, and every window is told, including the
-      // Dynamic Island, which has no Settings of its own to read the new value from.
       // The way back to a window hidden in the background on Windows and Linux.
-      const backgroundTray = createBackgroundTray({
-        iconPath: appIconPath,
+      backgroundTray = createBackgroundTray({
+        icon: appIconColorImage ?? nativeImage.createFromPath(appIconPath),
         translate: language.translate,
         open: reopenMainWindow,
         quit: () => app.quit(),
       });
-      backgroundTray.sync(appBehavior.keepRunningInBackground);
-      const unsubscribeBackgroundTray = appBehavior.subscribe(backgroundTray.sync);
+      const tray = backgroundTray;
+      tray.sync(appBehavior.keepRunningInBackground);
+      const unsubscribeBackgroundTray = appBehavior.subscribe(tray.sync);
       teardown.push(0, "background tray", () => {
         unsubscribeBackgroundTray();
-        backgroundTray.destroy();
+        tray.destroy();
       });
+      // One place turns a language change into every visible consequence: the menu is built again
+      // because a native label cannot be changed in place, and every window is told, including the
+      // Dynamic Island, which has no Settings of its own to read the new value from.
       language.subscribe((preference) => {
         configureApplicationMenu(service, updater, language.translate);
-        backgroundTray.relabel();
+        tray.relabel();
         for (const window of BrowserWindow.getAllWindows()) {
           sendToRenderer(window, IPC_ENDPOINTS.app.appLanguagePreference, preference);
         }

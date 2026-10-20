@@ -1,9 +1,12 @@
 import type { AppBehaviorPreference, AppBehaviorPreferenceChange } from "@openbot/contracts/ipc";
 import { isBoolean, isDynamicRecord } from "@openbot/contracts/runtime-values";
+import { createOpenBotLogger, toLogValue } from "@openbot/logging";
 import { Effect, Result, Semaphore } from "effect";
 import { isMissingFileError } from "../backend/file-errors";
 import type { LoginItem, LoginItemFailure } from "./login-item";
 import { type PreferenceFileFailure, readPreferenceFile, writePreferenceFile } from "./preference-file";
+
+const logger = createOpenBotLogger("app-behavior");
 
 /**
  * How OpenBot starts and stops on this computer.
@@ -12,8 +15,9 @@ import { type PreferenceFileFailure, readPreferenceFile, writePreferenceFile } f
  * The launch-at-login choice is not stored: the operating system holds it, and the user can change
  * it there.
  *
- * A file that is missing, unreadable as JSON or without the switch reads as off. Writes are chained
- * for the reason `update-preference-store.ts` chains its own.
+ * A file that is missing, unreadable as JSON or without the switch reads as off. Writes of the file
+ * and of the login item are chained for the reason `update-preference-store.ts` chains its own: on
+ * Linux, a removal of the autostart entry must not finish before an earlier write of it.
  */
 export class AppBehaviorService {
   readonly #path: string;
@@ -54,17 +58,36 @@ export class AppBehaviorService {
 
   readonly get = Effect.fn("AppBehavior.get")(function* (this: AppBehaviorService) {
     const preference: AppBehaviorPreference = {
-      launchAtLogin: this.#loginItem ? yield* this.#loginItem.read() : null,
+      launchAtLogin: yield* this.#readLoginItem(),
       keepRunningInBackground: this.#offersBackground ? this.#keepRunningInBackground : null,
     };
     return preference;
   });
 
+  /**
+   * A login item that cannot be read is not offered, as in a development run. The keep-running
+   * switch does not depend on it, so its failure must not hide that switch or fail a save of it.
+   */
+  #readLoginItem(): Effect.Effect<boolean | null> {
+    if (!this.#loginItem) return Effect.succeed(null);
+    return this.#loginItem.read().pipe(
+      Effect.catch((error) =>
+        Effect.sync(() => {
+          logger.warn("The login item could not be read.", toLogValue(error));
+          return null;
+        }),
+      ),
+    );
+  }
+
   readonly set = Effect.fn("AppBehavior.set")(function* (
     this: AppBehaviorService,
     change: AppBehaviorPreferenceChange,
   ): Effect.fn.Return<AppBehaviorPreference, LoginItemFailure | PreferenceFileFailure> {
-    if (change.launchAtLogin !== undefined && this.#loginItem) yield* this.#loginItem.write(change.launchAtLogin);
+    const launchAtLogin = change.launchAtLogin;
+    const loginItem = this.#loginItem;
+    if (launchAtLogin !== undefined && loginItem)
+      yield* this.#writes.withPermit(Effect.uninterruptible(loginItem.write(launchAtLogin)));
     const keepRunningInBackground = change.keepRunningInBackground;
     if (keepRunningInBackground !== undefined && this.#offersBackground) {
       yield* this.#writes.withPermit(
@@ -85,7 +108,7 @@ export class AppBehaviorService {
 
   /** Points an existing login item at the running copy, which an update can move on Linux. */
   refreshLoginItem(): Effect.Effect<void, LoginItemFailure> {
-    return this.#loginItem ? this.#loginItem.refresh() : Effect.void;
+    return this.#loginItem ? this.#writes.withPermit(Effect.uninterruptible(this.#loginItem.refresh())) : Effect.void;
   }
 
   /** Called when the keep-running choice is saved. */

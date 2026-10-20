@@ -1,11 +1,13 @@
 import type { AppTranslate } from "@openbot/i18n";
-import { Menu, type NativeImage, nativeImage, Tray } from "electron";
+import { Menu, type NativeImage, Tray } from "electron";
 
 export interface BackgroundTray {
   /** Shows the icon when OpenBot keeps running after its window closes, and removes it otherwise. */
   sync: (keepRunningInBackground: boolean) => void;
   /** Builds the menu again: a native label cannot be changed in place. */
   relabel: () => void;
+  /** Shows the app icon in the logo color that the user chose. */
+  setIcon: (icon: NativeImage) => void;
   destroy: () => void;
 }
 
@@ -18,12 +20,13 @@ export interface BackgroundTray {
  * launch of OpenBot then shows the window.
  */
 export function createBackgroundTray(options: {
-  iconPath: string;
+  icon: NativeImage;
   translate: AppTranslate;
   open: () => void;
   quit: () => void;
 }): BackgroundTray {
   let tray: Tray | null = null;
+  let icon = options.icon;
 
   function relabel(): void {
     if (!tray) return;
@@ -49,18 +52,21 @@ export function createBackgroundTray(options: {
         return;
       }
       if (tray) return;
-      tray = new Tray(trayIcon(options.iconPath));
+      tray = new Tray(trayIcon(icon));
       tray.on("click", options.open);
       relabel();
     },
     relabel,
+    setIcon: (next) => {
+      icon = next;
+      tray?.setImage(trayIcon(icon));
+    },
     destroy,
   };
 }
 
 /** The app icon at the tray size, with a sharper copy for a scaled display. */
-function trayIcon(iconPath: string): NativeImage {
-  const source = nativeImage.createFromPath(iconPath);
+function trayIcon(source: NativeImage): NativeImage {
   const size = process.platform === "win32" ? 16 : 32;
   const icon = source.resize({ width: size, height: size, quality: "best" });
   icon.addRepresentation({
