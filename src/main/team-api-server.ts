@@ -184,6 +184,7 @@ import { routePushNotifications } from "./team-api/route-push-notifications";
 import { routeRemoteScreen } from "./team-api/route-remote-screen";
 import { routeRoutineFlows } from "./team-api/route-routine-flows";
 import { routeSharedTables } from "./team-api/route-shared-tables";
+import { routeSideQuestion } from "./team-api/route-side-question";
 import { routeSignInRelay } from "./team-api/route-sign-in-relay";
 import { routeSkillsAdmin } from "./team-api/route-skills-admin";
 import { routeStorage } from "./team-api/route-storage";
@@ -826,6 +827,7 @@ export class TeamApiServer {
       if ((await routeAgentMemoryPage(context, this.#options.agents, hidden)) === "handled") return;
       if ((await routeWorkspaceDirectory(context, this.#options.agents, hidden)) === "handled") return;
       if ((await routeConversationFiles(context, this.#options.agents)) === "handled") return;
+      if ((await routeSideQuestion(context, this.#options.agents, hidden)) === "handled") return;
       if ((await routeRoutineFlows(context, this.#options.routineFlows, this.#options.agents, hidden)) === "handled")
         return;
       if ((await this.#routeEvents(context)) === "handled") return;

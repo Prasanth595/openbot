@@ -167,6 +167,8 @@ export const messages = defineMessages("error.provider", {
   "error.provider.cliBusyReconnect": "The {provider} CLI is working on a turn. Wait for it to finish, then reconnect.",
   "error.provider.opencodeCredentialsRejected":
     "The model provider rejected the API key. Fix the OpenCode key in Settings, or the provider's key with `opencode auth login`. Then try again or choose another model.\n{detail}",
+  "error.provider.opencodeKeyExpired":
+    "Your OpenCode API key expired. Create a new key in OpenCode Console, paste it in the OpenCode settings, then try again.",
   "error.provider.opencodeServiceFailure":
     "OpenCode could not complete this turn because its local service failed. Try again. If the error continues, reconnect OpenCode in Settings.",
   "error.provider.opencodeRateLimited":

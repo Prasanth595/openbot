@@ -24,6 +24,7 @@ import type {
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import { AGENT_HIDDEN_CAPABILITY, AGENT_HIDDEN_ROUTES } from "@openbot/contracts/team-protocol/agent-hidden-v1";
 import { QueueEditRejectedError, TEAM_QUEUE_EDIT_CAPABILITY } from "@openbot/contracts/team-protocol/queue-edit-v1";
+import { SIDE_QUESTION_CAPABILITY, SIDE_QUESTION_ROUTES } from "@openbot/contracts/team-protocol/side-question-v1";
 import {
   TEAM_APP_VERSION_HEADER,
   TEAM_CAPABILITIES_HEADER,
@@ -273,6 +274,17 @@ const fakeAgents: TeamApiAgents = {
   sidebarChatIds: unused("sidebarChatIds"),
   listConversationReads: unused("listConversationReads"),
   generateProfile: unused("generateProfile"),
+  askSideQuestion: (input) => {
+    record("askSideQuestion", input);
+    if (input.question === "busy?")
+      return Effect.fail(
+        new AgentLifecycleFailed({
+          operation: "ask side question",
+          cause: new Error(sourceText("error.agent.sideQuestionBusy")),
+        }),
+      );
+    return Effect.succeed(`Answer to ${input.question}`);
+  },
   saveProfile: unused("saveProfile"),
   createAgent: unused("createAgent"),
   committedAgentDuplication: unused("committedAgentDuplication"),
@@ -1139,6 +1151,98 @@ try {
       "a malformed queue edit on protocol 7 gets 400 and reaches no service",
       malformed.status === 400 && callsOf("editQueuedMessage").length === editCalls,
       summary(malformed),
+    );
+  }
+
+  // ---- Side questions: any member asks, the chat and the queue do not change ----
+  {
+    const sideCapabilities = [AGENT_HIDDEN_CAPABILITY, TEAM_QUEUE_EDIT_CAPABILITY, SIDE_QUESTION_CAPABILITY];
+    const callsBefore = calls.length;
+    const unsupported = await call("POST", SIDE_QUESTION_ROUTES.ask, {
+      token: bobToken,
+      json: { agentId: "agent-ada", question: "What file was that?", earlier: [] },
+    });
+    check(
+      "a side question without side-question-v1 gets 400 sideQuestionUnsupported and reaches no agent",
+      errorIs(unsupported, 400, sourceText("error.team.sideQuestionUnsupported")) &&
+        callsOf("askSideQuestion").length === 0,
+      summary(unsupported),
+    );
+    const empty = await call("POST", SIDE_QUESTION_ROUTES.ask, {
+      token: bobToken,
+      capabilities: sideCapabilities,
+      json: { agentId: "agent-ada", question: "   ", earlier: [] },
+    });
+    const malformed = await call("POST", SIDE_QUESTION_ROUTES.ask, {
+      token: bobToken,
+      capabilities: sideCapabilities,
+      json: { agentId: "agent-ada", question: "Why?", earlier: "none" },
+    });
+    check(
+      "an empty or malformed side question gets 400 and reaches no agent",
+      empty.status === 400 && malformed.status === 400 && callsOf("askSideQuestion").length === 0,
+      [summary(empty), summary(malformed)],
+    );
+    const hiddenAgent = await call("POST", SIDE_QUESTION_ROUTES.ask, {
+      token: bobToken,
+      capabilities: sideCapabilities,
+      protocol: 6,
+      json: { agentId: "agent-pi", question: "Hello?", earlier: [] },
+    });
+    const missingAgent = await call("POST", SIDE_QUESTION_ROUTES.ask, {
+      token: bobToken,
+      capabilities: sideCapabilities,
+      json: { agentId: "agent-gone", question: "Hello?", earlier: [] },
+    });
+    check(
+      "a side question to an agent hidden from the client or not on the host gets 404",
+      errorIs(hiddenAgent, 404, sourceText("error.team.agentNotFound")) &&
+        errorIs(missingAgent, 404, sourceText("error.team.agentNotFound")) &&
+        callsOf("askSideQuestion").length === 0,
+      [summary(hiddenAgent), summary(missingAgent)],
+    );
+    const earlier = [{ question: "Which flag?", answer: "The --force flag." }];
+    // Two at once, as a member asks while another side question still runs.
+    const [first, second] = await Promise.all([
+      call("POST", SIDE_QUESTION_ROUTES.ask, {
+        token: bobToken,
+        capabilities: sideCapabilities,
+        json: { agentId: "agent-ada", question: "What does it do?", earlier },
+      }),
+      call("POST", SIDE_QUESTION_ROUTES.ask, {
+        token: adaToken,
+        capabilities: sideCapabilities,
+        json: { agentId: "agent-ada", question: "Which file?", earlier: [] },
+      }),
+    ]);
+    const asked = callsOf("askSideQuestion");
+    check(
+      "a member and an admin each get the answer, and the host gets the earlier turns",
+      first.status === 200 &&
+        field(first.body, "answer") === "Answer to What does it do?" &&
+        second.status === 200 &&
+        field(second.body, "answer") === "Answer to Which file?" &&
+        asked.some((args) =>
+          isDeepStrictEqual(args, [{ agentId: "agent-ada", question: "What does it do?", earlier }]),
+        ),
+      [summary(first), summary(second)],
+    );
+    const busy = await call("POST", SIDE_QUESTION_ROUTES.ask, {
+      token: bobToken,
+      capabilities: sideCapabilities,
+      json: { agentId: "agent-ada", question: "busy?", earlier: [] },
+    });
+    check(
+      "a failed side question gets 409 with the sentence for the member",
+      errorIs(busy, 409, sourceText("error.agent.sideQuestionBusy")),
+      summary(busy),
+    );
+    // `sendMessage` and the other chat routes are `unused` stand-ins, so a call to one would also fail
+    // the answers above. This shows that a side question recorded nothing but itself.
+    check(
+      "side questions do not reach the chat, the queue or a turn",
+      calls.slice(callsBefore).every((entry) => entry.method === "askSideQuestion"),
+      calls.slice(callsBefore).map((entry) => entry.method),
     );
   }
 

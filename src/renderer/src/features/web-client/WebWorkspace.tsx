@@ -27,6 +27,7 @@ import { HOSTED_SITES_CAPABILITY } from "@openbot/contracts/team-protocol/hosted
 import { MCP_SIGN_IN_CAPABILITY } from "@openbot/contracts/team-protocol/mcp-sign-in-v1";
 import { ROUTINE_FLOWS_CAPABILITY } from "@openbot/contracts/team-protocol/routine-flows-v1";
 import { ROUTINE_RECOVERY_CAPABILITY } from "@openbot/contracts/team-protocol/routine-recovery-v1";
+import { SIDE_QUESTION_CAPABILITY } from "@openbot/contracts/team-protocol/side-question-v1";
 import { SIGN_IN_RELAY_CAPABILITY } from "@openbot/contracts/team-protocol/sign-in-relay-v1";
 import { runTeamEffect } from "@openbot/team-client";
 import {
@@ -590,6 +591,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
       workspace.state.capabilities.includes(SIGN_IN_RELAY_CAPABILITY) &&
       canAdministerServer(workspace.state.host?.role),
     routineRecoveryEnabled,
+    () => workspace.state.capabilities.includes(SIDE_QUESTION_CAPABILITY),
   );
   const remoteAgentAdmin = createRemoteAgentAdmin(
     () => {

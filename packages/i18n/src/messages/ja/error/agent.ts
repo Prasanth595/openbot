@@ -96,7 +96,6 @@ export const messages = {
     "新しいチャットの開始を許可できるのは、エージェントを実行しているコンピューターだけです。",
   "error.agent.quickAcknowledgementLocalOnly":
     "この設定を変更できるのは、エージェントを実行しているコンピューターだけです。",
-  "error.agent.sideQuestionLocalOnly": "サイド質問は、エージェントを実行しているコンピューターでのみ使えます。",
   "error.agent.sideQuestionBusy": "実行中のサイド質問が多すぎます。しばらくしてからもう一度お試しください。",
   "error.agent.sideQuestionFailed": "エージェントはサイド質問に回答できませんでした。もう一度お試しください。",
   "error.agent.busyMessageModeLocalOnly":

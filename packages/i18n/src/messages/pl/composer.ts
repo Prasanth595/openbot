@@ -10,6 +10,7 @@ export const messages = {
   "composer.signIn.pending": "Logowanie…",
   "composer.signIn.label": "Zaloguj się do {provider}",
   "composer.signIn.action": "Zaloguj się",
+  "composer.updateKey.action": "Zmień klucz",
   "composer.update.body": "Zaktualizuj {provider}, aby kontynuować.",
   "composer.update.manual": "Zaktualizuj {provider} na komputerze, na którym działa, aby kontynuować.",
   "composer.update.pending": "Aktualizowanie…",

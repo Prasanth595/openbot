@@ -179,6 +179,8 @@ export const messages = {
     "La CLI de {provider} está procesando un turno. Espera a que termine y vuelve a conectar.",
   "error.provider.opencodeCredentialsRejected":
     "El proveedor del modelo rechazó la clave de API. Corrige la clave de OpenCode en Ajustes o la clave del proveedor con `opencode auth login`. Luego inténtalo de nuevo o elige otro modelo.\n{detail}",
+  "error.provider.opencodeKeyExpired":
+    "Tu clave de API de OpenCode caducó. Crea una clave nueva en OpenCode Console, pégala en los ajustes de OpenCode y luego inténtalo de nuevo.",
   "error.provider.opencodeServiceFailure":
     "OpenCode no pudo completar este turno porque falló su servicio local. Inténtalo de nuevo. Si el error continúa, vuelve a conectar OpenCode en Ajustes.",
   "error.provider.opencodeRateLimited":

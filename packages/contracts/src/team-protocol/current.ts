@@ -58,6 +58,7 @@ import { QUIET_TURN_CAPABILITY } from "./quiet-turn-v1";
 import { ROUTINE_FLOWS_CAPABILITY } from "./routine-flows-v1";
 import { ROUTINE_RECOVERY_CAPABILITY } from "./routine-recovery-v1";
 import { SHARED_TABLES_CAPABILITY } from "./shared-tables-v1";
+import { SIDE_QUESTION_CAPABILITY } from "./side-question-v1";
 import { SIGN_IN_RELAY_CAPABILITY } from "./sign-in-relay-v1";
 import { SKILLS_ADMIN_CAPABILITY } from "./skills-admin-v1";
 import { SKILLS_EVENTS_CAPABILITY } from "./skills-events-v1";
@@ -143,6 +144,7 @@ export {
   ROUTINE_FLOWS_CAPABILITY,
   ROUTINE_RECOVERY_CAPABILITY,
   SHARED_TABLES_CAPABILITY,
+  SIDE_QUESTION_CAPABILITY,
   SIGN_IN_RELAY_CAPABILITY,
   SKILLS_ADMIN_CAPABILITY,
   SKILLS_EVENTS_CAPABILITY,
@@ -239,6 +241,7 @@ export const TEAM_CURRENT_CAPABILITIES = [
   BROWSER_PAGE_STATE_CAPABILITY,
   AGENT_MEMORY_LIMIT_CAPABILITY,
   DISCORD_ACCESS_CAPABILITY,
+  SIDE_QUESTION_CAPABILITY,
 ] as const;
 
 export type TeamCurrentCapability = (typeof TEAM_CURRENT_CAPABILITIES)[number];
@@ -334,7 +337,8 @@ export const TEAM_BOOTSTRAP_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
     capability !== TEAM_UI_BLOCKS_CAPABILITY &&
     capability !== AGENT_TASKS_CAPABILITY &&
     capability !== AGENT_MEMORY_LIMIT_CAPABILITY &&
-    capability !== DISCORD_ACCESS_CAPABILITY,
+    capability !== DISCORD_ACCESS_CAPABILITY &&
+    capability !== SIDE_QUESTION_CAPABILITY,
 );
 export function teamCapabilitiesForProtocol(protocol: number | null | undefined): readonly TeamCurrentCapability[] {
   return protocol !== null && protocol !== undefined && protocol >= 7
@@ -371,6 +375,7 @@ export function legacyTeamCapabilities(capabilities: readonly string[]): string[
       capability !== TEAM_UI_BLOCKS_CAPABILITY &&
       capability !== AGENT_TASKS_CAPABILITY &&
       capability !== AGENT_MEMORY_LIMIT_CAPABILITY &&
-      capability !== DISCORD_ACCESS_CAPABILITY,
+      capability !== DISCORD_ACCESS_CAPABILITY &&
+      capability !== SIDE_QUESTION_CAPABILITY,
   );
 }

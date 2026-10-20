@@ -45,6 +45,7 @@ import { PUSH_NOTIFICATIONS_CODECS } from "./push-notifications-v1";
 import { ROUTINE_FLOWS_CODECS } from "./routine-flows-v1";
 import { ROUTINE_RECOVERY_CODECS } from "./routine-recovery-v1";
 import { SHARED_TABLES_CODECS } from "./shared-tables-v1";
+import { SIDE_QUESTION_CODECS } from "./side-question-v1";
 import { SIGN_IN_RELAY_CODECS } from "./sign-in-relay-v1";
 import { SKILLS_ADMIN_CODECS } from "./skills-admin-v1";
 import { WORKSPACE_DIRECTORY_CODECS } from "./workspace-directory-v1";
@@ -98,6 +99,7 @@ const CODECS: ReadonlyMap<string, OptionalRouteCodec> = new Map([
   ...BROWSER_USER_CONTROL_CODECS,
   ...BROWSER_PAGE_STATE_CODECS,
   ...AGENT_TASKS_CODECS,
+  ...SIDE_QUESTION_CODECS,
 ]);
 
 export function optionalRouteCodec(path: string): OptionalRouteCodec | undefined {

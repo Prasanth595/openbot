@@ -93,7 +93,6 @@ export const messages = {
   "error.agent.newChatLocalOnly": "Solo il computer che esegue l'agente può consentirgli di avviare nuove chat.",
   "error.agent.quickAcknowledgementLocalOnly":
     "Solo il computer che esegue l'agente può modificare questa impostazione.",
-  "error.agent.sideQuestionLocalOnly": "Le domande a parte funzionano solo sul computer che esegue l'agente.",
   "error.agent.sideQuestionBusy": "Ci sono troppe domande a parte in corso. Riprova tra poco.",
   "error.agent.sideQuestionFailed": "L'agente non è riuscito a rispondere alla domanda a parte. Riprova.",
   "error.agent.busyMessageModeLocalOnly":

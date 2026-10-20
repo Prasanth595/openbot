@@ -56,6 +56,8 @@ export const INPUT_LIMITS = {
   // A side question carries its earlier questions and answers, because nothing on the host keeps them.
   sideQuestionTurns: 20,
   sideQuestionAnswer: 32_000,
+  /** The start of each earlier side question and answer that the prompt reads. */
+  sideQuestionEarlierText: 4_000,
   promptQuestions: 32,
   promptOptions: 5,
   promptHeader: 120,

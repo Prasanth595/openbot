@@ -178,6 +178,8 @@ export const messages = {
   "error.provider.cliBusyReconnect": "{provider} CLI はターンを処理中です。終わるまで待ってから再接続してください。",
   "error.provider.opencodeCredentialsRejected":
     "モデルプロバイダーが API キーを拒否しました。設定で OpenCode のキーを修正するか、`opencode auth login` でプロバイダーのキーを修正してください。その後、もう一度お試しいただくか、別のモデルを選択してください。\n{detail}",
+  "error.provider.opencodeKeyExpired":
+    "OpenCode の API キーの有効期限が切れました。OpenCode Console で新しいキーを作成し、OpenCode の設定に貼り付けてから、もう一度お試しください。",
   "error.provider.opencodeServiceFailure":
     "OpenCode のローカルサービスが失敗したため、このターンを完了できませんでした。もう一度お試しください。エラーが続く場合は、設定で OpenCode を再接続してください。",
   "error.provider.opencodeRateLimited":

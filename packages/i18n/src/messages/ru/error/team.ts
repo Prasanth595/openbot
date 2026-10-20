@@ -68,6 +68,7 @@ export const messages = {
   "error.team.contextResetUnsupported": "Это подключение не поддерживает начало нового чата.",
   "error.team.workspaceDirectoryUnsupported": "Это подключение не поддерживает показ папок.",
   "error.team.conversationFileSearchUnsupported": "Это подключение не поддерживает поиск файлов.",
+  "error.team.sideQuestionUnsupported": "Это подключение не поддерживает побочные вопросы.",
   "error.team.routineFlowsUnsupported":
     "Этот сервер не поддерживает цепочки регулярных задач. Обновите OpenBot на компьютере, где он работает.",
   "error.team.routineCanvasTooLarge":

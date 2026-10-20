@@ -92,7 +92,6 @@ export const messages = {
   "error.agent.automationLocalOnly": "Los scripts locales solo se pueden permitir en el equipo que ejecuta el agente.",
   "error.agent.newChatLocalOnly": "Solo el equipo que ejecuta el agente puede permitirle iniciar chats nuevos.",
   "error.agent.quickAcknowledgementLocalOnly": "Solo el equipo que ejecuta el agente puede cambiar este ajuste.",
-  "error.agent.sideQuestionLocalOnly": "Las preguntas aparte solo funcionan en el equipo que ejecuta el agente.",
   "error.agent.sideQuestionBusy": "Hay demasiadas preguntas aparte en curso. Inténtalo de nuevo en breve.",
   "error.agent.sideQuestionFailed": "El agente no pudo responder la pregunta aparte. Inténtalo de nuevo.",
   "error.agent.busyMessageModeLocalOnly":
