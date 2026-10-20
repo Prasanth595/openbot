@@ -401,8 +401,11 @@ export function createVoiceConversation(deps: VoiceConversationDeps) {
       await current.livePreview;
       if (current.chunks.length === 0) throw new Error(currentText().t("composer.voice.noSpeechRecorded"));
       recording = new Blob(current.chunks, { type: mimeType });
-      const audio = await recordingToWav(recording);
-      text = (streamed ? await transcribeStreamed(recording) : await deps.voice.transcribe({ audio })).text.trim();
+      text = (
+        streamed
+          ? await transcribeStreamed(recording)
+          : await deps.voice.transcribe({ audio: await recordingToWav(recording) })
+      ).text.trim();
     } catch (error) {
       if (own !== generation || disposed) return;
       analytics.track("voice_turn", {

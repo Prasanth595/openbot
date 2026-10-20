@@ -5,6 +5,7 @@ import { isQueueEditRejected, TEAM_QUEUE_EDIT_CAPABILITY } from "@openbot/contra
 import { expandComposerMentions } from "@openbot/ui/features/conversation/ComposerEditor";
 import { currentText } from "@openbot/ui/text";
 import { playActionSound } from "../../../action-sounds";
+import { claimDictatedSend } from "../../speech/speech-replies";
 import { copyComposerDraft, EMPTY_DRAFT, QUEUE_EDIT_STORAGE_KEY, type StoredQueueEdit } from "../composer-draft";
 import { composerDraftKey } from "../conversation-keys";
 import { conversationRuntime } from "../conversation-runtime";
@@ -566,6 +567,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
         (server.kind !== "remote" ||
           Boolean(server.compatibility?.capabilities.includes(TEAM_MESSAGE_CLIENT_ID_CAPABILITY))));
     const voiceRecordingDraftId = voice?.recordingDraftId ?? null;
+    const dictatedSent = claimDictatedSend(target);
     deps.pendingSends.add(target, { draft, text, retrySafe, voiceRecordingDraftId }, async (pending) => {
       const result = await send(
         pending.text,
@@ -578,7 +580,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
       if ("error" in result) {
         playActionSound("error");
         voice?.onFailed();
-      }
+      } else dictatedSent?.(result.messageId);
       return result;
     });
   }

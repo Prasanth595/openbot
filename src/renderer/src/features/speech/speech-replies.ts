@@ -29,8 +29,14 @@ interface DictatedMessage {
   dictatedAt: number;
   /** The language of the dictation, for a reply whose own words do not show one. */
   language: SpeechLanguage;
-  /** The user turn that delivers the message, once it starts. */
+  /** The user turn that delivers the message, once it starts or the message steers a running one. */
   turnId: string | undefined;
+  /** The send that carries the message started. */
+  sending: boolean;
+  /** The id that the host gave the message, once the send returns. */
+  messageId: string | undefined;
+  /** The turns that took this agent's messages, by message id, from its queue. A steered message starts no turn. */
+  deliveryTurns: Map<string, string>;
   /** A voice conversation reads its replies also when the setting is off. */
   always: boolean;
 }
@@ -68,6 +74,9 @@ export function noteDictatedMessage(agent: SpeechAgent, transcript: string, opti
     dictatedAt: Date.now(),
     language: speechLanguageOf(transcript, "en") ?? "en",
     turnId: undefined,
+    sending: false,
+    messageId: undefined,
+    deliveryTurns: new Map(),
     always: options?.always ?? false,
   });
   void warmSpeech(options?.always ?? false);
@@ -82,6 +91,24 @@ async function warmSpeech(always: boolean): Promise<void> {
   } catch {
     // The reading reports its own failure; a warm-up that fails changes nothing for the user.
   }
+}
+
+/**
+ * Call when a send to this agent starts. When it carries the dictated message, returns the call that
+ * takes the id the host gave the message, so a message that steers the running turn finds its turn.
+ */
+export function claimDictatedSend(agent: SpeechAgent): ((messageId: string) => void) | undefined {
+  const message = dictated.get(agentKey(agent));
+  if (!message || message.sending) return undefined;
+  message.sending = true;
+  return (messageId) => {
+    message.messageId = messageId;
+    takeDeliveryTurn(message);
+  };
+}
+
+function takeDeliveryTurn(message: DictatedMessage): void {
+  if (!message.turnId && message.messageId) message.turnId = message.deliveryTurns.get(message.messageId);
 }
 
 /** The dictated message was not sent. */
@@ -116,11 +143,20 @@ function replyEnded(agent: SpeechAgent): void {
 }
 
 /**
- * Follows the turns of each agent: a user turn after a dictation takes the dictation, and its
- * completed answer is read aloud. A new user turn of the agent that is read aloud stops the reading.
+ * Follows the turns of each agent: a user turn after a dictation takes the dictation, as does the
+ * running turn that the dictated message steers. The completed answer of that turn is read aloud. A new user turn of the agent that is read aloud stops the reading.
  * `serverId` is the server that sent the event.
  */
 export function readDictatedReplies(event: AgentEvent, serverId: string): void {
+  if (event.type === "queue-changed") {
+    const message = dictated.get(agentKey({ serverId, agentId: event.snapshot.agentId }));
+    if (!message || message.turnId) return;
+    for (const delivery of event.snapshot.deliveries)
+      if (delivery.turnId && delivery.sender.kind === "user")
+        message.deliveryTurns.set(delivery.messageId, delivery.turnId);
+    takeDeliveryTurn(message);
+    return;
+  }
   if (event.type !== "turn-started" && event.type !== "turn-completed") return;
   const agent = { serverId, agentId: event.agentId };
   const key = agentKey(agent);
