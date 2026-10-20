@@ -102,7 +102,10 @@ export function WorkspaceShell(props: { account: () => CentralAuthUser }) {
   );
 
   const remote = () => activeServer()?.kind === "remote";
-  const offlineUpsell = createHostedUpsellOffline(() => remote() && activeServer()?.state === "offline");
+  // Only Signal knows that the computer is off. A remote server is also "offline" before its first connection.
+  const offlineUpsell = createHostedUpsellOffline(
+    () => remote() && activeServer()?.issue?.reference === "signal/host_unavailable",
+  );
   // The transport failure comes first: a workspace load fails when the transport fails. Signal and
   // the host send English source text, so show the issue in the reader's language. The scope failure
   // is already translated.

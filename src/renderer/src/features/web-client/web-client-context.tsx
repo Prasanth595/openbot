@@ -130,6 +130,8 @@ interface WebWorkspaceState {
   hostedStart: HostedServerStart | null;
   /** The last connection failure, with its code. Shown while the workspace reconnects. */
   connectionError: UserErrorDetails | null;
+  /** Signal holds the connection because the host is not online. */
+  hostOffline: boolean;
   recovery: RemoteRecoveryStatus | null;
   workspaceLoaded: boolean;
   panelsFailed: boolean;
@@ -208,6 +210,7 @@ export function createWebWorkspace(
     hostedIssue: null,
     hostedStart: null,
     connectionError: null,
+    hostOffline: false,
     recovery: null,
     workspaceLoaded: false,
     panelsFailed: false,
@@ -352,6 +355,9 @@ export function createWebWorkspace(
         setState((draft) => {
           if (update.state !== "online") draft.status = update.state;
           if (update.state !== "online") syncedAt = 0;
+          // A `connecting` update without `hostOffline`, such as a `rate_limited` reply, does not end the hold.
+          if (update.hostOffline) draft.hostOffline = true;
+          else if (update.state !== "connecting") draft.hostOffline = false;
           const text = currentText();
           const reference = update.reference ?? null;
           // An update without a reason keeps the last failure on screen. A working connection clears it.
@@ -897,6 +903,7 @@ export function createWebWorkspace(
       draft.recovery = null;
       // A retry keeps the last failure on screen until it ends.
       if (!sameHost) draft.connectionError = null;
+      if (!sameHost) draft.hostOffline = false;
       if (!sameHost) {
         draft.workspaceLoaded = false;
         draft.agentStatus = null;

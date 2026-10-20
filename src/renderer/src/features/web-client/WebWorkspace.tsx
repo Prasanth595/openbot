@@ -1128,7 +1128,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     return () =>
       Effect.runPromise(clearAgentContext(hostRequest(), agent.id).pipe(Effect.mapError((error) => error.cause)));
   });
-  const offlineUpsell = createHostedUpsellOffline(() => workspace.state.status === "offline");
+  const offlineUpsell = createHostedUpsellOffline(() => workspace.state.hostOffline);
   const view = createWebConversationView({
     workspace,
     remoteAgentAdmin,
