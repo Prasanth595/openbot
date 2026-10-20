@@ -14,7 +14,7 @@ export interface HostedServerUpsellNoticeProps {
  * The glow outside the moving border. A mask applies after the filter of the same element, so the
  * blur is on this element and the masked ring is its child.
  */
-export function HostedUpsellBeamGlow() {
+function HostedUpsellBeamGlow() {
   return (
     <span class="hosted-upsell-beam-glow" aria-hidden="true">
       <span />

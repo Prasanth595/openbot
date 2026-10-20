@@ -23,24 +23,16 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** After a routine is made on this computer. */
-export const ModalThisComputer: Story = {
-  render: () => (
-    <HostedServerUpsellDialog
-      routine={{ name: "Morning brief", schedule: "Every weekday at 08:00" }}
-      host="this-computer"
-      onSeePlans={fn()}
-      onClose={fn()}
-    />
-  ),
+/** After a new routine. The laptop lid closes and the routine stops; the server keeps running. */
+export const Modal: Story = {
+  render: () => <HostedServerUpsellDialog routine={{ name: "Morning brief" }} onSeePlans={fn()} onClose={fn()} />,
 };
 
-/** After a routine is made on the user's own remote computer. */
-export const ModalRemoteComputer: Story = {
+/** A long routine name. */
+export const ModalLongName: Story = {
   render: () => (
     <HostedServerUpsellDialog
-      routine={{ name: "Inbox triage", schedule: "Every hour" }}
-      host={{ name: "Studio Mac" }}
+      routine={{ name: "Weekly launch review for the whole product team" }}
       onSeePlans={fn()}
       onClose={fn()}
     />
@@ -50,14 +42,7 @@ export const ModalRemoteComputer: Story = {
 /** The web client at phone width. */
 export const ModalWebNarrow: Story = {
   globals: { viewport: { value: "upsellPhone", isRotated: false } },
-  render: () => (
-    <HostedServerUpsellDialog
-      routine={{ name: "Morning brief", schedule: "Every weekday at 08:00" }}
-      host={{ name: "Studio Mac" }}
-      onSeePlans={fn()}
-      onClose={fn()}
-    />
-  ),
+  render: () => <HostedServerUpsellDialog routine={{ name: "Morning brief" }} onSeePlans={fn()} onClose={fn()} />,
 };
 
 /** Above the routine list, with active routines on this computer. */

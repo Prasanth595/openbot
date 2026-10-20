@@ -7,7 +7,7 @@ import { providerDiagnosticsText } from "@openbot/ui/features/provider-diagnosti
 import { LeaveServerDialog } from "@openbot/ui/features/servers/LeaveServerDialog";
 import { RestartServerDialog } from "@openbot/ui/features/servers/RestartServerDialog";
 import type { HostedSiteDeleteResult } from "@openbot/ui/features/settings/stores/hosted-sites-store";
-import { currentText, useText } from "@openbot/ui/text";
+import { currentText } from "@openbot/ui/text";
 import { createEffect, Loading, Show, untrack } from "solid-js";
 import { actionToast } from "./action-toast";
 import { desktopAnalytics } from "./analytics";
@@ -17,7 +17,6 @@ import { useAgents } from "./features/agents/agents-context";
 import type { ConnectorRegistry } from "./features/connectors/connector-registry";
 import { useConnectors } from "./features/connectors/connectors-context";
 import { conversationPort } from "./features/conversation/conversation-port";
-import { routineListSummary } from "./features/conversation/routine-summary";
 import { useCustomAgents } from "./features/custom-agents/custom-agents-context";
 import { useCustomProviders } from "./features/custom-providers/custom-providers-context";
 import { useProviderDetection } from "./features/custom-providers/provider-detection-context";
@@ -235,7 +234,6 @@ function HostedUpsell(props: AccountProps) {
   const { activeServer, hostedServersAvailable, hostedServersLoaded, hostedServerIds, setAddServerOpen } = useServers();
   const { activeTurns, routinesByConversation } = useTurns();
   const platform = usePlatform();
-  const text = useText();
   // The last current list of each conversation. A list that is loading again keeps the previous one.
   const seen = new Map<string, readonly RoutineFields[]>();
   createEffect(routinesByConversation, (snapshots) => {
@@ -245,12 +243,7 @@ function HostedUpsell(props: AccountProps) {
       seen.set(key, snapshot.routines);
       const agentId = key.slice(key.indexOf("\0") + 1);
       for (const routine of created) {
-        hostedUpsellRoutineCreated({
-          id: routine.id,
-          name: routine.name,
-          schedule: routineListSummary(routine, text),
-          agentId,
-        });
+        hostedUpsellRoutineCreated({ id: routine.id, name: routine.name, agentId });
       }
     }
   });

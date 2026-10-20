@@ -21,7 +21,6 @@ type HostedUpsellAction = "shown" | "see_plans" | "dismissed";
 interface HostedUpsellRoutine {
   id: string;
   name: string;
-  schedule?: string | undefined;
   /** The agent whose turn made the routine. The modal waits until that turn ends. */
   agentId: string | null;
 }
@@ -209,8 +208,7 @@ export function HostedServerUpsell(props: HostedServerUpsellProps) {
     <Show when={openRoutine()}>
       {(routine) => (
         <HostedServerUpsellDialog
-          routine={{ name: routine().name, schedule: routine().schedule }}
-          host={props.host}
+          routine={{ name: routine().name }}
           onSeePlans={() => {
             setOpenRoutine(null);
             seePlans("routine_created");

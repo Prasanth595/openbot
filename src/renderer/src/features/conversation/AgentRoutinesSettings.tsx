@@ -500,12 +500,7 @@ export function AgentRoutinesSettings(props: AgentRoutinesSettingsProps) {
       }
       trackRoutineAction(analytics, action, current, startedAt, "succeeded");
       if (action === "create" && saved.active) {
-        hostedUpsellRoutineCreated({
-          id: saved.id,
-          name: saved.name,
-          schedule: routineListSummary(saved, text),
-          agentId: null,
-        });
+        hostedUpsellRoutineCreated({ id: saved.id, name: saved.name, agentId: null });
       }
     } catch (caught) {
       trackRoutineAction(analytics, action, current, startedAt, "failed");
