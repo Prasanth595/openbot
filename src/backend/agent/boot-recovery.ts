@@ -12,6 +12,7 @@ import { conversationContentSignature } from "./delivery-content";
 import { markIncompleteImageGeneration } from "./image-generation";
 import type { MailboxSync } from "./mailbox-sync";
 import type { ProviderRuntime } from "./provider-runtime";
+import { stopRunningSubagents } from "./subagent-updates";
 import { providerForAgent } from "./thread-items";
 import type { ThreadLifecycle } from "./thread-lifecycle";
 
@@ -294,7 +295,9 @@ export class BootRecovery {
             changed.status = "interrupted";
             markIncompleteImageGeneration(changed, "interrupted");
           }
-          return changed.questionPrompt?.resolution?.status === "expired" || changed.status === "interrupted"
+          // A background subagent ran in the provider process, which ended with the previous run.
+          const stopped = stopRunningSubagents(changed.subagents, new Date().toISOString(), { background: true });
+          return stopped || changed.questionPrompt?.resolution?.status === "expired" || changed.status === "interrupted"
             ? [changed]
             : [];
         });

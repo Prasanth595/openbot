@@ -11,6 +11,7 @@ export const messages = {
   "composer.signIn.pending": "Oturum açılıyor…",
   "composer.signIn.label": "{provider} sağlayıcısında oturum aç",
   "composer.signIn.action": "Oturum aç",
+  "composer.updateKey.action": "Anahtarı güncelle",
   "composer.update.body": "Devam etmek için {provider} güncellemesini yapın.",
   "composer.update.manual": "Devam etmek için {provider} uygulamasını çalıştığı bilgisayarda güncelleyin.",
   "composer.update.pending": "Güncelleniyor…",
@@ -122,4 +123,5 @@ export const messages = {
   "composer.context.noAuto": "Bu ajan bağlamını sıkıştırmaz.",
   "composer.context.lastCompaction": "Son sıkıştırma: {before} → {after} token",
   "composer.compaction.elapsed": "{minutes}:{seconds}",
+  "composer.newChat.action": "Yeni sohbet",
 } as const satisfies PartialTranslation<typeof source>;

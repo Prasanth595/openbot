@@ -6,6 +6,7 @@ import { BROWSER_NEW_TAB_URL } from "@openbot/ui/features/browser/browser-sugges
 import { AgentTaskList, AgentTaskPanel } from "@openbot/ui/features/conversation/AgentTasks";
 import { SidePanelHeader, SidePanelLauncher, type SidePanelPane } from "@openbot/ui/features/conversation/SidePanel";
 import { SideQuestionPanel } from "@openbot/ui/features/conversation/SideQuestionPanel";
+import { SubagentPanel } from "@openbot/ui/features/conversation/Subagents";
 import { VoicePanel } from "@openbot/ui/features/conversation/VoicePanel";
 import { McpSignInRelayDialog } from "@openbot/ui/features/settings/McpSignInPage";
 import { useText } from "@openbot/ui/text";
@@ -122,6 +123,7 @@ export function ConversationPanels(panelProps: { onOpenUsage?: ((trigger: HTMLBu
     setSideQuestionDraft,
     askSideQuestion,
     voiceConversationAvailable,
+    panelSubagentId,
   } = useConversationViewScope();
   const { t, errorMessage } = useText();
   const publishAgent = createPublishAgent(
@@ -143,6 +145,16 @@ export function ConversationPanels(panelProps: { onOpenUsage?: ((trigger: HTMLBu
     ...(props.agent ? (["settings"] as const) : []),
     ...(props.agent && voiceConversationAvailable() ? (["voice"] as const) : []),
   ]);
+  /** The subagent in the Subagent pane, from the newest turn that has it. */
+  const panelSubagent = createMemo(() => {
+    const subagentId = panelSubagentId();
+    if (!subagentId) return undefined;
+    for (let index = props.messages.length - 1; index >= 0; index -= 1) {
+      const found = props.messages[index]?.subagents?.find((subagent) => subagent.id === subagentId);
+      if (found) return found;
+    }
+    return undefined;
+  });
   const panelTask = createMemo(() => {
     const taskId = taskPanelTaskId();
     return taskId ? (props.tasks?.snapshot?.tasks.find((task) => task.id === taskId) ?? null) : null;
@@ -376,6 +388,14 @@ export function ConversationPanels(panelProps: { onOpenUsage?: ((trigger: HTMLBu
         <VoiceConversationPane />
       </Show>
 
+      <Show when={activeRightPanel() === "subagent"}>
+        <SubagentPanel
+          subagent={panelSubagent()}
+          agentName={props.agent?.name ?? ""}
+          onClosePanel={() => closeSidePanelPane("subagent")}
+        />
+      </Show>
+
       <Show when={browserSidebarOpen() || browserExpandedOpen()}>
         <BrowserPreviewSidebar
           tabs={browserTabs()}
@@ -449,6 +469,8 @@ export function ConversationPanels(panelProps: { onOpenUsage?: ((trigger: HTMLBu
                 (serverCanAdminister(props.server, "agent-host-settings-v1") && agent().allowAutomation !== undefined)
               }
               busyMessageModeEditable={props.server?.kind === "local"}
+              newChatEditable={props.server?.kind === "local"}
+              quickAcknowledgementEditable={props.server?.kind === "local"}
               taskLimitEditable={props.server?.kind === "local"}
               backupModelsEditable={props.server?.kind === "local"}
               usageLimited={props.usageLimited}

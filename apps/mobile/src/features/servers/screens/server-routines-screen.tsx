@@ -21,15 +21,11 @@ import { useCSSVariable, useUniwind } from "uniwind";
 import { BloubAvatar } from "@/features/agents/components/bloub-avatar";
 import { useQueryScope } from "@/features/auth/context/mobile-session-context";
 import { DAY_STRIP_LENGTH, DayStrip } from "@/features/servers/components/day-strip";
-import {
-  SettingsContent,
-  SettingsNote,
-  SettingsRow,
-  SettingsSection,
-} from "@/features/settings/components/settings-content";
+import { SettingsNote, SettingsRow, SettingsSection } from "@/features/settings/components/settings-content";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 import { queryKeys } from "@/features/workspace/model/query-keys";
 import type { MobileAgent } from "@/features/workspace/model/workspace-types";
+import { LargeTitleScrollView } from "@/shared/components/large-title";
 import { MenuView } from "@/shared/components/menu-view";
 import { haptics } from "@/shared/lib/haptics";
 import { isAndroid } from "@/shared/lib/platform";
@@ -40,6 +36,8 @@ const DAY = 86_400_000;
 const WEEK_DAY_LIMIT = 4;
 const UPCOMING_LIMIT = 6;
 const AVATAR_SIZE = 26;
+/** The grouped content of the settings sheets, under the big header. */
+const PAGE_CONTENT = "gap-7 px-4 pt-3";
 
 type CalendarView = "week" | "day";
 
@@ -318,17 +316,18 @@ export function ServerRoutinesScreen() {
     </Stack.Toolbar>
   );
 
+  const title = t("mobile.app.route.routines");
   if (!server)
     return (
-      <SettingsContent>
+      <LargeTitleScrollView title={title} contentContainerClassName={PAGE_CONTENT}>
         <SettingsNote>{t("mobile.server.unavailable")}</SettingsNote>
-      </SettingsContent>
+      </LargeTitleScrollView>
     );
 
   return (
     <>
       {header}
-      <SettingsContent>
+      <LargeTitleScrollView title={title} caption={server.name} contentContainerClassName={PAGE_CONTENT}>
         <View className="gap-2">
           <Typography.Paragraph
             weight="medium"
@@ -422,7 +421,7 @@ export function ServerRoutinesScreen() {
         <Typography.Paragraph type="body-xs" className="px-4 text-grouped-secondary">
           {t("mobile.server.routines.timeZone", { zone: timeZone.replaceAll("_", " ") })}
         </Typography.Paragraph>
-      </SettingsContent>
+      </LargeTitleScrollView>
     </>
   );
 }

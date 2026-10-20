@@ -189,6 +189,8 @@ export const messages = {
   "error.remote.directoryTimeout": "O serviço do OpenBot não respondeu a tempo. Tente novamente.",
   "error.remote.inviteAlreadyUsed": "Este convite já foi usado. Peça um novo convite.",
   "error.remote.inviteNotFound": "Este convite não existe ou expirou. Peça um novo convite.",
+  "error.remote.licenseUsersFull":
+    "A licença do proprietário do servidor não tem usuários livres. Peça ao proprietário para adicionar um usuário à licença.",
   "error.remote.memberLimitReached":
     "Este computador anfitrião atingiu o limite de membros. Peça ao proprietário para liberar espaço.",
   "error.remote.hostNotRegistered": "Este computador anfitrião não está mais registrado no serviço do OpenBot.",

@@ -148,6 +148,12 @@ export const messages = defineMessages("agentSettings", {
   "agentSettings.automation.title": "Local scripts",
   "agentSettings.automation.description":
     "Let scripts on the host send messages, run routines, answer questions, and accept or decline approvals",
+  "agentSettings.agentNewChat.title": "Agent starts new chats",
+  "agentSettings.agentNewChat.description":
+    "Let the agent start a new chat when its chat gets long. It saves notes first.",
+  "agentSettings.quickAcknowledgement.title": "Show the plan before long tasks",
+  "agentSettings.quickAcknowledgement.description":
+    "Before a long task, the agent shows its plan. It starts after 10 s, or when you press Start.",
   "agentSettings.runtime.workspaceEnforcedProcess":
     "The whole {provider} process runs in a sandbox, so a write outside fails. Available on macOS only.",
 });

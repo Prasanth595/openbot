@@ -5,6 +5,7 @@ import ArrowUpDown from "lucide-react-native/icons/arrow-up-down";
 import Calendar from "lucide-react-native/icons/calendar";
 import ChartColumn from "lucide-react-native/icons/chart-column";
 import CircleCheck from "lucide-react-native/icons/circle-check";
+import CircleStop from "lucide-react-native/icons/circle-stop";
 import ClipboardPaste from "lucide-react-native/icons/clipboard-paste";
 import Code from "lucide-react-native/icons/code";
 import Copy from "lucide-react-native/icons/copy";
@@ -17,6 +18,7 @@ import File from "lucide-react-native/icons/file";
 import Folder from "lucide-react-native/icons/folder";
 import Info from "lucide-react-native/icons/info";
 import LayoutGrid from "lucide-react-native/icons/layout-grid";
+import ListChecks from "lucide-react-native/icons/list-checks";
 import LogOut from "lucide-react-native/icons/log-out";
 import MailBadge from "lucide-react-native/icons/mail-badge";
 import MailOpen from "lucide-react-native/icons/mail-open";
@@ -34,7 +36,9 @@ import Trash2 from "lucide-react-native/icons/trash-2";
 import Users from "lucide-react-native/icons/users";
 import X from "lucide-react-native/icons/x";
 import { Fragment, type Ref, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { BackHandler, Pressable } from "react-native";
+import { BackHandler, Pressable, useWindowDimensions } from "react-native";
+import { ScrollView } from "react-native-gesture-handler";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCSSVariable } from "uniwind";
 
 export type { MenuAction, MenuComponentRef } from "@expo/ui/community/menu";
@@ -47,6 +51,7 @@ const ICONS: Partial<Record<string, LucideIcon>> = {
   calendar: Calendar,
   "chart.bar": ChartColumn,
   "checkmark.circle": CircleCheck,
+  checklist: ListChecks,
   "chevron.left.forwardslash.chevron.right": Code,
   "cursorarrow.motionlines": MousePointerClick,
   doc: File,
@@ -70,6 +75,7 @@ const ICONS: Partial<Record<string, LucideIcon>> = {
   "square.grid.2x2": LayoutGrid,
   star: Star,
   "star.slash": StarOff,
+  "stop.circle": CircleStop,
   "text.word.spacing": TextWrap,
   trash: Trash2,
   xmark: X,
@@ -183,6 +189,8 @@ export function MenuView({
     separator: String(tokens[3]),
     pressed: String(tokens[4]),
   };
+  const { height } = useWindowDimensions();
+  const safeArea = useSafeAreaInsets();
   const trigger = useRef<MenuTriggerRef>(null);
   const [isOpen, setIsOpen] = useState(false);
   // A second call in the same tick must see the new state before React applies it.
@@ -211,6 +219,21 @@ export function MenuView({
     return () => subscription.remove();
   }, [isOpen, onOpenChange]);
 
+  const items = groups(actions).map((group, index) => (
+    <Fragment key={group.map(actionId).join("|")}>
+      {index > 0 ? <Separator className="mx-2.5 my-1.5" style={{ backgroundColor: colors.separator }} /> : null}
+      {group.map((action) => (
+        <MenuItem key={actionId(action)} action={action} colors={colors} onPressAction={onPressAction} />
+      ))}
+    </Fragment>
+  ));
+  // HeroUI does not limit the height of the menu, and moves a menu that is taller than the screen above
+  // its top edge. A long list, such as the dictation languages, scrolls in the screen instead, with the
+  // 12 px edge space of HeroUI. A sub-menu opens as a layer over the menu, so a ScrollView would clip it:
+  // a menu with a sub-menu keeps its full height. The React Native ScrollView does not get the drag in
+  // the portal of the menu; the gesture-handler ScrollView does.
+  const scrolls = !visible(actions).some((action) => action.subactions?.length && !action.displayInline);
+
   return (
     <Menu isOpen={isOpen} onOpenChange={onOpenChange} style={style} testID={testID}>
       {/* The trigger only measures the anchor. The inner Pressable opens the menu on a tap or a long press. */}
@@ -227,20 +250,19 @@ export function MenuView({
       </Menu.Trigger>
       <Menu.Portal>
         <Menu.Overlay />
-        <Menu.Content presentation="popover" placement="bottom" align="start" className="min-w-52">
+        <Menu.Content
+          presentation="popover"
+          placement="bottom"
+          align="start"
+          className="min-w-52"
+          style={scrolls ? { maxHeight: height - safeArea.top - safeArea.bottom - 24 } : undefined}
+        >
           {title ? (
             <Menu.Label className="mb-1" numberOfLines={3} style={{ color: colors.muted }}>
               {title}
             </Menu.Label>
           ) : null}
-          {groups(actions).map((group, index) => (
-            <Fragment key={group.map(actionId).join("|")}>
-              {index > 0 ? <Separator className="mx-2.5 my-1.5" style={{ backgroundColor: colors.separator }} /> : null}
-              {group.map((action) => (
-                <MenuItem key={actionId(action)} action={action} colors={colors} onPressAction={onPressAction} />
-              ))}
-            </Fragment>
-          ))}
+          {scrolls ? <ScrollView>{items}</ScrollView> : items}
         </Menu.Content>
       </Menu.Portal>
     </Menu>

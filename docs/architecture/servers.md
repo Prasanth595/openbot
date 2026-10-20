@@ -90,6 +90,18 @@ gets the next page. Channel threads and the files of an agent hidden from the cl
 The capability is advertised only to protocol 7 clients. An older host answers 404, so a client
 sends the request only when the host advertises the capability.
 
+### Side questions
+
+`side-question-v1` adds `POST /v1/side-questions/ask` with `{ agentId, question, earlier }` and answers
+`{ answer }`. Any member who can see the agent can send it. The host answers with the agent's provider
+and model, from the agent's profile and the end of its chat, with no tools. The question and the
+answer do not go into the chat, and the host keeps nothing, so `earlier` carries at most 20 earlier
+questions and answers of the side question. An earlier answer has at most 32,000 characters. A
+failed generation, such as a busy provider or a usage limit, answers 409 with a sentence for the
+member. The capability is advertised only to protocol 7
+clients. The desktop on a joined server and the web client show the side question only when the host
+advertises it.
+
 ### Agent import from a joined server
 
 `agent-import-v1` lets any member, not only an owner or admin, import a Grok Bot export into the host.
@@ -169,6 +181,20 @@ in words on a block that has one, is for the owner and admins only; the host ans
 403. A secret form value goes to the agent in the tool result. The stored block and the prompt
 resolution leave it out. The provider transcript of the tool call can keep it, and the agent can
 repeat it in a reply or a thought, which the conversation stores as any other message.
+
+### Subagents
+
+`subagents-v1` carries the subagents that an agent started in one turn (see
+`packages/contracts/src/ipc-conversation-subagents.ts` and `team-protocol/subagents-v1.ts`). It adds
+`subagents` beside the frozen keys of a message in `GET /v1/agents/:id/conversation` and
+`conversation-page` (messages and references), and in the `conversation` and `conversation-page`
+events. The host adds it only on protocol 7 and only for a connection that advertises the capability.
+A released client reads the message as its fallback: a `subagents` message whose text lists the
+subagents by title. A host without the capability never sends `subagents`, so a client keeps it
+whenever it is present, and a list that the contract refuses fails closed. The host sends each list
+through `clampConversationSubagents`, so only known keys go out, and the lists of one page share a
+wire budget, newest first. The task conversations of `agent-tasks-v1` do not carry it. The WebRTC
+host peer encodes the local response and the events again with the same option.
 
 ### Queue window
 
@@ -301,12 +327,13 @@ zone stays in memory only, so after a restart a queued message uses the server t
 and instance transfer use it in place of the system zone. A change does not move existing routines.
 
 `agent-memory-limit-v1` reads and sets how many memories each agent of the host can keep. It is the
-same value as "Memories per agent" in the host's own Settings. The snapshot gives the limit and the
-values that the host permits; the host refuses other values. A change reloads the threads of each
-agent, because their instructions state the limit, and the host's Settings window shows the new value
-(`app:agent-memory-limit`). A lower limit deletes no memories. The limit
-does not change the 8,192-byte budget of essential memories. The desktop shows the row for a joined
-server only; App Settings holds the value of this computer.
+same value as "Memories per agent" in the host's own Server settings. The snapshot gives the limit and
+the values that the host permits; the host refuses other values. A change reloads the threads of each
+agent, because their instructions state the limit, and the host's window shows the new value in each
+agent's memories (`app:agent-memory-limit`). A lower limit deletes no memories. The limit does not
+change the 8,192-byte budget of essential memories. Server settings → General → Agents is the only
+place that sets the limit, for this computer (`hostAdmin.setAgentMemoryLimit`, local handler) and for a
+joined server. App Settings does not show it, so that one name does not have two values.
 
 `host-update-v1` runs the same update as the host's own Settings. `src/main/requested-update.ts`
 keeps the schedule in memory: who asked, and whether the restart waits until
@@ -396,6 +423,48 @@ Rule: plan limits read `getServerEntitlement` (`apps/auth-api/src/server/billing
 only. It decides which statuses and grace periods give a server a plan, and it counts a plan only
 for a server that the paying account owns. Do not read `billing_subscriptions` or a Stripe status in
 another place.
+
+### Commercial license
+
+The license is a second Stripe product next to the server plans
+(`packages/contracts/src/license.ts`). One account has at most one open license. It is one monthly
+subscription with the lookup key `openbot_license_month` and a graduated price: the base covers 5
+users, then each extra user, up to 25. The amounts are in `LICENSE_PRICES` (EUR is the base
+currency; USD and PLN are `currency_options`). `stripe-bootstrap.ts` creates the price. The
+subscription quantity is the number of users.
+
+- Users are people, not servers or computers: the owner, plus each distinct account that is an
+  active member (`remote_memberships`) of a server that the owner owns. AI agents and chat-app
+  participants do not count.
+- While the license is open, it is a hard limit. `RemoteControlPlane` adds
+  `LICENSE_SEAT_AVAILABLE_SQL` to the member seat check of an invite accept and a reactivation, in the
+  same statement as the server plan limit. A full license refuses a new person with 409
+  `license_users_full`. A person that the license already counts can join another server of the
+  owner. Members who joined before are never removed. Without an open license, only the server plan
+  limit (`getServerEntitlement`) applies.
+- `apps/auth-api/src/server/license-service.ts` owns the `licenses` D1 table (migration `0038`).
+  The billing webhook gives a subscription with the license lookup key to `LicenseService.sync` and
+  writes nothing to `billing_subscriptions`. A Worker before the license sees an unknown plan and
+  skips the event, so an old Worker keeps working.
+- Routes: `GET /v1/me/license`, and `POST /v1/me/license/checkout`, `/users` and `/renewal`. The
+  state is `available: false` until Stripe has the license price, and the app then shows nothing.
+  An app on a Worker without these routes gets 404 and also shows nothing.
+- A Stripe customer pays in one currency, so a new license uses the currency of the account's open
+  subscriptions. Checkout cannot buy fewer users than are in use. An increase is charged at once
+  (`always_invoice`). A decrease starts at the next invoice and cannot go below the users in use or
+  below 5. The subscription metadata `openbot_paid_users` and `openbot_paid_period_end` keep the
+  users paid in the current period, so an increase after a decrease charges only the users above
+  that number.
+- Checkout keeps one open license page for each account. After it makes a page, it closes the
+  older license pages of the customer, so two requests at the same time return the same page. It
+  then reads the customer's subscriptions in Stripe, not only D1, so a license paid before its
+  webhook stops the new page with `license_exists`. A second open license can still come from the
+  Stripe Dashboard; `sync` logs a warning, and a person refunds it.
+- When the owner of a full license creates an invite, the members section asks to add 1 user and
+  shows the extra price, then adds the user and creates the invite. At 25 users it shows "Contact
+  us" and creates no invite. Admins get no step; the join tells the person that the license is full.
+- Desktop calls the `license` IPC group; the web client calls the browser routes. Both render
+  `@openbot/ui/features/billing/LicenseSection` in the license slot of `BillingPanel`.
 
 ## macOS Host Manager
 

@@ -36,7 +36,7 @@ export interface GeneralSettingsValue {
   sendShortcut: SendShortcutMode;
   /** What a message sent to a busy agent does, unless the agent or the message sets its own. */
   busyMessageMode: BusyMessageMode;
-  /** How many memories one agent on this computer can hold. */
+  /** How many memories one agent on this computer can hold. Read only here: Server settings set it. */
   agentMemoryLimit: AgentMemoryLimit;
   /** Keep each joined server's connection between runs of the app, so the start is faster. */
   keepRemoteSessions: boolean;

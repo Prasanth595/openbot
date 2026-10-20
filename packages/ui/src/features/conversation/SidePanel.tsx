@@ -13,6 +13,7 @@ import {
   Plus,
   Settings,
   Tabs,
+  Workflow,
   X,
 } from "@openbot/ui";
 import { ComputerIcon } from "@openbot/ui/features/conversation/ConversationIcons";
@@ -22,9 +23,10 @@ import { For, flush, onSettled, Show } from "solid-js";
 
 /**
  * A pane of the side panel. Each open pane has a tab at the top of the panel. A side question opens
- * from the composer only, so the launcher and Add do not list it.
+ * from the composer only, and a subagent from its row in the chat, so the launcher and Add do not
+ * list them.
  */
-export type SidePanelPane = "browser" | "files" | "tasks" | "settings" | "question" | "voice";
+export type SidePanelPane = "browser" | "files" | "tasks" | "settings" | "question" | "voice" | "subagent";
 
 const PANE_LABELS: Record<SidePanelPane, AppTextKey> = {
   browser: "conversation.sidePanel.pane.browser",
@@ -33,6 +35,7 @@ const PANE_LABELS: Record<SidePanelPane, AppTextKey> = {
   settings: "conversation.sidePanel.pane.settings",
   question: "conversation.sidePanel.pane.question",
   voice: "conversation.sidePanel.pane.voice",
+  subagent: "conversation.sidePanel.pane.subagent",
 };
 
 /** The same glyphs as the rest of the app: the browser is the computer. */
@@ -50,6 +53,8 @@ function PaneIcon(props: { pane: SidePanelPane }): JSX.Element {
       return <MessageCircleQuestionMark aria-hidden="true" />;
     case "voice":
       return <AudioLines aria-hidden="true" />;
+    case "subagent":
+      return <Workflow aria-hidden="true" />;
   }
 }
 

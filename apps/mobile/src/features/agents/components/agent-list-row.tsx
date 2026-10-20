@@ -32,6 +32,7 @@ import { type MobileAgent, useMobileWorkspaceSelector } from "@/features/workspa
 import { canToggleAgentPin } from "@/features/workspace/model/agent-pins";
 import { isAndroid } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
+import { typeScale } from "@/shared/lib/type-scale";
 
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
 const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
@@ -162,28 +163,30 @@ export const AgentListRow = memo(function AgentListRow({ agent, leftInset = 20, 
         >
           {avatar}
           <AgentRowTextReveal active={isUnpinTarget}>
-            <View className="min-w-0 flex-1 gap-1">
-              <View className="gap-0">
-                <View className="flex-row items-center gap-2">
-                  {isUnread ? <View className="size-2 rounded-full bg-accent" /> : null}
-                  <Typography.Paragraph className="min-w-0 flex-1" weight="semibold" numberOfLines={2}>
-                    {agent.name}
+            <View className="min-w-0 flex-1 gap-0.5">
+              <View className="flex-row items-center gap-2">
+                {isUnread ? <View className="size-2 rounded-full bg-accent" /> : null}
+                <Typography.Paragraph
+                  className="font-semibold min-w-0 flex-1"
+                  numberOfLines={1}
+                  style={typeScale.rowTitle}
+                >
+                  {agent.name}
+                </Typography.Paragraph>
+                {waitReason ? (
+                  <AgentWaitChip reason={waitReason} />
+                ) : (
+                  <Typography.Paragraph className="text-muted" style={typeScale.caption}>
+                    {agent.updatedLabel}
                   </Typography.Paragraph>
-                  {waitReason ? (
-                    <AgentWaitChip reason={waitReason} />
-                  ) : (
-                    <Typography.Paragraph type="body-xs" className="text-muted">
-                      {agent.updatedLabel}
-                    </Typography.Paragraph>
-                  )}
-                </View>
-                {agent.title.trim() ? (
-                  <Typography.Paragraph type="body-xs" className="-mt-1.5 text-muted" numberOfLines={2}>
-                    {agent.title.trim()}
-                  </Typography.Paragraph>
-                ) : null}
+                )}
               </View>
-              <Typography.Paragraph type="body-xs" className="text-text-secondary -mt-1" numberOfLines={1}>
+              {agent.title.trim() ? (
+                <Typography.Paragraph className="text-muted" numberOfLines={1} style={typeScale.caption}>
+                  {agent.title.trim()}
+                </Typography.Paragraph>
+              ) : null}
+              <Typography.Paragraph className="text-text-secondary" numberOfLines={1} style={typeScale.preview}>
                 {previewLine}
               </Typography.Paragraph>
             </View>

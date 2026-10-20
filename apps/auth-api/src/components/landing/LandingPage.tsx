@@ -24,7 +24,6 @@ export function LandingPage() {
 
       <main>
         <section class="landing-hero" aria-labelledby="landing-title">
-          <div class="landing-hero-grid" data-slot="hero-grid" aria-hidden="true" />
           <div class="landing-hero-copy">
             <p class="landing-availability landing-hero-line" style={{ "--landing-hero-line": 0 }}>
               <span class="landing-availability-new">NEW</span>

@@ -13,7 +13,6 @@ export interface SettingsPort {
   onAgentMemoryLimitPreference: OpenBotDesktopApi["onAgentMemoryLimitPreference"];
   onApprovalAutomation: OpenBotDesktopApi["onApprovalAutomation"];
   onOpenSettings: OpenBotDesktopApi["onOpenSettings"];
-  setAgentMemoryLimitPreference: OpenBotDesktopApi["setAgentMemoryLimitPreference"];
   setAnalyticsPreference: OpenBotDesktopApi["setAnalyticsPreference"];
   setBusyMessageModePreference: OpenBotDesktopApi["setBusyMessageModePreference"];
   setRemoteSessionReusePreference: OpenBotDesktopApi["setRemoteSessionReusePreference"];

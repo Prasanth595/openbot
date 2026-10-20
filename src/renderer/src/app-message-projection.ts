@@ -1,6 +1,7 @@
 import type { AgentSummary, ConversationMessage, QueueDeliveryStatus } from "@openbot/contracts/ipc";
 import {
   CONVERSATION_PLAN_ITEM_TYPE,
+  CONVERSATION_SUBAGENTS_ITEM_TYPE,
   hostedSiteConversationEvent,
   isContextResetMarker,
   marketplaceSuggestionEvent,
@@ -38,6 +39,8 @@ export function toAgentProfile(stored: AgentSummary): AgentProfile {
     ...(stored.access === undefined ? {} : { access: stored.access }),
     ...(stored.computerUse === undefined ? {} : { computerUse: stored.computerUse }),
     ...(stored.allowAutomation === undefined ? {} : { allowAutomation: stored.allowAutomation }),
+    ...(stored.allowNewChat === undefined ? {} : { allowNewChat: stored.allowNewChat }),
+    ...(stored.quickAcknowledgement === undefined ? {} : { quickAcknowledgement: stored.quickAcknowledgement }),
     ...(stored.busyMessageMode === undefined ? {} : { busyMessageMode: stored.busyMessageMode }),
     ...(stored.taskLimit === undefined ? {} : { taskLimit: stored.taskLimit }),
     ...(stored.backupModels === undefined ? {} : { backupModels: stored.backupModels }),
@@ -61,6 +64,7 @@ export function toAgentMessage(message: ConversationMessage, ownerAgentId?: stri
   const hostedSiteEvent = hostedSiteConversationEvent(message);
   const actionMarker = chatActionMarker(message, ownerAgentId, routineEvent, routineRunEvent, hostedSiteEvent);
   const plan = messagePlan(message);
+  const subagents = message.itemType === CONVERSATION_SUBAGENTS_ITEM_TYPE ? message.subagents : undefined;
   const senderMember = message.author === "user" ? message.senderMember : undefined;
   const status =
     message.exchange || message.routine
@@ -83,7 +87,15 @@ export function toAgentMessage(message: ConversationMessage, ownerAgentId?: stri
     createdAt: message.createdAt,
     streaming: message.status === "streaming",
     ...(message.itemType === undefined ? {} : { itemType: message.itemType }),
-    kind: message.questionPrompt ? "question" : actionMarker ? "action-marker" : plan ? "plan" : "text",
+    kind: message.questionPrompt
+      ? "question"
+      : actionMarker
+        ? "action-marker"
+        : plan
+          ? "plan"
+          : subagents?.length
+            ? "subagents"
+            : "text",
     ...(exchangeSenderId === undefined ? {} : { senderAgentId: exchangeSenderId }),
     ...(senderMember === undefined ? {} : { senderMember }),
     ...(message.replyToMessageId === undefined ? {} : { replyToMessageId: message.replyToMessageId }),
@@ -99,6 +111,7 @@ export function toAgentMessage(message: ConversationMessage, ownerAgentId?: stri
     ...(message.routine === undefined ? {} : { routine: message.routine }),
     ...(actionMarker ? { actionMarker } : {}),
     ...(plan ? { plan } : {}),
+    ...(subagents?.length ? { subagents } : {}),
     ...(status === undefined ? {} : { status }),
   };
 }
@@ -256,7 +269,8 @@ export function agentMessagesEqual(left: AgentMessage, right: AgentMessage): boo
     JSON.stringify(left.actionMarker) === JSON.stringify(right.actionMarker) &&
     JSON.stringify(left.items) === JSON.stringify(right.items) &&
     JSON.stringify(left.itemIds) === JSON.stringify(right.itemIds) &&
-    JSON.stringify(left.plan) === JSON.stringify(right.plan)
+    JSON.stringify(left.plan) === JSON.stringify(right.plan) &&
+    JSON.stringify(left.subagents) === JSON.stringify(right.subagents)
   );
 }
 

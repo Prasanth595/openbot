@@ -1,6 +1,5 @@
 import { chatTagReferences } from "@openbot/contracts/chat-tag-references";
 import type { AgentTask } from "@openbot/contracts/ipc";
-import { isAgentTaskOpen } from "@openbot/ui/features/conversation/AgentTasks";
 
 /** The closed tasks that the Tasks page shows before "Show all". */
 export const TASKS_CLOSED_SHOWN = 2;
@@ -14,6 +13,10 @@ export interface TasksSection {
   /** All tasks of the section, also the closed tasks that "Show all" hides. */
   count: number;
 }
+
+export const isAgentTaskOpen = (task: AgentTask): boolean => task.state !== "closed";
+/** A task whose turn runs, or whose next message waits to start. */
+export const isAgentTaskActive = (task: AgentTask): boolean => task.state === "running" || task.state === "queued";
 
 /** A task the user must look at: its last turn ended, as an answer, a failure or a stop. */
 export const taskNeedsYou = (task: AgentTask) => task.state === "idle" && task.outcome !== null;

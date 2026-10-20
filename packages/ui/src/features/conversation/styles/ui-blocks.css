@@ -136,6 +136,11 @@
   gap: var(--openbot-space-2);
 }
 
+/* A block that answers itself has no Skip, so its last button, such as Cancel, sits at the far end. */
+.ui-block-actions-auto > button:last-of-type {
+  margin-inline-start: auto;
+}
+
 .ui-block-confirm-step {
   min-width: 0;
   margin: 0;

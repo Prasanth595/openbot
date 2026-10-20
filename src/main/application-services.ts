@@ -26,6 +26,7 @@ import {
   HOSTED_UPDATE_TRIGGER,
   HostedUpdateAdapter,
 } from "./hosted-update-adapter";
+import { LicenseDesktopService } from "./license-service";
 import { LocalSkillLibrary } from "./local-skill-library";
 import { localSkillTools } from "./local-skill-tools";
 import { MAC_PERMISSION_URLS } from "./mac-permission-urls";
@@ -205,7 +206,7 @@ import { ProviderCredentialStore } from "./provider-credential-store";
 import { createProviderDetection, type ProviderDetection } from "./provider-detection";
 import { PROVIDER_DETECTION_SETTINGS_FILE, ProviderDetectionSettingsStore } from "./provider-detection-settings-store";
 import { ProviderHostSignIns } from "./provider-host-sign-ins";
-import { startAgentLog, startProviderLog } from "./provider-log";
+import { startAccountLog, startAgentLog, startProviderLog } from "./provider-log";
 import { toProviderRuntimeFailure } from "./provider-runtime-effects";
 import { ProviderRuntimeManager, providerRuntimeRoot, runtimeTarget } from "./provider-runtime-manager";
 import { ProviderUseSettingsStore } from "./provider-use-settings-store";
@@ -389,6 +390,8 @@ const TEARDOWN_ORDER = {
   providerLog: 121,
   // After the service, so a deletion that fails while the service stops is kept.
   agentLog: 122,
+  // After the account, so a session write that fails while it stops is kept.
+  accountLog: 123,
   // Last: every step above can still write.
   database: 130,
 } as const;
@@ -479,6 +482,7 @@ export interface ApplicationServices {
   skills: SkillMarketplaceService;
   hostedSites: HostedSiteDesktopService;
   billing: BillingDesktopService;
+  license: LicenseDesktopService;
   hostedServers: HostedServerDesktopService;
   routineFeed: RoutineFeedServer;
   events: HostEventsService;
@@ -762,6 +766,7 @@ export async function createApplicationServices({
     startProviderLog(join(app.getPath("userData"), "logs")),
   );
   teardown.push(TEARDOWN_ORDER.agentLog, "the agent log", startAgentLog(join(app.getPath("userData"), "logs")));
+  teardown.push(TEARDOWN_ORDER.accountLog, "the account log", startAccountLog(join(app.getPath("userData"), "logs")));
   // The one forward reference left in this function: the controller is built at the top of
   // startup because its window must be able to appear immediately, but the two services its
   // critical actions drive are built hundreds of lines below. A single named local rather than
@@ -891,6 +896,7 @@ export async function createApplicationServices({
     return hostId ? centralAuth.hostSiteCredential(hostId) : null;
   });
   const billing = new BillingDesktopService(centralAuth, (url) => shell.openExternal(url));
+  const license = new LicenseDesktopService(centralAuth, (url) => shell.openExternal(url));
   const hostedServers = new HostedServerDesktopService(
     withHostingDeveloperKey(centralAuth, hostingDeveloperKey),
     (url) => shell.openExternal(url),
@@ -2629,6 +2635,7 @@ export async function createApplicationServices({
     skills,
     hostedSites,
     billing,
+    license,
     hostedServers,
     routineFeed,
     events,

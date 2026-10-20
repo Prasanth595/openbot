@@ -24,6 +24,7 @@ import {
   createContext,
   memo,
   type PropsWithChildren,
+  type ReactNode,
   useCallback,
   useContext,
   useEffect,
@@ -101,6 +102,10 @@ const HANDLE_MARGIN = 24;
 type VisibleMessage = Exclude<ChatMessage, { kind: "thinking" }> | ExchangeGroup;
 const NO_ROWS: VisibleMessage[] = [];
 const ROW_STYLE = { paddingBottom: CHAT_ROW_GAP };
+/** The side padding of the list. */
+const LIST_PADDING = 16;
+/** A user's message is at most this part of the list width, as `max-w-[88%]` on its row. */
+const USER_BUBBLE_WIDTH = 0.88;
 
 /** The list keeps the sizes it measured by message, so rows that stay keep their place when the data changes. */
 function rowKey(message: VisibleMessage): string {
@@ -226,6 +231,8 @@ interface ChatMessageListProps {
   appActive: boolean;
   activeTurnId: string | null;
   questionForm?: QuestionPromptController;
+  /** Rows under the activity, such as the tasks that the agent works on. */
+  activityAccessory?: ReactNode;
   /** The approvals that this chat's agents wait on, shown below the activity as on the desktop. */
   approvals?: readonly PendingApproval[];
   /** The browser requests that this chat's agents wait on. The phone shows them above the composer. */
@@ -307,6 +314,8 @@ interface MessageRowShared {
   canReply: boolean;
   canReact: boolean;
   canSelectText: boolean;
+  /** The width inside the list padding. The iOS menu of a queued message does not limit its width. */
+  listWidth: number;
   actions: {
     reply: (message: ChatBubbleMessage) => void;
     react: (message: ChatBubbleMessage, emoji: string | null) => Promise<void>;
@@ -656,7 +665,12 @@ const MessageRow = memo(function MessageRow({
           {rendered}
         </ChatMessageGesture>
       ) : outbox ? (
-        <OutboxMessageMenu status={outbox}>{rendered}</OutboxMessageMenu>
+        <OutboxMessageMenu
+          status={outbox}
+          maxWidth={message.attachments?.length ? shared.listWidth : shared.listWidth * USER_BUBBLE_WIDTH}
+        >
+          {rendered}
+        </OutboxMessageMenu>
       ) : (
         rendered
       )}
@@ -784,6 +798,7 @@ export const ChatMessageList = memo(function ChatMessageList({
   appActive,
   activeTurnId,
   questionForm,
+  activityAccessory,
   approvals = NO_APPROVALS,
   browserRequests = NO_BROWSER_REQUESTS,
   serverName = "",
@@ -989,6 +1004,7 @@ export const ChatMessageList = memo(function ChatMessageList({
   const canReply = Boolean(onReply);
   const canReact = Boolean(onReact);
   const canSelectText = Boolean(onSelectText);
+  const listWidth = screen.width - LIST_PADDING * 2;
   const shared = useMemo<MessageRowShared>(
     () => ({
       agents,
@@ -1010,6 +1026,7 @@ export const ChatMessageList = memo(function ChatMessageList({
       canReply,
       canReact,
       canSelectText,
+      listWidth,
       actions,
     }),
     [
@@ -1033,6 +1050,7 @@ export const ChatMessageList = memo(function ChatMessageList({
       canReply,
       canReact,
       canSelectText,
+      listWidth,
       actions,
     ],
   );
@@ -1178,7 +1196,7 @@ export const ChatMessageList = memo(function ChatMessageList({
           }}
           onStartReachedThreshold={0.5}
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: header }}
+          contentContainerStyle={{ paddingHorizontal: LIST_PADDING, paddingTop: header }}
           contentInsetAdjustmentBehavior="never"
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
@@ -1239,6 +1257,7 @@ export const ChatMessageList = memo(function ChatMessageList({
                   />
                 ))}
               </Animated.View>
+              {activityAccessory}
               {onRespondApproval && approvals.length ? (
                 <View className="gap-3 pb-3">
                   {approvals.map((approval) => (

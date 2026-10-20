@@ -5,13 +5,17 @@ import {
   type BrowserControlState,
   type BrowserTab,
   CONVERSATION_PLAN_ITEM_TYPE,
+  CONVERSATION_SUBAGENTS_ITEM_TYPE,
   type ConversationPlan,
   type ConversationSnapshot,
+  type ConversationSubagent,
+  clampConversationSubagents,
   conversationPlanText,
+  conversationSubagentsText,
   isAgentContextCategories,
   latestTurnAnswer,
 } from "@openbot/contracts/ipc";
-import { isString } from "@openbot/contracts/runtime-values";
+import { type DynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { createOpenBotLogger } from "@openbot/logging";
 import { classifyFailure } from "@openbot/telemetry";
 import { Cause, Deferred, Effect, Exit, Schema, Scope } from "effect";
@@ -47,6 +51,12 @@ import { PLAN_UPDATED_METHOD, planFromNotification } from "./plan-updates";
 import { isBalanceDiagnostic, isPlanLimitDiagnostic, isUsageLimitDiagnostic } from "./provider-diagnostics";
 import type { ProviderRuntime } from "./provider-runtime";
 import { isNoUpdateAnswer, settleQuietRoutineTurn } from "./routine-quiet-runs";
+import {
+  foldCodexSubagentItem,
+  SUBAGENTS_UPDATED_METHOD,
+  stopRunningSubagents,
+  subagentsFromNotification,
+} from "./subagent-updates";
 import { ThreadFileHistory } from "./thread-file-history";
 import {
   isNonActionableCodexWarning,
@@ -452,6 +462,7 @@ export class TurnLifecycle {
         if (notification.method === "item/completed" && itemId) {
           this.#deltas.flush(`${threadId}:${turnId}:${itemId}`);
         }
+        if (item.type === "collabAgentToolCall") this.#applyCodexSubagents(agentId, threadId, turnId, item);
         const threadItem = toThreadItem(item);
         if (!threadItem) return;
         yield* this.#applyItem(agentId, threadId, turnId, threadItem, notification.method === "item/completed");
@@ -509,6 +520,13 @@ export class TurnLifecycle {
         if (plan) this.#applyPlan(agentId, threadId, turnId, plan);
         // An empty list removes the turn's plan: the agent deleted its last task.
         else if (isRecord(params) && Array.isArray(params.plan)) this.#clearPlan(agentId, threadId, turnId);
+        return;
+      }
+      case SUBAGENTS_UPDATED_METHOD: {
+        if (!threadId || !agentId) return;
+        const turnId = getString(params, "turnId");
+        const subagents = subagentsFromNotification(params);
+        if (turnId && subagents) this.#applySubagents(agentId, threadId, turnId, subagents);
         return;
       }
       case "turn/completed": {
@@ -740,6 +758,9 @@ export class TurnLifecycle {
       const repeatable = limited && running !== undefined && !running.acted && deliveries.length > 0;
       const channelTurn = !taskTurn && this.#conversation.isExecutionThread(snapshot.threadId);
       const requeue = repeatable && !channelTurn;
+      // A foreground subagent ends with its turn. A background one works on and reports later.
+      const subagents = snapshot.messages.find((message) => message.id === `${turnId}:subagents`);
+      stopRunningSubagents(subagents?.subagents, new Date().toISOString(), { background: false });
       for (const message of snapshot.messages) {
         if (this.#itemTurns.get(message.id) !== turnId || message.status !== "streaming") continue;
         message.status = normalizeCompletionStatus(repeatable ? "interrupted" : status);
@@ -909,9 +930,12 @@ export class TurnLifecycle {
       const closed = structuredClone(snapshot);
       const changedIds = new Set<string>();
       const status = normalizeCompletionStatus(terminal);
+      const now = new Date().toISOString();
       for (const message of closed.messages) {
         if (message.status !== "streaming") continue;
         if (message.turnId !== turnId && this.#itemTurns.get(message.id) !== turnId) continue;
+        // As at the normal end, a foreground subagent ends with its turn.
+        stopRunningSubagents(message.subagents, now, { background: false });
         message.status = status;
         markIncompleteImageGeneration(message, status);
         changedIds.add(message.id);
@@ -1133,6 +1157,46 @@ export class TurnLifecycle {
     this.#conversation.emitConversation(snapshot);
   }
 
+  /**
+   * Shows a turn's subagents as one message, which each update replaces, as the plan is. Only a
+   * running turn adds the message: a background subagent ends after its turn, and its update then
+   * changes the list that its turn left. That list can be out of the bounded cache by then, so it is
+   * read back from the database.
+   */
+  #applySubagents(agentId: string, threadId: string, turnId: string, subagents: ConversationSubagent[]): void {
+    const snapshot = this.#conversation.ensureSnapshot(agentId, threadId);
+    const id = `${turnId}:subagents`;
+    let message = snapshot.messages.find((candidate) => candidate.id === id);
+    if (!message && !this.#runningTurns.has(turnId)) {
+      message = this.#store.database.readConversationMessages(agentId, snapshot.threadId, [id])[0];
+      if (!message) return;
+      snapshot.messages.push(message);
+    }
+    if (!message) {
+      message = newAssistantMessage(id, turnId);
+      snapshot.messages.push(message);
+      this.#itemTurns.set(id, turnId);
+    }
+    const previous = message.subagents;
+    message.itemType = CONVERSATION_SUBAGENTS_ITEM_TYPE;
+    message.text = conversationSubagentsText(subagents);
+    message.subagents = subagents;
+    // A new step replaces the last one in the event log, so a long run does not keep a copy of the
+    // list for each step. A new subagent or a new state keeps its own event.
+    if (previous && subagentStates(previous) === subagentStates(subagents))
+      this.#conversation.emitReplacedMessage(snapshot, id, "turn.subagents-updated");
+    else this.#conversation.emitConversation(snapshot);
+  }
+
+  /** Codex reports its subagents as tool items of the parent thread. */
+  #applyCodexSubagents(agentId: string, threadId: string, turnId: string, item: DynamicRecord): void {
+    const snapshot = this.#conversation.ensureSnapshot(agentId, threadId);
+    const current = snapshot.messages.find((candidate) => candidate.id === `${turnId}:subagents`)?.subagents ?? [];
+    const subagents = foldCodexSubagentItem(current, item, new Date().toISOString());
+    const clamped = subagents && clampConversationSubagents(subagents);
+    if (clamped) this.#applySubagents(agentId, threadId, turnId, clamped);
+  }
+
   #clearPlan(agentId: string, threadId: string, turnId: string): void {
     const snapshot = this.#conversation.ensureSnapshot(agentId, threadId);
     const index = snapshot.messages.findIndex((candidate) => candidate.id === `${turnId}:plan`);
@@ -1175,7 +1239,8 @@ function dropPlaceholderAnswers(snapshot: ConversationSnapshot, turnId: string):
     if (
       message.itemType === "commentary" ||
       message.itemType === "question_prompt" ||
-      message.itemType === CONVERSATION_PLAN_ITEM_TYPE
+      message.itemType === CONVERSATION_PLAN_ITEM_TYPE ||
+      message.itemType === CONVERSATION_SUBAGENTS_ITEM_TYPE
     )
       continue;
     if (message.attachments?.length || message.imageGeneration) continue;
@@ -1198,4 +1263,9 @@ function isRepeatedWork(item: { type?: unknown; phase?: unknown; text?: unknown 
   if (item.type === "userMessage" || item.type === "reasoning" || item.type === "contextCompaction") return false;
   if (item.type !== "agentMessage") return true;
   return item.phase !== "commentary" && isString(item.text) && item.text.trim() !== "";
+}
+
+/** Which subagents a list holds and the state of each, without their steps. */
+function subagentStates(subagents: readonly ConversationSubagent[]): string {
+  return subagents.map((subagent) => `${subagent.id}:${subagent.status}`).join("\n");
 }

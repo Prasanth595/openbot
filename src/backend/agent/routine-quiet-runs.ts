@@ -1,5 +1,6 @@
 import {
   CONVERSATION_PLAN_ITEM_TYPE,
+  CONVERSATION_SUBAGENTS_ITEM_TYPE,
   type ConversationMessage,
   type ConversationSnapshot,
   ROUTINE_QUIET_ANSWER_ITEM_TYPE,
@@ -102,9 +103,13 @@ export function isTextAnswer(message: ConversationMessage): boolean {
   );
 }
 
-/** Thinking and the plan: how the agent worked, not what it reports. */
+/** Thinking, the plan and the subagents: how the agent worked, not what it reports. */
 function isWorkNote(message: ConversationMessage): boolean {
-  return message.itemType === "commentary" || message.itemType === CONVERSATION_PLAN_ITEM_TYPE;
+  return (
+    message.itemType === "commentary" ||
+    message.itemType === CONVERSATION_PLAN_ITEM_TYPE ||
+    message.itemType === CONVERSATION_SUBAGENTS_ITEM_TYPE
+  );
 }
 
 function carriesContent(message: ConversationMessage): boolean {

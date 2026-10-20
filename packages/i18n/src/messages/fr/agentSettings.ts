@@ -150,6 +150,12 @@ export const messages = {
   "agentSettings.automation.title": "Scripts locaux",
   "agentSettings.automation.description":
     "Autoriser les scripts de l’hôte à envoyer des messages, exécuter des routines, répondre aux questions et accepter ou refuser les approbations",
+  "agentSettings.agentNewChat.title": "L’agent démarre de nouvelles discussions",
+  "agentSettings.agentNewChat.description":
+    "L’agent peut démarrer une nouvelle discussion quand la sienne devient longue. Il enregistre d’abord des notes.",
+  "agentSettings.quickAcknowledgement.title": "Montrer le plan avant les longues tâches",
+  "agentSettings.quickAcknowledgement.description":
+    "Avant une longue tâche, l’agent montre son plan. Il commence après 10 s ou quand vous appuyez sur Démarrer.",
   "agentSettings.runtime.workspaceEnforcedProcess":
     "Tout le processus {provider} s’exécute dans un bac à sable : une écriture à l’extérieur échoue donc. Disponible sur macOS uniquement.",
 } as const satisfies PartialTranslation<typeof source>;

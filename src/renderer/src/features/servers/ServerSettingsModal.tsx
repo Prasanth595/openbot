@@ -36,6 +36,7 @@ import {
   Text,
   UsersRound,
 } from "@openbot/ui";
+import type { LicenseCalls } from "@openbot/ui/features/billing/license-store";
 import {
   SaveBarDock,
   SettingsDialogShell,
@@ -86,6 +87,13 @@ export interface ServerSettingsModalProps {
   onSetMuted?: (muted: boolean) => Promise<void>;
   onSetNotificationLevel?: (level: ServerNotificationLevel) => Promise<void>;
   onCreateInvite: (input: { role: "admin" | "member"; email?: string; permanent?: boolean }) => Promise<InviteSummary>;
+  /**
+   * The license of the signed-in account. When the owner invites a person to a full license, the
+   * Members section first asks to add a user to it. Absent on surfaces with no account license.
+   */
+  license?: Pick<LicenseCalls, "getState" | "setUsers"> | undefined;
+  /** Opens the contact page when a full license already has the most users that the app sells. */
+  onContactUs?: () => void;
   onUpdateMember: (input: UpdateTeamMemberInput) => Promise<void>;
   onRemoveMember: (memberId: string) => Promise<void>;
   onRevokeInvite: (inviteId: string) => Promise<void>;
@@ -175,8 +183,7 @@ export interface ServerSettingsModalProps {
   hostTimezone?: ServerTimezoneOptions | undefined;
   /**
    * General shows how many memories each agent keeps only when a caller supplies this, and only for
-   * a joined server with `agent-memory-limit-v1` that this member administers. App Settings holds the
-   * value of this computer.
+   * the local server or a remote host with `agent-memory-limit-v1` that this member administers.
    */
   hostMemoryLimit?: ServerMemoryLimitOptions | undefined;
   /**

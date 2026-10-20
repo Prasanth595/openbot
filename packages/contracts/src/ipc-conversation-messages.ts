@@ -4,6 +4,11 @@ import { INPUT_LIMITS } from "./input-limits";
 import { type AttachmentSummary, isAttachmentSummary } from "./ipc-attachments";
 import { isBoundedString, isIdentifier, isRequestId } from "./ipc-bounded-values";
 import { CONVERSATION_PLAN_ITEM_TYPE, type ConversationPlan, isConversationPlan } from "./ipc-conversation-plan";
+import {
+  CONVERSATION_SUBAGENTS_ITEM_TYPE,
+  type ConversationSubagent,
+  isConversationSubagents,
+} from "./ipc-conversation-subagents";
 import { QUEUE_DELIVERY_STATUSES, type QueueDelivery } from "./ipc-queue";
 import { isBoolean, isDynamicRecord, isNumber, isOneOf, isString } from "./runtime-values";
 import { type ConversationUiBlock, isConversationUiBlock } from "./ui-blocks";
@@ -212,6 +217,8 @@ export interface ConversationMessage {
   questionPrompt?: ConversationQuestionPrompt | undefined;
   /** Set on the one `plan` message of a turn. The text holds the same plan as a checklist. */
   plan?: ConversationPlan | undefined;
+  /** Set on the one `subagents` message of a turn. The text lists the same subagents by title. */
+  subagents?: ConversationSubagent[] | undefined;
   /**
    * An interactive block from `ask_ui` (see `ui-blocks.ts`). It rides on a `question_prompt` message
    * beside `questionPrompt`. Absent on a message from an older host.
@@ -261,6 +268,7 @@ export function isConversationMessage(value: unknown): value is ConversationMess
     (value.imageGeneration === undefined || isImageGenerationInfo(value.imageGeneration)) &&
     (value.questionPrompt === undefined || isConversationQuestionPrompt(value.questionPrompt)) &&
     (value.plan === undefined || isConversationPlan(value.plan)) &&
+    (value.subagents === undefined || isConversationSubagents(value.subagents)) &&
     (value.uiBlock === undefined || isConversationUiBlock(value.uiBlock))
   );
 }
@@ -283,7 +291,7 @@ export const ROUTINE_QUIET_ANSWER_ITEM_TYPE = "routine_quiet_answer";
 
 /**
  * The answer an agent gave in one turn: its last message of that turn that says something to the
- * reader. Commentary, a question prompt, a plan and a quiet routine answer are not the answer.
+ * reader. Commentary, a question prompt, a plan, the subagents and a quiet routine answer are not the answer.
  */
 export function latestTurnAnswer(
   messages: readonly ConversationMessage[],
@@ -298,6 +306,7 @@ export function latestTurnAnswer(
         message.itemType !== "commentary" &&
         message.itemType !== "question_prompt" &&
         message.itemType !== CONVERSATION_PLAN_ITEM_TYPE &&
+        message.itemType !== CONVERSATION_SUBAGENTS_ITEM_TYPE &&
         message.itemType !== ROUTINE_QUIET_ANSWER_ITEM_TYPE &&
         message.text.trim(),
     );

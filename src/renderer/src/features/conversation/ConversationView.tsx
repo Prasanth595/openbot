@@ -60,6 +60,7 @@ export function ConversationView(props: ConversationProps) {
               taskPanelOpen() ||
               activeRightPanel() === "question" ||
               activeRightPanel() === "voice" ||
+              activeRightPanel() === "subagent" ||
               activeRightPanel() === "side-panel",
             "side-panel-docked": sidePanelOpen(),
             "side-panel-maximized": sidePanelOpen() && sidePanel().maximized,

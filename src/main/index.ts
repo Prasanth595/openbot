@@ -68,6 +68,7 @@ import { hostAdminIpcHandlers } from "./ipc/host-admin-handlers";
 import { hostedServerIpcHandlers } from "./ipc/hosted-server-handlers";
 import { hostedSiteIpcHandlers } from "./ipc/hosted-site-handlers";
 import { instanceTransferIpcHandlers } from "./ipc/instance-transfer-handlers";
+import { licenseIpcHandlers } from "./ipc/license-handlers";
 import { marketplaceAgentIpcHandlers } from "./ipc/marketplace-agent-handlers";
 import { mcpServerIpcHandlers } from "./ipc/mcp-server-handlers";
 import { memoryIpcHandlers } from "./ipc/memory-handlers";
@@ -487,6 +488,7 @@ function registerIpcHandlers({
   onePasswordConnector,
   bitwardenConnector,
   billing,
+  license,
   hostedServers,
   routineFeed,
   events,
@@ -557,6 +559,7 @@ function registerIpcHandlers({
     ...onePasswordConnectorIpcHandlers({ onePasswordConnector, remoteServers }),
     ...bitwardenConnectorIpcHandlers({ bitwardenConnector }),
     ...billingIpcHandlers({ billing }),
+    ...licenseIpcHandlers({ license }),
     ...routineFeedIpcHandlers({ routineFeed }),
     ...eventsIpcHandlers({ events, remoteServers }),
     ...hostedServerIpcHandlers({ hostedServers }),

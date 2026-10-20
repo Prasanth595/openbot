@@ -44,6 +44,7 @@ import { sourceText } from "@openbot/i18n/source";
 import { Context, Effect, Layer, Result, Schema } from "effect";
 import { importJWK, type JWK, type JWTPayload, SignJWT } from "jose";
 import { getServerEntitlement } from "./billing-entitlement";
+import { OPEN_STATUSES_SQL } from "./billing-errors";
 import { decodeBase64Url, hmacSha256, importHmacSha256Key, randomToken, sha256 } from "./crypto";
 import { PERSISTENT_SESSION_EXPIRES_AT } from "./session-policy";
 import type { AuthUser, WorkerBindings } from "./types";
@@ -62,6 +63,25 @@ const MEMBER_SEAT_AVAILABLE_SQL = `(
   EXISTS(SELECT 1 FROM remote_memberships WHERE host_id = ? AND user_id = ? AND status = 'active')
   OR (SELECT COUNT(*) FROM remote_memberships WHERE host_id = ? AND status = 'active') < ?
 )`;
+// The commercial license of the host's owner counts people across all the owner's servers: the owner,
+// and each other account with an active membership. A person who is already counted joins another
+// server of the owner freely; anyone else needs a free license user. Binds: owner, user, owner, owner,
+// license users.
+const LICENSE_SEAT_AVAILABLE_SQL = `(
+  EXISTS(SELECT 1 FROM remote_memberships m JOIN remote_hosts h ON h.host_id = m.host_id
+          WHERE h.owner_user_id = ? AND m.user_id = ? AND m.status = 'active')
+  OR (SELECT COUNT(DISTINCT m.user_id) FROM remote_memberships m JOIN remote_hosts h ON h.host_id = m.host_id
+       WHERE h.owner_user_id = ? AND m.user_id <> ? AND m.status = 'active') + 1 < ?
+)`;
+
+/** The seat checks for one user on one host: the server plan's member limit and the owner's license. */
+interface MemberSeat {
+  readonly sql: string;
+  readonly binds: readonly (string | number)[];
+  readonly limit: number;
+  readonly memberBinds: readonly (string | number)[];
+  readonly licenseBinds: readonly (string | number)[] | null;
+}
 
 /** The membership row that this accept wrote: its id and its update time. */
 const JOINED_NOW_SQL = `EXISTS(
@@ -1070,10 +1090,10 @@ export class RemoteControlPlane {
           role: existingMembership.role,
         };
       }
-      const limit = yield* this.#memberLimit(invite.host_id);
-      yield* this.#requireMemberSeat(invite.host_id, user.id, limit);
+      const memberSeat = yield* this.#memberSeat(invite.host_id, user.id);
+      yield* this.#requireMemberSeat(memberSeat);
       const membershipId = crypto.randomUUID();
-      const seat = [invite.host_id, user.id, invite.host_id, limit] as const;
+      const seat = memberSeat.binds;
       // The writes after the membership apply only when this accept made it: a new row, or the revoked
       // row that it brought back. An accept that a concurrent one beat leaves the invitation as it was.
       const joinedId = existingMembership?.membership_id ?? membershipId;
@@ -1087,7 +1107,7 @@ export class RemoteControlPlane {
                  membership_id, host_id, user_id, role, status, created_at, updated_at
                ) SELECT ?, ?, ?, ?, 'active', ?, ?
                  FROM remote_invites
-                WHERE invite_id = ? AND revoked_at IS NULL AND expires_at > ? AND ${MEMBER_SEAT_AVAILABLE_SQL}
+                WHERE invite_id = ? AND revoked_at IS NULL AND expires_at > ? AND ${memberSeat.sql}
                   AND ${INVITE_STILL_GRANTED_SQL}
                ON CONFLICT(host_id, user_id) DO UPDATE SET
                  role = excluded.role, status = 'active', updated_at = excluded.updated_at, removed_at = NULL
@@ -1097,7 +1117,7 @@ export class RemoteControlPlane {
                ) SELECT ?, ?, ?, ?, 'active', ?, ?
                  FROM remote_invites
                 WHERE invite_id = ? AND used_at IS NULL AND revoked_at IS NULL AND expires_at > ?
-                  AND ${MEMBER_SEAT_AVAILABLE_SQL} AND ${INVITE_STILL_GRANTED_SQL}
+                  AND ${memberSeat.sql} AND ${INVITE_STILL_GRANTED_SQL}
                ON CONFLICT(host_id, user_id) DO UPDATE SET
                  role = excluded.role, status = 'active', updated_at = excluded.updated_at, removed_at = NULL
                 WHERE remote_memberships.status = 'revoked' AND remote_memberships.role <> 'owner'`,
@@ -1120,7 +1140,7 @@ export class RemoteControlPlane {
             ? dependencies.database
                 .prepare(
                   `UPDATE remote_invites SET use_count = use_count + 1
-                WHERE invite_id = ? AND revoked_at IS NULL AND expires_at > ? AND ${MEMBER_SEAT_AVAILABLE_SQL}
+                WHERE invite_id = ? AND revoked_at IS NULL AND expires_at > ? AND ${memberSeat.sql}
                   AND ${INVITE_STILL_GRANTED_SQL} AND ${JOINED_NOW_SQL}`,
                 )
                 .bind(invite.invite_id, now, ...seat, user.id, ...joinedNow)
@@ -1128,7 +1148,7 @@ export class RemoteControlPlane {
                 .prepare(
                   `UPDATE remote_invites SET used_at = ?
                 WHERE invite_id = ? AND used_at IS NULL AND revoked_at IS NULL AND expires_at > ?
-                  AND ${MEMBER_SEAT_AVAILABLE_SQL} AND ${INVITE_STILL_GRANTED_SQL} AND ${JOINED_NOW_SQL}`,
+                  AND ${memberSeat.sql} AND ${INVITE_STILL_GRANTED_SQL} AND ${JOINED_NOW_SQL}`,
                 )
                 .bind(now, invite.invite_id, now, ...seat, user.id, ...joinedNow),
           dependencies.database
@@ -1153,7 +1173,7 @@ export class RemoteControlPlane {
         if ((accepted[0]?.meta.changes ?? 0) === 0 && concurrent && concurrent.role !== "owner") {
           return { hostId: invite.host_id, membershipId: concurrent.membership_id, role: concurrent.role };
         }
-        yield* this.#requireMemberSeat(invite.host_id, user.id, limit);
+        yield* this.#requireMemberSeat(memberSeat);
         return yield* new RemoteControlPlaneError(409, "invite_already_used", "The invitation was already used.");
       }
       const membership = yield* remoteCall(() =>
@@ -1244,10 +1264,8 @@ export class RemoteControlPlane {
       if (input.revoke && input.reactivate) return yield* invalid("member status");
       // A role change keeps an active member active, so it needs the seat as a reactivation does.
       const activating = !input.revoke && (input.reactivate === true || membership.status === "active");
-      const limit = yield* this.#memberLimit(input.hostId);
-      if (activating && membership.status !== "active") {
-        yield* this.#requireMemberSeat(input.hostId, membership.user_id, limit);
-      }
+      const memberSeat = yield* this.#memberSeat(input.hostId, membership.user_id);
+      if (activating && membership.status !== "active") yield* this.#requireMemberSeat(memberSeat);
       const removedAt = removedAtAfterChange({
         revoke: input.revoke === true,
         leave: leavingOwnMembership,
@@ -1273,7 +1291,7 @@ export class RemoteControlPlane {
           dependencies.database
             .prepare(
               `UPDATE remote_memberships SET role = ?, status = ?, updated_at = ?, removed_at = ${removedAt}
-            WHERE membership_id = ?${activating ? ` AND ${MEMBER_SEAT_AVAILABLE_SQL}` : ""}`,
+            WHERE membership_id = ?${activating ? ` AND ${memberSeat.sql}` : ""}`,
             )
             .bind(
               role,
@@ -1281,7 +1299,7 @@ export class RemoteControlPlane {
               now,
               ...(removedAt.includes("?") ? [now] : []),
               input.membershipId,
-              ...(activating ? [input.hostId, membership.user_id, input.hostId, limit] : []),
+              ...(activating ? memberSeat.binds : []),
             ),
           ...(closingInvites
             ? [
@@ -1327,7 +1345,10 @@ export class RemoteControlPlane {
       );
       yield* this.#flushAuthEvents();
       // A concurrent join, reactivation or revoke took the seat after the check above.
-      if (activating && (changed[0]?.meta.changes ?? 0) !== 1) return yield* memberLimitReached(limit);
+      if (activating && (changed[0]?.meta.changes ?? 0) !== 1) {
+        yield* this.#requireMemberSeat(memberSeat);
+        return yield* memberLimitReached(memberSeat.limit);
+      }
     },
     (operation) => operation.pipe(Effect.provide(this.#layer)),
   ).bind(this);
@@ -2631,20 +2652,54 @@ export class RemoteControlPlane {
     return code;
   });
 
-  readonly #requireMemberSeat = Effect.fn("RemoteControlPlane.requireMemberSeat")(function* (
+  /**
+   * The seat checks for a user who joins a host or comes back to it. The license check applies only
+   * while the owner has an open license. A lower limit removes no one: active members keep their seats.
+   */
+  readonly #memberSeat = Effect.fn("RemoteControlPlane.memberSeat")(function* (
     this: RemoteControlPlane,
     hostId: string,
     userId: string,
-    limit: number,
+  ): Effect.fn.Return<MemberSeat, RemoteFailure, RemoteDependencies> {
+    const dependencies = yield* RemoteDependencies;
+    const limit = yield* this.#memberLimit(hostId);
+    const license = yield* remoteCall(() =>
+      dependencies.database
+        .prepare(
+          `SELECT l.user_id AS owner_id, l.users FROM remote_hosts h
+             JOIN licenses l ON l.user_id = h.owner_user_id AND l.status IN ${OPEN_STATUSES_SQL}
+            WHERE h.host_id = ? ORDER BY l.updated_at DESC LIMIT 1`,
+        )
+        .bind(hostId)
+        .first<{ owner_id: string; users: number }>(),
+    );
+    const memberBinds = [hostId, userId, hostId, limit];
+    if (!license) return { sql: MEMBER_SEAT_AVAILABLE_SQL, binds: memberBinds, limit, memberBinds, licenseBinds: null };
+    const licenseBinds = [license.owner_id, userId, license.owner_id, license.owner_id, license.users];
+    return {
+      sql: `(${MEMBER_SEAT_AVAILABLE_SQL} AND ${LICENSE_SEAT_AVAILABLE_SQL})`,
+      binds: [...memberBinds, ...licenseBinds],
+      limit,
+      memberBinds,
+      licenseBinds,
+    };
+  });
+
+  readonly #requireMemberSeat = Effect.fn("RemoteControlPlane.requireMemberSeat")(function* (
+    this: RemoteControlPlane,
+    seat: MemberSeat,
   ): Effect.fn.Return<void, RemoteFailure, RemoteDependencies> {
     const dependencies = yield* RemoteDependencies;
-    const seat = yield* remoteCall(() =>
+    const available = yield* remoteCall(() =>
       dependencies.database
-        .prepare(`SELECT ${MEMBER_SEAT_AVAILABLE_SQL} AS available`)
-        .bind(hostId, userId, hostId, limit)
-        .first<{ available: number }>(),
+        .prepare(
+          `SELECT ${MEMBER_SEAT_AVAILABLE_SQL} AS member, ${seat.licenseBinds ? LICENSE_SEAT_AVAILABLE_SQL : "1"} AS license`,
+        )
+        .bind(...seat.memberBinds, ...(seat.licenseBinds ?? []))
+        .first<{ member: number; license: number }>(),
     );
-    if (!seat?.available) return yield* memberLimitReached(limit);
+    if (!available?.member) return yield* memberLimitReached(seat.limit);
+    if (!available.license) return yield* licenseUsersFull();
   });
 
   /**
@@ -2765,6 +2820,14 @@ function telegramLinkInvalid(): RemoteControlPlaneError {
 
 function memberLimitReached(limit: number): RemoteControlPlaneError {
   return new RemoteControlPlaneError(409, "member_limit_reached", `A host can have up to ${limit} members.`);
+}
+
+function licenseUsersFull(): RemoteControlPlaneError {
+  return new RemoteControlPlaneError(
+    409,
+    "license_users_full",
+    "The owner's license has no free user. The owner can add users to the license.",
+  );
 }
 
 export function deliverPendingRemoteAuthEvents(

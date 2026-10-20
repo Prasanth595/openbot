@@ -19,6 +19,7 @@ import { dayMarkerLabel } from "@openbot/ui/features/conversation/chat-day-marke
 import { ReplyReturnButton, ScrollToLatestButton } from "@openbot/ui/features/conversation/MessageNavigation";
 import { MessageActions } from "@openbot/ui/features/conversation/MessageRendering";
 import { PendingSendStatus } from "@openbot/ui/features/conversation/PendingSendStatus";
+import { SubagentGroup } from "@openbot/ui/features/conversation/Subagents";
 import { TaskList } from "@openbot/ui/features/conversation/TaskList";
 import { UnreadMessagesBanner, UnreadMessagesDivider } from "@openbot/ui/features/conversation/UnreadMessages";
 import { VoicePlayer } from "@openbot/ui/features/conversation/VoicePlayer";
@@ -64,7 +65,7 @@ function frozenUiBlock(message: AgentMessage | undefined): ConversationUiBlock |
 /**
  * Does this row draw a time of its own?
  *
- * A marker-only row carries the marker's own time, and a question prompt, a plan and a visual reply
+ * A marker-only row carries the marker's own time, and a question prompt, a plan, the subagents and a visual reply
  * draw a card instead of a message row. None shows the header a run continues under, so none can
  * hold a run open.
  */
@@ -73,6 +74,7 @@ function rowDrawsTime(message: AgentMessage): boolean {
     !markerOnlyMessage(message) &&
     !message.questionPrompt &&
     message.kind !== "plan" &&
+    message.kind !== "subagents" &&
     chatVisualReply(message) === null
   );
 }
@@ -163,6 +165,8 @@ export function ConversationTimeline() {
     setUnreadMessagesDividerElement,
     setVirtualRootElement,
     openTaskPanel,
+    shownSubagentId,
+    toggleSubagentPanel,
   } = useConversationViewScope();
   const { t, format } = useText();
   /** An agent reply can be read aloud by this computer's speech model, in this chat's voice. */
@@ -663,6 +667,57 @@ export function ConversationTimeline() {
                                 items={planItems(current(), message()?.streaming === true)}
                                 title={planTitle(current())}
                                 defaultOpen={untrack(() => initialMessage.streaming === true)}
+                              />
+                            )}
+                          </Show>
+                        </article>
+                      </ChatRowBoundary>
+                    </div>
+                  );
+                }
+                if (untrack(() => initialMessage.kind === "subagents")) {
+                  // The subagents have no bubble, reactions or time: they are the live work of the turn.
+                  const subagents = () => message()?.subagents ?? initialMessage.subagents;
+                  return (
+                    <div
+                      data-index={virtualRow.index}
+                      ref={messageVirtualizer.measureElement}
+                      class="virtual-chat-row"
+                      style={{
+                        transform: messageVirtualizer.isVirtualized()
+                          ? `translateY(${virtualRow.start - messageVirtualizer.scrollMargin()}px)`
+                          : "none",
+                      }}
+                    >
+                      <Show when={message()?.id === compactionBefore()}>
+                        <CompactionMarker />
+                      </Show>
+                      <Show when={dayMarker()}>
+                        {(label) => (
+                          <div class="time-marker">
+                            <span>{label()}</span>
+                          </div>
+                        )}
+                      </Show>
+                      <Show when={message()?.id === unreadBoundaryMessageId()}>
+                        <UnreadMessagesDivider
+                          elementRef={(element) => {
+                            setUnreadMessagesDividerElement(element);
+                            scheduleUnreadDividerVisibilityUpdate();
+                          }}
+                        />
+                      </Show>
+                      <ChatRowBoundary>
+                        <article
+                          data-chat-search-message={message()?.id}
+                          class={{ "message-entry-animated": animateEntrance }}
+                        >
+                          <Show when={subagents()}>
+                            {(current) => (
+                              <SubagentGroup
+                                subagents={current()}
+                                selectedId={shownSubagentId()}
+                                onOpen={toggleSubagentPanel}
                               />
                             )}
                           </Show>

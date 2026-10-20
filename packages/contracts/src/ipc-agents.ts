@@ -47,6 +47,14 @@ export function agentAutomationAllowed(agent: { allowAutomation?: boolean | unde
   return agent.allowAutomation === true;
 }
 
+export function agentNewChatAllowed(agent: { allowNewChat?: boolean | undefined }): boolean {
+  return agent.allowNewChat === true;
+}
+
+export function agentQuickAcknowledgementEnabled(agent: { quickAcknowledgement?: boolean | undefined }): boolean {
+  return agent.quickAcknowledgement === true;
+}
+
 /**
  * Whether this agent runs inside the workspace sandbox now. Every provider enforces it. Codex runs the
  * agent in its `workspace-write` sandbox. Claude runs Bash in its sandbox and asks before a file edit
@@ -161,6 +169,16 @@ export interface AgentSummary {
    */
   allowAutomation?: boolean;
   /**
+   * Whether the agent can start a new chat with its `start_new_chat` tool. Local-only, like `access`.
+   * Absent means off; see `agentNewChatAllowed`.
+   */
+  allowNewChat?: boolean;
+  /**
+   * Whether the agent shows its plan with the `acknowledge_request` tool before a long task.
+   * Local-only, like `access`. Absent means off; see `agentQuickAcknowledgementEnabled`.
+   */
+  quickAcknowledgement?: boolean;
+  /**
    * What a message sent while the agent is busy does. Local-only, like `access`. Absent means the
    * app default.
    */
@@ -219,6 +237,8 @@ export function isAgentSummary(value: unknown): value is AgentSummary {
     (value.access === undefined || isAgentAccess(value.access)) &&
     (value.computerUse === undefined || isBoolean(value.computerUse)) &&
     (value.allowAutomation === undefined || isBoolean(value.allowAutomation)) &&
+    (value.allowNewChat === undefined || isBoolean(value.allowNewChat)) &&
+    (value.quickAcknowledgement === undefined || isBoolean(value.quickAcknowledgement)) &&
     (value.busyMessageMode === undefined || isBusyMessageMode(value.busyMessageMode)) &&
     (value.taskLimit === undefined || isAgentTaskLimit(value.taskLimit)) &&
     (value.providerAccountId === undefined || isProviderAccountId(value.providerAccountId)) &&
@@ -265,6 +285,8 @@ export interface UpdateAgentInput {
   access?: AgentAccess;
   computerUse?: boolean;
   allowAutomation?: boolean;
+  allowNewChat?: boolean;
+  quickAcknowledgement?: boolean;
   /** `null` returns the agent to the app default. */
   busyMessageMode?: BusyMessageMode | null;
   /** `null` returns the agent to the default task limit. */

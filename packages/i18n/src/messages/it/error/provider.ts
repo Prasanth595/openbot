@@ -177,6 +177,8 @@ export const messages = {
     "La CLI di {provider} sta lavorando a un turno. Attendi che finisca, poi riconnetti.",
   "error.provider.opencodeCredentialsRejected":
     "Il provider del modello ha rifiutato la chiave API. Correggi la chiave di OpenCode in Impostazioni, oppure la chiave del provider con `opencode auth login`. Poi riprova o scegli un altro modello.\n{detail}",
+  "error.provider.opencodeKeyExpired":
+    "La tua chiave API di OpenCode è scaduta. Crea una nuova chiave in OpenCode Console, incollala nelle impostazioni di OpenCode, poi riprova.",
   "error.provider.opencodeServiceFailure":
     "OpenCode non ha potuto completare questo turno perché il suo servizio locale è andato in errore. Riprova. Se l'errore continua, riconnetti OpenCode in Impostazioni.",
   "error.provider.opencodeRateLimited":

@@ -97,6 +97,15 @@ export function reduceAgentActivity(
     }
     return sameActivities(current, next) ? current : next;
   }
+  if (event.type === "agent-tasks-changed") {
+    // A turn that started before the phone knew its task belongs to the task, not to the chat.
+    const { agentId, tasks } = event.snapshot;
+    const activity = current[agentId];
+    if (!activity?.turnId || !tasks.some((task) => task.activeTurnId === activity.turnId)) return current;
+    const next = { ...current };
+    delete next[agentId];
+    return next;
+  }
   if (event.type === "agents-changed") {
     const ids = new Set(event.agents.map((agent) => agent.id));
     if (Object.keys(current).every((id) => ids.has(id))) return current;
@@ -128,6 +137,7 @@ export function reduceAgentActivity(
         message.author === "assistant" &&
         message.itemType !== "commentary" &&
         message.itemType !== "plan" &&
+        message.itemType !== "subagents" &&
         message.status === "streaming" &&
         message.text.trim().length > 0,
     );

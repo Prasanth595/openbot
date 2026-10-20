@@ -36,6 +36,7 @@ import type { MobileAgent } from "@/features/workspace/context/mobile-workspace-
 import { formatUpdatedAt } from "@/shared/lib/format-updated-at";
 import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
+import { typeScale } from "@/shared/lib/type-scale";
 
 const AVATAR_SIZE = 44;
 
@@ -47,7 +48,7 @@ function Highlighted({ text, query }: { text: string; query: string }) {
     const key = start;
     start += part.text.length;
     return part.match ? (
-      <Typography.Paragraph key={key} type="body-xs" weight="medium" className="text-foreground">
+      <Typography.Paragraph key={key} className="font-medium text-foreground" style={typeScale.preview}>
         {part.text}
       </Typography.Paragraph>
     ) : (
@@ -86,17 +87,17 @@ function SearchRow({
       {leading}
       <View className="min-w-0 flex-1 gap-0.5">
         <View className="flex-row items-center gap-2">
-          <Typography.Paragraph className="min-w-0 flex-1" weight="semibold" numberOfLines={1}>
+          <Typography.Paragraph className="font-semibold min-w-0 flex-1" numberOfLines={1} style={typeScale.rowTitle}>
             {title}
           </Typography.Paragraph>
           {trailing ? (
-            <Typography.Paragraph type="body-xs" className="text-muted">
+            <Typography.Paragraph className="text-muted" style={typeScale.caption}>
               {trailing}
             </Typography.Paragraph>
           ) : null}
         </View>
         {detail ? (
-          <Typography.Paragraph type="body-xs" className="text-text-secondary" numberOfLines={detailLines}>
+          <Typography.Paragraph className="text-text-secondary" numberOfLines={detailLines} style={typeScale.preview}>
             <Highlighted text={detail} query={query} />
           </Typography.Paragraph>
         ) : null}
@@ -203,16 +204,15 @@ export function MobileSearchResultRow({
   result: MobileSearchResult;
   query: string;
   serverId: string;
-  /** Runs before a result closes the search to open what it names. */
+  /** Runs before a result opens what it names, and closes the search. */
   onLeave: () => void;
 }) {
   const { t, format } = useText();
   const gate = useContext(ChatNavigationGateContext);
-  // Close the sheet and open the chat in one routing queue run. A chat opened through its home row
-  // zooms back into the row when it closes. A chat opened at a message slides in.
+  // A chat opened through its home row zooms back into the row when it closes. A chat opened at a
+  // message slides in.
   const openChat = (agentId: string, messageId?: string) => {
     onLeave();
-    router.back();
     if (messageId) router.push({ pathname: "/chat/[agentId]", params: { agentId, messageId } });
     else if (!gate?.openFromHome(agentId)) router.push({ pathname: "/chat/[agentId]", params: { agentId } });
   };
@@ -279,7 +279,6 @@ export function MobileSearchResultRow({
           query={query}
           onPress={() => {
             onLeave();
-            router.back();
             openSetting(setting.id, serverId);
           }}
         />
@@ -296,7 +295,6 @@ export function MobileSearchResultRow({
           query={query}
           onPress={() => {
             onLeave();
-            router.back();
             router.push({
               pathname: "/agent-info/[agentId]/routine",
               params: { agentId: owner.agent.id, serverId: owner.agent.serverId, recordId: routine.id },

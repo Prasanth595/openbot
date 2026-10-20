@@ -175,6 +175,8 @@ export const messages = {
   "error.provider.cliBusyReconnect": "{provider} CLI pracuje nad turą. Zaczekaj, aż skończy, a potem połącz ponownie.",
   "error.provider.opencodeCredentialsRejected":
     "Dostawca modelu odrzucił klucz API. Popraw klucz OpenCode w Ustawieniach albo klucz dostawcy poleceniem `opencode auth login`. Potem spróbuj ponownie lub wybierz inny model.\n{detail}",
+  "error.provider.opencodeKeyExpired":
+    "Twój klucz API OpenCode wygasł. Utwórz nowy klucz w OpenCode Console, wklej go w ustawieniach OpenCode, potem spróbuj ponownie.",
   "error.provider.opencodeServiceFailure":
     "OpenCode nie ukończył tej tury, ponieważ jego lokalna usługa uległa awarii. Spróbuj ponownie. Jeśli błąd się powtarza, połącz ponownie OpenCode w Ustawieniach.",
   "error.provider.opencodeRateLimited":

@@ -1,5 +1,34 @@
 [
   {
+    "version": "0.45.0",
+    "date": "2026-10-20",
+    "notices": [],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "Settings → Billing has a License for work at a company: 5 to 25 users, in EUR, USD or PLN. See who uses it and change the number of users.",
+          "The chat shows the subagents that a Claude or Codex agent starts. Click a subagent to see its task and its steps.",
+          "An agent can show its plan before a long task. Turn on \"Show the plan before long tasks\" in the agent's settings.",
+          "The context meter in the composer has a New chat button.",
+          "Ask side questions in the web client and on joined servers.",
+          "One OpenBot server can connect more than one Slack workspace or Discord server, and you can choose which Discord roles can use OpenBot."
+        ]
+      },
+      {
+        "type": "fixed",
+        "items": [
+          "A chat with unread messages opens at the \"NEW\" divider.",
+          "A Claude agent makes a routine in OpenBot when you ask for one, not a claude.ai cloud routine.",
+          "The Cline model picker shows Cline's free models, and a Cline agent runs on the model that you select.",
+          "An OpenCode agent uses the key that you paste into OpenBot, and an expired key shows an Update key button.",
+          "On Windows, OpenBot finds an OpenCode that you installed yourself, and a failed provider download shows why.",
+          "Renew in Settings → Billing works again for a cancelled server plan."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.44.3",
     "date": "2026-10-19",
     "notices": [],

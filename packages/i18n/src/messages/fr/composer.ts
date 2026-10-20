@@ -11,6 +11,7 @@ export const messages = {
   "composer.signIn.pending": "Connexion…",
   "composer.signIn.label": "Se connecter à {provider}",
   "composer.signIn.action": "Se connecter",
+  "composer.updateKey.action": "Changer la clé",
   "composer.update.body": "Mettez à jour {provider} pour continuer.",
   "composer.update.manual": "Mettez à jour {provider} sur l’ordinateur qui l’exécute pour continuer.",
   "composer.update.pending": "Mise à jour…",
@@ -123,4 +124,5 @@ export const messages = {
   "composer.context.noAuto": "Cet agent ne compacte pas son contexte.",
   "composer.context.lastCompaction": "Dernier compactage : {before} → {after} jetons",
   "composer.compaction.elapsed": "{minutes}:{seconds}",
+  "composer.newChat.action": "Nouvelle discussion",
 } as const satisfies PartialTranslation<typeof source>;

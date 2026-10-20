@@ -22,6 +22,11 @@
   --openbot-text-grouped-secondary: #96969b;
   --openbot-border-grouped: #333335;
   --openbot-radius-grouped: 16px;
+  /* The milky chrome of the native app where it has no Liquid Glass: the search field and bar buttons. */
+  --openbot-bg-chrome-glass: rgba(38, 38, 40, 0.96);
+  --openbot-border-chrome-glass: rgba(255, 255, 255, 0.08);
+  /* The fill of that chrome over a real blur, lighter than the solid glass. */
+  --openbot-bg-chrome-blur: rgba(26, 26, 28, 0.62);
 
   /* Neutral color system. Keep UI colors here, not in components. */
   --openbot-bg-canvas: #1a1a1a;
@@ -197,6 +202,10 @@
      announcement is not an action. */
   --openbot-badge-new: #ff1e5e;
   --openbot-badge-new-soft: rgba(255, 30, 94, 0.16);
+  /* The moving border of an offer, such as the hosted server offer: teal, blue, then pink. */
+  --openbot-beam-teal: var(--openbot-file-teal);
+  --openbot-beam-blue: var(--openbot-accent-text);
+  --openbot-beam-pink: var(--openbot-file-pink);
   --openbot-approval-badge-soft: rgba(255, 148, 18, 0.18);
   /* One red. The palette carried four families - danger (#e47d75), danger-strong
      (#ff4058), settings-danger (#eb4145) and button-destructive (oklch, #ff6467) -

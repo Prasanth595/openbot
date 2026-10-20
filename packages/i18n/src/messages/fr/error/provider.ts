@@ -190,6 +190,8 @@ export const messages = {
   "error.provider.cliBusyReconnect": "La CLI {provider} traite un tour. Attendez la fin, puis reconnectez-vous.",
   "error.provider.opencodeCredentialsRejected":
     "Le fournisseur du modèle a refusé la clé d’API. Corrigez la clé OpenCode dans les réglages, ou la clé du fournisseur avec `opencode auth login`. Réessayez ensuite ou choisissez un autre modèle.\n{detail}",
+  "error.provider.opencodeKeyExpired":
+    "Votre clé d’API OpenCode a expiré. Créez une nouvelle clé dans OpenCode Console, collez-la dans les réglages d’OpenCode, puis réessayez.",
   "error.provider.opencodeServiceFailure":
     "OpenCode n’a pas pu terminer ce tour, car son service local a échoué. Réessayez. Si l’erreur continue, reconnectez OpenCode dans les réglages.",
   "error.provider.opencodeRateLimited":

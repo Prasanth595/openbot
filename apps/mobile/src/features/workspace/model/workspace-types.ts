@@ -12,6 +12,9 @@ import type {
   AgentProviderId,
   AgentReasoningEffort,
   AgentSessionSettings,
+  AgentTask,
+  AgentTaskInput,
+  AgentTasksSnapshot,
   AgentTemplatePreview,
   AgentTemplatePublication,
   AvatarHue,
@@ -27,6 +30,7 @@ import type {
   HostProviderAccounts,
   InstallAgentTemplateInput,
   InstalledSkill,
+  QueuedMessageReceipt,
   QueueSnapshot,
   ResetAgentSessionSettingInput,
   RespondToApprovalInput,
@@ -183,14 +187,15 @@ export interface MobileWorkspaceContextValue {
   /** Sets the reader's reaction on a message of an agent chat. `null` removes it. */
   setMessageReaction: (agentId: string, serverId: string, messageId: string, emoji: string | null) => Promise<void>;
   interruptTurn: (agentId: string, turnId: string, serverId?: string) => Promise<void>;
-  /** The default server first, then the other servers in the order saved on this device. */
+  /** The servers in the order saved on this device. The app opens on the first one. */
   servers: MobileServer[];
-  /** Saves the order of the other servers on this device. Returns false and keeps the old order on failure. */
+  /** Saves the order of all servers on this device. Returns false and keeps the old order on failure. */
   reorderServers: (serverIds: string[]) => boolean;
-  /** The one server above the divider. With no saved choice, the paired host. */
-  defaultServerId: string | null;
-  /** Makes a server the default in place of the current one, or removes it with `null`. Returns false on failure. */
-  setDefaultServer: (serverId: string | null) => boolean;
+  /**
+   * The members of each server that are not disabled, from the host's presence event. A server that
+   * has sent no presence yet has no entry. The account service member list is not read for it.
+   */
+  memberCountByServer: Readonly<Record<string, number>>;
   teamDirectory: RemoteTeamDirectoryClient;
   serverDirectoryState: MobileServerDirectoryState;
   serverDirectoryError: string | null;
@@ -341,6 +346,25 @@ export interface MobileWorkspaceContextValue {
   canSearchFiles: (serverId: string) => boolean;
   /** Searches file names in the server's agent chats. An empty query lists the newest files. */
   searchFiles: (query: string, serverId: string, cursor?: string) => Promise<ConversationFileSearchPage>;
+  /** True when the host advertises `agent-tasks-v1`. A member who can message an agent can use its tasks. */
+  canUseTasks: (serverId: string) => boolean;
+  /** The tasks of one agent. The host answers 404 for an agent that this member cannot see. */
+  loadAgentTasks: (agentId: string, serverId: string) => Promise<AgentTasksSnapshot>;
+  loadAgentTaskConversation: (input: AgentTaskInput, serverId: string) => Promise<ConversationSnapshot>;
+  /** `agent-tasks-v1` carries text only. */
+  startAgentTask: (
+    input: { agentId: string; text: string; clientMessageId: string },
+    serverId: string,
+  ) => Promise<AgentTask>;
+  /** Steers the running turn of the task, or queues the message in the task. */
+  sendAgentTaskMessage: (
+    input: AgentTaskInput & { text: string; clientMessageId: string },
+    serverId: string,
+  ) => Promise<QueuedMessageReceipt>;
+  /** Stops the running turn of a task, closes the task, or reopens it. */
+  controlAgentTask: (action: "stop" | "close" | "reopen", input: AgentTaskInput, serverId: string) => Promise<void>;
+  /** Answers a question of a task turn. The host finds the question by its request, on any thread. */
+  respondToTaskPrompt: (input: RespondToPromptInput, serverId: string) => Promise<void>;
   loadConversation: (agentId: string, serverId?: string) => Promise<ConversationSnapshot>;
   /**
    * Loads the page around a message, for a chat that opens at a search result. False when the host
@@ -399,13 +423,14 @@ export type MobileWorkspaceCapabilityCheck =
   | "canStartNewChat"
   | "canChooseNewAgentModel"
   | "canInstallAgentTemplate"
-  | "canSearchFiles";
+  | "canSearchFiles"
+  | "canUseTasks";
 
 type MobileWorkspaceStateKey =
   | MobileWorkspaceCapabilityCheck
   | "sidebarByServer"
   | "servers"
-  | "defaultServerId"
+  | "memberCountByServer"
   | "serverDirectoryState"
   | "serverDirectoryError"
   | "agents"

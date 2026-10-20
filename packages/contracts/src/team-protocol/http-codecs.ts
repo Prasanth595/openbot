@@ -54,6 +54,8 @@ export interface TeamHttpCodecOptions {
   historyExtent?: boolean;
   /** Read only by V7 responses: the negotiated ui-blocks-v1 capability. */
   uiBlocks?: boolean;
+  /** Read only by V7 responses: the negotiated subagents-v1 capability. */
+  subagents?: boolean;
 }
 
 type DecodedRequest =

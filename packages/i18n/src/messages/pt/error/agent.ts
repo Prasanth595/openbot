@@ -88,7 +88,8 @@ export const messages = {
   "error.agent.queueEditRejected": "Edição da fila rejeitada: {reason}",
   "error.agent.computerUseLocalOnly": "Uso do computador só pode ser alterado no computador que executa o agente.",
   "error.agent.automationLocalOnly": "Scripts locais só podem ser permitidos no computador que executa o agente.",
-  "error.agent.sideQuestionLocalOnly": "Perguntas à parte só funcionam no computador que executa o agente.",
+  "error.agent.newChatLocalOnly": "Só o computador que executa o agente pode permitir que ele inicie novos chats.",
+  "error.agent.quickAcknowledgementLocalOnly": "Só o computador que executa o agente pode alterar esta configuração.",
   "error.agent.sideQuestionBusy": "Há perguntas à parte demais em andamento. Tente novamente em instantes.",
   "error.agent.sideQuestionFailed": "O agente não conseguiu responder à pergunta à parte. Tente novamente.",
   "error.agent.busyMessageModeLocalOnly":

@@ -41,8 +41,6 @@ export const messages = {
   "settings.busyMessage.title": "Orientar a los agentes mientras trabajan",
   "settings.busyMessage.description":
     "Los mensajes nuevos se incorporan al trabajo actual del agente, no a la cola. Funciona con ChatGPT y Claude.",
-  "settings.agentMemoryLimit.title": "Recuerdos por agente",
-  "settings.agentMemoryLimit.description": "Cuántos recuerdos puede guardar cada agente en este equipo.",
   "settings.keepRemoteSessions.title": "Conexión rápida a servidores",
   "settings.keepRemoteSessions.description":
     "Mantener la conexión con los servidores entre inicios. OpenBot se abre aproximadamente un segundo más rápido. Al cerrar OpenBot, el servicio de OpenBot no cierra la conexión.",
@@ -122,7 +120,7 @@ export const messages = {
   "settings.tab.updates.title": "Actualizaciones",
   "settings.tab.updates.description": "Mantén OpenBot actualizado en este equipo.",
   "settings.tab.billing.title": "Facturación",
-  "settings.tab.billing.description": "Planes de servidor, método de pago y facturas.",
+  "settings.tab.billing.description": "Licencia, planes de servidor, método de pago y facturas.",
   "settings.tab.hostedServers.title": "Servidores alojados",
   "settings.tab.hostedServers.description": "Crea servidores de OpenBot que funcionen con este equipo apagado.",
   "settings.sections.label": "Secciones de ajustes",

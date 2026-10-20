@@ -20,6 +20,7 @@ import { WorkspaceDirectConversation } from "./features/conversation/WorkspaceDi
 import { WorkspaceServerOnboarding } from "./features/onboarding/WorkspaceServerOnboarding";
 import { useRemoteDesktop } from "./features/remote-desktop/remote-desktop-context";
 import { WorkspaceRoutineFlows } from "./features/routine-flows/WorkspaceRoutineFlows";
+import { createHostedUpsellOffline } from "./features/servers/hosted-server-upsell-controller";
 import { createServerConnectionToast } from "./features/servers/server-connection-toast";
 import { useServerScope } from "./features/servers/server-scope";
 import { followsServerUpdate, ServerUpdateDialogHost } from "./features/servers/server-update-flow";
@@ -101,6 +102,10 @@ export function WorkspaceShell(props: { account: () => CentralAuthUser }) {
   );
 
   const remote = () => activeServer()?.kind === "remote";
+  // Only Signal knows that the computer is off. A remote server is also "offline" before its first connection.
+  const offlineUpsell = createHostedUpsellOffline(
+    () => remote() && activeServer()?.issue?.reference === "signal/host_unavailable",
+  );
   // The transport failure comes first: a workspace load fails when the transport fails. Signal and
   // the host send English source text, so show the issue in the reader's language. The scope failure
   // is already translated.
@@ -194,6 +199,7 @@ export function WorkspaceShell(props: { account: () => CentralAuthUser }) {
                   }
                   onRetry={retry}
                   onManage={() => settings.openAppSettings(null, "hosted-servers")}
+                  upsell={offlineUpsell()}
                 />
               </Show>
               <Show when={scope.loaded() && agentChatOpen() && !serverOnboardingOpen()}>

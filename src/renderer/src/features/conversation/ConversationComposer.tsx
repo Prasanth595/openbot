@@ -9,6 +9,7 @@ import {
   TEAM_EML_ATTACHMENTS_CAPABILITY,
   TEAM_MEDIA_ATTACHMENTS_CAPABILITY,
 } from "@openbot/contracts/team-protocol/current";
+import { sourceText } from "@openbot/i18n/source";
 import {
   ArrowUp,
   AudioLines,
@@ -113,7 +114,7 @@ export function ConversationComposer() {
     openSidePanelPane,
     activeRightPanel,
   } = useConversationViewScope();
-  const { t, format } = useText();
+  const { t, format, sourceText: localizeSourceText } = useText();
   const messageLabel = () =>
     props.agent?.name
       ? t("composer.placeholder.message", { name: props.agent.name })
@@ -168,6 +169,16 @@ export function ConversationComposer() {
     const status = props.agentStatus.providers?.find((item) => item.id === provider);
     return status?.state === "sign-in-required" ? status : null;
   });
+  /**
+   * An expired OpenCode key is replaced in this server's Providers settings, so its banner opens
+   * them (#2544). The banner holds the error in the reader's language, and that text has no
+   * placeholder, so it is compared whole.
+   */
+  const updateOpenCodeKey = () => {
+    if (props.agent?.provider !== "opencode") return undefined;
+    const expired = localizeSourceText(sourceText("error.provider.opencodeKeyExpired"));
+    return currentChatError() === expired ? props.onManageProviders : undefined;
+  };
   /**
    * A window that ended gives the quota back, and the reading that named it stays as it was until
    * something asks the provider again. So the clock is part of the state, not only the percentage.
@@ -496,6 +507,18 @@ export function ConversationComposer() {
               dismissCurrentChatErrors();
               setComposerFocusRequest((current) => current + 1);
             }}
+            action={
+              updateOpenCodeKey() ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  type="button"
+                  onClick={(event) => updateOpenCodeKey()?.(event.currentTarget)}
+                >
+                  {t("composer.updateKey.action")}
+                </Button>
+              ) : undefined
+            }
           />
         )}
       </Show>
@@ -706,6 +729,11 @@ export function ConversationComposer() {
             <Show when={context()?.usage}>
               {(usage) => (
                 <ContextUsageMeter
+                  newChat={
+                    props.agent && props.onClearAgentContext
+                      ? { agent: props.agent, start: props.onClearAgentContext }
+                      : undefined
+                  }
                   usage={{
                     ...usage(),
                     compacting: context()?.compaction?.status === "running",

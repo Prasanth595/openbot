@@ -6,6 +6,7 @@ import {
   agentAutomationAllowed,
   agentComputerUseEnabled,
   agentProviderDescriptor,
+  agentQuickAcknowledgementEnabled,
   COMPUTER_USE_MCP_SERVER_ID,
   type McpServerConfig,
   workspaceAccessEnforced,
@@ -695,14 +696,16 @@ export class ThreadLifecycle {
           ]),
           [toolRuntimes.binDirectories, toolRuntimes.commandAliases],
           CODEX_MCP_ADAPTER_VERSION,
-          // Only a sandboxed agent, or one that allows local scripts, adds a value: Codex keeps the
-          // developer instructions of a loaded session, and other sessions keep the fingerprint they had.
+          // Only a sandboxed agent, one that allows local scripts, or one that shows its plan adds a
+          // value: Codex keeps the developer instructions of a loaded session, and other sessions keep
+          // the fingerprint they had.
           [
             agent.name,
             agent.title,
             agent.description,
             ...(workspaceAccessEnforced(agent) ? ["workspace"] : []),
             ...(agentAutomationAllowed(agent) ? ["automation"] : []),
+            ...(agentQuickAcknowledgementEnabled(agent) ? ["quick-acknowledgement"] : []),
           ],
           ...(Object.keys(environment).length > 0 ? [Object.entries(environment).sort()] : []),
           ...(section ? [section.members.map((member) => member.id).sort()] : []),

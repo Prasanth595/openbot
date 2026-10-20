@@ -121,6 +121,7 @@ import {
   decodeHostedServerList,
   decodeHostedSite,
   decodeHostedSiteList,
+  decodeLicenseState,
   decodeMobileConnectedDevices,
   decodeMobileConnectLink,
   decodeMobileConnectTicket,
@@ -541,7 +542,6 @@ const openbotApi: OpenBotDesktopApi = {
     getBusyMessageModePreference: decodeBusyMessageModePreference,
     setBusyMessageModePreference: decodeBusyMessageModePreference,
     getAgentMemoryLimitPreference: decodeAgentMemoryLimitPreference,
-    setAgentMemoryLimitPreference: decodeAgentMemoryLimitPreference,
     agentMemoryLimitPreference: decodeAgentMemoryLimitPreference,
     getRemoteSessionReusePreference: decodeRemoteSessionReusePreference,
     setRemoteSessionReusePreference: decodeRemoteSessionReusePreference,
@@ -740,6 +740,12 @@ const openbotApi: OpenBotDesktopApi = {
   billing: bridgeGroup(IPC_ENDPOINTS.billing, {
     getState: decodeBillingState,
     openPortal: decodeVoid,
+  }),
+  license: bridgeGroup(IPC_ENDPOINTS.license, {
+    getState: decodeLicenseState,
+    openCheckout: decodeVoid,
+    setUsers: decodeLicenseState,
+    setRenewal: decodeLicenseState,
   }),
   hostedServers: bridgeGroup(IPC_ENDPOINTS.hostedServers, {
     lifecycle: decodeVoid,

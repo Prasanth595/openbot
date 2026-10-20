@@ -596,6 +596,25 @@ export class ConversationRuntime {
       messageCount: snapshot.messages.length,
     },
   ): void {
+    this.#emitConversation(snapshot, eventType, detail);
+  }
+
+  /**
+   * Publishes a change to one message that each later change replaces whole, such as a subagent
+   * step. The event log keeps only the last event of this type for the message, as it does for
+   * streamed text, so frequent updates do not each keep a full copy of the message. When other
+   * messages also changed, the normal write records all of them.
+   */
+  emitReplacedMessage(snapshot: ConversationSnapshot, messageId: string, eventType: string): void {
+    this.#emitConversation(snapshot, eventType, { messageId }, messageId);
+  }
+
+  #emitConversation(
+    snapshot: ConversationSnapshot,
+    eventType: string,
+    detail: unknown,
+    replacedMessageId?: string,
+  ): void {
     if (snapshot.threadId && this.#forgottenExecutionThreads.has(snapshot.threadId)) return;
     sortConversationMessages(snapshot.messages);
     const signature = conversationContentSignature(snapshot);
@@ -608,6 +627,21 @@ export class ConversationRuntime {
       const changedMessages = this.#changedMessages(snapshot);
       const removedMessageIds = this.#removedMessageIds(snapshot);
       if (
+        cached &&
+        replacedMessageId !== undefined &&
+        changedMessages.length === 1 &&
+        changedMessages[0]?.id === replacedMessageId &&
+        cached.messageSignatures.has(replacedMessageId) &&
+        removedMessageIds.length === 0 &&
+        cached.activeTurnId === snapshot.activeTurnId
+      ) {
+        snapshot.revision = this.#store.database.persistStreamingMessage({
+          snapshot,
+          messageId: replacedMessageId,
+          eventType,
+          detail,
+        });
+      } else if (
         !cached ||
         changedMessages.length > 0 ||
         removedMessageIds.length > 0 ||

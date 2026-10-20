@@ -4,7 +4,11 @@ import type {
   MessagingPlatform,
   RoutineResultConnectionOption,
 } from "@openbot/contracts/ipc";
-import { CONVERSATION_PLAN_ITEM_TYPE, MESSAGING_LIMITS } from "@openbot/contracts/ipc";
+import {
+  CONVERSATION_PLAN_ITEM_TYPE,
+  CONVERSATION_SUBAGENTS_ITEM_TYPE,
+  MESSAGING_LIMITS,
+} from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { Deferred, Effect, Result, Schema, type Scope } from "effect";
 import { type OpenBotToolResponse, openBotToolFailure, openBotToolResult } from "../agent/routine-tools";
@@ -691,6 +695,7 @@ function isAnswer(message: ConversationMessage): boolean {
     message.itemType !== "commentary" &&
     message.itemType !== "question_prompt" &&
     message.itemType !== CONVERSATION_PLAN_ITEM_TYPE &&
+    message.itemType !== CONVERSATION_SUBAGENTS_ITEM_TYPE &&
     Boolean(message.text.trim())
   );
 }

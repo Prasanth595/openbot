@@ -8,6 +8,14 @@ export const messages = {
   "error.billing.restartBusy": "Le serveur ne peut pas redémarrer maintenant. Réessayez dans une minute.",
   "error.billing.planRequired": "L’offre de ce serveur a pris fin. Renouvelez-la pour démarrer le serveur.",
   // Billing errors.
+  "error.billing.licenseExists": "Ce compte a déjà une licence. Modifiez plutôt son nombre d'utilisateurs.",
+  "error.billing.licenseCurrency": "La licence doit utiliser la devise de vos autres forfaits.",
+  "error.billing.licenseUsersInUse":
+    "La licence ne peut pas avoir moins d'utilisateurs que les personnes qui l'utilisent maintenant.",
+  "error.billing.licensePaymentFailed":
+    "Le paiement des utilisateurs ajoutés a échoué. Mettez à jour le moyen de paiement et réessayez.",
+  "error.billing.licenseUnavailable": "Les licences ne sont pas disponibles pour le moment.",
+  "error.billing.noLicense": "Ce compte n'a pas de licence.",
   "error.billing.invalidRequest": "La demande de facturation n’est pas valide.",
   "error.billing.invalidResponse": "La réponse de facturation n’est pas valide.",
   "error.billing.notStripePage": "La page de facturation n’est pas une page Stripe.",

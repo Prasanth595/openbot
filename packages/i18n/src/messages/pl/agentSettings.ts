@@ -168,6 +168,12 @@ export const messages = {
   "agentSettings.automation.title": "Lokalne skrypty",
   "agentSettings.automation.description":
     "Pozwól skryptom na hoście wysyłać wiadomości, uruchamiać rutyny, odpowiadać na pytania oraz akceptować lub odrzucać prośby o zatwierdzenie",
+  "agentSettings.agentNewChat.title": "Agent rozpoczyna nowe czaty",
+  "agentSettings.agentNewChat.description":
+    "Agent może rozpocząć nowy czat, gdy jego czat staje się długi. Najpierw zapisuje notatki.",
+  "agentSettings.quickAcknowledgement.title": "Pokaż plan przed długimi zadaniami",
+  "agentSettings.quickAcknowledgement.description":
+    "Przed długim zadaniem agent pokazuje swój plan. Zaczyna po 10 s lub po naciśnięciu Start.",
   "agentSettings.runtime.workspaceEnforcedProcess":
     "Cały proces {provider} działa w piaskownicy, więc zapis poza tymi folderami się nie powiedzie. Dostępne tylko w macOS.",
 } as const satisfies PartialTranslation<typeof source>;

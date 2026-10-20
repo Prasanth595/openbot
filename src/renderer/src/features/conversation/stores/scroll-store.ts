@@ -83,12 +83,22 @@ export function createScrollStore(deps: ScrollStoreDeps) {
     setOpenRoutineRuns((open) => new Map(open).set(key, marker.expanded !== true));
   }
   /*
+   * An open chat marks its messages read at once, so read state loses the first unread message.
+   * The visit keeps it until the reader opens another chat. A newer unread message replaces it.
+   */
+  const visitUnread = createMemo<{ identity: string; messageId: string | null }>((previous) => {
+    const identity = `${deps.props.server?.id ?? "local"}:${deps.props.agent?.id ?? ""}`;
+    const messageId = deps.props.firstUnreadMessageId;
+    if (previous?.identity === identity && !messageId) return previous;
+    return { identity, messageId };
+  });
+  /*
    * The unread divider sits on the first unread row the timeline draws. A silent answer has no row,
    * so the divider moves to the next row that has one; read state keeps the stored message. A
    * message that is not loaded keeps its id, so the jump can open its page.
    */
   const unreadBoundaryMessageId = createMemo(() => {
-    const firstUnreadMessageId = deps.props.firstUnreadMessageId;
+    const firstUnreadMessageId = visitUnread().messageId;
     const start = deps.props.messages.findIndex((message) => message.id === firstUnreadMessageId);
     if (start < 0) return firstUnreadMessageId;
     const drawn = new Set(drawnMessages().map((message) => message.id));

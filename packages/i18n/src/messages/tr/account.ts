@@ -37,7 +37,7 @@ export const messages = {
   "account.usage.window.hours": { one: "{count} saatlik", other: "{count} saatlik" },
   "account.usage.window.minutes": "{minutes} dk",
   "account.update.failedRetry": "Güncelleme başarısız oldu. Tekrar deneyin.",
-  "account.update.managedByHost": "Ana makine tarafından yönetiliyor",
+  "account.update.managedByHost": "Ana makine yönetiyor",
   "account.update.restart": "Yeniden başlat",
   "account.update.retrying": "Tekrar deneniyor",
   "account.update.restarting": "Yeniden başlatılıyor",

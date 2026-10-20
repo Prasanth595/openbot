@@ -1,19 +1,12 @@
 import type { MobileTextKey } from "@openbot/i18n/mobile";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { Button, Typography } from "heroui-native";
-import { useThemeColor } from "heroui-native/hooks";
-import ListFilter from "lucide-react-native/icons/list-filter";
-import Search from "lucide-react-native/icons/search";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, View, type ViewStyle } from "react-native";
-import { KeyboardController } from "react-native-keyboard-controller";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { View } from "react-native";
 import Animated, { LayoutAnimationConfig } from "react-native-reanimated";
 import { mobileAnalytics } from "@/features/analytics/mobile-analytics";
 import { useMobileSession, useQueryScope } from "@/features/auth/context/mobile-session-context";
 import { MobileSearchResultRow } from "@/features/search/components/search-result-row";
-import { MobileSearchTextInput } from "@/features/search/components/search-text-input";
-import type { MobileSearchTextInputHandle } from "@/features/search/components/search-text-input.types";
 import {
   MOBILE_SEARCH_FILTERS,
   type MobileSearchFilter,
@@ -25,12 +18,11 @@ import {
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 import { queryKeys } from "@/features/workspace/model/query-keys";
 import { BlurEnter, BlurSwap, swapItemMotion } from "@/shared/components/blur-swap";
-import { type MenuAction, MenuView } from "@/shared/components/menu-view";
-import { SheetScrollView } from "@/shared/components/sheet-scroll-view";
 import { haptics } from "@/shared/lib/haptics";
 import { useTransitionMode } from "@/shared/lib/motion";
-import { isAndroid, isIOS } from "@/shared/lib/platform";
+import { isIOS } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
+import { typeScale } from "@/shared/lib/type-scale";
 
 const FILTER_LABEL = {
   all: "mobile.search.filter.all",
@@ -41,19 +33,8 @@ const FILTER_LABEL = {
   settings: "mobile.search.filter.settings",
 } as const satisfies Record<MobileSearchFilter, MobileTextKey>;
 
-// iOS draws these in the filter menu. Android menus show no SF Symbols.
-const FILTER_SYMBOL = {
-  all: "square.grid.2x2",
-  agents: "person.2",
-  messages: "bubble.left.and.bubble.right",
-  files: "doc",
-  routines: "calendar",
-  settings: "gearshape",
-} as const;
-
 // "Searching…" waits this long, so an answer that comes sooner never shows it.
 const SEARCHING_DELAY = 200;
-const CONTROL_SIZE = 48;
 
 /**
  * Keeps the results of the previous host search while the next one loads, when the user is still
@@ -67,34 +48,12 @@ function continuesSearch(previous: readonly unknown[] | undefined, next: readonl
   return now.startsWith(before) || before.startsWith(now);
 }
 
-export function SearchAgentsScreen() {
+/** The pages of the Settings sheet and of the server sheets and screens. They are not the desktop settings. */
+function useSearchSettings(): MobileSearchSetting[] {
   const { t } = useText();
-  const { activeAgents, activeServer, searchMessages, canSearchFiles, searchFiles, loadRoutineCalendar } =
-    useMobileWorkspace();
-  const { session } = useMobileSession();
-  const queryScope = useQueryScope();
-  const serverId = activeServer.id;
-  const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<MobileSearchFilter>("all");
-  const [muted, fieldBackground] = useThemeColor(["muted", "default"]);
-  const liquidGlassAvailable = isLiquidGlassAvailable();
-  const motion = useTransitionMode("searchTransitions");
-  const input = useRef<MobileSearchTextInputHandle>(null);
-  // A result closes the search. On Android a closing sheet can give the focused field the keyboard
-  // again, so the field gives up its focus and stops taking focus first.
-  const [leaving, setLeaving] = useState(false);
-  const leave = useCallback(() => {
-    setLeaving(true);
-    input.current?.blur();
-    void KeyboardController.dismiss();
-  }, []);
-  const filesSupported = canSearchFiles(serverId);
-  // As on desktop, a server without file search shows no filter for it.
-  const filters = MOBILE_SEARCH_FILTERS.filter((candidate) => candidate !== "files" || filesSupported);
-  // The pages of the Settings sheet and of the server sheets. They are not the desktop settings.
-  const settings = useMemo(() => {
+  const serverName = useMobileWorkspace().activeServer.name;
+  return useMemo(() => {
     const app = t("mobile.app.route.settings");
-    const server = activeServer.name;
     const pages: MobileSearchSetting[] = [
       { id: "profile", title: t("mobile.app.route.profile"), detail: app },
       { id: "sessions", title: t("mobile.app.route.accountSessions"), detail: app },
@@ -113,13 +72,43 @@ export function SearchAgentsScreen() {
       { id: "hiddenChats", title: t("mobile.settings.conversations.hiddenChats"), detail: app },
       { id: "support", title: t("mobile.settings.home.support"), detail: app },
       { id: "about", title: t("mobile.settings.home.about"), detail: app },
-      { id: "serverOptions", title: t("mobile.app.route.serverOptions"), detail: server },
-      { id: "serverMembers", title: t("mobile.app.route.members"), detail: server },
-      { id: "serverRoutines", title: t("mobile.server.drawer.routines"), detail: server },
-      { id: "serverUsage", title: t("mobile.server.drawer.usage"), detail: server },
+      { id: "serverOptions", title: t("mobile.app.route.serverOptions"), detail: serverName },
+      { id: "serverMembers", title: t("mobile.app.route.members"), detail: serverName },
+      { id: "serverRoutines", title: t("mobile.server.drawer.routines"), detail: serverName },
+      { id: "serverUsage", title: t("mobile.server.drawer.usage"), detail: serverName },
     );
     return pages;
-  }, [t, activeServer.name]);
+  }, [t, serverName]);
+}
+
+/**
+ * The results of the home search for `query`: agents and settings on this phone, and the messages,
+ * files and routines that the host finds. With no query and no filter, `idle` shows instead.
+ * The host searches run only while `active`.
+ */
+export function MobileSearchResults({
+  query,
+  active,
+  idle,
+  onLeave,
+}: {
+  query: string;
+  active: boolean;
+  idle: ReactNode;
+  /** Runs before a result opens what it names. */
+  onLeave: () => void;
+}) {
+  const { t } = useText();
+  const { activeAgents, activeServer, searchMessages, canSearchFiles, searchFiles, loadRoutineCalendar } =
+    useMobileWorkspace();
+  const { session } = useMobileSession();
+  const queryScope = useQueryScope();
+  const serverId = activeServer.id;
+  const [filter, setFilter] = useState<MobileSearchFilter>("all");
+  const motion = useTransitionMode("searchTransitions");
+  const filesSupported = canSearchFiles(serverId);
+  const filters = MOBILE_SEARCH_FILTERS.filter((candidate) => candidate !== "files" || filesSupported);
+  const settings = useSearchSettings();
 
   // Search the host after typing stops, as the desktop search does, not on each character.
   const [hostQuery, setHostQuery] = useState("");
@@ -140,7 +129,7 @@ export function SearchAgentsScreen() {
     getNextPageParam: (page) => page.nextCursor ?? undefined,
     placeholderData: (previous, previousQuery) =>
       continuesSearch(previousQuery?.queryKey, messageKey) ? previous : undefined,
-    enabled: sources.messages,
+    enabled: active && sources.messages,
     retry: false,
   });
   const fileKey = queryKeys.fileSearch(queryScope, serverId, hostQuery);
@@ -151,7 +140,7 @@ export function SearchAgentsScreen() {
     getNextPageParam: (page) => page.nextCursor ?? undefined,
     placeholderData: (previous, previousQuery) =>
       continuesSearch(previousQuery?.queryKey, fileKey) ? previous : undefined,
-    enabled: filesSupported && sources.files,
+    enabled: active && filesSupported && sources.files,
     retry: false,
   });
   // The phone already has the agents it shows, so it asks the host only for their routines.
@@ -169,7 +158,7 @@ export function SearchAgentsScreen() {
       return (await loadRoutineCalendar({ from: at, to: at }, serverId, routineOwners)).routines;
     },
     // The list does not depend on the query, so it loads at once.
-    enabled: wanted.routines,
+    enabled: active && wanted.routines,
     retry: false,
     staleTime: 60_000,
   });
@@ -248,11 +237,11 @@ export function SearchAgentsScreen() {
   const { fetchNextPage: fetchMoreMessages, refetch: refetchMessages } = messages;
   const { fetchNextPage: fetchMoreFiles, refetch: refetchFiles } = files;
   useEffect(() => {
-    if (view.readOn.messages) void fetchMoreMessages();
-  }, [view.readOn.messages, fetchMoreMessages]);
+    if (active && view.readOn.messages) void fetchMoreMessages();
+  }, [active, view.readOn.messages, fetchMoreMessages]);
   useEffect(() => {
-    if (view.readOn.files) void fetchMoreFiles();
-  }, [view.readOn.files, fetchMoreFiles]);
+    if (active && view.readOn.files) void fetchMoreFiles();
+  }, [active, view.readOn.files, fetchMoreFiles]);
   const retry = () => {
     if (messages.isError) void (messages.isFetchNextPageError ? fetchMoreMessages() : refetchMessages());
     if (files.isError) void (files.isFetchNextPageError ? fetchMoreFiles() : refetchFiles());
@@ -260,12 +249,13 @@ export function SearchAgentsScreen() {
   };
   const loadMore = () => void (filter === "files" ? fetchMoreFiles() : fetchMoreMessages());
   const selectFilter = (next: MobileSearchFilter) => {
-    if (next === filter) return;
+    if (next === filter || !filters.includes(next)) return;
     void haptics.selection();
     setFilter(next);
   };
   const resultCount = view.sections.reduce((count, section) => count + section.results.length, 0);
   const item = swapItemMotion(motion);
+  const showsIdle = filter === "all" && !normalizeMobileSearchQuery(query);
   // Under the results: a host search that still loads, a failed one, or its next page.
   const footer =
     view.state !== "results"
@@ -291,43 +281,9 @@ export function SearchAgentsScreen() {
         });
     };
   }, []);
+
   return (
-    <SheetScrollView
-      contentContainerClassName="pb-safe-offset-5"
-      contentInsetAdjustmentBehavior="automatic"
-      header={
-        <View className={`flex-row items-center gap-2 px-5 pb-3 ${isAndroid ? "pt-4" : "pt-7"}`}>
-          <GlassView
-            glassEffectStyle={liquidGlassAvailable ? "regular" : "none"}
-            isInteractive={liquidGlassAvailable}
-            style={glassStyle(liquidGlassAvailable, fieldBackground, { flex: 1 })}
-          >
-            {/* The field is shorter than the capsule, so a tap anywhere on the capsule focuses it. */}
-            <Pressable
-              accessible={false}
-              className="h-12 flex-row items-center gap-2 px-4"
-              onPress={() => input.current?.focus()}
-            >
-              <Search color={String(muted)} size={19} strokeWidth={2} />
-              <MobileSearchTextInput ref={input} value={query} onChangeText={setQuery} editable={!leaving} />
-            </Pressable>
-          </GlassView>
-          <SearchFilterButton
-            filters={filters}
-            value={filter}
-            onChange={selectFilter}
-            liquidGlass={liquidGlassAvailable}
-            fallbackBackground={fieldBackground}
-          />
-        </View>
-      }
-      // On Android the field is a React Native input in the sticky header. When it takes focus, the
-      // keyboard-aware scroll moves the results under the header. The Android sheet moves over the keyboard.
-      keyboardAware={!isAndroid}
-      keyboardDismissMode="on-drag"
-      keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}
-    >
+    <>
       {/* A filter names itself above its results, with a way back to all of them. */}
       <BlurSwap swapKey={filter} mode={motion}>
         {filter === "all" ? null : (
@@ -338,11 +294,13 @@ export function SearchAgentsScreen() {
         )}
       </BlurSwap>
       <BlurSwap
-        swapKey={`${filter}:${view.state}`}
+        swapKey={showsIdle ? "idle" : `${filter}:${view.state}`}
         mode={motion}
-        enterDelay={view.state === "loading" ? SEARCHING_DELAY : 0}
+        enterDelay={!showsIdle && view.state === "loading" ? SEARCHING_DELAY : 0}
       >
-        {view.state === "results" ? (
+        {showsIdle ? (
+          idle
+        ) : view.state === "results" ? (
           <>
             {view.sections.map((section) => {
               const label = t(FILTER_LABEL[section.key]);
@@ -378,7 +336,7 @@ export function SearchAgentsScreen() {
                           exiting={item.exiting}
                           layout={item.layout}
                         >
-                          <MobileSearchResultRow result={result} query={query} serverId={serverId} onLeave={leave} />
+                          <MobileSearchResultRow result={result} query={query} serverId={serverId} onLeave={onLeave} />
                         </Animated.View>
                       ))}
                     </LayoutAnimationConfig>
@@ -415,74 +373,12 @@ export function SearchAgentsScreen() {
           <SearchNotice title={t("mobile.search.emptyTitle")} body={t("mobile.search.emptyBody")} />
         )}
       </BlurSwap>
-    </SheetScrollView>
+    </>
   );
 }
 
-function glassStyle(liquidGlass: boolean, fallbackBackground: unknown, size: ViewStyle): ViewStyle {
-  return {
-    backgroundColor: liquidGlass ? "transparent" : String(fallbackBackground),
-    borderCurve: "continuous",
-    borderRadius: CONTROL_SIZE / 2,
-    height: CONTROL_SIZE,
-    overflow: "hidden",
-    ...size,
-  };
-}
-
-/** Opens the native menu of the result kinds. A dot marks a filter other than All. */
-function SearchFilterButton({
-  filters,
-  value,
-  onChange,
-  liquidGlass,
-  fallbackBackground,
-}: {
-  filters: readonly MobileSearchFilter[];
-  value: MobileSearchFilter;
-  onChange: (value: MobileSearchFilter) => void;
-  liquidGlass: boolean;
-  fallbackBackground: unknown;
-}) {
-  const { t } = useText();
-  const [foreground, accent] = useThemeColor(["foreground", "accent"]);
-  const filtered = value !== "all";
-  const actions: MenuAction[] = filters.map((candidate) => ({
-    id: candidate,
-    title: t(FILTER_LABEL[candidate]),
-    image: FILTER_SYMBOL[candidate],
-    state: candidate === value ? "on" : "off",
-  }));
-  return (
-    <MenuView
-      actions={actions}
-      onPressAction={({ nativeEvent }) => {
-        const next = filters.find((candidate) => candidate === nativeEvent.event);
-        if (next) onChange(next);
-      }}
-      style={{ height: CONTROL_SIZE, width: CONTROL_SIZE }}
-    >
-      <GlassView
-        glassEffectStyle={liquidGlass ? "regular" : "none"}
-        isInteractive={liquidGlass}
-        style={glassStyle(liquidGlass, fallbackBackground, { width: CONTROL_SIZE })}
-      >
-        <View
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel={t("mobile.search.filter.label")}
-          accessibilityValue={{ text: t(FILTER_LABEL[value]) }}
-          className="flex-1 items-center justify-center"
-        >
-          <ListFilter color={String(filtered ? accent : foreground)} size={20} strokeWidth={2} />
-          {filtered ? <View className="absolute top-3 right-3 size-2 rounded-full bg-accent" /> : null}
-        </View>
-      </GlassView>
-    </MenuView>
-  );
-}
-
-function SearchCaption({
+/** The heading of a group of results, as the home list names its sections. */
+export function SearchCaption({
   label,
   action,
 }: {
@@ -490,8 +386,8 @@ function SearchCaption({
   action?: { label: string; accessibilityLabel?: string; onPress: () => void };
 }) {
   return (
-    <View className="min-h-9 flex-row items-center justify-between gap-3 pt-3 pr-3 pl-5">
-      <Typography.Paragraph type="body-xs" accessibilityRole="header" className="text-grouped-secondary">
+    <View className="flex-row items-center justify-between gap-3 pt-3.5 pr-3 pb-1.5 pl-5">
+      <Typography.Paragraph accessibilityRole="header" className="font-medium text-muted" style={typeScale.caption}>
         {label}
       </Typography.Paragraph>
       {action ? (
@@ -508,11 +404,11 @@ function SearchNotice({ title, body, onRetry }: { title: string; body?: string; 
   return (
     <View className="items-center gap-3 px-8 py-12">
       <View className="items-center gap-1">
-        <Typography.Paragraph align="center" weight="semibold">
+        <Typography.Paragraph className="font-semibold" align="center">
           {title}
         </Typography.Paragraph>
         {body ? (
-          <Typography.Paragraph type="body-xs" align="center" className="text-text-secondary">
+          <Typography.Paragraph align="center" className="text-text-secondary" style={typeScale.preview}>
             {body}
           </Typography.Paragraph>
         ) : null}

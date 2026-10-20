@@ -136,6 +136,7 @@ import { createMockGitHubConnector } from "./mock-github-connector";
 import { createMockHostTimezone } from "./mock-host-timezone";
 import { createMockHostUpdate, type MockHostUpdateOptions } from "./mock-host-update";
 import { createMockHostedServers } from "./mock-hosted-servers";
+import { createMockLicense } from "./mock-license";
 import { createMockMessaging } from "./mock-messaging";
 import { createMockOnePasswordConnector } from "./mock-onepassword-connector";
 import { createMockProviderRuntimes, type MockProviderRuntimeOptions } from "./mock-provider-runtimes";
@@ -283,6 +284,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
   let approvalAutomation = clone<ApprovalAutomationPreference>(DEFAULT_APPROVAL_AUTOMATION_PREFERENCE);
   let busyMessageMode: BusyMessageModePreference = { mode: DEFAULT_BUSY_MESSAGE_MODE };
   let agentMemoryLimit: AgentMemoryLimitPreference = { limit: DEFAULT_AGENT_MEMORY_LIMIT };
+  const agentMemoryLimitListeners = new Set<(preference: AgentMemoryLimitPreference) => void>();
   let remoteSessionReuse: RemoteSessionReusePreference = { ...DEFAULT_REMOTE_SESSION_REUSE_PREFERENCE };
   let languagePreference = clone<AppLanguagePreference>(options.languagePreference ?? { language: "system" });
   const languageListeners = new Set<(preference: AppLanguagePreference) => void>();
@@ -789,11 +791,10 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       return clone(busyMessageMode);
     },
     getAgentMemoryLimitPreference: async () => clone(agentMemoryLimit),
-    setAgentMemoryLimitPreference: async ({ limit }) => {
-      agentMemoryLimit = { limit };
-      return clone(agentMemoryLimit);
+    onAgentMemoryLimitPreference: (listener) => {
+      agentMemoryLimitListeners.add(listener);
+      return () => agentMemoryLimitListeners.delete(listener);
     },
-    onAgentMemoryLimitPreference: () => () => undefined,
     getAppLanguagePreference: async () => clone(languagePreference),
     setAppLanguagePreference: async ({ language }) => {
       languagePreference = { language };
@@ -1019,6 +1020,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
     onePasswordConnector: createMockOnePasswordConnector(),
     bitwardenConnector: createMockBitwardenConnector(),
     billing: createMockBilling(billingPlans),
+    license: createMockLicense(),
     routineFeed: createMockRoutineFeed(),
     hostedServers: createMockHostedServers(billingPlans),
     customProviders: {
@@ -2368,11 +2370,12 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       },
       ...createMockHostUpdate(options),
       ...createMockHostTimezone(),
-      // Preview has one host, so every server shares the limit of Settings.
+      // Preview has one host, so every server shares one limit. Main tells the window, as here.
       getAgentMemoryLimit: async () => hostAgentMemoryLimit(agentMemoryLimit),
       setAgentMemoryLimit: async (limit) => {
         if (!isAgentMemoryLimit(limit)) throw new Error("Agent memory limit is required.");
         agentMemoryLimit = { limit };
+        for (const listener of agentMemoryLimitListeners) listener(clone(agentMemoryLimit));
         return hostAgentMemoryLimit(agentMemoryLimit);
       },
     },

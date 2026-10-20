@@ -1576,6 +1576,9 @@ export class ProviderRuntime implements ProviderPort {
         }),
       ),
     );
+    // A shared process that was released when idle starts again without a new activation, and an
+    // agent's own process would then keep the old credential until it idles out (#2544).
+    this.#countActivation(provider);
     return yield* this.#reprobeProvider(provider);
   }, Effect.uninterruptible);
 

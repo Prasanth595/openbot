@@ -31,6 +31,18 @@ import {
   startClaudePlanTurn,
 } from "./agent/plan-updates";
 import { isBalanceDiagnostic, isPlanLimitDiagnostic } from "./agent/provider-diagnostics";
+import {
+  type ClaudeSubagentState,
+  endClaudeSubagentTurn,
+  foldClaudeSubagentCall,
+  foldClaudeSubagentMessage,
+  foldClaudeSubagentResult,
+  foldClaudeTaskMessage,
+  newClaudeSubagentState,
+  SUBAGENTS_UPDATED_METHOD,
+  type SubagentChange,
+  stopClaudeSubagents,
+} from "./agent/subagent-updates";
 import { claudeBridgedToolName, VISIBLE_TOOL_DEFINITIONS } from "./agent/tool-catalog";
 import { USAGE_LIMIT_METHOD } from "./agent/usage-limit-gate";
 import {
@@ -97,6 +109,22 @@ import type { ReadProviderHistory } from "./provider-history";
 const execFileAsync = promisify(execFile);
 const CLAUDE_EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const;
 type ClaudeEffort = (typeof CLAUDE_EFFORTS)[number];
+/**
+ * Claude's own scheduling: session crons, the `/loop` wake-ups, and the `schedule` skill, alias
+ * `routines`, that makes claude.ai cloud agents. A routine request matched that skill, and the
+ * routine ran outside OpenBot, where the user cannot see or stop it. Scheduled work belongs to the
+ * OpenBot routine tools. A deny rule takes the tools out of the model's context; the CLI still lists
+ * the two skills, but the rule refuses their call.
+ */
+const CLAUDE_NATIVE_SCHEDULING = [
+  "CronCreate",
+  "CronDelete",
+  "CronList",
+  "ScheduleWakeup",
+  "RemoteTrigger",
+  "Skill(schedule)",
+  "Skill(loop)",
+];
 
 interface ClientEvents {
   notification: [notification: AppServerNotification];
@@ -167,6 +195,8 @@ interface ThreadRuntime {
   idleSince: number;
   /** The plan Claude keeps with its todo and task tools, which OpenBot shows as a task list. */
   plan: ClaudePlanState;
+  /** The subagents of the `Agent` tool, which can outlive their turn when they run in the background. */
+  subagents: ClaudeSubagentState;
   /** Background subagents and commands that outlive their turn. Stopping the process ends them (#1870). */
   backgroundTasks: number;
 }
@@ -372,6 +402,9 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
   ): Effect.fn.Return<void, ProviderClientOperationError> {
     runtime.input.close();
     runtime.query.close();
+    // A background subagent ends with the process (#1870).
+    for (const change of stopClaudeSubagents(runtime.subagents, new Date().toISOString()))
+      this.#emitSubagents(runtime, change);
     // The consumer rejects when the query ends in the middle of a turn. The runtime is already gone
     // from the map, so there is nothing left to report it against.
     if (runtime.consume) yield* Fiber.join(runtime.consume).pipe(Effect.ignore);
@@ -764,7 +797,7 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
           ...(claudeTakesPromptSnapshotFlag(this.#cli.version)
             ? { extraArgs: { "system-prompt-snapshot": "off" } }
             : {}),
-          ...(config.profileGeneration ? { tools: [] } : {}),
+          ...(config.profileGeneration ? { tools: [] } : { disallowedTools: CLAUDE_NATIVE_SCHEDULING }),
           settingSources: config.profileGeneration
             ? []
             : config.workspaceOnly
@@ -820,6 +853,7 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
       idleRelease: null,
       idleSince: 0,
       plan: newClaudePlanState(),
+      subagents: newClaudeSubagentState(),
       backgroundTasks: 0,
     };
     runtime.consume = yield* Effect.forkIn(this.#consume(runtime), this.#scope, { startImmediately: true });
@@ -1042,6 +1076,10 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
       }
       return;
     }
+    if (message.type === "system" && message.subtype?.startsWith("task_")) {
+      this.#emitSubagents(runtime, foldClaudeTaskMessage(runtime.subagents, message, new Date().toISOString()));
+      return;
+    }
     if (message.type === "system" && message.subtype === "compact_boundary") {
       runtime.compacting = false;
       // The summary can leave the memory blocks out, so the next turn sends the full block again.
@@ -1092,6 +1130,13 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
       return;
     }
 
+    if (message.type === "assistant" && message.parent_tool_use_id && message.uuid) {
+      this.#emitSubagents(
+        runtime,
+        foldClaudeSubagentMessage(runtime.subagents, message.parent_tool_use_id, message.uuid, message.message),
+      );
+      return;
+    }
     if (message.type === "assistant") {
       if (message.parent_tool_use_id !== null || !message.uuid) return;
       const turn = this.#outputTurn(runtime);
@@ -1143,6 +1188,10 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
         this.#emitToolCall(runtime, toolCall.id, name, false, toolCall.input);
         const plan = foldClaudePlanCall(runtime.plan, toolCall);
         if (plan) this.#emitPlan(runtime, plan);
+        this.#emitSubagents(
+          runtime,
+          foldClaudeSubagentCall(runtime.subagents, turn.id, toolCall, new Date().toISOString()),
+        );
       }
       return;
     }
@@ -1150,9 +1199,22 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
     if (message.type === "user") {
       const turn = runtime.activeTurn;
       if (!turn) return;
-      for (const { id: toolCallId, text } of messageToolResults(message.message)) {
+      for (const { id: toolCallId, text, isError } of messageToolResults(message.message)) {
         // A subagent's task ids are its own, so only the main agent's results name a plan task.
-        if (!message.parent_tool_use_id) foldClaudePlanResult(runtime.plan, toolCallId, message.tool_use_result, text);
+        if (!message.parent_tool_use_id) {
+          foldClaudePlanResult(runtime.plan, toolCallId, message.tool_use_result, text);
+          this.#emitSubagents(
+            runtime,
+            foldClaudeSubagentResult(
+              runtime.subagents,
+              toolCallId,
+              message.tool_use_result,
+              isError,
+              text,
+              new Date().toISOString(),
+            ),
+          );
+        }
         const name = turn.toolCalls.get(toolCallId);
         if (!name) continue;
         turn.toolCalls.delete(toolCallId);
@@ -1290,6 +1352,15 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
             : undefined,
         item: { id, type: "toolCall", name, status: completed ? "completed" : "in_progress" },
       },
+    });
+  }
+
+  /* Not tied to the active turn: a background subagent reports after its turn ended. */
+  #emitSubagents(runtime: ThreadRuntime, change: SubagentChange | null): void {
+    if (!change) return;
+    this.emit("notification", {
+      method: SUBAGENTS_UPDATED_METHOD,
+      params: { threadId: runtime.id, turnId: change.turnId, subagents: change.subagents },
     });
   }
 
@@ -1461,6 +1532,7 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
         params: { threadId: runtime.id, turnId: turn.id, message: String(error) },
       });
     }
+    this.#emitSubagents(runtime, endClaudeSubagentTurn(runtime.subagents, turn.id, new Date().toISOString()));
     this.emit("notification", {
       method: "turn/completed",
       params: { threadId: runtime.id, turn: { id: turn.id, status } },
@@ -1942,7 +2014,7 @@ function messageToolCalls(message: unknown): Array<{ id: string; name: string; i
   });
 }
 
-function messageToolResults(message: unknown): Array<{ id: string; text: string }> {
+function messageToolResults(message: unknown): Array<{ id: string; text: string; isError: boolean }> {
   if (!isRecord(message) || !Array.isArray(message.content)) return [];
   return message.content.filter(isRecord).flatMap((block) => {
     const id = getString(block, "tool_use_id");
@@ -1956,7 +2028,7 @@ function messageToolResults(message: unknown): Array<{ id: string; text: string 
             .map((part) => getString(part, "text") ?? "")
             .join("\n")
         : "";
-    return [{ id, text }];
+    return [{ id, text, isError: block.is_error === true }];
   });
 }
 

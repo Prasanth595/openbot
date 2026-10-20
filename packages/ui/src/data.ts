@@ -12,6 +12,7 @@ import type {
   ConversationPlan,
   ConversationQuestionPrompt,
   ConversationReaction,
+  ConversationSubagent,
   HostedSiteConversationEvent,
   ImageGenerationInfo,
   InstalledSkill,
@@ -29,7 +30,15 @@ import type { ConversationUiBlock } from "@openbot/contracts/ui-blocks";
  * `error` is a message the renderer wrote itself, not one the provider sent: an action of the
  * user failed, and `status` names which one.
  */
-export type MessageKind = "text" | "thinking" | "exchange" | "question" | "action-marker" | "plan" | "error";
+export type MessageKind =
+  | "text"
+  | "thinking"
+  | "exchange"
+  | "question"
+  | "action-marker"
+  | "plan"
+  | "subagents"
+  | "error";
 
 /** The plan of one turn. `stopped` is true when the turn was stopped or failed before it ended. */
 export interface AgentMessagePlan extends ConversationPlan {
@@ -193,6 +202,8 @@ export interface AgentMessage {
   items?: string[];
   itemIds?: string[];
   plan?: AgentMessagePlan | undefined;
+  /** The subagents that the agent started in this turn, on a `subagents` message. */
+  subagents?: ConversationSubagent[] | undefined;
 }
 
 export interface AgentProfile {
@@ -212,6 +223,10 @@ export interface AgentProfile {
   computerUse?: boolean | undefined;
   /** Absent means off. Absent for an agent on a remote host too, which does not share it. */
   allowAutomation?: boolean | undefined;
+  /** Absent means off. Absent for an agent on a remote host too, which does not share it. */
+  allowNewChat?: boolean | undefined;
+  /** Absent means off. Absent for an agent on a remote host too, which does not share it. */
+  quickAcknowledgement?: boolean | undefined;
   /** Absent means the app default. Absent for an agent on a remote host too, which does not share it. */
   busyMessageMode?: AgentSummary["busyMessageMode"];
   /** Absent means the default task limit. Absent for an agent on a remote host too, which runs no tasks. */

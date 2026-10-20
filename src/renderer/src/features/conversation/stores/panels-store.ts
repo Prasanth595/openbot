@@ -37,11 +37,12 @@ export interface SidePanelState {
   maximized: boolean;
 }
 
-/** The side panel of each agent, and the task in its Tasks pane. */
+/** The side panel of each agent, the task in its Tasks pane, and the subagent in its Subagent pane. */
 export interface SidePanelsState {
   side: Record<string, SidePanelState>;
   /** A task of null is a new task, until its first message starts it; an agent with no entry shows the task list. */
   tasks: Record<string, string | null>;
+  subagents: Record<string, string>;
 }
 
 const SIDE_PANEL_EMPTY: SidePanelState = { panes: [], selected: null, maximized: false };
@@ -54,6 +55,7 @@ export const SIDE_PANEL_MODES = {
   settings: "settings",
   question: "question",
   voice: "voice",
+  subagent: "subagent",
 } as const satisfies Record<SidePanelPane, RightPanelMode>;
 
 function isSidePanelPane(value: string): value is SidePanelPane {
@@ -144,6 +146,10 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
     const agentId = deps.props.agent?.id;
     return taskPanelOpen() && agentId !== undefined && !(agentId in panels.tasks);
   };
+  const panelSubagentId = (): string | null => {
+    const agentId = deps.props.agent?.id;
+    return agentId ? (panels.subagents[agentId] ?? null) : null;
+  };
   const filePreviewOpen = () =>
     activeRightPanel() === "file-preview" && deps.sidebarFilePreview()?.ownerAgentId === deps.props.agent?.id;
 
@@ -176,6 +182,16 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
     });
     if (taskId) deps.props.tasks?.onOpen(taskId);
     setActiveRightPanel("task", agentId);
+  }
+
+  /** Opens the steps of a subagent of this chat in the side panel. */
+  function openSubagentPanel(subagentId: string): void {
+    const agentId = deps.props.agent?.id;
+    if (!agentId) return;
+    setPanels((draft) => {
+      draft.subagents[agentId] = subagentId;
+    });
+    setActiveRightPanel("subagent", agentId);
   }
 
   /** The Tasks pane, at its list. */
@@ -430,6 +446,8 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
     taskListOpen,
     openTaskPanel,
     showTaskList,
+    panelSubagentId,
+    openSubagentPanel,
     sidePanel,
     sidePanelOpen,
     setSidePanelMaximized,

@@ -18,14 +18,14 @@ Every event has these low-cardinality properties:
 
 - `surface`: `desktop`, `desktop_host`, `landing`, `web`, `mobile`, or `account_api`;
 - `environment`: currently `production` only;
-- `event_schema_version`: the integer schema generation of that surface: currently `7` on `desktop`,
-  `8` on `desktop_host` and `landing`, `10` on `account_api`, `2` on `mobile`, and `1` on `web`;
+- `event_schema_version`: the integer schema generation of that surface: currently `8` on `desktop`,
+  `desktop_host` and `landing`, `10` on `account_api`, `2` on `mobile`, and `1` on `web`;
 - `app_version` and `platform` on desktop surfaces;
 - `acquisition_source` on landing surfaces: `direct`, `search`, `social`, `github`, or `other`;
 - `source_platform` on landing surfaces: an allowlisted platform name, or `unknown`.
 
 Each surface counts its own generations, so a report filters by `surface` and that surface's current
-generation. Host generation 8 adds `system_resources`. Desktop and host generation 7 adds safe error causes and durable failure delivery. Generation 6 added the usage events below (`system_tool_used`,
+generation. Desktop generation 8 adds `hosted_server_upsell`. Host generation 8 adds `system_resources`. Desktop and host generation 7 adds safe error causes and durable failure delivery. Generation 6 added the usage events below (`system_tool_used`,
 `system_site_visited`, `system_routine_run`, `system_inventory`), `agent_source` and `agent_listing`
 on host turn and input events, and `plugin` entities and `listing_slug` on `marketplace_action`.
 Account service generation 10 adds `account_created`, `account_attributed`, the `first_touch_*`
@@ -107,6 +107,7 @@ lifecycle. A malformed preference fails closed; a missing preference uses the do
 | `reaction_action` | Are reactions used? | Reaction operation completed |
 | `maintenance_action` | Can accounts export data and diagnostics? | Export reported a saved artifact |
 | `hosted_site_action` | Can accounts publish, replace, and delete Hosted Sites? | A terminal Hosted Site operation result; site metadata is never sent |
+| `hosted_server_upsell` | Does the hosted server offer lead to the plans without too many dismissals? | The offer shows, or the user selects "See plans" or dismisses it. `entry_point` is `routine_created`, `routines_list`, or `server_offline`; routine and server names are never sent |
 | `screen_view` | Which public website routes and articles are viewed in a session? | One safe view for `/`, `/join`, `/contact`, `/teams`, `/download`, a `/download/<os>` page, a collection index, or a published article path, with allowlisted campaign tags and no hash |
 | `landing_viewed` | How much qualified landing traffic arrives? | Non-automation production page view |
 | `landing_download_clicked` | Which safe channel/placement drives downloads? | Allowlisted download link clicked |

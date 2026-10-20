@@ -68,6 +68,7 @@ export const messages = {
   "conversation.sidePanel.pane.settings": "Ustawienia agenta",
   "conversation.sidePanel.pane.question": "Pytanie poboczne",
   "conversation.sidePanel.pane.voice": "Głos",
+  "conversation.sidePanel.pane.subagent": "Subagent",
   "conversation.sideQuestion.emptyTitle": "Zapytaj o ten czat",
   "conversation.sideQuestion.emptyBody": "{name} czyta ten czat, aby odpowiedzieć. Nic stąd nie trafia do czatu.",
   "conversation.sideQuestion.messages": "Wiadomości pytania pobocznego",

@@ -40,8 +40,6 @@ export const messages = {
   "settings.busyMessage.title": "作業中のエージェントの方向を修正",
   "settings.busyMessage.description":
     "新しいメッセージはキューに入らず、エージェントの現在の作業に加わります。ChatGPT と Claude で使えます。",
-  "settings.agentMemoryLimit.title": "エージェントごとのメモリー数",
-  "settings.agentMemoryLimit.description": "このコンピューターの各エージェントが保存できるメモリーの数です。",
   "settings.keepRemoteSessions.title": "サーバーへの高速接続",
   "settings.keepRemoteSessions.description":
     "参加しているサーバーへの接続を起動の間も維持します。OpenBot の起動が約 1 秒速くなります。OpenBot を終了しても、OpenBot サービスは接続を閉じません。",
@@ -118,7 +116,7 @@ export const messages = {
   "settings.tab.updates.title": "アップデート",
   "settings.tab.updates.description": "このコンピューターの OpenBot を最新に保ちます。",
   "settings.tab.billing.title": "お支払い",
-  "settings.tab.billing.description": "サーバーのプラン、支払い方法、請求書。",
+  "settings.tab.billing.description": "ライセンス、サーバーのプラン、支払い方法、請求書。",
   "settings.tab.hostedServers.title": "ホスト型サーバー",
   "settings.tab.hostedServers.description":
     "このコンピューターの電源が切れているときも動作する OpenBot サーバーを作成します。",

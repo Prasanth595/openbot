@@ -1,9 +1,9 @@
 import type { AgentTask, AgentTasksSnapshot, AttachmentSummary, ConversationSnapshot } from "@openbot/contracts/ipc";
 import type { AppTextKey } from "@openbot/i18n";
+import { plainTaskTitle } from "@openbot/team-client/agent-tasks";
 import type { AgentMessage, AgentProfile } from "@openbot/ui/data";
 import { AgentTaskPanel } from "@openbot/ui/features/conversation/AgentTasks";
 import { TasksPage, type TasksVoice } from "@openbot/ui/features/tasks/TasksPage";
-import { plainTaskTitle } from "@openbot/ui/features/tasks/tasks-view";
 import { currentText } from "@openbot/ui/text";
 import { createEffect, createMemo, createProjection, createStore, onCleanup, Show, untrack } from "solid-js";
 import { actionToast } from "../../action-toast";

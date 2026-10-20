@@ -11,6 +11,7 @@ import {
 import { openTurnActivity } from "@/features/workspace/model/agent-activity";
 import { showsOnline } from "@/features/workspace/model/server-status";
 import { chatRowIndex, latestReadableMessage, projectChatMessages, withFailureReasons } from "../model/chat-messages";
+import { ChatTaskRows, useOpenAgentTasks } from "./chat-task-rows";
 import { ChatView } from "./chat-view";
 import { useChatQueue } from "./use-chat-queue";
 import { useQuestionPrompt } from "./use-question-prompt";
@@ -63,7 +64,11 @@ export function MobileChatView({
     () => projectChatMessages(Object.values(conversation?.references ?? {}), memberId, accountUserId),
     [conversation?.references, memberId, accountUserId],
   );
-  const activity = openTurnActivity(useAgentActivity(agent.id), conversation);
+  const tasks = useOpenAgentTasks(agent.serverId, agent.id);
+  const liveActivity = openTurnActivity(useAgentActivity(agent.id), conversation);
+  // A task turn is the task's work, not this chat's: its row below says that the agent works.
+  const activity =
+    liveActivity?.turnId && tasks.some((task) => task.activeTurnId === liveActivity.turnId) ? undefined : liveActivity;
   const serverApprovals = useApprovalRequests(agent.serverId);
   const threadId = conversation?.threadId ?? null;
   // As on the desktop, only this chat's thread.
@@ -182,6 +187,8 @@ export function MobileChatView({
       activeTurnId={conversation?.activeTurnId ?? null}
       stopTurn={stopTurn}
       questionForm={questionForm}
+      activityAccessory={<ChatTaskRows tasks={tasks} serverId={agent.serverId} />}
+      threadId={threadId}
       approvals={approvals}
       readBoundary={latest ? `${latest.id}:${latest.status}` : null}
       markRead={markRead}

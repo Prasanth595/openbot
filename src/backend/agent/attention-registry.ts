@@ -21,10 +21,12 @@ import {
   normalizeConversationUiBlock,
   UI_BLOCK_TEXT_ACTION_ID,
   UI_BLOCK_VERSION,
+  type UiBlockAutoAnswer,
   type UiBlockResponse,
   type UiBlockSpec,
   type UiBlockState,
   uiBlockActionIsPrivileged,
+  uiBlockAnswersFromResponse,
   uiBlockFallbackQuestions,
   uiBlockHasPrivilegedAction,
   uiBlockOutcomeText,
@@ -92,6 +94,8 @@ interface PendingPrompt {
   questions: AgentPromptQuestion[];
   /** Set exactly when `responseKind` is `ui-block`. */
   uiBlock?: { blockId: string; spec: UiBlockSpec };
+  /** The block's own answer, and the timer that gives it. Removing the prompt clears the timer. */
+  autoAnswer?: { state: UiBlockAutoAnswer; timer: ReturnType<typeof setTimeout> };
 }
 
 /**
@@ -102,7 +106,11 @@ export interface PromptResponder {
   sender?: ConversationMessageSender;
   /** The server owner or an admin. Only they may take a privileged UI block action. */
   privileged: boolean;
+  /** The host gave the block's auto answer: nobody answered in time. */
+  automatic?: boolean;
 }
+
+const AUTOMATIC_RESPONDER: PromptResponder = { privileged: true, automatic: true };
 
 interface PendingApproval {
   client: AgentClient;
@@ -371,13 +379,14 @@ export class AttentionRegistry {
                 };
         pending.client.respond(pending.id, result);
         this.#prompts.delete(input.requestId);
+        clearTimeout(pending.autoAnswer?.timer);
         this.#emitInputResolved("prompt", input.requestId, pending.agentId);
         try {
           if (pending.uiBlock) {
             this.#resolvePersistedPrompt(
               pending,
               uiBlockResponse ? promptResolution(pending.questions, input.answers) : { status: "cancelled" },
-              answeredUiBlockState(pending.uiBlock.spec, uiBlockResponse, responder),
+              answeredUiBlockState(pending.uiBlock.spec, uiBlockResponse, responder, pending.autoAnswer?.state),
             );
           } else {
             this.#resolvePersistedPrompt(pending, promptResolution(pending.questions, input.answers));
@@ -826,20 +835,30 @@ export class AttentionRegistry {
   /**
    * Shows an `ask_ui` block and waits for its answer. The block is a question prompt: its fallback
    * questions let a client that does not know `uiBlock` answer it through `respondToPrompt`. The
-   * caller has checked the spec and refused a channel.
+   * caller has checked the spec and refused a channel. With `autoAnswer`, the host answers that action
+   * itself after `afterMs` when nobody answered first.
    */
-  surfaceUiBlock(client: AgentClient, request: AppServerRequest, block: { blockId: string; spec: UiBlockSpec }): void {
+  surfaceUiBlock(
+    client: AgentClient,
+    request: AppServerRequest,
+    block: { blockId: string; spec: UiBlockSpec },
+    autoAnswer?: { actionId: string; afterMs: number },
+  ): void {
     const threadId = getString(request.params, "threadId");
     const turnId = getString(request.params, "turnId");
     const agentId = threadId ? this.#conversation.agentForThread(threadId) : undefined;
     const publicThreadId = threadId && agentId ? this.#conversation.publicThreadId(agentId, threadId) : null;
     const questions = uiBlockFallbackQuestions(block.spec);
+    const auto: UiBlockAutoAnswer | undefined = autoAnswer && {
+      actionId: autoAnswer.actionId,
+      at: new Date(Date.now() + autoAnswer.afterMs).toISOString(),
+    };
     // Store only what the contract reads back: a block it refuses would make the whole page unreadable.
     const uiBlock = normalizeConversationUiBlock({
       version: UI_BLOCK_VERSION,
       blockId: block.blockId,
       spec: block.spec,
-      state: { status: "pending" },
+      state: auto ? { status: "pending", autoAnswer: auto } : { status: "pending" },
     });
     if (!threadId || !turnId || !agentId || !publicThreadId || !uiBlock || !validPromptQuestions(questions)) {
       client.respond(request.id, {
@@ -850,6 +869,12 @@ export class AttentionRegistry {
     }
 
     const messageId = this.#persistQuestionPrompt(agentId, publicThreadId, turnId, request.id, questions, uiBlock);
+    let autoAnswerTimer: PendingPrompt["autoAnswer"];
+    if (auto && autoAnswer) {
+      const timer = setTimeout(() => this.#answerAutomatically(request.id), autoAnswer.afterMs);
+      timer.unref?.();
+      autoAnswerTimer = { state: auto, timer };
+    }
     this.#prompts.set(request.id, {
       client,
       id: request.id,
@@ -861,6 +886,7 @@ export class AttentionRegistry {
       messageId,
       questions,
       uiBlock: block,
+      ...(autoAnswerTimer ? { autoAnswer: autoAnswerTimer } : {}),
     });
     this.#routines.markNeedsAttention(turnId);
     this.#emit({
@@ -871,6 +897,21 @@ export class AttentionRegistry {
       turnId,
       questions,
     });
+  }
+
+  /** Nobody answered the block before its time, so the host presses its auto answer action. */
+  #answerAutomatically(requestId: RequestId): void {
+    const pending = this.#prompts.get(requestId);
+    if (!pending?.uiBlock || !pending.autoAnswer) return;
+    const answers = uiBlockAnswersFromResponse(pending.uiBlock.spec, { actionId: pending.autoAnswer.state.actionId });
+    const report = (error: unknown) =>
+      Effect.sync(() => logger.warn("Unable to give a block its auto answer", { error: toLogValue(error) }));
+    Effect.runFork(
+      this.respondToPrompt({ requestId, answers }, AUTOMATIC_RESPONDER).pipe(
+        Effect.catch((failure) => report(failure)),
+        Effect.catchDefect(report),
+      ),
+    );
   }
 
   surfacePrompt(client: AgentClient, request: AppServerRequest): void {
@@ -1051,6 +1092,7 @@ export class AttentionRegistry {
    */
   #expirePrompt(requestId: RequestId, pending: PendingPrompt): void {
     this.#prompts.delete(requestId);
+    clearTimeout(pending.autoAnswer?.timer);
     this.#emitInputResolved("prompt", requestId, pending.agentId);
     if (pending.client.running) {
       try {
@@ -1274,11 +1316,14 @@ function answeredUiBlockState(
   spec: UiBlockSpec,
   response: UiBlockResponse | null,
   responder: PromptResponder | undefined,
+  autoAnswer: UiBlockAutoAnswer | undefined,
 ): UiBlockState {
   const state: UiBlockState = response ? { status: "answered", response } : { status: "closed" };
   // The contract refuses a blank outcome, such as a form sent with every optional field empty.
   const outcome = response ? uiBlockOutcomeText(spec, response) : "";
   if (outcome.trim()) state.outcome = outcome;
+  // The frozen block says that the host chose, not a person.
+  if (autoAnswer && responder?.automatic) state.autoAnswer = { ...autoAnswer, done: true };
   if (responder?.sender) state.respondedBy = structuredClone(responder.sender);
   state.respondedAt = new Date().toISOString();
   return state;

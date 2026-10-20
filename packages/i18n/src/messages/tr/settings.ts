@@ -40,8 +40,6 @@ export const messages = {
   "settings.busyMessage.title": "Ajanları çalışırken yönlendir",
   "settings.busyMessage.description":
     "Yeni mesajlar kuyruğa değil, ajanın mevcut işine eklenir. ChatGPT ve Claude ile çalışır.",
-  "settings.agentMemoryLimit.title": "Ajan başına bellek",
-  "settings.agentMemoryLimit.description": "Bu bilgisayardaki her ajanın tutabileceği bellek sayısı.",
   "settings.keepRemoteSessions.title": "Sunuculara hızlı bağlantı",
   "settings.keepRemoteSessions.description":
     "Katıldığınız sunuculara olan bağlantıyı açılışlar arasında koruyun. OpenBot yaklaşık bir saniye daha hızlı başlar. OpenBot'tan çıktığınızda OpenBot hizmeti bağlantıyı kapatmaz.",
@@ -120,7 +118,7 @@ export const messages = {
   "settings.tab.updates.title": "Güncellemeler",
   "settings.tab.updates.description": "OpenBot'u bu bilgisayarda güncel tutun.",
   "settings.tab.billing.title": "Faturalandırma",
-  "settings.tab.billing.description": "Sunucu planları, ödeme yöntemi ve faturalar.",
+  "settings.tab.billing.description": "Lisans, sunucu planları, ödeme yöntemi ve faturalar.",
   "settings.tab.hostedServers.title": "Barındırılan sunucular",
   "settings.tab.hostedServers.description": "Bu bilgisayar kapalıyken çalışan OpenBot sunucuları oluşturun.",
   "settings.sections.label": "Ayar bölümleri",

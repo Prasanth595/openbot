@@ -1,5 +1,6 @@
 import { Stack } from "expo-router/stack";
 import { useCSSVariable } from "uniwind";
+import { androidBackOptions } from "@/shared/components/android-header-button";
 import { isIOS } from "@/shared/lib/platform";
 import { sheetBackHaptics } from "@/shared/lib/sheet-back-haptics";
 import { sheetHeaderInsetOptions } from "@/shared/lib/sheet-header";
@@ -13,7 +14,8 @@ export default function AgentInfoLayout() {
   return (
     <Stack
       screenListeners={sheetBackHaptics}
-      screenOptions={{
+      screenOptions={(props) => ({
+        ...androidBackOptions(props),
         ...sheetHeaderInsetOptions,
         presentation: "card",
         headerBackButtonDisplayMode: "minimal",
@@ -23,7 +25,7 @@ export default function AgentInfoLayout() {
         headerBlurEffect: "none",
         scrollEdgeEffects: { top: "hidden", bottom: "soft" },
         contentStyle: { backgroundColor: background },
-      }}
+      })}
     >
       <Stack.Screen name="index" options={{ title: t("mobile.agent.menu.info") }} />
       <Stack.Screen name="appearance" options={{ title: t("mobile.agent.route.appearance") }} />

@@ -1,4 +1,4 @@
-import { Bot, CalendarClock, Hash, Server, Store, UsersRound } from "@openbot/ui";
+import { BookMarked, Bot, CalendarClock, Hash, Server, Store, UsersRound } from "@openbot/ui";
 import type {
   GlobalSearchAction,
   GlobalSearchFile,
@@ -12,6 +12,7 @@ import { appPort } from "./app-port";
 import { useAgents } from "./features/agents/agents-context";
 import { useChannels } from "./features/channels/channels-context";
 import { globalSearchChannels } from "./features/channels/global-search-channels";
+import { serverCanAdminister } from "./features/servers/server-capabilities";
 import { useServerSettings } from "./features/servers/server-settings";
 import { useServers } from "./features/servers/servers-context";
 import { useSettings } from "./features/settings/settings-context";
@@ -178,6 +179,20 @@ export function useGlobalSearchSources(open: () => boolean) {
             run: () => openServerSettings(server.id, globalSearchOpener(), "members"),
           },
         );
+        // General shows the row only to an admin of a host that can set it, and only while it is online.
+        if (
+          serverCanAdminister(server, "agent-memory-limit-v1") &&
+          (server.kind === "local" || server.state === "online")
+        ) {
+          list.push({
+            id: "server:memory-limit",
+            label: t("server.settings.memoryLimit"),
+            detail: server.name,
+            group: "settings",
+            icon: BookMarked,
+            run: () => openServerSettings(server.id, globalSearchOpener(), "general"),
+          });
+        }
       }
       return list;
     },

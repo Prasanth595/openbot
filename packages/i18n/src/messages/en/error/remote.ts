@@ -179,6 +179,8 @@ export const messages = defineMessages("error.remote", {
   "error.remote.directoryTimeout": "The OpenBot service did not answer in time. Try again.",
   "error.remote.inviteAlreadyUsed": "This invitation was already used. Ask for a new invitation.",
   "error.remote.inviteNotFound": "This invitation does not exist or has expired. Ask for a new invitation.",
+  "error.remote.licenseUsersFull":
+    "The server owner's license has no free user. Ask the owner to add a user to the license.",
   "error.remote.memberLimitReached": "This host has reached its member limit. Ask the owner to make space.",
   "error.remote.hostNotRegistered": "This host is no longer registered with the OpenBot service.",
   "error.remote.membershipEnded": "You are no longer a member of this host. Ask the owner for a new invitation.",

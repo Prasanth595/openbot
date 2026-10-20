@@ -146,9 +146,12 @@ when a server is idle or boat stops a sandbox; and `error` and `deleted`. The Wo
    gets `SIGTERM`, stops its services and closes `openbot.db` last. After 40 seconds the hook kills
    the unit, which leaves a database that SQLite recovers. The file makes the unit condition
    `ConditionPathExists=!/run/openbot-pre-stop` fail, so `Restart=` and the end of an update request
-   do not start OpenBot during the save. `/run` is empty at each boot. If boat does not complete the
-   stop after the hook, OpenBot stays stopped until the next stop and resume. A hook that OpenBot did
-   not write stays, and a self-hosted server gets no hook.
+   do not start OpenBot during the save. `/run` is empty at each boot. boat can also keep a stopped
+   machine in memory and continue it at a resume with no boot: the resume answers `"status":
+   "running"`, and the file stays. Then the Worker runs a command on the machine that removes the
+   file and starts `openbot.service` (`HELD_RESUME_START_COMMAND`). With no file the command does
+   nothing. If boat does not complete the stop after the hook, OpenBot stays stopped until the next
+   stop and resume. A hook that OpenBot did not write stays, and a self-hosted server gets no hook.
 
    **Check at a start.** `PRAGMA quick_check` reads every page of `openbot.db`: on a 15.7 GB file
    it stopped the main thread for 77 seconds to about 4 minutes. A clean close removes

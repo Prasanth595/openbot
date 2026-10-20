@@ -91,6 +91,15 @@ const RESIZE_AFTER_NO_USE_MS = 7 * 60_000;
 const LEASE_TTL_SECONDS = 2 * 60 * 60;
 const LEASE_EXTEND_BEFORE_MS = 60 * 60_000;
 /**
+ * boat can keep a stopped machine in memory and continue it at a resume, with no boot. Then `/run` keeps
+ * the flag of the pre-stop hook (`scripts/hosting/openbot-boat-pre-stop`), the condition of
+ * `openbot.service` fails, and OpenBot does not start. This command removes the flag and starts OpenBot.
+ * With no flag it does nothing, so it does not change a machine that boat started with a boot.
+ */
+const HELD_RESUME_START_COMMAND =
+  "if [ -e /run/openbot-pre-stop ]; then sudo -n rm -f /run/openbot-pre-stop && sudo -n systemctl start --no-block openbot.service && echo started; fi";
+const HELD_RESUME_START_TIMEOUT_SECONDS = 10;
+/**
  * The cron starts an idle server this long before its next routine run: one cron interval (5 minutes)
  * and the time that the server takes to start. A server does not stop for no use in this time.
  */
@@ -210,6 +219,8 @@ export interface HostedServerServiceOptions {
   analytics?: AccountAnalytics;
   /** The developer key that the request sent. It lets the account create servers when it is the Worker's key. */
   developerKey?: string | null;
+  /** Keeps the Worker alive until work after the reply ends (`waitUntil`). */
+  schedule?: (work: Effect.Effect<void>) => void;
 }
 
 /** Where Stripe sends the user back after Checkout. */
@@ -240,6 +251,7 @@ class HostedServerDependencies extends Context.Service<
     now: () => number;
     removeHost: ((ownerUserId: string, hostId: string) => Effect.Effect<void, RemoteFailure>) | null;
     analytics: AccountAnalytics;
+    schedule: (work: Effect.Effect<void>) => void;
   }
 >()("auth-api/HostedServerService/Dependencies") {}
 
@@ -289,6 +301,7 @@ export class HostedServerService {
       now: this.#now,
       removeHost,
       analytics: this.#analytics,
+      schedule: options.schedule ?? ((work) => void Effect.runFork(work)),
     });
   }
 
@@ -2166,6 +2179,8 @@ export class HostedServerService {
       );
       this.#track(row, { name: "hosted_server_action", action: "resized", plan: row.plan, size });
     }
+    // After the reply: the client gives the wake request 15 seconds, and the resume can use all of them.
+    if (operationResult2.success) dependencies.schedule(startAfterHeldResume(boat, row.server_id, sandboxId));
   });
 
   readonly #observe = Effect.fn("HostedServerService.observe")(function* (
@@ -2480,6 +2495,27 @@ function rateLimitRetryAt(row: HostedServerRow): number {
   const waited = row.updated_at - (row.provider_event_at ?? row.updated_at);
   return row.updated_at + Math.min(RATE_LIMIT_RETRY_MAX_MS, Math.max(RATE_LIMIT_RETRY_MIN_MS, waited));
 }
+
+/** A failure does not change the wake. OpenBot then stays stopped until the next stop and resume. */
+const startAfterHeldResume = Effect.fn("HostedServerService.startAfterHeldResume")(function* (
+  boat: BoatClient,
+  serverId: string,
+  sandboxId: string,
+) {
+  const result = yield* Effect.result(
+    boat.runCommand(sandboxId, HELD_RESUME_START_COMMAND, HELD_RESUME_START_TIMEOUT_SECONDS),
+  );
+  if (Result.isFailure(result)) {
+    console.warn("Hosted server start after a held resume failed.", {
+      serverId,
+      error: safeErrorCode(result.failure),
+    });
+  } else if (result.success.exitCode !== 0) {
+    console.warn("Hosted server start after a held resume failed.", { serverId, exitCode: result.success.exitCode });
+  } else if (result.success.stdout.trim() === "started") {
+    console.info("Hosted server started after a held resume.", { serverId });
+  }
+});
 
 function safeErrorCode(error: unknown): string {
   if (error instanceof BoatApiError) return `${error.status}:${error.code}`;

@@ -27,6 +27,7 @@ import { HOSTED_SITES_CAPABILITY } from "@openbot/contracts/team-protocol/hosted
 import { MCP_SIGN_IN_CAPABILITY } from "@openbot/contracts/team-protocol/mcp-sign-in-v1";
 import { ROUTINE_FLOWS_CAPABILITY } from "@openbot/contracts/team-protocol/routine-flows-v1";
 import { ROUTINE_RECOVERY_CAPABILITY } from "@openbot/contracts/team-protocol/routine-recovery-v1";
+import { SIDE_QUESTION_CAPABILITY } from "@openbot/contracts/team-protocol/side-question-v1";
 import { SIGN_IN_RELAY_CAPABILITY } from "@openbot/contracts/team-protocol/sign-in-relay-v1";
 import { runTeamEffect } from "@openbot/team-client";
 import {
@@ -57,6 +58,8 @@ import { computeAgentAvatarMoods } from "@openbot/ui/features/agents/agent-avata
 import { createFirstAgentDraft, type FirstAgentDraft } from "@openbot/ui/features/agents/FirstAgentSetup";
 import { BillingDialog } from "@openbot/ui/features/billing/BillingDialog";
 import { createBillingStore } from "@openbot/ui/features/billing/billing-store";
+import { LicenseSection } from "@openbot/ui/features/billing/LicenseSection";
+import { createLicenseStore } from "@openbot/ui/features/billing/license-store";
 import { unloadedHistory } from "@openbot/ui/features/conversation/ChatScrollRail";
 import type { DiagramModelChoice } from "@openbot/ui/features/diagrams/DiagramNewAgentCard";
 import { LeaveServerDialog } from "@openbot/ui/features/servers/LeaveServerDialog";
@@ -131,6 +134,12 @@ import type { FilesPort } from "../files/files-port";
 import { hostSetupProviderProps } from "../onboarding/host-setup-provider-props";
 import type { ScheduleRoutine } from "../schedule/SchedulePanel";
 import { AddServerOverlay, type AddServerResume } from "../servers/AddServerOverlay";
+import {
+  createHostedUpsellOffline,
+  HostedServerUpsell,
+  hostedUpsellRoutineCreated,
+  routineMadeThisSession,
+} from "../servers/hosted-server-upsell-controller";
 import type { HostMemoryLimitCalls } from "../servers/ServerMemoryLimitSetting";
 import type { ServerHostedSitesOptions, ServerSettingsSection } from "../servers/ServerSettingsModal";
 import type { HostTimezoneCalls } from "../servers/ServerTimezoneSetting";
@@ -154,7 +163,7 @@ import { createWebAccountCalls } from "./web-account";
 import { createWebAccountUsage } from "./web-account-usage";
 import { createWebAgentImportCalls } from "./web-agent-import";
 import { openWebLink } from "./web-attachments";
-import { createWebBillingCalls } from "./web-billing";
+import { createWebBillingCalls, createWebLicenseCalls } from "./web-billing";
 import { createWebChannelsPort } from "./web-channels-runtime";
 import { createWebWorkspace, type WebRuntimeFactory } from "./web-client-context";
 import { createWebConversationRuntime } from "./web-conversation-runtime";
@@ -590,6 +599,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
       workspace.state.capabilities.includes(SIGN_IN_RELAY_CAPABILITY) &&
       canAdministerServer(workspace.state.host?.role),
     routineRecoveryEnabled,
+    () => workspace.state.capabilities.includes(SIDE_QUESTION_CAPABILITY),
   );
   const remoteAgentAdmin = createRemoteAgentAdmin(
     () => {
@@ -718,6 +728,8 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   const [billingOpen, setBillingOpen] = createSignal(false);
   const billingCalls = createWebBillingCalls(props.accountFetch);
   const billing = createBillingStore(() => billingCalls, billingOpen);
+  const licenseCalls = createWebLicenseCalls(props.accountFetch);
+  const license = createLicenseStore(() => licenseCalls, billingOpen);
   // The web client has no Hosted servers settings, so a server whose plan ended is renewed or deleted in Billing.
   const billingHostedServers = createSettingsHostedServersStore(
     {
@@ -1122,11 +1134,33 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     return () =>
       Effect.runPromise(clearAgentContext(hostRequest(), agent.id).pipe(Effect.mapError((error) => error.cause)));
   });
+  const offlineUpsell = createHostedUpsellOffline(() => workspace.state.hostOffline);
   const view = createWebConversationView({
     workspace,
     remoteAgentAdmin,
     hidden: () => creating() || channelOpen(),
   });
+  // A routine that an agent makes leaves a marker in its turn. The offer of a hosted server waits until that turn ends.
+  // The marker does not tell whether the routine is paused; an agent makes an active routine unless told otherwise.
+  createEffect(
+    () => {
+      const agentId = workspace.conversation()?.page?.agentId;
+      if (!agentId) return [];
+      return view.messages.flatMap((message) => {
+        const marker = message.actionMarker;
+        return message.turnId && marker?.kind === "routine-lifecycle" && marker.action === "created"
+          ? [{ id: marker.routineId, name: marker.routineName, createdAt: marker.timestamp, agentId }]
+          : [];
+      });
+    },
+    (created) => {
+      for (const routine of created) {
+        if (routineMadeThisSession(routine.createdAt)) {
+          hostedUpsellRoutineCreated({ id: routine.id, name: routine.name, agentId: routine.agentId });
+        }
+      }
+    },
+  );
   createEffect(
     () => workspace.state.error,
     (error) => {
@@ -1345,6 +1379,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                     busy={workspace.state.status === "connecting" || !workspace.state.host}
                     onRetry={() => void workspace.run(workspace.reconnect)}
                     onManage={() => setBillingOpen(true)}
+                    upsell={offlineUpsell()}
                   />
                 </Show>
                 <Show when={workspace.state.status === "online" && workspace.state.panelsFailed}>
@@ -1567,6 +1602,20 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
             after={
               <>
                 <ServerUpdateDialogHost hosts={workspace.hostViews()} />
+                <HostedServerUpsell
+                  accountId={props.accountId}
+                  canOffer={
+                    hostedServers.available() &&
+                    hostedServers.loaded() &&
+                    !hostedServers.ownsHostedServer() &&
+                    server()?.role === "owner" &&
+                    server()?.hosted !== true
+                  }
+                  serverId={server()?.id ?? ""}
+                  host={{ name: server()?.name ?? "" }}
+                  busy={(agentId) => Boolean(workspace.state.conversations[agentId]?.page?.activeTurnId)}
+                  openPlans={hostedServers.openAddServer}
+                />
                 <AddServerOverlay
                   open={hostedServers.addServer() !== null}
                   calls={hostedServers.calls}
@@ -1672,6 +1721,8 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                       // Publication and screen recording belong to the computer that runs the server.
                       onSetPublished={unavailable}
                       onCreateInvite={serverSettings.createInvite}
+                      license={licenseCalls}
+                      onContactUs={() => window.location.assign(HOSTED_SERVER_CONTACT_URL)}
                       onUpdateMember={serverSettings.updateMember}
                       onRemoveMember={serverSettings.removeMember}
                       onRevokeInvite={serverSettings.revokeInvite}
@@ -1783,6 +1834,13 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   onOpenChange={setBillingOpen}
                   store={billing}
                   hostedServers={billingHostedServers}
+                  license={
+                    <LicenseSection
+                      store={license}
+                      onManagePayment={() => void billing.openPortal({ flow: "manage" })}
+                      onContactUs={() => window.location.assign(HOSTED_SERVER_CONTACT_URL)}
+                    />
+                  }
                 />
                 <ChannelCreateOverlay />
                 <GlobalSearchOverlay

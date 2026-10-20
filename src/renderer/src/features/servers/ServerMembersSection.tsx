@@ -1,5 +1,7 @@
+import { isOpenBillingStatus } from "@openbot/contracts/billing";
 import { DEFAULT_TEAM_MEMBER_LIMIT, INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import type { InviteSummary, TeamPresenceMember, TeamRole } from "@openbot/contracts/ipc";
+import { LICENSE_MAX_USERS, type License, licenseAmount } from "@openbot/contracts/license";
 import { normalizeEmailAddress } from "@openbot/contracts/validation";
 import type { AppTextKey } from "@openbot/i18n";
 import {
@@ -41,6 +43,7 @@ import {
   Trash2,
   UserRound,
 } from "@openbot/ui";
+import { formatLicenseMoney } from "@openbot/ui/features/billing/LicenseSection";
 import { teamMemberName } from "@openbot/ui/features/team/TeamPersonAvatar";
 import { useText } from "@openbot/ui/text";
 import { prefersReducedMotion } from "@openbot/ui/utils";
@@ -115,6 +118,10 @@ export function createServerMembersSection(host: ServerSettingsSectionHost): Ser
   });
   /** A clock, not panel state: it retires an invite row as its `expiresAt` passes. */
   const [now, setNow] = createSignal(Date.now());
+  /** The full license that the next invite would add a user to, while the owner confirms it. */
+  const [licenseStep, setLicenseStep] = createSignal<{ license: License; used: number; error: string | null } | null>(
+    null,
+  );
   let inviteLinkInput: HTMLInputElement | undefined;
   let expiryTimer: ReturnType<typeof setTimeout> | undefined;
   let inviteLinkSwapTimer: ReturnType<typeof setTimeout> | undefined;
@@ -242,13 +249,39 @@ export function createServerMembersSection(host: ServerSettingsSectionHost): Ser
     }, duration);
   }
 
-  async function createInvite(): Promise<void> {
+  /**
+   * The owner's open license and the people that it counts, when it is full and the invite can add a
+   * person that it does not count yet. The account service refuses a join above the license, so the
+   * owner adds a user first. Admins get null: the license is the owner's, and the join tells the person
+   * that it is full. A failed read gets null, so it never blocks an invite.
+   */
+  async function fullLicense(email: string | null): Promise<{ license: License; used: number } | null> {
+    const calls = props.license;
+    if (!calls || props.server.role !== "owner") return null;
+    const state = await calls.getState().catch(() => null);
+    const license = state?.license;
+    if (!state || !license || !isOpenBillingStatus(license.status) || state.used < license.users) return null;
+    if (email && state.users.some((user) => normalizeEmailAddress(user.email) === email)) return null;
+    return { license, used: state.used };
+  }
+
+  async function createInvite(licenseChecked = false): Promise<void> {
     const email = panels.invite.mode === "email" ? normalizeEmailAddress(panels.invite.email) : null;
     if (panels.invite.mode === "email" && !email) {
       setPanels((state) => {
         state.invite.emailError = t("server.invite.invalidEmail");
       });
       return;
+    }
+    if (!licenseChecked) {
+      const check: { full: { license: License; used: number } | null } = { full: null };
+      await run("invite", async () => {
+        check.full = await fullLicense(email);
+      });
+      if (check.full) {
+        setLicenseStep({ ...check.full, error: null });
+        return;
+      }
     }
     let result: InviteSummary | undefined;
     const role = panels.invite.role;
@@ -695,6 +728,7 @@ export function createServerMembersSection(host: ServerSettingsSectionHost): Ser
         <RemoveDialog />
         <RoleDialog />
         <RevokeInviteDialog />
+        <LicenseUserDialog />
       </>
     );
   }
@@ -792,6 +826,68 @@ export function createServerMembersSection(host: ServerSettingsSectionHost): Ser
             }}
           />
         )}
+      </Show>
+    );
+  }
+
+  /**
+   * Asks the owner to add a user to the full license, then sends the invite. A license at the maximum
+   * cannot grow, so the dialog offers the contact page and sends no invite.
+   */
+  function LicenseUserDialog() {
+    const { errorMessage } = useText();
+    return (
+      <Show when={licenseStep()}>
+        {(step) => {
+          // A license can count more people than it pays for, when they joined before a lower limit.
+          const users = () => Math.max(step().license.users, step().used) + 1;
+          const price = () =>
+            users() > LICENSE_MAX_USERS
+              ? null
+              : licenseAmount(users(), step().license.currency) -
+                licenseAmount(step().license.users, step().license.currency);
+          return (
+            <ConfirmDialog
+              open
+              tone="default"
+              icon={<UserRound />}
+              pending={busy() === "invite"}
+              title={t("billing.license.invite.title")}
+              description={
+                <Show when={price()} fallback={t("billing.license.invite.max", { count: LICENSE_MAX_USERS })}>
+                  {(amount) =>
+                    t("billing.license.invite.description", {
+                      price: formatLicenseMoney(format, amount(), step().license.currency),
+                    })
+                  }
+                </Show>
+              }
+              confirmLabel={
+                price() !== null ? t("billing.license.invite.confirm") : t("billing.license.contact.action")
+              }
+              error={step().error ?? undefined}
+              onCancel={() => setLicenseStep(null)}
+              onConfirm={async () => {
+                const calls = props.license;
+                if (price() === null) {
+                  setLicenseStep(null);
+                  props.onContactUs?.();
+                  return;
+                }
+                if (calls) {
+                  try {
+                    await calls.setUsers({ users: users() });
+                  } catch (error) {
+                    setLicenseStep({ ...step(), error: errorMessage(error, t("billing.license.actionFailed")) });
+                    return;
+                  }
+                }
+                setLicenseStep(null);
+                await createInvite(true);
+              }}
+            />
+          );
+        }}
       </Show>
     );
   }

@@ -24,6 +24,18 @@ export function startProviderLog(logsDirectory: string): () => void {
 }
 
 /**
+ * Keeps the account lines in `<logs>/account/account.log`, with the same size limit. A session file
+ * that cannot be read or written names only its stage and an error code, so a support report can show
+ * why the app signed out after a restart.
+ */
+export function startAccountLog(logsDirectory: string): () => void {
+  const directory = join(logsDirectory, "account");
+  return teeLogLines(["central-auth"], (line) => {
+    Effect.runFork(appendRemoteDiagnosticLog(directory, "account", `${line}\n`));
+  });
+}
+
+/**
  * Keeps the agent deletion lines in `<logs>/agents/agents.log`, with the same size limit. A delete that
  * fails names only its stage and an error code, so a support report can show which step failed.
  */

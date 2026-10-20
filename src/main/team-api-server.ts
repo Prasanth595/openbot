@@ -80,6 +80,7 @@ import {
   TEAM_AGENT_ACTIVITY_CAPABILITY,
   TEAM_CURRENT_CAPABILITIES,
   TEAM_HISTORY_EXTENT_CAPABILITY,
+  TEAM_SUBAGENTS_CAPABILITY,
   TEAM_UI_BLOCKS_CAPABILITY,
   type TeamCurrentCapability,
 } from "@openbot/contracts/team-protocol/current";
@@ -184,6 +185,7 @@ import { routePushNotifications } from "./team-api/route-push-notifications";
 import { routeRemoteScreen } from "./team-api/route-remote-screen";
 import { routeRoutineFlows } from "./team-api/route-routine-flows";
 import { routeSharedTables } from "./team-api/route-shared-tables";
+import { routeSideQuestion } from "./team-api/route-side-question";
 import { routeSignInRelay } from "./team-api/route-sign-in-relay";
 import { routeSkillsAdmin } from "./team-api/route-skills-admin";
 import { routeStorage } from "./team-api/route-storage";
@@ -826,6 +828,7 @@ export class TeamApiServer {
       if ((await routeAgentMemoryPage(context, this.#options.agents, hidden)) === "handled") return;
       if ((await routeWorkspaceDirectory(context, this.#options.agents, hidden)) === "handled") return;
       if ((await routeConversationFiles(context, this.#options.agents)) === "handled") return;
+      if ((await routeSideQuestion(context, this.#options.agents, hidden)) === "handled") return;
       if ((await routeRoutineFlows(context, this.#options.routineFlows, this.#options.agents, hidden)) === "handled")
         return;
       if ((await this.#routeEvents(context)) === "handled") return;
@@ -1003,8 +1006,9 @@ export class TeamApiServer {
       )(visible, {
         ...options,
         preserveBrowserSecrets: capabilities.has("browser-secret-handoff"),
-        // Only the V7 encoder reads it.
+        // Only the V7 encoder reads them.
         uiBlocks: capabilities.has(TEAM_UI_BLOCKS_CAPABILITY),
+        subagents: capabilities.has(TEAM_SUBAGENTS_CAPABILITY),
       });
     return encodeTeamProtocolV1CurrentEvent(visible, options);
   }
@@ -1631,6 +1635,7 @@ export class TeamApiServer {
       preserveSemanticTags: supportsTeamSemanticTags(route.capabilities),
       historyExtent: route.capabilities.has(TEAM_HISTORY_EXTENT_CAPABILITY),
       uiBlocks: route.capabilities.has(TEAM_UI_BLOCKS_CAPABILITY),
+      subagents: route.capabilities.has(TEAM_SUBAGENTS_CAPABILITY),
     };
     // The body is encoded before the head is written. A response the negotiated protocol cannot
     // represent - a route its frozen adapter does not classify - makes the encoder throw, and with

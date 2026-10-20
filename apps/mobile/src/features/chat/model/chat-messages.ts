@@ -14,6 +14,7 @@ import type {
 } from "@openbot/contracts/ipc";
 import {
   CONVERSATION_PLAN_ITEM_TYPE,
+  CONVERSATION_SUBAGENTS_ITEM_TYPE,
   isContextResetMarker,
   parseConversationPlanText,
   routineConversationEvent,
@@ -474,6 +475,7 @@ export function latestReadableMessage(messages: ConversationMessage[]) {
       Boolean(message.questionPrompt) ||
       (message.author !== "system" &&
         message.itemType !== CONVERSATION_PLAN_ITEM_TYPE &&
+        message.itemType !== CONVERSATION_SUBAGENTS_ITEM_TYPE &&
         !message.itemType?.startsWith(CHAT_VISUAL_ITEM_TYPE_PREFIX) &&
         (message.text.trim().length > 0 || Boolean(message.attachments?.length) || Boolean(message.imageGeneration))),
   );

@@ -174,6 +174,8 @@ export const messages = {
     "{provider} CLI обрабатывает ход. Дождитесь его завершения, затем подключитесь заново.",
   "error.provider.opencodeCredentialsRejected":
     "Провайдер моделей отклонил API-ключ. Исправьте ключ OpenCode в настройках или ключ провайдера командой `opencode auth login`. Затем повторите попытку или выберите другую модель.\n{detail}",
+  "error.provider.opencodeKeyExpired":
+    "Срок действия API-ключа OpenCode истёк. Создайте новый ключ в OpenCode Console, вставьте его в настройках OpenCode, затем повторите попытку.",
   "error.provider.opencodeServiceFailure":
     "OpenCode не смог завершить этот ход из-за сбоя локальной службы. Повторите попытку. Если ошибка повторяется, подключите OpenCode заново в настройках.",
   "error.provider.opencodeRateLimited":
