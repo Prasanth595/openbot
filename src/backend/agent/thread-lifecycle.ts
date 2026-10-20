@@ -77,12 +77,10 @@ const CODEX_TOOLS_CONFIG = { update_plan: { enabled: true } } as const;
 /**
  * In code mode the model calls tools from an `exec` cell, and `exec` gives control back to the model
  * after its yield time while `ask_user` still waits. A model that then ends its turn expires the
- * question within seconds. Direct calls keep the turn waiting for the answer. Codex merges this table
- * into the user's `features.code_mode`, so it does not turn code mode on or off.
+ * question within seconds. Direct calls keep the turn waiting for the answer. It goes in as one
+ * dotted key, as the agent environment does, so it does not turn code mode on or off.
  */
-const CODEX_CODE_MODE_CONFIG = {
-  direct_only_tool_namespaces: VISIBLE_DYNAMIC_TOOLS.map((namespace) => namespace.name),
-};
+const CODEX_DIRECT_ONLY_NAMESPACES = VISIBLE_DYNAMIC_TOOLS.map((namespace) => namespace.name);
 
 /** The provider switch waits for the capture, so its read is short. */
 const CAPTURE_READ_TIMEOUT_MS = 10_000;
@@ -586,7 +584,7 @@ export class ThreadLifecycle {
       config?: {
         mcp_servers?: Record<string, CodexMcpServer | CodexDisabledMcpServer>;
         tools: typeof CODEX_TOOLS_CONFIG;
-        "features.code_mode": typeof CODEX_CODE_MODE_CONFIG;
+        "features.code_mode.direct_only_tool_namespaces": typeof CODEX_DIRECT_ONLY_NAMESPACES;
         [variable: `shell_environment_policy.set.${string}`]: string;
       } & ReturnType<typeof codexSandboxConfig>;
     },
@@ -604,7 +602,7 @@ export class ThreadLifecycle {
       config: {
         ...(Object.keys(mcpServers).length > 0 ? { mcp_servers: mcpServers } : {}),
         tools: CODEX_TOOLS_CONFIG,
-        "features.code_mode": CODEX_CODE_MODE_CONFIG,
+        "features.code_mode.direct_only_tool_namespaces": CODEX_DIRECT_ONLY_NAMESPACES,
         ...codexSandboxConfig(agent, this.#store.sharedRoot),
         ...Object.fromEntries(
           Object.entries(environment).map(([name, value]) => [`shell_environment_policy.set.${name}`, value]),
