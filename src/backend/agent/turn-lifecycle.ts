@@ -930,9 +930,12 @@ export class TurnLifecycle {
       const closed = structuredClone(snapshot);
       const changedIds = new Set<string>();
       const status = normalizeCompletionStatus(terminal);
+      const now = new Date().toISOString();
       for (const message of closed.messages) {
         if (message.status !== "streaming") continue;
         if (message.turnId !== turnId && this.#itemTurns.get(message.id) !== turnId) continue;
+        // As at the normal end, a foreground subagent ends with its turn.
+        stopRunningSubagents(message.subagents, now, { background: false });
         message.status = status;
         markIncompleteImageGeneration(message, status);
         changedIds.add(message.id);
@@ -1157,14 +1160,19 @@ export class TurnLifecycle {
   /**
    * Shows a turn's subagents as one message, which each update replaces, as the plan is. Only a
    * running turn adds the message: a background subagent ends after its turn, and its update then
-   * changes the list that its turn left.
+   * changes the list that its turn left. That list can be out of the bounded cache by then, so it is
+   * read back from the database.
    */
   #applySubagents(agentId: string, threadId: string, turnId: string, subagents: ConversationSubagent[]): void {
     const snapshot = this.#conversation.ensureSnapshot(agentId, threadId);
     const id = `${turnId}:subagents`;
     let message = snapshot.messages.find((candidate) => candidate.id === id);
+    if (!message && !this.#runningTurns.has(turnId)) {
+      message = this.#store.database.readConversationMessages(agentId, snapshot.threadId, [id])[0];
+      if (!message) return;
+      snapshot.messages.push(message);
+    }
     if (!message) {
-      if (!this.#runningTurns.has(turnId)) return;
       message = newAssistantMessage(id, turnId);
       snapshot.messages.push(message);
       this.#itemTurns.set(id, turnId);

@@ -189,7 +189,7 @@ export function SubagentGroup(props: SubagentGroupProps) {
         variant="ghost"
         class="subagents-group-header"
         aria-expanded={expanded() ? "true" : "false"}
-        aria-controls={listId}
+        aria-controls={expanded() ? listId : undefined}
         onClick={() => setChoice(!expanded())}
       >
         <span class="subagents-group-title">

@@ -24,7 +24,7 @@ export function subagentsFromNotification(params: unknown): ConversationSubagent
 }
 
 /** The step that a subagent's tool call shows: the kind gives the icon, the text is the target. */
-export function subagentToolStep(name: string, input: unknown): { kind: ConversationSubagentStepKind; text: string } {
+function subagentToolStep(name: string, input: unknown): { kind: ConversationSubagentStepKind; text: string } {
   const fields = isRecord(input) ? input : {};
   const field = (key: string) => (isString(fields[key]) ? fields[key] : "");
   switch (name) {
@@ -54,7 +54,7 @@ export function subagentToolStep(name: string, input: unknown): { kind: Conversa
  * Adds a step, or replaces the step with the same id, and keeps only the newest steps, so a long
  * run holds bounded memory. Returns false for a blank step, which is not added.
  */
-export function pushSubagentStep(subagent: ConversationSubagent, step: ConversationSubagentStep): boolean {
+function pushSubagentStep(subagent: ConversationSubagent, step: ConversationSubagentStep): boolean {
   const text = step.text.trim();
   if (!text) return false;
   const existing = subagent.steps.findIndex((candidate) => candidate.id === step.id);
@@ -73,7 +73,7 @@ function pushSubagentReport(subagent: ConversationSubagent, text: string): void 
 }
 
 /** Ends a subagent once. A later end, such as a tool result after the task notification, keeps the first. */
-export function endSubagent(
+function endSubagent(
   subagent: ConversationSubagent,
   status: Exclude<ConversationSubagentStatus, "running">,
   endedAt: string,
@@ -87,7 +87,7 @@ export function endSubagent(
 }
 
 /** The subagents of one turn, in start order. */
-export interface SubagentTurn {
+interface SubagentTurn {
   subagents: ConversationSubagent[];
   /** The turn ended. A later `Agent` call can still come while it runs, so its list stays until then. */
   ended: boolean;
@@ -103,10 +103,12 @@ export interface ClaudeSubagentState {
   turns: Map<string, SubagentTurn>;
   /** The turn of each subagent, under the tool-use id of its `Agent` call. */
   turnOf: Map<string, string>;
+  /** The tool-use id of each subagent under its CLI task id: `task_updated` names only the task. */
+  toolOfTask: Map<string, string>;
 }
 
 export function newClaudeSubagentState(): ClaudeSubagentState {
-  return { turns: new Map(), turnOf: new Map() };
+  return { turns: new Map(), turnOf: new Map(), toolOfTask: new Map() };
 }
 
 const CLAUDE_SUBAGENT_TOOLS = new Set(["Agent", "Task"]);
@@ -124,6 +126,8 @@ function change(state: ClaudeSubagentState, turnId: string | undefined): Subagen
   if (turn.ended && turn.subagents.every((subagent) => subagent.status !== "running")) {
     state.turns.delete(turnId);
     for (const subagent of turn.subagents) state.turnOf.delete(subagent.id);
+    for (const [taskId, toolUseId] of state.toolOfTask)
+      if (!state.turnOf.has(toolUseId)) state.toolOfTask.delete(taskId);
   }
   return { turnId, subagents };
 }
@@ -194,7 +198,8 @@ export function foldClaudeSubagentMessage(
 
 /**
  * Applies the main agent's result of an `Agent` call. A background call answers at once that the
- * subagent started, so only a foreground result ends the subagent.
+ * subagent started, so only a foreground result ends the subagent. An error ends both: a background
+ * call that failed started no task, so no `task_notification` ends it later.
  */
 export function foldClaudeSubagentResult(
   state: ClaudeSubagentState,
@@ -206,16 +211,17 @@ export function foldClaudeSubagentResult(
 ): SubagentChange | null {
   const subagent = subagentFor(state, toolUseId);
   if (!subagent) return null;
+  if (isError) {
+    endSubagent(subagent, "failed", now, text);
+    return change(state, state.turnOf.get(toolUseId));
+  }
   if (isRecord(result) && (result.isAsync === true || result.status === "async_launched")) {
     subagent.background = true;
     return null;
   }
   if (subagent.background) return null;
-  if (isError) endSubagent(subagent, "failed", now, text);
-  else {
-    pushSubagentReport(subagent, claudeResultText(result));
-    endSubagent(subagent, "completed", now);
-  }
+  pushSubagentReport(subagent, claudeResultText(result));
+  endSubagent(subagent, "completed", now);
   return change(state, state.turnOf.get(toolUseId));
 }
 
@@ -239,7 +245,16 @@ export function foldClaudeTaskMessage(
   now: string,
 ): SubagentChange | null {
   if (!isRecord(message) || message.type !== "system") return null;
-  const subagent = subagentFor(state, message.tool_use_id);
+  if (
+    message.subtype === "task_started" &&
+    isString(message.task_id) &&
+    isString(message.tool_use_id) &&
+    state.turnOf.has(message.tool_use_id)
+  )
+    state.toolOfTask.set(message.task_id, message.tool_use_id);
+  const toolUseId =
+    message.tool_use_id ?? (isString(message.task_id) ? state.toolOfTask.get(message.task_id) : undefined);
+  const subagent = subagentFor(state, toolUseId);
   if (!subagent) return null;
   const turnId = state.turnOf.get(subagent.id);
   if (message.subtype === "task_started" || message.subtype === "task_updated") {

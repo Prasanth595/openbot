@@ -140,8 +140,3 @@ function nullableText(value: string | null, limit: number, oneLine = true): stri
 export function conversationSubagentsText(subagents: readonly ConversationSubagent[]): string {
   return subagents.map((subagent) => `- ${subagent.title || subagent.agentType || subagent.id}`).join("\n");
 }
-
-/** The number of subagents in `subagents` that still work. */
-export function runningSubagentCount(subagents: readonly ConversationSubagent[] | undefined): number {
-  return subagents?.filter((subagent) => subagent.status === "running").length ?? 0;
-}
