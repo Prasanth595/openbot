@@ -26,7 +26,7 @@ export const messages = {
   "webClient.connect.description":
     "Bu tarayıcıdan ajanlarınızla sohbet etmek için bilgisayarınızda OpenBot'u çalıştırın. Ayrıca bir davetle bir sunucuya da katılabilirsiniz.",
   "webClient.connect.descriptionHosted":
-    "Bu tarayıcıdan ajanlarınızla hemen sohbet etmek için barındırılan bir sunucu oluşturun. OpenBot'u bilgisayarınızda da çalıştırabilir veya bir davetle bir sunucuya katılabilirsiniz.",
+    "Bu tarayıcıdan ajanlarınızla sohbet etmek için barındırılan bir sunucu oluşturun. OpenBot'u bilgisayarınızda da çalıştırabilir veya bir davetle bir sunucuya katılabilirsiniz.",
   "webClient.connect.stepInstall": "Bilgisayarınıza OpenBot'u yükleyin ve açın.",
   "webClient.connect.stepSignIn": "E-posta adresinizle oturum açın.",
   "webClient.connect.stepRemote": "Uzaktan erişimi açın.",

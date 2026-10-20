@@ -318,8 +318,11 @@
   color: var(--openbot-text-secondary);
 }
 
-.web-connect-download.ui-button-variant-outline:hover {
-  color: var(--openbot-text-primary);
+/* The same hover query as the shared outline button, so a tap leaves no hover colour. */
+@media (hover: hover) and (pointer: fine) and (min-width: 601px) {
+  .web-connect-download.ui-button-variant-outline:hover {
+    color: var(--openbot-text-primary);
+  }
 }
 
 .web-connect-hosted.ui-button {

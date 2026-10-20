@@ -1928,7 +1928,13 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 failed={Boolean(workspace.state.hostsError)}
                 reference={workspace.state.hostsError?.reference ?? null}
                 onJoin={() => setJoinOpen(true)}
-                onCreateServer={hostedServers.available() ? hostedServers.openAddServer : undefined}
+                onCreateServer={
+                  // An account with a hosted server that is not a host yet, such as one that waits for payment,
+                  // must not buy a second one from here.
+                  hostedServers.available() && !hostedServers.ownsHostedServer()
+                    ? hostedServers.openAddServer
+                    : undefined
+                }
                 onRefresh={() => void workspace.run(workspace.refreshHosts)}
               />
             </Show>
