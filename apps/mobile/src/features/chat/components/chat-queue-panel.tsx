@@ -4,7 +4,7 @@ import { Button, Spinner, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
 import CornerDownRight from "lucide-react-native/icons/corner-down-right";
 import Pencil from "lucide-react-native/icons/pencil";
-import { memo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { Pressable, View, type ViewStyle } from "react-native";
 import Animated, {
   Easing,
@@ -39,7 +39,7 @@ interface ChatQueuePanelProps {
 
 /**
  * The queue above the composer, as on desktop: the first messages with Steer and Edit on each
- * row. The pill opens the sheet with the full queue when the rows do not show all of it.
+ * row. The pill counts the queue and opens the sheet with all of it.
  */
 export const ChatQueuePanel = memo(function ChatQueuePanel({
   queue,
@@ -48,7 +48,10 @@ export const ChatQueuePanel = memo(function ChatQueuePanel({
   fallbackBackground,
 }: ChatQueuePanelProps) {
   const held = queue.edit?.delivery ?? null;
-  const rows = queueRowsWithHeldEdit(queue.queued, held).slice(0, INLINE_ROWS);
+  // The sheet keeps a held edit in its rows when the host hides it. Count it here as
+  // well, so a saved edit with a lost response stays reachable after a restart.
+  const queued = useMemo(() => queueRowsWithHeldEdit(queue.queued, held), [queue.queued, held]);
+  const rows = queued.slice(0, INLINE_ROWS);
   // The steer that this panel started. Only its row shows the progress.
   const [steeringId, setSteeringId] = useState<string | null>(null);
   const steer = (delivery: QueueDelivery) => {
@@ -62,11 +65,12 @@ export const ChatQueuePanel = memo(function ChatQueuePanel({
     // A chat that opens with a queue shows its rows at once. Later rows fade in.
     <LayoutAnimationConfig skipEntering>
       <ChatQueueButton
-        queue={queue}
-        pending={pending}
+        chatId={queue.chatId}
+        count={queued.length + (pending ? 1 : 0)}
+        error={Boolean(queue.error)}
+        waiting={queue.waiting.length > 0}
         liquidGlassAvailable={liquidGlassAvailable}
         fallbackBackground={fallbackBackground}
-        inline={rows.length}
       />
       {rows.length > 0 ? (
         <Animated.View entering={ROW_ENTER} exiting={ROW_EXIT} layout={ROW_MOVE} className="px-4 pb-2">
