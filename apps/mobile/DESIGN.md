@@ -22,7 +22,7 @@ Native system chrome is the intentional exception. Navigation and operating-syst
 | Product headings, paragraphs, labels, and inline text | HeroUI Native `Typography` | Use semantic type, color, weight, and alignment props instead of React Native `Text` and screen-local font styling. |
 | Screen stacks, titles, back buttons, headers, and route transitions | Expo Router native `Stack` | Configure them in route layouts or screen options instead of drawing custom headers. |
 | Tab navigation | Expo Router `NativeTabs` | Use native tab triggers, labels, badges, and platform icons instead of a custom tab bar. |
-| Search integrated with navigation | `Stack.SearchBar` and native toolbar search slots | Do not place a HeroUI input inside a handmade navigation bar. |
+| Search integrated with navigation | `Stack.SearchBar` and native toolbar search slots | Do not place a HeroUI input inside a handmade navigation bar. The home search field is the documented exception; see [Home search](#home-search). |
 | Header and bottom toolbar actions or menus | `Stack.Toolbar` native items | Let the platform render placement, materials, menus, and interaction behavior. |
 | Route-level modals and form sheets | Expo Router native presentations | Prefer native modal or form-sheet presentation over a custom full-screen overlay. |
 | Native pickers, switches, sliders, menus, and grouped system forms | `@expo/ui` | Use when the interaction should look and behave like a platform control. Keep every `@expo/ui` tree inside `Host`. Import `MenuView` from `@/shared/components/menu-view`, not `@expo/ui/community/menu`. iOS keeps the native menu. Android draws the HeroUI `Menu`, because the Material menu takes the device palette and shape, and shows a Lucide icon for each SF Symbol `image` that the component maps. Add the mapping when you use a new symbol. |
@@ -40,6 +40,34 @@ Native ownership takes priority over HeroUI for navigation chrome. HeroUI owners
 - Avoid forcing opaque colors or bespoke backgrounds onto native chrome unless the product requirement explicitly calls for it. Let the operating system adapt materials to the platform version, appearance, accessibility settings, and scroll state.
 - Treat older iOS versions and Android as first-class fallbacks. The interface must remain complete and readable when Liquid Glass is unavailable or reduced transparency is enabled.
 - Use platform-native icons in native navigation (`sf` on iOS and the corresponding Material icon on Android). Use the existing application icon convention for HeroUI content.
+
+### Big headers
+
+Home, Routines and Usage have a big header that the screen draws, not `headerLargeTitle`. The native
+large title does not work under the custom scroll edge effect on iOS 27, and Android has none. Use
+`src/shared/components/large-title.tsx`:
+
+- `useLargeTitleScroll` gives the scroll handler and the scroll distance from the rest position.
+- `LargeTitle` is the first item of the scroll content: an optional caption (the server name) and the
+  34 pt bold title. On iOS a pull past the top grows it a little, as the native title does.
+- `LargeTitleBar` draws the scroll edge effect and the 17 pt small title. The small title fades in,
+  4 pt up, in 200 ms when the text of the big title reaches the bottom of the bar.
+- `LargeTitleScrollView` puts grouped content under a big header on the sheet surface.
+
+The native header stays, transparent, with an empty title. It keeps the native Liquid Glass buttons on
+iOS: back, `Stack.Toolbar` actions and menus. Android draws its buttons with `AndroidHeaderButton` and
+`AndroidBackButton`. Text sizes that HeroUI `Typography` has no variant for come from
+`src/shared/lib/type-scale.ts`; spread them into `style`.
+
+### Home search
+
+Search is a field at the bottom of home (`features/search/components/home-search.tsx`), not a header
+button or a sheet. It is an in-content glass surface: `GlassView` with Liquid Glass, and a solid
+`default` capsule without it or with Reduce Transparency. The field rides on the keyboard. When it
+takes focus, the results come in over the list (220 ms, opacity and 8 pt up; opacity only with
+reduced motion), a close button comes in beside the field, and the drawer pan stops. Close, Android
+Back, or a result closes them in 160 ms. With no query the results show shortcuts and the agents of
+the server; a query shows the same sections as before, with `BlurSwap` between states.
 
 ## Sheets
 

@@ -183,14 +183,15 @@ export interface MobileWorkspaceContextValue {
   /** Sets the reader's reaction on a message of an agent chat. `null` removes it. */
   setMessageReaction: (agentId: string, serverId: string, messageId: string, emoji: string | null) => Promise<void>;
   interruptTurn: (agentId: string, turnId: string, serverId?: string) => Promise<void>;
-  /** The default server first, then the other servers in the order saved on this device. */
+  /** The servers in the order saved on this device. The app opens on the first one. */
   servers: MobileServer[];
-  /** Saves the order of the other servers on this device. Returns false and keeps the old order on failure. */
+  /** Saves the order of all servers on this device. Returns false and keeps the old order on failure. */
   reorderServers: (serverIds: string[]) => boolean;
-  /** The one server above the divider. With no saved choice, the paired host. */
-  defaultServerId: string | null;
-  /** Makes a server the default in place of the current one, or removes it with `null`. Returns false on failure. */
-  setDefaultServer: (serverId: string | null) => boolean;
+  /**
+   * The members of each server that are not disabled, from the host's presence event. A server that
+   * has sent no presence yet has no entry. The account service member list is not read for it.
+   */
+  memberCountByServer: Readonly<Record<string, number>>;
   teamDirectory: RemoteTeamDirectoryClient;
   serverDirectoryState: MobileServerDirectoryState;
   serverDirectoryError: string | null;
@@ -405,7 +406,7 @@ type MobileWorkspaceStateKey =
   | MobileWorkspaceCapabilityCheck
   | "sidebarByServer"
   | "servers"
-  | "defaultServerId"
+  | "memberCountByServer"
   | "serverDirectoryState"
   | "serverDirectoryError"
   | "agents"

@@ -2,7 +2,8 @@ import { defineMessages } from "../../../message";
 
 export const messages = defineMessages("mobile.search", {
   "mobile.search.clear": "Clear search",
-  "mobile.search.filter.label": "Filter results",
+  "mobile.search.close": "Close search",
+  "mobile.search.goTo": "Go to",
   "mobile.search.filter.all": "All",
   "mobile.search.filter.agents": "Agents",
   "mobile.search.filter.messages": "Messages",

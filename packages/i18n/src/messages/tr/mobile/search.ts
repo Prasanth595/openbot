@@ -3,7 +3,8 @@ import type { messages as source } from "../../en/mobile/search";
 
 export const messages = {
   "mobile.search.clear": "Aramayı temizle",
-  "mobile.search.filter.label": "Sonuçları filtrele",
+  "mobile.search.close": "Aramayı kapat",
+  "mobile.search.goTo": "Git",
   "mobile.search.filter.all": "Tümü",
   "mobile.search.filter.agents": "Ajanlar",
   "mobile.search.filter.messages": "Mesajlar",

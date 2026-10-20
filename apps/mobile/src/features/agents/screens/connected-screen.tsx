@@ -1,13 +1,11 @@
 import type { SidebarLayoutSnapshot } from "@openbot/contracts/ipc";
 import { type Href, router, Stack } from "expo-router";
-import { HeaderHeightContext } from "expo-router/react-navigation";
 import { Button, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
 import EllipsisVertical from "lucide-react-native/icons/ellipsis-vertical";
 import Layers3 from "lucide-react-native/icons/layers";
-import Search from "lucide-react-native/icons/search";
 import WifiOff from "lucide-react-native/icons/wifi-off";
-import { memo, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import Animated, {
   cancelAnimation,
@@ -37,6 +35,12 @@ import { SidebarSectionHeader } from "@/features/agents/components/sidebar-secti
 import { showFailureAlert } from "@/features/analytics/failure-reports";
 import { OnboardingFlow } from "@/features/onboarding/components/onboarding-flow";
 import { useOnboardingGate } from "@/features/onboarding/model/use-onboarding-gate";
+import {
+  HOME_SEARCH_HEIGHT,
+  HomeSearchBar,
+  HomeSearchResults,
+  useHomeSearch,
+} from "@/features/search/components/home-search";
 import { useAppDrawer } from "@/features/servers/components/app-drawer-shell";
 import { ConnectionHeaderStatus } from "@/features/workspace/components/connection-header-status";
 import { useWaitingAgentIds } from "@/features/workspace/components/use-agent-activity";
@@ -53,8 +57,8 @@ import {
   mobileWaitingItems,
 } from "@/features/workspace/model/sidebar-layout";
 import { useAppLoadingOverlay, useScreenLoadingLabel } from "@/shared/components/app-loading-overlay";
+import { LargeTitle, LargeTitleBar, useLargeTitleScroll } from "@/shared/components/large-title";
 import { type MenuAction, MenuView } from "@/shared/components/menu-view";
-import { SheetScrollEdgeEffect } from "@/shared/components/sheet-scroll-edge-effect";
 import { haptics } from "@/shared/lib/haptics";
 import { isAndroid, isIOS } from "@/shared/lib/platform";
 import { currentText, useText } from "@/shared/lib/text";
@@ -291,8 +295,15 @@ export function ConnectedScreen() {
     () => items.filter((item) => item.kind === "section").map((item) => item.id),
     [items],
   );
-  const headerHeight = useContext(HeaderHeightContext) ?? 0;
+  const scroll = useLargeTitleScroll();
+  const { headerHeight } = scroll;
   const insets = useSafeAreaInsets();
+  const search = useHomeSearch();
+  // A new server shows a new list at its top, which sends no scroll event.
+  const listServerId = activeServer.id;
+  useEffect(() => {
+    if (listServerId) scroll.scrolled.set(0);
+  }, [listServerId, scroll.scrolled]);
   // With nothing in the list, the scene replaces it. In a list, the native header and safe-area
   // insets add to a content container that already fills the screen, so iOS would scroll it.
   // Pins and a sidebar error still need the list header, so they keep the scene in the list.
@@ -308,6 +319,14 @@ export function ConnectedScreen() {
     router.push("/add-agent");
   };
   const sceneShows = listReady && showAgentsScene;
+  // The same condition as the connection state in the bar.
+  const statusShows = hasSelectedServer && !activeServer.initialConnectionPending && !activeServerOnline;
+  // The empty scene has its own main action where the field would be.
+  const searchShows = listReady && hasSelectedServer && !onboarding.active && !sceneShows;
+  const { open: searchOpen, closeSearch } = search;
+  useEffect(() => {
+    if (!searchShows && searchOpen) closeSearch();
+  }, [searchShows, searchOpen, closeSearch]);
   const finishGate = onboarding.finish;
   const finishOnboarding = useCallback(
     (welcome?: WelcomeHandOff) => {
@@ -421,9 +440,15 @@ export function ConnectedScreen() {
           removeClippedSubviews={false}
           className="flex-1 bg-background"
           alwaysBounceVertical={false}
-          contentContainerClassName={items.length > 0 ? "pb-safe-offset-4" : "grow pb-safe-offset-4"}
-          // Android has no content inset, so the list starts below the transparent header.
-          contentContainerStyle={isAndroid ? { paddingTop: headerHeight } : undefined}
+          contentContainerClassName={items.length > 0 ? undefined : "grow"}
+          // Android has no content inset, so the list starts below the transparent header. The end of
+          // the list scrolls clear of the search field.
+          contentContainerStyle={{
+            paddingTop: isAndroid ? headerHeight : 0,
+            paddingBottom: insets.bottom + HOME_SEARCH_HEIGHT + 24,
+          }}
+          scrollEventThrottle={16}
+          onScroll={scroll.onScroll}
           // Keep the native header inset even when short content cannot scroll or bounce.
           contentInsetAdjustmentBehavior="always"
           data={items}
@@ -434,6 +459,14 @@ export function ConnectedScreen() {
           windowSize={LIST_WINDOW_SIZE}
           ListHeaderComponent={
             <AgentListRowReveal index={0} reveal={listReveal}>
+              {hasSelectedServer ? (
+                <LargeTitle
+                  scroll={scroll}
+                  title={activeServer.name}
+                  accessibilityLabel={t("mobile.agent.home.serverTitle", { name: activeServer.name })}
+                  onPress={openDrawer}
+                />
+              ) : null}
               {sidebar?.error ? (
                 <View className="gap-2 px-4">
                   <Typography.Paragraph className="text-danger-text">{sourceText(sidebar.error)}</Typography.Paragraph>
@@ -516,11 +549,20 @@ export function ConnectedScreen() {
         />
       ) : null}
 
+      {searchShows ? <HomeSearchResults search={search} /> : null}
+
       {/* The list scrolls under the transparent header, which gets the blur of the chat header. iOS 27
           shows no native scroll edge effect here. The native top edge is hidden to avoid two effects. */}
       {onboarding.active ? null : (
-        <SheetScrollEdgeEffect style={{ height: headerHeight + 20, left: 0, position: "absolute", right: 0, top: 0 }} />
+        <LargeTitleBar
+          scroll={scroll}
+          title={activeServer.name}
+          // The connection state takes the place of the title in the bar.
+          hidden={!searchShows || statusShows || search.open}
+        />
       )}
+
+      {searchShows ? <HomeSearchBar search={search} /> : null}
 
       {onboardingReady ? (
         // The flow fades out over the home, which comes in under it with its own reveal.
@@ -548,15 +590,6 @@ export function ConnectedScreen() {
             isAndroid && headerActions
               ? () => (
                   <View className="flex-row items-center gap-1">
-                    <HeaderIconButton
-                      accessibilityLabel={t("mobile.agent.home.searchAgents")}
-                      onPress={() => {
-                        void haptics.impact("soft");
-                        router.push("/search-agents");
-                      }}
-                    >
-                      <Search color={iconColor} size={22} strokeWidth={1.9} />
-                    </HeaderIconButton>
                     <MenuView
                       actions={optionsActions}
                       onPressAction={(event) => {
@@ -596,15 +629,6 @@ export function ConnectedScreen() {
             </Stack.Toolbar.View>
           </Stack.Toolbar>
           <Stack.Toolbar placement="right">
-            <Stack.Toolbar.Button
-              icon="magnifyingglass"
-              accessibilityLabel={t("mobile.agent.home.searchAgents")}
-              separateBackground
-              onPress={() => {
-                void haptics.impact("soft");
-                router.push("/search-agents");
-              }}
-            />
             <Stack.Toolbar.Menu
               icon="ellipsis"
               accessibilityLabel={t("mobile.agent.home.chatOptions")}
