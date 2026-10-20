@@ -63,15 +63,26 @@ const logger = createOpenBotLogger("thread-lifecycle");
  * the payload, 3 is the sweep that turns off the servers `~/.codex/config.toml` declares, and 4 is
  * the managed tool runtimes joining the fingerprint, so a session started before Bun finished
  * downloading is replaced once its servers can actually start, 5 is the plan tool below, and 6 is
- * server names in the form Codex accepts. Version 7 keeps approvals for custom MCP servers.
+ * server names in the form Codex accepts. Version 7 keeps approvals for custom MCP servers, and 8
+ * is the code mode setting below.
  */
-const CODEX_MCP_ADAPTER_VERSION = 7;
+const CODEX_MCP_ADAPTER_VERSION = 8;
 
 /**
  * Codex offers `update_plan` only when this is on, and without it a turn sends no
  * `turn/plan/updated`, so the conversation shows no task list.
  */
 const CODEX_TOOLS_CONFIG = { update_plan: { enabled: true } } as const;
+
+/**
+ * In code mode the model calls tools from an `exec` cell, and `exec` gives control back to the model
+ * after its yield time while `ask_user` still waits. A model that then ends its turn expires the
+ * question within seconds. Direct calls keep the turn waiting for the answer. Codex merges this table
+ * into the user's `features.code_mode`, so it does not turn code mode on or off.
+ */
+const CODEX_CODE_MODE_CONFIG = {
+  direct_only_tool_namespaces: VISIBLE_DYNAMIC_TOOLS.map((namespace) => namespace.name),
+};
 
 /** The provider switch waits for the capture, so its read is short. */
 const CAPTURE_READ_TIMEOUT_MS = 10_000;
@@ -575,6 +586,7 @@ export class ThreadLifecycle {
       config?: {
         mcp_servers?: Record<string, CodexMcpServer | CodexDisabledMcpServer>;
         tools: typeof CODEX_TOOLS_CONFIG;
+        "features.code_mode": typeof CODEX_CODE_MODE_CONFIG;
         [variable: `shell_environment_policy.set.${string}`]: string;
       } & ReturnType<typeof codexSandboxConfig>;
     },
@@ -592,6 +604,7 @@ export class ThreadLifecycle {
       config: {
         ...(Object.keys(mcpServers).length > 0 ? { mcp_servers: mcpServers } : {}),
         tools: CODEX_TOOLS_CONFIG,
+        "features.code_mode": CODEX_CODE_MODE_CONFIG,
         ...codexSandboxConfig(agent, this.#store.sharedRoot),
         ...Object.fromEntries(
           Object.entries(environment).map(([name, value]) => [`shell_environment_policy.set.${name}`, value]),
