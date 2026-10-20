@@ -582,7 +582,7 @@ export function ConnectedScreen() {
           // The first-run flow is a whole screen with its own back and skip actions.
           headerShown: !onboarding.active,
           headerLeft:
-            isAndroid && headerActions
+            isAndroid && headerActions && !search.open
               ? () => (
                   <View className="flex-row items-center gap-2">
                     <HeaderIconButton accessibilityLabel={t("mobile.agent.home.openServers")} onPress={openDrawer}>
@@ -593,7 +593,7 @@ export function ConnectedScreen() {
                 )
               : undefined,
           headerRight:
-            isAndroid && headerActions
+            isAndroid && headerActions && !search.open
               ? () => (
                   <View className="flex-row items-center gap-1">
                     <MenuView
@@ -629,8 +629,9 @@ export function ConnectedScreen() {
       {isIOS && headerActions ? (
         <>
           <Stack.Toolbar placement="left">
-            <Stack.Toolbar.Button icon="square.stack.3d.up.fill" onPress={openDrawer} />
-            <Stack.Toolbar.View hidesSharedBackground>
+            {/* The search takes the screen, so the bar buttons go while it is open. */}
+            <Stack.Toolbar.Button icon="square.stack.3d.up.fill" hidden={search.open} onPress={openDrawer} />
+            <Stack.Toolbar.View hidesSharedBackground hidden={search.open}>
               <ConnectionHeaderStatus server={hasSelectedServer ? activeServer : undefined} />
             </Stack.Toolbar.View>
           </Stack.Toolbar>
@@ -639,6 +640,7 @@ export function ConnectedScreen() {
               icon="ellipsis"
               accessibilityLabel={t("mobile.agent.home.chatOptions")}
               separateBackground
+              hidden={search.open}
             >
               {/* Add actions come first, then a divider and the actions on existing chats. */}
               <Stack.Toolbar.Menu inline>

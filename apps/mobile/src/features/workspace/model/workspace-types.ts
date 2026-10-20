@@ -13,6 +13,8 @@ import type {
   AgentReasoningEffort,
   AgentSessionSettings,
   AgentTask,
+  AgentTaskInput,
+  AgentTasksSnapshot,
   AgentTemplatePreview,
   AgentTemplatePublication,
   AvatarHue,
@@ -28,6 +30,7 @@ import type {
   HostProviderAccounts,
   InstallAgentTemplateInput,
   InstalledSkill,
+  QueuedMessageReceipt,
   QueueSnapshot,
   ResetAgentSessionSettingInput,
   RespondToApprovalInput,
@@ -317,10 +320,6 @@ export interface MobileWorkspaceContextValue {
   setAgentSessionSetting: (input: SetAgentSessionSettingInput, serverId: string) => Promise<AgentSessionSettings>;
   resetAgentSessionSetting: (input: ResetAgentSessionSettingInput, serverId: string) => Promise<AgentSessionSettings>;
   startNewChat: (agentId: string, serverId: string) => Promise<void>;
-  /** True when the host advertises `agent-tasks-v1`. */
-  canStartTasks: (serverId: string) => boolean;
-  /** Starts a task of the agent with this text. The host refuses an agent the member cannot message. */
-  startAgentTask: (agentId: string, text: string, serverId: string) => Promise<AgentTask>;
   /** An owner or admin of an online host that serves `shared-tables-v1`. The host checks the role again. */
   canManageSharedTables: (serverId: string) => boolean;
   /** Every table that the agents of the host share. Owners and admins only. */
@@ -347,6 +346,25 @@ export interface MobileWorkspaceContextValue {
   canSearchFiles: (serverId: string) => boolean;
   /** Searches file names in the server's agent chats. An empty query lists the newest files. */
   searchFiles: (query: string, serverId: string, cursor?: string) => Promise<ConversationFileSearchPage>;
+  /** True when the host advertises `agent-tasks-v1`. A member who can message an agent can use its tasks. */
+  canUseTasks: (serverId: string) => boolean;
+  /** The tasks of one agent. The host answers 404 for an agent that this member cannot see. */
+  loadAgentTasks: (agentId: string, serverId: string) => Promise<AgentTasksSnapshot>;
+  loadAgentTaskConversation: (input: AgentTaskInput, serverId: string) => Promise<ConversationSnapshot>;
+  /** `agent-tasks-v1` carries text only. */
+  startAgentTask: (
+    input: { agentId: string; text: string; clientMessageId: string },
+    serverId: string,
+  ) => Promise<AgentTask>;
+  /** Steers the running turn of the task, or queues the message in the task. */
+  sendAgentTaskMessage: (
+    input: AgentTaskInput & { text: string; clientMessageId: string },
+    serverId: string,
+  ) => Promise<QueuedMessageReceipt>;
+  /** Stops the running turn of a task, closes the task, or reopens it. */
+  controlAgentTask: (action: "stop" | "close" | "reopen", input: AgentTaskInput, serverId: string) => Promise<void>;
+  /** Answers a question of a task turn. The host finds the question by its request, on any thread. */
+  respondToTaskPrompt: (input: RespondToPromptInput, serverId: string) => Promise<void>;
   loadConversation: (agentId: string, serverId?: string) => Promise<ConversationSnapshot>;
   /**
    * Loads the page around a message, for a chat that opens at a search result. False when the host
@@ -406,7 +424,7 @@ export type MobileWorkspaceCapabilityCheck =
   | "canChooseNewAgentModel"
   | "canInstallAgentTemplate"
   | "canSearchFiles"
-  | "canStartTasks";
+  | "canUseTasks";
 
 type MobileWorkspaceStateKey =
   | MobileWorkspaceCapabilityCheck

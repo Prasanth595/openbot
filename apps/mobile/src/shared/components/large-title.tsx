@@ -22,6 +22,9 @@ import { typeScale } from "@/shared/lib/type-scale";
 const TITLE_EASE = cubicBezier(0.23, 1, 0.32, 1);
 /** The small title shows when the text of the big title reaches the bottom of the bar. */
 const TITLE_BOTTOM_PADDING = 10;
+/** The distance over which the big title fades out under the bar. */
+const TITLE_FADE = 24;
+const IOS_BAR_HEIGHT = 44;
 /** The side room of the small title: a 44 pt bar button, 16 pt from the edge, and an 8 pt gap. */
 export const BAR_TITLE_INSET = 68;
 
@@ -73,9 +76,22 @@ export function LargeTitle({
   // Worklets take the shared values only: the scroll handler beside them cannot go to the UI thread.
   const { scrolled, titleHeight } = scroll;
   const titleStyle = useAnimatedStyle(() => {
-    if (!isIOS || reduced) return { transform: [{ scale: 1 }] };
+    const height = titleHeight.get();
+    // The big title fades out over its last 24 pt under the bar, where the small title comes in,
+    // so the two titles never show together. A stale render keeps it visible, never hidden.
+    const opacity =
+      height > 0
+        ? interpolate(
+            scrolled.get(),
+            [height - TITLE_BOTTOM_PADDING - TITLE_FADE, height - TITLE_BOTTOM_PADDING],
+            [1, 0],
+            Extrapolation.CLAMP,
+          )
+        : 1;
+    if (!isIOS || reduced) return { opacity, transform: [{ scale: 1 }] };
     // A pull past the top grows the title a little, as the native large title does.
     return {
+      opacity,
       transform: [{ scale: interpolate(scrolled.get(), [-160, 0], [1.08, 1], Extrapolation.CLAMP) }],
     };
   });
@@ -179,7 +195,8 @@ export function LargeTitleBar({
             {
               position: "absolute",
               top: insets.top,
-              height: Math.max(0, scroll.headerHeight - insets.top),
+              // iOS centers its bar buttons in the 44 pt under the status bar; the header can be taller.
+              height: isIOS ? IOS_BAR_HEIGHT : Math.max(0, scroll.headerHeight - insets.top),
               left: insetLeft,
               right: insetRight,
               justifyContent: "center",

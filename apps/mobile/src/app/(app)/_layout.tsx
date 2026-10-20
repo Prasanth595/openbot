@@ -129,6 +129,17 @@ function AuthenticatedStack() {
           }}
         />
         <Stack.Screen
+          name="task/[taskId]"
+          // A task is a chat of its own, so it opens as the agent's chat does.
+          options={{
+            animation: pushAnimation,
+            contentStyle: { backgroundColor: background },
+            fullScreenGestureEnabled: false,
+            gestureEnabled: true,
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
           name="code-preview/[previewId]"
           options={{
             animation: pushAnimation,
@@ -231,6 +242,17 @@ function AuthenticatedStack() {
           }}
         />
         <Stack.Screen
+          name="new-task"
+          options={{
+            contentStyle: { backgroundColor: sheetBackground },
+            headerShown: false,
+            scrollEdgeEffects: { top: "hidden", bottom: "soft" },
+            presentation: "formSheet",
+            sheetAllowedDetents: [0.85],
+            sheetGrabberVisible: true,
+          }}
+        />
+        <Stack.Screen
           name="add-server"
           options={{
             contentStyle: { backgroundColor: sheetBackground },
@@ -287,6 +309,7 @@ function AuthenticatedStack() {
             title: t("mobile.app.route.routine"),
           }}
         />
+        <Stack.Screen name="server-tasks" options={largeTitlePage} />
         <Stack.Screen name="server-usage/index" options={largeTitlePage} />
         <Stack.Screen
           name="share"

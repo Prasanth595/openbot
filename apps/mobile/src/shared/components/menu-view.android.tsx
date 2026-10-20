@@ -5,6 +5,7 @@ import ArrowUpDown from "lucide-react-native/icons/arrow-up-down";
 import Calendar from "lucide-react-native/icons/calendar";
 import ChartColumn from "lucide-react-native/icons/chart-column";
 import CircleCheck from "lucide-react-native/icons/circle-check";
+import CircleStop from "lucide-react-native/icons/circle-stop";
 import ClipboardPaste from "lucide-react-native/icons/clipboard-paste";
 import Code from "lucide-react-native/icons/code";
 import Copy from "lucide-react-native/icons/copy";
@@ -17,6 +18,7 @@ import File from "lucide-react-native/icons/file";
 import Folder from "lucide-react-native/icons/folder";
 import Info from "lucide-react-native/icons/info";
 import LayoutGrid from "lucide-react-native/icons/layout-grid";
+import ListChecks from "lucide-react-native/icons/list-checks";
 import LogOut from "lucide-react-native/icons/log-out";
 import MailBadge from "lucide-react-native/icons/mail-badge";
 import MailOpen from "lucide-react-native/icons/mail-open";
@@ -47,6 +49,7 @@ const ICONS: Partial<Record<string, LucideIcon>> = {
   calendar: Calendar,
   "chart.bar": ChartColumn,
   "checkmark.circle": CircleCheck,
+  checklist: ListChecks,
   "chevron.left.forwardslash.chevron.right": Code,
   "cursorarrow.motionlines": MousePointerClick,
   doc: File,
@@ -70,6 +73,7 @@ const ICONS: Partial<Record<string, LucideIcon>> = {
   "square.grid.2x2": LayoutGrid,
   star: Star,
   "star.slash": StarOff,
+  "stop.circle": CircleStop,
   "text.word.spacing": TextWrap,
   trash: Trash2,
   xmark: X,

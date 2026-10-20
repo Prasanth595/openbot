@@ -1,6 +1,7 @@
+import { isAgentTaskOpen, taskNeedsYou } from "@openbot/team-client/agent-tasks";
+import * as Crypto from "expo-crypto";
 import { GlassView } from "expo-glass-effect";
 import { type Href, router } from "expo-router";
-import { HeaderHeightContext } from "expo-router/react-navigation";
 import { Spinner, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
 import type { LucideIcon } from "lucide-react-native";
@@ -10,12 +11,13 @@ import ChartColumn from "lucide-react-native/icons/chart-column";
 import ChevronDown from "lucide-react-native/icons/chevron-down";
 import CircleX from "lucide-react-native/icons/circle-x";
 import EyeOff from "lucide-react-native/icons/eye-off";
+import ListRestart from "lucide-react-native/icons/list-restart";
 import Plus from "lucide-react-native/icons/plus";
 import Search from "lucide-react-native/icons/search";
 import Settings from "lucide-react-native/icons/settings";
 import SlidersHorizontal from "lucide-react-native/icons/sliders-horizontal";
+import SquareCheck from "lucide-react-native/icons/square-check";
 import UsersRound from "lucide-react-native/icons/users-round";
-import X from "lucide-react-native/icons/x";
 import {
   type PropsWithChildren,
   type RefObject,
@@ -46,10 +48,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { scheduleOnRN } from "react-native-worklets";
 import { BloubAvatar } from "@/features/agents/components/bloub-avatar";
 import { ChatNavigationGateContext } from "@/features/agents/components/chat-link-pressable";
+import { getBloubAvatarColor } from "@/features/agents/model/bloub-activity";
 import { showFailureAlert } from "@/features/analytics/failure-reports";
 import { MobileSearchResults, SearchCaption } from "@/features/search/components/mobile-search-results";
 import { setHomeSearchOpener } from "@/features/search/model/home-search-request";
 import { useAppDrawer } from "@/features/servers/components/app-drawer-shell";
+import { TaskListRow } from "@/features/servers/components/task-list-row";
+import { useServerTasks } from "@/features/servers/model/use-server-tasks";
 import {
   type MobileAgent,
   useMobileWorkspaceReader,
@@ -79,7 +84,26 @@ const PRESS_SCALE = {
   transitionTimingFunction: cubicBezier(0.23, 1, 0.32, 1),
 } as const;
 
-/** The close button grows a little from the field's edge as it comes in, and shrinks as it goes. */
+/**
+ * The close button grows a little from the field's edge as it comes in, and shrinks as it goes.
+ * Glass does not render under a parent with opacity 0, so the glass appears with its own native
+ * animation and this wrapper only scales.
+ */
+const closeButtonGrow: EntryExitAnimationFunction = () => {
+  "worklet";
+  return {
+    initialValues: { transform: [{ scale: 0.9 }] },
+    animations: { transform: [{ scale: withTiming(1, OPEN) }] },
+  };
+};
+const closeButtonShrink: EntryExitAnimationFunction = () => {
+  "worklet";
+  return {
+    initialValues: { transform: [{ scale: 1 }] },
+    animations: { transform: [{ scale: withTiming(0.9, CLOSE) }] },
+  };
+};
+/** The clear button and the agent chip: no glass, so they fade too. */
 const closeButtonEnter: EntryExitAnimationFunction = () => {
   "worklet";
   return {
@@ -138,11 +162,15 @@ export interface HomeSearch {
   input: RefObject<TextInput | null>;
   progress: SharedValue<number>;
   /** False when the server cannot start tasks: then `@` is plain search text. */
-  canStartTasks: boolean;
+  canUseTasks: boolean;
   /** The agent that the next Return gives the typed text to. */
   target: MobileAgent | null;
-  chooseTarget: (agent: MobileAgent) => void;
+  /** Opens the task editor for the agent. `text` fills the field, else the text kept from before. */
+  chooseTarget: (agent: MobileAgent, text?: string) => void;
+  /** Back to choosing an agent: the field shows `@`, and the task text waits for the next agent. */
   clearTarget: () => void;
+  /** Puts a task text in the field, such as an idea. */
+  fillTask: (text: string) => void;
   /** The agents that match an `@name` query, or null when the query is not one. */
   targetMatches: MobileAgent[] | null;
   startTask: (agent: MobileAgent, text: string) => void;
@@ -172,7 +200,7 @@ export function useHomeSearch(): HomeSearch {
   const workspace = useMobileWorkspaceReader();
   const serverId = useMobileWorkspaceSelector((current) => current.activeServer.id);
   const agents = useMobileWorkspaceSelector((current) => current.activeAgents);
-  const canStartTasks = useMobileWorkspaceSelector((current) => current.canStartTasks(current.activeServer.id));
+  const canUseTasks = useMobileWorkspaceSelector((current) => current.canUseTasks(current.activeServer.id));
   const input = useRef<TextInput>(null);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -181,8 +209,10 @@ export function useHomeSearch(): HomeSearch {
   const [target, setTarget] = useState<MobileAgent | null>(null);
   const [sending, setSending] = useState(false);
   const [notice, setNotice] = useState<{ id: number; text: string } | null>(null);
+  // The task text while the person chooses another agent.
+  const draft = useRef("");
   const progress = useSharedValue(0);
-  const targetMatches = canStartTasks && !target ? matchTargets(agents, query) : null;
+  const targetMatches = canUseTasks && !target ? matchTargets(agents, query) : null;
 
   const openSearch = useCallback(() => {
     setOpen(true);
@@ -203,6 +233,7 @@ export function useHomeSearch(): HomeSearch {
     setSettled(false);
     setQuery("");
     setTarget(null);
+    draft.current = "";
     setOpeningBlocked(false);
     progress.set(
       withTiming(0, CLOSE, (finished) => {
@@ -210,14 +241,24 @@ export function useHomeSearch(): HomeSearch {
       }),
     );
   }, [progress, setOpeningBlocked]);
-  const chooseTarget = useCallback((agent: MobileAgent) => {
+  const chooseTarget = useCallback((agent: MobileAgent, text?: string) => {
     void haptics.selection();
     setTarget(agent);
-    setQuery("");
+    setQuery(text ?? draft.current);
+    draft.current = "";
     input.current?.focus();
   }, []);
   const clearTarget = useCallback(() => {
+    setQuery((current) => {
+      draft.current = current;
+      return "@";
+    });
     setTarget(null);
+    input.current?.focus();
+  }, []);
+  const fillTask = useCallback((text: string) => {
+    void haptics.selection();
+    setQuery(text);
     input.current?.focus();
   }, []);
   const startTask = useCallback(
@@ -226,7 +267,7 @@ export function useHomeSearch(): HomeSearch {
       if (!task || sending) return;
       setSending(true);
       workspace()
-        .startAgentTask(agent.id, task, serverId)
+        .startAgentTask({ agentId: agent.id, text: task, clientMessageId: Crypto.randomUUID() }, serverId)
         .then(
           () => {
             void haptics.notification("success");
@@ -297,10 +338,11 @@ export function useHomeSearch(): HomeSearch {
     leave: closeSearch,
     input,
     progress,
-    canStartTasks,
+    canUseTasks,
     target,
     chooseTarget,
     clearTarget,
+    fillTask,
     targetMatches,
     startTask,
     submit,
@@ -309,12 +351,14 @@ export function useHomeSearch(): HomeSearch {
   };
 }
 
+/** The room between the status bar and the first result. */
+const RESULTS_TOP_GAP = 8;
+
 /**
- * The results over the home list. They come in from 8 pt below as the field takes focus, and the
- * native header stays above them.
+ * The results over the home list. They come in from 8 pt below as the field takes focus. The bar
+ * hides its buttons while they show, so they start under the status bar, not under the bar.
  */
 export function HomeSearchResults({ search }: { search: HomeSearch }) {
-  const headerHeight = useContext(HeaderHeightContext) ?? 0;
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
   const { progress } = search;
@@ -338,7 +382,7 @@ export function HomeSearchResults({ search }: { search: HomeSearch }) {
         style={{ flex: 1 }}
         contentInsetAdjustmentBehavior="never"
         contentContainerStyle={{
-          paddingTop: headerHeight,
+          paddingTop: insets.top + RESULTS_TOP_GAP,
           paddingBottom: HOME_SEARCH_HEIGHT + Math.max(insets.bottom, 12) + 24,
         }}
         mode="insets"
@@ -363,7 +407,7 @@ function HomeSearchBody({ search }: { search: HomeSearch }) {
   const text = search.query.trim();
   const { target, targetMatches } = search;
   const agents = useMobileWorkspaceSelector((current) => current.activeAgents);
-  const idle = <HomeSearchIdle onLeave={search.leave} canStartTasks={search.canStartTasks} />;
+  const idle = <HomeSearchIdle onLeave={search.leave} canUseTasks={search.canUseTasks} />;
   return (
     <BlurSwap swapKey={targetMatches ? "targets" : "search"} mode={motion}>
       {targetMatches ? (
@@ -379,18 +423,10 @@ function HomeSearchBody({ search }: { search: HomeSearch }) {
         </View>
       ) : (
         <>
-          {target && text ? (
-            <AskTaskRow
-              agent={target}
-              text={text}
-              sending={search.sending}
-              onPress={() => search.startTask(target, text)}
-            />
-          ) : null}
-          {target && !text ? <SearchHint text={t("mobile.search.task.typeHint", { name: target.name })} /> : null}
-          {!target && text && search.canStartTasks && agents.length > 0 ? (
+          {target ? <TaskEditorPage agent={target} search={search} /> : null}
+          {!target && text && search.canUseTasks && agents.length > 0 ? (
             <>
-              <SearchCaption label={t("mobile.search.task.giveTextTo", { text })} />
+              <SearchCaption label={t("mobile.search.task.newTextFor", { text })} />
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -398,12 +434,16 @@ function HomeSearchBody({ search }: { search: HomeSearch }) {
                 contentContainerClassName="gap-3.5 px-5 pt-1 pb-1.5"
               >
                 {agents.map((agent) => (
-                  <AgentChip key={agent.id} agent={agent} onPress={() => search.startTask(agent, text)} />
+                  <AgentChip key={agent.id} agent={agent} onPress={() => search.chooseTarget(agent, text)} />
                 ))}
               </ScrollView>
             </>
           ) : null}
-          <MobileSearchResults query={search.query} active={search.open} idle={idle} onLeave={search.leave} />
+          {!target && text && search.canUseTasks ? <SearchTasks query={text} onLeave={search.leave} /> : null}
+          {/* Text to an agent is a task, not a search. */}
+          {target ? null : (
+            <MobileSearchResults query={search.query} active={search.open} idle={idle} onLeave={search.leave} />
+          )}
         </>
       )}
     </BlurSwap>
@@ -450,71 +490,17 @@ function TaskTargetRow({ agent, onPress }: { agent: MobileAgent; onPress: () => 
   );
 }
 
-/** The task that Return starts: the agent and the typed text, on a raised card. */
-function AskTaskRow({
-  agent,
-  text,
-  sending,
-  onPress,
-}: {
-  agent: MobileAgent;
-  text: string;
-  sending: boolean;
-  onPress: () => void;
-}) {
-  const { t } = useText();
-  const [foreground, background] = useThemeColor(["foreground", "background"]);
-  const title = t("mobile.search.task.ask", { name: agent.name, text });
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={title}
-      accessibilityState={{ busy: sending }}
-      disabled={sending}
-      className="mx-4 mt-2 mb-1.5 flex-row items-center gap-3 rounded-2xl bg-surface py-2.5 pr-2.5 pl-3.5"
-      style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, boxShadow: "0 1px 2px rgba(20, 20, 20, 0.05)" })}
-      onPress={onPress}
-    >
-      <BloubAvatar
-        agentId={agent.id}
-        serverId={agent.serverId}
-        hue={agent.avatarHue}
-        seed={agent.avatarSeed}
-        size={36}
-        animateIdle={false}
-      />
-      <View className="min-w-0 flex-1 gap-0.5">
-        <Typography.Paragraph className="font-medium" style={typeScale.body}>
-          {title}
-        </Typography.Paragraph>
-        <Typography.Paragraph className="text-muted" style={typeScale.caption}>
-          {t("mobile.search.task.askHint")}
-        </Typography.Paragraph>
-      </View>
-      <View className="size-9 items-center justify-center rounded-full" style={{ backgroundColor: String(foreground) }}>
-        {sending ? (
-          <Spinner size="sm" color={String(background)} />
-        ) : (
-          <ArrowUp color={String(background)} size={18} strokeWidth={2.2} />
-        )}
-      </View>
-    </Pressable>
-  );
-}
-
 /** The field at the bottom of home. It rides on the keyboard, and a close button comes in beside it. */
 export function HomeSearchBar({ search }: { search: HomeSearch }) {
   const { t } = useText();
   const insets = useSafeAreaInsets();
   const liquidGlass = useLiquidGlass();
   const reduced = useReducedMotion();
-  const [foreground, muted, fieldBackground, background, accent, onAccent] = useThemeColor([
+  const [foreground, muted, fieldBackground, background] = useThemeColor([
     "foreground",
     "muted",
     "default",
     "background",
-    "accent",
-    "accent-foreground",
   ]);
   const bottomGap = Math.max(insets.bottom - 8, 12);
   const { height: keyboardHeight, progress: keyboardProgress } = useReanimatedKeyboardAnimation();
@@ -527,8 +513,8 @@ export function HomeSearchBar({ search }: { search: HomeSearch }) {
   const { target } = search;
   const canSend = Boolean(target && search.query.trim()) && !search.sending;
   const placeholder = target
-    ? t("mobile.search.taskPlaceholder", { name: target.name })
-    : search.canStartTasks
+    ? t("mobile.search.task.placeholder")
+    : search.canUseTasks
       ? t("mobile.search.placeholder")
       : t("common.search");
 
@@ -555,8 +541,16 @@ export function HomeSearchBar({ search }: { search: HomeSearch }) {
         style={[{ bottom: bottomGap }, barStyle]}
       >
         {search.open ? (
-          <Animated.View entering={enter} exiting={exit}>
-            <GlassCapsule liquidGlass={liquidGlass} fallbackBackground={fieldBackground} width={HOME_SEARCH_HEIGHT}>
+          <Animated.View
+            entering={reduced ? undefined : closeButtonGrow}
+            exiting={reduced ? undefined : closeButtonShrink}
+          >
+            <GlassCapsule
+              liquidGlass={liquidGlass}
+              fallbackBackground={fieldBackground}
+              width={HOME_SEARCH_HEIGHT}
+              animateGlass
+            >
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={t("mobile.search.close")}
@@ -583,29 +577,14 @@ export function HomeSearchBar({ search }: { search: HomeSearch }) {
             >
               {target ? (
                 <Animated.View entering={enter} exiting={exit} layout={layout}>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={t("mobile.search.task.removeTarget", { name: target.name })}
-                    className="-ml-2 h-7.5 flex-row items-center gap-1 rounded-full px-2.5"
-                    style={{ backgroundColor: String(accent) }}
-                    onPress={search.clearTarget}
-                  >
-                    <Typography.Paragraph
-                      className="font-semibold"
-                      numberOfLines={1}
-                      style={[typeScale.preview, { color: String(onAccent) }]}
-                    >
-                      @{target.name}
-                    </Typography.Paragraph>
-                    <X color={String(onAccent)} size={14} strokeWidth={2.4} />
-                  </Pressable>
+                  <TargetChip agent={target} onPress={search.clearTarget} />
                 </Animated.View>
               ) : (
                 <Search color={String(muted)} size={18} strokeWidth={2} />
               )}
               <TextInput
                 ref={search.input}
-                accessibilityLabel={placeholder}
+                accessibilityLabel={target ? t("mobile.search.task.fieldLabel", { name: target.name }) : placeholder}
                 autoCapitalize={target ? "sentences" : "none"}
                 autoCorrect={Boolean(target)}
                 className="h-10 min-w-0 flex-1 font-sans text-foreground"
@@ -639,7 +618,8 @@ export function HomeSearchBar({ search }: { search: HomeSearch }) {
                   </Pressable>
                 </Animated.View>
               ) : null}
-              {search.canStartTasks ? (
+              {/* Search updates as you type; only a task has a send button. */}
+              {target ? (
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={t("mobile.search.task.send")}
@@ -670,16 +650,70 @@ export function HomeSearchBar({ search }: { search: HomeSearch }) {
   );
 }
 
+/** The widest name in the agent chip of the search field. */
+const TARGET_NAME_WIDTH = 80;
+
+/**
+ * The agent that gets the task: its avatar and name in its own color. A tap chooses another agent,
+ * as Backspace in the empty field does; it has no remove mark, so the text field keeps the width.
+ */
+
+function TargetChip({ agent, onPress }: { agent: MobileAgent; onPress: () => void }) {
+  const { t } = useText();
+  const color = getBloubAvatarColor(agent.avatarSeed, agent.avatarHue);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={t("mobile.search.task.changeAgent")}
+      className="-ml-2.5 h-10 flex-row items-center gap-1 rounded-full pr-2.5 pl-1"
+      // 40 pt in the 52 pt field: the same 6 pt inset above, below and at the left edge.
+      // The agent color at 18% opacity, so the avatar in the same color stays visible on it.
+      style={{ backgroundColor: `${color}2e` }}
+      onPress={onPress}
+    >
+      <BloubAvatar
+        agentId={agent.id}
+        serverId={agent.serverId}
+        hue={agent.avatarHue}
+        seed={agent.avatarSeed}
+        size={28}
+        animateIdle={false}
+      />
+      {/* A long name ends in an ellipsis, so the text field keeps most of the width. */}
+      <Typography.Paragraph
+        className="font-semibold"
+        numberOfLines={1}
+        style={[typeScale.preview, { color, maxWidth: TARGET_NAME_WIDTH }]}
+      >
+        {agent.name}
+      </Typography.Paragraph>
+    </Pressable>
+  );
+}
+
 /** Glass where the system has it; a solid capsule elsewhere, and with Reduce Transparency on. */
 function GlassCapsule({
   liquidGlass,
   fallbackBackground,
   width,
+  animateGlass = false,
   children,
-}: PropsWithChildren<{ liquidGlass: boolean; fallbackBackground: unknown; width?: number }>) {
+}: PropsWithChildren<{
+  liquidGlass: boolean;
+  fallbackBackground: unknown;
+  width?: number;
+  /** The glass comes in with the native glass animation, for a capsule that mounts on screen. */
+  animateGlass?: boolean;
+}>) {
   return (
     <GlassView
-      glassEffectStyle={liquidGlass ? "regular" : "none"}
+      glassEffectStyle={
+        animateGlass
+          ? { style: liquidGlass ? "regular" : "none", animate: true, animationDuration: 0.22 }
+          : liquidGlass
+            ? "regular"
+            : "none"
+      }
       isInteractive={liquidGlass}
       style={{
         backgroundColor: liquidGlass ? "transparent" : String(fallbackBackground),
@@ -704,7 +738,7 @@ interface Shortcut {
 }
 
 /** Before the user types: the pages to go to, and the agents of the server. */
-function HomeSearchIdle({ onLeave, canStartTasks }: { onLeave: () => void; canStartTasks: boolean }) {
+function HomeSearchIdle({ onLeave, canUseTasks }: { onLeave: () => void; canUseTasks: boolean }) {
   const { t } = useText();
   const gate = useContext(ChatNavigationGateContext);
   const serverId = useMobileWorkspaceSelector((current) => current.activeServer.id);
@@ -715,6 +749,16 @@ function HomeSearchIdle({ onLeave, canStartTasks }: { onLeave: () => void; canSt
   const hasHiddenChats = useMobileWorkspaceSelector((current) => current.hiddenAgents.length > 0);
   const shortcuts = useMemo<Shortcut[]>(
     () => [
+      ...(hasServer && canUseTasks
+        ? [
+            {
+              id: "tasks",
+              label: t("mobile.app.route.tasks"),
+              icon: SquareCheck,
+              href: { pathname: "/server-tasks", params: { serverId } } as const,
+            },
+          ]
+        : []),
       ...(hasServer
         ? [
             {
@@ -749,7 +793,7 @@ function HomeSearchIdle({ onLeave, canStartTasks }: { onLeave: () => void; canSt
         : []),
       { id: "settings", label: t("mobile.app.route.settings"), icon: Settings, href: "/settings" as const },
     ],
-    [t, hasServer, hasHiddenChats, serverId],
+    [t, hasServer, hasHiddenChats, serverId, canUseTasks],
   );
   const openChat = (agent: MobileAgent) => {
     onLeave();
@@ -757,6 +801,7 @@ function HomeSearchIdle({ onLeave, canStartTasks }: { onLeave: () => void; canSt
   };
   return (
     <View className="pb-2">
+      {canUseTasks ? <SearchTasks onLeave={onLeave} /> : null}
       <SearchCaption label={t("mobile.search.goTo")} />
       <View className="flex-row flex-wrap gap-2 px-4 pt-1.5">
         {shortcuts.map((shortcut) => (
@@ -785,7 +830,163 @@ function HomeSearchIdle({ onLeave, canStartTasks }: { onLeave: () => void; canSt
           </ScrollView>
         </>
       ) : null}
-      {canStartTasks ? <SearchHint text={t("mobile.search.task.atHint")} /> : null}
+      {canUseTasks ? <SearchHint text={t("mobile.search.task.atHint")} /> : null}
+    </View>
+  );
+}
+
+/** The most ideas that the task editor shows. */
+const IDEA_LIMIT = 4;
+/** Marks the place of the agent name in a translated line, so the name can have its own weight. */
+const NAME_MARK = "\u2063";
+
+/**
+ * The page above the field while it holds a task: no cards. Who gets the task, one line on what a
+ * task is with a way to message the agent instead, earlier tasks to run again, and the agent's open
+ * tasks. A tap on an idea fills the field.
+ */
+function TaskEditorPage({ agent, search }: { agent: MobileAgent; search: HomeSearch }) {
+  const { t } = useText();
+  const gate = useContext(ChatNavigationGateContext);
+  const muted = String(useThemeColor("muted"));
+  const color = getBloubAvatarColor(agent.avatarSeed, agent.avatarHue);
+  const { tasks } = useServerTasks(agent.serverId, { agentId: agent.id });
+  const sorted = [...tasks].sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
+  const ideas = [...new Set(sorted.filter((task) => !isAgentTaskOpen(task)).map((task) => task.title.trim()))]
+    .filter(Boolean)
+    .slice(0, IDEA_LIMIT);
+  const open = sorted.filter((task) => task.state === "running" || taskNeedsYou(task));
+  const [before = "", after = ""] = t("mobile.search.task.newFor", { name: NAME_MARK }).split(NAME_MARK);
+  const message = () => {
+    search.leave();
+    if (!gate?.openFromHome(agent.id)) router.push({ pathname: "/chat/[agentId]", params: { agentId: agent.id } });
+  };
+  return (
+    // The spacing of the prototype: 4 pt above the page, 8 pt beside the avatar, 10 pt above the line.
+    <View className="pb-2">
+      <View className="gap-2.5 px-5 pt-1">
+        <View className="flex-row items-center gap-2">
+          <BloubAvatar
+            agentId={agent.id}
+            serverId={agent.serverId}
+            hue={agent.avatarHue}
+            seed={agent.avatarSeed}
+            size={40}
+            animateIdle={false}
+          />
+          <Typography.Paragraph
+            accessibilityRole="header"
+            className="min-w-0 flex-1 font-semibold"
+            numberOfLines={2}
+            style={typeScale.taskHeading}
+          >
+            {before}
+            <Typography.Paragraph className="font-bold" style={typeScale.taskHeading}>
+              {agent.name}
+            </Typography.Paragraph>
+            {after}
+          </Typography.Paragraph>
+        </View>
+        <View className="flex-row items-start gap-2">
+          <View className="pt-0.5">
+            <SquareCheck color={muted} size={16} strokeWidth={1.8} />
+          </View>
+          <Typography.Paragraph className="min-w-0 flex-1 text-muted" style={typeScale.caption}>
+            {t("mobile.search.task.how", { name: agent.name })}{" "}
+            <Typography.Paragraph
+              accessibilityRole="link"
+              className="font-medium"
+              style={[typeScale.caption, { color }]}
+              onPress={message}
+            >
+              {t("mobile.search.task.message", { name: agent.name })}
+            </Typography.Paragraph>
+          </Typography.Paragraph>
+        </View>
+      </View>
+      {ideas.length > 0 ? (
+        <View className="pt-1.5">
+          <SearchCaption label={t("mobile.search.task.ideas")} />
+          {ideas.map((idea) => (
+            <Pressable
+              key={idea}
+              accessibilityRole="button"
+              accessibilityHint={t("mobile.search.task.ideaHint")}
+              className="flex-row items-center gap-3 px-5 py-[9px]"
+              style={({ pressed }) => ({ opacity: pressed ? 0.58 : 1 })}
+              onPress={() => search.fillTask(idea)}
+            >
+              <ListRestart color={muted} size={18} strokeWidth={1.8} />
+              <Typography.Paragraph className="min-w-0 flex-1" numberOfLines={1} style={typeScale.body}>
+                {idea}
+              </Typography.Paragraph>
+              <Typography.Paragraph className="text-muted" style={typeScale.small}>
+                {t("mobile.search.task.again")}
+              </Typography.Paragraph>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+      {open.length > 0 ? (
+        <View className="pt-1.5">
+          <SearchCaption label={t("mobile.search.task.openWith", { name: agent.name })} />
+          {open.map((task) => (
+            <TaskListRow
+              key={task.id}
+              task={task}
+              tintAgent={agent}
+              onPress={() => {
+                search.leave();
+                router.push({
+                  pathname: "/task/[taskId]",
+                  params: { serverId: agent.serverId, agentId: agent.id, taskId: task.id },
+                });
+              }}
+            />
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+/** The most tasks that a search section shows. */
+const SEARCH_TASK_LIMIT = 5;
+
+/**
+ * Tasks in the search: with a query, the tasks whose title has it; without one, the tasks that
+ * need the person. Nothing when no task fits.
+ */
+function SearchTasks({ query, onLeave }: { query?: string; onLeave: () => void }) {
+  const { t } = useText();
+  const serverId = useMobileWorkspaceSelector((current) => current.activeServer.id);
+  const { agents, tasks } = useServerTasks(serverId);
+  const needle = query?.toLocaleLowerCase();
+  const shown = tasks
+    .filter((task) =>
+      needle ? task.title.toLocaleLowerCase().includes(needle) : isAgentTaskOpen(task) && taskNeedsYou(task),
+    )
+    .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
+    .slice(0, SEARCH_TASK_LIMIT);
+  if (shown.length === 0) return null;
+  return (
+    <View>
+      <SearchCaption label={t(needle ? "mobile.app.route.tasks" : "mobile.server.tasks.section.needsYou")} />
+      {shown.map((task) => (
+        <TaskListRow
+          key={task.id}
+          task={task}
+          agent={agents.find((agent) => agent.id === task.agentId)}
+          dimmed={!isAgentTaskOpen(task)}
+          onPress={() => {
+            onLeave();
+            router.push({
+              pathname: "/task/[taskId]",
+              params: { serverId, agentId: task.agentId, taskId: task.id },
+            });
+          }}
+        />
+      ))}
     </View>
   );
 }

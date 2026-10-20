@@ -1,7 +1,9 @@
+import { isAgentTaskOpen, taskNeedsYou } from "@openbot/team-client/agent-tasks";
 import { addCalendarDays, calendarDayOf } from "@openbot/team-client/routine-calendar-dates";
 import { useQuery } from "@tanstack/react-query";
 import { lastUsageDays } from "@/features/agents/components/usage-range-picker";
 import { useQueryScope } from "@/features/auth/context/mobile-session-context";
+import { useServerTasks } from "@/features/servers/model/use-server-tasks";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 import { queryKeys } from "@/features/workspace/model/query-keys";
 import type { MobileServer } from "@/features/workspace/model/workspace-types";
@@ -13,6 +15,8 @@ const DAY = 24 * HOUR;
 const ROUTINE_LOOKAHEAD_DAYS = 8;
 
 export interface DrawerServerValues {
+  /** `null` on a host without `agent-tasks-v1`: the drawer has no Tasks row then. */
+  tasks: { value: string | null; needsYou: boolean } | null;
   /** When the next routine runs, such as "Tomorrow at 8:00". */
   nextRoutine: string | null;
   /** The estimated cost of the Usage screen's default period. */
@@ -37,6 +41,7 @@ export function useDrawerServerValues(server: MobileServer | undefined, open: bo
   const start = Math.floor(Date.now() / HOUR) * HOUR;
   const from = new Date(start).toISOString();
   const to = new Date(start + ROUTINE_LOOKAHEAD_DAYS * DAY).toISOString();
+  const serverTasks = useServerTasks(serverId, { enabled });
   const routines = useQuery({
     queryKey: queryKeys.serverRoutines(queryScope, serverId, from, to),
     queryFn: () => loadRoutineCalendar({ from, to }, serverId),
@@ -88,7 +93,21 @@ export function useDrawerServerValues(server: MobileServer | undefined, open: bo
   // A large amount drops its cents: the row has room for a short value.
   const digits = cost !== null && cost >= 100 ? 0 : 2;
   const memberCount = memberCountByServer[serverId] ?? null;
+  // As the prototype: the tasks that need the person, else the tasks that run.
+  const openTasks = serverTasks.tasks.filter(isAgentTaskOpen);
+  const needsYou = openTasks.filter(taskNeedsYou).length;
+  const working = openTasks.filter((task) => task.state === "running").length;
   return {
+    tasks: serverTasks.supported
+      ? {
+          value: needsYou
+            ? t("mobile.server.drawer.tasksNeedYou", { count: needsYou })
+            : working
+              ? t("mobile.server.drawer.tasksWorking", { count: working })
+              : null,
+          needsYou: needsYou > 0,
+        }
+      : null,
     nextRoutine,
     usage:
       cost === null ? null : format.currencyUsd(cost, { minimumFractionDigits: digits, maximumFractionDigits: digits }),

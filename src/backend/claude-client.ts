@@ -97,6 +97,22 @@ import type { ReadProviderHistory } from "./provider-history";
 const execFileAsync = promisify(execFile);
 const CLAUDE_EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const;
 type ClaudeEffort = (typeof CLAUDE_EFFORTS)[number];
+/**
+ * Claude's own scheduling: session crons, the `/loop` wake-ups, and the `schedule` skill, alias
+ * `routines`, that makes claude.ai cloud agents. A routine request matched that skill, and the
+ * routine ran outside OpenBot, where the user cannot see or stop it. Scheduled work belongs to the
+ * OpenBot routine tools. A deny rule takes the tools out of the model's context; the CLI still lists
+ * the two skills, but the rule refuses their call.
+ */
+const CLAUDE_NATIVE_SCHEDULING = [
+  "CronCreate",
+  "CronDelete",
+  "CronList",
+  "ScheduleWakeup",
+  "RemoteTrigger",
+  "Skill(schedule)",
+  "Skill(loop)",
+];
 
 interface ClientEvents {
   notification: [notification: AppServerNotification];
@@ -764,7 +780,7 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
           ...(claudeTakesPromptSnapshotFlag(this.#cli.version)
             ? { extraArgs: { "system-prompt-snapshot": "off" } }
             : {}),
-          ...(config.profileGeneration ? { tools: [] } : {}),
+          ...(config.profileGeneration ? { tools: [] } : { disallowedTools: CLAUDE_NATIVE_SCHEDULING }),
           settingSources: config.profileGeneration
             ? []
             : config.workspaceOnly

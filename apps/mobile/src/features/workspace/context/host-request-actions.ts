@@ -81,9 +81,13 @@ import {
 } from "@openbot/team-client/team-admin-requests";
 import {
   type AgentMemoriesRequest,
+  agentTaskControl,
   clearAgentContext,
+  listAgentTasks,
   readAgentMemories,
   readAgentMemorySelection,
+  readAgentTask,
+  sendAgentTaskMessage,
   setAgentMemoryInclusion,
   startAgentTask,
   type TeamApiRequest,
@@ -145,6 +149,12 @@ type HostRequestActions = Pick<
   | "loadHostAnalytics"
   | "searchMessages"
   | "searchFiles"
+  | "loadAgentTasks"
+  | "loadAgentTaskConversation"
+  | "startAgentTask"
+  | "sendAgentTaskMessage"
+  | "controlAgentTask"
+  | "respondToTaskPrompt"
   | "loadAgentSkills"
   | "setAgentSkillEnabled"
   | "uninstallAgentSkill"
@@ -156,7 +166,6 @@ type HostRequestActions = Pick<
   | "loadProviderAccounts"
   | "setAgentProviderAccount"
   | "startNewChat"
-  | "startAgentTask"
   | "loadAgentSessionSettings"
   | "setAgentSessionSetting"
   | "resetAgentSessionSetting"
@@ -243,6 +252,9 @@ export function createHostRequestActions({
     capabilityApi(serverId, EVENTS_CAPABILITY, "mobile.agent.record.eventsUnsupported");
   const sessionSettingsAdmin = (serverId: string) =>
     capabilityApi(serverId, AGENT_SESSION_SETTINGS_CAPABILITY, "mobile.agent.session.unsupported");
+  /** The tasks are an optional route set. Any member who can message the agent can use them. */
+  const tasksApi = (serverId: string) =>
+    capabilityApi(serverId, AGENT_TASKS_CAPABILITY, "mobile.server.tasks.unsupported");
   function memoryRequest(serverId: string): AgentMemoriesRequest<TeamRequestError> {
     return (method, path, decode, body) =>
       Effect.tryPromise({
@@ -252,7 +264,7 @@ export function createHostRequestActions({
   }
   const checks: HostRequestChecks = {
     canSearchFiles: (serverId) => has(serverId, CONVERSATION_FILE_SEARCH_CAPABILITY),
-    canStartTasks: (serverId) => has(serverId, AGENT_TASKS_CAPABILITY),
+    canUseTasks: (serverId) => has(serverId, AGENT_TASKS_CAPABILITY),
     canStartNewChat: (serverId) => has(serverId, CONTEXT_RESET_CAPABILITY),
     canChooseNewAgentModel: (serverId) => has(serverId, TEAM_AGENT_CREATE_MODEL_CAPABILITY),
     canInstallAgentTemplate: (serverId) => has(serverId, AGENT_INSTALL_CAPABILITY),
@@ -418,6 +430,22 @@ export function createHostRequestActions({
         serverId,
       );
     },
+    // Async, so a host without the capability rejects the promise and does not throw at the call.
+    loadAgentTasks: async (agentId, serverId) => runTeamRequest(listAgentTasks(tasksApi(serverId), agentId)),
+    loadAgentTaskConversation: async (input, serverId) => runTeamRequest(readAgentTask(tasksApi(serverId), input)),
+    startAgentTask: async (input, serverId) => runTeamRequest(startAgentTask(tasksApi(serverId), input)),
+    sendAgentTaskMessage: async (input, serverId) => runTeamRequest(sendAgentTaskMessage(tasksApi(serverId), input)),
+    controlAgentTask: async (action, input, serverId) =>
+      runTeamRequest(agentTaskControl(tasksApi(serverId), action, input)),
+    respondToTaskPrompt: async (input, serverId) => {
+      await request(
+        "POST",
+        TEAM_API_ROUTES.respond.prompt,
+        ignoreResponse,
+        { requestId: input.requestId, answers: input.answers },
+        serverId,
+      );
+    },
     // A host too old to know the route answers 404, so ask its advertised capabilities first.
     loadAgentSkills: async (agentId, serverId, manage = false) => {
       if (manage) return runTeamRequest(listAgentSkills(skillsAdmin(serverId), agentId));
@@ -467,14 +495,6 @@ export function createHostRequestActions({
       requireCapability(capabilities, serverId, CONTEXT_RESET_CAPABILITY, "mobile.agent.newChat.unsupported");
       await runTeamRequest(clearAgentContext(teamApi(serverId), agentId));
     },
-    startAgentTask: async (agentId, text, serverId) =>
-      runTeamRequest(
-        startAgentTask(capabilityApi(serverId, AGENT_TASKS_CAPABILITY, "mobile.search.task.unsupported"), {
-          agentId,
-          text,
-          clientMessageId: Crypto.randomUUID(),
-        }),
-      ),
     // Async, so a host without the capability rejects the promise and does not throw at the call.
     listSharedTables: async (serverId) => runTeamRequest(listSharedTables(sharedTablesAdmin(serverId))),
     deleteSharedTable: async (name, serverId) => runTeamRequest(deleteSharedTable(sharedTablesAdmin(serverId), name)),

@@ -178,7 +178,7 @@ the task to "Earlier tasks" when no message of it waits, starts or runs, and reo
 starts queued tasks again. When a task's provider session ends, the next session gets a handoff of
 that task's own transcript, as the main chat does; channel threads still get none.
 
-A joined desktop and the web client reach the tasks of a server through the optional `agent-tasks-v1`
+A joined desktop, the web client and the mobile app reach the tasks of a server through the optional `agent-tasks-v1`
 capability (`packages/contracts/src/team-protocol/agent-tasks-v1.ts`, host route
 `src/main/team-api/route-agent-tasks.ts`). Its routes are `POST /v1/agent-tasks/{list,read,start,send,stop,close,reopen}`
 with the ids in the body. A member who can send a message to the agent can use them; no role is
@@ -190,6 +190,18 @@ for a hidden agent. A server without the capability shows no tasks, and a task c
 with `error.backend.taskRemoteUnsupported`. Prompts, approvals and warnings of a task turn show in the main chat. A provider
 error of a task turn goes to the task: `AgentTasks` stores the redacted text in the task's `error`
 column, and the next turn of the task clears it. The panel shows it after a restart too.
+
+The Tasks page and the phone share the section and title rules in `@openbot/team-client/agent-tasks`.
+On the phone, the server drawer opens the Tasks screen (`apps/mobile/src/app/(app)/server-tasks.tsx`) when
+the host serves the capability. A task opens as a full screen (`apps/mobile/src/app/(app)/task/[taskId].tsx`)
+with the message list and header of the agent's chat, the task actions in place of the browser
+button, and a composer without files. The task events write the cached task lists and conversations
+(`apps/mobile/src/features/workspace/model/task-cache.ts`). The phone answers the questions of a task turn (`POST /v1/prompts/respond`, which finds the question
+by its request on any thread); it does not show task attachments. The turn, question, approval and
+takeover events of a task carry the task's thread, so the phone keeps them out of the activity row of
+the agent's chat (`withoutTaskTurns`). The chat shows a row for each open task under the agent's activity
+instead, as on desktop: a finished task stays with its result until the person closes it, and a tap
+opens the task.
 
 Shared writes: each task thread owns its own browser tabs and tab queue. Computer Use is an MCP
 server that the provider starts, so OpenBot cannot queue its calls; `ThreadLifecycle` starts a task

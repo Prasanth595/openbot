@@ -23,6 +23,8 @@ export const messages = {
   "mobile.app.route.hostedServerSetup": "Kurulum",
   "mobile.app.route.routines": "Rutinler",
   "mobile.app.route.routine": "Rutin",
+  "mobile.app.route.tasks": "Görevler",
+  "mobile.app.route.task": "Görev",
   "mobile.app.route.usage": "Kullanım",
   "mobile.app.quickAction.routines": "Rutinler",
   "mobile.app.quickAction.search": "Ara",

@@ -8,6 +8,8 @@ import type { TextStyle } from "react-native";
 export const typeScale = {
   /** The big header of a full screen: the server name on home, Routines, Usage. */
   largeTitle: { fontSize: 34, lineHeight: 40, letterSpacing: -0.68 },
+  /** The heading of the task editor above the search field. */
+  taskHeading: { fontSize: 22, lineHeight: 28, letterSpacing: -0.22 },
   /** The server name at the top of the drawer. */
   drawerTitle: { fontSize: 26, lineHeight: 32, letterSpacing: -0.52 },
   /** The small title that the big header leaves in the bar. */

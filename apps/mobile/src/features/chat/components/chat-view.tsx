@@ -10,7 +10,7 @@ import { type ParamListBase, useNavigation } from "expo-router/react-navigation"
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
 import ArrowDown from "lucide-react-native/icons/arrow-down";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, Keyboard, useColorScheme, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { KeyboardGestureArea } from "react-native-keyboard-controller";
@@ -92,6 +92,10 @@ export interface ChatViewProps {
   activeTurnId: string | null;
   stopTurn: (turnId: string) => Promise<void>;
   questionForm?: QuestionPromptController;
+  /** Rows under the agent's activity, such as the tasks that the agent works on. */
+  activityAccessory?: ReactNode;
+  /** This chat's thread. Browser requests of the agent's other threads, such as its tasks, do not show here. */
+  threadId?: string | null;
   /** The approvals of this chat's agents, from the caller that knows which thread is this chat's. */
   approvals?: readonly PendingApproval[];
   readBoundary: string | null;
@@ -141,7 +145,7 @@ const OPEN_TRANSITION_DEADLINE_MS = 700;
  * There the chat slides in without its rows, which render when it is in place, as when the history
  * arrives after a first open. iOS animates the screen while it renders, so it renders them at once.
  */
-function useRowsAfterOpenTransition(): boolean {
+export function useRowsAfterOpenTransition(): boolean {
   const navigation = useNavigation<NativeStackNavigationProp<ParamListBase>>();
   const [shown, setShown] = useState(!isAndroid);
   useEffect(() => {
@@ -172,6 +176,8 @@ export function ChatView({
   activeTurnId,
   stopTurn,
   questionForm,
+  activityAccessory,
+  threadId = null,
   approvals,
   readBoundary,
   markRead,
@@ -194,8 +200,11 @@ export function ChatView({
   );
   const browserRequests = useBrowserRequests(target.serverId);
   const chatBrowserRequests = useMemo(
-    () => browserRequests.filter((request) => request.agentId === target.id),
-    [browserRequests, target.id],
+    () =>
+      browserRequests.filter(
+        (request) => request.agentId === target.id && (threadId === null || request.threadId === threadId),
+      ),
+    [browserRequests, target.id, threadId],
   );
   const browserAllowed = useBrowserFeature();
   const isFocused = useIsFocused();
@@ -844,6 +853,7 @@ export function ChatView({
               appActive={appActive}
               activeTurnId={activeTurnId}
               questionForm={questionForm}
+              activityAccessory={activityAccessory}
               approvals={approvals}
               browserRequests={chatBrowserRequests}
               serverName={server?.name ?? ""}

@@ -115,6 +115,7 @@ import {
   serverKind,
   showsOnline,
 } from "@/features/workspace/model/server-status";
+import { withoutTaskTurns } from "@/features/workspace/model/task-cache";
 import { applyBrowserEvent, syncEventQueries } from "@/features/workspace/model/team-events";
 import { runTeamRequest } from "@/features/workspace/model/team-request";
 import { trustedHostKeys } from "@/features/workspace/model/trusted-host-keys";
@@ -910,13 +911,16 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         }
         return;
       }
+      // The task events above already wrote the task lists, so a task turn stays out of the chat's activity.
+      const chatEvent = withoutTaskTurns(queryClient, queryScope, serverId, event);
       if (
-        event.type !== "conversation" ||
-        event.snapshot.revision >= (conversationStore.get(event.snapshot.agentId)?.revision ?? 0)
+        chatEvent &&
+        (chatEvent.type !== "conversation" ||
+          chatEvent.snapshot.revision >= (conversationStore.get(chatEvent.snapshot.agentId)?.revision ?? 0))
       ) {
         liveState.update("activityByServer", (current) => {
           const previous = current[serverId] ?? {};
-          const next = reduceAgentActivity(previous, event);
+          const next = reduceAgentActivity(previous, chatEvent);
           return next === previous ? current : { ...current, [serverId]: next };
         });
       }

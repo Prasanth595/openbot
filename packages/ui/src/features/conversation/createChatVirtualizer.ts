@@ -33,6 +33,8 @@ export interface ChatVirtualizer<TItemElement extends Element> {
   itemStart: (index: number) => number | undefined;
   /** Opens a row at the top of the list, rendered or not. A smooth scroll animates there. */
   scrollToIndex: (index: number, options?: { smooth?: boolean }) => void;
+  /** Scrolls to a position in the scroll content. It replaces the target of an earlier `scrollToIndex`. */
+  scrollToOffset: (offset: number) => void;
 }
 
 const STATIC_CHAT_LIMIT = 100;
@@ -185,6 +187,7 @@ export function createChatVirtualizer<TScrollElement extends Element, TItemEleme
     itemStart: (index) => virtualizer.measurementsCache[index]?.start,
     scrollToIndex: (index, scroll) =>
       virtualizer.scrollToIndex(index, { align: "start", behavior: scroll?.smooth ? "smooth" : "auto" }),
+    scrollToOffset: (offset) => virtualizer.scrollToOffset(offset, { align: "start", behavior: "auto" }),
   };
 }
 

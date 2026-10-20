@@ -9,6 +9,7 @@ import ChevronDown from "lucide-react-native/icons/chevron-down";
 import Plus from "lucide-react-native/icons/plus";
 import Settings from "lucide-react-native/icons/settings";
 import Settings2 from "lucide-react-native/icons/settings-2";
+import SquareCheck from "lucide-react-native/icons/square-check";
 import UsersRound from "lucide-react-native/icons/users-round";
 import { type PropsWithChildren, type ReactNode, useEffect, useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, View, type ViewStyle } from "react-native";
@@ -439,6 +440,15 @@ export function ServerDrawerContent({
 
         {activeServer ? (
           <View className="pt-1.5">
+            {values.tasks ? (
+              <DrawerRow
+                icon={SquareCheck}
+                label={t("mobile.app.route.tasks")}
+                value={values.tasks.value}
+                accentValue={values.tasks.needsYou}
+                onPress={() => onNavigate({ pathname: "/server-tasks", params: { serverId } })}
+              />
+            ) : null}
             <DrawerRow
               icon={Calendar}
               label={t("mobile.app.route.routines")}
@@ -564,11 +574,14 @@ function DrawerRow({
   icon: Icon,
   label,
   value,
+  accentValue = false,
   onPress,
 }: {
   icon: LucideIcon;
   label: string;
   value?: string | null;
+  /** A value that asks for the person, such as tasks that need them. */
+  accentValue?: boolean;
   onPress: () => void;
 }) {
   const [secondary, control] = useCSSVariable(["--openbot-text-secondary", "--openbot-bg-control"]);
@@ -588,7 +601,11 @@ function DrawerRow({
         {label}
       </Typography.Paragraph>
       {value ? (
-        <Typography.Paragraph className="text-text-secondary" numberOfLines={1} style={typeScale.preview}>
+        <Typography.Paragraph
+          className={accentValue ? "font-medium text-accent-text" : "text-text-secondary"}
+          numberOfLines={1}
+          style={typeScale.preview}
+        >
           {value}
         </Typography.Paragraph>
       ) : null}

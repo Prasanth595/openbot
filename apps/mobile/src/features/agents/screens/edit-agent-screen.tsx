@@ -29,6 +29,7 @@ import { AgentPublish } from "@/features/agents/components/agent-publish";
 import { AgentRuntimeFields, useProviderAccounts } from "@/features/agents/components/agent-runtime-fields";
 import { AgentSessionSettingsSection } from "@/features/agents/components/agent-session-settings";
 import { AgentSharedTables } from "@/features/agents/components/agent-shared-tables";
+import { AgentTasksRow } from "@/features/agents/components/agent-tasks-row";
 import { BloubAvatarPreview } from "@/features/agents/components/bloub-avatar";
 import { SettingsRow, SettingsSection } from "@/features/settings/components/settings-content";
 import {
@@ -468,6 +469,7 @@ function AgentForm({
             ) : null}
           </SettingsSection>
           <SettingsSection title={t("mobile.agent.groups.does")}>
+            <AgentTasksRow agent={agent} />
             <SettingsRow
               onPress={() =>
                 router.push({
