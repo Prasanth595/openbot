@@ -109,7 +109,7 @@
     "android:release:play": "gh workflow run release-android.yml --ref main",
     "lint": "biome check --max-diagnostics=none src",
     "codegen": "expo customize tsconfig.json && uniwind generate-artifacts --css ./global.css --dts ./src/uniwind-types.d.ts",
-    "typecheck": "bun ../../scripts/mobile-codegen.ts && bun ../../node_modules/typescript/bin/tsc --noEmit",
+    "typecheck": "bun ../../scripts/mobile-codegen.ts && bun ../../scripts/type-checker.ts --noEmit",
     "doctor": "bunx expo-doctor@latest"
   },
   "private": true

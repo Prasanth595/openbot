@@ -76,9 +76,11 @@ for (const page of [host, client]) page.setDefaultTimeout(30_000);
 mkdirSync(OUT, { recursive: true });
 const checks: Check[] = [];
 type Turn = Awaited<ReturnType<typeof speakOneTurn>>;
+// The body comes from `JSON.parse`, so every value is JSON. `z.json()` in a record makes TypeScript 7.1
+// report TS5115.
 const trackBody = z.object({
   type: z.literal("track"),
-  payload: z.object({ name: z.string(), properties: z.record(z.string(), z.json()) }),
+  payload: z.object({ name: z.string(), properties: z.record(z.string(), z.unknown()) }),
 });
 type EventProperties = z.infer<typeof trackBody>["payload"]["properties"];
 interface AnalyticsEvent {
