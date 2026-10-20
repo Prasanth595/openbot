@@ -3,10 +3,9 @@ import { useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import Animated, { type SharedValue, useAnimatedStyle } from "react-native-reanimated";
 import { useUniwind } from "uniwind";
-
-import logo from "@/assets/icons/app-icon.png";
 import backgroundDark from "@/assets/splash/background-dark.webp";
 import backgroundLight from "@/assets/splash/background-light.webp";
+import logo from "@/assets/splash/mark.png";
 import { SPLASH_LOGO_SIZE, SPLASH_MORPH_START, splashTravel } from "@/shared/lib/splash-motion";
 import { useText } from "@/shared/lib/text";
 import type { SplashArtwork, SplashLogoTarget } from "@/shared/lib/use-splash-gate";
