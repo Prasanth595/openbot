@@ -83,9 +83,10 @@ export function createSideQuestionStore(deps: SideQuestionStoreDeps) {
         ? []
         : [
             {
-              question: exchange.question.slice(0, INPUT_LIMITS.messageText),
-              // A longer answer still shows in full; only its start goes back to the agent.
-              answer: exchange.answer.slice(0, INPUT_LIMITS.sideQuestionAnswer),
+              // The prompt reads only the start of each turn. A shorter body also stays under a host's
+              // request limit. A longer answer still shows in full here.
+              question: exchange.question.slice(0, INPUT_LIMITS.sideQuestionEarlierText),
+              answer: exchange.answer.slice(0, INPUT_LIMITS.sideQuestionEarlierText),
             },
           ],
     );
