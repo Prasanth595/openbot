@@ -2,7 +2,7 @@ import type { RoutineFields } from "@openbot/contracts/ipc";
 import { HostedServerUpsellDialog } from "@openbot/ui/features/servers/HostedServerUpsellDialog";
 import { HostedServerUpsellNotice } from "@openbot/ui/features/servers/HostedServerUpsellNotice";
 import type { HostedUpsellHost } from "@openbot/ui/features/servers/hosted-server-upsell-host";
-import { createEffect, createSignal, onCleanup, onSettled, Show, untrack } from "solid-js";
+import { createEffect, createSignal, onSettled, Show, untrack } from "solid-js";
 import { usePlatform } from "../../platform";
 import {
   type HostedUpsellState,
@@ -68,25 +68,26 @@ export function hostedUpsellOffline(): { onSeePlans: () => void } | null {
   return current?.canOffer() ? { onSeePlans: () => current.seePlans("server_offline") } : null;
 }
 
-/** Recent enough to be the routine that the user or an agent just made, when no older list exists. */
-const RECENT_ROUTINE_MS = 10 * 60 * 1000;
+const WINDOW_OPENED_AT = Date.now();
+// A remote host's clock can differ a little from this computer's clock.
+const HOST_CLOCK_SLACK_MS = 2 * 60 * 1000;
 
-export function routineIsRecent(createdAt: string, now: number): boolean {
-  return now - Date.parse(createdAt) <= RECENT_ROUTINE_MS;
+/** A routine made before this window opened is not new, also when its list loads for the first time. */
+export function routineMadeThisSession(createdAt: string): boolean {
+  return Date.parse(createdAt) >= WINDOW_OPENED_AT - HOST_CLOCK_SLACK_MS;
 }
 
 /**
  * The active routines in `next` that are new since `previous`. With no previous list, a routine is
- * new only when it was made a short time ago, so a first load does not count old routines.
+ * new only when it was made after this window opened, so a first load does not count old routines.
  */
 export function createdRoutines(
   previous: readonly RoutineFields[] | undefined,
   next: readonly RoutineFields[],
-  now: number,
 ): RoutineFields[] {
   const known = previous ? new Set(previous.map((routine) => routine.id)) : null;
   return next.filter(
-    (routine) => routine.active && (known ? !known.has(routine.id) : routineIsRecent(routine.createdAt, now)),
+    (routine) => routine.active && (known ? !known.has(routine.id) : routineMadeThisSession(routine.createdAt)),
   );
 }
 
@@ -182,8 +183,11 @@ export function HostedServerUpsell(props: HostedServerUpsellProps) {
     seePlans,
     track,
   };
-  setController(api);
-  onCleanup(() => setController((current) => (current === api ? null : current)));
+  // A component body cannot write a signal, so the offer registers after it mounts.
+  onSettled(() => {
+    setController(api);
+    return () => setController((current) => (current === api ? null : current));
+  });
 
   return (
     <Show when={openRoutine()}>

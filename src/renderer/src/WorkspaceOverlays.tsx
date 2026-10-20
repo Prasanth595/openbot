@@ -239,10 +239,9 @@ function HostedUpsell(props: AccountProps) {
   // The last current list of each conversation. A list that is loading again keeps the previous one.
   const seen = new Map<string, readonly RoutineFields[]>();
   createEffect(routinesByConversation, (snapshots) => {
-    const now = Date.now();
     for (const [key, snapshot] of Object.entries(snapshots)) {
       if (!snapshot?.current || seen.get(key) === snapshot.routines) continue;
-      const created = createdRoutines(seen.get(key), snapshot.routines, now);
+      const created = createdRoutines(seen.get(key), snapshot.routines);
       seen.set(key, snapshot.routines);
       const agentId = key.slice(key.indexOf("\0") + 1);
       for (const routine of created) {

@@ -135,7 +135,7 @@ import {
   HostedServerUpsell,
   hostedUpsellOffline,
   hostedUpsellRoutineCreated,
-  routineIsRecent,
+  routineMadeThisSession,
 } from "../servers/hosted-server-upsell-controller";
 import type { HostMemoryLimitCalls } from "../servers/ServerMemoryLimitSetting";
 import type { ServerHostedSitesOptions, ServerSettingsSection } from "../servers/ServerSettingsModal";
@@ -1146,9 +1146,8 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
       });
     },
     (created) => {
-      const now = Date.now();
       for (const routine of created) {
-        if (routineIsRecent(routine.createdAt, now)) {
+        if (routineMadeThisSession(routine.createdAt)) {
           hostedUpsellRoutineCreated({ id: routine.id, name: routine.name, agentId: routine.agentId });
         }
       }
