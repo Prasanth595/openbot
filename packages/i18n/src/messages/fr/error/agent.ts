@@ -96,6 +96,8 @@ export const messages = {
   "error.agent.computerUseLocalOnly": "Computer Use ne peut être modifié que sur l’ordinateur qui exécute l’agent.",
   "error.agent.automationLocalOnly":
     "Les scripts locaux ne peuvent être autorisés que sur l’ordinateur qui exécute l’agent.",
+  "error.agent.newChatLocalOnly":
+    "Seul l’ordinateur qui exécute l’agent peut l’autoriser à démarrer de nouvelles discussions.",
   "error.agent.sideQuestionLocalOnly":
     "Les questions annexes ne fonctionnent que sur l’ordinateur qui exécute l’agent.",
   "error.agent.sideQuestionBusy": "Trop de questions annexes sont en cours. Réessayez dans un instant.",

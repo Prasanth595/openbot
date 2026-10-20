@@ -71,6 +71,7 @@ export { default as Maximize2 } from "lucide-solid/icons/maximize-2";
 export { default as Megaphone } from "lucide-solid/icons/megaphone";
 export { default as MemoryStick } from "lucide-solid/icons/memory-stick";
 export { default as MessageCircle } from "lucide-solid/icons/message-circle";
+export { default as MessageCirclePlus } from "lucide-solid/icons/message-circle-plus";
 export { default as MessageCircleQuestionMark } from "lucide-solid/icons/message-circle-question-mark";
 export { default as Mic } from "lucide-solid/icons/mic";
 export { default as Minimize2 } from "lucide-solid/icons/minimize-2";

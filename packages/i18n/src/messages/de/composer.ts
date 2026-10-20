@@ -124,4 +124,7 @@ export const messages = {
   "composer.context.noAuto": "Dieser Agent komprimiert seinen Kontext nicht.",
   "composer.context.lastCompaction": "Letzte Komprimierung: {before} → {after} Tokens",
   "composer.compaction.elapsed": "{minutes}:{seconds}",
+  "composer.newChat.action": "Neuer Chat",
+  "composer.newChat.pending": "Neuer Chat wird gestartet",
+  "composer.newChat.failed": "Neuer Chat konnte nicht gestartet werden.",
 } as const satisfies PartialTranslation<typeof source>;

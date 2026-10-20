@@ -142,6 +142,9 @@ export const messages = {
   "agentSettings.automation.title": "Yerel betikler",
   "agentSettings.automation.description":
     "Ana makinedeki betiklerin mesaj göndermesine, rutinleri çalıştırmasına, soruları yanıtlamasına ve onay isteklerini kabul etmesine veya reddetmesine izin verin",
+  "agentSettings.agentNewChat.title": "Ajan yeni sohbetler başlatır",
+  "agentSettings.agentNewChat.description":
+    "Sohbeti uzadığında ajanın yeni bir sohbet başlatmasına izin verir. Önce notlarını kaydeder.",
   "agentSettings.runtime.workspaceEnforcedProcess":
     "Tüm {provider} süreci bir korumalı alanda (sandbox) çalışır, bu nedenle dışarıya yazma işlemi başarısız olur. Yalnızca macOS'ta kullanılabilir.",
 } as const satisfies PartialTranslation<typeof source>;

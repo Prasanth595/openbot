@@ -71,6 +71,8 @@ export interface DrainHooks {
   turnEnded(turnId: string): boolean;
   /** Forgets the end of an earlier turn with this id: a requeued delivery starts again under the same turn id. */
   turnRestarting(turnId: string): void;
+  /** Starts the new chat that the agent asked for, if it did. The agent's own chat has nothing to start. */
+  startRequestedNewChat(agentId: string): Effect.Effect<void>;
 }
 
 /** The tasks of the agents, as the drain reads them. */
@@ -480,7 +482,11 @@ export class DrainScheduler {
     yield* Effect.gen({ self: this }, function* () {
       if (this.#laneTurnActive(lane)) return;
       const context = this.#mailbox.nextQueued(agentId, taskId);
-      if (!context) return;
+      if (!context) {
+        // Here, so that a message that arrives during the new chat waits for this drain to end.
+        if (taskId === null) yield* this.#hooks.startRequestedNewChat(agentId);
+        return;
+      }
       // A task compacts its context in its provider only: the OpenBot compaction holds every lane of
       // the agent and runs on the agent's own chat or the thread of the work it serves.
       if (taskId === null) {

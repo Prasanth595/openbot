@@ -154,6 +154,9 @@ export const messages = {
   "agentSettings.automation.title": "Scripts locales",
   "agentSettings.automation.description":
     "Permitir que los scripts del equipo host envíen mensajes, ejecuten rutinas, respondan preguntas y acepten o rechacen solicitudes de aprobación",
+  "agentSettings.agentNewChat.title": "El agente inicia chats nuevos",
+  "agentSettings.agentNewChat.description":
+    "Permite que el agente inicie un chat nuevo cuando su chat sea largo. Antes guarda notas.",
   "agentSettings.runtime.workspaceEnforcedProcess":
     "Todo el proceso de {provider} se ejecuta en un entorno aislado, por lo que la escritura fuera falla. Solo disponible en macOS.",
 } as const satisfies PartialTranslation<typeof source>;

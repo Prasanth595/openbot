@@ -630,6 +630,10 @@ export function parseUpdateAgent(value: unknown): UpdateAgentInput {
     if (!isBoolean(value.allowAutomation)) throw new Error("Invalid automation value.");
     result.allowAutomation = value.allowAutomation;
   }
+  if (value.allowNewChat !== undefined) {
+    if (!isBoolean(value.allowNewChat)) throw new Error("Invalid new chat value.");
+    result.allowNewChat = value.allowNewChat;
+  }
   if (value.providerAccountId !== undefined) {
     if (value.providerAccountId !== null && !isProviderAccountId(value.providerAccountId))
       throw new Error("Invalid provider account.");

@@ -15,6 +15,7 @@ import {
   type AvatarImageInput,
   agentAutomationAllowed,
   agentComputerUseEnabled,
+  agentNewChatAllowed,
   agentPermissionLevel,
   agentPermissionLevels,
   agentPermissionUpdate,
@@ -109,6 +110,8 @@ export interface AgentSettingsPanelProps {
   computerUseEditable?: boolean;
   /** Local scripts can be changed locally or through the host's administrator route. */
   automationEditable?: boolean;
+  /** Whether the agent can start a new chat. Local-only: the Team API does not carry it. */
+  newChatEditable?: boolean;
   /** The busy-message setting is local-only too: the Team API does not carry it. */
   busyMessageModeEditable?: boolean;
   /** Tasks run only on this computer: the Team API has no task route. */
@@ -196,6 +199,7 @@ interface AgentSettingsDraft {
   permission: AgentPermissionLevel;
   computerUse: boolean;
   allowAutomation: boolean;
+  allowNewChat: boolean;
   /** `default` follows the app setting. */
   busyMessage: BusyMessageChoice;
   /** `default` is `AGENT_TASK_LIMIT_DEFAULT`. */
@@ -248,6 +252,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
     permission: untrack(() => currentPermission()),
     computerUse: true,
     allowAutomation: false,
+    allowNewChat: false,
     busyMessage: "default",
     taskLimit: "default",
     backupModels: null,
@@ -363,6 +368,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
           currentPermission(),
           String(agentComputerUseEnabled(agent)),
           String(agentAutomationAllowed(agent)),
+          String(agentNewChatAllowed(agent)),
           agent.busyMessageMode ?? "default",
           String(agent.taskLimit ?? "default"),
           JSON.stringify(agent.backupModels ?? null),
@@ -405,6 +411,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
           state.permission = currentPermission();
           state.computerUse = agentComputerUseEnabled(agent);
           state.allowAutomation = agentAutomationAllowed(agent);
+          state.allowNewChat = agentNewChatAllowed(agent);
           state.busyMessage = agent.busyMessageMode ?? "default";
           state.taskLimit = taskLimitChoice(agent.taskLimit);
           state.backupModels = agent.backupModels ?? null;
@@ -816,6 +823,19 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
     if (!disposed && props.agent.id === agentId && draft.allowAutomation === next) {
       setDraft((state) => {
         state.allowAutomation = !next;
+      });
+    }
+  }
+
+  async function saveAllowNewChat(next: boolean): Promise<void> {
+    const agentId = props.agent.id;
+    setDraft((state) => {
+      state.allowNewChat = next;
+    });
+    if (await saveAgentPatch({ allowNewChat: next }, agentId)) return;
+    if (!disposed && props.agent.id === agentId && draft.allowNewChat === next) {
+      setDraft((state) => {
+        state.allowNewChat = !next;
       });
     }
   }
@@ -1384,6 +1404,20 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
                   >
                     {t("agentSettings.newChat.button")}
                   </Button>
+                </div>
+              </Show>
+              <Show when={props.newChatEditable}>
+                <div class="agent-settings-notifications">
+                  <div>
+                    <strong>{t("agentSettings.agentNewChat.title")}</strong>
+                    <span>{t("agentSettings.agentNewChat.description")}</span>
+                  </div>
+                  <Switch
+                    size="sm"
+                    aria-label={t("agentSettings.agentNewChat.title")}
+                    checked={draft.allowNewChat}
+                    onChange={(next) => void saveAllowNewChat(next)}
+                  />
                 </div>
               </Show>
             </Show>

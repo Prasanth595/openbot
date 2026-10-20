@@ -121,4 +121,7 @@ export const messages = {
   "composer.context.noAuto": "Этот агент не сжимает свой контекст.",
   "composer.context.lastCompaction": "Последнее сжатие: {before} → {after} токенов",
   "composer.compaction.elapsed": "{minutes}:{seconds}",
+  "composer.newChat.action": "Новый чат",
+  "composer.newChat.pending": "Начинается новый чат",
+  "composer.newChat.failed": "Не удалось начать новый чат.",
 } as const satisfies PartialTranslation<typeof source>;

@@ -6,6 +6,7 @@ import {
   LoaderCircle,
   Marker,
   MarkerContent,
+  MessageCirclePlus,
   Popover,
   RadialProgress,
   type RadialProgressTone,
@@ -68,12 +69,36 @@ function meterLevel(usage: ContextUsageView): "quiet" | "normal" | RadialProgres
   return share < 0.5 ? "quiet" : "normal";
 }
 
+/** The new chat that the meter starts, with its pending and failed states. */
+function createNewChatAction(start: () => Promise<void> | undefined) {
+  const { t, errorMessage } = useText();
+  const [pending, setPending] = createSignal(false);
+  const [failure, setFailure] = createSignal<string | null>(null);
+  const run = async () => {
+    if (pending()) return;
+    setPending(true);
+    setFailure(null);
+    try {
+      await start();
+    } catch (error) {
+      setFailure(errorMessage(error, t("composer.newChat.failed")));
+    } finally {
+      setPending(false);
+    }
+  };
+  return { pending, failure, run };
+}
+
 /**
  * The composer's context ring and the popover it opens. It shows how full the agent's provider
- * thread is and when it compacts.
+ * thread is and when it compacts. `onStartNewChat` adds the New chat action.
  */
-export function ContextUsageMeter(props: { usage: ContextUsageView }) {
+export function ContextUsageMeter(props: {
+  usage: ContextUsageView;
+  onStartNewChat?: (() => Promise<void>) | undefined;
+}) {
   const { t, format } = useText();
+  const newChat = createNewChatAction(() => props.onStartNewChat?.());
   const percent = () => format.percent(usedShare(props.usage), { maximumFractionDigits: 0 });
   const level = () => meterLevel(props.usage);
   const ringTone = (): RadialProgressTone => {
@@ -159,6 +184,31 @@ export function ContextUsageMeter(props: { usage: ContextUsageView }) {
               )}
             </Show>
           </Popover.Description>
+          <Show when={props.onStartNewChat}>
+            {/* A menu row under a divider: it acts on the whole context, so it sits apart from the figures. */}
+            <footer class="context-meter-footer">
+              <Show when={newChat.failure()}>
+                {(message) => (
+                  <p class="context-meter-note context-meter-footer-error" role="alert">
+                    {message()}
+                  </p>
+                )}
+              </Show>
+              <Button
+                variant="ghost"
+                type="button"
+                class="context-meter-new-chat"
+                disabled={props.usage.compacting || newChat.pending()}
+                aria-busy={newChat.pending() ? "true" : undefined}
+                onClick={() => void newChat.run()}
+              >
+                <Show when={newChat.pending()} fallback={<MessageCirclePlus aria-hidden="true" />}>
+                  <LoaderCircle class="composer-spinner" aria-hidden="true" />
+                </Show>
+                <span>{t(newChat.pending() ? "composer.newChat.pending" : "composer.newChat.action")}</span>
+              </Button>
+            </footer>
+          </Show>
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>

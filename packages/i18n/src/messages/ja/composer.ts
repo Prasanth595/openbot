@@ -120,4 +120,7 @@ export const messages = {
   "composer.context.noAuto": "このエージェントはコンテキストを圧縮しません。",
   "composer.context.lastCompaction": "前回の圧縮: {before} → {after} トークン",
   "composer.compaction.elapsed": "{minutes}:{seconds}",
+  "composer.newChat.action": "新しいチャット",
+  "composer.newChat.pending": "新しいチャットを開始しています",
+  "composer.newChat.failed": "新しいチャットを開始できませんでした。",
 } as const satisfies PartialTranslation<typeof source>;

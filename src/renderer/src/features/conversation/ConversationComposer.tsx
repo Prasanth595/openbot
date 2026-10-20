@@ -667,6 +667,7 @@ export function ConversationComposer() {
             <Show when={context()?.usage}>
               {(usage) => (
                 <ContextUsageMeter
+                  onStartNewChat={props.onClearAgentContext}
                   usage={{
                     ...usage(),
                     compacting: context()?.compaction?.status === "running",
