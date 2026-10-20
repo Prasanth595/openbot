@@ -551,7 +551,7 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
         extraEnv: () => ({
           ...context.agentEnvironment?.(),
           ...opencodeEnv(cli, context),
-          ...openCodeConfigEnv({}, context.customProviders),
+          ...openCodeConfigEnv({}, context.customProviders, context.apiKey("opencode")),
           ...(confinement ? OPENCODE_CONFINED_ENV : {}),
         }),
         signInMessage: openCodeSignInMessage(context.customProviders().length),
@@ -574,7 +574,7 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
         env: {},
         extraEnv: () => ({
           ...opencodeEnv(cli, context),
-          ...openCodeConfigEnv(OPENCODE_PROFILE_CONFIG, context.customProviders),
+          ...openCodeConfigEnv(OPENCODE_PROFILE_CONFIG, context.customProviders, context.apiKey("opencode")),
         }),
         signInMessage: openCodeSignInMessage(context.customProviders().length),
         servesModel: context.servesModel,

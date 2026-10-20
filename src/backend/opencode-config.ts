@@ -44,13 +44,25 @@ interface OpenCodeProviderEntry {
   readonly models: Readonly<Record<string, { readonly name: string }>>;
 }
 
+/**
+ * The stored OpenCode Go key, under a built-in provider that `OPENCODE_API_KEY` also reaches.
+ *
+ * OpenCode applies the key from its own `auth.json` (`opencode auth login`) after the environment
+ * key, so an old key saved there replaced the key pasted into OpenBot, and a new key could not fix
+ * an expired one (#2544). Config `options.apiKey` comes after both. Checked in OpenCode 1.18.30 to
+ * 1.18.35: with both keys present, the request carried the config key.
+ */
+interface OpenCodeKeyEntry {
+  readonly options: { readonly apiKey: string };
+}
+
 /** One rule per tool pattern, which is all OpenBot sends under `permission`. */
 type OpenCodePermissionLayer = Readonly<Record<string, "allow" | "ask" | "deny">>;
 
 /** The config layer OpenBot owns on `OPENCODE_CONFIG_CONTENT`. The user's own file is untouched. */
 interface OpenCodeConfig {
   readonly permission?: OpenCodePermissionLayer;
-  readonly provider?: Readonly<Record<string, OpenCodeProviderEntry>>;
+  readonly provider?: Readonly<Record<string, OpenCodeProviderEntry | OpenCodeKeyEntry>>;
 }
 
 /** What a caller starts from: every layer except the providers this module adds. */
@@ -64,6 +76,9 @@ export type OpenCodeConfigBase = Omit<OpenCodeConfig, "provider">;
 export const OPENCODE_PROFILE_CONFIG: OpenCodeConfigBase = { permission: { "*": "deny" } };
 
 const OPENCODE_CONFIG_ENV = "OPENCODE_CONFIG_CONTENT";
+
+/** The built-in providers that read `OPENCODE_API_KEY`: OpenCode Go and the free tier. */
+const OPENCODE_KEY_PROVIDERS = ["opencode-go", "opencode"] as const;
 
 /** What a plain OpenCode user needs, now that the free models run without an account at all. */
 const OPENCODE_GO_ADVICE = "OpenCode listed no model. Add an OpenCode Go key to continue.";
@@ -103,25 +118,35 @@ function customProviderEntries(
 }
 
 /**
- * Merges the custom providers into a base layer. Providers only ever land under the `provider` key,
- * so no provider id can reach a sibling setting: an endpoint named `permission` is a provider named
- * `permission`, not a permission rule.
+ * Merges the custom providers and the stored key into a base layer. Providers only ever land under
+ * the `provider` key, so no provider id can reach a sibling setting: an endpoint named `permission`
+ * is a provider named `permission`, not a permission rule. The key entries come last, so an
+ * endpoint named `opencode-go` cannot drop the stored key.
  */
 function mergeOpenCodeConfig(
   base: OpenCodeConfigBase,
   providers: readonly CustomProviderConfig[],
+  apiKey: string | null,
 ): OpenCodeConfig | null {
-  const entries = customProviderEntries(providers);
-  if (!entries) return Object.keys(base).length > 0 ? { ...base } : null;
+  const entries = {
+    ...customProviderEntries(providers),
+    ...(apiKey ? Object.fromEntries(OPENCODE_KEY_PROVIDERS.map((id) => [id, { options: { apiKey } }])) : {}),
+  };
+  if (Object.keys(entries).length === 0) return Object.keys(base).length > 0 ? { ...base } : null;
   return { ...base, provider: entries };
 }
 
 /**
  * The spawn environment for one OpenCode client. Returns `{}` when there is nothing to configure, so
- * a build with no custom providers and no base layer spawns exactly as it did before this existed.
+ * a build with no custom providers, no stored key and no base layer spawns exactly as it did before
+ * this existed. With no stored key, the user's own `opencode auth login` keys stay in use.
  */
-export function openCodeConfigEnv(base: OpenCodeConfigBase, source: CustomProviderSource): Record<string, string> {
-  const config = mergeOpenCodeConfig(base, source());
+export function openCodeConfigEnv(
+  base: OpenCodeConfigBase,
+  source: CustomProviderSource,
+  apiKey: string | null,
+): Record<string, string> {
+  const config = mergeOpenCodeConfig(base, source(), apiKey);
   return config ? { [OPENCODE_CONFIG_ENV]: JSON.stringify(config) } : {};
 }
 

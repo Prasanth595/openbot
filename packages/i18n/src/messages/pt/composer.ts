@@ -11,6 +11,7 @@ export const messages = {
   "composer.signIn.pending": "Entrando…",
   "composer.signIn.label": "Entrar em {provider}",
   "composer.signIn.action": "Entrar",
+  "composer.updateKey.action": "Trocar chave",
   "composer.update.body": "Atualize {provider} para continuar.",
   "composer.update.manual": "Atualize {provider} no computador em que ele é executado para continuar.",
   "composer.update.pending": "Atualizando…",

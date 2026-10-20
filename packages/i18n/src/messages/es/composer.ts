@@ -10,6 +10,7 @@ export const messages = {
   "composer.signIn.pending": "Iniciando sesión…",
   "composer.signIn.label": "Iniciar sesión en {provider}",
   "composer.signIn.action": "Iniciar sesión",
+  "composer.updateKey.action": "Cambiar clave",
   "composer.update.body": "Actualiza {provider} para continuar.",
   "composer.update.manual": "Actualiza {provider} en el equipo donde se ejecuta para continuar.",
   "composer.update.pending": "Actualizando…",

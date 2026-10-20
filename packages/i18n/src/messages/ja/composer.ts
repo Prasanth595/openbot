@@ -10,6 +10,7 @@ export const messages = {
   "composer.signIn.pending": "サインイン中…",
   "composer.signIn.label": "{provider} にサインイン",
   "composer.signIn.action": "サインイン",
+  "composer.updateKey.action": "キーを更新",
   "composer.update.body": "続行するには {provider} を更新してください。",
   "composer.update.manual": "続行するには、{provider} を実行しているコンピューターで更新してください。",
   "composer.update.pending": "更新中…",
