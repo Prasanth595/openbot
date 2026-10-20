@@ -1,5 +1,6 @@
 import type { McpSignInRelayPage, UpdateAgentInput } from "@openbot/contracts/ipc";
 import type { QuoteRequest } from "@openbot/ui/features/conversation/ComposerEditor";
+import { scrollToUnreadBoundary } from "@openbot/ui/features/conversation/UnreadMessages";
 import { currentText } from "@openbot/ui/text";
 import { errorReference } from "@openbot/user-errors";
 import {
@@ -650,6 +651,8 @@ export function createConversationViewScope(props: ConversationProps) {
   let readerIntent: { up: boolean; at: number } | undefined;
   let lastTouchY: number | undefined;
   let currentUnreadCount = 0;
+  let unreadOpeningIdentity: string | undefined;
+  let unreadOpeningPending = false;
   let conversationPanel: HTMLElement | undefined;
   const [browserSurface, setBrowserSurface] = createSignal<HTMLDivElement>();
   /** A link sign-in that the host relays, while it waits for the address that the browser shows. */
@@ -964,6 +967,49 @@ export function createConversationViewScope(props: ConversationProps) {
           updateUnreadDividerVisibility();
         });
       });
+    },
+  );
+
+  /*
+   * A chat with unread messages opens at the divider, with one read row above it, so the reader
+   * sees where they stopped. It runs after the effect above, so it cancels that effect's follow.
+   */
+  createEffect(
+    () => {
+      const boundaryId = unreadBoundaryMessageId();
+      return {
+        identity: `${props.server?.id ?? "local"}:${props.agent?.id ?? ""}`,
+        loaded: props.loaded,
+        boundaryIndex: boundaryId ? timelineIndexById().get(boundaryId) : undefined,
+      };
+    },
+    ({ identity, loaded, boundaryIndex }) => {
+      if (identity !== unreadOpeningIdentity) {
+        unreadOpeningIdentity = identity;
+        unreadOpeningPending = true;
+      }
+      if (!unreadOpeningPending || !loaded) return;
+      unreadOpeningPending = false;
+      if (boundaryIndex === undefined || readerLeftLatest) return;
+      stickToLatest = false;
+      if (latestScrollFrame !== undefined) cancelAnimationFrame(latestScrollFrame);
+      if (latestScrollSettleFrame !== undefined) cancelAnimationFrame(latestScrollSettleFrame);
+      latestScrollFrame = undefined;
+      latestScrollSettleFrame = undefined;
+      messageVirtualizer.scrollToIndex(boundaryIndex);
+      const openAtDivider = (settle: boolean) =>
+        requestAnimationFrame(() => {
+          if (unreadOpeningIdentity !== identity || readerLeftLatest || !scrollElement) return;
+          const divider = unreadMessagesDivider;
+          if (divider?.isConnected) {
+            const readRow = divider.closest(".virtual-chat-row")?.previousElementSibling;
+            scrollToUnreadBoundary(scrollElement, readRow instanceof HTMLElement ? readRow : divider, "instant");
+          }
+          updateScrollFade(scrollElement);
+          updateUnreadDividerVisibility();
+          if (!settle) openAtDivider(true);
+        });
+      openAtDivider(false);
     },
   );
 
