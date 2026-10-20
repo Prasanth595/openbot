@@ -179,8 +179,11 @@ export function useGlobalSearchSources(open: () => boolean) {
             run: () => openServerSettings(server.id, globalSearchOpener(), "members"),
           },
         );
-        // General shows the row only to an admin of a host that can set it.
-        if (serverCanAdminister(server, "agent-memory-limit-v1")) {
+        // General shows the row only to an admin of a host that can set it, and only while it is online.
+        if (
+          serverCanAdminister(server, "agent-memory-limit-v1") &&
+          (server.kind === "local" || server.state === "online")
+        ) {
           list.push({
             id: "server:memory-limit",
             label: t("server.settings.memoryLimit"),
