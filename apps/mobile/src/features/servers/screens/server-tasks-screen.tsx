@@ -9,7 +9,7 @@ import { Pressable, View } from "react-native";
 import { TaskListRow } from "@/features/servers/components/task-list-row";
 import { useServerTasks } from "@/features/servers/model/use-server-tasks";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
-import { AndroidBackButton, AndroidHeaderButton } from "@/shared/components/android-header-button";
+import { AndroidHeaderButton } from "@/shared/components/android-header-button";
 import { LargeTitleScrollView } from "@/shared/components/large-title";
 import { haptics } from "@/shared/lib/haptics";
 import { isAndroid } from "@/shared/lib/platform";
@@ -80,7 +80,6 @@ export function ServerTasksScreen() {
           />
         </Stack.Toolbar>
       )}
-      <AndroidBackButton />
       <LargeTitleScrollView title={title} caption={server?.name} contentContainerClassName="pt-1">
         {note ? <EmptyNote text={note} /> : null}
         {retry ? (

@@ -1,4 +1,4 @@
-import { router, Stack } from "expo-router";
+import { Stack } from "expo-router";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
 import type { LucideIcon } from "lucide-react-native";
@@ -76,27 +76,6 @@ export function AndroidHeaderButton({
     return placement === "left" ? { headerLeft: button } : { headerRight: button };
   }, [Icon, accessibilityLabel, disabled, foreground, glass, hasGlass, hidden, placement, text]);
   return <Stack.Screen options={options} />;
-}
-
-/**
- * The back button of a full screen on Android, a Material arrow as the home header buttons are. iOS keeps the
- * native Liquid Glass back button of the stack.
- */
-export function AndroidBackButton() {
-  const { t } = useText();
-  if (!isAndroid) return null;
-  return (
-    <AndroidHeaderButton
-      placement="left"
-      glass
-      icon={ArrowLeft}
-      accessibilityLabel={t("common.back")}
-      onPress={() => {
-        void haptics.impact("soft");
-        router.back();
-      }}
-    />
-  );
 }
 
 /** The round back button that `androidBackOptions` puts in the header. */

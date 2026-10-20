@@ -68,8 +68,8 @@ large title does not work under the custom scroll edge effect on iOS 27, and And
 - `LargeTitleScrollView` puts grouped content under a big header on the sheet surface.
 
 The native header stays, transparent, with an empty title. It keeps the native Liquid Glass buttons on
-iOS: back, `Stack.Toolbar` actions and menus. Android draws its buttons with `AndroidHeaderButton` and
-`AndroidBackButton`. Text sizes that HeroUI `Typography` has no variant for come from
+iOS: back, `Stack.Toolbar` actions and menus. Android draws its buttons with `AndroidHeaderButton`,
+and the stack draws the back button with `androidBackOptions`. Text sizes that HeroUI `Typography` has no variant for come from
 `src/shared/lib/type-scale.ts`; spread them into `style`.
 
 ### Home search

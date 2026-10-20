@@ -25,7 +25,6 @@ import { SettingsNote, SettingsRow, SettingsSection } from "@/features/settings/
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 import { queryKeys } from "@/features/workspace/model/query-keys";
 import type { MobileAgent } from "@/features/workspace/model/workspace-types";
-import { AndroidBackButton } from "@/shared/components/android-header-button";
 import { LargeTitleScrollView } from "@/shared/components/large-title";
 import { MenuView } from "@/shared/components/menu-view";
 import { haptics } from "@/shared/lib/haptics";
@@ -320,18 +319,14 @@ export function ServerRoutinesScreen() {
   const title = t("mobile.app.route.routines");
   if (!server)
     return (
-      <>
-        <AndroidBackButton />
-        <LargeTitleScrollView title={title} contentContainerClassName={PAGE_CONTENT}>
-          <SettingsNote>{t("mobile.server.unavailable")}</SettingsNote>
-        </LargeTitleScrollView>
-      </>
+      <LargeTitleScrollView title={title} contentContainerClassName={PAGE_CONTENT}>
+        <SettingsNote>{t("mobile.server.unavailable")}</SettingsNote>
+      </LargeTitleScrollView>
     );
 
   return (
     <>
       {header}
-      <AndroidBackButton />
       <LargeTitleScrollView title={title} caption={server.name} contentContainerClassName={PAGE_CONTENT}>
         <View className="gap-2">
           <Typography.Paragraph

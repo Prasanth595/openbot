@@ -13,7 +13,6 @@ import { SettingsNote, SettingsRow, SettingsSection } from "@/features/settings/
 import { SettingsPicker } from "@/features/settings/components/settings-controls";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 import { queryKeys } from "@/features/workspace/model/query-keys";
-import { AndroidBackButton } from "@/shared/components/android-header-button";
 import { LargeTitleScrollView } from "@/shared/components/large-title";
 import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
@@ -53,68 +52,60 @@ export function ServerUsageScreen() {
   const title = t("mobile.app.route.usage");
   if (!server)
     return (
-      <>
-        <AndroidBackButton />
-        <LargeTitleScrollView title={title} contentContainerClassName="px-4 pt-3">
-          <SettingsNote>{t("mobile.server.unavailable")}</SettingsNote>
-        </LargeTitleScrollView>
-      </>
+      <LargeTitleScrollView title={title} contentContainerClassName="px-4 pt-3">
+        <SettingsNote>{t("mobile.server.unavailable")}</SettingsNote>
+      </LargeTitleScrollView>
     );
 
   return (
-    <>
-      <AndroidBackButton />
-      <LargeTitleScrollView title={title} caption={server.name} contentContainerClassName="px-4 pt-3">
-        <View className="gap-4">
-          <SettingsSection>
-            <SettingsRow
-              trailing={
-                <SettingsPicker
-                  value={agentId ?? ""}
-                  options={[
-                    { value: "", label: t("mobile.server.usage.allAgents") },
-                    ...serverAgents.map((agent) => ({ value: agent.id, label: agent.name })),
-                  ]}
-                  enabled
-                  dark={theme === "dark"}
-                  label={t("mobile.server.usage.agent")}
-                  onChange={(value) => selectAgent(value || undefined)}
-                />
-              }
-            >
-              <Typography.Paragraph>{t("mobile.server.usage.agent")}</Typography.Paragraph>
-            </SettingsRow>
-          </SettingsSection>
-          <UsageRangePicker range={range} onChange={setRange} />
-          {!online ? (
-            <Typography.Paragraph>{t("mobile.agent.info.usage.reconnect")}</Typography.Paragraph>
-          ) : usage.isPending ? (
-            <Typography.Paragraph>{t("mobile.agent.info.usage.loading")}</Typography.Paragraph>
-          ) : usage.isError ? (
-            <View className="gap-2">
-              <Typography.Paragraph accessibilityRole="alert">
-                {t("mobile.agent.info.usage.failed")}
-              </Typography.Paragraph>
-              <Button variant="ghost" onPress={() => void usage.refetch()}>
-                <Button.Label>{t("mobile.agent.info.usage.retry")}</Button.Label>
-              </Button>
-            </View>
-          ) : usage.data ? (
-            <UsageLoading loading={usage.isPlaceholderData}>
-              <AgentUsageReport
-                result={usage.data}
-                // A filtered report splits into one row that restates the totals.
-                agents={
-                  agentId ? undefined : usage.data.agents.map((agent) => ({ ...agent, name: agentName(agent.agentId) }))
-                }
-                onSelectAgent={selectAgent}
+    <LargeTitleScrollView title={title} caption={server.name} contentContainerClassName="px-4 pt-3">
+      <View className="gap-4">
+        <SettingsSection>
+          <SettingsRow
+            trailing={
+              <SettingsPicker
+                value={agentId ?? ""}
+                options={[
+                  { value: "", label: t("mobile.server.usage.allAgents") },
+                  ...serverAgents.map((agent) => ({ value: agent.id, label: agent.name })),
+                ]}
+                enabled
+                dark={theme === "dark"}
+                label={t("mobile.server.usage.agent")}
+                onChange={(value) => selectAgent(value || undefined)}
               />
-            </UsageLoading>
-          ) : (
-            <Typography.Paragraph>{t("mobile.server.usage.unsupported")}</Typography.Paragraph>
-          )}
-        </View>
-      </LargeTitleScrollView>
-    </>
+            }
+          >
+            <Typography.Paragraph>{t("mobile.server.usage.agent")}</Typography.Paragraph>
+          </SettingsRow>
+        </SettingsSection>
+        <UsageRangePicker range={range} onChange={setRange} />
+        {!online ? (
+          <Typography.Paragraph>{t("mobile.agent.info.usage.reconnect")}</Typography.Paragraph>
+        ) : usage.isPending ? (
+          <Typography.Paragraph>{t("mobile.agent.info.usage.loading")}</Typography.Paragraph>
+        ) : usage.isError ? (
+          <View className="gap-2">
+            <Typography.Paragraph accessibilityRole="alert">{t("mobile.agent.info.usage.failed")}</Typography.Paragraph>
+            <Button variant="ghost" onPress={() => void usage.refetch()}>
+              <Button.Label>{t("mobile.agent.info.usage.retry")}</Button.Label>
+            </Button>
+          </View>
+        ) : usage.data ? (
+          <UsageLoading loading={usage.isPlaceholderData}>
+            <AgentUsageReport
+              result={usage.data}
+              // A filtered report splits into one row that restates the totals.
+              agents={
+                agentId ? undefined : usage.data.agents.map((agent) => ({ ...agent, name: agentName(agent.agentId) }))
+              }
+              onSelectAgent={selectAgent}
+            />
+          </UsageLoading>
+        ) : (
+          <Typography.Paragraph>{t("mobile.server.usage.unsupported")}</Typography.Paragraph>
+        )}
+      </View>
+    </LargeTitleScrollView>
   );
 }
