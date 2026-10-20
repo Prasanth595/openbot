@@ -19,6 +19,7 @@ import { requestHomeSearch } from "@/features/search/model/home-search-request";
 import { AppDrawerShell, useAppDrawer } from "@/features/servers/components/app-drawer-shell";
 import { setShareSheetOpener } from "@/features/share/model/share-sheet-opener";
 import { MobileWorkspaceProvider } from "@/features/workspace/context/mobile-workspace-context";
+import { androidBackOptions } from "@/shared/components/android-header-button";
 import { useReducedMotion } from "@/shared/lib/motion";
 import { isAndroid, isIOS } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
@@ -108,14 +109,16 @@ function AuthenticatedStack() {
                 gestureCancel: () => navigationGate.cancel(),
               }
         }
-        screenOptions={{
+        screenOptions={(props) => ({
+          // The full screens put the back arrow in the glass circle, as the home buttons are.
+          ...androidBackOptions(props, { glass: true }),
           headerBackButtonDisplayMode: "minimal",
           headerShadowVisible: false,
           headerTransparent: isIOS,
           sheetExpandsWhenScrolledToEdge: false,
           // iOS rounds a sheet by default. Android uses 0, so it gets the Material 3 sheet corner.
           ...(isAndroid && { sheetCornerRadius: 28 }),
-        }}
+        })}
       >
         <Stack.Screen name="connected" options={{ animation: "fade", gestureEnabled: false, title: "" }} />
         <Stack.Screen

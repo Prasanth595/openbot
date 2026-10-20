@@ -21,12 +21,16 @@ import { typeScale } from "@/shared/lib/type-scale";
 
 const TITLE_EASE = cubicBezier(0.23, 1, 0.32, 1);
 /** The small title shows when the text of the big title reaches the bottom of the bar. */
-const TITLE_BOTTOM_PADDING = 10;
+const TITLE_BOTTOM_PADDING = isAndroid ? 16 : 10;
 /** The distance over which the big title fades out under the bar. */
 const TITLE_FADE = 24;
 const IOS_BAR_HEIGHT = 44;
 /** The side room of the small title: the glass bar button, 16 pt from the edge, and a 16 pt gap. */
 const BAR_TITLE_INSET = 78;
+/** The Material 3 small top app bar puts its title on the 72 dp line, after the navigation button. */
+const ANDROID_BAR_TITLE_INSET = 72;
+/** The fade under the solid Android bar, where the content goes under it. */
+const ANDROID_FADE = 32;
 
 export interface LargeTitleScroll {
   onScroll: ReturnType<typeof useAnimatedScrollHandler>;
@@ -39,7 +43,8 @@ export interface LargeTitleScroll {
 /**
  * The scroll state of a screen with a big header. The native iOS large title does not work under
  * the custom scroll edge effect on iOS 27, and Android has none, so the screens draw their own: the
- * title scrolls with the content, and a small title shows in the transparent native bar.
+ * title scrolls with the content, and a small title shows in the transparent native bar. Android
+ * draws it as a Material 3 medium top app bar that collapses into the small bar.
  */
 export function useLargeTitleScroll(): LargeTitleScroll {
   const headerHeight = useContext(HeaderHeightContext) ?? 0;
@@ -102,7 +107,7 @@ export function LargeTitle({
         numberOfLines={1}
         adjustsFontSizeToFit
         minimumFontScale={0.82}
-        style={typeScale.largeTitle}
+        style={isAndroid ? typeScale.largeTitleAndroid : typeScale.largeTitle}
       >
         {title}
       </Typography.Heading>
@@ -110,7 +115,7 @@ export function LargeTitle({
   );
   return (
     <View
-      className="px-5"
+      className={isAndroid ? "px-5 pt-2" : "px-5"}
       style={{ paddingBottom: TITLE_BOTTOM_PADDING }}
       onLayout={(event) => titleHeight.set(event.nativeEvent.layout.height)}
     >
@@ -141,14 +146,15 @@ export function LargeTitle({
 
 /**
  * The scroll edge effect under the transparent native bar, and the small title that comes into the
- * bar when the big title scrolls under it. The native bar buttons stay native above it.
+ * bar when the big title scrolls under it. The native bar buttons stay native above it. Android has
+ * no blur: as the top fade of the design, the surface is solid under the bar and fades out below it.
  */
 export function LargeTitleBar({
   scroll,
   title,
   hidden = false,
-  insetLeft = BAR_TITLE_INSET,
-  insetRight = BAR_TITLE_INSET,
+  insetLeft = isAndroid ? ANDROID_BAR_TITLE_INSET : BAR_TITLE_INSET,
+  insetRight = isAndroid ? ANDROID_BAR_TITLE_INSET : BAR_TITLE_INSET,
   surface = "canvas",
 }: {
   scroll: LargeTitleScroll;
@@ -176,17 +182,31 @@ export function LargeTitleBar({
   );
   return (
     <>
-      <SheetScrollEdgeEffect
-        surface={surface}
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          // The same depth on every surface, so the blur fades as it does in the sheets.
-          height: scroll.headerHeight + 48,
-        }}
-      />
+      {isAndroid ? (
+        <>
+          <View
+            pointerEvents="none"
+            className={surface === "sheet" ? "bg-sheet" : "bg-background"}
+            style={{ position: "absolute", top: 0, left: 0, right: 0, height: scroll.headerHeight }}
+          />
+          <SheetScrollEdgeEffect
+            surface={surface}
+            style={{ position: "absolute", top: scroll.headerHeight, left: 0, right: 0, height: ANDROID_FADE }}
+          />
+        </>
+      ) : (
+        <SheetScrollEdgeEffect
+          surface={surface}
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            // The same depth on every surface, so the blur fades as it does in the sheets.
+            height: scroll.headerHeight + 48,
+          }}
+        />
+      )}
       {hidden ? null : (
         <Animated.View
           pointerEvents="none"
@@ -209,7 +229,11 @@ export function LargeTitleBar({
             },
           ]}
         >
-          <Typography.Paragraph className="font-semibold" numberOfLines={1} style={typeScale.barTitle}>
+          <Typography.Paragraph
+            className={isAndroid ? "font-normal" : "font-semibold"}
+            numberOfLines={1}
+            style={isAndroid ? typeScale.barTitleAndroid : typeScale.barTitle}
+          >
             {title}
           </Typography.Paragraph>
         </Animated.View>

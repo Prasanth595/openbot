@@ -36,7 +36,8 @@ Native ownership takes priority over HeroUI for navigation chrome. HeroUI owners
 - Obtain Liquid Glass through native navigation components. Do not imitate it with blur views, gradients, translucent HeroUI cards, shadows, or screenshots of glass.
 - Do not replace native headers, tab bars, toolbars, or search bars with `GlassView`. `expo-glass-effect` is for deliberate custom content surfaces, not for rebuilding system chrome.
 - Preserve platform safe-area and scroll-edge behavior. Ordinary screens normally use automatic content inset adjustment. Native sheets use the shared `SheetScrollView` header handling described below; do not add a second automatic inset or screen-local spacer.
-- The home list is the fallback exception for a full screen: iOS 27 shows no native scroll edge effect under its header. Its native header is transparent on iOS and Android, the native top edge is hidden, and the screen draws the canvas `SheetScrollEdgeEffect` of the chat header under the native buttons. Android pads the list by the header height, because it has no content inset.
+- The home list is the fallback exception for a full screen: iOS 27 shows no native scroll edge effect under its header. Its native header is transparent on iOS and Android, the native top edge is hidden, and the screen draws the canvas `SheetScrollEdgeEffect` of the chat header under the native buttons
+(on iOS; Android draws the solid Material bar of the big header). Android pads the list by the header height, because it has no content inset.
 - Avoid forcing opaque colors or bespoke backgrounds onto native chrome unless the product requirement explicitly calls for it. Let the operating system adapt materials to the platform version, appearance, accessibility settings, and scroll state.
 - Treat older iOS versions and Android as first-class fallbacks. The interface must remain complete and readable when Liquid Glass is unavailable or reduced transparency is enabled.
 - Use platform-native icons in native navigation (`sf` on iOS and the corresponding Material icon on Android). Use the existing application icon convention for HeroUI content.
@@ -52,6 +53,18 @@ large title does not work under the custom scroll edge effect on iOS 27, and And
   34 pt bold title. On iOS a pull past the top grows it a little, as the native title does.
 - `LargeTitleBar` draws the scroll edge effect and the 17 pt small title. The small title fades in,
   4 pt up, in 200 ms when the text of the big title reaches the bottom of the bar.
+- Android uses Material 3, not an iOS copy: a 28 dp bold title (a medium top app bar), the surface
+  solid under the bar and a 32 dp fade below it, as the top fade of the design,
+  a 22 dp regular small title on the 72 dp line, and 48 dp icon buttons with a round ripple: a 40 dp glass circle on full screens, the plain icon in sheets.
+- Android has no Liquid Glass, and its blur does not work over a scroll view. The search field and the
+  bar buttons use `useChromeGlass()`: the solid glass of the design (`--openbot-bg-chrome-glass`, 94-96%
+  opaque), a hairline edge, a soft shadow and the top light of `ChromeGlassSheen`. The home search
+  field has a real blur on Android 12 and later: the home content is in a `BlurTargetView`, and the
+  field draws a `BlurView` of it (radius 24) under the lighter `--openbot-bg-chrome-blur` fill. While
+  the results are open, the field shows the solid glass over the blur, because the results are not in
+  the target. iOS without Liquid Glass keeps the solid capsule.
+  Stacks set `androidBackOptions` in `screenOptions`, so the back button of every inner page, in
+  sheets too, is the same round button and not the native arrow.
 - `LargeTitleScrollView` puts grouped content under a big header on the sheet surface.
 
 The native header stays, transparent, with an empty title. It keeps the native Liquid Glass buttons on

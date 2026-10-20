@@ -1,4 +1,5 @@
 import { isAgentTaskOpen, taskNeedsYou } from "@openbot/team-client/agent-tasks";
+import { BlurView } from "expo-blur";
 import * as Crypto from "expo-crypto";
 import { GlassView } from "expo-glass-effect";
 import { type Href, router, useFocusEffect } from "expo-router";
@@ -29,7 +30,17 @@ import {
   useRef,
   useState,
 } from "react";
-import { AccessibilityInfo, BackHandler, Keyboard, Pressable, ScrollView, TextInput, View } from "react-native";
+import {
+  AccessibilityInfo,
+  BackHandler,
+  Keyboard,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+} from "react-native";
 import { KeyboardAwareScrollView, useReanimatedKeyboardAnimation } from "react-native-keyboard-controller";
 import Animated, {
   cubicBezier,
@@ -47,7 +58,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { scheduleOnRN } from "react-native-worklets";
-import { useCSSVariable } from "uniwind";
+import { useCSSVariable, useUniwind } from "uniwind";
 import { BloubAvatar } from "@/features/agents/components/bloub-avatar";
 import { ChatNavigationGateContext } from "@/features/agents/components/chat-link-pressable";
 import { getBloubAvatarColor } from "@/features/agents/model/bloub-activity";
@@ -63,9 +74,12 @@ import {
   useMobileWorkspaceSelector,
 } from "@/features/workspace/context/mobile-workspace-context";
 import { BlurSwap } from "@/shared/components/blur-swap";
+import { ChromeGlassSheen } from "@/shared/components/chrome-glass-sheen";
 import { SheetScrollEdgeEffect } from "@/shared/components/sheet-scroll-edge-effect";
+import { useChromeGlass } from "@/shared/lib/chrome-glass";
 import { haptics } from "@/shared/lib/haptics";
 import { useReducedMotion, useTransitionMode } from "@/shared/lib/motion";
+import { isAndroid } from "@/shared/lib/platform";
 import { currentText, useText } from "@/shared/lib/text";
 import { typeScale } from "@/shared/lib/type-scale";
 import { useLiquidGlass } from "@/shared/lib/use-liquid-glass";
@@ -533,7 +547,14 @@ function TaskTargetRow({ agent, onPress }: { agent: MobileAgent; onPress: () => 
 }
 
 /** The field at the bottom of home. It rides on the keyboard, and a close button comes in beside it. */
-export function HomeSearchBar({ search }: { search: HomeSearch }) {
+export function HomeSearchBar({
+  search,
+  blurTarget,
+}: {
+  search: HomeSearch;
+  /** Android: the home content that the field blurs. */
+  blurTarget?: RefObject<View | null>;
+}) {
   const { t } = useText();
   const { input } = search;
   // A quick action of the app icon opens the search with the keyboard. The field registers it, so a
@@ -559,10 +580,14 @@ export function HomeSearchBar({ search }: { search: HomeSearch }) {
     : danger;
   // As the prototype: the color at 18% over the field, so the text in the same color stays readable.
   const resultTint = `${resultColor}2e`;
-  const bottomGap = Math.max(insets.bottom - 8, 12);
-  const { height: keyboardHeight, progress: keyboardProgress } = useReanimatedKeyboardAnimation();
+  // iOS sets the field into the home indicator area. The Android gesture handle is lower in the
+  // inset and the field must stay above it.
+  const bottomGap = isAndroid ? insets.bottom + 8 : Math.max(insets.bottom - 8, 12);
+  const { height: keyboardHeight } = useReanimatedKeyboardAnimation();
+  // The field rises only when the keyboard reaches it, and then stays 8 pt above it. Android can
+  // report an open keyboard with no height (a hardware or floating keyboard); the field stays.
   const barStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: -Math.abs(keyboardHeight.get()) + keyboardProgress.get() * (bottomGap - KEYBOARD_GAP) }],
+    transform: [{ translateY: -Math.max(0, Math.abs(keyboardHeight.get()) - (bottomGap - KEYBOARD_GAP)) }],
   }));
   const layout = reduced ? undefined : FIELD_LAYOUT;
   const enter = reduced ? undefined : closeButtonEnter;
@@ -613,6 +638,9 @@ export function HomeSearchBar({ search }: { search: HomeSearch }) {
           liquidGlass={liquidGlass}
           fallbackBackground={fieldBackground}
           tint={search.result ? resultTint : undefined}
+          blurTarget={blurTarget}
+          // The open results lie over the list and are not in the target, so the field is solid then.
+          blurPaused={search.open}
         >
           {search.result ? (
             <Animated.View
@@ -814,15 +842,27 @@ function TargetChip({ agent, onPress }: { agent: MobileAgent; onPress: () => voi
 }
 
 /** Glass where the system has it; a solid capsule elsewhere, and with Reduce Transparency on. */
+const CAPSULE_SHADOW = "0 6px 18px rgba(0, 0, 0, 0.07)";
+/** The blur radius of the Android capsule, near the 18 px of the design; the native limit is 25. */
+const BLUR_RADIUS = 24;
+/** Android 12 and later draw the blur. Earlier versions keep the solid glass. */
+const ANDROID_BLUR = isAndroid && Number(Platform.Version) >= 31;
+
 function GlassCapsule({
   liquidGlass,
   fallbackBackground,
   width,
   animateGlass = false,
   tint,
+  blurTarget,
+  blurPaused = false,
   children,
 }: PropsWithChildren<{
   liquidGlass: boolean;
+  /** Android: the content to blur under the capsule. Without it the capsule has the solid glass. */
+  blurTarget?: RefObject<View | null>;
+  /** Shows the solid glass over the blur, for a time when the target is not under the capsule. */
+  blurPaused?: boolean;
   fallbackBackground: unknown;
   width?: number;
   /** A color over the glass, such as the agent color of a task result. */
@@ -830,6 +870,13 @@ function GlassCapsule({
   /** The glass comes in with the native glass animation, for a capsule that mounts on screen. */
   animateGlass?: boolean;
 }>) {
+  // Android has no glass: the capsule blurs the content under it and lays the milky fill of the
+  // design over the blur. iOS without Liquid Glass, or with Reduce Transparency, keeps the solid capsule.
+  const milky = useChromeGlass();
+  const { theme } = useUniwind();
+  const blurFill = String(useCSSVariable("--openbot-bg-chrome-blur"));
+  const blurs = ANDROID_BLUR && !liquidGlass && blurTarget !== undefined && !blurPaused;
+  const fallback = isAndroid ? milky : { backgroundColor: String(fallbackBackground), boxShadow: CAPSULE_SHADOW };
   return (
     <GlassView
       glassEffectStyle={
@@ -841,16 +888,40 @@ function GlassCapsule({
       }
       isInteractive={liquidGlass}
       tintColor={liquidGlass ? tint : undefined}
-      style={{
-        backgroundColor: liquidGlass ? "transparent" : String(fallbackBackground),
-        borderCurve: "continuous",
-        borderRadius: HOME_SEARCH_HEIGHT / 2,
-        height: HOME_SEARCH_HEIGHT,
-        overflow: "hidden",
-        width,
-        boxShadow: liquidGlass ? undefined : "0 6px 18px rgba(0, 0, 0, 0.07)",
-      }}
+      style={[
+        liquidGlass ? { backgroundColor: "transparent" } : fallback,
+        // The fill lies in its own layer over the blur.
+        isAndroid && !liquidGlass ? { backgroundColor: "transparent" } : null,
+        {
+          borderCurve: "continuous",
+          borderRadius: HOME_SEARCH_HEIGHT / 2,
+          height: HOME_SEARCH_HEIGHT,
+          overflow: "hidden",
+          width,
+        },
+      ]}
     >
+      {isAndroid && !liquidGlass ? (
+        // The blur stays mounted while the field is solid: a `BlurView` that mounts paints its tint
+        // and the window background for a frame. The solid fill then covers it.
+        <>
+          {ANDROID_BLUR && blurTarget ? (
+            <BlurView
+              blurTarget={blurTarget}
+              blurMethod="dimezisBlurViewSdk31Plus"
+              intensity={BLUR_RADIUS}
+              blurReductionFactor={1}
+              tint={theme === "dark" ? "dark" : "light"}
+              style={StyleSheet.absoluteFill}
+            />
+          ) : null}
+          <View
+            pointerEvents="none"
+            style={[StyleSheet.absoluteFill, { backgroundColor: blurs ? blurFill : milky.backgroundColor }]}
+          />
+          <ChromeGlassSheen />
+        </>
+      ) : null}
       {/* The solid capsule has no glass to tint, so the tint lies over it. */}
       {!liquidGlass && tint ? (
         <View pointerEvents="none" className="absolute inset-0" style={{ backgroundColor: tint }} />

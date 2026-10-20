@@ -8,12 +8,16 @@ import type { TextStyle } from "react-native";
 export const typeScale = {
   /** The big header of a full screen: the server name on home, Routines, Usage. */
   largeTitle: { fontSize: 34, lineHeight: 40, letterSpacing: -0.68 },
+  /** The big header on Android: the Material 3 headline of a medium top app bar. */
+  largeTitleAndroid: { fontSize: 28, lineHeight: 36 },
   /** The heading of the task editor above the search field. */
   taskHeading: { fontSize: 22, lineHeight: 28, letterSpacing: -0.22 },
   /** The server name at the top of the drawer. */
   drawerTitle: { fontSize: 26, lineHeight: 32, letterSpacing: -0.52 },
   /** The small title that the big header leaves in the bar. */
   barTitle: { fontSize: 17, lineHeight: 22 },
+  /** The small title on Android: the Material 3 title of a small top app bar. */
+  barTitleAndroid: { fontSize: 22, lineHeight: 28 },
   /** A row name: a chat, a server, a drawer row. */
   rowTitle: { fontSize: 16, lineHeight: 21 },
   /** A task or search row name, a little smaller than a chat name. */

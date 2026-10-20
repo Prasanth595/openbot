@@ -8,6 +8,8 @@
 - The server drawer shows Tasks with the number of tasks that need you. The agent sheet has a Tasks row that opens the tasks of that agent.
 - Search shows the tasks that need you when you open it, a Tasks shortcut, and the tasks whose title matches what you type.
 - Names, previews, section headings and times in the chat list use new text sizes, so the list is easier to scan.
+- New task shows the agents in a list. Tap an agent to give it the task. The keyboard does not open until you tap the text field.
+- On Android, the headers of the chat list, Tasks, Routines and Usage have a bold title and round glass buttons, and sheet titles are next to the close button. The search field is higher, above the gesture bar, and blurs the list behind it on Android 12 and later. The search field no longer moves down when search opens.
 
 ### Fixed
 

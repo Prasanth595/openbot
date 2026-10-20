@@ -64,6 +64,7 @@ export function ServerTasksScreen() {
       {isAndroid ? (
         <AndroidHeaderButton
           placement="right"
+          glass
           icon={Plus}
           accessibilityLabel={t("mobile.server.tasks.new")}
           hidden={!canStart}
