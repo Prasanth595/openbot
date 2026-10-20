@@ -122,4 +122,5 @@ export const messages = {
   "composer.context.noAuto": "Cet agent ne compacte pas son contexte.",
   "composer.context.lastCompaction": "Dernier compactage : {before} → {after} jetons",
   "composer.compaction.elapsed": "{minutes}:{seconds}",
+  "composer.newChat.action": "Nouvelle discussion",
 } as const satisfies PartialTranslation<typeof source>;

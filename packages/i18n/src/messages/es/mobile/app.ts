@@ -23,6 +23,8 @@ export const messages = {
   "mobile.app.route.hostedServerSetup": "Configuración",
   "mobile.app.route.routines": "Rutinas",
   "mobile.app.route.routine": "Rutina",
+  "mobile.app.route.tasks": "Tareas",
+  "mobile.app.route.task": "Tarea",
   "mobile.app.route.usage": "Uso",
   "mobile.app.quickAction.routines": "Rutinas",
   "mobile.app.quickAction.search": "Buscar",

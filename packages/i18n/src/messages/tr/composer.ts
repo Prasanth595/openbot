@@ -121,4 +121,5 @@ export const messages = {
   "composer.context.noAuto": "Bu ajan bağlamını sıkıştırmaz.",
   "composer.context.lastCompaction": "Son sıkıştırma: {before} → {after} token",
   "composer.compaction.elapsed": "{minutes}:{seconds}",
+  "composer.newChat.action": "Yeni sohbet",
 } as const satisfies PartialTranslation<typeof source>;

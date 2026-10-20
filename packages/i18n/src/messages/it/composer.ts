@@ -119,4 +119,5 @@ export const messages = {
   "composer.context.noAuto": "Questo agente non compatta il suo contesto.",
   "composer.context.lastCompaction": "Ultima compattazione: {before} → {after} token",
   "composer.compaction.elapsed": "{minutes}:{seconds}",
+  "composer.newChat.action": "Nuova chat",
 } as const satisfies PartialTranslation<typeof source>;

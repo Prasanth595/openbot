@@ -14,6 +14,7 @@ import type {
 } from "@openbot/contracts/ipc";
 import {
   agentComputerUseEnabled,
+  agentNewChatAllowed,
   isMessageReaction,
   marketplaceSuggestionItemType,
   skillConversationEventItemType,
@@ -128,6 +129,8 @@ export interface OpenBotToolRouterHooks {
   turnActivity(agentId: string, turnId: string | null): { startedAt: number | null; lastEventAt: number | null };
   /** Records a no-update tool call for the turn; null when no routine run started the turn. */
   requestNoUpdate(agentId: string, threadId: string, turnId: string): "quiet" | "shown" | null;
+  /** Starts a new chat with the agent when its turn ends and its queue is empty. */
+  requestNewChat(agentId: string): void;
 }
 
 export interface OpenBotToolRouterOptions {
@@ -717,6 +720,21 @@ export class OpenBotToolRouter {
     if (params.tool === "create_agent") return yield* this.#createAgent(params, senderAgentId);
 
     if (params.tool === "update_profile") return yield* this.#updateProfile(params, senderAgentId);
+
+    if (params.tool === "start_new_chat") {
+      const agent = this.#store.list().find((candidate) => candidate.id === senderAgentId);
+      if (!agent || !agentNewChatAllowed(agent))
+        return openBotToolFailure(
+          "The user has not allowed you to start a new chat. Ask the user to allow it in your settings, or to start a new chat there.",
+        );
+      if (agent.threadId !== this.#conversation.publicThreadId(senderAgentId, params.threadId))
+        return openBotToolFailure("You can start a new chat only from your own chat, not from a task or a channel.");
+      this.#hooks.requestNewChat(senderAgentId);
+      return openBotToolResult({
+        status: "requested",
+        note: "The new chat starts when this turn ends and your queue is empty. A queued message that runs first ends the request. Finish your answer now.",
+      });
+    }
 
     if (params.tool === ROUTINE_NO_UPDATE_TOOL) {
       const outcome = this.#hooks.requestNoUpdate(senderAgentId, executionThreadId, params.turnId);

@@ -407,6 +407,7 @@ export function ConversationPanels(panelProps: { onOpenUsage?: ((trigger: HTMLBu
                 (serverCanAdminister(props.server, "agent-host-settings-v1") && agent().allowAutomation !== undefined)
               }
               busyMessageModeEditable={props.server?.kind === "local"}
+              newChatEditable={props.server?.kind === "local"}
               taskLimitEditable={props.server?.kind === "local"}
               backupModelsEditable={props.server?.kind === "local"}
               usageLimited={props.usageLimited}

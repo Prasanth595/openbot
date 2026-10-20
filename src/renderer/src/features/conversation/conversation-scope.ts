@@ -650,6 +650,11 @@ export function createConversationViewScope(props: ConversationProps) {
   let readerIntent: { up: boolean; at: number } | undefined;
   let lastTouchY: number | undefined;
   let currentUnreadCount = 0;
+  let unreadOpening: { identity: string | undefined; pending: boolean; boundaryId: string | null | undefined } = {
+    identity: undefined,
+    pending: false,
+    boundaryId: undefined,
+  };
   let conversationPanel: HTMLElement | undefined;
   const [browserSurface, setBrowserSurface] = createSignal<HTMLDivElement>();
   /** A link sign-in that the host relays, while it waits for the address that the browser shows. */
@@ -865,6 +870,8 @@ export function createConversationViewScope(props: ConversationProps) {
         );
         if (!target) return;
         lastHandledMessageFocusNonce = request.nonce;
+        // The message the user picked replaces the opening at the unread divider.
+        unreadOpening = { ...unreadOpening, pending: false };
         stickToLatest = false;
         // A page that loaded just before the request queued a scroll to the latest message. That scroll
         // must not move the transcript away from the message the user picked, so it is cancelled and
@@ -964,6 +971,63 @@ export function createConversationViewScope(props: ConversationProps) {
           updateUnreadDividerVisibility();
         });
       });
+    },
+  );
+
+  /*
+   * A chat with unread messages opens at the divider, with the end of the last read row above it, so
+   * the reader sees where they stopped. It runs after the effect above, so it cancels that effect's
+   * follow. A boundary that the chat has not loaded yet waits for its page; a different boundary,
+   * such as a message that arrives later, or a scroll by the reader ends the wait.
+   */
+  createEffect(
+    () => {
+      const boundaryId = unreadBoundaryMessageId();
+      return {
+        identity: `${props.server?.id ?? "local"}:${props.agent?.id ?? ""}`,
+        loaded: props.loaded,
+        boundaryId,
+        boundaryIndex: boundaryId ? timelineIndexById().get(boundaryId) : undefined,
+      };
+    },
+    ({ identity, loaded, boundaryId, boundaryIndex }) => {
+      if (identity !== unreadOpening.identity) {
+        unreadOpening = { identity, pending: true, boundaryId: undefined };
+      }
+      if (!unreadOpening.pending || !loaded) return;
+      unreadOpening.boundaryId ??= boundaryId;
+      if (!boundaryId || boundaryId !== unreadOpening.boundaryId || readerLeftLatest) {
+        unreadOpening.pending = false;
+        return;
+      }
+      if (boundaryIndex === undefined) return;
+      unreadOpening.pending = false;
+      stickToLatest = false;
+      if (latestScrollFrame !== undefined) cancelAnimationFrame(latestScrollFrame);
+      if (latestScrollSettleFrame !== undefined) cancelAnimationFrame(latestScrollSettleFrame);
+      latestScrollFrame = undefined;
+      latestScrollSettleFrame = undefined;
+      // A virtualized chat draws only the rows near the view, so the divider row is drawn first.
+      if (!unreadMessagesDivider?.isConnected) messageVirtualizer.scrollToIndex(boundaryIndex);
+      const opening = unreadOpening;
+      const openAtDivider = (settle: boolean) =>
+        requestAnimationFrame(() => {
+          if (unreadOpening !== opening || readerLeftLatest || !scrollElement) return;
+          const divider = unreadMessagesDivider;
+          if (divider?.isConnected) {
+            const readRow = divider.closest(".virtual-chat-row")?.previousElementSibling;
+            const viewTop = scrollElement.getBoundingClientRect().top - scrollElement.scrollTop;
+            const dividerTop = divider.getBoundingClientRect().top - viewTop;
+            const readTop = readRow instanceof HTMLElement ? readRow.getBoundingClientRect().top - viewTop : dividerTop;
+            // A long read row shows only its end, so the divider stays in view. An offset, not an index:
+            // the virtualizer would otherwise move back to the divider row as rows measure.
+            messageVirtualizer.scrollToOffset(Math.max(0, readTop, dividerTop - scrollElement.clientHeight / 3));
+          }
+          updateScrollFade(scrollElement);
+          updateUnreadDividerVisibility();
+          if (!settle) openAtDivider(true);
+        });
+      openAtDivider(false);
     },
   );
 

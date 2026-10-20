@@ -32,6 +32,8 @@ import { SERVER_ROW_HEIGHT, SortableServerList } from "./sortable-server-list";
 
 interface ServerDrawerContentProps {
   activeServerId: string;
+  /** A server that serves `agent-tasks-v1` has a Tasks entry. */
+  canUseTasks: (serverId: string) => boolean;
   headerHeight: number;
   listTopInset: number;
   muted: ViewStyle["backgroundColor"];
@@ -66,6 +68,7 @@ function serverKindLabel(server: MobileServer, t: MobileTranslate): string {
 
 export function ServerDrawerContent({
   activeServerId,
+  canUseTasks,
   headerHeight,
   listTopInset,
   muted,
@@ -120,6 +123,9 @@ export function ServerDrawerContent({
       listActions.push({ id: "reorder", title: t("mobile.server.drawer.editOrder"), image: "arrow.up.arrow.down" });
     const actions: MenuAction[] = [
       { id: "options", title: t("mobile.server.drawer.options"), image: "gearshape" },
+      ...(canUseTasks(serverId)
+        ? [{ id: "tasks", title: t("mobile.server.drawer.tasks"), image: "checklist" } satisfies MenuAction]
+        : []),
       { id: "routines", title: t("mobile.server.drawer.routines"), image: "calendar" },
       { id: "usage", title: t("mobile.server.drawer.usage"), image: "chart.bar" },
       // The inline section draws a divider above the actions that change the list.
@@ -219,6 +225,7 @@ export function ServerDrawerContent({
   };
 
   const openOptions = (serverId: string) => onNavigate({ pathname: "/server-settings", params: { serverId } });
+  const openTasks = (serverId: string) => onNavigate({ pathname: "/server-tasks", params: { serverId } });
   const openRoutines = (serverId: string) => onNavigate({ pathname: "/server-routines", params: { serverId } });
   const openUsage = (serverId: string) => onNavigate({ pathname: "/server-usage", params: { serverId } });
 
@@ -232,6 +239,7 @@ export function ServerDrawerContent({
         ? []
         : [
             { name: "options", label: t("mobile.server.drawer.serverOptions") },
+            ...(canUseTasks(serverItem.id) ? [{ name: "tasks", label: t("mobile.server.drawer.tasks") }] : []),
             { name: "routines", label: t("mobile.server.drawer.routines") },
             { name: "usage", label: t("mobile.server.drawer.usage") },
             serverItem.id === defaultServerId
@@ -255,6 +263,7 @@ export function ServerDrawerContent({
         onAccessibilityAction={(event) => {
           const action = event.nativeEvent.actionName;
           if (action === "options") openOptions(serverItem.id);
+          if (action === "tasks") openTasks(serverItem.id);
           if (action === "routines") openRoutines(serverItem.id);
           if (action === "usage") openUsage(serverItem.id);
           if (action === "makeDefault" || action === "removeDefault") toggleDefault(serverItem.id);
@@ -320,6 +329,7 @@ export function ServerDrawerContent({
         actions={menuActions(serverItem)}
         onPressAction={(event) => {
           if (event.nativeEvent.event === "options") openOptions(serverItem.id);
+          if (event.nativeEvent.event === "tasks") openTasks(serverItem.id);
           if (event.nativeEvent.event === "routines") openRoutines(serverItem.id);
           if (event.nativeEvent.event === "usage") openUsage(serverItem.id);
           if (event.nativeEvent.event === "makeDefault" || event.nativeEvent.event === "removeDefault")

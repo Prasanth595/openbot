@@ -100,6 +100,18 @@ export const queryKeys = {
     "search",
     ownerKey,
   ],
+  /** The tasks of a server. The task events write the lists and the conversations under this prefix. */
+  serverTasks: (scope: QueryScope, serverId: string) => ["server-tasks", ...scope, serverId],
+  agentTasks: (scope: QueryScope, serverId: string, agentId: string) => [
+    ...queryKeys.serverTasks(scope, serverId),
+    "agent",
+    agentId,
+  ],
+  agentTaskConversation: (scope: QueryScope, serverId: string, taskId: string) => [
+    ...queryKeys.serverTasks(scope, serverId),
+    "task",
+    taskId,
+  ],
   /** The query is the last part: a search that continues the typed query keeps its results on screen. */
   messageSearch: (scope: QueryScope, serverId: string, query: string) => ["message-search", ...scope, serverId, query],
   fileSearch: (scope: QueryScope, serverId: string, query: string) => ["file-search", ...scope, serverId, query],

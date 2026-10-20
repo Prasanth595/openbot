@@ -62,14 +62,17 @@ const ACP_NO_SUMMARY: ContextUsageView = {
 };
 
 /** The composer's toolbar row: the ring sits with the voice and send controls, away from "+". */
-function ComposerToolbar(props: { usage: ContextUsageView }) {
+function ComposerToolbar(props: { usage: ContextUsageView; onStartNewChat?: (() => Promise<void>) | undefined }) {
   return (
     <div class="composer-toolbar">
       <Button type="button" variant="ghost" class="composer-button" aria-label="Add">
         <Plus aria-hidden="true" />
       </Button>
       <div class="composer-primary-actions">
-        <ContextUsageMeter usage={props.usage} />
+        <ContextUsageMeter
+          usage={props.usage}
+          newChat={props.onStartNewChat ? { agent: STORY_AGENT, start: props.onStartNewChat } : undefined}
+        />
         <Button type="button" variant="ghost" class="dictation-button" aria-label="Dictate">
           <Mic aria-hidden="true" />
         </Button>
@@ -81,7 +84,12 @@ function ComposerToolbar(props: { usage: ContextUsageView }) {
   );
 }
 
-function Composer(props: { usage: ContextUsageView; notice?: JSX.Element; width?: string }) {
+function Composer(props: {
+  usage: ContextUsageView;
+  notice?: JSX.Element;
+  width?: string;
+  onStartNewChat?: (() => Promise<void>) | undefined;
+}) {
   const [draft, setDraft] = createSignal("");
   return (
     <div class="composer-wrap" style={{ width: props.width ?? "560px", "max-width": "calc(100vw - 32px)" }}>
@@ -99,7 +107,7 @@ function Composer(props: { usage: ContextUsageView; notice?: JSX.Element; width?
             onValueChange={setDraft}
           />
         </div>
-        <ComposerToolbar usage={props.usage} />
+        <ComposerToolbar usage={props.usage} onStartNewChat={props.onStartNewChat} />
       </form>
     </div>
   );
@@ -162,6 +170,21 @@ export const ClaudeEstimate: Story = {
 export const CodexTotal: Story = {
   args: { usage: { ...CODEX, usedTokens: 206_700 } },
   render: (args) => <Composer usage={args.usage} />,
+};
+
+/** A local agent: the popover ends with a New chat row. The second ring shows a failed start. */
+export const NewChat: Story = {
+  args: { usage: { ...CODEX, usedTokens: 206_700 } },
+  render: (args) => (
+    <div style={{ display: "grid", gap: "20px" }}>
+      <Row label="Starts after a short wait">
+        <Composer usage={args.usage} onStartNewChat={() => new Promise((resolve) => setTimeout(resolve, 1500))} />
+      </Row>
+      <Row label="The agent is busy">
+        <Composer usage={args.usage} onStartNewChat={() => Promise.reject(new Error("The agent is busy."))} />
+      </Row>
+    </div>
+  ),
 };
 
 /** An ACP agent that reports usage but cannot compact: the ring turns red near full. */

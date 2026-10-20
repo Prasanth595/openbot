@@ -100,6 +100,7 @@ import type {
 import {
   type AgentModelChoice,
   agentAutomationAllowed,
+  agentNewChatAllowed,
   agentTaskLimit,
   type BusyMessageMode,
   CONTEXT_RESET_ITEM_TYPE,
@@ -391,6 +392,8 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   readonly #busyMessageMode: () => BusyMessageMode;
   /** The last turn of each agent's chat that the user stopped. One per agent, so it needs no clean-up. */
   readonly #stoppedTurns = new Map<string, string>();
+  /** The agents that asked for a new chat with `start_new_chat`. A restart forgets the request. */
+  readonly #requestedNewChats = new Set<string>();
   #initialized = false;
   #stopping = false;
   readonly #retireChannels: boolean;
@@ -1081,6 +1084,11 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         requeueChannelDelivery: (deliveryId) => this.#requeueChannelDelivery(deliveryId),
         turnEnded: (turnId) => this.#turn.hasEnded(turnId),
         turnRestarting: (turnId) => this.#turn.forgetEnded(turnId),
+        startRequestedNewChat: (agentId) => this.#startRequestedNewChat(agentId),
+        dropRequestedNewChat: (agentId) => {
+          if (this.#requestedNewChats.delete(agentId))
+            logger.info(`Agent ${agentId} dropped its new chat request: a turn in its chat started first.`);
+        },
         followUsageLimit: (agentId) => {
           if (!this.#usageLimitMove(agentId)) return false;
           Effect.runFork(
@@ -1244,6 +1252,9 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
           lastEventAt: this.#turn.lastEventAt(agentId),
         }),
         requestNoUpdate: (agentId, threadId, turnId) => this.#turn.requestNoUpdate(agentId, threadId, turnId),
+        requestNewChat: (agentId) => {
+          this.#requestedNewChats.add(agentId);
+        },
       },
     });
   }
@@ -2617,6 +2628,36 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     });
     yield* this.#threads.endThreadContext(threadId);
   }, Effect.uninterruptible).bind(this);
+
+  /**
+   * The new chat that the agent asked for with `start_new_chat`. The drain calls it when the agent's
+   * own chat has nothing to start. A turn of a task or a compaction can still run; the request then
+   * waits for the next drain, unless a turn in the agent's own chat starts first. The user can turn
+   * the setting off while the request waits.
+   */
+  #startRequestedNewChat(agentId: string): Effect.Effect<void> {
+    if (!this.#requestedNewChats.has(agentId)) return Effect.void;
+    const agent = this.#store.list().find((candidate) => candidate.id === agentId);
+    if (!agent || !agentNewChatAllowed(agent)) {
+      this.#requestedNewChats.delete(agentId);
+      return Effect.void;
+    }
+    return this.clearAgentContext(agentId).pipe(
+      Effect.tap(() =>
+        Effect.sync(() => {
+          this.#requestedNewChats.delete(agentId);
+          logger.info(`Agent ${agentId} started a new chat.`);
+        }),
+      ),
+      Effect.catch((failure) =>
+        Effect.sync(() => {
+          if (failure.cause instanceof ContextResetBusyError) return;
+          this.#requestedNewChats.delete(agentId);
+          this.#emitError("agent_new_chat_failed", failure.cause, agentId);
+        }),
+      ),
+    );
+  }
 
   resolveAvatar(agentId: string): { path: string; mimeType: AvatarImageInput["mimeType"]; version: string } | null {
     return this.#store.resolveAvatar(agentId);

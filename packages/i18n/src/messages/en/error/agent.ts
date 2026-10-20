@@ -84,6 +84,7 @@ export const messages = defineMessages("error.agent", {
   "error.agent.queueEditRejected": "Queue edit rejected: {reason}",
   "error.agent.computerUseLocalOnly": "Computer Use can only be changed on the computer that runs the agent.",
   "error.agent.automationLocalOnly": "Local scripts can only be allowed on the computer that runs the agent.",
+  "error.agent.newChatLocalOnly": "Only the computer that runs the agent can let it start new chats.",
   "error.agent.sideQuestionBusy": "Too many side questions are running. Try again shortly.",
   "error.agent.sideQuestionFailed": "The agent could not answer the side question. Try again.",
   "error.agent.busyMessageModeLocalOnly":

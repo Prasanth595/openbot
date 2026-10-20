@@ -20,12 +20,14 @@ import { setShareSheetOpener } from "@/features/share/model/share-sheet-opener";
 import { MobileWorkspaceProvider } from "@/features/workspace/context/mobile-workspace-context";
 import { useReducedMotion } from "@/shared/lib/motion";
 import { isAndroid, isIOS } from "@/shared/lib/platform";
+import { useText } from "@/shared/lib/text";
 
 export const unstable_settings = {
   initialRouteName: "connected",
 };
 
 function AuthenticatedStack() {
+  const { t } = useText();
   const segments = useSegments();
   // Reduced motion, from the device or from Settings, replaces the full-screen slide with a cross-fade.
   const pushAnimation = useReducedMotion() ? "fade" : "slide_from_right";
@@ -110,6 +112,17 @@ function AuthenticatedStack() {
         <Stack.Screen name="connected" options={{ animation: "fade", gestureEnabled: false, title: "" }} />
         <Stack.Screen
           name="chat/[agentId]"
+          options={{
+            animation: pushAnimation,
+            contentStyle: { backgroundColor: background },
+            fullScreenGestureEnabled: false,
+            gestureEnabled: true,
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="task/[taskId]"
+          // A task is a chat of its own, so it opens as the agent's chat does.
           options={{
             animation: pushAnimation,
             contentStyle: { backgroundColor: background },
@@ -285,6 +298,19 @@ function AuthenticatedStack() {
             presentation: "formSheet",
             sheetAllowedDetents: [0.85],
             sheetGrabberVisible: true,
+          }}
+        />
+        <Stack.Screen
+          name="server-tasks"
+          // A full screen, so a task opens on top of it and Back returns to the list.
+          options={{
+            animation: pushAnimation,
+            contentStyle: { backgroundColor: sheetBackground },
+            headerShown: true,
+            title: t("mobile.app.route.tasks"),
+            headerStyle: { backgroundColor: isIOS ? "transparent" : sheetBackground },
+            headerBlurEffect: "none",
+            scrollEdgeEffects: { top: "hidden", bottom: "soft" },
           }}
         />
         <Stack.Screen

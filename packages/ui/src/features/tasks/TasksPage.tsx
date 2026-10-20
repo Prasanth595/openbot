@@ -1,4 +1,5 @@
 import type { AgentTask } from "@openbot/contracts/ipc";
+import { plainTaskTitle, TASKS_CLOSED_SHOWN, taskSections, taskTone } from "@openbot/team-client/agent-tasks";
 import {
   ArrowLeft,
   ArrowUp,
@@ -27,7 +28,6 @@ import { useText } from "@openbot/ui/text";
 import { prefersReducedMotion } from "@openbot/ui/utils";
 import type { JSX } from "@solidjs/web";
 import { createEffect, createStore, createUniqueId, For, onCleanup, onSettled, Show, untrack } from "solid-js";
-import { plainTaskTitle, TASKS_CLOSED_SHOWN, taskSections, taskTone } from "./tasks-view";
 
 /** The microphone of the Tasks composer. The page shows it; the app records and transcribes. */
 export interface TasksVoice {

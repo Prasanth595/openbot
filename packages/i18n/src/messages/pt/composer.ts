@@ -121,4 +121,5 @@ export const messages = {
   "composer.context.noAuto": "Este agente não compacta o contexto.",
   "composer.context.lastCompaction": "Última compactação: {before} → {after} tokens",
   "composer.compaction.elapsed": "{minutes}:{seconds}",
+  "composer.newChat.action": "Novo chat",
 } as const satisfies PartialTranslation<typeof source>;

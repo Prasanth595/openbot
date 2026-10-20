@@ -340,4 +340,6 @@ export const messages = {
   "mobile.chat.queue.addedOnPhone": "このスマートフォンで追加",
   "mobile.chat.queue.addFiles": "ファイルを追加",
   "mobile.chat.queue.addPhotos": "写真を追加",
+  "mobile.chat.tasks.open": "タスク{title}を開く、{status}",
+  "mobile.chat.tasks.close": "タスク {title} を閉じる",
 } as const satisfies PartialTranslation<typeof source>;

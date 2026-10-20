@@ -149,6 +149,9 @@ export const messages = {
   "agentSettings.automation.title": "ローカルスクリプト",
   "agentSettings.automation.description":
     "ホスト上のスクリプトが、メッセージの送信、ルーティンの実行、質問への回答、承認の許可や拒否を行えるようにします",
+  "agentSettings.agentNewChat.title": "エージェントが新しいチャットを開始",
+  "agentSettings.agentNewChat.description":
+    "チャットが長くなったときに、エージェントが新しいチャットを開始できます。開始前にメモを保存します。",
   "agentSettings.runtime.workspaceEnforcedProcess":
     "{provider} のプロセス全体がサンドボックス内で実行されるため、外部への書き込みは失敗します。macOS でのみ利用できます。",
 } as const satisfies PartialTranslation<typeof source>;

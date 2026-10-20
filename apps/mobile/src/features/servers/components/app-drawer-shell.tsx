@@ -51,6 +51,7 @@ export function AppDrawerShell({ children }: PropsWithChildren) {
   const { t } = useText();
   const {
     activeServer,
+    canUseTasks,
     setDefaultServer,
     defaultServerId,
     leaveServer,
@@ -226,6 +227,7 @@ export function AppDrawerShell({ children }: PropsWithChildren) {
           >
             <ServerDrawerContent
               activeServerId={activeServer.id}
+              canUseTasks={canUseTasks}
               headerHeight={drawerHeaderHeight}
               listTopInset={drawerListTopInset}
               muted={muted}
