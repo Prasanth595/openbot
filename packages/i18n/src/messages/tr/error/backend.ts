@@ -199,6 +199,8 @@ export const messages = {
   "error.backend.mcpSignInCancelled": "Oturum açma iptal edildi.",
   "error.backend.mcpSignInTimedOut": "Oturum açma tarayıcıda tamamlanmadı.",
   "error.backend.mcpSignInResponseTimedOut": "Oturum açma yanıtı zamanında gelmedi.",
+  "error.backend.mcpSignInMetadataUnreadable":
+    "OpenBot bu sunucunun oturum açma bilgilerini okuyamadı. Sunucu adresini denetleyin ve yeniden deneyin.",
   "error.backend.mcpServerExited":
     "Sunucu yanıt vermeden durdu. Hatasını görmek için komutu bir terminalde çalıştırın.",
   "error.backend.mcpOAuthProxyUnavailable":

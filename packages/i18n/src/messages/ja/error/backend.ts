@@ -210,6 +210,8 @@ export const messages = {
   "error.backend.mcpSignInCancelled": "サインインはキャンセルされました。",
   "error.backend.mcpSignInTimedOut": "ブラウザーでサインインが完了しませんでした。",
   "error.backend.mcpSignInResponseTimedOut": "サインインの応答が時間内に届きませんでした。",
+  "error.backend.mcpSignInMetadataUnreadable":
+    "OpenBot はこのサーバーのサインイン情報を読み取れませんでした。サーバーアドレスを確認して再試行してください。",
   "error.backend.mcpServerExited":
     "サーバーは応答する前に停止しました。ターミナルでコマンドを実行してエラーを確認してください。",
   "error.backend.mcpOAuthProxyUnavailable":

@@ -194,6 +194,8 @@ export const messages = defineMessages("error.backend", {
   "error.backend.mcpSignInCancelled": "The sign-in was cancelled.",
   "error.backend.mcpSignInTimedOut": "The sign-in was not finished in the browser.",
   "error.backend.mcpSignInResponseTimedOut": "The sign-in response did not arrive in time.",
+  "error.backend.mcpSignInMetadataUnreadable":
+    "OpenBot could not read the sign-in information of this server. Check the server address and try again.",
   "error.backend.mcpServerExited":
     "The server stopped before it answered. Run the command in a terminal to see its error.",
   "error.backend.mcpOAuthProxyUnavailable":

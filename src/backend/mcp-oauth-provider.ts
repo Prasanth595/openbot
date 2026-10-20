@@ -184,10 +184,11 @@ export interface McpSignIn {
   readonly provider: OAuthClientProvider;
   /**
    * Starts this sign-in for a server that answered without one. Some servers, such as Google's, list
-   * their tools to anyone and ask for a token only when a tool runs, so the SDK never gets the 401
-   * that starts a sign-in, and Sign in would end at once with nothing opened. Answers whether the
+   * their tools to anyone and ask for a token only when a tool runs, so the SDK never gets the 401 that
+   * starts a sign-in, and Sign in would end at once with nothing opened. Answers whether the
    * page opened: `false` when this address already holds a token, or when the server publishes no
-   * protected-resource metadata that names an authorization server.
+   * protected-resource metadata that names an authorization server. A metadata read that fails is
+   * an error, not such a `false`: the server did not say that it wants no sign-in.
    */
   begin: () => Effect.Effect<boolean, McpOperationError>;
   /** Waits for the browser to come back, then trades the grant for a token set. */
@@ -214,6 +215,12 @@ export interface McpSignIn {
    * "cancelled" instead, because that is what the user did.
    */
   cancelled: () => boolean;
+  /**
+   * Whether the last attempt could not read the sign-in information of the server. A server that
+   * names no authorization server wants no sign-in, and the attempt ends with no page. A read that
+   * failed says nothing about the server, so the attempt has to say that it could not start.
+   */
+  metadataUnreadable: () => boolean;
 }
 
 /**
@@ -428,6 +435,9 @@ export class McpOAuth implements McpOAuthAuthority {
     // browser afterwards nor wait out a grant nobody will answer.
     let abandoned = false;
     let cancelled = false;
+    // Set when the server's sign-in information could not be read. The sign-in cannot start then,
+    // and the reader has to hear it: the press ended with no page and no words.
+    let metadataUnreadable = false;
     const provider = this.#provider(resource, state, () => abandoned, open);
     const abandon = () => {
       abandoned = true;
@@ -454,9 +464,18 @@ export class McpOAuth implements McpOAuthAuthority {
             Effect.gen(function* () {
               // A server that answers without a sign-in and names no authorization server takes none:
               // the SDK would otherwise guess `/authorize` at the server's own origin.
+              // A read that failed says nothing about the server. It is not the same case, and it
+              // must not end the sign-in as if the server asked for none: that left the row
+              // showing the result of the earlier test, with no page and no words.
               const metadata = yield* mcpCall(() =>
                 discoverOAuthProtectedResourceMetadata(resource, undefined, fetchFn),
-              ).pipe(Effect.catch(() => Effect.succeed(null)));
+              ).pipe(
+                Effect.catch((error) => {
+                  if (isMissingProtectedResourceMetadata(error)) return Effect.succeed(null);
+                  metadataUnreadable = true;
+                  return Effect.fail(new Error(sourceText("error.backend.mcpSignInMetadataUnreadable")));
+                }),
+              );
               if (!metadata?.authorization_servers?.length) return false;
               return (yield* mcpCall(() => auth(provider, { serverUrl: resource, fetchFn }))) === "REDIRECT";
             }),
@@ -511,6 +530,7 @@ export class McpOAuth implements McpOAuthAuthority {
       secrets: () => provider.secrets(),
       registrationFailed: () => provider.registrationPending,
       cancelled: () => cancelled,
+      metadataUnreadable: () => metadataUnreadable,
     };
   }
 
@@ -1241,6 +1261,18 @@ function issuersMatch(left: string, right: string): boolean {
 /** The names that never leave this machine. `::1` arrives from `URL` inside brackets. */
 export function isLoopback(hostname: string): boolean {
   return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
+}
+
+/**
+ * The SDK throws for a server without protected-resource metadata and for a read that failed. The
+ * first means the server wants no sign-in. The second means the sign-in cannot start, and the two
+ * must not end the same way. The SDK gives no other sign, so its message is the one place they
+ * differ.
+ */
+function isMissingProtectedResourceMetadata(error: unknown): boolean {
+  const chain: Error[] = [];
+  for (let current = error; current instanceof Error && chain.length < 4; current = current.cause) chain.push(current);
+  return chain.some((current) => current.message.includes("does not implement OAuth 2.0 Protected Resource Metadata"));
 }
 
 /**

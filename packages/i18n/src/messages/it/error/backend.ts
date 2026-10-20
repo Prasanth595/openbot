@@ -210,6 +210,8 @@ export const messages = {
   "error.backend.mcpSignInCancelled": "L'accesso è stato annullato.",
   "error.backend.mcpSignInTimedOut": "L'accesso non è stato completato nel browser.",
   "error.backend.mcpSignInResponseTimedOut": "La risposta dell'accesso non è arrivata in tempo.",
+  "error.backend.mcpSignInMetadataUnreadable":
+    "OpenBot non ha potuto leggere le informazioni di accesso di questo server. Controlla l’indirizzo del server e riprova.",
   "error.backend.mcpServerExited":
     "Il server si è fermato prima di rispondere. Esegui il comando in un terminale per vedere l'errore.",
   "error.backend.mcpOAuthProxyUnavailable":

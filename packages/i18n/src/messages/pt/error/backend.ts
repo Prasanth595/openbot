@@ -211,6 +211,8 @@ export const messages = {
   "error.backend.mcpSignInCancelled": "O login foi cancelado.",
   "error.backend.mcpSignInTimedOut": "O login não foi concluído no navegador.",
   "error.backend.mcpSignInResponseTimedOut": "A resposta do login não chegou a tempo.",
+  "error.backend.mcpSignInMetadataUnreadable":
+    "O OpenBot não conseguiu ler as informações de login deste servidor. Verifique o endereço do servidor e tente novamente.",
   "error.backend.mcpServerExited":
     "O servidor parou antes de responder. Execute o comando em um terminal para ver o erro.",
   "error.backend.mcpOAuthProxyUnavailable":

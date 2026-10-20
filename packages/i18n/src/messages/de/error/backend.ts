@@ -219,6 +219,8 @@ export const messages = {
   "error.backend.mcpSignInCancelled": "Die Anmeldung wurde abgebrochen.",
   "error.backend.mcpSignInTimedOut": "Die Anmeldung wurde im Browser nicht abgeschlossen.",
   "error.backend.mcpSignInResponseTimedOut": "Die Antwort auf die Anmeldung kam nicht rechtzeitig an.",
+  "error.backend.mcpSignInMetadataUnreadable":
+    "OpenBot konnte die Anmeldeinformationen dieses Servers nicht lesen. Prüfen Sie die Serveradresse und versuchen Sie es erneut.",
   "error.backend.mcpServerExited":
     "Der Server wurde beendet, bevor er geantwortet hat. Führe den Befehl in einem Terminal aus, um seinen Fehler zu sehen.",
   "error.backend.mcpOAuthProxyUnavailable":
