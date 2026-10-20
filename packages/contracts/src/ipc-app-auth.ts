@@ -344,6 +344,7 @@ export type ExternalDestination =
   | "feedback"
   | "message"
   // The release notes, the guides and the Discord community of OpenBot, from the Help menu of the window rail.
+  // The community card of the sidebar also opens Discord.
   | "changelog"
   | "guides"
   | "discord"
