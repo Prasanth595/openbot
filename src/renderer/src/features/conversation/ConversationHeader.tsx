@@ -17,6 +17,7 @@ export function ConversationHeader() {
     agentActivity,
     browserControlAgent,
     changeFastMode,
+    channel,
     fastMode,
     props,
     runningTurnRuntime,
@@ -51,6 +52,7 @@ export function ConversationHeader() {
   return (
     <SharedConversationHeader
       agent={props.agent}
+      title={channel ? <channel.HeaderTitle onOpenSettings={() => setActiveRightPanel("settings")} /> : undefined}
       onSettingsIntent={() => void loadAgentSettingsPanel()}
       onOpenSettings={() => setActiveRightPanel("settings")}
       pendingModel={pendingModel()}
@@ -95,14 +97,18 @@ export function ConversationHeader() {
             }
           : undefined
       }
-      sidePanel={{
-        open: sidePanelOpen(),
-        actingAgentName: actingBrowserControl()
-          ? (browserControlAgent()?.name ?? t("conversation.header.agentFallback"))
-          : undefined,
-        running: runningTasks(),
-        onToggle: toggleSidePanel,
-      }}
+      sidePanel={
+        channel?.readOnly()
+          ? undefined
+          : {
+              open: sidePanelOpen(),
+              actingAgentName: actingBrowserControl()
+                ? (browserControlAgent()?.name ?? t("conversation.header.agentFallback"))
+                : undefined,
+              running: runningTasks(),
+              onToggle: toggleSidePanel,
+            }
+      }
     />
   );
 }

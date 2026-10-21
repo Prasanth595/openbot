@@ -616,7 +616,7 @@ function imageGenerationStatus(
 export function MessageActions(props: {
   message: AgentMessage;
   /** Names the toolbar for a screen reader. A channel has more authors than "Agent". */
-  authorName?: string;
+  authorName?: string | undefined;
   /**
    * Whether the reaction button stands in the toolbar. A channel message has no owner to hold a
    * reaction yet, so the chats share one toolbar and the channel leaves that button out.

@@ -36,7 +36,7 @@ import {
 import { createActivityStore } from "./stores/activity-store";
 import { createBrowserStore } from "./stores/browser-store";
 import { createComposerActions } from "./stores/composer-actions";
-import { createComposerStore, currentConversationTarget } from "./stores/composer-store";
+import { conversationOwnerId, createComposerStore, currentConversationTarget } from "./stores/composer-store";
 import { createMcpServersStore } from "./stores/mcp-servers-store";
 import { createMessageActions } from "./stores/message-actions";
 import { createPanelsStore, SIDE_PANEL_MODES } from "./stores/panels-store";
@@ -61,14 +61,18 @@ function followConversationBottom(element: HTMLDivElement): void {
 
 export function createConversationViewScope(props: ConversationProps) {
   const controller = useConversationController();
+  /** A view shows one agent or one channel for its whole life, so each branch below is fixed. */
+  const channel = untrack(() => props.channel);
   const agentReady = () => props.agentStatus.phase === "ready";
   const providerUpdateRequired = () =>
     props.agentStatus.providers?.find(
       (provider) => provider.id === props.agent?.provider && provider.state === "outdated",
     );
   const {
-    drafts,
-    setDrafts,
+    drafts: agentDrafts,
+    setDrafts: setAgentDrafts,
+    channelDrafts,
+    setChannelDrafts,
     editingAgentId,
     setEditingAgentId,
     editingServerId,
@@ -156,6 +160,8 @@ export function createConversationViewScope(props: ConversationProps) {
     setSidePanels,
     resources,
   } = controller;
+  const drafts = channel ? channelDrafts : agentDrafts;
+  const setDrafts = channel ? setChannelDrafts : setAgentDrafts;
   /**
    * Chat-scoped composer errors, keyed by conversation.
    *
@@ -312,8 +318,15 @@ export function createConversationViewScope(props: ConversationProps) {
     return entry?.message === message ? entry.reference : null;
   });
   const queue = createQueueStore({ props, hiddenAwaitingReplyIds });
-  const { activeDeliveries, awaitingReplies, orderedQueuedDeliveries, presentedQueueDeliveries, queuePanelVisible } =
-    queue;
+  const { activeDeliveries, orderedQueuedDeliveries, presentedQueueDeliveries, queuePanelVisible } = queue;
+  const awaitingReplies = channel
+    ? createMemo(() => {
+        const hidden = hiddenAwaitingReplyIds();
+        return channel
+          .awaitingReplies()
+          .filter((row) => !(hidden.has(row.id) && (row.state === "replied" || row.state === "failed")));
+      })
+    : queue.awaitingReplies;
   const dismissAwaitingReplies = () => {
     setHiddenAwaitingReplyIds((ids) => new Set([...ids, ...awaitingReplies().map((row) => row.id)]));
     // The close button leaves with the block, so the focus goes back to the composer.
@@ -526,7 +539,9 @@ export function createConversationViewScope(props: ConversationProps) {
   // Live text belongs to the conversation it is dictated into, not to whichever one is open.
   const voiceLiveText = () => {
     const live = voiceLiveTranscript();
-    return live && live.agentId === props.agent?.id && live.serverId === (props.server?.id ?? "local") ? live.text : "";
+    return live && live.agentId === conversationOwnerId(props) && live.serverId === (props.server?.id ?? "local")
+      ? live.text
+      : "";
   };
   const actions = createComposerActions({
     props,
@@ -1177,7 +1192,7 @@ export function createConversationViewScope(props: ConversationProps) {
   // closes the old one. As two effects, either order was possible.
   createEffect(
     () => {
-      const agentId = props.agent?.id;
+      const agentId = conversationOwnerId(props);
       return { agentId, panel: agentId ? rightPanels()[agentId] : undefined, request: props.settingsRequest };
     },
     ({ agentId, panel, request }) => {
@@ -1493,7 +1508,7 @@ export function createConversationViewScope(props: ConversationProps) {
    * A voice conversation hears and speaks on this computer, so it needs its speech models. A remote
    * server gets the text only.
    */
-  const voiceConversationAvailable = () => !props.runtime && voiceSupported(props.platform);
+  const voiceConversationAvailable = () => !channel && !props.runtime && voiceSupported(props.platform);
   /** Starts a voice conversation with an agent. It ends with the owner that calls this. */
   const startVoiceConversation = (agentId: string) =>
     createVoiceConversation({
@@ -1643,6 +1658,7 @@ export function createConversationViewScope(props: ConversationProps) {
     sidebarFileBack,
     openSidebarFileBack,
     awaitingReplies,
+    channel,
     pendingSendFor,
     retryPendingSend,
     editPendingSend,

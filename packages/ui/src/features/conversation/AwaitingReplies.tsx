@@ -22,7 +22,7 @@ export interface AwaitingReplyItem {
 export interface AwaitingReplyListProps {
   items: readonly AwaitingReplyItem[];
   /** The header text. The default is "Waiting for replies". */
-  title?: string;
+  title?: string | undefined;
   /** The list starts collapsed when this is false. */
   defaultOpen?: boolean;
   /** Hides the block. It has a close button only when this is set and no agent still works. */

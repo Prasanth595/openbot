@@ -12,6 +12,7 @@ import { writeClipboardText } from "../../../clipboard";
 import type { StoredQueueEdit } from "../composer-draft";
 import { conversationRuntime } from "../conversation-runtime";
 import type { ComposerDraft, ConversationProps, ConversationTarget } from "../conversation-types";
+import { conversationOwnerId } from "./composer-store";
 
 // Each member reads the interface language when it is called.
 const { t, errorMessage } = currentText();
@@ -82,7 +83,7 @@ export function createMessageActions(deps: MessageActionsDeps) {
       (reference) => attachmentNames.get(reference.attachmentId),
     );
     if (!text) return;
-    const agentId = deps.props.agent?.id;
+    const agentId = conversationOwnerId(deps.props);
     const target = agentId ? { agentId, serverId: deps.props.server?.id ?? "local" } : undefined;
     try {
       await writeClipboardText(text);

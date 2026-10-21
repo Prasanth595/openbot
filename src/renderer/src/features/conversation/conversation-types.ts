@@ -32,7 +32,10 @@ import type {
 import type { ConversationUiBlock } from "@openbot/contracts/ui-blocks";
 import type { AgentMessage, AgentProfile } from "@openbot/ui/data";
 import type { BrowserViewRuntime } from "@openbot/ui/features/browser/BrowserLiveView";
+import type { ChannelWorker } from "@openbot/ui/features/channels/ChannelActivityIndicator";
+import type { AwaitingReplyItem } from "@openbot/ui/features/conversation/AwaitingReplies";
 import type { UsageLimitAskCardProps } from "@openbot/ui/features/conversation/BackupModels";
+import type { ChatMessageAuthor } from "@openbot/ui/features/conversation/ChatMessageRow";
 import type { UnloadedHistory } from "@openbot/ui/features/conversation/ChatScrollRail";
 import type { JSX } from "@solidjs/web";
 import type { ConnectorRegistry } from "../connectors/connector-registry";
@@ -54,6 +57,7 @@ export interface AgentSettingsRequest {
   routine?: { routineId: string; name: string };
 }
 
+/** The conversation that a draft, an error or a send belongs to. For a channel, `agentId` is the channel id. */
 export interface ConversationTarget {
   agentId: string;
   serverId: string;
@@ -73,7 +77,47 @@ export interface PromptAnswerOptions {
   onError?: ((error: unknown) => void) | undefined;
 }
 
+/**
+ * A channel in the conversation view: a chat that people and several agents share. The view reads it
+ * once, when it opens, so a view is a channel view or an agent view for all of its life, and the agent
+ * view reads nothing of it.
+ *
+ * With a channel, `agent` is undefined. A person's message has `author: "you"` and its `senderMember`;
+ * an agent's message has `author: "agent"` and its `senderAgentId`. The prompt, approval and takeover
+ * props are the newest ones of the agents that work in the channel. `activeTurnId` is set while work
+ * runs that Stop ends.
+ *
+ * The components are slots of the renderer's channel feature, which reads the channel store.
+ */
+export interface ConversationChannelSource {
+  /** The channel id. The composer target of the channel has it as its `agentId`. */
+  id: string;
+  name: () => string;
+  /** An archived channel takes no message and no answer. */
+  readOnly: () => boolean;
+  /** The agent that wrote an agent row, with the name the channel keeps for it. */
+  author: (message: AgentMessage) => ChatMessageAuthor;
+  /** The agents that work now. */
+  workers: () => ChannelWorker[];
+  /** The agent that the prompt, approval or takeover on screen comes from. */
+  interactionAgentName: () => string | undefined;
+  /** The agents that a lead asked and that did not reply yet. */
+  awaitingReplies: () => readonly AwaitingReplyItem[];
+  HeaderTitle: (props: { onOpenSettings: () => void }) => JSX.Element;
+  SettingsPane: (props: ConversationChannelSettingsPaneProps) => JSX.Element;
+  /** Shows above the composer: the stopped tasks, and why the channel cannot work. */
+  AboveComposer: () => JSX.Element;
+}
+
+export interface ConversationChannelSettingsPaneProps {
+  maxWidth: () => number;
+  onWidthChange: (width: number) => void;
+  onClose: () => void;
+}
+
 export interface ConversationProps {
+  /** A channel, in place of an agent. Read once, when the view opens. */
+  channel?: ConversationChannelSource | undefined;
   contextState?: AgentContextState | undefined;
   runtime?: ConversationRuntime | undefined;
   notice?: JSX.Element | undefined;

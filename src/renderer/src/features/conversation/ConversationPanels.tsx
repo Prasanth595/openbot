@@ -126,6 +126,7 @@ export function ConversationPanels(panelProps: { onOpenUsage?: ((trigger: HTMLBu
     askSideQuestion,
     voiceConversationAvailable,
     panelSubagentId,
+    channel,
   } = useConversationViewScope();
   const { t, errorMessage } = useText();
   const publishAgent = createPublishAgent(
@@ -141,10 +142,11 @@ export function ConversationPanels(panelProps: { onOpenUsage?: ((trigger: HTMLBu
   let browserPreviewTrigger: HTMLButtonElement | undefined;
   /** The panes this chat can open. The web client has no Files pane, and a chat without a thread has no files. */
   const sidePanelPanes = createMemo((): SidePanelPane[] => [
-    ...(props.browserEnabled !== false ? (["browser"] as const) : []),
+    // A channel turn's takeover still shows as a card; the pane belongs to one agent's browser.
+    ...(props.browserEnabled !== false && !channel ? (["browser"] as const) : []),
     ...(!props.runtime && props.agent?.threadId && serverHasStorage(props.server) ? (["files"] as const) : []),
     ...(props.tasks ? (["tasks"] as const) : []),
-    ...(props.agent ? (["settings"] as const) : []),
+    ...(props.agent || channel ? (["settings"] as const) : []),
     ...(props.agent && voiceConversationAvailable() ? (["voice"] as const) : []),
   ]);
   /** The subagent in the Subagent pane, from the newest turn that has it. */
@@ -245,6 +247,7 @@ export function ConversationPanels(panelProps: { onOpenUsage?: ((trigger: HTMLBu
           selected={activeRightPanel() === "side-panel" ? null : sidePanel().selected}
           available={sidePanelPanes()}
           maximized={sidePanel().maximized}
+          settingsLabel={channel ? t("channel.settings.title") : undefined}
           onSelect={openSidePanelPane}
           onClose={closeSidePanelPane}
           onToggleMaximized={() => setSidePanelMaximized(!sidePanel().maximized)}
@@ -254,7 +257,11 @@ export function ConversationPanels(panelProps: { onOpenUsage?: ((trigger: HTMLBu
 
       <Show when={activeRightPanel() === "side-panel"}>
         <aside class="browser-panel side-panel-empty" aria-label={t("conversation.sidePanel.label")}>
-          <SidePanelLauncher available={sidePanelPanes()} onOpen={openSidePanelPane} />
+          <SidePanelLauncher
+            available={sidePanelPanes()}
+            settingsLabel={channel ? t("channel.settings.title") : undefined}
+            onOpen={openSidePanelPane}
+          />
         </aside>
       </Show>
 
@@ -445,6 +452,15 @@ export function ConversationPanels(panelProps: { onOpenUsage?: ((trigger: HTMLBu
         </Portal>
       </Show>
 
+      {channel ? (
+        <Show when={settingsOpen()}>
+          <channel.SettingsPane
+            maxWidth={settingsMaxWidth}
+            onWidthChange={setSettingsPanelWidth}
+            onClose={() => closeSidePanelPane("settings")}
+          />
+        </Show>
+      ) : null}
       <Show when={settingsOpen() && props.agent}>
         {(agent) => (
           <Loading>

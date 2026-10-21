@@ -12,6 +12,7 @@ import { copyComposerDraft, EMPTY_DRAFT, QUEUE_EDIT_STORAGE_KEY, type StoredQueu
 import { composerDraftKey } from "../conversation-keys";
 import { conversationRuntime } from "../conversation-runtime";
 import type { ComposerDraft, ConversationProps, ConversationTarget } from "../conversation-types";
+import { conversationOwnerId } from "./composer-store";
 import type { PendingSend, PendingSendStore } from "./pending-send-store";
 
 // Each member reads the interface language when it is called.
@@ -527,7 +528,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
     if (!draftOverride && deps.currentEditingDeliveryId()) {
       return saveQueuedMessageEdit();
     }
-    const agentId = targetOverride?.agentId ?? deps.props.agent?.id;
+    const agentId = targetOverride?.agentId ?? conversationOwnerId(deps.props);
     const target = targetOverride ?? (agentId ? { agentId, serverId: deps.props.server?.id ?? "local" } : undefined);
     const draft = copyComposerDraft(draftOverride ?? deps.currentDraft());
     const text = expandComposerMentions(draft.text);

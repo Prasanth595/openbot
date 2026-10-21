@@ -20,7 +20,7 @@ import {
 } from "@openbot/ui/features/conversation/UnreadMessages";
 import { currentText } from "@openbot/ui/text";
 import type { VirtualItem } from "@tanstack/virtual-core";
-import { createEffect, createMemo, createSignal, onCleanup } from "solid-js";
+import { createEffect, createMemo, createSignal, onCleanup, untrack } from "solid-js";
 import { groupAgentMessageMarkers } from "../agent-message-timeline";
 import type { ConversationProps, ConversationTarget } from "../conversation-types";
 import {
@@ -32,6 +32,7 @@ import {
   routineRunTurnMessages,
   summarizeRoutineRunMessages,
 } from "../routine-run-timeline";
+import { conversationOwnerId } from "./composer-store";
 
 interface ScrollElements {
   scrollElement: () => HTMLDivElement | undefined;
@@ -87,7 +88,7 @@ export function createScrollStore(deps: ScrollStoreDeps) {
    * The visit keeps it until the reader opens another chat. A newer unread message replaces it.
    */
   const visitUnread = createMemo<{ identity: string; messageId: string | null }>((previous) => {
-    const identity = `${deps.props.server?.id ?? "local"}:${deps.props.agent?.id ?? ""}`;
+    const identity = `${deps.props.server?.id ?? "local"}:${conversationOwnerId(deps.props) ?? ""}`;
     const messageId = deps.props.firstUnreadMessageId;
     if (previous?.identity === identity && !messageId) return previous;
     return { identity, messageId };
@@ -148,7 +149,7 @@ export function createScrollStore(deps: ScrollStoreDeps) {
     () => {
       const rows = timelineRows();
       return {
-        identity: `${deps.props.server?.id ?? "local"}:${deps.props.agent?.id ?? ""}`,
+        identity: `${deps.props.server?.id ?? "local"}:${conversationOwnerId(deps.props) ?? ""}`,
         rows,
         length: rows.length,
         lastId: rows.at(-1)?.id,
@@ -178,10 +179,12 @@ export function createScrollStore(deps: ScrollStoreDeps) {
     },
   );
 
+  // A channel row is mostly a short message under an author; an agent row is often a longer answer.
+  const rowEstimate = untrack(() => deps.props.channel) ? 84 : 128;
   const messageVirtualizer = createChatVirtualizer<HTMLDivElement, HTMLDivElement>({
     count: () => timelineMessages().length,
     getScrollElement: () => deps.elements.scrollElement() ?? null,
-    estimateSize: () => 128,
+    estimateSize: () => rowEstimate,
     getItemKey: (index) => timelineMessages()[index]?.id ?? index,
     keyVersion: () => `${timelineMessages()[0]?.id ?? ""}:${timelineMessages().at(-1)?.id ?? ""}`,
     scrollMargin: virtualScrollMargin,
@@ -240,7 +243,7 @@ export function createScrollStore(deps: ScrollStoreDeps) {
 
   async function markUnreadMessages(): Promise<void> {
     if (deps.markingRead()) return;
-    const agentId = deps.props.agent?.id;
+    const agentId = conversationOwnerId(deps.props);
     const target = agentId ? { agentId, serverId: deps.props.server?.id ?? "local" } : undefined;
     deps.setMarkingRead(true);
     deps.setComposerError(null, target);

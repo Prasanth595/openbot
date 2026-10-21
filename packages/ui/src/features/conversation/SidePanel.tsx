@@ -109,6 +109,8 @@ export interface SidePanelHeaderProps {
   /** The panes that this chat can open. */
   available: readonly SidePanelPane[];
   maximized: boolean;
+  /** The name of the settings pane, when it holds other settings than an agent's. */
+  settingsLabel?: string | undefined;
   onSelect: (pane: SidePanelPane) => void;
   onClose: (pane: SidePanelPane) => void;
   onToggleMaximized: () => void;
@@ -128,6 +130,8 @@ export function SidePanelHeader(props: SidePanelHeaderProps) {
   const { t } = useText();
   let tabList: HTMLDivElement | undefined;
   const closedPanes = () => props.available.filter((pane) => !props.panes.includes(pane));
+  const paneLabel = (pane: SidePanelPane) =>
+    pane === "settings" && props.settingsLabel !== undefined ? props.settingsLabel : t(PANE_LABELS[pane]);
   /** Delete closes the tab. The closed tab leaves the list, so focus moves to the tab that takes its place. */
   const onTabKeyDown = (event: KeyboardEvent, pane: SidePanelPane) => {
     if (event.key !== "Delete" && event.key !== "Backspace") return;
@@ -142,7 +146,7 @@ export function SidePanelHeader(props: SidePanelHeaderProps) {
       <Tabs.List ref={tabList} class="side-panel-tabs" aria-label={t("conversation.sidePanel.label")}>
         <For each={props.panes}>
           {(pane) => {
-            const label = () => t(PANE_LABELS[pane]);
+            const label = () => paneLabel(pane);
             const selected = () => props.selected === pane;
             return (
               <div role="presentation" class="side-panel-tab no-drag" data-selected={selected() ? "true" : undefined}>
@@ -198,7 +202,7 @@ export function SidePanelHeader(props: SidePanelHeaderProps) {
                   {(pane) => (
                     <DropdownMenu.Item class="side-panel-menu-item" onSelectAfterClose={() => props.onSelect(pane)}>
                       <PaneIcon pane={pane} />
-                      {t(PANE_LABELS[pane])}
+                      {paneLabel(pane)}
                     </DropdownMenu.Item>
                   )}
                 </For>
@@ -243,6 +247,8 @@ export function SidePanelHeader(props: SidePanelHeaderProps) {
  */
 export function SidePanelLauncher(props: {
   available: readonly SidePanelPane[];
+  /** As in `SidePanelHeader`. */
+  settingsLabel?: string | undefined;
   onOpen: (pane: SidePanelPane) => void;
 }) {
   const { t } = useText();
@@ -257,7 +263,10 @@ export function SidePanelLauncher(props: {
         {(pane) => (
           <Button variant="secondary" class="side-panel-launch" onClick={() => props.onOpen(pane)}>
             <PaneIcon pane={pane} />
-            {t("conversation.sidePanel.openPane", { name: t(PANE_LABELS[pane]) })}
+            {t("conversation.sidePanel.openPane", {
+              name:
+                pane === "settings" && props.settingsLabel !== undefined ? props.settingsLabel : t(PANE_LABELS[pane]),
+            })}
           </Button>
         )}
       </For>

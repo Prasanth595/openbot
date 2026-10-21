@@ -3,6 +3,7 @@ import type { ConversationMessageSender } from "@openbot/contracts/ipc";
 import type { ConversationUiBlock } from "@openbot/contracts/ui-blocks";
 import { Button } from "@openbot/ui";
 import type { AgentMessage, ChatActionMarkerModel } from "@openbot/ui/data";
+import { ChannelActivityIndicator } from "@openbot/ui/features/channels/ChannelActivityIndicator";
 import { AgentActivityIndicator } from "@openbot/ui/features/conversation/AgentActivity";
 import { AgentTaskChips } from "@openbot/ui/features/conversation/AgentTasks";
 import { AttachmentCards } from "@openbot/ui/features/conversation/AttachmentCards";
@@ -105,6 +106,7 @@ export function ConversationTimeline() {
     browserTakeoverPreview,
     browserTakeoverResolution,
     browserTakeoverTab,
+    channel,
     chatSearchMatches,
     chatSearchOpen,
     chatSearchQuery,
@@ -253,6 +255,8 @@ export function ConversationTimeline() {
   );
 
   const runtime = conversationRuntime(props);
+  /** The agent that asks in a card: in a channel, the working agent whose card shows. */
+  const interactionAgentName = () => (channel ? channel.interactionAgentName() : props.agent?.name);
   /**
    * The other person who wrote a message. The reader's own message, an agent message, and a message
    * from before senders were kept have none, so a chat with one person looks as it always did.
@@ -272,10 +276,15 @@ export function ConversationTimeline() {
       avatarSeed: sender.id,
     };
   };
-  // A run of one sender breaks where another person starts to write.
+  // A run of one sender breaks where another person starts to write, and in a channel where another
+  // agent starts to write.
   const senderRunRow = (message: AgentMessage) => {
     const sender = otherSender(message);
-    const author = sender ? `member:${sender.id}` : message.author;
+    const author = sender
+      ? `member:${sender.id}`
+      : channel && message.author === "agent"
+        ? `agent:${message.senderAgentId ?? ""}`
+        : message.author;
     return message.createdAt === undefined ? { author } : { author, createdAt: message.createdAt };
   };
   /**
@@ -471,9 +480,9 @@ export function ConversationTimeline() {
                   const current = message();
                   const sender = otherSender(current);
                   if (sender) return memberAuthor(sender);
-                  return current?.author === "you"
-                    ? { kind: "you", name: t("chat.message.you") }
-                    : { kind: "agent", name: props.agent?.name ?? t("chat.message.agentFallback") };
+                  if (current?.author === "you") return { kind: "you", name: t("chat.message.you") };
+                  if (channel && current) return channel.author(current);
+                  return { kind: "agent", name: props.agent?.name ?? t("chat.message.agentFallback") };
                 });
                 const referencedMessage = createMemo(() => {
                   const replyToMessageId = message()?.replyToMessageId;
@@ -489,8 +498,10 @@ export function ConversationTimeline() {
                 };
                 // A quote of another person's message names them; any other quote keeps its label.
                 const referencedAuthorName = () => {
-                  const sender = otherSender(referencedMessage());
-                  return sender ? memberAuthor(sender).name : undefined;
+                  const referenced = referencedMessage();
+                  const sender = otherSender(referenced);
+                  if (sender) return memberAuthor(sender).name;
+                  return channel && referenced?.author === "agent" ? channel.author(referenced).name : undefined;
                 };
                 // A row the host has not drawn yet has no reactions, replies or menu: its id is not the
                 // host's, even after the host answered.
@@ -885,7 +896,11 @@ export function ConversationTimeline() {
                           <ChatMessageRow
                             message={message() ?? initialMessage}
                             author={author()}
-                            showAuthor={author().kind === "member" ? !continuesRun() : undefined}
+                            showAuthor={
+                              author().kind === "member" || (channel && author().kind === "agent")
+                                ? !continuesRun()
+                                : undefined
+                            }
                             showTime={!continuesRun()}
                             animate={animateEntrance}
                             agents={props.agents}
@@ -894,7 +909,7 @@ export function ConversationTimeline() {
                             referencedAuthorName={referencedAuthorName()}
                             onOpenReference={openReference}
                             referenceState={replyJump.referenceState(message(), referencedMessage())}
-                            reactions={displayedReactions()}
+                            reactions={channel ? undefined : displayedReactions()}
                             reactionOverflowCount={message()?.reactionSummary?.overflowCount}
                             onRemoveReaction={() => {
                               const currentMessage = message();
@@ -941,6 +956,8 @@ export function ConversationTimeline() {
                                   pickerOpen={openReactionMessageId() === message()?.id}
                                   expandedEmoji={expandedEmojiMessageId() === message()?.id}
                                   copied={copiedMessageId() === message()?.id}
+                                  reactions={!channel}
+                                  authorName={channel ? author().name : undefined}
                                   onTogglePicker={() => {
                                     const messageId = message()?.id;
                                     if (!messageId) return;
@@ -1037,16 +1054,25 @@ export function ConversationTimeline() {
             data-reserved={agentActivitySpaceReserved() ? "true" : "false"}
             ref={setAgentActivitySlotElement}
           >
-            <Show when={renderedAgentActivity()}>
-              {(activity) => (
-                <AgentActivityIndicator
-                  agent={activity().agent}
-                  detail={activity().detail}
-                  label={activity().label}
-                  phase={activity().phase}
-                  since={activity().since}
-                />
-              )}
+            <Show
+              when={!channel}
+              fallback={
+                <Show when={channel && channel.workers().length > 0}>
+                  <ChannelActivityIndicator workers={channel?.workers() ?? []} />
+                </Show>
+              }
+            >
+              <Show when={renderedAgentActivity()}>
+                {(activity) => (
+                  <AgentActivityIndicator
+                    agent={activity().agent}
+                    detail={activity().detail}
+                    label={activity().label}
+                    phase={activity().phase}
+                    since={activity().since}
+                  />
+                )}
+              </Show>
             </Show>
           </div>
           <Show when={props.tasks}>
@@ -1098,7 +1124,7 @@ export function ConversationTimeline() {
               <Loading>
                 <ApprovalCard
                   approval={approval}
-                  agentName={props.agent?.name}
+                  agentName={interactionAgentName()}
                   onApprove={() => props.onRespondToApproval("accept")}
                   onReject={() => props.onRespondToApproval("decline")}
                   onAlwaysAllow={props.onAlwaysAllowApproval}
@@ -1121,7 +1147,7 @@ export function ConversationTimeline() {
             <Loading>
               <BrowserTakeoverCard
                 request={props.browserTakeover}
-                agentName={props.agent?.name ?? "the agent"}
+                agentName={interactionAgentName() ?? t("chat.message.agentFallback")}
                 tab={browserTakeoverTab()}
                 preview={browserTakeoverPreview().preview}
                 previewStatus={browserTakeoverPreview().status}
@@ -1138,7 +1164,7 @@ export function ConversationTimeline() {
           <Show when={!props.browserTakeover && browserTakeoverResolution()}>
             {(resolution) => (
               <BrowserTakeoverCard
-                agentName={props.agent?.name ?? "the agent"}
+                agentName={interactionAgentName() ?? t("chat.message.agentFallback")}
                 tab={resolution().tab}
                 preview={resolution().preview}
                 previewStatus={resolution().previewStatus}
