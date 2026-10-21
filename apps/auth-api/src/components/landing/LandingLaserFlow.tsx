@@ -195,8 +195,9 @@ void main() {
   float drop = smoothstep(front + 10.0, front - 110.0, p.y);
   float falling = 1.0 - smoothstep(sy - 24.0, sy, front);
   // The beam starts at the top of the canvas, or comes out of the source element's bottom edge.
+  // The light opens out from the source as a cone: a level cut would draw a dark band above it.
   float oy = uOrigin.x / uScale;
-  float emitted = mix(1.0, smoothstep(oy - 3.0, oy + 8.0, p.y), uOrigin.y);
+  float emitted = mix(1.0, smoothstep(oy - 3.0, oy + 8.0 + 0.9 * adx, p.y), uOrigin.y);
   float top = mix(mix(0.3, 0.85, uOrigin.y), 1.0, smoothstep(oy, oy + 0.3 * (sy - oy), p.y)) * emitted;
   // A wide beam keeps a thin core: only its glow grows, so the beam does not turn into a white column.
   float beamCore = 24.0 * exp(-adx / (2.0 * min(beamWidth, 1.4)));
