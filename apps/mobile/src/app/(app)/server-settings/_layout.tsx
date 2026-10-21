@@ -31,6 +31,9 @@ export default function ServerSettingsLayout() {
       <Stack.Screen name="members" options={{ title: t("mobile.app.route.members") }} />
       <Stack.Screen name="invite" options={{ title: t("mobile.server.route.invite") }} />
       <Stack.Screen name="member" options={{ title: t("mobile.server.route.member") }} />
+      <Stack.Screen name="roles" options={{ title: t("mobile.server.route.roles") }} />
+      {/* The page names its role in the name field. */}
+      <Stack.Screen name="role" options={{ title: t("mobile.server.route.role") }} />
       <Stack.Screen name="timezone" options={{ title: t("mobile.server.route.timezone") }} />
       <Stack.Screen name="connectors" options={{ title: t("mobile.server.route.connectors") }} />
       {/* The page names its connector. */}

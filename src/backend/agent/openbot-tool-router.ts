@@ -16,19 +16,20 @@ import {
   agentComputerUseEnabled,
   agentNewChatAllowed,
   agentQuickAcknowledgementEnabled,
+  CONNECTOR_IDS,
   isMessageReaction,
   marketplaceSuggestionItemType,
   mcpSignInItemType,
   skillConversationEventItemType,
   workspaceAccessEnforced,
 } from "@openbot/contracts/ipc";
-import { isPluginSlug } from "@openbot/contracts/plugin-links";
 import { isString } from "@openbot/contracts/runtime-values";
 import { isUiBlockId, normalizeUiBlockSpec } from "@openbot/contracts/ui-blocks";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, redactText } from "@openbot/logging";
 import { Effect, Result } from "effect";
 import { z } from "zod";
+import pluginCatalog from "../../../resources/plugin-catalog/catalog.json";
 import type { AgentClient, AgentProvider } from "../agent-client";
 import type { AgentTables } from "../agent-data/agent-tables";
 import type { AgentStore } from "../agent-store";
@@ -107,6 +108,12 @@ const logger = createOpenBotLogger("openbot-tool-router");
 
 /** How long the plan card of `acknowledge_request` waits before the host presses its start button. */
 const ACKNOWLEDGE_START_MS = 10_000;
+
+/** The Marketplace apps that the chat draws a card for: the bundled catalog plugins and the connectors. */
+const MARKETPLACE_APP_IDS: readonly string[] = [
+  ...pluginCatalog.plugins.map((plugin) => plugin.slug),
+  ...CONNECTOR_IDS,
+];
 
 /** The reason says what to grant or to correct, and holds no screen content. */
 function captureFailure(failure: ScreenCaptureFailed) {
@@ -854,8 +861,9 @@ export class OpenBotToolRouter {
 
     if (params.tool === "suggest_marketplace_app") {
       const args = params.arguments;
-      if (!isRecord(args) || !isString(args.app) || !isPluginSlug(args.app)) {
-        throw new Error("app must be a Marketplace plugin slug, or github.");
+      if (!isRecord(args) || !isString(args.app)) throw new Error("app must be a Marketplace app slug.");
+      if (!MARKETPLACE_APP_IDS.includes(args.app)) {
+        return openBotToolResult({ status: "not_found", app: args.app, apps: MARKETPLACE_APP_IDS });
       }
       this.#postSystemCard(senderAgentId, executionThreadId, params.turnId, {
         itemType: marketplaceSuggestionItemType({ appId: args.app }),

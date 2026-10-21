@@ -6,8 +6,8 @@ import { type InviteLinkOptions, type InviteLinkPayload, parseInviteUrl } from "
 import type {
   AgentEvent,
   AgentImportPreview,
-  AgentSummary,
   AvatarImageInput,
+  ClientAgentSummary,
   ConversationPage,
   ConversationPageAnchor,
   ConversationReadState,
@@ -1756,7 +1756,7 @@ export class RemoteServerManager extends EventEmitter<RemoteServerEvents> {
       agentId: string,
       image: AvatarImageInput | null,
       serverId = this.#store.activeServerId,
-    ): Effect.fn.Return<AgentSummary, RemoteWorkflowError, RemoteRequest> {
+    ): Effect.fn.Return<ClientAgentSummary, RemoteWorkflowError, RemoteRequest> {
       const server = yield* remoteDecode(() => this.#store.require(serverId));
       const url = new URL(TEAM_API_ROUTES.agent.avatar(agentId), server.apiUrl);
       const headers = new Headers();

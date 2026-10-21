@@ -127,7 +127,11 @@ The `Provider CLI canary` workflow (`.github/workflows/provider-cli-canary.yml`)
 release before many users install it. Every six hours it reads the newest release of each provider
 for each target, installs the newest OpenCode through `ProviderRuntimeManager`, and runs the
 conformance cases on it with the free `opencode/big-pickle` model and no account
-(`bun run test:provider-cli-canary`). It opens one issue after two failed runs in a row. The other
+(`bun run test:provider-cli-canary`). The run fails when the install is not the version that an
+update installs now, so a failed release read cannot make it test the pinned CLI. Each turn fails
+after five minutes, so a hung CLI still writes the report. The second failed run in a row opens one
+issue, and a run that passes closes it. An issue that a person closes stays closed until the canary
+passes and then fails two times again. The other
 providers need an account, so the canary only reads their releases; `test:provider-conformance` runs
 the same cases on each ACP driver over a fake agent.
 
@@ -492,8 +496,26 @@ v5 peer still gets the filtered view.
 The v4, v5, v6 and v7 base schemas are one codec, `provider-aware-codec.ts`. Each `v<N>-base.ts` passes
 `createProviderAwareCodec` a frozen profile: the providers, the signed-in auth kinds and the agent
 model charset. The v7 profile also raises the capability limit from 64 to 128 (`v7-base.ts`).
-Nothing else differs between these versions. Do not edit a released profile; a new
-provider needs a new protocol version.
+Nothing else differs between these versions. Do not edit a released profile.
+
+Team API v8 opens the profile: `providers` and `authKinds` are `"open"`, so any id that matches
+`OPEN_PROVIDER_ID` (`^[a-z][a-z0-9-]{0,63}$`) passes, and each provider status row can carry a
+`displayName` of up to 80 characters (`v8-base.ts`). The codec still rejects a malformed row. A
+provider added after v8 needs no new protocol version. The `providers-v8` routes
+(`/v1/admin/providers/v8/*`) carry the runtimes as a keyed list, not as one fixed object.
+
+The host hides a provider from a peer below v8 when that protocol's frozen list does not have it
+(`FROZEN_PROVIDERS` in `src/main/team-api/provider-visibility.ts`). So a new provider is hidden
+from old peers with no change there. Do not edit those lists. A local-only provider
+(`LOCAL_ONLY_PROVIDERS`, now only Inception) is hidden from peers on every protocol, v8 too, and the
+peer key routes refuse its key.
+
+A v8 client keeps the agents of a provider that its build does not know (`ForeignProviderId`,
+`AgentProviderRef`). The agent stays in the list and chat works, because the host runs it. The
+provider and model pickers show the agent disabled, with "Update OpenBot to use {name}" and the
+neutral `unknown` logo. They do not reset the agent. The model picker and the backup models leave
+out the models of that provider. Host types (`AgentProviderId`, the database, the drivers) stay
+closed.
 
 ### Custom agents
 
@@ -601,7 +623,7 @@ calls `pi.registerProvider("inception", …)` with the Mercury models; the key i
 environment and a `globalThis` slot, because Pi runs extensions again on `switch_session`. The
 Inception client lists only the `inception` models, with bare ids such as `mercury-3`. The Pi client
 does not load this extension, so it keeps only the user's own `inception` models. Without a key the provider has no models and asks for a key. Inception is local-only:
-no Team API protocol carries it.
+no Team API protocol carries it, v8 included (`LOCAL_ONLY_PROVIDERS`).
 
 ## Muse
 

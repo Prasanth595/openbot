@@ -61,6 +61,7 @@ export const messages = {
 
   // Ekleme iletişim kutusu.
   "customProvider.form.title": "Özel sağlayıcı ekle",
+  "customProvider.form.editTitle": "Özel sağlayıcıyı düzenle",
   "customProvider.form.description": "OpenAI uyumlu bir uç noktayı ve sunduğu modelleri tanımlayın.",
   "customProvider.form.heading": "Özel sağlayıcı",
   "customProvider.form.subtitle": "Herhangi bir OpenAI uyumlu uç nokta.",
@@ -236,6 +237,7 @@ export const messages = {
   "customProvider.list.empty": "Henüz özel uç nokta yok.",
   "customProvider.list.label": "Özel uç noktalar",
   "customProvider.list.apiKeySaved": "API anahtarı kaydedildi",
+  "customProvider.list.editLabel": "{name} sağlayıcısını düzenle",
   "customProvider.list.deleteLabel": "{name} sağlayıcısını sil",
   "customProvider.list.confirmTitle": "{name} kaldırılsın mı?",
   "customProvider.list.confirmDescription":

@@ -59,6 +59,7 @@ export const messages = defineMessages("customProvider", {
 
   // The add dialog.
   "customProvider.form.title": "Add a custom provider",
+  "customProvider.form.editTitle": "Edit a custom provider",
   "customProvider.form.description": "Describe an OpenAI-compatible endpoint and the models it serves.",
   "customProvider.form.heading": "Custom provider",
   "customProvider.form.subtitle": "Any OpenAI-compatible endpoint.",
@@ -226,6 +227,7 @@ export const messages = defineMessages("customProvider", {
   "customProvider.list.empty": "No custom endpoints yet.",
   "customProvider.list.label": "Custom endpoints",
   "customProvider.list.apiKeySaved": "API key saved",
+  "customProvider.list.editLabel": "Edit {name}",
   "customProvider.list.deleteLabel": "Delete {name}",
   "customProvider.list.confirmTitle": "Remove {name}?",
   "customProvider.list.confirmDescription":

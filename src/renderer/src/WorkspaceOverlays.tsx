@@ -475,6 +475,8 @@ function ServerSettings(props: { connectors: ConnectorRegistry }) {
       },
       onAddCustomProvider: endpoints.saveCustomProvider,
       onDeleteCustomProvider: endpoints.deleteCustomProvider,
+      // The Team API has no edit route, so only this computer's endpoints have Edit.
+      onUpdateCustomProvider: local ? localEndpoints.updateCustomProvider : undefined,
       get providerKeys() {
         return providerRuntimeDownloadsAvailable() ? providerKeys() : undefined;
       },

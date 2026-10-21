@@ -12,7 +12,8 @@ export type ProviderLogoVariant =
   | "acp"
   | "pi"
   | "muse"
-  | "inception";
+  | "inception"
+  | "unknown";
 
 export interface ProviderLogoProps {
   provider: ProviderLogoVariant;
@@ -33,6 +34,9 @@ const ACP_PROMPT_PATH =
   "M4.3 6.3a1 1 0 0 1 1.4 0l5 5a1 1 0 0 1 0 1.4l-5 5a1 1 0 1 1-1.4-1.4L8.6 12 4.3 7.7a1 1 0 0 1 0-1.4Z";
 const ACP_CURSOR_PATH = "M12 17a1 1 0 0 1 1-1h7a1 1 0 1 1 0 2h-7a1 1 0 0 1-1-1Z";
 
+// A neutral ring for a provider that this build does not know. It is no provider's mark.
+const UNKNOWN_PATH = "M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20Zm0 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16Z";
+
 export function ProviderLogo(props: ProviderLogoProps) {
   const isClaude = () => props.provider === "claude";
   const isGrok = () => props.provider === "grok";
@@ -42,6 +46,7 @@ export function ProviderLogo(props: ProviderLogoProps) {
   // Native CLI providers use the existing neutral terminal mark.
   const isAcp = () =>
     props.provider === "acp" || props.provider === "pi" || props.provider === "muse" || props.provider === "inception";
+  const isUnknown = () => props.provider === "unknown";
 
   return (
     <svg
@@ -49,7 +54,7 @@ export function ProviderLogo(props: ProviderLogoProps) {
       viewBox={
         props.provider === "opencode"
           ? "0 0 240 300"
-          : isGrok() || isGemini() || isCursor() || isCline() || isAcp()
+          : isGrok() || isGemini() || isCursor() || isCline() || isAcp() || isUnknown()
             ? "0 0 24 24"
             : isClaude()
               ? "0 0 248 248"
@@ -80,6 +85,8 @@ export function ProviderLogo(props: ProviderLogoProps) {
           <path d={ACP_PROMPT_PATH} />
           <path d={ACP_CURSOR_PATH} />
         </>
+      ) : isUnknown() ? (
+        <path d={UNKNOWN_PATH} fill-rule="evenodd" />
       ) : (
         <path d={isClaude() ? CLAUDE_PATH : CODEX_PATH} />
       )}

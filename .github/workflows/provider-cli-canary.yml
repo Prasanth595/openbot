@@ -4,8 +4,9 @@ name: Provider CLI canary
 # between. This run reads the newest release of each provider for each target, installs the newest
 # OpenCode, and runs the conformance cases on it with a free model and no account
 # (scripts/provider-cli-canary.ts). When a release breaks OpenBot, add its version to
-# `provider-runtime-blocklist.json` on `main` to stop the offer. The `alert` job opens one issue after
-# two failed runs in a row and closes it after a run that passes.
+# `provider-runtime-blocklist.json` on `main` to stop the offer. The `alert` job opens one issue on
+# the second failed run in a row and closes it after a run that passes. An issue that a person closes
+# stays closed until the canary passes and then fails two times again.
 on:
   schedule:
     - cron: "17 */6 * * *"
@@ -71,13 +72,19 @@ jobs:
             --jq "[.[] | select(.title == \"$title\" and .user.login == \"github-actions[bot]\")][0].number // empty")
           if [ "$FAILED" = "true" ]; then
             if [ -n "$open" ]; then exit 0; fi
-            # A free model can be busy for one run, so open the issue only after the second failure.
-            previous=$(gh api -X GET "repos/$GH_REPO/actions/workflows/provider-cli-canary.yml/runs" -f status=completed -f per_page=20 \
-              --jq "[.workflow_runs[] | select(.id != $GITHUB_RUN_ID)][0].id // empty")
-            if [ -z "$previous" ]; then exit 0; fi
-            failed=$(gh api -X GET "repos/$GH_REPO/actions/runs/$previous/jobs" \
-              --jq '[.jobs[] | select(.name == "Newest provider CLIs" and .conclusion == "failure")] | length')
-            if [ "$failed" = "0" ]; then exit 0; fi
+            # A free model can be busy for one run, so open the issue only on the second failure. Only
+            # that run opens it: a person can close the issue while the canary still fails.
+            canary_failed() {
+              [ -n "$1" ] || return 1
+              count=$(gh api -X GET "repos/$GH_REPO/actions/runs/$1/jobs" \
+                --jq '[.jobs[] | select(.name == "Newest provider CLIs" and .conclusion == "failure")] | length') || exit 1
+              [ "$count" != "0" ]
+            }
+            runs=$(gh api -X GET "repos/$GH_REPO/actions/workflows/provider-cli-canary.yml/runs" -f status=completed -f per_page=20 \
+              --jq "[.workflow_runs[] | select(.id != $GITHUB_RUN_ID) | .id][0:2] | map(tostring) | join(\" \")")
+            read -r previous before <<< "$runs"
+            if ! canary_failed "$previous"; then exit 0; fi
+            if canary_failed "$before"; then exit 0; fi
             gh issue create --title "$title" --body "The provider CLI canary failed 2 times in a row. A new provider CLI release can be broken for users, or its release cannot be read. The report artifact names the provider, the version and the case.
 
           To stop the offer of a broken version, add it to \`provider-runtime-blocklist.json\` on \`main\`.

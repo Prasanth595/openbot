@@ -106,6 +106,7 @@ export const messages = {
   "provider.picker.providers": "Model sağlayıcıları",
   "provider.picker.downloading": "{percent} indiriliyor",
   "provider.picker.unavailable": "{name} kullanılamıyor.",
+  "provider.picker.updateToUse": "{name} kullanmak için OpenBot'u güncelleyin",
   "provider.picker.models": "{name} modelleri",
   "provider.picker.addProvider": "Sağlayıcı ekle",
   "provider.picker.download": "{name} indirmesi",

@@ -1,14 +1,15 @@
+import { isKnownAgentProvider } from "@openbot/contracts/agent-providers";
 import type { AppLanguage } from "@openbot/contracts/app-language";
 import { HOSTED_SERVER_CONTACT_URL } from "@openbot/contracts/hosted-servers";
 import {
   type AddedAgent,
   type AgentApproval,
-  type AgentModelOption,
   type AgentProviderId,
   type AgentStatus,
   type AppInfo,
   type BrowserTakeoverRequest,
   CHANNEL_CHATS_CAPABILITY,
+  type ClientAgentModelOption,
   canAdministerServer,
   decodeAgentHostSettings,
   type ServerConnectionState,
@@ -265,7 +266,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   const { t, sourceText } = text;
   const layout = useLayout();
   const [status, setStatus] = createSignal<AgentStatus>(CONNECTING_STATUS);
-  const [models, setModels] = createSignal<AgentModelOption[]>([]);
+  const [models, setModels] = createSignal<ClientAgentModelOption[]>([]);
   /**
    * Each model read takes the next number. A list is shown only when no later read has been shown,
    * so a slow first read cannot replace the list that a ready status read again. A host change marks
@@ -273,7 +274,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
    */
   let modelsRequest = 0;
   let modelsShown = 0;
-  function showModels(request: number, list: AgentModelOption[]): void {
+  function showModels(request: number, list: ClientAgentModelOption[]): void {
     if (request <= modelsShown) return;
     modelsShown = request;
     setModels(list);
@@ -592,7 +593,11 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   /** Whether the composer's sign-in notice can connect the agent's provider from this tab. */
   const composerSignIn = () => {
     const provider = conversationAgent()?.provider;
-    return provider !== undefined && (providerSettings()?.connection?.connectKind(provider) ?? null) !== null;
+    return (
+      provider !== undefined &&
+      isKnownAgentProvider(provider) &&
+      (providerSettings()?.connection?.connectKind(provider) ?? null) !== null
+    );
   };
   const runtime = createWebConversationRuntime(
     workspace.runtime,

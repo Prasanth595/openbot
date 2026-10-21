@@ -1,6 +1,8 @@
 import {
   agentProviderName,
   isManagedRuntimeProvider,
+  MANAGED_RUNTIME_PROVIDERS,
+  MANAGED_TOOL_RUNTIMES,
   type ManagedProviderId,
 } from "@openbot/contracts/agent-providers";
 import type { ProviderRuntimeSnapshot, ProviderRuntimeStatus } from "@openbot/contracts/ipc";
@@ -26,6 +28,7 @@ import {
   PROVIDERS_V5_ROUTES,
   PROVIDERS_V5_RUNTIME_PROVIDERS,
 } from "@openbot/contracts/team-protocol/providers-v5";
+import { PROVIDERS_V8_CAPABILITY, PROVIDERS_V8_ROUTES } from "@openbot/contracts/team-protocol/providers-v8";
 import { sourceText } from "@openbot/i18n/source";
 import { redactText, registerSecretValue } from "@openbot/logging";
 import { Effect } from "effect";
@@ -47,8 +50,8 @@ const RUNTIME_MESSAGE_LIMIT = 1024;
  * The providers of this computer, managed from a joined server: sign-in with a device code, provider
  * API keys, the managed CLI runtimes and the custom endpoints. Frozen by `providers-v1`, by
  * `providers-v2` for the runtime routes that include Gemini, by `providers-v3` for the Claude
- * and Grok sign-in on another device, and by `providers-v4` for the runtimes and sign-in of Cursor
- * and Cline.
+ * and Grok sign-in on another device, by `providers-v4` for the runtimes and sign-in of Cursor
+ * and Cline, and by `providers-v8`, which names a provider by any id and lists the runtimes as rows.
  *
  * `requireAdmin` runs on every route. A key or a header value only arrives here; no response
  * carries one, and no error message quotes the request.
@@ -60,15 +63,17 @@ export async function routeProviders(
   const { method, url, capabilities, member, request, json } = context;
   if (method !== "POST" || !isProvidersRoute(url.pathname)) return "unmatched";
   const providers = admin?.providers;
-  const capability = V5_ROUTES.has(url.pathname)
-    ? PROVIDERS_V5_CAPABILITY
-    : V4_ROUTES.has(url.pathname)
-      ? PROVIDERS_V4_CAPABILITY
-      : V3_ROUTES.has(url.pathname)
-        ? PROVIDERS_SIGN_IN_V3_CAPABILITY
-        : V2_ROUTES.has(url.pathname)
-          ? PROVIDERS_RUNTIMES_V2_CAPABILITY
-          : PROVIDERS_ADMIN_CAPABILITY;
+  const capability = V8_ROUTES.has(url.pathname)
+    ? PROVIDERS_V8_CAPABILITY
+    : V5_ROUTES.has(url.pathname)
+      ? PROVIDERS_V5_CAPABILITY
+      : V4_ROUTES.has(url.pathname)
+        ? PROVIDERS_V4_CAPABILITY
+        : V3_ROUTES.has(url.pathname)
+          ? PROVIDERS_SIGN_IN_V3_CAPABILITY
+          : V2_ROUTES.has(url.pathname)
+            ? PROVIDERS_RUNTIMES_V2_CAPABILITY
+            : PROVIDERS_ADMIN_CAPABILITY;
   if (!providers || !capabilities.has(capability))
     throw new HttpError(400, sourceText("error.team.providersUnsupported"));
   requireAdmin(member);
@@ -101,6 +106,27 @@ export async function routeProviders(
       case PROVIDERS_SIGN_IN_V3_ROUTES.codeLoginCancel:
         await runCauseEffect(service.cancelProviderCodeLogin(parsed(signInProvider, body)));
         return json(200, {});
+      // A provider id that this host does not know gets a 400. The sign-in service refuses a known
+      // provider that has no code sign-in.
+      case PROVIDERS_V8_ROUTES.codeLoginStart:
+        return json(200, await runCauseEffect(service.startProviderCodeLogin(parsed(hostProvider, body))));
+      case PROVIDERS_V8_ROUTES.codeLoginSubmit: {
+        // The code is a credential: it goes to the CLI's stdin, and no error quotes it.
+        const input = parsed(codeSubmitInputV8, body);
+        service.submitProviderCodeLogin(input.provider, input.code);
+        return json(200, {});
+      }
+      case PROVIDERS_V8_ROUTES.codeLoginCancel:
+        await runCauseEffect(service.cancelProviderCodeLogin(parsed(hostProvider, body)));
+        return json(200, {});
+      case PROVIDERS_V8_ROUTES.runtimesStatus:
+        return json(200, wireSnapshotV8(runtimes.getStatus()));
+      case PROVIDERS_V8_ROUTES.runtimesDownload:
+        return json(200, wireSnapshotV8(await runCauseEffect(runtimes.download(parsed(managedProviderV8, body)))));
+      case PROVIDERS_V8_ROUTES.runtimesCancel:
+        return json(200, wireSnapshotV8(await runCauseEffect(runtimes.cancel(parsed(managedProviderV8, body)))));
+      case PROVIDERS_V8_ROUTES.runtimesCheck:
+        return json(200, wireSnapshotV8(await runCauseEffect(runtimes.checkForUpdates())));
       case PROVIDERS_V5_ROUTES.codeLoginStart:
       case PROVIDERS_V4_ROUTES.codeLoginStart:
         return json(200, await runCauseEffect(service.startProviderCodeLogin(parsed(signInProviderV4, body))));
@@ -131,14 +157,28 @@ export async function routeProviders(
         return json(200, wireSnapshotV4(await runCauseEffect(runtimes.cancel(parsed(managedProviderV4, body)))));
       case PROVIDERS_V4_ROUTES.runtimesCheck:
         return json(200, wireSnapshotV4(await runCauseEffect(runtimes.checkForUpdates())));
+      case PROVIDERS_V8_ROUTES.apiKeyState:
       case PROVIDERS_V5_ROUTES.apiKeyState:
       case PROVIDERS_ADMIN_ROUTES.apiKeyState:
         return json(200, {
-          status: credentials.status(parsed(V5_ROUTES.has(url.pathname) ? managedProviderV5 : provider, body)),
+          status: credentials.status(
+            parsed(
+              V8_ROUTES.has(url.pathname)
+                ? managedProviderV8
+                : V5_ROUTES.has(url.pathname)
+                  ? managedProviderV5
+                  : provider,
+              body,
+            ),
+          ),
         });
+      case PROVIDERS_V8_ROUTES.apiKeySet:
       case PROVIDERS_V5_ROUTES.apiKeySet:
       case PROVIDERS_ADMIN_ROUTES.apiKeySet: {
-        const input = parsed(V5_ROUTES.has(url.pathname) ? apiKeyInputV5 : wireApiKeyInput, body);
+        const input = parsed(
+          V8_ROUTES.has(url.pathname) || V5_ROUTES.has(url.pathname) ? peerApiKeyInput : wireApiKeyInput,
+          body,
+        );
         // The same step as the local handler: the key and the process that uses it change together.
         await runCauseEffect(
           service.changeProviderCredential(input.provider, () =>
@@ -153,9 +193,13 @@ export async function routeProviders(
         );
         return json(200, {});
       }
+      case PROVIDERS_V8_ROUTES.apiKeyClear:
       case PROVIDERS_V5_ROUTES.apiKeyClear:
       case PROVIDERS_ADMIN_ROUTES.apiKeyClear: {
-        const id = parsed(V5_ROUTES.has(url.pathname) ? managedProviderV5 : provider, body);
+        const id = parsed(
+          V8_ROUTES.has(url.pathname) ? managedProviderV8 : V5_ROUTES.has(url.pathname) ? managedProviderV5 : provider,
+          body,
+        );
         await runCauseEffect(
           service.changeProviderCredential(id, () =>
             credentials
@@ -205,12 +249,14 @@ const V2_ROUTES = new Set<string>(Object.values(PROVIDERS_RUNTIMES_V2_ROUTES));
 const V3_ROUTES = new Set<string>(Object.values(PROVIDERS_SIGN_IN_V3_ROUTES));
 const V5_ROUTES = new Set<string>(Object.values(PROVIDERS_V5_ROUTES));
 const V4_ROUTES = new Set<string>(Object.values(PROVIDERS_V4_ROUTES));
+const V8_ROUTES = new Set<string>(Object.values(PROVIDERS_V8_ROUTES));
 const ROUTES = new Set<string>([
   ...Object.values(PROVIDERS_ADMIN_ROUTES),
   ...V2_ROUTES,
   ...V3_ROUTES,
   ...V4_ROUTES,
   ...V5_ROUTES,
+  ...V8_ROUTES,
 ]);
 
 function isProvidersRoute(pathname: string): boolean {
@@ -271,7 +317,7 @@ function codeSubmitInputV4(body: DynamicRecord): { provider: SignInProviderIdV4;
 }
 
 // Inception runs only on this computer, so a peer does not set its key.
-function apiKeyInputV5(body: DynamicRecord) {
+function peerApiKeyInput(body: DynamicRecord) {
   const input = parseProviderApiKeyInput(body);
   if (input.provider === "inception") throw new Error("Unknown provider.");
   return input;
@@ -376,5 +422,29 @@ function wireSnapshotV5(snapshot: ProviderRuntimeSnapshot): ProviderRuntimeSnaps
   return {
     ...wire,
     providers: { ...wire.providers, pi: wireStatus(snapshot.providers.pi), muse: wireStatus(snapshot.providers.muse) },
+  };
+}
+
+/** A `providers-v8` provider: any provider of this host. The wire accepts an id that this host does not know. */
+function hostProvider(body: DynamicRecord) {
+  return parseProviderId(body.provider);
+}
+
+function codeSubmitInputV8(body: DynamicRecord) {
+  return { provider: hostProvider(body), code: pastedCode(body) };
+}
+
+function managedProviderV8(body: DynamicRecord): ManagedProviderId {
+  const id = hostProvider(body);
+  if (!isManagedRuntimeProvider(id)) throw new Error(sourceText("error.team.providerNotManaged"));
+  return id;
+}
+
+/** The `providers-v8` runtime snapshot: one row for each managed runtime, keyed by `id`. */
+function wireSnapshotV8(snapshot: ProviderRuntimeSnapshot) {
+  return {
+    revision: snapshot.revision,
+    providers: MANAGED_RUNTIME_PROVIDERS.map((id) => ({ id, ...wireStatus(snapshot.providers[id]) })),
+    toolRuntimes: MANAGED_TOOL_RUNTIMES.map((id) => ({ id, ...wireStatus(snapshot.toolRuntimes[id]) })),
   };
 }

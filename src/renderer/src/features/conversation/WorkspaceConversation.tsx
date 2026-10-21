@@ -1,4 +1,4 @@
-import type { AgentProviderId } from "@openbot/contracts/agent-providers";
+import { type AgentProviderId, isKnownAgentProvider } from "@openbot/contracts/agent-providers";
 import {
   type AgentModelChoice,
   agentPermissionLevel,
@@ -270,12 +270,17 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
   /** Whether this window runs the sign-in of the agent's provider: on this computer, or on a server it administers. */
   const composerSignIn = () => {
     const provider = conversationAgent()?.provider;
-    return provider !== undefined && connection.connectKind(provider) !== null;
+    return provider !== undefined && isKnownAgentProvider(provider) && connection.connectKind(provider) !== null;
   };
   /** Whether the composer offers the code sign-in for the agent's provider, when its Connect is slow or fails. */
   const composerCodeSignIn = () => {
     const provider = conversationAgent()?.provider;
-    return composerSignIn() && provider !== undefined && connection.alternativeKind(provider) === "code";
+    return (
+      composerSignIn() &&
+      provider !== undefined &&
+      isKnownAgentProvider(provider) &&
+      connection.alternativeKind(provider) === "code"
+    );
   };
 
   /** Access of a joined server's agent goes to its host; every other field keeps the Team API route. */
@@ -336,7 +341,9 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
    */
   const usageLimitAsk = createMemo((): UsageLimitAskCardProps | undefined => {
     const agent = activeAgent();
-    if (!agent || activeServer()?.kind !== "local") return undefined;
+    // Only this computer holds a message at a usage limit, and its agents use the providers it knows.
+    if (!agent || activeServer()?.kind !== "local" || !isKnownAgentProvider(agent.provider)) return undefined;
+    const provider = agent.provider;
     const limits = usageLimits();
     if (!(agent.id in limits)) return undefined;
     const resetsAt = limits[agent.id] ?? null;
@@ -347,7 +354,7 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
       providers: agentStatus().providers,
       limited: usageLimited,
     };
-    const options = usageLimitAskOptions(agent, agent.backupModels, source);
+    const options = usageLimitAskOptions({ ...agent, provider }, agent.backupModels, source);
     if (options.length === 0) return undefined;
     const backupModels = agent.backupModels;
     if (
@@ -359,7 +366,7 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
     const reasoningEffort = agent.reasoningEffort;
     const fromProvider = agent.provider;
     return {
-      provider: agent.provider,
+      provider,
       resetsAt,
       options,
       onSend: async (option, remember) => {

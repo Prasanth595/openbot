@@ -1,5 +1,10 @@
 import { agentProviderName } from "@openbot/contracts/agent-providers";
-import type { AgentEvent, AgentSummary, ServerNotificationLevel, TeamRealtimeEvent } from "@openbot/contracts/ipc";
+import type {
+  AgentEvent,
+  ClientAgentSummary,
+  ServerNotificationLevel,
+  TeamRealtimeEvent,
+} from "@openbot/contracts/ipc";
 import { markdownPreviewText } from "@openbot/contracts/markdown-preview-text";
 import type { AppFormat, AppTranslate } from "@openbot/i18n";
 import { cleanAgentMessageText } from "./agent-message-text";
@@ -17,7 +22,7 @@ export interface AgentNotificationContent {
  */
 export function notificationForUsageLimit(
   event: Extract<AgentEvent, { type: "usage-limit-reached" }>,
-  agents: AgentSummary[],
+  agents: ClientAgentSummary[],
   translate: AppTranslate,
   format: AppFormat,
   level: ServerNotificationLevel,
@@ -117,7 +122,7 @@ export function agentEventNeedsUser(event: AgentEvent): boolean {
  */
 export function notificationForAgentEvent(
   event: AgentEvent,
-  agents: AgentSummary[],
+  agents: ClientAgentSummary[],
   translate: AppTranslate,
   level: ServerNotificationLevel,
   preview: AgentNotificationPreview | null = null,

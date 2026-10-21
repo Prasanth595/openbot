@@ -2,10 +2,10 @@ import { agentProviderDescriptor } from "@openbot/contracts/agent-providers";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import type {
   AgentModelId,
-  AgentModelOption,
   AgentProviderId,
   AgentStatus,
   AvatarHue,
+  ClientAgentModelOption,
   CustomAgentSummary,
   CustomProviderSummary,
   ProviderRuntimeStatus,
@@ -52,7 +52,7 @@ export interface FirstAgentSetupProps {
   submitting?: boolean;
   error?: string | null;
   /** The live catalog behind the model picker. Absent, the form keeps no model choice. */
-  modelOptions?: AgentModelOption[] | undefined;
+  modelOptions?: ClientAgentModelOption[] | undefined;
   agentStatus?: AgentStatus | undefined;
   runtimeStatuses?: Partial<Record<AgentProviderId, ProviderRuntimeStatus>> | undefined;
   customProviders?: readonly CustomProviderSummary[] | undefined;

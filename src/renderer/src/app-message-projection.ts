@@ -1,4 +1,4 @@
-import type { AgentSummary, ConversationMessage, QueueDeliveryStatus } from "@openbot/contracts/ipc";
+import type { ClientAgentSummary, ConversationMessage, QueueDeliveryStatus } from "@openbot/contracts/ipc";
 import {
   CONVERSATION_PLAN_ITEM_TYPE,
   CONVERSATION_SUBAGENTS_ITEM_TYPE,
@@ -26,7 +26,7 @@ import type { TaskListItem } from "@openbot/ui/features/conversation/TaskList";
 import { currentText } from "@openbot/ui/text";
 import { isRoutineEventItem } from "./features/conversation/conversation-read-state";
 
-export function toAgentProfile(stored: AgentSummary): AgentProfile {
+export function toAgentProfile(stored: ClientAgentSummary): AgentProfile {
   return {
     id: stored.id,
     name: stored.name,

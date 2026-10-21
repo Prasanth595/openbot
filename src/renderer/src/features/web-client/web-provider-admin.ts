@@ -19,6 +19,7 @@ import {
 } from "@openbot/contracts/team-protocol/providers-v3";
 import { PROVIDERS_V4_CAPABILITY, PROVIDERS_V4_ROUTES } from "@openbot/contracts/team-protocol/providers-v4";
 import { PROVIDERS_V5_CAPABILITY, PROVIDERS_V5_ROUTES } from "@openbot/contracts/team-protocol/providers-v5";
+import { PROVIDERS_V8_CAPABILITY, PROVIDERS_V8_ROUTES } from "@openbot/contracts/team-protocol/providers-v8";
 import { runTeamEffect } from "@openbot/team-client";
 import {
   cancelProviderAccountSignIn,
@@ -99,7 +100,7 @@ function webProviderAdmin(
   request: (serverId?: string) => TeamApiRequest,
   runtimeRoutes: () => ProviderRuntimeRoutes,
   signInRoutes: () => ProviderCodeLoginRoutes,
-  keyRoutes: () => typeof PROVIDERS_ADMIN_ROUTES | typeof PROVIDERS_V5_ROUTES,
+  keyRoutes: () => typeof PROVIDERS_ADMIN_ROUTES | typeof PROVIDERS_V5_ROUTES | typeof PROVIDERS_V8_ROUTES,
 ): ProviderAdminDesktopApi {
   return {
     startCodeLogin: async (provider, serverId) =>
@@ -114,7 +115,7 @@ function webProviderAdmin(
         submitProviderCodeLogin(
           request(serverId),
           input,
-          routes === PROVIDERS_V4_ROUTES ? routes : PROVIDERS_SIGN_IN_V3_ROUTES,
+          routes === PROVIDERS_V8_ROUTES || routes === PROVIDERS_V4_ROUTES ? routes : PROVIDERS_SIGN_IN_V3_ROUTES,
         ).pipe(Effect.mapError((error) => error.cause)),
       );
     },
@@ -216,24 +217,30 @@ export function createWebProviderSettings(options: WebProviderSettingsOptions) {
   const admin = webProviderAdmin(
     options.request,
     () =>
-      serverSupportsCapability(options.server(), PROVIDERS_V5_CAPABILITY)
-        ? PROVIDERS_V5_ROUTES
-        : serverSupportsCapability(options.server(), PROVIDERS_V4_CAPABILITY)
-          ? PROVIDERS_V4_ROUTES
-          : serverSupportsCapability(options.server(), PROVIDERS_RUNTIMES_V2_CAPABILITY)
-            ? PROVIDERS_RUNTIMES_V2_ROUTES
-            : PROVIDERS_ADMIN_ROUTES,
+      serverSupportsCapability(options.server(), PROVIDERS_V8_CAPABILITY)
+        ? PROVIDERS_V8_ROUTES
+        : serverSupportsCapability(options.server(), PROVIDERS_V5_CAPABILITY)
+          ? PROVIDERS_V5_ROUTES
+          : serverSupportsCapability(options.server(), PROVIDERS_V4_CAPABILITY)
+            ? PROVIDERS_V4_ROUTES
+            : serverSupportsCapability(options.server(), PROVIDERS_RUNTIMES_V2_CAPABILITY)
+              ? PROVIDERS_RUNTIMES_V2_ROUTES
+              : PROVIDERS_ADMIN_ROUTES,
     // `providers-v1` signs in Codex only; the picker offers no other provider on such a host.
     () =>
-      serverSupportsCapability(options.server(), PROVIDERS_V4_CAPABILITY)
-        ? PROVIDERS_V4_ROUTES
-        : serverSupportsCapability(options.server(), PROVIDERS_SIGN_IN_V3_CAPABILITY)
-          ? PROVIDERS_SIGN_IN_V3_ROUTES
-          : PROVIDERS_ADMIN_ROUTES,
+      serverSupportsCapability(options.server(), PROVIDERS_V8_CAPABILITY)
+        ? PROVIDERS_V8_ROUTES
+        : serverSupportsCapability(options.server(), PROVIDERS_V4_CAPABILITY)
+          ? PROVIDERS_V4_ROUTES
+          : serverSupportsCapability(options.server(), PROVIDERS_SIGN_IN_V3_CAPABILITY)
+            ? PROVIDERS_SIGN_IN_V3_ROUTES
+            : PROVIDERS_ADMIN_ROUTES,
     () =>
-      serverSupportsCapability(options.server(), PROVIDERS_V5_CAPABILITY)
-        ? PROVIDERS_V5_ROUTES
-        : PROVIDERS_ADMIN_ROUTES,
+      serverSupportsCapability(options.server(), PROVIDERS_V8_CAPABILITY)
+        ? PROVIDERS_V8_ROUTES
+        : serverSupportsCapability(options.server(), PROVIDERS_V5_CAPABILITY)
+          ? PROVIDERS_V5_ROUTES
+          : PROVIDERS_ADMIN_ROUTES,
   );
   const serverId = createMemo(() => remoteAdminServer(options.server(), "providers-v1")?.id);
   const runtimes = createProviderRuntimeStore(

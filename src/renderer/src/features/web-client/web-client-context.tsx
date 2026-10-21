@@ -2,14 +2,14 @@ import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import type {
   AgentApproval,
   AgentEvent,
-  AgentModelOption,
   AgentRuntimeApproval,
   AgentStatus,
-  AgentSummary,
   AttachmentSummary,
   BrowserControlState,
   BrowserTab,
   BrowserTakeoverRequest,
+  ClientAgentModelOption,
+  ClientAgentSummary,
   ConversationMessage,
   ConversationPage,
   HiddenAgent,
@@ -101,7 +101,7 @@ function trimToLatestPage(conversation: WebConversation): void {
 interface WebWorkspaceState {
   hosts: RemoteTeamHost[];
   host: RemoteTeamHost | null;
-  agents: AgentSummary[];
+  agents: ClientAgentSummary[];
   /** The host answered an agent list. Until then, an empty `agents` does not mean the host has none. */
   agentsLoaded: boolean;
   selectedId: string | null;
@@ -137,7 +137,7 @@ interface WebWorkspaceState {
   panelsFailed: boolean;
   panelsLoading: boolean;
   agentStatus: AgentStatus | null;
-  models: AgentModelOption[];
+  models: ClientAgentModelOption[];
   /** The opened host said it restarts into an update (`host-update-v1`). Cleared when it is online again. */
   hostRestart: { state: "waiting" | "restarting"; version: string | null } | null;
   /** The state of each host that this tab has not opened, from its status connection. */
@@ -326,7 +326,7 @@ export function createWebWorkspace(
       recover();
     },
   });
-  const hostNoticeListeners = new Set<(hostId: string, event: WebHostNotice, agents: AgentSummary[]) => void>();
+  const hostNoticeListeners = new Set<(hostId: string, event: WebHostNotice, agents: ClientAgentSummary[]) => void>();
   const runtime = (props.createRuntime ?? createWebWorkspaceRuntime)(
     props.accountId,
     {
@@ -642,7 +642,7 @@ export function createWebWorkspace(
     if (!capabilities.includes(AGENT_HIDDEN_CAPABILITY) || !read) return [];
     return (await read()).agents;
   }
-  function reconcileAgents(agents: AgentSummary[]): void {
+  function reconcileAgents(agents: ClientAgentSummary[]): void {
     const ids = new Set(agents.map((agent) => agent.id));
     const nextSelected = selectedId && ids.has(selectedId) ? selectedId : null;
     selectedId = nextSelected;
@@ -1474,7 +1474,7 @@ export function createWebWorkspace(
       };
     },
     /** The events of the hosts this tab has not opened that a notification can show. Returns the unsubscribe function. */
-    onHostNotice(listener: (hostId: string, event: WebHostNotice, agents: AgentSummary[]) => void) {
+    onHostNotice(listener: (hostId: string, event: WebHostNotice, agents: ClientAgentSummary[]) => void) {
       hostNoticeListeners.add(listener);
       return () => {
         hostNoticeListeners.delete(listener);

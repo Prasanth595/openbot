@@ -1,5 +1,5 @@
 import type {
-  AgentSummary,
+  ClientAgentSummary,
   InstalledSkill,
   MarketplaceAgentDetail,
   MarketplaceAgentSummary,
@@ -14,7 +14,7 @@ import type { MarketplacePluginDetail, MarketplacePluginPrompt } from "../settin
 import type { CatalogList, MarketplaceHomeCache } from "./marketplace-listing";
 
 /** An agent of the user's that a skill can go to. */
-export type MarketplaceAgent = Pick<AgentSummary, "id" | "name" | "avatarSeed" | "avatarHue" | "avatarUrl">;
+export type MarketplaceAgent = Pick<ClientAgentSummary, "id" | "name" | "avatarSeed" | "avatarHue" | "avatarUrl">;
 
 /** What an agent listing offers the user. */
 export type AgentListingState = "add" | "added" | "update";

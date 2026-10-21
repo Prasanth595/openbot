@@ -1,4 +1,9 @@
-import { type AgentEvent, type AgentSummary, isAgentSummary, type TeamRealtimeEvent } from "@openbot/contracts/ipc";
+import {
+  type AgentEvent,
+  type ClientAgentSummary,
+  isClientAgentSummary,
+  type TeamRealtimeEvent,
+} from "@openbot/contracts/ipc";
 import { guardedListDecoder } from "@openbot/contracts/ipc-decoding";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import { teamProtocolUpdateDirection } from "@openbot/contracts/team-protocol/v1";
@@ -44,7 +49,7 @@ interface HostEntry {
   endingSessions: Set<Promise<void>>;
   incompatible: boolean;
   /** The host's agents, for the name and the notification switch of an event's agent. */
-  agents: AgentSummary[];
+  agents: ClientAgentSummary[];
   /** Counts `agents-changed` events, so a list read that started before one is dropped. */
   agentsRevision: number;
 }
@@ -101,7 +106,7 @@ export function createWebHostConnections(options: {
   /** The host revoked the session. The membership may have ended. */
   onSessionRevoked(): void;
   /** An event of a host this tab has not opened, with the host's agents, for a notification. */
-  onNotice?(hostId: string, event: WebHostNotice, agents: AgentSummary[]): void;
+  onNotice?(hostId: string, event: WebHostNotice, agents: ClientAgentSummary[]): void;
 }): WebHostConnections {
   const { channel } = options;
   const entries = new Map<string, HostEntry>();
@@ -267,7 +272,7 @@ export function createWebHostConnections(options: {
       if (entries.get(entry.host.hostId) !== entry || !response?.ok || (response.status ?? 500) >= 400) return;
       // An `agents-changed` that arrived during the read is newer than the read.
       if (entry.agentsRevision !== revision) return;
-      entry.agents = guardedListDecoder(isAgentSummary, "teammates")(response.body);
+      entry.agents = guardedListDecoder(isClientAgentSummary, "teammates")(response.body);
     } catch {
       // As above: the status does not depend on the list.
     }

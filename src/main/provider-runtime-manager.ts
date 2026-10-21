@@ -1874,7 +1874,7 @@ function isVersion(value: string): boolean {
  * A commit orders nothing, so two Cursor builds of the same date and time, or of the same date with
  * no time, are neither older nor newer.
  */
-function olderVersion(installed: string, target: string): boolean {
+export function olderVersion(installed: string, target: string): boolean {
   return isVersion(installed) && isVersion(target) && compareReleases(installed, target) < 0;
 }
 

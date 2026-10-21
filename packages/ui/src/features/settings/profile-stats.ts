@@ -1,4 +1,4 @@
-import type { AgentSummary, HostAnalytics } from "@openbot/contracts/ipc";
+import type { ClientAgentSummary, HostAnalytics } from "@openbot/contracts/ipc";
 import { usageProviders } from "../usage/usage-format";
 
 const DAY_MS = 86_400_000;
@@ -27,7 +27,7 @@ export interface ProfileStats {
   busiestWeekday: number | null;
   providers: Array<{ provider: string; tokens: number; share: number }>;
   models: Array<{ provider: string; model: string; share: number }>;
-  teammates: Array<{ agent: AgentSummary; tokens: number }>;
+  teammates: Array<{ agent: ClientAgentSummary; tokens: number }>;
 }
 
 function active(day: ProfileDay): boolean {
@@ -76,7 +76,7 @@ export function heatmapMonths(weeks: ReadonlyArray<ReadonlyArray<ProfileDay | nu
  * The Profile tab's view of one host report: every day of the range, the streaks, and the
  * rankings. A teammate that was deleted has usage but no row in `agents`, so the ranking skips it.
  */
-export function profileStats(report: HostAnalytics, agents: readonly AgentSummary[]): ProfileStats {
+export function profileStats(report: HostAnalytics, agents: readonly ClientAgentSummary[]): ProfileStats {
   const byDate = new Map(report.daily.map((day) => [day.date, day]));
   const days: ProfileDay[] = [];
   const end = Date.parse(`${report.endDate}T00:00:00Z`);

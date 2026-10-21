@@ -1,3 +1,4 @@
+import { isKnownAgentProvider } from "@openbot/contracts/agent-providers";
 import {
   type FileQuoteTarget,
   fileQuoteId,
@@ -1128,13 +1129,15 @@ export function createConversationViewScope(props: ConversationProps) {
       const pendingSettings = resources.runtimeSettingsAttempts.get(
         untrack(() => agentConversationKey(props.server?.id ?? "local", props.agent?.id ?? "")),
       );
+      const provider = agent.provider;
       if (
         pendingSettings?.pending &&
-        !runtimeSettingsEqual(pendingSettings.settings, {
-          provider: agent.provider,
-          model: agent.model,
-          reasoningEffort: agent.reasoningEffort,
-        })
+        (!isKnownAgentProvider(provider) ||
+          !runtimeSettingsEqual(pendingSettings.settings, {
+            provider,
+            model: agent.model,
+            reasoningEffort: agent.reasoningEffort,
+          }))
       ) {
         setSettingsProvider(pendingSettings.settings.provider);
         setSettingsModel(pendingSettings.settings.model);
@@ -1143,7 +1146,8 @@ export function createConversationViewScope(props: ConversationProps) {
       }
       if (agent.signature === lastRuntimeSettingsSignature) return;
       lastRuntimeSettingsSignature = agent.signature;
-      setSettingsProvider(agent.provider);
+      // A provider that this build does not know has no picker tab; the picker shows it from the agent.
+      if (isKnownAgentProvider(provider)) setSettingsProvider(provider);
       setSettingsModel(agent.model);
       setSettingsReasoning(agent.reasoningEffort);
     },

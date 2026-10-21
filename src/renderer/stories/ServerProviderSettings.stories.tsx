@@ -6,6 +6,7 @@ import type {
   CustomProviderSummary,
   ProviderRuntimeSnapshot,
   ServerSummary,
+  UpdateCustomProviderInput,
 } from "@openbot/contracts/ipc";
 import { Toaster, toast } from "@openbot/ui";
 import type { ProviderDetection } from "@openbot/ui/features/custom-providers/detected-providers";
@@ -184,6 +185,24 @@ function ServerProvidersStory(props: {
     return "restarted";
   }
 
+  /** A key that is not sent stays saved, as in main. */
+  async function updateCustomProvider(input: UpdateCustomProviderInput): Promise<CustomProviderRestart> {
+    setCustomProviders((current) =>
+      current.map((provider) =>
+        provider.id === input.id
+          ? {
+              ...provider,
+              name: input.name,
+              baseUrl: input.baseUrl,
+              models: input.models,
+              hasApiKey: provider.hasApiKey || Boolean(input.apiKey),
+            }
+          : provider,
+      ),
+    );
+    return "restarted";
+  }
+
   return (
     <>
       <SettingsPageStory title="Server settings" onEscape={() => setOpen(false)}>
@@ -265,6 +284,7 @@ function ServerProvidersStory(props: {
                         : undefined,
                     onAddCustomProvider: addCustomProvider,
                     onDeleteCustomProvider: deleteCustomProvider,
+                    onUpdateCustomProvider: updateCustomProvider,
                     get customProviders() {
                       return customProviders();
                     },

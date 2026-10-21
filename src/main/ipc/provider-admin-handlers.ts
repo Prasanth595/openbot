@@ -1,4 +1,5 @@
 import { PROVIDERS_V5_CAPABILITY, PROVIDERS_V5_ROUTES } from "@openbot/contracts/team-protocol/providers-v5";
+import { PROVIDERS_V8_CAPABILITY, PROVIDERS_V8_ROUTES } from "@openbot/contracts/team-protocol/providers-v8";
 import { Cause, Effect, Exit, Fiber } from "effect";
 import type { RemoteWorkflowError } from "../remote-service-effects";
 // The providers of one server's host: code sign-in, API keys, managed CLI runtimes and custom
@@ -17,6 +18,7 @@ import {
   decodeProviderCodeLoginStart,
   decodeProviderHostSignInStatus,
   decodeProviderRuntimeSnapshot,
+  decodeProviderRuntimeSnapshotV8,
   decodeSignInRelayFlow,
   type McpTestResult,
   type PasteProviderRelaySignInInput,
@@ -124,15 +126,17 @@ export function providerAdminIpcHandlers({
   }
 
   /**
-   * The runtime routes of the host: `providers-v4` includes Cursor and Cline, `providers-v2` Gemini,
-   * and `providers-v1` none of them.
+   * The runtime routes of the host: `providers-v8` names any provider, `providers-v4` includes Cursor
+   * and Cline, `providers-v2` Gemini, and `providers-v1` none of them.
    */
   function keyRoutes(serverId: string) {
+    if (remoteServers.supportsCapability(serverId, PROVIDERS_V8_CAPABILITY)) return PROVIDERS_V8_ROUTES;
     return remoteServers.supportsCapability(serverId, PROVIDERS_V5_CAPABILITY)
       ? PROVIDERS_V5_ROUTES
       : PROVIDERS_ADMIN_ROUTES;
   }
   function runtimeRoutes(serverId: string) {
+    if (remoteServers.supportsCapability(serverId, PROVIDERS_V8_CAPABILITY)) return PROVIDERS_V8_ROUTES;
     if (remoteServers.supportsCapability(serverId, PROVIDERS_V5_CAPABILITY)) return PROVIDERS_V5_ROUTES;
     if (remoteServers.supportsCapability(serverId, PROVIDERS_V4_CAPABILITY)) return PROVIDERS_V4_ROUTES;
     return remoteServers.supportsCapability(serverId, PROVIDERS_RUNTIMES_V2_CAPABILITY)
@@ -141,11 +145,12 @@ export function providerAdminIpcHandlers({
   }
 
   /**
-   * The sign-in routes of the host: `providers-v4` signs in Codex, Claude, Grok, Cursor and Cline,
+   * The sign-in routes of the host: `providers-v8` names any provider, `providers-v4` signs in Codex, Claude, Grok, Cursor and Cline,
    * and `providers-v3` Codex, Claude and Grok. An older host has `providers-v1` only, which signs in
    * Codex, so another provider is refused here and not by the host.
    */
   function signInRoutes(serverId: string, provider: AgentProviderId) {
+    if (remoteServers.supportsCapability(serverId, PROVIDERS_V8_CAPABILITY)) return PROVIDERS_V8_ROUTES;
     if (remoteServers.supportsCapability(serverId, PROVIDERS_V4_CAPABILITY)) return PROVIDERS_V4_ROUTES;
     if (remoteServers.supportsCapability(serverId, PROVIDERS_SIGN_IN_V3_CAPABILITY)) return PROVIDERS_SIGN_IN_V3_ROUTES;
     if (provider !== "codex") throw new Error(sourceText("error.provider.localOnly"));
@@ -219,8 +224,14 @@ export function providerAdminIpcHandlers({
     if (running) await Effect.runPromise(Fiber.interrupt(running.fiber));
   }
 
+  /** `providers-v8` lists the runtimes as rows; the older route sets give the IPC record. */
+  function runtimeDecoder(serverId: string) {
+    return remoteServers.supportsCapability(serverId, PROVIDERS_V8_CAPABILITY)
+      ? decodeProviderRuntimeSnapshotV8
+      : decodeProviderRuntimeSnapshot;
+  }
   const runtime = (route: "runtimesDownload" | "runtimesCancel") => (provider: ManagedProviderId, serverId: string) =>
-    remote(serverId, runtimeRoutes(serverId)[route], { provider }, decodeProviderRuntimeSnapshot);
+    remote(serverId, runtimeRoutes(serverId)[route], { provider }, runtimeDecoder(serverId));
 
   return {
     providerAdmin: {
@@ -232,6 +243,8 @@ export function providerAdminIpcHandlers({
       submitCodeLogin: scopedHandler(parseSubmitCodeLoginInput, {
         local: ({ provider, code }) => service.submitProviderCodeLogin(provider, code),
         remote: (input, serverId) => {
+          if (remoteServers.supportsCapability(serverId, PROVIDERS_V8_CAPABILITY))
+            return remoteChange(serverId, PROVIDERS_V8_ROUTES.codeLoginSubmit, input);
           if (remoteServers.supportsCapability(serverId, PROVIDERS_V4_CAPABILITY))
             return remoteChange(serverId, PROVIDERS_V4_ROUTES.codeLoginSubmit, input);
           if (!remoteServers.supportsCapability(serverId, PROVIDERS_SIGN_IN_V3_CAPABILITY))
@@ -345,8 +358,7 @@ export function providerAdminIpcHandlers({
       }),
       getRuntimes: scopedQueryHandler({
         local: () => runtimes.getStatus(),
-        remote: (serverId) =>
-          remote(serverId, runtimeRoutes(serverId).runtimesStatus, {}, decodeProviderRuntimeSnapshot),
+        remote: (serverId) => remote(serverId, runtimeRoutes(serverId).runtimesStatus, {}, runtimeDecoder(serverId)),
       }),
       downloadRuntime: scopedHandler(parseManagedProviderId, {
         local: (provider) => runCauseEffect(runtimes.download(provider)),
@@ -358,8 +370,7 @@ export function providerAdminIpcHandlers({
       }),
       checkRuntimeUpdates: scopedQueryHandler({
         local: () => runCauseEffect(runtimes.checkForUpdates()),
-        remote: (serverId) =>
-          remote(serverId, runtimeRoutes(serverId).runtimesCheck, {}, decodeProviderRuntimeSnapshot),
+        remote: (serverId) => remote(serverId, runtimeRoutes(serverId).runtimesCheck, {}, runtimeDecoder(serverId)),
       }),
       listCustomProviders: scopedQueryHandler({
         local: () => customProviders.list(),

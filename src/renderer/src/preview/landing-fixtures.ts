@@ -1,6 +1,6 @@
 import type {
-  AgentSummary,
   AttachmentSummary,
+  ClientAgentSummary,
   ConversationMessage,
   ConversationSnapshot,
   DirectConversationSnapshot,
@@ -21,7 +21,7 @@ import type { MockOpenBotOptions } from "./mock-openbot";
 
 const LANDING_PREVIEW_NOW = "2026-08-21T10:00:00.000Z";
 
-const LANDING_PREVIEW_AGENTS: AgentSummary[] = [
+const LANDING_PREVIEW_AGENTS: ClientAgentSummary[] = [
   {
     id: "chief",
     provider: "codex",

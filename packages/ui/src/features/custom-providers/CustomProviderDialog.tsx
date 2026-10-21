@@ -113,12 +113,15 @@ export function CustomProviderDialog(props: CustomProviderDialogProps) {
     () => props.open,
     (open, previous) => {
       if (!open || previous) return;
-      setDraft(() => (props.draft ? cloneDraft(props.draft) : emptyCustomProviderDraft()));
-      setSubmitted(Boolean(props.showErrors));
+      // A snapshot: a later change of the draft prop must not reach the open form.
+      const next = untrack(() => props.draft);
+      setDraft(() => (next ? cloneDraft(next) : emptyCustomProviderDraft()));
+      setSubmitted(untrack(() => Boolean(props.showErrors)));
     },
   );
 
-  const errors = () => validateCustomProvider(draft, props.takenProviderIds, t);
+  const errors = () =>
+    validateCustomProvider(draft, { taken: props.takenProviderIds, locked: props.providerIdLocked }, t);
   const shown = (): CustomProviderErrors | null => (submitted() ? errors() : null);
   const busy = () => Boolean(props.busy);
   const discovery = (): ModelDiscovery => props.discovery ?? { status: "idle" };
@@ -230,7 +233,9 @@ export function CustomProviderDialog(props: CustomProviderDialogProps) {
       <Dialog.Portal>
         <Dialog.Overlay class="custom-provider-backdrop">
           <Dialog.Content as="section" class="custom-provider-dialog" aria-busy={busy() ? "true" : undefined}>
-            <Dialog.Title class="sr-only">{t("customProvider.form.title")}</Dialog.Title>
+            <Dialog.Title class="sr-only">
+              {props.providerIdLocked ? t("customProvider.form.editTitle") : t("customProvider.form.title")}
+            </Dialog.Title>
             <Dialog.Description class="sr-only">{t("customProvider.form.description")}</Dialog.Description>
 
             <header class="custom-provider-header">

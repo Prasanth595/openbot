@@ -2,6 +2,8 @@ import type { AttachmentSupport } from "@openbot/contracts/attachment-files";
 import type {
   AddedAgent,
   AddMessagingOrchestratorResult,
+  AgentAccessChange,
+  AgentAccessSnapshot,
   AgentAdminSettings,
   AgentAnalytics,
   AgentAnalyticsInput,
@@ -27,6 +29,7 @@ import type {
   CreateAgentInput,
   CreateRoutineInput,
   DraftAttachment,
+  ForeignProviderId,
   GitHubConnectorRepositories,
   HostAddMessagingOrchestratorInput,
   HostAgentMemoryLimit,
@@ -132,6 +135,8 @@ export interface MobileServer {
 
 export interface MobileAgent {
   provider?: AgentProviderId;
+  /** The provider when this build does not know it. The host still runs the agent. */
+  foreignProvider?: ForeignProviderId | undefined;
   model?: AgentModelId;
   reasoningEffort?: AgentReasoningEffort;
   /** One switch for every member: off stops the host's notifications and Live Activity for the agent. */
@@ -267,6 +272,12 @@ export interface MobileWorkspaceContextValue {
   /** How many memories each agent of the server can keep, and the values that the host permits. */
   loadAgentMemoryLimit: (serverId: string) => Promise<HostAgentMemoryLimit>;
   setAgentMemoryLimit: (limit: number, serverId: string) => Promise<HostAgentMemoryLimit>;
+  /** An owner or admin of an online host that serves `agent-access-v1`. The host checks the role again. */
+  canManageServerRoles: (serverId: string) => boolean;
+  /** The roles of the server and the agents that each one gives its members. */
+  loadServerRoles: (serverId: string) => Promise<AgentAccessSnapshot>;
+  /** Replaces all roles. The host refuses a change made from an earlier revision. */
+  setServerRoles: (change: AgentAccessChange, serverId: string) => Promise<AgentAccessSnapshot>;
   /**
    * An owner or admin of an online host that serves `connectors-v1`: its Slack, Discord, Telegram and
    * GitHub connections. The host checks the role again.
@@ -567,6 +578,7 @@ type MobileWorkspaceStateKey =
   | "canEditServerIdentity"
   | "canManageServerTimezone"
   | "canManageAgentMemoryLimit"
+  | "canManageServerRoles"
   | "canManageConnectors"
   | "canManageOnePasswordConnector"
   | "serverUpdateAccess"

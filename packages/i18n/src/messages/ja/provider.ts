@@ -108,6 +108,7 @@ export const messages = {
   "provider.picker.providers": "モデルプロバイダー",
   "provider.picker.downloading": "ダウンロード中 {percent}",
   "provider.picker.unavailable": "{name} は利用できません。",
+  "provider.picker.updateToUse": "{name} を使うには OpenBot を更新してください",
   "provider.picker.models": "{name} のモデル",
   "provider.picker.addProvider": "プロバイダーを追加",
   "provider.picker.download": "{name} のダウンロード",

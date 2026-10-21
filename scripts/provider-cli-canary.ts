@@ -18,9 +18,14 @@ import type { AgentClient } from "../src/backend/agent-client";
 import { runCauseEffect } from "../src/backend/effect-boundary";
 import { decodeModelListResponse } from "../src/backend/protocol";
 import { NO_PROVIDER_CREDENTIALS, requireProviderDriver } from "../src/backend/provider-drivers";
-import type { RuntimeTarget } from "../src/main/provider-runtime-descriptors";
-import { ProviderRuntimeManager } from "../src/main/provider-runtime-manager";
-import { type LatestReleaseContext, latestRelease } from "../src/main/provider-runtime-releases";
+import { providerRuntimeDescriptor, type RuntimeTarget } from "../src/main/provider-runtime-descriptors";
+import { olderVersion, ProviderRuntimeManager, runtimeTarget } from "../src/main/provider-runtime-manager";
+import {
+  type BlockedVersions,
+  fetchBlockedVersions,
+  type LatestReleaseContext,
+  latestRelease,
+} from "../src/main/provider-runtime-releases";
 import { parseAgentRuntimeLock } from "./agent-runtime-lock";
 import { runTurn, startThread, stopClients } from "./provider-fakes/host";
 
@@ -48,6 +53,8 @@ const NOT_COVERED: Readonly<Record<string, string>> = {
 interface CanaryResult {
   provider: ManagedProviderId;
   version: string | null;
+  /** The version an update installs now: the newest release, unless it is blocked or older than the pin. */
+  expected: string;
   model: string;
   listed: boolean;
   turn: { status: string | null; error: string | null; replied: boolean };
@@ -89,9 +96,10 @@ Object.assign(process.env, {
   XDG_CACHE_HOME: join(home, ".cache"),
 });
 
+const lock = parseAgentRuntimeLock(lockValue);
+
 /** Every provider's newest release must be readable for every target, or no user gets the update. */
 async function readReleases(): Promise<string[]> {
-  const lock = parseAgentRuntimeLock(lockValue);
   const failures: string[] = [];
   // Each target of a provider reads the same release, and GitHub allows 60 API requests an hour
   // without a token, so each URL is read once.
@@ -120,6 +128,22 @@ async function readReleases(): Promise<string[]> {
   return failures;
 }
 
+/**
+ * The version that an update installs on this computer now. The manager installs the pinned version
+ * when its own release read fails, so an install that differs from this version fails the run.
+ */
+async function expectedVersion(provider: ManagedProviderId): Promise<string> {
+  const target = runtimeTarget(process.platform, process.arch);
+  if (!target) throw new Error(`No provider runtime exists for ${process.platform}-${process.arch}.`);
+  const newest = await runCauseEffect(latestRelease(provider, { target, lock, fetch }));
+  // The manager also blocks nothing when it cannot read the list.
+  const blocked = await Effect.runPromise(
+    fetchBlockedVersions(fetch).pipe(Effect.catch(() => Effect.succeed<BlockedVersions>(new Map()))),
+  );
+  const pinned = providerRuntimeDescriptor(provider).spec(target, lock).version;
+  return blocked.get(provider)?.has(newest.version) || !olderVersion(pinned, newest.version) ? pinned : newest.version;
+}
+
 async function canary(manager: ProviderRuntimeManager, provider: ManagedProviderId): Promise<CanaryResult> {
   const model = FREE_MODELS[provider] ?? "";
   await runCauseEffect(manager.downloadAndWait(provider));
@@ -127,6 +151,8 @@ async function canary(manager: ProviderRuntimeManager, provider: ManagedProvider
   const version = manager.getStatus().providers[provider].version;
   if (!executable || !version) throw new Error(`${provider}: the newest release did not install.`);
   process.stdout.write(`${provider} ${version}: ${executable}\n`);
+  const expected = await expectedVersion(provider);
+  assert.equal(version, expected, `${provider}: installed ${version}, but an update installs ${expected} now.`);
 
   const driver = requireProviderDriver(provider);
   const open = () => {
@@ -160,7 +186,8 @@ async function canary(manager: ProviderRuntimeManager, provider: ManagedProvider
     });
   });
   const waiting = runTurn(client, thread, { model, text: "Count from 1 to 2000, one number on each line." });
-  await started;
+  // A turn that fails before it starts ends the wait too.
+  await Promise.race([started, waiting]);
   await runCauseEffect(client.request("turn/interrupt", { threadId: thread }, (value) => value));
   const cancelled = await waiting;
   const next = await runTurn(client, thread, { model, text: "Reply with the single word: ok" });
@@ -185,6 +212,7 @@ async function canary(manager: ProviderRuntimeManager, provider: ManagedProvider
   return {
     provider,
     version,
+    expected,
     model,
     listed: isListed,
     turn: { status: turn.status, error: turn.error, replied: turn.reply.trim().length > 0 },

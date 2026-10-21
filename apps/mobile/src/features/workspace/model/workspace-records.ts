@@ -1,8 +1,13 @@
 import {
   type AgentSummary,
+  type ClientAgentSummary,
+  type ForeignProviderId,
+  foreignProvider,
   isAgentModel,
   isAgentProvider,
+  isAgentProviderRef,
   isAvatarHue,
+  isKnownAgentProvider,
   isReasoningEffort,
   isSidebarLayoutSnapshot,
   type SidebarLayoutSnapshot,
@@ -19,7 +24,7 @@ export type RemoteAgent = Pick<
 > &
   Partial<
     Pick<AgentSummary, "provider" | "model" | "reasoningEffort" | "avatarUrl" | "notifications" | "workspacePath">
-  >;
+  > & { foreignProvider?: ForeignProviderId | undefined };
 
 export function projectAgent(serverId: string, agent: RemoteAgent): MobileAgent {
   return {
@@ -31,6 +36,7 @@ export function projectAgent(serverId: string, agent: RemoteAgent): MobileAgent 
     preview: agent.preview,
     updatedLabel: formatUpdatedAt(agent.updatedAt),
     provider: agent.provider,
+    foreignProvider: agent.foreignProvider,
     model: agent.model,
     reasoningEffort: agent.reasoningEffort,
     notifications: agent.notifications,
@@ -39,6 +45,14 @@ export function projectAgent(serverId: string, agent: RemoteAgent): MobileAgent 
     avatarSeed: agent.avatarSeed,
     avatarHue: agent.avatarHue,
   };
+}
+
+/** An agent of a host event. A provider that this build does not know moves to `foreignProvider`. */
+export function remoteAgentOf(agent: ClientAgentSummary): RemoteAgent {
+  const { provider, ...rest } = agent;
+  return isKnownAgentProvider(provider)
+    ? { ...rest, provider }
+    : { ...rest, provider: undefined, foreignProvider: foreignProvider(provider) };
 }
 
 export function decodeAgent(value: unknown): RemoteAgent {
@@ -63,6 +77,8 @@ export function decodeAgent(value: unknown): RemoteAgent {
     preview: value.preview,
     updatedAt: value.updatedAt,
     provider: isAgentProvider(value.provider) ? value.provider : undefined,
+    // A provider of a newer host stays on the agent: the host still runs it.
+    foreignProvider: isAgentProviderRef(value.provider) ? foreignProvider(value.provider) : undefined,
     model: isAgentModel(value.model) ? value.model : undefined,
     reasoningEffort: isReasoningEffort(value.reasoningEffort) ? value.reasoningEffort : undefined,
     notifications: isBoolean(value.notifications) ? value.notifications : undefined,

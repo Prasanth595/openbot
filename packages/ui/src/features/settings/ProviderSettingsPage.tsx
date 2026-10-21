@@ -104,6 +104,11 @@ export interface ProviderSettingsPageProps extends ProviderRowHost {
   customProviders?: readonly CustomProviderSummary[] | undefined;
   /** Without it the page has no custom endpoints: a joined server's OpenCode is not this computer's. */
   onAddCustomProvider?: (() => void) | undefined;
+  /**
+   * Opens the form for a saved endpoint. This computer only: the Team API has no edit route, so a
+   * joined server's rows have no Edit.
+   */
+  onEditCustomProvider?: ((provider: CustomProviderSummary) => void) | undefined;
   /** Runs after the user accepts the removal question. */
   onRemoveCustomProvider?: ((provider: CustomProviderSummary) => void) | undefined;
   removingCustomProvider?: string | null | undefined;
@@ -1350,20 +1355,37 @@ function CustomEndpointsPage(props: ProviderSettingsPageProps) {
                       {endpoint().hasApiKey ? ` · ${t("customProvider.list.apiKeySaved")}` : ""}
                     </ItemDescription>
                   </ItemContent>
-                  <Show when={props.onRemoveCustomProvider}>
+                  <Show when={props.onEditCustomProvider || props.onRemoveCustomProvider}>
                     <ItemActions>
-                      <Button
-                        type="button"
-                        variant="destructive-ghost"
-                        size="sm"
-                        aria-label={t("customProvider.list.deleteLabel", { name: endpoint().name })}
-                        loading={props.removingCustomProvider === endpoint().id}
-                        disabled={props.disabled || Boolean(props.removingCustomProvider)}
-                        onClick={() => setConfirming(endpoint())}
-                      >
-                        <Trash2 aria-hidden="true" />
-                        {t("common.remove")}
-                      </Button>
+                      <Show when={props.onEditCustomProvider}>
+                        {(edit) => (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            aria-label={t("customProvider.list.editLabel", { name: endpoint().name })}
+                            disabled={props.disabled || Boolean(props.removingCustomProvider)}
+                            onClick={() => edit()(endpoint())}
+                          >
+                            <Pencil aria-hidden="true" />
+                            {t("common.edit")}
+                          </Button>
+                        )}
+                      </Show>
+                      <Show when={props.onRemoveCustomProvider}>
+                        <Button
+                          type="button"
+                          variant="destructive-ghost"
+                          size="sm"
+                          aria-label={t("customProvider.list.deleteLabel", { name: endpoint().name })}
+                          loading={props.removingCustomProvider === endpoint().id}
+                          disabled={props.disabled || Boolean(props.removingCustomProvider)}
+                          onClick={() => setConfirming(endpoint())}
+                        >
+                          <Trash2 aria-hidden="true" />
+                          {t("common.remove")}
+                        </Button>
+                      </Show>
                     </ItemActions>
                   </Show>
                 </Item>

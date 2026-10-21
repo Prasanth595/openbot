@@ -56,6 +56,7 @@ export function ServerSettingsScreen() {
     canManageProviders,
     canManageMcpServers,
     canViewHostedSites,
+    canManageServerRoles,
   } = useMobileWorkspace();
   const server = useLiveServerRecovery(servers.find((item) => item.id === serverId));
   const update = useServerUpdate(serverId, { poll: false });
@@ -143,6 +144,11 @@ export function ServerSettingsScreen() {
         >
           <Typography.Paragraph>{t("mobile.server.settings.members")}</Typography.Paragraph>
         </SettingsRow>
+        {canManageServerRoles(serverId) ? (
+          <SettingsRow onPress={() => router.push({ pathname: "/server-settings/roles", params: { serverId } })}>
+            <Typography.Paragraph>{t("mobile.server.route.roles")}</Typography.Paragraph>
+          </SettingsRow>
+        ) : null}
       </SettingsSection>
       <ServerGeneralSettings serverId={serverId} />
       {/* A section shows only when the host serves one of its pages to this role. */}

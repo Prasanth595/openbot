@@ -57,6 +57,7 @@ export const messages = {
   "customProvider.saveUnavailable": "Diese Version kann keinen Endpunkt speichern.",
   "customProvider.removeUnavailable": "Diese Version kann keinen Endpunkt entfernen.",
   "customProvider.form.title": "Eigenen Anbieter hinzufügen",
+  "customProvider.form.editTitle": "Eigenen Anbieter bearbeiten",
   "customProvider.form.description":
     "Beschreibe einen OpenAI-kompatiblen Endpunkt und die Modelle, die er bereitstellt.",
   "customProvider.form.heading": "Eigener Anbieter",
@@ -223,6 +224,7 @@ export const messages = {
   "customProvider.list.empty": "Noch keine eigenen Endpunkte.",
   "customProvider.list.label": "Eigene Endpunkte",
   "customProvider.list.apiKeySaved": "API-Schlüssel gespeichert",
+  "customProvider.list.editLabel": "{name} bearbeiten",
   "customProvider.list.deleteLabel": "{name} löschen",
   "customProvider.list.confirmTitle": "{name} entfernen?",
   "customProvider.list.confirmDescription":
