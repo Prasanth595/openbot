@@ -426,6 +426,7 @@ export const messages = {
   "settings.voice.model.cancelLabel": "{name} のダウンロードを停止",
   "settings.voice.model.retryLabel": "{name} をもう一度ダウンロード",
   "settings.voice.model.useLabel": "音声入力に {name} を使用",
+  "settings.voice.model.removeLabel": "{name} をこのコンピュータから削除",
   "settings.voice.language.section": "言語",
   "settings.voice.language.title": "音声入力の言語",
   "settings.voice.language.description": "話す言語です。「自動」は録音から言語を判別します。",
@@ -438,6 +439,7 @@ export const messages = {
   "settings.voice.saveFailed": "音声の設定を保存できませんでした。もう一度お試しください。",
   "settings.voice.downloadFailed": "ダウンロードを開始できませんでした。もう一度お試しください。",
   "settings.voice.cancelFailed": "ダウンロードを停止できませんでした。",
+  "settings.voice.removeFailed": "モデルを削除できませんでした。もう一度お試しください。",
   "settings.voice.model.elevenlabs.description":
     "音声を ElevenLabs に送信します。話している間に文字が表示され、途中で変わりません。ご自身の API キーを使い、利用ごとに ElevenLabs から請求されます。",
   "settings.voice.model.keySaved": "API キーを保存済み",

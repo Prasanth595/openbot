@@ -97,6 +97,19 @@ export class VoiceSpeechService extends EventEmitter<VoiceSpeechEvents> {
     return this.#runtimeMissing() ?? (yield* this.#model.cancel());
   }).bind(this);
 
+  /**
+   * Deletes the model from this computer, and stops its download first. A part that is read now
+   * finishes before the host ends. Replies are not read aloud until the model is downloaded again.
+   */
+  readonly removeModel = Effect.fn("VoiceSpeech.removeModel")(function* (this: VoiceSpeechService) {
+    return yield* this.#requests.withPermit(
+      Effect.gen({ self: this }, function* () {
+        yield* this.#endHost();
+        return yield* this.#model.remove();
+      }),
+    );
+  }).bind(this);
+
   /** Reads one part of a reply with the voice in the settings. It does not download the model. */
   readonly speak = Effect.fn("VoiceSpeech.speak")(function* (this: VoiceSpeechService, input: SpeechInput) {
     const status = yield* this.getModelStatus();
@@ -233,6 +246,16 @@ export class VoiceSpeechService extends EventEmitter<VoiceSpeechEvents> {
   #cancelIdleStop(): void {
     if (this.#idleTimer) clearTimeout(this.#idleTimer);
     this.#idleTimer = null;
+  }
+
+  /** Ends the host and waits until it exits, so that no process has the model files open. */
+  #endHost(): Effect.Effect<void> {
+    const host = this.#host;
+    if (!host) return Effect.void;
+    return Effect.callback<void>((resume) => {
+      host.onExit(() => resume(Effect.void));
+      this.#stopHost();
+    });
   }
 
   /** Ends the host. Its exit is not reported as a failure: nothing waits on it any more. */

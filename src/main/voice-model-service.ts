@@ -226,6 +226,7 @@ export class VoiceModelService<Id extends DownloadedModelId> extends EventEmitte
   readonly #verified = new Map<string, VerifiedFile>();
   #status: Omit<VoiceModelStatus, "modelId"> = { phase: "missing", progress: null, message: null };
   #preparation: Fiber.Fiber<DownloadedModelStatus<Id>, VoiceOperationError> | null = null;
+  #removal: Fiber.Fiber<DownloadedModelStatus<Id>, VoiceOperationError> | null = null;
   readonly #scope = Scope.makeUnsafe();
   #abortController: AbortController | null = null;
   #stopping = false;
@@ -246,13 +247,13 @@ export class VoiceModelService<Id extends DownloadedModelId> extends EventEmitte
   }
 
   readonly getStatus = Effect.fn("VoiceModel.getStatus")(function* (this: VoiceModelService<Id>) {
-    if (this.#status.phase === "downloading") return this.#copyStatus();
-    const ready = yield* this.#isComplete();
-    this.#setStatus({ phase: ready ? "ready" : "missing", progress: ready ? 100 : null, message: null });
-    return this.#copyStatus();
+    if (this.#status.phase === "downloading" || this.#removal) return this.#copyStatus();
+    return yield* this.#readStatus();
   }).bind(this);
 
   readonly prepare = Effect.fn("VoiceModel.prepare")(function* (this: VoiceModelService<Id>) {
+    // A download that starts while the files are deleted would write into the directory being removed.
+    if (this.#removal) yield* Fiber.await(this.#removal);
     if (this.#preparation) return yield* Fiber.join(this.#preparation);
     this.#cancelled = false;
     const fiber = yield* Effect.forkIn(
@@ -325,10 +326,40 @@ export class VoiceModelService<Id extends DownloadedModelId> extends EventEmitte
     return this.#copyStatus();
   }).bind(this);
 
+  /**
+   * Deletes the model directory, and stops the download in progress first. The caller ends any host
+   * that has the model loaded. The directory is the one main gave this service, never a renderer path.
+   */
+  readonly remove = Effect.fn("VoiceModel.remove")(function* (this: VoiceModelService<Id>) {
+    if (this.#removal) return yield* Fiber.join(this.#removal);
+    const fiber = yield* Effect.forkIn(
+      Effect.gen({ self: this }, function* () {
+        yield* this.cancel();
+        const removed = yield* Effect.result(voiceIO(() => rm(this.#directory, { recursive: true, force: true })));
+        if (Result.isFailure(removed)) {
+          // Some files can be gone. A file that is still there and unchanged needs only a `stat`.
+          yield* this.#readStatus();
+          return yield* new VoiceOperationError({ cause: new Error(sourceText("error.voice.removeFailed")) });
+        }
+        this.#verified.clear();
+        this.#setStatus({ phase: "missing", progress: null, message: null });
+        return this.#copyStatus();
+      }).pipe(Effect.uninterruptible),
+      this.#scope,
+      { startImmediately: true },
+    );
+    this.#removal = fiber;
+    fiber.addObserver(() => {
+      if (this.#removal === fiber) this.#removal = null;
+    });
+    return yield* Fiber.join(fiber);
+  }).bind(this);
+
   readonly shutdown = Effect.fn("VoiceModel.shutdown")(function* (this: VoiceModelService<Id>) {
     this.#stopping = true;
     this.#abortController?.abort();
     if (this.#preparation) yield* Fiber.await(this.#preparation);
+    if (this.#removal) yield* Fiber.await(this.#removal);
     yield* Scope.close(this.#scope, Exit.void);
   }, Effect.uninterruptible).bind(this);
 
@@ -402,6 +433,14 @@ export class VoiceModelService<Id extends DownloadedModelId> extends EventEmitte
         ),
       ),
     );
+  }
+
+  #readStatus(): Effect.Effect<DownloadedModelStatus<Id>, VoiceOperationError> {
+    return Effect.gen({ self: this }, function* () {
+      const ready = yield* this.#isComplete();
+      this.#setStatus({ phase: ready ? "ready" : "missing", progress: ready ? 100 : null, message: null });
+      return this.#copyStatus();
+    });
   }
 
   #isComplete(): Effect.Effect<boolean, VoiceOperationError> {

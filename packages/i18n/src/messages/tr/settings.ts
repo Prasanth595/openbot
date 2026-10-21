@@ -434,6 +434,7 @@ export const messages = {
   "settings.voice.model.cancelLabel": "{name} indirmesini durdur",
   "settings.voice.model.retryLabel": "Tekrar indir: {name}",
   "settings.voice.model.useLabel": "Dikte için kullan: {name}",
+  "settings.voice.model.removeLabel": "{name} modelini bu bilgisayardan kaldır",
   "settings.voice.language.section": "Dil",
   "settings.voice.language.title": "Dikte dili",
   "settings.voice.language.description": "Konuştuğunuz dil. Otomatik, dili kayıttan bulur.",
@@ -446,6 +447,7 @@ export const messages = {
   "settings.voice.saveFailed": "Ses ayarı kaydedilemedi. Tekrar deneyin.",
   "settings.voice.downloadFailed": "İndirme başlatılamadı. Tekrar deneyin.",
   "settings.voice.cancelFailed": "İndirme durdurulamadı.",
+  "settings.voice.removeFailed": "Model kaldırılamadı. Tekrar deneyin.",
   "settings.voice.model.elevenlabs.description":
     "Sesinizi ElevenLabs'e gönderir. Metin siz konuşurken görünür ve değişmez. Kendi API anahtarınızı kullanır ve ElevenLabs her kullanımı ücretlendirir.",
   "settings.voice.model.keySaved": "API anahtarı kaydedildi",

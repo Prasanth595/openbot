@@ -249,6 +249,17 @@ export const VoiceWhisperHungarian: Story = {
   ),
 };
 
+/** Downloaded models, and the speech model, each with Remove. */
+export const VoiceModelsDownloaded: Story = {
+  render: () => (
+    <SettingsModalStory
+      initialOpen
+      initialTab="voice"
+      voice={{ voiceModelsReady: ["parakeet-tdt-0.6b-v3", "bark-3.0-plus"], speechModelReady: true }}
+    />
+  ),
+};
+
 /** The install guide for each phone, the sign-in code and the connected phones. */
 export const MobileConnect: Story = {
   render: () => <SettingsModalStory initialOpen initialTab="mobile-connect" />,

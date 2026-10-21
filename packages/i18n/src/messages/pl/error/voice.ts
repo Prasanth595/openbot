@@ -4,6 +4,8 @@ import type { messages as source } from "../../en/error/voice";
 export const messages = {
   "error.voice.downloadFailed": "Nie udało się pobrać modelu głosowego. Spróbuj ponownie.",
   "error.voice.downloadStopped": "Pobieranie modelu głosowego zostało zatrzymane.",
+  "error.voice.removeBusy": "Poczekaj na koniec transkrypcji głosu, a potem usuń model.",
+  "error.voice.removeFailed": "Nie udało się usunąć modelu głosowego. Spróbuj ponownie.",
   "error.voice.runtimeUnavailable": "Lokalna transkrypcja głosu nie jest dostępna na tej platformie.",
   "error.voice.busy": "Transkrypcja głosu już trwa.",
   "error.voice.modelUnavailable": "Model głosowy jest niedostępny.",

@@ -434,6 +434,7 @@ export const messages = {
   "settings.voice.model.cancelLabel": "Interrompi il download di {name}",
   "settings.voice.model.retryLabel": "Scarica di nuovo {name}",
   "settings.voice.model.useLabel": "Usa {name} per la dettatura",
+  "settings.voice.model.removeLabel": "Rimuovi {name} da questo computer",
   "settings.voice.language.section": "Lingua",
   "settings.voice.language.title": "Lingua della dettatura",
   "settings.voice.language.description": "La lingua che parli. «Automatica» la riconosce dalla registrazione.",
@@ -446,6 +447,7 @@ export const messages = {
   "settings.voice.saveFailed": "Impossibile salvare l'impostazione vocale. Riprova.",
   "settings.voice.downloadFailed": "Impossibile avviare il download. Riprova.",
   "settings.voice.cancelFailed": "Impossibile interrompere il download.",
+  "settings.voice.removeFailed": "Impossibile rimuovere il modello. Riprova.",
   "settings.voice.model.elevenlabs.description":
     "Invia la tua voce in streaming a ElevenLabs. Il testo compare mentre parli e non cambia più. Usa la tua chiave API, ed ElevenLabs addebita ogni utilizzo.",
   "settings.voice.model.keySaved": "Chiave API salvata",

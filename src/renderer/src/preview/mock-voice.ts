@@ -109,6 +109,13 @@ export function createMockVoice(options: MockVoiceOptions, { emit, schedule }: M
       transfer.settle(status(modelId));
       return status(modelId);
     },
+    removeModel: async ({ modelId }) => {
+      if (modelId === ELEVENLABS_VOICE_MODEL_ID) throw new Error("A cloud model has no files to remove.");
+      transfers.get(modelId)?.settle({ modelId, phase: "missing", progress: null, message: null });
+      transfers.delete(modelId);
+      setStatus({ modelId, phase: "missing", progress: null, message: null });
+      return status(modelId);
+    },
     getSettings: async () => clone(settings),
     setSettings: async (next) => {
       settings = clone(next);
@@ -149,6 +156,12 @@ export function createMockVoice(options: MockVoiceOptions, { emit, schedule }: M
       speechTransfer = null;
       setSpeechStatus({ modelId: SPEECH_MODEL_ID, phase: "missing", progress: null, message: null });
       transfer.settle(clone(speechStatus));
+      return clone(speechStatus);
+    },
+    removeSpeechModel: async () => {
+      speechTransfer?.settle({ modelId: SPEECH_MODEL_ID, phase: "missing", progress: null, message: null });
+      speechTransfer = null;
+      setSpeechStatus({ modelId: SPEECH_MODEL_ID, phase: "missing", progress: null, message: null });
       return clone(speechStatus);
     },
     // Silence of about the length the text would take to read.

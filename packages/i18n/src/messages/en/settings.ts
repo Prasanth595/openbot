@@ -446,6 +446,7 @@ export const messages = defineMessages("settings", {
   "settings.voice.model.cancelLabel": "Stop the download of {name}",
   "settings.voice.model.retryLabel": "Download {name} again",
   "settings.voice.model.useLabel": "Use {name} for dictation",
+  "settings.voice.model.removeLabel": "Remove {name} from this computer",
   "settings.voice.language.section": "Language",
   "settings.voice.language.title": "Dictation language",
   "settings.voice.language.description": "The language that you speak. Automatic finds it from the recording.",
@@ -457,6 +458,7 @@ export const messages = defineMessages("settings", {
   "settings.voice.saveFailed": "Could not save the voice setting. Try again.",
   "settings.voice.downloadFailed": "Could not start the download. Try again.",
   "settings.voice.cancelFailed": "Could not stop the download.",
+  "settings.voice.removeFailed": "Could not remove the model. Try again.",
   "settings.voice.model.elevenlabs.description":
     "Streams your voice to ElevenLabs. Text shows while you speak and stays fixed. Uses your own API key, and ElevenLabs bills each use.",
   "settings.voice.model.keySaved": "API key saved",

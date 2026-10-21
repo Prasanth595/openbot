@@ -445,6 +445,7 @@ export const messages = {
   "settings.voice.model.cancelLabel": "Arrêter le téléchargement de {name}",
   "settings.voice.model.retryLabel": "Télécharger {name} à nouveau",
   "settings.voice.model.useLabel": "Utiliser {name} pour la dictée",
+  "settings.voice.model.removeLabel": "Retirer {name} de cet ordinateur",
   "settings.voice.language.section": "Langue",
   "settings.voice.language.title": "Langue de la dictée",
   "settings.voice.language.description":
@@ -458,6 +459,7 @@ export const messages = {
   "settings.voice.saveFailed": "Impossible d’enregistrer le réglage vocal. Réessayez.",
   "settings.voice.downloadFailed": "Impossible de lancer le téléchargement. Réessayez.",
   "settings.voice.cancelFailed": "Impossible d’arrêter le téléchargement.",
+  "settings.voice.removeFailed": "Impossible de retirer le modèle. Réessayez.",
   "settings.voice.model.elevenlabs.description":
     "Envoie votre voix à ElevenLabs. Le texte s’affiche pendant que vous parlez et reste stable. Utilise votre propre clé API, et ElevenLabs facture chaque utilisation.",
   "settings.voice.model.keySaved": "Clé API enregistrée",

@@ -324,6 +324,17 @@ export function SettingsVoiceTab(props: SettingsVoiceTabProps) {
                         {t("settings.voice.model.use")}
                       </Button>
                     </Show>
+                    <Show when={model.kind === "local" && phase() === "ready"}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        type="button"
+                        aria-label={t("settings.voice.model.removeLabel", { name: model.name })}
+                        onClick={() => props.store.remove(model.id)}
+                      >
+                        {t("common.remove")}
+                      </Button>
+                    </Show>
                   </ItemActions>
                 </Item>
               );
@@ -415,6 +426,17 @@ export function SettingsVoiceTab(props: SettingsVoiceTabProps) {
                 >
                   <RefreshCw size={14} aria-hidden="true" />
                   {t("common.tryAgain")}
+                </Button>
+              </Show>
+              <Show when={speechPhase() === "ready"}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  type="button"
+                  aria-label={t("settings.voice.model.removeLabel", { name: SPEECH_MODEL.name })}
+                  onClick={() => props.store.removeSpeech()}
+                >
+                  {t("common.remove")}
                 </Button>
               </Show>
             </ItemActions>

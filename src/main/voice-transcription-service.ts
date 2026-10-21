@@ -180,6 +180,34 @@ export class VoiceTranscriptionService extends EventEmitter<VoiceTranscriptionEv
     return this.#runtimeMissing(modelId) ?? (yield* this.#models[modelId].cancel());
   }).bind(this);
 
+  /**
+   * Deletes a downloaded model from this computer, and stops its download first. The model in use
+   * can go too: the next dictation downloads it again, as it does for a model not downloaded yet.
+   */
+  readonly removeModel = Effect.fn("VoiceTranscription.removeModel")(function* (
+    this: VoiceTranscriptionService,
+    modelId: VoiceModelId,
+  ) {
+    if (!isLocalVoiceModelId(modelId))
+      return yield* new VoiceOperationError({ cause: new Error("A cloud model has no files to remove.") });
+    if (this.#busy) return yield* new VoiceOperationError({ cause: new Error(sourceText("error.voice.removeBusy")) });
+    // A transcription that starts now would load the files that are deleted.
+    return yield* Effect.acquireUseRelease(
+      Effect.sync(() => {
+        this.#busy = true;
+      }),
+      () =>
+        Effect.gen({ self: this }, function* () {
+          if (this.#hostModelId === modelId) yield* this.#endHost();
+          return yield* this.#models[modelId].remove();
+        }),
+      () =>
+        Effect.sync(() => {
+          this.#busy = false;
+        }),
+    );
+  }).bind(this);
+
   getSettings(): VoiceSettings {
     return this.#preferences.get();
   }
@@ -444,6 +472,16 @@ export class VoiceTranscriptionService extends EventEmitter<VoiceTranscriptionEv
   #cancelIdleStop(): void {
     if (this.#idleTimer) clearTimeout(this.#idleTimer);
     this.#idleTimer = null;
+  }
+
+  /** Ends the host and waits until it exits, so that no process has the model files open. */
+  #endHost(): Effect.Effect<void> {
+    const host = this.#host;
+    if (!host) return Effect.void;
+    return Effect.callback<void>((resume) => {
+      host.onExit(() => resume(Effect.void));
+      this.#stopHost();
+    });
   }
 
   /** Ends the host. Its exit is not reported as a failure: nothing waits on it any more. */

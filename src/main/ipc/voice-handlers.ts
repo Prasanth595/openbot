@@ -50,6 +50,10 @@ export function voiceIpcHandlers({ voice, speech, service }: VoiceIpcDependencie
         parseVoiceModelRequest,
         ({ modelId }): Promise<VoiceModelStatus> => runCauseEffect(voice.cancelModelDownload(modelId)),
       ),
+      removeModel: payloadHandler(
+        parseVoiceModelRequest,
+        ({ modelId }): Promise<VoiceModelStatus> => runCauseEffect(voice.removeModel(modelId)),
+      ),
       getSettings: handler((): VoiceSettings => voice.getSettings()),
       setSettings: payloadHandler(
         parseVoiceSettings,
@@ -83,6 +87,7 @@ export function voiceIpcHandlers({ voice, speech, service }: VoiceIpcDependencie
       cancelSpeechModelDownload: handler(
         (): Promise<SpeechModelStatus> => runCauseEffect(speech.cancelModelDownload()),
       ),
+      removeSpeechModel: handler((): Promise<SpeechModelStatus> => runCauseEffect(speech.removeModel())),
       speak: payloadHandler(parseSpeechInput, (input): Promise<SpeechAudio> => runCauseEffect(speech.speak(input))),
       warmSpeech: handler((): Promise<void> => runCauseEffect(speech.warm())),
       keepRecording: payloadHandler(parseVoiceRecording, async ({ audio }): Promise<DraftAttachment> => {

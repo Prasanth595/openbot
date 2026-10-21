@@ -4,6 +4,8 @@ export const messages = defineMessages("error.voice", {
   // Voice transcription errors.
   "error.voice.downloadFailed": "Could not download the voice model. Try again.",
   "error.voice.downloadStopped": "Voice model download was stopped.",
+  "error.voice.removeBusy": "Wait until the voice transcription ends, then remove the model.",
+  "error.voice.removeFailed": "Could not remove the voice model. Try again.",
   "error.voice.runtimeUnavailable": "Local voice transcription is not available on this platform.",
   "error.voice.busy": "A voice transcription is already in progress.",
   "error.voice.modelUnavailable": "The voice model is unavailable.",

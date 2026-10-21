@@ -448,6 +448,7 @@ export const messages = {
   "settings.voice.model.cancelLabel": "Остановить загрузку {name}",
   "settings.voice.model.retryLabel": "Скачать {name} снова",
   "settings.voice.model.useLabel": "Использовать {name} для диктовки",
+  "settings.voice.model.removeLabel": "Удалить {name} с этого компьютера",
   "settings.voice.language.section": "Язык",
   "settings.voice.language.title": "Язык диктовки",
   "settings.voice.language.description": "Язык, на котором вы говорите. «Автоматически» определяет его по записи.",
@@ -460,6 +461,7 @@ export const messages = {
   "settings.voice.saveFailed": "Не удалось сохранить настройку голоса. Повторите попытку.",
   "settings.voice.downloadFailed": "Не удалось начать загрузку. Повторите попытку.",
   "settings.voice.cancelFailed": "Не удалось остановить загрузку.",
+  "settings.voice.removeFailed": "Не удалось удалить модель. Повторите попытку.",
   "settings.voice.model.elevenlabs.description":
     "Передаёт ваш голос в ElevenLabs. Текст появляется во время речи и не меняется. Использует ваш API-ключ, а ElevenLabs списывает плату за каждое использование.",
   "settings.voice.model.keySaved": "API-ключ сохранён",

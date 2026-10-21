@@ -662,6 +662,11 @@ export const IPC_ENDPOINTS = {
     downloadModel: request<VoiceModelRequest, VoiceModelStatus>()("voice:download-model"),
     /** Stops a download. The model is missing again; a later download starts from the first file not complete. */
     cancelModelDownload: request<VoiceModelRequest, VoiceModelStatus>()("voice:cancel-model-download"),
+    /**
+     * Deletes a downloaded model from this computer and stops its download first. Answers its status,
+     * which is missing. Rejects a cloud model, and rejects while a transcription runs.
+     */
+    removeModel: request<VoiceModelRequest, VoiceModelStatus>()("voice:remove-model"),
     getSettings: request<undefined, VoiceSettings>()("voice:get-settings"),
     setSettings: request<VoiceSettings, VoiceSettings>()("voice:set-settings"),
     transcribe: request<VoiceTranscriptionInput, VoiceTranscriptionResult>()("voice:transcribe"),
@@ -686,6 +691,8 @@ export const IPC_ENDPOINTS = {
     /** Downloads the speech model. Answers when it is ready, failed, or cancelled. */
     downloadSpeechModel: request<undefined, SpeechModelStatus>()("voice:download-speech-model"),
     cancelSpeechModelDownload: request<undefined, SpeechModelStatus>()("voice:cancel-speech-model-download"),
+    /** Deletes the speech model from this computer. Answers its status, which is missing. */
+    removeSpeechModel: request<undefined, SpeechModelStatus>()("voice:remove-speech-model"),
     /** Reads one part of a reply aloud with the voice in the settings. The model must be ready. */
     speak: request<SpeechInput, SpeechAudio>()("voice:speak"),
     /**
