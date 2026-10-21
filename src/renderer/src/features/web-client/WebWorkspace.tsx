@@ -1544,6 +1544,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   onSelectChannel={openChannel}
                   onEditChannel={(id) => openChannel(id, true)}
                   onDeleteChannel={channels.deletionSupported() ? channels.remove : undefined}
+                  onRestoreChannel={channels.deletionSupported() ? channels.restore : undefined}
                   showingArchivedChannels={channelsListed() && channels.state.archived}
                   onToggleArchivedChannels={channelsListed() ? channels.toggleArchived : undefined}
                   onCreateChannel={channelsListed() ? channels.create : undefined}

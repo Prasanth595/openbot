@@ -51,6 +51,8 @@ export interface SidebarProps {
   hasUnread?: boolean | undefined;
   onEditChannel?: ((channelId: string) => void) | undefined;
   onDeleteChannel?: ((channelId: string) => Promise<void>) | undefined;
+  /** Brings a deleted channel back to the list. Without it, a row in Deleted channels has no menu. */
+  onRestoreChannel?: ((channelId: string) => void) | undefined;
   serverName: string;
   onOpenServerSettings?: ((trigger: HTMLElement) => void) | undefined;
   /** The desktop server menu. Without it, the server name opens the server settings. */
