@@ -196,6 +196,7 @@
     "test:browser:framer-live": "bun scripts/browser-smoke.ts --framer-live",
     "test:codex": "bun scripts/codex-doctor.ts --strict",
     "test:acp-directories": "bun scripts/acp-additional-directories-e2e.ts",
+    "test:acp-flavors": "bun scripts/acp-flavor-e2e.ts",
     "test:custom-agents": "bun scripts/custom-acp-agent-e2e.ts",
     "test:custom-agents:login-path": "bun scripts/custom-acp-agent-login-path-e2e.ts",
     "test:claude:login-path": "bun scripts/claude-session-login-path-e2e.ts",
