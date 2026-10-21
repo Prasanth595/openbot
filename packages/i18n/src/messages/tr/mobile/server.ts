@@ -396,4 +396,5 @@ export const messages = {
   "mobile.server.sites.deleteFailed": "Site silinemedi.",
   "mobile.server.sites.openFailed": "Site açılamadı.",
   "mobile.server.sites.unsupported": "Sitelerini burada görmek için bu sunucudaki OpenBot'u güncelleyin.",
+  "mobile.server.sites.offline": "Sitelerini görmek için bu sunucuya bağlanın.",
 } as const satisfies PartialTranslation<typeof source>;

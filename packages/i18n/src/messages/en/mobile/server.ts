@@ -387,4 +387,5 @@ export const messages = defineMessages("mobile.server", {
   "mobile.server.sites.deleteFailed": "Could not delete the site.",
   "mobile.server.sites.openFailed": "Could not open the site.",
   "mobile.server.sites.unsupported": "Update OpenBot on this server to see its sites here.",
+  "mobile.server.sites.offline": "Connect to this server to see its sites.",
 });

@@ -399,4 +399,5 @@ export const messages = {
   "mobile.server.sites.deleteFailed": "No se pudo eliminar el sitio.",
   "mobile.server.sites.openFailed": "No se pudo abrir el sitio.",
   "mobile.server.sites.unsupported": "Actualiza OpenBot en este servidor para ver sus sitios aquí.",
+  "mobile.server.sites.offline": "Conéctate a este servidor para ver sus sitios.",
 } as const satisfies PartialTranslation<typeof source>;

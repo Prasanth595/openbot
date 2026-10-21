@@ -389,4 +389,5 @@ export const messages = {
   "mobile.server.sites.deleteFailed": "サイトを削除できませんでした。",
   "mobile.server.sites.openFailed": "サイトを開けませんでした。",
   "mobile.server.sites.unsupported": "ここでサイトを表示するには、このサーバーの OpenBot を更新してください。",
+  "mobile.server.sites.offline": "このサーバーに接続するとサイトが表示されます。",
 } as const satisfies PartialTranslation<typeof source>;

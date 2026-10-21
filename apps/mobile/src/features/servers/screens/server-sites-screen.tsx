@@ -11,6 +11,7 @@ import {
   SettingsSection,
 } from "@/features/settings/components/settings-content";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import { showsOnline } from "@/features/workspace/model/server-status";
 import { haptics } from "@/shared/lib/haptics";
 import { currentText, useText } from "@/shared/lib/text";
 
@@ -37,7 +38,8 @@ export function ServerSitesScreen() {
   const locked = useRef(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  if (!servers.some((server) => server.id === serverId))
+  const server = servers.find((item) => item.id === serverId);
+  if (!server)
     return (
       <SettingsContent>
         <SettingsNote>{t("mobile.server.unavailable")}</SettingsNote>
@@ -46,7 +48,9 @@ export function ServerSitesScreen() {
   if (!available)
     return (
       <SettingsContent>
-        <SettingsNote>{t("mobile.server.sites.unsupported")}</SettingsNote>
+        <SettingsNote>
+          {t(showsOnline(server) ? "mobile.server.sites.unsupported" : "mobile.server.sites.offline")}
+        </SettingsNote>
       </SettingsContent>
     );
   const list = query.data;
