@@ -4,9 +4,9 @@
   app preview and spreads along the top of the preview, in a soft violet haze. The light moves toward
   the pointer, and faint app shapes show in the light around the pointer. The app preview has no
   shadow or glow around it.
-- The beam has a different colour, width, spread and haze on each visit. The colour is a blue,
-  violet, pink or red, such as #3847ff, and is never yellow or green. With the reduced motion
-  setting, the beam does not move.
+- The beam has a different colour, width, spread, haze and smoke on each visit. The smoke can be
+  soft, or sharp with fine wisps. The colour is a blue, violet, pink or red, such as #3847ff, and
+  is never yellow or green. With the reduced motion setting, the beam does not move.
 - The beam waits until the app preview has loaded, then falls in. The preview appears as the beam
   hits it. On a slow GPU, the beam uses a smaller canvas.
 - On a wide window, the beam falls through the Download button in the site header, and the button
