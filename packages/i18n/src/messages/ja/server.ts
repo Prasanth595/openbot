@@ -211,7 +211,7 @@ export const messages = {
   "server.settings.hostedSitesTitle": "サイト",
   "server.settings.hostedSitesDescription": "このサーバーのエージェントが openbot.site に公開した静的サイト。",
   "server.settings.importTitle": "インポート",
-  "server.settings.importDescription": "Grok Bot からこのサーバーにエージェントを移動します。",
+  "server.settings.importDescription": "Grok Bot または Hermes Agent からこのサーバーにエージェントを移動します。",
   "server.settings.transferTitle": "移行",
   "server.settings.transferDescription":
     "このサーバーのエージェントとサーバー設定を、ファイルに書き出したりファイルから読み込んだりします。",

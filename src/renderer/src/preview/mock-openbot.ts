@@ -103,7 +103,12 @@ import {
   type WorkspaceDirectory,
 } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
-import { AGENT_IMPORT_PREVIEW, AGENT_IMPORT_SKILL } from "../../stories/agent-import-fixtures";
+import {
+  AGENT_IMPORT_PREVIEW,
+  AGENT_IMPORT_SKILL,
+  HERMES_EXPORT_SKILL,
+  HERMES_IMPORT_PREVIEW,
+} from "../../stories/agent-import-fixtures";
 import { filePreviewForPath } from "../../stories/file-previews";
 import { INSTANCE_TRANSFER_PREVIEW } from "../../stories/instance-transfer-fixtures";
 import { toggleChannelMember } from "../features/channels/channels-draft";
@@ -2449,8 +2454,22 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         return clone({ agents: imported, skipped: [], channels, skippedChannels, warnings: [] });
       },
       discard: async () => undefined,
-      readSkill: async () => AGENT_IMPORT_SKILL,
+      readSkill: async (source) => (source === "hermes-agent" ? HERMES_EXPORT_SKILL : AGENT_IMPORT_SKILL),
       saveSkill: async () => ({ saved: true }),
+      readHermes: async () => clone(HERMES_IMPORT_PREVIEW),
+      chooseHermes: async () => clone(HERMES_IMPORT_PREVIEW),
+      // Each profile becomes one agent, as the main process makes it; MCP servers are not added here.
+      applyHermes: async ({ token, profiles }) => {
+        if (token !== HERMES_IMPORT_PREVIEW.token)
+          throw new Error("The Hermes profiles are no longer open. Read them again.");
+        const imported = HERMES_IMPORT_PREVIEW.profiles
+          .filter((profile) => profiles.some((entry) => entry.key === profile.key))
+          .map((profile) => createAgentSummary({ name: profile.name, title: "", description: "" }));
+        agents = [...agents, ...imported];
+        emitAgentEvent({ type: "agents-changed", agents });
+        return clone({ agents: imported, skipped: [], channels: [], skippedChannels: [], warnings: [] });
+      },
+      discardHermes: async () => undefined,
     },
     instanceTransfer: {
       summary: async () =>

@@ -240,7 +240,7 @@ export const messages = defineMessages("server", {
   "server.settings.hostedSitesTitle": "Sites",
   "server.settings.hostedSitesDescription": "The static sites that agents on this server published to openbot.site.",
   "server.settings.importTitle": "Import",
-  "server.settings.importDescription": "Move your agents from Grok Bot to this server.",
+  "server.settings.importDescription": "Move your agents from Grok Bot or Hermes Agent to this server.",
   "server.settings.transferTitle": "Transfer",
   "server.settings.transferDescription": "Move this server's agents and server settings to or from a file.",
   "server.settings.connectorsTitle": "Connectors",

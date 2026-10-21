@@ -240,20 +240,18 @@ export const messages = {
   "marketplace.plugin.resend.prompt.template": "Rascunhe um e-mail de redefinição de senha para o novo fluxo.",
   "marketplace.plugin.composio.tagline": "Muitos apps pelo seu próprio link do Composio",
   "marketplace.plugin.composio.description":
-    "O Composio conecta agentes ao Gmail, Slack, GitHub e centenas de outros apps por um único servidor MCP. Crie o servidor na sua conta Composio, adicione os apps que quiser e cole o link aqui. Adicione uma chave de API só se o seu servidor exigir.",
+    "O Composio conecta agentes ao Gmail, Slack, GitHub e centenas de outros apps por um único servidor MCP. Conecte os apps que quiser na sua conta Composio e cole aqui a URL do MCP e a chave de API dela.",
   "marketplace.plugin.composio.app":
     "Os apps que você adiciona ao seu servidor MCP do Composio, através do link da sua conta Composio.",
   "marketplace.plugin.composio.prompt.inbox": "Resuma meus e-mails não lidos e rascunhe respostas para os urgentes.",
   "marketplace.plugin.composio.prompt.handoff": "Publique um resumo deste pull request no canal da nossa equipe.",
   "marketplace.plugin.composio.prompt.apps": "Quais apps e ações você pode usar pelo Composio?",
   "marketplace.plugin.composio.hint.url": "O URL de um servidor MCP na sua conta Composio",
-  "marketplace.plugin.composio.hint.apiKey":
-    "Só se o seu servidor exigir uma. Ela fica nas configurações da sua conta Composio.",
+  "marketplace.plugin.composio.hint.apiKey": "Ela fica na sua conta Composio, em Settings > Sessions & API Key.",
   "marketplace.auth.apiKey": "Chave de API",
   "marketplace.auth.personalApiKey": "Chave de API pessoal",
   "marketplace.auth.mcpUrl": "URL do MCP",
   "marketplace.auth.createKey": "Criar uma chave",
-  "marketplace.auth.createServer": "Criar um servidor",
   "marketplace.skill.installMenu.install": "Instalar",
   "marketplace.skill.installMenu.installNamed": "Instalar {name}",
   "marketplace.skill.installMenu.allAgents": "Todos os agentes",
