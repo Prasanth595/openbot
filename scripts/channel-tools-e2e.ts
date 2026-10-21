@@ -38,8 +38,8 @@ declare global {
 
 interface Report {
   visualReply?: { itemType: string; attachments: number };
-  askUi?: { uiBlockInChannel: boolean; reply: string };
-  planCard?: { uiBlockInChannel: boolean; answered: boolean; state: string };
+  askUi?: { promptOnChannelThread: boolean; uiBlockInChannel: boolean; reply: string };
+  planCard?: { promptOnChannelThread: boolean; uiBlockInChannel: boolean; answered: boolean; state: string };
   screenCapture?: { asked: boolean; namesChannel: boolean; reason: string };
   history?: { reply: string; tasksStarted: number };
   passed: boolean;
@@ -89,6 +89,9 @@ function answersFor(prompt: SeenPrompt, pick: RegExp | null): Record<string, str
     }),
   );
 }
+
+const onChannelThread = async (channelId: string, threadId: string) =>
+  ((await client.summary(channelId)).threads ?? []).some((thread) => thread.threadId === threadId);
 
 try {
   const agents = (await client.agents()).filter((agent) => agentProviderDescriptor(agent.provider).concurrentTurns);
@@ -157,9 +160,11 @@ try {
   const colorAnswered = await waitFor(page, "the ask_ui turn ends", () => client.read(channel.id), ended);
   const colorReply = repliesAfter(colorAnswered, a.id, sequence).at(-1)?.message.text ?? "";
   report.askUi = {
+    promptOnChannelThread: await onChannelThread(channel.id, colorPrompt.threadId),
     uiBlockInChannel: repliesAfter(withBlock, a.id, sequence).some((message) => message.message.uiBlock !== undefined),
     reply: colorReply,
   };
+  assert.ok(report.askUi.promptOnChannelThread, "The ask_ui prompt is not on the agent's channel thread.");
   assert.equal(newestTask(colorAnswered)?.state, "completed");
   assert.match(colorReply, /blue/i, "The answer did not reach the turn.");
 
@@ -184,10 +189,12 @@ try {
     );
   const planEnded = await waitFor(page, "the plan turn ends", () => client.read(channel.id), ended);
   report.planCard = {
+    promptOnChannelThread: await onChannelThread(channel.id, planPrompt.threadId),
     uiBlockInChannel: repliesAfter(planEnded, a.id, sequence).some((message) => message.message.uiBlock !== undefined),
     answered,
     state: newestTask(planEnded)?.state ?? "missing",
   };
+  assert.ok(report.planCard.promptOnChannelThread, "The plan card is not on the agent's channel thread.");
   assert.ok(report.planCard.uiBlockInChannel, "The plan card does not show in the channel.");
   assert.equal(report.planCard.state, "completed");
 
