@@ -39,6 +39,7 @@ import {
   SettingsSection,
   ShieldCheck,
   SlidingTabs,
+  SwitchField,
   Text,
   Trash2,
   UserRound,
@@ -90,6 +91,8 @@ interface MembersPanel {
 interface MembersPanels {
   invite: InvitePanel;
   members: MembersPanel;
+  /** Set after this Mac publishes, to offer the remote desktop setup once. */
+  offerRemoteDesktopSetup: boolean;
 }
 
 interface ServerMembersSection {
@@ -100,8 +103,11 @@ interface ServerMembersSection {
   resetForServer(): void;
 }
 
-/** The Members section: the invite composer, the member list, and the pending invites. */
-export function createServerMembersSection(host: ServerSettingsSectionHost): ServerMembersSection {
+/** The Members section: publication, the invite composer, the member list, and the pending invites. */
+export function createServerMembersSection(
+  host: ServerSettingsSectionHost,
+  options: { onSetUpDesktop: () => void },
+): ServerMembersSection {
   const { t, format } = useText();
   const { props, local, configured, published, actionsAvailable, busy, run } = host;
   const [panels, setPanels] = createStore<MembersPanels>({
@@ -115,6 +121,7 @@ export function createServerMembersSection(host: ServerSettingsSectionHost): Ser
       role: "member",
     },
     members: { removeId: null, roleChange: null, revokeInviteId: null, search: "" },
+    offerRemoteDesktopSetup: false,
   });
   /** A clock, not panel state: it retires an invite row as its `expiresAt` passes. */
   const [now, setNow] = createSignal(Date.now());
@@ -299,8 +306,30 @@ export function createServerMembersSection(host: ServerSettingsSectionHost): Ser
     if (!created.email) swapInviteLink(created.inviteUrl);
   }
 
+  /** An unnamed server gets a generated name as it publishes, so the switch needs no setup first. */
+  async function setPublished(value: boolean): Promise<void> {
+    const serverId = props.server.id;
+    const succeeded = await run("publish", () => props.onSetPublished(value));
+    if (!succeeded || props.server.id !== serverId) return;
+    setPanels((state) => {
+      state.offerRemoteDesktopSetup = value && local() && props.platform === "darwin";
+    });
+  }
+
+  function dismissRemoteDesktopSetup(): void {
+    setPanels((state) => {
+      state.offerRemoteDesktopSetup = false;
+    });
+  }
+
+  function accessDescription() {
+    if (!local()) return published() ? t("server.settings.remoteOnline") : t("server.settings.remoteOffline");
+    return published() ? t("server.settings.reachable") : t("server.settings.notReachable");
+  }
+
   function resetForServer(): void {
     setPanels((state) => {
+      state.offerRemoteDesktopSetup = false;
       state.invite.result = null;
       state.invite.showQr = false;
       state.members.search = "";
@@ -329,63 +358,52 @@ export function createServerMembersSection(host: ServerSettingsSectionHost): Ser
   function Panel() {
     return (
       <>
-        <Show when={!configured() || !published()}>
-          <Alert class="server-settings-members-alert" tone="warning" role="status">
-            <AlertIcon>
-              <ShieldCheck />
-            </AlertIcon>
-            <AlertContent>
-              <AlertTitle>
-                {configured() ? t("server.members.invitationsPaused") : t("server.members.setupRequired")}
-              </AlertTitle>
-              <AlertDescription>
-                {configured() ? t("server.members.publishToInvite") : t("server.members.saveIdentityFirst")}
-              </AlertDescription>
-            </AlertContent>
-          </Alert>
-        </Show>
+        {accessSection()}
         <Show when={canManage()}>{inviteComposer()}</Show>
-        <SettingsSection
-          class="server-settings-members-section"
-          title={
-            <span class="server-settings-members-title">
-              {t("server.members.title")}
-              <Badge variant={membersFull() ? "warning-light" : "secondary"}>{membersCount()}</Badge>
-            </span>
-          }
-          actions={
-            <label class="server-settings-search">
-              <Search aria-hidden="true" />
-              <span class="sr-only">{t("server.members.search")}</span>
-              <Input
-                size="sm"
-                type="search"
-                placeholder={t("server.members.search")}
-                value={panels.members.search}
-                onValueChange={(value) =>
-                  setPanels((state) => {
-                    state.members.search = value;
-                  })
+        {/* An unnamed local server has no members yet: publishing it adds the owner. */}
+        <Show when={configured()}>
+          <SettingsSection
+            class="server-settings-members-section"
+            title={
+              <span class="server-settings-members-title">
+                {t("server.members.title")}
+                <Badge variant={membersFull() ? "warning-light" : "secondary"}>{membersCount()}</Badge>
+              </span>
+            }
+            actions={
+              <label class="server-settings-search">
+                <Search aria-hidden="true" />
+                <span class="sr-only">{t("server.members.search")}</span>
+                <Input
+                  size="sm"
+                  type="search"
+                  placeholder={t("server.members.search")}
+                  value={panels.members.search}
+                  onValueChange={(value) =>
+                    setPanels((state) => {
+                      state.members.search = value;
+                    })
+                  }
+                />
+              </label>
+            }
+          >
+            <ItemGroup class="settings-modal-card server-settings-members-list">
+              <Show
+                when={filteredMembers().length > 0}
+                fallback={
+                  <Item class="server-settings-empty-row">
+                    <ItemContent>
+                      <ItemDescription>{t("server.members.noMatch")}</ItemDescription>
+                    </ItemContent>
+                  </Item>
                 }
-              />
-            </label>
-          }
-        >
-          <ItemGroup class="settings-modal-card server-settings-members-list">
-            <Show
-              when={filteredMembers().length > 0}
-              fallback={
-                <Item class="server-settings-empty-row">
-                  <ItemContent>
-                    <ItemDescription>{t("server.members.noMatch")}</ItemDescription>
-                  </ItemContent>
-                </Item>
-              }
-            >
-              <For each={filteredMembers()}>{(member) => memberRow(member)}</For>
-            </Show>
-          </ItemGroup>
-        </SettingsSection>
+              >
+                <For each={filteredMembers()}>{(member) => memberRow(member)}</For>
+              </Show>
+            </ItemGroup>
+          </SettingsSection>
+        </Show>
         <Show when={canManage() && inactiveLegacyMembers().length > 0}>
           <SettingsSection
             title={t("server.members.inactiveTitle")}
@@ -397,6 +415,50 @@ export function createServerMembersSection(host: ServerSettingsSectionHost): Ser
           </SettingsSection>
         </Show>
         <Show when={canManage()}>{pendingInvites()}</Show>
+      </>
+    );
+  }
+
+  function accessSection() {
+    return (
+      <>
+        <SettingsSection title={t("server.settings.access")}>
+          <ItemGroup class="settings-modal-card">
+            <SwitchField
+              class="server-settings-publish-setting"
+              size="default"
+              checked={published()}
+              disabled={!local() || Boolean(busy())}
+              onChange={(value) => void setPublished(value)}
+              label={local() ? t("server.settings.publish") : t("server.settings.published")}
+              description={accessDescription()}
+            />
+          </ItemGroup>
+        </SettingsSection>
+        <Show when={panels.offerRemoteDesktopSetup}>
+          <ItemGroup class="settings-modal-card">
+            <Item>
+              <ItemContent>
+                <ItemTitle>{t("server.settings.setUpDesktopTitle")}</ItemTitle>
+                <ItemDescription>{t("server.settings.setUpDesktopDescription")}</ItemDescription>
+              </ItemContent>
+              <ItemActions>
+                <Button size="sm" variant="ghost" onClick={dismissRemoteDesktopSetup}>
+                  {t("server.settings.later")}
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    dismissRemoteDesktopSetup();
+                    options.onSetUpDesktop();
+                  }}
+                >
+                  {t("server.settings.setUp")}
+                </Button>
+              </ItemActions>
+            </Item>
+          </ItemGroup>
+        </Show>
       </>
     );
   }
