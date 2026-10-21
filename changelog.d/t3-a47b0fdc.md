@@ -1,6 +1,6 @@
 ### Changed
 
-- The home page of openbot.app has a lilac light beam that falls onto the app preview. The light
+- The home page of openbot.app has a light beam that falls onto the app preview. The light
   moves toward the pointer. When the window is too narrow for the beam to pass the text, the page
   shows no beam. With the reduced motion setting, the beam does not move.
 - The beam has a different colour, width, spread and haze on each visit. On about half of the
