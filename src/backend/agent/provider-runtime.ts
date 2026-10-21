@@ -2791,6 +2791,7 @@ export class ProviderRuntime implements ProviderPort {
               email: account.account.email ?? null,
             }),
           });
+          if (this.#providerAccounts) yield* this.#providerAccounts.checkAll(provider);
           return null;
         }).pipe(
           Effect.catch((problem) =>
