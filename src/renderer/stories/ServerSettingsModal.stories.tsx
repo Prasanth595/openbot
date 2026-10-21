@@ -126,6 +126,11 @@ export const FirstSetupInvalidNameSmallViewport: Story = {
   },
 };
 
+/** Members of a server with no name yet: publishing generates one, so the switch is ready. */
+export const LocalFirstPublication: Story = {
+  args: { ...LocalFirstSetup.args, initialSection: "members" },
+};
+
 export const RemoteDesktopAfterPublication: Story = {
   render: (args) => <PublicationSetupStory settings={args} />,
 };
@@ -136,6 +141,7 @@ function PublicationSetupStory(props: { settings: ServerSettingsModalProps }) {
     <RemoteSetupStory
       settings={{
         ...props.settings,
+        initialSection: "members",
         get hostStatus(): HostStatus {
           return { ...STORY_HOST_STATUS, configured: true, phase: published() ? "online" : "idle" };
         },

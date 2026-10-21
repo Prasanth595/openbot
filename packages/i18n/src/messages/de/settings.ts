@@ -100,9 +100,8 @@ export const messages = {
   "settings.analytics.title": "Nutzungsdaten teilen",
   "settings.analytics.description":
     "Nutzungs- und Zuverlässigkeitsmetadaten mit deiner Konto-ID und E-Mail-Adresse an das von OpenBot selbst betriebene Analysesystem senden.",
-  "settings.analytics.webTitle": "Fehlerberichte teilen",
   "settings.analytics.webDescription":
-    "Fehler- und Warncodes mit deiner Konto-ID an das Analysesystem von OpenBot senden. Diese Einstellung gilt für diesen Browser.",
+    "Nutzungs- und Zuverlässigkeitsmetadaten mit deiner Konto-ID und E-Mail-Adresse an das von OpenBot selbst betriebene Analysesystem senden. Diese Einstellung gilt für diesen Browser.",
   "settings.tab.general.title": "Allgemein",
   "settings.tab.general.description": "Lege fest, wie sich OpenBot auf diesem Computer verhält.",
   "settings.tab.notifications.title": "Mitteilungen",
@@ -434,6 +433,7 @@ export const messages = {
   "settings.voice.models.title": "Diktiermodell",
   "settings.voice.model.parakeet.description":
     "Schnell. Erkennt die gesprochene Sprache selbst, in 25 europäischen Sprachen.",
+  "settings.voice.model.bark.description": "Schnell. Nur Englisch. Schreibt meist klein, mit wenigen Satzzeichen.",
   "settings.voice.model.whisper.description":
     "Langsamer. Etwa 100 Sprachen, und du kannst die gesprochene Sprache festlegen.",
   "settings.voice.model.size": "Downloadgröße: {size}",
@@ -451,6 +451,8 @@ export const messages = {
   "settings.voice.language.description": "Die Sprache, die du sprichst. Automatisch erkennt sie aus der Aufnahme.",
   "settings.voice.language.modelDetects":
     "Parakeet erkennt die gesprochene Sprache selbst. Um eine Sprache festzulegen, verwende Whisper oder ElevenLabs.",
+  "settings.voice.language.englishOnly":
+    "Bark erkennt nur Englisch. Um eine Sprache festzulegen, verwende Whisper oder ElevenLabs.",
   "settings.voice.language.automatic": "Automatisch",
   "settings.voice.loadFailed": "Die Sprachmodelle konnten nicht gelesen werden.",
   "settings.voice.saveFailed": "Die Spracheinstellung konnte nicht gespeichert werden. Versuche es erneut.",

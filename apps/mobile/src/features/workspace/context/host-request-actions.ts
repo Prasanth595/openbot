@@ -12,6 +12,7 @@ import {
   isQueueSnapshot,
   isRoutine,
   isRoutineRun,
+  MCP_SERVERS_CAPABILITY,
   type RoutineCalendarOwner,
   type SetAgentHiddenInput,
   STORAGE_CAPABILITY,
@@ -31,6 +32,7 @@ import { AGENT_MEMORY_LIMIT_CAPABILITY } from "@openbot/contracts/team-protocol/
 import { AGENT_PUBLISH_CAPABILITY } from "@openbot/contracts/team-protocol/agent-publish-v1";
 import { AGENT_SESSION_SETTINGS_CAPABILITY } from "@openbot/contracts/team-protocol/agent-session-settings-v1";
 import { AGENT_TASKS_CAPABILITY } from "@openbot/contracts/team-protocol/agent-tasks-v1";
+import { CONNECTORS_CAPABILITY } from "@openbot/contracts/team-protocol/connectors-v1";
 import { CONTEXT_RESET_CAPABILITY } from "@openbot/contracts/team-protocol/context-reset-v1";
 import {
   CONVERSATION_FILE_SEARCH_CAPABILITY,
@@ -47,9 +49,15 @@ import {
   TEAM_ZIP_ATTACHMENTS_CAPABILITY,
 } from "@openbot/contracts/team-protocol/current";
 import { EVENTS_CAPABILITY } from "@openbot/contracts/team-protocol/events-v1";
+import { HOST_MEMBER_UPDATE_CAPABILITY } from "@openbot/contracts/team-protocol/host-member-update-v1";
+import { HOST_RELEASE_CAPABILITY } from "@openbot/contracts/team-protocol/host-release-v1";
 import { HOST_TIMEZONE_CAPABILITY } from "@openbot/contracts/team-protocol/host-timezone-v1";
+import { HOST_UPDATE_CAPABILITY } from "@openbot/contracts/team-protocol/host-update-v1";
 import { HOSTED_SITES_CAPABILITY } from "@openbot/contracts/team-protocol/hosted-sites-v1";
+import { MCP_SIGN_IN_CAPABILITY } from "@openbot/contracts/team-protocol/mcp-sign-in-v1";
+import { ONEPASSWORD_CONNECTOR_CAPABILITY } from "@openbot/contracts/team-protocol/onepassword-connector-v1";
 import { PROVIDER_ACCOUNTS_CAPABILITY } from "@openbot/contracts/team-protocol/provider-accounts-v1";
+import { PROVIDERS_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/providers-v1";
 import { TEAM_QUEUE_EDIT_CAPABILITY } from "@openbot/contracts/team-protocol/queue-edit-v1";
 import { SHARED_TABLES_CAPABILITY } from "@openbot/contracts/team-protocol/shared-tables-v1";
 import { SKILLS_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/skills-admin-v1";
@@ -60,32 +68,56 @@ import { readHostAnalytics } from "@openbot/team-client";
 import type { RemoteFileUpload } from "@openbot/team-client/remote-peer";
 import { buildRoutineCalendar, type RoutineCalendarSource } from "@openbot/team-client/routine-calendar";
 import {
+  cancelHostUpdate,
+  checkHostForUpdate,
+  checkHostRelease,
   deleteEventRoutine,
   deleteHostedSite,
   deleteSharedTable,
   getHostAgentMemoryLimit,
+  getHostReleaseStatus,
   getHostTimezone,
+  getHostUpdateStatus,
+  githubConnectorRepositories,
+  githubConnectorRequest,
   installAgentTemplate,
   listAgentSkills,
   listEventActivity,
   listEventRoutines,
   listHiddenAgents,
   listHostedSites,
+  listMcpServers,
+  listMcpSignIns,
   listProviderAccounts,
   listSharedTables,
+  messagingConnectorAddOrchestrator,
+  messagingConnectorComplete,
+  messagingConnectorConnect,
+  messagingConnectorDisconnect,
+  messagingConnectorOverview,
+  messagingConnectorReconnect,
+  messagingConnectorSetEnabled,
+  onePasswordConnectorRequest,
   previewAgentTemplate,
   publishAgentTemplate,
   readAgentSessionSettings,
+  removeMcpServer,
   resetAgentSessionSetting,
   rotateEventRoutineSecret,
   saveEventRoutine,
+  saveMcpServer,
   setAgentHidden,
   setAgentProviderAccount,
   setAgentSessionSetting,
   setAgentSkillEnabled,
   setHostAgentMemoryLimit,
   setHostTimezone,
+  setHostUpdateSettings,
+  setMcpServerEnabled,
+  signOutMcpServer,
+  startHostUpdate,
   testEventRoutine,
+  testMcpServer,
   uninstallAgentSkill,
   unpublishAgentTemplate,
 } from "@openbot/team-client/team-admin-requests";
@@ -106,6 +138,7 @@ import {
 import type { QueryClient } from "@tanstack/react-query";
 import { Effect } from "effect";
 import * as Crypto from "expo-crypto";
+import { createProviderAdmin } from "@/features/servers/model/provider-admin";
 import { decodeConversationSearchPage } from "@/features/workspace/model/conversation";
 import { type QueryScope, queryKeys } from "@/features/workspace/model/query-keys";
 import { saveAgentRecord } from "@/features/workspace/model/save-agent-record";
@@ -120,6 +153,7 @@ import type {
   MobileWorkspaceActions,
   MobileWorkspaceCapabilityCheck,
   MobileWorkspaceState,
+  ServerUpdateAccess,
 } from "@/features/workspace/model/workspace-types";
 
 /** Sends one Team API request to a server; without a server ID it uses the active server. */
@@ -183,8 +217,35 @@ type HostRequestActions = Pick<
   | "setServerTimezone"
   | "loadAgentMemoryLimit"
   | "setAgentMemoryLimit"
+  | "githubConnector"
+  | "loadGitHubRepositories"
+  | "loadOnePasswordConnector"
+  | "connectOnePassword"
+  | "disconnectOnePassword"
+  | "loadMessagingConnections"
+  | "connectMessaging"
+  | "completeMessagingInstall"
+  | "reconnectMessaging"
+  | "disconnectMessaging"
+  | "setMessagingEnabled"
+  | "addMessagingOrchestrator"
+  | "loadServerUpdate"
+  | "checkServerUpdate"
+  | "startServerUpdate"
+  | "cancelServerUpdate"
+  | "setServerUpdateSettings"
+  | "loadServerRelease"
+  | "checkServerRelease"
   | "loadHostedSites"
   | "deleteHostedSite"
+  | "providerAdmin"
+  | "listMcpServers"
+  | "saveMcpServer"
+  | "removeMcpServer"
+  | "setMcpServerEnabled"
+  | "testMcpServer"
+  | "listMcpSignIns"
+  | "signOutMcpServer"
   | "setAgentSessionSetting"
   | "resetAgentSessionSetting"
   | "listSharedTables"
@@ -278,9 +339,27 @@ export function createHostRequestActions({
     capabilityApi(serverId, HOST_TIMEZONE_CAPABILITY, "mobile.server.settings.timezoneUnsupported");
   const memoryLimitAdmin = (serverId: string) =>
     capabilityApi(serverId, AGENT_MEMORY_LIMIT_CAPABILITY, "mobile.server.settings.memoryLimitUnsupported");
+  /** The connectors are optional admin route sets. */
+  const connectorsAdmin = (serverId: string) =>
+    capabilityApi(serverId, CONNECTORS_CAPABILITY, "mobile.server.connectors.unsupported");
+  const onePasswordAdmin = (serverId: string) =>
+    capabilityApi(serverId, ONEPASSWORD_CONNECTOR_CAPABILITY, "mobile.server.connectors.unsupported");
+  /** The OpenBot update of the host: the admin route set, or the member set that only checks and starts. */
+  const updateApi = (serverId: string, access: ServerUpdateAccess) =>
+    capabilityApi(
+      serverId,
+      access === "admin" ? HOST_UPDATE_CAPABILITY : HOST_MEMBER_UPDATE_CAPABILITY,
+      "mobile.server.update.unavailable",
+    );
+  const updateAdmin = (serverId: string) => updateApi(serverId, "admin");
+  const releaseApi = (serverId: string) =>
+    capabilityApi(serverId, HOST_RELEASE_CAPABILITY, "mobile.server.update.unavailable");
   /** The sites are an optional route set. Every member lists them; the host deletes for an owner or admin only. */
   const sitesApi = (serverId: string) =>
     capabilityApi(serverId, HOSTED_SITES_CAPABILITY, "mobile.server.sites.unsupported");
+  /** The MCP servers are an optional admin route set. */
+  const mcpAdmin = (serverId: string) =>
+    capabilityApi(serverId, MCP_SERVERS_CAPABILITY, "mobile.server.mcp.unsupported");
   function memoryRequest(serverId: string): AgentMemoriesRequest<TeamRequestError> {
     return (method, path, decode, body) =>
       Effect.tryPromise({
@@ -313,8 +392,63 @@ export function createHostRequestActions({
     loadAgentMemoryLimit: async (serverId) => runTeamRequest(getHostAgentMemoryLimit(memoryLimitAdmin(serverId))),
     setAgentMemoryLimit: async (limit, serverId) =>
       runTeamRequest(setHostAgentMemoryLimit(memoryLimitAdmin(serverId), limit)),
+    githubConnector: async (route, serverId) =>
+      runTeamRequest(githubConnectorRequest(connectorsAdmin(serverId), route)),
+    loadGitHubRepositories: async (serverId) => runTeamRequest(githubConnectorRepositories(connectorsAdmin(serverId))),
+    loadOnePasswordConnector: async (serverId) =>
+      runTeamRequest(onePasswordConnectorRequest(onePasswordAdmin(serverId), "status")),
+    connectOnePassword: async (token, serverId) =>
+      runTeamRequest(onePasswordConnectorRequest(onePasswordAdmin(serverId), "connect", { token })),
+    disconnectOnePassword: async (serverId) =>
+      runTeamRequest(onePasswordConnectorRequest(onePasswordAdmin(serverId), "disconnect")),
+    loadMessagingConnections: async (platform, serverId) =>
+      runTeamRequest(messagingConnectorOverview(connectorsAdmin(serverId), { platform })),
+    connectMessaging: async (input, serverId) =>
+      runTeamRequest(messagingConnectorConnect(connectorsAdmin(serverId), input)),
+    completeMessagingInstall: async (input, serverId) =>
+      runTeamRequest(messagingConnectorComplete(connectorsAdmin(serverId), input)),
+    reconnectMessaging: async (input, serverId) =>
+      runTeamRequest(messagingConnectorReconnect(connectorsAdmin(serverId), input)),
+    disconnectMessaging: async (input, serverId) =>
+      runTeamRequest(messagingConnectorDisconnect(connectorsAdmin(serverId), input)),
+    setMessagingEnabled: async (input, serverId) =>
+      runTeamRequest(messagingConnectorSetEnabled(connectorsAdmin(serverId), input)),
+    addMessagingOrchestrator: async (input, serverId) =>
+      runTeamRequest(messagingConnectorAddOrchestrator(connectorsAdmin(serverId), input)),
+    loadServerUpdate: async (serverId, access) =>
+      runTeamRequest(getHostUpdateStatus(updateApi(serverId, access), access === "member")),
+    checkServerUpdate: async (serverId, access) =>
+      runTeamRequest(checkHostForUpdate(updateApi(serverId, access), access === "member")),
+    startServerUpdate: async (serverId, access, restart) =>
+      runTeamRequest(startHostUpdate(updateApi(serverId, access), restart, access === "member")),
+    cancelServerUpdate: async (serverId) => runTeamRequest(cancelHostUpdate(updateAdmin(serverId))),
+    setServerUpdateSettings: async (settings, serverId) =>
+      runTeamRequest(setHostUpdateSettings(updateAdmin(serverId), settings)),
+    loadServerRelease: async (serverId) => runTeamRequest(getHostReleaseStatus(releaseApi(serverId))),
+    checkServerRelease: async (serverId) => runTeamRequest(checkHostRelease(releaseApi(serverId))),
     loadHostedSites: async (serverId) => runTeamRequest(listHostedSites(sitesApi(serverId))),
     deleteHostedSite: async (siteId, serverId) => runTeamRequest(deleteHostedSite(sitesApi(serverId), siteId)),
+    providerAdmin: (serverId) =>
+      createProviderAdmin(
+        capabilityApi(serverId, PROVIDERS_ADMIN_CAPABILITY, "mobile.server.providers.unsupported"),
+        capabilities.get(serverId) ?? [],
+      ),
+    listMcpServers: async (serverId) => runTeamRequest(listMcpServers(mcpAdmin(serverId))),
+    saveMcpServer: async (config, serverId) => runTeamRequest(saveMcpServer(mcpAdmin(serverId), { config })),
+    removeMcpServer: async (mcpServerId, serverId) =>
+      runTeamRequest(removeMcpServer(mcpAdmin(serverId), { mcpServerId })),
+    setMcpServerEnabled: async (mcpServerId, enabled, serverId) =>
+      runTeamRequest(setMcpServerEnabled(mcpAdmin(serverId), { mcpServerId, enabled })),
+    testMcpServer: async (config, serverId) => runTeamRequest(testMcpServer(mcpAdmin(serverId), { config })),
+    // An older host keeps no sign-ins that a client can read.
+    listMcpSignIns: async (serverId) =>
+      has(serverId, MCP_SIGN_IN_CAPABILITY) ? runTeamRequest(listMcpSignIns(teamApi(serverId))) : [],
+    signOutMcpServer: async (mcpServerId, serverId) =>
+      runTeamRequest(
+        signOutMcpServer(capabilityApi(serverId, MCP_SIGN_IN_CAPABILITY, "mobile.server.mcp.unsupported"), {
+          mcpServerId,
+        }),
+      ),
     loadAgentSessionSettings: async (agentId, serverId) =>
       has(serverId, AGENT_SESSION_SETTINGS_CAPABILITY)
         ? runTeamRequest(readAgentSessionSettings(sessionSettingsAdmin(serverId), agentId))

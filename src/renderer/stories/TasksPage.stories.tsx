@@ -25,6 +25,12 @@ const TASK_AGENTS: AgentProfile[] = ["chief", "research", "sales"].map((id) =>
   ),
 );
 
+/** More agents than the window has rows, so the agent menu scrolls. */
+const MANY_AGENTS: AgentProfile[] = Array.from({ length: 30 }, (_, index) => {
+  const agent = requireFixture(STORY_AGENTS[index % STORY_AGENTS.length], "Story agent");
+  return { ...agent, id: `${agent.id}-${index}`, name: `${agent.name} ${index + 1}` };
+});
+
 type TaskSeed = Pick<AgentTask, "id" | "agentId" | "title" | "state"> & Partial<AgentTask>;
 
 function seedTask(seed: TaskSeed): AgentTask {
@@ -178,7 +184,7 @@ function conversationOf(task: AgentTask): ConversationSnapshot {
   };
 }
 
-function TasksPageStory(props: { tasks: readonly AgentTask[]; approvals?: AgentApproval[] }) {
+function TasksPageStory(props: { tasks: readonly AgentTask[]; approvals?: AgentApproval[]; agents?: AgentProfile[] }) {
   const previousApi = window.openbot;
   const tasks: Record<string, AgentTask[]> = {};
   for (const task of props.tasks) tasks[task.agentId] = [...(tasks[task.agentId] ?? []), task];
@@ -198,7 +204,7 @@ function TasksPageStory(props: { tasks: readonly AgentTask[]; approvals?: AgentA
         hostName="This computer"
         onBack={fn()}
         source={desktopTasksSource()}
-        agents={TASK_AGENTS}
+        agents={props.agents ?? TASK_AGENTS}
         onOpenLink={fn()}
         onAttachmentAction={fn()}
         approvals={props.approvals ?? []}
@@ -220,6 +226,8 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = { render: () => <TasksPageStory tasks={TASKS} /> };
 /** No tasks: only the composer. */
 export const Empty: Story = { render: () => <TasksPageStory tasks={[]} /> };
+/** Thirty agents: the agent menu fits the window and scrolls to the last agent. */
+export const ManyAgents: Story = { render: () => <TasksPageStory tasks={[]} agents={MANY_AGENTS} /> };
 
 /** A running task asks to write outside its workspace. Its row and panel say that it waits for you. */
 const WAITING_APPROVAL: AgentApproval = {

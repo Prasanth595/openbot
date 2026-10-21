@@ -26,9 +26,10 @@ import { useText } from "@openbot/ui/text";
 import { createSignal, onCleanup } from "solid-js";
 import { readActionSoundChoice, replayActionSoundChoice, setActionSoundChoice } from "../../action-sounds";
 import { isCompletionSoundEnabled, setCompletionSoundEnabled } from "../../completion-sound";
-import { setWebReportsEnabled, webReportsEnabled } from "../../error-reports";
+import { webReportsEnabled } from "../../error-reports";
 import { currentDevicePlatform, setSendShortcutMode, useSendShortcutMode } from "../../send-shortcut-preference";
 import type { WebAccountCalls } from "./web-account";
+import { setWebAnalyticsEnabled } from "./web-analytics";
 
 const TABS = ["profile", "preferences"] as const;
 type WebAccountSettingsTab = (typeof TABS)[number];
@@ -197,14 +198,14 @@ export default function WebAccountSettings(props: WebAccountSettingsProps) {
               </Item>
             </ItemGroup>
           </SettingsSection>
-          <SettingsSection title={t("settings.analytics.webTitle")}>
+          <SettingsSection title={t("settings.analytics.title")}>
             <ItemGroup class="settings-modal-card">
               <SwitchField
                 checked={reportsEnabled()}
                 onChange={(value) => {
-                  setReportsEnabled(setWebReportsEnabled(value));
+                  setReportsEnabled(setWebAnalyticsEnabled(value));
                 }}
-                label={t("settings.analytics.webTitle")}
+                label={t("settings.analytics.title")}
                 description={t("settings.analytics.webDescription")}
               />
             </ItemGroup>

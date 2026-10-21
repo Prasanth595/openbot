@@ -40,19 +40,24 @@ browser also stores the chosen interface language and whether the completion sou
 no message content.
 Signing out revokes that credential's remote sessions and tells other open tabs to clear private
 state. Host identity pins remain so a later sign-in cannot silently trust a replacement host key.
-The web client adds no chat analytics events. At sign-in it sends the saved first website visit
+The web client records the product events that "Product analytics" describes. At sign-in it sends the saved first website visit
 of the browser, described in "Product analytics", to the account service. It does not send email codes, credentials,
 message content, file content, or search queries to telemetry.
 
-Production builds of OpenBot desktop, the configured mobile app, and the website use a self-hosted OpenPanel service for product
-analytics. Development builds, previews, tests, and Storybook do not send analytics.
+Production builds of OpenBot desktop, the browser client at `/app`, the configured mobile app, and the website use a
+self-hosted OpenPanel service for product analytics. Development builds, previews, tests, and Storybook do not send analytics.
 
 The production account service also sends OpenPanel an event when a paid plan or a hosted server
 changes: a Checkout starts or expires, a plan starts, changes, is cancelled or ends, a payment
 succeeds or fails, a payment is refunded or disputed, the Customer Portal opens, or a hosted server is set up, fails to set up, stops
 after no use, starts, changes its machine, stops at the end of its plan, is renewed or is deleted.
-Each event has your account ID and only fixed values: the action, the plan, the billing period, the
-currency, the amount that Stripe reports, the server size, the start reason and an error code. It has
+It also sends these events for a license: a Checkout starts, the license starts, its number of
+users goes up or down, its renewal is cancelled or resumed, it ends, or its payment succeeds, fails,
+is refunded or is disputed.
+Each event has your account ID and only fixed values: the action, whether it is a server plan or a
+license, the plan, the number of license users, the billing period, the currency, the amount that
+Stripe reports, the place in the app where the plans were opened, the server size, the start reason
+and an error code. It has
 no email, name, Stripe ID or server ID. The desktop analytics setting does not stop these events,
 because the account service sends them and not your computer.
 
@@ -60,7 +65,8 @@ The account service also records a return from Checkout without payment and late
 recovery. Verified paid invoices produce a revenue event in USD, with the original amount,
 currency, and dated exchange rate. Refunds and disputes produce an event with the same USD amount,
 currency, and dated exchange rate. Daily totals contain recurring revenue, overdue recurring
-revenue, paid accounts, paid servers, and scheduled cancellations. These totals have no account ID.
+revenue, paid accounts, paid servers, scheduled cancellations, and license recurring revenue,
+accounts and users. These totals have no account ID.
 The service stores payment facts and a delivery ledger in D1 to prevent duplicate revenue events.
 It does not send Stripe identifiers, server identifiers, or Checkout return tokens to OpenPanel.
 An account deletion clears its profile reference and stops pending account event delivery.
@@ -100,8 +106,9 @@ host, with an optional agent filter. A host-wide response carries the combined t
 day, one row per model, one aggregate row per agent, identified by the agent's internal id, and one
 row per day and provider with that provider's token count and cost estimate for the day. Agent
 names are not part of the analytics payload; the client shows them from the agent list it already
-reads. These records are separate from product analytics and are not sent
-to OpenPanel or stored by the account service or Signal service. Conversation clearing retains usage;
+reads. These records stay on the host and are not stored by the account service or Signal
+service. Product analytics sends only the token counts of each completed turn and of each
+provider and model in it, as "Product analytics" describes; it does not send the records, cost estimates or identifiers. Conversation clearing retains usage;
 agent deletion removes it. A duplicate agent starts with no usage history.
 
 Authenticated members of a host team can also see that host's storage through the Team API: how
@@ -119,20 +126,37 @@ and incomplete billing inputs remain marked as unavailable or partial.
 The production website records anonymous page views using only fixed paths: `/`, `/join`, the
 download pages, the news and guide indexes, and published articles. It also records download clicks,
 clicks on allowlisted public links, invitation validity, and open-app actions on invitation pages.
+It also records the topic and result of a contact form send, and whether a return from Stripe
+completed or was cancelled, for a plan, a license or the billing portal. The contact form message,
+name and email are not sent to analytics.
 The production desktop app records application, sign-in, onboarding, agent, message, turn, prompt,
 approval, queue, routine, team, browser, search, Remote Desktop, update, marketplace, memory,
 provider, voice transcription, Voice pane, spoken reply, voice model download, spoken reply setting,
-reaction, maintenance, Hosted Site, hosted server offer, and confirmed application-version-change
-actions. Event properties are limited to metadata such as counts, result states, timing, provider,
+reaction, Hosted Site, hosted server offer, hosted server plans, plan and member limits, license,
+contact sales, provider usage limit, agent template, phone connection, connector, Computer Use
+permission, help link, channel, server export and import, Usage view, and confirmed
+application-version-change actions. Plans and license events send the plan, billing interval,
+currency, where the plans were opened, and whether a license user count went up or down; they do
+not send a price, a payment detail or a Stripe ID. Connector events name only the connector type,
+such as Slack; channel events send no channel name. Message events can send the kinds of the
+attached files (image, document, spreadsheet, ZIP or other), never their names or types. Event properties are limited to metadata such as counts, result states, timing, provider,
 model, reasoning effort, application version, operating system, and coarse failure codes. Voice events
 send only lengths, times, counts, the chosen voice (for example `F1`), whether the server is local or
 remote, and whether speech recognition runs on the computer or in the cloud. They never send what
 the user said, the reply, a transcript, or audio.
 
+The production browser client at `/app` on `https://openbot.run` records the same product events
+as the desktop app, with the same limits, and labels them as web. Its **Share product analytics**
+setting in account settings controls these events and the error reports.
+
 The configured production mobile app records app opens and foreground returns, sign-in QR pairing
 and camera-permission outcomes, host connection attempts and losses, conversation-load outcomes,
 message and prompt-answer submissions, attachment operations, agent/routine/memory actions,
 server selection/join/leave, search result counts, pin/unpin, hide/unhide, Usage views and sign-out.
+It also records email sign-in steps, whether pairing started from a QR code or a link, hosted
+server plans views, setup steps, notification settings and the notification permission result,
+Live Activity starts and ends, voice conversation and spoken turn outcomes, and agent template
+installs.
 Mobile properties include app version/build, iOS or Android, result, timing, bounded connection stage,
 counts, coarse attachment size buckets, and provider/model/reasoning metadata where available.
 Mobile never sends scanned QR values, install-referrer URLs or route identifiers. It does not
@@ -180,6 +204,8 @@ preference, independent of desktop and host collection. It defaults to enabled i
 configured production build, is read before collection starts, and remains disabled if the stored
 preference cannot be read. Disabling it drops pending mobile events; it does not remove previously
 received events or retract an in-flight request. There is no persistent offline analytics queue.
+When a user turns product analytics off on desktop, web or mobile, the app first sends one event
+that says analytics was turned off, then stops. Turning it on again sends nothing.
 Development and preview mobile builds do not collect product analytics. Mobile sign-in uses the
 same account ID and normalized email profile traits described above. Before mobile sign-in, up to
 100 sanitized events stay in process memory for at most 30 minutes from the first buffered event.
@@ -215,6 +241,12 @@ The local host also records how the agents are used:
   unexpectedly, by reason; and the computer's memory and processor class, architecture, and whether
   it is a server. Memory is rounded to 50 MB. Process IDs, program names, command lines and paths
   are not sent. A day that ends while analytics is off is not sent.
+- **Token counts.** When a turn completes, the host sends the token counts that the provider
+  reported for that turn: uncached input, cached input, cache write, output, and their total. These
+  come from the same records as the Usage view. When the provider reported no usage, the host sends
+  that the usage is unknown, not a count of 0. A count that the provider did not report is not sent.
+  The host also sends the same counts for each provider and model that the turn used, with that
+  provider and model name. The turn's messages and the provider's raw response are not sent.
 - **Agent source.** Turn events say whether the agent came from a curated listing, a community
   listing, or neither, and name only a curated listing. Marketplace events name only a curated
   skill, agent or catalog plugin.
@@ -603,10 +635,11 @@ Network traffic can also occur when:
   `~/Library/Application Support/OpenBot/provider-state/1password-cli`. The request carries no user
   data;
 - the user dictates or opens the Voice pane for the first time, or presses Download in **Settings →
-  Voice**. OpenBot downloads the speech model that it pins, Parakeet or Whisper turbo, from
-  `huggingface.co`, checks its size and SHA-256, and keeps it in `runtimes` in the application data
-  folder. The request carries no user data. Dictation audio from these models stays on the computer,
-  and the chosen model and language are saved in `voice-preference.json` in the same folder;
+  Voice**. OpenBot downloads the speech model that it pins, Parakeet, Underdog Bark 3.0 Plus or
+  Whisper turbo, from `huggingface.co`, checks its size and SHA-256, and keeps it in `runtimes` in
+  the application data folder. The request carries no user data. Dictation audio from these models
+  stays on the computer, and the chosen model and language are saved in `voice-preference.json` in
+  the same folder;
 - the user selects ElevenLabs Scribe v2 Realtime in **Settings → Voice** and dictates or talks in
   the Voice pane. While the microphone records, or when a Voice pane turn ends, OpenBot streams the
   audio and the chosen language to `api.elevenlabs.io` with the user's own API key, and receives the

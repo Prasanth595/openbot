@@ -2,9 +2,7 @@ import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import type { AvatarImageInput, ServerNotificationLevel } from "@openbot/contracts/ipc";
 import { SERVER_NOTIFICATION_LEVELS } from "@openbot/contracts/ipc";
 import {
-  Badge,
   Button,
-  CopyButton,
   Image,
   ImageRemoveButton,
   Input,
@@ -31,7 +29,6 @@ import {
 } from "@openbot/ui/features/servers/ServerActionItems";
 import { ServerLogo } from "@openbot/ui/features/servers/ServerLogo";
 import { useText } from "@openbot/ui/text";
-import { truncateMiddle } from "@openbot/ui/utils";
 import type { JSX } from "@solidjs/web";
 import { type Accessor, createStore, Show, snapshot } from "solid-js";
 import { ServerMemoryLimitSetting } from "./ServerMemoryLimitSetting";
@@ -63,7 +60,6 @@ interface ServerIdentityDraft {
  * field re-renders only what read that field.
  */
 interface GeneralPanels {
-  offerRemoteDesktopSetup: boolean;
   confirmLeave: boolean;
   identity: ServerIdentityDraft;
 }
@@ -76,21 +72,22 @@ interface ServerGeneralSection {
   identityDirty: Accessor<boolean>;
   resetIdentity(): void;
   saveIdentity(): Promise<void>;
+  /**
+   * Saves a valid name or logo that the user did not save, and says whether nothing failed. Members
+   * calls it before it publishes an unnamed server, so that the server does not get a generated name.
+   */
+  saveIdentityDraft(): Promise<boolean>;
   /** Shows the name and logo the server holds now, while the user does not edit them. */
   syncFromServer(name: string, logoUrl: string | null): void;
   /** Forgets the draft state of the previous server when the dialog shows another one. */
   resetForServer(): void;
 }
 
-/** The General section: server identity, access, notifications, and leaving a joined server. */
-export function createServerGeneralSection(
-  host: ServerSettingsSectionHost,
-  options: { onSetUpDesktop: () => void },
-): ServerGeneralSection {
+/** The General section: server identity, agent settings, notifications, and leaving a joined server. */
+export function createServerGeneralSection(host: ServerSettingsSectionHost): ServerGeneralSection {
   const { t, format, errorMessage } = useText();
-  const { props, local, configured, published, actionsAvailable, busy, run } = host;
+  const { props, local, actionsAvailable, busy, run } = host;
   const [panels, setPanels] = createStore<GeneralPanels>({
-    offerRemoteDesktopSetup: false,
     confirmLeave: false,
     identity: {
       editing: false,
@@ -111,7 +108,6 @@ export function createServerGeneralSection(
   const canEditIdentity = () => serverCanAdminister(props.server, "host-admin-v1") && actionsAvailable();
   const canSetTimezone = () => serverCanAdminister(props.server, "host-timezone-v1") && actionsAvailable();
   const canSetMemoryLimit = () => serverCanAdminister(props.server, "agent-memory-limit-v1") && actionsAvailable();
-  const address = () => (local() ? props.hostStatus?.apiUrl : props.server.apiUrl);
   const trimmedName = () => panels.identity.name.trim();
   const nameError = () => {
     if (!canEditIdentity()) return null;
@@ -131,21 +127,6 @@ export function createServerGeneralSection(
     (trimmedName() !== panels.identity.savedName ||
       panels.identity.logo !== undefined ||
       panels.identity.logoUrl !== panels.identity.savedLogoUrl);
-
-  async function setPublished(value: boolean): Promise<void> {
-    const serverId = props.server.id;
-    const succeeded = await run("publish", () => props.onSetPublished(value));
-    if (!succeeded || props.server.id !== serverId) return;
-    setPanels((state) => {
-      state.offerRemoteDesktopSetup = value && local() && props.platform === "darwin";
-    });
-  }
-
-  function dismissRemoteDesktopSetup(): void {
-    setPanels((state) => {
-      state.offerRemoteDesktopSetup = false;
-    });
-  }
 
   async function chooseLogo(file: File | undefined): Promise<void> {
     if (!file) return;
@@ -237,6 +218,12 @@ export function createServerGeneralSection(
     });
   }
 
+  async function saveIdentityDraft(): Promise<boolean> {
+    if (!identityDirty() || nameError()) return true;
+    await saveIdentity();
+    return !identityDirty();
+  }
+
   function syncFromServer(name: string, logoUrl: string | null): void {
     setPanels((state) => {
       state.identity.savedName = name;
@@ -251,18 +238,11 @@ export function createServerGeneralSection(
 
   function resetForServer(): void {
     setPanels((state) => {
-      state.offerRemoteDesktopSetup = false;
       state.confirmLeave = false;
       state.identity.editing = false;
       state.identity.nameTouched = false;
       state.identity.nameShaking = false;
     });
-  }
-
-  function accessDescription() {
-    if (!local()) return published() ? t("server.settings.remoteOnline") : t("server.settings.remoteOffline");
-    if (!configured()) return t("server.settings.saveIdentityFirst");
-    return published() ? t("server.settings.reachable") : t("server.settings.notReachable");
   }
 
   function Panel() {
@@ -406,45 +386,6 @@ export function createServerGeneralSection(
             </Item>
           </ItemGroup>
         </SettingsSection>
-        <SettingsSection title={t("server.settings.access")}>
-          <ItemGroup class="settings-modal-card">
-            <SwitchField
-              class="server-settings-publish-setting"
-              size="default"
-              checked={published()}
-              disabled={!local() || !configured() || Boolean(busy())}
-              onChange={(value) => void setPublished(value)}
-              label={local() ? t("server.settings.publish") : t("server.settings.published")}
-              description={accessDescription()}
-            />
-            <Item class="server-settings-address-setting">
-              <ItemContent>
-                <ItemTitle>{t("server.settings.address")}</ItemTitle>
-                <ItemDescription>{t("server.settings.addressDescription")}</ItemDescription>
-              </ItemContent>
-              <Show
-                when={address()}
-                fallback={
-                  <Badge class="server-settings-private-badge" variant="secondary">
-                    {t("server.settings.private")}
-                  </Badge>
-                }
-              >
-                {(serverAddress) => (
-                  <CopyButton
-                    value={serverAddress()}
-                    label={truncateMiddle(serverAddress(), 31)}
-                    copiedLabel={t("common.copied")}
-                    aria-label={t("server.settings.copyAddress")}
-                    title={serverAddress()}
-                    onCopyError={host.showCopyError}
-                    class="server-settings-address-control"
-                  />
-                )}
-              </Show>
-            </Item>
-          </ItemGroup>
-        </SettingsSection>
         <Show when={(canSetTimezone() && props.hostTimezone) || (canSetMemoryLimit() && props.hostMemoryLimit)}>
           <SettingsSection title={t("server.settings.agents")}>
             <ItemGroup class="settings-modal-card">
@@ -472,30 +413,6 @@ export function createServerGeneralSection(
               </Show>
             </ItemGroup>
           </SettingsSection>
-        </Show>
-        <Show when={panels.offerRemoteDesktopSetup}>
-          <ItemGroup class="settings-modal-card">
-            <Item>
-              <ItemContent>
-                <ItemTitle>{t("server.settings.setUpDesktopTitle")}</ItemTitle>
-                <ItemDescription>{t("server.settings.setUpDesktopDescription")}</ItemDescription>
-              </ItemContent>
-              <ItemActions>
-                <Button size="sm" variant="ghost" onClick={dismissRemoteDesktopSetup}>
-                  {t("server.settings.later")}
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    dismissRemoteDesktopSetup();
-                    options.onSetUpDesktop();
-                  }}
-                >
-                  {t("server.settings.setUp")}
-                </Button>
-              </ItemActions>
-            </Item>
-          </ItemGroup>
         </Show>
         <Show when={props.onSetMuted && props.onSetNotificationLevel}>
           <SettingsSection title={t("server.settings.notifications")}>
@@ -637,6 +554,7 @@ export function createServerGeneralSection(
     identityDirty,
     resetIdentity,
     saveIdentity,
+    saveIdentityDraft,
     syncFromServer,
     resetForServer,
   };

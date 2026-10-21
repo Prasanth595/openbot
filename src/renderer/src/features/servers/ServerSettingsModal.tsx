@@ -317,9 +317,16 @@ export function ServerSettingsModal(props: ServerSettingsModalProps) {
       });
     },
   };
-  const general = createServerGeneralSection(host, { onSetUpDesktop: () => setSection("desktop") });
+  const general = createServerGeneralSection(host);
   const roles = createServerRolesSection(host, () => section() === "roles" || section() === "members");
-  const members = createServerMembersSection(host, roles);
+  const members = createServerMembersSection(
+    host,
+    {
+      onSetUpDesktop: () => setSection("desktop"),
+      saveIdentityDraft: general.saveIdentityDraft,
+    },
+    roles,
+  );
   const hostedSites = createSettingsHostedSitesStore(
     {
       get open() {

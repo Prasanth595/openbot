@@ -18,7 +18,11 @@ import type {
 import type { TelegramChatPlace } from "@openbot/ui/features/settings/TelegramIntegrationPanel";
 import { currentText } from "@openbot/ui/text";
 import { createSignal, createStore, untrack } from "solid-js";
-import { type ConnectorController, createConnectorActions } from "./connector-controller";
+import {
+  type ConnectorAnalyticsAction,
+  type ConnectorController,
+  createConnectorActions,
+} from "./connector-controller";
 
 /** A Slack or Discord connect installs the app in a new workspace; a Telegram one opens a chat. */
 type MessagingConnectTarget = { platform: WorkspacePlatform } | { platform: "telegram"; place: TelegramChatPlace };
@@ -144,7 +148,7 @@ export function createMessagingConnector(
     return last && last.serverId === options.serverId?.() ? last : null;
   };
   const overview = () => current()?.overview ?? null;
-  const actions = createConnectorActions(ACTION_FAILED[platform]);
+  const actions = createConnectorActions(ACTION_FAILED[platform], platform);
   /** Each read replaces the one before it, so a slow answer never overwrites a newer one. */
   let reads = 0;
 
@@ -223,7 +227,8 @@ export function createMessagingConnector(
         });
       });
   };
-  const run = (action: () => Promise<unknown>) => actions.run(action, { settled: reload });
+  const run = (action: () => Promise<unknown>, track?: ConnectorAnalyticsAction) =>
+    actions.run(action, { settled: reload, ...(track ? { track } : {}) });
   const addOrchestrator = (target: MessagingOrchestratorTarget, choice: SlackOrchestratorChoice | null) =>
     run(async () => {
       const { sectionId } = await api.addOrchestrator(target, choice);
@@ -231,9 +236,10 @@ export function createMessagingConnector(
     });
   const connections = () => overview()?.connections ?? [];
   const shared = {
-    disconnect: (workspaceId: string) => run(() => api.disconnect(platform, workspaceId)),
-    reconnect: (workspaceId: string) => run(() => api.reconnect(platform, workspaceId)),
-    setEnabled: (workspaceId: string, enabled: boolean) => run(() => api.setEnabled(platform, workspaceId, enabled)),
+    disconnect: (workspaceId: string) => run(() => api.disconnect(platform, workspaceId), "disconnected"),
+    reconnect: (workspaceId: string) => run(() => api.reconnect(platform, workspaceId), "connect_started"),
+    setEnabled: (workspaceId: string, enabled: boolean) =>
+      run(() => api.setEnabled(platform, workspaceId, enabled), enabled ? "enabled" : "disabled"),
   };
   const base = {
     ready: () => current() !== null,
@@ -278,6 +284,7 @@ export function createMessagingConnector(
             new Promise<boolean>((resolve) => {
               let opened = false;
               actions.run(() => api.connect({ platform, place }), {
+                track: "connect_started",
                 done: () => {
                   opened = true;
                 },
@@ -295,7 +302,7 @@ export function createMessagingConnector(
       },
     };
 
-  const connect = () => run(() => api.connect({ platform }));
+  const connect = () => run(() => api.connect({ platform }), "connect_started");
   const discordAccess: DiscordAccessControl = {
     allowed: (workspaceId) => access.allowed[workspaceId] ?? null,
     loadRoles: async (workspaceId) => (await api.discordRoles(workspaceId)).roles,
