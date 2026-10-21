@@ -249,19 +249,18 @@ export const messages = {
   "marketplace.plugin.resend.prompt.template": "新しいフロー用のパスワードリセットメールの下書きを作成してください。",
   "marketplace.plugin.composio.tagline": "自分の Composio リンクで多数のアプリを利用",
   "marketplace.plugin.composio.description":
-    "Composio は、1 つの MCP サーバーでエージェントを Gmail、Slack、GitHub など数百のアプリに接続します。Composio アカウントでサーバーを作成し、使いたいアプリを追加して、そのリンクをここに貼り付けてください。API キーは、サーバーが必要とする場合にのみ追加してください。",
+    "Composio は、1 つの MCP サーバーでエージェントを Gmail、Slack、GitHub など数百のアプリに接続します。Composio アカウントで使いたいアプリを接続し、その MCP URL と API キーをここに貼り付けてください。",
   "marketplace.plugin.composio.app":
     "Composio MCP サーバーに追加したアプリを、Composio アカウントのリンクで提供します。",
   "marketplace.plugin.composio.prompt.inbox": "未読メールをまとめて、急ぎのものに返信の下書きを作成してください。",
   "marketplace.plugin.composio.prompt.handoff": "このプルリクエストの概要をチームのチャンネルに投稿してください。",
   "marketplace.plugin.composio.prompt.apps": "Composio で使えるアプリと操作はどれですか？",
   "marketplace.plugin.composio.hint.url": "Composio アカウントにある MCP サーバーの URL",
-  "marketplace.plugin.composio.hint.apiKey": "サーバーで必要な場合のみ。Composio のアカウント設定で確認できます。",
+  "marketplace.plugin.composio.hint.apiKey": "Composio アカウントの Settings > Sessions & API Key で確認できます。",
   "marketplace.auth.apiKey": "API キー",
   "marketplace.auth.personalApiKey": "個人用 API キー",
   "marketplace.auth.mcpUrl": "MCP URL",
   "marketplace.auth.createKey": "キーを作成",
-  "marketplace.auth.createServer": "サーバーを作成",
 
   "marketplace.skill.installMenu.install": "インストール",
   "marketplace.skill.installMenu.installNamed": "{name} をインストール",

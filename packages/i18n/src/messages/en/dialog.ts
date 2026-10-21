@@ -11,6 +11,7 @@ export const messages = defineMessages("dialog", {
   "dialog.filter.zipArchive": "ZIP archive",
   "dialog.filter.jsonDocument": "JSON document",
   "dialog.chooseAgentExport": "Choose an agent export",
+  "dialog.chooseHermesFolder": "Choose the Hermes folder",
   "dialog.filter.agentExports": "Agent exports",
   "dialog.saveExportSkill": "Save the export skill",
   "dialog.saveTransfer": "Save the transfer file",
