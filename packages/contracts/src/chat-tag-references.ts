@@ -98,11 +98,13 @@ function chatTagKind(value: string | undefined): ChatTagKind {
 /**
  * The text with each marker as words. `resolveName` gives the current name of an agent, skill or
  * MCP server. For a quote it gives the whole replacement: a one-line preview uses it to keep the
- * quote out of a block quote.
+ * quote out of a block quote. `fileHeadings` names the file and lines above a file quote. Only a
+ * provider prompt asks for it: the heading is English, and a person reads the other results.
  */
 export function expandChatTagReferences(
   value: string,
   resolveName?: (reference: ChatTagReference) => string | undefined,
+  options: { fileHeadings?: boolean } = {},
 ): string {
   const text = { first: value.search(/\S/u), last: value.trimEnd().length, quoteEnd: -1 };
   return value.replace(
@@ -121,7 +123,8 @@ export function expandChatTagReferences(
       if (kind === "quote") {
         const inline = resolveName?.(reference);
         if (inline !== undefined) return inline;
-        const expanded = expandedQuote(name, fileQuoteTarget(id), value, offset, offset + marker.length, text);
+        const file = options.fileHeadings ? fileQuoteTarget(id) : null;
+        const expanded = expandedQuote(name, file, value, offset, offset + marker.length, text);
         text.quoteEnd = offset + marker.length;
         return expanded;
       }
