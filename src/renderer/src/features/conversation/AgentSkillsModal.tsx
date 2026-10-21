@@ -202,16 +202,15 @@ export function AgentSkillsModal(props: AgentSkillsModalProps) {
 
   /** A joined server's skill shows the SKILL.md on the host, which is also right for a skill changed there. */
   function detailCall(skill: InstalledSkill): (() => Promise<SkillDetail>) | null {
-    const readHostFile = localLibrary() ? undefined : props.previewWorkspaceFile;
-    if (readHostFile) {
-      const hint = catalog()[skill.skillId];
-      return async () => hostSkillDetail(skill, hint, await readHostFile(hostSkillPath(skill)));
-    }
     const catalogPort = catalogCalls();
-    if (isFolderSkill(skill) || !catalogPort || (!localLibrary() && skill.skillId.startsWith("local-skill-"))) {
-      return null;
+    const local = skill.skillId.startsWith("local-skill-");
+    const readHostFile = localLibrary() ? undefined : props.previewWorkspaceFile;
+    if (readHostFile && (!isFolderSkill(skill) || skill.location)) {
+      const listing = catalogPort && !local && !isFolderSkill(skill) ? () => catalogPort.get(skill.skillId) : null;
+      return () => hostSkillDetail(skill, readHostFile, listing);
     }
-    return skill.skillId.startsWith("local-skill-")
+    if (isFolderSkill(skill) || !catalogPort || (!localLibrary() && local)) return null;
+    return local
       ? () => skillsPort().skills.localGet({ skillId: skill.skillId, revision: skill.installedVersion })
       : () => catalogPort.get(skill.skillId);
   }
@@ -749,23 +748,46 @@ export function assignedSkillCount(skills: InstalledSkill[]): number {
   return skills.filter((skill) => !isBuiltInSkill(skill) && !isFolderSkill(skill)).length;
 }
 
-/** Where the host keeps the skill's SKILL.md, relative to the agent workspace. */
-function hostSkillPath(skill: InstalledSkill): string {
-  if (isFolderSkill(skill)) return `${skill.location ?? ""}/SKILL.md`;
-  return isEnabled(skill) ? `.agents/skills/${skill.slug}/SKILL.md` : `.openbot/skills-disabled/${skill.slug}/SKILL.md`;
+/** Where the host keeps the skill's SKILL.md, relative to the agent workspace, in the order to read. */
+function hostSkillPaths(skill: InstalledSkill): string[] {
+  if (isFolderSkill(skill)) return [`${skill.location}/SKILL.md`];
+  if (!isEnabled(skill)) return [`.openbot/skills-disabled/${skill.slug}/SKILL.md`];
+  // The host writes a copy to each managed skill folder.
+  return [".agents/skills", ".claude/skills"].map((folder) => `${folder}/${skill.slug}/SKILL.md`);
 }
 
-function hostSkillDetail(
+/**
+ * The SKILL.md on the host. A marketplace entry adds its icon and example prompt, and shows in its
+ * place when the host cannot send the file.
+ */
+async function hostSkillDetail(
   skill: InstalledSkill,
-  hint: { description: string; iconUrl: string | null } | undefined,
-  file: FilePreview,
-): SkillDetail {
+  readHostFile: (path: string) => Promise<FilePreview>,
+  listing: (() => Promise<SkillDetail>) | null,
+): Promise<SkillDetail> {
+  const pendingEntry = listing?.().catch(() => null) ?? Promise.resolve(null);
+  let file: FilePreview | null = null;
+  let failure: unknown;
+  for (const path of hostSkillPaths(skill)) {
+    try {
+      file = await readHostFile(path);
+      break;
+    } catch (error) {
+      failure ??= error;
+    }
+  }
+  const entry = await pendingEntry;
+  if (!file) {
+    if (entry) return entry;
+    throw failure;
+  }
   const text = file.bytes ? new TextDecoder().decode(file.bytes) : "";
   return {
     id: skill.skillId,
     name: skill.name,
-    description: skill.description ?? hint?.description ?? "",
-    iconUrl: hint?.iconUrl ?? null,
+    description: skill.description ?? entry?.description ?? "",
+    iconUrl: entry?.iconUrl ?? null,
+    ...(entry?.examplePrompt ? { examplePrompt: entry.examplePrompt } : {}),
     instructions: text.replace(/^---\s*\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/u, "").trim(),
     version: skill.installedVersion,
   };
