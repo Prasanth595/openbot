@@ -101,7 +101,7 @@ export function configureAttachmentProtocol({ mailbox, agents, remoteServers }: 
       const serverId = decodeURIComponent(url.hostname);
       const attachmentId = decodeURIComponent(url.pathname.split("/").filter(Boolean)[0] ?? "");
       if (!serverId || !attachmentId) return new Response("Not found", { status: 404 });
-      const attachment = await runCauseEffect(remoteServers.downloadAttachment(attachmentId, serverId));
+      const attachment = await runCauseEffect(remoteServers.downloadAttachment(attachmentId, serverId, true));
       return new Response(Buffer.from(attachment.bytes), {
         headers: {
           "Content-Type": attachment.mimeType,
@@ -143,7 +143,8 @@ export function configureAttachmentProtocol({ mailbox, agents, remoteServers }: 
       const attachment = await runCauseEffect(remoteServers.downloadAttachment(attachmentId, serverId));
       if (!isChatVisualMimeType(attachment.mimeType)) return new Response("Not found", { status: 404 });
       return chatVisualResponse(attachment.bytes);
-    } catch {
+    } catch (error) {
+      logger.warn("A remote visual reply could not be shown.", { cause: toLogValue(error) });
       return new Response("Not found", { status: 404 });
     }
   });

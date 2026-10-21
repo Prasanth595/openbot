@@ -26,11 +26,20 @@
   color: var(--openbot-text-muted);
 }
 
-/* Over the image until it loads: a remote image arrives only after its last byte. */
+/* Over the image until it loads: a remote image arrives only after its last byte. It shows after a
+ * delay, so an image that loads at once does not flash a spinner. */
 .image-gallery-tile-loading {
   position: relative;
   z-index: 1;
+  display: grid;
   grid-area: 1 / 1;
+  animation: image-gallery-loading-in 0s 400ms both;
+}
+
+@keyframes image-gallery-loading-in {
+  from {
+    visibility: hidden;
+  }
 }
 
 .image-gallery-tile img {

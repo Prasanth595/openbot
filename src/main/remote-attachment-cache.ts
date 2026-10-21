@@ -11,11 +11,11 @@ import type { RemoteWorkflowError } from "./remote-service-effects";
 const REMOTE_ATTACHMENT_CACHE_BYTES = 64 * 1024 * 1024;
 const REMOTE_ATTACHMENT_CACHE_ENTRY_BYTES = 16 * 1024 * 1024;
 const REMOTE_ATTACHMENT_CACHE_TTL_MS = 10 * 60_000;
-// The host answers a download only after its last byte, and all transfers share one ordered data
-// channel. Eight gallery images that started together showed nothing until all of them arrived. Two
-// images of 1.5 MB also stay under the channel's 4 MB send buffer, where the host stops and sends again
-// from the last acknowledgement.
-const REMOTE_ATTACHMENT_DOWNLOADS_PER_SERVER = 2;
+// Previews that download at the same time from one server. The host answers a download only after its
+// last byte, and all transfers share one ordered data channel. Eight gallery images that started
+// together showed nothing until all of them arrived. Two images of 1.5 MB also stay under the channel's
+// 4 MB send buffer, where the host stops and sends again from the last acknowledgement.
+const REMOTE_ATTACHMENT_PREVIEWS_PER_SERVER = 2;
 
 export interface RemoteAttachment {
   bytes: Uint8Array;
@@ -52,6 +52,8 @@ export class RemoteAttachmentCache {
     serverId: string,
     attachmentId: string,
     download: () => Effect.Effect<RemoteAttachment, RemoteWorkflowError>,
+    // A file that the user opens or saves can be 100 MB, so it must not take a preview's place.
+    preview = false,
   ) {
     this.#removeExpired();
     const key = JSON.stringify([serverId, attachmentId]);
@@ -67,8 +69,8 @@ export class RemoteAttachmentCache {
     const generation = this.#generation(serverId);
     const request = Deferred.makeUnsafe<RemoteAttachment, RemoteWorkflowError>();
     this.#pending.set(key, { serverId, request });
-    const permits = this.#downloadPermits(serverId);
-    return yield* permits.withPermit(download()).pipe(
+    const transfer = preview ? this.#downloadPermits(serverId).withPermit(download()) : download();
+    return yield* transfer.pipe(
       Effect.tap((attachment) =>
         Effect.sync(() => {
           if (this.#generation(serverId) === generation) this.#store(key, serverId, attachment);
@@ -100,7 +102,7 @@ export class RemoteAttachmentCache {
   #downloadPermits(serverId: string): Semaphore.Semaphore {
     let permits = this.#downloads.get(serverId);
     if (!permits) {
-      permits = Semaphore.makeUnsafe(REMOTE_ATTACHMENT_DOWNLOADS_PER_SERVER);
+      permits = Semaphore.makeUnsafe(REMOTE_ATTACHMENT_PREVIEWS_PER_SERVER);
       this.#downloads.set(serverId, permits);
     }
     return permits;
