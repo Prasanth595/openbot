@@ -40,7 +40,7 @@ browser also stores the chosen interface language and whether the completion sou
 no message content.
 Signing out revokes that credential's remote sessions and tells other open tabs to clear private
 state. Host identity pins remain so a later sign-in cannot silently trust a replacement host key.
-The web client adds no chat analytics events. At sign-in it sends the saved first website visit
+The web client records the product events that "Product analytics" describes. At sign-in it sends the saved first website visit
 of the browser, described in "Product analytics", to the account service. It does not send email codes, credentials,
 message content, file content, or search queries to telemetry.
 
