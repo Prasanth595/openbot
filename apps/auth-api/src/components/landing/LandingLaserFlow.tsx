@@ -410,6 +410,12 @@ const POUR_PACE = 1;
 const SPILL_SPEED = 320;
 const SPILL_GRAVITY = 240;
 const INTRO_END = 7;
+/** A median frame time above this, in milliseconds, makes the canvas smaller. */
+const SLOW_FRAME_MS = 25;
+/** The number of frames in each median. One long task in the page does not move the median. */
+const FRAME_SAMPLES = 20;
+/** The smallest canvas, as a share of the full canvas. The light is soft, so it still looks the same. */
+const MIN_QUALITY = 0.35;
 /** How fast, in CSS pixels a second, the light runs around the source element after the beam reaches it. */
 const WRAP_SPEED = 420;
 
@@ -744,6 +750,8 @@ export function LandingLaserFlow(props: LandingLaserFlowProps) {
       antialias: false,
       depth: false,
       stencil: false,
+      // A software renderer draws the shader on the CPU, and the whole page then drops to about 10 fps.
+      failIfMajorPerformanceCaveat: true,
     });
     // No WebGL2 leaves the hero as it was without the beam, which is a complete page.
     if (!host || !element || !gl) {
@@ -811,6 +819,10 @@ export function LandingLaserFlow(props: LandingLaserFlowProps) {
     let last = 0;
     let visible = true;
     let alive = true;
+    // A slow GPU first gets a smaller canvas. If the frames are still slow, the light stops moving.
+    let quality = 1;
+    let still = false;
+    const intervals: number[] = [];
 
     const measure = (width: number, height: number): Surface => {
       const target = props.surface();
@@ -959,12 +971,12 @@ export function LandingLaserFlow(props: LandingLaserFlowProps) {
       return true;
     };
 
-    const resize = () => {
+    const sizeCanvas = () => {
       const width = Math.max(1, host.clientWidth);
       const height = Math.max(1, host.clientHeight);
       const baseDpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
       const longest = Math.max(width, height) * baseDpr;
-      const ratio = longest > MAX_RENDER_DIM ? (baseDpr * MAX_RENDER_DIM) / longest : baseDpr;
+      const ratio = (longest > MAX_RENDER_DIM ? (baseDpr * MAX_RENDER_DIM) / longest : baseDpr) * quality;
       const pixelWidth = Math.max(1, Math.round(width * ratio));
       const pixelHeight = Math.max(1, Math.round(height * ratio));
       if (element.width !== pixelWidth || element.height !== pixelHeight) {
@@ -974,17 +986,38 @@ export function LandingLaserFlow(props: LandingLaserFlowProps) {
       state.width = width;
       state.height = height;
       state.ratio = element.width / width;
+    };
+
+    const resize = () => {
+      sizeCanvas();
       render();
       // A wider window can open a path that a narrower one closed, and the loop stops while closed.
       wake();
     };
 
+    /** Makes the canvas smaller, or stops the light, when the median of the recent frame times is slow. */
+    const measureFrame = (gap: number) => {
+      intervals.push(gap);
+      if (intervals.length < FRAME_SAMPLES) return;
+      intervals.sort((a, b) => a - b);
+      const median = intervals[FRAME_SAMPLES >> 1] ?? 0;
+      intervals.length = 0;
+      if (median <= SLOW_FRAME_MS) return;
+      if (quality > MIN_QUALITY) {
+        quality = Math.max(MIN_QUALITY, quality * 0.7);
+        sizeCanvas();
+      } else {
+        still = true;
+      }
+    };
+
     const frame = (now: number) => {
       raf = 0;
       if (!alive || !visible || document.hidden) return;
+      if (last && !held && !still) measureFrame(now - last);
       const dt = last ? Math.min(0.05, (now - last) / 1000) : 1 / 60;
       last = now;
-      const moving = !reduce;
+      const moving = !reduce && !still;
       if (moving) state.time += dt * settings.speed;
       const introducing = state.introTime < INTRO_END;
       if (introducing && !held) state.introTime = Math.min(INTRO_END, state.introTime + dt);
