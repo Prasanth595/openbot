@@ -15,7 +15,7 @@ import { unzipSync, zipSync } from "fflate";
 import { AttachmentFiles } from "../src/backend/attachment-files";
 
 const workspace = dirname(dirname(import.meta.filename));
-const artifactPath = join(workspace, ".openbot-build", "zip-attachment-e2e.json");
+const artifactPath = join(workspace, ".openbot-build", "zip-attachment-e2e", "report.json");
 
 function digest(bytes: Uint8Array): string {
   return createHash("sha256").update(bytes).digest("hex");
@@ -55,6 +55,21 @@ async function run() {
     assert.equal(inbound.sha256, digest(archive));
     assert.deepEqual(Object.keys(unzipSync(await readFile(inbound.path))).sort(), ["data/rows.csv", "notes.txt"]);
 
+    // A browser or a remote member sends the bytes with its own MIME type. The extension wins, so an
+    // archive never becomes an image for the provider or a text preview.
+    const uploaderTypes = ["image/png", "text/plain", "application/x-zip-compressed", ""];
+    const uploaded = await Effect.runPromise(
+      files.prepareDrafts(
+        [],
+        uploaderTypes.map((mimeType, index) => ({ name: `upload-${index}.zip`, mimeType, bytes: archive })),
+      ),
+    );
+    for (const draft of uploaded) {
+      assert.equal(draft.kind, "file");
+      assert.equal(draft.mimeType, "application/zip");
+      assert.equal(draft.previewKind, "none");
+    }
+
     // The agent returns an archive with attach_files_to_response.
     const agentZip = join(root, "sources", "output.zip");
     await writeFile(agentZip, archive);
@@ -86,6 +101,7 @@ async function run() {
         previewKind: inbound.previewKind,
         sha256: inbound.sha256,
       },
+      uploads: uploaderTypes.map((sent, index) => ({ sent, stored: uploaded[index]?.mimeType })),
       outbound: { name: outbound.name, mimeType: outbound.mimeType, previewKind: outbound.previewKind },
     };
   } finally {

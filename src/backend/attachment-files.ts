@@ -692,9 +692,11 @@ function attachmentMetadata(
   explicitMimeType?: string,
 ): { kind: AttachmentKind; mimeType: string; previewKind: AttachmentPreviewKind } {
   const inferred = attachmentMimeTypeForName(name);
-  // Media stays an opaque file even if an importer supplies a preview MIME type.
+  // Media and archives stay opaque files even if an importer supplies a preview MIME type.
   const mimeType =
-    inferred.startsWith("audio/") || inferred.startsWith("video/") ? inferred : explicitMimeType?.trim() || inferred;
+    inferred.startsWith("audio/") || inferred.startsWith("video/") || inferred === "application/zip"
+      ? inferred
+      : explicitMimeType?.trim() || inferred;
   const previewKind: AttachmentPreviewKind = mimeType.startsWith("image/")
     ? "image"
     : mimeType === "application/pdf"
