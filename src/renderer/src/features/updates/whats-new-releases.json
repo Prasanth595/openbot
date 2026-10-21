@@ -1,5 +1,34 @@
 [
   {
+    "version": "0.47.1",
+    "date": "2026-10-21",
+    "notices": [],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "Ask an agent to add an MCP server. The agent connects to it and shows its tools. You approve each change.",
+          "Roles in Server settings let an owner or admin choose the agents that members can use.",
+          "Import your Hermes Agent profiles in Server settings → Import.",
+          "Select text in a file in the side panel, then quote it or ask the agent to change it.",
+          "Settings → Voice has a new English dictation model: Underdog Bark 3.0 Plus."
+        ]
+      },
+      {
+        "type": "changed",
+        "items": ["Settings → Providers is a short list with search. Each provider has its own page."]
+      },
+      {
+        "type": "fixed",
+        "items": [
+          "Agents keep their provider sessions when OpenBot stops through a signal, for example from systemd or Docker.",
+          "In Discord, the agent gets the images and files of earlier messages.",
+          "The Tasks page keeps the agent that you chose last."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.47.0",
     "date": "2026-10-21",
     "notices": [],
