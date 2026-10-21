@@ -46,7 +46,7 @@ import { agentsPort } from "./agents-port";
 export function AgentEventBridge() {
   const channels = useChannels();
   const platform = usePlatform();
-  const { activeServerId } = useServers();
+  const { activeServer, activeServerId } = useServers();
   const { applyAccountUsage } = useAuth();
   const { applyAgentStatus, refreshAgentProviders } = useProviders();
   const { agentList, setModelOptions, explicitlyOpenedAgentChatId, applyStoredAgents, applyUserHiddenAgents } =
@@ -88,8 +88,15 @@ export function AgentEventBridge() {
   } = useTurns();
   const { setBrowserControlState, applyBrowserChange } = useBrowserTabs();
   const { setSidebarLayout } = useSidebar();
-  const playAgentEventSound = createAgentEventSounds((agentId) =>
-    agentList().some((agent) => agent.id === agentId && agent.notifications),
+  // As on web, mute and the notification level of the server decide the sounds too. Before the
+  // server list arrives, the sounds play as they did.
+  const soundLevel = () => {
+    const server = activeServer();
+    if (!server) return "all";
+    return server.notificationsMuted ? "nothing" : server.notificationLevel;
+  };
+  const playAgentEventSound = createAgentEventSounds(
+    (agentId) => soundLevel() !== "nothing" && agentList().some((agent) => agent.id === agentId && agent.notifications),
   );
   let readRefresh = 0;
   let modelRefresh = 0;
@@ -231,7 +238,7 @@ export function AgentEventBridge() {
         setPendingApprovals((current) => ({ ...current, [event.agentId]: undefined }));
         if (event.status === "completed") {
           markReplyCompleted(event.agentId);
-          playCompletionSoundForAgentEvent(event, agentList());
+          if (soundLevel() === "all") playCompletionSoundForAgentEvent(event, agentList());
         }
         return;
       case "prompt":

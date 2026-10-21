@@ -284,7 +284,7 @@ export const messages = {
   "server.settings.notifications": "Powiadomienia",
   "server.settings.muteNotifications": "Wycisz powiadomienia",
   "server.settings.muteDescription":
-    "Zatrzymaj powiadomienia na pulpicie i aktualizacje w wycięciu MacBooka z tego serwera.",
+    "Zatrzymaj powiadomienia na pulpicie, dźwięki i aktualizacje w wycięciu MacBooka z tego serwera.",
   "server.settings.mutedUntilDescription": "{until}. Wyłącz, aby od razu przywrócić dźwięk.",
   "server.settings.notifyAbout": "Powiadamiaj mnie o",
   "server.settings.notifyAboutDescription": "Które zdarzenia agentów pokazują powiadomienie na pulpicie.",

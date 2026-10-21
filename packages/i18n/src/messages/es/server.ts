@@ -284,7 +284,7 @@ export const messages = {
   "server.settings.notifications": "Notificaciones",
   "server.settings.muteNotifications": "Silenciar notificaciones",
   "server.settings.muteDescription":
-    "Detén las notificaciones de escritorio y las actualizaciones en la muesca del MacBook de este servidor.",
+    "Detén las notificaciones de escritorio, los sonidos y las actualizaciones en la muesca del MacBook de este servidor.",
   "server.settings.mutedUntilDescription": "{until}. Desactiva para volver a recibir notificaciones ahora.",
   "server.settings.notifyAbout": "Notificarme sobre",
   "server.settings.notifyAboutDescription": "Qué eventos de los agentes muestran una notificación de escritorio.",

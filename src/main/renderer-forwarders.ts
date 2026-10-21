@@ -20,6 +20,7 @@ import {
   IPC_ENDPOINTS,
   LOCAL_SERVER_ID,
   latestTurnAnswer,
+  type ServerNotificationLevel,
   type SpeechModelStatus,
   type VoiceModelStatus,
   type VoiceStreamTranscript,
@@ -27,13 +28,17 @@ import {
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import type { AppFormat, AppTranslate } from "@openbot/i18n";
 import { redactText } from "@openbot/logging";
-import { notificationForAgentEvent, notificationForUsageLimit } from "@openbot/team-client/agent-notifications";
+import {
+  notificationForAgentEvent,
+  notificationForUsageLimit,
+  notificationRequestKey,
+} from "@openbot/team-client/agent-notifications";
 import { BrowserWindow, Notification } from "electron";
 import { isNoUpdateAnswer } from "../backend/agent/routine-quiet-runs";
 import type { AgentService } from "../backend/agent-service";
 import { runCauseEffect } from "../backend/effect-boundary";
 import type { HostAnalytics } from "./analytics";
-import { showRetainedNotification } from "./desktop-notifications";
+import { closeRetainedNotification, desktopShowsAgentEvent, showRetainedNotification } from "./desktop-notifications";
 import type { HostService } from "./host-service";
 import { withLocalHostSummary } from "./ipc/team-handlers";
 import { decodeAgentSummaries } from "./remote-agent-decoding";
@@ -88,15 +93,24 @@ export function createRendererForwarders({
     void notifyAgentEvent(serverId, event).catch(() => undefined);
   }
 
+  /**
+   * The notifications that wait for an answer, by request. An answer on any device withdraws its
+   * notification. A request whose notification is still being built has no notification yet, and an
+   * answer that arrives then removes the entry, so the notification is not shown.
+   */
+  const requestNotifications = new Map<string, Notification | null>();
+
+  function withdrawResolvedNotification(serverId: string, event: AgentEvent): void {
+    if (event.type !== "agent-input-resolved" && event.type !== "browser-takeover-resolved") return;
+    const key = notificationRequestKey(serverId, event);
+    if (!key || !requestNotifications.has(key)) return;
+    const notification = requestNotifications.get(key);
+    requestNotifications.delete(key);
+    if (notification) closeRetainedNotification(notification);
+  }
+
   async function notifyAgentEvent(serverId: string, event: AgentEvent): Promise<void> {
-    if (
-      event.type !== "turn-completed" &&
-      event.type !== "prompt" &&
-      event.type !== "approval" &&
-      event.type !== "usage-limit-reached"
-    )
-      return;
-    if (event.type === "turn-completed" && event.status !== "completed" && event.status !== "failed") return;
+    withdrawResolvedNotification(serverId, event);
     // Like Discord, nothing pops up while the user is looking at the app. The level is read again
     // after the lookup, with the rest, because the user can change it while the lookup runs.
     const notifyLevel = () => {
@@ -104,14 +118,32 @@ export function createRendererForwarders({
       const server = getRemoteServerManager()
         ?.list()
         .find((candidate) => candidate.id === serverId);
-      if (!window || window.isDestroyed() || window.isFocused() || !server || server.notificationsMuted) return null;
-      if (!desktopNotificationsEnabled() || server.notificationLevel === "nothing") return null;
-      return server.notificationLevel;
+      if (!window || window.isDestroyed() || window.isFocused() || !server) return null;
+      return desktopShowsAgentEvent(event, server, desktopNotificationsEnabled()) ? server.notificationLevel : null;
     };
-    const initialLevel = notifyLevel();
-    if (!initialLevel || !Notification.isSupported()) return;
-    // Skip the remote agent lookup for an event the level already rules out.
-    if (initialLevel === "needs-me" && event.type === "turn-completed") return;
+    // The level also rules out an event before the remote agent lookup.
+    if (!notifyLevel() || !Notification.isSupported()) return;
+    const requestKey = notificationRequestKey(serverId, event);
+    if (!requestKey) return showAgentNotification(serverId, event, notifyLevel, null);
+    // A provider can use a request id again, and a host can send a request again after a reconnect.
+    // The newest notification replaces the one before it.
+    const previous = requestNotifications.get(requestKey);
+    if (previous) closeRetainedNotification(previous);
+    requestNotifications.set(requestKey, null);
+    try {
+      await showAgentNotification(serverId, event, notifyLevel, requestKey);
+    } finally {
+      // Nothing was shown, or the lookup failed.
+      if (requestNotifications.get(requestKey) === null) requestNotifications.delete(requestKey);
+    }
+  }
+
+  async function showAgentNotification(
+    serverId: string,
+    event: AgentEvent,
+    notifyLevel: () => ServerNotificationLevel | null,
+    requestKey: string | null,
+  ): Promise<void> {
     const remoteManager = getRemoteServerManager();
     const preview = notificationPreviewEnabled();
     const answer =
@@ -138,8 +170,18 @@ export function createRendererForwarders({
             // The switch is read again: the user can turn it off while the lookups run.
             preview && notificationPreviewEnabled() ? { reply, redact: redactText } : null,
           );
-    if (!content) return;
+    // An answer from another device came in while the lookups ran.
+    if (!content || (requestKey && !requestNotifications.has(requestKey))) return;
     const notification = new Notification({ title: content.title, body: content.body });
+    if (requestKey) {
+      requestNotifications.set(requestKey, notification);
+      const release = () => {
+        if (requestNotifications.get(requestKey) === notification) requestNotifications.delete(requestKey);
+      };
+      notification.on("click", release);
+      notification.on("close", release);
+      notification.on("failed", release);
+    }
     notification.on("click", () => {
       // Re-read the window because it can change after the notification is shown.
       const current = getMainWindow();
