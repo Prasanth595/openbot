@@ -448,7 +448,10 @@ export function SettingsVoiceTab(props: SettingsVoiceTabProps) {
               >
                 <SelectTrigger size="sm" aria-label={t("settings.voice.speech.voice.title")}>
                   <SelectValue<SpeechVoice>>
-                    {(state) => <Show when={state.selectedOption()}>{(voice) => voiceName(voice())}</Show>}
+                    {(state) => {
+                      const voice = state.selectedOption();
+                      return voice && voiceName(voice);
+                    }}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent mount={props.selectMount} />
