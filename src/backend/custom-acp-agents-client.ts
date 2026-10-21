@@ -22,9 +22,10 @@ import { type AgentSessionSettingsSnapshot, type AgentSessionSettingValue, isAge
 import type { DynamicRecord } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
 import { Deferred, Effect, Exit } from "effect";
-import { agentLaunchPath, assertAgentArgs, assertWindowsScriptArgs, resolveAgentCommand } from "./acp-agent-command";
+import { assertAgentArgs, assertWindowsScriptArgs, resolveAgentCommand } from "./acp-agent-command";
 import type { AcpHistoryPersistence } from "./acp-client";
 import type { AgentClient, DiagnosticOrigin } from "./agent-client";
+import { agentLaunchPath } from "./cli";
 import { causeHelpers } from "./effect-boundary";
 import {
   type AppServerNotification,

@@ -118,6 +118,8 @@ export const messages = {
   "error.provider.codexNotStarted": "Se encontró Codex CLI, pero no se pudo iniciar.",
   "error.provider.codexNotStartedHint":
     "Se encontró Codex CLI, pero no se pudo iniciar. Ejecuta `codex --version` en una nueva terminal.",
+  "error.provider.codexManagedNotStarted":
+    "ChatGPT se descargó, pero no se pudo iniciar. Vuelve a descargarlo en OpenBot.",
   "error.provider.codexMissing": "ChatGPT no está descargado. Descárgalo en OpenBot para continuar.",
   "error.provider.codexConfigIgnored": {
     one: "Codex ignoró {count} ajuste de su configuración: {settings}. Corrígelo, elimínalo o actualiza Codex.",
@@ -131,6 +133,8 @@ export const messages = {
   "error.provider.claudeNotStarted": "Se encontró Claude CLI, pero no se pudo iniciar.",
   "error.provider.claudeNotStartedHint":
     "Se encontró Claude CLI, pero no se pudo iniciar. Ejecuta `claude --version` en una nueva terminal.",
+  "error.provider.claudeManagedNotStarted":
+    "Claude se descargó, pero no se pudo iniciar. Vuelve a descargarlo en OpenBot.",
   "error.provider.claudeMissing": "Claude no está descargado. Descárgalo en OpenBot para continuar.",
   "error.provider.grokOutdated": "Grok CLI {version} es demasiado antiguo. OpenBot requiere 1.0.5 o posterior.",
   "error.provider.grokNotStarted": "Se encontró Grok CLI, pero no se pudo iniciar.",

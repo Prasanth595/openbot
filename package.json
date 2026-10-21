@@ -202,6 +202,7 @@
     "test:custom-agents": "bun scripts/custom-acp-agent-e2e.ts",
     "test:custom-agents:login-path": "bun scripts/custom-acp-agent-login-path-e2e.ts",
     "test:claude:login-path": "bun scripts/claude-session-login-path-e2e.ts",
+    "test:codex:login-path": "bun scripts/codex-login-path-e2e.ts",
     "test:claude-foreign-session": "bun scripts/claude-foreign-session-e2e.ts",
     "test:mcp-catalog": "bun scripts/mcp-catalog-smoke.ts",
     "test:mcp-oauth": "bun scripts/mcp-oauth-e2e.ts",

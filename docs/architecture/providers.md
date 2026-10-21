@@ -139,6 +139,15 @@ in use. Download status stays `finishing` until activation succeeds.
 CLI resolution prefers an explicit `OPENBOT_*_PATH`, then the installed managed copy, then an
 automatically discovered system CLI. Updates never run the system CLI's updater. An explicit path
 suppresses managed update offers. Startup uses the same selection and reads the executable's version.
+On macOS and Linux, discovery looks in the folders of the login-shell `PATH` (`loginSearchPath` in
+`src/backend/cli.ts`, shared with ACP and custom agents and cached for 60 s), then in fixed user
+folders: `~/.local/bin`, `~/.npm-global/bin`, `~/.volta/bin`, `~/.bun/bin`, the pnpm home, Homebrew
+and the system folders. nvm folders are not searched, because only nvm's shell setup selects a
+version. The login shell is `$SHELL` when it is a known POSIX shell or fish; otherwise macOS uses
+`/bin/zsh`. The version probe and every process of the CLI (app server, ACP, sign-in and sign-out)
+start with the resolved `launchPath`: the login-shell folders, then OpenBot's own, then the CLI's
+folder for a system copy. An app that Finder starts can then run a `#!/usr/bin/env node` CLI. A CLI
+that exists but does not start reports whether the managed copy or the user's copy failed.
 
 Installed runtimes live in one store per computer, `appData/OpenBot/provider-runtimes`, which is the
 path the packaged app always used: its `userData` is `appData/OpenBot`. Development profiles differ

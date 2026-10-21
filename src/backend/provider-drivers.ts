@@ -21,6 +21,7 @@ import { CodexAppServerClient } from "./app-server-client";
 import { ClaudeAgentClient } from "./claude-client";
 import {
   type AgentCliInfo,
+  cliPathEnvironment,
   resolveAntigravityCli,
   resolveClaudeCli,
   resolveClineCli,
@@ -512,7 +513,10 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
     catalog: { paged: true, modelFields: codexFastServiceTier },
     resolveCli: resolveCodexCli,
     createClient: (cli, requestTimeoutMs, context) =>
-      new CodexAppServerClient(cli.executable, requestTimeoutMs, context.accountEnvironment),
+      new CodexAppServerClient(cli.executable, requestTimeoutMs, {
+        ...cliPathEnvironment(cli),
+        ...context.accountEnvironment,
+      }),
     authState: (account) => ({ kind: "chatgpt", email: account?.email ?? null }),
     validateAccount: (account) => {
       if (account.type !== "chatgpt") {

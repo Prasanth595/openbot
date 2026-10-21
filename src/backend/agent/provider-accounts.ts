@@ -13,7 +13,7 @@ import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger } from "@openbot/logging";
 import { Cause, Effect, Fiber, Schema, type Scope } from "effect";
 import type { AgentClient } from "./../agent-client";
-import type { AgentCliInfo } from "./../cli";
+import { type AgentCliInfo, cliPathEnvironment } from "./../cli";
 import type { AccountReadResult } from "./../protocol";
 import { ProviderSignInError } from "../provider-client-effects";
 import { type ProviderAccountSupport, requireProviderDriver } from "./../provider-drivers";
@@ -173,7 +173,13 @@ export class ProviderAccounts {
           Effect.sync(() =>
             spawn(cli.executable, [...support.signIn.argv], {
               cwd: process.cwd(),
-              env: { ...process.env, ...support.signIn.env(cli), ...this.environment(account), ...browser },
+              env: {
+                ...process.env,
+                ...cliPathEnvironment(cli),
+                ...support.signIn.env(cli),
+                ...this.environment(account),
+                ...browser,
+              },
               stdio: "ignore",
               shell: false,
               windowsHide: process.platform === "win32",
@@ -444,7 +450,7 @@ export class ProviderAccounts {
           Effect.sync(() =>
             spawn(cli.executable, [...command.argv], {
               cwd: process.cwd(),
-              env: { ...process.env, ...command.env(cli), ...this.environment(account) },
+              env: { ...process.env, ...cliPathEnvironment(cli), ...command.env(cli), ...this.environment(account) },
               stdio: "ignore",
               shell: false,
               windowsHide: process.platform === "win32",

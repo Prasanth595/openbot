@@ -25,7 +25,7 @@ import { Deferred, Effect, Exit, Result, Schema, Scope, Semaphore } from "effect
 import { startAcpAuthentication } from "./../acp-sign-in";
 import { type AgentClient, AgentProcessExitError, type AgentProvider } from "./../agent-client";
 import { CodexAppServerClient } from "./../app-server-client";
-import { type AgentCliInfo, type BundledProviderExecutables, CodexCliError } from "./../cli";
+import { type AgentCliInfo, type BundledProviderExecutables, CodexCliError, cliPathEnvironment } from "./../cli";
 import { causeHelpers } from "../effect-boundary";
 import { McpHandoffLog } from "./../mcp-handoff-log";
 import { openCodeSignInMessage } from "./../opencode-config";
@@ -475,7 +475,7 @@ export class ProviderRuntime implements ProviderPort {
       createClient: (cli) => {
         const client = this.#clientFactory
           ? this.#clientFactory("codex", cli)
-          : new CodexAppServerClient(cli.executable, this.#requestTimeoutMs);
+          : new CodexAppServerClient(cli.executable, this.#requestTimeoutMs, cliPathEnvironment(cli));
         this.#bindClient(client);
         return client;
       },
@@ -1345,7 +1345,7 @@ export class ProviderRuntime implements ProviderPort {
             flow,
             executable: cli.executable,
             argv: command.argv,
-            env: command.env(cli),
+            env: { ...cliPathEnvironment(cli), ...command.env(cli) },
             timeoutMs: command.timeoutMs,
           }),
         command.timeoutMs,

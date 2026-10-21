@@ -114,6 +114,8 @@ export const messages = {
   "error.provider.codexNotStarted": "Codex CLI は見つかりましたが、起動できませんでした。",
   "error.provider.codexNotStartedHint":
     "Codex CLI は見つかりましたが、起動できませんでした。新しいターミナルで `codex --version` を実行してください。",
+  "error.provider.codexManagedNotStarted":
+    "ChatGPT はダウンロード済みですが、起動できませんでした。OpenBot でもう一度ダウンロードしてください。",
   "error.provider.codexMissing":
     "ChatGPT はダウンロードされていません。続けるには OpenBot でダウンロードしてください。",
   "error.provider.codexConfigIgnored": {
@@ -128,6 +130,8 @@ export const messages = {
   "error.provider.claudeNotStarted": "Claude CLI は見つかりましたが、起動できませんでした。",
   "error.provider.claudeNotStartedHint":
     "Claude CLI は見つかりましたが、起動できませんでした。新しいターミナルで `claude --version` を実行してください。",
+  "error.provider.claudeManagedNotStarted":
+    "Claude はダウンロード済みですが、起動できませんでした。OpenBot でもう一度ダウンロードしてください。",
   "error.provider.claudeMissing":
     "Claude はダウンロードされていません。続けるには OpenBot でダウンロードしてください。",
   "error.provider.grokOutdated": "Grok CLI {version} は古すぎます。OpenBot には 1.0.5 以降が必要です。",

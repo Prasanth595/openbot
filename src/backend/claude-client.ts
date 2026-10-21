@@ -19,7 +19,6 @@ import { type DynamicRecord, isDynamicRecord, isNumber, isOneOf, isString } from
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger } from "@openbot/logging";
 import { Deferred, Effect, Exit, Fiber, Scope } from "effect";
-import { agentLaunchPath } from "./acp-agent-command";
 import { isMemoryContextBlock, type MemoryContext, memoryContextUpdate } from "./agent/developer-instructions";
 import {
   type ClaudePlanState,
@@ -60,7 +59,13 @@ import {
   claudeWorkspaceSkillPlugin,
   claudeWriteOutsideRoots,
 } from "./claude-workspace-sandbox";
-import { type ClaudeCliInfo, claudeTakesPromptSnapshotFlag, cliSpawnTarget } from "./cli";
+import {
+  agentLaunchPath,
+  type ClaudeCliInfo,
+  claudeTakesPromptSnapshotFlag,
+  cliPathEnvironment,
+  cliSpawnTarget,
+} from "./cli";
 import {
   isClaudeCompactionSummary,
   isClaudeInterruptMarker,
@@ -1796,6 +1801,7 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
 function claudeEnvironment(cli: ClaudeCliInfo): NodeJS.ProcessEnv {
   return {
     ...process.env,
+    ...cliPathEnvironment(cli),
     ...(cli.source === "managed" ? { DISABLE_AUTOUPDATER: "1" } : {}),
   };
 }

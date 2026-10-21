@@ -12,7 +12,7 @@ import {
 import { type DynamicRecord, isDynamicRecord } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
 import { Deferred, Effect, Schema } from "effect";
-import { runInLoginShell } from "./cli";
+import { isWindowsRunnable, runInLoginShell } from "./cli";
 import { causeHelpers } from "./effect-boundary";
 import type { McpOperationError } from "./mcp-effects";
 import { getRecord } from "./protocol";
@@ -319,9 +319,6 @@ export function clearMcpCommandCache(): void {
   resolvedCommands.clear();
 }
 
-/** The extensions Windows runs when `PATHEXT` is unset, in the order the system itself uses. */
-const DEFAULT_PATHEXT = ".COM;.EXE;.BAT;.CMD";
-
 /**
  * The first `where.exe` line this machine can actually spawn.
  *
@@ -339,20 +336,7 @@ export function pickWindowsExecutable(stdout: string, pathext: string | undefine
     .split(/\r?\n/u)
     .map((line) => line.trim())
     .filter((line) => line.length > 0);
-  const runnable = new Set(
-    (pathext?.trim() || DEFAULT_PATHEXT)
-      .split(";")
-      .map((entry) => entry.trim().toLowerCase())
-      .filter((entry) => entry.startsWith(".")),
-  );
-  return lines.find((line) => runnable.has(windowsExtension(line))) ?? lines[0] ?? null;
-}
-
-/** The last extension of a path, or `""`. A dot inside a directory name is not one. */
-function windowsExtension(line: string): string {
-  const dot = line.lastIndexOf(".");
-  const separator = Math.max(line.lastIndexOf("\\"), line.lastIndexOf("/"));
-  return dot > separator ? line.slice(dot).toLowerCase() : "";
+  return lines.find((line) => isWindowsRunnable(line, pathext)) ?? lines[0] ?? null;
 }
 
 const lookUpMcpCommand = Effect.fn("McpShape.lookUpCommand")(

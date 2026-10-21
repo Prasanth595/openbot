@@ -16,13 +16,9 @@ import type {
 import { isNewCustomAgentId } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { checkAcpAgent } from "../backend/acp-agent-check";
-import {
-  agentLaunchPath,
-  assertAgentArgs,
-  assertWindowsScriptArgs,
-  resolveAgentCommand,
-} from "../backend/acp-agent-command";
+import { assertAgentArgs, assertWindowsScriptArgs, resolveAgentCommand } from "../backend/acp-agent-command";
 import { AgentLifecycleFailed, type AgentService } from "../backend/agent-service";
+import { agentLaunchPath } from "../backend/cli";
 import type { CustomAgentStore } from "./custom-agent-store";
 
 export interface CustomAgentChangeDependencies {
