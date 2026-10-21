@@ -26,15 +26,7 @@ function markPreviewTiming(name: (typeof LANDING_PREVIEW_MARKS)[keyof typeof LAN
   window.performance.mark?.(name);
 }
 
-export interface LandingAppPreviewProps {
-  ref?: (element: HTMLElement) => void;
-  /** Called once, when the preview has loaded and can appear. */
-  onReady?: () => void;
-  /** The loaded preview appears when this resolves. */
-  revealAfter?: Promise<void>;
-}
-
-export function LandingAppPreview(props: LandingAppPreviewProps) {
+export function LandingAppPreview() {
   let root: HTMLElement | undefined;
   let iframe: HTMLIFrameElement | undefined;
   let placeholder: HTMLDivElement | undefined;
@@ -50,7 +42,6 @@ export function LandingAppPreview(props: LandingAppPreviewProps) {
     let loading = false;
     let ready = false;
     let started = false;
-    let alive = true;
     let firstPaintFrame: number | undefined;
     let stablePaintFrame: number | undefined;
     let loadTimer: ReturnType<typeof setTimeout> | undefined;
@@ -86,12 +77,7 @@ export function LandingAppPreview(props: LandingAppPreviewProps) {
     const handleMessage = (event: MessageEvent) => {
       if (event.origin !== origin || event.source !== previewFrame.contentWindow) return;
       if (event.data?.type !== LANDING_PREVIEW_READY_MESSAGE) return;
-      props.onReady?.();
-      if (!props.revealAfter) reveal();
-      else
-        void props.revealAfter.then(() => {
-          if (alive) reveal();
-        });
+      reveal();
     };
 
     window.addEventListener("message", handleMessage);
@@ -102,7 +88,6 @@ export function LandingAppPreview(props: LandingAppPreviewProps) {
     });
 
     return () => {
-      alive = false;
       if (firstPaintFrame !== undefined) window.cancelAnimationFrame(firstPaintFrame);
       if (stablePaintFrame !== undefined) window.cancelAnimationFrame(stablePaintFrame);
       if (loadTimer) clearTimeout(loadTimer);
@@ -113,10 +98,7 @@ export function LandingAppPreview(props: LandingAppPreviewProps) {
 
   return (
     <section
-      ref={(element) => {
-        root = element;
-        props.ref?.(element);
-      }}
+      ref={root}
       class="landing-preview landing-app-preview t-skel"
       aria-labelledby="app-preview-title"
       data-enter="preview"
