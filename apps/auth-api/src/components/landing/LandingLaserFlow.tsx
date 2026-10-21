@@ -444,7 +444,7 @@ const SETTINGS: LaserSettings = {
   seed: 3,
 };
 
-/** Other looks to compare with the default. `?beam=<name>` in the page address selects one. */
+/** Tested looks. The random look on each visit is a mix of these and the default. */
 const VERSIONS: Readonly<Record<string, LaserSettings>> = {
   // A wider, calmer glow with little dust.
   soft: {
@@ -496,9 +496,70 @@ const VERSIONS: Readonly<Record<string, LaserSettings>> = {
   },
 };
 
-function selectedSettings(): LaserSettings {
-  const name = new URLSearchParams(window.location.search).get("beam");
-  return (name && Object.hasOwn(VERSIONS, name) ? VERSIONS[name] : undefined) ?? SETTINGS;
+/** A small seeded random number generator (mulberry32), so `?beam=<number>` shows the same look again. */
+function seededRandom(seed: number): () => number {
+  let state = seed | 0;
+  return () => {
+    state = (state + 0x6d2b79f5) | 0;
+    let value = Math.imul(state ^ (state >>> 15), 1 | state);
+    value = (value + Math.imul(value ^ (value >>> 7), 61 | value)) ^ value;
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * Mixes the tested looks with random weights. Each value stays between the values of looks that
+ * are known to work, so every mix is a good beam. The cube of each weight makes one look lead most
+ * mixes; an even mix of all looks is always near the average, and all visits then look the same.
+ * The default look has more weight.
+ */
+function randomLook(seed: number, baseColor: Rgb): { settings: LaserSettings; color: Rgb } {
+  const random = seededRandom(seed);
+  const looks = [SETTINGS, ...Object.values(VERSIONS)];
+  const weights = looks.map((_, index) => (-Math.log(1 - random())) ** 3 * (index === 0 ? 1.5 : 1));
+  const total = weights.reduce((sum, weight) => sum + weight, 0);
+  const mix = (value: (look: LaserSettings) => number) =>
+    looks.reduce((sum, look, index) => sum + (value(look) * (weights[index] ?? 0)) / total, 0);
+  const colors = looks.map((look) => (look.color ? hexToRgb(look.color) : baseColor));
+  const channel = (index: 0 | 1 | 2) =>
+    colors.reduce((sum, color, look) => sum + (color[index] * (weights[look] ?? 0)) / total, 0);
+  return {
+    settings: {
+      intensity: mix((look) => look.intensity),
+      beamWidth: mix((look) => look.beamWidth),
+      flare: mix((look) => look.flare),
+      spread: mix((look) => look.spread),
+      spill: mix((look) => look.spill),
+      fall: mix((look) => look.fall),
+      fog: mix((look) => look.fog),
+      dust: mix((look) => look.dust),
+      streaks: mix((look) => look.streaks),
+      dots: mix((look) => look.dots),
+      pulse: mix((look) => look.pulse),
+      speed: mix((look) => look.speed),
+      // The noise seed only moves the haze and dust, so any value is a good one.
+      seed: random() * 20,
+    },
+    color: turnHue([channel(0), channel(1), channel(2)], random() * 30 - 15),
+  };
+}
+
+/** Turns the hue a small number of degrees, so the colour is not always one of the tested colours. */
+function turnHue(rgb: Rgb, degrees: number): Rgb {
+  const [hue, saturation] = toHsv(rgb);
+  return fromHsv(hue + degrees, saturation);
+}
+
+/**
+ * Each visit gets a new random look. `?beam=<name>` in the page address shows one tested look,
+ * and `?beam=<number>` shows the random look with that seed again.
+ */
+function selectedLook(baseColor: string): { settings: LaserSettings; color: Rgb; seed: string } {
+  const name = new URLSearchParams(window.location.search).get("beam") ?? "";
+  const named = name === "default" ? SETTINGS : Object.hasOwn(VERSIONS, name) ? VERSIONS[name] : undefined;
+  if (named) return { settings: named, color: hexToRgb(named.color ?? baseColor), seed: name };
+  const seed = /^\d+$/.test(name) ? Number(name) : Math.floor(Math.random() * 1_000_000);
+  return { ...randomLook(seed, hexToRgb(baseColor)), seed: String(seed) };
 }
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
@@ -660,8 +721,11 @@ export function LandingLaserFlow(props: LandingLaserFlowProps) {
     gl.bindVertexArray(null);
 
     const reduce = prefersReducedMotion();
-    const settings = selectedSettings();
-    const tints = buildTints(hexToRgb(settings.color ?? props.color));
+    const look = selectedLook(props.color);
+    const settings = look.settings;
+    // The seed is on the element, so a look that someone likes can be found and shown again.
+    host.dataset.beam = look.seed;
+    const tints = buildTints(look.color);
     const state = {
       time: 0,
       introTime: reduce ? INTRO_END : 0,
