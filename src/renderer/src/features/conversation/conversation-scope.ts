@@ -1407,14 +1407,13 @@ export function createConversationViewScope(props: ConversationProps) {
    * Tab or a screen reader can move the focus to a control above the view. The chat then scrolls up
    * with no wheel, key, touch or drag, so the chat stops following, as after a jump to a search match.
    * A return to the bottom follows again. A click focuses without a scroll. Chromium scrolls before
-   * `focusin`, so the chat is already above its last scroll event; the spec scrolls after it.
+   * `focusin`, so the chat is already above its last scroll event. A dialog or menu that closes gives
+   * the focus back to its opener without a scroll; the opener can be above the view by then, and the
+   * chat continues to follow.
    */
-  function readerFocusIn(event: FocusEvent) {
-    if (readerDragging || !scrollElement || !(event.target instanceof Element)) return;
-    const scrolledUp = scrollElement.scrollTop < lastScrollTop;
-    if (scrolledUp || event.target.getBoundingClientRect().top < scrollElement.getBoundingClientRect().top) {
-      stopFollowingLatest();
-    }
+  function readerFocusIn() {
+    if (readerDragging || !scrollElement) return;
+    if (scrollElement.scrollTop < lastScrollTop) stopFollowingLatest();
   }
   /**
    * A scroll is the reader's when the chat moves the way that the reader's last input asked, soon after
