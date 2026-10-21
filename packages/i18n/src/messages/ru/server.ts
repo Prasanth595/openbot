@@ -289,7 +289,7 @@ export const messages = {
   "server.settings.notifications": "Уведомления",
   "server.settings.muteNotifications": "Отключить уведомления",
   "server.settings.muteDescription":
-    "Прекратить уведомления на рабочем столе и обновления в вырезе MacBook от этого сервера.",
+    "Прекратить уведомления на рабочем столе, звуки и обновления в вырезе MacBook от этого сервера.",
   "server.settings.mutedUntilDescription": "{until}. Выключите, чтобы включить уведомления сейчас.",
   "server.settings.notifyAbout": "Уведомлять о",
   "server.settings.notifyAboutDescription": "Какие события агентов показывают уведомление на рабочем столе.",

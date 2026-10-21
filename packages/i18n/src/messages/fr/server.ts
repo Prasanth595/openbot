@@ -287,7 +287,7 @@ export const messages = {
   "server.settings.notifications": "Notifications",
   "server.settings.muteNotifications": "Mettre les notifications en sourdine",
   "server.settings.muteDescription":
-    "Arrêtez les notifications de bureau et les mises à jour de l’encoche du MacBook pour ce serveur.",
+    "Arrêtez les notifications de bureau, les sons et les mises à jour de l’encoche du MacBook pour ce serveur.",
   "server.settings.mutedUntilDescription": "{until}. Désactivez pour réactiver le son maintenant.",
   "server.settings.notifyAbout": "Me notifier pour",
   "server.settings.notifyAboutDescription": "Les événements d’agent qui affichent une notification de bureau.",

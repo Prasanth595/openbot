@@ -307,7 +307,7 @@ export const messages = defineMessages("server", {
   "server.settings.setUp": "Set up",
   "server.settings.notifications": "Notifications",
   "server.settings.muteNotifications": "Mute notifications",
-  "server.settings.muteDescription": "Stop desktop notifications and MacBook notch updates from this server.",
+  "server.settings.muteDescription": "Stop desktop notifications, sounds and MacBook notch updates from this server.",
   "server.settings.mutedUntilDescription": "{until}. Turn off to unmute now.",
   "server.settings.notifyAbout": "Notify me about",
   "server.settings.notifyAboutDescription": "Which agent events show a desktop notification.",

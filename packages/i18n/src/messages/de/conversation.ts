@@ -105,6 +105,7 @@ export const messages = {
   "conversation.tasks.state.completed": "Beantwortet",
   "conversation.tasks.state.failed": "Fehlgeschlagen",
   "conversation.tasks.state.interrupted": "Gestoppt",
+  "conversation.tasks.state.waitingApproval": "Wartet auf deine Genehmigung",
   "conversation.tasks.hold.taskLimit": {
     one: "Warten auf eine freie Aufgabe. {count} Aufgabe läuft gerade.",
     other: "Warten auf eine freie Aufgabe. {count} Aufgaben laufen gerade.",

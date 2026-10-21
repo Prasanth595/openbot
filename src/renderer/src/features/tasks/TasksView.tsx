@@ -1,6 +1,12 @@
-import type { AgentTask, AgentTasksSnapshot, AttachmentSummary, ConversationSnapshot } from "@openbot/contracts/ipc";
+import type {
+  AgentApproval,
+  AgentTask,
+  AgentTasksSnapshot,
+  AttachmentSummary,
+  ConversationSnapshot,
+} from "@openbot/contracts/ipc";
 import type { AppTextKey } from "@openbot/i18n";
-import { plainTaskTitle } from "@openbot/team-client/agent-tasks";
+import { plainTaskTitle, taskApproval } from "@openbot/team-client/agent-tasks";
 import type { AgentMessage, AgentProfile } from "@openbot/ui/data";
 import { AgentTaskPanel } from "@openbot/ui/features/conversation/AgentTasks";
 import { TasksPage, type TasksVoice } from "@openbot/ui/features/tasks/TasksPage";
@@ -39,6 +45,9 @@ export interface TasksViewProps {
   voice?: ((controls: TasksVoiceControls) => TasksVoiceAdapter) | undefined;
   onOpenLink: (url: string) => void;
   onAttachmentAction: (attachment: AttachmentSummary, action: "open" | "reveal" | "download") => void;
+  /** The waiting approvals of the server's agents. */
+  approvals: readonly AgentApproval[];
+  onRespondApproval: (approval: AgentApproval, decision: "accept" | "decline") => Promise<boolean>;
 }
 
 /** A start that waits for its Undo time. Its task shows in the list as queued. */
@@ -408,6 +417,10 @@ export function TasksView(props: TasksViewProps) {
       const current = task();
       return current && !current.id.startsWith("pending:") ? { agentId: current.agentId, taskId: current.id } : null;
     };
+    const approval = () => {
+      const current = task();
+      return current ? taskApproval(current, props.approvals) : undefined;
+    };
     return (
       <Show when={owner() ?? props.agents[0]}>
         {(agent) => (
@@ -448,6 +461,11 @@ export function TasksView(props: TasksViewProps) {
             onOpenLink={props.onOpenLink}
             onPreview={(attachment) => props.onAttachmentAction(attachment, "open")}
             onAttachmentAction={props.onAttachmentAction}
+            approval={approval()}
+            onRespondApproval={async (decision) => {
+              const current = approval();
+              return current ? props.onRespondApproval(current, decision) : false;
+            }}
           />
         )}
       </Show>
@@ -506,6 +524,7 @@ export function TasksView(props: TasksViewProps) {
         })
       }
       selectedId={state.selectedId}
+      waitsForApproval={(task) => taskApproval(task, props.approvals) !== undefined}
       onSelect={select}
       panel={panel}
     />

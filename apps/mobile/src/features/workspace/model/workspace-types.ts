@@ -19,6 +19,7 @@ import type {
   AgentTemplatePublication,
   AvatarHue,
   AvatarImageInput,
+  ClearableStorageCategory,
   ConversationFileSearchPage,
   ConversationSearchPage,
   ConversationSnapshot,
@@ -28,6 +29,7 @@ import type {
   HostAgentMemoryLimit,
   HostAnalytics,
   HostAnalyticsInput,
+  HostedSiteList,
   HostProviderAccounts,
   HostReleaseStatus,
   HostTimezoneSettings,
@@ -268,6 +270,14 @@ export interface MobileWorkspaceContextValue {
   setServerUpdateSettings: (settings: HostUpdateSettingsChange, serverId: string) => Promise<HostUpdateStatus>;
   loadServerRelease: (serverId: string) => Promise<HostReleaseStatus>;
   checkServerRelease: (serverId: string) => Promise<HostReleaseStatus>;
+  /** An online host that serves `hosted-sites-v1`. Every member reads the sites. */
+  canViewHostedSites: (serverId: string) => boolean;
+  /** An owner or admin of an online host that serves `hosted-sites-v1`. The host checks the role again. */
+  canDeleteHostedSites: (serverId: string) => boolean;
+  /** The openbot.site sites that agents on the server published, and the site limit of its plan. */
+  loadHostedSites: (serverId: string) => Promise<HostedSiteList>;
+  /** The address of the site returns 410 Gone immediately. */
+  deleteHostedSite: (siteId: string, serverId: string) => Promise<void>;
   addRemoteServer: (input: AddRemoteServerInput) => Promise<string>;
   /** Creates an agent on the active server and returns its id. */
   createAgent: (input: CreateAgentInput) => Promise<string>;
@@ -325,6 +335,12 @@ export interface MobileWorkspaceContextValue {
   uninstallAgentSkill: (input: UninstallSkillInput, serverId: string) => Promise<void>;
   /** Null when the host does not advertise `storage-v1`. */
   loadAgentStorage: (agentId: string, serverId: string, force?: boolean) => Promise<StorageUsage | null>;
+  /** True when the host advertises `storage-v1`. Every member reads the host's storage. */
+  canReadServerStorage: (serverId: string) => boolean;
+  /** Every location on the host, its agents, its largest chats and its stored files. */
+  loadServerStorage: (serverId: string, force?: boolean) => Promise<StorageUsage>;
+  /** Owners and admins only; the host refuses a member. */
+  clearServerStorage: (category: ClearableStorageCategory, serverId: string) => Promise<void>;
   /** Null when the host does not advertise `agent-admin-v1`. Owners and admins only; the host refuses a member. */
   loadAgentAdminSettings: (agentId: string, serverId: string) => Promise<AgentAdminSettings | null>;
   /** Owners and admins only; the host refuses a member. Resolves with the settings the host saved. */
@@ -465,7 +481,8 @@ export type MobileWorkspaceCapabilityCheck =
   | "canChooseNewAgentModel"
   | "canInstallAgentTemplate"
   | "canSearchFiles"
-  | "canUseTasks";
+  | "canUseTasks"
+  | "canReadServerStorage";
 
 type MobileWorkspaceStateKey =
   | MobileWorkspaceCapabilityCheck
@@ -486,6 +503,8 @@ type MobileWorkspaceStateKey =
   | "canManageAgentMemoryLimit"
   | "serverUpdateAccess"
   | "canReadServerRelease"
+  | "canViewHostedSites"
+  | "canDeleteHostedSites"
   | "canSendNotifications"
   | "canManageEvents"
   | "canManageAgentSkills"

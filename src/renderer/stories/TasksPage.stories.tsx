@@ -1,4 +1,4 @@
-import type { AgentTask, ConversationSnapshot } from "@openbot/contracts/ipc";
+import type { AgentApproval, AgentTask, ConversationSnapshot } from "@openbot/contracts/ipc";
 import type { AgentProfile } from "@openbot/ui/data";
 import { onCleanup } from "solid-js";
 import { fn } from "storybook/test";
@@ -178,7 +178,7 @@ function conversationOf(task: AgentTask): ConversationSnapshot {
   };
 }
 
-function TasksPageStory(props: { tasks: readonly AgentTask[] }) {
+function TasksPageStory(props: { tasks: readonly AgentTask[]; approvals?: AgentApproval[] }) {
   const previousApi = window.openbot;
   const tasks: Record<string, AgentTask[]> = {};
   for (const task of props.tasks) tasks[task.agentId] = [...(tasks[task.agentId] ?? []), task];
@@ -201,6 +201,8 @@ function TasksPageStory(props: { tasks: readonly AgentTask[] }) {
         agents={TASK_AGENTS}
         onOpenLink={fn()}
         onAttachmentAction={fn()}
+        approvals={props.approvals ?? []}
+        onRespondApproval={fn(async () => true)}
       />
     </div>
   );
@@ -218,3 +220,20 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = { render: () => <TasksPageStory tasks={TASKS} /> };
 /** No tasks: only the composer. */
 export const Empty: Story = { render: () => <TasksPageStory tasks={[]} /> };
+
+/** A running task asks to write outside its workspace. Its row and panel say that it waits for you. */
+const WAITING_APPROVAL: AgentApproval = {
+  requestId: "task-board-update-approval",
+  agentId: "chief",
+  threadId: "task-board-update-thread",
+  turnId: "task-board-update-turn",
+  kind: "file-change",
+  command: null,
+  cwd: "/Users/you/OpenBot/Agents/Chief",
+  reason: "Save board-update.md on the Desktop",
+  grantRoot: "/Users/you/Desktop",
+  permissions: null,
+};
+export const WaitingForApproval: Story = {
+  render: () => <TasksPageStory tasks={TASKS} approvals={[WAITING_APPROVAL]} />,
+};

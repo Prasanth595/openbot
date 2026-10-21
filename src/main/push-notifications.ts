@@ -6,9 +6,9 @@ import {
   type NotificationRelayPush,
   type NotificationSound,
 } from "@openbot/contracts/notification-relay";
-import { type AppTranslate, resolveLocale, translateFor } from "@openbot/i18n";
+import { resolveLocale, translateFor } from "@openbot/i18n";
 import { redactText, toLogValue } from "@openbot/logging";
-import { type AgentNotificationContent, notificationForAgentEvent } from "@openbot/team-client/agent-notifications";
+import { agentEventCanNotify, notificationForAgentEvent } from "@openbot/team-client/agent-notifications";
 import {
   decodeLiveActivityBytes,
   LIVE_ACTIVITY_NONCE_BYTES,
@@ -55,7 +55,7 @@ interface PushNotificationOptions {
   /** The last send, answer or typing of the member in a session other than this phone, or `null`. */
   lastUseElsewhere(memberId: string, sessionId: string): number | null;
   /** Whether the member is at the computer of this host, where the desktop app shows the event. */
-  atHostComputer(memberId: string): boolean;
+  atHostComputer(memberId: string, event: AgentEvent): boolean;
   /**
    * Whether the session's phone shows a Live Activity of this host, which then shows the event in
    * place of a notification. With `alert`, the activity lights up the screen and plays the sound.
@@ -84,7 +84,8 @@ interface Registration {
 
 /**
  * Sends a notification to a member's iPhone or Android phone when an agent that the member can see
- * finishes, fails, or waits for input, an approval or a browser step, while the app is not on screen.
+ * finishes, fails, cannot start a message, or waits for input, an approval or a browser step, while
+ * the app is not on screen.
  * It decides as the desktop does (`notificationForAgentEvent`): the member's level, the agent's own
  * switch, and no notification for a quiet routine run. It sends nothing while the member uses a
  * desktop app, and no answer to a message while an iPhone shows the Live Activity, which shows the
@@ -191,7 +192,7 @@ export class PushNotificationService {
       if (this.#options.hiddenAgentIds(protocol, registration.capabilities).has(subject.agentId)) return false;
       // A member at a desktop app sees the event there, and the phone would only repeat it.
       const used = this.#options.lastUseElsewhere(memberId, sessionId);
-      return !((used !== null && now - used < DESKTOP_USE_MS) || this.#options.atHostComputer(memberId));
+      return !((used !== null && now - used < DESKTOP_USE_MS) || this.#options.atHostComputer(memberId, event));
     });
     if (!targets.length) return;
     const agents = this.#options.agents.listAgents();
@@ -201,18 +202,17 @@ export class PushNotificationService {
       const { value, memberId, sessionId } = stored;
       const translate = translateFor(resolveLocale("system", value.locale));
       // The fixed text, as the desktop shows it without a preview.
-      const fixed =
-        event.type === "browser-takeover-requested"
-          ? browserStepNotice(event, agents, translate)
-          : notificationForAgentEvent(event, agents, translate, value.level);
+      const fixed = notificationForAgentEvent(event, agents, translate, value.level);
       if (!fixed) continue;
       // The Live Activity of an iPhone shows the event, and a notification would repeat it. With a
       // sound, the activity also lights up the screen and plays it; without one, it updates silently.
+      // A message that did not start has no turn, so the activity does not show it.
       if (stored.platform !== "android") {
         const sound = soundOf(stored.value);
         const startedAt =
           stored.value.liveActivityStartedAt === null ? null : stored.value.liveActivityStartedAt * 1_000;
-        if (this.#options.liveActivityShows(sessionId, sound ? { sound } : null, startedAt)) continue;
+        if (event.type !== "error" && this.#options.liveActivityShows(sessionId, sound ? { sound } : null, startedAt))
+          continue;
         // An iPhone with notifications off registers for the sound of the Live Activity only.
         if (stored.value.token === null) continue;
       }
@@ -330,38 +330,22 @@ function relayRequest(
 
 /** The agent and the kind of an event that can notify. `notificationForAgentEvent` decides the rest. */
 function eventSubject(event: AgentEvent): { agentId: string; kind: PushNotificationKind } | null {
+  if (!agentEventCanNotify(event)) return null;
   switch (event.type) {
     case "turn-completed":
-      if (event.status === "completed") return { agentId: event.agentId, kind: "reply" };
-      return event.status === "failed" ? { agentId: event.agentId, kind: "failed" } : null;
+      return { agentId: event.agentId, kind: event.status === "completed" ? "reply" : "failed" };
     case "prompt":
       return { agentId: event.agentId, kind: "input" };
     case "approval":
       return { agentId: event.approval.agentId, kind: "approval" };
     case "browser-takeover-requested":
       return { agentId: event.request.agentId, kind: "browser" };
+    // A message or a routine run that did not start failed as a turn does.
+    case "error":
+      return event.agentId ? { agentId: event.agentId, kind: "failed" } : null;
     default:
       return null;
   }
-}
-
-/**
- * A step that the agent cannot do in the browser, such as a sign-in or a code. It waits for the
- * member at every level that a phone registers, and the agent's own switch applies.
- */
-function browserStepNotice(
-  event: Extract<AgentEvent, { type: "browser-takeover-requested" }>,
-  agents: readonly AgentSummary[],
-  translate: AppTranslate,
-): AgentNotificationContent | null {
-  const agent = agents.find((candidate) => candidate.id === event.request.agentId);
-  if (!agent?.notifications) return null;
-  return {
-    title: agent.name,
-    body: translate("notification.needsBrowserStep"),
-    agentId: agent.id,
-    threadId: event.request.threadId,
-  };
 }
 
 export class PushNotificationSendFailure extends Schema.TaggedError<PushNotificationSendFailure>()(

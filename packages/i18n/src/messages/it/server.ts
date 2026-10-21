@@ -282,7 +282,7 @@ export const messages = {
   "server.settings.notifications": "Notifiche",
   "server.settings.muteNotifications": "Silenzia le notifiche",
   "server.settings.muteDescription":
-    "Ferma le notifiche del desktop e gli aggiornamenti nel notch del MacBook da questo server.",
+    "Ferma le notifiche del desktop, i suoni e gli aggiornamenti nel notch del MacBook da questo server.",
   "server.settings.mutedUntilDescription": "{until}. Disattiva per riattivare ora.",
   "server.settings.notifyAbout": "Avvisami per",
   "server.settings.notifyAboutDescription": "Quali eventi degli agenti mostrano una notifica sul desktop.",

@@ -289,7 +289,7 @@ export const messages = {
   "server.settings.notifications": "Bildirimler",
   "server.settings.muteNotifications": "Bildirimleri sessize al",
   "server.settings.muteDescription":
-    "Bu sunucudan gelen masaüstü bildirimlerini ve MacBook çentik güncellemelerini durdurun.",
+    "Bu sunucudan gelen masaüstü bildirimlerini, sesleri ve MacBook çentik güncellemelerini durdurun.",
   "server.settings.mutedUntilDescription": "{until}. Şimdi sesi açmak için kapatın.",
   "server.settings.notifyAbout": "Şunun hakkında bildir",
   "server.settings.notifyAboutDescription": "Hangi ajan olaylarının bir masaüstü bildirimi göstereceği.",

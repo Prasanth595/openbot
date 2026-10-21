@@ -159,6 +159,10 @@ export function ConversationPanels(panelProps: { onOpenUsage?: ((trigger: HTMLBu
     const taskId = taskPanelTaskId();
     return taskId ? (props.tasks?.snapshot?.tasks.find((task) => task.id === taskId) ?? null) : null;
   });
+  const panelApproval = () => {
+    const task = panelTask();
+    return task ? props.tasks?.approval(task) : undefined;
+  };
   /** Reconciled by id, so a stream chunk redraws only the message that changed. */
   const panelTaskMessages = createProjection<AgentMessage[]>(
     () => {
@@ -324,6 +328,7 @@ export function ConversationPanels(panelProps: { onOpenUsage?: ((trigger: HTMLBu
             onNew={() => openTaskPanel(null)}
             onOpen={openTaskPanel}
             onClosePanel={() => closeSidePanelPane("tasks")}
+            waitsForApproval={(task) => props.tasks?.approval(task) !== undefined}
           />
         )}
       </Show>
@@ -354,6 +359,11 @@ export function ConversationPanels(panelProps: { onOpenUsage?: ((trigger: HTMLBu
             onOpenLink={(url) => void openExternalMessageUrl(url)}
             onPreview={(attachment) => void previewAttachment(attachment)}
             onAttachmentAction={attachmentAction}
+            approval={panelApproval()}
+            onRespondApproval={async (decision) => {
+              const approval = panelApproval();
+              return approval && props.tasks ? props.tasks.onRespondApproval(approval, decision) : false;
+            }}
           />
         )}
       </Show>

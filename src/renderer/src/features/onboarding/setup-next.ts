@@ -49,10 +49,11 @@ export function createSetupNext(providers: SetupProviders) {
   /**
    * How the button connects `provider` now, or undefined when it cannot: the row's Connect, else the
    * OpenCode key. A browser sign-in reports in a toast; a dialog sign-in, such as a host's, is its
-   * own feedback.
+   * own feedback. Inception signs in only with a key, so it opens the key dialog.
    */
   function connectAction(provider: AgentProviderId): (() => void) | undefined {
     const source = providers.props;
+    if (provider === "inception" && source.providerKeys) return () => providers.signInProvider(provider);
     const kind = source.connection?.connectKind(provider);
     if (kind === "browser") {
       return () => {

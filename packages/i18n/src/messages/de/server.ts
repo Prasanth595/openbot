@@ -289,7 +289,7 @@ export const messages = {
   "server.settings.notifications": "Benachrichtigungen",
   "server.settings.muteNotifications": "Benachrichtigungen stummschalten",
   "server.settings.muteDescription":
-    "Deaktiviere Desktop-Benachrichtigungen und MacBook-Notch-Aktualisierungen von diesem Server.",
+    "Deaktiviere Desktop-Benachrichtigungen, Töne und MacBook-Notch-Aktualisierungen von diesem Server.",
   "server.settings.mutedUntilDescription": "{until}. Deaktiviere diese Option, um die Stummschaltung jetzt aufzuheben.",
   "server.settings.notifyAbout": "Benachrichtige mich über",
   "server.settings.notifyAboutDescription": "Welche Agentenereignisse eine Desktop-Benachrichtigung anzeigen.",

@@ -751,10 +751,9 @@ holds it. Unlike Slack, both directions go through Signal:
   the channels OpenBot can view. When OpenBot's Signal has the Message Content intent, they include
   the text of every message; otherwise only the messages that mention OpenBot have text. Signal
   passes on only the messages that mention OpenBot and the presses of OpenBot's buttons: the message
-  text, the author's ID, name and role IDs in the server, the channel, the message it replies to (with
-  its author, text and time when a person wrote it and Discord gave its text), and the addresses of
-  its files. The computer
-  downloads the files from Discord directly.
+  text, the author's ID, name and role IDs in the server, the channel, the addresses of its files, and
+  the message it replies to when a person wrote it (with its author, time, and the text and file
+  addresses that Discord gave). The computer downloads the files from Discord directly.
 - **From the computer.** The computer sends its posts, edits, reactions, files and name lookups to
   Signal, which makes each call to Discord for it, only in the Discord servers linked to that
   computer. To give context, the computer asks Signal for the earlier messages of a channel after the
@@ -981,6 +980,17 @@ models, which the CLI does not list. The request has no account, key, or prompt 
 sees the IP address of this computer. Cline's terms apply:
 <https://cline.bot/tos>. Team members see the host's Cline agents, as
 for the other providers, when their app supports Cline.
+
+### Inception
+
+Inception agents run in the Pi CLI that OpenBot downloads for Pi. On this computer, Sign in on the
+Inception row saves an Inception API key. OpenBot encrypts it in its existing provider credential
+store, gives it to the local Pi process in its environment, and redacts it from logs. Pi does not
+write the key to a file. Prompts, attachments, and tool results go to that process, and Pi sends
+them with the key to `api.inceptionlabs.ai`. When OpenBot reads the Mercury model list, Pi does not
+contact Inception. Pi keeps its session files in its own folder, as for Pi agents. OpenBot does not
+copy or upload these files. Inception's terms apply: <https://www.inceptionlabs.ai/docs/terms-of-use>.
+Inception agents stay on this computer: OpenBot does not show them to team members.
 
 ### Local model servers
 

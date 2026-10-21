@@ -49,6 +49,7 @@ import { useOnboardingGate } from "@/features/onboarding/model/use-onboarding-ga
 import {
   HOME_SEARCH_HEIGHT,
   HomeSearchBar,
+  HomeSearchList,
   HomeSearchResults,
   useHomeSearch,
 } from "@/features/search/components/home-search";
@@ -343,6 +344,8 @@ export function ConnectedScreen() {
   const { headerHeight } = scroll;
   const insets = useSafeAreaInsets();
   const search = useHomeSearch();
+  // Search has no bar: the list and the results move up by the bar's height as it opens.
+  const searchBarOffset = Math.max(0, headerHeight - insets.top);
   // A new server shows a new list at its top, which sends no scroll event.
   const listServerId = activeServer.id;
   useEffect(() => {
@@ -474,135 +477,137 @@ export function ConnectedScreen() {
   return (
     <View className="flex-1 bg-background">
       <SearchBlurTarget target={searchBlurTarget}>
-        {onboarding.active ? null : sceneShows ? (
-          // The scene has the insets of the welcome, so the characters stand in the same places on
-          // both. Its top leaves the transparent header and its blur clear.
-          <EmptyAgentsScene
-            onAddAgent={addAgent}
-            style={{ paddingTop: insets.top + CROWD_TOP, paddingBottom: insets.bottom + 12 }}
-            afterWelcome={welcomeHandOff}
-          />
-        ) : listReady ? (
-          <Animated.FlatList
-            key={activeServer.id}
-            onLayout={listReveal.onLayout}
-            itemLayoutAnimation={listReveal.finished && sidebar?.layout !== collapseLayout ? LIST_REFLOW : undefined}
-            skipEnteringExitingAnimations
-            removeClippedSubviews={false}
-            className="flex-1 bg-background"
-            alwaysBounceVertical={false}
-            contentContainerClassName={items.length > 0 ? undefined : "grow"}
-            // Android has no content inset, so the list starts below the transparent header. The end of
-            // the list scrolls clear of the search field.
-            contentContainerStyle={{
-              paddingTop: isAndroid ? headerHeight : 0,
-              paddingBottom: insets.bottom + HOME_SEARCH_HEIGHT + 24,
-            }}
-            scrollEventThrottle={16}
-            onScroll={scroll.onScroll}
-            // Keep the native header inset even when short content cannot scroll or bounce.
-            contentInsetAdjustmentBehavior="always"
-            data={items}
-            keyExtractor={listItemKey}
-            renderItem={renderItem}
-            initialNumToRender={LIST_BATCH}
-            maxToRenderPerBatch={LIST_BATCH}
-            windowSize={LIST_WINDOW_SIZE}
-            ListHeaderComponent={
-              <AgentListRowReveal index={0} reveal={listReveal}>
-                {hasSelectedServer ? (
-                  <LargeTitle
-                    scroll={scroll}
-                    title={activeServer.name}
-                    accessibilityLabel={t("mobile.agent.home.serverTitle", { name: activeServer.name })}
-                    onPress={openDrawer}
-                  />
-                ) : null}
-                {sidebar?.error ? (
-                  <View className="gap-2 px-4">
-                    <Typography.Paragraph className="text-danger-text">
-                      {sourceText(sidebar.error)}
-                    </Typography.Paragraph>
+        <HomeSearchList search={search} barHeight={searchBarOffset}>
+          {onboarding.active ? null : sceneShows ? (
+            // The scene has the insets of the welcome, so the characters stand in the same places on
+            // both. Its top leaves the transparent header and its blur clear.
+            <EmptyAgentsScene
+              onAddAgent={addAgent}
+              style={{ paddingTop: insets.top + CROWD_TOP, paddingBottom: insets.bottom + 12 }}
+              afterWelcome={welcomeHandOff}
+            />
+          ) : listReady ? (
+            <Animated.FlatList
+              key={activeServer.id}
+              onLayout={listReveal.onLayout}
+              itemLayoutAnimation={listReveal.finished && sidebar?.layout !== collapseLayout ? LIST_REFLOW : undefined}
+              skipEnteringExitingAnimations
+              removeClippedSubviews={false}
+              className="flex-1 bg-background"
+              alwaysBounceVertical={false}
+              contentContainerClassName={items.length > 0 ? undefined : "grow"}
+              // Android has no content inset, so the list starts below the transparent header. The end of
+              // the list scrolls clear of the search field.
+              contentContainerStyle={{
+                paddingTop: isAndroid ? headerHeight : 0,
+                paddingBottom: insets.bottom + HOME_SEARCH_HEIGHT + 24,
+              }}
+              scrollEventThrottle={16}
+              onScroll={scroll.onScroll}
+              // Keep the native header inset even when short content cannot scroll or bounce.
+              contentInsetAdjustmentBehavior="always"
+              data={items}
+              keyExtractor={listItemKey}
+              renderItem={renderItem}
+              initialNumToRender={LIST_BATCH}
+              maxToRenderPerBatch={LIST_BATCH}
+              windowSize={LIST_WINDOW_SIZE}
+              ListHeaderComponent={
+                <AgentListRowReveal index={0} reveal={listReveal}>
+                  {hasSelectedServer ? (
+                    <LargeTitle
+                      scroll={scroll}
+                      title={activeServer.name}
+                      accessibilityLabel={t("mobile.agent.home.serverTitle", { name: activeServer.name })}
+                      onPress={openDrawer}
+                    />
+                  ) : null}
+                  {sidebar?.error ? (
+                    <View className="gap-2 px-4">
+                      <Typography.Paragraph className="text-danger-text">
+                        {sourceText(sidebar.error)}
+                      </Typography.Paragraph>
+                      <Button
+                        variant="secondary"
+                        onPress={() =>
+                          void workspace()
+                            .refreshServer(activeServer.id)
+                            .catch(() => undefined)
+                        }
+                      >
+                        <Button.Label>{t("mobile.agent.home.retrySections")}</Button.Label>
+                      </Button>
+                    </View>
+                  ) : null}
+                  <PinnedAgentsGrid agents={pinnedAgents} />
+                </AgentListRowReveal>
+              }
+              ListEmptyComponent={
+                serverDirectoryState === "error" && servers.length === 0 ? (
+                  <View className="flex-1 items-center justify-center gap-5 px-8 py-16">
+                    <View className="size-16 items-center justify-center rounded-3xl bg-control">
+                      <WifiOff color={mutedColor} size={28} strokeWidth={1.6} />
+                    </View>
+                    <View className="items-center gap-1.5">
+                      <Typography.Heading type="h4">{t("mobile.agent.home.serversFailed")}</Typography.Heading>
+                      <Typography.Paragraph align="center" className="text-text-secondary">
+                        {serverDirectoryError
+                          ? sourceText(serverDirectoryError)
+                          : t("mobile.agent.home.serversFailedBody")}
+                      </Typography.Paragraph>
+                    </View>
                     <Button
+                      size="md"
                       variant="secondary"
                       onPress={() =>
                         void workspace()
-                          .refreshServer(activeServer.id)
+                          .refreshServers()
                           .catch(() => undefined)
                       }
                     >
-                      <Button.Label>{t("mobile.agent.home.retrySections")}</Button.Label>
+                      <Button.Label>{t("common.tryAgain")}</Button.Label>
                     </Button>
                   </View>
-                ) : null}
-                <PinnedAgentsGrid agents={pinnedAgents} />
-              </AgentListRowReveal>
-            }
-            ListEmptyComponent={
-              serverDirectoryState === "error" && servers.length === 0 ? (
-                <View className="flex-1 items-center justify-center gap-5 px-8 py-16">
-                  <View className="size-16 items-center justify-center rounded-3xl bg-control">
+                ) : servers.length === 0 ? (
+                  <View className="flex-1 items-center justify-center gap-5 px-8 py-16">
+                    <View className="size-16 items-center justify-center rounded-3xl bg-control">
+                      <Layers3 color={mutedColor} size={28} strokeWidth={1.6} />
+                    </View>
+                    <View className="items-center gap-1.5">
+                      <Typography.Heading type="h4">{t("mobile.agent.home.noServers")}</Typography.Heading>
+                      <Typography.Paragraph align="center" className="text-text-secondary">
+                        {t("mobile.agent.home.noServersBody")}
+                      </Typography.Paragraph>
+                    </View>
+                    {/* The drawer holds the ways to add a server. Without this, the next step is hidden. */}
+                    <Button size="md" variant="secondary" onPress={openDrawer}>
+                      <Button.Label>{t("mobile.agent.home.openServers")}</Button.Label>
+                    </Button>
+                  </View>
+                ) : !hasSelectedServer ? (
+                  <View className="flex-1 items-center justify-center gap-5 px-8 py-16">
+                    <Typography.Heading type="h4">{t("mobile.agent.home.chooseServer")}</Typography.Heading>
+                    <Button size="md" variant="secondary" onPress={openDrawer}>
+                      <Button.Label>{t("mobile.agent.home.openServers")}</Button.Label>
+                    </Button>
+                  </View>
+                ) : activeAgents.length === 0 && !activeServerOnline ? (
+                  <View className="flex-1 items-center justify-center gap-5 px-8 py-16">
                     <WifiOff color={mutedColor} size={28} strokeWidth={1.6} />
+                    <View className="items-center gap-1.5">
+                      <Typography.Heading type="h4">{t("mobile.agent.home.waiting")}</Typography.Heading>
+                      <Typography.Paragraph align="center" className="text-text-secondary">
+                        {t("mobile.agent.home.waitingBody")}
+                      </Typography.Paragraph>
+                    </View>
                   </View>
-                  <View className="items-center gap-1.5">
-                    <Typography.Heading type="h4">{t("mobile.agent.home.serversFailed")}</Typography.Heading>
-                    <Typography.Paragraph align="center" className="text-text-secondary">
-                      {serverDirectoryError
-                        ? sourceText(serverDirectoryError)
-                        : t("mobile.agent.home.serversFailedBody")}
-                    </Typography.Paragraph>
-                  </View>
-                  <Button
-                    size="md"
-                    variant="secondary"
-                    onPress={() =>
-                      void workspace()
-                        .refreshServers()
-                        .catch(() => undefined)
-                    }
-                  >
-                    <Button.Label>{t("common.tryAgain")}</Button.Label>
-                  </Button>
-                </View>
-              ) : servers.length === 0 ? (
-                <View className="flex-1 items-center justify-center gap-5 px-8 py-16">
-                  <View className="size-16 items-center justify-center rounded-3xl bg-control">
-                    <Layers3 color={mutedColor} size={28} strokeWidth={1.6} />
-                  </View>
-                  <View className="items-center gap-1.5">
-                    <Typography.Heading type="h4">{t("mobile.agent.home.noServers")}</Typography.Heading>
-                    <Typography.Paragraph align="center" className="text-text-secondary">
-                      {t("mobile.agent.home.noServersBody")}
-                    </Typography.Paragraph>
-                  </View>
-                  {/* The drawer holds the ways to add a server. Without this, the next step is hidden. */}
-                  <Button size="md" variant="secondary" onPress={openDrawer}>
-                    <Button.Label>{t("mobile.agent.home.openServers")}</Button.Label>
-                  </Button>
-                </View>
-              ) : !hasSelectedServer ? (
-                <View className="flex-1 items-center justify-center gap-5 px-8 py-16">
-                  <Typography.Heading type="h4">{t("mobile.agent.home.chooseServer")}</Typography.Heading>
-                  <Button size="md" variant="secondary" onPress={openDrawer}>
-                    <Button.Label>{t("mobile.agent.home.openServers")}</Button.Label>
-                  </Button>
-                </View>
-              ) : activeAgents.length === 0 && !activeServerOnline ? (
-                <View className="flex-1 items-center justify-center gap-5 px-8 py-16">
-                  <WifiOff color={mutedColor} size={28} strokeWidth={1.6} />
-                  <View className="items-center gap-1.5">
-                    <Typography.Heading type="h4">{t("mobile.agent.home.waiting")}</Typography.Heading>
-                    <Typography.Paragraph align="center" className="text-text-secondary">
-                      {t("mobile.agent.home.waitingBody")}
-                    </Typography.Paragraph>
-                  </View>
-                </View>
-              ) : activeAgents.length === 0 ? (
-                <EmptyAgentsScene onAddAgent={addAgent} />
-              ) : null
-            }
-          />
-        ) : null}
+                ) : activeAgents.length === 0 ? (
+                  <EmptyAgentsScene onAddAgent={addAgent} />
+                ) : null
+              }
+            />
+          ) : null}
+        </HomeSearchList>
       </SearchBlurTarget>
 
       {/* The list scrolls under the transparent header, which gets the blur of the chat header. iOS 27
@@ -617,7 +622,7 @@ export function ConnectedScreen() {
       )}
 
       {/* The results lie over the bar's edge, so its blur cannot soften them; they have their own. */}
-      {searchShows ? <HomeSearchResults search={search} /> : null}
+      {searchShows ? <HomeSearchResults search={search} barHeight={searchBarOffset} /> : null}
 
       {searchShows ? <HomeSearchBar search={search} blurTarget={searchBlurTarget} /> : null}
 

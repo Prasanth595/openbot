@@ -28,11 +28,15 @@ to, so one host cannot sign an action for another.
 
 ## iPhone notifications
 
-A host sends an iOS notification when an agent finishes a turn, stops with an error, or waits for
-input, an approval, or a step in the browser (`browser-takeover-requested`, also for a password or a
-code). For all but the browser step, it decides as the desktop does: `notificationForAgentEvent` in
-`@openbot/team-client` applies the level of the server (`all` or `needs-me`), the switch of the agent,
-and the quiet routine runs. The title is the agent name. When the phone shows previews, the text is the
+A host sends an iOS notification when an agent finishes a turn, stops with an error, cannot start a
+message or a routine run (`error` with the code `delivery_start_failed`), or waits for input, an
+approval, or a step in the browser (`browser-takeover-requested`, also for a password or a code).
+The desktop and the web client notify about the same events (`agentEventCanNotify`), and all three
+decide as one: `notificationForAgentEvent` in `@openbot/team-client` applies the level of the server
+(`all`, or `needs-me` for the events that wait for the user), the switch of the agent, and the quiet
+routine runs. The desktop and the web client close the notification of a request when an
+`agent-input-resolved` or `browser-takeover-resolved` event comes, also for an answer from another
+device. The title is the agent name. When the phone shows previews, the text is the
 preview of a desktop notification: the start of the answer of that turn, the question, or the action
 to approve, with secrets redacted. Otherwise it is the fixed desktop text, such as "Finished working.".
 
@@ -50,8 +54,9 @@ user, so a phone that does not connect after the host restarts still gets notifi
 only while the phone is away or its connection is closed. No event goes while the member uses a
 desktop app, which shows the event and asks for input, an approval, or a browser step itself: that
 computer had input in the last 30 seconds (`powerMonitor.getSystemIdleState`), and
-the window of the host's own desktop app has focus or is open with desktop notifications on, for
-the owner; or the member sent, answered, or typed from another session in the last 30
+the window of the host's own desktop app has focus or shows the event as a desktop notification, for
+the owner (`desktopShowsAgentEvent`: desktop notifications on, and the mute and the level of this
+computer's server let the event through); or the member sent, answered, or typed from another session in the last 30
 seconds (`TeamApiServer.lastMemberUseElsewhere`, kept in memory). The time is short because a task
 can end at any time after the member leaves the computer. While the phone shows a Live Activity of
 this host that iOS still updates (8 hours from its start, which the phone gives because a host that

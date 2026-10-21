@@ -671,8 +671,9 @@ export class ProviderRuntime implements ProviderPort {
           cause: new CodexCliError(sourceText("error.provider.customAgentNone"), "missing"),
         });
       }
-      const bundledExecutable = this.#bundledExecutables[provider];
-      const cli = yield* requireProviderDriver(provider)
+      const driver = requireProviderDriver(provider);
+      const bundledExecutable = this.#bundledExecutables[driver.cliProvider ?? provider];
+      const cli = yield* driver
         .resolveCli(bundledExecutable === undefined ? {} : { bundledExecutable })
         .pipe(toProviderOperationFailed);
       this.#cliSources.set(provider, cli.source);
@@ -1713,6 +1714,14 @@ export class ProviderRuntime implements ProviderPort {
           this.#hooks.onProviderResumed(provider);
         }),
     );
+    // A provider that runs this CLI, such as Inception on Pi, moves to the new binary when its own
+    // turns end. One with no process, such as one that found no CLI, is checked again now.
+    for (const driver of BUILT_IN_PROVIDER_DRIVERS) {
+      if (driver.cliProvider !== provider || this.#off.has(driver.id)) continue;
+      yield* (
+        this.#clients.has(driver.id) ? this.restartProviderWhenIdle(driver.id) : this.#reprobeProvider(driver.id)
+      ).pipe(Effect.ignore);
+    }
     return this.status();
   }, Effect.uninterruptible);
 
@@ -2459,7 +2468,9 @@ export class ProviderRuntime implements ProviderPort {
         ? sourceText("error.provider.piSignIn")
         : provider === "muse"
           ? sourceText("error.provider.museSignIn")
-          : agentProviderDescriptor(provider).signInMessage)
+          : provider === "inception"
+            ? sourceText("error.provider.inceptionSignIn")
+            : agentProviderDescriptor(provider).signInMessage)
     );
   }
 

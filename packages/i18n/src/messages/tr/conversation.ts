@@ -104,6 +104,7 @@ export const messages = {
   "conversation.tasks.state.completed": "Yanıtlandı",
   "conversation.tasks.state.failed": "Başarısız",
   "conversation.tasks.state.interrupted": "Durduruldu",
+  "conversation.tasks.state.waitingApproval": "Onayınızı bekliyor",
   "conversation.tasks.hold.taskLimit": {
     one: "Boş bir görev bekleniyor. {count} görev çalışıyor.",
     other: "Boş bir görev bekleniyor. {count} görev çalışıyor.",
