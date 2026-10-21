@@ -30,14 +30,17 @@ export function collectProviderUsage(
   if (method !== "thread/tokenUsage/updated" && method !== "openbot/usage") return;
   const turnId = getString(params, "turnId") ?? "baseline";
   if (session.provider === "codex") {
-    const total = getRecord(getRecord(params, "tokenUsage"), "total");
+    const tokenUsage = getRecord(params, "tokenUsage");
+    const total = getRecord(tokenUsage, "total");
     if (!total) return;
+    // Codex counts cached input and cache writes inside `inputTokens`.
     const input = count(total.inputTokens);
     const cached = count(total.cachedInputTokens);
+    const written = count(total.cacheWriteInputTokens) ?? 0;
     const tokens: UsageTokens = {
-      uncachedInput: input !== null && cached !== null && cached <= input ? input - cached : null,
+      uncachedInput: input !== null && cached !== null && cached + written <= input ? input - cached - written : null,
       cachedInput: cached,
-      cacheCreation: count(total.cacheCreationInputTokens) ?? 0,
+      cacheCreation: written,
       output: count(total.outputTokens),
     };
     usage.record({
@@ -46,10 +49,15 @@ export function collectProviderUsage(
       turnId,
       provider: session.provider,
       model: usage.turnModel(agent.id, session.id, turnId) ?? agent.model,
-      counterId: `${session.id}:codex`,
-      pricingInputTokens: count(getRecord(getRecord(params, "tokenUsage"), "last")?.inputTokens),
+      // `:codex` counted cache writes as uncached input. A session that it counted starts this
+      // counter from a baseline, so the change does not count its earlier writes again.
+      counterId: `${session.id}:codex:cache-writes`,
+      lastRequestInputTokens: count(getRecord(tokenUsage, "last")?.inputTokens),
       tokens,
-      baseline: session.createdAt < usage.collectionStartedAt() || turnId === "baseline",
+      baseline:
+        session.createdAt < usage.collectionStartedAt() ||
+        turnId === "baseline" ||
+        usage.hasCounter(agent.id, `${session.id}:codex`),
     });
     return;
   }

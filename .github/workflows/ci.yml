@@ -353,6 +353,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: bun run test:provider-exit-session
 
+      - name: Run the Codex usage metering E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:codex-usage-metering
+
       - name: Run the ZIP attachment E2E test
         if: ${{ !cancelled() }}
         run: bun run test:zip-attachments
@@ -378,6 +382,7 @@ jobs:
             .openbot-build/zero-filled-settings-e2e/
             .openbot-build/provider-update-busy-e2e/
             .openbot-build/provider-exit-session-e2e/
+            .openbot-build/codex-usage-metering-e2e/
             .openbot-build/zip-attachment-e2e/
             .openbot-build/agent-mcp-tools-e2e/
           if-no-files-found: ignore

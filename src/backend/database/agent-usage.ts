@@ -31,7 +31,8 @@ export interface UsageSample {
   baseline: boolean;
   reportedCost?: number | null;
   occurredAt?: string;
-  pricingInputTokens?: number | null;
+  /** The prompt of the last request in this update, when the provider reports it. */
+  lastRequestInputTokens?: number | null;
 }
 const TOKEN_KEYS = ["uncachedInput", "cachedInput", "cacheCreation", "output"] as const;
 
@@ -70,6 +71,16 @@ export class AgentUsage {
         .get(agentId, `turn:${sessionId}:${turnId}`),
     );
     return row ? requiredStringColumn(row, "model") : null;
+  }
+
+  hasCounter(agentId: string, counterId: string): boolean {
+    return (
+      databaseRow(
+        this.#core.connection
+          .prepare("SELECT 1 FROM agent_usage_checkpoints WHERE agent_id = ? AND counter_id = ?")
+          .get(agentId, counterId),
+      ) !== null
+    );
   }
 
   record(sample: UsageSample): void {
@@ -130,12 +141,7 @@ export class AgentUsage {
               }
             : sample.provider === "claude"
               ? { cost: null, basis: null }
-              : estimateUsageCost(
-                  sample.provider,
-                  sample.model,
-                  delta,
-                  sample.pricingInputTokens ?? (tokens.uncachedInput ?? 0) + (tokens.cachedInput ?? 0),
-                );
+              : estimateUsageCost(sample.provider, sample.model, delta, sample.lastRequestInputTokens ?? null);
         const turn = databaseRow(
           db
             .prepare("SELECT occurred_at FROM agent_usage_activity WHERE agent_id = ? AND activity_id = ?")

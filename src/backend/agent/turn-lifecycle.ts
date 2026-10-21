@@ -371,9 +371,10 @@ export class TurnLifecycle {
       ["turn/started", "thread/tokenUsage/updated", "openbot/usage", "model/rerouted"].includes(notification.method)
     ) {
       const agent = this.#store.list().find((entry) => entry.id === agentId);
-      const session = agent?.threadId
+      // A task or other side thread keeps its provider sessions under its own thread, not the agent's.
+      const session = agent
         ? this.#store.database
-            .listProviderSessions(agent.threadId)
+            .listProviderSessions(this.#conversation.publicThreadId(agentId, threadId))
             .find((entry) => entry.externalSessionId === threadId && entry.provider === source.provider)
         : undefined;
       if (agent && session) {
