@@ -1087,6 +1087,8 @@ export function createConversationViewScope(props: ConversationProps) {
       const openAtDivider = (settle: boolean) =>
         requestAnimationFrame(() => {
           if (unreadOpening !== opening || readerLeftLatest || !scrollElement) return;
+          // A scroll event that an earlier follow queued can land at the bottom before this frame.
+          stickToLatest = false;
           const divider = unreadMessagesDivider;
           if (divider?.isConnected) {
             const readRow = divider.closest(".virtual-chat-row")?.previousElementSibling;
