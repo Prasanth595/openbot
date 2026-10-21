@@ -6,7 +6,6 @@ import type {
   OpenBotDesktopApi,
 } from "@openbot/contracts/ipc";
 import { classifyFailure } from "@openbot/telemetry";
-import { ArrowLeft, Button } from "@openbot/ui";
 import { AgentImportSources } from "@openbot/ui/features/import/AgentImportSources";
 import {
   type AgentImportPhase,
@@ -19,8 +18,20 @@ import {
   HermesImportView,
 } from "@openbot/ui/features/import/HermesImportView";
 import { useText } from "@openbot/ui/text";
-import { createSignal, createStore, Match, onSettled, Show, Switch } from "solid-js";
+import { createEffect, createSignal, createStore, Match, onSettled, Switch } from "solid-js";
 import { actionToast } from "../../action-toast";
+
+/** Product names, the same in each language. */
+const SOURCE_NAMES = {
+  "grok-bot": "Grok Bot",
+  "hermes-agent": "Hermes Agent",
+} as const satisfies Record<AgentImportSkillSource, string>;
+
+/** The source on screen, so the dialog header reads `Import › Hermes Agent`. */
+export interface ServerImportDetail {
+  title: string;
+  back: () => void;
+}
 
 /** The way into each app this viewer chose last, so a user who set up the skill starts there. */
 const SETUP_STORAGE_KEYS = {
@@ -96,6 +107,7 @@ export function ServerImportPanel(
     hermes?: boolean;
     /** Opens the Transfer section, when the settings have one. */
     onOpenTransfer?: (() => void) | undefined;
+    onDetailChange?: ((detail: ServerImportDetail | null) => void) | undefined;
   },
 ) {
   const { t, errorMessage } = useText();
@@ -275,6 +287,15 @@ export function ServerImportPanel(
     reset();
     setSource(null);
   };
+  // The dialog outlives this panel, so the cleanup clears a header that would name a source that is gone.
+  createEffect(
+    () => source(),
+    (current) => {
+      if (current === null) return;
+      props.onDetailChange?.({ title: SOURCE_NAMES[current], back: backToSources });
+      return () => props.onDetailChange?.(null);
+    },
+  );
 
   return (
     <Switch>
@@ -308,13 +329,7 @@ export function ServerImportPanel(
       <Match when={source()}>
         {(current) => (
           <>
-            {/* The steps have no way back of their own; a review has Cancel. */}
-            <Show when={state.phase === "idle"}>
-              <Button type="button" variant="ghost" size="sm" class="agent-import-back" onClick={backToSources}>
-                <ArrowLeft aria-hidden="true" />
-                {t("common.back")}
-              </Button>
-            </Show>
+            {/* The header's `Import` goes back to the sources; a review also has Cancel. */}
             <AgentImportView
               source={current()}
               phase={state.phase}

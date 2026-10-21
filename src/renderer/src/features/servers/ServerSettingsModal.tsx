@@ -57,7 +57,7 @@ import { type HostProviderSettings, HostProviderSettingsPanel } from "../setting
 import type { McpServerConfig, McpTestResult } from "./mcp-servers";
 import { ServerDesktopPanel } from "./ServerDesktopPanel";
 import { createServerGeneralSection } from "./ServerGeneralSection";
-import { type ServerImportOptions, ServerImportPanel } from "./ServerImportPanel";
+import { type ServerImportDetail, type ServerImportOptions, ServerImportPanel } from "./ServerImportPanel";
 import { type McpPanelDetail, type McpPanelSignIn, ServerMcpPanel } from "./ServerMcpPanel";
 import { createServerMembersSection } from "./ServerMembersSection";
 import type { ServerMemoryLimitOptions } from "./ServerMemoryLimitSetting";
@@ -242,7 +242,15 @@ export function ServerSettingsModal(props: ServerSettingsModalProps) {
   const [mcpDetail, setMcpDetail] = createSignal<McpPanelDetail | null>(null);
   /** Set while an integration page is open, so the header reads `Connectors › GitHub`. */
   const [connectorDetail, setConnectorDetail] = createSignal<ConnectorsPanelDetail | null>(null);
-  const crumbDetail = () => (section() === "mcp" ? mcpDetail() : section() === "connectors" ? connectorDetail() : null);
+  const [importDetail, setImportDetail] = createSignal<ServerImportDetail | null>(null);
+  const crumbDetail = () =>
+    section() === "mcp"
+      ? mcpDetail()
+      : section() === "connectors"
+        ? connectorDetail()
+        : section() === "import"
+          ? importDetail()
+          : null;
   /** The key of the one action in flight, gating every panel at once rather than belonging to any. */
   const [busy, setBusy] = createSignal<string | null>(null);
   const [modalElement, setModalElement] = createSignal<HTMLElement | undefined>();
@@ -738,6 +746,7 @@ export function ServerSettingsModal(props: ServerSettingsModalProps) {
                     {...agentImport()}
                     hermes={local()}
                     onOpenTransfer={props.instanceTransfer ? () => setSection("transfer") : undefined}
+                    onDetailChange={setImportDetail}
                   />
                 )}
               </Show>
