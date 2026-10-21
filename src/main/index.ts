@@ -259,8 +259,9 @@ let systemSessionEnding = false;
 let systemSessionEndFlushStarted = false;
 let relaunchRequested = false;
 /**
- * Set by a quit signal and by `before-quit`, and never cleared. Not `isQuitting`: a Windows session
- * end that another app cancels also sets that, and then OpenBot keeps running.
+ * Set by a quit signal, by `before-quit` and by a Windows `session-end`, and never cleared. Not
+ * `isQuitting`: a Windows session end that another app cancels also sets that, and then OpenBot
+ * keeps running.
  */
 let quitStarted = false;
 /**
@@ -451,6 +452,8 @@ function attachWindowsSessionEndHandlers(window: BrowserWindow): void {
   window.on("session-end", () => {
     systemSessionEnding = true;
     isQuitting = true;
+    // Windows can stop the Computer Use driver first, and sends no `before-quit` for a session end.
+    quitStarted = true;
     void runCauseEffect(windows.flushMainWindowBounds()).catch((error) =>
       logger.error("Unable to save the main window position during Windows session end:", toLogValue(error)),
     );
