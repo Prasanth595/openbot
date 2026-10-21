@@ -42,7 +42,7 @@ const SKILL_CODE =
 /** Where the routine runs: platforms Hermes delivers to that OpenBot cannot reach on its own. */
 const LOCAL_DELIVERY = new Set(["", "local", "origin"]);
 
-export interface HermesSkill {
+interface HermesSkill {
   slug: string;
   name: string;
   /** The skill folder. Its files are read again when the import runs, so the preview holds none. */
@@ -51,7 +51,7 @@ export interface HermesSkill {
   scripts: boolean;
 }
 
-export interface HermesRoutine {
+interface HermesRoutine {
   name: string;
   instruction: string;
   active: boolean;
@@ -296,11 +296,16 @@ const readSkills = Effect.fn("HermesImport.readSkills")(function* (folder: strin
       slug: read.success.info.slug,
       name: read.success.info.name,
       directory,
-      scripts: Object.keys(read.success.files).some((path) => SKILL_CODE.test(path)),
+      scripts: hasSkillCode(Object.keys(read.success.files)),
     });
   }
   return { skills, skippedSkills, builtInSkills };
 });
+
+/** True when a skill has a file it can run, so it needs the user's approval. */
+export function hasSkillCode(paths: readonly string[]): boolean {
+  return paths.some((path) => SKILL_CODE.test(path));
+}
 
 /** A skill folder as OpenBot checks a skill package. Unsafe files and an invalid SKILL.md fail it. */
 function readSkillPackage(directory: string) {

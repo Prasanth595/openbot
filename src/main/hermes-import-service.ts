@@ -35,6 +35,7 @@ import { type ArchiveOperationError, archiveCall, archiveFailure } from "./archi
 import {
   displayPath,
   type HermesProfileData,
+  hasSkillCode,
   readHermesProfiles,
   readSkillFiles,
   routineSchedule,
@@ -221,8 +222,9 @@ export class HermesImportService {
               );
             }
             for (const skill of profile.skills) {
-              if (skill.scripts && !allow.has(`skill:${skill.slug}`)) continue;
-              const installed = yield* Effect.result(this.#installSkill(agent, skill, published));
+              const allowed = allow.has(`skill:${skill.slug}`);
+              if (skill.scripts && !allowed) continue;
+              const installed = yield* Effect.result(this.#installSkill(agent, skill, allowed, published));
               if (Result.isFailure(installed))
                 warnings.push(
                   sourceText("error.import.hermesSkillSkipped", {
@@ -284,8 +286,13 @@ export class HermesImportService {
     this: HermesImportService,
     agent: AgentSummary,
     skill: HermesProfileData["skills"][number],
+    allowed: boolean,
     published: Array<{ id: string; revision: number }>,
   ): Effect.fn.Return<void, ArchiveOperationError> {
+    // The folder is read again here. A skill that got code after the preview needs the user's approval.
+    const files = yield* readSkillFiles(skill.directory);
+    if (!allowed && hasSkillCode(files.map(([path]) => path)))
+      return yield* archiveFailure(new Error(sourceText("error.import.hermesSkillCodeAdded")));
     const library = this.skills.library();
     const current = (yield* library.list().pipe(Effect.mapError((error) => archiveFailure(error.cause)))).find(
       (candidate) => candidate.slug === skill.slug,
@@ -296,7 +303,7 @@ export class HermesImportService {
       archiveCall(() => rm(target, { recursive: true, force: true })),
       () =>
         Effect.gen({ self: this }, function* () {
-          yield* writeTreeEffect(target, yield* readSkillFiles(skill.directory));
+          yield* writeTreeEffect(target, files);
           const revision = yield* Effect.gen(function* () {
             const revision = yield* (
               current ? library.revise(agent.id, current.id, current.version, folder) : library.create(agent.id, folder)
