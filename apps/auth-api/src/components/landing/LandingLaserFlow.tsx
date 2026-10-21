@@ -402,7 +402,7 @@ const MAX_SCALE = 1.25;
 /** The gap, in CSS pixels, between the beam and the text it must not cross. */
 const BEAM_CLEARANCE = 56;
 const INTRO_DROP = 0.8;
-/** The longest time, in milliseconds, that the beam waits for `start` before it falls in. */
+/** The longest time, in milliseconds, that the beam waits for `start` on screen before it falls in. */
 const MAX_HOLD_MS = 2500;
 /** The light that runs along the surface and spills down its sides moves at this share of the source speed. */
 const POUR_PACE = 1;
@@ -410,8 +410,11 @@ const POUR_PACE = 1;
 const SPILL_SPEED = 320;
 const SPILL_GRAVITY = 240;
 const INTRO_END = 7;
-/** A median frame time above this, in milliseconds, makes the canvas smaller. */
-const SLOW_FRAME_MS = 25;
+/**
+ * A median frame time above this, in milliseconds, makes the canvas smaller. It is more than 33 ms, because
+ * a power saving mode or a 30 Hz display limits a fast GPU to 30 frames a second.
+ */
+const SLOW_FRAME_MS = 40;
 /** The number of frames in each median. One long task in the page does not move the median. */
 const FRAME_SAMPLES = 20;
 /** The smallest canvas, as a share of the full canvas. The light is soft, so it still looks the same. */
@@ -787,15 +790,12 @@ export function LandingLaserFlow(props: LandingLaserFlowProps) {
     // The beam waits in the dark until the surface is ready, so the surface appears as the beam hits it.
     let held = drops && props.start !== undefined;
     let holdTimer: ReturnType<typeof setTimeout> | undefined;
-    if (held) {
-      const release = () => {
-        clearTimeout(holdTimer);
-        held = false;
-        wake();
-      };
-      holdTimer = setTimeout(release, MAX_HOLD_MS);
-      void props.start?.then(release);
-    }
+    const release = () => {
+      clearTimeout(holdTimer);
+      held = false;
+      wake();
+    };
+    if (held) void props.start?.then(release);
     const tints = buildTints(look.color, look.hueSpread);
     const state = {
       time: 0,
@@ -1014,6 +1014,8 @@ export function LandingLaserFlow(props: LandingLaserFlowProps) {
     const frame = (now: number) => {
       raf = 0;
       if (!alive || !visible || document.hidden) return;
+      // The hold time starts on the first frame on screen. A page in a background tab does not load the surface.
+      if (held && holdTimer === undefined) holdTimer = setTimeout(release, MAX_HOLD_MS);
       if (last && !held && !still) measureFrame(now - last);
       const dt = last ? Math.min(0.05, (now - last) / 1000) : 1 / 60;
       last = now;
@@ -1071,6 +1073,14 @@ export function LandingLaserFlow(props: LandingLaserFlowProps) {
       wake();
     };
 
+    // A lost context draws nothing again, so the beam stops and the source loses its light.
+    const onContextLost = () => {
+      alive = false;
+      cancelAnimationFrame(raf);
+      light(undefined);
+      impact();
+    };
+
     const resizeObserver = new ResizeObserver(resize);
     resizeObserver.observe(host);
     const intersection = new IntersectionObserver((entries) => {
@@ -1084,6 +1094,7 @@ export function LandingLaserFlow(props: LandingLaserFlowProps) {
     window.addEventListener("pointermove", onPointerMove, { passive: true });
     document.documentElement.addEventListener("pointerleave", onPointerLeave);
     document.addEventListener("visibilitychange", onVisibility);
+    element.addEventListener("webglcontextlost", onContextLost);
     resize();
     wake();
 
@@ -1097,6 +1108,7 @@ export function LandingLaserFlow(props: LandingLaserFlowProps) {
       window.removeEventListener("pointermove", onPointerMove);
       document.documentElement.removeEventListener("pointerleave", onPointerLeave);
       document.removeEventListener("visibilitychange", onVisibility);
+      element.removeEventListener("webglcontextlost", onContextLost);
       gl.deleteBuffer(buffer);
       gl.deleteVertexArray(vao);
       gl.deleteProgram(program);
