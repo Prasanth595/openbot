@@ -25,9 +25,11 @@ import type {
   CreateAgentInput,
   CreateRoutineInput,
   DraftAttachment,
+  HostAgentMemoryLimit,
   HostAnalytics,
   HostAnalyticsInput,
   HostProviderAccounts,
+  HostTimezoneSettings,
   InstallAgentTemplateInput,
   InstalledSkill,
   QueuedMessageReceipt,
@@ -227,6 +229,17 @@ export interface MobileWorkspaceContextValue {
     serverId: string,
     input: { serverName?: string; logo?: AvatarImageInput | null },
   ) => Promise<void>;
+  /** An owner or admin of an online host that serves `host-timezone-v1`. The host checks the role again. */
+  canManageServerTimezone: (serverId: string) => boolean;
+  /** The zone of a routine that an agent creates with no zone. Owners and admins only. */
+  loadServerTimezone: (serverId: string) => Promise<HostTimezoneSettings>;
+  /** `null` is automatic: the host system zone. The host refuses a zone that it cannot resolve. */
+  setServerTimezone: (timezone: string | null, serverId: string) => Promise<HostTimezoneSettings>;
+  /** An owner or admin of an online host that serves `agent-memory-limit-v1`. The host checks the role again. */
+  canManageAgentMemoryLimit: (serverId: string) => boolean;
+  /** How many memories each agent of the server can keep, and the values that the host permits. */
+  loadAgentMemoryLimit: (serverId: string) => Promise<HostAgentMemoryLimit>;
+  setAgentMemoryLimit: (limit: number, serverId: string) => Promise<HostAgentMemoryLimit>;
   addRemoteServer: (input: AddRemoteServerInput) => Promise<string>;
   /** Creates an agent on the active server and returns its id. */
   createAgent: (input: CreateAgentInput) => Promise<string>;
@@ -441,6 +454,8 @@ type MobileWorkspaceStateKey =
   | "hidesAgentsOnServer"
   | "canUnhideAgent"
   | "canEditServerIdentity"
+  | "canManageServerTimezone"
+  | "canManageAgentMemoryLimit"
   | "canSendNotifications"
   | "canManageEvents"
   | "canManageAgentSkills"

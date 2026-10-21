@@ -27,6 +27,7 @@ import {
 } from "@openbot/contracts/team-protocol/agent-host-settings-v1";
 import { AGENT_INSTALL_CAPABILITY } from "@openbot/contracts/team-protocol/agent-install-v1";
 import { AGENT_MEMORIES_CAPABILITY } from "@openbot/contracts/team-protocol/agent-memories-v1";
+import { AGENT_MEMORY_LIMIT_CAPABILITY } from "@openbot/contracts/team-protocol/agent-memory-limit-v1";
 import { AGENT_PUBLISH_CAPABILITY } from "@openbot/contracts/team-protocol/agent-publish-v1";
 import { AGENT_SESSION_SETTINGS_CAPABILITY } from "@openbot/contracts/team-protocol/agent-session-settings-v1";
 import { AGENT_TASKS_CAPABILITY } from "@openbot/contracts/team-protocol/agent-tasks-v1";
@@ -45,6 +46,7 @@ import {
   TEAM_SEMANTIC_TAGS_CAPABILITY,
 } from "@openbot/contracts/team-protocol/current";
 import { EVENTS_CAPABILITY } from "@openbot/contracts/team-protocol/events-v1";
+import { HOST_TIMEZONE_CAPABILITY } from "@openbot/contracts/team-protocol/host-timezone-v1";
 import { PROVIDER_ACCOUNTS_CAPABILITY } from "@openbot/contracts/team-protocol/provider-accounts-v1";
 import { TEAM_QUEUE_EDIT_CAPABILITY } from "@openbot/contracts/team-protocol/queue-edit-v1";
 import { SHARED_TABLES_CAPABILITY } from "@openbot/contracts/team-protocol/shared-tables-v1";
@@ -58,6 +60,8 @@ import { buildRoutineCalendar, type RoutineCalendarSource } from "@openbot/team-
 import {
   deleteEventRoutine,
   deleteSharedTable,
+  getHostAgentMemoryLimit,
+  getHostTimezone,
   installAgentTemplate,
   listAgentSkills,
   listEventActivity,
@@ -75,6 +79,8 @@ import {
   setAgentProviderAccount,
   setAgentSessionSetting,
   setAgentSkillEnabled,
+  setHostAgentMemoryLimit,
+  setHostTimezone,
   testEventRoutine,
   uninstallAgentSkill,
   unpublishAgentTemplate,
@@ -167,6 +173,10 @@ type HostRequestActions = Pick<
   | "setAgentProviderAccount"
   | "startNewChat"
   | "loadAgentSessionSettings"
+  | "loadServerTimezone"
+  | "setServerTimezone"
+  | "loadAgentMemoryLimit"
+  | "setAgentMemoryLimit"
   | "setAgentSessionSetting"
   | "resetAgentSessionSetting"
   | "listSharedTables"
@@ -255,6 +265,11 @@ export function createHostRequestActions({
   /** The tasks are an optional route set. Any member who can message the agent can use them. */
   const tasksApi = (serverId: string) =>
     capabilityApi(serverId, AGENT_TASKS_CAPABILITY, "mobile.server.tasks.unsupported");
+  /** The server timezone and the agent memory limit are optional admin route sets. */
+  const timezoneAdmin = (serverId: string) =>
+    capabilityApi(serverId, HOST_TIMEZONE_CAPABILITY, "mobile.server.settings.timezoneUnsupported");
+  const memoryLimitAdmin = (serverId: string) =>
+    capabilityApi(serverId, AGENT_MEMORY_LIMIT_CAPABILITY, "mobile.server.settings.memoryLimitUnsupported");
   function memoryRequest(serverId: string): AgentMemoriesRequest<TeamRequestError> {
     return (method, path, decode, body) =>
       Effect.tryPromise({
@@ -279,6 +294,12 @@ export function createHostRequestActions({
     },
   };
   const actions: HostRequestActions = {
+    // Async, so a host without the capability rejects the promise and does not throw at the call.
+    loadServerTimezone: async (serverId) => runTeamRequest(getHostTimezone(timezoneAdmin(serverId))),
+    setServerTimezone: async (timezone, serverId) => runTeamRequest(setHostTimezone(timezoneAdmin(serverId), timezone)),
+    loadAgentMemoryLimit: async (serverId) => runTeamRequest(getHostAgentMemoryLimit(memoryLimitAdmin(serverId))),
+    setAgentMemoryLimit: async (limit, serverId) =>
+      runTeamRequest(setHostAgentMemoryLimit(memoryLimitAdmin(serverId), limit)),
     loadAgentSessionSettings: async (agentId, serverId) =>
       has(serverId, AGENT_SESSION_SETTINGS_CAPABILITY)
         ? runTeamRequest(readAgentSessionSettings(sessionSettingsAdmin(serverId), agentId))

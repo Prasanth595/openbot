@@ -27,8 +27,11 @@ export default function ServerSettingsLayout() {
         contentStyle: { backgroundColor: background },
       })}
     >
-      <Stack.Screen name="index" options={{ title: t("mobile.app.route.serverOptions") }} />
+      <Stack.Screen name="index" options={{ title: t("mobile.server.route.settings") }} />
       <Stack.Screen name="members" options={{ title: t("mobile.app.route.members") }} />
+      <Stack.Screen name="invite" options={{ title: t("mobile.server.route.invite") }} />
+      <Stack.Screen name="member" options={{ title: t("mobile.server.route.member") }} />
+      <Stack.Screen name="timezone" options={{ title: t("mobile.server.route.timezone") }} />
       <Stack.Screen name="crop-logo" options={{ title: t("mobile.server.route.cropLogo") }} />
     </Stack>
   );

@@ -1,27 +1,34 @@
-import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
+import { DEFAULT_TEAM_MEMBER_LIMIT, INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import { canAdministerServer } from "@openbot/contracts/ipc";
 import { WAKE_RECONNECT_STATES } from "@openbot/team-client/hosted-server-wake";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
 import Camera from "lucide-react-native/icons/camera";
+import ChevronRight from "lucide-react-native/icons/chevron-right";
 import { useEffect, useRef, useState } from "react";
 import { Alert, Pressable, View } from "react-native";
-import { useMobileSession } from "@/features/auth/context/mobile-session-context";
+import { useCSSVariable, useUniwind } from "uniwind";
+import { useMobileSession, useQueryScope } from "@/features/auth/context/mobile-session-context";
 import { ServerNotificationSettings } from "@/features/push-notifications/components/server-notification-settings";
 import { hostedServerCalls } from "@/features/servers/api/hosted-servers";
 import { ServerAvatar } from "@/features/servers/components/server-avatar";
 import { ServerStatusLabel } from "@/features/servers/components/server-status-label";
-import { SERVER_ROLE_KEYS } from "@/features/servers/model/server-role";
+import { SERVER_ROLE_LABEL_KEYS } from "@/features/servers/model/server-role";
+import { timeZoneLabel } from "@/features/servers/model/time-zones";
+import { useServerTimezone } from "@/features/servers/model/use-server-timezone";
 import {
   SettingsContent,
   SettingsNote,
   SettingsRow,
   SettingsSection,
 } from "@/features/settings/components/settings-content";
-import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import { SettingsPicker } from "@/features/settings/components/settings-controls";
+import { useMobileWorkspace, useMobileWorkspaceActions } from "@/features/workspace/context/mobile-workspace-context";
 import { useLiveServerRecovery } from "@/features/workspace/context/server-recovery-countdown";
+import { queryKeys } from "@/features/workspace/model/query-keys";
 import type { MobileServer } from "@/features/workspace/model/workspace-types";
 import { SheetFormField } from "@/shared/components/sheet-form-field";
 import { SheetSaveAction } from "@/shared/components/sheet-save-action";
@@ -32,7 +39,9 @@ import { currentText, useText } from "@/shared/lib/text";
 export function ServerSettingsScreen() {
   const { t, sourceText, errorMessage } = useText();
   const { serverId } = useLocalSearchParams<{ serverId: string }>();
-  const { servers, leaveServer, removeServer, refreshServer, hostedServerStarting } = useMobileWorkspace();
+  const { servers, memberCountByServer, leaveServer, removeServer, refreshServer, hostedServerStarting } =
+    useMobileWorkspace();
+  const muted = String(useCSSVariable("--openbot-text-grouped-secondary"));
   const server = useLiveServerRecovery(servers.find((item) => item.id === serverId));
   const locked = useRef(false);
   const [busy, setBusy] = useState(false);
@@ -86,22 +95,46 @@ export function ServerSettingsScreen() {
         <SettingsNote>{t("mobile.server.unavailable")}</SettingsNote>
       </SettingsContent>
     );
+  const memberCount = memberCountByServer[serverId];
+  const memberLimit = server.memberLimit ?? DEFAULT_TEAM_MEMBER_LIMIT;
   return (
     <SettingsContent>
-      {canAdministerServer(server.role) ? <ServerIdentityForm server={server} /> : null}
-      <SettingsSection title={server.name}>
+      {canAdministerServer(server.role) ? <ServerIdentityForm server={server} /> : <ServerHeader server={server} />}
+      <SettingsSection footer={server.connectionMessage ? sourceText(server.connectionMessage) : undefined}>
+        <SettingsRow disclosure={false} trailing={<ServerStatusLabel server={server} />}>
+          <Typography.Paragraph>{t("mobile.server.settings.status")}</Typography.Paragraph>
+        </SettingsRow>
         <SettingsRow
           disclosure={false}
-          supportingText={t("mobile.server.settings.role", { role: t(SERVER_ROLE_KEYS[server.role]) })}
+          trailing={
+            <Typography.Paragraph className="text-grouped-secondary">
+              {t(SERVER_ROLE_LABEL_KEYS[server.role])}
+            </Typography.Paragraph>
+          }
         >
-          <ServerStatusLabel server={server} />
+          <Typography.Paragraph>{t("mobile.server.settings.yourRole")}</Typography.Paragraph>
         </SettingsRow>
-        {server.connectionMessage ? <SettingsNote>{sourceText(server.connectionMessage)}</SettingsNote> : null}
-        <SettingsRow onPress={() => router.push({ pathname: "/server-settings/members", params: { serverId } })}>
-          <Typography.Paragraph type="body-sm">{t("mobile.server.settings.members")}</Typography.Paragraph>
+        <SettingsRow
+          trailing={
+            memberCount === undefined ? undefined : (
+              <View className="flex-row items-center gap-1">
+                <Typography.Paragraph className="text-grouped-secondary">
+                  {t("mobile.server.settings.memberCount", { count: memberCount, limit: memberLimit })}
+                </Typography.Paragraph>
+                <ChevronRight size={18} color={muted} strokeWidth={1.5} />
+              </View>
+            )
+          }
+          onPress={() => router.push({ pathname: "/server-settings/members", params: { serverId } })}
+        >
+          <Typography.Paragraph>{t("mobile.server.settings.members")}</Typography.Paragraph>
         </SettingsRow>
+      </SettingsSection>
+      <ServerGeneralSettings serverId={serverId} />
+      <ServerNotificationSettings server={server} title={t("mobile.settings.notifications.title")} />
+      <SettingsSection title={t("mobile.server.settings.connection")} footer={error ?? restarted}>
         <SettingsRow disclosure={false} disabled={busy} onPress={() => void perform(() => refreshServer(serverId))}>
-          <Typography.Paragraph type="body-sm">
+          <Typography.Paragraph className="text-accent">
             {busy && !restarting ? t("mobile.server.settings.refreshing") : t("mobile.server.settings.refresh")}
           </Typography.Paragraph>
         </SettingsRow>
@@ -143,12 +176,14 @@ export function ServerSettingsScreen() {
               )
             }
           >
-            <Typography.Paragraph type="body-sm">
+            <Typography.Paragraph className="text-accent">
               {restarting ? t("mobile.server.settings.restarting") : t("mobile.server.settings.restart")}
             </Typography.Paragraph>
           </SettingsRow>
         ) : null}
-        {server.role !== "owner" ? (
+      </SettingsSection>
+      {server.role !== "owner" ? (
+        <SettingsSection>
           <SettingsRow
             disclosure={false}
             disabled={busy}
@@ -171,12 +206,14 @@ export function ServerSettingsScreen() {
               )
             }
           >
-            <Typography.Paragraph type="body-sm" className="text-danger-text">
+            <Typography.Paragraph className="text-danger-text">
               {t("mobile.server.settings.leave")}
             </Typography.Paragraph>
           </SettingsRow>
-        ) : hostedServerIds && !hostedServerIds.has(serverId) ? (
-          // The owner removes the server from the account. The host does not need to be online.
+        </SettingsSection>
+      ) : hostedServerIds && !hostedServerIds.has(serverId) ? (
+        // The owner removes the server from the account. The host does not need to be online.
+        <SettingsSection>
           <SettingsRow
             disclosure={false}
             disabled={busy}
@@ -203,16 +240,139 @@ export function ServerSettingsScreen() {
               )
             }
           >
-            <Typography.Paragraph type="body-sm" className="text-danger-text">
+            <Typography.Paragraph className="text-danger-text">
               {t("mobile.server.settings.remove")}
             </Typography.Paragraph>
           </SettingsRow>
-        ) : null}
-        {restarted ? <SettingsNote>{restarted}</SettingsNote> : null}
-        {error ? <SettingsNote>{error}</SettingsNote> : null}
-      </SettingsSection>
-      <ServerNotificationSettings server={server} title={t("mobile.settings.notifications.title")} />
+        </SettingsSection>
+      ) : null}
     </SettingsContent>
+  );
+}
+
+/** The logo and name of the server, for a member, who cannot change them. */
+function ServerHeader({ server }: { server: MobileServer }) {
+  return (
+    <View className="items-center gap-3">
+      <ServerAvatar server={server} size={112} showStatus={false} />
+      <Typography.Heading type="h4" align="center" numberOfLines={2} className="px-4">
+        {server.name}
+      </Typography.Heading>
+    </View>
+  );
+}
+
+/**
+ * The server timezone and the memories per agent, for an owner or admin of a host that serves them.
+ * The host checks the role and the value again.
+ */
+function ServerGeneralSettings({ serverId }: { serverId: string }) {
+  const { t, errorMessage } = useText();
+  const { theme } = useUniwind();
+  const queryScope = useQueryScope();
+  const queryClient = useQueryClient();
+  const { canManageAgentMemoryLimit } = useMobileWorkspace();
+  const { loadAgentMemoryLimit, setAgentMemoryLimit } = useMobileWorkspaceActions();
+  const timezone = useServerTimezone(serverId);
+  const memoryLimitKey = queryKeys.agentMemoryLimit(queryScope, serverId);
+  const memoryLimitAvailable = canManageAgentMemoryLimit(serverId);
+  const memoryLimit = useQuery({
+    queryKey: memoryLimitKey,
+    enabled: memoryLimitAvailable,
+    retry: false,
+    staleTime: 0,
+    gcTime: 0,
+    queryFn: () => loadAgentMemoryLimit(serverId),
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  if (!timezone.available && !memoryLimitAvailable) return null;
+  const zone = timezone.query.data;
+  const limit = memoryLimit.data;
+
+  function chooseLimit(next: number) {
+    if (saving || next === limit?.limit) return;
+    void haptics.selection();
+    setSaving(true);
+    setError(null);
+    setAgentMemoryLimit(next, serverId)
+      .then(async (saved) => {
+        await queryClient.cancelQueries({ queryKey: memoryLimitKey, exact: true });
+        queryClient.setQueryData(memoryLimitKey, saved);
+        void haptics.notification("success");
+      })
+      .catch((cause: unknown) => {
+        void haptics.notification("error");
+        setError(errorMessage(cause, t("mobile.server.settings.memoryLimitSaveFailed")));
+      })
+      .finally(() => setSaving(false));
+  }
+
+  return (
+    <SettingsSection
+      title={t("mobile.server.settings.general")}
+      footer={
+        error ??
+        (memoryLimit.isError
+          ? errorMessage(memoryLimit.error, t("mobile.server.settings.memoryLimitLoadFailed"))
+          : timezone.query.isError
+            ? errorMessage(timezone.query.error, t("mobile.server.settings.timezoneLoadFailed"))
+            : memoryLimitAvailable
+              ? t("mobile.server.settings.memoryLimitDescription")
+              : undefined)
+      }
+    >
+      {timezone.available ? (
+        <SettingsRow
+          trailing={
+            zone ? (
+              <TrailingValue
+                value={zone.timezone ? timeZoneLabel(zone.timezone) : t("mobile.server.settings.timezoneAutomatic")}
+              />
+            ) : undefined
+          }
+          disabled={!zone}
+          onPress={() => router.push({ pathname: "/server-settings/timezone", params: { serverId } })}
+        >
+          <Typography.Paragraph>{t("mobile.server.settings.timezone")}</Typography.Paragraph>
+        </SettingsRow>
+      ) : null}
+      {memoryLimitAvailable ? (
+        <SettingsRow
+          disclosure={false}
+          trailing={
+            limit ? (
+              <SettingsPicker
+                value={limit.limit}
+                // A host that no longer permits its saved value still shows it.
+                options={(limit.choices.includes(limit.limit) ? limit.choices : [limit.limit, ...limit.choices]).map(
+                  (choice) => ({ value: choice, label: String(choice) }),
+                )}
+                enabled={!saving}
+                dark={theme === "dark"}
+                label={t("mobile.server.settings.memoryLimit")}
+                onChange={chooseLimit}
+              />
+            ) : null
+          }
+        >
+          <Typography.Paragraph>{t("mobile.server.settings.memoryLimit")}</Typography.Paragraph>
+        </SettingsRow>
+      ) : null}
+    </SettingsSection>
+  );
+}
+
+/** A value and the disclosure chevron at the end of a navigation row. */
+function TrailingValue({ value }: { value: string }) {
+  const muted = String(useCSSVariable("--openbot-text-grouped-secondary"));
+  return (
+    <View className="shrink flex-row items-center gap-1" style={{ maxWidth: "60%" }}>
+      <Typography.Paragraph numberOfLines={1} className="shrink text-grouped-secondary">
+        {value}
+      </Typography.Paragraph>
+      <ChevronRight size={18} color={muted} strokeWidth={1.5} />
+    </View>
   );
 }
 
