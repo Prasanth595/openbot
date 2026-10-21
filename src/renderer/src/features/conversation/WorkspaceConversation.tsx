@@ -38,7 +38,7 @@ import { useConnectors } from "../connectors/connectors-context";
 import { useCustomAgents } from "../custom-agents/custom-agents-context";
 import { useCustomProviders } from "../custom-providers/custom-providers-context";
 import { useRemoteDesktop } from "../remote-desktop/remote-desktop-context";
-import { serverSupportsCapability } from "../servers/server-capabilities";
+import { remoteMcpSignIn, serverSupportsCapability } from "../servers/server-capabilities";
 import { useServerScope } from "../servers/server-scope";
 import { useServerSettings } from "../servers/server-settings";
 import { useServers } from "../servers/servers-context";
@@ -71,7 +71,8 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
   const platform = usePlatform();
   const connectors = useConnectors();
   const { activeServer, activeServerSupportsCapability, joinServerOpen } = useServers();
-  const { serverSettingsOpen, openServerSettings } = useServerSettings();
+  const { serverSettingsOpen, openServerSettings, openMcpSignIn, serverSettingsTargetId, serverSettingsMcpSignIns } =
+    useServerSettings();
   const {
     appSettingsOpen,
     skillsMarketplaceOpen,
@@ -418,6 +419,16 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
           setPendingPluginSlug(request.appId);
           setSkillsMarketplaceOpen(true);
         }}
+        // The server settings sign in as their MCP panel does: on this computer, or through a host that
+        // relays its sign-in page.
+        onOpenMcpSignIn={(() => {
+          const server = activeServer();
+          if (!server || (server.kind === "remote" && !remoteMcpSignIn(server))) return undefined;
+          return (mcpServerId: string, trigger: HTMLElement | null) => openMcpSignIn(server.id, mcpServerId, trigger);
+        })()}
+        mcpSignedIn={(mcpServerId) =>
+          serverSettingsTargetId() === activeServer()?.id && serverSettingsMcpSignIns()[mcpServerId]?.signedIn === true
+        }
         onOpenUsage={(trigger) => usage.openUsage(activeServer()?.id ?? "local", trigger, activeAgent()?.id)}
         agentStatus={
           activeServer()?.kind === "remote" &&
