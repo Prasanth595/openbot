@@ -270,6 +270,9 @@ void main() {
   float baseline = exp(-sq(130.0 / 150.0));
   float strengthR = exp(-sq(reachR / (150.0 * uShape.z))) * (1.0 - smoothstep(0.8 * spread, 1.25 * spread, reachR)) / baseline * pour;
   float strengthL = exp(-sq(reachL / (150.0 * uShape.z))) * (1.0 - smoothstep(0.8 * spread, 1.25 * spread, reachL)) / baseline * pour;
+  // Only the side nearer the beam spills, as on huly.io.
+  strengthR *= step(reachR, reachL);
+  strengthL *= 1.0 - step(reachR, reachL);
   float fallY = p.y - sy - 0.3 * radius;
   float rightHalf = smoothstep(center.x - 4.0, center.x + 4.0, p.x);
   float haloR = exp(-length(p - vec2(sr - 0.3 * radius, sy + 0.3 * radius)) / 40.0) * sqrt(strengthR);
@@ -400,7 +403,7 @@ const SETTINGS = {
   spread: 3.8,
   spill: 1,
   /** How far the light runs down the sides of the surface, as a multiple of the React Bits length. */
-  fall: 1.3,
+  fall: 2.2,
   fog: 0.3,
   dust: 1.4,
   streaks: 0.4,
