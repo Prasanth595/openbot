@@ -355,7 +355,7 @@ function MeasureAction({ disabled, onPress }: { disabled: boolean; onPress: () =
 
 /** Server sheet > Storage > All files: every file sent in a chat or made by an agent on the host. */
 export function ServerStorageFilesScreen() {
-  const { t } = useText();
+  const { t, errorMessage } = useText();
   const { serverId } = useLocalSearchParams<{ serverId: string }>();
   const { servers } = useMobileWorkspace();
   const server = servers.find((item) => item.id === serverId);
@@ -369,7 +369,11 @@ export function ServerStorageFilesScreen() {
     );
   return (
     <SettingsContent>
-      <SettingsSection>
+      <SettingsSection
+        footer={
+          query.isError && !query.data ? errorMessage(query.error, t("mobile.server.storage.loadFailed")) : undefined
+        }
+      >
         {files.map((file) => (
           <StoredFile
             key={file.id}
@@ -379,10 +383,18 @@ export function ServerStorageFilesScreen() {
             onChanged={() => void rescan().catch(() => undefined)}
           />
         ))}
-        {!files.length ? (
+        {query.isError && !query.data ? (
+          <SettingsRow
+            disclosure={false}
+            disabled={query.isFetching}
+            onPress={() => void rescan().catch(() => undefined)}
+          >
+            <Typography.Paragraph className="text-accent">{t("mobile.server.storage.retry")}</Typography.Paragraph>
+          </SettingsRow>
+        ) : !files.length ? (
           <SettingsRow>
             <Typography.Paragraph className="text-grouped-secondary">
-              {t(query.isPending ? "mobile.server.storage.measuring" : "mobile.server.storage.noFiles")}
+              {t(query.isSuccess ? "mobile.server.storage.noFiles" : "mobile.server.storage.measuring")}
             </Typography.Paragraph>
           </SettingsRow>
         ) : null}
