@@ -24,6 +24,9 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The canary runs released CLIs that this repository does not build.
+          persist-credentials: false
 
       - name: Set up Bun
         uses: ./.github/actions/setup-bun
