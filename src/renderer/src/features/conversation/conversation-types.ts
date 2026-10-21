@@ -86,6 +86,13 @@ export interface ConversationProps {
   onOpenMarketplaceApp?: ((request: { appId: string; connect: boolean }) => void) | undefined;
   /** The connectors of the server on screen, which a suggestion card for a connector reads. */
   connectors?: ConnectorRegistry | undefined;
+  /**
+   * Opens Server settings, MCP, and signs in to the row that an agent's sign-in card names. Absent
+   * where this client cannot sign in for the server on screen; the card then says where to sign in.
+   */
+  onOpenMcpSignIn?: ((mcpServerId: string, trigger: HTMLElement | null) => void) | undefined;
+  /** Whether the server on screen holds a sign-in for an MCP row, as Server settings last read it. */
+  mcpSignedIn?: ((mcpServerId: string) => boolean) | undefined;
   platform?: import("@openbot/contracts/ipc").AppInfo["platform"] | undefined;
 
   agentStatus: AgentStatus;

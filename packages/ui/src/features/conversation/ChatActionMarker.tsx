@@ -805,6 +805,7 @@ function markerLabel(
   if (marker.kind === "model-switch") return sourceText(marker.text);
   if (marker.kind === "context-reset") return t("chat.marker.contextReset");
   if (marker.kind === "marketplace-suggestion") return t("chat.marker.marketplaceSuggestion");
+  if (marker.kind === "mcp-sign-in") return t("chat.marker.mcpSignIn");
   if (marker.kind === "skill-lifecycle") return t(SKILL_ACTION_LABELS[marker.action]);
   if (marker.kind === "agent-message") {
     if (marker.expectsReply)
@@ -875,6 +876,7 @@ function markerAccessibleLabel(
     marker.kind === "unavailable" ||
     marker.kind === "context-reset" ||
     marker.kind === "marketplace-suggestion" ||
+    marker.kind === "mcp-sign-in" ||
     marker.kind === "model-switch"
   )
     return label;
