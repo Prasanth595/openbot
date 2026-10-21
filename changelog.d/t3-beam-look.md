@@ -1,6 +1,6 @@
 ### Added
 
-- The home page of openbot.app has the LaserFlow light beam from React Bits again. It falls onto the
+- The home page of openbot.run has the LaserFlow light beam from React Bits again. It falls onto the
   app preview and spreads along the top of the preview, in a soft violet haze. The light moves toward
   the pointer. The app preview has no shadow or glow around it.
 - The beam has a different colour, width, spread, haze and smoke on each visit. The smoke can be
