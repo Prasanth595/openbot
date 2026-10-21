@@ -52,6 +52,43 @@ export const PARAKEET_MODEL_FILES: readonly VoiceModelFile[] = [
   },
 ];
 
+const BARK_PLUS_MODEL_REVISION = "5f95a80a9da9d392a38df8e9a6609e25be643d07";
+const BARK_PLUS_MODEL_BASE_URL = `https://huggingface.co/velddev/Underdog-Bark-3.0-Plus-sherpa-onnx/resolve/${BARK_PLUS_MODEL_REVISION}`;
+
+/** The directory name of Bark 3.0 Plus in `<userData>/runtimes`. A new pin needs a new name. */
+export const BARK_PLUS_MODEL_DIRECTORY = "bark-3.0-plus-int8";
+
+/**
+ * Conway Research Underdog Bark 3.0 Plus (CC-BY-4.0), a post-trained Parakeet TDT 0.6B v3. The
+ * int8 ONNX export for sherpa-onnx is unofficial; it has the file names of the Parakeet export.
+ */
+const BARK_PLUS_MODEL_FILES: readonly VoiceModelFile[] = [
+  {
+    name: "encoder.int8.onnx",
+    url: `${BARK_PLUS_MODEL_BASE_URL}/encoder.int8.onnx`,
+    bytes: 630_748_318,
+    sha256: "c32c6964e13877500701f1699d2fa92a7f6bc3cd700370ba884c09901c183a16",
+  },
+  {
+    name: "decoder.int8.onnx",
+    url: `${BARK_PLUS_MODEL_BASE_URL}/decoder.int8.onnx`,
+    bytes: 47_658_545,
+    sha256: "89a081f0cf1500ec64e8a45f24f0bc10d1224aa334191e7f7e6f3226365b06b8",
+  },
+  {
+    name: "joiner.int8.onnx",
+    url: `${BARK_PLUS_MODEL_BASE_URL}/joiner.int8.onnx`,
+    bytes: 6_123_465,
+    sha256: "b8fe34824c5d2ec077489e4b4f66907cb47a971e1d34fe96915e9e5427df3c89",
+  },
+  {
+    name: "tokens.txt",
+    url: `${BARK_PLUS_MODEL_BASE_URL}/tokens.txt`,
+    bytes: 93_939,
+    sha256: "d58544679ea4bc6ac563d1f545eb7d474bd6cfa467f0a6e2c1dc1c7d37e3c35d",
+  },
+];
+
 const WHISPER_TURBO_MODEL_REVISION = "2ca6ff69fc878651b770880507669577ac41c2ff";
 const WHISPER_TURBO_MODEL_BASE_URL = `https://huggingface.co/csukuangfj/sherpa-onnx-whisper-turbo/resolve/${WHISPER_TURBO_MODEL_REVISION}`;
 
@@ -150,6 +187,7 @@ type DownloadedModelId = LocalVoiceModelId | SpeechModelId;
 /** The files of each model. */
 const VOICE_MODEL_FILES: Record<DownloadedModelId, readonly VoiceModelFile[]> = {
   "parakeet-tdt-0.6b-v3": PARAKEET_MODEL_FILES,
+  "bark-3.0-plus": BARK_PLUS_MODEL_FILES,
   "whisper-turbo": WHISPER_TURBO_MODEL_FILES,
   "supertonic-3": SUPERTONIC_MODEL_FILES,
 };

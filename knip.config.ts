@@ -32,6 +32,8 @@ const config: KnipConfig = {
     "taskkill.exe",
     // Tunnels Slack to the local Signal and account API in `bun run dev:slack`.
     "cloudflared",
+    // Speaks the English samples of the macOS dictation smoke test.
+    "say",
   ],
   workspaces: {
     ".": {

@@ -1,6 +1,12 @@
-import type { AgentTask, AgentTasksSnapshot, AttachmentSummary, ConversationSnapshot } from "@openbot/contracts/ipc";
+import type {
+  AgentApproval,
+  AgentTask,
+  AgentTasksSnapshot,
+  AttachmentSummary,
+  ConversationSnapshot,
+} from "@openbot/contracts/ipc";
 import type { AppTextKey } from "@openbot/i18n";
-import { plainTaskTitle } from "@openbot/team-client/agent-tasks";
+import { plainTaskTitle, taskApproval } from "@openbot/team-client/agent-tasks";
 import type { AgentMessage, AgentProfile } from "@openbot/ui/data";
 import { AgentTaskPanel } from "@openbot/ui/features/conversation/AgentTasks";
 import { TasksPage, type TasksVoice } from "@openbot/ui/features/tasks/TasksPage";
@@ -8,12 +14,15 @@ import { currentText } from "@openbot/ui/text";
 import { createEffect, createMemo, createProjection, createStore, onCleanup, Show, untrack } from "solid-js";
 import { actionToast } from "../../action-toast";
 import { toAgentMessages } from "../../app-message-projection";
+import { readAgentSelection, writeAgentSelection } from "../agents/agent-selection";
 import type { TaskEvent, TasksSource } from "./tasks-port";
 
 /** How long a start waits before it reaches the agent. Undo cancels it in this time. */
 const UNDO_MS = 6_000;
 /** The longest task title that the host keeps. */
 const TITLE_LIMIT = 120;
+/** The agent last chosen on this page for each server, kept apart from the chat agent. */
+const TASK_AGENT_STORAGE_KEY = "openbot:task-agent:v1";
 
 /** What the voice of the composer can do on the page: read and change the draft, and start a task. */
 export interface TasksVoiceControls {
@@ -39,6 +48,9 @@ export interface TasksViewProps {
   voice?: ((controls: TasksVoiceControls) => TasksVoiceAdapter) | undefined;
   onOpenLink: (url: string) => void;
   onAttachmentAction: (attachment: AttachmentSummary, action: "open" | "reveal" | "download") => void;
+  /** The waiting approvals of the server's agents. */
+  approvals: readonly AgentApproval[];
+  onRespondApproval: (approval: AgentApproval, decision: "accept" | "decline") => Promise<boolean>;
 }
 
 /** A start that waits for its Undo time. Its task shows in the list as queued. */
@@ -92,8 +104,11 @@ export function TasksView(props: TasksViewProps) {
   const listRequests = new Map<string, number>();
   const readRequests = new Map<string, number>();
 
+  // The agent chosen last on this server stays the default, so the user does not choose it again on each visit.
+  const savedAgentId = createMemo(() => readAgentSelection(TASK_AGENT_STORAGE_KEY)[props.serverId] ?? "");
+  const isListed = (id: string) => props.agents.some((agent) => agent.id === id);
   const agentId = () =>
-    props.agents.some((agent) => agent.id === state.agentId) ? state.agentId : (props.agents[0]?.id ?? "");
+    isListed(state.agentId) ? state.agentId : isListed(savedAgentId()) ? savedAgentId() : (props.agents[0]?.id ?? "");
   const agentOf = (id: string) => props.agents.find((agent) => agent.id === id);
 
   const tasks = createMemo<AgentTask[]>(() => {
@@ -349,6 +364,8 @@ export function TasksView(props: TasksViewProps) {
         draft.pending = null;
         draft.selectedId = null;
         draft.took = null;
+        // Agent IDs can repeat on two servers, so the new server starts from its own saved agent.
+        draft.agentId = "";
       });
       untrack(() => loadLists(props.agents.map((agent) => agent.id)));
       const unsubscribe = props.source.onEvent(serverId, applyEvent, () =>
@@ -408,6 +425,10 @@ export function TasksView(props: TasksViewProps) {
       const current = task();
       return current && !current.id.startsWith("pending:") ? { agentId: current.agentId, taskId: current.id } : null;
     };
+    const approval = () => {
+      const current = task();
+      return current ? taskApproval(current, props.approvals) : undefined;
+    };
     return (
       <Show when={owner() ?? props.agents[0]}>
         {(agent) => (
@@ -448,6 +469,11 @@ export function TasksView(props: TasksViewProps) {
             onOpenLink={props.onOpenLink}
             onPreview={(attachment) => props.onAttachmentAction(attachment, "open")}
             onAttachmentAction={props.onAttachmentAction}
+            approval={approval()}
+            onRespondApproval={async (decision) => {
+              const current = approval();
+              return current ? props.onRespondApproval(current, decision) : false;
+            }}
           />
         )}
       </Show>
@@ -467,11 +493,12 @@ export function TasksView(props: TasksViewProps) {
       agents={props.agents}
       tasks={tasks()}
       agentId={agentId()}
-      onAgentChange={(id) =>
+      onAgentChange={(id) => {
+        writeAgentSelection(TASK_AGENT_STORAGE_KEY, props.serverId, id);
         setState((draft) => {
           draft.agentId = id;
-        })
-      }
+        });
+      }}
       draft={state.draft}
       onDraftChange={voiceControls.setDraft}
       focusRequest={state.focusRequest}
@@ -490,6 +517,7 @@ export function TasksView(props: TasksViewProps) {
       onTookAgentChange={(id) => {
         if (!pending) return;
         pending.task = { ...pending.task, agentId: id };
+        writeAgentSelection(TASK_AGENT_STORAGE_KEY, props.serverId, id);
         setState((draft) => {
           if (draft.pending) draft.pending.agentId = id;
           draft.agentId = id;
@@ -506,6 +534,7 @@ export function TasksView(props: TasksViewProps) {
         })
       }
       selectedId={state.selectedId}
+      waitsForApproval={(task) => taskApproval(task, props.approvals) !== undefined}
       onSelect={select}
       panel={panel}
     />

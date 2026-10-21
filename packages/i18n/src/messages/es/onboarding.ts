@@ -42,6 +42,7 @@ export const messages = {
   "onboarding.provider.googlePlan": "Plan Google AI Pro o Ultra",
   "onboarding.provider.cursorPlan": "Plan de Cursor o clave de API",
   "onboarding.provider.clineAccount": "Modelos gratuitos con una cuenta de Cline",
+  "onboarding.provider.inceptionKey": "Modelos Mercury con una clave de API de Inception",
   "onboarding.provider.tryFree": "Pruébalo gratis",
   "onboarding.provider.noSignIn": "No es necesario iniciar sesión",
   "onboarding.provider.more": "Más proveedores",

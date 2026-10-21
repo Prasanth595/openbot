@@ -1,3 +1,4 @@
+import type { AgentModelId, AgentReasoningEffort } from "@openbot/contracts/ipc";
 import type { AgentProfile } from "@openbot/ui/data";
 import { type AgentActivityLabel, nextAgentActivityLabel } from "@openbot/ui/features/conversation/AgentActivity";
 import {
@@ -7,6 +8,7 @@ import {
 } from "@openbot/ui/features/conversation/activity-timing";
 import { currentText } from "@openbot/ui/text";
 import { createEffect, createMemo, createSignal, onCleanup, untrack } from "solid-js";
+import { agentConversationKey } from "../conversation-keys";
 import type { ConversationProps } from "../conversation-types";
 
 export interface RenderedAgentActivity {
@@ -19,10 +21,19 @@ export interface RenderedAgentActivity {
   label: AgentActivityLabel;
 }
 
+/** The model and effort that a turn started with. A change during the turn applies from the next one. */
+export interface TurnRuntime {
+  turnId: string;
+  model: AgentModelId;
+  reasoningEffort: AgentReasoningEffort;
+}
+
 export interface ActivityStoreDeps {
   props: ConversationProps;
   activeDeliveries: () => Array<{ id: string }>;
   agentActivityLabels: Map<string, { activityId: string; label: AgentActivityLabel }>;
+  /** Kept on the controller, so a return to the chat during the turn keeps the first record. */
+  turnRuntimes: Map<string, TurnRuntime>;
 }
 
 export function createActivityStore(deps: ActivityStoreDeps) {
@@ -86,6 +97,25 @@ export function createActivityStore(deps: ActivityStoreDeps) {
     return latestActiveCommentary() ?? (progress ? currentText().sourceText(progress) : null);
   });
   const agentActivity = createMemo<"Working" | null>(() => (activeActivityId() ? "Working" : null));
+  /**
+   * The saved model and effort when this chat first saw the running turn. The host does not send the
+   * model of a turn, and a turn reads the saved settings when it starts.
+   */
+  const runningTurnRuntime = createMemo<TurnRuntime | null>(() => {
+    const agent = deps.props.agent;
+    if (!agent) return null;
+    const key = agentConversationKey(deps.props.server?.id ?? "local", agent.id);
+    const turnId = deps.props.activeTurnId;
+    if (!turnId) {
+      deps.turnRuntimes.delete(key);
+      return null;
+    }
+    const known = deps.turnRuntimes.get(key);
+    if (known?.turnId === turnId) return known;
+    const runtime = untrack(() => ({ turnId, model: agent.model, reasoningEffort: agent.reasoningEffort }));
+    deps.turnRuntimes.set(key, runtime);
+    return runtime;
+  });
   const activityLabel = createMemo<AgentActivityLabel | null>(() => {
     const agentId = deps.props.agent?.id;
     const activityId = activeActivityId();
@@ -205,5 +235,6 @@ export function createActivityStore(deps: ActivityStoreDeps) {
     activeActivityDetail,
     agentActivity,
     activityLabel,
+    runningTurnRuntime,
   };
 }

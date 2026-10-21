@@ -47,6 +47,14 @@ export function taskSections(tasks: readonly AgentTask[], showAllClosed: boolean
   ];
 }
 
+/** The approval that the turn of this task waits for: the one of the task's own thread. */
+export function taskApproval<Item extends { agentId: string; threadId: string }>(
+  task: AgentTask,
+  approvals: readonly Item[],
+): Item | undefined {
+  return approvals.find((approval) => approval.agentId === task.agentId && approval.threadId === task.threadId);
+}
+
 /** The color of a task's state on the page. */
 export function taskTone(task: AgentTask): "working" | "danger" | "attention" | undefined {
   if (task.state === "running") return "working";

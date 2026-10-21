@@ -3,6 +3,7 @@ import type { AppTextKey } from "@openbot/i18n";
 import type { AgentProfile } from "@openbot/ui/data";
 import { currentText } from "@openbot/ui/text";
 import { createEffect, createStore, flush, onSettled, reconcile, untrack } from "solid-js";
+import { type DesktopAnalyticsProperties, desktopAnalytics } from "../../analytics";
 import { mergeChannelPage } from "./channel-page-merge";
 
 /**
@@ -61,6 +62,18 @@ export type ChannelsController = ReturnType<typeof createChannelsController>;
 function failure(error: unknown, fallback: AppTextKey): Pick<ChannelsState, "error" | "errorReference"> {
   const details = currentText().errorDetails(error, currentText().t(fallback));
   return { error: details.message, errorReference: details.reference };
+}
+
+type ChannelAction = DesktopAnalyticsProperties<"channel_action">["action"];
+
+/** The tracked action of a command, or `null` for one that is not tracked, such as a settings edit. */
+function channelAction(input: ChannelCommand, creating: boolean, page: ChannelPage | null): ChannelAction | null {
+  if (input.type === "archive") return "archived";
+  if (input.type !== "save") return null;
+  if (creating) return "created";
+  if (page?.channel.id !== input.channelId) return null;
+  const members = new Set(page.channel.members.map((member) => member.agentId));
+  return input.draft.members.some((member) => !members.has(member.agentId)) ? "member_added" : null;
 }
 
 export function createChannelsController(env: ChannelsEnvironment) {
@@ -223,6 +236,8 @@ export function createChannelsController(env: ChannelsEnvironment) {
     // reader back out of the channel they opened and drop the draft they began there.
     const creating = input.type === "save" && state.editing === "create";
     const selectedBefore = state.selectedId;
+    const action = channelAction(input, creating, state.page);
+    let accepted = false;
     // A `save` is never dropped: settings commit each field as it is left, and a silently
     // discarded autosave is lost work. The service serializes saves per channel and every
     // command is idempotent on its `operationId`, so letting them queue is safe.
@@ -240,6 +255,8 @@ export function createChannelsController(env: ChannelsEnvironment) {
     );
     try {
       await env.port().agent.channelCommand(attempt);
+      accepted = true;
+      if (action) desktopAnalytics.track("channel_action", { action, result: "succeeded" });
       if (disposed || account !== env.scopeKey()) {
         onAccepted?.(attempt);
         return false;
@@ -261,6 +278,8 @@ export function createChannelsController(env: ChannelsEnvironment) {
       onAccepted?.(attempt);
       return true;
     } catch (error) {
+      // A refresh that fails after the service accepted the command is not a failed action.
+      if (action && !accepted) desktopAnalytics.track("channel_action", { action, result: "failed" });
       if (!disposed && account === env.scopeKey()) {
         failedCommand = attempt;
         setState((state) => {

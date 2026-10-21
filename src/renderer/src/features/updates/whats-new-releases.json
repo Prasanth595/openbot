@@ -1,5 +1,37 @@
 [
   {
+    "version": "0.47.0",
+    "date": "2026-10-21",
+    "notices": [],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "Attach ZIP archives in chat. An agent can also send a ZIP archive back for you to download.",
+          "Add Inception as a provider, with the Mercury models. Connect it with an Inception API key.",
+          "Turn on Fast in the model picker to use the fast tier of a Codex model.",
+          "Read the SKILL.md of a skill on a joined server."
+        ]
+      },
+      {
+        "type": "changed",
+        "items": [
+          "You can change the model of an agent while it works. The new model starts with the next turn.",
+          "OpenBot now installs OpenCode 2 as its own OpenCode CLI. Your threads keep their sessions.",
+          "Publish this server is now in Server settings → Members."
+        ]
+      },
+      {
+        "type": "fixed",
+        "items": [
+          "On Linux desktops such as Hyprland, Sway, i3 and LXQt, OpenBot keeps your sign-in and API keys when a Secret Service runs.",
+          "A reply quote shows the Markdown of the original message.",
+          "A remote session stays connected when Signal restarts."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.46.0",
     "date": "2026-10-20",
     "notices": [],

@@ -77,6 +77,17 @@ export const Report = Schema.Struct({
 export type Report = typeof Report.Type;
 export type ReportContext = Pick<Report, "surface" | "app_version" | "platform" | "event_schema_version">;
 
+/**
+ * The current analytics generation of each surface. Product events and failure reports send the same value.
+ * Change a value only together with ANALYTICS.md.
+ */
+export const ANALYTICS_GENERATIONS = {
+  desktop_host: 9,
+  desktop: 10,
+  web: 2,
+  mobile: 3,
+} as const satisfies Record<Report["surface"], number>;
+
 const FAILURE_CODES = new Set([
   "unknown",
   "agent_event_failed",
@@ -143,7 +154,10 @@ export function safeReport(input: unknown): Report | null {
     !Number.isFinite(Date.parse(value.timestamp)) ||
     !/^(?:\d+\.\d+\.\d+(?:[-+][a-zA-Z0-9.-]+)?|web|unknown)$/u.test(value.app_version) ||
     !isReportProfileId(value.profileId) ||
-    value.event_schema_version !== (value.surface === "web" ? 1 : value.surface === "mobile" ? 2 : 7)
+    // A stored report from an older generation can still be sent: its properties pass the current filter.
+    !Number.isInteger(value.event_schema_version) ||
+    value.event_schema_version < 1 ||
+    value.event_schema_version > ANALYTICS_GENERATIONS[value.surface]
   )
     return null;
   return {

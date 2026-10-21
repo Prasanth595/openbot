@@ -19,7 +19,6 @@ export const messages = {
   "mobile.search.task.ideaHint": "Bu metni görev alanına koyar.",
   "mobile.search.task.again": "Tekrar",
   "mobile.search.task.openWith": "{name} ile açık görevler",
-  "mobile.search.task.atHint": "Bir ajana görev vermek için @ ve bir ad yazın.",
   "mobile.search.task.noAgent": "Bu adda bir ajan yok.",
   "mobile.search.task.send": "Görevi başlat",
   "mobile.search.task.startedBy": "{name} görevi başlattı",

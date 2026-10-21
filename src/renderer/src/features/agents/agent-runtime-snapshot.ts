@@ -1,5 +1,6 @@
 import type { AgentApproval, AgentEvent, AgentRuntimeSnapshot } from "@openbot/contracts/ipc";
 import { cleanAgentMessageText } from "@openbot/team-client/agent-message-text";
+import { reconcilePendingRequests } from "@openbot/team-client/runtime-attention";
 import type { AgentMessage } from "@openbot/ui/data";
 import { createStoredMessage } from "../../app-stored-values";
 import { promptRequestKey } from "../conversation/conversation-keys";
@@ -79,13 +80,10 @@ export function seededAttentionPrompts(
 }
 
 export function reconcileAttentionApprovals(
-  current: Record<string, AgentApproval | undefined>,
+  current: readonly AgentApproval[],
   snapshot: Pick<AgentRuntimeSnapshot, "attentionComplete" | "pendingApprovals">,
-): Record<string, AgentApproval | undefined> {
-  return {
-    ...(snapshot.attentionComplete ? {} : current),
-    ...Object.fromEntries(snapshot.pendingApprovals.map((approval) => [approval.agentId, approval])),
-  };
+): AgentApproval[] {
+  return reconcilePendingRequests(current, snapshot.pendingApprovals, snapshot.attentionComplete);
 }
 
 /**

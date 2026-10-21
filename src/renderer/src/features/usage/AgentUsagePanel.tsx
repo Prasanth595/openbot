@@ -26,6 +26,7 @@ import {
 import { useText } from "@openbot/ui/text";
 import { errorReference } from "@openbot/user-errors";
 import { createEffect, createStore, onSettled, Show } from "solid-js";
+import { desktopAnalytics } from "../../analytics";
 import { type UsagePort, usagePort } from "./usage-port";
 
 interface AgentUsagePanelProps {
@@ -121,6 +122,17 @@ export function AgentUsagePanel(props: AgentUsagePanelProps) {
         if (props.agentId === undefined) delete draft.range.agentId;
         else draft.range.agentId = props.agentId;
         draft.agents = [];
+      });
+    },
+  );
+  // One view for each report the user asks for: the first one, and each filter or period change.
+  createEffect(
+    () => [state.range.agentId, props.serverId, state.period] as const,
+    ([agentId, , range]) => {
+      desktopAnalytics.track("usage_viewed", {
+        scope: agentId ? "agent" : "server",
+        range,
+        filtered: agentId !== props.agentId,
       });
     },
   );

@@ -11,8 +11,8 @@ import {
   type SaveCustomProviderInput,
 } from "@openbot/contracts/ipc";
 import { Text } from "@openbot/ui";
-import { ProviderPicker } from "@openbot/ui/components/ProviderPicker";
 import type { ProviderAccountActions } from "@openbot/ui/components/provider-accounts";
+import type { AccountUsageProviderRow } from "@openbot/ui/features/account/account-usage-view";
 import {
   AcpRegistrySettings,
   type AcpRegistrySettingsApi,
@@ -22,7 +22,6 @@ import {
   type CustomAgentSettingsApi,
 } from "@openbot/ui/features/custom-providers/CustomAgentSettings";
 import { CustomProviderDialog } from "@openbot/ui/features/custom-providers/CustomProviderDialog";
-import { CustomProviderListDialog } from "@openbot/ui/features/custom-providers/CustomProviderListDialog";
 import { CustomProviderPresetDialog } from "@openbot/ui/features/custom-providers/CustomProviderPresetDialog";
 import { localServerProbes, presetSetupProvider } from "@openbot/ui/features/custom-providers/custom-provider-presets";
 import { DetectedProviderSetup } from "@openbot/ui/features/custom-providers/DetectedProviderSetup";
@@ -42,7 +41,13 @@ import {
   OpenCodeKeyDialog,
   type ProviderKeyApi,
 } from "@openbot/ui/features/settings/OpenCodeKeyDialog";
+import {
+  type ProviderDefaultChoice,
+  type ProviderSettingsDetail,
+  ProviderSettingsPage,
+} from "@openbot/ui/features/settings/ProviderSettingsPage";
 import { useText } from "@openbot/ui/text";
+import type { JSX } from "@solidjs/web";
 import { createEffect, createMemo, createSignal, createStore, Show, untrack } from "solid-js";
 import { ProviderSignInDialogs } from "../../components/ProviderSignInDialogs";
 import type { ProviderConnectionApi } from "../../components/provider-connection-api";
@@ -89,13 +94,16 @@ interface ProviderSettingsSectionProps {
   /** The user's own ACP agents. This computer only, so a joined server's section never has it. */
   customAgents?: CustomAgentSettingsApi | undefined;
   acpRegistry?: AcpRegistrySettingsApi | undefined;
+  /** What the host found, and how it looks: below the list, not on a provider's page. */
+  detectionSettings?: JSX.Element;
+  usage?: readonly AccountUsageProviderRow[] | undefined;
+  onDetailChange?: ((detail: ProviderSettingsDetail | null) => void) | undefined;
 }
 
 /** The provider list of the computer the agents run on, with its custom endpoint dialogs. */
 function ProviderSettingsSection(props: ProviderSettingsSectionProps) {
   const i18n = useText();
   const customProviders = () => props.customProviders ?? [];
-  const [customSelected, setCustomSelected] = createSignal(false);
   const [saving, setSaving] = createStore<{
     pending: { provider: AgentProviderId; custom: boolean } | null;
     error: string;
@@ -113,11 +121,7 @@ function ProviderSettingsSection(props: ProviderSettingsSectionProps) {
   ): Promise<void> {
     if (saving.pending) return;
     const choice = props.defaultProvider;
-    if (!choice) {
-      setCustomSelected(custom);
-      props.store.setSelectedProvider(provider);
-      return;
-    }
+    if (!choice) return;
     // A custom row uses its saved model, or the first model of the first saved endpoint.
     const endpoint = customProviders().find((item) => item.models.length > 0);
     const firstModel = endpoint?.models[0];
@@ -185,33 +189,32 @@ function ProviderSettingsSection(props: ProviderSettingsSectionProps) {
       if (choice?.preferredProvider === "opencode" && choice.preferredModel?.startsWith(`${id}/`)) {
         void selectProvider("opencode", false, null);
       }
-      if (customProviders().length === 0) {
-        setCustomSelected(false);
-      }
     },
   });
 
   return (
     // The tab title already names this list, so it has no heading of its own.
     <div class="settings-provider-section">
-      <ProviderPicker
-        value={
-          props.defaultProvider
-            ? (saving.pending?.provider ?? props.defaultProvider.preferredProvider)
-            : props.store.selectedProvider()
-        }
+      <ProviderSettingsPage
         options={props.store.providerOptions()}
-        ariaLabel={i18n.t(props.defaultProvider ? "onboarding.setup.defaultProvider" : "settings.providers.title")}
-        label={props.defaultProvider ? i18n.t("onboarding.setup.defaultProvider") : undefined}
-        hint={props.defaultProvider ? i18n.t("onboarding.setup.defaultProviderHint") : undefined}
-        disabled={Boolean(saving.pending)}
-        embedded
-        allowUnavailableSelection
-        customProviders={customProviders()}
-        customSelected={
-          props.defaultProvider ? (saving.pending?.custom ?? Boolean(defaultCustomModel())) : customSelected()
+        defaultProvider={
+          props.defaultProvider
+            ? {
+                get value(): ProviderDefaultChoice | null {
+                  if (saving.pending) return saving.pending.custom ? "custom" : saving.pending.provider;
+                  return defaultCustomModel() ? "custom" : (props.defaultProvider?.preferredProvider ?? null);
+                },
+                get pending() {
+                  return Boolean(saving.pending);
+                },
+                onChange: (choice: ProviderDefaultChoice) =>
+                  void (choice === "custom" ? selectProvider("opencode", true) : selectProvider(choice)),
+              }
+            : undefined
         }
-        onChange={(provider) => void selectProvider(provider)}
+        disabled={Boolean(saving.pending)}
+        usage={props.usage}
+        customProviders={customProviders()}
         onDownloadProvider={props.onDownloadProvider ? downloadProvider : undefined}
         onCancelProviderDownload={props.onCancelProviderDownload}
         onUpdateProvider={props.onUpdateProvider}
@@ -224,38 +227,44 @@ function ProviderSettingsSection(props: ProviderSettingsSectionProps) {
         onAddCustomProvider={
           props.onAddCustomProvider ? (props.detectedProviderApi ? () => setChoosing(true) : host.openForm) : undefined
         }
-        onSelectCustomProvider={props.onAddCustomProvider ? () => void selectProvider("opencode", true) : undefined}
-        onManageCustomProviders={props.onAddCustomProvider ? host.openList : undefined}
+        onRemoveCustomProvider={props.onDeleteCustomProvider ? (provider) => void host.remove(provider) : undefined}
+        removingCustomProvider={host.state.removing}
         onSignInProvider={props.onSignInProvider}
         accountActions={props.accountActions}
         menuMount={props.selectMount}
-        detected={
-          <Show when={props.providerDetection}>
-            {(detection) => (
-              <Show when={detectedApi()}>
-                {(api) => (
-                  <DetectedProviders
-                    detection={detection()}
-                    api={api()}
-                    takenProviderIds={customProviders().map((provider) => provider.id)}
-                    takenAgentIds={props.takenAgentIds}
-                    onSaved={host.showSaved}
-                  />
-                )}
-              </Show>
-            )}
-          </Show>
+        onDetailChange={props.onDetailChange}
+        footer={
+          <>
+            <Show when={props.providerDetection}>
+              {(detection) => (
+                <Show when={detectedApi()}>
+                  {(api) => (
+                    <DetectedProviders
+                      detection={detection()}
+                      api={api()}
+                      takenProviderIds={customProviders().map((provider) => provider.id)}
+                      takenAgentIds={props.takenAgentIds}
+                      onSaved={host.showSaved}
+                    />
+                  )}
+                </Show>
+              )}
+            </Show>
+            <Show when={props.acpRegistry} keyed>
+              {(api) => <AcpRegistrySettings api={api} />}
+            </Show>
+            <Show when={props.customAgents}>{(api) => <CustomAgentSettings api={api()} />}</Show>
+            {props.detectionSettings}
+          </>
         }
       />
-      <Show when={!host.state.manageOpen && saving.error}>
+      <Show when={saving.error}>
         <Text role="alert">{saving.error}</Text>
       </Show>
-      <Show when={!host.state.manageOpen && downloadError()}>
+      <Show when={downloadError()}>
         <Text role="alert">{downloadError()}</Text>
       </Show>
-      {/* The outcome is shown where the user is looking. While the list is open the section behind
-        it is hidden from assistive technology, so a status left here could not be read. */}
-      <Show when={host.state.manageOpen ? null : host.state.note}>
+      <Show when={host.state.note}>
         {(message) => (
           <Text tone="muted" variant="caption" role="status">
             {message()}
@@ -270,14 +279,6 @@ function ProviderSettingsSection(props: ProviderSettingsSectionProps) {
           takenProviderIds={customProviders().map((provider) => provider.id)}
           onSubmit={(value) => void host.submit(value)}
           onCancel={host.closeForm}
-        />
-        <CustomProviderListDialog
-          open={host.state.manageOpen}
-          providers={customProviders()}
-          removing={host.state.removing}
-          note={saving.error || host.state.note}
-          onDelete={props.onDeleteCustomProvider ? (provider) => void host.remove(provider) : undefined}
-          onClose={host.closeList}
         />
       </Show>
       <Show when={detectedApi()}>
@@ -303,10 +304,6 @@ function ProviderSettingsSection(props: ProviderSettingsSectionProps) {
           </>
         )}
       </Show>
-      <Show when={props.acpRegistry} keyed>
-        {(api) => <AcpRegistrySettings api={api} />}
-      </Show>
-      <Show when={props.customAgents}>{(api) => <CustomAgentSettings api={api()} />}</Show>
     </div>
   );
 }
@@ -437,6 +434,8 @@ export interface HostProviderSettings {
   detectionSettingsError?: string | null | undefined;
   /** Called each time the section is shown, for the scan of this computer. */
   onShown?: (() => void) | undefined;
+  /** The usage readings of each account, for the badge of an account that is low. */
+  usage?: readonly AccountUsageProviderRow[] | undefined;
 }
 
 /**
@@ -444,7 +443,11 @@ export interface HostProviderSettings {
  * the providers are this computer's.
  */
 export function HostProviderSettingsPanel(
-  props: HostProviderSettings & { hostName?: string | undefined; selectMount: HTMLElement | undefined },
+  props: HostProviderSettings & {
+    hostName?: string | undefined;
+    selectMount: HTMLElement | undefined;
+    onDetailChange?: ((detail: ProviderSettingsDetail | null) => void) | undefined;
+  },
 ) {
   const keys = createProviderKeyState({
     open: true,
@@ -502,16 +505,20 @@ export function HostProviderSettingsPanel(
         customAgents={props.customAgents}
         acpRegistry={props.acpRegistry}
         onSignInProvider={props.providerKeys ? keys.openKeyDialog : undefined}
+        usage={props.usage}
+        onDetailChange={props.onDetailChange}
+        detectionSettings={
+          <Show when={props.detectionSettings}>
+            {(value) => (
+              <ProviderDetectionSettings
+                value={value()}
+                error={props.detectionSettingsError}
+                onChange={(next) => props.onDetectionSettingsChange?.(next)}
+              />
+            )}
+          </Show>
+        }
       />
-      <Show when={props.detectionSettings}>
-        {(value) => (
-          <ProviderDetectionSettings
-            value={value()}
-            error={props.detectionSettingsError}
-            onChange={(next) => props.onDetectionSettingsChange?.(next)}
-          />
-        )}
-      </Show>
       <ProviderSettingsDialogs keys={keys} providerKeys={props.providerKeys} connection={props.connection} />
     </>
   );
