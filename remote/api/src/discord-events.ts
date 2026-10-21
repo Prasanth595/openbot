@@ -33,7 +33,13 @@ const DIRECT_REPLY_INTERVAL_MILLISECONDS = 60 * 60_000;
 const MAXIMUM_DIRECT_REPLIES = 10_000;
 const ATTACHMENT_HOSTS = new Set(["cdn.discordapp.com", "media.discordapp.net"]);
 
-type DiscordAttachmentData = { id: string; filename: string; content_type?: string; size: number; url: string };
+type DiscordAttachmentData = {
+  id: string;
+  filename: string;
+  content_type?: string | undefined;
+  size: number;
+  url: string;
+};
 
 /** The fields of a Gateway or REST message that Signal reads. */
 export interface DiscordMessageData {
