@@ -29,6 +29,7 @@ import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import type { AppFormat, AppTranslate } from "@openbot/i18n";
 import { redactText } from "@openbot/logging";
 import {
+  agentEventCanNotify,
   notificationForAgentEvent,
   notificationForUsageLimit,
   notificationRequestKey,
@@ -38,7 +39,12 @@ import { isNoUpdateAnswer } from "../backend/agent/routine-quiet-runs";
 import type { AgentService } from "../backend/agent-service";
 import { runCauseEffect } from "../backend/effect-boundary";
 import type { HostAnalytics } from "./analytics";
-import { closeRetainedNotification, desktopShowsAgentEvent, showRetainedNotification } from "./desktop-notifications";
+import {
+  closeRetainedNotification,
+  desktopShowsAgentEvent,
+  RETAINED_NOTIFICATION_LIMIT,
+  showRetainedNotification,
+} from "./desktop-notifications";
 import type { HostService } from "./host-service";
 import { withLocalHostSummary } from "./ipc/team-handlers";
 import { decodeAgentSummaries } from "./remote-agent-decoding";
@@ -111,6 +117,8 @@ export function createRendererForwarders({
 
   async function notifyAgentEvent(serverId: string, event: AgentEvent): Promise<void> {
     withdrawResolvedNotification(serverId, event);
+    // Most events stream while an agent works. Only these can notify, so the others skip the server list.
+    if (!agentEventCanNotify(event) && event.type !== "usage-limit-reached") return;
     // Like Discord, nothing pops up while the user is looking at the app. The level is read again
     // after the lookup, with the rest, because the user can change it while the lookup runs.
     const notifyLevel = () => {
@@ -125,11 +133,8 @@ export function createRendererForwarders({
     if (!notifyLevel() || !Notification.isSupported()) return;
     const requestKey = notificationRequestKey(serverId, event);
     if (!requestKey) return showAgentNotification(serverId, event, notifyLevel, null);
-    // A provider can use a request id again, and a host can send a request again after a reconnect.
-    // The newest notification replaces the one before it.
-    const previous = requestNotifications.get(requestKey);
-    if (previous) closeRetainedNotification(previous);
-    requestNotifications.set(requestKey, null);
+    // A shown notification of the same request stays until the new one replaces it.
+    if (!requestNotifications.has(requestKey)) requestNotifications.set(requestKey, null);
     try {
       await showAgentNotification(serverId, event, notifyLevel, requestKey);
     } finally {
@@ -174,7 +179,16 @@ export function createRendererForwarders({
     if (!content || (requestKey && !requestNotifications.has(requestKey))) return;
     const notification = new Notification({ title: content.title, body: content.body });
     if (requestKey) {
+      // A provider can use a request id again, and a host can send a request again after a reconnect.
+      // The newest notification replaces the one before it.
+      const previous = requestNotifications.get(requestKey);
+      if (previous) closeRetainedNotification(previous);
       requestNotifications.set(requestKey, notification);
+      // A lost connection can drop the answer of a remote request, so the oldest entries go.
+      for (const oldest of requestNotifications.keys()) {
+        if (requestNotifications.size <= RETAINED_NOTIFICATION_LIMIT) break;
+        requestNotifications.delete(oldest);
+      }
       const release = () => {
         if (requestNotifications.get(requestKey) === notification) requestNotifications.delete(requestKey);
       };

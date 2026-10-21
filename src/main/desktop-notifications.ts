@@ -22,7 +22,7 @@ export function desktopShowsAgentEvent(
 
 // Enough for every agent that can wait for the user at once, and small enough that notifications the
 // operating system never reports as closed do not add up.
-const RETAINED_NOTIFICATION_LIMIT = 50;
+export const RETAINED_NOTIFICATION_LIMIT = 50;
 const retained = new Set<Notification>();
 
 /**

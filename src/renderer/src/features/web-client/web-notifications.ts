@@ -88,6 +88,8 @@ function browserFocused(): boolean {
 
 /** The shown notifications that wait for an answer, by request, as on desktop. */
 const requestNotifications = new Map<string, Notification>();
+/** As many as the desktop keeps. */
+const REQUEST_NOTIFICATION_LIMIT = 50;
 
 /** Closes the notification of a request that was answered or cancelled, on any device. */
 export function withdrawWebAgentNotification(hostId: string, event: AgentEvent): void {
@@ -121,6 +123,11 @@ export function showWebAgentNotification(options: {
       // A provider can use a request id again. The newest notification replaces the one before it.
       requestNotifications.get(key)?.close();
       requestNotifications.set(key, notification);
+      // A lost connection can drop the answer of a request, so the oldest entries go.
+      for (const oldest of requestNotifications.keys()) {
+        if (requestNotifications.size <= REQUEST_NOTIFICATION_LIMIT) break;
+        requestNotifications.delete(oldest);
+      }
       notification.addEventListener("close", () => {
         if (requestNotifications.get(key) === notification) requestNotifications.delete(key);
       });

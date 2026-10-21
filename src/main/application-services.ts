@@ -87,6 +87,7 @@ import {
   type BrowserWindow,
   clipboard,
   desktopCapturer,
+  Notification,
   nativeImage,
   powerMonitor,
   safeStorage,
@@ -2023,6 +2024,8 @@ export async function createApplicationServices({
       if (!window || window.isDestroyed()) return false;
       if (powerMonitor.getSystemIdleState(DESKTOP_USE_MS / 1_000) !== "active") return false;
       if (window.isFocused()) return true;
+      // Without a notification service, as on Linux without a daemon, the desktop shows nothing.
+      if (!Notification.isSupported()) return false;
       // Read when an event arrives, after the manager below exists.
       const local = remoteServers.list().find((server) => server.id === LOCAL_SERVER_ID);
       return desktopShowsAgentEvent(event, local, notificationPreference.get().desktopNotifications);

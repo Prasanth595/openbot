@@ -206,11 +206,13 @@ export class PushNotificationService {
       if (!fixed) continue;
       // The Live Activity of an iPhone shows the event, and a notification would repeat it. With a
       // sound, the activity also lights up the screen and plays it; without one, it updates silently.
+      // A message that did not start has no turn, so the activity does not show it.
       if (stored.platform !== "android") {
         const sound = soundOf(stored.value);
         const startedAt =
           stored.value.liveActivityStartedAt === null ? null : stored.value.liveActivityStartedAt * 1_000;
-        if (this.#options.liveActivityShows(sessionId, sound ? { sound } : null, startedAt)) continue;
+        if (event.type !== "error" && this.#options.liveActivityShows(sessionId, sound ? { sound } : null, startedAt))
+          continue;
         // An iPhone with notifications off registers for the sound of the Live Activity only.
         if (stored.value.token === null) continue;
       }
