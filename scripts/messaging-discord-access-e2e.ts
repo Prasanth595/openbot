@@ -1,5 +1,5 @@
-// Checks two Discord servers on one OpenBot server, the role list of a Discord server, and the
-// replied-to message as context. A Gateway event goes through Signal's normalizer
+// Checks two Discord servers on one OpenBot server, the role list of a Discord server, the
+// replied-to message as context, and an earlier image posted without a mention as context. A Gateway event goes through Signal's normalizer
 // (`remote/api/src/discord-events.ts`), a JSON round trip and the host's decoder, into the real
 // Discord driver and messaging service on a temporary profile. Signal's API (`makeDiscordApi`) runs
 // over a fake Discord REST client. No agent turn runs: the check reads the prompt that a turn would get.
@@ -11,7 +11,11 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { DISCORD_GATEWAY_INTENTS, DISCORD_MESSAGE_CONTENT_INTENT } from "@openbot/contracts/discord-app";
 import { isDiscordRoleList } from "@openbot/contracts/ipc";
-import { decodeDiscordApiError, decodeDiscordDelivery } from "@openbot/contracts/signal-protocol/discord-api";
+import {
+  decodeDiscordApiError,
+  decodeDiscordDelivery,
+  decodeDiscordHistory,
+} from "@openbot/contracts/signal-protocol/discord-api";
 import { Effect } from "effect";
 import { type DiscordRestRequest, DiscordTransportError, makeDiscordApi } from "../remote/api/src/discord-api";
 import { DiscordState } from "../remote/api/src/discord-events";
@@ -55,6 +59,8 @@ const EVA = "500000000000000004";
 const OLA = "500000000000000005";
 const IGA = "500000000000000006";
 const ULA = "500000000000000007";
+const TOMEK = "500000000000000008";
+const OLEK = "500000000000000009";
 
 interface Step {
   name: string;
@@ -111,6 +117,16 @@ function gateway(t: string, d: unknown): Parameters<DiscordState["handle"]>[0] {
 const calls: DiscordRestRequest[] = [];
 const waiters: Array<{ match: (call: DiscordRestRequest) => boolean; resolve: () => void }> = [];
 let nextMessageId = 600000000000000000n;
+/** One channel message as Discord's REST API gives it. */
+interface RestMessage {
+  id: string;
+  content: string;
+  timestamp: string;
+  author: { id: string; username: string };
+  attachments: { id: string; filename: string; content_type: string; size: number; url: string }[];
+}
+/** The earlier messages of CHANNEL_ONE that `listMessages` gives. */
+const channelOne: RestMessage[] = [];
 
 /** Fails after 15 seconds, so a call that never comes fails the check instead of holding it. */
 function waitForCall(match: (call: DiscordRestRequest) => boolean): Promise<void> {
@@ -142,6 +158,10 @@ const rest = {
         return Effect.succeed({ id: nextMessageId.toString() });
       }
       if (route.includes("/reactions/")) return Effect.succeed({});
+      if (route === `/channels/${CHANNEL_ONE}/messages`) {
+        const after = BigInt(input.query?.get("after") ?? "0");
+        return Effect.succeed(channelOne.filter((message) => BigInt(message.id) > after));
+      }
       if (/^\/channels\/[0-9]+\/messages$/u.test(route)) return Effect.succeed([]);
       const member = /^\/guilds\/[0-9]+\/members\/([0-9]+)$/u.exec(route);
       if (member) {
@@ -153,6 +173,8 @@ const rest = {
           [OLA]: "Ola",
           [IGA]: "Iga",
           [ULA]: "Ula",
+          [TOMEK]: "tomek",
+          [OLEK]: "Olek",
         };
         const id = member[1] ?? "";
         return Effect.succeed({ nick: null, user: { id, username: names[id] ?? id } });
@@ -553,7 +575,7 @@ try {
         prompt,
         /--- the message this one replies to \(context\) ---\n\[2026-10-19T11:40:00\.000Z\] Kamil: Feature idea: webhooks for OpenBot\. @Bob agrees\.\n--- message ---\nmake an issue for this/u,
       );
-      assert.doesNotMatch(prompt, /earlier messages in this conversation/u);
+      assert.doesNotMatch(prompt, /earlier messages/u);
 
       const plain = nextId();
       await mention({
@@ -628,6 +650,81 @@ try {
         return { repliedImage: true };
       } finally {
         globalThis.fetch = realFetch;
+      }
+    });
+
+    await step("an image posted without a mention before a new conversation gives the image to the agent", async () => {
+      const posted = nextId();
+      const id = nextId();
+      const url = `https://cdn.discordapp.com/attachments/${CHANNEL_ONE}/${posted}/crash.png`;
+      const image = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+      const realFetch = globalThis.fetch;
+      globalThis.fetch = Object.assign(
+        (input: string | URL | Request, init?: RequestInit) =>
+          String(input) === url
+            ? Promise.resolve(new Response(image, { headers: { "content-type": "image/png" } }))
+            : realFetch(input, init),
+        realFetch,
+      );
+      // tomek posts only an image and does not mention OpenBot, so Signal does not pass it on.
+      channelOne.push({
+        id: posted,
+        content: "",
+        timestamp: "2026-10-19T11:46:00.000Z",
+        author: { id: TOMEK, username: "tomek" },
+        attachments: [{ id: nextId(), filename: "crash.png", content_type: "image/png", size: image.byteLength, url }],
+      });
+      try {
+        // Olek then asks for an issue in a new message, not a reply.
+        await mention({
+          id,
+          guildId: GUILD_ONE,
+          channelId: CHANNEL_ONE,
+          authorId: OLEK,
+          authorName: "Olek",
+          roles: [MAINTAINERS],
+          content: "zrob issue",
+        });
+        await received(id);
+        const record = services.threads.store.connectionForWorkspace("discord", GUILD_ONE);
+        assert.ok(record);
+        const context = services.mailbox.deliveryForKey(`messaging:${record.connectionId}:${CHANNEL_ONE}:${id}`);
+        assert.deepEqual(
+          context?.managedAttachments.map((file) => file.name),
+          ["crash.png"],
+          "The agent's message has no earlier image.",
+        );
+        const prompt = await promptOf(services, GUILD_ONE, id, CHANNEL_ONE);
+        assert.match(
+          prompt,
+          /--- earlier messages \(context, oldest first\) ---\n\[2026-10-19T11:46:00\.000Z\] tomek: \(Attached files: crash\.png\)\n/u,
+        );
+        assert.match(
+          prompt,
+          /--- message ---\nzrob issue\n\n\(Files of earlier messages, given with this one: tomek: crash\.png\)/u,
+        );
+        assert.doesNotMatch(prompt, /did not arrive/u);
+        // An older Signal gives earlier messages without files.
+        assert.deepEqual(
+          decodeDiscordHistory({
+            messages: [
+              {
+                id: posted,
+                authorId: TOMEK,
+                authorName: "tomek",
+                authorIsBot: false,
+                content: "",
+                replyToId: null,
+                sentAt: "2026-10-19T11:46:00.000Z",
+              },
+            ],
+          })[0]?.attachments,
+          [],
+        );
+        return { earlierImage: true };
+      } finally {
+        globalThis.fetch = realFetch;
+        channelOne.length = 0;
       }
     });
   });

@@ -38,12 +38,14 @@ import {
   deleteHostedSite,
   deleteStoredFile,
   getAgentAdminSettings,
+  getHostAgentAccess,
   getHostAgentMemoryLimit,
   getHostReleaseStatus,
   getHostTimezone,
   getHostUpdateStatus,
   getStorageUsage,
   listHostedSites,
+  setHostAgentAccess,
   setHostAgentMemoryLimit,
   setHostTimezone,
   setHostUpdateSettings,
@@ -143,6 +145,7 @@ import {
   routineMadeThisSession,
 } from "../servers/hosted-server-upsell-controller";
 import type { HostMemoryLimitCalls } from "../servers/ServerMemoryLimitSetting";
+import type { HostAgentAccessCalls } from "../servers/ServerRolesSection";
 import type { ServerHostedSitesOptions, ServerSettingsSection } from "../servers/ServerSettingsModal";
 import type { HostTimezoneCalls } from "../servers/ServerTimezoneSetting";
 import type { HostUpdateCalls } from "../servers/ServerUpdatePanel";
@@ -868,6 +871,12 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
       runTeamEffect(
         setHostAgentMemoryLimit(hostRequest(serverId), limit).pipe(Effect.mapError((error) => error.cause)),
       ),
+  };
+  const hostAgentAccessCalls: HostAgentAccessCalls = {
+    getAgentAccess: async (serverId) =>
+      runTeamEffect(getHostAgentAccess(hostRequest(serverId)).pipe(Effect.mapError((error) => error.cause))),
+    setAgentAccess: async (change, serverId) =>
+      runTeamEffect(setHostAgentAccess(hostRequest(serverId), change).pipe(Effect.mapError((error) => error.cause))),
   };
   const [serverSettingsSection, setServerSettingsSection] = createSignal<ServerSettingsSection | null>(null);
   async function openServerSettings(
@@ -1821,6 +1830,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                       hostUpdate={{ calls: hostUpdateCalls }}
                       hostTimezone={{ calls: hostTimezoneCalls }}
                       hostMemoryLimit={{ calls: hostMemoryLimitCalls }}
+                      agentAccess={{ calls: hostAgentAccessCalls, listAgents: () => workspace.runtime.listAgents() }}
                       // Any member imports into a host with `agent-import-v1`.
                       agentImport={
                         workspace.state.capabilities.includes(AGENT_IMPORT_CAPABILITY)

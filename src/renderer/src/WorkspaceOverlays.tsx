@@ -673,6 +673,7 @@ function ServerSettings(props: { connectors: ConnectorRegistry }) {
           hostUpdate={{}}
           hostTimezone={{}}
           hostMemoryLimit={{}}
+          agentAccess={{ listAgents: () => appPort().agent.listAgents(server().id) }}
           initialSection={serverSettingsSection()}
           // Any member imports into this computer or a remote host with `agent-import-v1`.
           agentImport={

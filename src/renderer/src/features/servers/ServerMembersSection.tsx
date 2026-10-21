@@ -37,7 +37,6 @@ import {
   SelectTrigger,
   SelectValue,
   SettingsSection,
-  ShieldCheck,
   SlidingTabs,
   SwitchField,
   Text,
@@ -45,12 +44,14 @@ import {
   UserRound,
 } from "@openbot/ui";
 import { formatLicenseMoney } from "@openbot/ui/features/billing/LicenseSection";
+import { MemberRoleMenu } from "@openbot/ui/features/servers/ServerRoles";
 import { teamMemberName } from "@openbot/ui/features/team/TeamPersonAvatar";
 import { useText } from "@openbot/ui/text";
 import { prefersReducedMotion } from "@openbot/ui/utils";
 import type { JSX } from "@solidjs/web";
 import { createEffect, createMemo, createSignal, createStore, For, onCleanup, Show, untrack } from "solid-js";
 import { desktopAnalytics } from "../../analytics";
+import type { ServerRolesSection } from "./ServerRolesSection";
 import { serverRoleCanAdminister } from "./server-capabilities";
 import type { ServerSettingsSectionHost } from "./server-settings-section";
 
@@ -108,6 +109,7 @@ interface ServerMembersSection {
 export function createServerMembersSection(
   host: ServerSettingsSectionHost,
   options: { onSetUpDesktop: () => void; saveIdentityDraft: () => Promise<boolean> },
+  roles: Pick<ServerRolesSection, "roles" | "setMemberRole">,
 ): ServerMembersSection {
   const { t, format } = useText();
   const { props, local, configured, published, actionsAvailable, busy, run } = host;
@@ -709,19 +711,39 @@ export function createServerMembersSection(
         </ItemContent>
         <ItemActions class="server-settings-member-actions">
           <Show when={member.role !== "owner"} fallback={<Badge variant="primary-light">{t(ROLE_LABELS.owner)}</Badge>}>
-            <Text variant="label-sm" tone="secondary">
-              {t(ROLE_LABELS[member.role])}
-            </Text>
+            <Show
+              when={
+                canManage() && actionsAvailable() && !member.disabled && member.role !== "owner" ? member.role : null
+              }
+              fallback={
+                <Text variant="label-sm" tone="secondary">
+                  {t(ROLE_LABELS[member.role])}
+                </Text>
+              }
+            >
+              {(serverRole) => (
+                <MemberRoleMenu
+                  memberId={member.id}
+                  memberName={teamMemberName(member)}
+                  serverRole={serverRole()}
+                  roles={roles.roles()}
+                  disabled={Boolean(busy())}
+                  mount={host.menuMount()}
+                  onServerRole={(role, trigger) => {
+                    // The confirmation returns focus to the element focused when it opens.
+                    trigger.focus({ preventScroll: true });
+                    setPanels((state) => {
+                      state.members.roleChange = { memberId: member.id, role };
+                    });
+                  }}
+                  onToggleRole={(roleId, on) => roles.setMemberRole(roleId, member.id, on)}
+                />
+              )}
+            </Show>
             <Show when={canManage() && actionsAvailable()}>
               <MemberActionsMenu
                 member={member}
                 mount={host.menuMount()}
-                onRoleChange={(role, trigger) => {
-                  trigger.focus({ preventScroll: true });
-                  setPanels((state) => {
-                    state.members.roleChange = { memberId: member.id, role };
-                  });
-                }}
                 onRemove={(trigger) => {
                   // The confirmation returns focus to the element focused when it opens.
                   trigger.focus({ preventScroll: true });
@@ -997,7 +1019,6 @@ export function createServerMembersSection(
 function MemberActionsMenu(props: {
   member: TeamPresenceMember;
   mount: HTMLElement | undefined;
-  onRoleChange: (role: InviteRole, trigger: HTMLElement) => void;
   onRemove: (trigger: HTMLElement) => void;
 }) {
   const { t } = useText();
@@ -1012,20 +1033,9 @@ function MemberActionsMenu(props: {
       >
         <Ellipsis aria-hidden="true" />
       </DropdownMenu.Trigger>
-      {/* A portal without a mount uses the document body. */}
+      {/* A portal without a mount uses the document body. The server role is in the role menu. */}
       <DropdownMenu.Portal mount={props.mount ?? document.body}>
         <DropdownMenu.Content class="server-settings-member-menu">
-          <Show when={!props.member.disabled}>
-            <DropdownMenu.Item
-              onSelect={() =>
-                triggerElement && props.onRoleChange(props.member.role === "admin" ? "member" : "admin", triggerElement)
-              }
-            >
-              {props.member.role === "admin" ? <UserRound aria-hidden="true" /> : <ShieldCheck aria-hidden="true" />}
-              {props.member.role === "admin" ? t("server.members.makeMember") : t("server.members.makeAdmin")}
-            </DropdownMenu.Item>
-            <DropdownMenu.Separator />
-          </Show>
           <DropdownMenu.Item
             class="ui-action-menu-danger"
             onSelect={() => triggerElement && props.onRemove(triggerElement)}

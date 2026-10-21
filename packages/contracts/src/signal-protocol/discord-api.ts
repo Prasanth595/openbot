@@ -163,6 +163,8 @@ export interface DiscordHistoryMessage {
   content: string;
   replyToId: string | null;
   sentAt: string;
+  /** Empty from an older Signal. */
+  attachments: DiscordInboundAttachment[];
 }
 
 /** One place of `listChannels`. A thread is a channel too: a post to its id goes into the thread. */
@@ -246,16 +248,20 @@ function quote(value: unknown): DiscordInboundQuote | null {
   const item = record(value);
   const content = text(item.content);
   if (content.length > QUOTE_DECODE_LIMIT) invalid();
-  // An older Signal sends no attachments.
-  const attachments = item.attachments === undefined ? [] : item.attachments;
-  if (!Array.isArray(attachments) || attachments.length > DISCORD_ATTACHMENTS_LIMIT) invalid();
   return {
     authorId: snowflake(item.authorId),
     authorName: text(item.authorName),
     content,
     sentAt: text(item.sentAt),
-    attachments: attachments.map(attachment),
+    attachments: attachments(item.attachments),
   };
+}
+
+function attachments(value: unknown): DiscordInboundAttachment[] {
+  // An older Signal sends no attachments.
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > DISCORD_ATTACHMENTS_LIMIT) invalid();
+  return value.map(attachment);
 }
 
 function inboundMessage(value: unknown): DiscordInboundMessage {
@@ -336,6 +342,7 @@ export function decodeDiscordHistory(value: unknown): DiscordHistoryMessage[] {
       content: text(item.content),
       replyToId: nullableSnowflake(item.replyToId),
       sentAt: text(item.sentAt),
+      attachments: attachments(item.attachments),
     };
   });
 }

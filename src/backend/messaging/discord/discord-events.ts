@@ -57,7 +57,7 @@ export function discordInboundMessage(message: DiscordInboundMessage): InboundMe
   };
 }
 
-function inboundFile(attachment: DiscordInboundAttachment): InboundFile {
+export function inboundFile(attachment: DiscordInboundAttachment): InboundFile {
   return {
     id: attachment.id,
     name: attachment.filename,

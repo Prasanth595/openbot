@@ -66,7 +66,7 @@ export function messagingPromptText(input: MessagingPromptInput): string {
   const context = boundedContext(input.context);
   if (context.length)
     lines.push(
-      "--- earlier messages in this conversation (context, oldest first) ---",
+      "--- earlier messages (context, oldest first) ---",
       ...context.map((message) => `[${message.sentAt}] ${message.authorName}: ${message.text}`),
     );
   if (input.replyTo)

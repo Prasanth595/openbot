@@ -115,8 +115,11 @@ export interface ConnectionIdentity {
 export interface ContextEntry {
   id: string;
   authorName: string;
+  /** Names the message's files too, when it has any. */
   text: string;
   sentAt: string;
+  /** The message's files, which the agent gets with the message that it answers. */
+  files?: InboundFile[];
 }
 
 /** A failure the connection cannot recover from alone. The user must act. */

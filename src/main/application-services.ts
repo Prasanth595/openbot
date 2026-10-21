@@ -113,6 +113,7 @@ import { sweepProviderTemp } from "../backend/provider-temp";
 import { SidebarLayoutStore } from "../backend/sidebar-layout-store";
 import { StorageUsageScanner, StorageUsageService } from "../backend/storage-usage";
 import { TeamChatStore } from "../backend/team-chat-store";
+import { AGENT_ACCESS_FILE, AgentAccessStore } from "./agent-access-store";
 import { AgentImportService } from "./agent-import-service";
 import { AgentInitializationGate } from "./agent-initialization";
 import { AgentMarketplaceService } from "./agent-marketplace-service";
@@ -485,6 +486,7 @@ export interface ApplicationServices {
   notificationPreference: NotificationPreferenceStore;
   busyMessageMode: BusyMessageModePreferenceStore;
   agentMemoryLimit: AgentMemoryLimitSetting;
+  agentAccess: AgentAccessStore;
   serverTimezone: ServerTimezonePreferenceStore;
   remoteSessionReuse: RemoteSessionReusePreferenceStore;
   remoteSessionCache: RemoteSessionCache;
@@ -1014,6 +1016,9 @@ export async function createApplicationServices({
     join(app.getPath("userData"), AGENT_MEMORY_LIMIT_PREFERENCE_FILE),
   );
   await runCauseEffect(agentMemoryLimit.load());
+  const agentAccess = new AgentAccessStore(join(app.getPath("userData"), AGENT_ACCESS_FILE));
+  if (!(await runCauseEffect(agentAccess.load())))
+    logger.warn("The roles file did not load. Members get no access to agents until an admin saves the roles.");
   const serverTimezone = new ServerTimezonePreferenceStore(
     join(app.getPath("userData"), SERVER_TIMEZONE_PREFERENCE_FILE),
   );
@@ -1993,6 +1998,8 @@ export async function createApplicationServices({
     routineFlows: routineFlowRuntime,
     // Present, so the host advertises `agent-hidden-v1`. Any member can hide or restore an agent that they can see.
     hiddenAgents: service,
+    // Present, so the host advertises `agent-access-v1`. Only owners and admins change the roles.
+    agentAccess,
     // Present, so the host advertises `agent-tasks-v1`. Any member who can send a message to the agent.
     agentTasks: service,
     // True on a hosted server, so the host advertises `focus-use-v1`. Any member can send it.
@@ -2676,6 +2683,7 @@ export async function createApplicationServices({
     notificationPreference,
     busyMessageMode,
     agentMemoryLimit: agentMemoryLimitSetting,
+    agentAccess,
     serverTimezone,
     remoteSessionReuse,
     remoteSessionCache,
