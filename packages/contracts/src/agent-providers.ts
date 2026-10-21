@@ -29,6 +29,7 @@ export const AGENT_PROVIDERS = [
   "cline",
   "pi",
   "muse",
+  "inception",
   "acp",
 ] as const;
 export type AgentProviderId = (typeof AGENT_PROVIDERS)[number];
@@ -312,6 +313,28 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     reportsUsage: true,
     approvalsInFullAccess: true,
   },
+  // Inception's Mercury models run in the Pi CLI that OpenBot downloads for Pi, with a key the user
+  // saves here. Pi's own sign-in and models stay on the Pi row.
+  inception: {
+    id: "inception",
+    displayName: "Inception",
+    cliName: "Pi CLI",
+    onboardingDescription: "Mercury models with an Inception API key",
+    signInMessage: "Add an Inception API key to continue.",
+    installGuideLink: null,
+    defaultModel: "mercury-3",
+    legacyModelPrefix: null,
+    authKind: "inception",
+    pickerOrder: 9,
+    localCodeSignIn: null,
+    signInPageEnd: "callback",
+    skillFolders: [".agents/skills"],
+    workspaceEnforcement: "confined-process",
+    steer: "native",
+    concurrentTurns: true,
+    reportsUsage: false,
+    approvalsInFullAccess: true,
+  },
   // One provider for every Agent Client Protocol agent the user adds by command. The model id names
   // the agent (`<customAgentId>/<agentModel>`), so one provider row serves them all and the shipped
   // provider CHECK lists grow by one word only once.
@@ -390,8 +413,8 @@ export function isManagedRuntimeProvider(provider: AgentProviderId): provider is
 
 /**
  * The providers that only newer Team API protocols carry: Gemini and custom ACP agents from protocol
- * 5, Cursor and Cline from protocol 6. A joined server's settings list one only when the host's status
- * names it.
+ * 5, Cursor and Cline from protocol 6, Pi and Muse from protocol 7. No protocol carries Inception yet.
+ * A joined server's settings list one only when the host's status names it.
  */
 export const LOCAL_ONLY_PROVIDERS = [
   "antigravity",
@@ -399,6 +422,7 @@ export const LOCAL_ONLY_PROVIDERS = [
   "cline",
   "pi",
   "muse",
+  "inception",
   "acp",
 ] as const satisfies readonly AgentProviderId[];
 

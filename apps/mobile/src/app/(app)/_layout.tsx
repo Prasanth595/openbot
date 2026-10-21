@@ -7,6 +7,7 @@ import { useCSSVariable } from "uniwind";
 import { AgentPinTransitionProvider } from "@/features/agents/components/agent-pin-transition";
 import { ChatNavigationGateContext } from "@/features/agents/components/chat-link-pressable";
 import { createChatNavigationGate } from "@/features/agents/model/chat-navigation-gate";
+import { whenUnlocked } from "@/features/app-lock/model/app-lock";
 import { useMobileSession } from "@/features/auth/context/mobile-session-context";
 import { MermaidRendererHost } from "@/features/chat/components/mermaid-renderer-host";
 import { OutboxProvider } from "@/features/chat/context/outbox-context";
@@ -51,22 +52,25 @@ function AuthenticatedStack() {
   onChatList.current = segments.at(-1) === "connected";
   /** Opens a chat, or the chat list for `null`, from a Live Activity or a notification. */
   const openFromOutside = useCallback(
-    (agentId: string | null) => {
-      closeDrawer();
-      // Opening the chat that shows already would mount it again and load it again.
-      if (agentId !== null && openChat.current === agentId) return;
-      // The chat opens on top of the main screen, so Back returns there and not to an earlier chat.
-      if (router.canDismiss()) router.dismissAll();
-      if (agentId === null) return;
-      // The home row opens the chat, as it does for search, so the chat zooms from the row avatar
-      // and back. The gate waits until the list shows. A chat without a row opens without zoom.
-      navigationGate.request(
-        () => {
-          if (!navigationGate.openFromHome(agentId)) router.push({ pathname: "/chat/[agentId]", params: { agentId } });
-        },
-        () => onChatList.current,
-      );
-    },
+    (agentId: string | null) =>
+      // A locked app opens the chat after the user unlocks it.
+      whenUnlocked(() => {
+        closeDrawer();
+        // Opening the chat that shows already would mount it again and load it again.
+        if (agentId !== null && openChat.current === agentId) return;
+        // The chat opens on top of the main screen, so Back returns there and not to an earlier chat.
+        if (router.canDismiss()) router.dismissAll();
+        if (agentId === null) return;
+        // The home row opens the chat, as it does for search, so the chat zooms from the row avatar
+        // and back. The gate waits until the list shows. A chat without a row opens without zoom.
+        navigationGate.request(
+          () => {
+            if (!navigationGate.openFromHome(agentId))
+              router.push({ pathname: "/chat/[agentId]", params: { agentId } });
+          },
+          () => onChatList.current,
+        );
+      }),
     [closeDrawer, navigationGate],
   );
   /** Opens the screen of a quick action of the app icon, on top of the main screen. */
@@ -76,21 +80,23 @@ function AuthenticatedStack() {
         openFromOutside(target.agentId);
         return;
       }
-      closeDrawer();
-      if (router.canDismiss()) router.dismissAll();
-      navigationGate.request(
-        () =>
-          target.type === "routines"
-            ? router.push({ pathname: "/server-routines", params: { serverId: target.serverId } })
-            : requestHomeSearch(),
-        () => onChatList.current,
-      );
+      whenUnlocked(() => {
+        closeDrawer();
+        if (router.canDismiss()) router.dismissAll();
+        navigationGate.request(
+          () =>
+            target.type === "routines"
+              ? router.push({ pathname: "/server-routines", params: { serverId: target.serverId } })
+              : requestHomeSearch(),
+          () => onChatList.current,
+        );
+      });
     },
     [closeDrawer, navigationGate, openFromOutside],
   );
   useEffect(() => setLiveActivityNavigator(openFromOutside), [openFromOutside]);
   useEffect(() => setQuickActionNavigator(openQuickAction), [openQuickAction]);
-  useEffect(() => setShareSheetOpener(() => router.push("/share")), []);
+  useEffect(() => setShareSheetOpener(() => whenUnlocked(() => router.push("/share"))), []);
   useNotificationTaps(openFromOutside, () => openChat.current);
 
   return (

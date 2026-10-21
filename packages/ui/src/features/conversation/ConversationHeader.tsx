@@ -1,4 +1,4 @@
-import { Button, Lock } from "@openbot/ui";
+import { Badge, Button, Clock3, Lock } from "@openbot/ui";
 import { ProviderModelPicker } from "@openbot/ui/components/ProviderModelPicker";
 import type { AgentProfile } from "@openbot/ui/data";
 import { AgentAvatar } from "@openbot/ui/features/agents/AgentAvatar";
@@ -12,10 +12,19 @@ import { Show } from "solid-js";
 export interface ConversationHeaderProps {
   agent: AgentProfile | null | undefined;
   modelPicker: ComponentProps<typeof ProviderModelPicker>;
+  /** A model or effort chosen during the running turn. It applies from the next turn. */
+  pendingModel?: ConversationHeaderPendingModel | undefined;
   onSettingsIntent: () => void;
   onOpenSettings: () => void;
   remoteControl?: ConversationHeaderRemoteControl | undefined;
   sidePanel: SidePanelToggleProps;
+}
+
+export interface ConversationHeaderPendingModel {
+  /** The model, and the effort when it changes too, of the running turn. */
+  running: string;
+  /** The same for the next turn. */
+  next: string;
 }
 
 export interface ConversationHeaderRemoteControl {
@@ -56,6 +65,18 @@ export function ConversationHeader(props: ConversationHeaderProps) {
         </Show>
       </div>
       <div class="conversation-header-actions no-drag">
+        <Show when={props.agent && props.pendingModel}>
+          {(change) => {
+            const detail = () => t("conversation.header.modelNextTurnDetail", change());
+            return (
+              <Badge variant="info-light" class="conversation-model-pending" role="status" title={detail()}>
+                <Clock3 aria-hidden="true" />
+                {t("conversation.header.modelNextTurn")}
+                <span class="sr-only">{detail()}</span>
+              </Badge>
+            );
+          }}
+        </Show>
         <Show when={props.agent}>
           <ProviderModelPicker {...props.modelPicker} />
         </Show>

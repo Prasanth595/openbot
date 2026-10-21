@@ -9,7 +9,7 @@ import { runCauseEffect } from "../../backend/effect-boundary";
 import type { TeamApiAgents } from "./dependencies";
 import { HttpError } from "./http-error";
 import type { RouteOutcome, TeamApiRequestContext } from "./request-context";
-import { readJson } from "./request-helpers";
+import { readJson, requireAgentLevel } from "./request-helpers";
 
 /**
  * A question about one agent's chat that does not go into the chat. Any member can ask one, as any
@@ -36,6 +36,7 @@ export async function routeSideQuestion(
   }
   if (hiddenAgentIds.has(input.agentId) || !agents.listAgents().some((agent) => agent.id === input.agentId))
     throw new HttpError(404, sourceText("error.team.agentNotFound"));
+  requireAgentLevel(context, input.agentId, "chat");
   let answer: string;
   try {
     answer = await runCauseEffect(agents.askSideQuestion(input));

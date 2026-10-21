@@ -19,7 +19,6 @@ export const messages = {
   "settings.logoColor.beige": "Beżowy",
   "settings.logoColor.gray": "Szary",
   "settings.logoColor.white": "Biały",
-  "settings.providers.title": "Dostawcy AI",
   "settings.appBehavior.title": "Działanie aplikacji",
   "settings.conversations.title": "Rozmowy",
   "settings.launchAtLogin.title": "Uruchamiaj OpenBot po zalogowaniu",
@@ -97,9 +96,8 @@ export const messages = {
   "settings.analytics.title": "Udostępniaj analitykę produktu",
   "settings.analytics.description":
     "Wysyłaj metadane użycia i niezawodności wraz z ID konta i adresem e-mail do samodzielnie hostowanej analityki OpenBot.",
-  "settings.analytics.webTitle": "Udostępniaj raporty błędów",
   "settings.analytics.webDescription":
-    "Wysyłaj kody błędów i ostrzeżeń wraz z ID konta do analityki OpenBot. To ustawienie dotyczy tej przeglądarki.",
+    "Wysyłaj metadane użycia i niezawodności wraz z ID konta i adresem e-mail do samodzielnie hostowanej analityki OpenBot. To ustawienie dotyczy tej przeglądarki.",
   "settings.tab.general.title": "Ogólne",
   "settings.tab.general.description": "Określ, jak OpenBot działa na tym komputerze.",
   "settings.tab.notifications.title": "Powiadomienia",
@@ -437,6 +435,8 @@ export const messages = {
   // The Voice tab: dictation models and the dictation language.
   "settings.voice.models.title": "Model dyktowania",
   "settings.voice.model.parakeet.description": "Szybki. Sam rozpoznaje język mowy, w 25 językach europejskich.",
+  "settings.voice.model.bark.description":
+    "Szybki. Tylko angielski. Pisze głównie małymi literami, z niewielką interpunkcją.",
   "settings.voice.model.whisper.description": "Wolniejszy. Około 100 języków i możesz ustawić język mowy.",
   "settings.voice.model.size": "Rozmiar pobierania: {size}",
   "settings.voice.model.downloading": "Pobieranie · {received} z {total}",
@@ -453,6 +453,8 @@ export const messages = {
   "settings.voice.language.description": "Język, w którym mówisz. Automatycznie rozpoznaje go z nagrania.",
   "settings.voice.language.modelDetects":
     "Parakeet sam rozpoznaje język mowy. Aby ustawić język, użyj Whisper lub ElevenLabs.",
+  "settings.voice.language.englishOnly":
+    "Bark rozpoznaje tylko angielski. Aby ustawić język, użyj Whisper lub ElevenLabs.",
   "settings.voice.language.automatic": "Automatycznie",
   "settings.voice.loadFailed": "Nie udało się odczytać modeli głosu.",
   "settings.voice.saveFailed": "Nie udało się zapisać ustawienia głosu. Spróbuj ponownie.",

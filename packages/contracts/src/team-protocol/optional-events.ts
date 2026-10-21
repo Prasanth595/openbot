@@ -1,3 +1,4 @@
+import { type AgentAccessEvent, agentAccessEvent } from "./agent-access-v1";
 import { type AgentHiddenEvent, agentHiddenEvent } from "./agent-hidden-v1";
 import { type AgentSessionSettingsEvent, agentSessionSettingsEvent } from "./agent-session-settings-v1";
 import { type AgentTasksEvent, agentTasksEvent } from "./agent-tasks-v1";
@@ -12,6 +13,7 @@ import { type RoutineFlowsEvent, routineFlowsEvent } from "./routine-flows-v1";
 import { type SkillsEvent, skillsEvent } from "./skills-events-v1";
 
 export type OptionalTeamEvent =
+  | AgentAccessEvent
   | AgentHiddenEvent
   | AgentSessionSettingsEvent
   | BrowserPageStateEvent
@@ -26,6 +28,7 @@ export type OptionalTeamEvent =
 /** The optional event in `value`, or null for any other event. A malformed optional event throws. */
 export function optionalTeamEvent(value: unknown): OptionalTeamEvent | null {
   return (
+    agentAccessEvent(value) ??
     agentHiddenEvent(value) ??
     agentSessionSettingsEvent(value) ??
     browserPageStateEvent(value) ??

@@ -11,6 +11,7 @@ import {
   conversationSnapshotForCapabilities,
   memberSender,
   readJson,
+  requireAgentLevel,
   requireListedAgent,
   stringField,
 } from "./request-helpers";
@@ -34,6 +35,7 @@ export async function routeAgentTasks(
   if (hiddenAgentIds.has(agentId)) throw new HttpError(404, sourceText("error.team.agentNotFound"));
   requireListedAgent(tasks, agentId);
   if (url.pathname === AGENT_TASKS_ROUTES.list) return json(200, tasks.listTasks(agentId));
+  if (url.pathname !== AGENT_TASKS_ROUTES.read) requireAgentLevel(context, agentId, "chat");
   if (url.pathname === AGENT_TASKS_ROUTES.start) return json(200, await startTask(tasks, agentId, body, member));
   const taskId = stringField(body, "taskId");
   switch (url.pathname) {

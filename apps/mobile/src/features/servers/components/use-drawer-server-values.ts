@@ -4,7 +4,10 @@ import { useQuery } from "@tanstack/react-query";
 import { lastUsageDays } from "@/features/agents/components/usage-range-picker";
 import { useQueryScope } from "@/features/auth/context/mobile-session-context";
 import { useServerTasks } from "@/features/servers/model/use-server-tasks";
-import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import {
+  useMobileWorkspaceActions,
+  useMobileWorkspaceSelector,
+} from "@/features/workspace/context/mobile-workspace-context";
 import { queryKeys } from "@/features/workspace/model/query-keys";
 import type { MobileServer } from "@/features/workspace/model/workspace-types";
 import { useText } from "@/shared/lib/text";
@@ -33,8 +36,9 @@ export interface DrawerServerValues {
 export function useDrawerServerValues(server: MobileServer | undefined, open: boolean): DrawerServerValues {
   const { t, format } = useText();
   const queryScope = useQueryScope();
-  const { loadRoutineCalendar, loadHostAnalytics, memberCountByServer } = useMobileWorkspace();
+  const { loadRoutineCalendar, loadHostAnalytics } = useMobileWorkspaceActions();
   const serverId = server?.id ?? "";
+  const memberCount = useMobileWorkspaceSelector((current) => current.memberCountByServer[serverId] ?? null);
   const enabled = open && server?.state === "online";
 
   // The range starts at the hour, so the key stays the same while the drawer opens and closes.
@@ -92,7 +96,6 @@ export function useDrawerServerValues(server: MobileServer | undefined, open: bo
   const cost = usage.data?.totals.estimatedCostUsd ?? null;
   // A large amount drops its cents: the row has room for a short value.
   const digits = cost !== null && cost >= 100 ? 0 : 2;
-  const memberCount = memberCountByServer[serverId] ?? null;
   // As the prototype: the tasks that need the person, else the tasks that run.
   const openTasks = serverTasks.tasks.filter(isAgentTaskOpen);
   const needsYou = openTasks.filter(taskNeedsYou).length;

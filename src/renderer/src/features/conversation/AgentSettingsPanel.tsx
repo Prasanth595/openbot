@@ -1,4 +1,4 @@
-import { agentAutomationAllowed, type MarketplaceSkillDetail } from "@openbot/contracts/ipc";
+import { agentAutomationAllowed, type FilePreview } from "@openbot/contracts/ipc";
 import { BookMarked, CalendarClock, Folder, Gauge, Puzzle, Table2, Upload } from "@openbot/ui";
 import { SettingsLinkGroup, SettingsLinkRow } from "@openbot/ui/components/SettingsPanel";
 import type { AgentProfile } from "@openbot/ui/data";
@@ -18,7 +18,7 @@ import { type AgentFilesOptions, AgentFilesSettings } from "../files/AgentFilesS
 import { createStorageUsage } from "../files/storage-usage";
 import { AgentMemoriesModal } from "./AgentMemoriesModal";
 import { AgentRoutinesSettings, type RoutineSelectionRequest } from "./AgentRoutinesSettings";
-import { AgentSkillsModal, type AgentSkillsMode, assignedSkillCount } from "./AgentSkillsModal";
+import { AgentSkillsModal, type AgentSkillsMode, assignedSkillCount, type SkillDetail } from "./AgentSkillsModal";
 import { conversationPort, type SharedTableCalls } from "./conversation-port";
 import type { ConversationRuntime } from "./conversation-runtime";
 import { agentMemoriesPort } from "./memories-port";
@@ -59,7 +59,9 @@ interface AgentSettingsPanelProps
   /** Event routine calls for a host that advertises `events-v1`; absent keeps the released schedule API. */
   eventRoutines?: EventRoutinesApi | undefined;
   onCreateSkill?: (() => void) | undefined;
-  onTrySkill?: ((skill: MarketplaceSkillDetail) => void) | undefined;
+  onTrySkill?: ((skill: SkillDetail) => void) | undefined;
+  /** Reads a file in the agent workspace, on the computer that runs the agent. */
+  previewWorkspaceFile?: ((path: string) => Promise<FilePreview>) | undefined;
   onAddFromMarketplace?: ((agentId: string) => void) | undefined;
   /** The Files row. Left out for a remote server without `storage-v1`. */
   files?: AgentFilesOptions | undefined;
@@ -445,6 +447,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
           catalog={props.remoteClient ? null : undefined}
           onCreateSkill={props.onCreateSkill}
           onTrySkill={props.onTrySkill}
+          previewWorkspaceFile={props.previewWorkspaceFile}
           onAddFromMarketplace={
             props.onAddFromMarketplace
               ? (agentId) => {

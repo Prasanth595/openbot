@@ -21,6 +21,20 @@ export interface LicenseCalls {
 
 export type LicenseAction = "checkout" | "users" | "renewal";
 
+/** One license step, for the consumer's analytics. The store sends nothing itself. */
+export interface LicenseStoreEvent {
+  action:
+    | "buy_opened"
+    | "checkout_opened"
+    | "users_change_requested"
+    | "cancel_requested"
+    | "cancel_kept"
+    | "renewal_resumed"
+    | "over_limit_shown";
+  result?: "succeeded" | "failed";
+  direction?: "up" | "down";
+}
+
 interface LicenseStoreState {
   loading: boolean;
   /** The last load failure. The section keeps the last state that loaded. */
@@ -35,7 +49,11 @@ interface LicenseStoreState {
  * The license of the account: its state, the load loop, and the actions. Like the billing store, it
  * loads when the panel shows, and again on window focus, because Checkout is in another window or tab.
  */
-export function createLicenseStore(calls: () => LicenseCalls | undefined, isActive: () => boolean) {
+export function createLicenseStore(
+  calls: () => LicenseCalls | undefined,
+  isActive: () => boolean,
+  track?: (event: LicenseStoreEvent) => void,
+) {
   const [state, setState] = createStore<LicenseStoreState>({
     loading: false,
     error: null,
@@ -69,7 +87,11 @@ export function createLicenseStore(calls: () => LicenseCalls | undefined, isActi
   });
 
   /** Runs one action. Returns false when it did not run or failed; a toast or `actionError` then has the reason. */
-  async function run(action: LicenseAction, call: (api: LicenseCalls) => Promise<LicenseState | undefined>) {
+  async function run(
+    action: LicenseAction,
+    event: Omit<LicenseStoreEvent, "result">,
+    call: (api: LicenseCalls) => Promise<LicenseState | undefined>,
+  ) {
     const api = calls();
     if (!api || state.pending) return false;
     setState((draft) => {
@@ -86,8 +108,10 @@ export function createLicenseStore(calls: () => LicenseCalls | undefined, isActi
         // The state can change while the Stripe page is open.
         void load();
       }
+      track?.({ ...event, result: "succeeded" });
       return true;
     } catch (error) {
+      track?.({ ...event, result: "failed" });
       const text = currentText();
       const message = text.errorMessage(error, text.t("billing.license.actionFailed"));
       // A checkout failure shows as a toast with the sales address. The address is catalog text: an
@@ -114,12 +138,20 @@ export function createLicenseStore(calls: () => LicenseCalls | undefined, isActi
     state,
     load,
     openCheckout: (request: LicenseCheckoutRequest) =>
-      run("checkout", async (api) => {
+      run("checkout", { action: "checkout_opened" }, async (api) => {
         await api.openCheckout(request);
         return undefined;
       }),
-    setUsers: (users: number) => run("users", (api) => api.setUsers({ users })),
-    setRenewal: (cancel: boolean) => run("renewal", (api) => api.setRenewal({ cancel })),
+    setUsers: (users: number) => {
+      const current = state.license?.license?.users;
+      const event: Omit<LicenseStoreEvent, "result"> = { action: "users_change_requested" };
+      if (current !== undefined && users !== current) event.direction = users > current ? "up" : "down";
+      return run("users", event, (api) => api.setUsers({ users }));
+    },
+    setRenewal: (cancel: boolean) =>
+      run("renewal", { action: cancel ? "cancel_requested" : "renewal_resumed" }, (api) => api.setRenewal({ cancel })),
+    /** Reports a step that has no call, such as an opened form. */
+    track: (action: "buy_opened" | "cancel_kept" | "over_limit_shown") => track?.({ action }),
     clearActionError: () =>
       setState((draft) => {
         draft.actionError = null;

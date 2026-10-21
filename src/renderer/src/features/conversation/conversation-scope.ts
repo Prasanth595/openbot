@@ -311,8 +311,15 @@ export function createConversationViewScope(props: ConversationProps) {
     props,
     activeDeliveries,
     agentActivityLabels: resources.agentActivityLabels,
+    turnRuntimes: resources.turnRuntimes,
   });
-  const { renderedAgentActivity, agentActivitySpaceReserved, setAgentActivitySpaceReserved, agentActivity } = activity;
+  const {
+    renderedAgentActivity,
+    agentActivitySpaceReserved,
+    setAgentActivitySpaceReserved,
+    agentActivity,
+    runningTurnRuntime,
+  } = activity;
   const browser = createBrowserStore({
     props,
     browserOpenRequests: resources.browserOpenRequests,
@@ -1460,6 +1467,7 @@ export function createConversationViewScope(props: ConversationProps) {
     openBrowserTakeoverTab,
     activeChatSearchIndex,
     agentActivity,
+    runningTurnRuntime,
     agentReady,
     providerUpdateRequired,
     agentActivitySpaceReserved,

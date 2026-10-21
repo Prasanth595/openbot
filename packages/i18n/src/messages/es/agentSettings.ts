@@ -72,7 +72,8 @@ export const messages = {
   "agentSettings.avatar.saveFailed": "No se pudo guardar el avatar del agente.",
   "agentSettings.avatar.processFailed": "No se pudo procesar el avatar del agente.",
   "agentSettings.runtime.model": "Modelo del agente",
-  "agentSettings.runtime.modelBusy": "Espera a que termine el trabajo actual antes de cambiar de modelo.",
+  "agentSettings.runtime.providerBusy":
+    "Espera a que termine el trabajo actual antes de cambiar de proveedor o de cuenta.",
   "agentSettings.runtime.modelUnavailable": "Los modelos estarán disponibles cuando se conecte una CLI de agente.",
   "agentSettings.runtime.reasoning": "Razonamiento",
   "agentSettings.runtime.reasoningLabel": "Nivel de razonamiento del agente",

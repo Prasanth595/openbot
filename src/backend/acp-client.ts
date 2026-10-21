@@ -1870,7 +1870,13 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
     this.#completeMessage(thread, turn, "final_answer");
     if (status === "failed" && error) {
       const detail = this.#redact(failureText(error));
-      const message = this.#flavor.turnFailure?.(error, detail, (text) => this.#redact(text)) ?? detail;
+      const message =
+        this.#flavor.turnFailure?.(
+          error,
+          detail,
+          (text) => this.#redact(text),
+          (text) => this.emit("diagnostic", this.#redact(text)),
+        ) ?? detail;
       this.emit("notification", {
         method: "error",
         params: { threadId: thread.id, turnId: turn.id, message },

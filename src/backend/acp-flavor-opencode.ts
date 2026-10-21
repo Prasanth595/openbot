@@ -23,6 +23,15 @@ function isOpenCodeServiceFailure(error: unknown): boolean {
 }
 
 /**
+ * A request that the model refused for a file, image or audio part in the chat. OpenCode 2.1.1
+ * sends a part when the model catalog lists its kind, or when the part has a kind it does not know,
+ * such as an MCP resource. Each gateway words the refusal differently; OpenCode itself refuses a
+ * kind that the protocol cannot carry.
+ */
+const OPENCODE_UNREADABLE_CONTENT =
+  /\[unsupported_content_type\]|\bcontent part type "[^"]*" is not supported\b|\bsupports text-only requests\b|\bdoes not support media type\b/iu;
+
+/**
  * The kind of a model request that OpenCode gave up on, first match wins. A provider gateway
  * reports each kind as `Upstream request failed: <reason>`, so billing and the rate limit come
  * first. The provider's own failure comes before the network: a gateway that could not reach its
@@ -52,7 +61,12 @@ const OPENCODE_REQUEST_FAILURES = [
  * offline computer all read as one failure of OpenBot, and the user could not tell whether
  * waiting helps (#1163). The kind comes first; the provider's own text follows it.
  */
-function openCodeRequestFailure(error: unknown, detail: string, redact: (text: string) => string): string {
+function openCodeRequestFailure(
+  error: unknown,
+  detail: string,
+  redact: (text: string) => string,
+  log: (text: string) => void,
+): string {
   if (!(error instanceof RequestError) || error.code !== -32603) return detail;
   const reason = error.message.replace(/^Internal error:\s*/u, "");
   // OpenCode Console's own text says to replace the key in "your client"; here that is Settings (#2544).
@@ -60,6 +74,12 @@ function openCodeRequestFailure(error: unknown, detail: string, redact: (text: s
     return sourceText("error.provider.opencodeKeyExpired");
   // The usage notice reports an exhausted usage limit, and it reads the whole text to find one.
   if (isUsageLimitDiagnostic(reason)) return detail;
+  // The part stays in the session, so each turn on this model fails until the user picks another.
+  // The provider's text says nothing more to the user; it goes to the log.
+  if (OPENCODE_UNREADABLE_CONTENT.test(reason)) {
+    log(`OpenCode model refused the chat content: ${reason}`);
+    return sourceText("error.provider.opencodeUnreadableContent");
+  }
   const key = OPENCODE_REQUEST_FAILURES.find(([, pattern]) => pattern.test(reason))?.[0];
   if (!key) return detail;
   return sourceText(key, { detail: shownFailureDetail(redact(reason)) });
@@ -75,14 +95,14 @@ export const OPENCODE_ACP_FLAVOR: AcpFlavor = {
         error.data.sessionId === sessionId &&
         error.message === `Invalid params: session not found: ${sessionId}`
       : null,
-  turnFailure: (error, detail, redact) => {
+  turnFailure: (error, detail, redact, log) => {
     // Google answers "API key not valid" (#1388).
     if (/invalid api key|api key not valid|unauthori[sz]ed|token refresh failed|authentication failed/i.test(detail))
       return sourceText("error.provider.opencodeCredentialsRejected", {
         detail: shownFailureDetail(detail.replace(/^RequestError:\s*Internal error:\s*/u, "")),
       });
     if (isOpenCodeServiceFailure(error)) return sourceText("error.provider.opencodeServiceFailure");
-    return openCodeRequestFailure(error, detail, redact);
+    return openCodeRequestFailure(error, detail, redact, log);
   },
   // OpenCode reports a model reply with no text, or with reasoning only, as a successful empty
   // turn and logs no error. OpenCode 1.18.31 failed the prompt on a rate limit and on a refused

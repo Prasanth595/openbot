@@ -11,11 +11,11 @@ import {
 } from "@openbot/contracts/ipc";
 import type { AppTextKey } from "@openbot/i18n";
 import {
-  freeModelsReady,
   type ProviderConnection,
   ProviderPicker,
   type ProviderPickerOption,
 } from "@openbot/ui/components/ProviderPicker";
+import { freeModelsReady } from "@openbot/ui/components/provider-row";
 import { CustomProviderDialog } from "@openbot/ui/features/custom-providers/CustomProviderDialog";
 import { CustomProviderListDialog } from "@openbot/ui/features/custom-providers/CustomProviderListDialog";
 import { DetectedProviders } from "@openbot/ui/features/custom-providers/DetectedProviders";
@@ -123,6 +123,7 @@ const PROVIDER_DESCRIPTION_KEYS: Readonly<Record<string, AppTextKey>> = {
   "Google AI Pro or Ultra plan": "onboarding.provider.googlePlan",
   "Cursor plan or API key": "onboarding.provider.cursorPlan",
   "Free models with a Cline account": "onboarding.provider.clineAccount",
+  "Mercury models with an Inception API key": "onboarding.provider.inceptionKey",
 };
 
 /**

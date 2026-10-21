@@ -13,8 +13,11 @@ export interface AcpFlavor {
    * `-32002` rule. Another error code or another session must never replace a provider session.
    */
   sessionNotFound?(error: RequestError, sessionId: string): boolean | null;
-  /** The message of a failed turn, from the redacted failure text. `redact` masks more text. */
-  turnFailure?(error: unknown, detail: string, redact: (text: string) => string): string;
+  /**
+   * The message of a failed turn, from the redacted failure text. `redact` masks more text, and `log`
+   * writes a diagnostic that it redacts first.
+   */
+  turnFailure?(error: unknown, detail: string, redact: (text: string) => string, log: (text: string) => void): string;
   /** The message of a turn that ended with no answer text. Absent: such a turn succeeds. */
   emptyAnswerFailure?(reasoned: boolean): string;
   /**
