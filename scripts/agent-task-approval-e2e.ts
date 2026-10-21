@@ -99,18 +99,34 @@ const taskIn = (snapshot: AgentTasksSnapshot, taskId: string): AgentTask => {
   return task;
 };
 
-/** Reads the task list until `ready` accepts it. The app pushes no event to this script, so it reads again. */
-async function waitForTasks(
-  label: string,
-  ready: (snapshot: AgentTasksSnapshot) => boolean,
-): Promise<AgentTasksSnapshot> {
-  const deadline = Date.now() + WAIT_MS;
-  for (;;) {
-    const snapshot = await listTasks();
-    if (ready(snapshot)) return snapshot;
-    if (Date.now() > deadline) throw new Error(`Timed out: ${label}. Tasks: ${JSON.stringify(snapshot.tasks)}`);
-    await page.waitForTimeout(250);
-  }
+/**
+ * Waits in the page until none of these tasks runs. It listens for `agent-tasks-changed` before it
+ * reads the list, so a change between the two is not lost.
+ */
+function waitForTasksStopped(label: string, taskIds: readonly string[]): Promise<AgentTasksSnapshot> {
+  return page.evaluate(
+    ({ id, ids, name, timeout }) =>
+      new Promise<AgentTasksSnapshot>((resolveSnapshot, reject) => {
+        const stopped = (snapshot: AgentTasksSnapshot) =>
+          ids.every((taskId) => snapshot.tasks.find((task) => task.id === taskId)?.state !== "running");
+        const deadline = setTimeout(() => finish(new Error(`Timed out: ${name}.`)), timeout);
+        const unsubscribe = window.openbot.agent.onEvent((event) => {
+          if (event.type === "agent-tasks-changed" && event.snapshot.agentId === id && stopped(event.snapshot)) {
+            finish(event.snapshot);
+          }
+        });
+        window.openbot.agent.listTasks(id).then((snapshot) => {
+          if (stopped(snapshot)) finish(snapshot);
+        }, finish);
+        function finish(result: AgentTasksSnapshot | Error) {
+          clearTimeout(deadline);
+          unsubscribe();
+          if (result instanceof Error) reject(result);
+          else resolveSnapshot(result);
+        }
+      }),
+    { id: agentId, ids: taskIds, name: label, timeout: WAIT_MS },
+  );
 }
 
 /**
@@ -175,10 +191,7 @@ async function decide(decision: "Deny" | "Allow"): Promise<Decision> {
   await card.getByRole("button", { name: decision, exact: true }).click();
   await card.waitFor({ state: "detached", timeout: WAIT_MS });
 
-  const ended = await waitForTasks(
-    "the task leaves running",
-    (snapshot) => taskIn(snapshot, task.id).state !== "running",
-  );
+  const ended = await waitForTasksStopped("the task leaves running", [task.id]);
   await panel.screenshot({ path: resolve(OUT, `${decision.toLowerCase()}-after.png`) });
   return {
     taskId: task.id,
@@ -232,9 +245,7 @@ try {
       .catch(() => undefined);
   }
   if (started.length > 0) {
-    await waitForTasks("the started tasks stop", (snapshot) =>
-      started.every((taskId) => taskIn(snapshot, taskId).state !== "running"),
-    ).catch(() => undefined);
+    await waitForTasksStopped("the started tasks stop", started).catch(() => undefined);
   }
   for (const taskId of started) {
     await page
