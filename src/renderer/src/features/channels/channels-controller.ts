@@ -3,6 +3,7 @@ import type { AppTextKey } from "@openbot/i18n";
 import type { AgentProfile } from "@openbot/ui/data";
 import { currentText } from "@openbot/ui/text";
 import { createEffect, createStore, flush, onSettled, reconcile, untrack } from "solid-js";
+import { actionToast } from "../../action-toast";
 import { type DesktopAnalyticsProperties, desktopAnalytics } from "../../analytics";
 import { mergeChannelPage } from "./channel-page-merge";
 
@@ -440,8 +441,20 @@ export function createChannelsController(env: ChannelsEnvironment) {
         throw new Error(state.error ?? currentText().t("channel.error.delete"));
       }
     },
-    /** A deleted channel comes back with its history. Its stopped tasks stay stopped. */
-    restore: (channelId: string) => void command({ type: "restore", channelId, operationId: crypto.randomUUID() }),
+    /**
+     * A deleted channel comes back with its history. Its stopped tasks stay stopped. The sidebar menu
+     * shows no channel error, so a failure is a toast, and it does not stay for the next channel.
+     */
+    restore: async (channelId: string) => {
+      if (await command({ type: "restore", channelId, operationId: crypto.randomUUID() })) return;
+      if (failedCommand?.type !== "restore" || failedCommand.channelId !== channelId) return;
+      const message = state.error ?? currentText().t("channel.error.update");
+      failedCommand = null;
+      setState((state) => {
+        Object.assign(state, { error: null, errorReference: null });
+      });
+      actionToast.error(message, { report: { operation: "other", source: "action", cause_code: "unknown" } });
+    },
     command,
     perform,
     loadOlder,
