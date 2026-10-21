@@ -145,7 +145,9 @@ so the state needs no SQL migration and a duplicate does not copy it. The host r
 to a hidden agent with `error.backend.recipientHidden`, on IPC, channels, MCP `send_message`, the
 automation server and external messaging. Its routines do not run, and its queued messages wait
 behind the drain hold `"hidden"`. A turn that runs at the hide finishes. A hidden agent is not in
-`list_agents`, the teammates prompt, the mention picker, the counts or "Needs you".
+`list_agents`, the teammates prompt, the mention picker, the counts or "Needs you". A hidden lead does not
+route channel requests, and `ChannelService.releaseAgent` gives the queued and starting channel
+assignments of the agent back to their channels.
 
 Restore marks the missed routine runs as skipped before it clears the flag, so the timer does not
 run a backlog. Then it arms the routines and drains the queue. IPC `agent:hidden:list` and
@@ -210,7 +212,9 @@ workspace, and OpenBot does not lock files; the `start_task` guidance warns the 
 
 A provider change is refused with `error.agent.waitForTasksBeforeProviderChange` while a task turn
 runs. After the change, `AgentService` retires the provider sessions of the chat and of each task
-thread, so each one gets a handoff on the new provider. The instance transfer file keeps `taskLimit`.
+thread, so each one gets a handoff on the new provider. The channel threads of the agent
+(`ChannelStore.contextThreadsForAgent`) are retired too, and their work steps are saved. A channel
+turn also carries its own self-contained context packet. The instance transfer file keeps `taskLimit`.
 
 ## Agent communication policy
 

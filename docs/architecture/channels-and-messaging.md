@@ -143,10 +143,35 @@ Channel tools retrieve history, assign a child task, transfer ownership, and rep
 runtime supplies channel and caller identity. A child keeps its parent owner; a transfer changes it.
 Only assignments and awaited results start turns. Completed child results are combined before the
 owner returns. The limit is eight automatic assignments per root request and two active assignments
-per channel. One agent runs at most one work turn across all chats. Declared workspace and browser
-resources are serialized; undeclared resources reserve the host. An assignment keeps the resources
-it started with until it ends, and a task with an active assignment starts no second owner. These
-controls do not restrict provider process privileges.
+per channel (`CHANNEL_PARALLEL_LIMIT`).
+
+Channel work holds only the agent that does it. An agent runs one main-lane turn at a time: its chat,
+a channel delivery or a messaging delivery. While the agent has an active assignment,
+`ChannelService.mayDrain` holds its other main-lane requests. The work of other agents does not hold
+it. The tasks of the agent run beside the channel turn within the agent task limit, and a channel
+turn takes no task slot. When the provider of the agent runs one turn at a time (`concurrentTurns:
+false`), its task turns count as busy. Only declared `browser` and `workspace:<path>` resources are
+serialized: the same browser, or two workspaces where one path contains the other. An empty list,
+`none`, and `host` (from an earlier version) reserve nothing. An assignment keeps the resources it
+started with until it ends, and a task with an active assignment starts no second owner. An update
+still waits for channel work on all of the host (`hasActiveWork`). These controls do not restrict
+provider process privileges.
+
+A channel turn can use `ask_ui`, the plan card (`acknowledge_request`) and `html_render`. The
+question, the card and the visual reply are copied into the channel, so each member who reads the
+channel sees them and can answer. Screen capture in a channel turn always asks, also with Full
+access, and the reason names the channel (`status.agent.screenCaptureChannel`). Messaging links
+still refuse these tools. `history_search`, `history_read` and `start_task` stay refused in a
+channel turn; `channel_history` gives the channel history.
+
+A hidden lead does not route. When the user hides an agent, `ChannelService.releaseAgent` gives its
+queued and starting assignments back to the channel. The task keeps its owner and gets a new
+revision, so the work continues after restore or after a reassign. When an agent that owns waiting
+channel work (`ownsWaitingWork`) reaches its usage limit, the agent moves to its backup model as for
+its own chat. The model-switch marker shows in the agent chat and in each affected channel.
+
+A one-time routine of a channel stays on this computer. The released Team API channel codec does
+not accept its schedule, so desktop IPC allows it only on the local host.
 
 Each turn receives bounded channel context: purpose, responsibilities, the current request, source
 messages and replies, shared decisions, recent messages, and attachment references. A versioned
@@ -166,8 +191,8 @@ effects do not have an exactly-once guarantee.
 
 Desktop IPC and remote desktop transports expose `channel-chats-v1` as an optional capability with
 separate payload codecs. Released Team API adapters keep their existing meaning. A host advertises
-the capability only when its channel service is connected. Unsupported remote hosts show an explanation
-in place of channel controls. The account API and Signal service add no channel storage or routing.
+the capability only when its channel service is connected. When a host does not advertise
+`channel-chats-v1`, the renderer hides the channel controls in the sidebar, search and schedule. The account API and Signal service add no channel storage or routing.
 
 The mobile app has no channel interface. It reads no channel routes or events, and its routine
 calendar and search show only agent routines. Its local preferences no longer keep channel pins or
