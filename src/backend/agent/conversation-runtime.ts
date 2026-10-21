@@ -737,6 +737,11 @@ export class ConversationRuntime {
     return this.#loadedThreads.get(externalThreadId);
   }
 
+  /** The client that can still run the session, also when `unloadAgentThreads` unloaded it. */
+  openClientFor(externalThreadId: string): AgentClient | undefined {
+    return this.#loadedThreads.get(externalThreadId) ?? this.#unloadedThreads.get(externalThreadId);
+  }
+
   markThreadLoaded(externalThreadId: string, client: AgentClient): void {
     this.#loadedThreads.set(externalThreadId, client);
     this.#unloadedThreads.delete(externalThreadId);
@@ -778,8 +783,7 @@ export class ConversationRuntime {
   openAgentThreads(agentId: string): Array<[externalThreadId: string, client: AgentClient]> {
     const open: Array<[string, AgentClient]> = [];
     for (const [externalThreadId, owner] of this.#threadToAgent) {
-      if (owner !== agentId) continue;
-      const client = this.#loadedThreads.get(externalThreadId) ?? this.#unloadedThreads.get(externalThreadId);
+      const client = owner === agentId ? this.openClientFor(externalThreadId) : undefined;
       if (client) open.push([externalThreadId, client]);
     }
     return open;

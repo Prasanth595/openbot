@@ -1068,7 +1068,7 @@ export class ThreadLifecycle {
   readonly #releaseProviderSession = Effect.fn("ThreadLifecycle.releaseProviderSession")(function* (
     this: ThreadLifecycle,
     externalThreadId: string,
-    client: AgentClient | undefined = this.#conversation.loadedClientFor(externalThreadId),
+    client: AgentClient | undefined = this.#conversation.openClientFor(externalThreadId),
   ) {
     if (!client?.releaseThread) return;
     yield* client
