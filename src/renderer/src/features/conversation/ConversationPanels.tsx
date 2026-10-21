@@ -1,3 +1,4 @@
+import { fileQuoteId } from "@openbot/contracts/chat-tag-references";
 import type { ServerSummary } from "@openbot/contracts/ipc";
 import { classifyFailure } from "@openbot/telemetry";
 import { SETTINGS_PANEL_DEFAULT, SETTINGS_PANEL_MAX } from "@openbot/ui/components/SettingsPanel";
@@ -263,6 +264,17 @@ export function ConversationPanels(panelProps: { onOpenUsage?: ((trigger: HTMLBu
             const source = file().source;
             return source.kind === "attachment" ? source.attachment : null;
           };
+          // The agent can read a workspace file, a shared file and an attachment, so a passage of one can be quoted.
+          const selectionQuoteId = () => {
+            const source = file().source;
+            if (source.kind === "attachment") {
+              const { id, name } = source.attachment;
+              return fileQuoteId({ source: "attachment", attachmentId: id, name });
+            }
+            return source.kind === "workspace" || source.kind === "shared"
+              ? fileQuoteId({ source: source.kind, path: source.path })
+              : undefined;
+          };
           return (
             <Loading>
               <FilePreviewPanel
@@ -291,6 +303,7 @@ export function ConversationPanels(panelProps: { onOpenUsage?: ((trigger: HTMLBu
                 sourceUrl={attached()?.previewUrl ?? null}
                 pageUrl={htmlAttachmentPageUrl(attached()) ?? file().preview?.pageUrl}
                 pageHtml={props.runtime?.visualPage ? htmlAttachmentPageHtml(attached(), file().preview) : undefined}
+                selectionQuoteId={selectionQuoteId()}
                 onOpenExternally={openSidebarFileExternally}
                 onDownload={downloadSidebarFile}
                 /* A browser cannot show a file in the file manager. */
