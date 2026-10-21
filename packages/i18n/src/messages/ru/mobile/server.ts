@@ -385,4 +385,32 @@ export const messages = {
   "mobile.server.usage.agent": "Агент",
   "mobile.server.usage.unsupported":
     "Этот хост не поддерживает аналитику использования. Обновите хост, чтобы открыть этот экран.",
+  "mobile.server.route.sites": "Сайты",
+  "mobile.server.settings.sites": "Сайты",
+  "mobile.server.settings.siteCount": {
+    one: "{count} из {limit}",
+    few: "{count} из {limit}",
+    many: "{count} из {limit}",
+    other: "{count} из {limit}",
+  },
+  "mobile.server.sites.usage": {
+    one: "{used} из {count} сайта",
+    few: "{used} из {count} сайтов",
+    many: "{used} из {count} сайтов",
+    other: "{used} из {count} сайта",
+  },
+  "mobile.server.sites.expiryNote":
+    "Сайты перестают работать через 30 дней после публикации. Попросите агента опубликовать или обновить сайт.",
+  "mobile.server.sites.empty": "На этом сервере пока нет размещённого сайта. Попросите агента опубликовать его.",
+  "mobile.server.sites.loading": "Загрузка сайтов…",
+  "mobile.server.sites.loadFailed": "Не удалось загрузить размещённые сайты.",
+  "mobile.server.sites.retry": "Повторить",
+  "mobile.server.sites.expires": "Истекает {date}",
+  "mobile.server.sites.blocked": "Заблокирован",
+  "mobile.server.sites.unlinked": "Не привязан к серверу",
+  "mobile.server.sites.deleteTitle": "Удалить {hostname}?",
+  "mobile.server.sites.deleteDescription": "Этот адрес сразу начнёт возвращать 410 Gone.",
+  "mobile.server.sites.deleteFailed": "Не удалось удалить сайт.",
+  "mobile.server.sites.openFailed": "Не удалось открыть сайт.",
+  "mobile.server.sites.unsupported": "Обновите OpenBot на этом сервере, чтобы видеть его сайты здесь.",
 } as const satisfies PartialTranslation<typeof source>;

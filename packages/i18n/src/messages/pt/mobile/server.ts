@@ -341,4 +341,22 @@ export const messages = {
   "mobile.server.usage.agent": "Agente",
   "mobile.server.usage.unsupported":
     "Este computador anfitrião não oferece análises de uso. Atualize-o para usar esta tela.",
+  "mobile.server.route.sites": "Sites",
+  "mobile.server.settings.sites": "Sites",
+  "mobile.server.settings.siteCount": { one: "{count} de {limit}", other: "{count} de {limit}" },
+  "mobile.server.sites.usage": { one: "{used} de {count} site", other: "{used} de {count} sites" },
+  "mobile.server.sites.expiryNote":
+    "Os sites expiram 30 dias após a publicação. Peça a um agente para publicar ou atualizar um site.",
+  "mobile.server.sites.empty": "Este servidor ainda não tem um site hospedado. Peça a um agente para publicar um.",
+  "mobile.server.sites.loading": "Carregando sites…",
+  "mobile.server.sites.loadFailed": "Não foi possível carregar os sites hospedados.",
+  "mobile.server.sites.retry": "Tentar de novo",
+  "mobile.server.sites.expires": "Expira em {date}",
+  "mobile.server.sites.blocked": "Bloqueado",
+  "mobile.server.sites.unlinked": "Não vinculado a um servidor",
+  "mobile.server.sites.deleteTitle": "Excluir {hostname}?",
+  "mobile.server.sites.deleteDescription": "Este endereço retornará 410 Gone imediatamente.",
+  "mobile.server.sites.deleteFailed": "Não foi possível excluir o site.",
+  "mobile.server.sites.openFailed": "Não foi possível abrir o site.",
+  "mobile.server.sites.unsupported": "Atualize o OpenBot neste servidor para ver os sites dele aqui.",
 } as const satisfies PartialTranslation<typeof source>;

@@ -333,4 +333,22 @@ export const messages = {
   "mobile.server.usage.agent": "エージェント",
   "mobile.server.usage.unsupported":
     "このホストは使用量の分析に対応していません。この画面を使うには、ホストを更新してください。",
+  "mobile.server.route.sites": "サイト",
+  "mobile.server.settings.sites": "サイト",
+  "mobile.server.settings.siteCount": { other: "{count} / {limit}" },
+  "mobile.server.sites.usage": { other: "{used} / {count} サイト" },
+  "mobile.server.sites.expiryNote":
+    "サイトは公開から 30 日後に期限切れになります。サイトの公開や更新はエージェントに依頼してください。",
+  "mobile.server.sites.empty": "このサーバーには公開サイトがまだありません。エージェントに公開を依頼してください。",
+  "mobile.server.sites.loading": "サイトを読み込んでいます…",
+  "mobile.server.sites.loadFailed": "公開サイトを読み込めませんでした。",
+  "mobile.server.sites.retry": "再試行",
+  "mobile.server.sites.expires": "有効期限 {date}",
+  "mobile.server.sites.blocked": "ブロック済み",
+  "mobile.server.sites.unlinked": "サーバーに未リンク",
+  "mobile.server.sites.deleteTitle": "{hostname} を削除しますか？",
+  "mobile.server.sites.deleteDescription": "このアドレスはすぐに 410 Gone を返すようになります。",
+  "mobile.server.sites.deleteFailed": "サイトを削除できませんでした。",
+  "mobile.server.sites.openFailed": "サイトを開けませんでした。",
+  "mobile.server.sites.unsupported": "ここでサイトを表示するには、このサーバーの OpenBot を更新してください。",
 } as const satisfies PartialTranslation<typeof source>;

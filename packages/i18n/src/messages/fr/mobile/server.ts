@@ -340,4 +340,22 @@ export const messages = {
   "mobile.server.usage.agent": "Agent",
   "mobile.server.usage.unsupported":
     "Cet hôte ne prend pas en charge les statistiques d’utilisation. Mettez à jour l’hôte pour utiliser cette vue.",
+  "mobile.server.route.sites": "Sites",
+  "mobile.server.settings.sites": "Sites",
+  "mobile.server.settings.siteCount": { one: "{count} sur {limit}", other: "{count} sur {limit}" },
+  "mobile.server.sites.usage": { one: "{used} sur {count} site", other: "{used} sur {count} sites" },
+  "mobile.server.sites.expiryNote":
+    "Les sites expirent 30 jours après leur publication. Demandez à un agent de publier ou de mettre à jour un site.",
+  "mobile.server.sites.empty": "Ce serveur n’a pas encore de site hébergé. Demandez à un agent d’en publier un.",
+  "mobile.server.sites.loading": "Chargement des sites…",
+  "mobile.server.sites.loadFailed": "Impossible de charger les sites hébergés.",
+  "mobile.server.sites.retry": "Réessayer",
+  "mobile.server.sites.expires": "Expire le {date}",
+  "mobile.server.sites.blocked": "Bloqué",
+  "mobile.server.sites.unlinked": "Non lié à un serveur",
+  "mobile.server.sites.deleteTitle": "Supprimer {hostname} ?",
+  "mobile.server.sites.deleteDescription": "Cette adresse renverra immédiatement 410 Gone.",
+  "mobile.server.sites.deleteFailed": "Impossible de supprimer le site.",
+  "mobile.server.sites.openFailed": "Impossible d’ouvrir le site.",
+  "mobile.server.sites.unsupported": "Mettez à jour OpenBot sur ce serveur pour voir ses sites ici.",
 } as const satisfies PartialTranslation<typeof source>;

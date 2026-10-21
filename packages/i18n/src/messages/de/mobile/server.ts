@@ -349,4 +349,26 @@ export const messages = {
   "mobile.server.usage.agent": "Agent",
   "mobile.server.usage.unsupported":
     "Dieser Host unterstützt keine Nutzungsanalyse. Aktualisiere den Host, um diese Ansicht zu verwenden.",
+  "mobile.server.route.sites": "Websites",
+  "mobile.server.settings.sites": "Websites",
+  "mobile.server.settings.siteCount": { other: "{count} von {limit}" },
+  "mobile.server.sites.usage": {
+    one: "{used} von {count} Website",
+    other: "{used} von {count} Websites",
+  },
+  "mobile.server.sites.expiryNote":
+    "Websites laufen 30 Tage nach der Veröffentlichung ab. Bitte einen Agenten, eine Website zu veröffentlichen oder zu aktualisieren.",
+  "mobile.server.sites.empty":
+    "Dieser Server hat noch keine gehostete Website. Bitte einen Agenten, eine zu veröffentlichen.",
+  "mobile.server.sites.loading": "Websites werden geladen…",
+  "mobile.server.sites.loadFailed": "Die gehosteten Websites konnten nicht geladen werden.",
+  "mobile.server.sites.retry": "Erneut versuchen",
+  "mobile.server.sites.expires": "Läuft am {date} ab",
+  "mobile.server.sites.blocked": "Gesperrt",
+  "mobile.server.sites.unlinked": "Mit keinem Server verknüpft",
+  "mobile.server.sites.deleteTitle": "{hostname} löschen?",
+  "mobile.server.sites.deleteDescription": "Diese Adresse gibt sofort 410 Gone zurück.",
+  "mobile.server.sites.deleteFailed": "Die Website konnte nicht gelöscht werden.",
+  "mobile.server.sites.openFailed": "Die Website konnte nicht geöffnet werden.",
+  "mobile.server.sites.unsupported": "Aktualisiere OpenBot auf diesem Server, um seine Websites hier zu sehen.",
 } as const satisfies PartialTranslation<typeof source>;

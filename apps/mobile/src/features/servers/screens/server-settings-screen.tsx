@@ -18,6 +18,7 @@ import { ServerAvatar } from "@/features/servers/components/server-avatar";
 import { ServerStatusLabel } from "@/features/servers/components/server-status-label";
 import { SERVER_ROLE_LABEL_KEYS } from "@/features/servers/model/server-role";
 import { timeZoneLabel } from "@/features/servers/model/time-zones";
+import { useServerSites } from "@/features/servers/model/use-server-sites";
 import { useServerTimezone } from "@/features/servers/model/use-server-timezone";
 import {
   SettingsContent,
@@ -125,6 +126,7 @@ export function ServerSettingsScreen() {
         >
           <Typography.Paragraph>{t("mobile.server.settings.members")}</Typography.Paragraph>
         </SettingsRow>
+        <ServerSitesRow serverId={serverId} />
       </SettingsSection>
       <ServerGeneralSettings serverId={serverId} />
       <ServerNotificationSettings server={server} title={t("mobile.settings.notifications.title")} />
@@ -356,6 +358,26 @@ function ServerGeneralSettings({ serverId }: { serverId: string }) {
         </SettingsRow>
       ) : null}
     </SettingsSection>
+  );
+}
+
+/** The Sites row, for every member of a host that serves `hosted-sites-v1`. */
+function ServerSitesRow({ serverId }: { serverId: string }) {
+  const { t } = useText();
+  const { available, query } = useServerSites(serverId);
+  if (!available) return null;
+  const list = query.data;
+  return (
+    <SettingsRow
+      trailing={
+        list ? (
+          <TrailingValue value={t("mobile.server.settings.siteCount", { count: list.used, limit: list.limit })} />
+        ) : undefined
+      }
+      onPress={() => router.push({ pathname: "/server-settings/sites", params: { serverId } })}
+    >
+      <Typography.Paragraph>{t("mobile.server.settings.sites")}</Typography.Paragraph>
+    </SettingsRow>
   );
 }
 

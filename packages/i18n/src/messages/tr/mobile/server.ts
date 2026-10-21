@@ -340,4 +340,22 @@ export const messages = {
   "mobile.server.usage.agent": "Ajan",
   "mobile.server.usage.unsupported":
     "Bu ana makine kullanım analizlerini desteklemiyor. Bu görünümü kullanmak için ana makineyi güncelleyin.",
+  "mobile.server.route.sites": "Siteler",
+  "mobile.server.settings.sites": "Siteler",
+  "mobile.server.settings.siteCount": { one: "{count} / {limit}", other: "{count} / {limit}" },
+  "mobile.server.sites.usage": { one: "{count} siteden {used} tanesi", other: "{count} siteden {used} tanesi" },
+  "mobile.server.sites.expiryNote":
+    "Sitelerin süresi yayımlandıktan 30 gün sonra dolar. Bir ajandan bir site yayımlamasını veya güncellemesini isteyin.",
+  "mobile.server.sites.empty": "Bu sunucunun henüz barındırılan bir sitesi yok. Bir ajandan yayımlamasını isteyin.",
+  "mobile.server.sites.loading": "Siteler yükleniyor…",
+  "mobile.server.sites.loadFailed": "Barındırılan siteler yüklenemedi.",
+  "mobile.server.sites.retry": "Tekrar dene",
+  "mobile.server.sites.expires": "Sona erme tarihi: {date}",
+  "mobile.server.sites.blocked": "Engellendi",
+  "mobile.server.sites.unlinked": "Bir sunucuya bağlı değil",
+  "mobile.server.sites.deleteTitle": "{hostname} silinsin mi?",
+  "mobile.server.sites.deleteDescription": "Bu adres hemen 410 Gone döndürecektir.",
+  "mobile.server.sites.deleteFailed": "Site silinemedi.",
+  "mobile.server.sites.openFailed": "Site açılamadı.",
+  "mobile.server.sites.unsupported": "Sitelerini burada görmek için bu sunucudaki OpenBot'u güncelleyin.",
 } as const satisfies PartialTranslation<typeof source>;

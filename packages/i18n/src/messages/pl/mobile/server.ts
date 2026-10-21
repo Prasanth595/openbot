@@ -385,4 +385,32 @@ export const messages = {
   "mobile.server.usage.agent": "Agent",
   "mobile.server.usage.unsupported":
     "Ten host nie obsługuje analityki użycia. Zaktualizuj hosta, aby korzystać z tego widoku.",
+  "mobile.server.route.sites": "Witryny",
+  "mobile.server.settings.sites": "Witryny",
+  "mobile.server.settings.siteCount": {
+    one: "{count} z {limit}",
+    few: "{count} z {limit}",
+    many: "{count} z {limit}",
+    other: "{count} z {limit}",
+  },
+  "mobile.server.sites.usage": {
+    one: "{used} z {count} witryny",
+    few: "{used} z {count} witryn",
+    many: "{used} z {count} witryn",
+    other: "{used} z {count} witryny",
+  },
+  "mobile.server.sites.expiryNote":
+    "Witryny wygasają 30 dni po publikacji. Poproś agenta o opublikowanie lub aktualizację witryny.",
+  "mobile.server.sites.empty": "Ten serwer nie ma jeszcze hostowanej witryny. Poproś agenta o jej opublikowanie.",
+  "mobile.server.sites.loading": "Wczytywanie witryn…",
+  "mobile.server.sites.loadFailed": "Nie udało się wczytać hostowanych witryn.",
+  "mobile.server.sites.retry": "Spróbuj ponownie",
+  "mobile.server.sites.expires": "Wygasa {date}",
+  "mobile.server.sites.blocked": "Zablokowana",
+  "mobile.server.sites.unlinked": "Niepowiązana z serwerem",
+  "mobile.server.sites.deleteTitle": "Usunąć {hostname}?",
+  "mobile.server.sites.deleteDescription": "Ten adres natychmiast zacznie zwracać 410 Gone.",
+  "mobile.server.sites.deleteFailed": "Nie udało się usunąć witryny.",
+  "mobile.server.sites.openFailed": "Nie udało się otworzyć witryny.",
+  "mobile.server.sites.unsupported": "Zaktualizuj OpenBot na tym serwerze, aby zobaczyć tutaj jego witryny.",
 } as const satisfies PartialTranslation<typeof source>;
