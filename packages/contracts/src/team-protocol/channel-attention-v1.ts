@@ -10,6 +10,9 @@ import type { TeamProtocolV2Json } from "./v2";
  * - `threads` on each summary of `GET /v1/channels`: at most 100 `{ agentId, threadId }` records,
  *   the execution thread of each member agent in that channel. A prompt event names a thread, and
  *   this maps it to its channel;
+ * - `openTasks` on each summary: the count of its `queued`, `waiting` and `running` tasks. The
+ *   released `activeTasks` counts only `running` ones, so it is 0 while a task waits for others. A
+ *   client notifies a reply only when this is 0;
  * - `author` on the `lastMessage` of each summary: `{ kind: "member" | "agent" | "coordinator", id }`,
  *   the same identity as the author of a channel message, without the name that `authorName` holds;
  * - `status` on the `lastMessage` of each summary: `"streaming" | "completed" | "failed" |
@@ -41,6 +44,12 @@ function threads(value: unknown): TeamProtocolV2Json[] {
   });
 }
 
+function taskCount(value: unknown): number {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0)
+    throw new Error("Invalid channel open tasks.");
+  return value;
+}
+
 function author(value: unknown): TeamProtocolV2Json {
   if (!isDynamicRecord(value) || !isString(value.kind) || !AUTHOR_KINDS.includes(value.kind))
     throw new Error("Invalid channel preview author.");
@@ -57,6 +66,7 @@ function withSummaryAttention(projected: TeamProtocolV2Json, source: unknown): T
   if (!isDynamicRecord(projected) || !isDynamicRecord(source)) return projected;
   const result: { [key: string]: TeamProtocolV2Json } = { ...projected };
   if (source.threads !== undefined) result.threads = threads(source.threads);
+  if (source.openTasks !== undefined) result.openTasks = taskCount(source.openTasks);
   const preview = source.lastMessage;
   if (!isDynamicRecord(result.lastMessage) || !isDynamicRecord(preview)) return result;
   const added: { [key: string]: TeamProtocolV2Json } = {};

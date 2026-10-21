@@ -43,10 +43,12 @@ to approve, with secrets redacted. Otherwise it is the fixed desktop text, such 
 Channels are an exception. The desktop and the web client notify an agent reply in a channel from
 the channel list (`channelReplyNotifications`), because the channel service consumes the
 `turn-completed` event of a channel thread. On a host with `channel-attention-v1`, each summary names
-the author and status of its newest message and the thread of each member. A reply notifies once,
-when the work of the channel ends (its newest message is an agent's and stopped streaming, and no
-task runs), while the channel has unread messages. A turn that writes many messages, or that asks a
-question on the way, thus notifies once, at its end. The desktop reads the agent list for a
+the author and status of its newest message, the thread of each member, and `openTasks`: its
+queued, waiting and running tasks. The released `activeTasks` counts only running tasks, so it is 0
+while a task waits for the tasks it passed on. A reply notifies once, when the work of the channel
+ends (its newest message is an agent's and stopped streaming, and `openTasks` is 0), while the
+channel has unread messages. Work that writes many messages, asks a question on the way, or passes
+parts to other agents thus notifies once, at its end. The desktop reads the agent list for a
 notification only when a reply is new, and it reads no channel list for a server whose replies
 cannot notify. The title of a prompt, an approval or
 a takeover on a channel thread names the agent and the channel (`notification.channelTitle`), and a
