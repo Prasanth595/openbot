@@ -517,6 +517,7 @@ function SingleChatActionMarker(
             <RoutineRunHistory
               id={historyId()}
               transitions={transitions()}
+              animated={messagesRun() === undefined}
               open={messagesRun() !== undefined || historyExpanded()}
               onClosed={() => setHistoryMounted(historyExpanded())}
             />
@@ -530,6 +531,8 @@ function SingleChatActionMarker(
 function RoutineRunHistory(props: {
   id: string | undefined;
   transitions: RoutineRunMarkerTransition[];
+  /** The open and close animations play only when the reader opens or closes the states. */
+  animated: boolean;
   open: boolean;
   onClosed: () => void;
 }) {
@@ -537,7 +540,7 @@ function RoutineRunHistory(props: {
   return (
     <div
       class="chat-action-history-panel"
-      data-state={props.open ? "open" : "closed"}
+      data-state={props.animated ? (props.open ? "open" : "closed") : undefined}
       inert={!props.open}
       /* The collapse is the last part of the exit, so the panel leaves on its
          own animation's end. The rows' animations bubble through here and end
@@ -548,17 +551,18 @@ function RoutineRunHistory(props: {
     >
       <div class="chat-action-history-clip">
         <ol id={props.id} class="chat-action-history" aria-label={t("chat.marker.earlierStates")}>
-          <For each={props.transitions}>
+          {/* A state keeps its entry while the run moves on, so only a new state fades in. */}
+          <For each={props.transitions} keyed={(transition) => `${transition.status}:${transition.timestamp}`}>
             {(transition, index) => {
               const previous = () => props.transitions[index() - 1];
-              const status = () => routineMarkerStatus(transition.status);
+              const status = () => routineMarkerStatus(transition().status);
               return (
                 <li class={`chat-action-history-entry chat-action-history-status-${status()}`}>
                   <MarkerIcon class="chat-action-history-icon">
-                    <Dynamic component={routineHistoryIcon(transition.status)} aria-hidden="true" />
+                    <Dynamic component={routineHistoryIcon(transition().status)} aria-hidden="true" />
                   </MarkerIcon>
-                  <span>{routineHistoryLabel(transition.status, previous()?.status, t)}</span>
-                  <time datetime={transition.timestamp}>{formatMarkerTime(transition.timestamp, t, format)}</time>
+                  <span>{routineHistoryLabel(transition().status, previous()?.status, t)}</span>
+                  <time datetime={transition().timestamp}>{formatMarkerTime(transition().timestamp, t, format)}</time>
                 </li>
               );
             }}

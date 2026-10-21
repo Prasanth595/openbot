@@ -11,11 +11,14 @@ type RoutineRunMarker = RoutineRunMarkerModel;
 
 interface IndexedTransition extends RoutineRunMarkerTransition {
   index: number;
+  marker: RoutineRunMarker;
 }
 
 /**
  * Reduces the durable transition log to one visible summary for each routine run.
  * The stored messages stay unchanged, so the summary can be rebuilt after refresh or pagination.
+ * The summary shows the latest state in the place and under the id of the run's first state, so it
+ * stays the same row while the run moves on, and its entrance does not play again for each state.
  */
 export function summarizeRoutineRunMessages(messages: readonly AgentMessage[]): AgentMessage[] {
   const transitionsByRun = new Map<string, IndexedTransition[]>();
@@ -24,7 +27,7 @@ export function summarizeRoutineRunMessages(messages: readonly AgentMessage[]): 
     const marker = routineRunMarker(message);
     if (!marker) return;
     const transitions = transitionsByRun.get(marker.runId) ?? [];
-    transitions.push({ index, status: marker.status, timestamp: marker.timestamp });
+    transitions.push({ index, marker, status: marker.status, timestamp: marker.timestamp });
     transitionsByRun.set(marker.runId, transitions);
   });
 
@@ -34,12 +37,12 @@ export function summarizeRoutineRunMessages(messages: readonly AgentMessage[]): 
     const transitions = transitionsByRun.get(marker.runId);
     if (!transitions || transitions.length === 1) return [message];
     const latest = transitions.at(-1);
-    if (latest?.index === index) {
+    if (latest && transitions[0]?.index === index) {
       return [
         {
           ...message,
           actionMarker: {
-            ...marker,
+            ...latest.marker,
             previousTransitions: transitions.slice(0, -1).map(({ status, timestamp }) => ({ status, timestamp })),
           },
         },
