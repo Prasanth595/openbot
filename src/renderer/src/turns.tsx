@@ -139,7 +139,7 @@ const Turns = createSimpleContext({
       },
     );
 
-    function loadQueue(agentId: string, serverId: string): void {
+    function loadQueue(agentId: string): void {
       const queueRequest = (queueSnapshotRequests.get(agentId) ?? 0) + 1;
       queueSnapshotRequests.set(agentId, queueRequest);
       void turnsPort()
@@ -148,19 +148,15 @@ const Turns = createSimpleContext({
           if (!scopeIsCurrent() || queueSnapshotRequests.get(agentId) !== queueRequest) return;
           setQueues((current) => ({ ...current, [agentId]: queue }));
         })
-        .catch((error) => {
-          // A newer load replaces this one, and an agent that is not open loads again when it opens.
-          // Without this, each failed load of a stalled server added one more error.
-          if (!scopeIsCurrent() || queueSnapshotRequests.get(agentId) !== queueRequest || agentId !== activeAgentId())
-            return;
-          appendUiError(agentId, error, currentText().t("app.errorStatus.queueLoad"), serverId);
-        });
+        // This background read can time out while chat replies still arrive. Keep the last queue;
+        // the next load or queue-changed event updates it. Queue action failures still report errors.
+        .catch(() => undefined);
     }
 
     createEffect(
       () => ({ agentId: activeAgentId(), agentPhase: agentStatus().phase, serverId: activeServerId() }),
-      ({ agentId, serverId }) => {
-        if (agentId) loadQueue(agentId, serverId);
+      ({ agentId }) => {
+        if (agentId) loadQueue(agentId);
       },
     );
 
@@ -206,7 +202,7 @@ const Turns = createSimpleContext({
           return;
         }
         if (!next.agentIds) return;
-        for (const agentId of next.agentIds.split("\0")) loadQueue(agentId, next.serverId);
+        for (const agentId of next.agentIds.split("\0")) loadQueue(agentId);
       },
     );
 
