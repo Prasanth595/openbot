@@ -3,7 +3,7 @@ import { agentProviderName, COMPUTER_USE_MCP_SERVER_NAME, DEFAULT_PROVIDER_ACCOU
 import { type DynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
 import { type AgentProvider, MissingClaudeSessionError, RequestTimeoutError } from "../agent-client";
-import { AppServerError } from "../app-server-client";
+import { AppServerError, isCodexMissingThreadError, isCodexUnloadedThreadError } from "../app-server-client";
 import {
   bridgedToolName,
   type DynamicToolCallParams,
@@ -25,6 +25,13 @@ export function isNonActionableCodexWarning(message: string): boolean {
 
 export function isArchivedThreadError(error: unknown): boolean {
   return error instanceof AppServerError && /\bis archived\b/i.test(error.message);
+}
+
+export { isCodexMissingThreadError, isCodexUnloadedThreadError };
+
+/** Codex can load this thread again: it is archived or only unloaded from the process. */
+export function isRecoverableCodexThreadError(error: unknown): boolean {
+  return isArchivedThreadError(error) || isCodexUnloadedThreadError(error);
 }
 
 /**
@@ -86,6 +93,7 @@ export function isMissingProviderSessionError(error: unknown, provider: AgentPro
   // Provider diagnostics can mention missing resources without proving that this session is gone.
   if (error instanceof RequestError) return false;
   if (provider === "claude") return error instanceof MissingClaudeSessionError;
+  if (provider === "codex") return isCodexUnloadedThreadError(error) || isCodexMissingThreadError(error);
   if (
     (provider !== "grok" &&
       provider !== "opencode" &&

@@ -1,7 +1,7 @@
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { EventEmitter } from "node:events";
 import { type DynamicRecord, isNumber, isString } from "@openbot/contracts/runtime-values";
-import { Effect, Fiber } from "effect";
+import { Effect, Fiber, Result } from "effect";
 import { type AgentProvider, RequestTimeoutError } from "./agent-client";
 import { cliSpawnTarget } from "./cli";
 import { JsonLineDecoder, LineTooLongError } from "./jsonl";
@@ -48,6 +48,29 @@ export class AppServerError extends Error {
     super(message);
     this.name = "AppServerError";
   }
+}
+
+/**
+ * Codex answered `thread not loaded: {id}`: the rollout can still exist, but this process does not
+ * have the thread in memory (`codex-rs/app-server/src/request_processors/thread_processor.rs`).
+ * A `thread/resume` loads it. History reads must not resume: that unarchives a replaced session.
+ */
+export function isCodexUnloadedThreadError(error: unknown): boolean {
+  return error instanceof AppServerError && /thread not loaded:/i.test(error.message);
+}
+
+/** Codex has no rollout for this id. A new session is the recovery. */
+export function isCodexMissingThreadError(error: unknown): boolean {
+  return (
+    error instanceof AppServerError &&
+    (/thread not found:/i.test(error.message) || /\bno rollout found\b/i.test(error.message))
+  );
+}
+
+export function isCodexUnavailableThreadError(error: unknown): boolean {
+  if (isCodexUnloadedThreadError(error) || isCodexMissingThreadError(error)) return true;
+  if (error instanceof ProviderClientOperationError) return isCodexUnavailableThreadError(error.cause);
+  return false;
 }
 
 export class CodexAppServerClient extends EventEmitter<ClientEvents> {
@@ -190,20 +213,29 @@ export class CodexAppServerClient extends EventEmitter<ClientEvents> {
   ) {
     // These endpoints read the persisted rollout directly. Do not resume here: a resume applies
     // runtime settings and can reopen an archived thread while this operation only needs history.
+    // Codex 0.163 still requires a loaded thread for `thread/turns/list`. An unloaded or missing
+    // retired session is empty history, not a user-facing failure.
     let cursor: string | undefined;
     const seenTurnCursors = new Set<string>();
     while (true) {
-      const page = yield* this.request(
-        "thread/turns/list",
-        {
-          threadId: request.threadId,
-          limit: PROVIDER_HISTORY_PAGE_SIZE,
-          sortDirection: "desc",
-          itemsView: "notLoaded",
-          ...(cursor === undefined ? {} : { cursor }),
-        },
-        decodeTurnHistoryPage,
+      const listed = yield* Effect.result(
+        this.request(
+          "thread/turns/list",
+          {
+            threadId: request.threadId,
+            limit: PROVIDER_HISTORY_PAGE_SIZE,
+            sortDirection: "desc",
+            itemsView: "notLoaded",
+            ...(cursor === undefined ? {} : { cursor }),
+          },
+          decodeTurnHistoryPage,
+        ),
       );
+      if (Result.isFailure(listed)) {
+        if (isCodexUnavailableThreadError(listed.failure)) return;
+        return yield* listed.failure;
+      }
+      const page = listed.success;
 
       for (const turn of page.data) {
         if (request.items === "none") {
@@ -215,17 +247,24 @@ export class CodexAppServerClient extends EventEmitter<ClientEvents> {
         const seenItemCursors = new Set<string>();
         let itemOffset = 0;
         while (true) {
-          const itemPage = yield* this.request(
-            "thread/items/list",
-            {
-              threadId: request.threadId,
-              turnId: turn.id,
-              limit: PROVIDER_HISTORY_PAGE_SIZE,
-              sortDirection: "asc",
-              ...(itemCursor === undefined ? {} : { cursor: itemCursor }),
-            },
-            decodeItemHistoryPage,
+          const listedItems = yield* Effect.result(
+            this.request(
+              "thread/items/list",
+              {
+                threadId: request.threadId,
+                turnId: turn.id,
+                limit: PROVIDER_HISTORY_PAGE_SIZE,
+                sortDirection: "asc",
+                ...(itemCursor === undefined ? {} : { cursor: itemCursor }),
+              },
+              decodeItemHistoryPage,
+            ),
           );
+          if (Result.isFailure(listedItems)) {
+            if (isCodexUnavailableThreadError(listedItems.failure)) return;
+            return yield* listedItems.failure;
+          }
+          const itemPage = listedItems.success;
           if (itemPage.data.some((entry) => entry.turnId !== turn.id)) {
             return yield* new ProviderClientOperationError({
               cause: new Error("Codex returned an item for the wrong turn."),

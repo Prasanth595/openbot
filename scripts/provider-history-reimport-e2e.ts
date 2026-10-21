@@ -4,7 +4,14 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { type AgentProviderId, type QueueDelivery, ROUTINE_QUIET_ANSWER_ITEM_TYPE } from "@openbot/contracts/ipc";
 import { Effect } from "effect";
+import {
+  isCodexMissingThreadError,
+  isCodexUnloadedThreadError,
+  isMissingProviderSessionError,
+  isRecoverableCodexThreadError,
+} from "../src/backend/agent/thread-items";
 import { AgentStore } from "../src/backend/agent-store";
+import { AppServerError } from "../src/backend/app-server-client";
 import { runCauseEffect } from "../src/backend/effect-boundary";
 import type { DeliveryContext } from "../src/backend/mailbox-store";
 import { OpenBotDatabase } from "../src/backend/openbot-database";
@@ -171,6 +178,17 @@ async function runProviderHistoryReimportCheck(outputPath: string): Promise<Repo
       .run("codex-session", "codex-turn-3");
     const unfinished = await runImport("codex-session", "codex", [...editedHistory, turn("codex-turn-5", 5)]);
 
+    const empty = await runImport("codex-empty-session", "codex", []);
+    const emptyImport = database.providerHistoryImport("codex-empty-session");
+    const unloaded = new AppServerError("thread not loaded: 01a15e78-d59f-7cc1-82fa-f0a9d50c7e4a", -32600);
+    const prefixed = new AppServerError(
+      "thread/turns/list failed: thread not loaded: 01a15e78-d59f-7cc1-82fa-f0a9d50c7e4a",
+      -32600,
+    );
+    const missing = new AppServerError("thread not found: 01a15e78-d59f-7cc1-82fa-f0a9d50c7e4a", -32600);
+    const noRollout = new AppServerError("no rollout found for thread id 01a15e78-d59f-7cc1-82fa-f0a9d50c7e4a", -32600);
+    const other = new AppServerError("failed to load configuration: config.toml", -32600);
+
     const report: Report = {
       schemaVersion: 1,
       generatedAt: new Date().toISOString(),
@@ -187,6 +205,7 @@ async function runProviderHistoryReimportCheck(outputPath: string): Promise<Repo
         splitEdited,
         claudeQuiet,
         unfinished,
+        empty,
       },
       acceptance: {
         firstImportsEveryTurn: first.turns === codexHistory.length && messagesAfterFirst.length === 6,
@@ -209,6 +228,22 @@ async function runProviderHistoryReimportCheck(outputPath: string): Promise<Repo
           quietAnswers[0]?.itemType === ROUTINE_QUIET_ANSWER_ITEM_TYPE,
         unfinishedTurnImportsAgain: unfinished.turns === 1,
         importCompleted: database.providerHistoryImport("codex-session")?.state === "complete",
+        emptyHistoryMarksComplete: empty.turns === 0 && empty.messages === 0 && emptyImport?.state === "complete",
+        unloadedThreadIsMissingCodexSession:
+          isCodexUnloadedThreadError(unloaded) &&
+          isCodexUnloadedThreadError(prefixed) &&
+          isRecoverableCodexThreadError(unloaded) &&
+          isMissingProviderSessionError(unloaded, "codex") &&
+          isMissingProviderSessionError(prefixed, "codex") &&
+          !isMissingProviderSessionError(unloaded, "grok"),
+        missingCodexThreadIsMissingSession:
+          isCodexMissingThreadError(missing) &&
+          isCodexMissingThreadError(noRollout) &&
+          isMissingProviderSessionError(missing, "codex") &&
+          isMissingProviderSessionError(noRollout, "codex") &&
+          !isCodexUnloadedThreadError(missing) &&
+          !isRecoverableCodexThreadError(missing) &&
+          !isMissingProviderSessionError(other, "codex"),
       },
     };
     await mkdir(dirname(outputPath), { recursive: true });

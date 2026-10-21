@@ -161,7 +161,9 @@ export function importProviderHistory(
           }),
         ),
       );
-    if (providerCovered)
+    // A successful empty read still finishes the import. Codex returns no turns for an unloaded
+    // retired session, and retrying it on every start would toast `thread not loaded` forever.
+    if (providerCovered || turns === 0)
       yield* providerSync(() => input.database.markProviderHistoryImportState(input.sessionId, "complete"));
     return { turns, messages };
   });

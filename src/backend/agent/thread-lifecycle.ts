@@ -49,7 +49,12 @@ import { developerInstructions, memoryContext, type SectionTeammates } from "./d
 import { readHandoffHistory, renderProviderHandoff } from "./handoff-history";
 import { decodeCapturedSteps, readCapturedSteps } from "./handoff-tool-steps";
 import { sessionSettingsIdentity } from "./session-settings";
-import { isArchivedThreadError, isMissingProviderSessionError } from "./thread-items";
+import {
+  isArchivedThreadError,
+  isCodexUnloadedThreadError,
+  isMissingProviderSessionError,
+  isRecoverableCodexThreadError,
+} from "./thread-items";
 import { VISIBLE_DYNAMIC_TOOLS } from "./tool-catalog";
 import { codexSandboxConfig, codexSandboxMode, workspaceWritableRoots } from "./workspace-sandbox";
 
@@ -900,11 +905,19 @@ export class ThreadLifecycle {
       client.request("thread/resume", params, decodeRecordResponse).pipe(toThreadOperationFailed),
     );
     if (Result.isFailure(resumed)) {
-      if (client.provider !== "codex" || !isArchivedThreadError(resumed.failure.cause)) return yield* resumed.failure;
-      yield* client
-        .request("thread/unarchive", { threadId: externalThreadId }, decodeRecordResponse)
-        .pipe(toThreadOperationFailed);
-      yield* client.request("thread/resume", params, decodeRecordResponse).pipe(toThreadOperationFailed);
+      if (client.provider !== "codex") return yield* resumed.failure;
+      if (isArchivedThreadError(resumed.failure.cause)) {
+        yield* client
+          .request("thread/unarchive", { threadId: externalThreadId }, decodeRecordResponse)
+          .pipe(toThreadOperationFailed);
+        yield* client.request("thread/resume", params, decodeRecordResponse).pipe(toThreadOperationFailed);
+      } else if (isCodexUnloadedThreadError(resumed.failure.cause)) {
+        // Codex TUI retries this while the thread is still hydrating. A second resume of a missing
+        // rollout still fails, and the caller then opens a new session.
+        yield* client.request("thread/resume", params, decodeRecordResponse).pipe(toThreadOperationFailed);
+      } else {
+        return yield* resumed.failure;
+      }
     }
     this.#conversation.markThreadLoaded(externalThreadId, client);
   }).bind(this);
@@ -948,7 +961,8 @@ export class ThreadLifecycle {
     ) {
       const response = yield* Effect.result(client.request(method, params, decoder).pipe(toThreadOperationFailed));
       if (Result.isSuccess(response)) return response.success;
-      if (client.provider !== "codex" || !isArchivedThreadError(response.failure.cause)) return yield* response.failure;
+      if (client.provider !== "codex" || !isRecoverableCodexThreadError(response.failure.cause))
+        return yield* response.failure;
       const threadId = getString(params, "threadId");
       if (!threadId) return yield* response.failure;
       yield* this.resumeThread(agent, client, threadId);
