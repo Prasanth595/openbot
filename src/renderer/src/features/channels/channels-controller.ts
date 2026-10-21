@@ -310,10 +310,17 @@ export function createChannelsController(env: ChannelsEnvironment) {
    */
   async function send(input: Extract<ChannelCommand, { type: "send" }>): Promise<ChannelPage> {
     const account = env.scopeKey();
-    await env.port().agent.channelCommand(input);
-    if (!disposed && account === env.scopeKey()) await refreshAfter();
+    // The host that stored the message gives the page, also when the reader changes scope meanwhile.
+    const port = env.port();
+    const before = state.page?.channel.id === input.channelId ? state.page.throughSequence : null;
+    await port.agent.channelCommand(input);
+    if (disposed || account !== env.scopeKey()) return port.agent.readChannel({ channelId: input.channelId });
+    await refreshAfter();
+    // A refresh that fails keeps the earlier page, which does not hold the message.
     const page = state.page;
-    return page?.channel.id === input.channelId ? page : env.port().agent.readChannel({ channelId: input.channelId });
+    return page?.channel.id === input.channelId && (before === null || page.throughSequence > before)
+      ? page
+      : port.agent.readChannel({ channelId: input.channelId });
   }
   async function loadOlder() {
     const channelId = state.selectedId;
