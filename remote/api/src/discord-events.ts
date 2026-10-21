@@ -121,7 +121,7 @@ function normalizeGuildMessage(message: DiscordMessageData, botUserId: string): 
 }
 
 /** The attachments on Discord's CDN, up to Discord's limit. */
-function attachmentsOf(list: DiscordAttachmentData[]): DiscordInboundAttachment[] {
+export function attachmentsOf(list: DiscordAttachmentData[]): DiscordInboundAttachment[] {
   const attachments: DiscordInboundAttachment[] = [];
   for (const attachment of list) {
     if (attachments.length >= DISCORD_ATTACHMENTS_LIMIT) break;
