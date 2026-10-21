@@ -214,10 +214,8 @@ void main() {
   vec3 haloK = mix(BEAM, sideK, exp(-hp / 80.0));
   // Beside the surface, the glow fades out below its top edge rather than stopping at a line.
   float fadeBelow = exp(-sq(max(-h, 0.0) / 70.0));
-  // Brighter and dimmer wisps run down the glow of the beam, so it keeps moving after the intro.
-  float wisp = 0.65 + 0.7 * noise(vec2(dx / 7.0, p.y / 45.0 - t * 2.6));
-  col += (BEAM * beamCore + haloK * beamHalo * wisp) * top * fadeBelow * drop;
-  col += sideK * 0.16 * exp(-adx / (45.0 * beamWidth)) * wisp * top * fadeBelow * drop;
+  col += (BEAM * beamCore + haloK * beamHalo) * top * fadeBelow * drop;
+  col += sideK * 0.16 * exp(-adx / (45.0 * beamWidth)) * top * fadeBelow * drop;
   if (sourced > 0.5) {
     // The beam falls onto the source element, its light runs around the element's edge, and the
     // beam leaves again from the element's bottom edge.
@@ -246,9 +244,7 @@ void main() {
   float overTop = smoothstep(sl - 10.0, sl + 90.0, p.x) * (1.0 - smoothstep(sr - 90.0, sr + 10.0, p.x));
   col += sideK * skirt * flowMask * overTop * min(bloom, 1.0);
 
-  // Pulses of light run out along the top edge, from the beam toward the corners.
-  float wave = 0.75 + 0.5 * sq(0.5 + 0.5 * sin((adx - t * 70.0) / 30.0));
-  float layer = 12.0 * wave * exp(-adx / layerLen) * exp(-outline / (0.19 * layerLen)) * (1.0 + 0.4 * bead);
+  float layer = 12.0 * exp(-adx / layerLen) * exp(-outline / (0.19 * layerLen)) * (1.0 + 0.4 * bead);
   col += sideK * layer * hug * flowMask * overTop * min(bloom, 1.0);
   float washMask = smoothstep(sl - 60.0, sl + 6.0, p.x) * (1.0 - smoothstep(sr - 6.0, sr + 45.0, p.x));
   float wash = 1.4 * exp(-adx / 100.0) * exp(-outline / 30.0);
@@ -275,7 +271,7 @@ void main() {
   float lineBright = mix(0.35, 1.0, hash(vec2(lineIndex, 4.0)));
   col += mix(sideK, WHITE, 0.6) * lineShape * lineOn * lineFlow * lineEnvelope * lineBright * 2.6 * uAmount.w * min(bloom, 1.0);
 
-  float edgeGlow = 22.8 * wave * exp(-sq(adx / (0.6 * reachHere))) * edgeMask * (1.0 + 0.9 * bead);
+  float edgeGlow = 22.8 * exp(-sq(adx / (0.6 * reachHere))) * edgeMask * (1.0 + 0.9 * bead);
   float onTop = 1.0 - smoothstep(sy + radius, sy + radius + 10.0, p.y);
   float edgeLine = (0.5 * exp(-sq(max(sd, 0.0) / 3.0)) + 0.25 * exp(-max(sd, 0.0) / 10.0)) * edgeGlow * onTop;
   col += mix(sideK, WHITE, 0.6) * edgeLine * min(bloom, 1.0);
@@ -293,10 +289,11 @@ void main() {
   float haloL = exp(-length(p - vec2(sl + 0.3 * radius, sy + 0.3 * radius)) / 40.0) * sqrt(strengthL);
   vec3 glowR;
   vec3 glowL;
-  col += spill(sd, fallY, strengthR, uPour.y, t, glowR) * rightHalf;
-  col += spill(sd, fallY, strengthL, uPour.x, t, glowL) * (1.0 - rightHalf);
-  col += easeLight(glowR * rightHalf + NAVY * 0.9 * haloR, uPour.w);
-  col += easeLight(glowL * (1.0 - rightHalf) + NAVY * 0.9 * haloL, uPour.z);
+  // The spill also touches the top edge, so it waits there until the light along the top has run past.
+  col += spill(sd, fallY, strengthR, uPour.y, t, glowR) * rightHalf * runMask;
+  col += spill(sd, fallY, strengthL, uPour.x, t, glowL) * (1.0 - rightHalf) * runMask;
+  col += easeLight((glowR * rightHalf + NAVY * 0.9 * haloR) * runMask, uPour.w);
+  col += easeLight((glowL * (1.0 - rightHalf) + NAVY * 0.9 * haloL) * runMask, uPour.z);
 
   vec2 toLens = frag - uLens.xy;
   float lens = exp(-dot(toLens, toLens) / sq(uLens.z)) * uLens.w;
@@ -305,8 +302,8 @@ void main() {
   float near = exp(-adx / 150.0);
   float envelope = near * (0.3 + 0.4 * exp(-hp / 50.0) + 1.2 * exp(-p.y / 120.0));
   if (fogAmount > 0.001 && h > -160.0 && envelope * max(0.25, 6.0 * exp(-adx / 50.0)) > 0.002) {
-    vec2 fq = vec2(dx / 1.7, h) / 85.0 + vec2(t * 0.03, -t * 0.08) + uExtra.zw;
-    vec2 fw = vec2(fbm(fq * 1.3 + vec2(1.7, 9.2) + t * 0.07), fbm(fq * 1.3 + vec2(8.3, 2.8) - t * 0.06));
+    vec2 fq = vec2(dx / 1.7, h) / 85.0 + vec2(t * 0.012, -t * 0.03) + uExtra.zw;
+    vec2 fw = vec2(fbm(fq * 1.3 + vec2(1.7, 9.2) + t * 0.03), fbm(fq * 1.3 + vec2(8.3, 2.8) - t * 0.025));
     float cloud = fbm(fq + 1.4 * fw);
     float density = smoothstep(0.5, 0.78, cloud);
     float lit = exp(-adx / 50.0);
