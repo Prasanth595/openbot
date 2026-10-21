@@ -11,7 +11,7 @@
 import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { type Browser, chromium, type Page } from "playwright-core";
+import { type Browser, chromium, type Locator, type Page } from "playwright-core";
 
 const OUT = resolve(import.meta.dirname, "../.openbot-build/web-side-panel-e2e");
 const STORIES = { web: "web-workspace--connected", desktop: "app--playground" } as const;
@@ -164,7 +164,13 @@ async function desktopStates(browser: Browser, client: Client, width: number) {
     await page.locator(".side-panel-tab-select").first().focus();
     await page.keyboard.press("Delete");
     await page.locator(".side-panel-launcher").waitFor();
-    const focusAfterDelete = await page.evaluate(() => document.activeElement?.classList.contains("side-panel-launch"));
+    // The pane list takes the focus after it renders.
+    const focusAfterDelete = await page
+      .waitForFunction(() => document.activeElement?.classList.contains("side-panel-launch"), undefined, {
+        timeout: 10_000,
+      })
+      .then(() => true)
+      .catch(() => false);
     await toggle.click();
     await page.locator(".side-panel-header").waitFor({ state: "detached" });
     const closedAgain = await toggle.getAttribute("aria-expanded");
@@ -175,6 +181,14 @@ async function desktopStates(browser: Browser, client: Client, width: number) {
   }
 }
 
+/** Does a click at the middle of the element reach it, and not a part drawn over it? */
+function reachable(element: Locator): Promise<boolean> {
+  return element.evaluate((target) => {
+    const box = target.getBoundingClientRect();
+    return target.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
+  });
+}
+
 async function phone(browser: Browser) {
   const page = await open(browser, "web", PHONE_WIDTH);
   const toggle = page.locator(".side-panel-toggle").first();
@@ -182,18 +196,12 @@ async function phone(browser: Browser) {
     await toggle.click();
     await page.locator(".side-panel-launcher").waitFor();
     const launcher = await measure(page);
-    const toggleReachable = await toggle.evaluate((element) => {
-      const box = element.getBoundingClientRect();
-      return element.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
-    });
+    const toggleReachable = await reachable(toggle);
     await shot(page, `web-${PHONE_WIDTH}-launcher`);
 
     await openSettings(page);
     const settings = await measure(page);
-    const settingsToggleReachable = await toggle.evaluate((element) => {
-      const box = element.getBoundingClientRect();
-      return element.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
-    });
+    const settingsToggleReachable = await reachable(toggle);
     await shot(page, `web-${PHONE_WIDTH}-settings`);
 
     await page.getByRole("button", { name: "Maximize" }).click();

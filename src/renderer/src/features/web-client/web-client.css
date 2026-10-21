@@ -193,7 +193,9 @@
     width: 100%;
   }
 
-  .web-app-frame[data-web-mobile-pane="conversation"] .side-panel-docked > :is(.conversation-scroll, .composer-wrap) {
+  .web-app-frame[data-web-mobile-pane="conversation"]
+    .side-panel-docked
+    > :is(.conversation-scroll, .composer-wrap, .unread-messages-banner, .chat-search) {
     visibility: hidden;
   }
 
