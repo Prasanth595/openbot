@@ -98,7 +98,7 @@ void main() {
   // Near the surface the white of the beam opens out, as light that hits a wall spreads on it.
   float flareAbove = max(above, 0.0);
   float flareW = 6.0 * k + 0.38 * max(220.0 * k - flareAbove, 0.0);
-  col += mix(uPalette[0], uPalette[1], 0.2) * 7.0 * exp(-sqr(awayX / flareW)) * smoothstep(240.0 * k, 0.0, flareAbove) * belowTop * glow;
+  col += mix(uPalette[0], uPalette[1], 0.2) * 7.0 * exp(-sqr(awayX / flareW)) * smoothstep(190.0 * k, 0.0, flareAbove) * belowTop * glow;
 
   // The head of the falling beam.
   float falling = 1.0 - glow;
@@ -122,7 +122,7 @@ void main() {
     float reach = uLook.w * 100.0 * k;
     // The light over the surface stops a little past its sides, and wraps a little way down around the corners.
     float sideOut = max(max(uPanel.x - p.x, p.x - uPanel.z), 0.0);
-    float overSurface = exp(-sqr(sideOut / (40.0 * k)) - sqr(max(-above, 0.0) / (24.0 * k)));
+    float overSurface = exp(-sqr(sideOut / (24.0 * k)) - sqr(max(-above, 0.0) / (24.0 * k)));
     float run = uRun;
     float reached = 1.0 - smoothstep(run - 30.0 * k, run, ax);
     float overTop = exp(-sqr(max(p.y - top - uRound, 0.0) / (14.0 * k)));
@@ -138,8 +138,8 @@ void main() {
     vec3 fanK = mix(mix(uPalette[0], uPalette[1], smoothstep(0.0 * k, 160.0, ax)), side, 0.5 * smoothstep(100.0 * k, 2.0 * reach, ax));
     col += fanK * 5.0 * fan * reached * glow * smoothstep(-0.5, 0.5, panelD);
     // The glow of the beam opens out into a cone as it nears the surface.
-    float coneW = glowW + 0.45 * max(260.0 * k - above, 0.0);
-    float cone = exp(-awayX / coneW) * smoothstep(300.0 * k, 0.0, above) * overSurface;
+    float coneW = glowW + 0.55 * max(190.0 * k - above, 0.0);
+    float cone = exp(-awayX / coneW) * smoothstep(200.0 * k, 0.0, above) * overSurface;
     col += mix(uPalette[1], side, 0.5) * 1.2 * cone * glow;
     // A wide pool of light where the beam lands, with a white spot at its middle.
     float pool = exp(-sqr(awayFar / (230.0 * k)) - max(above, 0.0) / (110.0 * k)) * overSurface;
@@ -165,7 +165,8 @@ void main() {
       float depth = max(p.y - top - uRound * 0.6, 0.0);
       float dripLen = 340.0 * k;
       float drawn = 1.0 - smoothstep(dripFront - 50.0 * k, dripFront, depth);
-      float fade = exp(-depth / dripLen);
+      // The drip stays bright for most of its length, then ends quickly.
+      float fade = exp(-depth / (1.5 * dripLen)) * (1.0 - smoothstep(0.8 * dripLen, 1.15 * dripLen, depth));
       float fromCorner = smoothstep(top, top + uRound, p.y);
       float pastSide = mix(p.x - uPanel.z, uPanel.x - p.x, leftHalf);
       // The thin line at the edge shifts between the warm and the cool colour, as light in a prism does.
@@ -173,19 +174,31 @@ void main() {
       vec3 lineK = mix(uPalette[0], mix(uPalette[3], uPalette[2], tint), smoothstep(0.0 * k, 120.0, depth));
       vec3 dripGlowK = mix(mix(uPalette[1], side, 0.3), uPalette[4], smoothstep(0.0, dripLen * 1.5, depth));
       float dripLine = (3.6 / (1.0 + sqr(edgeOut / 1.5)) + 1.2 * exp(-edgeOut / (6.0 * k))) * fromCorner;
-      float dripWhite = 2.4 * exp(-edgeOut / (16.0 * k) - depth / (260.0 * k)) * fromCorner;
+      // A band runs down a little way out from the edge, broken into streaks that move down. It is white
+      // and wide at the corner. Further down it moves out from the edge, gets thinner, and turns pale
+      // cool and then warm.
+      float streaks = smoothstep(0.3, 0.85, valueNoise(vec2(edgeOut / (7.0 * k) + uSeed.y, depth / (140.0 * k) - uClock * 0.25)));
+      float narrow = smoothstep(0.0, dripLen, depth);
+      float band = exp(-sqr((edgeOut - mix(6.0 * k, 13.0 * k, narrow)) / mix(13.0 * k, 6.0 * k, narrow)));
+      vec3 bandK = mix(uPalette[0], mix(mix(uPalette[3], uPalette[0], 0.3), uPalette[2], smoothstep(140.0 * k, 300.0 * k, depth)), smoothstep(40.0 * k, 180.0 * k, depth));
+      float dripWhite = 0.6 * exp(-edgeOut / (8.0 * k) - depth / (300.0 * k)) * fromCorner;
+      float dripBand = 2.6 * band * (0.55 + 0.45 * streaks) * exp(-depth / (400.0 * k)) * smoothstep(top - 40.0 * k, top + uRound, p.y);
       // The soft glow beside the side also rises a little above the corner.
-      float dripGlow = 2.0 * exp(-abs(pastSide) / (45.0 * k) - max(top - p.y, 0.0) / (45.0 * k)) * mix(0.3, 1.0, smoothstep(-30.0 * k, 10.0 * k, pastSide));
-      col += (lineK * dripLine + uPalette[0] * dripWhite + dripGlowK * dripGlow) * drawn * fade * dripPower * glow;
+      // Lower down, the glow moves out from the side with the band.
+      float glowOut = pastSide - 22.0 * k * narrow;
+      float dripGlow = 2.3 * exp(-abs(glowOut) / (40.0 * k) - max(top - p.y, 0.0) / (45.0 * k)) * mix(0.3, 1.0, smoothstep(-30.0 * k, 10.0 * k, glowOut));
+      col += (lineK * dripLine + uPalette[0] * dripWhite + bandK * dripBand + dripGlowK * dripGlow) * drawn * fade * dripPower * glow;
     }
   }
 
   // A violet fog of soft clouds around the beam. It is wider and thicker near the surface, and it is
   // paler on the side toward the middle of the surface. Outside the surface it stops at the top edge.
+  // The glow of the beam hides the fog that is near it.
   float haze = uGrain.x * uGrain.w;
   float fogW = 90.0 * k + 0.35 * max(420.0 * k - max(above, 0.0), 0.0);
   float fogY = (0.5 + 0.5 * exp(-max(above, 0.0) / (300.0 * k))) * exp(-max(-above, 0.0) / (160.0 * k));
-  float fogZone = exp(-awayX / fogW) * fogY * lit;
+  float fogOpen = 1.0 - 0.85 * exp(-sqr(ax / (45.0 * k)));
+  float fogZone = exp(-awayX / fogW) * fogOpen * fogY * lit;
   if (haze * fogZone > 0.004) {
     vec2 q = vec2(dx, p.y) / (110.0 * k) + uSeed;
     q.y += uClock * 0.05;
@@ -193,7 +206,7 @@ void main() {
     cloud = smoothstep(0.25, 0.8, cloud);
     float towardMiddle = step(awayX, ax + 0.5);
     vec3 fogK = mix(mix(uPalette[1], side, 0.35), mix(uPalette[1], uPalette[5], 0.35), towardMiddle);
-    col += fogK * fogZone * haze * (0.45 + 0.9 * cloud) * (0.65 + 1.15 * glow);
+    col += fogK * fogZone * haze * (0.5 + 1.0 * cloud) * (0.65 + 1.15 * glow);
   }
 
   // Motes that rise through the beam and twinkle.
