@@ -1,5 +1,5 @@
 import type { AttachmentSummary } from "@openbot/contracts/ipc";
-import { Button, ChevronLeft, ChevronRight, Dialog, X } from "@openbot/ui";
+import { Button, ChevronLeft, ChevronRight, Dialog, Spinner, X } from "@openbot/ui";
 import { prefersReducedMotion } from "@openbot/ui/utils";
 import { createMemo, createSignal, createStore, For, onCleanup, onSettled, Show, untrack } from "solid-js";
 import { useText } from "../../text";
@@ -48,6 +48,10 @@ export function ImageGallery(props: {
   const { t } = useText();
   const [ratios, setRatios] = createStore<Record<string, number>>({});
   const [missing, setMissing] = createStore<Record<string, boolean>>({});
+  const [loaded, setLoaded] = createStore<Record<string, boolean>>({});
+  // An image from a remote server can fail once while the connection recovers, so a tile tries twice
+  // before it offers the download.
+  const [attempts, setAttempts] = createStore<Record<string, number>>({});
   const [width, setWidth] = createSignal(0);
   let gallery: HTMLUListElement | undefined;
   const layout = createMemo(() =>
@@ -84,7 +88,9 @@ export function ImageGallery(props: {
         {(image, index) => {
           const box = () => layout().boxes[index()];
           // Keyed by URL: a new URL for the same attachment gets a new try.
-          const isMissing = () => missing[image.previewUrl ?? image.id] === true;
+          const key = () => image.previewUrl ?? image.id;
+          const isMissing = () => missing[key()] === true;
+          const attempt = () => attempts[key()] ?? 1;
           return (
             <li
               class="image-gallery-item"
@@ -115,28 +121,42 @@ export function ImageGallery(props: {
                 }}
               >
                 <Show when={!isMissing()} fallback={props.onDownload ? <DownloadIcon /> : <X aria-hidden="true" />}>
-                  <img
-                    src={image.previewUrl ?? ""}
-                    alt=""
-                    decoding="async"
-                    draggable={false}
-                    onLoad={(event) => {
-                      const { naturalHeight, naturalWidth } = event.currentTarget;
-                      if (naturalWidth <= 0 || naturalHeight <= 0) return;
-                      const ratio = Math.min(
-                        GALLERY_MAX_RATIO,
-                        Math.max(GALLERY_MIN_RATIO, naturalWidth / naturalHeight),
-                      );
-                      setRatios((state) => {
-                        state[image.id] = ratio;
-                      });
-                    }}
-                    onError={() =>
-                      setMissing((state) => {
-                        state[image.previewUrl ?? image.id] = true;
-                      })
-                    }
-                  />
+                  <Show when={!loaded[key()]}>
+                    <Spinner class="image-gallery-tile-loading" />
+                  </Show>
+                  {/* A new attempt mounts a new image, which requests the file again. */}
+                  <Show when={attempt()} keyed>
+                    <img
+                      src={image.previewUrl ?? ""}
+                      alt=""
+                      decoding="async"
+                      draggable={false}
+                      onLoad={(event) => {
+                        setLoaded((state) => {
+                          state[key()] = true;
+                        });
+                        const { naturalHeight, naturalWidth } = event.currentTarget;
+                        if (naturalWidth <= 0 || naturalHeight <= 0) return;
+                        const ratio = Math.min(
+                          GALLERY_MAX_RATIO,
+                          Math.max(GALLERY_MIN_RATIO, naturalWidth / naturalHeight),
+                        );
+                        setRatios((state) => {
+                          state[image.id] = ratio;
+                        });
+                      }}
+                      onError={() => {
+                        if (attempt() < 2)
+                          setAttempts((state) => {
+                            state[key()] = attempt() + 1;
+                          });
+                        else
+                          setMissing((state) => {
+                            state[key()] = true;
+                          });
+                      }}
+                    />
+                  </Show>
                 </Show>
               </Button>
             </li>

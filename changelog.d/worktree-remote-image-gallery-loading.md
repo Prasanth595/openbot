@@ -1,0 +1,6 @@
+### Fixed
+
+- Images that an agent on a remote server attaches to a reply now show one by one. Before, a group of
+  large images stayed as empty gray tiles until all of them arrived, and on a slow connection they
+  sometimes did not show. A tile now shows that its image is loading, and tries again once if the
+  image does not load.
