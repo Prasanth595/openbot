@@ -84,6 +84,15 @@ description: Export the user's Grok Bot agents into one .zip file that OpenBot i
 # Export agents for OpenBot
 `;
 
+/** The start of the Hermes export skill, as `agentImport.readSkill("hermes-agent")` answers it. */
+export const HERMES_EXPORT_SKILL = `---
+name: openbot-export
+description: Export the user's Hermes Agent profiles into one .zip file that OpenBot imports.
+---
+
+# Export Hermes profiles for OpenBot
+`;
+
 /** Three Hermes profiles, as `agentImport.readHermes` answers them. */
 export const HERMES_IMPORT_PREVIEW: HermesImportPreview = {
   token: "hermes-preview",

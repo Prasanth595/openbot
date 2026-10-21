@@ -12,6 +12,7 @@ import {
   AGENT_IMPORT_PREVIEW,
   AGENT_IMPORT_SKILL,
   AGENT_IMPORT_WARNINGS,
+  HERMES_EXPORT_SKILL,
   HERMES_IMPORT_PREVIEW,
 } from "./agent-import-fixtures";
 import { FILES_NOW } from "./files-fixtures";
@@ -220,23 +221,99 @@ const hermesArgs = (overrides: Partial<HermesArgs> = {}): HermesArgs => ({
   ...overrides,
 });
 
-/** The first screen on this computer: Hermes, Grok Bot, or another OpenBot computer. */
+/** The first screen: Hermes, Grok Bot, or another OpenBot computer. */
 export const Sources: Story = {
   name: "Import: Sources",
   render: () => (
     <ServerSettingsStage>
-      <AgentImportSources hermes transfer onHermes={fn()} onGrok={fn()} onTransfer={fn()} />
+      <AgentImportSources transfer onHermes={fn()} onGrok={fn()} onTransfer={fn()} />
     </ServerSettingsStage>
   ),
 };
 
-/** A joined server: no Hermes, because Hermes keeps its profiles on the computer that runs it. */
+/** A joined server the user does not administer: no Transfer. */
 export const SourcesJoinedServer: Story = {
   name: "Import: Sources on a joined server",
   render: () => (
     <Stage>
-      <AgentImportSources hermes={false} transfer onHermes={fn()} onGrok={fn()} onTransfer={fn()} />
+      <AgentImportSources transfer={false} onHermes={fn()} onGrok={fn()} onTransfer={fn()} />
     </Stage>
+  ),
+};
+
+const hermesGuideArgs = (overrides: Partial<ViewArgs> = {}): ViewArgs =>
+  viewArgs({
+    source: "hermes-agent",
+    setup: "folder",
+    exportSkill: HERMES_EXPORT_SKILL,
+    onReadFolder: fn(),
+    ...overrides,
+  });
+
+/** Hermes on this computer: read its folder, install the export skill with a command, or add it by hand. */
+export const HermesSteps: Story = {
+  name: "Hermes: Steps",
+  render: () => {
+    const [setup, setSetup] = createSignal<ViewArgs["setup"]>("folder");
+    return (
+      <ServerSettingsStage>
+        <AgentImportView {...hermesGuideArgs({ setup: setup(), onSetupChange: setSetup })} />
+      </ServerSettingsStage>
+    );
+  },
+};
+
+export const HermesInstallCommand: Story = {
+  name: "Hermes: Install with a command",
+  render: () => (
+    <ServerSettingsStage>
+      <AgentImportView {...hermesGuideArgs({ setup: "command" })} />
+    </ServerSettingsStage>
+  ),
+};
+
+export const HermesSkillYourself: Story = {
+  name: "Hermes: Set it up yourself",
+  render: () => (
+    <ServerSettingsStage>
+      <AgentImportView {...hermesGuideArgs({ setup: "skill" })} />
+    </ServerSettingsStage>
+  ),
+};
+
+/** A joined server cannot read this computer's folder, so Hermes offers the export only. */
+export const HermesStepsJoinedServer: Story = {
+  name: "Hermes: Steps on a joined server",
+  render: () => (
+    <Stage>
+      <AgentImportView {...hermesGuideArgs({ setup: "command", onReadFolder: undefined })} />
+    </Stage>
+  ),
+};
+
+/** An export the skill made in Hermes: the same review as a Grok Bot export. */
+export const HermesExportReview: Story = {
+  name: "Hermes: Export review",
+  render: () => (
+    <ServerSettingsStage>
+      <AgentImportView
+        {...hermesGuideArgs({
+          phase: "review",
+          preview: {
+            ...AGENT_IMPORT_PREVIEW,
+            sourceApp: "hermes-agent",
+            exportedAt: "2026-10-21T10:00:00.000Z",
+            agents: AGENT_IMPORT_PREVIEW.agents.map((agent) => ({
+              ...agent,
+              avatarUrl: null,
+              fileCount: 0,
+              fileBytes: 0,
+            })),
+            channels: [],
+          },
+        })}
+      />
+    </ServerSettingsStage>
   ),
 };
 
@@ -301,25 +378,29 @@ export const HermesDone: Story = {
   ),
 };
 
-/** The whole way through: choose Hermes, review, import. */
+/** The whole way through on this computer: choose Hermes, read its folder, review, import. */
 export const HermesFlow: Story = {
   name: "Hermes: Server settings",
   render: () => {
-    const [screen, setScreen] = createSignal<"sources" | "hermes">("sources");
+    const [screen, setScreen] = createSignal<"sources" | "guide" | "hermes">("sources");
+    const [setup, setSetup] = createSignal<ViewArgs["setup"]>("folder");
     const [phase, setPhase] = createSignal<HermesImportPhase>("review");
     return (
       <ServerSettingsStage>
         <Switch>
           <Match when={screen() === "sources"}>
-            <AgentImportSources
-              hermes
-              transfer
-              onHermes={() => {
-                setPhase("review");
-                setScreen("hermes");
-              }}
-              onGrok={fn()}
-              onTransfer={fn()}
+            <AgentImportSources transfer onHermes={() => setScreen("guide")} onGrok={fn()} onTransfer={fn()} />
+          </Match>
+          <Match when={screen() === "guide"}>
+            <AgentImportView
+              {...hermesGuideArgs({
+                setup: setup(),
+                onSetupChange: setSetup,
+                onReadFolder: () => {
+                  setPhase("review");
+                  setScreen("hermes");
+                },
+              })}
             />
           </Match>
           <Match when={screen() === "hermes"}>
@@ -327,7 +408,7 @@ export const HermesFlow: Story = {
               {...hermesArgs({
                 phase: phase(),
                 result: phase() === "done" ? RESULT : null,
-                onBack: () => setScreen("sources"),
+                onBack: () => setScreen("guide"),
                 onImport: () => setPhase("done"),
                 onDone: () => setScreen("sources"),
               })}

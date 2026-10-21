@@ -30,6 +30,26 @@ export const messages = defineMessages("import", {
   "import.guide.reading": "Reading the export…",
   "import.guide.choose": "Choose export file",
   "import.guide.chooseNote": "You see its agents before anything changes.",
+  "import.guide.hermesTitle": "Move your agents from Hermes Agent",
+  "import.guide.hermesLede":
+    "Each Hermes profile becomes an agent. Read the profiles on this computer, or let the export skill in Hermes pack them into one .zip file.",
+  "import.guide.hermesSetupLabel": "How to bring the profiles",
+  "import.guide.setupFolder": "Read this computer",
+  "import.guide.setupCommand": "Install with a command",
+  "import.guide.hermesStepFolder": "Read the Hermes folder",
+  "import.guide.hermesStep1": "Add the export skill to Hermes",
+  "import.guide.readFolder": "Read the Hermes folder",
+  "import.guide.readFolderMeta": "OpenBot reads ~/.hermes and changes nothing in it.",
+  "import.guide.readFolderNote":
+    "You see every item of every profile before anything changes. MCP servers come too, turned off.",
+  "import.guide.copyCommand": "Copy command",
+  "import.guide.commandCopied": "Command copied",
+  "import.guide.commandNote":
+    "Type it in a Hermes chat. In a terminal, run hermes skills install with the same name. Hermes scans the skill before it installs it.",
+  "import.guide.hermesSkillNote":
+    "Save it as ~/.hermes/skills/openbot-export/SKILL.md. Hermes finds it in the next chat. The export leaves it out.",
+  "import.guide.hermesMessageNote":
+    "It asks which profiles to export, then saves the .zip file to Downloads. Keys and MCP servers stay in Hermes.",
   "import.review.title": "{source} export",
   "import.review.exported": "Exported {date}",
   "import.review.fileSize": "{size} of files",
@@ -66,7 +86,7 @@ export const messages = defineMessages("import", {
   "import.result.warnings": "Some items did not move",
   "import.source.title": "Where are your agents now?",
   "import.source.lede": "OpenBot copies them to this computer. You see every item before anything changes.",
-  "import.source.hermesNote": "On this computer. OpenBot reads the Hermes folder and changes nothing in it.",
+  "import.source.hermesNote": "Read the Hermes folder on this computer, or export a .zip file from Hermes.",
   "import.source.grokNote": "In the cloud. An export agent there makes a .zip file.",
   "import.source.transfer": "Another OpenBot computer",
   "import.source.transferNote": "Use Transfer to move agents and settings together.",

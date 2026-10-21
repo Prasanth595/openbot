@@ -460,3 +460,11 @@ label.agent-import-row:has(input:disabled) {
   font-size: var(--openbot-text-sm);
   cursor: pointer;
 }
+
+/* A command is the exact text to type, so it reads as code and wraps rather than hides its end. */
+.agent-import-command {
+  font-family: var(--openbot-font-mono);
+  font-size: var(--openbot-text-sm);
+  overflow-wrap: anywhere;
+  white-space: normal;
+}

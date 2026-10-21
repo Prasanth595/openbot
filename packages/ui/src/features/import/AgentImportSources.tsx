@@ -10,8 +10,6 @@ const HERMES_AGENT = "Hermes Agent";
 const GROK_BOT = "Grok Bot";
 
 export interface AgentImportSourcesProps {
-  /** Hermes keeps its profiles on this computer, so only the local server offers it. */
-  hermes: boolean;
   /** The Transfer tab is there: this computer, or a server the user administers. */
   transfer: boolean;
   onHermes: () => void;
@@ -32,16 +30,14 @@ export function AgentImportSources(props: AgentImportSourcesProps) {
         <p class="agent-import-lede">{t("import.source.lede")}</p>
       </header>
       <ul class="agent-import-sources">
-        <Show when={props.hermes}>
-          <li>
-            <SourceButton
-              title={HERMES_AGENT}
-              note={t("import.source.hermesNote")}
-              icon={<HermesLogo class="agent-import-source-logo" />}
-              onClick={props.onHermes}
-            />
-          </li>
-        </Show>
+        <li>
+          <SourceButton
+            title={HERMES_AGENT}
+            note={t("import.source.hermesNote")}
+            icon={<HermesLogo class="agent-import-source-logo" />}
+            onClick={props.onHermes}
+          />
+        </li>
         <li>
           <SourceButton
             title={GROK_BOT}

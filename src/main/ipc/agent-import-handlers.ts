@@ -8,6 +8,7 @@ import {
   type AgentImportPreview,
   type ApplyAgentImportInput,
   decodeRemoteAgentImportResult,
+  parseAgentImportSkillSource,
   parseApplyAgentImportInput,
   parseApplyHermesImportInput,
   resolveRemoteAgentImportResult,
@@ -37,8 +38,8 @@ export interface AgentImportIpcDependencies {
   remoteServers: Pick<RemoteServerManager, "supportsCapability" | "request" | "stageAgentImport">;
   getMainWindow: () => BrowserWindow | null;
   translate: AppTranslate;
-  /** The export skill a user adds to Grok Bot by hand. It ships in the app's resources. */
-  exportSkillPath: string;
+  /** The folder of the export skills a user adds to Grok Bot or Hermes by hand: `<source>/SKILL.md`. */
+  exportSkillDirectory: string;
 }
 
 export function agentImportIpcHandlers({
@@ -47,7 +48,7 @@ export function agentImportIpcHandlers({
   remoteServers,
   getMainWindow,
   translate,
-  exportSkillPath,
+  exportSkillDirectory,
 }: AgentImportIpcDependencies): Pick<IpcGroupHandlers, "agentImport"> {
   const chooseExport = async (): Promise<string | null> => {
     const mainWindow = getMainWindow();
@@ -127,8 +128,10 @@ export function agentImportIpcHandlers({
           );
         },
       }),
-      readSkill: handler(() => readFile(exportSkillPath, "utf8")),
-      saveSkill: handler(async () => {
+      readSkill: payloadHandler(parseAgentImportSkillSource, (source) =>
+        readFile(join(exportSkillDirectory, source, "SKILL.md"), "utf8"),
+      ),
+      saveSkill: payloadHandler(parseAgentImportSkillSource, async (source) => {
         const mainWindow = getMainWindow();
         const options: SaveDialogOptions = {
           title: translate("dialog.saveExportSkill"),
@@ -139,7 +142,7 @@ export function agentImportIpcHandlers({
           ? await dialog.showSaveDialog(mainWindow, options)
           : await dialog.showSaveDialog(options);
         if (result.canceled || !result.filePath) return { saved: false };
-        await copyFile(exportSkillPath, result.filePath);
+        await copyFile(join(exportSkillDirectory, source, "SKILL.md"), result.filePath);
         return { saved: true };
       }),
       readHermes: handler(() => runCauseEffect(hermesImport.stage(hermesRoot()))),

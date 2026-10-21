@@ -101,7 +101,12 @@ import {
   type WorkspaceDirectory,
 } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
-import { AGENT_IMPORT_PREVIEW, AGENT_IMPORT_SKILL, HERMES_IMPORT_PREVIEW } from "../../stories/agent-import-fixtures";
+import {
+  AGENT_IMPORT_PREVIEW,
+  AGENT_IMPORT_SKILL,
+  HERMES_EXPORT_SKILL,
+  HERMES_IMPORT_PREVIEW,
+} from "../../stories/agent-import-fixtures";
 import { filePreviewForPath } from "../../stories/file-previews";
 import { INSTANCE_TRANSFER_PREVIEW } from "../../stories/instance-transfer-fixtures";
 import { toggleChannelMember } from "../features/channels/channels-draft";
@@ -2431,7 +2436,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         return clone({ agents: imported, skipped: [], channels, skippedChannels, warnings: [] });
       },
       discard: async () => undefined,
-      readSkill: async () => AGENT_IMPORT_SKILL,
+      readSkill: async (source) => (source === "hermes-agent" ? HERMES_EXPORT_SKILL : AGENT_IMPORT_SKILL),
       saveSkill: async () => ({ saved: true }),
       readHermes: async () => clone(HERMES_IMPORT_PREVIEW),
       chooseHermes: async () => clone(HERMES_IMPORT_PREVIEW),
