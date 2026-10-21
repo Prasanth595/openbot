@@ -109,11 +109,12 @@ activity, and related command receipts in its existing transaction.
 
 The turn lifecycle accepts usage only for a provider session belonging to the agent, in its own chat
 or in one of its tasks. It finds the session in the public thread of the provider thread. Codex
-totals use durable session checkpoints; restored totals establish a baseline for pre-feature
-sessions. The Codex counter `:codex:cache-writes` replaces `:codex`, which counted cache writes as
-uncached input. When the counter has no checkpoint, it starts from the session totals before the
-last request (`total` minus `last`), so the requests that `:codex` counted, and task requests from
-before task metering, do not count.
+totals use durable session checkpoints. The Codex counter `:codex:cache-writes` replaces `:codex`,
+which counted cache writes as uncached input. When the counter has no checkpoint, it starts from the
+session totals before the last request (`total` minus `last`). Thus the requests that `:codex`
+counted, task requests from before task metering, and requests from before migration 15 do not
+count. The last request counts, also in a session from before migration 15. An update with no
+`last` or no turn ID establishes a baseline.
 Claude uses per-model query totals and a separate counter identity for each query process. ACP usage
 is optional. Missing fields remain unknown. Completed assistant messages exclude commentary and tool
 output. Only post-install messages enter activity counts.

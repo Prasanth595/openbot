@@ -43,12 +43,13 @@ export function collectProviderUsage(
       model: usage.turnModel(agent.id, session.id, turnId) ?? agent.model,
       // `:codex` counted cache writes as uncached input, so this counter starts again. Its first
       // update records only the last request: the requests before it were counted by `:codex`, or
-      // ran in a task before task usage was collected. Without the last request, it is a baseline.
+      // ran in a task before task usage was collected. The last request ran now, also in a session
+      // from before collection started. Without the last request, the update is a baseline.
       counterId: `${session.id}:codex:cache-writes`,
       previousTokens,
       lastRequestInputTokens: last && sum(last),
       tokens,
-      baseline: session.createdAt < usage.collectionStartedAt() || turnId === "baseline" || !previousTokens,
+      baseline: turnId === "baseline" || !previousTokens,
     });
     return;
   }

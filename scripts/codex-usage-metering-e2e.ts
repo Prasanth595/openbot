@@ -337,10 +337,14 @@ try {
     );
   }
 
-  // A session that the release before this change counted: its counter has no cache writes.
+  // A session from before collection started, that the release before this change counted: its
+  // counter has no cache writes.
   const sessionId = String(
     sqlite().prepare("SELECT id FROM projection_provider_sessions WHERE thread_id = ?").get(chatThread)?.id,
   );
+  sqlite()
+    .prepare("UPDATE projection_provider_sessions SET created_at = ? WHERE id = ?")
+    .run("2000-01-01T00:00:00.000Z", sessionId);
   sqlite()
     .prepare("DELETE FROM agent_usage_checkpoints WHERE agent_id = ? AND counter_id = ?")
     .run(agent.id, `${sessionId}:codex:cache-writes`);
