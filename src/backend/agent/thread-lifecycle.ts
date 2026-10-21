@@ -245,7 +245,7 @@ export class ThreadLifecycle {
     agentId: string,
   ) {
     yield* Effect.forEach(
-      this.#conversation.loadedAgentThreads(agentId),
+      this.#conversation.openAgentThreads(agentId),
       ([externalThreadId, client]) =>
         Effect.gen({ self: this }, function* () {
           const releaseThread = client.releaseThread?.bind(client);

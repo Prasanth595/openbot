@@ -174,6 +174,12 @@ export class ConversationRuntime {
   readonly #conversationSignatures = new Map<string, string>();
   readonly #threadToAgent = new Map<string, string>();
   readonly #loadedThreads = new Map<string, AgentClient>();
+  /**
+   * The sessions `unloadAgentThreads` unloaded, with their client. The client keeps such a session
+   * running until the next turn opens it again or its idle timer closes it. An agent delete must
+   * close it first: on Windows its process keeps the workspace in use.
+   */
+  readonly #unloadedThreads = new Map<string, AgentClient>();
   readonly #executionSnapshots = new Map<string, ConversationSnapshot>();
   readonly #cachedExecutionSnapshots = new Map<string, CachedSnapshot>();
   readonly #publicThreads = new Map<string, string>();
@@ -733,16 +739,20 @@ export class ConversationRuntime {
 
   markThreadLoaded(externalThreadId: string, client: AgentClient): void {
     this.#loadedThreads.set(externalThreadId, client);
+    this.#unloadedThreads.delete(externalThreadId);
   }
 
   unloadThread(externalThreadId: string): void {
     this.#loadedThreads.delete(externalThreadId);
+    this.#unloadedThreads.delete(externalThreadId);
   }
 
   /** Forgets the sessions one stopped process held, and leaves those of every other provider loaded. */
   unloadClientThreads(client: AgentClient): void {
-    for (const [externalThreadId, owner] of this.#loadedThreads) {
-      if (owner === client) this.#loadedThreads.delete(externalThreadId);
+    for (const threads of [this.#loadedThreads, this.#unloadedThreads]) {
+      for (const [externalThreadId, owner] of threads) {
+        if (owner === client) threads.delete(externalThreadId);
+      }
     }
   }
 
@@ -754,18 +764,25 @@ export class ConversationRuntime {
    */
   unloadAgentThreads(agentId: string): void {
     for (const [externalThreadId, owner] of this.#threadToAgent) {
-      if (owner === agentId) this.#loadedThreads.delete(externalThreadId);
+      const client = owner === agentId ? this.#loadedThreads.get(externalThreadId) : undefined;
+      if (!client) continue;
+      this.#loadedThreads.delete(externalThreadId);
+      this.#unloadedThreads.set(externalThreadId, client);
     }
   }
 
-  /** Every loaded provider session of this agent, its channel threads included, with its client. */
-  loadedAgentThreads(agentId: string): Array<[externalThreadId: string, client: AgentClient]> {
-    const loaded: Array<[string, AgentClient]> = [];
+  /**
+   * Every provider session of this agent that a client can still run, its channel threads included,
+   * with its client. A session that `unloadAgentThreads` unloaded is included.
+   */
+  openAgentThreads(agentId: string): Array<[externalThreadId: string, client: AgentClient]> {
+    const open: Array<[string, AgentClient]> = [];
     for (const [externalThreadId, owner] of this.#threadToAgent) {
-      const client = owner === agentId ? this.#loadedThreads.get(externalThreadId) : undefined;
-      if (client) loaded.push([externalThreadId, client]);
+      if (owner !== agentId) continue;
+      const client = this.#loadedThreads.get(externalThreadId) ?? this.#unloadedThreads.get(externalThreadId);
+      if (client) open.push([externalThreadId, client]);
     }
-    return loaded;
+    return open;
   }
 
   forgetExecutionThread(threadId: string): void {
@@ -778,6 +795,7 @@ export class ConversationRuntime {
 
   clearLoadedThreads(): void {
     this.#loadedThreads.clear();
+    this.#unloadedThreads.clear();
   }
 
   forgetAgent(agentId: string): void {
