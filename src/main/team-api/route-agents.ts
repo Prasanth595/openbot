@@ -49,6 +49,7 @@ import {
   promptRequestId,
   readBinary,
   readJson,
+  requireAgentLevel,
   stringField,
 } from "./request-helpers";
 import { routeAgentConversation } from "./route-agent-conversation";
@@ -195,6 +196,9 @@ export async function routeAgents(
   if (agentMatch) {
     const agentId = pathIdentifier(agentMatch[1], "agentId");
     const action = agentMatch[2] ?? "";
+    // Delete keeps its own admin check and message.
+    if (method !== "GET" && !(method === "DELETE" && !action))
+      requireAgentLevel(context, agentId, agentWriteLevel(action));
     if (method === "GET" && action === "analytics") {
       if (!capabilities.has("agent-analytics"))
         throw new HttpError(400, sourceText("error.team.agentAnalyticsUnsupported"));
@@ -306,6 +310,27 @@ export async function routeAgents(
   }
 
   return "unmatched";
+}
+
+// What a member does here as one person. The read markers are the member's own, so `view` is enough.
+const OWN_ACTIONS = new Set(["conversation/read", "conversation/unread"]);
+// Talking to the agent. Any other write on an agent path changes the agent, so a new action needs
+// `manage` until it is put here.
+const CHAT_ACTIONS = new Set([
+  "messages",
+  "reactions",
+  "interrupt",
+  "failures/acknowledge",
+  "queue/edit",
+  "queue/cancel",
+  "queue/steer",
+  "queue/update",
+  "queue/reorder",
+]);
+
+function agentWriteLevel(action: string): "view" | "chat" | "manage" {
+  if (OWN_ACTIONS.has(action)) return "view";
+  return CHAT_ACTIONS.has(action) ? "chat" : "manage";
 }
 
 /**

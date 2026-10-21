@@ -1,6 +1,7 @@
 import type { Effect } from "effect";
 import type { ChannelService } from "../../backend/channel-service";
 import type { AcpRegistry } from "../acp-registry";
+import type { AgentAccessStore } from "../agent-access-store";
 import type { AgentAdminSettingsService } from "../agent-admin-settings";
 import type { AgentHostSettingsService } from "../agent-host-settings";
 import type { AgentMarketplaceService } from "../agent-marketplace-service";
@@ -356,6 +357,8 @@ export type TeamApiOnePasswordConnector = Pick<
   "status" | "refreshLogins" | "connectWithToken" | "disconnect"
 >;
 
+export type TeamApiAgentAccess = Pick<AgentAccessStore, "get" | "levels" | "set" | "subscribe">;
+
 export interface TeamApiOptions {
   /** `events-v1`: admin-only event source and routine management. */
   events?: HostEventsApi | undefined;
@@ -375,6 +378,8 @@ export interface TeamApiOptions {
   instanceTransfer?: TeamApiInstanceTransfer;
   routineFlows?: TeamApiRoutineFlows;
   hiddenAgents?: TeamApiHiddenAgents;
+  /** `agent-access-v1`: the roles that limit what a member can do with each agent. */
+  agentAccess?: TeamApiAgentAccess;
   agentTasks?: TeamApiAgentTasks;
   admin?: TeamApiAdmin;
   appVersion?: string;

@@ -48,8 +48,8 @@ interface PushNotificationOptions {
   store: Pick<PushNotificationStore, "list" | "replace">;
   /** Sends one notification through the account service. `gone` means the phone gets no more. */
   send(request: NotificationRelayRequest): Effect.Effect<"sent" | "gone", PushNotificationSendFailure>;
-  /** The agents that a phone with this protocol and these capabilities cannot see. */
-  hiddenAgentIds(protocol: number, capabilities: ReadonlySet<string>): ReadonlySet<string>;
+  /** The agents that the member's phone with this protocol and these capabilities cannot see. */
+  hiddenAgentIds(protocol: number, capabilities: ReadonlySet<string>, memberId: string): ReadonlySet<string>;
   /** Whether the member is still a member and not disabled. A removed member gets no more notifications. */
   memberActive(memberId: string): boolean;
   /** The last send, answer or typing of the member in a session other than this phone, or `null`. */
@@ -189,7 +189,8 @@ export class PushNotificationService {
         this.remove(sessionId);
         return false;
       }
-      if (this.#options.hiddenAgentIds(protocol, registration.capabilities).has(subject.agentId)) return false;
+      if (this.#options.hiddenAgentIds(protocol, registration.capabilities, memberId).has(subject.agentId))
+        return false;
       // A member at a desktop app sees the event there, and the phone would only repeat it.
       const used = this.#options.lastUseElsewhere(memberId, sessionId);
       return !((used !== null && now - used < DESKTOP_USE_MS) || this.#options.atHostComputer(memberId, event));
