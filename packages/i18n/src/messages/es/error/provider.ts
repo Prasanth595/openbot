@@ -193,6 +193,8 @@ export const messages = {
     "El proveedor del modelo tuvo un fallo interno. Tu conexión no es la causa. Inténtalo más tarde o elige otro modelo.\n{detail}",
   "error.provider.opencodeNetwork":
     "OpenCode no pudo conectarse al proveedor del modelo. Comprueba la conexión de red del equipo que ejecuta OpenBot e inténtalo de nuevo.\n{detail}",
+  "error.provider.opencodeDatabaseNewer":
+    "OpenCode no pudo abrir su base de datos porque una versión más reciente de OpenCode la cambió. Actualiza OpenCode a la versión 2 o posterior y vuelve a intentarlo.",
   "error.provider.opencodeNoAnswer":
     "El modelo de OpenCode terminó el turno sin respuesta. Inténtalo de nuevo o elige otro modelo.",
   "error.provider.opencodeReasoningWithoutAnswer":

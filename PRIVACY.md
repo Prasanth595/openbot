@@ -121,10 +121,13 @@ download pages, the news and guide indexes, and published articles. It also reco
 clicks on allowlisted public links, invitation validity, and open-app actions on invitation pages.
 The production desktop app records application, sign-in, onboarding, agent, message, turn, prompt,
 approval, queue, routine, team, browser, search, Remote Desktop, update, marketplace, memory,
-provider, voice transcription, reaction, maintenance, Hosted Site, hosted server offer, and confirmed
-application-version-change actions. Event properties are limited to metadata such as counts, result
-states, timing, provider, model, reasoning effort, application version, operating system, and coarse
-failure codes.
+provider, voice transcription, Voice pane, spoken reply, voice model download, spoken reply setting,
+reaction, maintenance, Hosted Site, hosted server offer, and confirmed application-version-change
+actions. Event properties are limited to metadata such as counts, result states, timing, provider,
+model, reasoning effort, application version, operating system, and coarse failure codes. Voice events
+send only lengths, times, counts, the chosen voice (for example `F1`), whether the server is local or
+remote, and whether speech recognition runs on the computer or in the cloud. They never send what
+the user said, the reply, a transcript, or audio.
 
 The configured production mobile app records app opens and foreground returns, sign-in QR pairing
 and camera-permission outcomes, host connection attempts and losses, conversation-load outcomes,
@@ -599,16 +602,31 @@ Network traffic can also occur when:
   pins from `cache.agilebits.com`, checks its SHA-256, and keeps it in
   `~/Library/Application Support/OpenBot/provider-state/1password-cli`. The request carries no user
   data;
-- the user dictates for the first time, or presses Download in **Settings → Voice**. OpenBot
-  downloads the speech model that it pins, Parakeet or Whisper turbo, from `huggingface.co`, checks
-  its size and SHA-256, and keeps it in `runtimes` in the application data folder. The request
-  carries no user data. Dictation audio from these models stays on the computer, and the chosen
-  model and language are saved in `voice-preference.json` in the same folder;
-- the user selects ElevenLabs Scribe v2 Realtime in **Settings → Voice** and dictates. While the
-  microphone records, OpenBot streams the audio and the chosen language to
-  `api.elevenlabs.io` with the user's own API key, and receives the text. Nothing else is sent:
-  no conversation, file or agent instruction. ElevenLabs handles the audio and the text under its
-  own policy and the user's ElevenLabs plan. The local models send nothing;
+- the user dictates or opens the Voice pane for the first time, or presses Download in **Settings →
+  Voice**. OpenBot downloads the speech model that it pins, Parakeet or Whisper turbo, from
+  `huggingface.co`, checks its size and SHA-256, and keeps it in `runtimes` in the application data
+  folder. The request carries no user data. Dictation audio from these models stays on the computer,
+  and the chosen model and language are saved in `voice-preference.json` in the same folder;
+- the user selects ElevenLabs Scribe v2 Realtime in **Settings → Voice** and dictates or talks in
+  the Voice pane. While the microphone records, or when a Voice pane turn ends, OpenBot streams the
+  audio and the chosen language to `api.elevenlabs.io` with the user's own API key, and receives the
+  text. Nothing else is sent: no conversation, file or agent instruction. ElevenLabs handles the
+  audio and the text under its own policy and the user's ElevenLabs plan. The local models send
+  nothing;
+- the user turns on Read replies aloud, opens the Voice pane for the first time, or presses Download
+  in the Spoken replies section of **Settings → Voice**. OpenBot downloads the Supertonic 3 voice
+  model that it pins from `huggingface.co`, checks its size and SHA-256, and keeps it in `runtimes`
+  in the application data folder. The request carries no user data. The text of a reply that is read
+  aloud, and its audio, stay on the computer. The setting and the chosen voice are saved in
+  `speech-preference.json` in the same folder. In the Voice pane, the spoken reply runs on this
+  computer, also for an agent on a remote server. Speech recognition uses the model chosen in
+  **Settings → Voice**: a local model runs on this computer, and ElevenLabs gets the audio as
+  described above. A message that the user speaks to an agent on this computer keeps its recording,
+  a WebM/Opus file in the message's own transfer folder, so that the user can play it again in the
+  chat. The agent, its provider and team members get only the text. A remote server gets only the
+  text, as for a typed message, and no recording is kept. Recordings show in the Storage tab of
+  **Server Settings**, where the user can delete them, and are part of a data export. A recording is
+  deleted with the agent's or channel's data;
 - the user connects Bitwarden. OpenBot runs the installed `bw` CLI to sync with the server already
   configured in that CLI, including a self-hosted server. It syncs before listing or filling logins.
   These calls send no OpenBot conversations, files, or agent instructions to Bitwarden;
@@ -907,8 +925,8 @@ Marketplace submissions from the desktop app show the publisher’s current acco
 
 ### OpenCode
 
-OpenBot downloads the OpenCode CLI and its license (from the `opencode-ai` package) from
-`registry.npmjs.org`, then starts it with `opencode acp`. Prompts, attachments, and tool
+OpenBot downloads the OpenCode CLI (the `@opencode/cli` packages) and its license (from the
+`opencode-ai` package) from `registry.npmjs.org`, then starts it with `opencode acp`. Prompts, attachments, and tool
 results go to that local process. OpenCode can send them to the model provider selected in its
 configuration. OpenCode's free models are the default, and they reach OpenCode Go with no account,
 so a first OpenCode turn leaves this computer without a sign-in.

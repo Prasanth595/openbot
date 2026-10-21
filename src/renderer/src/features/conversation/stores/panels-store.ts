@@ -54,6 +54,7 @@ export const SIDE_PANEL_MODES = {
   tasks: "task",
   settings: "settings",
   question: "question",
+  voice: "voice",
   subagent: "subagent",
 } as const satisfies Record<SidePanelPane, RightPanelMode>;
 

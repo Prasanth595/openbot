@@ -100,7 +100,7 @@ interface PendingRequest {
 export class VoiceTranscriptionService extends EventEmitter<VoiceTranscriptionEvents> {
   readonly #scope = Scope.makeUnsafe();
   readonly #addonPath: string;
-  readonly #models: Record<LocalVoiceModelId, VoiceModelService>;
+  readonly #models: Record<LocalVoiceModelId, VoiceModelService<LocalVoiceModelId>>;
   readonly #preferences: VoicePreferenceStore;
   readonly #apiKeys: VoiceApiKeyStore;
   readonly #spawnHost: () => VoiceTranscriptionHostProcess;
@@ -123,7 +123,7 @@ export class VoiceTranscriptionService extends EventEmitter<VoiceTranscriptionEv
     this.#preferences = options.preferences;
     this.#apiKeys = options.apiKeys;
     const model = (modelId: LocalVoiceModelId) => {
-      const service = new VoiceModelService({
+      const service = new VoiceModelService<LocalVoiceModelId>({
         modelId,
         directory: options.modelDirectories[modelId],
         ...(options.fetch === undefined ? {} : { fetch: options.fetch }),

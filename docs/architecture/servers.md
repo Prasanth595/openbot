@@ -327,12 +327,13 @@ zone stays in memory only, so after a restart a queued message uses the server t
 and instance transfer use it in place of the system zone. A change does not move existing routines.
 
 `agent-memory-limit-v1` reads and sets how many memories each agent of the host can keep. It is the
-same value as "Memories per agent" in the host's own Settings. The snapshot gives the limit and the
-values that the host permits; the host refuses other values. A change reloads the threads of each
-agent, because their instructions state the limit, and the host's Settings window shows the new value
-(`app:agent-memory-limit`). A lower limit deletes no memories. The limit
-does not change the 8,192-byte budget of essential memories. The desktop shows the row for a joined
-server only; App Settings holds the value of this computer.
+same value as "Memories per agent" in the host's own Server settings. The snapshot gives the limit and
+the values that the host permits; the host refuses other values. A change reloads the threads of each
+agent, because their instructions state the limit, and the host's window shows the new value in each
+agent's memories (`app:agent-memory-limit`). A lower limit deletes no memories. The limit does not
+change the 8,192-byte budget of essential memories. Server settings → General → Agents is the only
+place that sets the limit, for this computer (`hostAdmin.setAgentMemoryLimit`, local handler) and for a
+joined server. App Settings does not show it, so that one name does not have two values.
 
 `host-update-v1` runs the same update as the host's own Settings. `src/main/requested-update.ts`
 keeps the schedule in memory: who asked, and whether the restart waits until
@@ -446,8 +447,10 @@ subscription quantity is the number of users.
   writes nothing to `billing_subscriptions`. A Worker before the license sees an unknown plan and
   skips the event, so an old Worker keeps working.
 - Routes: `GET /v1/me/license`, and `POST /v1/me/license/checkout`, `/users` and `/renewal`. The
-  state is `available: false` until Stripe has the license price, and the app then shows nothing.
-  An app on a Worker without these routes gets 404 and also shows nothing.
+  state is `available: false` only when the Worker has no billing, and the app then shows nothing.
+  When Stripe has no active license price (it is archived to pause sales), checkout returns 503
+  `license_unavailable`, and the app shows a toast with the sales address. An app on a Worker
+  without these routes gets 404 and also shows nothing.
 - A Stripe customer pays in one currency, so a new license uses the currency of the account's open
   subscriptions. Checkout cannot buy fewer users than are in use. An increase is charged at once
   (`always_invoice`). A decrease starts at the next invoice and cannot go below the users in use or

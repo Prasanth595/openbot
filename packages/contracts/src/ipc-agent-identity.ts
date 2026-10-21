@@ -78,6 +78,11 @@ export interface AgentModelOption {
    * still holds `medium`, which is what clients that predate this field show and save.
    */
   reasoningEffortConfigurable?: boolean;
+  /**
+   * The provider's id for the fast service tier of this model, such as Codex `priority`. Absent when
+   * the model has no fast mode.
+   */
+  fastServiceTier?: string;
 }
 
 export function isAgentModelOption(value: unknown): value is AgentModelOption {
@@ -90,6 +95,7 @@ export function isAgentModelOption(value: unknown): value is AgentModelOption {
     isReasoningEffort(value.defaultReasoningEffort) &&
     Array.isArray(value.supportedReasoningEfforts) &&
     value.supportedReasoningEfforts.every(isReasoningEffort) &&
-    (value.reasoningEffortConfigurable === undefined || isBoolean(value.reasoningEffortConfigurable))
+    (value.reasoningEffortConfigurable === undefined || isBoolean(value.reasoningEffortConfigurable)) &&
+    (value.fastServiceTier === undefined || isBoundedString(value.fastServiceTier, INPUT_LIMITS.serviceTier))
   );
 }

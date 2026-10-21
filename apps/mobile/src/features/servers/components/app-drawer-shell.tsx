@@ -49,24 +49,12 @@ export function AppDrawerShell({ children }: PropsWithChildren) {
   const insets = useSafeAreaInsets();
   const { session } = useMobileSession();
   const { t } = useText();
-  const {
-    activeServer,
-    canUseTasks,
-    setDefaultServer,
-    defaultServerId,
-    leaveServer,
-    removeServer,
-    reorderServers,
-    selectServer,
-    servers,
-  } = useMobileWorkspace();
+  const { activeServer, leaveServer, removeServer, reorderServers, selectServer, servers } = useMobileWorkspace();
   const [muted] = useThemeColor(["muted"]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const drawerProgress = useSharedValue(0);
   const drawerWidth = Math.min(360, Math.max(280, width - 52));
   const drawerSideInset = Math.max(insets.left, 18);
-  const drawerHeaderHeight = Math.max(insets.top, 16) + 56;
-  const drawerListTopInset = drawerHeaderHeight + 8;
   const surfaceCornerRadius = Math.max(DRAWER_SURFACE_MIN_RADIUS, insets.top, insets.right, insets.bottom, insets.left);
 
   const drawerOpenOnUI = useSharedValue(false);
@@ -227,18 +215,12 @@ export function AppDrawerShell({ children }: PropsWithChildren) {
           >
             <ServerDrawerContent
               activeServerId={activeServer.id}
-              canUseTasks={canUseTasks}
-              headerHeight={drawerHeaderHeight}
-              listTopInset={drawerListTopInset}
               muted={muted}
               open={drawerOpen}
-              defaultServerId={defaultServerId}
               servers={servers}
               session={session}
-              sideInset={drawerSideInset}
               topInset={insets.top}
               onNavigate={navigateAfterClosing}
-              onSetDefault={setDefaultServer}
               onLeave={leaveServer}
               onRemove={removeServer}
               onReorder={reorderServers}

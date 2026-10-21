@@ -11,7 +11,7 @@ import { Effect } from "effect";
 import { version } from "../../../package.json";
 
 /** The desktop schema generation. Product events and failure reports send the same value. */
-export const ANALYTICS_SCHEMA_VERSION = 8;
+export const ANALYTICS_SCHEMA_VERSION = 9;
 
 let queue: ReportQueue | undefined;
 let enabled = false;

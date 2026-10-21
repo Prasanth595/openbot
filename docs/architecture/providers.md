@@ -247,6 +247,21 @@ streamed messages, permissions, tool bridging, and cancellation. `grok-client.ts
 login and billing hooks. The OpenCode driver starts `opencode acp` on the runtime OpenBot pins and
 downloads, or on a CLI the user installed. Profile clients deny tool permissions.
 
+The pinned runtime is OpenCode 2 (`@opencode/cli`). Its platform tarballs carry no licence file, so
+the stage step copies `LICENSE` from the `opencode-ai` tarball that `licensePackage` in
+`native-runtime.lock.json` names. Every OpenCode install on the computer shares
+`~/.local/share/opencode/opencode.db`. When OpenCode 2 migrates a database of OpenCode 1, it adds
+`session_v2` and keeps `session`, so OpenCode 1 can still open it. A database that OpenCode 2
+creates has no `session` table, and OpenCode 1 then refuses to start with "Database is not empty and
+has no session table" (OpenCode issue #53221); `ProviderRuntime` replaces that exit text with
+`error.provider.opencodeDatabaseNewer`. OpenBot does
+not move OpenCode to a separate database, because the threads would lose their sessions. OpenCode 2
+differs from OpenCode 1 on the wire in three places that `acp-client.ts` handles: a missing session
+is `-32602` "session not found: <id>" instead of an `-32603` service failure; `session/resume` can
+fail with `ServiceUnavailableError` while the CLI starts (OpenCode issue #57204), so it is tried once
+more after two seconds; and a model name starts with the provider id, not its name, so
+`openCodeModelName` restores the group name.
+
 OpenCode has no login step OpenBot can drive, because the account is one environment variable: a
 spawn without `OPENCODE_API_KEY` lists the free OpenCode Go models, and a spawn with one lists the
 paid catalog. So `AcpAgentClient` derives `#signedIn` from the models `session/new` returns, not

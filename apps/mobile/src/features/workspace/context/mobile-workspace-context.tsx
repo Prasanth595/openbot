@@ -188,6 +188,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
   const queryClient = useQueryClient();
   useEffect(() => () => queryClient.removeQueries({ queryKey: queryKeys.chatQueue() }), [queryClient]);
   const presenceSignatures = useRef(new Map<string, string>());
+  const [memberCountByServer, setMemberCountByServer] = useState<Readonly<Record<string, number>>>({});
   if (!session) throw new Error("MobileWorkspaceProvider requires a signed-in mobile session.");
   const queryScope = useMemo<QueryScope>(
     () => [session.apiUrl, session.user.id, sessionScope],
@@ -234,8 +235,12 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
   const removedServers = useRef(new Set<string>());
   const readRefresh = useMemo(() => createRemoteReadRefresh(), []);
   const serverCapabilities = useRef(new Map<string, readonly string[]>());
-  const { serverOrder, defaultServerId, orderedServers, sortByPreference, reorderServers, setDefaultServer } =
-    useServerOrder(session.apiUrl, session.user.id, session.host?.hostId, servers);
+  const { serverOrder, defaultServerId, orderedServers, sortByPreference, reorderServers } = useServerOrder(
+    session.apiUrl,
+    session.user.id,
+    session.host?.hostId,
+    servers,
+  );
   // The app opens on the first server of the list. The directory corrects a saved server that is gone.
   const [activeServerId, setActiveServerId] = useState<string | null>(() => defaultServerId ?? serverOrder[0] ?? null);
   const activeServerIdRef = useRef(activeServerId);
@@ -897,6 +902,10 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         );
         if (presenceSignatures.current.get(serverId) !== signature) {
           presenceSignatures.current.set(serverId, signature);
+          const members = event.snapshot.members.filter((member) => !member.disabled).length;
+          setMemberCountByServer((current) =>
+            current[serverId] === members ? current : { ...current, [serverId]: members },
+          );
           void queryClient.invalidateQueries({ queryKey: queryKeys.serverMembers(queryScope, serverId) });
           void queryClient.invalidateQueries({ queryKey: queryKeys.serverInvites(queryScope, serverId) });
         }
@@ -1089,7 +1098,6 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         applySidebarLayout(serverId, layout);
       },
       reorderServers,
-      setDefaultServer,
       teamDirectory: directory,
       conversationStore,
       liveState,
@@ -1393,7 +1401,6 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     refreshHosts,
     refreshMemberships,
     reorderServers,
-    setDefaultServer,
     applySidebarLayout,
     conversationStore,
     liveState,
@@ -1442,7 +1449,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       browserViewSupport: browser.browserViewSupport,
       sidebarByServer,
       servers: orderedServers,
-      defaultServerId,
+      memberCountByServer,
       serverDirectoryState,
       serverDirectoryError,
       agents,
@@ -1471,7 +1478,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     browser,
     sidebarByServer,
     orderedServers,
-    defaultServerId,
+    memberCountByServer,
     serverDirectoryState,
     serverDirectoryError,
     agents,

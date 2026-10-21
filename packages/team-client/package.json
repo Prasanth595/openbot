@@ -35,7 +35,7 @@
     "./agent-tasks": "./src/agent-tasks.ts"
   },
   "scripts": {
-    "typecheck": "bun ../../node_modules/typescript/bin/tsc --noEmit -p tsconfig.json"
+    "typecheck": "bun ../../scripts/type-checker.ts --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@noble/ed25519": "3.1.0",

@@ -2,6 +2,7 @@ import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import type {
   AgentMemoryLimitPreference,
   AgentProviderId,
+  AppBehaviorPreferenceChange,
   BrowserDockAction,
   BrowserDockFrame,
   BrowserDockPresentation,
@@ -115,6 +116,10 @@ export function parseIdleRestartTarget(input: unknown): IdleRestartTarget {
   return input;
 }
 
+export function parseAppBehaviorPreferenceChange(input: unknown): AppBehaviorPreferenceChange {
+  return parseSwitches(input, ["launchAtLogin", "keepRunningInBackground"], "The app behavior setting is required.");
+}
+
 export function parseUpdatePreference(input: unknown): UpdatePreferenceChange {
   return parseSwitches(input, ["autoDownload", "allowRemoteUpdates", "autoInstall"], "Update preference is required.");
 }
@@ -206,6 +211,7 @@ export function parseExternalDestination(input: unknown): ExternalDestination {
     input !== "changelog" &&
     input !== "guides" &&
     input !== "discord" &&
+    input !== "x" &&
     input !== "grok-bot-export" &&
     input !== "hosted-server-contact" &&
     input !== "mac-screen-recording"

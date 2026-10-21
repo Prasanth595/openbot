@@ -157,6 +157,10 @@ export interface ModelListResponse {
     supportedReasoningEfforts?: Array<{ reasoningEffort?: string }>;
     reasoningEffortConfigurable?: boolean;
     hidden?: boolean;
+    /** Codex: the service tiers of the model, such as `{ id: "priority", name: "Fast" }`. */
+    serviceTiers?: Array<{ id: string; name?: string }>;
+    /** Codex: the older, deprecated form of `serviceTiers`, such as `["fast"]`. */
+    additionalSpeedTiers?: string[];
   }>;
 }
 
@@ -172,6 +176,18 @@ export function decodeModelListResponse(value: unknown): ModelListResponse {
       ...(isBoolean(item.hidden) ? { hidden: item.hidden } : {}),
       ...(isBoolean(item.reasoningEffortConfigurable)
         ? { reasoningEffortConfigurable: item.reasoningEffortConfigurable }
+        : {}),
+      ...(Array.isArray(item.serviceTiers)
+        ? {
+            serviceTiers: item.serviceTiers
+              .filter(isRecord)
+              .flatMap((tier) =>
+                isString(tier.id) ? [{ id: tier.id, ...(isString(tier.name) ? { name: tier.name } : {}) }] : [],
+              ),
+          }
+        : {}),
+      ...(Array.isArray(item.additionalSpeedTiers)
+        ? { additionalSpeedTiers: item.additionalSpeedTiers.filter(isString) }
         : {}),
       ...(Array.isArray(item.supportedReasoningEfforts)
         ? {

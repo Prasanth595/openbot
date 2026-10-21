@@ -18,6 +18,7 @@ import type { BrowserHost } from "../../backend/browser-host";
 import type { MailboxStore } from "../../backend/mailbox-store";
 import type { AgentMemoryLimitSetting } from "../agent-memory-limit-preference-store";
 import { readAnalyticsPreference, writeAnalyticsPreference } from "../analytics-preference-store";
+import type { AppBehaviorService } from "../app-behavior-service";
 import type { ApprovalAutomation } from "../approval-automation-store";
 import type { BusyMessageModePreferenceStore } from "../busy-message-mode-preference-store";
 import type { LanguageService } from "../language-service";
@@ -29,8 +30,8 @@ import type { RemoteSessionReusePreferenceStore } from "../remote-session-reuse-
 import { readSetupState, writeSetupState } from "../setup-store";
 import type { UpdateService } from "../update-service";
 import {
-  parseAgentMemoryLimitPreference,
   parseAnalyticsPreference,
+  parseAppBehaviorPreferenceChange,
   parseAppLanguagePreference,
   parseAppLogoColorPreference,
   parseBusyMessageModePreference,
@@ -62,6 +63,7 @@ const EXTERNAL_DESTINATIONS: Record<ExternalDestination, string> = {
   guides: "https://openbot.run/guides",
   // A Redirect Rule in the openbot.run Cloudflare zone sends this to the current Discord invite.
   discord: "https://discord.openbot.run",
+  x: "https://x.com/OpenBot_",
   "grok-bot-export": GROK_BOT_EXPORT_URL,
   "hosted-server-contact": HOSTED_SERVER_CONTACT_URL,
   "mac-screen-recording": MAC_PERMISSION_URLS["screen-recording"],
@@ -85,6 +87,7 @@ export interface AppIpcDependencies {
   agentMemoryLimit: AgentMemoryLimitSetting;
   remoteSessionReuse: RemoteSessionReusePreferenceStore;
   remoteSessionCache: RemoteSessionCache;
+  appBehavior: AppBehaviorService;
   language: LanguageService;
   logoColor: LogoColorService;
   initializeAgent: () => Promise<void>;
@@ -108,6 +111,7 @@ export function appIpcHandlers({
   agentMemoryLimit,
   remoteSessionReuse,
   remoteSessionCache,
+  appBehavior,
   language,
   logoColor,
   initializeAgent,
@@ -155,9 +159,6 @@ export function appIpcHandlers({
         runCauseEffect(busyMessageMode.set(parsed)),
       ),
       getAgentMemoryLimitPreference: handler(() => agentMemoryLimit.get()),
-      setAgentMemoryLimitPreference: payloadHandler(parseAgentMemoryLimitPreference, (parsed) =>
-        runCauseEffect(agentMemoryLimit.set(parsed)),
-      ),
       getRemoteSessionReusePreference: handler(() => remoteSessionReuse.get()),
       // Off removes the kept sessions at once. The sessions of this run then end when the app quits.
       setRemoteSessionReusePreference: payloadHandler(parseRemoteSessionReusePreference, async (parsed) => {
@@ -165,6 +166,10 @@ export function appIpcHandlers({
         await Effect.runPromise(remoteSessionCache.setEnabled(saved.keepBetweenRuns));
         return saved;
       }),
+      getAppBehaviorPreference: handler(() => runCauseEffect(appBehavior.get())),
+      setAppBehaviorPreference: payloadHandler(parseAppBehaviorPreferenceChange, (parsed) =>
+        runCauseEffect(appBehavior.set(parsed)),
+      ),
       getAppLanguagePreference: handler(() => language.preference),
       setAppLanguagePreference: payloadHandler(parseAppLanguagePreference, (parsed) =>
         runCauseEffect(language.set(parsed)),

@@ -20,6 +20,7 @@ import {
   IPC_ENDPOINTS,
   LOCAL_SERVER_ID,
   latestTurnAnswer,
+  type SpeechModelStatus,
   type VoiceModelStatus,
   type VoiceStreamTranscript,
 } from "@openbot/contracts/ipc";
@@ -195,6 +196,12 @@ export function createRendererForwarders({
     sendToRenderer(window, IPC_ENDPOINTS.voice.modelStatus, status);
   }
 
+  function forwardSpeechModelStatus(status: SpeechModelStatus): void {
+    const window = getMainWindow();
+    if (!window || window.isDestroyed()) return;
+    sendToRenderer(window, IPC_ENDPOINTS.voice.speechModelStatus, status);
+  }
+
   function forwardVoiceStreamTranscript(transcript: VoiceStreamTranscript): void {
     const window = getMainWindow();
     if (!window || window.isDestroyed()) return;
@@ -288,6 +295,7 @@ export function createRendererForwarders({
     forwardUpdatePreference,
     forwardVoiceModelStatus,
     forwardVoiceStreamTranscript,
+    forwardSpeechModelStatus,
     forwardProviderRuntimeStatus,
     forwardGitHubConnectorStatus,
     forwardOnePasswordConnectorStatus,

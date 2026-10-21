@@ -152,6 +152,11 @@ export function decodeAttachments(value: unknown): DraftAttachment[] {
   return value;
 }
 
+export function decodeAttachment(value: unknown): DraftAttachment {
+  if (!isAttachmentSummary(value)) throw new Error("Invalid attachment response.");
+  return value;
+}
+
 export function decodeReceipt(value: unknown): QueuedMessageReceipt {
   if (!isQueuedMessageReceipt(value)) {
     throw new Error("Invalid queued message response.");

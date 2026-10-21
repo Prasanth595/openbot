@@ -191,6 +191,8 @@ export const messages = {
     "Model sağlayıcısı kendi tarafında başarısız oldu. Bağlantınız bunun nedeni değildir. Daha sonra tekrar deneyin veya başka bir model seçin.\n{detail}",
   "error.provider.opencodeNetwork":
     "OpenCode model sağlayıcısına bağlanamadı. OpenBot'u çalıştıran bilgisayarın ağ bağlantısını kontrol edin, ardından tekrar deneyin.\n{detail}",
+  "error.provider.opencodeDatabaseNewer":
+    "Daha yeni bir OpenCode sürümü veritabanını değiştirdiği için OpenCode veritabanını açamadı. OpenCode'u 2 veya daha yeni bir sürüme güncelleyin, sonra yeniden deneyin.",
   "error.provider.opencodeNoAnswer":
     "OpenCode modeli turu yanıt vermeden bitirdi. Tekrar deneyin veya başka bir model seçin.",
   "error.provider.opencodeReasoningWithoutAnswer":

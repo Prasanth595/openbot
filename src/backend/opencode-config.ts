@@ -151,6 +151,29 @@ export function openCodeConfigEnv(
   return config ? { [OPENCODE_CONFIG_ENV]: JSON.stringify(config) } : {};
 }
 
+/** OpenCode's own providers, by the names that OpenCode 1 showed (models.dev). */
+const OPENCODE_PROVIDER_NAMES: Readonly<Record<string, string>> = {
+  opencode: "OpenCode",
+  "opencode-go": "OpenCode Go",
+};
+
+/**
+ * A model name with the provider's name before the `/`, as OpenCode 1 sent it.
+ *
+ * OpenCode 1.19.3 named a model `OpenCode/Big Pickle` or `My Lab/Lab Model`; OpenCode 2.1.1 sends the
+ * provider id, `opencode/Big Pickle` and `mylab/Lab Model`. The model picker groups by that part,
+ * so a custom endpoint showed its id and not the name the user gave it.
+ */
+export function openCodeModelName(id: string, name: string, source: CustomProviderSource): string {
+  const separator = id.indexOf("/");
+  if (separator <= 0) return name;
+  const providerId = id.slice(0, separator);
+  if (!name.startsWith(`${providerId}/`)) return name;
+  const providerName =
+    source().find((provider) => provider.id === providerId)?.name ?? OPENCODE_PROVIDER_NAMES[providerId];
+  return providerName ? `${providerName}${name.slice(providerId.length)}` : name;
+}
+
 /**
  * What to tell the user when OpenCode will not start a session.
  *

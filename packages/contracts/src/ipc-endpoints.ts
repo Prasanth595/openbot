@@ -128,6 +128,7 @@ import type {
   UpdateStatus,
   VerifyEmailCodeInput,
 } from "./ipc-app-auth";
+import type { AppBehaviorPreference, AppBehaviorPreferenceChange } from "./ipc-app-behavior";
 import type {
   ApprovalAutomationPreference,
   RespondToApprovalInput,
@@ -427,6 +428,10 @@ import type {
   UpdateTeamMemberInput,
 } from "./ipc-team-host";
 import type {
+  SpeechAudio,
+  SpeechInput,
+  SpeechModelStatus,
+  SpeechSettings,
   VoiceApiKeyInput,
   VoiceModelRequest,
   VoiceModelStatus,
@@ -538,14 +543,16 @@ export const IPC_ENDPOINTS = {
       "app:set-busy-message-mode",
     ),
     getAgentMemoryLimitPreference: request<undefined, AgentMemoryLimitPreference>()("app:get-agent-memory-limit"),
-    setAgentMemoryLimitPreference: request<AgentMemoryLimitPreference, AgentMemoryLimitPreference>()(
-      "app:set-agent-memory-limit",
-    ),
-    // An admin of a joined server can change the limit of this computer, so main tells the window.
+    // Server settings set the limit of this computer (`hostAdmin.setAgentMemoryLimit`), here or from a
+    // joined admin, so main tells the window.
     agentMemoryLimitPreference: event<AgentMemoryLimitPreference>()("app:agent-memory-limit"),
     getRemoteSessionReusePreference: request<undefined, RemoteSessionReusePreference>()("app:get-remote-session-reuse"),
     setRemoteSessionReusePreference: request<RemoteSessionReusePreference, RemoteSessionReusePreference>()(
       "app:set-remote-session-reuse",
+    ),
+    getAppBehaviorPreference: request<undefined, AppBehaviorPreference>()("app:get-behavior-preference"),
+    setAppBehaviorPreference: request<AppBehaviorPreferenceChange, AppBehaviorPreference>()(
+      "app:set-behavior-preference",
     ),
     getAppLanguagePreference: request<undefined, AppLanguagePreference>()("app:get-language-preference"),
     setAppLanguagePreference: request<SetAppLanguagePreferenceInput, AppLanguagePreference>()(
@@ -666,6 +673,25 @@ export const IPC_ENDPOINTS = {
     modelStatus: event<VoiceModelStatus>()("voice:model-status"),
     /** The text of a stream so far. It can change until `finishStream` answers. */
     streamTranscript: event<VoiceStreamTranscript>()("voice:stream-transcript"),
+    getSpeechSettings: request<undefined, SpeechSettings>()("voice:get-speech-settings"),
+    setSpeechSettings: request<SpeechSettings, SpeechSettings>()("voice:set-speech-settings"),
+    getSpeechModelStatus: request<undefined, SpeechModelStatus>()("voice:get-speech-model-status"),
+    /** Downloads the speech model. Answers when it is ready, failed, or cancelled. */
+    downloadSpeechModel: request<undefined, SpeechModelStatus>()("voice:download-speech-model"),
+    cancelSpeechModelDownload: request<undefined, SpeechModelStatus>()("voice:cancel-speech-model-download"),
+    /** Reads one part of a reply aloud with the voice in the settings. The model must be ready. */
+    speak: request<SpeechInput, SpeechAudio>()("voice:speak"),
+    /**
+     * Loads the speech model before a reply needs it, so its first part starts sooner. Answers when
+     * the model is loaded. It does nothing when the model is not downloaded.
+     */
+    warmSpeech: request<undefined, void>()("voice:warm-speech"),
+    /**
+     * Keeps a voice turn's recording as an attachment draft of this computer's host. A message names it
+     * in `voiceRecordingDraftId`, so the chat can play it again; the agent gets only the text.
+     */
+    keepRecording: request<VoiceTranscriptionInput, DraftAttachment>()("voice:keep-recording"),
+    speechModelStatus: event<SpeechModelStatus>()("voice:speech-model-status"),
   },
   dynamicIsland: {
     getPreference: request<undefined, DynamicIslandPreference>()("dynamic-island:get-preference"),

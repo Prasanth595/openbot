@@ -199,6 +199,8 @@ export interface ConversationMessage {
   senderMember?: ConversationMessageSender | undefined;
   replyToMessageId?: string | null | undefined;
   attachments?: AttachmentSummary[] | undefined;
+  /** What the user said, on a message that a voice turn sent. The agent got only the text. */
+  voiceRecording?: AttachmentSummary | undefined;
   imageGeneration?: ImageGenerationInfo | undefined;
   delivery?: Pick<QueueDelivery, "id" | "status" | "position"> | undefined;
   exchange?: AgentExchangeSummary | undefined;
@@ -249,6 +251,7 @@ export function isConversationMessage(value: unknown): value is ConversationMess
       (Array.isArray(value.attachments) &&
         value.attachments.length <= INPUT_LIMITS.attachments &&
         value.attachments.every(isAttachmentSummary))) &&
+    (value.voiceRecording === undefined || isAttachmentSummary(value.voiceRecording)) &&
     (value.delivery === undefined || isConversationDelivery(value.delivery)) &&
     (value.exchange === undefined || isAgentExchangeSummary(value.exchange)) &&
     (value.reaction === undefined || value.reaction === null || isMessageReaction(value.reaction)) &&

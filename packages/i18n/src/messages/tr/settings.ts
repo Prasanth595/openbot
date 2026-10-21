@@ -40,8 +40,6 @@ export const messages = {
   "settings.busyMessage.title": "Ajanları çalışırken yönlendir",
   "settings.busyMessage.description":
     "Yeni mesajlar kuyruğa değil, ajanın mevcut işine eklenir. ChatGPT ve Claude ile çalışır.",
-  "settings.agentMemoryLimit.title": "Ajan başına bellek",
-  "settings.agentMemoryLimit.description": "Bu bilgisayardaki her ajanın tutabileceği bellek sayısı.",
   "settings.keepRemoteSessions.title": "Sunuculara hızlı bağlantı",
   "settings.keepRemoteSessions.description":
     "Katıldığınız sunuculara olan bağlantıyı açılışlar arasında koruyun. OpenBot yaklaşık bir saniye daha hızlı başlar. OpenBot'tan çıktığınızda OpenBot hizmeti bağlantıyı kapatmaz.",
@@ -456,6 +454,18 @@ export const messages = {
   "settings.voice.apiKey.remove": "Anahtarı kaldır",
   "settings.voice.apiKey.saveFailed": "API anahtarı kaydedilemedi. Tekrar deneyin.",
   "settings.voice.apiKey.removeFailed": "API anahtarı kaldırılamadı. Tekrar deneyin.",
+  "settings.voice.speech.section": "Sesli yanıtlar",
+  "settings.voice.speech.model.description": "Yanıtları bu bilgisayarda 31 dilde sesli okur.",
+  "settings.voice.speech.readReplies.title": "Yanıtları sesli oku",
+  "settings.voice.speech.readReplies.description":
+    "Bir mesajı dikte ettiğinizde yanıt sesli okunur. Durdurmak için yeniden dikte edin.",
+  "settings.voice.speech.voice.title": "Ses",
+  "settings.voice.speech.voice.female": "Kadın sesi {number}",
+  "settings.voice.speech.voice.male": "Erkek sesi {number}",
+  "settings.voice.speech.voice.listen": "Dinle",
+  "settings.voice.speech.voice.stop": "Durdur",
+  "settings.voice.speech.sample": "Merhaba. Yanıtlarınız böyle duyulacak.",
+  "settings.voice.speech.listenFailed": "Örnek oynatılamadı.",
   "settings.transfer.title": "Bu sunucuyu başka bir bilgisayara taşıyın",
   "settings.transfer.lede": "Ajanlarınız, becerileri, rutinleri, bellekleri ve dosyaları tek bir dosyada toplanır.",
   "settings.transfer.flow.label": "Aktarım nasıl çalışır",

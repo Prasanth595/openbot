@@ -20,4 +20,9 @@ export const messages = {
   "error.voice.cloud.streamEnded": "音声入力の送信が終了しました。もう一度録音してください。",
   "error.voice.cloud.tooLong": "録音が長すぎます。",
   "error.voice.cloud.keySaveFailed": "ElevenLabs の API キーを保存できませんでした。",
+  "error.voice.speech.runtimeUnavailable": "このプラットフォームではローカル音声合成を利用できません。",
+  "error.voice.speech.modelRequired": "設定 → 音声 で音声合成モデルをダウンロードしてください。",
+  "error.voice.speech.timedOut": "返信の読み上げがタイムアウトしました。",
+  "error.voice.speech.failed": "OpenBot は返信を読み上げられませんでした。",
+  "error.voice.recordingNotKept": "OpenBot は音声録音を保存できませんでした。",
 } as const satisfies PartialTranslation<typeof source>;

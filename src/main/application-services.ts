@@ -67,6 +67,7 @@ import type {
   CentralAuthState,
   ComputerUseState,
   ProviderRuntimeSnapshot,
+  SpeechModelStatus,
   VoiceModelStatus,
   VoiceStreamTranscript,
 } from "@openbot/contracts/ipc";
@@ -118,6 +119,7 @@ import { HostAnalytics } from "./analytics";
 import { analyticsInventoryDayStore, collectAnalyticsInventory } from "./analytics-inventory";
 import { catalogPluginSlug, isReportedMcpServerName, loadCatalogPluginServers } from "./analytics-plugin-catalog";
 import { readAnalyticsPreference } from "./analytics-preference-store";
+import { AppBehaviorService } from "./app-behavior-service";
 import { ApprovalAutomation, readApprovalAutomation } from "./approval-automation-store";
 import { AutomationServer } from "./automation-server";
 import { BillingDesktopService } from "./billing-service";
@@ -169,6 +171,7 @@ import { loadIngressQueueKey } from "./ingress-queue-key";
 import { InstanceTransferService } from "./instance-transfer-service";
 import { LanguageService } from "./language-service";
 import { localRoutineFeedDocument } from "./local-routine-calendar";
+import { createLoginItem } from "./login-item";
 import { LogoColorService } from "./logo-color-service";
 import type { MacHapticFeedback } from "./mac-haptic-feedback";
 import {
@@ -205,7 +208,7 @@ import { ProviderCredentialStore } from "./provider-credential-store";
 import { createProviderDetection, type ProviderDetection } from "./provider-detection";
 import { PROVIDER_DETECTION_SETTINGS_FILE, ProviderDetectionSettingsStore } from "./provider-detection-settings-store";
 import { ProviderHostSignIns } from "./provider-host-sign-ins";
-import { startAgentLog, startProviderLog } from "./provider-log";
+import { startAccountLog, startAgentLog, startProviderLog } from "./provider-log";
 import { toProviderRuntimeFailure } from "./provider-runtime-effects";
 import { ProviderRuntimeManager, providerRuntimeRoot, runtimeTarget } from "./provider-runtime-manager";
 import { ProviderUseSettingsStore } from "./provider-use-settings-store";
@@ -241,6 +244,7 @@ import { agentPrintedLink, SignInRelayHost } from "./sign-in-relay-host";
 import { SignalIngress } from "./signal-ingress";
 import { SkillMarketplaceService } from "./skill-marketplace-service";
 import { SLACK_DEV_CALLBACK_PATH, startSlackDevCallbackServer } from "./slack-dev-callback-server";
+import { SpeechPreferenceStore } from "./speech-preference-store";
 import { TeamStore } from "./team-store";
 import { TeamWebRtcBridge } from "./team-webrtc-bridge";
 import { TeamWebRtcClientTransport } from "./team-webrtc-client-transport";
@@ -261,9 +265,12 @@ import { openScribeSocket } from "./voice-cloud-stream";
 import {
   PARAKEET_MODEL_DIRECTORY,
   removeLegacyWhisperCache,
+  SUPERTONIC_MODEL_DIRECTORY,
   WHISPER_TURBO_MODEL_DIRECTORY,
 } from "./voice-model-service";
 import { VoicePreferenceStore } from "./voice-preference-store";
+import { spawnVoiceSpeechHost } from "./voice-speech-host-process";
+import { VoiceSpeechService } from "./voice-speech-service";
 import { spawnVoiceTranscriptionHost } from "./voice-transcription-host-process";
 import { VoiceTranscriptionService } from "./voice-transcription-service";
 import { WebhookRelay } from "./webhook-relay";
@@ -285,6 +292,7 @@ const BUSY_MESSAGE_MODE_PREFERENCE_FILE = "openbot-busy-message-mode-v1.json";
 const AGENT_MEMORY_LIMIT_PREFERENCE_FILE = "openbot-agent-memory-limit-v1.json";
 const SERVER_TIMEZONE_PREFERENCE_FILE = "openbot-server-timezone-v1.json";
 const REMOTE_SESSION_REUSE_PREFERENCE_FILE = "openbot-remote-session-reuse-preference-v1.json";
+const APP_BEHAVIOR_PREFERENCE_FILE = "openbot-app-behavior-preference-v1.json";
 const DYNAMIC_ISLAND_PREFERENCE_FILE = "openbot-dynamic-island-preference-v1.json";
 const BROWSER_STATE_FILE = "openbot-browser-state-v1.json";
 const SIDEBAR_LAYOUT_FILE = "openbot-sidebar-layout-v1.json";
@@ -350,6 +358,7 @@ const TEARDOWN_ORDER = {
   cuaDriver: 55,
   remoteServers: 60,
   voice: 70,
+  speech: 71,
   remoteDesktop: 80,
   // Before messaging, so no routine answer starts a post while the connections stop.
   routineResults: 84,
@@ -384,6 +393,8 @@ const TEARDOWN_ORDER = {
   providerLog: 121,
   // After the service, so a deletion that fails while the service stops is kept.
   agentLog: 122,
+  // After the account, so a session write that fails while it stops is kept.
+  accountLog: 123,
   // Last: every step above can still write.
   database: 130,
 } as const;
@@ -415,6 +426,7 @@ export interface ApplicationServiceContext {
   forwardProviderRuntimeStatus: (snapshot: ProviderRuntimeSnapshot) => void;
   forwardVoiceModelStatus: (status: VoiceModelStatus) => void;
   forwardVoiceStreamTranscript: (transcript: VoiceStreamTranscript) => void;
+  forwardSpeechModelStatus: (status: SpeechModelStatus) => void;
   prepareForUpdateInstall: () => Promise<void>;
 }
 
@@ -464,6 +476,7 @@ export interface ApplicationServices {
   serverTimezone: ServerTimezonePreferenceStore;
   remoteSessionReuse: RemoteSessionReusePreferenceStore;
   remoteSessionCache: RemoteSessionCache;
+  appBehavior: AppBehaviorService;
   agentInitialization: AgentInitializationGate<AgentLifecycleFailed>;
   sidebarLayout: SidebarLayoutStore;
   host: HostService;
@@ -491,6 +504,7 @@ export interface ApplicationServices {
   agentImport: AgentImportService;
   instanceTransfer: InstanceTransferService;
   voice: VoiceTranscriptionService;
+  speech: VoiceSpeechService;
   dynamicIsland: DynamicIslandWindowController;
   cuaDriver: CuaDriverRuntime;
   computerUseHighlight: ComputerUseHighlightController;
@@ -746,6 +760,7 @@ export async function createApplicationServices({
   forwardProviderRuntimeStatus,
   forwardVoiceModelStatus,
   forwardVoiceStreamTranscript,
+  forwardSpeechModelStatus,
   prepareForUpdateInstall,
 }: ApplicationServiceContext): Promise<ApplicationServices> {
   // First, so the provider lines of the whole startup reach the file.
@@ -755,6 +770,7 @@ export async function createApplicationServices({
     startProviderLog(join(app.getPath("userData"), "logs")),
   );
   teardown.push(TEARDOWN_ORDER.agentLog, "the agent log", startAgentLog(join(app.getPath("userData"), "logs")));
+  teardown.push(TEARDOWN_ORDER.accountLog, "the account log", startAccountLog(join(app.getPath("userData"), "logs")));
   // The one forward reference left in this function: the controller is built at the top of
   // startup because its window must be able to appear immediately, but the two services its
   // critical actions drive are built hundreds of lines below. A single named local rather than
@@ -993,6 +1009,15 @@ export async function createApplicationServices({
     join(app.getPath("userData"), REMOTE_SESSION_REUSE_PREFERENCE_FILE),
   );
   await runCauseEffect(remoteSessionReuse.load());
+  const appBehavior = new AppBehaviorService({
+    path: join(app.getPath("userData"), APP_BEHAVIOR_PREFERENCE_FILE),
+    loginItem: createLoginItem({ appVariant, server: Boolean(hostedServer || serverModeEnvironment) }),
+    offersBackground: process.platform !== "darwin" && !hostedServer && !serverModeEnvironment,
+  });
+  await runCauseEffect(appBehavior.load());
+  void Effect.runPromise(appBehavior.refreshLoginItem()).catch((error) =>
+    logger.warn("The login item did not refresh.", toLogValue(error)),
+  );
   const remoteSessionCache = new RemoteSessionCache({
     path: join(app.getPath("userData"), REMOTE_SESSIONS_FILE),
     enabled: remoteSessionReuse.get().keepBetweenRuns,
@@ -2308,6 +2333,18 @@ export async function createApplicationServices({
   teardown.push(TEARDOWN_ORDER.voice, "voice transcription", () => Effect.runPromise(voice.shutdown()));
   voice.on("modelStatus", forwardVoiceModelStatus);
   voice.on("streamTranscript", forwardVoiceStreamTranscript);
+  const speechPreferences = new SpeechPreferenceStore(join(app.getPath("userData"), "speech-preference.json"));
+  await runCauseEffect(speechPreferences.load());
+  const speech = new VoiceSpeechService({
+    resourcesRoot: app.isPackaged ? join(process.resourcesPath, "voice") : resolve(".openbot-build/voice"),
+    modelDirectory: app.isPackaged
+      ? join(app.getPath("userData"), "runtimes", SUPERTONIC_MODEL_DIRECTORY)
+      : resolve(".openbot-build/voice", SUPERTONIC_MODEL_DIRECTORY),
+    preferences: speechPreferences,
+    spawnHost: spawnVoiceSpeechHost,
+  });
+  teardown.push(TEARDOWN_ORDER.speech, "speech", () => Effect.runPromise(speech.shutdown()));
+  speech.on("modelStatus", forwardSpeechModelStatus);
   const currentVersion = app.getVersion();
   // Skip the file check in dev: unpacked runs never enable updates, so avoid touching resourcesPath.
   const updateMetadataAvailable = app.isPackaged && existsSync(join(process.resourcesPath, "app-update.yml"));
@@ -2598,6 +2635,7 @@ export async function createApplicationServices({
     serverTimezone,
     remoteSessionReuse,
     remoteSessionCache,
+    appBehavior,
     agentInitialization,
     hostUpdateCoordinator,
     requestedUpdate: remoteUpdate,
@@ -2628,6 +2666,7 @@ export async function createApplicationServices({
     agentImport,
     instanceTransfer,
     voice,
+    speech,
     dynamicIsland,
     cuaDriver,
     computerUseHighlight,

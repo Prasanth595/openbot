@@ -520,6 +520,16 @@ export function parseSendMessage(value: unknown): SendMessageInput {
   if (taskId !== undefined && (!isString(taskId) || !taskId || taskId.length > INPUT_LIMITS.identifier)) {
     throw new Error("Invalid task id.");
   }
+  const voiceRecordingDraftId = value.voiceRecordingDraftId;
+  if (
+    voiceRecordingDraftId !== undefined &&
+    (!isString(voiceRecordingDraftId) ||
+      !voiceRecordingDraftId ||
+      voiceRecordingDraftId.length > INPUT_LIMITS.identifier ||
+      attachmentDraftIds.includes(voiceRecordingDraftId))
+  ) {
+    throw new Error("Invalid voice recording draft.");
+  }
   return {
     agentId: requireString(value.agentId, "agentId"),
     text: value.text,
@@ -527,6 +537,7 @@ export function parseSendMessage(value: unknown): SendMessageInput {
     replyToMessageId: replyToMessageId?.trim() || null,
     ...(clientMessageId === undefined ? {} : { clientMessageId }),
     ...(taskId === undefined ? {} : { taskId }),
+    ...(voiceRecordingDraftId === undefined ? {} : { voiceRecordingDraftId }),
   };
 }
 
@@ -637,6 +648,10 @@ export function parseUpdateAgent(value: unknown): UpdateAgentInput {
   if (value.quickAcknowledgement !== undefined) {
     if (!isBoolean(value.quickAcknowledgement)) throw new Error("Invalid quick acknowledgement value.");
     result.quickAcknowledgement = value.quickAcknowledgement;
+  }
+  if (value.fastMode !== undefined) {
+    if (!isBoolean(value.fastMode)) throw new Error("Invalid fast mode value.");
+    result.fastMode = value.fastMode;
   }
   if (value.providerAccountId !== undefined) {
     if (value.providerAccountId !== null && !isProviderAccountId(value.providerAccountId))

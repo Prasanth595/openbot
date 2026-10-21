@@ -160,6 +160,11 @@ export interface SendMessageInput {
   clientMessageId?: string;
   /** The open task of this agent that takes the message. Without it, the agent's own chat takes it. */
   taskId?: string;
+  /**
+   * An audio draft of what the user said, when the text came from a voice turn. The host keeps it with
+   * the message for replay and never gives it to the agent.
+   */
+  voiceRecordingDraftId?: string;
 }
 
 export interface SetMessageReactionInput {

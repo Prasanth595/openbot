@@ -108,4 +108,9 @@ export const messages = {
   "sidebar.mobileApp.body": "iPhone と Android でアプリを利用できます。",
   "sidebar.mobileApp.howToInstall": "インストール方法",
   "sidebar.mobileApp.dismiss": "モバイルアプリのお知らせを閉じる",
+  "sidebar.community.title": "どうぞ、席へ。",
+  "sidebar.community.body": "AI の未来に、あなたの居場所があります。Discord と X のコミュニティに参加しましょう。",
+  "sidebar.community.joinDiscord": "Discord に参加",
+  "sidebar.community.followX": "X で OpenBot をフォロー",
+  "sidebar.community.dismiss": "コミュニティへの招待を閉じる",
 } as const satisfies PartialTranslation<typeof source>;

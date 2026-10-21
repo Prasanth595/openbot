@@ -183,8 +183,7 @@ export interface ServerSettingsModalProps {
   hostTimezone?: ServerTimezoneOptions | undefined;
   /**
    * General shows how many memories each agent keeps only when a caller supplies this, and only for
-   * a joined server with `agent-memory-limit-v1` that this member administers. App Settings holds the
-   * value of this computer.
+   * the local server or a remote host with `agent-memory-limit-v1` that this member administers.
    */
   hostMemoryLimit?: ServerMemoryLimitOptions | undefined;
   /**

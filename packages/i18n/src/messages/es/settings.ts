@@ -41,8 +41,6 @@ export const messages = {
   "settings.busyMessage.title": "Orientar a los agentes mientras trabajan",
   "settings.busyMessage.description":
     "Los mensajes nuevos se incorporan al trabajo actual del agente, no a la cola. Funciona con ChatGPT y Claude.",
-  "settings.agentMemoryLimit.title": "Recuerdos por agente",
-  "settings.agentMemoryLimit.description": "Cuántos recuerdos puede guardar cada agente en este equipo.",
   "settings.keepRemoteSessions.title": "Conexión rápida a servidores",
   "settings.keepRemoteSessions.description":
     "Mantener la conexión con los servidores entre inicios. OpenBot se abre aproximadamente un segundo más rápido. Al cerrar OpenBot, el servicio de OpenBot no cierra la conexión.",
@@ -464,6 +462,18 @@ export const messages = {
   "settings.voice.apiKey.remove": "Quitar clave",
   "settings.voice.apiKey.saveFailed": "No se pudo guardar la clave de API. Inténtalo de nuevo.",
   "settings.voice.apiKey.removeFailed": "No se pudo quitar la clave de API. Inténtalo de nuevo.",
+  "settings.voice.speech.section": "Respuestas habladas",
+  "settings.voice.speech.model.description": "Lee las respuestas en voz alta en este ordenador, en 31 idiomas.",
+  "settings.voice.speech.readReplies.title": "Leer las respuestas en voz alta",
+  "settings.voice.speech.readReplies.description":
+    "Cuando dictas un mensaje, la respuesta se lee en voz alta. Dicta otra vez para detenerla.",
+  "settings.voice.speech.voice.title": "Voz",
+  "settings.voice.speech.voice.female": "Voz femenina {number}",
+  "settings.voice.speech.voice.male": "Voz masculina {number}",
+  "settings.voice.speech.voice.listen": "Escuchar",
+  "settings.voice.speech.voice.stop": "Detener",
+  "settings.voice.speech.sample": "Hola. Así sonarán tus respuestas.",
+  "settings.voice.speech.listenFailed": "No se pudo reproducir la muestra.",
   "settings.transfer.title": "Trasladar este servidor a otro equipo",
   "settings.transfer.lede": "Tus agentes, sus habilidades, rutinas, recuerdos y archivos van en un solo archivo.",
   "settings.transfer.flow.label": "Cómo funciona una transferencia",

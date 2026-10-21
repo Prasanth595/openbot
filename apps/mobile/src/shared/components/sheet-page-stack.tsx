@@ -28,8 +28,8 @@ export function SheetPageStack({
         ...sheetHeaderInsetOptions,
         presentation: "card",
         headerShadowVisible: false,
-        // Between the left and right actions, as on iOS. Android puts the title next to the left action.
-        headerTitleAlign: "center",
+        // Between the left and right actions on iOS. Android keeps the Material title, next to the left action.
+        headerTitleAlign: isIOS ? "center" : "left",
         headerTransparent: transparentHeader,
         headerStyle: { backgroundColor: transparentHeader ? "transparent" : background },
         headerBlurEffect: "none",

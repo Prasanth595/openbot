@@ -123,6 +123,18 @@
   content: "·";
 }
 
+/* The Fast chip gets its own room, so the model name keeps the width it has without it. */
+.provider-model-trigger:has(.provider-model-trigger-fast) {
+  max-width: 296px;
+}
+
+.provider-model-trigger-fast svg {
+  width: 12px;
+  height: 12px;
+  margin-right: var(--openbot-space-0-5);
+  stroke-width: var(--openbot-icon-stroke);
+}
+
 /* An email can be long: the account gives way before the model name does. */
 .provider-model-trigger-account {
   min-width: 0;

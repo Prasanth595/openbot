@@ -15,9 +15,11 @@ import { setLiveActivityNavigator } from "@/features/live-activity/model/live-ac
 import { useNotificationTaps } from "@/features/push-notifications/use-notification-taps";
 import type { QuickActionTarget } from "@/features/quick-actions/model/quick-action-items";
 import { setQuickActionNavigator } from "@/features/quick-actions/quick-actions-native";
+import { requestHomeSearch } from "@/features/search/model/home-search-request";
 import { AppDrawerShell, useAppDrawer } from "@/features/servers/components/app-drawer-shell";
 import { setShareSheetOpener } from "@/features/share/model/share-sheet-opener";
 import { MobileWorkspaceProvider } from "@/features/workspace/context/mobile-workspace-context";
+import { androidBackOptions } from "@/shared/components/android-header-button";
 import { useReducedMotion } from "@/shared/lib/motion";
 import { isAndroid, isIOS } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
@@ -27,12 +29,19 @@ export const unstable_settings = {
 };
 
 function AuthenticatedStack() {
-  const { t } = useText();
   const segments = useSegments();
   // Reduced motion, from the device or from Settings, replaces the full-screen slide with a cross-fade.
   const pushAnimation = useReducedMotion() ? "fade" : "slide_from_right";
+  const { t } = useText();
   const background = useThemeColor("background");
   const sheetBackground = String(useCSSVariable("--openbot-bg-sheet") ?? background);
+  const largeTitlePage = {
+    animation: pushAnimation,
+    contentStyle: { backgroundColor: sheetBackground },
+    headerTransparent: true,
+    scrollEdgeEffects: { top: "hidden", bottom: "soft" },
+    title: "",
+  } as const;
   const [navigationGate] = useState(createChatNavigationGate);
   const { closeDrawer } = useAppDrawer();
   const { agentId: openAgentId } = useGlobalSearchParams<{ agentId?: string }>();
@@ -73,7 +82,7 @@ function AuthenticatedStack() {
         () =>
           target.type === "routines"
             ? router.push({ pathname: "/server-routines", params: { serverId: target.serverId } })
-            : router.push("/search-agents"),
+            : requestHomeSearch(),
         () => onChatList.current,
       );
     },
@@ -100,14 +109,16 @@ function AuthenticatedStack() {
                 gestureCancel: () => navigationGate.cancel(),
               }
         }
-        screenOptions={{
+        screenOptions={(props) => ({
+          // The full screens put the back arrow in the glass circle, as the home buttons are.
+          ...androidBackOptions(props, { glass: true }),
           headerBackButtonDisplayMode: "minimal",
           headerShadowVisible: false,
           headerTransparent: isIOS,
           sheetExpandsWhenScrolledToEdge: false,
           // iOS rounds a sheet by default. Android uses 0, so it gets the Material 3 sheet corner.
           ...(isAndroid && { sheetCornerRadius: 28 }),
-        }}
+        })}
       >
         <Stack.Screen name="connected" options={{ animation: "fade", gestureEnabled: false, title: "" }} />
         <Stack.Screen
@@ -234,6 +245,17 @@ function AuthenticatedStack() {
           }}
         />
         <Stack.Screen
+          name="new-task"
+          options={{
+            contentStyle: { backgroundColor: sheetBackground },
+            headerShown: false,
+            scrollEdgeEffects: { top: "hidden", bottom: "soft" },
+            presentation: "formSheet",
+            sheetAllowedDetents: [0.85],
+            sheetGrabberVisible: true,
+          }}
+        />
+        <Stack.Screen
           name="add-server"
           options={{
             contentStyle: { backgroundColor: sheetBackground },
@@ -253,18 +275,6 @@ function AuthenticatedStack() {
             presentation: "formSheet",
             sheetAllowedDetents: [0.85],
             sheetGrabberVisible: true,
-          }}
-        />
-        <Stack.Screen
-          name="search-agents"
-          options={{
-            contentStyle: { backgroundColor: sheetBackground },
-            headerShown: false,
-            scrollEdgeEffects: { top: "hidden", bottom: "soft" },
-            presentation: "formSheet",
-            sheetAllowedDetents: [1],
-            sheetGrabberVisible: true,
-            sheetInitialDetentIndex: "last",
           }}
         />
         <Stack.Screen
@@ -289,41 +299,21 @@ function AuthenticatedStack() {
             sheetGrabberVisible: true,
           }}
         />
+        {/* Full screens with a big header that the screen draws: the native bar keeps only its buttons. */}
+        <Stack.Screen name="server-routines/index" options={largeTitlePage} />
         <Stack.Screen
-          name="server-routines"
-          options={{
-            contentStyle: { backgroundColor: sheetBackground },
-            headerShown: false,
-            scrollEdgeEffects: { top: "hidden", bottom: "soft" },
-            presentation: "formSheet",
-            sheetAllowedDetents: [0.85],
-            sheetGrabberVisible: true,
-          }}
-        />
-        <Stack.Screen
-          name="server-tasks"
-          // A full screen, so a task opens on top of it and Back returns to the list.
+          name="server-routines/agent-routine"
           options={{
             animation: pushAnimation,
             contentStyle: { backgroundColor: sheetBackground },
-            headerShown: true,
-            title: t("mobile.app.route.tasks"),
             headerStyle: { backgroundColor: isIOS ? "transparent" : sheetBackground },
             headerBlurEffect: "none",
             scrollEdgeEffects: { top: "hidden", bottom: "soft" },
+            title: t("mobile.app.route.routine"),
           }}
         />
-        <Stack.Screen
-          name="server-usage"
-          options={{
-            contentStyle: { backgroundColor: sheetBackground },
-            headerShown: false,
-            scrollEdgeEffects: { top: "hidden", bottom: "soft" },
-            presentation: "formSheet",
-            sheetAllowedDetents: [0.85],
-            sheetGrabberVisible: true,
-          }}
-        />
+        <Stack.Screen name="server-tasks" options={largeTitlePage} />
+        <Stack.Screen name="server-usage/index" options={largeTitlePage} />
         <Stack.Screen
           name="share"
           // The header comes from the route's `_layout.tsx`: Android draws no header on a formSheet route.

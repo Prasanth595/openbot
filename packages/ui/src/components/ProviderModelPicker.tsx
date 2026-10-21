@@ -35,8 +35,10 @@ import {
   SelectTrigger,
   SelectValue,
   SlidersHorizontal,
+  Switch,
   Tabs,
   Tooltip,
+  Zap,
 } from "@openbot/ui";
 import { ContentExitMotion } from "@openbot/ui/menu-motion";
 import { cx } from "@openbot/ui/utils";
@@ -67,6 +69,9 @@ interface ProviderModelPickerProps {
   icon?: JSX.Element;
   reasoningEffort?: AgentReasoningEffort | undefined;
   onReasoningEffortChange?: ((effort: AgentReasoningEffort) => void) | undefined;
+  /** Fast mode. The picker shows its switch only for a model with a fast tier, and only with `onFastModeChange`. */
+  fastMode?: boolean | undefined;
+  onFastModeChange?: ((fastMode: boolean) => void) | undefined;
   disabled?: boolean | undefined;
   /** Keep approval controls available while model and effort changes are locked. */
   modelChangesDisabled?: boolean;
@@ -416,7 +421,13 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
     const accounts = railAccounts(props.provider);
     return accounts.length ? providerAccountName(t, accounts, currentAccount() ?? DEFAULT_PROVIDER_ACCOUNT_ID) : null;
   };
-  const triggerSummary = () => [triggerModelName(), triggerEffort(), triggerAccount()].filter(Boolean).join(" · ");
+  /** Fast mode, only while the model has a fast tier: another model runs at standard speed. */
+  const triggerFast = () =>
+    props.fastMode === true && props.onFastModeChange !== undefined && Boolean(selectedModel()?.fastServiceTier);
+  const triggerSummary = () =>
+    [triggerModelName(), triggerEffort(), triggerFast() ? t("provider.picker.fast") : null, triggerAccount()]
+      .filter(Boolean)
+      .join(" · ");
 
   return (
     <div
@@ -465,6 +476,12 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
                   <SwapLabel text={effort()} motion={TRIGGER_SWAP} />
                 </span>
               )}
+            </Show>
+            <Show when={triggerFast()}>
+              <span class="provider-model-trigger-effort provider-model-trigger-fast">
+                <Zap aria-hidden="true" />
+                <SwapLabel text={t("provider.picker.fast")} motion={TRIGGER_SWAP} />
+              </span>
             </Show>
             <Show when={triggerAccount()}>
               {(account) => (
@@ -898,6 +915,17 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
                             onChange={chooseEffort}
                           />
                         </Show>
+                      </div>
+                    </Show>
+                    <Show when={ownsSelection() && selectedModel()?.fastServiceTier && props.onFastModeChange}>
+                      <div class="provider-model-effort">
+                        <span>{t("provider.picker.fast")}</span>
+                        <Switch
+                          aria-label={t("provider.picker.fastLabel")}
+                          checked={props.fastMode === true}
+                          disabled={props.disabled || effortLocked()}
+                          onChange={(next) => props.onFastModeChange?.(next)}
+                        />
                       </div>
                     </Show>
                   </Tabs.Content>

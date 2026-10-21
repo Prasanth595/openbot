@@ -87,7 +87,7 @@ export interface LicenseCoverage {
 }
 
 export interface LicenseState {
-  /** False when the account server has no license price. The app then shows no license. */
+  /** False when the account server has no billing. The app then shows no license. */
   available: boolean;
   /**
    * The currency of the account's open subscriptions. A Stripe customer pays in one currency, so a new

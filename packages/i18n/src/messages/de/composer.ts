@@ -97,12 +97,14 @@ export const messages = {
   "composer.voice.prepareFailed": "Das Sprachmodell konnte nicht vorbereitet werden. Versuche es erneut.",
   "composer.voice.noSpeechRecorded": "Es wurde keine Sprache aufgenommen.",
   "composer.voice.noSpeechDetected": "Es wurde keine Sprache erkannt.",
+  "composer.voice.readFailed": "Die Antwort konnte nicht vorgelesen werden.",
   "composer.error.saveEditTryAgain":
     "Diese Änderung konnte nicht auf diesem Computer gespeichert werden. Versuche es erneut.",
   "composer.error.saveUnconfirmed":
     "Das Speichern ist nicht bestätigt. Wähle erneut „Speichern“, um das Ergebnis zu prüfen.",
   "composer.error.changeModel": "Das Modell konnte nicht geändert werden. Versuche es erneut.",
   "composer.error.changeEffort": "Der Denkaufwand konnte nicht geändert werden. Versuche es erneut.",
+  "composer.error.changeFastMode": "Der Schnellmodus konnte nicht geändert werden. Versuche es erneut.",
   "composer.context.label": "Kontext zu {percent} voll",
   "composer.context.labelEstimated": "Kontext zu etwa {percent} voll",
   "composer.context.labelCompacting": "Kontext wird komprimiert",

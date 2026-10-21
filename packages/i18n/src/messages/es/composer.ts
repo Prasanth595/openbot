@@ -94,11 +94,13 @@ export const messages = {
   "composer.voice.prepareFailed": "No se pudo preparar el modelo de voz. Vuelve a intentarlo.",
   "composer.voice.noSpeechRecorded": "No se grabó ninguna voz.",
   "composer.voice.noSpeechDetected": "No se detectó ninguna voz.",
+  "composer.voice.readFailed": "No se pudo leer la respuesta en voz alta.",
   "composer.error.saveEditTryAgain": "No se pudo guardar esta edición en este equipo. Vuelve a intentarlo.",
   "composer.error.saveUnconfirmed":
     "No se ha confirmado que se haya guardado. Vuelve a pulsar Guardar para comprobar el resultado.",
   "composer.error.changeModel": "No se pudo cambiar el modelo. Vuelve a intentarlo.",
   "composer.error.changeEffort": "No se pudo cambiar el esfuerzo. Vuelve a intentarlo.",
+  "composer.error.changeFastMode": "No se pudo cambiar el modo rápido. Vuelve a intentarlo.",
   "composer.context.label": "Contexto lleno al {percent}",
   "composer.context.labelEstimated": "Contexto lleno aproximadamente al {percent}",
   "composer.context.labelCompacting": "Compactando el contexto",

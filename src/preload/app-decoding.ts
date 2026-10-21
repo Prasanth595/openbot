@@ -19,6 +19,7 @@ import {
   type AccountSession,
   type AgentMemoryLimitPreference,
   type AnalyticsPreference,
+  type AppBehaviorPreference,
   type AppInfo,
   type AppLanguagePreference,
   type AppLogoColorPreference,
@@ -63,6 +64,7 @@ import {
   isProviderDetectionSettings,
   isRemoteDesktopSetupStatus,
   isRemoteDesktopTestStatus,
+  isSpeechVoice,
   isVoiceLanguage,
   isVoiceModelId,
   type MobileConnectedDevice,
@@ -78,6 +80,10 @@ import {
   type RemoteDesktopSetupStatus,
   type RemoteDesktopTestStatus,
   type RemoteSessionReusePreference,
+  SPEECH_MODEL_ID,
+  type SpeechAudio,
+  type SpeechModelStatus,
+  type SpeechSettings,
   UPDATE_PHASES,
   type UpdatePreference,
   type UpdateStatus,
@@ -92,6 +98,7 @@ import {
   decodeRecord,
   emptyDecoder,
   guardedDecoder,
+  nullableBoolean,
   nullableNumber,
   nullableString,
   requiredBoolean,
@@ -293,6 +300,14 @@ export function decodeUpdatePreference(value: unknown): UpdatePreference {
   };
 }
 
+export function decodeAppBehaviorPreference(value: unknown): AppBehaviorPreference {
+  const preference = decodeRecord(value, "app behavior preference");
+  return {
+    launchAtLogin: nullableBoolean(preference, "launchAtLogin"),
+    keepRunningInBackground: nullableBoolean(preference, "keepRunningInBackground"),
+  };
+}
+
 export function decodeRemoteSessionReusePreference(value: unknown): RemoteSessionReusePreference {
   return {
     keepBetweenRuns: requiredBoolean(decodeRecord(value, "remote session preference"), "keepBetweenRuns"),
@@ -348,6 +363,35 @@ export function decodeVoiceStream(value: unknown): VoiceStream {
 export function decodeVoiceStreamTranscript(value: unknown): VoiceStreamTranscript {
   const transcript = decodeRecord(value, "voice stream transcript");
   return { streamId: requiredString(transcript, "streamId"), text: requiredString(transcript, "text") };
+}
+
+export function decodeSpeechModelStatus(value: unknown): SpeechModelStatus {
+  const status = decodeRecord(value, "speech model status");
+  const { modelId, phase, progress } = status;
+  if (
+    modelId !== SPEECH_MODEL_ID ||
+    !isOneOf(VOICE_MODEL_PHASES, phase) ||
+    (progress !== null && !isNumber(progress))
+  ) {
+    throw new Error("Invalid speech model status.");
+  }
+  return { modelId, phase, progress, message: nullableString(status, "message") };
+}
+
+export function decodeSpeechSettings(value: unknown): SpeechSettings {
+  const settings = decodeRecord(value, "speech settings");
+  const { voice } = settings;
+  if (!isSpeechVoice(voice)) throw new Error("Invalid speech settings.");
+  return { readReplies: requiredBoolean(settings, "readReplies"), voice };
+}
+
+export function decodeSpeechAudio(value: unknown): SpeechAudio {
+  const audio = decodeRecord(value, "speech audio");
+  const { pcm, sampleRate } = audio;
+  if (!(pcm instanceof Uint8Array) || pcm.byteLength % 2 !== 0 || !isNumber(sampleRate) || sampleRate <= 0) {
+    throw new Error("Invalid speech audio.");
+  }
+  return { pcm, sampleRate };
 }
 
 export function decodeExportResult(value: unknown): ExportResult {

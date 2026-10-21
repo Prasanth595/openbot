@@ -86,10 +86,13 @@ function handle(message) {
 setInterval(() => {}, 1000);
 `;
 
-/** The body that the OpenPanel SDK and the failure report transport post. */
+/**
+ * The body that the OpenPanel SDK and the failure report transport post. It comes from `JSON.parse`,
+ * so every value is JSON. `z.json()` in a record makes TypeScript 7.1 report TS5115.
+ */
 const openPanelBody = z.object({
   type: z.string(),
-  payload: z.object({ name: z.string().optional(), properties: z.record(z.string(), z.json()).optional() }),
+  payload: z.object({ name: z.string().optional(), properties: z.record(z.string(), z.unknown()).optional() }),
 });
 
 interface Captured {

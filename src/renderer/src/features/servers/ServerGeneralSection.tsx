@@ -110,8 +110,7 @@ export function createServerGeneralSection(
   /** The host changes its own name and logo; an admin elsewhere asks it to while it is online. */
   const canEditIdentity = () => serverCanAdminister(props.server, "host-admin-v1") && actionsAvailable();
   const canSetTimezone = () => serverCanAdminister(props.server, "host-timezone-v1") && actionsAvailable();
-  const canSetMemoryLimit = () =>
-    !local() && serverCanAdminister(props.server, "agent-memory-limit-v1") && actionsAvailable();
+  const canSetMemoryLimit = () => serverCanAdminister(props.server, "agent-memory-limit-v1") && actionsAvailable();
   const address = () => (local() ? props.hostStatus?.apiUrl : props.server.apiUrl);
   const trimmedName = () => panels.identity.name.trim();
   const nameError = () => {

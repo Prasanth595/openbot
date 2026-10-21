@@ -40,8 +40,6 @@ export const messages = {
   "settings.busyMessage.title": "作業中のエージェントの方向を修正",
   "settings.busyMessage.description":
     "新しいメッセージはキューに入らず、エージェントの現在の作業に加わります。ChatGPT と Claude で使えます。",
-  "settings.agentMemoryLimit.title": "エージェントごとのメモリー数",
-  "settings.agentMemoryLimit.description": "このコンピューターの各エージェントが保存できるメモリーの数です。",
   "settings.keepRemoteSessions.title": "サーバーへの高速接続",
   "settings.keepRemoteSessions.description":
     "参加しているサーバーへの接続を起動の間も維持します。OpenBot の起動が約 1 秒速くなります。OpenBot を終了しても、OpenBot サービスは接続を閉じません。",
@@ -449,6 +447,18 @@ export const messages = {
   "settings.voice.apiKey.remove": "キーを削除",
   "settings.voice.apiKey.saveFailed": "API キーを保存できませんでした。もう一度お試しください。",
   "settings.voice.apiKey.removeFailed": "API キーを削除できませんでした。もう一度お試しください。",
+  "settings.voice.speech.section": "音声での返信",
+  "settings.voice.speech.model.description": "このコンピューター上で返信を読み上げます。31 言語に対応しています。",
+  "settings.voice.speech.readReplies.title": "返信を読み上げる",
+  "settings.voice.speech.readReplies.description":
+    "メッセージを音声入力すると、返信が読み上げられます。止めるには、もう一度音声入力してください。",
+  "settings.voice.speech.voice.title": "声",
+  "settings.voice.speech.voice.female": "女性の声 {number}",
+  "settings.voice.speech.voice.male": "男性の声 {number}",
+  "settings.voice.speech.voice.listen": "試聴",
+  "settings.voice.speech.voice.stop": "停止",
+  "settings.voice.speech.sample": "こんにちは。返信はこのように聞こえます。",
+  "settings.voice.speech.listenFailed": "サンプルを再生できませんでした。",
   "settings.transfer.title": "このサーバーを別のコンピューターに移動",
   "settings.transfer.lede": "エージェントとそのスキル、ルーティン、メモリー、ファイルを 1 つのファイルにまとめます。",
   "settings.transfer.flow.label": "移行の流れ",

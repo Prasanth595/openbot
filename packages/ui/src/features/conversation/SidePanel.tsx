@@ -1,5 +1,6 @@
 import type { AppTextKey } from "@openbot/i18n";
 import {
+  AudioLines,
   Button,
   buttonVariants,
   DropdownMenu,
@@ -25,7 +26,7 @@ import { For, flush, onSettled, Show } from "solid-js";
  * from the composer only, and a subagent from its row in the chat, so the launcher and Add do not
  * list them.
  */
-export type SidePanelPane = "browser" | "files" | "tasks" | "settings" | "question" | "subagent";
+export type SidePanelPane = "browser" | "files" | "tasks" | "settings" | "question" | "voice" | "subagent";
 
 const PANE_LABELS: Record<SidePanelPane, AppTextKey> = {
   browser: "conversation.sidePanel.pane.browser",
@@ -33,6 +34,7 @@ const PANE_LABELS: Record<SidePanelPane, AppTextKey> = {
   tasks: "conversation.sidePanel.pane.tasks",
   settings: "conversation.sidePanel.pane.settings",
   question: "conversation.sidePanel.pane.question",
+  voice: "conversation.sidePanel.pane.voice",
   subagent: "conversation.sidePanel.pane.subagent",
 };
 
@@ -49,6 +51,8 @@ function PaneIcon(props: { pane: SidePanelPane }): JSX.Element {
       return <Settings aria-hidden="true" />;
     case "question":
       return <MessageCircleQuestionMark aria-hidden="true" />;
+    case "voice":
+      return <AudioLines aria-hidden="true" />;
     case "subagent":
       return <Workflow aria-hidden="true" />;
   }

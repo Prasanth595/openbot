@@ -6,6 +6,73 @@ All notable changes to OpenBot will be documented here. The project follows
 
 ## [Unreleased]
 
+## [0.46.0] - 2026-10-20
+
+### Added
+
+- OpenBot can read replies aloud on this computer. Turn on Read replies aloud in Settings › Voice ›
+  Spoken replies. When you dictate a message, its reply is read aloud in the language of the reply,
+  in 31 languages. Dictate again, or send a new message, to stop it. Choose one of ten voices and
+  press Listen to hear a sample. The Supertonic 3 voice model downloads once, about 145 MB, and no
+  text or audio leaves the computer.
+- A bar above the composer shows the reply that is read aloud, with a Stop button.
+- Each agent message has a Read aloud button. Press it again to stop reading.
+- Talk to an agent in the Voice pane of the side panel. Open it from the side panel or from the "+"
+  menu of the composer. Speak, and stop talking to send the message. The agent reads its reply
+  aloud, and then the pane listens again. The first time, the pane downloads the voice models. A waveform under the agent moves with your voice, so you
+  can see that it hears you, and with the agent's voice while it speaks. Mute, Interrupt and End
+  control the conversation.
+- A message that you speak in the Voice pane has a voice player in its bubble, with the waveform
+  and length of your recording. Play, pause, or click the waveform to go to a different part. The
+  agent gets only the text, and the recording stays on this computer. The reply to a spoken message
+  has a player too: it reads the reply aloud with a timer, and you can pause and resume it. After
+  one full reading, the reply keeps its audio until you close OpenBot: its player shows the waveform
+  and length, plays again at once, and you can click the waveform to go to a different part.
+- The Voice pane works with an agent on a remote server. The spoken reply runs on this computer,
+  speech recognition uses the voice model you chose in Settings › Voice, and only the text goes to the
+  server. A message that you speak to a remote agent
+  has no voice player.
+- When the server of the agent disconnects, the Voice pane stops listening and tells you. It listens
+  again when the server connects. When a spoken message cannot be sent, the pane tells you and
+  listens again; the message stays in the chat with Retry, Edit and Dismiss.
+- Voice recordings use WebM/Opus, about 4 KB a second. They show in the Storage tab of Server
+  Settings, where you can delete them, and they are part of a data export.
+- The production desktop app sends OpenPanel events for the Voice pane, spoken replies, the voice
+  model download and the spoken reply settings: counts, times, lengths and results only. It never
+  sends what you said, the reply, or audio.
+- Invite users to the OpenBot community from a card at the bottom of the sidebar, in the desktop app
+  and the web client. "Join the Discord" opens the Discord server, and the X button opens the OpenBot
+  account on X. The card stays closed after you dismiss it. On desktop, it shows after you dismiss
+  the mobile app card.
+
+### Changed
+
+- Set "Memories per agent" only in Server settings → General → Agents, for this computer and for
+  joined servers. App Settings no longer shows it. Before, the App Settings value applied only to
+  agents on your computer, so a server's agents could stop at 64 memories while App Settings showed
+  a higher limit. Global search also finds "Memories per agent".
+- The top of the openbot.run home page no longer shows a grid behind the title.
+- In the web app, an account with no server now sees Create a hosted server as the first action.
+  Download OpenBot and Join with invitation are still there.
+- Show the License section in Billing also when licenses are not for sale. A purchase then shows a
+  message with the address to contact: licenses@openbot.run.
+
+### Fixed
+
+- Keep the saved account sign-in when OpenBot cannot read or save it at one start. Before, OpenBot
+  deleted it, and you had to sign in with an email code again after the next restart or update.
+  OpenBot now writes the reason to `logs/account/account.log` in its data folder.
+- Keep a question from a ChatGPT agent open until you answer it. Before, with GPT-6 models the
+  question often expired after about 20 seconds.
+- On Windows and Linux, "Keep OpenBot running in the background" now works. When it is on, closing
+  the window hides OpenBot, and an icon in the system tray opens it again or quits it. Before, the
+  window closed OpenBot, and the switch was off again after a restart.
+- "Launch OpenBot at login" now opens OpenBot when you sign in to your computer. Before, the switch
+  did nothing and was on again after a restart.
+- OpenCode agents no longer fail on each message with "OpenCode service failure" when OpenCode
+  cannot read the agent's session, for example a session that another OpenCode version wrote. The
+  agent now continues in a new session with its conversation.
+
 ## [0.45.0] - 2026-10-20
 
 ### Added

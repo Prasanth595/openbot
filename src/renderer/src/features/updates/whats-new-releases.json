@@ -1,5 +1,36 @@
 [
   {
+    "version": "0.46.0",
+    "date": "2026-10-20",
+    "notices": [],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "OpenBot can read replies aloud. Turn on Read replies aloud in Settings → Voice → Spoken replies, and choose one of ten voices.",
+          "Each agent message has a Read aloud button.",
+          "Talk to an agent in the Voice pane of the side panel. Speak, and the agent reads its reply aloud. It also works with an agent on a remote server.",
+          "A message that you speak in the Voice pane has a voice player. The recording stays on this computer.",
+          "Join the OpenBot community from a card at the bottom of the sidebar."
+        ]
+      },
+      {
+        "type": "changed",
+        "items": ["Set \"Memories per agent\" in Server settings → General → Agents. App Settings no longer shows it."]
+      },
+      {
+        "type": "fixed",
+        "items": [
+          "On Windows and Linux, \"Keep OpenBot running in the background\" works, with an icon in the system tray.",
+          "\"Launch OpenBot at login\" opens OpenBot when you sign in to your computer.",
+          "OpenBot keeps your account sign-in when it cannot read it at one start.",
+          "A question from a ChatGPT agent stays open until you answer it.",
+          "An OpenCode agent continues in a new session when OpenCode cannot read its old session."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.45.0",
     "date": "2026-10-20",
     "notices": [],

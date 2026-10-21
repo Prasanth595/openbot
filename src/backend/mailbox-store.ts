@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { playableMediaKind } from "@openbot/contracts/attachment-files";
 import { rewriteAttachmentReferences } from "@openbot/contracts/attachment-references";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import type {
@@ -93,6 +94,11 @@ interface StoredMessage {
   senderMember?: ConversationMessageSender;
   text: string;
   attachments: StoredAttachment[];
+  /**
+   * What the user said, when a voice turn sent the text. It sits beside `attachments`, not in them,
+   * and in its own transfer folder, so the agent's prompt and the transfer manifest never name it.
+   */
+  voiceRecording?: StoredAttachment;
   replyToMessageId: string | null;
   /**
    * Written only when the sender asked for no answer. Absent means an answer is expected, which is
@@ -162,6 +168,8 @@ interface EnqueueInput {
   /** False marks information the recipient must not answer. Defaults to an expected answer. */
   expectsReply?: boolean | undefined;
   draftIds?: string[];
+  /** An audio draft of what the user said. Kept with the message, not sent to the recipient. */
+  voiceRecordingDraftId?: string;
   sourcePaths?: string[];
   idempotencyKey?: string;
 }
@@ -293,6 +301,7 @@ export class MailboxStore {
     this: MailboxStore,
     paths: string[],
     data: AttachmentDataInput[],
+    options: { voiceRecording?: boolean } = {},
   ): Effect.fn.Return<DraftAttachment[], StoredStateFailure> {
     try {
       if (paths.length + data.length === 0) return [];
@@ -303,7 +312,7 @@ export class MailboxStore {
         throw new Error(sourceText("error.backend.draftAttachmentLimit", { limit: INPUT_LIMITS.draftAttachments }));
       }
       const prepared = yield* this.#files
-        .prepareDrafts(paths, data)
+        .prepareDrafts(paths, data, options)
         .pipe(Effect.mapError(({ cause }) => new StoredStateFailure({ cause })));
       this.#state.drafts.push(...prepared);
       for (const draft of prepared) this.#changes.draftIds.add(draft.id);
@@ -470,6 +479,20 @@ export class MailboxStore {
       if (drafts.length !== new Set(input.draftIds ?? []).size) {
         throw new Error("Duplicate attachment draft.");
       }
+      const voiceDraft =
+        input.voiceRecordingDraftId === undefined
+          ? undefined
+          : this.#state.drafts.find((candidate) => candidate.id === input.voiceRecordingDraftId);
+      if (input.voiceRecordingDraftId !== undefined) {
+        if (
+          !voiceDraft ||
+          voiceDraft.ownerEditId ||
+          input.sender.kind !== "user" ||
+          drafts.includes(voiceDraft) ||
+          playableMediaKind(voiceDraft.mimeType) !== "audio"
+        )
+          throw new Error("Invalid voice recording draft.");
+      }
       const sourcePaths = [...drafts.map((draft) => draft.path), ...(input.sourcePaths ?? [])];
       if (!text && sourcePaths.length === 0) throw new Error(sourceText("error.backend.messageEmpty"));
       if (sourcePaths.length > MAX_ATTACHMENTS) {
@@ -481,12 +504,28 @@ export class MailboxStore {
       const attachments = yield* this.#files
         .commitMessageTransfer(messageId, input.sender, recipients, messageId, createdAt, sourcePaths)
         .pipe(Effect.mapError(({ cause }) => new StoredStateFailure({ cause })));
+      const voiceTransferId = voiceRecordingTransferId(messageId);
+      const removeTransfers = Effect.all(
+        [
+          this.#files.remove(this.#files.transferRoot(messageId)),
+          this.#files.remove(this.#files.transferRoot(voiceTransferId)),
+        ],
+        { discard: true },
+      ).pipe(Effect.mapError(({ cause }) => new StoredStateFailure({ cause })));
+      const voiceRecording = voiceDraft
+        ? yield* this.#files
+            .commitMessageTransfer(voiceTransferId, input.sender, recipients, messageId, createdAt, [voiceDraft.path])
+            .pipe(
+              // The commit types a file by its name, and WebM has no type there; the draft has it.
+              Effect.map(([committed]) => committed && { ...committed, mimeType: voiceDraft.mimeType }),
+              Effect.mapError(({ cause }) => new StoredStateFailure({ cause })),
+              Effect.tapError(() => removeTransfers),
+            )
+        : undefined;
       try {
         validateRecipients();
       } catch (error) {
-        yield* this.#files
-          .remove(this.#files.transferRoot(messageId))
-          .pipe(Effect.mapError(({ cause }) => new StoredStateFailure({ cause })));
+        yield* removeTransfers;
         throw error;
       }
       const committedByDraftId = new Map(drafts.map((draft, index) => [draft.id, attachments[index]] as const));
@@ -504,6 +543,7 @@ export class MailboxStore {
           return attachment ? { attachmentId: attachment.id, name: attachment.name } : null;
         }),
         attachments,
+        ...(voiceRecording ? { voiceRecording } : {}),
         replyToMessageId: input.replyToMessageId ?? null,
         ...(input.expectsReply === false ? { expectsReply: false as const } : {}),
         createdAt,
@@ -523,10 +563,11 @@ export class MailboxStore {
       recordRestartActivity();
       this.#state.deliveries.push(...deliveries);
       if (input.idempotencyKey) this.#state.idempotency[input.idempotencyKey] = messageId;
-      this.#state.drafts = this.#state.drafts.filter((draft) => !(input.draftIds ?? []).includes(draft.id));
+      const usedDrafts = voiceDraft ? [...drafts, voiceDraft] : drafts;
+      this.#state.drafts = this.#state.drafts.filter((draft) => !usedDrafts.includes(draft));
       this.#changes.messageIds.add(messageId);
       for (const delivery of deliveries) this.#changes.deliveryIds.add(delivery.id);
-      for (const draft of drafts) this.#changes.draftIds.add(draft.id);
+      for (const draft of usedDrafts) this.#changes.draftIds.add(draft.id);
       try {
         this.#persist();
       } catch (error) {
@@ -536,19 +577,17 @@ export class MailboxStore {
         if (input.idempotencyKey && this.#state.idempotency[input.idempotencyKey] === messageId) {
           delete this.#state.idempotency[input.idempotencyKey];
         }
-        for (const draft of drafts) {
+        for (const draft of usedDrafts) {
           if (!this.#state.drafts.some((candidate) => candidate.id === draft.id)) {
             this.#state.drafts.push(draft);
           }
         }
-        yield* this.#files
-          .remove(this.#files.transferRoot(messageId))
-          .pipe(Effect.mapError(({ cause }) => new StoredStateFailure({ cause })));
+        yield* removeTransfers;
         throw error;
       }
       // The message is saved: failing now would hide a delivery that runs from its caller. A draft
       // folder left behind holds copies only, and a restart clears it with the other drafts.
-      yield* this.#files.removeAttachmentDirectories(drafts.map((draft) => draft.path)).pipe(Effect.ignore);
+      yield* this.#files.removeAttachmentDirectories(usedDrafts.map((draft) => draft.path)).pipe(Effect.ignore);
       return this.#receipt(messageId);
     } catch (cause) {
       return yield* new StoredStateFailure({ cause });
@@ -956,6 +995,9 @@ export class MailboxStore {
           senderAgentId: message.sender.kind === "agent" ? message.sender.agentId : undefined,
           ...(message.senderMember ? { senderMember: { ...message.senderMember } } : {}),
           attachments: message.attachments.map(toAttachmentSummary),
+          ...(message.voiceRecording && !message.voiceRecording.deletedAt
+            ? { voiceRecording: toAttachmentSummary(message.voiceRecording) }
+            : {}),
           replyToMessageId: message.replyToMessageId,
           delivery: {
             id: delivery.id,
@@ -1276,7 +1318,7 @@ export class MailboxStore {
         const keep = remainingMessageIds.has(message.id) || message.channelId !== undefined;
         if (!keep) removedMessageIds.add(message.id);
         if (!keep) {
-          for (const attachment of message.attachments) {
+          for (const attachment of messageFiles(message)) {
             const transferRoot = this.#files.transferRootForPath(attachment.path);
             if (transferRoot) removedTransferRoots.add(transferRoot);
           }
@@ -1333,7 +1375,7 @@ export class MailboxStore {
       for (const message of this.#state.messages) {
         if (!removedMessageIds.has(message.id)) continue;
         removedTransferRoots.add(this.#files.transferRoot(message.id));
-        for (const attachment of message.attachments) {
+        for (const attachment of messageFiles(message)) {
           const transferRoot = this.#files.transferRootForPath(attachment.path);
           if (transferRoot) removedTransferRoots.add(transferRoot);
         }
@@ -1976,7 +2018,7 @@ export class MailboxStore {
           .resolveDraft(draft)
           .pipe(Effect.mapError(({ cause }) => new StoredStateFailure({ cause })));
       for (const message of this.#state.messages) {
-        const attachment = message.attachments.find((candidate) => candidate.id === id);
+        const attachment = messageFiles(message).find((candidate) => candidate.id === id);
         if (attachment)
           return attachment.deletedAt
             ? null
@@ -1997,7 +2039,7 @@ export class MailboxStore {
     }
   }, Effect.uninterruptible).bind(this);
 
-  /** Every sent and generated file that the user has not deleted, from the in-memory state. */
+  /** Every sent, spoken and generated file that the user has not deleted, from the in-memory state. */
   listStoredFiles(): MailboxStoredFile[] {
     const firstRecipient = new Map<string, string>();
     for (const delivery of this.#state.deliveries)
@@ -2006,7 +2048,7 @@ export class MailboxStore {
     for (const message of this.#state.messages) {
       const agentId =
         message.sender.kind === "agent" ? message.sender.agentId : (firstRecipient.get(message.id) ?? null);
-      for (const attachment of message.attachments) {
+      for (const attachment of messageFiles(message)) {
         if (attachment.deletedAt) continue;
         files.push({
           attachment: toAttachmentSummary(attachment),
@@ -2056,7 +2098,7 @@ export class MailboxStore {
       const deletedAt = new Date().toISOString();
       for (const target of targets) target.deletedAt = deletedAt;
       for (const message of this.#state.messages) {
-        if (message.attachments.some((attachment) => targets.includes(attachment))) {
+        if (messageFiles(message).some((attachment) => targets.includes(attachment))) {
           this.#changes.messageIds.add(message.id);
         }
       }
@@ -2082,7 +2124,7 @@ export class MailboxStore {
   }, Effect.uninterruptible).bind(this);
 
   #fileRecords(): StoredAttachment[] {
-    return [...this.#state.messages.flatMap((message) => message.attachments), ...this.#state.generatedAttachments];
+    return [...this.#state.messages.flatMap(messageFiles), ...this.#state.generatedAttachments];
   }
 
   #undeletedFileRecords(fileId: string): StoredAttachment[] {
@@ -2245,7 +2287,7 @@ export class MailboxStore {
     try {
       const files: ExportedAttachmentFile[] = [];
       for (const [index, message] of this.#state.messages.entries()) {
-        for (const attachment of message.attachments) {
+        for (const attachment of messageFiles(message)) {
           if (attachment.deletedAt) continue;
           const file = yield* this.#files
             .exportAttachment(attachment, { id: message.id, index })
@@ -2637,6 +2679,16 @@ function isMessagingOrigin(value: unknown): value is MessagingOrigin {
   );
 }
 
+/** The transfer folder of a message's voice recording, beside the message's own. */
+function voiceRecordingTransferId(messageId: string): string {
+  return `voice-${messageId}`;
+}
+
+/** The files a message keeps: its attachments and its voice recording. */
+function messageFiles(message: StoredMessage): StoredAttachment[] {
+  return message.voiceRecording ? [...message.attachments, message.voiceRecording] : message.attachments;
+}
+
 function isStoredMessage(value: unknown): value is StoredMessage {
   return (
     isRecord(value) &&
@@ -2657,6 +2709,7 @@ function isStoredMessage(value: unknown): value is StoredMessage {
     isString(value.text) &&
     Array.isArray(value.attachments) &&
     value.attachments.every(isStoredAttachment) &&
+    (value.voiceRecording === undefined || isStoredAttachment(value.voiceRecording)) &&
     (isString(value.replyToMessageId) || value.replyToMessageId === null) &&
     (value.expectsReply === undefined || value.expectsReply === false) &&
     isString(value.createdAt)

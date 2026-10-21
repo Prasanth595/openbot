@@ -46,8 +46,6 @@ export const messages = {
   "settings.busyMessage.title": "Orienter les agents pendant leur travail",
   "settings.busyMessage.description":
     "Les nouveaux messages rejoignent le travail en cours de l’agent, pas la file. Fonctionne avec ChatGPT et Claude.",
-  "settings.agentMemoryLimit.title": "Souvenirs par agent",
-  "settings.agentMemoryLimit.description": "Nombre de souvenirs que chaque agent de cet ordinateur peut garder.",
   "settings.keepRemoteSessions.title": "Connexion rapide aux serveurs",
   "settings.keepRemoteSessions.description":
     "Conservez la connexion aux serveurs que vous avez rejoints entre deux lancements. OpenBot démarre environ une seconde plus vite. Quand vous quittez OpenBot, le service OpenBot ne ferme pas la connexion.",
@@ -468,6 +466,18 @@ export const messages = {
   "settings.voice.apiKey.remove": "Supprimer la clé",
   "settings.voice.apiKey.saveFailed": "Impossible d’enregistrer la clé API. Réessayez.",
   "settings.voice.apiKey.removeFailed": "Impossible de supprimer la clé API. Réessayez.",
+  "settings.voice.speech.section": "Réponses parlées",
+  "settings.voice.speech.model.description": "Lit les réponses à voix haute sur cet ordinateur, en 31 langues.",
+  "settings.voice.speech.readReplies.title": "Lire les réponses à voix haute",
+  "settings.voice.speech.readReplies.description":
+    "Quand vous dictez un message, la réponse est lue à voix haute. Dictez à nouveau pour l’arrêter.",
+  "settings.voice.speech.voice.title": "Voix",
+  "settings.voice.speech.voice.female": "Voix féminine {number}",
+  "settings.voice.speech.voice.male": "Voix masculine {number}",
+  "settings.voice.speech.voice.listen": "Écouter",
+  "settings.voice.speech.voice.stop": "Arrêter",
+  "settings.voice.speech.sample": "Bonjour. Voici comment vos réponses sonneront.",
+  "settings.voice.speech.listenFailed": "Impossible de lire l’extrait.",
   "settings.transfer.title": "Déplacer ce serveur vers un autre ordinateur",
   "settings.transfer.lede":
     "Vos agents, leurs compétences, routines, souvenirs et fichiers sont réunis dans un seul fichier.",

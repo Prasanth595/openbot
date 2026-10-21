@@ -81,6 +81,7 @@ export const messages = {
   "billing.license.description": "企業での業務向けです。サーバーは含まれません。",
   "billing.license.loadFailed": "ライセンスを読み込めませんでした。",
   "billing.license.actionFailed": "ライセンスを変更できませんでした。",
+  "billing.license.contactSales": "詳しくは licenses@openbot.run までお問い合わせください。",
   "billing.license.saving": "保存中…",
   "billing.license.personal.title": "個人利用",
   "billing.license.personal.description": "個人利用と非商用利用は無料です。企業での業務にはライセンスが必要です。",

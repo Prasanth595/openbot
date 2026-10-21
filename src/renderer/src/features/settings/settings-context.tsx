@@ -122,6 +122,8 @@ const Settings = createSimpleContext({
     let busyMessageModeChanged = false;
     let agentMemoryLimitChanged = false;
     let keepRemoteSessionsChanged = false;
+    let launchAtLoginChanged = false;
+    let keepRunningInBackgroundChanged = false;
 
     createEffect(
       () => ({
@@ -250,12 +252,24 @@ const Settings = createSimpleContext({
           (preference) => preference.mode,
         );
       }
-      if (previous.agentMemoryLimit !== value.agentMemoryLimit) {
-        agentMemoryLimitChanged = true;
+      // A hidden switch is null and cannot change.
+      if (value.launchAtLogin !== null && previous.launchAtLogin !== value.launchAtLogin) {
+        launchAtLoginChanged = true;
         persistField(
-          "agentMemoryLimit",
-          settingsPort().setAgentMemoryLimitPreference({ limit: value.agentMemoryLimit }),
-          (preference) => preference.limit,
+          "launchAtLogin",
+          settingsPort().setAppBehaviorPreference({ launchAtLogin: value.launchAtLogin }),
+          (preference) => preference.launchAtLogin,
+        );
+      }
+      if (
+        value.keepRunningInBackground !== null &&
+        previous.keepRunningInBackground !== value.keepRunningInBackground
+      ) {
+        keepRunningInBackgroundChanged = true;
+        persistField(
+          "keepRunningInBackground",
+          settingsPort().setAppBehaviorPreference({ keepRunningInBackground: value.keepRunningInBackground }),
+          (preference) => preference.keepRunningInBackground,
         );
       }
       if (previous.keepRemoteSessions !== value.keepRemoteSessions) {
@@ -427,6 +441,17 @@ const Settings = createSimpleContext({
           .then((preference) => {
             if (agentMemoryLimitChanged) return;
             setGeneralSettings((current) => ({ ...current, agentMemoryLimit: preference.limit }));
+          }),
+        settingsPort()
+          .getAppBehaviorPreference()
+          .then((preference) => {
+            setGeneralSettings((current) => ({
+              ...current,
+              launchAtLogin: launchAtLoginChanged ? current.launchAtLogin : preference.launchAtLogin,
+              keepRunningInBackground: keepRunningInBackgroundChanged
+                ? current.keepRunningInBackground
+                : preference.keepRunningInBackground,
+            }));
           }),
         settingsPort()
           .getRemoteSessionReusePreference()

@@ -101,7 +101,11 @@ export const SEED_FALLBACK_AGENT: SeededAgentModel = {
 async function seededAgentModel(appDataRoot: string): Promise<SeededAgentModel> {
   try {
     const cli = await runCauseEffect(resolveOpencodeCli({ bundledExecutable: managedOpencodeExecutable(appDataRoot) }));
-    const catalog = execFileSync(cli.executable, ["models"], {
+    // OpenCode 2 answers `models` through a background service that stays running and holds the
+    // shared `opencode.db`; `--standalone` uses a private server that ends with the command.
+    // OpenCode 1 has no background service and refuses the flag.
+    const standalone = Number.parseInt(cli.version, 10) >= 2 ? ["--standalone"] : [];
+    const catalog = execFileSync(cli.executable, ["models", ...standalone], {
       encoding: "utf8",
       timeout: 60_000,
       // The flag the app spawns a managed CLI with. A managed binary that updates itself while a

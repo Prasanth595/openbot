@@ -71,7 +71,7 @@ import { webProviderRelay } from "./web-provider-relay";
 const CODE_LOGIN_POLL_MS = 3000;
 
 /**
- * The pages the key dialog and the Help menu link to. The desktop app keeps its table in main; the
+ * The pages the key dialog, the Help menu and the community card link to. The desktop app keeps its table in main; the
  * browser has no main process, so the pages it opens are listed here, and any other name is refused.
  */
 const WEB_EXTERNAL_DESTINATIONS: Partial<Record<ExternalDestination, string>> = {
@@ -81,6 +81,7 @@ const WEB_EXTERNAL_DESTINATIONS: Partial<Record<ExternalDestination, string>> = 
   changelog: "https://openbot.run/changelog",
   guides: "https://openbot.run/guides",
   discord: "https://discord.openbot.run",
+  x: "https://x.com/OpenBot_",
 };
 
 export function openWebDestination(destination: ExternalDestination): Promise<void> {

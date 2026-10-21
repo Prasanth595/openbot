@@ -22,6 +22,7 @@ import { agentConversationKey, composerDraftKey, promptRequestKey } from "../con
 import { latestIncomingConversationMessage } from "../conversation/conversation-read-state";
 import { useServers } from "../servers/servers-context";
 import { useSidebar } from "../sidebar/sidebar-context";
+import { readDictatedReplies } from "../speech/speech-replies";
 import { claimErrorToast, readableAgentError } from "./agent-error-text";
 import { createAgentEventSounds } from "./agent-event-sounds";
 import { reconcileAttentionApprovals, reconcileAttentionPrompts } from "./agent-runtime-snapshot";
@@ -363,6 +364,7 @@ export function AgentEventBridge() {
       }
       flush(() => handleAgentEvent(event));
       playAgentEventSound(event);
+      readDictatedReplies(event, activeServerId());
     });
     return () => {
       readRefresh += 1;

@@ -12,6 +12,7 @@ import {
 import { sourceText } from "@openbot/i18n/source";
 import {
   ArrowUp,
+  AudioLines,
   Button,
   DropdownMenu,
   File,
@@ -39,11 +40,14 @@ import { ComposerCompactionNotice, ContextUsageMeter } from "@openbot/ui/feature
 import { CloseIcon, StopIcon } from "@openbot/ui/features/conversation/ConversationIcons";
 import { type OpenWaitItem, OpenWaits } from "@openbot/ui/features/conversation/OpenWaits";
 import { RichMessageText } from "@openbot/ui/features/conversation/RichMessageText";
+import { SpeakingBar } from "@openbot/ui/features/conversation/SpeakingBar";
 import { VoiceRecordingMorph, voiceButtonLabel } from "@openbot/ui/features/conversation/VoiceRecordingMorph";
 import { useText } from "@openbot/ui/text";
 import { createEffect, createMemo, createSignal, createStore, For, Loading, lazy, Show } from "solid-js";
 import { reportErrorBanner, reportNotification } from "../../error-reports";
 import { deviceSendShortcut, sendShortcutAriaKey, sendShortcutHintKey } from "../../send-shortcut-preference";
+import { speechReading } from "../speech/speech-playback";
+import { stopSpokenReply } from "../speech/speech-replies";
 import { useConversationViewScope } from "./conversation-scope";
 import { voiceSupported } from "./voice-status";
 
@@ -106,6 +110,9 @@ export function ConversationComposer() {
     voiceModelProgress,
     sideQuestionAvailable,
     openSideQuestion,
+    voiceConversationAvailable,
+    openSidePanelPane,
+    activeRightPanel,
   } = useConversationViewScope();
   const { t, format, sourceText: localizeSourceText } = useText();
   const messageLabel = () =>
@@ -129,6 +136,16 @@ export function ConversationComposer() {
   const waitsVisible = () => waitItems().length > 0 && Boolean(props.onCancelWait) && !pickerOpen();
   const slotOpen = () => queueVisible() || awaitingVisible() || waitsVisible();
   const voiceAvailable = () => !props.runtime && voiceSupported(props.platform);
+  /** The reply of this agent that is read aloud. The voice pane shows its own. */
+  const speaking = () => {
+    const reading = speechReading();
+    return reading &&
+      reading.agentId === props.agent?.id &&
+      reading.serverId === (props.server?.id ?? "local") &&
+      activeRightPanel() !== "voice"
+      ? reading
+      : null;
+  };
   const context = () =>
     props.contextState?.agentId === props.agent?.id && props.contextState?.threadId === props.agent?.threadId
       ? props.contextState
@@ -298,6 +315,16 @@ export function ConversationComposer() {
   );
   return (
     <div class="composer-wrap">
+      <Show when={speaking() && props.agent}>
+        {(agent) => (
+          <SpeakingBar
+            agent={agent()}
+            caption={speaking()?.part ?? ""}
+            levels={speaking()?.levels ?? []}
+            onStop={stopSpokenReply}
+          />
+        )}
+      </Show>
       <div
         class="agent-queue-slot"
         data-open={slotOpen() ? "true" : "false"}
@@ -681,6 +708,18 @@ export function ConversationComposer() {
                   >
                     <MessageCircleQuestionMark aria-hidden="true" />
                     <span>{t("conversation.sidePanel.pane.question")}</span>
+                  </DropdownMenu.Item>
+                </Show>
+                {/* Only where a side question is: after its separator. */}
+                <Show when={voiceConversationAvailable()}>
+                  <DropdownMenu.Item
+                    onSelectAfterClose={() => {
+                      // As for the side question: open the pane after the menu gives the focus back.
+                      requestAnimationFrame(() => openSidePanelPane("voice"));
+                    }}
+                  >
+                    <AudioLines aria-hidden="true" />
+                    <span>{t("conversation.sidePanel.pane.voice")}</span>
                   </DropdownMenu.Item>
                 </Show>
               </DropdownMenu.Content>

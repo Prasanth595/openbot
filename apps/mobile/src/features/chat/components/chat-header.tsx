@@ -15,6 +15,7 @@ import { BlurReveal } from "@/shared/components/blur-reveal";
 import { SheetScrollEdgeEffect } from "@/shared/components/sheet-scroll-edge-effect";
 import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
+import { typeScale } from "@/shared/lib/type-scale";
 import type { ChatTarget } from "../model/chat-target";
 
 interface ChatHeaderProps {
@@ -96,7 +97,7 @@ export function ChatHeader({
           }}
         >
           <Pressable
-            className="min-w-0 shrink flex-row items-center gap-2 self-stretch px-3"
+            className="min-w-0 shrink flex-row items-center gap-2 self-stretch pr-4 pl-2.5"
             accessibilityRole="button"
             accessibilityLabel={t("mobile.chat.header.info", { name: target.name })}
             hitSlop={8}
@@ -121,13 +122,13 @@ export function ChatHeader({
             </Link.AppleZoomTarget>
             {kicker ? (
               <>
-                <Typography.Paragraph weight="semibold" numberOfLines={1}>
+                <Typography.Paragraph className="font-semibold" numberOfLines={1} style={typeScale.rowTitle}>
                   {kicker}
                 </Typography.Paragraph>
                 <View className="size-1 rounded-full bg-muted" />
               </>
             ) : null}
-            <Typography.Paragraph className="min-w-0 shrink" weight="semibold" numberOfLines={1}>
+            <Typography.Paragraph className="font-semibold min-w-0 shrink" numberOfLines={1} style={typeScale.rowTitle}>
               {title ?? target.name}
             </Typography.Paragraph>
           </Pressable>

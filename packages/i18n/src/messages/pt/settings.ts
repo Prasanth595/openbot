@@ -41,8 +41,6 @@ export const messages = {
   "settings.busyMessage.title": "Orientar agentes enquanto trabalham",
   "settings.busyMessage.description":
     "Novas mensagens entram no trabalho atual do agente, não na fila. Funciona com ChatGPT e Claude.",
-  "settings.agentMemoryLimit.title": "Memórias por agente",
-  "settings.agentMemoryLimit.description": "Quantas memórias cada agente neste computador pode guardar.",
   "settings.keepRemoteSessions.title": "Conexão rápida a servidores",
   "settings.keepRemoteSessions.description":
     "Mantenha a conexão com os servidores em que você entrou entre as inicializações. O OpenBot inicia cerca de um segundo mais rápido. Ao sair do OpenBot, o serviço do OpenBot não fecha a conexão.",
@@ -455,6 +453,18 @@ export const messages = {
   "settings.voice.apiKey.remove": "Remover chave",
   "settings.voice.apiKey.saveFailed": "Não foi possível salvar a chave de API. Tente novamente.",
   "settings.voice.apiKey.removeFailed": "Não foi possível remover a chave de API. Tente novamente.",
+  "settings.voice.speech.section": "Respostas faladas",
+  "settings.voice.speech.model.description": "Lê as respostas em voz alta neste computador, em 31 idiomas.",
+  "settings.voice.speech.readReplies.title": "Ler respostas em voz alta",
+  "settings.voice.speech.readReplies.description":
+    "Quando você dita uma mensagem, a resposta é lida em voz alta. Dite de novo para parar.",
+  "settings.voice.speech.voice.title": "Voz",
+  "settings.voice.speech.voice.female": "Voz feminina {number}",
+  "settings.voice.speech.voice.male": "Voz masculina {number}",
+  "settings.voice.speech.voice.listen": "Ouvir",
+  "settings.voice.speech.voice.stop": "Parar",
+  "settings.voice.speech.sample": "Olá. É assim que suas respostas vão soar.",
+  "settings.voice.speech.listenFailed": "Não foi possível reproduzir a amostra.",
   "settings.transfer.title": "Mover este servidor para outro computador",
   "settings.transfer.lede":
     "Seus agentes, as habilidades, rotinas, memórias e arquivos deles vão para um único arquivo.",

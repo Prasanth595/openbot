@@ -7,6 +7,8 @@ import {
   type AppInfo,
   type CentralAuthUser,
   isAgentModel,
+  SPEECH_VOICES,
+  type SpeechVoice,
 } from "@openbot/contracts/ipc";
 import { isBoolean, isDynamicRecord, isFunction, isNumber, isString } from "@openbot/contracts/runtime-values";
 import { normalizeEmailAddress } from "@openbot/contracts/validation";
@@ -22,6 +24,8 @@ const PLUGIN_SLUGS = new Set(MARKETPLACE_PLUGINS.map((plugin) => plugin.slug));
 
 type ServerKind = "local" | "remote" | "unknown";
 type AnalyticsResult = "succeeded" | "failed";
+/** Where the words are heard: a model on this computer, or a cloud model. */
+type TranscriptionKind = "local" | "cloud";
 
 interface AgentAnalyticsProperties {
   provider: AgentProviderId;
@@ -159,6 +163,48 @@ interface DesktopAnalyticsEvents {
     duration_ms: number;
     failure_code?: string;
   };
+  voice_conversation_action: {
+    action: "start" | "end" | "interrupt" | "mute" | "unmute";
+    server_kind: ServerKind;
+    result: AnalyticsResult;
+    transcription?: TranscriptionKind;
+    /** For `start`: until the first listen, with the speech model download. For `end`: the whole conversation. */
+    duration_ms?: number;
+    turn_count?: number;
+    failure_code?: string;
+  };
+  voice_turn: {
+    server_kind: ServerKind;
+    transcription: TranscriptionKind;
+    result: AnalyticsResult;
+    audio_duration_seconds: number;
+    /** The time to transcribe the turn. */
+    duration_ms?: number;
+    recording_kept?: boolean;
+    failure_code?: string;
+  };
+  speech_reply: {
+    trigger: "voice_conversation" | "dictation" | "read_aloud";
+    result: AnalyticsResult;
+    /** False when the user or a new turn stopped the reading. */
+    completed?: boolean;
+    first_audio_ms?: number;
+    audio_duration_seconds?: number;
+    failure_code?: string;
+  };
+  speech_model_action: {
+    action: "download";
+    entry_point: "settings" | "voice_conversation";
+    result: AnalyticsResult;
+    duration_ms: number;
+    failure_code?: string;
+  };
+  speech_settings_action: {
+    action: "read_replies_on" | "read_replies_off" | "voice_changed";
+    result: AnalyticsResult;
+    voice?: SpeechVoice;
+    failure_code?: string;
+  };
   reaction_action: {
     action: "add" | "remove";
     result: AnalyticsResult;
@@ -234,6 +280,27 @@ const EVENT_PROPERTY_ALLOWLIST = {
   memory_action: ["action", "result", "failure_code"],
   provider_action: ["provider", "action", "result", "failure_code"],
   voice_transcription: ["result", "audio_duration_seconds", "duration_ms", "failure_code"],
+  voice_conversation_action: [
+    "action",
+    "server_kind",
+    "result",
+    "transcription",
+    "duration_ms",
+    "turn_count",
+    "failure_code",
+  ],
+  voice_turn: [
+    "server_kind",
+    "transcription",
+    "result",
+    "audio_duration_seconds",
+    "duration_ms",
+    "recording_kept",
+    "failure_code",
+  ],
+  speech_reply: ["trigger", "result", "completed", "first_audio_ms", "audio_duration_seconds", "failure_code"],
+  speech_model_action: ["action", "entry_point", "result", "duration_ms", "failure_code"],
+  speech_settings_action: ["action", "result", "voice", "failure_code"],
   reaction_action: ["action", "result", "failure_code"],
   maintenance_action: ["action", "result", "failure_code"],
   hosted_site_action: ["action", "entry_point", "result", "failure_code"],
@@ -285,6 +352,8 @@ const SAFE_FAILURE_CODES = new Set([
   "join_failed",
   "load_failed",
   "member_remove_failed",
+  "microphone_failed",
+  "no_speech",
   "member_update_failed",
   "publish_failed",
   "rate_limited",
@@ -298,6 +367,7 @@ const SAFE_FAILURE_CODES = new Set([
   "server_select_failed",
   "sign_in_code_expired",
   "sign_out_failed",
+  "speech_failed",
   "steer_failed",
   "too_many_code_attempts",
   "transcription_failed",
@@ -350,6 +420,9 @@ const EVENT_ACTIONS: Partial<Record<AnalyticsEventName, readonly string[]>> = {
     "cli_update_started",
     "cli_update_completed",
   ],
+  voice_conversation_action: ["start", "end", "interrupt", "mute", "unmute"],
+  speech_model_action: ["download"],
+  speech_settings_action: ["read_replies_on", "read_replies_off", "voice_changed"],
   reaction_action: ["add", "remove"],
   maintenance_action: ["export_data", "export_diagnostics"],
   hosted_site_action: ["publish", "replace", "delete"],
@@ -440,14 +513,17 @@ function sanitizeDesktopProperty(
   if (key === "attachment_count") return safeInteger(value, 0, 100);
   if (key === "delivery_count") return safeInteger(value, 0, 1_000);
   if (key === "result_count") return safeInteger(value, 0, 1_000_000);
+  if (key === "turn_count") return safeInteger(value, 0, 100_000);
+  if (key === "first_audio_ms") return safeNumber(value, 0, 10 * 60 * 1_000);
   if (key === "duration_ms") return safeNumber(value, 0, 7 * 24 * 60 * 60 * 1_000);
   if (key === "audio_duration_seconds") return safeNumber(value, 0, 24 * 60 * 60);
-  if (["setup_completed", "signed_in", "is_reply", "email_bound"].includes(key)) {
+  if (["setup_completed", "signed_in", "is_reply", "email_bound", "recording_kept", "completed"].includes(key)) {
     return isBoolean(value) ? value : undefined;
   }
   if (key === "entry_point") {
     if (name === "hosted_site_action") return safeEnum(value, ["agent", "settings"]);
     if (name === "hosted_server_upsell") return safeEnum(value, ["routine_created", "routines_list", "server_offline"]);
+    if (name === "speech_model_action") return safeEnum(value, ["settings", "voice_conversation"]);
     return safeEnum(value, ["in_app", "invite_deep_link"]);
   }
   const enumValues: Record<string, readonly string[] | undefined> = {
@@ -459,6 +535,9 @@ function sanitizeDesktopProperty(
     scope: ["global", "agent"],
     server_kind: ["local", "remote", "unknown"],
     transport: ["unknown", "p2p", "relay"],
+    transcription: ["local", "cloud"],
+    trigger: ["voice_conversation", "dictation", "read_aloud"],
+    voice: SPEECH_VOICES,
   };
   return safeEnum(value, enumValues[key]);
 }

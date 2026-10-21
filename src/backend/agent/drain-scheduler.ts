@@ -1,4 +1,4 @@
-import { AGENT_PROVIDERS } from "@openbot/contracts/ipc";
+import { AGENT_PROVIDERS, type AgentModelOption, type AgentSummary } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger } from "@openbot/logging";
 import { Deferred, Effect, Result, Schema } from "effect";
@@ -705,6 +705,12 @@ export class DrainScheduler {
                 runtimeWorkspaceRoots: workspaceWritableRoots(agent, this.#store.sharedRoot),
                 approvalPolicy: "on-request",
                 sandboxPolicy: codexSandboxPolicy(agent, this.#store.sharedRoot),
+                ...(client.provider === "codex"
+                  ? codexServiceTier(
+                      this.#store.list().find((current) => current.id === agent.id) ?? agent,
+                      this.#providers.listModels(),
+                    )
+                  : {}),
               },
               decodeTurnResponse,
             )
@@ -935,3 +941,20 @@ export class DeliveryStartFailed extends Schema.TaggedError<DeliveryStartFailed>
 }) {}
 
 const { sync: drainStep, rewrap: toDeliveryStartFailed } = causeHelpers(DeliveryStartFailed);
+
+/**
+ * The Codex service tier of a turn. Codex keeps the tier for the next turns of the thread. An agent
+ * that never set fast mode sends nothing, so Codex keeps its own tier; `null` returns the thread to
+ * the standard tier, also for a model with no fast tier. While the catalog does not know the model,
+ * such as before Codex lists its models, the turn sends nothing and keeps the tier of the thread.
+ */
+function codexServiceTier(
+  agent: Pick<AgentSummary, "fastMode" | "model">,
+  models: readonly AgentModelOption[],
+): { serviceTier?: string | null } {
+  if (agent.fastMode === undefined) return {};
+  if (!agent.fastMode) return { serviceTier: null };
+  const model = models.find((candidate) => candidate.provider === "codex" && candidate.id === agent.model);
+  if (!model) return {};
+  return { serviceTier: model.fastServiceTier ?? null };
+}

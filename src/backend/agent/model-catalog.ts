@@ -1,3 +1,4 @@
+import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import type { AgentModelOption } from "@openbot/contracts/ipc";
 import { isAgentModel, isReasoningEffort } from "@openbot/contracts/ipc";
 import { createOpenBotLogger } from "@openbot/logging";
@@ -155,6 +156,7 @@ export class ModelCatalog {
                   ? efforts
                   : (fallback?.supportedReasoningEfforts ?? ["medium"]),
                 ...(server.reasoningEffortConfigurable === false ? { reasoningEffortConfigurable: false } : {}),
+                ...(client.provider === "codex" ? codexFastServiceTier(server) : {}),
               });
             }
             const rank = PREFERRED_MODEL_ORDER.get(client.provider) ?? (() => 0);
@@ -199,4 +201,15 @@ export class ModelCatalog {
     this.#models = discovered.flatMap((entry) => entry.models);
     return new Set(discovered.filter((entry) => entry.fresh).map((entry) => entry.provider));
   });
+}
+
+/**
+ * The tier that Codex names "Fast". Codex lists it in `serviceTiers` (`priority` in 0.163); an older
+ * release lists only the deprecated `additionalSpeedTiers`, where it is `fast`.
+ */
+function codexFastServiceTier(server: ModelListResponse["data"][number]): { fastServiceTier?: string } {
+  const tier =
+    server.serviceTiers?.find((candidate) => candidate.name?.trim().toLowerCase() === "fast")?.id ??
+    (server.additionalSpeedTiers?.includes("fast") ? "fast" : undefined);
+  return tier && tier.length <= INPUT_LIMITS.serviceTier ? { fastServiceTier: tier } : {};
 }

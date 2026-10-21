@@ -1,10 +1,12 @@
 import { AGENT_HIDDEN_CAPABILITY } from "@openbot/contracts/team-protocol/current";
 import { computeAgentAvatarMoods } from "@openbot/ui/features/agents/agent-avatar-mood";
 import { Sidebar } from "@openbot/ui/features/sidebar/Sidebar";
+import { SidebarCommunityCard } from "@openbot/ui/features/sidebar/SidebarCommunityCard";
 import { SidebarMobileAppCard } from "@openbot/ui/features/sidebar/SidebarMobileAppCard";
 import { computeSidebarAgentStates } from "@openbot/ui/features/sidebar/sidebar-agent-states";
 import { useText } from "@openbot/ui/text";
 import { createEffect, createMemo, createSignal, Show } from "solid-js";
+import { appPort } from "../../app-port";
 import { useLayout } from "../../layout";
 import { DirectConversation } from "../../lazy-views";
 import { useNavigation } from "../../navigation";
@@ -23,6 +25,7 @@ import { useServers } from "../servers/servers-context";
 import { useSettings } from "../settings/settings-context";
 import { usePresence } from "../team/team-context";
 import { SidebarUpdateIsland } from "../updates/SidebarUpdateIsland";
+import { createCommunityCardVisibility } from "./community-card";
 import { useSidebar } from "./sidebar-context";
 
 /** Dismissing the mobile app card is a choice of this computer, like the sidebar width. The key is
@@ -83,6 +86,7 @@ export function WorkspaceSidebar(props: { peopleEnabled: boolean }) {
   const [mobileAppDismissed, setMobileAppDismissed] = createSignal(
     window.localStorage.getItem(MOBILE_APP_DISMISSED_STORAGE_KEY) === "true",
   );
+  const communityCard = createCommunityCardVisibility();
 
   /* Channels reach the sidebar as data, not as a list of their own: they sit in the layout's
    * sections beside the agents, so the sidebar has to be able to order and group them. The Routines
@@ -221,6 +225,7 @@ export function WorkspaceSidebar(props: { peopleEnabled: boolean }) {
       onOpenSearch={() => setGlobalSearchVisibility(true)}
       footer={
         <>
+          {/* One card at a time: the community card waits until the mobile app card is dismissed. */}
           <Show when={!platform.landingPreview && !mobileAppDismissed()}>
             <SidebarMobileAppCard
               onOpenInstall={() => openAppSettings(null, "mobile-connect")}
@@ -228,6 +233,13 @@ export function WorkspaceSidebar(props: { peopleEnabled: boolean }) {
                 window.localStorage.setItem(MOBILE_APP_DISMISSED_STORAGE_KEY, "true");
                 setMobileAppDismissed(true);
               }}
+            />
+          </Show>
+          <Show when={!platform.landingPreview && mobileAppDismissed() && !communityCard.dismissed()}>
+            <SidebarCommunityCard
+              onJoinDiscord={() => void appPort().openExternal("discord")}
+              onFollowX={() => void appPort().openExternal("x")}
+              onDismiss={communityCard.dismiss}
             />
           </Show>
           <SidebarUpdateIsland />

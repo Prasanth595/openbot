@@ -188,6 +188,8 @@ export const messages = {
     "У провайдера моделей произошёл сбой на его стороне. Дело не в вашем соединении. Повторите попытку позже или выберите другую модель.\n{detail}",
   "error.provider.opencodeNetwork":
     "OpenCode не смог подключиться к провайдеру моделей. Проверьте сетевое подключение компьютера, где работает OpenBot, и повторите попытку.\n{detail}",
+  "error.provider.opencodeDatabaseNewer":
+    "OpenCode не смог открыть свою базу данных, потому что её изменила более новая версия OpenCode. Обновите OpenCode до версии 2 или новее и повторите попытку.",
   "error.provider.opencodeNoAnswer":
     "Модель OpenCode завершила ход без ответа. Повторите попытку или выберите другую модель.",
   "error.provider.opencodeReasoningWithoutAnswer":

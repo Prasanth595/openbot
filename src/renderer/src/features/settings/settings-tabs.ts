@@ -59,7 +59,6 @@ export const navItems: ReadonlyArray<SettingsNavItem> = [
       { titleKey: "settings.logoColor.title", descriptionKey: "settings.logoColor.description" },
       { titleKey: "settings.sendShortcut.title", descriptionKey: "settings.sendShortcut.description" },
       { titleKey: "settings.busyMessage.title", descriptionKey: "settings.busyMessage.description" },
-      { titleKey: "settings.agentMemoryLimit.title", descriptionKey: "settings.agentMemoryLimit.description" },
       { titleKey: "settings.externalLinks.title", descriptionKey: "settings.externalLinks.description" },
       { titleKey: "settings.launchAtLogin.title", descriptionKey: "settings.launchAtLogin.description" },
       { titleKey: "settings.keepRemoteSessions.title", descriptionKey: "settings.keepRemoteSessions.description" },
@@ -99,6 +98,11 @@ export const navItems: ReadonlyArray<SettingsNavItem> = [
     rows: [
       { titleKey: "settings.voice.models.title" },
       { titleKey: "settings.voice.language.title", descriptionKey: "settings.voice.language.description" },
+      {
+        titleKey: "settings.voice.speech.readReplies.title",
+        descriptionKey: "settings.voice.speech.readReplies.description",
+      },
+      { titleKey: "settings.voice.speech.voice.title" },
     ],
   },
   {

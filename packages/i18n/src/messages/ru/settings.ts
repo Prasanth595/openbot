@@ -41,8 +41,6 @@ export const messages = {
   "settings.busyMessage.title": "Направлять агентов, пока они работают",
   "settings.busyMessage.description":
     "Новые сообщения присоединяются к текущей работе агента, а не встают в очередь. Работает с ChatGPT и Claude.",
-  "settings.agentMemoryLimit.title": "Записей памяти на агента",
-  "settings.agentMemoryLimit.description": "Сколько записей памяти может хранить каждый агент на этом компьютере.",
   "settings.keepRemoteSessions.title": "Быстрое подключение к серверам",
   "settings.keepRemoteSessions.description":
     "Сохранять подключение к серверам между запусками. OpenBot запускается примерно на секунду быстрее. При выходе из OpenBot сервис OpenBot не закрывает подключение.",
@@ -470,6 +468,18 @@ export const messages = {
   "settings.voice.apiKey.remove": "Удалить ключ",
   "settings.voice.apiKey.saveFailed": "Не удалось сохранить API-ключ. Повторите попытку.",
   "settings.voice.apiKey.removeFailed": "Не удалось удалить API-ключ. Повторите попытку.",
+  "settings.voice.speech.section": "Озвучивание ответов",
+  "settings.voice.speech.model.description": "Читает ответы вслух на этом компьютере, на 31 языке.",
+  "settings.voice.speech.readReplies.title": "Читать ответы вслух",
+  "settings.voice.speech.readReplies.description":
+    "Когда вы диктуете сообщение, ответ читается вслух. Чтобы остановить его, начните диктовать снова.",
+  "settings.voice.speech.voice.title": "Голос",
+  "settings.voice.speech.voice.female": "Женский голос {number}",
+  "settings.voice.speech.voice.male": "Мужской голос {number}",
+  "settings.voice.speech.voice.listen": "Прослушать",
+  "settings.voice.speech.voice.stop": "Остановить",
+  "settings.voice.speech.sample": "Здравствуйте. Так будут звучать ваши ответы.",
+  "settings.voice.speech.listenFailed": "Не удалось воспроизвести образец.",
   "settings.transfer.title": "Перенос сервера на другой компьютер",
   "settings.transfer.lede": "Ваши агенты, их навыки, регулярные задачи, память и файлы сохраняются в один файл.",
   "settings.transfer.flow.label": "Как проходит перенос",

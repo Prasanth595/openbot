@@ -41,8 +41,6 @@ export const messages = {
   "settings.busyMessage.title": "Kieruj agentami podczas pracy",
   "settings.busyMessage.description":
     "Nowe wiadomości dołączają do bieżącej pracy agenta, a nie do kolejki. Działa z ChatGPT i Claude.",
-  "settings.agentMemoryLimit.title": "Wspomnienia na agenta",
-  "settings.agentMemoryLimit.description": "Ile wspomnień może przechowywać każdy agent na tym komputerze.",
   "settings.keepRemoteSessions.title": "Szybkie połączenie z serwerami",
   "settings.keepRemoteSessions.description":
     "Zachowuj połączenie z dołączonymi serwerami między uruchomieniami. OpenBot startuje około sekundy szybciej. Gdy zamkniesz OpenBot, usługa OpenBot nie zamyka połączenia.",
@@ -470,6 +468,18 @@ export const messages = {
   "settings.voice.apiKey.remove": "Usuń klucz",
   "settings.voice.apiKey.saveFailed": "Nie udało się zapisać klucza API. Spróbuj ponownie.",
   "settings.voice.apiKey.removeFailed": "Nie udało się usunąć klucza API. Spróbuj ponownie.",
+  "settings.voice.speech.section": "Odpowiedzi czytane na głos",
+  "settings.voice.speech.model.description": "Czyta odpowiedzi na głos na tym komputerze, w 31 językach.",
+  "settings.voice.speech.readReplies.title": "Czytaj odpowiedzi na głos",
+  "settings.voice.speech.readReplies.description":
+    "Gdy dyktujesz wiadomość, odpowiedź jest czytana na głos. Aby ją zatrzymać, zacznij dyktować ponownie.",
+  "settings.voice.speech.voice.title": "Głos",
+  "settings.voice.speech.voice.female": "Głos żeński {number}",
+  "settings.voice.speech.voice.male": "Głos męski {number}",
+  "settings.voice.speech.voice.listen": "Odsłuchaj",
+  "settings.voice.speech.voice.stop": "Zatrzymaj",
+  "settings.voice.speech.sample": "Cześć. Tak będą brzmieć Twoje odpowiedzi.",
+  "settings.voice.speech.listenFailed": "Nie udało się odtworzyć próbki.",
   "settings.transfer.title": "Przenieś ten serwer na inny komputer",
   "settings.transfer.lede": "Twoi agenci oraz ich umiejętności, rutyny, wspomnienia i pliki trafiają do jednego pliku.",
   "settings.transfer.flow.label": "Jak działa przeniesienie",

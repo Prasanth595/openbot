@@ -1,4 +1,4 @@
-import { AGENT_MEMORY_LIMITS, type AgentMemoryLimit, type AppVariant } from "@openbot/contracts/ipc";
+import type { AppVariant } from "@openbot/contracts/ipc";
 import type { AppTextKey } from "@openbot/i18n";
 import {
   Item,
@@ -100,29 +100,6 @@ export function SettingsGeneralTab(props: SettingsGeneralTabProps) {
             label={i18n.t("settings.busyMessage.title")}
             description={i18n.t("settings.busyMessage.description")}
           />
-          <Item data-settings-row="settings.agentMemoryLimit.title" class="settings-modal-row">
-            <ItemContent>
-              <ItemTitle>{i18n.t("settings.agentMemoryLimit.title")}</ItemTitle>
-              <ItemDescription>{i18n.t("settings.agentMemoryLimit.description")}</ItemDescription>
-            </ItemContent>
-            <ItemActions>
-              <Select<AgentMemoryLimit>
-                class="settings-modal-select"
-                options={[...AGENT_MEMORY_LIMITS]}
-                value={props.value.agentMemoryLimit}
-                onChange={(value) => value && props.onUpdateSetting("agentMemoryLimit", value)}
-                placement="bottom-end"
-                itemComponent={(selectProps) => (
-                  <SelectItem item={selectProps.item}>{String(selectProps.item.rawValue)}</SelectItem>
-                )}
-              >
-                <SelectTrigger size="sm" aria-label={i18n.t("settings.agentMemoryLimit.title")}>
-                  <SelectValue<AgentMemoryLimit>>{(state) => String(state.selectedOption() ?? "")}</SelectValue>
-                </SelectTrigger>
-                <SelectContent mount={props.selectMount} />
-              </Select>
-            </ItemActions>
-          </Item>
           <Item data-settings-row="settings.externalLinks.title" class="settings-modal-row">
             <ItemContent>
               <ItemTitle>{i18n.t("settings.externalLinks.title")}</ItemTitle>
@@ -153,13 +130,15 @@ export function SettingsGeneralTab(props: SettingsGeneralTabProps) {
 
       <SettingsSection title={i18n.t("settings.appBehavior.title")}>
         <ItemGroup class="settings-modal-card">
-          <SwitchField
-            data-settings-row="settings.launchAtLogin.title"
-            checked={props.value.launchAtLogin}
-            onChange={(checked) => props.onUpdateSetting("launchAtLogin", checked)}
-            label={i18n.t("settings.launchAtLogin.title")}
-            description={i18n.t("settings.launchAtLogin.description")}
-          />
+          <Show when={props.value.launchAtLogin !== null}>
+            <SwitchField
+              data-settings-row="settings.launchAtLogin.title"
+              checked={props.value.launchAtLogin === true}
+              onChange={(checked) => props.onUpdateSetting("launchAtLogin", checked)}
+              label={i18n.t("settings.launchAtLogin.title")}
+              description={i18n.t("settings.launchAtLogin.description")}
+            />
+          </Show>
           <SwitchField
             data-settings-row="settings.keepRemoteSessions.title"
             checked={props.value.keepRemoteSessions}
@@ -167,13 +146,15 @@ export function SettingsGeneralTab(props: SettingsGeneralTabProps) {
             label={i18n.t("settings.keepRemoteSessions.title")}
             description={i18n.t("settings.keepRemoteSessions.description")}
           />
-          <SwitchField
-            data-settings-row="settings.keepRunning.title"
-            checked={props.value.keepRunningInBackground}
-            onChange={(checked) => props.onUpdateSetting("keepRunningInBackground", checked)}
-            label={i18n.t("settings.keepRunning.title")}
-            description={i18n.t("settings.keepRunning.description")}
-          />
+          <Show when={props.value.keepRunningInBackground !== null}>
+            <SwitchField
+              data-settings-row="settings.keepRunning.title"
+              checked={props.value.keepRunningInBackground === true}
+              onChange={(checked) => props.onUpdateSetting("keepRunningInBackground", checked)}
+              label={i18n.t("settings.keepRunning.title")}
+              description={i18n.t("settings.keepRunning.description")}
+            />
+          </Show>
           <SwitchField
             data-settings-row="settings.restoreWorkspace.title"
             checked={props.value.restoreLastWorkspace}

@@ -179,6 +179,8 @@ export interface AgentMessage {
   senderMember?: ConversationMessageSender | undefined;
   replyToMessageId?: string | null | undefined;
   attachments?: AttachmentSummary[] | undefined;
+  /** The user's own recording of a spoken message. It stays on this computer; the agent gets the text. */
+  voiceRecording?: AttachmentSummary | undefined;
   imageGeneration?: ImageGenerationInfo | undefined;
   questionPrompt?: ConversationQuestionPrompt | undefined;
   /** The interactive block an agent drew. A blocking block sits beside `questionPrompt`. */
@@ -225,6 +227,8 @@ export interface AgentProfile {
   allowNewChat?: boolean | undefined;
   /** Absent means off. Absent for an agent on a remote host too, which does not share it. */
   quickAcknowledgement?: boolean | undefined;
+  /** Absent means off. Absent for an agent on a remote host too, which does not share it. */
+  fastMode?: boolean | undefined;
   /** Absent means the app default. Absent for an agent on a remote host too, which does not share it. */
   busyMessageMode?: AgentSummary["busyMessageMode"];
   /** Absent means the default task limit. Absent for an agent on a remote host too, which runs no tasks. */

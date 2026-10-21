@@ -203,6 +203,7 @@ export interface ConversationProps {
   /**
    * Sends one message. `clientMessageId` names it for the host, so a retry with the same id
    * returns the first receipt; the answer carries the host's id for the message, or why it failed.
+   * `voiceRecordingDraftId` names what the user said, when a voice turn sends the message.
    */
   onSendMessage: (
     body: string,
@@ -210,6 +211,7 @@ export interface ConversationProps {
     replyToMessageId: string | null,
     target?: ConversationTarget,
     clientMessageId?: string,
+    voiceRecordingDraftId?: string,
   ) => Promise<SendMessageResult>;
   onMarkRead: () => Promise<void>;
   onLoadOlder?: (() => void) | undefined;
@@ -297,6 +299,7 @@ export type RightPanelMode =
   | "files"
   | "task"
   | "question"
+  | "voice"
   | "subagent";
 
 export type { SidePanelPane } from "@openbot/ui/features/conversation/SidePanel";

@@ -96,11 +96,13 @@ export const messages = {
   "composer.voice.prepareFailed": "Impossible de préparer le modèle vocal. Réessayez.",
   "composer.voice.noSpeechRecorded": "Aucune parole n’a été enregistrée.",
   "composer.voice.noSpeechDetected": "Aucune parole n’a été détectée.",
+  "composer.voice.readFailed": "Impossible de lire la réponse à voix haute.",
   "composer.error.saveEditTryAgain": "Impossible d’enregistrer cette modification sur cet ordinateur. Réessayez.",
   "composer.error.saveUnconfirmed":
     "L’enregistrement n’est pas confirmé. Relancez l’enregistrement pour vérifier le résultat.",
   "composer.error.changeModel": "Impossible de changer de modèle. Réessayez.",
   "composer.error.changeEffort": "Impossible de changer le niveau d’effort. Réessayez.",
+  "composer.error.changeFastMode": "Impossible de changer le mode rapide. Réessayez.",
   "composer.context.label": "Contexte rempli à {percent}",
   "composer.context.labelEstimated": "Contexte rempli à environ {percent}",
   "composer.context.labelCompacting": "Compactage du contexte",
