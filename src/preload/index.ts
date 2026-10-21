@@ -69,6 +69,7 @@ import {
   decodeAgentAnalyticsFromMain,
   decodeAgentHostSettingsFromMain,
   decodeAgentModels,
+  decodeAgentRuntimeSnapshot,
   decodeAgentSessionSettingsFromMain,
   decodeAgentStatusFromMain,
   decodeAgents,
@@ -431,6 +432,7 @@ window.addEventListener("change", (event) => {
 // Bridged apart from the API object, because `onEvent` narrows its `onScopedEvent`.
 const agentGroup = bridgeGroup(IPC_ENDPOINTS.agent, {
   getStatus: decodeAgentStatusFromMain,
+  getRuntimeSnapshot: decodeAgentRuntimeSnapshot,
   getHostAnalytics: decodeHostAnalyticsFromMain,
   getAnalytics: decodeAgentAnalyticsFromMain,
   getUsage: decodeAccountUsageFromMain,

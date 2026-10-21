@@ -70,6 +70,7 @@ import type {
   SaveAgentProfileInput,
   SaveAgentProfileResult,
 } from "./ipc-agent-profile";
+import type { AgentRuntimeSnapshot } from "./ipc-agent-runtime";
 import type { AskSideQuestionInput } from "./ipc-agent-side-question";
 import type {
   AccountUsage,
@@ -1100,6 +1101,12 @@ export const IPC_ENDPOINTS = {
   },
   agent: {
     getStatus: scopedQuery<AgentStatus>()("agent:get-status"),
+    /**
+     * The local runtime snapshot, which the window reads after it subscribes to agent events. Main
+     * drops an event while the page loads, so the snapshot that it sends then never arrives. A joined
+     * server answers null and sends its snapshot on its event stream.
+     */
+    getRuntimeSnapshot: scopedQuery<AgentRuntimeSnapshot | null>()("agent:get-runtime-snapshot"),
     getAnalytics: scopedRequest<AgentAnalyticsInput, AgentAnalytics | null, "required">()("agent:get-analytics"),
     getHostAnalytics: scopedRequest<HostAnalyticsInput, HostAnalytics | null, "required">()("host:get-analytics"),
     getUsage: scopedRequest<string | undefined, AccountUsage>()("agent:get-usage"),

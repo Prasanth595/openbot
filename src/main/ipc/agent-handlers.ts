@@ -181,6 +181,13 @@ export function agentIpcHandlers({
         remote: (serverId) =>
           runCauseEffect(remoteServers.request(serverId, TEAM_API_ROUTES.agents.status, decodeAgentStatusFromHost)),
       }),
+      getRuntimeSnapshot: scopedQueryHandler({
+        local: () => service.getRuntimeSnapshot(),
+        remote: async () => {
+          await runCauseEffect(remoteServers.refreshRuntimeSnapshots());
+          return null;
+        },
+      }),
       getHostAnalytics: scopedHandler(parseHostAnalyticsInput, {
         local: (input) => service.getHostAnalytics(input),
         remote: (input, serverId) =>

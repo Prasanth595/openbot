@@ -14,6 +14,7 @@ import {
   type AccountUsage,
   type AgentMemory,
   type AgentMemorySelectionState,
+  type AgentRuntimeSnapshot,
   type AgentStatus,
   type ClientAgentModelOption,
   type ClientAgentSummary,
@@ -26,6 +27,7 @@ import {
   isAgentMemory,
   isAgentMemorySelectionState,
   isAgentProvider,
+  isAgentRuntimeSnapshot,
   isAgentStatus,
   isClientAgentModelOption,
   isClientAgentSummary,
@@ -101,6 +103,11 @@ export function decodeProviderCodeLoginStart(value: unknown): ProviderCodeLoginS
 
 export function decodeAgentStatusFromMain(value: unknown): AgentStatus {
   if (!isAgentStatus(value)) throw new Error("Invalid agent status response.");
+  return value;
+}
+
+export function decodeAgentRuntimeSnapshot(value: unknown): AgentRuntimeSnapshot | null {
+  if (value !== null && !isAgentRuntimeSnapshot(value)) throw new Error("Invalid agent runtime snapshot response.");
   return value;
 }
 

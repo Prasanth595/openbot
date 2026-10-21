@@ -1414,6 +1414,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
     agent: {
       getStatus: async (serverId) =>
         clone(serverId === STORY_FOREIGN_SERVER_ID ? withStoryForeignProvider(agentStatus) : agentStatus),
+      getRuntimeSnapshot: async () => null,
       getHostAnalytics: async (input) => mockHostAnalytics(input, agents),
       getAnalytics: async (input) => {
         const agent = agents.find((entry) => entry.id === input.agentId);

@@ -16,6 +16,7 @@ export interface AgentsPort {
     | "listConversationReads"
     | "listModels"
     | "onEvent"
+    | "getRuntimeSnapshot"
     | "setAgentHidden"
     | "setAvatar"
     | "updateAgent"
