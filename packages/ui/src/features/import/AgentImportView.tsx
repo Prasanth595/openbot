@@ -177,7 +177,6 @@ function ImportGuide(props: {
             </p>
             <SlidingTabs.Root
               class="agent-import-setup"
-              data-source={props.source}
               value={props.setup}
               onChange={(value) => props.onSetupChange(SETUPS.find((setup) => setup === value) ?? props.setup)}
             >
@@ -198,7 +197,7 @@ function ImportGuide(props: {
               <SlidingTabs.ContentSlot>
                 <Show when={hermes() && props.onReadFolder}>
                   {(readFolder) => (
-                    <SlidingTabs.Content value="folder" class="agent-import-setup-panel">
+                    <SlidingTabs.Content value="folder" class="agent-import-setup-panel agent-import-setup-folder">
                       <Button type="button" variant="ghost" class="agent-import-picker" onClick={() => readFolder()()}>
                         <FolderOpen class="agent-import-picker-icon" aria-hidden="true" />
                         <span class="agent-import-picker-copy">
