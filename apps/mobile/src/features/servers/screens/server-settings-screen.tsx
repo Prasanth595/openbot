@@ -18,6 +18,7 @@ import { ServerStatusLabel } from "@/features/servers/components/server-status-l
 import { TrailingValue } from "@/features/servers/components/trailing-value";
 import { SERVER_ROLE_LABEL_KEYS } from "@/features/servers/model/server-role";
 import { timeZoneLabel } from "@/features/servers/model/time-zones";
+import { useServerProviders } from "@/features/servers/model/use-server-providers";
 import { useServerSites } from "@/features/servers/model/use-server-sites";
 import { useServerTimezone } from "@/features/servers/model/use-server-timezone";
 import { updateAvailable, useServerUpdate } from "@/features/servers/model/use-server-update";
@@ -141,6 +142,7 @@ export function ServerSettingsScreen() {
           </SettingsRow>
         ) : null}
         <ServerSitesRow serverId={serverId} />
+        <ServerProvidersRow serverId={serverId} />
         {update.access || update.query.data ? <ServerUpdatesRow serverId={serverId} update={update} /> : null}
       </SettingsSection>
       <ServerGeneralSettings serverId={serverId} />
@@ -396,6 +398,29 @@ function ServerUpdatesRow({ serverId, update }: { serverId: string; update: Retu
       onPress={() => router.push({ pathname: "/server-settings/updates", params: { serverId } })}
     >
       <Typography.Paragraph>{t("mobile.server.settings.updates")}</Typography.Paragraph>
+    </SettingsRow>
+  );
+}
+
+/**
+ * The Providers row, for an owner or admin of a host that serves `providers-v1`: the AI providers of
+ * the computer that runs the server, and how many are connected.
+ */
+function ServerProvidersRow({ serverId }: { serverId: string }) {
+  const { t } = useText();
+  const { available, status, rows } = useServerProviders(serverId);
+  if (!available) return null;
+  const connected = rows.filter((row) => row.status?.state === "available").length;
+  return (
+    <SettingsRow
+      trailing={
+        status.data ? (
+          <TrailingValue value={t("mobile.server.settings.providersConnected", { count: connected })} />
+        ) : undefined
+      }
+      onPress={() => router.push({ pathname: "/server-settings/providers", params: { serverId } })}
+    >
+      <Typography.Paragraph>{t("mobile.server.settings.providers")}</Typography.Paragraph>
     </SettingsRow>
   );
 }

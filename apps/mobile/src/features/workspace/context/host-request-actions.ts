@@ -53,6 +53,7 @@ import { HOST_TIMEZONE_CAPABILITY } from "@openbot/contracts/team-protocol/host-
 import { HOST_UPDATE_CAPABILITY } from "@openbot/contracts/team-protocol/host-update-v1";
 import { HOSTED_SITES_CAPABILITY } from "@openbot/contracts/team-protocol/hosted-sites-v1";
 import { PROVIDER_ACCOUNTS_CAPABILITY } from "@openbot/contracts/team-protocol/provider-accounts-v1";
+import { PROVIDERS_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/providers-v1";
 import { TEAM_QUEUE_EDIT_CAPABILITY } from "@openbot/contracts/team-protocol/queue-edit-v1";
 import { SHARED_TABLES_CAPABILITY } from "@openbot/contracts/team-protocol/shared-tables-v1";
 import { SKILLS_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/skills-admin-v1";
@@ -116,6 +117,7 @@ import {
 import type { QueryClient } from "@tanstack/react-query";
 import { Effect } from "effect";
 import * as Crypto from "expo-crypto";
+import { createProviderAdmin } from "@/features/servers/model/provider-admin";
 import { decodeConversationSearchPage } from "@/features/workspace/model/conversation";
 import { type QueryScope, queryKeys } from "@/features/workspace/model/query-keys";
 import { saveAgentRecord } from "@/features/workspace/model/save-agent-record";
@@ -203,6 +205,7 @@ type HostRequestActions = Pick<
   | "checkServerRelease"
   | "loadHostedSites"
   | "deleteHostedSite"
+  | "providerAdmin"
   | "setAgentSessionSetting"
   | "resetAgentSessionSetting"
   | "listSharedTables"
@@ -354,6 +357,11 @@ export function createHostRequestActions({
     checkServerRelease: async (serverId) => runTeamRequest(checkHostRelease(releaseApi(serverId))),
     loadHostedSites: async (serverId) => runTeamRequest(listHostedSites(sitesApi(serverId))),
     deleteHostedSite: async (siteId, serverId) => runTeamRequest(deleteHostedSite(sitesApi(serverId), siteId)),
+    providerAdmin: (serverId) =>
+      createProviderAdmin(
+        capabilityApi(serverId, PROVIDERS_ADMIN_CAPABILITY, "mobile.server.providers.unsupported"),
+        capabilities.get(serverId) ?? [],
+      ),
     loadAgentSessionSettings: async (agentId, serverId) =>
       has(serverId, AGENT_SESSION_SETTINGS_CAPABILITY)
         ? runTeamRequest(readAgentSessionSettings(sessionSettingsAdmin(serverId), agentId))
