@@ -18,7 +18,6 @@ export const messages = {
   "mobile.search.task.ideaHint": "Wstawia ten tekst w pole zadania.",
   "mobile.search.task.again": "Ponownie",
   "mobile.search.task.openWith": "Otwarte zadania: {name}",
-  "mobile.search.task.atHint": "Wpisz @ i nazwę, aby dać agentowi zadanie.",
   "mobile.search.task.noAgent": "Żaden agent nie ma tej nazwy.",
   "mobile.search.task.send": "Uruchom zadanie",
   "mobile.search.task.startedBy": "{name}: zadanie rozpoczęte",

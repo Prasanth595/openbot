@@ -5,8 +5,14 @@ import { startActionSounds } from "../../action-sounds";
 import { playCompletionSoundForAgentEvent, unlockCompletionSound } from "../../completion-sound";
 import { createAgentEventSounds } from "../agents/agent-event-sounds";
 import type { WebWorkspace } from "./web-client-context";
+import { isWebHostNotice } from "./web-host-connections";
 import type { createWebServerNotifications } from "./web-notification-preferences";
-import { requestWebNotificationPermission, showWebAgentNotification, watchWebTabFocus } from "./web-notifications";
+import {
+  requestWebNotificationPermission,
+  showWebAgentNotification,
+  watchWebTabFocus,
+  withdrawWebAgentNotification,
+} from "./web-notifications";
 
 /**
  * The browser notifications and sounds of host events. As on desktop, mute and the notification level
@@ -21,10 +27,12 @@ export function createWebNotificationRouting(options: {
 }) {
   const { workspace, notifications } = options;
   function notify(hostId: string, event: AgentEvent, agents: AgentSummary[]): void {
+    withdrawWebAgentNotification(hostId, event);
     const { muted, level } = untrack(() => notifications.state(hostId));
     if (muted || level === "nothing") return;
     if (event.type === "turn-completed" && level === "all") playCompletionSoundForAgentEvent(event, agents);
     showWebAgentNotification({
+      hostId,
       event,
       agents,
       level,
@@ -64,8 +72,7 @@ export function createWebNotificationRouting(options: {
   onCleanup(
     workspace.onHostEvent((event) => {
       const hostId = workspace.state.host?.hostId;
-      if (hostId && (event.type === "turn-completed" || event.type === "prompt" || event.type === "approval"))
-        notify(hostId, event, workspace.state.agents);
+      if (hostId && isWebHostNotice(event)) notify(hostId, event, workspace.state.agents);
       playAgentEventSound(event);
     }),
   );

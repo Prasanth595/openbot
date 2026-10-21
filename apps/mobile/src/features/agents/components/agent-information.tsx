@@ -96,7 +96,7 @@ export function AgentInformation({
   section: "usage" | "memories" | "routines" | "memory" | "routine" | "skills" | "files";
 }) {
   useEffect(() => {
-    if (section === "usage") mobileAnalytics.track("usage_viewed", {});
+    if (section === "usage") mobileAnalytics.track("usage_viewed", { scope: "agent" });
   }, [section]);
   const { t, format } = useText();
   const { recordId } = useLocalSearchParams<{ recordId?: string }>();

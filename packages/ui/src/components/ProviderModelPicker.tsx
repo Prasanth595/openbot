@@ -73,8 +73,11 @@ interface ProviderModelPickerProps {
   fastMode?: boolean | undefined;
   onFastModeChange?: ((fastMode: boolean) => void) | undefined;
   disabled?: boolean | undefined;
-  /** Keep approval controls available while model and effort changes are locked. */
-  modelChangesDisabled?: boolean;
+  /**
+   * Lock the other providers, accounts and custom agents, but keep the agent's own models and effort
+   * open. `disabledReason` explains the lock in the panels it closes.
+   */
+  providerChangesDisabled?: boolean;
   disabledReason?: string;
   runtimeStatuses?: Partial<Record<AgentProviderId, ProviderRuntimeStatus>> | undefined;
   onDownloadProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
@@ -203,6 +206,13 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
     const id = props.providerAccountId;
     return id && railAccounts(props.provider).some((account) => account.id === id) ? id : null;
   };
+  /** A model that the agent's provider, account and custom agent serve: the choices a provider lock keeps. */
+  const keepsRuntime = (model: PickerModel, accountId: string | null): boolean =>
+    model.provider === props.provider &&
+    accountId === currentAccount() &&
+    (props.provider !== "acp" || customAgentIdOfModel(model.id) === customAgentIdOfModel(props.value));
+  const providerLocked = (model: PickerModel, accountId: string | null): boolean =>
+    props.providerChangesDisabled === true && !keepsRuntime(model, accountId);
   const customIds = createMemo(() => customProviderIds(props.customProviders ?? []));
   const selectedModel = createMemo(() =>
     props.modelOptions.find((option) => option.provider === props.provider && option.id === props.value),
@@ -385,7 +395,7 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
   }
 
   function selectModel(option: PickerModel, accountId: string | null): void {
-    if (props.disabled || props.modelChangesDisabled || !modelAvailable(option)) return;
+    if (props.disabled || providerLocked(option, accountId) || !modelAvailable(option)) return;
     if (!showsReasoningEffort() && !option.variants.length) setOpen(false);
     props.onChange(option.id, option.provider, chosenAccount(option.provider, accountId));
   }
@@ -441,11 +451,7 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
           class={["provider-model-trigger", { "provider-model-trigger-field": field() }]}
           aria-label={`${props.ariaLabel ?? t("provider.picker.agentModel")}: ${triggerSummary()}`}
           disabled={props.disabled}
-          title={
-            props.disabled || props.modelChangesDisabled
-              ? props.disabledReason
-              : `${railName(activeProvider(), t)} · ${triggerSummary()}`
-          }
+          title={props.disabled ? props.disabledReason : `${railName(activeProvider(), t)} · ${triggerSummary()}`}
           onKeyDown={(event: KeyboardEvent) => {
             if (event.key !== "ArrowDown") return;
             event.preventDefault();
@@ -664,8 +670,11 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
                 const available = () => status().state === "available";
                 // An account that is not signed in holds back the models its provider serves.
                 const modelEnabled = (model: PickerModel) =>
-                  modelAvailable(model) && (accountId() === null || available()) && props.modelChangesDisabled !== true;
-                const effortLocked = () => !available() || props.modelChangesDisabled === true;
+                  modelAvailable(model) && (accountId() === null || available()) && !providerLocked(model, accountId());
+                /** The lock closes this whole panel: none of its models keeps the agent's runtime. */
+                const panelLocked = () =>
+                  available() && models().length > 0 && models().every((model) => providerLocked(model, accountId()));
+                const effortLocked = () => !available();
                 function chooseEffort(id: string): void {
                   if (props.disabled || effortLocked() || id === effortValue()) return;
                   const model = selected();
@@ -788,6 +797,11 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
                             </Button>
                           )}
                         </Show>
+                      </div>
+                    </Show>
+                    <Show when={panelLocked() && props.disabledReason}>
+                      <div class="provider-model-empty" role="status">
+                        <span>{props.disabledReason}</span>
                       </div>
                     </Show>
                     <Input

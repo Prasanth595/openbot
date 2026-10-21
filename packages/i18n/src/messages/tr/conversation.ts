@@ -47,8 +47,11 @@ export const messages = {
   "conversation.header.publish": "Ajanı yayımla",
   "conversation.header.browserActing": "{name} tarayıcıyı kontrol ediyor",
   "conversation.header.agentFallback": "Ajan",
-  "conversation.header.modelsBusy": "Model değiştirmeden önce mevcut çalışmanın bitmesini bekleyin.",
+  "conversation.header.providerBusy":
+    "Sağlayıcıyı veya hesabı değiştirmeden önce mevcut çalışmanın bitmesini bekleyin.",
   "conversation.header.modelsUnavailable": "Modeller bir ajan CLI'sı bağlandıktan sonra kullanılabilir.",
+  "conversation.header.modelNextTurn": "Bu turdan sonra",
+  "conversation.header.modelNextTurnDetail": "{running} bu turu bitirir. {next} bir sonrakiyle başlar.",
   "conversation.sidePanel.label": "Yan panel",
   "conversation.sidePanel.open": "Yan paneli aç",
   "conversation.sidePanel.close": "Yan paneli kapat",
@@ -104,6 +107,7 @@ export const messages = {
   "conversation.tasks.state.completed": "Yanıtlandı",
   "conversation.tasks.state.failed": "Başarısız",
   "conversation.tasks.state.interrupted": "Durduruldu",
+  "conversation.tasks.state.waitingApproval": "Onayınızı bekliyor",
   "conversation.tasks.hold.taskLimit": {
     one: "Boş bir görev bekleniyor. {count} görev çalışıyor.",
     other: "Boş bir görev bekleniyor. {count} görev çalışıyor.",

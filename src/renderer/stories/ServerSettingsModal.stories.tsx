@@ -1,4 +1,6 @@
 import type {
+  AgentAccessChange,
+  AgentAccessSnapshot,
   HostReleaseStatus,
   HostStatus,
   HostUpdateStatus,
@@ -11,8 +13,10 @@ import { createSignal, createStore, onSettled, snapshot } from "solid-js";
 import { fn } from "storybook/test";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import type { McpPanelSignIn } from "../src/features/servers/ServerMcpPanel";
+import type { ServerAgentAccessOptions } from "../src/features/servers/ServerRolesSection";
 import { ServerSettingsModal, type ServerSettingsModalProps } from "../src/features/servers/ServerSettingsModal";
 import {
+  STORY_AGENT_SUMMARIES,
   STORY_HOST_STATUS,
   STORY_HOSTED_SITES,
   STORY_INVITES,
@@ -122,6 +126,11 @@ export const FirstSetupInvalidNameSmallViewport: Story = {
   },
 };
 
+/** Members of a server with no name yet: publishing generates one, so the switch is ready. */
+export const LocalFirstPublication: Story = {
+  args: { ...LocalFirstSetup.args, initialSection: "members" },
+};
+
 export const RemoteDesktopAfterPublication: Story = {
   render: (args) => <PublicationSetupStory settings={args} />,
 };
@@ -132,6 +141,7 @@ function PublicationSetupStory(props: { settings: ServerSettingsModalProps }) {
     <RemoteSetupStory
       settings={{
         ...props.settings,
+        initialSection: "members",
         get hostStatus(): HostStatus {
           return { ...STORY_HOST_STATUS, configured: true, phase: published() ? "online" : "idle" };
         },
@@ -487,3 +497,42 @@ function ConnectorsStory(props: { settings: ServerSettingsModalProps }) {
   const connectors = storyConnectorRegistry(localServer);
   return <RemoteSetupStory settings={{ ...props.settings, connectors }} />;
 }
+
+/**
+ * The roles of one story server: Research is closed to Everyone, Legal chats with it, and Finance
+ * reads Sales. A save keeps its change until Storybook loads the story file again.
+ */
+function storyAgentAccess(): ServerAgentAccessOptions {
+  let stored: AgentAccessChange = {
+    revision: 3,
+    everyone: { research: "none", sales: "view" },
+    roles: [
+      { id: "role-legal", name: "Legal", agents: { research: "chat" }, memberIds: ["member-jon"] },
+      { id: "role-finance", name: "Finance", agents: { sales: "manage" }, memberIds: ["member-jon", "member-maya"] },
+    ],
+  };
+  const read = (): AgentAccessSnapshot => ({
+    ...structuredClone(stored),
+    mine: Object.fromEntries(STORY_AGENT_SUMMARIES.map((agent) => [agent.id, "manage" as const])),
+  });
+  return {
+    calls: {
+      getAgentAccess: async () => read(),
+      setAgentAccess: async (change) => {
+        stored = { ...structuredClone(change), revision: change.revision + 1 };
+        return read();
+      },
+    },
+    listAgents: async () => STORY_AGENT_SUMMARIES.slice(0, 3),
+  };
+}
+
+/** Everyone, then the custom roles. A role page sets the level of each agent. */
+export const Roles: Story = {
+  args: { initialSection: "roles", agentAccess: storyAgentAccess() },
+};
+
+/** The role menu of each member row holds the server role and the custom roles. */
+export const MembersWithRoles: Story = {
+  args: { initialSection: "members", agentAccess: storyAgentAccess() },
+};

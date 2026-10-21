@@ -19,7 +19,7 @@ export interface VoiceTranscriptionResult {
 }
 
 /** The local speech recognition models. Saved in `voice-preference.json`; never rename one. */
-export const LOCAL_VOICE_MODEL_IDS = ["parakeet-tdt-0.6b-v3", "whisper-turbo"] as const;
+export const LOCAL_VOICE_MODEL_IDS = ["parakeet-tdt-0.6b-v3", "bark-3.0-plus", "whisper-turbo"] as const;
 export type LocalVoiceModelId = (typeof LOCAL_VOICE_MODEL_IDS)[number];
 
 /**
@@ -36,7 +36,10 @@ export const DEFAULT_VOICE_MODEL_ID: VoiceModelId = "parakeet-tdt-0.6b-v3";
 interface VoiceModelCapabilities {
   /** The product name. It is not translated. */
   name: string;
-  /** True when the model takes a fixed language. Parakeet always finds the language itself. */
+  /**
+   * True when the model takes a fixed language. Parakeet always finds the language itself, and Bark
+   * recognizes English only.
+   */
   supportsLanguage: boolean;
   /**
    * True when the composer shows text while you speak. Whisper reads 30 s for each pass, so it
@@ -67,6 +70,14 @@ export const VOICE_MODELS: readonly VoiceModelInfo[] = [
     id: "parakeet-tdt-0.6b-v3",
     name: "Parakeet TDT 0.6B v3",
     bytes: 670_478_772,
+    supportsLanguage: false,
+    livePreview: true,
+  },
+  {
+    kind: "local",
+    id: "bark-3.0-plus",
+    name: "Underdog Bark 3.0 Plus",
+    bytes: 684_624_267,
     supportsLanguage: false,
     livePreview: true,
   },

@@ -32,6 +32,21 @@ export default function ServerSettingsLayout() {
       <Stack.Screen name="invite" options={{ title: t("mobile.server.route.invite") }} />
       <Stack.Screen name="member" options={{ title: t("mobile.server.route.member") }} />
       <Stack.Screen name="timezone" options={{ title: t("mobile.server.route.timezone") }} />
+      <Stack.Screen name="connectors" options={{ title: t("mobile.server.route.connectors") }} />
+      {/* The page names its connector. */}
+      <Stack.Screen name="connector" options={{ title: t("mobile.server.route.connectors") }} />
+      <Stack.Screen
+        name="github-repositories"
+        options={{ title: t("mobile.server.connectors.github.repositoriesTitle") }}
+      />
+      <Stack.Screen name="updates" options={{ title: t("mobile.server.route.updates") }} />
+      <Stack.Screen name="storage" options={{ title: t("mobile.server.route.storage") }} />
+      <Stack.Screen name="storage-files" options={{ title: t("mobile.server.route.storageFiles") }} />
+      <Stack.Screen name="sites" options={{ title: t("mobile.server.route.sites") }} />
+      <Stack.Screen name="providers" options={{ title: t("mobile.server.route.providers") }} />
+      <Stack.Screen name="provider" options={{ title: t("mobile.server.route.provider") }} />
+      <Stack.Screen name="mcp" options={{ title: t("mobile.server.route.mcp") }} />
+      <Stack.Screen name="mcp-server" options={{ title: t("mobile.server.route.mcpServer") }} />
       <Stack.Screen name="crop-logo" options={{ title: t("mobile.server.route.cropLogo") }} />
     </Stack>
   );

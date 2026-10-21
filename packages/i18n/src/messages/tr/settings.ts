@@ -19,7 +19,6 @@ export const messages = {
   "settings.logoColor.beige": "Bej",
   "settings.logoColor.gray": "Gri",
   "settings.logoColor.white": "Beyaz",
-  "settings.providers.title": "Yapay zeka sağlayıcıları",
   "settings.appBehavior.title": "Uygulama davranışı",
   "settings.conversations.title": "Konuşmalar",
   "settings.launchAtLogin.title": "Oturum açıldığında OpenBot'u başlat",
@@ -96,9 +95,8 @@ export const messages = {
   "settings.analytics.title": "Ürün analizlerini paylaş",
   "settings.analytics.description":
     "Hesap kimliğiniz ve e-postanız ile birlikte kullanım ve güvenilirlik meta verilerini OpenBot'un kendi barındırdığı analizlerine gönderin.",
-  "settings.analytics.webTitle": "Hata raporlarını paylaş",
   "settings.analytics.webDescription":
-    "Hata ve uyarı kodlarını hesap kimliğinizle birlikte OpenBot'un analiz hizmetine gönderin. Bu ayar bu tarayıcı için geçerlidir.",
+    "Hesap kimliğiniz ve e-postanız ile birlikte kullanım ve güvenilirlik meta verilerini OpenBot'un kendi barındırdığı analizlerine gönderin. Bu ayar bu tarayıcı için geçerlidir.",
   "settings.tab.general.title": "Genel",
   "settings.tab.general.description": "OpenBot'un bu bilgisayarda nasıl davranacağını kontrol edin.",
   "settings.tab.notifications.title": "Bildirimler",
@@ -423,6 +421,8 @@ export const messages = {
   // The Voice tab: dictation models and the dictation language.
   "settings.voice.models.title": "Dikte modeli",
   "settings.voice.model.parakeet.description": "Hızlı. Konuşulan dili 25 Avrupa dili arasında kendisi bulur.",
+  "settings.voice.model.bark.description":
+    "Hızlı. Yalnızca İngilizce. Çoğunlukla küçük harfle ve az noktalamayla yazar.",
   "settings.voice.model.whisper.description": "Daha yavaş. Yaklaşık 100 dil; konuşulan dili belirleyebilirsiniz.",
   "settings.voice.model.size": "İndirme boyutu: {size}",
   "settings.voice.model.downloading": "İndiriliyor · {received} / {total}",
@@ -439,6 +439,8 @@ export const messages = {
   "settings.voice.language.description": "Konuştuğunuz dil. Otomatik, dili kayıttan bulur.",
   "settings.voice.language.modelDetects":
     "Parakeet konuşulan dili kendisi bulur. Bir dil belirlemek için Whisper'ı veya ElevenLabs'i kullanın.",
+  "settings.voice.language.englishOnly":
+    "Bark yalnızca İngilizceyi tanır. Bir dil belirlemek için Whisper'ı veya ElevenLabs'i kullanın.",
   "settings.voice.language.automatic": "Otomatik",
   "settings.voice.loadFailed": "Ses modelleri okunamadı.",
   "settings.voice.saveFailed": "Ses ayarı kaydedilemedi. Tekrar deneyin.",

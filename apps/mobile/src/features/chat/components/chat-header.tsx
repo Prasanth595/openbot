@@ -9,7 +9,7 @@ import { AgentPinAvatar } from "@/features/agents/components/agent-pin-avatar";
 import { BloubAvatar } from "@/features/agents/components/bloub-avatar";
 import { useBrowserFeature } from "@/features/browser/components/use-browser-feature";
 import { ChatGlassIconButton } from "@/features/chat/components/chat-glass-icon-button";
-import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import { useMobileWorkspaceSelector } from "@/features/workspace/context/mobile-workspace-context";
 import { showsOnline } from "@/features/workspace/model/server-status";
 import { BlurReveal } from "@/shared/components/blur-reveal";
 import { SheetScrollEdgeEffect } from "@/shared/components/sheet-scroll-edge-effect";
@@ -48,16 +48,15 @@ export function ChatHeader({
   trailing,
 }: ChatHeaderProps) {
   const { t } = useText();
-  const { servers, browserViewSupport } = useMobileWorkspace();
-  const disconnected = !servers.some((server) => server.id === target.serverId && showsOnline(server));
+  const disconnected = useMobileWorkspaceSelector(
+    (current) => !current.servers.some((server) => server.id === target.serverId && showsOnline(server)),
+  );
+  const browserView = useMobileWorkspaceSelector((current) => current.browserViewSupport(target.serverId).view);
   const browserAllowed = useBrowserFeature();
   // The agent's browser on the host, live. The button shows when the agent has no tab yet too: the
   // browser screen opens a new one. A host that cannot stream a tab, or an app version the account
   // server has the browser off for, shows no button.
-  const browserTarget =
-    trailing === undefined && browserAllowed && !disconnected && browserViewSupport(target.serverId).view
-      ? target
-      : null;
+  const browserTarget = trailing === undefined && browserAllowed && !disconnected && browserView ? target : null;
   const iconColor = String(foreground);
 
   return (

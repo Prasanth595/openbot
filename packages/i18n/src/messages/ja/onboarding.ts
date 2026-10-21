@@ -43,6 +43,7 @@ export const messages = {
   "onboarding.provider.googlePlan": "Google AI Pro または Ultra プラン",
   "onboarding.provider.cursorPlan": "Cursor プランまたは API キー",
   "onboarding.provider.clineAccount": "Cline アカウントで無料モデル",
+  "onboarding.provider.inceptionKey": "Inception API キーで Mercury モデル",
   "onboarding.provider.tryFree": "無料で試す",
   "onboarding.provider.noSignIn": "サインイン不要",
   "onboarding.provider.more": "その他のプロバイダー",

@@ -21,6 +21,13 @@ import { isOneOf } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
 import { Context, Effect, Layer } from "effect";
 import {
+  type AccountAnalytics,
+  type BillingAction,
+  NO_ACCOUNT_ANALYTICS,
+  type PlanChangeDirection,
+  type PlanEndReason,
+} from "./account-analytics";
+import {
   BillingError,
   type BillingOperationError,
   billingCall,
@@ -28,6 +35,7 @@ import {
   stripeFailure,
   stripeRequest,
 } from "./billing-errors";
+import type { BillingSales } from "./billing-sales";
 import {
   isBillingCurrency,
   type StripeClient,
@@ -52,6 +60,15 @@ export interface LicenseSync {
   kind: "license";
   userId: string;
   latestInvoiceId: string | null;
+  users: number;
+  currency: BillingCurrency;
+}
+
+/** The stored state of a license before a sync writes it. */
+interface StoredLicense {
+  users: number;
+  status: string;
+  cancel_at_period_end: number;
 }
 
 interface LicenseRow {
@@ -77,6 +94,10 @@ export interface LicenseServiceOptions {
   now: () => number;
   /** The Stripe customer of the account. Server plans and the license use the same customer. */
   ensureCustomer: (user: { id: string; email: string }) => Effect.Effect<string, BillingError | BillingOperationError>;
+  /** Reports the lifecycle of a license. The sync reports each stored change once. */
+  analytics?: AccountAnalytics;
+  /** The sales ledger. Without it, a started Checkout goes to `analytics`. */
+  sales?: BillingSales | null;
 }
 
 class LicenseDependencies extends Context.Service<
@@ -97,10 +118,14 @@ export class LicenseService {
   readonly #layer: Layer.Layer<LicenseDependencies>;
   readonly #secretKey: string;
   readonly #ensureCustomer: LicenseServiceOptions["ensureCustomer"];
+  readonly #analytics: AccountAnalytics;
+  readonly #sales: BillingSales | null;
 
   constructor(options: LicenseServiceOptions) {
     this.#secretKey = options.secretKey;
     this.#ensureCustomer = options.ensureCustomer;
+    this.#analytics = options.analytics ?? NO_ACCOUNT_ANALYTICS;
+    this.#sales = options.sales ?? null;
     this.#layer = Layer.succeed(LicenseDependencies, {
       database: options.database,
       stripe: options.stripe,
@@ -241,6 +266,8 @@ export class LicenseService {
         yield* this.#stripeCall(() => dependencies.stripe.expireCheckoutSession(kept.id));
         return yield* licenseExists();
       }
+      // Each page starts once: a request that returns a newer page of another request reports nothing.
+      if (kept.id === session.id) yield* this.#checkoutStarted(user.id, session.id, request);
       return kept.url ?? session.url;
     },
     (operation) => operation.pipe(Effect.provide(this.#layer)),
@@ -382,10 +409,15 @@ export class LicenseService {
         return null;
       }
       const cancelAtPeriodEnd = subscription.cancel_at_period_end || typeof subscription.cancel_at === "number";
-      yield* billingCall(() =>
-        dependencies.database
-          .prepare(
-            `INSERT INTO licenses(
+      // One transaction reads the state before the write, so each stored change is reported once.
+      const [before, written] = yield* billingCall(() =>
+        dependencies.database.batch<StoredLicense>([
+          dependencies.database
+            .prepare("SELECT users, status, cancel_at_period_end FROM licenses WHERE stripe_subscription_id = ?")
+            .bind(subscription.id),
+          dependencies.database
+            .prepare(
+              `INSERT INTO licenses(
                stripe_subscription_id, user_id, stripe_customer_id, users, currency, status, current_period_end,
                cancel_at_period_end, updated_at
              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -397,20 +429,25 @@ export class LicenseService {
                cancel_at_period_end = excluded.cancel_at_period_end,
                updated_at = excluded.updated_at
              WHERE excluded.updated_at >= licenses.updated_at`,
-          )
-          .bind(
-            subscription.id,
-            ownerId,
-            subscriptionCustomerId(subscription),
-            users,
-            currency,
-            subscription.status,
-            subscriptionPeriodEnd(subscription),
-            cancelAtPeriodEnd ? 1 : 0,
-            readAt,
-          )
-          .run(),
+            )
+            .bind(
+              subscription.id,
+              ownerId,
+              subscriptionCustomerId(subscription),
+              users,
+              currency,
+              subscription.status,
+              subscriptionPeriodEnd(subscription),
+              cancelAtPeriodEnd ? 1 : 0,
+              readAt,
+            ),
+        ]),
       );
+      const previous = before?.results[0] ?? null;
+      const change =
+        written?.meta.changes === 1
+          ? licenseChange(previous, { users, status: subscription.status, cancelAtPeriodEnd })
+          : null;
       // Checkout lets one account open one license. A second one comes only from the Dashboard or a payment
       // that no check could stop, and a person must refund it.
       const others = yield* billingCall(() =>
@@ -426,7 +463,45 @@ export class LicenseService {
         console.warn("billing: an account has more than one open license", {
           subscriptionIds: [subscription.id, ...others.results.map((row) => row.stripe_subscription_id)],
         });
-      return { kind: "license", userId: ownerId, latestInvoiceId: subscriptionLatestInvoiceId(subscription) };
+      if (change) {
+        // A license that starts after every earlier license of the account ended. A failed read leaves
+        // the property out: the license is already saved, so the event must not fail the sync.
+        const reactivated =
+          change.action !== "plan_started"
+            ? undefined
+            : others.results.length > 0
+              ? false
+              : yield* billingCall(() =>
+                  dependencies.database
+                    .prepare(
+                      "SELECT 1 AS ended FROM licenses WHERE user_id = ? AND stripe_subscription_id <> ? AND status = 'canceled' LIMIT 1",
+                    )
+                    .bind(ownerId, subscription.id)
+                    .first<{ ended: number }>(),
+                ).pipe(
+                  Effect.map(Boolean),
+                  Effect.catch(() => Effect.succeed(undefined)),
+                );
+        this.#analytics.track(ownerId, {
+          name: "billing_action",
+          action: change.action,
+          product: "license",
+          users,
+          interval: "month",
+          currency,
+          amount: licenseAmount(users, currency),
+          ...(change.direction ? { direction: change.direction } : {}),
+          ...(reactivated === undefined ? {} : { reactivated }),
+          ...(change.endReason ? { endReason: change.endReason } : {}),
+        });
+      }
+      return {
+        kind: "license",
+        userId: ownerId,
+        latestInvoiceId: subscriptionLatestInvoiceId(subscription),
+        users,
+        currency,
+      };
     },
     (operation) => operation.pipe(Effect.provide(this.#layer)),
   ).bind(this);
@@ -472,6 +547,42 @@ export class LicenseService {
     },
     (operation) => operation.pipe(Effect.provide(this.#layer)),
   ).bind(this);
+
+  /**
+   * Records a started license Checkout. The page is already open, so a failed write is logged and does
+   * not fail the request.
+   */
+  readonly #checkoutStarted = Effect.fn("LicenseService.checkoutStarted")(function* (
+    this: LicenseService,
+    userId: string,
+    sessionId: string,
+    request: LicenseCheckoutRequest,
+  ): Effect.fn.Return<void, never, LicenseDependencies> {
+    const dependencies = yield* LicenseDependencies;
+    const amount = licenseAmount(request.users, request.currency);
+    if (!this.#sales) {
+      this.#analytics.track(userId, {
+        name: "billing_action",
+        action: "checkout_started",
+        product: "license",
+        users: request.users,
+        interval: "month",
+        currency: request.currency,
+        amount,
+      });
+      return;
+    }
+    yield* this.#sales
+      .licenseCheckout({
+        sessionId,
+        userId,
+        users: request.users,
+        currency: request.currency,
+        amount,
+        createdAt: dependencies.now(),
+      })
+      .pipe(Effect.catch(() => Effect.sync(() => console.warn("billing: license checkout fact was not saved"))));
+  });
 
   readonly #openLicense = Effect.fn("LicenseService.openLicense")(function* (
     this: LicenseService,
@@ -572,10 +683,39 @@ function licenseFromRow(row: LicenseRow): License | null {
   };
 }
 
-/** The web client opens Billing again. The desktop app reads the license again, so its page only says to go back. */
+/**
+ * The change of a license that one sync stored, with the same actions as a server plan. One sync reports
+ * one action: a start or an end first, then a change of users, then a change of renewal.
+ */
+function licenseChange(
+  previous: StoredLicense | null,
+  current: { users: number; status: BillingSubscriptionStatus; cancelAtPeriodEnd: boolean },
+): { action: BillingAction; direction?: PlanChangeDirection; endReason?: PlanEndReason } | null {
+  const wasOpen =
+    previous !== null &&
+    isOneOf(BILLING_SUBSCRIPTION_STATUSES, previous.status) &&
+    isOpenBillingStatus(previous.status);
+  const isOpen = isOpenBillingStatus(current.status);
+  if (!previous || !wasOpen) return isOpen ? { action: "plan_started" } : null;
+  if (!isOpen)
+    return {
+      action: "plan_ended",
+      endReason: previous.status === "past_due" || previous.status === "unpaid" ? "unpaid" : "canceled",
+    };
+  if (previous.users !== current.users)
+    return { action: "plan_changed", direction: current.users > previous.users ? "up" : "down" };
+  const wasCancelling = previous.cancel_at_period_end === 1;
+  if (wasCancelling === current.cancelAtPeriodEnd) return null;
+  return { action: current.cancelAtPeriodEnd ? "cancel_scheduled" : "cancel_withdrawn" };
+}
+
+/**
+ * The web client opens Billing again. The desktop app reads the license again, so its page only says to go back.
+ * `kind` tells the return page which Stripe page closed.
+ */
 function licenseReturnUrl(origin: string, target: LicenseReturnTarget): string {
   if (target === "web") return `${origin}/app?billing=license`;
-  return `${origin}/billing/return`;
+  return `${origin}/billing/return?kind=license`;
 }
 
 function licenseExists(): BillingError {

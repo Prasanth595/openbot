@@ -1275,6 +1275,11 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     return this.#store.database.usage.readHost(input);
   }
 
+  /** The provider-reported token counts of one turn by provider and model, for host analytics. */
+  getTurnUsage(agentId: string, turnId: string, since: string) {
+    return this.#store.database.usage.readTurn(agentId, turnId, since);
+  }
+
   readonly getUsage = Effect.fn("AgentService.getUsage")(function* (this: AgentService, agentId?: string) {
     const agent = yield* lifecycleStep("find usage agent", () => {
       if (!agentId) return null;
@@ -1351,6 +1356,10 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       attention: this.#attention,
       usageLimits: this.#usageLimits,
     });
+  }
+
+  agentIdForRequest(requestId: string | number): string | undefined {
+    return this.#attention.agentIdForRequest(requestId);
   }
 
   getLocalAttention(agentId: string) {

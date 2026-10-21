@@ -139,6 +139,10 @@ export const messages = {
   "provider.geminiKey.description":
     "このコンピューターに Gemini API キーを保存します。保存したキーは Google アカウントの代わりに使われます。Google でサインインするには、キーを削除してから Gemini の行で「接続」を選択してください。",
   "provider.geminiKey.label": "Gemini API キー",
+  "provider.inceptionKey.title": "Inception API キー",
+  "provider.inceptionKey.description":
+    "Mercury モデルを使うには、このコンピューターに Inception API キーを保存します。OpenBot はダウンロードした Pi CLI でモデルを実行します。",
+  "provider.inceptionKey.label": "Inception API キー",
 
   "provider.openCodeKey.title": "OpenCode Go にサインイン",
   "provider.openCodeKey.description": "無料モデルにアカウントは不要です。キーがあると有料の Go モデルを使えます。",
