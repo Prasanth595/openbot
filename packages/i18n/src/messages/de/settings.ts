@@ -100,9 +100,8 @@ export const messages = {
   "settings.analytics.title": "Nutzungsdaten teilen",
   "settings.analytics.description":
     "Nutzungs- und Zuverlässigkeitsmetadaten mit deiner Konto-ID und E-Mail-Adresse an das von OpenBot selbst betriebene Analysesystem senden.",
-  "settings.analytics.webTitle": "Fehlerberichte teilen",
   "settings.analytics.webDescription":
-    "Fehler- und Warncodes mit deiner Konto-ID an das Analysesystem von OpenBot senden. Diese Einstellung gilt für diesen Browser.",
+    "Nutzungs- und Zuverlässigkeitsmetadaten mit deiner Konto-ID und E-Mail-Adresse an das von OpenBot selbst betriebene Analysesystem senden. Diese Einstellung gilt für diesen Browser.",
   "settings.tab.general.title": "Allgemein",
   "settings.tab.general.description": "Lege fest, wie sich OpenBot auf diesem Computer verhält.",
   "settings.tab.notifications.title": "Mitteilungen",

@@ -105,9 +105,8 @@ export const messages = {
   "settings.analytics.title": "Partager les données analytiques du produit",
   "settings.analytics.description":
     "Envoyer des métadonnées d’utilisation et de fiabilité, avec l’identifiant et l’e-mail de votre compte, aux services analytiques auto-hébergés d’OpenBot.",
-  "settings.analytics.webTitle": "Partager les rapports d’erreurs",
   "settings.analytics.webDescription":
-    "Envoyez les codes d’erreur et d’avertissement, avec l’identifiant de votre compte, au service d’analyse d’OpenBot. Ce réglage s’applique à ce navigateur.",
+    "Envoyer des métadonnées d’utilisation et de fiabilité, avec l’identifiant et l’e-mail de votre compte, aux services analytiques auto-hébergés d’OpenBot. Ce réglage s’applique à ce navigateur.",
   // The Settings window shell: its tab list, headers and save bar.
   "settings.tab.general.title": "Général",
   "settings.tab.general.description": "Contrôler le comportement d’OpenBot sur cet ordinateur.",

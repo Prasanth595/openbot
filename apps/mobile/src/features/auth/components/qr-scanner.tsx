@@ -136,10 +136,10 @@ export function QrScanner({
   useEffect(() => {
     if (!pairing) return;
     const scope = mobileAnalytics.scope();
-    scope.track("mobile_pairing_action", { action: "scanner_opened", result: "succeeded" });
+    scope.track("mobile_pairing_action", { action: "scanner_opened", entry_point: "qr", result: "succeeded" });
     return () => {
       if (!completed.current && !scanPending.current)
-        scope.track("mobile_pairing_action", { action: "cancel", result: "cancelled" });
+        scope.track("mobile_pairing_action", { action: "cancel", entry_point: "qr", result: "cancelled" });
     };
   }, [pairing]);
   const [cameraAttempt, setCameraAttempt] = useState(0);
@@ -266,6 +266,7 @@ export function QrScanner({
                             if (pairing)
                               scope.track("mobile_pairing_action", {
                                 action: "camera_permission",
+                                entry_point: "qr",
                                 result: response.granted ? "succeeded" : "failed",
                                 ...(response.granted ? {} : { failure_code: "permission_denied" }),
                               });
@@ -273,6 +274,7 @@ export function QrScanner({
                             if (pairing)
                               scope.track("mobile_pairing_action", {
                                 action: "camera_permission",
+                                entry_point: "qr",
                                 result: "failed",
                                 failure_code: "permission_denied",
                               });

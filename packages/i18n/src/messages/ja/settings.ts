@@ -95,9 +95,8 @@ export const messages = {
   "settings.analytics.title": "製品分析データを共有する",
   "settings.analytics.description":
     "利用状況と安定性のメタデータを、アカウント ID とメールアドレスとともに OpenBot の自社運用の分析基盤に送信します。",
-  "settings.analytics.webTitle": "エラーレポートを共有する",
   "settings.analytics.webDescription":
-    "エラーと警告のコードを、アカウント ID とともに OpenBot の分析に送信します。この設定はこのブラウザーに適用されます。",
+    "利用状況と安定性のメタデータを、アカウント ID とメールアドレスとともに OpenBot の自社運用の分析基盤に送信します。この設定はこのブラウザーに適用されます。",
   "settings.tab.general.title": "一般",
   "settings.tab.general.description": "このコンピューターでの OpenBot の動作を設定します。",
   "settings.tab.notifications.title": "通知",

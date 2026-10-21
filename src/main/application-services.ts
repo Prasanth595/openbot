@@ -1,5 +1,5 @@
 import { isManagedRuntimeProvider } from "@openbot/contracts/agent-providers";
-import { openPanelTransport, ReportQueue } from "@openbot/telemetry";
+import { ANALYTICS_GENERATIONS, openPanelTransport, ReportQueue } from "@openbot/telemetry";
 import { fileReportStorage } from "@openbot/telemetry/node";
 import { Effect, Fiber } from "effect";
 import { toAgentRemovalFailed } from "../backend/agent/agent-removal";
@@ -2135,7 +2135,7 @@ export async function createApplicationServices({
           surface: "desktop_host",
           app_version: app.getVersion(),
           platform: analyticsPlatform,
-          event_schema_version: 8,
+          event_schema_version: ANALYTICS_GENERATIONS.desktop_host,
         },
       )
     : undefined;
@@ -2172,6 +2172,7 @@ export async function createApplicationServices({
         : null;
     },
     resolveAgent: (agentId) => service.listAgents().find((agent) => agent.id === agentId) ?? null,
+    resolveTurnUsage: (agentId, turnId, since) => service.getTurnUsage(agentId, turnId, since),
     resolveMcpServer: (name) => {
       const configs = service.listMcpServers().filter((server) => isReportedMcpServerName(server.name, name));
       if (configs.length === 0) return null;

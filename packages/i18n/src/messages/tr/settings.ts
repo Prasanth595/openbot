@@ -96,9 +96,8 @@ export const messages = {
   "settings.analytics.title": "Ürün analizlerini paylaş",
   "settings.analytics.description":
     "Hesap kimliğiniz ve e-postanız ile birlikte kullanım ve güvenilirlik meta verilerini OpenBot'un kendi barındırdığı analizlerine gönderin.",
-  "settings.analytics.webTitle": "Hata raporlarını paylaş",
   "settings.analytics.webDescription":
-    "Hata ve uyarı kodlarını hesap kimliğinizle birlikte OpenBot'un analiz hizmetine gönderin. Bu ayar bu tarayıcı için geçerlidir.",
+    "Hesap kimliğiniz ve e-postanız ile birlikte kullanım ve güvenilirlik meta verilerini OpenBot'un kendi barındırdığı analizlerine gönderin. Bu ayar bu tarayıcı için geçerlidir.",
   "settings.tab.general.title": "Genel",
   "settings.tab.general.description": "OpenBot'un bu bilgisayarda nasıl davranacağını kontrol edin.",
   "settings.tab.notifications.title": "Bildirimler",

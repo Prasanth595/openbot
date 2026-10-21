@@ -518,8 +518,10 @@ export function SignInScreen({ notice }: { notice?: SignInNotice }) {
           viewport={viewport}
           onClose={closeScanner}
           onScan={async (data, beforeConnect) => {
-            const session = await mobileAnalytics.operation("mobile_pairing_action", { action: "redeem" }, () =>
-              redeemMobileConnectUrl(data),
+            const session = await mobileAnalytics.operation(
+              "mobile_pairing_action",
+              { action: "redeem", entry_point: "qr" },
+              () => redeemMobileConnectUrl(data),
             );
             try {
               await beforeConnect();

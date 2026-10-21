@@ -17,7 +17,8 @@ import {
   usageLimitAskOptions,
 } from "@openbot/ui/features/conversation/BackupModels";
 import { unloadedHistory } from "@openbot/ui/features/conversation/ChatScrollRail";
-import { createMemo } from "solid-js";
+import { createEffect, createMemo } from "solid-js";
+import { desktopAnalytics } from "../../analytics";
 import { ProviderSignInDialogs } from "../../components/ProviderSignInDialogs";
 import { useNavigation } from "../../navigation";
 import { usePlatform } from "../../platform";
@@ -346,16 +347,17 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
       return undefined;
     const agentId = agent.id;
     const reasoningEffort = agent.reasoningEffort;
+    const fromProvider = agent.provider;
     return {
       provider: agent.provider,
       resetsAt,
       options,
-      onSend: (option, remember) => {
+      onSend: async (option, remember) => {
         // The agent keeps its reasoning effort where the other model has it.
         const model = modelOptions().find(
           (candidate) => candidate.provider === option.choice.provider && candidate.id === option.choice.model,
         );
-        return updateAgent(agentId, {
+        await updateAgent(agentId, {
           provider: option.choice.provider,
           model: option.choice.model,
           providerAccountId: option.choice.providerAccountId ?? null,
@@ -366,10 +368,30 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
           leaveUsageLimit: true,
           ...(remember ? { backupModels: rememberedBackupModels(option.choice, backupModels) } : {}),
         });
+        desktopAnalytics.track("usage_limit_action", {
+          action: "model_switched",
+          from_provider: fromProvider,
+          to_provider: option.choice.provider,
+          to_model: option.choice.model,
+        });
       },
-      onWait: () => setWaitedUsageLimits((current) => ({ ...current, [agentId]: resetsAt })),
+      onWait: () => {
+        desktopAnalytics.track("usage_limit_action", { action: "waited", from_provider: fromProvider });
+        setWaitedUsageLimits((current) => ({ ...current, [agentId]: resetsAt }));
+      },
     };
   });
+  // One "shown" for each limit that asks; a new reset time is a new limit.
+  createEffect(
+    () => {
+      const ask = usageLimitAsk();
+      return ask ? `${activeAgent()?.id ?? ""}:${ask.resetsAt ?? ""}` : null;
+    },
+    (key) => {
+      const ask = usageLimitAsk();
+      if (key && ask) desktopAnalytics.track("usage_limit_action", { action: "shown", from_provider: ask.provider });
+    },
+  );
 
   return (
     <>

@@ -505,13 +505,13 @@ of both platforms is required before release.
 ### Event catalog
 
 Every event has `surface=mobile`, `platform=ios|android`, `environment=production`,
-`event_schema_version=2`, `app_version` and `build_number`. Operation outcomes use `result` and,
+`event_schema_version=3`, `app_version` and `build_number`. Operation outcomes use `result` and,
 where available, `duration_ms`. Failure codes are fixed categories, never raw error text.
 
 | Event | Meaning |
 | --- | --- |
 | `mobile_app_opened` | Cold start or return from background, with `signed_in`; iOS inactive overlays do not count as a new visit |
-| `mobile_pairing_action` | Sign-in scanner opened, camera permission result, QR redemption result, scanner cancelled |
+| `mobile_pairing_action` | Sign-in scanner opened, camera permission result, QR redemption result, scanner cancelled; `entry_point` is `qr` or `link` (a pairing link) |
 | `mobile_connection_action` | Initial connection attempt, reconnection attempt, or connection lost; result, duration and bounded loading stage |
 | `conversation_opened` | One visible-visit outcome and time to readable conversation, including cached/offline reads; failures when no readable conversation is available |
 | `message_send` | Host receipt or failure, attachment count, reply flag, provider/model/reasoning metadata when known |
@@ -523,8 +523,19 @@ where available, `duration_ms`. Failure codes are fixed categories, never raw er
 | `search_action` | One summary when a search screen closes after using a query/filter; final result count, no query |
 | `team_action` | Select, join or leave a server |
 | `conversation_action` | Pin/unpin or hide/unhide, including preference-save failures |
-| `usage_viewed` | Open the agent Usage section |
+| `usage_viewed` | Open the agent Usage section or the server Usage page; `scope` is `agent` or `server` |
 | `account_sign_out` | Sign-out result under the initiating account |
+| `account_sign_in_started` | Email sign-in code request (also a resend); `method=email`, `result` is `code_sent` or `failed`, duration |
+| `account_sign_in_completed` | Email sign-in code check; `method=email`, result, duration |
+| `hosted_server_plans_action` | Hosted server plans sheet `viewed` and `closed`, or a server in setup opened (`setup_opened`); `entry_point` is `drawer` or `onboarding` when known. The mobile sheet has no purchase |
+| `onboarding_step` | First-run `step` (`hello`, `server`, `agent`, `look`, `name`, `role`, `task`, `ready`) with `action` `viewed`, `next`, `back` or `skipped` |
+| `onboarding_completed` | First run ended; `skipped` is true when the user skipped it |
+| `notification_settings_action` | Notifications turned on or off, preview or Live Activities switched (`enabled`), or the phone's permission prompt answered (`permission` is `granted`, `denied` or `undetermined`) |
+| `live_activity_action` | The app started or ended a Live Activity; updates are not counted |
+| `voice_conversation_action` | Voice mode `start`, or `end` with its duration and `turn_count`; `server_kind=remote` |
+| `voice_turn` | One dictation session: result, listening time in `audio_duration_seconds`, time from stop to final text in `duration_ms`, and `transcription` (`local` or `cloud`) when known; no words |
+| `agent_template_action` | Agent template install from a link; `action=installed`, `entry_point=deep_link`, result, duration |
+| `analytics_preference_changed` | `enabled=false`, sent once before collection stops when the user turns analytics off; the app waits at most 2 seconds for it |
 
 Use a mobile activation funnel from open → successful QR redemption → successful connection →
 conversation load or message send. Measure signed-in D1/D7 retention by OpenBot account ID. Eligible
@@ -558,6 +569,10 @@ for a write-only client in **Openbot**, then ship a build or compatible update w
 Mobile schema generation 2 adds safe error diagnostics. Native error alerts and chat send errors
 emit `notification_shown`; existing failed actions emit a separate `client_operation_failed`.
 Only fixed cause, source, operation, and provider/model fields are sent. No alert text is sent.
+
+Mobile schema generation 3 adds sign-in, hosted server plans, first-run, notification settings,
+Live Activity, voice, agent template and opt-out events, `entry_point` on pairing, and `scope` on
+`usage_viewed`. The generation comes from `ANALYTICS_GENERATIONS.mobile` in `@openbot/telemetry`.
 The file queue holds at most 1,000 reports, 1 MiB, and seven days, and sends only after a local
 write succeeds. Foreground and host reconnection trigger retries. Opt-out and account changes
 clear this queue. See [the analytics contract](../../ANALYTICS.md#reliable-error-reports).

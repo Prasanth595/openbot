@@ -97,9 +97,8 @@ export const messages = {
   "settings.analytics.title": "Udostępniaj analitykę produktu",
   "settings.analytics.description":
     "Wysyłaj metadane użycia i niezawodności wraz z ID konta i adresem e-mail do samodzielnie hostowanej analityki OpenBot.",
-  "settings.analytics.webTitle": "Udostępniaj raporty błędów",
   "settings.analytics.webDescription":
-    "Wysyłaj kody błędów i ostrzeżeń wraz z ID konta do analityki OpenBot. To ustawienie dotyczy tej przeglądarki.",
+    "Wysyłaj metadane użycia i niezawodności wraz z ID konta i adresem e-mail do samodzielnie hostowanej analityki OpenBot. To ustawienie dotyczy tej przeglądarki.",
   "settings.tab.general.title": "Ogólne",
   "settings.tab.general.description": "Określ, jak OpenBot działa na tym komputerze.",
   "settings.tab.notifications.title": "Powiadomienia",

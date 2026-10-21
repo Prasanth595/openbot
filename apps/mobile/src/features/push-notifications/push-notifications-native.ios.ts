@@ -15,10 +15,14 @@ const KEYS_FILE = "push-notifications.json";
  * notifications only, and a new phone secret after sign-out makes them useless.
  */
 export const pushNotificationsNative: PushNotificationsNative | null = {
-  async permission() {
+  async permission(asked) {
     const current = await Notifications.getPermissionsAsync();
     if (current.ios?.status !== Notifications.IosAuthorizationStatus.NOT_DETERMINED) return permissionOf(current);
-    return permissionOf(await Notifications.requestPermissionsAsync({ ios: { allowAlert: true, allowSound: true } }));
+    const answer = permissionOf(
+      await Notifications.requestPermissionsAsync({ ios: { allowAlert: true, allowSound: true } }),
+    );
+    asked?.(answer);
+    return answer;
   },
   async deviceToken() {
     return hexToken((await Notifications.getDevicePushTokenAsync()).data);

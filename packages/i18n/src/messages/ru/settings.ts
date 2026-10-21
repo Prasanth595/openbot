@@ -97,9 +97,8 @@ export const messages = {
   "settings.analytics.title": "Делиться аналитикой продукта",
   "settings.analytics.description":
     "Отправлять метаданные об использовании и надёжности вместе с ID аккаунта и почтой в собственную аналитику OpenBot.",
-  "settings.analytics.webTitle": "Делиться отчётами об ошибках",
   "settings.analytics.webDescription":
-    "Отправлять коды ошибок и предупреждений вместе с ID аккаунта в аналитику OpenBot. Настройка действует для этого браузера.",
+    "Отправлять метаданные об использовании и надёжности вместе с ID аккаунта и почтой в собственную аналитику OpenBot. Настройка действует для этого браузера.",
   "settings.tab.general.title": "Основные",
   "settings.tab.general.description": "Как OpenBot ведёт себя на этом компьютере.",
   "settings.tab.notifications.title": "Уведомления",

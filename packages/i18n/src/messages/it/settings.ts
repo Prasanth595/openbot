@@ -99,9 +99,8 @@ export const messages = {
   "settings.analytics.title": "Condividi le analisi del prodotto",
   "settings.analytics.description":
     "Invia metadati di utilizzo e affidabilità, con l'ID del tuo account e l'email, alle analisi self-hosted di OpenBot.",
-  "settings.analytics.webTitle": "Condividi i report degli errori",
   "settings.analytics.webDescription":
-    "Invia i codici di errore e di avviso, con l'ID del tuo account, alle analisi di OpenBot. Questa impostazione vale per questo browser.",
+    "Invia metadati di utilizzo e affidabilità, con l'ID del tuo account e l'email, alle analisi self-hosted di OpenBot. Questa impostazione vale per questo browser.",
   "settings.tab.general.title": "Generali",
   "settings.tab.general.description": "Controlla come si comporta OpenBot su questo computer.",
   "settings.tab.notifications.title": "Notifiche",
