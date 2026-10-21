@@ -1277,7 +1277,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
                     </>
                   }
                 >
-                  {t("agentSettings.runtime.workspaceNote")}
+                  {t("agentSettings.runtime.workspaceNote")}{" "}
                   {agentForeignProvider() === undefined ? workspaceEnforcementNote(draft.runtime.provider) : null}{" "}
                   {t("agentSettings.runtime.workspaceUnlimited")}
                 </Show>
