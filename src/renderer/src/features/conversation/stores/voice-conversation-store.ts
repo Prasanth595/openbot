@@ -91,7 +91,7 @@ export interface VoiceConversationDeps {
  * or speaks, the next turn already listens, so the user can interrupt it by voice.
  */
 interface Turn {
-  /** The generation that opened the turn. */
+  /** The generation of the turn. A resumed turn gets a new one. */
   own: number;
   stream: MediaStream;
   /** A recording with no speech is replaced by a new one, at a pause. */
@@ -259,12 +259,14 @@ export function createVoiceConversation(deps: VoiceConversationDeps) {
   /**
    * The turn that listened while the agent thought or spoke goes on as the next turn, with no gap.
    * Before the user speaks, its recording holds only the reply, so a new recording starts.
+   * A new generation makes a late failure of the earlier send stale.
    */
   function resumeListening(): void {
     if (!turn) {
       void listen();
       return;
     }
+    turn.own = ++generation;
     if (!turn.spoke) restartRecording(turn);
     setStep("listening");
     setState((draft) => {
