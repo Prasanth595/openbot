@@ -209,8 +209,10 @@ void main() {
   float beamCore = 24.0 * exp(-adx / (2.0 * min(beamWidth, 1.9)));
   float beamHalo = 1.3 * exp(-adx / (6.0 * min(beamWidth, 2.1))) + 0.3 * exp(-adx / (22.0 * beamWidth));
   vec3 haloK = mix(BEAM, sideK, exp(-hp / 80.0));
-  col += (BEAM * beamCore + haloK * beamHalo) * top * above * drop;
-  col += sideK * 0.16 * exp(-adx / (45.0 * beamWidth)) * top * above * drop;
+  // Beside the surface, the glow fades out below its top edge rather than stopping at a line.
+  float fadeBelow = exp(-sq(max(-h, 0.0) / 70.0));
+  col += (BEAM * beamCore + haloK * beamHalo) * top * fadeBelow * drop;
+  col += sideK * 0.16 * exp(-adx / (45.0 * beamWidth)) * top * fadeBelow * drop;
   if (sourced > 0.5) {
     // The beam falls onto the source element, its light runs around the element's edge, and the
     // beam leaves again from the element's bottom edge.
@@ -293,13 +295,13 @@ void main() {
   float fogAmount = uAmount.y * uAtmosphere;
   float near = exp(-adx / 150.0);
   float envelope = near * (0.3 + 0.4 * exp(-hp / 50.0) + 1.2 * exp(-p.y / 120.0));
-  if (fogAmount > 0.001 && h > -2.0 && envelope * max(0.25, 6.0 * exp(-adx / 50.0)) > 0.002) {
+  if (fogAmount > 0.001 && h > -160.0 && envelope * max(0.25, 6.0 * exp(-adx / 50.0)) > 0.002) {
     vec2 fq = vec2(dx / 1.7, h) / 85.0 + vec2(t * 0.012, -t * 0.03) + uExtra.zw;
     vec2 fw = vec2(fbm(fq * 1.3 + vec2(1.7, 9.2) + t * 0.03), fbm(fq * 1.3 + vec2(8.3, 2.8) - t * 0.025));
     float cloud = fbm(fq + 1.4 * fw);
     float density = smoothstep(0.5, 0.78, cloud);
     float lit = exp(-adx / 50.0);
-    float fogMask = smoothstep(-2.0, 20.0, h);
+    float fogMask = fadeBelow;
     float reached = smoothstep(front + 80.0, front - 40.0, p.y);
     vec3 fog = (HAZE * 0.45 + BEAM * 6.0 * lit * reached) * density * envelope * fogMask;
     float surfaceLit = exp(-adx / (layerLen * 1.3)) * exp(-outline / 28.0) * hugWide * flowMask * washMask * min(bloom, 1.0);
