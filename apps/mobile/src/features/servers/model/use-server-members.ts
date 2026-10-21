@@ -10,7 +10,7 @@ import { queryKeys } from "@/features/workspace/model/query-keys";
 import { haptics } from "@/shared/lib/haptics";
 
 /** An invitation that someone can still accept. A permanent link stays open after each join. */
-export function isPendingInvite(invite: RemoteTeamInvite, now: number): boolean {
+function isPendingInvite(invite: RemoteTeamInvite, now: number): boolean {
   return (invite.permanent || !invite.usedAt) && !invite.revokedAt && invite.expiresAt > now;
 }
 
