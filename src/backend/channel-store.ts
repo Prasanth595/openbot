@@ -150,7 +150,10 @@ export class ChannelStore {
                 AND COALESCE(json_extract(m.message_json, '$.message.itemType'), '') NOT LIKE ?) AS unread,
             (SELECT COUNT(*) FROM projection_channel_tasks AS t
               WHERE t.channel_id = c.channel_id
-                AND json_extract(t.task_json, '$.state') = 'running') AS running
+                AND json_extract(t.task_json, '$.state') = 'running') AS running,
+            (SELECT COUNT(*) FROM projection_channel_tasks AS t
+              WHERE t.channel_id = c.channel_id
+                AND json_extract(t.task_json, '$.state') IN ('queued', 'waiting', 'running')) AS open
             FROM projection_channels AS c ORDER BY c.rowid`,
         )
         .all(memberId, memberId, excludedId, `${CHANNEL_ROUTING_EVENT_ITEM_TYPE_PREFIX}%`),
@@ -185,6 +188,7 @@ export class ChannelStore {
         ...channel,
         unreadCount: Number(row.unread ?? 0),
         activeTasks: Number(row.running ?? 0),
+        openTasks: Number(row.open ?? 0),
         lastMessage: latest
           ? {
               authorName: latest.author.name,

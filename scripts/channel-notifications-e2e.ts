@@ -332,6 +332,7 @@ function attentionKeys(list: unknown, page: unknown) {
   const messages = isDynamicRecord(page) && Array.isArray(page.messages) ? page.messages.filter(isDynamicRecord) : [];
   return {
     threads: summaries.some((summary) => Object.hasOwn(summary, "threads")),
+    openTasks: summaries.some((summary) => Object.hasOwn(summary, "openTasks")),
     previewAuthor: summaries.some(
       (summary) => isDynamicRecord(summary.lastMessage) && Object.hasOwn(summary.lastMessage, "author"),
     ),
@@ -446,7 +447,7 @@ try {
     return { title: notification.title, body: notification.body, opened: lastOpened() };
   });
 
-  await step("A turn that writes two messages notifies once, when its task ends", async () => {
+  await step("Work that writes many messages and waits for a task notifies once, when it ends", async () => {
     const from = shown.length;
     const task: ChannelTask = {
       id: randomUUID(),
@@ -476,17 +477,40 @@ try {
     // The local list and agents are read with no I/O, so the read ends when the queued callbacks run.
     await new Promise((settled) => setImmediate(settled));
     const whileRunning = shown.length - from;
+    // The agent passes a part on: its task waits and the new task is queued, so no task runs.
+    const child: ChannelTask = {
+      ...task,
+      id: randomUUID(),
+      parentTaskId: task.id,
+      instruction: "Check the plan.",
+      state: "queued",
+      assignmentCount: 0,
+    };
+    channels.store.update(channels.store.get(channel.id), {
+      messages: [agentMessage(channel.id, agent, "I asked for a check.", at(2))],
+      tasks: [{ ...task, state: "waiting", dependencies: [child.id] }, child],
+    });
+    const waiting = host.listChannels().find((summary) => summary.id === channel.id);
+    assert.equal(waiting?.activeTasks, 0, "A waiting channel shows a running task.");
+    assert.equal(waiting?.openTasks, 2, "A waiting channel does not count its open tasks.");
+    changed();
+    await new Promise((settled) => setImmediate(settled));
+    const whileWaiting = shown.length - from;
     const notified = nextNotification();
     channels.store.update(channels.store.get(channel.id), {
-      messages: [agentMessage(channel.id, agent, "The plan is done.", at(2))],
-      tasks: [{ ...task, state: "completed", revision: 2 }],
+      messages: [agentMessage(channel.id, agent, "The plan is done.", at(3))],
+      tasks: [
+        { ...task, state: "completed", revision: 2, dependencies: [child.id] },
+        { ...child, state: "completed", revision: 2 },
+      ],
     });
     changed();
     await notified;
     await new Promise((settled) => setImmediate(settled));
     assert.equal(whileRunning, 0, "A reply notified while its task still ran.");
-    assert.equal(shown.length - from, 1, "One turn showed more than one notification.");
-    return { whileRunning, total: shown.length - from };
+    assert.equal(whileWaiting, 0, "A reply notified while its task waited for another task.");
+    assert.equal(shown.length - from, 1, "One piece of work showed more than one notification.");
+    return { whileRunning, whileWaiting, total: shown.length - from };
   });
 
   const prompt = (requestId: number, onThread: string): AgentEvent => ({
@@ -584,32 +608,42 @@ try {
   await step("A released-only peer gets no channel-attention-v1 field, and its codec reads the wire", async () => {
     const { list, page } = await readBoth(released);
     const keys = attentionKeys(list, page);
-    assert.deepEqual(keys, { threads: false, previewAuthor: false, previewStatus: false, uiBlock: false });
+    assert.deepEqual(keys, {
+      threads: false,
+      openTasks: false,
+      previewAuthor: false,
+      previewStatus: false,
+      uiBlock: false,
+    });
     // The frozen channels-v1 projection is what a released client reads with. It must accept the body.
     channelResponse(CHANNEL_ROUTES.list, 200, list);
     channelResponse(CHANNEL_ROUTES.read, 200, page);
     return keys;
   });
 
-  await step("A peer with channel-attention-v1 gets the threads, the preview author and the UI block", async () => {
-    const { list, page } = await readBoth(TEAM_CURRENT_CAPABILITIES);
-    const codec = teamSideRouteCodec(CHANNEL_ROUTES.list);
-    assert.ok(codec);
-    const options = { historyExtent: true, channelAttention: true };
-    const summary = decodeChannelSummaries(codec.response(CHANNEL_ROUTES.list, 200, list, options)).find(
-      (candidate) => candidate.id === channel.id,
-    );
-    const decodedPage = decodeChannelPage(codec.response(CHANNEL_ROUTES.read, 200, page, options));
-    assert.ok(summary);
-    assert.deepEqual(summary.threads, [{ agentId: agent.id, threadId }]);
-    assert.deepEqual(summary.lastMessage?.author, { kind: "agent", id: agent.id });
-    assert.equal(summary.lastMessage?.status, "completed");
-    assert.ok(
-      decodedPage.messages.some((message) => message.message.uiBlock?.blockId === "block-1"),
-      "The page has no UI block.",
-    );
-    return attentionKeys(list, page);
-  });
+  await step(
+    "A peer with channel-attention-v1 gets the threads, the open tasks, the preview author and the UI block",
+    async () => {
+      const { list, page } = await readBoth(TEAM_CURRENT_CAPABILITIES);
+      const codec = teamSideRouteCodec(CHANNEL_ROUTES.list);
+      assert.ok(codec);
+      const options = { historyExtent: true, channelAttention: true };
+      const summary = decodeChannelSummaries(codec.response(CHANNEL_ROUTES.list, 200, list, options)).find(
+        (candidate) => candidate.id === channel.id,
+      );
+      const decodedPage = decodeChannelPage(codec.response(CHANNEL_ROUTES.read, 200, page, options));
+      assert.ok(summary);
+      assert.deepEqual(summary.threads, [{ agentId: agent.id, threadId }]);
+      assert.equal(summary.openTasks, 0);
+      assert.deepEqual(summary.lastMessage?.author, { kind: "agent", id: agent.id });
+      assert.equal(summary.lastMessage?.status, "completed");
+      assert.ok(
+        decodedPage.messages.some((message) => message.message.uiBlock?.blockId === "block-1"),
+        "The page has no UI block.",
+      );
+      return attentionKeys(list, page);
+    },
+  );
 
   report.passed = true;
 } finally {
