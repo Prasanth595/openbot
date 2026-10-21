@@ -291,6 +291,8 @@ export class CuaDriverRuntime {
   #announcedMcpServer = "";
   /** True while the entry is allowed to move without the providers being told. See `warmUp`. */
   #quiet = false;
+  /** Set once OpenBot starts to quit, and never cleared. See `quietForShutdown`. */
+  #shuttingDown = false;
   /** What the proxies are told to run: the alias once it is linked, the executable otherwise. */
   #command: string | null = null;
   #child: ChildProcess | null = null;
@@ -412,9 +414,10 @@ export class CuaDriverRuntime {
    * privately. So this reports only the two moments that leave a live session holding a tool set
    * that is not the one it would be given now.
    *
-   * Two things it is quiet for. The warm-up at startup settles the entry the stored sessions were
+   * Three things it is quiet for. The warm-up at startup settles the entry the stored sessions were
    * already using. A stop this process asked for happens at teardown, where the sessions are being
-   * left for the next run. A state that moves below `ready` and back while the daemon keeps serving
+   * left for the next run. A daemon that dies once OpenBot quits dies with it: see
+   * `quietForShutdown`. A state that moves below `ready` and back while the daemon keeps serving
    * is not quiet, because the entry goes with it.
    */
   onMcpServerChanged(listener: () => void): () => void {
@@ -441,6 +444,18 @@ export class CuaDriverRuntime {
 
   stop(): Effect.Effect<void, CuaDriverFailure> {
     return this.#lifecycle.stop(() => this.#stop());
+  }
+
+  /**
+   * Tells the providers nothing more, because OpenBot is quitting.
+   *
+   * A signal to the process group, which a terminal, `systemd` and Docker send, reaches the daemon
+   * too, and the daemon can stop before the teardown stops it. Its exit then looks like a death
+   * under OpenBot, and announcing it would deactivate every agent's stored session, which the next
+   * run would otherwise resume.
+   */
+  quietForShutdown(): void {
+    this.#shuttingDown = true;
   }
 
   readonly state = Effect.fn("CuaDriver.state")(function* (
@@ -692,7 +707,7 @@ export class CuaDriverRuntime {
     const announced = config ? [config.command, ...config.args].join(" ") : "";
     if (announced === this.#announcedMcpServer) return;
     this.#announcedMcpServer = announced;
-    if (this.#quiet) return;
+    if (this.#quiet || this.#shuttingDown) return;
     for (const listener of this.#mcpListeners) listener();
   }
 

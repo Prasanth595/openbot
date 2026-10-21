@@ -349,6 +349,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: bun run test:provider-update-busy
 
+      - name: Run the provider session after a process exit E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:provider-exit-session
+
       - name: Run the ZIP attachment E2E test
         if: ${{ !cancelled() }}
         run: bun run test:zip-attachments
@@ -369,6 +373,7 @@ jobs:
             .openbot-build/messaging-discord-access-e2e/
             .openbot-build/zero-filled-settings-e2e/
             .openbot-build/provider-update-busy-e2e/
+            .openbot-build/provider-exit-session-e2e/
             .openbot-build/zip-attachment-e2e/
           if-no-files-found: ignore
 

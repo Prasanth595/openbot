@@ -279,7 +279,11 @@ const MAIN_WINDOW_STATE_FILE = "openbot-main-window-state-v1.json";
 // services do not stop. A hosted server's boat pre-stop hook stops it this way before the disk save
 // (`scripts/hosting/openbot-boat-pre-stop`).
 if (!app.isPackaged || hostedServer || serverMode) {
-  const quitAfterSignal = () => app.quit();
+  const quitAfterSignal = () => {
+    // Before `app.quit()`: the same signal can stop the Computer Use driver first.
+    services?.cuaDriver.quietForShutdown();
+    app.quit();
+  };
   process.once("SIGINT", quitAfterSignal);
   process.once("SIGTERM", quitAfterSignal);
   process.once("SIGHUP", quitAfterSignal);
@@ -1292,6 +1296,7 @@ app.on("window-all-closed", () => {
 
 app.on("before-quit", (event) => {
   isQuitting = true;
+  services?.cuaDriver.quietForShutdown();
   if (systemSessionEnding) {
     if (services) void Effect.runPromise(services.updater.stop());
     if (services)

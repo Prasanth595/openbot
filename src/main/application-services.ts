@@ -1613,8 +1613,8 @@ export async function createApplicationServices({
   service.setComputerUseCapability(computerUseCapability(cuaDriver.lastState));
   cuaDriver.onStateChanged((state) => service.setComputerUseCapability(computerUseCapability(state)));
   // Only when a live session would hold the wrong tool set: this deactivates every agent's stored
-  // provider session, so the driver stays quiet for a grant, for the warm-up below, and for the
-  // stop at teardown, where the sessions are being left for the next run.
+  // provider session, so the driver stays quiet for a grant, for the warm-up below, and from the
+  // moment OpenBot quits, where the sessions are being left for the next run.
   cuaDriver.onMcpServerChanged(() => {
     void runCauseEffect(service.notifyComputerUseChanged()).catch((error) =>
       logger.warn("Provider tools did not refresh.", toLogValue(error)),
