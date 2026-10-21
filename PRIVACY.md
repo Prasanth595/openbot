@@ -982,6 +982,17 @@ sees the IP address of this computer. Cline's terms apply:
 <https://cline.bot/tos>. Team members see the host's Cline agents, as
 for the other providers, when their app supports Cline.
 
+### Inception
+
+Inception agents run in the Pi CLI that OpenBot downloads for Pi. On this computer, Sign in on the
+Inception row saves an Inception API key. OpenBot encrypts it in its existing provider credential
+store, gives it to the local Pi process in its environment, and redacts it from logs. Pi does not
+write the key to a file. Prompts, attachments, and tool results go to that process, and Pi sends
+them with the key to `api.inceptionlabs.ai`. When OpenBot reads the Mercury model list, Pi does not
+contact Inception. Pi keeps its session files in its own folder, as for Pi agents. OpenBot does not
+copy or upload these files. Inception's terms apply: <https://www.inceptionlabs.ai/docs/terms-of-use>.
+Inception agents stay on this computer: OpenBot does not show them to team members.
+
 ### Local model servers
 
 When Server settings shows the Providers section of this computer, and once on the onboarding

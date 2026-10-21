@@ -2,12 +2,14 @@ import type { AgentSummary } from "@openbot/contracts/ipc";
 import type { TeamProtocolV1JsonObject, TeamProtocolV1JsonValue } from "@openbot/contracts/team-protocol/v1";
 
 /**
- * Tells if a peer on this protocol must not see the provider. Protocols 1 to 5 do not know Cursor
+ * Tells if a peer on this protocol must not see the provider. No protocol knows Inception
+ * (`inception`), protocols 1 to 6 do not know Pi or Muse, protocols 1 to 5 do not know Cursor
  * (`cursor`) or Cline (`cline`), protocols 1 to 4 do not know Gemini (`antigravity`) or custom ACP
  * agents (`acp`), and protocols 1 to 3 do not know OpenCode.
  */
 export function isPeerHiddenProvider(value: unknown, protocol: number): boolean {
   return (
+    (protocol < 8 && value === "inception") ||
     (protocol < 7 && (value === "pi" || value === "muse")) ||
     (protocol < 6 && (value === "cursor" || value === "cline")) ||
     (protocol < 5 && (value === "antigravity" || value === "acp")) ||
@@ -16,13 +18,14 @@ export function isPeerHiddenProvider(value: unknown, protocol: number): boolean 
 }
 
 /**
- * The same test for an object `id`. `acp`, `cursor` and `cline` count only for a provider status
- * row, which has a `state`, below the protocol that knows them: a custom endpoint saved with that id before the provider existed is a
- * peer-visible endpoint, also in the `providers` list of a custom endpoint save or delete reply, and
- * it must stay one.
+ * The same test for an object `id`. `inception`, `pi`, `muse`, `acp`, `cursor` and `cline` count only
+ * for a provider status row, which has a `state`, below the protocol that knows them: a custom
+ * endpoint saved with that id before the provider existed is a peer-visible endpoint, also in the
+ * `providers` list of a custom endpoint save or delete reply, and it must stay one.
  */
 function isPeerHiddenId(value: TeamProtocolV1JsonObject, protocol: number, listKey: string): boolean {
   const statusRow = listKey === "providers" && typeof value.state === "string";
+  if (value.id === "inception") return protocol < 8 && statusRow;
   if (value.id === "pi" || value.id === "muse") return protocol < 7 && statusRow;
   if (value.id === "acp") return protocol < 5 && statusRow;
   if (value.id === "cursor" || value.id === "cline") return protocol < 6 && statusRow;

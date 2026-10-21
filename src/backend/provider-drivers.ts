@@ -336,6 +336,8 @@ export interface BuiltInProviderDriver {
   codeSignIn?: ProviderCodeSignIn;
   /** Absent for a provider that holds one account only. */
   accounts?: ProviderAccountSupport;
+  /** The provider whose downloaded CLI this one runs. Absent when the provider has a CLI of its own. */
+  cliProvider?: AgentProviderId;
   resolveCli(options?: {
     bundledExecutable?: string | null | undefined;
   }): Effect.Effect<AgentCliInfo, ProviderClientOperationError>;
@@ -389,6 +391,45 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
         ...(context.providerStateDirectory ? { providerStateDirectory: context.providerStateDirectory } : {}),
       }),
     authState: (account) => ({ kind: "pi", email: account?.email ?? null }),
+    validateAccount: () => undefined,
+  },
+  {
+    id: "inception",
+    // The key is pasted into OpenBot. Pi's own sign-in stays on the Pi row.
+    signIn: { kind: "external" },
+    cliProvider: "pi",
+    resolveCli: resolvePiCli,
+    createClient: (cli, timeout, context, confinement) => {
+      const history = context.history?.("inception");
+      return new PiAgentClient(cli, {
+        requestTimeoutMs: timeout,
+        ...(confinement
+          ? {
+              confine: (target) => {
+                const paths = piStatePaths();
+                for (const path of paths.writable) mkdirSync(path, { recursive: true, mode: 0o700 });
+                return confineSpawnTarget(target, confinement, paths);
+              },
+            }
+          : {}),
+        extraEnv: () => ({ ...context.agentEnvironment?.() }),
+        inceptionApiKey: () => context.apiKey("inception"),
+        ...(context.providerStateDirectory ? { providerStateDirectory: context.providerStateDirectory } : {}),
+        mcpServers: context.mcpServers,
+        ...(context.reportMcpDrops ? { reportMcpDrops: context.reportMcpDrops } : {}),
+        ...(context.mcpToolRuntimes ? { mcpToolRuntimes: context.mcpToolRuntimes } : {}),
+        ...(context.mcpEndpoint ? { mcpEndpoint: context.mcpEndpoint } : {}),
+        ...(history ? { history } : {}),
+      });
+    },
+    createProfileClient: (cli, timeout, context) =>
+      new PiAgentClient(cli, {
+        requestTimeoutMs: timeout,
+        profileGeneration: true,
+        inceptionApiKey: () => context.apiKey("inception"),
+        ...(context.providerStateDirectory ? { providerStateDirectory: context.providerStateDirectory } : {}),
+      }),
+    authState: (account) => ({ kind: "inception", email: account?.email ?? null }),
     validateAccount: () => undefined,
   },
   {

@@ -137,6 +137,10 @@ export const messages = {
   "provider.geminiKey.description":
     "Salva una chiave API di Gemini su questo computer. Una chiave salvata viene usata al posto del tuo account Google. Per accedere con Google, rimuovi la chiave e seleziona «Connetti» nella riga di Gemini.",
   "provider.geminiKey.label": "Chiave API di Gemini",
+  "provider.inceptionKey.title": "Chiave API di Inception",
+  "provider.inceptionKey.description":
+    "Salva una chiave API di Inception su questo computer per usare i modelli Mercury. OpenBot li esegue nella CLI di Pi che scarica.",
+  "provider.inceptionKey.label": "Chiave API di Inception",
 
   "provider.openCodeKey.title": "Accedi a OpenCode Go",
   "provider.openCodeKey.description":

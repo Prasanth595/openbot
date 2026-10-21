@@ -358,6 +358,7 @@ export const messages = {
   "error.provider.museAuthUnverified":
     "Muse の認証が確認されていません。ホストコンピューターで接続するか、Meta API キーを設定してください。",
   "error.provider.museSignIn": "続行するには、ホストコンピューターで Muse にサインインしてください。",
+  "error.provider.inceptionSignIn": "続行するには、Inception API キーを追加してください。",
   "error.provider.terminalLoginFailed":
     "サインイン用のターミナルを開けませんでした。このホストでプロバイダーの CLI を開いてサインインしてから、プロバイダーを更新してください。",
   "error.provider.nativeArchiveInvalid": "プロバイダーのダウンロードに有効なインストールが含まれていません。",

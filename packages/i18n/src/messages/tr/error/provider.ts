@@ -347,6 +347,7 @@ export const messages = {
   "error.provider.museAuthUnverified":
     "Muse kimlik doğrulaması doğrulanmadı. Ana makinede bağlanın veya bir Meta API anahtarı ayarlayın.",
   "error.provider.museSignIn": "Devam etmek için ana makinede Muse'da oturum açın.",
+  "error.provider.inceptionSignIn": "Devam etmek için bir Inception API anahtarı ekleyin.",
   "error.provider.terminalLoginFailed":
     "Oturum açma terminali açılamadı. Bu ana makinede sağlayıcı CLI'sini açıp orada oturum açın, ardından sağlayıcıları yenileyin.",
   "error.provider.nativeArchiveInvalid": "Sağlayıcı indirmesi geçerli bir kurulum içermiyor.",

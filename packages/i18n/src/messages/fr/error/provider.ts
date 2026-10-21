@@ -366,6 +366,7 @@ export const messages = {
   "error.provider.museAuthUnverified":
     "L’authentification Muse n’est pas vérifiée. Connectez-vous sur l’ordinateur hôte, ou définissez une clé d’API Meta.",
   "error.provider.museSignIn": "Connectez-vous à Muse sur l’ordinateur hôte pour continuer.",
+  "error.provider.inceptionSignIn": "Ajoutez une clé d’API Inception pour continuer.",
   "error.provider.terminalLoginFailed":
     "Le terminal de connexion n’a pas pu s’ouvrir. Ouvrez la CLI du fournisseur sur cet hôte et connectez-vous-y, puis actualisez les fournisseurs.",
   "error.provider.nativeArchiveInvalid": "Le téléchargement du fournisseur ne contient pas d’installation valide.",

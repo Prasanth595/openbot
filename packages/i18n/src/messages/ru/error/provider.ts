@@ -344,6 +344,7 @@ export const messages = {
   "error.provider.museAuthUnverified":
     "Аутентификация Muse не подтверждена. Подключитесь на компьютере-хосте или задайте ключ API Meta.",
   "error.provider.museSignIn": "Чтобы продолжить, войдите в Muse на компьютере-хосте.",
+  "error.provider.inceptionSignIn": "Чтобы продолжить, добавьте ключ API Inception.",
   "error.provider.terminalLoginFailed":
     "Не удалось открыть терминал для входа. Откройте CLI провайдера на этом хосте, войдите там, затем обновите список провайдеров.",
   "error.provider.nativeArchiveInvalid": "Загруженный файл провайдера не содержит корректной установки.",

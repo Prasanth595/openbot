@@ -153,6 +153,10 @@ export const messages = {
   "provider.geminiKey.description":
     "Сохраните ключ API Gemini на этом компьютере. Сохранённый ключ используется вместо аккаунта Google. Чтобы войти через Google, удалите ключ и нажмите «Подключить» в строке Gemini.",
   "provider.geminiKey.label": "Ключ API Gemini",
+  "provider.inceptionKey.title": "Ключ API Inception",
+  "provider.inceptionKey.description":
+    "Сохраните ключ API Inception на этом компьютере, чтобы использовать модели Mercury. OpenBot запускает их в загруженном Pi CLI.",
+  "provider.inceptionKey.label": "Ключ API Inception",
 
   "provider.openCodeKey.title": "Вход в OpenCode Go",
   "provider.openCodeKey.description": "Бесплатным моделям аккаунт не нужен. Ключ открывает платные модели Go.",
