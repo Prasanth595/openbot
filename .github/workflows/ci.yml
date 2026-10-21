@@ -515,7 +515,8 @@ jobs:
 
   api:
     # `check:api` ends with `api:build:check`, the preview build of the Worker. For a pull request
-    # from this repository, this job uploads that build. It has no secrets and no write token. The
+    # from this repository, this job uploads that build. It has no write token, and its only secret
+    # is the read-only key of the private home page beam repository (see `LandingBeam.tsx`). The
     # trusted `cloudflare-preview.yml` workflow uploads the build and comments on the pull request
     # after this run completes; it runs code from `main` only. Forks get no preview. A pull request
     # that skips this lane, or fails it, keeps the preview of its last commit that built one.
@@ -530,6 +531,22 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
+
+      # Forks and Dependabot get no key. They build the home page with no beam.
+      - name: Look for the home page beam key
+        id: beam
+        env:
+          LASER_FLOW_DEPLOY_KEY: ${{ secrets.LASER_FLOW_DEPLOY_KEY }}
+        run: echo "present=$([ -n "$LASER_FLOW_DEPLOY_KEY" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - name: Check out the home page beam
+        if: steps.beam.outputs.present == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: nightly-labs/openbot-laser-flow
+          ssh-key: ${{ secrets.LASER_FLOW_DEPLOY_KEY }}
+          path: apps/auth-api/src/vendor/laser-flow
           persist-credentials: false
 
       - name: Set up Bun
@@ -618,6 +635,15 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Production always has the home page beam. Without the key, the deploy stops here.
+      - name: Check out the home page beam
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: nightly-labs/openbot-laser-flow
+          ssh-key: ${{ secrets.LASER_FLOW_DEPLOY_KEY }}
+          path: apps/auth-api/src/vendor/laser-flow
+          persist-credentials: false
 
       - name: Set up Bun
         uses: ./.github/actions/setup-bun
