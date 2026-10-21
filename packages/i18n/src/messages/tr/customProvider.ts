@@ -182,6 +182,10 @@ export const messages = {
   "customProvider.acp.checkOk": "{name} yanıt verdi",
   "customProvider.acp.checkOkVersion": "{name} {version} yanıt verdi",
   "customProvider.acp.checkProtocol": "ACP sürümü {version}",
+  "customProvider.acp.checkModels": {
+    one: "{count} model: {models}",
+    other: "{count} model: {models}",
+  },
   "customProvider.acp.checkFailed": "Ajan yanıt vermedi",
   "customProvider.acp.trustTitle": "Bu komut bilgisayarınızda çalışır",
   "customProvider.acp.trustDescription":

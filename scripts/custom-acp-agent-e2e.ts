@@ -33,6 +33,7 @@ interface Report {
   passed: boolean;
   save?: { agents: string[]; secretOnDisk: boolean; secretInSummary: boolean };
   check?: { agentName: string | null; version: string | null; requests: string[]; stopped: boolean };
+  checkModels?: { models: string[]; requests: string[]; stopped: boolean; signInModels: string[] };
   crashMasked?: { message: string };
   turns?: { models: string[]; alphaThread: string; betaThread: string; alphaReply: string; betaReply: string };
   restart?: { processesStopped: number; loadedSession: string | null | undefined; resumedReply: string };
@@ -114,7 +115,7 @@ try {
   ]);
   report.save = { agents: summaries.map((agent) => agent.id), secretOnDisk: false, secretInSummary: false };
 
-  // 2. Check agent: `initialize` only, then the process is gone.
+  // 2. An install check: `initialize` only, then the process is gone.
   const checkLog = join(root, "check.jsonl");
   const check = await runCauseEffect(
     checkAcpAgent({
@@ -142,8 +143,37 @@ try {
   ).catch((error: unknown) => error);
   assert.ok(crash instanceof Error, "A crashing agent fails the check.");
   assert.ok(!crash.message.includes(SECRET), "The check error masks the agent's env value.");
+  assert.deepEqual(check.models, [], "An install check opens no session, so it lists no models.");
   report.check = { agentName: check.agentName, version: check.version, requests: ["initialize"], stopped: true };
   report.crashMasked = { message: crash.message };
+
+  // 2b. Check agent from Settings: one session in the empty folder lists the models, then the process
+  // is gone. An agent that refuses the session until sign-in still passes, with no models.
+  const modelsLog = join(root, "check-models.jsonl");
+  const listed = await runCauseEffect(
+    checkAcpAgent({
+      executable,
+      args: ["--acp"],
+      env: { FAKE_LOG: modelsLog, FAKE_TITLE: "Alpha", FAKE_MODELS: "1", FAKE_TOKEN: SECRET },
+      listModels: true,
+    }),
+  );
+  assert.deepEqual(listed.models, ["Fast", "Deep"]);
+  const modelsEntries = await readJsonl<LogEntry>(modelsLog);
+  const modelsRequests = modelsEntries.filter((entry) => entry.event === "request").map((entry) => entry.method ?? "");
+  assert.deepEqual(modelsRequests, ["initialize", "session/new"]);
+  assert.equal(isRunning(modelsEntries[0]?.pid ?? 0), false, "Check agent stops the process after the models.");
+  const signIn = await runCauseEffect(
+    checkAcpAgent({
+      executable,
+      args: ["--acp"],
+      env: { FAKE_LOG: modelsLog, FAKE_TITLE: "Alpha", FAKE_SIGN_IN: "1", FAKE_TOKEN: SECRET },
+      listModels: true,
+    }),
+  );
+  assert.equal(signIn.agentName, "Alpha", "An agent that needs sign-in still passes the check.");
+  assert.deepEqual(signIn.models, []);
+  report.checkModels = { models: listed.models, requests: modelsRequests, stopped: true, signInModels: signIn.models };
 
   // 3. The router: one process per agent, the models of both, and equal session ids kept apart.
   const driver = requireProviderDriver("acp");

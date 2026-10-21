@@ -175,6 +175,10 @@ export const messages = defineMessages("customProvider", {
   "customProvider.acp.checkOk": "{name} answered",
   "customProvider.acp.checkOkVersion": "{name} {version} answered",
   "customProvider.acp.checkProtocol": "ACP version {version}",
+  "customProvider.acp.checkModels": {
+    one: "{count} model: {models}",
+    other: "{count} models: {models}",
+  },
   "customProvider.acp.checkFailed": "The agent did not answer",
   "customProvider.acp.trustTitle": "This command runs on your computer",
   "customProvider.acp.trustDescription":

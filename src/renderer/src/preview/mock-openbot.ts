@@ -1147,6 +1147,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         version: null,
         protocolVersion: 1,
         capabilities: ["loadSession"],
+        models: ["Default", "Fast"],
       }),
     },
     // Preview reaches no local server, so a scan finds nothing and a model list is empty.

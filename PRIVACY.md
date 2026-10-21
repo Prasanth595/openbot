@@ -1000,7 +1000,8 @@ rows are in `openbot-provider-detection-v1.json` in the app profile.
 ### Custom agents
 
 A custom agent is an ACP program that you name. OpenBot starts it as a local process, and prompts, attachments, and tool results go to that process. What the program sends
-to the network is its own choice. Check agent starts it once, sends only `initialize`, and stops it.
+to the network is its own choice. Check agent starts it once in an empty temporary folder, sends
+`initialize`, opens one session with no MCP servers to read the agent's models, and stops it.
 To find agents, OpenBot looks up the names of known agents on your `PATH` and in the folders you
 add under Local detection. It does not start a file that it finds.
 

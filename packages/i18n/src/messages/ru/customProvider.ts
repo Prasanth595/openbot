@@ -176,6 +176,12 @@ export const messages = {
   "customProvider.acp.checkOk": "{name} ответил",
   "customProvider.acp.checkOkVersion": "{name} {version} ответил",
   "customProvider.acp.checkProtocol": "Версия ACP: {version}",
+  "customProvider.acp.checkModels": {
+    one: "{count} модель: {models}",
+    few: "{count} модели: {models}",
+    many: "{count} моделей: {models}",
+    other: "{count} модели: {models}",
+  },
   "customProvider.acp.checkFailed": "Агент не ответил",
   "customProvider.acp.trustTitle": "Эта команда выполняется на вашем компьютере",
   "customProvider.acp.trustDescription":

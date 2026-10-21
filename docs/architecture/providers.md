@@ -497,8 +497,10 @@ next list starts another.
 
 `src/main/custom-agent-store.ts` keeps `custom-agents.json`: env names in plain text and all env
 values in one `safeStorage` ciphertext. `list()` returns summaries; only the backend gets the
-values. `customAgents.check` starts the program in a temporary folder, sends `initialize` only, and
-stops its process group. The scan (`src/backend/acp-agent-scan.ts`) looks up the preset names on the
+values. `customAgents.check` starts the program in a temporary folder, sends `initialize`, opens one
+`session/new` there with no MCP servers to read the model names, and stops its process group. A
+failed `session/new` (an agent that needs sign-in first) gives no models and does not fail the
+check. The registry install check (`acp-registry-install.ts`) sends `initialize` only. The scan (`src/backend/acp-agent-scan.ts`) looks up the preset names on the
 login-shell `PATH` and in the user's folders, and never starts a file. An agent and its check start
 with the `PATH` that its command was looked up in (`agentLaunchPath`): the absolute folders of the
 login-shell `PATH`, then those of OpenBot's own, so an app that Finder starts can still run a

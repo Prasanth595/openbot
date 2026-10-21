@@ -42,7 +42,7 @@ export interface CustomAcpAgentErrors {
   envRows: (string | undefined)[];
 }
 
-/** The state of one trial start: OpenBot runs the command and sends `initialize`, then stops it. */
+/** The state of one trial start: OpenBot runs the command, asks it what it is, then stops it. */
 export type AcpAgentCheck =
   | { status: "idle" }
   | { status: "checking" }
@@ -53,6 +53,8 @@ export type AcpAgentCheck =
       protocolVersion: number;
       /** Capability names as the agent reports them, such as `loadSession` or `image`. */
       capabilities: readonly string[];
+      /** The names of the models that a new session lists. */
+      models: readonly string[];
     }
   | { status: "failed"; message: string };
 

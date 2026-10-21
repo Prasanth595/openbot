@@ -67,6 +67,18 @@ export const AgentCheckPassed: Story = {
       version: "1.9.0",
       protocolVersion: 1,
       capabilities: ["loadSession", "image", "mcp"],
+      models: [
+        "Claude Sonnet 5.5",
+        "Claude Opus 5.5",
+        "GPT-5.5",
+        "Gemini 3 Pro",
+        "Kimi K3",
+        "Qwen 4 Coder",
+        "DeepSeek V4",
+        "GLM 5",
+        "Grok 5",
+        "Mistral Large 3",
+      ],
     },
   },
 };
