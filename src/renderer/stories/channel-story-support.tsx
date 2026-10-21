@@ -11,15 +11,10 @@ import type { ChannelWorker } from "@openbot/ui/features/channels/ChannelActivit
 import { ChannelAvatar } from "@openbot/ui/features/channels/ChannelAvatar";
 import { ChannelStoppedTasks } from "@openbot/ui/features/channels/ChannelStoppedTasks";
 import type { AwaitingReplyItem } from "@openbot/ui/features/conversation/AwaitingReplies";
-import { onCleanup } from "solid-js";
 import { fn } from "storybook/test";
-import { createConversationController } from "../src/features/conversation/Conversation";
-import { ConversationView } from "../src/features/conversation/ConversationView";
-import { ConversationControllerProvider } from "../src/features/conversation/conversation-controller-context";
 import type { ConversationChannelSource } from "../src/features/conversation/conversation-types";
-import { CONVERSATION_STORY_ARGS, StoryAppProviders } from "./conversation-story-support";
+import { StoryConversation } from "./conversation-story-support";
 import { requireFixture, STORY_AGENTS } from "./fixtures";
-import { createMockOpenBot } from "./mock-openbot";
 
 export const CHANNEL_STORY_CHIEF = requireFixture(STORY_AGENTS[0], "Story agent 0");
 export const CHANNEL_STORY_RESEARCH = requireFixture(STORY_AGENTS[1], "Story agent 1");
@@ -108,14 +103,6 @@ export interface ChannelStoryProps {
 
 /** The channel chat on a mocked bridge, for a story that shows a channel or composes screens. */
 export function StoryChannelConversation(props: ChannelStoryProps) {
-  const previousApi = window.openbot;
-  const mock = createMockOpenBot();
-  const controller = createConversationController({ onTypingChange: CONVERSATION_STORY_ARGS.onTypingChange });
-  window.openbot = mock.api;
-  onCleanup(() => {
-    mock.dispose();
-    window.openbot = previousApi;
-  });
   const name = () => props.name ?? "Project room";
   const agentName = (id: string | null) => STORY_AGENTS.find((agent) => agent.id === id)?.name ?? "Unassigned";
   const source: ConversationChannelSource = {
@@ -152,22 +139,15 @@ export function StoryChannelConversation(props: ChannelStoryProps) {
     ),
   };
   return (
-    <div class="conversation-story-frame">
-      <StoryAppProviders>
-        <ConversationControllerProvider controller={controller}>
-          <ConversationView
-            {...CONVERSATION_STORY_ARGS}
-            channel={source}
-            agent={undefined}
-            modelOptions={[]}
-            mentionAgents={STORY_AGENTS.slice(0, 3)}
-            messages={props.messages ?? CHANNEL_STORY_MESSAGES}
-            activeTurnId={props.activeTurnId ?? null}
-            unreadCount={props.unreadCount ?? 0}
-            firstUnreadMessageId={props.firstUnreadMessageId ?? null}
-          />
-        </ConversationControllerProvider>
-      </StoryAppProviders>
-    </div>
+    <StoryConversation
+      channel={source}
+      agent={undefined}
+      modelOptions={[]}
+      mentionAgents={STORY_AGENTS.slice(0, 3)}
+      messages={props.messages ?? CHANNEL_STORY_MESSAGES}
+      activeTurnId={props.activeTurnId ?? null}
+      unreadCount={props.unreadCount ?? 0}
+      firstUnreadMessageId={props.firstUnreadMessageId ?? null}
+    />
   );
 }

@@ -169,7 +169,7 @@ try {
     "conversation-conversation--waiting-for-replies",
     "conversation-conversation--plan-in-progress",
     "conversation-conversation--provider-sign-in-required",
-    "conversation-channel-transcript--waiting-subtasks-above-stopped-task",
+    "conversation-channel--waiting-subtasks-above-stopped-task",
   ]) {
     await openStory(page, id);
     await page.locator(".composer-wrap .awaiting-replies").waitFor();
