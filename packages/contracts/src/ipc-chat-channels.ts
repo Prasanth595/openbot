@@ -87,6 +87,8 @@ export const CHANNEL_PREVIEW_LIMIT = 160;
 export interface ChannelSummary extends Channel {
   unreadCount: number;
   activeTasks: number;
+  /** Its queued, waiting and running tasks; `activeTasks` counts only running ones. Absent from a host without channel-attention-v1. */
+  openTasks?: number;
   lastMessage: ChannelPreview | null;
   /** One for each member agent that has worked here. Absent from a host without channel-attention-v1. */
   threads?: ChannelThread[];
@@ -300,6 +302,7 @@ function isChannelSummary(value: unknown): value is ChannelSummary {
     isChannel(value) &&
     sequence(value.unreadCount) &&
     sequence(value.activeTasks) &&
+    (value.openTasks === undefined || sequence(value.openTasks)) &&
     (value.lastMessage === null || isChannelPreview(value.lastMessage)) &&
     (value.threads === undefined ||
       (Array.isArray(value.threads) &&

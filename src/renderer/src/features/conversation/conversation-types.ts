@@ -89,7 +89,7 @@ export interface PromptAnswerOptions {
  *
  * The components are slots of the renderer's channel feature, which reads the channel store.
  */
-export interface ConversationChannelSource {
+interface ConversationChannelSource {
   /** The channel id. The composer target of the channel has it as its `agentId`. */
   id: string;
   name: () => string;
@@ -111,7 +111,7 @@ export interface ConversationChannelSource {
   EmptyState: () => JSX.Element;
 }
 
-export interface ConversationChannelSettingsPaneProps {
+interface ConversationChannelSettingsPaneProps {
   maxWidth: () => number;
   onWidthChange: (width: number) => void;
   onClose: () => void;
