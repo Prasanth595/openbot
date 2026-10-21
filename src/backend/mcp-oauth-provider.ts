@@ -216,12 +216,6 @@ export interface McpSignIn {
    * "cancelled" instead, because that is what the user did.
    */
   cancelled: () => boolean;
-  /**
-   * Whether the last attempt could not read the sign-in information of the server. A server that
-   * names no authorization server wants no sign-in, and the attempt ends with no page. A read that
-   * failed says nothing about the server, so the attempt has to say that it could not start.
-   */
-  metadataUnreadable: () => boolean;
 }
 
 /**
@@ -436,9 +430,6 @@ export class McpOAuth implements McpOAuthAuthority {
     // browser afterwards nor wait out a grant nobody will answer.
     let abandoned = false;
     let cancelled = false;
-    // Set when the server's sign-in information could not be read. The sign-in cannot start then,
-    // and the reader has to hear it: the press ended with no page and no words.
-    let metadataUnreadable = false;
     const provider = this.#provider(resource, state, () => abandoned, open);
     const abandon = () => {
       abandoned = true;
@@ -487,7 +478,6 @@ export class McpOAuth implements McpOAuthAuthority {
                     metadataStatus !== 429
                   )
                     return Effect.succeed(null);
-                  metadataUnreadable = true;
                   return Effect.fail(new Error(sourceText("error.backend.mcpSignInMetadataUnreadable")));
                 }),
               );
@@ -545,7 +535,6 @@ export class McpOAuth implements McpOAuthAuthority {
       secrets: () => provider.secrets(),
       registrationFailed: () => provider.registrationPending,
       cancelled: () => cancelled,
-      metadataUnreadable: () => metadataUnreadable,
     };
   }
 

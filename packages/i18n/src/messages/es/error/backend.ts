@@ -211,7 +211,7 @@ export const messages = {
   "error.backend.mcpSignInTimedOut": "El inicio de sesión no se completó en el navegador.",
   "error.backend.mcpSignInResponseTimedOut": "La respuesta del inicio de sesión no llegó a tiempo.",
   "error.backend.mcpSignInMetadataUnreadable":
-    "OpenBot no pudo leer la información de inicio de sesión de este servidor. Compruebe la dirección del servidor e inténtelo de nuevo.",
+    "OpenBot no pudo leer la información de inicio de sesión de este servidor. Revisa la dirección del servidor y vuelve a intentarlo.",
   "error.backend.mcpServerExited":
     "El servidor se detuvo antes de responder. Ejecuta el comando en una terminal para ver su error.",
   "error.backend.mcpOAuthProxyUnavailable":

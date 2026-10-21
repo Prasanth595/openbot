@@ -166,9 +166,6 @@ function describeProbeFailure(
   signInPlace: McpSignInPlace | null,
 ): string {
   if (signIn?.cancelled()) return sourceText("error.backend.mcpSignInCancelled");
-  // The sign-in could not start: the server's sign-in information was not readable. The row says so
-  // instead of keeping the result of the earlier test.
-  if (signIn?.metadataUnreadable()) return sourceText("error.backend.mcpSignInMetadataUnreadable");
   if (signIn?.registrationFailed() && isRegistrationRefusal(error)) return REGISTRATION_REFUSED;
   if (signIn && httpStatus(error) === 401) return sourceText("error.backend.mcpSignInNotAccepted");
   // A key the user pasted into a header is theirs to fix; the sign-in would not replace it.
