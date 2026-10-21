@@ -88,8 +88,9 @@ the [root changelog](../../CHANGELOG.md).
 - The app can now read the queue of an agent with a long history. Before, after some weeks of use, the queue answer was too large for the connection, and the chat showed a "response too large" error. The server must also run the version of OpenBot with this fix (#2368).
 - Live Activities show a link that an agent reply writes in angle brackets, such as
   `<https://example.com>`. Before, the Live Activity removed the link.
-- Agents stay in the home list when you go back from a chat. Before, some or all agents could
-  disappear from the list, and only a collapse and expand of their section showed them again.
+- Agents and sections stay in the home list when you go back from a chat. Before, some or all
+  agents could disappear from the list, and only a collapse and expand of their section showed them
+  again.
 - Paste in the message field now adds copied photos, videos and other supported files as
   attachments. Before, a paste of a photo did nothing.
 - The app no longer stops when you tap Back in a chat and swipe back from the left edge at the same
@@ -101,7 +102,6 @@ the [root changelog](../../CHANGELOG.md).
 - A turn that fails because the OpenCode key expired now says "Your OpenCode API key expired" in your language, and tells you to paste a new key in the OpenCode settings. Before, it showed "Internal error".
 - On iPhone, a long message that waits to be sent no longer goes past the edges of the screen. Its text wraps in the bubble, as in a sent message.
 - On Android, a long menu, such as the dictation language picker, cut off its first items above the screen and did not scroll, so you could not select English. A long menu now fits in the screen and scrolls.
-- Agents and sections no longer disappear from the chat list, for example after you return from a chat.
 - Titles, agent names and section headings use their bold and semibold weights again.
 - After a Signal restart, the iPhone app no longer connects again at the same time as all other devices.
 - Server settings no longer show empty separator lines where an option is not available.
