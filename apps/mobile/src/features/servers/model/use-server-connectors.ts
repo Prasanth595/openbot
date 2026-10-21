@@ -3,6 +3,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useIsFocused } from "expo-router";
 import { useRef } from "react";
 import { useQueryScope } from "@/features/auth/context/mobile-session-context";
+import type { MobileConnectorId } from "@/features/servers/model/connectors";
 import { useMobileWorkspace, useMobileWorkspaceActions } from "@/features/workspace/context/mobile-workspace-context";
 import { queryKeys } from "@/features/workspace/model/query-keys";
 import { haptics } from "@/shared/lib/haptics";
@@ -18,7 +19,7 @@ const POLL_MS = 3_000;
  * them. The pages use the same queries, so a change on one page shows on the others. Only the page
  * on screen reads them again.
  */
-export function useServerConnectors(serverId: string) {
+export function useServerConnectors(serverId: string, poll: MobileConnectorId | "all" | null) {
   const { servers, agents, canManageConnectors, canManageOnePasswordConnector } = useMobileWorkspace();
   const { githubConnector, loadOnePasswordConnector, loadMessagingConnections } = useMobileWorkspaceActions();
   const queryScope = useQueryScope();
@@ -26,12 +27,14 @@ export function useServerConnectors(serverId: string) {
   const server = servers.find((candidate) => candidate.id === serverId);
   const connectors = canManageConnectors(serverId);
   const onePasswordAvailable = canManageOnePasswordConnector(serverId);
-  const refetchInterval: number | false = focused ? POLL_MS : false;
+  /** Only the connector that the page on screen shows is read again. */
+  const refetchInterval = (id: MobileConnectorId): number | false =>
+    focused && (poll === "all" || poll === id) ? POLL_MS : false;
   const messaging = (platform: MessagingPlatform) => ({
     queryKey: queryKeys.serverConnector(queryScope, serverId, platform),
     enabled: connectors,
     retry: false,
-    refetchInterval,
+    refetchInterval: refetchInterval(platform),
     queryFn: () => loadMessagingConnections(platform, serverId),
   });
   const slack = useQuery(messaging("slack"));
@@ -41,14 +44,14 @@ export function useServerConnectors(serverId: string) {
     queryKey: queryKeys.serverConnector(queryScope, serverId, "github"),
     enabled: connectors,
     retry: false,
-    refetchInterval,
+    refetchInterval: refetchInterval("github"),
     queryFn: () => githubConnector("githubStatus", serverId),
   });
   const onePassword = useQuery({
     queryKey: queryKeys.serverConnector(queryScope, serverId, "onepassword"),
     enabled: onePasswordAvailable,
     retry: false,
-    refetchInterval,
+    refetchInterval: refetchInterval("onepassword"),
     queryFn: () => loadOnePasswordConnector(serverId),
   });
   return {

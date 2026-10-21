@@ -108,7 +108,8 @@ function isWorkspacePlatform(platform: MessagingPlatform): platform is Workspace
 async function openHostPage(
   platform: MessagingPlatform,
   page: HostPage,
-  complete: (grant: { nonce: string; grant: string }) => Promise<unknown>,
+  /** Resolves false when the host refused the grant, such as after its install key expired. */
+  complete: (grant: { nonce: string; grant: string }) => Promise<boolean>,
 ): Promise<boolean> {
   if (page.url === null) return true;
   const address = platformPage(platform, page.url);
@@ -123,7 +124,7 @@ async function openHostPage(
   if (result.type !== "success") return false;
   const grant = messagingInstallGrant(platform, result.url, page.nonce);
   if (!grant) throw new Error(text.t(MESSAGING_TEXT[platform].installFailed));
-  await complete(grant);
+  if (!(await complete(grant))) throw new Error(text.t(MESSAGING_TEXT[platform].installFailed));
   return true;
 }
 
@@ -186,7 +187,9 @@ export function MessagingConnectorPage({
   /** The first connection that no agent answers: Add agent creates its orchestrator. */
   const needsAgent = connections.find((connection) => !orchestrator(connection)) ?? null;
   const complete = (grant: { nonce: string; grant: string }) =>
-    isWorkspacePlatform(platform) ? completeMessagingInstall({ platform, ...grant }, server.id) : Promise.resolve();
+    isWorkspacePlatform(platform)
+      ? completeMessagingInstall({ platform, ...grant }, server.id)
+      : Promise.resolve(false);
 
   const addAgent = (connection: MessagingConnection) =>
     void action.perform(async () => {

@@ -66,8 +66,10 @@ export function ServerConnectorsScreen() {
   const text = useText();
   const { t } = text;
   const { serverId } = useLocalSearchParams<{ serverId: string }>();
-  const { server, agents, connectors, onePasswordAvailable, messaging, github, onePassword } =
-    useServerConnectors(serverId);
+  const { server, agents, connectors, onePasswordAvailable, messaging, github, onePassword } = useServerConnectors(
+    serverId,
+    "all",
+  );
   if (!server || !(connectors || onePasswordAvailable))
     return (
       <SettingsContent>

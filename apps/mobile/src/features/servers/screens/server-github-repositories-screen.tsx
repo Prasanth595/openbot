@@ -18,7 +18,7 @@ import { useText } from "@/shared/lib/text";
 export function ServerGitHubRepositoriesScreen() {
   const { t, errorMessage } = useText();
   const { serverId } = useLocalSearchParams<{ serverId: string }>();
-  const { connectors, github } = useServerConnectors(serverId);
+  const { connectors, github } = useServerConnectors(serverId, null);
   const repositories = useGitHubRepositories(serverId, connectors && github.data?.state === "connected");
   const [search, setSearch] = useState("");
   const list = repositories.data;

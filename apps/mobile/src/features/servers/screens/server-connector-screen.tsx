@@ -11,8 +11,10 @@ import { useText } from "@/shared/lib/text";
 export function ServerConnectorScreen() {
   const { t } = useText();
   const { serverId, id } = useLocalSearchParams<{ serverId: string; id: string }>();
-  const { server, agents, connectors, onePasswordAvailable, messaging, github, onePassword } =
-    useServerConnectors(serverId);
+  const { server, agents, connectors, onePasswordAvailable, messaging, github, onePassword } = useServerConnectors(
+    serverId,
+    isMobileConnectorId(id) ? id : null,
+  );
   const reachable =
     isMobileConnectorId(id) && (id === "onepassword" ? onePasswordAvailable : id !== "bitwarden" && connectors);
   if (!server || !reachable)
