@@ -56,7 +56,7 @@ import { voiceSupported } from "./voice-status";
 const READER_INPUT_WINDOW_MS = 250;
 
 function followConversationBottom(element: HTMLDivElement): void {
-  element.scrollTop = element.scrollHeight;
+  element.scrollTop = element.scrollHeight - element.clientHeight;
 }
 
 export function createConversationViewScope(props: ConversationProps) {
@@ -879,7 +879,7 @@ export function createConversationViewScope(props: ConversationProps) {
     requestAnimationFrame(() => {
       if (!scrollElement) return;
       updateVirtualScrollMargin();
-      if (stickToLatest) scrollElement.scrollTop = scrollElement.scrollHeight;
+      if (stickToLatest) followConversationBottom(scrollElement);
       updateScrollFade(scrollElement);
       updateUnreadDividerVisibility();
     });
@@ -1038,10 +1038,9 @@ export function createConversationViewScope(props: ConversationProps) {
         latestScrollSettleFrame = requestAnimationFrame(() => {
           latestScrollSettleFrame = undefined;
           if (!scrollElement) return;
-          if (followLatest) {
-            stickToLatest = true;
-            followConversationBottom(scrollElement);
-          }
+          // A later layout, such as the activity line, can leave the first follow short of the
+          // bottom. Stay there only while this follow is still on; do not turn it back on.
+          if (followLatest && stickToLatest) followConversationBottom(scrollElement);
           updateScrollFade(scrollElement);
           updateUnreadDividerVisibility();
         });
@@ -1410,8 +1409,11 @@ export function createConversationViewScope(props: ConversationProps) {
     const intent = readerIntent && performance.now() - readerIntent.at < READER_INPUT_WINDOW_MS ? readerIntent : null;
     if (moved < 0 && (readerDragging || intent?.up === true)) leaveLatest();
     else if (moved > 0 && (readerDragging || intent?.up === false)) readerLeftLatest = false;
-    if (element.scrollHeight - element.scrollTop - element.clientHeight > 80) stickToLatest = false;
-    else if (!readerLeftLatest) stickToLatest = true;
+    // Distance only rejoins. A follow that has not yet landed, or a correction to the last row
+    // above the activity line, can sit more than 80px from the real bottom while a turn runs.
+    if (!readerLeftLatest && element.scrollHeight - element.scrollTop - element.clientHeight <= 80) {
+      stickToLatest = true;
+    }
   };
   function noteReaderIntent(up: boolean) {
     readerIntent = { up, at: performance.now() };

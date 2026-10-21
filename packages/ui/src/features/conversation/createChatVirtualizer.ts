@@ -70,14 +70,10 @@ export function createChatVirtualizer<TScrollElement extends Element, TItemEleme
     },
     scrollToFn: (offset, scroll, instance) => {
       const element = instance.scrollElement;
-      if (
-        element &&
-        scroll.adjustments !== undefined &&
-        options.count() <= STATIC_CHAT_LIMIT &&
-        options.stickToLatest?.()
-      ) {
-        // Static rows already occupy their measured space. An estimate correction can move
-        // the chat off the bottom after routine cards load. Follow the actual bottom instead.
+      if (element && scroll.adjustments !== undefined && options.stickToLatest?.()) {
+        // Rows end above the activity line. An estimate correction that follows the last row
+        // leaves that line below the view, then the chat's own follow pulls back to the real
+        // bottom, and the two move the chat up and down while a turn runs.
         elementScroll(element.scrollHeight - element.clientHeight, { ...scroll, adjustments: 0 }, instance);
         return;
       }

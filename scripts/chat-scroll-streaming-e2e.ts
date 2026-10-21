@@ -2,11 +2,11 @@
 // that arrive in a burst, in a running Storybook that renders the real agent chat against the
 // preview mock. Read-only. Pass the URL that `bun run storybook` reports:
 // `bun scripts/chat-scroll-streaming-e2e.ts --storybook=http://localhost:6006 [--stories=burst,channel]`.
-// The chat must follow new content while the reader is at the bottom, also after a sideways swipe, hold
-// still after a short scroll up and after a long one, follow again when the reader goes back to the
-// bottom, and hold still after a scroll up with the arrow key. In a burst, the jump button must count
-// the new messages and return to the latest one, and a message the reader sends while scrolled up
-// must return the chat to the bottom.
+// The chat must follow new content while the reader is at the bottom, also after a sideways swipe, stay
+// at the bottom across growth while a turn runs, hold still after a short scroll up and after a long
+// one, follow again when the reader goes back to the bottom, and hold still after a scroll up with the
+// arrow key. In a burst, the jump button must count the new messages and return to the latest one, and
+// a message the reader sends while scrolled up must return the chat to the bottom.
 // It checks histories of 40 rows, which the chats draw whole, and of 120, which they virtualize.
 // Writes .openbot-build/chat-scroll-streaming-e2e/report.json and one screenshot per story.
 import assert from "node:assert/strict";
@@ -66,9 +66,16 @@ interface HoldResult {
   anchorMoved: number;
 }
 
+interface BottomHold {
+  samples: number;
+  maxRemaining: number;
+  minScrollTopDelta: number;
+}
+
 interface StoryResult {
   follows?: Position;
   followsAfterSidewaysSwipe?: Position;
+  staysAtBottom?: BottomHold;
   shortScrollUp?: HoldResult;
   longScrollUp?: HoldResult;
   followsAgain?: Position;
@@ -192,6 +199,50 @@ async function assertFollows(page: Page, story: StoryCase, name: string): Promis
   return result;
 }
 
+/* While a turn runs, growth must not bounce the chat off the bottom. */
+async function assertStaysAtBottom(page: Page, story: StoryCase): Promise<BottomHold> {
+  const samples = await page.evaluate(
+    ({ scrollSelector, growth }) => {
+      const scroll = document.querySelector<HTMLElement>(scrollSelector);
+      if (!scroll) throw new Error("The conversation is missing.");
+      const from = scroll.scrollHeight;
+      const samples: Array<{ scrollTop: number; remaining: number }> = [];
+      const record = () => {
+        samples.push({
+          scrollTop: scroll.scrollTop,
+          remaining: scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight,
+        });
+      };
+      record();
+      return new Promise<Array<{ scrollTop: number; remaining: number }>>((done) => {
+        const step = () => {
+          record();
+          if (scroll.scrollHeight >= from + growth) done(samples);
+          else requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+      });
+    },
+    { scrollSelector: SCROLL, growth: GROWTH },
+  );
+  assert.ok(samples.length >= 2, `${story.id}: the chat did not grow at the bottom.`);
+  let maxRemaining = 0;
+  let minScrollTopDelta = 0;
+  for (let index = 1; index < samples.length; index += 1) {
+    const previous = samples[index - 1];
+    const current = samples[index];
+    if (!previous || !current) continue;
+    maxRemaining = Math.max(maxRemaining, current.remaining);
+    minScrollTopDelta = Math.min(minScrollTopDelta, current.scrollTop - previous.scrollTop);
+    assert.ok(
+      current.remaining <= 80 || previous.remaining <= 80,
+      `${story.id}: the chat left the bottom while a turn ran (remaining ${current.remaining}).`,
+    );
+    assert.ok(current.scrollTop + TOLERANCE >= previous.scrollTop, `${story.id}: the chat jumped up while a turn ran.`);
+  }
+  return { samples: samples.length, maxRemaining, minScrollTopDelta };
+}
+
 async function newMessageCount(page: Page): Promise<number> {
   const label = await page.locator(".scroll-to-latest-count").textContent();
   return Number(label?.match(/\d+/)?.[0] ?? 0);
@@ -210,6 +261,9 @@ async function checkStory(page: Page, story: StoryCase, result: StoryResult): Pr
   // A sideways swipe with a small vertical delta, as a trackpad sends, does not stop the follow.
   await page.mouse.wheel(-60, -1);
   result.followsAfterSidewaysSwipe = await assertFollows(page, story, "new content after a sideways swipe");
+
+  // While the turn still runs, further growth must keep the chat at the bottom.
+  result.staysAtBottom = await assertStaysAtBottom(page, story);
 
   // A short scroll up, less than the distance that counted as the bottom, holds the chat still.
   // A longer scroll up holds it still too. Both are measured before either is checked.
