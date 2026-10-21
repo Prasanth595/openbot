@@ -1196,7 +1196,8 @@ export class MessagingService {
               }),
             ),
         // Only Discord's earlier messages have files, such as an image that a person posted without a
-        // mention just before this message. The agent gets them with this message.
+        // mention just before this message. The agent gets them with this message. Slack is not asked:
+        // before Marketplace approval it allows one thread read a minute, which the prompt needs.
         adapter.platform === "discord" && !message.isDirect
           ? adapter
               .history(
@@ -1244,7 +1245,15 @@ export class MessagingService {
       () =>
         Effect.gen({ self: this }, function* () {
           // The message's own files first, then the newest earlier ones, within the attachment limits.
+          // An earlier message of this conversation that reached OpenBot gave its files with itself.
           const earlierFiles = earlier
+            .filter(
+              (entry) =>
+                !existing ||
+                !this.#threads.received(
+                  `messaging:${live.record.connectionId}:${message.platformChannelId}:${entry.id}`,
+                ),
+            )
             .toReversed()
             .flatMap((entry) =>
               (entry.files ?? []).map((file) => ({ file, label: `${entry.authorName}: ${file.name}` })),
@@ -1255,10 +1264,11 @@ export class MessagingService {
             staging,
           );
           const given = earlierFiles.filter((item) => !skipped.includes(item.file)).map((item) => item.label);
+          const notGiven = earlierFiles.filter((item) => skipped.includes(item.file)).map((item) => item.label);
           const missing = skipped.filter((file) => message.files.includes(file));
           const notes = [
             given.length ? `(Files of earlier messages, given with this one: ${given.join(", ")})` : "",
-            // An earlier file that did not arrive stays named in the earlier messages.
+            notGiven.length ? `(Files of earlier messages that were not given: ${notGiven.join(", ")})` : "",
             missing.length ? `(Files that did not arrive: ${missing.map((file) => file.name).join(", ")})` : "",
           ].filter(Boolean);
           const text = notes.length ? `${named}\n\n${notes.join("\n")}` : named;
