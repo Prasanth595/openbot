@@ -6,6 +6,7 @@ import { expandComposerMentions } from "@openbot/ui/features/conversation/Compos
 import { currentText } from "@openbot/ui/text";
 import { playActionSound } from "../../../action-sounds";
 import { claimDictatedSend } from "../../speech/speech-replies";
+import { rememberAttachmentKinds } from "../attachment-analytics";
 import { copyComposerDraft, EMPTY_DRAFT, QUEUE_EDIT_STORAGE_KEY, type StoredQueueEdit } from "../composer-draft";
 import { composerDraftKey } from "../conversation-keys";
 import { conversationRuntime } from "../conversation-runtime";
@@ -569,6 +570,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
     const voiceRecordingDraftId = voice?.recordingDraftId ?? null;
     const dictatedSent = claimDictatedSend(target);
     deps.pendingSends.add(target, { draft, text, retrySafe, voiceRecordingDraftId }, async (pending) => {
+      rememberAttachmentKinds(pending.draft.attachments);
       const result = await send(
         pending.text,
         pending.draft.attachments.map((item) => item.id),

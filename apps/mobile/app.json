@@ -94,6 +94,12 @@
       ],
       "expo-secure-store",
       [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow OpenBot to use Face ID to unlock the app."
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "android": {

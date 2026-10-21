@@ -9,10 +9,12 @@ import {
 } from "@openbot/contracts/billing";
 import {
   HOSTED_PLAN_SIZE,
+  HOSTED_SERVER_ENTRY_POINTS,
   type HostedServerActivityReport,
   type HostedServerCatalog,
   type HostedServerCheckout,
   type HostedServerClaim,
+  type HostedServerEntryPoint,
   type HostedServerError,
   type HostedServerLifecycleInput,
   type HostedServerList,
@@ -227,6 +229,8 @@ export interface HostedServerServiceOptions {
 export interface CheckoutReturn {
   target: BillingReturnTarget;
   origin: string;
+  /** Where the journey started in the app. Only analytics reads it. */
+  entryPoint?: HostedServerEntryPoint;
 }
 
 export interface HostedServerTickResult {
@@ -361,11 +365,15 @@ export class HostedServerService {
     function* (
       this: HostedServerService,
       user: AuthUser,
-      input: { name: unknown; plan: unknown; interval: unknown; currency: unknown },
+      input: { name: unknown; plan: unknown; interval: unknown; currency: unknown; entryPoint?: unknown },
       idempotencyKeyHeader: string | null,
-      returnTo: CheckoutReturn,
+      checkoutReturn: CheckoutReturn,
     ): Effect.fn.Return<HostedServerCheckout, HostedFailure, HostedServerDependencies> {
       const dependencies = yield* HostedServerDependencies;
+      // An older client sends no entry point, and an unknown one is left out. It never fails the request.
+      const returnTo: CheckoutReturn = isOneOf(HOSTED_SERVER_ENTRY_POINTS, input.entryPoint)
+        ? { ...checkoutReturn, entryPoint: input.entryPoint }
+        : checkoutReturn;
       const { billing } = yield* hostedValidate(() => this.#requireAvailable(user));
       const idempotencyKey = idempotencyKeyHeader?.trim() ?? "";
       if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$/u.test(idempotencyKey)) {
@@ -470,7 +478,14 @@ export class HostedServerService {
           .first<HostedServerRow>(),
       );
       if (!row) return yield* notFound();
-      return yield* this.#checkout(row, user, billing, returnTo);
+      // A second page for a server that still waits for its first payment continues the same purchase.
+      const resumed = row.observed_state === "awaiting_payment" && row.desired_state === "running";
+      return yield* this.#checkout(
+        row,
+        user,
+        billing,
+        resumed ? { ...returnTo, entryPoint: "checkout_resume" } : returnTo,
+      );
     },
     (operation) => operation.pipe(Effect.provide(this.#layer)),
   ).bind(this);
@@ -1337,6 +1352,7 @@ export class HostedServerService {
         currency: row.currency,
         target: returnTo.target,
         origin: returnTo.origin,
+        ...(returnTo.entryPoint ? { entryPoint: returnTo.entryPoint } : {}),
       })
       .pipe(Effect.mapError(hostedFailure));
     // A new plan choice changes the key of an unpaid server, so a page for the plan before it is not stored.

@@ -31,6 +31,7 @@ import { useChannels } from "../channels/channels-context";
 import { useServers } from "../servers/servers-context";
 import { notifyTeamTyping } from "../team/team-typing";
 import { useWindowPage } from "../window/window-page-context";
+import { takeAttachmentKinds } from "./attachment-analytics";
 import {
   agentConversationKey,
   agentMessageKey,
@@ -809,6 +810,7 @@ const Conversation = createSimpleContext({
     ): Promise<SendMessageResult> {
       const analytics = desktopAnalytics.scope();
       const properties = analyticsAgentProperties(agentId);
+      const attachmentKinds = takeAttachmentKinds(attachmentDraftIds);
       try {
         const input = {
           agentId,
@@ -825,6 +827,7 @@ const Conversation = createSimpleContext({
           ...(properties ?? {}),
           channel: "agent",
           attachment_count: attachmentDraftIds.length,
+          attachment_kinds: attachmentKinds,
           is_reply: replyToMessageId !== null,
           result: "succeeded",
           delivery_count: receipt.deliveries.length,
@@ -840,6 +843,7 @@ const Conversation = createSimpleContext({
           ...(properties ?? {}),
           channel: "agent",
           attachment_count: attachmentDraftIds.length,
+          attachment_kinds: attachmentKinds,
           is_reply: replyToMessageId !== null,
           result: "failed",
           failure_code: "send_failed",

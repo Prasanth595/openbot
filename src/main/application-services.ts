@@ -1,5 +1,5 @@
 import { isManagedRuntimeProvider } from "@openbot/contracts/agent-providers";
-import { openPanelTransport, ReportQueue } from "@openbot/telemetry";
+import { ANALYTICS_GENERATIONS, openPanelTransport, ReportQueue } from "@openbot/telemetry";
 import { fileReportStorage } from "@openbot/telemetry/node";
 import { Effect, Fiber } from "effect";
 import { toAgentRemovalFailed } from "../backend/agent/agent-removal";
@@ -272,6 +272,7 @@ import { listSiblingOpenBotInstances } from "./update-sibling-instances";
 import { VoiceApiKeyStore } from "./voice-api-key-store";
 import { openScribeSocket } from "./voice-cloud-stream";
 import {
+  BARK_PLUS_MODEL_DIRECTORY,
   PARAKEET_MODEL_DIRECTORY,
   removeLegacyWhisperCache,
   SUPERTONIC_MODEL_DIRECTORY,
@@ -2173,7 +2174,7 @@ export async function createApplicationServices({
           surface: "desktop_host",
           app_version: app.getVersion(),
           platform: analyticsPlatform,
-          event_schema_version: 8,
+          event_schema_version: ANALYTICS_GENERATIONS.desktop_host,
         },
       )
     : undefined;
@@ -2210,6 +2211,7 @@ export async function createApplicationServices({
         : null;
     },
     resolveAgent: (agentId) => service.listAgents().find((agent) => agent.id === agentId) ?? null,
+    resolveTurnUsage: (agentId, turnId, since) => service.getTurnUsage(agentId, turnId, since),
     resolveMcpServer: (name) => {
       const configs = service.listMcpServers().filter((server) => isReportedMcpServerName(server.name, name));
       if (configs.length === 0) return null;
@@ -2348,11 +2350,15 @@ export async function createApplicationServices({
   await runCauseEffect(voiceApiKeys.load());
   const voice = new VoiceTranscriptionService({
     resourcesRoot: app.isPackaged ? join(process.resourcesPath, "voice") : resolve(".openbot-build/voice"),
-    // `voice:prepare` puts Parakeet in `.openbot-build/voice/model` for development.
+    // `voice:prepare` puts Parakeet in `.openbot-build/voice/model` for development. In development
+    // the other models download to `.openbot-build/voice` when you select them.
     modelDirectories: {
       "parakeet-tdt-0.6b-v3": app.isPackaged
         ? join(app.getPath("userData"), "runtimes", PARAKEET_MODEL_DIRECTORY)
         : resolve(".openbot-build/voice/model"),
+      "bark-3.0-plus": app.isPackaged
+        ? join(app.getPath("userData"), "runtimes", BARK_PLUS_MODEL_DIRECTORY)
+        : resolve(".openbot-build/voice", BARK_PLUS_MODEL_DIRECTORY),
       "whisper-turbo": app.isPackaged
         ? join(app.getPath("userData"), "runtimes", WHISPER_TURBO_MODEL_DIRECTORY)
         : resolve(".openbot-build/voice", WHISPER_TURBO_MODEL_DIRECTORY),
