@@ -63,16 +63,21 @@ export interface TurnResult {
   status: string | null;
 }
 
-/** Starts a turn and waits for its completion, also after an error. */
+/** A turn that has not completed by then fails, so that a run writes its report before the job timeout. */
+const TURN_TIMEOUT_MS = 300_000;
+
+/** Starts a turn and waits for its completion, also after an error. It fails when the agent exits. */
 export async function runTurn(
   client: AgentClient,
   thread: string,
-  options: { model?: string; text?: string } = {},
+  options: { model?: string; text?: string; timeoutMs?: number } = {},
 ): Promise<TurnResult> {
   const result: TurnResult = { reply: "", error: null, status: null };
-  // `AgentClient` has no `off`, so a finished turn's listener stays and ignores what follows.
+  // `AgentClient` has no `off` for notifications, so a finished turn's listener stays and ignores what follows.
   let finished = false;
-  const done = new Promise<void>((finish) => {
+  let timer: NodeJS.Timeout | undefined;
+  let exited: ((error: Error) => void) | undefined;
+  const done = new Promise<void>((finish, fail) => {
     client.on("notification", (notification: AppServerNotification) => {
       if (finished || getString(notification.params, "threadId") !== thread) return;
       if (notification.method === "item/completed" && isRecord(notification.params)) {
@@ -85,17 +90,29 @@ export async function runTurn(
         finish();
       }
     });
+    exited = (error) => fail(new Error(`The agent exited before the turn completed: ${error.message}`));
+    client.once("exit", exited);
+    const timeoutMs = options.timeoutMs ?? TURN_TIMEOUT_MS;
+    timer = setTimeout(() => fail(new Error(`The turn did not complete in ${timeoutMs / 1000} s.`)), timeoutMs);
   });
-  const input = [{ type: "text", text: options.text ?? "hello", text_elements: [] }];
-  await runCauseEffect(
-    client.request(
-      "turn/start",
-      { threadId: thread, ...(options.model ? { model: options.model } : {}), input },
-      (value) => value,
-    ),
-  );
-  await done;
-  return result;
+  // `turn/start` can fail first; then nothing awaits `done`.
+  done.catch(() => undefined);
+  try {
+    const input = [{ type: "text", text: options.text ?? "hello", text_elements: [] }];
+    await runCauseEffect(
+      client.request(
+        "turn/start",
+        { threadId: thread, ...(options.model ? { model: options.model } : {}), input },
+        (value) => value,
+      ),
+    );
+    await done;
+    return result;
+  } finally {
+    finished = true;
+    clearTimeout(timer);
+    if (exited) client.off("exit", exited);
+  }
 }
 
 export async function stopClients(clients: readonly AgentClient[]): Promise<void> {

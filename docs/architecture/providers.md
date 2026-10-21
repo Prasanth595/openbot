@@ -127,7 +127,11 @@ The `Provider CLI canary` workflow (`.github/workflows/provider-cli-canary.yml`)
 release before many users install it. Every six hours it reads the newest release of each provider
 for each target, installs the newest OpenCode through `ProviderRuntimeManager`, and runs the
 conformance cases on it with the free `opencode/big-pickle` model and no account
-(`bun run test:provider-cli-canary`). It opens one issue after two failed runs in a row. The other
+(`bun run test:provider-cli-canary`). The run fails when the install is not the version that an
+update installs now, so a failed release read cannot make it test the pinned CLI. Each turn fails
+after five minutes, so a hung CLI still writes the report. The second failed run in a row opens one
+issue, and a run that passes closes it. An issue that a person closes stays closed until the canary
+passes and then fails two times again. The other
 providers need an account, so the canary only reads their releases; `test:provider-conformance` runs
 the same cases on each ACP driver over a fake agent.
 
