@@ -4,7 +4,8 @@
 // `last` counts, with cache writes in `cacheWriteInputTokens`. A message `prompts=<a>,<b>` makes one
 // model request per number, each with that many input tokens. Cases: a chat turn, a task turn, a task
 // request of 250,000 input tokens (short-context price), one of 300,000 (long-context price), and a
-// chat session that the counter before this change counted (its first update is a baseline).
+// chat session that the counter before this change counted (its first update records only its own
+// request).
 // `bun scripts/codex-usage-metering-e2e.ts`. Writes .openbot-build/codex-usage-metering-e2e/report.json.
 import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -356,8 +357,8 @@ try {
   await settled(upgradeDelivery, "chat turn after the upgrade");
   const upgradeTurn = turnsOf(chatThread)[1];
   assert.ok(upgradeTurn, "chat turn after the upgrade: no turn");
-  // The first update sets the baseline of the new counter; only the second request is recorded.
-  check("chat turn after the upgrade", chatThread, upgradeTurn, agent.id, expected([20000, 21000], 15000).slice(1));
+  // The new counter starts from the totals before the first request, so both requests count once.
+  check("chat turn after the upgrade", chatThread, upgradeTurn, agent.id, expected([20000, 21000], 15000));
 
   const today = new Date().toISOString().slice(0, 10);
   const analytics = agents.getAnalytics({ agentId: agent.id, startDate: today, endDate: today, timeZone: "UTC" });

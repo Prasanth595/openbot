@@ -1,5 +1,5 @@
 import { type AgentSummary, isAgentModel, type UsageTokens } from "@openbot/contracts/ipc";
-import { isDynamicRecord } from "@openbot/contracts/runtime-values";
+import { type DynamicRecord, isDynamicRecord } from "@openbot/contracts/runtime-values";
 import type { AgentUsage } from "../database/agent-usage";
 import type { ProviderSession } from "../database/provider-sessions";
 import { getRecord, getString } from "../protocol";
@@ -31,33 +31,24 @@ export function collectProviderUsage(
   const turnId = getString(params, "turnId") ?? "baseline";
   if (session.provider === "codex") {
     const tokenUsage = getRecord(params, "tokenUsage");
-    const total = getRecord(tokenUsage, "total");
-    if (!total) return;
-    // Codex counts cached input and cache writes inside `inputTokens`.
-    const input = count(total.inputTokens);
-    const cached = count(total.cachedInputTokens);
-    const written = count(total.cacheWriteInputTokens) ?? 0;
-    const tokens: UsageTokens = {
-      uncachedInput: input !== null && cached !== null && cached + written <= input ? input - cached - written : null,
-      cachedInput: cached,
-      cacheCreation: written,
-      output: count(total.outputTokens),
-    };
+    const tokens = codexTokens(getRecord(tokenUsage, "total"));
+    if (!tokens) return;
+    const last = codexTokens(getRecord(tokenUsage, "last"));
+    const previousTokens = last && before(tokens, last);
     usage.record({
       agentId: agent.id,
       sessionId: session.id,
       turnId,
       provider: session.provider,
       model: usage.turnModel(agent.id, session.id, turnId) ?? agent.model,
-      // `:codex` counted cache writes as uncached input. A session that it counted starts this
-      // counter from a baseline, so the change does not count its earlier writes again.
+      // `:codex` counted cache writes as uncached input, so this counter starts again. Its first
+      // update records only the last request: the requests before it were counted by `:codex`, or
+      // ran in a task before task usage was collected. Without the last request, it is a baseline.
       counterId: `${session.id}:codex:cache-writes`,
-      lastRequestInputTokens: count(getRecord(tokenUsage, "last")?.inputTokens),
+      previousTokens,
+      lastRequestInputTokens: last && sum(last),
       tokens,
-      baseline:
-        session.createdAt < usage.collectionStartedAt() ||
-        turnId === "baseline" ||
-        usage.hasCounter(agent.id, `${session.id}:codex`),
+      baseline: session.createdAt < usage.collectionStartedAt() || turnId === "baseline" || !previousTokens,
     });
     return;
   }
@@ -114,6 +105,40 @@ export function collectProviderUsage(
       output: count(value.outputTokens),
     },
   });
+}
+/** Codex counts cached input and cache writes inside `inputTokens`. */
+function codexTokens(breakdown: DynamicRecord | null): UsageTokens | null {
+  if (!breakdown) return null;
+  const input = count(breakdown.inputTokens);
+  const cached = count(breakdown.cachedInputTokens);
+  const written = count(breakdown.cacheWriteInputTokens) ?? 0;
+  return {
+    uncachedInput: input !== null && cached !== null && cached + written <= input ? input - cached - written : null,
+    cachedInput: cached,
+    cacheCreation: written,
+    output: count(breakdown.outputTokens),
+  };
+}
+
+/** The session totals before the last request, or `null` when a count is unknown. */
+function before(total: UsageTokens, last: UsageTokens): UsageTokens | null {
+  const { uncachedInput, cachedInput, cacheCreation, output } = total;
+  if (uncachedInput === null || cachedInput === null || cacheCreation === null || output === null) return null;
+  if (last.uncachedInput === null || last.cachedInput === null || last.cacheCreation === null || last.output === null)
+    return null;
+  const earlier = {
+    uncachedInput: uncachedInput - last.uncachedInput,
+    cachedInput: cachedInput - last.cachedInput,
+    cacheCreation: cacheCreation - last.cacheCreation,
+    output: output - last.output,
+  };
+  return Object.values(earlier).every((value) => value >= 0) ? earlier : null;
+}
+
+function sum(tokens: UsageTokens): number | null {
+  return tokens.uncachedInput === null || tokens.cachedInput === null || tokens.cacheCreation === null
+    ? null
+    : tokens.uncachedInput + tokens.cachedInput + tokens.cacheCreation;
 }
 function cost(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;

@@ -22,7 +22,8 @@ interface Price {
 // OpenAI: "Long context: >272K input tokens". Codex sets no cache lifetime, so a write is the
 // default 30-minute write. GPT-5.5 has no cache-write charge: a write bills as input.
 const OPENAI_LONG = 272_001;
-// xAI: "Long context ≥ 200k tokens". It lists no cache-write rate.
+// xAI: "Long context ≥ 200k tokens". It lists no cache-write rate. ACP reports no prompt for each
+// request, so a Grok update at or over the threshold stays unpriced.
 const GROK_LONG = 200_000;
 const PRICES: Readonly<Record<string, Price>> = {
   "codex:gpt-6-astra": {

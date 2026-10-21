@@ -107,8 +107,13 @@ Migration 15 adds these tables on both database creation paths. They do not refe
 projections: clearing a conversation must retain usage. Agent deletion removes usage, checkpoints,
 activity, and related command receipts in its existing transaction.
 
-The turn lifecycle accepts usage only for a provider session belonging to the agent. Codex totals
-use durable session checkpoints; restored totals establish a baseline for pre-feature sessions.
+The turn lifecycle accepts usage only for a provider session belonging to the agent, in its own chat
+or in one of its tasks. It finds the session in the public thread of the provider thread. Codex
+totals use durable session checkpoints; restored totals establish a baseline for pre-feature
+sessions. The Codex counter `:codex:cache-writes` replaces `:codex`, which counted cache writes as
+uncached input. When the counter has no checkpoint, it starts from the session totals before the
+last request (`total` minus `last`), so the requests that `:codex` counted, and task requests from
+before task metering, do not count.
 Claude uses per-model query totals and a separate counter identity for each query process. ACP usage
 is optional. Missing fields remain unknown. Completed assistant messages exclude commentary and tool
 output. Only post-install messages enter activity counts.
@@ -124,7 +129,11 @@ The Usage views show 7, 30, 90, or custom days, with 30 days as the default. Bot
 values beside the SVG charts. Cost is a USD API-equivalent estimate, not a subscription charge.
 The bundled rates cite official sources and carry a verification date. Claude list-price estimates
 come from SDK model usage; unknown or managed pricing is not treated as a list-price estimate.
-Unknown models, missing cache data, and unresolvable context or cache-write pricing stay unpriced.
+Codex cache writes use the 30-minute cache-write rate. An update under the provider's long-context
+threshold uses the short rates. An update over it uses the long rates only when it is one request
+(its input equals the `last` prompt); ACP reports no such prompt, so a Grok update over it stays
+unpriced. Unknown models, missing cache data, and unresolvable context or cache-write pricing stay
+unpriced.
 Tool and media fees are outside the estimate. Stored estimates retain their price basis.
 
 ### Host-wide Usage
