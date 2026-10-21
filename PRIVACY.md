@@ -751,10 +751,9 @@ holds it. Unlike Slack, both directions go through Signal:
   the channels OpenBot can view. When OpenBot's Signal has the Message Content intent, they include
   the text of every message; otherwise only the messages that mention OpenBot have text. Signal
   passes on only the messages that mention OpenBot and the presses of OpenBot's buttons: the message
-  text, the author's ID, name and role IDs in the server, the channel, the message it replies to (with
-  its author, text, time and the addresses of its files when a person wrote it and Discord gave its
-  text or files), and the addresses of its files. The computer
-  downloads the files from Discord directly.
+  text, the author's ID, name and role IDs in the server, the channel, the addresses of its files, and
+  the message it replies to when a person wrote it (with its author, time, and the text and file
+  addresses that Discord gave). The computer downloads the files from Discord directly.
 - **From the computer.** The computer sends its posts, edits, reactions, files and name lookups to
   Signal, which makes each call to Discord for it, only in the Discord servers linked to that
   computer. To give context, the computer asks Signal for the earlier messages of a channel after the

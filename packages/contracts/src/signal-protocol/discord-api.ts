@@ -247,7 +247,7 @@ function quote(value: unknown): DiscordInboundQuote | null {
   const content = text(item.content);
   if (content.length > QUOTE_DECODE_LIMIT) invalid();
   // An older Signal sends no attachments.
-  const attachments = item.attachments ?? [];
+  const attachments = item.attachments === undefined ? [] : item.attachments;
   if (!Array.isArray(attachments) || attachments.length > DISCORD_ATTACHMENTS_LIMIT) invalid();
   return {
     authorId: snowflake(item.authorId),

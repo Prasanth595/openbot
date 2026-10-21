@@ -18,7 +18,7 @@ export interface MessagingPromptInput {
   authorId: string;
   text: string;
   context: readonly MessagingContextMessage[];
-  /** The person's message that this one replies to, when the platform gave its text. */
+  /** The person's message that this one replies to, when the platform gave its text or files. */
   replyTo: MessagingContextMessage | null;
   /** Files the message had that were not given to the agent, with the reason. */
   skippedFiles: readonly string[];

@@ -41,7 +41,15 @@ export function discordInboundMessage(message: DiscordInboundMessage): InboundMe
     replyTo: quote
       ? {
           authorName: quote.authorName,
-          text: discordPlainText(quote.content),
+          // Names its files, so that the agent knows which of the message's files are the replied-to ones.
+          text: [
+            discordPlainText(quote.content),
+            quote.attachments.length
+              ? `(Attached files: ${quote.attachments.map((file) => file.filename).join(", ")})`
+              : "",
+          ]
+            .filter(Boolean)
+            .join("\n"),
           mentionedUserIds: discordMentionIds(quote.content),
           sentAt: quote.sentAt,
         }

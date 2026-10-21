@@ -620,7 +620,10 @@ try {
           "The agent's message has no replied-to image.",
         );
         const prompt = await promptOf(services, GUILD_ONE, id, CHANNEL_ONE);
-        assert.match(prompt, /the message this one replies to \(context\) ---\n\[[^\]]+\] Ana: /u);
+        assert.match(
+          prompt,
+          /the message this one replies to \(context\) ---\n\[[^\]]+\] Ana: \(Attached files: screenshot\.png\)\n/u,
+        );
         assert.doesNotMatch(prompt, /did not arrive/u);
         return { repliedImage: true };
       } finally {
