@@ -285,7 +285,6 @@ export const messages = {
   "marketplace.auth.personalApiKey": "Kişisel API anahtarı",
   "marketplace.auth.mcpUrl": "MCP URL'si",
   "marketplace.auth.createKey": "Anahtar oluştur",
-  "marketplace.auth.createServer": "Sunucu oluştur",
 
   // Skills. {label} is the install button text: an agent name, "All agents" or "2 agents".
   "marketplace.skill.installMenu.install": "Kur",

@@ -262,7 +262,6 @@ export const messages = defineMessages("marketplace", {
   "marketplace.auth.personalApiKey": "Personal API key",
   "marketplace.auth.mcpUrl": "MCP URL",
   "marketplace.auth.createKey": "Create a key",
-  "marketplace.auth.createServer": "Create a server",
 
   // Skills. {label} is the install button text: an agent name, "All agents" or "2 agents".
   "marketplace.skill.installMenu.install": "Install",

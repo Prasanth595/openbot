@@ -252,7 +252,6 @@ export const messages = {
   "marketplace.auth.personalApiKey": "Chave de API pessoal",
   "marketplace.auth.mcpUrl": "URL do MCP",
   "marketplace.auth.createKey": "Criar uma chave",
-  "marketplace.auth.createServer": "Criar um servidor",
   "marketplace.skill.installMenu.install": "Instalar",
   "marketplace.skill.installMenu.installNamed": "Instalar {name}",
   "marketplace.skill.installMenu.allAgents": "Todos os agentes",

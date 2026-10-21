@@ -261,7 +261,6 @@ export const messages = {
   "marketplace.auth.personalApiKey": "個人用 API キー",
   "marketplace.auth.mcpUrl": "MCP URL",
   "marketplace.auth.createKey": "キーを作成",
-  "marketplace.auth.createServer": "サーバーを作成",
 
   "marketplace.skill.installMenu.install": "インストール",
   "marketplace.skill.installMenu.installNamed": "{name} をインストール",

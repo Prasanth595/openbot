@@ -237,7 +237,6 @@ const AUTH_TEXT: Readonly<Record<string, AppTextKey>> = {
   "MCP URL": "marketplace.auth.mcpUrl",
   "Get a key": "mcp.connect.getKey",
   "Create a key": "marketplace.auth.createKey",
-  "Create a server": "marketplace.auth.createServer",
   "The URL of an MCP server in your Composio account": "marketplace.plugin.composio.hint.url",
   "Find it in your Composio account, in Settings > Sessions & API Key.": "marketplace.plugin.composio.hint.apiKey",
 };
