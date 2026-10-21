@@ -122,7 +122,7 @@ export function toAgentMessage(message: ConversationMessage, ownerAgentId?: stri
  * The plan of a `plan` message. A peer on a released Team API protocol sends only the checklist
  * text, so the plan is read back from it.
  */
-export function messagePlan(message: ConversationMessage): AgentMessagePlan | null {
+function messagePlan(message: ConversationMessage): AgentMessagePlan | null {
   if (message.author !== "assistant" || message.itemType !== CONVERSATION_PLAN_ITEM_TYPE) return null;
   const plan = message.plan ?? parseConversationPlanText(message.text);
   if (!plan?.steps.length) return null;
