@@ -228,13 +228,19 @@ export function useHomeSearch(): HomeSearch {
     // The results take the screen, so a swipe right must not open the drawer under them.
     setOpeningBlocked(true);
     setSettled(false);
+  }, [setOpeningBlocked]);
+  // The results come in after they mount, not when the field asks: the first render of the results
+  // takes time on the JS thread, and an animation that started before it would be nearly over when
+  // they show.
+  useEffect(() => {
+    if (!open) return;
     closing.set(0);
     progress.set(
       withTiming(1, OPEN, (finished) => {
         if (finished) scheduleOnRN(setSettled, true);
       }),
     );
-  }, [progress, closing, setOpeningBlocked]);
+  }, [open, progress, closing]);
   const closeSearch = useCallback(() => {
     input.current?.blur();
     Keyboard.dismiss();
@@ -621,6 +627,19 @@ export function HomeSearchBar({
   const enter = reduced ? undefined : closeButtonEnter;
   const exit = reduced ? undefined : closeButtonExit;
   const { target } = search;
+  // The tap that opens the search: a soft tap in the same frame as the results start to come in.
+  // The field and the capsule around it can both see the touch before `open` renders, so the ref
+  // keeps it to one tap.
+  const touchOpened = useRef(false);
+  useEffect(() => {
+    if (!search.open) touchOpened.current = false;
+  }, [search.open]);
+  const openFromTouch = () => {
+    if (search.open || touchOpened.current) return;
+    touchOpened.current = true;
+    void haptics.impact("soft");
+    search.openSearch();
+  };
   const canSend = Boolean(target && search.query.trim()) && !search.sending;
   const placeholder = target
     ? t("mobile.search.task.placeholder")
@@ -716,6 +735,7 @@ export function HomeSearchBar({
             <Pressable
               accessible={false}
               className="flex-1 flex-row items-center gap-2 pr-2 pl-4"
+              onPressIn={openFromTouch}
               onPress={() => search.input.current?.focus()}
             >
               {target ? (
@@ -750,6 +770,9 @@ export function HomeSearchBar({
                   // Backspace in an empty field removes the agent, as in a mail address field.
                   if (nativeEvent.key === "Backspace" && !search.query && target) search.clearTarget();
                 }}
+                // The results start to come in on touch down: the field takes focus, and the keyboard
+                // starts, only when the finger lifts.
+                onPressIn={openFromTouch}
                 onFocus={() => {
                   if (!search.open) search.openSearch();
                 }}
@@ -761,7 +784,10 @@ export function HomeSearchBar({
                     accessibilityRole="button"
                     className="size-9 items-center justify-center"
                     hitSlop={6}
-                    onPress={() => search.setQuery("")}
+                    onPress={() => {
+                      void haptics.selection();
+                      search.setQuery("");
+                    }}
                   >
                     <CircleX color={String(background)} fill={String(muted)} size={20} strokeWidth={2} />
                   </Pressable>
