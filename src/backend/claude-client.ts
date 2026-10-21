@@ -60,9 +60,9 @@ import {
   claudeWriteOutsideRoots,
 } from "./claude-workspace-sandbox";
 import {
-  agentLaunchPath,
   type ClaudeCliInfo,
   claudeTakesPromptSnapshotFlag,
+  cliLaunchPath,
   cliPathEnvironment,
   cliSpawnTarget,
 } from "./cli";
@@ -775,7 +775,7 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
     const stateDirectory = this.#stateDirectory;
     const skillPlugin =
       config.workspaceOnly && stateDirectory ? yield* claudeWorkspaceSkillPlugin(stateDirectory, config.cwd) : null;
-    const launchPath = yield* agentLaunchPath();
+    const launchPath = yield* cliLaunchPath(this.#cli.executable, this.#cli.source);
     // `stop()` may have run during the await: a query created now would outlive the client.
     if (!this.#running) return yield* providerFailure(new Error("Claude Agent SDK is not running."));
     if (handoff) this.#reportMcpDrops?.(this.provider, handoff.dropped);

@@ -1,6 +1,6 @@
 import { execFile, spawn } from "node:child_process";
 import { constants } from "node:fs";
-import { access, readFile } from "node:fs/promises";
+import { access, readFile, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, delimiter, dirname, extname, isAbsolute, join, posix, resolve, win32 } from "node:path";
 import { promisify } from "node:util";
@@ -777,7 +777,7 @@ const MAC_LOGIN_SHELLS = new Set(["bash", "fish", "ksh", "sh", "zsh"]);
  * `-i` flag does not go with `sh`, because `sh` is not required to accept an interactive non-tty
  * invocation and dash exits rather than running the command.
  */
-export function loginShellCommand(
+function loginShellCommand(
   platform: NodeJS.Platform = process.platform,
   environment: NodeJS.ProcessEnv = process.env,
 ): { command: string; args: string[] } {
@@ -918,9 +918,9 @@ export const agentLaunchPath = Effect.fn("Cli.agentLaunchPath")(function* (
  * it. A managed copy is a native program, and its folder stays off the `PATH` that agents' commands
  * get.
  */
-const cliLaunchPath = Effect.fn("Cli.launchPath")(function* (
+export const cliLaunchPath = Effect.fn("Cli.launchPath")(function* (
   executable: string,
-  source: "system" | "managed",
+  source: "system" | "managed" | undefined,
   platform: NodeJS.Platform = process.platform,
 ) {
   if (platform === "win32") return null;
@@ -1071,8 +1071,10 @@ const readCliVersion = Effect.fn("Cli.readVersion")(function* (
   return { stdout: output.stdout, launch };
 });
 
+/** `X_OK` also passes for a folder, and a login-shell `PATH` folder can hold one with the CLI's name. */
 const isExecutable = Effect.fn("Cli.isExecutable")((path: string) =>
-  providerCall(() => access(path, process.platform === "win32" ? constants.F_OK : constants.X_OK)).pipe(
-    Effect.match({ onSuccess: () => true, onFailure: () => false }),
-  ),
+  providerCall(async () => {
+    await access(path, process.platform === "win32" ? constants.F_OK : constants.X_OK);
+    return (await stat(path)).isFile();
+  }).pipe(Effect.match({ onSuccess: (file) => file, onFailure: () => false })),
 );

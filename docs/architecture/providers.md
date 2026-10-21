@@ -144,10 +144,11 @@ On macOS and Linux, discovery looks in the folders of the login-shell `PATH` (`l
 folders: `~/.local/bin`, `~/.npm-global/bin`, `~/.volta/bin`, `~/.bun/bin`, the pnpm home, Homebrew
 and the system folders. nvm folders are not searched, because only nvm's shell setup selects a
 version. The login shell is `$SHELL` when it is a known POSIX shell or fish; otherwise macOS uses
-`/bin/zsh`. The version probe and every process of the CLI (app server, ACP, sign-in and sign-out)
-start with the resolved `launchPath`: the login-shell folders, then OpenBot's own, then the CLI's
-folder for a system copy. An app that Finder starts can then run a `#!/usr/bin/env node` CLI. A CLI
-that exists but does not start reports whether the managed copy or the user's copy failed.
+`/bin/zsh`. The version probe and each process that OpenBot starts for the CLI (app server, ACP,
+Claude sessions, sign-in and sign-out) start with the resolved `launchPath`: the login-shell
+folders, then OpenBot's own, then the CLI's folder for a system copy. An app that Finder starts can
+then run a `#!/usr/bin/env node` CLI. A CLI that exists but does not start reports whether the
+managed copy or the user's copy failed.
 
 Installed runtimes live in one store per computer, `appData/OpenBot/provider-runtimes`, which is the
 path the packaged app always used: its `userData` is `appData/OpenBot`. Development profiles differ
