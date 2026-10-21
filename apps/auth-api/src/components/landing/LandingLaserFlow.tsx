@@ -535,7 +535,6 @@ interface Look {
   color: Rgb;
   /** Multiplies the hue shifts of the palette. More than 1 puts more colours in one beam. */
   hueSpread: number;
-  drop: boolean;
 }
 
 /**
@@ -573,8 +572,6 @@ function randomLook(seed: number): Look {
     },
     color: fromHsv(random() * 360, BASE_SATURATION * (0.85 + random() * 0.4)),
     hueSpread: 1 + random() * 2.5,
-    // Half of the visits see the beam fall in. The other half see it already in place.
-    drop: random() < 0.5,
   };
 }
 
@@ -586,7 +583,7 @@ function selectedLook(baseColor: string): Look & { seed: string } {
   const name = new URLSearchParams(window.location.search).get("beam") ?? "";
   const named = name === "default" ? SETTINGS : Object.hasOwn(VERSIONS, name) ? VERSIONS[name] : undefined;
   if (named) {
-    return { settings: named, color: hexToRgb(named.color ?? baseColor), hueSpread: 1, drop: true, seed: name };
+    return { settings: named, color: hexToRgb(named.color ?? baseColor), hueSpread: 1, seed: name };
   }
   const seed = /^\d+$/.test(name) ? Number(name) : Math.floor(Math.random() * 1_000_000);
   return { ...randomLook(seed), seed: String(seed) };
@@ -719,8 +716,8 @@ export interface LandingLaserFlowProps {
   start?: Promise<void>;
   /**
    * Called once, when the beam reaches the surface. It is called at once when the beam does not
-   * fall in: with no WebGL2, with the reduced motion setting, on a visit with no drop, or with no
-   * clear path onto the surface.
+   * fall in: with no WebGL2, with the reduced motion setting, or with no clear path onto the
+   * surface.
    */
   onImpact?: () => void;
   class?: string;
@@ -775,7 +772,7 @@ export function LandingLaserFlow(props: LandingLaserFlowProps) {
     const settings = look.settings;
     // The seed is on the element, so a look that someone likes can be found and shown again.
     host.dataset.beam = look.seed;
-    const drops = !reduce && look.drop;
+    const drops = !reduce;
     if (!drops) impact();
     // The beam waits in the dark until the surface is ready, so the surface appears as the beam hits it.
     let held = drops && props.start !== undefined;
