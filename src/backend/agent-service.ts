@@ -333,11 +333,6 @@ export interface AgentServiceOptions {
    * while memory is low, and only a fixed number of turns run at the same time.
    */
   hostMemory?: HostMemory | null;
-  /**
-   * Archives every channel when the providers are ready and refuses new channel work. Channels are
-   * deprecated; the application sets this, and tests leave it off to keep testing the channel code.
-   */
-  retireChannels?: boolean;
 }
 
 /** How long a user send's `clientMessageId` answers a retry. A retry follows a lost reply, not a day. */
@@ -402,7 +397,6 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   readonly #requestedNewChats = new Set<string>();
   #initialized = false;
   #stopping = false;
-  readonly #retireChannels: boolean;
 
   constructor(options: AgentServiceOptions) {
     super();
@@ -426,9 +420,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       githubConnector = null,
       hostMemory = null,
       busyMessageMode = () => DEFAULT_BUSY_MESSAGE_MODE,
-      retireChannels = false,
     } = options;
-    this.#retireChannels = retireChannels;
     this.#developmentDefaults = developmentDefaults;
     this.#busyMessageMode = busyMessageMode;
     this.#localSkillTools = localSkillTools;
@@ -590,15 +582,6 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
                 ),
               );
             yield* this.channels.recover();
-            // A failure must not skip the drains below; the next start archives what is left.
-            if (this.#retireChannels)
-              yield* this.channels
-                .retire()
-                .pipe(
-                  Effect.catch((failure) =>
-                    Effect.sync(() => logger.warn("Could not archive the channels.", { error: failure.cause })),
-                  ),
-                );
             this.#channelRoutines.reconcileAll();
             yield* this.#boot.backfillProviderHistory().pipe(Effect.forkIn(this.#scope));
           }).pipe(
@@ -878,7 +861,6 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       },
     });
     this.channels = new ChannelService(store.database, mailbox, {
-      retired: this.#retireChannels,
       agents: () => this.listAgents(),
       hidden: (agentId) => this.#store.isHidden(agentId),
       generate: (lead, prompt) =>

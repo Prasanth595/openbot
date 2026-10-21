@@ -1,7 +1,8 @@
 import { defineMessages } from "../../../message";
 
 export const messages = defineMessages("error.agent", {
-  "error.agent.historyUnavailable": "History is unavailable for this request. Read recent history again.",
+  "error.agent.historyUnavailable":
+    "History is unavailable for this request. Read recent history again, or use channel_history for channel work.",
   "error.agent.toolRequestInvalid":
     "Invalid tool discovery arguments. Use the declared schema and an original qualified tool name.",
   // Agent errors that the main process and the backend send.

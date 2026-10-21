@@ -62,8 +62,6 @@ export const messages = {
   "error.backend.channelMemberUnavailable": "Ein Kanalmitglied ist nicht verfügbar.",
   "error.backend.channelArchived":
     "Stelle diesen Kanal wieder her, bevor du Nachrichten sendest oder Aufgaben änderst.",
-  "error.backend.channelsRetired":
-    "Kanäle werden nicht mehr unterstützt. Lege Agenten in einen Abschnitt der Seitenleiste, damit sie zusammenarbeiten.",
   "error.backend.channelReferenceUnavailable": "Die referenzierte Kanalnachricht ist nicht verfügbar.",
   "error.backend.channelTaskNotFound": "Kanalaufgabe nicht gefunden.",
   "error.backend.channelTaskComplete": "Diese Aufgabe ist bereits abgeschlossen.",

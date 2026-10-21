@@ -1461,7 +1461,6 @@ export async function createApplicationServices({
           getSources: (options) => desktopCapturer.getSources(options),
         }),
     hostMemory,
-    retireChannels: true,
     requestTimeoutMs: 30_000,
     offProviders: providerUse.off(),
     providerAccounts,
@@ -1989,8 +1988,7 @@ export async function createApplicationServices({
     mailbox,
     browser,
     chat: teamChatStore,
-    // No `channels`: channels are deprecated, so the host does not advertise `channel-chats-v1`
-    // and every client hides them. `retireChannels` archives them at start.
+    channels: service.channels,
     // Present, so the host advertises `mcp-servers-v1`. The routes are admin-only.
     mcpServers: service,
     // Present, so the host advertises `mcp-sign-in-v1`. The routes are admin-only.

@@ -56,8 +56,6 @@ export const messages = defineMessages("error.backend", {
   "error.backend.channelNotFound": "Channel not found.",
   "error.backend.channelMemberUnavailable": "A channel member is unavailable.",
   "error.backend.channelArchived": "Restore this channel before sending messages or changing tasks.",
-  "error.backend.channelsRetired":
-    "Channels are no longer supported. Put agents in one sidebar section to make them work together.",
   "error.backend.channelReferenceUnavailable": "The referenced channel message is unavailable.",
   "error.backend.channelTaskNotFound": "Channel task not found.",
   "error.backend.channelTaskComplete": "This task is already complete.",

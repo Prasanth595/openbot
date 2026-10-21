@@ -111,11 +111,6 @@ and the web view that holds the connection does not connect again after Android 
 
 ## Shared channel chats
 
-> **Deprecated.** The application archives every channel at start (`ChannelService.retire`), the host
-> does not advertise `channel-chats-v1`, and agents get no channel tools. The data stays in
-> `openbot.db`. The next release removes the channel code and data. Agents in one sidebar section work
-> together through `section_teammates` in their instructions.
-
 Channels are separate from sidebar sections. A channel has one host, a purpose, participating agents,
 a selected lead, and linked agent conversations. Agent membership selects who can receive work.
 It does not restrict human access: each authenticated server member can read and use its channels.

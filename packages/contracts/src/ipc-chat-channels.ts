@@ -4,8 +4,6 @@ import { type ConversationMessage, isConversationMessage } from "./ipc-conversat
 import { optionalHistoryExtent } from "./ipc-decoding";
 import { type DynamicRecord, isDynamicRecord, isOneOf, isString } from "./runtime-values";
 
-// Deprecated: no host advertises these capabilities, so every client hides channels. The next
-// release removes the channel IPC types.
 export const CHANNEL_CHATS_CAPABILITY = "channel-chats-v1";
 export const CHANNEL_DELETE_CAPABILITY = "channel-delete-v1";
 /**
