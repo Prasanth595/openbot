@@ -16,7 +16,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { scheduleOnRN } from "react-native-worklets";
 import { useMobileSession } from "@/features/auth/context/mobile-session-context";
 import { ServerDrawerContent } from "@/features/servers/components/server-drawer-content";
-import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import {
+  useMobileWorkspaceActions,
+  useMobileWorkspaceSelector,
+} from "@/features/workspace/context/mobile-workspace-context";
 import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
 
@@ -49,7 +52,11 @@ export function AppDrawerShell({ children }: PropsWithChildren) {
   const insets = useSafeAreaInsets();
   const { session } = useMobileSession();
   const { t } = useText();
-  const { activeServer, leaveServer, removeServer, reorderServers, selectServer, servers } = useMobileWorkspace();
+  // The shell holds every screen, so it reads only what the drawer shows: a change elsewhere in the
+  // workspace does not render the drawer again.
+  const activeServerId = useMobileWorkspaceSelector((current) => current.activeServer.id);
+  const servers = useMobileWorkspaceSelector((current) => current.servers);
+  const { leaveServer, removeServer, reorderServers, selectServer } = useMobileWorkspaceActions();
   const [muted] = useThemeColor(["muted"]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const drawerProgress = useSharedValue(0);
@@ -214,7 +221,7 @@ export function AppDrawerShell({ children }: PropsWithChildren) {
             importantForAccessibility={drawerOpen ? "auto" : "no-hide-descendants"}
           >
             <ServerDrawerContent
-              activeServerId={activeServer.id}
+              activeServerId={activeServerId}
               muted={muted}
               open={drawerOpen}
               servers={servers}
