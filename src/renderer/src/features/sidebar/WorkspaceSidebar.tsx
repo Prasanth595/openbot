@@ -157,6 +157,7 @@ export function WorkspaceSidebar(props: { peopleEnabled: boolean }) {
       onSelectChannel={(id) => void channels.open(id)}
       onEditChannel={(id) => void channels.editChannel(id)}
       onDeleteChannel={channels.deletionSupported() ? channels.remove : undefined}
+      onRestoreChannel={channels.deletionSupported() ? channels.restore : undefined}
       showingArchivedChannels={channelsListed() && channels.state.archived}
       onToggleArchivedChannels={channelsListed() ? channels.toggleArchived : undefined}
       onCreateChannel={channelsListed() ? channels.create : undefined}

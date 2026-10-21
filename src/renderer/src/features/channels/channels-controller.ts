@@ -249,7 +249,14 @@ export function createChannelsController(env: ChannelsEnvironment) {
     // A `save` is never dropped: settings commit each field as it is left, and a silently
     // discarded autosave is lost work. The service serializes saves per channel and every
     // command is idempotent on its `operationId`, so letting them queue is safe.
-    if (state.pending && input.type !== "stop" && input.type !== "archive" && input.type !== "save") return false;
+    if (
+      state.pending &&
+      input.type !== "stop" &&
+      input.type !== "archive" &&
+      input.type !== "restore" &&
+      input.type !== "save"
+    )
+      return false;
     pendingCommands += 1;
     const attempt =
       failedCommand &&
@@ -433,6 +440,8 @@ export function createChannelsController(env: ChannelsEnvironment) {
         throw new Error(state.error ?? currentText().t("channel.error.delete"));
       }
     },
+    /** A deleted channel comes back with its history. Its stopped tasks stay stopped. */
+    restore: (channelId: string) => void command({ type: "restore", channelId, operationId: crypto.randomUUID() }),
     command,
     perform,
     loadOlder,

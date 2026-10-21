@@ -57,6 +57,7 @@ export const messages = {
   "sidebar.channelMenu.label": "Ações do canal",
   "sidebar.channelMenu.edit": "Editar canal",
   "sidebar.channelMenu.delete": "Excluir canal",
+  "sidebar.channelMenu.restore": "Restaurar canal",
   "sidebar.channel.noMessages": "Nenhuma mensagem ainda",
   "sidebar.channel.workingPreview": "Trabalhando · {preview}",
   "sidebar.channel.unread": { one: "{count} mensagem não lida", other: "{count} mensagens não lidas" },
@@ -93,7 +94,7 @@ export const messages = {
   "sidebar.delete.agentDescription":
     "Isso remove do aplicativo o agente e sua conversa no OpenBot. A fila, as memórias, as rotinas e o espaço de trabalho são excluídos. O histórico armazenado separadamente pelo provedor de CLI conectado não é excluído.",
   "sidebar.delete.channelDescription":
-    "Isso para o canal. O histórico continua em Canais excluídos, somente para visualização. Você não pode restaurá-lo. Os agentes membros são mantidos.",
+    "Isso para o canal. O histórico continua em Canais excluídos, somente para visualização. Você pode restaurá-lo de lá. Os agentes membros são mantidos.",
   "sidebar.delete.sectionDescription":
     "Os agentes desta seção serão movidos para Sem seção. Nenhum agente será excluído.",
   "sidebar.delete.failed": "Não foi possível excluir este item. Tente novamente.",
