@@ -53,6 +53,9 @@ export function ServerSettingsScreen() {
     canManageConnectors,
     canManageOnePasswordConnector,
     canReadServerStorage,
+    canManageProviders,
+    canManageMcpServers,
+    canViewHostedSites,
   } = useMobileWorkspace();
   const server = useLiveServerRecovery(servers.find((item) => item.id === serverId));
   const update = useServerUpdate(serverId, { poll: false });
@@ -110,6 +113,7 @@ export function ServerSettingsScreen() {
     );
   const memberCount = memberCountByServer[serverId];
   const memberLimit = server.memberLimit ?? DEFAULT_TEAM_MEMBER_LIMIT;
+  const connectors = canManageConnectors(serverId) || canManageOnePasswordConnector(serverId);
   return (
     <SettingsContent>
       {canAdministerServer(server.role) ? <ServerIdentityForm server={server} /> : <ServerHeader server={server} />}
@@ -139,24 +143,33 @@ export function ServerSettingsScreen() {
         >
           <Typography.Paragraph>{t("mobile.server.settings.members")}</Typography.Paragraph>
         </SettingsRow>
-        {canManageConnectors(serverId) || canManageOnePasswordConnector(serverId) ? (
-          <SettingsRow onPress={() => router.push({ pathname: "/server-settings/connectors", params: { serverId } })}>
-            <Typography.Paragraph>{t("mobile.server.settings.connectors")}</Typography.Paragraph>
-          </SettingsRow>
-        ) : null}
-        {canReadServerStorage(serverId) ? (
-          <SettingsRow onPress={() => router.push({ pathname: "/server-settings/storage", params: { serverId } })}>
-            <Typography.Paragraph>{t("mobile.server.settings.storage")}</Typography.Paragraph>
-          </SettingsRow>
-        ) : null}
-        <ServerSitesRow serverId={serverId} />
-        <ServerProvidersRow serverId={serverId} />
-        <ServerMcpRow serverId={serverId} />
-        {update.access || update.query.data ? <ServerUpdatesRow serverId={serverId} update={update} /> : null}
       </SettingsSection>
       <ServerGeneralSettings serverId={serverId} />
+      {/* A section shows only when the host serves one of its pages to this role. */}
+      {canManageProviders(serverId) || canManageMcpServers(serverId) || connectors ? (
+        <SettingsSection title={t("mobile.server.settings.aiSection")}>
+          {canManageProviders(serverId) ? <ServerProvidersRow serverId={serverId} /> : null}
+          {canManageMcpServers(serverId) ? <ServerMcpRow serverId={serverId} /> : null}
+          {connectors ? (
+            <SettingsRow onPress={() => router.push({ pathname: "/server-settings/connectors", params: { serverId } })}>
+              <Typography.Paragraph>{t("mobile.server.settings.connectors")}</Typography.Paragraph>
+            </SettingsRow>
+          ) : null}
+        </SettingsSection>
+      ) : null}
+      {canViewHostedSites(serverId) || canReadServerStorage(serverId) ? (
+        <SettingsSection title={t("mobile.server.settings.dataSection")}>
+          {canViewHostedSites(serverId) ? <ServerSitesRow serverId={serverId} /> : null}
+          {canReadServerStorage(serverId) ? (
+            <SettingsRow onPress={() => router.push({ pathname: "/server-settings/storage", params: { serverId } })}>
+              <Typography.Paragraph>{t("mobile.server.settings.storage")}</Typography.Paragraph>
+            </SettingsRow>
+          ) : null}
+        </SettingsSection>
+      ) : null}
       <ServerNotificationSettings server={server} title={t("mobile.settings.notifications.title")} />
-      <SettingsSection title={t("mobile.server.settings.connection")} footer={error ?? restarted}>
+      <SettingsSection title={t("mobile.server.settings.maintenanceSection")} footer={error ?? restarted}>
+        {update.access || update.query.data ? <ServerUpdatesRow serverId={serverId} update={update} /> : null}
         <SettingsRow disclosure={false} disabled={busy} onPress={() => void perform(() => refreshServer(serverId))}>
           <Typography.Paragraph className="text-accent">
             {busy && !restarting ? t("mobile.server.settings.refreshing") : t("mobile.server.settings.refresh")}
@@ -417,8 +430,7 @@ function ServerUpdatesRow({ serverId, update }: { serverId: string; update: Retu
  */
 function ServerProvidersRow({ serverId }: { serverId: string }) {
   const { t } = useText();
-  const { available, status, rows } = useServerProviders(serverId);
-  if (!available) return null;
+  const { status, rows } = useServerProviders(serverId);
   const connected = rows.filter((row) => row.status?.state === "available").length;
   return (
     <SettingsRow
@@ -437,8 +449,7 @@ function ServerProvidersRow({ serverId }: { serverId: string }) {
 /** The MCP servers row, for an owner or admin of a host that serves `mcp-servers-v1`. */
 function ServerMcpRow({ serverId }: { serverId: string }) {
   const { t } = useText();
-  const { canManage, list } = useMcpServerList(serverId);
-  if (!canManage) return null;
+  const { list } = useMcpServerList(serverId);
   return (
     <SettingsRow
       trailing={
@@ -456,8 +467,7 @@ function ServerMcpRow({ serverId }: { serverId: string }) {
 /** The Sites row, for every member of a host that serves `hosted-sites-v1`. */
 function ServerSitesRow({ serverId }: { serverId: string }) {
   const { t } = useText();
-  const { available, query } = useServerSites(serverId);
-  if (!available) return null;
+  const { query } = useServerSites(serverId);
   const list = query.data;
   return (
     <SettingsRow
