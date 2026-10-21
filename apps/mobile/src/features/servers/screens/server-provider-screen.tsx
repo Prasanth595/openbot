@@ -100,13 +100,16 @@ export function ServerProviderScreen() {
   useEffect(() => {
     active.current = admin && provider && signIn && signIn.kind !== "starting" ? { admin, signIn, provider } : null;
   }, [admin, provider, signIn]);
-  useEffect(
-    () => () => {
+  // A start that answers after the page closed is cancelled where it resolves, in `startSignIn`.
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
       const current = active.current;
       if (current) void cancelSignIn(current.admin, current.provider, current.signIn).catch(() => undefined);
-    },
-    [],
-  );
+    };
+  }, []);
 
   const relayFlow = signIn?.kind === "relay" ? signIn.flowId : null;
   const relayReady = signIn?.kind === "relay" && signIn.page !== null;
@@ -139,7 +142,14 @@ export function ServerProviderScreen() {
           // The user asked for the sign-in with Connect, so the page opens without a second tap.
           void Linking.openURL(page.url).catch(() => setError(currentText().t("mobile.server.providers.openFailed")));
         },
-        () => undefined,
+        // The host forgets a flow that expired or that a restart ended, and refuses its status.
+        (cause: unknown) => {
+          if (!current) return;
+          setSignIn(null);
+          setAddress("");
+          setError(currentText().errorMessage(cause, currentText().t("mobile.server.providers.actionFailed")));
+          void haptics.notification("error");
+        },
       );
     }, RELAY_POLL_MS);
     return () => {
@@ -170,10 +180,18 @@ export function ServerProviderScreen() {
       try {
         if (method === "relay") {
           const flowId = await admin.startRelay(provider);
+          if (!mounted.current) {
+            void admin.cancelRelay(flowId).catch(() => undefined);
+            return;
+          }
           setSignIn({ kind: "relay", flowId, page: null });
           return;
         }
         const started = await admin.startCodeSignIn(provider);
+        if (!mounted.current) {
+          if (started.kind !== "connected") void admin.cancelCodeSignIn(provider).catch(() => undefined);
+          return;
+        }
         if (started.kind === "connected") {
           setSignIn(null);
           await applyStatus(await admin.readStatus());
