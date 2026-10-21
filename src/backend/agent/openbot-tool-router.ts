@@ -18,6 +18,7 @@ import {
   agentQuickAcknowledgementEnabled,
   isMessageReaction,
   marketplaceSuggestionItemType,
+  mcpSignInItemType,
   skillConversationEventItemType,
   workspaceAccessEnforced,
 } from "@openbot/contracts/ipc";
@@ -67,6 +68,7 @@ import { HistoryTools } from "./history-tools";
 import type { HostedSiteCoordinator } from "./hosted-site-coordinator";
 import { isHostedSiteMutationTool } from "./hosted-site-events";
 import type { MailboxSync } from "./mailbox-sync";
+import { type AgentMcpServers, handleMcpServerTool, isMcpServerTool } from "./mcp-tools";
 import {
   listModelsPayload,
   modelList,
@@ -166,6 +168,8 @@ export interface OpenBotToolRouterOptions {
   visualPreview?: ChatVisualPreviewHost | null | undefined;
   /** Captures the desktop for `capture_screen`; null where this process has no desktop. */
   screenCapture?: ScreenCaptureHost | null | undefined;
+  /** The MCP servers of this OpenBot server, for the MCP tools; null where nothing holds them. */
+  mcpServers?: AgentMcpServers | null | undefined;
   hooks: OpenBotToolRouterHooks;
 }
 
@@ -201,6 +205,7 @@ export class OpenBotToolRouter {
   readonly #approvalAutomation: ApprovalAutomationPolicy;
   readonly #visualPreview: ChatVisualPreviewHost | null;
   readonly #screenCapture: ScreenCaptureHost | null;
+  readonly #mcpServers: AgentMcpServers | null;
   readonly #hooks: OpenBotToolRouterHooks;
   readonly #interruptTool: AgentInterruptTool;
 
@@ -233,6 +238,7 @@ export class OpenBotToolRouter {
     this.#approvalAutomation = options.approvalAutomation ?? NO_APPROVAL_AUTOMATION;
     this.#visualPreview = options.visualPreview ?? null;
     this.#screenCapture = options.screenCapture ?? null;
+    this.#mcpServers = options.mcpServers ?? null;
     this.#hooks = options.hooks;
     this.#interruptTool = new AgentInterruptTool({
       store: options.store,
@@ -404,6 +410,11 @@ export class OpenBotToolRouter {
             }
             if (toolRequest.params.tool === "capture_screen" || toolRequest.params.tool === "list_capture_sources") {
               const result = yield* this.#screenCaptureTool(client, toolRequest, toolRequest.params);
+              if (!toolRequest.signal?.aborted && client.running) client.respond(toolRequest.id, result);
+              return;
+            }
+            if (isMcpServerTool(toolRequest.params.tool)) {
+              const result = yield* this.#mcpServerTool(client, toolRequest, toolRequest.params);
               if (!toolRequest.signal?.aborted && client.running) client.respond(toolRequest.id, result);
               return;
             }
@@ -846,31 +857,12 @@ export class OpenBotToolRouter {
       if (!isRecord(args) || !isString(args.app) || !isPluginSlug(args.app)) {
         throw new Error("app must be a Marketplace plugin slug, or github.");
       }
-      const snapshot = structuredClone(this.#conversation.ensureSnapshot(senderAgentId, executionThreadId));
-      const message: ConversationMessage = {
-        id: randomUUID(),
-        turnId: params.turnId,
-        author: "system",
-        source: "system",
-        status: "completed",
-        createdAt: new Date().toISOString(),
+      this.#postSystemCard(senderAgentId, executionThreadId, params.turnId, {
         itemType: marketplaceSuggestionItemType({ appId: args.app }),
         text: sourceText("status.agent.marketplaceSuggested", { app: args.app }),
-      };
-      snapshot.messages.push(message);
-      snapshot.revision = this.#store.database.persistConversationChanges({
-        agentId: senderAgentId,
-        threadId: executionThreadId,
-        activeTurnId: snapshot.activeTurnId,
-        changedMessages: [message],
         eventType: "marketplace.suggested",
-        detail: {
-          appId: args.app,
-        },
+        detail: { appId: args.app },
       });
-      const persisted = snapshot;
-      this.#conversation.setSnapshot(senderAgentId, persisted);
-      this.#conversation.publishConversation(persisted);
       return openBotToolResult({ status: "suggested", app: args.app });
     }
 
@@ -1055,6 +1047,86 @@ export class OpenBotToolRouter {
     if (Result.isFailure(image)) return captureFailure(image.failure);
     return yield* this.#showCapture(agent.id, threadId, params, messageId, image.success);
   });
+
+  /**
+   * The MCP tools. A change waits for the user's approval, given at once for an agent with Full
+   * access, and a server that needs a sign-in gets a card in the conversation. Every failure is a
+   * result the agent can correct, with the MCP secrets masked.
+   */
+  readonly #mcpServerTool = Effect.fn("OpenBotToolRouter.mcpServerTool")(function* (
+    this: OpenBotToolRouter,
+    client: AgentClient,
+    request: AppServerRequest,
+    params: DynamicToolCallParams,
+  ) {
+    const agentId = this.#conversation.agentForThread(params.threadId);
+    const servers = this.#mcpServers;
+    if (!agentId || !servers || !isMcpServerTool(params.tool))
+      return openBotToolFailure(sourceText("error.agent.toolRequestInvalid"));
+    const threadId = this.#conversation.publicThreadId(agentId, params.threadId);
+    return yield* handleMcpServerTool(servers, {
+      tool: params.tool,
+      arguments: params.arguments,
+      approve: (reason) =>
+        this.#attention
+          .awaitToolApproval(client, request, {
+            requestId: request.id,
+            agentId,
+            threadId,
+            turnId: params.turnId,
+            kind: "permissions",
+            command: null,
+            cwd: null,
+            reason,
+            grantRoot: null,
+            permissions: null,
+          })
+          .pipe(
+            Effect.map((decision) => decision === "accept"),
+            toToolOperationFailed,
+          ),
+      requestSignIn: (config) =>
+        toolStep(() =>
+          this.#postSystemCard(agentId, threadId, params.turnId, {
+            itemType: mcpSignInItemType({ mcpServerId: config.id }),
+            text: sourceText("status.agent.mcpSignInRequested", { name: config.name }),
+            eventType: "mcp.sign_in_requested",
+            detail: { mcpServerId: config.id },
+          }),
+        ),
+    });
+  });
+
+  /** Adds a card that the renderer draws from its item type, with `text` for a client that cannot. */
+  #postSystemCard(
+    agentId: string,
+    threadId: string,
+    turnId: string,
+    card: { itemType: string; text: string; eventType: string; detail: { appId: string } | { mcpServerId: string } },
+  ): void {
+    const snapshot = structuredClone(this.#conversation.ensureSnapshot(agentId, threadId));
+    const message: ConversationMessage = {
+      id: randomUUID(),
+      turnId,
+      author: "system",
+      source: "system",
+      status: "completed",
+      createdAt: new Date().toISOString(),
+      itemType: card.itemType,
+      text: card.text,
+    };
+    snapshot.messages.push(message);
+    snapshot.revision = this.#store.database.persistConversationChanges({
+      agentId,
+      threadId,
+      activeTurnId: snapshot.activeTurnId,
+      changedMessages: [message],
+      eventType: card.eventType,
+      detail: card.detail,
+    });
+    this.#conversation.setSnapshot(agentId, snapshot);
+    this.#conversation.publishConversation(snapshot);
+  }
 
   /** What the approval card says. A window that is gone is a result the agent can correct. */
   readonly #captureApprovalReason = Effect.fn("OpenBotToolRouter.captureApprovalReason")(function* (

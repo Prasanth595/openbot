@@ -71,6 +71,7 @@ export * from "./ipc-storage";
 export * from "./ipc-team-host";
 export * from "./ipc-voice";
 export * from "./marketplace-suggestion-events";
+export * from "./mcp-sign-in-events";
 export * from "./mobile-connect";
 export * from "./skill-conversation-events";
 export * from "./ui-blocks";

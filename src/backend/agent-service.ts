@@ -142,6 +142,7 @@ import { type AgentHostedSites, HostedSiteCoordinator } from "./agent/hosted-sit
 import { ImageGenRuntime } from "./agent/image-gen-runtime";
 import { MailboxSync } from "./agent/mailbox-sync";
 import { type GitHubConnectorSource, McpGateway, type TestMcpServerOptions } from "./agent/mcp-gateway";
+import { mcpServersFromGateway } from "./agent/mcp-tools";
 import { MemoryHold } from "./agent/memory-hold";
 import {
   creationModel,
@@ -259,6 +260,11 @@ export interface AgentServiceOptions {
   visualPreview?: ChatVisualPreviewHost | null;
   /** Captures the desktop for `capture_screen`; null where this process has no desktop. */
   screenCapture?: ScreenCaptureHost | null;
+  /**
+   * What an agent's MCP server test waits for first, as the Test button does: the managed tool
+   * runtimes a stdio command may need. Without it the test runs with what this machine holds.
+   */
+  prepareMcpTest?: (config: McpServerConfig) => Effect.Effect<void, unknown>;
   sidebarLayout?: AgentSidebar | null;
   /**
    * What a spawned CLI is given beyond its own binary: the stored keys, and the user's own model
@@ -1221,6 +1227,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       ...(options.approvalAutomation === undefined ? {} : { approvalAutomation: options.approvalAutomation }),
       ...(options.visualPreview === undefined ? {} : { visualPreview: options.visualPreview }),
       ...(options.screenCapture === undefined ? {} : { screenCapture: options.screenCapture }),
+      mcpServers: mcpServersFromGateway(this.#mcp, options.prepareMcpTest),
       hooks: {
         listAgents: () => this.listAgents(),
         listModels: () => this.listModels(),

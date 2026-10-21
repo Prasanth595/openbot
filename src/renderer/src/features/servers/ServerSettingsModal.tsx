@@ -133,6 +133,9 @@ export interface ServerSettingsModalProps {
   onTestMcpServer?: (config: McpServerConfig) => Promise<McpTestResult>;
   /** Browser sign-in for http MCP servers. Only the server on this computer gets it. */
   mcpSignIn?: McpPanelSignIn | undefined;
+  /** An MCP row to sign in to when the list holds it: the user pressed Sign in on an agent's card. */
+  mcpSignInRequest?: string | null | undefined;
+  onMcpSignInRequestHandled?: (() => void) | undefined;
   /**
    * Fired when the MCP section becomes visible. The list is read then, not when the dialog opens,
    * because most visits to this dialog never reach that section.
@@ -704,6 +707,8 @@ export function ServerSettingsModal(props: ServerSettingsModalProps) {
                   Promise.resolve({ toolCount: 0, error: t("mcp.panel.testUnavailable") })
                 }
                 signIn={props.mcpSignIn}
+                signInRequest={props.mcpSignInRequest}
+                onSignInRequestHandled={props.onMcpSignInRequestHandled}
               />
             </Tabs.Content>
           )}

@@ -108,6 +108,10 @@ export interface ServerMcpPanelProps {
    * signs in with the host's browser, and this panel shows that page.
    */
   signIn?: McpPanelSignIn | undefined;
+  /** A row to sign in to as soon as the list holds it: the user pressed Sign in on an agent's card. */
+  signInRequest?: string | null | undefined;
+  /** Called once the panel started the requested sign-in, so it does not start again. */
+  onSignInRequestHandled?: (() => void) | undefined;
 }
 
 export interface McpPanelSignIn {
@@ -431,6 +435,19 @@ export function ServerMcpPanel(props: ServerMcpPanelProps) {
       if (document.activeElement === document.body || document.activeElement === from) urlInput?.focus();
     });
   }
+
+  createEffect(
+    () => {
+      const id = props.signInRequest;
+      const config = id ? props.servers.find((candidate) => candidate.id === id) : undefined;
+      return config && canSignIn(config) ? config : undefined;
+    },
+    (config) => {
+      if (!config) return;
+      props.onSignInRequestHandled?.();
+      void signInRow(config);
+    },
+  );
 
   createEffect(
     () => remotePage()?.rowId,

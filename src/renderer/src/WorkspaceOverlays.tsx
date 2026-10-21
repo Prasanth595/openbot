@@ -388,6 +388,8 @@ function ServerSettings(props: { connectors: ConnectorRegistry }) {
     serverSettingsMcp,
     serverSettingsMcpError,
     serverSettingsMcpSignIns,
+    serverSettingsMcpSignInRequest,
+    clearMcpSignInRequest,
     serverSettingsMcpSignInPages,
     serverSettingsMcpSignInRelays,
     openMcpSignInRelay,
@@ -623,6 +625,8 @@ function ServerSettings(props: { connectors: ConnectorRegistry }) {
           onTestMcpServer={testMcpServer}
           // A remote host with `sign-in-relay-v1` opens the page in this computer's browser. An older
           // host's page shows here through the live view, which streams the active server only.
+          mcpSignInRequest={serverSettingsMcpSignInRequest()}
+          onMcpSignInRequestHandled={clearMcpSignInRequest}
           mcpSignIn={
             server().kind === "local" || remoteMcpSignIn(server())
               ? {
