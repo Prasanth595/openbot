@@ -177,7 +177,13 @@ const probeMcpServerEffect = Effect.fnUntraced(function* (
   // metadata at the origin is what says a sign-in, not a key, is wanted. Only a refusal the sentence
   // would explain is followed up, and only public documents are read: no credential is sent.
   const unexplained = seen.challenge;
-  if (!signIn && signInPlace !== null && unexplained?.status === 401 && !unexplained.bearer)
+  if (
+    !signIn &&
+    signInPlace !== null &&
+    unexplained?.status === 401 &&
+    !unexplained.bearer &&
+    !hasCredentialHeader(config)
+  )
     // The same Test deadline covers the lookup: it gets only the time the connection left.
     seen.challenge = {
       ...unexplained,
@@ -193,7 +199,8 @@ const probeMcpServerEffect = Effect.fnUntraced(function* (
  * The SDK reports a token the server refused right after a sign-in as a bare 401, which would read
  * as "check the API key" to someone who has just signed in. And a server that answers a Bearer
  * challenge to a probe that could not sign in wants a sign-in, not a key: that is what Granola
- * answers, and the header fields alone gave the user no way forward.
+ * answers, and the header fields alone gave the user no way forward. A key pasted into a header
+ * is the exception: Composio Connect ignores a key in the wrong header and sends the same challenge.
  */
 function describeProbeFailure(
   error: unknown,
@@ -207,7 +214,7 @@ function describeProbeFailure(
   if (signIn?.registrationFailed() && isRegistrationRefusal(error)) return REGISTRATION_REFUSED;
   if (signIn && httpStatus(error) === 401) return sourceText("error.backend.mcpSignInNotAccepted");
   // A key the user pasted into a header is theirs to fix; the sign-in would not replace it.
-  if (challenge?.status === 401 && challenge.bearer && !hasAuthorizationHeader(config)) {
+  if (challenge?.status === 401 && challenge.bearer && !hasCredentialHeader(config)) {
     const described = describeSignInChallenge(config.url, challenge.url, signInPlace);
     if (described) return described;
   }
@@ -240,18 +247,21 @@ function httpsAddress(finalUrl: string, url: string): string {
 
 /**
  * What the refusal asks of the user, decided as `describeProbeFailure` words it: a Bearer challenge
- * to a row with no Authorization header of its own wants a sign-in, any other refusal a key. A
+ * to a row with no credential header of its own wants a sign-in, any other refusal a key. A
  * sign-in over plain http needs a new address first, which the error names.
  */
 function probeNeed(config: McpServerConfig, challenge: McpChallenge | null): McpProbeNeed | null {
   if (!challenge || !isAccessRefusal(challenge.status)) return null;
-  if (challenge.status !== 401 || !challenge.bearer || hasAuthorizationHeader(config)) return "key";
+  if (challenge.status !== 401 || !challenge.bearer || hasCredentialHeader(config)) return "key";
   return normalizeResource(config.url) ? "sign_in" : null;
 }
 
-function hasAuthorizationHeader(config: McpServerConfig): boolean {
-  return config.headers.some(({ key }) => key.trim().toLowerCase() === "authorization");
+/** A header whose name says it holds a credential, such as `Authorization` or `x-api-key`, has a value. */
+function hasCredentialHeader(config: McpServerConfig): boolean {
+  return config.headers.some(({ key, value }) => CREDENTIAL_HEADER.test(key) && value.trim().length > 0);
 }
+
+const CREDENTIAL_HEADER = /auth|key|token|secret/i;
 
 /**
  * Every secret this probe could have sent.

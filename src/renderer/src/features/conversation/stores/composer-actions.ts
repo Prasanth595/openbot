@@ -1,3 +1,4 @@
+import { fileQuoteTarget } from "@openbot/contracts/chat-tag-references";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import { type DraftAttachment, LOCAL_SERVER_ID, type QueueDelivery } from "@openbot/contracts/ipc";
 import { TEAM_MESSAGE_CLIENT_ID_CAPABILITY } from "@openbot/contracts/team-protocol/current";
@@ -668,7 +669,9 @@ export function createComposerActions(deps: ComposerActionsDeps) {
   async function sendSelectionInstruction(messageId: string, body: string): Promise<boolean> {
     const target = deps.currentTarget();
     if (!target || deps.submitting() || !deps.agentReady()) return false;
-    queueSend(target, { text: body, attachments: [], replyToMessageId: messageId }, body);
+    // A file passage is in the body as a quote tag; only a message passage makes a reply.
+    const replyToMessageId = fileQuoteTarget(messageId) ? null : messageId;
+    queueSend(target, { text: body, attachments: [], replyToMessageId }, body);
     return true;
   }
 

@@ -3731,6 +3731,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
             delivery.delivery.text,
             delivery.delivery.attachments,
             agentNamesById(this.#store.list()),
+            { fileHeadings: false },
           ) || delivery.delivery.attachments.map((item) => item.name).join(", "),
         )
         .pipe(

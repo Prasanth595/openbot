@@ -1,3 +1,9 @@
+import {
+  type FileQuoteTarget,
+  fileQuoteId,
+  fileQuoteTarget,
+  limitedQuoteText,
+} from "@openbot/contracts/chat-tag-references";
 import type { McpSignInRelayPage, UpdateAgentInput } from "@openbot/contracts/ipc";
 import type { QuoteRequest } from "@openbot/ui/features/conversation/ComposerEditor";
 import { currentText } from "@openbot/ui/text";
@@ -18,7 +24,14 @@ import { useConversationController } from "./conversation-controller-context";
 import { agentConversationKey, composerDraftKey } from "./conversation-keys";
 import { conversationRuntime } from "./conversation-runtime";
 import type { ComposerDraft, ConversationProps, ConversationTarget, SidePanelPane } from "./conversation-types";
-import { clearQuotedTextHighlight, highlightQuotedText, messageTextBlocks } from "./quoted-text";
+import {
+  clearQuotedTextHighlight,
+  filePreviewQuoteId,
+  highlightQuotedText,
+  messageTextBlocks,
+  revealFileQuote,
+  stopRevealingFileQuote,
+} from "./quoted-text";
 import { createActivityStore } from "./stores/activity-store";
 import { createBrowserStore } from "./stores/browser-store";
 import { createComposerActions } from "./stores/composer-actions";
@@ -38,8 +51,6 @@ import { createVoiceConversation } from "./stores/voice-conversation-store";
 import { createVoiceStore } from "./stores/voice-store";
 import { voiceSupported } from "./voice-status";
 
-/** At 9 encoded characters each, this many stays far below the message limit. */
-const QUOTE_TEXT_LIMIT = 2000;
 /** A keyboard or wheel scroll moves the chat within a few frames of its input. */
 const READER_INPUT_WINDOW_MS = 250;
 
@@ -927,15 +938,40 @@ export function createConversationViewScope(props: ConversationProps) {
   );
 
   function quoteSelection(messageId: string, text: string) {
-    // Encoded, a long passage could pass the message limit, and the composer would drop it with the text after it.
-    // The start of the passage is enough to find it again. Code points keep a surrogate pair whole.
-    const quoted = Array.from(text).slice(0, QUOTE_TEXT_LIMIT).join("").trimEnd();
+    // A passage past the message limit would make the composer drop it with the text after it.
+    const quoted = limitedQuoteText(text);
     setQuoteRequest((current) => ({ id: (current?.id ?? 0) + 1, messageId, text: quoted }));
   }
 
-  /** Scrolls to the passage that a quote points to and marks it. */
+  /** Scrolls to the passage that a quote points to and marks it. A file passage opens in the side panel. */
   function openQuote(messageId: string, text: string) {
+    stopRevealingFileQuote();
+    const file = fileQuoteTarget(messageId);
+    if (file) {
+      const shown =
+        filePreviewOpen() && filePreviewQuoteId(sidebarFilePreview()) === fileQuoteId({ ...file, lines: undefined });
+      if (shown || openQuotedFile(file)) revealFileQuote(document, file, text);
+      return;
+    }
     if (!showQuotedText(messageId, text)) void revealQuote(messageId, text);
+  }
+
+  /* An attachment opens from its record, so it must be in a loaded message. */
+  function openQuotedFile(file: FileQuoteTarget): boolean {
+    if (file.source !== "attachment") {
+      if (file.source === "shared") openSharedFile(file.path);
+      else openWorkspaceFile(file.path);
+      return true;
+    }
+    const attachment = props.messages
+      .flatMap((message) => message.attachments ?? [])
+      .find((candidate) => candidate.id === file.attachmentId);
+    if (!attachment) {
+      setScopedComposerError(currentText().t("attachment.error.preview", { name: file.name }));
+      return false;
+    }
+    void previewAttachment(attachment);
+    return true;
   }
 
   /* A row far away is not drawn, and a message outside the loaded pages is loaded first. */
@@ -1070,6 +1106,7 @@ export function createConversationViewScope(props: ConversationProps) {
   );
 
   onCleanup(() => {
+    stopRevealingFileQuote();
     clearQuotedTextHighlight();
     if (latestScrollFrame !== undefined) cancelAnimationFrame(latestScrollFrame);
     if (latestScrollSettleFrame !== undefined) cancelAnimationFrame(latestScrollSettleFrame);
