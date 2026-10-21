@@ -20,6 +20,7 @@ import { join, resolve } from "node:path";
 import {
   type AgentEvent,
   type ChannelMessage,
+  type ChannelTask,
   decodeChannelPage,
   decodeChannelSummaries,
   IPC_ENDPOINTS,
@@ -443,6 +444,49 @@ try {
       channelId: channel.id,
     });
     return { title: notification.title, body: notification.body, opened: lastOpened() };
+  });
+
+  await step("A turn that writes two messages notifies once, when its task ends", async () => {
+    const from = shown.length;
+    const task: ChannelTask = {
+      id: randomUUID(),
+      channelId: channel.id,
+      parentTaskId: null,
+      rootTaskId: "",
+      ownerAgentId: agent.id,
+      requestMessageId: randomUUID(),
+      instruction: "Write the plan.",
+      attachmentDraftIds: [],
+      expectedResult: "",
+      sourceMessageIds: [],
+      dependencies: [],
+      resources: [],
+      state: "running",
+      revision: 1,
+      assignmentCount: 1,
+      error: null,
+    };
+    task.rootTaskId = task.id;
+    const at = (seconds: number) => ({ createdAt: new Date(Date.now() + seconds * 1000).toISOString() });
+    channels.store.update(channels.store.get(channel.id), {
+      messages: [agentMessage(channel.id, agent, "I am on it.", at(1))],
+      tasks: [task],
+    });
+    changed();
+    // The local list and agents are read with no I/O, so the read ends when the queued callbacks run.
+    await new Promise((settled) => setImmediate(settled));
+    const whileRunning = shown.length - from;
+    const notified = nextNotification();
+    channels.store.update(channels.store.get(channel.id), {
+      messages: [agentMessage(channel.id, agent, "The plan is done.", at(2))],
+      tasks: [{ ...task, state: "completed", revision: 2 }],
+    });
+    changed();
+    await notified;
+    await new Promise((settled) => setImmediate(settled));
+    assert.equal(whileRunning, 0, "A reply notified while its task still ran.");
+    assert.equal(shown.length - from, 1, "One turn showed more than one notification.");
+    return { whileRunning, total: shown.length - from };
   });
 
   const prompt = (requestId: number, onThread: string): AgentEvent => ({
