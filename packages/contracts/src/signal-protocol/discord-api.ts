@@ -51,9 +51,11 @@ export interface DiscordInboundAttachment {
 export interface DiscordInboundQuote {
   authorId: string;
   authorName: string;
-  /** Discord markdown. Mentions stay as `<@id>`. */
+  /** Discord markdown. Mentions stay as `<@id>`. Empty when the message has only attachments. */
   content: string;
   sentAt: string;
+  /** Empty from an older Signal. */
+  attachments: DiscordInboundAttachment[];
 }
 
 /** One guild message that mentions OpenBot. */
@@ -244,11 +246,15 @@ function quote(value: unknown): DiscordInboundQuote | null {
   const item = record(value);
   const content = text(item.content);
   if (content.length > QUOTE_DECODE_LIMIT) invalid();
+  // An older Signal sends no attachments.
+  const attachments = item.attachments ?? [];
+  if (!Array.isArray(attachments) || attachments.length > DISCORD_ATTACHMENTS_LIMIT) invalid();
   return {
     authorId: snowflake(item.authorId),
     authorName: text(item.authorName),
     content,
     sentAt: text(item.sentAt),
+    attachments: attachments.map(attachment),
   };
 }
 

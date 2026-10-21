@@ -297,7 +297,13 @@ interface Mention {
   authorName: string;
   roles?: string[];
   content: string;
-  replyTo?: { id: string; authorId: string; authorName: string; content: string };
+  replyTo?: {
+    id: string;
+    authorId: string;
+    authorName: string;
+    content: string;
+    attachments?: { id: string; filename: string; content_type: string; size: number; url: string }[];
+  };
 }
 
 /** One MESSAGE_CREATE that mentions OpenBot, through Signal and the relay. Returns Signal's delivery. */
@@ -321,6 +327,7 @@ async function mention(message: Mention) {
               content: message.replyTo.content,
               timestamp: "2026-10-19T11:40:00.000Z",
               author: { id: message.replyTo.authorId, username: message.replyTo.authorName },
+              attachments: message.replyTo.attachments ?? [],
             },
           }
         : {}),
@@ -561,6 +568,64 @@ try {
       await received(plain);
       assert.doesNotMatch(await promptOf(services, GUILD_ONE, plain, CHANNEL_ONE), /replies to/u);
       return { replyContext: true };
+    });
+
+    await step("a reply to a person's image gives the image to the agent", async () => {
+      const replied = nextId();
+      const id = nextId();
+      const url = `https://cdn.discordapp.com/attachments/${CHANNEL_ONE}/${replied}/screenshot.png`;
+      const image = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+      // The driver downloads the file from Discord's CDN: this answers only that address.
+      const realFetch = globalThis.fetch;
+      globalThis.fetch = Object.assign(
+        (input: string | URL | Request, init?: RequestInit) =>
+          String(input) === url
+            ? Promise.resolve(new Response(image, { headers: { "content-type": "image/png" } }))
+            : realFetch(input, init),
+        realFetch,
+      );
+      try {
+        // The replied-to message has only the image, no text.
+        const delivery = await mention({
+          id,
+          guildId: GUILD_ONE,
+          channelId: CHANNEL_ONE,
+          authorId: KAMIL,
+          authorName: "Kamil",
+          roles: [MAINTAINERS],
+          content: "make an issue for this",
+          replyTo: {
+            id: replied,
+            authorId: ANA,
+            authorName: "Ana",
+            content: "",
+            attachments: [
+              { id: nextId(), filename: "screenshot.png", content_type: "image/png", size: image.byteLength, url },
+            ],
+          },
+        });
+        assert.ok(delivery.kind === "message");
+        assert.deepEqual(
+          delivery.message.replyTo?.quote?.attachments.map((file) => file.url),
+          [url],
+          "Signal did not pass on the replied-to image.",
+        );
+        await received(id);
+        const record = services.threads.store.connectionForWorkspace("discord", GUILD_ONE);
+        assert.ok(record);
+        const context = services.mailbox.deliveryForKey(`messaging:${record.connectionId}:${CHANNEL_ONE}:${id}`);
+        assert.deepEqual(
+          context?.managedAttachments.map((file) => file.name),
+          ["screenshot.png"],
+          "The agent's message has no replied-to image.",
+        );
+        const prompt = await promptOf(services, GUILD_ONE, id, CHANNEL_ONE);
+        assert.match(prompt, /the message this one replies to \(context\) ---\n\[[^\]]+\] Ana: /u);
+        assert.doesNotMatch(prompt, /did not arrive/u);
+        return { repliedImage: true };
+      } finally {
+        globalThis.fetch = realFetch;
+      }
     });
   });
 
