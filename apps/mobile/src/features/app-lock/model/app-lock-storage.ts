@@ -84,7 +84,7 @@ async function derive(pin: string, salt: Uint8Array, iterations: number): Promis
   return pbkdf2Async(sha256, utf8ToBytes(pin), salt, { c: iterations, dkLen: 32 });
 }
 
-export function isValidPin(pin: string): boolean {
+function isValidPin(pin: string): boolean {
   return new RegExp(`^[0-9]{${PIN_LENGTH}}$`).test(pin);
 }
 
