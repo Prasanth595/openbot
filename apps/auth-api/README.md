@@ -134,8 +134,8 @@ git clone git@github.com:nightly-labs/openbot-laser-flow.git apps/auth-api/src/v
 ```
 
 CI checks it out with the read-only deploy key in the `LASER_FLOW_DEPLOY_KEY` secret. Pull request
-previews from forks have no beam. The production deploy stops without the key. Never copy the file
-into this repository.
+previews from forks have no beam. A production deploy, from CI or from `bun run deploy`, stops
+before any change when the port is missing. Never copy the file into this repository.
 
 ## Email delivery
 
