@@ -77,6 +77,12 @@ export const queryKeys = {
   serverInvites: (scope: QueryScope, serverId: string) => ["server-invites", ...scope, serverId],
   serverTimezone: (scope: QueryScope, serverId: string) => ["server-timezone", ...scope, serverId],
   agentMemoryLimit: (scope: QueryScope, serverId: string) => ["agent-memory-limit", ...scope, serverId],
+  serverConnector: (scope: QueryScope, serverId: string, connector: string) => [
+    "server-connector",
+    ...scope,
+    serverId,
+    connector,
+  ],
   serverLogo: (scope: QueryScope, serverId: string, ...logo: [] | [logoKey: string | null]) => [
     "server-logo",
     ...scope,

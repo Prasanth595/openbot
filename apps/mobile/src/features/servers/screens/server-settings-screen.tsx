@@ -7,10 +7,9 @@ import { usePreventRemove } from "expo-router/react-navigation";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
 import Camera from "lucide-react-native/icons/camera";
-import ChevronRight from "lucide-react-native/icons/chevron-right";
 import { useEffect, useRef, useState } from "react";
 import { Alert, Pressable, View } from "react-native";
-import { useCSSVariable, useUniwind } from "uniwind";
+import { useUniwind } from "uniwind";
 import { useMobileSession, useQueryScope } from "@/features/auth/context/mobile-session-context";
 import { ServerNotificationSettings } from "@/features/push-notifications/components/server-notification-settings";
 import { hostedServerCalls } from "@/features/servers/api/hosted-servers";
@@ -24,6 +23,7 @@ import {
   SettingsNote,
   SettingsRow,
   SettingsSection,
+  SettingsTrailingValue,
 } from "@/features/settings/components/settings-content";
 import { SettingsPicker } from "@/features/settings/components/settings-controls";
 import { useMobileWorkspace, useMobileWorkspaceActions } from "@/features/workspace/context/mobile-workspace-context";
@@ -39,8 +39,16 @@ import { currentText, useText } from "@/shared/lib/text";
 export function ServerSettingsScreen() {
   const { t, sourceText, errorMessage } = useText();
   const { serverId } = useLocalSearchParams<{ serverId: string }>();
-  const { servers, memberCountByServer, leaveServer, removeServer, refreshServer, hostedServerStarting } =
-    useMobileWorkspace();
+  const {
+    servers,
+    memberCountByServer,
+    leaveServer,
+    removeServer,
+    refreshServer,
+    hostedServerStarting,
+    canManageConnectors,
+    canManageOnePasswordConnector,
+  } = useMobileWorkspace();
   const server = useLiveServerRecovery(servers.find((item) => item.id === serverId));
   const locked = useRef(false);
   const [busy, setBusy] = useState(false);
@@ -116,7 +124,7 @@ export function ServerSettingsScreen() {
         <SettingsRow
           trailing={
             memberCount === undefined ? undefined : (
-              <TrailingValue
+              <SettingsTrailingValue
                 value={t("mobile.server.settings.memberCount", { count: memberCount, limit: memberLimit })}
               />
             )
@@ -125,6 +133,11 @@ export function ServerSettingsScreen() {
         >
           <Typography.Paragraph>{t("mobile.server.settings.members")}</Typography.Paragraph>
         </SettingsRow>
+        {canManageConnectors(serverId) || canManageOnePasswordConnector(serverId) ? (
+          <SettingsRow onPress={() => router.push({ pathname: "/server-settings/connectors", params: { serverId } })}>
+            <Typography.Paragraph>{t("mobile.server.settings.connectors")}</Typography.Paragraph>
+          </SettingsRow>
+        ) : null}
       </SettingsSection>
       <ServerGeneralSettings serverId={serverId} />
       <ServerNotificationSettings server={server} title={t("mobile.settings.notifications.title")} />
@@ -322,7 +335,7 @@ function ServerGeneralSettings({ serverId }: { serverId: string }) {
         <SettingsRow
           trailing={
             zone ? (
-              <TrailingValue
+              <SettingsTrailingValue
                 value={zone.timezone ? timeZoneLabel(zone.timezone) : t("mobile.server.settings.timezoneAutomatic")}
               />
             ) : undefined
@@ -356,19 +369,6 @@ function ServerGeneralSettings({ serverId }: { serverId: string }) {
         </SettingsRow>
       ) : null}
     </SettingsSection>
-  );
-}
-
-/** A value and the disclosure chevron at the end of a navigation row. */
-function TrailingValue({ value }: { value: string }) {
-  const muted = String(useCSSVariable("--openbot-text-grouped-secondary"));
-  return (
-    <View className="shrink flex-row items-center gap-1" style={{ maxWidth: "60%" }}>
-      <Typography.Paragraph numberOfLines={1} className="shrink text-grouped-secondary">
-        {value}
-      </Typography.Paragraph>
-      <ChevronRight size={18} color={muted} strokeWidth={1.5} />
-    </View>
   );
 }
 

@@ -32,6 +32,13 @@ export default function ServerSettingsLayout() {
       <Stack.Screen name="invite" options={{ title: t("mobile.server.route.invite") }} />
       <Stack.Screen name="member" options={{ title: t("mobile.server.route.member") }} />
       <Stack.Screen name="timezone" options={{ title: t("mobile.server.route.timezone") }} />
+      <Stack.Screen name="connectors" options={{ title: t("mobile.server.route.connectors") }} />
+      {/* The page names its connector. */}
+      <Stack.Screen name="connector" options={{ title: t("mobile.server.route.connectors") }} />
+      <Stack.Screen
+        name="github-repositories"
+        options={{ title: t("mobile.server.connectors.github.repositoriesTitle") }}
+      />
       <Stack.Screen name="crop-logo" options={{ title: t("mobile.server.route.cropLogo") }} />
     </Stack>
   );

@@ -326,6 +326,208 @@ export const messages = {
   "mobile.server.settings.memoryLimitSaveFailed": "メモリー数の上限を保存できませんでした。もう一度お試しください。",
   "mobile.server.settings.memoryLimitUnsupported":
     "ここでメモリー数の上限を変更するには、このサーバーの OpenBot を更新してください。",
+  "mobile.server.route.connectors": "コネクター",
+  "mobile.server.settings.connectors": "コネクター",
+  "mobile.server.connectors.unavailable":
+    "コネクターを管理するには、オーナーまたは管理者としてこのサーバーに接続してください。",
+  "mobile.server.connectors.unsupported": "ここでコネクターを管理するには、このサーバーの OpenBot を更新してください。",
+  "mobile.server.connectors.loading": "コネクターを読み込んでいます…",
+  "mobile.server.connectors.onServer": "{name} 上",
+  "mobile.server.connectors.notSetUp": "未設定",
+  "mobile.server.connectors.available": "利用可能",
+  "mobile.server.connectors.localOnly": "デスクトップアプリのみ",
+  "mobile.server.connectors.statusConnected": "接続済み",
+  "mobile.server.connectors.statusAttention": "対応が必要",
+  "mobile.server.connectors.statusConnecting": "接続中",
+  "mobile.server.connectors.statusNotSetUp": "未設定",
+  "mobile.server.connectors.statusUnknown": "不明",
+  "mobile.server.connectors.statusExpired": "期限切れ",
+  "mobile.server.connectors.statusPaused": "一時停止中",
+  "mobile.server.connectors.readFailed": "この接続の状態を読み取れませんでした。",
+  "mobile.server.connectors.actionFailed": "{name} の接続を変更できませんでした。もう一度お試しください。",
+  "mobile.server.connectors.openFailed": "サーバーから受け取ったページを開けませんでした。",
+  "mobile.server.connectors.reconnect": "再接続",
+  "mobile.server.connectors.disconnect": "切断",
+  "mobile.server.connectors.rowAction": "{action}: {name}",
+  "mobile.server.connectors.answerMessages": "メッセージに回答",
+  "mobile.server.connectors.noAgent": "回答するエージェントはまだいません",
+  "mobile.server.connectors.addAgent": "エージェントを追加",
+  "mobile.server.connectors.later": "後で",
+  "mobile.server.connectors.bitwarden.title": "Bitwarden",
+  "mobile.server.connectors.bitwarden.summary":
+    "Bitwarden のログイン情報をブラウザーに入力します。デスクトップアプリで設定してください。",
+  "mobile.server.connectors.github.title": "GitHub",
+  "mobile.server.connectors.github.summary": "すべてのエージェントにリポジトリ、Issue、プルリクエストを提供",
+  "mobile.server.connectors.github.description":
+    "{host} のすべてのエージェントが、GitHub のリポジトリ、Issue、プルリクエスト、gh と git を使えます。",
+  "mobile.server.connectors.github.unavailable": "このサーバーの OpenBot は GitHub を接続できません。",
+  "mobile.server.connectors.github.connect": "GitHub を接続",
+  "mobile.server.connectors.github.codeTitle": "このコードを GitHub に入力してください",
+  "mobile.server.connectors.github.codeFooter":
+    "コードをコピーして、GitHub のページに入力してください。GitHub での操作が終わると、このページに接続が表示されます。",
+  "mobile.server.connectors.github.copyAndOpen": "コードをコピーして GitHub を開く",
+  "mobile.server.connectors.github.accountTitle": "アカウント",
+  "mobile.server.connectors.github.connectedAs": "@{login} として接続済み",
+  "mobile.server.connectors.github.chooseRepositories": "リポジトリを選ぶ",
+  "mobile.server.connectors.github.repositoriesFooter":
+    "エージェントが使えるのは、OpenBot GitHub App がインストールされたリポジトリだけです。",
+  "mobile.server.connectors.github.repositoriesTitle": "リポジトリ",
+  "mobile.server.connectors.github.repositoriesLoading": "GitHub からリポジトリを読み込んでいます",
+  "mobile.server.connectors.github.repositoriesFailed": "OpenBot は GitHub からリポジトリを読み込めませんでした。",
+  "mobile.server.connectors.github.noRepositories":
+    "OpenBot GitHub App はまだどのリポジトリにもインストールされていません。",
+  "mobile.server.connectors.github.moreRepositories": { other: "ほか {count} 件のリポジトリ" },
+  "mobile.server.connectors.github.private": "非公開",
+  "mobile.server.connectors.github.filterLabel": "リポジトリを絞り込む",
+  "mobile.server.connectors.github.noMatch": "「{query}」に一致するリポジトリはありません。",
+  "mobile.server.connectors.github.expired": "GitHub の接続の有効期限が切れました",
+  "mobile.server.connectors.github.expiredBody":
+    "エージェントが再び GitHub を使えるように、@{login} としてもう一度接続してください。",
+  "mobile.server.connectors.github.disconnect": "GitHub を切断",
+  "mobile.server.connectors.github.disconnectTitle": "GitHub を切断しますか？",
+  "mobile.server.connectors.github.disconnectBody":
+    "{host} から @{login} のサインインが削除され、すべてのエージェントが GitHub のツール、gh、git を使えなくなります。その後 GitHub が開き、OpenBot のアクセスを取り消せます。",
+  "mobile.server.connectors.onePassword.title": "1Password",
+  "mobile.server.connectors.onePassword.summary": "OpenBot ブラウザーでのサインイン用の共有保管庫",
+  "mobile.server.connectors.onePassword.description":
+    "サービスアカウントを通じて専用の 1Password 保管庫を {host} 上の OpenBot と共有すると、{host} のエージェントがそのブラウザーでサイトにサインインできます。",
+  "mobile.server.connectors.onePassword.howItWorks":
+    "1Password.com で、OpenBot と共有する保管庫だけを読み取れるサービスアカウントを作成し、そのトークンをここに貼り付けてください。{host} がトークンを確認して保存します。このスマートフォンには保存されません。エージェントがパスワードを見ることはありません。",
+  "mobile.server.connectors.onePassword.token": "サービスアカウントのトークン",
+  "mobile.server.connectors.onePassword.tokenPlaceholder": "ops_…",
+  "mobile.server.connectors.onePassword.connect": "1Password を接続",
+  "mobile.server.connectors.onePassword.connecting": "接続中…",
+  "mobile.server.connectors.onePassword.connectingBody":
+    "{host} が 1Password に接続しています。{host} で接続を完了してください。",
+  "mobile.server.connectors.onePassword.vaultTitle": "共有保管庫",
+  "mobile.server.connectors.onePassword.vaultFooter":
+    "エージェントにログイン情報でサインインさせるには、1Password でそのログイン情報をこの保管庫に移動してください。やめるには削除してください。",
+  "mobile.server.connectors.onePassword.loginCount": { other: "ログイン情報 {count} 件" },
+  "mobile.server.connectors.onePassword.disconnect": "1Password を切断",
+  "mobile.server.connectors.onePassword.disconnectTitle": "1Password を切断しますか？",
+  "mobile.server.connectors.onePassword.disconnectBody":
+    "{host} はトークンを削除します。保管庫とサービスアカウントは 1Password に残ります。不要になった場合は 1Password で削除してください。",
+  "mobile.server.connectors.slack.title": "Slack",
+  "mobile.server.connectors.slack.summary": "Slack で @OpenBot をメンションします",
+  "mobile.server.connectors.slack.description":
+    "Slack で @OpenBot をメンションするか、ダイレクトメッセージを送ります。Slack Orchestrator が適切なエージェントに依頼して回答します。",
+  "mobile.server.connectors.slack.connected": "{workspace} · Slack Orchestrator が回答します",
+  "mobile.server.connectors.slack.noAgent": "{workspace} · 回答するエージェントはまだいません",
+  "mobile.server.connectors.slack.many": { other: "ワークスペース {count} 件 · Slack Orchestrator が回答します" },
+  "mobile.server.connectors.slack.attention": { other: "{count} 件のワークスペースに対応が必要です" },
+  "mobile.server.connectors.slack.connect": "Slack を接続",
+  "mobile.server.connectors.slack.connectFooter":
+    "ブラウザーで Slack が開きます。右上でワークスペースを選び、「許可する」を押します。OpenBot は OpenBot という名前のアプリを 1 つインストールし、そのアプリはすべての公開チャンネルに参加します。",
+  "mobile.server.connectors.slack.add": "ワークスペースを追加",
+  "mobile.server.connectors.slack.limit": { other: "接続できるワークスペースは最大 {count} 件です。" },
+  "mobile.server.connectors.slack.workspaceTitle": "ワークスペース",
+  "mobile.server.connectors.slack.workspaceDescription":
+    "@OpenBot をメンションするか、ダイレクトメッセージを送ります。",
+  "mobile.server.connectors.slack.missingScopes":
+    "OpenBot には Slack で次の権限がありません: {scopes}。ワークスペースを切断してから、もう一度接続してください。",
+  "mobile.server.connectors.slack.retryAt": "Slack から待機するよう求められました。{time} に再試行します。",
+  "mobile.server.connectors.slack.helpInvalidToken":
+    "Slack はこのワークスペースで OpenBot を受け付けなくなりました。アンインストールされた可能性があります。ワークスペースをもう一度接続してください。",
+  "mobile.server.connectors.slack.helpSecretStorage":
+    "OpenBot は {host} に保存されたトークンを読み取れません。ワークスペースを切断してから、もう一度接続してください。",
+  "mobile.server.connectors.slack.helpRelay":
+    "{host} の OpenBot は Slack のイベントを受信できません。{host} でサインインし、サーバー設定でサーバーに名前を付けて、OpenBot を開いたままにしてください。",
+  "mobile.server.connectors.slack.orchestratorTitle": "Slack Orchestrator",
+  "mobile.server.connectors.slack.orchestratorDescription":
+    "このエージェントは Slack からのすべてのリクエストを受け取ります。短いものには自分で回答し、その他の作業は適切なエージェントに任せて、回答をスレッドに投稿します。",
+  "mobile.server.connectors.slack.orchestratorNone":
+    "Slack Orchestrator を追加してください。追加しないと、Slack に回答が届きません。",
+  "mobile.server.connectors.slack.addAgent": "Slack Orchestrator を追加",
+  "mobile.server.connectors.slack.note":
+    "OpenBot はすべての公開チャンネルと新しいチャンネルに自動で参加します。非公開チャンネルには招待してください: /invite @OpenBot",
+  "mobile.server.connectors.slack.disconnectTitle": "{workspace} を切断しますか？",
+  "mobile.server.connectors.slack.disconnectBody":
+    "OpenBot は {workspace} での回答を停止し、Slack のトークンを {host} から削除します。",
+  "mobile.server.connectors.slack.disconnectKept": "会話と Slack Orchestrator は OpenBot に残ります。",
+  "mobile.server.connectors.slack.disconnectDeleted": "Slack Orchestrator とその会話は OpenBot から削除されます。",
+  "mobile.server.connectors.slack.agentPromptTitle": "Slack Orchestrator を追加しますか？",
+  "mobile.server.connectors.slack.agentPromptBody":
+    "この新しいエージェントは、{workspace} で @OpenBot に送られたすべてのメッセージに回答します。",
+  "mobile.server.connectors.slack.installFailed": "Slack でインストールが完了しませんでした。もう一度お試しください。",
+  "mobile.server.connectors.discord.title": "Discord",
+  "mobile.server.connectors.discord.summary": "Discord サーバーで @OpenBot をメンションします",
+  "mobile.server.connectors.discord.description":
+    "Discord サーバーのチャンネルで @OpenBot をメンションします。Discord Orchestrator が適切なエージェントに依頼して回答します。",
+  "mobile.server.connectors.discord.connected": "{workspace} · Discord Orchestrator が回答します",
+  "mobile.server.connectors.discord.noAgent": "{workspace} · 回答するエージェントはまだいません",
+  "mobile.server.connectors.discord.many": { other: "Discord サーバー {count} 件 · Discord Orchestrator が回答します" },
+  "mobile.server.connectors.discord.attention": { other: "{count} 件の Discord サーバーに対応が必要です" },
+  "mobile.server.connectors.discord.connect": "Discord を接続",
+  "mobile.server.connectors.discord.connectFooter":
+    "ブラウザーで Discord が開きます。Discord サーバーを選び、「認証」を押します。OpenBot は OpenBot という名前のボットを 1 つ追加します。",
+  "mobile.server.connectors.discord.add": "Discord サーバーを追加",
+  "mobile.server.connectors.discord.limit": { other: "接続できる Discord サーバーは最大 {count} 件です。" },
+  "mobile.server.connectors.discord.workspaceTitle": "Discord サーバー",
+  "mobile.server.connectors.discord.workspaceDescription":
+    "チャンネルで @OpenBot をメンションします。続けるには OpenBot に返信します。",
+  "mobile.server.connectors.discord.missingScopes":
+    "OpenBot には Discord で次の権限がありません: {scopes}。Discord サーバーを切断してから、もう一度接続してください。",
+  "mobile.server.connectors.discord.retryAt": "Discord から待機するよう求められました。{time} に再試行します。",
+  "mobile.server.connectors.discord.helpInvalidToken":
+    "Discord はこの Discord サーバーで OpenBot を受け付けなくなりました。削除された可能性があります。Discord サーバーをもう一度接続してください。",
+  "mobile.server.connectors.discord.helpSecretStorage":
+    "OpenBot は {host} に保存されたトークンを読み取れません。Discord サーバーを切断してから、もう一度接続してください。",
+  "mobile.server.connectors.discord.helpRelay":
+    "{host} の OpenBot は Discord のイベントを受信できません。{host} でサインインし、サーバー設定でサーバーに名前を付けて、OpenBot を開いたままにしてください。",
+  "mobile.server.connectors.discord.orchestratorTitle": "Discord Orchestrator",
+  "mobile.server.connectors.discord.orchestratorDescription":
+    "このエージェントは Discord からのすべてのリクエストを受け取ります。短いものには自分で回答し、その他の作業は適切なエージェントに任せて、チャンネルで回答を返信します。",
+  "mobile.server.connectors.discord.orchestratorNone":
+    "Discord Orchestrator を追加してください。追加しないと、Discord に回答が届きません。",
+  "mobile.server.connectors.discord.addAgent": "Discord Orchestrator を追加",
+  "mobile.server.connectors.discord.note": "OpenBot には、そのロールが閲覧できるチャンネルが見えます。",
+  "mobile.server.connectors.discord.disconnectTitle": "{workspace} を切断しますか？",
+  "mobile.server.connectors.discord.disconnectBody":
+    "OpenBot は {workspace} での回答を停止し、Discord の接続を {host} から削除します。",
+  "mobile.server.connectors.discord.disconnectKept": "会話と Discord Orchestrator は OpenBot に残ります。",
+  "mobile.server.connectors.discord.disconnectDeleted": "Discord Orchestrator とその会話は OpenBot から削除されます。",
+  "mobile.server.connectors.discord.agentPromptTitle": "Discord Orchestrator を追加しますか？",
+  "mobile.server.connectors.discord.agentPromptBody":
+    "この新しいエージェントは、{workspace} で @OpenBot に送られたすべてのメッセージに回答します。",
+  "mobile.server.connectors.discord.installFailed": "Discord で認証が完了しませんでした。もう一度お試しください。",
+  "mobile.server.connectors.telegram.title": "Telegram",
+  "mobile.server.connectors.telegram.summary": "OpenBot ボットを Telegram チャットに追加します",
+  "mobile.server.connectors.telegram.description":
+    "OpenBot ボットを Telegram グループに追加するか、ボットとのダイレクトチャットを開きます。Telegram Orchestrator が適切なエージェントに依頼して回答します。",
+  "mobile.server.connectors.telegram.connected": { other: "チャット {count} 件 · Telegram Orchestrator が回答します" },
+  "mobile.server.connectors.telegram.noAgent": { other: "チャット {count} 件 · 回答するエージェントはまだいません" },
+  "mobile.server.connectors.telegram.attention": { other: "{count} 件のチャットに対応が必要です" },
+  "mobile.server.connectors.telegram.groupTitle": "グループ",
+  "mobile.server.connectors.telegram.directTitle": "ダイレクトチャット",
+  "mobile.server.connectors.telegram.groupDescription": "ボットをメンションするか、ボットのメッセージに返信します。",
+  "mobile.server.connectors.telegram.directDescription":
+    "このチャットのすべてのメッセージが Telegram Orchestrator に届きます。",
+  "mobile.server.connectors.telegram.helpRemoved":
+    "OpenBot ボットはこのチャットにいません。チャットを切断してから、ボットをもう一度追加してください。",
+  "mobile.server.connectors.telegram.helpRelay":
+    "{host} の OpenBot は Telegram のメッセージを受信できません。{host} でサインインし、サーバー設定でサーバーに名前を付けて、OpenBot を開いたままにしてください。",
+  "mobile.server.connectors.telegram.helpError":
+    "OpenBot はこのチャットに接続できません。再接続するか、チャットを切断してください。",
+  "mobile.server.connectors.telegram.retryAt": "Telegram から待機するよう求められました。{time} に再試行します。",
+  "mobile.server.connectors.telegram.linkTitle": "チャットをリンク",
+  "mobile.server.connectors.telegram.linkAnother": "別のチャットをリンク",
+  "mobile.server.connectors.telegram.linkFooter":
+    "Telegram が開きます。グループを選ぶか、ダイレクトチャットで「開始」を押します。リンクされると、チャットがここに表示されます。",
+  "mobile.server.connectors.telegram.limit": { other: "リンクできるチャットは最大 {count} 件です。" },
+  "mobile.server.connectors.telegram.addToGroup": "グループに追加",
+  "mobile.server.connectors.telegram.openDirectChat": "ダイレクトチャットを開く",
+  "mobile.server.connectors.telegram.orchestratorTitle": "Telegram Orchestrator",
+  "mobile.server.connectors.telegram.orchestratorDescription":
+    "このエージェントは、すべての Telegram チャットから OpenBot 宛てのメッセージを受け取ります。短いものには自分で回答し、その他の作業は適切なエージェントに任せて、回答をチャットに投稿します。",
+  "mobile.server.connectors.telegram.orchestratorNone":
+    "Telegram Orchestrator を追加してください。追加しないと、Telegram に回答が届きません。",
+  "mobile.server.connectors.telegram.addAgent": "Telegram Orchestrator を追加",
+  "mobile.server.connectors.telegram.disconnectTitle": "{chat} を切断しますか？",
+  "mobile.server.connectors.telegram.disconnectBody":
+    "OpenBot ボットは {chat} から退出し、OpenBot はそこでの回答を停止します。",
+  "mobile.server.connectors.telegram.disconnectKept": "会話と Telegram Orchestrator は OpenBot に残ります。",
+  "mobile.server.connectors.telegram.disconnectDeleted":
+    "これが最後のチャットのため、Telegram Orchestrator とその会話は OpenBot から削除されます。",
   "mobile.server.usage.agents": "エージェント",
   "mobile.server.usage.agentLine": "トークン数 {tokens} · {cost} · {percent}",
   "mobile.server.usage.noAgents": "この期間にはエージェントの使用量が記録されていません。",

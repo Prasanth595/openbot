@@ -1,6 +1,7 @@
 import type { AttachmentSupport } from "@openbot/contracts/attachment-files";
 import type {
   AddedAgent,
+  AddMessagingOrchestratorResult,
   AgentAdminSettings,
   AgentAnalytics,
   AgentAnalyticsInput,
@@ -25,13 +26,22 @@ import type {
   CreateAgentInput,
   CreateRoutineInput,
   DraftAttachment,
+  GitHubConnectorRepositories,
+  HostAddMessagingOrchestratorInput,
   HostAgentMemoryLimit,
   HostAnalytics,
   HostAnalyticsInput,
+  HostGitHubConnectorStatus,
+  HostMessagingConnectInput,
+  HostMessagingWorkspaceInput,
   HostProviderAccounts,
+  HostSetMessagingEnabledInput,
   HostTimezoneSettings,
   InstallAgentTemplateInput,
   InstalledSkill,
+  MessagingOverview,
+  MessagingPlatform,
+  OnePasswordConnectorStatus,
   QueuedMessageReceipt,
   QueueSnapshot,
   ResetAgentSessionSettingInput,
@@ -69,6 +79,7 @@ import type {
 import type { QueueEditRequest } from "@openbot/contracts/team-protocol/queue-edit-v1";
 import type { RemoteConnectionFailure, RemoteRecoveryStatus, RemoteTeamDirectoryClient } from "@openbot/team-client";
 import type { RemoteFileUpload } from "@openbot/team-client/remote-peer";
+import type { MessagingConnectorPage } from "@openbot/team-client/team-admin-requests";
 import type { MobileBrowserTab } from "@/features/browser/model/browser-tabs";
 import type { BrowserViewBridgeEvent, RemoteBrowserViewSession } from "@/features/browser/model/browser-view-bridge";
 import type { MobileConversationStore } from "./conversation-store";
@@ -125,6 +136,9 @@ export interface MobileAgent {
   avatarSeed: string;
   avatarHue: AvatarHue | null;
 }
+
+/** The `connectors-v1` routes that answer the host's GitHub connection status. */
+export type GitHubConnectorRoute = "githubStatus" | "githubConnect" | "githubCancel" | "githubDisconnect";
 
 type ToggleAgentPinResult = "pinned" | "unpinned" | "error";
 
@@ -240,6 +254,37 @@ export interface MobileWorkspaceContextValue {
   /** How many memories each agent of the server can keep, and the values that the host permits. */
   loadAgentMemoryLimit: (serverId: string) => Promise<HostAgentMemoryLimit>;
   setAgentMemoryLimit: (limit: number, serverId: string) => Promise<HostAgentMemoryLimit>;
+  /**
+   * An owner or admin of an online host that serves `connectors-v1`: its Slack, Discord, Telegram and
+   * GitHub connections. The host checks the role again.
+   */
+  canManageConnectors: (serverId: string) => boolean;
+  /** The same for the host's 1Password connection (`onepassword-connector-v1`). */
+  canManageOnePasswordConnector: (serverId: string) => boolean;
+  /** Reads or changes the host's GitHub connection. The answer names the GitHub pages that the phone opens. */
+  githubConnector: (route: GitHubConnectorRoute, serverId: string) => Promise<HostGitHubConnectorStatus>;
+  /** The repositories where the host's GitHub App is installed. The host reads them from GitHub. */
+  loadGitHubRepositories: (serverId: string) => Promise<GitHubConnectorRepositories>;
+  loadOnePasswordConnector: (serverId: string) => Promise<OnePasswordConnectorStatus>;
+  /** The token goes to the host once. No answer carries it. */
+  connectOnePassword: (token: string, serverId: string) => Promise<OnePasswordConnectorStatus>;
+  disconnectOnePassword: (serverId: string) => Promise<OnePasswordConnectorStatus>;
+  loadMessagingConnections: (platform: MessagingPlatform, serverId: string) => Promise<MessagingOverview>;
+  /** The platform's page that the phone opens. The host opens no page. */
+  connectMessaging: (input: HostMessagingConnectInput, serverId: string) => Promise<MessagingConnectorPage>;
+  /** Sends the sealed grant of a Slack or Discord install to the host that started it. */
+  completeMessagingInstall: (
+    input: { platform: "slack" | "discord"; nonce: string; grant: string },
+    serverId: string,
+  ) => Promise<boolean>;
+  reconnectMessaging: (input: HostMessagingWorkspaceInput, serverId: string) => Promise<MessagingConnectorPage>;
+  disconnectMessaging: (input: HostMessagingWorkspaceInput, serverId: string) => Promise<void>;
+  setMessagingEnabled: (input: HostSetMessagingEnabledInput, serverId: string) => Promise<void>;
+  /** Creates the orchestrator agent on the host's default provider and model. */
+  addMessagingOrchestrator: (
+    input: HostAddMessagingOrchestratorInput,
+    serverId: string,
+  ) => Promise<AddMessagingOrchestratorResult>;
   addRemoteServer: (input: AddRemoteServerInput) => Promise<string>;
   /** Creates an agent on the active server and returns its id. */
   createAgent: (input: CreateAgentInput) => Promise<string>;
@@ -456,6 +501,8 @@ type MobileWorkspaceStateKey =
   | "canEditServerIdentity"
   | "canManageServerTimezone"
   | "canManageAgentMemoryLimit"
+  | "canManageConnectors"
+  | "canManageOnePasswordConnector"
   | "canSendNotifications"
   | "canManageEvents"
   | "canManageAgentSkills"

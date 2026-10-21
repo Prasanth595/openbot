@@ -333,6 +333,240 @@ export const messages = {
   "mobile.server.settings.memoryLimitSaveFailed": "Anı sınırı kaydedilemedi. Tekrar deneyin.",
   "mobile.server.settings.memoryLimitUnsupported":
     "Anı sınırını burada değiştirmek için bu sunucudaki OpenBot'u güncelleyin.",
+  "mobile.server.route.connectors": "Bağlayıcılar",
+  "mobile.server.settings.connectors": "Bağlayıcılar",
+  "mobile.server.connectors.unavailable":
+    "Bağlayıcılarını yönetmek için bu sunucuya sahip veya yönetici olarak bağlanın.",
+  "mobile.server.connectors.unsupported": "Bağlayıcılarını burada yönetmek için bu sunucudaki OpenBot'u güncelleyin.",
+  "mobile.server.connectors.loading": "Bağlayıcılar yükleniyor…",
+  "mobile.server.connectors.onServer": "{name} üzerinde",
+  "mobile.server.connectors.notSetUp": "Ayarlanmadı",
+  "mobile.server.connectors.available": "Kullanılabilir",
+  "mobile.server.connectors.localOnly": "Yalnızca masaüstü uygulaması",
+  "mobile.server.connectors.statusConnected": "Bağlandı",
+  "mobile.server.connectors.statusAttention": "Dikkat gerekiyor",
+  "mobile.server.connectors.statusConnecting": "Bağlanıyor",
+  "mobile.server.connectors.statusNotSetUp": "Ayarlanmadı",
+  "mobile.server.connectors.statusUnknown": "Bilinmiyor",
+  "mobile.server.connectors.statusExpired": "Süresi doldu",
+  "mobile.server.connectors.statusPaused": "Duraklatıldı",
+  "mobile.server.connectors.readFailed": "Bu bağlantının durumu okunamadı.",
+  "mobile.server.connectors.actionFailed": "{name} bağlantısı değiştirilemedi. Tekrar deneyin.",
+  "mobile.server.connectors.openFailed": "Sunucunun verdiği sayfa açılamadı.",
+  "mobile.server.connectors.reconnect": "Yeniden bağlan",
+  "mobile.server.connectors.disconnect": "Bağlantıyı kes",
+  "mobile.server.connectors.rowAction": "{action}: {name}",
+  "mobile.server.connectors.answerMessages": "Mesajları yanıtla",
+  "mobile.server.connectors.noAgent": "Henüz yanıt veren bir ajan yok",
+  "mobile.server.connectors.addAgent": "Ajan ekle",
+  "mobile.server.connectors.later": "Daha sonra",
+  "mobile.server.connectors.bitwarden.title": "Bitwarden",
+  "mobile.server.connectors.bitwarden.summary":
+    "Tarayıcı girişlerini Bitwarden'dan doldurur. Masaüstü uygulamasında kurun.",
+  "mobile.server.connectors.github.title": "GitHub",
+  "mobile.server.connectors.github.summary": "Her ajan için depolar, sorunlar ve çekme istekleri",
+  "mobile.server.connectors.github.description":
+    "{host} sunucusundaki her ajan GitHub depolarınızı, sorunlarınızı (issues), çekme isteklerinizi (pull requests), gh ve git araçlarını kullanabilir.",
+  "mobile.server.connectors.github.unavailable": "Bu sunucudaki OpenBot GitHub'ı bağlayamıyor.",
+  "mobile.server.connectors.github.connect": "GitHub'a bağlan",
+  "mobile.server.connectors.github.codeTitle": "Bu kodu GitHub'a yazın",
+  "mobile.server.connectors.github.codeFooter":
+    "Kodu kopyalayın, ardından GitHub sayfasına yazın. GitHub işlemi bitirdiğinde bu sayfa bağlantıyı gösterir.",
+  "mobile.server.connectors.github.copyAndOpen": "Kodu kopyala ve GitHub'ı aç",
+  "mobile.server.connectors.github.accountTitle": "Hesap",
+  "mobile.server.connectors.github.connectedAs": "@{login} olarak bağlandı",
+  "mobile.server.connectors.github.chooseRepositories": "Depoları seç",
+  "mobile.server.connectors.github.repositoriesFooter":
+    "Ajanlar yalnızca OpenBot GitHub Uygulamasının yüklü olduğu depoları kullanabilir.",
+  "mobile.server.connectors.github.repositoriesTitle": "Depolar",
+  "mobile.server.connectors.github.repositoriesLoading": "Depolar GitHub'dan okunuyor",
+  "mobile.server.connectors.github.repositoriesFailed": "OpenBot depoları GitHub'dan okuyamadı.",
+  "mobile.server.connectors.github.noRepositories": "OpenBot GitHub Uygulaması henüz bir depoya yüklenmedi.",
+  "mobile.server.connectors.github.moreRepositories": {
+    one: "Ve {count} depo daha",
+    other: "Ve {count} depo daha",
+  },
+  "mobile.server.connectors.github.private": "Özel",
+  "mobile.server.connectors.github.filterLabel": "Depoları filtrele",
+  "mobile.server.connectors.github.noMatch": "“{query}” ile eşleşen depo bulunamadı.",
+  "mobile.server.connectors.github.expired": "GitHub bağlantısının süresi doldu",
+  "mobile.server.connectors.github.expiredBody":
+    "Ajanlara yeniden GitHub erişimi vermek için @{login} olarak tekrar bağlanın.",
+  "mobile.server.connectors.github.disconnect": "GitHub bağlantısını kes",
+  "mobile.server.connectors.github.disconnectTitle": "GitHub bağlantısı kesilsin mi?",
+  "mobile.server.connectors.github.disconnectBody":
+    "Bu işlem @{login} oturumunu {host} üzerinden kaldırır ve tüm ajanlar GitHub araçlarını, gh ve git erişimini kaybeder. Ardından OpenBot yetkisini kaldırabileceğiniz GitHub açılır.",
+  "mobile.server.connectors.onePassword.title": "1Password",
+  "mobile.server.connectors.onePassword.summary": "OpenBot tarayıcısındaki girişler için paylaşılan bir kasa",
+  "mobile.server.connectors.onePassword.description":
+    "Ayrı bir 1Password kasasını bir hizmet hesabıyla {host} üzerindeki OpenBot ile paylaşın; böylece {host} üzerindeki ajanlar onun tarayıcısında sitelere oturum açabilir.",
+  "mobile.server.connectors.onePassword.howItWorks":
+    "1Password.com'da yalnızca OpenBot ile paylaştığınız kasayı okuyabilen bir hizmet hesabı oluşturun ve belirtecini buraya yapıştırın. {host} belirteci denetler ve saklar; bu telefon saklamaz. Ajanlar hiçbir zaman parola görmez.",
+  "mobile.server.connectors.onePassword.token": "Hizmet hesabı belirteci",
+  "mobile.server.connectors.onePassword.tokenPlaceholder": "ops_…",
+  "mobile.server.connectors.onePassword.connect": "1Password'e bağlan",
+  "mobile.server.connectors.onePassword.connecting": "Bağlanıyor…",
+  "mobile.server.connectors.onePassword.connectingBody":
+    "{host} 1Password'e bağlanıyor. Bağlantıyı {host} üzerinde tamamlayın.",
+  "mobile.server.connectors.onePassword.vaultTitle": "Paylaşılan kasa",
+  "mobile.server.connectors.onePassword.vaultFooter":
+    "Ajanların bir girişle oturum açmasına izin vermek için girişi 1Password'de bu kasaya taşıyın. Durdurmak için kaldırın.",
+  "mobile.server.connectors.onePassword.loginCount": { one: "{count} giriş", other: "{count} giriş" },
+  "mobile.server.connectors.onePassword.disconnect": "1Password bağlantısını kes",
+  "mobile.server.connectors.onePassword.disconnectTitle": "1Password bağlantısı kesilsin mi?",
+  "mobile.server.connectors.onePassword.disconnectBody":
+    "{host} belirteci unutur. Kasa ve hizmet hesabı 1Password'de kalır; artık gerekmiyorsa onları orada kaldırın.",
+  "mobile.server.connectors.slack.title": "Slack",
+  "mobile.server.connectors.slack.summary": "Kullanıcılar Slack'te @OpenBot'tan bahseder",
+  "mobile.server.connectors.slack.description":
+    "Kullanıcılar Slack'te @OpenBot'tan bahseder veya doğrudan mesaj gönderir. Slack Düzenleyicisi doğru ajana sorar ve yanıtlar.",
+  "mobile.server.connectors.slack.connected": "{workspace} · Slack Düzenleyicisi yanıtlıyor",
+  "mobile.server.connectors.slack.noAgent": "{workspace} · Henüz yanıt veren bir ajan yok",
+  "mobile.server.connectors.slack.many": {
+    one: "{count} çalışma alanı · Slack Düzenleyicisi yanıtlıyor",
+    other: "{count} çalışma alanı · Slack Düzenleyicisi yanıtlıyor",
+  },
+  "mobile.server.connectors.slack.attention": {
+    one: "{count} çalışma alanı için işlem gerekiyor",
+    other: "{count} çalışma alanı için işlem gerekiyor",
+  },
+  "mobile.server.connectors.slack.connect": "Slack'e bağlan",
+  "mobile.server.connectors.slack.connectFooter":
+    "Slack bir tarayıcıda açılır. Sağ üst köşeden çalışma alanını seçin, ardından İzin Ver'e dokunun. OpenBot, OpenBot adında bir uygulama yükler ve bu uygulama her genel kanala katılır.",
+  "mobile.server.connectors.slack.add": "Çalışma alanı ekle",
+  "mobile.server.connectors.slack.limit": {
+    one: "En fazla {count} çalışma alanı bağlayabilirsiniz.",
+    other: "En fazla {count} çalışma alanı bağlayabilirsiniz.",
+  },
+  "mobile.server.connectors.slack.workspaceTitle": "Çalışma alanı",
+  "mobile.server.connectors.slack.workspaceDescription":
+    "Kullanıcılar @OpenBot'tan bahseder veya doğrudan mesaj gönderir.",
+  "mobile.server.connectors.slack.missingScopes":
+    "OpenBot Slack'te şu izinlere sahip değil: {scopes}. Çalışma alanı bağlantısını kesin, ardından tekrar bağlayın.",
+  "mobile.server.connectors.slack.retryAt": "Slack OpenBot'tan beklemesini istedi. {time} saatinde tekrar deneyecek.",
+  "mobile.server.connectors.slack.helpInvalidToken":
+    "Slack artık bu çalışma alanında OpenBot'u kabul etmiyor. Kaldırılmış olabilir. Çalışma alanını tekrar bağlayın.",
+  "mobile.server.connectors.slack.helpSecretStorage":
+    "OpenBot {host} üzerindeki kayıtlı belirteçleri okuyamıyor. Çalışma alanı bağlantısını kesin, ardından tekrar bağlayın.",
+  "mobile.server.connectors.slack.helpRelay":
+    "{host} üzerindeki OpenBot Slack etkinliklerini alamıyor. {host} üzerinde oturum açın, Sunucu ayarlarında sunucuya bir ad verin ve OpenBot'u açık tutun.",
+  "mobile.server.connectors.slack.orchestratorTitle": "Slack Düzenleyicisi",
+  "mobile.server.connectors.slack.orchestratorDescription":
+    "Bu ajan Slack'ten gelen her isteği alır. Kısa olanları kendisi yanıtlar, diğer işleri doğru ajana iletir ve yanıtı ileti dizisinde paylaşır.",
+  "mobile.server.connectors.slack.orchestratorNone": "Slack Düzenleyicisini ekleyin, aksi takdirde Slack yanıt alamaz.",
+  "mobile.server.connectors.slack.addAgent": "Slack Düzenleyicisini ekle",
+  "mobile.server.connectors.slack.note":
+    "OpenBot her genel kanala ve her yeni kanala kendiliğinden katılır. Özel bir kanal için onu davet edin: /invite @OpenBot.",
+  "mobile.server.connectors.slack.disconnectTitle": "{workspace} bağlantısı kesilsin mi?",
+  "mobile.server.connectors.slack.disconnectBody":
+    "OpenBot {workspace} içinde yanıt vermeyi durdurur ve Slack belirtecini {host} sunucusundan kaldırır.",
+  "mobile.server.connectors.slack.disconnectKept": "Konuşmalar ve Slack Düzenleyicisi OpenBot'ta kalır.",
+  "mobile.server.connectors.slack.disconnectDeleted": "Slack Düzenleyicisi ve konuşmaları OpenBot'tan silinir.",
+  "mobile.server.connectors.slack.agentPromptTitle": "Slack Düzenleyicisi eklensin mi?",
+  "mobile.server.connectors.slack.agentPromptBody":
+    "Bu yeni ajan, {workspace} içinde @OpenBot'a gönderilen her şeyi yanıtlar.",
+  "mobile.server.connectors.slack.installFailed": "Slack yüklemeyi tamamlamadı. Tekrar deneyin.",
+  "mobile.server.connectors.discord.title": "Discord",
+  "mobile.server.connectors.discord.summary": "Kullanıcılar bir Discord sunucusunda @OpenBot'tan bahseder",
+  "mobile.server.connectors.discord.description":
+    "Kullanıcılar bir Discord sunucusunun kanalında @OpenBot'tan bahseder. Discord Düzenleyicisi doğru ajana sorar ve yanıtlar.",
+  "mobile.server.connectors.discord.connected": "{workspace} · Discord Düzenleyicisi yanıtlıyor",
+  "mobile.server.connectors.discord.noAgent": "{workspace} · Henüz yanıt veren bir ajan yok",
+  "mobile.server.connectors.discord.many": {
+    one: "{count} Discord sunucusu · Discord Düzenleyicisi yanıtlıyor",
+    other: "{count} Discord sunucusu · Discord Düzenleyicisi yanıtlıyor",
+  },
+  "mobile.server.connectors.discord.attention": {
+    one: "{count} Discord sunucusu için işlem gerekiyor",
+    other: "{count} Discord sunucusu için işlem gerekiyor",
+  },
+  "mobile.server.connectors.discord.connect": "Discord'a bağlan",
+  "mobile.server.connectors.discord.connectFooter":
+    "Discord bir tarayıcıda açılır. Discord sunucusunu seçin, ardından Yetkilendir'e dokunun. OpenBot, OpenBot adında bir bot ekler.",
+  "mobile.server.connectors.discord.add": "Discord sunucusu ekle",
+  "mobile.server.connectors.discord.limit": {
+    one: "En fazla {count} Discord sunucusu bağlayabilirsiniz.",
+    other: "En fazla {count} Discord sunucusu bağlayabilirsiniz.",
+  },
+  "mobile.server.connectors.discord.workspaceTitle": "Discord sunucusu",
+  "mobile.server.connectors.discord.workspaceDescription":
+    "Bir kanalda @OpenBot'tan bahsedin. Devam etmek için OpenBot'a yanıt verin.",
+  "mobile.server.connectors.discord.missingScopes":
+    "OpenBot Discord'da şu izinlere sahip değil: {scopes}. Discord sunucusu bağlantısını kesin, ardından tekrar bağlayın.",
+  "mobile.server.connectors.discord.retryAt":
+    "Discord OpenBot'tan beklemesini istedi. {time} saatinde tekrar deneyecek.",
+  "mobile.server.connectors.discord.helpInvalidToken":
+    "Discord artık bu Discord sunucusunda OpenBot'u kabul etmiyor. Kaldırılmış olabilir. Discord sunucusunu tekrar bağlayın.",
+  "mobile.server.connectors.discord.helpSecretStorage":
+    "OpenBot {host} üzerindeki kayıtlı belirteçleri okuyamıyor. Discord sunucusu bağlantısını kesin, ardından tekrar bağlayın.",
+  "mobile.server.connectors.discord.helpRelay":
+    "{host} üzerindeki OpenBot Discord etkinliklerini alamıyor. {host} üzerinde oturum açın, Sunucu ayarlarında sunucuya bir ad verin ve OpenBot'u açık tutun.",
+  "mobile.server.connectors.discord.orchestratorTitle": "Discord Düzenleyicisi",
+  "mobile.server.connectors.discord.orchestratorDescription":
+    "Bu ajan Discord'dan gelen her isteği alır. Kısa olanları kendisi yanıtlar, diğer işleri doğru ajana iletir ve yanıtı kanalda verir.",
+  "mobile.server.connectors.discord.orchestratorNone":
+    "Discord Düzenleyicisini ekleyin, aksi takdirde Discord yanıt alamaz.",
+  "mobile.server.connectors.discord.addAgent": "Discord Düzenleyicisini ekle",
+  "mobile.server.connectors.discord.note": "OpenBot, rolünün görebildiği kanalları görür.",
+  "mobile.server.connectors.discord.disconnectTitle": "{workspace} bağlantısı kesilsin mi?",
+  "mobile.server.connectors.discord.disconnectBody":
+    "OpenBot {workspace} içinde yanıt vermeyi bırakır ve Discord bağlantısını {host} sunucusundan kaldırır.",
+  "mobile.server.connectors.discord.disconnectKept": "Konuşmalar ve Discord Düzenleyicisi OpenBot'ta kalır.",
+  "mobile.server.connectors.discord.disconnectDeleted": "Discord Düzenleyicisi ve konuşmaları OpenBot'tan silinir.",
+  "mobile.server.connectors.discord.agentPromptTitle": "Discord Düzenleyicisi eklensin mi?",
+  "mobile.server.connectors.discord.agentPromptBody":
+    "Bu yeni ajan, {workspace} içinde @OpenBot'a gönderilen her şeyi yanıtlar.",
+  "mobile.server.connectors.discord.installFailed": "Discord yetkilendirmeyi tamamlamadı. Tekrar deneyin.",
+  "mobile.server.connectors.telegram.title": "Telegram",
+  "mobile.server.connectors.telegram.summary": "OpenBot botunu bir Telegram sohbetine ekleyin",
+  "mobile.server.connectors.telegram.description":
+    "OpenBot botunu bir Telegram grubuna ekleyin veya botla doğrudan bir sohbet açın. Telegram Düzenleyicisi doğru ajana sorar ve yanıtlar.",
+  "mobile.server.connectors.telegram.connected": {
+    one: "{count} sohbet · Telegram Düzenleyicisi yanıtlıyor",
+    other: "{count} sohbet · Telegram Düzenleyicisi yanıtlıyor",
+  },
+  "mobile.server.connectors.telegram.noAgent": {
+    one: "{count} sohbet · Henüz yanıt veren bir ajan yok",
+    other: "{count} sohbet · Henüz yanıt veren bir ajan yok",
+  },
+  "mobile.server.connectors.telegram.attention": {
+    one: "{count} sohbet için işlem gerekiyor",
+    other: "{count} sohbet için işlem gerekiyor",
+  },
+  "mobile.server.connectors.telegram.groupTitle": "Grup",
+  "mobile.server.connectors.telegram.directTitle": "Doğrudan sohbet",
+  "mobile.server.connectors.telegram.groupDescription": "Kullanıcılar bottan bahseder veya mesajlarını yanıtlar.",
+  "mobile.server.connectors.telegram.directDescription": "Bu sohbetteki her mesaj Telegram Düzenleyicisine gider.",
+  "mobile.server.connectors.telegram.helpRemoved":
+    "OpenBot botu artık bu sohbette değil. Sohbetin bağlantısını kesin, sonra botu yeniden ekleyin.",
+  "mobile.server.connectors.telegram.helpRelay":
+    "{host} üzerindeki OpenBot Telegram mesajlarını alamıyor. {host} üzerinde oturum açın, Sunucu ayarlarında sunucuya bir ad verin ve OpenBot'u açık tutun.",
+  "mobile.server.connectors.telegram.helpError":
+    "OpenBot bu sohbete ulaşamıyor. Yeniden bağlanın veya sohbetin bağlantısını kesin.",
+  "mobile.server.connectors.telegram.retryAt":
+    "Telegram OpenBot'tan beklemesini istedi. {time} saatinde tekrar deneyecek.",
+  "mobile.server.connectors.telegram.linkTitle": "Bir sohbet bağla",
+  "mobile.server.connectors.telegram.linkAnother": "Başka bir sohbet bağlayın",
+  "mobile.server.connectors.telegram.linkFooter":
+    "Telegram açılır. Grubu seçin veya doğrudan sohbette Başlat'a dokunun. Sohbet bağlandığında burada görünür.",
+  "mobile.server.connectors.telegram.limit": {
+    one: "En fazla {count} sohbet bağlayabilirsiniz.",
+    other: "En fazla {count} sohbet bağlayabilirsiniz.",
+  },
+  "mobile.server.connectors.telegram.addToGroup": "Bir gruba ekle",
+  "mobile.server.connectors.telegram.openDirectChat": "Doğrudan sohbet aç",
+  "mobile.server.connectors.telegram.orchestratorTitle": "Telegram Düzenleyicisi",
+  "mobile.server.connectors.telegram.orchestratorDescription":
+    "Bu ajan tüm Telegram sohbetlerinizden OpenBot'a gelen mesajları alır. Kısa olanları kendisi yanıtlar, diğer işleri doğru ajana iletir ve yanıtı sohbette paylaşır.",
+  "mobile.server.connectors.telegram.orchestratorNone":
+    "Telegram Düzenleyicisini ekleyin, aksi takdirde Telegram yanıt alamaz.",
+  "mobile.server.connectors.telegram.addAgent": "Telegram Düzenleyicisini ekle",
+  "mobile.server.connectors.telegram.disconnectTitle": "{chat} bağlantısı kesilsin mi?",
+  "mobile.server.connectors.telegram.disconnectBody":
+    "OpenBot botu {chat} sohbetinden ayrılır ve OpenBot orada yanıt vermeyi bırakır.",
+  "mobile.server.connectors.telegram.disconnectKept": "Konuşmalar ve Telegram Düzenleyicisi OpenBot'ta kalır.",
+  "mobile.server.connectors.telegram.disconnectDeleted":
+    "Bu son sohbet olduğundan Telegram Düzenleyicisi ve konuşmaları OpenBot'tan silinir.",
   "mobile.server.usage.agents": "Ajanlar",
   "mobile.server.usage.agentLine": "{tokens} token · {cost} · {percent}",
   "mobile.server.usage.noAgents": "Bu aralıkta ajan kullanımı kaydedilmedi.",

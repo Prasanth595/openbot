@@ -378,6 +378,268 @@ export const messages = {
   "mobile.server.settings.memoryLimitSaveFailed": "Nie udało się zapisać limitu wspomnień. Spróbuj ponownie.",
   "mobile.server.settings.memoryLimitUnsupported":
     "Zaktualizuj OpenBot na tym serwerze, aby zmienić tu jego limit wspomnień.",
+  "mobile.server.route.connectors": "Konektory",
+  "mobile.server.settings.connectors": "Konektory",
+  "mobile.server.connectors.unavailable":
+    "Połącz się z tym serwerem jako właściciel lub administrator, aby zarządzać jego konektorami.",
+  "mobile.server.connectors.unsupported": "Zaktualizuj OpenBot na tym serwerze, aby zarządzać tutaj jego konektorami.",
+  "mobile.server.connectors.loading": "Wczytywanie konektorów…",
+  "mobile.server.connectors.onServer": "Na serwerze {name}",
+  "mobile.server.connectors.notSetUp": "Nieskonfigurowany",
+  "mobile.server.connectors.available": "Dostępne",
+  "mobile.server.connectors.localOnly": "Tylko aplikacja na komputer",
+  "mobile.server.connectors.statusConnected": "Połączono",
+  "mobile.server.connectors.statusAttention": "Wymaga uwagi",
+  "mobile.server.connectors.statusConnecting": "Łączenie",
+  "mobile.server.connectors.statusNotSetUp": "Nieskonfigurowany",
+  "mobile.server.connectors.statusUnknown": "Nieznany",
+  "mobile.server.connectors.statusExpired": "Wygasło",
+  "mobile.server.connectors.statusPaused": "Wstrzymana",
+  "mobile.server.connectors.readFailed": "Nie udało się odczytać stanu tego połączenia.",
+  "mobile.server.connectors.actionFailed": "Nie udało się zmienić połączenia z {name}. Spróbuj ponownie.",
+  "mobile.server.connectors.openFailed": "Nie udało się otworzyć strony podanej przez serwer.",
+  "mobile.server.connectors.reconnect": "Połącz ponownie",
+  "mobile.server.connectors.disconnect": "Odłącz",
+  "mobile.server.connectors.rowAction": "{action}: {name}",
+  "mobile.server.connectors.answerMessages": "Odpowiadaj na wiadomości",
+  "mobile.server.connectors.noAgent": "Żaden agent jeszcze nie odpowiada",
+  "mobile.server.connectors.addAgent": "Dodaj agenta",
+  "mobile.server.connectors.later": "Później",
+  "mobile.server.connectors.bitwarden.title": "Bitwarden",
+  "mobile.server.connectors.bitwarden.summary":
+    "Wypełnia loginy w przeglądarce z Bitwarden. Skonfiguruj go w aplikacji na komputer.",
+  "mobile.server.connectors.github.title": "GitHub",
+  "mobile.server.connectors.github.summary": "Repozytoria, zgłoszenia i pull requesty dla każdego agenta",
+  "mobile.server.connectors.github.description":
+    "Każdy agent na serwerze {host} może używać twoich repozytoriów, zgłoszeń i pull requestów z GitHub oraz gh i git.",
+  "mobile.server.connectors.github.unavailable": "OpenBot na tym serwerze nie może połączyć z GitHub.",
+  "mobile.server.connectors.github.connect": "Połącz GitHub",
+  "mobile.server.connectors.github.codeTitle": "Wpisz ten kod w GitHub",
+  "mobile.server.connectors.github.codeFooter":
+    "Skopiuj kod, a potem wpisz go na stronie GitHub. Ta strona pokaże połączenie, gdy GitHub skończy.",
+  "mobile.server.connectors.github.copyAndOpen": "Kopiuj kod i otwórz GitHub",
+  "mobile.server.connectors.github.accountTitle": "Konto",
+  "mobile.server.connectors.github.connectedAs": "Połączono jako @{login}",
+  "mobile.server.connectors.github.chooseRepositories": "Wybierz repozytoria",
+  "mobile.server.connectors.github.repositoriesFooter":
+    "Agenci mogą używać tylko repozytoriów, w których zainstalowano OpenBot GitHub App.",
+  "mobile.server.connectors.github.repositoriesTitle": "Repozytoria",
+  "mobile.server.connectors.github.repositoriesLoading": "Odczytywanie repozytoriów z GitHub",
+  "mobile.server.connectors.github.repositoriesFailed": "OpenBot nie mógł odczytać repozytoriów z GitHub.",
+  "mobile.server.connectors.github.noRepositories":
+    "OpenBot GitHub App nie jest jeszcze zainstalowana w żadnym repozytorium.",
+  "mobile.server.connectors.github.moreRepositories": {
+    one: "I jeszcze {count} repozytorium",
+    few: "I jeszcze {count} repozytoria",
+    many: "I jeszcze {count} repozytoriów",
+    other: "I jeszcze {count} repozytorium",
+  },
+  "mobile.server.connectors.github.private": "Prywatne",
+  "mobile.server.connectors.github.filterLabel": "Filtruj repozytoria",
+  "mobile.server.connectors.github.noMatch": "Żadne repozytorium nie pasuje do „{query}”.",
+  "mobile.server.connectors.github.expired": "Połączenie z GitHub wygasło",
+  "mobile.server.connectors.github.expiredBody":
+    "Połącz ponownie jako @{login}, aby przywrócić agentom dostęp do GitHub.",
+  "mobile.server.connectors.github.disconnect": "Odłącz GitHub",
+  "mobile.server.connectors.github.disconnectTitle": "Odłączyć GitHub?",
+  "mobile.server.connectors.github.disconnectBody":
+    "To usunie logowanie @{login} z serwera {host}, a każdy agent straci narzędzia GitHub, gh i git. Potem otworzy się GitHub, gdzie możesz cofnąć dostęp dla OpenBot.",
+  "mobile.server.connectors.onePassword.title": "1Password",
+  "mobile.server.connectors.onePassword.summary": "Udostępniony sejf do logowania w przeglądarce OpenBot",
+  "mobile.server.connectors.onePassword.description":
+    "Udostępnij OpenBot na serwerze {host} osobny sejf 1Password przez konto usługi, aby agenci na serwerze {host} mogli logować się na strony w jego przeglądarce.",
+  "mobile.server.connectors.onePassword.howItWorks":
+    "Na 1Password.com utwórz konto usługi, które może odczytywać tylko sejf udostępniany OpenBot, a potem wklej tutaj jego token. {host} sprawdza token i go przechowuje; ten telefon go nie przechowuje. Agenci nigdy nie widzą hasła.",
+  "mobile.server.connectors.onePassword.token": "Token konta usługi",
+  "mobile.server.connectors.onePassword.tokenPlaceholder": "ops_…",
+  "mobile.server.connectors.onePassword.connect": "Połącz 1Password",
+  "mobile.server.connectors.onePassword.connecting": "Łączenie…",
+  "mobile.server.connectors.onePassword.connectingBody":
+    "{host} łączy się z 1Password. Dokończ połączenie na serwerze {host}.",
+  "mobile.server.connectors.onePassword.vaultTitle": "Udostępniony sejf",
+  "mobile.server.connectors.onePassword.vaultFooter":
+    "Przenieś login do tego sejfu w 1Password, aby agenci mogli się nim logować. Usuń go z sejfu, aby cofnąć dostęp.",
+  "mobile.server.connectors.onePassword.loginCount": {
+    one: "{count} login",
+    few: "{count} loginy",
+    many: "{count} loginów",
+    other: "{count} loginu",
+  },
+  "mobile.server.connectors.onePassword.disconnect": "Odłącz 1Password",
+  "mobile.server.connectors.onePassword.disconnectTitle": "Odłączyć 1Password?",
+  "mobile.server.connectors.onePassword.disconnectBody":
+    "{host} zapomina token. Sejf i konto usługi zostają w 1Password; usuń je tam, jeśli już ich nie potrzebujesz.",
+  "mobile.server.connectors.slack.title": "Slack",
+  "mobile.server.connectors.slack.summary": "Ludzie oznaczają @OpenBot w Slacku",
+  "mobile.server.connectors.slack.description":
+    "Ludzie oznaczają @OpenBot w Slacku lub wysyłają mu wiadomość prywatną. Slack Orchestrator pyta odpowiedniego agenta i odpowiada.",
+  "mobile.server.connectors.slack.connected": "{workspace} · odpowiada Slack Orchestrator",
+  "mobile.server.connectors.slack.noAgent": "{workspace} · żaden agent jeszcze nie odpowiada",
+  "mobile.server.connectors.slack.many": {
+    one: "{count} obszar roboczy · odpowiada Slack Orchestrator",
+    few: "{count} obszary robocze · odpowiada Slack Orchestrator",
+    many: "{count} obszarów roboczych · odpowiada Slack Orchestrator",
+    other: "{count} obszaru roboczego · odpowiada Slack Orchestrator",
+  },
+  "mobile.server.connectors.slack.attention": {
+    one: "{count} obszar roboczy wymaga uwagi",
+    few: "{count} obszary robocze wymagają uwagi",
+    many: "{count} obszarów roboczych wymaga uwagi",
+    other: "{count} obszaru roboczego wymaga uwagi",
+  },
+  "mobile.server.connectors.slack.connect": "Połącz Slack",
+  "mobile.server.connectors.slack.connectFooter":
+    "Slack otworzy się w przeglądarce. Wybierz obszar roboczy w prawym górnym rogu, a potem Allow. OpenBot instaluje jedną aplikację o nazwie OpenBot, która dołącza do każdego publicznego kanału.",
+  "mobile.server.connectors.slack.add": "Dodaj obszar roboczy",
+  "mobile.server.connectors.slack.limit": {
+    one: "Możesz połączyć maksymalnie {count} obszar roboczy.",
+    few: "Możesz połączyć maksymalnie {count} obszary robocze.",
+    many: "Możesz połączyć maksymalnie {count} obszarów roboczych.",
+    other: "Możesz połączyć maksymalnie {count} obszaru roboczego.",
+  },
+  "mobile.server.connectors.slack.workspaceTitle": "Obszar roboczy",
+  "mobile.server.connectors.slack.workspaceDescription":
+    "Ludzie oznaczają @OpenBot lub wysyłają mu wiadomość prywatną.",
+  "mobile.server.connectors.slack.missingScopes":
+    "OpenBot nie ma tych uprawnień w Slacku: {scopes}. Odłącz obszar roboczy, a potem połącz go ponownie.",
+  "mobile.server.connectors.slack.retryAt": "Slack poprosił OpenBot o czekanie. Kolejna próba o {time}.",
+  "mobile.server.connectors.slack.helpInvalidToken":
+    "Slack nie akceptuje już OpenBot w tym obszarze roboczym. Mógł zostać odinstalowany. Połącz obszar roboczy ponownie.",
+  "mobile.server.connectors.slack.helpSecretStorage":
+    "OpenBot nie może odczytać zapisanych tokenów na serwerze {host}. Odłącz obszar roboczy, a potem połącz go ponownie.",
+  "mobile.server.connectors.slack.helpRelay":
+    "OpenBot na serwerze {host} nie może odbierać zdarzeń Slack. Na serwerze {host} zaloguj się, nadaj serwerowi nazwę w ustawieniach serwera i nie zamykaj OpenBot.",
+  "mobile.server.connectors.slack.orchestratorTitle": "Slack Orchestrator",
+  "mobile.server.connectors.slack.orchestratorDescription":
+    "Ten agent odbiera każdą prośbę ze Slacka. Na krótkie odpowiada sam, inną pracę przekazuje odpowiedniemu agentowi i publikuje odpowiedź w wątku.",
+  "mobile.server.connectors.slack.orchestratorNone": "Dodaj Slack Orchestrator, inaczej Slack nie dostanie odpowiedzi.",
+  "mobile.server.connectors.slack.addAgent": "Dodaj Slack Orchestrator",
+  "mobile.server.connectors.slack.note":
+    "OpenBot sam dołącza do każdego publicznego kanału, także do nowych. Do kanału prywatnego zaproś go: /invite @OpenBot.",
+  "mobile.server.connectors.slack.disconnectTitle": "Odłączyć {workspace}?",
+  "mobile.server.connectors.slack.disconnectBody":
+    "OpenBot przestaje odpowiadać w obszarze roboczym {workspace} i usuwa swój token Slack z serwera {host}.",
+  "mobile.server.connectors.slack.disconnectKept": "Rozmowy i Slack Orchestrator zostają w OpenBot.",
+  "mobile.server.connectors.slack.disconnectDeleted": "Slack Orchestrator i jego rozmowy zostaną usunięte z OpenBot.",
+  "mobile.server.connectors.slack.agentPromptTitle": "Dodać Slack Orchestrator?",
+  "mobile.server.connectors.slack.agentPromptBody":
+    "Ten nowy agent odpowiada na wszystko, co ludzie wysyłają do @OpenBot w obszarze roboczym {workspace}.",
+  "mobile.server.connectors.slack.installFailed": "Slack nie ukończył instalacji. Spróbuj ponownie.",
+  "mobile.server.connectors.discord.title": "Discord",
+  "mobile.server.connectors.discord.summary": "Ludzie oznaczają @OpenBot na serwerze Discord",
+  "mobile.server.connectors.discord.description":
+    "Ludzie oznaczają @OpenBot na kanale serwera Discord. Discord Orchestrator pyta odpowiedniego agenta i odpowiada.",
+  "mobile.server.connectors.discord.connected": "{workspace} · odpowiada Discord Orchestrator",
+  "mobile.server.connectors.discord.noAgent": "{workspace} · żaden agent jeszcze nie odpowiada",
+  "mobile.server.connectors.discord.many": {
+    one: "{count} serwer Discord · odpowiada Discord Orchestrator",
+    few: "{count} serwery Discord · odpowiada Discord Orchestrator",
+    many: "{count} serwerów Discord · odpowiada Discord Orchestrator",
+    other: "{count} serwera Discord · odpowiada Discord Orchestrator",
+  },
+  "mobile.server.connectors.discord.attention": {
+    one: "{count} serwer Discord wymaga uwagi",
+    few: "{count} serwery Discord wymagają uwagi",
+    many: "{count} serwerów Discord wymaga uwagi",
+    other: "{count} serwera Discord wymaga uwagi",
+  },
+  "mobile.server.connectors.discord.connect": "Połącz Discord",
+  "mobile.server.connectors.discord.connectFooter":
+    "Discord otworzy się w przeglądarce. Wybierz serwer Discord, a potem Authorize. OpenBot dodaje jednego bota o nazwie OpenBot.",
+  "mobile.server.connectors.discord.add": "Dodaj serwer Discord",
+  "mobile.server.connectors.discord.limit": {
+    one: "Możesz połączyć maksymalnie {count} serwer Discord.",
+    few: "Możesz połączyć maksymalnie {count} serwery Discord.",
+    many: "Możesz połączyć maksymalnie {count} serwerów Discord.",
+    other: "Możesz połączyć maksymalnie {count} serwera Discord.",
+  },
+  "mobile.server.connectors.discord.workspaceTitle": "Serwer Discord",
+  "mobile.server.connectors.discord.workspaceDescription":
+    "Oznacz @OpenBot na kanale. Odpowiedz na wiadomość OpenBot, aby kontynuować.",
+  "mobile.server.connectors.discord.missingScopes":
+    "OpenBot nie ma tych uprawnień w Discordzie: {scopes}. Odłącz serwer Discord, a potem połącz go ponownie.",
+  "mobile.server.connectors.discord.retryAt": "Discord poprosił OpenBot o czekanie. Kolejna próba o {time}.",
+  "mobile.server.connectors.discord.helpInvalidToken":
+    "Discord nie akceptuje już OpenBot na tym serwerze Discord. Mógł zostać usunięty. Połącz serwer Discord ponownie.",
+  "mobile.server.connectors.discord.helpSecretStorage":
+    "OpenBot nie może odczytać zapisanych tokenów na serwerze {host}. Odłącz serwer Discord, a potem połącz go ponownie.",
+  "mobile.server.connectors.discord.helpRelay":
+    "OpenBot na serwerze {host} nie może odbierać zdarzeń Discord. Na serwerze {host} zaloguj się, nadaj serwerowi nazwę w ustawieniach serwera i nie zamykaj OpenBot.",
+  "mobile.server.connectors.discord.orchestratorTitle": "Discord Orchestrator",
+  "mobile.server.connectors.discord.orchestratorDescription":
+    "Ten agent odbiera każdą prośbę z Discorda. Na krótkie odpowiada sam, inną pracę przekazuje odpowiedniemu agentowi i odpowiada na kanale.",
+  "mobile.server.connectors.discord.orchestratorNone":
+    "Dodaj Discord Orchestrator, inaczej Discord nie dostanie odpowiedzi.",
+  "mobile.server.connectors.discord.addAgent": "Dodaj Discord Orchestrator",
+  "mobile.server.connectors.discord.note": "OpenBot widzi kanały, które może wyświetlać jego rola.",
+  "mobile.server.connectors.discord.disconnectTitle": "Odłączyć {workspace}?",
+  "mobile.server.connectors.discord.disconnectBody":
+    "OpenBot przestaje odpowiadać na serwerze {workspace} i usuwa połączenie z Discord z serwera {host}.",
+  "mobile.server.connectors.discord.disconnectKept": "Rozmowy i Discord Orchestrator zostają w OpenBot.",
+  "mobile.server.connectors.discord.disconnectDeleted":
+    "Discord Orchestrator i jego rozmowy zostaną usunięte z OpenBot.",
+  "mobile.server.connectors.discord.agentPromptTitle": "Dodać Discord Orchestrator?",
+  "mobile.server.connectors.discord.agentPromptBody":
+    "Ten nowy agent odpowiada na wszystko, co ludzie wysyłają do @OpenBot w obszarze roboczym {workspace}.",
+  "mobile.server.connectors.discord.installFailed": "Discord nie ukończył autoryzacji. Spróbuj ponownie.",
+  "mobile.server.connectors.telegram.title": "Telegram",
+  "mobile.server.connectors.telegram.summary": "Dodaj bota OpenBot do czatu Telegram",
+  "mobile.server.connectors.telegram.description":
+    "Dodaj bota OpenBot do grupy Telegram lub otwórz z nim czat prywatny. Telegram Orchestrator pyta odpowiedniego agenta i odpowiada.",
+  "mobile.server.connectors.telegram.connected": {
+    one: "{count} czat · odpowiada Telegram Orchestrator",
+    few: "{count} czaty · odpowiada Telegram Orchestrator",
+    many: "{count} czatów · odpowiada Telegram Orchestrator",
+    other: "{count} czatu · odpowiada Telegram Orchestrator",
+  },
+  "mobile.server.connectors.telegram.noAgent": {
+    one: "{count} czat · żaden agent jeszcze nie odpowiada",
+    few: "{count} czaty · żaden agent jeszcze nie odpowiada",
+    many: "{count} czatów · żaden agent jeszcze nie odpowiada",
+    other: "{count} czatu · żaden agent jeszcze nie odpowiada",
+  },
+  "mobile.server.connectors.telegram.attention": {
+    one: "{count} czat wymaga uwagi",
+    few: "{count} czaty wymagają uwagi",
+    many: "{count} czatów wymaga uwagi",
+    other: "{count} czatu wymaga uwagi",
+  },
+  "mobile.server.connectors.telegram.groupTitle": "Grupa",
+  "mobile.server.connectors.telegram.directTitle": "Czat prywatny",
+  "mobile.server.connectors.telegram.groupDescription": "Ludzie oznaczają bota lub odpowiadają na jego wiadomości.",
+  "mobile.server.connectors.telegram.directDescription":
+    "Każda wiadomość w tym czacie trafia do Telegram Orchestrator.",
+  "mobile.server.connectors.telegram.helpRemoved":
+    "Bota OpenBot nie ma już w tym czacie. Odłącz czat, a potem dodaj bota ponownie.",
+  "mobile.server.connectors.telegram.helpRelay":
+    "OpenBot na serwerze {host} nie może odbierać wiadomości z Telegram. Na serwerze {host} zaloguj się, nadaj serwerowi nazwę w ustawieniach serwera i nie zamykaj OpenBot.",
+  "mobile.server.connectors.telegram.helpError":
+    "OpenBot nie może połączyć się z tym czatem. Połącz ponownie lub odłącz czat.",
+  "mobile.server.connectors.telegram.retryAt": "Telegram poprosił OpenBot o czekanie. Kolejna próba o {time}.",
+  "mobile.server.connectors.telegram.linkTitle": "Połącz czat",
+  "mobile.server.connectors.telegram.linkAnother": "Połącz kolejny czat",
+  "mobile.server.connectors.telegram.linkFooter":
+    "Telegram się otworzy. Wybierz grupę lub naciśnij Start w czacie prywatnym. Czat pojawi się tutaj po połączeniu.",
+  "mobile.server.connectors.telegram.limit": {
+    one: "Możesz połączyć maksymalnie {count} czat.",
+    few: "Możesz połączyć maksymalnie {count} czaty.",
+    many: "Możesz połączyć maksymalnie {count} czatów.",
+    other: "Możesz połączyć maksymalnie {count} czatu.",
+  },
+  "mobile.server.connectors.telegram.addToGroup": "Dodaj do grupy",
+  "mobile.server.connectors.telegram.openDirectChat": "Otwórz czat prywatny",
+  "mobile.server.connectors.telegram.orchestratorTitle": "Telegram Orchestrator",
+  "mobile.server.connectors.telegram.orchestratorDescription":
+    "Ten agent odbiera wiadomości do OpenBot ze wszystkich twoich czatów Telegram. Na krótkie odpowiada sam, inną pracę przekazuje odpowiedniemu agentowi i publikuje odpowiedź w czacie.",
+  "mobile.server.connectors.telegram.orchestratorNone":
+    "Dodaj Telegram Orchestrator, inaczej Telegram nie dostanie odpowiedzi.",
+  "mobile.server.connectors.telegram.addAgent": "Dodaj Telegram Orchestrator",
+  "mobile.server.connectors.telegram.disconnectTitle": "Odłączyć {chat}?",
+  "mobile.server.connectors.telegram.disconnectBody":
+    "Bot OpenBot opuści czat {chat}, a OpenBot przestanie tam odpowiadać.",
+  "mobile.server.connectors.telegram.disconnectKept": "Rozmowy i Telegram Orchestrator zostają w OpenBot.",
+  "mobile.server.connectors.telegram.disconnectDeleted":
+    "To ostatni czat, więc Telegram Orchestrator i jego rozmowy zostaną usunięte z OpenBot.",
   "mobile.server.usage.agents": "Agenci",
   "mobile.server.usage.agentLine": "Tokeny: {tokens} · {cost} · {percent}",
   "mobile.server.usage.noAgents": "Brak zarejestrowanego użycia agentów w tym okresie.",
