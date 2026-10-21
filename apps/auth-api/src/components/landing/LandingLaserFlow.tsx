@@ -181,7 +181,7 @@ void main() {
   float bead = exp(-sq((adx - run + 16.0) / (18.0 + 0.04 * run))) * uRun.y;
   // The far side of the beam does not spill, so its light along the top stops well before the corner.
   float farSide = dx < 0.0 ? step(reachR, reachL) : 1.0 - step(reachR, reachL);
-  float reachHere = spread * mix(1.0, 0.55, farSide);
+  float reachHere = spread * mix(1.0, 0.7, farSide);
   float flowMask = (1.0 - smoothstep(0.75 * reachHere, 1.1 * reachHere, adx)) * runMask;
   float edgeMask = (1.0 - smoothstep(0.8 * reachHere, 1.25 * reachHere, adx)) * runMask;
   float bloom = uIntro.y;
@@ -290,8 +290,8 @@ void main() {
   vec3 glowR;
   vec3 glowL;
   // The spill also touches the top edge, so it waits there until the light along the top has run past.
-  // It fades out before the middle of the side, so it never reaches the bottom edge.
-  float spillMask = runMask * (1.0 - smoothstep(0.3 * (sb - sy), 0.55 * (sb - sy), fallY));
+  // It fades out slowly down the side, and is gone well before the bottom edge.
+  float spillMask = runMask * exp(-sq(max(fallY - 0.05 * (sb - sy), 0.0) / (0.28 * (sb - sy))));
   col += spill(sd, fallY, strengthR, uPour.y, t, glowR) * rightHalf * spillMask;
   col += spill(sd, fallY, strengthL, uPour.x, t, glowL) * (1.0 - rightHalf) * spillMask;
   col += easeLight((glowR * rightHalf + NAVY * 0.9 * haloR) * spillMask, uPour.w);
