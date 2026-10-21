@@ -409,13 +409,31 @@ const INTRO_END = 7;
 /** How fast, in CSS pixels a second, the light runs around the source element after the beam reaches it. */
 const WRAP_SPEED = 420;
 
-const SETTINGS = {
+interface LaserSettings {
+  intensity: number;
+  beamWidth: number;
+  flare: number;
+  spread: number;
+  spill: number;
+  /** How far the light runs down the sides of the surface, as a multiple of the React Bits length. */
+  fall: number;
+  fog: number;
+  dust: number;
+  streaks: number;
+  dots: number;
+  pulse: number;
+  speed: number;
+  seed: number;
+  /** A six-digit hex colour that replaces the `color` prop. */
+  color?: string;
+}
+
+const SETTINGS: LaserSettings = {
   intensity: 1.6,
   beamWidth: 3.2,
   flare: 2.5,
   spread: 3.8,
   spill: 1,
-  /** How far the light runs down the sides of the surface, as a multiple of the React Bits length. */
   fall: 2.2,
   fog: 0.3,
   dust: 1.4,
@@ -424,7 +442,64 @@ const SETTINGS = {
   pulse: 1.4,
   speed: 1.8,
   seed: 3,
-} as const;
+};
+
+/** Other looks to compare with the default. `?beam=<name>` in the page address selects one. */
+const VERSIONS: Readonly<Record<string, LaserSettings>> = {
+  // A wider, calmer glow with little dust.
+  soft: {
+    ...SETTINGS,
+    intensity: 1.3,
+    beamWidth: 4.2,
+    flare: 3,
+    spread: 4.2,
+    fall: 1.6,
+    fog: 0.5,
+    dust: 0.6,
+    streaks: 0.4,
+    dots: 0.5,
+    pulse: 0.8,
+    speed: 1.2,
+  },
+  // A thin, bright, bluer beam with sharp lines and little haze.
+  laser: {
+    ...SETTINGS,
+    intensity: 1.8,
+    beamWidth: 1.2,
+    flare: 1.5,
+    spread: 3.2,
+    fall: 2.6,
+    fog: 0.15,
+    dust: 1,
+    streaks: 1.6,
+    dots: 1,
+    pulse: 1.6,
+    speed: 2.2,
+    color: "#6f8cff",
+  },
+  // A pinker beam in thick haze with much dust.
+  haze: {
+    ...SETTINGS,
+    intensity: 1.5,
+    beamWidth: 3,
+    flare: 2.8,
+    spread: 4,
+    fall: 2,
+    fog: 0.6,
+    dust: 1.9,
+    streaks: 1,
+    dots: 1.2,
+    pulse: 1.2,
+    speed: 1.6,
+    seed: 16,
+    color: "#d46cf5",
+  },
+};
+
+function selectedSettings(): LaserSettings {
+  const name = new URLSearchParams(window.location.search).get("beam");
+  return (name && Object.hasOwn(VERSIONS, name) ? VERSIONS[name] : undefined) ?? SETTINGS;
+}
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 const easeOut = (x: number) => 1 - (1 - clamp(x, 0, 1)) ** 3;
@@ -585,7 +660,8 @@ export function LandingLaserFlow(props: LandingLaserFlowProps) {
     gl.bindVertexArray(null);
 
     const reduce = prefersReducedMotion();
-    const tints = buildTints(hexToRgb(props.color));
+    const settings = selectedSettings();
+    const tints = buildTints(hexToRgb(settings.color ?? props.color));
     const state = {
       time: 0,
       introTime: reduce ? INTRO_END : 0,
@@ -692,7 +768,7 @@ export function LandingLaserFlow(props: LandingLaserFlowProps) {
       const tau = it - impact;
       const bloom = settled ? 1 : tau <= 0 ? 0 : spring(tau);
       const flash = settled || tau <= 0 ? 0 : Math.exp(-tau / 0.35) * (1 - Math.exp(-tau / 0.05));
-      const runRange = SETTINGS.spread * 250 * 1.3 + 80;
+      const runRange = settings.spread * 250 * 1.3 + 80;
       const flow = tau * POUR_PACE;
       const runFront = settled ? 100000 : tau <= 0 ? -40 : runRange * (1 - Math.exp(-1.15 * flow));
       const beadStrength = settled || tau <= 0 ? 0 : Math.exp(-1.15 * flow) * (1 - Math.exp(-flow / 0.08));
@@ -730,7 +806,7 @@ export function LandingLaserFlow(props: LandingLaserFlowProps) {
       gl.uniform1f(uniforms.uBeamX, beamX);
       gl.uniform4f(uniforms.uSource, source?.left ?? 0, source?.top ?? 0, source?.right ?? 0, source?.bottom ?? 0);
       gl.uniform3f(uniforms.uWrap, source?.radius ?? 0, wrapRun, source ? 1 : 0);
-      gl.uniform1f(uniforms.uFall, SETTINGS.fall);
+      gl.uniform1f(uniforms.uFall, settings.fall);
       gl.uniform4f(uniforms.uSurface, surface.left, surface.top, surface.right, surface.bottom);
       gl.uniform1f(uniforms.uRadius, surface.radius);
       gl.uniform3f(uniforms.uIntro, front, bloom, flash);
@@ -738,14 +814,14 @@ export function LandingLaserFlow(props: LandingLaserFlowProps) {
       gl.uniform2f(uniforms.uRun, runFront, beadStrength);
       gl.uniform4f(uniforms.uLens, state.lens.x, state.lens.y, 95 * scale, state.lens.strength);
       gl.uniform1f(uniforms.uAtmosphere, atmosphere);
-      gl.uniform4f(uniforms.uAmount, SETTINGS.intensity, SETTINGS.fog, SETTINGS.dust, SETTINGS.streaks);
-      gl.uniform4f(uniforms.uShape, SETTINGS.beamWidth, SETTINGS.flare, SETTINGS.spread, SETTINGS.spill);
+      gl.uniform4f(uniforms.uAmount, settings.intensity, settings.fog, settings.dust, settings.streaks);
+      gl.uniform4f(uniforms.uShape, settings.beamWidth, settings.flare, settings.spread, settings.spill);
       gl.uniform4f(
         uniforms.uExtra,
-        SETTINGS.pulse,
-        SETTINGS.dots,
-        34.34 + SETTINGS.seed * 7.31,
-        11.58 + SETTINGS.seed * 3.17,
+        settings.pulse,
+        settings.dots,
+        34.34 + settings.seed * 7.31,
+        11.58 + settings.seed * 3.17,
       );
       gl.uniform3fv(uniforms.uTint, tints);
       gl.bindVertexArray(vao);
@@ -780,7 +856,7 @@ export function LandingLaserFlow(props: LandingLaserFlowProps) {
       const dt = last ? Math.min(0.05, (now - last) / 1000) : 1 / 60;
       last = now;
       const moving = !reduce;
-      if (moving) state.time += dt * SETTINGS.speed;
+      if (moving) state.time += dt * settings.speed;
       const introducing = state.introTime < INTRO_END;
       if (introducing) state.introTime = Math.min(INTRO_END, state.introTime + dt);
 
