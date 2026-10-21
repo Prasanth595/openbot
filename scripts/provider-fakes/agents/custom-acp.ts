@@ -1,6 +1,7 @@
 // The custom agent of `custom-acp-agent-e2e.ts`. `FAKE_TITLE` names it in each answer, `FAKE_MODELS`
-// gives it two models, `FAKE_TOKEN` stands for a secret in its env, and `FAKE_CRASH` makes it stop at
-// its first input with the secret on stderr.
+// gives it two models, `FAKE_TOKEN` stands for a secret in its env, `FAKE_CRASH` makes it stop at
+// its first input with the secret on stderr, and `FAKE_SIGN_IN` makes it refuse `session/new` as an
+// agent that needs sign-in does.
 import { type LogValue, logEntry, serveFakeAcpAgent } from "../acp-agent";
 
 const title = process.env.FAKE_TITLE;
@@ -25,6 +26,7 @@ serveFakeAcpAgent(
         agentCapabilities: { loadSession: true },
       }),
     "session/new": (request, peer) => {
+      if (process.env.FAKE_SIGN_IN) return peer.fail(request, { code: -32000, message: "Authentication required" });
       sessions += 1;
       const models = process.env.FAKE_MODELS
         ? {

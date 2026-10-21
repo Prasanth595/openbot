@@ -240,6 +240,20 @@ ends with a fixed sentence: install the plugin in Marketplace, on the Apps tab, 
 servers. The sentence names both actions because `read_agent` and the agent's tools show only enabled
 servers, so an agent cannot tell a disabled plugin from a missing one.
 
+When the user asks for it, an agent adds, changes, turns on or off, tests and removes MCP servers with
+the MCP server tools (`src/backend/agent/mcp-tools.ts`, issue #2673). Each change waits for the
+approval of `AttentionRegistry.awaitToolApproval`, which states that every agent on the server gets
+the tools. Full access answers it, as for other built-in tool approvals. `save_mcp_server` connects
+before it saves (`inspectMcpServer`, the silent Test): a server that does not answer is not saved; a
+server that needs an OAuth sign-in or a key is saved. The tools never take or return a header or
+environment value, and show an address without its query: the user enters a key in Server settings,
+MCP. An edit keeps the row's headers and environment, and an edit that would send them to another
+transport, origin, command, arguments or folder is refused. The approval masks known secrets in the command line and names
+the folder a stdio server starts in. A sign-in shows an `mcp-sign-in:<id>` card in
+the conversation. Its Sign in opens Server settings, MCP, and starts the row's normal sign-in, so a
+joined server signs in through its relay or live page. Continue sends a message that tells the agent
+to test again. A saved change reaches the agents from their next turn.
+
 When its own tools fail, the agent checks its teammates. When a teammate reports that it is blocked
 or waits for the user, the requester does not repeat that work or send the same request again; it
 gives the user the blocker and the unblock action. A blocked task reply adds a fourth line,
@@ -325,7 +339,7 @@ environment values, URLs, or headers, because they can hold secrets. `install_lo
 it they act on the caller. `uninstall_skill` never removes skill files that the user changed.
 An agent can only restrict access and Computer Use, for itself or a teammate. The router writes
 only a restriction, so a user change between its check and the write is never undone. Only the
-user widens them again, and only the user moves an agent between Ask first and Full access, and changes MCP servers and local script runs. A new agent gets
+user widens them again, and only the user moves an agent between Ask first and Full access, and changes local script runs. An agent changes MCP servers only with the MCP server tools, after the user's request and approval. A new agent gets
 the access and Computer Use limits of the agent that creates it, so a Workspace-only agent cannot
 get around its sandbox through a teammate. There is no creation step for skills or routines in
 the UI.

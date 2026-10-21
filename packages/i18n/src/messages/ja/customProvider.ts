@@ -166,6 +166,9 @@ export const messages = {
   "customProvider.acp.checkOk": "{name} が応答しました",
   "customProvider.acp.checkOkVersion": "{name} {version} が応答しました",
   "customProvider.acp.checkProtocol": "ACP バージョン {version}",
+  "customProvider.acp.checkModels": {
+    other: "モデル {count} 個: {models}",
+  },
   "customProvider.acp.checkFailed": "エージェントが応答しませんでした",
   "customProvider.acp.trustTitle": "このコマンドはこのコンピューターで実行されます",
   "customProvider.acp.trustDescription":

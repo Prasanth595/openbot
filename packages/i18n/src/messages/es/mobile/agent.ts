@@ -260,6 +260,7 @@ export const messages = {
   "mobile.agent.permissions.title": "Permisos",
   "mobile.agent.advanced.title": "Avanzado",
   "mobile.agent.runtime.unavailable": "No disponible",
+  "mobile.agent.runtime.updateToUse": "Actualiza OpenBot para usar {name}",
   "mobile.agent.runtime.hostDefault": "Predeterminado del host",
   "mobile.agent.runtime.provider": "Proveedor",
   "mobile.agent.runtime.account": "Cuenta",

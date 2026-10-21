@@ -27,6 +27,7 @@ import type {
   CreateAgentInput,
   CreateRoutineInput,
   DraftAttachment,
+  ForeignProviderId,
   GitHubConnectorRepositories,
   HostAddMessagingOrchestratorInput,
   HostAgentMemoryLimit,
@@ -132,6 +133,8 @@ export interface MobileServer {
 
 export interface MobileAgent {
   provider?: AgentProviderId;
+  /** The provider when this build does not know it. The host still runs the agent. */
+  foreignProvider?: ForeignProviderId | undefined;
   model?: AgentModelId;
   reasoningEffort?: AgentReasoningEffort;
   /** One switch for every member: off stops the host's notifications and Live Activity for the agent. */

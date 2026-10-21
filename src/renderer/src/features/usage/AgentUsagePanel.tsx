@@ -1,4 +1,9 @@
-import { type AgentSummary, analyticsRange, type HostAnalytics, type HostAnalyticsInput } from "@openbot/contracts/ipc";
+import {
+  analyticsRange,
+  type ClientAgentSummary,
+  type HostAnalytics,
+  type HostAnalyticsInput,
+} from "@openbot/contracts/ipc";
 import type { AppTextKey } from "@openbot/i18n";
 import {
   ArrowLeft,
@@ -44,7 +49,7 @@ interface UsageState {
   result: HostAnalytics | null;
   phase: "loading" | "ready" | "unsupported" | "error";
   errorReference: string | null;
-  agents: AgentSummary[];
+  agents: ClientAgentSummary[];
   metric: UsageMetric;
   period: UsagePeriod;
   serverId: string;

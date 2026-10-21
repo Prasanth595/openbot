@@ -2,7 +2,7 @@ import type {
   AccountUsage,
   AccountUsageLimit,
   AgentStatus,
-  AgentSummary,
+  ClientAgentSummary,
   HostProviderAccounts,
 } from "@openbot/contracts/ipc";
 import type { AgentProfile } from "@openbot/ui/data";
@@ -30,7 +30,7 @@ function hostAgentAccount(host: HostProviderAccounts, agentId: string): string |
   return host.agents.find((agent) => agent.agentId === agentId)?.accountId;
 }
 
-export function withHostAgentAccount(agent: AgentSummary, host: HostProviderAccounts | null): AgentSummary {
+export function withHostAgentAccount(agent: ClientAgentSummary, host: HostProviderAccounts | null): ClientAgentSummary {
   if (!host) return agent;
   const accountId = hostAgentAccount(host, agent.id);
   if (accountId === agent.providerAccountId) return agent;

@@ -6,8 +6,8 @@ import { type InviteLinkOptions, type InviteLinkPayload, parseInviteUrl } from "
 import type {
   AgentEvent,
   AgentImportPreview,
-  AgentSummary,
   AvatarImageInput,
+  ClientAgentSummary,
   ConversationPage,
   ConversationPageAnchor,
   ConversationReadState,
@@ -1756,7 +1756,7 @@ export class RemoteServerManager extends EventEmitter<RemoteServerEvents> {
       agentId: string,
       image: AvatarImageInput | null,
       serverId = this.#store.activeServerId,
-    ): Effect.fn.Return<AgentSummary, RemoteWorkflowError, RemoteRequest> {
+    ): Effect.fn.Return<ClientAgentSummary, RemoteWorkflowError, RemoteRequest> {
       const server = yield* remoteDecode(() => this.#store.require(serverId));
       const url = new URL(TEAM_API_ROUTES.agent.avatar(agentId), server.apiUrl);
       const headers = new Headers();
@@ -1828,22 +1828,27 @@ export class RemoteServerManager extends EventEmitter<RemoteServerEvents> {
       this: RemoteServerManager,
       attachmentId: string,
       serverId = this.#store.activeServerId,
+      preview = false,
     ): Effect.fn.Return<RemoteAttachment, RemoteWorkflowError, RemoteRequest> {
       const server = yield* remoteDecode(() => this.#store.require(serverId));
-      return yield* this.#attachments.get(server.id, attachmentId, () =>
-        this.#owned(
-          Effect.gen({ self: this }, function* () {
-            const response = yield* this.#client.fetch(
-              server,
-              new URL(TEAM_API_ROUTES.attachment(attachmentId), server.apiUrl),
-            );
-            return {
-              bytes: new Uint8Array(yield* remoteCall(() => response.arrayBuffer())),
-              name: contentDispositionFileName(response.headers.get("content-disposition"), attachmentId),
-              mimeType: response.headers.get("content-type") ?? "application/octet-stream",
-            };
-          }),
-        ),
+      return yield* this.#attachments.get(
+        server.id,
+        attachmentId,
+        () =>
+          this.#owned(
+            Effect.gen({ self: this }, function* () {
+              const response = yield* this.#client.fetch(
+                server,
+                new URL(TEAM_API_ROUTES.attachment(attachmentId), server.apiUrl),
+              );
+              return {
+                bytes: new Uint8Array(yield* remoteCall(() => response.arrayBuffer())),
+                name: contentDispositionFileName(response.headers.get("content-disposition"), attachmentId),
+                mimeType: response.headers.get("content-type") ?? "application/octet-stream",
+              };
+            }),
+          ),
+        preview,
       );
     },
     (operation) => this.#owned(operation),

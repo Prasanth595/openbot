@@ -18,7 +18,7 @@ import {
   publishChatVisualPage,
   TALL_PAGE,
 } from "./chat-visual-fixtures";
-import { STORY_AGENT, STORY_AGENT_STATUS, STORY_AGENTS, STORY_MODELS } from "./fixtures";
+import { STORY_AGENT, STORY_AGENT_STATUS, STORY_AGENTS, STORY_MODELS, storyRuntimeSettings } from "./fixtures";
 import "./ChatVisual.stories.css";
 
 /*
@@ -257,7 +257,7 @@ function AppChatStage(props: { onOpenLink: (url: string) => void }) {
         onSettingsIntent={fn()}
         onOpenSettings={fn()}
         modelPicker={{
-          provider: chief.provider,
+          provider: storyRuntimeSettings(chief).provider,
           value: chief.model,
           reasoningEffort: chief.reasoningEffort,
           modelOptions: STORY_MODELS,

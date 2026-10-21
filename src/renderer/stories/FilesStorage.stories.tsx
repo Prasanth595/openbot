@@ -25,7 +25,7 @@ import {
   FILES_ROWS,
   FILES_STATUS_ROWS,
 } from "./files-fixtures";
-import { STORY_AGENT, STORY_AGENT_STATUS, STORY_MODELS } from "./fixtures";
+import { STORY_AGENT, STORY_AGENT_STATUS, STORY_MODELS, storyRuntimeSettings } from "./fixtures";
 import { SettingsPageStory } from "./settings-page-story";
 
 const meta = {
@@ -227,11 +227,7 @@ export const StorageInRemoteServerSettings: Story = {
 
 const agentPanelArgs = {
   agent: STORY_AGENT,
-  runtimeSettings: {
-    provider: STORY_AGENT.provider,
-    model: STORY_AGENT.model,
-    reasoningEffort: STORY_AGENT.reasoningEffort,
-  },
+  runtimeSettings: storyRuntimeSettings(STORY_AGENT),
   agentStatus: STORY_AGENT_STATUS,
   modelOptions: STORY_MODELS,
   working: false,

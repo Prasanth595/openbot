@@ -19,6 +19,7 @@ export const CUSTOM_AGENT_LIMITS = {
   env: 16,
   envValue: 4_096,
   capabilities: 32,
+  checkModels: 256,
 } as const;
 
 /** A POSIX environment variable name. */
@@ -64,7 +65,8 @@ export interface CustomAgentResult {
 }
 
 /**
- * One trial start: main runs the command, sends `initialize`, and stops it. `savedAgentId` names the
+ * One trial start: main runs the command, sends `initialize`, opens one session to read the
+ * models, and stops it. `savedAgentId` names the
  * saved agent whose kept environment values a `null` value takes.
  */
 export interface CheckCustomAgentInput {
@@ -81,6 +83,8 @@ export interface CustomAgentCheckResult {
   protocolVersion: number;
   /** Capability names as the agent reports them, such as `loadSession` or `image`. */
   capabilities: string[];
+  /** The names of the models that a new session lists. Empty when the agent lists none before sign-in. */
+  models: string[];
 }
 
 /** A known agent command that the scan found on this computer. It was not started. */
@@ -143,7 +147,10 @@ export function isCustomAgentCheckResult(value: unknown): value is CustomAgentCh
     Number.isInteger(value.protocolVersion) &&
     Array.isArray(value.capabilities) &&
     value.capabilities.length <= CUSTOM_AGENT_LIMITS.capabilities &&
-    value.capabilities.every((name) => isBoundedString(name, INPUT_LIMITS.identifier))
+    value.capabilities.every((name) => isBoundedString(name, INPUT_LIMITS.identifier)) &&
+    Array.isArray(value.models) &&
+    value.models.length <= CUSTOM_AGENT_LIMITS.checkModels &&
+    value.models.every((name) => isBoundedString(name, INPUT_LIMITS.modelName))
   );
 }
 

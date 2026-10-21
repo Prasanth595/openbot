@@ -6,9 +6,7 @@ import {
 import type {
   AccountUsage,
   AgentEvent,
-  AgentModelOption,
   AgentStatus,
-  AgentSummary,
   AttachmentSummary,
   AvatarImageInput,
   BrowserLiveViewEvent,
@@ -17,6 +15,8 @@ import type {
   BrowserPreview,
   BrowserTab,
   CancelQueuedMessageInput,
+  ClientAgentModelOption,
+  ClientAgentSummary,
   ConversationPage,
   ConversationReadState,
   ConversationSearchPage,
@@ -51,9 +51,9 @@ import {
   canAdministerServer,
   decodeWorkspaceDirectory,
   isAccountUsage,
-  isAgentModelOption,
   isAgentStatus,
-  isAgentSummary,
+  isClientAgentModelOption,
+  isClientAgentSummary,
   isConversationMessage,
   isConversationReadState,
   isConversationWithReadState,
@@ -197,7 +197,7 @@ export interface WebWorkspaceRuntime {
   acceptInvite(url: string): Promise<RemoteTeamHost>;
   connect(host: RemoteTeamHost): Promise<string[]>;
   disconnect(): Promise<void>;
-  listAgents(): Promise<AgentSummary[]>;
+  listAgents(): Promise<ClientAgentSummary[]>;
   conversation(agentId: string, before?: string): Promise<ConversationPage>;
   /** The page of an agent's conversation around one message, or the newest page from an older host. */
   conversationAround?: (agentId: string, messageId: string) => Promise<ConversationPage>;
@@ -248,10 +248,10 @@ export interface WebWorkspaceRuntime {
   setAgentHidden?: (input: SetAgentHiddenInput) => Promise<HiddenAgentsSnapshot>;
   react(input: SetMessageReactionInput): Promise<void>;
   setAvatar(agentId: string, image: AvatarImageInput | null): Promise<void>;
-  models(): Promise<AgentModelOption[]>;
+  models(): Promise<ClientAgentModelOption[]>;
   status(): Promise<AgentStatus>;
   accountUsage?: () => Promise<AccountUsage>;
-  createAgent(input: CreateAgentInput): Promise<AgentSummary>;
+  createAgent(input: CreateAgentInput): Promise<ClientAgentSummary>;
   duplicateAgent(agentId: string): Promise<DuplicateAgentResult>;
   updateAgent(input: UpdateAgentInput): Promise<void>;
   deleteAgent(agentId: string): Promise<void>;
@@ -274,7 +274,7 @@ export interface WebRuntimeEvents {
   /** A host that this tab has not opened revoked its session. */
   hostSessionRevoked?(): void;
   /** An event of a host this tab has not opened that a notification can show. */
-  hostNotice?(hostId: string, event: WebHostNotice, agents: AgentSummary[]): void;
+  hostNotice?(hostId: string, event: WebHostNotice, agents: ClientAgentSummary[]): void;
 }
 
 /** The host speaks no Team API protocol that this web build speaks. The workspace shows it in full. */
@@ -406,7 +406,7 @@ export function createWebWorkspaceRuntime(
         // Without a listener, the status connections read no agent list.
         ...(events.hostNotice
           ? {
-              onNotice: (hostId: string, event: WebHostNotice, agents: AgentSummary[]) =>
+              onNotice: (hostId: string, event: WebHostNotice, agents: ClientAgentSummary[]) =>
                 events.hostNotice?.(hostId, event, agents),
             }
           : {}),
@@ -881,7 +881,7 @@ export function createWebWorkspaceRuntime(
       }
     },
     async listAgents() {
-      return guardedListDecoder(isAgentSummary, "agents")(await request("GET", TEAM_API_ROUTES.agents.all));
+      return guardedListDecoder(isClientAgentSummary, "agents")(await request("GET", TEAM_API_ROUTES.agents.all));
     },
     async conversation(id, before) {
       if (!capabilities.includes("conversation-pagination")) {
@@ -1033,7 +1033,10 @@ export function createWebWorkspaceRuntime(
     setAgentHidden: (input) =>
       runTeamEffect(setAgentHidden(teamApi, input).pipe(Effect.mapError((error) => error.cause))),
     async models() {
-      return guardedListDecoder(isAgentModelOption, "models")(await request("GET", TEAM_API_ROUTES.agents.models));
+      return guardedListDecoder(
+        isClientAgentModelOption,
+        "models",
+      )(await request("GET", TEAM_API_ROUTES.agents.models));
     },
     async status() {
       const value = await request("GET", TEAM_API_ROUTES.agents.status);
@@ -1047,7 +1050,7 @@ export function createWebWorkspaceRuntime(
     },
     async createAgent(input) {
       const value = await request("POST", TEAM_API_ROUTES.agents.all, { ...input });
-      if (!isAgentSummary(value)) throw new Error(currentText().t("error.remote.invalidData"));
+      if (!isClientAgentSummary(value)) throw new Error(currentText().t("error.remote.invalidData"));
       return value;
     },
     async duplicateAgent(agentId) {
@@ -1056,7 +1059,7 @@ export function createWebWorkspaceRuntime(
       const operationId = duplicateOperationIds.get(operationKey) ?? crypto.randomUUID();
       duplicateOperationIds.set(operationKey, operationId);
       const value = await request("POST", TEAM_API_ROUTES.agent.duplicate(agentId), { operationId });
-      if (!isDynamicRecord(value) || !isAgentSummary(value.agent) || !isSidebarLayoutSnapshot(value.layout))
+      if (!isDynamicRecord(value) || !isClientAgentSummary(value.agent) || !isSidebarLayoutSnapshot(value.layout))
         throw new Error(currentText().t("error.remote.invalidData"));
       duplicateOperationIds.delete(operationKey);
       return { agent: value.agent, layout: value.layout } satisfies DuplicateAgentResult;

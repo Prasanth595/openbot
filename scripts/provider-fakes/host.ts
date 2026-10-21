@@ -4,14 +4,24 @@ import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import type { AgentClient } from "../../src/backend/agent-client";
 import { runCauseEffect } from "../../src/backend/effect-boundary";
-import { type AppServerNotification, getString, isRecord } from "../../src/backend/protocol";
+import { type AppServerNotification, getRecord, getString, isRecord } from "../../src/backend/protocol";
 import type { CustomProviderCipher } from "../../src/main/custom-provider-store";
 
-/** Writes an executable that starts `agents/<agent>.ts` with the Bun that runs the test. */
-export async function installFakeAgent(executable: string, agent: string): Promise<void> {
+/**
+ * Writes an executable that starts `agents/<agent>.ts` with the Bun that runs the test. `env` is set
+ * for this executable only, so one test can run several fakes that act differently.
+ */
+export async function installFakeAgent(
+  executable: string,
+  agent: string,
+  env: Readonly<Record<string, string>> = {},
+): Promise<void> {
   const file = resolve(import.meta.dirname, "agents", `${agent}.ts`);
+  const exports = Object.entries(env)
+    .map(([name, value]) => `export ${name}=${JSON.stringify(value)}\n`)
+    .join("");
   await mkdir(dirname(executable), { recursive: true });
-  await writeFile(executable, `#!/bin/sh\nexec "${process.execPath}" "${file}" "$@"\n`);
+  await writeFile(executable, `#!/bin/sh\n${exports}exec "${process.execPath}" "${file}" "$@"\n`);
   await chmod(executable, 0o755);
 }
 
@@ -49,6 +59,8 @@ export interface TurnResult {
   reply: string;
   /** The message of the turn's error notification, or null. */
   error: string | null;
+  /** The status of `turn/completed`, such as `completed` or `interrupted`. */
+  status: string | null;
 }
 
 /** Starts a turn and waits for its completion, also after an error. */
@@ -57,7 +69,7 @@ export async function runTurn(
   thread: string,
   options: { model?: string; text?: string } = {},
 ): Promise<TurnResult> {
-  const result: TurnResult = { reply: "", error: null };
+  const result: TurnResult = { reply: "", error: null, status: null };
   // `AgentClient` has no `off`, so a finished turn's listener stays and ignores what follows.
   let finished = false;
   const done = new Promise<void>((finish) => {
@@ -68,6 +80,7 @@ export async function runTurn(
       }
       if (notification.method === "error") result.error = getString(notification.params, "message") ?? "error";
       if (notification.method === "turn/completed") {
+        result.status = getString(getRecord(notification.params, "turn"), "status");
         finished = true;
         finish();
       }

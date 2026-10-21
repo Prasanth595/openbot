@@ -10,8 +10,9 @@ import { handler, type IpcGroupHandlers, payloadHandler } from "./define-ipc-gro
 
 export function customAgentIpcHandlers(changes: CustomAgentChanges): Pick<IpcGroupHandlers, "customAgents"> {
   /**
-   * One check at a time. A check starts a program and waits up to 20 seconds, so a renderer that
-   * sent many at once would start many; the next one waits for the one before.
+   * One check at a time. A check starts a program and waits up to 20 seconds for its answer and 10
+   * more for its models, so a renderer that sent many at once would start many; the next one waits
+   * for the one before.
    */
   const checks = Semaphore.makeUnsafe(1);
   return {

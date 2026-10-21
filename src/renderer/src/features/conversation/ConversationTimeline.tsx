@@ -46,6 +46,7 @@ import { useConversationViewScope } from "./conversation-scope";
 import type { ConversationProps } from "./conversation-types";
 import { agentSkillsMode } from "./installed-skills-source";
 import { MarketplaceSuggestionChatCard, marketplaceSuggestionKnown } from "./MarketplaceSuggestionChatCard";
+import { McpSignInChatCard } from "./McpSignInChatCard";
 import { RoutineChatCard } from "./RoutineChatCard";
 import { PENDING_SEND_ID_PREFIX, pendingSendRetrySafe } from "./stores/pending-send-store";
 
@@ -143,6 +144,8 @@ export function ConversationTimeline() {
     providerUpdateRequired,
     previewAttachment,
     props,
+    mcpServers,
+    sendCardMessage,
     reactToMessage,
     renderedAgentActivity,
     replyJump,
@@ -304,6 +307,11 @@ export function ConversationTimeline() {
   /** A suggestion this client can draw is a card. One for an app it does not know keeps the marker. */
   const suggestionMarker = (marker: ChatActionMarkerModel) =>
     marker.kind === "marketplace-suggestion" && marketplaceSuggestionKnown(marker.appId) ? marker : undefined;
+  /** The saved http row a sign-in card names. A row this client cannot read keeps the marker. */
+  const mcpSignInConfig = (marker: ChatActionMarkerModel) =>
+    marker.kind === "mcp-sign-in"
+      ? mcpServers().find((config) => config.id === marker.mcpServerId && config.transport === "http")
+      : undefined;
   const virtualMessageRows = createMemo(() => messageVirtualizer.getVirtualItems());
   const rail = createChatScrollRail({
     rows: timelineMessages,
@@ -558,21 +566,42 @@ export function ConversationTimeline() {
                                   <Show
                                     when={suggestionMarker(marker())}
                                     fallback={
-                                      <ChatActionMarker
-                                        onOpenSkill={
-                                          agentSkillsMode(props.server, props.runtime) === "hidden"
-                                            ? undefined
-                                            : openSkillSettings
+                                      <Show
+                                        when={mcpSignInConfig(marker())}
+                                        fallback={
+                                          <ChatActionMarker
+                                            onOpenSkill={
+                                              agentSkillsMode(props.server, props.runtime) === "hidden"
+                                                ? undefined
+                                                : openSkillSettings
+                                            }
+                                            marker={marker()}
+                                            agents={props.agents}
+                                            announce={arrives}
+                                            routineAvailable={routineMarkerAvailable(
+                                              marker(),
+                                              props.availableRoutineIds,
+                                            )}
+                                            onSelectAgent={props.onSelectAgent}
+                                            onOpenRoutine={openRoutineSettings}
+                                            onOpenHostedSite={(url) => void openExternalMessageUrl(url)}
+                                            onToggleRoutineRun={toggleRoutineRun}
+                                          />
                                         }
-                                        marker={marker()}
-                                        agents={props.agents}
-                                        announce={arrives}
-                                        routineAvailable={routineMarkerAvailable(marker(), props.availableRoutineIds)}
-                                        onSelectAgent={props.onSelectAgent}
-                                        onOpenRoutine={openRoutineSettings}
-                                        onOpenHostedSite={(url) => void openExternalMessageUrl(url)}
-                                        onToggleRoutineRun={toggleRoutineRun}
-                                      />
+                                      >
+                                        {(config) => (
+                                          <McpSignInChatCard
+                                            config={config()}
+                                            signedIn={props.mcpSignedIn?.(config().id) ?? false}
+                                            onSignIn={
+                                              props.onOpenMcpSignIn
+                                                ? (trigger) => props.onOpenMcpSignIn?.(config().id, trigger)
+                                                : undefined
+                                            }
+                                            onContinue={sendCardMessage}
+                                          />
+                                        )}
+                                      </Show>
                                     }
                                   >
                                     {(suggestion) => (

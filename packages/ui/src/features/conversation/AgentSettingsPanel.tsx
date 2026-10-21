@@ -1,4 +1,4 @@
-import { agentProviderDescriptor, agentProviderName } from "@openbot/contracts/agent-providers";
+import { agentProviderDescriptor, agentProviderName, foreignProvider } from "@openbot/contracts/agent-providers";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import {
   AGENT_TASK_LIMIT_DEFAULT,
@@ -6,7 +6,6 @@ import {
   type AgentBackupModels,
   type AgentModelChoice,
   type AgentModelId,
-  type AgentModelOption,
   type AgentPermissionLevel,
   type AgentProviderId,
   type AgentReasoningEffort,
@@ -21,6 +20,7 @@ import {
   agentPermissionUpdate,
   agentQuickAcknowledgementEnabled,
   type BusyMessageMode,
+  type ClientAgentModelOption,
   type CustomAgentSummary,
   type CustomProviderSummary,
   DEFAULT_AGENT_ACCESS,
@@ -102,7 +102,7 @@ export interface AgentSettingsPanelProps {
   agent: AgentProfile;
   runtimeSettings: AgentRuntimeSettings;
   agentStatus: AgentStatus;
-  modelOptions: AgentModelOption[];
+  modelOptions: ClientAgentModelOption[];
   working: boolean;
   /** Unknown while a remote host has not sent it; the level then shows as if it were on. */
   autoApprove?: boolean | undefined;
@@ -331,6 +331,10 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
   const reasoningOptions = createMemo(() => selectedModel()?.supportedReasoningEfforts ?? ["medium" as const]);
   // The provider has no reasoning setting for this model, and the `medium` it lists is never sent.
   const reasoningSetByProvider = () => selectedModel()?.reasoningEffortConfigurable === false;
+  /** The agent's provider when this build does not know it: its runtime rows cannot change. */
+  const agentForeignProvider = () => foreignProvider(props.agent.provider);
+  /** The provider whose capabilities apply. A foreign agent leaves `draft.runtime.provider` stale. */
+  const knownProvider = () => (agentForeignProvider() === undefined ? draft.runtime.provider : undefined);
   const avatarCandidates = createMemo(() =>
     avatarCandidateSeeds(props.agent.id, draft.avatar.candidateSeed, draft.avatar.batch),
   );
@@ -786,11 +790,19 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
   const appBusyMessageMode = () => props.defaultBusyMessageMode ?? DEFAULT_BUSY_MESSAGE_MODE;
   const busyMessageLabel = (choice: BusyMessageChoice) =>
     t(choice === "default" ? APP_DEFAULT_BUSY_MESSAGE_LABEL[appBusyMessageMode()] : BUSY_MESSAGE_LABEL[choice]);
-  const steerUnsupported = () =>
-    (draft.busyMessage === "default" ? appBusyMessageMode() : draft.busyMessage) === "steer" &&
-    agentProviderDescriptor(draft.runtime.provider).steer !== "native";
+  const steerUnsupported = () => {
+    const provider = knownProvider();
+    return (
+      provider !== undefined &&
+      (draft.busyMessage === "default" ? appBusyMessageMode() : draft.busyMessage) === "steer" &&
+      agentProviderDescriptor(provider).steer !== "native"
+    );
+  };
 
-  const oneTurnAtATime = () => !agentProviderDescriptor(draft.runtime.provider).concurrentTurns;
+  const oneTurnAtATime = () => {
+    const provider = knownProvider();
+    return provider !== undefined && !agentProviderDescriptor(provider).concurrentTurns;
+  };
   const taskLimitLabel = (choice: TaskLimitChoice) =>
     choice === "default"
       ? t("agentSettings.taskLimit.default", { count: AGENT_TASK_LIMIT_DEFAULT })
@@ -1124,6 +1136,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
                   }
                   ariaLabel={t("agentSettings.runtime.model")}
                   provider={draft.runtime.provider}
+                  foreignProvider={agentForeignProvider()}
                   value={draft.runtime.model}
                   agentStatus={props.agentStatus}
                   modelOptions={props.modelOptions}
@@ -1149,7 +1162,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
                   class="agent-settings-runtime-select"
                   options={reasoningOptions()}
                   value={draft.runtime.reasoningEffort}
-                  disabled={reasoningSetByProvider()}
+                  disabled={reasoningSetByProvider() || agentForeignProvider() !== undefined}
                   onChange={(nextReasoning) => {
                     if (!nextReasoning || nextReasoning === draft.runtime.reasoningEffort) return;
                     void selectReasoning(nextReasoning);
@@ -1233,7 +1246,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
                 <SettingsLinkGroup inset class="agent-settings-runtime-rows">
                   <Select<AgentPermissionLevel>
                     class="agent-settings-runtime-select"
-                    options={[...agentPermissionLevels(draft.runtime.provider, currentPermission())]}
+                    options={[...agentPermissionLevels(knownProvider(), currentPermission())]}
                     value={draft.permission}
                     onChange={(next) => {
                       if (!next || next === draft.permission) return;
@@ -1274,7 +1287,8 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
                     </>
                   }
                 >
-                  {t("agentSettings.runtime.workspaceNote")} {workspaceEnforcementNote(draft.runtime.provider)}{" "}
+                  {t("agentSettings.runtime.workspaceNote")}{" "}
+                  {agentForeignProvider() === undefined ? workspaceEnforcementNote(draft.runtime.provider) : null}{" "}
                   {t("agentSettings.runtime.workspaceUnlimited")}
                 </Show>
               </Text>

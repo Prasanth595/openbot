@@ -98,6 +98,8 @@ const ServerSettings = createSimpleContext({
     const [serverSettingsMcpSignInRelays, setServerSettingsMcpSignInRelays] = createSignal<
       Record<string, McpSignInRelayPage>
     >({});
+    /** The MCP row whose sign-in an agent's card asked for, until the MCP section starts it. */
+    const [serverSettingsMcpSignInRequest, setServerSettingsMcpSignInRequest] = createSignal<string | null>(null);
     /** Bumped by every open and refresh, so a slower earlier load cannot paint over a newer one. */
     let serverSettingsRequest = 0;
     /**
@@ -221,8 +223,15 @@ const ServerSettings = createSimpleContext({
       setServerSettingsMcp([]);
       setServerSettingsMcpError(null);
       setServerSettingsMcpSignIns({});
+      setServerSettingsMcpSignInRequest(null);
       setServerSettingsError(null);
       void refreshServerSettings(serverId);
+    }
+
+    /** Opens the MCP section of a server and signs in to one of its rows, as its Sign in button does. */
+    function openMcpSignIn(serverId: string, mcpServerId: string, trigger: HTMLElement | null): void {
+      openServerSettings(serverId, trigger, "mcp");
+      setServerSettingsMcpSignInRequest(mcpServerId);
     }
 
     async function saveServerIdentity(input: { serverName: string; logo?: AvatarImageInput | null }): Promise<void> {
@@ -721,6 +730,10 @@ const ServerSettings = createSimpleContext({
       serverSettingsMcp,
       serverSettingsMcpError,
       serverSettingsMcpSignIns,
+      serverSettingsTargetId,
+      serverSettingsMcpSignInRequest,
+      clearMcpSignInRequest: () => setServerSettingsMcpSignInRequest(null),
+      openMcpSignIn,
       serverSettingsMcpSignInPages,
       serverSettingsMcpSignInRelays,
       openMcpSignInRelay,

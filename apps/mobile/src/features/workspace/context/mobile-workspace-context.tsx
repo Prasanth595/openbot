@@ -137,6 +137,7 @@ import {
   ignoreResponse,
   projectAgent,
   type RemoteAgent,
+  remoteAgentOf,
   updateAgentPayload,
 } from "@/features/workspace/model/workspace-records";
 import type {
@@ -942,7 +943,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         void refreshConversationReads(serverId).catch(() => undefined);
       }
       if (event.type === "agents-changed") {
-        replaceServerAgents(serverId, event.agents);
+        replaceServerAgents(serverId, event.agents.map(remoteAgentOf));
       } else if (event.type === "conversation") {
         const knownIds = serverAgentIds.current.get(serverId) ?? new Set<string>();
         knownIds.add(event.snapshot.agentId);

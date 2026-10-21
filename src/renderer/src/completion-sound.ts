@@ -1,11 +1,11 @@
-import type { AgentEvent, AgentSummary } from "@openbot/contracts/ipc";
+import type { AgentEvent, ClientAgentSummary } from "@openbot/contracts/ipc";
 
 const COMPLETION_SOUND_STORAGE_KEY = "openbot:completion-sound-enabled";
 const COMPLETION_SOUND_DURATION_SECONDS = 0.22;
 
 let completionAudioContext: AudioContext | undefined;
 
-type NotificationAgent = Pick<AgentSummary, "id" | "notifications">;
+type NotificationAgent = Pick<ClientAgentSummary, "id" | "notifications">;
 type PreferenceStorage = Pick<Storage, "getItem">;
 
 /** The choice for this page after the browser did not save it. It wins over an older saved value. */

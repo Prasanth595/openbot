@@ -1,3 +1,4 @@
+import { foreignProvider } from "@openbot/contracts/agent-providers";
 import type { AgentModelId, AgentReasoningEffort } from "@openbot/contracts/ipc";
 import { isAgentTaskActive } from "@openbot/team-client/agent-tasks";
 import { reasoningLabel } from "@openbot/ui/components/ProviderModelPicker";
@@ -55,6 +56,7 @@ export function ConversationHeader() {
       pendingModel={pendingModel()}
       modelPicker={{
         provider: settingsProvider(),
+        foreignProvider: props.agent ? foreignProvider(props.agent.provider) : undefined,
         value: settingsModel(),
         reasoningEffort: settingsReasoning(),
         modelOptions: props.modelOptions,

@@ -1,6 +1,6 @@
 import type {
   AddedAgent,
-  AgentSummary,
+  ClientAgentSummary,
   InstalledSkill,
   MarketplaceAgentDetail,
   MarketplaceAgentSummary,
@@ -44,8 +44,8 @@ import { localizedPlugin } from "./marketplace-plugin-text";
 import { agentHomeCache, marketplaceErrorMessage, skillHomeCache } from "./marketplace-shared";
 
 /** An agent of the server that the Marketplace is for. */
-export type MarketplaceAgentRow = Pick<AgentSummary, "id" | "name" | "avatarSeed" | "avatarHue" | "avatarUrl"> & {
-  marketplaceSource?: AgentSummary["marketplaceSource"];
+export type MarketplaceAgentRow = Pick<ClientAgentSummary, "id" | "name" | "avatarSeed" | "avatarHue" | "avatarUrl"> & {
+  marketplaceSource?: ClientAgentSummary["marketplaceSource"];
 };
 
 export interface MarketplaceControllerProps {

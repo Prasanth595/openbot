@@ -53,6 +53,7 @@ import { PROVIDERS_RUNTIMES_V2_CAPABILITY } from "./providers-v2";
 import { PROVIDERS_SIGN_IN_V3_CAPABILITY } from "./providers-v3";
 import { PROVIDERS_V4_CAPABILITY } from "./providers-v4";
 import { PROVIDERS_V5_CAPABILITY } from "./providers-v5";
+import { PROVIDERS_V8_CAPABILITY } from "./providers-v8";
 import { ANDROID_PUSH_NOTIFICATIONS_CAPABILITY } from "./push-notifications-android-v1";
 import { PUSH_NOTIFICATIONS_CAPABILITY } from "./push-notifications-v1";
 import { TEAM_QUEUE_EDIT_CAPABILITY } from "./queue-edit-v1";
@@ -66,7 +67,7 @@ import { SKILLS_ADMIN_CAPABILITY } from "./skills-admin-v1";
 import { SKILLS_EVENTS_CAPABILITY } from "./skills-events-v1";
 import { TEAM_SUBAGENTS_CAPABILITY } from "./subagents-v1";
 import { TEAM_UI_BLOCKS_CAPABILITY } from "./ui-blocks-v1";
-import { TEAM_PROTOCOL_V7_CAPABILITIES } from "./v7";
+import { TEAM_OPEN_PROVIDERS_CAPABILITY, TEAM_PROTOCOL_V8_CAPABILITIES } from "./v8";
 import { WORKSPACE_DIRECTORY_CAPABILITY } from "./workspace-directory-v1";
 
 export const TEAM_SEMANTIC_TAGS_CAPABILITY = "installed-skills";
@@ -144,6 +145,7 @@ export {
   PROVIDERS_SIGN_IN_V3_CAPABILITY,
   PROVIDERS_V4_CAPABILITY,
   PROVIDERS_V5_CAPABILITY,
+  PROVIDERS_V8_CAPABILITY,
   PUSH_NOTIFICATIONS_CAPABILITY,
   QUIET_TURN_CAPABILITY,
   ROUTINE_FLOWS_CAPABILITY,
@@ -171,7 +173,7 @@ export {
 
 export const TEAM_CURRENT_CAPABILITIES = [
   BROWSER_SECRET_CAPABILITY,
-  ...TEAM_PROTOCOL_V7_CAPABILITIES,
+  ...TEAM_PROTOCOL_V8_CAPABILITIES,
   "remote-desktop-setup",
   TEAM_QUEUE_EDIT_CAPABILITY,
   TEAM_BROWSER_NAVIGATION_CAPABILITY,
@@ -209,6 +211,7 @@ export const TEAM_CURRENT_CAPABILITIES = [
   PROVIDERS_SIGN_IN_V3_CAPABILITY,
   PROVIDERS_V4_CAPABILITY,
   PROVIDERS_V5_CAPABILITY,
+  PROVIDERS_V8_CAPABILITY,
   HOST_ADMIN_CAPABILITY,
   AGENT_UPDATE_CAPABILITY,
   TEAM_MEMBER_LEAVE_CAPABILITY,
@@ -320,12 +323,15 @@ export function isAgentMessageRoute(method: string, path: string): boolean {
 // Keep the first request readable by every released peer. The v7 marker lets a current
 // host return the expanded list; older hosts ignore the marker and retain all old features.
 // A protocol 6 peer reads at most 64 capabilities, so each new capability is v7 only.
+// The v8 marker stays out: a client sends it only after the host reports protocol 8.
 export const TEAM_BOOTSTRAP_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
   (capability) =>
+    capability !== TEAM_OPEN_PROVIDERS_CAPABILITY &&
     capability !== AGENT_MEMORIES_CAPABILITY &&
     capability !== AGENT_SESSION_SETTINGS_CAPABILITY &&
     capability !== ACP_REGISTRY_CAPABILITY &&
     capability !== PROVIDERS_V5_CAPABILITY &&
+    capability !== PROVIDERS_V8_CAPABILITY &&
     capability !== PROVIDER_HOST_SIGN_IN_CAPABILITY &&
     capability !== MCP_SIGN_IN_APP_CAPABILITY &&
     capability !== SIGN_IN_RELAY_CAPABILITY &&
@@ -354,19 +360,24 @@ export const TEAM_BOOTSTRAP_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
     capability !== AGENT_ACCESS_CAPABILITY &&
     capability !== TEAM_PROMPT_MULTI_SELECT_CAPABILITY,
 );
+// A v7 host does not know the v8 markers, so a client sends them only after it negotiates protocol 8.
+const TEAM_PROTOCOL_V7_CURRENT_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
+  (capability) => capability !== TEAM_OPEN_PROVIDERS_CAPABILITY && capability !== PROVIDERS_V8_CAPABILITY,
+);
 export function teamCapabilitiesForProtocol(protocol: number | null | undefined): readonly TeamCurrentCapability[] {
-  return protocol !== null && protocol !== undefined && protocol >= 7
-    ? TEAM_CURRENT_CAPABILITIES
-    : TEAM_BOOTSTRAP_CAPABILITIES;
+  if (protocol === null || protocol === undefined || protocol < 7) return TEAM_BOOTSTRAP_CAPABILITIES;
+  return protocol >= 8 ? TEAM_CURRENT_CAPABILITIES : TEAM_PROTOCOL_V7_CURRENT_CAPABILITIES;
 }
 export function legacyTeamCapabilities(capabilities: readonly string[]): string[] {
   return capabilities.filter(
     (capability) =>
       capability !== "local-providers-v3" &&
+      capability !== TEAM_OPEN_PROVIDERS_CAPABILITY &&
       capability !== AGENT_MEMORIES_CAPABILITY &&
       capability !== AGENT_SESSION_SETTINGS_CAPABILITY &&
       capability !== ACP_REGISTRY_CAPABILITY &&
       capability !== PROVIDERS_V5_CAPABILITY &&
+      capability !== PROVIDERS_V8_CAPABILITY &&
       capability !== PROVIDER_HOST_SIGN_IN_CAPABILITY &&
       capability !== MCP_SIGN_IN_APP_CAPABILITY &&
       capability !== SIGN_IN_RELAY_CAPABILITY &&

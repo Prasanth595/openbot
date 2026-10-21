@@ -347,6 +347,7 @@ function AgentForm({
           available={available}
           saving={saving}
           provider={provider}
+          foreignProvider={edits.provider === undefined ? agent.foreignProvider : undefined}
           model={edits.model ?? agent.model}
           reasoningEffort={edits.reasoningEffort ?? agent.reasoningEffort}
           accounts={providerAccounts}

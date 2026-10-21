@@ -1,4 +1,4 @@
-import type { AgentEvent, AgentSummary, ServerNotificationLevel } from "@openbot/contracts/ipc";
+import type { AgentEvent, ClientAgentSummary, ServerNotificationLevel } from "@openbot/contracts/ipc";
 import type { AppTranslate } from "@openbot/i18n";
 import { notificationForAgentEvent, notificationRequestKey } from "@openbot/team-client/agent-notifications";
 
@@ -108,7 +108,7 @@ export function withdrawWebAgentNotification(hostId: string, event: AgentEvent):
 export function showWebAgentNotification(options: {
   hostId: string;
   event: AgentEvent;
-  agents: AgentSummary[];
+  agents: ClientAgentSummary[];
   level: ServerNotificationLevel;
   translate: AppTranslate;
   onOpen(agentId: string): void;

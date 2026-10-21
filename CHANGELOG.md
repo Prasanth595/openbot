@@ -6,6 +6,50 @@ All notable changes to OpenBot will be documented here. The project follows
 
 ## [Unreleased]
 
+## [0.47.1] - 2026-10-21
+
+### Added
+
+- Settings > Voice has a new local dictation model: **Underdog Bark 3.0 Plus**. It is fast and
+  recognizes English only. It writes mostly lowercase text, with little punctuation. OpenBot
+  downloads it (about 685 MB) only when you select it.
+- Roles in Server settings let an owner or admin choose the agents that members can use. Each role gives each agent one level: No access, Can view, Can chat or Can manage. A member gets the highest level of Everyone and of their roles. Owners and admins can use all agents. The role menu of each member on the Members page gives the roles and the server role.
+- Import your Hermes Agent profiles in Server settings › Import. Each profile becomes an agent with its persona, memories, skills and scheduled jobs. There are three ways, as for Grok Bot:
+  - **Read this computer:** OpenBot reads the Hermes folder and shows every item, and why an item stays in Hermes, before anything changes. Skills with scripts and MCP servers import only when you allow them, and MCP servers are added turned off. When you import a profile again, its agent is updated, and no second agent is added.
+  - **Install with a command:** type the `/skills install` command in a Hermes chat, send `/openbot-export`, and choose the `.zip` file that Hermes saves.
+  - **Set it up yourself:** add the export skill file to Hermes by hand, then do the same steps.
+- Keys in `.env` and `auth.json` are never copied.
+- Server settings › Import now starts with where your agents are now: Hermes Agent, Grok Bot, or another OpenBot computer.
+- Select text in a file that the side panel shows, then quote it or ask the agent to change it. The quote names the file and, in a text file, the lines. Click the quote to open the file at the quoted passage.
+- Oh My Pi (`omp acp`) is now in the list of known agents when you add a custom agent, and the
+  agent scan finds an installed `omp` command.
+- Ask an agent to add an MCP server, for example "Add this MCP server: https://example.com/mcp". The agent connects to it, tells you its tools or the error, and you approve each change unless the agent has Full access. When the server needs a sign-in, a Sign in card shows in the chat; press Continue after you sign in, and the agent tests the server again. Keys stay in Server settings, MCP: the agent never asks for them in the chat. Agents can also turn MCP servers on or off, test them and remove them when you ask.
+
+### Changed
+
+- Settings > Providers is now a short list in two groups, Connected and Other providers, with a search field. Each row shows one line, and a badge only when the provider needs you.
+- Each provider has its own page with its accounts, sign-in, API key, version, restart, diagnostics and on/off switch. Open it from the list; "Providers ›" in the title goes back.
+- An account that is low on usage shows a badge with the amount left. Click it to see all of its limits.
+- The default provider for new agents is now one menu at the top of the list.
+- Custom endpoints have their own page, where you add and remove them.
+- A member can no longer change an agent's settings when a role gives that member less than Can manage. On a server with no roles, members can use all agents, as before.
+- The Quote button in the selection bar shows its shortcut in its tooltip.
+
+### Fixed
+
+- The Tasks page keeps the agent that you chose last on each server. Before, it went back to the first agent each time you opened the page.
+- The agent menu on the Tasks page scrolls when a server has many agents. Before, agents below the bottom of the window could not be chosen.
+- Icons in buttons with text are now the size of the text, not larger.
+- OpenBot now offers new Pi releases. Before, the update check could not read Pi's release tags, so
+  Pi stayed on the version that came with OpenBot.
+- In Discord, the agent now gets the images and files of earlier messages. A new conversation also
+  gets the channel's messages from the 15 minutes before it. Before, "@OpenBot make an issue" after
+  an image that another person posted without a mention did not see that image, and the agent could
+  act on an older request.
+- Keep each agent's provider session when OpenBot stops through a signal, as a terminal, `systemd` or Docker sends it. The Computer Use driver stopped from the same signal and made every agent start a new provider session at the next launch, which lost the provider's own context.
+- The Composio listing now connects with a Composio Connect link (`https://connect.composio.dev/mcp`) and its API key. Before, the key went in a header that Composio Connect does not read, and the connection failed with "This server asks for a sign-in".
+- A server that refuses a pasted key now says to check the key. Before, it said to sign in.
+
 ## [0.47.0] - 2026-10-21
 
 ### Added

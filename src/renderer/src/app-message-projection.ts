@@ -1,10 +1,11 @@
-import type { AgentSummary, ConversationMessage, QueueDeliveryStatus } from "@openbot/contracts/ipc";
+import type { ClientAgentSummary, ConversationMessage, QueueDeliveryStatus } from "@openbot/contracts/ipc";
 import {
   CONVERSATION_PLAN_ITEM_TYPE,
   CONVERSATION_SUBAGENTS_ITEM_TYPE,
   hostedSiteConversationEvent,
   isContextResetMarker,
   marketplaceSuggestionEvent,
+  mcpSignInEvent,
   modelSwitchReason,
   parseConversationPlanText,
   routineConversationEvent,
@@ -25,7 +26,7 @@ import type { TaskListItem } from "@openbot/ui/features/conversation/TaskList";
 import { currentText } from "@openbot/ui/text";
 import { isRoutineEventItem } from "./features/conversation/conversation-read-state";
 
-export function toAgentProfile(stored: AgentSummary): AgentProfile {
+export function toAgentProfile(stored: ClientAgentSummary): AgentProfile {
   return {
     id: stored.id,
     name: stored.name,
@@ -311,6 +312,8 @@ function chatActionMarker(
   if (skillEvent) return { ...skillEvent, kind: "skill-lifecycle", timestamp: message.createdAt };
   const suggestion = marketplaceSuggestionEvent(message);
   if (suggestion) return { kind: "marketplace-suggestion", appId: suggestion.appId, timestamp: message.createdAt };
+  const signIn = mcpSignInEvent(message);
+  if (signIn) return { kind: "mcp-sign-in", mcpServerId: signIn.mcpServerId, timestamp: message.createdAt };
   if (routineEvent) {
     return {
       kind: "routine-lifecycle",

@@ -1,4 +1,4 @@
-import type { AgentSummary } from "@openbot/contracts/ipc";
+import type { ClientAgentSummary } from "@openbot/contracts/ipc";
 import { TEAM_AGENT_CREATE_MODEL_CAPABILITY } from "@openbot/contracts/team-protocol/current";
 import { classifyFailure } from "@openbot/telemetry";
 import { toast } from "@openbot/ui";
@@ -81,7 +81,7 @@ const AgentActions = createSimpleContext({
     }
 
     /** Synchronous, so a caller that also selects the agent does both in the same update. */
-    function addNewAgent(stored: AgentSummary): AgentProfile {
+    function addNewAgent(stored: ClientAgentSummary): AgentProfile {
       const newAgent = createStoredProfile(toAgentProfile(stored));
       setAgentList((current) => [newAgent, ...current.filter((item) => item.id !== newAgent.id)]);
       initializeConversation(newAgent.id);

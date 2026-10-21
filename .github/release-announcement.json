@@ -1,10 +1,10 @@
 {
-  "version": "0.47.0",
+  "version": "0.47.1",
   "highlights": [
-    "Attach ZIP archives in chat, and download the ZIP archives that an agent sends back.",
-    "Inception is a new provider, with the Mercury models.",
-    "Change the model of an agent while it works; the new model starts with the next turn.",
-    "Codex models have a Fast switch in the model picker.",
-    "OpenBot keeps your sign-in on Linux desktops such as Hyprland, Sway, i3 and LXQt."
+    "Ask an agent to add an MCP server, and approve each change it makes.",
+    "Use roles to choose the agents that each member of a server can use.",
+    "Import your Hermes Agent profiles in Server settings → Import.",
+    "Settings → Providers is a short list, with a page for each provider.",
+    "Agents keep their provider sessions when OpenBot stops through a signal."
   ]
 }

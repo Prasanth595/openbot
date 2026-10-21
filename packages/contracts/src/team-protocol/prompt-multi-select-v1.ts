@@ -12,7 +12,7 @@ import type { TeamProtocolV7BaseJsonObject, TeamProtocolV7BaseJsonValue } from "
  * - the `questions` of a `prompt` event;
  * - the `questions` of each `pendingPrompts` item in the `snapshot` of a `runtime-snapshot` event.
  *
- * The host adds it only for a client that advertises the capability, on protocol 7, so the wire of
+ * The host adds it only for a client that advertises the capability, on protocol 7 or 8, so the wire of
  * every released client stays as it was. Such a client shows the question as a single choice, and its
  * one answer is valid for a multi-select question. A host without the capability never sends
  * `multiSelect`, so a client accepts it whenever it is present. A present value that is not a boolean

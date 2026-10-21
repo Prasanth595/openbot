@@ -1,8 +1,8 @@
 import {
   type AgentModelId,
-  type AgentModelOption,
   type AgentProviderId,
   type AppSetupState,
+  type ClientAgentModelOption,
   defaultProviderModel,
   PICKER_PROVIDERS,
 } from "@openbot/contracts/ipc";
@@ -29,7 +29,7 @@ export interface CreationModelChoice {
  */
 export function resolveCreationModel(
   setup: CreationPreference | null,
-  modelOptions: AgentModelOption[],
+  modelOptions: ClientAgentModelOption[],
 ): CreationModelChoice | null {
   const preferred = setup?.preferredProvider ?? null;
   const ordered: AgentProviderId[] = preferred

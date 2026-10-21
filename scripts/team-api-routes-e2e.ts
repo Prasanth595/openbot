@@ -13,13 +13,14 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { ATTACHMENT_LIMITS, INPUT_LIMITS } from "@openbot/contracts/input-limits";
-import type {
-  AgentProviderId,
-  AgentSummary,
-  AttachmentDataInput,
-  CentralAuthUser,
-  HiddenAgentsSnapshot,
-  QueueSnapshot,
+import {
+  AGENT_PROVIDERS,
+  type AgentProviderId,
+  type AgentSummary,
+  type AttachmentDataInput,
+  type CentralAuthUser,
+  type HiddenAgentsSnapshot,
+  type QueueSnapshot,
 } from "@openbot/contracts/ipc";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import { AGENT_HIDDEN_CAPABILITY, AGENT_HIDDEN_ROUTES } from "@openbot/contracts/team-protocol/agent-hidden-v1";
@@ -39,6 +40,7 @@ import { runCauseEffect } from "../src/backend/effect-boundary";
 import { OpenBotDatabase } from "../src/backend/openbot-database";
 import { TeamChatStore } from "../src/backend/team-chat-store";
 import type { TeamApiAgents, TeamApiBrowser, TeamApiMailbox } from "../src/main/team-api/dependencies";
+import { isPeerHiddenProvider } from "../src/main/team-api/provider-visibility";
 import { TeamApiServer } from "../src/main/team-api-server";
 import { TeamStore } from "../src/main/team-store";
 
@@ -498,7 +500,7 @@ try {
       "compatibility answers without protocol headers and names the supported range",
       compatibility.status === 200 &&
         field(compatibility.body, "protocol", "minimum") === 1 &&
-        field(compatibility.body, "protocol", "maximum") === 7,
+        field(compatibility.body, "protocol", "maximum") === 8,
       summary(compatibility),
     );
     const noHeaders = await call("GET", TEAM_API_ROUTES.identity, { protocol: null });
@@ -515,12 +517,12 @@ try {
       badHeader.status === 400 && field(badHeader.body, "code") === "protocol_error",
       summary(badHeader),
     );
-    const newer = await call("GET", TEAM_API_ROUTES.identity, { protocol: 8 });
+    const newer = await call("GET", TEAM_API_ROUTES.identity, { protocol: 9 });
     check(
       "a newer protocol gets 426 host_update_required with the client version",
       newer.status === 426 &&
         field(newer.body, "code") === "host_update_required" &&
-        field(newer.body, "client", "protocol") === 8,
+        field(newer.body, "client", "protocol") === 9,
       summary(newer),
     );
     const zero = await call("GET", TEAM_API_ROUTES.identity, { protocol: 0 });
@@ -900,12 +902,38 @@ try {
     const v3 = await call("GET", TEAM_API_ROUTES.agents.all, { token: bobToken, protocol: 3 });
     const v6 = await call("GET", TEAM_API_ROUTES.agents.all, { token: bobToken, protocol: 6 });
     const v7 = await call("GET", TEAM_API_ROUTES.agents.all, { token: bobToken });
+    const v8 = await call("GET", TEAM_API_ROUTES.agents.all, { token: bobToken, protocol: 8 });
     check(
       "the agent list leaves out the agents whose provider the client protocol does not know",
       isDeepStrictEqual(ids(v3), ["agent-ada"]) &&
         isDeepStrictEqual(ids(v6), ["agent-ada", "agent-oc"]) &&
-        isDeepStrictEqual(ids(v7), ["agent-ada", "agent-oc", "agent-pi"]),
-      { v3: ids(v3), v6: ids(v6), v7: ids(v7) },
+        isDeepStrictEqual(ids(v7), ["agent-ada", "agent-oc", "agent-pi"]) &&
+        isDeepStrictEqual(ids(v8), ["agent-ada", "agent-oc", "agent-pi"]),
+      { v3: ids(v3), v6: ids(v6), v7: ids(v7), v8: ids(v8) },
+    );
+    // Each frozen list is the released vocabulary of its protocol. Protocol 8 and later hide only the
+    // local-only providers, which every protocol hides.
+    const hiddenBy = (protocol: number) =>
+      AGENT_PROVIDERS.filter((provider) => isPeerHiddenProvider(provider, protocol));
+    const expectedHidden: Record<number, readonly string[]> = {
+      1: ["opencode", "antigravity", "acp", "cursor", "cline", "pi", "muse", "inception"],
+      3: ["opencode", "antigravity", "acp", "cursor", "cline", "pi", "muse", "inception"],
+      4: ["antigravity", "acp", "cursor", "cline", "pi", "muse", "inception"],
+      5: ["cursor", "cline", "pi", "muse", "inception"],
+      6: ["pi", "muse", "inception"],
+      7: ["inception"],
+      8: ["inception"],
+      9: ["inception"],
+    };
+    const hiddenRows = Object.entries(expectedHidden).map(([protocol, expected]) => ({
+      protocol: Number(protocol),
+      hidden: hiddenBy(Number(protocol)),
+      expected: AGENT_PROVIDERS.filter((provider) => expected.includes(provider)),
+    }));
+    check(
+      "the frozen provider lists hide each provider that a protocol below 8 does not know, and every protocol hides Inception",
+      hiddenRows.every((row) => isDeepStrictEqual(row.hidden, row.expected)),
+      hiddenRows,
     );
     const listQueueCalls = callsOf("listQueue").length;
     const pathV3 = await call("GET", TEAM_API_ROUTES.agent.queue("agent-oc"), { token: bobToken, protocol: 3 });

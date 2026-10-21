@@ -169,6 +169,10 @@ export const messages = {
   "customProvider.acp.checkOk": "{name} hat geantwortet",
   "customProvider.acp.checkOkVersion": "{name} {version} hat geantwortet",
   "customProvider.acp.checkProtocol": "ACP-Version {version}",
+  "customProvider.acp.checkModels": {
+    one: "{count} Modell: {models}",
+    other: "{count} Modelle: {models}",
+  },
   "customProvider.acp.checkFailed": "Der Agent hat nicht geantwortet",
   "customProvider.acp.trustTitle": "Dieser Befehl wird auf deinem Computer ausgeführt",
   "customProvider.acp.trustDescription":

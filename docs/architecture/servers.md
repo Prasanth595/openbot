@@ -204,7 +204,7 @@ option, such as a Claude `AskUserQuestion` question with `multiSelect` (see
 the `questionPrompt` of a message in `GET /v1/agents/:id/conversation` and `conversation-page`
 (messages and references), in the `conversation` and `conversation-page` events, in the `prompt`
 event, and in the `pendingPrompts` of the `runtime-snapshot` event. The host adds it only on protocol
-7 and only for a connection that advertises the capability. A released client shows the question as a
+7 or 8 and only for a connection that advertises the capability. A released client shows the question as a
 single choice, and its one answer is valid for the question. A host without the capability never
 sends the flag, so a client keeps it whenever it is present, and a value that is not a boolean fails
 closed. The WebRTC host peer encodes the local response and the events again with the same option.

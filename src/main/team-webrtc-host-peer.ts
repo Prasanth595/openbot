@@ -56,6 +56,12 @@ import {
   decodeTeamProtocolV7WebRtcHttpRequest,
   encodeTeamProtocolV7WebRtcHttpResponse,
 } from "@openbot/contracts/team-protocol/v7-webrtc-adapter";
+import { TEAM_OPEN_PROVIDERS_CAPABILITY } from "@openbot/contracts/team-protocol/v8";
+import {
+  createTeamProtocolV8Event,
+  decodeTeamProtocolV8WebRtcHttpRequest,
+  encodeTeamProtocolV8WebRtcHttpResponse,
+} from "@openbot/contracts/team-protocol/v8-webrtc-adapter";
 import { sourceText } from "@openbot/i18n/source";
 import { Context, Deferred, Effect, Exit, Fiber, Layer, ManagedRuntime } from "effect";
 import type * as Ws from "ws";
@@ -617,15 +623,17 @@ export class TeamWebRtcHostPeer {
                 JSON.stringify(
                   sideRoute
                     ? sideRoute.request(input.path, input.body)
-                    : (peerCapabilities.has(TEAM_PI_MUSE_CAPABILITY)
-                        ? decodeTeamProtocolV7WebRtcHttpRequest
-                        : peerCapabilities.has(TEAM_CURSOR_CLINE_CAPABILITY)
-                          ? decodeTeamProtocolV6WebRtcHttpRequest
-                          : peerCapabilities.has(TEAM_LOCAL_PROVIDERS_CAPABILITY)
-                            ? decodeTeamProtocolV5WebRtcHttpRequest
-                            : peerCapabilities.has("opencode")
-                              ? decodeTeamProtocolV4WebRtcHttpRequest
-                              : decodeTeamProtocolV3WebRtcHttpRequest)(input.method, input.path, input.body, {
+                    : (peerCapabilities.has(TEAM_OPEN_PROVIDERS_CAPABILITY)
+                        ? decodeTeamProtocolV8WebRtcHttpRequest
+                        : peerCapabilities.has(TEAM_PI_MUSE_CAPABILITY)
+                          ? decodeTeamProtocolV7WebRtcHttpRequest
+                          : peerCapabilities.has(TEAM_CURSOR_CLINE_CAPABILITY)
+                            ? decodeTeamProtocolV6WebRtcHttpRequest
+                            : peerCapabilities.has(TEAM_LOCAL_PROVIDERS_CAPABILITY)
+                              ? decodeTeamProtocolV5WebRtcHttpRequest
+                              : peerCapabilities.has("opencode")
+                                ? decodeTeamProtocolV4WebRtcHttpRequest
+                                : decodeTeamProtocolV3WebRtcHttpRequest)(input.method, input.path, input.body, {
                         preserveSemanticTags,
                         agentCreateModel: peerCapabilities.has(TEAM_AGENT_CREATE_MODEL_CAPABILITY),
                       }),
@@ -638,17 +646,19 @@ export class TeamWebRtcHostPeer {
           headers: {
             Authorization: `Bearer ${this.#localSessionToken}`,
             "Content-Type": uploaded?.mimeType ?? input.contentType ?? "application/json",
-            "OpenBot-Protocol-Version": peerCapabilities.has(TEAM_PI_MUSE_CAPABILITY)
-              ? "7"
-              : peerCapabilities.has(TEAM_CURSOR_CLINE_CAPABILITY)
-                ? "6"
-                : peerCapabilities.has(TEAM_LOCAL_PROVIDERS_CAPABILITY)
-                  ? "5"
-                  : peerCapabilities.has("opencode")
-                    ? "4"
-                    : isTeamProtocolV3OnlyRoute(input.method, input.path)
-                      ? "3"
-                      : "1",
+            "OpenBot-Protocol-Version": peerCapabilities.has(TEAM_OPEN_PROVIDERS_CAPABILITY)
+              ? "8"
+              : peerCapabilities.has(TEAM_PI_MUSE_CAPABILITY)
+                ? "7"
+                : peerCapabilities.has(TEAM_CURSOR_CLINE_CAPABILITY)
+                  ? "6"
+                  : peerCapabilities.has(TEAM_LOCAL_PROVIDERS_CAPABILITY)
+                    ? "5"
+                    : peerCapabilities.has("opencode")
+                      ? "4"
+                      : isTeamProtocolV3OnlyRoute(input.method, input.path)
+                        ? "3"
+                        : "1",
             "OpenBot-App-Version": this.#appVersion,
             "OpenBot-Capabilities": [...this.#peerCapabilities].join(","),
             ...(this.#localSessionId ? { "X-OpenBot-WebRTC-Session": this.#localSessionId } : {}),
@@ -691,7 +701,7 @@ export class TeamWebRtcHostPeer {
               file: { transferId, name, mimeType: contentType || "application/octet-stream", size },
             };
           }
-          // A variable, not a literal: only the V7 encoder declares `historyExtent`, `uiBlocks`,
+          // A variable, not a literal: only the V7 and V8 encoders declare `historyExtent`, `uiBlocks`,
           // `subagents` and `promptMultiSelect`.
           const responseOptions = {
             preserveSemanticTags,
@@ -704,15 +714,17 @@ export class TeamWebRtcHostPeer {
             status: response.status,
             body: sideRoute
               ? sideRoute.response(input.path, response.status, body, responseOptions)
-              : (peerCapabilities.has(TEAM_PI_MUSE_CAPABILITY)
-                  ? encodeTeamProtocolV7WebRtcHttpResponse
-                  : peerCapabilities.has(TEAM_CURSOR_CLINE_CAPABILITY)
-                    ? encodeTeamProtocolV6WebRtcHttpResponse
-                    : peerCapabilities.has(TEAM_LOCAL_PROVIDERS_CAPABILITY)
-                      ? encodeTeamProtocolV5WebRtcHttpResponse
-                      : peerCapabilities.has("opencode")
-                        ? encodeTeamProtocolV4WebRtcHttpResponse
-                        : encodeTeamProtocolV3WebRtcHttpResponse)(
+              : (peerCapabilities.has(TEAM_OPEN_PROVIDERS_CAPABILITY)
+                  ? encodeTeamProtocolV8WebRtcHttpResponse
+                  : peerCapabilities.has(TEAM_PI_MUSE_CAPABILITY)
+                    ? encodeTeamProtocolV7WebRtcHttpResponse
+                    : peerCapabilities.has(TEAM_CURSOR_CLINE_CAPABILITY)
+                      ? encodeTeamProtocolV6WebRtcHttpResponse
+                      : peerCapabilities.has(TEAM_LOCAL_PROVIDERS_CAPABILITY)
+                        ? encodeTeamProtocolV5WebRtcHttpResponse
+                        : peerCapabilities.has("opencode")
+                          ? encodeTeamProtocolV4WebRtcHttpResponse
+                          : encodeTeamProtocolV3WebRtcHttpResponse)(
                   input.method,
                   input.path,
                   response.status,
@@ -759,18 +771,20 @@ export class TeamWebRtcHostPeer {
                 sequence: this.#nextEventSequence,
                 payload: channel,
               })
-            : (this.#peerCapabilities.has(TEAM_PI_MUSE_CAPABILITY)
-                ? createTeamProtocolV7Event
-                : this.#peerCapabilities.has(TEAM_CURSOR_CLINE_CAPABILITY)
-                  ? createTeamProtocolV6Event
-                  : this.#peerCapabilities.has(TEAM_LOCAL_PROVIDERS_CAPABILITY)
-                    ? createTeamProtocolV5Event
-                    : this.#peerCapabilities.has("opencode")
-                      ? createTeamProtocolV4Event
-                      : createTeamProtocolV2Event)(this.#nextEventSequence, event, {
+            : (this.#peerCapabilities.has(TEAM_OPEN_PROVIDERS_CAPABILITY)
+                ? createTeamProtocolV8Event
+                : this.#peerCapabilities.has(TEAM_PI_MUSE_CAPABILITY)
+                  ? createTeamProtocolV7Event
+                  : this.#peerCapabilities.has(TEAM_CURSOR_CLINE_CAPABILITY)
+                    ? createTeamProtocolV6Event
+                    : this.#peerCapabilities.has(TEAM_LOCAL_PROVIDERS_CAPABILITY)
+                      ? createTeamProtocolV5Event
+                      : this.#peerCapabilities.has("opencode")
+                        ? createTeamProtocolV4Event
+                        : createTeamProtocolV2Event)(this.#nextEventSequence, event, {
                 preserveSemanticTags: supportsTeamSemanticTags(this.#peerCapabilities),
                 preserveBrowserSecrets: this.#peerCapabilities.has("browser-secret-handoff"),
-                // Only the V7 event reads them.
+                // Only the V7 and V8 events read them.
                 uiBlocks: this.#peerCapabilities.has(TEAM_UI_BLOCKS_CAPABILITY),
                 subagents: this.#peerCapabilities.has(TEAM_SUBAGENTS_CAPABILITY),
                 promptMultiSelect: this.#peerCapabilities.has(TEAM_PROMPT_MULTI_SELECT_CAPABILITY),
@@ -1053,7 +1067,11 @@ function isHttpRequest(value: TeamProtocolV2Json): value is TeamProtocolV2Json &
     Object.hasOwn(value, "body") &&
     (value.capabilities === undefined ||
       (Array.isArray(value.capabilities) &&
-        value.capabilities.length <= (value.capabilities.includes(TEAM_PI_MUSE_CAPABILITY) ? 128 : 64) &&
+        value.capabilities.length <=
+          (value.capabilities.includes(TEAM_PI_MUSE_CAPABILITY) ||
+          value.capabilities.includes(TEAM_OPEN_PROVIDERS_CAPABILITY)
+            ? 128
+            : 64) &&
         value.capabilities.every(isString))) &&
     (value.bodyTransferId === undefined || isString(value.bodyTransferId)) &&
     (value.contentType === undefined || isString(value.contentType))
