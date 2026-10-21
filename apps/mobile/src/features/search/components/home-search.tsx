@@ -91,11 +91,11 @@ const CSS_EASE_OUT = cubicBezier(0.23, 1, 0.32, 1);
 // layers of the search glide into each other and do not snap.
 const EASE_SMOOTH = Easing.bezier(0.32, 0.72, 0, 1);
 const CSS_EASE_SMOOTH = cubicBezier(0.32, 0.72, 0, 1);
-// The list goes back as the results come in over it. They go back a little quicker than they came:
-// the user leaves on purpose.
-const OPEN = { duration: 420, easing: EASE_SMOOTH };
+// The list goes back as the results come in over it. The results come in with the keyboard; they go
+// back a little slower, so the list has time to settle.
+const OPEN = { duration: 340, easing: EASE_SMOOTH };
 const CLOSE = { duration: 360, easing: EASE_SMOOTH };
-const FIELD_LAYOUT = LinearTransition.duration(360).easing(EASE_SMOOTH);
+const FIELD_LAYOUT = LinearTransition.duration(340).easing(EASE_SMOOTH);
 /** How long the field shows the result of a task start before it returns. */
 const RESULT_DURATION = 2_000;
 /** The result and the field cross: the one that leaves goes first and faster. */
@@ -164,6 +164,8 @@ export interface HomeSearch {
   leave: () => void;
   input: RefObject<TextInput | null>;
   progress: SharedValue<number>;
+  /** 1 while the results leave. Opening and closing move differently. */
+  closing: SharedValue<number>;
   /** False when the server cannot start tasks: then `@` is plain search text. */
   canUseTasks: boolean;
   /** The agent that the next Return gives the typed text to. */
@@ -217,6 +219,7 @@ export function useHomeSearch(): HomeSearch {
   // The task text while the person chooses another agent.
   const draft = useRef("");
   const progress = useSharedValue(0);
+  const closing = useSharedValue(0);
   const targetMatches = canUseTasks && !target ? matchTargets(agents, query) : null;
 
   const openSearch = useCallback(() => {
@@ -225,12 +228,13 @@ export function useHomeSearch(): HomeSearch {
     // The results take the screen, so a swipe right must not open the drawer under them.
     setOpeningBlocked(true);
     setSettled(false);
+    closing.set(0);
     progress.set(
       withTiming(1, OPEN, (finished) => {
         if (finished) scheduleOnRN(setSettled, true);
       }),
     );
-  }, [progress, setOpeningBlocked]);
+  }, [progress, closing, setOpeningBlocked]);
   const closeSearch = useCallback(() => {
     input.current?.blur();
     Keyboard.dismiss();
@@ -240,12 +244,13 @@ export function useHomeSearch(): HomeSearch {
     setTarget(null);
     draft.current = "";
     setOpeningBlocked(false);
+    closing.set(1);
     progress.set(
       withTiming(0, CLOSE, (finished) => {
         if (finished) scheduleOnRN(setMounted, false);
       }),
     );
-  }, [progress, setOpeningBlocked]);
+  }, [progress, closing, setOpeningBlocked]);
   const chooseTarget = useCallback((agent: MobileAgent, text?: string) => {
     void haptics.selection();
     setTarget(agent);
@@ -360,6 +365,7 @@ export function useHomeSearch(): HomeSearch {
     leave: closeSearch,
     input,
     progress,
+    closing,
     canUseTasks,
     target,
     chooseTarget,
@@ -379,16 +385,33 @@ const RESULTS_TOP_GAP = 8;
 
 /**
  * The home list under the search. It goes back and fades as the results come in over it, and comes
- * forward again as they leave, so the results read as a layer in front of the list.
+ * forward again as they leave, so the results read as a layer in front of the list. The search has
+ * no bar, so the list also moves up by the bar's height with the results, as the content of an iOS
+ * search does when its bar goes.
  */
-export function HomeSearchList({ search, children }: PropsWithChildren<{ search: HomeSearch }>) {
+export function HomeSearchList({
+  search,
+  barHeight,
+  children,
+}: PropsWithChildren<{
+  search: HomeSearch;
+  /** The height of the home bar under the status bar. */
+  barHeight: number;
+}>) {
   const reduced = useReducedMotion();
-  const { progress } = search;
-  const style = useAnimatedStyle(() => ({
-    // The list is gone before the results are half in, so the two do not show over each other.
-    opacity: interpolate(progress.get(), [0, 0.7], [1, 0], Extrapolation.CLAMP),
-    transform: [{ scale: reduced ? 1 : interpolate(progress.get(), [0, 1], [1, 0.98]) }],
-  }));
+  const { progress, closing } = search;
+  const style = useAnimatedStyle(() => {
+    const value = progress.get();
+    // Opening: the list is gone before the results are fully in, and moves up with the bar.
+    // Closing: the list comes forward in place as the results fade over it.
+    const leaving = closing.get() === 1;
+    return {
+      opacity: interpolate(value, [0, leaving ? 0.7 : 0.5], [1, 0], Extrapolation.CLAMP),
+      transform: reduced
+        ? []
+        : [{ translateY: leaving ? 0 : -value * barHeight }, { scale: interpolate(value, [0, 1], [1, 0.98]) }],
+    };
+  });
   // At rest the list has no animated style: the opaque results cover it while they are open.
   return (
     <Animated.View className="flex-1" style={search.mounted && !search.settled ? style : undefined}>
@@ -398,19 +421,31 @@ export function HomeSearchList({ search, children }: PropsWithChildren<{ search:
 }
 
 /**
- * The results over the home list. They come in from 12 pt below after the list goes back. The bar
- * hides its buttons while they show, so they start under the status bar, not under the bar.
+ * The results over the home list. The bar hides its buttons while they show, so they start under the
+ * status bar, not under the bar. They come in from the bar's height below, where the list content
+ * starts, and move up with the list, so the content does not jump when the bar goes.
  */
-export function HomeSearchResults({ search }: { search: HomeSearch }) {
+export function HomeSearchResults({
+  search,
+  barHeight,
+}: {
+  search: HomeSearch;
+  /** The height of the home bar under the status bar. */
+  barHeight: number;
+}) {
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
-  const { progress } = search;
-  const style = useAnimatedStyle(() => ({
-    // The fade starts after the list fades and ends before the movement, so the rows are readable
-    // while they settle.
-    opacity: interpolate(progress.get(), [0.15, 0.9], [0, 1], Extrapolation.CLAMP),
-    transform: [{ translateY: reduced ? 0 : (1 - progress.get()) * 12 }],
-  }));
+  const { progress, closing } = search;
+  const style = useAnimatedStyle(() => {
+    const value = progress.get();
+    // Opening: the fade starts at once and ends well before the movement, so the rows are readable
+    // while they settle. Closing: the results fade and drop only a little, over the list.
+    const leaving = closing.get() === 1;
+    return {
+      opacity: interpolate(value, leaving ? [0.15, 0.9] : [0, 0.6], [0, 1], Extrapolation.CLAMP),
+      transform: [{ translateY: reduced ? 0 : (1 - value) * (leaving ? 12 : barHeight) }],
+    };
+  });
   if (!search.mounted) return null;
   return (
     <Animated.View

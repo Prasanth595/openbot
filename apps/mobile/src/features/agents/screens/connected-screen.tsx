@@ -344,6 +344,8 @@ export function ConnectedScreen() {
   const { headerHeight } = scroll;
   const insets = useSafeAreaInsets();
   const search = useHomeSearch();
+  // Search has no bar: the list and the results move up by the bar's height as it opens.
+  const searchBarOffset = Math.max(0, headerHeight - insets.top);
   // A new server shows a new list at its top, which sends no scroll event.
   const listServerId = activeServer.id;
   useEffect(() => {
@@ -475,7 +477,7 @@ export function ConnectedScreen() {
   return (
     <View className="flex-1 bg-background">
       <SearchBlurTarget target={searchBlurTarget}>
-        <HomeSearchList search={search}>
+        <HomeSearchList search={search} barHeight={searchBarOffset}>
           {onboarding.active ? null : sceneShows ? (
             // The scene has the insets of the welcome, so the characters stand in the same places on
             // both. Its top leaves the transparent header and its blur clear.
@@ -620,7 +622,7 @@ export function ConnectedScreen() {
       )}
 
       {/* The results lie over the bar's edge, so its blur cannot soften them; they have their own. */}
-      {searchShows ? <HomeSearchResults search={search} /> : null}
+      {searchShows ? <HomeSearchResults search={search} barHeight={searchBarOffset} /> : null}
 
       {searchShows ? <HomeSearchBar search={search} blurTarget={searchBlurTarget} /> : null}
 
