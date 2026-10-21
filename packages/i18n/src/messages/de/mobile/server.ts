@@ -349,4 +349,89 @@ export const messages = {
   "mobile.server.usage.agent": "Agent",
   "mobile.server.usage.unsupported":
     "Dieser Host unterstützt keine Nutzungsanalyse. Aktualisiere den Host, um diese Ansicht zu verwenden.",
+  "mobile.server.settings.updates": "Updates",
+  "mobile.server.settings.updateAvailable": "Update verfügbar",
+  "mobile.server.route.updates": "Updates",
+  "mobile.server.update.hostTitle": "OpenBot auf {name}",
+  "mobile.server.update.version": "OpenBot {version}",
+  "mobile.server.update.status.idle": "Suche nach Updates, um die neueste Version zu finden.",
+  "mobile.server.update.status.checking": "Updates werden gesucht…",
+  "mobile.server.update.status.available": "{version} ist verfügbar.",
+  "mobile.server.update.status.downloading": "{version} wird heruntergeladen · {progress}",
+  "mobile.server.update.status.downloadingUnknown": "{version} wird heruntergeladen…",
+  "mobile.server.update.status.ready": "{version} wurde heruntergeladen.",
+  "mobile.server.update.status.installing": "{name} wird neu gestartet, um das Update zu installieren.",
+  "mobile.server.update.status.upToDate": "OpenBot ist auf {name} aktuell.",
+  "mobile.server.update.status.checkFailed": "{name} konnte nicht nach Updates suchen. Versuche es erneut.",
+  "mobile.server.update.status.downloadFailed": "{name} konnte das Update nicht herunterladen. Versuche es erneut.",
+  "mobile.server.update.status.installFailed":
+    "{name} konnte das Update nicht installieren. Stelle sicher, dass kein anderer Benutzer dieses Computers OpenBot ausführt, und versuche es erneut.",
+  "mobile.server.update.releaseCheckFailed":
+    "{name} konnte den Versions-Feed nicht lesen. Prüfe die Netzwerkverbindung des Hosts und versuche es erneut.",
+  "mobile.server.update.releaseUnavailable":
+    "Diese Version kann nicht nach neuen Versionen suchen. Bitte den Host-Administrator, nach einer kompatiblen Version zu suchen.",
+  "mobile.server.update.externalTitle": "Der Host steuert die Installation",
+  "mobile.server.update.path.hostManager":
+    "OpenBot Host Manager installiert Updates, wenn alle Benutzer inaktiv sind. Bitte den Host-Administrator, den Status von Host Manager zu prüfen, wenn ein Update nicht startet.",
+  "mobile.server.update.path.hosted":
+    "Der gehostete Dienst lädt Updates im Hintergrund herunter. Ein heruntergeladenes Update startet beim nächsten Serverstart. Warte, bis aktive Aufgaben beendet sind, bevor du den Server stoppst und fortsetzt. Bleibt er bei einer alten Version, kontaktiere den Host-Administrator.",
+  "mobile.server.update.path.system":
+    "Führe auf dem Host sudo openbot update aus, um die neueste Version zu installieren. Dieser Befehl beendet OpenBot. Warte zuerst, bis aktive Aufgaben beendet sind. Automatische Downloads werden beim nächsten Systemstart installiert.",
+  "mobile.server.update.path.container":
+    "Lade auf dem Docker-Host das neue OpenBot-Image herunter und erstelle den Container mit denselben Datenvolumes neu. Warte zuerst, bis aktive Aufgaben beendet sind. Behalte die vorhandenen Volumes, um deine Daten zu erhalten.",
+  "mobile.server.update.path.manual":
+    "Diese Installation kann sich nicht selbst ersetzen. Bitte den Host-Administrator, die kompatible Version von github.com/nightly-labs/openbot/releases zu installieren. Behalte die vorhandenen OpenBot-Daten.",
+  "mobile.server.update.path.unavailable":
+    "Dies ist eine Entwicklungsversion. Verwende eine installierte OpenBot-Version, um nach Updates zu suchen.",
+  "mobile.server.update.check": "Nach Updates suchen",
+  "mobile.server.update.start": "Im Leerlauf aktualisieren",
+  "mobile.server.update.restartNow": "Jetzt neu starten",
+  "mobile.server.update.cancel": "Update abbrechen",
+  "mobile.server.update.scheduledTitle": "{name} startet neu, sobald seine Agenten inaktiv sind",
+  "mobile.server.update.scheduledNowTitle": "{name} startet neu, sobald das Update heruntergeladen ist",
+  "mobile.server.update.requestedBy": "{member} hat dieses Update angefordert.",
+  "mobile.server.update.automatic": "{name} installiert Updates automatisch.",
+  "mobile.server.update.autoDownloadTitle": "Updates automatisch herunterladen",
+  "mobile.server.update.autoDownloadDescription":
+    "{name} lädt jede neue OpenBot-Version herunter, sobald sie erscheint.",
+  "mobile.server.update.autoInstallTitle": "Updates automatisch installieren",
+  "mobile.server.update.autoInstallDescription":
+    "{name} startet mit einem heruntergeladenen Update neu, sobald seine Agenten inaktiv sind. Mitglieder werden kurz getrennt und automatisch erneut verbunden.",
+  "mobile.server.update.waitingFor": "Warten auf {reasons}.",
+  "mobile.server.update.disabledTitle": "Remote-Updates sind deaktiviert",
+  "mobile.server.update.disabledDescription":
+    "Der Benutzer von {name} hat Updates durch Servermitglieder deaktiviert. Bitte ihn, OpenBot zu aktualisieren oder die Einstellung zu aktivieren.",
+  "mobile.server.update.managedTitle": "Ein Host Manager steuert Updates",
+  "mobile.server.update.managedDescription":
+    "OpenBot Host Manager aktualisiert {name}. Kontaktiere den Host-Administrator.",
+  "mobile.server.update.unsupportedTitle": "{name} kann sich nicht selbst aktualisieren",
+  "mobile.server.update.unsupportedDescription":
+    "Diese OpenBot-Version hat keine Update-Funktion. Installiere eine neue Version auf {name}.",
+  "mobile.server.update.restarting": "Wird neu gestartet…",
+  "mobile.server.update.loadFailed": "Der Update-Status von {name} wurde nicht geladen.",
+  "mobile.server.update.dialog.offerTitle": "{name} auf OpenBot {version} aktualisieren",
+  "mobile.server.update.dialog.offerDescription":
+    "{name} nutzt OpenBot {current}. Zuerst wird das Update heruntergeladen, dann startet {name} neu.",
+  "mobile.server.update.dialog.offerReadyDescription":
+    "{name} nutzt OpenBot {current}. Das Update ist heruntergeladen. {name} startet neu, um es zu installieren.",
+  "mobile.server.update.dialog.waitIdleDescription":
+    "Der Neustart wartet, bis Agentendurchläufe und Routinen-Ausführungen abgeschlossen sind.",
+  "mobile.server.update.dialog.updateNow": "Jetzt aktualisieren",
+  "mobile.server.update.dialog.restartWhenIdle": "Im Leerlauf neu starten",
+  "mobile.server.update.reason.agentTurn": "einen Agentendurchlauf",
+  "mobile.server.update.reason.queuedDelivery": "eine Nachricht in der Warteschlange",
+  "mobile.server.update.reason.drainTask": "Agentenarbeit im Hintergrund",
+  "mobile.server.update.reason.routineRun": "eine Routinen-Ausführung",
+  "mobile.server.update.reason.channelWork": "Kanalarbeit",
+  "mobile.server.update.reason.providerProcess": "einen Anbieterprozess",
+  "mobile.server.update.reason.remoteDesktop": "eine Remotedesktop-Sitzung",
+  "mobile.server.update.reason.browserView": "eine Browseransicht",
+  "mobile.server.update.reason.fileTransfer": "eine Dateiübertragung",
+  "mobile.server.update.reason.browserControl": "Browsersteuerung durch einen Agenten",
+  "mobile.server.update.reason.updateOperation": "einen weiteren Update-Schritt",
+  "mobile.server.update.reason.initialization": "den Start von OpenBot",
+  "mobile.server.update.reason.other": "andere Aufgaben",
+  "mobile.server.update.actionFailed": "Die Serveraktion ist fehlgeschlagen.",
+  "mobile.server.update.unavailable": "Verbinde dich mit diesem Server, um seine OpenBot-Updates zu sehen.",
+  "mobile.server.update.loading": "Updates werden geladen…",
 } as const satisfies PartialTranslation<typeof source>;

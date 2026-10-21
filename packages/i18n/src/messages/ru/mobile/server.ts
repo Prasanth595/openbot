@@ -385,4 +385,89 @@ export const messages = {
   "mobile.server.usage.agent": "Агент",
   "mobile.server.usage.unsupported":
     "Этот хост не поддерживает аналитику использования. Обновите хост, чтобы открыть этот экран.",
+  "mobile.server.settings.updates": "Обновления",
+  "mobile.server.settings.updateAvailable": "Доступно обновление",
+  "mobile.server.route.updates": "Обновления",
+  "mobile.server.update.hostTitle": "OpenBot · {name}",
+  "mobile.server.update.version": "OpenBot {version}",
+  "mobile.server.update.status.idle": "Проверьте обновления, чтобы найти последний релиз.",
+  "mobile.server.update.status.checking": "Проверка обновлений…",
+  "mobile.server.update.status.available": "Доступна версия {version}.",
+  "mobile.server.update.status.downloading": "Скачивание {version} · {progress}",
+  "mobile.server.update.status.downloadingUnknown": "Скачивание {version}…",
+  "mobile.server.update.status.ready": "Версия {version} скачана.",
+  "mobile.server.update.status.installing": "{name} перезапускается, чтобы установить обновление.",
+  "mobile.server.update.status.upToDate": "На {name} установлена последняя версия OpenBot.",
+  "mobile.server.update.status.checkFailed": "{name} не удалось проверить обновления. Повторите попытку.",
+  "mobile.server.update.status.downloadFailed": "{name} не удалось скачать обновление. Повторите попытку.",
+  "mobile.server.update.status.installFailed":
+    "{name} не удалось установить обновление. Убедитесь, что другие пользователи этого компьютера не запускают OpenBot, и повторите попытку.",
+  "mobile.server.update.releaseCheckFailed":
+    "{name} не удалось прочитать ленту релизов. Проверьте сетевое подключение хоста и повторите попытку.",
+  "mobile.server.update.releaseUnavailable":
+    "Для этой сборки проверка релизов недоступна. Попросите администратора хоста проверить совместимый релиз.",
+  "mobile.server.update.externalTitle": "Установкой управляет хост",
+  "mobile.server.update.path.hostManager":
+    "OpenBot Host Manager ставит обновления, когда все пользователи свободны. Если обновление не начинается, попросите администратора проверить статус Host Manager.",
+  "mobile.server.update.path.hosted":
+    "Облачный сервис скачивает обновления в фоне. Скачанное обновление ставится при следующем запуске сервера. Дождитесь окончания текущей работы, прежде чем остановить и снова запустить сервер. Если версия не меняется, свяжитесь с администратором хоста.",
+  "mobile.server.update.path.system":
+    "На хосте выполните sudo openbot update, чтобы поставить последний релиз. Команда останавливает OpenBot, поэтому сначала дождитесь окончания текущей работы. Автоматически скачанные обновления ставятся при следующей загрузке.",
+  "mobile.server.update.path.container":
+    "На Docker-хосте скачайте новый образ OpenBot и пересоздайте контейнер с теми же томами данных. Сначала дождитесь окончания текущей работы. Сохраните существующие тома, чтобы не потерять данные.",
+  "mobile.server.update.path.manual":
+    "Эта установка не может обновить себя сама. Попросите администратора хоста поставить совместимый релиз с github.com/nightly-labs/openbot/releases. Сохраните существующие данные OpenBot.",
+  "mobile.server.update.path.unavailable":
+    "Это сборка для разработки. Чтобы проверять обновления, используйте установленный релиз OpenBot.",
+  "mobile.server.update.check": "Проверить обновления",
+  "mobile.server.update.start": "Обновить при простое",
+  "mobile.server.update.restartNow": "Перезапустить сейчас",
+  "mobile.server.update.cancel": "Отменить обновление",
+  "mobile.server.update.scheduledTitle": "{name} перезапустится, когда его агенты освободятся",
+  "mobile.server.update.scheduledNowTitle": "{name} перезапустится, когда обновление скачается",
+  "mobile.server.update.requestedBy": "Это обновление запросил(а) {member}.",
+  "mobile.server.update.automatic": "{name} устанавливает обновления автоматически.",
+  "mobile.server.update.autoDownloadTitle": "Скачивать обновления автоматически",
+  "mobile.server.update.autoDownloadDescription":
+    "{name} скачивает каждую новую версию OpenBot, как только она выходит.",
+  "mobile.server.update.autoInstallTitle": "Устанавливать обновления автоматически",
+  "mobile.server.update.autoInstallDescription":
+    "{name} перезапустится со скачанным обновлением, когда его агенты простаивают. Участники ненадолго отключатся и подключатся снова автоматически.",
+  "mobile.server.update.waitingFor": "Ожидание: {reasons}.",
+  "mobile.server.update.disabledTitle": "Удалённые обновления отключены",
+  "mobile.server.update.disabledDescription":
+    "Пользователь {name} отключил обновления от участников сервера. Попросите его обновить OpenBot или включить эту настройку.",
+  "mobile.server.update.managedTitle": "Обновлениями управляет Host Manager",
+  "mobile.server.update.managedDescription":
+    "OpenBot Host Manager обновляет {name}. Обратитесь к администратору хоста.",
+  "mobile.server.update.unsupportedTitle": "{name} не может обновляться сам",
+  "mobile.server.update.unsupportedDescription":
+    "В этой сборке OpenBot нет средства обновления. Установите новую версию на {name}.",
+  "mobile.server.update.restarting": "Перезапуск…",
+  "mobile.server.update.loadFailed": "Не удалось загрузить статус обновления {name}.",
+  "mobile.server.update.dialog.offerTitle": "Обновить {name} до OpenBot {version}",
+  "mobile.server.update.dialog.offerDescription":
+    "{name} использует OpenBot {current}. Сначала скачивается обновление, затем сервер перезапускается.",
+  "mobile.server.update.dialog.offerReadyDescription":
+    "{name} использует OpenBot {current}. Обновление скачано. {name} перезапустится, чтобы установить его.",
+  "mobile.server.update.dialog.waitIdleDescription":
+    "Перезапуск ждёт завершения ходов агентов и запусков регулярных задач.",
+  "mobile.server.update.dialog.updateNow": "Обновить сейчас",
+  "mobile.server.update.dialog.restartWhenIdle": "Перезапустить при простое",
+  "mobile.server.update.reason.agentTurn": "ход агента",
+  "mobile.server.update.reason.queuedDelivery": "сообщение в очереди",
+  "mobile.server.update.reason.drainTask": "фоновая работа агента",
+  "mobile.server.update.reason.routineRun": "запуск регулярной задачи",
+  "mobile.server.update.reason.channelWork": "работа канала",
+  "mobile.server.update.reason.providerProcess": "процесс провайдера",
+  "mobile.server.update.reason.remoteDesktop": "сеанс удалённого рабочего стола",
+  "mobile.server.update.reason.browserView": "просмотр браузера",
+  "mobile.server.update.reason.fileTransfer": "передача файла",
+  "mobile.server.update.reason.browserControl": "управление браузером агентом",
+  "mobile.server.update.reason.updateOperation": "другой шаг обновления",
+  "mobile.server.update.reason.initialization": "запуск OpenBot",
+  "mobile.server.update.reason.other": "другая работа",
+  "mobile.server.update.actionFailed": "Не удалось выполнить действие с сервером.",
+  "mobile.server.update.unavailable": "Подключитесь к этому серверу, чтобы увидеть его обновления OpenBot.",
+  "mobile.server.update.loading": "Загрузка обновлений…",
 } as const satisfies PartialTranslation<typeof source>;

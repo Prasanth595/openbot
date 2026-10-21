@@ -19,6 +19,7 @@ import { ServerStatusLabel } from "@/features/servers/components/server-status-l
 import { SERVER_ROLE_LABEL_KEYS } from "@/features/servers/model/server-role";
 import { timeZoneLabel } from "@/features/servers/model/time-zones";
 import { useServerTimezone } from "@/features/servers/model/use-server-timezone";
+import { updateAvailable, useServerUpdate } from "@/features/servers/model/use-server-update";
 import {
   SettingsContent,
   SettingsNote,
@@ -42,6 +43,7 @@ export function ServerSettingsScreen() {
   const { servers, memberCountByServer, leaveServer, removeServer, refreshServer, hostedServerStarting } =
     useMobileWorkspace();
   const server = useLiveServerRecovery(servers.find((item) => item.id === serverId));
+  const update = useServerUpdate(serverId, { poll: false });
   const locked = useRef(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -125,6 +127,7 @@ export function ServerSettingsScreen() {
         >
           <Typography.Paragraph>{t("mobile.server.settings.members")}</Typography.Paragraph>
         </SettingsRow>
+        {update.access || update.query.data ? <ServerUpdatesRow serverId={serverId} update={update} /> : null}
       </SettingsSection>
       <ServerGeneralSettings serverId={serverId} />
       <ServerNotificationSettings server={server} title={t("mobile.settings.notifications.title")} />
@@ -356,6 +359,30 @@ function ServerGeneralSettings({ serverId }: { serverId: string }) {
         </SettingsRow>
       ) : null}
     </SettingsSection>
+  );
+}
+
+/** Opens the OpenBot update of the host. The value is the version that runs there, or a new one. */
+function ServerUpdatesRow({ serverId, update }: { serverId: string; update: ReturnType<typeof useServerUpdate> }) {
+  const { t } = useText();
+  const status = update.query.data?.status;
+  return (
+    <SettingsRow
+      trailing={
+        status ? (
+          <TrailingValue
+            value={
+              updateAvailable(status)
+                ? t("mobile.server.settings.updateAvailable")
+                : t("mobile.server.update.version", { version: status.currentVersion })
+            }
+          />
+        ) : undefined
+      }
+      onPress={() => router.push({ pathname: "/server-settings/updates", params: { serverId } })}
+    >
+      <Typography.Paragraph>{t("mobile.server.settings.updates")}</Typography.Paragraph>
+    </SettingsRow>
   );
 }
 

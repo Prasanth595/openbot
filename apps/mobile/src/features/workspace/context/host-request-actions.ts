@@ -47,7 +47,10 @@ import {
   TEAM_ZIP_ATTACHMENTS_CAPABILITY,
 } from "@openbot/contracts/team-protocol/current";
 import { EVENTS_CAPABILITY } from "@openbot/contracts/team-protocol/events-v1";
+import { HOST_MEMBER_UPDATE_CAPABILITY } from "@openbot/contracts/team-protocol/host-member-update-v1";
+import { HOST_RELEASE_CAPABILITY } from "@openbot/contracts/team-protocol/host-release-v1";
 import { HOST_TIMEZONE_CAPABILITY } from "@openbot/contracts/team-protocol/host-timezone-v1";
+import { HOST_UPDATE_CAPABILITY } from "@openbot/contracts/team-protocol/host-update-v1";
 import { PROVIDER_ACCOUNTS_CAPABILITY } from "@openbot/contracts/team-protocol/provider-accounts-v1";
 import { TEAM_QUEUE_EDIT_CAPABILITY } from "@openbot/contracts/team-protocol/queue-edit-v1";
 import { SHARED_TABLES_CAPABILITY } from "@openbot/contracts/team-protocol/shared-tables-v1";
@@ -59,10 +62,15 @@ import { readHostAnalytics } from "@openbot/team-client";
 import type { RemoteFileUpload } from "@openbot/team-client/remote-peer";
 import { buildRoutineCalendar, type RoutineCalendarSource } from "@openbot/team-client/routine-calendar";
 import {
+  cancelHostUpdate,
+  checkHostForUpdate,
+  checkHostRelease,
   deleteEventRoutine,
   deleteSharedTable,
   getHostAgentMemoryLimit,
+  getHostReleaseStatus,
   getHostTimezone,
+  getHostUpdateStatus,
   installAgentTemplate,
   listAgentSkills,
   listEventActivity,
@@ -82,6 +90,8 @@ import {
   setAgentSkillEnabled,
   setHostAgentMemoryLimit,
   setHostTimezone,
+  setHostUpdateSettings,
+  startHostUpdate,
   testEventRoutine,
   uninstallAgentSkill,
   unpublishAgentTemplate,
@@ -117,6 +127,7 @@ import type {
   MobileWorkspaceActions,
   MobileWorkspaceCapabilityCheck,
   MobileWorkspaceState,
+  ServerUpdateAccess,
 } from "@/features/workspace/model/workspace-types";
 
 /** Sends one Team API request to a server; without a server ID it uses the active server. */
@@ -178,6 +189,13 @@ type HostRequestActions = Pick<
   | "setServerTimezone"
   | "loadAgentMemoryLimit"
   | "setAgentMemoryLimit"
+  | "loadServerUpdate"
+  | "checkServerUpdate"
+  | "startServerUpdate"
+  | "cancelServerUpdate"
+  | "setServerUpdateSettings"
+  | "loadServerRelease"
+  | "checkServerRelease"
   | "setAgentSessionSetting"
   | "resetAgentSessionSetting"
   | "listSharedTables"
@@ -271,6 +289,16 @@ export function createHostRequestActions({
     capabilityApi(serverId, HOST_TIMEZONE_CAPABILITY, "mobile.server.settings.timezoneUnsupported");
   const memoryLimitAdmin = (serverId: string) =>
     capabilityApi(serverId, AGENT_MEMORY_LIMIT_CAPABILITY, "mobile.server.settings.memoryLimitUnsupported");
+  /** The OpenBot update of the host: the admin route set, or the member set that only checks and starts. */
+  const updateApi = (serverId: string, access: ServerUpdateAccess) =>
+    capabilityApi(
+      serverId,
+      access === "admin" ? HOST_UPDATE_CAPABILITY : HOST_MEMBER_UPDATE_CAPABILITY,
+      "mobile.server.update.unavailable",
+    );
+  const updateAdmin = (serverId: string) => updateApi(serverId, "admin");
+  const releaseApi = (serverId: string) =>
+    capabilityApi(serverId, HOST_RELEASE_CAPABILITY, "mobile.server.update.unavailable");
   function memoryRequest(serverId: string): AgentMemoriesRequest<TeamRequestError> {
     return (method, path, decode, body) =>
       Effect.tryPromise({
@@ -302,6 +330,17 @@ export function createHostRequestActions({
     loadAgentMemoryLimit: async (serverId) => runTeamRequest(getHostAgentMemoryLimit(memoryLimitAdmin(serverId))),
     setAgentMemoryLimit: async (limit, serverId) =>
       runTeamRequest(setHostAgentMemoryLimit(memoryLimitAdmin(serverId), limit)),
+    loadServerUpdate: async (serverId, access) =>
+      runTeamRequest(getHostUpdateStatus(updateApi(serverId, access), access === "member")),
+    checkServerUpdate: async (serverId, access) =>
+      runTeamRequest(checkHostForUpdate(updateApi(serverId, access), access === "member")),
+    startServerUpdate: async (serverId, access, restart) =>
+      runTeamRequest(startHostUpdate(updateApi(serverId, access), restart, access === "member")),
+    cancelServerUpdate: async (serverId) => runTeamRequest(cancelHostUpdate(updateAdmin(serverId))),
+    setServerUpdateSettings: async (settings, serverId) =>
+      runTeamRequest(setHostUpdateSettings(updateAdmin(serverId), settings)),
+    loadServerRelease: async (serverId) => runTeamRequest(getHostReleaseStatus(releaseApi(serverId))),
+    checkServerRelease: async (serverId) => runTeamRequest(checkHostRelease(releaseApi(serverId))),
     loadAgentSessionSettings: async (agentId, serverId) =>
       has(serverId, AGENT_SESSION_SETTINGS_CAPABILITY)
         ? runTeamRequest(readAgentSessionSettings(sessionSettingsAdmin(serverId), agentId))

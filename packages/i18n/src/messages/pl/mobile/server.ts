@@ -385,4 +385,88 @@ export const messages = {
   "mobile.server.usage.agent": "Agent",
   "mobile.server.usage.unsupported":
     "Ten host nie obsługuje analityki użycia. Zaktualizuj hosta, aby korzystać z tego widoku.",
+  "mobile.server.settings.updates": "Aktualizacje",
+  "mobile.server.settings.updateAvailable": "Dostępna aktualizacja",
+  "mobile.server.route.updates": "Aktualizacje",
+  "mobile.server.update.hostTitle": "OpenBot na serwerze {name}",
+  "mobile.server.update.version": "OpenBot {version}",
+  "mobile.server.update.status.idle": "Sprawdź aktualizacje, aby znaleźć najnowsze wydanie.",
+  "mobile.server.update.status.checking": "Sprawdzanie aktualizacji…",
+  "mobile.server.update.status.available": "Dostępna jest wersja {version}.",
+  "mobile.server.update.status.downloading": "Pobieranie {version} · {progress}",
+  "mobile.server.update.status.downloadingUnknown": "Pobieranie {version}…",
+  "mobile.server.update.status.ready": "Pobrano wersję {version}.",
+  "mobile.server.update.status.installing": "{name} uruchamia się ponownie, aby zainstalować aktualizację.",
+  "mobile.server.update.status.upToDate": "OpenBot na serwerze {name} jest aktualny.",
+  "mobile.server.update.status.checkFailed": "{name}: nie udało się sprawdzić aktualizacji. Spróbuj ponownie.",
+  "mobile.server.update.status.downloadFailed": "{name}: nie udało się pobrać aktualizacji. Spróbuj ponownie.",
+  "mobile.server.update.status.installFailed":
+    "{name}: nie udało się zainstalować aktualizacji. Upewnij się, że żaden inny użytkownik tego komputera nie uruchamia OpenBot, i spróbuj ponownie.",
+  "mobile.server.update.releaseCheckFailed":
+    "{name}: nie udało się odczytać kanału wydań. Sprawdź połączenie sieciowe hosta i spróbuj ponownie.",
+  "mobile.server.update.releaseUnavailable":
+    "Sprawdzanie wydań jest niedostępne dla tej kompilacji. Poproś administratora hosta o sprawdzenie zgodnego wydania.",
+  "mobile.server.update.externalTitle": "Instalacją zarządza host",
+  "mobile.server.update.path.hostManager":
+    "OpenBot Host Manager instaluje aktualizacje, gdy wszyscy użytkownicy są bezczynni. Jeśli aktualizacja się nie zaczyna, poproś administratora hosta o sprawdzenie stanu Host Managera.",
+  "mobile.server.update.path.hosted":
+    "Usługa hostingu pobiera aktualizacje w tle. Pobrana aktualizacja zostanie zastosowana przy następnym uruchomieniu serwera. Poczekaj na zakończenie aktywnej pracy, zanim zatrzymasz i wznowisz serwer. Jeśli serwer pozostaje na starej wersji, skontaktuj się z administratorem hosta.",
+  "mobile.server.update.path.system":
+    "Na hoście uruchom sudo openbot update, aby zainstalować najnowsze wydanie. To polecenie zatrzymuje OpenBot. Najpierw poczekaj na zakończenie aktywnej pracy. Automatycznie pobrane aktualizacje instalują się przy następnym rozruchu.",
+  "mobile.server.update.path.container":
+    "Na hoście Docker pobierz nowy obraz OpenBot i utwórz kontener ponownie z tymi samymi woluminami danych. Najpierw poczekaj na zakończenie aktywnej pracy. Zachowaj istniejące woluminy, aby nie stracić danych.",
+  "mobile.server.update.path.manual":
+    "Ta instalacja nie może sama się zastąpić. Poproś administratora hosta o zainstalowanie zgodnego wydania z github.com/nightly-labs/openbot/releases. Zachowaj istniejące dane OpenBot.",
+  "mobile.server.update.path.unavailable":
+    "To jest kompilacja deweloperska. Użyj zainstalowanego wydania OpenBot, aby sprawdzać aktualizacje.",
+  "mobile.server.update.check": "Sprawdź aktualizacje",
+  "mobile.server.update.start": "Zaktualizuj, gdy bezczynny",
+  "mobile.server.update.restartNow": "Uruchom ponownie teraz",
+  "mobile.server.update.cancel": "Anuluj aktualizację",
+  "mobile.server.update.scheduledTitle": "{name} uruchomi się ponownie, gdy agenci będą bezczynni",
+  "mobile.server.update.scheduledNowTitle": "{name} uruchomi się ponownie po pobraniu aktualizacji",
+  "mobile.server.update.requestedBy": "O tę aktualizację prosi: {member}.",
+  "mobile.server.update.automatic": "{name} instaluje aktualizacje automatycznie.",
+  "mobile.server.update.autoDownloadTitle": "Pobieraj aktualizacje automatycznie",
+  "mobile.server.update.autoDownloadDescription": "{name} pobiera każdą nową wersję OpenBot, gdy tylko się ukaże.",
+  "mobile.server.update.autoInstallTitle": "Instaluj aktualizacje automatycznie",
+  "mobile.server.update.autoInstallDescription":
+    "{name} uruchamia się ponownie z pobraną aktualizacją, gdy agenci są bezczynni. Członkowie zostają na chwilę rozłączeni i łączą się ponownie automatycznie.",
+  "mobile.server.update.waitingFor": "Oczekiwanie na: {reasons}.",
+  "mobile.server.update.disabledTitle": "Zdalne aktualizacje są wyłączone",
+  "mobile.server.update.disabledDescription":
+    "Użytkownik serwera {name} wyłączył aktualizacje od członków serwera. Poproś go o zaktualizowanie OpenBot lub włączenie tego ustawienia.",
+  "mobile.server.update.managedTitle": "Aktualizacjami zarządza Host Manager",
+  "mobile.server.update.managedDescription":
+    "OpenBot Host Manager aktualizuje serwer {name}. Skontaktuj się z administratorem hosta.",
+  "mobile.server.update.unsupportedTitle": "{name} nie może się sam zaktualizować",
+  "mobile.server.update.unsupportedDescription":
+    "Ta kompilacja OpenBot nie ma aktualizatora. Zainstaluj nową wersję na serwerze {name}.",
+  "mobile.server.update.restarting": "Restartowanie…",
+  "mobile.server.update.loadFailed": "Nie udało się wczytać stanu aktualizacji serwera {name}.",
+  "mobile.server.update.dialog.offerTitle": "Zaktualizuj serwer {name} do OpenBot {version}",
+  "mobile.server.update.dialog.offerDescription":
+    "{name} używa OpenBot {current}. Najpierw pobierze aktualizację, a potem uruchomi się ponownie.",
+  "mobile.server.update.dialog.offerReadyDescription":
+    "{name} używa OpenBot {current}. Aktualizacja jest pobrana. {name} uruchomi się ponownie, aby ją zainstalować.",
+  "mobile.server.update.dialog.waitIdleDescription":
+    "Restart czeka, aż zakończą się tury agentów i uruchomienia rutyn.",
+  "mobile.server.update.dialog.updateNow": "Zaktualizuj teraz",
+  "mobile.server.update.dialog.restartWhenIdle": "Uruchom ponownie, gdy bezczynny",
+  "mobile.server.update.reason.agentTurn": "turę agenta",
+  "mobile.server.update.reason.queuedDelivery": "wiadomość w kolejce",
+  "mobile.server.update.reason.drainTask": "pracę agenta w tle",
+  "mobile.server.update.reason.routineRun": "uruchomienie rutyny",
+  "mobile.server.update.reason.channelWork": "pracę kanału",
+  "mobile.server.update.reason.providerProcess": "proces dostawcy",
+  "mobile.server.update.reason.remoteDesktop": "sesję zdalnego pulpitu",
+  "mobile.server.update.reason.browserView": "widok przeglądarki",
+  "mobile.server.update.reason.fileTransfer": "transfer pliku",
+  "mobile.server.update.reason.browserControl": "sterowanie przeglądarką przez agenta",
+  "mobile.server.update.reason.updateOperation": "inny krok aktualizacji",
+  "mobile.server.update.reason.initialization": "uruchomienie OpenBot",
+  "mobile.server.update.reason.other": "inną pracę",
+  "mobile.server.update.actionFailed": "Działanie serwera nie powiodło się.",
+  "mobile.server.update.unavailable": "Połącz się z tym serwerem, aby zobaczyć jego aktualizacje OpenBot.",
+  "mobile.server.update.loading": "Wczytywanie aktualizacji…",
 } as const satisfies PartialTranslation<typeof source>;

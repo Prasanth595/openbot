@@ -333,4 +333,90 @@ export const messages = {
   "mobile.server.usage.agent": "エージェント",
   "mobile.server.usage.unsupported":
     "このホストは使用量の分析に対応していません。この画面を使うには、ホストを更新してください。",
+  "mobile.server.settings.updates": "アップデート",
+  "mobile.server.settings.updateAvailable": "アップデートあり",
+  "mobile.server.route.updates": "アップデート",
+  "mobile.server.update.hostTitle": "{name} の OpenBot",
+  "mobile.server.update.version": "OpenBot {version}",
+  "mobile.server.update.status.idle": "アップデートを確認して最新のリリースを見つけます。",
+  "mobile.server.update.status.checking": "アップデートを確認しています…",
+  "mobile.server.update.status.available": "{version} を利用できます。",
+  "mobile.server.update.status.downloading": "{version} をダウンロードしています · {progress}",
+  "mobile.server.update.status.downloadingUnknown": "{version} をダウンロードしています…",
+  "mobile.server.update.status.ready": "{version} をダウンロードしました。",
+  "mobile.server.update.status.installing": "{name} はアップデートをインストールするため再起動しています。",
+  "mobile.server.update.status.upToDate": "{name} の OpenBot は最新です。",
+  "mobile.server.update.status.checkFailed": "{name} はアップデートを確認できませんでした。もう一度お試しください。",
+  "mobile.server.update.status.downloadFailed":
+    "{name} はアップデートをダウンロードできませんでした。もう一度お試しください。",
+  "mobile.server.update.status.installFailed":
+    "{name} はアップデートをインストールできませんでした。そのコンピューターで他のユーザーが OpenBot を実行していないことを確認してから、もう一度お試しください。",
+  "mobile.server.update.releaseCheckFailed":
+    "{name} はリリースフィードを読み取れませんでした。ホストのネットワーク接続を確認してから、もう一度お試しください。",
+  "mobile.server.update.releaseUnavailable":
+    "このビルドではリリースを確認できません。互換性のあるリリースを確認するよう、ホストの管理者に依頼してください。",
+  "mobile.server.update.externalTitle": "インストールはホストが管理します",
+  "mobile.server.update.path.hostManager":
+    "OpenBot Host Manager は、すべてのユーザーがアイドル状態のときにアップデートをインストールします。アップデートが始まらない場合は、Host Manager の状態を確認するようホストの管理者に依頼してください。",
+  "mobile.server.update.path.hosted":
+    "ホスティングサービスはバックグラウンドでアップデートをダウンロードします。ダウンロードしたアップデートは、次にサーバーが起動したときに適用されます。サーバーを停止して再開する前に、実行中の作業が終わるのを待ってください。古いバージョンのままの場合は、ホストの管理者に連絡してください。",
+  "mobile.server.update.path.system":
+    "ホストで sudo openbot update を実行して、最新のリリースをインストールしてください。このコマンドは OpenBot を停止します。先に実行中の作業が終わるのを待ってください。自動ダウンロードされたアップデートは次回の起動時にインストールされます。",
+  "mobile.server.update.path.container":
+    "Docker ホストで新しい OpenBot イメージを pull し、同じデータボリュームでコンテナーを再作成してください。先に実行中の作業が終わるのを待ってください。データを保持するため、既存のボリュームはそのまま残してください。",
+  "mobile.server.update.path.manual":
+    "このインストールは自分自身を置き換えられません。github.com/nightly-labs/openbot/releases から互換性のあるリリースをインストールするよう、ホストの管理者に依頼してください。既存の OpenBot のデータは残してください。",
+  "mobile.server.update.path.unavailable":
+    "これは開発ビルドです。アップデートを確認するには、インストール済みの OpenBot リリースを使用してください。",
+  "mobile.server.update.check": "アップデートを確認",
+  "mobile.server.update.start": "アイドル時にアップデート",
+  "mobile.server.update.restartNow": "今すぐ再起動",
+  "mobile.server.update.cancel": "アップデートをキャンセル",
+  "mobile.server.update.scheduledTitle": "{name} はエージェントがアイドル状態になると再起動します",
+  "mobile.server.update.scheduledNowTitle": "{name} はアップデートのダウンロード後に再起動します",
+  "mobile.server.update.requestedBy": "{member} がこのアップデートを依頼しました。",
+  "mobile.server.update.automatic": "{name} はアップデートを自動的にインストールします。",
+  "mobile.server.update.autoDownloadTitle": "アップデートを自動的にダウンロードする",
+  "mobile.server.update.autoDownloadDescription":
+    "{name} は OpenBot の新しいバージョンが公開されるたびにダウンロードします。",
+  "mobile.server.update.autoInstallTitle": "アップデートを自動的にインストールする",
+  "mobile.server.update.autoInstallDescription":
+    "{name} は、エージェントがアイドル状態になると、ダウンロードしたアップデートを適用して再起動します。メンバーの接続は短時間切れ、自動的に再接続されます。",
+  "mobile.server.update.waitingFor": "{reasons} を待っています。",
+  "mobile.server.update.disabledTitle": "リモートアップデートはオフです",
+  "mobile.server.update.disabledDescription":
+    "{name} のユーザーが、サーバーメンバーからのアップデートをオフにしました。OpenBot をアップデートするか、設定をオンにするよう依頼してください。",
+  "mobile.server.update.managedTitle": "アップデートは Host Manager が管理しています",
+  "mobile.server.update.managedDescription":
+    "OpenBot Host Manager が {name} をアップデートします。ホストの管理者に連絡してください。",
+  "mobile.server.update.unsupportedTitle": "{name} は自身をアップデートできません",
+  "mobile.server.update.unsupportedDescription":
+    "この OpenBot ビルドにはアップデーターがありません。{name} に新しいバージョンをインストールしてください。",
+  "mobile.server.update.restarting": "再起動中…",
+  "mobile.server.update.loadFailed": "{name} のアップデート状態を読み込めませんでした。",
+  "mobile.server.update.dialog.offerTitle": "{name} を OpenBot {version} にアップデート",
+  "mobile.server.update.dialog.offerDescription":
+    "{name} は OpenBot {current} を使用しています。まずアップデートをダウンロードしてから再起動します。",
+  "mobile.server.update.dialog.offerReadyDescription":
+    "{name} は OpenBot {current} を使用しています。アップデートはダウンロード済みです。{name} はインストールのため再起動します。",
+  "mobile.server.update.dialog.waitIdleDescription":
+    "再起動は、エージェントのターンとルーティンの実行が終わるまで待機します。",
+  "mobile.server.update.dialog.updateNow": "今すぐアップデート",
+  "mobile.server.update.dialog.restartWhenIdle": "アイドル時に再起動",
+  "mobile.server.update.reason.agentTurn": "エージェントのターン",
+  "mobile.server.update.reason.queuedDelivery": "キュー内のメッセージ",
+  "mobile.server.update.reason.drainTask": "エージェントのバックグラウンド作業",
+  "mobile.server.update.reason.routineRun": "ルーティンの実行",
+  "mobile.server.update.reason.channelWork": "チャンネルの作業",
+  "mobile.server.update.reason.providerProcess": "プロバイダーのプロセス",
+  "mobile.server.update.reason.remoteDesktop": "リモートデスクトップのセッション",
+  "mobile.server.update.reason.browserView": "ブラウザービュー",
+  "mobile.server.update.reason.fileTransfer": "ファイル転送",
+  "mobile.server.update.reason.browserControl": "エージェントによるブラウザー操作",
+  "mobile.server.update.reason.updateOperation": "別のアップデート手順",
+  "mobile.server.update.reason.initialization": "OpenBot の起動",
+  "mobile.server.update.reason.other": "その他の作業",
+  "mobile.server.update.actionFailed": "サーバーの操作に失敗しました。",
+  "mobile.server.update.unavailable": "OpenBot のアップデートを確認するには、このサーバーに接続してください。",
+  "mobile.server.update.loading": "アップデートを読み込み中…",
 } as const satisfies PartialTranslation<typeof source>;

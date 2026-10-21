@@ -340,4 +340,88 @@ export const messages = {
   "mobile.server.usage.agent": "Ajan",
   "mobile.server.usage.unsupported":
     "Bu ana makine kullanım analizlerini desteklemiyor. Bu görünümü kullanmak için ana makineyi güncelleyin.",
+  "mobile.server.settings.updates": "Güncellemeler",
+  "mobile.server.settings.updateAvailable": "Güncelleme var",
+  "mobile.server.route.updates": "Güncellemeler",
+  "mobile.server.update.hostTitle": "{name} üzerinde OpenBot",
+  "mobile.server.update.version": "OpenBot {version}",
+  "mobile.server.update.status.idle": "En son sürümü bulmak için güncellemeleri denetleyin.",
+  "mobile.server.update.status.checking": "Güncellemeler denetleniyor…",
+  "mobile.server.update.status.available": "{version} sürümü mevcut.",
+  "mobile.server.update.status.downloading": "{version} indiriliyor · {progress}",
+  "mobile.server.update.status.downloadingUnknown": "{version} indiriliyor…",
+  "mobile.server.update.status.ready": "{version} indirildi.",
+  "mobile.server.update.status.installing": "{name}, güncellemeyi yüklemek için yeniden başlatılıyor.",
+  "mobile.server.update.status.upToDate": "{name} üzerinde OpenBot güncel.",
+  "mobile.server.update.status.checkFailed": "{name} güncellemeleri denetleyemedi. Tekrar deneyin.",
+  "mobile.server.update.status.downloadFailed": "{name} güncellemeyi indiremedi. Tekrar deneyin.",
+  "mobile.server.update.status.installFailed":
+    "{name} güncellemeyi yükleyemedi. O bilgisayarın başka hiçbir kullanıcısının OpenBot çalıştırmadığından emin olun, ardından tekrar deneyin.",
+  "mobile.server.update.releaseCheckFailed":
+    "{name} sürüm akışını okuyamadı. Ana makinenin ağ bağlantısını kontrol edin, ardından tekrar deneyin.",
+  "mobile.server.update.releaseUnavailable":
+    "Bu derleme için sürüm denetimleri kullanılamıyor. Ana makine yöneticisinden uyumlu bir sürümü kontrol etmesini isteyin.",
+  "mobile.server.update.externalTitle": "Kurulumu ana makine yönetir",
+  "mobile.server.update.path.hostManager":
+    "OpenBot Host Manager, tüm kullanıcılar boştayken güncellemeleri yükler. Bir güncelleme başlamazsa ana makine yöneticisinden Host Manager durumunu kontrol etmesini isteyin.",
+  "mobile.server.update.path.hosted":
+    "Barındırılan hizmet güncellemeleri arka planda indirir. İndirilen bir güncelleme, sunucu bir sonraki başlatılışında başlar. Sunucuyu durdurup sürdürmeden önce etkin çalışmanın bitmesini bekleyin. Sunucu eski bir sürümde kalırsa ana makine yöneticisiyle iletişime geçin.",
+  "mobile.server.update.path.system":
+    "En son sürümü yüklemek için ana makinede sudo openbot update komutunu çalıştırın. Bu komut OpenBot'u durdurur. Önce etkin çalışmanın bitmesini bekleyin. Otomatik indirmeler bir sonraki önyüklemede yüklenir.",
+  "mobile.server.update.path.container":
+    "Docker ana makinesinde yeni OpenBot görüntüsünü çekin ve kapsayıcıyı aynı veri birimleriyle yeniden oluşturun. Önce etkin çalışmanın bitmesini bekleyin. Verilerinizi korumak için mevcut birimleri saklayın.",
+  "mobile.server.update.path.manual":
+    "Bu kurulum kendini değiştiremez. Ana makine yöneticisinden uyumlu sürümü github.com/nightly-labs/openbot/releases adresinden yüklemesini isteyin. Mevcut OpenBot verilerini saklayın.",
+  "mobile.server.update.path.unavailable":
+    "Bu bir geliştirme derlemesidir. Güncellemeleri denetlemek için yüklü bir OpenBot sürümü kullanın.",
+  "mobile.server.update.check": "Güncellemeleri denetle",
+  "mobile.server.update.start": "Boşta olduğunda güncelle",
+  "mobile.server.update.restartNow": "Şimdi yeniden başlat",
+  "mobile.server.update.cancel": "Güncellemeyi iptal et",
+  "mobile.server.update.scheduledTitle": "{name}, ajanları boşta olduğunda yeniden başlar",
+  "mobile.server.update.scheduledNowTitle": "{name}, güncelleme indirildiğinde yeniden başlar",
+  "mobile.server.update.requestedBy": "{member} bu güncellemeyi istedi.",
+  "mobile.server.update.automatic": "{name} güncellemeleri otomatik olarak yükler.",
+  "mobile.server.update.autoDownloadTitle": "Güncellemeleri otomatik olarak indir",
+  "mobile.server.update.autoDownloadDescription": "{name}, OpenBot'un her yeni sürümü çıktığında indirir.",
+  "mobile.server.update.autoInstallTitle": "Güncellemeleri otomatik olarak yükle",
+  "mobile.server.update.autoInstallDescription":
+    "{name}, ajanları boşta olduğunda indirilen güncellemeyle yeniden başlar. Üyelerin bağlantısı kısa bir süre için kesilir ve otomatik olarak tekrar bağlanır.",
+  "mobile.server.update.waitingFor": "{reasons} bekleniyor.",
+  "mobile.server.update.disabledTitle": "Uzaktan güncellemeler kapalı",
+  "mobile.server.update.disabledDescription":
+    "{name} kullanıcısı sunucu üyelerinin güncelleme yapmasını kapattı. OpenBot uygulamasını güncellemesini veya ayarı açmasını isteyin.",
+  "mobile.server.update.managedTitle": "Güncellemeleri OpenBot Host Manager yönetiyor",
+  "mobile.server.update.managedDescription":
+    "OpenBot Host Manager, {name} sunucusunu günceller. Ana makine yöneticisiyle iletişime geçin.",
+  "mobile.server.update.unsupportedTitle": "{name} kendini güncelleyemiyor",
+  "mobile.server.update.unsupportedDescription":
+    "Bu OpenBot derlemesinde güncelleyici yok. {name} üzerine yeni bir sürüm yükleyin.",
+  "mobile.server.update.restarting": "Yeniden başlatılıyor…",
+  "mobile.server.update.loadFailed": "{name} güncelleme durumu yüklenemedi.",
+  "mobile.server.update.dialog.offerTitle": "{name} sunucusunu OpenBot {version} sürümüne güncelle",
+  "mobile.server.update.dialog.offerDescription":
+    "{name}, OpenBot {current} kullanıyor. Önce güncellemeyi indirir, ardından yeniden başlar.",
+  "mobile.server.update.dialog.offerReadyDescription":
+    "{name}, OpenBot {current} kullanıyor. Güncelleme indirildi. {name}, güncellemeyi yüklemek için yeniden başlar.",
+  "mobile.server.update.dialog.waitIdleDescription":
+    "Yeniden başlatma, ajan turlarının ve rutin çalıştırmalarının bitmesini bekler.",
+  "mobile.server.update.dialog.updateNow": "Şimdi güncelle",
+  "mobile.server.update.dialog.restartWhenIdle": "Boşta olduğunda yeniden başlat",
+  "mobile.server.update.reason.agentTurn": "bir ajan turu",
+  "mobile.server.update.reason.queuedDelivery": "kuyruktaki bir mesaj",
+  "mobile.server.update.reason.drainTask": "arka plan ajan çalışması",
+  "mobile.server.update.reason.routineRun": "bir rutin çalıştırması",
+  "mobile.server.update.reason.channelWork": "kanal çalışması",
+  "mobile.server.update.reason.providerProcess": "bir sağlayıcı işlemi",
+  "mobile.server.update.reason.remoteDesktop": "bir uzak masaüstü oturumu",
+  "mobile.server.update.reason.browserView": "bir tarayıcı görünümü",
+  "mobile.server.update.reason.fileTransfer": "bir dosya aktarımı",
+  "mobile.server.update.reason.browserControl": "bir ajan tarafından tarayıcı kontrolü",
+  "mobile.server.update.reason.updateOperation": "başka bir güncelleme adımı",
+  "mobile.server.update.reason.initialization": "OpenBot'un başlatılması",
+  "mobile.server.update.reason.other": "diğer çalışmalar",
+  "mobile.server.update.actionFailed": "Sunucu eylemi başarısız oldu.",
+  "mobile.server.update.unavailable": "OpenBot güncellemelerini görmek için bu sunucuya bağlanın.",
+  "mobile.server.update.loading": "Güncellemeler yükleniyor…",
 } as const satisfies PartialTranslation<typeof source>;

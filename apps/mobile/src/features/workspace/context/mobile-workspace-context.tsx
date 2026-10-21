@@ -17,7 +17,10 @@ import { TEAM_AGENT_CREATE_MODEL_CAPABILITY } from "@openbot/contracts/team-prot
 import { EVENTS_CAPABILITY } from "@openbot/contracts/team-protocol/events-v1";
 import { FOCUS_USE_CAPABILITY, FOCUS_USE_ROUTES } from "@openbot/contracts/team-protocol/focus-use-v1";
 import { HOST_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/host-admin-v1";
+import { HOST_MEMBER_UPDATE_CAPABILITY } from "@openbot/contracts/team-protocol/host-member-update-v1";
+import { HOST_RELEASE_CAPABILITY } from "@openbot/contracts/team-protocol/host-release-v1";
 import { HOST_TIMEZONE_CAPABILITY } from "@openbot/contracts/team-protocol/host-timezone-v1";
+import { HOST_UPDATE_CAPABILITY } from "@openbot/contracts/team-protocol/host-update-v1";
 import { LIVE_ACTIVITY_PUSH_CAPABILITY } from "@openbot/contracts/team-protocol/live-activity-push-v1";
 import { PROVIDER_ACCOUNTS_CAPABILITY } from "@openbot/contracts/team-protocol/provider-accounts-v1";
 import { ANDROID_PUSH_NOTIFICATIONS_CAPABILITY } from "@openbot/contracts/team-protocol/push-notifications-android-v1";
@@ -1467,6 +1470,18 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       canEditServerIdentity: (serverId) => administers(serverId, HOST_ADMIN_CAPABILITY),
       canManageServerTimezone: (serverId) => administers(serverId, HOST_TIMEZONE_CAPABILITY),
       canManageAgentMemoryLimit: (serverId) => administers(serverId, AGENT_MEMORY_LIMIT_CAPABILITY),
+      // The same rule as the Updates section of the desktop Server Settings.
+      serverUpdateAccess: (serverId) => {
+        if (administers(serverId, HOST_UPDATE_CAPABILITY)) return "admin";
+        const server = servers.find((candidate) => candidate.id === serverId);
+        return server &&
+          showsOnline(server) &&
+          !canAdministerServer(server.role) &&
+          hasCapability(serverCapabilities.current, serverId, HOST_MEMBER_UPDATE_CAPABILITY)
+          ? "member"
+          : null;
+      },
+      canReadServerRelease: (serverId) => hasCapability(serverCapabilities.current, serverId, HOST_RELEASE_CAPABILITY),
       canSendNotifications: (serverId) =>
         servers.some((server) => server.id === serverId && showsOnline(server)) && supportsPushNotifications(serverId),
       canManageEvents: (serverId) => administers(serverId, EVENTS_CAPABILITY),
