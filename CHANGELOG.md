@@ -41,6 +41,22 @@ All notable changes to OpenBot will be documented here. The project follows
   an invitation, not an address.
 - You can publish a server before you name it. OpenBot gives it a name from your account, such as
   "Ann’s server". You can change the name in General.
+- When product analytics is on, a completed agent turn now also sends the token counts that the
+  provider reported for that turn: uncached input, cached input, cache write, output, and total.
+  It also sends these counts for each provider and model that the turn used, such as a subagent's
+  model.
+  When the provider reported no usage, it sends that the usage is unknown, not 0. No message
+  content is sent. You can turn product analytics off in Settings → General → Permissions → Share
+  product analytics.
+- Product analytics now also counts the hosted server plans, plan and member limits, license
+  steps, contact sales links, provider usage limits, setup steps, connectors, agent templates,
+  phone connection, channels, server export and import, help links and the Usage view. It sends no
+  names, message text, IDs, links, prices or email addresses.
+- Licenses now appear in the billing analytics of the account service, with the number of users.
+- The web app at `openbot.run/app` now sends the same product analytics as the desktop app. Its
+  setting is now **Share product analytics** in account settings.
+- When you turn off **Share product analytics**, the app sends one last event that records the
+  change. Then it stops all analytics.
 
 ### Fixed
 
@@ -94,6 +110,8 @@ All notable changes to OpenBot will be documented here. The project follows
   only the text of that message, and a message with only an image gave no context.
 - A notification for a question, an approval or a browser step now goes away when the request is answered or cancelled, also from another device. Before, it stayed in the Notification Center.
 - When the ChatGPT sign-in of a server had expired, a sign-in with a code from the web client or the phone stopped a few seconds after the code appeared. The code now stays valid until you enter it.
+- Failure reports from the desktop app and the local host were dropped before they were sent.
+  They now reach the analytics service.
 
 ## [0.46.0] - 2026-10-20
 
