@@ -7,6 +7,7 @@ import { useEffect } from "react";
 import { View } from "react-native";
 
 import type { SheetFormFieldProps } from "@/shared/components/sheet-form-field.types";
+import { APP_FONT } from "@/shared/lib/app-font";
 
 export function SheetFormField({
   autoCapitalize,
@@ -76,7 +77,7 @@ export function SheetFormField({
             secureTextEntry={secureTextEntry}
             selectionColor={foreground}
             style={{ height, paddingHorizontal: 16 }}
-            textStyle={{ color: String(foreground), fontSize: 16 }}
+            textStyle={{ color: String(foreground), fontFamily: APP_FONT, fontSize: 16 }}
             value={nativeValue}
             onChangeText={onChangeText}
             onSubmitEditing={onSubmitEditing}

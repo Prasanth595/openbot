@@ -417,12 +417,6 @@
   width: 28px;
 }
 
-.selection-actions-kbd {
-  height: 18px;
-  margin-left: 2px;
-  font-size: var(--openbot-text-xs);
-}
-
 .selection-actions-icon-button {
   background: transparent;
   color: var(--openbot-text-secondary);
@@ -535,10 +529,6 @@
   .selection-actions-control {
     width: 28px;
     padding: 0;
-  }
-
-  .selection-actions-kbd {
-    display: none;
   }
 
   .selection-actions-label {

@@ -13,6 +13,8 @@ export interface MarkdownFilePreviewProps {
   renderedClass: string;
   statusClass: string;
   truncatedClass: string;
+  /** The quote id of the file. With it, a selection in the text opens the selection actions. */
+  selectionQuoteId?: string | undefined;
   onSelectAgent: (agentId: string) => void;
   onOpenLink: (url: string) => void;
   onOpenSharedFile: (path: string) => void;
@@ -36,7 +38,7 @@ export function MarkdownFilePreview(props: MarkdownFilePreviewProps) {
           </pre>
         }
       >
-        <article class={props.renderedClass}>
+        <article class={props.renderedClass} data-selection-file-quote={props.selectionQuoteId}>
           <MarkdownMessageText
             body={props.body}
             agents={props.agents}

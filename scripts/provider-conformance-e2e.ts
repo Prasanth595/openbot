@@ -191,11 +191,15 @@ async function conform(driver: DriverCase): Promise<DriverResult> {
   );
   assert.equal(missingSession, true, `${label}: the agent's missing-session error is a missing session.`);
 
-  // Sign-in: an agent that refuses each session before its sign-in has no account.
+  // Sign-in: a started agent that gives sessions has an account. An agent that refuses each session
+  // before its sign-in has none. `account/read` does not start the agent, so `initialize` comes first.
   let signInRequired: boolean | string = driver.noSignIn ?? false;
   if (!driver.noSignIn) {
-    const signedOut = await driverSetup(driver, `${name}-signed-out`, { FAKE_SIGNED_OUT: "1" });
-    const account = await runCauseEffect(signedOut.open().request("account/read", {}, decodeAccountReadResult));
+    const signedIn = await runCauseEffect(client.request("account/read", {}, decodeAccountReadResult));
+    assert.notEqual(signedIn.account, null, `${label}: a signed-in agent has an account.`);
+    const signedOut = (await driverSetup(driver, `${name}-signed-out`, { FAKE_SIGNED_OUT: "1" })).open();
+    await runCauseEffect(signedOut.request("initialize", {}, (value) => value));
+    const account = await runCauseEffect(signedOut.request("account/read", {}, decodeAccountReadResult));
     signInRequired = account.account === null;
     assert.equal(signInRequired, true, `${label}: a signed-out agent has no account.`);
   }

@@ -524,6 +524,7 @@ function registerIpcHandlers({
   marketplaceAgents,
   agentTemplates,
   agentImport,
+  hermesImport,
   instanceTransfer,
   voice,
   speech,
@@ -599,12 +600,13 @@ function registerIpcHandlers({
     }),
     ...agentImportIpcHandlers({
       agentImport,
+      hermesImport,
       remoteServers,
       getMainWindow,
       translate: language.translate,
-      exportSkillPath: app.isPackaged
-        ? join(process.resourcesPath, "agent-import", "grok-bot", "SKILL.md")
-        : resolve(__dirname, "../../resources/agent-import/grok-bot/SKILL.md"),
+      exportSkillDirectory: app.isPackaged
+        ? join(process.resourcesPath, "agent-import")
+        : resolve(__dirname, "../../resources/agent-import"),
     }),
     ...instanceTransferIpcHandlers({ instanceTransfer, remoteServers, getMainWindow, translate: language.translate }),
     ...updateIpcHandlers({ updater, updatePreferenceFile, requestedUpdate, idleRestart }),
