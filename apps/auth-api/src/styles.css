@@ -1129,23 +1129,19 @@ a {
   backdrop-filter: blur(20px) saturate(180%);
 }
 
-/* The hero beam falls through this button. The beam draws the light around its edge; the
-   button adds a soft tint of the beam inside its rim. An edge line here would show as a second
-   outline inside the beam's line. */
+/* The hero beam falls through this button. The opaque fill gives the sharp edge, and a soft glow
+   of the beam colour hugs it. The beam canvas has fewer pixels than the screen, so the glow next
+   to the edge is drawn here. It shows once the beam front reaches the button. Any line or inner
+   tint shows as a second layer around the fill. */
 .landing-button[data-beam-source] {
   position: relative;
-  box-shadow: inset 0 0 12px 2px rgba(var(--landing-beam-rim, 164, 108, 245), 0.14);
 }
 
-/* The beam canvas has fewer pixels than the screen, so the sharp rim of light is drawn here. It
-   shows once the beam front reaches the button. */
 .landing-button[data-beam-source]::after {
   position: absolute;
   inset: -1px;
   border-radius: inherit;
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.9),
-    0 0 6px 1px rgba(var(--landing-beam-rim, 164, 108, 245), 0.6);
+  box-shadow: 0 0 8px 1px rgba(var(--landing-beam-rim, 164, 108, 245), 0.55);
   content: "";
   opacity: 0;
   pointer-events: none;
