@@ -2,11 +2,17 @@ import { mkdirSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import type { ClientSideConnection, InitializeResponse } from "@agentclientprotocol/sdk";
-import type { AgentAuthState, AgentProviderId } from "@openbot/contracts/ipc";
+import type { AgentAuthState, AgentModelOption, AgentProviderId } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { Effect } from "effect";
 import { AcpAgentClient, type AcpHistoryPersistence } from "./acp-client";
 import { readMuseAccount } from "./agent/muse-login";
+import {
+  claudeModelName,
+  codexFastServiceTier,
+  isOpencodeModelUnusableWithStoredKey,
+  modelsAfterOpenCodeDiscoveryFailure,
+} from "./agent/provider-models";
 import type { AgentClient } from "./agent-client";
 import { CodexAppServerClient } from "./app-server-client";
 import { ClaudeAgentClient } from "./claude-client";
@@ -52,7 +58,7 @@ import {
   piStatePaths,
   type SpawnTarget,
 } from "./process-confinement";
-import type { AccountReadResult } from "./protocol";
+import type { AccountReadResult, ModelListResponse } from "./protocol";
 import { type ProviderClientOperationError, providerCall, providerFailure } from "./provider-client-effects";
 
 /** One command OpenBot runs against a provider's own CLI, waiting for the process to exit. */
@@ -326,6 +332,30 @@ export const NO_PROVIDER_CREDENTIALS: ProviderClientContext = {
 };
 
 /**
+ * How a provider's model list differs from a plain `model/list` reading. Absent for a provider that
+ * needs nothing more.
+ */
+export interface ProviderModelCatalog {
+  /** The CLI gives its list in pages, with `nextCursor`. */
+  readonly paged?: true;
+  /** The list can take the full request timeout, not 5 s. */
+  readonly slowList?: true;
+  /** No models while the provider says that the user must sign in and it has no client. */
+  readonly hiddenWhenSignedOut?: true;
+  /** The name to show for a model, before the name the CLI gives. Null keeps the CLI's name. */
+  modelName?(id: string): string | null;
+  /** Fields that only this provider's CLI reports. */
+  modelFields?(model: ModelListResponse["data"][number]): { fastServiceTier?: string };
+  /** False drops a model that the stored API key cannot use. Runs only while a key is stored. */
+  usableWithStoredKey?(id: string, name: string): boolean;
+  /**
+   * The models to keep when the list failed, timed out or came back empty. Without this hook a
+   * failed list keeps the previous models, and an empty list is a real answer.
+   */
+  fallback?(previous: AgentModelOption[]): AgentModelOption[];
+}
+
+/**
  * What a provider *does*. What it is called, how it is described and where its sign-in help points
  * live in the provider registry in `@openbot/contracts/agent-providers`; a driver holds only the
  * behaviour, so a new provider is one registry row plus one driver.
@@ -339,6 +369,8 @@ export interface BuiltInProviderDriver {
   accounts?: ProviderAccountSupport;
   /** The provider whose downloaded CLI this one runs. Absent when the provider has a CLI of its own. */
   cliProvider?: AgentProviderId;
+  /** Absent for a provider whose `model/list` needs no special reading. */
+  catalog?: ProviderModelCatalog;
   resolveCli(options?: {
     bundledExecutable?: string | null | undefined;
   }): Effect.Effect<AgentCliInfo, ProviderClientOperationError>;
@@ -474,6 +506,7 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
       signIn: { argv: ["login"], env: () => ({}), timeoutMs: CLI_LOGIN_TIMEOUT_MS },
       signOut: { argv: ["logout"], env: () => ({}), timeoutMs: 30_000 },
     },
+    catalog: { paged: true, modelFields: codexFastServiceTier },
     resolveCli: resolveCodexCli,
     createClient: (cli, requestTimeoutMs, context) =>
       new CodexAppServerClient(cli.executable, requestTimeoutMs, context.accountEnvironment),
@@ -503,6 +536,8 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
       signIn: { argv: ["auth", "login", "--claudeai"], env: CLAUDE_COMMAND_ENV, timeoutMs: CLI_LOGIN_TIMEOUT_MS },
       signOut: { argv: ["auth", "logout"], env: CLAUDE_COMMAND_ENV, timeoutMs: 30_000 },
     },
+    // `claudeModelName` says why Claude Code's own model names are not used.
+    catalog: { modelName: claudeModelName },
     resolveCli: resolveClaudeCli,
     createClient: (cli, requestTimeoutMs, context) =>
       new ClaudeAgentClient(
@@ -571,6 +606,13 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
     // optional OpenCode Go key is pasted into OpenBot instead. Nothing is required to sign in:
     // with no credential at all the CLI still lists the free models and answers a turn.
     signIn: { kind: "external" },
+    // A stored key is an OpenCode Go key, and `isOpencodeModelUnusableWithStoredKey` says why that
+    // drops models. The free tier stays in the picker when discovery fails or answers empty.
+    catalog: {
+      hiddenWhenSignedOut: true,
+      usableWithStoredKey: (id, name) => !isOpencodeModelUnusableWithStoredKey(id, name),
+      fallback: modelsAfterOpenCodeDiscoveryFailure,
+    },
     resolveCli: resolveOpencodeCli,
     // Both clients read the key and the custom providers at spawn, and the profile client merges the
     // endpoints *into* the deny-all layer rather than beside it: the two share one environment
@@ -754,6 +796,9 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
     id: "acp",
     // Each custom agent signs in its own way, in its own CLI. OpenBot only checks it again.
     signIn: { kind: "external" },
+    // A custom agent can need more than 5 s to start and open a probe session in `initialize` and
+    // again in `model/list`: Claude Agent ACP with a few plugins and MCP servers does.
+    catalog: { slowList: true },
     resolveCli: () => Effect.succeed(CUSTOM_AGENTS_CLI),
     createClient: (_cli, timeout, context, confinement) =>
       new CustomAcpAgentsClient(

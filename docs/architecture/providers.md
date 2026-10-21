@@ -93,6 +93,15 @@ Cumulative account usage is not context occupancy. A missing report is not zero 
 The design uses Hermes's on-demand discovery, stable instruction ordering, and bounded local
 history recall as references. OpenBot retains each native provider's session and compaction rules.
 
+## Model catalog
+
+`ModelCatalog.refresh` (`src/backend/agent/model-catalog.ts`) reads `model/list` from each running
+CLI the same way. It has no provider branch. A provider whose list differs sets `catalog` on its
+driver in `src/backend/provider-drivers.ts`: Codex pages its list and reports a Fast tier, Claude
+Code names its models itself, OpenCode drops models that the stored key cannot use and keeps its
+free tier when discovery fails, and a custom agent gets the full request timeout. A new provider
+adds its rule there, not in the catalog.
+
 ## Provider CLI updates
 
 The runtime manager offers the latest upstream release of each provider CLI. It checks at startup,
@@ -280,7 +289,8 @@ deliveries while it writes, and reports success only after a new process runs wi
 That one variable turns on two products: OpenCode reports OpenCode Zen and OpenCode Go as a single
 catalog, on the separate endpoints `opencode.ai/zen/v1` and `opencode.ai/zen/go/v1`, and OpenBot
 supports only Go. So `isOpencodeModelUnusableWithStoredKey` in `src/backend/agent/provider-models.ts`
-drops the paid Zen models from `ModelCatalog.refresh` while OpenBot is the one supplying the key;
+drops the paid Zen models from `ModelCatalog.refresh` (through the OpenCode driver's
+`catalog.usableWithStoredKey`) while OpenBot is the one supplying the key;
 with no key stored those models can only come from the user's own OpenCode sign-in, which does
 buy them. Neither `/models` endpoint authenticates, so entitlement cannot be read back and the
 split is a product rule rather than a check.
