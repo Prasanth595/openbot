@@ -9,6 +9,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { AGENT_PROVIDERS } from "@openbot/contracts/ipc";
+import { teeLogLines } from "@openbot/logging";
 import { Effect } from "effect";
 import type { AgentBrowserHost } from "../src/backend/agent/turn-lifecycle";
 import { getString, isRecord } from "../src/backend/protocol";
@@ -128,6 +129,7 @@ interface CaseReport {
   finalStatus: string;
   finalError: string | null;
   errorEvents: { code: string; message: string }[];
+  warningLogLines: string[];
   passed: boolean;
 }
 
@@ -152,21 +154,17 @@ const browser: AgentBrowserHost = {
 
 /** The `turn/start` requests that OpenBot sent on a thread. */
 function turnStarts(threadId: string): number {
-  try {
-    return readFileSync(logPath, "utf8")
-      .split("\n")
-      .filter(Boolean)
-      .map((line): unknown => JSON.parse(line))
-      .filter(
-        (entry) =>
-          isRecord(entry) &&
-          getString(entry, "method") === "turn/start" &&
-          isRecord(entry.params) &&
-          getString(entry.params, "threadId") === threadId,
-      ).length;
-  } catch {
-    return 0;
-  }
+  return readFileSync(logPath, "utf8")
+    .split("\n")
+    .filter(Boolean)
+    .map((line): unknown => JSON.parse(line))
+    .filter(
+      (entry) =>
+        isRecord(entry) &&
+        getString(entry, "method") === "turn/start" &&
+        isRecord(entry.params) &&
+        getString(entry.params, "threadId") === threadId,
+    ).length;
 }
 
 /** Waits for a state of the service or of the fake Codex. */
@@ -196,6 +194,8 @@ agents.on("event", (event) => {
   if (event.type === "error")
     errorEvents.push({ agentId: event.agentId ?? null, code: event.code, message: event.message });
 });
+const logLines: string[] = [];
+const stopLog = teeLogLines(["turn-lifecycle"], (line) => logLines.push(line));
 
 try {
   await runCauseEffect(agents.initialize());
@@ -207,6 +207,7 @@ try {
 
   for (const [index, entry] of cases.entries()) {
     await writeFile(controlPath, JSON.stringify(entry));
+    const firstLogLine = logLines.length;
     const agent = await runCauseEffect(
       agents.createAgent({
         name: `Fallback ${index + 1}`,
@@ -230,6 +231,9 @@ try {
       errorEvents: errorEvents
         .filter((event) => event.agentId === agent.id)
         .map(({ code, message }) => ({ code, message })),
+      warningLogLines: logLines
+        .slice(firstLogLine)
+        .filter((line) => line.includes("A provider warning needs no action.")),
       passed: false,
     };
     report.cases.push(result);
@@ -239,6 +243,8 @@ try {
       result.errorEvents.every((event) => !event.message.includes(FALLBACK)),
       `${entry.name}: the transport warning reached the banner`,
     );
+    assert.equal(result.warningLogLines.length, 1, `${entry.name}: the warning was not logged one time`);
+    assert.ok(result.warningLogLines[0]?.includes(FINAL_FAILURE), `${entry.name}: the log lost the close reason`);
     if (entry.fallbackFails)
       assert.ok(
         result.errorEvents.some((event) => event.message === FINAL_FAILURE),
@@ -252,6 +258,7 @@ try {
   report.error = error instanceof Error ? (error.stack ?? error.message) : String(error);
   process.exitCode = 1;
 } finally {
+  stopLog();
   await runCauseEffect(agents.stop()).catch(() => {});
   database.close();
   mkdirSync(OUT, { recursive: true });

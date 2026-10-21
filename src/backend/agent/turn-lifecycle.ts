@@ -619,7 +619,10 @@ export class TurnLifecycle {
         const message = getString(params, "message") ?? getString(error, "message") ?? "";
         if (notification.method === "warning" && isNonActionableCodexWarning(message)) {
           // No banner, but the log keeps the reason, such as a closed WebSocket.
-          logger.info("A provider warning needs no action.", { provider: source.provider, message });
+          logger.info("A provider warning needs no action.", {
+            provider: source.provider,
+            message: this.#hooks.redactMcp(message),
+          });
           return;
         }
         // Codex retries on its own and reports the final failure again without `willRetry`.
