@@ -1171,7 +1171,7 @@ a {
 /* The beam falls from above the header and lands on the app preview. It covers the hero
    from edge to edge of the screen, so the light that runs off the preview's corners is
    not cut at the 1280px column. */
-.landing-laser-flow {
+.landing-beam {
   position: absolute;
   z-index: 0;
   top: -76px;
@@ -1184,11 +1184,11 @@ a {
 }
 
 /* A beam that falls through a header button lights the top of the hero, so the top needs no fade. */
-.landing-laser-flow[data-source] {
+.landing-beam[data-source] {
   mask-image: none;
 }
 
-.landing-laser-flow-canvas {
+.landing-beam-canvas {
   position: absolute;
   inset: 0;
   display: block;

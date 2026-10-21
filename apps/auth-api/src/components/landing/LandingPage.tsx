@@ -9,9 +9,9 @@ import { FaqSection } from "./FaqSection";
 import { FeaturesSection } from "./FeaturesSection";
 import { HeroDownloadSelector } from "./HeroDownloadSelector";
 import { LandingAppPreview } from "./LandingAppPreview";
+import { LandingBeam } from "./LandingBeam";
 import { LandingFooter } from "./LandingFooter";
 import { LandingGlow } from "./LandingGlow";
-import { LandingLaserFlow } from "./LandingLaserFlow";
 import { PricingSection } from "./PricingSection";
 import { SiteHeader } from "./SiteHeader";
 import { TeamsSection } from "./TeamsSection";
@@ -45,7 +45,7 @@ export function LandingPage() {
 
       <main>
         <section class="landing-hero" aria-labelledby="landing-title">
-          <LandingLaserFlow
+          <LandingBeam
             surface={() => preview}
             source={() => download}
             avoid={() => (copy ? [...copy.children] : [])}
