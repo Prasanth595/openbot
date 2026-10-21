@@ -80,7 +80,7 @@ export function SidebarTopbar() {
           <DropdownMenu.Root placement="bottom-end" gutter={4}>
             <DropdownMenu.Trigger
               class="sidebar-icon-button sidebar-new-button no-drag"
-              aria-label={t("sidebar.new.menu")}
+              aria-label={props.onCreateChannel ? t("sidebar.new.menuWithChannel") : t("sidebar.new.menu")}
               aria-hidden={props.compact ? "true" : undefined}
               tabindex={props.compact ? -1 : 0}
             >

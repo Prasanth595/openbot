@@ -13,6 +13,7 @@ export const messages = {
   "sidebar.new.channel": "新しいチャンネル",
   "sidebar.new.section": "新しいセクション",
   "sidebar.new.menu": "新しいエージェントまたはセクション",
+  "sidebar.new.menuWithChannel": "新しいエージェント、チャンネルまたはセクション",
   "sidebar.markAllRead": "すべて既読にする",
   "sidebar.topbar.openSettings": "{name} の設定を開く",
   "sidebar.topbar.localServer": "ローカル",

@@ -160,7 +160,9 @@ export function createChannelsController(env: ChannelsEnvironment) {
       if (disposed || account !== env.scopeKey() || id !== refreshId || selected !== state.selectedId) return;
       env.onList?.(channels, account);
       setState((state) => {
-        state.channels = channels;
+        // Keep each summary object, so the sidebar, which keys its rows by object, does not remount
+        // every channel row (and close an open menu) on each refresh.
+        reconcile(channels, "id")(state.channels);
         if (selected && !selectedExists) {
           state.selectedId = null;
           state.editing = null;
@@ -203,6 +205,9 @@ export function createChannelsController(env: ChannelsEnvironment) {
     }
   }
   async function open(channelId: string) {
+    // A saved selection, a search result or a notification can name a channel on a server that has
+    // no channels.
+    if (!supported()) return;
     env.beforeOpen();
     env.writeSelection(channelId);
     flush(() =>
@@ -416,6 +421,7 @@ export function createChannelsController(env: ChannelsEnvironment) {
     },
     open,
     editChannel: async (channelId: string) => {
+      if (!supported()) return;
       if (state.selectedId !== channelId) await open(channelId);
       if (state.page?.channel.id !== channelId || state.page.channel.archived) return;
       setState((state) => {
@@ -444,11 +450,13 @@ export function createChannelsController(env: ChannelsEnvironment) {
       setState((state) => {
         state.editing = null;
       }),
-    create: () =>
+    create: () => {
+      if (!supported()) return;
       setState((state) => {
         state.editing = "create";
         state.error = null;
-      }),
+      });
+    },
     toggleArchived: () =>
       setState((state) => {
         Object.assign(state, { archived: !state.archived });

@@ -13,6 +13,7 @@ export const messages = {
   "sidebar.new.channel": "Nuevo canal",
   "sidebar.new.section": "Nueva sección",
   "sidebar.new.menu": "Nuevo agente o sección",
+  "sidebar.new.menuWithChannel": "Nuevo agente, canal o sección",
   "sidebar.markAllRead": "Marcar todo como leído",
   "sidebar.topbar.openSettings": "Abrir ajustes de {name}",
   "sidebar.topbar.localServer": "Local",
