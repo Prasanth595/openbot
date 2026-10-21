@@ -24,6 +24,7 @@ import { HOST_UPDATE_CAPABILITY } from "@openbot/contracts/team-protocol/host-up
 import { HOSTED_SITES_CAPABILITY } from "@openbot/contracts/team-protocol/hosted-sites-v1";
 import { LIVE_ACTIVITY_PUSH_CAPABILITY } from "@openbot/contracts/team-protocol/live-activity-push-v1";
 import { PROVIDER_ACCOUNTS_CAPABILITY } from "@openbot/contracts/team-protocol/provider-accounts-v1";
+import { PROVIDERS_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/providers-v1";
 import { ANDROID_PUSH_NOTIFICATIONS_CAPABILITY } from "@openbot/contracts/team-protocol/push-notifications-android-v1";
 import { PUSH_NOTIFICATIONS_CAPABILITY } from "@openbot/contracts/team-protocol/push-notifications-v1";
 import { SHARED_TABLES_CAPABILITY } from "@openbot/contracts/team-protocol/shared-tables-v1";
@@ -1487,6 +1488,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         servers.some((server) => server.id === serverId && showsOnline(server)) &&
         hasCapability(serverCapabilities.current, serverId, HOSTED_SITES_CAPABILITY),
       canDeleteHostedSites: (serverId) => administers(serverId, HOSTED_SITES_CAPABILITY),
+      canManageProviders: (serverId) => administers(serverId, PROVIDERS_ADMIN_CAPABILITY),
       canSendNotifications: (serverId) =>
         servers.some((server) => server.id === serverId && showsOnline(server)) && supportsPushNotifications(serverId),
       canManageEvents: (serverId) => administers(serverId, EVENTS_CAPABILITY),

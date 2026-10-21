@@ -77,6 +77,7 @@ import type { RemoteConnectionFailure, RemoteRecoveryStatus, RemoteTeamDirectory
 import type { RemoteFileUpload } from "@openbot/team-client/remote-peer";
 import type { MobileBrowserTab } from "@/features/browser/model/browser-tabs";
 import type { BrowserViewBridgeEvent, RemoteBrowserViewSession } from "@/features/browser/model/browser-view-bridge";
+import type { ProviderAdmin } from "@/features/servers/model/provider-admin";
 import type { MobileConversationStore } from "./conversation-store";
 import type { LiveWorkspaceStore } from "./live-workspace-store";
 
@@ -278,6 +279,10 @@ export interface MobileWorkspaceContextValue {
   loadHostedSites: (serverId: string) => Promise<HostedSiteList>;
   /** The address of the site returns 410 Gone immediately. */
   deleteHostedSite: (siteId: string, serverId: string) => Promise<void>;
+  /** An owner or admin of an online host that serves `providers-v1`. The host checks the role again. */
+  canManageProviders: (serverId: string) => boolean;
+  /** The Providers admin of one host, with the newest route set that it serves. */
+  providerAdmin: (serverId: string) => ProviderAdmin;
   addRemoteServer: (input: AddRemoteServerInput) => Promise<string>;
   /** Creates an agent on the active server and returns its id. */
   createAgent: (input: CreateAgentInput) => Promise<string>;
@@ -505,6 +510,7 @@ type MobileWorkspaceStateKey =
   | "canReadServerRelease"
   | "canViewHostedSites"
   | "canDeleteHostedSites"
+  | "canManageProviders"
   | "canSendNotifications"
   | "canManageEvents"
   | "canManageAgentSkills"
