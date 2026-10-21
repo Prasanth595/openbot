@@ -26,12 +26,13 @@ type SettledReply = ChannelPreview & { author: { kind: "agent"; id: string } };
 
 /**
  * The newest message of a channel when it is an agent reply and the work of the channel has ended:
- * the message stopped streaming and no task runs. A turn can write many messages and ask a question
- * on the way, so only its end is a reply to tell.
+ * the message stopped streaming and no task is queued, waits or runs. A turn can write many messages,
+ * ask a question on the way, or pass work to other agents, so only the end of the work is a reply to
+ * tell.
  */
 function settledReply(channel: ChannelSummary): SettledReply | null {
   const last = channel.lastMessage;
-  if (channel.activeTasks > 0 || last?.author?.kind !== "agent") return null;
+  if ((channel.openTasks ?? channel.activeTasks) > 0 || last?.author?.kind !== "agent") return null;
   if (last.status !== "completed" && last.status !== "failed") return null;
   return { ...last, author: { kind: "agent", id: last.author.id } };
 }

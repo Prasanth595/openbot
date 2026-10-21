@@ -58,7 +58,6 @@ function DesktopChannelConversation(props: { channelId: string; account: () => C
   } = useBrowserTabs();
   const { activeRemoteDesktopSession, remoteDesktopWorkspaceVisible, openRemoteDesktopWorkspace } = useRemoteDesktop();
   const windowPage = useWindowPage();
-  const channels = useChannels();
   const isOwnSender = (senderId: string) => {
     const state = auth.centralAuth();
     return isReaderAuthor(senderId, {
@@ -133,10 +132,7 @@ function DesktopChannelConversation(props: { channelId: string; account: () => C
       }
       settingsRequest={view.settingsRequest()}
       messageFocusRequest={messageFocusRequest()}
-      onSelectAgent={(agentId) => {
-        channels.close();
-        selectAgent(agentId);
-      }}
+      onSelectAgent={selectAgent}
       onUpdateAgent={updateAgent}
       onSetAgentAvatar={setAgentAvatar}
       onSendMessage={view.onSendMessage}
