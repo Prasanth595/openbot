@@ -286,6 +286,7 @@ export const HermesDone: Story = {
         {...hermesArgs({
           phase: "done",
           preview: null,
+          updated: new Set(RESULT.agents.slice(0, 1).map((agent) => agent.id)),
           result: {
             ...RESULT,
             channels: [],

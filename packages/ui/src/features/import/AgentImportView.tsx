@@ -505,13 +505,28 @@ function NameExistsHint(props: { name: string }) {
   );
 }
 
+/** The result of one import. A Hermes import names the agents it updated rather than made. */
 export function ImportResult(props: {
   result: AgentImportResult;
+  /** Ids of the agents in the result that existed before the import. */
+  updated?: ReadonlySet<string> | undefined;
   onOpenAgent: (agentId: string) => void;
   onDone: () => void;
 }) {
   const { t, sourceText } = useText();
   const headingId = `agent-import-${createUniqueId()}`;
+  const updates = () => props.result.agents.filter((agent) => props.updated?.has(agent.id)).length;
+  const created = () => props.result.agents.length - updates();
+  const doneLabel = () => {
+    if (props.result.channels.length > 0)
+      return t("import.result.importedBoth", {
+        agents: countLabel(props.result.agents.length, "agent", t),
+        channels: countLabel(props.result.channels.length, "channel", t),
+      });
+    if (updates() === 0) return t("import.result.importedAgents", { agents: countLabel(created(), "agent", t) });
+    if (created() === 0) return t("import.result.updatedAgents", { count: updates() });
+    return t("import.result.importedAndUpdated", { agents: countLabel(created(), "agent", t), updates: updates() });
+  };
   const notImported = () => props.result.skipped.length + props.result.skippedChannels.length;
   const notImportedLabel = () => {
     const agents = countLabel(props.result.skipped.length, "agent", t);
@@ -530,12 +545,7 @@ export function ImportResult(props: {
           <Show when={props.result.agents.length > 0}>
             <CircleCheck class="agent-import-done-icon" aria-hidden="true" />
           </Show>
-          {props.result.channels.length > 0
-            ? t("import.result.importedBoth", {
-                agents: countLabel(props.result.agents.length, "agent", t),
-                channels: countLabel(props.result.channels.length, "channel", t),
-              })
-            : t("import.result.importedAgents", { agents: countLabel(props.result.agents.length, "agent", t) })}
+          {doneLabel()}
         </p>
         <Show when={notImported() > 0}>
           <p class="storage-summary-caption">{notImportedLabel()}</p>

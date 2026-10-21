@@ -47,6 +47,8 @@ export interface HermesImportViewProps {
   phase: HermesImportPhase;
   preview: HermesImportPreview | null;
   result: AgentImportResult | null;
+  /** Ids of the agents the import updated: profiles imported before. */
+  updated?: ReadonlySet<string>;
   error?: string | null;
   onBack: () => void;
   onChooseFolder: () => void;
@@ -83,7 +85,14 @@ export function HermesImportView(props: HermesImportViewProps) {
         </Button>
       </Show>
       <Show when={props.phase === "done" && props.result}>
-        {(result) => <ImportResult result={result()} onOpenAgent={props.onOpenAgent} onDone={props.onDone} />}
+        {(result) => (
+          <ImportResult
+            result={result()}
+            updated={props.updated}
+            onOpenAgent={props.onOpenAgent}
+            onDone={props.onDone}
+          />
+        )}
       </Show>
       <Show when={props.phase === "reading" && !props.preview}>
         <p class="agent-import-step-note" role="status">
@@ -246,10 +255,18 @@ function HermesReview(props: {
                       onChange={(value) => setLeft(toggled(left(), profile.key, value === "leave"))}
                     >
                       <SlidingTabs.List aria-label={t("import.hermes.rerunLabel", { name: agent().name })}>
-                        <SlidingTabs.Trigger value={"update" satisfies RerunChoice} disabled={props.importing}>
+                        <SlidingTabs.Trigger
+                          value={"update" satisfies RerunChoice}
+                          disabled={props.importing}
+                          aria-label={t("import.hermes.updateFor", { name: agent().name })}
+                        >
                           {t("import.hermes.update")}
                         </SlidingTabs.Trigger>
-                        <SlidingTabs.Trigger value={"leave" satisfies RerunChoice} disabled={props.importing}>
+                        <SlidingTabs.Trigger
+                          value={"leave" satisfies RerunChoice}
+                          disabled={props.importing}
+                          aria-label={t("import.hermes.leaveFor", { name: agent().name })}
+                        >
                           {t("import.hermes.leave")}
                         </SlidingTabs.Trigger>
                       </SlidingTabs.List>

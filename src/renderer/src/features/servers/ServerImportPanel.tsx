@@ -136,9 +136,16 @@ export function ServerImportPanel(
     }
   };
 
+  const [updated, setUpdated] = createSignal<ReadonlySet<string>>(new Set());
   const applyHermes = async (selection: HermesImportSelection[]) => {
     const preview = hermes.preview;
     if (!preview || !hermesCalls) return;
+    const keys = new Set(selection.map((entry) => entry.key));
+    setUpdated(
+      new Set(
+        preview.profiles.flatMap((profile) => (keys.has(profile.key) && profile.agent ? [profile.agent.id] : [])),
+      ),
+    );
     setHermes((draft) => {
       draft.phase = "importing";
       draft.error = null;
@@ -287,6 +294,7 @@ export function ServerImportPanel(
           phase={hermes.phase}
           preview={hermes.preview}
           result={hermes.result}
+          updated={updated()}
           error={hermes.error}
           onBack={backToSources}
           onChooseFolder={() => {
