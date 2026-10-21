@@ -3,6 +3,7 @@ import { EventEmitter } from "node:events";
 import { dirname, join } from "node:path";
 import { createInviteUrl, selfHostedApiOrigin } from "@openbot/contracts/invite-links";
 import type {
+  AgentEvent,
   AvatarImageInput,
   CentralAuthUser,
   ConfigureHostInput,
@@ -41,6 +42,7 @@ import { Cause, Context, Deferred, Effect, Fiber, Layer, ManagedRuntime, Result 
 import type { AgentService } from "../backend/agent-service";
 import type { ChannelService } from "../backend/channel-service";
 import type { TeamChatStore } from "../backend/team-chat-store";
+import type { AgentAccessStore } from "./agent-access-store";
 import { BrowserViewGateway } from "./browser-view-gateway";
 import type { VerifiedRemoteSessionTicket } from "./central-auth-manager";
 import { LiveActivityPushService, LiveActivitySendFailure } from "./live-activity-push";
@@ -95,6 +97,7 @@ interface HostServiceOptions {
   instanceTransfer?: ForwardedApiOptions["instanceTransfer"];
   routineFlows?: ForwardedApiOptions["routineFlows"];
   hiddenAgents?: ForwardedApiOptions["hiddenAgents"];
+  agentAccess?: AgentAccessStore;
   agentTasks?: ForwardedApiOptions["agentTasks"];
   admin?: ForwardedApiOptions["admin"];
   focusUse?: ForwardedApiOptions["focusUse"];
@@ -159,8 +162,8 @@ interface HostServiceOptions {
   ) => Effect.Effect<"sent" | "gone", RemoteWorkflowError>;
   /** The phones that get notifications, kept for the next start. */
   pushNotificationStore?: PushNotificationStore;
-  /** Whether the owner uses the desktop app on this computer now, so the owner's phone stays quiet. */
-  hostComputerInUse?: () => boolean;
+  /** Whether the owner uses the desktop app on this computer now and sees the event there, so the owner's phone stays quiet. */
+  hostComputerInUse?: (event: AgentEvent) => boolean;
   verifyRemoteSessionTicket?: (ticket: string) => Effect.Effect<VerifiedRemoteSessionTicket, RemoteWorkflowError>;
   endRemoteSession?: (sessionId: string) => Effect.Effect<void, RemoteWorkflowError>;
   remoteControlPlaneUrl?: string;
@@ -334,7 +337,8 @@ export class HostService extends EventEmitter<HostEvents> {
               );
             },
             // The Team API server is made below. A notification reads it when it is sent.
-            hiddenAgentIds: (protocol, capabilities) => this.#api.hiddenAgentIds(protocol, capabilities),
+            hiddenAgentIds: (protocol, capabilities, memberId) =>
+              this.#api.hiddenAgentIds(protocol, capabilities, memberId),
             randomBytes: (size) => new Uint8Array(randomBytes(size)),
             memberActive: (memberId) => {
               const member = options.store.getMember(memberId);
@@ -342,8 +346,8 @@ export class HostService extends EventEmitter<HostEvents> {
             },
             lastUseElsewhere: (memberId, sessionId) => this.#api.lastMemberUseElsewhere(memberId, sessionId),
             // The desktop app of this computer runs as the owner.
-            atHostComputer: (memberId) =>
-              memberId === options.store.getOwnerMemberId() && (options.hostComputerInUse?.() ?? false),
+            atHostComputer: (memberId, event) =>
+              memberId === options.store.getOwnerMemberId() && (options.hostComputerInUse?.(event) ?? false),
             liveActivityShows: (sessionId, alert, startedAt) =>
               this.#liveActivityPush?.showsEvent(sessionId, alert, startedAt) ?? false,
             logger,
@@ -372,6 +376,7 @@ export class HostService extends EventEmitter<HostEvents> {
       ...(options.instanceTransfer === undefined ? {} : { instanceTransfer: options.instanceTransfer }),
       ...(options.routineFlows === undefined ? {} : { routineFlows: options.routineFlows }),
       ...(options.hiddenAgents === undefined ? {} : { hiddenAgents: options.hiddenAgents }),
+      ...(options.agentAccess === undefined ? {} : { agentAccess: options.agentAccess }),
       ...(options.agentTasks === undefined ? {} : { agentTasks: options.agentTasks }),
       // The identity route changes this host's name and logo through `updateIdentity`, so a change
       // from a joined admin runs every step a local one does.
@@ -1148,6 +1153,8 @@ export class HostService extends EventEmitter<HostEvents> {
         yield* this.#remoteScreen.revokeMember(member.id);
         this.#options.browser.releaseUserControlHeldBy({ kind: "member", memberId: member.id });
       }
+      // Roles apply to members only, so a new team role changes which agents the member can use.
+      if (input.role) this.#api.agentAccessChanged();
       this.#api.refreshPresence();
       return member;
     },
@@ -1166,15 +1173,35 @@ export class HostService extends EventEmitter<HostEvents> {
           yield* this.#syncRemoteDirectory(hostId, members);
         }
         yield* this.#revokeMemberSessions(memberId);
+        yield* this.#forgetMemberRoles(hostId, memberId);
         return;
       }
       yield* this.#options.store.removeMember(memberId);
+      if (hostId) yield* this.#forgetMemberRoles(hostId, memberId);
       yield* this.#remoteScreen.revokeMember(memberId);
       this.#options.browser.releaseUserControlHeldBy({ kind: "member", memberId });
       this.#api.refreshPresence();
     },
     (operation) => this.#provide(operation),
   ).bind(this);
+
+  /** Gives a duplicated agent the levels of its source agent. */
+  copyAgentAccess(sourceAgentId: string, agentId: string): Effect.Effect<void> {
+    return this.#api.copyAgentAccess(sourceAgentId, agentId);
+  }
+
+  /** A removed member keeps no roles. The member is gone either way, so a failed write only logs. */
+  #forgetMemberRoles(hostId: string, memberId: string): Effect.Effect<void> {
+    const agentAccess = this.#options.agentAccess;
+    if (!agentAccess) return Effect.void;
+    return agentAccess
+      .removeMember(hostId, memberId)
+      .pipe(
+        Effect.catch((error) =>
+          Effect.sync(() => logger.warn("The removed member's roles did not save.", toLogValue(error))),
+        ),
+      );
+  }
 
   readonly revokeSession = Effect.fn("HostService.revokeSession")(
     function* (this: HostService, sessionId: string): Effect.fn.Return<void, RemoteWorkflowError> {

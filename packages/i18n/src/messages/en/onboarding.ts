@@ -41,6 +41,7 @@ export const messages = defineMessages("onboarding", {
   "onboarding.provider.googlePlan": "Google AI Pro or Ultra plan",
   "onboarding.provider.cursorPlan": "Cursor plan or API key",
   "onboarding.provider.clineAccount": "Free models with a Cline account",
+  "onboarding.provider.inceptionKey": "Mercury models with an Inception API key",
   "onboarding.provider.tryFree": "Try it free",
   "onboarding.provider.noSignIn": "No sign-in needed",
   "onboarding.provider.more": "More providers",

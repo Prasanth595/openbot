@@ -1,10 +1,10 @@
 {
-  "version": "0.46.0",
+  "version": "0.47.0",
   "highlights": [
-    "OpenBot can read replies aloud on this computer, in 31 languages and ten voices.",
-    "Talk to an agent in the new Voice pane: speak, and the agent reads its reply aloud.",
-    "On Windows and Linux, OpenBot can keep running in the background from the system tray.",
-    "Launch OpenBot at login now works, and OpenBot keeps your account sign-in after a restart.",
-    "OpenCode agents continue in a new session when OpenCode cannot read the old one."
+    "Attach ZIP archives in chat, and download the ZIP archives that an agent sends back.",
+    "Inception is a new provider, with the Mercury models.",
+    "Change the model of an agent while it works; the new model starts with the next turn.",
+    "Codex models have a Fast switch in the model picker.",
+    "OpenBot keeps your sign-in on Linux desktops such as Hyprland, Sway, i3 and LXQt."
   ]
 }

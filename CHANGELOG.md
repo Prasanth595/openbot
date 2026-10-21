@@ -6,6 +6,114 @@ All notable changes to OpenBot will be documented here. The project follows
 
 ## [Unreleased]
 
+## [0.47.0] - 2026-10-21
+
+### Added
+
+- The model picker has a **Fast** switch for Codex models that have a fast service tier. When it is
+  on, the agent asks Codex for the fast tier and the picker shows "Fast" next to the model.
+- Attach ZIP archives in chat. The agent gets the archive unchanged and can extract it. An agent can
+  also send a ZIP archive back, and you can download it from the chat. A remote host must run this
+  version of OpenBot to accept ZIP archives.
+- Add Inception as a provider, with the Mercury 3, 2.5 and 2 models. Select Connect on the Inception
+  row and save an Inception API key. Inception runs in the Pi CLI that OpenBot downloads, so download
+  Pi first. OpenBot keeps the key encrypted on this computer and does not change Pi's own settings.
+  Inception agents stay on this computer and are not shown to team members.
+- The desktop app and the web app show a notification when an agent needs you to finish a step in the browser, such as a sign-in or a code. Before, only the phone and the MacBook notch showed it, and the phone stayed quiet while you used the desktop app.
+- A message or a routine run that cannot start now shows a notification on desktop, web and phone, as a turn that stopped with an error does.
+- Read the SKILL.md of a skill on a joined server and in the web client. The text comes from the
+  host. Before, a local skill or a folder skill showed only its description, and a skill that was
+  changed on the host showed the marketplace text.
+- On a joined server, a skill marker in the chat opens that skill in the agent settings.
+
+### Changed
+
+- OpenBot now installs OpenCode 2 (2.1.1) as its own OpenCode CLI. Your threads keep their OpenCode
+  sessions.
+- When you mute this computer's server, or set its notifications to Nothing or Only when it needs me, your phone now gets the events that the desktop does not show. Before, these events reached no device while you used the computer.
+- Mute and the notification level of a server now also stop the agent sounds on desktop, as they do on web.
+- You can change the model and effort of an agent while it works. The running turn keeps its model,
+  and the new model starts with the next turn. An "After this turn" badge beside the model picker
+  shows that a change waits. Before, the picker was locked until the work finished. A change of
+  provider or account still waits for the work to finish.
+- Server settings: **Publish this server** is now in **Members**, above the invitations. General
+  keeps the server name, logo, and preferences. The server address row is removed: people join with
+  an invitation, not an address.
+- You can publish a server before you name it. OpenBot gives it a name from your account, such as
+  "Ann’s server". You can change the name in General.
+- When product analytics is on, a completed agent turn now also sends the token counts that the
+  provider reported for that turn: uncached input, cached input, cache write, output, and total.
+  It also sends these counts for each provider and model that the turn used, such as a subagent's
+  model.
+  When the provider reported no usage, it sends that the usage is unknown, not 0. No message
+  content is sent. You can turn product analytics off in Settings → General → Permissions → Share
+  product analytics.
+- Product analytics now also counts the hosted server plans, plan and member limits, license
+  steps, contact sales links, provider usage limits, setup steps, connectors, agent templates,
+  phone connection, channels, server export and import, help links and the Usage view. It sends no
+  names, message text, IDs, links, prices or email addresses.
+- Licenses now appear in the billing analytics of the account service, with the number of users.
+- The web app at `openbot.run/app` now sends the same product analytics as the desktop app. Its
+  setting is now **Share product analytics** in account settings.
+- When you turn off **Share product analytics**, the app sends one last event that records the
+  change. Then it stops all analytics.
+
+### Fixed
+
+- Center the hero of the openbot.run download page, as on the other site pages. The title is now
+  the same size as the other page titles, so it shows on one line on a wide screen.
+- A remote session stays connected when Signal restarts and the account service is slow to answer.
+  Before, the session closed and the device showed it as offline.
+- After a Signal restart, OpenBot computers and devices no longer all connect again at the same time.
+- OpenCode setup no longer fails with "could not activate the managed CLI" on a computer where
+  OpenCode 2 is already installed. When OpenBot uses an older OpenCode CLI that cannot open the
+  database of OpenCode 2, setup now tells you to update OpenCode to version 2 or later.
+- With OpenCode 2, an OpenCode thread opens again after a restart, also while OpenCode is still
+  starting.
+- With OpenCode 2, the model picker shows the OpenCode, OpenCode Go and custom endpoint groups by
+  their names.
+- Remote chats no longer show a permanent chat error when a background queue refresh times out. The last queue stays visible until the next update. Failed queue actions still show an error.
+- The Voice select in Settings → Voice → Spoken replies now shows the voice you choose. Before, it kept the name of the previous voice until Settings opened again.
+- Sign in to an MCP server now reports an error when the sign-in information of the server cannot
+  be read. Before, the press ended with no page and no words, and the row kept the result of the
+  earlier test.
+- A reply quote on desktop shows the Markdown of the original message: headings, bold text, code,
+  lists, links and code blocks. Before, it showed the raw marks, such as `##` and backticks, on one
+  line. The quote now shows up to four lines, in the composer and in the sent message.
+- On a phone, the web side panel shows its tabs in a row under the chat header. Before, the tab row
+  covered the agent name, the model picker and the side panel button, and with the pane list open
+  the side panel button did not respond.
+- A Codex chat no longer shows the error "Falling back from WebSockets to HTTPS transport" when Codex changes its connection. The reply continues. If the reply then fails, the chat still shows the error.
+- Center the agent avatars in the connectors list of Server settings and on the Slack, Discord and
+  Telegram connector pages. Before, each avatar stood about 3 pixels lower than the row text and
+  the arrow.
+- OpenBot now keeps your sign-in, API keys and other secrets on Linux desktops such as Hyprland,
+  Sway, i3 and LXQt when a Secret Service (such as GNOME Keyring) runs. Before, it asked you to sign
+  in on every start, and it could not save a pasted API key.
+- Keep your Codex and ChatGPT thread lists clean. When OpenBot starts a new Codex session for an
+  agent, for example after you change its tools or reset its context, it now archives the session
+  that the new one replaces. Before, each replaced session stayed in your Codex history as a row
+  that starts with "Continue this OpenBot conversation." The agent's conversation in OpenBot does not
+  change.
+- Pi agents keep their OpenBot tools, browser included, in new conversations. Pi also shows the
+  OpenBot tools with their real names, so a model can find them.
+- A routine run in the chat now animates once. Before, its row and its steps, such as "Invoked" and
+  "Started", could animate again when the run changed state, when two runs overlapped, or after a
+  reload.
+- When an OpenCode model cannot read a file or image in the chat, OpenBot now tells you to choose a
+  model that can read files, in a yellow notice. Before, a red error said that the provider failed
+  and that you must try again later, but each new message failed again until you changed the model.
+- A task that needs your approval no longer looks stuck in "Making the requested changes…". The task panel
+  on desktop and on the web shows the approval with Allow and Deny, and the task says "Waiting for your
+  approval". An approval of a task no longer hides an approval of the agent's chat.
+- On Discord, OpenBot reads the images and files of the message that you reply to. Before, it read
+  only the text of that message, and a message with only an image gave no context.
+- A notification for a question, an approval or a browser step now goes away when the request is answered or cancelled, also from another device. Before, it stayed in the Notification Center.
+- When the ChatGPT sign-in of a server had expired, a sign-in with a code from the web client or the phone stopped a few seconds after the code appeared. The code now stays valid until you enter it.
+- Failure reports from the desktop app and the local host were dropped before they were sent.
+  They now reach the analytics service.
+- Check saved secondary ChatGPT and Claude accounts when their provider starts, so accounts can reconnect after an app reload or CLI update without removal and a new sign-in.
+
 ## [0.46.0] - 2026-10-20
 
 ### Added

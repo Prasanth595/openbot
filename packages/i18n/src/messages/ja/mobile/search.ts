@@ -18,7 +18,6 @@ export const messages = {
   "mobile.search.task.ideaHint": "このテキストをタスク欄に入れます。",
   "mobile.search.task.again": "もう一度",
   "mobile.search.task.openWith": "{name} の未完了タスク",
-  "mobile.search.task.atHint": "@ と名前を入力すると、エージェントにタスクを依頼できます。",
   "mobile.search.task.noAgent": "その名前のエージェントはいません。",
   "mobile.search.task.send": "タスクを開始",
   "mobile.search.task.startedBy": "{name} がタスクを開始しました",

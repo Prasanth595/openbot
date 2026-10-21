@@ -47,8 +47,11 @@ export const messages = {
   "conversation.header.publish": "Publicar agente",
   "conversation.header.browserActing": "{name} está controlando el navegador",
   "conversation.header.agentFallback": "Agente",
-  "conversation.header.modelsBusy": "Espera a que termine el trabajo actual antes de cambiar de modelo.",
+  "conversation.header.providerBusy":
+    "Espera a que termine el trabajo actual antes de cambiar de proveedor o de cuenta.",
   "conversation.header.modelsUnavailable": "Los modelos están disponibles cuando se conecta una CLI de agente.",
+  "conversation.header.modelNextTurn": "Tras este turno",
+  "conversation.header.modelNextTurnDetail": "{running} termina este turno. {next} empieza con el siguiente.",
   "conversation.sidePanel.label": "Panel lateral",
   "conversation.sidePanel.open": "Abrir panel lateral",
   "conversation.sidePanel.close": "Cerrar panel lateral",
@@ -103,6 +106,7 @@ export const messages = {
   "conversation.tasks.state.completed": "Respondida",
   "conversation.tasks.state.failed": "Fallida",
   "conversation.tasks.state.interrupted": "Detenida",
+  "conversation.tasks.state.waitingApproval": "Esperando tu aprobación",
   "conversation.tasks.hold.taskLimit": {
     one: "Esperando una tarea libre. Se ejecuta {count} tarea.",
     other: "Esperando una tarea libre. Se ejecutan {count} tareas.",

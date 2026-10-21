@@ -30,7 +30,7 @@ export function ServerUsageScreen() {
   const [range, setRange] = useState(() => lastUsageDays());
   const [agentId, setAgentId] = useState<string>();
   useEffect(() => {
-    mobileAnalytics.track("usage_viewed", {});
+    mobileAnalytics.track("usage_viewed", { scope: "server" });
   }, []);
   const usage = useQuery({
     queryKey: queryKeys.serverUsage(queryScope, serverId, range, agentId),

@@ -1951,6 +1951,12 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
       return sourceText("error.provider.opencodeKeyExpired");
     // The usage notice reports an exhausted usage limit, and it reads the whole text to find one.
     if (isUsageLimitDiagnostic(reason)) return detail;
+    // The part stays in the session, so each turn on this model fails until the user picks another.
+    // The provider's text says nothing more to the user; it goes to the log.
+    if (OPENCODE_UNREADABLE_CONTENT.test(reason)) {
+      this.emit("diagnostic", this.#redact(`OpenCode model refused the chat content: ${reason}`));
+      return sourceText("error.provider.opencodeUnreadableContent");
+    }
     const key = OPENCODE_REQUEST_FAILURES.find(([, pattern]) => pattern.test(reason))?.[0];
     if (!key) return detail;
     return sourceText(key, { detail: shownFailureDetail(this.#redact(reason)) });
@@ -2270,6 +2276,15 @@ function shownFailureDetail(text: string): string {
     ? `${characters.slice(0, OPENCODE_FAILURE_DETAIL_LIMIT - 1).join("")}…`
     : characters.join("");
 }
+
+/**
+ * A request that the model refused for a file, image or audio part in the chat. OpenCode 2.1.1
+ * sends a part when the model catalog lists its kind, or when the part has a kind it does not know,
+ * such as an MCP resource. Each gateway words the refusal differently; OpenCode itself refuses a
+ * kind that the protocol cannot carry.
+ */
+const OPENCODE_UNREADABLE_CONTENT =
+  /\[unsupported_content_type\]|\bcontent part type "[^"]*" is not supported\b|\bsupports text-only requests\b|\bdoes not support media type\b/iu;
 
 /**
  * The kind of a model request that OpenCode gave up on, first match wins. A provider gateway

@@ -102,6 +102,11 @@ again.
   Discord's **@ ON** setting of a reply does this, and it is on by default. Without the mention,
   Discord does not give the text to OpenBot.
 - A mention that replies to another person's message starts a new conversation.
+- A new conversation has as context the channel's last 10 messages from the 15 minutes before it, so
+  "@OpenBot make an issue" after a screenshot of another person refers to that screenshot. The
+  agent gets the files of earlier messages with the message, after the message's own files and
+  within the attachment limits. Without the Message Content intent, Discord gives the text and files
+  only of messages that mention OpenBot.
 - A direct message to OpenBot gets one fixed answer: mention OpenBot in a server channel.
 - The rest works as in Slack: the Discord Orchestrator receives each new conversation, 👀 shows that
   the message arrived, "Working on it…" is replaced by the answer, and ✅, ❌ or ⏹️ shows the end.
@@ -220,7 +225,7 @@ whole list, with the ID of each fact. The prompt marks the facts as data, not in
 `openbot.messaging_history` reads the newest messages of the conversation's own channel or thread:
 30 by default, 100 at most. It reads no other place. Slack can limit it to one read a minute; it
 then fails at once, and the agent can try again. Discord gives the text only of messages that
-mention OpenBot, and of bot posts. Telegram gives what this computer saw since it started.
+mention OpenBot, and of bot posts. Discord messages name their files. Telegram gives what this computer saw since it started.
 
 ## Posts that an agent sends
 

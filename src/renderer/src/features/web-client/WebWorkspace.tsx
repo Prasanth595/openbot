@@ -38,12 +38,14 @@ import {
   deleteHostedSite,
   deleteStoredFile,
   getAgentAdminSettings,
+  getHostAgentAccess,
   getHostAgentMemoryLimit,
   getHostReleaseStatus,
   getHostTimezone,
   getHostUpdateStatus,
   getStorageUsage,
   listHostedSites,
+  setHostAgentAccess,
   setHostAgentMemoryLimit,
   setHostTimezone,
   setHostUpdateSettings,
@@ -97,6 +99,7 @@ import {
 // Copying a selection with a formula in it gives its LaTeX source, as on desktop.
 import "katex/contrib/copy-tex";
 import { actionToast } from "../../action-toast";
+import { desktopAnalytics } from "../../analytics";
 import { toAgentMessage } from "../../app-message-projection";
 import { ProviderSignInDialogs } from "../../components/ProviderSignInDialogs";
 import { isGlobalSearchShortcut } from "../../global-search-shortcut";
@@ -142,6 +145,7 @@ import {
   routineMadeThisSession,
 } from "../servers/hosted-server-upsell-controller";
 import type { HostMemoryLimitCalls } from "../servers/ServerMemoryLimitSetting";
+import type { HostAgentAccessCalls } from "../servers/ServerRolesSection";
 import type { ServerHostedSitesOptions, ServerSettingsSection } from "../servers/ServerSettingsModal";
 import type { HostTimezoneCalls } from "../servers/ServerTimezoneSetting";
 import type { HostUpdateCalls } from "../servers/ServerUpdatePanel";
@@ -153,6 +157,7 @@ import {
   serverUpdateBadge,
   showServerUpdate,
 } from "../servers/server-update-flow";
+import { licenseContactUs, trackLicenseEvent } from "../settings/license-analytics";
 import { createCommunityCardVisibility } from "../sidebar/community-card";
 import { isReaderAuthor } from "../team/reader-identity";
 import { RailHelpMenu } from "../window/RailHelpMenu";
@@ -732,7 +737,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   const billingCalls = createWebBillingCalls(props.accountFetch);
   const billing = createBillingStore(() => billingCalls, billingOpen);
   const licenseCalls = createWebLicenseCalls(props.accountFetch);
-  const license = createLicenseStore(() => licenseCalls, billingOpen);
+  const license = createLicenseStore(() => licenseCalls, billingOpen, trackLicenseEvent);
   // The web client has no Hosted servers settings, so a server whose plan ended is renewed or deleted in Billing.
   const billingHostedServers = createSettingsHostedServersStore(
     {
@@ -866,6 +871,12 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
       runTeamEffect(
         setHostAgentMemoryLimit(hostRequest(serverId), limit).pipe(Effect.mapError((error) => error.cause)),
       ),
+  };
+  const hostAgentAccessCalls: HostAgentAccessCalls = {
+    getAgentAccess: async (serverId) =>
+      runTeamEffect(getHostAgentAccess(hostRequest(serverId)).pipe(Effect.mapError((error) => error.cause))),
+    setAgentAccess: async (change, serverId) =>
+      runTeamEffect(setHostAgentAccess(hostRequest(serverId), change).pipe(Effect.mapError((error) => error.cause))),
   };
   const [serverSettingsSection, setServerSettingsSection] = createSignal<ServerSettingsSection | null>(null);
   async function openServerSettings(
@@ -1459,6 +1470,11 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                           onAttachmentAction={(attachment) =>
                             void runtime.agent.openAttachment({ attachmentId: attachment.id, action: "download" })
                           }
+                          approvals={workspace.state.approvals}
+                          onRespondApproval={async (approval, decision) => {
+                            await workspace.approve({ requestId: approval.requestId, decision });
+                            return true;
+                          }}
                         />
                       </Loading>
                     </Match>
@@ -1491,7 +1507,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                     servers={servers()}
                     onSelect={selectServer}
                     onReorder={workspace.reorderHosts}
-                    onAdd={hostedServers.openAddServer}
+                    onAdd={() => hostedServers.openAddServer("server_rail")}
                     addCreatesServer={hostedServers.available()}
                     {...serverActionCallbacks}
                   />
@@ -1535,7 +1551,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                     view: layout.serverView(),
                     onViewChange: layout.setServerView,
                     onSelect: selectServer,
-                    onAdd: hostedServers.openAddServer,
+                    onAdd: () => hostedServers.openAddServer("server_rail"),
                     addCreatesServer: hostedServers.available(),
                     ...serverActionCallbacks,
                   }}
@@ -1626,10 +1642,14 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   serverId={server()?.id ?? ""}
                   host={{ name: server()?.name ?? "" }}
                   busy={(agentId) => Boolean(workspace.state.conversations[agentId]?.page?.activeTurnId)}
-                  openPlans={hostedServers.openAddServer}
+                  openPlans={() => hostedServers.openAddServer("upsell")}
+                  track={(action, entryPoint) =>
+                    desktopAnalytics.track("hosted_server_upsell", { action, entry_point: entryPoint })
+                  }
                 />
                 <AddServerOverlay
                   open={hostedServers.addServer() !== null}
+                  entryPoint={hostedServers.addServer()?.entryPoint}
                   calls={hostedServers.calls}
                   servers={servers()}
                   onRefreshServers={workspace.retryHosts}
@@ -1810,6 +1830,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                       hostUpdate={{ calls: hostUpdateCalls }}
                       hostTimezone={{ calls: hostTimezoneCalls }}
                       hostMemoryLimit={{ calls: hostMemoryLimitCalls }}
+                      agentAccess={{ calls: hostAgentAccessCalls, listAgents: () => workspace.runtime.listAgents() }}
                       // Any member imports into a host with `agent-import-v1`.
                       agentImport={
                         workspace.state.capabilities.includes(AGENT_IMPORT_CAPABILITY)
@@ -1850,7 +1871,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                     <LicenseSection
                       store={license}
                       onManagePayment={() => void billing.openPortal({ flow: "manage" })}
-                      onContactUs={() => window.location.assign(HOSTED_SERVER_CONTACT_URL)}
+                      onContactUs={licenseContactUs(() => window.location.assign(HOSTED_SERVER_CONTACT_URL))}
                     />
                   }
                 />
@@ -1944,7 +1965,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   // An account with a hosted server that is not a host yet, such as one that waits for payment,
                   // must not buy a second one from here.
                   hostedServers.available() && !hostedServers.ownsHostedServer()
-                    ? hostedServers.openAddServer
+                    ? () => hostedServers.openAddServer("empty_state")
                     : undefined
                 }
                 onRefresh={() => void workspace.run(workspace.refreshHosts)}

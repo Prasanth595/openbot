@@ -17,7 +17,11 @@ import {
   isOpenBillingStatus,
   parseBillingLookupKey,
 } from "@openbot/contracts/billing";
-import type { HostedServerCatalog, HostedServerCatalogPlan } from "@openbot/contracts/hosted-servers";
+import type {
+  HostedServerCatalog,
+  HostedServerCatalogPlan,
+  HostedServerEntryPoint,
+} from "@openbot/contracts/hosted-servers";
 import { LICENSE_METADATA, LICENSE_METADATA_KIND } from "@openbot/contracts/license";
 import { isDynamicRecord, isOneOf, isString } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
@@ -26,6 +30,7 @@ import {
   type AccountAnalytics,
   type BillingAction,
   NO_ACCOUNT_ANALYTICS,
+  type PlanChangeDirection,
   type PlanEndReason,
 } from "./account-analytics";
 import {
@@ -36,7 +41,7 @@ import {
   stripeFailure,
   stripeRequest,
 } from "./billing-errors";
-import { type BillingSales, type PaymentReversal, paymentReversal } from "./billing-sales";
+import { type BillingSales, type BillingSalesSynced, type PaymentReversal, paymentReversal } from "./billing-sales";
 import type { HostedFailure } from "./hosted-server-service";
 import { isLicensePrice, LicenseService, type LicenseSync } from "./license-service";
 import type { RemoteFailure } from "./remote-control-plane";
@@ -134,6 +139,7 @@ interface StoredSubscription {
   status: string;
   plan: string;
   interval: string;
+  amount: number | null;
   cancel_at_period_end: number;
 }
 
@@ -155,6 +161,8 @@ export interface CheckoutRequest {
   currency: BillingCurrency;
   target: BillingReturnTarget;
   origin: string;
+  /** Where the journey started in the app. Only analytics reads it. */
+  entryPoint?: HostedServerEntryPoint;
 }
 
 class BillingDependencies extends Context.Service<
@@ -202,6 +210,8 @@ export class BillingService {
       secretKey: options.secretKey,
       now,
       ensureCustomer: (user) => this.ensureCustomer(user),
+      analytics: this.#analytics,
+      sales: this.#sales,
     });
   }
 
@@ -304,7 +314,9 @@ export class BillingService {
           // Stripe puts the session ID in the URL. The desktop return page sends it with the first
           // website visit of the browser, so that the saved checkout names the account.
           successUrl:
-            returnToken && request.target !== "web" ? `${returnUrl}?checkout={CHECKOUT_SESSION_ID}` : returnUrl,
+            returnToken && request.target !== "web"
+              ? `${returnUrl}${returnUrl.includes("?") ? "&" : "?"}checkout={CHECKOUT_SESSION_ID}`
+              : returnUrl,
           cancelUrl: returnToken
             ? `${request.origin}/billing/checkout-return?token=${encodeURIComponent(returnToken)}`
             : `${returnUrl}${returnUrl.includes("?") ? "&" : "?"}cancelled=1`,
@@ -326,16 +338,19 @@ export class BillingService {
             amount,
             returnUrl: `${destination.pathname}${destination.search}`,
             createdAt: dependencies.now(),
+            ...(request.entryPoint ? { entryPoint: request.entryPoint } : {}),
           })
           .pipe(Effect.mapError(() => new BillingOperationError({})));
       } else
         dependencies.analytics.track(request.user.id, {
           name: "billing_action",
           action: "checkout_started",
+          product: "server",
           plan: request.plan,
           interval: request.interval,
           currency: request.currency,
           amount,
+          ...(request.entryPoint ? { entryPoint: request.entryPoint } : {}),
         });
       return { sessionId: session.id, url: session.url };
     },
@@ -704,11 +719,13 @@ export class BillingService {
         yield* this.cancelSubscription(payment.subscriptionId);
         yield* this.#syncSubscription(payment.subscriptionId);
       }
-      // A license is not a server sale, so the sales facts and the plan analytics leave it out.
-      const license = synced?.kind === "license" || isLicenseCheckout(event);
-      const plan = synced?.kind === "plan" ? synced : null;
-      if (this.#sales && !license) {
-        yield* this.#sales.webhook(event, plan, payment).pipe(Effect.mapError(() => new BillingOperationError({})));
+      // License events count as sales with `product: license`. The sync reports the license lifecycle.
+      const sold: BillingSalesSynced | null =
+        synced?.kind === "license"
+          ? { product: "license", userId: synced.userId, users: synced.users, currency: synced.currency }
+          : synced;
+      if (this.#sales) {
+        yield* this.#sales.webhook(event, sold, payment).pipe(Effect.mapError(() => new BillingOperationError({})));
       }
       // The event is recorded only after it is applied, so a failed event is applied again on retry.
       yield* billingCall(() =>
@@ -721,7 +738,7 @@ export class BillingService {
             .bind(now - WEBHOOK_EVENT_RETENTION_MS),
         ]),
       );
-      if (!this.#sales && !license) yield* this.#trackEvent(event, plan);
+      if (!this.#sales) yield* this.#trackEvent(event, synced);
     },
     (operation) => operation.pipe(Effect.provide(this.#layer)),
   ).bind(this);
@@ -749,7 +766,7 @@ export class BillingService {
   readonly #trackEvent = Effect.fn("BillingService.trackEvent")(function* (
     this: BillingService,
     event: StripeEvent,
-    synced: SyncedSubscription | null,
+    synced: SyncedSubscription | LicenseSync | null,
   ): Effect.fn.Return<void, BillingError | BillingOperationError, BillingDependencies> {
     const dependencies = yield* BillingDependencies;
     const object = event.data.object;
@@ -760,7 +777,12 @@ export class BillingService {
             dependencies.database.prepare("SELECT id FROM users WHERE id = ?").bind(userId).first<{ id: string }>(),
           )
         : null;
-      if (user) dependencies.analytics.track(user.id, { name: "billing_action", action: "checkout_expired" });
+      if (user)
+        dependencies.analytics.track(user.id, {
+          name: "billing_action",
+          action: "checkout_expired",
+          product: isLicenseCheckout(event) ? "license" : "server",
+        });
       return;
     }
     if (!synced || (event.type !== "invoice.paid" && event.type !== "invoice.payment_failed")) return;
@@ -770,8 +792,9 @@ export class BillingService {
     dependencies.analytics.track(synced.userId, {
       name: "billing_action",
       action: paid ? "payment_succeeded" : "payment_failed",
-      plan: synced.plan,
-      interval: synced.interval,
+      product: synced.kind === "license" ? "license" : "server",
+      ...(synced.kind === "license" ? { users: synced.users } : { plan: synced.plan }),
+      interval: synced.kind === "license" ? "month" : synced.interval,
       currency: synced.currency,
       amount: currency === synced.currency && isBillingAmount(amount) ? amount : null,
     });
@@ -811,7 +834,7 @@ export class BillingService {
     const previous = yield* billingCall(() =>
       dependencies.database
         .prepare(
-          "SELECT status, plan, interval, cancel_at_period_end FROM billing_subscriptions WHERE stripe_subscription_id = ?",
+          "SELECT status, plan, interval, amount, cancel_at_period_end FROM billing_subscriptions WHERE stripe_subscription_id = ?",
         )
         .bind(subscription.id)
         .first<StoredSubscription>(),
@@ -950,13 +973,16 @@ export class BillingService {
     current: SyncedSubscription & { amount: number | null },
     reactivated: boolean | undefined,
   ): void {
+    const direction = action === "plan_changed" ? planChangeDirection(previous, current) : null;
     this.#analytics.track(current.userId, {
       name: "billing_action",
       action,
+      product: "server",
       plan: current.plan,
       interval: current.interval,
       currency: current.currency,
       amount: current.amount,
+      ...(direction ? { direction } : {}),
       ...(reactivated === undefined ? {} : { reactivated }),
       ...(action === "plan_ended" ? { endReason: planEndReason(previous) } : {}),
     });
@@ -1073,6 +1099,28 @@ function planChange(
   return current.cancelAtPeriodEnd ? "cancel_scheduled" : "cancel_withdrawn";
 }
 
+/**
+ * Whether a changed plan costs more or less. The monthly amounts decide; without both amounts, the order
+ * of the plans decides. A change of interval only at the same monthly amount has no direction.
+ */
+function planChangeDirection(
+  previous: StoredSubscription | null,
+  current: { plan: BillingPlanId; interval: BillingInterval; amount: number | null },
+): PlanChangeDirection | null {
+  if (!previous) return null;
+  const monthly = (amount: number, interval: string) => (interval === "year" ? amount / 12 : amount);
+  if (previous.amount !== null && current.amount !== null) {
+    const before = monthly(previous.amount, previous.interval);
+    const after = monthly(current.amount, current.interval);
+    if (after !== before) return after > before ? "up" : "down";
+    return null;
+  }
+  const before = isOneOf(BILLING_PLAN_IDS, previous.plan) ? BILLING_PLAN_IDS.indexOf(previous.plan) : -1;
+  const after = BILLING_PLAN_IDS.indexOf(current.plan);
+  if (before < 0 || before === after) return null;
+  return after > before ? "up" : "down";
+}
+
 /** A plan that ends after its payment failed ends as unpaid; every other end is a cancellation. */
 function planEndReason(previous: StoredSubscription | null): PlanEndReason {
   return previous?.status === "past_due" || previous?.status === "unpaid" ? "unpaid" : "canceled";
@@ -1116,12 +1164,13 @@ function plansUnavailable(): BillingError {
 /** The web client opens the progress of this server again. The desktop app polls, so its page only says to go back. */
 function checkoutReturnUrl(origin: string, target: BillingReturnTarget, serverId: string): string {
   if (target === "web") return `${origin}/app?hosting=checkout&hosted_server=${encodeURIComponent(serverId)}`;
-  return `${origin}/billing/return`;
+  // `kind` tells the return page which Stripe page closed.
+  return `${origin}/billing/return?kind=plan`;
 }
 
 function portalReturnUrl(origin: string, target: BillingReturnTarget): string {
   if (target === "web") return `${origin}/app?billing=portal`;
-  return `${origin}/billing/return`;
+  return `${origin}/billing/return?kind=portal`;
 }
 
 /** True for a Checkout event of a license page. A paid page also names its subscription, which the sync reads. */

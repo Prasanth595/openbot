@@ -23,7 +23,6 @@ export const messages = {
   "settings.logoColor.gray": "Gris",
   "settings.logoColor.white": "Blanc",
   // The Settings window, General tab.
-  "settings.providers.title": "Fournisseurs d’IA",
   "settings.appBehavior.title": "Comportement de l’application",
   "settings.conversations.title": "Conversations",
   "settings.launchAtLogin.title": "Lancer OpenBot à l’ouverture de session",
@@ -105,9 +104,8 @@ export const messages = {
   "settings.analytics.title": "Partager les données analytiques du produit",
   "settings.analytics.description":
     "Envoyer des métadonnées d’utilisation et de fiabilité, avec l’identifiant et l’e-mail de votre compte, aux services analytiques auto-hébergés d’OpenBot.",
-  "settings.analytics.webTitle": "Partager les rapports d’erreurs",
   "settings.analytics.webDescription":
-    "Envoyez les codes d’erreur et d’avertissement, avec l’identifiant de votre compte, au service d’analyse d’OpenBot. Ce réglage s’applique à ce navigateur.",
+    "Envoyer des métadonnées d’utilisation et de fiabilité, avec l’identifiant et l’e-mail de votre compte, aux services analytiques auto-hébergés d’OpenBot. Ce réglage s’applique à ce navigateur.",
   // The Settings window shell: its tab list, headers and save bar.
   "settings.tab.general.title": "Général",
   "settings.tab.general.description": "Contrôler le comportement d’OpenBot sur cet ordinateur.",
@@ -434,6 +432,8 @@ export const messages = {
   // The Voice tab: dictation models and the dictation language.
   "settings.voice.models.title": "Modèle de dictée",
   "settings.voice.model.parakeet.description": "Rapide. Détecte seul la langue parlée, parmi 25 langues européennes.",
+  "settings.voice.model.bark.description":
+    "Rapide. Anglais uniquement. Écrit surtout en minuscules, avec peu de ponctuation.",
   "settings.voice.model.whisper.description": "Plus lent. Environ 100 langues, et vous pouvez fixer la langue parlée.",
   "settings.voice.model.size": "Taille du téléchargement : {size}",
   "settings.voice.model.downloading": "Téléchargement · {received} sur {total}",
@@ -451,6 +451,8 @@ export const messages = {
     "La langue que vous parlez. « Automatique » la détecte à partir de l’enregistrement.",
   "settings.voice.language.modelDetects":
     "Parakeet détecte seul la langue parlée. Pour fixer une langue, utilisez Whisper ou ElevenLabs.",
+  "settings.voice.language.englishOnly":
+    "Bark reconnaît uniquement l’anglais. Pour fixer une langue, utilisez Whisper ou ElevenLabs.",
   "settings.voice.language.automatic": "Automatique",
   "settings.voice.loadFailed": "Impossible de lire les modèles vocaux.",
   "settings.voice.saveFailed": "Impossible d’enregistrer le réglage vocal. Réessayez.",

@@ -159,6 +159,24 @@ export class CodexAppServerClient extends EventEmitter<ClientEvents> {
   });
 
   /**
+   * Moves a replaced thread out of the list that the Codex app and ChatGPT show. Without this, each
+   * replacement session adds a row that starts with the OpenBot handoff to the user's own Codex
+   * history.
+   *
+   * `thread/archive` moves the rollout to `archived_sessions` and unloads the thread when it is
+   * loaded. `thread/turns/list` and `thread/items/list` still read it, so a history import works,
+   * and a resume unarchives it first (`ThreadLifecycle.resumeThread`). A thread that is already
+   * archived, or that has no rollout, answers `no rollout found`.
+   */
+  readonly archiveThread = Effect.fn("CodexAppServer.archiveThread")(function* (
+    this: CodexAppServerClient,
+    threadId: string,
+  ) {
+    if (!this.running) return;
+    yield* this.request("thread/archive", { threadId }, decodeRecordResponse);
+  });
+
+  /**
    * Reads Codex history without asking the app server for the legacy full thread snapshot.
    *
    * The app server returns turns newest first. Items are read one turn at a time in ascending

@@ -442,6 +442,11 @@ export class MessagingThreads {
     return origin ? (this.store.link(origin.linkId)?.threadId ?? null) : null;
   }
 
+  /** Whether a platform message is in the mailbox, by its idempotency key. */
+  received(idempotencyKey: string): boolean {
+    return this.#mailbox.deliveryForKey(idempotencyKey) !== null;
+  }
+
   ownsDelivery(deliveryId: string): boolean {
     return this.#mailbox.messagingOrigin(deliveryId) !== null;
   }

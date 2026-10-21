@@ -19,7 +19,6 @@ export const messages = {
   "settings.logoColor.beige": "ベージュ",
   "settings.logoColor.gray": "グレー",
   "settings.logoColor.white": "ホワイト",
-  "settings.providers.title": "AI プロバイダー",
   "settings.appBehavior.title": "アプリの動作",
   "settings.conversations.title": "会話",
   "settings.launchAtLogin.title": "ログイン時に OpenBot を開く",
@@ -95,9 +94,8 @@ export const messages = {
   "settings.analytics.title": "製品分析データを共有する",
   "settings.analytics.description":
     "利用状況と安定性のメタデータを、アカウント ID とメールアドレスとともに OpenBot の自社運用の分析基盤に送信します。",
-  "settings.analytics.webTitle": "エラーレポートを共有する",
   "settings.analytics.webDescription":
-    "エラーと警告のコードを、アカウント ID とともに OpenBot の分析に送信します。この設定はこのブラウザーに適用されます。",
+    "利用状況と安定性のメタデータを、アカウント ID とメールアドレスとともに OpenBot の自社運用の分析基盤に送信します。この設定はこのブラウザーに適用されます。",
   "settings.tab.general.title": "一般",
   "settings.tab.general.description": "このコンピューターでの OpenBot の動作を設定します。",
   "settings.tab.notifications.title": "通知",
@@ -416,6 +414,7 @@ export const messages = {
   // The Voice tab: dictation models and the dictation language.
   "settings.voice.models.title": "音声入力モデル",
   "settings.voice.model.parakeet.description": "高速です。ヨーロッパの 25 言語で、話している言語を自動で判別します。",
+  "settings.voice.model.bark.description": "高速です。英語のみ。ほとんど小文字で書き、句読点はわずかです。",
   "settings.voice.model.whisper.description": "低速です。約 100 言語に対応し、話す言語を指定できます。",
   "settings.voice.model.size": "ダウンロードサイズ: {size}",
   "settings.voice.model.downloading": "ダウンロード中 · {received} / {total}",
@@ -432,6 +431,8 @@ export const messages = {
   "settings.voice.language.description": "話す言語です。「自動」は録音から言語を判別します。",
   "settings.voice.language.modelDetects":
     "Parakeet は話している言語を自動で判別します。言語を指定するには Whisper または ElevenLabs を使用してください。",
+  "settings.voice.language.englishOnly":
+    "Bark は英語のみ認識します。言語を指定するには Whisper または ElevenLabs を使用してください。",
   "settings.voice.language.automatic": "自動",
   "settings.voice.loadFailed": "音声モデルを読み込めませんでした。",
   "settings.voice.saveFailed": "音声の設定を保存できませんでした。もう一度お試しください。",

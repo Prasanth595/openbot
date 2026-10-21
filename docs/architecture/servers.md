@@ -282,6 +282,7 @@ host advertises a capability only when its `TeamApiAdmin` member exists.
 | `host-update-v1` | Check for, download and restart into an app update; cancel a restart that waits | `hostAdmin` |
 | `host-timezone-v1` | Read and set the server timezone | `hostAdmin` |
 | `agent-memory-limit-v1` | Read and set how many memories each agent keeps | `hostAdmin` |
+| `agent-access-v1` | Read and set the roles that give members access to agents (see [Roles](#roles)) | `hostAdmin` |
 | `discord-access-v1` | Read and set which Discord roles can use OpenBot in a Discord server; list its roles | `messaging` |
 | `events-v1` | Manage webhook routines, their secrets, and activity | `events` |
 | `routine-recovery-v1` | Read and set a routine's missed-run policy; read its runs with the missed occurrences | `events` |
@@ -356,6 +357,48 @@ event encoders at each hop (host peer, client transport, `remote-peer.ts`, SSE s
 loses the host while a restart waits treats it as the restart: desktop keeps the fast WebRTC retry
 instead of the `host_unavailable` wait for 10 minutes, and web tries again every 5 s for 3 minutes.
 `host-restart-toast.ts` shows the notice until the host is back, for 10 minutes at most.
+
+### Roles
+
+`agent-access-v1` limits the agents that a member can use. Its routes are `/v1/agent-access` and
+`/v1/agent-access/set`, not `/v1/admin/...`, because each member reads their own levels there. Each
+agent has one of four levels for a member:
+
+| Level | The member can |
+| --- | --- |
+| `none` | Not see the agent. The host treats it as hidden for that member: its list, events, push and Live Activity leave it out, and its routes answer 404. |
+| `view` | Read the agent's conversations and files. Each write answers 403 `error.team.agentViewOnly`. |
+| `chat` | Also send, react, interrupt, edit the queue, ask a side question, reset the context, use tasks, and answer the agent's prompts, approvals and browser requests. |
+| `manage` | Also change the agent's settings, routines, memories, skills and publication (403 `error.team.agentManageDenied` below it). Delete stays admin only. |
+
+The **Everyone** role holds a level for each agent, `manage` for an agent that it does not list. A
+custom role holds a name, a level for each agent (`none` for an agent that it does not list) and its
+member IDs (`TeamMemberSummary.id`). A member gets the highest level of Everyone and of each role that
+names them. An owner or an admin always gets `manage`. So a server with no roles works as before, and
+a new agent is open to every member until an admin closes it.
+
+The host keeps the roles in `openbot-agent-access-v1.json`, by server ID (`src/main/agent-access-store.ts`).
+It is a preference file, not the database: there is no migration, and an older build ignores it, so a
+downgrade keeps the roles. A file that does not decode closes every agent to members until the next
+save. Nothing goes to the account service. An owner or admin reads the whole set; a member reads only
+`mine`. A save sends the whole set with the revision that it read, and the host answers 409 when another
+admin saved after it; the client then reads the set again. A save changes only the levels of the agents
+that the admin can see, and drops the levels of deleted agents. A duplicated agent gets the levels of its
+source before the copy shows to clients, so a copy does not open memories that the source closed. The host removes a member from each role when the member leaves, and after
+each change it sends `agent-access-changed` and a new `agents-changed` to each connection, so the agent
+lists of members change without a reload.
+
+Server settings → Roles (`ServerRolesSection.tsx`, `@openbot/ui/features/servers/ServerRoles`) edits the
+set on desktop and web. The role menu of each member row on the Members page sets the server role
+(Member or Admin, through the same confirmation as before) and the custom roles. The tab shows for the
+local server and for a joined server whose host advertises the capability to an owner or admin.
+
+Known limits:
+
+- The composer does not show that a `view` agent is read only; the host refuses the send.
+- `GET /v1/attachments/:id` does not check the agent of the attachment.
+- Channel messages of an agent that a member cannot see stay in the channel. A send to a channel does
+  not check the levels of the agents in it; only a save that adds an agent checks `chat`.
 
 ### Webhook routines
 

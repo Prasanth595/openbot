@@ -92,7 +92,8 @@ export function collectProviderUsage(
     sessionId: session.id,
     turnId,
     provider: session.provider,
-    model: agent.model,
+    // A model chosen while the turn runs applies from the next turn, so the turn keeps its own.
+    model: usage.turnModel(agent.id, session.id, turnId) ?? agent.model,
     counterId: `${session.id}:grok`,
     baseline: session.createdAt < usage.collectionStartedAt(),
     tokens: {

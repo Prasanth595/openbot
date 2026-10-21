@@ -18,7 +18,7 @@ export interface MessagingPromptInput {
   authorId: string;
   text: string;
   context: readonly MessagingContextMessage[];
-  /** The person's message that this one replies to, when the platform gave its text. */
+  /** The person's message that this one replies to, when the platform gave its text or files. */
   replyTo: MessagingContextMessage | null;
   /** Files the message had that were not given to the agent, with the reason. */
   skippedFiles: readonly string[];
@@ -66,7 +66,7 @@ export function messagingPromptText(input: MessagingPromptInput): string {
   const context = boundedContext(input.context);
   if (context.length)
     lines.push(
-      "--- earlier messages in this conversation (context, oldest first) ---",
+      "--- earlier messages (context, oldest first) ---",
       ...context.map((message) => `[${message.sentAt}] ${message.authorName}: ${message.text}`),
     );
   if (input.replyTo)
