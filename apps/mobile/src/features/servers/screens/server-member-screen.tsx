@@ -5,13 +5,14 @@ import { Alert, View } from "react-native";
 import { useUniwind } from "uniwind";
 import { SERVER_ROLE_LABEL_KEYS } from "@/features/servers/model/server-role";
 import { useServerMembers } from "@/features/servers/model/use-server-members";
+import { setRoleMember, useServerRoles } from "@/features/servers/model/use-server-roles";
 import {
   SettingsContent,
   SettingsNote,
   SettingsRow,
   SettingsSection,
 } from "@/features/settings/components/settings-content";
-import { SettingsPicker } from "@/features/settings/components/settings-controls";
+import { SettingsPicker, SettingsSwitch } from "@/features/settings/components/settings-controls";
 import { ProfileAvatar } from "@/shared/components/profile-avatar";
 import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
@@ -21,7 +22,7 @@ const EXPIRY_FORMAT = { month: "short", day: "numeric", hour: "numeric", minute:
 
 /**
  * Server sheet > Members > one person: their role and access. An owner or admin changes the role
- * of another member or removes them; the owner and your own membership stay read-only here, and
+ * of another member, gives a member the roles that set their agents, or removes them; the owner and your own membership stay read-only here, and
  * Server settings has Leave. An email invitation opens here too, and its owner or admin revokes it.
  */
 export function ServerMemberScreen() {
@@ -33,6 +34,7 @@ export function ServerMemberScreen() {
     inviteId?: string;
   }>();
   const { server, teamDirectory, canManage, members, invites, action, perform } = useServerMembers(serverId);
+  const roles = useServerRoles(serverId);
   const member = membershipId
     ? members.data?.find((candidate) => candidate.membershipId === membershipId && candidate.status === "active")
     : undefined;
@@ -119,6 +121,48 @@ export function ServerMemberScreen() {
           ) : null}
         </SettingsSection>
         {error}
+        {/* Roles apply only to a member: an owner or admin can use all agents. */}
+        {manageable && memberRole === "member" && roles.available ? (
+          <SettingsSection
+            title={t("mobile.server.route.roles")}
+            footer={
+              roles.action.error
+                ? errorMessage(roles.action.error, t("mobile.server.roles.saveFailed"))
+                : roles.roles.isError
+                  ? errorMessage(roles.roles.error, t("mobile.server.roles.loadFailed"))
+                  : roles.list?.length === 0
+                    ? t("mobile.server.roles.memberEmpty")
+                    : t("mobile.server.roles.memberHint")
+            }
+          >
+            {!roles.list && !roles.roles.isError ? (
+              <SettingsRow disclosure={false}>
+                <Typography.Paragraph className="text-grouped-secondary">
+                  {t("mobile.server.roles.loading")}
+                </Typography.Paragraph>
+              </SettingsRow>
+            ) : null}
+            {roles.list?.map((role) => (
+              <SettingsRow key={role.id}>
+                <SettingsSwitch
+                  value={role.memberIds.includes(member.membershipId)}
+                  disabled={roles.action.isPending}
+                  label={role.name}
+                  dark={theme === "dark"}
+                  onValueChange={(on) => {
+                    void haptics.selection();
+                    void roles.save((change) => setRoleMember(change, role.id, member.membershipId, on));
+                  }}
+                />
+              </SettingsRow>
+            ))}
+            {roles.list?.length === 0 ? (
+              <SettingsRow onPress={() => router.push({ pathname: "/server-settings/roles", params: { serverId } })}>
+                <Typography.Paragraph className="text-accent">{t("mobile.server.roles.manage")}</Typography.Paragraph>
+              </SettingsRow>
+            ) : null}
+          </SettingsSection>
+        ) : null}
         {manageable ? (
           <SettingsSection>
             <SettingsRow
