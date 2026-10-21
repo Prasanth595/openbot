@@ -10,6 +10,7 @@ import {
   TEAM_AGENT_CREATE_MODEL_CAPABILITY,
   TEAM_CURRENT_CAPABILITIES,
   TEAM_HISTORY_EXTENT_CAPABILITY,
+  TEAM_PROMPT_MULTI_SELECT_CAPABILITY,
   TEAM_SUBAGENTS_CAPABILITY,
   TEAM_UI_BLOCKS_CAPABILITY,
 } from "@openbot/contracts/team-protocol/current";
@@ -690,13 +691,14 @@ export class TeamWebRtcHostPeer {
               file: { transferId, name, mimeType: contentType || "application/octet-stream", size },
             };
           }
-          // A variable, not a literal: only the V7 encoder declares `historyExtent`, `uiBlocks` and
-          // `subagents`.
+          // A variable, not a literal: only the V7 encoder declares `historyExtent`, `uiBlocks`,
+          // `subagents` and `promptMultiSelect`.
           const responseOptions = {
             preserveSemanticTags,
             historyExtent: peerCapabilities.has(TEAM_HISTORY_EXTENT_CAPABILITY),
             uiBlocks: peerCapabilities.has(TEAM_UI_BLOCKS_CAPABILITY),
             subagents: peerCapabilities.has(TEAM_SUBAGENTS_CAPABILITY),
+            promptMultiSelect: peerCapabilities.has(TEAM_PROMPT_MULTI_SELECT_CAPABILITY),
           };
           return yield* remoteDecode(() => ({
             status: response.status,
@@ -771,6 +773,7 @@ export class TeamWebRtcHostPeer {
                 // Only the V7 event reads them.
                 uiBlocks: this.#peerCapabilities.has(TEAM_UI_BLOCKS_CAPABILITY),
                 subagents: this.#peerCapabilities.has(TEAM_SUBAGENTS_CAPABILITY),
+                promptMultiSelect: this.#peerCapabilities.has(TEAM_PROMPT_MULTI_SELECT_CAPABILITY),
               }),
         );
       } catch {

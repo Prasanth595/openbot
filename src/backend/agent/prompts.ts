@@ -86,6 +86,7 @@ export function promptQuestions(params: unknown): AgentPromptQuestion[] {
             description: getString(option, "description") ?? "",
           }))
         : null,
+      ...(question.multiSelect === true ? { multiSelect: true } : {}),
     }));
 }
 

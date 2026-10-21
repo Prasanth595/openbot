@@ -45,6 +45,7 @@ import { MCP_SIGN_IN_APP_CAPABILITY } from "./mcp-sign-in-app-v1";
 import { MCP_SIGN_IN_CAPABILITY } from "./mcp-sign-in-v1";
 import { TEAM_MESSAGE_CLIENT_ID_CAPABILITY } from "./message-client-id-v1";
 import { ONEPASSWORD_CONNECTOR_CAPABILITY } from "./onepassword-connector-v1";
+import { TEAM_PROMPT_MULTI_SELECT_CAPABILITY } from "./prompt-multi-select-v1";
 import { PROVIDER_ACCOUNTS_CAPABILITY } from "./provider-accounts-v1";
 import { PROVIDER_HOST_SIGN_IN_CAPABILITY } from "./provider-host-sign-in-v1";
 import { PROVIDERS_ADMIN_CAPABILITY } from "./providers-v1";
@@ -162,6 +163,7 @@ export {
   TEAM_BROWSER_VIEW_VIEWPORT_CAPABILITY,
   TEAM_HISTORY_EXTENT_CAPABILITY,
   TEAM_MESSAGE_CLIENT_ID_CAPABILITY,
+  TEAM_PROMPT_MULTI_SELECT_CAPABILITY,
   TEAM_SUBAGENTS_CAPABILITY,
   TEAM_UI_BLOCKS_CAPABILITY,
   WORKSPACE_DIRECTORY_CAPABILITY,
@@ -250,6 +252,7 @@ export const TEAM_CURRENT_CAPABILITIES = [
   SIDE_QUESTION_CAPABILITY,
   TEAM_SUBAGENTS_CAPABILITY,
   AGENT_ACCESS_CAPABILITY,
+  TEAM_PROMPT_MULTI_SELECT_CAPABILITY,
 ] as const;
 
 export type TeamCurrentCapability = (typeof TEAM_CURRENT_CAPABILITIES)[number];
@@ -348,7 +351,8 @@ export const TEAM_BOOTSTRAP_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
     capability !== DISCORD_ACCESS_CAPABILITY &&
     capability !== SIDE_QUESTION_CAPABILITY &&
     capability !== TEAM_SUBAGENTS_CAPABILITY &&
-    capability !== AGENT_ACCESS_CAPABILITY,
+    capability !== AGENT_ACCESS_CAPABILITY &&
+    capability !== TEAM_PROMPT_MULTI_SELECT_CAPABILITY,
 );
 export function teamCapabilitiesForProtocol(protocol: number | null | undefined): readonly TeamCurrentCapability[] {
   return protocol !== null && protocol !== undefined && protocol >= 7
@@ -388,6 +392,7 @@ export function legacyTeamCapabilities(capabilities: readonly string[]): string[
       capability !== DISCORD_ACCESS_CAPABILITY &&
       capability !== SIDE_QUESTION_CAPABILITY &&
       capability !== TEAM_SUBAGENTS_CAPABILITY &&
-      capability !== AGENT_ACCESS_CAPABILITY,
+      capability !== AGENT_ACCESS_CAPABILITY &&
+      capability !== TEAM_PROMPT_MULTI_SELECT_CAPABILITY,
   );
 }

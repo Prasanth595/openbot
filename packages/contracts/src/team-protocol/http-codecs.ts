@@ -56,6 +56,8 @@ export interface TeamHttpCodecOptions {
   uiBlocks?: boolean;
   /** Read only by V7 responses: the negotiated subagents-v1 capability. */
   subagents?: boolean;
+  /** Read only by V7 responses: the negotiated prompt-multi-select-v1 capability. */
+  promptMultiSelect?: boolean;
 }
 
 type DecodedRequest =

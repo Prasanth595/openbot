@@ -196,6 +196,21 @@ through `clampConversationSubagents`, so only known keys go out, and the lists o
 wire budget, newest first. The task conversations of `agent-tasks-v1` do not carry it. The WebRTC
 host peer encodes the local response and the events again with the same option.
 
+### Prompt multi-select
+
+`prompt-multi-select-v1` carries `multiSelect: true` on an agent question that takes more than one
+option, such as a Claude `AskUserQuestion` question with `multiSelect` (see
+`team-protocol/prompt-multi-select-v1.ts`). It adds the flag beside the frozen keys of a question in
+the `questionPrompt` of a message in `GET /v1/agents/:id/conversation` and `conversation-page`
+(messages and references), in the `conversation` and `conversation-page` events, in the `prompt`
+event, and in the `pendingPrompts` of the `runtime-snapshot` event. The host adds it only on protocol
+7 and only for a connection that advertises the capability. A released client shows the question as a
+single choice, and its one answer is valid for the question. A host without the capability never
+sends the flag, so a client keeps it whenever it is present, and a value that is not a boolean fails
+closed. The WebRTC host peer encodes the local response and the events again with the same option.
+The iPhone app advertises it through the shared team client, but it still shows the question as a
+single choice.
+
 ### Queue window
 
 `queue-window-v1` keeps the queue snapshot of a long-lived agent inside one WebRTC frame. The

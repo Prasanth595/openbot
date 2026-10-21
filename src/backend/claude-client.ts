@@ -1728,6 +1728,7 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
       header: isString(question.header) ? question.header : "Question",
       question: isString(question.question) ? question.question : "Claude needs more information.",
       options: Array.isArray(question.options) ? question.options : undefined,
+      ...(question.multiSelect === true ? { multiSelect: true } : {}),
     }));
     const result = yield* this.#serverRequests
       .call("item/tool/requestUserInput", {

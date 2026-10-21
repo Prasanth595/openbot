@@ -45,6 +45,8 @@ export interface AgentPromptQuestion {
   question: string;
   isSecret: boolean;
   options: Array<{ label: string; description: string }> | null;
+  /** The user can pick more than one option. Set only when true. */
+  multiSelect?: boolean;
 }
 
 export function isAgentPromptQuestion(value: unknown): value is AgentPromptQuestion {
@@ -54,6 +56,7 @@ export function isAgentPromptQuestion(value: unknown): value is AgentPromptQuest
     isBoundedString(value.header, INPUT_LIMITS.promptHeader) &&
     isBoundedString(value.question, INPUT_LIMITS.promptQuestion) &&
     isBoolean(value.isSecret) &&
+    (value.multiSelect === undefined || isBoolean(value.multiSelect)) &&
     (value.options === null ||
       (Array.isArray(value.options) &&
         value.options.length <= INPUT_LIMITS.promptOptions &&
