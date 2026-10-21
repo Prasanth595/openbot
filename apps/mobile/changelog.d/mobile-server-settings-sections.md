@@ -6,3 +6,4 @@
 
 - Server settings no longer show empty separator lines where an option is not available.
 - The server status in Server settings uses the same text size as the other values.
+- Rows in Settings, About, Sessions and Support use the same text size as Server settings.
