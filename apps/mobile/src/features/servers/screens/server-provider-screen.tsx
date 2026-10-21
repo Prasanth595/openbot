@@ -295,8 +295,9 @@ export function ServerProviderScreen() {
           }
           onSubmitCode={() =>
             void run("submit", async () => {
+              // The host only gives the code to the CLI. The sign-in stays open, so the status is
+              // read until the host reports the provider connected.
               await applyStatus(await admin.submitCode(provider, code.trim()));
-              setSignIn(null);
               setCode("");
             })
           }
