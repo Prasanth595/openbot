@@ -122,8 +122,9 @@ vec3 spill(float e, float fall, float strength, float front, float t, out vec3 g
   float soft = sqrt(strength);
   float warmth = smoothstep(90.0, 130.0, f);
   vec3 coreK = mix(WHITE, WARM, warmth * exp(-d / 9.0));
-  float core = mix(9.0, 2.6, warmth) * exp(-sq(d / (3.5 + 0.04 * f))) * exp(-sq(max(f - 130.0, 0.0) / 38.0));
-  float wall = 24.0 * exp(-sq(d / 1.1)) * exp(-sq(max(f - 100.0, 0.0) / 30.0));
+  // A wide, soft band runs down the side rather than a thin line, as on huly.io.
+  float core = mix(9.0, 2.6, warmth) * exp(-sq(d / (7.0 + 0.06 * f))) * exp(-sq(max(f - 130.0, 0.0) / 38.0));
+  float wall = 9.0 * exp(-sq(d / 3.5)) * exp(-sq(max(f - 100.0, 0.0) / 30.0));
   float bandCenter = 0.7 - 0.3 * smoothstep(30.0, 110.0, f);
   float offset = u - bandCenter;
   float decay = (1.05 - bandCenter) / 1.31;
@@ -262,7 +263,7 @@ void main() {
 
   float edgeGlow = 22.8 * exp(-sq(adx / (150.0 * uShape.z))) * edgeMask * (1.0 + 0.9 * bead);
   float onTop = 1.0 - smoothstep(sy + radius, sy + radius + 10.0, p.y);
-  float edgeLine = (exp(-sq(max(sd, 0.0) / 0.9)) + 0.12 * exp(-max(sd, 0.0) / 3.0)) * edgeGlow * onTop;
+  float edgeLine = (0.5 * exp(-sq(max(sd, 0.0) / 3.0)) + 0.25 * exp(-max(sd, 0.0) / 10.0)) * edgeGlow * onTop;
   col += mix(sideK, WHITE, 0.6) * edgeLine * min(bloom, 1.0);
 
   float pour = uShape.w;
@@ -382,15 +383,15 @@ const MAX_DPR = 1.5;
 const MAX_SCALE = 1.25;
 /** The gap, in CSS pixels, between the beam and the text it must not cross. */
 const BEAM_CLEARANCE = 56;
-const INTRO_DROP = 1.25;
+const INTRO_DROP = 0.8;
 /** The light that runs along the surface and spills down its sides moves at this share of the source speed. */
-const POUR_PACE = 0.5;
+const POUR_PACE = 1;
 /** The light falls down the sides slower than it runs along the top, so it drips rather than drops. */
-const SPILL_SPEED = 150;
-const SPILL_GRAVITY = 90;
-const INTRO_END = 12;
+const SPILL_SPEED = 320;
+const SPILL_GRAVITY = 240;
+const INTRO_END = 7;
 /** How fast, in CSS pixels a second, the light runs around the source element after the beam reaches it. */
-const WRAP_SPEED = 240;
+const WRAP_SPEED = 420;
 
 const SETTINGS = {
   intensity: 1.6,
@@ -402,7 +403,7 @@ const SETTINGS = {
   fall: 1.3,
   fog: 0.3,
   dust: 1.4,
-  streaks: 1.4,
+  streaks: 0.4,
   dots: 0.8,
   pulse: 1.4,
   speed: 1.2,
