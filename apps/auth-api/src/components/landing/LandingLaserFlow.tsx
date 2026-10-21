@@ -446,7 +446,7 @@ const SETTINGS: LaserSettings = {
   seed: 3,
 };
 
-/** Tested looks. The random look on each visit is a mix of these and the default. */
+/** Tested looks. The random look on each visit starts from a mix of these and the default. */
 const VERSIONS: Readonly<Record<string, LaserSettings>> = {
   // A wider, calmer glow with little dust.
   soft: {
@@ -509,61 +509,87 @@ function seededRandom(seed: number): () => number {
   };
 }
 
+type Tunable = Exclude<keyof LaserSettings, "seed" | "color">;
+
 /**
- * Mixes the tested looks with random weights. Each value stays between the values of looks that
- * are known to work, so every mix is a good beam. The cube of each weight makes one look lead most
- * mixes; an even mix of all looks is always near the average, and all visits then look the same.
- * The default look has more weight.
+ * The limits of each value in a random look. They are wider than the tested looks, so the looks
+ * vary more, but each limit still gives a beam that reads well over the headline.
  */
-function randomLook(seed: number, baseColor: Rgb): { settings: LaserSettings; color: Rgb; drop: boolean } {
+const RANDOM_LIMITS: Readonly<Record<Tunable, readonly [number, number]>> = {
+  intensity: [1.2, 2],
+  beamWidth: [0.9, 5.5],
+  flare: [1.2, 3.6],
+  spread: [2.4, 6.5],
+  spill: [0.7, 1.4],
+  fall: [1.4, 2.8],
+  fog: [0.1, 0.8],
+  dust: [0.4, 2.2],
+  streaks: [0.3, 1.8],
+  dots: [0.4, 1.4],
+  pulse: [0.7, 1.8],
+  speed: [1.1, 2.4],
+};
+
+interface Look {
+  settings: LaserSettings;
+  color: Rgb;
+  /** Multiplies the hue shifts of the palette. More than 1 puts more colours in one beam. */
+  hueSpread: number;
+  drop: boolean;
+}
+
+/**
+ * Mixes the tested looks with random weights, then moves each value up or down by as much as
+ * 1.7 times, within `RANDOM_LIMITS`. The cube of each weight makes one look lead most mixes; an
+ * even mix of all looks is always near the average, and all visits then look the same. The colour
+ * can be any hue.
+ */
+function randomLook(seed: number): Look {
   const random = seededRandom(seed);
   const looks = [SETTINGS, ...Object.values(VERSIONS)];
   const weights = looks.map((_, index) => (-Math.log(1 - random())) ** 3 * (index === 0 ? 1.5 : 1));
   const total = weights.reduce((sum, weight) => sum + weight, 0);
-  const mix = (value: (look: LaserSettings) => number) =>
-    looks.reduce((sum, look, index) => sum + (value(look) * (weights[index] ?? 0)) / total, 0);
-  const colors = looks.map((look) => (look.color ? hexToRgb(look.color) : baseColor));
-  const channel = (index: 0 | 1 | 2) =>
-    colors.reduce((sum, color, look) => sum + (color[index] * (weights[look] ?? 0)) / total, 0);
+  const wild = (key: Tunable) => {
+    const mixed = looks.reduce((sum, look, index) => sum + (look[key] * (weights[index] ?? 0)) / total, 0);
+    const [min, max] = RANDOM_LIMITS[key];
+    return clamp(mixed * 1.7 ** (random() * 2 - 1), min, max);
+  };
   return {
     settings: {
-      intensity: mix((look) => look.intensity),
-      beamWidth: mix((look) => look.beamWidth),
-      flare: mix((look) => look.flare),
-      spread: mix((look) => look.spread),
-      spill: mix((look) => look.spill),
-      fall: mix((look) => look.fall),
-      fog: mix((look) => look.fog),
-      dust: mix((look) => look.dust),
-      streaks: mix((look) => look.streaks),
-      dots: mix((look) => look.dots),
-      pulse: mix((look) => look.pulse),
-      speed: mix((look) => look.speed),
+      intensity: wild("intensity"),
+      beamWidth: wild("beamWidth"),
+      flare: wild("flare"),
+      spread: wild("spread"),
+      spill: wild("spill"),
+      fall: wild("fall"),
+      fog: wild("fog"),
+      dust: wild("dust"),
+      streaks: wild("streaks"),
+      dots: wild("dots"),
+      pulse: wild("pulse"),
+      speed: wild("speed"),
       // The noise seed only moves the haze and dust, so any value is a good one.
       seed: random() * 20,
     },
-    color: turnHue([channel(0), channel(1), channel(2)], random() * 30 - 15),
+    color: fromHsv(random() * 360, BASE_SATURATION * (0.85 + random() * 0.4)),
+    hueSpread: 1 + random() * 2.5,
     // Half of the visits see the beam fall in. The other half see it already in place.
     drop: random() < 0.5,
   };
-}
-
-/** Turns the hue a small number of degrees, so the colour is not always one of the tested colours. */
-function turnHue(rgb: Rgb, degrees: number): Rgb {
-  const [hue, saturation] = toHsv(rgb);
-  return fromHsv(hue + degrees, saturation);
 }
 
 /**
  * Each visit gets a new random look. `?beam=<name>` in the page address shows one tested look,
  * and `?beam=<number>` shows the random look with that seed again.
  */
-function selectedLook(baseColor: string): { settings: LaserSettings; color: Rgb; drop: boolean; seed: string } {
+function selectedLook(baseColor: string): Look & { seed: string } {
   const name = new URLSearchParams(window.location.search).get("beam") ?? "";
   const named = name === "default" ? SETTINGS : Object.hasOwn(VERSIONS, name) ? VERSIONS[name] : undefined;
-  if (named) return { settings: named, color: hexToRgb(named.color ?? baseColor), drop: true, seed: name };
+  if (named) {
+    return { settings: named, color: hexToRgb(named.color ?? baseColor), hueSpread: 1, drop: true, seed: name };
+  }
   const seed = /^\d+$/.test(name) ? Number(name) : Math.floor(Math.random() * 1_000_000);
-  return { ...randomLook(seed, hexToRgb(baseColor)), seed: String(seed) };
+  return { ...randomLook(seed), seed: String(seed) };
 }
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
@@ -600,12 +626,12 @@ function fromHsv(hue: number, saturation: number): Rgb {
   return [r + m, g + m, b + m];
 }
 
-function buildTints(rgb: Rgb): Float32Array {
+function buildTints(rgb: Rgb, hueSpread: number): Float32Array {
   const [hue, saturation] = toHsv(rgb);
   const strength = saturation / BASE_SATURATION;
   const data = new Float32Array(TINTS.length * 3);
   TINTS.forEach(([shift, scale], index) => {
-    data.set(fromHsv(hue + shift, clamp(BASE_SATURATION * scale * strength, 0, 1)), index * 3);
+    data.set(fromHsv(hue + shift * hueSpread, clamp(BASE_SATURATION * scale * strength, 0, 1)), index * 3);
   });
   return data;
 }
@@ -763,7 +789,7 @@ export function LandingLaserFlow(props: LandingLaserFlowProps) {
       holdTimer = setTimeout(release, MAX_HOLD_MS);
       void props.start?.then(release);
     }
-    const tints = buildTints(look.color);
+    const tints = buildTints(look.color, look.hueSpread);
     const state = {
       time: 0,
       introTime: drops ? 0 : INTRO_END,
