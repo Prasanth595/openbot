@@ -23,7 +23,6 @@ export const messages = {
   "settings.logoColor.gray": "Gris",
   "settings.logoColor.white": "Blanc",
   // The Settings window, General tab.
-  "settings.providers.title": "Fournisseurs d’IA",
   "settings.appBehavior.title": "Comportement de l’application",
   "settings.conversations.title": "Conversations",
   "settings.launchAtLogin.title": "Lancer OpenBot à l’ouverture de session",

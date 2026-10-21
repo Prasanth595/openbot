@@ -20,7 +20,6 @@ export const messages = {
   "settings.logoColor.beige": "Бежевый",
   "settings.logoColor.gray": "Серый",
   "settings.logoColor.white": "Белый",
-  "settings.providers.title": "Провайдеры ИИ",
   "settings.appBehavior.title": "Поведение приложения",
   "settings.conversations.title": "Диалоги",
   "settings.launchAtLogin.title": "Запускать OpenBot при входе",

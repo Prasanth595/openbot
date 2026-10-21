@@ -20,7 +20,6 @@ export const messages = {
   "settings.logoColor.beige": "Beige",
   "settings.logoColor.gray": "Grau",
   "settings.logoColor.white": "Weiß",
-  "settings.providers.title": "KI-Anbieter",
   "settings.appBehavior.title": "App-Verhalten",
   "settings.conversations.title": "Unterhaltungen",
   "settings.launchAtLogin.title": "OpenBot bei der Anmeldung starten",

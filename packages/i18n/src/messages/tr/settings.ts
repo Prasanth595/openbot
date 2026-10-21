@@ -19,7 +19,6 @@ export const messages = {
   "settings.logoColor.beige": "Bej",
   "settings.logoColor.gray": "Gri",
   "settings.logoColor.white": "Beyaz",
-  "settings.providers.title": "Yapay zeka sağlayıcıları",
   "settings.appBehavior.title": "Uygulama davranışı",
   "settings.conversations.title": "Konuşmalar",
   "settings.launchAtLogin.title": "Oturum açıldığında OpenBot'u başlat",

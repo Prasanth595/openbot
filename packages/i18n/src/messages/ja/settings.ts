@@ -19,7 +19,6 @@ export const messages = {
   "settings.logoColor.beige": "ベージュ",
   "settings.logoColor.gray": "グレー",
   "settings.logoColor.white": "ホワイト",
-  "settings.providers.title": "AI プロバイダー",
   "settings.appBehavior.title": "アプリの動作",
   "settings.conversations.title": "会話",
   "settings.launchAtLogin.title": "ログイン時に OpenBot を開く",
