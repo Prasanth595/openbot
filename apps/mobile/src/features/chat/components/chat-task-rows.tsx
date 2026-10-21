@@ -2,12 +2,12 @@ import type { AgentTask } from "@openbot/contracts/ipc";
 import { isAgentTaskActive, isAgentTaskOpen } from "@openbot/team-client/agent-tasks";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
-import { Typography } from "heroui-native";
+import { Spinner, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import ChevronRight from "lucide-react-native/icons/chevron-right";
 import X from "lucide-react-native/icons/x";
 import { useState } from "react";
 import { Pressable, View } from "react-native";
+import { useCSSVariable } from "uniwind";
 import { showFailureAlert } from "@/features/analytics/failure-reports";
 import { useQueryScope } from "@/features/auth/context/mobile-session-context";
 import { AgentTaskMark } from "@/features/servers/components/agent-task-mark";
@@ -46,14 +46,16 @@ export function useOpenAgentTasks(serverId: string, agentId: string): AgentTask[
 }
 
 /**
- * As on desktop: under the agent's activity, one row for each open task, with its title and what it
- * does now or how its last turn ended. A task turn does not show in the chat, so this row says that
- * the agent works. A tap opens the task, where the person can also answer its questions. A task that
- * does not run has a close button, which moves it to the closed tasks of the Tasks page.
+ * Under the agent's activity, one card for each open task: a spinner while it runs, else the task
+ * mark, its title, and what it does now or how its last turn ended. A task turn does not show in the
+ * chat, so this card says that the agent works. A tap opens the task, where the person can also
+ * answer its questions. A task that does not run has a close button in its card, which moves it to
+ * the closed tasks of the Tasks page.
  */
 export function ChatTaskRows({ tasks, serverId }: { tasks: readonly AgentTask[]; serverId: string }) {
   const { t } = useText();
   const muted = useThemeColor("muted");
+  const accent = useCSSVariable("--openbot-accent-text");
   const workspace = useMobileWorkspaceReader();
   const [closing, setClosing] = useState<ReadonlySet<string>>(() => new Set());
   if (tasks.length === 0) return null;
@@ -82,12 +84,17 @@ export function ChatTaskRows({ tasks, serverId }: { tasks: readonly AgentTask[];
     <View className="items-start gap-2 pb-3">
       {tasks.map((task) => {
         const status = agentTaskStatus(task, t);
+        const closable = !isAgentTaskActive(task);
         return (
-          <View key={task.id} className="max-w-full flex-row items-center gap-1">
+          <View
+            key={task.id}
+            className="max-w-[88%] flex-row items-center rounded-[18px] border border-separator bg-control/60"
+            style={{ borderCurve: "continuous" }}
+          >
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t("mobile.chat.tasks.open", { title: task.title, status })}
-              className="shrink flex-row items-center gap-2 rounded-full border border-separator px-3 py-2"
+              className={`shrink flex-row items-center gap-3 py-2.5 pl-3.5 ${closable ? "pr-1" : "pr-4"}`}
               style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
               onPress={() => {
                 void haptics.selection();
@@ -97,29 +104,30 @@ export function ChatTaskRows({ tasks, serverId }: { tasks: readonly AgentTask[];
                 });
               }}
             >
-              <AgentTaskMark task={task} />
-              <Typography.Paragraph type="body-sm" weight="semibold" numberOfLines={1} className="max-w-[60%]">
-                {task.title}
-              </Typography.Paragraph>
-              <Typography.Paragraph type="body-sm" numberOfLines={1} className="shrink text-text-secondary">
-                {status}
-              </Typography.Paragraph>
-              <ChevronRight color={String(muted)} size={16} strokeWidth={2} />
+              {task.state === "running" ? <Spinner size="sm" color={String(accent)} /> : <AgentTaskMark task={task} />}
+              <View className="min-w-0 shrink">
+                <Typography.Paragraph weight="semibold" numberOfLines={1}>
+                  {task.title}
+                </Typography.Paragraph>
+                <Typography.Paragraph type="body-sm" numberOfLines={1} className="text-text-secondary">
+                  {t("mobile.chat.tasks.status", { status })}
+                </Typography.Paragraph>
+              </View>
             </Pressable>
-            {isAgentTaskActive(task) ? null : (
+            {closable ? (
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={t("mobile.chat.tasks.close", { title: task.title })}
                 accessibilityState={{ disabled: closing.has(task.id) }}
                 disabled={closing.has(task.id)}
                 hitSlop={6}
-                className="size-9 items-center justify-center rounded-full"
+                className="mr-1.5 size-9 items-center justify-center rounded-full"
                 style={({ pressed }) => ({ opacity: closing.has(task.id) ? 0.45 : pressed ? 0.6 : 1 })}
                 onPress={() => void close(task)}
               >
                 <X color={String(muted)} size={16} strokeWidth={2} />
               </Pressable>
-            )}
+            ) : null}
           </View>
         );
       })}
