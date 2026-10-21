@@ -362,6 +362,8 @@ export function TasksView(props: TasksViewProps) {
         draft.pending = null;
         draft.selectedId = null;
         draft.took = null;
+        // Agent IDs can repeat on two servers, so the new server starts from its own saved agent.
+        draft.agentId = "";
       });
       untrack(() => loadLists(props.agents.map((agent) => agent.id)));
       const unsubscribe = props.source.onEvent(serverId, applyEvent, () =>
