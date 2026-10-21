@@ -242,6 +242,26 @@ try {
   assert.equal(transport.success, false);
   assert.deepEqual(row("crm")?.headers, keys);
 
+  // A stdio row's environment keys belong to its program, which the arguments also choose.
+  const program = store.save({
+    ...crm,
+    id: "",
+    name: "local_tool",
+    transport: "stdio",
+    command: "npx",
+    args: ["-y", "good-package"],
+    env: [{ key: "API_TOKEN", value: HEADER_SECRET }],
+    headers: [],
+    url: "",
+  });
+  const otherProgram = await call("keys do not move to another program", "save_mcp_server", {
+    name: "local_tool",
+    args: ["-y", "other-package"],
+  });
+  assert.equal(otherProgram.success, false);
+  assert.equal(otherProgram.approvals.length, 0);
+  assert.deepEqual(row("local_tool")?.args, program.args);
+
   const edited = await call("an edit keeps the headers", "save_mcp_server", {
     name: "crm",
     url: `${servers.key.url}?region=eu`,

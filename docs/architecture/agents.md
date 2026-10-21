@@ -248,7 +248,7 @@ before it saves (`inspectMcpServer`, the silent Test): a server that does not an
 server that needs an OAuth sign-in or a key is saved. The tools never take or return a header or
 environment value, and show an address without its query: the user enters a key in Server settings,
 MCP. An edit keeps the row's headers and environment, and an edit that would send them to another
-transport, origin or command is refused. The approval masks known secrets in the command line and names
+transport, origin, command, arguments or folder is refused. The approval masks known secrets in the command line and names
 the folder a stdio server starts in. A sign-in shows an `mcp-sign-in:<id>` card in
 the conversation. Its Sign in opens Server settings, MCP, and starts the row's normal sign-in, so a
 joined server signs in through its relay or live page. Continue sends a message that tells the agent
