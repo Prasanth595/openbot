@@ -148,6 +148,8 @@ export const messages = defineMessages("conversation", {
   "conversation.tasks.page.undo": "Undo",
   "conversation.tasks.page.dismiss": "Dismiss",
   "conversation.tasks.page.row": "{title}, {agent}, {status}",
+  "conversation.tasks.page.showAgents": "Show agents",
+  "conversation.tasks.page.hideAgents": "Hide agents",
   "conversation.tasks.section.needsYou": "Needs you",
   "conversation.tasks.section.working": "Working",
   "conversation.tasks.section.waiting": "Waiting",

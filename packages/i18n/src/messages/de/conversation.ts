@@ -154,6 +154,8 @@ export const messages = {
   "conversation.tasks.page.undo": "Rückgängig",
   "conversation.tasks.page.dismiss": "Ausblenden",
   "conversation.tasks.page.row": "{title}, {agent}, {status}",
+  "conversation.tasks.page.showAgents": "Agenten anzeigen",
+  "conversation.tasks.page.hideAgents": "Agenten ausblenden",
   "conversation.tasks.section.needsYou": "Braucht dich",
   "conversation.tasks.section.working": "Arbeitet",
   "conversation.tasks.section.waiting": "Wartet",

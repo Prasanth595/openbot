@@ -11,6 +11,7 @@ import {
   IconButton,
   LoaderCircle,
   Mic,
+  PanelLeft,
   X,
 } from "@openbot/ui";
 import { SwapLabel, type SwapMotion } from "@openbot/ui/components/SwapLabel";
@@ -53,6 +54,10 @@ export interface TasksTook {
 export interface TasksPageProps {
   hostName: string;
   onBack?: (() => void) | undefined;
+  /** Whether the agent list shows beside the page. */
+  agentsOpen?: boolean | undefined;
+  /** Shows or hides the agent list. Without it, the header has no button for the list. */
+  onToggleAgents?: (() => void) | undefined;
   agents: AgentProfile[];
   /** The tasks of all agents, also a start that waits. */
   tasks: readonly AgentTask[];
@@ -486,6 +491,8 @@ export function TasksPage(props: TasksPageProps) {
   const { t } = useText();
   const headingId = createUniqueId();
   let heading: HTMLHeadingElement | undefined;
+  const agentsLabel = () =>
+    t(props.agentsOpen ? "conversation.tasks.page.hideAgents" : "conversation.tasks.page.showAgents");
   onSettled(() => {
     if (untrack(() => props.onBack)) heading?.focus();
   });
@@ -504,6 +511,21 @@ export function TasksPage(props: TasksPageProps) {
                 >
                   <ArrowLeft />
                 </IconButton>
+              )}
+            </Show>
+            <Show when={props.onToggleAgents}>
+              {(toggle) => (
+                <Button
+                  variant="ghost"
+                  type="button"
+                  class="header-panel-toggle side-panel-toggle"
+                  aria-label={agentsLabel()}
+                  title={agentsLabel()}
+                  aria-expanded={props.agentsOpen ? "true" : "false"}
+                  onClick={() => toggle()()}
+                >
+                  <PanelLeft aria-hidden="true" class="size-[14px]" />
+                </Button>
               )}
             </Show>
             <h2 id={headingId} ref={heading} tabindex={-1}>

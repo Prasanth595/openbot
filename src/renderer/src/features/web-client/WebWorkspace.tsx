@@ -666,6 +666,16 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   });
   /** Whether a page other than the agents covers the conversation. A message there is not seen. */
   const pageCovered = () => page() !== "agents";
+  /**
+   * As on desktop: the Tasks page shows in the middle pane, and wins over the other panes. The agent list
+   * is hidden each time the page opens, until the user shows it. A row of the list closes the page, as
+   * each row calls `showAgents`.
+   */
+  const tasksOpen = () => page() === "tasks";
+  const [tasksAgentsOpen, setTasksAgentsOpen] = createSignal(false);
+  createEffect(page, (next) => {
+    if (next !== "tasks") setTasksAgentsOpen(false);
+  });
   /** Shows the agents and closes the other pages. */
   function showAgents() {
     setAccountSettingsOpen(false);
@@ -1019,7 +1029,8 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   const firstAgent = () => workspace.state.agentsLoaded && workspace.profiles().length === 0 && createSupported();
   /** An open channel still takes the pane, as a channel closes the desktop form. */
   const agentFormOpen = () => creating() || (firstAgent() && !channelOpen());
-  const agentChatOpen = () => !agentFormOpen() && !channelOpen() && !noHost() && !hostOffline() && !routinesView();
+  const agentChatOpen = () =>
+    !tasksOpen() && !agentFormOpen() && !channelOpen() && !noHost() && !hostOffline() && !routinesView();
   /**
    * The provider that a server's provider step chose, by server. In memory only, as on desktop: the
    * saved setup choice is of the desktop computer, not of the server.
@@ -1427,9 +1438,10 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
               })
             }
             windowPage={page()}
+            sidebarHidden={tasksOpen() && !tasksAgentsOpen()}
             page={
               <Show
-                when={page() === "usage" || page() === "schedule" || page() === "tasks" ? server() : undefined}
+                when={page() === "usage" || page() === "schedule" ? server() : undefined}
                 fallback={
                   <Show when={settingsKind()} keyed>
                     {(kind) => (
@@ -1463,26 +1475,6 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                       </Loading>
                     }
                   >
-                    <Match when={page() === "tasks"}>
-                      <Loading>
-                        <TasksView
-                          serverId={target().id}
-                          hostName={target().name}
-                          onBack={closeHostPage}
-                          source={tasksSource}
-                          agents={workspace.profiles()}
-                          onOpenLink={(url) => void openWebLink(url)}
-                          onAttachmentAction={(attachment) =>
-                            void runtime.agent.openAttachment({ attachmentId: attachment.id, action: "download" })
-                          }
-                          approvals={workspace.state.approvals}
-                          onRespondApproval={async (approval, decision) => {
-                            await workspace.approve({ requestId: approval.requestId, decision });
-                            return true;
-                          }}
-                        />
-                      </Loading>
-                    </Match>
                     <Match when={page() === "schedule"}>
                       <Loading>
                         <ScheduleView
@@ -1523,7 +1515,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   deletedChannels={
                     channelsListed() ? channels.state.channels.filter((channel) => channel.archived) : []
                   }
-                  activeChannelId={channels.state.selectedId}
+                  activeChannelId={tasksOpen() ? null : channels.state.selectedId}
                   onSelectChannel={openChannel}
                   onEditChannel={(id) => openChannel(id, true)}
                   onDeleteChannel={channels.deletionSupported() ? channels.remove : undefined}
@@ -1561,7 +1553,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                     ...serverActionCallbacks,
                   }}
                   agents={workspace.profiles()}
-                  activeAgentId={channelOpen() ? "" : (workspace.state.selectedId ?? "")}
+                  activeAgentId={tasksOpen() || channelOpen() ? "" : (workspace.state.selectedId ?? "")}
                   people={[]}
                   directThreads={[]}
                   activeDirectMemberId={null}
@@ -1897,7 +1889,31 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
               </>
             }
           >
-            <Show when={serverOnboarding()}>
+            <Show when={tasksOpen() ? server() : undefined}>
+              {(target) => (
+                <Loading>
+                  <TasksView
+                    serverId={target().id}
+                    hostName={target().name}
+                    onBack={closeHostPage}
+                    agentsOpen={tasksAgentsOpen()}
+                    onToggleAgents={() => setTasksAgentsOpen((open) => !open)}
+                    source={tasksSource}
+                    agents={workspace.profiles()}
+                    onOpenLink={(url) => void openWebLink(url)}
+                    onAttachmentAction={(attachment) =>
+                      void runtime.agent.openAttachment({ attachmentId: attachment.id, action: "download" })
+                    }
+                    approvals={workspace.state.approvals}
+                    onRespondApproval={async (approval, decision) => {
+                      await workspace.approve({ requestId: approval.requestId, decision });
+                      return true;
+                    }}
+                  />
+                </Loading>
+              )}
+            </Show>
+            <Show when={tasksOpen() ? undefined : serverOnboarding()}>
               {(settings) => (
                 <Loading>
                   <ServerOnboarding
@@ -1923,7 +1939,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 </Loading>
               )}
             </Show>
-            <Show when={agentFormOpen() && !serverOnboarding()}>
+            <Show when={!tasksOpen() && agentFormOpen() && !serverOnboarding()}>
               <WebAgentSettings
                 runtime={workspace.runtime}
                 capabilities={workspace.state.capabilities}
@@ -1941,7 +1957,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 }}
               />
             </Show>
-            <Show when={!agentFormOpen() && channelOpen()}>
+            <Show when={!tasksOpen() && !agentFormOpen() && channelOpen()}>
               <ChannelConversation
                 connectionReady={workspace.state.status === "online"}
                 isOwnMessage={(authorId) =>
@@ -1976,7 +1992,9 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 onRefresh={() => void workspace.run(workspace.refreshHosts)}
               />
             </Show>
-            <Show when={!agentFormOpen() && !channelOpen() && !noHost() && !hostOffline() && routinesView()}>
+            <Show
+              when={!tasksOpen() && !agentFormOpen() && !channelOpen() && !noHost() && !hostOffline() && routinesView()}
+            >
               {/* A host switch starts the canvas again, with that host's webhook relay status. */}
               <Show when={routineFlowsHost ? workspace.state.host?.hostId : undefined} keyed>
                 {(_hostId) => (

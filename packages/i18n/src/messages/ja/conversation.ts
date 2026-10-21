@@ -150,6 +150,8 @@ export const messages = {
   "conversation.tasks.page.undo": "元に戻す",
   "conversation.tasks.page.dismiss": "閉じる",
   "conversation.tasks.page.row": "{title}、{agent}、{status}",
+  "conversation.tasks.page.showAgents": "エージェントを表示",
+  "conversation.tasks.page.hideAgents": "エージェントを非表示",
   "conversation.tasks.section.needsYou": "要対応",
   "conversation.tasks.section.working": "作業中",
   "conversation.tasks.section.waiting": "待機中",

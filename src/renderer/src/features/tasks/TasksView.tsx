@@ -42,6 +42,8 @@ export interface TasksViewProps {
   serverId: string;
   hostName: string;
   onBack?: (() => void) | undefined;
+  agentsOpen?: boolean | undefined;
+  onToggleAgents?: (() => void) | undefined;
   source: TasksSource;
   agents: AgentProfile[];
   /** Absent where the client cannot record. */
@@ -490,6 +492,8 @@ export function TasksView(props: TasksViewProps) {
     <TasksPage
       hostName={props.hostName}
       onBack={props.onBack}
+      agentsOpen={props.agentsOpen}
+      onToggleAgents={props.onToggleAgents}
       agents={props.agents}
       tasks={tasks()}
       agentId={agentId()}

@@ -149,6 +149,8 @@ export const messages = {
   "conversation.tasks.page.undo": "Desfazer",
   "conversation.tasks.page.dismiss": "Dispensar",
   "conversation.tasks.page.row": "{title}, {agent}, {status}",
+  "conversation.tasks.page.showAgents": "Mostrar agentes",
+  "conversation.tasks.page.hideAgents": "Ocultar agentes",
   "conversation.tasks.section.needsYou": "Precisa de você",
   "conversation.tasks.section.working": "Trabalhando",
   "conversation.tasks.section.waiting": "Em espera",

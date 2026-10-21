@@ -150,6 +150,8 @@ export const messages = {
   "conversation.tasks.page.undo": "Annulla",
   "conversation.tasks.page.dismiss": "Ignora",
   "conversation.tasks.page.row": "{title}, {agent}, {status}",
+  "conversation.tasks.page.showAgents": "Mostra agenti",
+  "conversation.tasks.page.hideAgents": "Nascondi agenti",
   "conversation.tasks.section.needsYou": "Richiede te",
   "conversation.tasks.section.working": "In corso",
   "conversation.tasks.section.waiting": "In attesa",

@@ -151,6 +151,8 @@ export const messages = {
   "conversation.tasks.page.undo": "Geri al",
   "conversation.tasks.page.dismiss": "Kapat",
   "conversation.tasks.page.row": "{title}, {agent}, {status}",
+  "conversation.tasks.page.showAgents": "Ajanları göster",
+  "conversation.tasks.page.hideAgents": "Ajanları gizle",
   "conversation.tasks.section.needsYou": "Seni bekliyor",
   "conversation.tasks.section.working": "Çalışıyor",
   "conversation.tasks.section.waiting": "Bekliyor",

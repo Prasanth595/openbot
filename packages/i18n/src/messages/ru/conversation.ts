@@ -150,6 +150,8 @@ export const messages = {
   "conversation.tasks.page.undo": "Отменить",
   "conversation.tasks.page.dismiss": "Скрыть",
   "conversation.tasks.page.row": "{title}, {agent}, {status}",
+  "conversation.tasks.page.showAgents": "Показать агентов",
+  "conversation.tasks.page.hideAgents": "Скрыть агентов",
   "conversation.tasks.section.needsYou": "Ждёт вас",
   "conversation.tasks.section.working": "Работает",
   "conversation.tasks.section.waiting": "Ожидает",

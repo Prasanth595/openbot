@@ -30,6 +30,11 @@
   .app-window > .window-rail {
     display: none;
   }
+
+  /* The agent list stays beside the Tasks page here, so the page has no button to hide it. */
+  .app-frame .tasks-page-header > .side-panel-toggle {
+    display: none;
+  }
 }
 
 @media (min-width: 721px) {
@@ -176,7 +181,10 @@
     gap: var(--openbot-space-2);
   }
 
-  .app-window > .app-frame-edge .conversation-header :is(.provider-model-trigger, .header-panel-toggle) {
+  .app-window
+    > .app-frame-edge
+    :is(.conversation-header, .tasks-page-header)
+    :is(.provider-model-trigger, .header-panel-toggle) {
     height: var(--openbot-control-sm);
     border-color: transparent;
     border-radius: var(--openbot-radius-md);
@@ -185,7 +193,7 @@
     color: var(--openbot-text-secondary);
   }
 
-  .app-window > .app-frame-edge .conversation-header .header-panel-toggle {
+  .app-window > .app-frame-edge :is(.conversation-header, .tasks-page-header) .header-panel-toggle {
     width: var(--openbot-control-sm);
     min-width: var(--openbot-control-sm);
     padding: 0;
@@ -193,7 +201,10 @@
   }
 
   @media (hover: hover) and (pointer: fine) {
-    .app-window > .app-frame-edge .conversation-header :is(.provider-model-trigger, .header-panel-toggle):hover {
+    .app-window
+      > .app-frame-edge
+      :is(.conversation-header, .tasks-page-header)
+      :is(.provider-model-trigger, .header-panel-toggle):hover {
       border-color: transparent;
       background: var(--openbot-bg-control-hover);
       color: var(--openbot-text-primary);
@@ -234,7 +245,7 @@
   /* The usage and schedule pages sit in the card, as the chat does. Their title and controls go in the
    * top row, as the chat header does, and the rest of the page goes in the card below it. The card
    * draws the surface, the line and the rounded corner, so the page has no background of its own. */
-  .app-frame-edge > .window-page > :is(.agent-usage, .schedule-pane, .tasks-page) {
+  .app-frame-edge > .window-page > :is(.agent-usage, .schedule-pane) {
     background: transparent;
   }
 
@@ -334,42 +345,85 @@
     padding: var(--openbot-space-4) var(--openbot-space-6) var(--openbot-space-6);
   }
 
-  /* The Tasks page: its title goes in the top row, after the server menu, as the schedule title does.
-   * The list and the task panel go in the card below it, inside the card's line. */
-  .app-window > .app-frame-edge > .window-page > .tasks-page {
+  /* The Tasks page sits in the middle pane beside the agent list, as the routine canvas does. Its title
+   * goes in the top row, as the chat header does. The list and the task panel go in the card below it.
+   * The card draws the surface, so the page has no background of its own. */
+  .app-window > .app-frame-edge > .app-frame-panes .tasks-page {
+    position: relative;
     box-sizing: border-box;
-    padding: var(--left-header-height) calc(var(--window-edge) + 1px) calc(var(--window-edge) + 1px) 0;
+    padding-top: var(--left-header-height);
+    background: transparent;
   }
 
-  /* The header spans the rest of the top row, and its title is plain text, so the whole row moves the
-   * window, as the schedule and usage titles do. */
-  .app-window > .app-frame-edge > .window-page .tasks-page-header {
+  /* The header spans the top row of the pane, and its title is plain text, so the whole row moves the
+   * window. */
+  .app-window > .app-frame-edge > .app-frame-panes .tasks-page-header {
     position: absolute;
     top: 0;
     right: 0;
-    left: var(--left-panel-width);
+    left: 0;
     height: var(--left-header-height);
     padding: 0 var(--openbot-space-3);
     -webkit-app-region: drag;
   }
 
-  .app-window > .app-frame-edge > .window-page .tasks-page-header h2 {
+  .app-window > .app-frame-edge > .app-frame-panes .tasks-page-header h2 {
     font-size: var(--openbot-text-md);
     font-weight: var(--openbot-weight-medium);
     white-space: nowrap;
   }
 
-  .app-window > .app-frame-edge > .window-page .tasks-page-column {
+  /* The rail and the agent list are the way back, so the title has no Back button and no server name. */
+  .app-window > .app-frame-edge > .app-frame-panes .tasks-page-header > .ui-icon-button,
+  .app-window > .app-frame-edge > .app-frame-panes .tasks-page-header > h2 > span {
+    display: none;
+  }
+
+  .app-frame-edge > .app-frame-panes .tasks-page-header h2:focus {
+    outline: none;
+  }
+
+  .app-window > .app-frame-edge > .app-frame-panes .tasks-page-column {
     padding-top: var(--openbot-space-6);
   }
 
-  .app-window > .app-frame-edge > .window-page .tasks-page-side {
+  .app-window > .app-frame-edge > .app-frame-panes .tasks-page-side {
     border-bottom-right-radius: calc(var(--openbot-radius-card) - 1px);
+  }
+
+  /* The Tasks page opens with the agent list hidden. Its header button shows the list. Until then the
+   * page spans the sidebar, as the schedule page does. The server menu stays in the top row, and the
+   * page lets clicks through to it. */
+  .app-frame-edge.app-frame-sidebar-hidden > .sidebar > :not(.sidebar-topbar),
+  .app-frame-edge.app-frame-sidebar-hidden > .left-panel-resizer {
+    visibility: hidden;
+  }
+
+  .app-frame-edge.app-frame-sidebar-hidden > .sidebar .sidebar-new-button,
+  .app-frame-edge.app-frame-sidebar-hidden > .sidebar::before {
+    display: none;
+  }
+
+  /* Out of the grid flow, as the schedule page is: a grid cell would push the sidebar to a second row. */
+  .app-window > .app-frame-edge.app-frame-sidebar-hidden > .app-frame-panes {
+    position: absolute;
+    grid-row: 1 / -1;
+    grid-column: -4 / -1;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .app-window > .app-frame-edge.app-frame-sidebar-hidden > .app-frame-panes .tasks-page-header {
+    left: var(--left-panel-width);
+  }
+
+  .app-window > .app-frame-edge.app-frame-sidebar-hidden > .app-frame-panes :is(.tasks-page-scroll, .tasks-page-side) {
+    pointer-events: auto;
   }
 
   /* The settings, schedule, usage and Marketplace pages cover the sidebar, so the week has room for
    * seven days. The server menu stays in the top row, so the user can select the server that the page
-   * shows. The "settings" kind is both settings pages; the "titled" kind is schedule, tasks, usage and Marketplace. */
+   * shows. The "settings" kind is both settings pages; the "titled" kind is schedule, usage and Marketplace. */
   /* Out of the grid flow: a grid cell would push the sidebar to a second row. The grid area of an
    * absolute item is its containing block, so the item spans the whole grid. */
   .app-frame-edge:not([data-window-page-kind="agents"]) > .window-page {
@@ -425,10 +479,7 @@
       .routine-planner-toolbar,
       .routine-planner-body,
       .marketplace-crumbs,
-      .skills-marketplace-body,
-      .tasks-page-header,
-      .tasks-page-scroll,
-      .tasks-page-side
+      .skills-marketplace-body
     ) {
     pointer-events: auto;
   }
@@ -457,21 +508,12 @@
     white-space: nowrap;
   }
 
-  .app-window
-    > .app-frame-edge
-    > .window-page
-    :is(.agent-usage-identity, .routine-planner-identity, .tasks-page-header)
-    > .ui-icon-button,
-  .app-window
-    > .app-frame-edge
-    > .window-page
-    :is(.agent-usage-identity, .routine-planner-identity, .tasks-page-header)
-    > h2
-    > span {
+  .app-window > .app-frame-edge > .window-page :is(.agent-usage-identity, .routine-planner-identity) > .ui-icon-button,
+  .app-window > .app-frame-edge > .window-page :is(.agent-usage-identity, .routine-planner-identity) > h2 > span {
     display: none;
   }
 
-  .app-frame-edge > .window-page :is(.agent-usage-identity, .routine-planner-identity, .tasks-page-header) h2:focus {
+  .app-frame-edge > .window-page :is(.agent-usage-identity, .routine-planner-identity) h2:focus {
     outline: none;
   }
 }

@@ -25,6 +25,7 @@ import { useServers } from "../servers/servers-context";
 import { useSettings } from "../settings/settings-context";
 import { usePresence } from "../team/team-context";
 import { SidebarUpdateIsland } from "../updates/SidebarUpdateIsland";
+import { useWindowPage } from "../window/window-page-context";
 import { createCommunityCardVisibility } from "./community-card";
 import { useSidebar } from "./sidebar-context";
 
@@ -45,6 +46,9 @@ const MOBILE_APP_DISMISSED_STORAGE_KEY = "openbot:mobile-app-card-dismissed";
 export function WorkspaceSidebar(props: { peopleEnabled: boolean }) {
   const { t } = useText();
   const layout = useLayout();
+  const windowPage = useWindowPage();
+  /** The Tasks page shows beside the list. No row is open, so a click on a row opens its chat. */
+  const tasksOpen = () => windowPage.page() === "tasks";
   const platform = usePlatform();
   const channels = useChannels();
   const { activeServer, activeServerSupportsCapability } = useServers();
@@ -149,7 +153,7 @@ export function WorkspaceSidebar(props: { peopleEnabled: boolean }) {
     <Sidebar
       channels={visibleChannels()}
       deletedChannels={channelsListed() ? channels.state.channels.filter((channel) => channel.archived) : []}
-      activeChannelId={channels.state.selectedId}
+      activeChannelId={tasksOpen() ? null : channels.state.selectedId}
       onSelectChannel={(id) => void channels.open(id)}
       onEditChannel={(id) => void channels.editChannel(id)}
       onDeleteChannel={channels.deletionSupported() ? channels.remove : undefined}
@@ -189,11 +193,11 @@ export function WorkspaceSidebar(props: { peopleEnabled: boolean }) {
           : undefined
       }
       agents={agentList()}
-      activeAgentId={activeDirectMember() || channels.state.selectedId ? "" : (activeAgent()?.id ?? "")}
+      activeAgentId={tasksOpen() || activeDirectMember() || channels.state.selectedId ? "" : (activeAgent()?.id ?? "")}
       showPeople={props.peopleEnabled}
       people={directPeople()}
       directThreads={directThreads()}
-      activeDirectMemberId={activeDirectMemberId()}
+      activeDirectMemberId={tasksOpen() ? null : activeDirectMemberId()}
       agentStates={sidebarAgentStates()}
       agentMoods={agentMoods()}
       layout={sidebarLayout()}
