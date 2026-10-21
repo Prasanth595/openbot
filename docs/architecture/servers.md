@@ -368,7 +368,7 @@ agent has one of four levels for a member:
 | --- | --- |
 | `none` | Not see the agent. The host treats it as hidden for that member: its list, events, push and Live Activity leave it out, and its routes answer 404. |
 | `view` | Read the agent's conversations and files. Each write answers 403 `error.team.agentViewOnly`. |
-| `chat` | Also send, react, interrupt, edit the queue, ask a side question, reset the context and use tasks. |
+| `chat` | Also send, react, interrupt, edit the queue, ask a side question, reset the context, use tasks, and answer the agent's prompts, approvals and browser requests. |
 | `manage` | Also change the agent's settings, routines, memories, skills and publication (403 `error.team.agentManageDenied` below it). Delete stays admin only. |
 
 The **Everyone** role holds a level for each agent, `manage` for an agent that it does not list. A
@@ -383,7 +383,7 @@ downgrade keeps the roles. A file that does not decode closes every agent to mem
 save. Nothing goes to the account service. An owner or admin reads the whole set; a member reads only
 `mine`. A save sends the whole set with the revision that it read, and the host answers 409 when another
 admin saved after it; the client then reads the set again. A save changes only the levels of the agents
-that the admin can see. The host removes a member from each role when the member leaves, and after
+that the admin can see, and drops the levels of deleted agents. The host removes a member from each role when the member leaves, and after
 each change it sends `agent-access-changed` and a new `agents-changed` to each connection, so the agent
 lists of members change without a reload.
 
@@ -396,9 +396,8 @@ Known limits:
 
 - The composer does not show that a `view` agent is read only; the host refuses the send.
 - `GET /v1/attachments/:id` does not check the agent of the attachment.
-- Channel messages of an agent that a member cannot see stay in the channel.
-- The answers to a prompt, an approval, a browser secret and a browser takeover do not check the level.
-- A role keeps the level of an agent after the agent is deleted.
+- Channel messages of an agent that a member cannot see stay in the channel. A send to a channel does
+  not check the levels of the agents in it; only a save that adds an agent checks `chat`.
 
 ### Webhook routines
 

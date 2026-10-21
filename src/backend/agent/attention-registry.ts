@@ -264,6 +264,15 @@ export class AttentionRegistry {
     this.#passwordVault = options.passwordVault ?? null;
   }
 
+  /** The agent that asks `requestId`: a prompt, an approval, a browser takeover or a browser secret. */
+  agentIdForRequest(requestId: RequestId): string | undefined {
+    return (
+      this.#prompts.get(requestId)?.agentId ??
+      this.#approvals.get(requestId)?.approval.agentId ??
+      this.#takeovers.get(requestId)?.request.agentId
+    );
+  }
+
   hasAttentionFor(agentId: string): boolean {
     return (
       [...this.#prompts.values()].some((pending) => pending.agentId === agentId) ||

@@ -26,6 +26,7 @@ import {
   AGENT_ACCESS_ROUTES,
   agentAccessEvent,
 } from "@openbot/contracts/team-protocol/agent-access-v1";
+import { AGENT_MEMORY_INCLUSION_ROUTE } from "@openbot/contracts/team-protocol/agent-memories-v1";
 import { TEAM_CURRENT_CAPABILITIES } from "@openbot/contracts/team-protocol/current";
 import { TEAM_PROTOCOL_V7 } from "@openbot/contracts/team-protocol/v7";
 import { sourceText } from "@openbot/i18n/source";
@@ -458,13 +459,19 @@ try {
     });
     assert.equal(patched.status, 403, `PATCH on a chat agent returned ${patched.status}.`);
     assert.ok(refusal(patched.body).includes(sourceText("error.team.agentManageDenied")), refusal(patched.body));
+    // The memory inclusion route names the agent in its body, not in its path.
+    const included = await call("POST", AGENT_MEMORY_INCLUSION_ROUTE, {
+      token: setup.memberToken,
+      body: { agentId: legal, changes: [{ memoryId: "memory-e2e", inclusion: "essential", expectedRevision: 0 }] },
+    });
+    assert.equal(included.status, 403, `A memory inclusion change on a chat agent returned ${included.status}.`);
     assert.equal(
       current()
         .agents.listAgents()
         .find((agent) => agent.id === legal)?.name,
       "Legal",
     );
-    return { viewCancel: refused.status, chatCancel: passed.status, patch: patched.status };
+    return { viewCancel: refused.status, chatCancel: passed.status, patch: patched.status, inclusion: included.status };
   });
 
   await step("manage: the member changes an agent that Everyone does not list", async () => {
@@ -540,6 +547,17 @@ try {
     const response = await call("GET", TEAM_API_ROUTES.agent.conversation(legal), { token: setup.memberToken });
     assert.equal(response.status, 404);
     return { agents: 2, legal: response.status };
+  });
+
+  await step("delete: the next save drops the levels of a deleted agent", async () => {
+    const { agents, access, team } = current();
+    await runCauseEffect(agents.deleteAgent(finance));
+    const saved = await setAccess(ownerToken, { ...restricted, revision: 2, roles: [{ ...legalRole, memberIds: [] }] });
+    assert.equal(saved.status, 200, `Saving the roles returned ${saved.status}.`);
+    const stored = access.get(team.getIdentity()?.serverId ?? "");
+    assert.equal(stored.revision, 3);
+    assert.deepEqual(stored.everyone, { [legal]: "none", [ops]: "view" }, "The deleted agent kept its level.");
+    return { everyone: stored.everyone };
   });
 
   report.passed = true;

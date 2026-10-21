@@ -1127,25 +1127,24 @@ export class TeamApiServer {
 
   #broadcastAgentEventToClients(broadcast: AgentEvent, audience: ConversationEventAudience = "all"): void {
     const filteredConversationPayloads = new Map<string, string>();
+    // The roles give each connection of one member the same agents: read them once for each member.
+    const access = new Map<string, { member: AccessMember; blocked: Set<string>; key: string }>();
+    const accessFor = (connection: EventClientState) => {
+      const known = access.get(connection.memberId);
+      if (known) return known;
+      const member = this.#connectionMember(connection);
+      const blocked = this.#blockedAgentIds(member);
+      const resolved = { member, blocked, key: [...blocked].sort().join(",") };
+      access.set(connection.memberId, resolved);
+      return resolved;
+    };
 
     for (const [client, connection] of this.#eventClients) {
       const event = this.#eventFor(connection, broadcast);
-      const member = this.#connectionMember(connection);
-      const blocked = this.#blockedAgentIds(member);
       if (event.type === "conversation") {
         const legacy = isLegacyConversationClient(connection);
         if ((audience === "legacy" && !legacy) || (audience === "modern" && legacy)) continue;
       }
-      // An event this client's protocol cannot describe is skipped for this client only. Thrown
-      // out of the loop, it would stop the event for every client after this one.
-      const encodeEvent = (event: AgentEvent, options = {}) => {
-        try {
-          return this.#encodeProviderEvent(event, connection.capabilities, options, blocked);
-        } catch (error) {
-          (this.#options.logger ?? logger).warn("Team API event could not be encoded:", toLogValue(error));
-          return null;
-        }
-      };
       const encodingOptions = { preserveSemanticTags: supportsTeamSemanticTags(connection.capabilities) };
       const supportsRuntimeSnapshots = connection.capabilities.has("agent-runtime-snapshots");
       const requiredCapability = eventCapability(event);
@@ -1162,6 +1161,17 @@ export class TeamApiServer {
       if (event.type === "queue-changed" && supportsRuntimeSnapshots && !connection.includeConversationEvents) {
         continue;
       }
+      const { member, blocked, key: blockedKey } = accessFor(connection);
+      // An event this client's protocol cannot describe is skipped for this client only. Thrown
+      // out of the loop, it would stop the event for every client after this one.
+      const encodeEvent = (event: AgentEvent, options = {}) => {
+        try {
+          return this.#encodeProviderEvent(event, connection.capabilities, options, blocked);
+        } catch (error) {
+          (this.#options.logger ?? logger).warn("Team API event could not be encoded:", toLogValue(error));
+          return null;
+        }
+      };
       let conversationInvalidation: string | undefined;
       let queueInvalidation: string | undefined;
       let outgoing: string;
@@ -1236,7 +1246,7 @@ export class TeamApiServer {
           event.snapshot.messages.some((message) => message.itemType === ROUTINE_QUIET_ANSWER_ITEM_TYPE))
       ) {
         // The payloads are shared between clients, so the key holds what the roles allow too.
-        const key = `${blocked.has(event.snapshot.agentId)}:${eventProtocol(connection.capabilities)}:${connection.capabilities.has("opencode")}:${connection.capabilities.has("routine-event-markers")}:${connection.capabilities.has("routine-run-event-markers")}:${connection.capabilities.has("hosted-site-event-markers")}:${encodingOptions.preserveSemanticTags}`;
+        const key = `${blockedKey}:${eventProtocol(connection.capabilities)}:${connection.capabilities.has("opencode")}:${connection.capabilities.has("routine-event-markers")}:${connection.capabilities.has("routine-run-event-markers")}:${connection.capabilities.has("hosted-site-event-markers")}:${encodingOptions.preserveSemanticTags}`;
         let filtered = filteredConversationPayloads.get(key);
         if (!filtered) {
           filtered =
@@ -1756,9 +1766,12 @@ export class TeamApiServer {
   #blockedAgentIds(member: AccessMember | string): Set<string> {
     const blocked = new Set<string>();
     const resolved = this.#accessMember(member);
-    if (!this.#options.agentAccess || canAdministerServer(resolved.role)) return blocked;
+    const access = this.#options.agentAccess;
+    const serverId = this.#options.store.getIdentity()?.serverId;
+    if (!access || !serverId || canAdministerServer(resolved.role)) return blocked;
+    const levels = access.levels(serverId);
     for (const agent of this.#options.agents.listAgents())
-      if (this.agentLevel(resolved, agent.id) === "none") blocked.add(agent.id);
+      if (agentAccessLevel(levels, resolved, agent.id) === "none") blocked.add(agent.id);
     return blocked;
   }
 

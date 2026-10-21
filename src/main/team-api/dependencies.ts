@@ -130,6 +130,7 @@ type TeamApiAgentMethods = Pick<
   | "reorderQueue"
   | "interrupt"
   | "clearAgentContext"
+  | "agentIdForRequest"
   | "respondToPrompt"
   | "respondToApproval"
   | "respondToBrowserSecret"

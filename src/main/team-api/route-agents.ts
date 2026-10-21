@@ -95,6 +95,13 @@ export async function routeAgents(
   function requireVisible(id: string | undefined | null): void {
     if (id && hidden.has(id)) throw new HttpError(404, sourceText("error.team.agentNotFound"));
   }
+  // An answer to a prompt, an approval or a browser request acts for its agent, so it needs `chat`.
+  // The agent service refuses a request that is not pending.
+  function requireRequestAgent(agentId: string | undefined): void {
+    if (agentId === undefined) return;
+    if (context.agentLevel(agentId) === "none") throw new HttpError(404, sourceText("error.team.agentNotFound"));
+    requireAgentLevel(context, agentId, "chat");
+  }
 
   if (method === "GET" && url.pathname === TEAM_API_ROUTES.analytics) {
     if (!capabilities.has("host-analytics"))
@@ -272,10 +279,12 @@ export async function routeAgents(
 
   if (method === "POST" && url.pathname === TEAM_API_ROUTES.respond.prompt) {
     const body = await readJson(request);
+    const requestId = promptRequestId(body.requestId);
+    requireRequestAgent(agents.agentIdForRequest(requestId));
     const sender = memberSender(member);
     await runCauseEffect(
       agents.respondToPrompt(
-        { requestId: promptRequestId(body.requestId), answers: promptAnswers(body.answers) },
+        { requestId, answers: promptAnswers(body.answers) },
         // A UI block's privileged action is for the owner and admins only.
         { ...(sender ? { sender } : {}), privileged: member.role !== "member" },
       ),
@@ -284,9 +293,11 @@ export async function routeAgents(
   }
   if (method === "POST" && url.pathname === TEAM_API_ROUTES.respond.approval) {
     const body = await readJson(request);
+    const requestId = promptRequestId(body.requestId);
+    requireRequestAgent(agents.agentIdForRequest(requestId));
     await runCauseEffect(
       agents.respondToApproval({
-        requestId: promptRequestId(body.requestId),
+        requestId,
         decision: approvalDecision(body.decision),
       }),
     ).catch(inactiveAsConflict);
@@ -295,14 +306,19 @@ export async function routeAgents(
   if (method === "POST" && url.pathname === BROWSER_SECRET_RESPONSE_PATH) {
     if (!capabilities.has("browser-secret-handoff"))
       throw new HttpError(400, sourceText("error.team.secureAuthUnsupported"));
-    await runCauseEffect(agents.respondToBrowserSecret(parseBrowserSecretResponse(await readJson(request))));
+    const input = parseBrowserSecretResponse(await readJson(request));
+    // The agent service refuses an agent ID that is not the request's own.
+    requireRequestAgent(input.agentId);
+    await runCauseEffect(agents.respondToBrowserSecret(input));
     return empty(204);
   }
   if (method === "POST" && url.pathname === TEAM_API_ROUTES.respond.browserTakeover) {
     const body = await readJson(request);
+    const requestId = promptRequestId(body.requestId);
+    requireRequestAgent(agents.agentIdForRequest(requestId));
     await runCauseEffect(
       agents.respondToBrowserTakeover({
-        requestId: promptRequestId(body.requestId),
+        requestId,
         decision: browserTakeoverDecision(body.decision),
       }),
     );

@@ -1358,6 +1358,10 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     });
   }
 
+  agentIdForRequest(requestId: string | number): string | undefined {
+    return this.#attention.agentIdForRequest(requestId);
+  }
+
   getLocalAttention(agentId: string) {
     return this.#attention.localAttention(agentId);
   }

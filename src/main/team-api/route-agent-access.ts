@@ -25,10 +25,8 @@ export async function routeAgentAccess(
   if (!access || !serverId || !capabilities.has(AGENT_ACCESS_CAPABILITY))
     throw new HttpError(400, sourceText("error.team.agentAccessUnsupported"));
   // `hiddenAgentIds` holds the agents that the roles close to a member, so `mine` leaves them out.
-  const shown = agents
-    .listAgents()
-    .map((agent) => agent.id)
-    .filter((agentId) => !hiddenAgentIds.has(agentId));
+  const existing = agents.listAgents().map((agent) => agent.id);
+  const shown = existing.filter((agentId) => !hiddenAgentIds.has(agentId));
   const body = await readJson(request);
   if (url.pathname === AGENT_ACCESS_ROUTES.read)
     return json(200, agentAccessSnapshot(access.levels(serverId), member, shown));
@@ -39,7 +37,7 @@ export async function routeAgentAccess(
   } catch {
     throw new HttpError(400, "Invalid agent access change.");
   }
-  const saved = await Effect.runPromise(Effect.result(access.set(serverId, change, new Set(shown))));
+  const saved = await Effect.runPromise(Effect.result(access.set(serverId, change, new Set(shown), new Set(existing))));
   if (Result.isFailure(saved)) {
     if (saved.failure._tag === "AgentAccessStale") throw new HttpError(409, sourceText("error.team.agentAccessStale"));
     throw saved.failure.cause;

@@ -225,13 +225,14 @@ export function hostAdminIpcHandlers({
       setAgentAccess: scopedHandler(parseAgentAccessChange, {
         local: async (change) => {
           const serverId = localAccessServerId();
-          const shown = localAgentIds();
-          const saved = await Effect.runPromise(Effect.result(agentAccess.set(serverId, change, new Set(shown))));
+          // The local owner sees every agent of this host.
+          const shown = new Set(localAgentIds());
+          const saved = await Effect.runPromise(Effect.result(agentAccess.set(serverId, change, shown, shown)));
           if (Result.isFailure(saved)) {
             if (saved.failure._tag === "AgentAccessStale") throw new Error(sourceText("error.team.agentAccessStale"));
             throw saved.failure.cause;
           }
-          return agentAccessSnapshot(agentAccess.levels(serverId), LOCAL_OWNER, shown);
+          return agentAccessSnapshot(agentAccess.levels(serverId), LOCAL_OWNER, [...shown]);
         },
         remote: (change, serverId) => remoteAccess(serverId, AGENT_ACCESS_ROUTES.set, change),
       }),

@@ -77,10 +77,15 @@ export function agentAccessSnapshot(
 }
 
 // An admin replaces the levels of the agents that they see. The levels of an agent that their client
-// cannot show, or that has not loaded yet, stay as they were.
-function mergeShown(stored: AgentAccessLevels, sent: AgentAccessLevels, shown: ReadonlySet<string>) {
+// cannot show, or that has not loaded yet, stay as they were. The levels of a deleted agent go.
+function mergeShown(
+  stored: AgentAccessLevels,
+  sent: AgentAccessLevels,
+  shown: ReadonlySet<string>,
+  existing: ReadonlySet<string>,
+) {
   const merged: AgentAccessLevels = Object.fromEntries(
-    Object.entries(stored).filter(([agentId]) => !shown.has(agentId)),
+    Object.entries(stored).filter(([agentId]) => !shown.has(agentId) && existing.has(agentId)),
   );
   for (const [agentId, level] of Object.entries(sent)) if (shown.has(agentId)) merged[agentId] = level;
   return merged;
@@ -151,21 +156,25 @@ export class AgentAccessStore {
     return this.#closed ? "closed" : (this.#servers.get(serverId) ?? EMPTY);
   }
 
-  /** Replaces the roles. `shown` names the agents that the caller can see; see `mergeShown`. */
+  /**
+   * Replaces the roles. `shown` names the agents that the caller can see, and `existing` all agents of
+   * the host; see `mergeShown`.
+   */
   readonly set = Effect.fn("AgentAccessStore.set")(function* (
     this: AgentAccessStore,
     serverId: string,
     change: AgentAccessChange,
     shown: ReadonlySet<string>,
+    existing: ReadonlySet<string>,
   ) {
     return yield* this.#replace(serverId, (current) => {
       if (change.revision !== current.revision) return null;
       const storedRoles = new Map(current.roles.map((role) => [role.id, role]));
       return {
-        everyone: mergeShown(current.everyone, change.everyone, shown),
+        everyone: mergeShown(current.everyone, change.everyone, shown, existing),
         roles: change.roles.map((role) => ({
           ...role,
-          agents: mergeShown(storedRoles.get(role.id)?.agents ?? {}, role.agents, shown),
+          agents: mergeShown(storedRoles.get(role.id)?.agents ?? {}, role.agents, shown, existing),
         })),
       };
     });
@@ -177,12 +186,17 @@ export class AgentAccessStore {
     serverId: string,
     memberId: string,
   ) {
-    const current = this.#servers.get(serverId);
-    if (!current?.roles.some((role) => role.memberIds.includes(memberId))) return;
-    yield* this.#replace(serverId, (state) => ({
-      everyone: state.everyone,
-      roles: state.roles.map((role) => ({ ...role, memberIds: role.memberIds.filter((id) => id !== memberId) })),
-    })).pipe(Effect.catchTag("AgentAccessStale", () => Effect.void));
+    yield* this.#replace(serverId, (state) =>
+      state.roles.some((role) => role.memberIds.includes(memberId))
+        ? {
+            everyone: state.everyone,
+            roles: state.roles.map((role) => ({
+              ...role,
+              memberIds: role.memberIds.filter((id) => id !== memberId),
+            })),
+          }
+        : "unchanged",
+    );
   }).bind(this);
 
   subscribe(listener: (serverId: string, state: AgentAccessState) => void): () => void {
@@ -192,7 +206,8 @@ export class AgentAccessStore {
 
   #replace(
     serverId: string,
-    next: (current: AgentAccessState) => Omit<AgentAccessState, "revision"> | null,
+    // Null when the change is stale; "unchanged" when there is nothing to write.
+    next: (current: AgentAccessState) => Omit<AgentAccessState, "revision"> | "unchanged" | null,
   ): Effect.Effect<AgentAccessState, PreferenceFileFailure | AgentAccessStale> {
     return this.#writes.withPermit(
       Effect.uninterruptible(
@@ -200,6 +215,7 @@ export class AgentAccessStore {
           const current = this.#closed ? EMPTY : (this.#servers.get(serverId) ?? EMPTY);
           const replacement = next(current);
           if (!replacement) return yield* new AgentAccessStale();
+          if (replacement === "unchanged") return copyState(current);
           const saved = copyState({ ...replacement, revision: current.revision + 1 });
           const servers = new Map(this.#closed ? [] : this.#servers);
           servers.set(serverId, saved);
