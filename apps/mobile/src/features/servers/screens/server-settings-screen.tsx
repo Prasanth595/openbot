@@ -41,7 +41,6 @@ export function ServerSettingsScreen() {
   const { serverId } = useLocalSearchParams<{ serverId: string }>();
   const { servers, memberCountByServer, leaveServer, removeServer, refreshServer, hostedServerStarting } =
     useMobileWorkspace();
-  const muted = String(useCSSVariable("--openbot-text-grouped-secondary"));
   const server = useLiveServerRecovery(servers.find((item) => item.id === serverId));
   const locked = useRef(false);
   const [busy, setBusy] = useState(false);
@@ -117,12 +116,9 @@ export function ServerSettingsScreen() {
         <SettingsRow
           trailing={
             memberCount === undefined ? undefined : (
-              <View className="flex-row items-center gap-1">
-                <Typography.Paragraph className="text-grouped-secondary">
-                  {t("mobile.server.settings.memberCount", { count: memberCount, limit: memberLimit })}
-                </Typography.Paragraph>
-                <ChevronRight size={18} color={muted} strokeWidth={1.5} />
-              </View>
+              <TrailingValue
+                value={t("mobile.server.settings.memberCount", { count: memberCount, limit: memberLimit })}
+              />
             )
           }
           onPress={() => router.push({ pathname: "/server-settings/members", params: { serverId } })}

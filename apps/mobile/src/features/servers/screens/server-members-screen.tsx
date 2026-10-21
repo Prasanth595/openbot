@@ -22,7 +22,7 @@ import { useText } from "@/shared/lib/text";
 export function ServerMembersScreen() {
   const { t } = useText();
   const { serverId } = useLocalSearchParams<{ serverId: string }>();
-  const { server, canManage, members, invites, activeMembers, pendingInvites, memberLimit } =
+  const { server, canManage, members, invites, activeMembers, pendingInvites, memberLimit, refresh } =
     useServerMembers(serverId);
   if (!server)
     return (
@@ -111,14 +111,7 @@ export function ServerMembersScreen() {
           </SettingsRow>
         ) : null}
         {members.isError || invites.isError ? (
-          <SettingsRow
-            disclosure={false}
-            disabled={members.isFetching || invites.isFetching}
-            onPress={() => {
-              void members.refetch();
-              if (canManage) void invites.refetch();
-            }}
-          >
+          <SettingsRow disclosure={false} disabled={members.isFetching || invites.isFetching} onPress={refresh}>
             <Typography.Paragraph className="text-accent">{t("mobile.server.members.retry")}</Typography.Paragraph>
           </SettingsRow>
         ) : null}
