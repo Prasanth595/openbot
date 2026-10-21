@@ -11,20 +11,36 @@ import { HeroDownloadSelector } from "./HeroDownloadSelector";
 import { LandingAppPreview } from "./LandingAppPreview";
 import { LandingFooter } from "./LandingFooter";
 import { LandingGlow } from "./LandingGlow";
+import { LandingLaserFlow } from "./LandingLaserFlow";
 import { PricingSection } from "./PricingSection";
 import { SiteHeader } from "./SiteHeader";
 import { TeamsSection } from "./TeamsSection";
 
 export function LandingPage() {
+  let copy: HTMLDivElement | undefined;
+  let preview: HTMLElement | undefined;
+  let download: HTMLElement | undefined;
   onSettled(() => landingAnalytics.start(document, window.location.hostname));
 
   return (
     <div class="landing-page">
-      <SiteHeader page="landing" />
+      <SiteHeader
+        page="landing"
+        downloadRef={(element) => {
+          download = element;
+        }}
+      />
 
       <main>
         <section class="landing-hero" aria-labelledby="landing-title">
-          <div class="landing-hero-copy">
+          <LandingLaserFlow
+            surface={() => preview}
+            source={() => download}
+            avoid={() => (copy ? [...copy.children] : [])}
+            beamPosition={0.78}
+            color="#a46cf5"
+          />
+          <div ref={copy} class="landing-hero-copy">
             <p class="landing-availability landing-hero-line" style={{ "--landing-hero-line": 0 }}>
               <span class="landing-availability-new">NEW</span>
               <span class="landing-availability-copy">Available on</span>
@@ -103,7 +119,7 @@ export function LandingPage() {
             </div>
           </div>
 
-          <LandingAppPreview />
+          <LandingAppPreview ref={(element) => (preview = element)} />
         </section>
         <AgentNetworkSection />
         <FeaturesSection />

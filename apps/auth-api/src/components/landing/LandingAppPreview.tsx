@@ -26,7 +26,7 @@ function markPreviewTiming(name: (typeof LANDING_PREVIEW_MARKS)[keyof typeof LAN
   window.performance.mark?.(name);
 }
 
-export function LandingAppPreview() {
+export function LandingAppPreview(props: { ref?: (element: HTMLElement) => void }) {
   let root: HTMLElement | undefined;
   let iframe: HTMLIFrameElement | undefined;
   let placeholder: HTMLDivElement | undefined;
@@ -98,7 +98,10 @@ export function LandingAppPreview() {
 
   return (
     <section
-      ref={root}
+      ref={(element) => {
+        root = element;
+        props.ref?.(element);
+      }}
       class="landing-preview landing-app-preview t-skel"
       aria-labelledby="app-preview-title"
       data-enter="preview"
