@@ -678,7 +678,12 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   });
   /** The list stays while a connection screen covers the page: the screen does not span the sidebar. */
   const tasksAgentsHidden = () =>
-    tasksOpen() && !tasksAgentsOpen() && workspace.state.status === "online" && !hostOffline() && !blockedServer();
+    tasksOpen() &&
+    !tasksAgentsOpen() &&
+    workspace.state.status === "online" &&
+    !workspace.state.panelsFailed &&
+    !hostOffline() &&
+    !blockedServer();
   /** Shows the agents and closes the other pages. */
   function showAgents() {
     setAccountSettingsOpen(false);
