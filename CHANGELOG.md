@@ -112,6 +112,7 @@ All notable changes to OpenBot will be documented here. The project follows
 - When the ChatGPT sign-in of a server had expired, a sign-in with a code from the web client or the phone stopped a few seconds after the code appeared. The code now stays valid until you enter it.
 - Failure reports from the desktop app and the local host were dropped before they were sent.
   They now reach the analytics service.
+- Check saved secondary ChatGPT and Claude accounts when their provider starts, so accounts can reconnect after an app reload or CLI update without removal and a new sign-in.
 
 ## [0.46.0] - 2026-10-20
 
