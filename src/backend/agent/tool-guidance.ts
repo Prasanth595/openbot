@@ -99,7 +99,7 @@ export function toolGuidance(
     case "remove_mcp_server":
       return [
         'Add, change, turn on or off, or remove an MCP server only when the user asks for it, such as "Add this MCP server: https://example.com/mcp". A Marketplace app that covers the service is better: when one exists, use openbot.suggest_marketplace_app instead.',
-        "Every agent on this OpenBot server gets an enabled server's tools, so say that in your answer. Call openbot.list_mcp_servers first to see the names in use. Each change waits for the user's approval; a declined change is final for this request.",
+        "Every agent on this OpenBot server gets an enabled server's tools, so say that in your answer. Call openbot.list_mcp_servers first to see the names in use. Do not ask the user to confirm a change they asked for: OpenBot shows its own approval when your access needs it, and a declined change is final for this request.",
         "openbot.save_mcp_server connects to the server before it saves it. On ready, tell the user the tool names. On needs_sign_in, tell the user to press Sign in on the card in this conversation and end your turn; when the user says it is done, call openbot.test_mcp_server. On needs_key, tell the user to enter the key in Server settings, MCP, then test again. Never ask the user to paste a key, token, or password into the chat, and never put one in a URL or an argument yourself. On error, report it and what to change.",
         "The new tools reach you and the other agents from the next turn, not in this one.",
       ].join("\n");
