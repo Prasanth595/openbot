@@ -5,6 +5,7 @@ import {
   Bubble,
   BubbleContent,
   Button,
+  Check,
   ChevronLeft,
   ChevronRight,
   CircleCheck,
@@ -331,6 +332,10 @@ export function QuestionPromptBubble(props: QuestionPromptBubbleProps) {
     });
   }
 
+  function isPicked(question: AgentPromptQuestion, label: string): boolean {
+    return picks()[question.id]?.includes(label) ?? false;
+  }
+
   /** The ticked options, in the order the question lists them, then the typed answer. */
   function multiSelectAnswer(question: AgentPromptQuestion): string[] {
     const picked = picks()[question.id] ?? [];
@@ -464,7 +469,7 @@ export function QuestionPromptBubble(props: QuestionPromptBubbleProps) {
                       multiple={current().multiSelect}
                       checked={
                         current().multiSelect
-                          ? (picks()[current().id]?.includes(option.label) ?? false)
+                          ? isPicked(current(), option.label)
                           : answers()[current().id]?.[0] === option.label && !customAnswers()[current().id]
                       }
                       disabled={busy()}
@@ -480,11 +485,13 @@ export function QuestionPromptBubble(props: QuestionPromptBubbleProps) {
                             <ItemDescription>{option.description}</ItemDescription>
                           </Show>
                         </ItemContent>
-                        <Show when={!current().multiSelect}>
-                          <span class="question-prompt-choice-arrow" aria-hidden="true">
-                            <ChevronRight />
-                          </span>
-                        </Show>
+                        <span class="question-prompt-choice-arrow" aria-hidden="true">
+                          <Show when={current().multiSelect} fallback={<ChevronRight />}>
+                            <Show when={isPicked(current(), option.label)}>
+                              <Check />
+                            </Show>
+                          </Show>
+                        </span>
                       </Item>
                     </Questionnaire.Choice>
                   )}
