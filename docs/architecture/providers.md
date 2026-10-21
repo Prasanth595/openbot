@@ -564,8 +564,8 @@ row open the key dialog, and the composer's sign-in opens the Providers settings
 only sign-in. The key is stored as the `inception` API key. `pi-inception.ts` writes a key-free extension that
 calls `pi.registerProvider("inception", …)` with the Mercury models; the key is in the process
 environment and a `globalThis` slot, because Pi runs extensions again on `switch_session`. The
-Inception client lists only the `inception` models, with bare ids such as `mercury-3`; the Pi client
-leaves them out. Without a key the provider has no models and asks for a key. Inception is local-only:
+Inception client lists only the `inception` models, with bare ids such as `mercury-3`. The Pi client
+does not load this extension, so it keeps only the user's own `inception` models. Without a key the provider has no models and asks for a key. Inception is local-only:
 no Team API protocol carries it.
 
 ## Muse

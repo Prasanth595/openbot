@@ -357,39 +357,58 @@ export interface BuiltInProviderDriver {
   validateAccount(account: NonNullable<AccountReadResult["account"]>): void;
 }
 
+/** Pi and Inception run the same Pi client. Inception adds its key, which loads its extension. */
+function piClient(
+  provider: "pi" | "inception",
+  cli: AgentCliInfo,
+  timeout: number,
+  context: ProviderClientContext,
+  confinement: ProcessConfinement | undefined,
+): AgentClient {
+  const history = context.history?.(provider);
+  return new PiAgentClient(cli, {
+    requestTimeoutMs: timeout,
+    ...(confinement
+      ? {
+          confine: (target) => {
+            const paths = piStatePaths();
+            for (const path of paths.writable) mkdirSync(path, { recursive: true, mode: 0o700 });
+            return confineSpawnTarget(target, confinement, paths);
+          },
+        }
+      : {}),
+    extraEnv: () => ({ ...context.agentEnvironment?.() }),
+    ...(provider === "inception" ? { inceptionApiKey: () => context.apiKey("inception") } : {}),
+    ...(context.providerStateDirectory ? { providerStateDirectory: context.providerStateDirectory } : {}),
+    mcpServers: context.mcpServers,
+    ...(context.reportMcpDrops ? { reportMcpDrops: context.reportMcpDrops } : {}),
+    ...(context.mcpToolRuntimes ? { mcpToolRuntimes: context.mcpToolRuntimes } : {}),
+    ...(context.mcpEndpoint ? { mcpEndpoint: context.mcpEndpoint } : {}),
+    ...(history ? { history } : {}),
+  });
+}
+
+function piProfileClient(
+  provider: "pi" | "inception",
+  cli: AgentCliInfo,
+  timeout: number,
+  context: ProviderClientContext,
+): AgentClient {
+  return new PiAgentClient(cli, {
+    requestTimeoutMs: timeout,
+    profileGeneration: true,
+    ...(provider === "inception" ? { inceptionApiKey: () => context.apiKey("inception") } : {}),
+    ...(context.providerStateDirectory ? { providerStateDirectory: context.providerStateDirectory } : {}),
+  });
+}
+
 export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
   {
     id: "pi",
     signIn: { kind: "terminal", timeoutMs: CLI_LOGIN_TIMEOUT_MS },
     resolveCli: resolvePiCli,
-    createClient: (cli, timeout, context, confinement) => {
-      const history = context.history?.("pi");
-      return new PiAgentClient(cli, {
-        requestTimeoutMs: timeout,
-        ...(confinement
-          ? {
-              confine: (target) => {
-                const paths = piStatePaths();
-                for (const path of paths.writable) mkdirSync(path, { recursive: true, mode: 0o700 });
-                return confineSpawnTarget(target, confinement, paths);
-              },
-            }
-          : {}),
-        extraEnv: () => ({ ...context.agentEnvironment?.() }),
-        ...(context.providerStateDirectory ? { providerStateDirectory: context.providerStateDirectory } : {}),
-        mcpServers: context.mcpServers,
-        ...(context.reportMcpDrops ? { reportMcpDrops: context.reportMcpDrops } : {}),
-        ...(context.mcpToolRuntimes ? { mcpToolRuntimes: context.mcpToolRuntimes } : {}),
-        ...(context.mcpEndpoint ? { mcpEndpoint: context.mcpEndpoint } : {}),
-        ...(history ? { history } : {}),
-      });
-    },
-    createProfileClient: (cli, timeout, context) =>
-      new PiAgentClient(cli, {
-        requestTimeoutMs: timeout,
-        profileGeneration: true,
-        ...(context.providerStateDirectory ? { providerStateDirectory: context.providerStateDirectory } : {}),
-      }),
+    createClient: (cli, timeout, context, confinement) => piClient("pi", cli, timeout, context, confinement),
+    createProfileClient: (cli, timeout, context) => piProfileClient("pi", cli, timeout, context),
     authState: (account) => ({ kind: "pi", email: account?.email ?? null }),
     validateAccount: () => undefined,
   },
@@ -399,36 +418,8 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
     signIn: { kind: "external" },
     cliProvider: "pi",
     resolveCli: resolvePiCli,
-    createClient: (cli, timeout, context, confinement) => {
-      const history = context.history?.("inception");
-      return new PiAgentClient(cli, {
-        requestTimeoutMs: timeout,
-        ...(confinement
-          ? {
-              confine: (target) => {
-                const paths = piStatePaths();
-                for (const path of paths.writable) mkdirSync(path, { recursive: true, mode: 0o700 });
-                return confineSpawnTarget(target, confinement, paths);
-              },
-            }
-          : {}),
-        extraEnv: () => ({ ...context.agentEnvironment?.() }),
-        inceptionApiKey: () => context.apiKey("inception"),
-        ...(context.providerStateDirectory ? { providerStateDirectory: context.providerStateDirectory } : {}),
-        mcpServers: context.mcpServers,
-        ...(context.reportMcpDrops ? { reportMcpDrops: context.reportMcpDrops } : {}),
-        ...(context.mcpToolRuntimes ? { mcpToolRuntimes: context.mcpToolRuntimes } : {}),
-        ...(context.mcpEndpoint ? { mcpEndpoint: context.mcpEndpoint } : {}),
-        ...(history ? { history } : {}),
-      });
-    },
-    createProfileClient: (cli, timeout, context) =>
-      new PiAgentClient(cli, {
-        requestTimeoutMs: timeout,
-        profileGeneration: true,
-        inceptionApiKey: () => context.apiKey("inception"),
-        ...(context.providerStateDirectory ? { providerStateDirectory: context.providerStateDirectory } : {}),
-      }),
+    createClient: (cli, timeout, context, confinement) => piClient("inception", cli, timeout, context, confinement),
+    createProfileClient: (cli, timeout, context) => piProfileClient("inception", cli, timeout, context),
     authState: (account) => ({ kind: "inception", email: account?.email ?? null }),
     validateAccount: () => undefined,
   },
