@@ -7,7 +7,7 @@
  * values of MCP variables and headers stay on the computer that made it.
  */
 
-import { type AgentProviderId, isAgentProvider } from "./agent-providers";
+import { type AgentProviderId, isAgentProvider, isAgentProviderRef } from "./agent-providers";
 import { INPUT_LIMITS } from "./input-limits";
 import { type AvatarHue, isAvatarHue } from "./ipc-agent-identity";
 import {
@@ -18,7 +18,7 @@ import {
   decodeAgentImportSkipped,
   isAgentImportKey,
 } from "./ipc-agent-import";
-import { type ClientAgentSummary, isAgentSummary } from "./ipc-agents";
+import { type ClientAgentSummary, isClientAgentSummary } from "./ipc-agents";
 import { isBoundedString, isIdentifier, isNullableBoundedString } from "./ipc-bounded-values";
 import { isBoolean, isDynamicRecord, isNumber, isString } from "./runtime-values";
 
@@ -200,7 +200,7 @@ export function decodeInstanceTransferPreview(value: unknown): InstanceTransferP
 
 export function decodeInstanceTransferResult(value: unknown): InstanceTransferResult {
   const result = record(value, "transfer result");
-  if (!Array.isArray(result.agents) || !result.agents.every(isAgentSummary)) invalid("transfer result");
+  if (!Array.isArray(result.agents) || !result.agents.every(isClientAgentSummary)) invalid("transfer result");
   if (!isUniqueList(result.signIn, 32, isAgentProvider)) invalid("transfer result");
   return {
     agents: result.agents,
@@ -245,7 +245,10 @@ export function decodeRemoteInstanceTransferResult(value: unknown): RemoteInstan
       invalid("transferred agent");
     return { agentId: entry.agentId, name: entry.name };
   });
-  return { ...decodeInstanceTransferResult({ ...result, agents: [] }), agents };
+  // A newer host can name a provider that this OpenBot does not know. Its sign-in cannot start here.
+  if (!isUniqueList(result.signIn, 32, isAgentProviderRef)) invalid("transfer result");
+  const signIn = result.signIn.filter(isAgentProvider);
+  return { ...decodeInstanceTransferResult({ ...result, agents: [], signIn }), agents };
 }
 
 /** The remote result, with the new agents read from the host's agent list. */

@@ -8,7 +8,7 @@
  */
 
 import { INPUT_LIMITS } from "./input-limits";
-import { type ClientAgentSummary, isAgentSummary } from "./ipc-agents";
+import { type ClientAgentSummary, isClientAgentSummary } from "./ipc-agents";
 import { isBoundedString, isIdentifier, isNullableBoundedString } from "./ipc-bounded-values";
 import { isBoolean, isDynamicRecord, isNumber, isString } from "./runtime-values";
 
@@ -244,7 +244,7 @@ export function decodeAgentImportPreview(value: unknown): AgentImportPreview | n
 
 export function decodeAgentImportResult(value: unknown): AgentImportResult {
   const result = record(value, "import result");
-  if (!Array.isArray(result.agents) || !result.agents.every(isAgentSummary)) invalid("import result");
+  if (!Array.isArray(result.agents) || !result.agents.every(isClientAgentSummary)) invalid("import result");
   if (!Array.isArray(result.channels)) invalid("import result");
   const channels = result.channels.map((item): AgentImportChannel => {
     const entry = record(item, "imported channel");
