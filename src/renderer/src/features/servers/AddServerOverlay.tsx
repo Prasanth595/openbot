@@ -117,7 +117,11 @@ function AddServerSession(
   const entryPoint = untrack(() => props.entryPoint) ?? (resume ? "checkout_resume" : undefined);
   const analytics = desktopAnalytics.scope();
   const trackPlans = (action: PlansEvent["action"], properties: Omit<PlansEvent, "action" | "entry_point"> = {}) =>
-    analytics.track("hosted_server_plans_action", { action, ...properties, entry_point: entryPoint });
+    analytics.track("hosted_server_plans_action", {
+      action,
+      ...properties,
+      ...(entryPoint ? { entry_point: entryPoint } : {}),
+    });
   /** A read can take longer than the poll interval. The next tick then skips, so reads do not overlap. */
   let refreshing = false;
 

@@ -119,7 +119,7 @@ const Providers = createSimpleContext({
             provider: provider.id,
             action: "connect_completed",
             result: "succeeded",
-            method,
+            ...(method ? { method } : {}),
           });
         } else if (provider.state === "error") {
           pendingProviderConnections.delete(provider.id);
@@ -128,7 +128,7 @@ const Providers = createSimpleContext({
             action: "connect_completed",
             result: "failed",
             failure_code: "connect_failed",
-            method,
+            ...(method ? { method } : {}),
           });
         }
       }
