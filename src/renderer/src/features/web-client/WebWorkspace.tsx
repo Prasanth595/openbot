@@ -9,6 +9,7 @@ import {
   type AppInfo,
   type BrowserTakeoverRequest,
   CHANNEL_CHATS_CAPABILITY,
+  type ChannelSummary,
   type ClientAgentModelOption,
   canAdministerServer,
   decodeAgentHostSettings,
@@ -31,6 +32,7 @@ import { ROUTINE_RECOVERY_CAPABILITY } from "@openbot/contracts/team-protocol/ro
 import { SIDE_QUESTION_CAPABILITY } from "@openbot/contracts/team-protocol/side-question-v1";
 import { SIGN_IN_RELAY_CAPABILITY } from "@openbot/contracts/team-protocol/sign-in-relay-v1";
 import { runTeamEffect } from "@openbot/team-client";
+import { channelForThread } from "@openbot/team-client/channel-notifications";
 import {
   cancelHostUpdate,
   checkHostForUpdate,
@@ -506,11 +508,29 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     if (workspace.state.host?.hostId === hostId && workspace.state.agents.some((agent) => agent.id === agentId))
       await select(agentId);
   }
-  const { setMuted, setNotificationLevel } = createWebNotificationRouting({
+  async function openNotifiedChannel(hostId: string, channelId: string) {
+    setMobilePane("conversation");
+    if (hostId !== workspace.state.host?.hostId) {
+      const host = workspace.state.hosts.find((item) => item.hostId === hostId);
+      if (!host) return;
+      await workspace.connect(host);
+    }
+    if (workspace.state.host?.hostId === hostId) await channels.open(channelId);
+  }
+  const { setMuted, setNotificationLevel, notifyChannelReplies } = createWebNotificationRouting({
     workspace,
     notifications,
     t,
     onOpen: (hostId, agentId) => void openNotified(hostId, agentId),
+    onOpenChannel: (hostId, channelId) => void openNotifiedChannel(hostId, channelId),
+    // Only the open host has a channel list. A prompt of another host names the agent only.
+    channelForThread: (hostId, threadId) =>
+      hostId === workspace.state.host?.hostId
+        ? channelForThread(
+            untrack(() => channels.state.channels),
+            threadId,
+          )
+        : null,
   });
   const [searchOpen, setSearchOpen] = createSignal(false);
   const communityCard = createCommunityCardVisibility();
@@ -984,6 +1004,8 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   // On a small screen the sidebar pane covers the chat, and so does the usage report. A covered
   // message was not seen.
   const canMarkRead = () => document.hasFocus() && mobilePane() === "conversation" && !pageCovered() && !routinesView();
+  /** The channel list before the newest one, for the reader it was read for. A reply notifies once. */
+  let channelBaseline: { scope: string; channels: ChannelSummary[] } | null = null;
   const channels = createChannelsController({
     port: () => channelsPort,
     agents: workspace.profiles,
@@ -1005,6 +1027,12 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
       setMessageFocusRequest(null);
     },
     canMarkRead,
+    onList: (list, scope) => {
+      const hostId = workspace.state.host?.hostId;
+      const previous = channelBaseline?.scope === scope ? channelBaseline.channels : null;
+      channelBaseline = { scope, channels: list };
+      if (hostId) notifyChannelReplies(hostId, previous, list);
+    },
   });
   onCleanup(
     workspace.onHostEvent((event) => {

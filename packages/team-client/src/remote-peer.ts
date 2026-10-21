@@ -1196,7 +1196,9 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
           pending.resolve({
             status: frame.result.status,
             body: sideRoute
-              ? yield* peerDecode(() => sideRoute.response(pending.path, status, body, { historyExtent: true }))
+              ? yield* peerDecode(() =>
+                  sideRoute.response(pending.path, status, body, { historyExtent: true, channelAttention: true }),
+                )
               : yield* peerDecode(() =>
                   decodeTeamProtocolV8WebRtcHttpResponse(pending.method, pending.path, status, body),
                 ),

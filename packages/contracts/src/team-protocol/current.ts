@@ -26,6 +26,7 @@ import {
   TEAM_BROWSER_VIEW_FRAME_POINT_CAPABILITY,
   TEAM_BROWSER_VIEW_VIEWPORT_CAPABILITY,
 } from "./browser-view-v1";
+import { TEAM_CHANNEL_ATTENTION_CAPABILITY } from "./channel-attention-v1";
 import { CONNECTORS_CAPABILITY } from "./connectors-v1";
 import { CONTEXT_RESET_CAPABILITY } from "./context-reset-v1";
 import { CONVERSATION_FILE_SEARCH_CAPABILITY } from "./conversation-file-search-v1";
@@ -163,6 +164,7 @@ export {
   TEAM_BROWSER_VIEW_CURSOR_CAPABILITY,
   TEAM_BROWSER_VIEW_FRAME_POINT_CAPABILITY,
   TEAM_BROWSER_VIEW_VIEWPORT_CAPABILITY,
+  TEAM_CHANNEL_ATTENTION_CAPABILITY,
   TEAM_HISTORY_EXTENT_CAPABILITY,
   TEAM_MESSAGE_CLIENT_ID_CAPABILITY,
   TEAM_PROMPT_MULTI_SELECT_CAPABILITY,
@@ -256,6 +258,7 @@ export const TEAM_CURRENT_CAPABILITIES = [
   TEAM_SUBAGENTS_CAPABILITY,
   AGENT_ACCESS_CAPABILITY,
   TEAM_PROMPT_MULTI_SELECT_CAPABILITY,
+  TEAM_CHANNEL_ATTENTION_CAPABILITY,
 ] as const;
 
 export type TeamCurrentCapability = (typeof TEAM_CURRENT_CAPABILITIES)[number];
@@ -358,7 +361,8 @@ export const TEAM_BOOTSTRAP_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
     capability !== SIDE_QUESTION_CAPABILITY &&
     capability !== TEAM_SUBAGENTS_CAPABILITY &&
     capability !== AGENT_ACCESS_CAPABILITY &&
-    capability !== TEAM_PROMPT_MULTI_SELECT_CAPABILITY,
+    capability !== TEAM_PROMPT_MULTI_SELECT_CAPABILITY &&
+    capability !== TEAM_CHANNEL_ATTENTION_CAPABILITY,
 );
 // A v7 host does not know the v8 markers, so a client sends them only after it negotiates protocol 8.
 const TEAM_PROTOCOL_V7_CURRENT_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
@@ -404,6 +408,7 @@ export function legacyTeamCapabilities(capabilities: readonly string[]): string[
       capability !== SIDE_QUESTION_CAPABILITY &&
       capability !== TEAM_SUBAGENTS_CAPABILITY &&
       capability !== AGENT_ACCESS_CAPABILITY &&
-      capability !== TEAM_PROMPT_MULTI_SELECT_CAPABILITY,
+      capability !== TEAM_PROMPT_MULTI_SELECT_CAPABILITY &&
+      capability !== TEAM_CHANNEL_ATTENTION_CAPABILITY,
   );
 }

@@ -133,6 +133,11 @@ const valid: [string, (value: unknown) => unknown, unknown][] = [
     decodeNotificationOpenedEvent,
     { serverId: "local", agentId: "agent-1", threadId: null } satisfies NotificationOpenedEvent,
   ],
+  [
+    "opened channel notification",
+    decodeNotificationOpenedEvent,
+    { serverId: "local", agentId: "agent-1", threadId: null, channelId: "channel-1" } satisfies NotificationOpenedEvent,
+  ],
   ["detected model servers", decodeDetectedModelServers, [detectedServer]],
   ["custom agents", decodeCustomAgents, [customAgent, { ...customAgent, id: "qwen", resolvedCommand: null }]],
   ["a model list", decodeDiscoverModelsResult, { models: [{ id: "qwen3" }] }],
@@ -168,6 +173,11 @@ const malformed: [string, (value: unknown) => unknown, unknown][] = [
   ["update preference without a switch", decodeUpdatePreference, null],
   ["notification preference without a switch", decodeNotificationPreference, { desktopNotifications: "yes" }],
   ["opened notification without an agent", decodeNotificationOpenedEvent, { serverId: "local", threadId: null }],
+  [
+    "opened notification with a non-string channel",
+    decodeNotificationOpenedEvent,
+    { serverId: "local", agentId: "agent-1", threadId: null, channelId: 7 },
+  ],
   // A scan row never carries a credential, so one that does is refused with the whole list.
   ["a detected server with a key", decodeDetectedModelServers, [{ ...detectedServer, apiKey: "sk-x" }]],
   ["a detected server with headers", decodeDetectedModelServers, [{ ...detectedServer, headers: [] }]],

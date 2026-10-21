@@ -336,6 +336,7 @@ export function decodeNotificationOpenedEvent(value: unknown): NotificationOpene
     serverId: requiredString(opened, "serverId"),
     agentId: requiredString(opened, "agentId"),
     threadId: nullableString(opened, "threadId"),
+    ...(opened.channelId === undefined ? {} : { channelId: requiredString(opened, "channelId") }),
   };
 }
 

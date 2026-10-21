@@ -40,6 +40,15 @@ device. The title is the agent name. When the phone shows previews, the text is 
 preview of a desktop notification: the start of the answer of that turn, the question, or the action
 to approve, with secrets redacted. Otherwise it is the fixed desktop text, such as "Finished working.".
 
+Channels are an exception. The desktop and the web client notify an agent reply in a channel from
+the channel list (`channelReplyNotifications`), because the channel service consumes the
+`turn-completed` event of a channel thread. On a host with `channel-attention-v1`, each summary names
+the author and status of its newest message and the thread of each member. A reply notifies once,
+when it stops streaming, while the channel has unread messages. The title of a prompt, an approval or
+a takeover on a channel thread names the agent and the channel (`notification.channelTitle`), and a
+click opens the channel. The phone has no channel view: it gets no channel reply notification, and a
+channel prompt shows in the agent's chat, with the agent name as the title, as before.
+
 The phone registers with every connected server that supports `push-notifications-v1`
 (`POST /v1/push-notifications/registration`): the APNs token of the app, the secret of that host (the
 same one as for the Live Activity), the language, the level, a mute end, the preview switch, the sound

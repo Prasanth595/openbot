@@ -9,6 +9,7 @@ import {
   type ChannelPage,
   type ChannelSummary,
   type ChannelTask,
+  type ChannelThread,
   decodeChannel,
   isChannelMessage,
   isChannelTask,
@@ -154,6 +155,21 @@ export class ChannelStore {
         )
         .all(memberId, memberId, excludedId, `${CHANNEL_ROUTING_EVENT_ITEM_TYPE_PREFIX}%`),
     );
+    const threads = new Map<string, ChannelThread[]>();
+    for (const row of databaseRows(
+      this.database.connection
+        .prepare(
+          "SELECT channel_id, agent_id, thread_id FROM projection_channel_contexts ORDER BY channel_id, agent_id",
+        )
+        .all(),
+    )) {
+      const channelId = requiredStringColumn(row, "channel_id");
+      const thread = {
+        agentId: requiredStringColumn(row, "agent_id"),
+        threadId: requiredStringColumn(row, "thread_id"),
+      };
+      threads.set(channelId, [...(threads.get(channelId) ?? []), thread]);
+    }
     return rows.map((row) => {
       const channel = decodeChannel(JSON.parse(requiredStringColumn(row, "channel_json")));
       const latestJson = row.latest_json;
@@ -170,8 +186,19 @@ export class ChannelStore {
         unreadCount: Number(row.unread ?? 0),
         activeTasks: Number(row.running ?? 0),
         lastMessage: latest
-          ? { authorName: latest.author.name, text: previewText(latest), at: latest.message.createdAt }
+          ? {
+              authorName: latest.author.name,
+              author: { kind: latest.author.kind, id: latest.author.id },
+              status: latest.message.status,
+              text: previewText(latest),
+              at: latest.message.createdAt,
+            }
           : null,
+        // A former member keeps its thread, but its prompts are no longer the channel's. The members
+        // are at most 100, which is the bound of channel-attention-v1.
+        threads: (threads.get(channel.id) ?? []).filter((thread) =>
+          channel.members.some((item) => item.agentId === thread.agentId),
+        ),
       };
     });
   }

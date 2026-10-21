@@ -54,6 +54,8 @@ export interface ChannelsEnvironment {
   beforeOpen: () => void;
   /** Whether a message that arrives now is in front of the reader. */
   canMarkRead: () => boolean;
+  /** Each channel list that the reader of `scope` gets, before the read marks the open channel read. */
+  onList?: (channels: ChannelSummary[], scope: string) => void;
 }
 
 export type ChannelsController = ReturnType<typeof createChannelsController>;
@@ -156,6 +158,7 @@ export function createChannelsController(env: ChannelsEnvironment) {
       const selectedExists = selected !== null && channels.some((channel) => channel.id === selected);
       const page = selectedExists ? await env.port().agent.readChannel({ channelId: selected }) : null;
       if (disposed || account !== env.scopeKey() || id !== refreshId || selected !== state.selectedId) return;
+      env.onList?.(channels, account);
       setState((state) => {
         state.channels = channels;
         if (selected && !selectedExists) {

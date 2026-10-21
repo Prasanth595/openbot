@@ -6,6 +6,7 @@ import type {
   AgentEvent,
   AvatarImageInput,
   CentralAuthUser,
+  ChannelSummary,
   ConfigureHostInput,
   ConversationMessageSender,
   ConversationPageAnchor,
@@ -1508,6 +1509,18 @@ export class HostService extends EventEmitter<HostEvents> {
       return { id: SIGNED_OUT_CHANNEL_MEMBER_ID, name: "You" };
     }
     return { id: this.#currentAgentReaderId(), name: user.name ?? "You" };
+  }
+
+  /** The channel list as the host user reads it, as the IPC list does. Empty without channels. */
+  listChannels(): ChannelSummary[] {
+    return this.#options.channels?.store.list(this.channelActor().id, true) ?? [];
+  }
+
+  /** The channel whose execution thread `threadId` is, or null for an agent's own thread. */
+  channelForThread(threadId: string): { id: string; name: string } | null {
+    const store = this.#options.channels?.store;
+    const channelId = store?.channelForThread(threadId);
+    return store && channelId ? { id: channelId, name: store.get(channelId).name } : null;
   }
 
   /**

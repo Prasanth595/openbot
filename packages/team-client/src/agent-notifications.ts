@@ -14,6 +14,14 @@ export interface AgentNotificationContent {
   body: string;
   agentId: string;
   threadId: string | null;
+  /** The channel whose thread the event came from. A click opens the channel, not the agent chat. */
+  channelId?: string;
+}
+
+/** The channel that owns the thread of an event, as the caller found it. */
+export interface AgentNotificationChannel {
+  id: string;
+  name: string;
 }
 
 /**
@@ -116,9 +124,18 @@ export function agentEventNeedsUser(event: AgentEvent): boolean {
   return event.type === "prompt" || event.type === "approval" || event.type === "browser-takeover-requested";
 }
 
+/** The thread that an event waits on, or null when it is not a request. A channel can own that thread. */
+export function agentEventRequestThread(event: AgentEvent): string | null {
+  if (event.type === "prompt") return event.threadId;
+  if (event.type === "approval") return event.approval.threadId;
+  if (event.type === "browser-takeover-requested") return event.request.threadId;
+  return null;
+}
+
 /**
  * What a server's agent event says to the user, or null when the server level or the agent's own
- * switch keeps it quiet. "needs-me" keeps only the events that wait for the user.
+ * switch keeps it quiet. "needs-me" keeps only the events that wait for the user. `channel` is the
+ * channel that owns the thread of the event (see `agentEventRequestThread`): the title then names it.
  */
 export function notificationForAgentEvent(
   event: AgentEvent,
@@ -126,12 +143,19 @@ export function notificationForAgentEvent(
   translate: AppTranslate,
   level: ServerNotificationLevel,
   preview: AgentNotificationPreview | null = null,
+  channel: AgentNotificationChannel | null = null,
 ): AgentNotificationContent | null {
   if (level === "nothing") return null;
   const subject = notificationSubject(event, level, translate, preview);
   if (!subject) return null;
   const agent = agents.find((candidate) => candidate.id === subject.agentId);
   if (!agent?.notifications) return null;
+  if (channel)
+    return {
+      title: translate("notification.channelTitle", { agent: agent.name, channel: channel.name }),
+      ...subject,
+      channelId: channel.id,
+    };
   // A start failure names no thread, so it opens the agent's own chat.
   return { title: agent.name, ...subject, threadId: subject.threadId ?? agent.threadId ?? null };
 }
@@ -181,7 +205,7 @@ function notificationSubject(
 }
 
 /** Agent Markdown as plain text, cut to the preview length. */
-function plainPreview(text: string): string | null {
+export function plainPreview(text: string): string | null {
   return previewText(markdownPreviewText(cleanAgentMessageText(text)));
 }
 

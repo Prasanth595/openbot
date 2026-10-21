@@ -9,6 +9,7 @@ import { createSimpleContext } from "../../simple-context";
 import { useAuth } from "../account/account-context";
 import { useAgents } from "../agents/agents-context";
 import { useBrowserTabs } from "../browser/browser-context";
+import { useChannels } from "../channels/channels-context";
 import { useConversation } from "../conversation/conversation-context";
 import { useDirectMessages } from "../conversation/direct-messages-context";
 import { useSetup } from "../onboarding/onboarding-context";
@@ -46,7 +47,9 @@ const ServerScope = createSimpleContext({
     const { centralAuth } = useAuth();
     const { setupState } = useSetup();
     const { servers, activeServerId, initialServersReady, serverLoadRequest, serversLoaded } = useServers();
-    const { pendingAgentSelection, setPendingAgentSelection } = useServerSwitch();
+    const { pendingAgentSelection, setPendingAgentSelection, pendingChannelSelection, setPendingChannelSelection } =
+      useServerSwitch();
+    const channels = useChannels();
     const { setTeamPresence } = usePresence();
     const {
       activeDirectMemberId,
@@ -299,6 +302,14 @@ const ServerScope = createSimpleContext({
         if (!agentId) return;
         setPendingAgentSelection(null);
         selectAgent(agentId);
+      },
+    );
+    createEffect(
+      () => pendingChannelSelection(),
+      (channelId) => {
+        if (!channelId) return;
+        setPendingChannelSelection(null);
+        void channels.open(channelId);
       },
     );
 
