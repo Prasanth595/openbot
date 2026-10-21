@@ -292,6 +292,7 @@ export const messages = {
   "server.settings.remoteOffline": "ホストはオフラインです。公開設定はオーナーが管理しています。",
   "server.settings.reachable": "オンラインでアクセスできます。招待されたユーザーのみがサインインできます。",
   "server.settings.notReachable": "オンラインでアクセスできません。既存のメンバーと招待はそのまま残ります。",
+  "server.settings.notPublished": "オンラインでアクセスできません。",
   "server.settings.generatedName": "{name} のサーバー",
   "server.settings.removeTitle": "サーバーを削除",
   "server.settings.removeDescription":

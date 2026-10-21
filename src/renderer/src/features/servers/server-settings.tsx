@@ -58,17 +58,18 @@ const FALLBACK_SERVER_NAME = "OpenBot";
 
 /**
  * A name for a server that the user publishes before naming it, such as "Ann’s server". The first
- * word of the account name or email goes in. A name that does not give a long enough host address,
- * such as one in a script with no Latin letters, gives the fallback.
+ * word of the account name or email goes in, shortened by whole characters to fit the length limit.
+ * When the name has too few Latin letters or digits for a host address, the fallback is used. This
+ * depends on the language: "Анна’s server" is long enough, but "Анна のサーバー" is not.
  */
 function generatedServerName(user: CentralAuthUser | null): string {
   const person = (user?.name?.trim() || user?.email.split("@")[0] || "").split(/\s+/u)[0] ?? "";
   if (!person) return FALLBACK_SERVER_NAME;
   const { t } = currentText();
-  const excess = t("server.settings.generatedName", { name: person }).length - INPUT_LIMITS.serverName;
-  const name = t("server.settings.generatedName", {
-    name: excess > 0 ? person.slice(0, Math.max(1, person.length - excess)) : person,
-  });
+  const characters = Array.from(person);
+  let name = t("server.settings.generatedName", { name: person });
+  for (let length = characters.length - 1; name.length > INPUT_LIMITS.serverName && length > 0; length--)
+    name = t("server.settings.generatedName", { name: characters.slice(0, length).join("") });
   return name.length <= INPUT_LIMITS.serverName && slugifyTeamServerName(name).length >= INPUT_LIMITS.serverNameMin
     ? name
     : FALLBACK_SERVER_NAME;

@@ -72,6 +72,11 @@ interface ServerGeneralSection {
   identityDirty: Accessor<boolean>;
   resetIdentity(): void;
   saveIdentity(): Promise<void>;
+  /**
+   * Saves a valid name or logo that the user did not save, and says whether nothing failed. Members
+   * calls it before it publishes an unnamed server, so that the server does not get a generated name.
+   */
+  saveIdentityDraft(): Promise<boolean>;
   /** Shows the name and logo the server holds now, while the user does not edit them. */
   syncFromServer(name: string, logoUrl: string | null): void;
   /** Forgets the draft state of the previous server when the dialog shows another one. */
@@ -211,6 +216,12 @@ export function createServerGeneralSection(host: ServerSettingsSectionHost): Ser
       state.identity.nameTouched = false;
       state.identity.nameShaking = false;
     });
+  }
+
+  async function saveIdentityDraft(): Promise<boolean> {
+    if (!identityDirty() || nameError()) return true;
+    await saveIdentity();
+    return !identityDirty();
   }
 
   function syncFromServer(name: string, logoUrl: string | null): void {
@@ -543,6 +554,7 @@ export function createServerGeneralSection(host: ServerSettingsSectionHost): Ser
     identityDirty,
     resetIdentity,
     saveIdentity,
+    saveIdentityDraft,
     syncFromServer,
     resetForServer,
   };

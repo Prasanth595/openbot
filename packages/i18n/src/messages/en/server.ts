@@ -320,6 +320,7 @@ export const messages = defineMessages("server", {
   "server.settings.remoteOffline": "The host is offline. Publication is controlled by its owner.",
   "server.settings.reachable": "Reachable online. Only invited people can sign in.",
   "server.settings.notReachable": "Not reachable online. Existing members and invitations remain.",
+  "server.settings.notPublished": "Not reachable online.",
   // A name for a server that the user publishes before naming it. {name} is the first word of the account name.
   "server.settings.generatedName": "{name}’s server",
   "server.settings.removeTitle": "Remove server",

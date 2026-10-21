@@ -297,6 +297,7 @@ export const messages = {
   "server.settings.remoteOffline": "El host está sin conexión. Su propietario controla la publicación.",
   "server.settings.reachable": "Accesible en línea. Solo las personas invitadas pueden iniciar sesión.",
   "server.settings.notReachable": "No accesible en línea. Los miembros y las invitaciones existentes se conservan.",
+  "server.settings.notPublished": "No accesible en línea.",
   "server.settings.generatedName": "Servidor de {name}",
   "server.settings.removeTitle": "Eliminar servidor",
   "server.settings.removeDescription":

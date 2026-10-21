@@ -300,6 +300,7 @@ export const messages = {
   "server.settings.remoteOffline": "L’hôte est hors ligne. Son propriétaire contrôle la publication.",
   "server.settings.reachable": "Accessible en ligne. Seules les personnes invitées peuvent se connecter.",
   "server.settings.notReachable": "Inaccessible en ligne. Les membres et les invitations existants restent.",
+  "server.settings.notPublished": "Inaccessible en ligne.",
   "server.settings.generatedName": "Serveur de {name}",
   "server.settings.removeTitle": "Supprimer le serveur",
   "server.settings.removeDescription":

@@ -297,6 +297,7 @@ export const messages = {
   "server.settings.remoteOffline": "O computador anfitrião está offline. Seu proprietário controla a publicação.",
   "server.settings.reachable": "Acessível online. Só pessoas convidadas podem entrar.",
   "server.settings.notReachable": "Não acessível online. Os membros e convites existentes são mantidos.",
+  "server.settings.notPublished": "Não acessível online.",
   "server.settings.generatedName": "Servidor de {name}",
   "server.settings.removeTitle": "Remover servidor",
   "server.settings.removeDescription":

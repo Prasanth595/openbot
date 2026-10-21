@@ -302,6 +302,7 @@ export const messages = {
   "server.settings.remoteOffline": "Хост не в сети. Публикацией управляет его владелец.",
   "server.settings.reachable": "Доступен из интернета. Войти могут только приглашённые.",
   "server.settings.notReachable": "Недоступен из интернета. Существующие участники и приглашения сохраняются.",
+  "server.settings.notPublished": "Недоступен из интернета.",
   "server.settings.generatedName": "Сервер: {name}",
   "server.settings.removeTitle": "Удалить сервер",
   "server.settings.removeDescription":

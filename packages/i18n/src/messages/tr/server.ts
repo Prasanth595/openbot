@@ -302,6 +302,7 @@ export const messages = {
   "server.settings.remoteOffline": "Ana makine çevrim dışı. Yayımlama sahibi tarafından kontrol edilir.",
   "server.settings.reachable": "Çevrim içi erişilebilir. Yalnızca davet edilen kişiler oturum açabilir.",
   "server.settings.notReachable": "Çevrim içi erişilemez. Mevcut üyeler ve davetler kalır.",
+  "server.settings.notPublished": "Çevrim içi erişilemez.",
   "server.settings.generatedName": "{name} sunucusu",
   "server.settings.removeTitle": "Sunucuyu kaldır",
   "server.settings.removeDescription":

@@ -106,7 +106,7 @@ interface ServerMembersSection {
 /** The Members section: publication, the invite composer, the member list, and the pending invites. */
 export function createServerMembersSection(
   host: ServerSettingsSectionHost,
-  options: { onSetUpDesktop: () => void },
+  options: { onSetUpDesktop: () => void; saveIdentityDraft: () => Promise<boolean> },
 ): ServerMembersSection {
   const { t, format } = useText();
   const { props, local, configured, published, actionsAvailable, busy, run } = host;
@@ -309,6 +309,8 @@ export function createServerMembersSection(
   /** An unnamed server gets a generated name as it publishes, so the switch needs no setup first. */
   async function setPublished(value: boolean): Promise<void> {
     const serverId = props.server.id;
+    if (value && local() && !configured() && !(await options.saveIdentityDraft())) return;
+    if (props.server.id !== serverId) return;
     const succeeded = await run("publish", () => props.onSetPublished(value));
     if (!succeeded || props.server.id !== serverId) return;
     setPanels((state) => {
@@ -324,7 +326,8 @@ export function createServerMembersSection(
 
   function accessDescription() {
     if (!local()) return published() ? t("server.settings.remoteOnline") : t("server.settings.remoteOffline");
-    return published() ? t("server.settings.reachable") : t("server.settings.notReachable");
+    if (published()) return t("server.settings.reachable");
+    return configured() ? t("server.settings.notReachable") : t("server.settings.notPublished");
   }
 
   function resetForServer(): void {

@@ -297,6 +297,7 @@ export const messages = {
   "server.settings.remoteOffline": "Host jest offline. Publikacją zarządza jego właściciel.",
   "server.settings.reachable": "Dostępny online. Zalogować się mogą tylko zaproszone osoby.",
   "server.settings.notReachable": "Niedostępny online. Obecni członkowie i zaproszenia pozostają.",
+  "server.settings.notPublished": "Niedostępny online.",
   "server.settings.generatedName": "Serwer: {name}",
   "server.settings.removeTitle": "Usuń serwer",
   "server.settings.removeDescription":
