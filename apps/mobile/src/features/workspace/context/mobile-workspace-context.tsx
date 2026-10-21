@@ -3,6 +3,7 @@ import {
   type CreateAgentInput,
   canAdministerServer,
   isQueuedMessageReceipt,
+  MCP_SERVERS_CAPABILITY,
   type RespondToApprovalInput,
   type SidebarLayoutSnapshot,
   type TeamRealtimeEvent,
@@ -1493,6 +1494,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         hasCapability(serverCapabilities.current, serverId, HOSTED_SITES_CAPABILITY),
       canDeleteHostedSites: (serverId) => administers(serverId, HOSTED_SITES_CAPABILITY),
       canManageProviders: (serverId) => administers(serverId, PROVIDERS_ADMIN_CAPABILITY),
+      canManageMcpServers: (serverId) => administers(serverId, MCP_SERVERS_CAPABILITY),
       canSendNotifications: (serverId) =>
         servers.some((server) => server.id === serverId && showsOnline(server)) && supportsPushNotifications(serverId),
       canManageEvents: (serverId) => administers(serverId, EVENTS_CAPABILITY),

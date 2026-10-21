@@ -12,6 +12,7 @@ import {
   isQueueSnapshot,
   isRoutine,
   isRoutineRun,
+  MCP_SERVERS_CAPABILITY,
   type RoutineCalendarOwner,
   type SetAgentHiddenInput,
   STORAGE_CAPABILITY,
@@ -53,6 +54,7 @@ import { HOST_RELEASE_CAPABILITY } from "@openbot/contracts/team-protocol/host-r
 import { HOST_TIMEZONE_CAPABILITY } from "@openbot/contracts/team-protocol/host-timezone-v1";
 import { HOST_UPDATE_CAPABILITY } from "@openbot/contracts/team-protocol/host-update-v1";
 import { HOSTED_SITES_CAPABILITY } from "@openbot/contracts/team-protocol/hosted-sites-v1";
+import { MCP_SIGN_IN_CAPABILITY } from "@openbot/contracts/team-protocol/mcp-sign-in-v1";
 import { ONEPASSWORD_CONNECTOR_CAPABILITY } from "@openbot/contracts/team-protocol/onepassword-connector-v1";
 import { PROVIDER_ACCOUNTS_CAPABILITY } from "@openbot/contracts/team-protocol/provider-accounts-v1";
 import { PROVIDERS_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/providers-v1";
@@ -84,6 +86,8 @@ import {
   listEventRoutines,
   listHiddenAgents,
   listHostedSites,
+  listMcpServers,
+  listMcpSignIns,
   listProviderAccounts,
   listSharedTables,
   messagingConnectorAddOrchestrator,
@@ -97,9 +101,11 @@ import {
   previewAgentTemplate,
   publishAgentTemplate,
   readAgentSessionSettings,
+  removeMcpServer,
   resetAgentSessionSetting,
   rotateEventRoutineSecret,
   saveEventRoutine,
+  saveMcpServer,
   setAgentHidden,
   setAgentProviderAccount,
   setAgentSessionSetting,
@@ -107,8 +113,11 @@ import {
   setHostAgentMemoryLimit,
   setHostTimezone,
   setHostUpdateSettings,
+  setMcpServerEnabled,
+  signOutMcpServer,
   startHostUpdate,
   testEventRoutine,
+  testMcpServer,
   uninstallAgentSkill,
   unpublishAgentTemplate,
 } from "@openbot/team-client/team-admin-requests";
@@ -230,6 +239,13 @@ type HostRequestActions = Pick<
   | "loadHostedSites"
   | "deleteHostedSite"
   | "providerAdmin"
+  | "listMcpServers"
+  | "saveMcpServer"
+  | "removeMcpServer"
+  | "setMcpServerEnabled"
+  | "testMcpServer"
+  | "listMcpSignIns"
+  | "signOutMcpServer"
   | "setAgentSessionSetting"
   | "resetAgentSessionSetting"
   | "listSharedTables"
@@ -341,6 +357,9 @@ export function createHostRequestActions({
   /** The sites are an optional route set. Every member lists them; the host deletes for an owner or admin only. */
   const sitesApi = (serverId: string) =>
     capabilityApi(serverId, HOSTED_SITES_CAPABILITY, "mobile.server.sites.unsupported");
+  /** The MCP servers are an optional admin route set. */
+  const mcpAdmin = (serverId: string) =>
+    capabilityApi(serverId, MCP_SERVERS_CAPABILITY, "mobile.server.mcp.unsupported");
   function memoryRequest(serverId: string): AgentMemoriesRequest<TeamRequestError> {
     return (method, path, decode, body) =>
       Effect.tryPromise({
@@ -413,6 +432,22 @@ export function createHostRequestActions({
       createProviderAdmin(
         capabilityApi(serverId, PROVIDERS_ADMIN_CAPABILITY, "mobile.server.providers.unsupported"),
         capabilities.get(serverId) ?? [],
+      ),
+    listMcpServers: async (serverId) => runTeamRequest(listMcpServers(mcpAdmin(serverId))),
+    saveMcpServer: async (config, serverId) => runTeamRequest(saveMcpServer(mcpAdmin(serverId), { config })),
+    removeMcpServer: async (mcpServerId, serverId) =>
+      runTeamRequest(removeMcpServer(mcpAdmin(serverId), { mcpServerId })),
+    setMcpServerEnabled: async (mcpServerId, enabled, serverId) =>
+      runTeamRequest(setMcpServerEnabled(mcpAdmin(serverId), { mcpServerId, enabled })),
+    testMcpServer: async (config, serverId) => runTeamRequest(testMcpServer(mcpAdmin(serverId), { config })),
+    // An older host keeps no sign-ins that a client can read.
+    listMcpSignIns: async (serverId) =>
+      has(serverId, MCP_SIGN_IN_CAPABILITY) ? runTeamRequest(listMcpSignIns(teamApi(serverId))) : [],
+    signOutMcpServer: async (mcpServerId, serverId) =>
+      runTeamRequest(
+        signOutMcpServer(capabilityApi(serverId, MCP_SIGN_IN_CAPABILITY, "mobile.server.mcp.unsupported"), {
+          mcpServerId,
+        }),
       ),
     loadAgentSessionSettings: async (agentId, serverId) =>
       has(serverId, AGENT_SESSION_SETTINGS_CAPABILITY)

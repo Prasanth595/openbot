@@ -18,6 +18,7 @@ import { ServerStatusLabel } from "@/features/servers/components/server-status-l
 import { TrailingValue } from "@/features/servers/components/trailing-value";
 import { SERVER_ROLE_LABEL_KEYS } from "@/features/servers/model/server-role";
 import { timeZoneLabel } from "@/features/servers/model/time-zones";
+import { useServerMcp } from "@/features/servers/model/use-server-mcp";
 import { useServerProviders } from "@/features/servers/model/use-server-providers";
 import { useServerSites } from "@/features/servers/model/use-server-sites";
 import { useServerTimezone } from "@/features/servers/model/use-server-timezone";
@@ -150,6 +151,7 @@ export function ServerSettingsScreen() {
         ) : null}
         <ServerSitesRow serverId={serverId} />
         <ServerProvidersRow serverId={serverId} />
+        <ServerMcpRow serverId={serverId} />
         {update.access || update.query.data ? <ServerUpdatesRow serverId={serverId} update={update} /> : null}
       </SettingsSection>
       <ServerGeneralSettings serverId={serverId} />
@@ -428,6 +430,25 @@ function ServerProvidersRow({ serverId }: { serverId: string }) {
       onPress={() => router.push({ pathname: "/server-settings/providers", params: { serverId } })}
     >
       <Typography.Paragraph>{t("mobile.server.settings.providers")}</Typography.Paragraph>
+    </SettingsRow>
+  );
+}
+
+/** The MCP servers row, for an owner or admin of a host that serves `mcp-servers-v1`. */
+function ServerMcpRow({ serverId }: { serverId: string }) {
+  const { t } = useText();
+  const { canManage, list } = useServerMcp(serverId);
+  if (!canManage) return null;
+  return (
+    <SettingsRow
+      trailing={
+        list.data ? (
+          <TrailingValue value={t("mobile.server.settings.mcpCount", { count: list.data.length })} />
+        ) : undefined
+      }
+      onPress={() => router.push({ pathname: "/server-settings/mcp", params: { serverId } })}
+    >
+      <Typography.Paragraph>{t("mobile.server.settings.mcp")}</Typography.Paragraph>
     </SettingsRow>
   );
 }

@@ -44,6 +44,9 @@ import type {
   HostUpdateStatus,
   InstallAgentTemplateInput,
   InstalledSkill,
+  McpServerConfig,
+  McpSignInState,
+  McpTestResult,
   MessagingOverview,
   MessagingPlatform,
   OnePasswordConnectorStatus,
@@ -328,6 +331,19 @@ export interface MobileWorkspaceContextValue {
   canManageProviders: (serverId: string) => boolean;
   /** The Providers admin of one host, with the newest route set that it serves. */
   providerAdmin: (serverId: string) => ProviderAdmin;
+  /** An owner or admin of an online host that serves `mcp-servers-v1`. The host checks the role again. */
+  canManageMcpServers: (serverId: string) => boolean;
+  /** The MCP servers that the host gives its agents. Each change answers with the whole list. */
+  listMcpServers: (serverId: string) => Promise<McpServerConfig[]>;
+  /** An empty id adds a server. */
+  saveMcpServer: (config: McpServerConfig, serverId: string) => Promise<McpServerConfig[]>;
+  removeMcpServer: (mcpServerId: string, serverId: string) => Promise<McpServerConfig[]>;
+  setMcpServerEnabled: (mcpServerId: string, enabled: boolean, serverId: string) => Promise<McpServerConfig[]>;
+  /** Connects once with `config` on the host. Nothing is saved. */
+  testMcpServer: (config: McpServerConfig, serverId: string) => Promise<McpTestResult>;
+  /** The http servers that the host holds a sign-in for. Empty for a host without `mcp-sign-in-v1`. */
+  listMcpSignIns: (serverId: string) => Promise<McpSignInState[]>;
+  signOutMcpServer: (mcpServerId: string, serverId: string) => Promise<McpSignInState[]>;
   addRemoteServer: (input: AddRemoteServerInput) => Promise<string>;
   /** Creates an agent on the active server and returns its id. */
   createAgent: (input: CreateAgentInput) => Promise<string>;
@@ -558,6 +574,7 @@ type MobileWorkspaceStateKey =
   | "canViewHostedSites"
   | "canDeleteHostedSites"
   | "canManageProviders"
+  | "canManageMcpServers"
   | "canSendNotifications"
   | "canManageEvents"
   | "canManageAgentSkills"

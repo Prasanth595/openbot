@@ -94,6 +94,8 @@ export const queryKeys = {
     serverId,
     provider,
   ],
+  mcpServers: (scope: QueryScope, serverId: string) => ["mcp-servers", ...scope, serverId],
+  mcpSignIns: (scope: QueryScope, serverId: string) => ["mcp-sign-ins", ...scope, serverId],
   serverLogo: (scope: QueryScope, serverId: string, ...logo: [] | [logoKey: string | null]) => [
     "server-logo",
     ...scope,
