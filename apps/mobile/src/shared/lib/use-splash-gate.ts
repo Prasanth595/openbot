@@ -47,5 +47,11 @@ export function useSplashGate(busy: boolean, splash: SplashController, nativeRea
     [handOff],
   );
 
-  return { covered: busy || !handedOff || !contentReady, reportArtwork, reportContentReady };
+  return {
+    covered: busy || !handedOff || !contentReady,
+    /** The native splash is gone, and only the stage shows. */
+    nativeHidden: handedOff,
+    reportArtwork,
+    reportContentReady,
+  };
 }

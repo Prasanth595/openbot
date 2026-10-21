@@ -71,7 +71,11 @@ function RootNavigator() {
   const motionReady = useMotionPreferences((state) => state.ready);
   const preferencesReady = appearanceReady && motionReady;
   const busy = loading || !preferencesReady;
-  const { covered, reportArtwork, reportContentReady } = useSplashGate(busy, nativeSplash, preferencesReady);
+  const { covered, nativeHidden, reportArtwork, reportContentReady } = useSplashGate(
+    busy,
+    nativeSplash,
+    preferencesReady,
+  );
   const reducedMotion = useReducedMotion();
 
   // The stage takes over from the native splash with the same block and eyes. When the launch is
@@ -158,7 +162,7 @@ function RootNavigator() {
             </View>
           ) : null}
         </View>
-        <BloubStage onLayout={() => reportArtwork("stage")} />
+        <BloubStage nativeSplashHidden={nativeHidden} onLayout={() => reportArtwork("stage")} />
         <AppLockOverlay />
       </View>
     </SplashContentReadyContext.Provider>

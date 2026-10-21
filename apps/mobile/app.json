@@ -46,6 +46,9 @@
           "dark": {
             "backgroundColor": "#756183",
             "image": "./assets/splash/eyes.png"
+          },
+          "android": {
+            "imageWidth": 188
           }
         }
       ],

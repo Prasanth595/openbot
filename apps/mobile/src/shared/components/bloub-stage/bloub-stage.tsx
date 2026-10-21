@@ -13,6 +13,7 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useReducedMotion } from "@/shared/lib/motion";
+import { isAndroid } from "@/shared/lib/platform";
 import { SPLASH_EASE_OUT } from "@/shared/lib/splash-motion";
 import { BloubEyes, EYES_HEIGHT, EYES_WIDTH } from "./bloub-eyes";
 import { BLOUB_MOVE, BLOUB_MOVE_MS, BLOUB_RADIUS, bloubEyesFrame, bloubGradient, useBloubColors } from "./bloub-look";
@@ -24,6 +25,10 @@ import { StageBackButton } from "./stage-back-button";
 const CLEAR_DELAY_MS = 300;
 const VEIL = { duration: 360, easing: SPLASH_EASE_OUT };
 const STATUS_GAP = 32;
+// Android 12 and later show the splash icon only inside a 192 dp circle in a 288 dp square. At full
+// size the tip of the left eye is 117.5 pt from the middle, so the Android splash draws the eyes at
+// this scale. Keep the Android `imageWidth` in app.json equal to 240 times this value.
+const ANDROID_SPLASH_EYES_SCALE = 0.78;
 
 /** The text on a covering block: a title under the eyes, or a status line at the bottom. */
 function StageCaption({
@@ -125,7 +130,14 @@ function StageBack({ request, top, eyeColor }: { request: BloubStageRequest; top
  * block whose lower edge moves. Only transforms, opacity and colors animate, all on the UI thread.
  * The block is taller than the screen by its corner radius, so a cover hides the round corners.
  */
-export function BloubStage({ onLayout }: { onLayout?: () => void }) {
+export function BloubStage({
+  nativeSplashHidden,
+  onLayout,
+}: {
+  /** False while the native splash still shows over the stage. */
+  nativeSplashHidden: boolean;
+  onLayout?: () => void;
+}) {
   const { store, lift, gazeX, gazeY, look } = useBloubStage();
   const active = useSyncExternalStore(store.subscribe, store.active);
   const request = active?.request ?? null;
@@ -168,6 +180,9 @@ export function BloubStage({ onLayout }: { onLayout?: () => void }) {
   const glow = useSharedValue(0);
   const raise = useSharedValue(0);
   const moodScale = useSharedValue(1);
+  // The Android splash draws the eyes smaller (see ANDROID_SPLASH_EYES_SCALE). The eyes start at
+  // that size and grow to full size once the native splash is gone, so the handover does not jump.
+  const splashScale = useSharedValue(isAndroid ? ANDROID_SPLASH_EYES_SCALE : 1);
   const dim = useSharedValue(dimmed ? 1 : 0);
 
   useEffect(() => {
@@ -180,6 +195,10 @@ export function BloubStage({ onLayout }: { onLayout?: () => void }) {
     // The bright and the dim block cross-fade when a loader and a screen hand over.
     dim.set(withTiming(dimmed ? 1 : 0, { duration: reduced ? 160 : 300, easing: SPLASH_EASE_OUT }));
   }, [dim, dimmed, reduced]);
+  useEffect(() => {
+    if (!nativeSplashHidden) return;
+    splashScale.set(withTiming(1, { duration: reduced ? 160 : 520, easing: SPLASH_EASE_OUT }));
+  }, [nativeSplashHidden, reduced, splashScale]);
   useEffect(() => {
     // The native splash is flat. The light of the gradient comes in after it.
     glow.set(withTiming(1, { duration: 600, easing: SPLASH_EASE_OUT }));
@@ -224,7 +243,7 @@ export function BloubStage({ onLayout }: { onLayout?: () => void }) {
       opacity: frame.opacity,
       transform: [
         { translateY: frame.center + raise.get() - EYES_HEIGHT / 2 },
-        { scale: frame.scale * moodScale.get() },
+        { scale: frame.scale * moodScale.get() * splashScale.get() },
       ],
     };
   });
