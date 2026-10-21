@@ -227,10 +227,28 @@ try {
   const crm = row("crm");
   assert.ok(crm);
   store.save({ ...crm, headers: [{ key: "Authorization", value: `Bearer ${HEADER_SECRET}` }] });
-  const edited = await call("an edit keeps the headers", "save_mcp_server", { name: "crm", url: servers.open.url });
-  assert.equal(edited.result.status, "ready");
+  const keys = [{ key: "Authorization", value: `Bearer ${HEADER_SECRET}` }];
+  const moved = await call("keys do not move to another server", "save_mcp_server", {
+    name: "crm",
+    url: servers.open.url,
+  });
+  assert.equal(moved.success, false);
+  assert.equal(moved.approvals.length, 0);
+  assert.equal(row("crm")?.url, servers.key.url);
+  const transport = await call("keys do not move to another transport", "save_mcp_server", {
+    name: "crm",
+    command: "node",
+  });
+  assert.equal(transport.success, false);
+  assert.deepEqual(row("crm")?.headers, keys);
+
+  const edited = await call("an edit keeps the headers", "save_mcp_server", {
+    name: "crm",
+    url: `${servers.key.url}?region=eu`,
+  });
+  assert.equal(edited.result.status, "needs_key");
   assert.match(edited.approvals[0] ?? "", /^Change the MCP server crm/u);
-  assert.deepEqual(row("crm")?.headers, [{ key: "Authorization", value: `Bearer ${HEADER_SECRET}` }]);
+  assert.deepEqual(row("crm")?.headers, keys);
 
   const listed = await call("list shows no secret", "list_mcp_servers", {});
   const crmListed = listed.result.servers?.find((entry) => entry.name === "crm");

@@ -65,7 +65,7 @@ export const MCP_SERVER_TOOL_DEFINITIONS = [
   },
   {
     name: "save_mcp_server",
-    description: `Add an MCP server, or change one by its name, only when the user asks for it. ${MCP_SCOPE} ${MCP_APPROVAL} Then OpenBot connects to the server and saves it when it answers or needs only a sign-in or a key. The result is ready with its tools, needs_sign_in (a Sign in card is in the conversation: wait for the user), needs_key (the user enters the key in Server settings, MCP; never ask for a key in the chat), or the error. Headers and environment values are not set here. New tools reach the agents from their next turn.`,
+    description: `Add an MCP server, or change one by its name, only when the user asks for it. ${MCP_SCOPE} ${MCP_APPROVAL} Then OpenBot connects to the server and saves it when it answers or needs only a sign-in or a key. The result is ready with its tools, needs_sign_in (a Sign in card is in the conversation: wait for the user), needs_key (the user enters the key in Server settings, MCP; never ask for a key in the chat), or the error. Headers and environment values are not set here: a stdio server that cannot start without a key in its environment is added by the user in Server settings, MCP. A server that holds keys keeps its transport, address origin and command. New tools reach the agents from their next turn.`,
     shape: saveMcpServerToolSchema.shape,
   },
   {
@@ -136,8 +136,11 @@ export function mcpServersFromGateway(
 export interface McpServerToolCall {
   tool: McpServerToolName;
   arguments: unknown;
-  /** Asks the user to approve the change that `reason` states. True when it is approved. */
-  approve(reason: string): Effect.Effect<boolean, ToolOperationFailed>;
+  /**
+   * Asks the user to approve the change that `reason` states. `cwd` is the folder a stdio server
+   * starts in, when it names one. True when it is approved.
+   */
+  approve(reason: string, cwd?: string | null): Effect.Effect<boolean, ToolOperationFailed>;
   /** Shows the user the card that signs in to a saved http server. */
   requestSignIn(config: McpServerConfig): Effect.Effect<void, ToolOperationFailed>;
 }
@@ -176,8 +179,14 @@ const runMcpServerTool = Effect.fn("McpServerTools.handle")(function* (
       const errors = mcpConfigErrors(config);
       const invalid = errors.name ?? errors.command ?? errors.url;
       if (invalid) return openBotToolFailure(invalid);
+      // The keys of a row were given for its server. A change that points them at another server, or
+      // that drops them with the other transport, is the user's to make in Server settings.
+      if (existing && holdsKeys(existing) && serverMoves(existing, config))
+        return openBotToolFailure(sourceText("error.agent.mcpServerKeysMove", { name: existing.name }));
       const key = existing ? "status.agent.mcpServerChange" : "status.agent.mcpServerAdd";
-      if (!(yield* call.approve(sourceText(key, { name: config.name, target: serverTarget(config) }))))
+      // The command line can quote a key the user typed: the reason also reaches Slack and the phone.
+      const reason = servers.redact(sourceText(key, { name: config.name, target: serverTarget(config) }));
+      if (!(yield* call.approve(reason, config.transport === "stdio" ? config.workingDirectory || null : null)))
         return openBotToolFailure(sourceText("error.agent.mcpServerDeclined"));
       // A server that does not answer is not saved, so no agent is given a broken entry. A server that
       // needs a sign-in or a key is saved: the sign-in and the key belong to a saved row.
@@ -271,9 +280,11 @@ function mergeServer(existing: McpServerConfig | undefined, input: z.infer<typeo
     url: "",
     headers: [],
   };
+  // An address or a command alone says which transport the agent means.
+  const transport = input.transport ?? (input.url ? "http" : input.command ? "stdio" : base.transport);
   return {
     ...base,
-    transport: input.transport ?? base.transport,
+    transport,
     enabled: input.enabled ?? base.enabled,
     url: input.url ?? base.url,
     command: input.command ?? base.command,
@@ -308,6 +319,18 @@ function describeServer(config: McpServerConfig, signIns: readonly McpSignInStat
     ...(config.workingDirectory ? { workingDirectory: config.workingDirectory } : {}),
     environmentNames: [...config.env.map(({ key }) => key), ...config.envPassthrough],
   };
+}
+
+function holdsKeys(config: McpServerConfig): boolean {
+  return config.headers.length > 0 || config.env.length > 0 || config.envPassthrough.length > 0;
+}
+
+/** Whether the change gives the row's keys to another server: another transport, origin, or command. */
+function serverMoves(saved: McpServerConfig, next: McpServerConfig): boolean {
+  if (saved.transport !== next.transport) return true;
+  if (saved.transport === "stdio") return saved.command !== next.command;
+  if (!URL.canParse(saved.url) || !URL.canParse(next.url)) return saved.url !== next.url;
+  return new URL(saved.url).origin !== new URL(next.url).origin;
 }
 
 /** What the approval names: the address without its query, or the whole command line the server runs. */

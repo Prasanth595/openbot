@@ -1067,7 +1067,7 @@ export class OpenBotToolRouter {
     return yield* handleMcpServerTool(servers, {
       tool: params.tool,
       arguments: params.arguments,
-      approve: (reason) =>
+      approve: (reason, cwd) =>
         this.#attention
           .awaitToolApproval(client, request, {
             requestId: request.id,
@@ -1076,7 +1076,7 @@ export class OpenBotToolRouter {
             turnId: params.turnId,
             kind: "permissions",
             command: null,
-            cwd: null,
+            cwd: cwd ?? null,
             reason,
             grantRoot: null,
             permissions: null,

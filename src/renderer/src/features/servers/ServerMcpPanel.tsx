@@ -439,13 +439,13 @@ export function ServerMcpPanel(props: ServerMcpPanelProps) {
   createEffect(
     () => {
       const id = props.signInRequest;
-      const config = id ? props.servers.find((candidate) => candidate.id === id) : undefined;
-      return config && canSignIn(config) ? config : undefined;
+      return id ? props.servers.find((candidate) => candidate.id === id) : undefined;
     },
     (config) => {
       if (!config) return;
+      // A row this panel cannot sign in to ends the request, so no sign-in starts later unasked.
       props.onSignInRequestHandled?.();
-      void signInRow(config);
+      if (canSignIn(config)) void signInRow(config);
     },
   );
 
