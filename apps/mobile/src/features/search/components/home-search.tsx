@@ -3,6 +3,8 @@ import { BlurView } from "expo-blur";
 import * as Crypto from "expo-crypto";
 import { GlassView } from "expo-glass-effect";
 import { type Href, router, useFocusEffect } from "expo-router";
+import type { NativeStackNavigationProp } from "expo-router/native-stack";
+import { type ParamListBase, useNavigation } from "expo-router/react-navigation";
 import { Spinner, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
 import type { LucideIcon } from "lucide-react-native";
@@ -653,6 +655,7 @@ export function HomeSearchBar({
   const layout = reduced ? undefined : FIELD_LAYOUT;
   const enter = reduced ? undefined : closeButtonEnter;
   const exit = reduced ? undefined : closeButtonExit;
+  const homeAtRest = useHomeAtRest();
   const { target } = search;
   const prepareFromTouch = () => {
     if (search.open) return;
@@ -739,7 +742,7 @@ export function HomeSearchBar({
           tintShown={showsResult}
           blurTarget={blurTarget}
           // The open results lie over the list and are not in the target, so the field is solid then.
-          blurPaused={search.open}
+          blurPaused={search.open || !homeAtRest}
         >
           {/* The field stays mounted under the result, so "Try again" can focus it at once. The field
               fades out first; the result then fades in from 97% as the tint comes in. */}
@@ -971,6 +974,41 @@ function TargetChip({ agent, onPress }: { agent: MobileAgent; onPress: () => voi
   );
 }
 
+/**
+ * Android: whether home shows with no screen over it and no push or pop in progress. The field's
+ * blur blurs the whole home list again on each frame that the list changes, so it stops from the
+ * moment home loses focus. It starts again when home has focus and its return animation has ended.
+ * A sheet over home does not hide home, so its close gives focus with no animation to wait for.
+ */
+function useHomeAtRest(): boolean {
+  const navigation = useNavigation<NativeStackNavigationProp<ParamListBase>>();
+  const [atRest, setAtRest] = useState(true);
+  useEffect(() => {
+    if (!ANDROID_BLUR) return;
+    // A screen that slid over home hid it; home then comes back with its own animation.
+    let hidden = false;
+    const listeners = [
+      navigation.addListener("blur", () => setAtRest(false)),
+      navigation.addListener("focus", () => {
+        if (!hidden) setAtRest(true);
+      }),
+      navigation.addListener("transitionStart", () => setAtRest(false)),
+      navigation.addListener("transitionEnd", (event) => {
+        if (event.data.closing) {
+          hidden = !navigation.isFocused();
+          return;
+        }
+        hidden = false;
+        if (navigation.isFocused()) setAtRest(true);
+      }),
+    ];
+    return () => {
+      for (const remove of listeners) remove();
+    };
+  }, [navigation]);
+  return atRest;
+}
+
 /** Glass where the system has it; a solid capsule elsewhere, and with Reduce Transparency on. */
 const CAPSULE_SHADOW = "0 6px 18px rgba(0, 0, 0, 0.07)";
 /** The blur radius of the Android capsule, near the 18 px of the design; the native limit is 25. */
@@ -1041,12 +1079,13 @@ function GlassCapsule({
     >
       {isAndroid && !liquidGlass ? (
         // The blur stays mounted while the field is solid: a `BlurView` that mounts paints its tint
-        // and the window background for a frame. The solid fill then covers it.
+        // and the window background for a frame. The solid fill then covers it, and the blur method
+        // `none` stops the blur, which otherwise blurs the whole target on each frame that it changes.
         <>
           {ANDROID_BLUR && blurTarget ? (
             <BlurView
               blurTarget={blurTarget}
-              blurMethod="dimezisBlurViewSdk31Plus"
+              blurMethod={blurs ? "dimezisBlurViewSdk31Plus" : "none"}
               intensity={BLUR_RADIUS}
               blurReductionFactor={1}
               tint={theme === "dark" ? "dark" : "light"}
