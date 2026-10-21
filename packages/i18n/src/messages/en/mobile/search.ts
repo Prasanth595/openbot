@@ -17,7 +17,6 @@ export const messages = defineMessages("mobile.search", {
   "mobile.search.task.ideaHint": "Puts this text in the task field.",
   "mobile.search.task.again": "Again",
   "mobile.search.task.openWith": "Open tasks with {name}",
-  "mobile.search.task.atHint": "Type @ and a name to give an agent a task.",
   "mobile.search.task.noAgent": "No agent has that name.",
   "mobile.search.task.send": "Start task",
   "mobile.search.task.startedBy": "{name} started the task",

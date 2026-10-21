@@ -330,6 +330,7 @@ const fakeAgents: TeamApiAgents = {
   sendMessage: unused("sendMessage"),
   setMessageReaction: unused("setMessageReaction"),
   clearAgentContext: unused("clearAgentContext"),
+  agentIdForRequest: () => undefined,
   respondToPrompt: unused("respondToPrompt"),
   respondToApproval: unused("respondToApproval"),
   respondToBrowserSecret: unused("respondToBrowserSecret"),
@@ -910,18 +911,19 @@ try {
         isDeepStrictEqual(ids(v8), ["agent-ada", "agent-oc", "agent-pi"]),
       { v3: ids(v3), v6: ids(v6), v7: ids(v7), v8: ids(v8) },
     );
-    // Each frozen list is the released vocabulary of its protocol. Protocol 8 and later hide nothing.
+    // Each frozen list is the released vocabulary of its protocol. Protocol 8 and later hide only the
+    // local-only providers, which every protocol hides.
     const hiddenBy = (protocol: number) =>
       AGENT_PROVIDERS.filter((provider) => isPeerHiddenProvider(provider, protocol));
     const expectedHidden: Record<number, readonly string[]> = {
-      1: ["opencode", "antigravity", "acp", "cursor", "cline", "pi", "muse"],
-      3: ["opencode", "antigravity", "acp", "cursor", "cline", "pi", "muse"],
-      4: ["antigravity", "acp", "cursor", "cline", "pi", "muse"],
-      5: ["cursor", "cline", "pi", "muse"],
-      6: ["pi", "muse"],
-      7: [],
-      8: [],
-      9: [],
+      1: ["opencode", "antigravity", "acp", "cursor", "cline", "pi", "muse", "inception"],
+      3: ["opencode", "antigravity", "acp", "cursor", "cline", "pi", "muse", "inception"],
+      4: ["antigravity", "acp", "cursor", "cline", "pi", "muse", "inception"],
+      5: ["cursor", "cline", "pi", "muse", "inception"],
+      6: ["pi", "muse", "inception"],
+      7: ["inception"],
+      8: ["inception"],
+      9: ["inception"],
     };
     const hiddenRows = Object.entries(expectedHidden).map(([protocol, expected]) => ({
       protocol: Number(protocol),
@@ -929,7 +931,7 @@ try {
       expected: AGENT_PROVIDERS.filter((provider) => expected.includes(provider)),
     }));
     check(
-      "the frozen provider lists hide each provider that a protocol below 8 does not know, and only those",
+      "the frozen provider lists hide each provider that a protocol below 8 does not know, and every protocol hides Inception",
       hiddenRows.every((row) => isDeepStrictEqual(row.hidden, row.expected)),
       hiddenRows,
     );

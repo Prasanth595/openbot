@@ -187,6 +187,8 @@ export const messages = {
     "Model sağlayıcısı hesabın faturalandırması nedeniyle isteği reddetti. Beklemek bunu düzeltmez. Sağlayıcı hesabına bir ödeme yöntemi veya bakiye ekleyin ya da başka bir model seçin.\n{detail}",
   "error.provider.opencodeInvalidUpload":
     "OpenCode'un model sağlayıcısı geçersiz bir yükleme isteği bildirdi. Başka bir model seçin ve devam edin. Kayıtlı rutinleri yeniden oluşturmadan önce denetleyin.\n{detail}",
+  "error.provider.opencodeUnreadableContent":
+    "Bu model, bu sohbetteki bir dosyayı veya görseli okuyamıyor. Dosya okuyabilen bir model seçin, ardından mesajınızı yeniden gönderin.",
   "error.provider.opencodeProviderFailed":
     "Model sağlayıcısı kendi tarafında başarısız oldu. Bağlantınız bunun nedeni değildir. Daha sonra tekrar deneyin veya başka bir model seçin.\n{detail}",
   "error.provider.opencodeNetwork":
@@ -349,6 +351,7 @@ export const messages = {
   "error.provider.museAuthUnverified":
     "Muse kimlik doğrulaması doğrulanmadı. Ana makinede bağlanın veya bir Meta API anahtarı ayarlayın.",
   "error.provider.museSignIn": "Devam etmek için ana makinede Muse'da oturum açın.",
+  "error.provider.inceptionSignIn": "Devam etmek için bir Inception API anahtarı ekleyin.",
   "error.provider.terminalLoginFailed":
     "Oturum açma terminali açılamadı. Bu ana makinede sağlayıcı CLI'sini açıp orada oturum açın, ardından sağlayıcıları yenileyin.",
   "error.provider.nativeArchiveInvalid": "Sağlayıcı indirmesi geçerli bir kurulum içermiyor.",

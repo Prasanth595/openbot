@@ -1,7 +1,10 @@
 import {
+  type AgentAccessChange,
+  type AgentAccessSnapshot,
   type AgentSessionSettings,
   type DiscordAccess,
   type DiscordRoleList,
+  decodeAgentAccessSnapshot,
   type HiddenAgentsSnapshot,
   type HostDiscordAccessInput,
   type HostSetDiscordAccessInput,
@@ -13,6 +16,7 @@ import {
   type SetAgentHiddenInput,
   type SetAgentSessionSettingInput,
 } from "@openbot/contracts/ipc";
+import { AGENT_ACCESS_ROUTES } from "@openbot/contracts/team-protocol/agent-access-v1";
 import { AGENT_HIDDEN_ROUTES } from "@openbot/contracts/team-protocol/agent-hidden-v1";
 import { AGENT_MEMORY_LIMIT_ROUTES } from "@openbot/contracts/team-protocol/agent-memory-limit-v1";
 import { AGENT_SESSION_SETTINGS_ROUTES } from "@openbot/contracts/team-protocol/agent-session-settings-v1";
@@ -500,6 +504,29 @@ export function setHostAgentMemoryLimit(
   limit: number,
 ): Effect.Effect<HostAgentMemoryLimit, TeamAdminRequestError> {
   return adminCall(() => request("POST", AGENT_MEMORY_LIMIT_ROUTES.update, decodeHostAgentMemoryLimit, { limit }));
+}
+
+/** The roles of the host (`agent-access-v1`). A member reads only `mine`. */
+export function getHostAgentAccess(request: TeamApiRequest): Effect.Effect<AgentAccessSnapshot, TeamAdminRequestError> {
+  return adminCall(() => request("POST", AGENT_ACCESS_ROUTES.read, decodeAgentAccessSnapshot, {}));
+}
+
+/** Replaces the roles. The host answers 409 when another admin saved after `change.revision`. */
+export function setHostAgentAccess(
+  request: TeamApiRequest,
+  change: AgentAccessChange,
+): Effect.Effect<AgentAccessSnapshot, TeamAdminRequestError> {
+  const body = {
+    revision: change.revision,
+    everyone: { ...change.everyone },
+    roles: change.roles.map((role) => ({
+      id: role.id,
+      name: role.name,
+      agents: { ...role.agents },
+      memberIds: [...role.memberIds],
+    })),
+  };
+  return adminCall(() => request("POST", AGENT_ACCESS_ROUTES.set, decodeAgentAccessSnapshot, body));
 }
 
 /** The one MCP read route, and the only one the host answers to a GET. */

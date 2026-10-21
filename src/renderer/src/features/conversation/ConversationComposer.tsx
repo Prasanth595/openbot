@@ -180,6 +180,10 @@ export function ConversationComposer() {
     const expired = localizeSourceText(sourceText("error.provider.opencodeKeyExpired"));
     return currentChatError() === expired ? props.onManageProviders : undefined;
   };
+  /** A file the model cannot read is fixed by a model change, not by waiting, so it is not shown as a failure. */
+  const unreadableContent = () =>
+    props.agent?.provider === "opencode" &&
+    currentChatError() === localizeSourceText(sourceText("error.provider.opencodeUnreadableContent"));
   /**
    * A window that ended gives the quota back, and the reading that named it stays as it was until
    * something asks the provider again. So the clock is part of the state, not only the percentage.
@@ -499,6 +503,7 @@ export function ConversationComposer() {
         {(message) => (
           <ComposerErrorBanner
             message={message()}
+            tone={unreadableContent() ? "warning" : "danger"}
             reference={currentChatErrorReference()}
             onShown={() => reportErrorBanner(message(), "turn")}
             conversationKey={currentChatConversationKey()}

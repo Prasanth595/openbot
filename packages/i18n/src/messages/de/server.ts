@@ -205,9 +205,9 @@ export const messages = {
   "server.import.applyFailed": "Der Import wurde nicht abgeschlossen.",
   "server.role.owner": "Eigentümer",
   "server.settings.generalTitle": "Allgemein",
-  "server.settings.generalDescription": "Verwalte die Identität und den veröffentlichten Zugriff dieses Servers.",
+  "server.settings.generalDescription": "Verwalte Namen, Logo und Einstellungen dieses Servers.",
   "server.settings.membersTitle": "Mitglieder",
-  "server.settings.membersDescription": "Lade Personen ein und verwalte den Zugriff auf diesen Server.",
+  "server.settings.membersDescription": "Veröffentliche diesen Server, lade Personen ein und verwalte den Zugriff.",
   "server.settings.desktopTitle": "Remotedesktop",
   "server.settings.desktopDescription": "Richte den Desktop dieses Servers ein oder verbinde dich damit.",
   "server.settings.mcpTitle": "MCP",
@@ -220,7 +220,7 @@ export const messages = {
   "server.settings.hostedSitesDescription":
     "Die statischen Websites, die Agenten dieses Servers auf openbot.site veröffentlicht haben.",
   "server.settings.importTitle": "Importieren",
-  "server.settings.importDescription": "Verschiebe deine Agenten von Grok Bot auf diesen Server.",
+  "server.settings.importDescription": "Verschiebe deine Agenten von Grok Bot oder Hermes Agent auf diesen Server.",
   "server.settings.transferTitle": "Übertragung",
   "server.settings.transferDescription":
     "Die Agenten und Servereinstellungen dieses Servers in eine Datei übertragen oder aus einer Datei übernehmen.",
@@ -278,10 +278,6 @@ export const messages = {
   "server.settings.access": "Zugriff",
   "server.settings.publish": "Server veröffentlichen",
   "server.settings.published": "Server ist veröffentlicht",
-  "server.settings.address": "Serveradresse",
-  "server.settings.addressDescription": "Verwende diese Adresse, um dich mit dem Server zu verbinden.",
-  "server.settings.private": "Privat",
-  "server.settings.copyAddress": "Serveradresse kopieren",
   "server.settings.setUpDesktopTitle": "Remotedesktop einrichten",
   "server.settings.setUpDesktopDescription": "Sieh und steuere diesen Mac von einem anderen Computer aus.",
   "server.settings.later": "Später",
@@ -289,7 +285,7 @@ export const messages = {
   "server.settings.notifications": "Benachrichtigungen",
   "server.settings.muteNotifications": "Benachrichtigungen stummschalten",
   "server.settings.muteDescription":
-    "Deaktiviere Desktop-Benachrichtigungen und MacBook-Notch-Aktualisierungen von diesem Server.",
+    "Deaktiviere Desktop-Benachrichtigungen, Töne und MacBook-Notch-Aktualisierungen von diesem Server.",
   "server.settings.mutedUntilDescription": "{until}. Deaktiviere diese Option, um die Stummschaltung jetzt aufzuheben.",
   "server.settings.notifyAbout": "Benachrichtige mich über",
   "server.settings.notifyAboutDescription": "Welche Agentenereignisse eine Desktop-Benachrichtigung anzeigen.",
@@ -304,9 +300,10 @@ export const messages = {
   "server.settings.memoryLimitLoadFailed": "Das Erinnerungslimit dieses Servers konnte nicht geladen werden.",
   "server.settings.remoteOnline": "Der Host ist online. Sein Eigentümer steuert die Veröffentlichung.",
   "server.settings.remoteOffline": "Der Host ist offline. Sein Eigentümer steuert die Veröffentlichung.",
-  "server.settings.saveIdentityFirst": "Speichere die Serveridentität vor der Veröffentlichung.",
   "server.settings.reachable": "Online erreichbar. Nur eingeladene Personen können sich anmelden.",
   "server.settings.notReachable": "Online nicht erreichbar. Bestehende Mitglieder und Einladungen bleiben erhalten.",
+  "server.settings.notPublished": "Online nicht erreichbar.",
+  "server.settings.generatedName": "Server von {name}",
   "server.settings.removeTitle": "Server entfernen",
   "server.settings.removeDescription":
     "Entferne diesen Server für alle Mitglieder aus dem Kontodienst. Nutze dies, wenn sein Computer nicht mehr verfügbar ist.",
@@ -346,10 +343,6 @@ export const messages = {
   "server.members.removeDescription":
     "Diese Person verliert den Zugriff auf den Server und seine geteilten Unterhaltungen.",
   "server.members.remove": "Mitglied entfernen",
-  "server.members.invitationsPaused": "Einladungen sind pausiert",
-  "server.members.setupRequired": "Servereinrichtung erforderlich",
-  "server.members.publishToInvite": "Veröffentliche den Server unter „Allgemein“, um neue Personen einzuladen.",
-  "server.members.saveIdentityFirst": "Speichere zuerst die Serveridentität unter „Allgemein“.",
   "server.members.title": "Servermitglieder",
   "server.members.count": {
     one: "{count} Mitglied",

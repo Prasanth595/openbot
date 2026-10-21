@@ -3,6 +3,7 @@ import { CHANNEL_DELETE_CAPABILITY } from "../ipc-chat-channels";
 import { MCP_SERVERS_CAPABILITY } from "../ipc-mcp-servers";
 import { STORAGE_CAPABILITY } from "../ipc-storage";
 import { ACP_REGISTRY_CAPABILITY } from "./acp-registry-v1";
+import { AGENT_ACCESS_CAPABILITY } from "./agent-access-v1";
 import { AGENT_ADMIN_CAPABILITY } from "./agent-admin-v1";
 import { AGENT_HIDDEN_CAPABILITY } from "./agent-hidden-v1";
 import { AGENT_HOST_SETTINGS_CAPABILITY } from "./agent-host-settings-v1";
@@ -102,6 +103,7 @@ export const TEAM_MEMBER_LEAVE_CAPABILITY = "member-leave-v1";
 export const TEAM_QUEUE_WINDOW_CAPABILITY = "queue-window-v1";
 export {
   ACP_REGISTRY_CAPABILITY,
+  AGENT_ACCESS_CAPABILITY,
   AGENT_ADMIN_CAPABILITY,
   AGENT_HIDDEN_CAPABILITY,
   AGENT_HOST_SETTINGS_CAPABILITY,
@@ -250,6 +252,7 @@ export const TEAM_CURRENT_CAPABILITIES = [
   DISCORD_ACCESS_CAPABILITY,
   SIDE_QUESTION_CAPABILITY,
   TEAM_SUBAGENTS_CAPABILITY,
+  AGENT_ACCESS_CAPABILITY,
 ] as const;
 
 export type TeamCurrentCapability = (typeof TEAM_CURRENT_CAPABILITIES)[number];
@@ -350,7 +353,8 @@ export const TEAM_BOOTSTRAP_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
     capability !== AGENT_MEMORY_LIMIT_CAPABILITY &&
     capability !== DISCORD_ACCESS_CAPABILITY &&
     capability !== SIDE_QUESTION_CAPABILITY &&
-    capability !== TEAM_SUBAGENTS_CAPABILITY,
+    capability !== TEAM_SUBAGENTS_CAPABILITY &&
+    capability !== AGENT_ACCESS_CAPABILITY,
 );
 // A v7 host does not know the v8 markers, so a client sends them only after it negotiates protocol 8.
 const TEAM_PROTOCOL_V7_CURRENT_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
@@ -394,6 +398,7 @@ export function legacyTeamCapabilities(capabilities: readonly string[]): string[
       capability !== AGENT_MEMORY_LIMIT_CAPABILITY &&
       capability !== DISCORD_ACCESS_CAPABILITY &&
       capability !== SIDE_QUESTION_CAPABILITY &&
-      capability !== TEAM_SUBAGENTS_CAPABILITY,
+      capability !== TEAM_SUBAGENTS_CAPABILITY &&
+      capability !== AGENT_ACCESS_CAPABILITY,
   );
 }

@@ -1,4 +1,10 @@
-import type { AgentTask, AgentTaskHold, AgentTaskOutcome, AttachmentSummary } from "@openbot/contracts/ipc";
+import type {
+  AgentApproval,
+  AgentTask,
+  AgentTaskHold,
+  AgentTaskOutcome,
+  AttachmentSummary,
+} from "@openbot/contracts/ipc";
 import type { AppTextKey } from "@openbot/i18n";
 import { isAgentTaskActive, isAgentTaskOpen } from "@openbot/team-client/agent-tasks";
 import { ArrowUp, Button, ChevronLeft, ChevronRight, Plus, X } from "@openbot/ui";
@@ -7,6 +13,7 @@ import { AgentActivityIndicator, nextAgentActivityLabel } from "@openbot/ui/feat
 import { ChatMessageRow } from "@openbot/ui/features/conversation/ChatMessageRow";
 import { ComposerEditor } from "@openbot/ui/features/conversation/ComposerEditor";
 import { ComposerNotice } from "@openbot/ui/features/conversation/ComposerNotice";
+import { ApprovalCard } from "@openbot/ui/features/conversation/ConversationPrompts";
 import { TaskMark, type TaskMarkState } from "@openbot/ui/features/conversation/TaskList";
 import { type TextValue, useText } from "@openbot/ui/text";
 import { createEffect, createSignal, For, onSettled, Show } from "solid-js";
@@ -32,8 +39,12 @@ function taskMarkState(task: AgentTask): TaskMarkState {
   return task.outcome === "completed" ? "done" : "failed";
 }
 
-/** The state of a task in a few words: what a running task does now, else how its last turn ended. */
-export function agentTaskStatus(task: AgentTask, t: TextValue["t"]): string {
+/**
+ * The state of a task in a few words: that a running task waits for an approval, what it does now,
+ * else how its last turn ended.
+ */
+export function agentTaskStatus(task: AgentTask, t: TextValue["t"], waitsForApproval = false): string {
+  if (task.state === "running" && waitsForApproval) return t("conversation.tasks.state.waitingApproval");
   if (task.state === "running") return task.progress ?? t("conversation.tasks.state.running");
   if (task.state === "queued") return t("conversation.tasks.state.queued");
   if (task.outcome === null) return t("conversation.tasks.state.new");
@@ -69,7 +80,7 @@ export function agentTaskHoldText(task: AgentTask, limit: number, t: TextValue["
  * The state glyph of a task, with its state as the accessible name. `decorative` hides it where the
  * state is already in the text beside it.
  */
-export function AgentTaskMark(props: { task: AgentTask; decorative?: boolean }) {
+export function AgentTaskMark(props: { task: AgentTask; decorative?: boolean; waitsForApproval?: boolean }) {
   const { t } = useText();
   return (
     <Show
@@ -83,8 +94,8 @@ export function AgentTaskMark(props: { task: AgentTask; decorative?: boolean }) 
       <span
         class="agent-tasks-mark"
         role="img"
-        aria-label={agentTaskStatus(props.task, t)}
-        title={agentTaskStatus(props.task, t)}
+        aria-label={agentTaskStatus(props.task, t, props.waitsForApproval)}
+        title={agentTaskStatus(props.task, t, props.waitsForApproval)}
       >
         <TaskMark state={taskMarkState(props.task)} />
       </span>
@@ -100,6 +111,7 @@ export function AgentTaskChips(props: {
   tasks: readonly AgentTask[];
   onOpen: (taskId: string) => void;
   onClose: (taskId: string) => void;
+  waitsForApproval?: ((task: AgentTask) => boolean) | undefined;
 }) {
   const { t } = useText();
   return (
@@ -114,13 +126,15 @@ export function AgentTaskChips(props: {
                 class="agent-task-chip"
                 aria-label={t("conversation.tasks.chip.open", {
                   title: task().title,
-                  status: agentTaskStatus(task(), t),
+                  status: agentTaskStatus(task(), t, props.waitsForApproval?.(task())),
                 })}
                 onClick={() => props.onOpen(task().id)}
               >
                 <TaskMark state={taskMarkState(task())} />
                 <span class="agent-task-chip-title">{task().title}</span>
-                <span class="agent-task-chip-status">{agentTaskStatus(task(), t)}</span>
+                <span class="agent-task-chip-status">
+                  {agentTaskStatus(task(), t, props.waitsForApproval?.(task()))}
+                </span>
                 <ChevronRight class="agent-task-chip-chevron" aria-hidden="true" />
               </Button>
               <Show when={!isAgentTaskActive(task())}>
@@ -161,6 +175,9 @@ export interface AgentTaskPanelProps {
   onOpenLink: (url: string) => void;
   onPreview: (attachment: AttachmentSummary) => void;
   onAttachmentAction: (attachment: AttachmentSummary, action: "open" | "reveal" | "download") => void;
+  /** The approval that the task's running turn waits for. */
+  approval?: AgentApproval | undefined;
+  onRespondApproval: (decision: "accept" | "decline") => Promise<boolean>;
 }
 
 export interface AgentTaskListProps {
@@ -169,6 +186,7 @@ export interface AgentTaskListProps {
   onNew: () => void;
   onOpen: (taskId: string) => void;
   onClosePanel: () => void;
+  waitsForApproval?: ((task: AgentTask) => boolean) | undefined;
 }
 
 /** The closed tasks that the Tasks pane shows before "Show all". */
@@ -238,7 +256,7 @@ export function AgentTaskList(props: AgentTaskListProps) {
             <Button variant="ghost" type="button" class="agent-tasks-row" onClick={() => props.onOpen(task().id)}>
               <AgentTaskMark task={task()} decorative />
               <span class="agent-tasks-menu-title">{task().title}</span>
-              <small>{agentTaskStatus(task(), t)}</small>
+              <small>{agentTaskStatus(task(), t, props.waitsForApproval?.(task()))}</small>
             </Button>
           )}
         </For>
@@ -335,7 +353,9 @@ export function AgentTaskPanel(props: AgentTaskPanelProps) {
             </Button>
           )}
         </Show>
-        <Show when={props.task}>{(task) => <AgentTaskMark task={task()} />}</Show>
+        <Show when={props.task}>
+          {(task) => <AgentTaskMark task={task()} waitsForApproval={props.approval !== undefined} />}
+        </Show>
         <h2 title={title()}>{title()}</h2>
         <Show when={props.task}>
           {(task) => (
@@ -399,10 +419,22 @@ export function AgentTaskPanel(props: AgentTaskPanelProps) {
               </div>
             )}
           </For>
-          <Show when={props.task?.state === "running" ? props.task : undefined}>
+          <Show when={props.task?.state === "running" && !props.approval ? props.task : undefined}>
             {(task) => (
               <div class="virtual-chat-row">
                 <AgentActivityIndicator agent={props.agent} label={activityLabel} detail={task().progress} />
+              </div>
+            )}
+          </Show>
+          <Show keyed when={props.approval}>
+            {(approval) => (
+              <div class="virtual-chat-row">
+                <ApprovalCard
+                  approval={approval}
+                  agentName={props.agent.name}
+                  onApprove={() => props.onRespondApproval("accept")}
+                  onReject={() => props.onRespondApproval("decline")}
+                />
               </div>
             )}
           </Show>

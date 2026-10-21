@@ -1,9 +1,15 @@
-import { type AgentEvent, type ClientAgentSummary, isAgentSummary } from "@openbot/contracts/ipc";
+import {
+  type AgentEvent,
+  type ClientAgentSummary,
+  isAgentSummary,
+  type TeamRealtimeEvent,
+} from "@openbot/contracts/ipc";
 import { guardedListDecoder } from "@openbot/contracts/ipc-decoding";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import { teamProtocolUpdateDirection } from "@openbot/contracts/team-protocol/v1";
 import { TEAM_PROTOCOL_V3 } from "@openbot/contracts/team-protocol/v3";
 import { decodeTeamProtocolSupportV7Base } from "@openbot/contracts/team-protocol/v7-base";
+import { agentEventCanNotify } from "@openbot/team-client/agent-notifications";
 import type { RemoteTeamHost } from "@openbot/team-client/remote-directory";
 import type { createRemoteTeamPeer, RemoteTeamPeerActions } from "@openbot/team-client/remote-peer";
 import { createRemoteConnectionRecovery } from "@openbot/team-client/remote-recovery";
@@ -48,8 +54,27 @@ interface HostEntry {
   agentsRevision: number;
 }
 
-/** The events of a host that this tab has not opened that a notification can show. */
-export type WebHostNotice = Extract<AgentEvent, { type: "prompt" | "approval" | "turn-completed" }>;
+/** The events of a host that this tab has not opened that a notification can show or withdraw. */
+export type WebHostNotice = Extract<
+  AgentEvent,
+  {
+    type:
+      | "prompt"
+      | "approval"
+      | "browser-takeover-requested"
+      | "turn-completed"
+      | "error"
+      | "agent-input-resolved"
+      | "browser-takeover-resolved";
+  }
+>;
+
+/** Whether a host event can show a notification, or resolves the request of one. */
+export function isWebHostNotice(event: AgentEvent | TeamRealtimeEvent): event is WebHostNotice {
+  return (
+    agentEventCanNotify(event) || event.type === "agent-input-resolved" || event.type === "browser-takeover-resolved"
+  );
+}
 
 export interface WebHostConnections {
   /** The hosts of the account. Every host that this tab has not opened gets a status connection. */
@@ -169,8 +194,7 @@ export function createWebHostConnections(options: {
           if (event.type === "agents-changed") {
             entry.agents = event.agents;
             entry.agentsRevision += 1;
-          } else if (event.type === "prompt" || event.type === "approval" || event.type === "turn-completed")
-            options.onNotice?.(host.hostId, event, entry.agents);
+          } else if (isWebHostNotice(event)) options.onNotice?.(host.hostId, event, entry.agents);
         },
       },
     });

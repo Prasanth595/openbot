@@ -1,5 +1,6 @@
 import type {
   AccountUsage,
+  AgentApproval,
   AgentContextState,
   AgentEvent,
   AgentModelChoice,
@@ -316,4 +317,7 @@ export interface ConversationTasks {
   onStop: (taskId: string) => void;
   onClose: (taskId: string) => void;
   onReopen: (taskId: string) => void;
+  /** The approval that the task's turn waits for. */
+  approval: (task: AgentTask) => AgentApproval | undefined;
+  onRespondApproval: (approval: AgentApproval, decision: "accept" | "decline") => Promise<boolean>;
 }

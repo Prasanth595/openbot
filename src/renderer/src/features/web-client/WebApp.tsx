@@ -13,6 +13,7 @@ import { AppLoadingScreen } from "@openbot/ui/features/account/AppLoadingScreen"
 import { currentText } from "@openbot/ui/text";
 import { Dynamic } from "@solidjs/web";
 import { createEffect, createSignal, createStore, onSettled, Show } from "solid-js";
+import type { DesktopAnalyticsProperties } from "../../analytics";
 import { configureWebReports, reportNotification } from "../../error-reports";
 import { StaticI18nProvider } from "../../i18n-context";
 import type { WebWorkspace } from "./WebWorkspace";
@@ -80,13 +81,21 @@ function takePluginLink(): string | null {
   return slug;
 }
 
-/** True on a return from the Stripe Customer Portal, `/app?billing=portal`. The query is removed after it is read. */
-function takeBillingReturn(): boolean {
+type BillingReturn = DesktopAnalyticsProperties<"billing_return_viewed">;
+
+/**
+ * A return from Stripe to Billing: `/app?billing=portal` from the Customer Portal, or
+ * `/app?billing=license` from license Checkout, with `&cancelled=1` when the user went back. The
+ * query is removed after it is read.
+ */
+function takeBillingReturn(): BillingReturn | null {
   const url = new URL(window.location.href);
-  if (!url.searchParams.has(WEB_APP_BILLING_PARAM)) return false;
-  url.searchParams.delete(WEB_APP_BILLING_PARAM);
+  const kind = url.searchParams.get(WEB_APP_BILLING_PARAM);
+  if (kind === null) return null;
+  const outcome = url.searchParams.get("cancelled") === "1" ? "cancelled" : "completed";
+  for (const name of [WEB_APP_BILLING_PARAM, "cancelled"]) url.searchParams.delete(name);
   window.history.replaceState(window.history.state, "", url);
-  return true;
+  return kind === "license" || kind === "portal" ? { outcome, kind } : { outcome };
 }
 
 export function WebApp(props: { createRuntime?: WebRuntimeFactory } = {}) {
@@ -106,15 +115,31 @@ export function WebApp(props: { createRuntime?: WebRuntimeFactory } = {}) {
   createEffect(
     () => ({ account: state.account, loaded: state.loaded }),
     ({ account, loaded }) => {
-      if (loaded) configureWebReports(account);
+      if (!loaded) return;
+      configureWebReports(account);
+      // Analytics is optional. A failed import changes nothing in the app.
+      import("./web-analytics")
+        .then((module) => {
+          module.configureWebAnalytics(account);
+          if (!account || !billingReturnEvent) return;
+          module.trackBillingReturn(billingReturnEvent);
+          billingReturnEvent = null;
+        })
+        .catch(() => undefined);
     },
   );
   // Kept here, not in the workspace, so each link waits through sign-in.
   const [agentTemplateId, setAgentTemplateId] = createSignal(takeAgentTemplateLink());
   const [inviteUrl, setInviteUrl] = createSignal(takeInviteLink());
   const [pluginSlug, setPluginSlug] = createSignal(takePluginLink());
-  const [billingReturn, setBillingReturn] = createSignal(takeBillingReturn());
-  const [hostingReturn, setHostingReturn] = createSignal(takeHostingReturn());
+  const initialBillingReturn = takeBillingReturn();
+  const initialHostingReturn = takeHostingReturn();
+  const [billingReturn, setBillingReturn] = createSignal(initialBillingReturn !== null);
+  const [hostingReturn, setHostingReturn] = createSignal(initialHostingReturn);
+  /** Sent once, when analytics has the account. */
+  let billingReturnEvent: BillingReturn | null =
+    initialBillingReturn ??
+    (initialHostingReturn ? { outcome: initialHostingReturn.paid ? "completed" : "cancelled", kind: "plan" } : null);
   const [workspace, setWorkspace] = createSignal<typeof WebWorkspace>();
   /** Sets the account when the workspace code is ready to show it. */
   async function showAccount(account: CentralAuthUser) {

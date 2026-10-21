@@ -1,6 +1,7 @@
 import type { AttachmentSupport } from "@openbot/contracts/attachment-files";
 import type {
   AddedAgent,
+  AddMessagingOrchestratorResult,
   AgentAdminSettings,
   AgentAnalytics,
   AgentAnalyticsInput,
@@ -19,6 +20,7 @@ import type {
   AgentTemplatePublication,
   AvatarHue,
   AvatarImageInput,
+  ClearableStorageCategory,
   ConversationFileSearchPage,
   ConversationSearchPage,
   ConversationSnapshot,
@@ -26,13 +28,29 @@ import type {
   CreateRoutineInput,
   DraftAttachment,
   ForeignProviderId,
+  GitHubConnectorRepositories,
+  HostAddMessagingOrchestratorInput,
   HostAgentMemoryLimit,
   HostAnalytics,
   HostAnalyticsInput,
+  HostedSiteList,
+  HostGitHubConnectorStatus,
+  HostMessagingConnectInput,
+  HostMessagingWorkspaceInput,
   HostProviderAccounts,
+  HostReleaseStatus,
+  HostSetMessagingEnabledInput,
   HostTimezoneSettings,
+  HostUpdateSettingsChange,
+  HostUpdateStatus,
   InstallAgentTemplateInput,
   InstalledSkill,
+  McpServerConfig,
+  McpSignInState,
+  McpTestResult,
+  MessagingOverview,
+  MessagingPlatform,
+  OnePasswordConnectorStatus,
   QueuedMessageReceipt,
   QueueSnapshot,
   ResetAgentSessionSettingInput,
@@ -55,6 +73,7 @@ import type {
   UpdateAgentAdminSettingsInput,
   UpdateAgentHostSettingsInput,
   UpdateAgentInput,
+  UpdateRestartMode,
   UpdateRoutineInput,
 } from "@openbot/contracts/ipc";
 import type {
@@ -70,12 +89,17 @@ import type {
 import type { QueueEditRequest } from "@openbot/contracts/team-protocol/queue-edit-v1";
 import type { RemoteConnectionFailure, RemoteRecoveryStatus, RemoteTeamDirectoryClient } from "@openbot/team-client";
 import type { RemoteFileUpload } from "@openbot/team-client/remote-peer";
+import type { MessagingConnectorPage } from "@openbot/team-client/team-admin-requests";
 import type { MobileBrowserTab } from "@/features/browser/model/browser-tabs";
 import type { BrowserViewBridgeEvent, RemoteBrowserViewSession } from "@/features/browser/model/browser-view-bridge";
+import type { ProviderAdmin } from "@/features/servers/model/provider-admin";
 import type { MobileConversationStore } from "./conversation-store";
 import type { LiveWorkspaceStore } from "./live-workspace-store";
 
 type MobileServerKind = "local" | "remote";
+/** The route set that reaches a host's OpenBot update: the admin set or the member set. */
+export type ServerUpdateAccess = "admin" | "member";
+
 export type MobileServerState = "unknown" | "connecting" | "online" | "offline" | "error";
 export type MobileServerDirectoryState = "loading" | "ready" | "error";
 
@@ -128,6 +152,9 @@ export interface MobileAgent {
   avatarSeed: string;
   avatarHue: AvatarHue | null;
 }
+
+/** The `connectors-v1` routes that answer the host's GitHub connection status. */
+export type GitHubConnectorRoute = "githubStatus" | "githubConnect" | "githubCancel" | "githubDisconnect";
 
 type ToggleAgentPinResult = "pinned" | "unpinned" | "error";
 
@@ -243,6 +270,83 @@ export interface MobileWorkspaceContextValue {
   /** How many memories each agent of the server can keep, and the values that the host permits. */
   loadAgentMemoryLimit: (serverId: string) => Promise<HostAgentMemoryLimit>;
   setAgentMemoryLimit: (limit: number, serverId: string) => Promise<HostAgentMemoryLimit>;
+  /**
+   * An owner or admin of an online host that serves `connectors-v1`: its Slack, Discord, Telegram and
+   * GitHub connections. The host checks the role again.
+   */
+  canManageConnectors: (serverId: string) => boolean;
+  /** The same for the host's 1Password connection (`onepassword-connector-v1`). */
+  canManageOnePasswordConnector: (serverId: string) => boolean;
+  /** Reads or changes the host's GitHub connection. The answer names the GitHub pages that the phone opens. */
+  githubConnector: (route: GitHubConnectorRoute, serverId: string) => Promise<HostGitHubConnectorStatus>;
+  /** The repositories where the host's GitHub App is installed. The host reads them from GitHub. */
+  loadGitHubRepositories: (serverId: string) => Promise<GitHubConnectorRepositories>;
+  loadOnePasswordConnector: (serverId: string) => Promise<OnePasswordConnectorStatus>;
+  /** The token goes to the host once. No answer carries it. */
+  connectOnePassword: (token: string, serverId: string) => Promise<OnePasswordConnectorStatus>;
+  disconnectOnePassword: (serverId: string) => Promise<OnePasswordConnectorStatus>;
+  loadMessagingConnections: (platform: MessagingPlatform, serverId: string) => Promise<MessagingOverview>;
+  /** The platform's page that the phone opens. The host opens no page. */
+  connectMessaging: (input: HostMessagingConnectInput, serverId: string) => Promise<MessagingConnectorPage>;
+  /** Sends the sealed grant of a Slack or Discord install to the host that started it. */
+  completeMessagingInstall: (
+    input: { platform: "slack" | "discord"; nonce: string; grant: string },
+    serverId: string,
+  ) => Promise<boolean>;
+  reconnectMessaging: (input: HostMessagingWorkspaceInput, serverId: string) => Promise<MessagingConnectorPage>;
+  disconnectMessaging: (input: HostMessagingWorkspaceInput, serverId: string) => Promise<void>;
+  setMessagingEnabled: (input: HostSetMessagingEnabledInput, serverId: string) => Promise<void>;
+  /** Creates the orchestrator agent on the host's default provider and model. */
+  addMessagingOrchestrator: (
+    input: HostAddMessagingOrchestratorInput,
+    serverId: string,
+  ) => Promise<AddMessagingOrchestratorResult>;
+  /**
+   * How this user reaches the OpenBot update of an online host: an owner or admin through
+   * `host-update-v1`, any member through `host-member-update-v1`. Null when neither applies.
+   */
+  serverUpdateAccess: (serverId: string) => ServerUpdateAccess | null;
+  /** True when the host serves `host-release-v1`, which tells how its installation updates. */
+  canReadServerRelease: (serverId: string) => boolean;
+  loadServerUpdate: (serverId: string, access: ServerUpdateAccess) => Promise<HostUpdateStatus>;
+  /** The host starts the check and answers at once. Read the status again for the outcome. */
+  checkServerUpdate: (serverId: string, access: ServerUpdateAccess) => Promise<HostUpdateStatus>;
+  /** A member's update always waits for idle agents. A second start replaces the restart mode. */
+  startServerUpdate: (
+    serverId: string,
+    access: ServerUpdateAccess,
+    restart: UpdateRestartMode,
+  ) => Promise<HostUpdateStatus>;
+  /** Owners and admins only. */
+  cancelServerUpdate: (serverId: string) => Promise<HostUpdateStatus>;
+  setServerUpdateSettings: (settings: HostUpdateSettingsChange, serverId: string) => Promise<HostUpdateStatus>;
+  loadServerRelease: (serverId: string) => Promise<HostReleaseStatus>;
+  checkServerRelease: (serverId: string) => Promise<HostReleaseStatus>;
+  /** An online host that serves `hosted-sites-v1`. Every member reads the sites. */
+  canViewHostedSites: (serverId: string) => boolean;
+  /** An owner or admin of an online host that serves `hosted-sites-v1`. The host checks the role again. */
+  canDeleteHostedSites: (serverId: string) => boolean;
+  /** The openbot.site sites that agents on the server published, and the site limit of its plan. */
+  loadHostedSites: (serverId: string) => Promise<HostedSiteList>;
+  /** The address of the site returns 410 Gone immediately. */
+  deleteHostedSite: (siteId: string, serverId: string) => Promise<void>;
+  /** An owner or admin of an online host that serves `providers-v1`. The host checks the role again. */
+  canManageProviders: (serverId: string) => boolean;
+  /** The Providers admin of one host, with the newest route set that it serves. */
+  providerAdmin: (serverId: string) => ProviderAdmin;
+  /** An owner or admin of an online host that serves `mcp-servers-v1`. The host checks the role again. */
+  canManageMcpServers: (serverId: string) => boolean;
+  /** The MCP servers that the host gives its agents. Each change answers with the whole list. */
+  listMcpServers: (serverId: string) => Promise<McpServerConfig[]>;
+  /** An empty id adds a server. */
+  saveMcpServer: (config: McpServerConfig, serverId: string) => Promise<McpServerConfig[]>;
+  removeMcpServer: (mcpServerId: string, serverId: string) => Promise<McpServerConfig[]>;
+  setMcpServerEnabled: (mcpServerId: string, enabled: boolean, serverId: string) => Promise<McpServerConfig[]>;
+  /** Connects once with `config` on the host. Nothing is saved. */
+  testMcpServer: (config: McpServerConfig, serverId: string) => Promise<McpTestResult>;
+  /** The http servers that the host holds a sign-in for. Empty for a host without `mcp-sign-in-v1`. */
+  listMcpSignIns: (serverId: string) => Promise<McpSignInState[]>;
+  signOutMcpServer: (mcpServerId: string, serverId: string) => Promise<McpSignInState[]>;
   addRemoteServer: (input: AddRemoteServerInput) => Promise<string>;
   /** Creates an agent on the active server and returns its id. */
   createAgent: (input: CreateAgentInput) => Promise<string>;
@@ -300,6 +404,12 @@ export interface MobileWorkspaceContextValue {
   uninstallAgentSkill: (input: UninstallSkillInput, serverId: string) => Promise<void>;
   /** Null when the host does not advertise `storage-v1`. */
   loadAgentStorage: (agentId: string, serverId: string, force?: boolean) => Promise<StorageUsage | null>;
+  /** True when the host advertises `storage-v1`. Every member reads the host's storage. */
+  canReadServerStorage: (serverId: string) => boolean;
+  /** Every location on the host, its agents, its largest chats and its stored files. */
+  loadServerStorage: (serverId: string, force?: boolean) => Promise<StorageUsage>;
+  /** Owners and admins only; the host refuses a member. */
+  clearServerStorage: (category: ClearableStorageCategory, serverId: string) => Promise<void>;
   /** Null when the host does not advertise `agent-admin-v1`. Owners and admins only; the host refuses a member. */
   loadAgentAdminSettings: (agentId: string, serverId: string) => Promise<AgentAdminSettings | null>;
   /** Owners and admins only; the host refuses a member. Resolves with the settings the host saved. */
@@ -440,7 +550,8 @@ export type MobileWorkspaceCapabilityCheck =
   | "canChooseNewAgentModel"
   | "canInstallAgentTemplate"
   | "canSearchFiles"
-  | "canUseTasks";
+  | "canUseTasks"
+  | "canReadServerStorage";
 
 type MobileWorkspaceStateKey =
   | MobileWorkspaceCapabilityCheck
@@ -459,6 +570,14 @@ type MobileWorkspaceStateKey =
   | "canEditServerIdentity"
   | "canManageServerTimezone"
   | "canManageAgentMemoryLimit"
+  | "canManageConnectors"
+  | "canManageOnePasswordConnector"
+  | "serverUpdateAccess"
+  | "canReadServerRelease"
+  | "canViewHostedSites"
+  | "canDeleteHostedSites"
+  | "canManageProviders"
+  | "canManageMcpServers"
   | "canSendNotifications"
   | "canManageEvents"
   | "canManageAgentSkills"

@@ -44,6 +44,7 @@ import { chatVisualPageUrl } from "./chat-visual-url";
 import { conversationRuntime } from "./conversation-runtime";
 import { useConversationViewScope } from "./conversation-scope";
 import type { ConversationProps } from "./conversation-types";
+import { agentSkillsMode } from "./installed-skills-source";
 import { MarketplaceSuggestionChatCard, marketplaceSuggestionKnown } from "./MarketplaceSuggestionChatCard";
 import { RoutineChatCard } from "./RoutineChatCard";
 import { PENDING_SEND_ID_PREFIX, pendingSendRetrySafe } from "./stores/pending-send-store";
@@ -421,10 +422,15 @@ export function ConversationTimeline() {
                 };
                 const initialMessage = untrack(message);
                 if (!initialMessage) return null;
-                const animateEntrance = untrack(
-                  () => initialMessage.animate === true && markMessageSeen(initialMessage.id),
-                );
+                const arrives = untrack(() => initialMessage.animate === true && markMessageSeen(initialMessage.id));
                 const initialActionMarker = untrack(() => initialMessage.actionMarker);
+                // Each state of a routine run is a new message, so the run's row is drawn again for
+                // each one. The run enters once, the first time a row of it is drawn; each new state
+                // is still announced.
+                const animateEntrance =
+                  initialActionMarker?.kind === "routine-run"
+                    ? untrack(() => markMessageSeen(`routine-run:${initialActionMarker.runId}`)) && arrives
+                    : arrives;
                 /*
                  * The separator above the row. The first row always carries one, and a later row
                  * carries one when it opens a new day. A message with no stored timestamp can only
@@ -553,10 +559,14 @@ export function ConversationTimeline() {
                                     when={suggestionMarker(marker())}
                                     fallback={
                                       <ChatActionMarker
-                                        onOpenSkill={props.server?.id === "local" ? openSkillSettings : undefined}
+                                        onOpenSkill={
+                                          agentSkillsMode(props.server, props.runtime) === "hidden"
+                                            ? undefined
+                                            : openSkillSettings
+                                        }
                                         marker={marker()}
                                         agents={props.agents}
-                                        announce={animateEntrance}
+                                        announce={arrives}
                                         routineAvailable={routineMarkerAvailable(marker(), props.availableRoutineIds)}
                                         onSelectAgent={props.onSelectAgent}
                                         onOpenRoutine={openRoutineSettings}
@@ -1016,6 +1026,7 @@ export function ConversationTimeline() {
                 tasks={openTasks()}
                 onOpen={openTaskPanel}
                 onClose={(taskId) => tasks().onClose(taskId)}
+                waitsForApproval={(task) => tasks().approval(task) !== undefined}
               />
             )}
           </Show>

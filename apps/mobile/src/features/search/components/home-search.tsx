@@ -3,6 +3,8 @@ import { BlurView } from "expo-blur";
 import * as Crypto from "expo-crypto";
 import { GlassView } from "expo-glass-effect";
 import { type Href, router, useFocusEffect } from "expo-router";
+import type { NativeStackNavigationProp } from "expo-router/native-stack";
+import { type ParamListBase, useNavigation } from "expo-router/react-navigation";
 import { Spinner, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
 import type { LucideIcon } from "lucide-react-native";
@@ -47,8 +49,6 @@ import Animated, {
   Easing,
   type EntryExitAnimationFunction,
   Extrapolation,
-  FadeIn,
-  FadeOut,
   interpolate,
   LinearTransition,
   type SharedValue,
@@ -88,23 +88,32 @@ import { useLiquidGlass } from "@/shared/lib/use-liquid-glass";
 export const HOME_SEARCH_HEIGHT = 52;
 /** The space between the field and the keyboard. */
 const KEYBOARD_GAP = 8;
-const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
-// The results come in over the list and go back quicker than they came: the user leaves on purpose.
-const OPEN = { duration: 220, easing: EASE_OUT };
-const CLOSE = { duration: 160, easing: EASE_OUT };
-const FIELD_LAYOUT = LinearTransition.duration(220).easing(EASE_OUT);
+const CSS_EASE_OUT = cubicBezier(0.23, 1, 0.32, 1);
+// The iOS sheet curve: it starts softer than the strong ease-out and settles for longer, so the
+// layers of the search glide into each other and do not snap.
+const EASE_SMOOTH = Easing.bezier(0.32, 0.72, 0, 1);
+const CSS_EASE_SMOOTH = cubicBezier(0.32, 0.72, 0, 1);
+// The list goes back as the results come in over it. The results come in with the keyboard; they go
+// back a little slower, so the list has time to settle.
+const OPEN = { duration: 340, easing: EASE_SMOOTH };
+const CLOSE = { duration: 360, easing: EASE_SMOOTH };
+const FIELD_LAYOUT = LinearTransition.duration(340).easing(EASE_SMOOTH);
 /** How long the field shows the result of a task start before it returns. */
 const RESULT_DURATION = 2_000;
+/** The result and the field cross: the one that leaves goes first and faster. */
+const RESULT_IN = 380;
+const RESULT_OUT = 280;
+const RESULT_STAGGER = 40;
 const PRESS_SCALE = {
   transitionProperty: "transform",
   transitionDuration: 120,
-  transitionTimingFunction: cubicBezier(0.23, 1, 0.32, 1),
+  transitionTimingFunction: CSS_EASE_OUT,
 } as const;
 
 /**
- * The close button grows a little from the field's edge as it comes in, and shrinks as it goes.
- * Glass does not render under a parent with opacity 0, so the glass appears with its own native
- * animation and this wrapper only scales.
+ * The close button grows a little from the field's edge as it comes in. Glass does not render under
+ * a parent with opacity 0, so the glass appears with its own native animation and this wrapper only
+ * scales.
  */
 const closeButtonGrow: EntryExitAnimationFunction = () => {
   "worklet";
@@ -113,20 +122,13 @@ const closeButtonGrow: EntryExitAnimationFunction = () => {
     animations: { transform: [{ scale: withTiming(1, OPEN) }] },
   };
 };
-const closeButtonShrink: EntryExitAnimationFunction = () => {
-  "worklet";
-  return {
-    initialValues: { transform: [{ scale: 1 }] },
-    animations: { transform: [{ scale: withTiming(0.9, CLOSE) }] },
-  };
-};
 /** The clear button and the agent chip: no glass, so they fade too. */
 const closeButtonEnter: EntryExitAnimationFunction = () => {
   "worklet";
   return {
     initialValues: { opacity: 0, transform: [{ scale: 0.9 }] },
     animations: {
-      opacity: withTiming(1, { duration: 160, easing: EASE_OUT }),
+      opacity: withTiming(1, { duration: 260, easing: EASE_SMOOTH }),
       transform: [{ scale: withTiming(1, OPEN) }],
     },
   };
@@ -136,39 +138,9 @@ const closeButtonExit: EntryExitAnimationFunction = () => {
   return {
     initialValues: { opacity: 1, transform: [{ scale: 1 }] },
     animations: {
-      opacity: withTiming(0, { duration: 120, easing: EASE_OUT }),
+      opacity: withTiming(0, { duration: 200, easing: EASE_SMOOTH }),
       transform: [{ scale: withTiming(0.9, CLOSE) }],
     },
-  };
-};
-
-/**
- * The result of a task start takes the place of the field's content: it fades in from 97% as the
- * glass takes the tint, so it reads as the same field saying what happened.
- */
-const resultEnter: EntryExitAnimationFunction = () => {
-  "worklet";
-  return {
-    initialValues: { opacity: 0, transform: [{ scale: 0.97 }] },
-    animations: {
-      opacity: withTiming(1, { duration: 200, easing: EASE_OUT }),
-      transform: [{ scale: withTiming(1, { duration: 260, easing: EASE_OUT }) }],
-    },
-  };
-};
-/** The field's content and the result leave faster than they come. */
-const contentExit: EntryExitAnimationFunction = () => {
-  "worklet";
-  return {
-    initialValues: { opacity: 1 },
-    animations: { opacity: withTiming(0, { duration: 120, easing: EASE_OUT }) },
-  };
-};
-const contentEnter: EntryExitAnimationFunction = () => {
-  "worklet";
-  return {
-    initialValues: { opacity: 0 },
-    animations: { opacity: withTiming(1, { duration: 180, easing: EASE_OUT }) },
   };
 };
 
@@ -184,16 +156,22 @@ export interface HomeSearch {
   open: boolean;
   /** True while the results show or leave. */
   mounted: boolean;
+  /** True when a touch on the field mounted the hidden results before the field takes focus. */
+  prepared: boolean;
   /** True when the results finished coming in, so they rest with no animated style. */
   settled: boolean;
   query: string;
   setQuery: (query: string) => void;
+  /** Mounts the hidden results on touch down, so their first render is done when search opens. */
+  prepare: () => void;
   openSearch: () => void;
   closeSearch: () => void;
   /** Closes the search for a result that opens another screen. */
   leave: () => void;
   input: RefObject<TextInput | null>;
   progress: SharedValue<number>;
+  /** 1 while the results leave. Opening and closing move differently. */
+  closing: SharedValue<number>;
   /** False when the server cannot start tasks: then `@` is plain search text. */
   canUseTasks: boolean;
   /** The agent that the next Return gives the typed text to. */
@@ -240,6 +218,7 @@ export function useHomeSearch(): HomeSearch {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [prepared, setPrepared] = useState(false);
   const [settled, setSettled] = useState(false);
   const [target, setTarget] = useState<MobileAgent | null>(null);
   const [sending, setSending] = useState(false);
@@ -247,21 +226,40 @@ export function useHomeSearch(): HomeSearch {
   // The task text while the person chooses another agent.
   const draft = useRef("");
   const progress = useSharedValue(0);
+  const closing = useSharedValue(0);
   const targetMatches = canUseTasks && !target ? matchTargets(agents, query) : null;
 
+  // `open` at once, for the end of a close animation that comes before the next render.
+  const openNow = useRef(false);
+  const prepare = useCallback(() => setPrepared(true), []);
   const openSearch = useCallback(() => {
+    openNow.current = true;
     setOpen(true);
     setMounted(true);
     // The results take the screen, so a swipe right must not open the drawer under them.
     setOpeningBlocked(true);
     setSettled(false);
+  }, [setOpeningBlocked]);
+  // The results come in after they mount, not when the field asks: the first render of the results
+  // takes time on the JS thread, and an animation that started before it would be nearly over when
+  // they show.
+  useEffect(() => {
+    if (!open) return;
+    closing.set(0);
     progress.set(
       withTiming(1, OPEN, (finished) => {
         if (finished) scheduleOnRN(setSettled, true);
       }),
     );
-  }, [progress, setOpeningBlocked]);
+  }, [open, progress, closing]);
+  // A reopen can come after the close animation ends and before its callback runs: then the results stay.
+  const finishClose = useCallback(() => {
+    if (openNow.current) return;
+    setMounted(false);
+    setPrepared(false);
+  }, []);
   const closeSearch = useCallback(() => {
+    openNow.current = false;
     input.current?.blur();
     Keyboard.dismiss();
     setOpen(false);
@@ -270,12 +268,13 @@ export function useHomeSearch(): HomeSearch {
     setTarget(null);
     draft.current = "";
     setOpeningBlocked(false);
+    closing.set(1);
     progress.set(
       withTiming(0, CLOSE, (finished) => {
-        if (finished) scheduleOnRN(setMounted, false);
+        if (finished) scheduleOnRN(finishClose);
       }),
     );
-  }, [progress, setOpeningBlocked]);
+  }, [progress, closing, setOpeningBlocked, finishClose]);
   const chooseTarget = useCallback((agent: MobileAgent, text?: string) => {
     void haptics.selection();
     setTarget(agent);
@@ -382,14 +381,17 @@ export function useHomeSearch(): HomeSearch {
   return {
     open,
     mounted,
+    prepared,
     settled,
     query,
     setQuery,
+    prepare,
     openSearch,
     closeSearch,
     leave: closeSearch,
     input,
     progress,
+    closing,
     canUseTasks,
     target,
     chooseTarget,
@@ -408,19 +410,70 @@ export function useHomeSearch(): HomeSearch {
 const RESULTS_TOP_GAP = 8;
 
 /**
- * The results over the home list. They come in from 8 pt below as the field takes focus. The bar
- * hides its buttons while they show, so they start under the status bar, not under the bar.
+ * The home list under the search. It goes back and fades as the results come in over it, and comes
+ * forward again as they leave, so the results read as a layer in front of the list. The search has
+ * no bar, so the list also moves up by the bar's height with the results, as the content of an iOS
+ * search does when its bar goes.
  */
-export function HomeSearchResults({ search }: { search: HomeSearch }) {
+export function HomeSearchList({
+  search,
+  barHeight,
+  children,
+}: PropsWithChildren<{
+  search: HomeSearch;
+  /** The height of the home bar under the status bar. */
+  barHeight: number;
+}>) {
+  const reduced = useReducedMotion();
+  const { progress, closing } = search;
+  const style = useAnimatedStyle(() => {
+    const value = progress.get();
+    // Opening: the list is gone before the results are fully in, and moves up with the bar.
+    // Closing: the list comes forward in place as the results fade over it.
+    const leaving = closing.get() === 1;
+    return {
+      opacity: interpolate(value, [0, leaving ? 0.7 : 0.5], [1, 0], Extrapolation.CLAMP),
+      transform: reduced
+        ? []
+        : [{ translateY: leaving ? 0 : -value * barHeight }, { scale: interpolate(value, [0, 1], [1, 0.98]) }],
+    };
+  });
+  // At rest the list has no animated style: the opaque results cover it while they are open.
+  return (
+    <Animated.View className="flex-1" style={search.mounted && !search.settled ? style : undefined}>
+      {children}
+    </Animated.View>
+  );
+}
+
+/**
+ * The results over the home list. The bar hides its buttons while they show, so they start under the
+ * status bar, not under the bar. They come in from the bar's height below, where the list content
+ * starts, and move up with the list, so the content does not jump when the bar goes.
+ */
+export function HomeSearchResults({
+  search,
+  barHeight,
+}: {
+  search: HomeSearch;
+  /** The height of the home bar under the status bar. */
+  barHeight: number;
+}) {
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
-  const { progress } = search;
-  const style = useAnimatedStyle(() => ({
-    // The fade ends before the movement, so the rows are readable while they settle.
-    opacity: interpolate(progress.get(), [0, 0.8], [0, 1], Extrapolation.CLAMP),
-    transform: [{ translateY: reduced ? 0 : (1 - progress.get()) * 8 }],
-  }));
-  if (!search.mounted) return null;
+  const { progress, closing } = search;
+  const style = useAnimatedStyle(() => {
+    const value = progress.get();
+    // Opening: the fade starts at once and ends well before the movement, so the rows are readable
+    // while they settle. Closing: the results fade and drop only a little, over the list.
+    const leaving = closing.get() === 1;
+    return {
+      opacity: interpolate(value, leaving ? [0.15, 0.9] : [0, 0.6], [0, 1], Extrapolation.CLAMP),
+      transform: [{ translateY: reduced ? 0 : (1 - value) * (leaving ? 12 : barHeight) }],
+    };
+  });
+  // Prepared results are hidden: the animated opacity is 0 until search opens.
+  if (!search.mounted && !search.prepared) return null;
   return (
     <Animated.View
       className="absolute inset-0 bg-background"
@@ -557,10 +610,18 @@ export function HomeSearchBar({
 }) {
   const { t } = useText();
   const { input } = search;
+  // Touch down mounts the hidden results, and focus opens them: a drag that starts on the field
+  // does not focus it, so it does not open the search. The ref keeps the soft tap to a search that a
+  // touch on the field opens. A drag leaves it set, so each focus that no touch on the field caused
+  // clears it first.
+  const touched = useRef(false);
   // A quick action of the app icon opens the search with the keyboard. The field registers it, so a
   // request that comes while the list loads waits until the field and its input are mounted.
   useEffect(() => {
-    setHomeSearchOpener(() => input.current?.focus());
+    setHomeSearchOpener(() => {
+      touched.current = false;
+      input.current?.focus();
+    });
     return () => setHomeSearchOpener(null);
   }, [input]);
   const insets = useSafeAreaInsets();
@@ -573,10 +634,12 @@ export function HomeSearchBar({
     "background",
   ]);
   const danger = String(useCSSVariable("--openbot-danger-text"));
-  const resultColor = search.result
-    ? search.result.ok
-      ? getBloubAvatarColor(search.result.agent.avatarSeed, search.result.agent.avatarHue)
-      : danger
+  // The last result stays in the field while it fades out, so its text and color do not change then.
+  const [shownResult, setShownResult] = useState(search.result);
+  if (search.result && search.result !== shownResult) setShownResult(search.result);
+  const showsResult = search.result !== null;
+  const resultColor = shownResult?.ok
+    ? getBloubAvatarColor(shownResult.agent.avatarSeed, shownResult.agent.avatarHue)
     : danger;
   // As the prototype: the color at 18% over the field, so the text in the same color stays readable.
   const resultTint = `${resultColor}2e`;
@@ -592,7 +655,19 @@ export function HomeSearchBar({
   const layout = reduced ? undefined : FIELD_LAYOUT;
   const enter = reduced ? undefined : closeButtonEnter;
   const exit = reduced ? undefined : closeButtonExit;
+  const homeAtRest = useHomeAtRest();
   const { target } = search;
+  const prepareFromTouch = () => {
+    if (search.open) return;
+    touched.current = true;
+    search.prepare();
+  };
+  const openFromFocus = () => {
+    if (search.open) return;
+    if (touched.current) void haptics.impact("soft");
+    touched.current = false;
+    search.openSearch();
+  };
   const canSend = Boolean(target && search.query.trim()) && !search.sending;
   const placeholder = target
     ? t("mobile.search.task.placeholder")
@@ -606,139 +681,197 @@ export function HomeSearchBar({
       pointerEvents="box-none"
       style={[{ bottom: bottomGap }, barStyle]}
     >
-      {search.open ? (
+      {search.mounted ? (
+        // While the results leave, the button is out of the layout, so the field grows under it as its
+        // glass dissolves. Glass does not render under a parent with opacity below 1, so only the
+        // solid capsule fades as a whole.
         <Animated.View
           entering={reduced ? undefined : closeButtonGrow}
-          exiting={reduced ? undefined : closeButtonShrink}
+          pointerEvents={search.open ? "auto" : "none"}
+          accessibilityElementsHidden={!search.open}
+          importantForAccessibility={search.open ? "auto" : "no-hide-descendants"}
+          style={search.open ? undefined : { position: "absolute", left: 0, zIndex: 1 }}
         >
-          <GlassCapsule
-            liquidGlass={liquidGlass}
-            fallbackBackground={fieldBackground}
-            width={HOME_SEARCH_HEIGHT}
-            animateGlass
+          <Animated.View
+            style={{
+              opacity: search.open || liquidGlass ? 1 : 0,
+              transform: [{ scale: search.open || reduced ? 1 : 0.9 }],
+              transitionProperty: ["opacity", "transform"],
+              transitionDuration: CLOSE.duration,
+              transitionTimingFunction: CSS_EASE_SMOOTH,
+            }}
           >
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t("mobile.search.close")}
-              className="flex-1 items-center justify-center"
-              hitSlop={4}
-              style={({ pressed }) => ({ opacity: pressed ? 0.55 : 1 })}
-              onPress={() => {
-                void haptics.impact("soft");
-                search.closeSearch();
-              }}
+            <GlassCapsule
+              liquidGlass={liquidGlass}
+              fallbackBackground={fieldBackground}
+              width={HOME_SEARCH_HEIGHT}
+              animateGlass
+              glassHidden={!search.open}
             >
-              <ChevronDown color={String(foreground)} size={22} strokeWidth={2.2} />
-            </Pressable>
-          </GlassCapsule>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("mobile.search.close")}
+                className="flex-1 items-center justify-center"
+                hitSlop={4}
+                style={({ pressed }) => ({ opacity: pressed ? 0.55 : 1 })}
+                onPress={() => {
+                  void haptics.impact("soft");
+                  search.closeSearch();
+                }}
+              >
+                <Animated.View
+                  style={{
+                    opacity: search.open ? 1 : 0,
+                    transitionProperty: "opacity",
+                    transitionDuration: 240,
+                    transitionTimingFunction: CSS_EASE_SMOOTH,
+                  }}
+                >
+                  <ChevronDown color={String(foreground)} size={22} strokeWidth={2.2} />
+                </Animated.View>
+              </Pressable>
+            </GlassCapsule>
+          </Animated.View>
         </Animated.View>
       ) : null}
       <Animated.View className="min-w-0 flex-1" layout={layout}>
         <GlassCapsule
           liquidGlass={liquidGlass}
           fallbackBackground={fieldBackground}
-          tint={search.result ? resultTint : undefined}
+          tint={resultTint}
+          tintShown={showsResult}
           blurTarget={blurTarget}
           // The open results lie over the list and are not in the target, so the field is solid then.
-          blurPaused={search.open}
+          blurPaused={search.open || !homeAtRest}
         >
-          {search.result ? (
-            <Animated.View
-              key={search.result.id}
-              className="flex-1"
-              entering={reduced ? FadeIn.duration(160) : resultEnter}
-              exiting={reduced ? FadeOut.duration(120) : contentExit}
+          {/* The field stays mounted under the result, so "Try again" can focus it at once. The field
+              fades out first; the result then fades in from 97% as the tint comes in. */}
+          <Animated.View
+            className="flex-1"
+            pointerEvents={showsResult ? "none" : "auto"}
+            accessibilityElementsHidden={showsResult}
+            importantForAccessibility={showsResult ? "no-hide-descendants" : "auto"}
+            style={{
+              opacity: showsResult ? 0 : 1,
+              transitionProperty: "opacity",
+              transitionDuration: showsResult ? RESULT_OUT : RESULT_IN,
+              transitionDelay: showsResult ? 0 : RESULT_STAGGER,
+              transitionTimingFunction: CSS_EASE_SMOOTH,
+            }}
+          >
+            {/* The field is shorter than the capsule, so a tap anywhere on the capsule focuses it. */}
+            <Pressable
+              accessible={false}
+              className="flex-1 flex-row items-center gap-2 pr-2 pl-4"
+              onPressIn={prepareFromTouch}
+              onPress={() => search.input.current?.focus()}
             >
-              <TaskResultContent result={search.result} color={resultColor} onPress={search.dismissResult} />
-            </Animated.View>
-          ) : (
-            <Animated.View
-              className="flex-1"
-              entering={reduced ? FadeIn.duration(160) : contentEnter}
-              exiting={reduced ? FadeOut.duration(120) : contentExit}
-            >
-              {/* The field is shorter than the capsule, so a tap anywhere on the capsule focuses it. */}
-              <Pressable
-                accessible={false}
-                className="flex-1 flex-row items-center gap-2 pr-2 pl-4"
-                onPress={() => search.input.current?.focus()}
-              >
-                {target ? (
-                  <Animated.View entering={enter} exiting={exit} layout={layout}>
-                    <TargetChip agent={target} onPress={search.clearTarget} />
-                  </Animated.View>
-                ) : (
-                  <Search color={String(muted)} size={18} strokeWidth={2} />
-                )}
-                <TextInput
-                  ref={search.input}
-                  accessibilityLabel={target ? t("mobile.search.task.fieldLabel", { name: target.name }) : placeholder}
-                  autoCapitalize={target ? "sentences" : "none"}
-                  autoCorrect={Boolean(target)}
-                  className="h-10 min-w-0 flex-1 font-sans text-foreground"
-                  placeholder={placeholder}
-                  placeholderTextColor={muted}
-                  returnKeyType={target ? "send" : "search"}
-                  submitBehavior="submit"
-                  selectionColor={foreground}
-                  style={{
-                    fontSize: 16,
-                    lineHeight: 20,
-                    paddingBottom: 0,
-                    paddingTop: 0,
-                    textAlignVertical: "center",
-                  }}
-                  value={search.query}
-                  onChangeText={search.setQuery}
-                  onSubmitEditing={search.submit}
-                  onKeyPress={({ nativeEvent }) => {
-                    // Backspace in an empty field removes the agent, as in a mail address field.
-                    if (nativeEvent.key === "Backspace" && !search.query && target) search.clearTarget();
-                  }}
-                  onFocus={() => {
-                    if (!search.open) search.openSearch();
-                  }}
-                />
-                {search.query && !target ? (
-                  <Animated.View entering={enter} exiting={exit}>
-                    <Pressable
-                      accessibilityLabel={t("mobile.search.clear")}
-                      accessibilityRole="button"
-                      className="size-9 items-center justify-center"
-                      hitSlop={6}
-                      onPress={() => search.setQuery("")}
-                    >
-                      <CircleX color={String(background)} fill={String(muted)} size={20} strokeWidth={2} />
-                    </Pressable>
-                  </Animated.View>
-                ) : null}
-                {/* Search updates as you type; only a task has a send button. */}
-                {target ? (
+              {target ? (
+                <Animated.View entering={enter} exiting={exit} layout={layout}>
+                  <TargetChip agent={target} onPress={search.clearTarget} />
+                </Animated.View>
+              ) : (
+                <Search color={String(muted)} size={18} strokeWidth={2} />
+              )}
+              <TextInput
+                ref={search.input}
+                accessibilityLabel={target ? t("mobile.search.task.fieldLabel", { name: target.name }) : placeholder}
+                autoCapitalize={target ? "sentences" : "none"}
+                autoCorrect={Boolean(target)}
+                className="h-10 min-w-0 flex-1 font-sans text-foreground"
+                placeholder={placeholder}
+                placeholderTextColor={muted}
+                returnKeyType={target ? "send" : "search"}
+                submitBehavior="submit"
+                selectionColor={foreground}
+                style={{
+                  fontSize: 16,
+                  lineHeight: 20,
+                  paddingBottom: 0,
+                  paddingTop: 0,
+                  textAlignVertical: "center",
+                }}
+                value={search.query}
+                onChangeText={search.setQuery}
+                onSubmitEditing={search.submit}
+                onKeyPress={({ nativeEvent }) => {
+                  // Backspace in an empty field removes the agent, as in a mail address field.
+                  if (nativeEvent.key === "Backspace" && !search.query && target) search.clearTarget();
+                }}
+                // The results mount on touch down: the field takes focus, and the keyboard starts, only
+                // when the finger lifts.
+                onPressIn={prepareFromTouch}
+                onFocus={openFromFocus}
+              />
+              {search.query && !target ? (
+                <Animated.View entering={enter} exiting={exit}>
                   <Pressable
+                    accessibilityLabel={t("mobile.search.clear")}
                     accessibilityRole="button"
-                    accessibilityLabel={t("mobile.search.task.send")}
-                    accessibilityState={{ disabled: !canSend, busy: search.sending }}
-                    className="size-9 items-center justify-center rounded-full"
-                    hitSlop={4}
-                    style={{
-                      backgroundColor: String(foreground),
-                      opacity: canSend || search.sending ? 1 : 0.35,
-                    }}
+                    className="size-9 items-center justify-center"
+                    hitSlop={6}
                     onPress={() => {
-                      if (canSend) search.submit();
-                      else search.input.current?.focus();
+                      void haptics.selection();
+                      search.setQuery("");
                     }}
                   >
-                    {search.sending ? (
-                      <Spinner size="sm" color={String(background)} />
-                    ) : (
-                      <ArrowUp color={String(background)} size={18} strokeWidth={2.2} />
-                    )}
+                    <CircleX color={String(background)} fill={String(muted)} size={20} strokeWidth={2} />
                   </Pressable>
-                ) : null}
-              </Pressable>
-            </Animated.View>
-          )}
+                </Animated.View>
+              ) : null}
+              {/* Search updates as you type; only a task has a send button. */}
+              {target ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t("mobile.search.task.send")}
+                  accessibilityState={{ disabled: !canSend, busy: search.sending }}
+                  className="size-9 items-center justify-center rounded-full"
+                  hitSlop={4}
+                  style={{
+                    backgroundColor: String(foreground),
+                    opacity: canSend || search.sending ? 1 : 0.35,
+                  }}
+                  onPress={() => {
+                    if (canSend) search.submit();
+                    else search.input.current?.focus();
+                  }}
+                >
+                  {search.sending ? (
+                    <Spinner size="sm" color={String(background)} />
+                  ) : (
+                    <ArrowUp color={String(background)} size={18} strokeWidth={2.2} />
+                  )}
+                </Pressable>
+              ) : null}
+            </Pressable>
+          </Animated.View>
+          {/* Mounted before the first result, so the result comes in with a transition. */}
+          <Animated.View
+            className="absolute inset-0"
+            pointerEvents={showsResult ? "auto" : "none"}
+            accessibilityElementsHidden={!showsResult}
+            importantForAccessibility={showsResult ? "auto" : "no-hide-descendants"}
+            style={{
+              opacity: showsResult ? 1 : 0,
+              transform: [{ scale: showsResult || reduced ? 1 : 0.97 }],
+              transitionProperty: ["opacity", "transform"],
+              transitionDuration: showsResult ? RESULT_IN : RESULT_OUT,
+              transitionDelay: showsResult ? RESULT_STAGGER : 0,
+              transitionTimingFunction: CSS_EASE_SMOOTH,
+            }}
+          >
+            {shownResult ? (
+              <TaskResultContent
+                result={shownResult}
+                color={resultColor}
+                onPress={() => {
+                  // The result has its own tap; "Try again" then focuses the field.
+                  touched.current = false;
+                  search.dismissResult();
+                }}
+              />
+            ) : null}
+          </Animated.View>
         </GlassCapsule>
       </Animated.View>
     </Animated.View>
@@ -841,6 +974,41 @@ function TargetChip({ agent, onPress }: { agent: MobileAgent; onPress: () => voi
   );
 }
 
+/**
+ * Android: whether home shows with no screen over it and no push or pop in progress. The field's
+ * blur blurs the whole home list again on each frame that the list changes, so it stops from the
+ * moment home loses focus. It starts again when home has focus and its return animation has ended.
+ * A sheet over home does not hide home, so its close gives focus with no animation to wait for.
+ */
+function useHomeAtRest(): boolean {
+  const navigation = useNavigation<NativeStackNavigationProp<ParamListBase>>();
+  const [atRest, setAtRest] = useState(true);
+  useEffect(() => {
+    if (!ANDROID_BLUR) return;
+    // A screen that slid over home hid it; home then comes back with its own animation.
+    let hidden = false;
+    const listeners = [
+      navigation.addListener("blur", () => setAtRest(false)),
+      navigation.addListener("focus", () => {
+        if (!hidden) setAtRest(true);
+      }),
+      navigation.addListener("transitionStart", () => setAtRest(false)),
+      navigation.addListener("transitionEnd", (event) => {
+        if (event.data.closing) {
+          hidden = !navigation.isFocused();
+          return;
+        }
+        hidden = false;
+        if (navigation.isFocused()) setAtRest(true);
+      }),
+    ];
+    return () => {
+      for (const remove of listeners) remove();
+    };
+  }, [navigation]);
+  return atRest;
+}
+
 /** Glass where the system has it; a solid capsule elsewhere, and with Reduce Transparency on. */
 const CAPSULE_SHADOW = "0 6px 18px rgba(0, 0, 0, 0.07)";
 /** The blur radius of the Android capsule, near the 18 px of the design; the native limit is 25. */
@@ -853,7 +1021,9 @@ function GlassCapsule({
   fallbackBackground,
   width,
   animateGlass = false,
+  glassHidden = false,
   tint,
+  tintShown = true,
   blurTarget,
   blurPaused = false,
   children,
@@ -865,10 +1035,17 @@ function GlassCapsule({
   blurPaused?: boolean;
   fallbackBackground: unknown;
   width?: number;
-  /** A color over the glass, such as the agent color of a task result. */
+  /**
+   * A color over the glass, such as the agent color of a task result. Pass it before it shows, so the
+   * tint is mounted and fades in.
+   */
   tint?: string;
-  /** The glass comes in with the native glass animation, for a capsule that mounts on screen. */
+  /** False fades the tint out. The tint keeps its color while it fades. */
+  tintShown?: boolean;
+  /** The glass comes and goes with the native glass animation, for a capsule that mounts on screen. */
   animateGlass?: boolean;
+  /** With `animateGlass`: the glass dissolves before the capsule unmounts. */
+  glassHidden?: boolean;
 }>) {
   // Android has no glass: the capsule blurs the content under it and lays the milky fill of the
   // design over the blur. iOS without Liquid Glass, or with Reduce Transparency, keeps the solid capsule.
@@ -881,13 +1058,12 @@ function GlassCapsule({
     <GlassView
       glassEffectStyle={
         animateGlass
-          ? { style: liquidGlass ? "regular" : "none", animate: true, animationDuration: 0.22 }
+          ? { style: liquidGlass && !glassHidden ? "regular" : "none", animate: true, animationDuration: 0.36 }
           : liquidGlass
             ? "regular"
             : "none"
       }
       isInteractive={liquidGlass}
-      tintColor={liquidGlass ? tint : undefined}
       style={[
         liquidGlass ? { backgroundColor: "transparent" } : fallback,
         // The fill lies in its own layer over the blur.
@@ -903,12 +1079,13 @@ function GlassCapsule({
     >
       {isAndroid && !liquidGlass ? (
         // The blur stays mounted while the field is solid: a `BlurView` that mounts paints its tint
-        // and the window background for a frame. The solid fill then covers it.
+        // and the window background for a frame. The solid fill then covers it, and the blur method
+        // `none` stops the blur, which otherwise blurs the whole target on each frame that it changes.
         <>
           {ANDROID_BLUR && blurTarget ? (
             <BlurView
               blurTarget={blurTarget}
-              blurMethod="dimezisBlurViewSdk31Plus"
+              blurMethod={blurs ? "dimezisBlurViewSdk31Plus" : "none"}
               intensity={BLUR_RADIUS}
               blurReductionFactor={1}
               tint={theme === "dark" ? "dark" : "light"}
@@ -922,9 +1099,22 @@ function GlassCapsule({
           <ChromeGlassSheen />
         </>
       ) : null}
-      {/* The solid capsule has no glass to tint, so the tint lies over it. */}
-      {!liquidGlass && tint ? (
-        <View pointerEvents="none" className="absolute inset-0" style={{ backgroundColor: tint }} />
+      {/* The tint lies over the glass, as in the prototype. The native glass tint cannot animate, and
+          the tint must fade in and out with the result. */}
+      {tint ? (
+        <Animated.View
+          pointerEvents="none"
+          className="absolute inset-0"
+          style={{
+            backgroundColor: tint,
+            borderCurve: "continuous",
+            borderRadius: HOME_SEARCH_HEIGHT / 2,
+            opacity: tintShown ? 1 : 0,
+            transitionProperty: "opacity",
+            transitionDuration: tintShown ? RESULT_IN : RESULT_OUT,
+            transitionTimingFunction: CSS_EASE_SMOOTH,
+          }}
+        />
       ) : null}
       {children}
     </GlassView>
@@ -1031,7 +1221,6 @@ function HomeSearchIdle({ onLeave, canUseTasks }: { onLeave: () => void; canUseT
           </ScrollView>
         </>
       ) : null}
-      {canUseTasks ? <SearchHint text={t("mobile.search.task.atHint")} /> : null}
     </View>
   );
 }

@@ -51,6 +51,8 @@ export type AgentEvent =
   | { type: "sidebar-layout-changed"; layout: SidebarLayoutSnapshot }
   /** The whole hidden list, in the `agent-hidden-v1` wire shape, so the Team API sends it as it is. */
   | { type: "hidden-agents-changed"; agents: HiddenAgent[] }
+  /** The roles changed. A client reads `/v1/agent-access` again for its own levels. */
+  | { type: "agent-access-changed"; revision: number }
   | { type: "conversation"; snapshot: ConversationSnapshot }
   | { type: "conversation-invalidated"; agentId: string; revision: number }
   | { type: "conversation-page"; page: ConversationPage }
@@ -174,6 +176,8 @@ export function isAgentEvent(value: unknown): value is AgentEvent {
       return isSidebarLayoutSnapshot(value.layout);
     case "hidden-agents-changed":
       return isHiddenAgentsSnapshot({ agents: value.agents });
+    case "agent-access-changed":
+      return isNumber(value.revision) && Number.isSafeInteger(value.revision) && value.revision >= 0;
     case "conversation":
       return isConversationSnapshot(value.snapshot);
     case "conversation-invalidated":

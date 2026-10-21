@@ -25,7 +25,7 @@ import { remoteAdminServer } from "../servers/server-capabilities";
 import { useServers } from "../servers/servers-context";
 import { useWindowPage } from "../window/window-page-context";
 import type { CreationPreference } from "./agent-creation-model";
-import { readAgentSelection, writeAgentSelection } from "./agent-selection";
+import { AGENT_SELECTION_STORAGE_KEY, readAgentSelection, writeAgentSelection } from "./agent-selection";
 import { agentsPort } from "./agents-port";
 import {
   createHostAccounts,
@@ -85,7 +85,7 @@ const Agents = createSimpleContext({
     const [modelOptions, setModelOptions] = createSignal<ClientAgentModelOption[]>([]);
     const selectionServerId = untrack(activeServerId);
     const scopeIsCurrent = createScopeGuard();
-    let savedAgentId = readAgentSelection()[selectionServerId] ?? "";
+    let savedAgentId = readAgentSelection(AGENT_SELECTION_STORAGE_KEY)[selectionServerId] ?? "";
     const [activeAgentId, updateActiveAgentId] = createSignal("");
     const [agentChatOpenRevision, setAgentChatOpenRevision] = createSignal(0);
     const [agentSetupOpen, setAgentSetupOpen] = createSignal(false);
@@ -172,7 +172,7 @@ const Agents = createSimpleContext({
       updateActiveAgentId((current) => {
         const next = typeof value === "function" ? value(current) : value;
         savedAgentId = "";
-        writeAgentSelection(selectionServerId, next);
+        writeAgentSelection(AGENT_SELECTION_STORAGE_KEY, selectionServerId, next);
         return next;
       });
     }

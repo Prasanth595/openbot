@@ -63,12 +63,15 @@ export function createWebAgentImportCalls(options: {
       Effect.runPromise(
         discardAgentImport(options.request(serverId), token).pipe(Effect.mapError((error) => error.cause)),
       ),
-    async readSkill() {
-      const skill = await import("../../../../../resources/agent-import/grok-bot/SKILL.md?raw");
+    async readSkill(source) {
+      const skill =
+        source === "hermes-agent"
+          ? await import("../../../../../resources/agent-import/hermes-agent/SKILL.md?raw")
+          : await import("../../../../../resources/agent-import/grok-bot/SKILL.md?raw");
       return skill.default;
     },
-    async saveSkill() {
-      const text = await this.readSkill();
+    async saveSkill(source) {
+      const text = await this.readSkill(source);
       const bytes = new TextEncoder().encode(text);
       let binary = "";
       for (const byte of bytes) binary += String.fromCharCode(byte);

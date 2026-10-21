@@ -37,6 +37,7 @@ import {
   UsersRound,
 } from "@openbot/ui";
 import type { LicenseCalls } from "@openbot/ui/features/billing/license-store";
+import type { ProviderSettingsDetail } from "@openbot/ui/features/settings/ProviderSettingsPage";
 import {
   SaveBarDock,
   SettingsDialogShell,
@@ -57,10 +58,11 @@ import { type HostProviderSettings, HostProviderSettingsPanel } from "../setting
 import type { McpServerConfig, McpTestResult } from "./mcp-servers";
 import { ServerDesktopPanel } from "./ServerDesktopPanel";
 import { createServerGeneralSection } from "./ServerGeneralSection";
-import { type ServerImportOptions, ServerImportPanel } from "./ServerImportPanel";
+import { type ServerImportDetail, type ServerImportOptions, ServerImportPanel } from "./ServerImportPanel";
 import { type McpPanelDetail, type McpPanelSignIn, ServerMcpPanel } from "./ServerMcpPanel";
 import { createServerMembersSection } from "./ServerMembersSection";
 import type { ServerMemoryLimitOptions } from "./ServerMemoryLimitSetting";
+import { createServerRolesSection, type ServerAgentAccessOptions } from "./ServerRolesSection";
 import { type ServerRoutineFeedOptions, ServerRoutineFeedPanel } from "./ServerRoutineFeedPanel";
 import type { ServerTimezoneOptions } from "./ServerTimezoneSetting";
 import { type ServerTransferOptions, ServerTransferPanel } from "./ServerTransferPanel";
@@ -187,6 +189,11 @@ export interface ServerSettingsModalProps {
    */
   hostMemoryLimit?: ServerMemoryLimitOptions | undefined;
   /**
+   * The Roles section appears only when a caller supplies this, and only for the local server or a
+   * remote host with `agent-access-v1` that this member administers.
+   */
+  agentAccess?: ServerAgentAccessOptions | undefined;
+  /**
    * The Routines section appears only when a caller supplies this: the feed listens on this
    * computer, so a remote server passes nothing.
    */
@@ -208,6 +215,7 @@ export interface ServerHostedSitesOptions {
 export type ServerSettingsSection =
   | "general"
   | "members"
+  | "roles"
   | "desktop"
   | "mcp"
   | "storage"
@@ -223,6 +231,7 @@ type Section = ServerSettingsSection;
 const sections = {
   general: { title: "server.settings.generalTitle", description: "server.settings.generalDescription" },
   members: { title: "server.settings.membersTitle", description: "server.settings.membersDescription" },
+  roles: { title: "server.settings.rolesTitle", description: "server.settings.rolesDescription" },
   desktop: { title: "server.settings.desktopTitle", description: "server.settings.desktopDescription" },
   mcp: { title: "server.settings.mcpTitle", description: "server.settings.mcpDescription" },
   storage: { title: "server.settings.storageTitle", description: "server.settings.storageDescription" },
@@ -242,7 +251,17 @@ export function ServerSettingsModal(props: ServerSettingsModalProps) {
   const [mcpDetail, setMcpDetail] = createSignal<McpPanelDetail | null>(null);
   /** Set while an integration page is open, so the header reads `Connectors › GitHub`. */
   const [connectorDetail, setConnectorDetail] = createSignal<ConnectorsPanelDetail | null>(null);
-  const crumbDetail = () => (section() === "mcp" ? mcpDetail() : section() === "connectors" ? connectorDetail() : null);
+  /** Set while a provider page is open, so the header reads `Providers › Codex`. */
+  const [providerDetail, setProviderDetail] = createSignal<ProviderSettingsDetail | null>(null);
+  /** Set while an import source is open, so the header reads `Import › Hermes Agent`. */
+  const [importDetail, setImportDetail] = createSignal<ServerImportDetail | null>(null);
+  const crumbDetail = () => {
+    if (section() === "mcp") return mcpDetail();
+    if (section() === "connectors") return connectorDetail();
+    if (section() === "import") return importDetail();
+    if (section() === "roles") return roles.crumb();
+    return section() === "providers" ? providerDetail() : null;
+  };
   /** The key of the one action in flight, gating every panel at once rather than belonging to any. */
   const [busy, setBusy] = createSignal<string | null>(null);
   const [modalElement, setModalElement] = createSignal<HTMLElement | undefined>();
@@ -302,8 +321,16 @@ export function ServerSettingsModal(props: ServerSettingsModalProps) {
       });
     },
   };
-  const general = createServerGeneralSection(host, { onSetUpDesktop: () => setSection("desktop") });
-  const members = createServerMembersSection(host);
+  const general = createServerGeneralSection(host);
+  const roles = createServerRolesSection(host, () => section() === "roles" || section() === "members");
+  const members = createServerMembersSection(
+    host,
+    {
+      onSetUpDesktop: () => setSection("desktop"),
+      saveIdentityDraft: general.saveIdentityDraft,
+    },
+    roles,
+  );
   const hostedSites = createSettingsHostedSitesStore(
     {
       get open() {
@@ -359,8 +386,17 @@ export function ServerSettingsModal(props: ServerSettingsModalProps) {
         setSection(untrack(availableInitialSection) ?? "general");
         general.resetForServer();
         members.resetForServer();
+        roles.resetForServer();
       }
       if (!editing) general.syncFromServer(name, logoUrl);
+    },
+  );
+
+  /** Roles leaves with the access that gives it: a host that goes offline or a role that changes. */
+  createEffect(
+    () => section() === "roles" && !roles.available(),
+    (gone) => {
+      if (gone) setSection("members");
     },
   );
 
@@ -400,6 +436,7 @@ export function ServerSettingsModal(props: ServerSettingsModalProps) {
       if (
         value === "general" ||
         value === "members" ||
+        value === "roles" ||
         value === "desktop" ||
         value === "mcp" ||
         value === "storage" ||
@@ -563,6 +600,12 @@ export function ServerSettingsModal(props: ServerSettingsModalProps) {
               <UsersRound aria-hidden="true" />
               <span>{t(sections.members.title)}</span>
             </Tabs.Trigger>
+            <Show when={roles.available()}>
+              <Tabs.Trigger class="settings-modal-nav-item" value="roles">
+                <ShieldCheck aria-hidden="true" />
+                <span>{t(sections.roles.title)}</span>
+              </Tabs.Trigger>
+            </Show>
             <Show when={remoteDesktopSection()}>
               <Tabs.Trigger class="settings-modal-nav-item" value="desktop">
                 <Monitor aria-hidden="true" />
@@ -632,6 +675,11 @@ export function ServerSettingsModal(props: ServerSettingsModalProps) {
         <Tabs.Content value="members" class="settings-modal-tab-panel server-settings-panel" data-tab="members">
           <members.Panel />
         </Tabs.Content>
+        <Show when={roles.available()}>
+          <Tabs.Content value="roles" class="settings-modal-tab-panel server-settings-panel" data-tab="roles">
+            <roles.Panel />
+          </Tabs.Content>
+        </Show>
         <Show when={remoteDesktopSection()}>
           <Tabs.Content value="desktop" class="settings-modal-tab-panel server-settings-panel" data-tab="desktop">
             <ServerDesktopPanel server={props.server} platform={props.platform} hostStatus={props.hostStatus} />
@@ -707,6 +755,7 @@ export function ServerSettingsModal(props: ServerSettingsModalProps) {
                   {...providers()}
                   hostName={local() ? undefined : props.server.name}
                   selectMount={modalElement()}
+                  onDetailChange={setProviderDetail}
                 />
               )}
             </Show>
@@ -729,7 +778,15 @@ export function ServerSettingsModal(props: ServerSettingsModalProps) {
             <Tabs.Content value="import" class="settings-modal-tab-panel server-settings-panel" data-tab="import">
               {/* Keyed: an open export belongs to one server, so another server starts a new panel. */}
               <Show when={props.server.id} keyed>
-                {(serverId) => <ServerImportPanel serverId={serverId} {...agentImport()} />}
+                {(serverId) => (
+                  <ServerImportPanel
+                    serverId={serverId}
+                    {...agentImport()}
+                    hermes={local()}
+                    onOpenTransfer={props.instanceTransfer ? () => setSection("transfer") : undefined}
+                    onDetailChange={setImportDetail}
+                  />
+                )}
               </Show>
             </Tabs.Content>
           )}

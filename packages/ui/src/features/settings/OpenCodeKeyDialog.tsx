@@ -49,6 +49,12 @@ const KEY_TEXT = {
     description: "provider.geminiKey.description",
     label: "provider.geminiKey.label",
   },
+  inception: {
+    name: "Inception",
+    title: "provider.inceptionKey.title",
+    description: "provider.inceptionKey.description",
+    label: "provider.inceptionKey.label",
+  },
 } as const satisfies Record<string, { name: string; title: AppTextKey; description: AppTextKey; label: AppTextKey }>;
 
 /** A provider whose API key this dialog saves. */
@@ -212,8 +218,15 @@ export function OpenCodeKeyDialog(props: OpenCodeKeyDialogProps) {
                   {t("common.cancel")}
                 </Button>
                 {/* Gemini's reconnect is a Google sign-in, which a saved key overrides. The row's
-                    Connect offers it once the key is removed. */}
-                <Show when={props.onReconnect && provider() !== "antigravity"}>
+                    Connect offers it once the key is removed. Inception has nothing to reconnect
+                    with until a key is saved. */}
+                <Show
+                  when={
+                    props.onReconnect &&
+                    provider() !== "antigravity" &&
+                    !(provider() === "inception" && stored() === "missing")
+                  }
+                >
                   <Button type="button" variant="ghost" disabled={busy()} onClick={() => void reconnect()}>
                     {t("provider.action.reconnect")}
                   </Button>

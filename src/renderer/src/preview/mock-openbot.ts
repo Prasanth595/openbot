@@ -8,6 +8,7 @@ import type {
 } from "@openbot/contracts/ipc";
 import {
   type AccountUsage,
+  type AgentAccessChange,
   type AgentEvent,
   type AgentMemory,
   type AgentMemoryLimitPreference,
@@ -73,6 +74,7 @@ import {
   type OpenWorkspaceFileInput,
   type ProviderAccountStatus,
   type ProviderDetectionSettings,
+  parseAgentAccessChange,
   type QueueDelivery,
   type QueuedMessageReceipt,
   type QueueSnapshot,
@@ -102,7 +104,12 @@ import {
   type WorkspaceDirectory,
 } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
-import { AGENT_IMPORT_PREVIEW, AGENT_IMPORT_SKILL } from "../../stories/agent-import-fixtures";
+import {
+  AGENT_IMPORT_PREVIEW,
+  AGENT_IMPORT_SKILL,
+  HERMES_EXPORT_SKILL,
+  HERMES_IMPORT_PREVIEW,
+} from "../../stories/agent-import-fixtures";
 import { filePreviewForPath } from "../../stories/file-previews";
 import { INSTANCE_TRANSFER_PREVIEW } from "../../stories/instance-transfer-fixtures";
 import { toggleChannelMember } from "../features/channels/channels-draft";
@@ -290,6 +297,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
   let approvalAutomation = clone<ApprovalAutomationPreference>(DEFAULT_APPROVAL_AUTOMATION_PREFERENCE);
   let busyMessageMode: BusyMessageModePreference = { mode: DEFAULT_BUSY_MESSAGE_MODE };
   let agentMemoryLimit: AgentMemoryLimitPreference = { limit: DEFAULT_AGENT_MEMORY_LIMIT };
+  let agentAccess: AgentAccessChange = { revision: 0, everyone: {}, roles: [] };
   const agentMemoryLimitListeners = new Set<(preference: AgentMemoryLimitPreference) => void>();
   let remoteSessionReuse: RemoteSessionReusePreference = { ...DEFAULT_REMOTE_SESSION_REUSE_PREFERENCE };
   let appBehavior: AppBehaviorPreference = { launchAtLogin: false, keepRunningInBackground: false };
@@ -2396,6 +2404,20 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         for (const listener of agentMemoryLimitListeners) listener(clone(agentMemoryLimit));
         return hostAgentMemoryLimit(agentMemoryLimit);
       },
+      // Preview has one host, and its user owns it, so `mine` gives every agent.
+      getAgentAccess: async () => ({
+        ...clone(agentAccess),
+        mine: Object.fromEntries(agents.map((agent) => [agent.id, "manage" as const])),
+      }),
+      setAgentAccess: async (input) => {
+        const change = parseAgentAccessChange(input);
+        if (change.revision !== agentAccess.revision) throw new Error(sourceText("error.team.agentAccessStale"));
+        agentAccess = { ...change, revision: change.revision + 1 };
+        return {
+          ...clone(agentAccess),
+          mine: Object.fromEntries(agents.map((agent) => [agent.id, "manage" as const])),
+        };
+      },
     },
     storage: createMockStorage(),
     agentImport: {
@@ -2442,8 +2464,22 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         return clone({ agents: imported, skipped: [], channels, skippedChannels, warnings: [] });
       },
       discard: async () => undefined,
-      readSkill: async () => AGENT_IMPORT_SKILL,
+      readSkill: async (source) => (source === "hermes-agent" ? HERMES_EXPORT_SKILL : AGENT_IMPORT_SKILL),
       saveSkill: async () => ({ saved: true }),
+      readHermes: async () => clone(HERMES_IMPORT_PREVIEW),
+      chooseHermes: async () => clone(HERMES_IMPORT_PREVIEW),
+      // Each profile becomes one agent, as the main process makes it; MCP servers are not added here.
+      applyHermes: async ({ token, profiles }) => {
+        if (token !== HERMES_IMPORT_PREVIEW.token)
+          throw new Error("The Hermes profiles are no longer open. Read them again.");
+        const imported = HERMES_IMPORT_PREVIEW.profiles
+          .filter((profile) => profiles.some((entry) => entry.key === profile.key))
+          .map((profile) => createAgentSummary({ name: profile.name, title: "", description: "" }));
+        agents = [...agents, ...imported];
+        emitAgentEvent({ type: "agents-changed", agents });
+        return clone({ agents: imported, skipped: [], channels: [], skippedChannels: [], warnings: [] });
+      },
+      discardHermes: async () => undefined,
     },
     instanceTransfer: {
       summary: async () =>

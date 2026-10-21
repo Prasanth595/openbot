@@ -2,7 +2,12 @@ import type { BitwardenConnectorStatus } from "@openbot/contracts/ipc";
 import { currentText } from "@openbot/ui/text";
 import { createSignal, onCleanup, onSettled } from "solid-js";
 import { type BitwardenConnectorPort, bitwardenConnectorPort } from "./bitwarden-connector-port";
-import { type ConnectorController, createConnectorActions, NO_WATCH } from "./connector-controller";
+import {
+  type ConnectorAnalyticsAction,
+  type ConnectorController,
+  createConnectorActions,
+  NO_WATCH,
+} from "./connector-controller";
 
 /**
  * The Bitwarden connection of this computer. Reads the status once and then follows main's
@@ -16,7 +21,7 @@ export function createBitwardenConnector(
   const [read, setRead] = createSignal(false);
   /** Why the last status read failed, until a newer status comes. While it is set, the state is not known. */
   const [statusError, setStatusError] = createSignal<string | null>(null);
-  const actions = createConnectorActions("connector.bitwarden.actionFailed");
+  const actions = createConnectorActions("connector.bitwarden.actionFailed", "bitwarden");
   /** Counts the statuses that came, so a failed read does not hide a status that came after it started. */
   let statuses = 0;
   const show = (next: BitwardenConnectorStatus) => {
@@ -47,7 +52,8 @@ export function createBitwardenConnector(
   onSettled(reload);
   onCleanup(unsubscribe);
 
-  const run = (action: () => Promise<BitwardenConnectorStatus>) => actions.run(action, { done: show });
+  const run = (action: () => Promise<BitwardenConnectorStatus>, track: ConnectorAnalyticsAction) =>
+    actions.run(action, { done: show, track });
 
   return {
     id: "bitwarden",
@@ -69,8 +75,8 @@ export function createBitwardenConnector(
           return statusError();
         },
         onRetry: reload,
-        onConnect: (key) => run(() => port().connect(key)),
-        onDisconnect: () => run(() => port().disconnect()),
+        onConnect: (key) => run(() => port().connect(key), "connected"),
+        onDisconnect: () => run(() => port().disconnect(), "disconnected"),
       },
     },
   };

@@ -1,5 +1,5 @@
 import { isManagedRuntimeProvider } from "@openbot/contracts/agent-providers";
-import { openPanelTransport, ReportQueue } from "@openbot/telemetry";
+import { ANALYTICS_GENERATIONS, openPanelTransport, ReportQueue } from "@openbot/telemetry";
 import { fileReportStorage } from "@openbot/telemetry/node";
 import { Effect, Fiber } from "effect";
 import { toAgentRemovalFailed } from "../backend/agent/agent-removal";
@@ -71,7 +71,13 @@ import type {
   VoiceModelStatus,
   VoiceStreamTranscript,
 } from "@openbot/contracts/ipc";
-import { IPC_ENDPOINTS, isManagedToolRuntime, isUpdateBusyPhase, latestTurnAnswer } from "@openbot/contracts/ipc";
+import {
+  IPC_ENDPOINTS,
+  isManagedToolRuntime,
+  isUpdateBusyPhase,
+  LOCAL_SERVER_ID,
+  latestTurnAnswer,
+} from "@openbot/contracts/ipc";
 import { decodeRecord, requiredString } from "@openbot/contracts/ipc-decoding";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, toLogValue } from "@openbot/logging";
@@ -81,6 +87,7 @@ import {
   type BrowserWindow,
   clipboard,
   desktopCapturer,
+  Notification,
   nativeImage,
   powerMonitor,
   safeStorage,
@@ -106,6 +113,7 @@ import { sweepProviderTemp } from "../backend/provider-temp";
 import { SidebarLayoutStore } from "../backend/sidebar-layout-store";
 import { StorageUsageScanner, StorageUsageService } from "../backend/storage-usage";
 import { TeamChatStore } from "../backend/team-chat-store";
+import { AGENT_ACCESS_FILE, AgentAccessStore } from "./agent-access-store";
 import { AgentImportService } from "./agent-import-service";
 import { AgentInitializationGate } from "./agent-initialization";
 import { AgentMarketplaceService } from "./agent-marketplace-service";
@@ -147,6 +155,7 @@ import { CUSTOM_AGENTS_FILE, CustomAgentStore } from "./custom-agent-store";
 import { type CustomProviderChanges, createCustomProviderChanges } from "./custom-provider-changes";
 import { CustomProviderStore } from "./custom-provider-store";
 import { MCP_OAUTH_REDIRECT_URL } from "./deep-link-router";
+import { desktopShowsAgentEvent } from "./desktop-notifications";
 import {
   applyDevelopmentRemoteAccount,
   type DevelopmentRemoteRole,
@@ -157,6 +166,7 @@ import { DynamicIslandFailed, DynamicIslandWindowController, toDynamicIslandFail
 import { githubAppConfig } from "./github-connector-config";
 import { GitHubConnectorService } from "./github-connector-service";
 import { GitHubConnectorStore } from "./github-connector-store";
+import { HermesImportService } from "./hermes-import-service";
 import { HostEventsRuntime } from "./host-events-runtime";
 import { HostEventsService } from "./host-events-service";
 import { HostService } from "./host-service";
@@ -263,6 +273,7 @@ import { listSiblingOpenBotInstances } from "./update-sibling-instances";
 import { VoiceApiKeyStore } from "./voice-api-key-store";
 import { openScribeSocket } from "./voice-cloud-stream";
 import {
+  BARK_PLUS_MODEL_DIRECTORY,
   PARAKEET_MODEL_DIRECTORY,
   removeLegacyWhisperCache,
   SUPERTONIC_MODEL_DIRECTORY,
@@ -315,6 +326,8 @@ const MCP_OAUTH_PROXY_FILE = "openbot-mcp-oauth-proxy-v1.json";
 const GITHUB_CONNECTOR_FILE = "openbot-github-connector-v1.json";
 /** The 1Password service account token of this computer, with the same cipher. */
 const ONEPASSWORD_CONNECTOR_FILE = "openbot-onepassword-connector-v1.json";
+/** Which agent each imported Hermes profile made, so a second import updates that agent. */
+const HERMES_IMPORT_LINKS_FILE = "openbot-hermes-imports-v1.json";
 
 /**
  * Where each service stops, as a position in the shutdown sequence rather than a position in the
@@ -428,6 +441,8 @@ export interface ApplicationServiceContext {
   forwardVoiceStreamTranscript: (transcript: VoiceStreamTranscript) => void;
   forwardSpeechModelStatus: (status: SpeechModelStatus) => void;
   prepareForUpdateInstall: () => Promise<void>;
+  /** True once a quit starts, also before this function returns. See `CuaDriverRuntimeOptions.quitting`. */
+  quitting: () => boolean;
 }
 
 /** Everything the entry point wires up, registers IPC handlers against, and shuts down. */
@@ -473,6 +488,7 @@ export interface ApplicationServices {
   notificationPreference: NotificationPreferenceStore;
   busyMessageMode: BusyMessageModePreferenceStore;
   agentMemoryLimit: AgentMemoryLimitSetting;
+  agentAccess: AgentAccessStore;
   serverTimezone: ServerTimezonePreferenceStore;
   remoteSessionReuse: RemoteSessionReusePreferenceStore;
   remoteSessionCache: RemoteSessionCache;
@@ -502,6 +518,7 @@ export interface ApplicationServices {
   marketplaceAgents: AgentMarketplaceService;
   agentTemplates: AgentTemplateService;
   agentImport: AgentImportService;
+  hermesImport: HermesImportService;
   instanceTransfer: InstanceTransferService;
   voice: VoiceTranscriptionService;
   speech: VoiceSpeechService;
@@ -762,6 +779,7 @@ export async function createApplicationServices({
   forwardVoiceStreamTranscript,
   forwardSpeechModelStatus,
   prepareForUpdateInstall,
+  quitting,
 }: ApplicationServiceContext): Promise<ApplicationServices> {
   // First, so the provider lines of the whole startup reach the file.
   teardown.push(
@@ -1001,6 +1019,9 @@ export async function createApplicationServices({
     join(app.getPath("userData"), AGENT_MEMORY_LIMIT_PREFERENCE_FILE),
   );
   await runCauseEffect(agentMemoryLimit.load());
+  const agentAccess = new AgentAccessStore(join(app.getPath("userData"), AGENT_ACCESS_FILE));
+  if (!(await runCauseEffect(agentAccess.load())))
+    logger.warn("The roles file did not load. Members get no access to agents until an admin saves the roles.");
   const serverTimezone = new ServerTimezonePreferenceStore(
     join(app.getPath("userData"), SERVER_TIMEZONE_PREFERENCE_FILE),
   );
@@ -1313,6 +1334,7 @@ export async function createApplicationServices({
     onDiagnostic: (message) => {
       Effect.runFork(appendRemoteDiagnosticLog(join(app.getPath("userData"), "logs", "remote"), "cua-driver", message));
     },
+    quitting,
   });
   // After the provider runtimes, which hold the `cua-driver mcp` children that talk to this
   // daemon: stopping it first would leave them reading a socket nothing answers.
@@ -1605,8 +1627,8 @@ export async function createApplicationServices({
   service.setComputerUseCapability(computerUseCapability(cuaDriver.lastState));
   cuaDriver.onStateChanged((state) => service.setComputerUseCapability(computerUseCapability(state)));
   // Only when a live session would hold the wrong tool set: this deactivates every agent's stored
-  // provider session, so the driver stays quiet for a grant, for the warm-up below, and for the
-  // stop at teardown, where the sessions are being left for the next run.
+  // provider session, so the driver stays quiet for a grant, for the warm-up below, and from the
+  // moment OpenBot quits, where the sessions are being left for the next run.
   cuaDriver.onMcpServerChanged(() => {
     void runCauseEffect(service.notifyComputerUseChanged()).catch((error) =>
       logger.warn("Provider tools did not refresh.", toLogValue(error)),
@@ -1863,6 +1885,26 @@ export async function createApplicationServices({
     () => serverTimezone.effective(),
     join(app.getPath("userData"), "agent-import-uploads"),
   );
+  // Hermes profiles become agents through the same services; MCP servers through the MCP settings.
+  const hermesImport = new HermesImportService(
+    {
+      listAgents: () => service.listAgents(),
+      createAgentProfile: (input) => service.createAgentProfile(input),
+      updateAgent: (input) => service.updateAgent(input),
+      deleteAgent: (agentId) => service.deleteAgent(agentId),
+      createRoutine: (input, options) => service.createRoutine(input, options),
+      listRoutines: (agentId) => service.listRoutines(agentId),
+      createMemory: (input) => service.createMemory(input),
+      listMemories: (agentId) => service.listMemories(agentId),
+      memoryLimit: () => service.memoryLimit(),
+      initializeMemorySelection: (agentId) => service.initializeMemorySelection(agentId),
+      listMcpServers: () => service.listMcpServers(),
+      saveMcpServer: (config) => service.saveMcpServer({ config }),
+    },
+    { library: () => skills.requireLocalLibrary(), installLocal: (input) => skills.installLocal(input) },
+    join(app.getPath("userData"), HERMES_IMPORT_LINKS_FILE),
+    () => serverTimezone.effective(),
+  );
   // The same owners the Settings screens write through, so an import has their checks and restarts.
   const instanceTransfer = new InstanceTransferService({
     agents: service,
@@ -1960,6 +2002,8 @@ export async function createApplicationServices({
     routineFlows: routineFlowRuntime,
     // Present, so the host advertises `agent-hidden-v1`. Any member can hide or restore an agent that they can see.
     hiddenAgents: service,
+    // Present, so the host advertises `agent-access-v1`. Only owners and admins change the roles.
+    agentAccess,
     // Present, so the host advertises `agent-tasks-v1`. Any member who can send a message to the agent.
     agentTasks: service,
     // True on a hosted server, so the host advertises `focus-use-v1`. Any member can send it.
@@ -2009,12 +2053,18 @@ export async function createApplicationServices({
     sendPushNotification: (hostId, push) => centralAuth.sendPushNotification(hostId, push).pipe(toRemoteWorkflowError),
     pushNotificationStore,
     // The owner is at this computer only with recent input, also when the window was left in focus.
-    // Then the focused window shows the event, or the desktop notifies.
-    hostComputerInUse: () => {
+    // Then the focused window shows the event, or the desktop notifies. When mute or the level of
+    // this server keeps the desktop quiet about the event, the phone tells the owner.
+    hostComputerInUse: (event) => {
       const window = windows.getMainWindow();
       if (!window || window.isDestroyed()) return false;
       if (powerMonitor.getSystemIdleState(DESKTOP_USE_MS / 1_000) !== "active") return false;
-      return window.isFocused() || notificationPreference.get().desktopNotifications;
+      if (window.isFocused()) return true;
+      // Without a notification service, as on Linux without a daemon, the desktop shows nothing.
+      if (!Notification.isSupported()) return false;
+      // Read when an event arrives, after the manager below exists.
+      const local = remoteServers.list().find((server) => server.id === LOCAL_SERVER_ID);
+      return desktopShowsAgentEvent(event, local, notificationPreference.get().desktopNotifications);
     },
     verifyRemoteSessionTicket: (ticket) => centralAuth.verifyRemoteSessionTicket(ticket).pipe(toRemoteWorkflowError),
     endRemoteSession: (sessionId) => centralAuth.endRemoteSession(sessionId).pipe(toRemoteWorkflowError),
@@ -2135,7 +2185,7 @@ export async function createApplicationServices({
           surface: "desktop_host",
           app_version: app.getVersion(),
           platform: analyticsPlatform,
-          event_schema_version: 8,
+          event_schema_version: ANALYTICS_GENERATIONS.desktop_host,
         },
       )
     : undefined;
@@ -2172,6 +2222,7 @@ export async function createApplicationServices({
         : null;
     },
     resolveAgent: (agentId) => service.listAgents().find((agent) => agent.id === agentId) ?? null,
+    resolveTurnUsage: (agentId, turnId, since) => service.getTurnUsage(agentId, turnId, since),
     resolveMcpServer: (name) => {
       const configs = service.listMcpServers().filter((server) => isReportedMcpServerName(server.name, name));
       if (configs.length === 0) return null;
@@ -2310,11 +2361,15 @@ export async function createApplicationServices({
   await runCauseEffect(voiceApiKeys.load());
   const voice = new VoiceTranscriptionService({
     resourcesRoot: app.isPackaged ? join(process.resourcesPath, "voice") : resolve(".openbot-build/voice"),
-    // `voice:prepare` puts Parakeet in `.openbot-build/voice/model` for development.
+    // `voice:prepare` puts Parakeet in `.openbot-build/voice/model` for development. In development
+    // the other models download to `.openbot-build/voice` when you select them.
     modelDirectories: {
       "parakeet-tdt-0.6b-v3": app.isPackaged
         ? join(app.getPath("userData"), "runtimes", PARAKEET_MODEL_DIRECTORY)
         : resolve(".openbot-build/voice/model"),
+      "bark-3.0-plus": app.isPackaged
+        ? join(app.getPath("userData"), "runtimes", BARK_PLUS_MODEL_DIRECTORY)
+        : resolve(".openbot-build/voice", BARK_PLUS_MODEL_DIRECTORY),
       "whisper-turbo": app.isPackaged
         ? join(app.getPath("userData"), "runtimes", WHISPER_TURBO_MODEL_DIRECTORY)
         : resolve(".openbot-build/voice", WHISPER_TURBO_MODEL_DIRECTORY),
@@ -2632,6 +2687,7 @@ export async function createApplicationServices({
     notificationPreference,
     busyMessageMode,
     agentMemoryLimit: agentMemoryLimitSetting,
+    agentAccess,
     serverTimezone,
     remoteSessionReuse,
     remoteSessionCache,
@@ -2664,6 +2720,7 @@ export async function createApplicationServices({
     marketplaceAgents,
     agentTemplates,
     agentImport,
+    hermesImport,
     instanceTransfer,
     voice,
     speech,

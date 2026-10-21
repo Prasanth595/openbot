@@ -44,6 +44,17 @@
   gap: 6px;
 }
 
+/* The model change that waits for the running turn to end. */
+.conversation-model-pending {
+  flex: none;
+  gap: 4px;
+}
+
+.conversation-model-pending svg {
+  width: 12px;
+  height: 12px;
+}
+
 .provider-model-picker {
   position: relative;
   min-width: 0;

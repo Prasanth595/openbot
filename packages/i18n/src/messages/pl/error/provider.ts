@@ -185,6 +185,8 @@ export const messages = {
     "Dostawca modelu odrzucił żądanie z powodu rozliczeń konta. Czekanie tego nie naprawi. Dodaj metodę płatności lub środki na koncie dostawcy albo wybierz inny model.\n{detail}",
   "error.provider.opencodeInvalidUpload":
     "Dostawca modelu OpenCode zgłosił nieprawidłowe żądanie przesłania. Wybierz inny model i kontynuuj. Sprawdź zapisane rutyny, zanim utworzysz je ponownie.\n{detail}",
+  "error.provider.opencodeUnreadableContent":
+    "Ten model nie może odczytać pliku lub obrazu w tym czacie. Wybierz model, który odczytuje pliki, a potem wyślij wiadomość ponownie.",
   "error.provider.opencodeProviderFailed":
     "Wystąpił błąd po stronie dostawcy modelu. Twoje połączenie nie jest przyczyną. Spróbuj ponownie później lub wybierz inny model.\n{detail}",
   "error.provider.opencodeNetwork":
@@ -348,6 +350,7 @@ export const messages = {
   "error.provider.museAuthUnverified":
     "Uwierzytelnienie Muse nie jest zweryfikowane. Połącz się na komputerze hosta lub ustaw klucz API Meta.",
   "error.provider.museSignIn": "Zaloguj się do Muse na komputerze hosta, aby kontynuować.",
+  "error.provider.inceptionSignIn": "Dodaj klucz API Inception, aby kontynuować.",
   "error.provider.terminalLoginFailed":
     "Nie można otworzyć terminala logowania. Otwórz CLI dostawcy na tym hoście, zaloguj się tam, a potem odśwież dostawców.",
   "error.provider.nativeArchiveInvalid": "Pobrany plik dostawcy nie zawiera prawidłowej instalacji.",
