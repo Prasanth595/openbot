@@ -152,7 +152,7 @@ async function canary(manager: ProviderRuntimeManager, provider: ManagedProvider
   if (!executable || !version) throw new Error(`${provider}: the newest release did not install.`);
   process.stdout.write(`${provider} ${version}: ${executable}\n`);
   const expected = await expectedVersion(provider);
-  assert.equal(version, expected, `${provider}: the installed version is the one an update installs now.`);
+  assert.equal(version, expected, `${provider}: installed ${version}, but an update installs ${expected} now.`);
 
   const driver = requireProviderDriver(provider);
   const open = () => {

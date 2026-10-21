@@ -73,12 +73,12 @@ export async function runTurn(
   options: { model?: string; text?: string; timeoutMs?: number } = {},
 ): Promise<TurnResult> {
   const result: TurnResult = { reply: "", error: null, status: null };
-  // `AgentClient` has no `off` for notifications, so a finished turn's listener stays and ignores what follows.
   let finished = false;
   let timer: NodeJS.Timeout | undefined;
+  let notified: ((notification: AppServerNotification) => void) | undefined;
   let exited: ((error: Error) => void) | undefined;
   const done = new Promise<void>((finish, fail) => {
-    client.on("notification", (notification: AppServerNotification) => {
+    notified = (notification) => {
       if (finished || getString(notification.params, "threadId") !== thread) return;
       if (notification.method === "item/completed" && isRecord(notification.params)) {
         result.reply += getString(notification.params.item, "text") ?? "";
@@ -89,7 +89,8 @@ export async function runTurn(
         finished = true;
         finish();
       }
-    });
+    };
+    client.on("notification", notified);
     exited = (error) => fail(new Error(`The agent exited before the turn completed: ${error.message}`));
     client.once("exit", exited);
     const timeoutMs = options.timeoutMs ?? TURN_TIMEOUT_MS;
@@ -111,6 +112,7 @@ export async function runTurn(
   } finally {
     finished = true;
     clearTimeout(timer);
+    if (notified) client.off("notification", notified);
     if (exited) client.off("exit", exited);
   }
 }
