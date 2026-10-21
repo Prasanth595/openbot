@@ -1128,13 +1128,12 @@ a {
   backdrop-filter: blur(20px) saturate(180%);
 }
 
-/* The hero beam comes out of this button, so its lower edge glows in the beam colour. */
+/* The hero beam falls through this button. The beam draws the light around its edge; the
+   button adds the light that comes in at its rim. */
 .landing-button[data-beam-source] {
   box-shadow:
-    inset 0 -2px 6px rgba(164, 108, 245, 0.28),
-    0 0 0 1px rgba(214, 190, 255, 0.5),
-    0 8px 22px -6px rgba(164, 108, 245, 0.9),
-    0 0 48px -8px rgba(164, 108, 245, 0.55);
+    inset 0 0 8px rgba(164, 108, 245, 0.35),
+    inset 0 0 0 1px rgba(214, 190, 255, 0.45);
 }
 
 .landing-button:focus-visible {
@@ -1183,7 +1182,7 @@ a {
   mask-image: linear-gradient(var(--openbot-transparent), var(--openbot-mask-solid) 120px);
 }
 
-/* A beam that comes out of a header button starts below it, so the top needs no fade. */
+/* A beam that falls through a header button lights the top of the hero, so the top needs no fade. */
 .landing-laser-flow[data-source] {
   mask-image: none;
 }

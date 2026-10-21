@@ -41,7 +41,8 @@ uniform float uDpr;
 uniform float uScale;
 uniform float uTime;
 uniform float uBeamX;
-uniform vec2 uOrigin;
+uniform vec4 uSource;
+uniform vec3 uWrap;
 uniform vec4 uSurface;
 uniform float uRadius;
 uniform vec3 uIntro;
@@ -194,19 +195,31 @@ void main() {
   float front = uIntro.x / uScale;
   float drop = smoothstep(front + 10.0, front - 110.0, p.y);
   float falling = 1.0 - smoothstep(sy - 24.0, sy, front);
-  // The beam starts at the top of the canvas, or comes out of the source element's bottom edge.
-  // The light opens out from the source as a cone: a level cut would draw a dark band above it.
-  float oy = uOrigin.x / uScale;
-  float emitted = mix(1.0, smoothstep(oy - 3.0, oy + 8.0 + 0.9 * adx, p.y), uOrigin.y);
-  float top = mix(mix(0.3, 0.85, uOrigin.y), 1.0, smoothstep(oy, oy + 0.3 * (sy - oy), p.y)) * emitted;
+  // A source element sits near the top of the canvas, so the beam is at full strength sooner.
+  float sourced = uWrap.z;
+  float top = mix(mix(0.3, 0.6, sourced), 1.0, smoothstep(0.0, 0.3 * sy, p.y));
   // A wide beam keeps a thin core: only its glow grows, so the beam does not turn into a white column.
   float beamCore = 24.0 * exp(-adx / (2.0 * min(beamWidth, 1.4)));
   float beamHalo = 1.3 * exp(-adx / (6.0 * min(beamWidth, 1.6))) + 0.3 * exp(-adx / (22.0 * beamWidth));
   vec3 haloK = mix(BEAM, sideK, exp(-hp / 80.0));
   col += (BEAM * beamCore + haloK * beamHalo) * top * above * drop;
   col += sideK * 0.16 * exp(-adx / (45.0 * beamWidth)) * top * above * drop;
-  float mouth = exp(-length(vec2(dx / 2.2, max(p.y - oy, 0.0))) / 9.0) * emitted * uOrigin.y * drop;
-  col += mix(WHITE, BEAM, 0.3) * mouth * 9.0 + BEAM * 1.2 * exp(-length(vec2(dx / 2.0, p.y - oy)) / 18.0) * smoothstep(oy - 24.0, oy + 4.0, p.y) * uOrigin.y * drop;
+  if (sourced > 0.5) {
+    // The beam falls onto the source element, its light runs around the element's edge, and the
+    // beam leaves again from the element's bottom edge.
+    vec4 sb4 = uSource / uScale;
+    vec2 sc = vec2(sb4.x + sb4.z, sb4.y + sb4.w) * 0.5;
+    float sdS = roundBox(p - sc, vec2(sb4.z - sb4.x, sb4.w - sb4.y) * 0.5, uWrap.x / uScale);
+    float outS = max(sdS, 0.0);
+    float struck = smoothstep(sb4.y - 4.0, sb4.y + 12.0, front);
+    float around = 1.0 - smoothstep(uWrap.y / uScale - 24.0, uWrap.y / uScale, adx);
+    float near = 0.4 + 0.6 * exp(-adx / 28.0);
+    float wrapLine = (exp(-sq(outS / 0.9)) + 0.15 * exp(-outS / 3.0)) * 9.0 * near;
+    float wrapHalo = (exp(-outS / 7.0) + 0.35 * exp(-outS / 22.0)) * 1.1 * near;
+    col += (mix(sideK, WHITE, 0.6) * wrapLine + sideK * wrapHalo) * struck * around * breathe * smoothstep(-0.5, 0.5, sdS);
+    float mouth = exp(-length(vec2(dx / 2.2, max(p.y - sb4.w, 0.0))) / 9.0) * smoothstep(sb4.w - 3.0, sb4.w + 6.0, p.y);
+    col += mix(WHITE, BEAM, 0.3) * mouth * 7.0 * drop;
+  }
   float head = exp(-sq((p.y - front) / 24.0)) * falling;
   col += mix(WHITE, BEAM, 0.35) * head * (7.0 * exp(-adx / (2.6 * beamWidth)) + 1.0 * exp(-adx / (14.0 * beamWidth)));
 
@@ -275,7 +288,7 @@ void main() {
     vec2 fw = vec2(fbm(fq * 1.3 + vec2(1.7, 9.2) + t * 0.03), fbm(fq * 1.3 + vec2(8.3, 2.8) - t * 0.025));
     float cloud = fbm(fq + 1.4 * fw);
     float density = smoothstep(0.5, 0.78, cloud);
-    float lit = exp(-adx / 50.0) * emitted;
+    float lit = exp(-adx / 50.0);
     float fogMask = smoothstep(-2.0, 20.0, h);
     float reached = smoothstep(front + 80.0, front - 40.0, p.y);
     vec3 fog = (HAZE * 0.45 + BEAM * 6.0 * lit * reached) * density * envelope * fogMask;
@@ -373,6 +386,8 @@ const POUR_PACE = 0.5;
 const SPILL_SPEED = 150;
 const SPILL_GRAVITY = 90;
 const INTRO_END = 12;
+/** How fast, in CSS pixels a second, the light runs around the source element after the beam reaches it. */
+const WRAP_SPEED = 240;
 
 const SETTINGS = {
   intensity: 1.6,
@@ -471,7 +486,8 @@ function locate(gl: WebGL2RenderingContext, program: WebGLProgram) {
     uScale: at("uScale"),
     uTime: at("uTime"),
     uBeamX: at("uBeamX"),
-    uOrigin: at("uOrigin"),
+    uSource: at("uSource"),
+    uWrap: at("uWrap"),
     uSurface: at("uSurface"),
     uRadius: at("uRadius"),
     uIntro: at("uIntro"),
@@ -501,8 +517,9 @@ export interface LandingLaserFlowProps {
   /** The beam's horizontal position, as a fraction of the component's width. */
   beamPosition: number;
   /**
-   * An element the beam comes out of, at the centre of its bottom edge. It gets `data-beam-source`
-   * while it does. When its centre leaves no clear path onto the surface, `beamPosition` applies.
+   * An element the beam falls through on its way to the surface: the light runs around its edge,
+   * and the beam leaves from its bottom edge. It gets `data-beam-source` while the beam passes
+   * through it. When its centre leaves no clear path onto the surface, `beamPosition` applies.
    */
   source?: () => HTMLElement | undefined;
   /** Elements the beam must not cross. The beam moves right of them when the screen is narrow. */
@@ -611,13 +628,21 @@ export function LandingLaserFlow(props: LandingLaserFlowProps) {
       }
       beamX = Math.max(beamX, clear);
       const margin = surface.radius + 6;
-      let source: { x: number; y: number } | undefined;
+      let source: { x: number; left: number; top: number; right: number; bottom: number; radius: number } | undefined;
       const emitter = props.source?.();
       const rect = emitter?.getBoundingClientRect();
       if (emitter && rect && rect.width > 0) {
         const x = (rect.left + rect.right) / 2 - box.left;
         if (surface.real && x >= clear && x >= surface.left + margin && x <= surface.right - margin) {
-          source = { x, y: rect.bottom - box.top };
+          const radius = Number.parseFloat(getComputedStyle(emitter).borderTopLeftRadius) || 0;
+          source = {
+            x,
+            left: rect.left - box.left,
+            top: rect.top - box.top,
+            right: rect.right - box.left,
+            bottom: rect.bottom - box.top,
+            radius: Math.min(radius, rect.width / 2, rect.height / 2),
+          };
           beamX = x;
         }
       }
@@ -635,7 +660,7 @@ export function LandingLaserFlow(props: LandingLaserFlowProps) {
           surface = { left: -width * 2, top: height, right: width * 3, bottom: height * 3, radius: 0, real: false };
         }
       }
-      const startY = source ? source.y : -0.15 * height;
+      const startY = -0.15 * height;
       const span = surface.top - startY + 0.3 * height;
       const it = state.introTime;
       const settled = it >= INTRO_END;
@@ -662,6 +687,9 @@ export function LandingLaserFlow(props: LandingLaserFlowProps) {
       };
       const [frontL, fillL] = pour((beamX - surface.left) / scale);
       const [frontR, fillR] = pour((surface.right - beamX) / scale);
+      // The light runs out from the top centre of the source once the beam front reaches it.
+      const struck = source ? INTRO_DROP * clamp((source.top - startY) / span, 0, 1) ** (1 / 1.3) : 0;
+      const wrapRun = settled ? 100000 : Math.max(0, it - struck) * WRAP_SPEED;
       const atmosphere = settled
         ? 1
         : tau <= 0
@@ -677,7 +705,8 @@ export function LandingLaserFlow(props: LandingLaserFlowProps) {
       gl.uniform1f(uniforms.uScale, scale);
       gl.uniform1f(uniforms.uTime, state.time);
       gl.uniform1f(uniforms.uBeamX, beamX);
-      gl.uniform2f(uniforms.uOrigin, source?.y ?? 0, source ? 1 : 0);
+      gl.uniform4f(uniforms.uSource, source?.left ?? 0, source?.top ?? 0, source?.right ?? 0, source?.bottom ?? 0);
+      gl.uniform3f(uniforms.uWrap, source?.radius ?? 0, wrapRun, source ? 1 : 0);
       gl.uniform4f(uniforms.uSurface, surface.left, surface.top, surface.right, surface.bottom);
       gl.uniform1f(uniforms.uRadius, surface.radius);
       gl.uniform3f(uniforms.uIntro, front, bloom, flash);
