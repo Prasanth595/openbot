@@ -132,7 +132,7 @@ function TaskAgentSelect(props: {
         <ChevronDown class="tasks-page-agent-chevron" aria-hidden="true" />
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
-        <DropdownMenu.Content>
+        <DropdownMenu.Content class="tasks-page-agent-menu">
           <DropdownMenu.RadioGroup value={props.agentId} onChange={(value) => props.onChange(value)}>
             <For each={props.agents} keyed={(option) => option.id}>
               {(option) => (

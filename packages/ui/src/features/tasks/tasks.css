@@ -123,6 +123,12 @@
   color: var(--openbot-text-primary);
 }
 
+/* A server can have more agents than the window has rows, so the menu fits the space left and scrolls. */
+.tasks-page-agent-menu {
+  max-height: min(520px, calc(100dvh - 16px), var(--kb-popper-content-available-height, 520px));
+  overflow-y: auto;
+}
+
 .tasks-page-took {
   display: flex;
   min-height: var(--openbot-control-sm);

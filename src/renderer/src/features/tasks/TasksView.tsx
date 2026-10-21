@@ -14,6 +14,7 @@ import { currentText } from "@openbot/ui/text";
 import { createEffect, createMemo, createProjection, createStore, onCleanup, Show, untrack } from "solid-js";
 import { actionToast } from "../../action-toast";
 import { toAgentMessages } from "../../app-message-projection";
+import { readTaskAgentSelection, writeTaskAgentSelection } from "./task-agent-selection";
 import type { TaskEvent, TasksSource } from "./tasks-port";
 
 /** How long a start waits before it reaches the agent. Undo cancels it in this time. */
@@ -101,8 +102,11 @@ export function TasksView(props: TasksViewProps) {
   const listRequests = new Map<string, number>();
   const readRequests = new Map<string, number>();
 
+  // The agent chosen last on this server stays the default, so the user does not choose it again on each visit.
+  const savedAgentId = createMemo(() => readTaskAgentSelection()[props.serverId] ?? "");
+  const isListed = (id: string) => props.agents.some((agent) => agent.id === id);
   const agentId = () =>
-    props.agents.some((agent) => agent.id === state.agentId) ? state.agentId : (props.agents[0]?.id ?? "");
+    isListed(state.agentId) ? state.agentId : isListed(savedAgentId()) ? savedAgentId() : (props.agents[0]?.id ?? "");
   const agentOf = (id: string) => props.agents.find((agent) => agent.id === id);
 
   const tasks = createMemo<AgentTask[]>(() => {
@@ -485,11 +489,12 @@ export function TasksView(props: TasksViewProps) {
       agents={props.agents}
       tasks={tasks()}
       agentId={agentId()}
-      onAgentChange={(id) =>
+      onAgentChange={(id) => {
+        writeTaskAgentSelection(props.serverId, id);
         setState((draft) => {
           draft.agentId = id;
-        })
-      }
+        });
+      }}
       draft={state.draft}
       onDraftChange={voiceControls.setDraft}
       focusRequest={state.focusRequest}
@@ -508,6 +513,7 @@ export function TasksView(props: TasksViewProps) {
       onTookAgentChange={(id) => {
         if (!pending) return;
         pending.task = { ...pending.task, agentId: id };
+        writeTaskAgentSelection(props.serverId, id);
         setState((draft) => {
           if (draft.pending) draft.pending.agentId = id;
           draft.agentId = id;
