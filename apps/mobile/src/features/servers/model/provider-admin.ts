@@ -74,7 +74,7 @@ const V2_RUNTIME_PROVIDERS = [...V1_RUNTIME_PROVIDERS, "antigravity"] as const;
  * - `relay`: the host starts the sign-in and the phone opens the page (`sign-in-relay-v1`). A page that
  *   returns to the host's loopback address needs that address pasted back.
  */
-export type ProviderSignInMethod = "code" | "relay";
+type ProviderSignInMethod = "code" | "relay";
 
 function codeSignInProviders(capabilities: readonly string[]): readonly AgentProviderId[] {
   if (capabilities.includes(PROVIDERS_V4_CAPABILITY)) {
@@ -92,10 +92,7 @@ function codeSignInProviders(capabilities: readonly string[]): readonly AgentPro
  * route first, because it needs nothing pasted back, then the relayed page. The host's own browser
  * page needs the live view, which the phone does not show.
  */
-export function providerSignInMethod(
-  provider: AgentProviderId,
-  capabilities: readonly string[],
-): ProviderSignInMethod | null {
+function providerSignInMethod(provider: AgentProviderId, capabilities: readonly string[]): ProviderSignInMethod | null {
   if (codeSignInProviders(capabilities).includes(provider)) return "code";
   return capabilities.includes(SIGN_IN_RELAY_CAPABILITY) && isOneOf(SIGN_IN_RELAY_PROVIDERS, provider) ? "relay" : null;
 }
@@ -108,7 +105,7 @@ function runtimeProviders(capabilities: readonly string[]): readonly ManagedProv
 }
 
 /** The providers whose API key the host saves: OpenCode Go, and Muse and Gemini from `providers-v5`. */
-export function providerHasApiKey(provider: AgentProviderId, capabilities: readonly string[]): boolean {
+function providerHasApiKey(provider: AgentProviderId, capabilities: readonly string[]): boolean {
   if (provider === "opencode") return true;
   return capabilities.includes(PROVIDERS_V5_CAPABILITY) && (provider === "muse" || provider === "antigravity");
 }
