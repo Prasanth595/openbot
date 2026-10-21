@@ -7,7 +7,7 @@ the [root changelog](../../CHANGELOG.md).
 
 ## [Unreleased]
 
-## [1.4.0] - In review
+## [1.4.0] - 2026-10-21 (Android)
 
 ### Added
 
