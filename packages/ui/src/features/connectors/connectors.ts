@@ -1,14 +1,9 @@
+import { CONNECTOR_IDS, type ConnectorId } from "@openbot/contracts/ipc";
 import { CONNECTORS_CAPABILITY } from "@openbot/contracts/team-protocol/connectors-v1";
 import type { TeamCurrentCapability } from "@openbot/contracts/team-protocol/current";
 import { ONEPASSWORD_CONNECTOR_CAPABILITY } from "@openbot/contracts/team-protocol/onepassword-connector-v1";
 
-/**
- * Every connector, in the order that Settings › Connectors and Marketplace › Apps show them. A
- * connector id is also its Marketplace app id, so an agent can suggest it in a conversation.
- */
-export const CONNECTOR_IDS = ["slack", "discord", "telegram", "github", "onepassword", "bitwarden"] as const;
-
-export type ConnectorId = (typeof CONNECTOR_IDS)[number];
+export { CONNECTOR_IDS, type ConnectorId } from "@openbot/contracts/ipc";
 
 export interface ConnectorDefinition {
   /**

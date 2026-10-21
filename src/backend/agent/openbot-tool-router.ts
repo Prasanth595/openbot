@@ -16,6 +16,7 @@ import {
   agentComputerUseEnabled,
   agentNewChatAllowed,
   agentQuickAcknowledgementEnabled,
+  CONNECTOR_IDS,
   isMessageReaction,
   marketplaceSuggestionItemType,
   skillConversationEventItemType,
@@ -28,6 +29,7 @@ import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, redactText } from "@openbot/logging";
 import { Effect, Result } from "effect";
 import { z } from "zod";
+import pluginCatalog from "../../../resources/plugin-catalog/catalog.json";
 import type { AgentClient, AgentProvider } from "../agent-client";
 import type { AgentTables } from "../agent-data/agent-tables";
 import type { AgentStore } from "../agent-store";
@@ -105,6 +107,12 @@ const logger = createOpenBotLogger("openbot-tool-router");
 
 /** How long the plan card of `acknowledge_request` waits before the host presses its start button. */
 const ACKNOWLEDGE_START_MS = 10_000;
+
+/** The Marketplace apps that the chat draws a card for: the bundled catalog plugins and the connectors. */
+const MARKETPLACE_APP_IDS: readonly string[] = [
+  ...pluginCatalog.plugins.map((plugin) => plugin.slug),
+  ...CONNECTOR_IDS,
+];
 
 /** The reason says what to grant or to correct, and holds no screen content. */
 function captureFailure(failure: ScreenCaptureFailed) {
@@ -845,6 +853,9 @@ export class OpenBotToolRouter {
       const args = params.arguments;
       if (!isRecord(args) || !isString(args.app) || !isPluginSlug(args.app)) {
         throw new Error("app must be a Marketplace plugin slug, or github.");
+      }
+      if (!MARKETPLACE_APP_IDS.includes(args.app)) {
+        return openBotToolResult({ status: "not_found", app: args.app, apps: MARKETPLACE_APP_IDS });
       }
       const snapshot = structuredClone(this.#conversation.ensureSnapshot(senderAgentId, executionThreadId));
       const message: ConversationMessage = {
