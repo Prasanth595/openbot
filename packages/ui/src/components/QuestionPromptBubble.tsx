@@ -466,7 +466,7 @@ export function QuestionPromptBubble(props: QuestionPromptBubbleProps) {
                     <Questionnaire.Choice
                       name={current().id}
                       value={option.label}
-                      multiple={current().multiSelect}
+                      multiple={current().multiSelect === true}
                       checked={
                         current().multiSelect
                           ? isPicked(current(), option.label)
