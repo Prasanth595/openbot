@@ -132,6 +132,10 @@ The desktop test shards keep separate runners. The API checks, artifact uploads,
 deployment dependencies keep their existing order. Local commands do not change. Compare job
 times on GitHub before claiming a time reduction; parallel steps share the runner's resources.
 
+The `Provider CLI canary` workflow is not a pull request check. It runs every six hours on the newest
+upstream provider CLIs, which reach users without an OpenBot release; see
+[Provider CLI updates](architecture/providers.md#provider-cli-updates).
+
 `check:api` ends with `api:build:check`, which is the preview build of the Worker, so the API job
 uploads that build as the `cloudflare-preview` artifact. The job has no secrets. After the CI run completes, the trusted
 [cloudflare-preview.yml](../.github/workflows/cloudflare-preview.yml) workflow runs its `main`

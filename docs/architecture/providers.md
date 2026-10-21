@@ -114,6 +114,14 @@ install is used. The newest version in the store that verifies is the one that r
 broken upstream release without an OpenBot release. It suppresses an offer only: it does not remove
 a version a user already installed. A list that cannot be read blocks nothing.
 
+The `Provider CLI canary` workflow (`.github/workflows/provider-cli-canary.yml`) finds a broken
+release before many users install it. Every six hours it reads the newest release of each provider
+for each target, installs the newest OpenCode through `ProviderRuntimeManager`, and runs the
+conformance cases on it with the free `opencode/big-pickle` model and no account
+(`bun run test:provider-cli-canary`). It opens one issue after two failed runs in a row. The other
+providers need an account, so the canary only reads their releases; `test:provider-conformance` runs
+the same cases on each ACP driver over a fake agent.
+
 The provider runtime holds new turns while it installs and activates that managed executable. It
 keeps the previous client until the candidate is ready; activation failure removes the rejected
 artifact and preserves the old runtime, so a release that does not start leaves the last working CLI
