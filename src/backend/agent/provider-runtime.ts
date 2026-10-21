@@ -1713,10 +1713,12 @@ export class ProviderRuntime implements ProviderPort {
         }),
     );
     // A provider that runs this CLI, such as Inception on Pi, moves to the new binary when its own
-    // turns end. One with no process resolves the new binary when it starts.
+    // turns end. One with no process, such as one that found no CLI, is checked again now.
     for (const driver of BUILT_IN_PROVIDER_DRIVERS) {
-      if (driver.cliProvider === provider && this.#clients.has(driver.id))
-        yield* this.restartProviderWhenIdle(driver.id).pipe(Effect.ignore);
+      if (driver.cliProvider !== provider || this.#off.has(driver.id)) continue;
+      yield* (
+        this.#clients.has(driver.id) ? this.restartProviderWhenIdle(driver.id) : this.#reprobeProvider(driver.id)
+      ).pipe(Effect.ignore);
     }
     return this.status();
   }, Effect.uninterruptible);

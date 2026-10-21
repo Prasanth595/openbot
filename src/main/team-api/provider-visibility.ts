@@ -9,7 +9,7 @@ import type { TeamProtocolV1JsonObject, TeamProtocolV1JsonValue } from "@openbot
  */
 export function isPeerHiddenProvider(value: unknown, protocol: number): boolean {
   return (
-    (protocol < 8 && value === "inception") ||
+    value === "inception" ||
     (protocol < 7 && (value === "pi" || value === "muse")) ||
     (protocol < 6 && (value === "cursor" || value === "cline")) ||
     (protocol < 5 && (value === "antigravity" || value === "acp")) ||
@@ -19,13 +19,14 @@ export function isPeerHiddenProvider(value: unknown, protocol: number): boolean 
 
 /**
  * The same test for an object `id`. `inception`, `pi`, `muse`, `acp`, `cursor` and `cline` count only
- * for a provider status row, which has a `state`, below the protocol that knows them: a custom
- * endpoint saved with that id before the provider existed is a peer-visible endpoint, also in the
- * `providers` list of a custom endpoint save or delete reply, and it must stay one.
+ * for a provider status row, which has a `state`, below the protocol that knows them (for
+ * `inception`, on all protocols): a custom endpoint saved with that id before the provider existed
+ * is a peer-visible endpoint, also in the `providers` list of a custom endpoint save or delete
+ * reply, and it must stay one.
  */
 function isPeerHiddenId(value: TeamProtocolV1JsonObject, protocol: number, listKey: string): boolean {
   const statusRow = listKey === "providers" && typeof value.state === "string";
-  if (value.id === "inception") return protocol < 8 && statusRow;
+  if (value.id === "inception") return statusRow;
   if (value.id === "pi" || value.id === "muse") return protocol < 7 && statusRow;
   if (value.id === "acp") return protocol < 5 && statusRow;
   if (value.id === "cursor" || value.id === "cline") return protocol < 6 && statusRow;

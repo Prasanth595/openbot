@@ -180,10 +180,12 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
 
   readonly #close = Effect.fn("PiAgentClient.closeThread")(function* (this: PiAgentClient, thread: PiThread) {
     thread.closed = true;
-    yield* thread.rpc.stop();
-    thread.mcp.close();
-    yield* thread.extension.close();
-    if (thread.inception) yield* thread.inception.close();
+    // The Inception folder is removed also when a step before it fails.
+    yield* Effect.gen(function* () {
+      yield* thread.rpc.stop();
+      thread.mcp.close();
+      yield* thread.extension.close();
+    }).pipe(Effect.ensuring(thread.inception ? thread.inception.close().pipe(Effect.orDie) : Effect.void));
   });
 
   readonly releaseThread = Effect.fn("PiAgentClient.releaseThread")(function* (this: PiAgentClient, id: string) {
@@ -331,7 +333,8 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
           for (const model of getArray(listed, "models")) {
             const provider = getString(model, "provider");
             const id = getString(model, "id");
-            if (!provider || !id || (this.provider === "inception") !== (provider === "inception")) continue;
+            // The Pi client does not load the Inception extension, so an `inception` model there is the user's own.
+            if (!provider || !id || (this.provider === "inception" && provider !== "inception")) continue;
             const reasoning = isRecord(model) && model.reasoning === true;
             let levels: string[] = [];
             if (reasoning) {
@@ -353,7 +356,9 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
           return models;
         }),
       ({ connection, inception }) =>
-        connection.stop().pipe(Effect.andThen(inception ? inception.close() : Effect.void), Effect.orDie),
+        connection
+          .stop()
+          .pipe(Effect.ensuring(inception ? inception.close().pipe(Effect.orDie) : Effect.void), Effect.orDie),
     );
   });
 
@@ -429,10 +434,14 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
         if (thread?.turn) this.#background(this.#finish(thread, "failed", error.message));
         this.emit("exit", error);
       });
-      const args = this.options.profileGeneration
-        ? ["--no-tools", "--no-extensions", "--no-mcp"]
-        : ["--extension", extension.path];
-      if (inception) args.push("--extension", inception.path);
+      // The Inception extension loads first, so that it removes the key from the environment
+      // before the other extensions run.
+      const args = inception ? ["--extension", inception.path] : [];
+      args.push(
+        ...(this.options.profileGeneration
+          ? ["--no-tools", "--no-extensions", "--no-mcp"]
+          : ["--extension", extension.path]),
+      );
       const instructions = getString(params, "developerInstructions");
       if (instructions) args.push("--append-system-prompt", instructions);
       if (!this.#running) return yield* providerFailure(new Error(sourceText("error.provider.piStopped")));
