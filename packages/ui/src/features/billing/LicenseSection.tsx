@@ -44,7 +44,7 @@ import {
   UsersRound,
 } from "@openbot/ui";
 import type { JSX } from "@solidjs/web";
-import { createSignal, For, Match, Show, Switch, untrack } from "solid-js";
+import { createEffect, createSignal, For, Match, Show, Switch, untrack } from "solid-js";
 import { useText } from "../../text";
 import {
   guessHostedCurrency,
@@ -176,7 +176,10 @@ export function LicenseSection(props: LicenseSectionProps): JSX.Element {
             {(license) => (
               <ConfirmDialog
                 open={cancelling()}
-                onCancel={() => setCancelling(false)}
+                onCancel={() => {
+                  setCancelling(false);
+                  props.store.track("cancel_kept");
+                }}
                 title={t("billing.license.cancel.title")}
                 description={<CancelDescription license={license()} />}
                 confirmLabel={t("billing.license.action.cancel")}
@@ -212,6 +215,12 @@ function LicenseAlerts(props: {
   onManagePayment: (() => void) | undefined;
 }): JSX.Element {
   const { t } = useText();
+  createEffect(
+    () => props.used > props.license.users,
+    (overLimit) => {
+      if (overLimit) props.store.track("over_limit_shown");
+    },
+  );
   return (
     <>
       <Show when={paymentFailed(props.license)}>
@@ -419,7 +428,10 @@ function LicenseOffer(props: {
               size="sm"
               variant={owners().length > 0 ? "outline" : "default"}
               aria-expanded="false"
-              onClick={() => setBuying(true)}
+              onClick={() => {
+                setBuying(true);
+                props.store.track("buy_opened");
+              }}
             >
               {t("billing.license.buy")}
             </Button>

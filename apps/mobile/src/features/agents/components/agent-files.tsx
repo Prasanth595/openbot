@@ -64,7 +64,7 @@ export function AgentFiles({
         {usage.files.map((file) => (
           <StoredFile
             key={file.id}
-            agent={agent}
+            serverId={agent.serverId}
             file={file}
             canDelete={canDelete && file.deletable}
             onChanged={onChanged}
@@ -83,19 +83,19 @@ export function AgentFiles({
   );
 }
 
-function Size({ bytes }: { bytes: number }) {
+export function Size({ bytes }: { bytes: number }) {
   const { format } = useText();
   return <Typography className="text-grouped-secondary">{format.fileSize(bytes)}</Typography>;
 }
 
 /** A stored file opens in the share sheet, like a queued file. */
-function StoredFile({
-  agent,
+export function StoredFile({
+  serverId,
   file,
   canDelete,
   onChanged,
 }: {
-  agent: MobileAgent;
+  serverId: string;
   file: StoredFileRow;
   canDelete: boolean;
   onChanged: () => void;
@@ -106,7 +106,7 @@ function StoredFile({
   const [deleting, setDeleting] = useState(false);
   const image = file.kind === "image";
   const missing = file.status === "missing";
-  const attachment = useAttachmentFile(agent.serverId, file, image && !missing);
+  const attachment = useAttachmentFile(serverId, file, image && !missing);
   const details = [
     format.fileSize(file.size),
     file.source === "generated" ? t("mobile.agent.files.fromAgent") : null,
@@ -129,7 +129,7 @@ function StoredFile({
           style: "destructive",
           onPress: () => {
             setDeleting(true);
-            deleteStoredFile(file.id, agent.serverId)
+            deleteStoredFile(file.id, serverId)
               .then(() => {
                 void haptics.notification("success");
               })

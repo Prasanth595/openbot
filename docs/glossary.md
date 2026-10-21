@@ -38,6 +38,11 @@ table, IPC channel or product string, or when a term in the code disagrees with 
 - **thread**: durable `projection_threads` record. **conversation**: its read projection, with no
   separate table. **provider session**: private CLI resume state (`projection_provider_sessions`).
   **team session**: authenticated remote connection. **turn**: one exchange in a thread.
+- **role**: a custom role of a server that sets which agents its members can use, and at which
+  level (`AgentAccessRole`, `agent-access-v1`, `openbot-agent-access-v1.json`). The **Everyone** role
+  applies to every member. It is not the team role (`TeamRole`: owner, admin, member), which the UI
+  calls the server role. **agent access** in the agent settings is the agent's own runtime access;
+  the `agent-access-v1` levels are the access of members to agents.
 - **routine**: a saved instruction for an agent or channel, with one schedule or webhook trigger
   (`EventRoutineTrigger`). Agent routines use `projection_agent_routines`. This is not Claude Code
   `/schedule`.

@@ -142,6 +142,10 @@ export const messages = {
   "provider.geminiKey.description":
     "Guarda una clave de API de Gemini en este equipo. Una clave guardada se usa en lugar de tu cuenta de Google. Para iniciar sesión con Google, elimina la clave y selecciona Conectar en la fila de Gemini.",
   "provider.geminiKey.label": "Clave de API de Gemini",
+  "provider.inceptionKey.title": "Clave de API de Inception",
+  "provider.inceptionKey.description":
+    "Guarda una clave de API de Inception en este equipo para usar los modelos Mercury. OpenBot los ejecuta en la CLI de Pi que descarga.",
+  "provider.inceptionKey.label": "Clave de API de Inception",
   "provider.openCodeKey.title": "Iniciar sesión en OpenCode Go",
   "provider.openCodeKey.description":
     "Los modelos gratuitos no requieren una cuenta. Una clave permite usar los modelos Go de pago.",

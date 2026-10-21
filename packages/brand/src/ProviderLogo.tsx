@@ -11,7 +11,8 @@ export type ProviderLogoVariant =
   | "cline"
   | "acp"
   | "pi"
-  | "muse";
+  | "muse"
+  | "inception";
 
 export interface ProviderLogoProps {
   provider: ProviderLogoVariant;
@@ -39,7 +40,8 @@ export function ProviderLogo(props: ProviderLogoProps) {
   const isCursor = () => props.provider === "cursor";
   const isCline = () => props.provider === "cline";
   // Native CLI providers use the existing neutral terminal mark.
-  const isAcp = () => props.provider === "acp" || props.provider === "pi" || props.provider === "muse";
+  const isAcp = () =>
+    props.provider === "acp" || props.provider === "pi" || props.provider === "muse" || props.provider === "inception";
 
   return (
     <svg

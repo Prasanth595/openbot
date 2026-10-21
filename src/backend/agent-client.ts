@@ -31,6 +31,12 @@ export interface AgentClient {
    */
   releaseThread?(externalThreadId: string): Effect.Effect<void, ProviderClientOperationError>;
   /**
+   * Hides a thread that a replacement session took over from the provider's own thread list, and
+   * keeps its history readable. Optional, because only a provider that shows its threads to the user
+   * in another app has a list to keep clean.
+   */
+  archiveThread?(externalThreadId: string): Effect.Effect<void, ProviderClientOperationError>;
+  /**
    * Closes each thread that has no turn and can open again from its session, to free its processes
    * and MCP servers when the machine is low on memory. Optional, because a client that runs all its
    * threads in one process frees nothing this way.

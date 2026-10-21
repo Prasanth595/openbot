@@ -2,6 +2,7 @@ import {
   type AgentIpcRequest,
   type AttachmentImportEvent,
   decodeAddedAgent,
+  decodeAgentAccessSnapshot,
   decodeAgentAdminSettings,
   decodeAgentImportPreview,
   decodeAgentImportResult,
@@ -863,6 +864,8 @@ const openbotApi: OpenBotDesktopApi = {
     setTimezone: decodeHostTimezoneSettings,
     getAgentMemoryLimit: decodeHostAgentMemoryLimit,
     setAgentMemoryLimit: decodeHostAgentMemoryLimit,
+    getAgentAccess: decodeAgentAccessSnapshot,
+    setAgentAccess: decodeAgentAccessSnapshot,
   }),
   agentImport: bridgeGroup(IPC_ENDPOINTS.agentImport, {
     choose: decodeAgentImportPreview,

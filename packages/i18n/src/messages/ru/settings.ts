@@ -20,7 +20,6 @@ export const messages = {
   "settings.logoColor.beige": "Бежевый",
   "settings.logoColor.gray": "Серый",
   "settings.logoColor.white": "Белый",
-  "settings.providers.title": "Провайдеры ИИ",
   "settings.appBehavior.title": "Поведение приложения",
   "settings.conversations.title": "Диалоги",
   "settings.launchAtLogin.title": "Запускать OpenBot при входе",
@@ -97,9 +96,8 @@ export const messages = {
   "settings.analytics.title": "Делиться аналитикой продукта",
   "settings.analytics.description":
     "Отправлять метаданные об использовании и надёжности вместе с ID аккаунта и почтой в собственную аналитику OpenBot.",
-  "settings.analytics.webTitle": "Делиться отчётами об ошибках",
   "settings.analytics.webDescription":
-    "Отправлять коды ошибок и предупреждений вместе с ID аккаунта в аналитику OpenBot. Настройка действует для этого браузера.",
+    "Отправлять метаданные об использовании и надёжности вместе с ID аккаунта и почтой в собственную аналитику OpenBot. Настройка действует для этого браузера.",
   "settings.tab.general.title": "Основные",
   "settings.tab.general.description": "Как OpenBot ведёт себя на этом компьютере.",
   "settings.tab.notifications.title": "Уведомления",
@@ -437,6 +435,8 @@ export const messages = {
   // The Voice tab: dictation models and the dictation language.
   "settings.voice.models.title": "Модель диктовки",
   "settings.voice.model.parakeet.description": "Быстрая. Сама определяет язык речи, 25 европейских языков.",
+  "settings.voice.model.bark.description":
+    "Быстрая. Только английский. Пишет в основном строчными буквами, почти без знаков препинания.",
   "settings.voice.model.whisper.description": "Медленнее. Около 100 языков, и вы можете задать язык речи.",
   "settings.voice.model.size": "Размер загрузки: {size}",
   "settings.voice.model.downloading": "Загрузка · {received} из {total}",
@@ -453,6 +453,8 @@ export const messages = {
   "settings.voice.language.description": "Язык, на котором вы говорите. «Автоматически» определяет его по записи.",
   "settings.voice.language.modelDetects":
     "Parakeet сам определяет язык речи. Чтобы задать язык, используйте Whisper или ElevenLabs.",
+  "settings.voice.language.englishOnly":
+    "Bark распознаёт только английский. Чтобы задать язык, используйте Whisper или ElevenLabs.",
   "settings.voice.language.automatic": "Автоматически",
   "settings.voice.loadFailed": "Не удалось прочитать голосовые модели.",
   "settings.voice.saveFailed": "Не удалось сохранить настройку голоса. Повторите попытку.",

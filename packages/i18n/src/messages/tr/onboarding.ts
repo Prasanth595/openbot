@@ -44,6 +44,7 @@ export const messages = {
   "onboarding.provider.googlePlan": "Google AI Pro veya Ultra planı",
   "onboarding.provider.cursorPlan": "Cursor planı veya API anahtarı",
   "onboarding.provider.clineAccount": "Cline hesabıyla ücretsiz modeller",
+  "onboarding.provider.inceptionKey": "Inception API anahtarıyla Mercury modelleri",
   "onboarding.provider.tryFree": "Ücretsiz deneyin",
   "onboarding.provider.noSignIn": "Oturum açmak gerekmez",
   "onboarding.provider.more": "Daha fazla sağlayıcı",

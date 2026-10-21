@@ -379,14 +379,18 @@ const handleHosting = Effect.fn("BrowserApi.handleHosting")(function* (
     if (request.method !== "POST") return null;
     const body = yield* readJsonObject(request);
     return json(
-      yield* services
-        .hosting()
-        .create(
-          user,
-          { name: body.name, plan: body.plan, interval: body.interval, currency: body.currency },
-          request.headers.get("Idempotency-Key"),
-          returnTo,
-        ),
+      yield* services.hosting().create(
+        user,
+        {
+          name: body.name,
+          plan: body.plan,
+          interval: body.interval,
+          currency: body.currency,
+          entryPoint: body.entryPoint,
+        },
+        request.headers.get("Idempotency-Key"),
+        returnTo,
+      ),
       201,
     );
   }

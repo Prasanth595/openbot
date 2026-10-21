@@ -188,6 +188,8 @@ export const messages = {
     "モデルプロバイダーがアカウントの請求の問題のためリクエストを拒否しました。待っても解決しません。プロバイダーのアカウントに支払い方法または残高を追加するか、別のモデルを選んでください。\n{detail}",
   "error.provider.opencodeInvalidUpload":
     "OpenCode のモデルプロバイダーが無効なアップロードリクエストを報告しました。別のモデルを選択して続行してください。ルーティンをもう一度作成する前に、保存済みのルーティンを確認してください。\n{detail}",
+  "error.provider.opencodeUnreadableContent":
+    "このモデルは、このチャット内のファイルまたは画像を読み取れません。ファイルを読み取れるモデルを選択してから、メッセージをもう一度送信してください。",
   "error.provider.opencodeProviderFailed":
     "モデルプロバイダー側で障害が発生しました。お使いの接続は原因ではありません。後でもう一度試すか、別のモデルを選んでください。\n{detail}",
   "error.provider.opencodeNetwork":
@@ -360,6 +362,7 @@ export const messages = {
   "error.provider.museAuthUnverified":
     "Muse の認証が確認されていません。ホストコンピューターで接続するか、Meta API キーを設定してください。",
   "error.provider.museSignIn": "続行するには、ホストコンピューターで Muse にサインインしてください。",
+  "error.provider.inceptionSignIn": "続行するには、Inception API キーを追加してください。",
   "error.provider.terminalLoginFailed":
     "サインイン用のターミナルを開けませんでした。このホストでプロバイダーの CLI を開いてサインインしてから、プロバイダーを更新してください。",
   "error.provider.nativeArchiveInvalid": "プロバイダーのダウンロードに有効なインストールが含まれていません。",

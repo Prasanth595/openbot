@@ -4,6 +4,7 @@ import { createSignal, onCleanup } from "solid-js";
 import { actionToast } from "../../action-toast";
 import { appPort } from "../../app-port";
 import { usePlatform } from "../../platform";
+import { useTurns } from "../../turns";
 import { appendVoiceTranscript } from "../../voice-recording";
 import { useAgents } from "../agents/agents-context";
 import { EMPTY_DRAFT } from "../conversation/composer-draft";
@@ -27,6 +28,7 @@ export interface TasksPanelProps {
 export function TasksPanel(props: TasksPanelProps) {
   const { agentList } = useAgents();
   const { appInfo } = usePlatform();
+  const { approvals, respondToApprovalRequest } = useTurns();
 
   function openAttachment(attachment: AttachmentSummary, action: "open" | "reveal" | "download"): void {
     window.openbot.agent.openAttachment({ attachmentId: attachment.id, action }, props.serverId).catch((error) => {
@@ -43,6 +45,16 @@ export function TasksPanel(props: TasksPanelProps) {
       voice={voiceSupported(appInfo()?.platform) ? createTasksVoice : undefined}
       onOpenLink={(url) => void appPort().openUrl(url)}
       onAttachmentAction={openAttachment}
+      approvals={approvals()}
+      // The page covers the chat, so a failed answer shows as a toast, not in the chat.
+      onRespondApproval={(approval, decision) =>
+        respondToApprovalRequest(approval.agentId, approval.requestId, decision, {
+          onError: (error) => {
+            const { t, errorMessage } = currentText();
+            actionToast.error(errorMessage(error, t("app.errorStatus.approval")));
+          },
+        })
+      }
     />
   );
 }
