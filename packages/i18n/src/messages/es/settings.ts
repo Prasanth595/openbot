@@ -431,6 +431,8 @@ export const messages = {
   "settings.voice.models.title": "Modelo de dictado",
   "settings.voice.model.parakeet.description":
     "Rápido. Detecta el idioma hablado por sí mismo, en 25 idiomas europeos.",
+  "settings.voice.model.bark.description":
+    "Rápido. Solo inglés. Escribe casi todo en minúsculas y con poca puntuación.",
   "settings.voice.model.whisper.description": "Más lento. Unos 100 idiomas, y puedes fijar el idioma hablado.",
   "settings.voice.model.size": "Tamaño de la descarga: {size}",
   "settings.voice.model.downloading": "Descargando · {received} de {total}",
@@ -447,6 +449,7 @@ export const messages = {
   "settings.voice.language.description": "El idioma que hablas. Automático lo detecta a partir de la grabación.",
   "settings.voice.language.modelDetects":
     "Parakeet detecta el idioma hablado por sí mismo. Para fijar un idioma, usa Whisper o ElevenLabs.",
+  "settings.voice.language.englishOnly": "Bark solo reconoce inglés. Para fijar un idioma, usa Whisper o ElevenLabs.",
   "settings.voice.language.automatic": "Automático",
   "settings.voice.loadFailed": "No se pudieron leer los modelos de voz.",
   "settings.voice.saveFailed": "No se pudo guardar el ajuste de voz. Inténtalo de nuevo.",

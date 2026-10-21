@@ -423,6 +423,8 @@ export const messages = {
   "settings.hostedServers.plan.pro.summary": "Per molti agenti e un uso intenso del browser.",
   "settings.voice.models.title": "Modello di dettatura",
   "settings.voice.model.parakeet.description": "Veloce. Riconosce da solo la lingua parlata, in 25 lingue europee.",
+  "settings.voice.model.bark.description":
+    "Veloce. Solo inglese. Scrive quasi tutto in minuscolo, con poca punteggiatura.",
   "settings.voice.model.whisper.description": "Più lento. Circa 100 lingue, e puoi impostare la lingua parlata.",
   "settings.voice.model.size": "Dimensione del download: {size}",
   "settings.voice.model.downloading": "Download · {received} di {total}",
@@ -439,6 +441,8 @@ export const messages = {
   "settings.voice.language.description": "La lingua che parli. «Automatica» la riconosce dalla registrazione.",
   "settings.voice.language.modelDetects":
     "Parakeet riconosce da solo la lingua parlata. Per impostare una lingua, usa Whisper o ElevenLabs.",
+  "settings.voice.language.englishOnly":
+    "Bark riconosce solo l'inglese. Per impostare una lingua, usa Whisper o ElevenLabs.",
   "settings.voice.language.automatic": "Automatica",
   "settings.voice.loadFailed": "Impossibile leggere i modelli vocali.",
   "settings.voice.saveFailed": "Impossibile salvare l'impostazione vocale. Riprova.",

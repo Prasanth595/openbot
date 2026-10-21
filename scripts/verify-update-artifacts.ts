@@ -64,6 +64,7 @@ if (platform === "macos" || platform === "windows") {
 }
 if (
   existsSync(join(resourcesRoot, "voice", "model")) ||
+  existsSync(join(resourcesRoot, "voice", "bark-3.0-plus-int8")) ||
   existsSync(join(resourcesRoot, "voice", "whisper-turbo-int8")) ||
   existsSync(join(resourcesRoot, "voice", "supertonic-3-int8")) ||
   existsSync(join(resourcesRoot, "voice", "runtime", "encoder.int8.onnx")) ||

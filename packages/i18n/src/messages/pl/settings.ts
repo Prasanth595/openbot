@@ -437,6 +437,8 @@ export const messages = {
   // The Voice tab: dictation models and the dictation language.
   "settings.voice.models.title": "Model dyktowania",
   "settings.voice.model.parakeet.description": "Szybki. Sam rozpoznaje język mowy, w 25 językach europejskich.",
+  "settings.voice.model.bark.description":
+    "Szybki. Tylko angielski. Pisze głównie małymi literami, z niewielką interpunkcją.",
   "settings.voice.model.whisper.description": "Wolniejszy. Około 100 języków i możesz ustawić język mowy.",
   "settings.voice.model.size": "Rozmiar pobierania: {size}",
   "settings.voice.model.downloading": "Pobieranie · {received} z {total}",
@@ -453,6 +455,8 @@ export const messages = {
   "settings.voice.language.description": "Język, w którym mówisz. Automatycznie rozpoznaje go z nagrania.",
   "settings.voice.language.modelDetects":
     "Parakeet sam rozpoznaje język mowy. Aby ustawić język, użyj Whisper lub ElevenLabs.",
+  "settings.voice.language.englishOnly":
+    "Bark rozpoznaje tylko angielski. Aby ustawić język, użyj Whisper lub ElevenLabs.",
   "settings.voice.language.automatic": "Automatycznie",
   "settings.voice.loadFailed": "Nie udało się odczytać modeli głosu.",
   "settings.voice.saveFailed": "Nie udało się zapisać ustawienia głosu. Spróbuj ponownie.",

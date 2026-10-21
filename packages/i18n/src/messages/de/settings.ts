@@ -434,6 +434,7 @@ export const messages = {
   "settings.voice.models.title": "Diktiermodell",
   "settings.voice.model.parakeet.description":
     "Schnell. Erkennt die gesprochene Sprache selbst, in 25 europäischen Sprachen.",
+  "settings.voice.model.bark.description": "Schnell. Nur Englisch. Schreibt meist klein, mit wenigen Satzzeichen.",
   "settings.voice.model.whisper.description":
     "Langsamer. Etwa 100 Sprachen, und du kannst die gesprochene Sprache festlegen.",
   "settings.voice.model.size": "Downloadgröße: {size}",
@@ -451,6 +452,8 @@ export const messages = {
   "settings.voice.language.description": "Die Sprache, die du sprichst. Automatisch erkennt sie aus der Aufnahme.",
   "settings.voice.language.modelDetects":
     "Parakeet erkennt die gesprochene Sprache selbst. Um eine Sprache festzulegen, verwende Whisper oder ElevenLabs.",
+  "settings.voice.language.englishOnly":
+    "Bark erkennt nur Englisch. Um eine Sprache festzulegen, verwende Whisper oder ElevenLabs.",
   "settings.voice.language.automatic": "Automatisch",
   "settings.voice.loadFailed": "Die Sprachmodelle konnten nicht gelesen werden.",
   "settings.voice.saveFailed": "Die Spracheinstellung konnte nicht gespeichert werden. Versuche es erneut.",

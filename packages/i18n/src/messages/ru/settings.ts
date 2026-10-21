@@ -437,6 +437,8 @@ export const messages = {
   // The Voice tab: dictation models and the dictation language.
   "settings.voice.models.title": "Модель диктовки",
   "settings.voice.model.parakeet.description": "Быстрая. Сама определяет язык речи, 25 европейских языков.",
+  "settings.voice.model.bark.description":
+    "Быстрая. Только английский. Пишет в основном строчными буквами, почти без знаков препинания.",
   "settings.voice.model.whisper.description": "Медленнее. Около 100 языков, и вы можете задать язык речи.",
   "settings.voice.model.size": "Размер загрузки: {size}",
   "settings.voice.model.downloading": "Загрузка · {received} из {total}",
@@ -453,6 +455,8 @@ export const messages = {
   "settings.voice.language.description": "Язык, на котором вы говорите. «Автоматически» определяет его по записи.",
   "settings.voice.language.modelDetects":
     "Parakeet сам определяет язык речи. Чтобы задать язык, используйте Whisper или ElevenLabs.",
+  "settings.voice.language.englishOnly":
+    "Bark распознаёт только английский. Чтобы задать язык, используйте Whisper или ElevenLabs.",
   "settings.voice.language.automatic": "Автоматически",
   "settings.voice.loadFailed": "Не удалось прочитать голосовые модели.",
   "settings.voice.saveFailed": "Не удалось сохранить настройку голоса. Повторите попытку.",

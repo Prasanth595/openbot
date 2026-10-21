@@ -42,9 +42,16 @@ import type { SettingsVoiceStore } from "./settings-voice-store";
 
 const MODEL_DESCRIPTION = {
   "parakeet-tdt-0.6b-v3": "settings.voice.model.parakeet.description",
+  "bark-3.0-plus": "settings.voice.model.bark.description",
   "whisper-turbo": "settings.voice.model.whisper.description",
   [ELEVENLABS_VOICE_MODEL_ID]: "settings.voice.model.elevenlabs.description",
 } as const satisfies Record<VoiceModelInfo["id"], AppTextKey>;
+
+/** Why the language cannot be set, for each model that takes no language. */
+const FIXED_LANGUAGE_DESCRIPTION: Partial<Record<VoiceModelInfo["id"], AppTextKey>> = {
+  "parakeet-tdt-0.6b-v3": "settings.voice.language.modelDetects",
+  "bark-3.0-plus": "settings.voice.language.englishOnly",
+};
 
 /** `jw` is Whisper's code for Javanese, whose catalog name is under `jv`. */
 const LANGUAGE_NAME = {
@@ -146,6 +153,10 @@ export function SettingsVoiceTab(props: SettingsVoiceTabProps) {
   const { t, format, errorMessage } = useText();
   const settings = () => props.store.state.settings;
   const activeModel = () => VOICE_MODELS.find((model) => model.id === settings()?.modelId);
+  const fixedLanguageDescription = () => {
+    const model = activeModel();
+    return model && !model.supportsLanguage ? FIXED_LANGUAGE_DESCRIPTION[model.id] : undefined;
+  };
   const languageName = (language: VoiceLanguage) =>
     language === AUTOMATIC_VOICE_LANGUAGE ? t("settings.voice.language.automatic") : t(LANGUAGE_NAME[language]);
   const languageOptions = createMemo((): VoiceLanguage[] => {
@@ -327,9 +338,7 @@ export function SettingsVoiceTab(props: SettingsVoiceTabProps) {
             <ItemContent>
               <ItemTitle>{t("settings.voice.language.title")}</ItemTitle>
               <ItemDescription>
-                {activeModel()?.supportsLanguage === false
-                  ? t("settings.voice.language.modelDetects")
-                  : t("settings.voice.language.description")}
+                {t(fixedLanguageDescription() ?? "settings.voice.language.description")}
               </ItemDescription>
             </ItemContent>
             <ItemActions>

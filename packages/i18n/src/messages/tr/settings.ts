@@ -423,6 +423,8 @@ export const messages = {
   // The Voice tab: dictation models and the dictation language.
   "settings.voice.models.title": "Dikte modeli",
   "settings.voice.model.parakeet.description": "Hızlı. Konuşulan dili 25 Avrupa dili arasında kendisi bulur.",
+  "settings.voice.model.bark.description":
+    "Hızlı. Yalnızca İngilizce. Çoğunlukla küçük harfle ve az noktalamayla yazar.",
   "settings.voice.model.whisper.description": "Daha yavaş. Yaklaşık 100 dil; konuşulan dili belirleyebilirsiniz.",
   "settings.voice.model.size": "İndirme boyutu: {size}",
   "settings.voice.model.downloading": "İndiriliyor · {received} / {total}",
@@ -439,6 +441,8 @@ export const messages = {
   "settings.voice.language.description": "Konuştuğunuz dil. Otomatik, dili kayıttan bulur.",
   "settings.voice.language.modelDetects":
     "Parakeet konuşulan dili kendisi bulur. Bir dil belirlemek için Whisper'ı veya ElevenLabs'i kullanın.",
+  "settings.voice.language.englishOnly":
+    "Bark yalnızca İngilizceyi tanır. Bir dil belirlemek için Whisper'ı veya ElevenLabs'i kullanın.",
   "settings.voice.language.automatic": "Otomatik",
   "settings.voice.loadFailed": "Ses modelleri okunamadı.",
   "settings.voice.saveFailed": "Ses ayarı kaydedilemedi. Tekrar deneyin.",
