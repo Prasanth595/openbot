@@ -21,7 +21,6 @@ export const messages = defineMessages("settings", {
   "settings.logoColor.gray": "Gray",
   "settings.logoColor.white": "White",
   // The Settings window, General tab.
-  "settings.providers.title": "AI providers",
   "settings.appBehavior.title": "App behavior",
   "settings.conversations.title": "Conversations",
   "settings.launchAtLogin.title": "Launch OpenBot at login",

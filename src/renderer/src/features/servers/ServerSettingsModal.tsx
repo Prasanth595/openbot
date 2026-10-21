@@ -37,6 +37,7 @@ import {
   UsersRound,
 } from "@openbot/ui";
 import type { LicenseCalls } from "@openbot/ui/features/billing/license-store";
+import type { ProviderSettingsDetail } from "@openbot/ui/features/settings/ProviderSettingsPage";
 import {
   SaveBarDock,
   SettingsDialogShell,
@@ -242,7 +243,13 @@ export function ServerSettingsModal(props: ServerSettingsModalProps) {
   const [mcpDetail, setMcpDetail] = createSignal<McpPanelDetail | null>(null);
   /** Set while an integration page is open, so the header reads `Connectors › GitHub`. */
   const [connectorDetail, setConnectorDetail] = createSignal<ConnectorsPanelDetail | null>(null);
-  const crumbDetail = () => (section() === "mcp" ? mcpDetail() : section() === "connectors" ? connectorDetail() : null);
+  /** Set while a provider page is open, so the header reads `Providers › Codex`. */
+  const [providerDetail, setProviderDetail] = createSignal<ProviderSettingsDetail | null>(null);
+  const crumbDetail = () => {
+    if (section() === "mcp") return mcpDetail();
+    if (section() === "connectors") return connectorDetail();
+    return section() === "providers" ? providerDetail() : null;
+  };
   /** The key of the one action in flight, gating every panel at once rather than belonging to any. */
   const [busy, setBusy] = createSignal<string | null>(null);
   const [modalElement, setModalElement] = createSignal<HTMLElement | undefined>();
@@ -707,6 +714,7 @@ export function ServerSettingsModal(props: ServerSettingsModalProps) {
                   {...providers()}
                   hostName={local() ? undefined : props.server.name}
                   selectMount={modalElement()}
+                  onDetailChange={setProviderDetail}
                 />
               )}
             </Show>

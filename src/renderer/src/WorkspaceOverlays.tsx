@@ -40,6 +40,7 @@ import type { HostProviderSettings } from "./features/settings/ProviderSettingsS
 import { useSettings } from "./features/settings/settings-context";
 import { useUpdates } from "./features/updates/updates-context";
 import { useWhatsNew } from "./features/updates/whats-new-context";
+import { usePlanLimitRows } from "./features/usage/plan-limit-rows";
 import { useWindowPage } from "./features/window/window-page-context";
 import { useGlobalSearchSources } from "./global-search-sources";
 import { RemoteDesktopWorkspace, SettingsModal } from "./lazy-views";
@@ -305,6 +306,7 @@ function RestartServer() {
  */
 function ServerSettings(props: { connectors: ConnectorRegistry }) {
   const windowPage = useWindowPage();
+  const usageRows = usePlanLimitRows();
   const platform = usePlatform();
   const { hostStatus, setServerMuted, setServerNotificationLevel, hostedServerIds, hostedServersLoaded } = useServers();
   const { selectAgent, selectGlobalSearchMessage } = useNavigation();
@@ -514,6 +516,10 @@ function ServerSettings(props: { connectors: ConnectorRegistry }) {
       // The active server's accounts: a joined host offers them only with `provider-accounts-v1`.
       get accountActions() {
         return providerAccounts();
+      },
+      // The readings are of the active server, which is the only server with a Providers tab.
+      get usage() {
+        return usageRows();
       },
       onRestartProvider: local ? restartProvider : undefined,
       onCancelProviderRestart: local ? cancelProviderRestart : undefined,
