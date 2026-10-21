@@ -1,4 +1,4 @@
 ### Added
 
-- Connect Cafecito Beans in Marketplace to search publisher articles, stories, trends, sources,
-  related coverage, and mentions. Enter a Cafecito API key to connect the hosted MCP server.
+- Connect Cafecito Beans in Marketplace to search news, reports, research, and official statements,
+  track trends, and compare publisher coverage. Enter a Cafecito API key to connect the read-only MCP server.

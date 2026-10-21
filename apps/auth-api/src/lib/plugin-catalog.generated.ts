@@ -124,7 +124,7 @@ export const PLUGIN_CATALOG_INDEX: PluginCatalogIndex = {
       slug: "cafecito-beans",
       version: "1.0.0",
       featured: false,
-      detailSha256: "0bb5e287e2afe0fea5cd216039aea6ac92bb2c79be68ffe6df7dcfaefd1843b1",
+      detailSha256: "b8aa1a2cc2e1565e2d6e90489d0743f3c481bc730eddf0e9e32a3d83d9647c80",
     },
   ],
 };
@@ -860,23 +860,16 @@ export const PLUGIN_CATALOG_DETAILS: Record<string, PluginCatalogDetail> = {
     name: "Cafecito Beans",
     tagline: "Publisher research and coverage",
     description:
-      "Discover publisher articles across news, reports, research, and official statements; explore stories, sources, related coverage, and mentions with Beans MCP. Search news and blogs, earnings and financial reports, lawsuits, enforcement actions, contracts, official statements, press releases, research papers, technical documentation, whitepapers, podcasts, and sites. Compare stories across publishers, check publication dates, and cite publisher links. Coverage and update timing vary by source. Use your Cafecito API key to connect to the hosted, read-only MCP server.",
+      "Cafecito Beans lets agents search news, reports, research, and official statements, track trends, and compare coverage across publishers. It provides read-only access through a hosted MCP server. Each user connects with a Cafecito API key.",
     category: "research",
-    creatorName: "Cafecito",
-    iconUrl: "https://cafecito.tech/images/beans.png",
+    creatorName: "cafecito.tech",
+    iconUrl:
+      "https://raw.githubusercontent.com/soumitsalman/openbot/52051001fd0af6ac0e5a405d5d07b2898c03adec/marketplace/plugin-catalog/plugins/cafecito-beans/beans.png",
     version: "1.0.0",
     prompts: [
-      {
-        id: "prompt-research",
-        text: "What have publishers reported about battery storage this week? Show sources, dates, and links.",
-      },
-      { id: "prompt-trends", text: "Which articles are trending about climate policy, and which are only the latest?" },
-      { id: "prompt-story", text: "Find a story about semiconductor exports and show which publishers covered it." },
-      { id: "prompt-earnings", text: "Show recent earnings reports from this publisher." },
-      {
-        id: "prompt-legal",
-        text: "Find lawsuits and official statements about this company since the start of the month.",
-      },
+      { id: "prompt-trends", text: "What news about GPU supply shortages is trending this week?" },
+      { id: "prompt-legal", text: "Find lawsuits and official statements about Nvidia since the start of this month." },
+      { id: "prompt-story", text: "Compare publishers’ coverage of semiconductor export restrictions this week." },
     ],
     apps: [
       {
@@ -884,7 +877,8 @@ export const PLUGIN_CATALOG_DETAILS: Record<string, PluginCatalogDetail> = {
         name: "Cafecito Beans",
         description:
           "Read-only article search, stories, trends, source details, related coverage, and mentions, through the hosted Beans MCP server with a Cafecito API key.",
-        iconUrl: "https://cafecito.tech/images/beans.png",
+        iconUrl:
+          "https://raw.githubusercontent.com/soumitsalman/openbot/52051001fd0af6ac0e5a405d5d07b2898c03adec/marketplace/plugin-catalog/plugins/cafecito-beans/beans.png",
         server: {
           name: "cafecito-beans",
           transport: "http",
