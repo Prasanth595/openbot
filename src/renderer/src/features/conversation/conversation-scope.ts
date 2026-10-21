@@ -863,6 +863,7 @@ export function createConversationViewScope(props: ConversationProps) {
     readerInput?.addEventListener("touchend", readerTouchEnd);
     readerInput?.addEventListener("touchcancel", readerTouchEnd);
     readerInput?.addEventListener("pointerdown", readerPointerDown);
+    readerInput?.addEventListener("focusin", readerFocusIn);
     keyboardTarget.addEventListener("keydown", readerKeyDown);
     keyboardWindow.addEventListener("pointerup", endReaderDrag);
     keyboardWindow.addEventListener("pointercancel", endReaderDrag);
@@ -897,6 +898,7 @@ export function createConversationViewScope(props: ConversationProps) {
       readerInput?.removeEventListener("touchend", readerTouchEnd);
       readerInput?.removeEventListener("touchcancel", readerTouchEnd);
       readerInput?.removeEventListener("pointerdown", readerPointerDown);
+      readerInput?.removeEventListener("focusin", readerFocusIn);
       keyboardTarget.removeEventListener("keydown", readerKeyDown);
       keyboardWindow.removeEventListener("pointerup", endReaderDrag);
       keyboardWindow.removeEventListener("pointercancel", endReaderDrag);
@@ -1392,11 +1394,27 @@ export function createConversationViewScope(props: ConversationProps) {
    */
   function leaveLatest() {
     readerLeftLatest = true;
+    stopFollowingLatest();
+  }
+  function stopFollowingLatest() {
     stickToLatest = false;
     if (latestScrollFrame !== undefined) cancelAnimationFrame(latestScrollFrame);
     if (latestScrollSettleFrame !== undefined) cancelAnimationFrame(latestScrollSettleFrame);
     latestScrollFrame = undefined;
     latestScrollSettleFrame = undefined;
+  }
+  /**
+   * Tab or a screen reader can move the focus to a control above the view. The chat then scrolls up
+   * with no wheel, key, touch or drag, so the chat stops following, as after a jump to a search match.
+   * A return to the bottom follows again. A click focuses without a scroll. Chromium scrolls before
+   * `focusin`, so the chat is already above its last scroll event; the spec scrolls after it.
+   */
+  function readerFocusIn(event: FocusEvent) {
+    if (readerDragging || !scrollElement || !(event.target instanceof Element)) return;
+    const scrolledUp = scrollElement.scrollTop < lastScrollTop;
+    if (scrolledUp || event.target.getBoundingClientRect().top < scrollElement.getBoundingClientRect().top) {
+      stopFollowingLatest();
+    }
   }
   /**
    * A scroll is the reader's when the chat moves the way that the reader's last input asked, soon after

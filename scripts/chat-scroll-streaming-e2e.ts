@@ -5,8 +5,9 @@
 // The chat must follow new content while the reader is at the bottom, also after a sideways swipe, stay
 // at the bottom across growth while a turn runs, hold still after a short scroll up and after a long
 // one, follow again when the reader goes back to the bottom, and hold still after a scroll up with the
-// arrow key. In a burst, the jump button must count the new messages and return to the latest one, and
-// a message the reader sends while scrolled up must return the chat to the bottom.
+// arrow key. In a burst, the jump button must count the new messages and return to the latest one, a
+// message the reader sends while scrolled up must return the chat to the bottom, and a focus move to a
+// control above the view, as Tab or a screen reader makes, must hold the chat still.
 // It checks histories of 40 rows, which the chats draw whole, and of 120, which they virtualize.
 // Writes .openbot-build/chat-scroll-streaming-e2e/report.json and one screenshot per story.
 import assert from "node:assert/strict";
@@ -83,6 +84,7 @@ interface StoryResult {
   newMessageCounts?: number[];
   followsAfterJump?: Position;
   followsAfterSend?: Position;
+  focusAbove?: HoldResult;
   error?: string;
 }
 
@@ -243,6 +245,21 @@ async function assertStaysAtBottom(page: Page, story: StoryCase): Promise<Bottom
   return { samples: samples.length, maxRemaining, minScrollTopDelta };
 }
 
+/* Focus on the last control above the view, as Tab or a screen reader moves it, then two painted frames. */
+async function focusAbove(page: Page): Promise<void> {
+  await page.evaluate((scrollSelector) => {
+    const scroll = document.querySelector<HTMLElement>(scrollSelector);
+    if (!scroll) throw new Error("The conversation is missing.");
+    const top = scroll.getBoundingClientRect().top;
+    const control = [...scroll.querySelectorAll<HTMLElement>("button")]
+      .filter((element) => element.getBoundingClientRect().bottom < top - 200)
+      .at(-1);
+    if (!control) throw new Error("No control above the view.");
+    control.focus();
+    return new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => done(undefined))));
+  }, SCROLL);
+}
+
 async function newMessageCount(page: Page): Promise<number> {
   const label = await page.locator(".scroll-to-latest-count").textContent();
   return Number(label?.match(/\d+/)?.[0] ?? 0);
@@ -304,6 +321,10 @@ async function checkStory(page: Page, story: StoryCase, result: StoryResult): Pr
   await page.keyboard.type("Thanks, keep going.");
   await page.keyboard.press("Enter");
   result.followsAfterSend = await assertFollows(page, story, "new content after a send");
+
+  // A focus move to a control above the view scrolls the chat with no reader input; the chat holds still.
+  result.focusAbove = await holds(page, story, () => focusAbove(page));
+  assertHolds(story.id, "a focus move up", result.focusAbove);
 }
 
 mkdirSync(OUT, { recursive: true });
