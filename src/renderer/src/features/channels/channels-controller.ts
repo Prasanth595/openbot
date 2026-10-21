@@ -303,6 +303,18 @@ export function createChannelsController(env: ChannelsEnvironment) {
         });
     }
   }
+  /**
+   * Sends a message and gives back a page that holds it. Unlike `command`, a failure throws and
+   * leaves the channel error alone: the conversation shows the message as not sent, with its own
+   * Retry, and the retry sends the same `operationId` again.
+   */
+  async function send(input: Extract<ChannelCommand, { type: "send" }>): Promise<ChannelPage> {
+    const account = env.scopeKey();
+    await env.port().agent.channelCommand(input);
+    if (!disposed && account === env.scopeKey()) await refreshAfter();
+    const page = state.page;
+    return page?.channel.id === input.channelId ? page : env.port().agent.readChannel({ channelId: input.channelId });
+  }
   async function loadOlder() {
     const channelId = state.selectedId;
     const beforeSequence = state.page?.olderCursor;
@@ -434,6 +446,7 @@ export function createChannelsController(env: ChannelsEnvironment) {
       }
     },
     command,
+    send,
     perform,
     loadOlder,
     close: () => {

@@ -277,7 +277,7 @@ export function WorkspaceShell(props: { account: () => CentralAuthUser }) {
             <WorkspaceRoutineFlows />
           </Show>
           <Show when={middlePane() === "channel"}>
-            <WorkspaceChannelConversation />
+            <WorkspaceChannelConversation account={props.account} />
           </Show>
         </WorkspaceFrame>
       </div>

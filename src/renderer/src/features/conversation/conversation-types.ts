@@ -107,6 +107,8 @@ export interface ConversationChannelSource {
   SettingsPane: (props: ConversationChannelSettingsPaneProps) => JSX.Element;
   /** Shows above the composer: the stopped tasks, and why the channel cannot work. */
   AboveComposer: () => JSX.Element;
+  /** Shows in place of the transcript while the channel has no message. */
+  EmptyState: () => JSX.Element;
 }
 
 export interface ConversationChannelSettingsPaneProps {

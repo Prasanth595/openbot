@@ -420,6 +420,11 @@ export function ConversationTimeline() {
               </Show>
             </div>
           </Show>
+          {channel ? (
+            <Show when={timelineMessages().length === 0}>
+              <channel.EmptyState />
+            </Show>
+          ) : null}
           <div
             ref={setVirtualRootElement}
             class={["virtual-chat-list", { "virtual-chat-list-static": !messageVirtualizer.isVirtualized() }]}

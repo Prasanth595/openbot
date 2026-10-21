@@ -132,7 +132,7 @@ export function ConversationComposer() {
   // lasting stop locks the text. Sending still waits for the agent. Without an agent, no draft keeps the text.
   const editorLocked = () =>
     !agentReady() &&
-    !(props.agent && (props.agentStatus.phase === "starting" || props.agentStatus.phase === "restarting"));
+    !((props.agent || channel) && (props.agentStatus.phase === "starting" || props.agentStatus.phase === "restarting"));
   // The mention picker grows out of the same edge as the queue, so only one of them holds it.
   const queueVisible = () => queuePanelVisible() && !pickerOpen();
   const awaitingVisible = () => awaitingReplies().length > 0 && !pickerOpen();
