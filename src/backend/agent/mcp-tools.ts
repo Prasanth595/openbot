@@ -31,7 +31,7 @@ const serverName = z
   .max(INPUT_LIMITS.mcpServerName)
   .describe("The server name, as list_mcp_servers shows it.");
 
-export const saveMcpServerToolSchema = z.strictObject({
+const saveMcpServerToolSchema = z.strictObject({
   name: serverName.describe("The server name. A name in use changes that server; a new name adds one."),
   transport: z
     .enum(MCP_TRANSPORTS)

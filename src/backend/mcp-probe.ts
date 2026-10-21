@@ -33,13 +33,13 @@ import { redactMcpSecrets, redactMcpValues } from "./mcp-redaction";
 
 export const MCP_PROBE_TIMEOUT_MS = 10_000;
 
-export interface McpProbeResult {
+interface McpProbeResult {
   toolCount: number;
   error: string | null;
 }
 
 /** What the user must give before the server answers: an OAuth sign-in, or a key in a header or the environment. */
-export type McpProbeNeed = "sign_in" | "key";
+type McpProbeNeed = "sign_in" | "key";
 
 /** The most tool names an agent is told: enough to see what a server does, short enough for one tool result. */
 const MCP_PROBE_TOOL_NAMES = 50;
