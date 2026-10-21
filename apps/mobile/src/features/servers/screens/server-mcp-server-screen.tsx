@@ -90,6 +90,8 @@ function McpServerForm({
   // A new server keeps its switch in the draft. A saved one turns on and off at once.
   const [newEnabled, setNewEnabled] = useState(true);
   const [test, setTest] = useState<TestState | null>(null);
+  // Each test and each edit makes the result of an older test stale.
+  const testRun = useRef(0);
   // Navigation runs a render later, once the guard below reads `leaving`.
   const [leaving, setLeaving] = useState(false);
   // The list without a removed server. It is shown after this page goes, so the page does not say "gone".
@@ -129,6 +131,7 @@ function McpServerForm({
   function edit(change: Partial<McpServerDraft>) {
     setDraft((current) => ({ ...current, ...change }));
     // A result describes the settings that were tested.
+    testRun.current += 1;
     setTest(null);
     if (action.error) action.reset();
   }
@@ -143,13 +146,16 @@ function McpServerForm({
 
   function runTest() {
     if (busy || !valid) return;
+    const run = ++testRun.current;
     setTest({ status: "testing" });
     testMcpServer(config, serverId)
       .then((result) => {
+        if (run !== testRun.current) return;
         void haptics.notification(result.error ? "error" : "success");
         setTest({ status: "done", result });
       })
       .catch((cause: unknown) => {
+        if (run !== testRun.current) return;
         void haptics.notification("error");
         setTest({
           status: "done",

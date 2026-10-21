@@ -6,26 +6,35 @@ import { useMobileWorkspace, useMobileWorkspaceActions } from "@/features/worksp
 import { queryKeys } from "@/features/workspace/model/query-keys";
 import { haptics } from "@/shared/lib/haptics";
 
+/** The MCP server list of one host, for an owner or admin. The Server settings row needs only this. */
+export function useMcpServerList(serverId: string) {
+  const { canManageMcpServers } = useMobileWorkspace();
+  const { listMcpServers } = useMobileWorkspaceActions();
+  const queryScope = useQueryScope();
+  const canManage = canManageMcpServers(serverId);
+  const list = useQuery({
+    queryKey: queryKeys.mcpServers(queryScope, serverId),
+    enabled: canManage,
+    retry: false,
+    queryFn: () => listMcpServers(serverId),
+  });
+  return { canManage, list };
+}
+
 /**
  * The MCP servers of one host, as the MCP and MCP server pages of the server sheet show them. The
  * pages use the same queries, so a change on one page shows on the other.
  */
 export function useServerMcp(serverId: string) {
-  const { servers, canManageMcpServers } = useMobileWorkspace();
-  const { listMcpServers, listMcpSignIns } = useMobileWorkspaceActions();
+  const { servers } = useMobileWorkspace();
+  const { listMcpSignIns } = useMobileWorkspaceActions();
   const queryScope = useQueryScope();
   const queryClient = useQueryClient();
   const server = servers.find((candidate) => candidate.id === serverId);
-  const canManage = canManageMcpServers(serverId);
+  const { canManage, list } = useMcpServerList(serverId);
   const locked = useRef(false);
   const listKey = queryKeys.mcpServers(queryScope, serverId);
   const signInsKey = queryKeys.mcpSignIns(queryScope, serverId);
-  const list = useQuery({
-    queryKey: listKey,
-    enabled: canManage,
-    retry: false,
-    queryFn: () => listMcpServers(serverId),
-  });
   // A badge only: a failed read shows no badge.
   const signIns = useQuery({
     queryKey: signInsKey,

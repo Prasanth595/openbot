@@ -18,7 +18,7 @@ import { ServerStatusLabel } from "@/features/servers/components/server-status-l
 import { TrailingValue } from "@/features/servers/components/trailing-value";
 import { SERVER_ROLE_LABEL_KEYS } from "@/features/servers/model/server-role";
 import { timeZoneLabel } from "@/features/servers/model/time-zones";
-import { useServerMcp } from "@/features/servers/model/use-server-mcp";
+import { useMcpServerList } from "@/features/servers/model/use-server-mcp";
 import { useServerProviders } from "@/features/servers/model/use-server-providers";
 import { useServerSites } from "@/features/servers/model/use-server-sites";
 import { useServerTimezone } from "@/features/servers/model/use-server-timezone";
@@ -437,7 +437,7 @@ function ServerProvidersRow({ serverId }: { serverId: string }) {
 /** The MCP servers row, for an owner or admin of a host that serves `mcp-servers-v1`. */
 function ServerMcpRow({ serverId }: { serverId: string }) {
   const { t } = useText();
-  const { canManage, list } = useServerMcp(serverId);
+  const { canManage, list } = useMcpServerList(serverId);
   if (!canManage) return null;
   return (
     <SettingsRow
