@@ -93,6 +93,7 @@ All notable changes to OpenBot will be documented here. The project follows
 - On Discord, OpenBot reads the images and files of the message that you reply to. Before, it read
   only the text of that message, and a message with only an image gave no context.
 - A notification for a question, an approval or a browser step now goes away when the request is answered or cancelled, also from another device. Before, it stayed in the Notification Center.
+- When the ChatGPT sign-in of a server had expired, a sign-in with a code from the web client or the phone stopped a few seconds after the code appeared. The code now stays valid until you enter it.
 
 ## [0.46.0] - 2026-10-20
 
