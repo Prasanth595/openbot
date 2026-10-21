@@ -676,6 +676,9 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   createEffect(page, (next) => {
     if (next !== "tasks") setTasksAgentsOpen(false);
   });
+  /** The list stays while a connection screen covers the page: the screen does not span the sidebar. */
+  const tasksAgentsHidden = () =>
+    tasksOpen() && !tasksAgentsOpen() && workspace.state.status === "online" && !hostOffline() && !blockedServer();
   /** Shows the agents and closes the other pages. */
   function showAgents() {
     setAccountSettingsOpen(false);
@@ -1438,7 +1441,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
               })
             }
             windowPage={page()}
-            sidebarHidden={tasksOpen() && !tasksAgentsOpen()}
+            sidebarHidden={tasksAgentsHidden()}
             page={
               <Show
                 when={page() === "usage" || page() === "schedule" ? server() : undefined}
@@ -1896,8 +1899,8 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                     serverId={target().id}
                     hostName={target().name}
                     onBack={closeHostPage}
-                    agentsOpen={tasksAgentsOpen()}
-                    onToggleAgents={() => setTasksAgentsOpen((open) => !open)}
+                    agentsOpen={!tasksAgentsHidden()}
+                    onToggleAgents={() => setTasksAgentsOpen(tasksAgentsHidden())}
                     source={tasksSource}
                     agents={workspace.profiles()}
                     onOpenLink={(url) => void openWebLink(url)}

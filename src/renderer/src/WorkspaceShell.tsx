@@ -96,6 +96,13 @@ export function WorkspaceShell(props: { account: () => CentralAuthUser }) {
     return layout.sidebarView() === "routines" ? "routines" : "agent";
   });
   const agentChatOpen = () => middlePane() === "agent";
+  /** The list stays while a connection screen covers the page: the screen does not span the sidebar. */
+  const tasksAgentsHidden = () =>
+    middlePane() === "tasks" &&
+    !windowPage.tasksAgentsOpen() &&
+    scope.loaded() &&
+    !scope.connection.panelsFailed &&
+    !blockedRemoteServer();
 
   const blockedRemoteServer = createMemo(() => {
     const server = activeServer();
@@ -227,7 +234,7 @@ export function WorkspaceShell(props: { account: () => CentralAuthUser }) {
           blockedServer={blockedRemoteServer()}
           onRetryServer={retryServerConnection}
           windowPage={windowPage.page()}
-          sidebarHidden={windowPage.page() === "tasks" && !windowPage.tasksAgentsOpen()}
+          sidebarHidden={tasksAgentsHidden()}
           left={
             <>
               <WorkspaceServerRail />
@@ -248,8 +255,8 @@ export function WorkspaceShell(props: { account: () => CentralAuthUser }) {
                 serverId={serverId()}
                 hostName={servers().find((server) => server.id === serverId())?.name ?? t("app.page.serverFallback")}
                 onBack={usage.closeUsage}
-                agentsOpen={windowPage.tasksAgentsOpen()}
-                onToggleAgents={windowPage.toggleTasksAgents}
+                agentsOpen={!tasksAgentsHidden()}
+                onToggleAgents={() => windowPage.setTasksAgentsOpen(tasksAgentsHidden())}
               />
             )}
           </Show>

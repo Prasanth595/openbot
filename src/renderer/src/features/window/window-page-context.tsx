@@ -111,7 +111,7 @@ const context = createSimpleContext({
       /** Whether a page other than the agents covers the conversation. A message there is not seen. */
       conversationCovered: () => page() !== "agents",
       tasksAgentsOpen: () => page() === "tasks" && tasksAgentsOpen(),
-      toggleTasksAgents: () => setTasksAgentsOpen((open) => !open),
+      setTasksAgentsOpen: (open: boolean) => setTasksAgentsOpen(open),
       setSettingsMounts,
       settingsPlacement,
       /** Shows the agents and closes the other pages. */
