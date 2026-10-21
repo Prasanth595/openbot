@@ -9,6 +9,7 @@ import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { AGENT_PROVIDERS } from "@openbot/contracts/agent-providers";
 import type { AgentProviderId } from "@openbot/contracts/ipc";
 import { isMissingProviderSessionError } from "../src/backend/agent/thread-items";
 import type { AgentClient } from "../src/backend/agent-client";
@@ -71,6 +72,7 @@ interface Report {
   passed: boolean;
   drivers: DriverResult[];
   notCovered: readonly string[];
+  failure?: string;
 }
 
 const root = await mkdtemp(join(tmpdir(), "openbot-provider-conformance-e2e-"));
@@ -143,6 +145,8 @@ async function conform(driver: DriverCase): Promise<DriverResult> {
   const switchedTurn = await runTurn(client, thread, { model: beta });
   const prompts = (await readJsonl<LogEntry>(log)).filter((entry) => entry.event === "prompt");
   const switched = { model: beta, agentModel: prompts.at(-1)?.model ?? null, status: switchedTurn.status };
+  assert.equal(switchedTurn.error, null, `${label}: the turn on the other model succeeds.`);
+  assert.equal(switched.status, "completed", `${label}: the turn on the other model completes.`);
   assert.equal(switched.agentModel, "fake-beta", `${label}: the agent runs the selected model.`);
 
   // Cancel: the turn ends as interrupted, the agent gets `session/cancel`, and the next turn works.
@@ -209,12 +213,22 @@ async function conform(driver: DriverCase): Promise<DriverResult> {
 }
 
 try {
+  // A new provider must get a case here, or a reason in `NOT_COVERED`.
+  const listed: readonly string[] = [...DRIVERS.map((driver) => driver.provider), ...NOT_COVERED];
+  assert.deepEqual(
+    [...listed].sort(),
+    [...AGENT_PROVIDERS].sort(),
+    "Each provider is a conformance case or is in NOT_COVERED, once.",
+  );
   await mkdir(join(root, "workspace"));
   for (const driver of DRIVERS) {
     report.drivers.push(await conform(driver));
     await stopClients(clients.splice(0));
   }
   report.passed = true;
+} catch (error) {
+  report.failure = error instanceof Error ? error.message : String(error);
+  throw error;
 } finally {
   await stopClients(clients);
   await rm(root, { recursive: true, force: true });
