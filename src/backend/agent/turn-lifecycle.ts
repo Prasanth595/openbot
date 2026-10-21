@@ -617,7 +617,11 @@ export class TurnLifecycle {
         // an exhausted plan included, into the renderer's generic sentence under the usage notice.
         const error = getRecord(params, "error");
         const message = getString(params, "message") ?? getString(error, "message") ?? "";
-        if (notification.method === "warning" && isNonActionableCodexWarning(message)) return;
+        if (notification.method === "warning" && isNonActionableCodexWarning(message)) {
+          // No banner, but the log keeps the reason, such as a closed WebSocket.
+          logger.info("A provider warning needs no action.", { provider: source.provider, message });
+          return;
+        }
         // Codex retries on its own and reports the final failure again without `willRetry`.
         if (isRecord(params) && params.willRetry === true) return;
         // A usage limit shows no banner, but the failed delivery still keeps it as the reason.

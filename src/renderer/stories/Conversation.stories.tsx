@@ -1329,7 +1329,7 @@ export const ProviderErrorBanner: Story = {
   render: (storyArgs) => (
     <MockedConversation
       args={storyArgs}
-      conversationError="Falling back from WebSockets to HTTPS transport. stream disconnected before completion: Connection refused (os error 61)"
+      conversationError="stream disconnected before completion: Connection refused (os error 61)"
     />
   ),
 };

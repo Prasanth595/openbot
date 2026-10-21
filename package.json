@@ -210,6 +210,7 @@
     "test:cline-free-models": "bun scripts/cline-free-models-e2e.ts",
     "test:opencode-downgraded-session": "bun scripts/opencode-downgraded-session-e2e.ts",
     "test:opencode-expired-key": "bun scripts/opencode-expired-key-e2e.ts",
+    "test:codex-transport-fallback": "bun scripts/codex-transport-fallback-e2e.ts",
     "test:filesystem": "bun scripts/filesystem-smoke.ts",
     "test:imagegen": "bun scripts/filesystem-smoke.ts --provider codex --imagegen",
     "test:workspace-only": "bun scripts/filesystem-smoke.ts --workspace-only",
