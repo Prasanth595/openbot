@@ -1235,8 +1235,7 @@
   mask-image: linear-gradient(to bottom, var(--openbot-text-primary) 45px, transparent 60px);
 }
 
-.message-reply-quote blockquote > :not(:first-child),
-.message-reply-quote li + li {
+.message-reply-quote blockquote > :not(:first-child) {
   margin-top: var(--openbot-space-1);
 }
 
