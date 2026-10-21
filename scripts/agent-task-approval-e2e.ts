@@ -113,22 +113,39 @@ async function waitForTasks(
   }
 }
 
-/** Waits for the approval of the task's thread that the page collected. */
-async function waitForApproval(task: AgentTask): Promise<AgentApproval> {
-  const deadline = Date.now() + WAIT_MS;
-  for (;;) {
-    const approvals = await page.evaluate(() => window.taskApprovalE2e ?? []);
-    const approval = approvals.find((item) => item.agentId === agentId && item.threadId === task.threadId);
-    if (approval) return approval;
-    const current = taskIn(await listTasks(), task.id);
-    if (current.state !== "running" && current.state !== "queued") {
-      throw new Error(
-        `The task ended with no approval: ${JSON.stringify(current)}. Approvals: ${JSON.stringify(approvals)}`,
-      );
-    }
-    if (Date.now() > deadline) throw new Error(`No approval arrived for task ${task.id}.`);
-    await page.waitForTimeout(250);
-  }
+/**
+ * Waits in the page for the approval event of the task's thread. A task list event that shows the task
+ * ended first fails the wait, because the provider did not ask.
+ */
+function waitForApproval(task: AgentTask): Promise<AgentApproval> {
+  return page.evaluate(
+    ({ id, threadId, taskId, timeout }) =>
+      new Promise<AgentApproval>((resolveApproval, reject) => {
+        const ofTask = (approval: AgentApproval) => approval.agentId === id && approval.threadId === threadId;
+        const seen = window.taskApprovalE2e?.find(ofTask);
+        if (seen) {
+          resolveApproval(seen);
+          return;
+        }
+        const deadline = setTimeout(() => finish(new Error(`No approval arrived for task ${taskId}.`)), timeout);
+        const unsubscribe = window.openbot.agent.onEvent((event) => {
+          if (event.type === "approval" && ofTask(event.approval)) finish(event.approval);
+          if (event.type === "agent-tasks-changed" && event.snapshot.agentId === id) {
+            const current = event.snapshot.tasks.find((candidate) => candidate.id === taskId);
+            if (current && current.state !== "running" && current.state !== "queued") {
+              finish(new Error(`The task ended with no approval: ${JSON.stringify(current)}`));
+            }
+          }
+        });
+        function finish(result: AgentApproval | Error) {
+          clearTimeout(deadline);
+          unsubscribe();
+          if (result instanceof Error) reject(result);
+          else resolveApproval(result);
+        }
+      }),
+    { id: agentId, threadId: task.threadId, taskId: task.id, timeout: WAIT_MS },
+  );
 }
 
 /** Starts a task that writes outside the workspace, answers its approval in the task panel, and reads the result. */
@@ -140,7 +157,7 @@ async function decide(decision: "Deny" | "Allow"): Promise<Decision> {
       window.openbot.agent.startTask({ agentId: id, text: prompt, clientMessageId: crypto.randomUUID() }),
     {
       id: agentId,
-      prompt: `Create the file ${file} with the text ok. Use your file or shell tool; do not ask me in the chat.`,
+      prompt: `Create the file ${file} with the text ok. Run the shell command with escalated permissions so that I get an approval request.`,
     },
   );
   started.push(task.id);
