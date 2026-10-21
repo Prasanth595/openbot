@@ -1185,6 +1185,11 @@ export class HostService extends EventEmitter<HostEvents> {
     (operation) => this.#provide(operation),
   ).bind(this);
 
+  /** Gives a duplicated agent the levels of its source agent. */
+  copyAgentAccess(sourceAgentId: string, agentId: string): Effect.Effect<void> {
+    return this.#api.copyAgentAccess(sourceAgentId, agentId);
+  }
+
   /** A removed member keeps no roles. The member is gone either way, so a failed write only logs. */
   #forgetMemberRoles(hostId: string, memberId: string): Effect.Effect<void> {
     const agentAccess = this.#options.agentAccess;

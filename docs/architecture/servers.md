@@ -383,7 +383,8 @@ downgrade keeps the roles. A file that does not decode closes every agent to mem
 save. Nothing goes to the account service. An owner or admin reads the whole set; a member reads only
 `mine`. A save sends the whole set with the revision that it read, and the host answers 409 when another
 admin saved after it; the client then reads the set again. A save changes only the levels of the agents
-that the admin can see, and drops the levels of deleted agents. The host removes a member from each role when the member leaves, and after
+that the admin can see, and drops the levels of deleted agents. A duplicated agent gets the levels of its
+source before the copy shows to clients, so a copy does not open memories that the source closed. The host removes a member from each role when the member leaves, and after
 each change it sends `agent-access-changed` and a new `agents-changed` to each connection, so the agent
 lists of members change without a reload.
 

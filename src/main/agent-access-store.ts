@@ -199,6 +199,31 @@ export class AgentAccessStore {
     );
   }).bind(this);
 
+  /**
+   * Gives a duplicated agent the levels of its source, so that the copy, with its memories and routines,
+   * is not open to members that the source was closed to.
+   */
+  readonly copyAgent = Effect.fn("AgentAccessStore.copyAgent")(function* (
+    this: AgentAccessStore,
+    serverId: string,
+    sourceAgentId: string,
+    agentId: string,
+  ) {
+    yield* this.#replace(serverId, (state) => {
+      // A damaged file keeps members out of every agent; a write here would replace it.
+      if (this.#closed) return "unchanged";
+      const copy = (levels: AgentAccessLevels): AgentAccessLevels => {
+        const level = levels[sourceAgentId];
+        return level ? { ...levels, [agentId]: level } : levels;
+      };
+      const everyone = copy(state.everyone);
+      const roles = state.roles.map((role) => ({ ...role, agents: copy(role.agents) }));
+      const changed =
+        everyone !== state.everyone || roles.some((role, index) => role.agents !== state.roles[index]?.agents);
+      return changed ? { everyone, roles } : "unchanged";
+    });
+  }).bind(this);
+
   subscribe(listener: (serverId: string, state: AgentAccessState) => void): () => void {
     this.#listeners.add(listener);
     return () => this.#listeners.delete(listener);

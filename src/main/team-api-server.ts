@@ -857,8 +857,9 @@ export class TeamApiServer {
       if ((await routeAgentImport(context, this.#options.agentImport, newAgentHidden)) === "handled") return;
       if ((await routeInstanceTransfer(context, this.#options.instanceTransfer, newAgentHidden)) === "handled") return;
       if (
+        // The ID, not the member: the registration outlives a role change.
         (await routeLiveActivityPush(context, this.#options.liveActivityPush, () =>
-          this.hiddenAgentIds(context.protocol, context.capabilities, context.member),
+          this.hiddenAgentIds(context.protocol, context.capabilities, context.member.id),
         )) === "handled"
       )
         return;
@@ -1649,6 +1650,7 @@ export class TeamApiServer {
         this.#options.sidebarLayout,
         sourceAgentId,
         operationId,
+        (agentId) => this.copyAgentAccess(sourceAgentId, agentId),
       ).pipe(
         Effect.onExit((exit) => {
           this.#duplicateRequests.delete(operationId);
@@ -1752,6 +1754,20 @@ export class TeamApiServer {
       hidden.add(id);
     if (member !== undefined) for (const id of this.#blockedAgentIds(member)) hidden.add(id);
     return hidden;
+  }
+
+  /** Gives a duplicated agent the levels of its source. The copy exists either way, so a failed write only logs. */
+  copyAgentAccess(sourceAgentId: string, agentId: string): Effect.Effect<void> {
+    const access = this.#options.agentAccess;
+    const serverId = this.#options.store.getIdentity()?.serverId;
+    if (!access || !serverId) return Effect.void;
+    return access
+      .copyAgent(serverId, sourceAgentId, agentId)
+      .pipe(
+        Effect.catch((error) =>
+          Effect.sync(() => logger.warn("The duplicated agent's roles did not save.", toLogValue(error))),
+        ),
+      );
   }
 
   /** The level of `member` for `agentId` under the roles of this host. Without roles, `manage`. */

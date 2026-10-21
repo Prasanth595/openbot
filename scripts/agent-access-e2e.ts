@@ -560,6 +560,22 @@ try {
     return { everyone: stored.everyone };
   });
 
+  await step("duplicate: the copy of a closed agent gets the levels of its source", async () => {
+    const { access, team } = current();
+    const response = await call("POST", `/v1/agents/${encodeURIComponent(legal)}/duplicate`, {
+      token: ownerToken,
+      body: { operationId: crypto.randomUUID() },
+    });
+    assert.equal(response.status, 201, `Duplicate returned ${response.status}: ${refusal(response.body)}`);
+    // The released duplicate response keeps the name `bot`.
+    const copy = text(record(record(response.body, "duplicate").bot, "bot").id, "copy id");
+    const stored = access.get(team.getIdentity()?.serverId ?? "");
+    assert.equal(stored.everyone[copy], "none", "Everyone can use the copy of a closed agent.");
+    assert.equal(stored.roles[0]?.agents[copy], "chat", "The role did not get the copy.");
+    assert.ok(!(await listedIds(setup.memberToken)).includes(copy), "The member sees the copy.");
+    return { copy: stored.everyone[copy], role: stored.roles[0]?.agents[copy] };
+  });
+
   report.passed = true;
 } finally {
   for (const socket of sockets) socket.close();

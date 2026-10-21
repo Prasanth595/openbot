@@ -358,7 +358,7 @@ export type TeamApiOnePasswordConnector = Pick<
   "status" | "refreshLogins" | "connectWithToken" | "disconnect"
 >;
 
-export type TeamApiAgentAccess = Pick<AgentAccessStore, "get" | "levels" | "set" | "subscribe">;
+export type TeamApiAgentAccess = Pick<AgentAccessStore, "copyAgent" | "get" | "levels" | "set" | "subscribe">;
 
 export interface TeamApiOptions {
   /** `events-v1`: admin-only event source and routine management. */
