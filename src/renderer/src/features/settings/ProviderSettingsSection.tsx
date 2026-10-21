@@ -299,10 +299,7 @@ function ProviderSettingsSection(props: ProviderSettingsSectionProps) {
           apiKeyKept={Boolean(editing()?.hasApiKey)}
           busy={host.state.saving}
           submitError={host.state.submitError}
-          // An edit keeps its own ID, so that ID is not a duplicate of itself.
-          takenProviderIds={customProviders()
-            .map((provider) => provider.id)
-            .filter((id) => id !== editing()?.id)}
+          takenProviderIds={customProviders().map((provider) => provider.id)}
           onSubmit={(value) => void host.submit(value)}
           onCancel={host.closeForm}
         />

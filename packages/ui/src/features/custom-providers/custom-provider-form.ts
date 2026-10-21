@@ -84,9 +84,13 @@ function blankHeader(header: CustomHeaderDraft): boolean {
   return !header.name.trim() && !header.value.trim();
 }
 
+/**
+ * A locked ID names a saved endpoint, so it has no ID checks: main accepts a saved ID that a later
+ * release made a built-in provider name, and the user cannot change a locked field.
+ */
 export function validateCustomProvider(
   draft: CustomProviderDraft,
-  takenProviderIds: readonly string[] = [],
+  ids: { taken?: readonly string[] | undefined; locked?: boolean | undefined } = {},
   t: AppTranslate = currentText().t,
 ): CustomProviderErrors {
   const providerId = draft.providerId.trim();
@@ -95,17 +99,19 @@ export function validateCustomProvider(
     headerRows: draft.headers.map(() => undefined),
   };
 
-  if (!providerId) errors.providerId = t("customProvider.error.providerIdRequired");
-  else if (!CUSTOM_PROVIDER_ID_PATTERN.test(providerId)) {
-    errors.providerId = t("customProvider.error.providerIdPattern");
-  } else if (providerId.length > INPUT_LIMITS.identifier) {
-    errors.providerId = t("customProvider.error.providerIdLength", { max: INPUT_LIMITS.identifier });
-  } else if (AGENT_PROVIDERS.some((provider) => provider === providerId)) {
-    errors.providerId = t("customProvider.error.providerIdBuiltIn", { id: providerId });
-  } else if (takenProviderIds.includes(providerId)) {
-    // A new endpoint cannot take a saved ID: main refuses the save, and this says so before the round
-    // trip. An edit keeps its own ID, so its host leaves that ID out of the list.
-    errors.providerId = t("customProvider.error.providerIdSaved", { id: providerId });
+  if (!ids.locked) {
+    if (!providerId) errors.providerId = t("customProvider.error.providerIdRequired");
+    else if (!CUSTOM_PROVIDER_ID_PATTERN.test(providerId)) {
+      errors.providerId = t("customProvider.error.providerIdPattern");
+    } else if (providerId.length > INPUT_LIMITS.identifier) {
+      errors.providerId = t("customProvider.error.providerIdLength", { max: INPUT_LIMITS.identifier });
+    } else if (AGENT_PROVIDERS.some((provider) => provider === providerId)) {
+      errors.providerId = t("customProvider.error.providerIdBuiltIn", { id: providerId });
+    } else if (ids.taken?.includes(providerId)) {
+      // There is no way to overwrite a saved ID: main refuses the save, and this says so before the
+      // round trip.
+      errors.providerId = t("customProvider.error.providerIdSaved", { id: providerId });
+    }
   }
 
   const displayName = draft.displayName.trim();

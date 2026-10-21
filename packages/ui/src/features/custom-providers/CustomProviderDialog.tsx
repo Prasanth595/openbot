@@ -120,7 +120,8 @@ export function CustomProviderDialog(props: CustomProviderDialogProps) {
     },
   );
 
-  const errors = () => validateCustomProvider(draft, props.takenProviderIds, t);
+  const errors = () =>
+    validateCustomProvider(draft, { taken: props.takenProviderIds, locked: props.providerIdLocked }, t);
   const shown = (): CustomProviderErrors | null => (submitted() ? errors() : null);
   const busy = () => Boolean(props.busy);
   const discovery = (): ModelDiscovery => props.discovery ?? { status: "idle" };
