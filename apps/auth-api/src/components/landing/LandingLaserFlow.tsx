@@ -43,6 +43,7 @@ uniform float uTime;
 uniform float uBeamX;
 uniform vec4 uSource;
 uniform vec3 uWrap;
+uniform float uFall;
 uniform vec4 uSurface;
 uniform float uRadius;
 uniform vec3 uIntro;
@@ -109,7 +110,9 @@ float roundBox(vec2 p, vec2 b, float r) {
 vec3 spill(float e, float fall, float strength, float front, float t, out vec3 glow) {
   glow = vec3(0.0);
   if (strength < 0.0005) return vec3(0.0);
-  float f = max(fall, 0.0);
+  // uFall stretches the light that runs down the side; the reveal front stays in real pixels.
+  float fr = max(fall, 0.0);
+  float f = fr / uFall;
   float d = max(e, 0.0);
   float u = d / (6.0 + 0.28 * f);
   float start = smoothstep(-6.0, 12.0, fall);
@@ -136,7 +139,7 @@ vec3 spill(float e, float fall, float strength, float front, float t, out vec3 g
   glow += MIST * 0.7 * exp(-max(u - 1.0, 0.0) / 0.9) * smoothstep(0.7, 1.2, u) * fade * soft;
   glow += EMBER * 0.35 * exp(-sq((f - 165.0) / 22.0)) * exp(-d / 25.0) * bright;
   float lag = u * (6.0 + 0.28 * f) * 0.35;
-  float reveal = 1.0 - smoothstep(front - 70.0, front + 8.0, f + lag);
+  float reveal = 1.0 - smoothstep(front - 70.0, front + 8.0, fr + lag);
   glow *= start * reveal;
   return thread * start * reveal;
 }
@@ -199,8 +202,8 @@ void main() {
   float sourced = uWrap.z;
   float top = mix(mix(0.3, 0.6, sourced), 1.0, smoothstep(0.0, 0.3 * sy, p.y));
   // A wide beam keeps a thin core: only its glow grows, so the beam does not turn into a white column.
-  float beamCore = 24.0 * exp(-adx / (2.0 * min(beamWidth, 1.4)));
-  float beamHalo = 1.3 * exp(-adx / (6.0 * min(beamWidth, 1.6))) + 0.3 * exp(-adx / (22.0 * beamWidth));
+  float beamCore = 24.0 * exp(-adx / (2.0 * min(beamWidth, 1.9)));
+  float beamHalo = 1.3 * exp(-adx / (6.0 * min(beamWidth, 2.1))) + 0.3 * exp(-adx / (22.0 * beamWidth));
   vec3 haloK = mix(BEAM, sideK, exp(-hp / 80.0));
   col += (BEAM * beamCore + haloK * beamHalo) * top * above * drop;
   col += sideK * 0.16 * exp(-adx / (45.0 * beamWidth)) * top * above * drop;
@@ -391,10 +394,12 @@ const WRAP_SPEED = 240;
 
 const SETTINGS = {
   intensity: 1.6,
-  beamWidth: 3,
-  flare: 2.3,
-  spread: 2.4,
+  beamWidth: 3.6,
+  flare: 2.9,
+  spread: 4.6,
   spill: 1,
+  /** How far the light runs down the sides of the surface, as a multiple of the React Bits length. */
+  fall: 3.2,
   fog: 0.3,
   dust: 1.4,
   streaks: 1.4,
@@ -488,6 +493,7 @@ function locate(gl: WebGL2RenderingContext, program: WebGLProgram) {
     uBeamX: at("uBeamX"),
     uSource: at("uSource"),
     uWrap: at("uWrap"),
+    uFall: at("uFall"),
     uSurface: at("uSurface"),
     uRadius: at("uRadius"),
     uIntro: at("uIntro"),
@@ -707,6 +713,7 @@ export function LandingLaserFlow(props: LandingLaserFlowProps) {
       gl.uniform1f(uniforms.uBeamX, beamX);
       gl.uniform4f(uniforms.uSource, source?.left ?? 0, source?.top ?? 0, source?.right ?? 0, source?.bottom ?? 0);
       gl.uniform3f(uniforms.uWrap, source?.radius ?? 0, wrapRun, source ? 1 : 0);
+      gl.uniform1f(uniforms.uFall, SETTINGS.fall);
       gl.uniform4f(uniforms.uSurface, surface.left, surface.top, surface.right, surface.bottom);
       gl.uniform1f(uniforms.uRadius, surface.radius);
       gl.uniform3f(uniforms.uIntro, front, bloom, flash);
