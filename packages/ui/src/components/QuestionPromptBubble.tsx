@@ -260,7 +260,7 @@ export function QuestionPromptBubble(props: QuestionPromptBubbleProps) {
     return Object.fromEntries(
       props.questions.map((question) => [
         question.id,
-        nextSkipped[question.id] ? [] : (nextAnswers[question.id] ?? []),
+        nextSkipped[question.id] ? [] : (nextAnswers[question.id] ?? []).map((value) => value.trim()),
       ]),
     );
   }
@@ -326,6 +326,8 @@ export function QuestionPromptBubble(props: QuestionPromptBubbleProps) {
       const current = picks()[question.id] ?? [];
       const next = current.includes(value) ? current.filter((item) => item !== value) : [...current, value];
       setPicks((all) => ({ ...all, [question.id]: next }));
+      // A confirmed answer that no longer matches the ticks must be confirmed again.
+      setAnswers(({ [question.id]: _changed, ...rest }) => rest);
     });
   }
 
