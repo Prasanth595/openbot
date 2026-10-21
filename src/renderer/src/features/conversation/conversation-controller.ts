@@ -30,6 +30,7 @@ import type {
   SidebarFilePreview,
   VoiceLiveTranscript,
 } from "./conversation-types";
+import type { TurnRuntime } from "./stores/activity-store";
 import type { SidePanelsState } from "./stores/panels-store";
 import { createPendingSendStore } from "./stores/pending-send-store";
 import type { SideQuestionState } from "./stores/side-question-store";
@@ -49,6 +50,7 @@ function readBrowserPipBounds(): BrowserBounds | null {
 
 interface ConversationResources {
   agentActivityLabels: Map<string, { activityId: string; label: AgentActivityLabel }>;
+  turnRuntimes: Map<string, TurnRuntime>;
   browserOpenRequests: Map<
     string,
     {
@@ -222,6 +224,7 @@ export function createStableConversationState(
   const [browserPanelWidth, setBrowserPanelWidth] = createSignal(BROWSER_PANEL_DEFAULT);
   const resources: ConversationResources = {
     agentActivityLabels: new Map(),
+    turnRuntimes: new Map(),
     browserOpenRequests: new Map(),
     importTargetAgents: new Map<string, { agentId: string; serverId: string }>(),
     seenMessageIds: new Set<string>(),

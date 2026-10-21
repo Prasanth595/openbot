@@ -72,7 +72,8 @@ export const messages = {
   "agentSettings.avatar.saveFailed": "Ajan avatarı kaydedilemedi.",
   "agentSettings.avatar.processFailed": "Ajan avatarı işlenemedi.",
   "agentSettings.runtime.model": "Ajan modeli",
-  "agentSettings.runtime.modelBusy": "Model değiştirmeden önce mevcut çalışmanın bitmesini bekleyin.",
+  "agentSettings.runtime.providerBusy":
+    "Sağlayıcıyı veya hesabı değiştirmeden önce mevcut çalışmanın bitmesini bekleyin.",
   "agentSettings.runtime.modelUnavailable": "Modeller bir ajan CLI'sı bağlandıktan sonra kullanılabilir.",
   "agentSettings.runtime.reasoning": "Akıl yürütme",
   "agentSettings.runtime.reasoningLabel": "Ajan akıl yürütme düzeyi",
