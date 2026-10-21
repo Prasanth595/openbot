@@ -450,7 +450,8 @@ export class ThreadLifecycle {
         decodeThreadResponse,
       )
       .pipe(toThreadOperationFailed);
-    const previousSession = this.#store.database.listProviderSessions(publicThreadId).at(-1);
+    const sessions = this.#store.database.listProviderSessions(publicThreadId);
+    const previousSession = sessions.at(-1);
     const startReason =
       reason ??
       (previousSession
@@ -458,6 +459,9 @@ export class ThreadLifecycle {
           ? "retired-session"
           : "provider-switch"
         : "new-session");
+    // The session of this provider that the new one replaces. A missing session has nothing to archive.
+    const replaced =
+      startReason === "missing-session" ? undefined : sessions.findLast((one) => one.provider === client.provider);
     const key = `${client.provider}:${startReason}`;
     const count = (this.#sessionStarts.get(key) ?? 0) + 1;
     this.#sessionStarts.set(key, count);
@@ -520,8 +524,29 @@ export class ThreadLifecycle {
     this.#conversation.bindThread(externalThreadId, agent.id, publicThreadId);
     this.#conversation.markThreadLoaded(externalThreadId, client);
     this.#conversation.ensureSnapshot(agent.id, publicThreadId);
+    if (replaced) yield* this.#archiveReplacedSession(client, replaced.externalSessionId);
     return externalThreadId;
   });
+
+  /**
+   * Hides the session that a new one replaced from the provider's own thread list, after the new
+   * session is bound. Each replacement starts a new provider thread with the handoff as its first
+   * message, so without this the user's Codex history fills with rows that start with
+   * `HANDOFF_START`. The history stays readable for the import. A failure is logged, and the new
+   * session goes on: the old thread then only stays in the list.
+   */
+  readonly #archiveReplacedSession = Effect.fn("ThreadLifecycle.archiveReplacedSession")(function* (
+    this: ThreadLifecycle,
+    client: AgentClient,
+    externalThreadId: string,
+  ) {
+    if (!client.archiveThread) return;
+    yield* client
+      .archiveThread(externalThreadId)
+      .pipe(
+        Effect.catch((failure) => Effect.sync(() => this.#hooks.logReleaseFailure(client.provider, failure.cause))),
+      );
+  }, Effect.uninterruptible);
 
   private handoffPath(sessionId: string): string {
     return join(
