@@ -4,8 +4,8 @@
 // `bun scripts/chat-scroll-streaming-e2e.ts --storybook=http://localhost:6006 [--stories=burst,channel]`.
 // The chat must follow new content while the reader is at the bottom, also after a sideways swipe, stay
 // at the bottom across growth while a turn runs, hold still after a short scroll up and after a long
-// one, follow again when the reader goes back to the bottom, and hold still after a scroll up with the
-// arrow key. In a burst, the jump button must count the new messages and return to the latest one, a
+// one, follow again when the reader goes back to the bottom, hold still after a scroll up with the
+// arrow key, and hold still after a smooth jump up from the bottom with the scroll rail. In a burst, the jump button must count the new messages and return to the latest one, a
 // message the reader sends while scrolled up must return the chat to the bottom, and a focus move to a
 // control above the view, as Tab or a screen reader makes, must hold the chat still. A focus that
 // returns to a control above the view without a scroll, as a closed dialog or menu gives it, must not
@@ -83,6 +83,8 @@ interface StoryResult {
   longScrollUp?: HoldResult;
   followsAgain?: Position;
   arrowKeyScrollUp?: HoldResult;
+  followsBeforeRailJump?: Position;
+  railJump?: HoldResult;
   newMessageCounts?: number[];
   followsAfterJump?: Position;
   followsAfterSend?: Position;
@@ -204,9 +206,12 @@ async function assertFollows(page: Page, story: StoryCase, name: string): Promis
   return result;
 }
 
-/* While a turn runs, growth must not bounce the chat off the bottom. */
+/*
+ * While a turn runs, growth must not bounce the chat off the bottom. The sampling stops after about 30
+ * seconds of frames, as `waitForGrowth` does, so a chat that stops growing fails and writes the report.
+ */
 async function assertStaysAtBottom(page: Page, story: StoryCase): Promise<BottomHold> {
-  const samples = await page.evaluate(
+  const { samples, grew } = await page.evaluate(
     ({ scrollSelector, growth }) => {
       const scroll = document.querySelector<HTMLElement>(scrollSelector);
       if (!scroll) throw new Error("The conversation is missing.");
@@ -219,10 +224,11 @@ async function assertStaysAtBottom(page: Page, story: StoryCase): Promise<Bottom
         });
       };
       record();
-      return new Promise<Array<{ scrollTop: number; remaining: number }>>((done) => {
+      return new Promise<{ samples: Array<{ scrollTop: number; remaining: number }>; grew: boolean }>((done) => {
         const step = () => {
           record();
-          if (scroll.scrollHeight >= from + growth) done(samples);
+          const grew = scroll.scrollHeight >= from + growth;
+          if (grew || samples.length > 1_800) done({ samples, grew });
           else requestAnimationFrame(step);
         };
         requestAnimationFrame(step);
@@ -230,7 +236,7 @@ async function assertStaysAtBottom(page: Page, story: StoryCase): Promise<Bottom
     },
     { scrollSelector: SCROLL, growth: GROWTH },
   );
-  assert.ok(samples.length >= 2, `${story.id}: the chat did not grow at the bottom.`);
+  assert.ok(grew && samples.length >= 2, `${story.id}: the chat did not grow at the bottom.`);
   let maxRemaining = 0;
   let minScrollTopDelta = 0;
   for (let index = 1; index < samples.length; index += 1) {
@@ -270,14 +276,40 @@ async function focusAbove(page: Page, preventScroll = false): Promise<void> {
   );
 }
 
+/* A jump with the scroll rail to the fifth section from the end, then the frames until the smooth scroll stops. */
+async function railJump(page: Page): Promise<void> {
+  await page.evaluate((scrollSelector) => {
+    const scroll = document.querySelector<HTMLElement>(scrollSelector);
+    if (!scroll) throw new Error("The conversation is missing.");
+    const link = [...document.querySelectorAll<HTMLElement>(".chat-scroll-rail-link")].at(-5);
+    if (!link) throw new Error("The scroll rail has no section to jump to.");
+    link.click();
+    return new Promise((done) => {
+      let last = scroll.scrollTop;
+      let still = 0;
+      const step = () => {
+        still = scroll.scrollTop === last ? still + 1 : 0;
+        last = scroll.scrollTop;
+        if (still >= 6) done(undefined);
+        else requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    });
+  }, SCROLL);
+}
+
 async function newMessageCount(page: Page): Promise<number> {
   const label = await page.locator(".scroll-to-latest-count").textContent();
   return Number(label?.match(/\d+/)?.[0] ?? 0);
 }
 
-async function checkStory(page: Page, story: StoryCase, result: StoryResult): Promise<void> {
+async function openStory(page: Page, story: StoryCase): Promise<void> {
   await page.goto(`${storybook}/iframe.html?id=${story.id}&viewMode=story`);
   await page.locator(`${SCROLL} [data-index]`).first().waitFor();
+}
+
+async function checkStory(page: Page, story: StoryCase, result: StoryResult): Promise<void> {
+  await openStory(page, story);
   const box = await page.locator(SCROLL).boundingBox();
   assert.ok(box, `${story.id}: the conversation has no box.`);
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
@@ -341,10 +373,24 @@ async function checkStory(page: Page, story: StoryCase, result: StoryResult): Pr
   assertHolds(story.id, "a focus move up", result.focusAbove);
 }
 
+/*
+ * A smooth jump up from the bottom with the scroll rail holds the chat at the section. Its first scroll
+ * events are still near the bottom. The other checks turn smooth scrolling off, which makes this jump
+ * instant, so it runs in a second browser.
+ */
+async function checkRailJump(page: Page, story: StoryCase, result: StoryResult): Promise<void> {
+  await openStory(page, story);
+  result.followsBeforeRailJump = await assertFollows(page, story, "new content before a rail jump");
+  result.railJump = await holds(page, story, () => railJump(page));
+  assertHolds(story.id, "a jump with the scroll rail", result.railJump);
+}
+
 mkdirSync(OUT, { recursive: true });
 const browser = await chromium.launch({ channel: "chrome", args: ["--disable-smooth-scrolling"] });
+const smoothBrowser = await chromium.launch({ channel: "chrome" });
 try {
   const page = await browser.newPage({ viewport: { width: 1200, height: 860 } });
+  const smoothPage = await smoothBrowser.newPage({ viewport: { width: 1200, height: 860 } });
   for (const story of STORIES.filter(
     (candidate) => !filters || filters.some((filter) => candidate.id.includes(filter)),
   )) {
@@ -353,6 +399,7 @@ try {
     // Each story is checked, so one run shows every chat that fails.
     try {
       await checkStory(page, story, result);
+      await checkRailJump(smoothPage, story, result);
     } catch (cause) {
       result.error = cause instanceof Error ? cause.message : String(cause);
     }
@@ -364,4 +411,5 @@ try {
   writeFileSync(resolve(OUT, "report.json"), `${JSON.stringify(report, null, 2)}\n`);
   process.stdout.write(`${JSON.stringify(report)}\n`);
   await browser.close();
+  await smoothBrowser.close();
 }

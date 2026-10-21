@@ -487,9 +487,7 @@ export function createConversationViewScope(props: ConversationProps) {
     chatSearchQuery,
     activeChatSearchIndex,
     scrollElement: () => scrollElement,
-    revealMatch: () => {
-      stickToLatest = false;
-    },
+    revealMatch: () => setStickToLatest(false),
     setChatSearchOpen,
     setChatSearchQuery,
     chatSearchMatches,
@@ -1380,10 +1378,18 @@ export function createConversationViewScope(props: ConversationProps) {
     scrollFades.adopt(element);
     updateVirtualScrollMargin();
   };
-  /* Following the latest message again, by request or because the reader came back, ends the reader's hold. */
+  /*
+   * Following the latest message again, by request or because the reader came back, ends the reader's hold.
+   * A jump away, such as to a search match, holds the chat as a scroll up does: a smooth scroll starts at
+   * the bottom, and its first scroll events must not follow the latest message again.
+   */
   function setStickToLatest(value: boolean) {
-    stickToLatest = value;
-    if (value) readerLeftLatest = false;
+    if (!value) {
+      leaveLatest();
+      return;
+    }
+    stickToLatest = true;
+    readerLeftLatest = false;
   }
   /**
    * The reader moved up, so the chat stops following new content until the reader moves down again
