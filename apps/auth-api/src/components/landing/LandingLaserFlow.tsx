@@ -513,7 +513,7 @@ function seededRandom(seed: number): () => number {
  * mixes; an even mix of all looks is always near the average, and all visits then look the same.
  * The default look has more weight.
  */
-function randomLook(seed: number, baseColor: Rgb): { settings: LaserSettings; color: Rgb } {
+function randomLook(seed: number, baseColor: Rgb): { settings: LaserSettings; color: Rgb; drop: boolean } {
   const random = seededRandom(seed);
   const looks = [SETTINGS, ...Object.values(VERSIONS)];
   const weights = looks.map((_, index) => (-Math.log(1 - random())) ** 3 * (index === 0 ? 1.5 : 1));
@@ -541,6 +541,8 @@ function randomLook(seed: number, baseColor: Rgb): { settings: LaserSettings; co
       seed: random() * 20,
     },
     color: turnHue([channel(0), channel(1), channel(2)], random() * 30 - 15),
+    // Half of the visits see the beam fall in. The other half see it already in place.
+    drop: random() < 0.5,
   };
 }
 
@@ -554,10 +556,10 @@ function turnHue(rgb: Rgb, degrees: number): Rgb {
  * Each visit gets a new random look. `?beam=<name>` in the page address shows one tested look,
  * and `?beam=<number>` shows the random look with that seed again.
  */
-function selectedLook(baseColor: string): { settings: LaserSettings; color: Rgb; seed: string } {
+function selectedLook(baseColor: string): { settings: LaserSettings; color: Rgb; drop: boolean; seed: string } {
   const name = new URLSearchParams(window.location.search).get("beam") ?? "";
   const named = name === "default" ? SETTINGS : Object.hasOwn(VERSIONS, name) ? VERSIONS[name] : undefined;
-  if (named) return { settings: named, color: hexToRgb(named.color ?? baseColor), seed: name };
+  if (named) return { settings: named, color: hexToRgb(named.color ?? baseColor), drop: true, seed: name };
   const seed = /^\d+$/.test(name) ? Number(name) : Math.floor(Math.random() * 1_000_000);
   return { ...randomLook(seed, hexToRgb(baseColor)), seed: String(seed) };
 }
@@ -728,7 +730,7 @@ export function LandingLaserFlow(props: LandingLaserFlowProps) {
     const tints = buildTints(look.color);
     const state = {
       time: 0,
-      introTime: reduce ? INTRO_END : 0,
+      introTime: reduce || !look.drop ? INTRO_END : 0,
       width: 1,
       height: 1,
       ratio: 1,
