@@ -9,6 +9,7 @@ import {
   type ApplyAgentImportInput,
   decodeRemoteAgentImportResult,
   parseApplyAgentImportInput,
+  parseApplyHermesImportInput,
   resolveRemoteAgentImportResult,
 } from "@openbot/contracts/ipc";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
@@ -22,14 +23,17 @@ import { sourceText } from "@openbot/i18n/source";
 import { app, type BrowserWindow, dialog, type OpenDialogOptions, type SaveDialogOptions } from "electron";
 import { runCauseEffect } from "../../backend/effect-boundary";
 import type { AgentImportService } from "../agent-import-service";
+import { hermesRoot, profileRoot } from "../hermes-import-reader";
+import type { HermesImportService } from "../hermes-import-service";
 import { decodeAgentSummaries } from "../remote-agent-decoding";
 import { AGENT_IMPORT_UPLOAD_TIMEOUT_MS, type RemoteServerManager } from "../remote-server-manager";
-import { handler, type IpcGroupHandlers } from "./define-ipc-group";
+import { handler, type IpcGroupHandlers, payloadHandler } from "./define-ipc-group";
 import { scopedHandler, scopedQueryHandler } from "./scoped-handler";
 import { stringPayload } from "./validation";
 
 export interface AgentImportIpcDependencies {
   agentImport: AgentImportService;
+  hermesImport: HermesImportService;
   remoteServers: Pick<RemoteServerManager, "supportsCapability" | "request" | "stageAgentImport">;
   getMainWindow: () => BrowserWindow | null;
   translate: AppTranslate;
@@ -39,6 +43,7 @@ export interface AgentImportIpcDependencies {
 
 export function agentImportIpcHandlers({
   agentImport,
+  hermesImport,
   remoteServers,
   getMainWindow,
   translate,
@@ -50,6 +55,18 @@ export function agentImportIpcHandlers({
       title: translate("dialog.chooseAgentExport"),
       properties: ["openFile"],
       filters: [{ name: translate("dialog.filter.agentExports"), extensions: ["zip"] }],
+    };
+    const result = mainWindow ? await dialog.showOpenDialog(mainWindow, options) : await dialog.showOpenDialog(options);
+    return result.canceled || !result.filePaths[0] ? null : result.filePaths[0];
+  };
+
+  // Hermes keeps its profiles in a folder, so the user names the folder and main reads it.
+  const chooseHermesFolder = async (): Promise<string | null> => {
+    const mainWindow = getMainWindow();
+    const options: OpenDialogOptions = {
+      title: translate("dialog.chooseHermesFolder"),
+      defaultPath: hermesRoot(),
+      properties: ["openDirectory", "showHiddenFiles"],
     };
     const result = mainWindow ? await dialog.showOpenDialog(mainWindow, options) : await dialog.showOpenDialog(options);
     return result.canceled || !result.filePaths[0] ? null : result.filePaths[0];
@@ -125,6 +142,16 @@ export function agentImportIpcHandlers({
         await copyFile(exportSkillPath, result.filePath);
         return { saved: true };
       }),
+      readHermes: handler(() => runCauseEffect(hermesImport.stage(hermesRoot()))),
+      chooseHermes: handler(async () => {
+        const folder = await chooseHermesFolder();
+        if (!folder) return null;
+        const preview = await runCauseEffect(hermesImport.stage(profileRoot(folder)));
+        if (!preview) throw new Error(sourceText("error.import.hermesNoProfiles"));
+        return preview;
+      }),
+      applyHermes: payloadHandler(parseApplyHermesImportInput, (input) => runCauseEffect(hermesImport.apply(input))),
+      discardHermes: payloadHandler(stringPayload("token"), (token) => Effect.runPromise(hermesImport.discard(token))),
     },
   };
 }

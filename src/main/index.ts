@@ -510,6 +510,7 @@ function registerIpcHandlers({
   marketplaceAgents,
   agentTemplates,
   agentImport,
+  hermesImport,
   instanceTransfer,
   voice,
   speech,
@@ -585,6 +586,7 @@ function registerIpcHandlers({
     }),
     ...agentImportIpcHandlers({
       agentImport,
+      hermesImport,
       remoteServers,
       getMainWindow,
       translate: language.translate,

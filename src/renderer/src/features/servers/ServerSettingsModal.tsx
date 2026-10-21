@@ -732,7 +732,14 @@ export function ServerSettingsModal(props: ServerSettingsModalProps) {
             <Tabs.Content value="import" class="settings-modal-tab-panel server-settings-panel" data-tab="import">
               {/* Keyed: an open export belongs to one server, so another server starts a new panel. */}
               <Show when={props.server.id} keyed>
-                {(serverId) => <ServerImportPanel serverId={serverId} {...agentImport()} />}
+                {(serverId) => (
+                  <ServerImportPanel
+                    serverId={serverId}
+                    {...agentImport()}
+                    hermes={local()}
+                    onOpenTransfer={props.instanceTransfer ? () => setSection("transfer") : undefined}
+                  />
+                )}
               </Show>
             </Tabs.Content>
           )}

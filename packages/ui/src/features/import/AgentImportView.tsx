@@ -505,7 +505,7 @@ function NameExistsHint(props: { name: string }) {
   );
 }
 
-function ImportResult(props: {
+export function ImportResult(props: {
   result: AgentImportResult;
   onOpenAgent: (agentId: string) => void;
   onDone: () => void;
