@@ -59,7 +59,7 @@ function json(response: ServerResponse, status: number, value: unknown): void {
 }
 
 /** What the server publishes about its sign-in. */
-type Metadata = "published" | "absent" | "unreadable";
+type Metadata = "published" | "absent" | "refused" | "unreadable";
 
 async function fakeServer(metadata: Metadata): Promise<FakeServer> {
   const state: Omit<FakeServer, "url" | "close"> = { toolLists: [], tokenRequests: 0 };
@@ -67,6 +67,13 @@ async function fakeServer(metadata: Metadata): Promise<FakeServer> {
   const server: Server = createServer((request, response) => {
     void (async () => {
       const path = new URL(request.url ?? "/", base).pathname;
+      // A refusal at the path and at the root is an answer: the server takes no sign-in.
+      if (
+        request.method === "GET" &&
+        path.startsWith("/.well-known/oauth-protected-resource") &&
+        metadata === "refused"
+      )
+        return json(response, 403, { error: "forbidden" });
       if (request.method === "GET" && path === "/.well-known/oauth-protected-resource/mcp") {
         // A read that fails says nothing about the server. The sign-in must not end as if the server
         // asked for none.
@@ -226,6 +233,13 @@ async function main(): Promise<void> {
     check(noMetadata, noMetadata.pagesOpened === 0, "a server with no OAuth metadata opened a page");
     check(noMetadata, noMetadata.tokenRequests === 0, "a server with no OAuth metadata got a token request");
     report.cases.push(noMetadata);
+
+    const refused = await runCase("sign-in-metadata-refused", "refused", true);
+    check(refused, refused.result.error === null, `the connection failed: ${refused.result.error}`);
+    check(refused, refused.result.toolCount === 4, "the connection did not count 4 tools");
+    check(refused, refused.pagesOpened === 0, "a server that refused the metadata read opened a page");
+    check(refused, refused.tokenRequests === 0, "a server that refused the metadata read got a token request");
+    report.cases.push(refused);
 
     const unreadable = await runCase("sign-in-metadata-unreadable", "unreadable", true);
     check(
