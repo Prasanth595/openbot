@@ -23,6 +23,15 @@ const LEVEL_INTERVAL_MS = 80;
 /** The loudness, above the room noise, that counts as speech, and how long speech must last. */
 const SPEECH_LOUDNESS = 0.3;
 const SPEECH_START_MS = 240;
+/**
+ * While the reply plays, speech must be louder and longer to interrupt it, so that what is left of
+ * the reply after echo cancellation does not.
+ */
+const REPLY_SPEECH_LOUDNESS = 0.5;
+const REPLY_SPEECH_START_MS = 400;
+/** A recording with no speech starts again after this long, at a pause, so it does not keep the silence. */
+const SILENT_RECORDING_MS = 4_000;
+const RESTART_QUIET_MS = 600;
 /** The pause after speech that ends the turn. */
 const TURN_END_SILENCE_MS = 1_200;
 /** How often the words so far are transcribed again while the user speaks. */
@@ -77,9 +86,15 @@ export interface VoiceConversationDeps {
   serverOnline: () => boolean;
 }
 
-/** One turn of listening: the microphone, its recorder and the loudness meter. */
+/**
+ * One turn of listening: the microphone, its recorder and the loudness meter. While the agent thinks
+ * or speaks, the next turn already listens, so the user can interrupt it by voice.
+ */
 interface Turn {
+  /** The generation that opened the turn. */
+  own: number;
   stream: MediaStream;
+  /** A recording with no speech is replaced by a new one, at a pause. */
   recorder: MediaRecorder;
   chunks: Blob[];
   context: AudioContext | undefined;
@@ -140,7 +155,7 @@ export function createVoiceConversation(deps: VoiceConversationDeps) {
   }
 
   const stopReplyEnd = onDictatedReplyEnd((agent) => {
-    if (agent.serverId === deps.serverId && agent.agentId === deps.agentId && step === "waiting") void listen();
+    if (agent.serverId === deps.serverId && agent.agentId === deps.agentId && step === "waiting") resumeListening();
   });
 
   /** No reply comes while the server is away, so the pane stops listening until it is back. */
@@ -238,10 +253,44 @@ export function createVoiceConversation(deps: VoiceConversationDeps) {
       draft.heard = "";
       draft.levels = quietLevels();
     });
+    await openTurn(own);
+  }
+
+  /** The turn that listened while the agent thought or spoke goes on as the next turn, with no gap. */
+  function resumeListening(): void {
+    if (!turn) {
+      void listen();
+      return;
+    }
+    setStep("listening");
+    setState((draft) => {
+      draft.heard = "";
+    });
+  }
+
+  /** The user spoke over the agent: its reply stops, and what they say is the next turn. */
+  function interruptByVoice(): void {
+    desktopAnalytics.track("voice_conversation_action", {
+      action: "interrupt",
+      server_kind: serverKind,
+      result: "succeeded",
+      trigger: "voice",
+    });
+    // Before the drop, which can end the reply and start a new turn.
+    resumeListening();
+    dropDictatedReply(target);
+  }
+
+  /** Opens the microphone for the next turn. It listens now, or while the agent thinks and speaks. */
+  async function openTurn(own: number): Promise<void> {
     if (muted || disposed || !online) return;
     let stream: MediaStream;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      stream = await navigator.mediaDevices.getUserMedia({
+        // The reply plays while the microphone listens: the echo canceller removes it.
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        video: false,
+      });
     } catch (error) {
       if (own !== generation || disposed) return;
       desktopAnalytics.track("voice_turn", {
@@ -257,14 +306,14 @@ export function createVoiceConversation(deps: VoiceConversationDeps) {
       });
       return;
     }
-    if (own !== generation || disposed || muted || !online) {
+    if (own !== generation || disposed || muted || !online || turn) {
       for (const track of stream.getTracks()) track.stop();
       return;
     }
-    const recorder = createRecorder(stream);
     const current: Turn = {
+      own,
       stream,
-      recorder,
+      recorder: createRecorder(stream),
       chunks: [],
       context: undefined,
       timers: [],
@@ -273,38 +322,57 @@ export function createVoiceConversation(deps: VoiceConversationDeps) {
       livePreview: undefined,
     };
     turn = current;
-    recorder.addEventListener("dataavailable", (event) => {
-      if (event.data.size > 0 && turn === current) current.chunks.push(event.data);
-    });
-    recorder.addEventListener("stop", () => {
-      if (turn === current) void finishTurn(current, own);
-    });
-    recorder.start(LIVE_TRANSCRIPT_INTERVAL_MS);
+    record(current, current.recorder);
     startMeter(current);
     if (livePreview)
       current.timers.push(
         setInterval(() => {
-          if (current.spoke && !current.livePreview && recorder.state === "recording")
+          if (current.spoke && !current.livePreview && current.recorder.state === "recording")
             current.livePreview = refreshHeard(current).finally(() => {
               current.livePreview = undefined;
             });
         }, LIVE_TRANSCRIPT_INTERVAL_MS),
       );
-    // One second under the limit: the recording can run a little longer than its timer.
+    // One second under the limit: the recording can run a little longer than its check.
     current.timers.push(
-      setTimeout(
-        () => {
-          // A turn with no speech starts again, so the recording does not keep the silence.
-          if (turn !== current) return;
-          if (current.spoke) endTurn(current);
-          else void listen();
-        },
-        (VOICE_AUDIO_LIMITS.maximumSeconds - 1) * 1_000,
-      ),
+      setInterval(() => {
+        if (turn !== current || performance.now() - current.startedAt < (VOICE_AUDIO_LIMITS.maximumSeconds - 1) * 1_000)
+          return;
+        if (current.spoke) endTurn(current);
+        else restartRecording(current);
+      }, 1_000),
     );
   }
 
-  /** Reads the loudness above the room noise, as the dictation waveform does, and ends the turn at a pause. */
+  /** Starts a recording of the turn. Its stop ends the turn, unless a new recording replaced it. */
+  function record(current: Turn, recorder: MediaRecorder): void {
+    const chunks: Blob[] = [];
+    current.recorder = recorder;
+    current.chunks = chunks;
+    current.startedAt = performance.now();
+    recorder.addEventListener("dataavailable", (event) => {
+      if (event.data.size > 0 && turn === current && current.recorder === recorder) chunks.push(event.data);
+    });
+    recorder.addEventListener("stop", () => {
+      if (turn === current && current.recorder === recorder) void finishTurn(current, current.own);
+    });
+    recorder.start(LIVE_TRANSCRIPT_INTERVAL_MS);
+  }
+
+  /**
+   * Replaces a recording that holds no speech, so the turn does not keep the silence, or the reply that
+   * played while it listened. The microphone stays open.
+   */
+  function restartRecording(current: Turn): void {
+    const previous = current.recorder;
+    record(current, createRecorder(current.stream));
+    if (previous.state !== "inactive") previous.stop();
+  }
+
+  /**
+   * Reads the loudness above the room noise, as the dictation waveform does, and ends the turn at a
+   * pause. While the agent thinks or speaks, speech interrupts it.
+   */
   function startMeter(current: Turn): void {
     let analyser: AnalyserNode;
     try {
@@ -324,6 +392,8 @@ export function createVoiceConversation(deps: VoiceConversationDeps) {
     let shown = 0;
     let loudFor = 0;
     let quietFor = 0;
+    // Below the speech level of a turn that listens. Soft words over the reply are not silence.
+    let silentFor = 0;
     current.timers.push(
       setInterval(() => {
         analyser.getFloatTimeDomainData(samples);
@@ -339,14 +409,25 @@ export function createVoiceConversation(deps: VoiceConversationDeps) {
         const level = loudness * loudness;
         shown += (level - shown) * (level > shown ? 0.7 : 0.45);
         const value = shown;
-        setState((draft) => {
-          draft.levels = [...draft.levels.slice(1), value];
-        });
-        if (loudness >= SPEECH_LOUDNESS) {
+        // While the agent thinks or speaks, the pane shows its state, not the microphone.
+        if (step === "listening")
+          setState((draft) => {
+            draft.levels = [...draft.levels.slice(1), value];
+          });
+        silentFor = loudness >= SPEECH_LOUDNESS ? 0 : silentFor + LEVEL_INTERVAL_MS;
+        if (
+          !current.spoke &&
+          silentFor >= RESTART_QUIET_MS &&
+          performance.now() - current.startedAt >= SILENT_RECORDING_MS
+        )
+          restartRecording(current);
+        const replying = step === "waiting" && reading() !== null;
+        if (loudness >= (replying ? REPLY_SPEECH_LOUDNESS : SPEECH_LOUDNESS)) {
           loudFor += LEVEL_INTERVAL_MS;
           quietFor = 0;
-          if (loudFor >= SPEECH_START_MS && !current.spoke) {
+          if (loudFor >= (replying ? REPLY_SPEECH_START_MS : SPEECH_START_MS) && !current.spoke) {
             current.spoke = true;
+            if (step === "waiting") interruptByVoice();
             setState((draft) => {
               draft.error = null;
             });
@@ -467,6 +548,8 @@ export function createVoiceConversation(deps: VoiceConversationDeps) {
     });
     if (delivered) {
       sentTurns += 1;
+      // The next turn listens while the agent thinks and speaks, so the user can interrupt it.
+      if (step === "waiting") await openTurn(own);
       return;
     }
     discardRecording(recordingId);
@@ -547,6 +630,12 @@ export function createVoiceConversation(deps: VoiceConversationDeps) {
       void start();
       return;
     }
+    if (step === "waiting") {
+      // The turn that waits for the reply listens only while the microphone is on.
+      if (muted) releaseTurn();
+      else void openTurn(generation);
+      return;
+    }
     if (step !== "listening") return;
     if (muted) {
       generation += 1;
@@ -565,9 +654,12 @@ export function createVoiceConversation(deps: VoiceConversationDeps) {
       action: "interrupt",
       server_kind: serverKind,
       result: "succeeded",
+      trigger: "button",
     });
+    // Before the drop, which can end the reply and start a new turn.
+    if (step === "waiting") resumeListening();
+    else void listen();
     dropDictatedReply(target);
-    void listen();
   }
 
   function dispose(): void {

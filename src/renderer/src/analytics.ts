@@ -188,6 +188,8 @@ interface DesktopAnalyticsEvents {
     action: "start" | "end" | "interrupt" | "mute" | "unmute";
     server_kind: ServerKind;
     result: AnalyticsResult;
+    /** For `interrupt`: the Stop button, or the user's voice over the agent. */
+    trigger?: "button" | "voice";
     transcription?: TranscriptionKind;
     /** For `start`: until the first listen, with the speech model download. For `end`: the whole conversation. */
     duration_ms?: number;
@@ -383,6 +385,7 @@ const EVENT_PROPERTY_ALLOWLIST = {
     "action",
     "server_kind",
     "result",
+    "trigger",
     "transcription",
     "duration_ms",
     "turn_count",
