@@ -551,10 +551,11 @@ function RoutineRunHistory(props: {
     >
       <div class="chat-action-history-clip">
         <ol id={props.id} class="chat-action-history" aria-label={t("chat.marker.earlierStates")}>
-          {/* A state keeps its entry while the run moves on, so only a new state fades in. */}
-          <For each={props.transitions} keyed={(transition) => `${transition.status}:${transition.timestamp}`}>
+          {/* The states only grow, so an entry keeps its element by position. A rebuilt list of the
+              same states does not fade its entries in again. */}
+          <For each={props.transitions} keyed={false}>
             {(transition, index) => {
-              const previous = () => props.transitions[index() - 1];
+              const previous = () => props.transitions[index - 1];
               const status = () => routineMarkerStatus(transition().status);
               return (
                 <li class={`chat-action-history-entry chat-action-history-status-${status()}`}>
