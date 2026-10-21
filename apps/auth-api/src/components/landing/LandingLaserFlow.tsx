@@ -107,6 +107,15 @@ float roundBox(vec2 p, vec2 b, float r) {
   return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
 }
 
+// The light turns over the corner on a wide arc of radius r, not on the small radius of the surface.
+// x is the distance out from the edge, and y is the distance along the edge from the start of the arc.
+vec2 bend(vec2 p, float edgeX, float sy, float r, float dir) {
+  vec2 q = vec2((p.x - edgeX) * dir + r, p.y - sy - r);
+  if (q.y >= 0.0) return vec2(q.x - r, 1.5708 * r + q.y);
+  if (q.x <= 0.0) return vec2(-q.y - r, q.x);
+  return vec2(length(q) - r, r * atan(q.x, -q.y));
+}
+
 vec3 spill(float e, float fall, float strength, float front, float t, out vec3 glow) {
   glow = vec3(0.0);
   if (strength < 0.0005) return vec3(0.0);
@@ -116,7 +125,8 @@ vec3 spill(float e, float fall, float strength, float front, float t, out vec3 g
   float d = max(e, 0.0);
   float u = d / (6.0 + 0.28 * f);
   float start = smoothstep(-6.0, 12.0, fall);
-  float fade = exp(-sq(max(f - 125.0, 0.0) / 40.0));
+  // Below the white core, a dimmer coloured glow runs much further down the edge, as on huly.io.
+  float fade = max(exp(-sq(max(f - 125.0, 0.0) / 40.0)), 0.14 * smoothstep(60.0, 125.0, f) * exp(-sq(max(f - 170.0, 0.0) / 80.0)));
   float streak = 0.88 + 0.24 * noise(vec2(u * 6.0, f / 22.0 - t * 1.7));
   float bright = pow(strength, 1.5);
   float soft = sqrt(strength);
@@ -125,7 +135,7 @@ vec3 spill(float e, float fall, float strength, float front, float t, out vec3 g
   // A wide, soft band runs down the side rather than a thin line, as on huly.io.
   float core = mix(9.0, 2.6, warmth) * exp(-sq(d / (7.0 + 0.06 * f))) * exp(-sq(max(f - 130.0, 0.0) / 38.0));
   float wall = 9.0 * exp(-sq(d / 3.5)) * exp(-sq(max(f - 100.0, 0.0) / 30.0));
-  float bandCenter = 0.7 - 0.3 * smoothstep(30.0, 110.0, f);
+  float bandCenter = 0.7 - 0.3 * smoothstep(30.0, 110.0, f) - 0.3 * smoothstep(110.0, 190.0, f);
   float offset = u - bandCenter;
   float decay = (1.05 - bandCenter) / 1.31;
   float profile = offset < 0.0 ? exp(-sq(offset / 0.3)) : exp(-offset / decay);
@@ -278,14 +288,20 @@ void main() {
   // Only the side nearer the beam spills, as on huly.io.
   strengthR *= step(reachR, reachL);
   strengthL *= 1.0 - step(reachR, reachL);
-  float fallY = p.y - sy - 0.3 * radius;
+  // The arc sits just outside the corner of the surface, and below the corner the light comes back to the edge.
+  float arc = max(radius, 80.0);
+  float gap = 0.293 * (arc - radius);
+  vec2 bendR = bend(p, sr + gap, sy - gap, arc, 1.0);
+  vec2 bendL = bend(p, sl - gap, sy - gap, arc, -1.0);
+  bendR.x = mix(bendR.x, sd, smoothstep(1.5708 * arc, 1.5708 * arc + 90.0, bendR.y));
+  bendL.x = mix(bendL.x, sd, smoothstep(1.5708 * arc, 1.5708 * arc + 90.0, bendL.y));
   float rightHalf = smoothstep(center.x - 4.0, center.x + 4.0, p.x);
-  float haloR = exp(-length(p - vec2(sr - 0.3 * radius, sy + 0.3 * radius)) / 40.0) * sqrt(strengthR);
-  float haloL = exp(-length(p - vec2(sl + 0.3 * radius, sy + 0.3 * radius)) / 40.0) * sqrt(strengthL);
+  float haloR = exp(-length(p - vec2(sr - 0.3 * arc, sy + 0.3 * arc)) / 40.0) * sqrt(strengthR);
+  float haloL = exp(-length(p - vec2(sl + 0.3 * arc, sy + 0.3 * arc)) / 40.0) * sqrt(strengthL);
   vec3 glowR;
   vec3 glowL;
-  col += spill(sd, fallY, strengthR, uPour.y, t, glowR) * rightHalf;
-  col += spill(sd, fallY, strengthL, uPour.x, t, glowL) * (1.0 - rightHalf);
+  col += spill(bendR.x, bendR.y, strengthR, uPour.y, t, glowR) * rightHalf;
+  col += spill(bendL.x, bendL.y, strengthL, uPour.x, t, glowL) * (1.0 - rightHalf);
   col += easeLight(glowR * rightHalf + NAVY * 0.9 * haloR, uPour.w);
   col += easeLight(glowL * (1.0 - rightHalf) + NAVY * 0.9 * haloL, uPour.z);
 
