@@ -1,5 +1,5 @@
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
-import type { InstalledSkill, MarketplaceSkillDetail } from "@openbot/contracts/ipc";
+import type { FilePreview, InstalledSkill, MarketplaceSkillDetail } from "@openbot/contracts/ipc";
 import type { AppTranslate } from "@openbot/i18n";
 import {
   Button,
@@ -46,9 +46,17 @@ interface AgentSkillsModalProps {
   /** `null`: no marketplace catalog, so the list and details show only what the host sends. */
   catalog?: SkillCatalogCalls | null | undefined;
   onCreateSkill?: (() => void) | undefined;
-  onTrySkill?: ((skill: MarketplaceSkillDetail) => void) | undefined;
+  onTrySkill?: ((skill: SkillDetail) => void) | undefined;
+  /** Reads a file in the agent workspace on the host, where a joined server keeps each skill's SKILL.md. */
+  previewWorkspaceFile?: ((path: string) => Promise<FilePreview>) | undefined;
   onAddFromMarketplace?: ((agentId: string) => void) | undefined;
 }
+
+/** What the detail page shows: a marketplace or library entry, or the SKILL.md on the host. */
+export type SkillDetail = Pick<
+  MarketplaceSkillDetail,
+  "id" | "name" | "description" | "iconUrl" | "instructions" | "examplePrompt" | "version"
+>;
 
 type ConfirmKind = "remove" | "replace";
 
@@ -62,7 +70,7 @@ export function AgentSkillsModal(props: AgentSkillsModalProps) {
   const [skills, setSkills] = createSignal<InstalledSkill[]>([]);
   const [catalog, setCatalog] = createSignal<Record<string, { description: string; iconUrl: string | null }>>({});
   const [selectedId, setSelectedId] = createSignal<string | null>(null);
-  const [detail, setDetail] = createSignal<MarketplaceSkillDetail | null>(null);
+  const [detail, setDetail] = createSignal<SkillDetail | null>(null);
   const [detailLoading, setDetailLoading] = createSignal(false);
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
@@ -192,21 +200,35 @@ export function AgentSkillsModal(props: AgentSkillsModalProps) {
     setDetailLoading(false);
   }
 
+  /** A joined server's skill shows the SKILL.md on the host, which is also right for a skill changed there. */
+  function detailCall(skill: InstalledSkill): (() => Promise<SkillDetail>) | null {
+    const readHostFile = localLibrary() ? undefined : props.previewWorkspaceFile;
+    if (readHostFile) {
+      const hint = catalog()[skill.skillId];
+      return async () => hostSkillDetail(skill, hint, await readHostFile(hostSkillPath(skill)));
+    }
+    const catalogPort = catalogCalls();
+    if (isFolderSkill(skill) || !catalogPort || (!localLibrary() && skill.skillId.startsWith("local-skill-"))) {
+      return null;
+    }
+    return skill.skillId.startsWith("local-skill-")
+      ? () => skillsPort().skills.localGet({ skillId: skill.skillId, revision: skill.installedVersion })
+      : () => catalogPort.get(skill.skillId);
+  }
+
   async function openDetail(skill: InstalledSkill): Promise<void> {
     const request = ++detailRequest;
     setSelectedId(skill.skillId);
     setDetail(null);
     setDetailLoading(true);
     setError(null);
-    const catalogPort = catalogCalls();
-    if (isFolderSkill(skill) || !catalogPort || (!localLibrary() && skill.skillId.startsWith("local-skill-"))) {
+    const load = detailCall(skill);
+    if (!load) {
       setDetailLoading(false);
       return;
     }
     try {
-      const next = skill.skillId.startsWith("local-skill-")
-        ? await skillsPort().skills.localGet({ skillId: skill.skillId, revision: skill.installedVersion })
-        : await catalogPort.get(skill.skillId);
+      const next = await load();
       if (request === detailRequest) setDetail(next);
     } catch (caught) {
       if (request === detailRequest) setError(errorMessage(caught, t("skill.loadDetailsFailed")));
@@ -574,20 +596,17 @@ export function AgentSkillsModal(props: AgentSkillsModalProps) {
                                     <Show when={skill().problem}>
                                       {(problem) => <p class="agent-memory-error">{sourceText(problem())}</p>}
                                     </Show>
-                                    <Show when={skill().description}>
+                                    <Show when={!detail() && skill().description}>
                                       {(description) => <p class="agent-memory-state">{description()}</p>}
                                     </Show>
                                     <p class="agent-memory-state">
                                       {t("skill.folderSkill", { location: skill().location ?? "" })}
                                     </p>
                                   </Show>
-                                  <Show when={!catalogCalls() && !isFolderSkill(skill())}>
+                                  <Show
+                                    when={!catalogCalls() && !isFolderSkill(skill()) && !detail() && !detailLoading()}
+                                  >
                                     <p class="agent-memory-state">{skill().description ?? skillMeta(skill(), t)}</p>
-                                  </Show>
-                                  <Show when={!localLibrary() && skill().skillId.startsWith("local-skill-")}>
-                                    <p class="agent-memory-state" role="status">
-                                      {t("skill.localOnHost")}
-                                    </p>
                                   </Show>
                                   <Show when={detailLoading()}>
                                     <p class="agent-memory-state">{t("skill.loadingDetails")}</p>
@@ -728,6 +747,28 @@ function userAssignedSkills(skills: InstalledSkill[]): InstalledSkill[] {
 /** A skill in a folder OpenBot did not write is not an assignment, so it does not count toward the cap. */
 export function assignedSkillCount(skills: InstalledSkill[]): number {
   return skills.filter((skill) => !isBuiltInSkill(skill) && !isFolderSkill(skill)).length;
+}
+
+/** Where the host keeps the skill's SKILL.md, relative to the agent workspace. */
+function hostSkillPath(skill: InstalledSkill): string {
+  if (isFolderSkill(skill)) return `${skill.location ?? ""}/SKILL.md`;
+  return isEnabled(skill) ? `.agents/skills/${skill.slug}/SKILL.md` : `.openbot/skills-disabled/${skill.slug}/SKILL.md`;
+}
+
+function hostSkillDetail(
+  skill: InstalledSkill,
+  hint: { description: string; iconUrl: string | null } | undefined,
+  file: FilePreview,
+): SkillDetail {
+  const text = file.bytes ? new TextDecoder().decode(file.bytes) : "";
+  return {
+    id: skill.skillId,
+    name: skill.name,
+    description: skill.description ?? hint?.description ?? "",
+    iconUrl: hint?.iconUrl ?? null,
+    instructions: text.replace(/^---\s*\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/u, "").trim(),
+    version: skill.installedVersion,
+  };
 }
 
 function skillMeta(skill: InstalledSkill, t: AppTranslate): string {

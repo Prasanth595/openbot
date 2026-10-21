@@ -279,7 +279,10 @@ export function createStableConversationState(
       setDrafts((current) => ({ ...current, [key]: appendSkillCreationRequest(current[key] ?? EMPTY_DRAFT) }));
       setComposerFocusRequest((value) => value + 1);
     },
-    appendSkillExample(target: { serverId: string; agentId: string }, skill: MarketplaceSkillDetail) {
+    appendSkillExample(
+      target: { serverId: string; agentId: string },
+      skill: Pick<MarketplaceSkillDetail, "id" | "name" | "examplePrompt">,
+    ) {
       const key = composerDraftKey(target);
       setDrafts((current) => ({ ...current, [key]: appendSkillExample(current[key] ?? EMPTY_DRAFT, skill) }));
       setComposerFocusRequest((value) => value + 1);

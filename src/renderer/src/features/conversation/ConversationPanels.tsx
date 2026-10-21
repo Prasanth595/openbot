@@ -21,6 +21,7 @@ import { htmlAttachmentPageHtml, htmlAttachmentPageUrl } from "./chat-visual-url
 import { useConversationController } from "./conversation-controller-context";
 import { conversationRuntime } from "./conversation-runtime";
 import { useConversationViewScope } from "./conversation-scope";
+import { agentSkillsMode } from "./installed-skills-source";
 import { desktopEventRoutinesApi } from "./routine-webhooks-api";
 
 const BROWSER_PANEL_DEFAULT_RATIO = 0.5;
@@ -445,18 +446,11 @@ export function ConversationPanels(panelProps: { onOpenUsage?: ((trigger: HTMLBu
               onAddFromMarketplace={
                 serverCanAdminister(props.server, "skills-admin-v1") ? props.onOpenMarketplace : undefined
               }
-              skillsMode={
-                props.runtime
-                  ? props.runtime.admin && serverCanAdminister(props.server, "skills-admin-v1")
-                    ? "host"
-                    : "hidden"
-                  : props.server?.kind === "local"
-                    ? "mutable"
-                    : serverCanAdminister(props.server, "skills-admin-v1")
-                      ? "host"
-                      : "readonly"
-              }
+              skillsMode={agentSkillsMode(props.server, props.runtime)}
               skillsServerId={props.server?.id}
+              previewWorkspaceFile={(path) =>
+                conversationRuntime(props).agent.previewWorkspaceFile({ agentId: agent().id, path })
+              }
               tablesVisible={
                 (!props.runtime || props.runtime.admin !== undefined) &&
                 serverCanAdminister(props.server, "shared-tables-v1")
