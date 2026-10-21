@@ -57,6 +57,7 @@ export const messages = {
   "sidebar.channelMenu.label": "Actions du canal",
   "sidebar.channelMenu.edit": "Modifier le canal",
   "sidebar.channelMenu.delete": "Supprimer le canal",
+  "sidebar.channelMenu.restore": "Restaurer le canal",
   "sidebar.channel.noMessages": "Aucun message pour l’instant",
   "sidebar.channel.workingPreview": "En cours · {preview}",
   "sidebar.channel.unread": { one: "{count} message non lu", other: "{count} messages non lus" },
@@ -96,7 +97,7 @@ export const messages = {
   "sidebar.delete.agentDescription":
     "Cette action retire l’agent et sa conversation OpenBot de l’application. Sa file d’attente, ses souvenirs, ses routines et son espace de travail sont supprimés. L’historique conservé séparément par le fournisseur CLI connecté n’est pas supprimé.",
   "sidebar.delete.channelDescription":
-    "Cette action arrête le canal. Son historique reste dans « Canaux supprimés », en aperçu uniquement. Vous ne pouvez pas le restaurer. Les agents membres sont conservés.",
+    "Cette action arrête le canal. Son historique reste dans « Canaux supprimés », en aperçu uniquement. Vous pouvez le restaurer depuis cette liste. Les agents membres sont conservés.",
   "sidebar.delete.sectionDescription":
     "Les agents de cette section seront déplacés vers « Non attribué ». Aucun agent ne sera supprimé.",
   "sidebar.delete.failed": "Impossible de supprimer cet élément. Réessayez.",

@@ -57,6 +57,7 @@ export const messages = {
   "sidebar.channelMenu.label": "Akcje kanału",
   "sidebar.channelMenu.edit": "Edytuj kanał",
   "sidebar.channelMenu.delete": "Usuń kanał",
+  "sidebar.channelMenu.restore": "Przywróć kanał",
   "sidebar.channel.noMessages": "Brak wiadomości",
   "sidebar.channel.workingPreview": "Pracuje · {preview}",
   "sidebar.channel.unread": {
@@ -133,7 +134,7 @@ export const messages = {
   "sidebar.delete.agentDescription":
     "To usunie agenta i jego rozmowę OpenBot z aplikacji. Jego kolejka, wspomnienia, rutyny i obszar roboczy zostaną usunięte. Historia przechowywana osobno przez połączonego dostawcę CLI nie zostanie usunięta.",
   "sidebar.delete.channelDescription":
-    "To zatrzyma kanał. Jego historia zostanie w sekcji „Usunięte kanały” tylko do podglądu. Nie można go przywrócić. Agenci należący do kanału zostaną zachowani.",
+    "To zatrzyma kanał. Jego historia zostanie w sekcji „Usunięte kanały” tylko do podglądu. Można go stamtąd przywrócić. Agenci należący do kanału zostaną zachowani.",
   "sidebar.delete.sectionDescription":
     "Agenci z tej sekcji zostaną przeniesieni do „Bez sekcji”. Żaden agent nie zostanie usunięty.",
   "sidebar.delete.failed": "Nie udało się usunąć tego elementu. Spróbuj ponownie.",

@@ -131,7 +131,7 @@ context menu for management and have no Pause or Resume controls. The mobile app
 execution threads, and human read positions in SQLite. Migration 18 adds these projections without
 changing existing agent data. Channel commands use the orchestration log and command receipts.
 Messages have stable IDs and per-channel sequences. A channel projection can be rebuilt from its events.
-Archiving stops channel work and retains its records. Restore makes the chat available for new messages again. Neither action removes agents or linked conversations.
+Archiving stops channel work and retains its records. Restore makes the chat available for new messages again. Neither action removes agents or linked conversations. The sidebar calls archiving "Delete". On desktop and web, the row menu in Deleted channels restores a channel; it shows to the people who can delete one.
 
 Each channel-agent pair has a separate execution thread in `projection_threads`. The normal agent
 thread is never replaced. Provider sessions, turns, questions, approvals, attachments, compaction,
