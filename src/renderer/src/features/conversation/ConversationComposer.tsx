@@ -8,6 +8,7 @@ import {
 import {
   TEAM_EML_ATTACHMENTS_CAPABILITY,
   TEAM_MEDIA_ATTACHMENTS_CAPABILITY,
+  TEAM_ZIP_ATTACHMENTS_CAPABILITY,
 } from "@openbot/contracts/team-protocol/current";
 import { sourceText } from "@openbot/i18n/source";
 import {
@@ -255,6 +256,7 @@ export function ConversationComposer() {
     return supportedAttachmentExtensions({
       eml: local || capabilities.includes(TEAM_EML_ATTACHMENTS_CAPABILITY),
       media: local || capabilities.includes(TEAM_MEDIA_ATTACHMENTS_CAPABILITY),
+      zip: local || capabilities.includes(TEAM_ZIP_ATTACHMENTS_CAPABILITY),
     })
       .map((extension) => `.${extension}`)
       .join(",");

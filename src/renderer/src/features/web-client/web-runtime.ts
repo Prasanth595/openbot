@@ -972,6 +972,7 @@ export function createWebWorkspaceRuntime(
       const supported = supportedAttachmentExtensions({
         eml: capabilities.includes("eml-attachments"),
         media: capabilities.includes("media-attachments"),
+        zip: capabilities.includes("zip-attachments"),
       });
       if (extension && !supported.includes(extension)) throw new Error(currentText().t("webClient.error.fileType"));
       if (file.size > MOBILE_ATTACHMENT_BYTES) throw new Error(currentText().t("error.remote.attachmentTooLarge"));

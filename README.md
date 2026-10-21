@@ -498,6 +498,12 @@ attached for inspection. Analysis depends on the tools available to the agent. F
 video formats, export as MP3 or MOV, or attach a text transcript. Remote hosts must advertise the
 `media-attachments` capability; update the host if this feature is unavailable.
 
+ZIP archives use the same limits. OpenBot does not extract or inspect an archive: the agent gets the
+original file and extracts it with its own tools. An agent sends a ZIP archive back with
+`openbot.attach_files_to_response`, and the user downloads it from the chat. Open shows a ZIP
+archive in the file manager instead of opening it. Remote hosts must advertise the `zip-attachments`
+capability.
+
 ## Local data and network boundaries
 
 - `~/OpenBot/Agents/<agent-id>` — one working directory per agent. A profile written before the

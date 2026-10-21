@@ -81,6 +81,10 @@ codecs or extract frames or transcripts. MIME types come from the file extension
 so a supplied image or text MIME type cannot enable a preview. Remote support is additive through
 the `media-attachments` capability; released protocol adapters keep their existing meanings.
 
+ZIP attachments use the same contract with `application/zip` and no inline preview. Import copies
+and hashes the archive; OpenBot never extracts it. Remote support is additive through the
+`zip-attachments` capability.
+
 ## Browser tool execution
 
 `browser-tools.ts` defines provider schemas and parses each call into a typed tool and its arguments.

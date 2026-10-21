@@ -79,6 +79,7 @@ export const TEAM_MODEL_SCOPED_USAGE_CAPABILITY = "model-scoped-usage";
 export const TEAM_AGENT_CREATE_MODEL_CAPABILITY = "agent-create-model";
 export const TEAM_MEDIA_ATTACHMENTS_CAPABILITY = "media-attachments";
 export const TEAM_EML_ATTACHMENTS_CAPABILITY = "eml-attachments";
+export const TEAM_ZIP_ATTACHMENTS_CAPABILITY = "zip-attachments";
 /**
  * Frozen optional member-leave-v1 contract: a bodyless `POST /v1/team/leave` answered with 204. The
  * caller, a member or an admin, removes their own membership with the same effects as an admin's
@@ -186,6 +187,7 @@ export const TEAM_CURRENT_CAPABILITIES = [
   TEAM_AGENT_CREATE_MODEL_CAPABILITY,
   TEAM_EML_ATTACHMENTS_CAPABILITY,
   TEAM_MEDIA_ATTACHMENTS_CAPABILITY,
+  TEAM_ZIP_ATTACHMENTS_CAPABILITY,
   "channel-chats-v1",
   CHANNEL_DELETE_CAPABILITY,
   MCP_SERVERS_CAPABILITY,

@@ -5,6 +5,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { chmod, copyFile, mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { basename, extname, join } from "node:path";
 import {
+  ARCHIVE_ATTACHMENT_EXTENSIONS,
   assertSupportedAttachmentName,
   attachmentFileExtension,
   IMAGE_ATTACHMENT_EXTENSIONS,
@@ -25,6 +26,7 @@ import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import {
   TEAM_EML_ATTACHMENTS_CAPABILITY,
   TEAM_MEDIA_ATTACHMENTS_CAPABILITY,
+  TEAM_ZIP_ATTACHMENTS_CAPABILITY,
 } from "@openbot/contracts/team-protocol/current";
 import {
   WORKSPACE_DIRECTORY_CAPABILITY,
@@ -143,6 +145,8 @@ export function attachmentIpcHandlers({
           serverId === LOCAL_SERVER_ID || remoteServers.supportsCapability(serverId, TEAM_EML_ATTACHMENTS_CAPABILITY);
         const supportsMedia =
           serverId === LOCAL_SERVER_ID || remoteServers.supportsCapability(serverId, TEAM_MEDIA_ATTACHMENTS_CAPABILITY);
+        const supportsZip =
+          serverId === LOCAL_SERVER_ID || remoteServers.supportsCapability(serverId, TEAM_ZIP_ATTACHMENTS_CAPABILITY);
         const options: OpenDialogOptions = {
           properties: ["openFile", "multiSelections"],
           filters:
@@ -151,7 +155,11 @@ export function attachmentIpcHandlers({
               : [
                   {
                     name: translate("dialog.filter.supportedFiles"),
-                    extensions: supportedAttachmentExtensions({ eml: supportsEml, media: supportsMedia }),
+                    extensions: supportedAttachmentExtensions({
+                      eml: supportsEml,
+                      media: supportsMedia,
+                      zip: supportsZip,
+                    }),
                   },
                 ],
         };
@@ -489,6 +497,14 @@ function assertRemoteAttachmentSupport(
     !remoteServers.supportsCapability(serverId, TEAM_MEDIA_ATTACHMENTS_CAPABILITY)
   ) {
     throw new Error(sourceText("error.attachment.mediaUnsupported"));
+  }
+  if (
+    names.some((name) =>
+      ARCHIVE_ATTACHMENT_EXTENSIONS.some((extension) => extension === attachmentFileExtension(name)),
+    ) &&
+    !remoteServers.supportsCapability(serverId, TEAM_ZIP_ATTACHMENTS_CAPABILITY)
+  ) {
+    throw new Error(sourceText("error.attachment.zipUnsupported"));
   }
   if (!names.some((name) => attachmentFileExtension(name) === "eml")) return;
   if (remoteServers.supportsCapability(serverId, TEAM_EML_ATTACHMENTS_CAPABILITY)) return;

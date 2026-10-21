@@ -111,7 +111,7 @@ export const messages = {
   "mobile.chat.attachment.addFailed": "No se pudo añadir el archivo adjunto",
   "mobile.chat.attachment.limit": "Puedes adjuntar hasta {limit} archivos.",
   "mobile.chat.attachment.unsupported":
-    "{name}: elige imágenes, audio MP3, vídeo MOV, PDF, documentos de Office, EML, texto, Markdown, datos o archivos de código fuente.",
+    "{name}: elige imágenes, audio MP3, vídeo MOV, archivos ZIP, PDF, documentos de Office, EML, texto, Markdown, datos o archivos de código fuente.",
   "mobile.chat.attachment.hostRejectsType":
     "{name}: el equipo host no acepta archivos {type}. Actualiza OpenBot en ese equipo para adjuntarlos.",
   "mobile.chat.attachment.hostRejects":
