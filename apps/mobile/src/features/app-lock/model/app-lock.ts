@@ -96,9 +96,11 @@ function mergeAway(left: AwayState | null, right: AwayState): AwayState {
   };
 }
 
-function mustLock(away: AwayState, config: AppLockConfig): boolean {
-  if (away.phoneLocked && config.lockWithPhone) return true;
-  return away.awayMs !== null && away.awayMs >= config.lockAfterMs;
+function mustLock(away: AwayState, state: AppLockState): boolean {
+  // The confirmation screen has Cancel, so it must become the real lock screen.
+  if (!appLockEnabled(state.config) || (state.locked && !state.confirming)) return false;
+  if (away.phoneLocked && state.config.lockWithPhone) return true;
+  return away.awayMs !== null && away.awayMs >= state.config.lockAfterMs;
 }
 
 async function checkAway(): Promise<void> {
@@ -115,7 +117,7 @@ async function checkAway(): Promise<void> {
     useAppLock.setState({ covered: false });
     return;
   }
-  if (state.status === "ready" && appLockEnabled(state.config) && mustLock(away, state.config) && !state.locked) lock();
+  if (state.status === "ready" && mustLock(away, state)) lock();
   // The cover stays until the decision, so the app does not show for a moment before it locks.
   useAppLock.setState({ covered: false });
 }
@@ -197,8 +199,16 @@ export type PinUnlockResult = "unlocked" | "wrong" | "blocked" | "tooManyAttempt
  * does not give a free attempt.
  */
 export async function unlockWithPin(pin: string): Promise<PinUnlockResult> {
-  const { attempts, config } = useAppLock.getState();
+  const { config } = useAppLock.getState();
   if (!config.pin) return "unavailable";
+  // The keychain holds the count. The count in memory is 0 when the start could not read it.
+  let attempts: PinAttempts;
+  try {
+    attempts = await readPinAttempts();
+  } catch {
+    return "failed";
+  }
+  useAppLock.setState({ attempts });
   const now = Date.now();
   if (attempts.failures >= MAX_PIN_FAILURES) return "tooManyAttempts";
   if (pinBlockedUntil(attempts, now) !== null) {
@@ -250,7 +260,7 @@ async function confirmWithDevice(promptMessage: string, cancelLabel: string): Pr
     awayDuringAuthentication = null;
     deviceAuthentications -= 1;
     const state = useAppLock.getState();
-    if (result !== "success" && appLockEnabled(state.config) && mustLock(away, state.config) && !state.locked) lock();
+    if (result !== "success" && mustLock(away, state)) lock();
   }
   return result;
 }
