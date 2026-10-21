@@ -16,6 +16,15 @@ import { currentText, useText } from "@/shared/lib/text";
 
 const DATE_FORMAT = { year: "numeric", month: "short", day: "numeric" } as const;
 
+function httpsLink(href: string): string | null {
+  try {
+    const url = new URL(href);
+    return url.protocol === "https:" ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Server sheet > Sites: the openbot.site sites that agents on the server published. Every member
  * opens a site; an owner or admin also deletes it, as on desktop.
@@ -43,10 +52,14 @@ export function ServerSitesScreen() {
   const list = query.data;
 
   function openSite(site: HostedSiteSummary) {
-    void Linking.openURL(site.url).catch(() => {
+    const failed = () => {
       void haptics.notification("error");
       setError(currentText().t("mobile.server.sites.openFailed"));
-    });
+    };
+    // The host sends the URL. Open only a web page, never another scheme or an app link.
+    const url = httpsLink(site.url);
+    if (!url) return failed();
+    void Linking.openURL(url).catch(failed);
   }
 
   function deleteSite(site: HostedSiteSummary) {
