@@ -56,6 +56,7 @@ export const HERMES_IMPORT_REASONS = [
   "scripts",
   "unsafeFile",
   "invalidSkill",
+  "duplicateSkill",
   "builtIn",
   "mcpOff",
   "mcpNameTaken",

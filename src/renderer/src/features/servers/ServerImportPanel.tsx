@@ -262,12 +262,13 @@ export function ServerImportPanel(
       const result = await hermesCalls.applyHermes({ token: preview.token, profiles: selection });
       showHermes({ phase: "done", error: null, preview: null, result });
     } catch (error) {
-      // The token is spent either way: the profiles are read again, with the reason on top.
-      const message = errorMessage(error, t("server.import.applyFailed"));
-      showHermes({ phase: "reading", error: null, preview: null, result: null });
-      await readHermes(() => hermesCalls.readHermes(), false);
-      setHermes((draft) => {
-        draft.error = message;
+      // Main keeps the profiles open when a check fails before anything changes, so the same
+      // folder stays on screen with the reason on top.
+      showHermes({
+        phase: "review",
+        error: errorMessage(error, t("server.import.applyFailed")),
+        preview,
+        result: null,
       });
     }
   };

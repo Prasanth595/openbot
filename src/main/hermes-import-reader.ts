@@ -21,7 +21,7 @@ import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
 import { Effect, Result } from "effect";
 import { parse as parseYaml } from "yaml";
-import { type ArchiveOperationError, archiveCall } from "./archive-effects";
+import { type ArchiveOperationError, archiveCall, archiveFailure } from "./archive-effects";
 import { createRedaction } from "./instance-transfer-service";
 import { archiveDirectory, inspectArchive, normalizedFiles } from "./skill-package";
 
@@ -34,14 +34,20 @@ const UNSAFE_FILE_PREFIX = sourceText("error.skill.unsafeFile", { name: "" });
 const MAX_TEXT_BYTES = 256 * 1024;
 const MAX_SKILLS = 200;
 const MAX_JOBS = 200;
+/** OpenBot's own export skill, which a user adds to Hermes. It is never imported back. */
+const EXPORT_SKILL_NAME = "openbot-export";
+/** Files a skill can run: anything in `scripts/` or `bin/`, and source files anywhere in the skill. */
+const SKILL_CODE =
+  /^(?:scripts|bin)\/|\.(?:sh|bash|zsh|fish|py|js|mjs|cjs|ts|rb|pl|php|ps1|bat|cmd|exe|go|rs|lua|jar)$/iu;
 /** Where the routine runs: platforms Hermes delivers to that OpenBot cannot reach on its own. */
 const LOCAL_DELIVERY = new Set(["", "local", "origin"]);
 
 export interface HermesSkill {
   slug: string;
   name: string;
-  files: Array<readonly [string, Uint8Array]>;
-  /** The skill has a `scripts/` folder, so it can run code. */
+  /** The skill folder. Its files are read again when the import runs, so the preview holds none. */
+  directory: string;
+  /** The skill has code it can run, so it imports only when the user allows it. */
   scripts: boolean;
 }
 
@@ -49,7 +55,8 @@ export interface HermesRoutine {
   name: string;
   instruction: string;
   active: boolean;
-  schedule: RoutineSchedule;
+  /** The Hermes `schedule`. It becomes an OpenBot schedule when the import runs, so a time is never stale. */
+  source: unknown;
 }
 
 export interface HermesProfileData {
@@ -63,7 +70,10 @@ export interface HermesProfileData {
   soulDefault: boolean;
   memories: string[];
   skills: HermesSkill[];
-  skippedSkills: Array<{ name: string; reason: Extract<HermesImportReason, "unsafeFile" | "invalidSkill"> }>;
+  skippedSkills: Array<{
+    name: string;
+    reason: Extract<HermesImportReason, "unsafeFile" | "invalidSkill" | "duplicateSkill">;
+  }>;
   builtInSkills: number;
   /** Values that can hold a secret are already removed. The servers are added turned off. */
   mcpServers: McpServerConfig[];
@@ -262,21 +272,12 @@ const readSkills = Effect.fn("HermesImport.readSkills")(function* (folder: strin
   for (const directory of (yield* skillFolders(folder)).slice(0, MAX_SKILLS)) {
     const text = (yield* readText(join(directory, "SKILL.md"))) ?? "";
     const name = frontmatterName(text) ?? basename(directory);
+    if (name === EXPORT_SKILL_NAME) continue;
     if (bundled.has(name)) {
       builtInSkills += 1;
       continue;
     }
-    const read = yield* Effect.result(
-      archiveDirectory(directory).pipe(
-        Effect.mapError((failure): unknown => failure.cause),
-        Effect.flatMap((bytes) =>
-          Effect.try({
-            try: () => ({ files: normalizedFiles(bytes), info: inspectArchive(bytes) }),
-            catch: (cause) => cause,
-          }),
-        ),
-      ),
-    );
+    const read = yield* Effect.result(readSkillPackage(directory));
     if (Result.isFailure(read)) {
       const cause = read.failure;
       const unsafe = cause instanceof Error && cause.message.startsWith(UNSAFE_FILE_PREFIX);
@@ -286,15 +287,38 @@ const readSkills = Effect.fn("HermesImport.readSkills")(function* (folder: strin
       });
       continue;
     }
-    const files = Object.entries(read.success.files);
+    // Two folders with one skill name would be one library skill, and the second would replace the first.
+    if (skills.some((skill) => skill.slug === read.success.info.slug)) {
+      skippedSkills.push({ name: name.slice(0, HERMES_IMPORT_LIMITS.name), reason: "duplicateSkill" });
+      continue;
+    }
     skills.push({
       slug: read.success.info.slug,
       name: read.success.info.name,
-      files,
-      scripts: files.some(([path]) => path.startsWith("scripts/")),
+      directory,
+      scripts: Object.keys(read.success.files).some((path) => SKILL_CODE.test(path)),
     });
   }
   return { skills, skippedSkills, builtInSkills };
+});
+
+/** A skill folder as OpenBot checks a skill package. Unsafe files and an invalid SKILL.md fail it. */
+function readSkillPackage(directory: string) {
+  return archiveDirectory(directory).pipe(
+    Effect.mapError((failure): unknown => failure.cause),
+    Effect.flatMap((bytes) =>
+      Effect.try({
+        try: () => ({ files: normalizedFiles(bytes), info: inspectArchive(bytes) }),
+        catch: (cause) => cause,
+      }),
+    ),
+  );
+}
+
+/** The files of a skill when the import runs, checked again: the folder can change after the preview. */
+export const readSkillFiles = Effect.fn("HermesImport.readSkillFiles")(function* (directory: string) {
+  const read = yield* readSkillPackage(directory).pipe(Effect.mapError((cause) => archiveFailure(cause)));
+  return Object.entries(read.files);
 });
 
 /** `skills/<name>` and `skills/<category>/<name>`, without Hermes's own dot folders. */
@@ -360,8 +384,7 @@ const readJobs = Effect.fn("HermesImport.readJobs")(function* (path: string, tim
       skipped.push({ name, reason: "routineScript" });
       continue;
     }
-    const schedule = routineSchedule(job.schedule, timezone);
-    if (!prompt || !schedule) {
+    if (!prompt || !routineSchedule(job.schedule, timezone)) {
       skipped.push({ name, reason: "routineSchedule" });
       continue;
     }
@@ -369,14 +392,14 @@ const readJobs = Effect.fn("HermesImport.readJobs")(function* (path: string, tim
       name,
       instruction: prompt.slice(0, 100_000),
       active: job.enabled !== false && job.state !== "paused",
-      schedule,
+      source: job.schedule,
     });
   }
   return { routines, skipped, gateways: gateways.slice(0, HERMES_IMPORT_LIMITS.names) };
 });
 
 /** A cron expression, an interval in minutes, or one run in the future. Other schedules stay in Hermes. */
-function routineSchedule(value: unknown, timezone: string, now = new Date()): RoutineSchedule | null {
+export function routineSchedule(value: unknown, timezone: string, now = new Date()): RoutineSchedule | null {
   if (!isDynamicRecord(value)) return null;
   if (value.kind === "cron" && isString(value.expr) && value.expr.trim().split(/\s+/u).length === 5)
     return { kind: "custom", expression: value.expr.trim() };

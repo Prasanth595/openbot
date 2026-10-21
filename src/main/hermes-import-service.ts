@@ -32,7 +32,13 @@ import { parseStoredJson, writeJsonFileAtomically } from "../backend/atomic-json
 import { writeTreeEffect } from "./agent-archive";
 import type { AgentImportAgents, AgentImportSkills } from "./agent-import-service";
 import { type ArchiveOperationError, archiveCall, archiveFailure } from "./archive-effects";
-import { displayPath, type HermesProfileData, readHermesProfiles } from "./hermes-import-reader";
+import {
+  displayPath,
+  type HermesProfileData,
+  readHermesProfiles,
+  readSkillFiles,
+  routineSchedule,
+} from "./hermes-import-reader";
 
 /** Skill folders are copied here, published to the local library, and removed again. */
 const SKILL_STAGING = ".openbot/import-skills";
@@ -121,7 +127,7 @@ export class HermesImportService {
     const staged = this.#staged;
     if (!staged || staged.token !== input.token)
       return yield* archiveFailure(new Error(sourceText("error.import.hermesClosed")));
-    this.#staged = null;
+    // Until the checks below pass, nothing changes, so a failed check keeps the profiles open.
     const byKey = new Map(staged.profiles.map((profile) => [profile.key, profile]));
     const selected = input.profiles.flatMap((entry) => {
       const profile = byKey.get(entry.key);
@@ -137,11 +143,14 @@ export class HermesImportService {
       return yield* archiveFailure(
         new Error(sourceText("error.import.serverAgentLimit", { limit: INPUT_LIMITS.agents })),
       );
+    this.#staged = null;
 
     const agents: AgentSummary[] = [];
     const skipped: AgentImportSkipped[] = [];
     const warnings: string[] = [];
-    for (const { profile, allow } of selected) {
+    const done: typeof selected = [];
+    for (const entry of selected) {
+      const { profile, allow } = entry;
       const target = existing.get(links[profile.directory] ?? "") ?? null;
       const imported = yield* Effect.result(this.#importProfile(profile, allow, target, warnings));
       if (Result.isFailure(imported)) {
@@ -149,10 +158,14 @@ export class HermesImportService {
         continue;
       }
       agents.push(imported.success);
+      done.push(entry);
       links[profile.directory] = imported.success.id;
-      yield* this.#writeLinks(links);
+      // The agent is made either way. Without its link, the next import adds it again, so the user is told.
+      const saved = yield* Effect.result(this.#writeLinks(links));
+      if (Result.isFailure(saved)) warnings.push(sourceText("error.import.hermesLinkNotSaved", { name: profile.name }));
     }
-    yield* this.#addMcpServers(selected, warnings);
+    // A profile that did not import brings no MCP server with it.
+    yield* this.#addMcpServers(done, warnings);
     // The result shows each agent as it is now, after its routines and skills.
     const now = new Map(this.agents.listAgents().map((agent) => [agent.id, agent]));
     return {
@@ -222,13 +235,19 @@ export class HermesImportService {
             const routineNames = new Set(this.agents.listRoutines(agent.id).map((routine) => routine.name));
             for (const routine of profile.routines) {
               if (routineNames.has(routine.name)) continue;
+              const timezone = this.timezone();
+              const schedule = routineSchedule(routine.source, timezone);
+              if (!schedule) {
+                warnings.push(sourceText("error.import.routineInvalid", { name: profile.name, routine: routine.name }));
+                continue;
+              }
               const input: CreateRoutineInput = {
                 agentId: agent.id,
                 name: routine.name,
                 instruction: routine.instruction,
                 active: routine.active,
-                timezone: this.timezone(),
-                schedule: routine.schedule,
+                timezone,
+                schedule,
               };
               try {
                 this.agents.createRoutine(input, { recordConversationEvent: false });
@@ -277,7 +296,7 @@ export class HermesImportService {
       archiveCall(() => rm(target, { recursive: true, force: true })),
       () =>
         Effect.gen({ self: this }, function* () {
-          yield* writeTreeEffect(target, skill.files);
+          yield* writeTreeEffect(target, yield* readSkillFiles(skill.directory));
           const revision = yield* Effect.gen(function* () {
             const revision = yield* (
               current ? library.revise(agent.id, current.id, current.version, folder) : library.create(agent.id, folder)

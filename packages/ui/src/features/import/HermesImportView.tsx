@@ -364,6 +364,7 @@ const REASON_TEXT = {
   scripts: "import.hermes.reason.scripts",
   unsafeFile: "import.hermes.reason.unsafeFile",
   invalidSkill: "import.hermes.reason.invalidSkill",
+  duplicateSkill: "import.hermes.reason.duplicateSkill",
   builtIn: "import.hermes.reason.builtIn",
   mcpOff: "import.hermes.reason.mcpOff",
   mcpNameTaken: "import.hermes.reason.mcpNameTaken",

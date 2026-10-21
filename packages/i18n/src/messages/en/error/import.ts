@@ -49,6 +49,8 @@ export const messages = defineMessages("error.import", {
   "error.import.hermesSoulLong":
     "{name}: SOUL.md is longer than {limit} characters, so the instructions keep its start. The full file is in imported/hermes/SOUL.md.",
   "error.import.hermesSkillSkipped": '{name}: the skill "{skill}" is skipped. {reason}',
+  "error.import.hermesLinkNotSaved":
+    "{name}: OpenBot could not save which agent came from this profile, so the next import adds it as a new agent.",
   // Instance transfer between two OpenBot computers.
   "error.import.transferRemoteTooLarge":
     "A transfer file for a joined server must be under 100 MB. Turn off workspace files, or export fewer agents.",

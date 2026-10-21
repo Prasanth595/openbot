@@ -130,6 +130,7 @@ export const messages = defineMessages("import", {
   "import.hermes.reason.scripts": "It runs its own scripts. Allow it only if you trust the code.",
   "import.hermes.reason.unsafeFile": "It has a secret file, a private key, or an archive. OpenBot never copies these.",
   "import.hermes.reason.invalidSkill": "Its SKILL.md has no valid name and description.",
+  "import.hermes.reason.duplicateSkill": "Another skill in this profile has the same name.",
   "import.hermes.reason.builtIn": "They come with Hermes. OpenBot has its own skills.",
   "import.hermes.reason.mcpOff": "It is added turned off. Check it, then turn it on in MCP settings.",
   "import.hermes.reason.mcpNameTaken": "A server with this name is already here.",
