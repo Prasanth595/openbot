@@ -177,6 +177,7 @@ function ImportGuide(props: {
             </p>
             <SlidingTabs.Root
               class="agent-import-setup"
+              data-source={props.source}
               value={props.setup}
               onChange={(value) => props.onSetupChange(SETUPS.find((setup) => setup === value) ?? props.setup)}
             >

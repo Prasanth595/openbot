@@ -111,6 +111,12 @@
   width: 100%;
 }
 
+/* The Hermes panels differ in height, so a hidden one takes no space and step 2 follows the open one.
+   The Grok Bot panels have the same shape, so they keep their cross-fade. */
+.agent-import-setup[data-source="hermes-agent"] .ui-sliding-tabs-content:not([data-selected]) {
+  display: none;
+}
+
 .agent-import-setup-panel {
   display: flex;
   flex-direction: column;
