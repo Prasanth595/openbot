@@ -290,10 +290,12 @@ void main() {
   vec3 glowR;
   vec3 glowL;
   // The spill also touches the top edge, so it waits there until the light along the top has run past.
-  col += spill(sd, fallY, strengthR, uPour.y, t, glowR) * rightHalf * runMask;
-  col += spill(sd, fallY, strengthL, uPour.x, t, glowL) * (1.0 - rightHalf) * runMask;
-  col += easeLight((glowR * rightHalf + NAVY * 0.9 * haloR) * runMask, uPour.w);
-  col += easeLight((glowL * (1.0 - rightHalf) + NAVY * 0.9 * haloL) * runMask, uPour.z);
+  // It fades out before the middle of the side, so it never reaches the bottom edge.
+  float spillMask = runMask * (1.0 - smoothstep(0.3 * (sb - sy), 0.55 * (sb - sy), fallY));
+  col += spill(sd, fallY, strengthR, uPour.y, t, glowR) * rightHalf * spillMask;
+  col += spill(sd, fallY, strengthL, uPour.x, t, glowL) * (1.0 - rightHalf) * spillMask;
+  col += easeLight((glowR * rightHalf + NAVY * 0.9 * haloR) * spillMask, uPour.w);
+  col += easeLight((glowL * (1.0 - rightHalf) + NAVY * 0.9 * haloL) * spillMask, uPour.z);
 
   vec2 toLens = frag - uLens.xy;
   float lens = exp(-dot(toLens, toLens) / sq(uLens.z)) * uLens.w;
