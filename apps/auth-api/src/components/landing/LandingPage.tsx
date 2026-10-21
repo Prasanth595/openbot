@@ -16,7 +16,19 @@ import { PricingSection } from "./PricingSection";
 import { SiteHeader } from "./SiteHeader";
 import { TeamsSection } from "./TeamsSection";
 
+/** A promise and the function that resolves it. */
+function latch(): { open: () => void; opened: Promise<void> } {
+  let open = () => {};
+  const opened = new Promise<void>((resolve) => {
+    open = resolve;
+  });
+  return { open, opened };
+}
+
 export function LandingPage() {
+  // The beam falls in when the app preview has loaded, and the preview appears as the beam hits it.
+  const previewReady = latch();
+  const beamImpact = latch();
   let copy: HTMLDivElement | undefined;
   let preview: HTMLElement | undefined;
   let download: HTMLElement | undefined;
@@ -39,6 +51,8 @@ export function LandingPage() {
             avoid={() => (copy ? [...copy.children] : [])}
             beamPosition={0.78}
             color="#a46cf5"
+            start={previewReady.opened}
+            onImpact={beamImpact.open}
           />
           <div ref={copy} class="landing-hero-copy">
             <p class="landing-availability landing-hero-line" style={{ "--landing-hero-line": 0 }}>
@@ -119,7 +133,11 @@ export function LandingPage() {
             </div>
           </div>
 
-          <LandingAppPreview ref={(element) => (preview = element)} />
+          <LandingAppPreview
+            ref={(element) => (preview = element)}
+            onReady={previewReady.open}
+            revealAfter={beamImpact.opened}
+          />
         </section>
         <AgentNetworkSection />
         <FeaturesSection />

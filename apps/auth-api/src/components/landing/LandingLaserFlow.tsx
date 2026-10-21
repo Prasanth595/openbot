@@ -400,6 +400,8 @@ const MAX_SCALE = 1.25;
 /** The gap, in CSS pixels, between the beam and the text it must not cross. */
 const BEAM_CLEARANCE = 56;
 const INTRO_DROP = 0.8;
+/** The longest time, in milliseconds, that the beam waits for `start` before it falls in. */
+const MAX_HOLD_MS = 2500;
 /** The light that runs along the surface and spills down its sides moves at this share of the source speed. */
 const POUR_PACE = 1;
 /** The light falls down the sides slower than it runs along the top, so it drips rather than drops. */
@@ -687,6 +689,14 @@ export interface LandingLaserFlowProps {
   avoid?: () => readonly Element[];
   /** A six-digit hex colour. The whole palette is derived from its hue and saturation. */
   color: string;
+  /** The beam waits for this before it falls in, for at most `MAX_HOLD_MS`. */
+  start?: Promise<void>;
+  /**
+   * Called once, when the beam reaches the surface. It is called at once when the beam does not
+   * fall in: with no WebGL2, with the reduced motion setting, on a visit with no drop, or with no
+   * clear path onto the surface.
+   */
+  onImpact?: () => void;
   class?: string;
 }
 
@@ -695,6 +705,12 @@ export function LandingLaserFlow(props: LandingLaserFlowProps) {
   let canvas: HTMLCanvasElement | undefined;
 
   onSettled(() => {
+    let impacted = false;
+    const impact = () => {
+      if (impacted) return;
+      impacted = true;
+      props.onImpact?.();
+    };
     const host = container;
     const element = canvas;
     const gl = element?.getContext("webgl2", {
@@ -705,10 +721,16 @@ export function LandingLaserFlow(props: LandingLaserFlowProps) {
       stencil: false,
     });
     // No WebGL2 leaves the hero as it was without the beam, which is a complete page.
-    if (!host || !element || !gl) return;
+    if (!host || !element || !gl) {
+      impact();
+      return;
+    }
 
     const program = link(gl);
-    if (!program) return;
+    if (!program) {
+      impact();
+      return;
+    }
 
     const uniforms = locate(gl, program);
 
@@ -727,10 +749,24 @@ export function LandingLaserFlow(props: LandingLaserFlowProps) {
     const settings = look.settings;
     // The seed is on the element, so a look that someone likes can be found and shown again.
     host.dataset.beam = look.seed;
+    const drops = !reduce && look.drop;
+    if (!drops) impact();
+    // The beam waits in the dark until the surface is ready, so the surface appears as the beam hits it.
+    let held = drops && props.start !== undefined;
+    let holdTimer: ReturnType<typeof setTimeout> | undefined;
+    if (held) {
+      const release = () => {
+        clearTimeout(holdTimer);
+        held = false;
+        wake();
+      };
+      holdTimer = setTimeout(release, MAX_HOLD_MS);
+      void props.start?.then(release);
+    }
     const tints = buildTints(look.color);
     const state = {
       time: 0,
-      introTime: reduce || !look.drop ? INTRO_END : 0,
+      introTime: drops ? 0 : INTRO_END,
       width: 1,
       height: 1,
       ratio: 1,
@@ -817,6 +853,7 @@ export function LandingLaserFlow(props: LandingLaserFlowProps) {
           // A beam that misses the preview is only a haze at the edge of the screen.
           gl.clearColor(0, 0, 0, 0);
           gl.clear(gl.COLOR_BUFFER_BIT);
+          impact();
           return false;
         }
         if (beamX >= surface.left) {
@@ -830,8 +867,9 @@ export function LandingLaserFlow(props: LandingLaserFlowProps) {
       const it = state.introTime;
       const settled = it >= INTRO_END;
       const front = settled ? surface.top + 0.3 * height : startY + span * clamp(it / INTRO_DROP, 0, 1) ** 1.3;
-      const impact = INTRO_DROP * (Math.max(0, surface.top - startY) / span) ** (1 / 1.3);
-      const tau = it - impact;
+      const impactTime = INTRO_DROP * (Math.max(0, surface.top - startY) / span) ** (1 / 1.3);
+      const tau = it - impactTime;
+      if (tau > 0) impact();
       const bloom = settled ? 1 : tau <= 0 ? 0 : spring(tau);
       const flash = settled || tau <= 0 ? 0 : Math.exp(-tau / 0.35) * (1 - Math.exp(-tau / 0.05));
       const runRange = settings.spread * 250 * 1.3 + 80;
@@ -924,7 +962,7 @@ export function LandingLaserFlow(props: LandingLaserFlowProps) {
       const moving = !reduce;
       if (moving) state.time += dt * settings.speed;
       const introducing = state.introTime < INTRO_END;
-      if (introducing) state.introTime = Math.min(INTRO_END, state.introTime + dt);
+      if (introducing && !held) state.introTime = Math.min(INTRO_END, state.introTime + dt);
 
       const { pointer, lens } = state;
       const active = pointer.inside && !reduce;
@@ -993,6 +1031,7 @@ export function LandingLaserFlow(props: LandingLaserFlowProps) {
 
     return () => {
       alive = false;
+      clearTimeout(holdTimer);
       cancelAnimationFrame(raf);
       light(undefined);
       resizeObserver.disconnect();
