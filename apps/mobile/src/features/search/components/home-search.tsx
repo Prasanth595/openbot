@@ -154,10 +154,14 @@ export interface HomeSearch {
   open: boolean;
   /** True while the results show or leave. */
   mounted: boolean;
+  /** True when a touch on the field mounted the hidden results before the field takes focus. */
+  prepared: boolean;
   /** True when the results finished coming in, so they rest with no animated style. */
   settled: boolean;
   query: string;
   setQuery: (query: string) => void;
+  /** Mounts the hidden results on touch down, so their first render is done when search opens. */
+  prepare: () => void;
   openSearch: () => void;
   closeSearch: () => void;
   /** Closes the search for a result that opens another screen. */
@@ -212,6 +216,7 @@ export function useHomeSearch(): HomeSearch {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [prepared, setPrepared] = useState(false);
   const [settled, setSettled] = useState(false);
   const [target, setTarget] = useState<MobileAgent | null>(null);
   const [sending, setSending] = useState(false);
@@ -222,7 +227,11 @@ export function useHomeSearch(): HomeSearch {
   const closing = useSharedValue(0);
   const targetMatches = canUseTasks && !target ? matchTargets(agents, query) : null;
 
+  // `open` at once, for the end of a close animation that comes before the next render.
+  const openNow = useRef(false);
+  const prepare = useCallback(() => setPrepared(true), []);
   const openSearch = useCallback(() => {
+    openNow.current = true;
     setOpen(true);
     setMounted(true);
     // The results take the screen, so a swipe right must not open the drawer under them.
@@ -241,7 +250,14 @@ export function useHomeSearch(): HomeSearch {
       }),
     );
   }, [open, progress, closing]);
+  // A reopen can come after the close animation ends and before its callback runs: then the results stay.
+  const finishClose = useCallback(() => {
+    if (openNow.current) return;
+    setMounted(false);
+    setPrepared(false);
+  }, []);
   const closeSearch = useCallback(() => {
+    openNow.current = false;
     input.current?.blur();
     Keyboard.dismiss();
     setOpen(false);
@@ -253,10 +269,10 @@ export function useHomeSearch(): HomeSearch {
     closing.set(1);
     progress.set(
       withTiming(0, CLOSE, (finished) => {
-        if (finished) scheduleOnRN(setMounted, false);
+        if (finished) scheduleOnRN(finishClose);
       }),
     );
-  }, [progress, closing, setOpeningBlocked]);
+  }, [progress, closing, setOpeningBlocked, finishClose]);
   const chooseTarget = useCallback((agent: MobileAgent, text?: string) => {
     void haptics.selection();
     setTarget(agent);
@@ -363,9 +379,11 @@ export function useHomeSearch(): HomeSearch {
   return {
     open,
     mounted,
+    prepared,
     settled,
     query,
     setQuery,
+    prepare,
     openSearch,
     closeSearch,
     leave: closeSearch,
@@ -452,7 +470,8 @@ export function HomeSearchResults({
       transform: [{ translateY: reduced ? 0 : (1 - value) * (leaving ? 12 : barHeight) }],
     };
   });
-  if (!search.mounted) return null;
+  // Prepared results are hidden: the animated opacity is 0 until search opens.
+  if (!search.mounted && !search.prepared) return null;
   return (
     <Animated.View
       className="absolute inset-0 bg-background"
@@ -627,17 +646,19 @@ export function HomeSearchBar({
   const enter = reduced ? undefined : closeButtonEnter;
   const exit = reduced ? undefined : closeButtonExit;
   const { target } = search;
-  // The tap that opens the search: a soft tap in the same frame as the results start to come in.
-  // The field and the capsule around it can both see the touch before `open` renders, so the ref
-  // keeps it to one tap.
-  const touchOpened = useRef(false);
-  useEffect(() => {
-    if (!search.open) touchOpened.current = false;
-  }, [search.open]);
-  const openFromTouch = () => {
-    if (search.open || touchOpened.current) return;
-    touchOpened.current = true;
-    void haptics.impact("soft");
+  // Touch down mounts the hidden results, and focus opens them: a drag that starts on the field
+  // does not focus it, so it does not open the search. The ref keeps the soft tap to a search that a
+  // touch opens, not one that a quick action opens.
+  const touched = useRef(false);
+  const prepareFromTouch = () => {
+    if (search.open) return;
+    touched.current = true;
+    search.prepare();
+  };
+  const openFromFocus = () => {
+    if (search.open) return;
+    if (touched.current) void haptics.impact("soft");
+    touched.current = false;
     search.openSearch();
   };
   const canSend = Boolean(target && search.query.trim()) && !search.sending;
@@ -735,7 +756,7 @@ export function HomeSearchBar({
             <Pressable
               accessible={false}
               className="flex-1 flex-row items-center gap-2 pr-2 pl-4"
-              onPressIn={openFromTouch}
+              onPressIn={prepareFromTouch}
               onPress={() => search.input.current?.focus()}
             >
               {target ? (
@@ -770,12 +791,10 @@ export function HomeSearchBar({
                   // Backspace in an empty field removes the agent, as in a mail address field.
                   if (nativeEvent.key === "Backspace" && !search.query && target) search.clearTarget();
                 }}
-                // The results start to come in on touch down: the field takes focus, and the keyboard
-                // starts, only when the finger lifts.
-                onPressIn={openFromTouch}
-                onFocus={() => {
-                  if (!search.open) search.openSearch();
-                }}
+                // The results mount on touch down: the field takes focus, and the keyboard starts, only
+                // when the finger lifts.
+                onPressIn={prepareFromTouch}
+                onFocus={openFromFocus}
               />
               {search.query && !target ? (
                 <Animated.View entering={enter} exiting={exit}>
