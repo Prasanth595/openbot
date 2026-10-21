@@ -155,7 +155,8 @@ const probeMcpServerEffect = Effect.fnUntraced(function* (
  * The SDK reports a token the server refused right after a sign-in as a bare 401, which would read
  * as "check the API key" to someone who has just signed in. And a server that answers a Bearer
  * challenge to a probe that could not sign in wants a sign-in, not a key: that is what Granola
- * answers, and the header fields alone gave the user no way forward.
+ * answers, and the header fields alone gave the user no way forward. A key pasted into any header
+ * is the exception: Composio Connect ignores a key in the wrong header and sends the same challenge.
  */
 function describeProbeFailure(
   error: unknown,
@@ -169,7 +170,7 @@ function describeProbeFailure(
   if (signIn?.registrationFailed() && isRegistrationRefusal(error)) return REGISTRATION_REFUSED;
   if (signIn && httpStatus(error) === 401) return sourceText("error.backend.mcpSignInNotAccepted");
   // A key the user pasted into a header is theirs to fix; the sign-in would not replace it.
-  if (challenge?.status === 401 && challenge.bearer && !hasAuthorizationHeader(config)) {
+  if (challenge?.status === 401 && challenge.bearer && !hasHeaderValue(config)) {
     const described = describeSignInChallenge(config.url, challenge.url, signInPlace);
     if (described) return described;
   }
@@ -200,8 +201,8 @@ function httpsAddress(finalUrl: string, url: string): string {
   return target.toString();
 }
 
-function hasAuthorizationHeader(config: McpServerConfig): boolean {
-  return config.headers.some(({ key }) => key.trim().toLowerCase() === "authorization");
+function hasHeaderValue(config: McpServerConfig): boolean {
+  return config.headers.some(({ value }) => value.trim().length > 0);
 }
 
 /**
