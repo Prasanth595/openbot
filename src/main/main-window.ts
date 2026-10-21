@@ -29,7 +29,9 @@ import {
   type Point,
   type Rectangle,
   screen,
+  session,
   type WebContents,
+  webContents,
 } from "electron";
 import type { AgentService } from "../backend/agent-service";
 import type { BrowserHost } from "../backend/browser-host";
@@ -42,7 +44,7 @@ import {
 import type { HighlightDisplay } from "./computer-use-highlight-window";
 import { shouldShowDevelopmentWindow } from "./development-profile";
 import { dynamicIslandNotchSizeForDisplay } from "./dynamic-island-window";
-import { type InterfaceSizeService, interfaceSizeShortcut } from "./interface-size-service";
+import { type InterfaceSizeService, type InterfaceSizeStep, interfaceSizeShortcut } from "./interface-size-service";
 import {
   createMainWindowBoundsRecorder,
   presentMainWindow,
@@ -622,6 +624,19 @@ export function loadDynamicIslandRenderer(window: BrowserWindow, display: Displa
 }
 
 /**
+ * A browser tab has its own session and keeps the page zoom that the default zoom roles gave it.
+ * Any other focused contents is the app, so the step changes the saved interface size.
+ */
+function zoomFocusedContents(interfaceSize: InterfaceSizeService, step: InterfaceSizeStep): void {
+  const focused = webContents.getFocusedWebContents();
+  if (!focused || focused.session === session.defaultSession) {
+    Effect.runFork(interfaceSize.step(step));
+    return;
+  }
+  focused.setZoomLevel(step === "default" ? 0 : focused.getZoomLevel() + (step === "larger" ? 0.5 : -0.5));
+}
+
+/**
  * The native application menu.
  *
  * Electron gives no way to relabel a built-in role, so the roles below stay in the system language
@@ -631,7 +646,7 @@ export function loadDynamicIslandRenderer(window: BrowserWindow, display: Displa
  * The custom `appMenu` replaces the default one, so the standard Preferences item with `Cmd + ,`
  * must be declared here: without it macOS has no Settings shortcut. The View menu is the default
  * `viewMenu`, but its zoom items change the saved interface size, so Settings and the next start
- * keep the size the user chose.
+ * keep the size the user chose. A website in the browser keeps the zoom of the default roles.
  */
 export function configureApplicationMenu(
   service: AgentService,
@@ -688,17 +703,17 @@ export function configureApplicationMenu(
           {
             label: translate("menu.actualSize"),
             accelerator: "CommandOrControl+0",
-            click: () => Effect.runFork(interfaceSize.step("default")),
+            click: () => zoomFocusedContents(interfaceSize, "default"),
           },
           {
             label: translate("menu.zoomIn"),
             accelerator: "CommandOrControl+=",
-            click: () => Effect.runFork(interfaceSize.step("larger")),
+            click: () => zoomFocusedContents(interfaceSize, "larger"),
           },
           {
             label: translate("menu.zoomOut"),
             accelerator: "CommandOrControl+-",
-            click: () => Effect.runFork(interfaceSize.step("smaller")),
+            click: () => zoomFocusedContents(interfaceSize, "smaller"),
           },
           { type: "separator" },
           { role: "togglefullscreen" },

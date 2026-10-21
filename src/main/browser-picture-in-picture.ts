@@ -84,6 +84,9 @@ export class BrowserPictureInPicture {
       },
     });
     this.#controlsView = controlsView;
+    // The controls share the main window's origin, and so its zoom, which would clip them in the
+    // fixed 30 px strip.
+    controlsView.webContents.setZoomMode("isolated");
     controlsView.setBackgroundColor("#00000000");
     this.#options.browser.setPictureInPictureOverlayView(controlsView);
     const positionControls = () => {
