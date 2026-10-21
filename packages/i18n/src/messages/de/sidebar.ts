@@ -57,6 +57,7 @@ export const messages = {
   "sidebar.channelMenu.label": "Kanalaktionen",
   "sidebar.channelMenu.edit": "Kanal bearbeiten",
   "sidebar.channelMenu.delete": "Kanal löschen",
+  "sidebar.channelMenu.restore": "Kanal wiederherstellen",
   "sidebar.channel.noMessages": "Noch keine Nachrichten",
   "sidebar.channel.workingPreview": "Arbeitet · {preview}",
   "sidebar.channel.unread": {
@@ -114,7 +115,7 @@ export const messages = {
   "sidebar.delete.agentDescription":
     "Dies entfernt den Agenten und seine OpenBot-Unterhaltung aus der App. Seine Warteschlange, Erinnerungen, Routinen und sein Arbeitsbereich werden gelöscht. Der separat vom verbundenen CLI-Anbieter gespeicherte Verlauf wird nicht gelöscht.",
   "sidebar.delete.channelDescription":
-    "Dies stoppt den Kanal. Sein Verlauf bleibt unter „Gelöschte Kanäle“ nur zur Ansicht erhalten. Du kannst ihn nicht wiederherstellen. Die zugehörigen Agenten bleiben erhalten.",
+    "Dies stoppt den Kanal. Sein Verlauf bleibt unter „Gelöschte Kanäle“ nur zur Ansicht erhalten. Dort kannst du ihn wiederherstellen. Die zugehörigen Agenten bleiben erhalten.",
   "sidebar.delete.sectionDescription":
     "Agenten in diesem Abschnitt werden nach „Nicht zugeordnet“ verschoben. Es werden keine Agenten gelöscht.",
   "sidebar.delete.failed": "Dieses Element konnte nicht gelöscht werden. Versuche es erneut.",
