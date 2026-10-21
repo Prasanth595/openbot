@@ -229,6 +229,7 @@ export const messages = defineMessages("error.backend", {
   "error.backend.directMessageSelf": "You cannot send a direct message to yourself.",
   "error.backend.readBoundaryUnavailable": "The read boundary is no longer available.",
   "error.backend.sharedFileOutside": "Shared file must be inside the shared directory.",
+  "error.backend.sharedPathIsFolder": "Shared path is a folder, not a file.",
   "error.backend.sharedPathNotFile": "Shared path is not a file.",
   "error.backend.workspaceFileOutside": "Workspace file must be inside the agent workspace.",
   "error.backend.workspacePathNotFile": "Workspace path is not a file.",

@@ -308,7 +308,17 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
         },
         (error) => {
           if (!scopeActive() || generation !== deps.currentFilePreviewGeneration()) return;
-          deps.setComposerError(filePreviewError(error, path), target);
+          const showError = () => {
+            if (!scopeActive() || generation !== deps.currentFilePreviewGeneration()) return;
+            deps.setComposerError(filePreviewError(error, path), target);
+          };
+          // A link can name a folder. A local one is shown in the file manager; when that fails too,
+          // the preview error stays. A remote or web host cannot show a folder on this computer.
+          if (serverId !== "local" || deps.props.runtime) {
+            showError();
+            return;
+          }
+          void conversationRuntime(deps.props).agent.openSharedFile({ path, action: "reveal" }).catch(showError);
         },
       );
   }

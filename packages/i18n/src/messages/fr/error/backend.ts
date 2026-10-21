@@ -251,6 +251,7 @@ export const messages = {
   "error.backend.directMessageSelf": "Vous ne pouvez pas vous envoyer un message direct.",
   "error.backend.readBoundaryUnavailable": "La limite de lecture n’est plus disponible.",
   "error.backend.sharedFileOutside": "Le fichier partagé doit se trouver dans le dossier partagé.",
+  "error.backend.sharedPathIsFolder": "Le chemin partagé est un dossier, pas un fichier.",
   "error.backend.sharedPathNotFile": "Le chemin partagé n’est pas un fichier.",
   "error.backend.workspaceFileOutside": "Le fichier doit se trouver dans l’espace de travail de l’agent.",
   "error.backend.workspacePathNotFile": "Le chemin de l’espace de travail n’est pas un fichier.",

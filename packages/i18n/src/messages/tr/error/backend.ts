@@ -234,6 +234,7 @@ export const messages = {
   "error.backend.directMessageSelf": "Kendinize doğrudan mesaj gönderemezsiniz.",
   "error.backend.readBoundaryUnavailable": "Okuma sınırı artık mevcut değil.",
   "error.backend.sharedFileOutside": "Paylaşılan dosya paylaşılan dizinin içinde olmalıdır.",
+  "error.backend.sharedPathIsFolder": "Paylaşılan yol bir dosya değil, bir klasör.",
   "error.backend.sharedPathNotFile": "Paylaşılan yol bir dosya değil.",
   "error.backend.workspaceFileOutside": "Çalışma alanı dosyası ajan çalışma alanının içinde olmalıdır.",
   "error.backend.workspacePathNotFile": "Çalışma alanı yolu bir dosya değil.",

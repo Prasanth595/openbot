@@ -246,6 +246,7 @@ export const messages = {
   "error.backend.directMessageSelf": "Non puoi inviare un messaggio diretto a te stesso.",
   "error.backend.readBoundaryUnavailable": "Il punto di lettura non è più disponibile.",
   "error.backend.sharedFileOutside": "Il file condiviso deve trovarsi nella cartella condivisa.",
+  "error.backend.sharedPathIsFolder": "Il percorso condiviso è una cartella, non un file.",
   "error.backend.sharedPathNotFile": "Il percorso condiviso non è un file.",
   "error.backend.workspaceFileOutside": "Il file del workspace deve trovarsi nel workspace dell'agente.",
   "error.backend.workspacePathNotFile": "Il percorso del workspace non è un file.",

@@ -245,6 +245,7 @@ export const messages = {
   "error.backend.directMessageSelf": "No puedes enviarte un mensaje directo a ti mismo.",
   "error.backend.readBoundaryUnavailable": "El punto de lectura ya no está disponible.",
   "error.backend.sharedFileOutside": "El archivo compartido debe estar dentro del directorio compartido.",
+  "error.backend.sharedPathIsFolder": "La ruta compartida es una carpeta, no un archivo.",
   "error.backend.sharedPathNotFile": "La ruta compartida no es un archivo.",
   "error.backend.workspaceFileOutside":
     "El archivo del espacio de trabajo debe estar dentro del espacio de trabajo del agente.",

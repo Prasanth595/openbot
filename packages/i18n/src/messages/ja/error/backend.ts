@@ -246,6 +246,7 @@ export const messages = {
   "error.backend.directMessageSelf": "自分自身にダイレクトメッセージを送信することはできません。",
   "error.backend.readBoundaryUnavailable": "既読の位置はもう使用できません。",
   "error.backend.sharedFileOutside": "共有ファイルは共有ディレクトリ内にある必要があります。",
+  "error.backend.sharedPathIsFolder": "共有パスはファイルではなくフォルダーです。",
   "error.backend.sharedPathNotFile": "共有パスがファイルではありません。",
   "error.backend.workspaceFileOutside":
     "ワークスペースのファイルはエージェントのワークスペース内にある必要があります。",

@@ -240,6 +240,7 @@ export const messages = {
   "error.backend.directMessageSelf": "Nie możesz wysłać wiadomości prywatnej do siebie.",
   "error.backend.readBoundaryUnavailable": "Granica odczytu nie jest już dostępna.",
   "error.backend.sharedFileOutside": "Plik współdzielony musi znajdować się w katalogu współdzielonym.",
+  "error.backend.sharedPathIsFolder": "Ścieżka współdzielona jest folderem, nie plikiem.",
   "error.backend.sharedPathNotFile": "Ścieżka współdzielona nie jest plikiem.",
   "error.backend.workspaceFileOutside": "Plik obszaru roboczego musi znajdować się w obszarze roboczym agenta.",
   "error.backend.workspacePathNotFile": "Ścieżka obszaru roboczego nie jest plikiem.",

@@ -255,6 +255,7 @@ export const messages = {
   "error.backend.directMessageSelf": "Du kannst dir selbst keine Direktnachricht senden.",
   "error.backend.readBoundaryUnavailable": "Die Leseposition ist nicht mehr verfügbar.",
   "error.backend.sharedFileOutside": "Die geteilte Datei muss im geteilten Verzeichnis liegen.",
+  "error.backend.sharedPathIsFolder": "Der geteilte Pfad ist ein Ordner, keine Datei.",
   "error.backend.sharedPathNotFile": "Der geteilte Pfad ist keine Datei.",
   "error.backend.workspaceFileOutside": "Die Arbeitsbereichsdatei muss im Arbeitsbereich des Agenten liegen.",
   "error.backend.workspacePathNotFile": "Der Arbeitsbereichspfad ist keine Datei.",

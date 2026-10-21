@@ -236,6 +236,7 @@ export const messages = {
   "error.backend.directMessageSelf": "Нельзя отправить личное сообщение самому себе.",
   "error.backend.readBoundaryUnavailable": "Граница прочитанного больше недоступна.",
   "error.backend.sharedFileOutside": "Общий файл должен находиться внутри общего каталога.",
+  "error.backend.sharedPathIsFolder": "Общий путь — это папка, а не файл.",
   "error.backend.sharedPathNotFile": "Общий путь не является файлом.",
   "error.backend.workspaceFileOutside":
     "Файл рабочего пространства должен находиться внутри рабочего пространства агента.",
