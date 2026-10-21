@@ -497,6 +497,8 @@ export function OnboardingFlow({
           showsPlans ? () => router.push({ pathname: "/hosted-server", params: { entryPoint: "onboarding" } }) : null
         }
         onInvitation={() => router.push("/add-server")}
+        onBack={previous !== null ? back : null}
+        onSkip={skip}
       />
     ) : step === "agent" ? (
       <AgentStep

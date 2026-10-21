@@ -34,7 +34,7 @@ export const messages = {
   "mobile.auth.signIn.helpStep3": "3. Elige Generar código QR y escanéalo aquí.",
   "mobile.auth.signIn.emailButton": "Continuar con correo",
   "mobile.auth.done.title": "Conectado",
-  "mobile.auth.done.body": "Tus agentes están listos.",
+  "mobile.auth.done.body": "Has iniciado sesión.",
   "mobile.auth.email.title": "Inicia sesión con tu correo",
   "mobile.auth.email.description": "Escribe tu correo electrónico. Te enviaremos un código de un solo uso.",
   "mobile.auth.email.label": "Correo electrónico",

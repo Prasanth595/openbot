@@ -61,6 +61,8 @@ export function ServerStep({
   onComputer,
   onCloud,
   onInvitation,
+  onBack,
+  onSkip,
 }: {
   motion: OnboardingMotion;
   /** A server that the account has but that is not online yet. */
@@ -69,6 +71,9 @@ export function ServerStep({
   /** Absent when the account cannot have a cloud server. */
   onCloud: (() => void) | null;
   onInvitation: () => void;
+  /** The flow's own Back and Skip are under the loader, so the loader offers one of them. */
+  onBack: (() => void) | null;
+  onSkip: (() => void) | null;
 }) {
   const { t } = useText();
   // The app loader covers the step while the server connects, and rolls up when it is online.
@@ -80,6 +85,11 @@ export function ServerStep({
           mood: "think",
           caption: { text: t("mobile.onboarding.server.connecting", { name: connecting.name }) },
           loader: true,
+          back: onBack
+            ? { icon: "back", label: t("common.back"), onPress: onBack }
+            : onSkip
+              ? { icon: "close", label: t("mobile.onboarding.skip"), onPress: onSkip }
+              : undefined,
         }
       : null,
     BLOUB_PRIORITY.loader,

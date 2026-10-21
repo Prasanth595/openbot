@@ -34,7 +34,7 @@ export const messages = {
   "mobile.auth.signIn.helpStep3": "3. 「QR コードを生成」を選択して、ここでスキャンします。",
   "mobile.auth.signIn.emailButton": "メールで続ける",
   "mobile.auth.done.title": "接続しました",
-  "mobile.auth.done.body": "エージェントの準備ができました。",
+  "mobile.auth.done.body": "サインインしました。",
   "mobile.auth.email.title": "メールでサインイン",
   "mobile.auth.email.description": "メールアドレスを入力してください。ワンタイムコードを送信します。",
   "mobile.auth.email.label": "メール",
