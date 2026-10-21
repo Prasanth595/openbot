@@ -84,7 +84,7 @@
   flex: 1;
 }
 
-.composer-reply-preview span {
+.composer-reply-preview > div > span {
   display: block;
   color: var(--openbot-text-muted);
   font-size: var(--openbot-text-sm);
@@ -92,14 +92,9 @@
   line-height: 14px;
 }
 
-.composer-reply-preview p {
-  overflow: hidden;
+.composer-reply-preview .message-reply-quote {
   margin: 1px 0 0;
   color: var(--openbot-text-secondary);
-  font-size: var(--openbot-text-sm);
-  line-height: 16px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .composer-reply-preview > button {

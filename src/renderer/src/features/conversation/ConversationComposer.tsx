@@ -38,8 +38,8 @@ import {
 } from "@openbot/ui/features/conversation/ComposerNotice";
 import { ComposerCompactionNotice, ContextUsageMeter } from "@openbot/ui/features/conversation/ContextUsage";
 import { CloseIcon, StopIcon } from "@openbot/ui/features/conversation/ConversationIcons";
+import { MarkdownMessageText } from "@openbot/ui/features/conversation/MarkdownMessageText";
 import { type OpenWaitItem, OpenWaits } from "@openbot/ui/features/conversation/OpenWaits";
-import { RichMessageText } from "@openbot/ui/features/conversation/RichMessageText";
 import { SpeakingBar } from "@openbot/ui/features/conversation/SpeakingBar";
 import { VoiceRecordingMorph, voiceButtonLabel } from "@openbot/ui/features/conversation/VoiceRecordingMorph";
 import { useText } from "@openbot/ui/text";
@@ -394,8 +394,8 @@ export function ConversationComposer() {
           <div class="composer-reply-preview">
             <div>
               <span>{t(message().author === "you" ? "composer.reply.toYou" : "composer.reply.toAgent")}</span>
-              <p>
-                <RichMessageText
+              <div class="message-reply-quote message-markdown">
+                <MarkdownMessageText
                   body={message().body || t("composer.reply.attachment")}
                   agents={props.agents}
                   skills={installedSkills()}
@@ -403,8 +403,10 @@ export function ConversationComposer() {
                   onSelectAgent={props.onSelectAgent}
                   onOpenLink={(url) => void openExternalMessageUrl(url)}
                   onOpenAttachment={(attachment) => void previewAttachment(attachment)}
+                  showCitationFooter={false}
+                  imagesAsLinks
                 />
-              </p>
+              </div>
             </div>
             <Button
               variant="ghost"

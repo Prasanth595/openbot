@@ -29,7 +29,6 @@ import { messageFileReferences } from "./FileReference";
 import { ImageGeneration } from "./ImageGeneration";
 import { ImageGallery, ImageLightbox, type ImageLightboxOpening, isLightboxImage } from "./ImageLightbox";
 import { MarkdownInlineText, MarkdownMessageText, markdownImageName } from "./MarkdownMessageText";
-import { RichMessageText } from "./RichMessageText";
 import {
   nextStreamingReveal,
   type StreamingRevealChunk,
@@ -450,8 +449,12 @@ export function MessageBody(props: {
               {props.referencedAuthorName ??
                 (referenced().author === "you" ? t("chat.message.you") : t("chat.message.agentFallback"))}
             </span>
-            <p id={referenceTextId} inert={referenceOpens() ? true : undefined}>
-              <RichMessageText
+            <div
+              id={referenceTextId}
+              class="message-reply-quote message-markdown"
+              inert={referenceOpens() ? true : undefined}
+            >
+              <MarkdownMessageText
                 body={referenced().body || t("chat.message.attachment")}
                 agents={props.agents}
                 skills={props.skills}
@@ -464,8 +467,9 @@ export function MessageBody(props: {
                 onOpenWorkspaceFile={props.onOpenWorkspaceFile}
                 onOpenQuote={props.onOpenQuote}
                 showCitationFooter={false}
+                imagesAsLinks
               />
-            </p>
+            </div>
             <Show when={props.referenceState === "loading"}>
               <LoaderCircle class="message-reply-loading" aria-hidden="true" />
             </Show>

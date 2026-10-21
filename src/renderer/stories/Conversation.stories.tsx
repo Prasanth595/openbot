@@ -532,6 +532,35 @@ const longPathReplyMessages: RendererAgentMessage[] = [
   },
 ];
 
+const replyQuoteMessages: RendererAgentMessage[] = [
+  {
+    id: "reply-quote-agent",
+    author: "agent",
+    body: [
+      "## Launch plan",
+      "",
+      "I asked **Build** to run `bun run check` before the tag. See [the release guide](https://openbot.run/docs).",
+      "",
+      "- Tag `v0.47.0`",
+      "- Publish <b>the notes</b>",
+      "",
+      "```bash",
+      "bun run check",
+      "```",
+    ].join("\n"),
+    time: "10:02",
+    kind: "text",
+  },
+  {
+    id: "reply-quote-user",
+    author: "you",
+    body: "Approved. Tag it after the checks pass.",
+    time: "10:03",
+    kind: "text",
+    replyToMessageId: "reply-quote-agent",
+  },
+];
+
 const markdownMessages: RendererAgentMessage[] = [
   {
     id: "markdown-user",
@@ -1067,6 +1096,7 @@ function MockedConversation(props: {
   voicePhase?: VoicePhase;
   takeoverStateGallery?: boolean;
   conversationError?: string;
+  replyToMessageId?: string;
 }) {
   const previousApi = window.openbot;
   const mock = createMockOpenBot();
@@ -1080,6 +1110,12 @@ function MockedConversation(props: {
       controller.setDrafts({
         [initialAgentId]: { text: "", attachments: props.initialAttachments ?? [], replyToMessageId: null },
       });
+    });
+  }
+  const replyToMessageId = props.replyToMessageId;
+  if (initialAgentId && replyToMessageId) {
+    onSettled(() => {
+      controller.setDrafts({ [initialAgentId]: { text: "", attachments: [], replyToMessageId } });
     });
   }
   if (props.voiceModelProgress !== undefined) {
@@ -1579,6 +1615,15 @@ export const LongFilePathInReply: Story = {
       <MockedConversation args={storyArgs} />
     </section>
   ),
+};
+
+/** The composer and the sent reply quote the same Markdown message, and render it the same way. */
+export const MarkdownReplyQuote: Story = {
+  name: "Markdown reply quote",
+  args: {
+    messages: replyQuoteMessages,
+  },
+  render: (storyArgs) => <MockedConversation args={storyArgs} replyToMessageId="reply-quote-agent" />,
 };
 
 export const StreamingMarkdownInChat: Story = {
