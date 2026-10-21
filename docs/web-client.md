@@ -369,8 +369,9 @@ unchanged. People and desktop-only settings remain outside the implemented web c
 
 ### Channels
 
-The browser uses the desktop channel UI: the sidebar rows and menus, `ChannelCreateDialog`,
-`ChannelConversation`, and channel settings with memories and routines. `createChannelsController`
+The browser uses the desktop channel UI: the sidebar rows and menus, `ChannelCreateDialog`, the
+shared `Conversation` view with the channel source of `createChannelConversation`, and channel
+settings with memories and routines. `createChannelsController`
 holds the channel logic for both clients. Each client gives it a `ChannelsEnvironment` and a
 `ChannelsPort` runtime: the desktop uses preload, and the browser uses `createWebChannelsPort`
 over the host connection. The Team API calls come from `teamChannelsApi` in
