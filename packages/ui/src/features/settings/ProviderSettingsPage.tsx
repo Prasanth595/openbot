@@ -54,7 +54,7 @@ import {
   X,
 } from "@openbot/ui";
 import type { JSX } from "@solidjs/web";
-import { createEffect, createSignal, createStore, For, onCleanup, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, createStore, For, onCleanup, Show } from "solid-js";
 import { ProviderAccountRenameField } from "../../components/ProviderAccountList";
 import type { ProviderPickerOption } from "../../components/ProviderPicker";
 import { type ProviderPickerAccount, providerAccountName } from "../../components/provider-accounts";
@@ -70,7 +70,8 @@ import {
 } from "../../components/provider-row";
 import { useText } from "../../text";
 import { AccountUsageWindowList } from "../account/AccountUsageDetails";
-import type { AccountUsageProviderRow } from "../account/account-usage-view";
+import type { AccountUsageProviderRow, AccountUsageWindowRow } from "../account/account-usage-view";
+import { providerUpdateAvailable } from "../provider-updates/provider-update";
 import { DetailHeader, type IntegrationStatus } from "./IntegrationLayout";
 
 /** The provider page on screen. The settings window puts "Providers ›" before its title. */
@@ -185,7 +186,7 @@ function ProviderList(props: ProviderSettingsPageProps & { onOpen: (id: PageId) 
   /** A query matches the name, the line under it, and the names and emails of the accounts. */
   const matches = (...texts: (string | null | undefined)[]) =>
     needle() === "" || texts.some((text) => text?.toLowerCase().includes(needle()));
-  const shown = () =>
+  const shown = createMemo(() =>
     props.options.filter((option) =>
       matches(
         option.name,
@@ -193,7 +194,8 @@ function ProviderList(props: ProviderSettingsPageProps & { onOpen: (id: PageId) 
         option.email,
         ...(option.accounts ?? []).flatMap((account) => [account.label, account.email]),
       ),
-    );
+    ),
+  );
   const connectedRows = () => shown().filter(isConnected);
   const otherRows = () => shown().filter((option) => !isConnected(option));
   const endpoints = () => props.customProviders ?? [];
@@ -341,7 +343,7 @@ function RowStatus(props: { option: ProviderPickerOption }) {
     }
     if (option.lastError) return { variant: "warning-light", text: t("provider.settings.badge.error") };
     if (option.state === "outdated") return { variant: "warning-light", text: t("provider.status.updateRequired") };
-    if (runtime?.phase === "ready" && option.availableVersion && option.availableVersion !== runtime.version) {
+    if (runtime && providerUpdateAvailable(runtime, option.availableVersion ?? null)) {
       return { variant: "warning-light", text: t("provider.status.updateAvailable") };
     }
     return null;
@@ -374,7 +376,7 @@ function DefaultProviderRow(props: ProviderSettingsPageProps) {
       (props.customProviders?.length ?? 0) > 0 && servesCustomProvider(openCode()) && props.onAddCustomProvider;
     return custom || value === "custom" ? [...providers, { id: "custom", name: t("provider.custom.name") }] : providers;
   };
-  const selected = () => choices().find((choice) => choice.id === props.defaultProvider?.value);
+  const selected = () => choices().find((choice) => choice.id === props.defaultProvider?.value) ?? null;
   return (
     <Item class="settings-modal-row">
       <ItemContent>
@@ -388,7 +390,7 @@ function DefaultProviderRow(props: ProviderSettingsPageProps) {
           optionValue="id"
           optionTextValue="name"
           value={selected()}
-          disabled={props.disabled || props.defaultProvider?.pending}
+          disabled={Boolean(props.disabled || props.defaultProvider?.pending)}
           // The select also reports the value that it shows, which is not a choice of the user.
           onChange={(choice) => {
             if (choice && choice.id !== props.defaultProvider?.value) props.defaultProvider?.onChange(choice.id);
@@ -437,7 +439,8 @@ function ProviderPage(props: PageProps) {
     const option = props.option;
     const runtime = option.runtimeStatus;
     if (row.off()) return { status: "unavailable", label: t("provider.status.off") };
-    if (row.connecting() || runtime?.phase === "downloading" || runtime?.phase === "finishing") {
+    // A reconnect of a connected provider stays Connected, as its label does.
+    if ((row.connecting() && !row.available()) || runtime?.phase === "downloading" || runtime?.phase === "finishing") {
       return {
         status: "connecting",
         label: providerStatusLabel(t, format, option.state, row.connecting(), runtime),
@@ -522,7 +525,7 @@ function AlternativeItem(props: { row: ProviderRow }) {
 /* ---------------------------------------------- Accounts */
 
 function AccountsSection(props: SectionProps) {
-  const { t, format, errorMessage } = useText();
+  const { t, format, errorMessage, sourceText } = useText();
   const accounts = () => props.option.accounts ?? [];
   const [removing, setRemoving] = createSignal<ProviderPickerAccount | null>(null);
   const [error, setError] = createSignal<string | null>(null);
@@ -580,7 +583,18 @@ function AccountsSection(props: SectionProps) {
           )}
         </For>
       </ItemGroup>
-      <Show when={props.row.accountError() ?? error()}>
+      <Show when={props.option.checkError}>
+        {(message) => <ItemDescription>{sourceText(message())}</ItemDescription>}
+      </Show>
+      {/* A Reconnect of the provider's own sign-in reports here, as the sign-in card does. */}
+      <Show
+        when={
+          props.row.connectError() ??
+          props.row.accountError() ??
+          error() ??
+          (props.row.statusMessage() ? sourceText(props.row.statusMessage() ?? "") : null)
+        }
+      >
         {(message) => (
           <ItemDescription class="provider-settings-error" role="alert">
             {message()}
@@ -638,6 +652,8 @@ function AccountRow(
   /** The own account signs in again with the provider's Reconnect, so only the others have their own. */
   const signInAgain = () => !own() && needsSignIn();
   const connecting = () => !own() && state() === "connecting";
+  /** A Reconnect of the provider waits for the browser. */
+  const ownSigningIn = () => own() && props.row.signingIn();
   const agents = () => props.account.usedBy ?? [];
   const detail = () =>
     [
@@ -654,7 +670,11 @@ function AccountRow(
             (reading.accountId ?? DEFAULT_PROVIDER_ACCOUNT_ID) === props.account.id,
         )
       : undefined;
-  const reconnect = (): "reconnect" | null => (own() && props.row.runtimeAction() === "reconnect" ? "reconnect" : null);
+  /** A provider with no runtime on this computer reconnects in the browser, as its sign-in card does. */
+  const reconnect = (): "reconnect" | null =>
+    own() && (props.row.runtimeAction() === "reconnect" || (!props.row.runtimeStatus() && props.row.browserConnect()))
+      ? "reconnect"
+      : null;
   return (
     <Item class="settings-modal-row provider-settings-account">
       <ItemContent>
@@ -671,6 +691,9 @@ function AccountRow(
           />
         </Show>
         <Show when={detail()}>{(text) => <ItemDescription>{text()}</ItemDescription>}</Show>
+        <Show when={ownSigningIn()}>
+          <ItemDescription>{t("provider.connecting.browserHint")}</ItemDescription>
+        </Show>
         <Show when={state() !== "connected"}>
           <ItemDescription class={{ "provider-settings-warning": needsSignIn() }}>
             {props.account.message ?? t(ACCOUNT_STATE_TEXT[state()])}
@@ -700,6 +723,18 @@ function AccountRow(
             size="sm"
             disabled={props.disabled}
             onClick={() => props.run(name(), () => props.accountActions?.cancel(props.option.id, props.account.id))}
+          >
+            {t("common.cancel")}
+          </Button>
+        </Show>
+        <Show when={ownSigningIn() && props.onCancelProviderSignIn}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            aria-label={t("provider.aria.cancelSignIn", { name: props.option.name })}
+            disabled={props.disabled}
+            onClick={props.row.cancelSignIn}
           >
             {t("common.cancel")}
           </Button>
@@ -743,45 +778,49 @@ const RESET_CLOCK_MS = 30_000;
 
 /** A badge for a low limit. It opens every limit of the account, as the usage popover shows them. */
 function UsageBadge(props: { reading: AccountUsageProviderRow; name: string }) {
-  const { t, format } = useText();
   /** The limit that stops work first, when it is low. */
   const low = () =>
     props.reading.windows
       .filter((window) => window.tone !== "neutral")
       .sort((left, right) => left.remainingPercent - right.remainingPercent)[0];
+  return (
+    <Show when={low()}>{(limit) => <LowUsageBadge reading={props.reading} name={props.name} limit={limit()} />}</Show>
+  );
+}
+
+/** The reset clock runs only while the badge shows. */
+function LowUsageBadge(props: { reading: AccountUsageProviderRow; name: string; limit: AccountUsageWindowRow }) {
+  const { t, format } = useText();
   const [now, setNow] = createSignal(Date.now());
   const clock = window.setInterval(() => setNow(Date.now()), RESET_CLOCK_MS);
   onCleanup(() => window.clearInterval(clock));
+  const limit = () => props.limit;
   return (
-    <Show when={low()}>
-      {(limit) => (
-        <Popover.Root placement="bottom-end" gutter={6} modal>
-          <Popover.Trigger
-            class={badgeVariants({
-              variant: limit().tone === "critical" ? "destructive-light" : "warning-light",
-              class: "provider-settings-usage-badge",
-            })}
-          >
-            {t("provider.settings.usageLow", {
-              percent: format.percent(limit().remainingPercent / 100),
-              window: limit().label,
-            })}
-          </Popover.Trigger>
-          <Popover.Portal>
-            <Popover.Content class="ui-popover-menu-surface account-usage-popover">
-              <Popover.Title class="sr-only">{t("provider.settings.usageOf", { name: props.name })}</Popover.Title>
-              <ul class="account-usage-providers">
-                <li class="account-usage-provider">
-                  <ProviderLogo provider={props.reading.provider} class="account-usage-provider-logo" />
-                  <strong class="account-usage-provider-name">{props.name}</strong>
-                  <AccountUsageWindowList windows={props.reading.windows} now={now()} />
-                </li>
-              </ul>
-            </Popover.Content>
-          </Popover.Portal>
-        </Popover.Root>
-      )}
-    </Show>
+    <Popover.Root placement="bottom-end" gutter={6} modal>
+      <Popover.Trigger
+        class={badgeVariants({
+          variant: limit().tone === "critical" ? "destructive-light" : "warning-light",
+          class: "provider-settings-usage-badge",
+        })}
+      >
+        {t("provider.settings.usageLow", {
+          percent: format.percent(limit().remainingPercent / 100),
+          window: limit().label,
+        })}
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content class="ui-popover-menu-surface account-usage-popover">
+          <Popover.Title class="sr-only">{t("provider.settings.usageOf", { name: props.name })}</Popover.Title>
+          <ul class="account-usage-providers">
+            <li class="account-usage-provider">
+              <ProviderLogo provider={props.reading.provider} class="account-usage-provider-logo" />
+              <strong class="account-usage-provider-name">{props.name}</strong>
+              <AccountUsageWindowList windows={props.reading.windows} now={now()} />
+            </li>
+          </ul>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
   );
 }
 
@@ -997,7 +1036,11 @@ function RuntimeSection(props: SectionProps) {
     }
     return installed;
   };
-  const shown = () => Boolean(runtime()) || row().restartOffered() || Boolean(props.option.lastError);
+  /** The sign-in card already shows a check error, so the same text does not show twice. */
+  const lastError = () =>
+    props.option.lastError && props.option.lastError !== props.option.checkError ? props.option.lastError : null;
+  const shown = () =>
+    Boolean(runtime()) || row().restartOffered() || Boolean(lastError()) || row().diagnosticsOffered();
   return (
     <Show when={shown()}>
       <SettingsSection title={t("provider.settings.runtime")}>
@@ -1013,14 +1056,12 @@ function RuntimeSection(props: SectionProps) {
                     </ItemDescription>
                   )}
                 </Show>
-                <Show when={progress()} keyed>
-                  {(value) => (
-                    <Progress
-                      class="provider-settings-progress"
-                      value={value}
-                      aria-label={t("provider.settings.downloadLabel", { name: props.option.name })}
-                    />
-                  )}
+                <Show when={progress() !== null}>
+                  <Progress
+                    class="provider-settings-progress"
+                    value={progress() ?? 0}
+                    aria-label={t("provider.settings.downloadLabel", { name: props.option.name })}
+                  />
                 </Show>
               </ItemContent>
               <ItemActions>
@@ -1094,30 +1135,32 @@ function RuntimeSection(props: SectionProps) {
               </ItemActions>
             </Item>
           </Show>
-          <Show when={props.option.lastError}>
-            {(lastError) => (
-              <Item class="settings-modal-row">
-                <ItemContent>
-                  <ItemTitle>{t("provider.settings.diagnostics")}</ItemTitle>
-                  <ItemDescription class="provider-settings-error">
-                    {t("provider.lastError", { detail: sourceText(lastError()) })}
-                  </ItemDescription>
-                </ItemContent>
-                <Show when={row().diagnosticsOffered()}>
-                  <ItemActions>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => void navigator.clipboard.writeText(props.option.diagnostics ?? "")}
-                    >
-                      <Copy aria-hidden="true" />
-                      {t("provider.action.copyDiagnostics")}
-                    </Button>
-                  </ItemActions>
+          <Show when={lastError() || row().diagnosticsOffered()}>
+            <Item class="settings-modal-row">
+              <ItemContent>
+                <ItemTitle>{t("provider.settings.diagnostics")}</ItemTitle>
+                <Show when={lastError()}>
+                  {(detail) => (
+                    <ItemDescription class="provider-settings-error">
+                      {t("provider.lastError", { detail: sourceText(detail()) })}
+                    </ItemDescription>
+                  )}
                 </Show>
-              </Item>
-            )}
+              </ItemContent>
+              <Show when={row().diagnosticsOffered()}>
+                <ItemActions>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void navigator.clipboard.writeText(props.option.diagnostics ?? "")}
+                  >
+                    <Copy aria-hidden="true" />
+                    {t("provider.action.copyDiagnostics")}
+                  </Button>
+                </ItemActions>
+              </Show>
+            </Item>
           </Show>
         </ItemGroup>
       </SettingsSection>
