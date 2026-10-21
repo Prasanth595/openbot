@@ -58,7 +58,7 @@ import { type HostProviderSettings, HostProviderSettingsPanel } from "../setting
 import type { McpServerConfig, McpTestResult } from "./mcp-servers";
 import { ServerDesktopPanel } from "./ServerDesktopPanel";
 import { createServerGeneralSection } from "./ServerGeneralSection";
-import { type ServerImportOptions, ServerImportPanel } from "./ServerImportPanel";
+import { type ServerImportDetail, type ServerImportOptions, ServerImportPanel } from "./ServerImportPanel";
 import { type McpPanelDetail, type McpPanelSignIn, ServerMcpPanel } from "./ServerMcpPanel";
 import { createServerMembersSection } from "./ServerMembersSection";
 import type { ServerMemoryLimitOptions } from "./ServerMemoryLimitSetting";
@@ -253,9 +253,12 @@ export function ServerSettingsModal(props: ServerSettingsModalProps) {
   const [connectorDetail, setConnectorDetail] = createSignal<ConnectorsPanelDetail | null>(null);
   /** Set while a provider page is open, so the header reads `Providers › Codex`. */
   const [providerDetail, setProviderDetail] = createSignal<ProviderSettingsDetail | null>(null);
+  /** Set while an import source is open, so the header reads `Import › Hermes Agent`. */
+  const [importDetail, setImportDetail] = createSignal<ServerImportDetail | null>(null);
   const crumbDetail = () => {
     if (section() === "mcp") return mcpDetail();
     if (section() === "connectors") return connectorDetail();
+    if (section() === "import") return importDetail();
     if (section() === "roles") return roles.crumb();
     return section() === "providers" ? providerDetail() : null;
   };
@@ -775,7 +778,15 @@ export function ServerSettingsModal(props: ServerSettingsModalProps) {
             <Tabs.Content value="import" class="settings-modal-tab-panel server-settings-panel" data-tab="import">
               {/* Keyed: an open export belongs to one server, so another server starts a new panel. */}
               <Show when={props.server.id} keyed>
-                {(serverId) => <ServerImportPanel serverId={serverId} {...agentImport()} />}
+                {(serverId) => (
+                  <ServerImportPanel
+                    serverId={serverId}
+                    {...agentImport()}
+                    hermes={local()}
+                    onOpenTransfer={props.instanceTransfer ? () => setSection("transfer") : undefined}
+                    onDetailChange={setImportDetail}
+                  />
+                )}
               </Show>
             </Tabs.Content>
           )}

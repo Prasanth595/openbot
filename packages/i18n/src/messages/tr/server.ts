@@ -221,7 +221,7 @@ export const messages = {
   "server.settings.hostedSitesTitle": "Siteler",
   "server.settings.hostedSitesDescription": "Bu sunucudaki ajanların openbot.site üzerinde yayımladığı statik siteler.",
   "server.settings.importTitle": "İçe aktar",
-  "server.settings.importDescription": "Ajanlarınızı Grok Bot'tan bu sunucuya taşıyın.",
+  "server.settings.importDescription": "Ajanlarınızı Grok Bot'tan veya Hermes Agent'tan bu sunucuya taşıyın.",
   "server.settings.transferTitle": "Aktarım",
   "server.settings.transferDescription":
     "Bu sunucunun ajanlarını ve sunucu ayarlarını bir dosyaya veya bir dosyadan taşıyın.",

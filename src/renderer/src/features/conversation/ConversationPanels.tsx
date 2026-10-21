@@ -22,6 +22,7 @@ import { useConversationController } from "./conversation-controller-context";
 import { conversationRuntime } from "./conversation-runtime";
 import { useConversationViewScope } from "./conversation-scope";
 import { agentSkillsMode } from "./installed-skills-source";
+import { filePreviewQuoteId } from "./quoted-text";
 import { desktopEventRoutinesApi } from "./routine-webhooks-api";
 
 const BROWSER_PANEL_DEFAULT_RATIO = 0.5;
@@ -291,6 +292,7 @@ export function ConversationPanels(panelProps: { onOpenUsage?: ((trigger: HTMLBu
                 sourceUrl={attached()?.previewUrl ?? null}
                 pageUrl={htmlAttachmentPageUrl(attached()) ?? file().preview?.pageUrl}
                 pageHtml={props.runtime?.visualPage ? htmlAttachmentPageHtml(attached(), file().preview) : undefined}
+                selectionQuoteId={filePreviewQuoteId(file())}
                 onOpenExternally={openSidebarFileExternally}
                 onDownload={downloadSidebarFile}
                 /* A browser cannot show a file in the file manager. */

@@ -212,7 +212,7 @@ export const messages = {
   "server.settings.hostedSitesDescription":
     "I siti statici che gli agenti di questo server hanno pubblicato su openbot.site.",
   "server.settings.importTitle": "Importa",
-  "server.settings.importDescription": "Sposta i tuoi agenti da Grok Bot a questo server.",
+  "server.settings.importDescription": "Sposta i tuoi agenti da Grok Bot o Hermes Agent a questo server.",
   "server.settings.transferTitle": "Trasferimento",
   "server.settings.transferDescription":
     "Sposta gli agenti e le impostazioni di questo server in un file o da un file.",
