@@ -1,9 +1,9 @@
 import { DISCORD_ORCHESTRATOR_AVATAR } from "@openbot/contracts/discord-app";
 import type {
   AgentModelId,
-  AgentModelOption,
   AgentProviderId,
   AgentStatus,
+  ClientAgentModelOption,
   CustomAgentSummary,
   CustomProviderSummary,
   MessagingConnection,
@@ -64,7 +64,7 @@ export interface SlackOrchestratorChoice {
 
 /** The catalog behind the model picker. Absent, the orchestrator starts on a new agent's default. */
 export interface SlackOrchestratorModels {
-  modelOptions: AgentModelOption[];
+  modelOptions: ClientAgentModelOption[];
   agentStatus: AgentStatus;
   initial: SlackOrchestratorChoice | null;
   customProviders?: readonly CustomProviderSummary[];

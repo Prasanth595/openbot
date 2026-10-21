@@ -1,7 +1,7 @@
 import { ConversationHeader } from "@openbot/ui/features/conversation/ConversationHeader";
 import { fn } from "storybook/test";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { STORY_AGENT, STORY_AGENT_STATUS, STORY_MODELS } from "./fixtures";
+import { STORY_AGENT, STORY_AGENT_STATUS, STORY_MODELS, storyRuntimeSettings } from "./fixtures";
 
 const meta = {
   title: "Conversation/Header",
@@ -11,7 +11,7 @@ const meta = {
     onSettingsIntent: fn(),
     onOpenSettings: fn(),
     modelPicker: {
-      provider: STORY_AGENT.provider,
+      provider: storyRuntimeSettings(STORY_AGENT).provider,
       value: STORY_AGENT.model,
       reasoningEffort: STORY_AGENT.reasoningEffort,
       modelOptions: STORY_MODELS,

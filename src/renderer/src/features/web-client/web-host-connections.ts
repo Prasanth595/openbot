@@ -1,4 +1,4 @@
-import { type AgentEvent, type AgentSummary, isAgentSummary } from "@openbot/contracts/ipc";
+import { type AgentEvent, type ClientAgentSummary, isAgentSummary } from "@openbot/contracts/ipc";
 import { guardedListDecoder } from "@openbot/contracts/ipc-decoding";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import { teamProtocolUpdateDirection } from "@openbot/contracts/team-protocol/v1";
@@ -43,7 +43,7 @@ interface HostEntry {
   endingSessions: Set<Promise<void>>;
   incompatible: boolean;
   /** The host's agents, for the name and the notification switch of an event's agent. */
-  agents: AgentSummary[];
+  agents: ClientAgentSummary[];
   /** Counts `agents-changed` events, so a list read that started before one is dropped. */
   agentsRevision: number;
 }
@@ -81,7 +81,7 @@ export function createWebHostConnections(options: {
   /** The host revoked the session. The membership may have ended. */
   onSessionRevoked(): void;
   /** An event of a host this tab has not opened, with the host's agents, for a notification. */
-  onNotice?(hostId: string, event: WebHostNotice, agents: AgentSummary[]): void;
+  onNotice?(hostId: string, event: WebHostNotice, agents: ClientAgentSummary[]): void;
 }): WebHostConnections {
   const { channel } = options;
   const entries = new Map<string, HostEntry>();

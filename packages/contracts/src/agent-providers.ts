@@ -1,7 +1,7 @@
 import type { AgentModelId } from "./ipc-agent-identity";
 import type { AgentAuthState } from "./ipc-agent-status";
 import type { ExternalDestination } from "./ipc-app-auth";
-import { isOneOf } from "./runtime-values";
+import { isOneOf, isString } from "./runtime-values";
 
 /**
  * The coding agents OpenBot can drive, and everything about one that is the same wherever it is
@@ -35,6 +35,45 @@ export type AgentProviderId = (typeof AGENT_PROVIDERS)[number];
 
 export function isAgentProvider(value: unknown): value is AgentProviderId {
   return isOneOf(AGENT_PROVIDERS, value);
+}
+
+/** The form of every provider id, including one that a newer host adds. */
+export const PROVIDER_ID_PATTERN = /^[a-z][a-z0-9-]{0,63}$/u;
+
+declare const FOREIGN_PROVIDER: unique symbol;
+/**
+ * A provider that a newer host runs and this OpenBot does not know. Only client data holds one: the
+ * host's own agents, database and drivers use `AgentProviderId`.
+ */
+export type ForeignProviderId = string & { readonly [FOREIGN_PROVIDER]: true };
+/** The provider of an agent or a model that a client reads from a host. */
+export type AgentProviderRef = AgentProviderId | ForeignProviderId;
+
+export function isForeignProviderId(value: unknown): value is ForeignProviderId {
+  return isString(value) && PROVIDER_ID_PATTERN.test(value) && !isAgentProvider(value);
+}
+
+export function isAgentProviderRef(value: unknown): value is AgentProviderRef {
+  return isAgentProvider(value) || isForeignProviderId(value);
+}
+
+/** Whether this OpenBot can set up, sign in and pick models for the provider. */
+export function isKnownAgentProvider(provider: AgentProviderRef): provider is AgentProviderId {
+  return isAgentProvider(provider);
+}
+
+/** The provider when this build does not know it, else undefined. */
+export function foreignProvider(provider: AgentProviderRef): ForeignProviderId | undefined {
+  return isKnownAgentProvider(provider) ? undefined : provider;
+}
+
+/**
+ * The provider name to put in front of a user. A foreign provider shows the name its host sends,
+ * else its id.
+ */
+export function providerDisplayName(provider: AgentProviderRef, hostLabel?: string): string {
+  if (isAgentProvider(provider)) return agentProviderName(provider);
+  return hostLabel?.trim() || provider;
 }
 
 export interface AgentProviderDescriptor {

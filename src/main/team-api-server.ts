@@ -92,6 +92,7 @@ import {
 } from "@openbot/contracts/team-protocol/host-update-v1";
 import { teamHttpCodec } from "@openbot/contracts/team-protocol/http-codecs";
 import { type OptionalTeamEvent, optionalTeamEvent } from "@openbot/contracts/team-protocol/optional-events";
+import { PROVIDERS_V8_CAPABILITY } from "@openbot/contracts/team-protocol/providers-v8";
 import { teamSideRouteCodec } from "@openbot/contracts/team-protocol/side-routes";
 import {
   TEAM_APP_VERSION_HEADER,
@@ -110,8 +111,10 @@ import { TEAM_LOCAL_PROVIDERS_CAPABILITY } from "@openbot/contracts/team-protoco
 import { encodeTeamProtocolV5BaseCurrentEvent } from "@openbot/contracts/team-protocol/v5-base-adapter";
 import { TEAM_CURSOR_CLINE_CAPABILITY } from "@openbot/contracts/team-protocol/v6";
 import { encodeTeamProtocolV6BaseCurrentEvent } from "@openbot/contracts/team-protocol/v6-base-adapter";
-import { TEAM_PI_MUSE_CAPABILITY, TEAM_PROTOCOL_V7 } from "@openbot/contracts/team-protocol/v7";
+import { TEAM_PI_MUSE_CAPABILITY } from "@openbot/contracts/team-protocol/v7";
 import { encodeTeamProtocolV7BaseCurrentEvent } from "@openbot/contracts/team-protocol/v7-base-adapter";
+import { TEAM_OPEN_PROVIDERS_CAPABILITY, TEAM_PROTOCOL_V8 } from "@openbot/contracts/team-protocol/v8";
+import { encodeTeamProtocolV8BaseCurrentEvent } from "@openbot/contracts/team-protocol/v8-base-adapter";
 import { isFixedSourceText, sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, toLogValue } from "@openbot/logging";
 import { Deferred, Effect, Exit, Scope } from "effect";
@@ -996,17 +999,19 @@ export class TeamApiServer {
     if (!isAgentEvent(visible) && !isTeamRealtimeEvent(visible)) return null;
     if (protocol !== 1)
       return (
-        protocol === 7
-          ? encodeTeamProtocolV7BaseCurrentEvent
-          : protocol === 6
-            ? encodeTeamProtocolV6BaseCurrentEvent
-            : protocol === 5
-              ? encodeTeamProtocolV5BaseCurrentEvent
-              : encodeTeamProtocolV4BaseCurrentEvent
+        protocol === 8
+          ? encodeTeamProtocolV8BaseCurrentEvent
+          : protocol === 7
+            ? encodeTeamProtocolV7BaseCurrentEvent
+            : protocol === 6
+              ? encodeTeamProtocolV6BaseCurrentEvent
+              : protocol === 5
+                ? encodeTeamProtocolV5BaseCurrentEvent
+                : encodeTeamProtocolV4BaseCurrentEvent
       )(visible, {
         ...options,
         preserveBrowserSecrets: capabilities.has("browser-secret-handoff"),
-        // Only the V7 encoder reads them.
+        // Only the V7 and V8 encoders read them.
         uiBlocks: capabilities.has(TEAM_UI_BLOCKS_CAPABILITY),
         subagents: capabilities.has(TEAM_SUBAGENTS_CAPABILITY),
       });
@@ -1649,7 +1654,7 @@ export class TeamApiServer {
           : hiddenAgentView(
               value,
               route.hiddenAgentIds,
-              route.protocol < 5 ? 4 : route.protocol < 6 ? 5 : route.protocol < 7 ? 6 : 7,
+              route.protocol < 5 ? 4 : route.protocol < 6 ? 5 : route.protocol < 7 ? 6 : route.protocol < 8 ? 7 : 8,
             )
         : value;
     const sideRoute = teamSideRouteCodec(route.path);
@@ -1706,7 +1711,7 @@ export class TeamApiServer {
   #protocolSupport(expanded = false): TeamProtocolSupportV1 {
     return {
       appVersion: this.#options.appVersion ?? "0.0.0",
-      protocol: { minimum: TEAM_PROTOCOL_V1, maximum: TEAM_PROTOCOL_V7 },
+      protocol: { minimum: TEAM_PROTOCOL_V1, maximum: TEAM_PROTOCOL_V8 },
       capabilities: TEAM_CURRENT_CAPABILITIES.filter((capability) => {
         if (!expanded && !legacyTeamCapabilities([capability]).length) return false;
         if (capability === "channel-chats-v1" || capability === CHANNEL_DELETE_CAPABILITY)
@@ -1748,7 +1753,8 @@ export class TeamApiServer {
           capability === PROVIDERS_ADMIN_CAPABILITY ||
           capability === PROVIDERS_RUNTIMES_V2_CAPABILITY ||
           capability === PROVIDERS_V4_CAPABILITY ||
-          capability === PROVIDERS_V5_CAPABILITY
+          capability === PROVIDERS_V5_CAPABILITY ||
+          capability === PROVIDERS_V8_CAPABILITY
         )
           return this.#options.admin?.providers !== undefined;
         if (capability === PROVIDERS_SIGN_IN_V3_CAPABILITY) return this.#options.admin?.providers?.pasteSignIn === true;
@@ -1800,7 +1806,7 @@ export class TeamApiServer {
         body: { error: "Invalid Team API protocol headers.", code: "protocol_error", host },
       };
     }
-    if (protocol >= TEAM_PROTOCOL_V1 && protocol <= TEAM_PROTOCOL_V7) return null;
+    if (protocol >= TEAM_PROTOCOL_V1 && protocol <= TEAM_PROTOCOL_V8) return null;
     const clientIsOlder = protocol < TEAM_PROTOCOL_V1;
     return {
       status: 426,
@@ -1886,7 +1892,8 @@ function unavailableSidebarLayout(): TeamApiSidebarLayout {
 }
 
 /** The protocol that an event connection's capabilities describe, as `#encodeProviderEvent` encodes it. */
-function eventProtocol(capabilities: ReadonlySet<string>): 1 | 4 | 5 | 6 | 7 {
+function eventProtocol(capabilities: ReadonlySet<string>): 1 | 4 | 5 | 6 | 7 | 8 {
+  if (capabilities.has(TEAM_OPEN_PROVIDERS_CAPABILITY)) return 8;
   if (capabilities.has(TEAM_PI_MUSE_CAPABILITY)) return 7;
   if (capabilities.has(TEAM_CURSOR_CLINE_CAPABILITY)) return 6;
   return capabilities.has(TEAM_LOCAL_PROVIDERS_CAPABILITY) ? 5 : capabilities.has("opencode") ? 4 : 1;

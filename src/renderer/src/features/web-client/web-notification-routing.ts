@@ -1,4 +1,4 @@
-import type { AgentEvent, AgentSummary, ServerNotificationLevel } from "@openbot/contracts/ipc";
+import type { AgentEvent, ClientAgentSummary, ServerNotificationLevel } from "@openbot/contracts/ipc";
 import type { TextValue } from "@openbot/ui/text";
 import { onCleanup, untrack } from "solid-js";
 import { startActionSounds } from "../../action-sounds";
@@ -20,7 +20,7 @@ export function createWebNotificationRouting(options: {
   onOpen: (hostId: string, agentId: string) => void;
 }) {
   const { workspace, notifications } = options;
-  function notify(hostId: string, event: AgentEvent, agents: AgentSummary[]): void {
+  function notify(hostId: string, event: AgentEvent, agents: ClientAgentSummary[]): void {
     const { muted, level } = untrack(() => notifications.state(hostId));
     if (muted || level === "nothing") return;
     if (event.type === "turn-completed" && level === "all") playCompletionSoundForAgentEvent(event, agents);

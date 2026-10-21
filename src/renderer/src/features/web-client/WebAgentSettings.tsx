@@ -1,4 +1,5 @@
-import type { AgentModelOption, AgentStatus, CustomProviderSummary } from "@openbot/contracts/ipc";
+import { isKnownAgentProvider } from "@openbot/contracts/agent-providers";
+import type { AgentStatus, ClientAgentModelOption, CustomProviderSummary } from "@openbot/contracts/ipc";
 import { TEAM_AGENT_CREATE_MODEL_CAPABILITY } from "@openbot/contracts/team-protocol/current";
 import {
   createFirstAgentDraft,
@@ -30,7 +31,7 @@ export function WebAgentSettings(props: {
   const { t } = useText();
   const [state, setState] = createStore<{
     draft: FirstAgentDraft;
-    models: AgentModelOption[];
+    models: ClientAgentModelOption[];
     status: AgentStatus | null;
     busy: boolean;
     error: string | null;
@@ -122,7 +123,7 @@ export function WebAgentSettings(props: {
         initialMessage: createAgentInitialMessage(value),
         avatarSeed: value.avatarSeed,
         avatarHue: value.avatarHue,
-        ...(supportsModelSelection() && selectedModel
+        ...(supportsModelSelection() && selectedModel && isKnownAgentProvider(selectedModel.provider)
           ? { provider: selectedModel.provider, model: selectedModel.id }
           : {}),
       });

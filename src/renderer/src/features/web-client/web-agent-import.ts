@@ -1,4 +1,4 @@
-import { type AgentSummary, GROK_BOT_EXPORT_URL, resolveRemoteAgentImportResult } from "@openbot/contracts/ipc";
+import { type ClientAgentSummary, GROK_BOT_EXPORT_URL, resolveRemoteAgentImportResult } from "@openbot/contracts/ipc";
 import { AGENT_IMPORT_UPLOAD_BYTES } from "@openbot/contracts/team-protocol/agent-import-v1";
 import {
   applyAgentImport,
@@ -33,7 +33,7 @@ function readBase64(file: File): Promise<string> {
  */
 export function createWebAgentImportCalls(options: {
   request: (serverId: string) => TeamApiRequest;
-  listAgents: () => Promise<AgentSummary[]>;
+  listAgents: () => Promise<ClientAgentSummary[]>;
   saveFile: (file: { name: string; base64: string }) => void;
 }): AgentImportCalls {
   return {

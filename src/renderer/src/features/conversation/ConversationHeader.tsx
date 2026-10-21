@@ -1,3 +1,4 @@
+import { foreignProvider } from "@openbot/contracts/agent-providers";
 import { isAgentTaskActive } from "@openbot/team-client/agent-tasks";
 import { ConversationHeader as SharedConversationHeader } from "@openbot/ui/features/conversation/ConversationHeader";
 import { useConversationViewScope } from "./conversation-scope";
@@ -33,6 +34,7 @@ export function ConversationHeader() {
       onOpenSettings={() => setActiveRightPanel("settings")}
       modelPicker={{
         provider: settingsProvider(),
+        foreignProvider: props.agent ? foreignProvider(props.agent.provider) : undefined,
         value: settingsModel(),
         reasoningEffort: settingsReasoning(),
         modelOptions: props.modelOptions,

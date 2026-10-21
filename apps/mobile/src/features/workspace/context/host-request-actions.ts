@@ -8,7 +8,8 @@ import {
   decodeStorageUsage,
   type HiddenAgent,
   isAgentMemory,
-  isAgentModelOption,
+  isClientAgentModelOption,
+  isKnownAgentProvider,
   isQueueSnapshot,
   isRoutine,
   isRoutineRun,
@@ -387,9 +388,13 @@ export function createHostRequestActions({
         "GET",
         TEAM_API_ROUTES.agents.models,
         (value) => {
-          if (!Array.isArray(value) || !value.every(isAgentModelOption))
+          if (!Array.isArray(value) || !value.every(isClientAgentModelOption))
             throw new Error("The host returned invalid models.");
-          return value;
+          // A model of a provider that this build does not know cannot be chosen here.
+          return value.flatMap((option) => {
+            const provider = option.provider;
+            return isKnownAgentProvider(provider) ? [{ ...option, provider }] : [];
+          });
         },
         undefined,
         serverId,

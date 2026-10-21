@@ -1,6 +1,6 @@
 import type {
   AgentEvent,
-  AgentSummary,
+  ClientAgentSummary,
   ConfigureHostInput,
   CreateTeamInviteInput,
   DirectConversationSnapshot,
@@ -55,7 +55,7 @@ export function createMockTeam(
   options: MockTeamOptions,
   { emit }: MockRuntime,
   emitAgentEvent: (event: AgentEvent) => void,
-  readAgents: () => AgentSummary[],
+  readAgents: () => ClientAgentSummary[],
 ) {
   let servers = clone(options.servers ?? STORY_SERVERS);
   let presence = clone(options.presence ?? STORY_PRESENCE);

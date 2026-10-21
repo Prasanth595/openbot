@@ -1,4 +1,4 @@
-import type { AgentSummary } from "@openbot/contracts/ipc";
+import type { ClientAgentSummary } from "@openbot/contracts/ipc";
 import {
   Alert,
   AlertActions,
@@ -104,12 +104,12 @@ const BOT_STATUS: Record<BotStatus, { label: string; status: IntegrationStatus }
 
 /* ---------------------------------------------------------------- data */
 
-const CONCEPT_EXTRA_AGENTS: Pick<AgentSummary, "id" | "name" | "title" | "avatarSeed" | "avatarHue">[] = [
+const CONCEPT_EXTRA_AGENTS: Pick<ClientAgentSummary, "id" | "name" | "title" | "avatarSeed" | "avatarHue">[] = [
   { id: "support", name: "Support triage", title: "Support desk", avatarSeed: "support", avatarHue: 150 },
   { id: "release", name: "Release notes", title: "Release writer", avatarSeed: "release", avatarHue: 30 },
 ];
 
-export type ConceptAgent = Pick<AgentSummary, "id" | "name" | "title" | "avatarSeed" | "avatarHue"> & {
+export type ConceptAgent = Pick<ClientAgentSummary, "id" | "name" | "title" | "avatarSeed" | "avatarHue"> & {
   avatarUrl: null;
 };
 

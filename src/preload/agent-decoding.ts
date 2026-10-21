@@ -14,9 +14,9 @@ import {
   type AccountUsage,
   type AgentMemory,
   type AgentMemorySelectionState,
-  type AgentModelOption,
   type AgentStatus,
-  type AgentSummary,
+  type ClientAgentModelOption,
+  type ClientAgentSummary,
   type DuplicateAgentResult,
   decodeOptionalAgentAnalytics,
   decodeOptionalHostAnalytics,
@@ -25,10 +25,10 @@ import {
   isAgentHostSettings,
   isAgentMemory,
   isAgentMemorySelectionState,
-  isAgentModelOption,
   isAgentProvider,
   isAgentStatus,
-  isAgentSummary,
+  isClientAgentModelOption,
+  isClientAgentSummary,
   isProviderAccountId,
   isProviderAccountStatus,
   isRoutine,
@@ -136,20 +136,20 @@ export function decodeHostProviderAccountsFromMain(value: unknown): HostProvider
 // it is the local half of the same payload: `isAgentModel` gaining square brackets is what stopped a
 // provider CLI's `claude-fable-5-1[1m]` from emptying this app's own model picker, not a decoder
 // willing to hand the renderer a list shorter than the one the main process sent.
-export function decodeAgentModels(value: unknown): AgentModelOption[] {
-  if (!Array.isArray(value) || !value.every(isAgentModelOption)) {
+export function decodeAgentModels(value: unknown): ClientAgentModelOption[] {
+  if (!Array.isArray(value) || !value.every(isClientAgentModelOption)) {
     throw new Error("Invalid agent model response.");
   }
   return value;
 }
 
-export function decodeAgent(value: unknown): AgentSummary {
-  if (!isAgentSummary(value)) throw new Error("Invalid agent response.");
+export function decodeAgent(value: unknown): ClientAgentSummary {
+  if (!isClientAgentSummary(value)) throw new Error("Invalid agent response.");
   return value;
 }
 
-export function decodeAgents(value: unknown): AgentSummary[] {
-  if (!Array.isArray(value) || !value.every(isAgentSummary)) {
+export function decodeAgents(value: unknown): ClientAgentSummary[] {
+  if (!Array.isArray(value) || !value.every(isClientAgentSummary)) {
     throw new Error("Invalid agent list response.");
   }
   return value;

@@ -1,4 +1,4 @@
-import { agentProviderDescriptor, agentProviderName } from "@openbot/contracts/agent-providers";
+import { agentProviderDescriptor, agentProviderName, foreignProvider } from "@openbot/contracts/agent-providers";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import {
   AGENT_TASK_LIMIT_DEFAULT,
@@ -6,7 +6,6 @@ import {
   type AgentBackupModels,
   type AgentModelChoice,
   type AgentModelId,
-  type AgentModelOption,
   type AgentPermissionLevel,
   type AgentProviderId,
   type AgentReasoningEffort,
@@ -21,6 +20,7 @@ import {
   agentPermissionUpdate,
   agentQuickAcknowledgementEnabled,
   type BusyMessageMode,
+  type ClientAgentModelOption,
   type CustomAgentSummary,
   type CustomProviderSummary,
   DEFAULT_AGENT_ACCESS,
@@ -102,7 +102,7 @@ export interface AgentSettingsPanelProps {
   agent: AgentProfile;
   runtimeSettings: AgentRuntimeSettings;
   agentStatus: AgentStatus;
-  modelOptions: AgentModelOption[];
+  modelOptions: ClientAgentModelOption[];
   working: boolean;
   /** Unknown while a remote host has not sent it; the level then shows as if it were on. */
   autoApprove?: boolean | undefined;
@@ -331,6 +331,8 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
   const reasoningOptions = createMemo(() => selectedModel()?.supportedReasoningEfforts ?? ["medium" as const]);
   // The provider has no reasoning setting for this model, and the `medium` it lists is never sent.
   const reasoningSetByProvider = () => selectedModel()?.reasoningEffortConfigurable === false;
+  /** The agent's provider when this build does not know it: its runtime rows cannot change. */
+  const agentForeignProvider = () => foreignProvider(props.agent.provider);
   const avatarCandidates = createMemo(() =>
     avatarCandidateSeeds(props.agent.id, draft.avatar.candidateSeed, draft.avatar.batch),
   );
@@ -1124,6 +1126,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
                   }
                   ariaLabel={t("agentSettings.runtime.model")}
                   provider={draft.runtime.provider}
+                  foreignProvider={agentForeignProvider()}
                   value={draft.runtime.model}
                   agentStatus={props.agentStatus}
                   modelOptions={props.modelOptions}
@@ -1147,7 +1150,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
                   class="agent-settings-runtime-select"
                   options={reasoningOptions()}
                   value={draft.runtime.reasoningEffort}
-                  disabled={reasoningSetByProvider()}
+                  disabled={reasoningSetByProvider() || agentForeignProvider() !== undefined}
                   onChange={(nextReasoning) => {
                     if (!nextReasoning || nextReasoning === draft.runtime.reasoningEffort) return;
                     void selectReasoning(nextReasoning);
@@ -1272,7 +1275,8 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
                     </>
                   }
                 >
-                  {t("agentSettings.runtime.workspaceNote")} {workspaceEnforcementNote(draft.runtime.provider)}{" "}
+                  {t("agentSettings.runtime.workspaceNote")}
+                  {agentForeignProvider() === undefined ? workspaceEnforcementNote(draft.runtime.provider) : null}{" "}
                   {t("agentSettings.runtime.workspaceUnlimited")}
                 </Show>
               </Text>

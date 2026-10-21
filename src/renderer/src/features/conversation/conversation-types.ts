@@ -3,7 +3,6 @@ import type {
   AgentContextState,
   AgentEvent,
   AgentModelChoice,
-  AgentModelOption,
   AgentProviderId,
   AgentStatus,
   AgentTask,
@@ -14,6 +13,7 @@ import type {
   BrowserControlState,
   BrowserTab,
   BusyMessageMode,
+  ClientAgentModelOption,
   ConversationSnapshot,
   CustomAgentSummary,
   CustomProviderSummary,
@@ -129,7 +129,7 @@ export interface ConversationProps {
   availableRoutineIds?: readonly string[] | undefined;
   /** The agent's routines, for the chat card of a routine the agent created or changed. */
   routines?: readonly RoutineFields[] | undefined;
-  modelOptions: AgentModelOption[];
+  modelOptions: ClientAgentModelOption[];
   messages: readonly AgentMessage[];
   messageReferences?: Record<string, AgentMessage> | undefined;
   /** The quoted originals that the host no longer has. Their replies show a note in place of the quote. */

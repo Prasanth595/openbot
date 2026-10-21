@@ -171,6 +171,31 @@ export function decodeProviderRuntimeSnapshot(value: unknown): ProviderRuntimeSn
   };
 }
 
+/**
+ * The `providers-v8` snapshot, in which each runtime is a row keyed by `id`. The rows become the
+ * record that the IPC snapshot has, and `decodeProviderRuntimeSnapshot` checks them. The IPC record
+ * is closed, so a row for a provider that this build does not know is not kept: this client cannot
+ * download it. The host status still names that provider.
+ */
+export function decodeProviderRuntimeSnapshotV8(value: unknown): ProviderRuntimeSnapshot {
+  if (!isDynamicRecord(value) || !Array.isArray(value.providers) || !Array.isArray(value.toolRuntimes))
+    throw new Error("Invalid provider runtimes.");
+  return decodeProviderRuntimeSnapshot({
+    revision: value.revision,
+    providers: Object.fromEntries(runtimeRows(value.providers)),
+    toolRuntimes: Object.fromEntries(runtimeRows(value.toolRuntimes)),
+  });
+}
+
+function runtimeRows(rows: readonly unknown[]): Map<string, unknown> {
+  const byId = new Map<string, unknown>();
+  for (const row of rows) {
+    if (!isDynamicRecord(row) || !isString(row.id) || byId.has(row.id)) throw new Error("Invalid provider runtimes.");
+    byId.set(row.id, row);
+  }
+  return byId;
+}
+
 // The contract guard asserts that a summary carries no key, and fails closed on the whole list.
 export function decodeCustomProviderSummaries(value: unknown): CustomProviderSummary[] {
   if (!Array.isArray(value) || !value.every(isCustomProviderSummary)) throw new Error("Invalid custom providers.");

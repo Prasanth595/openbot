@@ -2,7 +2,7 @@
 
 ## Team API compatibility boundary
 
-Current remote connections use Team API protocol v7 over three ordered WebRTC DataChannels: `rpc`,
+Current remote connections use Team API protocol v8 over three ordered WebRTC DataChannels: `rpc`,
 `events`, and `files`. A sandboxed hidden Chromium page owns each `RTCPeerConnection`. Electron main
 uses a `MessagePort` and transfers binary data as `ArrayBuffer`. Signal carries SDP and ICE only,
 except the Slack requests of an agent's Slack app (see [Messaging connections](channels-and-messaging.md#messaging-connections)).
@@ -246,6 +246,11 @@ The desktop client starts each remote connection with `GET /v1/compatibility`. T
 The first released Team API protocol is `1`. All later HTTP requests include `OpenBot-Protocol-Version` and `OpenBot-App-Version`. The event socket uses the `openbot-team-v1` WebSocket subprotocol. A host without the compatibility endpoint is treated as an old host and is blocked. A request without the required protocol headers is treated as an old client and is blocked.
 
 Each protocol has a frozen codec and adapter in `packages/contracts/src/team-protocol`. The v1 HTTP codec owns the fixed route registry and validates JSON requests and responses before the adapter converts current values. Uploads, downloads, and other binary routes use the same negotiated headers and error envelope. The host does not write current service or IPC values directly to the network. Breaking or semantic changes add a new protocol directory and registry entry. A released adapter keeps its original meaning.
+
+From protocol 8, provider ids and auth kinds are open values. A new provider is a new value, not a
+new protocol. A client keeps an agent of a provider that it does not know, and shows it disabled
+with an update prompt. See [Providers](providers.md) for the frozen lists that hide new providers
+from peers below 8.
 
 Capabilities describe additive behavior. The client sends its capability list when it sets the event scope. The host sends optional events only when the client declared the related capability. A missing capability disables only that feature. An unknown optional event is ignored. A malformed known event closes the connection as `protocol_error` because the client cannot safely apply it.
 

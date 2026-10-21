@@ -1,4 +1,4 @@
-import type { AgentEvent, AgentSummary, ServerNotificationLevel } from "@openbot/contracts/ipc";
+import type { AgentEvent, ClientAgentSummary, ServerNotificationLevel } from "@openbot/contracts/ipc";
 import type { AppTranslate } from "@openbot/i18n";
 import { notificationForAgentEvent } from "@openbot/team-client/agent-notifications";
 
@@ -92,7 +92,7 @@ function browserFocused(): boolean {
  */
 export function showWebAgentNotification(options: {
   event: AgentEvent;
-  agents: AgentSummary[];
+  agents: ClientAgentSummary[];
   level: ServerNotificationLevel;
   translate: AppTranslate;
   onOpen(agentId: string): void;

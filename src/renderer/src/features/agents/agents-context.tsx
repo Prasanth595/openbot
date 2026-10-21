@@ -1,8 +1,9 @@
+import { isKnownAgentProvider } from "@openbot/contracts/agent-providers";
 import type {
-  AgentModelOption,
   AgentStatus,
-  AgentSummary,
   AvatarImageInput,
+  ClientAgentModelOption,
+  ClientAgentSummary,
   HiddenAgent,
   UpdateAgentInput,
 } from "@openbot/contracts/ipc";
@@ -81,7 +82,7 @@ const Agents = createSimpleContext({
     /** The first roster read of this scope succeeded. */
     const [agentListSettled, setAgentListSettled] = createSignal(false);
     const [duplicatingAgentIds, setDuplicatingAgentIds] = createSignal<Set<string>>(new Set());
-    const [modelOptions, setModelOptions] = createSignal<AgentModelOption[]>([]);
+    const [modelOptions, setModelOptions] = createSignal<ClientAgentModelOption[]>([]);
     const selectionServerId = untrack(activeServerId);
     const scopeIsCurrent = createScopeGuard();
     let savedAgentId = readAgentSelection()[selectionServerId] ?? "";
@@ -188,14 +189,15 @@ const Agents = createSimpleContext({
       const agent = agentList().find((candidate) => candidate.id === agentId);
       if (!agent) return null;
       return {
-        provider: agent.provider,
+        // Analytics names only the providers that this build knows.
+        ...(isKnownAgentProvider(agent.provider) ? { provider: agent.provider } : {}),
         model: agent.model,
         reasoning_effort: agent.reasoningEffort,
         server_kind: activeServer()?.kind ?? ("unknown" as const),
       };
     }
 
-    function applyStoredAgents(storedAgents: AgentSummary[]): void {
+    function applyStoredAgents(storedAgents: ClientAgentSummary[]): void {
       const currentById = new Map(agentList().map((agent) => [agent.id, agent]));
       const host = untrack(hostAccounts.host);
       const profiles = storedAgents.flatMap((stored) => {

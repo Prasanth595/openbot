@@ -46,7 +46,7 @@ import type {
 } from "./ipc-agent-admin";
 import type { AgentAnalytics, AgentAnalyticsInput } from "./ipc-agent-analytics";
 import type { AgentIpcRequest, ScopedAgentEvent } from "./ipc-agent-events";
-import type { AgentModelOption } from "./ipc-agent-identity";
+import type { ClientAgentModelOption } from "./ipc-agent-identity";
 import type { AgentImportPreview, AgentImportResult, ApplyAgentImportInput } from "./ipc-agent-import";
 import type {
   AgentMemory,
@@ -98,8 +98,8 @@ import type {
 } from "./ipc-agent-templates";
 import type { AgentWaitsSnapshot, CancelAgentWaitInput } from "./ipc-agent-waits";
 import type {
-  AgentSummary,
   AvatarImageInput,
+  ClientAgentSummary,
   CreateAgentInput,
   DuplicateAgentResult,
   SetAgentAvatarInput,
@@ -1093,8 +1093,8 @@ export const IPC_ENDPOINTS = {
     getAnalytics: scopedRequest<AgentAnalyticsInput, AgentAnalytics | null, "required">()("agent:get-analytics"),
     getHostAnalytics: scopedRequest<HostAnalyticsInput, HostAnalytics | null, "required">()("host:get-analytics"),
     getUsage: scopedRequest<string | undefined, AccountUsage>()("agent:get-usage"),
-    listModels: scopedQuery<AgentModelOption[]>()("agent:list-models"),
-    listAgents: scopedQuery<AgentSummary[]>()("agent:list"),
+    listModels: scopedQuery<ClientAgentModelOption[]>()("agent:list-models"),
+    listAgents: scopedQuery<ClientAgentSummary[]>()("agent:list"),
     readAgentSessionSettings: scopedRequest<string, AgentSessionSettings>()("agent:session-settings:read"),
     setAgentSessionSetting: scopedRequest<SetAgentSessionSettingInput, AgentSessionSettings>()(
       "agent:session-settings:set",
@@ -1116,10 +1116,10 @@ export const IPC_ENDPOINTS = {
     saveProfile: scopedRequest<SaveAgentProfileInput, SaveAgentProfileResult>()("agent:save-profile"),
     // Only the computer that runs the agent answers. A joined server has no route for it.
     askSideQuestion: scopedRequest<AskSideQuestionInput, string>()("agent:ask-side-question"),
-    createAgent: scopedRequest<CreateAgentInput, AgentSummary>()("agent:create"),
+    createAgent: scopedRequest<CreateAgentInput, ClientAgentSummary>()("agent:create"),
     duplicateAgent: scopedRequest<string, DuplicateAgentResult>()("agent:duplicate"),
-    updateAgent: scopedRequest<UpdateAgentInput, AgentSummary>()("agent:update"),
-    setAvatar: scopedRequest<SetAgentAvatarInput, AgentSummary>()("agent:set-avatar"),
+    updateAgent: scopedRequest<UpdateAgentInput, ClientAgentSummary>()("agent:update"),
+    setAvatar: scopedRequest<SetAgentAvatarInput, ClientAgentSummary>()("agent:set-avatar"),
     deleteAgent: scopedRequest<string, void>()("agent:delete"),
     readConversation: scopedRequest<string, ConversationWithReadState>()("agent:read-conversation"),
     readConversationPage: scopedRequest<ReadConversationPageInput, ConversationPage>()("agent:read-conversation-page"),

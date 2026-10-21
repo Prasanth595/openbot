@@ -8,7 +8,7 @@
  */
 
 import { INPUT_LIMITS } from "./input-limits";
-import { type AgentSummary, isAgentSummary } from "./ipc-agents";
+import { type ClientAgentSummary, isAgentSummary } from "./ipc-agents";
 import { isBoundedString, isIdentifier, isNullableBoundedString } from "./ipc-bounded-values";
 import { isBoolean, isDynamicRecord, isNumber, isString } from "./runtime-values";
 
@@ -77,7 +77,7 @@ export interface AgentImportSkipped {
 }
 
 export interface AgentImportResult {
-  agents: AgentSummary[];
+  agents: ClientAgentSummary[];
   skipped: AgentImportSkipped[];
   channels: AgentImportChannel[];
   skippedChannels: AgentImportSkipped[];
@@ -273,7 +273,7 @@ export function decodeRemoteAgentImportResult(value: unknown): RemoteAgentImport
 /** The remote result, with the new agents read from the host's agent list. */
 export function resolveRemoteAgentImportResult(
   result: RemoteAgentImportResult,
-  agents: readonly AgentSummary[],
+  agents: readonly ClientAgentSummary[],
 ): AgentImportResult {
   const ids = new Set(result.agents.map((agent) => agent.agentId));
   return { ...result, agents: agents.filter((agent) => ids.has(agent.id)) };

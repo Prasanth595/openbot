@@ -127,6 +127,7 @@
     "./team-protocol/browser-page-state-v1": "./src/team-protocol/browser-page-state-v1.ts",
     "./team-protocol/browser-user-control-v1": "./src/team-protocol/browser-user-control-v1.ts",
     "./team-protocol/providers-v5": "./src/team-protocol/providers-v5.ts",
+    "./team-protocol/providers-v8": "./src/team-protocol/providers-v8.ts",
     "./team-protocol/host-admin-v1": "./src/team-protocol/host-admin-v1.ts",
     "./team-protocol/hosted-sites-v1": "./src/team-protocol/hosted-sites-v1.ts",
     "./team-protocol/host-release-v1": "./src/team-protocol/host-release-v1.ts",
@@ -144,7 +145,12 @@
     "./team-protocol/v7": "./src/team-protocol/v7.ts",
     "./team-protocol/v7-adapter": "./src/team-protocol/v7-adapter.ts",
     "./team-protocol/v7-base-adapter": "./src/team-protocol/v7-base-adapter.ts",
-    "./team-protocol/v7-webrtc-adapter": "./src/team-protocol/v7-webrtc-adapter.ts"
+    "./team-protocol/v7-webrtc-adapter": "./src/team-protocol/v7-webrtc-adapter.ts",
+    "./team-protocol/v8-base": "./src/team-protocol/v8-base.ts",
+    "./team-protocol/v8": "./src/team-protocol/v8.ts",
+    "./team-protocol/v8-adapter": "./src/team-protocol/v8-adapter.ts",
+    "./team-protocol/v8-base-adapter": "./src/team-protocol/v8-base-adapter.ts",
+    "./team-protocol/v8-webrtc-adapter": "./src/team-protocol/v8-webrtc-adapter.ts"
   },
   "scripts": {
     "typecheck": "bun ../../scripts/type-checker.ts --noEmit -p tsconfig.json"

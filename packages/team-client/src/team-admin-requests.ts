@@ -21,6 +21,7 @@ import { HOST_MEMBER_UPDATE_ROUTES } from "@openbot/contracts/team-protocol/host
 import { HOST_RELEASE_ROUTES } from "@openbot/contracts/team-protocol/host-release-v1";
 import { HOST_TIMEZONE_ROUTES } from "@openbot/contracts/team-protocol/host-timezone-v1";
 import type { PROVIDERS_V5_ROUTES } from "@openbot/contracts/team-protocol/providers-v5";
+import { PROVIDERS_V8_ROUTES } from "@openbot/contracts/team-protocol/providers-v8";
 // Admin requests to one host: agent settings and skills, shared tables, agent share links, the server name and logo,
 // the server timezone, the agent memory limit, the Discord roles that can use OpenBot, the app update, MCP servers, storage, hosted sites and providers.
 //
@@ -73,6 +74,7 @@ import {
   decodeProviderCodeLoginStart,
   decodeProviderHostSignInStatus,
   decodeProviderRuntimeSnapshot,
+  decodeProviderRuntimeSnapshotV8,
   decodeSignInRelayFlow,
   decodeSignInRelayStatus,
   decodeStorageUsage,
@@ -698,6 +700,7 @@ export function deleteHostedSite(request: TeamApiRequest, siteId: string): Effec
  * host's capabilities.
  */
 export type ProviderCodeLoginRoutes =
+  | typeof PROVIDERS_V8_ROUTES
   | typeof PROVIDERS_V4_ROUTES
   | typeof PROVIDERS_SIGN_IN_V3_ROUTES
   | typeof PROVIDERS_ADMIN_ROUTES;
@@ -719,11 +722,17 @@ const providerChange = Effect.fn("TeamAdmin.providerChange")(function* (
   return yield* adminCall(() => request("GET", TEAM_API_ROUTES.agents.status, decodeAgentStatus));
 });
 
-/** `providers-v3` or `providers-v4`. The code is a credential: it goes in the body, and no reply carries it. */
+/**
+ * `providers-v3`, `providers-v4` or `providers-v8`. The code is a credential: it goes in the body, and
+ * no reply carries it.
+ */
 export function submitProviderCodeLogin(
   request: TeamApiRequest,
   input: SubmitProviderCodeLoginInput,
-  routes: typeof PROVIDERS_V4_ROUTES | typeof PROVIDERS_SIGN_IN_V3_ROUTES = PROVIDERS_SIGN_IN_V3_ROUTES,
+  routes:
+    | typeof PROVIDERS_V8_ROUTES
+    | typeof PROVIDERS_V4_ROUTES
+    | typeof PROVIDERS_SIGN_IN_V3_ROUTES = PROVIDERS_SIGN_IN_V3_ROUTES,
 ): Effect.Effect<AgentStatus, TeamAdminRequestError> {
   return providerChange(request, routes.codeLoginSubmit, { ...input });
 }
@@ -827,7 +836,7 @@ export function cancelProviderSignInRelay(
 ): Effect.Effect<AgentStatus, TeamAdminRequestError> {
   return providerChange(request, SIGN_IN_RELAY_ROUTES.cancel, { flowId });
 }
-export type ProviderKeyRoutes = typeof PROVIDERS_ADMIN_ROUTES | typeof PROVIDERS_V5_ROUTES;
+export type ProviderKeyRoutes = typeof PROVIDERS_ADMIN_ROUTES | typeof PROVIDERS_V5_ROUTES | typeof PROVIDERS_V8_ROUTES;
 
 export const getProviderApiKeyState = Effect.fn("TeamAdmin.getProviderApiKeyState")(function* (
   request: TeamApiRequest,
@@ -855,20 +864,27 @@ export function clearProviderApiKey(
 }
 
 /**
- * The runtime routes of a host: `providers-v4` includes Cursor and Cline, `providers-v2` Gemini,
- * and `providers-v1` none of them. The caller picks by the host's capabilities.
+ * The runtime routes of a host: `providers-v8` lists every runtime as a row, `providers-v4` includes
+ * Cursor and Cline, `providers-v2` Gemini, and `providers-v1` none of them. The caller picks by the
+ * host's capabilities.
  */
 export type ProviderRuntimeRoutes =
+  | typeof PROVIDERS_V8_ROUTES
   | typeof PROVIDERS_V5_ROUTES
   | typeof PROVIDERS_V4_ROUTES
   | typeof PROVIDERS_RUNTIMES_V2_ROUTES
   | typeof PROVIDERS_ADMIN_ROUTES;
 
+/** `providers-v8` lists the runtimes as rows; the older route sets give the IPC record. */
+function runtimeDecoder(routes: ProviderRuntimeRoutes) {
+  return routes === PROVIDERS_V8_ROUTES ? decodeProviderRuntimeSnapshotV8 : decodeProviderRuntimeSnapshot;
+}
+
 export function getProviderRuntimes(
   request: TeamApiRequest,
   routes: ProviderRuntimeRoutes = PROVIDERS_ADMIN_ROUTES,
 ): Effect.Effect<ProviderRuntimeSnapshot, TeamAdminRequestError> {
-  return adminCall(() => request("POST", routes.runtimesStatus, decodeProviderRuntimeSnapshot, {}));
+  return adminCall(() => request("POST", routes.runtimesStatus, runtimeDecoder(routes), {}));
 }
 
 export function downloadProviderRuntime(
@@ -876,7 +892,7 @@ export function downloadProviderRuntime(
   provider: ManagedProviderId,
   routes: ProviderRuntimeRoutes = PROVIDERS_ADMIN_ROUTES,
 ): Effect.Effect<ProviderRuntimeSnapshot, TeamAdminRequestError> {
-  return adminCall(() => request("POST", routes.runtimesDownload, decodeProviderRuntimeSnapshot, { provider }));
+  return adminCall(() => request("POST", routes.runtimesDownload, runtimeDecoder(routes), { provider }));
 }
 
 export function cancelProviderRuntime(
@@ -884,14 +900,14 @@ export function cancelProviderRuntime(
   provider: ManagedProviderId,
   routes: ProviderRuntimeRoutes = PROVIDERS_ADMIN_ROUTES,
 ): Effect.Effect<ProviderRuntimeSnapshot, TeamAdminRequestError> {
-  return adminCall(() => request("POST", routes.runtimesCancel, decodeProviderRuntimeSnapshot, { provider }));
+  return adminCall(() => request("POST", routes.runtimesCancel, runtimeDecoder(routes), { provider }));
 }
 
 export function checkProviderRuntimeUpdates(
   request: TeamApiRequest,
   routes: ProviderRuntimeRoutes = PROVIDERS_ADMIN_ROUTES,
 ): Effect.Effect<ProviderRuntimeSnapshot, TeamAdminRequestError> {
-  return adminCall(() => request("POST", routes.runtimesCheck, decodeProviderRuntimeSnapshot, {}));
+  return adminCall(() => request("POST", routes.runtimesCheck, runtimeDecoder(routes), {}));
 }
 
 export function listCustomProviders(

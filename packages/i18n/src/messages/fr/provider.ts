@@ -116,6 +116,7 @@ export const messages = {
   "provider.picker.providers": "Fournisseurs de modèles",
   "provider.picker.downloading": "Téléchargement {percent}",
   "provider.picker.unavailable": "{name} n’est pas disponible.",
+  "provider.picker.updateToUse": "Mettez à jour OpenBot pour utiliser {name}",
   "provider.picker.models": "Modèles {name}",
   "provider.picker.addProvider": "Ajouter un fournisseur",
   "provider.picker.download": "Téléchargement de {name}",

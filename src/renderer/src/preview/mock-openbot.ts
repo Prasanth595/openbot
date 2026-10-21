@@ -13,11 +13,9 @@ import {
   type AgentMemoryLimitPreference,
   type AgentMemorySelection,
   type AgentMemorySelectionState,
-  type AgentModelOption,
   type AgentProviderId,
   type AgentStatus,
   type AgentSubmission,
-  type AgentSummary,
   type AgentTask,
   type AgentTasksSnapshot,
   type AgentTemplatePublication,
@@ -35,6 +33,8 @@ import {
   agentTaskLimit,
   type BusyMessageModePreference,
   type CentralAuthState,
+  type ClientAgentModelOption,
+  type ClientAgentSummary,
   CONTEXT_RESET_ITEM_TYPE,
   type ComputerUseState,
   type ConversationMessage,
@@ -63,6 +63,7 @@ import {
   type HostStatus,
   hostAgentMemoryLimit,
   isAgentMemoryLimit,
+  isAgentSummary,
   isReleasedRoutineSchedule,
   type MacPermissionId,
   normalizeMcpConfig,
@@ -115,6 +116,9 @@ import {
   STORY_AGENT_SUBMISSIONS,
   STORY_AGENT_SUMMARIES,
   STORY_APP_INFO,
+  STORY_FOREIGN_AGENT,
+  STORY_FOREIGN_MODEL,
+  STORY_FOREIGN_SERVER_ID,
   STORY_HOSTED_SITES,
   STORY_MARKETPLACE_AGENT_DETAILS,
   STORY_MARKETPLACE_AGENTS,
@@ -125,6 +129,7 @@ import {
   STORY_SNAPSHOTS,
   STORY_UPDATE_STATUS,
   STORY_USAGE,
+  withStoryForeignProvider,
 } from "./fixtures";
 import { mockAgentAnalytics, mockHostAnalytics } from "./mock-agent-analytics";
 import { createMockAuth, type MockAuthOptions } from "./mock-auth";
@@ -167,8 +172,8 @@ export interface MockOpenBotOptions
   setupState?: AppSetupState;
   agentStatus?: AgentStatus;
   usage?: AccountUsage;
-  agents?: AgentSummary[];
-  models?: AgentModelOption[];
+  agents?: ClientAgentSummary[];
+  models?: ClientAgentModelOption[];
   snapshots?: Record<string, ConversationSnapshot>;
   /** Deliveries that wait in each agent's queue when the preview starts. */
   queues?: Record<string, QueueDelivery[]>;
@@ -188,7 +193,7 @@ export interface MockOpenBotOptions
 }
 
 /** Custom models compose as `<provider>/<model>`; preview builds `listModels()` from these. */
-function mockCustomProviderModels(provider: CustomProviderSummary): AgentModelOption[] {
+function mockCustomProviderModels(provider: CustomProviderSummary): ClientAgentModelOption[] {
   return provider.models.map((model) => ({
     provider: "opencode",
     id: composedCustomModelId(provider.id, model.id),
@@ -516,7 +521,8 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
 
   function agentTaskLimitOf(agentId: string): number {
     const agent = agents.find((candidate) => candidate.id === agentId);
-    return agent ? agentTaskLimit(agent) : 1;
+    // Tasks run on this computer, so an agent on a provider that this build does not know has none.
+    return agent && isAgentSummary(agent) ? agentTaskLimit(agent) : 1;
   }
 
   function hiddenAgents(): HiddenAgentsSnapshot {
@@ -686,8 +692,8 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
   }
 
   function createAgentSummary(
-    input: { [Key in keyof AgentSummary]?: AgentSummary[Key] | undefined } = {},
-  ): AgentSummary {
+    input: { [Key in keyof ClientAgentSummary]?: ClientAgentSummary[Key] | undefined } = {},
+  ): ClientAgentSummary {
     agentCounter += 1;
     const id = input.id ?? `mock-agent-${agentCounter}`;
     return {
@@ -1351,7 +1357,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
             schedule: routine.schedule,
           }),
         );
-        const agent: AgentSummary = {
+        const agent: ClientAgentSummary = {
           ...target,
           name: detail.name,
           title: detail.title,
@@ -1397,7 +1403,8 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       },
     },
     agent: {
-      getStatus: async () => clone(agentStatus),
+      getStatus: async (serverId) =>
+        clone(serverId === STORY_FOREIGN_SERVER_ID ? withStoryForeignProvider(agentStatus) : agentStatus),
       getHostAnalytics: async (input) => mockHostAnalytics(input, agents),
       getAnalytics: async (input) => {
         const agent = agents.find((entry) => entry.id === input.agentId);
@@ -1413,13 +1420,15 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       },
       // A saved endpoint's models are composed here, not stored, so a removal drops them the way a
       // respawned OpenCode would: it lists what its config names and nothing else.
-      listModels: async () =>
-        clone(
-          [...models, ...customProviders.flatMap(mockCustomProviderModels)].filter(
+      listModels: async (serverId) =>
+        clone([
+          ...[...models, ...customProviders.flatMap(mockCustomProviderModels)].filter(
             (model) => !agentStatus.providers?.some((row) => row.id === model.provider && row.off),
           ),
-        ),
-      listAgents: async () => clone(agents),
+          ...(serverId === STORY_FOREIGN_SERVER_ID ? [STORY_FOREIGN_MODEL] : []),
+        ]),
+      listAgents: async (serverId) =>
+        clone(serverId === STORY_FOREIGN_SERVER_ID ? [...agents, STORY_FOREIGN_AGENT] : agents),
       listHiddenAgents: async () => hiddenAgents(),
       // As on a host: the agent keeps everything, and a hide or a restore goes to every device.
       setAgentHidden: async ({ agentId, hidden }) => {
@@ -1620,6 +1629,8 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
           agentId: agent.id,
           sectionId: input.draft.sectionId,
         });
+        // A profile is saved on this computer, which runs only the providers that it knows.
+        if (!isAgentSummary(updated)) throw new Error("Mock profile agent has an unknown provider.");
         return { agent: { ...updated, avatarUrl: null }, layout };
       },
       createAgent: async (input) => {
@@ -1722,7 +1733,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
           leaveUsageLimit: _leaveUsageLimit,
           ...updates
         } = input;
-        const updated: AgentSummary = { ...current, ...updates };
+        const updated: ClientAgentSummary = { ...current, ...updates };
         if (backupModels === null) delete updated.backupModels;
         else if (backupModels) updated.backupModels = backupModels;
         if (providerAccountId === null || (updates.provider && !providerAccountId)) delete updated.providerAccountId;

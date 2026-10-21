@@ -1,3 +1,4 @@
+import { isKnownAgentProvider } from "@openbot/contracts/agent-providers";
 import { supportedAttachmentExtensions } from "@openbot/contracts/attachment-files";
 import {
   type AgentWait,
@@ -190,7 +191,8 @@ export function ConversationComposer() {
    */
   const usageExhausted = createMemo(() => {
     const provider = props.agent?.provider;
-    if (!provider) return null;
+    // The usage of a provider that this build does not know has no notice.
+    if (!provider || !isKnownAgentProvider(provider)) return null;
     for (const limit of props.accountUsage?.limits ?? []) {
       if (limit.id !== provider) continue;
       for (const window of ["primary", "secondary"] as const) {

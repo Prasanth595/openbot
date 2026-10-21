@@ -18,7 +18,7 @@ import {
   decodeAgentImportSkipped,
   isAgentImportKey,
 } from "./ipc-agent-import";
-import { type AgentSummary, isAgentSummary } from "./ipc-agents";
+import { type ClientAgentSummary, isAgentSummary } from "./ipc-agents";
 import { isBoundedString, isIdentifier, isNullableBoundedString } from "./ipc-bounded-values";
 import { isBoolean, isDynamicRecord, isNumber, isString } from "./runtime-values";
 
@@ -82,7 +82,7 @@ export interface ApplyInstanceTransferInput {
 }
 
 export interface InstanceTransferResult {
-  agents: AgentSummary[];
+  agents: ClientAgentSummary[];
   skipped: AgentImportSkipped[];
   /** Providers that were signed in on the other computer and are not signed in here. */
   signIn: AgentProviderId[];
@@ -251,7 +251,7 @@ export function decodeRemoteInstanceTransferResult(value: unknown): RemoteInstan
 /** The remote result, with the new agents read from the host's agent list. */
 export function resolveRemoteInstanceTransferResult(
   result: RemoteInstanceTransferResult,
-  agents: readonly AgentSummary[],
+  agents: readonly ClientAgentSummary[],
 ): InstanceTransferResult {
   const ids = new Set(result.agents.map((agent) => agent.agentId));
   return { ...result, agents: agents.filter((agent) => ids.has(agent.id)) };

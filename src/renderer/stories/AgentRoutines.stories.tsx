@@ -6,7 +6,7 @@ import { AgentRoutinesSettings } from "../src/features/conversation/AgentRoutine
 import AgentSettingsPanel from "../src/features/conversation/AgentSettingsPanel";
 import { desktopEventRoutinesApi } from "../src/features/conversation/routine-webhooks-api";
 import { agentRoutinesPort, eventRoutinesPort } from "../src/features/conversation/routines-port";
-import { STORY_AGENT, STORY_AGENT_STATUS, STORY_MODELS } from "./fixtures";
+import { STORY_AGENT, STORY_AGENT_STATUS, STORY_MODELS, storyRuntimeSettings } from "./fixtures";
 import { createMockOpenBot, type MockOpenBotOptions } from "./mock-openbot";
 
 const morningBrief: Routine = {
@@ -159,11 +159,7 @@ function FullSettingsPanelStory() {
       <AgentSettingsPanel
         onOpenUsage={fn()}
         agent={STORY_AGENT}
-        runtimeSettings={{
-          provider: STORY_AGENT.provider,
-          model: STORY_AGENT.model,
-          reasoningEffort: STORY_AGENT.reasoningEffort,
-        }}
+        runtimeSettings={storyRuntimeSettings(STORY_AGENT)}
         agentStatus={STORY_AGENT_STATUS}
         modelOptions={STORY_MODELS}
         working={false}

@@ -12,10 +12,10 @@ import {
   decodeTeamProtocolV2AuthFrame,
   decodeTeamProtocolV2EventFrame,
   decodeTeamProtocolV2RpcFrame,
-  decodeTeamProtocolV7CurrentEvent,
-  decodeTeamProtocolV7WebRtcHttpResponse,
+  decodeTeamProtocolV8CurrentEvent,
+  decodeTeamProtocolV8WebRtcHttpResponse,
   encodeTeamProtocolV2Frame,
-  encodeTeamProtocolV7WebRtcHttpRequest,
+  encodeTeamProtocolV8WebRtcHttpRequest,
   TEAM_PROTOCOL_V2_CHANNELS,
   type TeamProtocolV2AuthFrame,
   type TeamProtocolV2Json,
@@ -1198,7 +1198,7 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
             body: sideRoute
               ? yield* peerDecode(() => sideRoute.response(pending.path, status, body, { historyExtent: true }))
               : yield* peerDecode(() =>
-                  decodeTeamProtocolV7WebRtcHttpResponse(pending.method, pending.path, status, body),
+                  decodeTeamProtocolV8WebRtcHttpResponse(pending.method, pending.path, status, body),
                 ),
           });
         }
@@ -1234,7 +1234,7 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
       const channel = yield* peerDecode(() => optionalTeamEvent(frame.payload));
       const decoded = channel
         ? { status: "known" as const, event: optionalTeamEventToCurrent(channel) }
-        : yield* peerDecode(() => decodeTeamProtocolV7CurrentEvent(frame));
+        : yield* peerDecode(() => decodeTeamProtocolV8CurrentEvent(frame));
       if (decoded.status === "invalid")
         return yield* new RemotePeerError({ message: sourceText("error.remote.malformedEvent") });
       state.lastEventSequence = frame.sequence;
@@ -1328,7 +1328,7 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
             : // A caller names a provider and model on agent creation only when the host advertises
               // `agent-create-model`, so the pair is kept whenever it is present.
               yield* peerDecode(() =>
-                encodeTeamProtocolV7WebRtcHttpRequest(method, path, body, {
+                encodeTeamProtocolV8WebRtcHttpRequest(method, path, body, {
                   preserveSemanticTags: true,
                   agentCreateModel: true,
                 }),

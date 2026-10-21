@@ -119,6 +119,7 @@ export const messages = defineMessages("provider", {
   "provider.picker.providers": "Model providers",
   "provider.picker.downloading": "Downloading {percent}",
   "provider.picker.unavailable": "{name} is unavailable.",
+  "provider.picker.updateToUse": "Update OpenBot to use {name}",
   "provider.picker.models": "{name} models",
   "provider.picker.addProvider": "Add provider",
   "provider.picker.download": "{name} download",

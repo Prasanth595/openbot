@@ -1,13 +1,14 @@
 import { ProviderLogo } from "@openbot/brand";
 import type {
   AgentModelId,
-  AgentModelOption,
   AgentProviderId,
   AgentProviderStatus,
   AgentReasoningEffort,
   AgentStatus,
+  ClientAgentModelOption,
   CustomAgentSummary,
   CustomProviderSummary,
+  ForeignProviderId,
   ProviderAccountStatus,
   ProviderRuntimeStatus,
 } from "@openbot/contracts/ipc";
@@ -19,6 +20,7 @@ import {
   defaultProviderModel,
   isCustomProviderModelId,
   PICKER_PROVIDERS,
+  providerDisplayName,
 } from "@openbot/contracts/ipc";
 import type { AppTextKey, AppTranslate } from "@openbot/i18n";
 import {
@@ -60,7 +62,7 @@ import { SwapLabel, type SwapMotion } from "./SwapLabel";
 interface ProviderModelPickerProps {
   provider: AgentProviderId;
   value: AgentModelId;
-  modelOptions: AgentModelOption[];
+  modelOptions: ClientAgentModelOption[];
   agentStatus: AgentStatus;
   variant?: "pill" | "field";
   ariaLabel?: string;
@@ -100,6 +102,11 @@ interface ProviderModelPickerProps {
   accountChoice?: boolean;
   /** The agent's account. Absent or unknown means the provider's own sign-in. */
   providerAccountId?: string | null | undefined;
+  /**
+   * The agent's provider when this build does not know it. The host still runs the agent, so the
+   * picker shows its model, and it cannot open until OpenBot is updated.
+   */
+  foreignProvider?: ForeignProviderId | undefined;
   /** `accountId` is passed only with `accountChoice`, for a provider with more than one account: null for its own sign-in. */
   onChange: (model: AgentModelId, provider: AgentProviderId, accountId?: string | null) => void;
 }
@@ -222,7 +229,7 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
   let shownProvider = untrack(activeProvider);
 
   /** OpenCode and Custom tabs split one wire provider so each model appears once. */
-  function railModelOptions(rail: RailId): AgentModelOption[] {
+  function railModelOptions(rail: RailId): ClientAgentModelOption[] {
     if (rail === CUSTOM_RAIL) return props.modelOptions.filter((option) => isCustomModel(option, customIds()));
     if (rail === "opencode") {
       return props.modelOptions.filter(
@@ -395,7 +402,20 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
     setSearch("");
   }
 
-  const triggerModelName = () => displayModelName(selectedModel()?.name, props.value);
+  /** The host's name for a provider that this build does not know. */
+  const foreignProviderName = () => {
+    const foreign = props.foreignProvider;
+    if (foreign === undefined) return undefined;
+    const hostLabel = props.agentStatus.providers?.find((status) => {
+      const id: string = status.id;
+      return id === foreign;
+    })?.displayName;
+    return providerDisplayName(foreign, hostLabel);
+  };
+  const foreignModelName = () =>
+    props.modelOptions.find((model) => model.provider === props.foreignProvider && model.id === props.value)?.name;
+  const triggerModelName = () =>
+    displayModelName(props.foreignProvider === undefined ? selectedModel()?.name : foreignModelName(), props.value);
   const field = () => props.variant === "field";
   const showsReasoningEffort = () => props.reasoningEffort !== undefined && props.onReasoningEffortChange !== undefined;
   /** An OpenCode model with variants: the chosen variant is its effort, and its name says so. */
@@ -411,19 +431,23 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
   /** Only an effort that the model can use. */
   const triggerEffort = () => {
     const effort = props.reasoningEffort;
-    if (!showsReasoningEffort() || !effort || selectedHasVariants()) return;
+    if (props.foreignProvider !== undefined || !showsReasoningEffort() || !effort || selectedHasVariants()) return;
     const model = selectedModel();
     if (!model?.supportedReasoningEfforts.includes(effort) || model.reasoningEffortConfigurable === false) return;
     return reasoningLabel(effort, t);
   };
   /** The account name, only while the agent's provider lists more than one. */
   const triggerAccount = () => {
+    if (props.foreignProvider !== undefined) return null;
     const accounts = railAccounts(props.provider);
     return accounts.length ? providerAccountName(t, accounts, currentAccount() ?? DEFAULT_PROVIDER_ACCOUNT_ID) : null;
   };
   /** Fast mode, only while the model has a fast tier: another model runs at standard speed. */
   const triggerFast = () =>
-    props.fastMode === true && props.onFastModeChange !== undefined && Boolean(selectedModel()?.fastServiceTier);
+    props.foreignProvider === undefined &&
+    props.fastMode === true &&
+    props.onFastModeChange !== undefined &&
+    Boolean(selectedModel()?.fastServiceTier);
   const triggerSummary = () =>
     [triggerModelName(), triggerEffort(), triggerFast() ? t("provider.picker.fast") : null, triggerAccount()]
       .filter(Boolean)
@@ -440,11 +464,13 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
           type="button"
           class={["provider-model-trigger", { "provider-model-trigger-field": field() }]}
           aria-label={`${props.ariaLabel ?? t("provider.picker.agentModel")}: ${triggerSummary()}`}
-          disabled={props.disabled}
+          disabled={props.disabled || props.foreignProvider !== undefined}
           title={
-            props.disabled || props.modelChangesDisabled
-              ? props.disabledReason
-              : `${railName(activeProvider(), t)} · ${triggerSummary()}`
+            foreignProviderName() !== undefined
+              ? t("provider.picker.updateToUse", { name: foreignProviderName() ?? "" })
+              : props.disabled || props.modelChangesDisabled
+                ? props.disabledReason
+                : `${railName(activeProvider(), t)} · ${triggerSummary()}`
           }
           onKeyDown={(event: KeyboardEvent) => {
             if (event.key !== "ArrowDown") return;
@@ -464,7 +490,12 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
                 shownProvider = untrack(provider);
                 return (
                   <span class="provider-model-trigger-mark" data-entering={entering ? "" : undefined}>
-                    <ProviderMark provider={provider()} />
+                    <Show
+                      when={props.foreignProvider === undefined}
+                      fallback={<ProviderLogo provider="unknown" class="provider-model-mark" />}
+                    >
+                      <ProviderMark provider={provider()} />
+                    </Show>
                   </span>
                 );
               }}
@@ -969,7 +1000,7 @@ function railDefaultModel(rail: RailId): AgentModelId | null {
 
 function providerAvailability(
   status: AgentStatus,
-  models: AgentModelOption[],
+  models: ClientAgentModelOption[],
   rail: RailId,
   t: AppTranslate,
 ): AgentProviderStatus {

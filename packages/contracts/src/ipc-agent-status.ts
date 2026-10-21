@@ -33,6 +33,11 @@ export interface AgentProviderStatus {
    */
   id: AgentProviderId;
   /**
+   * The host's name for the provider. Only a Team API v8 host sends it, so a client that does not
+   * know `id` can still show the provider. The local status omits it.
+   */
+  displayName?: string;
+  /**
    * One of `AgentProviderState`, but treated as an open string at the trust boundary: a remote
    * server one release ahead may send a member we do not know yet.
    */
@@ -112,6 +117,7 @@ function isAgentProviderStatus(value: unknown): value is AgentProviderStatus {
     isDynamicRecord(value) &&
     isBoundedString(value.id, INPUT_LIMITS.identifier) &&
     isBoundedString(value.state, INPUT_LIMITS.identifier) &&
+    (value.displayName === undefined || isBoundedString(value.displayName, 80)) &&
     isNullableBoundedString(value.version, 160) &&
     isNullableBoundedString(value.message, INPUT_LIMITS.messageText) &&
     (value.email === undefined || isNullableBoundedString(value.email, INPUT_LIMITS.email)) &&

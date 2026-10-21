@@ -474,8 +474,24 @@ v5 peer still gets the filtered view.
 The v4, v5, v6 and v7 base schemas are one codec, `provider-aware-codec.ts`. Each `v<N>-base.ts` passes
 `createProviderAwareCodec` a frozen profile: the providers, the signed-in auth kinds and the agent
 model charset. The v7 profile also raises the capability limit from 64 to 128 (`v7-base.ts`).
-Nothing else differs between these versions. Do not edit a released profile; a new
-provider needs a new protocol version.
+Nothing else differs between these versions. Do not edit a released profile.
+
+Team API v8 opens the profile: `providers` and `authKinds` are `"open"`, so any id that matches
+`OPEN_PROVIDER_ID` (`^[a-z][a-z0-9-]{0,63}$`) passes, and each provider status row can carry a
+`displayName` of up to 80 characters (`v8-base.ts`). The codec still rejects a malformed row. A
+provider added after v8 needs no new protocol version. The `providers-v8` routes
+(`/v1/admin/providers/v8/*`) carry the runtimes as a keyed list, not as one fixed object.
+
+The host hides a provider from a peer below v8 when that protocol's frozen list does not have it
+(`FROZEN_PROVIDERS` in `src/main/team-api/provider-visibility.ts`). So a new provider is hidden
+from old peers with no change there. Do not edit those lists.
+
+A v8 client keeps the agents of a provider that its build does not know (`ForeignProviderId`,
+`AgentProviderRef`). The agent stays in the list and chat works, because the host runs it. The
+provider and model pickers show the agent disabled, with "Update OpenBot to use {name}" and the
+neutral `unknown` logo. They do not reset the agent. The model picker and the backup models leave
+out the models of that provider. Host types (`AgentProviderId`, the database, the drivers) stay
+closed.
 
 ### Custom agents
 

@@ -8,7 +8,7 @@ import { type AgentRuntimeSnapshot, isAgentRuntimeSnapshot } from "./ipc-agent-r
 import type { AccountUsage, AgentStatus } from "./ipc-agent-status";
 import { type AgentTasksSnapshot, isAgentTasksSnapshot } from "./ipc-agent-tasks";
 import { type AgentWaitsSnapshot, isAgentWaitsSnapshot } from "./ipc-agent-waits";
-import { type AgentSummary, isAgentSummary } from "./ipc-agents";
+import { type ClientAgentSummary, isClientAgentSummary } from "./ipc-agents";
 import {
   type AgentApproval,
   type BrowserTakeoverRequest,
@@ -39,7 +39,7 @@ export type AgentEvent =
   | { type: "channels-changed"; channelId: string; revision: number }
   | { type: "status"; status: AgentStatus }
   | { type: "usage-changed"; usage: AccountUsage }
-  | { type: "agents-changed"; agents: AgentSummary[] }
+  | { type: "agents-changed"; agents: ClientAgentSummary[] }
   | { type: "memories-changed"; agentId: string }
   | { type: "routines-changed"; agentId: string }
   | { type: "skills-changed"; agentId: string }
@@ -155,7 +155,9 @@ export function isAgentEvent(value: unknown): value is AgentEvent {
       return isDynamicRecord(value.usage);
     case "agents-changed":
       return (
-        Array.isArray(value.agents) && value.agents.length <= INPUT_LIMITS.agents && value.agents.every(isAgentSummary)
+        Array.isArray(value.agents) &&
+        value.agents.length <= INPUT_LIMITS.agents &&
+        value.agents.every(isClientAgentSummary)
       );
     case "memories-changed":
       return isString(value.agentId) && value.agentId.length > 0 && value.agentId.length <= INPUT_LIMITS.identifier;

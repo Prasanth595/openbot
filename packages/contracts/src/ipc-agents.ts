@@ -1,3 +1,4 @@
+import { type AgentProviderRef, isAgentProviderRef } from "./agent-providers";
 import { INPUT_LIMITS } from "./input-limits";
 import {
   type AgentModelId,
@@ -24,7 +25,7 @@ import { isBoundedString, isIdentifier } from "./ipc-bounded-values";
 import { isHiddenAt } from "./ipc-hidden-agents";
 import { type BusyMessageMode, isBusyMessageMode } from "./ipc-queue";
 import type { SidebarLayoutSnapshot } from "./ipc-sidebar-layout";
-import { isBoolean, isDynamicRecord, isNumber, isOneOf } from "./runtime-values";
+import { type DynamicRecord, isBoolean, isDynamicRecord, isNumber, isOneOf } from "./runtime-values";
 
 /**
  * How far an agent may reach on this computer. `workspace` limits writes to the agent's workspace, the
@@ -227,14 +228,26 @@ export interface AgentSummary {
 }
 
 export function isAgentSummary(value: unknown): value is AgentSummary {
-  if (!isDynamicRecord(value)) return false;
+  return isDynamicRecord(value) && isAgentProvider(value.provider) && hasAgentSummaryFields(value);
+}
+
+/**
+ * An agent that a client reads from a host. A newer host can run it on a provider that this OpenBot
+ * does not know; the agent stays listed, and its chat works because the host runs it.
+ */
+export type ClientAgentSummary = Omit<AgentSummary, "provider"> & { provider: AgentProviderRef };
+
+export function isClientAgentSummary(value: unknown): value is ClientAgentSummary {
+  return isDynamicRecord(value) && isAgentProviderRef(value.provider) && hasAgentSummaryFields(value);
+}
+
+function hasAgentSummaryFields(value: DynamicRecord): boolean {
   return (
     isIdentifier(value.id) &&
     isBoundedString(value.name, INPUT_LIMITS.agentName) &&
     isBoundedString(value.title, INPUT_LIMITS.agentTitle) &&
     isBoundedString(value.description, INPUT_LIMITS.agentDescription) &&
     isBoolean(value.notifications) &&
-    isAgentProvider(value.provider) &&
     isAgentModel(value.model) &&
     isReasoningEffort(value.reasoningEffort) &&
     (value.sessionSettingOverrides === undefined || isAgentSessionSettingOverrides(value.sessionSettingOverrides)) &&
@@ -312,7 +325,7 @@ export interface UpdateAgentInput {
 }
 
 export interface DuplicateAgentResult {
-  agent: AgentSummary;
+  agent: ClientAgentSummary;
   layout: SidebarLayoutSnapshot;
 }
 
