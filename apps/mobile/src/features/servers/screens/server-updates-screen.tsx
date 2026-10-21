@@ -85,6 +85,8 @@ export function ServerUpdatesScreen() {
   const blocked = updateBlocked(status);
   const admin = access === "admin";
   const loadFailed = query.isError;
+  // A host that restarts into the update cannot answer. The footer keeps the restart text.
+  const showLoadFailure = loadFailed && !updateRunning(status);
   const disabled = !access || busy !== null || loadFailed || blocked;
   const checkDisabled = !access || busy !== null || loadFailed || (release ? release.phase === "unavailable" : blocked);
   const checking = busy === "check" || status.phase === "checking" || release?.phase === "checking";
@@ -163,7 +165,7 @@ export function ServerUpdatesScreen() {
         title={t("mobile.server.update.hostTitle", { name })}
         footer={
           error ??
-          (loadFailed
+          (showLoadFailure
             ? errorMessage(query.error, t("mobile.server.update.loadFailed", { name }))
             : statusMessage(text, snapshot, name))
         }
