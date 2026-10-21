@@ -121,13 +121,14 @@ vec3 spill(float e, float fall, float strength, float front, float t, out vec3 g
   float fade = max(exp(-sq(max(f - 125.0, 0.0) / 40.0)), 0.14 * smoothstep(60.0, 125.0, f) * exp(-sq(max(f - 170.0, 0.0) / 80.0)));
   // Bright and dim streaks run down the side, so the light visibly moves.
   float streak = 0.55 + 0.9 * noise(vec2(u * 5.0, f / 18.0 - t * 2.4));
-  float bright = pow(strength, 1.5);
-  float soft = sqrt(strength);
+  // A beam near the corner gives more than full strength; it must not turn the side into a white wall.
+  float bright = pow(min(strength, 1.0), 1.5);
+  float soft = sqrt(min(strength, 1.0));
   float warmth = smoothstep(90.0, 130.0, f);
   vec3 coreK = mix(WHITE, WARM, warmth * exp(-d / 9.0));
-  // A wide, soft band runs down the side rather than a thin line, as on huly.io.
-  float core = mix(3.5, 1.4, warmth) * exp(-sq(d / (9.0 + 0.08 * f))) * exp(-sq(max(f - 130.0, 0.0) / 38.0));
-  float wall = 3.0 * exp(-sq(d / 4.5)) * exp(-sq(max(f - 100.0, 0.0) / 30.0));
+  // A thin bright line runs down the edge, with coloured light outside it, as on React Bits.
+  float core = mix(1.6, 0.8, warmth) * exp(-sq(d / (3.5 + 0.03 * f))) * exp(-sq(max(f - 130.0, 0.0) / 38.0));
+  float wall = 3.0 * exp(-sq(d / 1.6)) * exp(-sq(max(f - 100.0, 0.0) / 30.0));
   float bandCenter = 0.7 - 0.3 * smoothstep(30.0, 110.0, f) - 0.3 * smoothstep(110.0, 190.0, f);
   float offset = u - bandCenter;
   float decay = (1.05 - bandCenter) / 1.31;
@@ -139,7 +140,7 @@ vec3 spill(float e, float fall, float strength, float front, float t, out vec3 g
   vec3 fanK = mix(bandA, bandB, smoothstep(0.06, 0.18, offset));
   fanK = mix(fanK, DEEP, smoothstep(0.22, 0.42, offset));
   vec3 thread = (WHITE * wall + coreK * core) * streak * bright;
-  glow += fanK * 4.5 * profile * fade * streak * bright;
+  glow += fanK * 2.2 * profile * fade * streak * bright;
   glow += MIST * 0.7 * exp(-max(u - 1.0, 0.0) / 0.9) * smoothstep(0.7, 1.2, u) * fade * soft;
   glow += EMBER * 0.35 * exp(-sq((f - 165.0) / 22.0)) * exp(-d / 25.0) * bright;
   float lag = u * (6.0 + 0.28 * f) * 0.35;
@@ -272,7 +273,8 @@ void main() {
   col += mix(sideK, WHITE, 0.6) * lineShape * lineOn * lineFlow * lineEnvelope * lineBright * 2.6 * uAmount.w * min(bloom, 1.0);
 
   float edgeGlow = 22.8 * exp(-sq(adx / (0.6 * reachHere))) * edgeMask * (1.0 + 0.9 * bead);
-  float onTop = 1.0 - smoothstep(sy + radius, sy + radius + 10.0, p.y);
+  // The line turns over the corner and fades out down the side, so it does not stop at a step.
+  float onTop = exp(-sq(max(p.y - sy - radius, 0.0) / 50.0));
   float edgeLine = (0.5 * exp(-sq(max(sd, 0.0) / 3.0)) + 0.25 * exp(-max(sd, 0.0) / 10.0)) * edgeGlow * onTop;
   col += mix(sideK, WHITE, 0.6) * edgeLine * min(bloom, 1.0);
 
