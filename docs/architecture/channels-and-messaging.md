@@ -44,7 +44,11 @@ Channels are an exception. The desktop and the web client notify an agent reply 
 the channel list (`channelReplyNotifications`), because the channel service consumes the
 `turn-completed` event of a channel thread. On a host with `channel-attention-v1`, each summary names
 the author and status of its newest message and the thread of each member. A reply notifies once,
-when it stops streaming, while the channel has unread messages. The title of a prompt, an approval or
+when the work of the channel ends (its newest message is an agent's and stopped streaming, and no
+task runs), while the channel has unread messages. A turn that writes many messages, or that asks a
+question on the way, thus notifies once, at its end. The desktop reads the agent list for a
+notification only when a reply is new, and it reads no channel list for a server whose replies
+cannot notify. The title of a prompt, an approval or
 a takeover on a channel thread names the agent and the channel (`notification.channelTitle`), and a
 click opens the channel. The phone has no channel view: it gets no channel reply notification, and a
 channel prompt shows in the agent's chat, with the agent name as the title, as before.

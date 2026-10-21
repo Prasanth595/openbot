@@ -40,7 +40,11 @@ import {
   notificationForUsageLimit,
   notificationRequestKey,
 } from "@openbot/team-client/agent-notifications";
-import { channelForThread, channelReplyNotifications } from "@openbot/team-client/channel-notifications";
+import {
+  channelForThread,
+  channelReplyNotifications,
+  newChannelReplies,
+} from "@openbot/team-client/channel-notifications";
 import { BrowserWindow, Notification } from "electron";
 import { isNoUpdateAnswer } from "../backend/agent/routine-quiet-runs";
 import type { AgentService } from "../backend/agent-service";
@@ -177,8 +181,9 @@ export function createRendererForwarders({
       if (!window || window.isDestroyed() || window.isFocused()) return null;
       return replyLevel(serverId);
     };
-    // Only "all" notifies a reply. The agent lookup is skipped at the other levels.
-    if (level() !== "all") return;
+    // Only "all" notifies a reply. The agent lookup is skipped at the other levels, and while a
+    // reply streams, when no reply is new.
+    if (level() !== "all" || newChannelReplies(previous, next).length === 0) return;
     const remoteManager = getRemoteServerManager();
     const agents =
       serverId === LOCAL_SERVER_ID
@@ -222,16 +227,24 @@ export function createRendererForwarders({
     }
   }
 
-  /** The channel of a prompt, an approval or a takeover, or null when its thread is no channel's. */
-  async function eventChannel(serverId: string, event: AgentEvent): Promise<AgentNotificationChannel | null> {
+  /**
+   * The channel of a prompt, an approval or a takeover, or null when its thread is no channel's. A
+   * known channel comes back at once, so a local notification still shows before
+   * `forwardAgentEvent` returns. Only a remote thread that is not in the list waits for a read.
+   */
+  function eventChannel(
+    serverId: string,
+    event: AgentEvent,
+  ): AgentNotificationChannel | null | Promise<AgentNotificationChannel | null> {
     const threadId = agentEventRequestThread(event);
     if (threadId === null) return null;
     if (serverId === LOCAL_SERVER_ID) return getHostService()?.channelForThread(threadId) ?? null;
     const cached = channelForThread(channelLists.get(serverId) ?? [], threadId);
     if (cached) return cached;
     // A new channel, or a member that joined after the last list: its thread is not in the list yet.
-    const channels = await readChannels(serverId).catch(() => null);
-    return channels ? channelForThread(channels, threadId) : null;
+    return readChannels(serverId)
+      .catch(() => null)
+      .then((channels) => (channels ? channelForThread(channels, threadId) : null));
   }
 
   /**
@@ -297,7 +310,8 @@ export function createRendererForwarders({
           ? await runCauseEffect(remoteManager.request(serverId, TEAM_API_ROUTES.agents.all, decodeAgentSummaries))
           : [];
     const reply = answer ? await answer : null;
-    const channel = await eventChannel(serverId, event);
+    const lookup = eventChannel(serverId, event);
+    const channel = lookup instanceof Promise ? await lookup : lookup;
     const level = notifyLevel();
     const content = !level
       ? null
