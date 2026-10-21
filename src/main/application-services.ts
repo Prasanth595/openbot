@@ -179,6 +179,7 @@ import { HostedSiteDesktopService } from "./hosted-site-service";
 import { IdleRestart } from "./idle-restart";
 import { loadIngressQueueKey } from "./ingress-queue-key";
 import { InstanceTransferService } from "./instance-transfer-service";
+import { prepareToolRuntimeForTest } from "./ipc/mcp-server-handlers";
 import { LanguageService } from "./language-service";
 import { localRoutineFeedDocument } from "./local-routine-calendar";
 import { createLoginItem } from "./login-item";
@@ -1432,6 +1433,14 @@ export async function createApplicationServices({
     mailbox,
     browser,
     visualPreview: new ChatVisualPreviewer(),
+    prepareMcpTest: (config) =>
+      prepareToolRuntimeForTest(config, {
+        startToolRuntimes: () => {
+          Effect.runFork(providerRuntimes.ensureToolRuntimes());
+        },
+        ensureToolRuntimesReady: () => providerRuntimes.ensureToolRuntimesReady(),
+        toolRuntimes: () => providerRuntimes.mcpToolRuntimes(),
+      }),
     // `desktopCapturer` captures the display OpenBot is on. With an agent display of its own, that
     // is only the OpenBot window, so agents take their screenshots with the Computer Use driver.
     screenCapture: hasSeparateAgentDisplay(process.platform)

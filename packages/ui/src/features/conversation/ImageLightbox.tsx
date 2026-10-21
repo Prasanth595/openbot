@@ -1,5 +1,5 @@
 import type { AttachmentSummary } from "@openbot/contracts/ipc";
-import { Button, ChevronLeft, ChevronRight, Dialog, X } from "@openbot/ui";
+import { Button, ChevronLeft, ChevronRight, Dialog, Spinner, X } from "@openbot/ui";
 import { prefersReducedMotion } from "@openbot/ui/utils";
 import { createMemo, createSignal, createStore, For, onCleanup, onSettled, Show, untrack } from "solid-js";
 import { useText } from "../../text";
@@ -48,6 +48,7 @@ export function ImageGallery(props: {
   const { t } = useText();
   const [ratios, setRatios] = createStore<Record<string, number>>({});
   const [missing, setMissing] = createStore<Record<string, boolean>>({});
+  const [loaded, setLoaded] = createStore<Record<string, boolean>>({});
   const [width, setWidth] = createSignal(0);
   let gallery: HTMLUListElement | undefined;
   const layout = createMemo(() =>
@@ -84,7 +85,8 @@ export function ImageGallery(props: {
         {(image, index) => {
           const box = () => layout().boxes[index()];
           // Keyed by URL: a new URL for the same attachment gets a new try.
-          const isMissing = () => missing[image.previewUrl ?? image.id] === true;
+          const key = () => image.previewUrl ?? image.id;
+          const isMissing = () => missing[key()] === true;
           return (
             <li
               class="image-gallery-item"
@@ -115,12 +117,20 @@ export function ImageGallery(props: {
                 }}
               >
                 <Show when={!isMissing()} fallback={props.onDownload ? <DownloadIcon /> : <X aria-hidden="true" />}>
+                  <Show when={!loaded[key()]}>
+                    <span class="image-gallery-tile-loading">
+                      <Spinner />
+                    </span>
+                  </Show>
                   <img
                     src={image.previewUrl ?? ""}
                     alt=""
                     decoding="async"
                     draggable={false}
                     onLoad={(event) => {
+                      setLoaded((state) => {
+                        state[key()] = true;
+                      });
                       const { naturalHeight, naturalWidth } = event.currentTarget;
                       if (naturalWidth <= 0 || naturalHeight <= 0) return;
                       const ratio = Math.min(
@@ -133,7 +143,7 @@ export function ImageGallery(props: {
                     }}
                     onError={() =>
                       setMissing((state) => {
-                        state[image.previewUrl ?? image.id] = true;
+                        state[key()] = true;
                       })
                     }
                   />

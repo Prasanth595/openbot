@@ -34,6 +34,7 @@ import { installSupportLog } from "@/features/support/model/support-log-capture"
 import { AppLoadingOverlayProvider, useAppLoadingOverlay } from "@/shared/components/app-loading-overlay";
 import { BloubAnimationProvider } from "@/shared/components/bloub-loader";
 import { SplashBackdrop } from "@/shared/components/splash-backdrop";
+import { navigationFonts } from "@/shared/lib/app-font";
 import { useReducedMotion } from "@/shared/lib/motion";
 import { nativeSplash } from "@/shared/lib/native-splash";
 import { isAndroid, isIOS } from "@/shared/lib/platform";
@@ -63,6 +64,7 @@ installQuickActions();
 installAppLock();
 
 const UniwindGestureHandlerRootView = withUniwind(GestureHandlerRootView);
+const lightTheme = { ...DefaultTheme, fonts: navigationFonts };
 
 function RootNavigator() {
   const { t } = useText();
@@ -214,7 +216,10 @@ export default function RootLayout() {
   const heroConfig = useMemo(() => (animations ? {} : { animation: "disable-all" as const }), [animations]);
   const canvas = String(useCSSVariable("--openbot-bg-native-canvas"));
   // React Navigation paints its near-black dark background behind screens during transitions.
-  const darkTheme = useMemo(() => ({ ...DarkTheme, colors: { ...DarkTheme.colors, background: canvas } }), [canvas]);
+  const darkTheme = useMemo(
+    () => ({ ...DarkTheme, colors: { ...DarkTheme.colors, background: canvas }, fonts: navigationFonts }),
+    [canvas],
+  );
   // Android shows the window background behind the system bars. Without this it keeps the light splash color.
   // iOS shows the window background behind sheets, so it keeps its default.
   useEffect(() => {
@@ -251,7 +256,7 @@ export default function RootLayout() {
           <HeroUINativeProvider config={heroConfig}>
             {/* Off in Settings reduces every animation that follows the system Reduce Motion setting. */}
             {animations ? null : <ReducedMotionConfig mode={ReduceMotion.Always} />}
-            <ThemeProvider value={colorScheme === "dark" ? darkTheme : DefaultTheme}>
+            <ThemeProvider value={colorScheme === "dark" ? darkTheme : lightTheme}>
               <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
               <BloubAnimationProvider>
                 <MobileSessionProvider>

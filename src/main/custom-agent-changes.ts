@@ -148,7 +148,9 @@ export function createCustomAgentChanges({
         yield* runtimeSync(() => assertWindowsScriptArgs(executable, input.args));
         // The same `PATH` the agent starts with.
         const path = yield* agentLaunchPath().pipe(toProviderRuntimeFailure);
-        return yield* check({ executable, args: input.args, env, path }).pipe(toProviderRuntimeFailure);
+        return yield* check({ executable, args: input.args, env, path, listModels: true }).pipe(
+          toProviderRuntimeFailure,
+        );
       })().pipe(Effect.uninterruptible),
   };
 }

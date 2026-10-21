@@ -109,7 +109,7 @@ Its main jobs are:
 | Local scripts CLI E2E | `ubuntu-latest` | `bun run test:automation-cli` |
 | Team API routes E2E | `ubuntu-latest` | `bun run test:team-api-routes`, when desktop code changes |
 | Team API and reverse actions E2E | `ubuntu-latest` | `test:team-legacy-clients`, `test:team-session-revoke`, `test:server-mute`, `test:routine-pause-resume`, `test:agent-hide-restore`, `test:messaging-pause-resume`, `test:messaging-discord-access`, `test:provider-update-busy`, `test:provider-exit-session` and `test:zip-attachments`, each with `bun run` in its own step, when the `desktop` lane runs |
-| Provider fakes E2E | `ubuntu-latest` | `test:custom-agents`, `test:custom-agents:login-path`, `test:acp-directories`, `test:opencode-expired-key`, `test:opencode-downgraded-session` and `test:cline-free-models`, each with `bun run` in its own step, when the `desktop` lane runs. The fake agents are in `scripts/provider-fakes/` |
+| Provider fakes E2E | `ubuntu-latest` | `test:custom-agents`, `test:custom-agents:login-path`, `test:acp-directories`, `test:acp-flavors`, `test:provider-conformance`, `test:opencode-expired-key`, `test:opencode-downgraded-session`, `test:cline-free-models` and `test:provider-transcript-replay`, each with `bun run` in its own step, when the `desktop` lane runs. The fake agents are in `scripts/provider-fakes/`; the replayed transcripts of released CLIs are in `scripts/provider-fakes/transcripts/`, and `bun scripts/record-provider-transcript.ts` records a new one |
 | Surfaces | `ubuntu-latest` | Parallel groups described below, then `bun run remote:check:compose` |
 | API | `ubuntu-latest` | `bun run check:api`, then, for a pull request from this repository, upload `apps/auth-api/dist` |
 | Storybook build | `ubuntu-latest` | `bun run build-storybook` |
@@ -131,6 +131,10 @@ if a step fails. The steps have separate logs. The groups run in this order:
 The desktop test shards keep separate runners. The API checks, artifact uploads, and production
 deployment dependencies keep their existing order. Local commands do not change. Compare job
 times on GitHub before claiming a time reduction; parallel steps share the runner's resources.
+
+The `Provider CLI canary` workflow is not a pull request check. It runs every six hours on the newest
+upstream provider CLIs, which reach users without an OpenBot release; see
+[Provider CLI updates](architecture/providers.md#provider-cli-updates).
 
 `check:api` ends with `api:build:check`, which is the preview build of the Worker, so the API job
 uploads that build as the `cloudflare-preview` artifact. The job has no secrets. After the CI run completes, the trusted

@@ -5,6 +5,7 @@ import {
   hostedSiteConversationEvent,
   isContextResetMarker,
   marketplaceSuggestionEvent,
+  mcpSignInEvent,
   modelSwitchReason,
   parseConversationPlanText,
   routineConversationEvent,
@@ -311,6 +312,8 @@ function chatActionMarker(
   if (skillEvent) return { ...skillEvent, kind: "skill-lifecycle", timestamp: message.createdAt };
   const suggestion = marketplaceSuggestionEvent(message);
   if (suggestion) return { kind: "marketplace-suggestion", appId: suggestion.appId, timestamp: message.createdAt };
+  const signIn = mcpSignInEvent(message);
+  if (signIn) return { kind: "mcp-sign-in", mcpServerId: signIn.mcpServerId, timestamp: message.createdAt };
   if (routineEvent) {
     return {
       kind: "routine-lifecycle",

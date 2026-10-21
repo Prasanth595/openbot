@@ -675,6 +675,14 @@ export function createComposerActions(deps: ComposerActionsDeps) {
     return true;
   }
 
+  /** A message that a card in the chat sends for the user, such as Continue after a sign-in. */
+  function sendCardMessage(body: string): boolean {
+    const target = deps.currentTarget();
+    if (!target || deps.submitting() || !deps.agentReady()) return false;
+    queueSend(target, { text: body, attachments: [], replyToMessageId: null }, body);
+    return true;
+  }
+
   return {
     updateTeamTyping,
     stopTeamTyping,
@@ -688,6 +696,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
     submitMessage,
     submitComposer,
     sendSelectionInstruction,
+    sendCardMessage,
     retryPendingSend,
     editPendingSend,
     dismissPendingSend,
