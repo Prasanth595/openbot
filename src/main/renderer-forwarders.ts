@@ -120,8 +120,26 @@ export function createRendererForwarders({
   /** The shown reply notification of each channel. A newer reply replaces it. */
   const channelNotifications = new Map<string, Notification>();
 
-  /** One read at a time for each server. A change during a read causes one more read after it. */
+  /** The notification level of a server's channel replies, or null when none can show. */
+  function replyLevel(serverId: string) {
+    const server = getRemoteServerManager()
+      ?.list()
+      .find((candidate) => candidate.id === serverId);
+    if (!desktopNotificationsEnabled() || !server || server.notificationsMuted) return null;
+    return server.notificationLevel;
+  }
+
+  /**
+   * One read at a time for each server. A change during a read causes one more read after it. A
+   * streaming reply changes the channels on each frame, so a server whose replies cannot notify is
+   * not read: its baseline is dropped, and the next list sets a new one. A prompt reads its channel
+   * on its own when the list has none.
+   */
   function refreshChannels(serverId: string): void {
+    if (replyLevel(serverId) !== "all") {
+      channelLists.delete(serverId);
+      return;
+    }
     if (channelReads.has(serverId)) {
       channelReads.set(serverId, true);
       return;
@@ -156,11 +174,8 @@ export function createRendererForwarders({
     if (!previous || !Notification.isSupported()) return;
     const level = () => {
       const window = getMainWindow();
-      const server = getRemoteServerManager()
-        ?.list()
-        .find((candidate) => candidate.id === serverId);
-      if (!window || window.isDestroyed() || window.isFocused() || !desktopNotificationsEnabled()) return null;
-      return server && !server.notificationsMuted ? server.notificationLevel : null;
+      if (!window || window.isDestroyed() || window.isFocused()) return null;
+      return replyLevel(serverId);
     };
     // Only "all" notifies a reply. The agent lookup is skipped at the other levels.
     if (level() !== "all") return;
