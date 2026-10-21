@@ -7,7 +7,7 @@
 // directory is not.
 // `bun run test:opencode-downgraded-session`. Writes .openbot-build/opencode-downgraded-session-e2e/report.json.
 import assert from "node:assert/strict";
-import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { sourceText } from "@openbot/i18n/source";
@@ -16,68 +16,9 @@ import type { AgentClient } from "../src/backend/agent-client";
 import type { AgentCliInfo } from "../src/backend/cli";
 import { runCauseEffect } from "../src/backend/effect-boundary";
 import { NO_PROVIDER_CREDENTIALS, requireProviderDriver } from "../src/backend/provider-drivers";
+import { installFakeAgent, readJsonl, stopClients } from "./provider-fakes/host";
 
 const OUT = resolve(import.meta.dirname, "../.openbot-build/opencode-downgraded-session-e2e");
-
-// Sessions named `v2-…` are in the table this version cannot read: not listed, and not resumable.
-// `kept-…` sessions are listed but fail to resume, as an internal fault does. `v1only-…` and
-// `othercwd-…` get the OpenCode 2.x answers for a session it does not have and for another directory.
-const FAKE_OPENCODE = `#!/usr/bin/env node
-const fs = require("node:fs");
-const NL = String.fromCharCode(10);
-const log = (entry) => fs.appendFileSync(process.env.FAKE_OPENCODE_LOG, JSON.stringify(entry) + NL);
-const write = (message) => process.stdout.write(JSON.stringify({ jsonrpc: "2.0", ...message }) + NL);
-const MODEL = "opencode/minimax-m3.1-flash-free";
-const setup = (sessionId) => ({ sessionId,
-  models: { availableModels: [{ modelId: MODEL, name: "MiniMax" }], currentModelId: MODEL } });
-const failure = { code: -32603, message: "Internal error: OpenCode service failure", data: { service: "session" } };
-const missing = (sessionId) => ({ code: -32602, message: "Invalid params: session not found: " + sessionId,
-  data: { sessionId } });
-const otherCwd = (sessionId, cwd) => ({ code: -32602,
-  message: "Invalid params: session " + sessionId + " does not belong to cwd: " + cwd, data: { sessionId, cwd } });
-let count = 0;
-function handle(message) {
-  if (message.id === undefined) return;
-  const params = message.params ?? {};
-  if (message.method === "initialize") {
-    write({ id: message.id, result: { protocolVersion: 1, authMethods: [], agentCapabilities: {
-      loadSession: true, sessionCapabilities: { close: {}, fork: {}, list: {}, resume: {} } } } });
-    return;
-  }
-  if (message.method === "session/new") {
-    count += 1;
-    write({ id: message.id, result: setup("s-" + process.pid + "-" + count) });
-    return;
-  }
-  if (message.method === "session/resume" || message.method === "session/load") {
-    log({ event: message.method, sessionId: params.sessionId });
-    if (/^(?:v2|kept)-/.test(params.sessionId)) write({ id: message.id, error: failure });
-    else if (params.sessionId.startsWith("v1only-")) write({ id: message.id, error: missing(params.sessionId) });
-    else if (params.sessionId.startsWith("othercwd-"))
-      write({ id: message.id, error: otherCwd(params.sessionId, params.cwd) });
-    else write({ id: message.id, result: setup(params.sessionId) });
-    return;
-  }
-  if (message.method === "session/list") {
-    log({ event: "session/list" });
-    write({ id: message.id, result: { sessions: [{ sessionId: "kept-1", cwd: params.cwd }] } });
-    return;
-  }
-  write({ id: message.id, result: {} });
-}
-let buffer = "";
-process.stdin.setEncoding("utf8");
-process.stdin.on("data", (chunk) => {
-  buffer += chunk;
-  let index;
-  while ((index = buffer.indexOf(NL)) >= 0) {
-    const line = buffer.slice(0, index);
-    buffer = buffer.slice(index + 1);
-    if (line.trim()) handle(JSON.parse(line));
-  }
-});
-setInterval(() => {}, 1000);
-`;
 
 interface LogEntry {
   event: "session/resume" | "session/load" | "session/list";
@@ -95,15 +36,7 @@ const root = await mkdtemp(join(tmpdir(), "openbot-opencode-downgraded-session-e
 const log = join(root, "opencode.jsonl");
 const report: Report = { passed: false };
 const clients: AgentClient[] = [];
-process.env.FAKE_OPENCODE_LOG = log;
-
-async function readLog(): Promise<LogEntry[]> {
-  const text = await readFile(log, "utf8").catch(() => "");
-  return text
-    .split("\n")
-    .filter(Boolean)
-    .map((line) => JSON.parse(line));
-}
+process.env.FAKE_LOG = log;
 
 /** Resumes a thread and answers the failure, which must not be a success. */
 async function resumeFailure(client: AgentClient, threadId: string, cwd: string): Promise<Error> {
@@ -119,10 +52,8 @@ async function resumeFailure(client: AgentClient, threadId: string, cwd: string)
 try {
   const executable = join(root, "opencode", "bin", "opencode");
   const workspace = join(root, "workspace");
-  await mkdir(join(root, "opencode", "bin"), { recursive: true });
   await mkdir(workspace);
-  await writeFile(executable, FAKE_OPENCODE);
-  await chmod(executable, 0o755);
+  await installFakeAgent(executable, "opencode-downgraded-session");
   const cli: AgentCliInfo = { executable, version: "1.19.3", source: "managed" };
   const client = requireProviderDriver("opencode").createClient(cli, 10_000, NO_PROVIDER_CREDENTIALS);
   clients.push(client);
@@ -131,7 +62,7 @@ try {
   // 1. A session that this version cannot read is a missing session, so the agent gets a new one
   // with its transcript instead of failing each turn.
   const unreadable = await resumeFailure(client, "v2-1", workspace);
-  const first = await readLog();
+  const first = await readJsonl<LogEntry>(log);
   const unreadableReport = {
     error: unreadable.message,
     missingSession: isMissingProviderSessionError(unreadable, "opencode"),
@@ -149,7 +80,7 @@ try {
   const keptReport = {
     error: kept.message,
     missingSession: isMissingProviderSessionError(kept, "opencode"),
-    resumes: (await readLog()).filter((entry) => entry.event === "session/resume").length,
+    resumes: (await readJsonl<LogEntry>(log)).filter((entry) => entry.event === "session/resume").length,
   };
   report.listed = keptReport;
   assert.equal(keptReport.missingSession, false, "A listed session is not replaced.");
@@ -167,7 +98,7 @@ try {
 
   report.passed = true;
 } finally {
-  await Promise.all(clients.map((client) => runCauseEffect(client.stop()).catch(() => undefined)));
+  await stopClients(clients);
   await mkdir(OUT, { recursive: true });
   await writeFile(join(OUT, "report.json"), `${JSON.stringify(report, null, 2)}\n`);
   await rm(root, { recursive: true, force: true });

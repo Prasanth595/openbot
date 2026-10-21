@@ -100,9 +100,9 @@
     },
     {
       "slug": "composio",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "featured": false,
-      "detailSha256": "f3833ad73221b264a3611761dadaadfd978832c8431106ce92e6a7a45ee9b49c"
+      "detailSha256": "443362cf513bc0925fa9df7158def02d78a5e6c5a403ffb42759436a27367284"
     }
   ]
 }

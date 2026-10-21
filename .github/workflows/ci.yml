@@ -377,6 +377,62 @@ jobs:
             .openbot-build/zip-attachment-e2e/
           if-no-files-found: ignore
 
+  provider-fakes-e2e:
+    # Runs the real ACP provider drivers (custom agents, OpenCode, Cline) over fake agents from
+    # `scripts/provider-fakes/`. The fakes speak ACP on stdio as the released CLIs do, so the job
+    # needs no provider account, network or display.
+    name: Provider fakes E2E
+    needs: detect
+    if: needs.detect.outputs.desktop == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Bun
+        uses: ./.github/actions/setup-bun
+        with:
+          install: ignore-scripts
+
+      - name: Run the custom ACP agents E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:custom-agents
+
+      - name: Run the custom ACP agent login shell PATH E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:custom-agents:login-path
+
+      - name: Run the ACP additional directories E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:acp-directories
+
+      - name: Run the OpenCode expired key E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:opencode-expired-key
+
+      - name: Run the OpenCode downgraded session E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:opencode-downgraded-session
+
+      - name: Run the Cline free models E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:cline-free-models
+
+      - name: Upload the reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: provider-fakes-e2e
+          path: |
+            .openbot-build/custom-acp-agent-e2e/
+            .openbot-build/custom-acp-agent-login-path-e2e/
+            .openbot-build/acp-additional-directories-e2e/
+            .openbot-build/opencode-expired-key-e2e/
+            .openbot-build/opencode-downgraded-session-e2e/
+            .openbot-build/cline-free-models-e2e/
+          if-no-files-found: ignore
+
   surfaces:
     # `desktop:typecheck` covers only the desktop projects, so without this job
     # `apps/mobile`, `apps/site-router`, `packages/team-client`, `remote/api`,
@@ -502,7 +558,7 @@ jobs:
     # fails this one.
     name: All required checks pass
     if: always()
-    needs: [detect, check, browser, tests-desktop, signal-e2e, automation-cli-e2e, team-api-routes-e2e, reverse-actions-e2e, surfaces, api, storybook]
+    needs: [detect, check, browser, tests-desktop, signal-e2e, automation-cli-e2e, team-api-routes-e2e, reverse-actions-e2e, provider-fakes-e2e, surfaces, api, storybook]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -528,7 +584,7 @@ jobs:
     # `apps/auth-api`, which `api` already covers: mobile, the site router, the
     # team client and the remote stack all consume the account API, so a red
     # Surfaces is the signal that this deploy is the thing about to break them.
-    needs: [check, browser, tests-desktop, signal-e2e, automation-cli-e2e, team-api-routes-e2e, reverse-actions-e2e, api, storybook, surfaces]
+    needs: [check, browser, tests-desktop, signal-e2e, automation-cli-e2e, team-api-routes-e2e, reverse-actions-e2e, provider-fakes-e2e, api, storybook, surfaces]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: cloudflare-production
