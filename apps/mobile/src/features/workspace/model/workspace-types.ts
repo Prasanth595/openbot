@@ -20,6 +20,7 @@ import type {
   AgentTemplatePublication,
   AvatarHue,
   AvatarImageInput,
+  ClearableStorageCategory,
   ConversationFileSearchPage,
   ConversationSearchPage,
   ConversationSnapshot,
@@ -31,12 +32,16 @@ import type {
   HostAgentMemoryLimit,
   HostAnalytics,
   HostAnalyticsInput,
+  HostedSiteList,
   HostGitHubConnectorStatus,
   HostMessagingConnectInput,
   HostMessagingWorkspaceInput,
   HostProviderAccounts,
+  HostReleaseStatus,
   HostSetMessagingEnabledInput,
   HostTimezoneSettings,
+  HostUpdateSettingsChange,
+  HostUpdateStatus,
   InstallAgentTemplateInput,
   InstalledSkill,
   MessagingOverview,
@@ -64,6 +69,7 @@ import type {
   UpdateAgentAdminSettingsInput,
   UpdateAgentHostSettingsInput,
   UpdateAgentInput,
+  UpdateRestartMode,
   UpdateRoutineInput,
 } from "@openbot/contracts/ipc";
 import type {
@@ -82,10 +88,14 @@ import type { RemoteFileUpload } from "@openbot/team-client/remote-peer";
 import type { MessagingConnectorPage } from "@openbot/team-client/team-admin-requests";
 import type { MobileBrowserTab } from "@/features/browser/model/browser-tabs";
 import type { BrowserViewBridgeEvent, RemoteBrowserViewSession } from "@/features/browser/model/browser-view-bridge";
+import type { ProviderAdmin } from "@/features/servers/model/provider-admin";
 import type { MobileConversationStore } from "./conversation-store";
 import type { LiveWorkspaceStore } from "./live-workspace-store";
 
 type MobileServerKind = "local" | "remote";
+/** The route set that reaches a host's OpenBot update: the admin set or the member set. */
+export type ServerUpdateAccess = "admin" | "member";
+
 export type MobileServerState = "unknown" | "connecting" | "online" | "offline" | "error";
 export type MobileServerDirectoryState = "loading" | "ready" | "error";
 
@@ -285,6 +295,39 @@ export interface MobileWorkspaceContextValue {
     input: HostAddMessagingOrchestratorInput,
     serverId: string,
   ) => Promise<AddMessagingOrchestratorResult>;
+  /**
+   * How this user reaches the OpenBot update of an online host: an owner or admin through
+   * `host-update-v1`, any member through `host-member-update-v1`. Null when neither applies.
+   */
+  serverUpdateAccess: (serverId: string) => ServerUpdateAccess | null;
+  /** True when the host serves `host-release-v1`, which tells how its installation updates. */
+  canReadServerRelease: (serverId: string) => boolean;
+  loadServerUpdate: (serverId: string, access: ServerUpdateAccess) => Promise<HostUpdateStatus>;
+  /** The host starts the check and answers at once. Read the status again for the outcome. */
+  checkServerUpdate: (serverId: string, access: ServerUpdateAccess) => Promise<HostUpdateStatus>;
+  /** A member's update always waits for idle agents. A second start replaces the restart mode. */
+  startServerUpdate: (
+    serverId: string,
+    access: ServerUpdateAccess,
+    restart: UpdateRestartMode,
+  ) => Promise<HostUpdateStatus>;
+  /** Owners and admins only. */
+  cancelServerUpdate: (serverId: string) => Promise<HostUpdateStatus>;
+  setServerUpdateSettings: (settings: HostUpdateSettingsChange, serverId: string) => Promise<HostUpdateStatus>;
+  loadServerRelease: (serverId: string) => Promise<HostReleaseStatus>;
+  checkServerRelease: (serverId: string) => Promise<HostReleaseStatus>;
+  /** An online host that serves `hosted-sites-v1`. Every member reads the sites. */
+  canViewHostedSites: (serverId: string) => boolean;
+  /** An owner or admin of an online host that serves `hosted-sites-v1`. The host checks the role again. */
+  canDeleteHostedSites: (serverId: string) => boolean;
+  /** The openbot.site sites that agents on the server published, and the site limit of its plan. */
+  loadHostedSites: (serverId: string) => Promise<HostedSiteList>;
+  /** The address of the site returns 410 Gone immediately. */
+  deleteHostedSite: (siteId: string, serverId: string) => Promise<void>;
+  /** An owner or admin of an online host that serves `providers-v1`. The host checks the role again. */
+  canManageProviders: (serverId: string) => boolean;
+  /** The Providers admin of one host, with the newest route set that it serves. */
+  providerAdmin: (serverId: string) => ProviderAdmin;
   addRemoteServer: (input: AddRemoteServerInput) => Promise<string>;
   /** Creates an agent on the active server and returns its id. */
   createAgent: (input: CreateAgentInput) => Promise<string>;
@@ -342,6 +385,12 @@ export interface MobileWorkspaceContextValue {
   uninstallAgentSkill: (input: UninstallSkillInput, serverId: string) => Promise<void>;
   /** Null when the host does not advertise `storage-v1`. */
   loadAgentStorage: (agentId: string, serverId: string, force?: boolean) => Promise<StorageUsage | null>;
+  /** True when the host advertises `storage-v1`. Every member reads the host's storage. */
+  canReadServerStorage: (serverId: string) => boolean;
+  /** Every location on the host, its agents, its largest chats and its stored files. */
+  loadServerStorage: (serverId: string, force?: boolean) => Promise<StorageUsage>;
+  /** Owners and admins only; the host refuses a member. */
+  clearServerStorage: (category: ClearableStorageCategory, serverId: string) => Promise<void>;
   /** Null when the host does not advertise `agent-admin-v1`. Owners and admins only; the host refuses a member. */
   loadAgentAdminSettings: (agentId: string, serverId: string) => Promise<AgentAdminSettings | null>;
   /** Owners and admins only; the host refuses a member. Resolves with the settings the host saved. */
@@ -482,7 +531,8 @@ export type MobileWorkspaceCapabilityCheck =
   | "canChooseNewAgentModel"
   | "canInstallAgentTemplate"
   | "canSearchFiles"
-  | "canUseTasks";
+  | "canUseTasks"
+  | "canReadServerStorage";
 
 type MobileWorkspaceStateKey =
   | MobileWorkspaceCapabilityCheck
@@ -503,6 +553,11 @@ type MobileWorkspaceStateKey =
   | "canManageAgentMemoryLimit"
   | "canManageConnectors"
   | "canManageOnePasswordConnector"
+  | "serverUpdateAccess"
+  | "canReadServerRelease"
+  | "canViewHostedSites"
+  | "canDeleteHostedSites"
+  | "canManageProviders"
   | "canSendNotifications"
   | "canManageEvents"
   | "canManageAgentSkills"

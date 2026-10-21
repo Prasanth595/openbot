@@ -83,6 +83,17 @@ export const queryKeys = {
     serverId,
     connector,
   ],
+  serverUpdate: (scope: QueryScope, serverId: string) => ["server-update", ...scope, serverId],
+  serverStorage: (scope: QueryScope, serverId: string) => ["server-storage", ...scope, serverId],
+  serverSites: (scope: QueryScope, serverId: string) => ["server-sites", ...scope, serverId],
+  providerStatus: (scope: QueryScope, serverId: string) => ["provider-status", ...scope, serverId],
+  providerRuntimes: (scope: QueryScope, serverId: string) => ["provider-runtimes", ...scope, serverId],
+  providerKey: (scope: QueryScope, serverId: string, provider: string) => [
+    "provider-key",
+    ...scope,
+    serverId,
+    provider,
+  ],
   serverLogo: (scope: QueryScope, serverId: string, ...logo: [] | [logoKey: string | null]) => [
     "server-logo",
     ...scope,

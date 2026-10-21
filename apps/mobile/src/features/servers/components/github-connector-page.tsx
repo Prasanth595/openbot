@@ -6,6 +6,7 @@ import { openBrowserAsync } from "expo-web-browser";
 import { Typography } from "heroui-native";
 import { Alert } from "react-native";
 import { ConnectorError, ConnectorHeader } from "@/features/servers/components/connector-header";
+import { TrailingValue } from "@/features/servers/components/trailing-value";
 import { platformPage } from "@/features/servers/model/connectors";
 import { useConnectorAction, useGitHubRepositories } from "@/features/servers/model/use-server-connectors";
 import {
@@ -13,7 +14,6 @@ import {
   SettingsNote,
   SettingsRow,
   SettingsSection,
-  SettingsTrailingValue,
 } from "@/features/settings/components/settings-content";
 import { useMobileWorkspaceActions } from "@/features/workspace/context/mobile-workspace-context";
 import type { GitHubConnectorRoute, MobileServer } from "@/features/workspace/model/workspace-types";
@@ -152,7 +152,7 @@ export function GitHubConnectorPage({
           <SettingsSection footer={t("mobile.server.connectors.github.repositoriesFooter")}>
             <SettingsRow
               trailing={
-                repositories.data ? <SettingsTrailingValue value={format.number(repositories.data.total)} /> : undefined
+                repositories.data ? <TrailingValue value={format.number(repositories.data.total)} /> : undefined
               }
               supportingText={
                 repositories.isError

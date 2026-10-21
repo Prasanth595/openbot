@@ -48,9 +48,14 @@ import {
   TEAM_ZIP_ATTACHMENTS_CAPABILITY,
 } from "@openbot/contracts/team-protocol/current";
 import { EVENTS_CAPABILITY } from "@openbot/contracts/team-protocol/events-v1";
+import { HOST_MEMBER_UPDATE_CAPABILITY } from "@openbot/contracts/team-protocol/host-member-update-v1";
+import { HOST_RELEASE_CAPABILITY } from "@openbot/contracts/team-protocol/host-release-v1";
 import { HOST_TIMEZONE_CAPABILITY } from "@openbot/contracts/team-protocol/host-timezone-v1";
+import { HOST_UPDATE_CAPABILITY } from "@openbot/contracts/team-protocol/host-update-v1";
+import { HOSTED_SITES_CAPABILITY } from "@openbot/contracts/team-protocol/hosted-sites-v1";
 import { ONEPASSWORD_CONNECTOR_CAPABILITY } from "@openbot/contracts/team-protocol/onepassword-connector-v1";
 import { PROVIDER_ACCOUNTS_CAPABILITY } from "@openbot/contracts/team-protocol/provider-accounts-v1";
+import { PROVIDERS_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/providers-v1";
 import { TEAM_QUEUE_EDIT_CAPABILITY } from "@openbot/contracts/team-protocol/queue-edit-v1";
 import { SHARED_TABLES_CAPABILITY } from "@openbot/contracts/team-protocol/shared-tables-v1";
 import { SKILLS_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/skills-admin-v1";
@@ -61,10 +66,16 @@ import { readHostAnalytics } from "@openbot/team-client";
 import type { RemoteFileUpload } from "@openbot/team-client/remote-peer";
 import { buildRoutineCalendar, type RoutineCalendarSource } from "@openbot/team-client/routine-calendar";
 import {
+  cancelHostUpdate,
+  checkHostForUpdate,
+  checkHostRelease,
   deleteEventRoutine,
+  deleteHostedSite,
   deleteSharedTable,
   getHostAgentMemoryLimit,
+  getHostReleaseStatus,
   getHostTimezone,
+  getHostUpdateStatus,
   githubConnectorRepositories,
   githubConnectorRequest,
   installAgentTemplate,
@@ -72,6 +83,7 @@ import {
   listEventActivity,
   listEventRoutines,
   listHiddenAgents,
+  listHostedSites,
   listProviderAccounts,
   listSharedTables,
   messagingConnectorAddOrchestrator,
@@ -94,6 +106,8 @@ import {
   setAgentSkillEnabled,
   setHostAgentMemoryLimit,
   setHostTimezone,
+  setHostUpdateSettings,
+  startHostUpdate,
   testEventRoutine,
   uninstallAgentSkill,
   unpublishAgentTemplate,
@@ -115,6 +129,7 @@ import {
 import type { QueryClient } from "@tanstack/react-query";
 import { Effect } from "effect";
 import * as Crypto from "expo-crypto";
+import { createProviderAdmin } from "@/features/servers/model/provider-admin";
 import { decodeConversationSearchPage } from "@/features/workspace/model/conversation";
 import { type QueryScope, queryKeys } from "@/features/workspace/model/query-keys";
 import { saveAgentRecord } from "@/features/workspace/model/save-agent-record";
@@ -129,6 +144,7 @@ import type {
   MobileWorkspaceActions,
   MobileWorkspaceCapabilityCheck,
   MobileWorkspaceState,
+  ServerUpdateAccess,
 } from "@/features/workspace/model/workspace-types";
 
 /** Sends one Team API request to a server; without a server ID it uses the active server. */
@@ -178,6 +194,8 @@ type HostRequestActions = Pick<
   | "setAgentSkillEnabled"
   | "uninstallAgentSkill"
   | "loadAgentStorage"
+  | "loadServerStorage"
+  | "clearServerStorage"
   | "loadAgentAdminSettings"
   | "updateAgentAdminSettings"
   | "loadAgentHostSettings"
@@ -202,6 +220,16 @@ type HostRequestActions = Pick<
   | "disconnectMessaging"
   | "setMessagingEnabled"
   | "addMessagingOrchestrator"
+  | "loadServerUpdate"
+  | "checkServerUpdate"
+  | "startServerUpdate"
+  | "cancelServerUpdate"
+  | "setServerUpdateSettings"
+  | "loadServerRelease"
+  | "checkServerRelease"
+  | "loadHostedSites"
+  | "deleteHostedSite"
+  | "providerAdmin"
   | "setAgentSessionSetting"
   | "resetAgentSessionSetting"
   | "listSharedTables"
@@ -300,6 +328,19 @@ export function createHostRequestActions({
     capabilityApi(serverId, CONNECTORS_CAPABILITY, "mobile.server.connectors.unsupported");
   const onePasswordAdmin = (serverId: string) =>
     capabilityApi(serverId, ONEPASSWORD_CONNECTOR_CAPABILITY, "mobile.server.connectors.unsupported");
+  /** The OpenBot update of the host: the admin route set, or the member set that only checks and starts. */
+  const updateApi = (serverId: string, access: ServerUpdateAccess) =>
+    capabilityApi(
+      serverId,
+      access === "admin" ? HOST_UPDATE_CAPABILITY : HOST_MEMBER_UPDATE_CAPABILITY,
+      "mobile.server.update.unavailable",
+    );
+  const updateAdmin = (serverId: string) => updateApi(serverId, "admin");
+  const releaseApi = (serverId: string) =>
+    capabilityApi(serverId, HOST_RELEASE_CAPABILITY, "mobile.server.update.unavailable");
+  /** The sites are an optional route set. Every member lists them; the host deletes for an owner or admin only. */
+  const sitesApi = (serverId: string) =>
+    capabilityApi(serverId, HOSTED_SITES_CAPABILITY, "mobile.server.sites.unsupported");
   function memoryRequest(serverId: string): AgentMemoriesRequest<TeamRequestError> {
     return (method, path, decode, body) =>
       Effect.tryPromise({
@@ -310,6 +351,7 @@ export function createHostRequestActions({
   const checks: HostRequestChecks = {
     canSearchFiles: (serverId) => has(serverId, CONVERSATION_FILE_SEARCH_CAPABILITY),
     canUseTasks: (serverId) => has(serverId, AGENT_TASKS_CAPABILITY),
+    canReadServerStorage: (serverId) => has(serverId, STORAGE_CAPABILITY),
     canStartNewChat: (serverId) => has(serverId, CONTEXT_RESET_CAPABILITY),
     canChooseNewAgentModel: (serverId) => has(serverId, TEAM_AGENT_CREATE_MODEL_CAPABILITY),
     canInstallAgentTemplate: (serverId) => has(serverId, AGENT_INSTALL_CAPABILITY),
@@ -354,6 +396,24 @@ export function createHostRequestActions({
       runTeamRequest(messagingConnectorSetEnabled(connectorsAdmin(serverId), input)),
     addMessagingOrchestrator: async (input, serverId) =>
       runTeamRequest(messagingConnectorAddOrchestrator(connectorsAdmin(serverId), input)),
+    loadServerUpdate: async (serverId, access) =>
+      runTeamRequest(getHostUpdateStatus(updateApi(serverId, access), access === "member")),
+    checkServerUpdate: async (serverId, access) =>
+      runTeamRequest(checkHostForUpdate(updateApi(serverId, access), access === "member")),
+    startServerUpdate: async (serverId, access, restart) =>
+      runTeamRequest(startHostUpdate(updateApi(serverId, access), restart, access === "member")),
+    cancelServerUpdate: async (serverId) => runTeamRequest(cancelHostUpdate(updateAdmin(serverId))),
+    setServerUpdateSettings: async (settings, serverId) =>
+      runTeamRequest(setHostUpdateSettings(updateAdmin(serverId), settings)),
+    loadServerRelease: async (serverId) => runTeamRequest(getHostReleaseStatus(releaseApi(serverId))),
+    checkServerRelease: async (serverId) => runTeamRequest(checkHostRelease(releaseApi(serverId))),
+    loadHostedSites: async (serverId) => runTeamRequest(listHostedSites(sitesApi(serverId))),
+    deleteHostedSite: async (siteId, serverId) => runTeamRequest(deleteHostedSite(sitesApi(serverId), siteId)),
+    providerAdmin: (serverId) =>
+      createProviderAdmin(
+        capabilityApi(serverId, PROVIDERS_ADMIN_CAPABILITY, "mobile.server.providers.unsupported"),
+        capabilities.get(serverId) ?? [],
+      ),
     loadAgentSessionSettings: async (agentId, serverId) =>
       has(serverId, AGENT_SESSION_SETTINGS_CAPABILITY)
         ? runTeamRequest(readAgentSessionSettings(sessionSettingsAdmin(serverId), agentId))
@@ -537,6 +597,18 @@ export function createHostRequestActions({
         await request("POST", STORAGE_ROUTES.usage, decodeStorageUsage, input, serverId),
         input,
       );
+    },
+    loadServerStorage: async (serverId, force = false) => {
+      requireCapability(capabilities, serverId, STORAGE_CAPABILITY, "mobile.workspace.error.filesUnsupported");
+      const input = { scope: "host" as const, ...(force ? { force: true } : {}) };
+      return assertStorageUsageScope(
+        await request("POST", STORAGE_ROUTES.usage, decodeStorageUsage, input, serverId),
+        input,
+      );
+    },
+    clearServerStorage: async (category, serverId) => {
+      requireCapability(capabilities, serverId, STORAGE_CAPABILITY, "mobile.workspace.error.filesUnsupported");
+      await request("POST", STORAGE_ROUTES.clear, ignoreResponse, { category }, serverId);
     },
     loadAgentAdminSettings: async (agentId, serverId) =>
       has(serverId, AGENT_ADMIN_CAPABILITY)

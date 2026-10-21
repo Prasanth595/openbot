@@ -74,7 +74,8 @@ export const messages = {
   "agentSettings.avatar.processFailed": "エージェントのアバターを処理できませんでした。",
 
   "agentSettings.runtime.model": "エージェントのモデル",
-  "agentSettings.runtime.modelBusy": "モデルを変更する前に、現在の作業が終わるまで待ってください。",
+  "agentSettings.runtime.providerBusy":
+    "プロバイダーやアカウントを変更する前に、現在の作業が終わるまでお待ちください。",
   "agentSettings.runtime.modelUnavailable": "エージェント CLI が接続されると、モデルを選択できます。",
   "agentSettings.runtime.reasoning": "推論",
   "agentSettings.runtime.reasoningLabel": "エージェントの推論レベル",

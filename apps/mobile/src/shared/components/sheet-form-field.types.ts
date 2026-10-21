@@ -20,7 +20,7 @@ export interface SheetFormFieldProps {
   onSubmitEditing?: () => void;
   placeholder?: string;
   returnKeyType?: TextInputProps["returnKeyType"];
-  /** Hides the text, for a secret such as a token. */
+  /** Hides the text, for a key or a password. */
   secureTextEntry?: boolean;
   value: string;
 }

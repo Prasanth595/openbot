@@ -2,6 +2,7 @@ import type { MessagingConnection, MessagingPlatform } from "@openbot/contracts/
 import { router, useLocalSearchParams } from "expo-router";
 import { Typography } from "heroui-native";
 import { ConnectorLogo } from "@/features/servers/components/connector-logo";
+import { TrailingValue } from "@/features/servers/components/trailing-value";
 import {
   attentionCount,
   CONNECTOR_STATUS_KEYS,
@@ -20,7 +21,6 @@ import {
   SettingsNote,
   SettingsRow,
   SettingsSection,
-  SettingsTrailingValue,
 } from "@/features/settings/components/settings-content";
 import type { MobileAgent } from "@/features/workspace/model/workspace-types";
 import { type MobileText, useText } from "@/shared/lib/text";
@@ -172,7 +172,7 @@ export function ServerConnectorsScreen() {
             {entry.statusLabel}
           </Typography.Paragraph>
         ) : entry.status === "idle" ? undefined : (
-          <SettingsTrailingValue
+          <TrailingValue
             value={entry.statusLabel}
             tone={entry.status === "attention" || entry.status === "unknown" ? "warning" : undefined}
           />

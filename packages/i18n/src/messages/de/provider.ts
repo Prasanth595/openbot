@@ -143,6 +143,10 @@ export const messages = {
   "provider.geminiKey.description":
     "Speichere einen Gemini-API-Schlüssel auf diesem Computer. Ein gespeicherter Schlüssel wird statt deines Google-Kontos verwendet. Um dich mit Google anzumelden, entferne den Schlüssel und wähle „Verbinden“ in der Gemini-Zeile.",
   "provider.geminiKey.label": "Gemini-API-Schlüssel",
+  "provider.inceptionKey.title": "Inception-API-Schlüssel",
+  "provider.inceptionKey.description":
+    "Speichere einen Inception-API-Schlüssel auf diesem Computer, um die Mercury-Modelle zu verwenden. OpenBot führt sie in der Pi-CLI aus, die es herunterlädt.",
+  "provider.inceptionKey.label": "Inception-API-Schlüssel",
   "provider.openCodeKey.title": "Bei OpenCode Go anmelden",
   "provider.openCodeKey.description":
     "Kostenlose Modelle benötigen kein Konto. Ein Schlüssel schaltet die kostenpflichtigen Go-Modelle frei.",

@@ -509,6 +509,12 @@ export function ProviderPicker(props: ProviderPickerProps) {
               /** A Connect that failed before the sign-in started. The status reports the rest. */
               const [connectError, setConnectError] = createSignal<string | null>(null);
               const connect = () => {
+                // Inception has no sign-in other than its key, so its Connect and Reconnect open the
+                // key dialog, where the key is also replaced or removed.
+                if (option().id === "inception" && props.onSignInProvider) {
+                  void props.onSignInProvider(option().id);
+                  return;
+                }
                 if (browserConnect()) codeFallback.startedInBrowser();
                 else codeFallback.startedWithCode();
                 setConnectError(null);

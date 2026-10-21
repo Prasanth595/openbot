@@ -187,6 +187,8 @@ export const messages = {
     "Il provider del modello ha rifiutato la richiesta per via della fatturazione dell'account. Aspettare non risolve. Aggiungi un metodo di pagamento o dei fondi nell'account del provider, oppure scegli un altro modello.\n{detail}",
   "error.provider.opencodeInvalidUpload":
     "Il provider del modello di OpenCode ha segnalato una richiesta di caricamento non valida. Scegli un altro modello e continua. Controlla le routine salvate prima di ricrearle.\n{detail}",
+  "error.provider.opencodeUnreadableContent":
+    "Questo modello non può leggere un file o un'immagine in questa chat. Scegli un modello che legge i file, poi invia di nuovo il messaggio.",
   "error.provider.opencodeProviderFailed":
     "Il provider del modello è andato in errore dal suo lato. La tua connessione non c'entra. Riprova più tardi o scegli un altro modello.\n{detail}",
   "error.provider.opencodeNetwork":
@@ -353,6 +355,7 @@ export const messages = {
   "error.provider.museAuthUnverified":
     "L'autenticazione di Muse non è verificata. Connettiti sul computer host, oppure imposta una chiave API di Meta.",
   "error.provider.museSignIn": "Per continuare, accedi a Muse sul computer host.",
+  "error.provider.inceptionSignIn": "Per continuare, aggiungi una chiave API di Inception.",
   "error.provider.terminalLoginFailed":
     "Impossibile aprire il terminale di accesso. Apri la CLI del provider su questo host e accedi da lì, poi aggiorna i provider.",
   "error.provider.nativeArchiveInvalid": "Il download del provider non contiene un'installazione valida.",

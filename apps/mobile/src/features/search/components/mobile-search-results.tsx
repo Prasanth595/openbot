@@ -386,7 +386,8 @@ export function SearchCaption({
   action?: { label: string; accessibilityLabel?: string; onPress: () => void };
 }) {
   return (
-    <View className="flex-row items-center justify-between gap-3 pt-3.5 pr-3 pb-1.5 pl-5">
+    // 24 pt above each heading, so the sections read as groups and do not run into each other.
+    <View className="flex-row items-center justify-between gap-3 pt-6 pr-3 pb-1.5 pl-5">
       <Typography.Paragraph accessibilityRole="header" className="font-medium text-muted" style={typeScale.caption}>
         {label}
       </Typography.Paragraph>

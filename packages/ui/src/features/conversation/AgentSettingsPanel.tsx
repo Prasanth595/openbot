@@ -1135,9 +1135,11 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
                   onConnectProvider={props.onConnectProvider}
                   canConnectProvider={props.canConnectProvider}
                   onManageProviders={props.onManageProviders}
-                  disabled={props.working}
+                  providerChangesDisabled={props.working}
                   disabledReason={
-                    props.working ? t("agentSettings.runtime.modelBusy") : t("agentSettings.runtime.modelUnavailable")
+                    props.working
+                      ? t("agentSettings.runtime.providerBusy")
+                      : t("agentSettings.runtime.modelUnavailable")
                   }
                   accountChoice
                   providerAccountId={props.agent.providerAccountId}

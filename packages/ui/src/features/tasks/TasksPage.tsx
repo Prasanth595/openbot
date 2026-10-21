@@ -78,6 +78,8 @@ export interface TasksPageProps {
   onSelect: (taskId: string | null) => void;
   /** The conversation of one task, for the side panel. */
   panel: (taskId: string) => JSX.Element;
+  /** Whether the task's running turn waits for an approval. */
+  waitsForApproval?: ((task: AgentTask) => boolean) | undefined;
 }
 
 const agentOf = (agents: readonly AgentProfile[], agentId: string) => agents.find((agent) => agent.id === agentId);
@@ -295,9 +297,15 @@ function TaskTookLine(props: TasksPageProps & { took: TasksTook }) {
 }
 
 /** One task in the list: its mark, title and state, and the face of its agent at the end. */
-function TaskRow(props: { task: AgentTask; agent: AgentProfile | undefined; selected: boolean; onOpen: () => void }) {
+function TaskRow(props: {
+  task: AgentTask;
+  agent: AgentProfile | undefined;
+  selected: boolean;
+  waitsForApproval: boolean;
+  onOpen: () => void;
+}) {
   const { t } = useText();
-  const status = () => agentTaskStatus(props.task, t);
+  const status = () => agentTaskStatus(props.task, t, props.waitsForApproval);
   return (
     <Button
       type="button"
@@ -358,6 +366,7 @@ function TasksList(props: TasksPageProps) {
                       task={task()}
                       agent={agentOf(props.agents, task().agentId)}
                       selected={props.selectedId === task().id}
+                      waitsForApproval={props.waitsForApproval?.(task()) ?? false}
                       onOpen={() => props.onSelect(props.selectedId === task().id ? null : task().id)}
                     />
                   </li>

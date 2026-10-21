@@ -15,15 +15,18 @@ import { ServerNotificationSettings } from "@/features/push-notifications/compon
 import { hostedServerCalls } from "@/features/servers/api/hosted-servers";
 import { ServerAvatar } from "@/features/servers/components/server-avatar";
 import { ServerStatusLabel } from "@/features/servers/components/server-status-label";
+import { TrailingValue } from "@/features/servers/components/trailing-value";
 import { SERVER_ROLE_LABEL_KEYS } from "@/features/servers/model/server-role";
 import { timeZoneLabel } from "@/features/servers/model/time-zones";
+import { useServerProviders } from "@/features/servers/model/use-server-providers";
+import { useServerSites } from "@/features/servers/model/use-server-sites";
 import { useServerTimezone } from "@/features/servers/model/use-server-timezone";
+import { updateAvailable, useServerUpdate } from "@/features/servers/model/use-server-update";
 import {
   SettingsContent,
   SettingsNote,
   SettingsRow,
   SettingsSection,
-  SettingsTrailingValue,
 } from "@/features/settings/components/settings-content";
 import { SettingsPicker } from "@/features/settings/components/settings-controls";
 import { useMobileWorkspace, useMobileWorkspaceActions } from "@/features/workspace/context/mobile-workspace-context";
@@ -48,8 +51,10 @@ export function ServerSettingsScreen() {
     hostedServerStarting,
     canManageConnectors,
     canManageOnePasswordConnector,
+    canReadServerStorage,
   } = useMobileWorkspace();
   const server = useLiveServerRecovery(servers.find((item) => item.id === serverId));
+  const update = useServerUpdate(serverId, { poll: false });
   const locked = useRef(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -124,7 +129,7 @@ export function ServerSettingsScreen() {
         <SettingsRow
           trailing={
             memberCount === undefined ? undefined : (
-              <SettingsTrailingValue
+              <TrailingValue
                 value={t("mobile.server.settings.memberCount", { count: memberCount, limit: memberLimit })}
               />
             )
@@ -138,6 +143,14 @@ export function ServerSettingsScreen() {
             <Typography.Paragraph>{t("mobile.server.settings.connectors")}</Typography.Paragraph>
           </SettingsRow>
         ) : null}
+        {canReadServerStorage(serverId) ? (
+          <SettingsRow onPress={() => router.push({ pathname: "/server-settings/storage", params: { serverId } })}>
+            <Typography.Paragraph>{t("mobile.server.settings.storage")}</Typography.Paragraph>
+          </SettingsRow>
+        ) : null}
+        <ServerSitesRow serverId={serverId} />
+        <ServerProvidersRow serverId={serverId} />
+        {update.access || update.query.data ? <ServerUpdatesRow serverId={serverId} update={update} /> : null}
       </SettingsSection>
       <ServerGeneralSettings serverId={serverId} />
       <ServerNotificationSettings server={server} title={t("mobile.settings.notifications.title")} />
@@ -335,7 +348,7 @@ function ServerGeneralSettings({ serverId }: { serverId: string }) {
         <SettingsRow
           trailing={
             zone ? (
-              <SettingsTrailingValue
+              <TrailingValue
                 value={zone.timezone ? timeZoneLabel(zone.timezone) : t("mobile.server.settings.timezoneAutomatic")}
               />
             ) : undefined
@@ -369,6 +382,73 @@ function ServerGeneralSettings({ serverId }: { serverId: string }) {
         </SettingsRow>
       ) : null}
     </SettingsSection>
+  );
+}
+
+/** Opens the OpenBot update of the host. The value is the version that runs there, or a new one. */
+function ServerUpdatesRow({ serverId, update }: { serverId: string; update: ReturnType<typeof useServerUpdate> }) {
+  const { t } = useText();
+  const status = update.query.data?.status;
+  return (
+    <SettingsRow
+      trailing={
+        status ? (
+          <TrailingValue
+            value={
+              updateAvailable(status)
+                ? t("mobile.server.settings.updateAvailable")
+                : t("mobile.server.update.version", { version: status.currentVersion })
+            }
+          />
+        ) : undefined
+      }
+      onPress={() => router.push({ pathname: "/server-settings/updates", params: { serverId } })}
+    >
+      <Typography.Paragraph>{t("mobile.server.settings.updates")}</Typography.Paragraph>
+    </SettingsRow>
+  );
+}
+
+/**
+ * The Providers row, for an owner or admin of a host that serves `providers-v1`: the AI providers of
+ * the computer that runs the server, and how many are connected.
+ */
+function ServerProvidersRow({ serverId }: { serverId: string }) {
+  const { t } = useText();
+  const { available, status, rows } = useServerProviders(serverId);
+  if (!available) return null;
+  const connected = rows.filter((row) => row.status?.state === "available").length;
+  return (
+    <SettingsRow
+      trailing={
+        status.data ? (
+          <TrailingValue value={t("mobile.server.settings.providersConnected", { count: connected })} />
+        ) : undefined
+      }
+      onPress={() => router.push({ pathname: "/server-settings/providers", params: { serverId } })}
+    >
+      <Typography.Paragraph>{t("mobile.server.settings.providers")}</Typography.Paragraph>
+    </SettingsRow>
+  );
+}
+
+/** The Sites row, for every member of a host that serves `hosted-sites-v1`. */
+function ServerSitesRow({ serverId }: { serverId: string }) {
+  const { t } = useText();
+  const { available, query } = useServerSites(serverId);
+  if (!available) return null;
+  const list = query.data;
+  return (
+    <SettingsRow
+      trailing={
+        list ? (
+          <TrailingValue value={t("mobile.server.settings.siteCount", { count: list.used, limit: list.limit })} />
+        ) : undefined
+      }
+      onPress={() => router.push({ pathname: "/server-settings/sites", params: { serverId } })}
+    >
+      <Typography.Paragraph>{t("mobile.server.settings.sites")}</Typography.Paragraph>
+    </SettingsRow>
   );
 }
 

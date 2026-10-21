@@ -63,7 +63,7 @@ export interface InboundMessage {
    * say: a connection with a role list then ignores the message.
    */
   authorRoleIds?: readonly string[] | null;
-  /** The message this one replies to, when a person wrote it and the platform gave its text. */
+  /** The message this one replies to, when a person wrote it and the platform gave its text or files. */
   replyTo?: InboundQuote | null;
 }
 

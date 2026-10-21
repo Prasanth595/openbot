@@ -1459,6 +1459,11 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                           onAttachmentAction={(attachment) =>
                             void runtime.agent.openAttachment({ attachmentId: attachment.id, action: "download" })
                           }
+                          approvals={workspace.state.approvals}
+                          onRespondApproval={async (approval, decision) => {
+                            await workspace.approve({ requestId: approval.requestId, decision });
+                            return true;
+                          }}
                         />
                       </Loading>
                     </Match>
