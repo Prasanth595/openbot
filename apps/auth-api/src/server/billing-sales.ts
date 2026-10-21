@@ -69,7 +69,7 @@ export interface BillingSalesLicenseCheckout {
   createdAt: number;
 }
 
-export interface BillingSalesSyncedSubscription {
+interface BillingSalesSyncedSubscription {
   product?: "server";
   userId: string;
   plan: BillingPlanId;
@@ -78,7 +78,7 @@ export interface BillingSalesSyncedSubscription {
 }
 
 /** A license that the webhook stored. */
-export interface BillingSalesSyncedLicense {
+interface BillingSalesSyncedLicense {
   product: "license";
   userId: string;
   users: number;

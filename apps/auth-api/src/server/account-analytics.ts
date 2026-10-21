@@ -69,7 +69,7 @@ export type PlanChangeDirection = (typeof PLAN_CHANGE_DIRECTIONS)[number];
  * The largest license user count that analytics accepts. The app sells up to 25 users; a license
  * from the Stripe Dashboard can have more, so the bound only stops a value that is not a count.
  */
-export const ANALYTICS_MAX_LICENSE_USERS = 10_000;
+const ANALYTICS_MAX_LICENSE_USERS = 10_000;
 
 /** True for a license user count that analytics can send. */
 export function isAnalyticsLicenseUsers(value: unknown): value is number {

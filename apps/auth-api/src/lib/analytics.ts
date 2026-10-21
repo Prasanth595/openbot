@@ -43,9 +43,9 @@ export type BillingReturnKind = "plan" | "license" | "portal";
 export const BILLING_RETURN_KINDS = ["plan", "license", "portal"] as const satisfies readonly BillingReturnKind[];
 type BillingReturnOutcome = "completed" | "cancelled";
 
-export type ContactTopicId = (typeof CONTACT_TOPICS)[number]["id"];
+type ContactTopicId = (typeof CONTACT_TOPICS)[number]["id"];
 /** `rate_limited` is the 429 answer; `failed` is each other failure, the network included. */
-export type ContactFormResult = "succeeded" | "failed" | "rate_limited";
+type ContactFormResult = "succeeded" | "failed" | "rate_limited";
 const CONTACT_TOPIC_IDS = CONTACT_TOPICS.map((topic) => topic.id);
 
 interface LandingAnalyticsEvents {
