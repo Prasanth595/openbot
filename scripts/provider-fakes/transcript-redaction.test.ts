@@ -161,6 +161,46 @@ describe("createTranscriptRedactor", () => {
     expect(message).toEqual({ result: { roots: { "key-1": true, "key-2": 1, alex_example_tools: 2, mcpServers: 3 } } });
   });
 
+  it("redacts an object under a choice field, also inside the choices of a config option", () => {
+    const [answer] = redactAll([
+      {
+        result: {
+          configOptions: [
+            { options: [{ value: { label: "Fix my bug", path: `${HOME}/x` }, name: { text: "hunter22" } }] },
+          ],
+        },
+      },
+    ]);
+    expect(answer).toEqual({
+      result: {
+        configOptions: [{ options: [{ value: { label: REDACTED, path: REDACTED }, name: { text: REDACTED } }] }],
+      },
+    });
+  });
+
+  it("replaces keys that hold a token or a long number", () => {
+    const [message] = redactAll([
+      {
+        result: {
+          "4f9c2a7b1e8d3f6a0b5c9e2d7a1f4b8c3e6d9a0f": true,
+          account_48213377: 1,
+          sk_live_abcdefgh12345678: 2,
+          inputTokens: 3,
+        },
+      },
+    ]);
+    const text = JSON.stringify(message);
+    for (const leaked of ["4f9c2a7b", "48213377", "sk_live_"]) expect(text).not.toContain(leaked);
+    expect(message).toEqual({ result: { "key-1": true, "key-2": 1, "key-3": 2, inputTokens: 3 } });
+  });
+
+  it("redacts the home folder of a short user name in a kept field", () => {
+    const redactor = createTranscriptRedactor(["/Users/al", "al"]);
+    expect(redactor.redact({ result: { provider: "/Users/al/models", status: "ok" } })).toEqual({
+      result: { provider: REDACTED, status: "ok" },
+    });
+  });
+
   it("replaces a known value in a key that looks like a field name", () => {
     const redactor = createTranscriptRedactor(["alexexample"]);
     expect(redactor.redact({ result: { alexexample_server: true } })).toEqual({ result: { "key-1": true } });

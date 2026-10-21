@@ -22,11 +22,14 @@ const out = process.env.TRANSCRIPT_OUT;
 if (!executable || !out) throw new Error("Usage: TRANSCRIPT_OUT=<file> bun transcript-proxy.ts <executable> [args...]");
 
 // The home folder, the user and computer names, the values of secret variables, and the extra values
-// that the recorder names, such as the account email.
+// that the recorder names, such as the account email. The recorder sets `HOME` to an empty temporary
+// folder, so `homedir()` is that folder; `userInfo()` reads the user database and gives the real home.
 const extra: TranscriptJson = JSON.parse(process.env.TRANSCRIPT_KNOWN ?? "[]");
+const user = userInfo();
 const known = [
   homedir(),
-  userInfo().username,
+  user.homedir,
+  user.username,
   hostname(),
   ...Object.entries(process.env)
     .filter(([name, value]) => value !== undefined && isSecretName(name))

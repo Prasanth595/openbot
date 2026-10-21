@@ -34,7 +34,9 @@ const message = (index: number): RecordedMessage => {
     ...(typeof method === "string" ? { method } : {}),
   };
 };
-const isRequest = (index: number) => lines[index]?.from === "client" && message(index).method !== undefined;
+// A client notification, such as `session/cancel`, has no id and gets no answer, so it is not a request.
+const isRequest = (index: number) =>
+  lines[index]?.from === "client" && message(index).method !== undefined && message(index).id !== undefined;
 
 const used = new Set<number>();
 const sent = new Set<number>();

@@ -70,6 +70,9 @@ type Scope = "configOptions" | "choices" | null;
 /** A key that names a field. Any other key, such as a path or a server name, is data. */
 const FIELD_NAME = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/;
 
+/** A run of digits or hex digits in a key, such as a token or an account number, is data. */
+const OPAQUE_RUN = /\d{6,}|[0-9a-f]{16,}/i;
+
 export interface TranscriptRedactor {
   /** Returns a redacted copy of one JSON-RPC message. */
   redact(message: unknown): TranscriptJson;
@@ -96,7 +99,9 @@ export function createTranscriptRedactor(knownValues: readonly string[]): Transc
   };
 
   const key = (name: string): string => {
-    if (FIELD_NAME.test(name) && !containsKnown(name, known)) return name;
+    if (FIELD_NAME.test(name) && !OPAQUE_RUN.test(name) && !containsKnown(name, known) && redactText(name) === name) {
+      return name;
+    }
     const existing = keys.get(name);
     if (existing) return existing;
     const created = `key-${keys.size + 1}`;
@@ -119,7 +124,9 @@ export function createTranscriptRedactor(knownValues: readonly string[]): Transc
       for (const [name, entry] of Object.entries(input)) {
         const inner: Scope =
           name === "configOptions" ? "configOptions" : name === "options" && scope !== null ? "choices" : null;
-        output[key(name)] = value(name, entry, inner ?? (CHOICE_FIELDS.has(name) ? scope : null));
+        // A choice field keeps its scope only for a string: an object under it is not a choice.
+        const choice = CHOICE_FIELDS.has(name) && typeof entry === "string" ? scope : null;
+        output[key(name)] = value(name, entry, inner ?? choice);
       }
       return output;
     }
