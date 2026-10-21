@@ -25,6 +25,7 @@ import type {
   ReplaceHostedSiteInput,
   SaveSetupInput,
   SetAnalyticsPreferenceInput,
+  SetAppInterfaceSizePreferenceInput,
   SetAppLanguagePreferenceInput,
   SetAppLogoColorPreferenceInput,
   SetDynamicIslandInteractiveInput,
@@ -40,6 +41,7 @@ import {
   isAgentMemoryLimit,
   isAgentModel,
   isAgentProvider,
+  isAppInterfaceSize,
   isAppLanguage,
   isAppLogoColor,
   isBrowserDockAction,
@@ -109,6 +111,11 @@ export function parseAppLanguagePreference(input: unknown): SetAppLanguagePrefer
 export function parseAppLogoColorPreference(input: unknown): SetAppLogoColorPreferenceInput {
   if (!isDynamicRecord(input) || !isAppLogoColor(input.color)) throw new Error("Logo color is required.");
   return { color: input.color };
+}
+
+export function parseAppInterfaceSizePreference(input: unknown): SetAppInterfaceSizePreferenceInput {
+  if (!isDynamicRecord(input) || !isAppInterfaceSize(input.percent)) throw new Error("Interface size is required.");
+  return { percent: input.percent };
 }
 
 export function parseIdleRestartTarget(input: unknown): IdleRestartTarget {

@@ -1,4 +1,4 @@
-import type { AppVariant } from "@openbot/contracts/ipc";
+import { APP_INTERFACE_SIZES, type AppInterfaceSize, type AppVariant } from "@openbot/contracts/ipc";
 import type { AppTextKey } from "@openbot/i18n";
 import {
   Item,
@@ -19,10 +19,13 @@ import type { GeneralSettingsValue } from "@openbot/ui/features/settings/app-set
 import { LanguageSelect } from "@openbot/ui/features/settings/LanguageSelect";
 import { LogoColorPicker } from "@openbot/ui/features/settings/LogoColorPicker";
 import { SendShortcutSelect } from "@openbot/ui/features/settings/SendShortcutSelect";
+import { useText } from "@openbot/ui/text";
 import { Show } from "solid-js";
 import { useI18n } from "../../i18n-context";
+import { useInterfaceSizeChoice } from "../../interface-size";
 import { useLogoColorChoice } from "../../logo-color";
 
+const interfaceSizeOptions = [...APP_INTERFACE_SIZES];
 const linkTargetOptions: GeneralSettingsValue["externalLinkTarget"][] = ["Default browser", "OpenBot"];
 
 /**
@@ -51,6 +54,10 @@ export function SettingsGeneralTab(props: SettingsGeneralTabProps) {
   const linkTargetLabel = (value: GeneralSettingsValue["externalLinkTarget"] | undefined) =>
     value === undefined ? "" : i18n.t(LINK_TARGET_KEYS[value]);
   const logoColor = useLogoColorChoice();
+  const interfaceSize = useInterfaceSizeChoice();
+  const { format } = useText();
+  const interfaceSizeLabel = (value: AppInterfaceSize | undefined) =>
+    value === undefined ? "" : format.percent(value / 100);
   return (
     <>
       <SettingsSection title={i18n.t("settings.appearance.title")}>
@@ -62,6 +69,29 @@ export function SettingsGeneralTab(props: SettingsGeneralTabProps) {
             </ItemContent>
             <ItemActions>
               <LanguageSelect value={i18n.language()} onChange={i18n.changeLanguage} mount={props.selectMount} />
+            </ItemActions>
+          </Item>
+          <Item data-settings-row="settings.interfaceSize.title" class="settings-modal-row">
+            <ItemContent>
+              <ItemTitle>{i18n.t("settings.interfaceSize.title")}</ItemTitle>
+              <ItemDescription>{i18n.t("settings.interfaceSize.description")}</ItemDescription>
+            </ItemContent>
+            <ItemActions>
+              <Select<AppInterfaceSize>
+                class="settings-modal-select"
+                options={interfaceSizeOptions}
+                value={interfaceSize.percent()}
+                onChange={(value) => value && interfaceSize.changePercent(value)}
+                placement="bottom-end"
+                itemComponent={(selectProps) => (
+                  <SelectItem item={selectProps.item}>{interfaceSizeLabel(selectProps.item.rawValue)}</SelectItem>
+                )}
+              >
+                <SelectTrigger size="sm" aria-label={i18n.t("settings.interfaceSize.title")}>
+                  <SelectValue<AppInterfaceSize>>{(state) => interfaceSizeLabel(state.selectedOption())}</SelectValue>
+                </SelectTrigger>
+                <SelectContent mount={props.selectMount} />
+              </Select>
             </ItemActions>
           </Item>
           <Item data-settings-row="settings.logoColor.title" class="settings-modal-row settings-logo-color-row">

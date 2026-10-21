@@ -56,7 +56,7 @@ export const messages = {
   "agentSettings.avatar.image": "Imagem",
   "agentSettings.avatar.replaceImage": "Substituir imagem",
   "agentSettings.avatar.uploadImage": "Enviar imagem",
-  "agentSettings.avatar.imageHint": "PNG, JPEG ou WebP · recorte quadrado",
+  "agentSettings.avatar.imageHint": "PNG, JPEG, GIF ou WebP · recorte quadrado",
   "agentSettings.avatar.generatedFace": "Rosto gerado",
   "agentSettings.avatar.resetToId": "Redefinir com base no ID",
   "agentSettings.avatar.newSet": "Novo conjunto",

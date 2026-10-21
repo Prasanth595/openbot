@@ -926,7 +926,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
                       class="sr-only"
                       type="file"
                       aria-label={t("agentSettings.avatar.attachFiles")}
-                      accept="image/png,image/jpeg,image/webp"
+                      accept="image/png,image/jpeg,image/gif,image/webp"
                       onChange={(event) => void uploadAgentAvatar(event.currentTarget.files?.[0])}
                     />
                     <div class="avatar-editor-heading">

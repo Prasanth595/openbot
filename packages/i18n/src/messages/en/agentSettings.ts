@@ -57,7 +57,7 @@ export const messages = defineMessages("agentSettings", {
   "agentSettings.avatar.image": "Image",
   "agentSettings.avatar.replaceImage": "Replace image",
   "agentSettings.avatar.uploadImage": "Upload image",
-  "agentSettings.avatar.imageHint": "PNG, JPEG or WebP · square crop",
+  "agentSettings.avatar.imageHint": "PNG, JPEG, GIF or WebP · square crop",
   "agentSettings.avatar.generatedFace": "Generated face",
   "agentSettings.avatar.resetToId": "Reset to ID",
   "agentSettings.avatar.newSet": "New set",

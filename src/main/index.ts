@@ -491,6 +491,7 @@ function registerIpcHandlers({
   agentHostSettings,
   language,
   logoColor,
+  interfaceSize,
   notificationPreference,
   busyMessageMode,
   agentMemoryLimit,
@@ -561,6 +562,7 @@ function registerIpcHandlers({
       appBehavior,
       language,
       logoColor,
+      interfaceSize,
       initializeAgent: () => runCauseEffect(agentInitialization.start()),
       appVariant,
       analyticsCaptureUrl,
@@ -1042,6 +1044,7 @@ if (!hasSingleInstanceLock) {
         teamStore,
         language,
         logoColor,
+        interfaceSize,
         trace,
         appBehavior,
       } = built;
@@ -1155,7 +1158,7 @@ if (!hasSingleInstanceLock) {
       void requestDesktopNotificationPermission(built.notificationPreference, language.translate).catch((error) =>
         logger.warn("Unable to ask for notification permission:", toLogValue(error)),
       );
-      configureApplicationMenu(service, updater, language.translate);
+      configureApplicationMenu(service, updater, interfaceSize, language.translate);
       // The way back to a window hidden in the background on Windows and Linux.
       backgroundTray = createBackgroundTray({
         icon: appIconColorImage ?? nativeImage.createFromPath(appIconPath),
@@ -1174,7 +1177,7 @@ if (!hasSingleInstanceLock) {
       // because a native label cannot be changed in place, and every window is told, including the
       // Dynamic Island, which has no Settings of its own to read the new value from.
       language.subscribe((preference) => {
-        configureApplicationMenu(service, updater, language.translate);
+        configureApplicationMenu(service, updater, interfaceSize, language.translate);
         tray.relabel();
         for (const window of BrowserWindow.getAllWindows()) {
           sendToRenderer(window, IPC_ENDPOINTS.app.appLanguagePreference, preference);
@@ -1185,6 +1188,12 @@ if (!hasSingleInstanceLock) {
         applyAppIconColor(preference.color);
         for (const window of BrowserWindow.getAllWindows()) {
           sendToRenderer(window, IPC_ENDPOINTS.app.appLogoColorPreference, preference);
+        }
+      });
+      interfaceSize.subscribe((preference) => {
+        windows.getMainWindow()?.webContents.setZoomFactor(interfaceSize.zoomFactor);
+        for (const window of BrowserWindow.getAllWindows()) {
+          sendToRenderer(window, IPC_ENDPOINTS.app.appInterfaceSizePreference, preference);
         }
       });
       await runCauseEffect(dynamicIsland.initialize()).catch((error) =>

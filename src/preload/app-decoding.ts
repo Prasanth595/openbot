@@ -21,6 +21,7 @@ import {
   type AnalyticsPreference,
   type AppBehaviorPreference,
   type AppInfo,
+  type AppInterfaceSizePreference,
   type AppLanguagePreference,
   type AppLogoColorPreference,
   type ApprovalAutomationPreference,
@@ -49,6 +50,7 @@ import {
   isAgentMemoryLimit,
   isAgentModel,
   isAgentProvider,
+  isAppInterfaceSize,
   isAppLanguage,
   isAppLogoColor,
   isApprovalAutomationPreference,
@@ -164,6 +166,12 @@ export function decodeAppLogoColorPreference(value: unknown): AppLogoColorPrefer
   const preference = decodeRecord(value, "logo color preference");
   if (!isAppLogoColor(preference.color)) throw new Error("Invalid logo color.");
   return { color: preference.color };
+}
+
+export function decodeAppInterfaceSizePreference(value: unknown): AppInterfaceSizePreference {
+  const preference = decodeRecord(value, "interface size preference");
+  if (!isAppInterfaceSize(preference.percent)) throw new Error("Invalid interface size.");
+  return { percent: preference.percent };
 }
 
 export function decodeCentralAuthState(value: unknown): CentralAuthState {

@@ -6,6 +6,8 @@ export const messages = {
   "settings.language.description": "OpenBot muestra los menús, botones y mensajes en este idioma.",
   "settings.language.system": "Predeterminado del sistema",
   "settings.appearance.title": "Apariencia",
+  "settings.interfaceSize.title": "Tamaño de la interfaz",
+  "settings.interfaceSize.description": "El tamaño del texto y los controles en OpenBot.",
   "settings.logoColor.title": "Color del logotipo",
   "settings.logoColor.description": "Se muestra en el Dock, la barra de tareas y Dynamic Island.",
   "settings.logoColor.buildNote":

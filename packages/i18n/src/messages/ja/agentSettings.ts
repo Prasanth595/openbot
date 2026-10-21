@@ -58,7 +58,7 @@ export const messages = {
   "agentSettings.avatar.image": "画像",
   "agentSettings.avatar.replaceImage": "画像を置き換える",
   "agentSettings.avatar.uploadImage": "画像をアップロード",
-  "agentSettings.avatar.imageHint": "PNG、JPEG、WebP · 正方形に切り抜き",
+  "agentSettings.avatar.imageHint": "PNG、JPEG、GIF、WebP · 正方形に切り抜き",
   "agentSettings.avatar.generatedFace": "生成された顔",
   "agentSettings.avatar.resetToId": "ID に戻す",
   "agentSettings.avatar.newSet": "新しいセット",

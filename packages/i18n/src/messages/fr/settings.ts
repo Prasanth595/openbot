@@ -8,6 +8,8 @@ export const messages = {
   "settings.language.system": "Langue du système",
   // The logo color setting, General tab.
   "settings.appearance.title": "Apparence",
+  "settings.interfaceSize.title": "Taille de l’interface",
+  "settings.interfaceSize.description": "La taille du texte et des commandes dans OpenBot.",
   "settings.logoColor.title": "Couleur du logo",
   "settings.logoColor.description": "Affichée dans le Dock, la barre des tâches et l’îlot dynamique.",
   "settings.logoColor.buildNote":

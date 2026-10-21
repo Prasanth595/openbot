@@ -254,7 +254,7 @@ export function createServerGeneralSection(host: ServerSettingsSectionHost): Ser
             hidden
             type="file"
             aria-label={t("server.settings.logo")}
-            accept="image/png,image/jpeg,image/webp"
+            accept="image/png,image/jpeg,image/gif,image/webp"
             disabled={!canEditIdentity()}
             onChange={(event) => {
               void chooseLogo(event.currentTarget.files?.[0]);

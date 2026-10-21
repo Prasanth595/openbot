@@ -57,7 +57,7 @@ export const messages = {
   "agentSettings.avatar.image": "Görsel",
   "agentSettings.avatar.replaceImage": "Görseli değiştir",
   "agentSettings.avatar.uploadImage": "Görsel yükle",
-  "agentSettings.avatar.imageHint": "PNG, JPEG veya WebP · kare kırpma",
+  "agentSettings.avatar.imageHint": "PNG, JPEG, GIF veya WebP · kare kırpma",
   "agentSettings.avatar.generatedFace": "Oluşturulan yüz",
   "agentSettings.avatar.resetToId": "Kimliğe sıfırla",
   "agentSettings.avatar.newSet": "Yeni küme",

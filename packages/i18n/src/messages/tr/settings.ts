@@ -6,6 +6,8 @@ export const messages = {
   "settings.language.description": "OpenBot menüleri, düğmeleri ve mesajları bu dilde gösterir.",
   "settings.language.system": "Sistem varsayılanı",
   "settings.appearance.title": "Görünüm",
+  "settings.interfaceSize.title": "Arayüz boyutu",
+  "settings.interfaceSize.description": "OpenBot'taki metin ve denetimlerin boyutu.",
   "settings.logoColor.title": "Logo rengi",
   "settings.logoColor.description": "Dock'ta, görev çubuğunda ve Dynamic Island'da gösterilir.",
   "settings.logoColor.buildNote": "Bu derleme kendi logo rengini korur. Seçim, yayımlanan uygulamaya uygulanır.",

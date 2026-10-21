@@ -27,6 +27,7 @@ import type {
 // for the checker, and the runtime value is still `{ kind, channel }`.
 
 import type { ManagedProviderId } from "./agent-providers";
+import type { AppInterfaceSizePreference, SetAppInterfaceSizePreferenceInput } from "./app-interface-size";
 import type { AppLanguagePreference, SetAppLanguagePreferenceInput } from "./app-language";
 import type { AppLogoColorPreference, SetAppLogoColorPreferenceInput } from "./app-logo-color";
 import type { BillingPortalRequest, BillingState } from "./billing";
@@ -576,6 +577,15 @@ export const IPC_ENDPOINTS = {
     // Every window draws the logo, and the Dynamic Island has no Settings of its own, so the choice
     // is broadcast in the same way as the language.
     appLogoColorPreference: event<AppLogoColorPreference>()("app:logo-color-preference"),
+    getAppInterfaceSizePreference: request<undefined, AppInterfaceSizePreference>()(
+      "app:get-interface-size-preference",
+    ),
+    setAppInterfaceSizePreference: request<SetAppInterfaceSizePreferenceInput, AppInterfaceSizePreference>()(
+      "app:set-interface-size-preference",
+    ),
+    // The zoom shortcuts and the View menu change the size in main, so main tells the window, and
+    // Settings shows the new size.
+    appInterfaceSizePreference: event<AppInterfaceSizePreference>()("app:interface-size-preference"),
     // The native Preferences menu item and its shortcut live in main, while the dialog lives in
     // the renderer, so the menu click is broadcast rather than handled: every window opens its
     // own Settings.

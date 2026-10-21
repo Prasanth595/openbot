@@ -34,7 +34,7 @@ export const messages = {
   "app.provider.included": "{name}, OpenBot ile birlikte gelir.",
   "app.clipboard.copyFailed": "Metin kopyalanamadı.",
   "app.voice.tooLong": "Ses kayıtları iki dakika ile sınırlıdır.",
-  "app.avatar.type": "Bir PNG, JPEG veya WebP görseli seçin.",
+  "app.avatar.type": "Bir PNG, JPEG, GIF veya WebP görseli seçin.",
   "app.avatar.size": "10 MB'tan küçük bir görsel seçin.",
   "app.avatar.processingUnavailable": "Görsel işleme kullanılamıyor.",
   "app.avatar.tooLarge": "OpenBot bu görseli yeterince küçültemedi. Daha sade bir görsel seçin.",

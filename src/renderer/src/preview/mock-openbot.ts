@@ -23,6 +23,7 @@ import {
   type AnalyticsPreference,
   type AppBehaviorPreference,
   type AppInfo,
+  type AppInterfaceSizePreference,
   type AppLanguagePreference,
   type AppLogoColorPreference,
   type ApprovalAutomationPreference,
@@ -46,6 +47,7 @@ import {
   createMcpServerId,
   DEFAULT_AGENT_ACCESS,
   DEFAULT_AGENT_MEMORY_LIMIT,
+  DEFAULT_APP_INTERFACE_SIZE,
   DEFAULT_APP_LOGO_COLOR,
   DEFAULT_APPROVAL_AUTOMATION_PREFERENCE,
   DEFAULT_BUSY_MESSAGE_MODE,
@@ -305,6 +307,8 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
   const languageListeners = new Set<(preference: AppLanguagePreference) => void>();
   let logoColorPreference: AppLogoColorPreference = { color: DEFAULT_APP_LOGO_COLOR };
   const logoColorListeners = new Set<(preference: AppLogoColorPreference) => void>();
+  let interfaceSizePreference: AppInterfaceSizePreference = { percent: DEFAULT_APP_INTERFACE_SIZE };
+  const interfaceSizeListeners = new Set<(preference: AppInterfaceSizePreference) => void>();
   const approvalAutomationListeners = new Set<(preference: ApprovalAutomationPreference) => void>();
   let dynamicIslandPreference: DynamicIslandPreference = { ...DEFAULT_DYNAMIC_ISLAND_PREFERENCE };
   let dynamicIslandPresentation: DynamicIslandPresentation = { serverId: "local", mode: "idle" };
@@ -837,6 +841,16 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
     onAppLogoColorPreference: (listener) => {
       logoColorListeners.add(listener);
       return () => logoColorListeners.delete(listener);
+    },
+    getAppInterfaceSizePreference: async () => clone(interfaceSizePreference),
+    setAppInterfaceSizePreference: async ({ percent }) => {
+      interfaceSizePreference = { percent };
+      for (const listener of interfaceSizeListeners) listener(clone(interfaceSizePreference));
+      return clone(interfaceSizePreference);
+    },
+    onAppInterfaceSizePreference: (listener) => {
+      interfaceSizeListeners.add(listener);
+      return () => interfaceSizeListeners.delete(listener);
     },
     onOpenSettings: () => () => undefined,
     // The preview has no native page, so the overlay is never on screen and the DOM dock stays.

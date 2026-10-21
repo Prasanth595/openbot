@@ -34,7 +34,7 @@ export const messages = {
   "app.provider.included": "{name} está incluido en OpenBot.",
   "app.clipboard.copyFailed": "No se pudo copiar el texto.",
   "app.voice.tooLong": "Las grabaciones de voz están limitadas a dos minutos.",
-  "app.avatar.type": "Elige una imagen PNG, JPEG o WebP.",
+  "app.avatar.type": "Elige una imagen PNG, JPEG, GIF o WebP.",
   "app.avatar.size": "Elige una imagen de menos de 10 MB.",
   "app.avatar.processingUnavailable": "El procesamiento de imágenes no está disponible.",
   "app.avatar.tooLarge": "OpenBot no pudo reducir esta imagen lo suficiente. Elige una imagen más sencilla.",

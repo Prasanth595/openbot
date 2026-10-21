@@ -35,7 +35,7 @@ export const messages = {
   "app.provider.included": "{name} は OpenBot に含まれています。",
   "app.clipboard.copyFailed": "テキストをコピーできませんでした。",
   "app.voice.tooLong": "音声の録音は 2 分までです。",
-  "app.avatar.type": "PNG、JPEG、または WebP の画像を選んでください。",
+  "app.avatar.type": "PNG、JPEG、GIF、または WebP の画像を選んでください。",
   "app.avatar.size": "10 MB より小さい画像を選んでください。",
   "app.avatar.processingUnavailable": "画像を処理できません。",
   "app.avatar.tooLarge": "OpenBot はこの画像を十分に小さくできませんでした。よりシンプルな画像を選んでください。",

@@ -62,7 +62,7 @@ export const messages = {
   "agentSettings.avatar.image": "Obraz",
   "agentSettings.avatar.replaceImage": "Zastąp obraz",
   "agentSettings.avatar.uploadImage": "Prześlij obraz",
-  "agentSettings.avatar.imageHint": "PNG, JPEG lub WebP · kwadratowe kadrowanie",
+  "agentSettings.avatar.imageHint": "PNG, JPEG, GIF lub WebP · kwadratowe kadrowanie",
   "agentSettings.avatar.generatedFace": "Wygenerowana twarz",
   "agentSettings.avatar.resetToId": "Przywróć twarz z ID",
   "agentSettings.avatar.newSet": "Nowy zestaw",

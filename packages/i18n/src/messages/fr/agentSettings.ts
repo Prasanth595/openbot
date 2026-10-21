@@ -59,7 +59,7 @@ export const messages = {
   "agentSettings.avatar.image": "Image",
   "agentSettings.avatar.replaceImage": "Remplacer l’image",
   "agentSettings.avatar.uploadImage": "Importer une image",
-  "agentSettings.avatar.imageHint": "PNG, JPEG ou WebP · recadrage carré",
+  "agentSettings.avatar.imageHint": "PNG, JPEG, GIF ou WebP · recadrage carré",
   "agentSettings.avatar.generatedFace": "Visage généré",
   "agentSettings.avatar.resetToId": "Réinitialiser selon l’ID",
   "agentSettings.avatar.newSet": "Nouvelle série",

@@ -21,6 +21,7 @@ import { readAnalyticsPreference, writeAnalyticsPreference } from "../analytics-
 import type { AppBehaviorService } from "../app-behavior-service";
 import type { ApprovalAutomation } from "../approval-automation-store";
 import type { BusyMessageModePreferenceStore } from "../busy-message-mode-preference-store";
+import type { InterfaceSizeService } from "../interface-size-service";
 import type { LanguageService } from "../language-service";
 import type { LogoColorService } from "../logo-color-service";
 import { MAC_PERMISSION_URLS } from "../mac-permission-urls";
@@ -32,6 +33,7 @@ import type { UpdateService } from "../update-service";
 import {
   parseAnalyticsPreference,
   parseAppBehaviorPreferenceChange,
+  parseAppInterfaceSizePreference,
   parseAppLanguagePreference,
   parseAppLogoColorPreference,
   parseBusyMessageModePreference,
@@ -90,6 +92,7 @@ export interface AppIpcDependencies {
   appBehavior: AppBehaviorService;
   language: LanguageService;
   logoColor: LogoColorService;
+  interfaceSize: InterfaceSizeService;
   initializeAgent: () => Promise<void>;
   appVariant: AppVariant;
   analyticsCaptureUrl: string | null;
@@ -114,6 +117,7 @@ export function appIpcHandlers({
   appBehavior,
   language,
   logoColor,
+  interfaceSize,
   initializeAgent,
   appVariant,
   analyticsCaptureUrl,
@@ -177,6 +181,10 @@ export function appIpcHandlers({
       getAppLogoColorPreference: handler(() => logoColor.preference),
       setAppLogoColorPreference: payloadHandler(parseAppLogoColorPreference, (parsed) =>
         runCauseEffect(logoColor.set(parsed)),
+      ),
+      getAppInterfaceSizePreference: handler(() => interfaceSize.preference),
+      setAppInterfaceSizePreference: payloadHandler(parseAppInterfaceSizePreference, (parsed) =>
+        runCauseEffect(interfaceSize.set(parsed)),
       ),
       saveSetup: payloadHandler(parseSetup, async (input): Promise<AppSetupState> => {
         const state = await runCauseEffect(writeSetupState(setupFile, input));

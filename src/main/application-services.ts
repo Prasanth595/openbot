@@ -179,6 +179,7 @@ import { HostedSiteDesktopService } from "./hosted-site-service";
 import { IdleRestart } from "./idle-restart";
 import { loadIngressQueueKey } from "./ingress-queue-key";
 import { InstanceTransferService } from "./instance-transfer-service";
+import { InterfaceSizeService } from "./interface-size-service";
 import { prepareToolRuntimeForTest } from "./ipc/mcp-server-handlers";
 import { LanguageService } from "./language-service";
 import { localRoutineFeedDocument } from "./local-routine-calendar";
@@ -297,6 +298,7 @@ const ROUTINE_FEED_FILE = "openbot-routine-feed-v1.json";
 const LEGACY_APPROVAL_AUTOMATION_FILE = "openbot-approval-automation-v1.json";
 const LANGUAGE_PREFERENCE_FILE = "openbot-language-preference-v1.json";
 const LOGO_COLOR_PREFERENCE_FILE = "openbot-logo-color-preference-v1.json";
+const INTERFACE_SIZE_PREFERENCE_FILE = "openbot-interface-size-preference-v1.json";
 const UPDATE_PREFERENCE_FILE = "openbot-update-preference-v1.json";
 const NOTIFICATION_PREFERENCE_FILE = "openbot-notification-preference-v1.json";
 const PUSH_NOTIFICATION_FILE = "openbot-push-notifications-v1.json";
@@ -486,6 +488,7 @@ export interface ApplicationServices {
   agentHostSettings: AgentHostSettingsService;
   language: LanguageService;
   logoColor: LogoColorService;
+  interfaceSize: InterfaceSizeService;
   notificationPreference: NotificationPreferenceStore;
   busyMessageMode: BusyMessageModePreferenceStore;
   agentMemoryLimit: AgentMemoryLimitSetting;
@@ -1008,6 +1011,11 @@ export async function createApplicationServices({
   await runCauseEffect(language.load());
   const logoColor = new LogoColorService({ path: join(app.getPath("userData"), LOGO_COLOR_PREFERENCE_FILE) });
   await runCauseEffect(logoColor.load());
+  // Before the renderer loads, so its first navigation applies the saved size.
+  const interfaceSize = new InterfaceSizeService({
+    path: join(app.getPath("userData"), INTERFACE_SIZE_PREFERENCE_FILE),
+  });
+  await runCauseEffect(interfaceSize.load());
   const notificationPreference = new NotificationPreferenceStore(
     join(app.getPath("userData"), NOTIFICATION_PREFERENCE_FILE),
   );
@@ -2693,6 +2701,7 @@ export async function createApplicationServices({
     agentHostSettings,
     language,
     logoColor,
+    interfaceSize,
     notificationPreference,
     busyMessageMode,
     agentMemoryLimit: agentMemoryLimitSetting,

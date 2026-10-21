@@ -64,7 +64,7 @@ export const messages = {
   "agentSettings.avatar.image": "Изображение",
   "agentSettings.avatar.replaceImage": "Заменить изображение",
   "agentSettings.avatar.uploadImage": "Загрузить изображение",
-  "agentSettings.avatar.imageHint": "PNG, JPEG или WebP · квадратная обрезка",
+  "agentSettings.avatar.imageHint": "PNG, JPEG, GIF или WebP · квадратная обрезка",
   "agentSettings.avatar.generatedFace": "Сгенерированное лицо",
   "agentSettings.avatar.resetToId": "Сбросить до ID",
   "agentSettings.avatar.newSet": "Новый набор",
