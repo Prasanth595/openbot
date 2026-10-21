@@ -48,7 +48,12 @@ import type {
 import type { AgentAnalytics, AgentAnalyticsInput } from "./ipc-agent-analytics";
 import type { AgentIpcRequest, ScopedAgentEvent } from "./ipc-agent-events";
 import type { AgentModelOption } from "./ipc-agent-identity";
-import type { AgentImportPreview, AgentImportResult, ApplyAgentImportInput } from "./ipc-agent-import";
+import type {
+  AgentImportPreview,
+  AgentImportResult,
+  AgentImportSkillSource,
+  ApplyAgentImportInput,
+} from "./ipc-agent-import";
 import type {
   AgentMemory,
   AgentMemoryLimitPreference,
@@ -233,6 +238,7 @@ import type {
   WebhookSecret,
 } from "./ipc-events";
 import type { GitHubConnectorRepositories, GitHubConnectorStatus } from "./ipc-github-connector";
+import type { ApplyHermesImportInput, HermesImportPreview } from "./ipc-hermes-import";
 import type { HiddenAgentsSnapshot, SetAgentHiddenInput } from "./ipc-hidden-agents";
 import type { HostAnalytics, HostAnalyticsInput } from "./ipc-host-analytics";
 import type { HostReleaseStatus } from "./ipc-host-release";
@@ -1418,10 +1424,16 @@ export const IPC_ENDPOINTS = {
     choose: scopedQuery<AgentImportPreview | null, "required">()("agent-import:choose"),
     apply: scopedRequest<ApplyAgentImportInput, AgentImportResult, "required">()("agent-import:apply"),
     discard: scopedRequest<string, void, "required">()("agent-import:discard"),
-    // The export skill for a user who sets up the export agent in Grok Bot by hand. Main reads it
+    // The export skill of Grok Bot or Hermes Agent, for a user who adds it by hand. Main reads it
     // from the app's resources, and `saveSkill` asks where to write it.
-    readSkill: request<undefined, string>()("agent-import:read-skill"),
-    saveSkill: request<undefined, ExportResult>()("agent-import:save-skill"),
+    readSkill: request<AgentImportSkillSource, string>()("agent-import:read-skill"),
+    saveSkill: request<AgentImportSkillSource, ExportResult>()("agent-import:save-skill"),
+    // Hermes Agent profiles in a folder on this computer, so only the local server imports them.
+    // `readHermes` reads the folder Hermes uses, `chooseHermes` one the user picks; null means none.
+    readHermes: request<undefined, HermesImportPreview | null>()("agent-import:read-hermes"),
+    chooseHermes: request<undefined, HermesImportPreview | null>()("agent-import:choose-hermes"),
+    applyHermes: request<ApplyHermesImportInput, AgentImportResult>()("agent-import:apply-hermes"),
+    discardHermes: request<string, void>()("agent-import:discard-hermes"),
   },
   // Bound against the instance transfer service: a server's agents and server settings in one file for
   // another server. A remote server is reached with `instance-transfer-v1`; main opens both file

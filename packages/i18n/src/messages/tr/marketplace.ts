@@ -271,7 +271,7 @@ export const messages = {
   "marketplace.plugin.resend.prompt.template": "Yeni akış için bir parola sıfırlama e-postası taslağı hazırla.",
   "marketplace.plugin.composio.tagline": "Kendi Composio bağlantınız üzerinden birçok uygulama",
   "marketplace.plugin.composio.description":
-    "Composio, ajanları tek bir MCP sunucusu üzerinden Gmail, Slack, GitHub ve yüzlerce başka uygulamaya bağlar. Sunucuyu Composio hesabınızda oluşturun, istediğiniz uygulamaları ona ekleyin ve bağlantısını buraya yapıştırın. Yalnızca sunucunuz gerektiriyorsa bir API anahtarı ekleyin.",
+    "Composio, ajanları tek bir MCP sunucusu üzerinden Gmail, Slack, GitHub ve yüzlerce başka uygulamaya bağlar. İstediğiniz uygulamaları Composio hesabınızda bağlayın, ardından MCP URL'sini ve API anahtarını buraya yapıştırın.",
   "marketplace.plugin.composio.app":
     "Composio MCP sunucunuza eklediğiniz uygulamalar, Composio hesabınızdaki bağlantı üzerinden.",
   "marketplace.plugin.composio.prompt.inbox":
@@ -280,12 +280,11 @@ export const messages = {
   "marketplace.plugin.composio.prompt.apps": "Composio üzerinden hangi uygulamaları ve eylemleri kullanabilirsin?",
   "marketplace.plugin.composio.hint.url": "Composio hesabınızdaki bir MCP sunucusunun URL'si",
   "marketplace.plugin.composio.hint.apiKey":
-    "Yalnızca sunucunuz gerektiriyorsa. Composio hesap ayarlarınızda bulabilirsiniz.",
+    "Composio hesabınızda, Settings > Sessions & API Key altında bulabilirsiniz.",
   "marketplace.auth.apiKey": "API anahtarı",
   "marketplace.auth.personalApiKey": "Kişisel API anahtarı",
   "marketplace.auth.mcpUrl": "MCP URL'si",
   "marketplace.auth.createKey": "Anahtar oluştur",
-  "marketplace.auth.createServer": "Sunucu oluştur",
 
   // Skills. {label} is the install button text: an agent name, "All agents" or "2 agents".
   "marketplace.skill.installMenu.install": "Kur",

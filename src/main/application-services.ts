@@ -166,6 +166,7 @@ import { DynamicIslandFailed, DynamicIslandWindowController, toDynamicIslandFail
 import { githubAppConfig } from "./github-connector-config";
 import { GitHubConnectorService } from "./github-connector-service";
 import { GitHubConnectorStore } from "./github-connector-store";
+import { HermesImportService } from "./hermes-import-service";
 import { HostEventsRuntime } from "./host-events-runtime";
 import { HostEventsService } from "./host-events-service";
 import { HostService } from "./host-service";
@@ -325,6 +326,8 @@ const MCP_OAUTH_PROXY_FILE = "openbot-mcp-oauth-proxy-v1.json";
 const GITHUB_CONNECTOR_FILE = "openbot-github-connector-v1.json";
 /** The 1Password service account token of this computer, with the same cipher. */
 const ONEPASSWORD_CONNECTOR_FILE = "openbot-onepassword-connector-v1.json";
+/** Which agent each imported Hermes profile made, so a second import updates that agent. */
+const HERMES_IMPORT_LINKS_FILE = "openbot-hermes-imports-v1.json";
 
 /**
  * Where each service stops, as a position in the shutdown sequence rather than a position in the
@@ -515,6 +518,7 @@ export interface ApplicationServices {
   marketplaceAgents: AgentMarketplaceService;
   agentTemplates: AgentTemplateService;
   agentImport: AgentImportService;
+  hermesImport: HermesImportService;
   instanceTransfer: InstanceTransferService;
   voice: VoiceTranscriptionService;
   speech: VoiceSpeechService;
@@ -1881,6 +1885,26 @@ export async function createApplicationServices({
     () => serverTimezone.effective(),
     join(app.getPath("userData"), "agent-import-uploads"),
   );
+  // Hermes profiles become agents through the same services; MCP servers through the MCP settings.
+  const hermesImport = new HermesImportService(
+    {
+      listAgents: () => service.listAgents(),
+      createAgentProfile: (input) => service.createAgentProfile(input),
+      updateAgent: (input) => service.updateAgent(input),
+      deleteAgent: (agentId) => service.deleteAgent(agentId),
+      createRoutine: (input, options) => service.createRoutine(input, options),
+      listRoutines: (agentId) => service.listRoutines(agentId),
+      createMemory: (input) => service.createMemory(input),
+      listMemories: (agentId) => service.listMemories(agentId),
+      memoryLimit: () => service.memoryLimit(),
+      initializeMemorySelection: (agentId) => service.initializeMemorySelection(agentId),
+      listMcpServers: () => service.listMcpServers(),
+      saveMcpServer: (config) => service.saveMcpServer({ config }),
+    },
+    { library: () => skills.requireLocalLibrary(), installLocal: (input) => skills.installLocal(input) },
+    join(app.getPath("userData"), HERMES_IMPORT_LINKS_FILE),
+    () => serverTimezone.effective(),
+  );
   // The same owners the Settings screens write through, so an import has their checks and restarts.
   const instanceTransfer = new InstanceTransferService({
     agents: service,
@@ -2696,6 +2720,7 @@ export async function createApplicationServices({
     marketplaceAgents,
     agentTemplates,
     agentImport,
+    hermesImport,
     instanceTransfer,
     voice,
     speech,
