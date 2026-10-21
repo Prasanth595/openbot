@@ -107,15 +107,6 @@ float roundBox(vec2 p, vec2 b, float r) {
   return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
 }
 
-// The light turns over the corner on a wide arc of radius r, not on the small radius of the surface.
-// x is the distance out from the edge, and y is the distance along the edge from the start of the arc.
-vec2 bend(vec2 p, float edgeX, float sy, float r, float dir) {
-  vec2 q = vec2((p.x - edgeX) * dir + r, p.y - sy - r);
-  if (q.y >= 0.0) return vec2(q.x - r, 1.5708 * r + q.y);
-  if (q.x <= 0.0) return vec2(-q.y - r, q.x);
-  return vec2(length(q) - r, r * atan(q.x, -q.y));
-}
-
 vec3 spill(float e, float fall, float strength, float front, float t, out vec3 glow) {
   glow = vec3(0.0);
   if (strength < 0.0005) return vec3(0.0);
@@ -124,17 +115,19 @@ vec3 spill(float e, float fall, float strength, float front, float t, out vec3 g
   float f = fr / uFall;
   float d = max(e, 0.0);
   float u = d / (6.0 + 0.28 * f);
-  float start = smoothstep(-6.0, 12.0, fall);
+  // The spill starts softly at the corner, and stays on the edge rather than bulging out.
+  float start = smoothstep(-12.0, 18.0, fall);
   // Below the white core, a dimmer coloured glow runs much further down the edge, as on huly.io.
   float fade = max(exp(-sq(max(f - 125.0, 0.0) / 40.0)), 0.14 * smoothstep(60.0, 125.0, f) * exp(-sq(max(f - 170.0, 0.0) / 80.0)));
-  float streak = 0.88 + 0.24 * noise(vec2(u * 6.0, f / 22.0 - t * 1.7));
+  // Bright and dim streaks run down the side, so the light visibly moves.
+  float streak = 0.55 + 0.9 * noise(vec2(u * 5.0, f / 18.0 - t * 2.4));
   float bright = pow(strength, 1.5);
   float soft = sqrt(strength);
   float warmth = smoothstep(90.0, 130.0, f);
   vec3 coreK = mix(WHITE, WARM, warmth * exp(-d / 9.0));
   // A wide, soft band runs down the side rather than a thin line, as on huly.io.
-  float core = mix(9.0, 2.6, warmth) * exp(-sq(d / (7.0 + 0.06 * f))) * exp(-sq(max(f - 130.0, 0.0) / 38.0));
-  float wall = 9.0 * exp(-sq(d / 3.5)) * exp(-sq(max(f - 100.0, 0.0) / 30.0));
+  float core = mix(3.5, 1.4, warmth) * exp(-sq(d / (9.0 + 0.08 * f))) * exp(-sq(max(f - 130.0, 0.0) / 38.0));
+  float wall = 3.0 * exp(-sq(d / 4.5)) * exp(-sq(max(f - 100.0, 0.0) / 30.0));
   float bandCenter = 0.7 - 0.3 * smoothstep(30.0, 110.0, f) - 0.3 * smoothstep(110.0, 190.0, f);
   float offset = u - bandCenter;
   float decay = (1.05 - bandCenter) / 1.31;
@@ -145,7 +138,7 @@ vec3 spill(float e, float fall, float strength, float front, float t, out vec3 g
   vec3 bandB = mix(SKY, PURPLE, smoothstep(50.0, 75.0, f));
   vec3 fanK = mix(bandA, bandB, smoothstep(0.06, 0.18, offset));
   fanK = mix(fanK, DEEP, smoothstep(0.22, 0.42, offset));
-  vec3 thread = WHITE * wall * bright + coreK * core * streak * bright;
+  vec3 thread = (WHITE * wall + coreK * core) * streak * bright;
   glow += fanK * 4.5 * profile * fade * streak * bright;
   glow += MIST * 0.7 * exp(-max(u - 1.0, 0.0) / 0.9) * smoothstep(0.7, 1.2, u) * fade * soft;
   glow += EMBER * 0.35 * exp(-sq((f - 165.0) / 22.0)) * exp(-d / 25.0) * bright;
@@ -247,15 +240,17 @@ void main() {
   float skirtAmp = 16.6 * (exp(-sq(rise / (11.8 * flare))) + 0.3 * exp(-rise / (60.0 * flare)));
   float skirtSpread = mix(134.0, 155.0, side) * breathe * flare * flare * mix(0.35, 1.0, min(bloom, 1.0)) * max(bloom, 1.0);
   float skirt = skirtAmp * exp(-psi / skirtSpread) * exp(-sq(adx / (max(layerLen, 60.0 * sqrt(uShape.z)) * 1.48))) * hug;
-  col += sideK * skirt * flowMask * min(bloom, 1.0);
+  // The tall light along the top thins out before the corners; only the edge line and the spill turn over them.
+  float overTop = smoothstep(sl - 10.0, sl + 90.0, p.x) * (1.0 - smoothstep(sr - 90.0, sr + 10.0, p.x));
+  col += sideK * skirt * flowMask * overTop * min(bloom, 1.0);
 
   float layer = 12.0 * exp(-adx / layerLen) * exp(-outline / (0.19 * layerLen)) * (1.0 + 0.4 * bead);
-  col += sideK * layer * hug * flowMask * min(bloom, 1.0);
+  col += sideK * layer * hug * flowMask * overTop * min(bloom, 1.0);
   float washMask = smoothstep(sl - 60.0, sl + 6.0, p.x) * (1.0 - smoothstep(sr - 6.0, sr + 45.0, p.x));
   float wash = 1.4 * exp(-adx / 100.0) * exp(-outline / 30.0);
-  col += mix(BEAM, sideK, 0.25) * wash * hugWide * washMask * flowMask * min(bloom, 1.0);
+  col += mix(BEAM, sideK, 0.25) * wash * hugWide * washMask * flowMask * overTop * min(bloom, 1.0);
   float highWash = 0.7 * exp(-adx / 140.0) * exp(-outline / 60.0);
-  col += mix(BEAM, NAVY, 0.5) * highWash * hugWide * washMask * runMask * min(bloom, 1.0);
+  col += mix(BEAM, NAVY, 0.5) * highWash * hugWide * washMask * runMask * overTop * min(bloom, 1.0);
 
   float sideSign = dx < 0.0 ? 0.0 : 1.0;
   float along = 0.5 * log((hp + 1.0) / (adx + 1.0));
@@ -272,7 +267,7 @@ void main() {
   float lineFlow = smoothstep(0.25, 0.85, noise(vec2(lineIndex * 5.3 + 2.0, along * 3.0 + t * 1.1)));
   float flareArea = 120.0 * flare * flare;
   float lineEnvelope = smoothstep(0.85 * flareArea, 1.4 * flareArea, psi) * (1.0 - smoothstep(3.2 * flareArea, 7.5 * flareArea, psi));
-  lineEnvelope *= exp(-adx / (layerLen * 1.5)) * hug * flowMask * (1.0 - smoothstep(35.0 * flare, 80.0 * flare, hp));
+  lineEnvelope *= exp(-adx / (layerLen * 1.5)) * hug * flowMask * overTop * (1.0 - smoothstep(35.0 * flare, 80.0 * flare, hp));
   float lineBright = mix(0.35, 1.0, hash(vec2(lineIndex, 4.0)));
   col += mix(sideK, WHITE, 0.6) * lineShape * lineOn * lineFlow * lineEnvelope * lineBright * 2.6 * uAmount.w * min(bloom, 1.0);
 
@@ -288,20 +283,14 @@ void main() {
   // Only the side nearer the beam spills, as on huly.io.
   strengthR *= step(reachR, reachL);
   strengthL *= 1.0 - step(reachR, reachL);
-  // The arc sits just outside the corner of the surface, and below the corner the light comes back to the edge.
-  float arc = max(radius, 80.0);
-  float gap = 0.293 * (arc - radius);
-  vec2 bendR = bend(p, sr + gap, sy - gap, arc, 1.0);
-  vec2 bendL = bend(p, sl - gap, sy - gap, arc, -1.0);
-  bendR.x = mix(bendR.x, sd, smoothstep(1.5708 * arc, 1.5708 * arc + 90.0, bendR.y));
-  bendL.x = mix(bendL.x, sd, smoothstep(1.5708 * arc, 1.5708 * arc + 90.0, bendL.y));
+  float fallY = p.y - sy - 0.3 * radius;
   float rightHalf = smoothstep(center.x - 4.0, center.x + 4.0, p.x);
-  float haloR = exp(-length(p - vec2(sr - 0.3 * arc, sy + 0.3 * arc)) / 40.0) * sqrt(strengthR);
-  float haloL = exp(-length(p - vec2(sl + 0.3 * arc, sy + 0.3 * arc)) / 40.0) * sqrt(strengthL);
+  float haloR = exp(-length(p - vec2(sr - 0.3 * radius, sy + 0.3 * radius)) / 40.0) * sqrt(strengthR);
+  float haloL = exp(-length(p - vec2(sl + 0.3 * radius, sy + 0.3 * radius)) / 40.0) * sqrt(strengthL);
   vec3 glowR;
   vec3 glowL;
-  col += spill(bendR.x, bendR.y, strengthR, uPour.y, t, glowR) * rightHalf;
-  col += spill(bendL.x, bendL.y, strengthL, uPour.x, t, glowL) * (1.0 - rightHalf);
+  col += spill(sd, fallY, strengthR, uPour.y, t, glowR) * rightHalf;
+  col += spill(sd, fallY, strengthL, uPour.x, t, glowL) * (1.0 - rightHalf);
   col += easeLight(glowR * rightHalf + NAVY * 0.9 * haloR, uPour.w);
   col += easeLight(glowL * (1.0 - rightHalf) + NAVY * 0.9 * haloL, uPour.z);
 
@@ -427,10 +416,10 @@ const SETTINGS = {
   fall: 2.2,
   fog: 0.3,
   dust: 1.4,
-  streaks: 0.4,
+  streaks: 0.8,
   dots: 0.8,
   pulse: 1.4,
-  speed: 1.2,
+  speed: 1.8,
   seed: 3,
 } as const;
 
