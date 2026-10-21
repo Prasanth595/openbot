@@ -73,6 +73,8 @@ void main() {
   float k = uUnit;
   float dx = p.x - uBeam.x;
   float ax = abs(dx);
+  // The light spreads further toward the middle of the surface than away from it.
+  float awayX = ax * (1.0 + 0.8 * step(0.0, dx * (uBeam.x - 0.5 * (uPanel.x + uPanel.z))));
   float top = uPanel.y;
   float above = top - p.y;
   float glow = uBeam.z;
@@ -80,15 +82,20 @@ void main() {
   vec3 side = mix(uPalette[3], uPalette[2], smoothstep(-40.0 * k, 40.0 * k, dx));
   vec3 col = vec3(0.0);
 
-  // The beam: a thin hot core in a wider glow. Ripples of light run down it.
+  // The beam: a white-hot core in a bright glow, in a wider and softer light. Ripples run down it.
   float coreW = uLook.y * k;
   float glowW = uLook.z * k;
   float lit = smoothstep(uBeam.y + 2.0, uBeam.y - 60.0 * k, p.y);
   float belowTop = exp(-sqr(max(-above, 0.0) / (36.0 * k)));
   float ripple = 1.0 + 0.22 * uGrain.z * sin(p.y * 0.035 / k - uClock * 5.0);
   float core = sqr(coreW) / (dx * dx + sqr(coreW));
+  float inner = exp(-sqr(dx / glowW));
   float wide = glowW / (ax + glowW) * exp(-ax / (260.0 * k));
-  col += (mix(uPalette[0], uPalette[1], 0.2) * 7.0 * core + mix(uPalette[1], side, 0.4) * 1.5 * wide) * lit * belowTop * ripple;
+  col += (uPalette[0] * 9.0 * core + mix(uPalette[0], uPalette[1], 0.55) * 1.4 * inner + mix(uPalette[1], side, 0.4) * 1.3 * wide) * lit * belowTop * ripple;
+  // Near the surface the white of the beam opens out, as light that hits a wall spreads on it.
+  float flareAbove = max(above, 0.0);
+  float flareW = 6.0 * k + 0.5 * max(220.0 * k - flareAbove, 0.0);
+  col += mix(uPalette[0], uPalette[1], 0.2) * 7.0 * exp(-sqr(awayX / flareW)) * smoothstep(240.0 * k, 0.0, flareAbove) * belowTop * glow;
 
   // The head of the falling beam.
   float falling = 1.0 - glow;
@@ -115,18 +122,22 @@ void main() {
     float along = exp(-ax / reach);
     float line = 2.4 / (1.0 + sqr(edgeOut / 1.1)) + 0.7 * exp(-edgeOut / (12.0 * k));
     vec3 edgeK = mix(mix(uPalette[0], uPalette[1], smoothstep(0.0, 70.0 * k, ax)), side, smoothstep(50.0 * k, 3.0 * reach, ax));
-    col += edgeK * line * along * reached * overTop * glow * 3.5;
-    // A fan of light over the edge, low and wide near the beam, that thins out to the sides.
-    float fanH = 16.0 * k + 0.16 * ax;
-    float fan = exp(-max(above, 0.0) / fanH) * exp(-ax / (1.1 * reach)) * step(0.0, above + uRound);
-    col += mix(uPalette[1], side, 0.6) * 2.6 * fan * reached * glow * smoothstep(-0.5, 0.5, panelD);
+    col += edgeK * line * along * reached * overTop * glow * 5.0;
+    // A fan of light over the edge, tall and white near the beam, that thins out to the sides.
+    float fanH = 30.0 * k + 0.1 * ax;
+    float fan = exp(-max(above, 0.0) / fanH) * exp(-awayX / (1.3 * reach)) * step(0.0, above + uRound);
+    vec3 fanK = mix(mix(uPalette[0], uPalette[1], smoothstep(0.0, 160.0 * k, ax)), side, 0.5 * smoothstep(100.0 * k, 2.0 * reach, ax));
+    col += fanK * 5.0 * fan * reached * glow * smoothstep(-0.5, 0.5, panelD);
     // The glow of the beam opens out into a cone as it nears the surface.
     float coneW = glowW + 0.45 * max(260.0 * k - above, 0.0);
     float cone = exp(-ax / coneW) * smoothstep(300.0 * k, 0.0, above) * step(0.0, above + uRound);
     col += mix(uPalette[1], side, 0.5) * 1.2 * cone * glow;
-    // A wide pool of light where the beam lands.
-    float pool = exp(-sqr(dx / (150.0 * k)) - sqr(max(above, 0.0) / (120.0 * k))) * step(0.0, above + uRound);
-    col += mix(uPalette[1], side, 0.3) * 1.4 * pool * glow;
+    // A wide pool of light where the beam lands, with a white spot at its middle.
+    float pool = exp(-sqr(awayX / (230.0 * k)) - max(above, 0.0) / (110.0 * k)) * step(0.0, above + uRound);
+    float spot = exp(-length(vec2(dx, above * 2.2)) / (38.0 * k)) * step(0.0, above + uRound);
+    // Along the edge, near the beam, the light burns out to white.
+    float spill = exp(-awayX / (150.0 * k) - max(above, 0.0) / (26.0 * k)) * reached * step(0.0, above + uRound);
+    col += (mix(uPalette[1], side, 0.3) * 2.0 * pool + uPalette[0] * 2.6 * spot + uPalette[0] * 5.0 * spill) * glow;
     float flash = uBeam.w;
     col += uPalette[0] * 4.0 * flash * exp(-length(vec2(dx, above * 1.8)) / (60.0 * k));
 
@@ -146,15 +157,20 @@ void main() {
     }
   }
 
-  // Haze that rises in the beam. Two octaves of value noise are enough for soft light.
+  // A violet fog of soft vertical strands around the beam. It is wider and thicker near the surface,
+  // and outside the surface it hangs down past the top edge. The noise is stretched along y, so
+  // each cell becomes a thin strand of light.
   float haze = uGrain.x * uGrain.w;
-  float hazeZone = exp(-sqr(dx / (170.0 * k))) * smoothstep(top + 40.0 * k, top - 50.0 * k, p.y) * lit;
-  if (haze * hazeZone > 0.004) {
-    vec2 q = vec2(dx / (80.0 * k), (p.y + uClock * 22.0) / (64.0 * k)) + uSeed;
-    float cloud = 0.62 * valueNoise(q) + 0.38 * valueNoise(q * 2.3 + uSeed.yx + vec2(uClock * 0.07, 0.0));
-    float smoke = smoothstep(0.4, 0.86, cloud);
-    float inBeam = exp(-ax / (34.0 * k));
-    col += mix(uPalette[5], uPalette[1], inBeam) * smoke * hazeZone * haze * (0.12 + 1.5 * inBeam);
+  float fogW = 70.0 * k + 0.3 * max(420.0 * k - max(above, 0.0), 0.0);
+  float fogY = (0.5 + 0.5 * exp(-max(above, 0.0) / (300.0 * k))) * exp(-max(-above, 0.0) / (240.0 * k));
+  float fogZone = exp(-awayX / fogW) * fogY * lit;
+  if (haze * fogZone > 0.004) {
+    float drift = uClock * 0.22;
+    float thin = valueNoise(vec2(dx / (3.5 * k) + uSeed.x, p.y / (300.0 * k) - drift));
+    float broad = valueNoise(vec2(dx / (13.0 * k) + uSeed.y, p.y / (150.0 * k) - drift * 1.7));
+    float strand = smoothstep(0.2, 0.9, 0.3 * thin + 0.7 * broad);
+    vec3 fogK = mix(uPalette[1], side, 0.2);
+    col += fogK * fogZone * haze * (0.75 + 0.45 * strand) * (0.65 + 1.15 * glow);
   }
 
   // Motes that rise through the beam and twinkle.
@@ -176,7 +192,8 @@ void main() {
   col *= (1.0 + 0.7 * pointerLight) * uLook.x;
   col *= smoothstep(-1.0, 0.5, panelD);
 
-  vec3 shown = col / (1.0 + col);
+  // This curve reaches white, so the hot parts of the light burn out to pure white.
+  vec3 shown = 1.0 - exp(-col);
   fragColor = vec4(shown, max(shown.r, max(shown.g, shown.b)));
 }`;
 
@@ -237,9 +254,9 @@ interface BeamSettings {
 
 const SETTINGS: BeamSettings = {
   brightness: 1,
-  core: 1.6,
-  glow: 16,
-  reach: 2.2,
+  core: 3,
+  glow: 22,
+  reach: 3,
   drip: 1,
   haze: 0.7,
   motes: 1,
