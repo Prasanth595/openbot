@@ -608,10 +608,18 @@ export function HomeSearchBar({
 }) {
   const { t } = useText();
   const { input } = search;
+  // Touch down mounts the hidden results, and focus opens them: a drag that starts on the field
+  // does not focus it, so it does not open the search. The ref keeps the soft tap to a search that a
+  // touch on the field opens. A drag leaves it set, so each focus that no touch on the field caused
+  // clears it first.
+  const touched = useRef(false);
   // A quick action of the app icon opens the search with the keyboard. The field registers it, so a
   // request that comes while the list loads waits until the field and its input are mounted.
   useEffect(() => {
-    setHomeSearchOpener(() => input.current?.focus());
+    setHomeSearchOpener(() => {
+      touched.current = false;
+      input.current?.focus();
+    });
     return () => setHomeSearchOpener(null);
   }, [input]);
   const insets = useSafeAreaInsets();
@@ -646,10 +654,6 @@ export function HomeSearchBar({
   const enter = reduced ? undefined : closeButtonEnter;
   const exit = reduced ? undefined : closeButtonExit;
   const { target } = search;
-  // Touch down mounts the hidden results, and focus opens them: a drag that starts on the field
-  // does not focus it, so it does not open the search. The ref keeps the soft tap to a search that a
-  // touch opens, not one that a quick action opens.
-  const touched = useRef(false);
   const prepareFromTouch = () => {
     if (search.open) return;
     touched.current = true;
@@ -854,7 +858,15 @@ export function HomeSearchBar({
             }}
           >
             {shownResult ? (
-              <TaskResultContent result={shownResult} color={resultColor} onPress={search.dismissResult} />
+              <TaskResultContent
+                result={shownResult}
+                color={resultColor}
+                onPress={() => {
+                  // The result has its own tap; "Try again" then focuses the field.
+                  touched.current = false;
+                  search.dismissResult();
+                }}
+              />
             ) : null}
           </Animated.View>
         </GlassCapsule>
