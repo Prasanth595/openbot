@@ -236,6 +236,7 @@ const agents = new AgentService({
 /** A driver wired to the agents as `application-services.ts` wires it, with both grants given. */
 function driverRuntime(name: string) {
   const daemon: { child: ChildProcess | null } = { child: null };
+  const quit = { started: false };
   const runtime = new CuaDriverRuntime({
     executable: fakeDriver,
     endpoint: { kind: "unix-socket", directory: join(driverRoot, name) },
@@ -250,24 +251,24 @@ function driverRuntime(name: string) {
       { id: "screen-recording", granted: true },
       { id: "accessibility", granted: true },
     ],
+    quitting: () => quit.started,
   });
   const announced = { count: 0 };
   runtime.onMcpServerChanged(() => {
     announced.count += 1;
     void runCauseEffect(agents.notifyComputerUseChanged()).catch(() => {});
   });
-  return { runtime, announced, daemon };
+  return { runtime, announced, daemon, quit };
 }
 
 /** Stops the daemon from outside, as a signal to the process group does, and waits for the runtime to see it. */
 async function killDaemon({ runtime, daemon }: ReturnType<typeof driverRuntime>): Promise<void> {
-  const stopped = new Promise<void>((done) =>
-    runtime.onStateChanged((state) => {
-      if (state.status === "error") done();
-    }),
-  );
+  let stopped = false;
+  runtime.onStateChanged((state) => {
+    if (state.status === "error") stopped = true;
+  });
   daemon.child?.kill("SIGTERM");
-  await stopped;
+  await waitFor("the runtime to see the daemon stop", () => stopped);
 }
 
 const idle = (agentId: string) =>
@@ -333,7 +334,7 @@ try {
   };
 
   // 3. OpenBot quits, and the same signal stops the driver daemon before the teardown does.
-  atQuit.runtime.quietForShutdown();
+  atQuit.quit.started = true;
   await killDaemon(atQuit);
   report.driverExitAtQuit = {
     announcements: atQuit.announced.count,

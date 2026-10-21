@@ -436,6 +436,8 @@ export interface ApplicationServiceContext {
   forwardVoiceStreamTranscript: (transcript: VoiceStreamTranscript) => void;
   forwardSpeechModelStatus: (status: SpeechModelStatus) => void;
   prepareForUpdateInstall: () => Promise<void>;
+  /** True once a quit starts, also before this function returns. See `CuaDriverRuntimeOptions.quitting`. */
+  quitting: () => boolean;
 }
 
 /** Everything the entry point wires up, registers IPC handlers against, and shuts down. */
@@ -770,6 +772,7 @@ export async function createApplicationServices({
   forwardVoiceStreamTranscript,
   forwardSpeechModelStatus,
   prepareForUpdateInstall,
+  quitting,
 }: ApplicationServiceContext): Promise<ApplicationServices> {
   // First, so the provider lines of the whole startup reach the file.
   teardown.push(
@@ -1321,6 +1324,7 @@ export async function createApplicationServices({
     onDiagnostic: (message) => {
       Effect.runFork(appendRemoteDiagnosticLog(join(app.getPath("userData"), "logs", "remote"), "cua-driver", message));
     },
+    quitting,
   });
   // After the provider runtimes, which hold the `cua-driver mcp` children that talk to this
   // daemon: stopping it first would leave them reading a socket nothing answers.

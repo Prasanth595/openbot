@@ -259,6 +259,11 @@ let systemSessionEnding = false;
 let systemSessionEndFlushStarted = false;
 let relaunchRequested = false;
 /**
+ * Set by a quit signal and by `before-quit`, and never cleared. Not `isQuitting`: a Windows session
+ * end that another app cancels also sets that, and then OpenBot keeps running.
+ */
+let quitStarted = false;
+/**
  * The link kinds a renderer is ever told about.
  *
  * `mcp-auth` is not one of them. It carries an OAuth grant for an MCP server, which is a secret,
@@ -281,7 +286,7 @@ const MAIN_WINDOW_STATE_FILE = "openbot-main-window-state-v1.json";
 if (!app.isPackaged || hostedServer || serverMode) {
   const quitAfterSignal = () => {
     // Before `app.quit()`: the same signal can stop the Computer Use driver first.
-    services?.cuaDriver.quietForShutdown();
+    quitStarted = true;
     app.quit();
   };
   process.once("SIGINT", quitAfterSignal);
@@ -991,6 +996,7 @@ if (!hasSingleInstanceLock) {
         forwardVoiceStreamTranscript,
         forwardSpeechModelStatus,
         prepareForUpdateInstall,
+        quitting: () => quitStarted,
       });
       services = built;
       performance.mark("openbot:services-built");
@@ -1296,7 +1302,7 @@ app.on("window-all-closed", () => {
 
 app.on("before-quit", (event) => {
   isQuitting = true;
-  services?.cuaDriver.quietForShutdown();
+  quitStarted = true;
   if (systemSessionEnding) {
     if (services) void Effect.runPromise(services.updater.stop());
     if (services)
