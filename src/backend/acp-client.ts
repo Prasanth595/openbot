@@ -23,7 +23,7 @@ import { agentProviderName } from "@openbot/contracts/agent-providers";
 import { attachmentMimeTypeForName } from "@openbot/contracts/attachment-files";
 import type { AgentSessionSettingsSnapshot, AgentSessionSettingValue } from "@openbot/contracts/ipc";
 import { type DynamicRecord, isBoolean, isString } from "@openbot/contracts/runtime-values";
-import { type SourceMessages, sourceText } from "@openbot/i18n/source";
+import { sourceText } from "@openbot/i18n/source";
 import { redactText } from "@openbot/logging";
 import { Deferred, Effect, Exit, Fiber, Scope } from "effect";
 import {
@@ -33,9 +33,9 @@ import {
   sessionSettingsSnapshot,
 } from "./acp-configuration";
 import { AcpConnection, type AcpConnectionOptions } from "./acp-connection";
+import type { AcpFlavor } from "./acp-flavor";
 import { acpPlanSteps, PLAN_UPDATED_METHOD } from "./agent/plan-updates";
 import { elicitationOptions, elicitationValue, secretElicitationField } from "./agent/prompts";
-import { isUsageLimitDiagnostic } from "./agent/provider-diagnostics";
 import type { AgentProvider, DiagnosticOrigin } from "./agent-client";
 import type { AgentCliInfo } from "./cli";
 import { runCauseEffect } from "./effect-boundary";
@@ -85,14 +85,14 @@ import type {
 } from "./provider-history";
 import { TimeoutError } from "./with-timeout";
 
-/** How long OpenCode's second `session/load` waits after an internal service failure. */
-const OPENCODE_LOAD_RETRY_MS = 500;
+/** How long the second `session/load` waits after a failure that lists the sessions (OpenCode). */
+const RESTORE_LIST_RETRY_MS = 500;
 
-/** How long OpenCode's second `session/resume` waits while the new process still starts. */
-const OPENCODE_RESUME_RETRY_MS = 2_000;
+/** How long the second `session/resume` waits while the new process still starts (OpenCode). */
+const RESTORE_START_RETRY_MS = 2_000;
 
 /** How many `session/list` pages OpenBot reads to find a session before it stops looking. */
-const OPENCODE_SESSION_LIST_PAGES = 50;
+const SESSION_LIST_PAGES = 50;
 
 /** Maximum replay work waiting for the storage consumer before the import fails safely. */
 const ACP_HISTORY_REPLAY_QUEUE_LIMIT = 256;
@@ -240,6 +240,11 @@ export interface AcpProviderOptions {
   /** The name in error text. The provider name when absent; a custom agent gives its own. */
   label?: string;
   /**
+   * What this agent does differently from the protocol (`acp-flavor.ts`). Each client names one, so
+   * a new provider cannot get another provider's rules by default.
+   */
+  flavor: AcpFlavor;
+  /**
    * An agent that lists no model is ready, not signed out. A custom agent can have one model that
    * it does not name, and it then runs on that model.
    */
@@ -322,6 +327,7 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
   get provider(): AgentProvider {
     return this.options.provider;
   }
+  readonly #flavor: AcpFlavor;
   readonly #transport: AcpConnection;
   readonly #configuration: AcpConfiguration;
   readonly #requestTimeoutMs: number;
@@ -376,6 +382,7 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
     private readonly options: AcpProviderOptions,
   ) {
     super();
+    this.#flavor = options.flavor;
     this.#transport = new AcpConnection({
       provider: options.provider,
       cli,
@@ -399,7 +406,7 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
           }
           return;
         }
-        const failedSession = options.provider === "antigravity" ? GEMINI_SDK_FAILURE.exec(message)?.[1] : undefined;
+        const failedSession = options.flavor.sdkHarness?.failedSession(message);
         const failedTurn = failedSession ? this.#threads.get(failedSession)?.activeTurn : undefined;
         if (failedTurn && failedTurn.sdkFailureAt === null) failedTurn.sdkFailureAt = failedTurn.text.length;
         this.emit("diagnostic", message, origin);
@@ -685,7 +692,7 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
         sessionId &&
         (method === "turn/start" || method === "thread/resume") &&
         !this.#threads.get(sessionId)?.activeTurn &&
-        isSessionNotFound(error, sessionId, this.provider)
+        isSessionNotFound(error, sessionId, this.#flavor)
       ) {
         // No prompt was sent. Drop the stale handle so the queue can load or replace the session.
         this.#forgetMissingSession(sessionId);
@@ -752,10 +759,9 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
           try {
             this.#models = providerResult(yield* Effect.result(this.#discoverModels(timeoutMs)));
           } catch (error) {
-            // Initialization already proved that OpenCode's catalogue works. A later refresh can
-            // time out while probing model options; keep the last successful list instead of making
-            // a connected provider appear to have no models. Other providers report the failure.
-            if (this.provider !== "opencode" || this.#models.length === 0) return yield* providerFailure(error);
+            // A flavor can keep the last successful list. Other agents report the failure.
+            if (!this.#flavor.keepModelsOnRefreshFailure || this.#models.length === 0)
+              return yield* providerFailure(error);
           }
         }
         return yield* providerSync(() =>
@@ -847,9 +853,7 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
           return yield* providerSync(() => decoder({}));
         turn.stopped = true;
         const cancel = providerCall(() => this.#requireConnection().cancel({ sessionId: thread.id }));
-        if (this.provider === "antigravity") {
-          // Its SDK waits for FULLY_IDLE even after halt_request. Stop waiting locally, then
-          // rebuild the harness through session/resume before accepting another prompt.
+        if (this.#flavor.cancelLocallyThenResume) {
           thread.needsResume = true;
           yield* cancel.pipe(
             Effect.ensuring(
@@ -1227,22 +1231,20 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
           : current.loadSession(request),
       );
     let failure: unknown;
-    let starting = false;
+    let recovery: "wait-for-start" | "list-sessions" | null = null;
     try {
       return providerResult(yield* Effect.result(restore(connection)));
     } catch (error) {
       // For `thread/resume` and `turn/start`, `request` forgets the session and converts this response.
-      if (method === "load" && isSessionNotFound(error, request.sessionId, this.provider)) {
+      if (method === "load" && isSessionNotFound(error, request.sessionId, this.#flavor)) {
         return yield* providerFailure(new MissingAcpSessionError(`ACP session not found: ${request.sessionId}`, error));
       }
-      starting = this.provider === "opencode" && method === "resume" && isOpenCodeStarting(error);
-      if (!starting && (this.provider !== "opencode" || !isOpenCodeServiceFailure(error))) {
-        return yield* providerFailure(error);
-      }
+      recovery = this.#flavor.restoreFailure?.(error, method) ?? null;
+      if (!recovery) return yield* providerFailure(error);
       failure = error;
     }
-    if (starting) {
-      yield* Effect.sleep(OPENCODE_RESUME_RETRY_MS);
+    if (recovery === "wait-for-start") {
+      yield* Effect.sleep(RESTORE_START_RETRY_MS);
       // The process can have stopped during the wait; this reports that instead of a closed stream.
       const current = yield* providerSync(() => this.#requireConnection());
       return yield* restore(current);
@@ -1255,12 +1257,12 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
           failure,
         ),
       );
-    yield* Effect.sleep(OPENCODE_LOAD_RETRY_MS);
+    yield* Effect.sleep(RESTORE_LIST_RETRY_MS);
     try {
       // The process can have stopped during the wait; this reports that instead of a closed stream.
       return providerResult(yield* Effect.result(restore(this.#requireConnection())));
     } catch (error) {
-      if (!isOpenCodeServiceFailure(error)) return yield* providerFailure(error);
+      if (this.#flavor.restoreFailure?.(error, method) !== "list-sessions") return yield* providerFailure(error);
       return yield* providerFailure(new Error(sourceText("error.provider.opencodeServiceFailure"), { cause: error }));
     }
   });
@@ -1491,7 +1493,7 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
     if (!this.#initialization?.agentCapabilities?.sessionCapabilities?.list) return "unknown";
     let cursor: string | undefined;
     try {
-      for (let page = 0; page < OPENCODE_SESSION_LIST_PAGES; page += 1) {
+      for (let page = 0; page < SESSION_LIST_PAGES; page += 1) {
         const response = providerResult(
           yield* Effect.result(
             providerCall(() => connection.listSessions({ cwd: request.cwd, ...(cursor ? { cursor } : {}) })),
@@ -1634,39 +1636,21 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
           method: "openbot/usage",
           params: { threadId: thread.id, turnId: turn.id, usage: response.usage },
         });
-      // OpenCode reports a model reply with no text, or with reasoning only, as a successful empty
-      // turn and logs no error. OpenCode 1.18.31 failed the prompt on a rate limit and on a refused
-      // connection; other provider errors can still end here. Do not invent the upstream cause or
-      // report that turn as a successful reply. A turn told not to answer ends empty on purpose, and
-      // an error there costs no answer the user waits for.
-      if (
-        this.provider === "opencode" &&
-        response.stopReason === "end_turn" &&
-        !turn.receivedOutput &&
-        !turn.answerOptional
-      ) {
-        yield* this.#completeTurn(
-          thread,
-          turn,
-          "failed",
-          sourceText(
-            turn.reasoned ? "error.provider.opencodeReasoningWithoutAnswer" : "error.provider.opencodeNoAnswer",
-          ),
-        );
+      // A flavor can fail a turn that ended with no answer (OpenCode). A turn told not to answer ends
+      // empty on purpose, and an error there costs no answer the user waits for.
+      const emptyAnswerFailure = this.#flavor.emptyAnswerFailure;
+      if (emptyAnswerFailure && response.stopReason === "end_turn" && !turn.receivedOutput && !turn.answerOptional) {
+        yield* this.#completeTurn(thread, turn, "failed", emptyAnswerFailure(turn.reasoned));
         return;
       }
-      if (
-        this.provider === "antigravity" &&
-        !turn.providerError &&
-        !turn.stopped &&
-        response.stopReason === "end_turn"
-      ) {
+      const sdkHarness = this.#flavor.sdkHarness;
+      if (sdkHarness && !turn.providerError && !turn.stopped && response.stopReason === "end_turn") {
         // The server's SDK failed the prompt and sent its message as the answer (1.3.0). The text
         // before the failure is the partial answer; the rest is the message.
-        const failureAt = turn.sdkFailureAt ?? (GEMINI_EXECUTION_ERROR_ANSWER.test(turn.text) ? 0 : null);
+        const failureAt = turn.sdkFailureAt ?? (sdkHarness.answerIsFailure.test(turn.text) ? 0 : null);
         const failure = failureAt === null ? "" : turn.text.slice(failureAt).trim();
         if (failureAt !== null) {
-          turn.providerError = geminiTurnFailure(failure || turn.text.trim());
+          turn.providerError = sdkHarness.turnFailure(failure || turn.text.trim());
           turn.text = failure ? turn.text.slice(0, failureAt) : "";
         }
       }
@@ -1706,13 +1690,11 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
     const turn = thread.activeTurn;
     if (!turn || turn.completing) return;
     if (update.sessionUpdate === "agent_message_chunk" && update.content.type === "text") {
-      // Antigravity reports an exhausted quota as answer text and ends the turn as a success.
-      const quota = this.provider === "antigravity" ? GEMINI_QUOTA_CHUNK.exec(update.content.text) : null;
-      if (quota) {
+      // An exhausted quota sent as answer text, and a turn then ended as a success (Antigravity).
+      const quota = this.#flavor.sdkHarness?.quota(update.content.text) ?? null;
+      if (quota !== null) {
         turn.receivedOutput = true;
-        turn.providerError = sourceText("error.provider.antigravityRateLimited", {
-          detail: shownFailureDetail(quota[1]?.trim() ?? ""),
-        });
+        turn.providerError = quota;
         return;
       }
       // A harness reports a dropped stream as answer text, and then sends the retried answer (#1471).
@@ -1732,10 +1714,10 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
         turn.receivedOutput = true;
         turn.interruptedAnswer = null;
       }
-      // Antigravity keeps session/prompt open while background tasks run. Its text must not
-      // wait for that response. A later tool/thought boundary can still classify it as commentary.
+      // An agent can keep session/prompt open while background tasks run (Antigravity). Its text must
+      // not wait for that response. A later tool/thought boundary can still classify it as commentary.
       // Text after an SDK failure is the failure, which the turn reports when it ends.
-      if (this.provider === "antigravity" && update.content.text && turn.sdkFailureAt === null) {
+      if (this.#flavor.streamAnswerBeforePromptReturns && update.content.text && turn.sdkFailureAt === null) {
         if (!turn.text)
           this.emit("notification", {
             method: "item/started",
@@ -1868,14 +1850,14 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
     turn.completing = true;
     // A prompt can have run tools. Never replay it. Drop the handle before publishing completion
     // so only new input can reload the session, including input already waiting in the queue.
-    if (status === "failed" && isSessionNotFound(error, thread.id, this.provider)) {
+    if (status === "failed" && isSessionNotFound(error, thread.id, this.#flavor)) {
       this.#forgetMissingSession(thread.id);
     }
     this.#completeThought(thread, turn);
     for (const item of turn.toolItems.values()) {
       // A stopped stream cannot provide another tool result. Preserve its last output without
       // reporting successful execution. A normal completion can leave background tasks active.
-      const interrupted = this.provider === "antigravity" && status !== "completed";
+      const interrupted = this.#flavor.interruptToolsOnStop === true && status !== "completed";
       const settled = interrupted ? { ...item, status: status === "failed" ? "failed" : "interrupted" } : item;
       turn.messages.push(settled);
       if (interrupted)
@@ -1889,17 +1871,12 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
     if (status === "failed" && error) {
       const detail = this.#redact(failureText(error));
       const message =
-        this.provider === "opencode" &&
-        // Google answers "API key not valid" (#1388).
-        /invalid api key|api key not valid|unauthori[sz]ed|token refresh failed|authentication failed/i.test(detail)
-          ? sourceText("error.provider.opencodeCredentialsRejected", {
-              detail: shownFailureDetail(detail.replace(/^RequestError:\s*Internal error:\s*/u, "")),
-            })
-          : this.provider === "opencode" && isOpenCodeServiceFailure(error)
-            ? sourceText("error.provider.opencodeServiceFailure")
-            : this.provider === "antigravity"
-              ? geminiRequestFailure(error, detail)
-              : this.#openCodeRequestFailure(error, detail);
+        this.#flavor.turnFailure?.(
+          error,
+          detail,
+          (text) => this.#redact(text),
+          (text) => this.emit("diagnostic", this.#redact(text)),
+        ) ?? detail;
       this.emit("notification", {
         method: "error",
         params: { threadId: thread.id, turnId: turn.id, message },
@@ -1936,31 +1913,6 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
     thread.activeTurn = null;
     if (this.#threads.get(thread.id) === thread) yield* this.#threads.markIdle(thread);
   }, Effect.uninterruptible);
-
-  /**
-   * OpenCode retries a rate limit or a provider failure by itself. When it stops, it fails the prompt
-   * with the provider's text behind `Internal error:`, so a billing refusal, a rate limit and an
-   * offline computer all read as one failure of OpenBot, and the user could not tell whether
-   * waiting helps (#1163). The kind comes first; the provider's own text follows it.
-   */
-  #openCodeRequestFailure(error: unknown, detail: string): string {
-    if (this.provider !== "opencode" || !(error instanceof RequestError) || error.code !== -32603) return detail;
-    const reason = error.message.replace(/^Internal error:\s*/u, "");
-    // OpenCode Console's own text says to replace the key in "your client"; here that is Settings (#2544).
-    if (/\bapi key has expired\b[\s\S]*\bopencode console\b/iu.test(detail))
-      return sourceText("error.provider.opencodeKeyExpired");
-    // The usage notice reports an exhausted usage limit, and it reads the whole text to find one.
-    if (isUsageLimitDiagnostic(reason)) return detail;
-    // The part stays in the session, so each turn on this model fails until the user picks another.
-    // The provider's text says nothing more to the user; it goes to the log.
-    if (OPENCODE_UNREADABLE_CONTENT.test(reason)) {
-      this.emit("diagnostic", this.#redact(`OpenCode model refused the chat content: ${reason}`));
-      return sourceText("error.provider.opencodeUnreadableContent");
-    }
-    const key = OPENCODE_REQUEST_FAILURES.find(([, pattern]) => pattern.test(reason))?.[0];
-    if (!key) return detail;
-    return sourceText(key, { detail: shownFailureDetail(this.#redact(reason)) });
-  }
 
   readonly #requestPermission = Effect.fn("AcpAgentClient.requestPermission")(function* (
     this: AcpAgentClient,
@@ -2174,37 +2126,11 @@ function contentMessageId(update: SessionNotification["update"]): string | null 
   return update.messageId;
 }
 
-/** A missing session, identified by the protocol or Cursor's exact load error. */
-function isSessionNotFound(error: unknown, sessionId: string, provider: AgentProvider): boolean {
+/** A missing session, identified by the agent's flavor or by the protocol's `-32002` error. */
+function isSessionNotFound(error: unknown, sessionId: string, flavor: AcpFlavor): boolean {
   if (!(error instanceof RequestError)) return false;
-  // Cursor puts the missing session in data.message and reports only "Invalid params" in
-  // message. Other invalid parameters must not cause a provider session to be replaced.
-  if (provider === "cursor" && error.code === -32602) {
-    return isRecord(error.data) && error.data.message === `Session "${sessionId}" not found`;
-  }
-  // omp 18.8.4 wraps its exact missing-ID error in an internal error (#1690).
-  // Other internal failures, including an error for another session, are not lifecycle signals.
-  if (provider === "acp" && error.code === -32603) {
-    return isRecord(error.data) && error.data.details === `Unsupported ACP session: ${sessionId}`;
-  }
-  // Antigravity 1.3.0 has three exact forms: a load or resume puts the ID in data.sessionId, a
-  // configuration change uses the SDK's resource URI `session <id>`, and a prompt raises a plain
-  // error that the SDK wraps as an internal error.
-  if (provider === "antigravity") {
-    if (!isRecord(error.data)) return false;
-    if (error.code === -32603) return error.data.details === `Session not found: ${sessionId}`;
-    return error.code === -32002 && (error.data.sessionId === sessionId || error.data.uri === `session ${sessionId}`);
-  }
-  // OpenCode 2.x has a session that 1.x wrote after the one-time `session_v2` copy. It answers with
-  // invalid params and the ID in data.sessionId. The same code with another message is a session of
-  // another directory, which is not missing.
-  if (provider === "opencode" && error.code === -32602) {
-    return (
-      isRecord(error.data) &&
-      error.data.sessionId === sessionId &&
-      error.message === `Invalid params: session not found: ${sessionId}`
-    );
-  }
+  const flavored = flavor.sessionNotFound?.(error, sessionId) ?? null;
+  if (flavored !== null) return flavored;
   if (error.code !== -32002) return false;
   const uri = isRecord(error.data) ? error.data.uri : undefined;
   return uri === sessionId || error.message.includes(sessionId);
@@ -2228,119 +2154,12 @@ function failureText(error: unknown): string {
   return detail && !error.message.includes(detail) ? `${String(error)}: ${detail}` : String(error);
 }
 
-/** OpenCode 2's error for a request that its service cannot answer yet, such as at start (#57204). */
-function isOpenCodeStarting(error: unknown): boolean {
-  return (
-    error instanceof RequestError &&
-    error.code === -32603 &&
-    isRecord(error.data) &&
-    error.data.errorName === "ServiceUnavailableError"
-  );
-}
-
-/**
- * OpenCode's wrapper error for a failed call to its internal server. It carries no cause: OpenCode
- * maps each such failure that is not an authentication error to this one.
- */
-function isOpenCodeServiceFailure(error: unknown): boolean {
-  return error instanceof RequestError && error.code === -32603 && /\bOpenCode service failure\b/.test(error.message);
-}
-
 /**
  * A message chunk that is the harness's own complete error report: "API Error: Connection lost
  * mid-response. The response above may be incomplete." Only the full report matches, so answer text
  * that starts with "API Error: " stays in the answer.
  */
-/** Antigravity 1.3.0's `quota_exhausted_message`: a fixed header, then the reset time. */
-const GEMINI_QUOTA_CHUNK = /^\s*Usage Limit Reached\n\n([\s\S]*)$/u;
-/** The stderr record that Antigravity 1.3.0 writes before it sends an SDK failure as answer text. */
-const GEMINI_SDK_FAILURE = /\bAntigravity SDK error processing prompt for session (\S+)/u;
-/** `format_execution_error` of Antigravity 1.3.0 when the failure is not a Google API error. */
-const GEMINI_EXECUTION_ERROR_ANSWER = /^\s*Agent execution error: /u;
-
-/** The message of a Gemini turn that the server failed but reported as answer text. */
-function geminiTurnFailure(text: string): string {
-  // Google's API answer for a refused key. The key is the user's to fix, not the request.
-  if (/\bAPI key not valid\b|\bAPI_KEY_INVALID\b/u.test(text)) return sourceText("error.provider.geminiKeyRefused");
-  const key = GEMINI_REQUEST_FAILURES.find(([, pattern]) => pattern.test(text))?.[0];
-  return key ? sourceText(key, { detail: shownFailureDetail(text) }) : shownFailureDetail(text);
-}
 const HARNESS_ERROR_CHUNK = /^\s*API Error: [^\n]*The response above may be incomplete\.\s*$/u;
-
-const OPENCODE_FAILURE_DETAIL_LIMIT = 200;
-
-/** The provider's text after a failure kind. The renderer shows its generic sentence for text over 400 characters. */
-function shownFailureDetail(text: string): string {
-  const characters = Array.from(text);
-  return characters.length > OPENCODE_FAILURE_DETAIL_LIMIT
-    ? `${characters.slice(0, OPENCODE_FAILURE_DETAIL_LIMIT - 1).join("")}…`
-    : characters.join("");
-}
-
-/**
- * A request that the model refused for a file, image or audio part in the chat. OpenCode 2.1.1
- * sends a part when the model catalog lists its kind, or when the part has a kind it does not know,
- * such as an MCP resource. Each gateway words the refusal differently; OpenCode itself refuses a
- * kind that the protocol cannot carry.
- */
-const OPENCODE_UNREADABLE_CONTENT =
-  /\[unsupported_content_type\]|\bcontent part type "[^"]*" is not supported\b|\bsupports text-only requests\b|\bdoes not support media type\b/iu;
-
-/**
- * The kind of a model request that OpenCode gave up on, first match wins. A provider gateway
- * reports each kind as `Upstream request failed: <reason>`, so billing and the rate limit come
- * first. The provider's own failure comes before the network: a gateway that could not reach its
- * model was reached by this computer. Text that names no kind, such as OpenCode's own "Free usage
- * exceeded, subscribe to Go", is shown as it is.
- */
-const OPENCODE_REQUEST_FAILURES = [
-  [
-    "error.provider.opencodeBilling",
-    /\bno payment method\b|\binsufficient (?:account )?(?:funds|balance)\b|\bpayment required\b/iu,
-  ],
-  ["error.provider.opencodeRateLimited", /\brate[ _-]?limit|\btoo many requests\b/iu],
-  ["error.provider.opencodeInvalidUpload", /\binvalid upload request\b/iu],
-  [
-    "error.provider.opencodeProviderFailed",
-    /\binternal server error\b|\bservice unavailable\b|\bendpoint is unavailable\b|\bbad gateway\b|\bgateway time-?out\b|\boverloaded\b|\bupstream request failed\b/iu,
-  ],
-  [
-    "error.provider.opencodeNetwork",
-    /\b(?:cannot|unable to|could not) connect\b|\bfetch failed\b|\bfailed to fetch\b|\bgetaddrinfo\b|\b(?:ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ECONNRESET|ETIMEDOUT)\b|\bsocket hang up\b/iu,
-  ],
-] as const satisfies readonly (readonly [keyof SourceMessages, RegExp])[];
-
-/**
- * The kind of a Gemini request failure, first match wins. Gemini reports no usage, so a limit has
- * no usage notice to explain it, and the raw Google status left the user unsure whether waiting or
- * another model helps (#1676). The patterns follow Google's API status names, matched in capitals,
- * and a status number only after `status`, `code` or `HTTP`: a bare 404 or "unavailable" can be an
- * MCP server or a tool. Antigravity does not document its failure texts.
- */
-const GEMINI_REQUEST_FAILURES = [
-  ["error.provider.antigravityRateLimited", /\bRESOURCE_EXHAUSTED\b/u],
-  [
-    "error.provider.antigravityRateLimited",
-    /\b(?:status|code|HTTP)\W{0,4}429\b|\bresource has been exhausted\b|\brate[ _-]?limit|\btoo many requests\b|\bquota\b.{0,40}\b(?:exceeded|exhausted)\b/iu,
-  ],
-  [
-    "error.provider.antigravityModelUnavailable",
-    /\bmodel\b.{0,60}\b(?:not found|not supported|does not exist|is unavailable)\b/iu,
-  ],
-  ["error.provider.antigravityServiceFailure", /\b(?:UNAVAILABLE|DEADLINE_EXCEEDED)\b/u],
-  [
-    "error.provider.antigravityServiceFailure",
-    /\b(?:status|code|HTTP)\W{0,4}50[0-4]\b|\bservice unavailable\b|\boverloaded\b|\bdeadline exceeded\b|\binternal server error\b/iu,
-  ],
-] as const satisfies readonly (readonly [keyof SourceMessages, RegExp])[];
-
-/** Only a failure the server answered with: a local failure is not Google's to explain. */
-function geminiRequestFailure(error: unknown, detail: string): string {
-  if (!(error instanceof RequestError)) return detail;
-  const reason = detail.replace(/^(?:RequestError:\s*)?Internal error:\s*/u, "");
-  const key = GEMINI_REQUEST_FAILURES.find(([, pattern]) => pattern.test(reason))?.[0];
-  return key ? sourceText(key, { detail: shownFailureDetail(reason) }) : detail;
-}
 
 function isAuthenticationError(error: unknown): boolean {
   return /auth|login|credential|token|unauthori[sz]ed|api key/i.test(

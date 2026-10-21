@@ -6,6 +6,9 @@ import type { AgentAuthState, AgentProviderId } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { Effect } from "effect";
 import { AcpAgentClient, type AcpHistoryPersistence } from "./acp-client";
+import { CURSOR_ACP_FLAVOR, customAgentFlavor, DEFAULT_ACP_FLAVOR } from "./acp-flavor";
+import { ANTIGRAVITY_ACP_FLAVOR } from "./acp-flavor-antigravity";
+import { OPENCODE_ACP_FLAVOR } from "./acp-flavor-opencode";
 import { readMuseAccount } from "./agent/muse-login";
 import type { AgentClient } from "./agent-client";
 import { CodexAppServerClient } from "./app-server-client";
@@ -578,6 +581,7 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
     createClient: (cli, timeout, context, confinement) =>
       new AcpAgentClient(cli, timeout, {
         provider: "opencode",
+        flavor: OPENCODE_ACP_FLAVOR,
         argv: ["acp"],
         env: {},
         ...(confinement ? { confine: (target) => confineSpawnTarget(target, confinement, openCodeStatePaths()) } : {}),
@@ -603,6 +607,7 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
     createProfileClient: (cli, timeout, context) =>
       new AcpAgentClient(cli, timeout, {
         provider: "opencode",
+        flavor: OPENCODE_ACP_FLAVOR,
         argv: ["acp"],
         profileGeneration: true,
         env: {},
@@ -630,6 +635,7 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
     createClient: (cli, timeout, context, confinement) =>
       new AcpAgentClient(cli, timeout, {
         provider: "antigravity",
+        flavor: ANTIGRAVITY_ACP_FLAVOR,
         argv: ANTIGRAVITY_ARGV,
         ...ANTIGRAVITY_SERVING_OPTIONS,
         discoveryCwd: () => discoveryFolder("antigravity"),
@@ -651,6 +657,7 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
     createProfileClient: (cli, timeout, context) =>
       new AcpAgentClient(cli, timeout, {
         provider: "antigravity",
+        flavor: ANTIGRAVITY_ACP_FLAVOR,
         argv: ANTIGRAVITY_ARGV,
         profileGeneration: true,
         ...ANTIGRAVITY_SERVING_OPTIONS,
@@ -679,6 +686,7 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
     createClient: (cli, timeout, context, confinement) =>
       new AcpAgentClient(cli, timeout, {
         provider: "cursor",
+        flavor: CURSOR_ACP_FLAVOR,
         argv: ["acp"],
         env: {},
         ...(confinement ? { confine: (target) => confineSpawnTarget(target, confinement, cursorStatePaths()) } : {}),
@@ -694,6 +702,7 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
     createProfileClient: (cli, timeout, context) =>
       new AcpAgentClient(cli, timeout, {
         provider: "cursor",
+        flavor: CURSOR_ACP_FLAVOR,
         argv: ["acp"],
         profileGeneration: true,
         env: {},
@@ -724,6 +733,7 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
     createClient: (cli, timeout, context, confinement) =>
       new AcpAgentClient(cli, timeout, {
         provider: "cline",
+        flavor: DEFAULT_ACP_FLAVOR,
         argv: CLINE_ARGV,
         env: { ...CLINE_ENV },
         ...(confinement ? { confine: (target) => confineClineTarget(target, confinement) } : {}),
@@ -740,6 +750,7 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
     createProfileClient: (cli, timeout, context) =>
       new AcpAgentClient(cli, timeout, {
         provider: "cline",
+        flavor: DEFAULT_ACP_FLAVOR,
         argv: CLINE_ARGV,
         profileGeneration: true,
         env: { ...CLINE_ENV },
@@ -804,6 +815,7 @@ function customAgentChild(
   const values = config.env.map((entry) => entry.value);
   return new AcpAgentClient({ executable, version: "", source: "system" }, timeout, {
     provider: "acp",
+    flavor: customAgentFlavor(config.command),
     label: config.name,
     allowNoModels: true,
     discoveryCwd: () => folder ?? discoveryFolder(config.id),

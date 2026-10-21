@@ -407,6 +407,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: bun run test:acp-directories
 
+      - name: Run the ACP flavors E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:acp-flavors
+
       - name: Run the OpenCode expired key E2E test
         if: ${{ !cancelled() }}
         run: bun run test:opencode-expired-key
@@ -432,6 +436,7 @@ jobs:
             .openbot-build/custom-acp-agent-e2e/
             .openbot-build/custom-acp-agent-login-path-e2e/
             .openbot-build/acp-additional-directories-e2e/
+            .openbot-build/acp-flavor-e2e/
             .openbot-build/opencode-expired-key-e2e/
             .openbot-build/opencode-downgraded-session-e2e/
             .openbot-build/cline-free-models-e2e/

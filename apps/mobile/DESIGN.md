@@ -14,6 +14,8 @@ Render product text through HeroUI Native `Typography`, including `Typography.He
 
 Native system chrome is the intentional exception. Navigation and operating-system-owned controls must remain native even when HeroUI can produce a visually similar element. This lets iOS apply Liquid Glass automatically on supported versions and lets Android retain its native Material behavior.
 
+All text uses Inter, the desktop and web font, with the system font as fallback. Native chrome stays native but takes the font: header titles, back titles and toolbar labels read the React Navigation theme fonts (`navigationFonts` in `src/shared/lib/app-font.ts`), and an iOS `@expo/ui` label takes `nativeLabelFont`. System menus, date pickers and Live Activities keep the system font.
+
 ## Component ownership
 
 | Interface need | Preferred owner | Guidance |
