@@ -103,6 +103,7 @@ export const messages = {
   "conversation.tasks.state.completed": "Respondida",
   "conversation.tasks.state.failed": "Fallida",
   "conversation.tasks.state.interrupted": "Detenida",
+  "conversation.tasks.state.waitingApproval": "Esperando tu aprobación",
   "conversation.tasks.hold.taskLimit": {
     one: "Esperando una tarea libre. Se ejecuta {count} tarea.",
     other: "Esperando una tarea libre. Se ejecutan {count} tareas.",

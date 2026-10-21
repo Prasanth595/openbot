@@ -103,6 +103,7 @@ export const messages = {
   "conversation.tasks.state.completed": "Répondue",
   "conversation.tasks.state.failed": "Échouée",
   "conversation.tasks.state.interrupted": "Arrêtée",
+  "conversation.tasks.state.waitingApproval": "Attend votre approbation",
   "conversation.tasks.hold.taskLimit": {
     one: "En attente d’une tâche libre. {count} tâche est en cours.",
     other: "En attente d’une tâche libre. {count} tâches sont en cours.",

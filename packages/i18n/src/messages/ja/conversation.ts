@@ -104,6 +104,7 @@ export const messages = {
   "conversation.tasks.state.completed": "回答済み",
   "conversation.tasks.state.failed": "失敗",
   "conversation.tasks.state.interrupted": "停止",
+  "conversation.tasks.state.waitingApproval": "承認を待っています",
   "conversation.tasks.hold.taskLimit": {
     one: "空きタスクを待っています。実行中のタスク: {count} 件",
     other: "空きタスクを待っています。実行中のタスク: {count} 件",

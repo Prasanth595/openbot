@@ -1016,6 +1016,7 @@ export function ConversationTimeline() {
                 tasks={openTasks()}
                 onOpen={openTaskPanel}
                 onClose={(taskId) => tasks().onClose(taskId)}
+                waitsForApproval={(task) => tasks().approval(task) !== undefined}
               />
             )}
           </Show>

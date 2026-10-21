@@ -9,6 +9,7 @@ import {
   type UpdateAgentAdminSettingsInput,
   type UpdateAgentInput,
 } from "@openbot/contracts/ipc";
+import { taskApproval } from "@openbot/team-client/agent-tasks";
 import { hasVisibleToasts } from "@openbot/ui";
 import {
   type BackupModelSource,
@@ -116,7 +117,8 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
     activeRoutineIds,
     activeRoutines,
     pendingPrompts,
-    pendingApprovals,
+    approvals,
+    approvalOfThread,
     activeTurns,
     turnProgress,
     answerPrompt,
@@ -183,8 +185,7 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
 
   const activeApproval = createMemo(() => {
     const agent = activeAgent();
-    const approval = agent ? pendingApprovals()[agent.id] : undefined;
-    return approval?.threadId === agent?.threadId ? approval : undefined;
+    return agent ? approvalOfThread(agent.id, agent.threadId) : undefined;
   });
 
   const activeBrowserTakeover = createMemo(() => {
@@ -317,6 +318,9 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
       onStop: (taskId) => agentTasks.stopTask(agentId, taskId),
       onClose: (taskId) => agentTasks.closeTask(agentId, taskId),
       onReopen: (taskId) => agentTasks.reopenTask(agentId, taskId),
+      approval: (task) => taskApproval(task, approvals()),
+      onRespondApproval: (approval, decision) =>
+        respondToApprovalRequest(approval.agentId, approval.requestId, decision),
     };
   });
   /**

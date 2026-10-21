@@ -107,9 +107,28 @@ const Turns = createSimpleContext({
         seededAttentionPrompts(seed?.pendingPrompts, presentedPromptResolutions(), submittedPromptRequests()),
       ),
     );
-    const [pendingApprovals, setPendingApprovals] = createSignal<Record<string, AgentApproval | undefined>>(
-      seed?.pendingApprovals ?? {},
+    // Every waiting approval: the agent's chat and each of its tasks has its own thread.
+    const [approvals, setApprovals] = createSignal<AgentApproval[]>(
+      Object.values(seed?.pendingApprovals ?? {}).filter((approval) => approval !== undefined),
     );
+    /** The newest waiting approval of each agent, in any thread. */
+    const pendingApprovals = createMemo(() =>
+      Object.fromEntries(approvals().map((approval) => [approval.agentId, approval] as const)),
+    );
+
+    function approvalOfThread(agentId: string, threadId: string | null | undefined): AgentApproval | undefined {
+      return approvals().find((approval) => approval.agentId === agentId && approval.threadId === threadId);
+    }
+
+    function forgetApproval(agentId: string, requestId: string | number): void {
+      setApprovals((current) =>
+        current.some((approval) => approval.agentId === agentId && String(approval.requestId) === String(requestId))
+          ? current.filter(
+              (approval) => approval.agentId !== agentId || String(approval.requestId) !== String(requestId),
+            )
+          : current,
+      );
+    }
     const completedTurnByAgent = new Map<string, string>();
     const queueSnapshotRequests = new Map<string, number>();
     const waitSnapshotRequests = new Map<string, number>();
@@ -254,17 +273,20 @@ const Turns = createSimpleContext({
       agentId: string,
       requestId: string | number,
       decision: "accept" | "decline",
+      options?: { onError?: (error: unknown) => void },
     ): Promise<boolean> {
       const serverId = activeServerId();
-      const approval = pendingApprovals()[agentId];
-      if (!approval || String(approval.requestId) !== String(requestId)) return false;
+      const approval = approvals().find(
+        (item) => item.agentId === agentId && String(item.requestId) === String(requestId),
+      );
+      if (!approval) return false;
       const analytics = desktopAnalytics.scope();
       try {
         await turnsPort().agent.respondToApproval({
           requestId: approval.requestId,
           decision,
         });
-        setPendingApprovals((current) => ({ ...current, [agentId]: undefined }));
+        forgetApproval(agentId, approval.requestId);
         analytics.track("agent_input_action", { kind: "approval", decision, result: "succeeded" });
         return true;
       } catch (error) {
@@ -274,14 +296,15 @@ const Turns = createSimpleContext({
           result: "failed",
           failure_code: "response_failed",
         });
-        appendUiError(agentId, error, currentText().t("app.errorStatus.approval"), serverId);
+        if (options?.onError) options.onError(error);
+        else appendUiError(agentId, error, currentText().t("app.errorStatus.approval"), serverId);
         return false;
       }
     }
 
     async function respondToApproval(decision: "accept" | "decline"): Promise<boolean> {
       const agent = activeAgent();
-      const approval = agent ? pendingApprovals()[agent.id] : undefined;
+      const approval = agent ? approvalOfThread(agent.id, agent.threadId) : undefined;
       if (!agent || !approval) return false;
       return respondToApprovalRequest(agent.id, approval.requestId, decision);
     }
@@ -452,8 +475,11 @@ const Turns = createSimpleContext({
       setPresentedPromptResolutions,
       submittedPromptRequests,
       setSubmittedPromptRequests,
+      approvals,
+      setApprovals,
       pendingApprovals,
-      setPendingApprovals,
+      approvalOfThread,
+      forgetApproval,
       completedTurnByAgent,
       queueSnapshotRequests,
       activeQueue,
