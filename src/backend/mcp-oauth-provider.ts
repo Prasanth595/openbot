@@ -466,9 +466,9 @@ export class McpOAuth implements McpOAuthAuthority {
               // A server that answers without a sign-in and names no authorization server takes none:
               // the SDK would otherwise guess `/authorize` at the server's own origin. Any answer
               // below 500 is such a server: a 404, a refusal, or a page that is not metadata. No
-              // answer, or a server error, says nothing about the server. It must not end the sign-in
-              // as if the server asked for none: that left the row showing the result of the earlier
-              // test, with no page and no words.
+              // answer, a server error, or a busy server (408, 429) says nothing about the server. It
+              // must not end the sign-in as if the server asked for none: that left the row showing
+              // the result of the earlier test, with no page and no words.
               let metadataStatus: number | null = null;
               const metadataFetch: FetchLike = async (input, init) => {
                 metadataStatus = null;
@@ -480,7 +480,13 @@ export class McpOAuth implements McpOAuthAuthority {
                 discoverOAuthProtectedResourceMetadata(resource, undefined, metadataFetch),
               ).pipe(
                 Effect.catch(() => {
-                  if (metadataStatus !== null && metadataStatus < 500) return Effect.succeed(null);
+                  if (
+                    metadataStatus !== null &&
+                    metadataStatus < 500 &&
+                    metadataStatus !== 408 &&
+                    metadataStatus !== 429
+                  )
+                    return Effect.succeed(null);
                   metadataUnreadable = true;
                   return Effect.fail(new Error(sourceText("error.backend.mcpSignInMetadataUnreadable")));
                 }),

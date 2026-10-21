@@ -59,7 +59,7 @@ function json(response: ServerResponse, status: number, value: unknown): void {
 }
 
 /** What the server publishes about its sign-in. */
-type Metadata = "published" | "absent" | "refused" | "unreadable";
+type Metadata = "published" | "absent" | "refused" | "unreadable" | "busy" | "unanswered";
 
 async function fakeServer(metadata: Metadata): Promise<FakeServer> {
   const state: Omit<FakeServer, "url" | "close"> = { toolLists: [], tokenRequests: 0 };
@@ -74,6 +74,13 @@ async function fakeServer(metadata: Metadata): Promise<FakeServer> {
         metadata === "refused"
       )
         return json(response, 403, { error: "forbidden" });
+      if (request.method === "GET" && path.startsWith("/.well-known/oauth-protected-resource") && metadata === "busy")
+        return json(response, 429, { error: "too many requests" });
+      // The path is not found, and the root gives no answer: the 404 must not count for the root.
+      if (request.method === "GET" && path === "/.well-known/oauth-protected-resource" && metadata === "unanswered") {
+        request.socket.destroy();
+        return;
+      }
       if (request.method === "GET" && path === "/.well-known/oauth-protected-resource/mcp") {
         // A read that fails says nothing about the server. The sign-in must not end as if the server
         // asked for none.
@@ -241,25 +248,28 @@ async function main(): Promise<void> {
     check(refused, refused.tokenRequests === 0, "a server that refused the metadata read got a token request");
     report.cases.push(refused);
 
-    const unreadable = await runCase("sign-in-metadata-unreadable", "unreadable", true);
-    check(
-      unreadable,
-      unreadable.result.error ===
-        "OpenBot could not read the sign-in information of this server. Check the server address and try again.",
-      `a sign-in with an unreadable metadata document reported: ${unreadable.result.error}`,
-    );
-    check(unreadable, unreadable.pagesOpened === 0, "a sign-in with an unreadable metadata document opened a page");
-    check(
-      unreadable,
-      unreadable.tokenRequests === 0,
-      "a sign-in with an unreadable metadata document asked for a token",
-    );
-    check(
-      unreadable,
-      unreadable.result.toolCount === 0,
-      "a sign-in with an unreadable metadata document counted tools",
-    );
-    report.cases.push(unreadable);
+    // A server error, a busy server, and no answer say nothing about the sign-in.
+    for (const metadata of ["unreadable", "busy", "unanswered"] as const) {
+      const unreadable = await runCase(`sign-in-metadata-${metadata}`, metadata, true);
+      check(
+        unreadable,
+        unreadable.result.error ===
+          "OpenBot could not read the sign-in information of this server. Check the server address and try again.",
+        `a sign-in with an unreadable metadata document reported: ${unreadable.result.error}`,
+      );
+      check(unreadable, unreadable.pagesOpened === 0, "a sign-in with an unreadable metadata document opened a page");
+      check(
+        unreadable,
+        unreadable.tokenRequests === 0,
+        "a sign-in with an unreadable metadata document asked for a token",
+      );
+      check(
+        unreadable,
+        unreadable.result.toolCount === 0,
+        "a sign-in with an unreadable metadata document counted tools",
+      );
+      report.cases.push(unreadable);
+    }
 
     const test = await runCase("test-public-tools", "published", false);
     check(test, test.result.error === null, `the test failed: ${test.result.error}`);
