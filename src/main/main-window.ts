@@ -12,7 +12,6 @@ import { Effect } from "effect";
 
 import { join } from "node:path";
 import {
-  type AgentEvent,
   type AppVariant,
   type ComputerUseHighlightPlacement,
   IPC_ENDPOINTS,
@@ -61,7 +60,6 @@ import type { UpdateService } from "./update-service";
  * module without this module importing it back.
  */
 interface MainWindowApplicationServices {
-  service: AgentService;
   browser: BrowserHost;
   remoteServers: RemoteServerManager;
 }
@@ -91,7 +89,6 @@ export interface MainWindowContext {
   getServices: () => MainWindowApplicationServices | null;
   /** A function, not a value: the saved language is read after the first window opens. */
   getTranslate: () => AppTranslate;
-  forwardAgentEvent: (serverId: string, event: AgentEvent) => void;
   /** A renderer load or committed document navigation resets delivery of queued links. */
   onRendererLoadStarted: () => void;
   /** Main must release resources when a renderer can no longer run its own cleanup. */
@@ -121,7 +118,6 @@ export function createMainWindowController({
   keepRunningInBackground,
   getServices,
   getTranslate,
-  forwardAgentEvent,
   onRendererLoadStarted,
   onRendererGone,
   onMainWindowCreated,
@@ -297,7 +293,6 @@ export function createMainWindowController({
     window.webContents.on("did-finish-load", () => {
       const services = getServices();
       if (services) {
-        forwardAgentEvent("local", { type: "runtime-snapshot", snapshot: services.service.getRuntimeSnapshot() });
         Effect.runFork(services.remoteServers.refreshRuntimeSnapshots());
       }
     });

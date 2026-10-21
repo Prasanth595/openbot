@@ -1103,8 +1103,8 @@ export const IPC_ENDPOINTS = {
     getStatus: scopedQuery<AgentStatus>()("agent:get-status"),
     /**
      * The local runtime snapshot, which the window reads after it subscribes to agent events. Main
-     * drops an event while the page loads, so the snapshot that it sends then never arrives. A joined
-     * server answers null and sends its snapshot on its event stream.
+     * drops an event while the page loads, so a snapshot event cannot do this. A joined server answers
+     * null and sends its snapshot on its event stream.
      */
     getRuntimeSnapshot: scopedQuery<AgentRuntimeSnapshot | null>()("agent:get-runtime-snapshot"),
     getAnalytics: scopedRequest<AgentAnalyticsInput, AgentAnalytics | null, "required">()("agent:get-analytics"),
