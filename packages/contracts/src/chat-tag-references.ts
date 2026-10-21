@@ -159,7 +159,9 @@ function expandedQuote(
 function fileQuoteHeading(file: FileQuoteTarget): string {
   const name = file.source === "attachment" ? file.name : file.path;
   const quotedName = name.includes("`") ? name : `\`${name}\``;
-  const from = file.source === "attachment" ? `From the attached file ${quotedName}` : `From ${quotedName}`;
+  // A shared path starts at the shared folder that the agent's instructions name.
+  const kind = file.source === "attachment" ? "the attached file " : file.source === "shared" ? "the shared file " : "";
+  const from = `From ${kind}${quotedName}`;
   const lines = file.lines;
   if (!lines) return `${from}:`;
   return lines.end > lines.start ? `${from}, lines ${lines.start}-${lines.end}:` : `${from}, line ${lines.start}:`;

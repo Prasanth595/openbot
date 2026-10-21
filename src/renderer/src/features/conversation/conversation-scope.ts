@@ -1,4 +1,9 @@
-import { type FileQuoteTarget, fileQuoteTarget, limitedQuoteText } from "@openbot/contracts/chat-tag-references";
+import {
+  type FileQuoteTarget,
+  fileQuoteId,
+  fileQuoteTarget,
+  limitedQuoteText,
+} from "@openbot/contracts/chat-tag-references";
 import type { McpSignInRelayPage, UpdateAgentInput } from "@openbot/contracts/ipc";
 import type { QuoteRequest } from "@openbot/ui/features/conversation/ComposerEditor";
 import { currentText } from "@openbot/ui/text";
@@ -18,15 +23,10 @@ import { createAttachmentImportSounds } from "./attachment-import-sounds";
 import { useConversationController } from "./conversation-controller-context";
 import { agentConversationKey, composerDraftKey } from "./conversation-keys";
 import { conversationRuntime } from "./conversation-runtime";
-import type {
-  ComposerDraft,
-  ConversationProps,
-  ConversationTarget,
-  SidebarFilePreview,
-  SidePanelPane,
-} from "./conversation-types";
+import type { ComposerDraft, ConversationProps, ConversationTarget, SidePanelPane } from "./conversation-types";
 import {
   clearQuotedTextHighlight,
+  filePreviewQuoteId,
   highlightQuotedText,
   messageTextBlocks,
   revealFileQuote,
@@ -944,31 +944,33 @@ export function createConversationViewScope(props: ConversationProps) {
 
   /** Scrolls to the passage that a quote points to and marks it. A file passage opens in the side panel. */
   function openQuote(messageId: string, text: string) {
+    stopRevealingFileQuote();
     const file = fileQuoteTarget(messageId);
     if (file) {
-      if (!filePreviewOpen() || !showsFile(sidebarFilePreview()?.source, file)) openQuotedFile(file);
-      revealFileQuote(document, file, text);
+      const shown =
+        filePreviewOpen() && filePreviewQuoteId(sidebarFilePreview()) === fileQuoteId({ ...file, lines: undefined });
+      if (shown || openQuotedFile(file)) revealFileQuote(document, file, text);
       return;
     }
     if (!showQuotedText(messageId, text)) void revealQuote(messageId, text);
   }
 
-  function showsFile(shown: SidebarFilePreview["source"] | undefined, file: FileQuoteTarget): boolean {
-    if (file.source === "attachment") return shown?.kind === "attachment" && shown.attachment.id === file.attachmentId;
-    return shown?.kind === file.source && shown.path === file.path;
-  }
-
   /* An attachment opens from its record, so it must be in a loaded message. */
-  function openQuotedFile(file: FileQuoteTarget) {
+  function openQuotedFile(file: FileQuoteTarget): boolean {
     if (file.source !== "attachment") {
       if (file.source === "shared") openSharedFile(file.path);
       else openWorkspaceFile(file.path);
-      return;
+      return true;
     }
     const attachment = props.messages
       .flatMap((message) => message.attachments ?? [])
       .find((candidate) => candidate.id === file.attachmentId);
-    if (attachment) void previewAttachment(attachment);
+    if (!attachment) {
+      setScopedComposerError(currentText().t("attachment.error.preview", { name: file.name }));
+      return false;
+    }
+    void previewAttachment(attachment);
+    return true;
   }
 
   /* A row far away is not drawn, and a message outside the loaded pages is loaded first. */

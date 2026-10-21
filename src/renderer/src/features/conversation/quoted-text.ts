@@ -1,5 +1,6 @@
 import { type FileQuoteTarget, fileQuoteId } from "@openbot/contracts/chat-tag-references";
 import { findChatSearchMatches } from "./chat-search";
+import type { SidebarFilePreview } from "./conversation-types";
 
 const QUOTE_HIGHLIGHT = "openbot-quote-target";
 
@@ -30,6 +31,19 @@ export function highlightQuotedText(blocks: HTMLElement[], text: string): Range 
 }
 
 /**
+ * The quote id, with no lines, of the file that the side panel shows. The agent can read a workspace
+ * file, a shared file and an attachment, so a passage of one can be quoted. A folder cannot.
+ */
+export function filePreviewQuoteId(file: SidebarFilePreview | null | undefined): string | undefined {
+  const source = file?.source;
+  if (source?.kind === "attachment")
+    return fileQuoteId({ source: "attachment", attachmentId: source.attachment.id, name: source.attachment.name });
+  return source?.kind === "workspace" || source?.kind === "shared"
+    ? fileQuoteId({ source: source.kind, path: source.path })
+    : undefined;
+}
+
+/**
  * Marks a quoted passage of a file when the side panel shows the file, and scrolls to it. The file
  * loads after the request, and the code highlighter replaces its text after that, so this marks the
  * passage again each time its text changes. It stops at the next pointer press or Escape.
@@ -39,11 +53,15 @@ export function revealFileQuote(document: Document, file: FileQuoteTarget, text:
   clearQuotedTextHighlight();
   const selector = `[data-selection-file-quote="${CSS.escape(fileQuoteId({ ...file, lines: undefined }))}"]`;
   let marked: Range | null = null;
-  const show = () => {
+  let searched: HTMLElement | null = null;
+  // Other parts of the app change all the time, so the file text is searched again only when it changes.
+  const show = (records: MutationRecord[] = []) => {
     // A replaced text node collapses the range.
     if (marked && !marked.collapsed) return;
     const block = document.querySelector<HTMLElement>(selector);
-    const range = block ? fileQuoteRange(block, text, file.lines) : null;
+    if (!block || (block === searched && !records.some((record) => block.contains(record.target)))) return;
+    searched = block;
+    const range = fileQuoteRange(block, text, file.lines);
     if (!range) return;
     clearQuotedTextHighlight();
     markQuotedRange(range, document);
@@ -70,10 +88,24 @@ export function stopRevealingFileQuote(): void {
 
 /**
  * The passage in the shown text of a file. Whitespace is not compared: rendered Markdown joins its
- * blocks without the line breaks that a selection of them has. Source text starts at the quoted lines.
+ * blocks without the line breaks that a selection of them has. A passage of Markdown source shows as
+ * rendered text when the file opens again, so then only letters and digits are compared. Source text
+ * starts at the quoted lines.
  */
 function fileQuoteRange(block: HTMLElement, text: string, lines: FileQuoteTarget["lines"]): Range | null {
-  const wanted = text.replace(/\s+/gu, "");
+  const lineStart =
+    lines && block.dataset.selectionFileLines === "true" ? sourceLineOffset(block.textContent ?? "", lines.start) : 0;
+  for (const kept of [/\S/u, /[\p{L}\p{N}]/u]) {
+    const range = compactTextRange(block, text, kept, lineStart);
+    if (range) return range;
+  }
+  return null;
+}
+
+function compactTextRange(block: HTMLElement, text: string, kept: RegExp, lineStart: number): Range | null {
+  const wanted = Array.from(text)
+    .filter((character) => kept.test(character))
+    .join("");
   if (!wanted) return null;
   const nodes: Text[] = [];
   const positions: Array<{ node: number; offset: number; source: number }> = [];
@@ -86,15 +118,13 @@ function fileQuoteRange(block: HTMLElement, text: string, lines: FileQuoteTarget
     nodes.push(node);
     for (let offset = 0; offset < value.length; offset += 1) {
       const character = value[offset] ?? "";
-      if (!/\s/u.test(character)) {
+      if (kept.test(character)) {
         compact += character;
         positions.push({ node: nodes.length - 1, offset, source: source + offset });
       }
     }
     source += value.length;
   }
-  const lineStart =
-    lines && block.dataset.selectionFileLines === "true" ? sourceLineOffset(block.textContent ?? "", lines.start) : 0;
   const from = Math.max(
     0,
     positions.findIndex((position) => position.source >= lineStart),
