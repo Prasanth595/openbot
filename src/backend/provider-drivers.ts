@@ -335,7 +335,7 @@ export const NO_PROVIDER_CREDENTIALS: ProviderClientContext = {
  * How a provider's model list differs from a plain `model/list` reading. Absent for a provider that
  * needs nothing more.
  */
-export interface ProviderModelCatalog {
+interface ProviderModelCatalog {
   /** The CLI gives its list in pages, with `nextCursor`. */
   readonly paged?: true;
   /** The list can take the full request timeout, not 5 s. */
