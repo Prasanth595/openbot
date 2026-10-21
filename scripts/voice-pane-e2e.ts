@@ -5,10 +5,13 @@
 //   2. Remote: the test client talks to the same agent through the host server. Only the text goes;
 //      no player, and no recording draft stays on the client.
 //   3. Storage: the host lists the recording and deletes it; the message keeps its text, no player.
-//   4. Offline: the host stops serving. The client's pane releases the microphone, shows the offline
+//   4. Interrupt: the host's microphone stays open while the agent thinks and speaks. The question
+//      said again interrupts the agent and becomes the next turn; then the Stop button interrupts it.
+//      Neither interrupt opens the microphone again.
+//   5. Offline: the host stops serving. The client's pane releases the microphone, shows the offline
 //      error and does not listen. The client stays disconnected after this case: run
 //      `bun run dev:stop` and `bun run dev:test-client` before the next run.
-//   5. Analytics: each window's OpenPanel requests are captured. The pane, turn and spoken reply
+//   6. Analytics: each window's OpenPanel requests are captured. The pane, turn and spoken reply
 //      events arrive with their metadata, and no request holds what the user said.
 // Start the harness with the capture address, then run the script with `--allow-mutations`:
 //   OPENBOT_ANALYTICS_CAPTURE_URL=http://localhost:47322 bun run dev:test-client
@@ -20,6 +23,7 @@ import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import type { OpenBotDesktopApi, StoredFileRow } from "@openbot/contracts/ipc";
 import { createOpenBotLogger } from "@openbot/logging";
+import { ANALYTICS_GENERATIONS } from "@openbot/telemetry";
 import type { Page } from "playwright-core";
 import { z } from "zod";
 import { assertMutationAllowed, connectToDevApp } from "./dev-automation/cdp-client";
@@ -28,7 +32,7 @@ import { type DevInstanceRecord, readDevInstanceRecords } from "./dev-automation
 declare global {
   interface Window {
     openbot: OpenBotDesktopApi;
-    voicePaneE2E?: { arm: () => void; calls: () => number; liveTracks: () => number };
+    voicePaneE2E?: { arm: (streams?: number) => void; calls: () => number; liveTracks: () => number };
   }
 }
 
@@ -103,7 +107,7 @@ const check = (name: string, passed: boolean, detail: unknown = null) => {
   logger.info(`${passed ? "Passed" : "Failed"}: ${name}.`);
 };
 
-/** A fake microphone. Each `arm()` makes the next stream say the question once; others are silent. */
+/** A fake microphone. `arm(n)` makes each of the next `n` streams say the question once; others are silent. */
 async function installMicrophone(page: Page): Promise<void> {
   await page.evaluate(async (text) => {
     const speech = await window.openbot.voice.speak({ text, language: "en" });
@@ -112,15 +116,15 @@ async function installMicrophone(page: Page): Promise<void> {
     const buffer = context.createBuffer(1, samples.length, speech.sampleRate);
     const channel = buffer.getChannelData(0);
     for (let index = 0; index < samples.length; index += 1) channel[index] = (samples[index] ?? 0) / 32_768;
-    let armed = false;
+    let armed = 0;
     let calls = 0;
     const streams: MediaStream[] = [];
     navigator.mediaDevices.getUserMedia = async () => {
       calls += 1;
       await context.resume();
       const destination = context.createMediaStreamDestination();
-      if (armed) {
-        armed = false;
+      if (armed > 0) {
+        armed -= 1;
         const source = context.createBufferSource();
         source.buffer = buffer;
         source.connect(destination);
@@ -130,8 +134,8 @@ async function installMicrophone(page: Page): Promise<void> {
       return destination.stream;
     };
     window.voicePaneE2E = {
-      arm: () => {
-        armed = true;
+      arm: (streams = 1) => {
+        armed = streams;
       },
       calls: () => calls,
       liveTracks: () =>
@@ -196,13 +200,13 @@ async function openAgent(page: Page): Promise<void> {
   await page.getByRole("heading", { name: AGENT, level: 1 }).waitFor();
 }
 
-async function openVoicePane(page: Page): Promise<void> {
+async function openVoicePane(page: Page, streams = 1): Promise<void> {
   const panel = page.locator(".voice-panel");
   if (await panel.count()) {
     await panel.getByRole("button", { name: "End voice conversation", exact: true }).click();
     await panel.waitFor({ state: "detached" });
   }
-  await page.evaluate(() => window.voicePaneE2E?.arm());
+  await page.evaluate((count) => window.voicePaneE2E?.arm(count), streams);
   await page.getByRole("button", { name: "Add to prompt", exact: true }).click();
   await page.getByRole("menuitem", { name: "Voice", exact: true }).click();
   await panel.waitFor();
@@ -223,6 +227,20 @@ const paneState = (page: Page) =>
       error: panel?.querySelector(".voice-panel-error")?.textContent?.trim() ?? null,
     };
   });
+
+/** Waits until the pane shows `phase` or an error. Returns each phase it showed, in sequence. */
+async function waitForPhase(page: Page, phase: string): Promise<string[]> {
+  const phases: string[] = [];
+  const started = Date.now();
+  while (Date.now() - started < TURN_TIMEOUT_MS) {
+    const state = await paneState(page);
+    const label = `${state.phase}${state.error ? ` | ${state.error}` : ""}`;
+    if (phases.at(-1) !== label) phases.push(label);
+    if (state.phase === phase || state.error) break;
+    await page.waitForTimeout(100);
+  }
+  return phases;
+}
 
 /** Waits for one spoken turn after `openVoicePane`: the reply is read aloud, then the pane listens again. */
 async function speakOneTurn(page: Page, name: string) {
@@ -387,7 +405,50 @@ try {
     }
   }
 
-  // 4. Offline. The client's pane listens; the host stops serving. The dev client reaches the host
+  // 4. Interrupt. The first stream says the question; the second, opened while the agent thinks, says
+  // it again. A fast reply can start before it: the interrupt event shows that the voice stopped it. The storage case reloaded the host, which removed its microphone.
+  await installMicrophone(host);
+  await openVoicePane(host, 2);
+  const thinking = await waitForPhase(host, "Thinking");
+  const byVoice = await waitForPhase(host, "Listening");
+  const voiceCalls = await host.evaluate(() => window.voicePaneE2E?.calls() ?? -1);
+  check(
+    "interrupt: speech while the agent thinks or speaks interrupts it, on the open microphone",
+    byVoice[0] === "Thinking" && byVoice.at(-1) === "Listening",
+    { thinking, byVoice },
+  );
+  // The next turn is short: the click must come while the agent thinks, before any event check waits.
+  const next = await waitForPhase(host, "Thinking");
+  // The microphone opens again after the send. The click waits for it, so the Stop button finds it open.
+  await host.waitForFunction(() => window.voicePaneE2E?.calls() === 3);
+  await host.getByRole("button", { name: "Interrupt", exact: true }).click();
+  const byButton = await waitForPhase(host, "Listening");
+  const buttonCalls = await host.evaluate(() => window.voicePaneE2E?.calls() ?? -1);
+  check(
+    "interrupt: the Stop button interrupts the next turn, on the open microphone",
+    next.at(-1) === "Thinking" && byButton.at(-1) === "Listening" && !byButton.includes("Speaking"),
+    { next, byButton },
+  );
+  // The listening turn, the one open while the agent thought, and the one open while it thought again.
+  check("interrupt: no interrupt opens the microphone again", voiceCalls === 2 && buttonCalls === 3, {
+    voiceCalls,
+    buttonCalls,
+  });
+  await checkEvent(
+    "analytics: the interrupt by voice is sent",
+    "host",
+    "voice_conversation_action",
+    (event) => event.action === "interrupt" && event.trigger === "voice" && event.server_kind === "local",
+  );
+  await checkEvent(
+    "analytics: the interrupt by the Stop button is sent",
+    "host",
+    "voice_conversation_action",
+    (event) => event.action === "interrupt" && event.trigger === "button" && event.server_kind === "local",
+  );
+  await closeVoicePane(host);
+
+  // 5. Offline. The client's pane listens; the host stops serving. The dev client reaches the host
   // through a local API port that a restarted host does not open again, so the client stays
   // disconnected after this case, and the return to online is not checked here.
   await client.getByText("Listening", { exact: true }).first().waitFor();
@@ -435,7 +496,11 @@ try {
         .map((event) => event.properties.event_schema_version),
     ),
   ];
-  check("analytics: voice events use desktop schema 9", versions.length === 1 && versions[0] === 9, versions);
+  check(
+    `analytics: voice events use desktop schema ${ANALYTICS_GENERATIONS.desktop}`,
+    versions.length === 1 && versions[0] === ANALYTICS_GENERATIONS.desktop,
+    versions,
+  );
 } finally {
   if (hostStopped) await host.evaluate(() => window.openbot.host.start()).catch(() => undefined);
   writeFileSync(join(OUT, "report.json"), `${JSON.stringify(report, null, 2)}\n`);

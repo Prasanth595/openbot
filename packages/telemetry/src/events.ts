@@ -83,7 +83,7 @@ export type ReportContext = Pick<Report, "surface" | "app_version" | "platform" 
  */
 export const ANALYTICS_GENERATIONS = {
   desktop_host: 9,
-  desktop: 10,
+  desktop: 11,
   web: 2,
   mobile: 3,
 } as const satisfies Record<Report["surface"], number>;

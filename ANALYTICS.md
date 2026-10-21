@@ -18,14 +18,15 @@ Every event has these low-cardinality properties:
 
 - `surface`: `desktop`, `desktop_host`, `landing`, `web`, `mobile`, or `account_api`;
 - `environment`: currently `production` only;
-- `event_schema_version`: the integer schema generation of that surface: currently `10` on `desktop`,
+- `event_schema_version`: the integer schema generation of that surface: currently `11` on `desktop`,
   `9` on `desktop_host`, `10` on `landing`, `11` on `account_api`, `3` on `mobile`, and `2` on `web`;
 - `app_version` and `platform` on desktop surfaces;
 - `acquisition_source` on landing surfaces: `direct`, `search`, `social`, `github`, or `other`;
 - `source_platform` on landing surfaces: an allowlisted platform name, or `unknown`.
 
 Each surface counts its own generations, so a report filters by `surface` and that surface's current
-generation. Desktop generation 10 adds the billing, license and activation events
+generation. Desktop generation 11 adds `trigger` on the `interrupt` action of
+`voice_conversation_action`. Desktop generation 10 adds the billing, license and activation events
 (`hosted_server_plans_action`, `limit_reached`, `license_action`, `sales_contact_clicked`,
 `billing_return_viewed`, `onboarding_step`, `usage_limit_action`, `agent_template_action`,
 `mobile_connect_action`, `connector_action`, `computer_use_action`, `help_link_opened`,
@@ -128,7 +129,7 @@ off. Turning analytics off on any surface first sends one `analytics_preference_
 | `marketplace_action` | Do marketplace views convert to installs/updates? | Marketplace operation completed. `entity` is `skill`, `agent`, or `plugin`; `listing_slug` names only a curated skill or agent or a catalog plugin |
 | `memory_action` | Are manual memories used? | Memory persistence operation completed |
 | `voice_transcription` | Is local voice input reliable and fast? | Transcription returned text without sending it to analytics |
-| `voice_conversation_action` | Do users talk to agents in the Voice pane, and for how long? | `action`: `start` (both voice models are ready; `duration_ms` includes a speech model download; fails with `load_failed`), `end` (the pane closed; `duration_ms` of the conversation and `turn_count` of sent turns), `interrupt`, `mute`, or `unmute`. `server_kind` is `local` or `remote`; `transcription` is `local` or `cloud`. Mobile from generation 3 sends `start` and `end` only, with `server_kind: remote` and no `transcription` |
+| `voice_conversation_action` | Do users talk to agents in the Voice pane, and for how long? | `action`: `start` (both voice models are ready; `duration_ms` includes a speech model download; fails with `load_failed`), `end` (the pane closed; `duration_ms` of the conversation and `turn_count` of sent turns), `interrupt`, `mute`, or `unmute`. From desktop generation 11, `interrupt` has `trigger`: `button` (the Stop button) or `voice` (the user spoke while the agent thought or spoke). `server_kind` is `local` or `remote`; `transcription` is `local` or `cloud`. Mobile from generation 3 sends `start` and `end` only, with `server_kind: remote` and no `transcription` |
 | `voice_turn` | Does a spoken turn reach the chat? | The transcribed text was handed to the send queue; delivery itself is `message_send`. `audio_duration_seconds` of the recording, `duration_ms` to transcribe, `recording_kept` (local server only). Failures: `microphone_failed`, `transcription_failed`, `no_speech` (the turn ended with no words), `send_failed`. Mobile from generation 3 sends `server_kind: remote`; iOS sends no `transcription` |
 | `speech_reply` | Are spoken replies fast and listened to? | A reading ended. `trigger` is `voice_conversation`, `dictation` or `read_aloud`; `completed` is false when the user or a new turn stopped it; `first_audio_ms` from the start of the reading to its first sound, without the agent's turn; `audio_duration_seconds` of the parts that played. Failures: `load_failed` (the reply did not load), `speech_failed` |
 | `speech_model_action` | Does the voice model download? | `action` `download` returned a ready model. `entry_point` is `settings` or `voice_conversation`; `duration_ms`; failures `download_failed` or `cancelled` |

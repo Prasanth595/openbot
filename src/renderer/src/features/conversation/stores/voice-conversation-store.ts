@@ -256,12 +256,16 @@ export function createVoiceConversation(deps: VoiceConversationDeps) {
     await openTurn(own);
   }
 
-  /** The turn that listened while the agent thought or spoke goes on as the next turn, with no gap. */
+  /**
+   * The turn that listened while the agent thought or spoke goes on as the next turn, with no gap.
+   * Before the user speaks, its recording holds only the reply, so a new recording starts.
+   */
   function resumeListening(): void {
     if (!turn) {
       void listen();
       return;
     }
+    if (!turn.spoke) restartRecording(turn);
     setStep("listening");
     setState((draft) => {
       draft.heard = "";
@@ -333,10 +337,10 @@ export function createVoiceConversation(deps: VoiceConversationDeps) {
             });
         }, LIVE_TRANSCRIPT_INTERVAL_MS),
       );
-    // One second under the limit: the recording can run a little longer than its check.
+    // The check runs each second, and the recording can run a little longer than its check.
     current.timers.push(
       setInterval(() => {
-        if (turn !== current || performance.now() - current.startedAt < (VOICE_AUDIO_LIMITS.maximumSeconds - 1) * 1_000)
+        if (turn !== current || performance.now() - current.startedAt < (VOICE_AUDIO_LIMITS.maximumSeconds - 2) * 1_000)
           return;
         if (current.spoke) endTurn(current);
         else restartRecording(current);
@@ -354,7 +358,11 @@ export function createVoiceConversation(deps: VoiceConversationDeps) {
       if (event.data.size > 0 && turn === current && current.recorder === recorder) chunks.push(event.data);
     });
     recorder.addEventListener("stop", () => {
-      if (turn === current && current.recorder === recorder) void finishTurn(current, current.own);
+      if (turn !== current || current.recorder !== recorder) return;
+      // The microphone ended while the agent waits, as when a headset disconnects. The user did not
+      // speak: the end of the reply opens a new turn.
+      if (step === "waiting") releaseTurn();
+      else void finishTurn(current, current.own);
     });
     recorder.start(LIVE_TRANSCRIPT_INTERVAL_MS);
   }
