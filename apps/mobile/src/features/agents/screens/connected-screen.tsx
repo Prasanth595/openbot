@@ -237,7 +237,7 @@ function openFromMenu(href: Href): void {
 
 export function ConnectedScreen() {
   const { t, sourceText } = useText();
-  const { isLoaderPresent, isLoaderLeaving } = useAppLoadingOverlay();
+  const { isLoaderPresent } = useAppLoadingOverlay();
   const { openDrawer } = useAppDrawer();
   const workspace = useMobileWorkspaceReader();
   const sidebarByServer = useMobileWorkspaceSelector((current) => current.sidebarByServer);
@@ -262,12 +262,12 @@ export function ConnectedScreen() {
   const showLoader =
     (serverDirectoryState === "loading" && servers.length === 0) ||
     (hasSelectedServer && activeServer.initialConnectionPending);
-  // The list starts to come in while the loader leaves, so the two overlap instead of waiting in turn.
-  const listReady = !showLoader && (!isLoaderPresent || isLoaderLeaving);
+  // The list comes in as the loader starts to roll up, so the two overlap instead of waiting in turn.
+  const listReady = !showLoader && !isLoaderPresent;
   // A new account gets the first-run flow in place of the empty home. The flow shows its own
   // connection state, so the loader does not cover it.
   const onboarding = useOnboardingGate();
-  const onboardingReady = onboarding.active && (!isLoaderPresent || isLoaderLeaving);
+  const onboardingReady = onboarding.active && !isLoaderPresent;
   // Skipped on its welcome, the flow fades off the empty home, which has the welcome's layout. The
   // home reads where the welcome's main action stood when it comes in; later visits do not.
   const [welcomeHandOff, setWelcomeHandOff] = useState<WelcomeHandOff | null>(null);

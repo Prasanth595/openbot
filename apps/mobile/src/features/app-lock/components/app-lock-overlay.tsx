@@ -1,4 +1,3 @@
-import { Image } from "expo-image";
 import { usePathname } from "expo-router";
 import { Button, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
@@ -6,11 +5,11 @@ import Fingerprint from "lucide-react-native/icons/fingerprint-pattern";
 import LockKeyhole from "lucide-react-native/icons/lock-keyhole";
 import ScanFace from "lucide-react-native/icons/scan-face";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import { Alert, BackHandler, Modal, StyleSheet, View } from "react-native";
+import { Alert, BackHandler, Modal, StyleSheet, useWindowDimensions, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import Animated, { FadeIn } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FullWindowOverlay } from "react-native-screens";
-import logo from "@/assets/splash/mark.png";
 import { PinDots, PinPad } from "@/features/app-lock/components/pin-pad";
 import {
   cancelOwnerConfirmation,
@@ -26,14 +25,23 @@ import {
 import { appLockEnabled, PIN_LENGTH } from "@/features/app-lock/model/app-lock-storage";
 import { type DeviceUnlockKind, deviceUnlockKind } from "@/features/app-lock/model/device-unlock";
 import { useMobileSession } from "@/features/auth/context/mobile-session-context";
-import { SplashWallpaper } from "@/shared/components/splash-backdrop";
+import { BloubBlock } from "@/shared/components/bloub-stage/bloub-block";
+import { useBloubColors } from "@/shared/components/bloub-stage/bloub-look";
 import { haptics } from "@/shared/lib/haptics";
+import { useReducedMotion } from "@/shared/lib/motion";
 import { isIOS } from "@/shared/lib/platform";
 import { type MobileText, useText } from "@/shared/lib/text";
 import { useAppForeground } from "@/shared/lib/use-app-foreground";
 
 /** The attempts left are shown when this many or fewer remain. */
 const SHOW_ATTEMPTS_LEFT = 5;
+// After unlock, the block rolls up and the app shows under it.
+const LOCK_EXIT_MS = 560;
+// The lock content comes in once the block has made room for it.
+const LOCK_ENTER_DELAY_MS = 320;
+// The header on the lock screen: never under the status bar alone, never more than this share.
+const MIN_LOCK_HEADER = 96;
+const MAX_LOCK_HEADER_SHARE = 0.42;
 
 export function deviceUnlockName(kind: DeviceUnlockKind | null, t: MobileText["t"]): string {
   if (kind === "faceId") return t("mobile.appLock.method.faceId");
@@ -59,6 +67,10 @@ export function AppLockOverlay() {
   const covered = useAppLock((state) => state.covered);
   const confirming = useAppLock((state) => state.confirming);
   const pathname = usePathname();
+  const reduced = useReducedMotion();
+  // In dark mode the lock dims the block, as the loader does: it shows each time the app opens.
+  const { dark } = useBloubColors();
+  const [header, setHeader] = useState<number | null>(null);
 
   // A new sign-in proves who the user is, so it does not ask for the lock again.
   const signedOut = useRef(false);
@@ -74,24 +86,45 @@ export function AppLockOverlay() {
     }
   }, [loading, session]);
 
-  if (!session) return null;
-  const showLock = status === "failed" || (status === "ready" && enabled && locked);
-  const showCover = status === "loading" || (enabled && covered);
-  if (!showLock && !showCover) return null;
+  const showLock = Boolean(session) && (status === "failed" || (status === "ready" && enabled && locked));
+  const showCover = Boolean(session) && (status === "loading" || (enabled && covered));
+  const mode = showLock ? "lock" : showCover ? "cover" : null;
+  // An unlock keeps the lock on screen a moment longer, so the block can roll up over the app.
+  const [shownMode, setShownMode] = useState(mode);
+  const [leaving, setLeaving] = useState(false);
+  if (shownMode !== mode) {
+    setShownMode(mode);
+    setLeaving(shownMode === "lock" && mode === null && Boolean(session) && !reduced);
+  }
+  useEffect(() => {
+    if (!leaving) return;
+    const timer = setTimeout(() => setLeaving(false), LOCK_EXIT_MS);
+    return () => clearTimeout(timer);
+  }, [leaving]);
+
+  if (!session || (mode === null && !leaving)) return null;
+  const lockShown = mode === "lock" || leaving;
+  // The privacy cover fills the screen, as the splash does; the lock moves the block up to a header.
+  const edge = leaving ? "gone" : mode === "lock" && header !== null ? header : "cover";
 
   const content = (
-    <GestureHandlerRootView style={StyleSheet.absoluteFill}>
-      <View className="flex-1 bg-background">
-        <SplashWallpaper />
-        {showLock ? <LockScreen /> : <Cover />}
-      </View>
+    <GestureHandlerRootView style={StyleSheet.absoluteFill} pointerEvents={leaving ? "none" : "auto"}>
+      <Animated.View
+        className="bg-background"
+        style={[
+          StyleSheet.absoluteFill,
+          { opacity: leaving ? 0 : 1, transitionProperty: "opacity", transitionDuration: leaving ? 280 : 0 },
+        ]}
+      />
+      <BloubBlock edge={edge} dimmed={dark} />
+      {lockShown ? <LockScreen leaving={leaving} onHeaderLayout={setHeader} /> : null}
     </GestureHandlerRootView>
   );
 
   if (isIOS) {
     // A sheet that opens while the app is locked goes above this layer. A new key adds the layer
     // again, on top of it.
-    return <FullWindowOverlay key={showLock ? pathname : "cover"}>{content}</FullWindowOverlay>;
+    return <FullWindowOverlay key={lockShown ? pathname : "cover"}>{content}</FullWindowOverlay>;
   }
   return (
     <Modal
@@ -109,15 +142,7 @@ export function AppLockOverlay() {
   );
 }
 
-function Cover() {
-  return (
-    <View className="flex-1 items-center justify-center">
-      <Image accessible={false} source={logo} style={{ width: 96, height: 96 }} contentFit="contain" />
-    </View>
-  );
-}
-
-function LockScreen() {
+function LockScreen({ leaving, onHeaderLayout }: { leaving: boolean; onHeaderLayout: (bottom: number) => void }) {
   const { t } = useText();
   const insets = useSafeAreaInsets();
   const foreground = useThemeColor("foreground");
@@ -243,6 +268,8 @@ function LockScreen() {
     return (
       <LockLayout
         insets={insets}
+        leaving={leaving}
+        onHeaderLayout={onHeaderLayout}
         title={t("mobile.appLock.lock.title")}
         message={t("mobile.appLock.lock.loadFailed")}
         footer={
@@ -289,6 +316,8 @@ function LockScreen() {
   return (
     <LockLayout
       insets={insets}
+      leaving={leaving}
+      onHeaderLayout={onHeaderLayout}
       title={confirming ? t("mobile.appLock.lock.confirmTitle") : t("mobile.appLock.lock.title")}
       message={waitText ?? message ?? (config.pin ? t("mobile.appLock.lock.enterPin") : null)}
       error={waitText !== null || message !== null}
@@ -324,11 +353,14 @@ function LockScreen() {
 }
 
 /**
- * The logo, title, message and main control sit in the middle of the space above the number pad. The
- * number pad, when there is one, sits low where the thumb reaches it.
+ * The block is the header: it takes the space that the controls leave, up to a share of the
+ * screen. The title, message and main control sit in the middle of the space under it. The number
+ * pad, when there is one, sits low where the thumb reaches it.
  */
 function LockLayout({
   insets,
+  leaving,
+  onHeaderLayout,
   title,
   message,
   error = false,
@@ -337,6 +369,8 @@ function LockLayout({
   children,
 }: {
   insets: { top: number; bottom: number };
+  leaving: boolean;
+  onHeaderLayout: (bottom: number) => void;
   title: string;
   message: string | null;
   error?: boolean;
@@ -344,30 +378,46 @@ function LockLayout({
   footer: ReactNode;
   children: ReactNode;
 }) {
+  const { height } = useWindowDimensions();
+  const reduced = useReducedMotion();
   return (
-    <View className="flex-1 items-center" style={{ paddingTop: insets.top + 16, paddingBottom: insets.bottom + 8 }}>
-      <View className="flex-1 items-center justify-center gap-8 self-stretch px-8">
-        <View className="items-center gap-3">
-          <Image accessible={false} source={logo} style={{ width: 72, height: 72 }} contentFit="contain" />
-          <Typography.Heading type="h3" align="center" accessibilityRole="header" className="mt-3">
-            {title}
-          </Typography.Heading>
-          <View className="min-h-10">
-            {message ? (
-              <Typography.Paragraph
-                align="center"
-                accessibilityLiveRegion="polite"
-                className={error ? "text-danger-text" : "text-text-secondary"}
-              >
-                {message}
-              </Typography.Paragraph>
-            ) : null}
+    <View className="flex-1" style={{ paddingBottom: insets.bottom + 8 }}>
+      <View
+        style={{
+          flexGrow: 1,
+          flexShrink: 1,
+          minHeight: insets.top + MIN_LOCK_HEADER,
+          maxHeight: height * MAX_LOCK_HEADER_SHARE,
+        }}
+        onLayout={({ nativeEvent: { layout } }) => onHeaderLayout(layout.y + layout.height)}
+      />
+      <Animated.View
+        entering={FadeIn.duration(300).delay(reduced ? 0 : LOCK_ENTER_DELAY_MS)}
+        className="grow items-center"
+        style={{ flexShrink: 0, opacity: leaving ? 0 : 1, transitionProperty: "opacity", transitionDuration: 160 }}
+      >
+        <View className="flex-1 items-center justify-center gap-8 self-stretch px-8 pt-6">
+          <View className="items-center gap-3">
+            <Typography.Heading type="h3" align="center" accessibilityRole="header">
+              {title}
+            </Typography.Heading>
+            <View className="min-h-10">
+              {message ? (
+                <Typography.Paragraph
+                  align="center"
+                  accessibilityLiveRegion="polite"
+                  className={error ? "text-danger-text" : "text-text-secondary"}
+                >
+                  {message}
+                </Typography.Paragraph>
+              ) : null}
+            </View>
           </View>
+          {children}
         </View>
-        {children}
-      </View>
-      {pad}
-      <View className="mt-4 min-h-10 justify-center">{footer}</View>
+        {pad}
+        <View className="mt-4 min-h-10 justify-center">{footer}</View>
+      </Animated.View>
     </View>
   );
 }

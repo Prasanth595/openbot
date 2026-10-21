@@ -1,4 +1,4 @@
-import { Easing, FadeIn, FadeInUp, FadeOut, Keyframe } from "react-native-reanimated";
+import { Easing, FadeIn, FadeInLeft, FadeInRight, FadeInUp, FadeOut, Keyframe } from "react-native-reanimated";
 
 /** Strong ease-out for elements that enter or leave. */
 export const SIGN_IN_EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
@@ -56,3 +56,46 @@ export function signInMotion(reduced: boolean) {
 }
 
 export type SignInMotion = ReturnType<typeof signInMotion>;
+
+/** Where a pane comes from, or goes to. */
+export type PaneDirection = "vertical" | "left" | "right";
+
+// A pane waits for the block to make room: it starts when the block has done most of its move. A
+// pane that only changes places beside another one starts sooner.
+export const PANE_ENTER_DELAY_MS = 320;
+export const PANE_SIDE_ENTER_DELAY_MS = 160;
+export const PANE_STAGGER_MS = 45;
+const PANE_ENTER_MS = 300;
+const PANE_EXIT_MS = 160;
+const PANE_RISE = 10;
+const PANE_SHIFT = 24;
+
+/**
+ * The entrance of one element of a pane: the elements rise in one after another, or come in from
+ * the side when the pane replaces another one beside it. Reduced motion keeps only a fade.
+ */
+export function paneEnter(index: number, from: PaneDirection, reduced: boolean, startMs: number) {
+  const delay = startMs + index * PANE_STAGGER_MS;
+  if (reduced) return FadeIn.duration(ENTER_MS).delay(index * PANE_STAGGER_MS);
+  if (from === "vertical")
+    return FadeInUp.duration(PANE_ENTER_MS)
+      .delay(delay)
+      .easing(SIGN_IN_EASE_OUT)
+      .withInitialValues({ opacity: 0, transform: [{ translateY: PANE_RISE }] });
+  const Enter = from === "left" ? FadeInLeft : FadeInRight;
+  return Enter.duration(PANE_ENTER_MS)
+    .delay(delay)
+    .easing(SIGN_IN_EASE_OUT)
+    .withInitialValues({ opacity: 0, transform: [{ translateX: from === "left" ? -PANE_SHIFT : PANE_SHIFT }] });
+}
+
+/** The pane leaves as one piece, down a little or to the side, before the next one comes in. */
+export function paneExit(to: PaneDirection, reduced: boolean) {
+  if (reduced) return FadeOut.duration(EXIT_MS);
+  const x = to === "left" ? -PANE_SHIFT : to === "right" ? PANE_SHIFT : 0;
+  const y = to === "vertical" ? PANE_RISE : 0;
+  return new Keyframe({
+    0: { opacity: 1, transform: [{ translateX: 0 }, { translateY: 0 }] },
+    100: { opacity: 0, transform: [{ translateX: x }, { translateY: y }], easing: SIGN_IN_EASE_OUT },
+  }).duration(PANE_EXIT_MS);
+}
