@@ -57,6 +57,7 @@ export const messages = {
   "sidebar.channelMenu.label": "Kanal işlemleri",
   "sidebar.channelMenu.edit": "Kanalı düzenle",
   "sidebar.channelMenu.delete": "Kanalı sil",
+  "sidebar.channelMenu.restore": "Kanalı geri yükle",
   "sidebar.channel.noMessages": "Henüz mesaj yok",
   "sidebar.channel.workingPreview": "Çalışıyor · {preview}",
   "sidebar.channel.unread": { one: "{count} okunmamış mesaj", other: "{count} okunmamış mesaj" },
@@ -93,7 +94,7 @@ export const messages = {
   "sidebar.delete.agentDescription":
     "Bu işlem ajanı ve OpenBot konuşmasını uygulamadan kaldırır. Kuyruğu, bellekleri, rutinleri ve çalışma alanı silinir. Bağlı CLI sağlayıcısı tarafından ayrı depolanan geçmiş silinmez.",
   "sidebar.delete.channelDescription":
-    "Bu işlem kanalı durdurur. Geçmişi yalnızca önizleme amacıyla Silinen kanallar bölümünde kalır. Geri yükleyemezsiniz. Üye ajanlar korunur.",
+    "Bu işlem kanalı durdurur. Geçmişi yalnızca önizleme amacıyla Silinen kanallar bölümünde kalır. Oradan geri yükleyebilirsiniz. Üye ajanlar korunur.",
   "sidebar.delete.sectionDescription": "Bu bölümdeki ajanlar Atanmamış bölümüne taşınır. Hiçbir ajan silinmez.",
   "sidebar.delete.failed": "Bu öğe silinemedi. Tekrar deneyin.",
   "sidebar.announce.updateFailed": "Kenar çubuğu güncellenemedi. Tekrar deneyin.",
