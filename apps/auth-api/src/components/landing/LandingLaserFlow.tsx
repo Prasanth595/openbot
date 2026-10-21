@@ -176,8 +176,11 @@ void main() {
   float run = uRun.x;
   float runMask = 1.0 - smoothstep(run - 34.0, run + 6.0, adx);
   float bead = exp(-sq((adx - run + 16.0) / (18.0 + 0.04 * run))) * uRun.y;
-  float flowMask = (1.0 - smoothstep(0.75 * spread, 1.1 * spread, adx)) * runMask;
-  float edgeMask = (1.0 - smoothstep(0.8 * spread, 1.25 * spread, adx)) * runMask;
+  // The far side of the beam does not spill, so its light along the top stops well before the corner.
+  float farSide = dx < 0.0 ? step(reachR, reachL) : 1.0 - step(reachR, reachL);
+  float reachHere = spread * mix(1.0, 0.55, farSide);
+  float flowMask = (1.0 - smoothstep(0.75 * reachHere, 1.1 * reachHere, adx)) * runMask;
+  float edgeMask = (1.0 - smoothstep(0.8 * reachHere, 1.25 * reachHere, adx)) * runMask;
   float bloom = uIntro.y;
   vec2 center = vec2((sl + sr) * 0.5, (sy + sb) * 0.5);
   vec2 halfSize = vec2((sr - sl) * 0.5, (sb - sy) * 0.5);
@@ -261,7 +264,7 @@ void main() {
   float lineBright = mix(0.35, 1.0, hash(vec2(lineIndex, 4.0)));
   col += mix(sideK, WHITE, 0.6) * lineShape * lineOn * lineFlow * lineEnvelope * lineBright * 2.6 * uAmount.w * min(bloom, 1.0);
 
-  float edgeGlow = 22.8 * exp(-sq(adx / (150.0 * uShape.z))) * edgeMask * (1.0 + 0.9 * bead);
+  float edgeGlow = 22.8 * exp(-sq(adx / (0.6 * reachHere))) * edgeMask * (1.0 + 0.9 * bead);
   float onTop = 1.0 - smoothstep(sy + radius, sy + radius + 10.0, p.y);
   float edgeLine = (0.5 * exp(-sq(max(sd, 0.0) / 3.0)) + 0.25 * exp(-max(sd, 0.0) / 10.0)) * edgeGlow * onTop;
   col += mix(sideK, WHITE, 0.6) * edgeLine * min(bloom, 1.0);
