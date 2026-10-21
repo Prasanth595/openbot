@@ -47,8 +47,11 @@ export const messages = {
   "conversation.header.publish": "Agenten veröffentlichen",
   "conversation.header.browserActing": "{name} steuert den Browser",
   "conversation.header.agentFallback": "Agent",
-  "conversation.header.modelsBusy": "Warte, bis die aktuelle Arbeit abgeschlossen ist, bevor du das Modell wechselst.",
+  "conversation.header.providerBusy":
+    "Warte, bis die aktuelle Arbeit abgeschlossen ist, bevor du Anbieter oder Konto wechselst.",
   "conversation.header.modelsUnavailable": "Modelle sind verfügbar, sobald eine Agenten-CLI verbunden ist.",
+  "conversation.header.modelNextTurn": "Nach diesem Durchlauf",
+  "conversation.header.modelNextTurnDetail": "{running} beendet diesen Durchlauf. {next} startet mit dem nächsten.",
   "conversation.sidePanel.label": "Seitenleiste",
   "conversation.sidePanel.open": "Seitenleiste öffnen",
   "conversation.sidePanel.close": "Seitenleiste schließen",
@@ -105,6 +108,7 @@ export const messages = {
   "conversation.tasks.state.completed": "Beantwortet",
   "conversation.tasks.state.failed": "Fehlgeschlagen",
   "conversation.tasks.state.interrupted": "Gestoppt",
+  "conversation.tasks.state.waitingApproval": "Wartet auf deine Genehmigung",
   "conversation.tasks.hold.taskLimit": {
     one: "Warten auf eine freie Aufgabe. {count} Aufgabe läuft gerade.",
     other: "Warten auf eine freie Aufgabe. {count} Aufgaben laufen gerade.",

@@ -187,6 +187,8 @@ export const messages = {
     "O provedor do modelo recusou a solicitação por causa da cobrança da conta. Aguardar não resolve isso. Adicione uma forma de pagamento ou saldo à conta do provedor, ou escolha outro modelo.\n{detail}",
   "error.provider.opencodeInvalidUpload":
     "O provedor de modelos do OpenCode reportou uma requisição de upload inválida. Escolha outro modelo e continue. Verifique as rotinas salvas antes de recriá-las.\n{detail}",
+  "error.provider.opencodeUnreadableContent":
+    "Este modelo não consegue ler um arquivo ou uma imagem neste chat. Escolha um modelo que leia arquivos e envie sua mensagem de novo.",
   "error.provider.opencodeProviderFailed":
     "Ocorreu uma falha no provedor do modelo. Sua conexão não é a causa. Tente novamente mais tarde ou escolha outro modelo.\n{detail}",
   "error.provider.opencodeNetwork":
@@ -351,6 +353,7 @@ export const messages = {
   "error.provider.museAuthUnverified":
     "A autenticação do Muse não está verificada. Conecte-se no computador anfitrião ou defina uma chave de API da Meta.",
   "error.provider.museSignIn": "Entre no Muse no computador anfitrião para continuar.",
+  "error.provider.inceptionSignIn": "Adicione uma chave de API da Inception para continuar.",
   "error.provider.terminalLoginFailed":
     "O terminal de login não pôde abrir. Abra a CLI do provedor neste computador anfitrião e entre por lá, depois atualize os provedores.",
   "error.provider.nativeArchiveInvalid": "O download do provedor não contém uma instalação válida.",

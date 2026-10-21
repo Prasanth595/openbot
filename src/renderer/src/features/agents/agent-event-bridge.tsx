@@ -46,7 +46,7 @@ import { agentsPort } from "./agents-port";
 export function AgentEventBridge() {
   const channels = useChannels();
   const platform = usePlatform();
-  const { activeServerId } = useServers();
+  const { activeServer, activeServerId } = useServers();
   const { applyAccountUsage } = useAuth();
   const { applyAgentStatus, refreshAgentProviders } = useProviders();
   const { agentList, setModelOptions, explicitlyOpenedAgentChatId, applyStoredAgents, applyUserHiddenAgents } =
@@ -79,7 +79,8 @@ export function AgentEventBridge() {
     setPresentedPromptResolutions,
     submittedPromptRequests,
     setSubmittedPromptRequests,
-    setPendingApprovals,
+    setApprovals,
+    forgetApproval,
     completedTurnByAgent,
     queueSnapshotRequests,
     setWaits,
@@ -88,8 +89,15 @@ export function AgentEventBridge() {
   } = useTurns();
   const { setBrowserControlState, applyBrowserChange } = useBrowserTabs();
   const { setSidebarLayout } = useSidebar();
-  const playAgentEventSound = createAgentEventSounds((agentId) =>
-    agentList().some((agent) => agent.id === agentId && agent.notifications),
+  // As on web, mute and the notification level of the server decide the sounds too. Before the
+  // server list arrives, the sounds play as they did.
+  const soundLevel = () => {
+    const server = activeServer();
+    if (!server) return "all";
+    return server.notificationsMuted ? "nothing" : server.notificationLevel;
+  };
+  const playAgentEventSound = createAgentEventSounds(
+    (agentId) => soundLevel() !== "nothing" && agentList().some((agent) => agent.id === agentId && agent.notifications),
   );
   let readRefresh = 0;
   let modelRefresh = 0;
@@ -228,10 +236,13 @@ export function AgentEventBridge() {
           }
           return { ...current, [event.agentId]: undefined };
         });
-        setPendingApprovals((current) => ({ ...current, [event.agentId]: undefined }));
+        // Only the approvals of this turn's thread: a task of the agent can still wait for one.
+        setApprovals((current) =>
+          current.filter((approval) => approval.agentId !== event.agentId || approval.threadId !== event.threadId),
+        );
         if (event.status === "completed") {
           markReplyCompleted(event.agentId);
-          playCompletionSoundForAgentEvent(event, agentList());
+          if (soundLevel() === "all") playCompletionSoundForAgentEvent(event, agentList());
         }
         return;
       case "prompt":
@@ -248,19 +259,18 @@ export function AgentEventBridge() {
               : current;
           });
         } else {
-          setPendingApprovals((current) => {
-            const approval = current[event.agentId];
-            return approval && String(approval.requestId) === String(event.requestId)
-              ? { ...current, [event.agentId]: undefined }
-              : current;
-          });
+          forgetApproval(event.agentId, event.requestId);
         }
         return;
       case "approval":
-        setPendingApprovals((current) => ({
-          ...current,
-          [event.approval.agentId]: event.approval,
-        }));
+        setApprovals((current) => [
+          ...current.filter(
+            (approval) =>
+              approval.agentId !== event.approval.agentId ||
+              String(approval.requestId) !== String(event.approval.requestId),
+          ),
+          event.approval,
+        ]);
         return;
       case "runtime-snapshot":
         void channels.refresh();
@@ -352,7 +362,7 @@ export function AgentEventBridge() {
     setUsageLimitedModels(snapshot.usageLimitedModels ?? []);
     setQueues((current) => reconcileQueuesWithRuntimeWork(current, snapshot.work, runtimeTurns));
     setPendingPrompts((current) => reconcileAttentionPrompts(current, snapshot, submittedPromptRequests()));
-    setPendingApprovals((current) => reconcileAttentionApprovals(current, snapshot));
+    setApprovals((current) => reconcileAttentionApprovals(current, snapshot));
     applyRuntimeMessages(snapshot.latestMessages);
   }
 

@@ -18,7 +18,6 @@ export const messages = {
   "mobile.search.task.ideaHint": "Pone este texto en el campo de la tarea.",
   "mobile.search.task.again": "Otra vez",
   "mobile.search.task.openWith": "Tareas abiertas con {name}",
-  "mobile.search.task.atHint": "Escribe @ y un nombre para dar una tarea a un agente.",
   "mobile.search.task.noAgent": "Ningún agente tiene ese nombre.",
   "mobile.search.task.send": "Iniciar tarea",
   "mobile.search.task.startedBy": "{name} empezó la tarea",

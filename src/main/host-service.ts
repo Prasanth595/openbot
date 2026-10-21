@@ -3,6 +3,7 @@ import { EventEmitter } from "node:events";
 import { dirname, join } from "node:path";
 import { createInviteUrl, selfHostedApiOrigin } from "@openbot/contracts/invite-links";
 import type {
+  AgentEvent,
   AvatarImageInput,
   CentralAuthUser,
   ConfigureHostInput,
@@ -159,8 +160,8 @@ interface HostServiceOptions {
   ) => Effect.Effect<"sent" | "gone", RemoteWorkflowError>;
   /** The phones that get notifications, kept for the next start. */
   pushNotificationStore?: PushNotificationStore;
-  /** Whether the owner uses the desktop app on this computer now, so the owner's phone stays quiet. */
-  hostComputerInUse?: () => boolean;
+  /** Whether the owner uses the desktop app on this computer now and sees the event there, so the owner's phone stays quiet. */
+  hostComputerInUse?: (event: AgentEvent) => boolean;
   verifyRemoteSessionTicket?: (ticket: string) => Effect.Effect<VerifiedRemoteSessionTicket, RemoteWorkflowError>;
   endRemoteSession?: (sessionId: string) => Effect.Effect<void, RemoteWorkflowError>;
   remoteControlPlaneUrl?: string;
@@ -342,8 +343,8 @@ export class HostService extends EventEmitter<HostEvents> {
             },
             lastUseElsewhere: (memberId, sessionId) => this.#api.lastMemberUseElsewhere(memberId, sessionId),
             // The desktop app of this computer runs as the owner.
-            atHostComputer: (memberId) =>
-              memberId === options.store.getOwnerMemberId() && (options.hostComputerInUse?.() ?? false),
+            atHostComputer: (memberId, event) =>
+              memberId === options.store.getOwnerMemberId() && (options.hostComputerInUse?.(event) ?? false),
             liveActivityShows: (sessionId, alert, startedAt) =>
               this.#liveActivityPush?.showsEvent(sessionId, alert, startedAt) ?? false,
             logger,

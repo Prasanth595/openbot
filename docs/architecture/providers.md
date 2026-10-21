@@ -570,6 +570,19 @@ Managed Pi archives come from official GitHub releases and use the published SHA
 Sign-in opens Pi in a host terminal. Close Pi after sign-in to refresh models in OpenBot.
 Remote clients must complete sign-in on the host. There is no separate Pi account screen.
 
+## Inception
+
+Inception is a provider of its own that runs on Pi's managed CLI. Its driver sets `cliProvider: "pi"`,
+so it resolves Pi's downloaded binary and has no runtime or download of its own. After a Pi update, a
+running Inception process restarts on the new binary when its turns end. Connect and Reconnect on the
+row open the key dialog, and the composer's sign-in opens the Providers settings, because a key is the
+only sign-in. The key is stored as the `inception` API key. `pi-inception.ts` writes a key-free extension that
+calls `pi.registerProvider("inception", …)` with the Mercury models; the key is in the process
+environment and a `globalThis` slot, because Pi runs extensions again on `switch_session`. The
+Inception client lists only the `inception` models, with bare ids such as `mercury-3`. The Pi client
+does not load this extension, so it keeps only the user's own `inception` models. Without a key the provider has no models and asks for a key. Inception is local-only:
+no Team API protocol carries it.
+
 ## Muse
 
 Muse uses the official `@muse-code/sdk` to run `muse serve` over MSP. The SDK is pinned to `1.4.2`;

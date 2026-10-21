@@ -151,6 +151,10 @@ export const messages = defineMessages("provider", {
   "provider.geminiKey.description":
     "Save a Gemini API key on this computer. A saved key is used instead of your Google account. To sign in with Google, remove the key and select Connect on the Gemini row.",
   "provider.geminiKey.label": "Gemini API key",
+  "provider.inceptionKey.title": "Inception API key",
+  "provider.inceptionKey.description":
+    "Save an Inception API key on this computer to use the Mercury models. OpenBot runs them in the Pi CLI that it downloads.",
+  "provider.inceptionKey.label": "Inception API key",
 
   // The optional OpenCode Go key dialog.
   "provider.openCodeKey.title": "Sign in to OpenCode Go",

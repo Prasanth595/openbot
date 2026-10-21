@@ -188,7 +188,7 @@ const Settings = createSimpleContext({
         setActionSoundChoice(value.soundFeedback ? value.soundTheme : "off");
       }
       if (previous.productAnalytics !== value.productAnalytics) {
-        desktopAnalytics.setTrackingEnabled(value.productAnalytics);
+        desktopAnalytics.setTrackingEnabled(value.productAnalytics, { recordOptOut: true });
         setAnalyticsPreferenceLoaded(value.productAnalytics);
         void settingsPort()
           .setAnalyticsPreference({ enabled: value.productAnalytics })

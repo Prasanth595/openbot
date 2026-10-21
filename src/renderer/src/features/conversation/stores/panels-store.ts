@@ -18,6 +18,7 @@ import type {
   SidebarFilePreview,
   SidePanelPane,
 } from "../conversation-types";
+import { agentSkillsMode } from "../installed-skills-source";
 
 // Each member reads the interface language when it is called.
 const { t, errorMessage } = currentText();
@@ -96,7 +97,7 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
   );
   function openSkillSettings(skill: { skillId: string }): void {
     const agentId = deps.props.agent?.id;
-    if (!agentId || deps.props.server?.id !== "local") return;
+    if (!agentId || agentSkillsMode(deps.props.server, deps.props.runtime) === "hidden") return;
     setSkillSettingsRequest({ agentId, skillId: skill.skillId });
     setActiveRightPanel("settings", agentId);
   }

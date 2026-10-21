@@ -98,9 +98,8 @@ export const messages = defineMessages("settings", {
   "settings.analytics.title": "Share product analytics",
   "settings.analytics.description":
     "Send usage and reliability metadata with your account ID and email to OpenBot’s self-hosted analytics.",
-  "settings.analytics.webTitle": "Share error reports",
   "settings.analytics.webDescription":
-    "Send error and warning codes with your account ID to OpenBot’s analytics. This setting applies to this browser.",
+    "Send usage and reliability metadata with your account ID and email to OpenBot’s self-hosted analytics. This setting applies to this browser.",
   // The Settings window shell: its tab list, headers and save bar.
   "settings.tab.general.title": "General",
   "settings.tab.general.description": "Control how OpenBot behaves on this computer.",
@@ -435,6 +434,7 @@ export const messages = defineMessages("settings", {
   // The Voice tab: dictation models and the dictation language.
   "settings.voice.models.title": "Dictation model",
   "settings.voice.model.parakeet.description": "Fast. Finds the spoken language itself, in 25 European languages.",
+  "settings.voice.model.bark.description": "Fast. English only. Writes mostly lowercase, with little punctuation.",
   "settings.voice.model.whisper.description": "Slower. About 100 languages, and you can set the spoken language.",
   "settings.voice.model.size": "Download size: {size}",
   "settings.voice.model.downloading": "Downloading · {received} of {total}",
@@ -451,6 +451,7 @@ export const messages = defineMessages("settings", {
   "settings.voice.language.description": "The language that you speak. Automatic finds it from the recording.",
   "settings.voice.language.modelDetects":
     "Parakeet finds the spoken language itself. To set a language, use Whisper or ElevenLabs.",
+  "settings.voice.language.englishOnly": "Bark recognizes English only. To set a language, use Whisper or ElevenLabs.",
   "settings.voice.language.automatic": "Automatic",
   "settings.voice.loadFailed": "Could not read the voice models.",
   "settings.voice.saveFailed": "Could not save the voice setting. Try again.",

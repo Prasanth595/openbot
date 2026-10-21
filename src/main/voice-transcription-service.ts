@@ -43,7 +43,14 @@ const logger = createOpenBotLogger("voice-transcription-service");
 const TRANSCRIPTION_TIMEOUT_MS = 180_000;
 const MODEL_ENGINES: Record<LocalVoiceModelId, VoiceTranscriptionEngine> = {
   "parakeet-tdt-0.6b-v3": "nemo-transducer",
+  "bark-3.0-plus": "nemo-transducer",
   "whisper-turbo": "whisper",
+};
+/** Bark was evaluated with 0.25 s of silence before the speech; without it, it can lose the first word. */
+const LEADING_SILENCE_SAMPLES: Record<LocalVoiceModelId, number> = {
+  "parakeet-tdt-0.6b-v3": 0,
+  "bark-3.0-plus": 4_000,
+  "whisper-turbo": 0,
 };
 
 /**
@@ -131,7 +138,11 @@ export class VoiceTranscriptionService extends EventEmitter<VoiceTranscriptionEv
       service.on("status", (status) => this.emit("modelStatus", status));
       return service;
     };
-    this.#models = { "parakeet-tdt-0.6b-v3": model("parakeet-tdt-0.6b-v3"), "whisper-turbo": model("whisper-turbo") };
+    this.#models = {
+      "parakeet-tdt-0.6b-v3": model("parakeet-tdt-0.6b-v3"),
+      "bark-3.0-plus": model("bark-3.0-plus"),
+      "whisper-turbo": model("whisper-turbo"),
+    };
   }
 
   /** The status of the model in use. */
@@ -378,6 +389,7 @@ export class VoiceTranscriptionService extends EventEmitter<VoiceTranscriptionEv
         modelDirectory: this.#models[modelId].directory,
         engine,
         language: engine === "whisper" && language !== AUTOMATIC_VOICE_LANGUAGE ? language : "",
+        leadingSilenceSamples: LEADING_SILENCE_SAMPLES[modelId],
         pcm,
       });
       return Effect.sync(() => {

@@ -1,5 +1,5 @@
 import { isManagedRuntimeProvider } from "@openbot/contracts/agent-providers";
-import { openPanelTransport, ReportQueue } from "@openbot/telemetry";
+import { ANALYTICS_GENERATIONS, openPanelTransport, ReportQueue } from "@openbot/telemetry";
 import { fileReportStorage } from "@openbot/telemetry/node";
 import { Effect, Fiber } from "effect";
 import { toAgentRemovalFailed } from "../backend/agent/agent-removal";
@@ -71,7 +71,13 @@ import type {
   VoiceModelStatus,
   VoiceStreamTranscript,
 } from "@openbot/contracts/ipc";
-import { IPC_ENDPOINTS, isManagedToolRuntime, isUpdateBusyPhase, latestTurnAnswer } from "@openbot/contracts/ipc";
+import {
+  IPC_ENDPOINTS,
+  isManagedToolRuntime,
+  isUpdateBusyPhase,
+  LOCAL_SERVER_ID,
+  latestTurnAnswer,
+} from "@openbot/contracts/ipc";
 import { decodeRecord, requiredString } from "@openbot/contracts/ipc-decoding";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, toLogValue } from "@openbot/logging";
@@ -81,6 +87,7 @@ import {
   type BrowserWindow,
   clipboard,
   desktopCapturer,
+  Notification,
   nativeImage,
   powerMonitor,
   safeStorage,
@@ -147,6 +154,7 @@ import { CUSTOM_AGENTS_FILE, CustomAgentStore } from "./custom-agent-store";
 import { type CustomProviderChanges, createCustomProviderChanges } from "./custom-provider-changes";
 import { CustomProviderStore } from "./custom-provider-store";
 import { MCP_OAUTH_REDIRECT_URL } from "./deep-link-router";
+import { desktopShowsAgentEvent } from "./desktop-notifications";
 import {
   applyDevelopmentRemoteAccount,
   type DevelopmentRemoteRole,
@@ -263,6 +271,7 @@ import { listSiblingOpenBotInstances } from "./update-sibling-instances";
 import { VoiceApiKeyStore } from "./voice-api-key-store";
 import { openScribeSocket } from "./voice-cloud-stream";
 import {
+  BARK_PLUS_MODEL_DIRECTORY,
   PARAKEET_MODEL_DIRECTORY,
   removeLegacyWhisperCache,
   SUPERTONIC_MODEL_DIRECTORY,
@@ -2009,12 +2018,18 @@ export async function createApplicationServices({
     sendPushNotification: (hostId, push) => centralAuth.sendPushNotification(hostId, push).pipe(toRemoteWorkflowError),
     pushNotificationStore,
     // The owner is at this computer only with recent input, also when the window was left in focus.
-    // Then the focused window shows the event, or the desktop notifies.
-    hostComputerInUse: () => {
+    // Then the focused window shows the event, or the desktop notifies. When mute or the level of
+    // this server keeps the desktop quiet about the event, the phone tells the owner.
+    hostComputerInUse: (event) => {
       const window = windows.getMainWindow();
       if (!window || window.isDestroyed()) return false;
       if (powerMonitor.getSystemIdleState(DESKTOP_USE_MS / 1_000) !== "active") return false;
-      return window.isFocused() || notificationPreference.get().desktopNotifications;
+      if (window.isFocused()) return true;
+      // Without a notification service, as on Linux without a daemon, the desktop shows nothing.
+      if (!Notification.isSupported()) return false;
+      // Read when an event arrives, after the manager below exists.
+      const local = remoteServers.list().find((server) => server.id === LOCAL_SERVER_ID);
+      return desktopShowsAgentEvent(event, local, notificationPreference.get().desktopNotifications);
     },
     verifyRemoteSessionTicket: (ticket) => centralAuth.verifyRemoteSessionTicket(ticket).pipe(toRemoteWorkflowError),
     endRemoteSession: (sessionId) => centralAuth.endRemoteSession(sessionId).pipe(toRemoteWorkflowError),
@@ -2135,7 +2150,7 @@ export async function createApplicationServices({
           surface: "desktop_host",
           app_version: app.getVersion(),
           platform: analyticsPlatform,
-          event_schema_version: 8,
+          event_schema_version: ANALYTICS_GENERATIONS.desktop_host,
         },
       )
     : undefined;
@@ -2172,6 +2187,7 @@ export async function createApplicationServices({
         : null;
     },
     resolveAgent: (agentId) => service.listAgents().find((agent) => agent.id === agentId) ?? null,
+    resolveTurnUsage: (agentId, turnId, since) => service.getTurnUsage(agentId, turnId, since),
     resolveMcpServer: (name) => {
       const configs = service.listMcpServers().filter((server) => isReportedMcpServerName(server.name, name));
       if (configs.length === 0) return null;
@@ -2310,11 +2326,15 @@ export async function createApplicationServices({
   await runCauseEffect(voiceApiKeys.load());
   const voice = new VoiceTranscriptionService({
     resourcesRoot: app.isPackaged ? join(process.resourcesPath, "voice") : resolve(".openbot-build/voice"),
-    // `voice:prepare` puts Parakeet in `.openbot-build/voice/model` for development.
+    // `voice:prepare` puts Parakeet in `.openbot-build/voice/model` for development. In development
+    // the other models download to `.openbot-build/voice` when you select them.
     modelDirectories: {
       "parakeet-tdt-0.6b-v3": app.isPackaged
         ? join(app.getPath("userData"), "runtimes", PARAKEET_MODEL_DIRECTORY)
         : resolve(".openbot-build/voice/model"),
+      "bark-3.0-plus": app.isPackaged
+        ? join(app.getPath("userData"), "runtimes", BARK_PLUS_MODEL_DIRECTORY)
+        : resolve(".openbot-build/voice", BARK_PLUS_MODEL_DIRECTORY),
       "whisper-turbo": app.isPackaged
         ? join(app.getPath("userData"), "runtimes", WHISPER_TURBO_MODEL_DIRECTORY)
         : resolve(".openbot-build/voice", WHISPER_TURBO_MODEL_DIRECTORY),

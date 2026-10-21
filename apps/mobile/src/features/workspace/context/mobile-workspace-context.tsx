@@ -3,6 +3,7 @@ import {
   type CreateAgentInput,
   canAdministerServer,
   isQueuedMessageReceipt,
+  MCP_SERVERS_CAPABILITY,
   type RespondToApprovalInput,
   type SidebarLayoutSnapshot,
   type TeamRealtimeEvent,
@@ -11,13 +12,22 @@ import {
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import { AGENT_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/agent-admin-v1";
 import { AGENT_HOST_SETTINGS_CAPABILITY } from "@openbot/contracts/team-protocol/agent-host-settings-v1";
+import { AGENT_MEMORY_LIMIT_CAPABILITY } from "@openbot/contracts/team-protocol/agent-memory-limit-v1";
 import { AGENT_PUBLISH_CAPABILITY } from "@openbot/contracts/team-protocol/agent-publish-v1";
+import { CONNECTORS_CAPABILITY } from "@openbot/contracts/team-protocol/connectors-v1";
 import { TEAM_AGENT_CREATE_MODEL_CAPABILITY } from "@openbot/contracts/team-protocol/current";
 import { EVENTS_CAPABILITY } from "@openbot/contracts/team-protocol/events-v1";
 import { FOCUS_USE_CAPABILITY, FOCUS_USE_ROUTES } from "@openbot/contracts/team-protocol/focus-use-v1";
 import { HOST_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/host-admin-v1";
+import { HOST_MEMBER_UPDATE_CAPABILITY } from "@openbot/contracts/team-protocol/host-member-update-v1";
+import { HOST_RELEASE_CAPABILITY } from "@openbot/contracts/team-protocol/host-release-v1";
+import { HOST_TIMEZONE_CAPABILITY } from "@openbot/contracts/team-protocol/host-timezone-v1";
+import { HOST_UPDATE_CAPABILITY } from "@openbot/contracts/team-protocol/host-update-v1";
+import { HOSTED_SITES_CAPABILITY } from "@openbot/contracts/team-protocol/hosted-sites-v1";
 import { LIVE_ACTIVITY_PUSH_CAPABILITY } from "@openbot/contracts/team-protocol/live-activity-push-v1";
+import { ONEPASSWORD_CONNECTOR_CAPABILITY } from "@openbot/contracts/team-protocol/onepassword-connector-v1";
 import { PROVIDER_ACCOUNTS_CAPABILITY } from "@openbot/contracts/team-protocol/provider-accounts-v1";
+import { PROVIDERS_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/providers-v1";
 import { ANDROID_PUSH_NOTIFICATIONS_CAPABILITY } from "@openbot/contracts/team-protocol/push-notifications-android-v1";
 import { PUSH_NOTIFICATIONS_CAPABILITY } from "@openbot/contracts/team-protocol/push-notifications-v1";
 import { SHARED_TABLES_CAPABILITY } from "@openbot/contracts/team-protocol/shared-tables-v1";
@@ -1463,6 +1473,28 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         !hostHiddenIds.includes(agentId) ||
         hostOwnsHide(serverCapabilities.current.get(activeServer.id), activeServer.role),
       canEditServerIdentity: (serverId) => administers(serverId, HOST_ADMIN_CAPABILITY),
+      canManageServerTimezone: (serverId) => administers(serverId, HOST_TIMEZONE_CAPABILITY),
+      canManageAgentMemoryLimit: (serverId) => administers(serverId, AGENT_MEMORY_LIMIT_CAPABILITY),
+      canManageConnectors: (serverId) => administers(serverId, CONNECTORS_CAPABILITY),
+      canManageOnePasswordConnector: (serverId) => administers(serverId, ONEPASSWORD_CONNECTOR_CAPABILITY),
+      // The same rule as the Updates section of the desktop Server Settings.
+      serverUpdateAccess: (serverId) => {
+        if (administers(serverId, HOST_UPDATE_CAPABILITY)) return "admin";
+        const server = servers.find((candidate) => candidate.id === serverId);
+        return server &&
+          showsOnline(server) &&
+          !canAdministerServer(server.role) &&
+          hasCapability(serverCapabilities.current, serverId, HOST_MEMBER_UPDATE_CAPABILITY)
+          ? "member"
+          : null;
+      },
+      canReadServerRelease: (serverId) => hasCapability(serverCapabilities.current, serverId, HOST_RELEASE_CAPABILITY),
+      canViewHostedSites: (serverId) =>
+        servers.some((server) => server.id === serverId && showsOnline(server)) &&
+        hasCapability(serverCapabilities.current, serverId, HOSTED_SITES_CAPABILITY),
+      canDeleteHostedSites: (serverId) => administers(serverId, HOSTED_SITES_CAPABILITY),
+      canManageProviders: (serverId) => administers(serverId, PROVIDERS_ADMIN_CAPABILITY),
+      canManageMcpServers: (serverId) => administers(serverId, MCP_SERVERS_CAPABILITY),
       canSendNotifications: (serverId) =>
         servers.some((server) => server.id === serverId && showsOnline(server)) && supportsPushNotifications(serverId),
       canManageEvents: (serverId) => administers(serverId, EVENTS_CAPABILITY),

@@ -203,13 +203,14 @@ function JoinServer(props: AccountProps) {
 
 /** A hosted server: the plans, the payment, then the setup. */
 function AddServer() {
-  const { servers, addServerOpen, setAddServerOpen, setJoinServerOpen } = useServers();
+  const { servers, addServerOpen, addServerEntryPoint, setAddServerOpen, setJoinServerOpen } = useServers();
   const { select } = useServerActions();
   const { openAppSettings } = useSettings();
 
   return (
     <AddServerOverlay
       open={addServerOpen()}
+      entryPoint={addServerEntryPoint() ?? undefined}
       calls={appPort().hostedServers}
       servers={servers()}
       onClose={() => setAddServerOpen(false)}
@@ -262,7 +263,7 @@ function HostedUpsell(props: AccountProps) {
       serverId={activeServer()?.id ?? "local"}
       host={activeServer()?.kind === "remote" ? { name: activeServer()?.name ?? "" } : "this-computer"}
       busy={(agentId) => Boolean(activeTurns()[agentId])}
-      openPlans={() => setAddServerOpen(true)}
+      openPlans={() => setAddServerOpen(true, "upsell")}
       track={(action, entryPoint) =>
         desktopAnalytics.track("hosted_server_upsell", { action, entry_point: entryPoint })
       }
@@ -785,7 +786,7 @@ function AppSettings(props: AccountProps) {
         hostedServersApi={appPort().hostedServers}
         onAddHostedServer={() => {
           setAppSettingsOpen(false);
-          setAddServerOpen(true);
+          setAddServerOpen(true, "settings_billing");
         }}
         onTestNotification={sendTestNotification}
         onOpenNotificationSettings={openNotificationSettings}
