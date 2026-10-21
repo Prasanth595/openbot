@@ -68,7 +68,6 @@ function PaneItem({
 
 /** A full-width sign-in button. The lilac one is the main action; the gray one the other choice. */
 export function SignInButton({
-  ref,
   label,
   labelKey = label,
   brand,
@@ -78,7 +77,6 @@ export function SignInButton({
   waiting = false,
   reduced,
 }: {
-  ref?: Ref<View>;
   label: string;
   /** The label fades to the new one when this changes. A countdown keeps one key. */
   labelKey?: string;
@@ -94,42 +92,40 @@ export function SignInButton({
   const colors = useSignInColors();
   const textColor = brand ? colors.onBrand : colors.text;
   return (
-    <View ref={ref} collapsable={false}>
-      <Button
-        size="lg"
-        variant="ghost"
-        feedbackVariant="scale"
-        className="w-full"
-        accessibilityLabel={label}
-        accessibilityState={{ disabled: waiting, busy }}
-        style={{
-          height: SIGN_IN_CONTROL_HEIGHT,
-          borderRadius: colors.radius,
-          backgroundColor: brand ? colors.brand : colors.surface,
-        }}
-        onPress={() => {
-          if (busy || waiting) return;
-          void haptics.impact("light");
-          onPress();
-        }}
+    <Button
+      size="lg"
+      variant="ghost"
+      feedbackVariant="scale"
+      className="w-full"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: waiting, busy }}
+      style={{
+        height: SIGN_IN_CONTROL_HEIGHT,
+        borderRadius: colors.radius,
+        backgroundColor: brand ? colors.brand : colors.surface,
+      }}
+      onPress={() => {
+        if (busy || waiting) return;
+        void haptics.impact("light");
+        onPress();
+      }}
+    >
+      <Animated.View
+        key={labelKey}
+        entering={reduced ? undefined : LABEL_IN}
+        exiting={reduced ? undefined : LABEL_OUT}
+        className="flex-row items-center gap-2"
       >
-        <Animated.View
-          key={labelKey}
-          entering={reduced ? undefined : LABEL_IN}
-          exiting={reduced ? undefined : LABEL_OUT}
-          className="flex-row items-center gap-2"
-        >
-          {busy ? (
-            <Spinner size="sm" color={textColor} />
-          ) : Icon ? (
-            <Icon size={20} color={textColor} strokeWidth={2} />
-          ) : null}
-          <Button.Label className="font-sans font-semibold" style={{ color: textColor, opacity: waiting ? 0.5 : 1 }}>
-            {label}
-          </Button.Label>
-        </Animated.View>
-      </Button>
-    </View>
+        {busy ? (
+          <Spinner size="sm" color={textColor} />
+        ) : Icon ? (
+          <Icon size={20} color={textColor} strokeWidth={2} />
+        ) : null}
+        <Button.Label className="font-sans font-semibold" style={{ color: textColor, opacity: waiting ? 0.5 : 1 }}>
+          {label}
+        </Button.Label>
+      </Animated.View>
+    </Button>
   );
 }
 
@@ -289,7 +285,6 @@ export function OptionsPane({
   onToggleHelp,
   onScan,
   onEmail,
-  scanButton,
   onLayout,
   onHelpLayout,
   reduced,
@@ -302,7 +297,6 @@ export function OptionsPane({
   onToggleHelp: () => void;
   onScan: () => void;
   onEmail: () => void;
-  scanButton?: Ref<View>;
   onLayout?: (height: number) => void;
   onHelpLayout?: (height: number) => void;
   reduced: boolean;
@@ -325,14 +319,7 @@ export function OptionsPane({
         <Typography.Paragraph color="muted">{t("mobile.auth.signIn.subtitle")}</Typography.Paragraph>
       </PaneItem>
       <PaneItem index={2} motion={motion} className="mt-7 gap-3">
-        <SignInButton
-          ref={scanButton}
-          brand
-          icon={ScanLine}
-          label={t("mobile.auth.scanQrCode")}
-          onPress={onScan}
-          reduced={reduced}
-        />
+        <SignInButton brand icon={ScanLine} label={t("mobile.auth.scanQrCode")} onPress={onScan} reduced={reduced} />
         <SignInButton brand={false} label={t("mobile.auth.signIn.emailButton")} onPress={onEmail} reduced={reduced} />
       </PaneItem>
       <PaneItem index={3} motion={motion}>

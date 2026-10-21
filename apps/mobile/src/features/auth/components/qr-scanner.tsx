@@ -171,7 +171,6 @@ export function QrScanner({
   immersive = false,
   contentInsetTop,
   scanEnabled = true,
-  onPreviewReady,
   onModeChange,
   onStatusChange,
   renderOverlay,
@@ -187,7 +186,6 @@ export function QrScanner({
   /** Space above the permission request, for a header drawn over the scanner. */
   contentInsetTop?: number;
   scanEnabled?: boolean;
-  onPreviewReady?: () => void;
   onModeChange?: (mode: ScannerMode) => void;
   onStatusChange?: (status: ScanStatus) => void;
   renderOverlay?: (camera: boolean) => ReactNode;
@@ -255,10 +253,6 @@ export function QrScanner({
   useEffect(() => {
     onStatusChange?.(scanState.status);
   }, [onStatusChange, scanState.status]);
-  useEffect(() => {
-    // Permission controls must be visible before the camera can start.
-    if (permission && !permission.granted) onPreviewReady?.();
-  }, [onPreviewReady, permission]);
   useEffect(() => {
     let previousState = AppState.currentState;
     const subscription = AppState.addEventListener("change", (state) => {
@@ -409,12 +403,10 @@ export function QrScanner({
             key={cameraAttempt}
             onCameraReady={() => {
               setReadyFor(cameraKey);
-              onPreviewReady?.();
             }}
             onMountError={() => {
               setScanState({ status: "error", source: "camera", message: t("mobile.auth.scanner.cameraFailed") });
               setReadyFor(cameraKey);
-              onPreviewReady?.();
             }}
             // Expo enables native scanning from the presence of this callback.
             // Keep it enabled from startup; connect guards opening and pending scans.

@@ -94,7 +94,9 @@ export function AppLockOverlay() {
   const [leaving, setLeaving] = useState(false);
   if (shownMode !== mode) {
     setShownMode(mode);
-    setLeaving(shownMode === "lock" && mode === null && Boolean(session) && !reduced);
+    // Only iOS plays the exit. The Android dialog is its own window: it would hold touches and the
+    // Back button for the whole exit.
+    setLeaving(isIOS && shownMode === "lock" && mode === null && Boolean(session) && !reduced);
   }
   useEffect(() => {
     if (!leaving) return;

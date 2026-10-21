@@ -265,18 +265,22 @@ export function SignInScreen({ notice }: { notice?: SignInNotice }) {
           : scan.mode === "permission"
             ? { shape: { kind: "header", bottom: compactBottom }, mood: "down", back: close }
             : { shape: { kind: "cover" }, mood: "think", back: close }
-        : step === "options"
-          ? { shape: measured ? { kind: "header", bottom: optionsBottom } : { kind: "cover" }, mood: "idle" }
-          : {
-              shape: { kind: "header", bottom: compactBottom },
-              mood: formMood,
-              back: {
-                icon: "back",
-                label: t("common.back"),
-                onPress: signIn.back,
-                disabled: signIn.sending || signIn.verifying || signIn.verified,
-              },
-            };
+        : scannerMounted
+          ? // The block covers the camera again before it moves to the header, so the camera never
+            // shows below a rising edge.
+            { shape: { kind: "cover" }, mood: "idle" }
+          : step === "options"
+            ? { shape: measured ? { kind: "header", bottom: optionsBottom } : { kind: "cover" }, mood: "idle" }
+            : {
+                shape: { kind: "header", bottom: compactBottom },
+                mood: formMood,
+                back: {
+                  icon: "back",
+                  label: t("common.back"),
+                  onPress: signIn.back,
+                  disabled: signIn.sending || signIn.verifying || signIn.verified,
+                },
+              };
   const active = useBloubStageRequest(request, BLOUB_PRIORITY.screen);
   // The content comes in when the stage first shows this screen, not under the splash.
   const [revealed, setRevealed] = useState(false);
@@ -296,7 +300,7 @@ export function SignInScreen({ notice }: { notice?: SignInNotice }) {
 
   // The pane on the screen follows the target one render later, so the leaving pane knows where
   // the next one comes from and leaves the other way.
-  const target: PaneKey = !revealed || finished || scan ? "none" : step;
+  const target: PaneKey = !revealed || finished || scan || scannerMounted ? "none" : step;
   const [pane, setPane] = useState<{ key: PaneKey; from: PaneDirection }>({ key: "none", from: "vertical" });
   useEffect(() => {
     if (pane.key !== target) setPane({ key: target, from: enterFrom(pane.key, target) });
