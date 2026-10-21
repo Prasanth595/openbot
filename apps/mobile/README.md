@@ -215,6 +215,23 @@ entry stops timers, and iOS system overlays do not restart them. Ordinary RTC fa
 the directory. Session revocation and membership actions still refresh it. A stored session is shown
 while startup validation runs; an invalid credential clears that login, while network failures retain it.
 
+The app lock (Settings > App lock) uses a 4-digit PIN, the phone's biometrics with the phone
+passcode as fallback (`expo-local-authentication`, Android strong biometrics only), or both. The
+settings are in the after-first-unlock Keychain items, so a start in the background reads them and
+starts locked. The PIN is stored as a salted PBKDF2-SHA256 hash, and the failed attempts are stored
+before each check, both in when-unlocked, this-device-only items. A 4-digit PIN cannot resist a
+person who reads the Keychain; the Keychain and the attempt limit protect it. After 4 failures each
+attempt waits longer, and the 10th failure signs out. Every change in App lock asks the owner to
+unlock first, unless the owner unlocked in the last 5 minutes. The local `modules/app-lock` native module
+measures the time away with a clock that counts during sleep and ignores changes of the phone's time.
+It reports a phone lock: iOS posts `protectedDataWillBecomeUnavailable` about 10 seconds after the lock,
+and only with a passcode, so the module asks for the short background time while it waits for that
+notification. Android reports `ACTION_SCREEN_OFF`. Android counts the app as away only when no activity
+of the app is visible, so permission and biometric dialogs do not lock it. On Android 13 and later the
+recent apps show a blank card. The lock screen draws in `FullWindowOverlay` on iOS and in a `Modal` on
+Android, above sheets. Notification, Live Activity, quick action and share navigation waits until
+the user unlocks. Expo Go does not have the module: it measures with the phone clock and cannot see a phone lock.
+
 ## Source structure
 
 The mobile app uses a feature-first structure. Expo Router files stay deliberately thin: `src/app`

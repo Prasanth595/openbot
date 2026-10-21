@@ -48,6 +48,9 @@ export function SettingsScreen() {
         <SettingsRow onPress={() => router.push("/settings/privacy")}>
           <Typography.Paragraph>{t("mobile.settings.privacy.title")}</Typography.Paragraph>
         </SettingsRow>
+        <SettingsRow onPress={() => router.push("/settings/app-lock")}>
+          <Typography.Paragraph>{t("mobile.appLock.title")}</Typography.Paragraph>
+        </SettingsRow>
       </SettingsSection>
       <SettingsSection title={t("mobile.settings.conversations.title")}>
         <SettingsRow onPress={() => router.push("/settings/hidden-chats")}>
