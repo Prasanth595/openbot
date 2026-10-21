@@ -73,7 +73,7 @@ export const messages = defineMessages("agentSettings", {
   "agentSettings.avatar.processFailed": "Could not process the agent avatar.",
 
   "agentSettings.runtime.model": "Agent model",
-  "agentSettings.runtime.modelBusy": "Wait for the current work to finish before changing models.",
+  "agentSettings.runtime.providerBusy": "Wait for the current work to finish before changing the provider or account.",
   "agentSettings.runtime.modelUnavailable": "Models are available after an agent CLI connects.",
   "agentSettings.runtime.reasoning": "Reasoning",
   "agentSettings.runtime.reasoningLabel": "Agent reasoning level",

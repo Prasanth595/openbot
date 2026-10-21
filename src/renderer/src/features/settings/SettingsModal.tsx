@@ -40,6 +40,7 @@ import { createEffect, createSignal, Show, untrack } from "solid-js";
 import { useI18n } from "../../i18n-context";
 import { ComputerUseSetup } from "../computer-use/ComputerUseSetup";
 import { voiceSupported } from "../conversation/voice-status";
+import { licenseContactUs, trackLicenseEvent } from "./license-analytics";
 import { createProfileActivityStore } from "./profile-activity-store";
 import { renderProfileShareImage } from "./profile-share-image";
 import { SettingsDynamicIslandTab } from "./SettingsDynamicIslandTab";
@@ -132,6 +133,7 @@ export function SettingsModal(props: SettingsModalProps) {
   const license = createLicenseStore(
     () => props.licenseApi,
     () => props.open && activeTab() === "billing",
+    trackLicenseEvent,
   );
   const hostedServers = createSettingsHostedServersStore(props, () => activeTab() === "billing");
   const voice = createSettingsVoiceStore(() => props.open && activeTab() === "voice");
@@ -318,7 +320,7 @@ export function SettingsModal(props: SettingsModalProps) {
               <LicenseSection
                 store={license}
                 onManagePayment={() => void billing.openPortal({ flow: "manage" })}
-                onContactUs={props.onContactUs}
+                onContactUs={licenseContactUs(props.onContactUs)}
               />
             }
           />

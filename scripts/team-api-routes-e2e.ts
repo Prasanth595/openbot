@@ -328,6 +328,7 @@ const fakeAgents: TeamApiAgents = {
   sendMessage: unused("sendMessage"),
   setMessageReaction: unused("setMessageReaction"),
   clearAgentContext: unused("clearAgentContext"),
+  agentIdForRequest: () => undefined,
   respondToPrompt: unused("respondToPrompt"),
   respondToApproval: unused("respondToApproval"),
   respondToBrowserSecret: unused("respondToBrowserSecret"),

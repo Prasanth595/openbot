@@ -138,7 +138,7 @@ export async function routeProviders(
         });
       case PROVIDERS_V5_ROUTES.apiKeySet:
       case PROVIDERS_ADMIN_ROUTES.apiKeySet: {
-        const input = parsed(V5_ROUTES.has(url.pathname) ? parseProviderApiKeyInput : wireApiKeyInput, body);
+        const input = parsed(V5_ROUTES.has(url.pathname) ? apiKeyInputV5 : wireApiKeyInput, body);
         // The same step as the local handler: the key and the process that uses it change together.
         await runCauseEffect(
           service.changeProviderCredential(input.provider, () =>
@@ -268,6 +268,13 @@ function signInProviderV4(body: DynamicRecord): SignInProviderIdV4 {
 
 function codeSubmitInputV4(body: DynamicRecord): { provider: SignInProviderIdV4; code: string } {
   return { provider: signInProviderV4(body), code: pastedCode(body) };
+}
+
+// Inception runs only on this computer, so a peer does not set its key.
+function apiKeyInputV5(body: DynamicRecord) {
+  const input = parseProviderApiKeyInput(body);
+  if (input.provider === "inception") throw new Error("Unknown provider.");
+  return input;
 }
 
 function wireApiKeyInput(body: DynamicRecord) {

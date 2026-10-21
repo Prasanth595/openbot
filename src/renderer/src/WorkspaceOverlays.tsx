@@ -40,6 +40,7 @@ import type { HostProviderSettings } from "./features/settings/ProviderSettingsS
 import { useSettings } from "./features/settings/settings-context";
 import { useUpdates } from "./features/updates/updates-context";
 import { useWhatsNew } from "./features/updates/whats-new-context";
+import { usePlanLimitRows } from "./features/usage/plan-limit-rows";
 import { useWindowPage } from "./features/window/window-page-context";
 import { useGlobalSearchSources } from "./global-search-sources";
 import { RemoteDesktopWorkspace, SettingsModal } from "./lazy-views";
@@ -202,13 +203,14 @@ function JoinServer(props: AccountProps) {
 
 /** A hosted server: the plans, the payment, then the setup. */
 function AddServer() {
-  const { servers, addServerOpen, setAddServerOpen, setJoinServerOpen } = useServers();
+  const { servers, addServerOpen, addServerEntryPoint, setAddServerOpen, setJoinServerOpen } = useServers();
   const { select } = useServerActions();
   const { openAppSettings } = useSettings();
 
   return (
     <AddServerOverlay
       open={addServerOpen()}
+      entryPoint={addServerEntryPoint() ?? undefined}
       calls={appPort().hostedServers}
       servers={servers()}
       onClose={() => setAddServerOpen(false)}
@@ -261,7 +263,7 @@ function HostedUpsell(props: AccountProps) {
       serverId={activeServer()?.id ?? "local"}
       host={activeServer()?.kind === "remote" ? { name: activeServer()?.name ?? "" } : "this-computer"}
       busy={(agentId) => Boolean(activeTurns()[agentId])}
-      openPlans={() => setAddServerOpen(true)}
+      openPlans={() => setAddServerOpen(true, "upsell")}
       track={(action, entryPoint) =>
         desktopAnalytics.track("hosted_server_upsell", { action, entry_point: entryPoint })
       }
@@ -305,6 +307,7 @@ function RestartServer() {
  */
 function ServerSettings(props: { connectors: ConnectorRegistry }) {
   const windowPage = useWindowPage();
+  const usageRows = usePlanLimitRows();
   const platform = usePlatform();
   const { hostStatus, setServerMuted, setServerNotificationLevel, hostedServerIds, hostedServersLoaded } = useServers();
   const { selectAgent, selectGlobalSearchMessage } = useNavigation();
@@ -515,6 +518,10 @@ function ServerSettings(props: { connectors: ConnectorRegistry }) {
       get accountActions() {
         return providerAccounts();
       },
+      // The readings are of the active server, which is the only server with a Providers tab.
+      get usage() {
+        return usageRows();
+      },
       onRestartProvider: local ? restartProvider : undefined,
       onCancelProviderRestart: local ? cancelProviderRestart : undefined,
       get providerDetection() {
@@ -666,6 +673,7 @@ function ServerSettings(props: { connectors: ConnectorRegistry }) {
           hostUpdate={{}}
           hostTimezone={{}}
           hostMemoryLimit={{}}
+          agentAccess={{ listAgents: () => appPort().agent.listAgents(server().id) }}
           initialSection={serverSettingsSection()}
           // Any member imports into this computer or a remote host with `agent-import-v1`.
           agentImport={
@@ -779,7 +787,7 @@ function AppSettings(props: AccountProps) {
         hostedServersApi={appPort().hostedServers}
         onAddHostedServer={() => {
           setAppSettingsOpen(false);
-          setAddServerOpen(true);
+          setAddServerOpen(true, "settings_billing");
         }}
         onTestNotification={sendTestNotification}
         onOpenNotificationSettings={openNotificationSettings}

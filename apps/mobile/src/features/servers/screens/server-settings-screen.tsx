@@ -7,18 +7,22 @@ import { usePreventRemove } from "expo-router/react-navigation";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
 import Camera from "lucide-react-native/icons/camera";
-import ChevronRight from "lucide-react-native/icons/chevron-right";
 import { useEffect, useRef, useState } from "react";
 import { Alert, Pressable, View } from "react-native";
-import { useCSSVariable, useUniwind } from "uniwind";
+import { useUniwind } from "uniwind";
 import { useMobileSession, useQueryScope } from "@/features/auth/context/mobile-session-context";
 import { ServerNotificationSettings } from "@/features/push-notifications/components/server-notification-settings";
 import { hostedServerCalls } from "@/features/servers/api/hosted-servers";
 import { ServerAvatar } from "@/features/servers/components/server-avatar";
 import { ServerStatusLabel } from "@/features/servers/components/server-status-label";
+import { TrailingValue } from "@/features/servers/components/trailing-value";
 import { SERVER_ROLE_LABEL_KEYS } from "@/features/servers/model/server-role";
 import { timeZoneLabel } from "@/features/servers/model/time-zones";
+import { useMcpServerList } from "@/features/servers/model/use-server-mcp";
+import { useServerProviders } from "@/features/servers/model/use-server-providers";
+import { useServerSites } from "@/features/servers/model/use-server-sites";
 import { useServerTimezone } from "@/features/servers/model/use-server-timezone";
+import { updateAvailable, useServerUpdate } from "@/features/servers/model/use-server-update";
 import {
   SettingsContent,
   SettingsNote,
@@ -39,9 +43,22 @@ import { currentText, useText } from "@/shared/lib/text";
 export function ServerSettingsScreen() {
   const { t, sourceText, errorMessage } = useText();
   const { serverId } = useLocalSearchParams<{ serverId: string }>();
-  const { servers, memberCountByServer, leaveServer, removeServer, refreshServer, hostedServerStarting } =
-    useMobileWorkspace();
+  const {
+    servers,
+    memberCountByServer,
+    leaveServer,
+    removeServer,
+    refreshServer,
+    hostedServerStarting,
+    canManageConnectors,
+    canManageOnePasswordConnector,
+    canReadServerStorage,
+    canManageProviders,
+    canManageMcpServers,
+    canViewHostedSites,
+  } = useMobileWorkspace();
   const server = useLiveServerRecovery(servers.find((item) => item.id === serverId));
+  const update = useServerUpdate(serverId, { poll: false });
   const locked = useRef(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -96,6 +113,7 @@ export function ServerSettingsScreen() {
     );
   const memberCount = memberCountByServer[serverId];
   const memberLimit = server.memberLimit ?? DEFAULT_TEAM_MEMBER_LIMIT;
+  const connectors = canManageConnectors(serverId) || canManageOnePasswordConnector(serverId);
   return (
     <SettingsContent>
       {canAdministerServer(server.role) ? <ServerIdentityForm server={server} /> : <ServerHeader server={server} />}
@@ -127,8 +145,31 @@ export function ServerSettingsScreen() {
         </SettingsRow>
       </SettingsSection>
       <ServerGeneralSettings serverId={serverId} />
+      {/* A section shows only when the host serves one of its pages to this role. */}
+      {canManageProviders(serverId) || canManageMcpServers(serverId) || connectors ? (
+        <SettingsSection title={t("mobile.server.settings.aiSection")}>
+          {canManageProviders(serverId) ? <ServerProvidersRow serverId={serverId} /> : null}
+          {canManageMcpServers(serverId) ? <ServerMcpRow serverId={serverId} /> : null}
+          {connectors ? (
+            <SettingsRow onPress={() => router.push({ pathname: "/server-settings/connectors", params: { serverId } })}>
+              <Typography.Paragraph>{t("mobile.server.settings.connectors")}</Typography.Paragraph>
+            </SettingsRow>
+          ) : null}
+        </SettingsSection>
+      ) : null}
+      {canViewHostedSites(serverId) || canReadServerStorage(serverId) ? (
+        <SettingsSection title={t("mobile.server.settings.dataSection")}>
+          {canViewHostedSites(serverId) ? <ServerSitesRow serverId={serverId} /> : null}
+          {canReadServerStorage(serverId) ? (
+            <SettingsRow onPress={() => router.push({ pathname: "/server-settings/storage", params: { serverId } })}>
+              <Typography.Paragraph>{t("mobile.server.settings.storage")}</Typography.Paragraph>
+            </SettingsRow>
+          ) : null}
+        </SettingsSection>
+      ) : null}
       <ServerNotificationSettings server={server} title={t("mobile.settings.notifications.title")} />
-      <SettingsSection title={t("mobile.server.settings.connection")} footer={error ?? restarted}>
+      <SettingsSection title={t("mobile.server.settings.maintenanceSection")} footer={error ?? restarted}>
+        {update.access || update.query.data ? <ServerUpdatesRow serverId={serverId} update={update} /> : null}
         <SettingsRow disclosure={false} disabled={busy} onPress={() => void perform(() => refreshServer(serverId))}>
           <Typography.Paragraph className="text-accent">
             {busy && !restarting ? t("mobile.server.settings.refreshing") : t("mobile.server.settings.refresh")}
@@ -359,16 +400,86 @@ function ServerGeneralSettings({ serverId }: { serverId: string }) {
   );
 }
 
-/** A value and the disclosure chevron at the end of a navigation row. */
-function TrailingValue({ value }: { value: string }) {
-  const muted = String(useCSSVariable("--openbot-text-grouped-secondary"));
+/** Opens the OpenBot update of the host. The value is the version that runs there, or a new one. */
+function ServerUpdatesRow({ serverId, update }: { serverId: string; update: ReturnType<typeof useServerUpdate> }) {
+  const { t } = useText();
+  const status = update.query.data?.status;
   return (
-    <View className="shrink flex-row items-center gap-1" style={{ maxWidth: "60%" }}>
-      <Typography.Paragraph numberOfLines={1} className="shrink text-grouped-secondary">
-        {value}
-      </Typography.Paragraph>
-      <ChevronRight size={18} color={muted} strokeWidth={1.5} />
-    </View>
+    <SettingsRow
+      trailing={
+        status ? (
+          <TrailingValue
+            value={
+              updateAvailable(status)
+                ? t("mobile.server.settings.updateAvailable")
+                : t("mobile.server.update.version", { version: status.currentVersion })
+            }
+          />
+        ) : undefined
+      }
+      onPress={() => router.push({ pathname: "/server-settings/updates", params: { serverId } })}
+    >
+      <Typography.Paragraph>{t("mobile.server.settings.updates")}</Typography.Paragraph>
+    </SettingsRow>
+  );
+}
+
+/**
+ * The Providers row, for an owner or admin of a host that serves `providers-v1`: the AI providers of
+ * the computer that runs the server, and how many are connected.
+ */
+function ServerProvidersRow({ serverId }: { serverId: string }) {
+  const { t } = useText();
+  const { status, rows } = useServerProviders(serverId);
+  const connected = rows.filter((row) => row.status?.state === "available").length;
+  return (
+    <SettingsRow
+      trailing={
+        status.data ? (
+          <TrailingValue value={t("mobile.server.settings.providersConnected", { count: connected })} />
+        ) : undefined
+      }
+      onPress={() => router.push({ pathname: "/server-settings/providers", params: { serverId } })}
+    >
+      <Typography.Paragraph>{t("mobile.server.settings.providers")}</Typography.Paragraph>
+    </SettingsRow>
+  );
+}
+
+/** The MCP servers row, for an owner or admin of a host that serves `mcp-servers-v1`. */
+function ServerMcpRow({ serverId }: { serverId: string }) {
+  const { t } = useText();
+  const { list } = useMcpServerList(serverId);
+  return (
+    <SettingsRow
+      trailing={
+        list.data ? (
+          <TrailingValue value={t("mobile.server.settings.mcpCount", { count: list.data.length })} />
+        ) : undefined
+      }
+      onPress={() => router.push({ pathname: "/server-settings/mcp", params: { serverId } })}
+    >
+      <Typography.Paragraph>{t("mobile.server.settings.mcp")}</Typography.Paragraph>
+    </SettingsRow>
+  );
+}
+
+/** The Sites row, for every member of a host that serves `hosted-sites-v1`. */
+function ServerSitesRow({ serverId }: { serverId: string }) {
+  const { t } = useText();
+  const { query } = useServerSites(serverId);
+  const list = query.data;
+  return (
+    <SettingsRow
+      trailing={
+        list ? (
+          <TrailingValue value={t("mobile.server.settings.siteCount", { count: list.used, limit: list.limit })} />
+        ) : undefined
+      }
+      onPress={() => router.push({ pathname: "/server-settings/sites", params: { serverId } })}
+    >
+      <Typography.Paragraph>{t("mobile.server.settings.sites")}</Typography.Paragraph>
+    </SettingsRow>
   );
 }
 

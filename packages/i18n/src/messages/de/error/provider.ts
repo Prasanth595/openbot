@@ -192,6 +192,8 @@ export const messages = {
     "Der Modellanbieter hat die Anfrage wegen der Kontoabrechnung abgelehnt. Warten behebt dies nicht. Füge im Anbieterkonto eine Zahlungsmethode oder Guthaben hinzu oder wähle ein anderes Modell.\n{detail}",
   "error.provider.opencodeInvalidUpload":
     "Der Modellanbieter von OpenCode hat eine ungültige Upload-Anfrage gemeldet. Wähle ein anderes Modell und fahre fort. Prüfe gespeicherte Routinen, bevor du sie erneut erstellst.\n{detail}",
+  "error.provider.opencodeUnreadableContent":
+    "Dieses Modell kann eine Datei oder ein Bild in diesem Chat nicht lesen. Wähle ein Modell, das Dateien lesen kann, und sende deine Nachricht dann erneut.",
   "error.provider.opencodeProviderFailed":
     "Beim Modellanbieter ist ein Fehler aufgetreten. Deine Verbindung ist nicht die Ursache. Versuche es später erneut oder wähle ein anderes Modell.\n{detail}",
   "error.provider.opencodeNetwork":
@@ -369,6 +371,7 @@ export const messages = {
   "error.provider.museAuthUnverified":
     "Die Muse-Authentifizierung ist nicht bestätigt. Verbinde dich auf dem Host-Computer oder lege einen Meta-API-Schlüssel fest.",
   "error.provider.museSignIn": "Melde dich auf dem Host-Computer bei Muse an, um fortzufahren.",
+  "error.provider.inceptionSignIn": "Füge einen Inception-API-Schlüssel hinzu, um fortzufahren.",
   "error.provider.terminalLoginFailed":
     "Das Anmeldeterminal konnte nicht geöffnet werden. Öffne die Anbieter-CLI auf diesem Host, melde dich dort an und aktualisiere dann die Anbieter.",
   "error.provider.nativeArchiveInvalid": "Der Anbieter-Download enthält keine gültige Installation.",

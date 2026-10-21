@@ -15,6 +15,8 @@ import { ReducedMotionConfig, ReduceMotion } from "react-native-reanimated";
 import { useCSSVariable, useUniwind, withUniwind } from "uniwind";
 
 import { MobileAnalyticsLifecycle } from "@/features/analytics/lifecycle";
+import { AppLockOverlay } from "@/features/app-lock/components/app-lock-overlay";
+import { installAppLock } from "@/features/app-lock/model/app-lock";
 import { DevelopmentConnectLinkHandler } from "@/features/auth/components/development-connect-link-handler";
 import { MobileSessionProvider, useMobileSession } from "@/features/auth/context/mobile-session-context";
 import { loadOnboardingProgress } from "@/features/onboarding/model/onboarding-progress";
@@ -58,6 +60,7 @@ const SESSION_FADE_MS = 300;
 
 installSupportLog();
 installQuickActions();
+installAppLock();
 
 const UniwindGestureHandlerRootView = withUniwind(GestureHandlerRootView);
 
@@ -198,6 +201,7 @@ function RootNavigator() {
               />
             ) : null}
           </View>
+          <AppLockOverlay />
         </View>
       </SplashMotionContext.Provider>
     </SplashContentReadyContext.Provider>

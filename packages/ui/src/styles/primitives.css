@@ -150,6 +150,20 @@
   padding-inline: var(--openbot-space-6);
 }
 
+/* A Lucide icon keeps width="24" when the caller sets no size, which is too large next to button
+   text. These rules have no specificity, so a size prop or a feature rule still wins. */
+:where(.ui-button > svg[width="24"]) {
+  width: var(--openbot-icon-md);
+  height: var(--openbot-icon-md);
+  flex: 0 0 auto;
+  stroke-width: var(--openbot-icon-stroke);
+}
+
+:where(.ui-button-size-xs > svg[width="24"], .ui-button-size-sm > svg[width="24"]) {
+  width: var(--openbot-icon-sm);
+  height: var(--openbot-icon-sm);
+}
+
 :where(.ui-button-variant-default) {
   background: var(--openbot-surface-light);
   color: var(--openbot-text-on-light);

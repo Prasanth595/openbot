@@ -35,6 +35,13 @@ export interface UsageSample {
 }
 const TOKEN_KEYS = ["uncachedInput", "cachedInput", "cacheCreation", "output"] as const;
 
+/** The tokens one model used in a turn. */
+export interface TurnModelUsage {
+  provider: string;
+  model: string;
+  tokens: UsageTokens;
+}
+
 /** Owns numeric analytics and cumulative checkpoints. Conversation deletion does not erase usage. */
 export class AgentUsage {
   readonly #core: DatabaseCore;
@@ -158,6 +165,39 @@ export class AgentUsage {
     this.#core.connection
       .prepare("INSERT OR IGNORE INTO agent_usage_activity VALUES (?, ?, ?, ?, ?, ?, 'turn', ?)")
       .run(agentId, `turn:${sessionId}:${turnId}`, sessionId, turnId, provider, model, new Date().toISOString());
+  }
+
+  /**
+   * The token counts of one turn by provider and model, summed over its records. An empty list
+   * means the provider reported none. A count is `null` when one record lacks it, so a partial sum
+   * never reads as complete. `since` bounds the read to the agent's recent rows on `agent_usage_date`.
+   */
+  readTurn(agentId: string, turnId: string, since: string): TurnModelUsage[] {
+    const rows = databaseRows(
+      this.#core.connection
+        .prepare(
+          "SELECT provider, model, tokens_json FROM agent_usage_records WHERE agent_id = ? AND occurred_at >= ? AND turn_id = ?",
+        )
+        .all(agentId, since, turnId),
+    );
+    const models = new Map<string, TurnModelUsage>();
+    for (const row of rows) {
+      const provider = requiredStringColumn(row, "provider");
+      const model = requiredStringColumn(row, "model");
+      const key = JSON.stringify([provider, model]);
+      let entry = models.get(key);
+      if (!entry) {
+        entry = { provider, model, tokens: { uncachedInput: 0, cachedInput: 0, cacheCreation: 0, output: 0 } };
+        models.set(key, entry);
+      }
+      const tokens = decodeUsageTokens(JSON.parse(requiredStringColumn(row, "tokens_json")));
+      for (const key of TOKEN_KEYS) {
+        const value = tokens[key];
+        const total = entry.tokens[key];
+        entry.tokens[key] = value === null || total === null ? null : total + value;
+      }
+    }
+    return [...models.values()];
   }
 
   read(raw: AgentAnalyticsInput): AgentAnalytics {

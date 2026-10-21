@@ -8,6 +8,7 @@ import type {
 } from "@openbot/contracts/ipc";
 import {
   type AccountUsage,
+  type AgentAccessChange,
   type AgentEvent,
   type AgentMemory,
   type AgentMemoryLimitPreference,
@@ -72,6 +73,7 @@ import {
   type OpenWorkspaceFileInput,
   type ProviderAccountStatus,
   type ProviderDetectionSettings,
+  parseAgentAccessChange,
   type QueueDelivery,
   type QueuedMessageReceipt,
   type QueueSnapshot,
@@ -285,6 +287,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
   let approvalAutomation = clone<ApprovalAutomationPreference>(DEFAULT_APPROVAL_AUTOMATION_PREFERENCE);
   let busyMessageMode: BusyMessageModePreference = { mode: DEFAULT_BUSY_MESSAGE_MODE };
   let agentMemoryLimit: AgentMemoryLimitPreference = { limit: DEFAULT_AGENT_MEMORY_LIMIT };
+  let agentAccess: AgentAccessChange = { revision: 0, everyone: {}, roles: [] };
   const agentMemoryLimitListeners = new Set<(preference: AgentMemoryLimitPreference) => void>();
   let remoteSessionReuse: RemoteSessionReusePreference = { ...DEFAULT_REMOTE_SESSION_REUSE_PREFERENCE };
   let appBehavior: AppBehaviorPreference = { launchAtLogin: false, keepRunningInBackground: false };
@@ -2384,6 +2387,20 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         agentMemoryLimit = { limit };
         for (const listener of agentMemoryLimitListeners) listener(clone(agentMemoryLimit));
         return hostAgentMemoryLimit(agentMemoryLimit);
+      },
+      // Preview has one host, and its user owns it, so `mine` gives every agent.
+      getAgentAccess: async () => ({
+        ...clone(agentAccess),
+        mine: Object.fromEntries(agents.map((agent) => [agent.id, "manage" as const])),
+      }),
+      setAgentAccess: async (input) => {
+        const change = parseAgentAccessChange(input);
+        if (change.revision !== agentAccess.revision) throw new Error(sourceText("error.team.agentAccessStale"));
+        agentAccess = { ...change, revision: change.revision + 1 };
+        return {
+          ...clone(agentAccess),
+          mine: Object.fromEntries(agents.map((agent) => [agent.id, "manage" as const])),
+        };
       },
     },
     storage: createMockStorage(),
