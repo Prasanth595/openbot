@@ -1,7 +1,7 @@
 import {
   type AgentEvent,
   type ClientAgentSummary,
-  isAgentSummary,
+  isClientAgentSummary,
   type TeamRealtimeEvent,
 } from "@openbot/contracts/ipc";
 import { guardedListDecoder } from "@openbot/contracts/ipc-decoding";
@@ -272,7 +272,7 @@ export function createWebHostConnections(options: {
       if (entries.get(entry.host.hostId) !== entry || !response?.ok || (response.status ?? 500) >= 400) return;
       // An `agents-changed` that arrived during the read is newer than the read.
       if (entry.agentsRevision !== revision) return;
-      entry.agents = guardedListDecoder(isAgentSummary, "teammates")(response.body);
+      entry.agents = guardedListDecoder(isClientAgentSummary, "teammates")(response.body);
     } catch {
       // As above: the status does not depend on the list.
     }
