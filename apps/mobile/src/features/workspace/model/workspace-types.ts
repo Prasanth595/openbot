@@ -19,6 +19,7 @@ import type {
   AgentTemplatePublication,
   AvatarHue,
   AvatarImageInput,
+  ClearableStorageCategory,
   ConversationFileSearchPage,
   ConversationSearchPage,
   ConversationSnapshot,
@@ -297,6 +298,12 @@ export interface MobileWorkspaceContextValue {
   uninstallAgentSkill: (input: UninstallSkillInput, serverId: string) => Promise<void>;
   /** Null when the host does not advertise `storage-v1`. */
   loadAgentStorage: (agentId: string, serverId: string, force?: boolean) => Promise<StorageUsage | null>;
+  /** True when the host advertises `storage-v1`. Every member reads the host's storage. */
+  canReadServerStorage: (serverId: string) => boolean;
+  /** Every location on the host, its agents, its largest chats and its stored files. */
+  loadServerStorage: (serverId: string, force?: boolean) => Promise<StorageUsage>;
+  /** Owners and admins only; the host refuses a member. */
+  clearServerStorage: (category: ClearableStorageCategory, serverId: string) => Promise<void>;
   /** Null when the host does not advertise `agent-admin-v1`. Owners and admins only; the host refuses a member. */
   loadAgentAdminSettings: (agentId: string, serverId: string) => Promise<AgentAdminSettings | null>;
   /** Owners and admins only; the host refuses a member. Resolves with the settings the host saved. */
@@ -437,7 +444,8 @@ export type MobileWorkspaceCapabilityCheck =
   | "canChooseNewAgentModel"
   | "canInstallAgentTemplate"
   | "canSearchFiles"
-  | "canUseTasks";
+  | "canUseTasks"
+  | "canReadServerStorage";
 
 type MobileWorkspaceStateKey =
   | MobileWorkspaceCapabilityCheck

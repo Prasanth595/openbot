@@ -166,6 +166,8 @@ type HostRequestActions = Pick<
   | "setAgentSkillEnabled"
   | "uninstallAgentSkill"
   | "loadAgentStorage"
+  | "loadServerStorage"
+  | "clearServerStorage"
   | "loadAgentAdminSettings"
   | "updateAgentAdminSettings"
   | "loadAgentHostSettings"
@@ -281,6 +283,7 @@ export function createHostRequestActions({
   const checks: HostRequestChecks = {
     canSearchFiles: (serverId) => has(serverId, CONVERSATION_FILE_SEARCH_CAPABILITY),
     canUseTasks: (serverId) => has(serverId, AGENT_TASKS_CAPABILITY),
+    canReadServerStorage: (serverId) => has(serverId, STORAGE_CAPABILITY),
     canStartNewChat: (serverId) => has(serverId, CONTEXT_RESET_CAPABILITY),
     canChooseNewAgentModel: (serverId) => has(serverId, TEAM_AGENT_CREATE_MODEL_CAPABILITY),
     canInstallAgentTemplate: (serverId) => has(serverId, AGENT_INSTALL_CAPABILITY),
@@ -485,6 +488,18 @@ export function createHostRequestActions({
         await request("POST", STORAGE_ROUTES.usage, decodeStorageUsage, input, serverId),
         input,
       );
+    },
+    loadServerStorage: async (serverId, force = false) => {
+      requireCapability(capabilities, serverId, STORAGE_CAPABILITY, "mobile.workspace.error.filesUnsupported");
+      const input = { scope: "host" as const, ...(force ? { force: true } : {}) };
+      return assertStorageUsageScope(
+        await request("POST", STORAGE_ROUTES.usage, decodeStorageUsage, input, serverId),
+        input,
+      );
+    },
+    clearServerStorage: async (category, serverId) => {
+      requireCapability(capabilities, serverId, STORAGE_CAPABILITY, "mobile.workspace.error.filesUnsupported");
+      await request("POST", STORAGE_ROUTES.clear, ignoreResponse, { category }, serverId);
     },
     loadAgentAdminSettings: async (agentId, serverId) =>
       has(serverId, AGENT_ADMIN_CAPABILITY)
