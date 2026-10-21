@@ -56,6 +56,7 @@ export const messages = {
   "customProvider.saveUnavailable": "Ta kompilacja nie może zapisać endpointu.",
   "customProvider.removeUnavailable": "Ta kompilacja nie może usunąć endpointu.",
   "customProvider.form.title": "Dodaj własnego dostawcę",
+  "customProvider.form.editTitle": "Edytuj własnego dostawcę",
   "customProvider.form.description": "Opisz endpoint zgodny z OpenAI i modele, które udostępnia.",
   "customProvider.form.heading": "Własny dostawca",
   "customProvider.form.subtitle": "Dowolny endpoint zgodny z OpenAI.",
@@ -227,6 +228,7 @@ export const messages = {
   "customProvider.list.empty": "Brak własnych endpointów.",
   "customProvider.list.label": "Własne endpointy",
   "customProvider.list.apiKeySaved": "Klucz API zapisany",
+  "customProvider.list.editLabel": "Edytuj: {name}",
   "customProvider.list.deleteLabel": "Usuń: {name}",
   "customProvider.list.confirmTitle": "Usunąć {name}?",
   "customProvider.list.confirmDescription":

@@ -58,6 +58,7 @@ export const messages = {
   "customProvider.removeUnavailable": "Cette version ne peut pas supprimer de point de terminaison.",
 
   "customProvider.form.title": "Ajouter un fournisseur personnalisé",
+  "customProvider.form.editTitle": "Modifier un fournisseur personnalisé",
   "customProvider.form.description": "Décrivez un point de terminaison compatible OpenAI et les modèles qu’il propose.",
   "customProvider.form.heading": "Fournisseur personnalisé",
   "customProvider.form.subtitle": "Tout point de terminaison compatible OpenAI.",
@@ -224,6 +225,7 @@ export const messages = {
   "customProvider.list.empty": "Aucun point de terminaison personnalisé pour l’instant.",
   "customProvider.list.label": "Points de terminaison personnalisés",
   "customProvider.list.apiKeySaved": "Clé API enregistrée",
+  "customProvider.list.editLabel": "Modifier {name}",
   "customProvider.list.deleteLabel": "Supprimer {name}",
   "customProvider.list.confirmTitle": "Supprimer {name} ?",
   "customProvider.list.confirmDescription":

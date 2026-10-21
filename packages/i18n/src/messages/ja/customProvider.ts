@@ -59,6 +59,7 @@ export const messages = {
   "customProvider.removeUnavailable": "このビルドではエンドポイントを削除できません。",
 
   "customProvider.form.title": "カスタムプロバイダーを追加",
+  "customProvider.form.editTitle": "カスタムプロバイダーを編集",
   "customProvider.form.description": "OpenAI 互換のエンドポイントと、それが提供するモデルを入力してください。",
   "customProvider.form.heading": "カスタムプロバイダー",
   "customProvider.form.subtitle": "OpenAI 互換のエンドポイントなら何でも使えます。",
@@ -216,6 +217,7 @@ export const messages = {
   "customProvider.list.empty": "カスタムエンドポイントはまだありません。",
   "customProvider.list.label": "カスタムエンドポイント",
   "customProvider.list.apiKeySaved": "API キー保存済み",
+  "customProvider.list.editLabel": "{name} を編集",
   "customProvider.list.deleteLabel": "{name} を削除",
   "customProvider.list.confirmTitle": "{name} を削除しますか？",
   "customProvider.list.confirmDescription":

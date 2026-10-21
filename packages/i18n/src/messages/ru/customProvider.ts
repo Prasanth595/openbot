@@ -57,6 +57,7 @@ export const messages = {
   "customProvider.removeUnavailable": "Эта сборка не может удалять эндпоинты.",
 
   "customProvider.form.title": "Добавить своего провайдера",
+  "customProvider.form.editTitle": "Изменить своего провайдера",
   "customProvider.form.description": "Опишите эндпоинт, совместимый с OpenAI, и модели, которые он предоставляет.",
   "customProvider.form.heading": "Свой провайдер",
   "customProvider.form.subtitle": "Любой эндпоинт, совместимый с OpenAI.",
@@ -232,6 +233,7 @@ export const messages = {
   "customProvider.list.empty": "Своих эндпоинтов пока нет.",
   "customProvider.list.label": "Свои эндпоинты",
   "customProvider.list.apiKeySaved": "API-ключ сохранён",
+  "customProvider.list.editLabel": "Изменить: {name}",
   "customProvider.list.deleteLabel": "Удалить: {name}",
   "customProvider.list.confirmTitle": "Удалить «{name}»?",
   "customProvider.list.confirmDescription":

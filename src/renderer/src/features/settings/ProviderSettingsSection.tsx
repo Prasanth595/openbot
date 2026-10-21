@@ -9,6 +9,7 @@ import {
   type ProviderApiKeyStatus,
   type ProviderRuntimeStatus,
   type SaveCustomProviderInput,
+  type UpdateCustomProviderInput,
 } from "@openbot/contracts/ipc";
 import { Text } from "@openbot/ui";
 import type { ProviderAccountActions } from "@openbot/ui/components/provider-accounts";
@@ -23,6 +24,7 @@ import {
 } from "@openbot/ui/features/custom-providers/CustomAgentSettings";
 import { CustomProviderDialog } from "@openbot/ui/features/custom-providers/CustomProviderDialog";
 import { CustomProviderPresetDialog } from "@openbot/ui/features/custom-providers/CustomProviderPresetDialog";
+import { savedCustomProviderDraft } from "@openbot/ui/features/custom-providers/custom-provider-form";
 import { localServerProbes, presetSetupProvider } from "@openbot/ui/features/custom-providers/custom-provider-presets";
 import { DetectedProviderSetup } from "@openbot/ui/features/custom-providers/DetectedProviderSetup";
 import { DetectedProviders } from "@openbot/ui/features/custom-providers/DetectedProviders";
@@ -82,6 +84,8 @@ interface ProviderSettingsSectionProps {
   customProviders?: readonly CustomProviderSummary[] | undefined;
   /** Without it the rows are listed but not removable, which is what a story without the callback shows. */
   onDeleteCustomProvider?: ((id: string) => Promise<CustomProviderRestart>) | undefined;
+  /** Without it the rows have no Edit. This computer only: the Team API has no edit route. */
+  onUpdateCustomProvider?: ((input: UpdateCustomProviderInput) => Promise<CustomProviderRestart>) | undefined;
   onSignInProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
   /** Adds, names and removes the accounts of each provider that can hold more than one. */
   accountActions?: ProviderAccountActions | undefined;
@@ -183,6 +187,7 @@ function ProviderSettingsSection(props: ProviderSettingsSectionProps) {
   const host = createCustomProviderHostState({
     onAdd: (value) => props.onAddCustomProvider?.(value),
     onDelete: (id) => props.onDeleteCustomProvider?.(id),
+    onUpdate: (input) => props.onUpdateCustomProvider?.(input),
     onSaved: (value) => void selectSavedEndpoint(value),
     onRemoved: (id) => {
       const choice = props.defaultProvider;
@@ -190,7 +195,21 @@ function ProviderSettingsSection(props: ProviderSettingsSectionProps) {
         void selectProvider("opencode", false, null);
       }
     },
+    // Main moves the agents off a model that the edit took out. The default model is the renderer's.
+    onUpdated: (input) => {
+      const choice = props.defaultProvider;
+      const model = choice?.preferredProvider === "opencode" ? choice.preferredModel : null;
+      if (!model?.startsWith(`${input.id}/`)) return;
+      if (!input.models.some((item) => model === `${input.id}/${item.id}`)) {
+        void selectProvider("opencode", false, null);
+      }
+    },
   });
+  const editing = () => host.state.editing;
+  const editDraft = () => {
+    const provider = editing();
+    return provider ? savedCustomProviderDraft(provider) : undefined;
+  };
 
   return (
     // The tab title already names this list, so it has no heading of its own.
@@ -227,6 +246,7 @@ function ProviderSettingsSection(props: ProviderSettingsSectionProps) {
         onAddCustomProvider={
           props.onAddCustomProvider ? (props.detectedProviderApi ? () => setChoosing(true) : host.openForm) : undefined
         }
+        onEditCustomProvider={props.onUpdateCustomProvider ? host.openEdit : undefined}
         onRemoveCustomProvider={props.onDeleteCustomProvider ? (provider) => void host.remove(provider) : undefined}
         removingCustomProvider={host.state.removing}
         onSignInProvider={props.onSignInProvider}
@@ -274,9 +294,15 @@ function ProviderSettingsSection(props: ProviderSettingsSectionProps) {
       <Show when={props.onAddCustomProvider}>
         <CustomProviderDialog
           open={host.state.open}
+          draft={editDraft()}
+          providerIdLocked={Boolean(editing())}
+          apiKeyKept={Boolean(editing()?.hasApiKey)}
           busy={host.state.saving}
           submitError={host.state.submitError}
-          takenProviderIds={customProviders().map((provider) => provider.id)}
+          // An edit keeps its own ID, so that ID is not a duplicate of itself.
+          takenProviderIds={customProviders()
+            .map((provider) => provider.id)
+            .filter((id) => id !== editing()?.id)}
           onSubmit={(value) => void host.submit(value)}
           onCancel={host.closeForm}
         />
@@ -417,6 +443,8 @@ export interface HostProviderSettings {
   customProviders?: readonly CustomProviderSummary[] | undefined;
   onAddCustomProvider?: ((value: SaveCustomProviderInput) => Promise<CustomProviderRestart>) | undefined;
   onDeleteCustomProvider?: ((id: string) => Promise<CustomProviderRestart>) | undefined;
+  /** This computer only: the Team API has no edit route, so a joined server's section has no Edit. */
+  onUpdateCustomProvider?: ((input: UpdateCustomProviderInput) => Promise<CustomProviderRestart>) | undefined;
   providerKeys?: ProviderKeyApi | undefined;
   /** How each row signs in, from where the user connects. */
   connection?: ProviderConnectionApi | undefined;
@@ -497,6 +525,7 @@ export function HostProviderSettingsPanel(
         onAddCustomProvider={props.onAddCustomProvider}
         customProviders={props.customProviders}
         onDeleteCustomProvider={props.onDeleteCustomProvider}
+        onUpdateCustomProvider={props.onUpdateCustomProvider}
         accountActions={props.accountActions}
         // With detection off there is no list, not an empty one.
         providerDetection={props.detectionSettings?.enabled === false ? undefined : props.providerDetection}

@@ -56,6 +56,7 @@ export const messages = {
   "customProvider.saveUnavailable": "Questa versione non può salvare un endpoint.",
   "customProvider.removeUnavailable": "Questa versione non può rimuovere un endpoint.",
   "customProvider.form.title": "Aggiungi un provider personalizzato",
+  "customProvider.form.editTitle": "Modifica un provider personalizzato",
   "customProvider.form.description": "Descrivi un endpoint compatibile con OpenAI e i modelli che offre.",
   "customProvider.form.heading": "Provider personalizzato",
   "customProvider.form.subtitle": "Qualsiasi endpoint compatibile con OpenAI.",
@@ -213,6 +214,7 @@ export const messages = {
   "customProvider.list.empty": "Ancora nessun endpoint personalizzato.",
   "customProvider.list.label": "Endpoint personalizzati",
   "customProvider.list.apiKeySaved": "Chiave API salvata",
+  "customProvider.list.editLabel": "Modifica {name}",
   "customProvider.list.deleteLabel": "Elimina {name}",
   "customProvider.list.confirmTitle": "Rimuovere {name}?",
   "customProvider.list.confirmDescription":
