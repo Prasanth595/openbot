@@ -217,10 +217,6 @@ export function BloubStage({ onLayout }: { onLayout?: () => void }) {
     opacity: glow.get(),
     transform: [{ translateY: span - (edge.get() - lift.get()) }],
   }));
-  const dimGlowStyle = useAnimatedStyle(() => ({
-    opacity: glow.get(),
-    transform: [{ translateY: span - (edge.get() - lift.get()) }],
-  }));
   const dimStyle = useAnimatedStyle(() => ({ opacity: dim.get() }));
   const eyesStyle = useAnimatedStyle(() => {
     const frame = bloubEyesFrame(edge.get() - lift.get(), height, top);
@@ -275,7 +271,7 @@ export function BloubStage({ onLayout }: { onLayout?: () => void }) {
                       height,
                       experimental_backgroundImage: bloubGradient(colors.dimLight, colors.dimBody),
                     },
-                    dimGlowStyle,
+                    glowStyle,
                   ]}
                 />
               </Animated.View>

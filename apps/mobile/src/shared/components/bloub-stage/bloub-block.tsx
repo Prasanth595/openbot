@@ -6,7 +6,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useReducedMotion } from "@/shared/lib/motion";
 import { BloubEyes, EYES_HEIGHT, EYES_WIDTH } from "./bloub-eyes";
 import { BLOUB_MOVE, BLOUB_RADIUS, bloubEyesFrame, bloubGradient, useBloubColors } from "./bloub-look";
-import type { BloubMood } from "./bloub-stage-store";
 
 /** Where the lower edge of the block is: over the whole screen, at a point, or above the screen. */
 export type BloubEdge = "cover" | "gone" | number;
@@ -15,7 +14,7 @@ export type BloubEdge = "cover" | "gone" | number;
  * The lilac block with the eyes, for a window that draws above the stage, such as the app lock.
  * It starts covered, as the stage does, and moves its edge to `edge` on the UI thread.
  */
-export function BloubBlock({ edge, dimmed, mood = "idle" }: { edge: BloubEdge; dimmed: boolean; mood?: BloubMood }) {
+export function BloubBlock({ edge, dimmed }: { edge: BloubEdge; dimmed: boolean }) {
   const window = useWindowDimensions();
   const [height, setHeight] = useState(window.height);
   const insets = useSafeAreaInsets();
@@ -61,7 +60,7 @@ export function BloubBlock({ edge, dimmed, mood = "idle" }: { edge: BloubEdge; d
       </Animated.View>
       <Animated.View style={[styles.eyes, { left: (window.width - EYES_WIDTH) / 2 }, eyesStyle]}>
         <BloubEyes
-          mood={mood}
+          mood="idle"
           active={edge !== "gone"}
           reduced={reduced}
           gazeX={gazeX}

@@ -239,6 +239,8 @@ export function QrScanner({
   // The camera reports readiness once per mount. A new mount waits for its own report.
   const cameraKey = `${cameraAttempt}-${cameraLive}`;
   const [readyFor, setReadyFor] = useState<string | null>(null);
+  // A camera that leaves forgets its report, so the next mount with the same key waits for its own.
+  if (!cameraLive && readyFor !== null) setReadyFor(null);
   const previewReady = readyFor === cameraKey;
   const mode: ScannerMode = !permission
     ? "pending"
