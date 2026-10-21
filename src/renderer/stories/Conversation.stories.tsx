@@ -33,6 +33,7 @@ import {
   STORY_ATTACHMENTS,
   STORY_PRESENCE,
   STORY_QUEUES,
+  STORY_REPLY_QUOTE_BODY,
 } from "./fixtures";
 import { createMockOpenBot } from "./mock-openbot";
 
@@ -536,18 +537,7 @@ const replyQuoteMessages: RendererAgentMessage[] = [
   {
     id: "reply-quote-agent",
     author: "agent",
-    body: [
-      "## Launch plan",
-      "",
-      "I asked **Build** to run `bun run check` before the tag. See [the release guide](https://openbot.run/docs).",
-      "",
-      "- Tag `v0.47.0`",
-      "- Publish <b>the notes</b>",
-      "",
-      "```bash",
-      "bun run check",
-      "```",
-    ].join("\n"),
+    body: STORY_REPLY_QUOTE_BODY,
     time: "10:02",
     kind: "text",
   },

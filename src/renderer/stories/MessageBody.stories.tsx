@@ -3,7 +3,7 @@ import type { AgentMessage } from "@openbot/ui/data";
 import { MessageBody } from "@openbot/ui/features/conversation/MessageRendering";
 import { fn } from "storybook/test";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { STORY_AGENTS, STORY_ATTACHMENTS } from "./fixtures";
+import { STORY_AGENTS, STORY_ATTACHMENTS, STORY_REPLY_QUOTE_BODY } from "./fixtures";
 
 const message: AgentMessage = {
   id: "message-body-1",
@@ -124,18 +124,7 @@ export const ReplyOriginalUnavailable: Story = {
 const markdownQuoted: AgentMessage = {
   id: "message-reference",
   author: "agent",
-  body: [
-    "## Launch plan",
-    "",
-    "I asked **Build** to run `bun run check` before the tag. See [the release guide](https://openbot.run/docs).",
-    "",
-    "- Tag `v0.47.0`",
-    "- Publish <b>the notes</b>",
-    "",
-    "```bash",
-    "bun run check",
-    "```",
-  ].join("\n"),
+  body: STORY_REPLY_QUOTE_BODY,
   time: "09:55",
 };
 

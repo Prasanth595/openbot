@@ -38,8 +38,8 @@ import {
 } from "@openbot/ui/features/conversation/ComposerNotice";
 import { ComposerCompactionNotice, ContextUsageMeter } from "@openbot/ui/features/conversation/ContextUsage";
 import { CloseIcon, StopIcon } from "@openbot/ui/features/conversation/ConversationIcons";
-import { MarkdownMessageText } from "@openbot/ui/features/conversation/MarkdownMessageText";
 import { type OpenWaitItem, OpenWaits } from "@openbot/ui/features/conversation/OpenWaits";
+import { ReplyQuote } from "@openbot/ui/features/conversation/ReplyQuote";
 import { SpeakingBar } from "@openbot/ui/features/conversation/SpeakingBar";
 import { VoiceRecordingMorph, voiceButtonLabel } from "@openbot/ui/features/conversation/VoiceRecordingMorph";
 import { useText } from "@openbot/ui/text";
@@ -81,7 +81,6 @@ export function ConversationComposer() {
     editingPendingSave,
     openAttachmentPicker,
     openAttachmentPickerFromKey,
-    openExternalMessageUrl,
     presentedQueueDeliveries,
     previewAttachment,
     props,
@@ -394,19 +393,13 @@ export function ConversationComposer() {
           <div class="composer-reply-preview">
             <div>
               <span>{t(message().author === "you" ? "composer.reply.toYou" : "composer.reply.toAgent")}</span>
-              <div class="message-reply-quote message-markdown">
-                <MarkdownMessageText
-                  body={message().body || t("composer.reply.attachment")}
-                  agents={props.agents}
-                  skills={installedSkills()}
-                  attachments={message().attachments}
-                  onSelectAgent={props.onSelectAgent}
-                  onOpenLink={(url) => void openExternalMessageUrl(url)}
-                  onOpenAttachment={(attachment) => void previewAttachment(attachment)}
-                  showCitationFooter={false}
-                  imagesAsLinks
-                />
-              </div>
+              <ReplyQuote
+                body={message().body || t("composer.reply.attachment")}
+                agents={props.agents}
+                skills={installedSkills()}
+                attachments={message().attachments}
+                citations={message().citations}
+              />
             </div>
             <Button
               variant="ghost"
