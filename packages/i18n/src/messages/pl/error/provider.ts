@@ -185,6 +185,8 @@ export const messages = {
     "Dostawca modelu odrzucił żądanie z powodu rozliczeń konta. Czekanie tego nie naprawi. Dodaj metodę płatności lub środki na koncie dostawcy albo wybierz inny model.\n{detail}",
   "error.provider.opencodeInvalidUpload":
     "Dostawca modelu OpenCode zgłosił nieprawidłowe żądanie przesłania. Wybierz inny model i kontynuuj. Sprawdź zapisane rutyny, zanim utworzysz je ponownie.\n{detail}",
+  "error.provider.opencodeUnreadableContent":
+    "Ten model nie może odczytać pliku lub obrazu w tym czacie. Wybierz model, który odczytuje pliki, a potem wyślij wiadomość ponownie.",
   "error.provider.opencodeProviderFailed":
     "Wystąpił błąd po stronie dostawcy modelu. Twoje połączenie nie jest przyczyną. Spróbuj ponownie później lub wybierz inny model.\n{detail}",
   "error.provider.opencodeNetwork":

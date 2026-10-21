@@ -187,6 +187,8 @@ export const messages = {
     "Il provider del modello ha rifiutato la richiesta per via della fatturazione dell'account. Aspettare non risolve. Aggiungi un metodo di pagamento o dei fondi nell'account del provider, oppure scegli un altro modello.\n{detail}",
   "error.provider.opencodeInvalidUpload":
     "Il provider del modello di OpenCode ha segnalato una richiesta di caricamento non valida. Scegli un altro modello e continua. Controlla le routine salvate prima di ricrearle.\n{detail}",
+  "error.provider.opencodeUnreadableContent":
+    "Questo modello non può leggere un file o un'immagine in questa chat. Scegli un modello che legge i file, poi invia di nuovo il messaggio.",
   "error.provider.opencodeProviderFailed":
     "Il provider del modello è andato in errore dal suo lato. La tua connessione non c'entra. Riprova più tardi o scegli un altro modello.\n{detail}",
   "error.provider.opencodeNetwork":
