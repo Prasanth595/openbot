@@ -67,7 +67,7 @@ function PaneItem({
 }
 
 /** A full-width sign-in button. The lilac one is the main action; the gray one the other choice. */
-export function SignInButton({
+function SignInButton({
   label,
   labelKey = label,
   brand,

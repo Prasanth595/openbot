@@ -2,7 +2,7 @@
  * What the stage shows. One lilac block covers the screen, or its lower edge stops at `bottom` as a
  * header, or it fades away so a camera below it shows. The eyes always stay on the stage.
  */
-export type BloubShape = { kind: "cover" } | { kind: "header"; bottom: number } | { kind: "clear" };
+type BloubShape = { kind: "cover" } | { kind: "header"; bottom: number } | { kind: "clear" };
 
 /**
  * How the eyes behave. `think` looks around while the app works; `frame` and `found` turn the
@@ -10,13 +10,13 @@ export type BloubShape = { kind: "cover" } | { kind: "header"; bottom: number } 
  */
 export type BloubMood = "idle" | "think" | "down" | "sad" | "happy" | "frame" | "found";
 
-export interface BloubCaption {
+interface BloubCaption {
   /** A title under the eyes. Without one, the text is a status line at the bottom of the screen. */
   title?: string;
   text: string;
 }
 
-export interface BloubBackAction {
+interface BloubBackAction {
   icon: "back" | "close";
   label: string;
   onPress: () => void;
@@ -39,7 +39,7 @@ export interface BloubStageRequest {
 /** A higher priority wins. In one priority, the request made last wins. */
 export const BLOUB_PRIORITY = { screen: 1, loader: 2, splash: 3 } as const;
 
-export interface ActiveBloubRequest {
+interface ActiveBloubRequest {
   id: string;
   request: BloubStageRequest;
 }
