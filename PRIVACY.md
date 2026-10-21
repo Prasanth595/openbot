@@ -603,10 +603,11 @@ Network traffic can also occur when:
   `~/Library/Application Support/OpenBot/provider-state/1password-cli`. The request carries no user
   data;
 - the user dictates or opens the Voice pane for the first time, or presses Download in **Settings →
-  Voice**. OpenBot downloads the speech model that it pins, Parakeet or Whisper turbo, from
-  `huggingface.co`, checks its size and SHA-256, and keeps it in `runtimes` in the application data
-  folder. The request carries no user data. Dictation audio from these models stays on the computer,
-  and the chosen model and language are saved in `voice-preference.json` in the same folder;
+  Voice**. OpenBot downloads the speech model that it pins, Parakeet, Underdog Bark 3.0 Plus or
+  Whisper turbo, from `huggingface.co`, checks its size and SHA-256, and keeps it in `runtimes` in
+  the application data folder. The request carries no user data. Dictation audio from these models
+  stays on the computer, and the chosen model and language are saved in `voice-preference.json` in
+  the same folder;
 - the user selects ElevenLabs Scribe v2 Realtime in **Settings → Voice** and dictates or talks in
   the Voice pane. While the microphone records, or when a Voice pane turn ends, OpenBot streams the
   audio and the chosen language to `api.elevenlabs.io` with the user's own API key, and receives the

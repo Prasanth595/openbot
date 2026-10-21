@@ -47,10 +47,10 @@ const MODEL_DESCRIPTION = {
   [ELEVENLABS_VOICE_MODEL_ID]: "settings.voice.model.elevenlabs.description",
 } as const satisfies Record<VoiceModelInfo["id"], AppTextKey>;
 
-/** Why the language cannot be set, for each model that takes no language. */
-const FIXED_LANGUAGE_DESCRIPTION: Partial<Record<VoiceModelInfo["id"], AppTextKey>> = {
-  "parakeet-tdt-0.6b-v3": "settings.voice.language.modelDetects",
-  "bark-3.0-plus": "settings.voice.language.englishOnly",
+/** The language that the model uses, and why it cannot be set, for each model that takes no language. */
+const FIXED_LANGUAGE: Partial<Record<VoiceModelInfo["id"], { language: VoiceLanguage; description: AppTextKey }>> = {
+  "parakeet-tdt-0.6b-v3": { language: AUTOMATIC_VOICE_LANGUAGE, description: "settings.voice.language.modelDetects" },
+  "bark-3.0-plus": { language: "en", description: "settings.voice.language.englishOnly" },
 };
 
 /** `jw` is Whisper's code for Javanese, whose catalog name is under `jv`. */
@@ -153,9 +153,9 @@ export function SettingsVoiceTab(props: SettingsVoiceTabProps) {
   const { t, format, errorMessage } = useText();
   const settings = () => props.store.state.settings;
   const activeModel = () => VOICE_MODELS.find((model) => model.id === settings()?.modelId);
-  const fixedLanguageDescription = () => {
+  const fixedLanguage = () => {
     const model = activeModel();
-    return model && !model.supportsLanguage ? FIXED_LANGUAGE_DESCRIPTION[model.id] : undefined;
+    return model && !model.supportsLanguage ? FIXED_LANGUAGE[model.id] : undefined;
   };
   const languageName = (language: VoiceLanguage) =>
     language === AUTOMATIC_VOICE_LANGUAGE ? t("settings.voice.language.automatic") : t(LANGUAGE_NAME[language]);
@@ -338,14 +338,14 @@ export function SettingsVoiceTab(props: SettingsVoiceTabProps) {
             <ItemContent>
               <ItemTitle>{t("settings.voice.language.title")}</ItemTitle>
               <ItemDescription>
-                {t(fixedLanguageDescription() ?? "settings.voice.language.description")}
+                {t(fixedLanguage()?.description ?? "settings.voice.language.description")}
               </ItemDescription>
             </ItemContent>
             <ItemActions>
               <Select<VoiceLanguage>
                 class="settings-modal-select"
                 options={languageOptions()}
-                value={settings()?.language ?? null}
+                value={fixedLanguage()?.language ?? settings()?.language ?? null}
                 onChange={(next) => next && props.store.setLanguage(next)}
                 disabled={!settings() || activeModel()?.supportsLanguage === false}
                 placement="bottom-end"
