@@ -394,12 +394,12 @@ const WRAP_SPEED = 240;
 
 const SETTINGS = {
   intensity: 1.6,
-  beamWidth: 3.6,
-  flare: 2.9,
-  spread: 4.6,
+  beamWidth: 3.2,
+  flare: 2.5,
+  spread: 3.8,
   spill: 1,
   /** How far the light runs down the sides of the surface, as a multiple of the React Bits length. */
-  fall: 3.2,
+  fall: 1.3,
   fog: 0.3,
   dust: 1.4,
   streaks: 1.4,
