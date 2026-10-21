@@ -585,6 +585,10 @@ export function LandingBeam(props: LandingBeamProps) {
     };
     if (held) void props.start?.then(release);
     const palette = buildPalette(look.color, look.hueSpread);
+    // The button rim in CSS uses the main and hot colours, so that it agrees with the beam.
+    const rgbOf = (index: number) =>
+      Array.from(palette.subarray(index * 3, index * 3 + 3), (channel) => Math.round(channel * 255)).join(", ");
+    const rimColors = { "--landing-beam-rim": rgbOf(1), "--landing-beam-edge": rgbOf(0) };
     const state = {
       clock: 0,
       /** Seconds since the beam started to fall. */
@@ -600,7 +604,9 @@ export function LandingBeam(props: LandingBeamProps) {
     const light = (target: HTMLElement | undefined) => {
       if (target === lit) return;
       lit?.removeAttribute("data-beam-source");
+      for (const name of Object.keys(rimColors)) lit?.style.removeProperty(name);
       target?.setAttribute("data-beam-source", "");
+      for (const [name, value] of Object.entries(rimColors)) target?.style.setProperty(name, value);
       host.toggleAttribute("data-source", target !== undefined);
       lit = target;
     };
