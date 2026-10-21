@@ -19,7 +19,7 @@ import {
   SPEECH_VOICES,
   type SpeechVoice,
 } from "@openbot/contracts/ipc";
-import { isBoolean, isDynamicRecord, isFunction, isNumber, isString } from "@openbot/contracts/runtime-values";
+import { isBoolean, isDynamicRecord, isFunction, isNumber, isOneOf, isString } from "@openbot/contracts/runtime-values";
 import { normalizeEmailAddress } from "@openbot/contracts/validation";
 import { ANALYTICS_GENERATIONS } from "@openbot/telemetry";
 import { OpenPanelBase, type OpenPanelOptions } from "@openpanel/web";
@@ -696,6 +696,16 @@ function sanitizeDesktopAnalyticsEvent(
   );
 }
 
+/**
+ * An OpenCode custom provider puts the id the user gave it before the model, so that model is sent as
+ * "custom". The main process uses the same rule.
+ */
+function reportedModel(value: string): string {
+  const separator = value.indexOf("/");
+  if (separator < 0) return value;
+  return isOneOf(AGENT_PROVIDERS, value.slice(0, separator)) ? value : "custom";
+}
+
 function sanitizeDesktopProperty(
   name: AnalyticsEventName,
   key: string,
@@ -705,7 +715,7 @@ function sanitizeDesktopProperty(
   if (key === "action") return safeEnum(value, EVENT_ACTIONS[name]);
   if (key === "provider" || key === "preferred_provider") return safeEnum(value, AGENT_PROVIDERS);
   if (key === "reasoning_effort") return safeEnum(value, AGENT_REASONING_EFFORTS);
-  if (key === "model" || key === "to_model") return isAgentModel(value) ? value : undefined;
+  if (key === "model" || key === "to_model") return isAgentModel(value) ? reportedModel(value) : undefined;
   if (key === "attachment_kinds") {
     if (!Array.isArray(value)) return undefined;
     return [...new Set(value.filter((item) => safeEnum(item, ATTACHMENT_KINDS) !== undefined))];

@@ -381,7 +381,9 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
       },
     };
   });
-  // One "shown" for each limit that asks; a new reset time is a new limit.
+  // One "shown" for each limit that asks, also when the user opens the agent again; a new reset time is a
+  // new limit.
+  const shownUsageLimits = new Set<string>();
   createEffect(
     () => {
       const ask = usageLimitAsk();
@@ -389,7 +391,9 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
     },
     (key) => {
       const ask = usageLimitAsk();
-      if (key && ask) desktopAnalytics.track("usage_limit_action", { action: "shown", from_provider: ask.provider });
+      if (!key || !ask || shownUsageLimits.has(key)) return;
+      shownUsageLimits.add(key);
+      desktopAnalytics.track("usage_limit_action", { action: "shown", from_provider: ask.provider });
     },
   );
 

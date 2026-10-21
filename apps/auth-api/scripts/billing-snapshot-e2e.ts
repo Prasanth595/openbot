@@ -140,6 +140,25 @@ function stripeSubscription(
   };
 }
 
+/** The license price has graduated tiers, so Stripe sends no `unit_amount` (`scripts/stripe-bootstrap.ts`). */
+function stripeLicenseSubscription(id: string, currency: string, users: number) {
+  return {
+    id,
+    status: "active",
+    currency,
+    cancel_at_period_end: false,
+    items: {
+      data: [
+        {
+          price: { currency, unit_amount: null, billing_scheme: "tiered", recurring: { interval: "month" } },
+          quantity: users,
+        },
+      ],
+    },
+    discounts: [],
+  };
+}
+
 /** A Stripe API stub. A body is a subscription; a number is an error status. Each URL goes to `calls`. */
 function stripeFetch(subscriptions: Record<string, object | number>, calls: string[]) {
   return async (input: string) => {
@@ -186,7 +205,7 @@ async function snapshotSkipsTerminalAndBadRows() {
     { id: "sub_trial", status: "trialing" },
     { id: "sub_missing", status: "active" },
     { id: "sub_weekly", status: "active" },
-    { id: "sub_license", status: "active", licenseUsers: 3 },
+    { id: "sub_license", status: "active", licenseUsers: 7 },
     { id: "sub_license_canceled", status: "canceled", licenseUsers: 2 },
   ]);
   const queries: string[] = [];
@@ -199,7 +218,7 @@ async function snapshotSkipsTerminalAndBadRows() {
       sub_trial: stripeSubscription("sub_trial", "trialing", "eur", 1_000, "month"),
       sub_missing: 404,
       sub_weekly: stripeSubscription("sub_weekly", "active", "eur", 1_000, "week"),
-      sub_license: stripeSubscription("sub_license", "active", "eur", 500, "month", 3),
+      sub_license: stripeLicenseSubscription("sub_license", "eur", 7),
     },
     calls,
   );
@@ -218,7 +237,7 @@ async function snapshotSkipsTerminalAndBadRows() {
   const fxReads = queries.filter((query) => query.includes("FROM billing_fx_rates")).length;
   check("the EUR rate is read once", fxReads === 1, { fxReads });
   const [event] = storedEvents(database);
-  // EUR: round(1000 * 1.1) + round(2000 * 1.1); USD yearly: 12000 / 12. License: round(3 * 500 * 1.1).
+  // EUR: round(1000 * 1.1) + round(2000 * 1.1); USD yearly: 12000 / 12. License: 7 users = 10000 + 2 * 1500, round(13000 * 1.1).
   const expected = {
     snapshot_date: DAY,
     mrr: 1_100 + 2_200 + 1_000,
@@ -227,11 +246,11 @@ async function snapshotSkipsTerminalAndBadRows() {
     paying_accounts: 3,
     paid_servers: 1,
     cancellations_scheduled: 0,
-    license_mrr: 1_650,
+    license_mrr: 14_300,
     license_accounts: 1,
-    licensed_users: 3,
-    total_mrr: 1_100 + 2_200 + 1_000 + 1_650,
-    total_arr: (1_100 + 2_200 + 1_000 + 1_650) * 12,
+    licensed_users: 7,
+    total_mrr: 1_100 + 2_200 + 1_000 + 14_300,
+    total_arr: (1_100 + 2_200 + 1_000 + 14_300) * 12,
     skipped_subscriptions: 2,
   };
   check("the event has the expected metrics", JSON.stringify(event) === JSON.stringify(expected), {

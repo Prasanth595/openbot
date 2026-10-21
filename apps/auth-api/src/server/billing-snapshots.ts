@@ -1,3 +1,4 @@
+import { licenseAmount } from "@openbot/contracts/license";
 import { Effect, Schema } from "effect";
 import { readBillingCohortCounts } from "./billing-cohorts";
 import { BillingUsd } from "./billing-usd";
@@ -334,7 +335,7 @@ function subscriptionSample(
       return yield* new BillingSnapshotError({ code: "invalid_subscription" });
     if (!subscription.interval) return yield* new BillingSnapshotError({ code: "invalid_subscription" });
     if (!isBillingUsdCurrency(subscription.currency)) return yield* new BillingSnapshotError({ code: "currency" });
-    const amount = yield* subscriptionAmountAfterDiscount(subscription, timestamp);
+    const amount = yield* subscriptionAmountAfterDiscount(subscription, subscription.currency, row.product, timestamp);
     const quantity = yield* Effect.try({
       try: () => subscription.items.reduce((total, item) => addSafe(total, item.quantity), 0),
       catch: () => snapshotError("invalid_subscription"),
@@ -471,6 +472,8 @@ function inferInterval(
 
 function subscriptionAmountAfterDiscount(
   subscription: StripeSubscriptionSample,
+  currency: "eur" | "usd" | "pln",
+  product: StoredSubscription["product"],
   timestamp: number,
 ): Effect.Effect<{ amountMinor: number }, BillingSnapshotError> {
   return Effect.try({
@@ -478,7 +481,10 @@ function subscriptionAmountAfterDiscount(
       let subtotal = 0;
       const appliedDiscounts = new Set<string>();
       for (const item of subscription.items) {
-        const amount = priceAmount(item.price, subscription.currency, item.quantity);
+        const amount =
+          product === "license"
+            ? licensePriceAmount(item.quantity, currency)
+            : priceAmount(item.price, subscription.currency, item.quantity);
         const discounted = applyDiscounts(amount, item.discounts, subscription.currency, timestamp, appliedDiscounts);
         subtotal = addSafe(subtotal, discounted);
       }
@@ -494,6 +500,15 @@ function subscriptionAmountAfterDiscount(
     },
     catch: (error) => (error instanceof BillingSnapshotError ? error : snapshotError("invalid_subscription")),
   });
+}
+
+/**
+ * The license price is graduated tiers, so Stripe sends no `unit_amount` for it, and a subscription cannot
+ * expand the tiers of another currency. The license service uses the same list price.
+ */
+function licensePriceAmount(quantity: number, currency: "eur" | "usd" | "pln"): number {
+  if (!Number.isSafeInteger(quantity) || quantity < 0) throw new BillingSnapshotError({ code: "invalid_subscription" });
+  return licenseAmount(quantity, currency);
 }
 
 function priceAmount(price: StripePrice, currency: string, quantity: number): number {

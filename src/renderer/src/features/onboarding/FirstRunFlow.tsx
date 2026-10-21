@@ -204,11 +204,15 @@ export function FirstRunFlow(props: FirstRunFlowProps) {
 
   /** Only the plan step and Open wait for the provider: the free path continues while it starts. */
   function nextStep(): void {
-    trackStep("next");
     const following = steps()[stepNumber()];
-    if (!following) openWhenReady();
-    else if (state.step === "plan" && !providers.selectedProviderConnected()) next.connectSelected();
-    else moveTo(following);
+    // A blocked plan step only starts the connection, so it is not a "next".
+    if (following && state.step === "plan" && !providers.selectedProviderConnected()) {
+      next.connectSelected();
+      return;
+    }
+    trackStep("next");
+    if (following) moveTo(following);
+    else openWhenReady();
   }
 
   function openWhenReady(): void {
