@@ -191,20 +191,9 @@ export class VoiceTranscriptionService extends EventEmitter<VoiceTranscriptionEv
     if (!isLocalVoiceModelId(modelId))
       return yield* new VoiceOperationError({ cause: new Error("A cloud model has no files to remove.") });
     if (this.#busy) return yield* new VoiceOperationError({ cause: new Error(sourceText("error.voice.removeBusy")) });
-    // A transcription that starts now would load the files that are deleted.
-    return yield* Effect.acquireUseRelease(
-      Effect.sync(() => {
-        this.#busy = true;
-      }),
-      () =>
-        Effect.gen({ self: this }, function* () {
-          if (this.#hostModelId === modelId) yield* this.#endHost();
-          return yield* this.#models[modelId].remove();
-        }),
-      () =>
-        Effect.sync(() => {
-          this.#busy = false;
-        }),
+    // A transcription that starts during the removal waits in `prepare`, then downloads the model again.
+    return yield* this.#models[modelId].remove(
+      Effect.suspend(() => (this.#hostModelId === modelId ? this.#endHost() : Effect.void)),
     );
   }).bind(this);
 

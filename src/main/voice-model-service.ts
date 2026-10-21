@@ -327,14 +327,19 @@ export class VoiceModelService<Id extends DownloadedModelId> extends EventEmitte
   }).bind(this);
 
   /**
-   * Deletes the model directory, and stops the download in progress first. The caller ends any host
-   * that has the model loaded. The directory is the one main gave this service, never a renderer path.
+   * Deletes the model directory, and stops the download in progress first. `endHost` ends any host
+   * that has the model loaded; a `prepare` during it waits, so no new host loads the files that go.
+   * The directory is the one main gave this service, never a renderer path.
    */
-  readonly remove = Effect.fn("VoiceModel.remove")(function* (this: VoiceModelService<Id>) {
+  readonly remove = Effect.fn("VoiceModel.remove")(function* (
+    this: VoiceModelService<Id>,
+    endHost: Effect.Effect<void>,
+  ) {
     if (this.#removal) return yield* Fiber.join(this.#removal);
     const fiber = yield* Effect.forkIn(
       Effect.gen({ self: this }, function* () {
-        yield* this.cancel();
+        if (this.#preparation) yield* this.cancel();
+        yield* endHost;
         const removed = yield* Effect.result(voiceIO(() => rm(this.#directory, { recursive: true, force: true })));
         if (Result.isFailure(removed)) {
           // Some files can be gone. A file that is still there and unchanged needs only a `stat`.
