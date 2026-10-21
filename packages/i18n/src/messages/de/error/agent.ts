@@ -133,7 +133,7 @@ export const messages = {
     "Die Bildschirmaufnahme ist für diesen Agenten deaktiviert. Der Benutzer kann die Computersteuerung in den Agenteneinstellungen aktivieren.",
   "error.agent.screenCaptureUnavailable": "Die Bildschirmaufnahme ist auf diesem Computer nicht verfügbar.",
   "error.agent.screenCaptureShared":
-    "Die Bildschirmaufnahme funktioniert nicht in einem Kanal oder in einer Slack-, Discord- oder Telegram-Unterhaltung, da andere Personen ihre Dateien erhalten.",
+    "Die Bildschirmaufnahme funktioniert nicht in einer Slack-, Discord- oder Telegram-Unterhaltung, da andere Personen ihre Dateien erhalten.",
   "error.agent.screenCaptureDeclined":
     "Der Benutzer hat diese Bildschirmaufnahme nicht erlaubt. Es wurde nichts aufgenommen.",
   "error.agent.screenCaptureWindowMissing":

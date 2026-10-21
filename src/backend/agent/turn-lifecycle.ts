@@ -762,7 +762,7 @@ export class TurnLifecycle {
       }
       // The plan refused the turn before it did anything that a second run would repeat, so its
       // messages wait in the queue for the reset. A channel task goes back to its channel's queue
-      // instead: an assignment that waited here would reserve the whole host until the reset.
+      // instead: an assignment that waited here would hold its agent until the reset.
       const repeatable = limited && running !== undefined && !running.acted && deliveries.length > 0;
       const channelTurn = !taskTurn && this.#conversation.isExecutionThread(snapshot.threadId);
       const requeue = repeatable && !channelTurn;

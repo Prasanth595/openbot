@@ -113,7 +113,7 @@ export const messages = {
     "Bu ajan için ekran yakalama kapalı. Kullanıcı, ajan ayarlarında Bilgisayar Kullanımı'nı açabilir.",
   "error.agent.screenCaptureUnavailable": "Ekran yakalama bu bilgisayarda kullanılamıyor.",
   "error.agent.screenCaptureShared":
-    "Ekran yakalama bir kanalda veya bir Slack, Discord ya da Telegram konuşmasında çalışmaz, çünkü dosyalarını başka kişiler de alır.",
+    "Ekran yakalama bir Slack, Discord ya da Telegram konuşmasında çalışmaz, çünkü dosyalarını başka kişiler de alır.",
   "error.agent.screenCaptureDeclined": "Kullanıcı bu ekran yakalamaya izin vermedi. Hiçbir şey yakalanmadı.",
   "error.agent.screenCaptureWindowMissing":
     "Bu pencere şu anda açık değil. Geçerli pencere kimliklerini almak için list_capture_sources çağırın.",

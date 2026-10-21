@@ -34,6 +34,8 @@ const config: KnipConfig = {
     "cloudflared",
     // Speaks the English samples of the macOS dictation smoke test.
     "say",
+    // Finds the child processes of the dev app in the channel E2E scripts.
+    "pgrep",
   ],
   workspaces: {
     ".": {

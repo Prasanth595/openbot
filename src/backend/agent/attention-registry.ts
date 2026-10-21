@@ -566,17 +566,18 @@ export class AttentionRegistry {
 
   /**
    * Asks the user to approve a built-in tool call, and gives the answer to the tool. The tool does
-   * nothing before "accept". An agent with Full access is answered for, as for a hosted-site change.
-   * A turn that ends or a request that the provider abandons gives "cancel".
+   * nothing before "accept". An agent with Full access is answered for, as for a hosted-site change,
+   * unless `alwaysAsk` is set. A turn that ends or a request that the provider abandons gives "cancel".
    */
   readonly awaitToolApproval = Effect.fn("AttentionRegistry.awaitToolApproval")(function* (
     this: AttentionRegistry,
     client: AgentClient,
     request: AppServerRequest,
     approval: AgentApproval,
+    options: { readonly alwaysAsk?: boolean } = {},
   ) {
     if (request.signal?.aborted) return "cancel" as const;
-    if (this.#answersForAgent(approval.agentId)) return "accept" as const;
+    if (!options.alwaysAsk && this.#answersForAgent(approval.agentId)) return "accept" as const;
     const decision = Deferred.makeUnsafe<ToolApprovalDecision>();
     this.#approvals.set(request.id, {
       client,

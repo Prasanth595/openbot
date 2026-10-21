@@ -114,7 +114,7 @@ export const messages = {
     "Снимки экрана для этого агента выключены. Пользователь может включить управление компьютером в настройках агента.",
   "error.agent.screenCaptureUnavailable": "Снимки экрана недоступны на этом компьютере.",
   "error.agent.screenCaptureShared":
-    "Снимки экрана не работают в канале и в диалогах Slack, Discord или Telegram, потому что их файлы получают другие люди.",
+    "Снимки экрана не работают в диалогах Slack, Discord или Telegram, потому что их файлы получают другие люди.",
   "error.agent.screenCaptureDeclined": "Пользователь не разрешил этот снимок экрана. Ничего не снято.",
   "error.agent.screenCaptureWindowMissing":
     "Это окно сейчас не открыто. Вызовите list_capture_sources, чтобы получить текущие ID окон.",

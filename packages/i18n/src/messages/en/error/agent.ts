@@ -112,7 +112,7 @@ export const messages = defineMessages("error.agent", {
     "Screen capture is off for this agent. The user can turn on Computer Use in the agent settings.",
   "error.agent.screenCaptureUnavailable": "Screen capture is not available on this computer.",
   "error.agent.screenCaptureShared":
-    "Screen capture does not work in a channel or in a Slack, Discord or Telegram conversation, because other people get its files.",
+    "Screen capture does not work in a Slack, Discord or Telegram conversation, because other people get its files.",
   "error.agent.screenCaptureDeclined": "The user did not allow this screen capture. Nothing was captured.",
   "error.agent.mcpServerDeclined": "The user did not allow this MCP server change. Nothing changed.",
   "error.agent.mcpServerNotSaved": "The MCP server did not answer, so it was not saved. {error}",

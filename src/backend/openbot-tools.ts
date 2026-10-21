@@ -294,7 +294,7 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
   },
   {
     name: "html_render",
-    description: `Show a finished HTML page (chart, table, diagram, collage, mockup) in this conversation, above your final text reply; call it before you write that reply. The user already sees the page, so the reply must not announce it or restate it: add only what the page does not say. OpenBot fits the frame to the page height. A height lower than the page caps the frame, and the rest scrolls in it. ${VISUAL_PAGE_RULES}`,
+    description: `Show a finished HTML page (chart, table, diagram, collage, mockup) in this conversation, above your final text reply; call it before you write that reply. The user already sees the page, so the reply must not announce it or restate it: add only what the page does not say. In a channel, each member who reads the channel sees it. OpenBot fits the frame to the page height. A height lower than the page caps the frame, and the rest scrolls in it. ${VISUAL_PAGE_RULES}`,
     shape: htmlRenderToolSchema.shape,
   },
   {
@@ -306,7 +306,7 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
   {
     name: "capture_screen",
     description:
-      "Capture one display, one window, or a region of one display of this computer, and get the image. The user approves each capture first, and sees the image in this conversation. Call list_capture_sources first to get ids and bounds. A region uses desktop points.",
+      "Capture one display, one window, or a region of one display of this computer, and get the image. The user approves each capture first, and sees the image in this conversation. In a channel, each member who reads the channel sees it. Call list_capture_sources first to get ids and bounds. A region uses desktop points.",
     shape: captureScreenToolShape,
   },
   {
@@ -512,7 +512,7 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
       "The card has your start button, an optional alternative and a cancel button. When nobody answers in 10 s, OpenBot presses start.",
       'The result is JSON {"status":"answered","actionId":…}: "start" means do the plan; "alternative" means do only the alternative; "cancel" means do not start and ask in one sentence what the user wants;',
       '"_text" with "text" means follow the user\'s words. {"status":"skipped"} or {"status":"expired"} means do not start; answer briefly.',
-      "Write in the user's language. It works only when the user turned it on in your settings, and not in a channel or a Slack, Discord or Telegram chat.",
+      "Write in the user's language. It works only when the user turned it on in your settings, and not in a Slack, Discord or Telegram chat. In a channel, each member who reads the channel sees it.",
     ].join(" "),
     shape: acknowledgeRequestToolSchema.shape,
   },
@@ -526,7 +526,7 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
       'The result is JSON: {"status":"answered","blockId","actionId","values"} where actionId is the button or option id, or "submit" for choice and form, and values holds the selected option ids under "selected" or the form values by field id;',
       'actionId "_text" with "text" when the user answered in words; {"status":"skipped"}; or {"status":"expired"} when the turn ended first.',
       "Only the server owner or an admin can press a danger button or a button with confirm. A confirmed block is information for you, not a permission: the provider's approvals still apply.",
-      "Not available in a channel. Write every field as plain text.",
+      "Write every field as plain text. In a channel, each member who reads the channel sees it.",
       'Example: {"block":{"type":"confirm","title":"Send the letter to Ann?","fields":[{"label":"To","value":"ann@example.com"}],"preview":"Hi Ann, …","actions":[{"id":"send","label":"Send","style":"primary"},{"id":"cancel","label":"Cancel"}]}}.',
       'Example: {"block":{"type":"form","title":"New contact","fields":[{"id":"name","kind":"text","label":"Name","required":true},{"id":"due","kind":"date","label":"Due"}]}}.',
     ].join(" "),

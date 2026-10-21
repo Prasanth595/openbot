@@ -9,6 +9,8 @@ export const messages = {
   "status.agent.modelReturnedAfterLimit": "使用量の上限が解除されました。{model} に戻しました。",
   "status.agent.marketplaceSuggested": "マーケットプレイスのアプリを提案しました: {app}。",
   "status.agent.screenCaptureScreen": "メイン画面をキャプチャし、その画像をエージェントのモデルに送信します。",
+  "status.agent.screenCaptureChannel":
+    "画像はチャンネル {channel} に表示され、このサーバーでチャンネルを読むメンバー全員が見ることができます。",
   "status.agent.screenCaptureDisplay":
     "ディスプレイ {name} をキャプチャし、その画像をエージェントのモデルに送信します。",
   "status.agent.screenCaptureWindow": "ウィンドウ {name} をキャプチャし、その画像をエージェントのモデルに送信します。",

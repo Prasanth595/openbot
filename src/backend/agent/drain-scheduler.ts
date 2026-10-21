@@ -166,6 +166,11 @@ export class DrainScheduler {
   readonly #channels: ChannelService | undefined;
   readonly #messaging: MessagingThreads | undefined;
   readonly #drainingLanes = new Set<string>();
+  /**
+   * Agents whose channel task a spent plan refused and gave back to its channel. Their queue can be
+   * empty, so the end of the drain schedules them once: the schedule moves to a backup model.
+   */
+  readonly #requeuedAtLimit = new Set<string>();
   readonly #settingsHolds = new Map<string, number>();
   /** The last hold `#reportHold` logged per lane, so a waiting queue logs once per reason. */
   readonly #reportedHolds = new Map<string, string>();
@@ -289,8 +294,8 @@ export class DrainScheduler {
       return "agent-client-changing";
     // A hidden agent finishes the turn that runs. Its queued messages wait until the user restores it.
     if (agent?.hiddenAt !== undefined) return "hidden";
-    if (!(taskId === null ? (this.#channels?.mayDrain(agentId) ?? true) : (this.#channels?.mayDrainTask() ?? true)))
-      return "channel";
+    // Channel work holds only the agent's own chat. Its tasks run beside a channel turn.
+    if (taskId === null && !(this.#channels?.mayDrain(agentId) ?? true)) return "channel";
     if (!this.#profileSave.mayDrain(agentId)) return "profile-save";
     if (!this.#duplication.mayDrain(agentId)) return "duplication";
     if (!this.#compaction.mayDrain(agentId)) return "compaction";
@@ -419,6 +424,7 @@ export class DrainScheduler {
       for (const key of [...keys]) if (ofAgent(key)) keys.delete(key);
     for (const key of [...this.#reportedHolds.keys()]) if (ofAgent(key)) this.#reportedHolds.delete(key);
     for (const key of [...this.#turnModels.keys()]) if (ofAgent(key)) this.#turnModels.delete(key);
+    this.#requeuedAtLimit.delete(agentId);
     this.retrySlotWaiters();
   }
 
@@ -427,6 +433,7 @@ export class DrainScheduler {
     this.#scheduledDrains.clear();
     this.#slotWaiters.clear();
     this.#reportedHolds.clear();
+    this.#requeuedAtLimit.clear();
   }
 
   /**
@@ -510,7 +517,8 @@ export class DrainScheduler {
       Effect.ensuring(
         Effect.sync(() => {
           this.#drainingLanes.delete(key);
-          if (this.#mailbox.nextQueued(agentId)) this.#scheduleLane(mainLane(agentId));
+          if (this.#requeuedAtLimit.delete(agentId) || this.#mailbox.nextQueued(agentId))
+            this.#scheduleLane(mainLane(agentId));
           // Every task too: this lane can have held another one for the task limit or the process.
           this.#scheduleTasks(agentId);
           this.retrySlotWaiters();
@@ -848,6 +856,7 @@ export class DrainScheduler {
             if (yield* this.#hooks.requeueChannelDelivery(delivery.id)) {
               yield* this.#mailbox.markTerminal(delivery.id, "interrupted", null).pipe(toDeliveryStartFailed);
               this.#mailboxSync.emitQueue(delivery.recipientAgentId);
+              this.#requeuedAtLimit.add(delivery.recipientAgentId);
               return;
             }
           }

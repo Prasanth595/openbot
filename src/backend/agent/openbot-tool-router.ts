@@ -489,11 +489,6 @@ export class OpenBotToolRouter {
       );
       return;
     }
-    const agentId = this.#conversation.agentForThread(params.threadId);
-    if (agentId && this.#channels.store.channelForThread(this.#conversation.publicThreadId(agentId, params.threadId))) {
-      refuse("A channel cannot show an ask_ui block. Ask in plain text instead.");
-      return;
-    }
     this.#attention.surfaceUiBlock(client, request, { blockId, spec });
   }
 
@@ -511,8 +506,8 @@ export class OpenBotToolRouter {
       return;
     }
     const threadId = this.#conversation.publicThreadId(agent.id, params.threadId);
-    // Nobody presses a button in a channel or on Slack, Discord or Telegram.
-    if (this.#messaging.store.linkForThread(threadId) || this.#channels.store.channelForThread(threadId)) {
+    // Nobody presses a button on Slack, Discord or Telegram.
+    if (this.#messaging.store.linkForThread(threadId)) {
       refuse("This chat cannot show the plan card. Do not call it here; start the work.");
       return;
     }
@@ -720,8 +715,6 @@ export class OpenBotToolRouter {
     }
 
     if (params.tool === "html_render") {
-      if (channelId)
-        return openBotToolFailure("A channel cannot show an HTML page. Send the result as text or a file.");
       return yield* this.#renderVisual(params, senderAgentId, executionThreadId);
     }
 
@@ -1020,11 +1013,13 @@ export class OpenBotToolRouter {
     const host = this.#screenCapture;
     if (!host) return openBotToolFailure(sourceText("error.agent.screenCaptureUnavailable"));
     const threadId = this.#conversation.publicThreadId(agent.id, params.threadId);
-    // A Slack, Discord or Telegram link sends each agent attachment of the turn to the platform, and a
-    // channel shares its conversation. The screen of this computer must stay on this computer.
-    if (this.#messaging.store.linkForThread(threadId) || this.#channels.store.channelForThread(threadId)) {
+    // A Slack, Discord or Telegram link sends each agent attachment of the turn to the platform. The
+    // screen of this computer must stay on this computer.
+    if (this.#messaging.store.linkForThread(threadId)) {
       return openBotToolFailure(sourceText("error.agent.screenCaptureShared"));
     }
+    // A channel shows the image to each member who reads it, so each capture asks, with Full access too.
+    const channelId = this.#channels.store.channelForThread(threadId);
     if (params.tool === "list_capture_sources") {
       const sources = yield* Effect.result(host.listSources());
       return Result.isFailure(sources) ? captureFailure(sources.failure) : openBotToolResult(sources.success);
@@ -1036,20 +1031,30 @@ export class OpenBotToolRouter {
     if (this.#conversation.ensureSnapshot(agent.id, threadId).messages.some(({ id }) => id === messageId)) {
       return openBotToolResult({ status: "shown", messageId });
     }
-    const reason = yield* this.#captureApprovalReason(host, capture);
-    if (typeof reason !== "string") return reason;
-    const decision = yield* this.#attention.awaitToolApproval(client, request, {
-      requestId: request.id,
-      agentId: agent.id,
-      threadId,
-      turnId: params.turnId,
-      kind: "permissions",
-      command: null,
-      cwd: null,
-      reason,
-      grantRoot: null,
-      permissions: null,
-    });
+    const target = yield* this.#captureApprovalReason(host, capture);
+    if (typeof target !== "string") return target;
+    const channelName = channelId ? this.#channels.store.get(channelId).name : null;
+    const reason =
+      channelName === null
+        ? target
+        : `${target} ${sourceText("status.agent.screenCaptureChannel", { channel: channelName })}`;
+    const decision = yield* this.#attention.awaitToolApproval(
+      client,
+      request,
+      {
+        requestId: request.id,
+        agentId: agent.id,
+        threadId,
+        turnId: params.turnId,
+        kind: "permissions",
+        command: null,
+        cwd: null,
+        reason,
+        grantRoot: null,
+        permissions: null,
+      },
+      { alwaysAsk: channelId !== null },
+    );
     if (decision !== "accept") return openBotToolFailure(sourceText("error.agent.screenCaptureDeclined"));
     const image = yield* Effect.result(host.capture(capture));
     if (Result.isFailure(image)) return captureFailure(image.failure);

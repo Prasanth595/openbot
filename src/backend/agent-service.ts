@@ -905,22 +905,17 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       },
       forgetThread: (threadId) => this.#forgetExecutionThread(threadId).pipe(toChannelOperationError),
       loadedSnapshot: (threadId) => this.#conversation.loadedExecutionSnapshot(threadId),
-      normalBusy: () =>
-        this.#mailbox
-          .unresolvedDeliveries()
-          .some((item) => !this.channels.store.assignmentForDelivery(item.delivery.id)) ||
-        [...this.#conversation.activeSnapshots()].some(
-          ([, snapshot]) =>
-            snapshot.activeTurnId &&
-            (this.#conversation.isTaskThread(snapshot.threadId) ||
-              !this.#conversation.isExecutionThread(snapshot.threadId)),
-        ),
-      // A held agent gets no channel assignment: one that waited for the reset would reserve the host.
+      // A held agent gets no channel assignment: one that waited for the reset would hold its
+      // resources. A channel turn runs beside the agent's tasks, unless its provider runs one turn
+      // of the agent at a time.
       busy: (agentId) =>
         Boolean(this.#conversation.workingSnapshot(agentId)?.activeTurnId || this.#mailbox.nextQueued(agentId)) ||
+        (this.#tasks.oneTurnAtATime(agentId) &&
+          this.#conversation.workingTaskSnapshots(agentId).some((snapshot) => snapshot.activeTurnId)) ||
         !this.#usageLimits.mayDrain(agentId),
       usageLimited: (agentId) => !this.#usageLimits.mayDrain(agentId),
       skipAtLimit: (task) => this.#channelRoutines.skipAtLimit(task.channelId, task.requestMessageId),
+      usageLimitBackup: (agentId) => this.#usageLimitBackup(agentId) !== undefined,
       steer: (agentId, threadId, turnId, messageId, text) =>
         Effect.gen({ self: this }, function* () {
           const agent = this.#store.list().find((item) => item.id === agentId);
@@ -1090,6 +1085,18 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
                         Effect.sync(() => this.#emitError("usage_limit_hold_failed", failure.cause, agentId)),
                       ),
                     ),
+              ),
+              // A channel task waits in its channel, and only a pump assigns it to the new model.
+              Effect.tap((moved) =>
+                moved
+                  ? this.channels
+                      .wake()
+                      .pipe(
+                        Effect.catch((failure) =>
+                          Effect.sync(() => this.#emitError("channel_coordination_failed", failure.cause, agentId)),
+                        ),
+                      )
+                  : Effect.void,
               ),
               Effect.andThen((moved) => Effect.sync(() => this.#drain.scheduleDrain(agentId, moved))),
               Effect.forkIn(this.#scope, { startImmediately: true }),
@@ -2170,7 +2177,14 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     const snapshot = this.listHiddenAgents();
     if (!changed) return snapshot;
     this.#routines.arm();
-    if (!input.hidden) {
+    if (input.hidden) {
+      // The channel work that waits in its queue goes back to the channel, so it holds nothing.
+      yield* this.channels
+        .releaseAgent(input.agentId)
+        .pipe(
+          Effect.catch((failure) => Effect.sync(() => this.#emitError("channel_coordination_failed", failure.cause))),
+        );
+    } else {
       // The queue event also wakes the channels whose task waits for this agent.
       this.#mailboxSync.emitQueue(input.agentId);
       this.#drain.scheduleDrain(input.agentId);
@@ -2242,6 +2256,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     const handedOverThreads = (previous: AgentSummary) => [
       ...(previous.threadId ? [previous.threadId] : []),
       ...this.#tasks.threadIdsForAgent(previous.id),
+      ...this.channels.store.contextThreadsForAgent(previous.id),
     ];
     // A provider change waits until the agent has no work. It is checked again after the reads below.
     const requireIdle = (previous: AgentSummary) => {
@@ -2439,7 +2454,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   /**
    * The model a usage limit moves this agent to now, or null. An agent goes back to the model it
    * left once no limit holds that model. An agent held by a limit, set to switch without asking and
-   * with queued work, moves to its first backup model that is ready. Only an agent with no started
+   * with queued work or channel work that waits for it, moves to its first backup model that is ready. Only an agent with no started
    * work moves; the end of its turn tries again.
    */
   #usageLimitMove(agentId: string): { input: UpdateAgentInput; returning: boolean } | null {
@@ -2464,7 +2479,12 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     };
     if (agent.usageLimitReturn && this.#usageLimitReady(agent.usageLimitReturn))
       return { input: move(agent.usageLimitReturn, agent.usageLimitReturn.reasoningEffort), returning: true };
-    if (this.#usageLimits.mayDrain(agentId) || !this.#mailbox.nextQueued(agentId)) return null;
+    // A channel task that the limit refused went back to its channel, so the queue can be empty.
+    if (
+      this.#usageLimits.mayDrain(agentId) ||
+      (!this.#mailbox.nextQueued(agentId) && !this.channels.ownsWaitingWork(agentId))
+    )
+      return null;
     const next = this.#usageLimitBackup(agentId);
     return next ? { input: { ...move(next), leaveUsageLimit: true }, returning: false } : null;
   }
@@ -2527,22 +2547,31 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       );
   });
 
-  /** A note in the agent's chat that it left its model for a usage limit, or went back to it. */
+  /**
+   * A note in the agent's chat that it left its model for a usage limit, or went back to it. Each
+   * channel whose work waits for the agent gets the same note.
+   */
   #appendModelSwitchMarker(agent: AgentSummary, reason: ModelSwitchReason): void {
     const model =
       this.#endpoints.available().find((option) => option.provider === agent.provider && option.id === agent.model)
         ?.name ?? agent.model;
+    const text = sourceText(
+      reason === "usage-limit" ? "status.agent.modelSwitchedForLimit" : "status.agent.modelReturnedAfterLimit",
+      { model },
+    );
     const database = this.#store.database;
+    try {
+      this.channels.noteModelSwitch(agent.id, text, MODEL_SWITCH_ITEM_TYPES[reason]);
+    } catch (error) {
+      this.#emitError("model_switch_marker_failed", error, agent.id);
+    }
     try {
       this.#conversation.withConversationTransaction(agent.id, ({ threadId, snapshot }) => {
         const message: ConversationMessage = {
           id: `model-switch-${randomUUID()}`,
           author: "system",
           source: "system",
-          text: sourceText(
-            reason === "usage-limit" ? "status.agent.modelSwitchedForLimit" : "status.agent.modelReturnedAfterLimit",
-            { model },
-          ),
+          text,
           createdAt: new Date().toISOString(),
           status: "completed",
           itemType: MODEL_SWITCH_ITEM_TYPES[reason],

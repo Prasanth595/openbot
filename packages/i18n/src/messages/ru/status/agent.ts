@@ -9,6 +9,8 @@ export const messages = {
   "status.agent.modelReturnedAfterLimit": "Лимит использования обновился. Снова используется {model}.",
   "status.agent.marketplaceSuggested": "Предложено приложение из каталога: {app}.",
   "status.agent.screenCaptureScreen": "Сделать снимок главного экрана и отправить изображение модели агента.",
+  "status.agent.screenCaptureChannel":
+    "Изображение появится в канале {channel}, и его увидит каждый участник этого сервера, который читает канал.",
   "status.agent.screenCaptureDisplay": "Сделать снимок дисплея {name} и отправить изображение модели агента.",
   "status.agent.screenCaptureWindow": "Сделать снимок окна {name} и отправить изображение модели агента.",
   "status.agent.screenCaptureRegion":

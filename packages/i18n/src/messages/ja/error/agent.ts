@@ -123,7 +123,7 @@ export const messages = {
     "このエージェントでは画面キャプチャがオフです。ユーザーはエージェントの設定で Computer Use をオンにできます。",
   "error.agent.screenCaptureUnavailable": "このコンピューターでは画面キャプチャを利用できません。",
   "error.agent.screenCaptureShared":
-    "画面キャプチャはチャンネルや Slack、Discord、Telegram の会話では使えません。ほかの人がそのファイルを受け取るためです。",
+    "画面キャプチャは Slack、Discord、Telegram の会話では使えません。ほかの人がそのファイルを受け取るためです。",
   "error.agent.screenCaptureDeclined":
     "ユーザーはこの画面キャプチャを許可しませんでした。何もキャプチャされていません。",
   "error.agent.screenCaptureWindowMissing":

@@ -125,7 +125,7 @@ export const messages = {
     "La capture d’écran est désactivée pour cet agent. L’utilisateur peut activer Computer Use dans les réglages de l’agent.",
   "error.agent.screenCaptureUnavailable": "La capture d’écran n’est pas disponible sur cet ordinateur.",
   "error.agent.screenCaptureShared":
-    "La capture d’écran ne fonctionne pas dans un canal ni dans une conversation Slack, Discord ou Telegram, car d’autres personnes reçoivent ses fichiers.",
+    "La capture d’écran ne fonctionne pas dans une conversation Slack, Discord ou Telegram, car d’autres personnes reçoivent ses fichiers.",
   "error.agent.screenCaptureDeclined": "L’utilisateur n’a pas autorisé cette capture d’écran. Rien n’a été capturé.",
   "error.agent.screenCaptureWindowMissing":
     "Cette fenêtre n’est pas ouverte. Appelez list_capture_sources pour obtenir les identifiants actuels des fenêtres.",

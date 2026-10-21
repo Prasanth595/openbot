@@ -238,9 +238,9 @@ export class ChannelStore {
   /**
    * Does any channel hold an assignment in one of these states?
    *
-   * `mayDrain` asks this on every normal queue check, and it only needs a yes or a no. Walking the
-   * channel list to reach it parses every stored message of every channel to build summaries that
-   * nothing there reads, so the question is answered by one query over the assignment rows.
+   * Walking the channel list to answer this parses every stored message of every channel to build
+   * summaries that nothing here reads, so the question is answered by one query over the
+   * assignment rows.
    */
   hasAssignmentInState(states: readonly ChannelAssignment["state"][]): boolean {
     if (!states.length) return false;
@@ -254,21 +254,32 @@ export class ChannelStore {
     );
   }
 
+  /** `hasAssignmentInState` for the assignments of one agent. `mayDrain` asks this on every queue check. */
+  hasAgentAssignmentInState(agentId: string, states: readonly ChannelAssignment["state"][]): boolean {
+    if (!states.length) return false;
+    const placeholders = states.map(() => "?").join(", ");
+    return (
+      this.database.connection
+        .prepare(
+          `SELECT 1 FROM projection_channel_assignments
+            WHERE json_extract(assignment_json, '$.agentId') = ?
+              AND json_extract(assignment_json, '$.state') IN (${placeholders}) LIMIT 1`,
+        )
+        .get(agentId, ...states) !== undefined
+    );
+  }
+
   /**
-   * The assignment that reserves the host right now, with the channel it belongs to.
+   * The assignment of this agent that holds its queue right now, with the channel it belongs to.
    *
-   * `hasAssignmentInState` answers the drain question with a yes or a no; the queue the user reads
-   * has to name the cause as well. The same reason keeps this to one query: reaching a channel
-   * through `list` parses every stored message of every channel. States are tried in the order
-   * given, so a running assignment is reported before one that is only queued.
-   *
-   * `preferredAgentId` is the agent whose queue asks. Two agents can hold assignments at the same
-   * time when neither task reserves the host, and the work of that agent itself is the answer its
-   * own chat needs: it is working, not waiting for somebody else.
+   * `hasAgentAssignmentInState` answers the drain question with a yes or a no; the queue the user
+   * reads has to name the cause as well. The same reason keeps this to one query: reaching a
+   * channel through `list` parses every stored message of every channel. States are tried in the
+   * order given, so a running assignment is reported before one that is only queued.
    */
-  reservingAssignment(
+  agentAssignment(
+    agentId: string,
     states: readonly ChannelAssignment["state"][],
-    preferredAgentId?: string,
   ): { assignment: ChannelAssignment; channel: Channel } | null {
     if (!states.length) return null;
     const placeholders = states.map(() => "?").join(", ");
@@ -279,13 +290,13 @@ export class ChannelStore {
           `SELECT assignments.assignment_json AS assignment_json, channels.channel_json AS channel_json
              FROM projection_channel_assignments AS assignments
              JOIN projection_channels AS channels ON channels.channel_id = assignments.channel_id
-            WHERE json_extract(assignments.assignment_json, '$.state') IN (${placeholders})
-            ORDER BY CASE WHEN json_extract(assignments.assignment_json, '$.agentId') = ? THEN 0 ELSE 1 END,
-                     CASE json_extract(assignments.assignment_json, '$.state') ${ranking} END,
+            WHERE json_extract(assignments.assignment_json, '$.agentId') = ?
+              AND json_extract(assignments.assignment_json, '$.state') IN (${placeholders})
+            ORDER BY CASE json_extract(assignments.assignment_json, '$.state') ${ranking} END,
                      assignments.rowid
             LIMIT 1`,
         )
-        .get(...states, preferredAgentId ?? "", ...states),
+        .get(agentId, ...states, ...states),
     );
     if (!row) return null;
     return {
@@ -457,6 +468,15 @@ export class ChannelStore {
       this.database.connection
         .prepare("SELECT thread_id FROM projection_channel_contexts WHERE channel_id = ? ORDER BY agent_id")
         .all(channelId),
+    ).map((row) => requiredStringColumn(row, "thread_id"));
+  }
+
+  /** The execution threads of one agent, one for each channel it works in. */
+  contextThreadsForAgent(agentId: string): string[] {
+    return databaseRows(
+      this.database.connection
+        .prepare("SELECT thread_id FROM projection_channel_contexts WHERE agent_id = ? ORDER BY channel_id")
+        .all(agentId),
     ).map((row) => requiredStringColumn(row, "thread_id"));
   }
 

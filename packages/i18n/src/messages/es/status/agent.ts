@@ -9,6 +9,8 @@ export const messages = {
   "status.agent.modelReturnedAfterLimit": "El límite de uso terminó. Se volvió a {model}.",
   "status.agent.marketplaceSuggested": "Se sugirió una aplicación de Marketplace: {app}.",
   "status.agent.screenCaptureScreen": "Capturar la pantalla principal y enviar la imagen al modelo del agente.",
+  "status.agent.screenCaptureChannel":
+    "La imagen aparece en el canal {channel}, y cada miembro de este servidor que lee el canal puede verla.",
   "status.agent.screenCaptureDisplay": "Capturar la pantalla {name} y enviar la imagen al modelo del agente.",
   "status.agent.screenCaptureWindow": "Capturar la ventana {name} y enviar la imagen al modelo del agente.",
   "status.agent.screenCaptureRegion":

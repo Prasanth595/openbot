@@ -119,7 +119,7 @@ export const messages = {
     "L'acquisizione dello schermo è disattivata per questo agente. L'utente può attivare il Controllo del computer nelle impostazioni dell'agente.",
   "error.agent.screenCaptureUnavailable": "L'acquisizione dello schermo non è disponibile su questo computer.",
   "error.agent.screenCaptureShared":
-    "L'acquisizione dello schermo non funziona in un canale o in una conversazione Slack, Discord o Telegram, perché altre persone ricevono i suoi file.",
+    "L'acquisizione dello schermo non funziona in una conversazione Slack, Discord o Telegram, perché altre persone ricevono i suoi file.",
   "error.agent.screenCaptureDeclined":
     "L'utente non ha permesso questa acquisizione dello schermo. Non è stato acquisito nulla.",
   "error.agent.screenCaptureWindowMissing":

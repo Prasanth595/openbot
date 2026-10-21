@@ -9,7 +9,7 @@ const handoff = {
   resources: z
     .array(z.string())
     .describe(
-      "Use host for exclusive work, browser for the shared browser, or workspace:<absolute path>. Omission reserves the host. Use none only for work that does not use files or the browser. Declare every resource the task will use.",
+      "Use browser when the task uses the shared browser, and workspace:<absolute path> for each folder it changes. Tasks that declare the same resource run one after the other. Omit it, or use none, when the task needs neither.",
     )
     .optional(),
   dependencies: z.array(z.string()).optional(),

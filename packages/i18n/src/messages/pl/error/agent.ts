@@ -114,7 +114,7 @@ export const messages = {
     "Przechwytywanie ekranu jest wyłączone dla tego agenta. Użytkownik może włączyć Sterowanie komputerem w ustawieniach agenta.",
   "error.agent.screenCaptureUnavailable": "Przechwytywanie ekranu nie jest dostępne na tym komputerze.",
   "error.agent.screenCaptureShared":
-    "Przechwytywanie ekranu nie działa w kanale ani w rozmowie w Slacku, Discordzie lub Telegramie, ponieważ jego pliki trafiają do innych osób.",
+    "Przechwytywanie ekranu nie działa w rozmowie w Slacku, Discordzie lub Telegramie, ponieważ jego pliki trafiają do innych osób.",
   "error.agent.screenCaptureDeclined":
     "Użytkownik nie zezwolił na to przechwycenie ekranu. Nic nie zostało przechwycone.",
   "error.agent.screenCaptureWindowMissing":
