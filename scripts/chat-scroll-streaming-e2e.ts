@@ -1,6 +1,6 @@
 // Checks that the reader can scroll away from a reply that is still arriving, and from new messages
-// that arrive in a burst, in a running Storybook that renders the real agent chat against the
-// preview mock. Read-only. Pass the URL that `bun run storybook` reports:
+// that arrive in a burst, in a running Storybook that renders the real agent chat and channel chat
+// against the preview mock. Read-only. Pass the URL that `bun run storybook` reports:
 // `bun scripts/chat-scroll-streaming-e2e.ts --storybook=http://localhost:6006 [--stories=burst,channel]`.
 // The chat must follow new content while the reader is at the bottom, also after a sideways swipe, stay
 // at the bottom across growth while a turn runs, hold still after a short scroll up and after a long
@@ -43,6 +43,11 @@ const STORIES: StoryCase[] = [
 
     composer: AGENT_COMPOSER,
   },
+  // A channel draws its rows in the same view, with an author header for each run.
+  { id: "conversation-channel--streaming-while-reading-history", anchor: REPLY },
+  { id: "conversation-channel--streaming-while-reading-long-history", anchor: REPLY },
+  { id: "conversation-channel--reply-burst-while-reading-history", composer: AGENT_COMPOSER },
+  { id: "conversation-channel--reply-burst-while-reading-long-history", composer: AGENT_COMPOSER },
 ];
 /* Enough growth for several reveal steps of a reply, several resizes of the thinking line, or several new rows. */
 const GROWTH = 400;
@@ -328,7 +333,7 @@ async function checkStory(page: Page, story: StoryCase, result: StoryResult): Pr
   // A longer scroll up holds it still too. Both are measured before either is checked.
   result.shortScrollUp = await holds(page, story, () => wheel(page, -40));
   result.longScrollUp = await holds(page, story, () => longScrollUp(page));
-  await page.screenshot({ path: resolve(OUT, `${story.id.split("--")[1]}.png`) });
+  await page.screenshot({ path: resolve(OUT, `${story.id.replace("conversation-", "")}.png`) });
   assertHolds(story.id, "a short scroll up", result.shortScrollUp);
   assertHolds(story.id, "a long scroll up", result.longScrollUp);
 
