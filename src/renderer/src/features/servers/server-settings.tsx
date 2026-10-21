@@ -1,3 +1,4 @@
+import { parseHostedServerName } from "@openbot/contracts/hosted-servers";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import type {
   AvatarImageInput,
@@ -14,7 +15,6 @@ import type {
   TeamPresenceMember,
   UpdateTeamMemberInput,
 } from "@openbot/contracts/ipc";
-import { slugifyTeamServerName } from "@openbot/contracts/validation";
 import { currentText } from "@openbot/ui/text";
 import { createEffect, createMemo, createSignal, flush, onCleanup } from "solid-js";
 import { desktopAnalytics } from "../../analytics";
@@ -70,9 +70,7 @@ function generatedServerName(user: CentralAuthUser | null): string {
   let name = t("server.settings.generatedName", { name: person });
   for (let length = characters.length - 1; name.length > INPUT_LIMITS.serverName && length > 0; length--)
     name = t("server.settings.generatedName", { name: characters.slice(0, length).join("") });
-  return name.length <= INPUT_LIMITS.serverName && slugifyTeamServerName(name).length >= INPUT_LIMITS.serverNameMin
-    ? name
-    : FALLBACK_SERVER_NAME;
+  return parseHostedServerName(name) ?? FALLBACK_SERVER_NAME;
 }
 
 const ServerSettings = createSimpleContext({
