@@ -102,6 +102,7 @@ export const messages = defineMessages("conversation", {
   "conversation.tasks.state.completed": "Answered",
   "conversation.tasks.state.failed": "Failed",
   "conversation.tasks.state.interrupted": "Stopped",
+  "conversation.tasks.state.waitingApproval": "Waiting for your approval",
   "conversation.tasks.hold.taskLimit": {
     one: "Waiting for a free task. {count} task runs now.",
     other: "Waiting for a free task. {count} tasks run now.",

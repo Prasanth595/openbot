@@ -123,6 +123,7 @@ const PROVIDER_DESCRIPTION_KEYS: Readonly<Record<string, AppTextKey>> = {
   "Google AI Pro or Ultra plan": "onboarding.provider.googlePlan",
   "Cursor plan or API key": "onboarding.provider.cursorPlan",
   "Free models with a Cline account": "onboarding.provider.clineAccount",
+  "Mercury models with an Inception API key": "onboarding.provider.inceptionKey",
 };
 
 /**

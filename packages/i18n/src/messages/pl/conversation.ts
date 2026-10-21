@@ -103,6 +103,7 @@ export const messages = {
   "conversation.tasks.state.completed": "Odpowiedziano",
   "conversation.tasks.state.failed": "Nie powiodło się",
   "conversation.tasks.state.interrupted": "Zatrzymano",
+  "conversation.tasks.state.waitingApproval": "Czeka na twoje zatwierdzenie",
   "conversation.tasks.hold.taskLimit": {
     one: "Czekanie na wolne zadanie. Działa {count} zadanie.",
     other: "Czekanie na wolne zadanie. Liczba działających zadań: {count}.",

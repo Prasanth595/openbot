@@ -103,6 +103,7 @@ export const messages = {
   "conversation.tasks.state.completed": "Есть ответ",
   "conversation.tasks.state.failed": "Не удалась",
   "conversation.tasks.state.interrupted": "Остановлена",
+  "conversation.tasks.state.waitingApproval": "Ждёт вашего подтверждения",
   "conversation.tasks.hold.taskLimit": {
     one: "Ожидание свободной задачи. Сейчас выполняется задач: {count}.",
     other: "Ожидание свободной задачи. Сейчас выполняется задач: {count}.",

@@ -79,7 +79,8 @@ export function AgentEventBridge() {
     setPresentedPromptResolutions,
     submittedPromptRequests,
     setSubmittedPromptRequests,
-    setPendingApprovals,
+    setApprovals,
+    forgetApproval,
     completedTurnByAgent,
     queueSnapshotRequests,
     setWaits,
@@ -228,7 +229,10 @@ export function AgentEventBridge() {
           }
           return { ...current, [event.agentId]: undefined };
         });
-        setPendingApprovals((current) => ({ ...current, [event.agentId]: undefined }));
+        // Only the approvals of this turn's thread: a task of the agent can still wait for one.
+        setApprovals((current) =>
+          current.filter((approval) => approval.agentId !== event.agentId || approval.threadId !== event.threadId),
+        );
         if (event.status === "completed") {
           markReplyCompleted(event.agentId);
           playCompletionSoundForAgentEvent(event, agentList());
@@ -248,19 +252,18 @@ export function AgentEventBridge() {
               : current;
           });
         } else {
-          setPendingApprovals((current) => {
-            const approval = current[event.agentId];
-            return approval && String(approval.requestId) === String(event.requestId)
-              ? { ...current, [event.agentId]: undefined }
-              : current;
-          });
+          forgetApproval(event.agentId, event.requestId);
         }
         return;
       case "approval":
-        setPendingApprovals((current) => ({
-          ...current,
-          [event.approval.agentId]: event.approval,
-        }));
+        setApprovals((current) => [
+          ...current.filter(
+            (approval) =>
+              approval.agentId !== event.approval.agentId ||
+              String(approval.requestId) !== String(event.approval.requestId),
+          ),
+          event.approval,
+        ]);
         return;
       case "runtime-snapshot":
         void channels.refresh();
@@ -352,7 +355,7 @@ export function AgentEventBridge() {
     setUsageLimitedModels(snapshot.usageLimitedModels ?? []);
     setQueues((current) => reconcileQueuesWithRuntimeWork(current, snapshot.work, runtimeTurns));
     setPendingPrompts((current) => reconcileAttentionPrompts(current, snapshot, submittedPromptRequests()));
-    setPendingApprovals((current) => reconcileAttentionApprovals(current, snapshot));
+    setApprovals((current) => reconcileAttentionApprovals(current, snapshot));
     applyRuntimeMessages(snapshot.latestMessages);
   }
 

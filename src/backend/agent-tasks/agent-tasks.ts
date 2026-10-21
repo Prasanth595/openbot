@@ -278,8 +278,8 @@ export class AgentTasks implements TaskLanes {
 
   /**
    * Takes the events of task threads: they reach the task's panel, never the agent's own chat.
-   * True when the event was taken. A prompt or an approval of a task turn passes, so the user can
-   * answer it in the agent's chat.
+   * True when the event was taken. A prompt or an approval of a task turn passes. Its `threadId` is the
+   * task's thread, so the task's panel shows it and the agent's chat leaves it out.
    */
   event(event: AgentEvent): boolean {
     switch (event.type) {

@@ -9,6 +9,7 @@ import {
   type UpdateAgentAdminSettingsInput,
   type UpdateAgentInput,
 } from "@openbot/contracts/ipc";
+import { taskApproval } from "@openbot/team-client/agent-tasks";
 import { hasVisibleToasts } from "@openbot/ui";
 import {
   type BackupModelSource,
@@ -91,7 +92,12 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
    * The composer's sign-ins: Connect, and the code from the ⋯ menu. The dialog shows here only while
    * this surface started it: Settings shows its own for the sign-ins it starts.
    */
-  const connectFromComposer = (provider: AgentProviderId) => connection.connect(provider, "composer");
+  const connectFromComposer = async (provider: AgentProviderId) => {
+    // Inception signs in only with a key, which the server's Providers settings take.
+    const server = activeServer();
+    if (provider === "inception" && server) openServerSettings(server.id, null, "providers");
+    else await connection.connect(provider, "composer");
+  };
   const signInWithCode = (provider: AgentProviderId) => connection.alternative(provider, "composer");
   // Not gated on the server: the picker needs these IDs to label a model it is already showing, and
   // a remote server's OpenCode has its own catalogue. Only the write paths are local-only.
@@ -116,7 +122,8 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
     activeRoutineIds,
     activeRoutines,
     pendingPrompts,
-    pendingApprovals,
+    approvals,
+    approvalOfThread,
     activeTurns,
     turnProgress,
     answerPrompt,
@@ -183,8 +190,7 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
 
   const activeApproval = createMemo(() => {
     const agent = activeAgent();
-    const approval = agent ? pendingApprovals()[agent.id] : undefined;
-    return approval?.threadId === agent?.threadId ? approval : undefined;
+    return agent ? approvalOfThread(agent.id, agent.threadId) : undefined;
   });
 
   const activeBrowserTakeover = createMemo(() => {
@@ -317,6 +323,9 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
       onStop: (taskId) => agentTasks.stopTask(agentId, taskId),
       onClose: (taskId) => agentTasks.closeTask(agentId, taskId),
       onReopen: (taskId) => agentTasks.reopenTask(agentId, taskId),
+      approval: (task) => taskApproval(task, approvals()),
+      onRespondApproval: (approval, decision) =>
+        respondToApprovalRequest(approval.agentId, approval.requestId, decision),
     };
   });
   /**

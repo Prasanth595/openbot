@@ -32,6 +32,8 @@ export default function ServerSettingsLayout() {
       <Stack.Screen name="invite" options={{ title: t("mobile.server.route.invite") }} />
       <Stack.Screen name="member" options={{ title: t("mobile.server.route.member") }} />
       <Stack.Screen name="timezone" options={{ title: t("mobile.server.route.timezone") }} />
+      <Stack.Screen name="storage" options={{ title: t("mobile.server.route.storage") }} />
+      <Stack.Screen name="storage-files" options={{ title: t("mobile.server.route.storageFiles") }} />
       <Stack.Screen name="sites" options={{ title: t("mobile.server.route.sites") }} />
       <Stack.Screen name="crop-logo" options={{ title: t("mobile.server.route.cropLogo") }} />
     </Stack>
