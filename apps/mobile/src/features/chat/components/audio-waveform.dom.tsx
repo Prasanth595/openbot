@@ -1,10 +1,12 @@
 "use dom";
 
 import { useEffect, useRef } from "react";
-import { WAVEFORM_BARS, type WaveformJob, type WaveformResult } from "../model/audio-waveforms";
+import type { WaveformJob, WaveformResult } from "../model/audio-waveforms";
 
 interface AudioWaveformReaderProps {
   jobs: readonly WaveformJob[];
+  /** How many bars a waveform has. A prop, so this bundle does not load the native file module. */
+  bars: number;
   readSource: (id: string) => Promise<string>;
   onResult: (result: WaveformResult) => Promise<void>;
   dom?: import("expo/dom").DOMProps;
@@ -21,11 +23,16 @@ const NO_JOBS: readonly WaveformJob[] = [];
  * context decodes without playing, so it does not touch the app's audio session. Files are read
  * one after another; the native side sends a file only when its job starts.
  */
-export default function AudioWaveformReader({ jobs = NO_JOBS, readSource, onResult }: AudioWaveformReaderProps) {
+export default function AudioWaveformReader({
+  jobs = NO_JOBS,
+  bars = 0,
+  readSource,
+  onResult,
+}: AudioWaveformReaderProps) {
   const started = useRef(new Set<string>());
   const queue = useRef<Promise<void>>(Promise.resolve());
-  const callbacks = useRef({ readSource, onResult });
-  callbacks.current = { readSource, onResult };
+  const callbacks = useRef({ readSource, onResult, bars });
+  callbacks.current = { readSource, onResult, bars };
 
   useEffect(() => {
     for (const job of jobs) {
@@ -33,7 +40,8 @@ export default function AudioWaveformReader({ jobs = NO_JOBS, readSource, onResu
       started.current.add(job.id);
       queue.current = queue.current
         .then(async () => {
-          const peaks = await read(await callbacks.current.readSource(job.id));
+          const { bars: count } = callbacks.current;
+          const peaks = count > 0 ? await read(await callbacks.current.readSource(job.id), count) : null;
           await callbacks.current.onResult({ id: job.id, peaks });
         })
         .catch(() => undefined);
@@ -45,7 +53,7 @@ export default function AudioWaveformReader({ jobs = NO_JOBS, readSource, onResu
   return null;
 }
 
-async function read(base64: string): Promise<number[] | null> {
+async function read(base64: string, count: number): Promise<number[] | null> {
   if (!base64) return null;
   try {
     const binary = atob(base64);
@@ -53,18 +61,18 @@ async function read(base64: string): Promise<number[] | null> {
     for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
     const context = new OfflineAudioContext(1, 1, DECODE_SAMPLE_RATE);
     const buffer = await context.decodeAudioData(bytes.buffer);
-    return peaks(buffer);
+    return peaks(buffer, count);
   } catch {
     return null;
   }
 }
 
 /** The root mean square of each part, scaled so the loudest part is 1. */
-function peaks(buffer: AudioBuffer): number[] {
+function peaks(buffer: AudioBuffer, count: number): number[] {
   const channels = Array.from({ length: buffer.numberOfChannels }, (_, index) => buffer.getChannelData(index));
-  const size = Math.max(1, Math.floor(buffer.length / WAVEFORM_BARS));
+  const size = Math.max(1, Math.floor(buffer.length / count));
   const result: number[] = [];
-  for (let bar = 0; bar < WAVEFORM_BARS; bar += 1) {
+  for (let bar = 0; bar < count; bar += 1) {
     const start = bar * size;
     const stop = Math.min(buffer.length, start + size);
     let sum = 0;

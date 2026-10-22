@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { expoGoDomOptions } from "@/shared/lib/expo-go-dom";
-import { readWaveformSource, receiveWaveformResult, useWaveformJobs } from "../model/audio-waveforms";
+import { readWaveformSource, receiveWaveformResult, useWaveformJobs, WAVEFORM_BARS } from "../model/audio-waveforms";
 import AudioWaveformReader from "./audio-waveform.dom";
 
 /**
@@ -15,6 +15,7 @@ export function AudioWaveformHost() {
   return (
     <AudioWaveformReader
       jobs={jobs}
+      bars={WAVEFORM_BARS}
       readSource={readWaveformSource}
       onResult={async (result) => receiveWaveformResult(result)}
       dom={{
