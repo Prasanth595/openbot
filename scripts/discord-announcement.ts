@@ -4,34 +4,37 @@
 //
 // No package imports: the release workflows run this before `bun install`.
 
-export const MIN_HIGHLIGHTS = 3;
-export const MAX_HIGHLIGHTS = 5;
+const MIN_HIGHLIGHTS = 3;
+const MAX_HIGHLIGHTS = 5;
 /** The longest message that Discord accepts. */
-export const MAX_CONTENT = 2000;
+const MAX_CONTENT = 2000;
 const PLACEHOLDER = /\b(TODO|TBD|FIXME|XXX)\b/;
 /** `@everyone`, `@here`, and user, role and channel mentions. */
 const MENTION = /@(everyone|here)\b|<[@#][!&]?\d+>/;
 /** How long Discord can take to answer before the post counts as failed. */
 const SEND_TIMEOUT_MS = 30_000;
 
-/** The parsed announcement file, or the problem that stops it from being read. */
-export function parseAnnouncement(
+/**
+ * What stops the announcement file `file` from being posted for `version`. Empty when it is ready.
+ * `message` builds the post from the highlights, so that its length is checked.
+ */
+export function announcementFileProblems(
   announcement: string,
+  version: string,
   file: string,
-): { version?: unknown; highlights?: unknown } | string {
-  let parsed: unknown;
+  message: (highlights: readonly unknown[]) => string,
+): string[] {
+  let record: unknown;
   try {
-    parsed = JSON.parse(announcement);
+    record = JSON.parse(announcement);
   } catch {
-    return `${file} is not valid JSON.`;
+    return [`${file} is not valid JSON.`];
   }
-  if (typeof parsed !== "object" || parsed === null) return `${file} is not an object.`;
-  return parsed;
-}
-
-/** What stops the highlights of `file` from being posted. Empty when they are ready. */
-export function highlightProblems(highlights: readonly unknown[], file: string): string[] {
+  if (typeof record !== "object" || record === null) return [`${file} is not an object.`];
+  const { version: fileVersion, highlights: value }: { version?: unknown; highlights?: unknown } = record;
   const problems: string[] = [];
+  if (fileVersion !== version) problems.push(`${file} is for version ${String(fileVersion)}, not ${version}.`);
+  const highlights = Array.isArray(value) ? value : [];
   if (highlights.length < MIN_HIGHLIGHTS || highlights.length > MAX_HIGHLIGHTS) {
     problems.push(`${file} must have ${MIN_HIGHLIGHTS} to ${MAX_HIGHLIGHTS} highlights.`);
   }
@@ -46,6 +49,9 @@ export function highlightProblems(highlights: readonly unknown[], file: string):
       // The post mentions its audience, so a mention in a highlight would notify people again.
       problems.push(`Highlight ${index + 1} has a mention.`);
     }
+  }
+  if (problems.length === 0 && message(highlights).length > MAX_CONTENT) {
+    problems.push(`The message is longer than the ${MAX_CONTENT} characters that Discord accepts.`);
   }
   return problems;
 }

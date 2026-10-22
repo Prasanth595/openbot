@@ -8,31 +8,16 @@
 // No package imports: `release.yml` runs this before `bun install`.
 
 import { readFileSync } from "node:fs";
-import {
-  highlightProblems,
-  MAX_CONTENT,
-  parseAnnouncement,
-  postAnnouncement,
-  releaseAnchor,
-} from "./discord-announcement";
+import { announcementFileProblems, postAnnouncement, releaseAnchor } from "./discord-announcement";
 
 export const ANNOUNCEMENT_FILE = ".github/release-announcement.json";
 const DOCS = "docs/RELEASING.md#discord-announcement";
 
 /** What stops `announcement` from being posted for `version`. Empty when it is ready. */
 export function announcementProblems(announcement: string, version: string): string[] {
-  const record = parseAnnouncement(announcement, ANNOUNCEMENT_FILE);
-  if (typeof record === "string") return [record];
-  const problems: string[] = [];
-  if (record.version !== version) {
-    problems.push(`${ANNOUNCEMENT_FILE} is for version ${String(record.version)}, not ${version}.`);
-  }
-  const highlights = Array.isArray(record.highlights) ? record.highlights : [];
-  problems.push(...highlightProblems(highlights, ANNOUNCEMENT_FILE));
-  if (problems.length === 0 && announcementMessage(highlights, version).length > MAX_CONTENT) {
-    problems.push(`The message is longer than the ${MAX_CONTENT} characters that Discord accepts.`);
-  }
-  return problems;
+  return announcementFileProblems(announcement, version, ANNOUNCEMENT_FILE, (highlights) =>
+    announcementMessage(highlights, version),
+  );
 }
 
 function changelogUrl(version: string): string {

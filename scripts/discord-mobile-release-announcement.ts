@@ -14,13 +14,7 @@
 import { readFileSync } from "node:fs";
 import { ANDROID_PLAY_STORE_URL } from "../packages/ui/src/features/mobile-app/android-play-store";
 import { IOS_TESTFLIGHT_URL } from "../packages/ui/src/features/mobile-app/ios-testflight";
-import {
-  highlightProblems,
-  MAX_CONTENT,
-  parseAnnouncement,
-  postAnnouncement,
-  releaseAnchor,
-} from "./discord-announcement";
+import { announcementFileProblems, postAnnouncement, releaseAnchor } from "./discord-announcement";
 import { MOBILE_CHANGELOG, MOBILE_STORES, parseStoreDates } from "./release-notes";
 
 export const MOBILE_ANNOUNCEMENT_FILE = "apps/mobile/release-announcement.json";
@@ -42,18 +36,10 @@ export function versionsOnBothStores(changelog: string): string[] {
 
 /** What stops `announcement` from being posted for `version`. Empty when it is ready. */
 export function mobileAnnouncementProblems(announcement: string, version: string): string[] {
-  const record = parseAnnouncement(announcement, MOBILE_ANNOUNCEMENT_FILE);
-  if (typeof record === "string") return [record];
-  const problems: string[] = [];
-  if (record.version !== version) {
-    problems.push(`${MOBILE_ANNOUNCEMENT_FILE} is for version ${String(record.version)}, not ${version}.`);
-  }
-  const highlights = Array.isArray(record.highlights) ? record.highlights : [];
-  problems.push(...highlightProblems(highlights, MOBILE_ANNOUNCEMENT_FILE));
-  if (problems.length === 0 && announcementMessage(highlights, version, LONGEST_ROLE_ID).length > MAX_CONTENT) {
-    problems.push(`The message is longer than the ${MAX_CONTENT} characters that Discord accepts.`);
-  }
-  return problems;
+  // The longest role ID, so that the real mention cannot make the post too long.
+  return announcementFileProblems(announcement, version, MOBILE_ANNOUNCEMENT_FILE, (highlights) =>
+    announcementMessage(highlights, version, LONGEST_ROLE_ID),
+  );
 }
 
 function changelogUrl(version: string): string {
