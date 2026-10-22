@@ -187,6 +187,8 @@ export const messages = {
   "routine.card.created": "Регулярная задача создана",
   "routine.card.updated": "Регулярная задача обновлена",
   "routine.card.open": "Открыть регулярную задачу {name}",
+  "routine.card.webhookCreated": "Создана регулярная задача с вебхуком",
+  "routine.card.webhookSecretNote": "Чтобы получить секрет подписи, создайте его заново. Агент не получает секрет.",
 
   "routine.calendar.title": "Расписание",
   "routine.calendar.open": "Открыть расписание",

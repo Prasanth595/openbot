@@ -187,6 +187,8 @@ export const messages = {
   "routine.card.created": "Utworzono rutynę",
   "routine.card.updated": "Zaktualizowano rutynę",
   "routine.card.open": "Otwórz rutynę {name}",
+  "routine.card.webhookCreated": "Utworzono rutynę webhook",
+  "routine.card.webhookSecretNote": "Aby zobaczyć sekret podpisu, wygeneruj go ponownie. Agent nie dostaje sekretu.",
 
   "routine.calendar.title": "Harmonogram",
   "routine.calendar.open": "Otwórz harmonogram",

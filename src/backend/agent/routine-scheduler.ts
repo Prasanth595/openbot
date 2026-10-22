@@ -19,6 +19,7 @@ import type {
   UpdateRoutineInput,
 } from "@openbot/contracts/ipc";
 import { routineConversationEventItemType, routineRunConversationEventItemType } from "@openbot/contracts/ipc";
+import type { EventRoutine } from "@openbot/contracts/ipc-events";
 import { type DynamicRecord, isBoolean } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
 import { collapseMissedOccurrences, RoutineInputError } from "@openbot/team-client/routine-schedule";
@@ -46,6 +47,13 @@ import {
   routineToolSchedule,
   routineToolString,
 } from "./routine-tools";
+import {
+  CREATE_WEBHOOK_ROUTINE_ARGUMENTS,
+  CREATE_WEBHOOK_ROUTINE_TOOL,
+  type WebhookRoutineCreator,
+  webhookRoutineToolResult,
+  webhookToolTrigger,
+} from "./webhook-routine-tool";
 
 export interface RoutineMutationOptions {
   recordConversationEvent?: boolean;
@@ -108,6 +116,8 @@ export interface RoutineSchedulerOptions {
    * sender's message gives a zone. Omitted, the host system zone.
    */
   timezone?: () => string;
+  /** Built after the service, so read when a tool call needs it. Omitted, the tool refuses. */
+  webhookRoutines?: (() => WebhookRoutineCreator) | undefined;
 }
 
 /** The agent preview before a routine run, and the routine task the run showed in its place. */
@@ -144,6 +154,7 @@ export class RoutineScheduler implements RoutineDueSource {
   readonly #deletionAgents = new Set<string>();
   readonly #timer: RoutineTimer;
   readonly #timezone: () => string;
+  readonly #webhookRoutines: (() => WebhookRoutineCreator) | undefined;
   /**
    * The timezone a member's client sent with a message, by delivery. A routine the agent creates in
    * the turn that runs the message runs on that clock, not on the host's, and a later message from
@@ -167,6 +178,7 @@ export class RoutineScheduler implements RoutineDueSource {
     this.#routines = new AgentRoutineStore(options.store.database);
     this.#waits = options.waits;
     this.#timezone = options.timezone ?? localTimezone;
+    this.#webhookRoutines = options.webhookRoutines;
   }
 
   noteDeliveryTimezone(deliveryId: string, timezone: string): void {
@@ -507,7 +519,7 @@ export class RoutineScheduler implements RoutineDueSource {
   }
 
   /**
-   * The six `openbot` routine tools. Returns null when `tool` is not one of them.
+   * The seven `openbot` routine tools. Returns null when `tool` is not one of them.
    *
    * A request the model can correct is a tool failure, not a throw: a throw becomes a provider error
    * toast, although the model's corrected retry then creates the routine. Other errors are faults
@@ -593,6 +605,47 @@ export class RoutineScheduler implements RoutineDueSource {
         agentId === senderAgentId ? { turnId: params.turnId } : {},
       );
       return openBotToolResult(routine);
+    }
+
+    if (params.tool === CREATE_WEBHOOK_ROUTINE_TOOL) {
+      const args = routineToolArguments(params.arguments, CREATE_WEBHOOK_ROUTINE_ARGUMENTS);
+      const agentId = this.#toolAgentId(args, senderAgentId);
+      const webhooks = this.#webhookRoutines?.();
+      if (!webhooks) throw new RoutineInputError("This server cannot create webhook routines.");
+      const active = args.active === undefined ? true : args.active;
+      if (!isBoolean(active)) throw new RoutineInputError("active must be a boolean.");
+      const timezone =
+        args.timezone === undefined
+          ? (this.#turnSenderTimezone(senderAgentId, params.turnId) ?? this.#timezone())
+          : routineToolString(args.timezone, "timezone", 128, "A routine timezone is required.");
+      const name = routineToolString(args.name, "name", INPUT_LIMITS.routineName, "A routine name is required.");
+      const key = name.trim().toLowerCase();
+      // Both trigger kinds: `list_routines` shows schedule routines only, so the model cannot check first.
+      const existing = this.#routines.listRecords(agentId).find((routine) => routine.name.trim().toLowerCase() === key);
+      if (existing) {
+        throw new RoutineInputError(
+          `Routine "${existing.name}" already exists with routineId ${existing.id}. Choose another name.`,
+        );
+      }
+      const { limitPolicy } = routineToolPolicies(args);
+      const routine = yield* webhooks.create({
+        agentId,
+        name,
+        instruction: routineToolString(
+          args.instruction,
+          "instruction",
+          INPUT_LIMITS.routineInstruction,
+          "A routine instruction is required.",
+        ),
+        active,
+        timezone,
+        ...webhookToolTrigger(args),
+        ...(limitPolicy === undefined ? {} : { limitPolicy }),
+      });
+      // Only the caller's own chat shows the card with the secret: the card needs the turn.
+      const turnId = agentId === senderAgentId ? params.turnId : undefined;
+      this.#recordWebhookCreated(agentId, routine, turnId);
+      return openBotToolResult(webhookRoutineToolResult(routine, turnId !== undefined));
     }
 
     if (params.tool === "update_routine") {
@@ -1089,6 +1142,24 @@ export class RoutineScheduler implements RoutineDueSource {
     };
     snapshot.messages.push(message);
     return { run: updated, message };
+  }
+
+  /**
+   * The chat record of a webhook routine that an agent made. The main process saved the routine
+   * already, so a failed record is reported and does not fail the tool call.
+   */
+  #recordWebhookCreated(agentId: string, routine: EventRoutine, turnId: string | undefined): void {
+    try {
+      this.#mutateWithConversation(
+        agentId,
+        "created",
+        () => routine,
+        (saved) => saved,
+        turnId,
+      );
+    } catch (error) {
+      this.#hooks.emitError("routine_event_record_failed", error, agentId);
+    }
   }
 
   #mutateWithConversation<T>(

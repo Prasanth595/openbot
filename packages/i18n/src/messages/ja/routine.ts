@@ -157,6 +157,9 @@ export const messages = {
   "routine.card.created": "ルーティンを作成しました",
   "routine.card.updated": "ルーティンを更新しました",
   "routine.card.open": "ルーティン {name} を開く",
+  "routine.card.webhookCreated": "Webhook ルーティンを作成しました",
+  "routine.card.webhookSecretNote":
+    "署名シークレットを取得するには、再生成してください。エージェントはシークレットを受け取りません。",
   "routine.calendar.title": "スケジュール",
   "routine.calendar.open": "スケジュールを開く",
   "routine.calendar.timeZone": "時刻は {zone} です",

@@ -27,6 +27,7 @@ import {
   renameSectionToolSchema,
 } from "./agent/sidebar-tools";
 import { LOCAL_SKILL_TOOL_DEFINITIONS } from "./agent/skill-tools";
+import { CREATE_WEBHOOK_ROUTINE_TOOL } from "./agent/webhook-routine-tool";
 import { START_TASK_TOOL, startTaskToolSchema } from "./agent-tasks/agent-tasks";
 import {
   AWAIT_EVENT_TOOL,
@@ -43,6 +44,8 @@ import {
   routineLimitPolicyZodSchema,
   routineMissedPolicyZodSchema,
   routineScheduleZodSchema,
+  webhookEventTypeZodSchema,
+  webhookFiltersZodSchema,
 } from "./routine-tool-schema";
 
 interface OpenBotToolDefinition {
@@ -401,6 +404,25 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
       timezone: z.string().min(1).max(128).describe("IANA timezone such as Europe/Warsaw.").optional(),
       limitPolicy: routineLimitPolicyZodSchema.optional(),
       missedPolicy: routineMissedPolicyZodSchema.optional(),
+    },
+  },
+  {
+    name: CREATE_WEBHOOK_ROUTINE_TOOL,
+    description:
+      "Create a routine that a signed HTTP request starts, for this agent or for another local agent when agentId is provided. Use it when the user wants work to start when something happens in another system. It is active by default. The result has the webhook URL and the request format. The signing secret is not in the result: OpenBot shows it to the user in the chat. Never ask the user for the secret. A null url means the URL is not ready yet; the chat and the Routines settings show it when it is.",
+    shape: {
+      agentId: z.string().min(1).max(INPUT_LIMITS.identifier).optional(),
+      name: z.string().min(1).max(INPUT_LIMITS.routineName),
+      instruction: z
+        .string()
+        .min(1)
+        .max(INPUT_LIMITS.routineInstruction)
+        .describe("What to do with each request. OpenBot adds the request body to the run as untrusted data."),
+      eventType: webhookEventTypeZodSchema.optional(),
+      filters: webhookFiltersZodSchema.optional(),
+      active: z.boolean().optional(),
+      timezone: z.string().min(1).max(128).describe("IANA timezone such as Europe/Warsaw.").optional(),
+      limitPolicy: routineLimitPolicyZodSchema.optional(),
     },
   },
   {

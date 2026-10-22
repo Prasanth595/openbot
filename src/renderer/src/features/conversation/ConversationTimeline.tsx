@@ -49,6 +49,8 @@ import { agentSkillsMode } from "./installed-skills-source";
 import { MarketplaceSuggestionChatCard, marketplaceSuggestionKnown } from "./MarketplaceSuggestionChatCard";
 import { McpSignInChatCard } from "./McpSignInChatCard";
 import { RoutineChatCard } from "./RoutineChatCard";
+import { createChatWebhookRoutines, RoutineWebhookChatCard } from "./RoutineWebhookChatCard";
+import { desktopChatEventRoutinesApi } from "./routine-webhooks-api";
 import { PENDING_SEND_ID_PREFIX, pendingSendRetrySafe } from "./stores/pending-send-store";
 
 /**
@@ -312,6 +314,32 @@ export function ConversationTimeline() {
     if (!cardMarker || cardMarker.action === "deleted" || !agentId) return undefined;
     const routine = props.routines?.find((candidate) => candidate.id === cardMarker.routineId);
     return routine && { action: cardMarker.action, routine, agentId };
+  };
+  // Webhook routines load only for a person who can manage them, and only for a chat with an agent
+  // record of a routine that is not a schedule routine.
+  const webhookRoutinesNeeded = createMemo(() => {
+    const scheduled = new Set(props.routines?.map((routine) => routine.id));
+    return timelineMessages().some((message) => {
+      const marker = routineCardMarker(message, message.actionMarker);
+      return marker?.action === "created" && !scheduled.has(marker.routineId);
+    });
+  });
+  const webhookRoutineSource = createMemo(
+    () => {
+      const agentId = props.agent?.id;
+      const api = webhookRoutinesNeeded() ? desktopChatEventRoutinesApi(props.server, props.runtime) : undefined;
+      return agentId && api ? { api, agentId, serverId: props.server?.id } : undefined;
+    },
+    { equals: (left, right) => left?.agentId === right?.agentId && left?.serverId === right?.serverId },
+  );
+  const webhookRoutines = createChatWebhookRoutines(webhookRoutineSource);
+  /** An agent's record of a webhook routine it created is a card with its URL and signing secret. */
+  const webhookRoutineCard = (message: AgentMessage | undefined, marker: ChatActionMarkerModel) => {
+    const source = webhookRoutineSource();
+    const cardMarker = routineCardMarker(message, marker);
+    if (!source || cardMarker?.action !== "created") return undefined;
+    const routine = webhookRoutines.routines.find((candidate) => candidate.id === cardMarker.routineId);
+    return routine && { api: source.api, agentId: source.agentId, routine };
   };
   /** A suggestion this client can draw is a card. One for an app it does not know keeps the marker. */
   const suggestionMarker = (marker: ChatActionMarkerModel) =>
@@ -585,24 +613,39 @@ export function ConversationTimeline() {
                                       <Show
                                         when={mcpSignInConfig(marker())}
                                         fallback={
-                                          <ChatActionMarker
-                                            onOpenSkill={
-                                              agentSkillsMode(props.server, props.runtime) === "hidden"
-                                                ? undefined
-                                                : openSkillSettings
+                                          <Show
+                                            when={webhookRoutineCard(message() ?? initialMessage, marker())}
+                                            fallback={
+                                              <ChatActionMarker
+                                                onOpenSkill={
+                                                  agentSkillsMode(props.server, props.runtime) === "hidden"
+                                                    ? undefined
+                                                    : openSkillSettings
+                                                }
+                                                marker={marker()}
+                                                agents={props.agents}
+                                                announce={arrives}
+                                                routineAvailable={routineMarkerAvailable(
+                                                  marker(),
+                                                  props.availableRoutineIds,
+                                                )}
+                                                onSelectAgent={props.onSelectAgent}
+                                                onOpenRoutine={openRoutineSettings}
+                                                onOpenHostedSite={(url) => void openExternalMessageUrl(url)}
+                                                onToggleRoutineRun={toggleRoutineRun}
+                                              />
                                             }
-                                            marker={marker()}
-                                            agents={props.agents}
-                                            announce={arrives}
-                                            routineAvailable={routineMarkerAvailable(
-                                              marker(),
-                                              props.availableRoutineIds,
+                                          >
+                                            {(card) => (
+                                              <RoutineWebhookChatCard
+                                                api={card().api}
+                                                agentId={card().agentId}
+                                                routine={card().routine}
+                                                connected={webhookRoutines.connected}
+                                                onOpenRoutine={openRoutineSettings}
+                                              />
                                             )}
-                                            onSelectAgent={props.onSelectAgent}
-                                            onOpenRoutine={openRoutineSettings}
-                                            onOpenHostedSite={(url) => void openExternalMessageUrl(url)}
-                                            onToggleRoutineRun={toggleRoutineRun}
-                                          />
+                                          </Show>
                                         }
                                       >
                                         {(config) => (

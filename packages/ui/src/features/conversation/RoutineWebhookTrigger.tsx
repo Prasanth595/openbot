@@ -1,18 +1,11 @@
-import {
-  type EventFilterDraft,
-  eventFilterPointerValid,
-  MASKED_WEBHOOK_SECRET,
-} from "@openbot/contracts/event-filter-value";
+import { type EventFilterDraft, eventFilterPointerValid } from "@openbot/contracts/event-filter-value";
 import {
   Button,
   ChevronDown,
   ChevronRight,
-  ConfirmDialog,
-  CopyButton,
   IconButton,
   Input,
   Plus,
-  RefreshCw,
   SlidersHorizontal,
   Text,
   Webhook,
@@ -21,6 +14,7 @@ import {
 import type { JSX } from "@solidjs/web";
 import { createSignal, createUniqueId, For, onSettled, Show } from "solid-js";
 import { useText } from "../../text";
+import { RoutineWebhookEndpoint } from "./RoutineWebhookEndpoint";
 
 export interface RoutineWebhookTriggerProps {
   /** The URL the host made. Null until the relay registers the route. */
@@ -47,9 +41,8 @@ export interface RoutineWebhookTriggerProps {
  * and the events that start it. Each value has one action beside it.
  */
 export function RoutineWebhookTrigger(props: RoutineWebhookTriggerProps) {
-  const { t, errorMessage } = useText();
+  const { t } = useText();
   const [eventsOpen, setEventsOpen] = createSignal(false);
-  const [confirm, setConfirm] = createSignal<{ pending: boolean; error: string | null } | null>(null);
   const eventTypeLabelId = createUniqueId();
   const eventTypeHintId = createUniqueId();
   let eventTypeInput: HTMLInputElement | undefined;
@@ -66,17 +59,6 @@ export function RoutineWebhookTrigger(props: RoutineWebhookTriggerProps) {
     props.onFiltersChange(
       props.filters.map((filter, itemIndex) => (itemIndex === index ? { ...filter, ...change } : filter)),
     );
-  }
-
-  async function regenerate(): Promise<void> {
-    if (confirm()?.pending) return;
-    setConfirm({ pending: true, error: null });
-    try {
-      await props.onRegenerateSecret();
-      setConfirm(null);
-    } catch (cause) {
-      setConfirm({ pending: false, error: errorMessage(cause, t("routine.webhook.regenerateFailed")) });
-    }
   }
 
   return (
@@ -97,83 +79,13 @@ export function RoutineWebhookTrigger(props: RoutineWebhookTriggerProps) {
           </Text>
         }
       >
-        <div class="routine-webhook-field">
-          <span class="routine-webhook-label">{t("routine.webhook.url")}</span>
-          <Show
-            when={props.url}
-            fallback={
-              <Text variant="caption" tone="muted" role="status" class="routine-webhook-value">
-                {t(props.connected === false ? "routine.webhook.urlPendingOffline" : "routine.webhook.urlPending")}
-              </Text>
-            }
-          >
-            {(url) => (
-              <>
-                {/* The row leaves out "https://" to show more of the path. Copy gives the full URL. */}
-                <code class="routine-webhook-value" title={url()}>
-                  {url().replace(/^https:\/\//, "")}
-                </code>
-                <CopyButton
-                  value={url()}
-                  label={t("routine.webhook.copyUrl")}
-                  copiedLabel={t("common.copied")}
-                  iconOnly
-                />
-              </>
-            )}
-          </Show>
-        </div>
-        <Show when={props.url && props.connected === false}>
-          <Text variant="caption" tone="warning" class="routine-webhook-note">
-            {t("routine.webhook.relayOffline")}
-          </Text>
-        </Show>
-
-        <div class="routine-webhook-field">
-          <span class="routine-webhook-label">{t("routine.webhook.secretTitle")}</span>
-          <Show
-            when={props.secret}
-            fallback={
-              <>
-                <code class="routine-webhook-value" aria-hidden="true">
-                  {MASKED_WEBHOOK_SECRET}
-                </code>
-                <span class="sr-only">{t("routine.webhook.secretHidden")}</span>
-                <IconButton
-                  variant="ghost"
-                  label={t("routine.webhook.regenerateSecret")}
-                  onClick={() => setConfirm({ pending: false, error: null })}
-                >
-                  <RefreshCw aria-hidden="true" />
-                </IconButton>
-              </>
-            }
-          >
-            {(secret) => (
-              <>
-                <code class="routine-webhook-value routine-webhook-secret" title={secret()}>
-                  {secret()}
-                </code>
-                <CopyButton
-                  value={secret()}
-                  label={t("routine.webhook.copySecret")}
-                  copiedLabel={t("common.copied")}
-                  iconOnly
-                />
-              </>
-            )}
-          </Show>
-        </div>
-        <Show when={props.secret}>
-          <div class="routine-webhook-note routine-webhook-secret-note">
-            <Text variant="caption" tone="warning">
-              {t("routine.webhook.secretWarning")}
-            </Text>
-            <Button type="button" size="xs" variant="ghost" onClick={props.onSecretDismiss}>
-              {t("common.done")}
-            </Button>
-          </div>
-        </Show>
+        <RoutineWebhookEndpoint
+          url={props.url}
+          connected={props.connected}
+          secret={props.secret}
+          onSecretDismiss={props.onSecretDismiss}
+          onRegenerateSecret={props.onRegenerateSecret}
+        />
       </Show>
 
       <Show
@@ -273,20 +185,6 @@ export function RoutineWebhookTrigger(props: RoutineWebhookTriggerProps) {
           </div>
         </Show>
       </Show>
-
-      <ConfirmDialog
-        open={confirm() !== null}
-        tone="destructive"
-        title={t("routine.webhook.regenerateTitle")}
-        description={t("routine.webhook.regenerateDescription")}
-        confirmLabel={t("routine.webhook.regenerateConfirm")}
-        cancelLabel={t("common.cancel")}
-        pending={confirm()?.pending ?? false}
-        error={confirm()?.error ?? undefined}
-        initialFocus="cancel"
-        onCancel={() => setConfirm(null)}
-        onConfirm={regenerate}
-      />
     </div>
   );
 }

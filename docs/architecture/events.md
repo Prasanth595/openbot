@@ -144,7 +144,10 @@ Controls:
 - A removed trigger revokes its route in the same transaction, and the relay revocation retries
   until it succeeds.
 - Only the events surface, which needs a host administrator, can change, test, or delete a webhook
-  routine.
+  routine. An agent can create one with `openbot.create_webhook_routine`. The tool saves through
+  `HostEventsService`, so the route limit, the encryption and the relay sync are the same. The tool
+  drops the first secret: the result goes to the model provider. The chat card makes a new secret
+  through the events surface.
 
 ## Rollout
 

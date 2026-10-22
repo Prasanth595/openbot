@@ -16,14 +16,14 @@ import { agentTemplatesPort } from "../agent-templates/agent-templates-port";
 import { createPublishAgent } from "../agent-templates/PublishAgent";
 import type { AgentFilesOptions } from "../files/AgentFilesSettings";
 import { canManageStorage, serverHasStorage } from "../files/storage-usage";
-import { remoteRoutineRecovery, serverCanAdminister } from "../servers/server-capabilities";
+import { serverCanAdminister } from "../servers/server-capabilities";
 import { htmlAttachmentPageHtml, htmlAttachmentPageUrl } from "./chat-visual-url";
 import { useConversationController } from "./conversation-controller-context";
 import { conversationRuntime } from "./conversation-runtime";
 import { useConversationViewScope } from "./conversation-scope";
 import { agentSkillsMode } from "./installed-skills-source";
 import { filePreviewQuoteId } from "./quoted-text";
-import { desktopEventRoutinesApi } from "./routine-webhooks-api";
+import { desktopChatEventRoutinesApi } from "./routine-webhooks-api";
 
 const BROWSER_PANEL_DEFAULT_RATIO = 0.5;
 const BROWSER_PANEL_MIN = 220;
@@ -558,11 +558,7 @@ export function ConversationPanels(panelProps: { onOpenUsage?: ((trigger: HTMLBu
               onRoutineSelectionRequestHandled={handleRoutineSettingsRequest}
               onOpenRoutineRun={props.onOpenSearchMessage ? openRoutineRunMessage : undefined}
               files={agentFiles(props.server, agent().id)}
-              eventRoutines={
-                !props.runtime && serverCanAdminister(props.server, "events-v1")
-                  ? desktopEventRoutinesApi(props.server.id, remoteRoutineRecovery(props.server))
-                  : undefined
-              }
+              eventRoutines={desktopChatEventRoutinesApi(props.server, props.runtime)}
             />
           </Loading>
         )}

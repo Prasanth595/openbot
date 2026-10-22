@@ -160,6 +160,8 @@ export const messages = {
   "routine.card.created": "Routine creata",
   "routine.card.updated": "Routine aggiornata",
   "routine.card.open": "Apri la routine {name}",
+  "routine.card.webhookCreated": "Routine webhook creata",
+  "routine.card.webhookSecretNote": "Per ottenere il segreto di firma, rigeneralo. L'agente non riceve il segreto.",
 
   "routine.calendar.title": "Pianificazione",
   "routine.calendar.open": "Apri la pianificazione",

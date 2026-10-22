@@ -159,6 +159,8 @@ export const messages = defineMessages("routine", {
   "routine.card.created": "Created routine",
   "routine.card.updated": "Updated routine",
   "routine.card.open": "Open routine {name}",
+  "routine.card.webhookCreated": "Created webhook routine",
+  "routine.card.webhookSecretNote": "To get the signing secret, regenerate it. The agent does not get the secret.",
 
   "routine.calendar.title": "Schedule",
   "routine.calendar.open": "Open schedule",

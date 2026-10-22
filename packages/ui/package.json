@@ -136,6 +136,7 @@
     "./features/conversation/RichMessageText": "./src/features/conversation/RichMessageText.tsx",
     "./features/conversation/RoutineResultDestinationField": "./src/features/conversation/RoutineResultDestinationField.tsx",
     "./features/conversation/RoutineRunHistory": "./src/features/conversation/RoutineRunHistory.tsx",
+    "./features/conversation/RoutineWebhookCard": "./src/features/conversation/RoutineWebhookCard.tsx",
     "./features/conversation/RoutineWebhookTrigger": "./src/features/conversation/RoutineWebhookTrigger.tsx",
     "./features/conversation/RoutineSchedulePicker": "./src/features/conversation/RoutineSchedulePicker.tsx",
     "./features/conversation/RoutineTriggerMenu": "./src/features/conversation/RoutineTriggerMenu.tsx",

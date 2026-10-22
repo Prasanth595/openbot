@@ -369,6 +369,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: bun run test:routine-fresh-session
 
+      - name: Run the agent webhook routine E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:agent-webhook-routine
+
       - name: Run the Claude usage after a resume E2E test
         if: ${{ !cancelled() }}
         run: bun run test:claude-usage-resume
@@ -406,6 +410,7 @@ jobs:
             .openbot-build/codex-missing-rollout-e2e/
             .openbot-build/codex-usage-metering-e2e/
             .openbot-build/routine-fresh-session-e2e/
+            .openbot-build/agent-webhook-routine-e2e/
             .openbot-build/claude-usage-resume-e2e/
             .openbot-build/zip-attachment-e2e/
             .openbot-build/agent-mcp-tools-e2e/

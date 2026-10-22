@@ -160,6 +160,8 @@ export const messages = {
   "routine.card.created": "Rutin oluşturuldu",
   "routine.card.updated": "Rutin güncellendi",
   "routine.card.open": "{name} rutinini aç",
+  "routine.card.webhookCreated": "Webhook rutini oluşturuldu",
+  "routine.card.webhookSecretNote": "İmza sırrını almak için yeniden oluşturun. Ajan sırrı almaz.",
 
   "routine.calendar.title": "Rutinler",
   "routine.calendar.open": "Rutinleri aç",
