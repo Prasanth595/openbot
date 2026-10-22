@@ -1193,43 +1193,55 @@ jobs:
       pull-requests: write
     steps:
       - name: Check out main
+        id: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main
+          persist-credentials: false
 
       - name: Set up Bun
         uses: ./.github/actions/setup-bun
         with:
           install: ignore-scripts
 
+      - name: Update nix/sources.json
+        env:
+          RELEASE_VERSION: ${{ needs.validate.outputs.release_version }}
+        run: bun scripts/nix-sources.ts "$RELEASE_VERSION"
+
+      # Only this step gets the write token: the steps before it run dependency code, which can change
+      # the Git configuration and hooks of the checkout. So this step runs outside the checkout and
+      # makes the branch and the commit with the GitHub API, from the commit that the checkout fetched.
       - name: Open the PR
         shell: bash
+        working-directory: ${{ runner.temp }}
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ needs.validate.outputs.release_version }}
+          BASE_SHA: ${{ steps.checkout.outputs.commit }}
         run: |
           set -euo pipefail
-          bun scripts/nix-sources.ts "$RELEASE_VERSION"
-          changed="$(git diff --name-only)"
-          if [[ -z "$changed" ]]; then
-            echo "nix/sources.json needs no change."
+          path=nix/sources.json
+          file="$GITHUB_WORKSPACE/$path"
+          current="$(gh api "repos/$GITHUB_REPOSITORY/contents/$path?ref=$BASE_SHA")"
+          if jq -r .content <<<"$current" | base64 -d | cmp -s - "$file"; then
+            echo "$path needs no change."
             exit 0
-          fi
-          if [[ "$changed" != "nix/sources.json" ]]; then
-            echo "The update changed an unexpected file: $changed" >&2
-            exit 1
           fi
           branch="build/nix-sources-$RELEASE_VERSION"
           if gh pr list --repo "$GITHUB_REPOSITORY" --head "$branch" --state open --json number --jq 'length > 0' | grep -Fx true; then
             echo "A Nix sources PR already exists."
             exit 0
           fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git switch -c "$branch"
-          git add nix/sources.json
-          git commit -m "build(nix): install OpenBot $RELEASE_VERSION"
-          git push origin "$branch"
+          # A rerun after a failed run can find the branch. No open PR uses it, so reset it.
+          if ! gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" -f "ref=refs/heads/$branch" -f "sha=$BASE_SHA" >/dev/null; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/heads/$branch" -f "sha=$BASE_SHA" -F force=true >/dev/null
+          fi
+          gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$path" \
+            -f "branch=$branch" \
+            -f "sha=$(jq -r .sha <<<"$current")" \
+            -f "message=build(nix): install OpenBot $RELEASE_VERSION" \
+            -f "content=$(base64 -w0 "$file")" >/dev/null
           gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$branch" --label no-changelog \
             --title "build(nix): install OpenBot $RELEASE_VERSION" \
             --body "Points the Nix flake at the published v$RELEASE_VERSION release. The hashes come from its \`SHA256SUMS.txt\`."
