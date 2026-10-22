@@ -469,6 +469,48 @@ To build a signed `.aab` on your computer, run `bun run mobile:android:build:loc
 and the Android SDK, and writes `/private/tmp/openbot-play.aab`.
 See [Fastlane Google Play upload](https://docs.fastlane.tools/actions/upload_to_play_store/).
 
+### Discord announcement
+
+Each mobile version gets one post in the OpenBot Discord, when the second store has it. Android is
+often available hours or days before iOS, so the post waits for both. The source is
+`apps/mobile/CHANGELOG.md`, not the stores. The `Announce mobile release on Discord` workflow
+(`mobile-release-announcement.yml`) runs on each push to `main` that changes the file. When the
+push gives a version its second store date, for example
+`## [x.y.z] - 2026-10-14 (Android), 2026-10-16 (iOS)`, it posts the message. The desktop release
+has its own post and its own workflow (`docs/RELEASING.md#discord-announcement`).
+
+Before the second store has the build, select the 3 to 5 changes in the version section that have
+the largest effect on users, and write them with the version in `apps/mobile/release-announcement.json`:
+
+```json
+{ "version": "x.y.z", "highlights": ["...", "...", "..."] }
+```
+
+Use the highlight rules of the desktop announcement. Replace the highlights of the previous version;
+the file holds only one version. Run `bun scripts/discord-mobile-release-announcement.ts check x.y.z`
+to see the message. `bun run mobile:release:published` stops when it gives the version its second
+store and the file is not ready, and the Changelog workflow stops such a pull request.
+
+The message mentions the `Mobile Release Pings` role, then has the title
+`OpenBot vx.y.z is out on iOS and Android`, the highlights, and one line of links:
+`iOS (TestFlight) · Android · Full Changelog`. The last link opens the version on the Mobile tab of
+`/changelog`. It notifies only that role.
+
+One-time setup:
+
+1. In GitHub repository settings, create the `release-mobile` environment. Under deployment branches
+   and tags, select only the `main` branch.
+2. In Discord, open the settings of the announcement channel, then Integrations > Webhooks. Make a
+   webhook named `OpenBot` with the OpenBot icon. Add its URL as the environment secret
+   `DISCORD_MOBILE_RELEASE_WEBHOOK_URL`. It can be the same channel as the desktop post.
+3. In Discord, turn on Developer Mode, open Server Settings > Roles, right-click `Mobile Release Pings`
+   and select Copy Role ID. Add the ID as the environment variable `DISCORD_MOBILE_RELEASE_ROLE_ID`.
+
+A failed post does not change the release: re-run the `Post on Discord` job. A re-run after a
+successful post posts the message again. To post a version again, or one that a push did not post,
+run `gh workflow run mobile-release-announcement.yml --ref main -f version=x.y.z`. Both stores must
+have the version in `apps/mobile/CHANGELOG.md`, and the file must be for that version.
+
 ## OpenPanel product analytics
 
 The app uses the official [`@openpanel/react-native` SDK](https://openpanel.dev/docs/sdks/react-native)

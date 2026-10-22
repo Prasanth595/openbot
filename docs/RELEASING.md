@@ -469,6 +469,9 @@ environment. To make the webhook, open the channel settings in Discord, then
 Integrations > Webhooks, and name it `OpenBot` with the OpenBot icon. A failed post does not undo
 the release: re-run the job. A re-run after a successful post posts the message again.
 
+The mobile app has its own post, file, webhook and workflow. It waits until both stores have the
+version. See [the mobile Discord announcement](../apps/mobile/README.md#discord-announcement).
+
 ## Publish a version
 
 Start from a clean, up-to-date `main` branch. For the first release, `package.json` and

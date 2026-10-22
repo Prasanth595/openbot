@@ -1,0 +1,10 @@
+{
+  "version": "1.4.0",
+  "highlights": [
+    "Redesigned app layout.",
+    "Improved chat experience with smoother scrolling.",
+    "You can now give agents tasks from the mobile app and create tasks with the new action search.",
+    "Providers, MCP servers, Connectors, Roles, Storage, Sites and Updates in Server settings.",
+    "App lock with a PIN, Face ID or Touch ID."
+  ]
+}
