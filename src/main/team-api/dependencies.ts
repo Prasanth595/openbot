@@ -250,7 +250,10 @@ export interface TeamApiAdmin {
   release?: Pick<HostReleaseService, "snapshot" | "check">;
   /** `agent-admin-v1`: access and auto-approve of one agent. */
   agents?: AgentAdminSettingsService;
-  /** `agent-host-settings-v1`: Computer Use, local scripts and the busy-message mode of one agent. */
+  /**
+   * `agent-host-settings-v1`: Computer Use, local scripts and the busy-message mode of one agent.
+   * `agent-backup-models-v1`: its backup models.
+   */
   agentHost?: AgentHostSettingsService;
   sessionSettings?: Pick<
     AgentService,

@@ -1,5 +1,6 @@
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import { AGENT_ADMIN_ROUTES } from "@openbot/contracts/team-protocol/agent-admin-v1";
+import { AGENT_BACKUP_MODELS_ROUTES } from "@openbot/contracts/team-protocol/agent-backup-models-v1";
 import { AGENT_HOST_SETTINGS_ROUTES } from "@openbot/contracts/team-protocol/agent-host-settings-v1";
 import {
   AGENT_MEMORIES_PAGE_ROUTE,
@@ -53,6 +54,7 @@ const PASSIVE_ROUTES: ReadonlySet<string> = new Set([
   STORAGE_ROUTES.usage,
   AGENT_ADMIN_ROUTES.settings,
   AGENT_HOST_SETTINGS_ROUTES.settings,
+  AGENT_BACKUP_MODELS_ROUTES.settings,
   AGENT_MEMORIES_PAGE_ROUTE,
   AGENT_MEMORY_SELECTION_PAGE_ROUTE,
   SKILLS_ADMIN_ROUTES.list,

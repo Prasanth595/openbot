@@ -13,6 +13,8 @@ export interface AgentsPort {
     | "getAgentAdminSettings"
     | "getAgentHostSettings"
     | "updateAgentHostSettings"
+    | "getAgentBackupModels"
+    | "updateAgentBackupModels"
     | "listConversationReads"
     | "listModels"
     | "onEvent"

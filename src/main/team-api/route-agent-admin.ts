@@ -1,5 +1,13 @@
-import { parseUpdateAgentAdminSettingsInput, parseUpdateAgentHostSettingsInput } from "@openbot/contracts/ipc";
+import {
+  parseUpdateAgentAdminSettingsInput,
+  parseUpdateAgentBackupModelsInput,
+  parseUpdateAgentHostSettingsInput,
+} from "@openbot/contracts/ipc";
 import { AGENT_ADMIN_CAPABILITY, AGENT_ADMIN_ROUTES } from "@openbot/contracts/team-protocol/agent-admin-v1";
+import {
+  AGENT_BACKUP_MODELS_CAPABILITY,
+  AGENT_BACKUP_MODELS_ROUTES,
+} from "@openbot/contracts/team-protocol/agent-backup-models-v1";
 import {
   AGENT_HOST_SETTINGS_CAPABILITY,
   AGENT_HOST_SETTINGS_ROUTES,
@@ -80,6 +88,43 @@ export async function routeAgentHostSettings(
       throw new HttpError(400, error instanceof Error ? error.message : "Invalid agent settings update.");
     }
     return json(200, await runCauseEffect(settings.update(input)));
+  } catch (error) {
+    if (error instanceof AgentNotFoundError) throw new HttpError(404, error.message);
+    throw error;
+  }
+}
+
+/**
+ * The backup models of one agent, changed from a joined server. They decide which of this computer's
+ * providers and accounts the agent moves to at a usage limit, so only an owner or admin can read or
+ * change them. Frozen by `agent-backup-models-v1`.
+ */
+export async function routeAgentBackupModels(
+  context: TeamApiRequestContext,
+  admin: TeamApiAdmin | undefined,
+  hiddenAgentIds: ReadonlySet<string>,
+): Promise<RouteOutcome> {
+  const { method, url, capabilities, member, request, json } = context;
+  const read = method === "POST" && url.pathname === AGENT_BACKUP_MODELS_ROUTES.settings;
+  const update = method === "POST" && url.pathname === AGENT_BACKUP_MODELS_ROUTES.update;
+  if (!read && !update) return "unmatched";
+  const settings = admin?.agentHost;
+  if (!settings || !capabilities.has(AGENT_BACKUP_MODELS_CAPABILITY))
+    throw new HttpError(400, sourceText("error.team.agentSettingsUnsupported"));
+  requireAdmin(member);
+  // `readJson` has already run the body through the agent-backup-models wire codec.
+  const body = await readJson(request);
+  requireVisibleBodyAgent(body, hiddenAgentIds);
+  try {
+    if (read) return json(200, settings.readBackupModels(stringField(body, "agentId")));
+    let input: ReturnType<typeof parseUpdateAgentBackupModelsInput>;
+    try {
+      // The wire takes any provider id; this computer refuses one it does not know.
+      input = parseUpdateAgentBackupModelsInput(body);
+    } catch (error) {
+      throw new HttpError(400, error instanceof Error ? error.message : "Invalid backup models.");
+    }
+    return json(200, await runCauseEffect(settings.updateBackupModels(input)));
   } catch (error) {
     if (error instanceof AgentNotFoundError) throw new HttpError(404, error.message);
     throw error;

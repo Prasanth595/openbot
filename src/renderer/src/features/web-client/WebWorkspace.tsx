@@ -10,10 +10,12 @@ import {
   type ChannelSummary,
   type ClientAgentModelOption,
   canAdministerServer,
+  decodeAgentBackupModelSettings,
   decodeAgentHostSettings,
   type ServerConnectionState,
   type ServerSummary,
 } from "@openbot/contracts/ipc";
+import { AGENT_BACKUP_MODELS_ROUTES } from "@openbot/contracts/team-protocol/agent-backup-models-v1";
 import { AGENT_HOST_SETTINGS_ROUTES } from "@openbot/contracts/team-protocol/agent-host-settings-v1";
 import { AGENT_IMPORT_CAPABILITY } from "@openbot/contracts/team-protocol/agent-import-v1";
 import { AGENT_TASKS_CAPABILITY } from "@openbot/contracts/team-protocol/agent-tasks-v1";
@@ -644,6 +646,22 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
         hostRequest(serverId)("POST", AGENT_HOST_SETTINGS_ROUTES.settings, decodeAgentHostSettings, { agentId }),
       updateAgentHostSettings: (input, serverId) =>
         hostRequest(serverId)("POST", AGENT_HOST_SETTINGS_ROUTES.update, decodeAgentHostSettings, { ...input }),
+      getAgentBackupModels: (agentId, serverId) =>
+        hostRequest(serverId)("POST", AGENT_BACKUP_MODELS_ROUTES.settings, decodeAgentBackupModelSettings, {
+          agentId,
+        }),
+      updateAgentBackupModels: ({ agentId, backupModels }, serverId) =>
+        hostRequest(serverId)("POST", AGENT_BACKUP_MODELS_ROUTES.update, decodeAgentBackupModelSettings, {
+          agentId,
+          backupModels: backupModels && {
+            automatic: backupModels.automatic,
+            order: backupModels.order.map(({ provider, model, providerAccountId }) => {
+              const choice: Record<string, string> = { provider, model };
+              if (providerAccountId !== undefined) choice.providerAccountId = providerAccountId;
+              return choice;
+            }),
+          },
+        }),
       getAgentAdminSettings: (agentId, serverId) =>
         runTeamEffect(
           getAgentAdminSettings(hostRequest(serverId), agentId).pipe(Effect.mapError((error) => error.cause)),
@@ -661,11 +679,13 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     const agent = selected && host ? withHostProfileAccount(selected, host) : selected;
     const settings = remoteAgentAdmin.settings();
     const automation = remoteAgentAdmin.automation();
+    const backupModels = remoteAgentAdmin.backupModels();
     return agent
       ? {
           ...agent,
           ...(settings ? { access: settings.access } : {}),
           ...(automation === undefined ? {} : { allowAutomation: automation }),
+          ...(backupModels ? { backupModels } : {}),
         }
       : agent;
   });
@@ -2251,6 +2271,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 onRespondToApproval={view.respondToApproval}
                 onAlwaysAllowApproval={view.alwaysAllowApproval()}
                 agentAutoApproves={remoteAgentAdmin.autoApproves()}
+                remoteBackupModelsLoaded={remoteAgentAdmin.backupModels() !== undefined}
                 onUpdateAgentPermissions={remoteAgentAdmin.settings() ? remoteAgentAdmin.update : undefined}
                 onClearAgentContext={clearSelectedAgentContext()}
                 onRespondToBrowserTakeover={(decision) => workspace.respondToBrowserTakeover(decision)}

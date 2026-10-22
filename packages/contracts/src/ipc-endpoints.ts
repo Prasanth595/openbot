@@ -42,8 +42,10 @@ import type {
 import type {
   AddedAgent,
   AgentAdminSettings,
+  AgentBackupModelSettings,
   AgentHostSettings,
   UpdateAgentAdminSettingsInput,
+  UpdateAgentBackupModelsInput,
   UpdateAgentHostSettingsInput,
 } from "./ipc-agent-admin";
 import type { AgentAnalytics, AgentAnalyticsInput } from "./ipc-agent-analytics";
@@ -1366,6 +1368,11 @@ export const IPC_ENDPOINTS = {
     getAgentHostSettings: scopedRequest<string, AgentHostSettings>()("agent:admin:get-host-settings"),
     updateAgentHostSettings: scopedRequest<UpdateAgentHostSettingsInput, AgentHostSettings>()(
       "agent:admin:update-host-settings",
+    ),
+    // Backup models: `agent-backup-models-v1` on a joined server.
+    getAgentBackupModels: scopedRequest<string, AgentBackupModelSettings>()("agent:admin:get-backup-models"),
+    updateAgentBackupModels: scopedRequest<UpdateAgentBackupModelsInput, AgentBackupModelSettings>()(
+      "agent:admin:update-backup-models",
     ),
     getAgentAdminSettings: scopedRequest<string, AgentAdminSettings>()("agent:admin:get-settings"),
     updateAgentAdminSettings: scopedRequest<UpdateAgentAdminSettingsInput, AgentAdminSettings>()(

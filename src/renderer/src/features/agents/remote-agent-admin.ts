@@ -1,11 +1,14 @@
 import type {
   AgentAdminSettings,
+  AgentBackupModelSettings,
+  AgentBackupModels,
   AgentHostSettings,
   ServerSummary,
   UpdateAgentAdminSettingsInput,
   UpdateAgentInput,
 } from "@openbot/contracts/ipc";
 import { AGENT_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/agent-admin-v1";
+import { AGENT_BACKUP_MODELS_CAPABILITY } from "@openbot/contracts/team-protocol/agent-backup-models-v1";
 import { AGENT_HOST_SETTINGS_CAPABILITY } from "@openbot/contracts/team-protocol/agent-host-settings-v1";
 import { currentText } from "@openbot/ui/text";
 import { createEffect, createStore, untrack } from "solid-js";
@@ -15,7 +18,12 @@ import { type AgentsPort, agentsPort } from "./agents-port";
 /** The web client sends these host calls over its own connection. */
 export type RemoteAgentAdminCalls = Pick<
   AgentsPort["agent"],
-  "getAgentAdminSettings" | "updateAgentAdminSettings" | "getAgentHostSettings" | "updateAgentHostSettings"
+  | "getAgentAdminSettings"
+  | "updateAgentAdminSettings"
+  | "getAgentHostSettings"
+  | "updateAgentHostSettings"
+  | "getAgentBackupModels"
+  | "updateAgentBackupModels"
 >;
 
 /** A joined server where this account may change agent access and auto-approve. */
@@ -28,6 +36,8 @@ interface RemoteAgentAdminState {
   settings: AgentAdminSettings | null;
   hostKey: string | null;
   hostSettings: AgentHostSettings | null;
+  backupKey: string | null;
+  backupModels: AgentBackupModelSettings | null;
 }
 
 /**
@@ -44,6 +54,8 @@ export function createRemoteAgentAdmin(
     settings: null,
     hostKey: null,
     hostSettings: null,
+    backupKey: null,
+    backupModels: null,
   });
   const hostKey = () => {
     const current = target();
@@ -77,6 +89,41 @@ export function createRemoteAgentAdmin(
         .then((settings) => {
           if (generation === hostReadGeneration) acceptHost(requestKey, settings);
         })
+        .catch(() => undefined);
+    },
+  );
+  const backupKey = () => {
+    const current = target();
+    if (current?.server.kind !== "remote" || !serverCanAdminister(current.server, AGENT_BACKUP_MODELS_CAPABILITY))
+      return null;
+    return JSON.stringify([current.server.id, current.agentId]);
+  };
+  function acceptBackup(requestKey: string, settings: AgentBackupModelSettings): void {
+    if (backupKey() !== requestKey) return;
+    setState((draft) => {
+      draft.backupKey = requestKey;
+      draft.backupModels = settings;
+    });
+  }
+  let backupReadGeneration = 0;
+  createEffect(
+    () => JSON.stringify([backupKey(), target()?.updatedAt]),
+    () => {
+      const requestKey = untrack(backupKey);
+      const generation = ++backupReadGeneration;
+      if (untrack(() => state.backupKey) !== requestKey)
+        setState((draft) => {
+          draft.backupKey = null;
+          draft.backupModels = null;
+        });
+      const current = untrack(target);
+      if (!requestKey || !current) return;
+      calls()
+        .getAgentBackupModels(current.agentId, current.server.id)
+        .then((settings) => {
+          if (generation === backupReadGeneration) acceptBackup(requestKey, settings);
+        })
+        // A failed read keeps the setting hidden. A host can save a provider that this version does not know.
         .catch(() => undefined);
     },
   );
@@ -120,6 +167,17 @@ export function createRemoteAgentAdmin(
       if (hostKey() === JSON.stringify([server.id, agentId])) hostReadGeneration += 1;
       acceptHost(JSON.stringify([server.id, agentId]), settings);
     },
+    /** Undefined for a local agent, before the host answers, and when it does not serve the capability. */
+    backupModels: (): AgentBackupModels | null | undefined =>
+      state.backupKey !== null && state.backupKey === backupKey() ? state.backupModels?.backupModels : undefined,
+    async updateBackupModels(agentId: string, backupModels: AgentBackupModels | null): Promise<void> {
+      const server = target()?.server;
+      if (server?.kind !== "remote" || !serverCanAdminister(server, AGENT_BACKUP_MODELS_CAPABILITY))
+        throw new Error(currentText().t("agent.error.adminOnly"));
+      const settings = await calls().updateAgentBackupModels({ agentId, backupModels }, server.id);
+      if (backupKey() === JSON.stringify([server.id, agentId])) backupReadGeneration += 1;
+      acceptBackup(JSON.stringify([server.id, agentId]), settings);
+    },
     /** Null for a local agent, before the first answer, and when the host does not serve the capability. */
     settings: (): AgentAdminSettings | null => (state.key !== null && state.key === key() ? state.settings : null),
     /** Undefined until the host answers. A released host with Turbo mode on locks every agent to auto-approve. */
@@ -144,16 +202,17 @@ export function createRemoteAgentAdmin(
 
 /**
  * Sends a profile change to an agent of a joined server. The Team API agent route ignores access,
- * so access and Local scripts go to their admin routes. Other fields keep the agent route.
+ * so access, Local scripts and backup models go to their admin routes. Other fields keep the agent route.
  */
 export async function updateRemoteAgent(
-  admin: Pick<RemoteAgentAdmin, "update" | "updateAutomation">,
+  admin: Pick<RemoteAgentAdmin, "update" | "updateAutomation" | "updateBackupModels">,
   input: UpdateAgentInput,
   updateProfile: (input: UpdateAgentInput) => Promise<void>,
 ): Promise<void> {
-  const { access, allowAutomation, agentId, ...fields } = input;
+  const { access, allowAutomation, backupModels, agentId, ...fields } = input;
   if (access !== undefined) await admin.update({ agentId, access });
   if (allowAutomation !== undefined) await admin.updateAutomation(agentId, allowAutomation);
+  if (backupModels !== undefined) await admin.updateBackupModels(agentId, backupModels);
   if (Object.keys(fields).length) await updateProfile({ agentId, ...fields });
 }
 

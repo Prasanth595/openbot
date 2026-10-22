@@ -286,6 +286,8 @@ export interface ConversationProps {
    * answered. Together with the agent's access it gives the Permissions level.
    */
   agentAutoApproves?: boolean | undefined;
+  /** Whether a joined server's host answered with the agent's backup models: owners and admins only. */
+  remoteBackupModelsLoaded?: boolean | undefined;
   /** The app default an agent without its own busy-message setting follows. Local agents only. */
   defaultBusyMessageMode?: BusyMessageMode | undefined;
   /** The app memory cap. Local agents only. */

@@ -227,11 +227,13 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
     const agent = activeAgent();
     const settings = remoteAgentSettings();
     const automation = remoteAgentAdmin.automation();
+    const backupModels = remoteAgentAdmin.backupModels();
     return agent
       ? {
           ...agent,
           ...(settings ? { access: settings.access } : {}),
           ...(activeServer()?.kind === "remote" && automation !== undefined ? { allowAutomation: automation } : {}),
+          ...(activeServer()?.kind === "remote" && backupModels ? { backupModels } : {}),
         }
       : agent;
   });
@@ -541,6 +543,7 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
         onRespondToApproval={respondToApproval}
         onAlwaysAllowApproval={alwaysAllowApproval()}
         agentAutoApproves={activeAgentAutoApproves()}
+        remoteBackupModelsLoaded={remoteAgentAdmin.backupModels() !== undefined}
         onUpdateAgentPermissions={permissionsEditable() ? writeAgentPermissions : undefined}
         defaultBusyMessageMode={generalSettings().busyMessageMode}
         agentMemoryLimit={generalSettings().agentMemoryLimit}

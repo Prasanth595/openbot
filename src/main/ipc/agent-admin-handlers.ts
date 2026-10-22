@@ -8,13 +8,19 @@ import {
   type AddedAgent,
   type AgentAdminSettings,
   decodeAgentAdminSettings,
+  decodeAgentBackupModelSettings,
   decodeHostAddedAgent,
   decodeInstalledSkills,
   type InstalledSkill,
   parseUpdateAgentAdminSettingsInput,
+  parseUpdateAgentBackupModelsInput,
   parseUpdateAgentHostSettingsInput,
 } from "@openbot/contracts/ipc";
 import { AGENT_ADMIN_CAPABILITY, AGENT_ADMIN_ROUTES } from "@openbot/contracts/team-protocol/agent-admin-v1";
+import {
+  AGENT_BACKUP_MODELS_CAPABILITY,
+  AGENT_BACKUP_MODELS_ROUTES,
+} from "@openbot/contracts/team-protocol/agent-backup-models-v1";
 import {
   AGENT_HOST_SETTINGS_CAPABILITY,
   AGENT_HOST_SETTINGS_ROUTES,
@@ -116,6 +122,14 @@ export function agentAdminIpcHandlers({
         local: (input) => runCauseEffect(hostSettings.update(input)),
         remote: (input, serverId) => remoteHostSettings(serverId, AGENT_HOST_SETTINGS_ROUTES.update, input),
       }),
+      getAgentBackupModels: scopedHandler((value) => requireString(value, "agentId"), {
+        local: (agentId) => hostSettings.readBackupModels(agentId),
+        remote: (agentId, serverId) => remoteBackupModels(serverId, AGENT_BACKUP_MODELS_ROUTES.settings, { agentId }),
+      }),
+      updateAgentBackupModels: scopedHandler(parseUpdateAgentBackupModelsInput, {
+        local: (input) => runCauseEffect(hostSettings.updateBackupModels(input)),
+        remote: (input, serverId) => remoteBackupModels(serverId, AGENT_BACKUP_MODELS_ROUTES.update, input),
+      }),
       getAgentAdminSettings: scopedHandler((value) => requireString(value, "agentId"), {
         local: (agentId) => settings.read(agentId),
         remote: (agentId, serverId) => remote(serverId, AGENT_ADMIN_ROUTES.settings, { agentId }),
@@ -164,6 +178,14 @@ export function agentAdminIpcHandlers({
       throw new Error(sourceText("error.team.agentSettingsUnsupported"));
     return runCauseEffect(
       remoteServers.request(serverId, path, decodeAgentHostSettingsFromHost, { method: "POST", body }),
+    );
+  }
+
+  function remoteBackupModels(serverId: string, path: string, body: unknown) {
+    if (!remoteServers.supportsCapability(serverId, AGENT_BACKUP_MODELS_CAPABILITY))
+      throw new Error(sourceText("error.team.agentSettingsUnsupported"));
+    return runCauseEffect(
+      remoteServers.request(serverId, path, decodeAgentBackupModelSettings, { method: "POST", body }),
     );
   }
 }

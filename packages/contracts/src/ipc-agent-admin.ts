@@ -5,7 +5,7 @@
  */
 
 import { type AgentProviderId, agentProviderDescriptor } from "./agent-providers";
-import { type AgentAccess, isAgentAccess } from "./ipc-agents";
+import { type AgentAccess, type AgentBackupModels, isAgentAccess, isAgentBackupModels } from "./ipc-agents";
 import { isIdentifier } from "./ipc-bounded-values";
 import { type BusyMessageMode, isBusyMessageMode } from "./ipc-queue";
 import { isBoolean, isDynamicRecord } from "./runtime-values";
@@ -154,6 +154,44 @@ export function parseUpdateAgentHostSettingsInput(value: unknown): UpdateAgentHo
   if (value.allowAutomation !== undefined) input.allowAutomation = value.allowAutomation;
   if (value.busyMessageMode !== undefined) input.busyMessageMode = value.busyMessageMode;
   return input;
+}
+
+/**
+ * The backup models of one agent. The local window reads them from the agent summary; an owner or
+ * admin of a joined server reads them here. Null: the agent asks in the chat, with no saved order.
+ */
+export interface AgentBackupModelSettings {
+  backupModels: AgentBackupModels | null;
+}
+
+export interface UpdateAgentBackupModelsInput extends AgentBackupModelSettings {
+  agentId: string;
+}
+
+/**
+ * Refuses a provider that this OpenBot does not know, so the client hides the setting instead of
+ * saving an order without it. Copies only the known fields.
+ */
+export function decodeAgentBackupModelSettings(value: unknown): AgentBackupModelSettings {
+  if (!isDynamicRecord(value)) throw new Error("Invalid backup models.");
+  const backupModels = value.backupModels;
+  if (backupModels === null) return { backupModels: null };
+  if (!isAgentBackupModels(backupModels)) throw new Error("Invalid backup models.");
+  return {
+    backupModels: {
+      automatic: backupModels.automatic,
+      order: backupModels.order.map(({ provider, model, providerAccountId }) => ({
+        provider,
+        model,
+        ...(providerAccountId === undefined ? {} : { providerAccountId }),
+      })),
+    },
+  };
+}
+
+export function parseUpdateAgentBackupModelsInput(value: unknown): UpdateAgentBackupModelsInput {
+  if (!isDynamicRecord(value) || !isIdentifier(value.agentId)) throw new Error("Invalid backup models.");
+  return { agentId: value.agentId, ...decodeAgentBackupModelSettings(value) };
 }
 
 /** The agent a host added from a marketplace listing or a shared template. The agent list has the rest. */

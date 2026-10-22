@@ -1,13 +1,16 @@
 import { Effect, Schema } from "effect";
-// Computer Use, local scripts and the busy-message mode of one agent, as this computer holds them.
-// The `agent-host-settings-v1` host routes use this, and they write through `AgentService.updateAgent`,
-// the writer of the local window, so a remote admin changes the same state.
+// Computer Use, local scripts, the busy-message mode and the backup models of one agent, as this
+// computer holds them. The `agent-host-settings-v1` and `agent-backup-models-v1` host routes use this,
+// and they write through `AgentService.updateAgent`, the writer of the local window, so a remote admin
+// changes the same state.
 
 import {
+  type AgentBackupModelSettings,
   type AgentHostSettings,
   type AgentSummary,
   agentAutomationAllowed,
   agentComputerUseEnabled,
+  type UpdateAgentBackupModelsInput,
   type UpdateAgentHostSettingsInput,
 } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
@@ -24,6 +27,10 @@ export interface AgentHostSettingsDependencies {
 export interface AgentHostSettingsService {
   read(agentId: string): AgentHostSettings;
   update(input: UpdateAgentHostSettingsInput): Effect.Effect<AgentHostSettings, AgentHostSettingsFailure>;
+  readBackupModels(agentId: string): AgentBackupModelSettings;
+  updateBackupModels(
+    input: UpdateAgentBackupModelsInput,
+  ): Effect.Effect<AgentBackupModelSettings, AgentHostSettingsFailure>;
 }
 
 export function createAgentHostSettings({
@@ -54,9 +61,25 @@ export function createAgentHostSettings({
     const agent = yield* agents.updateAgent({ agentId, ...changes }).pipe(toAgentHostSettingsFailure);
     return settings(agent);
   });
+  const backupModels = (agent: AgentSummary): AgentBackupModelSettings => ({
+    backupModels: agent.backupModels ?? null,
+  });
+  const updateBackupModels = Effect.fn("AgentHostSettings.updateBackupModels")(function* ({
+    agentId,
+    backupModels: next,
+  }: UpdateAgentBackupModelsInput) {
+    yield* Effect.try({
+      try: () => requireAgent(agentId),
+      catch: (cause) => new AgentHostSettingsFailure({ cause }),
+    });
+    const agent = yield* agents.updateAgent({ agentId, backupModels: next }).pipe(toAgentHostSettingsFailure);
+    return backupModels(agent);
+  });
   return {
     read: (agentId) => settings(requireAgent(agentId)),
     update: (input) => update(input).pipe(Effect.uninterruptible),
+    readBackupModels: (agentId) => backupModels(requireAgent(agentId)),
+    updateBackupModels: (input) => updateBackupModels(input).pipe(Effect.uninterruptible),
   };
 }
 

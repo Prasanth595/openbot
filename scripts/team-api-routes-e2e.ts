@@ -23,6 +23,10 @@ import {
   type QueueSnapshot,
 } from "@openbot/contracts/ipc";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
+import {
+  AGENT_BACKUP_MODELS_CAPABILITY,
+  AGENT_BACKUP_MODELS_ROUTES,
+} from "@openbot/contracts/team-protocol/agent-backup-models-v1";
 import { AGENT_HIDDEN_CAPABILITY, AGENT_HIDDEN_ROUTES } from "@openbot/contracts/team-protocol/agent-hidden-v1";
 import { QueueEditRejectedError, TEAM_QUEUE_EDIT_CAPABILITY } from "@openbot/contracts/team-protocol/queue-edit-v1";
 import { SIDE_QUESTION_CAPABILITY, SIDE_QUESTION_ROUTES } from "@openbot/contracts/team-protocol/side-question-v1";
@@ -39,6 +43,7 @@ import { AgentLifecycleFailed } from "../src/backend/agent-service";
 import { runCauseEffect } from "../src/backend/effect-boundary";
 import { OpenBotDatabase } from "../src/backend/openbot-database";
 import { TeamChatStore } from "../src/backend/team-chat-store";
+import { createAgentHostSettings } from "../src/main/agent-host-settings";
 import type { TeamApiAgents, TeamApiBrowser, TeamApiMailbox } from "../src/main/team-api/dependencies";
 import { isPeerHiddenProvider } from "../src/main/team-api/provider-visibility";
 import { TeamApiServer } from "../src/main/team-api-server";
@@ -398,6 +403,24 @@ try {
     mailbox,
     browser,
     chat: new TeamChatStore(database),
+    // The real host-settings service, over an agent writer that records each change.
+    admin: {
+      agentHost: createAgentHostSettings({
+        agents: {
+          listAgents: () => agents,
+          updateAgent: (input) =>
+            Effect.sync(() => {
+              record("updateAgent", input);
+              const target = agents.find((item) => item.id === input.agentId);
+              if (!target) throw new Error("Agent not found.");
+              if (input.backupModels === null) delete target.backupModels;
+              else if (input.backupModels) target.backupModels = input.backupModels;
+              return target;
+            }),
+        },
+        busyMessageMode: { get: () => ({ mode: "queue" }) },
+      }),
+    },
     hiddenAgents: {
       listHiddenAgents: () => hidden,
       setAgentHidden: (input) =>
@@ -1009,6 +1032,107 @@ try {
       errorIs(memberDelete, 403, sourceText("error.team.membersCannotDeleteAgents")) &&
         callsOf("deleteAgent").length === 0,
       summary(memberDelete),
+    );
+  }
+
+  // ---- Backup models (agent-backup-models-v1) ----
+  {
+    const backupCapabilities = [AGENT_HIDDEN_CAPABILITY, TEAM_QUEUE_EDIT_CAPABILITY, AGENT_BACKUP_MODELS_CAPABILITY];
+    const backupModels = {
+      automatic: true,
+      order: [
+        { provider: "codex", model: "gpt-5.5" },
+        { provider: "claude", model: "claude-opus-4-5", providerAccountId: "a0123456789abcdef" },
+      ],
+    };
+    const adminRead = await call("POST", AGENT_BACKUP_MODELS_ROUTES.settings, {
+      token: adaToken,
+      json: { agentId: "agent-ada" },
+      capabilities: backupCapabilities,
+    });
+    check(
+      "an admin reads null backup models for an agent with none",
+      adminRead.status === 200 && isDeepStrictEqual(adminRead.body, { backupModels: null }),
+      summary(adminRead),
+    );
+    const unsupported = await call("POST", AGENT_BACKUP_MODELS_ROUTES.settings, {
+      token: adaToken,
+      json: { agentId: "agent-ada" },
+    });
+    check(
+      "the backup-model routes without the capability get 400 agentSettingsUnsupported",
+      errorIs(unsupported, 400, sourceText("error.team.agentSettingsUnsupported")),
+      summary(unsupported),
+    );
+    const memberRead = await call("POST", AGENT_BACKUP_MODELS_ROUTES.settings, {
+      token: bobToken,
+      json: { agentId: "agent-ada" },
+      capabilities: backupCapabilities,
+    });
+    const memberSet = await call("POST", AGENT_BACKUP_MODELS_ROUTES.update, {
+      token: bobToken,
+      json: { agentId: "agent-ada", backupModels },
+      capabilities: backupCapabilities,
+    });
+    check(
+      "a member cannot read or set backup models",
+      errorIs(memberRead, 403, sourceText("error.team.adminRequired")) &&
+        errorIs(memberSet, 403, sourceText("error.team.adminRequired")) &&
+        callsOf("updateAgent").length === 0,
+      [summary(memberRead), summary(memberSet)],
+    );
+    const unknownProvider = await call("POST", AGENT_BACKUP_MODELS_ROUTES.update, {
+      token: adaToken,
+      json: { agentId: "agent-ada", backupModels: { automatic: false, order: [{ provider: "later", model: "m-1" }] } },
+      capabilities: backupCapabilities,
+    });
+    const tooMany = await call("POST", AGENT_BACKUP_MODELS_ROUTES.update, {
+      token: adaToken,
+      json: {
+        agentId: "agent-ada",
+        backupModels: { automatic: false, order: Array.from({ length: 9 }, () => backupModels.order[0]) },
+      },
+      capabilities: backupCapabilities,
+    });
+    check(
+      "the host refuses a provider it does not know and more than eight models, and writes nothing",
+      unknownProvider.status === 400 && tooMany.status === 400 && callsOf("updateAgent").length === 0,
+      [summary(unknownProvider), summary(tooMany)],
+    );
+    const adminSet = await call("POST", AGENT_BACKUP_MODELS_ROUTES.update, {
+      token: adaToken,
+      json: { agentId: "agent-ada", backupModels },
+      capabilities: backupCapabilities,
+    });
+    const readBack = await call("POST", AGENT_BACKUP_MODELS_ROUTES.settings, {
+      token: adaToken,
+      json: { agentId: "agent-ada" },
+      capabilities: backupCapabilities,
+    });
+    check(
+      "an admin sets backup models through the agent writer and reads them back",
+      adminSet.status === 200 &&
+        isDeepStrictEqual(adminSet.body, { backupModels }) &&
+        isDeepStrictEqual(readBack.body, { backupModels }) &&
+        isDeepStrictEqual(callsOf("updateAgent").at(-1), [{ agentId: "agent-ada", backupModels }]),
+      [summary(adminSet), summary(readBack)],
+    );
+    const adminClear = await call("POST", AGENT_BACKUP_MODELS_ROUTES.update, {
+      token: adaToken,
+      json: { agentId: "agent-ada", backupModels: null },
+      capabilities: backupCapabilities,
+    });
+    const missing = await call("POST", AGENT_BACKUP_MODELS_ROUTES.settings, {
+      token: adaToken,
+      json: { agentId: "agent-none" },
+      capabilities: backupCapabilities,
+    });
+    check(
+      "an admin clears backup models, and an unknown agent gets 404",
+      adminClear.status === 200 &&
+        isDeepStrictEqual(adminClear.body, { backupModels: null }) &&
+        errorIs(missing, 404, sourceText("error.team.agentNotFound")),
+      [summary(adminClear), summary(missing)],
     );
   }
 
