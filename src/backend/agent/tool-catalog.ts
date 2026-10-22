@@ -1,7 +1,7 @@
 import type { AgentSummary } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { z } from "zod";
-import { BROWSER_DYNAMIC_TOOLS } from "../browser-tools";
+import { BROWSER_DYNAMIC_TOOLS, OPENBOT_BROWSER_NAMESPACE } from "../browser-tools";
 import { OPENBOT_DYNAMIC_TOOLS, OPENBOT_TOOL_DEFINITIONS } from "../openbot-tools";
 import type { DynamicToolCallParams } from "../protocol";
 import { toolGuidance } from "./tool-guidance";
@@ -89,6 +89,13 @@ export function claudeBridgedToolName(name: string, input: unknown): string {
   return entry ? `mcp__${entry.namespace}__${entry.tool}` : name;
 }
 
+/**
+ * Search matches whole words, so a query that names a web service, such as "gmail" or "read mail",
+ * finds no browser tool. Without this note the agent reports that it has no tool for that service.
+ */
+const BROWSER_SEARCH_NOTE =
+  "No browser tool matched. A website or web app with no dedicated tool, such as mail or a calendar, is reached through openbot_browser. Call openbot_browser.list_tabs first: your signed-in tabs stay open across sessions.";
+
 function words(text: string): string[] {
   return text
     .toLowerCase()
@@ -117,7 +124,7 @@ export function discoverTools(params: DynamicToolCallParams, agent: AgentSummary
     if (!parsed.success) throw new Error(sourceText("error.agent.toolRequestInvalid"));
     const queries = parsed.data.queries.map((query) => query.toLowerCase());
     const terms = new Set(queries.flatMap(words));
-    const results = BUILTIN_TOOL_CATALOG.map((entry, index) => {
+    const found = BUILTIN_TOOL_CATALOG.map((entry, index) => {
       const nameWords = new Set(words(entry.name));
       const descriptionWords = new Set(words(entry.description));
       const exact = queries.some((query) => query === entry.name || query === entry.tool);
@@ -130,8 +137,11 @@ export function discoverTools(params: DynamicToolCallParams, agent: AgentSummary
       .filter((result) => result.exact || result.score > 0)
       .sort((a, b) => Number(b.exact) - Number(a.exact) || b.score - a.score || a.index - b.index)
       .slice(0, parsed.data.limit ?? 5)
-      .map(({ entry }) => ({ name: entry.name, description: entry.description.slice(0, 180) }));
-    return { tools: results };
+      .map(({ entry }) => entry);
+    const tools = found.map(({ name, description }) => ({ name, description: description.slice(0, 180) }));
+    return found.some((entry) => entry.namespace === OPENBOT_BROWSER_NAMESPACE)
+      ? { tools }
+      : { tools, note: BROWSER_SEARCH_NOTE };
   }
   const parsed = describeSchema.safeParse(params.arguments);
   if (!parsed.success) throw new Error(sourceText("error.agent.toolRequestInvalid"));

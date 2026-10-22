@@ -41,6 +41,8 @@ import { CHANNEL_TOOL_DEFINITIONS } from "./channel-tools";
 import { MESSAGING_TOOL_DEFINITIONS } from "./messaging/messaging-tools";
 import { ROUTINE_FLOW_TOOL_DEFINITIONS } from "./routine-flows/routine-flow-tools";
 import {
+  ROUTINE_INSTRUCTION_RULE,
+  routineInstructionZodSchema,
   routineLimitPolicyZodSchema,
   routineMissedPolicyZodSchema,
   routineScheduleZodSchema,
@@ -396,7 +398,7 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
     shape: {
       agentId: z.string().min(1).max(INPUT_LIMITS.identifier).optional(),
       name: z.string().min(1).max(INPUT_LIMITS.routineName),
-      instruction: z.string().min(1).max(INPUT_LIMITS.routineInstruction),
+      instruction: routineInstructionZodSchema,
       schedule: routineScheduleZodSchema.describe(
         "Routine schedule. Interval, advanced-every, and custom schedules must not run more often than every 3 minutes.",
       ),
@@ -417,7 +419,9 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
         .string()
         .min(1)
         .max(INPUT_LIMITS.routineInstruction)
-        .describe("What to do with each request. OpenBot adds the request body to the run as untrusted data."),
+        .describe(
+          `What to do with each request. OpenBot adds the request body to the run as untrusted data. ${ROUTINE_INSTRUCTION_RULE}`,
+        ),
       eventType: webhookEventTypeZodSchema.optional(),
       filters: webhookFiltersZodSchema.optional(),
       active: z.boolean().optional(),
@@ -447,7 +451,7 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
       agentId: z.string().min(1).max(INPUT_LIMITS.identifier).optional(),
       routineId: z.string().min(1).max(INPUT_LIMITS.identifier),
       name: z.string().min(1).max(INPUT_LIMITS.routineName).optional(),
-      instruction: z.string().min(1).max(INPUT_LIMITS.routineInstruction).optional(),
+      instruction: routineInstructionZodSchema.optional(),
       schedule: routineScheduleZodSchema
         .describe("Routine schedule. Must not run more often than every 3 minutes.")
         .optional(),
