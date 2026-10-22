@@ -443,6 +443,8 @@ try {
   const updated = await callTool("update", agent.id, {
     __tool: "update_webhook_routine",
     routineId: result.routineId,
+    // The receiver compares the type exactly, so the spaces must not reach the store.
+    eventType: " build.failed ",
     filters: [{ pointer: "/branch", value: "release" }],
   });
   const afterUpdate = (await Effect.runPromise(events.listRoutines({ owner }))).find(

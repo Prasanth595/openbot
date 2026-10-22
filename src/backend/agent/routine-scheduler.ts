@@ -620,7 +620,7 @@ export class RoutineScheduler implements RoutineDueSource {
     if (params.tool === CREATE_WEBHOOK_ROUTINE_TOOL) {
       const args = routineToolArguments(params.arguments, CREATE_WEBHOOK_ROUTINE_ARGUMENTS);
       const agentId = this.#toolAgentId(args, senderAgentId);
-      const webhooks = this.#webhookTool(senderAgentId, params.turnId);
+      const webhooks = this.#webhookTool(senderAgentId, params.threadId, params.turnId);
       const active = args.active === undefined ? true : args.active;
       if (!isBoolean(active)) throw new RoutineInputError("active must be a boolean.");
       // The zone has no effect on a webhook trigger. It is the editor's default if the user changes
@@ -652,7 +652,7 @@ export class RoutineScheduler implements RoutineDueSource {
     if (params.tool === UPDATE_WEBHOOK_ROUTINE_TOOL) {
       const args = routineToolArguments(params.arguments, UPDATE_WEBHOOK_ROUTINE_ARGUMENTS);
       const agentId = this.#toolAgentId(args, senderAgentId);
-      const webhooks = this.#webhookTool(senderAgentId, params.turnId);
+      const webhooks = this.#webhookTool(senderAgentId, params.threadId, params.turnId);
       const routineId = routineToolString(
         args.routineId,
         "routineId",
@@ -672,7 +672,8 @@ export class RoutineScheduler implements RoutineDueSource {
           ? current.name
           : routineToolString(args.name, "name", INPUT_LIMITS.routineName, "A routine name is required.");
       if (name.trim().toLowerCase() !== current.name.trim().toLowerCase()) this.#requireFreeRoutineName(agentId, name);
-      const { limitPolicy = current.limitPolicy } = routineToolPolicies(args);
+      // A policy the call leaves out keeps its stored value.
+      const { limitPolicy } = routineToolPolicies(args);
       const routine = yield* webhooks.save({
         routineId,
         agentId,
@@ -690,7 +691,6 @@ export class RoutineScheduler implements RoutineDueSource {
         timezone: current.timezone,
         ...webhookToolTrigger(args, current.trigger),
         ...(limitPolicy === undefined ? {} : { limitPolicy }),
-        ...(current.missedPolicy === undefined ? {} : { missedPolicy: current.missedPolicy }),
       });
       const turnId = agentId === senderAgentId ? params.turnId : undefined;
       const recorded = this.#recordWebhookEvent(agentId, "updated", routine, turnId);
@@ -1197,12 +1197,16 @@ export class RoutineScheduler implements RoutineDueSource {
    * The writer of the webhook routine tools. A public route changes only on a person's request: a
    * routine run or an agent message can carry text from outside, such as a webhook body.
    */
-  #webhookTool(senderAgentId: string, turnId: string): WebhookRoutineWriter {
+  #webhookTool(senderAgentId: string, threadId: string, turnId: string): WebhookRoutineWriter {
     const webhooks = this.#webhookRoutines?.();
     if (!webhooks) throw new RoutineInputError("This server cannot create webhook routines.");
-    const requested = this.#mailbox
-      .findDeliveriesByTurn(senderAgentId, turnId)
-      .some(({ delivery }) => delivery.sender.kind === "user");
+    // Every delivery of the turn: a message steered into a routine run shares the run's turn. Only
+    // the agent's own chat: a channel task and a Slack or Telegram message also arrive as `user`.
+    const deliveries = this.#mailbox.findDeliveriesByTurn(senderAgentId, turnId);
+    const requested =
+      deliveries.length > 0 &&
+      deliveries.every(({ delivery }) => delivery.sender.kind === "user") &&
+      !this.#conversation.isExecutionThread(this.#conversation.publicThreadId(senderAgentId, threadId));
     if (!requested) {
       throw new RoutineInputError(
         "Only a person's message can create or change a webhook routine. Ask the user to request it in the chat.",

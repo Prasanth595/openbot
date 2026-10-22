@@ -29,6 +29,7 @@ import { useText } from "@openbot/ui/text";
 import { createMemo, createSignal, For, Loading, lazy, onCleanup, Show, untrack } from "solid-js";
 import { planItems, planTitle } from "../../app-message-projection";
 import { deviceSendShortcut } from "../../send-shortcut-preference";
+import { remoteRoutineRecovery } from "../servers/server-capabilities";
 import { speechModelReady } from "../speech/speech-model";
 import { recordingGone, speechReading, spokenReply } from "../speech/speech-playback";
 import {
@@ -330,9 +331,15 @@ export function ConversationTimeline() {
     () => {
       const agentId = props.agent?.id;
       const api = webhookRoutinesNeeded() ? desktopChatEventRoutinesApi(props.server, props.runtime) : undefined;
-      return agentId && api ? { api, agentId, serverId: props.server?.id } : undefined;
+      return agentId && api
+        ? { api, agentId, serverId: props.server?.id, recovery: remoteRoutineRecovery(props.server) }
+        : undefined;
     },
-    { equals: (left, right) => left?.agentId === right?.agentId && left?.serverId === right?.serverId },
+    // A new adapter for the same host, agent and routes is the same source: no reload.
+    {
+      equals: (left, right) =>
+        left?.agentId === right?.agentId && left?.serverId === right?.serverId && left?.recovery === right?.recovery,
+    },
   );
   const webhookRoutines = createChatWebhookRoutines(webhookRoutineSource);
   /**
@@ -344,7 +351,7 @@ export function ConversationTimeline() {
     const cardMarker = routineCardMarker(message, marker);
     if (!source || !message || !cardMarker || cardMarker.action === "deleted") return undefined;
     if (latestRoutineMessageIds().get(cardMarker.routineId) !== message.id) return undefined;
-    const routine = webhookRoutines.routines.find((candidate) => candidate.id === cardMarker.routineId);
+    const routine = webhookRoutines.state.routines.find((candidate) => candidate.id === cardMarker.routineId);
     return routine && { api: source.api, action: cardMarker.action, routine };
   };
   /** A suggestion this client can draw is a card. One for an app it does not know keeps the marker. */
@@ -647,7 +654,11 @@ export function ConversationTimeline() {
                                                 api={card().api}
                                                 action={card().action}
                                                 routine={card().routine}
-                                                connected={webhookRoutines.connected}
+                                                connected={webhookRoutines.state.connected}
+                                                secret={webhookRoutines.state.secrets[card().routine.id] ?? null}
+                                                onSecret={(secret) =>
+                                                  webhookRoutines.setSecret(card().routine.id, secret)
+                                                }
                                                 onOpenRoutine={openRoutineSettings}
                                               />
                                             )}

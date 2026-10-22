@@ -76,7 +76,6 @@ export interface WebhookRoutineWriter {
     eventType: string | null;
     filters: EventFilter[];
     limitPolicy?: EventRoutine["limitPolicy"];
-    missedPolicy?: EventRoutine["missedPolicy"];
   }): Effect.Effect<EventRoutine, RoutineOperationFailed>;
 }
 
@@ -97,7 +96,8 @@ export function webhookToolTrigger(
   if (!Array.isArray(filters) || !filters.every(isEventFilter)) {
     throw new RoutineInputError('filters must be a list of { "pointer": JSON Pointer, "value": scalar }.');
   }
-  return { eventType, filters };
+  // The receiver compares the type exactly, as the editor saves it: trimmed.
+  return { eventType: eventType === null ? null : eventType.trim(), filters };
 }
 
 /** One webhook routine as `list_routines` shows it. */
