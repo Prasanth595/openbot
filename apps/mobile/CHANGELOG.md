@@ -7,7 +7,7 @@ the [root changelog](../../CHANGELOG.md).
 
 ## [Unreleased]
 
-## [1.4.0] - 2026-10-21 (Android)
+## [1.4.0] - 2026-10-21 (Android), 2026-10-22 (iOS)
 
 ### Added
 
