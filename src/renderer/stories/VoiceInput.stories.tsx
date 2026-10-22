@@ -70,7 +70,6 @@ const STATES: VoiceInputState[] = [
   { title: "Transcript in the draft", draft: DICTATION },
   { title: "Microphone blocked", error: () => currentText().t("composer.voice.blocked") },
   { title: "No speech detected", error: () => currentText().t("composer.voice.noSpeechDetected") },
-  { title: "No microphone (Linux and remote web)", props: { platform: "linux" } },
 ];
 
 /** Only the message box, set to one voice state through the same controller signals the app uses. */

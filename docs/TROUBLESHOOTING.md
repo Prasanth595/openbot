@@ -50,9 +50,7 @@ Do not start OpenBot with `--no-sandbox`. It is not a supported workaround. The 
 boundary between a web renderer and the rest of your computer, and OpenBot gives its agents full
 local access on the other side of it.
 
-## Voice prompts or remote desktop are missing on Linux
-
-The Linux build has no voice transcription runtime, so the microphone control is not drawn.
+## Remote desktop is missing on Linux
 
 Remote desktop on Linux needs the x64 AppImage and an X11 session. Sunshine captures the X11 screen
 and sends mouse and keyboard input through the XTest extension. Under Wayland, or with no `DISPLAY`,

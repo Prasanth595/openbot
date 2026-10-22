@@ -585,9 +585,9 @@ stage the user waits on is bounded by a timeout and recorded in `logs/update/upd
 check, download, or restart reports an actionable error and can be retried in place.
 
 The voice runtime (the sherpa-onnx N-API addon and ONNX Runtime, from the pinned `sherpa-onnx-*`
-npm packages) is part of the macOS and Windows applications, in `voice/runtime`. Linux ships no voice
-runtime, so voice prompts report themselves as unavailable there. The Linux arm64 AppImage also
-ships no remote desktop runtime. The NVIDIA Parakeet TDT 0.6B v3 int8 model is not part of an application or update
+npm packages) is part of the macOS, Windows and Linux applications, in `voice/runtime`. Each Linux
+AppImage carries the runtime of its architecture. The Linux arm64 AppImage ships no remote desktop
+runtime. The NVIDIA Parakeet TDT 0.6B v3 int8 model is not part of an application or update
 artifact. OpenBot downloads its four pinned files on first voice use, checks the size and SHA-256 of
 each, and keeps the verified files in `runtimes/parakeet-tdt-0.6b-v3-int8` in the user data directory
 for later offline use. The optional Whisper large-v3 turbo int8 model, which takes a fixed dictation

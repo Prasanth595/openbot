@@ -51,7 +51,6 @@ import { deviceSendShortcut, sendShortcutAriaKey, sendShortcutHintKey } from "..
 import { speechReading } from "../speech/speech-playback";
 import { stopSpokenReply } from "../speech/speech-replies";
 import { useConversationViewScope } from "./conversation-scope";
-import { voiceSupported } from "./voice-status";
 
 // Module scope: the composer remounts on navigation, and a dismissed notice must stay dismissed.
 const [dismissedCompactions, setDismissedCompactions] = createSignal<Record<string, string>>({});
@@ -140,7 +139,7 @@ export function ConversationComposer() {
   const waitsVisible = () => waitItems().length > 0 && Boolean(props.onCancelWait) && !pickerOpen();
   const slotOpen = () => queueVisible() || awaitingVisible() || waitsVisible();
   // A channel has many speakers, so it has no voice input.
-  const voiceAvailable = () => !channel && !props.runtime && voiceSupported(props.platform);
+  const voiceAvailable = () => !channel && !props.runtime;
   /** The reply of this agent that is read aloud. The voice pane shows its own. */
   const speaking = () => {
     const reading = speechReading();

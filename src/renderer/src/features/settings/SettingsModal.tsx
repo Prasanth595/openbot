@@ -39,7 +39,6 @@ import { createSettingsUpdatesStore } from "@openbot/ui/features/settings/stores
 import { createEffect, createSignal, Show, untrack } from "solid-js";
 import { useI18n } from "../../i18n-context";
 import { ComputerUseSetup } from "../computer-use/ComputerUseSetup";
-import { voiceSupported } from "../conversation/voice-status";
 import { licenseContactUs, trackLicenseEvent } from "./license-analytics";
 import { createProfileActivityStore } from "./profile-activity-store";
 import { renderProfileShareImage } from "./profile-share-image";
@@ -149,8 +148,6 @@ export function SettingsModal(props: SettingsModalProps) {
 
   // The Dynamic Island exists only on macOS, so other platforms get no tab for it.
   const isMac = () => props.appInfo?.platform === "darwin";
-  // Linux builds carry no speech recognition runtime.
-  const hasVoice = () => voiceSupported(props.appInfo?.platform);
   createEffect(
     () => {
       const tab = props.open ? props.openTab : undefined;
@@ -173,7 +170,7 @@ export function SettingsModal(props: SettingsModalProps) {
       if (
         value === "general" ||
         value === "notifications" ||
-        (value === "voice" && hasVoice()) ||
+        value === "voice" ||
         (value === "dynamic-island" && isMac()) ||
         value === "computer-use" ||
         value === "profile" ||
@@ -275,11 +272,9 @@ export function SettingsModal(props: SettingsModalProps) {
           />
         </Tabs.Content>
 
-        <Show when={hasVoice()}>
-          <Tabs.Content value="voice" class="settings-modal-tab-panel" data-tab="voice">
-            <SettingsVoiceTab store={voice} selectMount={modalElement} />
-          </Tabs.Content>
-        </Show>
+        <Tabs.Content value="voice" class="settings-modal-tab-panel" data-tab="voice">
+          <SettingsVoiceTab store={voice} selectMount={modalElement} />
+        </Tabs.Content>
 
         <Show when={isMac()}>
           <Tabs.Content value="dynamic-island" class="settings-modal-tab-panel" data-tab="dynamic-island">

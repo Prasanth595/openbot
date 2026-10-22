@@ -51,7 +51,6 @@ import { createSideQuestionStore } from "./stores/side-question-store";
 import { createSkillsStore } from "./stores/skills-store";
 import { createVoiceConversation } from "./stores/voice-conversation-store";
 import { createVoiceStore } from "./stores/voice-store";
-import { voiceSupported } from "./voice-status";
 
 /** A keyboard or wheel scroll moves the chat within a few frames of its input. */
 const READER_INPUT_WINDOW_MS = 250;
@@ -1517,7 +1516,7 @@ export function createConversationViewScope(props: ConversationProps) {
    * A voice conversation hears and speaks on this computer, so it needs its speech models. A remote
    * server gets the text only.
    */
-  const voiceConversationAvailable = () => !channel && !props.runtime && voiceSupported(props.platform);
+  const voiceConversationAvailable = () => !channel && !props.runtime;
   /** Starts a voice conversation with an agent. It ends with the owner that calls this. */
   const startVoiceConversation = (agentId: string) =>
     createVoiceConversation({

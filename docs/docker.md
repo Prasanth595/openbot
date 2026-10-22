@@ -435,7 +435,7 @@ does not use systemd.
 
 - Remote desktop and Computer Use need a display. The container has a virtual display for the
   agents, but remote desktop and Computer Use were not tested in it. The arm64 release has no remote desktop runtime.
-- Voice prompts are not available on Linux.
+- Voice prompts are not available: the container has no microphone, and the web app has no voice prompts.
 - Gemini signs in on a Google page in the browser of the container. An owner or admin opens it
   with Connect in the app, and signs in through the live view of that page. This needs a release
   with `provider-host-sign-in-v1` on both sides. It was not tested in a container.

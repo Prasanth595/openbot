@@ -71,7 +71,7 @@ On the first start from an AppImage, OpenBot writes `~/.local/share/applications
 and `~/.local/share/icons/openbot.png`, which is what lets an `openbot://` link - an invitation, or
 a plugin listing - open the app and gives the launcher an icon that stays after the app exits. Delete the two files to undo it.
 
-Voice prompts are not available on Linux. Remote desktop works on Linux x64 in an X11 session,
+Remote desktop works on Linux x64 in an X11 session,
 such as Xorg or Xvfb. It does not work under Wayland, and the arm64 AppImage does not include it.
 
 For Gemini sign-in, install a desktop browser and `xdg-utils`. Open the sign-in page in a
