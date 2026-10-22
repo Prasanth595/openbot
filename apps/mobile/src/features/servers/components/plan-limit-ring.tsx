@@ -22,7 +22,7 @@ function useProviderColor(provider: AgentProviderId): string {
   return foreground;
 }
 
-export function ProviderMark({ provider, size }: { provider: AgentProviderId; size: number }) {
+function ProviderMark({ provider, size }: { provider: AgentProviderId; size: number }) {
   const color = useProviderColor(provider);
   const shape = providerLogoShape(provider);
   return (

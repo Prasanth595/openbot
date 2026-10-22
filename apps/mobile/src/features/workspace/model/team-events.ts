@@ -58,7 +58,7 @@ export function syncEventQueries(
   }
   applyTaskEvent(queryClient, scope, serverId, event);
   if (event.type === "usage-changed") {
-    queryClient.setQueriesData<PlanLimits>({ queryKey: queryKeys.planLimits(scope, serverId) }, (current) =>
+    queryClient.setQueryData<PlanLimits>(queryKeys.planLimits(scope, serverId), (current) =>
       current ? { ...current, usage: withSignInUsage(current.usage, event.usage) } : current,
     );
     return;

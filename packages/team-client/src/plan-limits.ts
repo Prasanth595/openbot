@@ -139,7 +139,8 @@ function decodeAccountUsage(value: unknown): AccountUsage {
 
 /**
  * Reads the limits of the provider's own sign-ins, which every member can read. With `accounts`,
- * also reads the accounts after the first and their names: owners and admins only.
+ * also reads the accounts after the first and their names: owners and admins only. Those two reads
+ * are optional: when one fails, the sign-in limits still show, as they do for a member.
  */
 export const readPlanLimits = Effect.fn("TeamClient.readPlanLimits")(function* (
   request: TeamApiRequest,
@@ -150,11 +151,14 @@ export const readPlanLimits = Effect.fn("TeamClient.readPlanLimits")(function* (
     catch: (cause) => new PlanLimitsRequestError({ cause }),
   });
   if (!accounts) return { usage: withSignInUsage(null, yield* signIns), accounts: null };
-  const admin = <A, E>(read: Effect.Effect<A, E>) =>
-    read.pipe(Effect.mapError((cause) => new PlanLimitsRequestError({ cause })));
-  const [signInUsage, accountUsage, list] = yield* Effect.all(
-    [signIns, admin(providerAccountUsage(request)), admin(listProviderAccounts(request))],
+  const [signInUsage, extra] = yield* Effect.all(
+    [
+      signIns,
+      Effect.all([providerAccountUsage(request), listProviderAccounts(request)], {
+        concurrency: "unbounded",
+      }).pipe(Effect.orElseSucceed(() => null)),
+    ],
     { concurrency: "unbounded" },
   );
-  return { usage: withSignInUsage(accountUsage, signInUsage), accounts: list.providers };
+  return { usage: withSignInUsage(extra?.[0], signInUsage), accounts: extra?.[1].providers ?? null };
 });

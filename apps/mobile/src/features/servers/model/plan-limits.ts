@@ -32,9 +32,10 @@ export function usePlanLimits(serverId: string) {
   const online = useMobileWorkspaceSelector(
     (current) => current.servers.find((server) => server.id === serverId)?.state === "online",
   );
+  // Not in the key: the role check needs an online server, so the key would change when it goes offline.
   const accounts = useMobileWorkspaceSelector((current) => current.canManageProviderAccounts(serverId));
   const limits = useQuery({
-    queryKey: queryKeys.planLimits(queryScope, serverId, accounts),
+    queryKey: queryKeys.planLimits(queryScope, serverId),
     queryFn: () => workspace.loadPlanLimits(serverId, accounts),
     enabled: online,
     refetchInterval: PLAN_LIMITS_REFRESH_MS,

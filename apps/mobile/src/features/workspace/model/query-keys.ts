@@ -112,12 +112,7 @@ export const queryKeys = {
     ...logo,
   ],
   /** The plan limits of a server's providers. The host's `usage-changed` event writes the providers' own sign-ins. */
-  planLimits: (scope: QueryScope, serverId: string, ...accounts: [boolean] | []) => [
-    "plan-limits",
-    ...scope,
-    serverId,
-    ...accounts,
-  ],
+  planLimits: (scope: QueryScope, serverId: string) => ["plan-limits", ...scope, serverId],
   serverUsage: (scope: QueryScope, serverId: string, range: unknown, agentId: string | undefined) => [
     "server-usage",
     ...scope,
