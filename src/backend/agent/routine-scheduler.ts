@@ -612,12 +612,21 @@ export class RoutineScheduler implements RoutineDueSource {
       const agentId = this.#toolAgentId(args, senderAgentId);
       const webhooks = this.#webhookRoutines?.();
       if (!webhooks) throw new RoutineInputError("This server cannot create webhook routines.");
+      // A public route only on a person's request: a routine run or an agent message can carry text
+      // from outside, such as a webhook body.
+      const requested = this.#mailbox
+        .findDeliveriesByTurn(senderAgentId, params.turnId)
+        .some(({ delivery }) => delivery.sender.kind === "user");
+      if (!requested) {
+        throw new RoutineInputError(
+          "Only a person's message can create a webhook routine. Ask the user to request it in the chat.",
+        );
+      }
       const active = args.active === undefined ? true : args.active;
       if (!isBoolean(active)) throw new RoutineInputError("active must be a boolean.");
-      const timezone =
-        args.timezone === undefined
-          ? (this.#turnSenderTimezone(senderAgentId, params.turnId) ?? this.#timezone())
-          : routineToolString(args.timezone, "timezone", 128, "A routine timezone is required.");
+      // The zone has no effect on a webhook trigger. It is the editor's default if the user changes
+      // the trigger to a schedule.
+      const timezone = this.#turnSenderTimezone(senderAgentId, params.turnId) ?? this.#timezone();
       const name = routineToolString(args.name, "name", INPUT_LIMITS.routineName, "A routine name is required.");
       const key = name.trim().toLowerCase();
       // Both trigger kinds: `list_routines` shows schedule routines only, so the model cannot check first.
@@ -644,8 +653,8 @@ export class RoutineScheduler implements RoutineDueSource {
       });
       // Only the caller's own chat shows the card with the secret: the card needs the turn.
       const turnId = agentId === senderAgentId ? params.turnId : undefined;
-      this.#recordWebhookCreated(agentId, routine, turnId);
-      return openBotToolResult(webhookRoutineToolResult(routine, turnId !== undefined));
+      const recorded = this.#recordWebhookCreated(agentId, routine, turnId);
+      return openBotToolResult(webhookRoutineToolResult(routine, recorded && turnId !== undefined));
     }
 
     if (params.tool === "update_routine") {
@@ -1146,9 +1155,9 @@ export class RoutineScheduler implements RoutineDueSource {
 
   /**
    * The chat record of a webhook routine that an agent made. The main process saved the routine
-   * already, so a failed record is reported and does not fail the tool call.
+   * already, so a failed record is reported and does not fail the tool call. False when it failed.
    */
-  #recordWebhookCreated(agentId: string, routine: EventRoutine, turnId: string | undefined): void {
+  #recordWebhookCreated(agentId: string, routine: EventRoutine, turnId: string | undefined): boolean {
     try {
       this.#mutateWithConversation(
         agentId,
@@ -1157,8 +1166,10 @@ export class RoutineScheduler implements RoutineDueSource {
         (saved) => saved,
         turnId,
       );
+      return true;
     } catch (error) {
       this.#hooks.emitError("routine_event_record_failed", error, agentId);
+      return false;
     }
   }
 

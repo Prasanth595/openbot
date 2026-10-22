@@ -21,7 +21,9 @@ You can also ask an agent in chat to make a webhook routine. The agent calls
 `openbot.create_webhook_routine` and tells you the URL and the request format. It does not get the
 secret. A card in the chat shows the URL; press the regenerate button on the card to make the
 secret, then copy it. Only a person who can manage the host's webhook routines sees the card. When
-the agent makes the routine for another agent, get the secret in that agent's routine editor.
+the agent makes the routine for another agent, get the secret in that agent's routine editor. Only
+a person's message can start the tool: a routine run or another agent's message cannot make a
+webhook routine.
 
 To replace the secret, make a new one in the routine editor and update the sender. The old secret
 stops working immediately. A secret has the format `whsec_<43 base64url characters>`.

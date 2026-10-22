@@ -3,6 +3,7 @@ import { type DynamicRecord, isString } from "@openbot/contracts/runtime-values"
 import { WEBHOOK_DELIVERY_BODY_BYTES_LIMIT } from "@openbot/contracts/signal-protocol/messages";
 import {
   WEBHOOK_DELIVERY_ID_HEADER,
+  WEBHOOK_MAX_CLOCK_SKEW_SECONDS,
   WEBHOOK_SIGNATURE_HEADER,
   WEBHOOK_TIMESTAMP_HEADER,
 } from "@openbot/contracts/signal-protocol/webhook-route";
@@ -19,7 +20,6 @@ export const CREATE_WEBHOOK_ROUTINE_ARGUMENTS = [
   "eventType",
   "filters",
   "active",
-  "timezone",
   "limitPolicy",
 ] as const;
 
@@ -30,13 +30,21 @@ const WEBHOOK_REQUEST_FORMAT = {
   body: '{ "type": string, "occurredAt"?: ISO 8601 date-time, "data"?: any JSON value }',
   bodyLimitBytes: WEBHOOK_DELIVERY_BODY_BYTES_LIMIT,
   headers: {
-    [WEBHOOK_TIMESTAMP_HEADER]: "Unix time in seconds. It must be within 5 minutes of the host clock.",
+    [WEBHOOK_TIMESTAMP_HEADER]: `Unix time in seconds. It must be within ${WEBHOOK_MAX_CLOCK_SKEW_SECONDS} seconds of the host clock.`,
     [WEBHOOK_DELIVERY_ID_HEADER]:
-      "A unique ID for each event: letters, digits, '.', '_', ':' or '-', up to 256 characters. A repeat of an ID is a duplicate.",
+      "A unique ID for each event, up to 256 characters: a letter or a digit first, then letters, digits, '.', '_', ':' or '-'. A repeat of an ID is a duplicate.",
     [WEBHOOK_SIGNATURE_HEADER]:
       "sha256=<hex HMAC-SHA256 of '<timestamp>.<delivery ID>.<exact body bytes>', keyed with the signing secret>",
   },
-  responses: { "202": "accepted", "200": "duplicate", "401": "bad signature or stale timestamp" },
+  responses: {
+    "202": "accepted",
+    "200": "duplicate",
+    "400": "the body is not the JSON above",
+    "401": "bad signature, timestamp or delivery ID",
+    "404": "the routine is gone",
+    "413": "the body is too large",
+    "503": "the host is offline or busy; retry later",
+  },
 };
 
 /**
@@ -69,8 +77,9 @@ export function webhookToolTrigger(args: DynamicRecord): { eventType: string | n
 }
 
 /**
- * The tool result. `cardInChat` is false when the routine belongs to another agent: its chat, not
- * this one, has the record, and that record has no card.
+ * The tool result. `cardInChat` is false when this chat has no record of the routine: it belongs to
+ * another agent, or the record failed. The card shows its secret button only to a person who
+ * manages the host's webhook routines in the desktop app, so the text names both ways.
  */
 export function webhookRoutineToolResult(routine: EventRoutine, cardInChat: boolean) {
   const trigger = routine.trigger.kind === "webhook" ? routine.trigger : null;
@@ -84,7 +93,7 @@ export function webhookRoutineToolResult(routine: EventRoutine, cardInChat: bool
     ...(trigger?.url ? {} : { urlPending: "The URL is not ready. The routine settings show it when it is." }),
     request: WEBHOOK_REQUEST_FORMAT,
     secret: cardInChat
-      ? "OpenBot shows the user a card in this chat with the URL and a button that shows the signing secret. Tell the user to copy the secret from there. You do not have it."
-      : "Tell the user to open this routine in the agent's Routines settings to get the signing secret. You do not have it.",
+      ? "You do not have the signing secret. In the desktop app, a person who manages this host's webhook routines sees a card in this chat with a button that makes it. Anyone else gets it from that person, who can also make it in the routine's settings."
+      : "You do not have the signing secret. A person who manages this host's webhook routines makes it in the routine's settings in the desktop app.",
   };
 }

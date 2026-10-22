@@ -409,7 +409,7 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
   {
     name: CREATE_WEBHOOK_ROUTINE_TOOL,
     description:
-      "Create a routine that a signed HTTP request starts, for this agent or for another local agent when agentId is provided. Use it when the user wants work to start when something happens in another system. It is active by default. The result has the webhook URL and the request format. The signing secret is not in the result: OpenBot shows it to the user in the chat. Never ask the user for the secret. A null url means the URL is not ready yet; the chat and the Routines settings show it when it is.",
+      "Create a routine that a signed HTTP request starts, for this agent or for another local agent when agentId is provided. Use it when the user wants work to start when something happens in another system. It works only in a turn that a person's message started, not in a routine run or for an agent's message. It is active by default. The result has the webhook URL and the request format. The signing secret is not in the result; the result says where the user gets it. Never ask the user for the secret. A null url means the URL is not ready yet; the Routines settings show it when it is.",
     shape: {
       agentId: z.string().min(1).max(INPUT_LIMITS.identifier).optional(),
       name: z.string().min(1).max(INPUT_LIMITS.routineName),
@@ -421,7 +421,6 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
       eventType: webhookEventTypeZodSchema.optional(),
       filters: webhookFiltersZodSchema.optional(),
       active: z.boolean().optional(),
-      timezone: z.string().min(1).max(128).describe("IANA timezone such as Europe/Warsaw.").optional(),
       limitPolicy: routineLimitPolicyZodSchema.optional(),
     },
   },

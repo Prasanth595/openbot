@@ -318,7 +318,9 @@ export function ConversationTimeline() {
   // Webhook routines load only for a person who can manage them, and only for a chat with an agent
   // record of a routine that is not a schedule routine.
   const webhookRoutinesNeeded = createMemo(() => {
-    const scheduled = new Set(props.routines?.map((routine) => routine.id));
+    // Before the schedule routines load, every record looks like one that is not a schedule routine.
+    if (!props.routines) return false;
+    const scheduled = new Set(props.routines.map((routine) => routine.id));
     return timelineMessages().some((message) => {
       const marker = routineCardMarker(message, message.actionMarker);
       return marker?.action === "created" && !scheduled.has(marker.routineId);
