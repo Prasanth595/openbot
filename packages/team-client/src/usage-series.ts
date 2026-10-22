@@ -21,7 +21,9 @@ export function usageSeries(
 ): { series: string[]; rows: UsageSeriesRow[] } {
   const measure = (value: AnalyticsDay | AnalyticsProviderDay) =>
     metric === "cost" ? value.estimatedCostUsd : analyticsTokens(value);
-  if (cells.length === 0)
+  // A remote host sends cells without `cachedInput` (frozen host-analytics v1), so their tokens
+  // would still count cache reads. The days carry `cachedInput`, so the token chart draws their total.
+  if (cells.length === 0 || (metric === "tokens" && cells.some((cell) => cell.cachedInput === undefined)))
     return {
       series: [usageTotalSeries],
       rows: daily.map((day) => ({ date: day.date, [usageTotalSeries]: measure(day) })),

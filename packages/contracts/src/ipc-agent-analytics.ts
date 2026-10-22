@@ -41,12 +41,13 @@ export interface AnalyticsAgent extends AnalyticsTotals {
 // One cell of the daily-by-provider grid. The chart reads exactly these measures, so
 // the cell carries them rather than the other fields of AnalyticsTotals: at the
 // 367-day cap a full-totals cell per provider is four times the payload for nothing.
-// A host on the frozen host-analytics v1 wire sends no `cachedInput`, so it decodes as null.
+// The Team API carries a cell on the frozen host-analytics v1 wire, which has no `cachedInput`,
+// so a remote report decodes without it. Null means the provider reported no cache reads.
 export interface AnalyticsProviderDay {
   date: string;
   provider: string;
   processedTokens: number;
-  cachedInput: number | null;
+  cachedInput?: number | null;
   estimatedCostUsd: number | null;
 }
 /**
@@ -54,7 +55,7 @@ export interface AnalyticsProviderDay {
  * turn reads the whole cached conversation again, so cache reads repeat the same context once
  * per request and can be ten times the rest (#2747). Unknown cache reads subtract nothing.
  */
-export function analyticsTokens(row: { processedTokens: number; cachedInput: number | null }): number {
+export function analyticsTokens(row: { processedTokens: number; cachedInput?: number | null }): number {
   return Math.max(0, row.processedTokens - (row.cachedInput ?? 0));
 }
 export interface AgentAnalytics {
@@ -252,7 +253,7 @@ export function decodeAnalyticsProviderDays(value: unknown): AnalyticsProviderDa
       date: dateValue(cell.date),
       provider: cell.provider,
       processedTokens: number(cell.processedTokens),
-      cachedInput: cell.cachedInput === undefined ? null : token(cell.cachedInput),
+      ...(cell.cachedInput === undefined ? {} : { cachedInput: token(cell.cachedInput) }),
       estimatedCostUsd: nullableNumber(cell.estimatedCostUsd),
     };
   });

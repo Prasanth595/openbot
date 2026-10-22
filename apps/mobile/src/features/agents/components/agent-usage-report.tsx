@@ -86,9 +86,11 @@ export function AgentUsageReport({
       ? format.number(value, { notation: "compact", maximumFractionDigits: 1 })
       : format.currencyUsd(value, { maximumSignificantDigits: 2 });
   const totals = result.totals;
-  // The backend share is of processed tokens, cache reads included, so the rows take theirs again.
+  // The backend share and order are of processed tokens, cache reads included, so the rows take theirs again.
   const share = (row: { processedTokens: number; cachedInput: number | null }) =>
     analyticsTokens(totals) ? analyticsTokens(row) / analyticsTokens(totals) : 0;
+  const byTokens = <T extends { processedTokens: number; cachedInput: number | null }>(rows: readonly T[]) =>
+    [...rows].sort((a, b) => analyticsTokens(b) - analyticsTokens(a));
   const partial = totals.missingUsageTurns || totals.incompleteRecords || totals.unpricedRecords;
   return (
     <View className="gap-5">
@@ -223,7 +225,7 @@ export function AgentUsageReport({
       {agents ? (
         <SettingsSection title={t("mobile.server.usage.agents")}>
           {agents.length ? (
-            agents.map((agent) => (
+            byTokens(agents).map((agent) => (
               <SettingsRow
                 key={agent.agentId}
                 onPress={onSelectAgent ? () => onSelectAgent(agent.agentId) : undefined}
@@ -253,7 +255,7 @@ export function AgentUsageReport({
       ) : null}
       <SettingsSection title={t("mobile.agent.usage.models")}>
         {result.models.length ? (
-          result.models.map((model) => (
+          byTokens(result.models).map((model) => (
             <View key={`${model.provider}:${model.model}`} className="gap-2 p-4">
               <Typography>{model.model || t("mobile.agent.usage.unknownModel")}</Typography>
               <Typography type="body-xs" className="text-grouped-secondary">
