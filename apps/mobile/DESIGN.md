@@ -55,8 +55,19 @@ visible pin exists. The lead cannot be unpinned; pin commands and native menus e
 Other pins stay below the card and retain pin/unpin controls. Hiding or deleting the lead selects
 a replacement without restoring a hidden agent. Add agent remains in the Team options menu. Settings remains in
 that menu and the workspace drawer. Search keeps
-task creation through `@` and uses the existing bottom field when an agent is selected for a task. Agent chat keeps a full-width composer with a model control; the task composer keeps its
-adaptive layout. New users get neutral message bubbles. A saved agent-color preference still applies.
+task creation through `@` and uses the existing bottom field when an agent is selected for a task.
+Agent and channel chats share the full-width composer. Agent chat adds its model control; the task
+composer keeps its adaptive layout. New users get neutral message bubbles. A saved agent-color
+preference still applies.
+
+Consecutive replies from the same agent within five minutes share one author label and an 8 pt
+content gap. Only the last reply shows the action row and timestamp. Earlier replies use swipe to
+reply and touch and hold to copy their own text. Do not show a More button or copy empty file-only
+messages. Keep saved reactions visible. A screen reader keeps each message's full action row so
+copy and reply do not depend on gestures or hide attachment and link focus. A longer pause on the
+same day starts a separate block with a time divider. A new day, sender, marker, explicit reply,
+failed message or superseded message starts a new block. Keep message IDs and list rows unchanged
+so history, search and pagination still address the original messages.
 
 The later avatar correction keeps the original main-branch Bloub artwork on every screen,
 including inline mentions and the appearance picker. Saved seeds, colors, photos and motion stay intact.

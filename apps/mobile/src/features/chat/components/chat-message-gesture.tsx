@@ -8,28 +8,30 @@ import { scheduleOnRN } from "react-native-worklets";
 import { haptics } from "@/shared/lib/haptics";
 
 /**
- * A swipe to the right replies, and a touch and hold selects text in the bubble. The action row
- * under the message has the same actions, so a screen reader uses that row.
+ * A swipe to the right replies. A touch and hold copies earlier replies in a burst, or selects
+ * text in other replies. A screen reader keeps the full action row for each message.
  */
 export function ChatMessageGesture({
   children,
   selecting,
   onReply,
   onSelectText,
+  onCopy,
 }: PropsWithChildren<{
   /** The text is selected in the bubble: the handles get the touches, not the swipe. */
   selecting: boolean;
   onReply?: () => void;
   onSelectText?: () => void;
+  onCopy?: () => void;
 }>) {
   const muted = useThemeColor("muted");
   const offset = useSharedValue(0);
   const bubbleStyle = useAnimatedStyle(() => ({ transform: [{ translateX: offset.get() }] }));
   const iconStyle = useAnimatedStyle(() => ({ opacity: Math.min(1, offset.get() / 64) }));
-  const handlers = useRef({ onReply, onSelectText });
-  handlers.current = { onReply, onSelectText };
+  const handlers = useRef({ onReply, onSelectText, onCopy });
+  handlers.current = { onReply, onSelectText, onCopy };
   const canReply = Boolean(onReply) && !selecting;
-  const canSelect = Boolean(onSelectText) && !selecting;
+  const canHold = Boolean(onCopy || onSelectText) && !selecting;
   // Build the gestures once per row. A streaming reply re-renders its row for each chunk, and a new
   // gesture would reconfigure the native handler each time.
   const gesture = useMemo(() => {
@@ -37,9 +39,12 @@ export function ChatMessageGesture({
       void haptics.impact();
       handlers.current.onReply?.();
     };
-    const selectText = () => {
-      void haptics.impact();
-      handlers.current.onSelectText?.();
+    const holdMessage = () => {
+      if (handlers.current.onCopy) handlers.current.onCopy();
+      else {
+        void haptics.impact();
+        handlers.current.onSelectText?.();
+      }
     };
     const swipe = Gesture.Pan()
       .enabled(canReply)
@@ -56,10 +61,10 @@ export function ChatMessageGesture({
         offset.set(withSpring(0, { duration: 400, dampingRatio: 1, reduceMotion: ReduceMotion.System }));
       });
     const hold = Gesture.LongPress()
-      .enabled(canSelect)
-      .onStart(() => scheduleOnRN(selectText));
+      .enabled(canHold)
+      .onStart(() => scheduleOnRN(holdMessage));
     return Gesture.Race(swipe, hold);
-  }, [canReply, canSelect, offset]);
+  }, [canReply, canHold, offset]);
 
   return (
     <View className="max-w-[88%] self-start">

@@ -437,6 +437,42 @@ export function groupExchangeMarkers<T extends ChatMessage>(messages: readonly T
   return rows;
 }
 
+/** Presentation only: each reply keeps its own row, identity, time and actions. */
+export function agentMessageRuns(messages: readonly (ChatMessage | ExchangeGroup)[]) {
+  const continuations = new Set<string>();
+  const continued = new Set<string>();
+  const pauses = new Map<string, Date>();
+  let previous: ChatBubbleMessage | undefined;
+  for (const message of messages) {
+    if (
+      message.kind !== "message" ||
+      message.author !== "agent" ||
+      (message.speaker && message.speaker.kind !== "agent") ||
+      message.superseded ||
+      message.replyToMessageId ||
+      message.status === "failed" ||
+      message.status === "interrupted"
+    ) {
+      previous = undefined;
+      continue;
+    }
+    if (previous && previous.speaker?.id === message.speaker?.id && previous.createdAt && message.createdAt) {
+      const before = new Date(previous.createdAt);
+      const after = new Date(message.createdAt);
+      const elapsed = after.getTime() - before.getTime();
+      // A new day, an unknown time or out-of-order history starts a separate block.
+      if (Number.isFinite(elapsed) && elapsed >= 0 && before.toDateString() === after.toDateString()) {
+        if (elapsed <= 5 * 60_000) {
+          continuations.add(message.id);
+          continued.add(previous.id);
+        } else pauses.set(message.id, after);
+      }
+    }
+    previous = message;
+  }
+  return { continuations, continued, pauses };
+}
+
 /**
  * The row that shows a host message, for a chat that opens at a search result. A marker row has the
  * message ID after its prefix, and a group row holds several markers. -1 when no row shows it.

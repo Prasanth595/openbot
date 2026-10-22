@@ -55,6 +55,7 @@ import { useMessageArrivals } from "@/features/chat/components/use-message-arriv
 import type { QuestionPromptController } from "@/features/chat/components/use-question-prompt";
 import { type ChatActivityPresentation, presentChatActivity } from "@/features/chat/model/chat-activity";
 import {
+  agentMessageRuns,
   type ChatBubbleMessage,
   type ChatMessage,
   chatRowIndex,
@@ -85,6 +86,7 @@ import { ChatMessageActions } from "./chat-message-actions";
 import { ChatMessageGesture } from "./chat-message-gesture";
 import { ChatOutboxStatus, OutboxMessageMenu, type OutboxRowStatus } from "./chat-outbox-status";
 import { ChatSelectableText } from "./chat-selectable-text";
+import { useCopyMessage } from "./use-copy-message";
 import { useReplyHaptics } from "./use-reply-haptics";
 
 /** The most movement and time of a touch that ends the selection: more is a scroll or a hold. */
@@ -97,6 +99,7 @@ const HANDLE_MARGIN = 24;
 type VisibleMessage = Exclude<ChatMessage, { kind: "thinking" }> | ExchangeGroup;
 const NO_ROWS: VisibleMessage[] = [];
 const ROW_STYLE = { paddingBottom: CHAT_ROW_GAP };
+const CONTINUATION_ROW_STYLE = { paddingBottom: 4 };
 /** The side padding of the list. */
 const LIST_PADDING = 20;
 /** A user's message is at most this part of the list width, as `max-w-[88%]` on its row. */
@@ -140,6 +143,24 @@ function ChatDayDivider({ date }: { date: Date }) {
       <Typography.Paragraph className="text-muted uppercase" style={typeScale.chatDay}>
         {label}
       </Typography.Paragraph>
+    </View>
+  );
+}
+
+function ChatTimeDivider({ date }: { date: Date }) {
+  const { format } = useText();
+  const border = useCSSVariable("--openbot-border-grouped");
+  return (
+    <View
+      accessible
+      accessibilityLabel={format.date(date, { dateStyle: "medium", timeStyle: "short" })}
+      className="flex-row items-center gap-3 pb-4 pt-2"
+    >
+      <View className="h-px flex-1" style={{ backgroundColor: String(border) }} />
+      <Typography.Paragraph className="text-muted" style={typeScale.chatDay}>
+        {format.date(date, { timeStyle: "short" })}
+      </Typography.Paragraph>
+      <View className="h-px flex-1" style={{ backgroundColor: String(border) }} />
     </View>
   );
 }
@@ -275,6 +296,7 @@ interface MessageRowShared {
   canReply: boolean;
   canReact: boolean;
   canSelectText: boolean;
+  screenReaderEnabled: boolean;
   canSelectQuestion: boolean;
   /** The width inside the list padding. The iOS menu of a queued message does not limit its width. */
   listWidth: number;
@@ -378,6 +400,8 @@ function awaitingFirstWord(message: VisibleMessage, shared: MessageRowShared, ar
 
 const MessageRow = memo(function MessageRow({
   message,
+  showAuthor = true,
+  compactActions = false,
   isFirstUser,
   source,
   questionForm,
@@ -389,6 +413,10 @@ const MessageRow = memo(function MessageRow({
   shared,
 }: {
   message: VisibleMessage;
+  /** Consecutive replies share their first author label, but keep separate controls. */
+  showAuthor?: boolean;
+  /** The last reply keeps the toolbar; earlier replies use swipe and long press. */
+  compactActions?: boolean;
   /** The first message of the chat, sent from this phone: it rises from the composer. */
   isFirstUser: boolean;
   arriving: boolean;
@@ -419,13 +447,15 @@ const MessageRow = memo(function MessageRow({
   // A message that the host does not have yet, or that still streams, has no host ID to act on:
   // it has no actions and no native selection.
   const bubble = message.kind === "message" && !outbox && !message.streaming && !waiting ? message : null;
+  const copyText = bubble ? messageCopyText(bubble) : "";
+  const { copy, copied } = useCopyMessage(copyText);
   const nativeSelect = shared.actions.nativeSelection;
   const nativeSelection = useMemo(
     () =>
-      bubble && nativeTextSelection && shared.canSelectText
+      bubble && !compactActions && nativeTextSelection && shared.canSelectText
         ? { generation: selectionGeneration, onSelect: (selected: string) => nativeSelect(bubble, selected) }
         : undefined,
-    [bubble, nativeSelect, selectionGeneration, shared.canSelectText],
+    [bubble, compactActions, nativeSelect, selectionGeneration, shared.canSelectText],
   );
   const {
     agents,
@@ -516,7 +546,7 @@ const MessageRow = memo(function MessageRow({
         }
         style={[{ borderCurve: "circular" }, isFirstUser ? firstMessageStyle : undefined]}
       >
-        {message.author === "agent" && !message.speaker && messageAgent ? (
+        {showAuthor && message.author === "agent" && !message.speaker && messageAgent ? (
           <View style={{ alignSelf: "stretch", flexDirection: "row", alignItems: "center", gap: 8, minHeight: 22 }}>
             <TeamAgentAvatar agent={messageAgent} size={22} showActivity={false} />
             <Typography.Paragraph numberOfLines={1} style={[typeScale.chatAuthor, { flex: 1, minWidth: 0 }]}>
@@ -529,7 +559,7 @@ const MessageRow = memo(function MessageRow({
             {message.sender.name.trim() || t("mobile.chat.speaker.memberFallback")}
           </Typography.Paragraph>
         ) : null}
-        {message.speaker && message.author !== "user" ? (
+        {showAuthor && message.speaker && message.author !== "user" ? (
           <View className="flex-row items-center gap-1 px-1">
             {message.speaker.kind === "agent" ? (
               <BloubAvatarThumbnail
@@ -674,7 +704,8 @@ const MessageRow = memo(function MessageRow({
         <ChatMessageGesture
           selecting={selecting}
           onReply={shared.canReply ? () => actions.reply(message) : undefined}
-          onSelectText={selectable ? () => actions.selectText(message) : undefined}
+          onCopy={compactActions && copyText ? () => void copy() : undefined}
+          onSelectText={!compactActions && selectable ? () => actions.selectText(message) : undefined}
         >
           {rendered}
         </ChatMessageGesture>
@@ -692,8 +723,11 @@ const MessageRow = memo(function MessageRow({
       {outbox ? <ChatOutboxStatus status={outbox} /> : null}
       {bubble ? (
         <ChatMessageActions
+          collapsed={compactActions}
           align={message.author === "user" ? "end" : "start"}
-          copyText={messageCopyText(message)}
+          copyText={copyText}
+          onCopy={copy}
+          copied={copied}
           createdAt={message.createdAt}
           reactions={message.reactions}
           agentsById={agentsById}
@@ -722,6 +756,7 @@ interface RowContextValue {
   firstUserId: string | null;
   messagesById: ReadonlyMap<string, ChatMessage>;
   dayDividers: ReadonlyMap<string, Date>;
+  agentRuns: ReturnType<typeof agentMessageRuns>;
   promptController: QuestionPromptController | undefined;
   upload: ChatUpload | null | undefined;
   outboxStatuses: ReadonlyMap<string, OutboxRowStatus> | undefined;
@@ -735,15 +770,22 @@ function ChatRow({ message }: { message: VisibleMessage }) {
   if (!row) return null;
   const response = row.responseIds.has(message.id);
   const day = row.dayDividers.get(message.id);
+  const pause = row.agentRuns.pauses.get(message.id);
   return (
     <Animated.View
-      style={[ROW_STYLE, response ? row.responseStyle : undefined]}
+      style={[
+        row.agentRuns.continued.has(message.id) ? CONTINUATION_ROW_STYLE : ROW_STYLE,
+        response ? row.responseStyle : undefined,
+      ]}
       accessibilityElementsHidden={response && !row.responseVisible}
       importantForAccessibility={response && !row.responseVisible ? "no-hide-descendants" : "auto"}
     >
       {day ? <ChatDayDivider date={day} /> : null}
+      {!day && pause ? <ChatTimeDivider date={pause} /> : null}
       <MessageRow
         message={message}
+        showAuthor={!row.agentRuns.continuations.has(message.id)}
+        compactActions={!row.shared.screenReaderEnabled && row.agentRuns.continued.has(message.id)}
         isFirstUser={message.id === row.firstUserId}
         source={
           message.kind === "message" && message.replyToMessageId
@@ -960,6 +1002,7 @@ export const ChatMessageList = memo(function ChatMessageList({
   // Every image of the loaded messages, in chat order, for the viewer's carousel.
   const images = useMemo(() => conversationImages(visibleMessages), [visibleMessages]);
   const dayDividers = useMemo(() => chatDayDividers(visibleMessages), [visibleMessages]);
+  const agentRuns = useMemo(() => agentMessageRuns(visibleMessages), [visibleMessages]);
   // The list renders only the rows in and near the view, so it gets every loaded message.
   const rows = rowsShown ? visibleMessages : NO_ROWS;
   const tailIndex = rows.findLastIndex((message) => message.kind === "message" && message.author === "user");
@@ -1063,6 +1106,7 @@ export const ChatMessageList = memo(function ChatMessageList({
       firstMessageStyle: motion.firstMessageStyle,
       animationActive,
       playbackActive: animationActive && textReveal && !screenReaderEnabled,
+      screenReaderEnabled,
       textReveal,
       replySession,
       markRevealed,
@@ -1150,6 +1194,7 @@ export const ChatMessageList = memo(function ChatMessageList({
       firstUserId,
       messagesById,
       dayDividers,
+      agentRuns,
       promptController,
       upload,
       outboxStatuses,
@@ -1165,6 +1210,7 @@ export const ChatMessageList = memo(function ChatMessageList({
       firstUserId,
       messagesById,
       dayDividers,
+      agentRuns,
       promptController,
       upload,
       outboxStatuses,

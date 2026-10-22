@@ -14,7 +14,6 @@ import { showFailureAlert } from "@/features/analytics/failure-reports";
 import type { MobileAgent } from "@/features/workspace/context/mobile-workspace-context";
 import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
-import { useCopyMessage } from "./use-copy-message";
 
 const PICKER_IN = FadeIn.duration(160).reduceMotion(ReduceMotion.System);
 const PICKER_OUT = FadeOut.duration(120).reduceMotion(ReduceMotion.System);
@@ -59,11 +58,13 @@ function ActionButton({
 
 /**
  * The row under a message: its reactions, Copy, React, Reply, Select text and the time. A phone has
- * no hover, so the row always shows, and each action takes one tap.
+ * no hover. Only the last reply in a burst shows controls; earlier replies keep saved reactions.
  */
 export function ChatMessageActions({
   align,
   copyText,
+  onCopy,
+  copied,
   createdAt,
   reactions,
   agentsById,
@@ -71,10 +72,13 @@ export function ChatMessageActions({
   onReply,
   onSelectText,
   selecting = false,
+  collapsed = false,
 }: {
   align: "start" | "end";
   /** The text that Copy puts on the clipboard. Empty for a message of files only. */
   copyText: string;
+  onCopy: () => Promise<boolean>;
+  copied: boolean;
   createdAt?: string;
   reactions?: readonly ConversationReaction[];
   agentsById: ReadonlyMap<string, MobileAgent>;
@@ -84,13 +88,15 @@ export function ChatMessageActions({
   /** Starts the selection of the text in the bubble, or ends it while `selecting`. */
   onSelectText?: () => void;
   selecting?: boolean;
+  /** Earlier replies in a burst keep saved reactions without a toolbar or timestamp. */
+  collapsed?: boolean;
 }) {
   const { t, format } = useText();
   const [mutedColor, foregroundColor] = useThemeColor(["muted", "foreground"]);
   const muted = String(mutedColor);
-  const { copy, copied } = useCopyMessage(copyText);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [moreEmoji, setMoreEmoji] = useState(false);
+  const controlsVisible = !collapsed || selecting;
   // The reader's reaction shows at once. The host sends the saved list after it, and that list wins.
   const [pending, setPending] = useState<{
     emoji: string | null;
@@ -120,100 +126,102 @@ export function ChatMessageActions({
   const time = createdAt ? format.date(new Date(createdAt), { timeStyle: "short" }) : null;
 
   return (
-    // The space under the row sets each message apart from the next one. Markers and activity rows
-    // have no action row, so they keep the list's own smaller gap.
-    <View className={`gap-1 pb-2 ${align === "end" ? "items-end self-end" : "items-start self-start"}`}>
-      <View
-        accessibilityRole="toolbar"
-        accessibilityLabel={t("mobile.chat.message.actions")}
-        className="flex-row items-center"
-      >
-        {shown.map((reaction) =>
-          reaction.actor.kind === "user" && onReact ? (
+    <View
+      className={`gap-1 ${controlsVisible ? "pb-2" : ""} ${align === "end" ? "items-end self-end" : "items-start self-start"}`}
+    >
+      {controlsVisible || shown.length ? (
+        <View
+          accessibilityRole="toolbar"
+          accessibilityLabel={t("mobile.chat.message.actions")}
+          className="flex-row items-center"
+        >
+          {shown.map((reaction) =>
+            reaction.actor.kind === "user" && onReact ? (
+              <ActionButton
+                key="user"
+                label
+                accessibilityLabel={t("mobile.chat.message.removeReaction", { emoji: reaction.emoji })}
+                onPress={() => react(null)}
+              >
+                <Typography>{reaction.emoji}</Typography>
+              </ActionButton>
+            ) : (
+              <View
+                key={reaction.actor.kind === "agent" ? `agent:${reaction.actor.agentId}` : "user"}
+                accessible
+                accessibilityRole="image"
+                accessibilityLabel={
+                  reaction.actor.kind === "agent"
+                    ? t("mobile.chat.message.agentReaction", {
+                        name: agentsById.get(reaction.actor.agentId)?.name ?? "",
+                        emoji: reaction.emoji,
+                      })
+                    : reaction.emoji
+                }
+                className="px-2"
+              >
+                <Typography>{reaction.emoji}</Typography>
+              </View>
+            ),
+          )}
+          {controlsVisible && copyText ? (
             <ActionButton
-              key="user"
-              label
-              accessibilityLabel={t("mobile.chat.message.removeReaction", { emoji: reaction.emoji })}
-              onPress={() => react(null)}
+              accessibilityLabel={copied ? t("mobile.chat.message.copied") : t("mobile.chat.message.copy")}
+              onPress={() => void onCopy()}
             >
-              <Typography>{reaction.emoji}</Typography>
+              {copied ? <Check size={ICON_SIZE} color={muted} /> : <Copy size={ICON_SIZE} color={muted} />}
             </ActionButton>
-          ) : (
-            <View
-              key={reaction.actor.kind === "agent" ? `agent:${reaction.actor.agentId}` : "user"}
-              accessible
-              accessibilityRole="image"
-              accessibilityLabel={
-                reaction.actor.kind === "agent"
-                  ? t("mobile.chat.message.agentReaction", {
-                      name: agentsById.get(reaction.actor.agentId)?.name ?? "",
-                      emoji: reaction.emoji,
-                    })
-                  : reaction.emoji
-              }
-              className="px-2"
+          ) : null}
+          {controlsVisible && onReact ? (
+            <ActionButton
+              accessibilityLabel={t("mobile.chat.message.addReaction")}
+              accessibilityState={{ expanded: pickerOpen }}
+              onPress={() => {
+                void haptics.selection();
+                setPickerOpen((open) => !open);
+                setMoreEmoji(false);
+              }}
             >
-              <Typography>{reaction.emoji}</Typography>
-            </View>
-          ),
-        )}
-        {copyText ? (
-          <ActionButton
-            accessibilityLabel={copied ? t("mobile.chat.message.copied") : t("mobile.chat.message.copy")}
-            onPress={() => void copy()}
-          >
-            {copied ? <Check size={ICON_SIZE} color={muted} /> : <Copy size={ICON_SIZE} color={muted} />}
-          </ActionButton>
-        ) : null}
-        {onReact ? (
-          <ActionButton
-            accessibilityLabel={t("mobile.chat.message.addReaction")}
-            accessibilityState={{ expanded: pickerOpen }}
-            onPress={() => {
-              void haptics.selection();
-              setPickerOpen((open) => !open);
-              setMoreEmoji(false);
-            }}
-          >
-            <SmilePlus size={ICON_SIZE} color={muted} />
-          </ActionButton>
-        ) : null}
-        {onReply ? (
-          <ActionButton
-            accessibilityLabel={t("mobile.chat.message.reply")}
-            onPress={() => {
-              void haptics.selection();
-              onReply();
-            }}
-          >
-            <Reply size={ICON_SIZE} color={muted} />
-          </ActionButton>
-        ) : null}
-        {onSelectText ? (
-          <ActionButton
-            // Drawn as pressed while the text is selected: a second tap ends the selection.
-            selected={selecting}
-            accessibilityLabel={t("mobile.chat.message.selectText")}
-            accessibilityState={{ selected: selecting }}
-            onPress={() => {
-              void haptics.selection();
-              onSelectText();
-            }}
-          >
-            <TextSelect size={ICON_SIZE} color={selecting ? String(foregroundColor) : muted} />
-          </ActionButton>
-        ) : null}
-        {time ? (
-          <Typography.Paragraph
-            type="body-xs"
-            className="px-1 text-muted"
-            style={{ fontFamily: "Inter", fontSize: 12, lineHeight: 15, fontWeight: "600", letterSpacing: 0.72 }}
-          >
-            {time}
-          </Typography.Paragraph>
-        ) : null}
-      </View>
-      {pickerOpen ? (
+              <SmilePlus size={ICON_SIZE} color={muted} />
+            </ActionButton>
+          ) : null}
+          {controlsVisible && onReply ? (
+            <ActionButton
+              accessibilityLabel={t("mobile.chat.message.reply")}
+              onPress={() => {
+                void haptics.selection();
+                onReply();
+              }}
+            >
+              <Reply size={ICON_SIZE} color={muted} />
+            </ActionButton>
+          ) : null}
+          {controlsVisible && onSelectText ? (
+            <ActionButton
+              // Drawn as pressed while the text is selected: a second tap ends the selection.
+              selected={selecting}
+              accessibilityLabel={t("mobile.chat.message.selectText")}
+              accessibilityState={{ selected: selecting }}
+              onPress={() => {
+                void haptics.selection();
+                onSelectText();
+              }}
+            >
+              <TextSelect size={ICON_SIZE} color={selecting ? String(foregroundColor) : muted} />
+            </ActionButton>
+          ) : null}
+          {controlsVisible && time ? (
+            <Typography.Paragraph
+              type="body-xs"
+              className="px-1 text-muted"
+              style={{ fontFamily: "Inter", fontSize: 12, lineHeight: 15, fontWeight: "600", letterSpacing: 0.72 }}
+            >
+              {time}
+            </Typography.Paragraph>
+          ) : null}
+        </View>
+      ) : null}
+      {controlsVisible && pickerOpen ? (
         <Animated.View
           entering={PICKER_IN}
           exiting={PICKER_OUT}

@@ -1120,6 +1120,7 @@ export function ChatView({
                 />
               ) : (
                 <ChatComposer
+                  layout="card"
                   sendRetryVersion={sendRetryVersion}
                   replyTarget={replyTarget}
                   replyFocusVersion={replyFocusVersion}

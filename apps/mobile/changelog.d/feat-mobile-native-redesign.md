@@ -11,3 +11,5 @@
 - Open the home screen for Expo development-client launch links, and retain native iOS back-swipe recognition across the chat.
 - Keep Open browser in channel Info and remove the duplicate group-chat header action.
 - Use the same Team canvas color for channel and agent rows.
+- Use the same full-width message field and controls in agent and group chats.
+- Group consecutive replies from the same agent with one author label and tighter spacing. Show actions and time only on the last reply; earlier replies keep swipe to reply and long press to copy. Show a time break for later replies and retain accessible controls.
