@@ -260,10 +260,13 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
     if (!agent || !approval || !permissionsEditable() || autoApprove === undefined) return undefined;
     const access = agent.access ?? DEFAULT_AGENT_ACCESS;
     if (agentPermissionLevel({ access, autoApprove }) !== "ask") return undefined;
+    // This card is answered first: the grant answers every card that still waits, so an answer sent
+    // after it would find this one gone.
     return async () => {
+      if (!(await respondToApprovalRequest(agent.id, approval.requestId, "accept"))) return false;
+      if (!scopeIsCurrent()) return true;
       await writeAgentPermissions(agentPermissionUpdate(agent.id, "full"));
-      if (!scopeIsCurrent()) return false;
-      return respondToApprovalRequest(agent.id, approval.requestId, "accept");
+      return true;
     };
   });
 

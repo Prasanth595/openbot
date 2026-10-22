@@ -2414,7 +2414,8 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     // own, and it is written from the same profile.
     if (profileChanged) this.#conversation.unloadAgentThreads(agent.id);
     // A Workspace only agent moved to Full access gets no grant event, and its cards wait for that grant.
-    this.#attention.answerGrantedRequests();
+    if (previous && workspaceAccessEnforced(previous) && !workspaceAccessEnforced(agent))
+      this.#attention.answerGrantedRequests();
     this.#emit({ type: "agents-changed", agents: this.listAgents() });
     // The task limit follows the agent's own setting and its provider. A higher one can start a task now.
     if (providerChanged || (previous && agentTaskLimit(previous) !== agentTaskLimit(agent))) {
