@@ -316,8 +316,10 @@ export class TurnLifecycle {
     for (const [turnId, turn] of this.#runningTurns) {
       if (turn.client !== client) continue;
       this.#runningTurns.delete(turnId);
+      // A routine run's own session saves no history, so its turn ends now and closes the session.
       if (
         options.keepRecoverable &&
+        !this.#conversation.isRoutineSession(turn.threadId) &&
         this.#mailbox
           .findDeliveriesByTurn(turn.agentId, turnId)
           .some(({ delivery }) => delivery.status === "starting" || delivery.status === "running")
@@ -828,6 +830,17 @@ export class TurnLifecycle {
         this.#quietRoutineTurn(snapshot.threadId, deliveries) &&
         settleQuietRoutineTurn(snapshot, turnId, noUpdateCalled);
       const latestAssistant = latestTurnAnswer(snapshot.messages, turnId);
+      // A routine run that answered only the no-update marker, also a Test run that shows it in the
+      // chat, does not put the marker in the preview.
+      const markerAnswer =
+        latestAssistant !== undefined &&
+        deliveries.some(({ delivery }) => delivery.sender.kind === "routine") &&
+        isNoUpdateAnswer(latestAssistant.text);
+      // Before the deliveries end: until then they hold the chat's lane, so no turn of the chat
+      // starts before the digest is in its handoff.
+      const routineDelivery = deliveries[0]?.delivery.id;
+      if (routineSession && routineDelivery && outcome === "completed" && !quiet && !markerAnswer && latestAssistant)
+        yield* this.#hooks.routineAnswered(agentId, routineDelivery, latestAssistant.text);
       if (deliveries.length > 0) {
         const terminal = outcome === "failed" ? "failed" : outcome === "interrupted" ? "interrupted" : "completed";
         for (const delivery of deliveries) {
@@ -853,12 +866,6 @@ export class TurnLifecycle {
       const savedPreviews = deliveries.flatMap(({ delivery }) =>
         delivery.sender.kind === "routine" ? (this.#hooks.takeRoutinePreview(delivery.id) ?? []) : [],
       );
-      // A routine run that answered only the no-update marker, also a Test run that shows it in the
-      // chat, does not put the marker in the preview.
-      const markerAnswer =
-        latestAssistant !== undefined &&
-        deliveries.some(({ delivery }) => delivery.sender.kind === "routine") &&
-        isNoUpdateAnswer(latestAssistant.text);
       if (latestAssistant && !markerAnswer && !this.#conversation.isExecutionThread(snapshot.threadId)) {
         yield* this.#store.updatePreview(agentId, latestAssistant.text).pipe(toTurnOperationFailed);
         this.#hooks.emit({ type: "agents-changed", agents: this.#hooks.listAgents() });
@@ -870,9 +877,6 @@ export class TurnLifecycle {
           this.#hooks.emit({ type: "agents-changed", agents: this.#hooks.listAgents() });
         }
       }
-      const routineDelivery = deliveries[0]?.delivery.id;
-      if (routineSession && routineDelivery && outcome === "completed" && !quiet && !markerAnswer && latestAssistant)
-        yield* this.#hooks.routineAnswered(agentId, routineDelivery, latestAssistant.text);
       this.#conversation.emitConversation(snapshot, "turn.completed", { turnId, status: outcome });
       if (deliveries.length > 0) {
         try {

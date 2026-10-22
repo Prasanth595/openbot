@@ -676,7 +676,21 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       // endpoint can refuse the prompt itself, after the waits every caller above it makes.
       credentials: {
         ...credentials,
-        history: credentials.history ?? ((provider) => providerHistoryPersistence(this.#store.database, provider)),
+        history: (provider) => {
+          const history = credentials.history
+            ? credentials.history(provider)
+            : providerHistoryPersistence(this.#store.database, provider);
+          const append = history?.append;
+          // A routine run's own session is not saved: its items reach the chat live, and nothing
+          // reads its history after the run.
+          return append
+            ? {
+                ...history,
+                append: (threadId, fragment) =>
+                  this.#conversation.isRoutineSession(threadId) ? Effect.void : append(threadId, fragment),
+              }
+            : history;
+        },
         servesModel: (modelId) => this.#endpoints.serves(modelId),
         // Every MCP set that leaves for a provider is remembered, so its secrets stay redactable
         // after the user edits them. This is the second of the two ways one leaves; the other is

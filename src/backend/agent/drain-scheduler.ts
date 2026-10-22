@@ -853,7 +853,7 @@ export class DrainScheduler {
             // the agent's queue would stop with no notice.
             const ids = batch.map(({ delivery: item }) => item.id);
             yield* Effect.forkDetach(
-              this.#settleUnstarted(delivery.recipientAgentId, ids, releaseReservation).pipe(
+              this.#settleUnstarted(delivery.recipientAgentId, ids, releaseReservation, routineThreadId).pipe(
                 Effect.delay(TURN_START_GRACE_MS),
               ),
             );
@@ -936,7 +936,13 @@ export class DrainScheduler {
    * started late took them already, and holds its reservation like any turn.
    */
   readonly #settleUnstarted = Effect.fn("DrainScheduler.settleUnstarted")(
-    function* (this: DrainScheduler, agentId: string, deliveryIds: readonly string[], releaseReservation: () => void) {
+    function* (
+      this: DrainScheduler,
+      agentId: string,
+      deliveryIds: readonly string[],
+      releaseReservation: () => void,
+      routineThreadId: string | null,
+    ) {
       if (this.#hooks.isStopping()) return;
       let settled = false;
       for (const id of deliveryIds) {
@@ -951,6 +957,8 @@ export class DrainScheduler {
         settled = true;
       }
       if (!settled) return;
+      // No turn took the routine run, so its session ends here.
+      if (routineThreadId) yield* this.#threads.closeRoutineThread(routineThreadId);
       releaseReservation();
       this.#mailboxSync.emitQueue(agentId);
       this.scheduleDrain(agentId);

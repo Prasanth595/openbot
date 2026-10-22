@@ -722,8 +722,9 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
       );
       if (Exit.isFailure(saved)) status = "failed";
     }
-    this.#notify("turn/completed", thread, { turn: { id: turn.id, status } });
+    // Before the notice, so a session that closes when its turn ends is not busy.
     if (thread.turn === turn) thread.turn = null;
+    this.#notify("turn/completed", thread, { turn: { id: turn.id, status } });
   });
 
   readonly #ui = Effect.fn("PiAgentClient.userInput")(function* (
