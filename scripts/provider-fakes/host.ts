@@ -45,6 +45,7 @@ export interface ThreadStartParams {
   cwd: string;
   model?: string;
   runtimeWorkspaceRoots?: string[];
+  developerInstructions?: string;
 }
 
 export async function startThread(client: AgentClient, params: ThreadStartParams): Promise<string> {

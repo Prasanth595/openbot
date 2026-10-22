@@ -9,6 +9,7 @@ import { ChatNavigationGateContext } from "@/features/agents/components/chat-lin
 import { createChatNavigationGate } from "@/features/agents/model/chat-navigation-gate";
 import { whenUnlocked } from "@/features/app-lock/model/app-lock";
 import { useMobileSession } from "@/features/auth/context/mobile-session-context";
+import { AudioWaveformHost } from "@/features/chat/components/audio-waveform-host";
 import { MermaidRendererHost } from "@/features/chat/components/mermaid-renderer-host";
 import { OutboxProvider } from "@/features/chat/context/outbox-context";
 import { QueuedMessagesProvider } from "@/features/chat/context/queued-messages-context";
@@ -371,6 +372,7 @@ export default function AuthenticatedLayout() {
             <QueuedMessagesProvider>
               <AuthenticatedStack />
               <MermaidRendererHost />
+              <AudioWaveformHost />
             </QueuedMessagesProvider>
           </AppDrawerShell>
         </AgentPinTransitionProvider>

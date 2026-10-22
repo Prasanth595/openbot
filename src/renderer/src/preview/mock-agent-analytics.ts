@@ -95,8 +95,15 @@ export function mockHostAnalytics(
     const provider = selected[index]?.provider ?? "";
     for (const day of report.daily) {
       const key = JSON.stringify([day.date, provider]);
-      const cell = providerDays.get(key) ?? { date: day.date, provider, processedTokens: 0, estimatedCostUsd: null };
+      const cell = providerDays.get(key) ?? {
+        date: day.date,
+        provider,
+        processedTokens: 0,
+        cachedInput: null,
+        estimatedCostUsd: null,
+      };
       cell.processedTokens += day.processedTokens;
+      if (day.cachedInput !== null) cell.cachedInput = (cell.cachedInput ?? 0) + day.cachedInput;
       if (day.estimatedCostUsd !== null) cell.estimatedCostUsd = (cell.estimatedCostUsd ?? 0) + day.estimatedCostUsd;
       providerDays.set(key, cell);
     }

@@ -58,7 +58,8 @@ export function ConversationStep({
   onChange: (value: string) => void;
   label: string;
   placeholder: string;
-  maxLength: number;
+  /** Unset for a field that shows its own limit rather than cutting the text at it. */
+  maxLength?: number;
   /** The colour of the agent. */
   color: string;
   disabled: boolean;
@@ -98,6 +99,10 @@ export function ConversationStep({
         ref={scroller}
         onLayout={() => {
           if (composing.current) scroller.current?.scrollToEnd({ animated: false });
+        }}
+        // Text under the replies, such as an error, can come while the user writes. It stays in view.
+        onContentSizeChange={() => {
+          if (composing.current) scroller.current?.scrollToEnd({ animated: true });
         }}
         className="flex-1"
         contentContainerClassName="grow gap-4 px-6 pt-4 pb-4"

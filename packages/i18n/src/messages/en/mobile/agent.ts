@@ -375,7 +375,7 @@ export const messages = defineMessages("mobile.agent", {
   "mobile.agent.publish.unpublishFailed": "Could not unpublish the agent",
   "mobile.agent.publish.failedBody": "The host could not finish this action.",
   "mobile.agent.publish.unsupported": "This host cannot publish agents from a remote device.",
-  "mobile.agent.usage.processedTokens": "Processed tokens",
+  "mobile.agent.usage.tokensWithoutCacheReads": "Tokens without cache reads",
   "mobile.agent.usage.estimatedCost": "Estimated cost",
   "mobile.agent.usage.daily": "Daily usage",
   "mobile.agent.usage.tokens": "Tokens",
@@ -406,6 +406,8 @@ export const messages = defineMessages("mobile.agent", {
     "Partial data: {missingUsage} turns without usage, {incomplete} incomplete records, {unpriced} records without a cost estimate.",
   "mobile.agent.usage.costNote":
     "API-equivalent cost in USD. This estimate excludes subscription charges, tools, and media fees.",
+  "mobile.agent.usage.tokensNote":
+    "Token counts do not include cache reads. Each model request in a turn reads the cached conversation again, so cache reads can be many times larger than the other tokens. Token breakdown shows them as Cached input.",
   "mobile.agent.usage.collection": "Collection started {started}. Updated {updated}.",
   "mobile.agent.usage.never": "never",
   "mobile.agent.record.time": "Time",
@@ -452,6 +454,9 @@ export const messages = defineMessages("mobile.agent", {
   "mobile.agent.edit.titlePlaceholder": "Describe what your agent does",
   "mobile.agent.edit.instructions": "Instructions",
   "mobile.agent.edit.instructionsPlaceholder": "What this agent is for",
+  "mobile.agent.instructions.length": "{length} / {limit}",
+  "mobile.agent.instructions.tooLong":
+    "Shorten the instructions to {limit} characters. Longer instructions are not saved.",
   "mobile.agent.edit.unavailable": "This agent is unavailable. Your edits are kept until you close this sheet.",
   "mobile.agent.sectionForm.saveFailed": "Could not save section. Please try again.",
   "mobile.agent.sectionForm.renameTitle": "Rename section",

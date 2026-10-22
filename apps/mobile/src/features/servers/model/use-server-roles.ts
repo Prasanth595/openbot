@@ -1,4 +1,10 @@
-import type { AgentAccessChange, AgentAccessLevel, AgentAccessLevels, AgentAccessRole } from "@openbot/contracts/ipc";
+import {
+  type AgentAccessChange,
+  type AgentAccessLevel,
+  type AgentAccessLevels,
+  type AgentAccessRole,
+  canAdministerServer,
+} from "@openbot/contracts/ipc";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef } from "react";
 import { useQueryScope } from "@/features/auth/context/mobile-session-context";
@@ -76,6 +82,28 @@ export function useServerRoles(serverId: string) {
       );
     },
   };
+}
+
+/**
+ * True when the roles let this person only view `agentId`. The host sends each change of the roles as
+ * `agents-changed` too, and that event reads the levels again. Unknown levels do not limit: the host
+ * checks each write.
+ */
+export function useAgentViewOnly(serverId: string, agentId: string): boolean {
+  const { hasAgentAccessLimits, servers } = useMobileWorkspace();
+  const { loadServerRoles } = useMobileWorkspaceActions();
+  const queryScope = useQueryScope();
+  const access = useQuery({
+    queryKey: queryKeys.serverRoles(queryScope, serverId),
+    enabled: hasAgentAccessLimits(serverId),
+    // Kept while the app runs: offline, the last levels that the host sent still apply. After a
+    // restart offline, the levels are unknown until the host answers.
+    gcTime: Number.POSITIVE_INFINITY,
+    queryFn: () => loadServerRoles(serverId),
+  });
+  // An owner or admin can use all agents, also with levels read before a promotion.
+  const role = servers.find((server) => server.id === serverId)?.role;
+  return !canAdministerServer(role) && access.data?.mine[agentId] === "view";
 }
 
 /** Adds `memberId` to the role or takes it out. */

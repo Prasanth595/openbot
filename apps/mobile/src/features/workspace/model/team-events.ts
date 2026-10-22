@@ -81,6 +81,8 @@ export function syncEventQueries(
     });
   }
   if (event.type === "agents-changed") {
+    // The host also sends this event when the roles change, and this client does not get `agent-access-changed`.
+    void queryClient.invalidateQueries({ queryKey: queryKeys.serverRoles(scope, serverId) });
     // The admin and host settings and the provider account of an agent are not in the agent summary.
     // The host sends this event when one of them changes, so an open settings page reads them again.
     void queryClient.invalidateQueries({

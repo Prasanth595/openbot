@@ -69,6 +69,7 @@ import {
 } from "@openbot/ui/components/SettingsPanel";
 import type { AgentProfile } from "@openbot/ui/data";
 import { AgentAvatar } from "@openbot/ui/features/agents/AgentAvatar";
+import { InstructionsLimit, instructionsTooLong } from "@openbot/ui/features/agents/InstructionsLimit";
 import { errorReference } from "@openbot/user-errors";
 import type { JSX } from "@solidjs/web";
 import {
@@ -496,6 +497,8 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
   }
 
   function queueTextSave(request: TextSaveRequest): void {
+    // Instructions over the limit stay in the field, unsaved, until the user shortens them.
+    if (request.field === "description" && instructionsTooLong(request.storedValue)) return;
     if (
       activeTextSave?.agentId === request.agentId &&
       activeTextSave.field === request.field &&
@@ -1115,7 +1118,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
                   value={draft.fields.description}
                   aria-label={t("agentSettings.instructionsLabel")}
                   placeholder={t("agentSettings.instructionsPlaceholder")}
-                  maxlength={INPUT_LIMITS.agentDescription}
+                  invalid={instructionsTooLong(draft.fields.description)}
                   onValueChange={(value) => {
                     setDraft((state) => {
                       state.fields.description = value;
@@ -1125,6 +1128,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
                   }}
                   onBlur={saveDescription}
                 />
+                <InstructionsLimit text={draft.fields.description} />
               </SettingsField>
               <SettingsLinkGroup inset class="agent-settings-runtime-rows" title={t("agentSettings.groups.brain")}>
                 <ProviderModelPicker

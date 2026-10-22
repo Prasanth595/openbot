@@ -1,0 +1,21 @@
+{
+  "version": "0.47.1",
+  "assets": {
+    "x86_64-linux": {
+      "name": "OpenBot-0.47.1-x86_64.AppImage",
+      "hash": "sha256-AEdDOlce14nN5nya7rztmR5NOhKOm/t29qa6biu74I8="
+    },
+    "aarch64-linux": {
+      "name": "OpenBot-0.47.1-arm64.AppImage",
+      "hash": "sha256-z25f6PnsF79KSHpTwuMcDNUjWAKfPo1Wh0Te9Aly0WI="
+    },
+    "x86_64-darwin": {
+      "name": "OpenBot-0.47.1-x64.zip",
+      "hash": "sha256-wvl5c7kVxhZnS8vKWEy3r6ROaeDeFPOtf+G0EI5L49M="
+    },
+    "aarch64-darwin": {
+      "name": "OpenBot-0.47.1-arm64.zip",
+      "hash": "sha256-R+DN7jVfzmjusnNtxqp4JYpFNTkgp7uRKuUdUfqsMec="
+    }
+  }
+}

@@ -88,6 +88,8 @@ export interface ChatViewProps {
   historyLoadFailed: boolean;
   /** Whether the person can write here. A message waits on this phone while the server is offline. */
   canSend: boolean;
+  /** A note in place of the composer that says why the person cannot write here. */
+  notice?: string | null;
   activity?: MobileAgentActivity;
   activeTurnId: string | null;
   stopTurn: (turnId: string) => Promise<void>;
@@ -172,6 +174,7 @@ export function ChatView({
   ready,
   historyLoadFailed,
   canSend,
+  notice = null,
   activity,
   activeTurnId,
   stopTurn,
@@ -967,7 +970,7 @@ export function ChatView({
                   {t("mobile.chat.outbox.saveFailed")}
                 </Typography.Paragraph>
               ) : null}
-              {queue ? (
+              {queue && !notice ? (
                 <ChatQueueButton
                   chatId={queue.chatId}
                   count={queueCount}
@@ -985,7 +988,17 @@ export function ChatView({
                 fallbackBackground={fieldBackground}
                 onAction={sendSelectionAction}
               />
-              {secretRequest ? (
+              {notice ? (
+                // As a closed task: the chat takes no messages, and a note takes the place of the composer.
+                <Typography.Paragraph
+                  type="body-xs"
+                  align="center"
+                  className="px-6 pt-2 text-text-secondary"
+                  style={{ paddingBottom: Math.max(insets.bottom, 10) + 6 }}
+                >
+                  {notice}
+                </Typography.Paragraph>
+              ) : secretRequest ? (
                 <BrowserSecretComposer
                   key={`${target.serverId}:${secretRequest.requestId}`}
                   request={secretRequest}

@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import { Alert } from "react-native";
 import { AgentAppearancePicker } from "@/features/agents/components/agent-appearance-picker";
 import { AgentRuntimeFields } from "@/features/agents/components/agent-runtime-fields";
+import { InstructionsLimit, instructionsTooLong } from "@/features/agents/components/instructions-limit";
 import { agentInitialMessage } from "@/features/agents/model/agent-initial-message";
 import { useMobileWorkspace, useMobileWorkspaceReader } from "@/features/workspace/context/mobile-workspace-context";
 import { showsOnline } from "@/features/workspace/model/server-status";
@@ -39,7 +40,7 @@ export function AddAgentScreen() {
   const [finished, setFinished] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const valid = name.trim().length > 0;
+  const valid = name.trim().length > 0 && !instructionsTooLong(description);
 
   const dirty = Boolean(
     name.trim() ||
@@ -157,11 +158,11 @@ export function AddAgentScreen() {
         label={t("mobile.agent.add.descriptionLabel")}
         appearance="soft"
         multiline
-        maxLength={INPUT_LIMITS.agentDescription}
         placeholder={t("mobile.agent.add.descriptionPlaceholder")}
         value={description}
         onChangeText={setDescription}
       />
+      <InstructionsLimit text={description} />
 
       <NewAgentRuntimeFields
         serverId={serverId}
@@ -170,7 +171,7 @@ export function AddAgentScreen() {
         onChange={(value) => setRuntime((current) => ({ ...current, ...value }))}
       />
 
-      {dirty && !valid ? (
+      {dirty && !name.trim() ? (
         <Typography.Paragraph accessibilityRole="alert" className="text-danger-text">
           {t("mobile.agent.add.nameRequired")}
         </Typography.Paragraph>

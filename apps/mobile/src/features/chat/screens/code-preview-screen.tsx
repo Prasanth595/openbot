@@ -8,14 +8,17 @@ import AppWindow from "lucide-react-native/icons/app-window";
 import ArrowLeft from "lucide-react-native/icons/arrow-left";
 import CodeXml from "lucide-react-native/icons/code-xml";
 import Ellipsis from "lucide-react-native/icons/ellipsis";
+import FileText from "lucide-react-native/icons/file-text";
 import Workflow from "lucide-react-native/icons/workflow";
 import { type ReactNode, useEffect, useState } from "react";
-import { View, type ViewStyle } from "react-native";
+import { ScrollView, View, type ViewStyle } from "react-native";
 import Animated, { cubicBezier, Easing, Keyframe } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useUniwind } from "uniwind";
 import { showFailureAlert } from "@/features/analytics/failure-reports";
+import { shareLocalAttachment } from "@/features/chat/components/attachment-preview";
 import { ChatGlassIconButton } from "@/features/chat/components/chat-glass-icon-button";
+import { ChatMarkdown } from "@/features/chat/components/chat-markdown";
 import { CodeDocument } from "@/features/chat/components/code-document";
 import DiagramCanvas from "@/features/chat/components/diagram-canvas.dom";
 import HtmlPreview from "@/features/chat/components/html-preview.dom";
@@ -53,9 +56,10 @@ function webLink(href: string): string | null {
 }
 
 /**
- * A ```html page or a ```mermaid diagram from a reply, on a screen of its own, with the floating
- * glass header of the chat: Back on the left and a menu on the right that switches between the
- * preview and the code and copies the code. The edge swipe also goes back. Both views stay
+ * A ```html page or a ```mermaid diagram from a reply, or a Markdown file, on a screen of its own,
+ * with the floating glass header of the chat: Back on the left and a menu on the right that
+ * switches between the preview and the code, copies the code and shares a file. The edge swipe
+ * also goes back. Both views stay
  * mounted, so the page does not load again when the user switches.
  */
 export function CodePreviewScreen() {
@@ -79,15 +83,24 @@ function PreviewContent({ entry }: { entry: CodePreviewEntry }) {
   const [view, setView] = useState<PreviewView>("preview");
   const [wrap, setWrap] = useState(false);
   const headerBottom = insets.top + HEADER_OFFSET + HEADER_HEIGHT + HEADER_OFFSET;
-  const title = entry.kind === "html" ? t("mobile.chat.preview.htmlTitle") : t("mobile.chat.preview.mermaidTitle");
-  // The header names what the screen shows now: the page or the diagram, or its code.
+  const title =
+    entry.kind === "html"
+      ? t("mobile.chat.preview.htmlTitle")
+      : entry.kind === "mermaid"
+        ? t("mobile.chat.preview.mermaidTitle")
+        : (entry.file?.name ?? t("mobile.chat.preview.markdownTitle"));
+  // The header names what the screen shows now: the page, the diagram or the document, or its code.
   const headerTitle =
     view === "code"
       ? entry.kind === "html"
         ? t("mobile.chat.preview.htmlCode")
-        : t("mobile.chat.preview.mermaidCode")
+        : entry.kind === "mermaid"
+          ? t("mobile.chat.preview.mermaidCode")
+          : t("mobile.chat.preview.markdownCode")
       : title;
-  const HeaderIcon = view === "code" ? CodeXml : entry.kind === "html" ? AppWindow : Workflow;
+  const HeaderIcon =
+    view === "code" ? CodeXml : entry.kind === "html" ? AppWindow : entry.kind === "mermaid" ? Workflow : FileText;
+  const file = entry.file;
 
   const select = (next: PreviewView) => {
     if (next === view) return;
@@ -109,6 +122,7 @@ function PreviewContent({ entry }: { entry: CodePreviewEntry }) {
     image: "text.word.spacing",
     state: wrap ? "on" : "off",
   };
+  const shareAction: MenuAction = { id: "share", title: t("mobile.chat.preview.share"), image: "square.and.arrow.up" };
   const actions: MenuAction[] = [
     {
       id: "view",
@@ -132,6 +146,7 @@ function PreviewContent({ entry }: { entry: CodePreviewEntry }) {
     // Wrapping matters only to the code, so the menu offers it there.
     ...(view === "code" ? [wrapAction] : []),
     { id: "copy", title: t("mobile.chat.code.copy"), image: "doc.on.doc" },
+    ...(file ? [shareAction] : []),
   ];
 
   return (
@@ -151,6 +166,8 @@ function PreviewContent({ entry }: { entry: CodePreviewEntry }) {
             }}
             dom={{ ...expoGoDomOptions, style: { flex: 1 }, containerStyle: { flex: 1 }, scrollEnabled: false }}
           />
+        ) : entry.kind === "markdown" ? (
+          <MarkdownPreview source={entry.source} insets={{ top: headerBottom, bottom: insets.bottom }} />
         ) : (
           <DiagramPreview
             source={entry.source}
@@ -206,6 +223,7 @@ function PreviewContent({ entry }: { entry: CodePreviewEntry }) {
           actions={actions}
           onPressAction={({ nativeEvent }) => {
             if (nativeEvent.event === "copy") void copy();
+            else if (nativeEvent.event === "share" && file) void shareLocalAttachment(file);
             else if (nativeEvent.event === "wrap") {
               void haptics.selection();
               setWrap((current) => !current);
@@ -260,6 +278,19 @@ function GlassCapsule({
     >
       {children}
     </GlassView>
+  );
+}
+
+/** A Markdown file, drawn as the chat draws a reply, with selectable text. */
+function MarkdownPreview({ source, insets }: { source: string; insets: { top: number; bottom: number } }) {
+  return (
+    <ScrollView
+      contentInsetAdjustmentBehavior="never"
+      contentContainerStyle={{ paddingTop: insets.top, paddingBottom: insets.bottom + 24, paddingHorizontal: 20 }}
+      scrollIndicatorInsets={{ top: insets.top, bottom: insets.bottom }}
+    >
+      <ChatMarkdown body={source} color={undefined} finished selectable />
+    </ScrollView>
   );
 }
 
