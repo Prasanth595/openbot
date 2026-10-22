@@ -1177,3 +1177,60 @@ jobs:
             jq -e '[.manifests[].platform | select(.os == "linux") | .architecture] | sort == ["amd64", "arm64"]' \
               "$anonymous_config/manifest.json" >/dev/null
           done
+
+  # `nix/sources.json` names the release that the Nix flake installs. It can only name a published
+  # release, because its hashes come from the release's SHA256SUMS.txt. So the update goes to main in
+  # its own PR. A PR made with GITHUB_TOKEN starts no workflows, so the job starts CI on it.
+  nix-sources:
+    name: Open Nix sources PR
+    needs: [validate, publish]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: write
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Check out main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+
+      - name: Set up Bun
+        uses: ./.github/actions/setup-bun
+        with:
+          install: ignore-scripts
+
+      - name: Open the PR
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ needs.validate.outputs.release_version }}
+        run: |
+          set -euo pipefail
+          bun scripts/nix-sources.ts "$RELEASE_VERSION"
+          changed="$(git diff --name-only)"
+          if [[ -z "$changed" ]]; then
+            echo "nix/sources.json needs no change."
+            exit 0
+          fi
+          if [[ "$changed" != "nix/sources.json" ]]; then
+            echo "The update changed an unexpected file: $changed" >&2
+            exit 1
+          fi
+          branch="build/nix-sources-$RELEASE_VERSION"
+          if gh pr list --repo "$GITHUB_REPOSITORY" --head "$branch" --state open --json number --jq 'length > 0' | grep -Fx true; then
+            echo "A Nix sources PR already exists."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add nix/sources.json
+          git commit -m "build(nix): install OpenBot $RELEASE_VERSION"
+          git push origin "$branch"
+          gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$branch" --label no-changelog \
+            --title "build(nix): install OpenBot $RELEASE_VERSION" \
+            --body "Points the Nix flake at the published v$RELEASE_VERSION release. The hashes come from its \`SHA256SUMS.txt\`."
+          gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "$branch"

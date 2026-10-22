@@ -266,6 +266,7 @@ import { readUpdatePreference, writeUpdatePreference } from "./update-preference
 import { checkRestartReadiness, type RestartReadiness } from "./update-readiness";
 import {
   createDisabledUpdateAdapter,
+  isNixStoreInstall,
   isValidSemver,
   supportsInstalledUpdates,
   type UpdateAdapter,
@@ -2435,6 +2436,7 @@ export async function createApplicationServices({
       existsSync(HOSTED_UPDATE_TRIGGER));
   const updatesEnabled =
     app.isPackaged &&
+    !isNixStoreInstall() &&
     (hostedInstaller || (supportsInstalledUpdates(process.platform) && updateMetadataAvailable)) &&
     isValidSemver(currentVersion);
   if (app.isPackaged && updateMetadataAvailable && !isValidSemver(currentVersion)) {

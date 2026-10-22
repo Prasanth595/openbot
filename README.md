@@ -109,6 +109,21 @@ docker exec -it openbot openbot login
 See [Docker](docs/docker.md) for Compose, the data volume, upgrades and the security limits. For Amazon ECS,
 see [AWS ECS](docs/aws-ecs.md).
 
+### Nix
+
+The flake installs the desktop app from the latest release on x64 or arm64 Linux and on Apple silicon:
+
+```bash
+nix run github:nightly-labs/openbot
+nix profile install github:nightly-labs/openbot
+```
+
+`overlays.default` adds `pkgs.openbot`. OpenBot is not free software, so your nixpkgs must allow it,
+for example with `nixpkgs.config.allowUnfreePredicate = pkg: lib.getName pkg == "openbot";`.
+Nix installs OpenBot updates. OpenBot does not update itself from the Nix store. On Linux, the Nix
+package does not include the remote desktop runtime, because nixpkgs does not have a library that it
+needs.
+
 > [!IMPORTANT]
 > Windows releases are signed by `SYNTHETIFY LABS SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ`. Older
 > releases are not code-signed. SmartScreen can still warn about a new release. Check the release

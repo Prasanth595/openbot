@@ -162,6 +162,18 @@ export function supportsInstalledUpdates(
   return platform === "darwin" || platform === "win32";
 }
 
+/**
+ * Whether Nix installed this copy. The Nix store is read-only, and Nix replaces the whole package on
+ * an update, so the app must not write a new version over itself.
+ */
+export function isNixStoreInstall(executablePath: string = process.execPath): boolean {
+  return executablePath.startsWith("/nix/store/");
+}
+
+function unsupportedMessage(): string {
+  return sourceText(isNixStoreInstall() ? "error.update.managedByNix" : "error.update.unsupported");
+}
+
 export class UpdateService extends EventEmitter<UpdateServiceEvents> {
   readonly #updater: UpdateAdapter;
   readonly #options: Required<
@@ -220,7 +232,7 @@ export class UpdateService extends EventEmitter<UpdateServiceEvents> {
       availableVersion: null,
       progress: null,
       checkedAt: null,
-      message: options.enabled ? null : sourceText("error.update.unsupported"),
+      message: options.enabled ? null : unsupportedMessage(),
       errorCode: null,
     };
     this.on("diagnostic", (event) => {
