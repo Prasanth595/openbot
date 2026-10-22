@@ -18,7 +18,7 @@ import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
 import { attachmentFrame, FILL, FRAME_RADIUS, MAX_FRAME_WIDTH } from "../model/attachment-frame";
 import { storeCodePreview } from "../model/code-preview-store";
-import type { ImageDimensions } from "../model/image-dimensions";
+import { type ImageDimensions, sameShape } from "../model/image-dimensions";
 import { attachmentTypeLabel, rememberImageDimensions, useAttachmentFile } from "./attachment-preview";
 import { isViewableImage, useChatImageSource } from "./chat-image-viewer";
 import { UPLOAD_BLUR_RADIUS, UPLOAD_SETTLE_MS, UploadProgressCircle, useUploadRevealStyle } from "./upload-progress";
@@ -41,11 +41,6 @@ const chatAudio: typeof import("./chat-audio.native") | null = chatVideo ? requi
 function isMarkdownFile(attachment: AttachmentSummary) {
   const extension = attachmentFileExtension(attachment.name);
   return attachment.mimeType === "text/markdown" || extension === "md" || extension === "markdown";
-}
-
-/** Two sizes with the same shape, allowing for rounding in a scaled copy. */
-function sameShape(left: ImageDimensions, right: ImageDimensions) {
-  return Math.abs(left.width / left.height - right.width / right.height) < 0.01;
 }
 
 interface ChatAttachmentProps {

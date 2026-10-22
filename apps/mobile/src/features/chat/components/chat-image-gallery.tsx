@@ -8,6 +8,7 @@ import { Pressable, useWindowDimensions, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { useText } from "@/shared/lib/text";
 import { FILL, MAX_FRAME_WIDTH } from "../model/attachment-frame";
+import { sameShape } from "../model/image-dimensions";
 import { type GalleryTile, galleryTiles } from "../model/image-gallery-layout";
 import { rememberImageDimensions, useAttachmentFile } from "./attachment-preview";
 import { useChatImageSource } from "./chat-image-viewer";
@@ -114,8 +115,7 @@ function ChatGalleryTile({
                 if (decoded.width <= 0 || decoded.height <= 0) return;
                 // The decoder has the final word on the shape, which the viewer opens the image in.
                 const size = { width: decoded.width, height: decoded.height };
-                if (dimensions && Math.abs(dimensions.width / dimensions.height - size.width / size.height) < 0.01)
-                  return;
+                if (dimensions && sameShape(dimensions, size)) return;
                 rememberImageDimensions(attachment.id, size);
               }}
               onError={() => setImageFailed(true)}

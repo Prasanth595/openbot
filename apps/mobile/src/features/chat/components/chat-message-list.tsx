@@ -764,13 +764,14 @@ function renderRow({ item }: { item: VisibleMessage }) {
   return <ChatRow message={item} />;
 }
 
-/** The text that Copy puts on the clipboard: tags and file references show their names. */
+/** Every image the chat can show itself in the loaded messages, in chat order. */
 function conversationImages(messages: readonly VisibleMessage[]): AttachmentSummary[] {
   return messages.flatMap((message) =>
     message.kind === "message" ? (message.attachments ?? []).filter(isViewableImage) : [],
   );
 }
 
+/** The text that Copy puts on the clipboard: tags and file references show their names. */
 function messageCopyText(message: ChatBubbleMessage): string {
   const attachmentNames = new Map((message.attachments ?? []).map((attachment) => [attachment.id, attachment.name]));
   return expandAttachmentReferences(expandChatTagReferences(message.body), (reference) =>
