@@ -17,6 +17,7 @@ import { haptics } from "@/shared/lib/haptics";
 import { currentText, useText } from "@/shared/lib/text";
 import { createImageDimensionCache } from "../model/image-dimension-cache";
 import { type ImageDimensions, imageDimensions } from "../model/image-dimensions";
+import { mediaFile } from "./use-media-file";
 
 // Sizes outlive the downloaded file and the launch. A chat that scrolls an image back into view,
 // or opens again, then reserves its real shape at once instead of a guess.
@@ -75,6 +76,24 @@ export function localAttachmentPreview(file: { mimeType: string; base64: string;
 }
 
 /**
+ * A downloaded image as a file in the chat media folder. The image view gets a short file URI, not
+ * a data URL of many megabytes: Android Glide copies its source text, and a large data URL ran
+ * the app out of memory. A file that cannot be written leaves the data URL.
+ */
+function keepImageFile(serverId: string, attachment: AttachmentSummary, data: RemoteFileUpload): string | undefined {
+  try {
+    const file = mediaFile(serverId, attachment);
+    if (!file.exists || file.size !== attachment.size) {
+      file.parentDirectory.create({ intermediates: true, idempotent: true });
+      file.write(data.base64, { encoding: "base64" });
+    }
+    return file.uri;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * One host file: its image for a preview, and the share sheet for opening it. The query key is the
  * one the chat uses, so a file read in a message is not downloaded a second time for a queue row.
  */
@@ -89,9 +108,13 @@ export function useAttachmentFile(serverId: string, attachment: AttachmentSummar
       : null;
   const query = useQuery({
     queryKey: queryKeys.chatAttachment(serverId, attachment.id),
-    queryFn: (): Promise<RemoteFileUpload & { localUri?: string }> => {
+    queryFn: async (): Promise<RemoteFileUpload & { localUri?: string; fileUri?: string }> => {
       if (attachment.size > MOBILE_ATTACHMENT_BYTES) throw new Error(t("mobile.chat.attachment.tooLargeForMobile"));
-      return downloadAttachment(serverId, attachment.id);
+      const data = await downloadAttachment(serverId, attachment.id);
+      return {
+        ...data,
+        fileUri: data.mimeType.startsWith("image/") ? keepImageFile(serverId, attachment, data) : undefined,
+      };
     },
     enabled: preview && !local && !pending,
     retry: false,
@@ -107,7 +130,8 @@ export function useAttachmentFile(serverId: string, attachment: AttachmentSummar
     return read;
   }, [attachment.id, data]);
   const localUri = local ?? query.data?.localUri;
-  const uri = localUri ?? (query.data ? `data:${query.data.mimeType};base64,${query.data.base64}` : null);
+  const uri =
+    localUri ?? query.data?.fileUri ?? (query.data ? `data:${query.data.mimeType};base64,${query.data.base64}` : null);
   async function share() {
     setSharing(true);
     let file: File | null = null;
