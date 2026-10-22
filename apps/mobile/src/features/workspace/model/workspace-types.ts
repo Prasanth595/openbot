@@ -90,6 +90,7 @@ import type {
 } from "@openbot/contracts/ipc-events";
 import type { QueueEditRequest } from "@openbot/contracts/team-protocol/queue-edit-v1";
 import type { RemoteConnectionFailure, RemoteRecoveryStatus, RemoteTeamDirectoryClient } from "@openbot/team-client";
+import type { PlanLimits } from "@openbot/team-client/plan-limits";
 import type { RemoteFileUpload } from "@openbot/team-client/remote-peer";
 import type { MessagingConnectorPage } from "@openbot/team-client/team-admin-requests";
 import type { MobileBrowserTab } from "@/features/browser/model/browser-tabs";
@@ -452,6 +453,11 @@ export interface MobileWorkspaceContextValue {
    * the host does not advertise `provider-accounts-v1`. Owners and admins only; the host refuses a member.
    */
   loadProviderAccounts: (serverId: string) => Promise<HostProviderAccounts | null>;
+  /**
+   * The plan limits of the host's providers. Every member reads the providers' own sign-ins. With
+   * `accounts`, an owner or admin also reads the accounts after the first and their names.
+   */
+  loadPlanLimits: (serverId: string, accounts: boolean) => Promise<PlanLimits>;
   /** Owners and admins only. The host refuses an agent that works, and an account of another provider. */
   setAgentProviderAccount: (input: SetAgentProviderAccountInput, serverId: string) => Promise<void>;
   /** True when the host advertises `context-reset-v1`. Any member can start a new chat. */
