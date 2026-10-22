@@ -178,6 +178,7 @@ export const messages = {
   "mobile.chat.imageViewer.share": "{name} adlı görseli paylaş",
   "mobile.chat.imageViewer.saved": "Fotoğraflar'a kaydedildi",
   "mobile.chat.imageViewer.save": "{name} adlı görseli Fotoğraflar'a kaydet",
+  "mobile.chat.imageViewer.position": "{current} / {total}",
   "mobile.chat.video.play": "{name} adlı videoyu oynat",
   "mobile.chat.video.retry": "Videoyu tekrar dene",
   "mobile.chat.video.share": "{name} adlı videoyu paylaş",

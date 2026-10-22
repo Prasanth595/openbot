@@ -98,6 +98,55 @@ export function ChatGlassButton({
   );
 }
 
+/** Text on the same glass capsule as the buttons beside it, such as a position, with no action. */
+export function ChatGlassLabel({
+  children,
+  colorScheme,
+  fallbackBackground,
+  height = 48,
+  hidden,
+  liquidGlassAvailable,
+}: Pick<
+  ChatGlassButtonProps,
+  "children" | "colorScheme" | "fallbackBackground" | "height" | "hidden" | "liquidGlassAvailable"
+>) {
+  return (
+    <GlassView
+      glassEffectStyle={{
+        style: liquidGlassAvailable && !hidden ? "regular" : "none",
+        animate: true,
+        animationDuration: 0.2,
+      }}
+      colorScheme={colorScheme}
+      isInteractive={false}
+      pointerEvents="none"
+      style={{
+        backgroundColor: "transparent",
+        borderCurve: "continuous",
+        borderRadius: height / 2,
+        height,
+        justifyContent: "center",
+        overflow: "hidden",
+        paddingHorizontal: 16,
+      }}
+    >
+      {liquidGlassAvailable ? null : (
+        <Animated.View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            inset: 0,
+            backgroundColor: fallbackBackground,
+            opacity: hidden ? 0 : 1,
+            ...FADE,
+          }}
+        />
+      )}
+      <Animated.View style={{ opacity: hidden ? 0 : 1, ...FADE }}>{children}</Animated.View>
+    </GlassView>
+  );
+}
+
 export function ChatGlassIconButton(props: Omit<ChatGlassButtonProps, "className" | "height" | "width">) {
   return <ChatGlassButton {...props} width={48} />;
 }

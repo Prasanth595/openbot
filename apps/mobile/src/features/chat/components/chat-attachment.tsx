@@ -10,7 +10,7 @@ import { useThemeColor } from "heroui-native/hooks";
 import ChevronRight from "lucide-react-native/icons/chevron-right";
 import ExternalLink from "lucide-react-native/icons/external-link";
 import ImageOff from "lucide-react-native/icons/image-off";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, useWindowDimensions, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { showFailureAlert } from "@/features/analytics/failure-reports";
@@ -20,7 +20,7 @@ import { attachmentFrame, FILL, FRAME_RADIUS, MAX_FRAME_WIDTH } from "../model/a
 import { storeCodePreview } from "../model/code-preview-store";
 import type { ImageDimensions } from "../model/image-dimensions";
 import { attachmentTypeLabel, rememberImageDimensions, useAttachmentFile } from "./attachment-preview";
-import { ImageViewer } from "./image-viewer";
+import { isViewableImage, useChatImageSource } from "./chat-image-viewer";
 import { UPLOAD_BLUR_RADIUS, UPLOAD_SETTLE_MS, UploadProgressCircle, useUploadRevealStyle } from "./upload-progress";
 import { useMediaFile } from "./use-media-file";
 
@@ -83,10 +83,6 @@ function ChatFileAttachment({ attachment, serverId, alignment = "left", upload }
   const [decoded, setDecoded] = useState<ImageDimensions | null>(null);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
-  // Where the image was when the viewer opened. The chat's copy hides while the viewer holds it.
-  const [viewing, setViewing] = useState(false);
-  const [sourceHidden, setSourceHidden] = useState(false);
-  const frameRef = useRef<View>(null);
   // The send can finish before the upload view has settled. Hold it as complete for that long,
   // so the photo finishes coming into focus instead of jumping to sharp in one frame.
   const [lingering, setLingering] = useState(false);
@@ -104,11 +100,9 @@ function ChatFileAttachment({ attachment, serverId, alignment = "left", upload }
   const tooLarge = attachment.size > MOBILE_ATTACHMENT_BYTES;
   // An image above the transfer limit cannot be shown here, so it is a file the user opens on desktop.
   const image = attachment.kind === "image" && !tooLarge;
-  const { pending, localUri, uri, dimensions, query, sharing, share, saveToPhotos } = useAttachmentFile(
-    serverId,
-    attachment,
-    image,
-  );
+  const { pending, localUri, uri, dimensions, query, sharing, share } = useAttachmentFile(serverId, attachment, image);
+  // The conversation's viewer measures this copy and hides it on the UI thread while it holds the picture.
+  const source = useChatImageSource(image && isViewableImage(attachment) ? attachment.id : null, FRAME_RADIUS);
   const maxWidth = Math.min(MAX_FRAME_WIDTH, width - 80);
   const shape = decoded ?? dimensions;
   const frame = attachmentFrame(shape, maxWidth, UNKNOWN_RATIO);
@@ -159,7 +153,7 @@ function ChatFileAttachment({ attachment, serverId, alignment = "left", upload }
             overflow: "hidden",
           }}
         >
-          <View ref={frameRef} collapsable={false} style={{ ...FILL, opacity: sourceHidden ? 0 : 1 }}>
+          <Animated.View ref={source.origin} collapsable={false} style={[FILL, source.hiddenStyle]}>
             {/* A plain pressable: a HeroUI button keeps its own side padding and row gap, which
                 pushed the image off the frame's right edge. Every layer here fills the frame. */}
             <Pressable
@@ -167,10 +161,7 @@ function ChatFileAttachment({ attachment, serverId, alignment = "left", upload }
               accessibilityLabel={t("mobile.chat.attachment.preview", { name: attachment.name })}
               accessibilityState={{ disabled: pending || !uri || failed }}
               disabled={pending || !uri || failed}
-              onPress={() => {
-                void haptics.impact("soft");
-                setViewing(true);
-              }}
+              onPress={() => source.open?.(attachment)}
               style={FILL}
             >
               {failed ? (
@@ -228,7 +219,7 @@ function ChatFileAttachment({ attachment, serverId, alignment = "left", upload }
                 </>
               )}
             </Pressable>
-          </View>
+          </Animated.View>
           {upload !== undefined ? (
             // The focus says it visually; this says it to a screen reader.
             <View
@@ -252,27 +243,6 @@ function ChatFileAttachment({ attachment, serverId, alignment = "left", upload }
           >
             <Button.Label>{t("mobile.chat.attachment.retryImage")}</Button.Label>
           </Button>
-        ) : null}
-        {viewing && uri ? (
-          <ImageViewer
-            uri={uri}
-            name={attachment.name}
-            dimensions={shape ?? frame}
-            measureOrigin={(report) =>
-              frameRef.current
-                ? frameRef.current.measureInWindow((x, y, width, height) => report({ x, y, width, height }))
-                : report(null)
-            }
-            originRadius={FRAME_RADIUS}
-            busy={busy}
-            onShare={share}
-            onSave={saveToPhotos}
-            onShown={() => setSourceHidden(true)}
-            onDismissed={() => {
-              setViewing(false);
-              setSourceHidden(false);
-            }}
-          />
         ) : null}
       </View>
     );

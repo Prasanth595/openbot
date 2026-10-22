@@ -183,6 +183,7 @@ export const messages = {
   "mobile.chat.imageViewer.share": "Поделиться: {name}",
   "mobile.chat.imageViewer.saved": "Сохранено в «Фото»",
   "mobile.chat.imageViewer.save": "Сохранить «{name}» в «Фото»",
+  "mobile.chat.imageViewer.position": "{current} из {total}",
   "mobile.chat.video.play": "Воспроизвести: {name}",
   "mobile.chat.video.retry": "Повторить загрузку видео",
   "mobile.chat.video.share": "Поделиться: {name}",

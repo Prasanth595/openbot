@@ -178,6 +178,7 @@ export const messages = {
   "mobile.chat.imageViewer.share": "{name} を共有",
   "mobile.chat.imageViewer.saved": "写真に保存しました",
   "mobile.chat.imageViewer.save": "{name} を写真に保存",
+  "mobile.chat.imageViewer.position": "{total} 枚中 {current} 枚目",
   "mobile.chat.video.play": "{name} を再生",
   "mobile.chat.video.retry": "動画を再試行",
   "mobile.chat.video.share": "{name} を共有",

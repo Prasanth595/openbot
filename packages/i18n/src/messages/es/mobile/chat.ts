@@ -179,6 +179,7 @@ export const messages = {
   "mobile.chat.imageViewer.share": "Compartir {name}",
   "mobile.chat.imageViewer.saved": "Guardado en Fotos",
   "mobile.chat.imageViewer.save": "Guardar {name} en Fotos",
+  "mobile.chat.imageViewer.position": "{current} de {total}",
   "mobile.chat.video.play": "Reproducir {name}",
   "mobile.chat.video.retry": "Reintentar vídeo",
   "mobile.chat.video.share": "Compartir {name}",

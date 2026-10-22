@@ -176,6 +176,7 @@ export const messages = defineMessages("mobile.chat", {
   "mobile.chat.imageViewer.share": "Share {name}",
   "mobile.chat.imageViewer.saved": "Saved to Photos",
   "mobile.chat.imageViewer.save": "Save {name} to Photos",
+  "mobile.chat.imageViewer.position": "{current} of {total}",
   "mobile.chat.video.play": "Play {name}",
   "mobile.chat.video.retry": "Retry video",
   "mobile.chat.video.share": "Share {name}",
