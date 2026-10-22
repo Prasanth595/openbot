@@ -30,6 +30,10 @@ import type {
   CentralAuthUser,
   DirectMessageRealtimeEvent,
   DirectTypingRealtimeEvent,
+  RoutineResultConnectionOption,
+  RoutineResultDestination,
+  RoutineResultRoutineInput,
+  SetRoutineResultDestinationInput,
   SidebarLayoutSnapshot,
   TeamPresenceSnapshot,
   UpdateHostIdentityInput,
@@ -280,6 +284,19 @@ export interface TeamApiAdmin {
   timezone?: Pick<ServerTimezonePreferenceStore, "get" | "set">;
   /** `agent-memory-limit-v1`: how many memories each agent of this computer can keep. */
   memoryLimit?: AgentMemoryLimitSetting;
+  /** `routine-results-v1`: the place where an agent routine sends its answers. */
+  routineResults?: TeamApiRoutineResults;
+}
+
+/** A failure keeps its cause; a `RoutineResultError` cause is a refusal that the reader sees. */
+interface TeamApiRoutineResults {
+  options(): Effect.Effect<RoutineResultConnectionOption[]>;
+  destination(
+    input: RoutineResultRoutineInput,
+  ): Effect.Effect<RoutineResultDestination | null, { readonly cause: unknown }>;
+  setDestination(
+    input: SetRoutineResultDestinationInput,
+  ): Effect.Effect<RoutineResultDestination | null, { readonly cause: unknown }>;
 }
 
 interface TeamApiHostIdentity {

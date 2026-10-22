@@ -21,6 +21,8 @@ import {
   type CentralAuthUser,
   type HiddenAgentsSnapshot,
   type QueueSnapshot,
+  type RoutineResultConnectionOption,
+  type RoutineResultDestination,
 } from "@openbot/contracts/ipc";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import {
@@ -29,6 +31,10 @@ import {
 } from "@openbot/contracts/team-protocol/agent-backup-models-v1";
 import { AGENT_HIDDEN_CAPABILITY, AGENT_HIDDEN_ROUTES } from "@openbot/contracts/team-protocol/agent-hidden-v1";
 import { QueueEditRejectedError, TEAM_QUEUE_EDIT_CAPABILITY } from "@openbot/contracts/team-protocol/queue-edit-v1";
+import {
+  ROUTINE_RESULTS_CAPABILITY,
+  ROUTINE_RESULTS_ROUTES,
+} from "@openbot/contracts/team-protocol/routine-results-v1";
 import { SIDE_QUESTION_CAPABILITY, SIDE_QUESTION_ROUTES } from "@openbot/contracts/team-protocol/side-question-v1";
 import {
   TEAM_APP_VERSION_HEADER,
@@ -42,6 +48,7 @@ import { SteerUnsupportedError } from "../src/backend/agent/queue-controls";
 import { AgentLifecycleFailed } from "../src/backend/agent-service";
 import { runCauseEffect } from "../src/backend/effect-boundary";
 import { OpenBotDatabase } from "../src/backend/openbot-database";
+import { RoutineResultError } from "../src/backend/routine-results/routine-results";
 import { TeamChatStore } from "../src/backend/team-chat-store";
 import { createAgentHostSettings } from "../src/main/agent-host-settings";
 import type { TeamApiAgents, TeamApiBrowser, TeamApiMailbox } from "../src/main/team-api/dependencies";
@@ -96,6 +103,16 @@ const logged: string[] = [];
 // The uploads that reached `prepareImportedAttachments`, with their bytes.
 const uploads: AttachmentDataInput[] = [];
 let clock = Date.now();
+const routineResultOptions: RoutineResultConnectionOption[] = [
+  {
+    connectionId: "slack-acme",
+    platform: "slack",
+    connectionName: "Acme",
+    places: [{ id: "C0123", name: "general" }],
+    placesFailed: false,
+  },
+];
+let routineDestination: RoutineResultDestination | null = null;
 
 function check(name: string, passed: boolean, detail: unknown = null): void {
   checks.push({ name, passed, detail });
@@ -420,6 +437,24 @@ try {
         },
         busyMessageMode: { get: () => ({ mode: "queue" }) },
       }),
+      // A routine results service over one agent routine. The host's own name of the connection wins.
+      routineResults: {
+        options: () => Effect.succeed(routineResultOptions),
+        destination: (input) =>
+          input.agentId === "agent-ada" && input.routineId === "routine-ada"
+            ? Effect.succeed(routineDestination)
+            : Effect.fail({ cause: new RoutineResultError(sourceText("error.backend.routineGone")) }),
+        setDestination: (input) =>
+          Effect.suspend(() => {
+            record("setRoutineResultDestination", input);
+            if (input.agentId !== "agent-ada" || input.routineId !== "routine-ada")
+              return Effect.fail({ cause: new RoutineResultError(sourceText("error.backend.routineGone")) });
+            routineDestination = input.destination
+              ? { ...input.destination, platform: "slack", connectionName: "Acme" }
+              : null;
+            return Effect.succeed(routineDestination);
+          }),
+      },
     },
     hiddenAgents: {
       listHiddenAgents: () => hidden,
@@ -1151,6 +1186,91 @@ try {
         isDeepStrictEqual(adminClear.body, { backupModels: null, usageLimitReturn: null }) &&
         errorIs(missing, 404, sourceText("error.team.agentNotFound")),
       [summary(adminClear), summary(missing)],
+    );
+  }
+
+  // ---- Routine result destinations (routine-results-v1) ----
+  {
+    const resultCapabilities = [ROUTINE_RESULTS_CAPABILITY];
+    const chosen = { connectionId: "slack-acme", placeId: "C0123", placeName: "general" };
+    const unsupported = await call("POST", ROUTINE_RESULTS_ROUTES.options, { token: adaToken, json: {} });
+    check(
+      "the routine result routes without the capability get 400 routineResultsUnsupported",
+      errorIs(unsupported, 400, sourceText("error.team.routineResultsUnsupported")),
+      summary(unsupported),
+    );
+    const memberOptions = await call("POST", ROUTINE_RESULTS_ROUTES.options, {
+      token: bobToken,
+      json: {},
+      capabilities: resultCapabilities,
+    });
+    const memberSet = await call("POST", ROUTINE_RESULTS_ROUTES.setDestination, {
+      token: bobToken,
+      json: { agentId: "agent-ada", routineId: "routine-ada", destination: chosen },
+      capabilities: resultCapabilities,
+    });
+    check(
+      "a member cannot read the places or set a destination",
+      errorIs(memberOptions, 403, sourceText("error.team.adminRequired")) &&
+        errorIs(memberSet, 403, sourceText("error.team.adminRequired")) &&
+        callsOf("setRoutineResultDestination").length === 0,
+      [summary(memberOptions), summary(memberSet)],
+    );
+    const options = await call("POST", ROUTINE_RESULTS_ROUTES.options, {
+      token: adaToken,
+      json: {},
+      capabilities: resultCapabilities,
+    });
+    const before = await call("POST", ROUTINE_RESULTS_ROUTES.destination, {
+      token: adaToken,
+      json: { agentId: "agent-ada", routineId: "routine-ada" },
+      capabilities: resultCapabilities,
+    });
+    check(
+      "an admin reads the connections with their places, and no destination yet",
+      options.status === 200 &&
+        isDeepStrictEqual(options.body, { connections: routineResultOptions }) &&
+        before.status === 200 &&
+        isDeepStrictEqual(before.body, { destination: null }),
+      [summary(options), summary(before)],
+    );
+    const set = await call("POST", ROUTINE_RESULTS_ROUTES.setDestination, {
+      token: adaToken,
+      json: { agentId: "agent-ada", routineId: "routine-ada", destination: chosen },
+      capabilities: resultCapabilities,
+    });
+    const after = await call("POST", ROUTINE_RESULTS_ROUTES.destination, {
+      token: adaToken,
+      json: { agentId: "agent-ada", routineId: "routine-ada" },
+      capabilities: resultCapabilities,
+    });
+    const saved = { ...chosen, platform: "slack", connectionName: "Acme" };
+    check(
+      "an admin sets a destination, and the host adds the connection's name and platform",
+      set.status === 200 &&
+        isDeepStrictEqual(set.body, { destination: saved }) &&
+        isDeepStrictEqual(after.body, { destination: saved }) &&
+        isDeepStrictEqual(callsOf("setRoutineResultDestination").at(-1), [
+          { agentId: "agent-ada", routineId: "routine-ada", destination: chosen },
+        ]),
+      [summary(set), summary(after)],
+    );
+    const gone = await call("POST", ROUTINE_RESULTS_ROUTES.destination, {
+      token: adaToken,
+      json: { agentId: "agent-ada", routineId: "routine-none" },
+      capabilities: resultCapabilities,
+    });
+    const cleared = await call("POST", ROUTINE_RESULTS_ROUTES.setDestination, {
+      token: adaToken,
+      json: { agentId: "agent-ada", routineId: "routine-ada", destination: null },
+      capabilities: resultCapabilities,
+    });
+    check(
+      "a routine that is gone gets 400 routineGone, and a null destination stops sending",
+      errorIs(gone, 400, sourceText("error.backend.routineGone")) &&
+        cleared.status === 200 &&
+        isDeepStrictEqual(cleared.body, { destination: null }),
+      [summary(gone), summary(cleared)],
     );
   }
 

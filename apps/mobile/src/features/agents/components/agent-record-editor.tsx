@@ -9,6 +9,7 @@ import {
   isRoutineSchedule,
   type MemoryEntry,
   type RoutineFields,
+  type RoutineMissedPolicy,
   type RoutineSchedule,
   type SaveEventRoutineInput,
   type UpdateRoutineInput,
@@ -42,12 +43,18 @@ import { SheetSaveAction } from "@/shared/components/sheet-save-action";
 import { haptics } from "@/shared/lib/haptics";
 import { nativeLabelFont } from "@/shared/lib/native-label-font";
 import { useText } from "@/shared/lib/text";
+import { type RoutineResultChoice, RoutineResultDestinationSection } from "./routine-result-destination";
 import { RoutineScheduleFields } from "./routine-schedule-fields";
 import { type RoutineTriggerChoice, RoutineTriggerPicker } from "./routine-trigger-picker";
 import { RoutineWebhookActivity } from "./routine-webhook-activity";
 import { type FilterDraft, filterDrafts, RoutineWebhookTrigger } from "./routine-webhook-trigger";
 
 const DEFAULT_SCHEDULE: RoutineSchedule = { kind: "daily", time: "09:00" };
+
+const MISSED_POLICY_TEXT = {
+  skip: "mobile.agent.record.missedPolicy.skip",
+  "run-once": "mobile.agent.record.missedPolicy.runOnce",
+} as const satisfies Record<RoutineMissedPolicy, MobileTextKey>;
 
 type RoutineRecord = RoutineFields | EventRoutine;
 type WebhookRoutine = EventRoutine & { trigger: WebhookTriggerFields };
@@ -349,6 +356,7 @@ export function RoutineEditor({
     });
   }
   const { theme } = useUniwind();
+  const accent = String(useCSSVariable("--openbot-accent"));
   const [finished, setFinished] = useState(false);
   const [savedDraft, setSavedDraft] = useState<string | null>(null);
   const [edits, setEdits] = useState<{
@@ -358,6 +366,7 @@ export function RoutineEditor({
     trigger?: "schedule" | "webhook";
     eventType?: string;
     filters?: FilterDraft[];
+    missedPolicy?: RoutineMissedPolicy;
   }>({});
   const name = edits.name ?? routine?.name ?? "";
   const instruction = edits.instruction ?? routine?.instruction ?? "";
@@ -369,6 +378,14 @@ export function RoutineEditor({
   const eventType = edits.eventType ?? savedEventType;
   const filters = edits.filters ?? filterDrafts(savedFilters);
   const eventsSupported = useMobileWorkspaceSelector((current) => current.canManageEvents(agent.serverId));
+  // Such a host saves a scheduled routine through the event routes, which carry `missedPolicy`.
+  const missedRuns = useMobileWorkspaceSelector((current) => current.canManageMissedRuns(agent.serverId));
+  const routineResults = useMobileWorkspaceSelector((current) => current.canManageRoutineResults(agent.serverId));
+  const savedMissedPolicy = routine?.missedPolicy ?? "skip";
+  const missedPolicy = edits.missedPolicy ?? savedMissedPolicy;
+  const setMissedPolicy = (missedPolicy: RoutineMissedPolicy) => setEdits((current) => ({ ...current, missedPolicy }));
+  // A new routine keeps its place in the draft: the host sets a place only for a routine with an id.
+  const [newDestination, setNewDestination] = useState<RoutineResultChoice | null>(null);
   // The form edits a draft; an untouched schedule saves as it is, so a kind the form cannot show stays.
   const scheduleDraft = edits.schedule ?? routineScheduleToDraft(savedSchedule);
   const scheduleProblem = routineDraftProblemCode(scheduleDraft);
@@ -398,6 +415,8 @@ export function RoutineEditor({
     eventType,
     filters: eventFiltersFromDrafts(filters),
     timezone,
+    missedPolicy,
+    destination: newDestination,
   });
   const nameChanged = name.trim() !== (routine?.name ?? "");
   const instructionChanged = instruction.trim() !== (routine?.instruction ?? "");
@@ -410,8 +429,9 @@ export function RoutineEditor({
     (trigger === "webhook" &&
       (eventType.trim() !== savedEventType ||
         JSON.stringify(eventFiltersFromDrafts(filters)) !== JSON.stringify(savedFilters)));
+  const missedPolicyChanged = missedRuns && trigger === "schedule" && missedPolicy !== savedMissedPolicy;
   const dirty = routine
-    ? nameChanged || instructionChanged || scheduleChanged || webhookChanged
+    ? nameChanged || instructionChanged || scheduleChanged || webhookChanged || missedPolicyChanged
     : draft !==
       (savedDraft ??
         JSON.stringify({
@@ -422,6 +442,8 @@ export function RoutineEditor({
           eventType: "",
           filters: [],
           timezone: initialTimezone.current,
+          missedPolicy: "skip",
+          destination: null,
         }));
   useRecordDraftGuard(dirty && !finished, action.pending);
   useEffect(() => {
@@ -431,7 +453,7 @@ export function RoutineEditor({
   const validTrigger =
     trigger === "webhook" ? eventFilterDraftsValid(filters) : scheduleProblem === null && isRoutineSchedule(schedule);
   async function save() {
-    if (webhookRoutine || trigger === "webhook") {
+    if (webhookRoutine || trigger === "webhook" || missedRuns) {
       const input: SaveEventRoutineInput = {
         ...(routine ? { id: routine.id } : {}),
         owner: eventOwner,
@@ -444,6 +466,8 @@ export function RoutineEditor({
             ? { kind: "webhook", eventType: eventType.trim() || null, filters: eventFiltersFromDrafts(filters) }
             : { kind: "schedule", schedule },
         ...(routine?.limitPolicy ? { limitPolicy: routine.limitPolicy } : {}),
+        // An unchanged policy stays out, so the host keeps the one it has.
+        ...(missedRuns && trigger === "schedule" && (!routine || missedPolicyChanged) ? { missedPolicy } : {}),
       };
       const result = await workspace.saveEventRoutine(input, agent.serverId);
       // A save that removes the webhook trigger also ends the secret that this screen shows.
@@ -452,6 +476,19 @@ export function RoutineEditor({
         keepOpen.current = true;
         setCreated(result.routine);
       }
+      // The routine exists now, so a failed place does not fail the save; a second save would add it again.
+      if (!routine && !port && newDestination)
+        await workspace
+          .setRoutineResultDestination(
+            { agentId: agent.id, routineId: result.routine.id, destination: newDestination },
+            agent.serverId,
+          )
+          .catch(() =>
+            Alert.alert(
+              t("mobile.agent.record.resultDestination"),
+              t("mobile.agent.record.resultDestination.createFailed"),
+            ),
+          );
       return;
     }
     if (port) {
@@ -573,6 +610,35 @@ export function RoutineEditor({
           {t("mobile.agent.record.scheduleKept")}
         </Typography.Paragraph>
       ) : null}
+      {missedRuns && trigger === "schedule" ? (
+        <SettingsSection title={t("mobile.agent.record.missedPolicy")}>
+          {(["skip", "run-once"] as const).map((choice) => (
+            <SettingsRow
+              key={choice}
+              checked={missedPolicy === choice}
+              disclosure={false}
+              disabled={disabled}
+              trailing={missedPolicy === choice ? <Check size={18} color={accent} strokeWidth={2} /> : null}
+              onPress={() => {
+                if (choice === missedPolicy) return;
+                void haptics.selection();
+                setMissedPolicy(choice);
+              }}
+            >
+              <Typography.Paragraph>{t(MISSED_POLICY_TEXT[choice])}</Typography.Paragraph>
+            </SettingsRow>
+          ))}
+        </SettingsSection>
+      ) : null}
+      {routineResults && !port && !routine && (missedRuns || trigger === "webhook") ? (
+        // Only the event save answers the new routine's id, which the place needs.
+        <RoutineResultDestinationSection
+          agentId={agent.id}
+          serverId={agent.serverId}
+          disabled={disabled}
+          draft={{ value: newDestination, onChange: setNewDestination }}
+        />
+      ) : null}
       {!routine ? (
         <SheetFormField
           label={t("mobile.agent.record.timeZone")}
@@ -658,6 +724,14 @@ export function RoutineEditor({
             </Typography.Paragraph>
           </SettingsRow>
         </SettingsSection>
+      ) : null}
+      {routineResults && !port && routine ? (
+        <RoutineResultDestinationSection
+          agentId={agent.id}
+          routineId={routine.id}
+          serverId={agent.serverId}
+          disabled={disabled}
+        />
       ) : null}
       {testStarted ? (
         <Typography.Paragraph accessibilityLiveRegion="polite">

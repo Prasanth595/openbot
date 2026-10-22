@@ -86,6 +86,7 @@ export const messages = {
   "error.team.hostIdentityUnsupported": "To połączenie nie obsługuje zmian tożsamości serwera.",
   "error.team.hostUpdateUnsupported": "To połączenie nie obsługuje aktualizacji hosta.",
   "error.team.hostTimezoneUnsupported": "To połączenie nie obsługuje strefy czasowej serwera.",
+  "error.team.routineResultsUnsupported": "To połączenie nie obsługuje miejsc docelowych rutyn.",
   "error.team.agentMemoryLimitUnsupported": "To połączenie nie obsługuje limitu wspomnień agentów.",
   "error.team.attachmentNameRequired": "Wymagana jest bezpieczna nazwa załącznika.",
   "error.team.attachmentNotFound": "Nie znaleziono załącznika.",

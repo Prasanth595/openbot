@@ -79,6 +79,8 @@ import {
   decodeProviderHostSignInStatus,
   decodeProviderRuntimeSnapshot,
   decodeProviderRuntimeSnapshotV8,
+  decodeRoutineResultConnectionOptions,
+  decodeRoutineResultDestinationAnswer,
   decodeSignInRelayFlow,
   decodeSignInRelayStatus,
   decodeStorageUsage,
@@ -120,6 +122,9 @@ import {
   type RemoveMcpServerInput,
   type RemoveProviderAccountInput,
   type RenameProviderAccountInput,
+  type RoutineResultConnectionOption,
+  type RoutineResultDestination,
+  type RoutineResultRoutineInput,
   type SaveCustomProviderInput,
   type SaveMcpServerInput,
   type SaveMcpSignInAppInput,
@@ -127,6 +132,7 @@ import {
   type SetEnabledSkillInput,
   type SetMcpServerEnabledInput,
   type SetProviderApiKeyInput,
+  type SetRoutineResultDestinationInput,
   type SharedTable,
   type SignInRelayStatus,
   type SignOutMcpServerInput,
@@ -178,6 +184,7 @@ import type { PROVIDERS_RUNTIMES_V2_ROUTES } from "@openbot/contracts/team-proto
 import { PROVIDERS_SIGN_IN_V3_ROUTES } from "@openbot/contracts/team-protocol/providers-v3";
 import type { PROVIDERS_V4_ROUTES } from "@openbot/contracts/team-protocol/providers-v4";
 import { ROUTINE_RECOVERY_ROUTES } from "@openbot/contracts/team-protocol/routine-recovery-v1";
+import { ROUTINE_RESULTS_ROUTES } from "@openbot/contracts/team-protocol/routine-results-v1";
 import { SHARED_TABLES_ROUTES } from "@openbot/contracts/team-protocol/shared-tables-v1";
 import { type SIGN_IN_RELAY_PROVIDERS, SIGN_IN_RELAY_ROUTES } from "@openbot/contracts/team-protocol/sign-in-relay-v1";
 import { SKILLS_ADMIN_ROUTES } from "@openbot/contracts/team-protocol/skills-admin-v1";
@@ -490,6 +497,33 @@ export function setHostTimezone(
   timezone: string | null,
 ): Effect.Effect<HostTimezoneSettings, TeamAdminRequestError> {
   return adminCall(() => request("POST", HOST_TIMEZONE_ROUTES.update, decodeHostTimezoneSettings, { timezone }));
+}
+
+/** The host's enabled messaging connections with their places. Only a host with `routine-results-v1` answers it. */
+export function listRoutineResultOptions(
+  request: TeamApiRequest,
+): Effect.Effect<RoutineResultConnectionOption[], TeamAdminRequestError> {
+  return adminCall(() => request("POST", ROUTINE_RESULTS_ROUTES.options, decodeRoutineResultConnectionOptions, {}));
+}
+
+/** The place where an agent routine sends its answers, or null when it sends none. */
+export function getRoutineResultDestination(
+  request: TeamApiRequest,
+  input: RoutineResultRoutineInput,
+): Effect.Effect<RoutineResultDestination | null, TeamAdminRequestError> {
+  return adminCall(() =>
+    request("POST", ROUTINE_RESULTS_ROUTES.destination, decodeRoutineResultDestinationAnswer, eventBody(input)),
+  );
+}
+
+/** Null `destination` stops sending. */
+export function setRoutineResultDestination(
+  request: TeamApiRequest,
+  input: SetRoutineResultDestinationInput,
+): Effect.Effect<RoutineResultDestination | null, TeamAdminRequestError> {
+  return adminCall(() =>
+    request("POST", ROUTINE_RESULTS_ROUTES.setDestination, decodeRoutineResultDestinationAnswer, eventBody(input)),
+  );
 }
 
 export function getHostAgentMemoryLimit(

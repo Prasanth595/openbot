@@ -47,6 +47,7 @@ import { ANDROID_PUSH_NOTIFICATIONS_CODECS } from "./push-notifications-android-
 import { PUSH_NOTIFICATIONS_CODECS } from "./push-notifications-v1";
 import { ROUTINE_FLOWS_CODECS } from "./routine-flows-v1";
 import { ROUTINE_RECOVERY_CODECS } from "./routine-recovery-v1";
+import { ROUTINE_RESULTS_CODECS } from "./routine-results-v1";
 import { SHARED_TABLES_CODECS } from "./shared-tables-v1";
 import { SIDE_QUESTION_CODECS } from "./side-question-v1";
 import { SIGN_IN_RELAY_CODECS } from "./sign-in-relay-v1";
@@ -98,6 +99,7 @@ const CODECS: ReadonlyMap<string, OptionalRouteCodec> = new Map([
   ...CONVERSATION_FILE_SEARCH_CODECS,
   ...ROUTINE_FLOWS_CODECS,
   ...ROUTINE_RECOVERY_CODECS,
+  ...ROUTINE_RESULTS_CODECS,
   ...PROVIDER_ACCOUNTS_CODECS,
   ...ONEPASSWORD_CONNECTOR_CODECS,
   ...AGENT_ACCESS_CODECS,

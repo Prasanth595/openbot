@@ -2053,6 +2053,7 @@ export async function createApplicationServices({
       },
       timezone: serverTimezone,
       memoryLimit: agentMemoryLimitSetting,
+      routineResults: routineResultRuntime,
     },
     // The host's Team API routes share the IPC handlers' runtime preparation: a first server
     // saved, enabled, or tested remotely must start and await the managed download like a local one.

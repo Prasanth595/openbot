@@ -269,6 +269,20 @@ export const messages = {
   "mobile.agent.record.dayOfMonth": "Dzień miesiąca",
   "mobile.agent.record.minute": "Minuta",
   "mobile.agent.record.timeZone": "Strefa czasowa",
+  "mobile.agent.record.missedPolicy": "Gdy serwer był wyłączony w zaplanowanym czasie",
+  "mobile.agent.record.missedPolicy.skip": "Pomiń to uruchomienie",
+  "mobile.agent.record.missedPolicy.runOnce": "Uruchom raz, gdy serwer wróci",
+  "mobile.agent.record.resultDestination": "Wysyłaj odpowiedzi do",
+  "mobile.agent.record.resultDestination.none": "Tylko ten czat",
+  "mobile.agent.record.resultDestination.unavailable": "{place} (wyłączone)",
+  "mobile.agent.record.resultDestination.placesFailed": "Nie udało się wczytać miejsc z {connection}.",
+  "mobile.agent.record.resultDestination.loadFailed": "Nie udało się wczytać miejsc w komunikatorach.",
+  "mobile.agent.record.resultDestination.saveFailed":
+    "Nie udało się zapisać miejsca w komunikatorze. Spróbuj ponownie.",
+  "mobile.agent.record.resultDestination.createFailed":
+    "Rutyna jest zapisana, ale jej miejsce w komunikatorze nie. Otwórz rutynę i wybierz miejsce ponownie.",
+  "mobile.agent.record.resultDestinationUnsupported":
+    "Ten host nie może wysyłać odpowiedzi rutyn do komunikatora. Zaktualizuj OpenBot na hoście.",
   "mobile.agent.record.enabled": "Włączona",
   "mobile.agent.record.routine": "Rutyna",
   "mobile.agent.record.testStarting": "Uruchamianie…",

@@ -89,6 +89,7 @@ export const messages = {
   "error.team.hostIdentityUnsupported": "Diese Verbindung unterstützt keine Änderungen der Serveridentität.",
   "error.team.hostUpdateUnsupported": "Diese Verbindung unterstützt keine Host-Aktualisierungen.",
   "error.team.hostTimezoneUnsupported": "Diese Verbindung unterstützt die Zeitzone des Servers nicht.",
+  "error.team.routineResultsUnsupported": "Diese Verbindung unterstützt keine Ziele für Routinen.",
   "error.team.agentMemoryLimitUnsupported": "Diese Verbindung unterstützt das Erinnerungslimit der Agenten nicht.",
   "error.team.attachmentNameRequired": "Ein sicherer Anhangsname ist erforderlich.",
   "error.team.attachmentNotFound": "Anhang nicht gefunden.",

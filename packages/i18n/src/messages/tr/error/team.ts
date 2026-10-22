@@ -86,6 +86,7 @@ export const messages = {
   "error.team.hostIdentityUnsupported": "Sunucu kimliği değişiklikleri bu bağlantı tarafından desteklenmiyor.",
   "error.team.hostUpdateUnsupported": "Ana makine güncellemeleri bu bağlantı tarafından desteklenmiyor.",
   "error.team.hostTimezoneUnsupported": "Bu bağlantı sunucunun saat dilimini desteklemiyor.",
+  "error.team.routineResultsUnsupported": "Bu bağlantı rutin hedeflerini desteklemiyor.",
   "error.team.agentMemoryLimitUnsupported": "Bu bağlantı ajanların bellek sınırını desteklemiyor.",
   "error.team.attachmentNameRequired": "Güvenli bir ek adı gereklidir.",
   "error.team.attachmentNotFound": "Ek bulunamadı.",

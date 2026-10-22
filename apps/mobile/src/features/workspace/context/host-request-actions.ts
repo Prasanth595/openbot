@@ -66,6 +66,8 @@ import { ONEPASSWORD_CONNECTOR_CAPABILITY } from "@openbot/contracts/team-protoc
 import { PROVIDER_ACCOUNTS_CAPABILITY } from "@openbot/contracts/team-protocol/provider-accounts-v1";
 import { PROVIDERS_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/providers-v1";
 import { TEAM_QUEUE_EDIT_CAPABILITY } from "@openbot/contracts/team-protocol/queue-edit-v1";
+import { ROUTINE_RECOVERY_CAPABILITY } from "@openbot/contracts/team-protocol/routine-recovery-v1";
+import { ROUTINE_RESULTS_CAPABILITY } from "@openbot/contracts/team-protocol/routine-results-v1";
 import { SHARED_TABLES_CAPABILITY } from "@openbot/contracts/team-protocol/shared-tables-v1";
 import { SKILLS_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/skills-admin-v1";
 import { STORAGE_ROUTES } from "@openbot/contracts/team-protocol/storage-v1";
@@ -86,6 +88,7 @@ import {
   getHostReleaseStatus,
   getHostTimezone,
   getHostUpdateStatus,
+  getRoutineResultDestination,
   githubConnectorRepositories,
   githubConnectorRequest,
   installAgentTemplate,
@@ -97,6 +100,7 @@ import {
   listMcpServers,
   listMcpSignIns,
   listProviderAccounts,
+  listRoutineResultOptions,
   listSharedTables,
   messagingConnectorAddOrchestrator,
   messagingConnectorComplete,
@@ -123,6 +127,7 @@ import {
   setHostTimezone,
   setHostUpdateSettings,
   setMcpServerEnabled,
+  setRoutineResultDestination,
   signOutMcpServer,
   startHostUpdate,
   testEventRoutine,
@@ -195,6 +200,9 @@ type HostRequestActions = Pick<
   | "loadRoutineCalendar"
   | "listEventRoutines"
   | "saveEventRoutine"
+  | "loadRoutineResultOptions"
+  | "loadRoutineResultDestination"
+  | "setRoutineResultDestination"
   | "deleteEventRoutine"
   | "testEventRoutine"
   | "rotateEventRoutineSecret"
@@ -340,6 +348,10 @@ export function createHostRequestActions({
   /** The event admin routes are optional and reject members on the host. */
   const eventsAdmin = (serverId: string) =>
     capabilityApi(serverId, EVENTS_CAPABILITY, "mobile.agent.record.eventsUnsupported");
+  /** A host with `routine-recovery-v1` answers the event routine list and save with `missedPolicy`. */
+  const recovery = (serverId: string) => has(serverId, ROUTINE_RECOVERY_CAPABILITY);
+  const routineResultsAdmin = (serverId: string) =>
+    capabilityApi(serverId, ROUTINE_RESULTS_CAPABILITY, "mobile.agent.record.resultDestinationUnsupported");
   const sessionSettingsAdmin = (serverId: string) =>
     capabilityApi(serverId, AGENT_SESSION_SETTINGS_CAPABILITY, "mobile.agent.session.unsupported");
   /** The tasks are an optional route set. Any member who can message the agent can use them. */
@@ -473,8 +485,15 @@ export function createHostRequestActions({
       runTeamRequest(setAgentSessionSetting(sessionSettingsAdmin(serverId), input)),
     resetAgentSessionSetting: async (input, serverId) =>
       runTeamRequest(resetAgentSessionSetting(sessionSettingsAdmin(serverId), input)),
-    listEventRoutines: (owner, serverId) => runTeamRequest(listEventRoutines(eventsAdmin(serverId), { owner })),
-    saveEventRoutine: (input, serverId) => runTeamRequest(saveEventRoutine(eventsAdmin(serverId), input)),
+    listEventRoutines: (owner, serverId) =>
+      runTeamRequest(listEventRoutines(eventsAdmin(serverId), { owner }, recovery(serverId))),
+    saveEventRoutine: (input, serverId) =>
+      runTeamRequest(saveEventRoutine(eventsAdmin(serverId), input, recovery(serverId))),
+    loadRoutineResultOptions: (serverId) => runTeamRequest(listRoutineResultOptions(routineResultsAdmin(serverId))),
+    loadRoutineResultDestination: (input, serverId) =>
+      runTeamRequest(getRoutineResultDestination(routineResultsAdmin(serverId), input)),
+    setRoutineResultDestination: (input, serverId) =>
+      runTeamRequest(setRoutineResultDestination(routineResultsAdmin(serverId), input)),
     deleteEventRoutine: (input, serverId) => runTeamRequest(deleteEventRoutine(eventsAdmin(serverId), input)),
     testEventRoutine: (input, serverId) => runTeamRequest(testEventRoutine(eventsAdmin(serverId), input)),
     rotateEventRoutineSecret: (input, serverId) =>

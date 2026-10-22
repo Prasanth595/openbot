@@ -255,6 +255,20 @@ export const messages = {
   "mobile.agent.record.dayOfMonth": "Jour du mois",
   "mobile.agent.record.minute": "Minute",
   "mobile.agent.record.timeZone": "Fuseau horaire",
+  "mobile.agent.record.missedPolicy": "Si le serveur était éteint à l’heure prévue",
+  "mobile.agent.record.missedPolicy.skip": "Ignorer cette exécution",
+  "mobile.agent.record.missedPolicy.runOnce": "Exécuter une fois au retour du serveur",
+  "mobile.agent.record.resultDestination": "Envoyer les réponses à",
+  "mobile.agent.record.resultDestination.none": "Seulement cette discussion",
+  "mobile.agent.record.resultDestination.unavailable": "{place} (désactivé)",
+  "mobile.agent.record.resultDestination.placesFailed": "Impossible de charger les emplacements de {connection}.",
+  "mobile.agent.record.resultDestination.loadFailed": "Impossible de charger les emplacements de messagerie.",
+  "mobile.agent.record.resultDestination.saveFailed":
+    "Impossible d’enregistrer l’emplacement de messagerie. Réessayez.",
+  "mobile.agent.record.resultDestination.createFailed":
+    "La routine est enregistrée, mais pas son emplacement de messagerie. Ouvrez la routine pour choisir à nouveau l’emplacement.",
+  "mobile.agent.record.resultDestinationUnsupported":
+    "Cet hôte ne peut pas envoyer les réponses des routines vers un emplacement de messagerie. Mettez à jour OpenBot sur l’hôte.",
   "mobile.agent.record.enabled": "Activée",
   "mobile.agent.record.routine": "Routine",
   "mobile.agent.record.testStarting": "Démarrage…",

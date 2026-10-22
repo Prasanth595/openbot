@@ -74,6 +74,7 @@ import {
   QUIET_TURN_CAPABILITY,
   ROUTINE_FLOWS_CAPABILITY,
   ROUTINE_RECOVERY_CAPABILITY,
+  ROUTINE_RESULTS_CAPABILITY,
   SHARED_TABLES_CAPABILITY,
   SIGN_IN_RELAY_CAPABILITY,
   SKILLS_ADMIN_CAPABILITY,
@@ -194,6 +195,7 @@ import { routeProviders } from "./team-api/route-providers";
 import { routePushNotifications } from "./team-api/route-push-notifications";
 import { routeRemoteScreen } from "./team-api/route-remote-screen";
 import { routeRoutineFlows } from "./team-api/route-routine-flows";
+import { routeRoutineResults } from "./team-api/route-routine-results";
 import { routeSharedTables } from "./team-api/route-shared-tables";
 import { routeSideQuestion } from "./team-api/route-side-question";
 import { routeSignInRelay } from "./team-api/route-sign-in-relay";
@@ -830,6 +832,7 @@ export class TeamApiServer {
       if ((await routeAgentAdmin(context, this.#options.admin, hidden)) === "handled") return;
       if ((await routeAgentHostSettings(context, this.#options.admin, hidden)) === "handled") return;
       if ((await routeAgentBackupModels(context, this.#options.admin, hidden)) === "handled") return;
+      if ((await routeRoutineResults(context, this.#options.admin, hidden)) === "handled") return;
       if ((await routeAgentSessionSettings(context, this.#options.admin, hidden)) === "handled") return;
       if ((await routeAgentHidden(context, this.#options.hiddenAgents, hidden)) === "handled") return;
       if ((await routeAgentTasks(context, this.#options.agentTasks, hidden)) === "handled") return;
@@ -1891,6 +1894,7 @@ export class TeamApiServer {
           return this.#options.admin?.update !== undefined;
         if (capability === EVENTS_CAPABILITY) return this.#options.events !== undefined;
         if (capability === ROUTINE_RECOVERY_CAPABILITY) return this.#options.events !== undefined;
+        if (capability === ROUTINE_RESULTS_CAPABILITY) return this.#options.admin?.routineResults !== undefined;
         if (capability === AGENT_IMPORT_CAPABILITY) return this.#options.agentImport !== undefined;
         if (capability === INSTANCE_TRANSFER_CAPABILITY) return this.#options.instanceTransfer !== undefined;
         if (capability === LIVE_ACTIVITY_PUSH_CAPABILITY) return this.#options.liveActivityPush !== undefined;
