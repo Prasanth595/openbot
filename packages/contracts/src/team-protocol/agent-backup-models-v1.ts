@@ -3,8 +3,9 @@
 // What it grants, recorded here because freezing it makes it permanent: an owner or admin of a
 // server can read and change the backup models of each agent (`backupModels`): the models, at most
 // eight, that the agent moves to when a usage limit holds its message, and whether it moves at once
-// (`automatic`) or asks first. Null means the agent asks in the chat, with no saved order. A provider
-// id is open (`OPEN_PROVIDER_ID`); the host refuses one it does not know. An account id names one of
+// (`automatic`) or asks first. Null means the agent asks in the chat, with no saved order. Each answer
+// also names the model that the agent left for a usage limit (`usageLimitReturn`, read only), or null.
+// A provider id is open (`OPEN_PROVIDER_ID`); the host refuses one it does not know. An account id names one of
 // the host's own provider accounts. A member cannot use either route; `requireAdmin` on the host is
 // the only gate.
 import { isString } from "../runtime-values";
@@ -17,6 +18,7 @@ import {
   list,
   nullable,
   type OptionalRouteCodec,
+  string,
 } from "./admin-wire";
 import { OPEN_PROVIDER_ID } from "./provider-aware-codec";
 
@@ -41,7 +43,13 @@ const choice = fields(
   { providerAccountId: pattern(ACCOUNT_ID) },
 );
 const backupModels = nullable(fields({ automatic: boolean, order: list(choice, 8) }));
-const settings: AdminDecoder = fields({ backupModels });
+const usageLimitReturn = nullable(
+  fields(
+    { provider: pattern(OPEN_PROVIDER_ID), model: pattern(MODEL), reasoningEffort: string(32) },
+    { providerAccountId: pattern(ACCOUNT_ID) },
+  ),
+);
+const settings: AdminDecoder = fields({ backupModels, usageLimitReturn });
 
 export const AGENT_BACKUP_MODELS_CODECS: ReadonlyMap<string, OptionalRouteCodec> = new Map([
   [AGENT_BACKUP_MODELS_ROUTES.settings, adminRoute(fields({ agentId: identifier }), settings)],

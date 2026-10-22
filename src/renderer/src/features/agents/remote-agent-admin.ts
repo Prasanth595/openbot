@@ -3,6 +3,7 @@ import type {
   AgentBackupModelSettings,
   AgentBackupModels,
   AgentHostSettings,
+  AgentUsageLimitReturn,
   ServerSummary,
   UpdateAgentAdminSettingsInput,
   UpdateAgentInput,
@@ -170,6 +171,9 @@ export function createRemoteAgentAdmin(
     /** Undefined for a local agent, before the host answers, and when it does not serve the capability. */
     backupModels: (): AgentBackupModels | null | undefined =>
       state.backupKey !== null && state.backupKey === backupKey() ? state.backupModels?.backupModels : undefined,
+    /** The model that the agent left for a usage limit. The Team API agent summary does not carry it. */
+    usageLimitReturn: (): AgentUsageLimitReturn | null | undefined =>
+      state.backupKey !== null && state.backupKey === backupKey() ? state.backupModels?.usageLimitReturn : undefined,
     async updateBackupModels(agentId: string, backupModels: AgentBackupModels | null): Promise<void> {
       const server = target()?.server;
       if (server?.kind !== "remote" || !serverCanAdminister(server, AGENT_BACKUP_MODELS_CAPABILITY))

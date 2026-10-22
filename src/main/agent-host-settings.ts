@@ -63,6 +63,7 @@ export function createAgentHostSettings({
   });
   const backupModels = (agent: AgentSummary): AgentBackupModelSettings => ({
     backupModels: agent.backupModels ?? null,
+    usageLimitReturn: agent.usageLimitReturn ?? null,
   });
   const updateBackupModels = Effect.fn("AgentHostSettings.updateBackupModels")(function* ({
     agentId,

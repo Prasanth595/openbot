@@ -680,12 +680,14 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     const settings = remoteAgentAdmin.settings();
     const automation = remoteAgentAdmin.automation();
     const backupModels = remoteAgentAdmin.backupModels();
+    const usageLimitReturn = remoteAgentAdmin.usageLimitReturn();
     return agent
       ? {
           ...agent,
           ...(settings ? { access: settings.access } : {}),
           ...(automation === undefined ? {} : { allowAutomation: automation }),
           ...(backupModels ? { backupModels } : {}),
+          ...(usageLimitReturn ? { usageLimitReturn } : {}),
         }
       : agent;
   });

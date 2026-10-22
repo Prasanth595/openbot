@@ -1052,7 +1052,7 @@ try {
     });
     check(
       "an admin reads null backup models for an agent with none",
-      adminRead.status === 200 && isDeepStrictEqual(adminRead.body, { backupModels: null }),
+      adminRead.status === 200 && isDeepStrictEqual(adminRead.body, { backupModels: null, usageLimitReturn: null }),
       summary(adminRead),
     );
     const unsupported = await call("POST", AGENT_BACKUP_MODELS_ROUTES.settings, {
@@ -1112,10 +1112,28 @@ try {
     check(
       "an admin sets backup models through the agent writer and reads them back",
       adminSet.status === 200 &&
-        isDeepStrictEqual(adminSet.body, { backupModels }) &&
-        isDeepStrictEqual(readBack.body, { backupModels }) &&
+        isDeepStrictEqual(adminSet.body, { backupModels, usageLimitReturn: null }) &&
+        isDeepStrictEqual(readBack.body, { backupModels, usageLimitReturn: null }) &&
         isDeepStrictEqual(callsOf("updateAgent").at(-1), [{ agentId: "agent-ada", backupModels }]),
       [summary(adminSet), summary(readBack)],
+    );
+    const ada = agents.find((item) => item.id === "agent-ada");
+    const usageLimitReturn = {
+      provider: "claude" as const,
+      model: "claude-opus-4-5",
+      reasoningEffort: "medium" as const,
+    };
+    if (ada) ada.usageLimitReturn = usageLimitReturn;
+    const atLimit = await call("POST", AGENT_BACKUP_MODELS_ROUTES.settings, {
+      token: adaToken,
+      json: { agentId: "agent-ada" },
+      capabilities: backupCapabilities,
+    });
+    if (ada) delete ada.usageLimitReturn;
+    check(
+      "an admin reads the model that the agent left for a usage limit",
+      atLimit.status === 200 && isDeepStrictEqual(field(atLimit.body, "usageLimitReturn"), usageLimitReturn),
+      summary(atLimit),
     );
     const adminClear = await call("POST", AGENT_BACKUP_MODELS_ROUTES.update, {
       token: adaToken,
@@ -1130,7 +1148,7 @@ try {
     check(
       "an admin clears backup models, and an unknown agent gets 404",
       adminClear.status === 200 &&
-        isDeepStrictEqual(adminClear.body, { backupModels: null }) &&
+        isDeepStrictEqual(adminClear.body, { backupModels: null, usageLimitReturn: null }) &&
         errorIs(missing, 404, sourceText("error.team.agentNotFound")),
       [summary(adminClear), summary(missing)],
     );

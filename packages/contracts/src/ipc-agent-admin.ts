@@ -5,7 +5,15 @@
  */
 
 import { type AgentProviderId, agentProviderDescriptor } from "./agent-providers";
-import { type AgentAccess, type AgentBackupModels, isAgentAccess, isAgentBackupModels } from "./ipc-agents";
+import {
+  type AgentAccess,
+  type AgentBackupModels,
+  type AgentModelChoice,
+  type AgentUsageLimitReturn,
+  isAgentAccess,
+  isAgentBackupModels,
+  isAgentUsageLimitReturn,
+} from "./ipc-agents";
 import { isIdentifier } from "./ipc-bounded-values";
 import { type BusyMessageMode, isBusyMessageMode } from "./ipc-queue";
 import { isBoolean, isDynamicRecord } from "./runtime-values";
@@ -162,36 +170,42 @@ export function parseUpdateAgentHostSettingsInput(value: unknown): UpdateAgentHo
  */
 export interface AgentBackupModelSettings {
   backupModels: AgentBackupModels | null;
+  /** The model that the agent left for a usage limit, or null. Read only. */
+  usageLimitReturn: AgentUsageLimitReturn | null;
 }
 
-export interface UpdateAgentBackupModelsInput extends AgentBackupModelSettings {
+export interface UpdateAgentBackupModelsInput {
   agentId: string;
+  backupModels: AgentBackupModels | null;
+}
+
+function copyModelChoice({ provider, model, providerAccountId }: AgentModelChoice): AgentModelChoice {
+  return { provider, model, ...(providerAccountId === undefined ? {} : { providerAccountId }) };
 }
 
 /**
  * Refuses a provider that this OpenBot does not know, so the client hides the setting instead of
  * saving an order without it. Copies only the known fields.
  */
+function decodeBackupModels(value: unknown): AgentBackupModels | null {
+  if (value === null) return null;
+  if (!isAgentBackupModels(value)) throw new Error("Invalid backup models.");
+  return { automatic: value.automatic, order: value.order.map(copyModelChoice) };
+}
+
 export function decodeAgentBackupModelSettings(value: unknown): AgentBackupModelSettings {
   if (!isDynamicRecord(value)) throw new Error("Invalid backup models.");
-  const backupModels = value.backupModels;
-  if (backupModels === null) return { backupModels: null };
-  if (!isAgentBackupModels(backupModels)) throw new Error("Invalid backup models.");
+  const back = value.usageLimitReturn;
+  if (back !== null && !isAgentUsageLimitReturn(back)) throw new Error("Invalid backup models.");
   return {
-    backupModels: {
-      automatic: backupModels.automatic,
-      order: backupModels.order.map(({ provider, model, providerAccountId }) => ({
-        provider,
-        model,
-        ...(providerAccountId === undefined ? {} : { providerAccountId }),
-      })),
-    },
+    backupModels: decodeBackupModels(value.backupModels),
+    usageLimitReturn: back && { ...copyModelChoice(back), reasoningEffort: back.reasoningEffort },
   };
 }
 
 export function parseUpdateAgentBackupModelsInput(value: unknown): UpdateAgentBackupModelsInput {
   if (!isDynamicRecord(value) || !isIdentifier(value.agentId)) throw new Error("Invalid backup models.");
-  return { agentId: value.agentId, ...decodeAgentBackupModelSettings(value) };
+  return { agentId: value.agentId, backupModels: decodeBackupModels(value.backupModels) };
 }
 
 /** The agent a host added from a marketplace listing or a shared template. The agent list has the rest. */

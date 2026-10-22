@@ -1521,7 +1521,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       getAgentBackupModels: async (agentId) => {
         const agent = agents.find((candidate) => candidate.id === agentId);
         if (!agent) throw new Error("Agent not found");
-        return { backupModels: agent.backupModels ?? null };
+        return { backupModels: agent.backupModels ?? null, usageLimitReturn: agent.usageLimitReturn ?? null };
       },
       updateAgentBackupModels: async (input) => {
         await api.agent.updateAgent(input);
