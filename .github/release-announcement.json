@@ -1,10 +1,8 @@
 {
-  "version": "0.48.0",
+  "version": "0.48.1",
   "highlights": [
-    "Channels are back on desktop and web: create one from the + menu, and restore archived ones.",
-    "Change the size of text and controls in Settings → General → Appearance → Interface size.",
-    "In a voice conversation, speak while the agent replies to interrupt it.",
-    "Owners and admins can set an agent's backup models on a joined server.",
-    "Install OpenBot with Nix on Linux and Apple silicon."
+    "Channels route messages again when the lead agent uses a free OpenCode model.",
+    "Agent profiles that a free OpenCode model writes work again.",
+    "Did a channel show \"Routing failed. Choose a member or try again.\" after the last update? Update to fix it."
   ]
 }

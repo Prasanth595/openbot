@@ -1,5 +1,18 @@
 [
   {
+    "version": "0.48.1",
+    "date": "2026-10-22",
+    "notices": [],
+    "groups": [
+      {
+        "type": "fixed",
+        "items": [
+          "Channels route messages again when the lead agent uses a free OpenCode model. Agent profiles that a free OpenCode model writes work again too."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.48.0",
     "date": "2026-10-22",
     "notices": [],

@@ -6,6 +6,14 @@ All notable changes to OpenBot will be documented here. The project follows
 
 ## [Unreleased]
 
+## [0.48.1] - 2026-10-22
+
+### Fixed
+
+- Route channel messages again when the lead agent uses a free OpenCode model. Before, every
+  message stopped with "Routing failed. Choose a member or try again.", because OpenCode refused the
+  routing request. Agent profiles that a free OpenCode model writes work again too.
+
 ## [0.48.0] - 2026-10-22
 
 ### Added
