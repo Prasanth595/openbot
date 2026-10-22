@@ -291,7 +291,8 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
   }
 
   function openSharedFile(path: string) {
-    const ownerAgentId = deps.props.agent?.id;
+    // A shared file belongs to the server, not to one agent, so a channel owns its preview too.
+    const ownerAgentId = conversationOwnerId(deps.props);
     if (!ownerAgentId) return;
     const serverId = deps.props.server?.id ?? "local";
     const target = { agentId: ownerAgentId, serverId };
@@ -304,7 +305,7 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
           if (
             !scopeActive() ||
             generation !== deps.currentFilePreviewGeneration() ||
-            deps.props.agent?.id !== ownerAgentId
+            conversationOwnerId(deps.props) !== ownerAgentId
           ) {
             releaseFilePreviewPage(preview.pageUrl);
             return;
