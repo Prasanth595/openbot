@@ -932,6 +932,7 @@ export class TurnLifecycle {
   ) {
     const report = (cause: Cause.Cause<TurnOperationFailed>) =>
       reportOriginalFailure(cause, (failure) => this.#hooks.emitError("turn_completion_failed", failure, agentId));
+    const runningThreadId = this.#runningTurns.get(turnId)?.threadId ?? threadId;
     this.#runningTurns.delete(turnId);
     this.#markEnded(turnId);
     const deliveries = yield* turnStep(() => this.#mailbox.findDeliveriesByTurn(agentId, turnId)).pipe(
@@ -996,10 +997,9 @@ export class TurnLifecycle {
       });
     }).pipe(Effect.catchCause(report));
     for (const [itemId, itemTurnId] of this.#itemTurns) if (itemTurnId === turnId) this.#itemTurns.delete(itemId);
-    // A routine run's own session ends with its turn. One agent's chat runs one turn at a time.
-    const routineSession = this.#conversation.routineSession(agentId);
-    if (routineSession && deliveries.some(({ delivery }) => delivery.sender.kind === "routine"))
-      yield* this.#hooks.closeRoutineSession(routineSession);
+    // A routine run's own session ends with its turn. A task or channel turn runs in another session.
+    if (runningThreadId && this.#conversation.isRoutineSession(runningThreadId))
+      yield* this.#hooks.closeRoutineSession(runningThreadId);
     yield* turnStep(() => this.#mailboxSync.emitQueue(agentId)).pipe(Effect.catchCause(report));
     yield* turnStep(() => {
       for (const { delivery } of deliveries) {

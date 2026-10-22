@@ -272,6 +272,8 @@ export const messages = {
     "Der aktive Durchlauf wurde geändert, bevor diese Nachricht gesteuert werden konnte.",
   "error.backend.steerUnsupported":
     "Dieser Anbieter kann einen laufenden Durchlauf nicht steuern. Deine Nachricht bleibt in der Warteschlange.",
+  "error.backend.steerRoutineRun":
+    "Gerade läuft eine Routine. Deine Nachricht bleibt in der Warteschlange und startet nach der Routine.",
   "error.backend.steerQueuedOnly": "Nur Nachrichten in der Warteschlange können gesteuert werden.",
   "error.backend.promptInactive": "Diese Rückfrage ist nicht mehr aktiv.",
   "error.backend.promptAnswerMismatch": "Eine Antwort passt zu keiner aktiven Frage.",

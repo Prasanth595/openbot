@@ -255,6 +255,7 @@ export const messages = {
   "error.backend.steerTurnChanged": "Aktywna tura zmieniła się, zanim udało się pokierować tą wiadomością.",
   "error.backend.steerUnsupported":
     "Ten dostawca nie może pokierować trwającą turą. Twoja wiadomość pozostaje w kolejce.",
+  "error.backend.steerRoutineRun": "Teraz działa rutyna. Twoja wiadomość czeka w kolejce i zacznie się po rutynie.",
   "error.backend.steerQueuedOnly": "Pokierować można tylko wiadomościami w kolejce.",
   "error.backend.promptInactive": "Ten prompt nie jest już aktywny.",
   "error.backend.promptAnswerMismatch": "Odpowiedź na prompt nie pasuje do aktywnego pytania.",

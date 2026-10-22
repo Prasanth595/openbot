@@ -251,6 +251,8 @@ export const messages = {
   "error.backend.steerTurnChanged": "Активный ход изменился, прежде чем это сообщение удалось направить.",
   "error.backend.steerUnsupported":
     "Этот провайдер не умеет направлять выполняемый ход. Ваше сообщение остаётся в очереди.",
+  "error.backend.steerRoutineRun":
+    "Сейчас выполняется регулярная задача. Ваше сообщение остаётся в очереди и начнётся после неё.",
   "error.backend.steerQueuedOnly": "Направлять можно только сообщения в очереди.",
   "error.backend.promptInactive": "Этот запрос больше не активен.",
   "error.backend.promptAnswerMismatch": "Ответ не соответствует активному вопросу.",

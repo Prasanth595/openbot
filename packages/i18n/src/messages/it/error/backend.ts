@@ -261,6 +261,7 @@ export const messages = {
   "error.backend.steerTurnChanged": "Il turno attivo è cambiato prima che questo messaggio potesse essere indirizzato.",
   "error.backend.steerUnsupported":
     "Questo provider non può indirizzare un turno in corso. Il tuo messaggio resta in coda.",
+  "error.backend.steerRoutineRun": "È in corso una routine. Il tuo messaggio resta in coda e parte dopo la routine.",
   "error.backend.steerQueuedOnly": "Si possono indirizzare solo i messaggi in coda.",
   "error.backend.promptInactive": "Questo prompt non è più attivo.",
   "error.backend.promptAnswerMismatch": "La risposta al prompt non corrisponde a una domanda attiva.",

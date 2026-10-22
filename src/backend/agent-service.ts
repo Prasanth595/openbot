@@ -3796,7 +3796,10 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         ? snapshot.activeTurnId
         : null;
     const steers = steerTurnId !== null && agentProviderDescriptor(providerForAgent(agent)).steer === "native";
+    // A routine run's own session ends with the run, so a chat message waits for the next turn.
+    const routineRuns = !task && this.#conversation.routineSession(agent.id) !== undefined;
     if (steerTurnId && !steers) yield* this.#markSteerFallback(agent.id, delivery.delivery.id, "provider-unsupported");
+    else if (steerTurnId && routineRuns) yield* this.#markSteerFallback(agent.id, delivery.delivery.id, "steer-failed");
     if (!task) {
       this.#emit({ type: "agents-changed", agents: this.listAgents() });
       this.#conversation.emitConversation(snapshot);
@@ -3804,7 +3807,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     this.#mailboxSync.emitQueue(agent.id);
     // Not awaited: the message is already queued, and the sender is answered without the wait for
     // the provider.
-    if (steerTurnId && steers)
+    if (steerTurnId && steers && !routineRuns)
       yield* this.#steerSentMessage(agent, snapshot.threadId ?? agent.threadId, delivery.delivery.id, steerTurnId).pipe(
         Effect.forkIn(this.#scope),
       );

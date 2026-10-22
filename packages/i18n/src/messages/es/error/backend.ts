@@ -259,6 +259,8 @@ export const messages = {
   "error.backend.useChannelTaskControlsWork": "Usa los controles de tareas del canal para el trabajo del canal.",
   "error.backend.steerTurnChanged": "El turno activo cambió antes de que se pudiera orientar con este mensaje.",
   "error.backend.steerUnsupported": "Este proveedor no puede orientar un turno en curso. Tu mensaje sigue en la cola.",
+  "error.backend.steerRoutineRun":
+    "Ahora se ejecuta una rutina. Tu mensaje sigue en la cola y empieza después de la rutina.",
   "error.backend.steerQueuedOnly": "Solo se puede orientar con mensajes en cola.",
   "error.backend.promptInactive": "Esta pregunta ya no está activa.",
   "error.backend.promptAnswerMismatch": "Una respuesta no coincide con ninguna pregunta activa.",

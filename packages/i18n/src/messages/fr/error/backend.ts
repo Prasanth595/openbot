@@ -268,6 +268,8 @@ export const messages = {
   "error.backend.steerTurnChanged": "Le tour actif a changé avant que ce message puisse l’orienter.",
   "error.backend.steerUnsupported":
     "Ce fournisseur ne peut pas orienter un tour en cours. Votre message reste dans la file.",
+  "error.backend.steerRoutineRun":
+    "Une routine est en cours. Votre message reste dans la file et démarre après la routine.",
   "error.backend.steerQueuedOnly": "Seuls les messages en file d’attente peuvent orienter le tour.",
   "error.backend.promptInactive": "Cette question n’est plus active.",
   "error.backend.promptAnswerMismatch": "Une réponse ne correspond à aucune question active.",

@@ -260,6 +260,7 @@ export const messages = {
   "error.backend.useChannelTaskControlsWork": "Use os controles de tarefas do canal para o trabalho no canal.",
   "error.backend.steerTurnChanged": "O turno ativo mudou antes que esta mensagem pudesse orientá-lo.",
   "error.backend.steerUnsupported": "Este provedor não pode orientar um turno em execução. Sua mensagem fica na fila.",
+  "error.backend.steerRoutineRun": "Uma rotina está em execução. Sua mensagem fica na fila e começa depois da rotina.",
   "error.backend.steerQueuedOnly": "Somente mensagens na fila podem orientar o turno ativo.",
   "error.backend.promptInactive": "Esta pergunta não está mais ativa.",
   "error.backend.promptAnswerMismatch": "Uma resposta não corresponde a uma pergunta ativa.",

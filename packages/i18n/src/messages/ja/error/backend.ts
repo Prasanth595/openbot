@@ -261,6 +261,7 @@ export const messages = {
   "error.backend.steerTurnChanged": "このメッセージで方向を変える前に、実行中のターンが変わりました。",
   "error.backend.steerUnsupported":
     "このプロバイダーは実行中のターンの方向を修正できません。メッセージはキューに残ります。",
+  "error.backend.steerRoutineRun": "ルーティンを実行中です。メッセージはキューに残り、ルーティンの後に開始します。",
   "error.backend.steerQueuedOnly": "ターンの方向を変えられるのはキュー内のメッセージだけです。",
   "error.backend.promptInactive": "この質問はもう有効ではありません。",
   "error.backend.promptAnswerMismatch": "回答が有効な質問と一致しません。",

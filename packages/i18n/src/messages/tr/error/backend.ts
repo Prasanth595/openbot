@@ -247,6 +247,7 @@ export const messages = {
   "error.backend.useChannelTaskControlsWork": "Kanal çalışması için kanal görevi kontrollerini kullanın.",
   "error.backend.steerTurnChanged": "Bu mesaj yönlendirilmeden önce etkin tur değişti.",
   "error.backend.steerUnsupported": "Bu sağlayıcı çalışan bir turu yönlendiremez. Mesajınız kuyrukta kalır.",
+  "error.backend.steerRoutineRun": "Şu anda bir rutin çalışıyor. Mesajınız kuyrukta kalır ve rutinden sonra başlar.",
   "error.backend.steerQueuedOnly": "Yalnızca kuyruğa alınmış mesajlar yönlendirilebilir.",
   "error.backend.promptInactive": "Bu istem artık etkin değil.",
   "error.backend.promptAnswerMismatch": "Bir istem yanıtı etkin bir soruyla eşleşmiyor.",
