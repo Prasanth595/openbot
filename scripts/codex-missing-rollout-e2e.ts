@@ -8,6 +8,8 @@
 // 2. The session of an agent on a provider account after the first is in that account's folder. The
 //    backfill does not read it through the shared process, which has another `CODEX_HOME`.
 // 3. Control: a session with a rollout is read again after each provider start.
+// 4. The next message to the agent of case 1 cannot resume its session (`no rollout found`), so it
+//    starts a new session and runs, rather than fail each time.
 // `bun run test:codex-missing-rollout`. Writes .openbot-build/codex-missing-rollout-e2e/report.json.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
@@ -95,6 +97,8 @@ const answer = (message) => {
     case "thread/items/list": return write({ id: message.id, result: { data: [], nextCursor: null } });
     case "turn/start": {
       if (control().refuseTurns) return write({ id: message.id, error: { code: -32603, message: "Fake turn refusal." } });
+      if (!loaded.has(params.threadId))
+        return write({ id: message.id, error: { code: -32600, message: "thread not found: " + params.threadId } });
       const turnId = "turn-" + process.pid + "-" + (++turns);
       write({ id: message.id, result: { turn: { id: turnId, status: "inProgress", items: [] } } });
       write({ method: "turn/started", params: { threadId: params.threadId, turn: { id: turnId } } });
@@ -143,6 +147,7 @@ interface Report {
   firstStart?: { refusedReads: number; accountReadsOnSharedProcess: number; completeReads: number };
   providerRestart?: { refusedReads: number; accountReadsOnSharedProcess: number; completeReads: number };
   backfillErrors?: { agent: string; message: string }[];
+  refusedNextTurn?: { resumeRefused: boolean; newThread: string | null; turnStarted: boolean; errors: string[] };
   error?: string;
 }
 
@@ -317,6 +322,21 @@ try {
     .filter((error) => error.code === "provider_history_backfill_pending")
     .map((error) => ({ agent: error.agentId, message: error.message }));
 
+  const linesBeforeTurn = protocol().length;
+  await runCauseEffect(app.agents.sendMessage({ agentId: refused.id, text: "Second message." }));
+  await waitFor("the next turn of the refused agent to end", () => {
+    const after = protocol().slice(linesBeforeTurn);
+    return after.some((line) => line.method === "turn/start") && idle(app, refused.id);
+  });
+  const newThread = app.store.activeProviderSession(refused.id)?.externalSessionId ?? null;
+  const afterTurn = protocol().slice(linesBeforeTurn);
+  report.refusedNextTurn = {
+    resumeRefused: afterTurn.some((line) => line.method === "thread/resume" && line.threadId === refusedThread),
+    newThread,
+    turnStarted: afterTurn.some((line) => line.method === "turn/start" && line.threadId === newThread),
+    errors: app.errors.filter((error) => error.agentId === refused.id).map((error) => error.code),
+  };
+
   report.passed =
     report.accountHomeUsedForAccountTurn &&
     report.firstStart.refusedReads === 1 &&
@@ -324,7 +344,12 @@ try {
     report.providerRestart.refusedReads === 0 &&
     report.providerRestart.accountReadsOnSharedProcess === 0 &&
     report.providerRestart.completeReads === 1 &&
-    report.backfillErrors.length === 0;
+    report.backfillErrors.length === 0 &&
+    report.refusedNextTurn.resumeRefused &&
+    report.refusedNextTurn.newThread !== null &&
+    report.refusedNextTurn.newThread !== refusedThread &&
+    report.refusedNextTurn.turnStarted &&
+    report.refusedNextTurn.errors.length === 0;
 } catch (error) {
   report.error = error instanceof Error ? (error.stack ?? error.message) : String(error);
 } finally {

@@ -37,6 +37,17 @@ export function isCodexMissingRollout(error: unknown): boolean {
 }
 
 /**
+ * Codex has no rollout for this id. A new session is the recovery. Codex 0.163.0 answers
+ * `thread/resume` with `no rollout found`, and `turn/start` on an unloaded thread with `thread not found`.
+ */
+export function isCodexMissingThreadError(error: unknown): boolean {
+  return (
+    error instanceof AppServerError &&
+    (/thread not found:/i.test(error.message) || /\bno rollout found\b/i.test(error.message))
+  );
+}
+
+/**
  * Codex refused `turn/start` because a compaction turn runs on the thread. Codex 0.160.1 answers a
  * `NotSubmitted` input with this internal error, so the input did not reach the turn and the caller
  * can queue it again for when the compaction ends.
@@ -95,6 +106,7 @@ export function isMissingProviderSessionError(error: unknown, provider: AgentPro
   // Provider diagnostics can mention missing resources without proving that this session is gone.
   if (error instanceof RequestError) return false;
   if (provider === "claude") return error instanceof MissingClaudeSessionError;
+  if (provider === "codex") return isCodexMissingThreadError(error);
   if (
     (provider !== "grok" &&
       provider !== "opencode" &&
