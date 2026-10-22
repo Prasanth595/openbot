@@ -1735,6 +1735,7 @@ export async function createApplicationServices({
         join(userData, "logs", "update"),
         join(userData, "logs", "providers"),
         join(userData, "logs", "agents"),
+        join(userData, "logs", "main"),
       ],
       runtimes: providerRuntimeRoot({
         appData: app.getPath("appData"),

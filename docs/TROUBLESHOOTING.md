@@ -240,3 +240,15 @@ version, the steps, and the expected and actual results. When a provider row sho
 **Copy diagnostics** in its menu and paste the result into the form. On the phone, Settings →
 Support → **Save log file** makes a log that you can attach. Never publish tokens, `~/.codex`,
 `~/.claude`, conversations, private files, Electron user data, or full unreviewed diagnostics.
+
+When the desktop app closes by itself, look in the `logs` folder of its user data
+(`%APPDATA%\OpenBot\logs` on Windows, `~/Library/Application Support/OpenBot/logs` on macOS,
+`~/.config/OpenBot/logs` on Linux):
+
+- `main/main.log` has a `Quitting: <reason>.` line when OpenBot quit by itself or was closed.
+- `trace.ndjson` has an `exit` line with the same reason, and a `crash` line for each renderer or
+  helper process that stopped.
+
+A dump in the `Crashpad` folder next to `logs` means a process crashed. Tell us that a dump exists,
+but do not attach it publicly: it can hold secrets. When neither file has a reason and there is no
+dump, something outside OpenBot stopped it.

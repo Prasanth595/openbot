@@ -86,10 +86,17 @@ and ends between two samples, such as a short tool run, is not counted. The main
 `monitorEventLoopDelay`, less its 20 ms timer interval.
 Database time comes from `AgentDatabaseSupervisor`, from the send of a statement to its answer or to
 the end of the host; the host process is not changed. Renderer and child process exits other than a
-clean exit are counted and written to the trace as `crash` spans at the next sample. A utility
-process with the reason `killed` is not counted: OpenBot stops these processes itself. An exit in the
-last minute before a quit is not counted: a stop signal can end the child processes before the
-main process starts its teardown.
+clean exit are written to the trace as `crash` spans at once, and counted at the next sample. A
+utility process with the reason `killed` is neither: OpenBot stops these processes itself. An exit in
+the last minute before a quit is not counted: a stop signal can end the child processes before the
+main process starts its teardown. The trace still has it, after the `exit` span of that quit.
+
+`index.ts` writes one `exit` span and one line in `logs/main/main.log` when OpenBot starts to quit.
+The name is the first reason: `main_window_closed` (Windows and Linux, where closing the main
+window quits), `signal`, `session_end` or `quit` (the menu, the tray, an update or a restart). The
+main log holds every line of the `main` logger, redacted, in two files of 1 MB. `crashReporter`
+keeps local crash dumps in `app.getPath("crashDumps")` and never uploads them. A process that ends
+with no `exit` span and no dump was stopped from outside OpenBot (#2675).
 
 The pure part (`resource-summary.ts`) keeps each day as sparse histograms with two significant digits,
 peaks and counters, so p95 stays exact enough without a sample list. The summary file holds the

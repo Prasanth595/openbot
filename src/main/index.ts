@@ -15,6 +15,7 @@ import { Effect, Semaphore } from "effect";
 import {
   app,
   BrowserWindow,
+  crashReporter,
   dialog,
   type NativeImage,
   Notification,
@@ -102,6 +103,7 @@ import {
 } from "./main-window";
 import { ensureMacApplicationPresence, secondLaunchResponse } from "./main-window-state";
 import { MessageLinkRelay, openHttpLink } from "./message-link-relay";
+import { startMainLog } from "./provider-log";
 import { watchRemoteHostDirectory } from "./remote-server-host-directory";
 import { createRendererForwarders } from "./renderer-forwarders";
 import { sendToRenderer } from "./renderer-ipc";
@@ -121,6 +123,23 @@ const logger = createOpenBotLogger("main");
 let crashTrace: TraceFile | null = null;
 process.on("unhandledRejection", (reason) => reportMainProcessFailure("unhandledRejection", reason));
 process.on("uncaughtExceptionMonitor", (error, origin) => reportMainProcessFailure(origin, error));
+
+type ExitReason = "main_window_closed" | "signal" | "session_end" | "quit";
+let exitRecorded = false;
+
+/**
+ * Records once why OpenBot quits, in the main log and in the trace, before the teardown closes the
+ * trace. The first reason wins: closing the window then also quits. A process that ends with no such
+ * line and no crash dump stopped from outside, such as Task Manager.
+ */
+function recordExit(reason: ExitReason): void {
+  if (exitRecorded) return;
+  exitRecorded = true;
+  logger.info(`Quitting: ${reason}.`);
+  if (!crashTrace) return;
+  crashTrace.record({ kind: "exit", name: reason, durationMs: 0, outcome: "requested" });
+  Effect.runFork(crashTrace.flush());
+}
 
 function reportMainProcessFailure(origin: "uncaughtException" | "unhandledRejection", error: unknown): void {
   logger.error(`Main process ${origin}:`, toLogValue(error));
@@ -184,6 +203,13 @@ app.setName("OpenBot");
 app.enableSandbox();
 if (process.platform === "win32") app.setAppUserModelId("app.openbot.desktop");
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
+// A second launch exits at once and must not write into the files of the instance that runs.
+if (hasSingleInstanceLock) {
+  startMainLog(join(app.getPath("userData"), "logs"));
+  // Crash dumps stay in `crashDumps` on this computer. Crashpad removes old reports itself. Without
+  // them, a window that disappeared on Windows left nothing to tell a crash from a quit (#2675).
+  crashReporter.start({ uploadToServer: false });
+}
 // Linux: the GPU stays on until it fails on this computer (#992). `userData` has its final path here.
 configureLinuxGpu({
   userDataPath: app.getPath("userData"),
@@ -286,6 +312,7 @@ const MAIN_WINDOW_STATE_FILE = "openbot-main-window-state-v1.json";
 // (`scripts/hosting/openbot-boat-pre-stop`).
 if (!app.isPackaged || hostedServer || serverMode) {
   const quitAfterSignal = () => {
+    recordExit("signal");
     // Before `app.quit()`: the same signal can stop the Computer Use driver first.
     quitStarted = true;
     app.quit();
@@ -415,6 +442,7 @@ function applyAppIconColor(color: AppLogoColor): void {
 function attachQuitOnMainWindowClose(window: BrowserWindow): void {
   if (process.platform === "darwin") return;
   window.on("closed", () => {
+    recordExit("main_window_closed");
     // `quit`, not a teardown of its own: `before-quit` below is what OpenBot shuts down through,
     // and it already ignores a second request while the first one runs.
     app.quit();
@@ -449,6 +477,7 @@ function attachWindowsSessionEndHandlers(window: BrowserWindow): void {
       );
   });
   window.on("session-end", () => {
+    recordExit("session_end");
     systemSessionEnding = true;
     isQuitting = true;
     // Windows can stop the Computer Use driver first, and sends no `before-quit` for a session end.
@@ -1324,6 +1353,7 @@ app.on("window-all-closed", () => {
 });
 
 app.on("before-quit", (event) => {
+  recordExit(systemSessionEnding ? "session_end" : "quit");
   isQuitting = true;
   quitStarted = true;
   if (systemSessionEnding) {

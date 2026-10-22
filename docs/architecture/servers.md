@@ -22,7 +22,7 @@ attachment, persists, and queues the file path, not the transfer folder, in the 
 It keeps a path that another live record uses, and it deletes only a real path under the Transfers
 folder. `resolveAttachment` then returns null, so a file card shows "File not found" and a generated image
 shows its unavailable state. An older app ignores the field. Clear removes the remote-server caches and the `logs/remote`,
-`logs/update`, `logs/providers` and `logs/agents` files; it does not enter `logs/remote/transfers`. Runtimes are read-only.
+`logs/update`, `logs/providers`, `logs/agents` and `logs/main` files; it does not enter `logs/remote/transfers`. Runtimes are read-only.
 
 `storage:*` IPC reaches the local service or a joined server. The optional `storage-v1` capability
 exposes `POST /v1/storage/usage`, `/v1/storage/delete-file` and `/v1/storage/clear` with the frozen

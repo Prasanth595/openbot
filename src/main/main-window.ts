@@ -714,7 +714,12 @@ export function configureApplicationMenu(
           { role: "togglefullscreen" },
         ],
       },
-      { role: "windowMenu" },
+      // Windows and Linux: the default Close item takes Ctrl+W. With "Keep OpenBot running in the
+      // background" off, closing the main window quits OpenBot, so a Ctrl+W that no browser tab took
+      // ended the app with no question (#2675). The item keeps the key the system closes with.
+      process.platform === "darwin"
+        ? { role: "windowMenu" }
+        : { role: "windowMenu", submenu: [{ role: "minimize" }, { role: "close", accelerator: "Alt+F4" }] },
     ]),
   );
 }
