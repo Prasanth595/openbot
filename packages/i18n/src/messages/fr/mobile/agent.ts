@@ -395,7 +395,7 @@ export const messages = {
   "mobile.agent.publish.unpublishFailed": "Impossible de retirer la publication de l’agent",
   "mobile.agent.publish.failedBody": "L’hôte n’a pas pu terminer cette action.",
   "mobile.agent.publish.unsupported": "Cet hôte ne peut pas publier d’agents depuis un appareil distant.",
-  "mobile.agent.usage.processedTokens": "Jetons traités",
+  "mobile.agent.usage.tokensWithoutCacheReads": "Jetons hors lectures du cache",
   "mobile.agent.usage.estimatedCost": "Coût estimé",
   "mobile.agent.usage.daily": "Utilisation quotidienne",
   "mobile.agent.usage.tokens": "Jetons",
@@ -426,6 +426,8 @@ export const messages = {
     "Données partielles : tours sans utilisation : {missingUsage}, enregistrements incomplets : {incomplete}, enregistrements sans estimation de coût : {unpriced}.",
   "mobile.agent.usage.costNote":
     "Coût équivalent API en USD. Cette estimation exclut les abonnements, les outils et les frais de médias.",
+  "mobile.agent.usage.tokensNote":
+    "Les nombres de jetons n’incluent pas les lectures du cache. Chaque requête au modèle dans un tour relit la conversation en cache : les lectures du cache peuvent donc dépasser largement les autres jetons. La répartition des jetons les affiche comme « Entrée mise en cache ».",
   "mobile.agent.usage.collection": "Collecte commencée {started}. Mise à jour {updated}.",
   "mobile.agent.usage.never": "jamais",
   "mobile.agent.record.time": "Heure",

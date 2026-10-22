@@ -385,7 +385,7 @@ export const messages = {
   "mobile.agent.publish.unpublishFailed": "エージェントの公開を停止できませんでした",
   "mobile.agent.publish.failedBody": "ホストはこの操作を完了できませんでした。",
   "mobile.agent.publish.unsupported": "このホストでは、リモートデバイスからエージェントを公開できません。",
-  "mobile.agent.usage.processedTokens": "処理したトークン",
+  "mobile.agent.usage.tokensWithoutCacheReads": "キャッシュ読み取りを除くトークン",
   "mobile.agent.usage.estimatedCost": "推定コスト",
   "mobile.agent.usage.daily": "日別の使用量",
   "mobile.agent.usage.tokens": "トークン",
@@ -416,6 +416,8 @@ export const messages = {
     "一部のデータのみです: 使用量のないターン {missingUsage} 件、不完全な記録 {incomplete} 件、コスト推定のない記録 {unpriced} 件。",
   "mobile.agent.usage.costNote":
     "API 換算のコスト (USD) です。この推定には、サブスクリプション料金、ツール、メディアの料金は含まれません。",
+  "mobile.agent.usage.tokensNote":
+    "トークン数にはキャッシュ読み取りを含みません。1 回のターンの各モデルリクエストはキャッシュされた会話を毎回読み直すため、キャッシュ読み取りは他のトークンの何倍にもなることがあります。 トークンの内訳では「キャッシュ済みの入力」として表示します。",
   "mobile.agent.usage.collection": "収集開始: {started}。更新: {updated}。",
   "mobile.agent.usage.never": "なし",
   "mobile.agent.record.time": "時刻",

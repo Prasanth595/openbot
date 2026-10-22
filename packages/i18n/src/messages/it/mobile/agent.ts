@@ -384,7 +384,7 @@ export const messages = {
   "mobile.agent.publish.unpublishFailed": "Impossibile annullare la pubblicazione dell'agente",
   "mobile.agent.publish.failedBody": "L'host non ha potuto completare questa azione.",
   "mobile.agent.publish.unsupported": "Questo host non può pubblicare agenti da un dispositivo remoto.",
-  "mobile.agent.usage.processedTokens": "Token elaborati",
+  "mobile.agent.usage.tokensWithoutCacheReads": "Token senza letture dalla cache",
   "mobile.agent.usage.estimatedCost": "Costo stimato",
   "mobile.agent.usage.daily": "Utilizzo giornaliero",
   "mobile.agent.usage.tokens": "Token",
@@ -415,6 +415,8 @@ export const messages = {
     "Dati parziali: {missingUsage} turni senza utilizzo, {incomplete} record incompleti, {unpriced} record senza stima del costo.",
   "mobile.agent.usage.costNote":
     "Costo equivalente alle API in USD. Questa stima esclude i costi dell'abbonamento, dei tool e dei contenuti multimediali.",
+  "mobile.agent.usage.tokensNote":
+    "I conteggi dei token non includono le letture dalla cache. Ogni richiesta al modello in un turno rilegge la conversazione in cache, quindi le letture dalla cache possono essere molte volte superiori agli altri token. Il dettaglio dei token le mostra come «Input in cache».",
   "mobile.agent.usage.collection": "Raccolta iniziata {started}. Aggiornata {updated}.",
   "mobile.agent.usage.never": "mai",
   "mobile.agent.record.time": "Ora",

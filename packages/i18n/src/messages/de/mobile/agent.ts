@@ -392,7 +392,7 @@ export const messages = {
   "mobile.agent.publish.unpublishFailed": "Die Veröffentlichung des Agenten konnte nicht zurückgezogen werden",
   "mobile.agent.publish.failedBody": "Der Host konnte diese Aktion nicht abschließen.",
   "mobile.agent.publish.unsupported": "Dieser Host kann keine Agenten von einem Remote-Gerät aus veröffentlichen.",
-  "mobile.agent.usage.processedTokens": "Verarbeitete Tokens",
+  "mobile.agent.usage.tokensWithoutCacheReads": "Tokens ohne Cache-Lesevorgänge",
   "mobile.agent.usage.estimatedCost": "Geschätzte Kosten",
   "mobile.agent.usage.daily": "Tägliche Nutzung",
   "mobile.agent.usage.tokens": "Tokens",
@@ -423,6 +423,8 @@ export const messages = {
     "Unvollständige Daten: {missingUsage} Durchläufe ohne Nutzung, {incomplete} unvollständige Einträge, {unpriced} Einträge ohne Kostenschätzung.",
   "mobile.agent.usage.costNote":
     "API-äquivalente Kosten in USD. Diese Schätzung enthält keine Abonnementgebühren und keine Werkzeug- und Mediengebühren.",
+  "mobile.agent.usage.tokensNote":
+    "Token-Zahlen enthalten keine Cache-Lesevorgänge. Jede Modellanfrage in einem Durchlauf liest die zwischengespeicherte Unterhaltung erneut, daher können Cache-Lesevorgänge ein Vielfaches der übrigen Tokens sein. Die Token-Aufschlüsselung zeigt sie als „Eingabe aus dem Cache“.",
   "mobile.agent.usage.collection": "Erfasst seit {started}. Aktualisiert {updated}.",
   "mobile.agent.usage.never": "nie",
   "mobile.agent.record.time": "Uhrzeit",

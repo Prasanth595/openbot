@@ -418,7 +418,7 @@ export const messages = {
   "mobile.agent.publish.unpublishFailed": "Не удалось снять агента с публикации",
   "mobile.agent.publish.failedBody": "Хосту не удалось завершить это действие.",
   "mobile.agent.publish.unsupported": "Этот хост не позволяет публиковать агентов с удалённого устройства.",
-  "mobile.agent.usage.processedTokens": "Обработано токенов",
+  "mobile.agent.usage.tokensWithoutCacheReads": "Токены без чтения из кэша",
   "mobile.agent.usage.estimatedCost": "Оценка стоимости",
   "mobile.agent.usage.daily": "Использование по дням",
   "mobile.agent.usage.tokens": "Токены",
@@ -449,6 +449,8 @@ export const messages = {
     "Данные неполные. Ходов без данных об использовании: {missingUsage}, неполных записей: {incomplete}, записей без оценки стоимости: {unpriced}.",
   "mobile.agent.usage.costNote":
     "Стоимость в долларах США по тарифам API. В оценку не входят платежи по подписке, инструменты и медиа.",
+  "mobile.agent.usage.tokensNote":
+    "Счётчики токенов не включают чтение из кэша. Каждый запрос к модели в рамках одного ответа заново читает кэшированный разговор, поэтому чтение из кэша может во много раз превышать остальные токены. В разбивке токенов оно показано как «Ввод из кэша».",
   "mobile.agent.usage.collection": "Сбор данных начат: {started}. Обновлено: {updated}.",
   "mobile.agent.usage.never": "никогда",
   "mobile.agent.record.time": "Время",

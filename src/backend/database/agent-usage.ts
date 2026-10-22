@@ -273,7 +273,7 @@ export class AgentUsage {
       const cellKey = JSON.stringify([date, provider]);
       let cell = providerDays.get(cellKey);
       if (!cell) {
-        cell = { date, provider, processedTokens: 0, estimatedCostUsd: null };
+        cell = { date, provider, processedTokens: 0, cachedInput: null, estimatedCostUsd: null };
         providerDays.set(cellKey, cell);
       }
       return { targets: [totals, day, entry.bucket, agentEntry], cell };
@@ -301,6 +301,7 @@ export class AgentUsage {
       const cell = scope.cell;
       if (cell) {
         for (const key of TOKEN_KEYS) if (tokens[key] !== null) cell.processedTokens += tokens[key];
+        if (tokens.cachedInput !== null) cell.cachedInput = (cell.cachedInput ?? 0) + tokens.cachedInput;
         if (typeof row.estimated_cost_usd === "number")
           cell.estimatedCostUsd = (cell.estimatedCostUsd ?? 0) + row.estimated_cost_usd;
       }
