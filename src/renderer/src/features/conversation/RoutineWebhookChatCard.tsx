@@ -4,7 +4,7 @@ import {
   eventFilterDraftsValid,
   eventFiltersFromDrafts,
 } from "@openbot/contracts/event-filter-value";
-import type { EventRoutine, RoutineWebhookTrigger } from "@openbot/contracts/ipc-events";
+import type { EventRoutine, EventRoutineOwner, RoutineWebhookTrigger } from "@openbot/contracts/ipc-events";
 import { RoutineWebhookCard, type RoutineWebhookCardState } from "@openbot/ui/features/conversation/RoutineWebhookCard";
 import { useText } from "@openbot/ui/text";
 import { createEffect, createMemo, createStore } from "solid-js";
@@ -15,6 +15,11 @@ export type ChatWebhookRoutine = EventRoutine & { trigger: RoutineWebhookTrigger
 
 function isWebhookRoutine(routine: EventRoutine): routine is ChatWebhookRoutine {
   return routine.trigger.kind === "webhook";
+}
+
+/** A routine read from a store is a proxy, which the desktop bridge cannot clone. */
+function plainOwner(routine: EventRoutine): EventRoutineOwner {
+  return { kind: routine.owner.kind, id: routine.owner.id };
 }
 
 /**
@@ -129,7 +134,7 @@ export function RoutineWebhookChatCard(props: RoutineWebhookChatCardProps) {
     try {
       const result = await props.api.saveRoutine({
         id: current.id,
-        owner: current.owner,
+        owner: plainOwner(current),
         name: current.name,
         instruction: current.instruction,
         active: current.active,
@@ -163,7 +168,7 @@ export function RoutineWebhookChatCard(props: RoutineWebhookChatCardProps) {
         })
       }
       onRegenerateSecret={async () => {
-        const result = await props.api.rotateSecret({ owner: routine().owner, id: routine().id });
+        const result = await props.api.rotateSecret({ owner: plainOwner(routine()), id: routine().id });
         setCard((draft) => {
           draft.secret = result.secret;
         });
