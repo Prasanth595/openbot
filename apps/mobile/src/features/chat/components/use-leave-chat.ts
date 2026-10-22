@@ -4,8 +4,6 @@ import { type ParamListBase, useNavigation } from "expo-router/react-navigation"
 import { useCallback, useEffect, useRef, useState } from "react";
 import { KeyboardController } from "react-native-keyboard-controller";
 
-/** The swipe back of a zoomed chat starts only at the left edge. */
-const EDGE_DISMISSAL = { minX: 0, maxX: 24 };
 /** No touch is right of -1, so no swipe can start. */
 const NO_DISMISSAL = { maxX: -1 };
 
@@ -20,7 +18,9 @@ export function useLeaveChat(): () => void {
   const navigation = useNavigation<NativeStackNavigationProp<ParamListBase>>();
   const closing = useRef(false);
   const [leaving, setLeaving] = useState(false);
-  usePreventZoomTransitionDismissal({ unstable_dismissalBoundsRect: leaving ? NO_DISMISSAL : EDGE_DISMISSAL });
+  // Custom resting bounds disable the native-stack back recognizer, including its priority over
+  // scroll views. Keep native dismissal until Back starts, then block it before the single pop.
+  usePreventZoomTransitionDismissal(leaving ? { unstable_dismissalBoundsRect: NO_DISMISSAL } : undefined);
   useEffect(() => {
     const unsubscribes = [
       navigation.addListener("transitionStart", (event) => {

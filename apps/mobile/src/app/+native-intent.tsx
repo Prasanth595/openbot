@@ -8,6 +8,16 @@ export function redirectSystemPath({ path, initial }: { path: string; initial: b
   if (__DEV__) {
     try {
       const url = new URL(path);
+      // The development client also sends its launcher URL to Expo Router. It opens
+      // the bundle, not app content; keep warm launches on the current screen.
+      if (
+        url.protocol === "exp+openbot:" &&
+        url.host === "expo-development-client" &&
+        url.username === "" &&
+        url.password === "" &&
+        (url.pathname === "" || url.pathname === "/")
+      )
+        return initial ? "/" : null;
       if (url.protocol === "openbot:" && url.hostname === "motion-preview" && !url.pathname) {
         const phase = url.searchParams.get("phase");
         const query = new URLSearchParams();

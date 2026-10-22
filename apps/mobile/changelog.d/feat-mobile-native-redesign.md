@@ -8,3 +8,4 @@
 - Keep the latest page of five recent chats in memory for up to ten minutes, within a 10 MiB payload limit. Prefetch on agent press and open external chat links without waiting for Team layout.
 - Publish important Live Activity transitions at once, serialize native updates and defer avatar preparation until after chat opens. Retry failed avatar preparation once without naming missing files.
 - Respect member access in task, routine and Brain controls. Retain the host in routine chat links, preserve lead pin order after failed hides, and fix Android header clearance and iOS scroll touch areas.
+- Open the home screen for Expo development-client launch links, and retain native iOS back-swipe recognition across the chat.
