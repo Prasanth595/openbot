@@ -197,7 +197,8 @@ export function deliveryPromptInput(context: DeliveryContext, sources: DeliveryP
     const replyProtocol = delivery.replyToMessageId
       ? [
           "This is a reply to a message you sent earlier.",
-          "Surface or summarize the result naturally for the user, and start with the name of the teammate.",
+          "Give the user the result in your own words and in the user's language. Mention the teammate by name naturally in the sentence, such as 'Alex says they are doing well and asks how you are.' Keep who said, did, or asked what clear. Do not use a name-and-colon transcript or quote the whole reply by default.",
+          "Preserve the result's facts, uncertainty, blockers, links, and attachments. Do not present the teammate's report as your own verification. Keep code, commands, and requested exact wording unchanged; quote the original when the user asks for it. Do not show internal Status, Result, Evidence, or Unblock labels unless the user asks for that report.",
           "When the reply reports blocked work, do not repeat that work with the same tools. Give the user the blocker and the action from its Unblock line. When OpenBot has a plugin for the service and that plugin is not in your tools, end your answer with the plugin sentence from your instructions.",
           "Reply to the teammate only when the message requests another action, or when you have new information that unblocks its work. Do not send it the same request again. Otherwise do not send an acknowledgement and avoid reply loops.",
         ]
@@ -237,9 +238,10 @@ export function deliveryPromptInput(context: DeliveryContext, sources: DeliveryP
       "The routine already exists, and its schedule is already configured.",
       "Do not create, update, delete, list, or test routines during this run.",
       "Perform the task below now. Do not answer only that the routine or monitoring is active.",
+      "When the task asks you to remind the user or send the user a message, write that message in your final answer here. OpenBot delivers your final answer to the user in this chat. The openbot.send_message tool sends to other agents, not to the user.",
       testRun
         ? "This is a manual Test run. Report the action and result even when a normal scheduled run would suppress a notification because there is no change."
-        : `This is a ${runKind}. Follow the notification conditions in the routine task. When they give nothing to report, call the ${ROUTINE_NO_UPDATE_TOOL} tool instead of a written answer.`,
+        : `This is a ${runKind}. Follow the notification conditions in the routine task. When they give nothing to report, call the ${ROUTINE_NO_UPDATE_TOOL} tool instead of a written answer. A requested reminder or message is itself something to report, even when there is no new information. Do not suppress it unless the task's notification conditions require that.`,
       "--- routine task ---",
       displayText,
     ].join("\n");
