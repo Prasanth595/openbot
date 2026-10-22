@@ -53,7 +53,7 @@ export const VISIBLE_TOOL_DEFINITIONS = [
   ...OPENBOT_TOOL_DEFINITIONS.filter((tool) => DIRECT_NAMES.has(tool.name)),
   {
     name: "tool_search",
-    description: `Find built-in tools by keywords or qualified name. Returns names and short descriptions, default 5, maximum 10. The strongest matches also include inputSchema and guidance, ready for tool_call. Describe other results before first use. Catalog: ${INITIAL_TOOL_CATALOG}`,
+    description: `Find built-in tools by keywords or qualified name. Pass queries (an array) or query (one string). Returns names and short descriptions, default 5, maximum 10. The strongest matches also include inputSchema and guidance, ready for tool_call. Describe other results before first use. Catalog: ${INITIAL_TOOL_CATALOG}`,
     shape: searchShape,
   },
   {
@@ -100,7 +100,7 @@ export function claudeBridgedToolName(name: string, input: unknown): string {
  * finds no browser tool. Without this note the agent reports that it has no tool for that service.
  */
 const BROWSER_SEARCH_NOTE =
-  "No browser tool matched. A website or web app with no dedicated tool, such as mail or a calendar, is reached through openbot_browser. Call openbot_browser.list_tabs first: your signed-in tabs stay open across sessions.";
+  "No browser tool is in these results. A website or web app with no dedicated tool, such as mail or a calendar, is reached through openbot_browser. Call openbot_browser.list_tabs first: your signed-in tabs stay open across sessions.";
 
 function words(text: string): string[] {
   return text
@@ -139,13 +139,13 @@ export function discoverTools(params: DynamicToolCallParams, agent: AgentSummary
       query.toLowerCase(),
     );
     const terms = new Set(queries.flatMap(words));
-    const found = BUILTIN_TOOL_CATALOG.map((entry, index) => {
+    const matches = BUILTIN_TOOL_CATALOG.map((entry, index) => {
       const nameWords = new Set(words(entry.name));
       const descriptionWords = new Set(words(entry.description));
-      const toolWords = new Set(words(entry.tool));
       const exact = queries.some((query) => query === entry.name || query === entry.tool);
-      // Namespace words, such as "browser", match a whole namespace, so they do not make a result strong.
-      const strong = exact || [...terms].some((term) => toolWords.has(term));
+      // A strong result matches each word of its tool name. Namespace words, such as "browser", match a whole
+      // namespace, and one shared verb, such as "read", matches many unrelated tools.
+      const strong = exact || words(entry.tool).every((word) => terms.has(word));
       const score = [...terms].reduce(
         (sum, term) => sum + (nameWords.has(term) ? 3 : descriptionWords.has(term) ? 1 : 0),
         0,
@@ -153,8 +153,8 @@ export function discoverTools(params: DynamicToolCallParams, agent: AgentSummary
       return { entry, index, exact, strong, score };
     })
       .filter((result) => result.exact || result.score > 0)
-      .sort((a, b) => Number(b.exact) - Number(a.exact) || b.score - a.score || a.index - b.index)
-      .slice(0, parsed.data.limit ?? 5);
+      .sort((a, b) => Number(b.exact) - Number(a.exact) || b.score - a.score || a.index - b.index);
+    const found = matches.slice(0, parsed.data.limit ?? 5);
     const ready = new Set(
       found
         .filter((result) => result.strong)

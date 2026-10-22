@@ -13,9 +13,10 @@ Claude uses its native question tool instead of `ask_user`. The direct tools are
 `tool_search` uses local keyword matching. Exact names come first, then word matches, with stable
 catalog order for ties. It returns five results by default and at most ten. It accepts `queries`, or
 one `query` string, because models often send one string. Up to three strong results, an exact name or
-a query word in the tool name without its namespace, include the original schema and guidance, so the agent can call them
+queries that contain each word of the tool name without its namespace, include the original schema and guidance, so the agent can call them
 without a describe step. Each model step sends the full context again, so one step less saves more
-input than the added schema costs. The other results have a short description only. `tool_describe`
+input than the added schema costs. A query word that is only in the namespace, or one shared verb
+such as "read", does not make a result strong. The other results have a short description only. `tool_describe`
 returns the original schemas for up to ten qualified names, plus guidance from
 `agent/tool-guidance.ts`. Identical guidance appears once per response. The initial catalog lists
 names without schemas.
