@@ -160,6 +160,10 @@ export const messages = {
   "routine.card.webhookCreated": "Webhook ルーティンを作成しました",
   "routine.card.webhookSecretNote":
     "署名シークレットを取得するには、再生成してください。エージェントはシークレットを受け取りません。",
+  "routine.card.webhookUpdated": "Webhook ルーティンを更新しました",
+  "routine.card.webhookChanged": "変更は保存されていません",
+  "routine.card.webhookSaveFailed": "イベントを保存できませんでした。",
+  "routine.card.webhookFiltersInvalid": "フィルターの JSON Pointer が無効です。",
   "routine.calendar.title": "スケジュール",
   "routine.calendar.open": "スケジュールを開く",
   "routine.calendar.timeZone": "時刻は {zone} です",

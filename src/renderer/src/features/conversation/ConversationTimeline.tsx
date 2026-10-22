@@ -323,7 +323,7 @@ export function ConversationTimeline() {
     const scheduled = new Set(props.routines.map((routine) => routine.id));
     return timelineMessages().some((message) => {
       const marker = routineCardMarker(message, message.actionMarker);
-      return marker?.action === "created" && !scheduled.has(marker.routineId);
+      return marker !== undefined && marker.action !== "deleted" && !scheduled.has(marker.routineId);
     });
   });
   const webhookRoutineSource = createMemo(
@@ -335,13 +335,17 @@ export function ConversationTimeline() {
     { equals: (left, right) => left?.agentId === right?.agentId && left?.serverId === right?.serverId },
   );
   const webhookRoutines = createChatWebhookRoutines(webhookRoutineSource);
-  /** An agent's record of a webhook routine it created is a card with its URL and signing secret. */
+  /**
+   * An agent's newest record of a webhook routine it created or changed is a card with its URL, its
+   * signing secret and its events. An older record keeps the plain marker.
+   */
   const webhookRoutineCard = (message: AgentMessage | undefined, marker: ChatActionMarkerModel) => {
     const source = webhookRoutineSource();
     const cardMarker = routineCardMarker(message, marker);
-    if (!source || cardMarker?.action !== "created") return undefined;
+    if (!source || !message || !cardMarker || cardMarker.action === "deleted") return undefined;
+    if (latestRoutineMessageIds().get(cardMarker.routineId) !== message.id) return undefined;
     const routine = webhookRoutines.routines.find((candidate) => candidate.id === cardMarker.routineId);
-    return routine && { api: source.api, agentId: source.agentId, routine };
+    return routine && { api: source.api, action: cardMarker.action, routine };
   };
   /** A suggestion this client can draw is a card. One for an app it does not know keeps the marker. */
   const suggestionMarker = (marker: ChatActionMarkerModel) =>
@@ -641,7 +645,7 @@ export function ConversationTimeline() {
                                             {(card) => (
                                               <RoutineWebhookChatCard
                                                 api={card().api}
-                                                agentId={card().agentId}
+                                                action={card().action}
                                                 routine={card().routine}
                                                 connected={webhookRoutines.connected}
                                                 onOpenRoutine={openRoutineSettings}

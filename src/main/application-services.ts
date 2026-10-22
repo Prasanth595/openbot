@@ -168,7 +168,7 @@ import { GitHubConnectorService } from "./github-connector-service";
 import { GitHubConnectorStore } from "./github-connector-store";
 import { HermesImportService } from "./hermes-import-service";
 import { HostEventsRuntime } from "./host-events-runtime";
-import { agentWebhookRoutineCreator, HostEventsService } from "./host-events-service";
+import { agentWebhookRoutineWriter, HostEventsService } from "./host-events-service";
 import { HostService } from "./host-service";
 import { HostUpdateCoordinator } from "./host-update-coordinator";
 import { CLIENT_USE_WINDOW_MS, HostedServerActivity } from "./hosted-server-activity";
@@ -1530,7 +1530,7 @@ export async function createApplicationServices({
     localSkillTools: () => localSkillTools(skills),
     routineFlowTools: () => routineFlowRuntime,
     // `events` is built later, after the account service and the relay.
-    webhookRoutines: () => agentWebhookRoutineCreator(events),
+    webhookRoutines: () => agentWebhookRoutineWriter(events),
     approvalAutomation,
     busyMessageMode: () => busyMessageMode.get().mode,
     agentMemoryLimit: () => agentMemoryLimit.get().limit,

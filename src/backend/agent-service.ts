@@ -184,7 +184,7 @@ import { ThreadLifecycle } from "./agent/thread-lifecycle";
 import { toToolOperationFailed } from "./agent/tool-operation";
 import { type AgentBrowserHost, TurnLifecycle } from "./agent/turn-lifecycle";
 import { toUsageReadFailed, UsageLimitGate, type UsageLimitKey } from "./agent/usage-limit-gate";
-import type { WebhookRoutineCreator } from "./agent/webhook-routine-tool";
+import type { WebhookRoutineWriter } from "./agent/webhook-routine-tool";
 import type { AgentProvider } from "./agent-client";
 import type { AgentTables } from "./agent-data/agent-tables";
 import type { AgentStore } from "./agent-store";
@@ -281,7 +281,7 @@ export interface AgentServiceOptions {
   /** Built after the service, so read when a tool call needs it. */
   routineFlowTools?: () => RoutineFlowTools;
   /** Built after the service, so read when a tool call needs it. */
-  webhookRoutines?: () => WebhookRoutineCreator;
+  webhookRoutines?: () => WebhookRoutineWriter;
   /**
    * Whose approvals are answered without asking. The main process owns the preference, because it
    * is a property of this computer and never crosses the Team API. Omitted, every approval asks.

@@ -189,6 +189,10 @@ export const messages = {
   "routine.card.open": "Открыть регулярную задачу {name}",
   "routine.card.webhookCreated": "Создана регулярная задача с вебхуком",
   "routine.card.webhookSecretNote": "Чтобы получить секрет подписи, создайте его заново. Агент не получает секрет.",
+  "routine.card.webhookUpdated": "Обновлена регулярная задача с вебхуком",
+  "routine.card.webhookChanged": "Изменения не сохранены",
+  "routine.card.webhookSaveFailed": "Не удалось сохранить события.",
+  "routine.card.webhookFiltersInvalid": "У фильтра недопустимый JSON Pointer.",
 
   "routine.calendar.title": "Расписание",
   "routine.calendar.open": "Открыть расписание",

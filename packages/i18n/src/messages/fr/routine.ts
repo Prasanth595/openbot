@@ -165,6 +165,10 @@ export const messages = {
   "routine.card.webhookCreated": "Routine webhook créée",
   "routine.card.webhookSecretNote":
     "Pour obtenir le secret de signature, régénérez-le. L’agent ne reçoit pas le secret.",
+  "routine.card.webhookUpdated": "Routine webhook mise à jour",
+  "routine.card.webhookChanged": "Modifications non enregistrées",
+  "routine.card.webhookSaveFailed": "Impossible d’enregistrer les événements.",
+  "routine.card.webhookFiltersInvalid": "Un filtre a un JSON Pointer non valide.",
   "routine.calendar.title": "Planning",
   "routine.calendar.open": "Ouvrir le planning",
   "routine.calendar.timeZone": "Heures en {zone}",

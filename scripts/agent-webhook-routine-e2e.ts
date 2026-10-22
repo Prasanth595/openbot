@@ -41,7 +41,7 @@ const { AgentStore } = await import("../src/backend/agent-store");
 const { runCauseEffect } = await import("../src/backend/effect-boundary");
 const { MailboxStore } = await import("../src/backend/mailbox-store");
 const { OpenBotDatabase } = await import("../src/backend/openbot-database");
-const { agentWebhookRoutineCreator, HostEventsService } = await import("../src/main/host-events-service");
+const { agentWebhookRoutineWriter, HostEventsService } = await import("../src/main/host-events-service");
 
 const RELAY_ORIGIN = "https://signal.example.test";
 const CALL_MARK = "WEBHOOK-CALL";
@@ -109,7 +109,10 @@ const answer = (message) => {
           callId: "call-" + turnId,
           namespace: "openbot",
           tool: "tool_call",
-          arguments: { name: "openbot.create_webhook_routine", arguments: JSON.parse(match[1]) },
+          arguments: (() => {
+            const { __tool = "create_webhook_routine", ...args } = JSON.parse(match[1]);
+            return { name: "openbot." + __tool, arguments: args };
+          })(),
         },
       });
     }
@@ -150,9 +153,12 @@ interface ToolLog {
 }
 
 /** The arguments the fake passes to the tool. */
-interface CreateWebhookRoutineArgs {
-  name: string;
-  instruction: string;
+/** The arguments the fake passes to the tool that `__tool` names (default `create_webhook_routine`). */
+interface WebhookToolArgs {
+  __tool?: "create_webhook_routine" | "update_webhook_routine" | "list_routines";
+  routineId?: string;
+  name?: string;
+  instruction?: string;
   eventType?: string;
   filters?: { pointer: string; value: string }[];
 }
@@ -160,6 +166,9 @@ interface CreateWebhookRoutineArgs {
 /** The fields of a tool result that the check reads. The router sends them as JSON text. */
 interface WebhookToolBody {
   error?: string;
+  webhookRoutines?: { routineId: string; eventType: string | null; filters: unknown[] }[];
+  eventType?: string | null;
+  filters?: { pointer: string; value: string }[];
   routineId?: string;
   url?: string | null;
   urlPending?: string;
@@ -234,7 +243,7 @@ const agents = new AgentService({
   preferredProvider: "codex",
   offProviders: AGENT_PROVIDERS.filter((provider) => provider !== "codex"),
   // As in the app: the events service is built after the agent service.
-  webhookRoutines: () => agentWebhookRoutineCreator(events),
+  webhookRoutines: () => agentWebhookRoutineWriter(events),
 });
 const events = new HostEventsService({
   routines: agents.routineRecords,
@@ -259,15 +268,18 @@ const events = new HostEventsService({
 const agentEvents: AgentEvent[] = [];
 agents.on("event", (event) => agentEvents.push(event));
 
-/** Sends a chat message that makes the fake call the tool, and returns the tool result it logged. */
-async function callTool(name: string, agentId: string, args: CreateWebhookRoutineArgs) {
-  const before = toolLogs().length;
+/**
+ * Sends a chat message that makes the fake call the tool, and returns the tool result it logged for
+ * that message's turn. A webhook run can call a tool at the same time in its own session.
+ */
+async function callTool(name: string, agentId: string, args: WebhookToolArgs) {
   const receipt = await runCauseEffect(
     agents.sendMessage({ agentId, text: `${CALL_MARK} <<ARGS${JSON.stringify(args)}ARGS>>` }),
   );
   const deliveryId = receipt.deliveries[0]?.id;
   assert.ok(deliveryId, `${name}: no delivery`);
-  const entry = await waitFor(`${name} tool result`, () => toolLogs()[before]);
+  const turnId = await waitFor(`${name} turn`, () => mailbox.getDelivery(deliveryId)?.delivery.turnId);
+  const entry = await waitFor(`${name} tool result`, () => toolLogs().find((log) => log.turnId === turnId));
   await waitFor(`${name} turn end`, () => {
     const status = mailbox.getDelivery(deliveryId)?.delivery.status;
     return status === "completed" || status === "failed" || status === "interrupted";
@@ -418,6 +430,46 @@ try {
   pass(
     "A request signed with the card's secret starts the routine",
     signed.status === 202 && activity.some((item) => item.status === "started"),
+  );
+
+  // 7. The agent finds the routine and changes its filters. The URL and the secret stay.
+  const listedByTool = await callTool("list", agent.id, { __tool: "list_routines" });
+  pass(
+    "list_routines shows the webhook routine with its filters",
+    listedByTool.body?.webhookRoutines?.some(
+      (item) => item.routineId === result.routineId && item.eventType === "build.failed" && item.filters.length === 1,
+    ) === true,
+  );
+  const updated = await callTool("update", agent.id, {
+    __tool: "update_webhook_routine",
+    routineId: result.routineId,
+    filters: [{ pointer: "/branch", value: "release" }],
+  });
+  const afterUpdate = (await Effect.runPromise(events.listRoutines({ owner }))).find(
+    (item) => item.id === result.routineId,
+  );
+  pass(
+    "The update changes the filters and keeps the event type and the URL",
+    updated.entry.result?.success === true &&
+      afterUpdate?.trigger.kind === "webhook" &&
+      afterUpdate.trigger.eventType === "build.failed" &&
+      afterUpdate.trigger.filters[0]?.value === "release" &&
+      afterUpdate.trigger.url === result.url,
+    updated.text,
+  );
+  const updatedConversation = await runCauseEffect(agents.readConversation(agent.id));
+  pass(
+    "The chat records the change with its turn, for the card",
+    updatedConversation.messages.some((message) => {
+      const event = routineConversationEvent(message);
+      return event?.routineId === result.routineId && event?.action === "updated" && Boolean(message.turnId);
+    }),
+  );
+  const outside = await deliver(secret);
+  const latest = await Effect.runPromise(events.listActivity({ owner, routineId: result.routineId }));
+  pass(
+    "The same secret still signs, and a request outside the new filter is ignored",
+    outside.status === 202 && latest[0]?.status === "ignored" && latest[0]?.reason === "filter",
   );
   report.passed = true;
 } catch (error) {

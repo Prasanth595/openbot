@@ -21,7 +21,7 @@ import { createOpenBotLogger, registerSecretValue } from "@openbot/logging";
 import { RoutineInputError } from "@openbot/team-client/routine-schedule";
 import { Effect, Semaphore } from "effect";
 import { RoutineOperationFailed } from "../backend/agent/routine-scheduler";
-import type { WebhookRoutineCreator } from "../backend/agent/webhook-routine-tool";
+import type { WebhookRoutineWriter } from "../backend/agent/webhook-routine-tool";
 import { causeHelpers } from "../backend/effect-boundary";
 import type { RoutineRecords } from "../backend/routine-records";
 import type { OwnedRoutineRecord, RoutineRecordInput } from "../backend/routine-store";
@@ -415,16 +415,17 @@ export class HostEventsService implements HostEventsApi {
 }
 
 /**
- * The `create_webhook_routine` tool of an agent, through the events service. The save makes the
+ * The webhook routine tools of an agent, through the events service. A new routine's save makes the
  * first secret, and this drops it: the tool result goes to the model provider. The chat card makes
  * a new secret for the user.
  */
-export function agentWebhookRoutineCreator(events: HostEventsService): WebhookRoutineCreator {
+export function agentWebhookRoutineWriter(events: HostEventsService): WebhookRoutineWriter {
   return {
-    create: ({ agentId, eventType, filters, ...routine }) =>
+    save: ({ routineId, agentId, eventType, filters, ...routine }) =>
       events
         .saveRoutine({
           ...routine,
+          ...(routineId === undefined ? {} : { id: routineId }),
           owner: { kind: "agent", id: agentId },
           trigger: { kind: "webhook", eventType, filters },
         })

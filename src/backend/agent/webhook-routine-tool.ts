@@ -23,6 +23,19 @@ export const CREATE_WEBHOOK_ROUTINE_ARGUMENTS = [
   "limitPolicy",
 ] as const;
 
+export const UPDATE_WEBHOOK_ROUTINE_TOOL = "update_webhook_routine";
+
+export const UPDATE_WEBHOOK_ROUTINE_ARGUMENTS = [
+  "agentId",
+  "routineId",
+  "name",
+  "instruction",
+  "eventType",
+  "filters",
+  "active",
+  "limitPolicy",
+] as const;
+
 /** What a sender must send, as `docs/webhooks.md` describes it. The agent passes it on to the user. */
 const WEBHOOK_REQUEST_FORMAT = {
   method: "POST",
@@ -48,11 +61,13 @@ const WEBHOOK_REQUEST_FORMAT = {
 };
 
 /**
- * Makes a webhook routine through the main process, which owns the signing secret, the route limit
- * and the relay route. The secret never comes back here: the model must not see it.
+ * Saves a webhook routine through the main process, which owns the signing secret, the route limit
+ * and the relay route. Without `routineId` it makes a new routine. The secret never comes back here:
+ * the model must not see it.
  */
-export interface WebhookRoutineCreator {
-  create(input: {
+export interface WebhookRoutineWriter {
+  save(input: {
+    routineId?: string;
     agentId: string;
     name: string;
     instruction: string;
@@ -61,12 +76,21 @@ export interface WebhookRoutineCreator {
     eventType: string | null;
     filters: EventFilter[];
     limitPolicy?: EventRoutine["limitPolicy"];
+    missedPolicy?: EventRoutine["missedPolicy"];
   }): Effect.Effect<EventRoutine, RoutineOperationFailed>;
 }
 
-/** The trigger fields of a tool call. The store checks the bounds again. */
-export function webhookToolTrigger(args: DynamicRecord): { eventType: string | null; filters: EventFilter[] } {
-  const { eventType = null, filters = [] } = args;
+type WebhookTriggerFields = { eventType: string | null; filters: EventFilter[] };
+
+/**
+ * The trigger fields of a tool call. A field the call leaves out keeps its value in `current`. The
+ * store checks the bounds again.
+ */
+export function webhookToolTrigger(
+  args: DynamicRecord,
+  current: WebhookTriggerFields = { eventType: null, filters: [] },
+): WebhookTriggerFields {
+  const { eventType = current.eventType, filters = current.filters } = args;
   if (eventType !== null && (!isString(eventType) || !eventType.trim())) {
     throw new RoutineInputError("eventType must be a non-empty string or null.");
   }
@@ -76,12 +100,24 @@ export function webhookToolTrigger(args: DynamicRecord): { eventType: string | n
   return { eventType, filters };
 }
 
+/** One webhook routine as `list_routines` shows it. */
+export function webhookRoutineSummary(routine: {
+  id: string;
+  name: string;
+  active: boolean;
+  trigger: { eventType: string | null; filters: EventFilter[]; url: string | null };
+}) {
+  const { eventType, filters, url } = routine.trigger;
+  return { routineId: routine.id, name: routine.name, active: routine.active, eventType, filters, url };
+}
+
 /**
  * The tool result. `cardInChat` is false when this chat has no record of the routine: it belongs to
  * another agent, or the record failed. The card shows its secret button only to a person who
- * manages the host's webhook routines in the desktop app, so the text names both ways.
+ * manages the host's webhook routines in the desktop app, so the text names both ways. An update
+ * keeps the secret.
  */
-export function webhookRoutineToolResult(routine: EventRoutine, cardInChat: boolean) {
+export function webhookRoutineToolResult(routine: EventRoutine, cardInChat: boolean, updated = false) {
   const trigger = routine.trigger.kind === "webhook" ? routine.trigger : null;
   return {
     routineId: routine.id,
@@ -92,8 +128,10 @@ export function webhookRoutineToolResult(routine: EventRoutine, cardInChat: bool
     url: trigger?.url ?? null,
     ...(trigger?.url ? {} : { urlPending: "The URL is not ready. The routine settings show it when it is." }),
     request: WEBHOOK_REQUEST_FORMAT,
-    secret: cardInChat
-      ? "You do not have the signing secret. In the desktop app, a person who manages this host's webhook routines sees a card in this chat with a button that makes it. Anyone else gets it from that person, who can also make it in the routine's settings."
-      : "You do not have the signing secret. A person who manages this host's webhook routines makes it in the routine's settings in the desktop app.",
+    secret: updated
+      ? "The signing secret did not change. You do not have it."
+      : cardInChat
+        ? "You do not have the signing secret. In the desktop app, a person who manages this host's webhook routines sees a card in this chat with a button that makes it. Anyone else gets it from that person, who can also make it in the routine's settings."
+        : "You do not have the signing secret. A person who manages this host's webhook routines makes it in the routine's settings in the desktop app.",
   };
 }

@@ -1,18 +1,26 @@
-import { RoutineWebhookCard } from "@openbot/ui/features/conversation/RoutineWebhookCard";
-import { createEffect, createSignal, createStore } from "solid-js";
+import {
+  type EventFilterDraft,
+  eventFilterDraft,
+  eventFilterDraftsValid,
+  eventFiltersFromDrafts,
+} from "@openbot/contracts/event-filter-value";
+import type { EventRoutine, RoutineWebhookTrigger } from "@openbot/contracts/ipc-events";
+import { RoutineWebhookCard, type RoutineWebhookCardState } from "@openbot/ui/features/conversation/RoutineWebhookCard";
+import { useText } from "@openbot/ui/text";
+import { createEffect, createMemo, createStore } from "solid-js";
 import type { EventRoutinesApi } from "./routine-webhooks-api";
 import { agentRoutinesPort } from "./routines-port";
 
-export interface ChatWebhookRoutine {
-  id: string;
-  name: string;
-  url: string | null;
+export type ChatWebhookRoutine = EventRoutine & { trigger: RoutineWebhookTrigger };
+
+function isWebhookRoutine(routine: EventRoutine): routine is ChatWebhookRoutine {
+  return routine.trigger.kind === "webhook";
 }
 
 /**
  * The webhook routines of the chat's agent and the relay state of its host, for the cards of the
- * routines the agent created. The list loads again on each routine change, because the route sync
- * stores the URL after the save. Undefined from `source` clears it.
+ * routines the agent created or changed. The list loads again on each routine change, because the
+ * route sync stores the URL after the save. Undefined from `source` clears it.
  */
 export function createChatWebhookRoutines(source: () => { api: EventRoutinesApi; agentId: string } | undefined) {
   const [state, setState] = createStore<{ routines: ChatWebhookRoutine[]; connected: boolean | null }>({
@@ -34,11 +42,7 @@ export function createChatWebhookRoutines(source: () => { api: EventRoutinesApi;
         .then(([routines, status]) => {
           if (loading !== request) return;
           setState((draft) => {
-            draft.routines = routines.flatMap((routine) =>
-              routine.trigger.kind === "webhook"
-                ? [{ id: routine.id, name: routine.name, url: routine.trigger.url }]
-                : [],
-            );
+            draft.routines = routines.filter(isWebhookRoutine);
             draft.connected = status.connected;
           });
         })
@@ -53,33 +57,133 @@ export function createChatWebhookRoutines(source: () => { api: EventRoutinesApi;
 
 export interface RoutineWebhookChatCardProps {
   api: EventRoutinesApi;
-  agentId: string;
+  action: "created" | "updated";
   routine: ChatWebhookRoutine;
   connected: boolean | null;
   onOpenRoutine: (routine: { routineId: string; name: string }) => void;
 }
 
+type CardSave = { status: "idle" } | { status: "saving" } | { status: "saved" } | { status: "error"; message: string };
+
 /**
- * The chat card of a webhook routine the agent created. The secret the person makes here is not
- * saved: it is gone when the card leaves the page, as in the routine settings.
+ * The chat card of a webhook routine the agent created or changed. The secret the person makes here
+ * is not saved: it is gone when the card leaves the page, as in the routine settings. A change of
+ * the events saves with Save, as the Save of the routine settings does.
  */
 export function RoutineWebhookChatCard(props: RoutineWebhookChatCardProps) {
-  const [secret, setSecret] = createSignal<string | null>(null);
+  const text = useText();
+  const [card, setCard] = createStore<{
+    secret: string | null;
+    eventType: string;
+    filters: EventFilterDraft[];
+    edited: boolean;
+    save: CardSave;
+    /** The save result is newer than the routine list until the list loads again. */
+    saved: ChatWebhookRoutine | null;
+  }>({ secret: null, eventType: "", filters: [], edited: false, save: { status: "idle" }, saved: null });
+  const routine = createMemo(() => {
+    const saved = card.saved;
+    return saved && saved.updatedAt > props.routine.updatedAt ? saved : props.routine;
+  });
+  // A list refresh must not replace an edit in progress.
+  createEffect(
+    () => (card.edited ? undefined : routine().trigger),
+    (trigger) => {
+      if (!trigger) return;
+      setCard((draft) => {
+        draft.eventType = trigger.eventType ?? "";
+        draft.filters = trigger.filters.map(eventFilterDraft);
+      });
+    },
+  );
+  const trigger = () => ({ eventType: card.eventType.trim() || null, filters: eventFiltersFromDrafts(card.filters) });
+  const changed = () => {
+    const saved = routine().trigger;
+    return JSON.stringify(trigger()) !== JSON.stringify({ eventType: saved.eventType, filters: saved.filters });
+  };
+  const valid = () => eventFilterDraftsValid(card.filters);
+  const state = (): RoutineWebhookCardState => {
+    if (card.save.status === "saving" || card.save.status === "error") return card.save.status;
+    if (card.edited && (!valid() || changed())) return valid() ? "changed" : "error";
+    return card.save.status === "saved" ? "saved" : "idle";
+  };
+  const errorText = () => {
+    if (card.save.status === "error") return card.save.message;
+    return valid() ? undefined : text.t("routine.card.webhookFiltersInvalid");
+  };
+
+  function edit(change: (draft: { eventType: string; filters: EventFilterDraft[] }) => void): void {
+    setCard((draft) => {
+      change(draft);
+      draft.edited = true;
+      if (draft.save.status !== "saving") draft.save = { status: "idle" };
+    });
+  }
+
+  async function save(): Promise<void> {
+    if (card.save.status === "saving" || !valid()) return;
+    const current = routine();
+    setCard((draft) => {
+      draft.save = { status: "saving" };
+    });
+    try {
+      const result = await props.api.saveRoutine({
+        id: current.id,
+        owner: current.owner,
+        name: current.name,
+        instruction: current.instruction,
+        active: current.active,
+        timezone: current.timezone,
+        trigger: { kind: "webhook", ...trigger() },
+        ...(current.limitPolicy ? { limitPolicy: current.limitPolicy } : {}),
+        ...(current.missedPolicy ? { missedPolicy: current.missedPolicy } : {}),
+      });
+      setCard((draft) => {
+        if (isWebhookRoutine(result.routine)) draft.saved = result.routine;
+        draft.edited = false;
+        draft.save = { status: "saved" };
+      });
+    } catch (caught) {
+      setCard((draft) => {
+        draft.save = { status: "error", message: text.errorMessage(caught, text.t("routine.card.webhookSaveFailed")) };
+      });
+    }
+  }
+
   return (
     <RoutineWebhookCard
-      routineName={props.routine.name}
-      url={props.routine.url}
+      action={props.action}
+      routineName={routine().name}
+      url={routine().trigger.url}
       connected={props.connected}
-      secret={secret()}
-      onSecretDismiss={() => setSecret(null)}
+      secret={card.secret}
+      onSecretDismiss={() =>
+        setCard((draft) => {
+          draft.secret = null;
+        })
+      }
       onRegenerateSecret={async () => {
-        const result = await props.api.rotateSecret({
-          owner: { kind: "agent", id: props.agentId },
-          id: props.routine.id,
+        const result = await props.api.rotateSecret({ owner: routine().owner, id: routine().id });
+        setCard((draft) => {
+          draft.secret = result.secret;
         });
-        setSecret(result.secret);
       }}
-      onOpenRoutine={() => props.onOpenRoutine({ routineId: props.routine.id, name: props.routine.name })}
+      eventType={card.eventType}
+      filters={card.filters}
+      onEventTypeChange={(eventType) =>
+        edit((draft) => {
+          draft.eventType = eventType;
+        })
+      }
+      onFiltersChange={(filters) =>
+        edit((draft) => {
+          draft.filters = filters;
+        })
+      }
+      state={state()}
+      errorText={errorText()}
+      onSave={() => void save()}
+      onOpenRoutine={() => props.onOpenRoutine({ routineId: routine().id, name: routine().name })}
     />
   );
 }
