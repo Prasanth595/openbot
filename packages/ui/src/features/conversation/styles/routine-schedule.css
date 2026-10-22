@@ -749,10 +749,11 @@ code.routine-webhook-secret {
   stroke-width: var(--openbot-icon-stroke);
 }
 
-/* The trigger menu: a name and one line that tells when the routine runs. */
+/* The trigger menu: a name and one line that tells when the routine runs. It is taller than a short
+ * window, so it fits the space left and scrolls; the webhook row stays reachable. */
 .routine-trigger-menu {
   width: 300px;
-  max-height: min(70vh, 560px);
+  max-height: min(560px, calc(100dvh - 16px), var(--kb-popper-content-available-height, 560px));
   overflow-y: auto;
 }
 
