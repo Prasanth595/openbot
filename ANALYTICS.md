@@ -216,7 +216,10 @@ and only a loopback `http:` origin is accepted.
 6. Token usage: the sum of `total_tokens` and of each count on `system_token_usage`
    (`surface = desktop_host`, generation 9), by provider, model, `agent_source`, `agent_listing`,
    `origin`, and day. Use `system_turn_completed` for totals per turn, and show the count of
-   `token_usage = unknown` turns as its own value, not as 0.
+   `token_usage = unknown` turns as its own value, not as 0. Claude counts from `app_version`
+   0.47.1 and earlier are too high: the first turn after a Claude process resumed a session counted
+   the whole session again. Leave out `provider = claude` rows from those versions, or show them
+   apart.
 7. Monetization funnel: `hosted_server_upsell` `see_plans` → `hosted_server_plans_action` `viewed`
    → `plan_selected` → account service `checkout_started` → `plan_started`, by `entry_point`. Add
    `limit_reached` by `kind` and `action`, and `sales_contact_clicked` by `entry_point`. Client

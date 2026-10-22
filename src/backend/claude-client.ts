@@ -187,6 +187,13 @@ interface ThreadRuntime {
   id: string;
   usageCounterId: string;
   usageCost: number;
+  /**
+   * The process resumed a saved session and has not reported usage yet. The CLI restores the saved
+   * cumulative `modelUsage`, so the first report also carries the turn's own requests.
+   */
+  resumedUsage: boolean;
+  /** The usage of each API request since the last result, by message id. */
+  requestUsage: Map<string, { model: string; usage: unknown }>;
   contextRequest: number;
   compacting: boolean;
   config: ThreadConfig;
@@ -847,6 +854,8 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
       id: threadId,
       usageCounterId: randomUUID(),
       usageCost: 0,
+      resumedUsage: resume,
+      requestUsage: new Map(),
       contextRequest: 0,
       compacting: false,
       config,
@@ -1055,6 +1064,13 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
     runtime: ThreadRuntime,
     message: ClaudeStreamMessage,
   ) {
+    if (message.type === "assistant") {
+      // Each content block repeats its request's message; the last copy has the final count.
+      const id = getString(message.message, "id");
+      const model = getString(message.message, "model");
+      if (id && model && isRecord(message.message))
+        runtime.requestUsage.set(id, { model, usage: message.message.usage });
+    }
     if (message.type === "system" && message.subtype === "status") {
       const status =
         message.status === "compacting"
@@ -1237,7 +1253,7 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
       runtime.usageCounterId = randomUUID();
     if (message.subtype === "success" || (message.total_cost_usd ?? 0) > runtime.usageCost)
       runtime.usageCost = message.total_cost_usd ?? runtime.usageCost;
-    if (runtime.activeTurn && message.modelUsage)
+    if (runtime.activeTurn && message.modelUsage) {
       this.emit("notification", {
         method: "openbot/usage",
         params: {
@@ -1245,8 +1261,12 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
           turnId: runtime.activeTurn.id,
           counterId: runtime.usageCounterId,
           modelUsage: message.modelUsage,
+          ...(runtime.resumedUsage ? { turnModelUsage: claudeTurnModelUsage(runtime.requestUsage.values()) } : {}),
         },
       });
+      runtime.resumedUsage = false;
+    }
+    runtime.requestUsage.clear();
     const fallback = message.subtype === "success" ? message.result : "";
     const errors = message.errors ?? [];
     const interrupted =
@@ -2061,4 +2081,33 @@ function normalizeClaudeEffort(effort: string): ClaudeEffort {
 
 function isUuid(value: string): value is UUID {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+/** Sums the requests of one result by model, in the field names of the SDK's `modelUsage`. */
+function claudeTurnModelUsage(
+  requests: Iterable<{ model: string; usage: unknown }>,
+): Record<string, Record<string, number | null>> {
+  const models: Record<string, Record<string, number | null>> = {};
+  for (const { model, usage } of requests) {
+    if (!isDynamicRecord(usage)) continue;
+    const total = models[model] ?? {
+      inputTokens: 0,
+      cacheReadInputTokens: 0,
+      cacheCreationInputTokens: 0,
+      outputTokens: 0,
+    };
+    models[model] = total;
+    for (const [key, field] of [
+      ["inputTokens", "input_tokens"],
+      ["cacheReadInputTokens", "cache_read_input_tokens"],
+      ["cacheCreationInputTokens", "cache_creation_input_tokens"],
+      ["outputTokens", "output_tokens"],
+    ] as const) {
+      // The API sends `null` or leaves out a cache count that is zero.
+      const value = usage[field] ?? 0;
+      const sum = total[key];
+      total[key] = isNumber(value) && isNumber(sum) ? sum + value : null;
+    }
+  }
+  return models;
 }
