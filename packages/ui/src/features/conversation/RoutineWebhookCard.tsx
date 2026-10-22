@@ -11,6 +11,7 @@ export interface RoutineWebhookCardProps extends RoutineWebhookEndpointProps, Ro
   routineName: string;
   action: "created" | "updated";
   state?: RoutineWebhookCardState;
+  /** With `error`, what is wrong. With `changed`, why the last save failed, shown beside Save. */
   errorText?: string | undefined;
   /** Saves the event type and the filters. Shown while the state is `changed`. */
   onSave: () => void;
@@ -28,7 +29,8 @@ export function RoutineWebhookCard(props: RoutineWebhookCardProps) {
       case "changed":
         return {
           kind: "note",
-          text: t("routine.card.webhookChanged"),
+          // After a failed save, the error stays beside Save.
+          text: props.errorText ?? t("routine.card.webhookChanged"),
           action: { label: t("common.save"), onClick: props.onSave },
         };
       case "saving":

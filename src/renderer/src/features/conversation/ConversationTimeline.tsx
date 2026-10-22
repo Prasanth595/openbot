@@ -342,6 +342,12 @@ export function ConversationTimeline() {
     },
   );
   const webhookRoutines = createChatWebhookRoutines(webhookRoutineSource);
+  // The plain marker of a webhook routine opens it too: the host lists those routines on their own.
+  const availableRoutineIds = createMemo(() =>
+    props.availableRoutineIds
+      ? [...props.availableRoutineIds, ...webhookRoutines.state.routines.map((routine) => routine.id)]
+      : undefined,
+  );
   /**
    * An agent's newest record of a webhook routine it created or changed is a card with its URL, its
    * signing secret and its events. An older record keeps the plain marker.
@@ -640,7 +646,7 @@ export function ConversationTimeline() {
                                                 announce={arrives}
                                                 routineAvailable={routineMarkerAvailable(
                                                   marker(),
-                                                  props.availableRoutineIds,
+                                                  availableRoutineIds(),
                                                 )}
                                                 onSelectAgent={props.onSelectAgent}
                                                 onOpenRoutine={openRoutineSettings}

@@ -131,7 +131,10 @@ export function RoutineWebhookChatCard(props: RoutineWebhookChatCardProps) {
   );
   const changed = () => eventsKey(draft()) !== eventsKey(routine().trigger);
   const valid = () => eventFilterDraftsValid(card.filters);
+  // A failed save keeps Save, so the person can try again; the card shows the error with it.
+  const retry = () => card.save.status === "error" && card.base !== null && valid() && changed();
   const state = (): RoutineWebhookCardState => {
+    if (retry()) return "changed";
     if (card.save.status === "saving" || card.save.status === "error") return card.save.status;
     if (card.base !== null && (!valid() || changed())) return valid() ? "changed" : "error";
     return card.save.status === "saved" ? "saved" : "idle";
