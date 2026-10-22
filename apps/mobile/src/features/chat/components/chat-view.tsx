@@ -111,8 +111,6 @@ export interface ChatViewProps {
   onSelectQuestion?: (messageId: string) => void;
   /** A channel task needs the user. */
   needsAction?: boolean;
-  /** The lead of a channel. Its browser opens when no member asks for a browser step. */
-  channelLeadAgentId?: string | null;
   /** Rows under the agent's activity, such as the tasks that the agent works on. */
   activityAccessory?: ReactNode;
   /** This chat's thread. Browser requests of the agent's other threads, such as its tasks, do not show here. */
@@ -204,7 +202,6 @@ export function ChatView({
   questionForm,
   onSelectQuestion,
   needsAction = false,
-  channelLeadAgentId = null,
   activityAccessory,
   threadId = null,
   channelThreadIds = null,
@@ -242,18 +239,6 @@ export function ChatView({
     [browserRequests, target, threadId, channelThreadIds],
   );
   const browserAllowed = useBrowserFeature();
-  // A channel always has the browser of one member: the member that asks for a browser step, else
-  // the lead, else the first member. The browser screen switches to the browser of any member.
-  const channelBrowser = useMemo(() => {
-    if (target.kind !== "channel") return null;
-    const memberIds = target.members.map((member) => member.id);
-    const request = chatBrowserRequests.find((item) => memberIds.includes(item.agentId));
-    const agentId =
-      request?.agentId ??
-      (channelLeadAgentId && memberIds.includes(channelLeadAgentId) ? channelLeadAgentId : memberIds[0]);
-    if (!agentId) return null;
-    return { agentId, agentIds: memberIds, ...(request ? { tabId: request.tabId } : {}) };
-  }, [target, chatBrowserRequests, channelLeadAgentId]);
   const isFocused = useIsFocused();
   const foregroundVisit = useAppForeground();
   const [conversationAnalytics] = useState(() => new MobileConversationAnalytics(mobileAnalytics));
@@ -928,7 +913,6 @@ export function ChatView({
             <ChatHeader
               target={target}
               needsAction={needsAction && !readOnly}
-              channelBrowser={readOnly ? null : channelBrowser}
               fallbackBackground={fieldBackground}
               foreground={foreground}
               liquidGlassAvailable={liquidGlassAvailable}

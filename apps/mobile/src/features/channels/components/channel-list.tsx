@@ -7,7 +7,7 @@ import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
 import { memo, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, StyleSheet, View } from "react-native";
-import { useUniwind } from "uniwind";
+import { useCSSVariable, useUniwind } from "uniwind";
 import { AgentPinAvatar } from "@/features/agents/components/agent-pin-avatar";
 import { AgentPinSwipeRow } from "@/features/agents/components/agent-pin-swipe-row";
 import { useAgentPinTransition } from "@/features/agents/components/agent-pin-transition";
@@ -291,7 +291,8 @@ export const ChannelListRow = memo(function ChannelListRow({
   rightInset?: number;
 }) {
   const { t, format } = useText();
-  const [background, accent] = useThemeColor(["background", "accent"]);
+  const background = String(useCSSVariable("--openbot-bg-canvas"));
+  const accent = useThemeColor("accent");
   const { toggleChannelPinAnimated } = useAgentPinTransition();
   const isPinned = useMobileWorkspaceSelector(({ pinnedChannelIds }) => pinnedChannelIds.includes(channel.id));
   const pinBlocked = useMobileWorkspaceSelector(

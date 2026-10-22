@@ -10,8 +10,10 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Pressable } from "react-native";
 import { useCSSVariable } from "uniwind";
 import { BloubAvatarThumbnail } from "@/features/agents/components/bloub-avatar";
+import { useBrowserFeature } from "@/features/browser/components/use-browser-feature";
 import { useChannels } from "@/features/channels/components/use-channels";
 import { SettingsRow, SettingsSection } from "@/features/settings/components/settings-content";
+import { useBrowserRequests } from "@/features/workspace/components/use-live-workspace";
 import {
   useMobileWorkspaceReader,
   useMobileWorkspaceSelector,
@@ -124,6 +126,9 @@ function ChannelForm({
     (current) => current.servers.find((server) => server.id === serverId)?.role !== "member",
   );
   const accent = String(useCSSVariable("--openbot-accent"));
+  const browserAllowed = useBrowserFeature();
+  const browserView = useMobileWorkspaceSelector((current) => current.browserViewSupport(serverId).view);
+  const browserRequests = useBrowserRequests(serverId);
   const navigation = useNavigation();
   const [edits, setEdits] = useState<Partial<ChannelDraft>>({});
   const [saving, setSaving] = useState(false);
@@ -149,6 +154,19 @@ function ChannelForm({
   const choices = useMemo(() => agents.filter((agent) => agent.serverId === serverId), [agents, serverId]);
   const availableIds = useMemo(() => new Set(choices.map((agent) => agent.id)), [choices]);
   const selectedIds = useMemo(() => new Set(draft.members.map((member) => member.agentId)), [draft.members]);
+  const browserMemberIds = choices
+    .filter((agent) => channel?.members.some((member) => member.agentId === agent.id))
+    .map((agent) => agent.id);
+  const browserRequest = browserRequests.find(
+    (request) =>
+      browserMemberIds.includes(request.agentId) &&
+      (!channel?.threads?.length || channel.threads.some((thread) => thread.threadId === request.threadId)),
+  );
+  const browserAgentId =
+    browserRequest?.agentId ??
+    (channel?.leadAgentId && browserMemberIds.includes(channel.leadAgentId)
+      ? channel.leadAgentId
+      : browserMemberIds[0]);
   const disabled = saving || !available || finished || Boolean(channel?.archived);
   usePreventRemove(!finished && (dirty || saving), ({ data }) => {
     if (lock.current) return;
@@ -336,6 +354,25 @@ function ChannelForm({
       ) : null}
       {!create && !channel?.archived ? (
         <SettingsSection>
+          {browserAllowed && browserView ? (
+            <SettingsRow
+              disabled={disabled || !browserAgentId}
+              onPress={() => {
+                if (disabled || !browserAgentId) return;
+                router.push({
+                  pathname: "/browser/[agentId]",
+                  params: {
+                    agentId: browserAgentId,
+                    serverId,
+                    ...(browserRequest?.tabId ? { tabId: browserRequest.tabId } : {}),
+                    ...(browserMemberIds.length > 1 ? { agentIds: browserMemberIds.join(",") } : {}),
+                  },
+                });
+              }}
+            >
+              <Typography.Paragraph>{t("mobile.browser.open")}</Typography.Paragraph>
+            </SettingsRow>
+          ) : null}
           <SettingsRow
             disabled={saving}
             onPress={() =>

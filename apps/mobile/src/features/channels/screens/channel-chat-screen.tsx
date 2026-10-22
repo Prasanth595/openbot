@@ -172,7 +172,6 @@ function ChannelChat({ channelId, serverId }: { channelId: string; serverId: str
       olderError={olderError}
       loadOlder={loadOlder}
       needsAction={channelTasksNeedingAction(page?.tasks ?? []).length > 0}
-      channelLeadAgentId={channel?.leadAgentId ?? null}
       onLeave={leaveChat}
     />
   );
