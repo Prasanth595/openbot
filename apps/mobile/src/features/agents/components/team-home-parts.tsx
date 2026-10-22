@@ -200,11 +200,13 @@ export function TeamHeader({
   name,
   onWorkspace,
   onSearch,
+  planLimits,
   options,
 }: {
   name: string;
   onWorkspace: () => void;
   onSearch: () => void;
+  planLimits?: ReactNode;
   options: ReactNode;
 }) {
   const { t } = useText();
@@ -234,6 +236,7 @@ export function TeamHeader({
           <ChevronDown size={16} color={String(muted)} />
         </Pressable>
         <View style={styles.actions}>
+          {planLimits}
           <Button
             isIconOnly
             variant="secondary"
@@ -352,7 +355,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   workspaceIcon: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
-  actions: { flexDirection: "row", gap: 8 },
+  actions: { flexDirection: "row", alignItems: "center", gap: 8 },
   iconButton: {
     width: 44,
     height: 44,

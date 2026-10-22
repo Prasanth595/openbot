@@ -58,6 +58,8 @@ import {
 } from "@/features/search/components/home-search";
 import { setHomeSearchUnavailable } from "@/features/search/model/home-search-request";
 import { useAppDrawer } from "@/features/servers/components/app-drawer-shell";
+import { PlanLimitsHeaderButton } from "@/features/servers/components/plan-limits-header-button";
+import { usePlanLimits } from "@/features/servers/model/plan-limits";
 import { ConnectionHeaderStatus } from "@/features/workspace/components/connection-header-status";
 import { useWaitingAgentIds } from "@/features/workspace/components/use-agent-activity";
 import { useUnreadAgentIds } from "@/features/workspace/components/use-live-workspace";
@@ -74,6 +76,7 @@ import {
 } from "@/features/workspace/model/sidebar-layout";
 import { useAppLoadingOverlay, useScreenLoadingLabel } from "@/shared/components/app-loading-overlay";
 import { type MenuAction, MenuView } from "@/shared/components/menu-view";
+import { useChromeGlass } from "@/shared/lib/chrome-glass";
 import { haptics } from "@/shared/lib/haptics";
 import { isAndroid } from "@/shared/lib/platform";
 import { currentText, useText } from "@/shared/lib/text";
@@ -252,9 +255,12 @@ export function ConnectedScreen() {
     [agents, activeServer.id],
   );
   const muted = useThemeColor("muted");
+  const buttonGlass = useChromeGlass();
   const searchBlurTarget = useRef<View>(null);
   const mutedColor = String(muted);
   const hasSelectedServer = servers.some((server) => server.id === activeServer.id);
+  const planLimits = usePlanLimits(activeServer.id);
+  const showsPlanLimits = hasSelectedServer && planLimits.rows.length > 0;
   const showLoader =
     (serverDirectoryState === "loading" && servers.length === 0) ||
     (hasSelectedServer && activeServer.initialConnectionPending);
@@ -529,6 +535,17 @@ export function ConnectedScreen() {
         <TeamHeader
           name={activeServer.name}
           onWorkspace={openDrawer}
+          planLimits={
+            showsPlanLimits ? (
+              <PlanLimitsHeaderButton
+                serverId={activeServer.id}
+                rows={planLimits.rows}
+                accounts={planLimits.accounts}
+                disabled={!planLimits.online}
+                androidGlass={buttonGlass}
+              />
+            ) : null
+          }
           onSearch={() => {
             search.openSearch();
             search.input.current?.focus();

@@ -75,6 +75,7 @@ import { STORAGE_ROUTES } from "@openbot/contracts/team-protocol/storage-v1";
 import type { TeamProtocolV2Json } from "@openbot/contracts/team-protocol/v2";
 import type { MobileTextKey } from "@openbot/i18n/mobile";
 import { readHostAnalytics } from "@openbot/team-client";
+import { readPlanLimits } from "@openbot/team-client/plan-limits";
 import type { RemoteFileUpload } from "@openbot/team-client/remote-peer";
 import { buildRoutineCalendar, type RoutineCalendarSource } from "@openbot/team-client/routine-calendar";
 import {
@@ -233,6 +234,7 @@ type HostRequestActions = Pick<
   | "loadAgentHostSettings"
   | "updateAgentHostSettings"
   | "loadProviderAccounts"
+  | "loadPlanLimits"
   | "setAgentProviderAccount"
   | "startNewChat"
   | "loadAgentSessionSettings"
@@ -718,6 +720,7 @@ export function createHostRequestActions({
     },
     loadProviderAccounts: async (serverId) =>
       has(serverId, PROVIDER_ACCOUNTS_CAPABILITY) ? runTeamRequest(listProviderAccounts(teamApi(serverId))) : null,
+    loadPlanLimits: (serverId, accounts) => runTeamRequest(readPlanLimits(teamApi(serverId), accounts)),
     setAgentProviderAccount: async (input, serverId) => {
       requireCapability(
         capabilities,
