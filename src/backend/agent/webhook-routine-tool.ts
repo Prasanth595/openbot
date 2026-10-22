@@ -1,3 +1,4 @@
+import type { RoutineLimitPolicy } from "@openbot/contracts/ipc";
 import { type EventFilter, type EventRoutine, isEventFilter } from "@openbot/contracts/ipc-events";
 import { type DynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { WEBHOOK_DELIVERY_BODY_BYTES_LIMIT } from "@openbot/contracts/signal-protocol/messages";
@@ -75,7 +76,7 @@ export interface WebhookRoutineWriter {
     timezone: string;
     eventType: string | null;
     filters: EventFilter[];
-    limitPolicy?: EventRoutine["limitPolicy"];
+    limitPolicy?: RoutineLimitPolicy;
   }): Effect.Effect<EventRoutine, RoutineOperationFailed>;
 }
 
