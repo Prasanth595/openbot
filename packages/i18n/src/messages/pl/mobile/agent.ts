@@ -415,7 +415,7 @@ export const messages = {
   "mobile.agent.publish.unpublishFailed": "Nie udało się cofnąć publikacji agenta",
   "mobile.agent.publish.failedBody": "Host nie mógł dokończyć tej akcji.",
   "mobile.agent.publish.unsupported": "Ten host nie może publikować agentów ze zdalnego urządzenia.",
-  "mobile.agent.usage.processedTokens": "Przetworzone tokeny",
+  "mobile.agent.usage.tokensWithoutCacheReads": "Tokeny bez odczytów z pamięci podręcznej",
   "mobile.agent.usage.estimatedCost": "Szacowany koszt",
   "mobile.agent.usage.daily": "Dzienne użycie",
   "mobile.agent.usage.tokens": "Tokeny",
@@ -446,6 +446,8 @@ export const messages = {
     "Dane częściowe: tury bez użycia: {missingUsage}, niepełne rekordy: {incomplete}, rekordy bez szacunku kosztu: {unpriced}.",
   "mobile.agent.usage.costNote":
     "Koszt w USD odpowiadający cenom API. Szacunek nie obejmuje opłat za subskrypcje, narzędzia i multimedia.",
+  "mobile.agent.usage.tokensNote":
+    "Liczby tokenów nie obejmują odczytów z pamięci podręcznej. Każde zapytanie do modelu w turze ponownie odczytuje zapisaną rozmowę, więc odczyty z pamięci podręcznej mogą wielokrotnie przewyższać pozostałe tokeny. Podział tokenów pokazuje je jako „Wejście z cache”.",
   "mobile.agent.usage.collection": "Zbieranie rozpoczęto {started}. Zaktualizowano {updated}.",
   "mobile.agent.usage.never": "nigdy",
   "mobile.agent.record.time": "Godzina",
@@ -497,6 +499,8 @@ export const messages = {
   "mobile.agent.edit.titlePlaceholder": "Opisz, co robi twój agent",
   "mobile.agent.edit.instructions": "Instrukcje",
   "mobile.agent.edit.instructionsPlaceholder": "Do czego służy ten agent",
+  "mobile.agent.instructions.length": "{length} / {limit}",
+  "mobile.agent.instructions.tooLong": "Skróć instrukcje do {limit} znaków. Dłuższe instrukcje nie są zapisywane.",
   "mobile.agent.edit.unavailable":
     "Ten agent jest niedostępny. Twoje zmiany zostaną zachowane do zamknięcia tego arkusza.",
   "mobile.agent.sectionForm.saveFailed": "Nie udało się zapisać sekcji. Spróbuj ponownie.",

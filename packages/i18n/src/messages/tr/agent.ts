@@ -14,6 +14,8 @@ export const messages = {
   "agent.setup.name": "Ad",
   "agent.setup.purpose": "Bu ajan ne konuda yardımcı olmalı?",
   "agent.setup.purposePlaceholder": "Seyahat planlamak, seçenekleri karşılaştırmak veya günlük işlere yardım etmek.",
+  "agent.instructions.length": "{length} / {limit}",
+  "agent.instructions.tooLong": "Talimatları {limit} karaktere kısaltın. Daha uzun talimatlar kaydedilmez.",
   "agent.setup.model": "Ajan modeli",
   "agent.setup.creating": "Ajan oluşturuluyor…",
   "agent.setup.create": "Ajan oluştur",

@@ -210,7 +210,11 @@
 /* A new agent, asked for at the spot the user right-clicked and kept inside the canvas. */
 .diagram-new-agent {
   position: absolute;
-  top: clamp(var(--openbot-space-2), var(--diagram-new-agent-y), calc(100% - 196px));
+  top: clamp(
+    var(--openbot-space-2),
+    var(--diagram-new-agent-y),
+    calc(100% - var(--diagram-new-agent-height, 188px) - var(--openbot-space-2))
+  );
   left: clamp(var(--openbot-space-2), var(--diagram-new-agent-x), calc(100% - 288px));
   z-index: 3;
   display: grid;

@@ -395,7 +395,7 @@ export const messages = {
   "mobile.agent.publish.unpublishFailed": "Ajan yayından kaldırılamadı",
   "mobile.agent.publish.failedBody": "Ana makine bu eylemi tamamlayamadı.",
   "mobile.agent.publish.unsupported": "Bu ana makine uzak bir cihazdan ajan yayımlayamaz.",
-  "mobile.agent.usage.processedTokens": "İşlenen token'lar",
+  "mobile.agent.usage.tokensWithoutCacheReads": "Önbellek okumaları hariç token'lar",
   "mobile.agent.usage.estimatedCost": "Tahmini maliyet",
   "mobile.agent.usage.daily": "Günlük kullanım",
   "mobile.agent.usage.tokens": "Token'lar",
@@ -426,6 +426,8 @@ export const messages = {
     "Kısmi veri: kullanımı olmayan {missingUsage} tur, {incomplete} tamamlanmamış kayıt, maliyet tahmini olmayan {unpriced} kayıt.",
   "mobile.agent.usage.costNote":
     "USD cinsinden API eşdeğeri maliyet. Bu tahmin abonelik ücretlerini, araçları ve medya ücretlerini içermez.",
+  "mobile.agent.usage.tokensNote":
+    "Token sayıları önbellek okumalarını içermez. Bir turdaki her model isteği önbellekteki konuşmayı yeniden okur, bu yüzden önbellek okumaları diğer token'ların katları kadar olabilir. Token dökümü bunları “Önbelleğe alınmış girdi” olarak gösterir.",
   "mobile.agent.usage.collection": "Toplama başlangıcı: {started}. Güncellendi: {updated}.",
   "mobile.agent.usage.never": "hiçbir zaman",
   "mobile.agent.record.time": "Zaman",
@@ -476,6 +478,8 @@ export const messages = {
   "mobile.agent.edit.titlePlaceholder": "Ajanınızın ne yaptığını açıklayın",
   "mobile.agent.edit.instructions": "Talimatlar",
   "mobile.agent.edit.instructionsPlaceholder": "Bu ajanın ne için olduğu",
+  "mobile.agent.instructions.length": "{length} / {limit}",
+  "mobile.agent.instructions.tooLong": "Talimatları {limit} karaktere kısaltın. Daha uzun talimatlar kaydedilmez.",
   "mobile.agent.edit.unavailable": "Bu ajan kullanılamıyor. Düzenlemeleriniz bu sayfayı kapatana kadar saklanır.",
   "mobile.agent.sectionForm.saveFailed": "Bölüm kaydedilemedi. Lütfen tekrar deneyin.",
   "mobile.agent.sectionForm.renameTitle": "Bölümü yeniden adlandır",

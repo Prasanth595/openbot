@@ -177,15 +177,16 @@ export function useAttachmentFile(serverId: string, attachment: AttachmentSummar
 
 /**
  * Opens a file this phone holds in the share sheet, where the user can view it in another app
- * before sending. A pasted file has no path, so it gets a temporary one that is removed after.
+ * before sending, or save a file that the chat downloaded. A pasted file has no path, so it gets a temporary one that is removed after.
  */
-export async function shareLocalAttachment(file: { name: string; mimeType: string; base64: string; uri?: string }) {
+export async function shareLocalAttachment(file: { name: string; mimeType: string; base64?: string; uri?: string }) {
   const { t, sourceText } = currentText();
   let temporary: File | null = null;
   try {
     if (!(await Sharing.isAvailableAsync())) throw new Error(t("mobile.chat.attachment.sharingUnavailable"));
     let uri = file.uri;
     if (!uri) {
+      if (!file.base64) throw new Error(t("mobile.chat.attachment.unavailable"));
       temporary = new File(Paths.cache, `${Date.now()}-${file.name.replace(/[/\\\p{Cc}]/gu, "_")}`);
       temporary.write(file.base64, { encoding: "base64" });
       uri = temporary.uri;

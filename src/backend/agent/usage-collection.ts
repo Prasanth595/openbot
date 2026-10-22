@@ -57,8 +57,15 @@ export function collectProviderUsage(
     const models = getRecord(params, "modelUsage");
     const counterId = getString(params, "counterId");
     if (!models || !counterId) return;
+    const turnModels = getRecord(params, "turnModelUsage");
     for (const [model, value] of Object.entries(models)) {
       if (!isDynamicRecord(value) || !isAgentModel(model)) continue;
+      const tokens = {
+        uncachedInput: count(value.inputTokens),
+        cachedInput: count(value.cacheReadInputTokens),
+        cacheCreation: count(value.cacheCreationInputTokens),
+        output: count(value.outputTokens),
+      };
       usage.record({
         agentId: agent.id,
         sessionId: session.id,
@@ -66,13 +73,12 @@ export function collectProviderUsage(
         provider: session.provider,
         model,
         counterId: `${session.id}:${counterId}:${model}`,
+        // `modelUsage` counts the whole session, and a resumed session starts from its saved
+        // totals. The first report of a resumed process carries `turnModelUsage`: the totals
+        // before this turn's requests are the baseline, so the turn books only its own requests.
+        previousTokens: turnModels && earlier(tokens, claudeTurnTokens(claudeTurnModel(turnModels, models, model))),
         baseline: false,
-        tokens: {
-          uncachedInput: count(value.inputTokens),
-          cachedInput: count(value.cacheReadInputTokens),
-          cacheCreation: count(value.cacheCreationInputTokens),
-          output: count(value.outputTokens),
-        },
+        tokens,
         reportedCost: value.costBasis === "unknown" || value.costBasis === "managed" ? null : cost(value.costUSD),
       });
     }
@@ -107,6 +113,38 @@ export function collectProviderUsage(
     },
   });
 }
+
+/**
+ * The turn usage of one `modelUsage` key. Assistant messages name the model without the `[1m]`
+ * context suffix of its key, so a suffixed key takes the plain name's usage. When the session also
+ * has the plain key, that key takes it, so the turn is counted once.
+ */
+function claudeTurnModel(turnModels: DynamicRecord, models: DynamicRecord, model: string): DynamicRecord | null {
+  const plain = model.replace(/\[1m\]$/, "");
+  return getRecord(turnModels, model) ?? (plain !== model && !(plain in models) ? getRecord(turnModels, plain) : null);
+}
+
+/** A model with no request in the turn used no tokens in it. */
+function claudeTurnTokens(value: DynamicRecord | null): UsageTokens {
+  return {
+    uncachedInput: count(value?.inputTokens ?? 0),
+    cachedInput: count(value?.cacheReadInputTokens ?? 0),
+    cacheCreation: count(value?.cacheCreationInputTokens ?? 0),
+    output: count(value?.outputTokens ?? 0),
+  };
+}
+
+/** The totals before `recent`, with each count at least 0. A count is `null` when either value is unknown. */
+function earlier(total: UsageTokens, recent: UsageTokens): UsageTokens {
+  const result = { ...total };
+  for (const key of ["uncachedInput", "cachedInput", "cacheCreation", "output"] as const) {
+    const all = total[key];
+    const part = recent[key];
+    result[key] = all === null || part === null ? null : Math.max(0, all - part);
+  }
+  return result;
+}
+
 /** Codex counts cached input and cache writes inside `inputTokens`. */
 function codexTokens(breakdown: DynamicRecord | null): UsageTokens | null {
   if (!breakdown) return null;

@@ -274,6 +274,11 @@ export interface MobileWorkspaceContextValue {
   setAgentMemoryLimit: (limit: number, serverId: string) => Promise<HostAgentMemoryLimit>;
   /** An owner or admin of an online host that serves `agent-access-v1`. The host checks the role again. */
   canManageServerRoles: (serverId: string) => boolean;
+  /**
+   * A member, not an owner or admin, of an online host that serves `agent-access-v1`: the roles can
+   * limit their agents, and `loadServerRoles` gives only their own levels.
+   */
+  hasAgentAccessLimits: (serverId: string) => boolean;
   /** The roles of the server and the agents that each one gives its members. */
   loadServerRoles: (serverId: string) => Promise<AgentAccessSnapshot>;
   /** Replaces all roles. The host refuses a change made from an earlier revision. */
@@ -579,6 +584,7 @@ type MobileWorkspaceStateKey =
   | "canManageServerTimezone"
   | "canManageAgentMemoryLimit"
   | "canManageServerRoles"
+  | "hasAgentAccessLimits"
   | "canManageConnectors"
   | "canManageOnePasswordConnector"
   | "serverUpdateAccess"

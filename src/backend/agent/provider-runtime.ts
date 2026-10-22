@@ -1743,6 +1743,19 @@ export class ProviderRuntime implements ProviderPort {
     return this.#ownProcessFor(agent) ? null : this.clientFor(providerForAgent(agent));
   }
 
+  /**
+   * The process that can read this agent's saved sessions without starting one. An agent on a
+   * provider account after the first keeps them in that account's folder, which only its own process
+   * reads, so this is null while that process does not run.
+   */
+  historyClientForAgent(agent: AgentSummary): AgentClient | null {
+    const provider = providerForAgent(agent);
+    const account = this.#providerAccounts?.account(provider, agent.providerAccountId);
+    if (!account) return this.clientFor(provider);
+    const confined = this.#confined.get(agent.id);
+    return confined?.accountId === account.id ? confined.client : null;
+  }
+
   /** True while this agent has a process of its own, or one starts. An exit of the shared process leaves it. */
   runsOnOwnProcess(agentId: string): boolean {
     return this.#confined.has(agentId) || this.#confinedStarts.has(agentId);

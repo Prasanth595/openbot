@@ -1,6 +1,7 @@
 import type { RespondToPromptInput } from "@openbot/contracts/ipc";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useMobileSession } from "@/features/auth/context/mobile-session-context";
+import { useAgentViewOnly } from "@/features/servers/model/use-server-roles";
 import { useAgentActivity } from "@/features/workspace/components/use-agent-activity";
 import { useApprovalRequests } from "@/features/workspace/components/use-live-workspace";
 import {
@@ -10,6 +11,7 @@ import {
 } from "@/features/workspace/context/mobile-workspace-context";
 import { openTurnActivity } from "@/features/workspace/model/agent-activity";
 import { showsOnline } from "@/features/workspace/model/server-status";
+import { useText } from "@/shared/lib/text";
 import { chatRowIndex, latestReadableMessage, projectChatMessages, withFailureReasons } from "../model/chat-messages";
 import { ChatTaskRows, useOpenAgentTasks } from "./chat-task-rows";
 import { ChatView } from "./chat-view";
@@ -26,6 +28,7 @@ export function MobileChatView({
   focusMessageId?: string;
   onLeave: () => void;
 }) {
+  const { t } = useText();
   const workspace = useMobileWorkspaceReader();
   const agents = useMobileWorkspaceSelector((current) => current.agents);
   const conversationStore = useMobileWorkspaceSelector((current) => current.conversationStore);
@@ -165,10 +168,11 @@ export function MobileChatView({
       Boolean(conversation?.activeTurnId) &&
       message.turnId === conversation?.activeTurnId,
   );
+  const viewOnly = useAgentViewOnly(agent.serverId, agent.id);
   const questionForm = useQuestionPrompt(
     agent.id,
     activePrompt?.kind === "question" ? activePrompt : undefined,
-    showsOnline(server),
+    showsOnline(server) && !viewOnly,
     respondToPrompt,
   );
   return (
@@ -182,7 +186,8 @@ export function MobileChatView({
       ready={Boolean(conversation)}
       historyLoadFailed={historyLoadFailed}
       // The phone keeps a message while the server is offline and sends it when it is back.
-      canSend
+      canSend={!viewOnly}
+      notice={viewOnly ? t("mobile.chat.viewOnly") : null}
       activity={activity}
       activeTurnId={conversation?.activeTurnId ?? null}
       stopTurn={stopTurn}

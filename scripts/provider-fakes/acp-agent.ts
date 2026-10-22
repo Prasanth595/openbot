@@ -4,6 +4,7 @@
 // with `{}`.
 // `installFakeAgent` in `host.ts` starts a fake with the Bun that runs the test.
 import { appendFileSync } from "node:fs";
+import type { SessionUpdate } from "@agentclientprotocol/sdk";
 
 /** The request fields that the fakes read. The values come from the client under test. */
 export interface AcpParams {
@@ -32,6 +33,8 @@ export interface AcpPeer {
   fail(request: AcpRequest, error: AcpError): void;
   /** Sends one `agent_message_chunk` with this text for the session. */
   say(sessionId: string | undefined, text: string): void;
+  /** Sends one `session/update` with this update for the session. */
+  update(sessionId: string | undefined, update: SessionUpdate): void;
 }
 
 export type AcpHandler = (request: AcpRequest, peer: AcpPeer) => void;
@@ -72,10 +75,8 @@ export function serveFakeAcpAgent(
     reply: (request, result) => write({ id: request.id, result }),
     fail: (request, error) => write({ id: request.id, error }),
     say: (sessionId, text) =>
-      write({
-        method: "session/update",
-        params: { sessionId, update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text } } },
-      }),
+      peer.update(sessionId, { sessionUpdate: "agent_message_chunk", content: { type: "text", text } }),
+    update: (sessionId, update) => write({ method: "session/update", params: { sessionId, update } }),
   };
   const handle = (message: IncomingMessage) => {
     if (typeof message.method !== "string") return;

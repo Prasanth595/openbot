@@ -13,7 +13,7 @@ import { markIncompleteImageGeneration } from "./image-generation";
 import type { MailboxSync } from "./mailbox-sync";
 import type { ProviderRuntime } from "./provider-runtime";
 import { stopRunningSubagents } from "./subagent-updates";
-import { providerForAgent } from "./thread-items";
+import { isCodexMissingRollout, providerForAgent } from "./thread-items";
 import type { ThreadLifecycle } from "./thread-lifecycle";
 
 type UnresolvedDelivery = DeliveryContext["delivery"];
@@ -77,8 +77,11 @@ export class BootRecovery {
    * no active turn, and `markTerminal` cannot correct a terminal status.
    */
   readonly #orphanedDeliveryIds = new Set<string>();
-  /** Do not read the same oversized history again after the provider restarts. */
-  readonly #oversizedHistory = new Set<string>();
+  /**
+   * Do not read again, after the provider restarts, a history that is too large or that the
+   * process has no rollout for.
+   */
+  readonly #unreadableHistory = new Set<string>();
 
   constructor(options: BootRecoveryOptions) {
     this.#store = options.store;
@@ -189,7 +192,7 @@ export class BootRecovery {
       });
       if (agent && session && client) {
         const historyKey = `${session.provider}:${session.externalSessionId}`;
-        if (this.#oversizedHistory.has(historyKey)) return interrupted;
+        if (this.#unreadableHistory.has(historyKey)) return interrupted;
         if (!client.readHistory) return interrupted;
         let recovered: { turnId: string; status?: string } | undefined;
         yield* client
@@ -221,7 +224,7 @@ export class BootRecovery {
           .pipe(
             Effect.tapError((failure) =>
               Effect.sync(() => {
-                if (containsLineTooLong(failure)) this.#oversizedHistory.add(historyKey);
+                if (unreadableHistory(failure)) this.#unreadableHistory.add(historyKey);
               }),
             ),
             toBootRecoveryFailed,
@@ -332,10 +335,15 @@ export class BootRecovery {
           const imported = this.#store.database.providerHistoryImport(session.id);
           if (imported?.state === "complete" && imported.updatedAt >= session.updatedAt) continue;
         }
-        const client = this.#providers.clientFor(session.provider);
+        // The active session is in the folder of the agent's provider account. An account change
+        // retires the sessions, so a retired one can be in the folder of an earlier account.
+        const client =
+          session.externalSessionId === active?.externalSessionId
+            ? this.#providers.historyClientForAgent(agent)
+            : this.#providers.clientFor(session.provider);
         if (!client) continue;
         const historyKey = `${session.provider}:${session.externalSessionId}`;
-        if (this.#oversizedHistory.has(historyKey)) continue;
+        if (this.#unreadableHistory.has(historyKey)) continue;
         yield* Effect.gen({ self: this }, function* () {
           // The full parameters for the session the agent still runs on, and the id alone for the
           // retired ones: a client that loads a session to read it must not reopen a session that
@@ -362,13 +370,15 @@ export class BootRecovery {
         }).pipe(
           Effect.catch((failure) =>
             Effect.sync(() => {
-              if (containsLineTooLong(failure)) this.#oversizedHistory.add(historyKey);
+              if (unreadableHistory(failure)) this.#unreadableHistory.add(historyKey);
               try {
                 this.#refreshBackfilledConversation(agent.id, publicThreadId);
               } catch (refreshFailure) {
                 this.#hooks.emitError("provider_history_backfill_pending", refreshFailure, agent.id);
               }
-              this.#hooks.emitError("provider_history_backfill_pending", failure.cause, agent.id);
+              // No rollout means no history to import, so it is not an error to show.
+              if (!containsCause(failure, isCodexMissingRollout))
+                this.#hooks.emitError("provider_history_backfill_pending", failure.cause, agent.id);
             }),
           ),
         );
@@ -401,12 +411,16 @@ class BootRecoveryFailed extends Schema.TaggedError<BootRecoveryFailed>()("BootR
 
 const { sync: recoveryStep, rewrap: toBootRecoveryFailed } = causeHelpers(BootRecoveryFailed);
 
-function containsLineTooLong(value: unknown): boolean {
+function unreadableHistory(failure: unknown): boolean {
+  return containsCause(failure, (cause) => cause instanceof LineTooLongError || isCodexMissingRollout(cause));
+}
+
+function containsCause(value: unknown, matches: (cause: unknown) => boolean): boolean {
   const seen = new Set<unknown>();
   let current = value;
   while (current && (typeof current === "object" || typeof current === "function") && !seen.has(current)) {
     seen.add(current);
-    if (current instanceof LineTooLongError) return true;
+    if (matches(current)) return true;
     current = "cause" in current && typeof current === "object" ? current.cause : undefined;
   }
   return false;

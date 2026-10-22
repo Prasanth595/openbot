@@ -393,7 +393,7 @@ export const messages = {
   "mobile.agent.publish.failedBody": "O computador anfitrião não conseguiu concluir esta ação.",
   "mobile.agent.publish.unsupported":
     "Este computador anfitrião não pode publicar agentes a partir de um dispositivo remoto.",
-  "mobile.agent.usage.processedTokens": "Tokens processados",
+  "mobile.agent.usage.tokensWithoutCacheReads": "Tokens sem leituras de cache",
   "mobile.agent.usage.estimatedCost": "Custo estimado",
   "mobile.agent.usage.daily": "Uso diário",
   "mobile.agent.usage.tokens": "Tokens",
@@ -424,6 +424,8 @@ export const messages = {
     "Dados parciais: {missingUsage} turnos sem uso, {incomplete} registros incompletos, {unpriced} registros sem estimativa de custo.",
   "mobile.agent.usage.costNote":
     "Custo equivalente ao da API em USD. Esta estimativa exclui cobranças de assinatura e taxas de ferramentas e mídia.",
+  "mobile.agent.usage.tokensNote":
+    "As contagens de tokens não incluem leituras de cache. Cada solicitação ao modelo em um turno lê de novo a conversa em cache, então as leituras de cache podem ser muitas vezes maiores que os outros tokens. O detalhamento dos tokens as mostra como Entrada em cache.",
   "mobile.agent.usage.collection": "Coleta iniciada em {started}. Atualizado em {updated}.",
   "mobile.agent.usage.never": "nunca",
   "mobile.agent.record.time": "Horário",
@@ -473,6 +475,9 @@ export const messages = {
   "mobile.agent.edit.titlePlaceholder": "Descreva o que seu agente faz",
   "mobile.agent.edit.instructions": "Instruções",
   "mobile.agent.edit.instructionsPlaceholder": "Para que serve este agente",
+  "mobile.agent.instructions.length": "{length} / {limit}",
+  "mobile.agent.instructions.tooLong":
+    "Encurte as instruções para {limit} caracteres. Instruções mais longas não são salvas.",
   "mobile.agent.edit.unavailable":
     "Este agente está indisponível. Suas edições são mantidas até você fechar este painel.",
   "mobile.agent.sectionForm.saveFailed": "Não foi possível salvar a seção. Tente novamente.",

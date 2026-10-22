@@ -19,6 +19,7 @@ import { currentText, useText } from "../../text";
 import { prefersReducedMotion } from "../../utils";
 import { AgentAvatar } from "./AgentAvatar";
 import { AVATAR_HUE_LABEL } from "./avatar-hue-label";
+import { InstructionsLimit, instructionsTooLong } from "./InstructionsLimit";
 
 export interface FirstAgentDraft {
   name: string;
@@ -179,7 +180,8 @@ export function FirstAgentSetup(props: FirstAgentSetupProps) {
   const [canScrollSuggestionsBack, setCanScrollSuggestionsBack] = createSignal(false);
   const [canScrollSuggestionsForward, setCanScrollSuggestionsForward] = createSignal(false);
   const [draggingSuggestions, setDraggingSuggestions] = createSignal(false);
-  const canSubmit = () => Boolean(props.value.name.trim()) && !props.submitting;
+  const canSubmit = () =>
+    Boolean(props.value.name.trim()) && !instructionsTooLong(props.value.purpose) && !props.submitting;
   const displayName = () => props.value.name.trim() || t("agent.setup.nameFallback");
 
   function updateSuggestionFades(): void {
@@ -437,11 +439,12 @@ export function FirstAgentSetup(props: FirstAgentSetupProps) {
               <Textarea
                 value={props.value.purpose}
                 rows={2}
-                maxlength={INPUT_LIMITS.agentDescription}
+                invalid={instructionsTooLong(props.value.purpose)}
                 placeholder={t("agent.setup.purposePlaceholder")}
                 disabled={props.submitting}
                 onValueChange={(purpose) => updateDraft({ purpose })}
               />
+              <InstructionsLimit text={props.value.purpose} />
             </Field>
             <Show when={props.modelOptions}>
               {(options) => (

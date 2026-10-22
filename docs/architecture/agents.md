@@ -308,7 +308,9 @@ takes the answers that are already in. Each end of a copy schedules a drain for 
 This policy lives in `src/backend/agent/developer-instructions.ts` and is supplied on both thread
 start and resume. Codex receives `developerInstructions`; Claude and Pi append them to the system
 prompt; Grok and the other ACP agents receive them as a tagged instruction block in normal turn
-input; Muse puts them first in the turn input. There is no model-specific
+input; Muse puts them first in the turn input. ACP and Muse send them only when the session lacks
+them: on the first turn of a new or reopened session, after a change, after a compaction or a failed
+turn, and, for an ACP agent that reports no context size, every 10 turns. There is no model-specific
 verbosity setting or response filter. Delivery is tested, but compliance depends on the provider,
 model, and existing conversation context; Grok's input block is not a dedicated system message.
 Restarting the app reapplies the current policy without deleting conversation history. The policy

@@ -145,6 +145,15 @@ interface AcpThread {
   id: string;
   cwd: string;
   developerInstructions: string;
+  /**
+   * The instructions that the session already has in its context, or null when the next prompt must
+   * carry them: a new or loaded session, a changed text, a compaction, or a failed prompt.
+   */
+  instructionsSent: string | null;
+  /** Tokens in the session's context at the last `usage_update`; null while the agent sends none. */
+  contextUsed: number | null;
+  /** Prompts since the instructions were sent, for an agent that reports no context size. */
+  promptsSinceInstructions: number;
   configOptions: SessionConfigOption[];
   currentModelId: string | null;
   mcp: LocalMcpSession;
@@ -183,6 +192,12 @@ export interface AcpHistoryPersistence {
  * session again from its own store, so an idle session costs only a slower first message.
  */
 const ACP_SESSION_IDLE_RELEASE_MS = 10 * 60_000;
+
+/** An agent that reports no context size gets the instructions again after this many prompts. */
+const ACP_INSTRUCTIONS_REFRESH_PROMPTS = 10;
+
+/** A context that shrinks below this share of its last size has been compacted. */
+const ACP_COMPACTION_CONTEXT_RATIO = 0.6;
 
 /**
  * How many idle sessions stay open before the timeout. Grok gives each session its own set of the
@@ -1163,6 +1178,9 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
               id,
               cwd,
               developerInstructions: getString(params, "developerInstructions") ?? "",
+              instructionsSent: null,
+              contextUsed: null,
+              promptsSinceInstructions: 0,
               configOptions,
               currentModelId,
               mcp,
@@ -1566,13 +1584,23 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
     this.#publishSessionSettings(thread);
     const turnId = getString(params, "clientUserMessageId") ?? randomUUID();
     const blocks = yield* promptBlocksEffect(params);
-    if (thread.developerInstructions) {
+    yield* providerSync(() => this.#requireServedModel(thread));
+    // The session keeps the instructions in its context, so a prompt carries them only when the
+    // session lacks them. An agent that reports no context size cannot show a compaction, so it
+    // gets them again after a number of prompts.
+    thread.promptsSinceInstructions += 1;
+    if (
+      thread.developerInstructions &&
+      (thread.instructionsSent !== thread.developerInstructions ||
+        (thread.contextUsed === null && thread.promptsSinceInstructions > ACP_INSTRUCTIONS_REFRESH_PROMPTS))
+    ) {
       blocks.unshift({
         type: "text",
         text: `<openbot-developer-instructions>\n${thread.developerInstructions}\n</openbot-developer-instructions>`,
       });
+      thread.instructionsSent = thread.developerInstructions;
+      thread.promptsSinceInstructions = 1;
     }
-    yield* providerSync(() => this.#requireServedModel(thread));
     const currentSecond = Date.now() / 1_000;
     const startedAt = Math.max(currentSecond, this.#lastTurnStartedAt + 0.001);
     this.#lastTurnStartedAt = startedAt;
@@ -1685,6 +1713,18 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
     if (update.sessionUpdate === "config_option_update") {
       thread.configOptions = update.configOptions;
       this.#publishSessionSettings(thread);
+      return;
+    }
+    // A compaction replaces the prompt that carried the instructions with a summary. The context
+    // shrinks, so a large drop counts as one when the agent sends no compaction update.
+    if (update.sessionUpdate === "usage_update") {
+      if (thread.contextUsed !== null && update.used < thread.contextUsed * ACP_COMPACTION_CONTEXT_RATIO)
+        thread.instructionsSent = null;
+      thread.contextUsed = update.used;
+      return;
+    }
+    if (update.sessionUpdate === "compaction_update") {
+      if (update.status === "completed") thread.instructionsSent = null;
       return;
     }
     const turn = thread.activeTurn;
@@ -1848,6 +1888,8 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
   ) {
     if (thread.activeTurn !== turn || turn.completing) return;
     turn.completing = true;
+    // The agent may not have kept a prompt that failed.
+    if (status === "failed") thread.instructionsSent = null;
     // A prompt can have run tools. Never replay it. Drop the handle before publishing completion
     // so only new input can reload the session, including input already waiting in the queue.
     if (status === "failed" && isSessionNotFound(error, thread.id, this.#flavor)) {

@@ -29,6 +29,7 @@ import PinOff from "lucide-react-native/icons/pin-off";
 import Plus from "lucide-react-native/icons/plus";
 import RotateCw from "lucide-react-native/icons/rotate-cw";
 import Settings from "lucide-react-native/icons/settings";
+import Share from "lucide-react-native/icons/share";
 import Star from "lucide-react-native/icons/star";
 import StarOff from "lucide-react-native/icons/star-off";
 import TextWrap from "lucide-react-native/icons/text-wrap";
@@ -71,6 +72,7 @@ const ICONS: Partial<Record<string, LucideIcon>> = {
   plus: Plus,
   "plus.square.on.square": CopyPlus,
   "rectangle.portrait.and.arrow.right": LogOut,
+  "square.and.arrow.up": Share,
   scope: Crosshair,
   "square.grid.2x2": LayoutGrid,
   star: Star,
