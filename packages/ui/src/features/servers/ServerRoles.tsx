@@ -183,14 +183,24 @@ function SetAllLevelsMenu(props: {
       {/* A portal without a mount uses the document body. */}
       <DropdownMenu.Portal mount={props.mount ?? document.body}>
         <DropdownMenu.Content>
-          <For each={[...AGENT_ACCESS_LEVELS]}>
-            {(level) => (
-              <DropdownMenu.Item onSelect={() => props.onChange(level)}>
-                <MenuMark on={common() === level} />
-                {t(LEVEL_LABELS[level])}
-              </DropdownMenu.Item>
-            )}
-          </For>
+          {/* With mixed levels no item is checked, so each choice is a change. */}
+          <DropdownMenu.RadioGroup
+            aria-label={t("server.roles.setAllLabel", { role: props.title })}
+            value={common() ?? ""}
+            onChange={(value: string) => {
+              const level = AGENT_ACCESS_LEVELS.find((item) => item === value);
+              if (level) props.onChange(level);
+            }}
+          >
+            <For each={[...AGENT_ACCESS_LEVELS]}>
+              {(level) => (
+                <DropdownMenu.RadioItem value={level}>
+                  <MenuMark on={common() === level} />
+                  {t(LEVEL_LABELS[level])}
+                </DropdownMenu.RadioItem>
+              )}
+            </For>
+          </DropdownMenu.RadioGroup>
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>
@@ -259,7 +269,7 @@ export function ServerRolesPanel(props: ServerRolesPanelProps) {
     <SettingsSection
       title={t("server.roles.agents")}
       actions={
-        <Show when={props.agents.length > 1}>
+        props.agents.length > 1 ? (
           <SetAllLevelsMenu
             title={title}
             levels={props.agents.map((agent) => level(agent.id))}
@@ -270,7 +280,7 @@ export function ServerRolesPanel(props: ServerRolesPanelProps) {
               if (changed.length > 0) onChange(changed, next);
             }}
           />
-        </Show>
+        ) : undefined
       }
     >
       <ItemGroup class="settings-modal-card">
