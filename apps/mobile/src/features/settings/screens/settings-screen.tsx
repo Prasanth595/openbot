@@ -2,18 +2,13 @@ import { router } from "expo-router";
 import { Typography } from "heroui-native";
 import { mobileUserName } from "@/features/auth/api/mobile-user-name";
 import { useMobileSession } from "@/features/auth/context/mobile-session-context";
-import { useChannels } from "@/features/channels/components/use-channels";
 import { SettingsContent, SettingsRow, SettingsSection } from "@/features/settings/components/settings-content";
-import { useMobileWorkspaceSelector } from "@/features/workspace/context/mobile-workspace-context";
 import { ProfileAvatar } from "@/shared/components/profile-avatar";
 import { useText } from "@/shared/lib/text";
 
 export function SettingsScreen() {
   const { session } = useMobileSession();
   const { t } = useText();
-  const activeServerId = useMobileWorkspaceSelector((current) => current.activeServer.id);
-  // A server without channels has no deleted ones to show.
-  const channelsSupported = useChannels(activeServerId).supported;
   const displayName = session ? mobileUserName(session.user) : t("mobile.settings.home.profile");
   return (
     <SettingsContent>
@@ -61,13 +56,6 @@ export function SettingsScreen() {
         <SettingsRow onPress={() => router.push("/settings/hidden-chats")}>
           <Typography.Paragraph>{t("mobile.settings.conversations.hiddenChats")}</Typography.Paragraph>
         </SettingsRow>
-        {channelsSupported ? (
-          <SettingsRow
-            onPress={() => router.push({ pathname: "/settings/deleted-chats", params: { serverId: activeServerId } })}
-          >
-            <Typography.Paragraph>{t("mobile.settings.conversations.deletedChannels")}</Typography.Paragraph>
-          </SettingsRow>
-        ) : null}
       </SettingsSection>
       <SettingsSection>
         <SettingsRow

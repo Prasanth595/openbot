@@ -152,7 +152,6 @@ export const messages = {
   "mobile.settings.privacy.retry": "Повторить сохранение настройки конфиденциальности",
   "mobile.settings.conversations.title": "Диалоги",
   "mobile.settings.conversations.hiddenChats": "Скрытые чаты",
-  "mobile.settings.conversations.deletedChannels": "Удалённые каналы",
   "mobile.settings.profile.nameUnsafe": "Уберите из имени переносы строк и управляющие символы.",
   "mobile.settings.profile.nameLength": "Имя должно содержать от 3 до 20 символов.",
   "mobile.settings.profile.saveFailed": "Не удалось сохранить изменения. Повторите попытку.",

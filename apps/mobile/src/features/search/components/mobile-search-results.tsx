@@ -73,7 +73,7 @@ function useSearchSettings(channelsSupported: boolean): MobileSearchSetting[] {
       { id: "privacy", title: t("mobile.settings.privacy.title"), detail: app },
       { id: "hiddenChats", title: t("mobile.settings.conversations.hiddenChats"), detail: app },
       ...(channelsSupported
-        ? [{ id: "deletedChannels" as const, title: t("mobile.settings.conversations.deletedChannels"), detail: app }]
+        ? [{ id: "deletedChannels" as const, title: t("mobile.app.route.deletedChannels"), detail: serverName }]
         : []),
       { id: "support", title: t("mobile.settings.home.support"), detail: app },
       { id: "about", title: t("mobile.settings.home.about"), detail: app },

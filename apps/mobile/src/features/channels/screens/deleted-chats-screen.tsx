@@ -54,8 +54,16 @@ export function DeletedChatsScreen() {
       });
   };
   return (
-    <SheetScrollView contentContainerClassName="gap-5 px-5 pt-5 pb-safe-offset-5">
-      <Typography.Paragraph className="text-text-secondary">{t("mobile.channel.deleted.note")}</Typography.Paragraph>
+    <SheetScrollView contentContainerClassName="gap-5 px-5 pb-safe-offset-5 pt-7">
+      {/* A sheet of the home menu, as Hidden chats: it has no native header. */}
+      <View className="items-center gap-2 px-4">
+        <Typography.Heading type="h4" align="center">
+          {t("mobile.app.route.deletedChannels")}
+        </Typography.Heading>
+        <Typography.Paragraph type="body-xs" align="center" className="text-text-secondary">
+          {t("mobile.channel.deleted.note")}
+        </Typography.Paragraph>
+      </View>
       {state.error ? (
         <Typography.Paragraph accessibilityRole="alert">
           {errorMessage(state.error.cause, t("mobile.channel.loadFailed"))}

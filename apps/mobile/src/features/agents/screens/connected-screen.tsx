@@ -332,6 +332,8 @@ export function ConnectedScreen() {
     hiddenAgents.length > 0 ||
     channels.channels.some((channel) => !channel.archived && hiddenChannelIds.includes(channel.id));
   const hasPins = pinnedAgents.length + pinnedChannels.length > 0;
+  // As Hidden chats, the menu offers Deleted channels only when the server has one to restore or read.
+  const hasDeletedChannels = channels.supported && channels.channels.some((channel) => channel.archived);
   const unreadAgentIds = useUnreadAgentIds();
   const hasUnread = useMemo(() => {
     const unread = new Set(unreadAgentIds);
@@ -522,6 +524,7 @@ export function ConnectedScreen() {
           ]
         : []),
       ...(hasHiddenChats ? [{ id: "hidden-chats", title: t("mobile.agent.hidden.title") }] : []),
+      ...(hasDeletedChannels ? [{ id: "deleted-chats", title: t("mobile.app.route.deletedChannels") }] : []),
     ];
     return [
       {
@@ -536,7 +539,7 @@ export function ConnectedScreen() {
       },
       ...(chatActions.length > 0 ? [{ id: "chats", title: "", displayInline: true, subactions: chatActions }] : []),
     ];
-  }, [hasHiddenChats, hasSelectedServer, canMarkAllRead, channels.supported, sidebar?.layout, t]);
+  }, [hasHiddenChats, hasDeletedChannels, hasSelectedServer, canMarkAllRead, channels.supported, sidebar?.layout, t]);
 
   return (
     <View className="flex-1 bg-background">
@@ -741,6 +744,8 @@ export function ConnectedScreen() {
                         if (event.nativeEvent.event === "add-channel")
                           router.push({ pathname: "/add-channel", params: { serverId: activeServer.id } });
                         if (event.nativeEvent.event === "hidden-chats") router.push("/hidden-chats");
+                        if (event.nativeEvent.event === "deleted-chats")
+                          router.push({ pathname: "/deleted-chats", params: { serverId: activeServer.id } });
                         if (event.nativeEvent.event === "mark-all-read") markAllChatsRead();
                       }}
                       style={{ height: 48, width: 48 }}
@@ -808,7 +813,7 @@ export function ConnectedScreen() {
                   </Stack.Toolbar.MenuAction>
                 ) : null}
               </Stack.Toolbar.Menu>
-              {hasSelectedServer || hasHiddenChats ? (
+              {hasSelectedServer || hasHiddenChats || hasDeletedChannels ? (
                 <Stack.Toolbar.Menu inline>
                   {hasSelectedServer ? (
                     <Stack.Toolbar.MenuAction
@@ -822,6 +827,16 @@ export function ConnectedScreen() {
                   {hasHiddenChats ? (
                     <Stack.Toolbar.MenuAction icon="eye.slash" onPress={() => openFromMenu("/hidden-chats")}>
                       {t("mobile.agent.hidden.title")}
+                    </Stack.Toolbar.MenuAction>
+                  ) : null}
+                  {hasDeletedChannels ? (
+                    <Stack.Toolbar.MenuAction
+                      icon="trash"
+                      onPress={() =>
+                        openFromMenu({ pathname: "/deleted-chats", params: { serverId: activeServer.id } })
+                      }
+                    >
+                      {t("mobile.app.route.deletedChannels")}
                     </Stack.Toolbar.MenuAction>
                   ) : null}
                 </Stack.Toolbar.Menu>

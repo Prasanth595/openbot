@@ -152,7 +152,6 @@ export const messages = {
   "mobile.settings.privacy.retry": "Datenschutzeinstellung erneut speichern",
   "mobile.settings.conversations.title": "Unterhaltungen",
   "mobile.settings.conversations.hiddenChats": "Ausgeblendete Chats",
-  "mobile.settings.conversations.deletedChannels": "Gelöschte Kanäle",
   "mobile.settings.profile.nameUnsafe": "Entferne Zeilenumbrüche und Steuerzeichen aus deinem Namen.",
   "mobile.settings.profile.nameLength": "Verwende 3–20 Zeichen für deinen Anzeigenamen.",
   "mobile.settings.profile.saveFailed": "Die Änderungen konnten nicht gespeichert werden. Versuche es erneut.",

@@ -384,6 +384,17 @@ function AuthenticatedStack() {
           }}
         />
         <Stack.Screen
+          name="deleted-chats"
+          options={{
+            contentStyle: { backgroundColor: sheetBackground },
+            headerShown: false,
+            scrollEdgeEffects: { top: "hidden", bottom: "soft" },
+            presentation: "formSheet",
+            sheetAllowedDetents: [0.85],
+            sheetGrabberVisible: true,
+          }}
+        />
+        <Stack.Screen
           name="server-settings"
           options={{
             contentStyle: { backgroundColor: sheetBackground },

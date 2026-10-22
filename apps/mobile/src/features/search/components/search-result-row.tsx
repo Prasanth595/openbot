@@ -175,7 +175,7 @@ function openSetting(id: MobileSearchSettingId, serverId: string) {
     case "hiddenChats":
       return router.push("/settings/hidden-chats");
     case "deletedChannels":
-      return router.push({ pathname: "/settings/deleted-chats", params: { serverId } });
+      return router.push({ pathname: "/deleted-chats", params: { serverId } });
     case "support":
       return router.push("/settings/support");
     case "about":
