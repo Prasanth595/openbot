@@ -497,6 +497,8 @@ export const messages = {
   "mobile.agent.edit.titlePlaceholder": "Opisz, co robi twój agent",
   "mobile.agent.edit.instructions": "Instrukcje",
   "mobile.agent.edit.instructionsPlaceholder": "Do czego służy ten agent",
+  "mobile.agent.instructions.length": "{length} / {limit}",
+  "mobile.agent.instructions.tooLong": "Skróć instrukcje do {limit} znaków. Dłuższe instrukcje nie są zapisywane.",
   "mobile.agent.edit.unavailable":
     "Ten agent jest niedostępny. Twoje zmiany zostaną zachowane do zamknięcia tego arkusza.",
   "mobile.agent.sectionForm.saveFailed": "Nie udało się zapisać sekcji. Spróbuj ponownie.",

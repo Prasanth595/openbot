@@ -476,6 +476,8 @@ export const messages = {
   "mobile.agent.edit.titlePlaceholder": "Ajanınızın ne yaptığını açıklayın",
   "mobile.agent.edit.instructions": "Talimatlar",
   "mobile.agent.edit.instructionsPlaceholder": "Bu ajanın ne için olduğu",
+  "mobile.agent.instructions.length": "{length} / {limit}",
+  "mobile.agent.instructions.tooLong": "Talimatları {limit} karaktere kısaltın. Daha uzun talimatlar kaydedilmez.",
   "mobile.agent.edit.unavailable": "Bu ajan kullanılamıyor. Düzenlemeleriniz bu sayfayı kapatana kadar saklanır.",
   "mobile.agent.sectionForm.saveFailed": "Bölüm kaydedilemedi. Lütfen tekrar deneyin.",
   "mobile.agent.sectionForm.renameTitle": "Bölümü yeniden adlandır",

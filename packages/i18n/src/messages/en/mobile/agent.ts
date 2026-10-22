@@ -452,6 +452,9 @@ export const messages = defineMessages("mobile.agent", {
   "mobile.agent.edit.titlePlaceholder": "Describe what your agent does",
   "mobile.agent.edit.instructions": "Instructions",
   "mobile.agent.edit.instructionsPlaceholder": "What this agent is for",
+  "mobile.agent.instructions.length": "{length} / {limit}",
+  "mobile.agent.instructions.tooLong":
+    "Shorten the instructions to {limit} characters. Longer instructions are not saved.",
   "mobile.agent.edit.unavailable": "This agent is unavailable. Your edits are kept until you close this sheet.",
   "mobile.agent.sectionForm.saveFailed": "Could not save section. Please try again.",
   "mobile.agent.sectionForm.renameTitle": "Rename section",

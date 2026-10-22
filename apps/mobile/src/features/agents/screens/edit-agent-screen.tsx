@@ -31,6 +31,7 @@ import { AgentSessionSettingsSection } from "@/features/agents/components/agent-
 import { AgentSharedTables } from "@/features/agents/components/agent-shared-tables";
 import { AgentTasksRow } from "@/features/agents/components/agent-tasks-row";
 import { BloubAvatarPreview } from "@/features/agents/components/bloub-avatar";
+import { InstructionsLimit } from "@/features/agents/components/instructions-limit";
 import { SettingsRow, SettingsSection } from "@/features/settings/components/settings-content";
 import {
   type MobileAgent,
@@ -318,11 +319,11 @@ function AgentForm({
             appearance="soft"
             placeholder={t("mobile.agent.edit.instructionsPlaceholder")}
             multiline
-            maxLength={INPUT_LIMITS.agentDescription}
             value={description}
             editable={!saving}
             onChangeText={(value) => change({ description: value })}
           />
+          <InstructionsLimit text={description} />
         </>
       ) : null}
       {page === "appearance" ? (

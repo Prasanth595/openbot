@@ -20,6 +20,7 @@ import { ProviderModelPicker } from "../../components/ProviderModelPicker";
 import { useText } from "../../text";
 import { AgentAvatar } from "../agents/AgentAvatar";
 import { createFirstAgentDraft, type FirstAgentDraft } from "../agents/FirstAgentSetup";
+import { InstructionsLimit, instructionsTooLong } from "../agents/InstructionsLimit";
 
 export type DiagramNewAgentDraft = Pick<FirstAgentDraft, "name" | "purpose" | "avatarSeed" | "avatarHue"> &
   Partial<Pick<FirstAgentDraft, "provider" | "model">>;
@@ -62,7 +63,7 @@ export function DiagramNewAgentCard(props: {
     return () => document.removeEventListener("pointerdown", dismiss);
   });
   const create = () => {
-    if (!name().trim() || busy()) return;
+    if (!name().trim() || instructionsTooLong(purpose()) || busy()) return;
     setBusy(true);
     props
       .onCreate({
@@ -111,9 +112,10 @@ export function DiagramNewAgentCard(props: {
         placeholder={t("diagram.newAgent.purposePlaceholder")}
         aria-label={t("diagram.newAgent.purpose")}
         disabled={busy()}
-        maxlength={INPUT_LIMITS.agentDescription}
+        invalid={instructionsTooLong(purpose())}
         onValueChange={setPurpose}
       />
+      <InstructionsLimit text={purpose()} />
       <Show when={props.models}>
         {(models) => (
           <Show when={choice()}>
@@ -138,7 +140,7 @@ export function DiagramNewAgentCard(props: {
         <Button type="button" variant="ghost" size="xs" disabled={busy()} onClick={() => props.onCancel()}>
           {t("diagram.newAgent.cancel")}
         </Button>
-        <Button type="submit" size="xs" disabled={!name().trim() || busy()}>
+        <Button type="submit" size="xs" disabled={!name().trim() || instructionsTooLong(purpose()) || busy()}>
           {busy() ? t("diagram.newAgent.creating") : t("diagram.newAgent.create")}
         </Button>
       </div>

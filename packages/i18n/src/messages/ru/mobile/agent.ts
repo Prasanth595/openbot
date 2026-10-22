@@ -501,6 +501,9 @@ export const messages = {
   "mobile.agent.edit.titlePlaceholder": "Опишите, чем занимается агент",
   "mobile.agent.edit.instructions": "Инструкции",
   "mobile.agent.edit.instructionsPlaceholder": "Для чего нужен этот агент",
+  "mobile.agent.instructions.length": "{length} / {limit}",
+  "mobile.agent.instructions.tooLong":
+    "Сократите инструкции до {limit} символов. Более длинные инструкции не сохраняются.",
   "mobile.agent.edit.unavailable": "Этот агент недоступен. Ваши правки сохранятся, пока вы не закроете это окно.",
   "mobile.agent.sectionForm.saveFailed": "Не удалось сохранить раздел. Повторите попытку.",
   "mobile.agent.sectionForm.renameTitle": "Переименовать раздел",

@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCSSVariable } from "uniwind";
 
 import type { WelcomeHandOff } from "@/features/agents/components/empty-agents-scene";
+import { InstructionsLimit, instructionsTooLong } from "@/features/agents/components/instructions-limit";
 import { agentInitialMessage } from "@/features/agents/model/agent-initial-message";
 import { getBloubAvatarColor } from "@/features/agents/model/bloub-activity";
 import { mobileAnalytics } from "@/features/analytics/mobile-analytics";
@@ -469,7 +470,11 @@ export function OnboardingFlow({
           onPress: () => go(custom ? "role" : "task", 1),
         };
       case "role":
-        return { label: t("mobile.onboarding.name.continue"), onPress: () => go("task", 1) };
+        return {
+          label: t("mobile.onboarding.name.continue"),
+          disabled: instructionsTooLong(customDescription),
+          onPress: () => go("task", 1),
+        };
       case "task":
         return {
           label: pending
@@ -538,10 +543,11 @@ export function OnboardingFlow({
         onChange={setCustomDescription}
         label={t("mobile.onboarding.custom.roleLabel")}
         placeholder={t("mobile.onboarding.custom.rolePlaceholder")}
-        maxLength={INPUT_LIMITS.agentDescription}
         color={draftColor}
         disabled={false}
-      />
+      >
+        <InstructionsLimit text={customDescription} />
+      </ConversationStep>
     ) : step === "task" ? (
       <ConversationStep
         motion={motion}

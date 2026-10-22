@@ -470,6 +470,9 @@ export const messages = {
   "mobile.agent.edit.titlePlaceholder": "Beschreibe, was dein Agent tut",
   "mobile.agent.edit.instructions": "Anweisungen",
   "mobile.agent.edit.instructionsPlaceholder": "Wofür dieser Agent da ist",
+  "mobile.agent.instructions.length": "{length} / {limit}",
+  "mobile.agent.instructions.tooLong":
+    "Kürze die Anweisungen auf {limit} Zeichen. Längere Anweisungen werden nicht gespeichert.",
   "mobile.agent.edit.unavailable":
     "Dieser Agent ist nicht verfügbar. Deine Änderungen bleiben erhalten, bis du dieses Fenster schließt.",
   "mobile.agent.sectionForm.saveFailed": "Der Abschnitt konnte nicht gespeichert werden. Versuche es erneut.",

@@ -58,7 +58,8 @@ export function ConversationStep({
   onChange: (value: string) => void;
   label: string;
   placeholder: string;
-  maxLength: number;
+  /** Unset for a field that shows its own limit rather than cutting the text at it. */
+  maxLength?: number;
   /** The colour of the agent. */
   color: string;
   disabled: boolean;

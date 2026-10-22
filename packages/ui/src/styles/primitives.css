@@ -842,6 +842,11 @@
   color: var(--openbot-text-muted);
 }
 
+.ui-field-limit {
+  display: grid;
+  gap: var(--openbot-space-0-5);
+}
+
 .ui-switch {
   --ui-switch-thumb-size: var(--openbot-switch-thumb);
   --ui-switch-inset: var(--openbot-switch-inset);
