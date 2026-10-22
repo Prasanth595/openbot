@@ -8,6 +8,7 @@ import { FuseV1Options, getCurrentFuseWire } from "@electron/fuses";
 import { isDynamicRecord, isNumber, isString } from "@openbot/contracts/runtime-values";
 import { createOpenBotLogger, toLogValue } from "@openbot/logging";
 import { isMissingFileError } from "../src/backend/file-errors";
+import { elfSearchPaths, ORIGIN_SEARCH_PATH } from "./elf-search-paths";
 
 const logger = createOpenBotLogger("verify-linux-package");
 
@@ -98,6 +99,15 @@ await Promise.all(
 // The voice runtime is the one this architecture loads. The Parakeet, Bark, Whisper and Supertonic
 // models are downloaded on demand.
 await Promise.all(voiceRuntimeFiles.map((name) => assertElfMachine(resolve(voiceRuntimePath, name))));
+// `prepare-voice` removes the CI build directory and the working directory from the search paths.
+for (const name of voiceRuntimeFiles) {
+  const paths = elfSearchPaths(await readFile(resolve(voiceRuntimePath, name)));
+  if (paths.some(({ value }) => value !== ORIGIN_SEARCH_PATH)) {
+    throw new Error(
+      `${name} must load libraries only from its own directory: ${paths.map(({ value }) => value).join(", ")}`,
+    );
+  }
+}
 await Promise.all(
   [
     "voice/model",

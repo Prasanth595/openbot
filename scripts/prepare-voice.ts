@@ -1,10 +1,11 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { copyFileSync, createReadStream, existsSync } from "node:fs";
+import { copyFileSync, createReadStream, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { mkdir, mkdtemp, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { createOpenBotLogger } from "@openbot/logging";
 import { PARAKEET_MODEL_FILES, VOICE_RUNTIME_ADDON } from "../src/main/voice-model-service";
+import { elfSearchPaths, ORIGIN_SEARCH_PATH } from "./elf-search-paths";
 
 const logger = createOpenBotLogger("prepare-voice");
 
@@ -94,7 +95,10 @@ async function prepareRuntime(runtime: RuntimePackage): Promise<void> {
     await rm(runtimeMarker, { force: true });
     await rm(runtimeRoot, { recursive: true, force: true });
     await mkdir(runtimeRoot, { recursive: true });
-    for (const file of runtime.files) copyFileSync(join(extractRoot, "package", file), join(runtimeRoot, file));
+    for (const file of runtime.files) {
+      copyFileSync(join(extractRoot, "package", file), join(runtimeRoot, file));
+      if (process.platform === "linux") pinSearchPathToOrigin(join(runtimeRoot, file));
+    }
     await writeFile(runtimeMarker, `${marker}\n`);
   } finally {
     await rm(workRoot, { recursive: true, force: true });
@@ -134,6 +138,24 @@ async function removeOtherModels(): Promise<void> {
 async function isExpectedFile(path: string, bytes: number, expectedSha256: string): Promise<boolean> {
   if (!existsSync(path) || (await stat(path)).size !== bytes) return false;
   return (await sha256(path)) === expectedSha256;
+}
+
+/**
+ * The published Linux addon also searches its CI build directory, and the empty and relative entries
+ * of its RUNPATH search the working directory. A library planted there would load into the voice host.
+ * Shortens each search path to `$ORIGIN` in place, so the addon loads libraries only from its own directory.
+ */
+function pinSearchPathToOrigin(path: string): void {
+  const file = readFileSync(path);
+  const paths = elfSearchPaths(file).filter(({ value }) => value !== ORIGIN_SEARCH_PATH);
+  if (paths.length === 0) return;
+  for (const { offset, value } of paths) {
+    if (!value.startsWith(`${ORIGIN_SEARCH_PATH}:`))
+      throw new Error(`Unexpected library search path in ${path}: ${value}`);
+    file.fill(0, offset, offset + Buffer.byteLength(value));
+    file.write(ORIGIN_SEARCH_PATH, offset, "utf8");
+  }
+  writeFileSync(path, file);
 }
 
 function requireCommand(command: string, arguments_: string[]): void {

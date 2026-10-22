@@ -290,7 +290,6 @@ export const DOWNLOAD_PAGES: Record<DownloadPagePlatform, DownloadPageContent> =
       "Each release is tested on Ubuntu 24.04 on x64.",
       UPDATES_NOTE,
       NETWORK_NOTE,
-      "Voice prompts are not available on Linux.",
       "Remote desktop works with the x64 AppImage in an X11 session, such as Xorg or Xvfb. It does not work under Wayland, and the arm64 AppImage does not include it.",
     ],
     faq: [
