@@ -9,6 +9,7 @@ import X from "lucide-react-native/icons/x";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Alert, type TextInputProps, View } from "react-native";
 import { useUniwind } from "uniwind";
+import { getMarketApp, type MarketApp } from "@/features/market/model/market-apps";
 import {
   type McpServerDraft,
   mcpServerConfig,
@@ -51,7 +52,12 @@ type TestState = { status: "testing" } | { status: "done"; result: McpTestResult
  */
 export function ServerMcpServerScreen() {
   const { t } = useText();
-  const { serverId, mcpServerId } = useLocalSearchParams<{ serverId: string; mcpServerId?: string }>();
+  const { serverId, mcpServerId, pluginSlug } = useLocalSearchParams<{
+    serverId: string;
+    mcpServerId?: string;
+    pluginSlug?: string;
+  }>();
+  const marketApp = !mcpServerId && pluginSlug ? getMarketApp(pluginSlug) : undefined;
   const mcp = useServerMcp(serverId);
   const saved = mcpServerId ? mcp.list.data?.find((config) => config.id === mcpServerId) : undefined;
   if (!mcp.server || !mcp.canManage || (mcpServerId && !saved))
@@ -68,16 +74,26 @@ export function ServerMcpServerScreen() {
         </SettingsNote>
       </SettingsContent>
     );
-  return <McpServerForm key={saved?.id ?? "new"} serverId={serverId} saved={saved} mcp={mcp} />;
+  return (
+    <McpServerForm
+      key={saved?.id ?? pluginSlug ?? "new"}
+      serverId={serverId}
+      saved={saved}
+      mcp={mcp}
+      marketApp={marketApp}
+    />
+  );
 }
 
 function McpServerForm({
   serverId,
   saved,
   mcp,
+  marketApp,
 }: {
   serverId: string;
   saved: McpServerConfig | undefined;
+  marketApp?: MarketApp;
   mcp: ReturnType<typeof useServerMcp>;
 }) {
   const { t, sourceText, errorMessage } = useText();
@@ -86,7 +102,7 @@ function McpServerForm({
   const { saveMcpServer, removeMcpServer, setMcpServerEnabled, testMcpServer, signOutMcpServer } =
     useMobileWorkspaceActions();
   const { action, perform, setList, setSignIns } = mcp;
-  const [draft, setDraft] = useState<McpServerDraft>(() => mcpServerDraft(saved));
+  const [draft, setDraft] = useState<McpServerDraft>(() => mcpServerDraft(saved ?? marketApp?.config));
   // A new server keeps its switch in the draft. A saved one turns on and off at once.
   const [newEnabled, setNewEnabled] = useState(true);
   const [test, setTest] = useState<TestState | null>(null);
@@ -108,14 +124,22 @@ function McpServerForm({
   const enabled = saved?.enabled ?? newEnabled;
   const config = mcpServerConfig(draft, saved?.id ?? "", enabled);
   const errors = mcpServerDraftErrors(config);
-  const valid = !errors.name && !errors.command && !errors.url;
+  const missingAppField = marketApp?.authFields.some((field) => {
+    if (field.optional) return false;
+    if (field.url) return !draft.url.trim();
+    if (field.header) return !draft.headers.find((pair) => pair.key === field.header)?.value.trim();
+    if (field.env) return !draft.env.find((pair) => pair.key === field.env)?.value.trim();
+    return false;
+  });
+  const valid = !errors.name && !errors.command && !errors.url && !missingAppField;
   const dirty = mcpServerDraftChanged(draft, saved);
   const signedIn =
     saved?.transport === "http" &&
     Boolean(mcp.signIns.data?.some((state) => state.mcpServerId === saved.id && state.signedIn));
   const busy = action.isPending || test?.status === "testing";
 
-  usePreventRemove((dirty || action.isPending) && !leaving, ({ data }) => {
+  const edited = mcpServerDraftChanged(draft, saved ?? marketApp?.config);
+  usePreventRemove((edited || action.isPending) && !leaving, ({ data }) => {
     if (action.isPending) return;
     void haptics.notification("warning");
     Alert.alert(t("mobile.agent.discard.title"), t("mobile.agent.discard.body"), [
@@ -173,6 +197,13 @@ function McpServerForm({
   }
 
   const locked = action.isPending;
+  const authHint = (key: string) => {
+    const field = marketApp?.authFields.find((candidate) => candidate.header === key || candidate.env === key);
+    if (!field) return undefined;
+    return [field.label, field.prefix ? `${field.prefix}${field.placeholder ?? "…"}` : field.placeholder, field.hint]
+      .filter(Boolean)
+      .join(" · ");
+  };
   return (
     <SettingsContent>
       <Stack.Screen options={{ title: saved ? saved.name : t("mobile.server.mcp.addTitle") }} />
@@ -183,6 +214,13 @@ function McpServerForm({
         label={saved ? undefined : t("mobile.server.mcp.addConfirm")}
         onSave={save}
       />
+      {marketApp ? (
+        <SettingsNote>
+          {marketApp.description}
+          {marketApp.setupSteps.length > 0 ? `\n${marketApp.setupSteps.join("\n")}` : ""}
+          {marketApp.signInOnHost ? `\n${t("mobile.server.mcp.signInOnComputer")}` : ""}
+        </SettingsNote>
+      ) : null}
       <View className="gap-5">
         <SheetFormField
           label={t("mobile.server.mcp.name")}
@@ -263,6 +301,7 @@ function McpServerForm({
             title={t("mobile.server.mcp.environment")}
             footer={t("mobile.server.mcp.environmentHint")}
             items={draft.env}
+            valueHint={authHint}
             maxItems={INPUT_LIMITS.mcpEnvVariables}
             maxKeyLength={INPUT_LIMITS.mcpEnvName}
             maxValueLength={INPUT_LIMITS.mcpEnvValue}
@@ -303,20 +342,25 @@ function McpServerForm({
           <SheetFormField
             label={t("mobile.server.mcp.url")}
             isRequired
-            placeholder={URL_PLACEHOLDER}
+            placeholder={marketApp?.authFields.find((field) => field.url)?.placeholder ?? URL_PLACEHOLDER}
             autoCapitalize="none"
             autoCorrect={false}
             inputMode="url"
             maxLength={INPUT_LIMITS.mcpUrl}
             editable={!locked}
             value={draft.url}
-            hint={draft.url.trim() && errors.url ? t("mobile.server.mcp.urlInvalid") : undefined}
+            hint={
+              draft.url.trim() && errors.url
+                ? t("mobile.server.mcp.urlInvalid")
+                : marketApp?.authFields.find((field) => field.url)?.hint
+            }
             onChangeText={(url) => edit({ url })}
           />
           <McpPairField
             title={t("mobile.server.mcp.headers")}
             footer={t("mobile.server.mcp.headersHint")}
             items={draft.headers}
+            valueHint={authHint}
             maxItems={INPUT_LIMITS.mcpHeaders}
             maxKeyLength={INPUT_LIMITS.mcpEnvName}
             maxValueLength={INPUT_LIMITS.mcpHeaderValue}
@@ -541,10 +585,12 @@ function McpPairField({
   removeLabel,
   disabled,
   onChange,
+  valueHint,
 }: {
   title: string;
   footer: string;
   items: McpKeyValue[];
+  valueHint?: (key: string) => string | undefined;
   maxItems: number;
   maxKeyLength: number;
   maxValueLength: number;
@@ -562,45 +608,51 @@ function McpPairField({
   return (
     <SettingsSection title={title} footer={footer}>
       {items.map((pair, index) => (
-        <McpListRow
-          key={rows.keys[index]}
-          removeLabel={removeLabel(index + 1)}
-          disabled={disabled}
-          onRemove={() => {
-            rows.remove(index);
-            onChange(items.filter((_, position) => position !== index));
-          }}
-        >
-          <View className="min-w-0 flex-1">
-            <SheetFormField
-              hideLabel
-              appearance="soft"
-              label={keyLabel(index + 1)}
-              placeholder={t("mobile.server.mcp.key")}
-              autoCapitalize="none"
-              autoCorrect={false}
-              maxLength={maxKeyLength}
-              editable={!disabled}
-              value={pair.key}
-              onChangeText={(key) => change(index, { key })}
-            />
-          </View>
-          <View className="h-6 w-px bg-grouped-border" />
-          <View className="min-w-0 flex-1">
-            <SheetFormField
-              hideLabel
-              appearance="soft"
-              label={valueLabel(index + 1)}
-              placeholder={t("mobile.server.mcp.value")}
-              autoCapitalize="none"
-              autoCorrect={false}
-              maxLength={maxValueLength}
-              editable={!disabled}
-              value={pair.value}
-              onChangeText={(value) => change(index, { value })}
-            />
-          </View>
-        </McpListRow>
+        <View key={rows.keys[index]}>
+          <McpListRow
+            removeLabel={removeLabel(index + 1)}
+            disabled={disabled}
+            onRemove={() => {
+              rows.remove(index);
+              onChange(items.filter((_, position) => position !== index));
+            }}
+          >
+            <View className="min-w-0 flex-1">
+              <SheetFormField
+                hideLabel
+                appearance="soft"
+                label={keyLabel(index + 1)}
+                placeholder={t("mobile.server.mcp.key")}
+                autoCapitalize="none"
+                autoCorrect={false}
+                maxLength={maxKeyLength}
+                editable={!disabled}
+                value={pair.key}
+                onChangeText={(key) => change(index, { key })}
+              />
+            </View>
+            <View className="h-6 w-px bg-grouped-border" />
+            <View className="min-w-0 flex-1">
+              <SheetFormField
+                hideLabel
+                appearance="soft"
+                label={valueLabel(index + 1)}
+                placeholder={t("mobile.server.mcp.value")}
+                autoCapitalize="none"
+                autoCorrect={false}
+                maxLength={maxValueLength}
+                editable={!disabled}
+                value={pair.value}
+                onChangeText={(value) => change(index, { value })}
+              />
+            </View>
+          </McpListRow>
+          {valueHint?.(pair.key) ? (
+            <Typography.Paragraph type="body-xs" className="px-4 pb-3 text-muted">
+              {valueHint(pair.key)}
+            </Typography.Paragraph>
+          ) : null}
+        </View>
       ))}
       <McpAddRow
         label={addLabel}

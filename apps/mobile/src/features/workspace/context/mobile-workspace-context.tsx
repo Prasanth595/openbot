@@ -76,6 +76,7 @@ import { trackWorkspaceActions } from "@/features/analytics/workspace-actions";
 import { useMobileSession } from "@/features/auth/context/mobile-session-context";
 import { decodeMobileBrowserTabs } from "@/features/browser/model/browser-tabs";
 import { MobileChannelStore } from "@/features/channels/model/channel-store";
+import { afterChatFirstPaint, markChatOpen } from "@/features/chat/model/chat-open-performance";
 import { useLiveActivity } from "@/features/live-activity/use-live-activity";
 import { usePushNotifications } from "@/features/push-notifications/use-push-notifications";
 import { QuickActionsSync } from "@/features/quick-actions/quick-actions-sync";
@@ -108,11 +109,16 @@ import {
   reconcileAgentPins,
   reconcileChannelPins,
   setChannelHidden,
+  withLeadAgentPin,
 } from "@/features/workspace/model/agent-pins";
 import { ConnectionWaits } from "@/features/workspace/model/connection-waits";
 import { conversationMessageId, decodeConversationPage } from "@/features/workspace/model/conversation";
 import { MobileConversationStore } from "@/features/workspace/model/conversation-store";
 import { LiveWorkspaceStore } from "@/features/workspace/model/live-workspace-store";
+import {
+  marketAgentInstallsKey,
+  reconcileMarketAgentInstalls,
+} from "@/features/workspace/model/market-install-receipts";
 import {
   dropApproval,
   InactiveRequestError,
@@ -251,6 +257,8 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
   agentsRef.current = agents;
   // Keep former agent IDs too, so leaving also removes cached chats of deleted agents.
   const serverAgentIds = useRef(new Map<string, Set<string>>());
+  // Pin defaults use complete lists, never a loading or conversation-only list.
+  const pinAgentsByServer = useRef(new Map<string, { id: string }[]>());
   const removedServers = useRef(new Set<string>());
   const readRefresh = useMemo(() => createRemoteReadRefresh(), []);
   const serverCapabilities = useRef(new Map<string, readonly string[]>());
@@ -266,11 +274,15 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
   activeServerIdRef.current = activeServerId;
   const conversationStore = useMemo(
     () =>
-      new MobileConversationStore((flush) => {
-        const frame = requestAnimationFrame(flush);
-        return () => cancelAnimationFrame(frame);
-      }),
-    [],
+      new MobileConversationStore(
+        (flush) => {
+          const frame = requestAnimationFrame(flush);
+          return () => cancelAnimationFrame(frame);
+        },
+        Date.now,
+        JSON.stringify(queryScope),
+      ),
+    [queryScope],
   );
   useEffect(() => () => conversationStore.dispose(), [conversationStore]);
   const [liveState] = useState(() => new LiveWorkspaceStore());
@@ -293,6 +305,15 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
   const [hostHidden, setHostHidden] = useState<Record<string, string[]>>({});
   const hostHiddenRef = useRef(hostHidden);
   hostHiddenRef.current = hostHidden;
+  const hiddenWrites = useRef(new Map<string, Promise<void>>());
+  const hiddenWritesActive = useRef(true);
+  useEffect(() => {
+    hiddenWritesActive.current = true;
+    return () => {
+      hiddenWritesActive.current = false;
+      hiddenWrites.current.clear();
+    };
+  }, []);
   // The local list stays: it is the only list of an older host, and an agent hidden on this phone
   // before the host had the capability stays hidden. The phone does not send it to the host.
   const localHiddenIds = (activeServerId ? preferences[activeServerId]?.hidden : null) ?? NO_IDS;
@@ -318,22 +339,47 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     return next;
   }, [preferences, hostHidden]);
   /** Puts the whole hidden list of a host in place; null drops the list of a host without the capability. */
-  const applyHostHidden = useCallback((serverId: string, hidden: readonly { agentId: string }[] | null) => {
-    if (removedServers.current.has(serverId)) return;
-    setHostHidden((current) => {
-      if (hidden === null) {
-        if (!(serverId in current)) return current;
-        const next = { ...current };
-        delete next[serverId];
-        return next;
+  const applyHostHidden = useCallback(
+    (serverId: string, hidden: readonly { agentId: string }[] | null) => {
+      if (removedServers.current.has(serverId)) return;
+      const completeAgents = pinAgentsByServer.current.get(serverId);
+      const hiddenIds = hidden?.map((agent) => agent.agentId);
+      const nextHidden = { ...hostHiddenRef.current };
+      if (hiddenIds) nextHidden[serverId] = hiddenIds;
+      else delete nextHidden[serverId];
+      hostHiddenRef.current = nextHidden;
+      if (completeAgents) {
+        try {
+          const saved = reconcileAgentPins(preferenceStore, serverId, completeAgents, hiddenIds);
+          setPreferences((current) => {
+            const next = replaceEqualDeep(current[serverId], saved);
+            return next === current[serverId] ? current : { ...current, [serverId]: next };
+          });
+        } catch (error) {
+          showFailureAlert(
+            error,
+            "settings",
+            currentText().t("mobile.workspace.alert.preferencesTitle"),
+            currentText().t("mobile.workspace.alert.preferencesBody"),
+          );
+        }
       }
-      const ids = replaceEqualDeep(
-        current[serverId],
-        hidden.map((agent) => agent.agentId),
-      );
-      return ids === current[serverId] ? current : { ...current, [serverId]: ids };
-    });
-  }, []);
+      setHostHidden((current) => {
+        if (hidden === null) {
+          if (!(serverId in current)) return current;
+          const next = { ...current };
+          delete next[serverId];
+          return next;
+        }
+        const ids = replaceEqualDeep(
+          current[serverId],
+          hidden.map((agent) => agent.agentId),
+        );
+        return ids === current[serverId] ? current : { ...current, [serverId]: ids };
+      });
+    },
+    [preferenceStore],
+  );
   const pinnedAgentIds = (activeServerId ? preferences[activeServerId]?.pinned : null) ?? NO_IDS;
   const hiddenChannelIds = (activeServerId ? preferences[activeServerId]?.hiddenChannels : null) ?? NO_IDS;
   const pinnedChannelIds = (activeServerId ? preferences[activeServerId]?.pinnedChannels : null) ?? NO_IDS;
@@ -350,14 +396,17 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         removedServers.current.add(serverId);
         connectionWaits.drop(serverId, new Error(currentText().t("mobile.workspace.error.transportNotReady")));
         readRefresh.invalidate(serverId);
+        conversationStore.removeServer(serverId);
         for (const id of serverAgentIds.current.get(serverId) ?? []) removedAgentIds.add(id);
         serverAgentIds.current.delete(serverId);
+        pinAgentsByServer.current.delete(serverId);
         presenceSignatures.current.delete(serverId);
         for (const queryKey of [
           queryKeys.chatQueue(serverId),
           queryKeys.serverMembers(queryScope, serverId),
           queryKeys.serverInvites(queryScope, serverId),
           queryKeys.agentAvatar(queryScope, serverId),
+          marketAgentInstallsKey(queryScope, serverId),
           queryKeys.serverLogo(queryScope, serverId),
         ])
           queryClient.removeQueries({ queryKey });
@@ -365,7 +414,6 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       setSidebarByServer((current) => withoutKeys(current, serverIds));
       setHostHidden((current) => withoutKeys(current, serverIds));
       setAgents((current) => current.filter((agent) => !serverIds.has(agent.serverId)));
-      for (const id of removedAgentIds) conversationStore.remove(id);
       liveState.update("unreadAgentIds", (current) => current.filter((id) => !removedAgentIds.has(id)));
       liveState.update("unreadCounts", (current) => withoutKeys(current, removedAgentIds));
       liveState.update("activityByServer", (current) => withoutKeys(current, serverIds));
@@ -542,9 +590,15 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
   }, [servers, channelStore]);
 
   const replaceServerAgents = useCallback(
-    (serverId: string, summaries: RemoteAgent[]) => {
+    (serverId: string, summaries: RemoteAgent[], readStartedAt?: number) => {
+      if (readStartedAt !== undefined)
+        reconcileMarketAgentInstalls(queryClient, queryScope, serverId, summaries, readStartedAt);
+      pinAgentsByServer.current.set(
+        serverId,
+        summaries.map(({ id }) => ({ id })),
+      );
       try {
-        const saved = reconcileAgentPins(preferenceStore, serverId, summaries);
+        const saved = reconcileAgentPins(preferenceStore, serverId, summaries, hostHiddenRef.current[serverId]);
         // agents-changed arrives for each delivered message. Keep unchanged preferences and agents,
         // so the workspace context does not notify every consumer for each message.
         setPreferences((current) => {
@@ -558,6 +612,10 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
           currentText().t("mobile.workspace.alert.preferencesTitle"),
           currentText().t("mobile.workspace.alert.preferencesBody"),
         );
+      }
+      const available = new Set(summaries.map((agent) => agent.id));
+      for (const agent of agentsRef.current) {
+        if (agent.serverId === serverId && !available.has(agent.id)) conversationStore.remove(agent.id, serverId);
       }
       const knownIds = serverAgentIds.current.get(serverId) ?? new Set<string>();
       for (const agent of summaries) knownIds.add(agent.id);
@@ -575,28 +633,54 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
           : next;
       });
     },
-    [preferenceStore],
+    [preferenceStore, conversationStore, queryClient, queryScope],
   );
 
   const loadConversation = useCallback(
     async (agentId: string, serverId = activeServerIdRef.current, refresh = false, attach = false) => {
+      if (!serverId) throw new Error(currentText().t("mobile.workspace.error.agentUnavailableOnHost"));
       const generation = loadGeneration.current;
-      return conversationStore.loadLatest(
-        agentId,
-        () =>
-          request(
-            "GET",
-            `${TEAM_API_ROUTES.agent.conversationPage(agentId)}?limit=50`,
-            decodeConversationPage,
-            undefined,
-            serverId,
-          ),
-        () => generation === loadGeneration.current && Boolean(serverId) && !removedServers.current.has(serverId ?? ""),
-        refresh,
-        attach,
-      );
+      return conversationStore
+        .loadLatest(
+          serverId,
+          agentId,
+          async () => {
+            await connectionWaits.whenConnected(serverId);
+            markChatOpen(serverId, agentId, "connection");
+            const page = await request(
+              "GET",
+              `${TEAM_API_ROUTES.agent.conversationPage(agentId)}?limit=50`,
+              decodeConversationPage,
+              undefined,
+              serverId,
+            );
+            markChatOpen(serverId, agentId, "fetch");
+            return page;
+          },
+          () =>
+            generation === loadGeneration.current && Boolean(serverId) && !removedServers.current.has(serverId ?? ""),
+          refresh,
+          attach,
+        )
+        .then((page) => {
+          markChatOpen(serverId, agentId, "projection");
+          return page;
+        });
     },
-    [request, conversationStore],
+    [request, conversationStore, connectionWaits],
+  );
+  const prefetchConversation = useCallback(
+    (agentId: string, serverId: string) => {
+      if (
+        !foreground ||
+        !showsOnline(serversRef.current.find((server) => server.id === serverId)) ||
+        !agentsRef.current.some((agent) => agent.id === agentId && agent.serverId === serverId) ||
+        conversationStore.get(agentId, serverId)
+      )
+        return;
+      void loadConversation(agentId, serverId).catch(() => undefined);
+    },
+    [conversationStore, foreground, loadConversation],
   );
   // A stable function: an open chat reloads its history when this changes.
   const loadLatestMessages = useCallback(
@@ -621,7 +705,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       const current =
         generation === loadGeneration.current && Boolean(serverId) && !removedServers.current.has(serverId ?? "");
       if (!current || !page.messages.some((message) => message.id === messageId)) return false;
-      conversationStore.applyAround(page);
+      if (serverId) conversationStore.applyAround(page, serverId);
       return true;
     },
     [request, conversationStore],
@@ -629,7 +713,9 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
   const loadOlderMessages = useCallback(
     async (agentId: string, serverId = activeServerIdRef.current) => {
       const generation = loadGeneration.current;
+      if (!serverId) return;
       await conversationStore.loadOlder(
+        serverId,
         agentId,
         (cursor) =>
           request(
@@ -725,6 +811,9 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       // The hidden list of the host loads with the agents, so a hidden agent does not show for a moment.
       // Each connection reads it again, because the events of an interrupted connection are lost. A failed
       // read keeps the last list and does not stop the connection.
+      const agentsAtRead = pinAgentsByServer.current.get(serverId);
+      const agentsReadStartedAt = performance.now();
+      const hiddenAtRead = hostHiddenRef.current[serverId];
       const hidden = readHostHiddenAgents(
         (method, path, decode, body) => client.request(method, path, decode, body),
         compatibility.capabilities,
@@ -735,10 +824,13 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
           Promise.all([client.request("GET", TEAM_API_ROUTES.agents.all, decodeAgentSummaries), hidden]).then(
             ([summaries, hiddenAgents]) => {
               if (context.isCurrent()) {
-                if (hiddenAgents !== undefined) applyHostHidden(serverId, hiddenAgents);
-                replaceServerAgents(serverId, summaries);
+                if (hiddenAgents !== undefined && hostHiddenRef.current[serverId] === hiddenAtRead)
+                  applyHostHidden(serverId, hiddenAgents);
+                // An event can deliver a newer complete list while this GET waits for hidden agents.
+                if (pinAgentsByServer.current.get(serverId) === agentsAtRead)
+                  replaceServerAgents(serverId, summaries, agentsReadStartedAt);
               }
-              return summaries;
+              return pinAgentsByServer.current.get(serverId) ?? summaries;
             },
           ),
         ),
@@ -762,27 +854,36 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       // The server is usable now, so the reconnect status does not wait for every cached chat. They
       // load again after it, the open chat first. A lost connection stops them, and the next attempt
       // loads them again; a chat that does not load here loads when it opens.
-      const ordered = [...summaries].sort(
-        (a, b) => Number(conversationStore.isObserved(b.id)) - Number(conversationStore.isObserved(a.id)),
-      );
+      const refreshChat = async (agentId: string) => {
+        if (!context.isCurrent() || !conversationStore.get(agentId, serverId)) return;
+        await conversationStore
+          .loadLatest(
+            serverId,
+            agentId,
+            () =>
+              client.request(
+                "GET",
+                `${TEAM_API_ROUTES.agent.conversationPage(agentId)}?limit=50`,
+                decodeConversationPage,
+              ),
+            context.isCurrent,
+            true,
+          )
+          .catch(() => undefined);
+      };
+      // Reconnect the visible chat first. Cached chats wait until the visible chat has painted.
       void (async () => {
-        for (const agent of ordered) {
-          if (!context.isCurrent()) return;
-          if (!conversationStore.get(agent.id)) continue;
-          await conversationStore
-            .loadLatest(
-              agent.id,
-              () =>
-                client.request(
-                  "GET",
-                  `${TEAM_API_ROUTES.agent.conversationPage(agent.id)}?limit=50`,
-                  decodeConversationPage,
-                ),
-              context.isCurrent,
-              true,
-            )
-            .catch(() => undefined);
+        for (const agent of summaries) {
+          if (conversationStore.isObserved(agent.id, serverId)) await refreshChat(agent.id);
         }
+        afterChatFirstPaint(() => {
+          void (async () => {
+            for (const agent of summaries) {
+              if (!context.isCurrent()) return;
+              if (!conversationStore.isObserved(agent.id, serverId)) await refreshChat(agent.id);
+            }
+          })();
+        });
       })();
       context.stage = "connection";
     },
@@ -988,7 +1089,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       if (
         chatEvent &&
         (chatEvent.type !== "conversation" ||
-          chatEvent.snapshot.revision >= (conversationStore.get(chatEvent.snapshot.agentId)?.revision ?? 0))
+          chatEvent.snapshot.revision >= (conversationStore.get(chatEvent.snapshot.agentId, serverId)?.revision ?? 0))
       ) {
         liveState.update("activityByServer", (current) => {
           const previous = current[serverId] ?? {};
@@ -1009,19 +1110,19 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         const knownIds = serverAgentIds.current.get(serverId) ?? new Set<string>();
         knownIds.add(event.snapshot.agentId);
         serverAgentIds.current.set(serverId, knownIds);
-        if (conversationStore.get(event.snapshot.agentId))
+        if (conversationStore.get(event.snapshot.agentId, serverId))
           void loadConversation(event.snapshot.agentId, serverId, true).catch(() => undefined);
       } else if (event.type === "conversation-delta") {
-        conversationStore.enqueue(event);
+        conversationStore.enqueue(event, serverId);
       } else if (event.type === "conversation-page") {
         const readState = event.page.readState;
         if (readState) {
           readRefresh.invalidate(serverId);
           applyConversationReads({ [event.page.agentId]: readState });
         } else void refreshConversationReads(serverId).catch(() => undefined);
-        if (conversationStore.get(event.page.agentId)) conversationStore.applyPage(event.page);
+        if (conversationStore.get(event.page.agentId, serverId)) conversationStore.applyPage(event.page, serverId);
       } else if (event.type === "conversation-invalidated" || event.type === "turn-completed") {
-        if (conversationStore.get(event.agentId))
+        if (conversationStore.get(event.agentId, serverId))
           void loadConversation(event.agentId, serverId, true).catch(() => undefined);
       } else if (event.type === "team-identity") {
         // The host uploads its logo to the account service under its own version, so that version
@@ -1053,7 +1154,11 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
   const updatePreferences = useCallback(
     (serverId: string, change: (current: RemoteWorkspacePreferences) => RemoteWorkspacePreferences) => {
       try {
-        const next = change(preferenceStore.read(serverId));
+        const changed = change(preferenceStore.read(serverId));
+        const completeAgents = pinAgentsByServer.current.get(serverId);
+        const next = completeAgents
+          ? withLeadAgentPin(changed, completeAgents, hostHiddenRef.current[serverId])
+          : changed;
         preferenceStore.write(serverId, next);
         setPreferences((current) => ({ ...current, [serverId]: next }));
         return next;
@@ -1071,36 +1176,82 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
   );
   /**
    * Hides or restores an agent on a host that serves `agent-hidden-v1`. The list changes at once; the
-   * answer of the host replaces it, and a failure puts the agent back and shows an alert.
+   * answer of the host replaces it, and a failure puts the agent back and shows an alert. Writes of
+   * one host settle in order, so a rollback completes before the next write captures its pin order.
    */
   const changeHostHidden = useCallback(
     (serverId: string, agentId: string, hidden: boolean) => {
-      const change = (current: Record<string, string[]>, hide: boolean) => {
-        const ids = current[serverId] ?? NO_IDS;
-        if (ids.includes(agentId) === hide) return current;
-        return { ...current, [serverId]: hide ? [...ids, agentId] : ids.filter((id) => id !== agentId) };
+      const connection = connections.current.get(serverId);
+      const isCurrent = () =>
+        hiddenWritesActive.current &&
+        !removedServers.current.has(serverId) &&
+        connections.current.get(serverId) === connection;
+      const run = async () => {
+        if (!isCurrent()) return;
+        const change = (current: Record<string, string[]>, hide: boolean) => {
+          const ids = current[serverId] ?? NO_IDS;
+          if (ids.includes(agentId) === hide) return current;
+          return { ...current, [serverId]: hide ? [...ids, agentId] : ids.filter((id) => id !== agentId) };
+        };
+        const pinnedBefore = preferenceStore.read(serverId).pinned;
+        applyHostHidden(
+          serverId,
+          (change(hostHiddenRef.current, hidden)[serverId] ?? NO_IDS).map((agentId) => ({ agentId })),
+        );
+        const automaticPins = preferenceStore.read(serverId).pinned.filter((id) => !pinnedBefore.includes(id));
+        const action = hidden ? "hide" : "unhide";
+        await writeHostAgentHidden(teamApi(serverId), { agentId, hidden }).then(
+          (agents) => {
+            if (isCurrent()) applyHostHidden(serverId, agents);
+            mobileAnalytics.track("conversation_action", { action, result: "succeeded" });
+          },
+          (error: unknown) => {
+            if (!isCurrent()) return;
+            applyHostHidden(
+              serverId,
+              (change(hostHiddenRef.current, !hidden)[serverId] ?? NO_IDS).map((agentId) => ({ agentId })),
+            );
+            if (hidden && pinnedBefore.includes(agentId)) {
+              updatePreferences(serverId, (current) => {
+                // Remove the automatic replacement, but retain explicit pin edits made while waiting.
+                const retained = current.pinned.filter((id) => !automaticPins.includes(id));
+                return {
+                  ...current,
+                  pinned: [
+                    ...pinnedBefore.filter((id) => id === agentId || retained.includes(id)),
+                    ...retained.filter((id) => !pinnedBefore.includes(id)),
+                  ],
+                };
+              });
+            }
+            mobileAnalytics.track("conversation_action", { action, result: "failed" });
+            const text = currentText();
+            showFailureAlert(
+              error,
+              "agent",
+              text.t(hidden ? "mobile.agent.menu.hideFailed" : "mobile.agent.hidden.showFailed"),
+              text.errorMessage(error, text.t("mobile.agent.menu.actionFailed")),
+            );
+          },
+        );
       };
-      setHostHidden((current) => change(current, hidden));
-      const action = hidden ? "hide" : "unhide";
-      void writeHostAgentHidden(teamApi(serverId), { agentId, hidden }).then(
-        (agents) => {
-          applyHostHidden(serverId, agents);
-          mobileAnalytics.track("conversation_action", { action, result: "succeeded" });
-        },
-        (error: unknown) => {
-          if (!removedServers.current.has(serverId)) setHostHidden((current) => change(current, !hidden));
-          mobileAnalytics.track("conversation_action", { action, result: "failed" });
-          const text = currentText();
-          showFailureAlert(
-            error,
-            "agent",
-            text.t(hidden ? "mobile.agent.menu.hideFailed" : "mobile.agent.hidden.showFailed"),
-            text.errorMessage(error, text.t("mobile.agent.menu.actionFailed")),
-          );
-        },
-      );
+      const previous = hiddenWrites.current.get(serverId);
+      const write = (previous ? previous.then(run) : run()).catch((error: unknown) => {
+        if (!isCurrent()) return;
+        const text = currentText();
+        showFailureAlert(
+          error,
+          "settings",
+          text.t("mobile.workspace.alert.preferencesTitle"),
+          text.t("mobile.workspace.alert.preferencesBody"),
+        );
+      });
+      hiddenWrites.current.set(serverId, write);
+      void write.then(() => {
+        if (hiddenWrites.current.get(serverId) === write) hiddenWrites.current.delete(serverId);
+      });
     },
-    [teamApi, applyHostHidden],
+    [teamApi, applyHostHidden, updatePreferences, preferenceStore],
   );
 
   /** Drops a server that this account left or removed, and its local state. */
@@ -1329,6 +1480,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       interruptTurn: (agentId, turnId, serverId) =>
         runTeamRequest(interruptAgentTurn(teamApi(serverId), agentId, turnId)),
       loadConversation,
+      prefetchConversation,
       loadConversationAround,
       loadLatestMessages,
       loadOlderMessages,
@@ -1371,10 +1523,13 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         );
         return conversationMessageId(receipt, agentId);
       },
-      respondToPrompt: async (agentId, input) => {
-        const activeServer = currentActiveServer();
-        const agent = agentsRef.current.find((candidate) => candidate.id === agentId);
-        const snapshot = conversationStore.get(agentId);
+      respondToPrompt: async (agentId, input, targetServerId) => {
+        const serverId = targetServerId ?? currentActiveServer().id;
+        const server = serversRef.current.find((candidate) => candidate.id === serverId);
+        const agent = agentsRef.current.find(
+          (candidate) => candidate.id === agentId && candidate.serverId === serverId,
+        );
+        const snapshot = conversationStore.get(agentId, serverId);
         const message = snapshot?.messages.find(
           (item) =>
             item.turnId === snapshot.activeTurnId &&
@@ -1382,8 +1537,8 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
             item.questionPrompt.resolution === null,
         );
         if (
-          agent?.serverId !== activeServer.id ||
-          !showsOnline(activeServer) ||
+          !agent ||
+          !showsOnline(server) ||
           !message?.questionPrompt ||
           message.questionPrompt.resolution ||
           !snapshot?.activeTurnId ||
@@ -1391,23 +1546,24 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         ) {
           throw new Error(currentText().t("mobile.workspace.error.formUnavailable"));
         }
-        await request("POST", TEAM_API_ROUTES.respond.prompt, ignoreResponse, {
-          requestId: input.requestId,
-          answers: input.answers,
-        });
+        await request(
+          "POST",
+          TEAM_API_ROUTES.respond.prompt,
+          ignoreResponse,
+          {
+            requestId: input.requestId,
+            answers: input.answers,
+          },
+          serverId,
+        );
         // The answer is committed even if a subsequent refresh loses connection.
-        void loadConversation(agentId).catch(() => undefined);
+        void loadConversation(agentId, serverId).catch(() => undefined);
       },
       hideAgent: (agentId) => {
         const server = currentActiveServer();
         const serverId = server.id;
         if (hostOwnsHide(serverCapabilities.current.get(serverId), server.role)) {
-          // The host owns the hide. The pin stays a preference of this phone.
-          if (preferencesRef.current[serverId]?.pinned.includes(agentId))
-            updatePreferences(serverId, (current) => ({
-              ...current,
-              pinned: current.pinned.filter((id) => id !== agentId),
-            }));
+          // The optimistic hidden list also selects the visible lead pin on this phone.
           if (!hostHiddenRef.current[serverId]?.includes(agentId)) changeHostHidden(serverId, agentId, true);
           return;
         }
@@ -1456,7 +1612,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         let result: "pinned" | "unpinned" = "pinned";
         const saved = updatePreferences(serverId, (current) => {
           const pinned = current.pinnedChannels ?? [];
-          if (!canToggleAgentPin([...current.pinned, ...pinned], channelId)) return current;
+          if (!canToggleAgentPin([...current.pinned, ...pinned], channelId, current.pinned[0] ?? null)) return current;
           result = pinned.includes(channelId) ? "unpinned" : "pinned";
           return {
             ...current,
@@ -1470,7 +1626,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         const pinned = currentPinnedAgentIds();
         const serverId = currentActiveServer().id;
         const pinnedChannels = preferencesRef.current[serverId]?.pinnedChannels ?? NO_IDS;
-        if (!canToggleAgentPin([...pinned, ...pinnedChannels], agentId)) return "error";
+        if (!canToggleAgentPin([...pinned, ...pinnedChannels], agentId, pinned[0] ?? null)) return "error";
         if (pinned.includes(agentId)) {
           return updatePreferences(serverId, (current) => ({
             ...current,
@@ -1511,6 +1667,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     hostedServerStarting,
     forgetServer,
     loadConversation,
+    prefetchConversation,
     loadConversationAround,
     loadLatestMessages,
     loadOlderMessages,

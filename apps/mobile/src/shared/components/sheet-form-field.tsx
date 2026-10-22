@@ -29,7 +29,12 @@ export function SheetFormField({
         <View className="min-w-0 flex-1">
           <Control
             accessibilityLabel={label}
-            className={`rounded-2xl bg-grouped px-4 font-sans text-body ${multiline ? "min-h-28" : "min-h-12"} ${trailing ? "border-0 bg-transparent shadow-none" : appearance === "soft" ? "border-0 shadow-none" : ""}`}
+            className={
+              appearance === "embedded"
+                ? `rounded-none border-0 bg-transparent px-0 py-0 font-sans text-body shadow-none ${multiline ? "min-h-28" : "min-h-7"}`
+                : `rounded-2xl bg-grouped px-4 font-sans text-body ${multiline ? "min-h-28" : "min-h-12"} ${trailing ? "border-0 bg-transparent shadow-none" : appearance === "soft" ? "border-0 shadow-none" : ""}`
+            }
+            style={appearance === "embedded" ? { fontFamily: "Inter", fontSize: 16, lineHeight: 23 } : undefined}
             multiline={multiline}
             variant="primary"
             {...inputProps}

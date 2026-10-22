@@ -14,6 +14,7 @@ import { KeyboardGestureArea } from "react-native-keyboard-controller";
 import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useUniwind } from "uniwind";
+import { SatelliteMotionProvider } from "@/features/agents/components/agent-activity-satellites";
 import { getBloubAvatarColor } from "@/features/agents/model/bloub-activity";
 import { showFailureAlert } from "@/features/analytics/failure-reports";
 import { useQueryScope } from "@/features/auth/context/mobile-session-context";
@@ -31,12 +32,14 @@ import { useChatMotion } from "@/features/chat/components/use-chat-motion";
 import { useQuestionPrompt } from "@/features/chat/components/use-question-prompt";
 import { useVoiceMode } from "@/features/chat/components/use-voice-mode";
 import { VoiceOverlay } from "@/features/chat/components/voice-overlay";
+import { presentChatActivity } from "@/features/chat/model/chat-activity";
 import { mentionDraft } from "@/features/chat/model/chat-mentions";
 import { projectChatMessages } from "@/features/chat/model/chat-messages";
 import type { AgentChatTarget } from "@/features/chat/model/chat-target";
 import { voiceAccent, voicePalette } from "@/features/chat/model/voice-palette";
 import { agentTaskHoldText } from "@/features/servers/model/agent-task-text";
 import { ConnectionStatus } from "@/features/workspace/components/connection-status";
+import { useAgentActivity } from "@/features/workspace/components/use-agent-activity";
 import { useApprovalRequests, useBrowserRequests } from "@/features/workspace/components/use-live-workspace";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 import type { MobileAgentActivity } from "@/features/workspace/model/agent-activity";
@@ -230,6 +233,15 @@ function AgentTaskChat({ target, taskId }: { target: AgentChatTarget; taskId: st
   // As in the agent's chat: after the host takes the message, the activity row waits for the turn,
   // the reply or a failure. Task events can arrive after the read that holds the reply.
   const [awaitingTurn, setAwaitingTurn] = useState(false);
+  const completion = useAgentActivity(agentId, true, serverId);
+  const activityPresentation = presentChatActivity({
+    activity,
+    completion,
+    activeTurnId,
+    messages,
+    sending,
+    awaitingTurn,
+  });
   const [acting, setActing] = useState(false);
   const ready = Boolean(conversation.data);
   const rowsShown = useRowsAfterOpenTransition();
@@ -403,7 +415,7 @@ function AgentTaskChat({ target, taskId }: { target: AgentChatTarget; taskId: st
     </View>
   ) : null;
 
-  return (
+  const content = (
     <View className="flex-1" style={{ backgroundColor: background }}>
       <KeyboardGestureArea
         style={{ flex: 1 }}
@@ -430,11 +442,10 @@ function AgentTaskChat({ target, taskId }: { target: AgentChatTarget; taskId: st
           accessibilityHidden={voiceOpen}
           motion={motion}
           sending={sending}
-          awaitingTurn={awaitingTurn}
           keyboardOffset={keyboardOffset}
           canSend={canSend}
           online={online}
-          activity={activity}
+          activity={activityPresentation}
           historyState={
             ready
               ? "ready"
@@ -583,5 +594,16 @@ function AgentTaskChat({ target, taskId }: { target: AgentChatTarget; taskId: st
         </Animated.View>
       </KeyboardGestureArea>
     </View>
+  );
+  return (
+    <SatelliteMotionProvider
+      key={`${serverId}:${agentId}:${taskId}`}
+      agentId={agentId}
+      serverId={serverId}
+      phase={activityPresentation.phase}
+      enabled={online}
+    >
+      {content}
+    </SatelliteMotionProvider>
   );
 }

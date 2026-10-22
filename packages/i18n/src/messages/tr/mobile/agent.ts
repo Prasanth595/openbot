@@ -14,7 +14,7 @@ export const messages = {
   "mobile.agent.pin.pinNamed": "{name} ajanını sabitle",
   "mobile.agent.pin.unpinNamed": "{name} sabitlemesini kaldır",
   "mobile.agent.pin.limitReached": "Sabitleme sınırına ulaşıldı. Önce bir sohbetin sabitlemesini kaldırın.",
-  "mobile.agent.pin.closeAction": "{name} için sabitleme eylemini kapat",
+  "mobile.agent.pin.closeAction": "{name} için eylemleri kapat",
   "mobile.agent.appearance.preview": "{name} için avatar önizlemesi",
   "mobile.agent.appearance.newAgent": "Yeni ajan",
   "mobile.agent.appearance.faces": "Şekil ve ifade",
@@ -130,8 +130,6 @@ export const messages = {
     "Bu ana makine becerileri desteklemiyor. Ana makinedeki OpenBot'u güncelleyin.",
   "mobile.agent.info.noSkills": "Henüz beceri yok.",
   "mobile.agent.info.skillsManaged": "Bu ajanın becerileri ana makinede yönetilir.",
-  "mobile.agent.info.skillsAddOnComputer":
-    "Bu ajanla bir beceri oluşturmak için + düğmesini kullanın. Pazaryeri becerilerini bir bilgisayardaki OpenBot'ta veya web uygulamasında ekleyin.",
   "mobile.agent.info.filesUnsupported":
     "Bu ana makine dosya yönetimini desteklemiyor. Ana makinedeki OpenBot'u güncelleyin.",
   "mobile.agent.info.memoryGone": "Bu bellek artık mevcut değil.",
@@ -267,6 +265,8 @@ export const messages = {
   "mobile.agent.record.deleteRoutineBody": "Bu rutin kaldırılacaktır.",
   "mobile.agent.record.deleteRoutine": "Rutini sil",
   "mobile.agent.record.testStarted": "Test çalıştırması başladı. Sonuç sohbette gösterilir.",
+  "mobile.agent.profile.heading": "AJAN BİLGİSİ",
+  "mobile.agent.runtime.change": "Değiştir",
   "mobile.agent.groups.brain": "Beyin",
   "mobile.agent.groups.knows": "Bilgi",
   "mobile.agent.groups.does": "Görevler",

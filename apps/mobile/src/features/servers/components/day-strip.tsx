@@ -2,6 +2,7 @@ import { addCalendarDays, type CalendarDay } from "@openbot/team-client/routine-
 import { Typography } from "heroui-native";
 import { useEffect, useRef, useState } from "react";
 import { FlatList, Pressable, View } from "react-native";
+import type { CalendarStatus } from "@/features/servers/components/routine-calendar-row";
 import { haptics } from "@/shared/lib/haptics";
 
 const DAY_MS = 86_400_000;
@@ -19,6 +20,7 @@ interface DayStripProps {
   selected: CalendarDay | null;
   /** Runs for each day. A day without an entry has no mark. */
   counts: ReadonlyMap<CalendarDay, number>;
+  marks?: ReadonlyMap<CalendarDay, readonly { id: string; status: CalendarStatus }[]>;
   weekdayText: (day: CalendarDay) => string;
   dayNumberText: (day: CalendarDay) => string;
   dayLabel: (day: CalendarDay, count: number) => string;
@@ -36,6 +38,7 @@ export function DayStrip({
   today,
   selected,
   counts,
+  marks,
   weekdayText,
   dayNumberText,
   dayLabel,
@@ -43,7 +46,7 @@ export function DayStrip({
   onStartChange,
 }: DayStripProps) {
   const [width, setWidth] = useState(0);
-  const column = width / DAY_STRIP_LENGTH;
+  const column = width ? (width + 4) / DAY_STRIP_LENGTH : 0;
   const list = useRef<FlatList<number>>(null);
   // Indexes count from the day that showed first, so they stay fixed while the sheet is open.
   const [origin] = useState(start);
@@ -75,7 +78,7 @@ export function DayStrip({
           snapToInterval={column}
           decelerationRate="fast"
           data={DAYS}
-          extraData={[selected, counts, today]}
+          extraData={[selected, counts, marks, today]}
           keyExtractor={String}
           initialScrollIndex={index}
           // The days on each side are drawn before the swipe reaches them.
@@ -109,20 +112,35 @@ export function DayStrip({
                 accessibilityRole="button"
                 accessibilityState={{ selected: isSelected }}
                 accessibilityLabel={dayLabel(day, count)}
-                className={`items-center gap-1 rounded-grouped py-2 ${isSelected ? "bg-grouped" : ""}`}
-                style={{ width: column }}
+                className={`items-center justify-center gap-1 border py-2 ${isSelected ? "border-transparent bg-action" : "border-grouped-border bg-grouped"}`}
+                style={{ width: column - 4, marginRight: 4, minHeight: 72, borderRadius: 14 }}
                 onPress={() => onSelectDay(day)}
               >
-                <Typography type="body-xs" className="text-grouped-secondary">
+                <Typography
+                  type="body-xs"
+                  className={isSelected ? "text-action-foreground opacity-60" : "text-grouped-secondary"}
+                  style={{ fontFamily: "Inter", fontSize: 12, lineHeight: 15 }}
+                >
                   {weekdayText(day)}
                 </Typography>
                 <Typography
-                  weight={day === today || isSelected ? "semibold" : undefined}
-                  className={day === today ? "text-accent-text" : day < today ? "text-grouped-secondary" : undefined}
+                  weight="semibold"
+                  className={isSelected ? "text-action-foreground" : undefined}
+                  style={{ fontFamily: "Inter", fontSize: 18, lineHeight: 22 }}
                 >
                   {dayNumberText(day)}
                 </Typography>
-                <View className={`size-1 rounded-full ${count > 0 ? "bg-grouped-secondary" : ""}`} />
+                <View className="flex-row gap-0.5" style={{ minHeight: 5 }}>
+                  {(marks?.get(day)?.slice(0, 3) ?? (count > 0 ? [{ id: day, status: "active" }] : [])).map(
+                    ({ id, status }) => (
+                      <View
+                        key={id}
+                        className={`rounded-full ${status === "completed" ? "bg-success" : status === "failed" ? "bg-danger" : status === "paused" || status === "cancelled" ? "bg-grouped-secondary" : "bg-accent"}`}
+                        style={{ width: 5, height: 5 }}
+                      />
+                    ),
+                  )}
+                </View>
               </Pressable>
             );
           }}

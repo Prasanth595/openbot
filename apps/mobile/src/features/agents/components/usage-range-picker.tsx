@@ -1,8 +1,10 @@
 import { type AgentAnalyticsInput, analyticsRange } from "@openbot/contracts/ipc";
 import { useState } from "react";
+import { View } from "react-native";
 import { SettingsSection } from "@/features/settings/components/settings-content";
 import { useText } from "@/shared/lib/text";
 import { UsageDateRow } from "./usage-date-row";
+import { UsageFilterMenu } from "./usage-filter-menu";
 import { UsageSegments } from "./usage-segments";
 
 export type UsageRange = Omit<AgentAnalyticsInput, "agentId">;
@@ -32,7 +34,15 @@ function clamp(date: string, min: string, max: string): string {
  * applies at once. A date that makes the range too long or inverted moves the other date,
  * so each date can be set in any order.
  */
-export function UsageRangePicker({ range, onChange }: { range: UsageRange; onChange: (range: UsageRange) => void }) {
+export function UsageRangePicker({
+  range,
+  onChange,
+  appearance = "segments",
+}: {
+  range: UsageRange;
+  onChange: (range: UsageRange) => void;
+  appearance?: "segments" | "menu";
+}) {
   const { t } = useText();
   const [period, setPeriod] = useState<(typeof PRESETS)[number] | "custom">(30);
   const today = lastUsageDays(1).endDate;
@@ -50,34 +60,45 @@ export function UsageRangePicker({ range, onChange }: { range: UsageRange; onCha
   }
   return (
     <>
-      <UsageSegments options={options} value={String(period)} onChange={selectPeriod} />
+      {appearance === "menu" ? (
+        <UsageFilterMenu
+          options={options}
+          value={String(period)}
+          label={t("mobile.server.usage.dateRange")}
+          onChange={selectPeriod}
+        />
+      ) : (
+        <UsageSegments options={options} value={String(period)} onChange={selectPeriod} />
+      )}
       {period === "custom" ? (
-        <SettingsSection>
-          <UsageDateRow
-            label={t("mobile.agent.usage.startDate")}
-            date={range.startDate}
-            max={today}
-            onChange={(startDate) =>
-              onChange({
-                ...range,
-                startDate,
-                endDate: clamp(range.endDate, startDate, clamp(addDays(startDate, MAX_SPAN_DAYS), startDate, today)),
-              })
-            }
-          />
-          <UsageDateRow
-            label={t("mobile.agent.usage.endDate")}
-            date={range.endDate}
-            max={today}
-            onChange={(endDate) =>
-              onChange({
-                ...range,
-                startDate: clamp(range.startDate, addDays(endDate, -MAX_SPAN_DAYS), endDate),
-                endDate,
-              })
-            }
-          />
-        </SettingsSection>
+        <View style={appearance === "menu" ? { width: "100%" } : undefined}>
+          <SettingsSection>
+            <UsageDateRow
+              label={t("mobile.agent.usage.startDate")}
+              date={range.startDate}
+              max={today}
+              onChange={(startDate) =>
+                onChange({
+                  ...range,
+                  startDate,
+                  endDate: clamp(range.endDate, startDate, clamp(addDays(startDate, MAX_SPAN_DAYS), startDate, today)),
+                })
+              }
+            />
+            <UsageDateRow
+              label={t("mobile.agent.usage.endDate")}
+              date={range.endDate}
+              max={today}
+              onChange={(endDate) =>
+                onChange({
+                  ...range,
+                  startDate: clamp(range.startDate, addDays(endDate, -MAX_SPAN_DAYS), endDate),
+                  endDate,
+                })
+              }
+            />
+          </SettingsSection>
+        </View>
       ) : null}
     </>
   );

@@ -4,7 +4,7 @@ import { create } from "zustand";
 const key = "openbot.mobile.agent-color-messages.v1";
 /** When enabled, the user's messages in an agent chat use that agent's color. */
 export const useAgentColorMessages = create<{ enabled: boolean; ready: boolean; saving: boolean }>(() => ({
-  enabled: true,
+  enabled: false,
   ready: false,
   saving: false,
 }));
@@ -15,7 +15,7 @@ export async function loadAgentColorMessages(): Promise<void> {
     const stored = await SecureStore.getItemAsync(key);
     // A second startup read must not overwrite a change made in Settings.
     if (!useAgentColorMessages.getState().ready) {
-      useAgentColorMessages.setState({ enabled: stored === null || stored === "true" });
+      useAgentColorMessages.setState({ enabled: stored === "true" });
     }
   } finally {
     useAgentColorMessages.setState({ ready: true });

@@ -7,7 +7,7 @@ import Plus from "lucide-react-native/icons/plus";
 import Reply from "lucide-react-native/icons/reply";
 import Square from "lucide-react-native/icons/square";
 import X from "lucide-react-native/icons/x";
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { memo, type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   AccessibilityInfo,
   Text as NativeText,
@@ -35,6 +35,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
+import { useCSSVariable } from "uniwind";
 import { BloubAvatar } from "@/features/agents/components/bloub-avatar";
 import { showFailureAlert } from "@/features/analytics/failure-reports";
 import type { ChatBubbleMessage } from "@/features/chat/model/chat-messages";
@@ -120,6 +121,8 @@ const PLACEHOLDER_OUT = FadeOut.duration(PLACEHOLDER_DURATION)
 
 interface ChatComposerProps {
   sendLabel?: string;
+  modelControl?: ReactNode;
+  layout?: "adaptive" | "card";
   action: ViewStyle["backgroundColor"];
   actionForeground: ViewStyle["backgroundColor"];
   agentName: string;
@@ -188,6 +191,8 @@ const FOCUS_RETRY_INTERVAL_MS = 100;
 
 export const ChatComposer = memo(function ChatComposer({
   sendLabel,
+  modelControl,
+  layout = "adaptive",
   action,
   actionForeground,
   agentName,
@@ -198,7 +203,7 @@ export const ChatComposer = memo(function ChatComposer({
   draft,
   fallbackBackground,
   foreground,
-  liquidGlassAvailable,
+  liquidGlassAvailable: platformGlassAvailable,
   muted,
   raised,
   onChangeDraft,
@@ -218,6 +223,15 @@ export const ChatComposer = memo(function ChatComposer({
   voice,
   voiceAccent,
 }: ChatComposerProps) {
+  const cardLayout = Boolean(modelControl) || layout === "card";
+  const liquidGlassAvailable = platformGlassAvailable && !cardLayout;
+  const chromeBorder = String(useCSSVariable("--openbot-border-chrome-glass"));
+  const barInset = cardLayout ? 20 : BAR_INSET;
+  const toolbarHeight = cardLayout ? 52 : TOOLBAR_HEIGHT;
+  // The model, mic and attachment controls share the same toolbar centre.
+  const attachmentBottom = cardLayout ? 10 : 4;
+  const fieldPadding = cardLayout ? 14 : FIELD_VERTICAL_PADDING;
+  const inputTopPadding = cardLayout ? fieldPadding : fieldPadding / 2;
   const { t, format, sourceText } = useText();
   // A text-only composer has no menu or voice motion of its own; these stay at rest.
   const still = useSharedValue(0);
@@ -311,22 +325,22 @@ export const ChatComposer = memo(function ChatComposer({
   const lineHeight = 22 * fontScale;
   // Without the plus, the text starts at the card's own inset.
   const leadingInset = attachments ? ROW_CONTROL_INSET : FIELD_INSET;
-  const rowTextWidth = windowWidth - BAR_INSET * 2 - ROW_CONTROL_INSET - leadingInset;
+  const rowTextWidth = windowWidth - barInset * 2 - ROW_CONTROL_INSET - leadingInset;
   // One reading drives both the shape and the height. Measuring the two widths
   // separately gave the card two targets in two frames, so it animated twice.
   const [wrap, setWrap] = useState({ lines: 1, width: 0 });
   // The bar stays a single row while the text fits beside the controls, then
   // becomes a card with the field on its own line.
-  const stacked = wrap.lines > 1 || wrap.width > rowTextWidth;
+  const stacked = cardLayout || wrap.lines > 1 || wrap.width > rowTextWidth;
   const fieldHeight = Math.max(
-    TOOLBAR_HEIGHT,
-    Math.min(MAX_INPUT_LINES, wrap.lines) * lineHeight + FIELD_VERTICAL_PADDING,
+    cardLayout ? 36 : toolbarHeight,
+    Math.min(MAX_INPUT_LINES, wrap.lines) * lineHeight + fieldPadding,
   );
   const attachmentsOpen = files.length > 0;
   const reducedMotion = useReducedMotion();
   const shapeDuration = reducedMotion ? 0 : SHAPE_DURATION;
   // Settings can keep the composer open, and reduced motion always does.
-  const resizes = useMotionPreference("composerResize");
+  const resizes = useMotionPreference("composerResize") && !cardLayout;
 
   // At rest the composer is a smaller bar: narrower, shorter, with the plus on
   // the left, the placeholder centred and send on the right. It opens into the
@@ -334,7 +348,7 @@ export const ChatComposer = memo(function ChatComposer({
   // frame by frame instead of snapping when the keyboard finally commits.
   const [placeholderWidth, setPlaceholderWidth] = useState(0);
   const placeholderText = placeholder ?? t("mobile.chat.composer.ask", { name: agentName });
-  const cardWidth = windowWidth - BAR_INSET * 2;
+  const cardWidth = windowWidth - barInset * 2;
   const restHeight = Math.max(TOOLBAR_HEIGHT, lineHeight + FIELD_VERTICAL_PADDING) - REST_HEIGHT_LOSS;
   // The toolbar keeps its height and the control rides down into the smaller
   // bar, so the box fills that bar's height.
@@ -522,7 +536,7 @@ export const ChatComposer = memo(function ChatComposer({
       height: height + (VOICE_BUTTON_SIZE - height) * voiced,
       // The controls hold the bottom of the card. In a single row they overlay
       // the field, so the text clears their width instead.
-      marginBottom: interpolate(stackedValue.get(), [0, 1], [0, TOOLBAR_HEIGHT]) * (1 - voiced),
+      marginBottom: interpolate(stackedValue.get(), [0, 1], [0, toolbarHeight]) * (1 - voiced),
     };
   });
   // Centred at rest, and never further left than the plus: a placeholder wider
@@ -610,8 +624,8 @@ export const ChatComposer = memo(function ChatComposer({
   const plusDrawn = CONTROL_SIZE * (restingPlus ? REST_CONTROL_SCALE : 1);
   const plusInset = (CONTROL_SIZE - plusDrawn) / 2;
   const attachmentAnchor = {
-    left: BAR_INSET + TOOLBAR_PADDING + plusInset + (restingPlus ? (cardWidth - restWidth) / 2 - restControlShift : 0),
-    bottom: Math.max(bottomInset, 10) + 4 + plusInset - (restingPlus ? restControlOffset : 0),
+    left: barInset + TOOLBAR_PADDING + plusInset + (restingPlus ? (cardWidth - restWidth) / 2 - restControlShift : 0),
+    bottom: Math.max(bottomInset, 10) + attachmentBottom + plusInset - (restingPlus ? restControlOffset : 0),
     size: plusDrawn,
   };
   const control = composerAction({
@@ -726,7 +740,7 @@ export const ChatComposer = memo(function ChatComposer({
         pointerEvents="box-none"
         style={{
           alignItems: "center",
-          paddingHorizontal: BAR_INSET,
+          paddingHorizontal: barInset,
           paddingTop: 8,
           paddingBottom: Math.max(bottomInset, 10),
         }}
@@ -841,6 +855,8 @@ export const ChatComposer = memo(function ChatComposer({
                 backgroundColor: liquidGlassAvailable ? "transparent" : fallbackBackground,
                 borderCurve: "continuous",
                 borderRadius: CARD_RADIUS,
+                borderWidth: cardLayout ? 1 : 0,
+                borderColor: chromeBorder,
                 overflow: "hidden",
                 opacity: disabled ? 0.45 : 1,
               },
@@ -869,6 +885,7 @@ export const ChatComposer = memo(function ChatComposer({
                 right: FIELD_INSET,
                 top: 0,
                 opacity: 0,
+                fontFamily: cardLayout ? "Inter" : undefined,
                 fontSize: 16,
                 lineHeight: 22,
               }}
@@ -974,9 +991,11 @@ export const ChatComposer = memo(function ChatComposer({
                       style={{
                         flex: 1,
                         minWidth: 0,
+                        fontFamily: cardLayout ? "Inter" : undefined,
                         fontSize: 16,
                         lineHeight: 22,
-                        paddingVertical: FIELD_VERTICAL_PADDING / 2,
+                        paddingTop: inputTopPadding,
+                        paddingBottom: cardLayout ? 0 : FIELD_VERTICAL_PADDING / 2,
                         textAlignVertical: "top",
                       }}
                       onSelectionChange={({ nativeEvent }) =>
@@ -1066,9 +1085,9 @@ export const ChatComposer = memo(function ChatComposer({
                         position: "absolute",
                         left: FIELD_INSET,
                         right: ROW_CONTROL_INSET,
-                        top: 0,
+                        top: cardLayout ? inputTopPadding : 0,
                         bottom: 0,
-                        justifyContent: "center",
+                        justifyContent: cardLayout ? "flex-start" : "center",
                         alignItems: "flex-start",
                       },
                       placeholderStyle,
@@ -1077,11 +1096,21 @@ export const ChatComposer = memo(function ChatComposer({
                     {/* Keyed by its words, so a new placeholder crossfades. The words that show
                         when the draft empties or the chat opens appear at once, as before. */}
                     <LayoutAnimationConfig skipEntering skipExiting>
-                      <Animated.View key={placeholderText} entering={PLACEHOLDER_IN} exiting={PLACEHOLDER_OUT}>
+                      <Animated.View
+                        key={placeholderText}
+                        entering={PLACEHOLDER_IN}
+                        exiting={PLACEHOLDER_OUT}
+                        style={cardLayout ? { alignSelf: "stretch" } : undefined}
+                      >
                         <NativeText
                           numberOfLines={1}
                           className="font-sans"
-                          style={{ color: String(muted), fontSize: 16, lineHeight: 22 }}
+                          style={{
+                            fontFamily: cardLayout ? "Inter" : undefined,
+                            color: String(muted),
+                            fontSize: 16,
+                            lineHeight: 22,
+                          }}
                         >
                           {placeholderText}
                         </NativeText>
@@ -1099,13 +1128,27 @@ export const ChatComposer = memo(function ChatComposer({
                   bottom: 0,
                   // Constant: the smaller bar moves the control down instead of
                   // resizing this row under it, so the row never re-lays-out.
-                  height: TOOLBAR_HEIGHT,
+                  height: toolbarHeight,
                   flexDirection: "row",
                   alignItems: "center",
                   justifyContent: "flex-end",
                   paddingHorizontal: TOOLBAR_PADDING,
+                  paddingBottom: cardLayout ? 8 : 0,
                 }}
               >
+                {modelControl ? (
+                  <View
+                    style={{
+                      position: "absolute",
+                      left: attachments ? 56 : 16,
+                      right: 60,
+                      bottom: 16,
+                      alignItems: "flex-start",
+                    }}
+                  >
+                    {modelControl}
+                  </View>
+                ) : null}
                 <Animated.View style={controlStyle}>
                   {voiceOpen && voice ? (
                     <Pressable
@@ -1125,7 +1168,7 @@ export const ChatComposer = memo(function ChatComposer({
                           <VoiceLevelBars level={voice.level} color={listeningGlyph} />
                         )
                       ) : (
-                        <Mic color={String(foreground)} size={21} strokeWidth={1.8} />
+                        <Mic color={String(cardLayout ? actionForeground : foreground)} size={21} strokeWidth={1.8} />
                       )}
                     </Pressable>
                   ) : (
@@ -1138,7 +1181,9 @@ export const ChatComposer = memo(function ChatComposer({
                       style={{
                         // Nothing to send reads as a bare glyph on the card, not as a
                         // filled control the user could press.
-                        backgroundColor: control.primed ? action : "transparent",
+                        width: cardLayout ? 44 : CONTROL_SIZE,
+                        height: cardLayout ? 44 : CONTROL_SIZE,
+                        backgroundColor: cardLayout || control.primed ? action : "transparent",
                         // The card dims as a whole when the composer is disabled.
                         // Dim only this control for a state the card does not show.
                         opacity: disabled || control.pressable ? 1 : 0.45,
@@ -1155,7 +1200,7 @@ export const ChatComposer = memo(function ChatComposer({
                           strokeWidth={2}
                         />
                       ) : control.mode === "dictate" ? (
-                        <Mic color={String(foreground)} size={21} strokeWidth={1.8} />
+                        <Mic color={String(cardLayout ? actionForeground : foreground)} size={21} strokeWidth={1.8} />
                       ) : (
                         <ArrowUp
                           color={String(control.primed ? actionForeground : muted)}
@@ -1181,7 +1226,10 @@ export const ChatComposer = memo(function ChatComposer({
             importantForAccessibility={voiceOpen ? "no-hide-descendants" : "auto"}
             // Absolute insets here are measured from the bar's outer edge, so they
             // have to carry the bar's own padding to land on the card.
-            style={[{ position: "absolute", left: BAR_INSET + 8, bottom: Math.max(bottomInset, 10) + 4 }, plusStyle]}
+            style={[
+              { position: "absolute", left: barInset + 8, bottom: Math.max(bottomInset, 10) + attachmentBottom },
+              plusStyle,
+            ]}
           >
             <Pressable
               accessibilityRole="button"

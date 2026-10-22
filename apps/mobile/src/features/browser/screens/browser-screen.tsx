@@ -147,7 +147,7 @@ function BrowserView({
   const support = online ? browserViewSupport(agent.serverId) : NO_SUPPORT;
   const allowed = useBrowserFeature();
   // The agent's thread, from its chat. A tab with no agent owner belongs to the agent by its thread.
-  const threadId = conversationStore.get(agent.id)?.threadId ?? null;
+  const threadId = conversationStore.get(agent.id, agent.serverId)?.threadId ?? null;
   const tabs = useAgentBrowserTabs(agent.serverId, agent.id, threadId);
   const tab = useAgentBrowserTab(agent.serverId, agent.id, preferredTabId, threadId);
   // The view stays open under the help sheet, and closes while the app is in the background.

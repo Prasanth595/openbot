@@ -15,6 +15,7 @@ import { openTurnActivity } from "@/features/workspace/model/agent-activity";
 import { showsOnline } from "@/features/workspace/model/server-status";
 import { useText } from "@/shared/lib/text";
 import { chatRowIndex, latestReadableMessage, projectChatMessages, withFailureReasons } from "../model/chat-messages";
+import { afterChatFirstPaint, ensureChatOpen, markChatOpen } from "../model/chat-open-performance";
 import { ChatTaskRows, useOpenAgentTasks } from "./chat-task-rows";
 import { ChatView } from "./chat-view";
 import { useChatQueue } from "./use-chat-queue";
@@ -31,6 +32,11 @@ export function MobileChatView({
   onLeave: () => void;
 }) {
   const { t } = useText();
+  // Start the local span before child layout callbacks can report their first frame.
+  useState(() => {
+    ensureChatOpen(agent.serverId, agent.id);
+    return null;
+  });
   const workspace = useMobileWorkspaceReader();
   const agents = useMobileWorkspaceSelector((current) => current.agents);
   const conversationStore = useMobileWorkspaceSelector((current) => current.conversationStore);
@@ -41,14 +47,17 @@ export function MobileChatView({
   const loadOlderMessages = useMobileWorkspaceSelector((current) => current.loadOlderMessages);
   const markAgentRead = useMobileWorkspaceSelector((current) => current.markAgentRead);
   const respondToPrompt = useCallback(
-    (agentId: string, input: RespondToPromptInput) => workspace().respondToPrompt(agentId, input),
-    [workspace],
+    (agentId: string, input: RespondToPromptInput) => workspace().respondToPrompt(agentId, input, agent.serverId),
+    [workspace, agent.serverId],
   );
   const subscribe = useCallback(
-    (notify: () => void) => conversationStore.subscribe(agent.id, notify),
-    [agent.id, conversationStore],
+    (notify: () => void) => conversationStore.subscribe(agent.id, agent.serverId, notify),
+    [agent.id, agent.serverId, conversationStore],
   );
-  const snapshot = useCallback(() => conversationStore.get(agent.id), [agent.id, conversationStore]);
+  const snapshot = useCallback(
+    () => conversationStore.get(agent.id, agent.serverId),
+    [agent.id, agent.serverId, conversationStore],
+  );
   const stopTurn = useCallback(
     (turnId: string) => workspace().interruptTurn(agent.id, turnId, agent.serverId),
     [agent.id, agent.serverId, workspace],
@@ -65,12 +74,17 @@ export function MobileChatView({
     () => projectChatMessages(conversation?.messages ?? [], memberId, accountUserId),
     [conversation?.messages, memberId, accountUserId],
   );
+  useEffect(() => {
+    if (!conversation) return;
+    markChatOpen(agent.serverId, agent.id, "data");
+    markChatOpen(agent.serverId, agent.id, "projection");
+  }, [agent.id, agent.serverId, conversation]);
   const references = useMemo(
     () => projectChatMessages(Object.values(conversation?.references ?? {}), memberId, accountUserId),
     [conversation?.references, memberId, accountUserId],
   );
   const tasks = useOpenAgentTasks(agent.serverId, agent.id);
-  const liveActivity = openTurnActivity(useAgentActivity(agent.id), conversation);
+  const liveActivity = openTurnActivity(useAgentActivity(agent.id, false, agent.serverId), conversation);
   const threadId = conversation?.threadId ?? null;
   // A turn on another thread, such as channel work, is not this chat's work, as on desktop. A host
   // with channel-attention-v1 names the channel of the thread, and a row below opens it.
@@ -118,7 +132,10 @@ export function MobileChatView({
     setHistoryLoadFailed(false);
     const messageId = focusRef.current?.loaded === false ? focusRef.current.messageId : null;
     const load = async () => {
-      if (messageId && !conversationStore.get(agent.id)?.messages.some((message) => message.id === messageId)) {
+      if (
+        messageId &&
+        !conversationStore.get(agent.id, agent.serverId)?.messages.some((message) => message.id === messageId)
+      ) {
         if (!(await loadConversationAround(agent.id, messageId, agent.serverId))) {
           // The host no longer has the message. The chat opens at the latest message.
           if (request.current === id) setFocus(null);
@@ -148,11 +165,16 @@ export function MobileChatView({
     loadLatestMessages,
   ]);
   useEffect(() => {
-    fetchHistory();
+    // A retained page can draw before revalidation parses another response on the JS thread.
+    // Search still reads its target immediately: opening remains held until that window arrives.
+    const cached = !focusMessageId && conversationStore.get(agent.id, agent.serverId);
+    const cancel = cached ? afterChatFirstPaint(fetchHistory) : undefined;
+    if (!cached) fetchHistory();
     return () => {
+      cancel?.();
       request.current += 1;
     };
-  }, [fetchHistory]);
+  }, [fetchHistory, focusMessageId, conversationStore, agent.id, agent.serverId]);
   const detached = conversation?.detached ?? false;
   // A message in the store that the chat shows no row for, such as a thinking step.
   const focusRowMissing = focus?.loaded === true && chatRowIndex(messages, focus.messageId) < 0;

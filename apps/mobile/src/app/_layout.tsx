@@ -1,6 +1,7 @@
 import "../../global.css";
 
 import { QueryClientProvider } from "@tanstack/react-query";
+import { useFonts } from "expo-font";
 import { usePathname } from "expo-router";
 import { DarkTheme, DefaultTheme, ThemeProvider } from "expo-router/react-navigation";
 import { Stack } from "expo-router/stack";
@@ -158,6 +159,9 @@ function RootNavigator() {
                 </Stack.Protected>
                 <Stack.Screen name="incoming-link" options={{ headerShown: false }} />
                 <Stack.Screen name="incoming-share" options={{ headerShown: false }} />
+                <Stack.Protected guard={__DEV__}>
+                  <Stack.Screen name="design-preview" options={{ headerShown: false }} />
+                </Stack.Protected>
               </Stack>
             </View>
           ) : null}
@@ -170,6 +174,7 @@ function RootNavigator() {
 }
 
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({ Inter: require("../../assets/fonts/Inter.ttf") });
   const { theme: colorScheme } = useUniwind();
   const animations = useMotionPreferences((state) => state.allAnimations);
   const heroConfig = useMemo(() => (animations ? {} : { animation: "disable-all" as const }), [animations]);
@@ -200,6 +205,8 @@ export default function RootLayout() {
       void loadOnboardingProgress().catch(() => undefined);
     });
   }, []);
+
+  if (!fontsLoaded && !fontError) return null;
 
   return (
     <UniwindGestureHandlerRootView className="flex-1">

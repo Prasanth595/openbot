@@ -13,7 +13,7 @@ export interface SheetFormFieldProps {
   label: string;
   maxLength?: number;
   multiline?: boolean;
-  appearance?: "default" | "soft";
+  appearance?: "default" | "soft" | "embedded";
   hideLabel?: boolean;
   textAlign?: TextInputProps["textAlign"];
   onChangeText: (value: string) => void;

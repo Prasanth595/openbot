@@ -26,6 +26,12 @@
   --color-brand-logo: var(--openbot-logo-production);
   --color-action: var(--openbot-action);
   --color-action-foreground: var(--openbot-action-foreground);
+  --color-feature: var(--openbot-logo-production);
+  --color-brain-feature: var(--openbot-logo-dev);
+  --color-on-feature: var(--openbot-text-on-light);
+  --color-on-feature-muted: var(--openbot-text-muted-on-light);
+  --color-team-canvas: var(--openbot-bg-canvas);
+  --color-team-surface: var(--openbot-bg-surface);
   --color-drawer-scrim: var(--openbot-drawer-scrim);
   --color-scroll-edge-overlay: var(--openbot-scroll-edge-overlay);
 

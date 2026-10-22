@@ -66,6 +66,7 @@ import { ONEPASSWORD_CONNECTOR_CAPABILITY } from "@openbot/contracts/team-protoc
 import { PROVIDER_ACCOUNTS_CAPABILITY } from "@openbot/contracts/team-protocol/provider-accounts-v1";
 import { PROVIDERS_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/providers-v1";
 import { TEAM_QUEUE_EDIT_CAPABILITY } from "@openbot/contracts/team-protocol/queue-edit-v1";
+import { ROUTINE_FLOWS_CAPABILITY } from "@openbot/contracts/team-protocol/routine-flows-v1";
 import { SHARED_TABLES_CAPABILITY } from "@openbot/contracts/team-protocol/shared-tables-v1";
 import { SKILLS_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/skills-admin-v1";
 import { STORAGE_ROUTES } from "@openbot/contracts/team-protocol/storage-v1";
@@ -88,7 +89,9 @@ import {
   getHostUpdateStatus,
   githubConnectorRepositories,
   githubConnectorRequest,
+  installAgentSkill,
   installAgentTemplate,
+  installMarketplaceAgent,
   listAgentSkills,
   listEventActivity,
   listEventRoutines,
@@ -143,6 +146,7 @@ import {
   startAgentTask,
   type TeamApiRequest,
   TeamRequestError,
+  teamRoutineFlowsApi,
 } from "@openbot/team-client/team-api-requests";
 import type { QueryClient } from "@tanstack/react-query";
 import { Effect } from "effect";
@@ -192,6 +196,7 @@ type HostRequestActions = Pick<
   | "loadAgentMemorySelection"
   | "setAgentMemoryInclusion"
   | "loadAgentRoutines"
+  | "loadAgentRoutineFlow"
   | "loadRoutineCalendar"
   | "listEventRoutines"
   | "saveEventRoutine"
@@ -211,6 +216,7 @@ type HostRequestActions = Pick<
   | "loadAgentSkills"
   | "setAgentSkillEnabled"
   | "uninstallAgentSkill"
+  | "installAgentSkill"
   | "loadAgentStorage"
   | "loadServerStorage"
   | "clearServerStorage"
@@ -266,6 +272,7 @@ type HostRequestActions = Pick<
   | "unpublishAgentTemplate"
   | "deleteStoredFile"
   | "installAgentTemplate"
+  | "installMarketplaceAgent"
   | "loadAgentAvatar"
   | "duplicateAgent"
   | "loadQueue"
@@ -591,6 +598,10 @@ export function createHostRequestActions({
         undefined,
         serverId,
       ),
+    loadAgentRoutineFlow: (agentId, serverId) =>
+      has(serverId, ROUTINE_FLOWS_CAPABILITY)
+        ? teamRoutineFlowsApi(teamApi(serverId)).canvas(agentId)
+        : Promise.resolve(null),
     loadRoutineCalendar: (input, serverId, owners) =>
       runTeamRequest(
         buildRoutineCalendar(
@@ -647,6 +658,7 @@ export function createHostRequestActions({
         ? request("GET", TEAM_API_ROUTES.agent.skills(agentId), decodeInstalledSkills, undefined, serverId)
         : null;
     },
+    installAgentSkill: async (input, serverId) => runTeamRequest(installAgentSkill(skillsAdmin(serverId), input)),
     setAgentSkillEnabled: async (input, serverId) => runTeamRequest(setAgentSkillEnabled(skillsAdmin(serverId), input)),
     uninstallAgentSkill: async (input, serverId) => runTeamRequest(uninstallAgentSkill(skillsAdmin(serverId), input)),
     loadAgentStorage: async (agentId, serverId, force = false) => {
@@ -719,6 +731,10 @@ export function createHostRequestActions({
       // A host too old to know the route answers 404, so refuse before the request.
       requireCapability(capabilities, serverId, AGENT_INSTALL_CAPABILITY, "mobile.link.template.error.unsupported");
       return runTeamRequest(installAgentTemplate(teamApi(serverId), input));
+    },
+    installMarketplaceAgent: async (input, serverId) => {
+      requireCapability(capabilities, serverId, AGENT_INSTALL_CAPABILITY, "mobile.link.template.error.unsupported");
+      return runTeamRequest(installMarketplaceAgent(teamApi(serverId), input));
     },
     loadAgentAvatar: (agentId, avatarUrl, serverId) => requestAgentAvatar(request, agentId, avatarUrl, serverId),
     duplicateAgent: async (agentId) => {

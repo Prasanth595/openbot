@@ -3,6 +3,7 @@ import { reconcilePendingRequests } from "@openbot/team-client/runtime-attention
 import { type QueryClient, replaceEqualDeep } from "@tanstack/react-query";
 import { decodeMobileBrowserTabs } from "@/features/browser/model/browser-tabs";
 import type { LiveWorkspaceStore } from "./live-workspace-store";
+import { syncProviderUsageQueries } from "./provider-usage-cache";
 import { AGENT_SETTINGS_PARTS, type QueryScope, queryKeys } from "./query-keys";
 import { applyMobileQueueEvent } from "./queue-cache";
 import { applyTaskEvent } from "./task-cache";
@@ -52,6 +53,7 @@ export function syncEventQueries(
   serverId: string,
   event: WorkspaceTeamEvent,
 ): void {
+  syncProviderUsageQueries(queryClient, scope, serverId, event);
   if (event.type === "queue-changed" || event.type === "queue-invalidated") {
     void applyMobileQueueEvent(queryClient, serverId, event);
   }
@@ -66,6 +68,10 @@ export function syncEventQueries(
     void queryClient.invalidateQueries({ queryKey: queryKeys.serverRoutines(scope, serverId) });
     // Webhook history: a host also sends a routine change when it ignores a request.
     void queryClient.invalidateQueries({ queryKey: queryKeys.routineWebhooks(serverId) });
+  }
+  if (event.type === "routine-flows-changed") {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.agentRoutineFlow(scope, serverId, event.agentId) });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.serverRoutines(scope, serverId) });
   }
   if (
     event.type === "channels-changed" ||

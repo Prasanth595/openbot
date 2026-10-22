@@ -28,6 +28,7 @@ import { showFailureAlert } from "@/features/analytics/failure-reports";
 import type { MobileSession } from "@/features/auth/api/mobile-auth";
 import { mobileUserName } from "@/features/auth/api/mobile-user-name";
 import { hostedServerCalls } from "@/features/servers/api/hosted-servers";
+import { DrawerProviderUsage } from "@/features/servers/components/drawer-provider-usage";
 import {
   refreshHostedServerAvailability,
   useHostedServerAvailability,
@@ -414,6 +415,7 @@ export function ServerDrawerContent({
 
       <ScrollView
         className="flex-1"
+        contentContainerStyle={{ flexGrow: 1 }}
         contentContainerClassName="pt-1 pr-3 pb-4"
         contentInsetAdjustmentBehavior="never"
         scrollEnabled={!dragging}
@@ -476,6 +478,15 @@ export function ServerDrawerContent({
               icon={Settings2}
               label={t("mobile.server.drawer.serverSettings")}
               onPress={() => onNavigate({ pathname: "/server-settings", params: { serverId } })}
+            />
+          </View>
+        ) : null}
+        {activeServer ? (
+          <View className="mt-auto pt-5">
+            <DrawerProviderUsage
+              serverId={serverId}
+              open={open}
+              onPress={() => onNavigate({ pathname: "/server-usage", params: { serverId } })}
             />
           </View>
         ) : null}

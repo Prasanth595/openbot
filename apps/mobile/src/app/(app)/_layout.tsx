@@ -2,7 +2,7 @@ import { router, useGlobalSearchParams, useSegments } from "expo-router";
 import { Stack } from "expo-router/stack";
 import { useThemeColor } from "heroui-native/hooks";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { TextInput } from "react-native";
+import { AppState, TextInput } from "react-native";
 import { useCSSVariable } from "uniwind";
 import { AgentPinTransitionProvider } from "@/features/agents/components/agent-pin-transition";
 import { ChatNavigationGateContext } from "@/features/agents/components/chat-link-pressable";
@@ -13,6 +13,12 @@ import { AudioWaveformHost } from "@/features/chat/components/audio-waveform-hos
 import { MermaidRendererHost } from "@/features/chat/components/mermaid-renderer-host";
 import { OutboxProvider } from "@/features/chat/context/outbox-context";
 import { QueuedMessagesProvider } from "@/features/chat/context/queued-messages-context";
+import {
+  beginChatOpen,
+  markChatOpen,
+  readChatOpenPerformance,
+  resetChatOpenPerformance,
+} from "@/features/chat/model/chat-open-performance";
 import { setLiveActivityNavigator } from "@/features/live-activity/model/live-activity-link";
 import type { NotificationTarget } from "@/features/push-notifications/push-notifications-native.types";
 import { useNotificationTaps } from "@/features/push-notifications/use-notification-taps";
@@ -30,11 +36,22 @@ import { useReducedMotion } from "@/shared/lib/motion";
 import { isAndroid, isIOS } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
 
-/** How long a notification tap waits for the channel list of its server before it opens the agent chat. */
+/** Wait for the target channel list on a cold notification open. */
 const NOTIFICATION_CHANNEL_WAIT_MS = 8_000;
+declare global {
+  var __OPENBOT_CHAT_NAVIGATION__:
+    | (() => {
+        route: "chat" | "team" | "other";
+        externalTaps: number;
+        foreground: boolean;
+        target: string | null;
+        samples: ReturnType<typeof readChatOpenPerformance>;
+      })
+    | undefined;
+}
 
 export const unstable_settings = {
-  initialRouteName: "connected",
+  initialRouteName: "(tabs)",
 };
 
 function AuthenticatedStack() {
@@ -44,42 +61,89 @@ function AuthenticatedStack() {
   const { t } = useText();
   const background = useThemeColor("background");
   const sheetBackground = String(useCSSVariable("--openbot-bg-sheet") ?? background);
-  const largeTitlePage = {
-    animation: pushAnimation,
-    contentStyle: { backgroundColor: sheetBackground },
-    headerTransparent: true,
-    scrollEdgeEffects: { top: "hidden", bottom: "soft" },
-    title: "",
-  } as const;
   const [navigationGate] = useState(createChatNavigationGate);
   const { closeDrawer } = useAppDrawer();
-  const { agentId: openAgentId } = useGlobalSearchParams<{ agentId?: string }>();
+  const workspace = useMobileWorkspaceReader();
+  const externalTaps = useRef(0);
+  useEffect(() => resetChatOpenPerformance, []);
+  const {
+    agentId: openAgentId,
+    channelId: openChannelId,
+    serverId: openServerId,
+  } = useGlobalSearchParams<{
+    agentId?: string;
+    channelId?: string;
+    serverId?: string;
+  }>();
+  const openServer = useRef<string | null>(null);
+  openServer.current = typeof openServerId === "string" ? openServerId : null;
   const openChat = useRef<string | null>(null);
   openChat.current = segments.at(-2) === "chat" && typeof openAgentId === "string" ? openAgentId : null;
+  const openChannel = useRef<string | null>(null);
+  openChannel.current = segments.at(-2) === "channel" && typeof openChannelId === "string" ? openChannelId : null;
   const onChatList = useRef(false);
   onChatList.current = segments.at(-1) === "connected";
+  useEffect(() => {
+    if (!__DEV__) return;
+    const read = () => {
+      const current = workspace();
+      const agent = current.agents.find((item) => item.serverId === current.activeServer.id) ?? current.agents[0];
+      const route = openChat.current ? "chat" : onChatList.current ? "team" : "other";
+      return {
+        route,
+        externalTaps: externalTaps.current,
+        foreground: AppState.currentState === "active",
+        target: agent
+          ? `openbot://live-activity?${new URLSearchParams({ server: agent.serverId, agent: agent.id })}`
+          : null,
+        samples: readChatOpenPerformance(),
+      } as const;
+    };
+    globalThis.__OPENBOT_CHAT_NAVIGATION__ = read;
+    return () => {
+      globalThis.__OPENBOT_CHAT_NAVIGATION__ = undefined;
+    };
+  }, [workspace]);
+  // Native tab focus can precede the Router segment update. Retry after that update too.
+  useEffect(() => {
+    if (segments.at(-1) === "connected") navigationGate.focus();
+  }, [navigationGate, segments]);
   /** Opens a chat, or the chat list for `null`, from a Live Activity or a notification. */
   const openFromOutside = useCallback(
-    (agentId: string | null) =>
-      // A locked app opens the chat after the user unlocks it.
+    (agentId: string | null, serverId?: string) =>
+      // Signed actions are still validated by their existing request handler after unlock.
       whenUnlocked(() => {
         closeDrawer();
-        // Opening the chat that shows already would mount it again and load it again.
-        if (agentId !== null && openChat.current === agentId) return;
-        // The chat opens on top of the main screen, so Back returns there and not to an earlier chat.
-        if (router.canDismiss()) router.dismissAll();
-        if (agentId === null) return;
-        // The home row opens the chat, as it does for search, so the chat zooms from the row avatar
-        // and back. The gate waits until the list shows. A chat without a row opens without zoom.
-        navigationGate.request(
-          () => {
-            if (!navigationGate.openFromHome(agentId))
-              router.push({ pathname: "/chat/[agentId]", params: { agentId } });
-          },
-          () => onChatList.current,
-        );
+        externalTaps.current += 1;
+        const current = workspace();
+        const candidates = current.agents.filter((agent) => agent.id === agentId);
+        const agent = serverId
+          ? candidates.find((item) => item.serverId === serverId)
+          : (candidates.find((item) => item.serverId === current.activeServer.id) ??
+            (candidates.length === 1 ? candidates[0] : undefined));
+        const hostId = serverId ?? agent?.serverId;
+        const displayedHostId =
+          openServer.current ?? current.agents.find((item) => item.id === openChat.current)?.serverId;
+        // Keep the open instance, including its scroll and composer state.
+        if (agentId !== null && openChat.current === agentId && (!hostId || displayedHostId === hostId)) return;
+        if (agentId === null) {
+          if (router.canDismiss()) router.dismissAll();
+          router.navigate("/connected");
+          return;
+        }
+        if (hostId) beginChatOpen(hostId, agentId, "external");
+        // No Team layout or avatar source is needed. The native stack opens the chat directly.
+        const target = {
+          pathname: "/chat/[agentId]" as const,
+          params: { agentId, ...(hostId ? { serverId: hostId } : {}) },
+        };
+        if (openChat.current || openChannel.current) router.replace(target);
+        else {
+          if (router.canDismiss()) router.dismissAll();
+          router.push(target);
+        }
       }),
-    [closeDrawer, navigationGate],
+    [closeDrawer, workspace],
   );
   /** Opens the screen of a quick action of the app icon, on top of the main screen. */
   const openQuickAction = useCallback(
@@ -91,13 +155,12 @@ function AuthenticatedStack() {
       whenUnlocked(() => {
         closeDrawer();
         if (router.canDismiss()) router.dismissAll();
-        navigationGate.request(
-          () =>
-            target.type === "routines"
-              ? router.push({ pathname: "/server-routines", params: { serverId: target.serverId } })
-              : requestHomeSearch(),
-          () => onChatList.current,
-        );
+        if (target.type === "routines") {
+          router.navigate({ pathname: "/server-routines", params: { serverId: target.serverId } });
+          return;
+        }
+        router.navigate("/connected");
+        navigationGate.request(requestHomeSearch, () => onChatList.current);
       });
     },
     [closeDrawer, navigationGate, openFromOutside],
@@ -105,15 +168,11 @@ function AuthenticatedStack() {
   useEffect(() => setLiveActivityNavigator(openFromOutside), [openFromOutside]);
   useEffect(() => setQuickActionNavigator(openQuickAction), [openQuickAction]);
   useEffect(() => setShareSheetOpener(() => whenUnlocked(() => router.push("/share"))), []);
-  const workspace = useMobileWorkspaceReader();
-  /**
-   * A prompt, an approval or a takeover on a channel thread opens the channel, as on desktop. A tap
-   * at a cold start comes before the server connects, so it waits a short time for the channel list.
-   */
+  /** Channel requests open their channel; ordinary requests keep direct agent navigation. */
   const openFromNotification = useCallback(
     ({ agentId, serverId, threadId }: NotificationTarget) => {
       if (!serverId || !threadId) {
-        openFromOutside(agentId);
+        openFromOutside(agentId, serverId ?? undefined);
         return;
       }
       void workspace()
@@ -123,32 +182,38 @@ function AuthenticatedStack() {
             (item) => !item.archived && item.threads?.some((thread) => thread.threadId === threadId),
           );
           if (!channel) {
-            openFromOutside(agentId);
+            openFromOutside(agentId, serverId);
             return;
           }
           whenUnlocked(() => {
             closeDrawer();
-            if (router.canDismiss()) router.dismissAll();
-            navigationGate.request(
-              () => {
-                if (!navigationGate.openFromHome(channel.id))
-                  router.push({ pathname: "/channel/[channelId]", params: { channelId: channel.id, serverId } });
-              },
-              () => onChatList.current,
-            );
+            if (openChannel.current === channel.id && openServer.current === serverId) return;
+            const target = {
+              pathname: "/channel/[channelId]" as const,
+              params: { channelId: channel.id, serverId },
+            };
+            if (openChat.current || openChannel.current) router.replace(target);
+            else {
+              if (router.canDismiss()) router.dismissAll();
+              router.push(target);
+            }
           });
         });
     },
-    [workspace, openFromOutside, closeDrawer, navigationGate],
+    [workspace, openFromOutside, closeDrawer],
   );
-  useNotificationTaps(openFromNotification, () => openChat.current);
+  useNotificationTaps(openFromNotification, (serverId) => {
+    const displayedHostId =
+      openServer.current ?? workspace().agents.find((agent) => agent.id === openChat.current)?.serverId;
+    return serverId && displayedHostId !== serverId ? null : openChat.current;
+  });
 
   return (
     <ChatNavigationGateContext value={navigationGate}>
       <Stack
-        initialRouteName="connected"
+        initialRouteName="(tabs)"
         screenListeners={({ route }) =>
-          route.name === "connected"
+          route.name === "(tabs)"
             ? {
                 transitionStart: () => navigationGate.start(),
                 transitionEnd: () => navigationGate.finish(),
@@ -157,6 +222,17 @@ function AuthenticatedStack() {
               }
             : {
                 gestureCancel: () => navigationGate.cancel(),
+                transitionEnd: (event) => {
+                  if (event.data.closing || route.name !== "chat/[agentId]") return;
+                  const params = route.params;
+                  if (params && "agentId" in params && typeof params.agentId === "string") {
+                    const agent = workspace().agents.find(
+                      (item) =>
+                        item.id === params.agentId && (!("serverId" in params) || item.serverId === params.serverId),
+                    );
+                    if (agent) markChatOpen(agent.serverId, agent.id, "navigation");
+                  }
+                },
               }
         }
         screenOptions={(props) => ({
@@ -170,7 +246,10 @@ function AuthenticatedStack() {
           ...(isAndroid && { sheetCornerRadius: 28 }),
         })}
       >
-        <Stack.Screen name="connected" options={{ animation: "fade", gestureEnabled: false, title: "" }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false, animation: "fade", gestureEnabled: false }} />
+        <Stack.Protected guard={__DEV__}>
+          <Stack.Screen name="motion-preview" />
+        </Stack.Protected>
         <Stack.Screen
           name="chat/[agentId]"
           options={{
@@ -286,11 +365,31 @@ function AuthenticatedStack() {
           }}
         />
         <Stack.Screen
+          name="agent-brain/[agentId]"
+          options={{
+            contentStyle: { backgroundColor: sheetBackground },
+            headerShown: false,
+            presentation: "formSheet",
+            sheetAllowedDetents: [0.52],
+            sheetCornerRadius: 34,
+            sheetGrabberVisible: true,
+          }}
+        />
+        <Stack.Screen
           name="agent-info/[agentId]"
           options={{
             contentStyle: { backgroundColor: sheetBackground },
             headerShown: false,
             scrollEdgeEffects: { top: "hidden", bottom: "soft" },
+            presentation: "card",
+            animation: pushAnimation,
+          }}
+        />
+        <Stack.Screen
+          name="market-install"
+          options={{
+            contentStyle: { backgroundColor: sheetBackground },
+            headerShown: false,
             presentation: "formSheet",
             sheetAllowedDetents: [0.85],
             sheetGrabberVisible: true,
@@ -400,15 +499,13 @@ function AuthenticatedStack() {
             contentStyle: { backgroundColor: sheetBackground },
             headerShown: false,
             scrollEdgeEffects: { top: "hidden", bottom: "soft" },
-            presentation: "formSheet",
-            sheetAllowedDetents: [0.85],
-            sheetGrabberVisible: true,
+            presentation: "card",
+            animation: pushAnimation,
           }}
         />
         {/* Full screens with a big header that the screen draws: the native bar keeps only its buttons. */}
-        <Stack.Screen name="server-routines/index" options={largeTitlePage} />
         <Stack.Screen
-          name="server-routines/agent-routine"
+          name="server-routines/edit-routine"
           options={{
             animation: pushAnimation,
             contentStyle: { backgroundColor: sheetBackground },
@@ -429,8 +526,22 @@ function AuthenticatedStack() {
             title: t("mobile.app.route.routine"),
           }}
         />
-        <Stack.Screen name="server-tasks" options={largeTitlePage} />
-        <Stack.Screen name="server-usage/index" options={largeTitlePage} />
+        <Stack.Screen
+          name="server-routines/agent-routine"
+          options={{
+            headerShown: false,
+            animation: pushAnimation,
+            contentStyle: { backgroundColor: sheetBackground },
+          }}
+        />
+        <Stack.Screen
+          name="server-usage/index"
+          options={{
+            animation: pushAnimation,
+            title: t("mobile.app.route.usage"),
+            contentStyle: { backgroundColor: background },
+          }}
+        />
         <Stack.Screen
           name="share"
           // The header comes from the route's `_layout.tsx`: Android draws no header on a formSheet route.
@@ -445,17 +556,6 @@ function AuthenticatedStack() {
         />
         <Stack.Screen
           name="queued-messages"
-          options={{
-            contentStyle: { backgroundColor: sheetBackground },
-            headerShown: false,
-            scrollEdgeEffects: { top: "hidden", bottom: "soft" },
-            presentation: "formSheet",
-            sheetAllowedDetents: [0.85],
-            sheetGrabberVisible: true,
-          }}
-        />
-        <Stack.Screen
-          name="settings"
           options={{
             contentStyle: { backgroundColor: sheetBackground },
             headerShown: false,

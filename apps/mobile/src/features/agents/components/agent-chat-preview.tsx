@@ -1,3 +1,4 @@
+import { cleanAgentMessageText } from "@openbot/team-client/agent-message-text";
 import { Link } from "expo-router";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
@@ -5,7 +6,11 @@ import { useState } from "react";
 import { useWindowDimensions, View } from "react-native";
 import { BloubAvatar } from "@/features/agents/components/bloub-avatar";
 import { ChatMarkdown } from "@/features/chat/components/chat-markdown";
-import { type MobileAgent, useMobileWorkspaceSelector } from "@/features/workspace/context/mobile-workspace-context";
+import {
+  type MobileAgent,
+  useMobileWorkspaceActions,
+  useMobileWorkspaceSelector,
+} from "@/features/workspace/context/mobile-workspace-context";
 import { isIOS } from "@/shared/lib/platform";
 
 const HEADER_HEIGHT = 64;
@@ -18,7 +23,7 @@ const FALLBACK_CHARACTER_WIDTH = 7;
 
 /** Ends a preview that the host cut at its limit on a whole word, so it does not stop inside one. */
 function previewText(preview: string): string {
-  const text = preview.trim();
+  const text = cleanAgentMessageText(preview).trim();
   if (preview.length < HOST_PREVIEW_LIMIT) return text;
   const lastSpace = text.search(/\s\S*$/);
   return `${(lastSpace > 0 ? text.slice(0, lastSpace) : text).replace(/[\s.,;:!?—–-]+$/, "")}…`;
@@ -50,6 +55,7 @@ function PreviewBubble({ text, onHeight }: { text: string; onHeight?: (height: n
  * that opens the chat does not also parse the latest message.
  */
 export function useAgentChatPreview(agent: MobileAgent) {
+  const { prefetchConversation } = useMobileWorkspaceActions();
   const { width: screenWidth, fontScale } = useWindowDimensions();
   const [measuring, setMeasuring] = useState(false);
   const [bubbleHeight, setBubbleHeight] = useState<number | null>(null);
@@ -102,5 +108,12 @@ export function useAgentChatPreview(agent: MobileAgent) {
       </View>
     ) : null;
 
-  return { preview, measurer, onPressIn: isIOS ? () => setMeasuring(true) : undefined };
+  return {
+    preview,
+    measurer,
+    onPressIn: () => {
+      prefetchConversation(agent.id, agent.serverId);
+      if (isIOS) setMeasuring(true);
+    },
+  };
 }

@@ -78,15 +78,16 @@ export function useConversationReads({
   const writeAgentRead = useCallback(
     (agentId: string, visibleMessageId?: string | null, serverId = activeServerId.current): Promise<void> => {
       if (!serverId) return Promise.resolve();
+      const writeKey = JSON.stringify([serverId, agentId]);
       const isCurrentRead = readRefresh.invalidate(serverId);
       const generation = loadGeneration.current;
       liveState.update("unreadAgentIds", (current) =>
         visibleMessageId === null ? [...new Set([...current, agentId])] : current.filter((id) => id !== agentId),
       );
-      const write = (readWrites.current.get(agentId) ?? Promise.resolve())
+      const write = (readWrites.current.get(writeKey) ?? Promise.resolve())
         .then(async () => {
           if (generation !== loadGeneration.current) return;
-          const cached = conversationStore.get(agentId);
+          const cached = conversationStore.get(agentId, serverId);
           // A window around a searched message does not hold the latest message.
           const snapshot =
             visibleMessageId !== undefined
@@ -117,9 +118,9 @@ export function useConversationReads({
         });
       // A failed write must not stop the next write for this agent.
       const settled = write.catch(() => undefined);
-      readWrites.current.set(agentId, settled);
+      readWrites.current.set(writeKey, settled);
       void settled.finally(() => {
-        if (readWrites.current.get(agentId) === settled) readWrites.current.delete(agentId);
+        if (readWrites.current.get(writeKey) === settled) readWrites.current.delete(writeKey);
       });
       return write;
     },

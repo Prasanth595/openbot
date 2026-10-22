@@ -44,25 +44,26 @@ function agentLiveActivityLayout(
   "widget";
   // The app cannot update the activity while iOS suspends it, so old content does not claim a state.
   const stale = environment.isStale === true;
-  const tint = stale ? "#8E8E93" : props.tint;
+  const reduced = environment.isLuminanceReduced === true;
+  const tint = stale || reduced ? "#8E8E93" : props.tint;
   // One agent's state takes the agent color, and several agents are white. A wait keeps its state
   // color on the state line. The island is always black. The Lock Screen banner is light in the
   // light appearance, so white is dark there. An older host sends no `compactTint`.
-  const islandTint = stale ? tint : (props.compactTint ?? tint);
+  const islandTint = stale || reduced ? tint : (props.compactTint ?? tint);
   const bannerTint = islandTint === "#FFFFFF" && environment.colorScheme === "light" ? "#1C1C1E" : islandTint;
   const label = stale ? props.staleLabel : props.label;
   const detail = stale ? props.staleDetail : props.detail;
   const secondary = { type: "hierarchical", style: "secondary" } as const;
   const rows = stale ? [] : props.rows;
   // Old answers can target a request that is gone. The app checks again, but the view offers none.
-  const buttons = stale ? [] : props.buttons;
+  const buttons = stale || reduced ? [] : props.buttons;
   // The props name a picture file, and the App Group folder is the same for all of them.
   const photo = (file: string, size: number, key?: string) =>
     file ? (
       <Image
         key={key}
         uiImage={props.dir + file}
-        modifiers={[resizable(), frame({ width: size, height: size }), clipShape("circle")]}
+        modifiers={[resizable(), frame({ width: size, height: size }), clipShape("circle"), privacySensitive()]}
       />
     ) : (
       <Image key={key} systemName={props.symbol} color={tint} size={size * 0.7} />
@@ -101,11 +102,8 @@ function agentLiveActivityLayout(
     ) : (
       avatar(size)
     );
-  // Several agents with unread replies: overlapping photos, and a row for each chat.
+  // Several agents with unread replies have a row for each chat.
   const agents = stale ? [] : props.agents;
-  const photos = (size: number) => (
-    <HStack spacing={-size * 0.3}>{agents.slice(0, 3).map((agent) => photo(agent.avatar, size, agent.url))}</HStack>
-  );
   // A Live Activity cannot scroll, and each view has a fixed maximum height. So a view shows `lines`
   // lines at most, and when agents do not fit, the last line opens the chat list for the others.
   const agentList = (lines: number, size: number) => {
@@ -117,7 +115,9 @@ function agentLiveActivityLayout(
           <Link key={agent.url} destination={agent.url}>
             <HStack spacing={10}>
               {photo(agent.avatar, size)}
-              <Text modifiers={[font({ size: 15, weight: "semibold" }), lineLimit(1)]}>{agent.name}</Text>
+              <Text modifiers={[font({ size: 15, weight: "semibold" }), lineLimit(1), privacySensitive()]}>
+                {agent.name}
+              </Text>
               <Spacer />
               {/* A plain count, as a list row shows it. A shape here reads as a second button in the row. */}
               <Text modifiers={[font({ size: 15, weight: "medium" }), foregroundStyle(secondary)]}>
@@ -146,12 +146,14 @@ function agentLiveActivityLayout(
       <Text modifiers={[font({ size: 14, weight: "semibold" }), foregroundStyle(color), lineLimit(1)]}>{label}</Text>
     </HStack>
   );
-  const text = (
+  const text = (lines: number) => (
     <VStack alignment="leading" spacing={3}>
       {rows.length > 1 ? (
         rows.map((row) => (
           <HStack key={row.name} spacing={6}>
-            <Text modifiers={[font({ size: 15, weight: "semibold" }), lineLimit(1)]}>{row.name}</Text>
+            <Text modifiers={[font({ size: 15, weight: "semibold" }), lineLimit(1), privacySensitive()]}>
+              {row.name}
+            </Text>
             <Text
               markdownEnabled
               modifiers={[font({ size: 15 }), foregroundStyle(secondary), lineLimit(1), privacySensitive()]}
@@ -168,12 +170,7 @@ function agentLiveActivityLayout(
           {/* Replies and questions come as inline Markdown. A command or an error shows as written. */}
           <Text
             markdownEnabled={!stale && props.detailMarkdown === true}
-            modifiers={[
-              font({ size: 14 }),
-              foregroundStyle(secondary),
-              lineLimit(props.detailLines),
-              privacySensitive(),
-            ]}
+            modifiers={[font({ size: 14 }), foregroundStyle(secondary), lineLimit(lines), privacySensitive()]}
           >
             {detail}
           </Text>
@@ -183,7 +180,9 @@ function agentLiveActivityLayout(
   );
   const footer =
     props.footer && !stale ? (
-      <Text modifiers={[font({ size: 13 }), foregroundStyle(secondary), lineLimit(1)]}>{props.footer}</Text>
+      <Text modifiers={[font({ size: 13 }), foregroundStyle(secondary), lineLimit(1), privacySensitive()]}>
+        {props.footer}
+      </Text>
     ) : null;
   // The answers share the row in equal parts, as the actions of a notification do. The plain style
   // removes the shape iOS draws around a link. In a widget, `@expo/ui` applies the modifiers of a
@@ -209,6 +208,7 @@ function agentLiveActivityLayout(
                     font({ size: 15, weight: "semibold" }),
                     foregroundStyle(solid ? "#000000" : { type: "hierarchical", style: "primary" }),
                     lineLimit(1),
+                    privacySensitive(),
                   ]}
                 >
                   {button.label}
@@ -219,12 +219,26 @@ function agentLiveActivityLayout(
         })}
       </HStack>
     ) : null;
+  const smallBanner = (
+    <HStack spacing={10} modifiers={[padding({ horizontal: 12, vertical: 10 }), widgetURL(props.tapUrl)]}>
+      {photo(agents[0]?.avatar ?? props.avatar, 26)}
+      <VStack alignment="leading" spacing={2}>
+        {status(bannerTint)}
+        <Text modifiers={[font({ size: 13 }), lineLimit(1), privacySensitive()]}>
+          {stale ? props.staleDetail : props.title}
+        </Text>
+      </VStack>
+      <Spacer />
+    </HStack>
+  );
   return {
     // Lock Screen: the state heads the view, and below it the photo and text read as a message from
     // the agent. The photo lines up with the name, not with the state line.
     // Each presentation has one tap link: iOS fixes the activity URL when it starts, so the link
     // comes from the props, and it follows the state.
-    banner: (
+    banner: reduced ? (
+      smallBanner
+    ) : (
       <VStack
         alignment="leading"
         spacing={10}
@@ -241,7 +255,7 @@ function agentLiveActivityLayout(
           <HStack alignment="top" spacing={12}>
             {avatar(44)}
             <VStack alignment="leading" spacing={4}>
-              {text}
+              {text(Math.min(props.detailLines, 2))}
               {footer}
             </VStack>
             <Spacer />
@@ -250,17 +264,25 @@ function agentLiveActivityLayout(
         {actions(false)}
       </VStack>
     ),
+    bannerSmall: smallBanner,
     // The compact regions sit against the sides of the island. The padding keeps both off its rounded ends.
     compactLeading: (
       <HStack modifiers={[padding({ leading: 6 }), widgetURL(props.tapUrl)]}>
-        {agents.length > 0 ? photos(20) : islandAvatar(22)}
+        {agents.length > 0 ? photo(agents[0]?.avatar ?? "", 22) : islandAvatar(22)}
       </HStack>
     ),
-    // A waiting agent's name takes the agent color, as its work does. The mark on the photo carries the state.
+    // A short state or a count keeps the compact island readable.
     compactTrailing: (
-      <HStack modifiers={[padding({ trailing: 6 })]}>
-        <Text modifiers={[font({ size: 15, weight: "semibold" }), foregroundStyle(islandTint), lineLimit(1)]}>
-          {stale ? "…" : props.compact}
+      <HStack modifiers={[padding({ trailing: 6 }), frame({ maxWidth: 76 })]}>
+        <Text
+          modifiers={[
+            font({ size: 15, weight: "semibold" }),
+            foregroundStyle(islandTint),
+            lineLimit(1),
+            privacySensitive(),
+          ]}
+        >
+          {stale ? "…" : ["question", "approval", "takeover"].includes(props.mode) ? label : props.compact}
         </Text>
       </HStack>
     ),
@@ -278,12 +300,14 @@ function agentLiveActivityLayout(
         spacing={12}
         modifiers={[padding({ horizontal: 8, top: 6, bottom: 8 }), widgetURL(props.tapUrl)]}
       >
-        {agents.length > 0 ? (
+        {reduced ? (
+          smallBanner
+        ) : agents.length > 0 ? (
           agentList(3, 22)
         ) : (
           <HStack alignment="top" spacing={12}>
             {avatar(44)}
-            {text}
+            {text(props.detailLines)}
             <Spacer />
           </HStack>
         )}

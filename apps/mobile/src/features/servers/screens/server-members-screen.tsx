@@ -41,6 +41,13 @@ export function ServerMembersScreen() {
           onPress={() => router.push({ pathname: "/server-settings/invite", params: { serverId } })}
         />
       ) : null}
+      {roles.available ? (
+        <SettingsSection>
+          <SettingsRow onPress={() => router.push({ pathname: "/server-settings/roles", params: { serverId } })}>
+            <Typography.Paragraph>{t("mobile.server.route.roles")}</Typography.Paragraph>
+          </SettingsRow>
+        </SettingsSection>
+      ) : null}
       <SettingsSection
         title={
           activeMembers

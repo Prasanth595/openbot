@@ -1,10 +1,12 @@
 import {
+  type AccountUsage,
   AGENT_PROVIDERS,
   type AgentProviderId,
   type AgentProviderStatus,
   type AgentStatus,
   agentProviderDescriptor,
   agentProviderName,
+  isAccountUsage,
   isAgentStatus,
   isLocalOnlyProvider,
   loopbackCallback,
@@ -15,6 +17,7 @@ import {
   type ProviderRuntimeStatus,
   type SignInRelayStatus,
 } from "@openbot/contracts/ipc";
+import { guardedDecoder } from "@openbot/contracts/ipc-decoding";
 import { isOneOf } from "@openbot/contracts/runtime-values";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import {
@@ -53,6 +56,8 @@ import {
   downloadProviderRuntime,
   getProviderApiKeyState,
   getProviderRuntimes,
+  listProviderAccounts,
+  providerAccountUsage,
   setProviderApiKey,
   signInRelayStatus,
   startProviderCodeLogin,
@@ -249,6 +254,10 @@ export function createProviderAdmin(request: TeamApiRequest, capabilities: reado
   return {
     capabilities,
     readStatus: (): Promise<AgentStatus> => request("GET", TEAM_API_ROUTES.agents.status, decodeAgentStatus),
+    readUsage: (): Promise<AccountUsage> =>
+      request("GET", TEAM_API_ROUTES.agents.usage, guardedDecoder(isAccountUsage, "provider usage")),
+    readAccounts: () => runTeamRequest(listProviderAccounts(request)),
+    readAccountUsage: () => runTeamRequest(providerAccountUsage(request)),
     readRuntimes: (): Promise<ProviderRuntimeSnapshot> => runTeamRequest(getProviderRuntimes(request, runtimeRoutes)),
     download: (provider: ManagedProviderId) =>
       runTeamRequest(downloadProviderRuntime(request, provider, runtimeRoutes)),

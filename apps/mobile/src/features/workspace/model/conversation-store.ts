@@ -9,6 +9,16 @@ export interface MobileConversation extends ConversationPage {
   /** The window was loaded around a searched message and does not reach the latest message. */
   detached: boolean;
 }
+const CACHE_LIMIT = 5;
+const CACHE_TTL_MS = 10 * 60_000;
+const CACHE_BYTES = 10 * 1024 * 1024;
+
+type CachedPage = { page: ConversationPage; usedAt: number; bytes: number };
+
+function conversationKey(agentId: string, serverId: string, accountScope: string) {
+  return JSON.stringify([serverId, agentId, accountScope]);
+}
+
 type ReadPage = (cursor?: string) => Promise<ConversationPage>;
 
 /** In-memory chat windows. Only subscribers to a changed agent are notified. */
@@ -16,22 +26,97 @@ export class MobileConversationStore {
   #entries = new Map<string, MobileConversation>();
   #listeners = new Map<string, Set<() => void>>();
   #indices = new Map<string, Map<string, number>>();
+  #revisions = new Map<string, number>();
   #deltas = new Map<string, Delta[]>();
   #cancelFrame: (() => void) | null = null;
   #olderLoads = new Map<string, symbol>();
   #loads = new Map<string, { promise: Promise<ConversationPage>; dirty: boolean; attach: boolean }>();
 
-  constructor(private schedule: (flush: () => void) => () => void) {}
+  #latest = new Map<string, CachedPage>();
+  #expiryTimer: ReturnType<typeof setTimeout> | null = null;
 
-  get(agentId: string) {
+  constructor(
+    private schedule: (flush: () => void) => () => void,
+    private now: () => number = Date.now,
+    private accountScope = "",
+  ) {}
+
+  get(agentId: string, serverId: string) {
+    this.#evict();
+    return this.#entries.get(conversationKey(agentId, serverId, this.accountScope));
+  }
+
+  isObserved(agentId: string, serverId: string) {
+    return this.#isObserved(conversationKey(agentId, serverId, this.accountScope));
+  }
+
+  remove(agentId: string, serverId: string) {
+    this.#remove(conversationKey(agentId, serverId, this.accountScope));
+  }
+
+  removeServer(serverId: string) {
+    for (const key of new Set([...this.#entries.keys(), ...this.#loads.keys()])) {
+      if (JSON.parse(key)[0] === serverId) this.#remove(key);
+    }
+    this.#evict();
+  }
+
+  #remember(key: string, page: ConversationPage) {
+    // Retain the complete response. Its cursors and references must describe these exact messages.
+    if (page.messages.length > 50) return;
+    const previous = this.#latest.get(key);
+    const shared = replaceEqualDeep(previous?.page, page);
+    this.#latest.set(key, {
+      page: shared,
+      usedAt: this.#isObserved(key) ? this.now() : (previous?.usedAt ?? this.now()),
+      bytes: new TextEncoder().encode(JSON.stringify(shared)).length,
+    });
+  }
+
+  #restore(key: string) {
+    const cached = this.#latest.get(key);
+    if (!cached) {
+      this.#remove(key);
+      return;
+    }
+    cached.usedAt = this.now();
+    this.#publish(key, { ...cached.page, olderLoading: false, olderError: false, detached: false });
+    this.#evict();
+  }
+
+  #evict() {
+    if (this.#expiryTimer) clearTimeout(this.#expiryTimer);
+    this.#expiryTimer = null;
+    const inactive = [...this.#latest].filter(([key]) => !this.#isObserved(key));
+    inactive.sort((a, b) => a[1].usedAt - b[1].usedAt);
+    let bytes = inactive.reduce((total, [, cached]) => total + cached.bytes, 0);
+    let count = inactive.length;
+    for (const [key, cached] of inactive) {
+      if (this.now() - cached.usedAt < CACHE_TTL_MS && count <= CACHE_LIMIT && bytes <= CACHE_BYTES) continue;
+      bytes -= cached.bytes;
+      count--;
+      this.#remove(key);
+    }
+    const next = [...this.#latest].filter(([key]) => !this.#isObserved(key));
+    if (next.length) {
+      const expires = Math.min(...next.map(([, cached]) => cached.usedAt + CACHE_TTL_MS));
+      this.#expiryTimer = setTimeout(() => this.#evict(), Math.max(1, expires - this.now()));
+    }
+  }
+
+  #get(agentId: string) {
     return this.#entries.get(agentId);
   }
 
-  isObserved(agentId: string) {
+  #isObserved(agentId: string) {
     return Boolean(this.#listeners.get(agentId)?.size);
   }
 
-  subscribe(agentId: string, listener: () => void) {
+  subscribe(id: string, serverId: string, listener: () => void) {
+    const agentId = conversationKey(id, serverId, this.accountScope);
+    this.#evict();
+    const cached = this.#latest.get(agentId);
+    if (cached) cached.usedAt = this.now();
     let listeners = this.#listeners.get(agentId);
     if (!listeners) {
       listeners = new Set();
@@ -42,16 +127,17 @@ export class MobileConversationStore {
       listeners.delete(listener);
       if (!listeners.size) {
         this.#listeners.delete(agentId);
-        const entry = this.get(agentId);
-        // A window around a searched message is not the chat that the next reader opens.
-        if (entry && (entry.detached || entry.messages.length > 50)) this.remove(agentId);
+        // Drop expanded and search windows, then restore the exact latest response.
+        this.#restore(agentId);
       }
     };
   }
 
-  remove(agentId: string) {
+  #remove(agentId: string) {
+    this.#latest.delete(agentId);
     this.#entries.delete(agentId);
     this.#indices.delete(agentId);
+    this.#revisions.delete(agentId);
     this.#deltas.delete(agentId);
     this.#loads.delete(agentId);
     this.#olderLoads.delete(agentId);
@@ -71,28 +157,51 @@ export class MobileConversationStore {
     this.#cancelFrame = null;
     this.#deltas.clear();
     this.cancelRequests();
+    if (this.#expiryTimer) clearTimeout(this.#expiryTimer);
+    this.#expiryTimer = null;
+    this.#entries.clear();
+    this.#indices.clear();
+    this.#revisions.clear();
+    this.#latest.clear();
+    this.#listeners.clear();
   }
 
   #publish(agentId: string, entry: MobileConversation, reindex = true) {
-    if (!this.isObserved(agentId) && entry.messages.length > 50) {
-      this.remove(agentId);
+    if (!this.#isObserved(agentId) && entry.messages.length > 50) {
+      this.#remove(agentId);
       return;
     }
-    const current = this.get(agentId);
+    const current = this.#get(agentId);
     if (entry === current) return;
     this.#entries.set(agentId, entry);
+    this.#revisions.set(agentId, Math.max(this.#revisions.get(agentId) ?? 0, entry.revision));
     if (reindex) this.#indices.set(agentId, new Map(entry.messages.map((message, index) => [message.id, index])));
     for (const listener of this.#listeners.get(agentId) ?? []) listener();
   }
 
   /** `attach` lets a latest page replace a window around a searched message. */
-  applyPage(page: ConversationPage, cursor?: string, attach = false) {
+  applyPage(page: ConversationPage, serverId: string, cursor?: string, attach = false) {
+    this.#applyPage(page, conversationKey(page.agentId, serverId, this.accountScope), cursor, attach);
+    this.#evict();
+  }
+
+  #applyPage(page: ConversationPage, key: string, cursor?: string, attach = false) {
     this.flush();
-    const current = this.get(page.agentId);
+    const current = this.#get(key);
     if (cursor && (!current || current.threadId !== page.threadId || current.pageInfo.olderCursor !== cursor)) return;
-    if (!cursor && current && page.revision < current.revision) return;
+    if (!cursor && page.revision < (this.#revisions.get(key) ?? 0)) return;
+    if (!cursor) {
+      this.#remember(key, page);
+      if (!this.#isObserved(key)) {
+        this.#publish(
+          key,
+          replaceEqualDeep(current, { ...page, olderLoading: false, olderError: false, detached: false }),
+        );
+        return;
+      }
+    }
     const sameThread = current?.threadId === page.threadId;
-    const indices = sameThread ? this.#indices.get(page.agentId) : undefined;
+    const indices = sameThread ? this.#indices.get(key) : undefined;
     const overlap = page.messages.find((message) => indices?.has(message.id));
     // A window around a searched message stays until a latest page meets it or the reader asks for the latest messages.
     if (!cursor && current?.detached && !overlap && !attach) return;
@@ -130,25 +239,26 @@ export class MobileConversationStore {
       olderError: false,
       detached: cursor ? (current?.detached ?? false) : false,
     });
-    this.#publish(page.agentId, next);
+    this.#publish(key, next);
   }
 
   /**
    * Shows a page around a searched message. A page that meets the loaded window adds its older
    * messages to it. Another page replaces the window until the latest messages load again.
    */
-  applyAround(page: ConversationPage) {
+  applyAround(page: ConversationPage, serverId: string) {
+    const key = conversationKey(page.agentId, serverId, this.accountScope);
     // A reader who left the chat does not need it, and the next one opens at the latest message.
-    if (!this.isObserved(page.agentId)) return;
+    if (!this.#isObserved(key)) return;
     this.flush();
-    const current = this.get(page.agentId);
+    const current = this.#get(key);
     const indices =
-      current && !current.detached && current.threadId === page.threadId ? this.#indices.get(page.agentId) : undefined;
+      current && !current.detached && current.threadId === page.threadId ? this.#indices.get(key) : undefined;
     const overlap = indices ? page.messages.findIndex((message) => indices.has(message.id)) : -1;
     if (current && overlap >= 0) {
       // The window already starts at the page or before it.
       if (overlap === 0) return;
-      this.#publish(page.agentId, {
+      this.#publish(key, {
         ...current,
         messages: [...page.messages.slice(0, overlap), ...current.messages],
         references: { ...current.references, ...page.references },
@@ -157,17 +267,20 @@ export class MobileConversationStore {
       });
       return;
     }
-    this.#publish(page.agentId, { ...page, olderLoading: false, olderError: false, detached: true });
+    this.#publish(key, { ...page, olderLoading: false, olderError: false, detached: true });
   }
 
   loadLatest(
+    serverId: string,
     agentId: string,
     read: ReadPage,
     isCurrent: () => boolean,
     refresh = false,
     attach = false,
   ): Promise<ConversationPage> {
-    const pending = this.#loads.get(agentId);
+    const key = conversationKey(agentId, serverId, this.accountScope);
+    this.#evict();
+    const pending = this.#loads.get(key);
     if (pending) {
       if (refresh) pending.dirty = true;
       if (attach) pending.attach = true;
@@ -183,21 +296,22 @@ export class MobileConversationStore {
             load.dirty = false;
             page = await read();
             if (page.agentId !== agentId) throw new Error("The server returned a page for another conversation.");
-            if (!isCurrent() || this.#loads.get(agentId) !== load) return page;
-            this.applyPage(page, undefined, load.attach);
+            if (!isCurrent() || this.#loads.get(key) !== load) return page;
+            this.applyPage(page, serverId, undefined, load.attach);
           } while (load.dirty);
           return page;
         })
         .finally(() => {
-          if (this.#loads.get(agentId) === load) this.#loads.delete(agentId);
+          if (this.#loads.get(key) === load) this.#loads.delete(key);
         }),
     };
-    this.#loads.set(agentId, load);
+    this.#loads.set(key, load);
     return load.promise;
   }
 
-  async loadOlder(agentId: string, read: ReadPage, isCurrent: () => boolean) {
-    const current = this.get(agentId);
+  async loadOlder(serverId: string, id: string, read: ReadPage, isCurrent: () => boolean) {
+    const agentId = conversationKey(id, serverId, this.accountScope);
+    const current = this.#get(agentId);
     const cursor = current?.pageInfo.olderCursor;
     if (!current || current.olderLoading || !current.pageInfo.hasOlder || !cursor) return;
     const token = Symbol();
@@ -206,14 +320,14 @@ export class MobileConversationStore {
     this.#publish(agentId, { ...current, olderLoading: true, olderError: false }, false);
     try {
       const page = await read(cursor);
-      if (page.agentId !== agentId) throw new Error("The server returned a page for another conversation.");
-      if (valid()) this.applyPage(page, cursor);
+      if (page.agentId !== id) throw new Error("The server returned a page for another conversation.");
+      if (valid()) this.applyPage(page, serverId, cursor);
     } catch {
-      const latest = this.get(agentId);
+      const latest = this.#get(agentId);
       if (valid() && latest?.pageInfo.olderCursor === cursor)
         this.#publish(agentId, { ...latest, olderError: true }, false);
     } finally {
-      const latest = this.get(agentId);
+      const latest = this.#get(agentId);
       if (this.#olderLoads.get(agentId) === token) {
         this.#olderLoads.delete(agentId);
         if (latest) this.#publish(agentId, { ...latest, olderLoading: false }, false);
@@ -221,11 +335,12 @@ export class MobileConversationStore {
     }
   }
 
-  enqueue(delta: Delta) {
-    if (!this.get(delta.agentId)) return;
-    const pending = this.#deltas.get(delta.agentId) ?? [];
+  enqueue(delta: Delta, serverId: string) {
+    const key = conversationKey(delta.agentId, serverId, this.accountScope);
+    if (!this.#get(key)) return;
+    const pending = this.#deltas.get(key) ?? [];
     pending.push(delta);
-    this.#deltas.set(delta.agentId, pending);
+    this.#deltas.set(key, pending);
     this.#cancelFrame ??= this.schedule(() => this.flush());
   }
 
@@ -235,10 +350,10 @@ export class MobileConversationStore {
     const pending = this.#deltas;
     this.#deltas = new Map();
     for (const [agentId, deltas] of pending) {
-      const current = this.get(agentId);
+      const current = this.#get(agentId);
       const indices = this.#indices.get(agentId);
       if (!current || !indices) continue;
-      let revision = current.revision;
+      let revision = Math.max(current.revision, this.#revisions.get(agentId) ?? 0);
       let threadId = current.threadId;
       let activeTurnId = current.activeTurnId;
       const updates = new Map<string, { event: Delta; parts: string[] }>();
@@ -252,6 +367,9 @@ export class MobileConversationStore {
         activeTurnId = event.turnId;
       }
       if (!updates.size) continue;
+      // Deltas have no page cursor. Keep the complete cached page until the host sends another.
+      this.#revisions.set(agentId, Math.max(this.#revisions.get(agentId) ?? 0, revision));
+      if (!this.#isObserved(agentId)) continue;
       const messages = [...current.messages];
       let added = false;
       for (const [messageId, { event, parts }] of updates) {

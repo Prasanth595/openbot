@@ -15,7 +15,7 @@ export const messages = {
   "mobile.agent.pin.pinNamed": "Épingler {name}",
   "mobile.agent.pin.unpinNamed": "Désépingler {name}",
   "mobile.agent.pin.limitReached": "Limite d’épingles atteinte. Désépinglez d’abord une discussion.",
-  "mobile.agent.pin.closeAction": "Fermer l’action d’épingle pour {name}",
+  "mobile.agent.pin.closeAction": "Fermer les actions pour {name}",
   "mobile.agent.appearance.preview": "Aperçu de l’avatar de {name}",
   "mobile.agent.appearance.newAgent": "Nouvel agent",
   "mobile.agent.appearance.faces": "Forme et expression",
@@ -124,8 +124,6 @@ export const messages = {
     "Cet hôte ne prend pas en charge les compétences. Mettez à jour OpenBot sur l’hôte.",
   "mobile.agent.info.noSkills": "Aucune compétence pour l’instant.",
   "mobile.agent.info.skillsManaged": "Les compétences de cet agent sont gérées sur l’hôte.",
-  "mobile.agent.info.skillsAddOnComputer":
-    "Utilisez + pour créer une compétence avec cet agent. Ajoutez des compétences de la marketplace dans OpenBot sur un ordinateur ou dans l’application web.",
   "mobile.agent.info.filesUnsupported":
     "Cet hôte ne prend pas en charge la gestion des fichiers. Mettez à jour OpenBot sur l’hôte.",
   "mobile.agent.info.memoryGone": "Ce souvenir n’est plus disponible.",
@@ -263,6 +261,8 @@ export const messages = {
   "mobile.agent.record.deleteRoutineBody": "Cette routine sera supprimée.",
   "mobile.agent.record.deleteRoutine": "Supprimer la routine",
   "mobile.agent.record.testStarted": "L’exécution de test a commencé. Le résultat s’affiche dans la discussion.",
+  "mobile.agent.profile.heading": "INFOS DE L’AGENT",
+  "mobile.agent.runtime.change": "Changer",
   "mobile.agent.groups.brain": "Cerveau",
   "mobile.agent.groups.knows": "Connaissances",
   "mobile.agent.groups.does": "Actions",

@@ -9,6 +9,7 @@ import { useLiveServerRecovery } from "@/features/workspace/context/server-recov
 import {
   recoveryAttempt,
   recoveryCountdown,
+  recoveryIsRetry,
   serverStatusLabel,
   showsOnline,
 } from "@/features/workspace/model/server-status";
@@ -20,10 +21,13 @@ function ConnectionStatusText({ server: shown, note }: { server: MobileServer; n
   const server = useLiveServerRecovery(shown);
   const recovery = server.recoveryStatus;
   const reconnecting = recovery && recovery.phase !== "online" && recovery.phase !== "suspended";
-  const title = reconnecting ? t("mobile.workspace.status.reconnecting") : serverStatusLabel(server, t);
-  const detail = reconnecting
+  const retrying = reconnecting && recoveryIsRetry(recovery);
+  const title = reconnecting
+    ? t(retrying ? "mobile.workspace.status.reconnecting" : "common.connecting")
+    : serverStatusLabel(server, t);
+  const detail = retrying
     ? t("mobile.workspace.status.attempt", { attempt: recoveryAttempt(recovery), limit: REMOTE_RETRY_LIMIT })
-    : server.connectionMessage && sourceText(server.connectionMessage);
+    : !reconnecting && server.connectionMessage && sourceText(server.connectionMessage);
   const remainingSeconds = reconnecting ? recoveryCountdown(recovery) : null;
   // The chat keeps to the attempt and the countdown. The failure that caused a retry is in the support log.
 
@@ -49,9 +53,9 @@ function ConnectionStatusText({ server: shown, note }: { server: MobileServer; n
           numberOfLines={1}
           maxFontSizeMultiplier={1.2}
         >
-          {reconnecting ? `${title} · ` : detail ? `${title} · ${detail}` : title}
+          {retrying ? `${title} · ` : detail ? `${title} · ${detail}` : title}
         </Typography.Paragraph>
-        {reconnecting ? (
+        {retrying ? (
           <>
             <AnimatedCounter value={String(recoveryAttempt(recovery))} />
             <Typography.Paragraph type="body-xs" className="text-text-secondary" maxFontSizeMultiplier={1.2}>

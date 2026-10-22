@@ -37,7 +37,7 @@ function useChannelMenuActions(channel: ChannelSummary, serverId: string) {
   const sectionMenu = useChatSectionMenu(serverId, channel.id);
   const isPinned = useMobileWorkspaceSelector(({ pinnedChannelIds }) => pinnedChannelIds.includes(channel.id));
   const canPin = useMobileWorkspaceSelector(({ pinnedAgentIds, pinnedChannelIds }) =>
-    canToggleAgentPin([...pinnedAgentIds, ...pinnedChannelIds], channel.id),
+    canToggleAgentPin([...pinnedAgentIds, ...pinnedChannelIds], channel.id, pinnedAgentIds[0] ?? null),
   );
   const online = useMobileWorkspaceSelector(({ servers }) =>
     servers.some((server) => server.id === serverId && server.state === "online"),
@@ -89,6 +89,50 @@ function useChannelMenuActions(channel: ChannelSummary, serverId: string) {
       },
     ]);
   return { isPinned, canPin, canDelete, sectionMenu, handlePin, handleHide, handleInfo, handleCopyId, handleDelete };
+}
+
+/** A summary has no sequence. Read the current page before sending a channel read receipt. */
+function useChannelReadAction(channel: ChannelSummary, serverId: string) {
+  const workspace = useMobileWorkspaceReader();
+  const online = useMobileWorkspaceSelector(({ servers }) =>
+    servers.some((server) => server.id === serverId && server.state === "online"),
+  );
+  const pending = useRef(false);
+  const [reading, setReading] = useState(false);
+  const canRead = online && channel.unreadCount > 0 && !reading;
+  async function markRead() {
+    if (!canRead || pending.current) return;
+    pending.current = true;
+    setReading(true);
+    const store = workspace().channelStore;
+    const release = store.observe(serverId, channel.id);
+    try {
+      await store.refreshHistory(serverId, channel.id, currentText().t("mobile.workspace.alert.markAllReadBody"));
+      const page = store.get(serverId).pages.get(channel.id);
+      if (!page) return;
+      await store.command(serverId, {
+        type: "read",
+        operationId: Crypto.randomUUID(),
+        channelId: channel.id,
+        throughSequence: page.throughSequence,
+      });
+      void haptics.selection();
+    } catch (cause) {
+      const text = currentText();
+      showFailureAlert(
+        cause,
+        "team",
+        text.t("mobile.agent.menu.markRead"),
+        text.errorMessage(cause, text.t("mobile.workspace.alert.markAllReadBody")),
+      );
+      void haptics.notification("error");
+    } finally {
+      release();
+      pending.current = false;
+      setReading(false);
+    }
+  }
+  return { canRead, markRead };
 }
 
 /** The chat link of a channel on iOS, with its context menu. Android uses `ChannelAndroidMenu`. */
@@ -251,7 +295,8 @@ export const ChannelListRow = memo(function ChannelListRow({
   const { toggleChannelPinAnimated } = useAgentPinTransition();
   const isPinned = useMobileWorkspaceSelector(({ pinnedChannelIds }) => pinnedChannelIds.includes(channel.id));
   const pinBlocked = useMobileWorkspaceSelector(
-    ({ pinnedAgentIds, pinnedChannelIds }) => !canToggleAgentPin([...pinnedAgentIds, ...pinnedChannelIds], channel.id),
+    ({ pinnedAgentIds, pinnedChannelIds }) =>
+      !canToggleAgentPin([...pinnedAgentIds, ...pinnedChannelIds], channel.id, pinnedAgentIds[0] ?? null),
   );
   const disconnected = useMobileWorkspaceSelector(
     ({ servers }) => !servers.some((server) => server.id === serverId && server.state === "online"),
@@ -264,6 +309,7 @@ export const ChannelListRow = memo(function ChannelListRow({
   );
   const title = channel.title.trim();
   const unread = channel.unreadCount > 0;
+  const read = useChannelReadAction(channel, serverId);
   const togglePin = (withHaptic = true) => toggleChannelPinAnimated(channel, serverId, { haptic: withHaptic });
   const openLabel = title
     ? t("mobile.channel.list.openWithTitle", { name: channel.name, title })
@@ -291,6 +337,7 @@ export const ChannelListRow = memo(function ChannelListRow({
         unread ? `${openLabel}, ${t("mobile.channel.list.unread", { count: channel.unreadCount })}` : openLabel
       }
       accessibilityActions={[
+        ...(read.canRead ? [{ name: "read", label: t("mobile.agent.menu.markRead") }] : []),
         {
           name: "pin",
           label: t(isPinned ? "mobile.agent.pin.unpinNamed" : "mobile.agent.pin.pinNamed", { name: channel.name }),
@@ -298,6 +345,7 @@ export const ChannelListRow = memo(function ChannelListRow({
       ]}
       onAccessibilityAction={(event) => {
         if (event.nativeEvent.actionName === "pin") togglePin();
+        else if (event.nativeEvent.actionName === "read") void read.markRead();
       }}
       className={pinned ? "w-full items-center gap-2 px-1" : "w-full"}
       onLongPress={isAndroid ? () => setMenuKey((key) => key + 1) : undefined}
@@ -384,7 +432,16 @@ export const ChannelListRow = memo(function ChannelListRow({
   return pinned ? (
     <PinnedChatItem>{content}</PinnedChatItem>
   ) : (
-    <AgentPinSwipeRow pinned={isPinned} agentName={channel.name} pinBlocked={pinBlocked} onPin={togglePin}>
+    <AgentPinSwipeRow
+      pinned={isPinned}
+      agentName={channel.name}
+      pinBlocked={pinBlocked}
+      unread={unread}
+      readMode="read"
+      readDisabled={!read.canRead}
+      onRead={() => void read.markRead()}
+      onPin={togglePin}
+    >
       {content}
     </AgentPinSwipeRow>
   );

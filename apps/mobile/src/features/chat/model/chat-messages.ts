@@ -24,6 +24,7 @@ import {
   routineRunConversationEvent,
 } from "@openbot/contracts/ipc";
 import type { MobileTextKey } from "@openbot/i18n/mobile";
+import { cleanAgentMessageText } from "@openbot/team-client/agent-message-text";
 
 export type RoutineMarkerEvent = RoutineConversationEventAction | RoutineRunStatus;
 
@@ -45,6 +46,8 @@ export type ChatMessage =
       id: string;
       kind: "exchange";
       exchange: AgentExchangeSummary;
+      /** When the host stored the exchange. Older local rows can omit it. */
+      createdAt?: string;
       /** Incoming files show under the marker, so the marker keeps a row of its own. */
       standalone: boolean;
     }
@@ -52,12 +55,14 @@ export type ChatMessage =
   | { id: string; kind: "context-reset" }
   /** A routine created, changed, deleted, or run by the agent. The label matches the desktop marker. */
   | { id: string; kind: "routine"; event: RoutineMarkerEvent; label: MobileTextKey; routineName: string }
-  | { id: string; kind: "question"; turnId: string | undefined; prompt: ConversationQuestionPrompt }
+  | { id: string; kind: "question"; turnId: string | undefined; prompt: ConversationQuestionPrompt; createdAt?: string }
   | {
       id: string;
       kind: "message";
       author: "agent" | "user";
       speaker?: ChannelMessage["author"];
+      /** Retains the host turn identity for activity and completion reconciliation. */
+      turnId?: string | null;
       /** Another person who wrote this message in an agent chat. The reader's own messages have none. */
       sender?: ConversationMessageSender;
       superseded?: boolean;
@@ -340,6 +345,7 @@ export function projectChatMessages(
           id: `exchange:${message.id}`,
           kind: "exchange",
           exchange,
+          createdAt: message.createdAt,
           standalone: exchange.direction === "incoming" && Boolean(message.attachments?.length),
         })),
       );
@@ -353,17 +359,16 @@ export function projectChatMessages(
         projectedMarker(projectedQuestions, message, () => ({
           id: message.id,
           kind: "question",
+          createdAt: message.createdAt,
           turnId: message.turnId,
           prompt,
         })),
       );
       continue;
     }
+    const text = message.author === "user" ? message.text : cleanAgentMessageText(message.text);
     // A generation has no text or attachment until its image arrives, and it still needs its placeholder.
-    if (
-      (!message.text.trim() && !message.attachments?.length && !message.imageGeneration) ||
-      message.author === "system"
-    )
+    if ((!text.trim() && !message.attachments?.length && !message.imageGeneration) || message.author === "system")
       continue;
     if (message.author === "assistant" && message.itemType === "commentary") {
       const key = message.turnId ?? message.id;
@@ -373,7 +378,7 @@ export function projectChatMessages(
         thinkingByTurn.set(key, thinking);
         result.push(thinking);
       }
-      thinking.steps.push({ id: message.id, text: message.text });
+      thinking.steps.push({ id: message.id, text });
     } else {
       const cached = projectedBubbles.get(message);
       let bubble = cached?.readerKey === readerKey ? cached.bubble : undefined;
@@ -387,7 +392,8 @@ export function projectChatMessages(
           // Another person's message stays a person's bubble, on the right, and adds their name.
           author: message.author === "user" ? "user" : "agent",
           ...(otherMember ? { sender } : {}),
-          body: message.exchange ? "" : message.text,
+          body: message.exchange ? "" : text,
+          turnId: message.turnId,
           streaming: message.status === "streaming",
           status: message.status,
           attachments: message.attachments,
@@ -522,6 +528,7 @@ function projectChannelMessage(
     return {
       id: entry.id,
       kind: "question",
+      createdAt: entry.message.createdAt,
       turnId: entry.message.turnId,
       prompt:
         entry.superseded && !entry.message.questionPrompt.resolution
@@ -552,21 +559,24 @@ function projectChannelMessage(
   // A plan card of channel work shows as in an agent chat.
   const plan = entry.author.kind === "agent" ? projectPlan(entry.message) : null;
   if (plan) return { ...plan, id: entry.id };
+  const text = entry.author.kind === "agent" ? cleanAgentMessageText(entry.message.text) : entry.message.text;
+  if (!text.trim() && !entry.message.attachments?.length && !entry.message.imageGeneration) return null;
   if (entry.author.kind === "agent" && entry.message.itemType === "commentary" && !entry.superseded) {
     return {
       id: entry.id,
       kind: "thinking",
       turnId: entry.message.turnId,
-      steps: [{ id: entry.id, text: entry.message.text }],
+      steps: [{ id: entry.id, text }],
     };
   }
   return {
     id: entry.id,
     kind: "message",
     author: self ? "user" : "agent",
+    turnId: entry.message.turnId,
     speaker: entry.author,
     superseded: entry.superseded,
-    body: entry.message.text,
+    body: text,
     streaming: entry.message.status === "streaming",
     status: entry.message.status,
     replyToMessageId: entry.message.replyToMessageId,

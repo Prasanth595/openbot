@@ -5,6 +5,22 @@ import { isMessagingInstallReturn } from "@/features/servers/model/connectors";
 import { isIncomingShareLink } from "@/features/share/model/share-link";
 
 export function redirectSystemPath({ path, initial }: { path: string; initial: boolean }) {
+  if (__DEV__) {
+    try {
+      const url = new URL(path);
+      if (url.protocol === "openbot:" && url.hostname === "motion-preview" && !url.pathname) {
+        const phase = url.searchParams.get("phase");
+        const query = new URLSearchParams();
+        if (phase && ["idle", "thinking", "generating", "tool", "done"].includes(phase)) query.set("phase", phase);
+        if (url.searchParams.get("still") === "1") query.set("still", "1");
+        if (url.searchParams.get("cache") === "1") query.set("cache", "1");
+        if (url.searchParams.get("reply") === "1") query.set("reply", "1");
+        return `/motion-preview${query.size ? `?${query}` : ""}`;
+      }
+    } catch {
+      /* Other incoming links keep their existing decoder. */
+    }
+  }
   // `bun run dev:mobile` pairs a simulator without a tap. DevelopmentConnectLinkHandler redeems it.
   if (acceptDevelopmentConnectLink(path, __DEV__)) return null;
   // The browser session of Server settings › Connectors takes the return of a Slack or Discord install.

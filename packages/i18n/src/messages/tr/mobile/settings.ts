@@ -164,4 +164,13 @@ export const messages = {
   "mobile.settings.profile.signOutTitle": "Oturum kapatılsın mı?",
   "mobile.settings.profile.signOutBody": "Masaüstünüzdeki OpenBot'tan yeni bir kod tarayarak yeniden bağlanın.",
   "mobile.settings.profile.signOut": "Oturumu kapat",
+  "mobile.settings.notifications.muteTitle": "Bildirimleri sessize al",
+  "mobile.settings.notifications.muteDescription": "Bu sunucudan gelen bildirimleri ve sesleri durdur.",
+  "mobile.settings.notifications.notifyAboutDescription": "Hangi ajan olaylarının bildirim göstereceği.",
+  "mobile.settings.home.server": "Sunucu",
+  "mobile.settings.home.serverHint": "Üyeler, roller, sağlayıcılar, depolama…",
+  "mobile.settings.home.usageSummary": "{cost} · Son 30 gün",
+  "mobile.settings.home.help": "Yardım",
+  "mobile.settings.home.discord": "Discord’a katıl",
+  "mobile.settings.home.communityHint": "Discord ve X topluluğuna katıl",
 } as const satisfies PartialTranslation<typeof source>;

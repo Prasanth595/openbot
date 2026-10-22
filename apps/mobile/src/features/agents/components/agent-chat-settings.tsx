@@ -1,5 +1,5 @@
 import { Typography } from "heroui-native";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { Alert } from "react-native";
 import { useUniwind } from "uniwind";
 import { showFailureAlert } from "@/features/analytics/failure-reports";
@@ -13,7 +13,15 @@ import { currentText, useText } from "@/shared/lib/text";
  * The notifications switch of the agent settings. The host keeps one value for each agent, which
  * any member can change, and it applies to every member. A change saves at once, as on desktop.
  */
-export function AgentNotificationsRow({ agent, available }: { agent: MobileAgent; available: boolean }) {
+export function AgentNotificationsRow({
+  agent,
+  available,
+  leading,
+}: {
+  agent: MobileAgent;
+  available: boolean;
+  leading?: ReactNode;
+}) {
   const { t } = useText();
   const { updateAgent } = useMobileWorkspaceActions();
   const { theme } = useUniwind();
@@ -41,7 +49,7 @@ export function AgentNotificationsRow({ agent, available }: { agent: MobileAgent
   }
 
   return (
-    <SettingsRow>
+    <SettingsRow leading={leading}>
       <SettingsSwitch
         value={pending ?? agent.notifications}
         disabled={!available || pending !== null}

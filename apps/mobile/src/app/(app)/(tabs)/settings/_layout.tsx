@@ -3,7 +3,6 @@ import { useCSSVariable } from "uniwind";
 import { androidBackOptions } from "@/shared/components/android-header-button";
 import { isIOS } from "@/shared/lib/platform";
 import { sheetBackHaptics } from "@/shared/lib/sheet-back-haptics";
-import { sheetHeaderInsetOptions } from "@/shared/lib/sheet-header";
 import { useText } from "@/shared/lib/text";
 
 export const unstable_settings = { initialRouteName: "index" };
@@ -16,7 +15,6 @@ export default function SettingsLayout() {
       screenListeners={sheetBackHaptics}
       screenOptions={(props) => ({
         ...androidBackOptions(props),
-        ...sheetHeaderInsetOptions,
         presentation: "card",
         headerBackButtonDisplayMode: "minimal",
         headerShadowVisible: false,
@@ -27,7 +25,7 @@ export default function SettingsLayout() {
         contentStyle: { backgroundColor: background },
       })}
     >
-      <Stack.Screen name="index" options={{ title: t("mobile.app.route.settings") }} />
+      <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="profile" options={{ title: t("mobile.app.route.profile") }} />
       <Stack.Screen name="appearance" options={{ title: t("mobile.settings.appearance.title") }} />
       <Stack.Screen name="animations" options={{ title: t("mobile.settings.animations.title") }} />

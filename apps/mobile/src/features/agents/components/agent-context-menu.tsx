@@ -23,8 +23,9 @@ function useAgentMenuActions(agent: MobileAgent) {
   const sectionMenu = useChatSectionMenu(agent.serverId, agent.id);
   const isPinned = useMobileWorkspaceSelector(({ pinnedAgentIds }) => pinnedAgentIds.includes(agent.id));
   const canPin = useMobileWorkspaceSelector(({ pinnedAgentIds, pinnedChannelIds }) =>
-    canToggleAgentPin([...pinnedAgentIds, ...pinnedChannelIds], agent.id),
+    canToggleAgentPin([...pinnedAgentIds, ...pinnedChannelIds], agent.id, pinnedAgentIds[0] ?? null),
   );
+  const isLead = useMobileWorkspaceSelector(({ pinnedAgentIds }) => pinnedAgentIds[0] === agent.id);
   const isUnread = useAgentUnread(agent.id);
   const actionPending = useRef(false);
   const { t } = useText();
@@ -87,6 +88,7 @@ function useAgentMenuActions(agent: MobileAgent) {
   };
   return {
     isPinned,
+    isLead,
     isUnread,
     canPin,
     sectionMenu,
@@ -104,6 +106,7 @@ function useAgentContextMenu(agent: MobileAgent) {
   const { t } = useText();
   const {
     isPinned,
+    isLead,
     isUnread,
     canPin,
     sectionMenu,
@@ -117,20 +120,24 @@ function useAgentContextMenu(agent: MobileAgent) {
   } = useAgentMenuActions(agent);
   return (
     <Link.Menu>
-      <Link.MenuAction icon={isUnread ? "envelope.open" : "envelope.badge"} onPress={handleRead}>
-        {t(isUnread ? "mobile.agent.menu.markRead" : "mobile.agent.menu.markUnread")}
-      </Link.MenuAction>
-      <Link.MenuAction icon={isPinned ? "pin.slash" : "pin"} isOn={isPinned} onPress={handlePin} disabled={!canPin}>
-        {t(isPinned ? "mobile.agent.pin.unpin" : "mobile.agent.pin.pin")}
-      </Link.MenuAction>
-      <Link.MenuAction icon="eye.slash" onPress={handleHide}>
-        {t("mobile.agent.menu.hide")}
-      </Link.MenuAction>
-      {sectionMenu.menu}
-      <Link.MenuAction icon="info.circle" onPress={handleInfo}>
-        {t("mobile.agent.menu.info")}
-      </Link.MenuAction>
-      <Link.Menu icon="ellipsis" title={t("mobile.agent.menu.more")}>
+      <Link.Menu inline>
+        <Link.MenuAction icon={isUnread ? "envelope.open" : "envelope.badge"} onPress={handleRead}>
+          {t(isUnread ? "mobile.agent.menu.markRead" : "mobile.agent.menu.markUnread")}
+        </Link.MenuAction>
+        {!isLead ? (
+          <Link.MenuAction icon={isPinned ? "pin.slash" : "pin"} isOn={isPinned} onPress={handlePin} disabled={!canPin}>
+            {t(isPinned ? "mobile.agent.pin.unpin" : "mobile.agent.pin.pin")}
+          </Link.MenuAction>
+        ) : null}
+        {sectionMenu.menu}
+        <Link.MenuAction icon="info.circle" onPress={handleInfo}>
+          {t("mobile.agent.menu.info")}
+        </Link.MenuAction>
+      </Link.Menu>
+      <Link.Menu inline>
+        <Link.MenuAction icon="eye.slash" onPress={handleHide}>
+          {t("mobile.agent.menu.hide")}
+        </Link.MenuAction>
         <Link.MenuAction icon="doc.on.doc" onPress={handleCopyId}>
           {t("mobile.agent.menu.copyId")}
         </Link.MenuAction>
@@ -160,7 +167,7 @@ export function AgentContextMenuLink({
 }) {
   const agentContextMenu = useAgentContextMenu(agent);
   return (
-    <Link href={{ pathname: "/chat/[agentId]", params: { agentId: agent.id } }} asChild>
+    <Link href={{ pathname: "/chat/[agentId]", params: { agentId: agent.id, serverId: agent.serverId } }} asChild>
       <Link.Trigger>{children}</Link.Trigger>
       {preview}
       {agentContextMenu}
@@ -205,6 +212,7 @@ function OpenAgentMenu({
   }, []);
   const {
     isPinned,
+    isLead,
     isUnread,
     canPin,
     sectionMenu,
@@ -216,26 +224,28 @@ function OpenAgentMenu({
     handleDuplicate,
     handleDelete,
   } = useAgentMenuActions(agent);
+  const pinAction: MenuAction = {
+    id: "pin",
+    title: t(isPinned ? "mobile.agent.pin.unpin" : "mobile.agent.pin.pin"),
+    image: isPinned ? "pin.slash" : "pin",
+    attributes: { disabled: !canPin },
+    state: isPinned ? "on" : "off",
+  };
   const actions: MenuAction[] = [
     {
       id: "read",
       title: t(isUnread ? "mobile.agent.menu.markRead" : "mobile.agent.menu.markUnread"),
       image: isUnread ? "envelope.open" : "envelope.badge",
     },
-    {
-      id: "pin",
-      title: t(isPinned ? "mobile.agent.pin.unpin" : "mobile.agent.pin.pin"),
-      image: isPinned ? "pin.slash" : "pin",
-      attributes: { disabled: !canPin },
-    },
-    { id: "hide", title: t("mobile.agent.menu.hide"), image: "eye.slash" },
+    ...(!isLead ? [pinAction] : []),
     ...sectionMenu.androidActions,
     { id: "info", title: t("mobile.agent.menu.info"), image: "info.circle" },
     {
-      id: "more",
+      id: "management",
       title: t("mobile.agent.menu.more"),
-      image: "ellipsis",
+      displayInline: true,
       subactions: [
+        { id: "hide", title: t("mobile.agent.menu.hide"), image: "eye.slash" },
         { id: "copy", title: t("mobile.agent.menu.copyId"), image: "doc.on.doc" },
         { id: "duplicate", title: t("mobile.agent.menu.duplicate"), image: "plus.square.on.square" },
         { id: "delete", title: t("common.delete"), image: "trash", attributes: { destructive: true } },

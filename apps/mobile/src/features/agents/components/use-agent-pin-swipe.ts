@@ -5,9 +5,9 @@ import { useSharedValue } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
 import { haptics } from "@/shared/lib/haptics";
 
-export const PIN_REVEAL_DISTANCE = 88;
-export const PIN_COMMIT_DISTANCE = 144;
-const PIN_DISARM_DISTANCE = 128;
+export const PIN_REVEAL_DISTANCE = 176;
+export const PIN_COMMIT_DISTANCE = 232;
+const PIN_DISARM_DISTANCE = 216;
 
 function thresholdFeedback() {
   void haptics.impact("light");

@@ -2,6 +2,7 @@ import type { AvatarMood } from "@openbot/brand/bloub-avatar-motion";
 import { type ColorValue, View } from "react-native";
 import Animated, { Easing, ReduceMotion, withTiming } from "react-native-reanimated";
 import { BloubAvatarPreview } from "@/features/agents/components/bloub-avatar";
+import type { SatellitePhase } from "@/features/agents/model/satellite-motion";
 import type { MobileAgent } from "@/features/workspace/model/workspace-types";
 import { ThinkingTextGradient } from "./thinking-text-gradient";
 
@@ -67,6 +68,7 @@ export interface ChatActivitySpec {
   accessibilityLabel: string;
   agent?: Pick<MobileAgent, "id" | "serverId" | "avatarHue" | "avatarSeed">;
   mood: AvatarMood;
+  activityPhase: SatellitePhase;
   online: boolean;
   animateAvatar: boolean;
   shimmer: boolean;
@@ -92,16 +94,21 @@ export function ChatActivityRow({
       accessibilityLabel={spec.accessibilityLabel}
     >
       {spec.agent ? (
-        <BloubAvatarPreview
-          agentId={spec.agent.id}
-          serverId={spec.agent.serverId}
-          hue={spec.agent.avatarHue}
-          seed={spec.agent.avatarSeed}
-          size={36}
-          disconnected={!spec.online}
-          mood={spec.mood}
-          animateIdle={spec.animateAvatar}
-        />
+        <View style={{ width: 56, height: 56, padding: 10, overflow: "visible" }}>
+          <BloubAvatarPreview
+            agentId={spec.agent.id}
+            serverId={spec.agent.serverId}
+            hue={spec.agent.avatarHue}
+            seed={spec.agent.avatarSeed}
+            size={36}
+            disconnected={!spec.online}
+            mood={spec.mood}
+            animateIdle={spec.animateAvatar}
+            rings
+            activityPhase={spec.activityPhase}
+            activityMotion={spec.animateAvatar}
+          />
+        </View>
       ) : null}
       <View className="min-w-0 flex-1">
         <ThinkingTextGradient

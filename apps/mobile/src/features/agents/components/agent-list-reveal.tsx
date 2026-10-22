@@ -36,11 +36,10 @@ export function useAgentListReveal(ready: boolean, scope: string): AgentListReve
   useLayoutEffect(() => {
     elapsed.set(0);
     setFinishedScope(null);
-    if (!ready) {
-      setLaidOutScope(null);
-      return;
-    }
-    // Start after native layout, so loading and first layout do not consume the reveal.
+    if (!ready) return;
+    // Keep the last layout for this server while loading covers the list. Native layout can
+    // arrive before readiness, and a cached list may not emit it again when uncovered.
+    // A different server still waits for its own layout.
     if (laidOutScope !== scope) return;
     let active = true;
     const finish = () => {
@@ -80,7 +79,6 @@ export function AgentListRowReveal({
     opacity: progress.get(),
     transform: [{ translateX: reducedMotion ? 0 : -18 * (1 - progress.get()) }],
   }));
-  // After the reveal the row has no animated style. A later render then cannot put back the
-  // first-render opacity of 0 when the animated value has not reached React.
-  return <Animated.View style={finished || skip ? undefined : contentStyle}>{children}</Animated.View>;
+  // Keep the style mounted so the completed progress explicitly restores native opacity.
+  return <Animated.View style={contentStyle}>{children}</Animated.View>;
 }

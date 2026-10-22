@@ -6,5 +6,5 @@ import type { NotificationTarget } from "./push-notifications-native.types";
 
 export function useNotificationTaps(
   _open: (target: NotificationTarget) => void,
-  _openChat: () => string | null,
+  _openChat: (serverId?: string) => string | null,
 ): void {}

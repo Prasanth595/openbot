@@ -6,6 +6,37 @@ import type { TextStyle } from "react-native";
  * `text-label` reads to tailwind-merge as a color, so next to `text-muted` one of the two is lost.
  */
 export const typeScale = {
+  workTitle: { fontFamily: "Inter", fontSize: 15, lineHeight: 20, fontWeight: "500" },
+  workStatus: { fontFamily: "Inter", fontSize: 10, lineHeight: 14, letterSpacing: 0.72, fontWeight: "600" },
+  teamDisplay: { fontFamily: "Inter", fontSize: 44, lineHeight: 44, letterSpacing: -2.2, fontWeight: "500" },
+  teamLead: { fontFamily: "Inter", fontSize: 40, lineHeight: 40, letterSpacing: -2, fontWeight: "500" },
+  teamSection: { fontFamily: "Inter", fontSize: 28, lineHeight: 34, letterSpacing: -1.4, fontWeight: "500" },
+  teamMeta: { fontFamily: "Inter", fontSize: 12, lineHeight: 15, letterSpacing: 0.72, fontWeight: "600" },
+  teamName: { fontFamily: "Inter", fontSize: 17, lineHeight: 21, fontWeight: "600" },
+  teamPreview: { fontFamily: "Inter", fontSize: 15, lineHeight: 20 },
+  chatAuthor: { fontFamily: "Inter", fontSize: 14, lineHeight: 18, fontWeight: "600" },
+  chatEvent: {
+    fontFamily: "Inter",
+    fontSize: 13,
+    lineHeight: 18,
+    includeFontPadding: false,
+    textAlignVertical: "center",
+  },
+  chatEventTime: {
+    fontFamily: "Inter",
+    fontSize: 11,
+    lineHeight: 18,
+    letterSpacing: 0.4,
+    fontWeight: "600",
+    includeFontPadding: false,
+    textAlignVertical: "center",
+  },
+  marketMeta: { fontFamily: "Inter", fontSize: 10, lineHeight: 14, letterSpacing: 0.72, fontWeight: "600" },
+  marketDescription: { fontFamily: "Inter", fontSize: 14, lineHeight: 20 },
+  marketLabel: { fontFamily: "Inter", fontSize: 14, lineHeight: 18, fontWeight: "600" },
+  chatDay: { fontFamily: "Inter", fontSize: 10, lineHeight: 14, letterSpacing: 0.6, fontWeight: "600" },
+  chatQuestion: { fontFamily: "Inter", fontSize: 13, lineHeight: 19 },
+  chatAnswer: { fontFamily: "Inter", fontSize: 14, lineHeight: 20, fontWeight: "500" },
   /** The big header of a full screen: the server name on home, Routines, Usage. */
   largeTitle: { fontSize: 34, lineHeight: 40, letterSpacing: -0.68 },
   /** The big header on Android: the Material 3 headline of a medium top app bar. */

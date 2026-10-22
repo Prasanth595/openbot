@@ -12,26 +12,43 @@ import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import Pencil from "lucide-react-native/icons/pencil";
+import Bell from "lucide-react-native/icons/bell";
+import Brain from "lucide-react-native/icons/brain";
+import ChartNoAxesColumn from "lucide-react-native/icons/chart-no-axes-column";
+import Clock from "lucide-react-native/icons/clock";
+import Files from "lucide-react-native/icons/files";
+import Monitor from "lucide-react-native/icons/monitor";
+import Puzzle from "lucide-react-native/icons/puzzle";
+import ShieldCheck from "lucide-react-native/icons/shield-check";
+import SlidersHorizontal from "lucide-react-native/icons/sliders-horizontal";
+import Table from "lucide-react-native/icons/table";
+import Upload from "lucide-react-native/icons/upload";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { Alert, Pressable, View } from "react-native";
+import { Alert } from "react-native";
 import {
   AgentAccessFields,
   PERMISSION_LABEL,
   useAgentAdminSettings,
 } from "@/features/agents/components/agent-access-fields";
 import { AgentAppearancePicker } from "@/features/agents/components/agent-appearance-picker";
+import { AgentBrainCard } from "@/features/agents/components/agent-brain-card";
 import { AgentNewChatSection, AgentNotificationsRow } from "@/features/agents/components/agent-chat-settings";
 import { AgentBusyMessageField, AgentHostPermissionFields } from "@/features/agents/components/agent-host-fields";
 import { AgentInformation } from "@/features/agents/components/agent-information";
 import { type AgentPhotoDraft, AgentPhotoPicker } from "@/features/agents/components/agent-photo-picker";
+import {
+  AgentProfileFields,
+  AgentProfileHero,
+  AgentProfileRow,
+  AgentProfileSection,
+} from "@/features/agents/components/agent-profile-content";
 import { AgentPublish } from "@/features/agents/components/agent-publish";
 import { AgentRuntimeFields, useProviderAccounts } from "@/features/agents/components/agent-runtime-fields";
 import { AgentSessionSettingsSection } from "@/features/agents/components/agent-session-settings";
 import { AgentSharedTables } from "@/features/agents/components/agent-shared-tables";
 import { AgentTasksRow } from "@/features/agents/components/agent-tasks-row";
-import { BloubAvatarPreview } from "@/features/agents/components/bloub-avatar";
-import { InstructionsLimit, instructionsTooLong } from "@/features/agents/components/instructions-limit";
+import { instructionsTooLong } from "@/features/agents/components/instructions-limit";
+import { useBrowserFeature } from "@/features/browser/components/use-browser-feature";
 import { SettingsRow, SettingsSection } from "@/features/settings/components/settings-content";
 import {
   type MobileAgent,
@@ -39,7 +56,6 @@ import {
   useMobileWorkspace,
 } from "@/features/workspace/context/mobile-workspace-context";
 import { showsOnline } from "@/features/workspace/model/server-status";
-import { SheetFormField } from "@/shared/components/sheet-form-field";
 import { SheetSaveAction } from "@/shared/components/sheet-save-action";
 import { SheetScrollView } from "@/shared/components/sheet-scroll-view";
 import { haptics } from "@/shared/lib/haptics";
@@ -110,14 +126,15 @@ function AgentForm({
     canManageAgentAccess,
     canManageAgentHostSettings,
     setAgentProviderAccount,
+    browserViewSupport,
   } = useMobileWorkspace();
+  const browserAllowed = useBrowserFeature();
+  const showBrowser = browserAllowed && browserViewSupport(agent.serverId).view;
   const queryClient = useQueryClient();
   // The Permissions row shows the access, as on desktop. Its page reads the same host answer.
   const { settings: adminSettings } = useAgentAdminSettings(agent, host, available && page === "info");
   const showPermissions = canManageAgentAccess(agent.serverId) || canManageAgentHostSettings(agent.serverId);
   const showNotifications = agent.notifications !== undefined;
-  const showAdvanced =
-    Boolean(agent.workspacePath) || canStartNewChat(agent.serverId) || canManageAgentHostSettings(agent.serverId);
   const navigation = useNavigation();
   const [edits, setEdits] = useState<AgentEdits>({});
   const foreground = useThemeColor("foreground");
@@ -261,69 +278,28 @@ function AgentForm({
 
   return (
     <SheetScrollView
-      className="bg-sheet"
-      contentContainerClassName={page === "info" ? "gap-5 px-5 pb-safe-offset-5" : "gap-5 px-5 pb-safe-offset-5 pt-5"}
+      className={page === "info" ? "bg-team-canvas" : "bg-sheet"}
+      headerOverlaysContent={page !== "info"}
+      contentContainerClassName={
+        page === "info" ? "gap-5 px-5 pb-safe-offset-5 pt-3" : "gap-5 px-5 pb-safe-offset-5 pt-5"
+      }
       keyboardDismissMode="interactive"
       keyboardShouldPersistTaps="handled"
     >
       {page === "info" ? (
         <>
-          <View className="gap-6">
-            <Pressable
-              className="self-center"
-              accessibilityRole="button"
-              accessibilityLabel={t("mobile.agent.edit.appearance")}
-              onPress={() => {
-                void haptics.impact("soft");
-                router.push({
-                  pathname: "/agent-info/[agentId]/appearance",
-                  params: { agentId: agent.id, serverId: agent.serverId },
-                });
-              }}
-            >
-              <BloubAvatarPreview
-                agentId={agent.id}
-                serverId={agent.serverId}
-                seed={avatarSeed}
-                hue={avatarHue}
-                size={112}
-              />
-              {/* A photo fills the circle; the generated avatar leaves space around its shape. */}
-              <View
-                className={`absolute size-9 items-center justify-center rounded-full border-4 border-sheet bg-grouped ${agent.avatarUrl ? "right-0 bottom-0" : "right-3 bottom-3"}`}
-              >
-                <Pencil color={foreground} size={14} />
-              </View>
-            </Pressable>
-            <SheetFormField
-              label={t("mobile.agent.form.name")}
-              appearance="soft"
-              autoCapitalize="words"
-              maxLength={INPUT_LIMITS.agentName}
-              value={name}
-              editable={!saving}
-              onChangeText={(value) => change({ name: value })}
-            />
-          </View>
-          <SheetFormField
-            label={t("mobile.agent.edit.title")}
-            appearance="soft"
-            placeholder={t("mobile.agent.edit.titlePlaceholder")}
-            maxLength={INPUT_LIMITS.agentTitle}
-            value={title}
-            editable={!saving}
-            onChangeText={(value) => change({ title: value })}
+          <AgentProfileHero
+            agent={{ ...agent, name, title }}
+            onAppearance={() => {
+              void haptics.impact("soft");
+              router.push({
+                pathname: "/agent-info/[agentId]/appearance",
+                params: { agentId: agent.id, serverId: agent.serverId },
+              });
+            }}
           />
-          <SheetFormField
-            label={t("mobile.agent.edit.instructions")}
-            appearance="soft"
-            placeholder={t("mobile.agent.edit.instructionsPlaceholder")}
-            multiline
-            value={description}
-            editable={!saving}
-            onChangeText={(value) => change({ description: value })}
-          />
-          <InstructionsLimit text={description} />
+          <AgentBrainCard agent={agent} available={available} />
+          <AgentProfileFields name={name} title={title} description={description} disabled={saving} onChange={change} />
         </>
       ) : null}
       {page === "appearance" ? (
@@ -385,6 +361,62 @@ function AgentForm({
           {canStartNewChat(agent.serverId) ? <AgentNewChatSection agent={agent} available={available} /> : null}
         </>
       ) : null}
+      {page === "advanced" ? (
+        <>
+          <AgentProfileSection title={t("mobile.agent.groups.knows")}>
+            <AgentProfileRow
+              leading={<Brain size={18} color={foreground} />}
+              onPress={() =>
+                router.push({
+                  pathname: "/agent-info/[agentId]/memories",
+                  params: { agentId: agent.id, serverId: agent.serverId },
+                })
+              }
+            >
+              <Typography.Paragraph>{t("mobile.agent.info.memories.title")}</Typography.Paragraph>
+            </AgentProfileRow>
+            <AgentProfileRow
+              leading={<Files size={18} color={foreground} />}
+              onPress={() =>
+                router.push({
+                  pathname: "/agent-info/[agentId]/files",
+                  params: { agentId: agent.id, serverId: agent.serverId },
+                })
+              }
+            >
+              <Typography.Paragraph>{t("mobile.agent.info.files.title")}</Typography.Paragraph>
+            </AgentProfileRow>
+          </AgentProfileSection>
+          <AgentProfileSection title={t("mobile.agent.groups.does")}>
+            <AgentTasksRow agent={agent} />
+            <AgentProfileRow
+              leading={<Clock size={18} color={foreground} />}
+              onPress={() =>
+                router.push({
+                  pathname: "/agent-info/[agentId]/routines",
+                  params: { agentId: agent.id, serverId: agent.serverId },
+                })
+              }
+            >
+              <Typography.Paragraph>{t("mobile.agent.info.routines.title")}</Typography.Paragraph>
+            </AgentProfileRow>
+            <AgentProfileRow
+              leading={<ChartNoAxesColumn size={18} color={foreground} />}
+              onPress={() =>
+                router.push({
+                  pathname: "/agent-info/[agentId]/usage",
+                  params: { agentId: agent.id, serverId: agent.serverId },
+                })
+              }
+            >
+              <Typography.Paragraph>{t("mobile.agent.info.usage.title")}</Typography.Paragraph>
+            </AgentProfileRow>
+          </AgentProfileSection>
+          {host && canAdministerServer(host.role) ? (
+            <AgentSessionSettingsSection key={`${agent.serverId}:${agent.id}`} agent={agent} available={available} />
+          ) : null}
+        </>
+      ) : null}
       {page === "tables" ? <AgentSharedTables agent={agent} available={available} /> : null}
       {page === "publish" ? <AgentPublish agent={agent} available={available} /> : null}
       {page === "usage" ||
@@ -410,34 +442,12 @@ function AgentForm({
           onSave={() => void submit()}
         />
       ) : null}
-      {/* The groups and their order follow the desktop agent settings. */}
+      {/* Keep all existing settings links and host capability checks. */}
       {page === "info" ? (
         <>
-          <SettingsSection title={t("mobile.agent.groups.brain")}>
-            <SettingsRow
-              supportingText={agent.model}
-              onPress={() =>
-                router.push({
-                  pathname: "/agent-info/[agentId]/runtime",
-                  params: { agentId: agent.id, serverId: agent.serverId },
-                })
-              }
-            >
-              <Typography.Paragraph>{t("mobile.agent.runtime.model")}</Typography.Paragraph>
-            </SettingsRow>
-          </SettingsSection>
-          <SettingsSection title={t("mobile.agent.groups.knows")}>
-            <SettingsRow
-              onPress={() =>
-                router.push({
-                  pathname: "/agent-info/[agentId]/memories",
-                  params: { agentId: agent.id, serverId: agent.serverId },
-                })
-              }
-            >
-              <Typography.Paragraph>{t("mobile.agent.info.memories.title")}</Typography.Paragraph>
-            </SettingsRow>
-            <SettingsRow
+          <AgentProfileSection title={t("mobile.agent.groups.knows")}>
+            <AgentProfileRow
+              leading={<Puzzle size={18} color={foreground} />}
               onPress={() =>
                 router.push({
                   pathname: "/agent-info/[agentId]/skills",
@@ -445,20 +455,13 @@ function AgentForm({
                 })
               }
             >
-              <Typography.Paragraph>{t("mobile.agent.info.skills.title")}</Typography.Paragraph>
-            </SettingsRow>
-            <SettingsRow
-              onPress={() =>
-                router.push({
-                  pathname: "/agent-info/[agentId]/files",
-                  params: { agentId: agent.id, serverId: agent.serverId },
-                })
-              }
-            >
-              <Typography.Paragraph>{t("mobile.agent.info.files.title")}</Typography.Paragraph>
-            </SettingsRow>
+              <Typography.Paragraph style={{ fontFamily: "Inter", fontSize: 16, lineHeight: 23, fontWeight: "500" }}>
+                {t("mobile.agent.info.skills.title")}
+              </Typography.Paragraph>
+            </AgentProfileRow>
             {canManageSharedTables(agent.serverId) ? (
-              <SettingsRow
+              <AgentProfileRow
+                leading={<Table size={18} color={foreground} />}
                 onPress={() =>
                   router.push({
                     pathname: "/agent-info/[agentId]/tables",
@@ -466,81 +469,92 @@ function AgentForm({
                   })
                 }
               >
-                <Typography.Paragraph>{t("mobile.agent.tables.title")}</Typography.Paragraph>
-              </SettingsRow>
+                <Typography.Paragraph style={{ fontFamily: "Inter", fontSize: 16, lineHeight: 23, fontWeight: "500" }}>
+                  {t("mobile.agent.tables.title")}
+                </Typography.Paragraph>
+              </AgentProfileRow>
             ) : null}
-          </SettingsSection>
-          <SettingsSection title={t("mobile.agent.groups.does")}>
-            <AgentTasksRow agent={agent} />
-            <SettingsRow
-              onPress={() =>
-                router.push({
-                  pathname: "/agent-info/[agentId]/routines",
-                  params: { agentId: agent.id, serverId: agent.serverId },
-                })
-              }
-            >
-              <Typography.Paragraph>{t("mobile.agent.info.routines.title")}</Typography.Paragraph>
-            </SettingsRow>
-            <SettingsRow
-              onPress={() =>
-                router.push({
-                  pathname: "/agent-info/[agentId]/usage",
-                  params: { agentId: agent.id, serverId: agent.serverId },
-                })
-              }
-            >
-              <Typography.Paragraph>{t("mobile.agent.info.usage.title")}</Typography.Paragraph>
-            </SettingsRow>
-            {canPublishAgent(agent.serverId) ? (
-              <SettingsRow
+          </AgentProfileSection>
+          {showBrowser || canPublishAgent(agent.serverId) ? (
+            <AgentProfileSection title={t("mobile.agent.groups.does")}>
+              {showBrowser ? (
+                <AgentProfileRow
+                  leading={<Monitor size={18} color={foreground} />}
+                  disabled={!available}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/browser/[agentId]",
+                      params: { agentId: agent.id, serverId: agent.serverId },
+                    })
+                  }
+                >
+                  <Typography.Paragraph
+                    style={{ fontFamily: "Inter", fontSize: 16, lineHeight: 23, fontWeight: "500" }}
+                  >
+                    {t("mobile.browser.open")}
+                  </Typography.Paragraph>
+                </AgentProfileRow>
+              ) : null}
+              {canPublishAgent(agent.serverId) ? (
+                <AgentProfileRow
+                  leading={<Upload size={18} color={foreground} />}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/agent-info/[agentId]/publish",
+                      params: { agentId: agent.id, serverId: agent.serverId },
+                    })
+                  }
+                >
+                  <Typography.Paragraph
+                    style={{ fontFamily: "Inter", fontSize: 16, lineHeight: 23, fontWeight: "500" }}
+                  >
+                    {t("mobile.agent.publish.title")}
+                  </Typography.Paragraph>
+                </AgentProfileRow>
+              ) : null}
+            </AgentProfileSection>
+          ) : null}
+          <AgentProfileSection
+            title={t("mobile.agent.groups.rules")}
+            footer={showNotifications ? t("mobile.agent.notifications.footer") : undefined}
+          >
+            {showPermissions ? (
+              <AgentProfileRow
+                leading={<ShieldCheck size={18} color={foreground} />}
+                supportingText={adminSettings ? t(PERMISSION_LABEL[agentPermissionLevel(adminSettings)]) : undefined}
                 onPress={() =>
                   router.push({
-                    pathname: "/agent-info/[agentId]/publish",
+                    pathname: "/agent-info/[agentId]/permissions",
                     params: { agentId: agent.id, serverId: agent.serverId },
                   })
                 }
               >
-                <Typography.Paragraph>{t("mobile.agent.publish.title")}</Typography.Paragraph>
-              </SettingsRow>
+                <Typography.Paragraph style={{ fontFamily: "Inter", fontSize: 16, lineHeight: 23, fontWeight: "500" }}>
+                  {t("mobile.agent.permissions.title")}
+                </Typography.Paragraph>
+              </AgentProfileRow>
             ) : null}
-          </SettingsSection>
-          {host && canAdministerServer(host.role) ? (
-            <AgentSessionSettingsSection key={`${agent.serverId}:${agent.id}`} agent={agent} available={available} />
-          ) : null}
-          {showPermissions || showNotifications || showAdvanced ? (
-            <SettingsSection
-              title={t("mobile.agent.groups.rules")}
-              footer={showNotifications ? t("mobile.agent.notifications.footer") : undefined}
+            {showNotifications ? (
+              <AgentNotificationsRow
+                agent={agent}
+                available={available}
+                leading={<Bell size={18} color={foreground} />}
+              />
+            ) : null}
+            <AgentProfileRow
+              leading={<SlidersHorizontal size={18} color={foreground} />}
+              onPress={() =>
+                router.push({
+                  pathname: "/agent-info/[agentId]/advanced",
+                  params: { agentId: agent.id, serverId: agent.serverId },
+                })
+              }
             >
-              {showPermissions ? (
-                <SettingsRow
-                  supportingText={adminSettings ? t(PERMISSION_LABEL[agentPermissionLevel(adminSettings)]) : undefined}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/agent-info/[agentId]/permissions",
-                      params: { agentId: agent.id, serverId: agent.serverId },
-                    })
-                  }
-                >
-                  <Typography.Paragraph>{t("mobile.agent.permissions.title")}</Typography.Paragraph>
-                </SettingsRow>
-              ) : null}
-              {showNotifications ? <AgentNotificationsRow agent={agent} available={available} /> : null}
-              {showAdvanced ? (
-                <SettingsRow
-                  onPress={() =>
-                    router.push({
-                      pathname: "/agent-info/[agentId]/advanced",
-                      params: { agentId: agent.id, serverId: agent.serverId },
-                    })
-                  }
-                >
-                  <Typography.Paragraph>{t("mobile.agent.advanced.title")}</Typography.Paragraph>
-                </SettingsRow>
-              ) : null}
-            </SettingsSection>
-          ) : null}
+              <Typography.Paragraph style={{ fontFamily: "Inter", fontSize: 16, lineHeight: 23, fontWeight: "500" }}>
+                {t("mobile.agent.advanced.title")}
+              </Typography.Paragraph>
+            </AgentProfileRow>
+          </AgentProfileSection>
         </>
       ) : null}
     </SheetScrollView>

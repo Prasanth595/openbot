@@ -7,6 +7,7 @@ import {
   isAgentProvider,
   isAgentProviderRef,
   isAvatarHue,
+  isClientAgentSummary,
   isKnownAgentProvider,
   isReasoningEffort,
   isSidebarLayoutSnapshot,
@@ -24,7 +25,7 @@ export type RemoteAgent = Pick<
 > &
   Partial<
     Pick<AgentSummary, "provider" | "model" | "reasoningEffort" | "avatarUrl" | "notifications" | "workspacePath">
-  > & { foreignProvider?: ForeignProviderId | undefined };
+  > & { foreignProvider?: ForeignProviderId | undefined; marketplaceListingId?: string };
 
 export function projectAgent(serverId: string, agent: RemoteAgent): MobileAgent {
   return {
@@ -41,6 +42,7 @@ export function projectAgent(serverId: string, agent: RemoteAgent): MobileAgent 
     reasoningEffort: agent.reasoningEffort,
     notifications: agent.notifications,
     workspacePath: agent.workspacePath,
+    marketplaceListingId: agent.marketplaceListingId,
     avatarUrl: agent.avatarUrl ?? null,
     avatarSeed: agent.avatarSeed,
     avatarHue: agent.avatarHue,
@@ -49,7 +51,8 @@ export function projectAgent(serverId: string, agent: RemoteAgent): MobileAgent 
 
 /** An agent of a host event. A provider that this build does not know moves to `foreignProvider`. */
 export function remoteAgentOf(agent: ClientAgentSummary): RemoteAgent {
-  const { provider, ...rest } = agent;
+  const { provider, marketplaceSource, ...summary } = agent;
+  const rest = { ...summary, marketplaceListingId: marketplaceSource?.listingId };
   return isKnownAgentProvider(provider)
     ? { ...rest, provider }
     : { ...rest, provider: undefined, foreignProvider: foreignProvider(provider) };
@@ -83,6 +86,7 @@ export function decodeAgent(value: unknown): RemoteAgent {
     reasoningEffort: isReasoningEffort(value.reasoningEffort) ? value.reasoningEffort : undefined,
     notifications: isBoolean(value.notifications) ? value.notifications : undefined,
     workspacePath: isString(value.workspacePath) && value.workspacePath ? value.workspacePath : undefined,
+    marketplaceListingId: isClientAgentSummary(value) ? value.marketplaceSource?.listingId : undefined,
     avatarUrl: isString(value.avatarUrl) ? value.avatarUrl : null,
     avatarSeed: value.avatarSeed,
     avatarHue: value.avatarHue,

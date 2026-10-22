@@ -1,5 +1,7 @@
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
+import Mail from "lucide-react-native/icons/mail";
+import MailOpen from "lucide-react-native/icons/mail-open";
 import Pin from "lucide-react-native/icons/pin";
 import PinOff from "lucide-react-native/icons/pin-off";
 import type { PropsWithChildren } from "react";
@@ -8,67 +10,80 @@ import { GestureDetector } from "react-native-gesture-handler";
 import ReanimatedSwipeable from "react-native-gesture-handler/ReanimatedSwipeable";
 import Animated, { type SharedValue, useAnimatedStyle } from "react-native-reanimated";
 import { useAppDrawer } from "@/features/servers/components/app-drawer-shell";
-import { useReducedMotion } from "@/shared/lib/motion";
 import { useText } from "@/shared/lib/text";
 
-import { PIN_COMMIT_DISTANCE, PIN_REVEAL_DISTANCE, useAgentPinSwipe } from "./use-agent-pin-swipe";
+import { PIN_REVEAL_DISTANCE, useAgentPinSwipe } from "./use-agent-pin-swipe";
 
-function PinAction({
+function RowActions({
   agentName,
   pinned = false,
   pinBlocked,
+  unread,
+  readMode,
+  readDisabled,
   revealed,
   translation,
   onPress,
+  onRead,
 }: {
   agentName: string;
   pinned?: boolean;
   pinBlocked: boolean;
+  unread: boolean;
+  readMode: "toggle" | "read";
+  readDisabled: boolean;
   revealed: boolean;
   translation: SharedValue<number>;
   onPress: () => void;
+  onRead: () => void;
 }) {
-  const [accent, accentForeground, danger, dangerForeground] = useThemeColor([
+  const [accent, accentForeground, control, foreground] = useThemeColor([
     "accent",
     "accent-foreground",
-    "danger",
-    "danger-foreground",
+    "default",
+    "default-foreground",
   ]);
-  const foreground = pinBlocked ? dangerForeground : accentForeground;
-  const reducedMotion = useReducedMotion();
-  const circleStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: reducedMotion ? 1 : 0.65 + Math.min(1, Math.max(0, -translation.get() / PIN_COMMIT_DISTANCE)) * 0.55 },
-    ],
-  }));
-
   const { t } = useText();
+  const marksRead = readMode === "read" || unread;
+  const ReadIcon = marksRead ? MailOpen : Mail;
+  const readLabel = t(marksRead ? "mobile.agent.menu.markRead" : "mobile.agent.menu.markUnread");
   const actionStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: Math.min(0, (translation.get() + PIN_REVEAL_DISTANCE) / 2) }],
   }));
 
   return (
     <Animated.View
-      className="w-[88px] items-center justify-center"
-      style={actionStyle}
+      className="flex-row items-stretch gap-1 py-1 pr-2"
+      style={[{ width: PIN_REVEAL_DISTANCE }, actionStyle]}
       accessibilityElementsHidden={!revealed}
       importantForAccessibility={revealed ? "auto" : "no-hide-descendants"}
     >
+      <Pressable
+        accessibilityLabel={readLabel}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: readDisabled }}
+        disabled={readDisabled}
+        className="min-w-0 flex-1 items-center justify-center gap-1 rounded-xl px-1"
+        onPress={onRead}
+        style={({ pressed }) => ({ backgroundColor: accent, opacity: readDisabled ? 0.45 : pressed ? 0.72 : 1 })}
+      >
+        <ReadIcon color={String(accentForeground)} size={22} strokeWidth={1.8} />
+        <Typography.Paragraph type="body-xs" align="center" weight="semibold" style={{ color: accentForeground }}>
+          {readLabel}
+        </Typography.Paragraph>
+      </Pressable>
       <Pressable
         accessibilityLabel={t(pinned ? "mobile.agent.pin.unpinNamed" : "mobile.agent.pin.pinNamed", {
           name: agentName,
         })}
         accessibilityRole="button"
+        accessibilityState={{ disabled: pinBlocked }}
         accessibilityHint={pinBlocked ? t("mobile.agent.pin.limitReached") : undefined}
-        className="size-16 items-center justify-center"
+        disabled={pinBlocked}
+        className="min-w-0 flex-1 items-center justify-center gap-1 rounded-xl px-1"
         onPress={onPress}
-        style={({ pressed }) => ({ opacity: pressed ? 0.72 : 1 })}
+        style={({ pressed }) => ({ backgroundColor: control, opacity: pinBlocked ? 0.45 : pressed ? 0.72 : 1 })}
       >
-        <Animated.View
-          pointerEvents="none"
-          className="absolute size-16 rounded-full"
-          style={[{ backgroundColor: pinBlocked ? danger : accent }, circleStyle]}
-        />
         {pinned ? (
           <PinOff color={String(foreground)} size={22} strokeWidth={1.8} />
         ) : (
@@ -86,13 +101,22 @@ export function AgentPinSwipeRow({
   agentName,
   pinned = false,
   pinBlocked,
+  unread,
+  readMode = "toggle",
+  readDisabled = false,
   onPin,
+  onRead,
   children,
 }: PropsWithChildren<{
   agentName: string;
   pinned?: boolean;
   pinBlocked: boolean;
+  unread: boolean;
+  /** Channels support read receipts, but have no released unread command. */
+  readMode?: "toggle" | "read";
+  readDisabled?: boolean;
   onPin: (withHaptic: boolean) => void;
+  onRead: () => void;
 }>) {
   const [background] = useThemeColor(["background"]);
   const { openingGesture } = useAppDrawer();
@@ -117,13 +141,20 @@ export function AgentPinSwipeRow({
         onSwipeableWillClose={swipe.onWillClose}
         onSwipeableClose={swipe.onClose}
         renderRightActions={(_progress, translation) => (
-          <PinAction
+          <RowActions
             revealed={swipe.revealed}
             agentName={agentName}
             pinned={pinned}
             pinBlocked={pinBlocked}
+            unread={unread}
+            readMode={readMode}
+            readDisabled={readDisabled}
             translation={translation}
             onPress={() => swipe.pin()}
+            onRead={() => {
+              swipe.close();
+              onRead();
+            }}
           />
         )}
       >

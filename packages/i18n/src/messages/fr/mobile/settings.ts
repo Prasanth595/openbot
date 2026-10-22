@@ -168,4 +168,13 @@ export const messages = {
   "mobile.settings.profile.signOutBody":
     "Reconnectez-vous en scannant un nouveau code depuis OpenBot sur votre ordinateur.",
   "mobile.settings.profile.signOut": "Se déconnecter",
+  "mobile.settings.notifications.muteTitle": "Couper les notifications",
+  "mobile.settings.notifications.muteDescription": "Arrêter les notifications et les sons de ce serveur.",
+  "mobile.settings.notifications.notifyAboutDescription": "Quels événements des agents affichent une notification.",
+  "mobile.settings.home.server": "Serveur",
+  "mobile.settings.home.serverHint": "Membres, rôles, fournisseurs, stockage…",
+  "mobile.settings.home.usageSummary": "{cost} · 30 derniers jours",
+  "mobile.settings.home.help": "Aide",
+  "mobile.settings.home.discord": "Rejoindre Discord",
+  "mobile.settings.home.communityHint": "Rejoignez la communauté sur Discord et X",
 } as const satisfies PartialTranslation<typeof source>;

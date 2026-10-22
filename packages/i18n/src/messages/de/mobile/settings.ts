@@ -170,4 +170,13 @@ export const messages = {
   "mobile.settings.profile.signOutBody":
     "Verbinde dich erneut, indem du einen neuen Code aus OpenBot auf deinem Desktop scannst.",
   "mobile.settings.profile.signOut": "Abmelden",
+  "mobile.settings.notifications.muteTitle": "Benachrichtigungen stummschalten",
+  "mobile.settings.notifications.muteDescription": "Benachrichtigungen und Töne dieses Servers stoppen.",
+  "mobile.settings.notifications.notifyAboutDescription": "Welche Agentenereignisse eine Benachrichtigung zeigen.",
+  "mobile.settings.home.server": "Server",
+  "mobile.settings.home.serverHint": "Mitglieder, Rollen, Anbieter, Speicher…",
+  "mobile.settings.home.usageSummary": "{cost} · Letzte 30 Tage",
+  "mobile.settings.home.help": "Hilfe",
+  "mobile.settings.home.discord": "Discord beitreten",
+  "mobile.settings.home.communityHint": "Tritt der Community auf Discord und X bei",
 } as const satisfies PartialTranslation<typeof source>;

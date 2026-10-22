@@ -3,7 +3,6 @@ import { useCSSVariable } from "uniwind";
 import { androidBackOptions } from "@/shared/components/android-header-button";
 import { isIOS } from "@/shared/lib/platform";
 import { sheetBackHaptics } from "@/shared/lib/sheet-back-haptics";
-import { sheetHeaderInsetOptions } from "@/shared/lib/sheet-header";
 import { useText } from "@/shared/lib/text";
 
 export const unstable_settings = { initialRouteName: "index" };
@@ -11,12 +10,12 @@ export const unstable_settings = { initialRouteName: "index" };
 export default function ServerSettingsLayout() {
   const { t } = useText();
   const background = String(useCSSVariable("--openbot-bg-sheet"));
+  const canvas = String(useCSSVariable("--openbot-bg-canvas"));
   return (
     <Stack
       screenListeners={sheetBackHaptics}
       screenOptions={(props) => ({
         ...androidBackOptions(props),
-        ...sheetHeaderInsetOptions,
         presentation: "card",
         headerBackButtonDisplayMode: "minimal",
         headerShadowVisible: false,
@@ -27,7 +26,28 @@ export default function ServerSettingsLayout() {
         contentStyle: { backgroundColor: background },
       })}
     >
-      <Stack.Screen name="index" options={{ title: t("mobile.server.route.settings") }} />
+      <Stack.Screen
+        name="index"
+        options={{
+          title: t("mobile.server.settings.overviewTitle").toUpperCase(),
+          headerTitleStyle: { fontFamily: "Inter", fontSize: 12, fontWeight: "600" },
+          headerTitleAlign: "center",
+          headerTransparent: false,
+          headerStyle: { backgroundColor: canvas },
+          contentStyle: { backgroundColor: canvas },
+        }}
+      />
+      <Stack.Screen
+        name="general"
+        options={{
+          title: t("mobile.server.settings.general").toUpperCase(),
+          headerTitleStyle: { fontFamily: "Inter", fontSize: 12, fontWeight: "600" },
+          headerTitleAlign: "center",
+          headerTransparent: false,
+          headerStyle: { backgroundColor: canvas },
+          contentStyle: { backgroundColor: canvas },
+        }}
+      />
       <Stack.Screen name="members" options={{ title: t("mobile.app.route.members") }} />
       <Stack.Screen name="invite" options={{ title: t("mobile.server.route.invite") }} />
       <Stack.Screen name="member" options={{ title: t("mobile.server.route.member") }} />

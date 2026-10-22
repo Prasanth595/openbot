@@ -10,7 +10,6 @@ export const messages = {
   "mobile.search.task.placeholder": "Görevi açıklayın",
   "mobile.search.task.fieldLabel": "{name} için görev",
   "mobile.search.task.changeAgent": "Başka bir ajan seçin",
-  "mobile.search.task.newTextFor": "Yeni görev “{text}” şuna:",
   "mobile.search.task.newFor": "{name} için yeni görev",
   "mobile.search.task.how":
     "{name} bunun üzerinde tek başına çalışır ve Görevler’de bildirir. Sadece konuşmak mı istiyorsunuz?",
@@ -44,7 +43,6 @@ export const messages = {
   "mobile.search.retry": "Tekrar dene",
   "mobile.search.showMore": "Daha fazla mesaj göster",
   "mobile.search.showMoreFiles": "Daha fazla dosya göster",
-  "mobile.search.youWrote": "Siz: {text}",
   "mobile.search.authorText": "{author}: {text}",
   "mobile.search.fileDetail": "{name} · {size}",
   "mobile.search.routinePaused": "Duraklatıldı",

@@ -166,4 +166,13 @@ export const messages = {
   "mobile.settings.profile.signOutTitle": "サインアウトしますか？",
   "mobile.settings.profile.signOutBody": "デスクトップの OpenBot で新しいコードをスキャンして再接続してください。",
   "mobile.settings.profile.signOut": "サインアウト",
+  "mobile.settings.notifications.muteTitle": "通知をミュート",
+  "mobile.settings.notifications.muteDescription": "このサーバーからの通知とサウンドを停止します。",
+  "mobile.settings.notifications.notifyAboutDescription": "通知を表示するエージェントのイベント。",
+  "mobile.settings.home.server": "サーバー",
+  "mobile.settings.home.serverHint": "メンバー、権限、プロバイダー、ストレージ…",
+  "mobile.settings.home.usageSummary": "{cost} · 過去30日間",
+  "mobile.settings.home.help": "ヘルプ",
+  "mobile.settings.home.discord": "Discordに参加",
+  "mobile.settings.home.communityHint": "DiscordとXのコミュニティに参加",
 } as const satisfies PartialTranslation<typeof source>;

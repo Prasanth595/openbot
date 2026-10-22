@@ -3,17 +3,10 @@ import { type ColorValue, TextInput, useWindowDimensions } from "react-native";
 import { isIOS } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
 
-/** The body text: 16 points on a 28-point line, as the HeroUI `body` type. */
+/** The body text uses the same size as the rendered message. */
 const FONT_SIZE = 16;
-const LINE_HEIGHT = 28;
 /** The natural line height of Inter, as a multiple of its size: (1984 + 494) / 2048. */
 const FONT_LINE_RATIO = 1.21;
-/**
- * iOS `Text` centres each line in its line height, but a text field puts the extra space above the
- * letters. The field moves up by half of that space, so its words cover the words of the message.
- */
-const IOS_BASELINE_SHIFT = (LINE_HEIGHT - FONT_SIZE * FONT_LINE_RATIO) / 2;
-
 /**
  * The text of a message while the reader selects part of it in the bubble.
  *
@@ -25,11 +18,13 @@ const IOS_BASELINE_SHIFT = (LINE_HEIGHT - FONT_SIZE * FONT_LINE_RATIO) / 2;
 export function ChatSelectableText({
   text,
   color,
+  lineHeight,
   onHeight,
   onSelectionChange,
 }: {
   text: string;
   color: ColorValue | undefined;
+  lineHeight: number;
   /** The height of the text, so the bubble grows when the plain text is longer than the message. */
   onHeight: (height: number) => void;
   /** The selected part of `text`. Empty when the selection is only a cursor. */
@@ -37,6 +32,8 @@ export function ChatSelectableText({
 }) {
   const { t } = useText();
   const { fontScale } = useWindowDimensions();
+  // A text field places the extra line space above its letters; Text centres that space.
+  const baselineShift = (lineHeight - FONT_SIZE * FONT_LINE_RATIO) / 2;
   const input = useRef<TextInput>(null);
   useEffect(() => {
     input.current?.focus();
@@ -62,8 +59,8 @@ export function ChatSelectableText({
       style={{
         color,
         fontSize: FONT_SIZE,
-        lineHeight: LINE_HEIGHT,
-        transform: isIOS ? [{ translateY: -IOS_BASELINE_SHIFT * fontScale }] : undefined,
+        lineHeight,
+        transform: isIOS ? [{ translateY: -baselineShift * fontScale }] : undefined,
       }}
     />
   );

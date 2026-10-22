@@ -1,4 +1,5 @@
 import {
+  type AgentModelOption,
   type AgentProviderId,
   type AgentReasoningEffort,
   agentProviderName,
@@ -9,8 +10,15 @@ import {
 } from "@openbot/contracts/ipc";
 import type { MobileTextKey } from "@openbot/i18n/mobile";
 import { useQuery } from "@tanstack/react-query";
-import { Button, Typography } from "heroui-native";
-import { useUniwind } from "uniwind";
+import { Button, ListGroup, Typography } from "heroui-native";
+import Brain from "lucide-react-native/icons/brain";
+import Check from "lucide-react-native/icons/check";
+import ChevronUp from "lucide-react-native/icons/chevron-up";
+import Gauge from "lucide-react-native/icons/gauge";
+import Plus from "lucide-react-native/icons/plus";
+import { useState } from "react";
+import { View } from "react-native";
+import { useCSSVariable, useUniwind } from "uniwind";
 import { useQueryScope } from "@/features/auth/context/mobile-session-context";
 import { SettingsRow, SettingsSection } from "@/features/settings/components/settings-content";
 import { SettingsPicker } from "@/features/settings/components/settings-controls";
@@ -20,9 +28,11 @@ import {
   useMobileWorkspaceSelector,
 } from "@/features/workspace/context/mobile-workspace-context";
 import { queryKeys } from "@/features/workspace/model/query-keys";
+import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
+import { typeScale } from "@/shared/lib/type-scale";
 
-const EFFORT_LABELS = {
+export const EFFORT_LABELS = {
   low: "mobile.agent.runtime.effort.low",
   medium: "mobile.agent.runtime.effort.medium",
   high: "mobile.agent.runtime.effort.high",
@@ -72,6 +82,7 @@ export function AgentRuntimeFields({
   model,
   reasoningEffort,
   hostDefault = false,
+  appearance = "settings",
   title,
   accounts = [],
   accountId = "",
@@ -91,6 +102,7 @@ export function AgentRuntimeFields({
    * keeps its saved provider choice. The model rows show after the user picks a provider.
    */
   hostDefault?: boolean;
+  appearance?: "settings" | "brain";
   title?: string;
   /** The accounts of the provider. The choice shows only when there are two or more. */
   accounts?: readonly ProviderAccountStatus[];
@@ -105,6 +117,7 @@ export function AgentRuntimeFields({
   const workspace = useMobileWorkspaceActions();
   const queryScope = useQueryScope();
   const { theme } = useUniwind();
+  const accent = String(useCSSVariable("--openbot-accent-text"));
   const models = useQuery({
     queryKey: queryKeys.agentModels(queryScope, serverId),
     queryFn: () => workspace.loadAgentModels(serverId),
@@ -115,6 +128,49 @@ export function AgentRuntimeFields({
   const selected = options.find((option) => option.id === model);
   const enabled = available && !saving && options.length > 0;
   const showsModel = foreignProvider === undefined && (!hostDefault || provider !== undefined);
+  if (appearance === "brain" && foreignProvider === undefined) {
+    return (
+      <View className="gap-3">
+        <BrainChoices
+          models={models.data ?? []}
+          provider={provider}
+          model={model}
+          reasoningEffort={reasoningEffort}
+          disabled={!available || saving}
+          onChange={onChange}
+        />
+        {onAccountChange && accounts.length > 1 ? (
+          <SettingsSection title={t("mobile.agent.runtime.account")}>
+            {accounts.map((account, index) => (
+              <SettingsRow
+                key={account.id}
+                checked={account.id === accountId}
+                disabled={!available || saving}
+                disclosure={false}
+                trailing={account.id === accountId ? <Check size={18} color={accent} /> : undefined}
+                onPress={() => onAccountChange(account.id)}
+              >
+                <Typography.Paragraph>{accountName(account, index)}</Typography.Paragraph>
+              </SettingsRow>
+            ))}
+          </SettingsSection>
+        ) : null}
+        {models.isError ? (
+          <Button variant="ghost" onPress={() => void models.refetch()}>
+            <Button.Label>{t("mobile.agent.runtime.retryModels")}</Button.Label>
+          </Button>
+        ) : available && models.isPending ? (
+          <Typography.Paragraph className="text-grouped-secondary">
+            {t("mobile.agent.runtime.loadingModels")}
+          </Typography.Paragraph>
+        ) : available && !models.data?.length ? (
+          <Typography.Paragraph className="text-grouped-secondary">
+            {t("mobile.agent.runtime.noModels")}
+          </Typography.Paragraph>
+        ) : null}
+      </View>
+    );
+  }
   return (
     <>
       <SettingsSection title={title}>
@@ -264,6 +320,173 @@ export function AgentRuntimeFields({
         <Typography.Paragraph>{t("mobile.agent.runtime.loadingModels")}</Typography.Paragraph>
       ) : available && showsModel && !options.length ? (
         <Typography.Paragraph>{t("mobile.agent.runtime.noModels")}</Typography.Paragraph>
+      ) : null}
+    </>
+  );
+}
+
+function BrainChoices({
+  models,
+  provider,
+  model,
+  reasoningEffort,
+  disabled,
+  onChange,
+}: {
+  models: readonly AgentModelOption[];
+  provider?: AgentProviderId;
+  model?: string;
+  reasoningEffort?: AgentReasoningEffort;
+  disabled: boolean;
+  onChange: (value: Pick<UpdateAgentInput, "provider" | "model" | "reasoningEffort">) => void;
+}) {
+  const { t } = useText();
+  const foreground = String(useCSSVariable("--openbot-text-secondary"));
+  const accent = String(useCSSVariable("--openbot-accent-text"));
+  const [expanded, setExpanded] = useState(false);
+  const selected = models.find((option) => option.provider === provider && option.id === model);
+  const supportedEfforts =
+    selected?.reasoningEffortConfigurable === false ? [] : (selected?.supportedReasoningEfforts ?? []);
+  const efforts = [
+    ...supportedEfforts.filter((effort) => effort === reasoningEffort),
+    ...supportedEfforts.filter((effort) => effort !== reasoningEffort),
+  ];
+  const allChoices = [
+    ...(!selected && model ? [{ provider, id: model, name: model, option: undefined }] : []),
+    ...models.map((option) => ({ provider: option.provider, id: option.id, name: option.name, option })),
+  ];
+  const currentChoice = allChoices.find((option) => option.provider === provider && option.id === model);
+  const otherChoices = allChoices.filter((option) => option !== currentChoice);
+  const choices = [...(currentChoice ? [currentChoice] : []), ...(expanded ? otherChoices : [])];
+  return (
+    <>
+      <Typography.Paragraph
+        className="px-1 text-grouped-secondary"
+        style={[typeScale.teamMeta, { textTransform: "uppercase" }]}
+      >
+        {t("mobile.agent.runtime.model")}
+      </Typography.Paragraph>
+      <ListGroup
+        variant="secondary"
+        className="overflow-hidden border border-grouped-border bg-grouped p-0 shadow-none"
+        style={{ borderRadius: 14 }}
+      >
+        {choices.map((option, index) => {
+          const checked = option.provider === provider && option.id === model;
+          return (
+            <View key={`${option.provider}:${option.id}`}>
+              {index > 0 ? <View className="h-px bg-grouped-border" /> : null}
+              <ListGroup.Item
+                accessibilityRole="radio"
+                accessibilityState={{ checked, disabled: disabled || !option.option }}
+                disabled={disabled || !option.option}
+                className="min-h-16 flex-row items-center gap-3 py-2 pr-1 pl-4"
+                onPress={() => {
+                  const next = option.option;
+                  if (!next) return;
+                  void haptics.impact("soft");
+                  setExpanded(false);
+                  onChange({
+                    provider: next.provider,
+                    model: next.id,
+                    reasoningEffort:
+                      next.provider === provider &&
+                      reasoningEffort &&
+                      next.supportedReasoningEfforts.includes(reasoningEffort)
+                        ? reasoningEffort
+                        : next.defaultReasoningEffort,
+                  });
+                }}
+                style={({ pressed }) => ({ opacity: disabled ? 0.45 : pressed ? 0.6 : 1 })}
+              >
+                <Brain size={18} color={foreground} />
+                <View className="min-w-0 flex-1 gap-0.5">
+                  <Typography.Paragraph weight="medium" style={{ fontFamily: "Inter", fontSize: 16, lineHeight: 21 }}>
+                    {option.name}
+                  </Typography.Paragraph>
+                  <Typography.Paragraph
+                    className="text-grouped-secondary"
+                    style={{ fontFamily: "Inter", fontSize: 13, lineHeight: 17 }}
+                  >
+                    {option.provider ? agentProviderName(option.provider) : t("mobile.agent.runtime.unavailable")}
+                  </Typography.Paragraph>
+                </View>
+                <View className="h-11 w-10 items-center justify-center">
+                  {checked ? <Check size={18} color={accent} /> : null}
+                </View>
+              </ListGroup.Item>
+            </View>
+          );
+        })}
+        {otherChoices.length ? (
+          <>
+            {choices.length ? <View className="h-px bg-grouped-border" /> : null}
+            <ListGroup.Item
+              accessibilityRole="button"
+              accessibilityState={{ expanded, disabled }}
+              disabled={disabled}
+              onPress={() => {
+                void haptics.impact("soft");
+                setExpanded((current) => !current);
+              }}
+              className="min-h-13 flex-row items-center gap-3 px-4 py-2"
+              style={({ pressed }) => ({ opacity: disabled ? 0.45 : pressed ? 0.6 : 1 })}
+            >
+              {expanded ? <ChevronUp size={18} color={foreground} /> : <Plus size={18} color={foreground} />}
+              <Typography.Paragraph
+                weight="medium"
+                className="min-w-0 flex-1 text-grouped-secondary"
+                style={{ fontFamily: "Inter", fontSize: 16, lineHeight: 21 }}
+              >
+                {t(expanded ? "mobile.agent.runtime.showFewerModels" : "mobile.agent.runtime.moreModels")}
+              </Typography.Paragraph>
+            </ListGroup.Item>
+          </>
+        ) : null}
+      </ListGroup>
+      {efforts.length ? (
+        <>
+          <Typography.Paragraph
+            className="px-1 text-grouped-secondary"
+            style={[typeScale.teamMeta, { textTransform: "uppercase" }]}
+          >
+            {t("mobile.agent.runtime.reasoning")}
+          </Typography.Paragraph>
+          <ListGroup
+            variant="secondary"
+            className="overflow-hidden border border-grouped-border bg-grouped p-0 shadow-none"
+            style={{ borderRadius: 14 }}
+          >
+            {efforts.map((effort, index) => (
+              <View key={effort}>
+                {index > 0 ? <View className="h-px bg-grouped-border" /> : null}
+                <ListGroup.Item
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: reasoningEffort === effort, disabled }}
+                  disabled={disabled}
+                  onPress={() => {
+                    void haptics.impact("soft");
+                    onChange({ reasoningEffort: effort });
+                  }}
+                  className="min-h-13 flex-row items-center gap-3 py-1 pr-1 pl-4"
+                  style={({ pressed }) => ({ opacity: disabled ? 0.45 : pressed ? 0.6 : 1 })}
+                >
+                  <Gauge size={18} color={foreground} />
+                  <Typography.Paragraph
+                    weight="medium"
+                    className="min-w-0 flex-1"
+                    style={{ fontFamily: "Inter", fontSize: 16, lineHeight: 21 }}
+                  >
+                    {t(EFFORT_LABELS[effort])}
+                  </Typography.Paragraph>
+                  <View className="h-11 w-10 items-center justify-center">
+                    {reasoningEffort === effort ? <Check size={18} color={accent} /> : null}
+                  </View>
+                </ListGroup.Item>
+              </View>
+            ))}
+          </ListGroup>
+        </>
       ) : null}
     </>
   );

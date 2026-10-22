@@ -16,13 +16,19 @@ export function AgentChatScreen() {
   const { t } = useText();
   const leaveChat = useLeaveChat();
 
-  const { agentId, messageId } = useLocalSearchParams<{ agentId: string; messageId?: string }>();
+  const { agentId, messageId, serverId } = useLocalSearchParams<{
+    agentId: string;
+    messageId?: string;
+    serverId?: string;
+  }>();
   const foreground = useThemeColor("foreground");
   const resolvedAgentId = Array.isArray(agentId) ? agentId[0] : agentId;
   const resolvedMessageId = Array.isArray(messageId) ? messageId[0] : messageId;
   // Only this agent: a change elsewhere in the workspace does not render the whole chat again.
   const agent = useMobileWorkspaceSelector((current) =>
-    current.agents.find((candidate) => candidate.id === resolvedAgentId),
+    current.agents.find(
+      (candidate) => candidate.id === resolvedAgentId && (!serverId || candidate.serverId === serverId),
+    ),
   );
   const openedAgentId = agent?.id;
   // The app icon offers the chats that the user opened last.

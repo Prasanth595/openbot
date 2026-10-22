@@ -2,8 +2,34 @@ import type { createWorkspacePreferences, RemoteWorkspacePreferences } from "@op
 
 const MAX_PINNED_AGENTS = 16;
 
-export function canToggleAgentPin(pinned: readonly string[], agentId: string): boolean {
-  return pinned.includes(agentId) || pinned.length < MAX_PINNED_AGENTS;
+/** Protect only the lead agent; the shared limit includes agent and channel pins. */
+export function canToggleAgentPin(
+  pinned: readonly string[],
+  chatId: string,
+  leadAgentId: string | null = null,
+): boolean {
+  return chatId !== leadAgentId && (pinned.includes(chatId) || pinned.length < MAX_PINNED_AGENTS);
+}
+
+/**
+ * Keep a visible lead pinned without restoring an agent the user hid. A mandatory lead may exceed
+ * the soft limit when all 16 saved pins are channels. Keep those pins; block further manual pins.
+ */
+export function withLeadAgentPin(
+  current: RemoteWorkspacePreferences,
+  agents: readonly { id: string }[],
+  hostHidden: readonly string[] = [],
+): RemoteWorkspacePreferences {
+  const hidden = new Set([...current.hidden, ...hostHidden]);
+  const available = new Set(agents.filter((agent) => !hidden.has(agent.id)).map((agent) => agent.id));
+  const pinned = current.pinned.filter((id) => available.has(id));
+  if (pinned.length === 0) {
+    const first = agents.find((agent) => available.has(agent.id));
+    if (first) pinned.push(first.id);
+  }
+  return pinned.length === current.pinned.length && pinned.every((id, index) => id === current.pinned[index])
+    ? current
+    : { ...current, pinned };
 }
 
 /** Call only with a complete server list, never a filtered or loading list. */
@@ -11,13 +37,11 @@ export function reconcileAgentPins(
   store: ReturnType<typeof createWorkspacePreferences>,
   serverId: string,
   agents: readonly { id: string }[],
+  hostHidden: readonly string[] = [],
 ) {
   const current = store.read(serverId);
-  const available = new Set(agents.map((agent) => agent.id));
-  const pinned = current.pinned.filter((id) => available.has(id));
-  if (pinned.length === current.pinned.length) return current;
-  const next = { ...current, pinned };
-  store.write(serverId, next);
+  const next = withLeadAgentPin(current, agents, hostHidden);
+  if (next !== current) store.write(serverId, next);
   return next;
 }
 

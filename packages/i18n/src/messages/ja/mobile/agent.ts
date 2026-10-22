@@ -15,7 +15,7 @@ export const messages = {
   "mobile.agent.pin.pinNamed": "{name} をピン留め",
   "mobile.agent.pin.unpinNamed": "{name} のピン留めを解除",
   "mobile.agent.pin.limitReached": "ピン留めの上限に達しました。先にチャットのピン留めを解除してください。",
-  "mobile.agent.pin.closeAction": "{name} のピン留め操作を閉じる",
+  "mobile.agent.pin.closeAction": "{name} の操作を閉じる",
   "mobile.agent.appearance.preview": "{name} のアバターのプレビュー",
   "mobile.agent.appearance.newAgent": "新しいエージェント",
   "mobile.agent.appearance.faces": "形と表情",
@@ -122,8 +122,6 @@ export const messages = {
   "mobile.agent.info.skillsUnsupported": "このホストはスキルに対応していません。ホストの OpenBot を更新してください。",
   "mobile.agent.info.noSkills": "スキルはまだありません。",
   "mobile.agent.info.skillsManaged": "このエージェントのスキルはホストで管理されています。",
-  "mobile.agent.info.skillsAddOnComputer":
-    "+ を使うと、このエージェントとスキルを作成できます。マーケットプレイスのスキルは、コンピューターの OpenBot か Web アプリで追加します。",
   "mobile.agent.info.filesUnsupported":
     "このホストはファイル管理に対応していません。ホストの OpenBot を更新してください。",
   "mobile.agent.info.memoryGone": "このメモリーは利用できなくなりました。",
@@ -256,6 +254,8 @@ export const messages = {
   "mobile.agent.record.deleteRoutineBody": "このルーティンは削除されます。",
   "mobile.agent.record.deleteRoutine": "ルーティンを削除",
   "mobile.agent.record.testStarted": "テスト実行を開始しました。結果はチャットに表示されます。",
+  "mobile.agent.profile.heading": "エージェント情報",
+  "mobile.agent.runtime.change": "変更",
   "mobile.agent.groups.brain": "頭脳",
   "mobile.agent.groups.knows": "知識",
   "mobile.agent.groups.does": "実行",

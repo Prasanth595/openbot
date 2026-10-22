@@ -4,6 +4,7 @@ import { type LayoutChangeEvent, type ScrollViewProps, View } from "react-native
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { withUniwind } from "uniwind";
+import { ScrollTouchArea } from "@/shared/components/scroll-touch-area";
 import { SheetScrollEdgeEffect } from "@/shared/components/sheet-scroll-edge-effect";
 import { isAndroid, isIOS } from "@/shared/lib/platform";
 
@@ -73,44 +74,46 @@ export function SheetScrollView({
 
   return (
     <View style={{ flex: 1 }}>
-      <StyledKeyboardAwareScrollView
-        className={className}
-        enabled={keyboardAware}
-        bottomOffset={16}
-        disableScrollOnKeyboardHide
-        mode="insets"
-        automaticallyAdjustKeyboardInsets={false}
-        style={{ flex: 1 }}
-        alwaysBounceVertical={false}
-        {...androidScrollProps}
-        overScrollMode="auto"
-        contentInsetAdjustmentBehavior={
-          nativeHeader ? (headerOverlaysContent ? "automatic" : "never") : contentInsetAdjustmentBehavior
-        }
-        keyboardDismissMode={keyboardDismissMode}
-        keyboardShouldPersistTaps={keyboardShouldPersistTaps}
-        showsVerticalScrollIndicator={showsVerticalScrollIndicator}
-        stickyHeaderIndices={stickyEdge ? [0] : undefined}
-      >
-        <View
-          className={isAndroid && stickyEdge && header ? "z-10 bg-sheet" : "z-10"}
-          style={header ? undefined : { height: 1, marginBottom: -1 }}
+      <ScrollTouchArea>
+        <StyledKeyboardAwareScrollView
+          className={className}
+          enabled={keyboardAware}
+          bottomOffset={16}
+          disableScrollOnKeyboardHide
+          mode="insets"
+          automaticallyAdjustKeyboardInsets={false}
+          style={{ flex: 1 }}
+          alwaysBounceVertical={false}
+          {...androidScrollProps}
+          overScrollMode="auto"
+          contentInsetAdjustmentBehavior={
+            nativeHeader ? (headerOverlaysContent ? "automatic" : "never") : contentInsetAdjustmentBehavior
+          }
+          keyboardDismissMode={keyboardDismissMode}
+          keyboardShouldPersistTaps={keyboardShouldPersistTaps}
+          showsVerticalScrollIndicator={showsVerticalScrollIndicator}
+          stickyHeaderIndices={stickyEdge ? [0] : undefined}
         >
-          {showCustomEdge ? (
-            <SheetScrollEdgeEffect
-              surface="sheet"
-              style={
-                header
-                  ? { bottom: -24, left: 0, position: "absolute", right: 0, top: 0 }
-                  : { height: 34, left: 0, position: "absolute", right: 0, top: 0 }
-              }
-            />
-          ) : null}
-          {header}
-        </View>
-        {androidClearHeader ? <View style={{ height: androidHeaderClearance }} /> : null}
-        <View className={contentContainerClassName}>{children}</View>
-      </StyledKeyboardAwareScrollView>
+          <View
+            className={isAndroid && stickyEdge && header ? "z-10 bg-sheet" : "z-10"}
+            style={header ? undefined : { height: 1, marginBottom: -1 }}
+          >
+            {showCustomEdge ? (
+              <SheetScrollEdgeEffect
+                surface="sheet"
+                style={
+                  header
+                    ? { bottom: -24, left: 0, position: "absolute", right: 0, top: 0 }
+                    : { height: 34, left: 0, position: "absolute", right: 0, top: 0 }
+                }
+              />
+            ) : null}
+            {header}
+          </View>
+          {androidClearHeader ? <View style={{ height: androidHeaderClearance }} /> : null}
+          <View className={contentContainerClassName}>{children}</View>
+        </StyledKeyboardAwareScrollView>
+      </ScrollTouchArea>
       {nativeHeader && headerOverlaysContent ? (
         <SheetScrollEdgeEffect
           surface="sheet"

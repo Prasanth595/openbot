@@ -7,6 +7,7 @@ import type {
   RoutineCalendarRoutine,
 } from "@openbot/contracts/ipc";
 import { markdownPreviewText } from "@openbot/contracts/markdown-preview-text";
+import { cleanAgentMessageText } from "@openbot/team-client/agent-message-text";
 import type { MobileAgent } from "@/features/workspace/context/mobile-workspace-context";
 
 /** The filters of the desktop global search, in its order, and the settings pages of this app. */
@@ -135,7 +136,7 @@ function matches(query: string, values: readonly (string | undefined)[]): boolea
 /** Thinking steps show in the activity row, not as a message, so the chat has no row to open at. */
 function searchableMessageText(message: ConversationMessage): string {
   if (message.author === "assistant" && message.itemType === "commentary") return "";
-  return markdownPreviewText(message.text);
+  return markdownPreviewText(message.author === "user" ? message.text : cleanAgentMessageText(message.text));
 }
 
 /** The reader, to tell their own messages from those of other members. */

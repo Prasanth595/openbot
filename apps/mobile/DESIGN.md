@@ -33,6 +33,99 @@ All text uses Inter, the desktop and web font, with the system font as fallback.
 
 Native ownership takes priority over HeroUI for navigation chrome. HeroUI ownership takes priority for application content.
 
+### Pencil B01, B02, B03, B05, B06, B07, B08 and Flow – Práce
+
+These screens follow the approved Pencil concept. Their exact capsule shapes, Inter type, compact
+headers use React Native layouts and HeroUI controls. This request takes priority
+over the native-chrome default for these screen headers. Expo Router owns navigation, sheets, and
+the chat zoom. The later navigation request replaces the five-item concept bar with native tabs. The controls keep accessible labels, safe areas, and the app theme. Solid themed
+surfaces keep the layout readable with Reduce Transparency.
+
+The agent profile, collaboration events and brain selector also follow the
+approved concept. The profile is a full-screen native stack page, with native form inputs.
+The brain selector uses a native sheet with a fixed detent of 0.52 to match the approved short
+panel. This is an explicit exception to the ordinary 0.85 form detent. Native grabbers,
+dismissal and inner route transitions remain active. Their content uses Inter and the concept
+row geometry. The latest user request makes the chat identity plain and restores a separate
+info button that opens the profile. Its old action sheet is removed, and Open browser is in the profile's
+Does group when the host supports browser streaming.
+
+The team card shows the first pinned agent. A complete server list adds a default lead pin if no
+visible pin exists. The lead cannot be unpinned; pin commands and native menus enforce this rule.
+Other pins stay below the card and retain pin/unpin controls. Hiding or deleting the lead selects
+a replacement without restoring a hidden agent. Add agent remains in the Team options menu. Settings remains in
+that menu and the workspace drawer. Search keeps
+task creation through `@` and uses the existing bottom field when an agent is selected for a task. Agent chat keeps a full-width composer with a model control; the task composer keeps its
+adaptive layout. New users get neutral message bubbles. A saved agent-color preference still applies.
+
+The later avatar correction keeps the original main-branch Bloub artwork on every screen,
+including inline mentions and the appearance picker. Saved seeds, colors, photos and motion stay intact.
+Transcript author icons use the saved appearance without live orbit rings. Header and activity
+icons keep the current runtime state, so starting a new turn does not animate old replies.
+Agent replies and their previews use the shared `cleanAgentMessageText` filter before rendering.
+Internal provider citation IDs have no browser URL and must not appear as broken text. Keep
+ordinary Markdown links and user-authored text unchanged. Do not rewrite stored messages.
+
+Agent-row swipe actions use two fixed-width buttons for read/unread and pin. They keep the existing
+drawer gesture and full-swipe pin action. Native context menus use labeled inline groups; they do
+not use the small element size, which turns actions into an icon palette on iOS 26.4.
+
+Flow – Práce extends the same approved layout to B09 Tasks, B11 Routines and B12 Routine detail.
+Team, Tasks, Routines, Market and Settings use one persistent Expo Router NativeTabs navigator with native platform
+icons and labels. Detail pages stay in the parent native stack, outside the tab bar. The three
+public paths stay unchanged. Native tabs keep list positions, dates and local drafts when switched;
+task drafts, selected agents and errors are scoped by host. Direct host links select the host once.
+The work tabs keep 20 pt content gutters. Tasks use a native inline text input,
+a native agent menu and the existing task-start operation. Unsaved drafts keep their discard guard.
+The schedule keeps real viewer-time-zone dates and marks actual clock changes. Routine detail uses
+only host-supported flow data; hosts without step history keep the available routine fields.
+The full-screen detail keeps a fixed bottom action area and the shared full-width chat composer.
+
+Flow – Market applies B13 Agents, B14 Apps and B15 Skills. Use the canonical public agent and
+skill catalogs, and the bundled app catalog from `marketplace/plugin-catalog`. Keep real names,
+counts and saved MCP state. On means enabled; it does not prove a successful connection.
+Market search is an in-content HeroUI field below the category tabs, as drawn in Pencil. Native
+menus own filters. Agent and skill actions open a native review sheet with the target host and,
+for a skill, a real agent picker. Install stays gated by role, connection and host capability.
+Agent rows show Added from their saved Marketplace listing identity. Skill rows show Installed from
+the installed skill ID and Marketplace origin. A successful agent receipt covers host-event delay;
+shared skill queries retain uninstall, update and repair behavior. App setup reuses the native MCP form, with canonical defaults and required credential hints.
+OAuth sign-in stays on the host until the mobile API supports it.
+
+Flow – Server a nastavení applies B04 Settings, B16 Server, B17 General and B18 Usage.
+Settings is a native main tab with a child stack; its public paths stay unchanged. Its six
+preference tiles keep a vertical icon/number row and label. Server pages open in the parent
+native stack. General preserves draft guards and actual host controls. Usage uses a native
+header and filter menus, real daily bars, totals and Model/Agent/Day breakdowns. Missing costs
+stay unknown; a known zero stays zero. The server overview shows supported actions only.
+Roles remain in Members; a separate mobile Import action is not available.
+
+Settings → Usage shows remaining plan allowances above the server's token and cost report.
+The sidebar shows compact provider rings above the profile. They open the full Usage page. Their
+content stays in the drawer's scroll area so large text and multiple accounts cannot cover the profile.
+The quota section is collapsible and starts closed each time the drawer opens or its host changes.
+Pencil B32 keeps 32 pt provider rings, remaining percentages and reset countdowns visible when collapsed.
+The collapsed ring, percentage and reset all use the shortest reported quota window, such as 5 hours.
+B33 expands to 44 pt two-window rings, a window legend, retry actions and an updated-time footer.
+Provider rows and Usage & costs open the Usage page. The closed drawer does not fetch or poll
+provider usage; the open summary uses the same five-minute cache as Usage. Short countdown units
+come from catalog keys because native unit formatting can convert hour/minute values to seconds.
+Usage events update the cached reading; they must not trigger another usage request because the
+host broadcasts them during the read itself. Status events mark quota data stale without an immediate
+read. Ordinary visible polling uses the desktop's five-minute interval.
+Main work, market and usage screens and shared settings scroll containers use `ScrollTouchArea`.
+It enables the installed iOS keyboard controller fix for React Native #54123, so a drag in empty
+content or insets reaches the native scroll view. Android keeps a normal flex container. Keep this
+at the scroll viewport; do not add filler rows or change list/keyboard geometry to capture touches.
+Use the released host usage routes, including additional accounts only when supported. Show every
+reported window, its remaining percentage and its reset time. The summary ring uses the lowest
+remaining percentage; an absent reading stays unknown. Refresh only while the page is visible and
+the app is in the foreground, on host changes, or on request. Readings use the existing account,
+session and host query scope. Native SVG rings reuse desktop brand paths; all copy uses mobile keys.
+
+The development-only `design-preview` route uses B01 sample data without workspace storage or an
+account. Release builds cannot open this route.
+
 ## Liquid Glass and platform behavior
 
 - Obtain Liquid Glass through native navigation components. Do not imitate it with blur views, gradients, translucent HeroUI cards, shadows, or screenshots of glass.
@@ -46,7 +139,7 @@ Native ownership takes priority over HeroUI for navigation chrome. HeroUI owners
 
 ### Big headers
 
-Home, Routines and Usage have a big header that the screen draws, not `headerLargeTitle`. The native
+Home and Routines have a big header that the screen draws, not `headerLargeTitle`. The native
 large title does not work under the custom scroll edge effect on iOS 27, and Android has none. Use
 `src/shared/components/large-title.tsx`:
 
@@ -296,6 +389,31 @@ respective media or identity roles. Do not replace these with foreground/backgro
 - Support light and dark appearance, dynamic type, reduced motion, reduced transparency, and sufficient contrast.
 - Favor composition and shared variants over copying styled JSX between screens.
 - Keep status and instructional copy evidence-based. Do not introduce badges, alerts, or lifecycle requirements that cannot be derived from the actual session, connectivity, or persistence implementation.
+
+## Agent activity motion
+
+Mobile uses three satellites for agent activity. They show
+thinking, writing and tool activity around the saved Bloub artwork or photo. A successful turn
+ends with the completion gesture. Cancellation and failure return to rest without that gesture.
+Transcript author icons stay static.
+
+`AgentActivitySatellites` owns the Reanimated UI-thread clocks, layer fades and eye transforms.
+Within a conversation, `SatelliteMotionProvider` supplies one phase timer, clock and layer fade
+to the header and live activity row. Both start from the local send state. Keep their motion
+shared when either avatar mounts later. The first non-empty reply replaces the placeholder row,
+while the header keeps the live phase. Explicit tool and input-wait states can still show their
+status. Completion removes the activity row; only the header
+plays the completion gesture. Keep a terminal turn marker until another turn replaces it, so
+late text, progress or active-turn reads cannot restart completed activity. Old streamed history
+must not keep the activity row visible.
+Keep the avatar silhouette, identity color and SVG paths unchanged during these loops. Reserve
+the satellite overhang in chat rows. The system Reduce Motion setting and the agent-face setting
+select static poses with a 120 ms opacity fade. Pause clocks when the screen loses focus or the
+application enters the background, and stop them on unmount.
+
+Activity phases are mobile presentation state derived from existing turn events. Do not change
+the released Team API to carry animation state. The development-only `openbot://motion-preview`
+page can show each phase at 24, 36, 64 and 88 points without sending messages or running tools.
 
 ## Development workflow
 

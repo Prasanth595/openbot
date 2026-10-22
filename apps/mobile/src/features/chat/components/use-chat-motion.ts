@@ -17,7 +17,7 @@ import { useReducedMotion } from "@/shared/lib/motion";
 import { chatContentIsVisible } from "../model/chat-layout";
 
 /** The space under each row of the list. */
-export const CHAT_ROW_GAP = 10;
+export const CHAT_ROW_GAP = 14;
 /** A message from search opens this far under the header. */
 const FOCUS_GAP = 12;
 
@@ -122,6 +122,7 @@ export function useChatMotion(
   const [userScrolled, setUserScrolled] = useState(false);
   const [historyVisible, setHistoryVisible] = useState(false);
   const [responseVisible, setResponseVisible] = useState(true);
+  const [anchoringSend, setAnchoringSend] = useState(false);
   const pending = useRef<{ baseline: string | null; first: boolean; fromLatest: boolean } | null>(null);
   const followLatest = useRef(true);
   const [keyboardLiftBehavior, setKeyboardLiftBehavior] = useState<"whenAtEnd" | "never">("whenAtEnd");
@@ -201,7 +202,8 @@ export function useChatMotion(
   );
   const onComposerLayout = useCallback(
     (event: Pick<LayoutChangeEvent, "nativeEvent">) => {
-      const height = event.nativeEvent.layout.height + 20;
+      // The measured composer already includes its top gap and bottom safe area.
+      const height = event.nativeEvent.layout.height;
       measurements.current.composer = height;
       composerHeight.set(height);
     },
@@ -217,6 +219,7 @@ export function useChatMotion(
       const list = listRef.current;
       if (!send || !list || info.anchorKey === undefined || info.anchorKey === send.baseline) return;
       pending.current = null;
+      setAnchoringSend(false);
       reveal();
       // From older messages the list jumps: a long animated scroll would render every row on the way.
       const animated = !send.first && send.fromLatest && !reducedMotion;
@@ -294,6 +297,7 @@ export function useChatMotion(
   const responseStyle = useAnimatedStyle(() => ({ opacity: responseOpacity.get() }));
 
   const beginSend = useCallback(() => {
+    setAnchoringSend(true);
     followLatest.current = true;
     setKeyboardLiftBehavior("whenAtEnd");
     const baseline = current.current.lastUserId;
@@ -307,6 +311,7 @@ export function useChatMotion(
   }, [firstOpacity, responseOpacity]);
   const cancelSend = useCallback(() => {
     pending.current = null;
+    setAnchoringSend(false);
     if (sendScrollFrame.current !== null) cancelAnimationFrame(sendScrollFrame.current);
     sendScrollFrame.current = null;
     cancelAnimation(firstOffset);
@@ -372,6 +377,7 @@ export function useChatMotion(
       userScrolled,
       historyVisible,
       responseVisible,
+      anchoringSend,
       composerHeight,
       composerStyle,
       keyboardHeight,
@@ -404,6 +410,7 @@ export function useChatMotion(
       userScrolled,
       historyVisible,
       responseVisible,
+      anchoringSend,
       composerHeight,
       composerStyle,
       keyboardHeight,

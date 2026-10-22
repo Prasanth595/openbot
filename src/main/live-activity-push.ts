@@ -1,5 +1,5 @@
 import { avatarHeadColor } from "@openbot/brand/bloub-avatar";
-import type { AgentRuntimeSnapshot } from "@openbot/contracts/ipc";
+import type { AgentEvent, AgentRuntimeSnapshot } from "@openbot/contracts/ipc";
 import { LIVE_ACTIVITY_SEALED_LIMIT, type LiveActivityRelayPush } from "@openbot/contracts/live-activity-relay";
 import type { LiveActivityPushRegistration } from "@openbot/contracts/team-protocol/live-activity-push-v1";
 import { mobileTranslateFor, resolveLocale } from "@openbot/i18n/mobile";
@@ -9,6 +9,7 @@ import {
   type AgentLiveActivityProps,
   type LiveActivityUnreadAgent,
   liveActivityBloubFile,
+  liveActivityEventIsImmediate,
   liveActivityIslandText,
   liveActivityShorterProps,
   liveActivityView,
@@ -77,6 +78,8 @@ interface Registration {
   timer: { handle: ReturnType<typeof setTimeout>; at: number } | null;
   sent: { key: string; mode: string | null; at: number } | null;
   sending: boolean;
+  immediate: boolean;
+  pending: boolean;
   /** Sends that failed in a row, for the time before the next attempt. */
   failures: number;
   /** After a failed send, no update runs before this time, also for a new agent event. */
@@ -97,8 +100,13 @@ export class LiveActivityPushService {
   readonly #options: LiveActivityPushOptions;
   readonly #now: () => number;
   readonly #registrations = new Map<string, Registration>();
-  readonly #listener = () => {
-    for (const registration of this.#registrations.values()) this.#schedule(registration, EVENT_DELAY_MS);
+  readonly #listener = (event: AgentEvent) => {
+    const immediate = liveActivityEventIsImmediate(event);
+    for (const registration of this.#registrations.values()) {
+      registration.immediate ||= immediate;
+      registration.pending = true;
+      this.#schedule(registration, immediate ? 0 : EVENT_DELAY_MS);
+    }
   };
   #scope = Scope.makeUnsafe();
   #listening = false;
@@ -137,6 +145,8 @@ export class LiveActivityPushService {
       // The phone showed its own state last. The next update is sent, also when it matches the last one.
       sent: null,
       sending: false,
+      immediate: false,
+      pending: false,
       failures: 0,
       retryAt: 0,
     };
@@ -166,7 +176,9 @@ export class LiveActivityPushService {
     if (this.#now() >= (startedAt ?? registration.startedAt) + ACTIVITY_LIFETIME_MS) return false;
     if (alert) {
       registration.alert = alert;
-      this.#schedule(registration, EVENT_DELAY_MS);
+      registration.immediate = true;
+      registration.pending = true;
+      this.#schedule(registration, 0);
     }
     return true;
   }
@@ -212,7 +224,7 @@ export class LiveActivityPushService {
       return;
     }
     if (registration.sending) {
-      this.#schedule(registration, EVENT_DELAY_MS);
+      registration.pending = true;
       return;
     }
     // A timer from before a failed send can fire early. `#schedule` moves the update to the retry time.
@@ -220,6 +232,7 @@ export class LiveActivityPushService {
       this.#schedule(registration, 0);
       return;
     }
+    const immediate = registration.immediate;
     const props = this.#view(registration);
     const mode = props?.mode ?? null;
     const key = JSON.stringify(props);
@@ -227,10 +240,12 @@ export class LiveActivityPushService {
     // An alert goes at once, also when the view did not change.
     const alert = props ? registration.alert : null;
     if (!alert && sent && sent.key === key && now - sent.at < KEEPALIVE_MS) {
+      registration.immediate = false;
+      registration.pending = false;
       if (props) this.#schedule(registration, sent.at + KEEPALIVE_MS - now);
       return;
     }
-    if (!alert && sent && sent.mode === mode && now - sent.at < SAME_MODE_INTERVAL_MS) {
+    if (!immediate && !alert && sent && sent.mode === mode && now - sent.at < SAME_MODE_INTERVAL_MS) {
       this.#schedule(registration, sent.at + SAME_MODE_INTERVAL_MS - now);
       return;
     }
@@ -241,10 +256,12 @@ export class LiveActivityPushService {
       sealed: props ? this.#sealToFit(props, registration.keys) : null,
       timestamp: Math.floor(now / 1000),
       staleAt: props ? Math.floor((now + STALE_AFTER_MS) / 1000) : null,
-      priority: !alert && sent?.mode === mode ? 5 : 10,
+      priority: !immediate && !alert && sent?.mode === mode ? 5 : 10,
       alert,
     };
     registration.sending = true;
+    registration.immediate = false;
+    registration.pending = false;
     registration.sent = { key, mode, at: now };
     yield* this.#options.send(push).pipe(
       Effect.tap((result) =>
@@ -261,6 +278,7 @@ export class LiveActivityPushService {
         Effect.sync(() => {
           // Preserve the existing backoff policy after an operational failure.
           registration.sent = sent;
+          registration.immediate ||= immediate;
           registration.failures += 1;
           registration.retryAt = this.#now() + Math.min(RETRY_MS * 2 ** (registration.failures - 1), RETRY_MAX_MS);
           this.#options.logger?.warn("Live Activity update was not sent:", toLogValue(error.cause));
@@ -270,6 +288,7 @@ export class LiveActivityPushService {
       Effect.ensuring(
         Effect.sync(() => {
           registration.sending = false;
+          if (registration.pending) this.#schedule(registration, registration.immediate ? 0 : EVENT_DELAY_MS);
         }),
       ),
     );

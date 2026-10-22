@@ -389,12 +389,32 @@ jobs:
         if: ${{ !cancelled() }}
         run: bun run test:antigravity-usage
 
+      - name: Run the Live Activity lifecycle E2E test
+        if: ${{ !cancelled() }}
+        run: bun scripts/live-activity-lifecycle-e2e.ts
+
+      - name: Run the mobile Live Activity recovery E2E test
+        if: ${{ !cancelled() }}
+        run: bun scripts/live-activity-server-mute-e2e.ts
+
+      - name: Run the mobile provider usage refresh E2E test
+        if: ${{ !cancelled() }}
+        run: bun scripts/mobile-provider-usage-e2e.ts
+
+      - name: Run the mobile Marketplace receipt E2E test
+        if: ${{ !cancelled() }}
+        run: bun scripts/mobile-market-install-e2e.ts
+
       - name: Upload the reports
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reverse-actions-e2e
           path: |
+            .openbot-build/live-activity-lifecycle-e2e/
+            .openbot-build/live-activity-server-mute-e2e/
+            .openbot-build/mobile-provider-usage-e2e/
+            .openbot-build/mobile-market-install-e2e/
             .openbot-build/team-api-legacy-clients-e2e/
             .openbot-build/team-session-revoke-e2e/
             .openbot-build/server-mute-e2e/

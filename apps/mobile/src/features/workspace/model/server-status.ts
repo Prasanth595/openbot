@@ -80,12 +80,20 @@ export function recoveryAttempt(status: RemoteRecoveryStatus): number {
   return Math.max(1, status.attempt);
 }
 
-/**
- * Seconds for the reconnect countdown, or null to hide it. Connecting shows the wait that follows a
- * failure. A lost connection reports zero before its first attempt starts, with no wait to show.
- */
+/** A first connection after returning to the app is not yet a failed retry. */
+export function recoveryIsRetry(status: RemoteRecoveryStatus): boolean {
+  return (
+    status.phase === "cooldown" ||
+    (status.phase === "waiting" && status.attempt > 0) ||
+    (status.phase === "connecting" && status.attempt > 1)
+  );
+}
+
+/** Only a scheduled wait has a countdown. A running connection's delay is for a future failure. */
 export function recoveryCountdown(status: RemoteRecoveryStatus): number | null {
-  return status.remainingSeconds > 0 ? status.remainingSeconds : null;
+  return (status.phase === "waiting" || status.phase === "cooldown") && status.remainingSeconds > 0
+    ? status.remainingSeconds
+    : null;
 }
 
 export function serverKind(hostId: string, pairedHostId: string | undefined): MobileServer["kind"] {

@@ -52,6 +52,10 @@ export const queryKeys = {
     ...queryKeys.agentRecord(scope, serverId, agentId, "routines"),
     "events",
   ],
+  agentRoutineFlow: (scope: QueryScope, serverId: string, agentId: string) => [
+    ...queryKeys.agentRecord(scope, serverId, agentId, "routines"),
+    "flow",
+  ],
   agentProviderAccounts: (scope: QueryScope, serverId: string, agentId: string) => [
     ...queryKeys.agentInfo(scope, serverId, agentId),
     "provider-accounts",
@@ -96,6 +100,8 @@ export const queryKeys = {
   serverStorage: (scope: QueryScope, serverId: string) => ["server-storage", ...scope, serverId],
   serverSites: (scope: QueryScope, serverId: string) => ["server-sites", ...scope, serverId],
   providerStatus: (scope: QueryScope, serverId: string) => ["provider-status", ...scope, serverId],
+  providerUsage: (scope: QueryScope, serverId: string) => ["provider-usage", ...scope, serverId],
+  providerAccountUsage: (scope: QueryScope, serverId: string) => ["provider-account-usage", ...scope, serverId],
   providerRuntimes: (scope: QueryScope, serverId: string) => ["provider-runtimes", ...scope, serverId],
   providerKey: (scope: QueryScope, serverId: string, provider: string) => [
     "provider-key",

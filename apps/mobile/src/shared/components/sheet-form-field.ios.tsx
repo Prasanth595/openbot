@@ -36,7 +36,8 @@ export function SheetFormField({
   useEffect(() => {
     nativeValue.set(value);
   }, [nativeValue, value]);
-  const height = multiline ? 108 : 54;
+  const embedded = appearance === "embedded";
+  const height = multiline ? 108 : embedded ? 28 : 54;
 
   return (
     <View className="gap-2">
@@ -47,12 +48,12 @@ export function SheetFormField({
         </Typography>
       )}
       <View
-        className="bg-grouped"
+        className={embedded ? "bg-transparent" : "bg-grouped"}
         style={{
           borderColor: border,
           borderCurve: "continuous",
-          borderRadius: 16,
-          borderWidth: appearance === "soft" ? 0 : 1,
+          borderRadius: embedded ? 0 : 16,
+          borderWidth: appearance === "default" ? 1 : 0,
           height,
           overflow: "hidden",
           flexDirection: "row",
@@ -76,7 +77,7 @@ export function SheetFormField({
             returnKeyType={returnKeyType}
             secureTextEntry={secureTextEntry}
             selectionColor={foreground}
-            style={{ height, paddingHorizontal: 16 }}
+            style={{ height, paddingHorizontal: embedded ? 0 : 16 }}
             textStyle={{ color: String(foreground), fontFamily: APP_FONT, fontSize: 16 }}
             value={nativeValue}
             onChangeText={onChangeText}

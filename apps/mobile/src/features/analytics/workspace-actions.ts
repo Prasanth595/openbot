@@ -36,8 +36,10 @@ export function trackWorkspaceActions(
         },
         () => workspace.sendMessage(id, text, attachments, reply, server, clientMessageId),
       ),
-    respondToPrompt: (id, input) =>
-      run("agent_input_action", { kind: "prompt", decision: "answered" }, () => workspace.respondToPrompt(id, input)),
+    respondToPrompt: (id, input, serverId) =>
+      run("agent_input_action", { kind: "prompt", decision: "answered" }, () =>
+        workspace.respondToPrompt(id, input, serverId),
+      ),
     respondToApproval: (server, input) =>
       run("agent_input_action", { kind: "approval", decision: input.decision }, () =>
         workspace.respondToApproval(server, input),

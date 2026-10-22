@@ -15,7 +15,7 @@ export const messages = {
   "mobile.agent.pin.pinNamed": "{name} anheften",
   "mobile.agent.pin.unpinNamed": "{name} lösen",
   "mobile.agent.pin.limitReached": "Maximale Anzahl angehefteter Chats erreicht. Löse zuerst einen Chat los.",
-  "mobile.agent.pin.closeAction": "Anheftaktion für {name} schließen",
+  "mobile.agent.pin.closeAction": "Aktionen für {name} schließen",
   "mobile.agent.appearance.preview": "Avatarvorschau für {name}",
   "mobile.agent.appearance.newAgent": "Neuer Agent",
   "mobile.agent.appearance.faces": "Form und Ausdruck",
@@ -125,8 +125,6 @@ export const messages = {
     "Dieser Host unterstützt keine Fähigkeiten. Aktualisiere OpenBot auf dem Host.",
   "mobile.agent.info.noSkills": "Noch keine Fähigkeiten.",
   "mobile.agent.info.skillsManaged": "Die Fähigkeiten dieses Agenten werden auf dem Host verwaltet.",
-  "mobile.agent.info.skillsAddOnComputer":
-    "Verwende +, um mit diesem Agenten eine Fähigkeit zu erstellen. Füge Fähigkeiten aus dem Marketplace in OpenBot auf einem Computer oder in der Web-App hinzu.",
   "mobile.agent.info.filesUnsupported":
     "Dieser Host unterstützt keine Dateiverwaltung. Aktualisiere OpenBot auf dem Host.",
   "mobile.agent.info.memoryGone": "Diese Erinnerung ist nicht mehr verfügbar.",
@@ -261,6 +259,8 @@ export const messages = {
   "mobile.agent.record.deleteRoutineBody": "Diese Routine wird entfernt.",
   "mobile.agent.record.deleteRoutine": "Routine löschen",
   "mobile.agent.record.testStarted": "Der Testlauf wurde gestartet. Das Ergebnis erscheint im Chat.",
+  "mobile.agent.profile.heading": "AGENTENINFO",
+  "mobile.agent.runtime.change": "Ändern",
   "mobile.agent.groups.brain": "Gehirn",
   "mobile.agent.groups.knows": "Wissen",
   "mobile.agent.groups.does": "Aufgaben",

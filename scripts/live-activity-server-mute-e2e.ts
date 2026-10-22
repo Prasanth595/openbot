@@ -2,6 +2,7 @@
 // server that the user muted, or set to notify about "Nothing", does not start or update the
 // activity, and its host does not get the push token that updates it. A change ends or starts the
 // activity at once, also while it runs, and a timed mute that ends shows the server again.
+// Avatar failures also recover with a bounded retry before the host can name the saved files.
 //
 // It renders the real mobile hook (`useLiveActivity`) with React, with the real settings stores, the
 // Dynamic Island coordinator, the Live Activity view, and `LiveActivitySync`. Only the boundaries
@@ -17,6 +18,7 @@ import { pathToFileURL } from "node:url";
 import type { AgentEvent, AgentSummary } from "@openbot/contracts/ipc";
 import { LIVE_ACTIVITY_PUSH_ROUTES } from "@openbot/contracts/team-protocol/live-activity-push-v1";
 import { createOpenBotLogger } from "@openbot/logging";
+import { LIVE_ACTIVITY_MOODS, liveActivityBloubFile } from "@openbot/team-client/live-activity-props";
 import { plugin } from "bun";
 
 const OUT = resolve(import.meta.dirname, "../.openbot-build/live-activity-server-mute-e2e");
@@ -40,6 +42,22 @@ interface ActivityRecord {
 }
 
 const activities: ActivityRecord[] = [];
+const avatarFiles = new Set<string>();
+const avatarAttempts = new Map<string, number>();
+type AvatarFailure = "render-null" | "render-throw" | "save-null" | "save-throw";
+let avatarFault: { kind: AvatarFailure; remaining: number; onFailure?: () => void } | null = null;
+let avatarFailures = 0;
+let invalidAvatarRegistrations = 0;
+const FAILED_AVATAR = liveActivityBloubFile(`seed-${SERVER_A}`, null, "responded");
+
+function failAvatar(file: string, operation: "render" | "save"): boolean {
+  if (file !== FAILED_AVATAR || !avatarFault?.kind.startsWith(operation) || avatarFault.remaining <= 0) return false;
+  avatarFault.remaining -= 1;
+  avatarFailures += 1;
+  avatarFault.onFailure?.();
+  if (avatarFault.kind.endsWith("throw")) throw new Error("Injected avatar failure.");
+  return true;
+}
 
 function createActivity(props: unknown) {
   const record: ActivityRecord = {
@@ -72,10 +90,21 @@ const native = {
     getInstances: () => [],
   },
   setSealKeys: () => undefined,
-  saveAvatar: (name: string) => name,
-  hasAvatar: () => true,
-  renderBloub: () => null,
-  removeAvatars: () => undefined,
+  saveAvatar: (name: string) => {
+    const file = `avatar-${name}.png`;
+    if (failAvatar(file, "save")) return null;
+    avatarFiles.add(file);
+    return file;
+  },
+  hasAvatar: (file: string) => avatarFiles.has(file),
+  renderBloub: (seed: string, hue: null, mood: (typeof LIVE_ACTIVITY_MOODS)[number]) => {
+    const file = liveActivityBloubFile(seed, hue, mood);
+    avatarAttempts.set(file, (avatarAttempts.get(file) ?? 0) + 1);
+    return failAvatar(file, "render") ? null : "data:image/png;base64,e2e";
+  },
+  removeAvatars: (keep: ReadonlySet<string>) => {
+    for (const file of avatarFiles) if (!keep.has(file)) avatarFiles.delete(file);
+  },
 };
 
 /** The content that the running activity shows, or `null` when none runs. */
@@ -127,6 +156,10 @@ plugin({
       const { textFor }: { textFor: (locale: "en") => unknown } = await import(mobileUrl("shared/lib/text-value.ts"));
       return { loader: "object", exports: { currentText: () => textFor("en"), currentLocale: () => "en" } };
     });
+    build.onLoad({ filter: /analytics[/\\]mobile-analytics\.ts$/ }, () => ({
+      loader: "object",
+      exports: { mobileAnalytics: { track: () => undefined } },
+    }));
     build.onLoad({ filter: /analytics[/\\]failure-reports\.ts$/ }, () => ({
       loader: "object",
       exports: { showFailureAlert: () => undefined },
@@ -155,11 +188,18 @@ interface Root {
 const mobileRequire = createRequire(join(MOBILE_SRC, "../package.json"));
 const { createElement }: { createElement: (component: () => null) => unknown } = mobileRequire("react");
 const { createRoot }: { createRoot: (container: Element) => Root } = mobileRequire("react-dom/client");
+const { flushSync }: { flushSync: (run: () => void) => void } = mobileRequire("react-dom");
 
 // React DOM reads the global window. The hook renders nothing.
 const { JSDOM }: { JSDOM: new (html: string) => { window: Window & typeof globalThis } } = require("jsdom");
 const dom = new JSDOM("<!doctype html><div></div>");
-Object.assign(globalThis, { window: dom.window, document: dom.window.document });
+Object.assign(globalThis, {
+  window: dom.window,
+  document: dom.window.document,
+  requestAnimationFrame: (callback: FrameRequestCallback) =>
+    dom.window.setTimeout(() => callback(performance.now()), 0),
+  cancelAnimationFrame: (frame: number) => dom.window.clearTimeout(frame),
+});
 
 // --- The real mobile modules. ---
 
@@ -219,10 +259,16 @@ const liveActivities: { useLiveActivitiesPreference: PreferenceStore<{ enabled: 
 
 // --- The harness. ---
 
-const requests: { serverId: string; path: string; token?: string }[] = [];
+const requests: { serverId: string; path: string; token?: string; away?: boolean }[] = [];
 const post: Post = async (serverId, path, body) => {
+  if (path === LIVE_ACTIVITY_PUSH_ROUTES.register) {
+    // The real host derives these fallback names when no agent photo was registered.
+    if (LIVE_ACTIVITY_MOODS.some((mood) => !avatarFiles.has(liveActivityBloubFile(`seed-${serverId}`, null, mood))))
+      invalidAvatarRegistrations += 1;
+  }
   const token = typeof body === "object" && body !== null && "token" in body ? String(body.token) : undefined;
-  requests.push({ serverId, path, ...(token === undefined ? {} : { token }) });
+  const away = typeof body === "object" && body !== null && "away" in body ? body.away === true : undefined;
+  requests.push({ serverId, path, ...(token === undefined ? {} : { token }), ...(away === undefined ? {} : { away }) });
 };
 const liveState = {
   get: () => ({ unreadAgentIds: [], unreadCounts: {} }),
@@ -277,24 +323,36 @@ async function waitFor(label: string, probe: () => boolean): Promise<void> {
 interface Session {
   apply: (serverId: string, event: AgentEvent) => void;
   root: Root;
+  selectServer: (serverId: string) => void;
+  setForeground: (foreground: boolean) => void;
 }
 
-async function startSession(serverIds: readonly string[], settings: Record<string, ServerNotificationSetting>) {
+async function startSession(
+  serverIds: readonly string[],
+  settings: Record<string, ServerNotificationSetting>,
+  foreground = true,
+) {
   activities.length = 0;
   requests.length = 0;
   keychain.clear();
+  avatarFiles.clear();
+  avatarAttempts.clear();
+  avatarFailures = 0;
+  invalidAvatarRegistrations = 0;
   liveActivities.useLiveActivitiesPreference.setState({ enabled: true, ready: true });
   notifications.usePushNotificationPreference.setState({ ready: true, saving: false, servers: settings });
   const servers = serverIds.map((id) => ({ id, state: "online" as const }));
   const agents = serverIds.map(agent);
+  let activeServerId = serverIds[0] ?? null;
+  let isForeground = foreground;
   const session: Partial<Session> = {};
   function Harness() {
     session.apply = useLiveActivity({
       servers,
-      activeServerId: serverIds[0] ?? null,
+      activeServerId,
       agents,
       liveState,
-      foreground: true,
+      foreground: isForeground,
       post,
       loadAgentAvatar: async () => "",
       supportsPush: () => true,
@@ -320,7 +378,18 @@ async function startSession(serverIds: readonly string[], settings: Record<strin
       },
     });
   }
-  return { apply, root };
+  return {
+    apply,
+    root,
+    selectServer: (serverId: string) => {
+      activeServerId = serverId;
+      flushSync(() => root.render(createElement(Harness)));
+    },
+    setForeground: (next: boolean) => {
+      isForeground = next;
+      flushSync(() => root.render(createElement(Harness)));
+    },
+  };
 }
 
 function shows(serverId: string): boolean {
@@ -388,6 +457,115 @@ const cases: [string, () => Promise<CaseResult>][] = [
       await waitFor("server A has the push token", () => registeredWith(SERVER_A));
       root.unmount();
       return { name: "baseline", passed: true, checks: { activityShowsServer: true, tokenForHost: true } };
+    },
+  ],
+  ...(["render-null", "render-throw", "save-null", "save-throw"] as const).map(
+    (kind): [string, () => Promise<CaseResult>] => [
+      `a transient ${kind} avatar failure recovers`,
+      async () => {
+        avatarFault = { kind, remaining: 1 };
+        let root: Root | undefined;
+        try {
+          ({ root } = await startSession([SERVER_A], {}));
+          await waitFor("the host registers after the avatar retry", () => registeredWith(SERVER_A));
+          assert.equal(avatarFailures, 1);
+          assert.equal(avatarAttempts.get(FAILED_AVATAR), 2);
+          assert.equal(invalidAvatarRegistrations, 0, "The host must name only saved avatar files.");
+          return {
+            name: `transient ${kind} avatar failure`,
+            passed: true,
+            checks: { recoveredWithoutRemount: true, retriedOnce: true, registeredWithSavedFiles: true },
+          };
+        } finally {
+          root?.unmount();
+          avatarFault = null;
+        }
+      },
+    ],
+  ),
+  [
+    "a permanent avatar failure stops and a later foreground change can recover",
+    async () => {
+      avatarFault = { kind: "render-null", remaining: Number.POSITIVE_INFINITY };
+      let session: Awaited<ReturnType<typeof startSession>> | undefined;
+      try {
+        session = await startSession([SERVER_A], {});
+        await waitFor("both bounded avatar attempts fail", () => avatarFailures === 2);
+        // Let queued React work finish. A failed preparation must not schedule another render.
+        await new Promise((done) => setImmediate(done));
+        assert.equal(avatarAttempts.get(FAILED_AVATAR), 2);
+        assert.equal(everRegisteredWith(SERVER_A), false, "Missing fallback files must block host registration.");
+        assert.ok(shows(SERVER_A), "The app can still show the current activity.");
+        avatarFault = null;
+        session.setForeground(false);
+        await waitFor("a new preparation repairs the cached failure", () => registeredWith(SERVER_A));
+        assert.equal(avatarAttempts.get(FAILED_AVATAR), 3);
+        assert.equal(invalidAvatarRegistrations, 0);
+        return {
+          name: "permanent avatar failure and later recovery",
+          passed: true,
+          checks: { attemptsBounded: true, noUnsafeRegistration: true, foregroundChangeRecovers: true },
+        };
+      } finally {
+        session?.root.unmount();
+        avatarFault = null;
+      }
+    },
+  ],
+  [
+    "a host change cancels the failed avatar preparation before its retry",
+    async () => {
+      let session: Awaited<ReturnType<typeof startSession>> | undefined;
+      avatarFault = {
+        kind: "render-null",
+        remaining: 1,
+        onFailure: () => {
+          assert.ok(session, "The session must exist before avatar preparation.");
+          session.selectServer(SERVER_B);
+        },
+      };
+      try {
+        session = await startSession([SERVER_A, SERVER_B], {});
+        await waitFor("the new host has the push token", () => registeredWith(SERVER_B));
+        assert.equal(avatarFailures, 1);
+        assert.equal(avatarAttempts.get(FAILED_AVATAR), 1, "Cancelled work must not draw the failed face again.");
+        assert.equal(everRegisteredWith(SERVER_A), false);
+        assert.equal(invalidAvatarRegistrations, 0);
+        return {
+          name: "host change during avatar failure",
+          passed: true,
+          checks: { cancelledBeforeRetry: true, previousHostNeverRegistered: true, newHostRegistered: true },
+        };
+      } finally {
+        session?.root.unmount();
+        avatarFault = null;
+      }
+    },
+  ],
+  [
+    "background registration does not need an animation frame",
+    async () => {
+      const previousFrame = globalThis.requestAnimationFrame;
+      let frameRequests = 0;
+      globalThis.requestAnimationFrame = () => {
+        frameRequests += 1;
+        return 0;
+      };
+      let root: Root | undefined;
+      try {
+        ({ root } = await startSession([SERVER_A], {}, false));
+        await waitFor("the background host has the push token", () => registeredWith(SERVER_A));
+        assert.equal(frameRequests, 0, "A background registration must not request an animation frame.");
+        assert.ok(requests.some((request) => request.path === LIVE_ACTIVITY_PUSH_ROUTES.register && request.away));
+        return {
+          name: "background registration",
+          passed: true,
+          checks: { registeredWithoutFrame: true, hostMarkedAway: true },
+        };
+      } finally {
+        root?.unmount();
+        globalThis.requestAnimationFrame = previousFrame;
+      }
     },
   ],
   ["mute on", () => hiddenAtStart("mute on", MUTED_FOREVER)],

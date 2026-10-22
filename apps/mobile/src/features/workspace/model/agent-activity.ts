@@ -7,15 +7,15 @@ export type MobileAgentWaitReason = "question" | "approval" | "takeover";
 export interface MobileAgentActivity {
   agentId?: string;
   turnId: string | null;
-  /**
-   * The thread of the turn, when an event named it. A turn on another thread than the agent's own,
-   * such as the work of a channel, is not the work of its chat.
-   */
+  /** A channel turn must not appear as work in the agent's own chat. */
   threadId?: string;
-  phase: "working" | "responding" | "waiting";
+  phase: "working" | "responding" | "tool" | "waiting" | "finished";
   detail: string | null;
   /** Set only while `phase` is `waiting`. */
   reason?: MobileAgentWaitReason;
+  /** Local presentation metadata; never sent over the Team API. */
+  completionStatus?: string;
+  finishedAt?: number;
 }
 
 export type MobileAgentActivities = Record<string, MobileAgentActivity>;
@@ -41,6 +41,7 @@ export function openTurnActivity(
  */
 export function agentActivityMood(activity: MobileAgentActivity | undefined): AvatarMood {
   if (!activity) return "idle";
+  if (activity.phase === "finished") return activity.completionStatus === "completed" ? "responded" : "failed";
   return activity.phase === "waiting" ? "waiting" : "working";
 }
 
@@ -55,7 +56,9 @@ function sameActivity(left: MobileAgentActivity | undefined, right: MobileAgentA
     left.threadId === right.threadId &&
     left.phase === right.phase &&
     left.detail === right.detail &&
-    left.reason === right.reason
+    left.reason === right.reason &&
+    left.completionStatus === right.completionStatus &&
+    left.finishedAt === right.finishedAt
   );
 }
 
@@ -80,17 +83,23 @@ export function reduceAgentActivity(
   event: AgentEvent | TeamRealtimeEvent,
 ): MobileAgentActivities {
   if (event.type === "runtime-snapshot") {
-    const next: MobileAgentActivities = {};
+    const next: MobileAgentActivities = Object.fromEntries(
+      // One terminal turn per agent prevents late events from restarting work after the gesture.
+      Object.entries(current).filter(([, activity]) => activity.phase === "finished"),
+    );
     for (const turn of event.snapshot.activeTurns) {
       const previous = current[turn.agentId];
+      if (previous?.phase === "finished" && previous.turnId === turn.turnId) continue;
       next[turn.agentId] =
-        previous?.turnId === turn.turnId && previous.phase !== "waiting"
+        previous?.turnId === turn.turnId && previous.phase !== "waiting" && previous.phase !== "finished"
           ? previous
           : { turnId: turn.turnId, threadId: turn.threadId, phase: "working", detail: null };
     }
     for (const work of event.snapshot.work) {
       if (work.status === "failed") continue;
-      next[work.agentId] ??= { turnId: work.turnId, phase: "working", detail: null };
+      const previous = next[work.agentId];
+      if (!previous || (previous.phase === "finished" && previous.turnId !== work.turnId))
+        next[work.agentId] = { turnId: work.turnId, phase: "working", detail: null };
     }
     // The later list wins, so a question names the wait over a takeover, and both over an approval.
     const waits = [
@@ -99,6 +108,7 @@ export function reduceAgentActivity(
       ...event.snapshot.pendingPrompts.map((request) => ({ request, reason: "question" as const })),
     ];
     for (const { request, reason } of waits) {
+      if (next[request.agentId]?.phase === "finished" && next[request.agentId]?.turnId === request.turnId) continue;
       next[request.agentId] = {
         turnId: request.turnId,
         threadId: request.threadId,
@@ -113,6 +123,7 @@ export function reduceAgentActivity(
     // A turn that started before the phone knew its task belongs to the task, not to the chat.
     const { agentId, tasks } = event.snapshot;
     const activity = current[agentId];
+    if (activity?.phase === "finished") return current;
     if (!activity?.turnId || !tasks.some((task) => task.activeTurnId === activity.turnId)) return current;
     const next = { ...current };
     delete next[agentId];
@@ -125,12 +136,14 @@ export function reduceAgentActivity(
   }
   if (event.type === "turn-started" || event.type === "turn-progress" || event.type === "conversation-delta") {
     const previous = current[event.agentId];
+    // Streaming and turn events use separate channels. A late event cannot restart a finished turn.
+    if (previous?.phase === "finished" && previous.turnId === event.turnId) return current;
     if (event.type === "conversation-delta" && previous?.turnId === event.turnId && previous.phase === "responding")
       return current;
     return withActivity(current, event.agentId, {
       turnId: event.turnId,
       threadId: event.threadId,
-      phase: event.type === "conversation-delta" ? "responding" : "working",
+      phase: event.type === "conversation-delta" ? "responding" : event.type === "turn-progress" ? "tool" : "working",
       detail:
         event.type === "turn-progress" ? event.detail : previous?.turnId === event.turnId ? previous.detail : null,
     });
@@ -139,11 +152,13 @@ export function reduceAgentActivity(
     const { agentId, activeTurnId, messages } = event.snapshot;
     if (!activeTurnId) {
       if (!current[agentId]) return current;
+      if (current[agentId]?.phase === "finished") return current;
       const next = { ...current };
       delete next[agentId];
       return next;
     }
     const previous = current[agentId];
+    if (previous?.phase === "finished" && previous.turnId === activeTurnId) return current;
     const responding = messages.some(
       (message) =>
         message.turnId === activeTurnId &&
@@ -154,7 +169,7 @@ export function reduceAgentActivity(
         message.status === "streaming" &&
         message.text.trim().length > 0,
     );
-    const kept = previous?.turnId === activeTurnId ? previous : undefined;
+    const kept = previous?.turnId === activeTurnId && previous.phase !== "finished" ? previous : undefined;
     const threadId = event.snapshot.threadId ?? kept?.threadId;
     return withActivity(current, agentId, {
       turnId: activeTurnId,
@@ -165,15 +180,23 @@ export function reduceAgentActivity(
     });
   }
   if (event.type === "turn-completed") {
-    if (current[event.agentId]?.turnId !== event.turnId) return current;
-    const next = { ...current };
-    delete next[event.agentId];
-    return next;
+    if (current[event.agentId]?.phase === "finished" && current[event.agentId]?.turnId === event.turnId) return current;
+    const previous = current[event.agentId];
+    if (previous && previous.phase !== "finished" && previous.turnId !== event.turnId) return current;
+    return withActivity(current, event.agentId, {
+      turnId: event.turnId,
+      threadId: event.threadId,
+      phase: "finished",
+      detail: null,
+      completionStatus: event.status,
+      finishedAt: Date.now(),
+    });
   }
   if (event.type === "prompt" || event.type === "approval" || event.type === "browser-takeover-requested") {
     const request = event.type === "approval" ? event.approval : event.type === "prompt" ? event : event.request;
     const reason = event.type === "approval" ? "approval" : event.type === "prompt" ? "question" : "takeover";
     const previous = current[request.agentId];
+    if (previous?.phase === "finished" && previous.turnId === request.turnId) return current;
     const kept =
       previous?.phase === "waiting" && previous.turnId === request.turnId && previous.reason
         ? WAIT_RANK[previous.reason] > WAIT_RANK[reason]
@@ -190,7 +213,7 @@ export function reduceAgentActivity(
   }
   if (event.type === "agent-input-resolved") {
     const activity = current[event.agentId];
-    if (activity) {
+    if (activity && activity.phase !== "finished") {
       return withActivity(current, event.agentId, {
         ...(activity.agentId ? { agentId: activity.agentId } : {}),
         turnId: activity.turnId,

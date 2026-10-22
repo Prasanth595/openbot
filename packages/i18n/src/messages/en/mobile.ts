@@ -8,6 +8,7 @@ import { messages as mobileChannel } from "./mobile/channel";
 import { messages as mobileChat } from "./mobile/chat";
 import { messages as mobileLink } from "./mobile/link";
 import { messages as mobileLiveActivity } from "./mobile/liveActivity";
+import { messages as mobileMarket } from "./mobile/market";
 import { messages as mobileOnboarding } from "./mobile/onboarding";
 import { messages as mobileSearch } from "./mobile/search";
 import { messages as mobileServer } from "./mobile/server";
@@ -33,6 +34,7 @@ export const enMobile = {
   ...mobileServer,
   ...mobileSettings,
   ...mobileLink,
+  ...mobileMarket,
   ...mobileLiveActivity,
   ...mobileOnboarding,
   ...mobileWorkspace,

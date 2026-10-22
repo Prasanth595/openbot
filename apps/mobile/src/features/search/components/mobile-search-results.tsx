@@ -341,14 +341,14 @@ export function MobileSearchResults({
                   entering={item.entering}
                   exiting={item.exiting}
                   layout={item.layout}
-                  className="pb-2"
+                  style={{ marginBottom: 20 }}
                 >
                   {/* The rows of a section that comes in come in with it. */}
                   <BlurEnter mode={motion}>
                     <LayoutAnimationConfig skipEntering>
                       {filter === "all" ? (
                         <SearchCaption
-                          label={label}
+                          label={t("mobile.search.sectionCount", { label, count: section.results.length })}
                           action={
                             section.more
                               ? {
@@ -424,9 +424,9 @@ export function SearchCaption({
 }) {
   return (
     // 24 pt above each heading, so the sections read as groups and do not run into each other.
-    <View className="flex-row items-center justify-between gap-3 pt-6 pr-3 pb-1.5 pl-5">
-      <Typography.Paragraph accessibilityRole="header" className="font-medium text-muted" style={typeScale.caption}>
-        {label}
+    <View className="flex-row items-center justify-between gap-3" style={{ paddingHorizontal: 24, paddingBottom: 4 }}>
+      <Typography.Paragraph accessibilityRole="header" className="text-muted" style={typeScale.teamMeta}>
+        {label.toUpperCase()}
       </Typography.Paragraph>
       {action ? (
         <Button size="sm" variant="ghost" accessibilityLabel={action.accessibilityLabel} onPress={action.onPress}>

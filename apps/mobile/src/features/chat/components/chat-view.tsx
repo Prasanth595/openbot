@@ -10,13 +10,17 @@ import { type ParamListBase, useNavigation } from "expo-router/react-navigation"
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
 import ArrowDown from "lucide-react-native/icons/arrow-down";
+import Brain from "lucide-react-native/icons/brain";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AppState, Keyboard, useColorScheme, View } from "react-native";
+import { AppState, Keyboard, Pressable, useColorScheme, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { KeyboardGestureArea } from "react-native-keyboard-controller";
 import Animated, { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { scheduleOnRN } from "react-native-worklets";
+import { useCSSVariable } from "uniwind";
+import { SatelliteMotionProvider } from "@/features/agents/components/agent-activity-satellites";
+import { useAgentModelLabel } from "@/features/agents/components/use-agent-model-label";
 import { getBloubAvatarColor } from "@/features/agents/model/bloub-activity";
 import { MobileConversationAnalytics } from "@/features/analytics/conversation";
 import { reportMobileNotification } from "@/features/analytics/failure-reports";
@@ -33,13 +37,16 @@ import { useChatMotion } from "@/features/chat/components/use-chat-motion";
 import type { QuestionPromptController } from "@/features/chat/components/use-question-prompt";
 import { useOutbox } from "@/features/chat/context/outbox-context";
 import { usePublishedQueuedChat } from "@/features/chat/context/queued-messages-context";
+import { presentChatActivity } from "@/features/chat/model/chat-activity";
 import {
   type ChatBubbleMessage,
   type ChatMessage,
   type PendingChatMessage,
   presentChatMessages,
 } from "@/features/chat/model/chat-messages";
+import { beginChatOpen, markChatOpen, markChatOpenFrame } from "@/features/chat/model/chat-open-performance";
 import { ConnectionStatus } from "@/features/workspace/components/connection-status";
+import { useAgentActivity } from "@/features/workspace/components/use-agent-activity";
 import { useBrowserRequests } from "@/features/workspace/components/use-live-workspace";
 import type { MobileAgent } from "@/features/workspace/context/mobile-workspace-context";
 import {
@@ -253,16 +260,28 @@ export function ChatView({
   const [appActive, setAppActive] = useState(AppState.currentState === "active");
   const reducedTransparency = useReducedTransparency();
   const server = useMobileWorkspaceSelector((current) => current.servers.find((item) => item.id === target.serverId));
+  const runtimeAgent = useMobileWorkspaceSelector((current) =>
+    target.kind === "agent"
+      ? current.agents.find((agent) => agent.id === target.id && agent.serverId === target.serverId)
+      : undefined,
+  );
+  const modelLabel = useAgentModelLabel(runtimeAgent);
+  const modelAccent = String(useCSSVariable("--openbot-accent-text"));
   const insets = useSafeAreaInsets();
   const keyboardOffset = Math.max(insets.bottom, 10) - 10;
-  const [foreground, muted, fieldBackground, raised, action, actionForeground, background] = useThemeColor([
+  const [foreground, muted, fieldBackground, raised, action, actionForeground] = useThemeColor([
     "foreground",
     "muted",
     "default",
     "surface-tertiary",
     "accent",
     "accent-foreground",
-    "background",
+  ]);
+  const [chatCanvas, composerSurface, neutralAction, neutralActionForeground] = useCSSVariable([
+    "--openbot-bg-canvas",
+    "--openbot-bg-chrome-glass",
+    "--openbot-action",
+    "--openbot-action-foreground",
   ]);
   const [replyTarget, setReplyTarget] = useState<ChatBubbleMessage | null>(null);
   // The message whose text the reader selects in its bubble, and the selected part of it.
@@ -488,7 +507,7 @@ export function ChatView({
   }, [outboxMessages, target.kind]);
   const rowsShown = useRowsAfterOpenTransition();
   const motion = useChatMotion(
-    insets.top + 84,
+    insets.top + 76,
     keyboardOffset,
     // The list takes its place at the latest message once its rows render.
     ready && rowsShown,
@@ -498,6 +517,26 @@ export function ChatView({
     questionForm?.question ? (questionForm.messageId ?? null) : null,
     holdOpening,
   );
+  const wasForeground = useRef(foregroundVisit);
+  useEffect(() => {
+    const returning = !wasForeground.current && foregroundVisit;
+    wasForeground.current = foregroundVisit;
+    if (returning && isFocused && target.kind === "agent") {
+      beginChatOpen(target.serverId, target.id, "background");
+      if (ready) markChatOpen(target.serverId, target.id, "data");
+    }
+  }, [foregroundVisit, isFocused, ready, target.kind, target.id, target.serverId]);
+  useEffect(() => {
+    if (target.kind !== "agent" || !isFocused || !foregroundVisit || !motion.historyVisible) return;
+    return markChatOpenFrame(target.serverId, target.id, "messages");
+  }, [target.kind, target.id, target.serverId, isFocused, foregroundVisit, motion.historyVisible]);
+  const composerMeasured = useRef(false);
+  const composerPaint = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    if (target.kind !== "agent" || !isFocused || !foregroundVisit || !composerMeasured.current) return;
+    return markChatOpenFrame(target.serverId, target.id, "composer");
+  }, [target.kind, target.id, target.serverId, isFocused, foregroundVisit]);
+  useEffect(() => () => composerPaint.current?.(), []);
   const atLatest = motion.atLatest;
   // The end of a window around a searched message is not the latest message.
   const showLatest = () => {
@@ -851,10 +890,19 @@ export function ChatView({
         : null,
     [sendingMessage, sendingUpload, sendsToQueue, outbox],
   );
+  const completion = useAgentActivity(target.id, true, target.serverId);
+  const activityPresentation = presentChatActivity({
+    activity,
+    completion: target.kind === "agent" ? completion : undefined,
+    activeTurnId,
+    messages,
+    sending: Boolean(sendingMessage) && !sendsToQueue,
+    awaitingTurn,
+  });
 
-  return (
+  const content = (
     <GestureDetector gesture={edgeBackGesture}>
-      <View className="flex-1" style={{ backgroundColor: background }}>
+      <View className="flex-1" style={{ backgroundColor: String(chatCanvas) }}>
         <View
           className="flex-1"
           // Nothing here may switch on the card: this view is an ancestor of
@@ -896,12 +944,11 @@ export function ChatView({
               target={target}
               accessibilityHidden={voiceOpen}
               motion={motion}
-              sending={Boolean(sendingMessage)}
-              awaitingTurn={awaitingTurn}
+              sending={Boolean(sendingMessage) && !sendsToQueue}
               keyboardOffset={keyboardOffset}
               canSend={serverOnline && canSend}
               online={serverOnline}
-              activity={activity}
+              activity={activityPresentation}
               activities={activities}
               historyState={
                 ready
@@ -968,11 +1015,25 @@ export function ChatView({
             <Animated.View
               style={[
                 // Above the voice overlay, which covers the header, while the voice mode is open.
-                { position: "absolute", left: 0, right: 0, bottom: 0, zIndex: voiceOpen ? 31 : undefined },
+                {
+                  position: "absolute",
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  zIndex: voiceOpen ? 31 : undefined,
+                  backgroundColor: voiceOpen ? "transparent" : String(chatCanvas),
+                },
                 motion.composerStyle,
               ]}
               pointerEvents="box-none"
-              onLayout={motion.onComposerLayout}
+              onLayout={(event) => {
+                motion.onComposerLayout(event);
+                composerMeasured.current = event.nativeEvent.layout.height > 0;
+                if (target.kind === "agent" && isFocused && event.nativeEvent.layout.height > 0) {
+                  composerPaint.current?.();
+                  composerPaint.current = markChatOpenFrame(target.serverId, target.id, "composer");
+                }
+              }}
             >
               {!voiceOpen && (detached || !atLatest) && motion.historyVisible && messages.length > 0 ? (
                 <View className="absolute -top-14 self-center">
@@ -1083,9 +1144,50 @@ export function ChatView({
                   onCancelReply={cancelReply}
                   mentionAgents={mentionAgents}
                   key={target.id}
-                  action={action}
-                  actionForeground={actionForeground}
+                  action={String(neutralAction)}
+                  actionForeground={String(neutralActionForeground)}
                   agentName={target.name}
+                  modelControl={
+                    target.kind === "agent" ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={t("mobile.agent.runtime.model")}
+                        onPress={() =>
+                          router.push({
+                            pathname: "/agent-brain/[agentId]",
+                            params: { agentId: target.id, serverId: target.serverId },
+                          })
+                        }
+                        hitSlop={8}
+                        className="bg-accent/15"
+                        style={{
+                          height: 28,
+                          maxWidth: "100%",
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 6,
+                          paddingHorizontal: 10,
+                          borderRadius: 999,
+                        }}
+                      >
+                        <Brain size={13} color={modelAccent} />
+                        <Typography.Paragraph
+                          className="text-accent-text"
+                          numberOfLines={1}
+                          style={{
+                            fontFamily: "Inter",
+                            fontSize: 12,
+                            lineHeight: 15,
+                            fontWeight: "600",
+                            letterSpacing: 0.72,
+                            flexShrink: 1,
+                          }}
+                        >
+                          {modelLabel ?? t("mobile.agent.runtime.model")}
+                        </Typography.Paragraph>
+                      </Pressable>
+                    ) : undefined
+                  }
                   placeholder={
                     answersQuestion
                       ? t("mobile.chat.question.answerPlaceholder")
@@ -1097,7 +1199,7 @@ export function ChatView({
                   disabled={!canSend}
                   attachments={attachments}
                   draft={draft}
-                  fallbackBackground={fieldBackground}
+                  fallbackBackground={String(composerSurface)}
                   foreground={foreground}
                   liquidGlassAvailable={liquidGlassAvailable}
                   muted={muted}
@@ -1137,5 +1239,18 @@ export function ChatView({
         ) : null}
       </View>
     </GestureDetector>
+  );
+  return target.kind === "agent" ? (
+    <SatelliteMotionProvider
+      key={`${target.serverId}:${target.id}`}
+      agentId={target.id}
+      serverId={target.serverId}
+      phase={activityPresentation.phase}
+      enabled={serverOnline}
+    >
+      {content}
+    </SatelliteMotionProvider>
+  ) : (
+    content
   );
 }

@@ -2,6 +2,7 @@ import type { PartialTranslation } from "../../../message";
 import type { messages as source } from "../../en/mobile/chat";
 
 export const messages = {
+  "mobile.chat.day.today": "Oggi · {time}",
   "mobile.chat.dictation.microphoneOffTitle": "L'accesso al microfono è disattivato",
   "mobile.chat.dictation.microphoneOffMessage":
     "Per dettare un messaggio, consenti a OpenBot di usare il microfono e il riconoscimento vocale nelle Impostazioni.",

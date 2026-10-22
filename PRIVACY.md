@@ -629,6 +629,11 @@ Network traffic can also occur when:
 - the local Codex App Server connects to OpenAI;
 - the local Claude Agent SDK connects to Anthropic through Claude CLI;
 - a user or an agent visits a page in the embedded browser;
+- a user browses Market on mobile. The phone reads public agent and skill listings from the account
+  service and sends catalog search terms and filters without a session credential. App listings
+  ship with the mobile app. On installation, the phone sends the listing or skill ID to the selected
+  host; that host downloads the item with its own account. The phone does not upload local chats or
+  files to the public catalog;
 - a user submits text that is not a web address in the browser address bar, which sends the query to Google Search;
 - a locally installed Codex plugin connects to its service;
 - an MCP server the user enabled is reached at its own address, and, when that server asks for a

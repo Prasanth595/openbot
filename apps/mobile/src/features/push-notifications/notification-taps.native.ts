@@ -12,7 +12,10 @@ let handled: string | null = null;
  * into the notification data when they open the seal.
  * While the app is on screen, a notification of the chat that shows is not shown again.
  */
-export function useNotificationTaps(open: (target: NotificationTarget) => void, openChat: () => string | null): void {
+export function useNotificationTaps(
+  open: (target: NotificationTarget) => void,
+  openChat: (serverId?: string) => string | null,
+): void {
   const response = Notifications.useLastNotificationResponse();
   const openRef = useRef(open);
   openRef.current = open;
@@ -26,8 +29,8 @@ export function useNotificationTaps(open: (target: NotificationTarget) => void, 
         if (notification.request.content.data?.[SOUND_PREVIEW_KEY] === true) {
           return { shouldShowBanner: false, shouldShowList: false, shouldPlaySound: true, shouldSetBadge: false };
         }
-        const agentId = notificationTarget(notification)?.agentId ?? null;
-        const shown = agentId !== null && agentId === openChatRef.current();
+        const target = notificationTarget(notification);
+        const shown = target !== null && target.agentId === openChatRef.current(target.serverId ?? undefined);
         return { shouldShowBanner: !shown, shouldShowList: !shown, shouldPlaySound: !shown, shouldSetBadge: false };
       },
     });

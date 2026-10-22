@@ -14,7 +14,7 @@ export const messages = {
   "mobile.agent.pin.pinNamed": "Fixar {name}",
   "mobile.agent.pin.unpinNamed": "Desafixar {name}",
   "mobile.agent.pin.limitReached": "Limite de itens fixados atingido. Desafixe um chat primeiro.",
-  "mobile.agent.pin.closeAction": "Fechar ação de fixação de {name}",
+  "mobile.agent.pin.closeAction": "Fechar ações de {name}",
   "mobile.agent.appearance.preview": "Prévia do avatar de {name}",
   "mobile.agent.appearance.newAgent": "Novo agente",
   "mobile.agent.appearance.faces": "Forma e expressão",
@@ -121,8 +121,6 @@ export const messages = {
   "mobile.agent.info.skillsUnsupported": "Este computador anfitrião não aceita habilidades. Atualize o OpenBot nele.",
   "mobile.agent.info.noSkills": "Ainda não há habilidades.",
   "mobile.agent.info.skillsManaged": "As habilidades deste agente são gerenciadas no computador anfitrião.",
-  "mobile.agent.info.skillsAddOnComputer":
-    "Use + para criar uma habilidade com este agente. Adicione habilidades da loja no OpenBot em um computador ou no app web.",
   "mobile.agent.info.filesUnsupported":
     "Este computador anfitrião não oferece gerenciamento de arquivos. Atualize o OpenBot nele.",
   "mobile.agent.info.memoryGone": "Esta memória não está mais disponível.",
@@ -257,6 +255,8 @@ export const messages = {
   "mobile.agent.record.deleteRoutineBody": "Esta rotina será removida.",
   "mobile.agent.record.deleteRoutine": "Excluir rotina",
   "mobile.agent.record.testStarted": "A execução de teste começou. O resultado aparece no chat.",
+  "mobile.agent.profile.heading": "INFORMAÇÕES DO AGENTE",
+  "mobile.agent.runtime.change": "Alterar",
   "mobile.agent.groups.brain": "Cérebro",
   "mobile.agent.groups.knows": "Sabe",
   "mobile.agent.groups.does": "Faz",

@@ -11,7 +11,7 @@ export interface LiveActivityRequest {
 }
 
 let listener: ((request: LiveActivityRequest) => void) | null = null;
-let navigate: ((agentId: string | null) => void) | null = null;
+let navigate: ((agentId: string | null, serverId?: string) => void) | null = null;
 let pending: LiveActivityRequest | null = null;
 /** The action key of each host. `null` before the phone secret loads. */
 let keyFor: ((serverId: string) => Uint8Array) | null = null;
@@ -34,7 +34,7 @@ export function setLiveActivityLinkKeys(actionKey: (serverId: string) => Uint8Ar
   const link = readLiveActivityLink(path, actionKey);
   if (link.type !== "action") return;
   receive(link);
-  navigate?.(link.action.agentId);
+  navigate?.(link.action.agentId, link.action.serverId);
 }
 
 /** Receives the actions that need the host. A listener that starts later receives the last one. */
@@ -49,7 +49,7 @@ export function onLiveActivityAction(receive: (request: LiveActivityRequest) => 
 }
 
 /** Opens a chat, or the chat list for `null`, while the app runs. */
-export function setLiveActivityNavigator(open: (agentId: string | null) => void): () => void {
+export function setLiveActivityNavigator(open: (agentId: string | null, serverId?: string) => void): () => void {
   navigate = open;
   return () => {
     if (navigate === open) navigate = null;
@@ -81,7 +81,11 @@ export function liveActivityRoute(path: string, initial = true): string | null {
   }
   const link = readLiveActivityLink(path, keyFor ?? (() => null));
   if (link.type === "action") receive(link);
-  return open(targetAgent(link), initial);
+  return open(
+    targetAgent(link),
+    initial,
+    link.type === "open" ? link.serverId : link.type === "action" ? link.action.serverId : undefined,
+  );
 }
 
 function receive(link: Extract<LiveActivityLink, { type: "action" }>): void {
@@ -93,9 +97,12 @@ function receive(link: Extract<LiveActivityLink, { type: "action" }>): void {
   else pending = request;
 }
 
-function open(agentId: string | null, initial: boolean): string | null {
-  if (initial || !navigate) return agentId === null ? "/" : `/chat/${encodeURIComponent(agentId)}`;
-  navigate(agentId);
+function open(agentId: string | null, initial: boolean, serverId?: string): string | null {
+  if (initial || !navigate)
+    return agentId === null
+      ? "/"
+      : `/chat/${encodeURIComponent(agentId)}${serverId ? `?serverId=${encodeURIComponent(serverId)}` : ""}`;
+  navigate(agentId, serverId);
   return null;
 }
 

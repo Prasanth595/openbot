@@ -186,7 +186,12 @@ export function AppDrawerShell({ children }: PropsWithChildren) {
   const navigateAfterClosing = useCallback(
     (href: Href) => {
       closeDrawer();
-      setTimeout(() => router.push(href), 300);
+      setTimeout(() => {
+        const path = typeof href === "string" ? href : href.pathname;
+        if (path === "/server-tasks" || path === "/server-routines" || path === "/settings" || path === "/market")
+          router.navigate(href);
+        else router.push(href);
+      }, 300);
     },
     [closeDrawer],
   );

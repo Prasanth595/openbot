@@ -1,6 +1,6 @@
 import { type AvatarMood, avatarMoodPresentation } from "@openbot/brand/bloub-avatar-motion";
 import type { AvatarHue } from "@openbot/contracts/ipc";
-import { memo, useMemo } from "react";
+import { memo, useContext, useMemo } from "react";
 import Animated, {
   convertToRGBA,
   type DerivedValue,
@@ -10,6 +10,11 @@ import Animated, {
   useDerivedValue,
 } from "react-native-reanimated";
 import Svg, { Circle, Path } from "react-native-svg";
+import {
+  AgentActivitySatellites,
+  SatelliteEyesContext,
+  useSharedSatelliteMotion,
+} from "@/features/agents/components/agent-activity-satellites";
 import { useAgentColorTransition } from "@/features/agents/components/agent-color-glow";
 import { AgentOrbitRings } from "@/features/agents/components/agent-orbit-rings";
 import { useBloubActivityFrame } from "@/features/agents/components/use-bloub-activity-frame";
@@ -19,6 +24,7 @@ import {
   bloubRestEngineFrame,
   getBloubAvatarColor,
 } from "@/features/agents/model/bloub-activity";
+import { agentSatellitePhase, type SatellitePhase } from "@/features/agents/model/satellite-motion";
 import { useAgentActivity } from "@/features/workspace/components/use-agent-activity";
 import {
   DISCONNECTED_APPEARANCE,
@@ -35,8 +41,10 @@ interface BloubAvatarProps extends AgentPhotoProps {
   seed: string;
   size?: number;
   animateIdle?: boolean;
-  /** Turns the desktop's orbit rings around the avatar while the agent works. */
+  /** Shows activity decoration around the saved avatar. */
   rings?: boolean;
+  activityPhase?: SatellitePhase;
+  activityMotion?: boolean;
 }
 
 const AVATAR_PAPER = "#f9f9f9";
@@ -44,7 +52,14 @@ const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 function AvatarEye({ frame, index }: { frame: DerivedValue<BloubActivityFrame>; index: number }) {
-  const props = useAnimatedProps(() => frame.get().eyes[index] ?? { d: "", opacity: 0, matrix: [1, 0, 0, 1, 0, 0] });
+  const satellite = useContext(SatelliteEyesContext);
+  const props = useAnimatedProps(() => {
+    const eye = frame.get().eyes[index] ?? { d: "", opacity: 0, matrix: [1, 0, 0, 1, 0, 0] };
+    const pose = satellite?.get();
+    if (!pose) return eye;
+    const [a = 1, b = 0, c = 0, d = 1, x = 0, y = 0] = eye.matrix;
+    return { ...eye, matrix: [a * pose.sx, b * pose.sx, c * pose.sy, d * pose.sy, x + pose.x * 316, y + pose.y * 316] };
+  });
   return <AnimatedPath fill={AVATAR_PAPER} animatedProps={props} />;
 }
 
@@ -79,7 +94,7 @@ export function BloubAvatar({
   const disconnected = useMobileWorkspaceSelector(
     (workspace) => !workspace.servers.some((server) => server.id === serverId && showsOnline(server)),
   );
-  const activity = useAgentActivity(agentId);
+  const activity = useAgentActivity(agentId, true, serverId);
   return (
     <BloubAvatarPreview
       agentId={agentId}
@@ -91,6 +106,7 @@ export function BloubAvatar({
       rings={rings}
       disconnected={disconnected}
       mood={disconnected ? "idle" : agentActivityMood(activity)}
+      activityPhase={disconnected ? "idle" : agentSatellitePhase(activity)}
     />
   );
 }
@@ -106,11 +122,33 @@ export const BloubAvatarPreview = memo(function BloubAvatarPreview(
   props: Omit<BloubAvatarProps, "agentId"> & AgentPhotoProps & AvatarPreviewOptions,
 ) {
   const size = props.size ?? 54;
+  const shared = useSharedSatelliteMotion(props.agentId, props.serverId);
+  const phase =
+    (props.rings ? shared?.phase : undefined) ??
+    props.activityPhase ??
+    (props.mood === "working" ? "thinking" : props.mood === "responded" ? "done" : "idle");
+  const satellites = props.rings && props.mood !== "connecting";
   const avatar = (
     <AgentPhoto {...props} size={size}>
-      <AnimatedAvatarPreview {...props} />
+      <AnimatedAvatarPreview
+        {...props}
+        mood={satellites && phase !== "idle" ? "idle" : props.mood}
+        animateIdle={satellites ? false : props.animateIdle}
+      />
     </AgentPhoto>
   );
+  if (satellites)
+    return (
+      <AgentActivitySatellites
+        agentId={props.agentId}
+        serverId={props.serverId}
+        phase={props.disconnected ? "idle" : phase}
+        size={size}
+        enabled={props.activityMotion}
+      >
+        {avatar}
+      </AgentActivitySatellites>
+    );
   if (!props.rings) return avatar;
   // The ring wrapper stays mounted when work starts and stops, so the face keeps its glide.
   return (

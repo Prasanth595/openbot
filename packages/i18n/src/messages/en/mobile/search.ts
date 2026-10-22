@@ -1,6 +1,9 @@
 import { defineMessages } from "../../../message";
 
 export const messages = defineMessages("mobile.search", {
+  "mobile.search.sectionCount": "{label} · {count}",
+  "mobile.search.authorYou": "You",
+  "mobile.search.messageResult": "Message in {name}: {text}",
   "mobile.search.clear": "Clear search",
   "mobile.search.close": "Close search",
   "mobile.search.goTo": "Go to",
@@ -9,7 +12,6 @@ export const messages = defineMessages("mobile.search", {
   "mobile.search.task.placeholder": "Describe the task",
   "mobile.search.task.fieldLabel": "Task for {name}",
   "mobile.search.task.changeAgent": "Choose another agent",
-  "mobile.search.task.newTextFor": "New task “{text}” for",
   "mobile.search.task.newFor": "New task for {name}",
   "mobile.search.task.how": "{name} works on it alone and reports back in Tasks. Only want to talk?",
   "mobile.search.task.message": "Message {name}",
@@ -42,7 +44,6 @@ export const messages = defineMessages("mobile.search", {
   "mobile.search.retry": "Try again",
   "mobile.search.showMore": "Show more messages",
   "mobile.search.showMoreFiles": "Show more files",
-  "mobile.search.youWrote": "You: {text}",
   "mobile.search.authorText": "{author}: {text}",
   "mobile.search.fileDetail": "{name} · {size}",
   "mobile.search.routinePaused": "Paused",

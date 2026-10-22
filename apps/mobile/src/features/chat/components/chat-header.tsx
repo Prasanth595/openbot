@@ -1,23 +1,25 @@
-import { GlassView } from "expo-glass-effect";
 import { Link, router } from "expo-router";
-import { Typography } from "heroui-native";
+import { Button, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import ArrowLeft from "lucide-react-native/icons/arrow-left";
+import ChevronLeft from "lucide-react-native/icons/chevron-left";
 import Globe from "lucide-react-native/icons/globe";
+import Info from "lucide-react-native/icons/info";
 import TriangleAlert from "lucide-react-native/icons/triangle-alert";
-import { type ReactNode, useMemo } from "react";
-import { Pressable, View, type ViewStyle } from "react-native";
+import { type ReactNode, useId, useMemo } from "react";
+import { View, type ViewStyle } from "react-native";
+import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
+import { useCSSVariable } from "uniwind";
 import { AgentPinAvatar } from "@/features/agents/components/agent-pin-avatar";
-import { BloubAvatar } from "@/features/agents/components/bloub-avatar";
+import { TeamAgentAvatar } from "@/features/agents/components/team-agent-avatar";
+import { TeamOrb } from "@/features/agents/components/team-home-parts";
+import { useAgentModelLabel } from "@/features/agents/components/use-agent-model-label";
 import { useBrowserFeature } from "@/features/browser/components/use-browser-feature";
 import { ChannelAvatar } from "@/features/channels/components/channel-avatar";
 import { ChatGlassIconButton } from "@/features/chat/components/chat-glass-icon-button";
 import { useMobileWorkspaceSelector } from "@/features/workspace/context/mobile-workspace-context";
 import { showsOnline } from "@/features/workspace/model/server-status";
-import { SheetScrollEdgeEffect } from "@/shared/components/sheet-scroll-edge-effect";
 import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
-import { typeScale } from "@/shared/lib/type-scale";
 import type { ChatTarget } from "../model/chat-target";
 
 interface ChatHeaderProps {
@@ -27,12 +29,9 @@ interface ChatHeaderProps {
   liquidGlassAvailable: boolean;
   topInset: number;
   onBack: () => void;
-  /** A channel task needs the user: the header shows the button that opens the channel actions. */
+  /** A channel task needs the user. */
   needsAction?: boolean;
-  /**
-   * The member whose browser the browser button of a channel opens, the tab of its request, and the
-   * members whose browser the browser screen can switch to. Null hides the button.
-   */
+  /** The member browser and the other channel members available in its picker. */
   channelBrowser?: { agentId: string; agentIds: readonly string[]; tabId?: string } | null;
   /** Something covers the header, such as the voice mode, so screen readers skip it. */
   accessibilityHidden?: boolean;
@@ -40,7 +39,7 @@ interface ChatHeaderProps {
   title?: string;
   /** Shown before the title with a dot between them, such as "Task". */
   kicker?: string;
-  /** Takes the place of the browser button, such as the actions of a task. */
+  /** Additional controls, such as the actions of a task. */
   trailing?: ReactNode;
 }
 
@@ -59,167 +58,193 @@ export function ChatHeader({
   trailing,
 }: ChatHeaderProps) {
   const { t } = useText();
+  const agent = useMobileWorkspaceSelector((current) =>
+    target.kind === "agent"
+      ? current.agents.find((candidate) => candidate.id === target.id && candidate.serverId === target.serverId)
+      : undefined,
+  );
   const warning = useThemeColor("warning");
   const disconnected = useMobileWorkspaceSelector(
     (current) => !current.servers.some((server) => server.id === target.serverId && showsOnline(server)),
   );
   const browserView = useMobileWorkspaceSelector((current) => current.browserViewSupport(target.serverId).view);
   const browserAllowed = useBrowserFeature();
-  // A channel opens the browser of one member: the browser is the browser of an agent.
-  const browserAgent =
-    target.kind === "agent" ? { agentId: target.id, agentIds: [], tabId: undefined } : channelBrowser;
   const browserShown =
-    trailing === undefined && browserAllowed && !disconnected && browserView && Boolean(browserAgent);
+    target.kind === "channel" &&
+    trailing === undefined &&
+    browserAllowed &&
+    !disconnected &&
+    browserView &&
+    Boolean(channelBrowser);
   const members = useMemo(
     () => new Map(target.kind === "channel" ? target.members.map((member) => [member.id, member]) : []),
     [target],
   );
   const iconColor = String(foreground);
-
+  const fadeId = useId();
+  const canvas = String(useCSSVariable("--openbot-bg-canvas"));
+  const glass = String(useCSSVariable("--openbot-bg-chrome-glass"));
+  const edge = String(useCSSVariable("--openbot-border-chrome-glass"));
+  const border = String(useCSSVariable("--openbot-border-grouped"));
+  const modelLabel = useAgentModelLabel(agent);
+  const meta = [agent?.title, modelLabel].filter(Boolean).join(" · ").toUpperCase();
+  const openInfo = () => {
+    void haptics.impact("soft");
+    if (target.kind === "channel")
+      router.push({
+        pathname: "/channel-info/[channelId]",
+        params: { channelId: target.id, serverId: target.serverId },
+      });
+    else router.push({ pathname: "/agent-info/[agentId]", params: { agentId: target.id, serverId: target.serverId } });
+  };
+  const buttonStyle = {
+    width: 44,
+    height: 44,
+    minWidth: 44,
+    borderRadius: 999,
+    backgroundColor: glass,
+    borderColor: edge,
+    borderWidth: 1,
+  };
   return (
     <>
       <View
-        className="absolute inset-x-0 z-20 flex-row items-center gap-2 px-4"
-        pointerEvents="box-none"
+        className="absolute inset-x-0 z-20"
         accessibilityElementsHidden={accessibilityHidden}
         importantForAccessibility={accessibilityHidden ? "no-hide-descendants" : "auto"}
-        style={{ top: topInset + 8 }}
+        style={{ top: 0, paddingTop: topInset, backgroundColor: canvas }}
       >
-        <ChatGlassIconButton
-          accessibilityLabel={t("common.back")}
-          fallbackBackground={fallbackBackground}
-          liquidGlassAvailable={liquidGlassAvailable}
-          onPress={() => {
-            void haptics.impact("soft");
-            onBack();
-          }}
-        >
-          <ArrowLeft color={iconColor} size={24} strokeWidth={2} />
-        </ChatGlassIconButton>
-
-        <GlassView
-          glassEffectStyle={liquidGlassAvailable ? "regular" : "none"}
+        <View
           style={{
-            alignItems: "center",
-            alignSelf: "stretch",
-            backgroundColor: liquidGlassAvailable ? "transparent" : fallbackBackground,
-            borderCurve: "continuous",
-            borderRadius: 24,
+            height: 60,
             flexDirection: "row",
-            // A kicker and a title need the width up to the trailing button.
-            maxWidth: kicker ? undefined : 220,
-            flexShrink: 1,
-            overflow: "hidden",
+            alignItems: "center",
+            gap: 10,
+            paddingHorizontal: 16,
+            borderBottomWidth: 1,
+            borderBottomColor: border,
           }}
         >
-          <Pressable
-            className="min-w-0 shrink flex-row items-center gap-2 self-stretch pr-4 pl-2.5"
-            accessibilityRole="button"
-            accessibilityLabel={t("mobile.chat.header.info", { name: target.name })}
-            hitSlop={8}
+          <Button
+            isIconOnly
+            variant="secondary"
+            accessibilityLabel={t("common.back")}
             onPress={() => {
               void haptics.impact("soft");
-              if (target.kind === "channel")
-                router.push({
-                  pathname: "/channel-info/[channelId]",
-                  params: { channelId: target.id, serverId: target.serverId },
-                });
-              else
-                router.push({
-                  pathname: "/agent-info/[agentId]",
-                  params: { agentId: target.id, serverId: target.serverId },
-                });
+              onBack();
             }}
+            style={buttonStyle}
           >
+            <ChevronLeft size={22} color={iconColor} />
+          </Button>
+          <View style={{ flex: 1, minWidth: 0, height: 52, flexDirection: "row", alignItems: "center", gap: 10 }}>
             <Link.AppleZoomTarget>
               {target.kind === "channel" ? (
                 <View collapsable={false}>
                   <ChannelAvatar
                     channel={{ members: target.members.map((member) => ({ agentId: member.id })) }}
                     agents={members}
-                    size={28}
+                    size={36}
                     disconnected={disconnected}
                   />
                 </View>
               ) : (
-                <AgentPinAvatar agentId={target.id} location="chat" size={28}>
-                  <BloubAvatar
-                    agentId={target.id}
-                    serverId={target.serverId}
-                    hue={target.avatarHue}
-                    seed={target.avatarSeed}
-                    size={28}
-                  />
+                <AgentPinAvatar agentId={target.id} location="chat" size={36}>
+                  {agent ? (
+                    <TeamAgentAvatar agent={agent} size={36} />
+                  ) : (
+                    <TeamOrb hue={target.avatarHue} seed={target.avatarSeed} size={36} />
+                  )}
                 </AgentPinAvatar>
               )}
             </Link.AppleZoomTarget>
-            {kicker ? (
-              <>
-                <Typography.Paragraph className="font-semibold" numberOfLines={1} style={typeScale.rowTitle}>
-                  {kicker}
+            <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+              <Typography.Heading
+                numberOfLines={1}
+                weight="medium"
+                style={{ fontFamily: "Inter", fontSize: 24, lineHeight: 24, letterSpacing: -1.2 }}
+              >
+                {title ?? target.name}
+              </Typography.Heading>
+              {kicker || meta ? (
+                <Typography.Paragraph
+                  className="text-muted"
+                  numberOfLines={1}
+                  style={{ fontFamily: "Inter", fontSize: 10, lineHeight: 13, fontWeight: "600", letterSpacing: 0.6 }}
+                >
+                  {kicker ?? meta}
                 </Typography.Paragraph>
-                <View className="size-1 rounded-full bg-muted" />
-              </>
-            ) : null}
-            <Typography.Paragraph className="font-semibold min-w-0 shrink" numberOfLines={1} style={typeScale.rowTitle}>
-              {title ?? target.name}
-            </Typography.Paragraph>
-          </Pressable>
-        </GlassView>
-
-        <View className="flex-1" />
-        {trailing !== undefined ? (
-          trailing
-        ) : (
-          <View className="flex-row items-center gap-2">
-            {target.kind === "channel" && needsAction ? (
+              ) : null}
+            </View>
+          </View>
+          <Button
+            isIconOnly
+            variant="secondary"
+            accessibilityLabel={t("mobile.chat.header.info", { name: target.name })}
+            onPress={openInfo}
+            style={buttonStyle}
+          >
+            <Info size={20} color={iconColor} />
+          </Button>
+          {trailing !== undefined ? (
+            trailing
+          ) : target.kind === "channel" ? (
+            <View className="flex-row items-center gap-2">
+              {needsAction ? (
+                <ChatGlassIconButton
+                  accessibilityLabel={t("mobile.chat.header.actionsNeeded")}
+                  fallbackBackground={fallbackBackground}
+                  liquidGlassAvailable={liquidGlassAvailable}
+                  onPress={() => {
+                    void haptics.impact("soft");
+                    router.push({
+                      pathname: "/channel-actions/[channelId]",
+                      params: { channelId: target.id, serverId: target.serverId },
+                    });
+                  }}
+                >
+                  <TriangleAlert color={String(warning)} size={24} strokeWidth={2.5} />
+                </ChatGlassIconButton>
+              ) : null}
               <ChatGlassIconButton
-                accessibilityLabel={t("mobile.chat.header.actionsNeeded")}
+                accessibilityLabel={t("mobile.browser.open")}
                 fallbackBackground={fallbackBackground}
                 liquidGlassAvailable={liquidGlassAvailable}
+                hidden={!browserShown}
                 onPress={() => {
+                  if (!channelBrowser) return;
                   void haptics.impact("soft");
                   router.push({
-                    pathname: "/channel-actions/[channelId]",
-                    params: { channelId: target.id, serverId: target.serverId },
+                    pathname: "/browser/[agentId]",
+                    params: {
+                      agentId: channelBrowser.agentId,
+                      serverId: target.serverId,
+                      ...(channelBrowser.tabId ? { tabId: channelBrowser.tabId } : {}),
+                      ...(channelBrowser.agentIds.length > 1 ? { agentIds: channelBrowser.agentIds.join(",") } : {}),
+                    },
                   });
                 }}
               >
-                <TriangleAlert color={String(warning)} size={24} strokeWidth={2.5} />
+                <Globe color={iconColor} size={24} strokeWidth={2} />
               </ChatGlassIconButton>
-            ) : null}
-            {/* Not in a BlurReveal: glass stops rendering under an ancestor with zero opacity, so the
-                button hides itself, and its glass turns off with the native animation. The agent's
-                browser on the host, live. The button shows when the agent has no tab yet too: the
-                browser screen opens a new one. A host that cannot stream a tab, or an app version
-                the account server has the browser off for, shows no button. */}
-            <ChatGlassIconButton
-              accessibilityLabel={t("mobile.browser.open")}
-              fallbackBackground={fallbackBackground}
-              hidden={!browserShown}
-              liquidGlassAvailable={liquidGlassAvailable}
-              onPress={() => {
-                if (!browserAgent) return;
-                void haptics.impact("soft");
-                router.push({
-                  pathname: "/browser/[agentId]",
-                  params: {
-                    agentId: browserAgent.agentId,
-                    serverId: target.serverId,
-                    ...(browserAgent.tabId ? { tabId: browserAgent.tabId } : {}),
-                    ...(browserAgent.agentIds.length > 1 ? { agentIds: browserAgent.agentIds.join(",") } : {}),
-                  },
-                });
-              }}
-            >
-              <Globe color={iconColor} size={24} strokeWidth={2} />
-            </ChatGlassIconButton>
-          </View>
-        )}
+            </View>
+          ) : null}
+        </View>
       </View>
-      <SheetScrollEdgeEffect
-        style={{ height: topInset + 82, left: 0, position: "absolute", right: 0, top: 0, zIndex: 10 }}
-      />
+      <Svg
+        pointerEvents="none"
+        width="100%"
+        height={72}
+        style={{ position: "absolute", top: topInset + 60, left: 0, right: 0, zIndex: 19 }}
+      >
+        <Defs>
+          <LinearGradient id={fadeId} x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor={canvas} />
+            <Stop offset="1" stopColor={canvas} stopOpacity={0} />
+          </LinearGradient>
+        </Defs>
+        <Rect width="100%" height="100%" fill={`url(#${fadeId})`} />
+      </Svg>
     </>
   );
 }

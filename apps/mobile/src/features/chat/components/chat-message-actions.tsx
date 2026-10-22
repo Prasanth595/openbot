@@ -18,7 +18,7 @@ import { useCopyMessage } from "./use-copy-message";
 
 const PICKER_IN = FadeIn.duration(160).reduceMotion(ReduceMotion.System);
 const PICKER_OUT = FadeOut.duration(120).reduceMotion(ReduceMotion.System);
-const ICON_SIZE = 18;
+const ICON_SIZE = 16;
 const PRESSED = { transform: [{ scale: 0.94 }] };
 
 /**
@@ -49,7 +49,7 @@ function ActionButton({
       accessibilityLabel={accessibilityLabel}
       accessibilityState={accessibilityState}
       onPress={onPress}
-      className={`h-10 items-center justify-center rounded-full active:bg-default-hover/30 ${label ? "px-2" : "w-10"} ${selected ? "bg-default" : ""}`}
+      className={`h-11 items-center justify-center rounded-full active:bg-default-hover/30 ${label ? "px-2" : "w-10"} ${selected ? "bg-default" : ""}`}
       style={({ pressed }) => (pressed ? PRESSED : undefined)}
     >
       {children}
@@ -204,7 +204,11 @@ export function ChatMessageActions({
           </ActionButton>
         ) : null}
         {time ? (
-          <Typography.Paragraph type="body-xs" className="px-1 text-muted">
+          <Typography.Paragraph
+            type="body-xs"
+            className="px-1 text-muted"
+            style={{ fontFamily: "Inter", fontSize: 12, lineHeight: 15, fontWeight: "600", letterSpacing: 0.72 }}
+          >
             {time}
           </Typography.Paragraph>
         ) : null}

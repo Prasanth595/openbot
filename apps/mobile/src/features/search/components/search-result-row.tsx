@@ -24,9 +24,10 @@ import UsersRound from "lucide-react-native/icons/users-round";
 import Vibrate from "lucide-react-native/icons/vibrate";
 import { type ReactNode, useContext, useMemo } from "react";
 import { Pressable, View } from "react-native";
-
-import { BloubAvatar } from "@/features/agents/components/bloub-avatar";
+import { useCSSVariable } from "uniwind";
 import { ChatNavigationGateContext } from "@/features/agents/components/chat-link-pressable";
+import { TeamAgentAvatar } from "@/features/agents/components/team-agent-avatar";
+import { TeamAgentSummary } from "@/features/agents/components/team-home-parts";
 import { ChannelAvatar } from "@/features/channels/components/channel-avatar";
 import {
   type MobileSearchResult,
@@ -119,16 +120,7 @@ function RowIcon({ icon: Icon }: { icon: LucideIcon }) {
 }
 
 function AgentAvatar({ agent }: { agent: MobileAgent }) {
-  return (
-    <BloubAvatar
-      agentId={agent.id}
-      serverId={agent.serverId}
-      hue={agent.avatarHue}
-      seed={agent.avatarSeed}
-      size={AVATAR_SIZE}
-      animateIdle={false}
-    />
-  );
+  return <TeamAgentAvatar agent={agent} size={AVATAR_SIZE} />;
 }
 
 const SETTING_ICON = {
@@ -185,7 +177,7 @@ function openSetting(id: MobileSearchSettingId, serverId: string) {
     case "serverMembers":
       return router.push({ pathname: "/server-settings/members", params: { serverId } });
     case "serverRoutines":
-      return router.push({ pathname: "/server-routines", params: { serverId } });
+      return router.navigate({ pathname: "/server-routines", params: { serverId } });
     case "serverUsage":
       return router.push({ pathname: "/server-usage", params: { serverId } });
   }
@@ -216,13 +208,14 @@ export function MobileSearchResultRow({
   onLeave: () => void;
 }) {
   const { t, format } = useText();
+  const border = String(useCSSVariable("--openbot-border-grouped"));
   const gate = useContext(ChatNavigationGateContext);
   // A chat opened through its home row zooms back into the row when it closes. A chat opened at a
   // message slides in.
   const openChat = (agentId: string, messageId?: string) => {
     onLeave();
-    if (messageId) router.push({ pathname: "/chat/[agentId]", params: { agentId, messageId } });
-    else if (!gate?.openFromHome(agentId)) router.push({ pathname: "/chat/[agentId]", params: { agentId } });
+    if (messageId) router.push({ pathname: "/chat/[agentId]", params: { agentId, messageId, serverId } });
+    else if (!gate?.openFromHome(agentId)) router.push({ pathname: "/chat/[agentId]", params: { agentId, serverId } });
   };
   const snippet = useMemo(
     () => (result.kind === "message" ? mobileSearchSnippet(result.text, query) : ""),
@@ -233,14 +226,23 @@ export function MobileSearchResultRow({
     case "agent": {
       const { agent } = result;
       return (
-        <SearchRow
-          leading={<AgentAvatar agent={agent} />}
-          title={agent.name}
-          detail={agent.title.trim() || agent.preview}
-          trailing={agent.updatedLabel}
-          query={query}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("mobile.agent.list.open", { name: agent.name })}
           onPress={() => openChat(agent.id)}
-        />
+          style={({ pressed }) => ({
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 14,
+            marginHorizontal: 20,
+            minHeight: 73,
+            paddingVertical: 14,
+            opacity: pressed ? 0.58 : 1,
+          })}
+        >
+          <AgentAvatar agent={agent} />
+          <TeamAgentSummary agent={agent} />
+        </Pressable>
       );
     }
     case "channel": {
@@ -264,21 +266,52 @@ export function MobileSearchResultRow({
     case "message": {
       const { agent, message, from } = result;
       return (
-        <SearchRow
-          leading={<AgentAvatar agent={agent} />}
-          title={agent.name}
-          detail={
-            from === "agent"
-              ? snippet
-              : from === "you"
-                ? t("mobile.search.youWrote", { text: snippet })
-                : t("mobile.search.authorText", { author: from.member, text: snippet })
-          }
-          detailLines={2}
-          trailing={formatUpdatedAt(message.createdAt, format)}
-          query={query}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("mobile.search.messageResult", { name: agent.name, text: snippet })}
           onPress={() => openChat(agent.id, message.id)}
-        />
+          className="bg-team-surface"
+          style={({ pressed }) => ({
+            marginHorizontal: 20,
+            marginTop: 4,
+            marginBottom: 4,
+            padding: 14,
+            borderRadius: 14,
+            borderWidth: 1,
+            borderColor: border,
+            gap: 8,
+            opacity: pressed ? 0.58 : 1,
+          })}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <TeamAgentAvatar agent={agent} size={20} />
+            <Typography.Paragraph
+              numberOfLines={1}
+              style={{ fontFamily: "Inter", fontSize: 14, lineHeight: 17, fontWeight: "600", flexShrink: 1 }}
+            >
+              {agent.name}
+            </Typography.Paragraph>
+            <Typography.Paragraph
+              className="text-muted"
+              numberOfLines={1}
+              style={{ fontFamily: "Inter", fontSize: 13, lineHeight: 17, flexShrink: 1 }}
+            >
+              {"· "}
+              {from === "you" ? t("mobile.search.authorYou") : from === "agent" ? agent.name : from.member}
+            </Typography.Paragraph>
+            <View style={{ flex: 1 }} />
+            <Typography.Paragraph className="text-muted" style={[typeScale.teamMeta, { letterSpacing: 0.2 }]}>
+              {formatUpdatedAt(message.createdAt, format)}
+            </Typography.Paragraph>
+          </View>
+          <Typography.Paragraph
+            className="text-text-secondary"
+            numberOfLines={4}
+            style={{ fontFamily: "Inter", fontSize: 15, lineHeight: 21.75 }}
+          >
+            {snippet}
+          </Typography.Paragraph>
+        </Pressable>
       );
     }
     case "file": {

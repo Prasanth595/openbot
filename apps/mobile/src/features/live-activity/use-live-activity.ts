@@ -15,6 +15,7 @@ import {
   type LiveActivityAction,
   type LiveActivityMood,
   liveActivityBloubFile,
+  liveActivityEventIsImmediate,
   liveActivityFileName,
   liveActivityIslandText,
   liveActivityView,
@@ -25,6 +26,7 @@ import { Alert } from "react-native";
 import { getBloubAvatarColor } from "@/features/agents/model/bloub-activity";
 import { showFailureAlert } from "@/features/analytics/failure-reports";
 import { mobileAnalytics } from "@/features/analytics/mobile-analytics";
+import { afterChatFirstPaint } from "@/features/chat/model/chat-open-performance";
 import { useLiveActivitiesPreference } from "@/features/settings/model/live-activities";
 import {
   mutedUntil,
@@ -151,6 +153,7 @@ export function useLiveActivity({
    * activity again with the agents and messages of the removed workspace.
    */
   const disposed = useRef(false);
+  const lifetime = useRef(0);
   /** The host that has the push token, and what it has. */
   const registered = useRef<{ serverId: string; key: string } | null>(null);
   /**
@@ -185,11 +188,15 @@ export function useLiveActivity({
 
   /** The file of a drawn bloub. It draws the picture the first time. */
   const bloubFile = useCallback(
-    (agent: Pick<DynamicIslandAgentIdentity, "avatarSeed" | "avatarHue">, mood: LiveActivityMood): string => {
+    (
+      agent: Pick<DynamicIslandAgentIdentity, "avatarSeed" | "avatarHue">,
+      mood: LiveActivityMood,
+      retry = false,
+    ): string => {
       if (!live) return "";
       const file = liveActivityBloubFile(agent.avatarSeed, agent.avatarHue, mood);
       const saved = avatars.current.get(file);
-      if (saved !== undefined) return saved ?? "";
+      if (saved !== undefined && !retry) return saved ?? "";
       let written: string | null = null;
       try {
         if (live.native.hasAvatar(file)) written = file;
@@ -290,10 +297,11 @@ export function useLiveActivity({
       const name = photoName(serverId, agentId, avatarUrl);
       if (avatars.current.has(name)) return;
       avatars.current.set(name, null);
+      const generation = lifetime.current;
       void loadAvatarRef
         .current(agentId, avatarUrl, serverId)
         .then((dataUrl) => {
-          if (disposed.current) return;
+          if (disposed.current || generation !== lifetime.current) return;
           const file = live.native.saveAvatar(name, dataUrl);
           avatars.current.set(name, file);
           keepAvatars();
@@ -309,12 +317,15 @@ export function useLiveActivity({
   );
   loadPhotoRef.current = loadPhoto;
 
-  const schedule = useCallback(() => {
-    // In the background iOS can suspend the app before a timer fires, and the last event, such as
-    // the end of a turn, would never reach the activity. So the background publishes at once.
-    if (!foregroundRef.current) publish();
-    else timer.current ??= setTimeout(publish, PUBLISH_DELAY_MS);
-  }, [publish]);
+  const schedule = useCallback(
+    (immediate = false) => {
+      if (immediate) publish(true);
+      // iOS can suspend the app before a background timer fires.
+      else if (!foregroundRef.current) publish();
+      else timer.current ??= setTimeout(publish, PUBLISH_DELAY_MS);
+    },
+    [publish],
+  );
 
   const applyTeamEvent = useCallback(
     (serverId: string, event: AgentEvent | TeamRealtimeEvent) => {
@@ -322,7 +333,7 @@ export function useLiveActivity({
       received.current = true;
       // Unread replies come from the host read state, so no server counts its own arrivals.
       live.coordinator.applyEvent({ serverId, event }, serverId);
-      schedule();
+      schedule(liveActivityEventIsImmediate(event));
     },
     [live, schedule],
   );
@@ -356,11 +367,14 @@ export function useLiveActivity({
     if (!live || !secret) return;
     const { t } = currentText();
     const keys = activeServerId ? liveActivityHostKeys(secret, activeServerId).keys : null;
+    // A different host must not inherit native work or a token from the previous host.
+    void sync.current?.show(null);
     live.native.setSealKeys(
       keys && { seal: encodeLiveActivityBytes(keys.seal), tag: encodeLiveActivityBytes(keys.tag) },
       unreadableProps(t),
     );
-  }, [live, secret, activeServerId]);
+    publish(true);
+  }, [live, secret, activeServerId, publish]);
 
   useEffect(() => {
     if (!live) return;
@@ -379,7 +393,7 @@ export function useLiveActivity({
           ),
         );
       }
-      schedule();
+      schedule(true);
     };
     applyUnread();
     let shown = liveState.get();
@@ -407,7 +421,7 @@ export function useLiveActivity({
         () => {
           if (disposed.current) return;
           live.coordinator.resolveAction(action);
-          schedule();
+          schedule(true);
         },
         (error: unknown) => {
           if (disposed.current) return;
@@ -539,58 +553,76 @@ export function useLiveActivity({
     if (!pushServerOnline && registered.current) registered.current = { ...registered.current, key: "" };
     if (!pushServerId || !pushServerOnline || !pushToken || !secret) return;
     let cancelled = false;
-    const serverAgents = agentsRef.current.filter((agent) => agent.serverId === pushServerId);
-    void (async () => {
-      // The host names only pictures that exist, so the phone draws each face before the host needs it.
-      let drawn = 0;
-      for (const agent of serverAgents) {
-        if (agent.avatarUrl) {
-          loadPhotoRef.current(pushServerId, agent.id, agent.avatarUrl);
-          continue;
+    const serverAgents = agents.filter((agent) => agent.serverId === pushServerId);
+    const prepare = () => {
+      void (async () => {
+        // The host names only pictures that exist, so the phone draws each face before the host needs it.
+        let drawn = 0;
+        for (const agent of serverAgents) {
+          if (agent.avatarUrl) loadPhotoRef.current(pushServerId, agent.id, agent.avatarUrl);
+          // A photo may still be loading. Every fallback face must also exist before registration.
+          for (const mood of LIVE_ACTIVITY_MOODS) {
+            const file = liveActivityBloubFile(agent.avatarSeed, agent.avatarHue, mood);
+            if (live.native.hasAvatar(file)) {
+              avatars.current.set(file, file);
+              continue;
+            }
+            let written = bloubFile(agent, mood);
+            if (!written || !live.native.hasAvatar(written)) {
+              // A temporary drawing or App Group failure must not block this host until sign-out.
+              // Yield before one more attempt. A permanent failure waits for a new preparation.
+              await new Promise((resolve) => setTimeout(resolve, 0));
+              if (cancelled || disposed.current) return;
+              written = bloubFile(agent, mood, true);
+              if (!written || !live.native.hasAvatar(written)) return;
+            }
+            drawn += 1;
+            if (drawn % BLOUBS_PER_PAUSE === 0) await new Promise((resolve) => setTimeout(resolve, 0));
+            if (cancelled) return;
+          }
         }
-        for (const mood of LIVE_ACTIVITY_MOODS) {
-          if (avatars.current.has(liveActivityBloubFile(agent.avatarSeed, agent.avatarHue, mood))) continue;
-          bloubFile(agent, mood);
-          drawn += 1;
-          if (drawn % BLOUBS_PER_PAUSE === 0) await new Promise((resolve) => setTimeout(resolve, 0));
-          if (cancelled) return;
-        }
-      }
-      keepAvatars();
-      const registration: LiveActivityPushRegistration = {
-        serverId: pushServerId,
-        token: pushToken,
-        environment: pushEnvironment(),
-        secret: encodeLiveActivityBytes(liveActivityHostKeys(secret, pushServerId).secret),
-        locale: currentLocale(),
-        away: !foreground,
-        photos: serverAgents.flatMap((agent) => {
-          const file = agent.avatarUrl ? photos[photoName(pushServerId, agent.id, agent.avatarUrl)] : undefined;
-          return file ? [{ agentId: agent.id, file }] : [];
-        }),
-      };
-      const key = JSON.stringify(registration);
-      await enqueueRegistration(async () => {
-        if (cancelled || disposed.current || registered.current?.key === key) return;
-        // Recorded before the request, so a change of host or a sign-out during it queues its removal.
-        registered.current = { serverId: pushServerId, key: "" };
-        try {
-          await post(pushServerId, LIVE_ACTIVITY_PUSH_ROUTES.register, { ...registration });
-        } catch {
-          // The activity then shows its last state until the app returns, and marks it out of date.
-          return;
-        }
-        // A newer run of this effect sends its own registration and records it.
-        if (!cancelled && registered.current?.serverId === pushServerId) {
-          registered.current = { serverId: pushServerId, key };
-        }
-      });
-    })().catch(() => undefined);
+        if (cancelled || disposed.current) return;
+        keepAvatars();
+        const registration: LiveActivityPushRegistration = {
+          serverId: pushServerId,
+          token: pushToken,
+          environment: pushEnvironment(),
+          secret: encodeLiveActivityBytes(liveActivityHostKeys(secret, pushServerId).secret),
+          locale: currentLocale(),
+          away: !foreground,
+          photos: serverAgents.flatMap((agent) => {
+            const file = agent.avatarUrl ? photos[photoName(pushServerId, agent.id, agent.avatarUrl)] : undefined;
+            return file && live.native.hasAvatar(file) ? [{ agentId: agent.id, file }] : [];
+          }),
+        };
+        const key = JSON.stringify(registration);
+        await enqueueRegistration(async () => {
+          if (cancelled || disposed.current || registered.current?.key === key) return;
+          // Recorded before the request, so a change of host or a sign-out during it queues its removal.
+          registered.current = { serverId: pushServerId, key: "" };
+          try {
+            await post(pushServerId, LIVE_ACTIVITY_PUSH_ROUTES.register, { ...registration });
+          } catch {
+            // The activity then shows its last state until the app returns, and marks it out of date.
+            return;
+          }
+          // A newer run of this effect sends its own registration and records it.
+          if (!cancelled && registered.current?.serverId === pushServerId) {
+            registered.current = { serverId: pushServerId, key };
+          }
+        });
+      })().catch(() => undefined);
+    };
+    // iOS can stop animation frames in the background. Register the away state without a frame.
+    const cancelPreparation = foreground ? afterChatFirstPaint(prepare) : null;
+    if (!foreground) prepare();
     return () => {
       cancelled = true;
+      cancelPreparation?.();
     };
   }, [
     live,
+    agents,
     pushServerId,
     pushServerOnline,
     pushToken,
@@ -607,6 +639,7 @@ export function useLiveActivity({
     disposed.current = false;
     return () => {
       disposed.current = true;
+      lifetime.current += 1;
       if (timer.current) clearTimeout(timer.current);
       timer.current = null;
       // Sign-out removes the workspace. The activity must not keep its agents, messages, and actions,
@@ -619,6 +652,7 @@ export function useLiveActivity({
       }
       void resetLiveActivitySecret().catch(() => undefined);
       if (!live) return;
+      live.native.setSealKeys(null, unreadableProps(currentText().t));
       live.native.removeAvatars(new Set());
       // The files are gone, so the next mount draws and loads them again. Fast Refresh keeps the refs.
       avatars.current.clear();

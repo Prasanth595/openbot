@@ -163,4 +163,13 @@ export const messages = defineMessages("mobile.settings", {
   "mobile.settings.profile.signOutTitle": "Sign out?",
   "mobile.settings.profile.signOutBody": "Reconnect by scanning a new code from OpenBot on your desktop.",
   "mobile.settings.profile.signOut": "Sign out",
+  "mobile.settings.notifications.muteTitle": "Mute notifications",
+  "mobile.settings.notifications.muteDescription": "Stop notifications and sounds from this server.",
+  "mobile.settings.notifications.notifyAboutDescription": "Which agent events show a notification.",
+  "mobile.settings.home.server": "Server",
+  "mobile.settings.home.serverHint": "Members, roles, providers, storage…",
+  "mobile.settings.home.usageSummary": "{cost} · last 30 days",
+  "mobile.settings.home.help": "Help",
+  "mobile.settings.home.discord": "Join the Discord",
+  "mobile.settings.home.communityHint": "Join the community on Discord and X",
 });

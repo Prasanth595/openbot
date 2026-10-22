@@ -3,14 +3,16 @@ import { useMobileWorkspaceSelector } from "@/features/workspace/context/mobile-
 import { showsOnline } from "@/features/workspace/model/server-status";
 import { selectLiveState } from "./use-live-workspace";
 
-export function useAgentActivity(agentId: string) {
+export function useAgentActivity(agentId: string, includeCompletion = false, hostId?: string) {
   const liveState = useMobileWorkspaceSelector(selectLiveState);
-  const online = useMobileWorkspaceSelector((workspace) => showsOnline(workspace.activeServer));
-  const serverId = useMobileWorkspaceSelector((workspace) => workspace.activeServer.id);
-  const select = useCallback(
-    () => (online ? liveState.get().activityByServer[serverId]?.[agentId] : undefined),
-    [liveState, online, serverId, agentId],
+  const serverId = useMobileWorkspaceSelector((workspace) => hostId ?? workspace.activeServer.id);
+  const online = useMobileWorkspaceSelector((workspace) =>
+    showsOnline(workspace.servers.find((server) => server.id === serverId)),
   );
+  const select = useCallback(() => {
+    const activity = online ? liveState.get().activityByServer[serverId]?.[agentId] : undefined;
+    return activity?.phase === "finished" && !includeCompletion ? undefined : activity;
+  }, [liveState, online, serverId, agentId, includeCompletion]);
   return useSyncExternalStore(liveState.subscribe, select);
 }
 

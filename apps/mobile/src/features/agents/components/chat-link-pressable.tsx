@@ -2,6 +2,7 @@ import { useNavigation, useRoute } from "expo-router/react-navigation";
 import { type ComponentProps, createContext, useContext, useEffect, useRef } from "react";
 import { type GestureResponderEvent, Pressable } from "react-native";
 import type { createChatNavigationGate } from "@/features/agents/model/chat-navigation-gate";
+import { beginChatOpen } from "@/features/chat/model/chat-open-performance";
 import { haptics } from "@/shared/lib/haptics";
 
 export const ChatNavigationGateContext = createContext<ReturnType<typeof createChatNavigationGate> | null>(null);
@@ -16,11 +17,13 @@ interface LinkPress {
 // Defer that exact handler rather than recreating navigation with router.push.
 export function ChatLinkPressable({
   chatId,
+  serverId,
   onPress,
   ...props
 }: ComponentProps<typeof Pressable> & {
   /** Registers this home row, so the search sheet can open the chat with the row's zoom source. */
   chatId?: string;
+  serverId?: string;
 }) {
   const gate = useContext(ChatNavigationGateContext);
   const route = useRoute();
@@ -46,6 +49,7 @@ export function ChatLinkPressable({
       {...props}
       onPress={(event) => {
         if (event.defaultPrevented) return;
+        if (chatId && serverId) beginChatOpen(serverId, chatId, "team");
         void haptics.impact("soft");
         event.persist();
         const navigate = () => {

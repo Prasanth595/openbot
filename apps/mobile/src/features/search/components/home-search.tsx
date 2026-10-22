@@ -2,10 +2,10 @@ import { isAgentTaskOpen, taskNeedsYou } from "@openbot/team-client/agent-tasks"
 import { BlurView } from "expo-blur";
 import * as Crypto from "expo-crypto";
 import { GlassView } from "expo-glass-effect";
-import { type Href, router, useFocusEffect } from "expo-router";
+import { type Href, router, useFocusEffect, useNavigation } from "expo-router";
 import type { NativeStackNavigationProp } from "expo-router/native-stack";
-import { type ParamListBase, useNavigation } from "expo-router/react-navigation";
-import { Spinner, Typography } from "heroui-native";
+import { type ParamListBase, useNavigation as useTabNavigation } from "expo-router/react-navigation";
+import { Button, Spinner, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
 import type { LucideIcon } from "lucide-react-native";
 import ArrowUp from "lucide-react-native/icons/arrow-up";
@@ -407,7 +407,6 @@ export function useHomeSearch(): HomeSearch {
 }
 
 /** The room between the status bar and the first result. */
-const RESULTS_TOP_GAP = 8;
 
 /**
  * The home list under the search. It goes back and fades as the results come in over it, and comes
@@ -426,7 +425,9 @@ export function HomeSearchList({
 }>) {
   const reduced = useReducedMotion();
   const { progress, closing } = search;
+  const resting = !search.mounted || search.settled;
   const style = useAnimatedStyle(() => {
+    if (resting) return { opacity: 1, transform: [{ translateY: 0 }, { scale: 1 }] };
     const value = progress.get();
     // Opening: the list is gone before the results are fully in, and moves up with the bar.
     // Closing: the list comes forward in place as the results fade over it.
@@ -438,9 +439,9 @@ export function HomeSearchList({
         : [{ translateY: leaving ? 0 : -value * barHeight }, { scale: interpolate(value, [0, 1], [1, 0.98]) }],
     };
   });
-  // At rest the list has no animated style: the opaque results cover it while they are open.
+  // Keep the same animated style mounted. Removing it can retain the last hidden native opacity.
   return (
-    <Animated.View className="flex-1" style={search.mounted && !search.settled ? style : undefined}>
+    <Animated.View className="flex-1" style={style}>
       {children}
     </Animated.View>
   );
@@ -476,23 +477,23 @@ export function HomeSearchResults({
   if (!search.mounted && !search.prepared) return null;
   return (
     <Animated.View
-      className="absolute inset-0 bg-background"
+      className="absolute inset-0 bg-team-canvas"
       pointerEvents={search.open ? "auto" : "none"}
       accessibilityElementsHidden={!search.open}
       importantForAccessibility={search.open ? "auto" : "no-hide-descendants"}
       // At rest the results have no animated style. A render while the user types then cannot put
       // back the first-render opacity of 0 when the animated value has not reached React.
-      style={search.settled ? undefined : style}
+      style={style}
     >
       <KeyboardAwareScrollView
         style={{ flex: 1 }}
         contentInsetAdjustmentBehavior="never"
         contentContainerStyle={{
-          paddingTop: insets.top + RESULTS_TOP_GAP,
-          paddingBottom: HOME_SEARCH_HEIGHT + Math.max(insets.bottom, 12) + 24,
+          paddingTop: insets.top + 64,
+          paddingBottom: (search.target ? HOME_SEARCH_HEIGHT : 0) + Math.max(insets.bottom, 12) + 24,
         }}
         mode="insets"
-        bottomOffset={HOME_SEARCH_HEIGHT + KEYBOARD_GAP}
+        bottomOffset={search.target ? HOME_SEARCH_HEIGHT + KEYBOARD_GAP : KEYBOARD_GAP}
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -513,9 +514,7 @@ export function HomeSearchResults({
 function HomeSearchBody({ search }: { search: HomeSearch }) {
   const { t } = useText();
   const motion = useTransitionMode("searchTransitions");
-  const text = search.query.trim();
   const { target, targetMatches } = search;
-  const agents = useMobileWorkspaceSelector((current) => current.activeAgents);
   const idle = <HomeSearchIdle onLeave={search.leave} canUseTasks={search.canUseTasks} />;
   return (
     <BlurSwap swapKey={targetMatches ? "targets" : "search"} mode={motion}>
@@ -533,22 +532,6 @@ function HomeSearchBody({ search }: { search: HomeSearch }) {
       ) : (
         <>
           {target ? <TaskEditorPage agent={target} search={search} /> : null}
-          {!target && text && search.canUseTasks && agents.length > 0 ? (
-            <>
-              <SearchCaption label={t("mobile.search.task.newTextFor", { text })} />
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-                contentContainerClassName="gap-3.5 px-5 pt-1 pb-1.5"
-              >
-                {agents.map((agent) => (
-                  <AgentChip key={agent.id} agent={agent} onPress={() => search.chooseTarget(agent, text)} />
-                ))}
-              </ScrollView>
-            </>
-          ) : null}
-          {!target && text && search.canUseTasks ? <SearchTasks query={text} onLeave={search.leave} /> : null}
           {/* Text to an agent is a task, not a search. */}
           {target ? null : (
             <MobileSearchResults query={search.query} active={search.open} idle={idle} onLeave={search.leave} />
@@ -634,6 +617,7 @@ export function HomeSearchBar({
     "background",
   ]);
   const danger = String(useCSSVariable("--openbot-danger-text"));
+  const searchAccent = useCSSVariable("--openbot-accent");
   // The last result stays in the field while it fades out, so its text and color do not change then.
   const [shownResult, setShownResult] = useState(search.result);
   if (search.result && search.result !== shownResult) setShownResult(search.result);
@@ -657,6 +641,9 @@ export function HomeSearchBar({
   const exit = reduced ? undefined : closeButtonExit;
   const homeAtRest = useHomeAtRest();
   const { target } = search;
+  useEffect(() => {
+    if (search.open && !target) input.current?.focus();
+  }, [search.open, target, input]);
   const prepareFromTouch = () => {
     if (search.open) return;
     touched.current = true;
@@ -674,6 +661,68 @@ export function HomeSearchBar({
     : search.canUseTasks
       ? t("mobile.search.placeholder")
       : t("common.search");
+
+  if (!target && !showsResult) {
+    return (
+      <View
+        className="absolute inset-x-0 bg-team-canvas"
+        style={{
+          top: insets.top,
+          paddingTop: 4,
+          paddingBottom: 12,
+          paddingHorizontal: 20,
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 12,
+        }}
+      >
+        <View
+          className="bg-team-surface"
+          style={{
+            flex: 1,
+            height: 44,
+            borderRadius: 999,
+            borderWidth: 1,
+            borderColor: String(searchAccent),
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 10,
+            paddingHorizontal: 14,
+          }}
+        >
+          <Search color={String(muted)} size={18} />
+          <TextInput
+            ref={search.input}
+            accessibilityLabel={placeholder}
+            placeholder={placeholder}
+            placeholderTextColor={String(muted)}
+            value={search.query}
+            onChangeText={search.setQuery}
+            onFocus={openFromFocus}
+            onSubmitEditing={search.submit}
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="search"
+            selectionColor={String(foreground)}
+            style={{
+              flex: 1,
+              minWidth: 0,
+              height: 44,
+              paddingVertical: 0,
+              fontFamily: "Inter",
+              fontSize: 16,
+              color: String(foreground),
+            }}
+          />
+        </View>
+        <Button variant="ghost" onPress={search.closeSearch} style={{ paddingHorizontal: 0, height: 44 }}>
+          <Button.Label className="text-accent-text" style={{ fontFamily: "Inter", fontSize: 16, fontWeight: "500" }}>
+            {t("common.cancel")}
+          </Button.Label>
+        </Button>
+      </View>
+    );
+  }
 
   return (
     <Animated.View
@@ -981,31 +1030,37 @@ function TargetChip({ agent, onPress }: { agent: MobileAgent; onPress: () => voi
  * A sheet over home does not hide home, so its close gives focus with no animation to wait for.
  */
 function useHomeAtRest(): boolean {
-  const navigation = useNavigation<NativeStackNavigationProp<ParamListBase>>();
+  const tabNavigation = useTabNavigation();
+  // The home screen is a NativeTabs child. Its enclosing stack owns push and pop events.
+  const stackNavigation = useNavigation<NativeStackNavigationProp<ParamListBase>>("/(app)");
   const [atRest, setAtRest] = useState(true);
   useEffect(() => {
     if (!ANDROID_BLUR) return;
-    // A screen that slid over home hid it; home then comes back with its own animation.
     let hidden = false;
+    const focused = () => tabNavigation.isFocused() && stackNavigation.isFocused();
+    const onFocus = () => {
+      if (!hidden) setAtRest(focused());
+    };
+    setAtRest(focused());
     const listeners = [
-      navigation.addListener("blur", () => setAtRest(false)),
-      navigation.addListener("focus", () => {
-        if (!hidden) setAtRest(true);
-      }),
-      navigation.addListener("transitionStart", () => setAtRest(false)),
-      navigation.addListener("transitionEnd", (event) => {
+      tabNavigation.addListener("blur", () => setAtRest(false)),
+      tabNavigation.addListener("focus", onFocus),
+      stackNavigation.addListener("blur", () => setAtRest(false)),
+      stackNavigation.addListener("focus", onFocus),
+      stackNavigation.addListener("transitionStart", () => setAtRest(false)),
+      stackNavigation.addListener("transitionEnd", (event) => {
         if (event.data.closing) {
-          hidden = !navigation.isFocused();
+          hidden = !stackNavigation.isFocused();
           return;
         }
         hidden = false;
-        if (navigation.isFocused()) setAtRest(true);
+        setAtRest(focused());
       }),
     ];
     return () => {
       for (const remove of listeners) remove();
     };
-  }, [navigation]);
+  }, [tabNavigation, stackNavigation]);
   return atRest;
 }
 
@@ -1188,7 +1243,8 @@ function HomeSearchIdle({ onLeave, canUseTasks }: { onLeave: () => void; canUseT
   );
   const openChat = (agent: MobileAgent) => {
     onLeave();
-    if (!gate?.openFromHome(agent.id)) router.push({ pathname: "/chat/[agentId]", params: { agentId: agent.id } });
+    if (!gate?.openFromHome(agent.id))
+      router.push({ pathname: "/chat/[agentId]", params: { agentId: agent.id, serverId: agent.serverId } });
   };
   return (
     <View className="pb-2">
@@ -1201,7 +1257,9 @@ function HomeSearchIdle({ onLeave, canUseTasks }: { onLeave: () => void; canUseT
             shortcut={shortcut}
             onPress={() => {
               onLeave();
-              router.push(shortcut.href);
+              if (shortcut.id === "tasks" || shortcut.id === "routines" || shortcut.id === "settings")
+                router.navigate(shortcut.href);
+              else router.push(shortcut.href);
             }}
           />
         ))}
@@ -1249,7 +1307,8 @@ function TaskEditorPage({ agent, search }: { agent: MobileAgent; search: HomeSea
   const [before = "", after = ""] = t("mobile.search.task.newFor", { name: NAME_MARK }).split(NAME_MARK);
   const message = () => {
     search.leave();
-    if (!gate?.openFromHome(agent.id)) router.push({ pathname: "/chat/[agentId]", params: { agentId: agent.id } });
+    if (!gate?.openFromHome(agent.id))
+      router.push({ pathname: "/chat/[agentId]", params: { agentId: agent.id, serverId: agent.serverId } });
   };
   return (
     // The spacing of the prototype: 4 pt above the page, 8 pt beside the avatar, 10 pt above the line.

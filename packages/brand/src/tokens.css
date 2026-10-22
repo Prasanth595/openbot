@@ -13,6 +13,10 @@
 
 :root {
   --openbot-provider-current: currentcolor;
+  /* Satellite activity artwork: fixed identity colors. */
+  --openbot-activity-satellite-lavender: #d6adf2;
+  --openbot-activity-satellite-green: #61c985;
+  --openbot-activity-satellite-mustard: #e3b866;
   /* Main screen canvas and drawer, used by the native app. */
   --openbot-bg-native-canvas: #141414;
   --openbot-bg-native-sidebar: #141414;

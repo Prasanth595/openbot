@@ -79,6 +79,7 @@ const PinnedAgentItem = memo(function PinnedAgentItem({ agent }: { agent: Mobile
   const trigger = (
     <ChatLinkPressable
       chatId={agent.id}
+      serverId={agent.serverId}
       accessibilityLabel={
         waitReason
           ? t("mobile.agent.list.withState", { label: openLabel, state: t(AGENT_WAIT_STATE[waitReason]) })
@@ -132,7 +133,7 @@ const PinnedAgentItem = memo(function PinnedAgentItem({ agent }: { agent: Mobile
     <PinnedChatItem>
       {isAndroid ? (
         <View className="w-full">
-          <Link href={{ pathname: "/chat/[agentId]", params: { agentId: agent.id } }} asChild>
+          <Link href={{ pathname: "/chat/[agentId]", params: { agentId: agent.id, serverId: agent.serverId } }} asChild>
             <Link.Trigger>{trigger}</Link.Trigger>
           </Link>
           {menuKey > 0 ? <AgentAndroidMenu key={menuKey} agent={agent} onClose={() => setMenuKey(0)} /> : null}

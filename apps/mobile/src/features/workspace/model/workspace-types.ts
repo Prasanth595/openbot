@@ -47,6 +47,8 @@ import type {
   HostUpdateStatus,
   InstallAgentTemplateInput,
   InstalledSkill,
+  InstallMarketplaceAgentInput,
+  InstallSkillInput,
   McpServerConfig,
   McpSignInState,
   McpTestResult,
@@ -63,6 +65,7 @@ import type {
   RoutineCalendar,
   RoutineCalendarInput,
   RoutineCalendarOwner,
+  RoutineFlowCanvas,
   SetAgentMemoryInclusionInput,
   SetAgentProviderAccountInput,
   SetAgentSessionSettingInput,
@@ -144,6 +147,8 @@ export interface MobileAgent {
   notifications?: boolean;
   /** The agent workspace folder on the host. */
   workspacePath?: string;
+  /** The exact catalogue listing that this agent was installed from. */
+  marketplaceListingId?: string;
   id: string;
   serverId: string;
   name: string;
@@ -398,6 +403,8 @@ export interface MobileWorkspaceContextValue {
   ) => Promise<AgentMemorySelectionState>;
   loadAgentMemories: (agentId: string, serverId: string) => Promise<AgentMemory[]>;
   loadAgentRoutines: (agentId: string, serverId: string) => Promise<Routine[]>;
+  /** Null when the host does not advertise `routine-flows-v1`. */
+  loadAgentRoutineFlow: (agentId: string, serverId: string) => Promise<RoutineFlowCanvas | null>;
   /** Every routine of the server, of agents and channels, with its runs in the range. */
   /**
    * `owners` are the agents and channels whose routines to read, when the caller already knows them.
@@ -422,6 +429,7 @@ export interface MobileWorkspaceContextValue {
   setAgentSkillEnabled: (input: SetEnabledSkillInput, serverId: string) => Promise<InstalledSkill>;
   /** Owners and admins only; the host refuses a member. */
   uninstallAgentSkill: (input: UninstallSkillInput, serverId: string) => Promise<void>;
+  installAgentSkill: (input: InstallSkillInput, serverId: string) => Promise<InstalledSkill>;
   /** Null when the host does not advertise `storage-v1`. */
   loadAgentStorage: (agentId: string, serverId: string, force?: boolean) => Promise<StorageUsage | null>;
   /** True when the host advertises `storage-v1`. Every member reads the host's storage. */
@@ -484,6 +492,7 @@ export interface MobileWorkspaceContextValue {
   canInstallAgentTemplate: (serverId: string) => boolean;
   /** Owners and admins only. The host downloads the template with its own account. */
   installAgentTemplate: (input: InstallAgentTemplateInput, serverId: string) => Promise<AddedAgent>;
+  installMarketplaceAgent: (input: InstallMarketplaceAgentInput, serverId: string) => Promise<AddedAgent>;
   /** Owners and admins only; the host refuses a member. */
   deleteStoredFile: (fileId: string, serverId: string) => Promise<void>;
   /** Searches message text in the server's agent chats, one page from `cursor` or from the newest match. */
@@ -512,6 +521,8 @@ export interface MobileWorkspaceContextValue {
   /** Answers a question of a task turn. The host finds the question by its request, on any thread. */
   respondToTaskPrompt: (input: RespondToPromptInput, serverId: string) => Promise<void>;
   loadConversation: (agentId: string, serverId?: string) => Promise<ConversationSnapshot>;
+  /** Starts one latest-page read on touch. It does not change the read cursor. */
+  prefetchConversation: (agentId: string, serverId: string) => void;
   /**
    * Loads the page around a message, for a chat that opens at a search result. False when the host
    * does not have the message.
@@ -520,7 +531,7 @@ export interface MobileWorkspaceContextValue {
   /** Loads the latest page in place of a window around a searched message. */
   loadLatestMessages: (agentId: string, serverId?: string) => Promise<void>;
   loadOlderMessages: (agentId: string, serverId?: string) => Promise<void>;
-  respondToPrompt: (agentId: string, input: RespondToPromptInput) => Promise<void>;
+  respondToPrompt: (agentId: string, input: RespondToPromptInput, serverId?: string) => Promise<void>;
   sendMessage: (
     agentId: string,
     text: string,

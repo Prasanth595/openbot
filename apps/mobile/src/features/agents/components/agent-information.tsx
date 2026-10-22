@@ -323,9 +323,22 @@ export function AgentInformation({
               <AgentSkills agent={agent} skills={skills.data} manage={manageSkills} queryKey={skillsKey} />
             ) : null}
           </InformationSection>
-          <SettingsNote>
-            {t(manageSkills ? "mobile.agent.info.skillsAddOnComputer" : "mobile.agent.info.skillsManaged")}
-          </SettingsNote>
+          {available && manageSkills ? (
+            <SettingsSection>
+              <SettingsRow
+                onPress={() =>
+                  router.dismissTo({
+                    pathname: "/market",
+                    params: { tab: "skills", serverId: agent.serverId, agentId: agent.id },
+                  })
+                }
+              >
+                <Typography.Paragraph>{t("mobile.market.title")}</Typography.Paragraph>
+              </SettingsRow>
+            </SettingsSection>
+          ) : (
+            <SettingsNote>{t("mobile.agent.info.skillsManaged")}</SettingsNote>
+          )}
         </>
       ) : null}
       {section === "files" ? (

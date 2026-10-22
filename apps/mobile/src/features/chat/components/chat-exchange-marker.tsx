@@ -2,15 +2,19 @@ import type { AgentExchangeSummary } from "@openbot/contracts/ipc";
 import type { MobileTranslate } from "@openbot/i18n/mobile";
 import { Link } from "expo-router";
 import { Typography } from "heroui-native";
+import ArrowDownLeft from "lucide-react-native/icons/arrow-down-left";
+import ArrowUpRight from "lucide-react-native/icons/arrow-up-right";
 import ChevronDown from "lucide-react-native/icons/chevron-down";
+import MessagesSquare from "lucide-react-native/icons/messages-square";
 import { useState } from "react";
 import { Pressable, View, type ViewStyle } from "react-native";
-import { BloubAvatarThumbnail } from "@/features/agents/components/bloub-avatar";
 import { ChatLinkPressable } from "@/features/agents/components/chat-link-pressable";
+import { TeamAgentAvatar } from "@/features/agents/components/team-agent-avatar";
 import type { ChatMessage, ExchangeGroup, ExchangeMarker } from "@/features/chat/model/chat-messages";
 import type { MobileAgent } from "@/features/workspace/context/mobile-workspace-context";
 import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
+import { typeScale } from "@/shared/lib/type-scale";
 
 type RoutingMarker = Extract<ChatMessage, { kind: "channel-routing" }>;
 
@@ -43,7 +47,7 @@ export function ChatExchangeMarker({
   agentsById,
   muted,
 }: MarkerContext & { message: ExchangeMarker | RoutingMarker }) {
-  const { t } = useText();
+  const { t, format } = useText();
   const [open, setOpen] = useState(false);
   const label =
     message.kind === "channel-routing"
@@ -52,6 +56,16 @@ export function ChatExchangeMarker({
         : t("mobile.chat.exchange.continuingWith")
       : exchangeLabel(message.exchange, t);
   const ids = message.kind === "channel-routing" ? [message.event.agentId] : exchangeAgentIds(message.exchange);
+  const Icon =
+    message.kind === "channel-routing"
+      ? MessagesSquare
+      : message.exchange.direction === "outgoing"
+        ? ArrowUpRight
+        : ArrowDownLeft;
+  const time =
+    "createdAt" in message && message.createdAt
+      ? format.date(new Date(message.createdAt), { timeStyle: "short" })
+      : null;
   const badges = ids.map((id) => {
     const legacyName =
       message.kind === "channel-routing" && message.event.agentId === null ? message.event.agentName : null;
@@ -67,12 +81,17 @@ export function ChatExchangeMarker({
             ? (legacyName ?? t("mobile.chat.exchange.unavailableAgent"))
             : t("mobile.chat.exchange.unknownAgent"))
         }
-        muted={muted}
       />
     );
     return message.kind === "channel-routing" && participant ? (
-      <Link key={participant.id} href={{ pathname: "/chat/[agentId]", params: { agentId: participant.id } }} asChild>
+      <Link
+        key={participant.id}
+        href={{ pathname: "/chat/[agentId]", params: { agentId: participant.id, serverId: participant.serverId } }}
+        asChild
+      >
         <ChatLinkPressable
+          chatId={participant.id}
+          serverId={participant.serverId}
           accessibilityRole="link"
           accessibilityLabel={t("mobile.chat.exchange.openChat", { name: participant.name })}
         >
@@ -87,11 +106,13 @@ export function ChatExchangeMarker({
   if (badges.length > 1) {
     const agentCount = t("mobile.chat.exchange.agentCount", { count: badges.length });
     return (
-      <View className="items-center gap-2 py-2">
-        <View className="flex-row flex-wrap items-center justify-center gap-2">
-          <Typography.Paragraph type="body-sm" style={{ color: muted }}>
-            {label}
-          </Typography.Paragraph>
+      <View className="items-center gap-2">
+        <View
+          className="max-w-full flex-row flex-wrap items-center justify-center gap-2 rounded-full border border-grouped-border bg-grouped py-1 pr-3 pl-2"
+          style={{ minHeight: 30 }}
+        >
+          <Icon size={14} color={String(muted)} style={{ flexShrink: 0 }} />
+          <Typography.Paragraph style={[typeScale.chatEvent, { color: muted }]}>{label}</Typography.Paragraph>
           <AgentsToggle
             agents={ids.map((id) => (id ? agentsById.get(id) : undefined))}
             label={agentCount}
@@ -100,17 +121,31 @@ export function ChatExchangeMarker({
             onToggle={() => setOpen((value) => !value)}
             muted={muted}
           />
+          {time ? (
+            <Typography.Paragraph numberOfLines={1} style={[typeScale.chatEventTime, { color: muted }]}>
+              {time}
+            </Typography.Paragraph>
+          ) : null}
         </View>
         {open ? <View className="flex-row flex-wrap items-center justify-center gap-2">{badges}</View> : null}
       </View>
     );
   }
   return (
-    <View className="flex-row flex-wrap items-center justify-center gap-2 py-2">
-      <Typography.Paragraph type="body-sm" style={{ color: muted }}>
-        {label}
-      </Typography.Paragraph>
-      {badges}
+    <View className="items-center">
+      <View
+        className="max-w-full flex-row flex-wrap items-center justify-center gap-2 rounded-full border border-grouped-border bg-grouped py-1 pr-3 pl-2"
+        style={{ minHeight: 30 }}
+      >
+        <Icon size={14} color={String(muted)} style={{ flexShrink: 0 }} />
+        <Typography.Paragraph style={[typeScale.chatEvent, { color: muted }]}>{label}</Typography.Paragraph>
+        {badges}
+        {time ? (
+          <Typography.Paragraph numberOfLines={1} style={[typeScale.chatEventTime, { color: muted }]}>
+            {time}
+          </Typography.Paragraph>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -130,9 +165,13 @@ export function ChatExchangeGroup({ group, agents, agentsById, muted }: MarkerCo
       ? (participants[0]?.name ?? t("mobile.chat.exchange.unknownAgent"))
       : t("mobile.chat.exchange.agentCount", { count: ids.length });
   return (
-    <View className="items-center py-2">
-      <View className="flex-row flex-wrap items-center justify-center gap-2">
-        <Typography.Paragraph type="body-sm" style={{ color: muted }}>
+    <View className="items-center gap-2">
+      <View
+        className="max-w-full flex-row flex-wrap items-center justify-center gap-2 rounded-full border border-grouped-border bg-grouped py-1 pr-3 pl-2"
+        style={{ minHeight: 30 }}
+      >
+        <MessagesSquare size={14} color={String(muted)} style={{ flexShrink: 0 }} />
+        <Typography.Paragraph style={[typeScale.chatEvent, { color: muted }]}>
           {t("mobile.chat.exchange.group", { count })}
         </Typography.Paragraph>
         <AgentsToggle
@@ -156,19 +195,11 @@ export function ChatExchangeGroup({ group, agents, agentsById, muted }: MarkerCo
   );
 }
 
-function AgentBadge({
-  agent,
-  name,
-  muted,
-}: {
-  agent: MobileAgent | undefined;
-  name: string;
-  muted: ViewStyle["backgroundColor"];
-}) {
+function AgentBadge({ agent, name }: { agent: MobileAgent | undefined; name: string }) {
   return (
-    <View className="flex-row items-center gap-1">
+    <View className="max-w-full flex-row items-center gap-2">
       {agent ? <AgentThumbnail agent={agent} /> : null}
-      <Typography.Paragraph type="body-sm" style={{ color: muted }}>
+      <Typography.Paragraph weight="semibold" style={[typeScale.chatEvent, { flexShrink: 1, fontWeight: "600" }]}>
         {name}
       </Typography.Paragraph>
     </View>
@@ -177,13 +208,9 @@ function AgentBadge({
 
 function AgentThumbnail({ agent }: { agent: MobileAgent }) {
   return (
-    <BloubAvatarThumbnail
-      agentId={agent.id}
-      serverId={agent.serverId}
-      hue={agent.avatarHue}
-      seed={agent.avatarSeed}
-      size={22}
-    />
+    <View className="shrink-0 items-center justify-center">
+      <TeamAgentAvatar agent={agent} size={16} showActivity={false} />
+    </View>
   );
 }
 
@@ -214,7 +241,7 @@ function AgentsToggle({
         void haptics.selection();
         onToggle();
       }}
-      className="flex-row items-center gap-1"
+      className="max-w-full shrink flex-row items-center gap-1"
       style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
     >
       {shown.length ? (
@@ -226,7 +253,11 @@ function AgentsToggle({
           ))}
         </View>
       ) : null}
-      <Typography.Paragraph type="body-sm" style={{ color: muted }}>
+      <Typography.Paragraph
+        numberOfLines={1}
+        weight="semibold"
+        style={[typeScale.chatEvent, { flexShrink: 1, fontWeight: "600" }]}
+      >
         {label}
       </Typography.Paragraph>
       <ChevronDown

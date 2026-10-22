@@ -1,4 +1,5 @@
 import type {
+  AgentEvent,
   AvatarHue,
   DynamicIslandAction,
   DynamicIslandAgentIdentity,
@@ -267,7 +268,7 @@ function liveActivityContent(
             t("mobile.liveActivity.question.fallback", { name: presentation.item.agent.name }),
           DETAIL_LIMIT,
         ),
-        compact: limit(presentation.item.agent.name, ROW_NAME_LIMIT),
+        compact: t("mobile.liveActivity.badge.question"),
         compactTint: agentColor(presentation.item.agent.avatarSeed, presentation.item.agent.avatarHue),
         footer: remaining(presentation.remainingCount, t),
         detailLines: 2,
@@ -289,7 +290,7 @@ function liveActivityContent(
               reason ?? presentation.item.detail ?? t("mobile.liveActivity.approval.fallback"),
               DETAIL_LIMIT,
             ),
-        compact: limit(presentation.item.agent.name, ROW_NAME_LIMIT),
+        compact: t("mobile.liveActivity.badge.approval"),
         compactTint: agentColor(presentation.item.agent.avatarSeed, presentation.item.agent.avatarHue),
         footer: remaining(presentation.remainingCount, t),
         detailLines: command ? 4 : 2,
@@ -308,7 +309,7 @@ function liveActivityContent(
           presentation.item.detail ?? t("mobile.liveActivity.takeover.fallback"),
           DETAIL_LIMIT,
         ),
-        compact: limit(presentation.item.agent.name, ROW_NAME_LIMIT),
+        compact: t("mobile.liveActivity.badge.takeover"),
         compactTint: agentColor(presentation.item.agent.avatarSeed, presentation.item.agent.avatarHue),
         footer: "",
         detailLines: 2,
@@ -558,4 +559,20 @@ function remaining(count: number, t: MobileTranslate): string {
 function limit(value: string, length: number): string {
   const characters = Array.from(value.replace(/\s+/gu, " ").trim());
   return characters.length > length ? `${characters.slice(0, length - 1).join("")}…` : characters.join("");
+}
+
+/** State changes bypass text coalescing on both the phone and its host. */
+export function liveActivityEventIsImmediate(event: Pick<AgentEvent, "type">): boolean {
+  switch (event.type) {
+    case "turn-started":
+    case "turn-completed":
+    case "prompt":
+    case "approval":
+    case "agent-input-resolved":
+    case "browser-takeover-requested":
+    case "browser-takeover-resolved":
+      return true;
+    default:
+      return false;
+  }
 }

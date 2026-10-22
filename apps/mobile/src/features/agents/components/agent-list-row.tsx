@@ -1,10 +1,7 @@
-import { markdownPreviewText } from "@openbot/contracts/markdown-preview-text";
 import MaskedView from "@react-native-masked-view/masked-view";
 import { BlurView } from "expo-blur";
 import { Link } from "expo-router";
-import { Typography } from "heroui-native";
-import { useThemeColor } from "heroui-native/hooks";
-import { memo, type PropsWithChildren, useEffect, useId, useMemo, useState } from "react";
+import { memo, type PropsWithChildren, useEffect, useId, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import Animated, {
   Easing,
@@ -17,23 +14,29 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
+import { useCSSVariable } from "uniwind";
 import { useAgentChatPreview } from "@/features/agents/components/agent-chat-preview";
 import { AgentAndroidMenu, AgentContextMenuLink } from "@/features/agents/components/agent-context-menu";
 import { AgentPinAvatar } from "@/features/agents/components/agent-pin-avatar";
 import { AgentPinSwipeRow } from "@/features/agents/components/agent-pin-swipe-row";
 import { useAgentPinTransition } from "@/features/agents/components/agent-pin-transition";
 import { AGENT_WAIT_STATE, AgentWaitBadge, AgentWaitChip } from "@/features/agents/components/agent-wait-badge";
-import { BloubAvatar } from "@/features/agents/components/bloub-avatar";
 import { ChatLinkPressable } from "@/features/agents/components/chat-link-pressable";
 import { ChatZoomSource } from "@/features/agents/components/chat-zoom-source";
+import { TeamAgentAvatar } from "@/features/agents/components/team-agent-avatar";
+import { TeamAgentSummary } from "@/features/agents/components/team-home-parts";
 import { useWaitingChannel } from "@/features/channels/components/use-waiting-channel";
 import { useAgentWaitReason } from "@/features/workspace/components/use-agent-activity";
 import { useAgentUnread } from "@/features/workspace/components/use-live-workspace";
-import { type MobileAgent, useMobileWorkspaceSelector } from "@/features/workspace/context/mobile-workspace-context";
+import {
+  type MobileAgent,
+  useMobileWorkspaceReader,
+  useMobileWorkspaceSelector,
+} from "@/features/workspace/context/mobile-workspace-context";
 import { canToggleAgentPin } from "@/features/workspace/model/agent-pins";
+import { haptics } from "@/shared/lib/haptics";
 import { isAndroid } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
-import { typeScale } from "@/shared/lib/type-scale";
 
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
 const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
@@ -101,38 +104,32 @@ interface AgentListRowProps {
  */
 export const AgentListRow = memo(function AgentListRow({ agent, leftInset = 20, rightInset = 20 }: AgentListRowProps) {
   const { t } = useText();
-  const [background] = useThemeColor(["background"]);
+  const workspace = useMobileWorkspaceReader();
+  const background = String(useCSSVariable("--openbot-bg-canvas"));
+  const border = String(useCSSVariable("--openbot-border-grouped"));
   const pinBlocked = useMobileWorkspaceSelector(
-    ({ pinnedAgentIds, pinnedChannelIds }) => !canToggleAgentPin([...pinnedAgentIds, ...pinnedChannelIds], agent.id),
+    ({ pinnedAgentIds, pinnedChannelIds }) =>
+      !canToggleAgentPin([...pinnedAgentIds, ...pinnedChannelIds], agent.id, pinnedAgentIds[0] ?? null),
   );
   const { toggleAgentPinAnimated, transition } = useAgentPinTransition();
   // Each long press mounts the Android menu again, so it opens even if an earlier one did not close.
   const [menuKey, setMenuKey] = useState(0);
   const agentChatPreview = useAgentChatPreview(agent);
-  // An agent that waits in a channel says so, as its last message in its own chat is not the wait.
+  // A channel wait replaces the preview of the agent's own chat.
   const waitingChannel = useWaitingChannel(agent.id, agent.serverId);
-  const lastMessage = useMemo(() => markdownPreviewText(agent.preview), [agent.preview]);
-  const previewLine = waitingChannel
-    ? t("mobile.chat.channelWork.waiting", { channel: waitingChannel.name })
-    : lastMessage;
   const isUnread = useAgentUnread(agent.id);
+  const toggleRead = () => {
+    if (isUnread) workspace().markAgentRead(agent.id);
+    else workspace().markAgentUnread(agent.id);
+    void haptics.selection();
+  };
   const waitReason = useAgentWaitReason(agent.id);
   const isUnpinTarget = transition?.chatId === agent.id && transition.target === "row";
-  const bloub = (
-    <BloubAvatar
-      agentId={agent.id}
-      serverId={agent.serverId}
-      hue={agent.avatarHue}
-      seed={agent.avatarSeed}
-      size={54}
-      animateIdle={false}
-      rings
-    />
-  );
+  const bloub = <TeamAgentAvatar agent={agent} />;
   const waitBadge = waitReason ? <AgentWaitBadge reason={waitReason} /> : null;
   const avatar = (
     <ChatZoomSource>
-      <AgentPinAvatar agentId={agent.id} location="row" size={54}>
+      <AgentPinAvatar agentId={agent.id} location="row" size={44}>
         {bloub}
         {waitBadge}
       </AgentPinAvatar>
@@ -145,15 +142,20 @@ export const AgentListRow = memo(function AgentListRow({ agent, leftInset = 20, 
   const row = (
     <ChatLinkPressable
       chatId={agent.id}
+      serverId={agent.serverId}
       accessibilityLabel={
         waitReason
           ? t("mobile.agent.list.withState", { label: openLabel, state: t(AGENT_WAIT_STATE[waitReason]) })
           : openLabel
       }
       accessibilityRole="button"
-      accessibilityActions={[{ name: "pin", label: t("mobile.agent.pin.pinNamed", { name: agent.name }) }]}
+      accessibilityActions={[
+        { name: "pin", label: t("mobile.agent.pin.pinNamed", { name: agent.name }) },
+        { name: "read", label: t(isUnread ? "mobile.agent.menu.markRead" : "mobile.agent.menu.markUnread") },
+      ]}
       onAccessibilityAction={(event) => {
         if (event.nativeEvent.actionName === "pin") toggleAgentPinAnimated(agent.id);
+        else if (event.nativeEvent.actionName === "read") toggleRead();
       }}
       className="w-full"
       onPressIn={agentChatPreview.onPressIn}
@@ -161,43 +163,39 @@ export const AgentListRow = memo(function AgentListRow({ agent, leftInset = 20, 
     >
       {({ pressed }) => (
         <View
-          className="min-h-20 w-full flex-row items-center gap-3 py-1"
+          className="w-full flex-row items-center"
           style={{
+            minHeight: 73,
+            gap: 14,
+            paddingVertical: 14,
             backgroundColor: background,
             opacity: pressed ? 0.58 : 1,
             paddingLeft: leftInset,
             paddingRight: rightInset,
           }}
         >
+          <View
+            pointerEvents="none"
+            style={{
+              position: "absolute",
+              top: 0,
+              left: leftInset,
+              right: rightInset,
+              borderTopWidth: 1,
+              borderTopColor: border,
+            }}
+          />
           {avatar}
           <AgentRowTextReveal active={isUnpinTarget}>
-            <View className="min-w-0 flex-1 gap-0.5">
-              <View className="flex-row items-center gap-2">
-                {isUnread ? <View className="size-2 rounded-full bg-accent" /> : null}
-                <Typography.Paragraph
-                  className="font-semibold min-w-0 flex-1"
-                  numberOfLines={1}
-                  style={typeScale.rowTitle}
-                >
-                  {agent.name}
-                </Typography.Paragraph>
-                {waitReason ? (
-                  <AgentWaitChip reason={waitReason} />
-                ) : (
-                  <Typography.Paragraph className="text-muted" style={typeScale.caption}>
-                    {agent.updatedLabel}
-                  </Typography.Paragraph>
-                )}
-              </View>
-              {agent.title.trim() ? (
-                <Typography.Paragraph className="text-muted" numberOfLines={1} style={typeScale.caption}>
-                  {agent.title.trim()}
-                </Typography.Paragraph>
-              ) : null}
-              <Typography.Paragraph className="text-text-secondary" numberOfLines={1} style={typeScale.preview}>
-                {previewLine}
-              </Typography.Paragraph>
-            </View>
+            <TeamAgentSummary
+              agent={
+                waitingChannel
+                  ? { ...agent, preview: t("mobile.chat.channelWork.waiting", { channel: waitingChannel.name }) }
+                  : agent
+              }
+              unread={isUnread}
+              state={waitReason ? <AgentWaitChip reason={waitReason} /> : undefined}
+            />
           </AgentRowTextReveal>
           {agentChatPreview.measurer}
         </View>
@@ -208,11 +206,13 @@ export const AgentListRow = memo(function AgentListRow({ agent, leftInset = 20, 
     <AgentPinSwipeRow
       agentName={agent.name}
       pinBlocked={pinBlocked}
+      unread={isUnread}
+      onRead={toggleRead}
       onPin={(withHaptic) => toggleAgentPinAnimated(agent.id, { haptic: withHaptic })}
     >
       {isAndroid ? (
         <View>
-          <Link href={{ pathname: "/chat/[agentId]", params: { agentId: agent.id } }} asChild>
+          <Link href={{ pathname: "/chat/[agentId]", params: { agentId: agent.id, serverId: agent.serverId } }} asChild>
             <Link.Trigger>{row}</Link.Trigger>
           </Link>
           {menuKey > 0 ? <AgentAndroidMenu key={menuKey} agent={agent} onClose={() => setMenuKey(0)} /> : null}

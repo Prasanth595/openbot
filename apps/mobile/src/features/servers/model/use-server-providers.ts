@@ -3,7 +3,10 @@ import { skipToken, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useRef } from "react";
 import { useQueryScope } from "@/features/auth/context/mobile-session-context";
 import { providerRows } from "@/features/servers/model/provider-admin";
-import { useMobileWorkspace, useMobileWorkspaceActions } from "@/features/workspace/context/mobile-workspace-context";
+import {
+  useMobileWorkspaceActions,
+  useMobileWorkspaceSelector,
+} from "@/features/workspace/context/mobile-workspace-context";
 import { queryKeys } from "@/features/workspace/model/query-keys";
 
 /** The host sends no runtime event, so the runtimes are read again while a download runs, as on the web. */
@@ -15,12 +18,14 @@ const STATUS_POLL_MS = 3000;
  * The providers of a host (`providers-v1`), as the Providers page and each provider page show them.
  * Both pages read the same queries, so a change on one shows on the other.
  */
-export function useServerProviders(serverId: string, options: { watchStatus?: boolean } = {}) {
-  const { canManageProviders } = useMobileWorkspace();
+export function useServerProviders(
+  serverId: string,
+  options: { watchStatus?: boolean; runtimes?: boolean; enabled?: boolean } = {},
+) {
+  const available = useMobileWorkspaceSelector((workspace) => workspace.canManageProviders(serverId));
   const { providerAdmin } = useMobileWorkspaceActions();
   const queryScope = useQueryScope();
   const queryClient = useQueryClient();
-  const available = canManageProviders(serverId);
   const admin = useMemo(() => (available ? providerAdmin(serverId) : null), [available, providerAdmin, serverId]);
   const statusKey = queryKeys.providerStatus(queryScope, serverId);
   const runtimesKey = queryKeys.providerRuntimes(queryScope, serverId);
@@ -51,6 +56,7 @@ export function useServerProviders(serverId: string, options: { watchStatus?: bo
   const status = useQuery({
     queryKey: statusKey,
     retry: false,
+    enabled: Boolean(admin) && options.enabled !== false,
     staleTime: 0,
     refetchInterval: options.watchStatus ? STATUS_POLL_MS : false,
     queryFn: admin ? () => admin.readStatus() : skipToken,
@@ -65,7 +71,7 @@ export function useServerProviders(serverId: string, options: { watchStatus?: bo
       )
         ? RUNTIME_POLL_MS
         : false,
-    queryFn: admin ? () => admin.readRuntimes() : skipToken,
+    queryFn: admin && options.runtimes !== false ? () => admin.readRuntimes() : skipToken,
   });
   const rows = useMemo(
     () => (admin ? providerRows(status.data, runtimes.data, admin.capabilities) : []),

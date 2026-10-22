@@ -98,6 +98,7 @@ interface TextPresentation {
   nativeSelection?: NativeSelectionTarget;
   type: "body" | "body-sm" | "h4" | "h5";
   style: TextStyle;
+  bodyLineHeight?: number;
   codeColor: ColorValue;
   animateTail: boolean;
   /** The reply still streams, so a preview card shows code until its block is complete. */
@@ -128,8 +129,22 @@ function textContainerStyle(source: string, presentation: TextPresentation): Tex
   // Android moves code chips down as well; see `inlineChipStyle`.
   const hasAndroidChip = Platform.OS === "android" && source.includes("`");
   return hasMention || hasMath || hasAndroidChip
-    ? { ...presentation.style, paddingBottom: presentation.mentionOffset, overflow: "visible" }
-    : presentation.style;
+    ? {
+        ...NATIVE_TEXT_STYLES[presentation.type],
+        ...((presentation.type === "body" || presentation.type === "body-sm") && presentation.bodyLineHeight
+          ? { lineHeight: presentation.bodyLineHeight }
+          : {}),
+        ...presentation.style,
+        paddingBottom: presentation.mentionOffset,
+        overflow: "visible",
+      }
+    : {
+        ...NATIVE_TEXT_STYLES[presentation.type],
+        ...((presentation.type === "body" || presentation.type === "body-sm") && presentation.bodyLineHeight
+          ? { lineHeight: presentation.bodyLineHeight }
+          : {}),
+        ...presentation.style,
+      };
 }
 
 /**
@@ -273,9 +288,12 @@ function AgentMention({ agent, presentation }: { agent: MobileAgent; presentatio
     <View
       collapsable={false}
       className="max-w-full flex-row items-center gap-1 rounded-full bg-control/30 px-1.5"
-      // Native inline views sit on the text baseline. Offset the text descender
-      // so the name aligns with the surrounding text instead of sitting above it.
-      style={{ transform: [{ translateY: presentation.mentionOffset }], borderCurve: "circular" }}
+      // Inter's compact label needs a smaller iOS attachment baseline correction.
+      // Android retains the native inline-view descender correction.
+      style={{
+        transform: [{ translateY: Platform.OS === "ios" ? textSize(presentation) / 8 : presentation.mentionOffset }],
+        borderCurve: "circular",
+      }}
     >
       <BloubAvatarThumbnail
         agentId={agent.id}
@@ -284,7 +302,11 @@ function AgentMention({ agent, presentation }: { agent: MobileAgent; presentatio
         seed={agent.avatarSeed}
         size={(presentation.type === "body-sm" ? 16 : 18) * fontScale}
       />
-      <Typography type={presentation.type} style={presentation.style} className="shrink">
+      <Typography
+        type={presentation.type}
+        style={{ ...presentation.style, lineHeight: TEXT_SIZES[presentation.type] * 1.25 }}
+        className="shrink"
+      >
         {agent.name}
       </Typography>
     </View>
@@ -410,7 +432,7 @@ function inline(tokens: Token[], parentPresentation: TextPresentation): ReactNod
 
 /** The HeroUI text types as plain styles: a native text view takes no class names. */
 const NATIVE_TEXT_STYLES: Record<TextPresentation["type"], TextStyle> = {
-  body: { fontSize: 16, lineHeight: 28 },
+  body: { fontFamily: "Inter", fontSize: 16, lineHeight: 24.8 },
   "body-sm": { fontSize: 14, lineHeight: 24 },
   h4: { fontSize: 20, lineHeight: 28, letterSpacing: -0.5 },
   h5: { fontSize: 18, lineHeight: 28, letterSpacing: -0.45 },
@@ -838,6 +860,7 @@ const NO_AGENTS: readonly MobileAgent[] = [];
 
 export const ChatMarkdown = memo(function ChatMarkdown({
   body,
+  bodyLineHeight,
   color,
   compact = false,
   streaming = false,
@@ -849,6 +872,7 @@ export const ChatMarkdown = memo(function ChatMarkdown({
   finished = false,
 }: {
   body: string;
+  bodyLineHeight?: number;
   color: ColorValue | undefined;
   compact?: boolean;
   streaming?: boolean;
@@ -914,7 +938,8 @@ export const ChatMarkdown = memo(function ChatMarkdown({
         presentation={{
           selectable,
           type: compact ? "body-sm" : "body",
-          style: { color: color ?? codeColor },
+          bodyLineHeight,
+          style: { fontFamily: "Inter", color: color ?? codeColor },
           codeColor,
           agents,
           mentionOffset: 4 * fontScale,

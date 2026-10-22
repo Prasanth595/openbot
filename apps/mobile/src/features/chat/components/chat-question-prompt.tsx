@@ -2,17 +2,20 @@ import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import type { ConversationQuestionPrompt } from "@openbot/contracts/ipc";
 import { Button, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import Check from "lucide-react-native/icons/check";
 import ChevronLeft from "lucide-react-native/icons/chevron-left";
 import ChevronRight from "lucide-react-native/icons/chevron-right";
+import CircleCheck from "lucide-react-native/icons/circle-check";
+import CircleX from "lucide-react-native/icons/circle-x";
 import MessageSquareText from "lucide-react-native/icons/message-square-text";
 import Send from "lucide-react-native/icons/send";
 import X from "lucide-react-native/icons/x";
 import { TextInput, View } from "react-native";
+import { useCSSVariable } from "uniwind";
 import type { QuestionPromptController } from "@/features/chat/components/use-question-prompt";
 import { promptAnswerLabel } from "@/features/chat/model/question-prompt";
 import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
+import { typeScale } from "@/shared/lib/type-scale";
 
 export function ChatQuestionPrompt({
   prompt,
@@ -27,11 +30,12 @@ export function ChatQuestionPrompt({
 }) {
   const { t } = useText();
   const [foreground, muted, accentForeground] = useThemeColor(["foreground", "muted", "accent-foreground"]);
+  const success = String(useCSSVariable("--openbot-success-text"));
   if (!prompt.resolution && !controller && onActivate) {
     return (
       <View className="max-w-[88%] self-start gap-2 rounded-[30px] bg-control/60 px-4 py-3">
         <Typography>{prompt.questions[0]?.question}</Typography>
-        <Button variant="ghost" onPress={onActivate}>
+        <Button variant="ghost" isDisabled={!canSend} onPress={onActivate}>
           <Button.Label>{t("mobile.chat.question.answerForm")}</Button.Label>
         </Button>
       </View>
@@ -42,12 +46,19 @@ export function ChatQuestionPrompt({
   if (resolution) {
     return (
       <View
-        className="max-w-[88%] self-start gap-2 rounded-[30px] bg-control/60 px-4 py-3"
-        style={{ borderCurve: "circular" }}
+        className="max-w-full self-start gap-2 rounded-[14px] border border-grouped-border bg-grouped p-3.5"
+        style={{ width: 300, borderCurve: "circular" }}
       >
         <View className="flex-row items-center gap-2">
-          {resolution.status === "answered" ? <Check color={String(muted)} size={18} /> : null}
-          <Typography type="body-sm" className="text-text-secondary">
+          {resolution.status === "answered" ? (
+            <CircleCheck color={success} size={16} />
+          ) : (
+            <CircleX color={String(muted)} size={16} />
+          )}
+          <Typography
+            className={`min-w-0 flex-1 ${resolution.status === "answered" ? "text-foreground" : "text-muted"}`}
+            style={typeScale.chatAuthor}
+          >
             {resolution.status === "answered"
               ? t("mobile.chat.question.answersSent")
               : resolution.status === "cancelled"
@@ -57,11 +68,13 @@ export function ChatQuestionPrompt({
         </View>
         {resolution.status === "answered"
           ? prompt.questions.map((item) => (
-              <View key={item.id} className="gap-1">
-                <Typography type="body-sm" className="text-text-secondary">
+              <View key={item.id} className="gap-2">
+                <Typography className="text-muted" style={typeScale.chatQuestion}>
                   {item.question}
                 </Typography>
-                <Typography>{promptAnswerLabel(item, resolution, t)}</Typography>
+                <View className="rounded-[10px] bg-control px-2.5 py-2">
+                  <Typography style={typeScale.chatAnswer}>{promptAnswerLabel(item, resolution, t)}</Typography>
+                </View>
               </View>
             ))
           : null}
@@ -75,8 +88,8 @@ export function ChatQuestionPrompt({
 
   return (
     <View
-      className="w-full max-w-[88%] self-start gap-1 rounded-[30px] bg-control/60 px-4 py-3"
-      style={{ borderCurve: "circular" }}
+      className="max-w-full self-start gap-2 rounded-[14px] border border-grouped-border bg-grouped p-3.5"
+      style={{ width: 300, borderCurve: "circular" }}
       accessibilityLabel={t("mobile.chat.question.form")}
     >
       <View className="flex-row items-center gap-2">
