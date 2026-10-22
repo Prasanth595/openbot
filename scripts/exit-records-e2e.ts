@@ -120,17 +120,25 @@ function readLines(path: string): TraceLine[] {
   return readFileSync(path, "utf8")
     .split("\n")
     .filter(Boolean)
-    .map((line): unknown => JSON.parse(line))
-    .filter(isTraceLine);
+    .flatMap((line) => parseLine(line) ?? []);
 }
 
-function isTraceLine(value: unknown): value is TraceLine {
-  return (
-    isDynamicRecord(value) &&
-    typeof value.kind === "string" &&
-    typeof value.name === "string" &&
-    typeof value.outcome === "string"
-  );
+// An append that is still running can leave a last line cut short.
+function parseLine(line: string): TraceLine | null {
+  let value = null;
+  try {
+    value = JSON.parse(line);
+  } catch {
+    return null;
+  }
+  if (
+    !isDynamicRecord(value) ||
+    typeof value.kind !== "string" ||
+    typeof value.name !== "string" ||
+    typeof value.outcome !== "string"
+  )
+    return null;
+  return { kind: value.kind, name: value.name, outcome: value.outcome };
 }
 
 function filesUnder(directory: string): string[] {

@@ -1353,7 +1353,8 @@ app.on("window-all-closed", () => {
 });
 
 app.on("before-quit", (event) => {
-  recordExit(systemSessionEnding ? "session_end" : "quit");
+  // Any other quit is recorded by `prepareForShutdown`.
+  if (systemSessionEnding) recordExit("session_end");
   isQuitting = true;
   quitStarted = true;
   if (systemSessionEnding) {
@@ -1404,6 +1405,8 @@ async function prepareForUpdateInstall(): Promise<void> {
  */
 async function prepareForShutdown(): Promise<void> {
   if (shutdownStarted) return;
+  // An update install runs this before its `app.quit()`, and the teardown closes the trace.
+  recordExit("quit");
   shutdownStarted = true;
   isQuitting = true;
   forceExitAfterShutdownDeadline();
