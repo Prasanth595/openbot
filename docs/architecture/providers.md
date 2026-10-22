@@ -11,9 +11,14 @@ Claude uses its native question tool instead of `ask_user`. The direct tools are
 `forget_memory`, `react_to_user_message`, and `routine_no_update`. External plugin registration stays with each provider adapter.
 
 `tool_search` uses local keyword matching. Exact names come first, then word matches, with stable
-catalog order for ties. It returns five results by default and at most ten. `tool_describe` returns
-the original schemas for up to ten qualified names, plus guidance from `agent/tool-guidance.ts`.
-Identical guidance appears once per response. The initial catalog lists names without schemas.
+catalog order for ties. It returns five results by default and at most ten. It accepts `queries`, or
+one `query` string, because models often send one string. Up to three strong results, an exact name or
+a query word in the tool name without its namespace, include the original schema and guidance, so the agent can call them
+without a describe step. Each model step sends the full context again, so one step less saves more
+input than the added schema costs. The other results have a short description only. `tool_describe`
+returns the original schemas for up to ten qualified names, plus guidance from
+`agent/tool-guidance.ts`. Identical guidance appears once per response. The initial catalog lists
+names without schemas.
 
 `tool_call` accepts `{ name: "namespace.tool", arguments: { ... } }`. The router resolves only
 original built-in names. It preserves the request, thread, turn, and call identifiers and the abort
@@ -28,7 +33,7 @@ receive them through the local MCP bridge.
 
 `agent/developer-instructions.ts` puts stable rules first, profile and workspace settings next,
 and memories last. Detailed browser, administration, routine, hosting, data, and visual guidance
-loads through `tool_describe`. Essential secret handling and untrusted-content rules stay in the
+loads through `tool_search` or `tool_describe`. Essential secret handling and untrusted-content rules stay in the
 permanent instructions. ACP and Muse still insert these shorter instructions on each normal turn.
 Retention after compaction is not assumed. Compaction thresholds are unchanged.
 

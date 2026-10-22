@@ -1,3 +1,8 @@
+### Changed
+
+- An agent needs fewer steps before it uses a tool, so a run, such as a routine, sends fewer input
+  tokens. A tool search now also gives the schema and guidance of its best matches.
+
 ### Fixed
 
 - An agent now uses its browser tabs for a web service that has no tool of its own, such as mail.
