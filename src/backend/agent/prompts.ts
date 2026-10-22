@@ -150,10 +150,15 @@ export function mcpElicitationQuestions(params: unknown): AgentPromptQuestion[] 
  */
 const CODEX_MCP_TOOL_CALL_APPROVAL_KIND = "mcp_tool_call";
 
+/** The card answer "Allow once", which `mcpElicitationResult` turns into one accepted consent. */
+export const MCP_TOOL_CONSENT_ALLOW_ONCE: Record<string, string[]> = {
+  [MCP_ELICITATION_DECISION_ID]: [MCP_ELICITATION_ALLOW_ONCE],
+};
+
 /**
- * Whether the request is Codex's consent to run one MCP tool: a form with no field, the marker, and
- * the offer to remember the answer. A tool that the user set to ask every time offers no `persist`,
- * so its card stays.
+ * Whether the request is Codex's consent to run one MCP tool: a form with no field and the marker. A
+ * tool that the user set to ask every time offers no `persist`, but it is the same consent, so Full
+ * access answers it too.
  */
 export function mcpToolCallConsent(params: unknown): boolean {
   const mode = getString(params, "mode") ?? "form";
@@ -163,8 +168,7 @@ export function mcpToolCallConsent(params: unknown): boolean {
     (mode === "form" || mode === "openai/form") &&
     properties !== null &&
     Object.keys(properties).length === 0 &&
-    getString(meta, "codex_approval_kind") === CODEX_MCP_TOOL_CALL_APPROVAL_KIND &&
-    getArray(meta, "persist").includes("always")
+    getString(meta, "codex_approval_kind") === CODEX_MCP_TOOL_CALL_APPROVAL_KIND
   );
 }
 

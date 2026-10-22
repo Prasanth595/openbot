@@ -67,6 +67,7 @@ import {
   commandText,
   dynamicPromptResult,
   expiredPromptResult,
+  MCP_TOOL_CONSENT_ALLOW_ONCE,
   mcpElicitationQuestions,
   mcpElicitationResult,
   mcpToolCallConsent,
@@ -121,6 +122,8 @@ interface PendingApproval {
   hostedSiteMutation?: HostedSiteMutationContext;
   /** A built-in tool waits for this answer and does the work itself. "cancel" means nobody answered. */
   decide?: (decision: ToolApprovalDecision) => void;
+  /** The tool asks even when the agent has Full access, so a later grant does not answer it. */
+  alwaysAsk?: boolean;
 }
 
 type ToolApprovalDecision = "accept" | "decline" | "cancel";
@@ -531,6 +534,38 @@ export class AttentionRegistry {
     return !this.#workspaceSandboxed(agentId) && shouldAutoApprove(this.#approvalAutomation, { agentId });
   }
 
+  /**
+   * Answers what already waits for an agent that now has Full access. The grant is read when a request
+   * arrives, so without this a card stays open after the user moves the agent to Full access, presses
+   * Always allow on another of its cards, or an admin changes it from another computer. The rule is the
+   * one for a new request: a Workspace only agent, Computer Use and a tool that always asks keep their
+   * card, and a question is never answered.
+   */
+  answerGrantedRequests(): void {
+    const report = (agentId: string) => (error: unknown) =>
+      Effect.sync(() => this.#emitError("auto_approval_failed", error, agentId));
+    for (const pending of [...this.#approvals.values()]) {
+      const agentId = pending.approval.agentId;
+      if (pending.alwaysAsk || !this.#answersForAgent(agentId)) continue;
+      Effect.runFork(
+        this.respondToApproval({ requestId: pending.id, decision: "accept" }).pipe(
+          Effect.catch(report(agentId)),
+          Effect.catchDefect(report(agentId)),
+        ),
+      );
+    }
+    for (const pending of [...this.#prompts.values()]) {
+      if (pending.responseKind !== "mcp-elicitation") continue;
+      if (!this.#answersMcpToolConsent(pending.params, pending.agentId)) continue;
+      Effect.runFork(
+        this.respondToPrompt({ requestId: pending.id, answers: MCP_TOOL_CONSENT_ALLOW_ONCE }).pipe(
+          Effect.catch(report(pending.agentId)),
+          Effect.catchDefect(report(pending.agentId)),
+        ),
+      );
+    }
+  }
+
   surfaceApproval(client: AgentClient, request: AppServerRequest, kind: AgentApprovalKind): void {
     const threadId = getString(request.params, "threadId");
     const turnId = getString(request.params, "turnId") ?? (kind === "file-change" ? String(request.id) : null);
@@ -586,6 +621,7 @@ export class AttentionRegistry {
       params: request.params,
       approval,
       decide: (value) => Deferred.doneUnsafe(decision, Effect.succeed(value)),
+      ...(options.alwaysAsk ? { alwaysAsk: true } : {}),
     });
     this.#routines.markNeedsAttention(approval.turnId);
     this.#emit({ type: "approval", approval });
@@ -970,17 +1006,25 @@ export class AttentionRegistry {
   /**
    * Accepts Codex's consent to run one MCP tool, once, when the agent's grant covers it. Nothing is
    * saved: "Always allow" stays the user's choice in the card, and Codex keeps it per server and tool.
-   *
-   * Only the consent that Codex marks gets this. A form, a hand-off, a sign-in and any request that
-   * OpenBot does not know still reach the user. A Workspace only agent and Computer Use keep their
-   * card: the first asks to go outside the limit the user chose, and the second has its own switch.
    */
   #answerMcpToolConsentWithoutAsking(client: AgentClient, request: AppServerRequest, agentId: string): boolean {
-    if (!mcpToolCallConsent(request.params)) return false;
-    if (getString(request.params, "serverName") === COMPUTER_USE_MCP_SERVER_NAME) return false;
-    if (!this.#answersForAgent(agentId)) return false;
+    if (!this.#answersMcpToolConsent(request.params, agentId)) return false;
     client.respond(request.id, { action: "accept", content: {}, _meta: null });
     return true;
+  }
+
+  /**
+   * Only the consent that Codex marks is covered, a tool set to ask every time included. A form, a
+   * hand-off, a sign-in and any request that OpenBot does not know still reach the user. A Workspace
+   * only agent and Computer Use keep their card: the first asks to go outside the limit the user
+   * chose, and the second has its own switch.
+   */
+  #answersMcpToolConsent(params: unknown, agentId: string): boolean {
+    return (
+      mcpToolCallConsent(params) &&
+      getString(params, "serverName") !== COMPUTER_USE_MCP_SERVER_NAME &&
+      this.#answersForAgent(agentId)
+    );
   }
 
   surfaceMcpElicitation(client: AgentClient, request: AppServerRequest): void {

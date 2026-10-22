@@ -1797,9 +1797,11 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
 
   /**
    * A setting that lives outside the agent store changed, such as an agent's auto-approve grant.
-   * Clients of this host read those settings again when the agent list changes.
+   * Clients of this host read those settings again when the agent list changes. A grant given now
+   * also answers the requests that already wait for it.
    */
   notifyAgentsChanged(): void {
+    this.#attention.answerGrantedRequests();
     this.#emit({ type: "agents-changed", agents: this.listAgents() });
   }
 
@@ -2411,6 +2413,8 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     // agent chat is not the only session that holds them: a channel turn runs on a session of its
     // own, and it is written from the same profile.
     if (profileChanged) this.#conversation.unloadAgentThreads(agent.id);
+    // A Workspace only agent moved to Full access gets no grant event, and its cards wait for that grant.
+    this.#attention.answerGrantedRequests();
     this.#emit({ type: "agents-changed", agents: this.listAgents() });
     // The task limit follows the agent's own setting and its provider. A higher one can start a task now.
     if (providerChanged || (previous && agentTaskLimit(previous) !== agentTaskLimit(agent))) {
