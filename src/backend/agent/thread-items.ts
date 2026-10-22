@@ -28,6 +28,15 @@ export function isArchivedThreadError(error: unknown): boolean {
 }
 
 /**
+ * The Codex process has no saved rollout for this unloaded thread in its `CODEX_HOME`: the thread
+ * never saved a turn, or it belongs to another provider account. Codex 0.163.0 answers
+ * `thread/turns/list` with this error then, and with the history of a thread that has a rollout.
+ */
+export function isCodexMissingRollout(error: unknown): boolean {
+  return error instanceof AppServerError && error.code === -32600 && error.message.startsWith("thread not loaded:");
+}
+
+/**
  * Codex refused `turn/start` because a compaction turn runs on the thread. Codex 0.160.1 answers a
  * `NotSubmitted` input with this internal error, so the input did not reach the turn and the caller
  * can queue it again for when the compaction ends.
