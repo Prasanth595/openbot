@@ -7,6 +7,63 @@ the [root changelog](../../CHANGELOG.md).
 
 ## [Unreleased]
 
+## [1.4.1] - In review
+
+### Added
+
+- MP3 and other audio files in a chat play in the conversation. The card shows the waveform of the file, as on desktop. Tap or drag the waveform to move the position, and tap the speed button to play at 0.5×, 1×, 1.5× or 2×. Before, you could only download them.
+- A Markdown file in a chat opens in a preview that shows the formatted text. The menu shows the source, copies it, or shares the file. Before, you could only download it.
+- Tap any image in a chat to open it, then swipe left or right to see all the other images of the loaded conversation, in chat order. The top bar shows the position, such as "3 of 8". ([#2426](https://github.com/nightly-labs/openbot/issues/2426))
+- When an agent sends two or more images in one reply, the chat shows them together in a compact grid, as on desktop. Before, each image took the full width of the chat.
+- Channels are back in the mobile app, on a computer whose OpenBot has channels again. A channel
+  shows in the home list beside your agents, and you can pin it, hide it, put it in a section, and
+  search it. It opens in the same chat as an agent, with the author of each message, plan cards,
+  questions, approvals and browser steps of its work. To make one, open the menu at the top of the
+  home screen and tap New channel. The channel info holds its agents, its lead, its memories and its
+  routines.
+- Deleted channels is in the menu of the home screen, beside Hidden chats, when the server has a
+  deleted channel. It has a Restore button for each channel, for the people who can delete a
+  channel. Before, a deleted channel was preview only, and the list was in Settings.
+- A tap on a notification of a question, an approval or a browser step in a channel opens the
+  channel. Before, it opened the chat of the agent.
+- A channel has the browser button. It opens the browser of the agent that asks for a browser step,
+  or else of the lead. In the browser, tap the agent at the top to switch to the browser of another
+  agent of the channel.
+- Owners and admins can now choose what a scheduled routine does when the server was off at its
+  time: skip the run, or run it once when the server is back. Before, only the desktop app and the
+  web client had this choice.
+- Owners and admins can now choose where an agent routine sends its answers, as well as to its
+  chat: a Slack, Discord or Telegram place of the server. The server must also run the new desktop
+  version.
+- The home header shows the plan limits of your providers as rings, as the desktop sidebar does. The two providers with the least left show, then the number of the others. Tap the rings to see each limit window, how much is left and when it resets.
+
+### Changed
+
+- The Usage screen now shows tokens without cache reads in its total, chart and shares. Before, the
+  total also counted cache reads, which repeat the cached conversation on each model request. The
+  token breakdown still shows cache reads as Cached input. The token chart shows one total line
+  instead of one line for each provider.
+- In a chat with an agent that your roles let you only view, the chat has no composer, and a note says that you can only view this agent.
+- A member page has a Roles row that shows the roles of the member. The row opens the Roles page of that member, where you turn each role on or off. You create and edit roles in Server settings > Roles.
+
+### Fixed
+
+- Agent instructions longer than 2,000 characters no longer get cut silently. Before, a long paste
+  dropped the rest of the text with no warning. Now the field keeps all the text, shows a character
+  count near the limit, and shows an error when the text is too long. You cannot save until you
+  shorten them.
+- The image viewer starts and ends its open and close motion on the UI thread. It no longer waits for a busy chat, and a picture dragged closed after the chat moves goes back to the correct place.
+- The chat of an agent that works in a channel no longer says "Waiting for your input on desktop".
+  A card names the channel, and a tap opens the channel, where you can answer on the phone.
+- In the home list, an agent that waits for you in a channel says "Waiting for you in" and the
+  channel name. Before, the row showed the last message of its own chat.
+- In a channel, an agent that waits for an answer, an approval or a browser step says so. Before, it
+  showed "Thinking…".
+- The browser button in the chat header has its glass on iOS. Before, only the globe showed.
+- On Android, the app no longer closes when a chat shows a large image. The app now keeps a downloaded image as a temporary file and shows it from the file.
+- On Android, the app could close while a text field had focus.
+- On Android 12 and 13, the app no longer closes unexpectedly while it opens and the splash screen goes away.
+
 ## [1.4.0] - 2026-10-21 (Android), 2026-10-22 (iOS)
 
 ### Added
