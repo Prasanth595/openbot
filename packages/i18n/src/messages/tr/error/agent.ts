@@ -46,6 +46,8 @@ export const messages = {
   "error.agent.waitForTasksBeforeProviderChange":
     "Bu ajanın görevleri çalışıyor. Sağlayıcıyı değiştirmeden önce bitmelerini bekleyin veya onları durdurun.",
   "error.agent.waitBeforeClearContext": "Yeni bir sohbet başlatmadan önce etkin turun ve kuyruğun bitmesini bekleyin.",
+  "error.agent.waitBeforeCompactContext": "Bağlamı sıkıştırmadan önce etkin turun ve kuyruğun bitmesini bekleyin.",
+  "error.agent.compactContextUnavailable": "Bu ajan bağlamını şu anda sıkıştıramaz.",
   "error.agent.unknown": "Bilinmeyen ajan: {id}",
   "error.agent.onlyUserWidensSettings":
     "Yalnızca kullanıcı bir ajana Tam erişim verebilir veya Bilgisayar Kullanımını açabilir. Kullanıcıdan bunu ajanın ayarlarından değiştirmesini isteyin.",

@@ -48,6 +48,9 @@ export const messages = {
     "Hay tareas de este agente en ejecución. Espera a que terminen o detenlas antes de cambiar de proveedor.",
   "error.agent.waitBeforeClearContext":
     "Espera a que terminen el turno activo y la cola antes de iniciar un nuevo chat.",
+  "error.agent.waitBeforeCompactContext":
+    "Espera a que terminen el turno activo y la cola antes de compactar el contexto.",
+  "error.agent.compactContextUnavailable": "Este agente no puede compactar su contexto ahora.",
   "error.agent.unknown": "Agente desconocido: {id}",
   "error.agent.onlyUserWidensSettings":
     "Solo el usuario puede dar acceso completo a un agente o activar el uso del equipo. Pide al usuario que lo cambie en los ajustes del agente.",

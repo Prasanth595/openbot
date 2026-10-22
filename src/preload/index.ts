@@ -489,6 +489,7 @@ const agentGroup = bridgeGroup(IPC_ENDPOINTS.agent, {
   reorderQueue: decodeVoid,
   interrupt: decodeVoid,
   clearContext: decodeVoid,
+  compactContext: decodeVoid,
   respondToPrompt: decodeVoid,
   respondToApproval: decodeVoid,
   respondToBrowserSecret: decodeVoid,

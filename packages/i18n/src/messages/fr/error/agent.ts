@@ -51,6 +51,9 @@ export const messages = {
     "Des tâches de cet agent sont en cours. Attendez qu’elles se terminent ou arrêtez-les avant de changer de fournisseur.",
   "error.agent.waitBeforeClearContext":
     "Attendez la fin du tour actif et de la file d’attente avant de commencer une nouvelle discussion.",
+  "error.agent.waitBeforeCompactContext":
+    "Attendez la fin du tour actif et de la file d’attente avant de compacter le contexte.",
+  "error.agent.compactContextUnavailable": "Cet agent ne peut pas compacter son contexte maintenant.",
   "error.agent.unknown": "Agent inconnu : {id}",
   "error.agent.onlyUserWidensSettings":
     "Seul l’utilisateur peut donner à un agent l’accès complet ou activer Computer Use. Demandez à l’utilisateur de le modifier dans les réglages de l’agent.",

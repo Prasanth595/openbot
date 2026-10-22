@@ -86,6 +86,13 @@ response. Claude manages compaction natively. ACP and custom ACP expose no expli
 operation to the OpenBot scheduler. Unsupported or native-managed clients cannot reserve its queue
 for a no-op request. Request completion clears the hold and keeps the minimum-growth guard.
 
+Antigravity reports its context fill but has no compact operation, so its flavor sets the `handoff`
+mode. `ThreadLifecycle.rotateProviderSession` saves the work steps, closes the session, and starts a
+new session on the same public thread. Its first turn takes the history handoff, as after a provider
+switch. The agent, thread, workspace and messages stay. Only the agent's own chat rotates: an
+execution thread has no handoff. The harness also compacts by itself; that only lowers the reported
+fill.
+
 Codex retains the 80% threshold based on its last reported token usage and context-window size.
 Cumulative account usage is not context occupancy. A missing report is not zero usage. No fixed
 200,000-token context window, per-turn model summary, or new automatic model call is added.
@@ -417,11 +424,17 @@ The server runs confined; `antigravityStatePaths` gives it `~/.gemini/antigravit
 `~/.gemini/artifacts` and protects its settings files. Migration 22 adds `antigravity` to
 `projection_provider_sessions`.
 
-The server has no usage reading, so the descriptor sets `reportsUsage: false`: the usage poll does
+The server has no plan-usage reading, so the descriptor sets `reportsUsage: false`: the usage poll does
 not start Gemini, the dock says usage is not reported, and a limit failure is shown as a turn error
 instead of waiting for a usage notice. `GEMINI_REQUEST_FAILURES` in `src/backend/acp-client.ts`
 names a rate limit or quota, an unavailable model, and a service failure from Google's status
 text. Antigravity does not document these texts.
+
+Antigravity 1.3.0 and later send ACP `usage_update` after each model step: `used` is the size of
+the last model call, and `size` is the model's context window. The adapter turns it into
+`thread/tokenUsage/updated`, also after a turn that OpenBot already ended. 1.2.1, the pinned
+first-install version, sends none, so the ring stays hidden until the runtime updates. The update
+has no category breakdown.
 
 Antigravity 1.3.0 keeps `session/prompt` open until its harness reports
 `STATE_FULLY_IDLE`. A background task can thus keep a turn open after answer text
@@ -704,5 +717,9 @@ the token comparison. Later local estimates do not restore that comparison.
 The progress percentage is an estimate based on elapsed time and the preceding compaction duration
 in this process. It never proves completion. Terminal provider events control success and failure.
 The latest marker and timing are runtime state, not new saved conversation messages. A provider
-summary is not copied into this state. This connection adds no manual-compaction endpoint and
-makes no extra model turn.
+summary is not copied into this state.
+
+`agent:compact-context` asks for a compaction now, below the threshold too. The popover offers it
+when `autoCompactAt` is set, which means that OpenBot compacts the thread (`events`, `request` or
+`handoff`). It refuses while a turn, a queued message or a session start needs the session. It is
+local only: the Team API has no route, and a joined server's agent shows no ring.

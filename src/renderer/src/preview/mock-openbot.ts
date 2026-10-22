@@ -2313,6 +2313,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
           });
         });
       },
+      compactContext: async () => undefined,
       respondToPrompt: async (_input: RespondToPromptInput) => undefined,
       respondToApproval: async () => undefined,
       respondToBrowserSecret: async (input) => {

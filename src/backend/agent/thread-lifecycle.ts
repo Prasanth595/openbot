@@ -926,6 +926,33 @@ export class ThreadLifecycle {
     this.#hooks.logRecovery(agentId, agent.provider, "replaced");
   }, Effect.uninterruptible).bind(this);
 
+  /**
+   * Compacts the context of a provider that cannot compact on request: the session ends, and a new
+   * one on the same public thread starts from the history handoff. The agent, its thread, and its
+   * messages stay. Returns the new session, or `null` when the old one is no longer the active one
+   * or is not the agent's own chat: only that chat has a handoff to start from.
+   */
+  readonly rotateProviderSession = Effect.fn("ThreadLifecycle.rotateProviderSession")(function* (
+    this: ThreadLifecycle,
+    agentId: string,
+    client: AgentClient,
+    externalThreadId: string,
+  ) {
+    const agent = this.#store.list().find((candidate) => candidate.id === agentId);
+    if (!agent) return null;
+    const publicThreadId = this.#conversation.publicThreadId(agentId, externalThreadId);
+    if (publicThreadId !== agent.threadId) return null;
+    const session = this.#store.database.activeProviderSession(publicThreadId, client.provider);
+    if (session?.externalSessionId !== externalThreadId) return null;
+    // The steps first: an ACP agent keeps them only in the session that closes below.
+    const steps = yield* this.readWorkSteps(session);
+    if (steps !== null) yield* this.saveWorkSteps(session, steps);
+    // The client first, while the routing entry that `retireProviderSession` removes still names it.
+    yield* this.#releaseProviderSession(externalThreadId, client);
+    this.retireProviderSession(agent, externalThreadId);
+    return yield* this.startProviderThread(agent, client, publicThreadId);
+  }, Effect.uninterruptible).bind(this);
+
   retireProviderSession(agent: AgentSummary, externalThreadId: string): void {
     const publicThreadId = this.#conversation.publicThreadId(agent.id, externalThreadId);
     const session = this.#store.database.activeProviderSession(publicThreadId, agent.provider);

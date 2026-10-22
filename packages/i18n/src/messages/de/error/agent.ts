@@ -54,6 +54,9 @@ export const messages = {
     "Aufgaben dieses Agenten laufen. Warte, bis sie abgeschlossen sind, oder stoppe sie, bevor du den Anbieter wechselst.",
   "error.agent.waitBeforeClearContext":
     "Warte, bis der aktive Durchlauf und die Warteschlange abgeschlossen sind, bevor du einen neuen Chat beginnst.",
+  "error.agent.waitBeforeCompactContext":
+    "Warte, bis der aktive Durchlauf und die Warteschlange fertig sind, bevor du den Kontext komprimierst.",
+  "error.agent.compactContextUnavailable": "Dieser Agent kann seinen Kontext jetzt nicht komprimieren.",
   "error.agent.unknown": "Unbekannter Agent: {id}",
   "error.agent.onlyUserWidensSettings":
     "Nur der Benutzer kann einem Agenten „Voller Zugriff“ geben oder die Computersteuerung aktivieren. Bitte den Benutzer, dies in den Agenteneinstellungen zu ändern.",

@@ -128,4 +128,6 @@ export const messages = {
   "composer.context.lastCompaction": "Letzte Komprimierung: {before} → {after} Tokens",
   "composer.compaction.elapsed": "{minutes}:{seconds}",
   "composer.newChat.action": "Neuer Chat",
+  "composer.context.compact": "Jetzt komprimieren",
+  "composer.context.compactFailed": "Der Kontext konnte nicht komprimiert werden. Versuche es erneut.",
 } as const satisfies PartialTranslation<typeof source>;

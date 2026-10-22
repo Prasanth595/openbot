@@ -7,6 +7,7 @@ import { causeHelpers } from "../effect-boundary";
 import { decodeRecordResponse, getRecord } from "../protocol";
 import { finiteNumberOrNull } from "./account-usage";
 import type { ProviderPort } from "./provider-runtime";
+import type { ThreadOperationFailed } from "./thread-lifecycle";
 
 interface ThreadContextBudget {
   usedTokens: number;
@@ -30,7 +31,18 @@ export interface ContextCompactionOptions {
   providers: ProviderPort;
   emitError(code: string, error: unknown, agentId?: string): void;
   scheduleDrain(agentId: string): void;
+  /** Replaces the session for a `handoff` compaction. The new session, or `null` when none replaced it. */
+  rotateSession(
+    agentId: string,
+    client: AgentClient,
+    threadId: string,
+  ): Effect.Effect<string | null, ThreadOperationFailed>;
   changed?(): void;
+}
+
+/** Whether OpenBot can ask for a compaction of this client, automatically or for the user. */
+export function compactsOnRequest(mode: AgentClient["contextCompaction"]): boolean {
+  return mode === "events" || mode === "request" || mode === "handoff";
 }
 
 /** A queue that Codex refused because a compaction turn runs on `threadId`. */
@@ -59,6 +71,7 @@ export class ContextCompaction {
   readonly #providers: ProviderPort;
   readonly #emitError: (code: string, error: unknown, agentId?: string) => void;
   readonly #scheduleDrain: (agentId: string) => void;
+  readonly #rotateSession: ContextCompactionOptions["rotateSession"];
   readonly #budgets = new Map<string, ThreadContextBudget>();
   /** The thread that compacts, and the client that runs it once `request` sends it. */
   readonly #compactingAgents = new Map<string, { threadId: string; client: AgentClient | null }>();
@@ -81,6 +94,7 @@ export class ContextCompaction {
     this.#providers = options.providers;
     this.#emitError = options.emitError;
     this.#scheduleDrain = options.scheduleDrain;
+    this.#rotateSession = options.rotateSession;
   }
 
   /** Only personal sessions appear in the desktop snapshot; execution threads remain separate. */
@@ -225,12 +239,13 @@ export class ContextCompaction {
     return budget ? Math.min(120_000, Math.floor(budget.contextWindow * 2)) : 120_000;
   }
 
-  reserve(agentId: string, threadId: string): boolean {
+  /** `manual`: the user asked, so the thread compacts below the threshold too. */
+  reserve(agentId: string, threadId: string, manual = false): boolean {
     const agent = this.#store.list().find((candidate) => candidate.id === agentId);
     const mode = agent ? this.#providers.clientForAgent(agent)?.contextCompaction : undefined;
-    if (mode !== "events" && mode !== "request") return false;
+    if (!compactsOnRequest(mode)) return false;
     const budget = this.#budgets.get(threadId);
-    if (!budget?.pending || budget.phase !== "idle" || this.#compactingAgents.has(agentId)) {
+    if (!(budget?.pending || (manual && budget)) || budget.phase !== "idle" || this.#compactingAgents.has(agentId)) {
       return false;
     }
     budget.phase = "requested";
@@ -250,11 +265,15 @@ export class ContextCompaction {
     if (
       budget?.phase !== "requested" ||
       !client ||
-      !["events", "request"].includes(client.contextCompaction ?? "unsupported") ||
+      !compactsOnRequest(client.contextCompaction) ||
       !this.#providers.isReady()
     ) {
       if (budget?.phase === "requested") this.observeCompaction(threadId, "failed");
       this.#release(agentId, threadId);
+      return;
+    }
+    if (client.contextCompaction === "handoff") {
+      yield* this.#rotate(agentId, threadId, client);
       return;
     }
 
@@ -424,6 +443,45 @@ export class ContextCompaction {
       ),
     );
   }
+
+  /**
+   * A `handoff` compaction. The display moves to the new session: its first model call reports the
+   * new usage, and until then the ring has no value to show.
+   */
+  readonly #rotate = Effect.fn("ContextCompaction.rotate")(function* (
+    this: ContextCompaction,
+    agentId: string,
+    threadId: string,
+    client: AgentClient,
+  ) {
+    this.#compactingAgents.set(agentId, { threadId, client });
+    const compaction = this.#display.get(threadId)?.compaction;
+    const next = yield* this.#rotateSession(agentId, client, threadId).pipe(
+      Effect.catch((failure) =>
+        Effect.sync(() => {
+          this.#emitError("context_compaction_failed", failure.cause, agentId);
+          return undefined;
+        }),
+      ),
+    );
+    // No token comparison: the new session reports its usage during its first turn.
+    if (next && compaction) {
+      const { id, startedAt, expectedMs } = compaction;
+      this.#display.set(next, {
+        usage: null,
+        compaction: { id, startedAt, status: "completed", ...(expectedMs === undefined ? {} : { expectedMs }) },
+      });
+    }
+    // A session that was not replaced keeps its budget; the growth rule stops an immediate retry.
+    const budget = this.#budgets.get(threadId);
+    if (budget) {
+      budget.lastCompactedTokens = budget.usedTokens;
+      this.observeCompaction(threadId, "failed");
+    }
+    this.#release(agentId, threadId);
+    this.#emitChanged();
+    this.#scheduleDrain(agentId);
+  });
 
   /** Ends a compaction that did not end by itself, and lets the queue continue. */
   #abandon(agentId: string, threadId: string): void {

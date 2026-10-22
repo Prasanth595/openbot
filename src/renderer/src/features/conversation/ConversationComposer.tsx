@@ -761,6 +761,7 @@ export function ConversationComposer() {
                         ? { agent: props.agent, start: props.onClearAgentContext }
                         : undefined
                     }
+                    compact={props.onCompactAgentContext}
                     usage={{
                       ...usage(),
                       compacting: context()?.compaction?.status === "running",

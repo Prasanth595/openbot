@@ -50,6 +50,8 @@ export interface AcpFlavor {
   interruptToolsOnStop?: true;
   /** Answer text is shown at once, not only when `session/prompt` answers. */
   streamAnswerBeforePromptReturns?: true;
+  /** OpenBot compacts by replacing the session, for an agent that reports `usage_update` and has no compact request. */
+  contextCompaction?: "handoff";
 }
 
 /** The protocol's own behavior: Grok and Cline. */

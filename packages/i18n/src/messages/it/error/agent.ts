@@ -49,6 +49,9 @@ export const messages = {
     "Alcune attività di questo agente sono in corso. Attendi che finiscano, o interrompile, prima di cambiare provider.",
   "error.agent.waitBeforeClearContext":
     "Aspetta che il turno attivo e la coda finiscano prima di iniziare una nuova chat.",
+  "error.agent.waitBeforeCompactContext":
+    "Attendi la fine del turno attivo e della coda prima di compattare il contesto.",
+  "error.agent.compactContextUnavailable": "Questo agente non può compattare il suo contesto ora.",
   "error.agent.unknown": "Agente sconosciuto: {id}",
   "error.agent.onlyUserWidensSettings":
     "Solo l'utente può dare a un agente l'accesso completo o attivare il Controllo del computer. Chiedi all'utente di cambiarlo nelle impostazioni dell'agente.",

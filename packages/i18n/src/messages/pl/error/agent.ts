@@ -47,6 +47,8 @@ export const messages = {
     "Zadania tego agenta są uruchomione. Przed zmianą dostawcy poczekaj, aż się zakończą, albo je zatrzymaj.",
   "error.agent.waitBeforeClearContext":
     "Poczekaj, aż bieżąca tura i kolejka się zakończą, zanim rozpoczniesz nowy czat.",
+  "error.agent.waitBeforeCompactContext": "Zanim skompaktujesz kontekst, poczekaj na koniec aktywnej tury i kolejki.",
+  "error.agent.compactContextUnavailable": "Ten agent nie może teraz skompaktować kontekstu.",
   "error.agent.unknown": "Nieznany agent: {id}",
   "error.agent.onlyUserWidensSettings":
     "Tylko użytkownik może dać agentowi pełny dostęp lub włączyć Sterowanie komputerem. Poproś użytkownika o zmianę w ustawieniach agenta.",

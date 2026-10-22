@@ -7,6 +7,7 @@ import {
   Marker,
   MarkerContent,
   MessageCirclePlus,
+  Minimize2,
   Popover,
   RadialProgress,
   type RadialProgressTone,
@@ -73,7 +74,8 @@ function meterLevel(usage: ContextUsageView): "quiet" | "normal" | RadialProgres
 
 /**
  * The composer's context ring and the popover it opens. It shows how full the agent's provider
- * thread is and when it compacts. `newChat` adds the New chat action, which asks first.
+ * thread is and when it compacts. `newChat` adds the New chat action, which asks first. `compact`
+ * adds the Compact action, for a thread that OpenBot compacts (`autoCompactAt` is set).
  */
 export function ContextUsageMeter(props: {
   usage: ContextUsageView;
@@ -83,9 +85,25 @@ export function ContextUsageMeter(props: {
         start: () => Promise<void>;
       }
     | undefined;
+  compact?: (() => Promise<void>) | undefined;
 }) {
-  const { t, format } = useText();
+  const { t, format, errorMessage } = useText();
   const [open, setOpen] = createSignal(false);
+  const [compactRequested, setCompactRequested] = createSignal(false);
+  const [compactError, setCompactError] = createSignal<string | null>(null);
+  const compact = () => (props.usage.autoCompactAt === null ? undefined : props.compact);
+  const requestCompaction = async (start: () => Promise<void>) => {
+    setCompactRequested(true);
+    setCompactError(null);
+    try {
+      await start();
+      setOpen(false);
+    } catch (error) {
+      setCompactError(errorMessage(error, t("composer.context.compactFailed")));
+    } finally {
+      setCompactRequested(false);
+    }
+  };
   const [confirming, setConfirming] = createSignal(false);
   const [trigger, setTrigger] = createSignal<HTMLElement>();
   const percent = () => format.percent(usedShare(props.usage), { maximumFractionDigits: 0 });
@@ -175,23 +193,46 @@ export function ContextUsageMeter(props: {
                 )}
               </Show>
             </Popover.Description>
-            <Show when={props.newChat}>
-              {/* A menu row under a divider: it acts on the whole context, so it sits apart from the figures. */}
+            <Show when={compactError()}>
+              {(message) => (
+                <p class="context-meter-note" role="alert">
+                  {message()}
+                </p>
+              )}
+            </Show>
+            <Show when={props.newChat || compact()}>
+              {/* Menu rows under a divider: they act on the whole context, so they sit apart from the figures. */}
               <footer class="context-meter-footer">
-                <Button
-                  variant="ghost"
-                  type="button"
-                  class="context-meter-new-chat"
-                  aria-haspopup="dialog"
-                  disabled={props.usage.compacting}
-                  onClick={() => {
-                    setOpen(false);
-                    setConfirming(true);
-                  }}
-                >
-                  <MessageCirclePlus aria-hidden="true" />
-                  <span>{t("composer.newChat.action")}</span>
-                </Button>
+                <Show when={compact()}>
+                  {(start) => (
+                    <Button
+                      variant="ghost"
+                      type="button"
+                      class="context-meter-action"
+                      disabled={props.usage.compacting || compactRequested()}
+                      onClick={() => void requestCompaction(start())}
+                    >
+                      <Minimize2 aria-hidden="true" />
+                      <span>{t("composer.context.compact")}</span>
+                    </Button>
+                  )}
+                </Show>
+                <Show when={props.newChat}>
+                  <Button
+                    variant="ghost"
+                    type="button"
+                    class="context-meter-action"
+                    aria-haspopup="dialog"
+                    disabled={props.usage.compacting}
+                    onClick={() => {
+                      setOpen(false);
+                      setConfirming(true);
+                    }}
+                  >
+                    <MessageCirclePlus aria-hidden="true" />
+                    <span>{t("composer.newChat.action")}</span>
+                  </Button>
+                </Show>
               </footer>
             </Show>
           </Popover.Content>

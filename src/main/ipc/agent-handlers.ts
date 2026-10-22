@@ -738,6 +738,13 @@ export function agentIpcHandlers({
           );
         },
       }),
+      // Local only: the Team API has no route, and a joined server's agent shows no context ring.
+      compactContext: scopedHandler(parseAgentId, {
+        local: (agentId) => runCauseEffect(service.compactAgentContext(agentId)),
+        remote: () => {
+          throw new Error(sourceText("error.team.contextCompactUnsupported"));
+        },
+      }),
       respondToPrompt: scopedHandler(parsePromptResponse, {
         local: (parsed) => runCauseEffect(service.respondToPrompt(parsed)),
         remote: (parsed, serverId) =>

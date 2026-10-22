@@ -296,6 +296,8 @@ export interface ConversationProps {
   onUpdateAgentPermissions?: ((input: UpdateAgentAdminSettingsInput) => Promise<void>) | undefined;
   /** Starts a new chat with the agent. Absent when its host does not serve `context-reset-v1`. */
   onClearAgentContext?: (() => Promise<void>) | undefined;
+  /** Compacts the agent's context now. The context ring offers it only where OpenBot compacts. */
+  onCompactAgentContext?: (() => Promise<void>) | undefined;
   onRespondToBrowserTakeover: (decision: "complete" | "cancel") => Promise<boolean>;
   onCancelQueuedMessage: (deliveryId: string) => void;
   onCancelWait?: ((waitId: string) => void) | undefined;

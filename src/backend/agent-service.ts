@@ -711,6 +711,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       providers: this.#providers,
       emitError: (code, error, agentId) => this.#emitError(code, error, agentId),
       scheduleDrain: (agentId) => this.#drain.scheduleDrain(agentId),
+      rotateSession: (agentId, client, threadId) => this.#threads.rotateProviderSession(agentId, client, threadId),
     });
     this.#attention = new AttentionRegistry({
       conversation: this.#conversation,
@@ -2662,6 +2663,31 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       return threadId;
     });
     yield* this.#threads.endThreadContext(threadId);
+  }, Effect.uninterruptible).bind(this);
+
+  /**
+   * Compacts the context of the agent's own chat now, below the automatic threshold too. Only for a
+   * provider that OpenBot can ask to compact, and only when no turn or queued message needs the session.
+   */
+  readonly compactAgentContext = Effect.fn("AgentService.compactAgentContext")(function* (
+    this: AgentService,
+    agentId: string,
+  ) {
+    const externalThreadId = yield* lifecycleStep("compact agent context", () => {
+      const agent = this.#conversation.requireKnownAgent(agentId);
+      const activeTurn =
+        this.#conversation.workingSnapshot(agentId)?.activeTurnId ??
+        (agent.threadId ? this.#store.database.readActiveTurnId(agentId, agent.threadId) : null);
+      if (activeTurn || this.#mailbox.hasUnfinishedDelivery(agentId) || this.#threads.providerContextBusy(agent))
+        throw new Error(sourceText("error.agent.waitBeforeCompactContext"));
+      const session = agent.threadId
+        ? this.#store.database.activeProviderSession(agent.threadId, agent.provider)
+        : null;
+      if (!session || !this.#compaction.reserve(agentId, session.externalSessionId, true))
+        throw new Error(sourceText("error.agent.compactContextUnavailable"));
+      return session.externalSessionId;
+    });
+    yield* this.#compaction.request(agentId, externalThreadId);
   }, Effect.uninterruptible).bind(this);
 
   /**

@@ -124,4 +124,6 @@ export const messages = {
   "composer.context.lastCompaction": "前回の圧縮: {before} → {after} トークン",
   "composer.compaction.elapsed": "{minutes}:{seconds}",
   "composer.newChat.action": "新しいチャット",
+  "composer.context.compact": "今すぐ圧縮",
+  "composer.context.compactFailed": "コンテキストを圧縮できませんでした。もう一度お試しください。",
 } as const satisfies PartialTranslation<typeof source>;

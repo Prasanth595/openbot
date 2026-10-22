@@ -323,7 +323,9 @@ export interface AcpProviderOptions {
 }
 
 export class AcpAgentClient extends EventEmitter<ClientEvents> {
-  readonly contextCompaction = "unsupported";
+  get contextCompaction(): "handoff" | "unsupported" {
+    return this.#flavor.contextCompaction ?? "unsupported";
+  }
   get provider(): AgentProvider {
     return this.options.provider;
   }
@@ -1685,6 +1687,18 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
     if (update.sessionUpdate === "config_option_update") {
       thread.configOptions = update.configOptions;
       this.#publishSessionSettings(thread);
+      return;
+    }
+    // Context fill, not billing. Antigravity sends the last one after a turn that OpenBot already ended.
+    if (update.sessionUpdate === "usage_update") {
+      if (Number.isFinite(update.used) && update.used >= 0 && Number.isFinite(update.size) && update.size > 0)
+        this.emit("notification", {
+          method: "thread/tokenUsage/updated",
+          params: {
+            threadId: thread.id,
+            tokenUsage: { last: { totalTokens: update.used }, modelContextWindow: update.size },
+          },
+        });
       return;
     }
     const turn = thread.activeTurn;

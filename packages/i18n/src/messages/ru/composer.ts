@@ -125,4 +125,6 @@ export const messages = {
   "composer.context.lastCompaction": "Последнее сжатие: {before} → {after} токенов",
   "composer.compaction.elapsed": "{minutes}:{seconds}",
   "composer.newChat.action": "Новый чат",
+  "composer.context.compact": "Сжать сейчас",
+  "composer.context.compactFailed": "Не удалось сжать контекст. Повторите попытку.",
 } as const satisfies PartialTranslation<typeof source>;

@@ -50,6 +50,9 @@ export const messages = {
     "このエージェントのタスクが実行中です。プロバイダーを変更する前に、タスクの完了を待つか、タスクを停止してください。",
   "error.agent.waitBeforeClearContext":
     "新しいチャットを始める前に、実行中のターンとキューが終わるまでお待ちください。",
+  "error.agent.waitBeforeCompactContext":
+    "コンテキストを圧縮する前に、実行中のターンとキューが終わるのを待ってください。",
+  "error.agent.compactContextUnavailable": "このエージェントは今コンテキストを圧縮できません。",
   "error.agent.unknown": "不明なエージェントです: {id}",
   "error.agent.onlyUserWidensSettings":
     "エージェントにフルアクセスを与える、または Computer Use をオンにできるのはユーザーだけです。エージェントの設定で変更するようユーザーに依頼してください。",

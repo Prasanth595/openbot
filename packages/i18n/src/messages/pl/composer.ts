@@ -123,4 +123,6 @@ export const messages = {
   "composer.context.lastCompaction": "Ostatnie kompaktowanie: {before} → {after} tokenów",
   "composer.compaction.elapsed": "{minutes}:{seconds}",
   "composer.newChat.action": "Nowy czat",
+  "composer.context.compact": "Kompaktuj",
+  "composer.context.compactFailed": "Nie udało się skompaktować kontekstu. Spróbuj ponownie.",
 } as const satisfies PartialTranslation<typeof source>;
