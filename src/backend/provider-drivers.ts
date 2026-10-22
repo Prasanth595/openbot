@@ -624,8 +624,8 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
     },
     resolveCli: resolveOpencodeCli,
     // Both clients read the key and the custom providers at spawn, and the profile client merges the
-    // endpoints *into* the deny-all layer rather than beside it: the two share one environment
-    // variable, so the layer would be lost if a custom provider config replaced it.
+    // endpoints *into* the profile permission layer rather than beside it: the two share one
+    // environment variable, so the layer would be lost if a custom provider config replaced it.
     createClient: (cli, timeout, context, confinement) =>
       new AcpAgentClient(cli, timeout, {
         provider: "opencode",
