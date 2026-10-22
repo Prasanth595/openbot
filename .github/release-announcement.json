@@ -1,10 +1,10 @@
 {
-  "version": "0.47.1",
+  "version": "0.48.0",
   "highlights": [
-    "Ask an agent to add an MCP server, and approve each change it makes.",
-    "Use roles to choose the agents that each member of a server can use.",
-    "Import your Hermes Agent profiles in Server settings → Import.",
-    "Settings → Providers is a short list, with a page for each provider.",
-    "Agents keep their provider sessions when OpenBot stops through a signal."
+    "Channels are back on desktop and web: create one from the + menu, and restore archived ones.",
+    "Change the size of text and controls in Settings → General → Appearance → Interface size.",
+    "In a voice conversation, speak while the agent replies to interrupt it.",
+    "Owners and admins can set an agent's backup models on a joined server.",
+    "Install OpenBot with Nix on Linux and Apple silicon."
   ]
 }
