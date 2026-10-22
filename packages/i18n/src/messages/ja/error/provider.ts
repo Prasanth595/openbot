@@ -228,6 +228,8 @@ export const messages = {
   "error.provider.antigravitySignIn": "Gemini を使うには Google でサインインしてください。",
   "error.provider.antigravityRateLimited":
     "レート制限またはプランの割り当てに達したため、Gemini がリクエストを拒否しました。数分待つか別のモデルを選んでから、もう一度お試しください。\n{detail}",
+  "error.provider.antigravityQuotaReached":
+    "Google から Gemini の使用上限に達したと通知されました。上限は 1 つのモデルだけのものである場合があるため、プランの使用状況ページにはまだ残りが表示されることがあります。別の Gemini モデルを選ぶか、リセットまでお待ちください。\n{detail}",
   "error.provider.antigravityModelUnavailable":
     "Gemini は現在このモデルを使用できません。別のモデルを選んでから、もう一度お試しください。\n{detail}",
   "error.provider.antigravityServiceFailure":

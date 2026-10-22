@@ -438,9 +438,14 @@ status sets `apiKeyInUse`, and the API key section of the Gemini provider page s
 not the plan, serves the turns. The dock shows no Gemini row then, because it has no reading.
 
 A limit failure stays a turn error even though the descriptor sets `reportsUsage: true`, because
-many Gemini setups have no reading to explain it. `GEMINI_REQUEST_FAILURES` in `src/backend/acp-client.ts`
-names a rate limit or quota, an unavailable model, and a service failure from Google's status
-text. Antigravity does not document these texts.
+many Gemini setups have no reading to explain it. `GEMINI_REQUEST_FAILURES` in
+`src/backend/acp-flavor-antigravity.ts` names a rate limit or quota, an unavailable model, and a
+service failure from Google's status text. Antigravity does not document these texts.
+
+Antigravity 1.3.0 reports a spent per-user quota as answer text, `Usage Limit Reached` and Google's
+reset time. The flavor shows it with `error.provider.antigravityQuotaReached`, not the rate-limit
+text, because the quota resets in days. The server names no bucket, so the message says that the
+limit can be for one model and that the plan's usage page can still show room.
 
 Antigravity 1.3.0 and later send ACP `usage_update` after each model step: `used` is the size of
 the last model call, and `size` is the model's context window. The adapter turns it into

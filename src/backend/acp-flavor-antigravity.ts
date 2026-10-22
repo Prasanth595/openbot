@@ -14,8 +14,9 @@ const GEMINI_EXECUTION_ERROR_ANSWER = /^\s*Agent execution error: /u;
  * The kind of a Gemini request failure, first match wins. Gemini reports usage only for a Google
  * sign-in on 1.4.1 or later, so a limit often has no usage notice to explain it, and the raw Google
  * status left the user unsure whether waiting or another model helps (#1676). The patterns follow
- * Google's API status names, matched in capitals, and a status number only after `status`, `code` or `HTTP`: a bare 404 or "unavailable" can be an
- * MCP server or a tool. Antigravity does not document its failure texts.
+ * Google's API status names, matched in capitals, and a status number only after `status`, `code`
+ * or `HTTP`: a bare 404 or "unavailable" can be an MCP server or a tool. Antigravity does not
+ * document its failure texts.
  */
 const GEMINI_REQUEST_FAILURES = [
   ["error.provider.antigravityRateLimited", /\bRESOURCE_EXHAUSTED\b/u],
@@ -64,11 +65,13 @@ export const ANTIGRAVITY_ACP_FLAVOR: AcpFlavor = {
     failedSession: (stderrLine) => GEMINI_SDK_FAILURE.exec(stderrLine)?.[1],
     answerIsFailure: GEMINI_EXECUTION_ERROR_ANSWER,
     turnFailure: geminiTurnFailure,
-    // Antigravity reports an exhausted quota as answer text and ends the turn as a success.
+    // Antigravity reports an exhausted quota as answer text and ends the turn as a success. Google
+    // sends it only for a spent quota, which resets in days, not for a request-rate limit. The
+    // server names no bucket, and the usage page of the plan can still show room.
     quota: (text) => {
       const quota = GEMINI_QUOTA_CHUNK.exec(text);
       return quota
-        ? sourceText("error.provider.antigravityRateLimited", { detail: shownFailureDetail(quota[1]?.trim() ?? "") })
+        ? sourceText("error.provider.antigravityQuotaReached", { detail: shownFailureDetail(quota[1]?.trim() ?? "") })
         : null;
     },
   },
