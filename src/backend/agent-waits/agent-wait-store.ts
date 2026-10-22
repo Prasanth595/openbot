@@ -92,6 +92,13 @@ export class AgentWaitStore {
     return wait;
   }
 
+  count(agentId: string): number {
+    const row = databaseRow(
+      this.#database.connection.prepare("SELECT COUNT(*) AS waits FROM agent_waits WHERE agent_id = ?").get(agentId),
+    );
+    return row ? requiredNumberColumn(row, "waits") : 0;
+  }
+
   /** The number of open waits of each agent that has one. */
   countByAgent(): Map<string, number> {
     const rows = databaseRows(

@@ -165,6 +165,7 @@ try {
     assert.equal(answers[0]?.nearLimit, undefined, "A first wait has no warning.");
     assert.equal(typeof answers.at(-1)?.nearLimit, "string", "The last wait before the limit warns.");
     const firstWarning = answers.findIndex((value) => value.nearLimit !== undefined) + 1;
+    assert.equal(firstWarning, INPUT_LIMITS.agentWaits - 3, "The warning starts three waits before the limit.");
     return { ids, firstWarningAt: firstWarning };
   });
 

@@ -58,8 +58,8 @@ export interface AgentWaitCaller {
 
 /**
  * Open waits: work an agent stopped because it waits for something outside the turn. The agent
- * opens and closes them with two tools; the user cancels them from the chat; a routine run of the
- * agent wakes them. The input of the run that wakes a wait repeats the request and the note, so
+ * opens, lists and closes them with three tools, and another local agent can list and close them
+ * with `agentId`; the user cancels them from the chat; a routine run of the agent wakes them. The input of the run that wakes a wait repeats the request and the note, so
  * the agent can continue the request after its context lost it.
  *
  * It never imports the agent service facade.
@@ -165,14 +165,13 @@ export class AgentWaits {
             text: JSON.stringify({
               error: error.message,
               waits: this.#store.list(caller.agentId).map(waitSummary),
-              next: `Close each wait whose request is done, or can no longer be done, with openbot.${CLOSE_WAIT_TOOL}, then open this wait again.`,
             }),
           },
         ],
       };
     }
     this.#changed(caller.agentId);
-    const openWaits = this.#store.list(caller.agentId).length;
+    const openWaits = this.#store.count(caller.agentId);
     return openBotToolResult({
       waitId: wait.id,
       openWaits,
@@ -192,7 +191,7 @@ export class AgentWaits {
 
   #closeWait(params: DynamicToolCallParams, caller: AgentWaitCaller): OpenBotToolResponse {
     const parsed = closeWaitToolSchema.safeParse(params.arguments);
-    if (!parsed.success) return openBotToolFailure(sourceText("error.backend.agentWaitGone"));
+    if (!parsed.success) return openBotToolFailure(z.prettifyError(parsed.error));
     const agentId = this.#waitOwner(parsed.data.agentId, caller);
     if (!this.#store.delete(agentId, parsed.data.waitId))
       return openBotToolFailure(sourceText("error.backend.agentWaitGone"));
@@ -202,7 +201,7 @@ export class AgentWaits {
 
   #listWaits(params: DynamicToolCallParams, caller: AgentWaitCaller): OpenBotToolResponse {
     const parsed = listWaitsToolSchema.safeParse(params.arguments ?? {});
-    if (!parsed.success) return openBotToolFailure(parsed.error.issues.map((issue) => issue.message).join(" "));
+    if (!parsed.success) return openBotToolFailure(z.prettifyError(parsed.error));
     const agentId = this.#waitOwner(parsed.data.agentId, caller);
     return openBotToolResult({
       agentId,

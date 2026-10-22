@@ -240,6 +240,7 @@
     "test:server-mute": "bun scripts/server-mute-e2e.ts",
     "test:desktop-notifications": "bun scripts/desktop-notifications-e2e.ts",
     "test:routine-pause-resume": "bun scripts/routine-pause-resume-e2e.ts",
+    "test:agent-waits-tools": "bun scripts/agent-waits-tools-e2e.ts",
     "test:agent-hide-restore": "bun scripts/agent-hide-restore-e2e.ts",
     "test:messaging-pause-resume": "bun scripts/messaging-pause-resume-e2e.ts",
     "test:messaging-discord-access": "bun scripts/messaging-discord-access-e2e.ts",

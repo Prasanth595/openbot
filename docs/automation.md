@@ -122,11 +122,6 @@ routine or has this routine. A run with `waitId` wakes only that wait. When no s
 the run starts without a wait. The run's input repeats the request and the agent's note, so the
 agent can continue the request.
 
-An agent can have at most 20 open waits. `openbot.list_waits` shows an agent's open waits with their
-IDs, and `openbot.close_wait` closes one by ID. With `agentId`, both tools act on another local
-agent's waits, as the routine tools do. `openbot.list_agents` shows `openWaits` for each agent that
-has open waits.
-
 Answer: `202 { "runId": string, "deliveryId": string | null }`.
 
 `202` means that the run is in the queue, not that it ran. When the agent's provider account is at
@@ -143,6 +138,11 @@ set to skip at the limit drops the run instead, and its run history shows it as 
 | 413 | The body is larger than 32 KiB, or the payload is longer than 4,000 characters. |
 | 415 | `Content-Type` is not `application/json`. |
 | 429 | The agent got 30 runs from local scripts in the last hour. |
+
+An agent can have at most 20 open waits. `openbot.list_waits` shows an agent's open waits with their
+IDs, and `openbot.close_wait` closes one by ID. With `agentId`, both tools act on another local
+agent's waits, as the routine tools do. `openbot.list_agents` shows `openWaits` for each agent that
+has open waits.
 
 ### `POST /v1/agents/:agentId/messages`
 
