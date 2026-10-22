@@ -23,6 +23,20 @@ function isOpenCodeServiceFailure(error: unknown): boolean {
 }
 
 /**
+ * OpenCode 2.1.1 answers a turn whose model provider has no credentials with the protocol's
+ * `-32000` and "provider authentication required", and no provider ID. A user with no key can pick
+ * a paid or third-party model, and met that text with no next step (#2746). The model ID names the
+ * provider before its first `/`.
+ */
+function openCodeAuthRequired(error: unknown, model: string | null): string | null {
+  if (!(error instanceof RequestError) || error.code !== -32000) return null;
+  const provider = model?.includes("/") ? model.slice(0, model.indexOf("/")) : "";
+  return provider
+    ? sourceText("error.provider.opencodeAuthRequired", { provider })
+    : sourceText("error.provider.opencodeAuthRequiredUnknown");
+}
+
+/**
  * A request that the model refused for a file, image or audio part in the chat. OpenCode 2.1.1
  * sends a part when the model catalog lists its kind, or when the part has a kind it does not know,
  * such as an MCP resource. Each gateway words the refusal differently; OpenCode itself refuses a
@@ -95,7 +109,9 @@ export const OPENCODE_ACP_FLAVOR: AcpFlavor = {
         error.data.sessionId === sessionId &&
         error.message === `Invalid params: session not found: ${sessionId}`
       : null,
-  turnFailure: (error, detail, redact, log) => {
+  turnFailure: (error, detail, redact, log, model) => {
+    const authRequired = openCodeAuthRequired(error, model);
+    if (authRequired) return authRequired;
     // Google answers "API key not valid" (#1388).
     if (/invalid api key|api key not valid|unauthori[sz]ed|token refresh failed|authentication failed/i.test(detail))
       return sourceText("error.provider.opencodeCredentialsRejected", {

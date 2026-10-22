@@ -14,10 +14,16 @@ export interface AcpFlavor {
    */
   sessionNotFound?(error: RequestError, sessionId: string): boolean | null;
   /**
-   * The message of a failed turn, from the redacted failure text. `redact` masks more text, and `log`
-   * writes a diagnostic that it redacts first.
+   * The message of a failed turn, from the redacted failure text. `redact` masks more text, `log`
+   * writes a diagnostic that it redacts first, and `model` is the session's model.
    */
-  turnFailure?(error: unknown, detail: string, redact: (text: string) => string, log: (text: string) => void): string;
+  turnFailure?(
+    error: unknown,
+    detail: string,
+    redact: (text: string) => string,
+    log: (text: string) => void,
+    model: string | null,
+  ): string;
   /** The message of a turn that ended with no answer text. Absent: such a turn succeeds. */
   emptyAnswerFailure?(reasoned: boolean): string;
   /**

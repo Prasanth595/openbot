@@ -1876,6 +1876,7 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
           detail,
           (text) => this.#redact(text),
           (text) => this.emit("diagnostic", this.#redact(text)),
+          thread.currentModelId,
         ) ?? detail;
       this.emit("notification", {
         method: "error",

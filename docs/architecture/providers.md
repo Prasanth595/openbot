@@ -330,6 +330,11 @@ Free means a display name ending in "Free", or an id in a short explicit list
 `isFreeOpencodeModel` in `packages/contracts/src/agent-providers.ts` is shared with the picker badge in
 `packages/ui/src/components/provider-model-options.ts`, so a badge and a default cannot disagree
 about what costs money.
+
+A keyless OpenCode still lists models whose provider has no sign-in. OpenCode 2.1.1 fails a turn on
+one with `-32000` "provider authentication required" and no provider ID. `OPENCODE_ACP_FLAVOR`
+maps that code to `error.provider.opencodeAuthRequired`, which names the provider from the model ID
+before its first `/` and lists the fixes: a Free model, a Go key, or `opencode auth login`.
 Provider session IDs remain in `projection_provider_sessions`; migration 17 adds OpenCode while
 preserving turn links. Provider switches keep the same agent, workspace, and local thread.
 Migrations 17, 22, 23, 24 and 26 widen the table's provider `CHECK`. Migration 28 removes it, so a
