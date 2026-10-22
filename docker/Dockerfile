@@ -52,7 +52,7 @@ ARG REVISION=unknown
 # GitHub links the package to the repository through `source`.
 LABEL org.opencontainers.image.title=OpenBot \
   org.opencontainers.image.source=https://github.com/nightly-labs/openbot \
-  org.opencontainers.image.licenses=PolyForm-Noncommercial-1.0.0 \
+  org.opencontainers.image.licenses=Apache-2.0 \
   org.opencontainers.image.version=${VERSION} \
   org.opencontainers.image.revision=${REVISION}
 ENV LANG=C.UTF-8 XDG_RUNTIME_DIR=/run/openbot

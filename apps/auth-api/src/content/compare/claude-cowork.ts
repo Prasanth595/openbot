@@ -79,8 +79,7 @@ export const CLAUDE_COWORK_COMPARISON: Comparison = {
     {
       icon: "tag",
       topic: "Price and account",
-      openbot:
-        "Free for noncommercial use; commercial use needs a license. Your agents use the plans you already pay for.",
+      openbot: "Free and open source under Apache-2.0. Your agents use the plans you already pay for.",
       rival:
         "Needs a paid Claude plan: Pro from $17 a month, Max from $100, Team from $20 a seat, or Enterprise. Cowork uses your limits faster than chat.",
       better: "openbot",
@@ -103,7 +102,7 @@ export const CLAUDE_COWORK_COMPARISON: Comparison = {
     {
       icon: "code",
       topic: "Source code",
-      openbot: "On GitHub, under the PolyForm Noncommercial License 1.0.0.",
+      openbot: "On GitHub, under the Apache License 2.0.",
       rival:
         "Closed source; the terms prohibit reverse engineering. Its plugins are on GitHub under the Apache License 2.0.",
       better: "openbot",
@@ -180,7 +179,7 @@ export const CLAUDE_COWORK_COMPARISON: Comparison = {
     {
       question: "Is Claude Cowork free?",
       answer:
-        "No. Claude Cowork needs a paid Claude plan: Pro costs $17 a month with annual billing or $20 monthly, Max $100 or $200 a month, and Team $20 or $25 a seat for standard seats. OpenBot is free for noncommercial use, and it uses the plans you already pay for.",
+        "No. Claude Cowork needs a paid Claude plan: Pro costs $17 a month with annual billing or $20 monthly, Max $100 or $200 a month, and Team $20 or $25 a seat for standard seats. OpenBot is free and open source, and it uses the plans you already pay for.",
     },
     {
       question: "Do agents keep working when my laptop is closed?",
@@ -190,7 +189,7 @@ export const CLAUDE_COWORK_COMPARISON: Comparison = {
     {
       question: "Is Claude Cowork open source?",
       answer:
-        "No. Claude Cowork is closed source, and Anthropic's terms prohibit reverse engineering. Its plugins are on GitHub under the Apache License 2.0. OpenBot's source code is on GitHub under the PolyForm Noncommercial License 1.0.0.",
+        "No. Claude Cowork is closed source, and Anthropic's terms prohibit reverse engineering. Its plugins are on GitHub under the Apache License 2.0. OpenBot's source code is on GitHub under the Apache License 2.0.",
     },
   ],
   sources: [

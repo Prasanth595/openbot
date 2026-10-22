@@ -16,7 +16,7 @@ export const LANDING_FAQ: readonly LandingQuestion[] = [
   {
     question: "Is OpenBot open source?",
     answer:
-      "The source code is public on GitHub, under the PolyForm Noncommercial License 1.0.0. You can read, change and run it for any noncommercial purpose. It is not an open-source license as the OSI defines one: commercial use needs a separate license.",
+      "The source code is public on GitHub, under the Apache License 2.0. You can read, change and run it for any purpose, commercial use included, and the license grants patent rights.",
   },
   {
     question: "Can I use my ChatGPT or Claude plan?",

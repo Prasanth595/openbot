@@ -82,8 +82,7 @@ export const messages = {
   "billing.license.contactSales": "Daha fazla bilgi için licenses@openbot.run adresine yazın.",
   "billing.license.saving": "Kaydediliyor…",
   "billing.license.personal.title": "Kişisel kullanım",
-  "billing.license.personal.description":
-    "Kişisel ve ticari olmayan kullanım için ücretsizdir. Bir şirketteki iş için lisans gerekir.",
+  "billing.license.personal.description": "Kişisel kullanım için ücretsizdir. Bir şirketteki iş için lisans gerekir.",
   "billing.license.status.ended": "Sona erdi",
   "billing.license.ended": "Lisans {date} tarihinde sona erdi.",
   "billing.license.buy": "Lisans satın al",

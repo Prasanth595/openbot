@@ -85,7 +85,7 @@ export const messages = defineMessages("billing", {
   "billing.license.contactSales": "Reach out to licenses@openbot.run for more information.",
   "billing.license.saving": "Saving…",
   "billing.license.personal.title": "Personal use",
-  "billing.license.personal.description": "Free for personal and noncommercial use. Work at a company needs a license.",
+  "billing.license.personal.description": "Free for personal use. Work at a company needs a license.",
   "billing.license.status.ended": "Ended",
   "billing.license.ended": "The license ended on {date}.",
   "billing.license.buy": "Buy a license",

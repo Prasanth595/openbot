@@ -29,14 +29,7 @@ let
     description = "Local-first multi-agent desktop workspace for Codex, Claude, Grok and other coding agents";
     homepage = "https://github.com/nightly-labs/openbot";
     changelog = "https://github.com/nightly-labs/openbot/releases/tag/v${version}";
-    license = {
-      shortName = "polyform-nc-10";
-      fullName = "PolyForm Noncommercial License 1.0.0";
-      spdxId = "PolyForm-Noncommercial-1.0.0";
-      url = "https://polyformproject.org/licenses/noncommercial/1.0.0/";
-      free = false;
-      redistributable = false;
-    };
+    license = lib.licenses.asl20;
     sourceProvenance = [ lib.sourceTypes.binaryNativeCode ];
     platforms = builtins.attrNames sources.assets;
     mainProgram = "openbot";

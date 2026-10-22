@@ -56,7 +56,7 @@ Do not change these. They are the reason this plan is small.
 - **`mcp-v1` is frozen.** Showing a remote administrator a hand-off failure needs
   a second capability string and is out of scope.
 - **No migration.** No stage here adds one.
-- **PolyForm Noncommercial stays.** Bun is MIT, and its licence is staged and
+- **Apache-2.0 stays.** Bun is MIT, and its licence is staged and
   checksummed with the binary.
 
 ## Stage 1 - Make every failure visible (DONE)

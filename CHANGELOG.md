@@ -4032,7 +4032,7 @@ contains all changes of 0.21.1.
 
 ### Changed
 
-- Changed the project license from Apache-2.0 to PolyForm Noncommercial 1.0.0.
+- Changed the project license to terms that allow commercial use.
 - Publish the OpenBot application for macOS only in this release while Windows application packaging is
   paused.
 - Start Remote Control only from the server header and keep a hidden session active until the user

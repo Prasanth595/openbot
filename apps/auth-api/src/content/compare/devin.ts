@@ -78,8 +78,7 @@ export const DEVIN_COMPARISON: Comparison = {
     {
       icon: "tag",
       topic: "Price and account",
-      openbot:
-        "Free for noncommercial use; commercial use needs a license. Your agents use the plans you already pay for.",
+      openbot: "Free and open source under Apache-2.0. Your agents use the plans you already pay for.",
       rival:
         "Free with a light quota. Pro $20 a month, Max $200 a month, and Teams $80 a month plus $40 for each full seat. Every app needs a Devin account.",
       better: "openbot",
@@ -102,7 +101,7 @@ export const DEVIN_COMPARISON: Comparison = {
     {
       icon: "code",
       topic: "Source code",
-      openbot: "On GitHub, under the PolyForm Noncommercial License 1.0.0.",
+      openbot: "On GitHub, under the Apache License 2.0.",
       rival: "Proprietary. Cognition's terms prohibit reverse engineering.",
       better: "openbot",
     },
@@ -187,7 +186,7 @@ export const DEVIN_COMPARISON: Comparison = {
     {
       question: "How much do OpenBot and Devin cost?",
       answer:
-        "OpenBot is free for noncommercial use, commercial use needs a separate license, and your agents use the plans you already pay for. Devin has a free plan with a light quota; Pro costs $20 a month, Max $200 a month, and Teams $80 a month plus $40 for each full seat. Extra use is billed at API prices.",
+        "OpenBot is free and open source under Apache-2.0, and your agents use the plans you already pay for. Devin has a free plan with a light quota; Pro costs $20 a month, Max $200 a month, and Teams $80 a month plus $40 for each full seat. Extra use is billed at API prices.",
     },
   ],
   sources: [

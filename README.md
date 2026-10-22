@@ -1,7 +1,7 @@
 # OpenBot
 
 [![CI](https://github.com/nightly-labs/openbot/actions/workflows/ci.yml/badge.svg)](https://github.com/nightly-labs/openbot/actions/workflows/ci.yml)
-[![License](https://img.shields.io/badge/license-PolyForm_Noncommercial_1.0.0-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-Apache_2.0-blue.svg)](LICENSE)
 
 OpenBot is a local-first desktop workspace for persistent AI teammates. It supports the local
 [Codex App Server](https://learn.chatgpt.com/docs/app-server) and
@@ -601,14 +601,12 @@ assigns its copyright to Synthetify Labs. Community behavior is governed by the
 
 Copyright 2026 Synthetify Labs spółka z ograniczoną odpowiedzialnością.
 
-Licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE). You may use, modify, and
-distribute the code for permitted noncommercial purposes. Commercial use requires a separate license
-from the copyright owner. For a commercial license, contact
-[licenses@openbot.run](mailto:licenses@openbot.run). Versions up to and including 0.1.11 remain
-available under Apache-2.0.
+Licensed under the [Apache License, Version 2.0](LICENSE). You may use, modify, and distribute the
+code for any purpose, commercial use included. The license also grants patent rights. For a hosted
+server or support, contact [licenses@openbot.run](mailto:licenses@openbot.run).
 See [NOTICE](NOTICE) for attribution and third-party notices.
 
-OpenBot is an independent source-available project and is not affiliated with, endorsed by, or
+OpenBot is an independent open-source project and is not affiliated with, endorsed by, or
 sponsored by OpenAI. OpenAI, ChatGPT, and Codex are used only to describe compatibility with their
 respective products and services.
 

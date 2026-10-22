@@ -76,8 +76,7 @@ export const GROK_BOT_COMPARISON: Comparison = {
     {
       icon: "tag",
       topic: "Price and account",
-      openbot:
-        "Free for noncommercial use; commercial use needs a license. Your agents use the plans you already pay for.",
+      openbot: "Free and open source under Apache-2.0. Your agents use the plans you already pay for.",
       rival: "Included with paid Cursor plans and SuperGrok subscriptions. Needs a Cursor account.",
       better: "openbot",
     },
@@ -98,7 +97,7 @@ export const GROK_BOT_COMPARISON: Comparison = {
     {
       icon: "code",
       topic: "Source code",
-      openbot: "On GitHub, under the PolyForm Noncommercial License 1.0.0.",
+      openbot: "On GitHub, under the Apache License 2.0.",
       rival: "Not stated by xAI.",
       better: "openbot",
     },
@@ -195,7 +194,7 @@ export const GROK_BOT_COMPARISON: Comparison = {
     {
       question: "How much do OpenBot and Grok Bot cost?",
       answer:
-        "OpenBot is free for noncommercial use, and commercial use needs a separate license. Each provider tool uses its own plan or API key. Grok Bot is included with paid Cursor plans, the Cursor Teams plan, and SuperGrok subscriptions linked to a Cursor account.",
+        "OpenBot is free and open source under Apache-2.0. Each provider tool uses its own plan or API key. Grok Bot is included with paid Cursor plans, the Cursor Teams plan, and SuperGrok subscriptions linked to a Cursor account.",
     },
   ],
   sources: [

@@ -86,7 +86,7 @@ interface BuiltSkill {
   bundleSha256: string;
   files: string[];
   featured: boolean;
-  license: "Apache-2.0" | "MIT" | "PolyForm-Noncommercial-1.0.0";
+  license: "Apache-2.0" | "MIT";
   source:
     | { provider: "openbot"; url: string }
     | {
@@ -199,7 +199,7 @@ async function promptArchive(skill: SkillSpec, license: string, sources: Catalog
   validateSkillMarkdown(skill.slug, markdown);
   const notice =
     skill.source === "openbot"
-      ? "Original Skill instructions by the OpenBot team. Licensed under PolyForm Noncommercial 1.0.0 (LICENSE.txt).\n"
+      ? "Original Skill instructions by the OpenBot team. Licensed under the Apache License 2.0 (LICENSE.txt).\n"
       : createSkillNotice(skill, sources[skill.source]);
   return zipSync(
     {
@@ -382,7 +382,7 @@ function escapeRegExp(value: string): string {
 }
 
 function skillLicense(source: SkillSpec["source"]): BuiltSkill["license"] {
-  if (source === "openbot") return "PolyForm-Noncommercial-1.0.0";
+  if (source === "openbot") return "Apache-2.0";
   return source === "cursor" ? "MIT" : "Apache-2.0";
 }
 
@@ -598,12 +598,12 @@ function createSkillNotice(skill: Extract<SkillSpec, { upstreamSkill: string }>,
 function createUpstreamNotices(spec: CatalogSpec, skills: BuiltSkill[]): string {
   const entries = skills.map((skill) =>
     skill.source.provider === "openbot"
-      ? `- **${skill.slug}** — original OpenBot team instructions; PolyForm Noncommercial 1.0.0.`
+      ? `- **${skill.slug}** — original OpenBot team instructions; Apache License 2.0.`
       : skill.source.provider === "cursor"
         ? `- **${skill.slug}** — copy of [${skill.source.upstreamSkill}](${skill.source.url}) from cursor commit \`${skill.source.commit}\`, with pstack skill names prefixed; MIT.`
         : `- **${skill.slug}** — derivative of [${skill.source.upstreamSkill}](${skill.source.url}) from ${skill.source.provider} commit \`${skill.source.commit}\`.`,
   );
-  return `# Upstream Notices\n\nThis catalog contains original OpenBot team skills under PolyForm Noncommercial 1.0.0, derivatives from the pinned OpenAI and Anthropic repositories under Apache License 2.0, and the skills of the pinned Cursor pstack plugin, with their names prefixed, under the MIT License. Each bundle includes its applicable license and notice.\n\n${entries.join("\n")}\n\nCatalog version: \`${spec.catalogVersion}\`\n`;
+  return `# Upstream Notices\n\nThis catalog contains original OpenBot team skills and derivatives of the pinned OpenAI and Anthropic repositories, both under Apache License 2.0, and the skills of the pinned Cursor pstack plugin, with their names prefixed, under the MIT License. Each bundle includes its applicable license and notice.\n\n${entries.join("\n")}\n\nCatalog version: \`${spec.catalogVersion}\`\n`;
 }
 
 function upstreamSkillUrl(skill: Extract<SkillSpec, { upstreamSkill: string }>, upstream: UpstreamSource): string {

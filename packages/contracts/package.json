@@ -2,6 +2,7 @@
   "name": "@openbot/contracts",
   "version": "0.0.0",
   "private": true,
+  "license": "Apache-2.0",
   "type": "module",
   "exports": {
     "./live-activity-relay": "./src/live-activity-relay.ts",

@@ -85,8 +85,7 @@ export const INSTINCT_COMPARISON: Comparison = {
     {
       icon: "tag",
       topic: "Price and account",
-      openbot:
-        "Free for noncommercial use; commercial use needs a license. Your agents use the plans you already pay for.",
+      openbot: "Free and open source under Apache-2.0. Your agents use the plans you already pay for.",
       rival:
         "No published price. The terms say that you pay the fees that apply, and that Instinct can change its prices at any time. You sign in with a phone number.",
       better: "openbot",
@@ -109,7 +108,7 @@ export const INSTINCT_COMPARISON: Comparison = {
     {
       icon: "code",
       topic: "Source code",
-      openbot: "On GitHub, under the PolyForm Noncommercial License 1.0.0.",
+      openbot: "On GitHub, under the Apache License 2.0.",
       rival: "A closed service that runs only on Instinct's servers.",
       better: "openbot",
     },
@@ -184,7 +183,7 @@ export const INSTINCT_COMPARISON: Comparison = {
     {
       question: "How much does Instinct cost?",
       answer:
-        "Instinct publishes no price. It is in private access, by invite, and its terms say that you pay the fees that apply and that it can change its prices at any time. OpenBot is free for noncommercial use, and it uses the AI plans you already pay for.",
+        "Instinct publishes no price. It is in private access, by invite, and its terms say that you pay the fees that apply and that it can change its prices at any time. OpenBot is free and open source, and it uses the AI plans you already pay for.",
     },
     {
       question: "Does Instinct run on my computer?",
@@ -198,8 +197,7 @@ export const INSTINCT_COMPARISON: Comparison = {
     },
     {
       question: "Is Instinct open source?",
-      answer:
-        "No. Instinct is a closed service. OpenBot's source code is on GitHub under the PolyForm Noncommercial License 1.0.0.",
+      answer: "No. Instinct is a closed service. OpenBot's source code is on GitHub under the Apache License 2.0.",
     },
   ],
   sources: [

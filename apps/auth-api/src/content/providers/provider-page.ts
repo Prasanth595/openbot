@@ -70,6 +70,6 @@ export const OPENBOT_ADDS: readonly ProviderAdd[] = [
   {
     icon: "tag",
     title: "Use your AI plans",
-    text: "OpenBot is free for noncommercial use. Your agents use the plans you already pay for.",
+    text: "OpenBot is free and open source under Apache-2.0. Your agents use the plans you already pay for.",
   },
 ];

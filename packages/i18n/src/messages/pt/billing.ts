@@ -83,8 +83,7 @@ export const messages = {
   "billing.license.contactSales": "Escreva para licenses@openbot.run para mais informações.",
   "billing.license.saving": "Salvando…",
   "billing.license.personal.title": "Uso pessoal",
-  "billing.license.personal.description":
-    "Gratuito para uso pessoal e não comercial. Trabalho em uma empresa precisa de uma licença.",
+  "billing.license.personal.description": "Gratuito para uso pessoal. Trabalho em uma empresa precisa de uma licença.",
   "billing.license.status.ended": "Encerrada",
   "billing.license.ended": "A licença terminou em {date}.",
   "billing.license.buy": "Comprar licença",

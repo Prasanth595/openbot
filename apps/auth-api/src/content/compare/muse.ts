@@ -75,8 +75,7 @@ export const MUSE_COMPARISON: Comparison = {
     {
       icon: "tag",
       topic: "Price and account",
-      openbot:
-        "Free for noncommercial use; commercial use needs a license. Your agents use the plans you already pay for.",
+      openbot: "Free and open source under Apache-2.0. Your agents use the plans you already pay for.",
       rival:
         "Free with a weekly usage limit. Power costs $20 a month and Maximum $100 a month. Needs an account, and is for people aged 18 or more in the US and Canada.",
       better: "openbot",
@@ -100,7 +99,7 @@ export const MUSE_COMPARISON: Comparison = {
     {
       icon: "code",
       topic: "Source code",
-      openbot: "On GitHub, under the PolyForm Noncommercial License 1.0.0.",
+      openbot: "On GitHub, under the Apache License 2.0.",
       rival: "Not stated by Meta.",
       better: "openbot",
     },
@@ -198,7 +197,7 @@ export const MUSE_COMPARISON: Comparison = {
     {
       question: "How much do OpenBot and Muse cost?",
       answer:
-        "OpenBot is free for noncommercial use, and commercial use needs a separate license. Each provider tool uses its own plan or API key. Muse is free with a weekly usage limit. The Power plan costs $20 a month for 500 million Muse tokens a week, and the Maximum plan costs $100 a month for 3 billion.",
+        "OpenBot is free and open source under Apache-2.0. Each provider tool uses its own plan or API key. Muse is free with a weekly usage limit. The Power plan costs $20 a month for 500 million Muse tokens a week, and the Maximum plan costs $100 a month for 3 billion.",
     },
   ],
   sources: [

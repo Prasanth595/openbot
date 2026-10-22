@@ -16,7 +16,7 @@ export const OPENBOT_X_HANDLE = "@OpenBot_";
 const OPENBOT_X_URL = "https://x.com/OpenBot_";
 const OPENBOT_REPOSITORY_URL = "https://github.com/nightly-labs/openbot";
 const OPENBOT_PRODUCT_HUNT_URL = "https://www.producthunt.com/products/openbot-3";
-const OPENBOT_LICENSE_URL = "https://polyformproject.org/licenses/noncommercial/1.0.0/";
+const OPENBOT_LICENSE_URL = "https://www.apache.org/licenses/LICENSE-2.0";
 // One id for each entity, so that every page describes the same organization,
 // site and app, and an assistant can join what the pages say about each.
 const OPENBOT_ORGANIZATION_ID = `${OPENBOT_SITE_URL}#organization`;
@@ -90,7 +90,7 @@ export function openBotSoftwareApplication(facts: OpenBotApplicationFacts) {
       "Agents that work as a team and keep their workspace and history",
       "Chats, files and workspaces stay on your computer",
       "iPhone and Android apps that connect to your own computer",
-      "Free for noncommercial use",
+      "Free and open source",
     ],
     isAccessibleForFree: true,
     offers: {

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "catalogVersion": "v3",
+  "catalogVersion": "v4",
   "sources": {
     "openai": {
       "repository": "https://github.com/openai/skills",

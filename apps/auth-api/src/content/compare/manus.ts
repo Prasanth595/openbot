@@ -80,8 +80,7 @@ export const MANUS_COMPARISON: Comparison = {
     {
       icon: "tag",
       topic: "Price and account",
-      openbot:
-        "Free for noncommercial use; commercial use needs a license. Your agents use the plans you already pay for.",
+      openbot: "Free and open source under Apache-2.0. Your agents use the plans you already pay for.",
       rival:
         "Free with 300 credits a day. Pro plans from $20 to $200 a month, and the Team plan from $20 a seat. Needs an account, and is for people aged 18 or more.",
       better: "openbot",
@@ -103,7 +102,7 @@ export const MANUS_COMPARISON: Comparison = {
     {
       icon: "code",
       topic: "Source code",
-      openbot: "On GitHub, under the PolyForm Noncommercial License 1.0.0.",
+      openbot: "On GitHub, under the Apache License 2.0.",
       rival: "Closed source. Its terms prohibit reverse engineering.",
       better: "openbot",
     },
@@ -194,7 +193,7 @@ export const MANUS_COMPARISON: Comparison = {
     {
       question: "How much do OpenBot and Manus cost?",
       answer:
-        "OpenBot is free for noncommercial use, commercial use needs a separate license, and your agents use the plans you already pay for. Manus is free with 300 credits a day; Pro plans cost $20 to $200 a month and the Team plan starts at $20 a seat. Manus payments are not refundable.",
+        "OpenBot is free and open source under Apache-2.0, and your agents use the plans you already pay for. Manus is free with 300 credits a day; Pro plans cost $20 to $200 a month and the Team plan starts at $20 a seat. Manus payments are not refundable.",
     },
   ],
   sources: [

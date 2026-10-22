@@ -1,6 +1,6 @@
 # Support
 
-OpenBot is an early source-available project maintained on a best-effort basis.
+OpenBot is an early open-source project maintained on a best-effort basis.
 
 - Use the GitHub issue forms for reproducible bugs and focused feature requests. We close issues
   that do not come from a form or that do not answer the required fields. See

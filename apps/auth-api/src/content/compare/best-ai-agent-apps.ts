@@ -22,7 +22,7 @@ export const BEST_AI_AGENT_APPS: RoundupComparison = {
       bestFor: "A team of agents on your own computer, with the AI plans you already pay for.",
       runsOn: "Your computer. Apps for macOS, Windows, Linux, iPhone and Android.",
       models: "Your ChatGPT, Claude, Gemini, Grok or Cursor plan, free models, or your own model.",
-      price: "Free for noncommercial use. Hosted EU server from €20 or $25 a month.",
+      price: "Free and open source. Hosted EU server from €20 or $25 a month.",
       summary:
         "OpenBot runs Codex, Claude Code, Antigravity, Grok CLI, Cursor CLI and OpenCode as one team on your computer. Each agent gets a job, and they pass work to each other in shared channels. You follow along from the iPhone and Android apps, no VPN needed. Workspaces, chats and files stay in a database on your computer.",
     },
@@ -210,7 +210,7 @@ export const BEST_AI_AGENT_APPS: RoundupComparison = {
     {
       question: "Which AI agent apps are free?",
       answer:
-        "OpenBot is free for noncommercial use, and OpenClaw and Hermes Agent are free under the MIT License. With all three, you still pay your model provider. Cursor, Antigravity, Devin, Manus and Muse have free plans. Codex comes with ChatGPT Free and Go, but only with GPT-6 Luna in the desktop app and no cloud tasks. Claude Code, Claude Cowork and ChatGPT dots need a paid plan.",
+        "OpenBot is free and open source under Apache-2.0, and OpenClaw and Hermes Agent are free under the MIT License. With all three, you still pay your model provider. Cursor, Antigravity, Devin, Manus and Muse have free plans. Codex comes with ChatGPT Free and Go, but only with GPT-6 Luna in the desktop app and no cloud tasks. Claude Code, Claude Cowork and ChatGPT dots need a paid plan.",
     },
     {
       question: "Which AI agents run on my own computer?",

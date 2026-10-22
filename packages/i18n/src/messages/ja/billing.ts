@@ -84,7 +84,7 @@ export const messages = {
   "billing.license.contactSales": "詳しくは licenses@openbot.run までお問い合わせください。",
   "billing.license.saving": "保存中…",
   "billing.license.personal.title": "個人利用",
-  "billing.license.personal.description": "個人利用と非商用利用は無料です。企業での業務にはライセンスが必要です。",
+  "billing.license.personal.description": "個人利用は無料です。企業での業務にはライセンスが必要です。",
   "billing.license.status.ended": "終了",
   "billing.license.ended": "ライセンスは{date}に終了しました。",
   "billing.license.buy": "ライセンスを購入",

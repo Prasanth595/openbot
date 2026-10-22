@@ -87,7 +87,7 @@ export const messages = {
   "billing.license.saving": "Enregistrement…",
   "billing.license.personal.title": "Usage personnel",
   "billing.license.personal.description":
-    "Gratuit pour un usage personnel et non commercial. Le travail en entreprise nécessite une licence.",
+    "Gratuit pour un usage personnel. Le travail en entreprise nécessite une licence.",
   "billing.license.status.ended": "Terminée",
   "billing.license.ended": "La licence a pris fin le {date}.",
   "billing.license.buy": "Acheter une licence",

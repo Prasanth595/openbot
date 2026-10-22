@@ -3,7 +3,7 @@ Pod::Spec.new do |s|
   s.version        = '1.0.0'
   s.summary        = 'File paste for the OpenBot chat composer'
   s.description    = 'Gives photos, videos and other files pasted in the chat composer to JavaScript as files.'
-  s.license        = 'PolyForm-Noncommercial-1.0.0'
+  s.license        = 'Apache-2.0'
   s.author         = 'OpenBot'
   s.homepage       = 'https://openbot.run'
   s.platforms      = { :ios => '16.4' }

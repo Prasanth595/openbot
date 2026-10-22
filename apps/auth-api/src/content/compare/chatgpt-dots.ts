@@ -80,8 +80,7 @@ export const CHATGPT_DOTS_COMPARISON: Comparison = {
     {
       icon: "tag",
       topic: "Price and account",
-      openbot:
-        "Free for noncommercial use; commercial use needs a license. Your agents use the plans you already pay for.",
+      openbot: "Free and open source under Apache-2.0. Your agents use the plans you already pay for.",
       rival:
         "Needs ChatGPT Pro, from $100 a month, or Business Premium, from $100 a seat a month for 2 seats or more. The first dot is included; OpenAI gives no price for more.",
       better: "openbot",
@@ -105,7 +104,7 @@ export const CHATGPT_DOTS_COMPARISON: Comparison = {
     {
       icon: "code",
       topic: "Source code",
-      openbot: "On GitHub, under the PolyForm Noncommercial License 1.0.0.",
+      openbot: "On GitHub, under the Apache License 2.0.",
       rival:
         "A closed service that runs only in OpenAI's cloud. The auto-review rules that check a dot's actions are in the open-source Codex repository.",
       better: "openbot",
@@ -181,7 +180,7 @@ export const CHATGPT_DOTS_COMPARISON: Comparison = {
     {
       question: "How much does ChatGPT dots cost?",
       answer:
-        "Your first dot is included in ChatGPT Pro, which costs $100, $200 or $500 a month, or in Business Premium, which costs $125 a seat a month, or $100 with annual billing, for 2 seats or more. OpenAI says that you can add more dots later, but gives no price. OpenBot is free for noncommercial use, and it uses the plans you already pay for.",
+        "Your first dot is included in ChatGPT Pro, which costs $100, $200 or $500 a month, or in Business Premium, which costs $125 a seat a month, or $100 with annual billing, for 2 seats or more. OpenAI says that you can add more dots later, but gives no price. OpenBot is free and open source, and it uses the plans you already pay for.",
     },
     {
       question: "Does a dot run on my computer?",
@@ -196,7 +195,7 @@ export const CHATGPT_DOTS_COMPARISON: Comparison = {
     {
       question: "Is ChatGPT dots open source?",
       answer:
-        "No. Dots are a closed service that runs only in OpenAI's cloud. The auto-review rules that check a dot's actions are in the open-source Codex repository. OpenBot's source code is on GitHub under the PolyForm Noncommercial License 1.0.0.",
+        "No. Dots are a closed service that runs only in OpenAI's cloud. The auto-review rules that check a dot's actions are in the open-source Codex repository. OpenBot's source code is on GitHub under the Apache License 2.0.",
     },
   ],
   sources: [

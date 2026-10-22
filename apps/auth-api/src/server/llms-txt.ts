@@ -35,7 +35,7 @@ function llmsTxt(): string {
     "",
     `> ${OPENBOT_SITE_DESCRIPTION}`,
     "",
-    "OpenBot is a desktop app for macOS, Windows and Linux. Each agent has its own workspace, thread and history, and keeps them when you change its provider or restart the app. Agents can give work to other agents. Chats, files and workspaces stay on your computer; OpenBot has no server that holds them. The app is free for noncommercial use. iPhone and Android apps connect to OpenBot on your own computer.",
+    "OpenBot is a desktop app for macOS, Windows and Linux. Each agent has its own workspace, thread and history, and keeps them when you change its provider or restart the app. Agents can give work to other agents. Chats, files and workspaces stay on your computer; OpenBot has no server that holds them. The app is free and open source under Apache-2.0. iPhone and Android apps connect to OpenBot on your own computer.",
     "",
     `Each article below also has its text as Markdown, at its URL with \`.md\` added. [llms-full.txt](${absolute("/llms-full.txt")}) holds all of them in one file.`,
     "",
@@ -54,7 +54,7 @@ function llmsTxt(): string {
     `- [Windows](${absolute(OPENBOT_DOWNLOAD_LINKS.windows)}): Windows 10 or later, x64`,
     `- [Linux](${absolute(OPENBOT_DOWNLOAD_LINKS.linux)}): x64 AppImage`,
     `- [Linux for arm64](${absolute(OPENBOT_ALTERNATE_DOWNLOAD_LINKS.linux)}): arm64 AppImage`,
-    `- [Source code](${OPENBOT_LINKS.repository}): PolyForm Noncommercial 1.0.0`,
+    `- [Source code](${OPENBOT_LINKS.repository}): Apache License 2.0`,
     "",
   ];
 

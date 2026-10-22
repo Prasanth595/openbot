@@ -81,8 +81,7 @@ export const HERMES_AGENT_COMPARISON: Comparison = {
     {
       icon: "tag",
       topic: "Price and account",
-      openbot:
-        "Free for noncommercial use; commercial use needs a license. Your agents use the plans you already pay for.",
+      openbot: "Free and open source under Apache-2.0. Your agents use the plans you already pay for.",
       rival:
         "Free under the MIT license, also for commercial use. No account is necessary. You pay your model provider, and Hermes Cloud if you use it.",
       better: "rival",
@@ -105,7 +104,7 @@ export const HERMES_AGENT_COMPARISON: Comparison = {
     {
       icon: "code",
       topic: "Source code",
-      openbot: "On GitHub, under the PolyForm Noncommercial License 1.0.0.",
+      openbot: "On GitHub, under the Apache License 2.0.",
       rival: "On GitHub, under the MIT License.",
     },
   ],
@@ -180,7 +179,7 @@ export const HERMES_AGENT_COMPARISON: Comparison = {
     {
       question: "Is Hermes Agent open source?",
       answer:
-        "Yes. Hermes Agent is on GitHub under the MIT License, which also allows commercial use. OpenBot's source code is on GitHub under the PolyForm Noncommercial License 1.0.0, and commercial use needs a separate license.",
+        "Yes. Hermes Agent is on GitHub under the MIT License. OpenBot's source code is on GitHub under the Apache License 2.0. Both licenses allow commercial use.",
     },
     {
       question: "Does Hermes Agent have a mobile app?",
@@ -200,7 +199,7 @@ export const HERMES_AGENT_COMPARISON: Comparison = {
     {
       question: "How much do OpenBot and Hermes Agent cost?",
       answer:
-        "Both apps are free. OpenBot is free for noncommercial use, and commercial use needs a separate license. Hermes Agent is free under the MIT License. With both, you pay your model provider. Hermes Cloud costs from $0.56 a day for a running Medium instance, plus the models and tools it uses.",
+        "Both apps are free and open source, OpenBot under Apache-2.0 and Hermes Agent under the MIT License. With both, you pay your model provider. Hermes Cloud costs from $0.56 a day for a running Medium instance, plus the models and tools it uses.",
     },
   ],
   sources: [

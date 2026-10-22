@@ -1,5 +1,6 @@
 {
   "name": "openbot-team-webrtc-live-smoke",
   "private": true,
+  "license": "Apache-2.0",
   "main": "index.cjs"
 }

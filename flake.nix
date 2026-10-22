@@ -14,7 +14,7 @@
         "aarch64-linux"
         "aarch64-darwin"
       ];
-      # OpenBot is not free software (PolyForm Noncommercial), so nixpkgs refuses it by default. A user
+      # OpenBot is free software (Apache-2.0), so nixpkgs accepts it by default. A user
       # who asks for this flake's package has asked for OpenBot; other unfree packages stay refused.
       forEachSystem =
         f:

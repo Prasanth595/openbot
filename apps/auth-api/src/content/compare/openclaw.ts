@@ -77,8 +77,7 @@ export const OPENCLAW_COMPARISON: Comparison = {
     {
       icon: "tag",
       topic: "Price and account",
-      openbot:
-        "Free for noncommercial use; commercial use needs a license. Your agents use the plans you already pay for.",
+      openbot: "Free and open source under Apache-2.0. Your agents use the plans you already pay for.",
       rival:
         "Free under the MIT license, also for commercial use. No subscription and no hosted tier. You pay your model provider, and a VPS if you rent one.",
       better: "rival",
@@ -99,7 +98,7 @@ export const OPENCLAW_COMPARISON: Comparison = {
     {
       icon: "code",
       topic: "Source code",
-      openbot: "On GitHub, under the PolyForm Noncommercial License 1.0.0.",
+      openbot: "On GitHub, under the Apache License 2.0.",
       rival: "On GitHub, under the MIT License.",
     },
   ],
@@ -177,7 +176,7 @@ export const OPENCLAW_COMPARISON: Comparison = {
     {
       question: "Is OpenClaw open source?",
       answer:
-        "Yes. OpenClaw is on GitHub under the MIT License, which also allows commercial use. OpenBot's source code is on GitHub under the PolyForm Noncommercial License 1.0.0, and commercial use needs a separate license.",
+        "Yes. OpenClaw is on GitHub under the MIT License. OpenBot's source code is on GitHub under the Apache License 2.0. Both licenses allow commercial use.",
     },
     {
       question: "Do my chats leave my computer?",
@@ -192,7 +191,7 @@ export const OPENCLAW_COMPARISON: Comparison = {
     {
       question: "How much do OpenBot and OpenClaw cost?",
       answer:
-        "Both apps are free. OpenBot is free for noncommercial use, and commercial use needs a separate license. OpenClaw is free under the MIT License, with no subscription and no hosted tier. With both, you pay your model provider.",
+        "Both apps are free and open source, OpenBot under Apache-2.0 and OpenClaw under the MIT License. With both, you pay your model provider.",
     },
   ],
   sources: [
