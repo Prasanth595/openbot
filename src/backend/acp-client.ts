@@ -710,7 +710,10 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
     return this.#privatePromptLock.withPermit(this.#privatePromptOnce(text));
   }
 
-  /** A prompt that fails or times out drops the session, because the agent may still be answering it. */
+  /**
+   * A prompt that times out drops the session, because the agent may still be answering it. An error
+   * answer keeps it: a new session would leave one more conversation database on disk.
+   */
   readonly #privatePromptOnce = Effect.fn("AcpAgentClient.privatePrompt")(function* (
     this: AcpAgentClient,
     text: string,
@@ -730,7 +733,7 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
       Effect.onExit((exit) =>
         Effect.sync(() => {
           this.#privateAnswer = null;
-          if (Exit.isFailure(exit)) this.#privateSession = null;
+          if (Exit.hasInterrupts(exit)) this.#privateSession = null;
         }),
       ),
     );

@@ -2080,7 +2080,14 @@ export class ProviderRuntime implements ProviderPort {
     const client = this.#clients.get(source.provider);
     if (!client || this.#usageLimitRefreshes.has(client)) return;
     this.#usageLimitRefreshes.add(client);
-    yield* this.#refreshUsage(client).pipe(
+    // A provider with no reading, such as Gemini with an API key, must not clear the other
+    // providers' readings: the renderer takes an empty reading as the whole dock.
+    yield* this.#refreshUsage(client, undefined, false).pipe(
+      Effect.tap((usage) =>
+        Effect.sync(() => {
+          if (usage.limits.length > 0) this.#emit({ type: "usage-changed", usage });
+        }),
+      ),
       Effect.ignore,
       Effect.ensuring(Effect.sync(() => this.#usageLimitRefreshes.delete(client))),
       Effect.forkIn(this.#scope),

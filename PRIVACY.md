@@ -997,6 +997,11 @@ sends the key to Google. The server keeps its login and session files in `~/.gem
 read, copy, or upload these files. Google's terms apply: <https://antigravity.google/terms>.
 Gemini agents stay on this computer: OpenBot does not show them to team members.
 
+To show the remaining Gemini quota in Usage, OpenBot sends the server's `/usage` command in a
+session that no agent uses. The server asks Google for the quota of the signed-in account; the
+command contains no conversation, file, or model data. The server keeps that session with its other
+session files in `~/.gemini`. OpenBot does not send that usage to its maintainer.
+
 ### Cursor
 
 OpenBot downloads the Cursor CLI from `downloads.cursor.com` when you select Download on the Cursor

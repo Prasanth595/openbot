@@ -566,11 +566,11 @@ export function isFreeOpencodeModel(id: string, name: string): boolean {
 /**
  * Whether the provider's account quota limits this model. OpenCode reports only the Go quota, and
  * OpenCode also runs free, custom and own-sign-in models that the Go quota does not limit.
- * Antigravity reports only the Gemini quota; its Claude and GPT models share another limit. Its
- * default model, an empty id, is Gemini.
+ * Antigravity reports only the Gemini quota; its Claude and GPT models share another limit. Gemini
+ * model ids can be code names, so only a Claude or GPT id is left out.
  */
 export function accountUsageCoversModel(provider: AgentProviderId, model: string | null | undefined): boolean {
   if (provider === "opencode") return Boolean(model?.toLowerCase().startsWith("opencode-go/"));
-  if (provider === "antigravity") return !model || model.toLowerCase().startsWith("gemini");
+  if (provider === "antigravity") return !/^(?:claude|gpt)/iu.test(model ?? "");
   return true;
 }
