@@ -430,6 +430,14 @@ jobs:
         if: ${{ !cancelled() }}
         run: bun run test:acp-flavors
 
+      - name: Run the ACP instructions once E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:acp-instructions-once
+
+      - name: Run the Muse instructions once E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:muse-instructions-once
+
       - name: Run the provider conformance E2E test
         if: ${{ !cancelled() }}
         run: bun run test:provider-conformance
@@ -461,6 +469,8 @@ jobs:
             .openbot-build/codex-login-path-e2e/
             .openbot-build/acp-additional-directories-e2e/
             .openbot-build/acp-flavor-e2e/
+            .openbot-build/acp-instructions-once-e2e/
+            .openbot-build/muse-instructions-once-e2e/
             .openbot-build/provider-conformance-e2e/
             .openbot-build/opencode-expired-key-e2e/
             .openbot-build/opencode-downgraded-session-e2e/
