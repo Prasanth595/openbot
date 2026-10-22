@@ -89,19 +89,22 @@ export function ContextUsageMeter(props: {
 }) {
   const { t, format, errorMessage } = useText();
   const [open, setOpen] = createSignal(false);
-  const [compactRequested, setCompactRequested] = createSignal(false);
-  const [compactError, setCompactError] = createSignal<string | null>(null);
+  const [compaction, setCompaction] = createSignal<
+    { phase: "idle" } | { phase: "requesting" } | { phase: "refused"; message: string }
+  >({ phase: "idle" });
   const compact = () => (props.usage.autoCompactAt === null ? undefined : props.compact);
+  const compactError = () => {
+    const current = compaction();
+    return current.phase === "refused" ? current.message : null;
+  };
   const requestCompaction = async (start: () => Promise<void>) => {
-    setCompactRequested(true);
-    setCompactError(null);
+    setCompaction({ phase: "requesting" });
     try {
       await start();
+      setCompaction({ phase: "idle" });
       setOpen(false);
     } catch (error) {
-      setCompactError(errorMessage(error, t("composer.context.compactFailed")));
-    } finally {
-      setCompactRequested(false);
+      setCompaction({ phase: "refused", message: errorMessage(error, t("composer.context.compactFailed")) });
     }
   };
   const [confirming, setConfirming] = createSignal(false);
@@ -115,7 +118,16 @@ export function ContextUsageMeter(props: {
   let popover: HTMLElement | undefined;
   return (
     <>
-      <Popover.Root open={open()} onOpenChange={setOpen} placement="top-end" gutter={8}>
+      <Popover.Root
+        open={open()}
+        onOpenChange={(next) => {
+          // A refusal belongs to the moment it happened: the turn it waited for can end meanwhile.
+          if (next && compaction().phase === "refused") setCompaction({ phase: "idle" });
+          setOpen(next);
+        }}
+        placement="top-end"
+        gutter={8}
+      >
         <Popover.Trigger
           ref={setTrigger}
           class="composer-button context-meter-trigger"
@@ -209,7 +221,7 @@ export function ContextUsageMeter(props: {
                       variant="ghost"
                       type="button"
                       class="context-meter-action"
-                      disabled={props.usage.compacting || compactRequested()}
+                      disabled={props.usage.compacting || compaction().phase === "requesting"}
                       onClick={() => void requestCompaction(start())}
                     >
                       <Minimize2 aria-hidden="true" />

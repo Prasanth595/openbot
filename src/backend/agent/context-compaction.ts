@@ -243,7 +243,14 @@ export class ContextCompaction {
   reserve(agentId: string, threadId: string, manual = false): boolean {
     const agent = this.#store.list().find((candidate) => candidate.id === agentId);
     const mode = agent ? this.#providers.clientForAgent(agent)?.contextCompaction : undefined;
-    if (!compactsOnRequest(mode)) return false;
+    if (!agent || !compactsOnRequest(mode)) return false;
+    // Only the agent's own chat has a handoff to start a new session from.
+    if (
+      mode === "handoff" &&
+      (!agent.threadId ||
+        this.#store.database.activeProviderSession(agent.threadId, agent.provider)?.externalSessionId !== threadId)
+    )
+      return false;
     const budget = this.#budgets.get(threadId);
     if (!(budget?.pending || (manual && budget)) || budget.phase !== "idle" || this.#compactingAgents.has(agentId)) {
       return false;
@@ -454,8 +461,10 @@ export class ContextCompaction {
     threadId: string,
     client: AgentClient,
   ) {
-    this.#compactingAgents.set(agentId, { threadId, client });
+    // The hold keeps no client: `clientEnded` must not release the queue while the rotation runs.
+    // The rotation ends the hold itself, also when the client exits.
     const compaction = this.#display.get(threadId)?.compaction;
+    const compactedTokens = this.#budgets.get(threadId)?.usedTokens ?? null;
     const next = yield* this.#rotateSession(agentId, client, threadId).pipe(
       Effect.catch((failure) =>
         Effect.sync(() => {
@@ -472,6 +481,17 @@ export class ContextCompaction {
         compaction: { id, startedAt, status: "completed", ...(expectedMs === undefined ? {} : { expectedMs }) },
       });
     }
+    // The growth rule moves to the new session, as it stays on a Codex thread: a session that starts
+    // above the threshold does not rotate again at each turn.
+    if (next)
+      this.#budgets.set(next, {
+        usedTokens: 0,
+        contextWindow: 1,
+        pending: false,
+        phase: "idle",
+        compactionTurnId: null,
+        lastCompactedTokens: compactedTokens,
+      });
     // A session that was not replaced keeps its budget; the growth rule stops an immediate retry.
     const budget = this.#budgets.get(threadId);
     if (budget) {

@@ -222,10 +222,11 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
     return () => turnsPort().agent.clearContext(agent.id, server.id);
   });
 
+  /** Local only: the Team API has no route to compact a joined server's agent. */
   const compactActiveAgentContext = createMemo(() => {
     const agent = activeAgent();
     const server = activeServer();
-    if (!agent || !server) return undefined;
+    if (!agent || server?.kind !== "local") return undefined;
     return () => turnsPort().agent.compactContext(agent.id, server.id);
   });
 

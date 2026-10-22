@@ -947,8 +947,9 @@ export class ThreadLifecycle {
     // The steps first: an ACP agent keeps them only in the session that closes below.
     const steps = yield* this.readWorkSteps(session);
     if (steps !== null) yield* this.saveWorkSteps(session, steps);
-    // The client first, while the routing entry that `retireProviderSession` removes still names it.
-    yield* this.#releaseProviderSession(externalThreadId, client);
+    // The client that holds the session, while the routing entry that `retireProviderSession`
+    // removes still names it. After a CLI replacement that is not the agent's current client.
+    yield* this.#releaseProviderSession(externalThreadId);
     this.retireProviderSession(agent, externalThreadId);
     return yield* this.startProviderThread(agent, client, publicThreadId);
   }, Effect.uninterruptible).bind(this);
