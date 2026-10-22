@@ -194,6 +194,30 @@ export const messages = {
   "routine.card.webhookSaveFailed": "Nie udało się zapisać zdarzeń.",
   "routine.card.webhookFiltersInvalid": "Filtr ma nieprawidłowy JSON Pointer.",
 
+  "routine.timezoneMove.title": "Twoja strefa czasowa to teraz {zone}",
+  "routine.timezoneMove.description": {
+    one: "{count} rutyna na {server} działa według czasu {from}. Przenieść ją na {zone}? Godzina się nie zmieni.",
+    few: "{count} rutyny na {server} działają według czasu {from}. Przenieść je na {zone}? Godziny się nie zmienią.",
+    many: "{count} rutyn na {server} działa według czasu {from}. Przenieść je na {zone}? Godziny się nie zmienią.",
+    other: "{count} rutyny na {server} działają według czasu {from}. Przenieść je na {zone}? Godziny się nie zmienią.",
+  },
+  "routine.timezoneMove.move": "Przenieś",
+  "routine.timezoneMove.keep": "Zostaw",
+  "routine.timezoneMove.moved": {
+    one: "Przeniesiono {count} rutynę na {server} na czas {zone}.",
+    few: "Przeniesiono {count} rutyny na {server} na czas {zone}.",
+    many: "Przeniesiono {count} rutyn na {server} na czas {zone}.",
+    other: "Przeniesiono {count} rutyny na {server} na czas {zone}.",
+  },
+  "routine.timezoneMove.partial": {
+    one: "Nie udało się przenieść {count} rutyny na {server} na czas {zone}.",
+    few: "Nie udało się przenieść {count} rutyn na {server} na czas {zone}.",
+    many: "Nie udało się przenieść {count} rutyn na {server} na czas {zone}.",
+    other: "Nie udało się przenieść {count} rutyny na {server} na czas {zone}.",
+  },
+  "routine.timezoneMove.failed": "Nie udało się przenieść rutyn.",
+  "routine.timezoneMove.settingFailed": "Nie udało się zmienić strefy czasowej w ustawieniach serwera {server}.",
+
   "routine.calendar.title": "Harmonogram",
   "routine.calendar.open": "Otwórz harmonogram",
   "routine.calendar.timeZone": "Czas: {zone}",

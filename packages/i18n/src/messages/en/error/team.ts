@@ -58,6 +58,7 @@ export const messages = defineMessages("error.team", {
   "error.team.channelDeleteUnsupported": "Channel deletion is not supported by this connection.",
   "error.team.membersCannotDeleteChannels": "Members cannot delete channels.",
   "error.team.membersCannotArchiveChannels": "Members cannot archive channels.",
+  "error.team.membersCannotRestoreChannels": "Members cannot restore channels.",
   "error.team.sharedDataUnsupported": "Shared data is not supported by this connection.",
   "error.team.agentInstallUnsupported": "Adding agents is not supported by this connection.",
   "error.team.agentHideUnsupported": "Hiding agents is not supported by this connection.",

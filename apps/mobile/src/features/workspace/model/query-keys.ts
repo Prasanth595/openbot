@@ -66,6 +66,14 @@ export const queryKeys = {
   ) => [...queryKeys.agentInfo(scope, serverId, agentId), provider, model, "session-settings"],
   /** Under the server's agent records, so the host's agent events refresh it. */
   sharedTables: (scope: QueryScope, serverId: string) => [...queryKeys.agentInfo(scope, serverId), "tables"],
+  /** The settings of a channel. Its memory and routine events invalidate the part they change. */
+  channelInfo: (scope: QueryScope, serverId: string, channelId: string, ...part: [] | ["memories" | "routines"]) => [
+    "channel-info",
+    ...scope,
+    serverId,
+    channelId,
+    ...part,
+  ],
   agentAvatar: (
     scope: QueryScope,
     serverId: string | undefined,

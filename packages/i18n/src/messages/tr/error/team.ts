@@ -59,6 +59,7 @@ export const messages = {
   "error.team.channelDeleteUnsupported": "Kanal silme bu bağlantı tarafından desteklenmiyor.",
   "error.team.membersCannotDeleteChannels": "Üyeler kanalları silemez.",
   "error.team.membersCannotArchiveChannels": "Üyeler kanalları arşivleyemez.",
+  "error.team.membersCannotRestoreChannels": "Üyeler kanalları geri yükleyemez.",
   "error.team.sharedDataUnsupported": "Paylaşılan veriler bu bağlantı tarafından desteklenmiyor.",
   "error.team.agentInstallUnsupported": "Ajan ekleme bu bağlantı tarafından desteklenmiyor.",
   "error.team.agentHideUnsupported": "Ajan gizleme bu bağlantı tarafından desteklenmiyor.",

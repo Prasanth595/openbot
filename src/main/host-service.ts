@@ -351,6 +351,7 @@ export class HostService extends EventEmitter<HostEvents> {
               memberId === options.store.getOwnerMemberId() && (options.hostComputerInUse?.(event) ?? false),
             liveActivityShows: (sessionId, alert, startedAt) =>
               this.#liveActivityPush?.showsEvent(sessionId, alert, startedAt) ?? false,
+            channelForThread: (threadId) => this.channelForThread(threadId),
             logger,
           })
         : undefined;

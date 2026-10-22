@@ -166,6 +166,24 @@ export const messages = defineMessages("routine", {
   "routine.card.webhookSaveFailed": "Could not save the events.",
   "routine.card.webhookFiltersInvalid": "A filter has a JSON Pointer that is not valid.",
 
+  "routine.timezoneMove.title": "Your time zone is now {zone}",
+  "routine.timezoneMove.description": {
+    one: "{count} routine on {server} runs on {from} time. Move it to {zone}? Its clock time stays the same.",
+    other: "{count} routines on {server} run on {from} time. Move them to {zone}? Their clock times stay the same.",
+  },
+  "routine.timezoneMove.move": "Move",
+  "routine.timezoneMove.keep": "Keep",
+  "routine.timezoneMove.moved": {
+    one: "Moved {count} routine on {server} to {zone} time.",
+    other: "Moved {count} routines on {server} to {zone} time.",
+  },
+  "routine.timezoneMove.partial": {
+    one: "{count} routine on {server} could not move to {zone} time.",
+    other: "{count} routines on {server} could not move to {zone} time.",
+  },
+  "routine.timezoneMove.failed": "Could not move the routines.",
+  "routine.timezoneMove.settingFailed": "Could not change the Server Settings time zone of {server}.",
+
   "routine.calendar.title": "Schedule",
   "routine.calendar.open": "Open schedule",
   "routine.calendar.timeZone": "Times in {zone}",

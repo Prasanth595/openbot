@@ -62,6 +62,7 @@ export const messages = {
   "error.team.channelDeleteUnsupported": "Diese Verbindung unterstützt das Löschen von Kanälen nicht.",
   "error.team.membersCannotDeleteChannels": "Mitglieder können keine Kanäle löschen.",
   "error.team.membersCannotArchiveChannels": "Mitglieder können keine Kanäle archivieren.",
+  "error.team.membersCannotRestoreChannels": "Mitglieder können keine Kanäle wiederherstellen.",
   "error.team.sharedDataUnsupported": "Diese Verbindung unterstützt keine geteilten Daten.",
   "error.team.agentInstallUnsupported": "Diese Verbindung unterstützt das Hinzufügen von Agenten nicht.",
   "error.team.agentHideUnsupported": "Diese Verbindung unterstützt das Ausblenden von Agenten nicht.",

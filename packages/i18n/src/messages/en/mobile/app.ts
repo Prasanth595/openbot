@@ -2,6 +2,8 @@ import { defineMessages } from "../../../message";
 
 export const messages = defineMessages("mobile.app", {
   "mobile.app.route.scanQrCode": "Scan QR code",
+  "mobile.app.route.actionsNeeded": "Actions needed",
+  "mobile.app.route.newChannel": "New channel",
   "mobile.app.route.createAgent": "Create an agent",
   "mobile.app.route.addSharedAgent": "Add a shared agent",
   "mobile.app.route.newSection": "New section",
@@ -12,6 +14,7 @@ export const messages = defineMessages("mobile.app", {
   "mobile.app.route.support": "Support",
   "mobile.app.route.hiddenChats": "Hidden chats",
   "mobile.app.route.share": "Share",
+  "mobile.app.route.deletedChannels": "Deleted channels",
   "mobile.app.route.cropPhoto": "Move and Scale",
   "mobile.app.route.queuedMessages": "Queued messages",
   "mobile.app.route.messageOptions": "Message options",

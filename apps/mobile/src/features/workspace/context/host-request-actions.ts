@@ -1,9 +1,13 @@
 import { isAvatarMimeType } from "@openbot/contracts/avatar-images";
 import {
   assertStorageUsageScope,
+  CHANNEL_CHATS_CAPABILITY,
   canAdministerServer,
   decodeAgentAdminSettings,
   decodeAgentHostSettings,
+  decodeChannelRoutineRuns,
+  decodeChannelRoutines,
+  decodeChannelSummaries,
   decodeInstalledSkills,
   decodeStorageUsage,
   type HiddenAgent,
@@ -34,6 +38,7 @@ import { AGENT_MEMORY_LIMIT_CAPABILITY } from "@openbot/contracts/team-protocol/
 import { AGENT_PUBLISH_CAPABILITY } from "@openbot/contracts/team-protocol/agent-publish-v1";
 import { AGENT_SESSION_SETTINGS_CAPABILITY } from "@openbot/contracts/team-protocol/agent-session-settings-v1";
 import { AGENT_TASKS_CAPABILITY } from "@openbot/contracts/team-protocol/agent-tasks-v1";
+import { CHANNEL_ROUTES } from "@openbot/contracts/team-protocol/channels-v1";
 import { CONNECTORS_CAPABILITY } from "@openbot/contracts/team-protocol/connectors-v1";
 import { CONTEXT_RESET_CAPABILITY } from "@openbot/contracts/team-protocol/context-reset-v1";
 import {
@@ -591,7 +596,11 @@ export function createHostRequestActions({
         buildRoutineCalendar(
           { from: new Date(input.from), to: new Date(input.to) },
           new Date(),
-          routineCalendarSource(teamApi(serverId), owners),
+          routineCalendarSource(
+            teamApi(serverId),
+            capabilities.get(serverId)?.includes(CHANNEL_CHATS_CAPABILITY) ?? false,
+            owners,
+          ),
         ),
       ),
     loadHostAnalytics: (input, serverId) =>
@@ -787,6 +796,7 @@ export function createHostRequestActions({
 /** The routes that the desktop calendar reads from a remote host, so both place the same runs. */
 function routineCalendarSource(
   request: TeamApiRequest,
+  channels: boolean,
   knownOwners?: readonly RoutineCalendarOwner[],
 ): RoutineCalendarSource<TeamRequestError> {
   /** One request to this server as an Effect. */
@@ -799,9 +809,22 @@ function routineCalendarSource(
     owners: () =>
       knownOwners
         ? Effect.succeed([...knownOwners])
-        : send("GET", TEAM_API_ROUTES.agents.all, decodeAgentSummaries).pipe(
-            Effect.map((agents) => agents.map((agent): RoutineCalendarOwner => ({ kind: "agent", agentId: agent.id }))),
-          ),
+        : Effect.gen(function* () {
+            // A host from before channels rejects the channel routes; its agents still have routines.
+            const [agents, channelList] = yield* Effect.all(
+              [
+                send("GET", TEAM_API_ROUTES.agents.all, decodeAgentSummaries),
+                channels ? send("GET", CHANNEL_ROUTES.list, decodeChannelSummaries) : Effect.succeed([]),
+              ],
+              { concurrency: "unbounded" },
+            );
+            return [
+              ...agents.map((agent): RoutineCalendarOwner => ({ kind: "agent", agentId: agent.id })),
+              ...channelList
+                .filter((channel) => !channel.archived)
+                .map((channel): RoutineCalendarOwner => ({ kind: "channel", channelId: channel.id })),
+            ];
+          }),
     routines: (owner) =>
       owner.kind === "agent"
         ? send("GET", TEAM_API_ROUTES.agent.routines(owner.agentId), (value) => {
@@ -809,8 +832,7 @@ function routineCalendarSource(
               throw new Error("The host returned invalid routines.");
             return value;
           })
-        : // The phone lists only agents as owners.
-          Effect.succeed([]),
+        : send("POST", CHANNEL_ROUTES.routines, decodeChannelRoutines, { channelId: owner.channelId }),
     runs: (owner, routineId, limit) =>
       owner.kind === "agent"
         ? send("GET", `${TEAM_API_ROUTES.agent.routineRuns(owner.agentId, routineId)}?limit=${limit}`, (value) => {
@@ -818,7 +840,11 @@ function routineCalendarSource(
               throw new Error("The host returned an invalid routine history.");
             return value;
           })
-        : Effect.succeed([]),
+        : send("POST", CHANNEL_ROUTES.routineRuns, decodeChannelRoutineRuns, {
+            channelId: owner.channelId,
+            routineId,
+            limit,
+          }),
   };
 }
 

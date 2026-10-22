@@ -50,6 +50,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useCSSVariable } from "uniwind";
+import { BloubAvatarThumbnail } from "@/features/agents/components/bloub-avatar";
 import { getBloubAvatarColor } from "@/features/agents/model/bloub-activity";
 import { ChatActivityRow, type ChatActivitySpec } from "@/features/chat/components/chat-activity-row";
 import { type ApprovalDecision, approvalTitle, ChatApprovalCard } from "@/features/chat/components/chat-approval-card";
@@ -222,6 +223,8 @@ interface ChatMessageListProps {
   /** Something covers the list, such as the voice mode, so screen readers skip it. */
   accessibilityHidden?: boolean;
   activity?: MobileAgentActivity;
+  /** The activity of each member agent that works in a channel. An agent chat has only `activity`. */
+  activities?: MobileAgentActivity[];
   agents: MobileAgent[];
   motion: ChatMotion;
   sending: boolean;
@@ -233,6 +236,8 @@ interface ChatMessageListProps {
   appActive: boolean;
   activeTurnId: string | null;
   questionForm?: QuestionPromptController;
+  /** Opens the form of an open question, in a channel where several agents can ask. */
+  onSelectQuestion?: (messageId: string) => void;
   /** Rows under the activity, such as the tasks that the agent works on. */
   activityAccessory?: ReactNode;
   /** The approvals that this chat's agents wait on, shown below the activity as on the desktop. */
@@ -318,10 +323,12 @@ interface MessageRowShared {
   canReply: boolean;
   canReact: boolean;
   canSelectText: boolean;
+  canSelectQuestion: boolean;
   /** The width inside the list padding. The iOS menu of a queued message does not limit its width. */
   listWidth: number;
   actions: {
     reply: (message: ChatBubbleMessage) => void;
+    selectQuestion: (messageId: string) => void;
     react: (message: ChatBubbleMessage, emoji: string | null) => Promise<void>;
     selectText: (message: ChatBubbleMessage) => void;
     selectionChange: (selected: string) => void;
@@ -393,7 +400,11 @@ function ContextResetMarkerRow({ muted }: { muted: ViewStyle["backgroundColor"] 
 
 function playbackEligible(message: VisibleMessage) {
   return (
-    message.kind === "message" && message.author === "agent" && (message.streaming || message.status === "completed")
+    message.kind === "message" &&
+    message.author === "agent" &&
+    (message.streaming || message.status === "completed") &&
+    !message.superseded &&
+    (!message.speaker || message.speaker.kind === "agent")
   );
 }
 
@@ -506,6 +517,8 @@ const MessageRow = memo(function MessageRow({
   );
   // Native text views select in place, so only the fallback covers the text with a field.
   const overlaySelecting = selecting && !nativeTextSelection;
+  // The author of a channel message: its agent, or a person.
+  const speaker = message.kind === "message" && message.speaker ? agentsById.get(message.speaker.id) : undefined;
   // Another person in an agent chat: a person's bubble in their own colour, seeded by the member id
   // as on desktop, so it does not read as the reader's own.
   const memberColor =
@@ -528,13 +541,19 @@ const MessageRow = memo(function MessageRow({
     ) : message.kind === "context-reset" ? (
       <ContextResetMarkerRow key={message.id} muted={muted} />
     ) : message.kind === "exchange-group" ? (
-      <ChatExchangeGroup key={message.id} group={message} agentsById={agentsById} muted={muted} />
-    ) : message.kind === "exchange" ? (
-      <ChatExchangeMarker key={message.id} message={message} agentsById={agentsById} muted={muted} />
+      <ChatExchangeGroup key={message.id} group={message} agents={agents} agentsById={agentsById} muted={muted} />
+    ) : message.kind === "exchange" || message.kind === "channel-routing" ? (
+      <ChatExchangeMarker key={message.id} message={message} agents={agents} agentsById={agentsById} muted={muted} />
     ) : message.kind === "plan" ? (
       <ChatPlan key={message.id} message={message} />
     ) : message.kind === "question" ? (
-      <ChatQuestionPrompt key={message.id} prompt={message.prompt} controller={questionForm} canSend={canSend} />
+      <ChatQuestionPrompt
+        key={message.id}
+        prompt={message.prompt}
+        controller={questionForm}
+        canSend={canSend}
+        onActivate={shared.canSelectQuestion ? () => actions.selectQuestion(message.id) : undefined}
+      />
     ) : (
       <Animated.View
         key={message.id}
@@ -550,6 +569,24 @@ const MessageRow = memo(function MessageRow({
           <Typography.Paragraph type="body-xs" className="shrink px-1" numberOfLines={1} style={{ color: memberColor }}>
             {message.sender.name.trim() || t("mobile.chat.speaker.memberFallback")}
           </Typography.Paragraph>
+        ) : null}
+        {message.speaker && message.author !== "user" ? (
+          <View className="flex-row items-center gap-1 px-1">
+            {message.speaker.kind === "agent" ? (
+              <BloubAvatarThumbnail
+                agentId={speaker?.id}
+                serverId={speaker?.serverId}
+                seed={speaker?.avatarSeed ?? message.speaker.id}
+                hue={speaker?.avatarHue ?? null}
+                size={20}
+              />
+            ) : null}
+            <Typography.Paragraph type="body-xs" className="shrink text-muted" numberOfLines={1}>
+              {message.superseded
+                ? t("mobile.chat.speaker.superseded", { name: message.speaker.name })
+                : message.speaker.name}
+            </Typography.Paragraph>
+          </View>
         ) : null}
         {message.imageGeneration ? (
           <ChatImageGeneration
@@ -810,6 +847,7 @@ export const ChatMessageList = memo(function ChatMessageList({
   rowsShown,
   accessibilityHidden = false,
   activity,
+  activities,
   agents,
   motion,
   sending,
@@ -820,6 +858,7 @@ export const ChatMessageList = memo(function ChatMessageList({
   appActive,
   activeTurnId,
   questionForm,
+  onSelectQuestion,
   activityAccessory,
   approvals = NO_APPROVALS,
   browserRequests = NO_BROWSER_REQUESTS,
@@ -926,7 +965,10 @@ export const ChatMessageList = memo(function ChatMessageList({
   );
   const arrivals = useMessageArrivals(replySession.key, messages, animateMessages && historyState === "ready");
   const agentColorMessages = useAgentColorMessages((state) => state.enabled);
-  const userBubbleColor = getBloubAvatarColor(target.avatarSeed, target.avatarHue);
+  const userBubbleColor = getBloubAvatarColor(
+    target.kind === "agent" ? target.avatarSeed : target.id,
+    target.kind === "agent" ? target.avatarHue : null,
+  );
   const appearance = useConnectionAppearance(!canSend);
   const red = Number.parseInt(userBubbleColor.slice(1, 3), 16);
   const green = Number.parseInt(userBubbleColor.slice(3, 5), 16);
@@ -981,11 +1023,19 @@ export const ChatMessageList = memo(function ChatMessageList({
   const hasRows = rows.length > 0;
   const onReady = useCallback(() => onListReady(hasRows), [onListReady, hasRows]);
   const selectionArea = useRef<View | null>(null);
-  const actionHandlers = useRef({ onReply, onReact, onSelectText, onSelectionChange, onNativeSelection });
-  actionHandlers.current = { onReply, onReact, onSelectText, onSelectionChange, onNativeSelection };
+  const actionHandlers = useRef({
+    onReply,
+    onReact,
+    onSelectText,
+    onSelectionChange,
+    onNativeSelection,
+    onSelectQuestion,
+  });
+  actionHandlers.current = { onReply, onReact, onSelectText, onSelectionChange, onNativeSelection, onSelectQuestion };
   const actions = useMemo<MessageRowShared["actions"]>(
     () => ({
       reply: (message) => actionHandlers.current.onReply?.(message),
+      selectQuestion: (messageId) => actionHandlers.current.onSelectQuestion?.(messageId),
       react: async (message, emoji) => actionHandlers.current.onReact?.(message, emoji),
       selectText: (message) => actionHandlers.current.onSelectText?.(message),
       selectionChange: (selected) => actionHandlers.current.onSelectionChange?.(selected),
@@ -1028,6 +1078,7 @@ export const ChatMessageList = memo(function ChatMessageList({
   const canReply = Boolean(onReply);
   const canReact = Boolean(onReact);
   const canSelectText = Boolean(onSelectText);
+  const canSelectQuestion = Boolean(onSelectQuestion);
   const listWidth = screen.width - LIST_PADDING * 2;
   const shared = useMemo<MessageRowShared>(
     () => ({
@@ -1039,8 +1090,12 @@ export const ChatMessageList = memo(function ChatMessageList({
       themeMuted,
       foreground,
       userForeground,
-      userBubbleStyle: agentColorMessages ? userBubbleStyle : undefined,
-      attachmentTint: agentColorMessages ? { color: userBubbleColor, foreground: userForeground } : undefined,
+      // A channel has no one agent color for the reader's messages.
+      userBubbleStyle: target.kind === "agent" && agentColorMessages ? userBubbleStyle : undefined,
+      attachmentTint:
+        target.kind === "agent" && agentColorMessages
+          ? { color: userBubbleColor, foreground: userForeground }
+          : undefined,
       firstMessageStyle: motion.firstMessageStyle,
       animationActive,
       playbackActive: animationActive && textReveal && !screenReaderEnabled,
@@ -1051,12 +1106,14 @@ export const ChatMessageList = memo(function ChatMessageList({
       canReply,
       canReact,
       canSelectText,
+      canSelectQuestion,
       listWidth,
       actions,
     }),
     [
       agents,
       agentsById,
+      target.kind,
       target.serverId,
       canSend,
       muted,
@@ -1076,6 +1133,7 @@ export const ChatMessageList = memo(function ChatMessageList({
       canReply,
       canReact,
       canSelectText,
+      canSelectQuestion,
       listWidth,
       actions,
     ],
@@ -1123,8 +1181,13 @@ export const ChatMessageList = memo(function ChatMessageList({
     const latestThinking = messages.findLast(
       (message) => message.kind === "thinking" && message.turnId === (activity?.turnId ?? activeTurnId),
     );
+    // In a channel, only the reply of this activity's agent counts.
     const replying = messages.some(
-      (message) => isStreamingReply(message) && message.kind === "message" && message.body.trim(),
+      (message) =>
+        isStreamingReply(message) &&
+        message.kind === "message" &&
+        message.body.trim() &&
+        (!activity?.agentId || !message.speaker || message.speaker.id === activity.agentId),
     );
     // One run of text, as desktop shows it: the row clamps the label, and blank lines would fill it.
     const thinkingDetail =
@@ -1135,13 +1198,20 @@ export const ChatMessageList = memo(function ChatMessageList({
       sending && !activity
         ? t("common.sending")
         : activity?.phase === "waiting"
-          ? messages.some(
-              (message) => message.kind === "question" && !message.prompt.resolution && message.turnId === activeTurnId,
+          ? // The reason of the wait names it first. A channel has no active turn of its own.
+            activity.reason === "question" ||
+            messages.some(
+              (message) =>
+                message.kind === "question" &&
+                !message.prompt.resolution &&
+                message.turnId === (activity.turnId ?? activeTurnId),
             )
             ? t("mobile.chat.activity.waitingForAnswer")
-            : approvals.some((approval) => approval.agentId === (activity?.agentId ?? target.id))
+            : activity.reason === "approval" ||
+                approvals.some((approval) => approval.agentId === (activity.agentId ?? target.id))
               ? t("mobile.chat.activity.waitingForApproval")
-              : browserRequests.some((request) => request.agentId === (activity?.agentId ?? target.id))
+              : activity.reason === "takeover" ||
+                  browserRequests.some((request) => request.agentId === (activity.agentId ?? target.id))
                 ? t("mobile.chat.activity.waitingForBrowser")
                 : t("mobile.chat.activity.waitingOnDesktop")
           : thinkingDetail
@@ -1153,7 +1223,11 @@ export const ChatMessageList = memo(function ChatMessageList({
                 : replying
                   ? t("mobile.chat.activity.responding")
                   : t("mobile.chat.activity.thinking");
-    const activityAgent = activity?.agentId ? agentsById.get(activity.agentId) : target;
+    const activityAgent = activity?.agentId
+      ? agentsById.get(activity.agentId)
+      : target.kind === "agent"
+        ? target
+        : undefined;
     // As on desktop, the conversation's own turn keeps the row: turn events can arrive late.
     if (!(activity || sending || awaitingTurn || activeTurnId || messages.some(isStreamingReply) || pendingReveal))
       return null;
@@ -1175,7 +1249,9 @@ export const ChatMessageList = memo(function ChatMessageList({
         activity?.phase !== "waiting",
     };
   };
-  const activityRows = useActivityPresence([activity].flatMap((entry) => activitySpec(entry) ?? []));
+  const activityRows = useActivityPresence(
+    (activities?.length ? activities : [activity]).flatMap((entry) => activitySpec(entry) ?? []),
+  );
 
   return (
     <Animated.View
@@ -1292,6 +1368,7 @@ export const ChatMessageList = memo(function ChatMessageList({
                         key={String(approval.requestId)}
                         approval={approval}
                         agentName={agentsById.get(approval.agentId)?.name ?? target.name}
+                        showAgentName={target.kind === "channel"}
                         serverName={serverName}
                         canAnswer={canSend}
                         respond={(decision) => onRespondApproval(approval, decision)}

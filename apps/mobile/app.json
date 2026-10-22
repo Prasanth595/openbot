@@ -34,6 +34,7 @@
     },
     "plugins": [
       "./plugins/with-rocketsim",
+      "./plugins/with-android-feature-flags",
       "expo-router",
       "expo-video",
       [

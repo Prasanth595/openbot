@@ -140,6 +140,7 @@ import type { AgentSettingsRequest } from "../conversation/conversation-types";
 import { webEventRoutinesApi } from "../conversation/routine-webhooks-api";
 import type { FilesPort } from "../files/files-port";
 import { hostSetupProviderProps } from "../onboarding/host-setup-provider-props";
+import { createRoutineTimezonePrompt } from "../schedule/routine-timezone-prompt";
 import type { ScheduleRoutine } from "../schedule/SchedulePanel";
 import { AddServerOverlay, type AddServerResume } from "../servers/AddServerOverlay";
 import {
@@ -153,7 +154,12 @@ import type { HostAgentAccessCalls } from "../servers/ServerRolesSection";
 import type { ServerHostedSitesOptions, ServerSettingsSection } from "../servers/ServerSettingsModal";
 import type { HostTimezoneCalls } from "../servers/ServerTimezoneSetting";
 import type { HostUpdateCalls } from "../servers/ServerUpdatePanel";
-import { remoteAdminServer, remoteUpdateServer, serverRoleCanAdminister } from "../servers/server-capabilities";
+import {
+  remoteAdminServer,
+  remoteUpdateServer,
+  serverCanAdminister,
+  serverRoleCanAdminister,
+} from "../servers/server-capabilities";
 import { createServerConnectionToast } from "../servers/server-connection-toast";
 import {
   offerServerUpdate,
@@ -1110,6 +1116,20 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     if (first && !untrack(channelOpen)) setCreating(true);
   });
   const webhookRoutines = webEventRoutinesApi((...args) => hostRequest()(...args), routineRecoveryEnabled);
+  // Asks to move the connected host's routines after this device's time zone changed.
+  createRoutineTimezonePrompt(() => {
+    const current = server();
+    if (current?.state !== "online" || !workspace.runtime.admin || !eventsEnabled()) return [];
+    return [
+      {
+        id: current.id,
+        name: current.name,
+        calendar: (input) => scheduleSource.calendar(input, current.id),
+        events: webhookRoutines,
+        timezone: serverCanAdminister(current, "host-timezone-v1") ? hostTimezoneCalls : undefined,
+      },
+    ];
+  });
   const routineFlowsHost = webRoutineFlowsHost(workspace.runtime, workspace.onHostEvent, () =>
     eventsEnabled() ? webhookRoutines : undefined,
   );

@@ -3,6 +3,8 @@ import type { messages as source } from "../../en/mobile/app";
 
 export const messages = {
   "mobile.app.route.scanQrCode": "QR コードをスキャン",
+  "mobile.app.route.actionsNeeded": "必要な操作",
+  "mobile.app.route.newChannel": "新しいチャンネル",
   "mobile.app.route.createAgent": "エージェントを作成",
   "mobile.app.route.addSharedAgent": "共有エージェントを追加",
   "mobile.app.route.newSection": "新しいセクション",
@@ -13,6 +15,7 @@ export const messages = {
   "mobile.app.route.support": "サポート",
   "mobile.app.route.hiddenChats": "非表示のチャット",
   "mobile.app.route.share": "共有",
+  "mobile.app.route.deletedChannels": "削除したチャンネル",
   "mobile.app.route.cropPhoto": "移動と拡大縮小",
   "mobile.app.route.queuedMessages": "待機中のメッセージ",
   "mobile.app.route.messageOptions": "メッセージのオプション",

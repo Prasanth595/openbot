@@ -169,6 +169,25 @@ export const messages = {
   "routine.card.webhookChanged": "Modifications non enregistrées",
   "routine.card.webhookSaveFailed": "Impossible d’enregistrer les événements.",
   "routine.card.webhookFiltersInvalid": "Un filtre a un JSON Pointer non valide.",
+
+  "routine.timezoneMove.title": "Votre fuseau horaire est maintenant {zone}",
+  "routine.timezoneMove.description": {
+    one: "{count} routine sur {server} suit l’heure de {from}. La passer à {zone} ? Son heure reste la même.",
+    other:
+      "{count} routines sur {server} suivent l’heure de {from}. Les passer à {zone} ? Leurs heures restent les mêmes.",
+  },
+  "routine.timezoneMove.move": "Déplacer",
+  "routine.timezoneMove.keep": "Garder",
+  "routine.timezoneMove.moved": {
+    one: "{count} routine sur {server} passée à l’heure de {zone}.",
+    other: "{count} routines sur {server} passées à l’heure de {zone}.",
+  },
+  "routine.timezoneMove.partial": {
+    one: "{count} routine sur {server} n’a pas pu passer à l’heure de {zone}.",
+    other: "{count} routines sur {server} n’ont pas pu passer à l’heure de {zone}.",
+  },
+  "routine.timezoneMove.failed": "Impossible de déplacer les routines.",
+  "routine.timezoneMove.settingFailed": "Impossible de changer le fuseau horaire des paramètres du serveur {server}.",
   "routine.calendar.title": "Planning",
   "routine.calendar.open": "Ouvrir le planning",
   "routine.calendar.timeZone": "Heures en {zone}",

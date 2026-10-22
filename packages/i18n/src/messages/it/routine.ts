@@ -167,6 +167,24 @@ export const messages = {
   "routine.card.webhookSaveFailed": "Impossibile salvare gli eventi.",
   "routine.card.webhookFiltersInvalid": "Un filtro ha un JSON Pointer non valido.",
 
+  "routine.timezoneMove.title": "Il tuo fuso orario ora è {zone}",
+  "routine.timezoneMove.description": {
+    one: "{count} routine su {server} usa l’ora di {from}. Spostarla su {zone}? L’orario resta uguale.",
+    other: "{count} routine su {server} usano l’ora di {from}. Spostarle su {zone}? Gli orari restano uguali.",
+  },
+  "routine.timezoneMove.move": "Sposta",
+  "routine.timezoneMove.keep": "Mantieni",
+  "routine.timezoneMove.moved": {
+    one: "{count} routine su {server} spostata sull’ora di {zone}.",
+    other: "{count} routine su {server} spostate sull’ora di {zone}.",
+  },
+  "routine.timezoneMove.partial": {
+    one: "Impossibile spostare {count} routine su {server} sull’ora di {zone}.",
+    other: "Impossibile spostare {count} routine su {server} sull’ora di {zone}.",
+  },
+  "routine.timezoneMove.failed": "Impossibile spostare le routine.",
+  "routine.timezoneMove.settingFailed": "Impossibile cambiare il fuso orario nelle impostazioni del server {server}.",
+
   "routine.calendar.title": "Pianificazione",
   "routine.calendar.open": "Apri la pianificazione",
   "routine.calendar.timeZone": "Orari in {zone}",

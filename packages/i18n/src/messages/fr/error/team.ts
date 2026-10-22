@@ -62,6 +62,7 @@ export const messages = {
   "error.team.channelDeleteUnsupported": "La suppression de canaux n’est pas prise en charge par cette connexion.",
   "error.team.membersCannotDeleteChannels": "Les membres ne peuvent pas supprimer de canaux.",
   "error.team.membersCannotArchiveChannels": "Les membres ne peuvent pas archiver de canaux.",
+  "error.team.membersCannotRestoreChannels": "Les membres ne peuvent pas restaurer de canaux.",
   "error.team.sharedDataUnsupported": "Les données partagées ne sont pas prises en charge par cette connexion.",
   "error.team.agentInstallUnsupported": "L’ajout d’agents n’est pas pris en charge par cette connexion.",
   "error.team.agentHideUnsupported": "Le masquage d’agents n’est pas pris en charge par cette connexion.",

@@ -191,8 +191,9 @@ and hold on a waiting message opens the native context menu with Edit and Don't 
 history waits for the server, `Waiting for connection` shows under the reconnect status above the
 composer; in the chat that status shows only the attempt and the countdown. The outbox is saved per account in the app's documents,
 so it survives a restart. Each chat sends its messages one at a time and in order while its server is
-online. A message carries a `clientMessageId` when the host advertises `message-client-id-v1`, so a
-repeat after a lost reply stores the message once. A message that the host refused shows `Not sent`, and its menu adds Retry; it holds
+online. An agent message carries a `clientMessageId` when the host advertises `message-client-id-v1`,
+and a channel message uses the same id as its `operationId`, so a repeat after a lost reply stores
+the message once. A message that the host refused shows `Not sent`, and its menu adds Retry; it holds
 the later messages of its chat. A message that the host may have stored is not repeated when
 the host cannot drop a repeat, or 12 hours after its first attempt; it shows `Not confirmed`. This
 visual state is derived only in the mobile UI: it never changes the agent's synced avatar profile or

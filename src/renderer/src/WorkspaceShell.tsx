@@ -20,6 +20,7 @@ import { WorkspaceDirectConversation } from "./features/conversation/WorkspaceDi
 import { WorkspaceServerOnboarding } from "./features/onboarding/WorkspaceServerOnboarding";
 import { useRemoteDesktop } from "./features/remote-desktop/remote-desktop-context";
 import { WorkspaceRoutineFlows } from "./features/routine-flows/WorkspaceRoutineFlows";
+import { createRoutineTimezonePrompt, desktopRoutineZoneTargets } from "./features/schedule/routine-timezone-prompt";
 import { createHostedUpsellOffline } from "./features/servers/hosted-server-upsell-controller";
 import { createServerConnectionToast } from "./features/servers/server-connection-toast";
 import { useServerScope } from "./features/servers/server-scope";
@@ -169,6 +170,7 @@ export function WorkspaceShell(props: { account: () => CentralAuthUser }) {
     );
   // The update dialog explains the restart of the update that it follows.
   createHostRestartToasts(() => remoteHosts().filter((host) => !followsServerUpdate(host.id)));
+  createRoutineTimezonePrompt(() => desktopRoutineZoneTargets(servers()));
 
   return (
     // The overlays and the chat cards show the same connectors.

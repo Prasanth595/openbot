@@ -33,7 +33,7 @@ import { useVoiceMode } from "@/features/chat/components/use-voice-mode";
 import { VoiceOverlay } from "@/features/chat/components/voice-overlay";
 import { mentionDraft } from "@/features/chat/model/chat-mentions";
 import { projectChatMessages } from "@/features/chat/model/chat-messages";
-import type { ChatTarget } from "@/features/chat/model/chat-target";
+import type { AgentChatTarget } from "@/features/chat/model/chat-target";
 import { voiceAccent, voicePalette } from "@/features/chat/model/voice-palette";
 import { agentTaskHoldText } from "@/features/servers/model/agent-task-text";
 import { ConnectionStatus } from "@/features/workspace/components/connection-status";
@@ -114,7 +114,7 @@ function TaskNote({ note, retry }: { note: string; retry?: () => void }) {
   );
 }
 
-function AgentTaskChat({ target, taskId }: { target: ChatTarget; taskId: string }) {
+function AgentTaskChat({ target, taskId }: { target: AgentChatTarget; taskId: string }) {
   const { t, errorMessage } = useText();
   const { theme } = useUniwind();
   const { serverId, id: agentId } = target;
@@ -256,7 +256,7 @@ function AgentTaskChat({ target, taskId }: { target: ChatTarget; taskId: string 
   const secretRequest = showBrowserRequests && !voiceOpen ? taskBrowserRequests.find(asksForSecret) : undefined;
   const dark = useColorScheme() === "dark";
   const palette = useMemo(
-    () => voicePalette(getBloubAvatarColor(target.avatarSeed, target.avatarHue), dark),
+    () => voicePalette([getBloubAvatarColor(target.avatarSeed, target.avatarHue)], dark),
     [target.avatarSeed, target.avatarHue, dark],
   );
   const accent = useMemo(() => voiceAccent(palette), [palette]);

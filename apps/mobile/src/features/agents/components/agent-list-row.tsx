@@ -26,6 +26,7 @@ import { AGENT_WAIT_STATE, AgentWaitBadge, AgentWaitChip } from "@/features/agen
 import { BloubAvatar } from "@/features/agents/components/bloub-avatar";
 import { ChatLinkPressable } from "@/features/agents/components/chat-link-pressable";
 import { ChatZoomSource } from "@/features/agents/components/chat-zoom-source";
+import { useWaitingChannel } from "@/features/channels/components/use-waiting-channel";
 import { useAgentWaitReason } from "@/features/workspace/components/use-agent-activity";
 import { useAgentUnread } from "@/features/workspace/components/use-live-workspace";
 import { type MobileAgent, useMobileWorkspaceSelector } from "@/features/workspace/context/mobile-workspace-context";
@@ -101,12 +102,19 @@ interface AgentListRowProps {
 export const AgentListRow = memo(function AgentListRow({ agent, leftInset = 20, rightInset = 20 }: AgentListRowProps) {
   const { t } = useText();
   const [background] = useThemeColor(["background"]);
-  const pinBlocked = useMobileWorkspaceSelector(({ pinnedAgentIds }) => !canToggleAgentPin(pinnedAgentIds, agent.id));
+  const pinBlocked = useMobileWorkspaceSelector(
+    ({ pinnedAgentIds, pinnedChannelIds }) => !canToggleAgentPin([...pinnedAgentIds, ...pinnedChannelIds], agent.id),
+  );
   const { toggleAgentPinAnimated, transition } = useAgentPinTransition();
   // Each long press mounts the Android menu again, so it opens even if an earlier one did not close.
   const [menuKey, setMenuKey] = useState(0);
   const agentChatPreview = useAgentChatPreview(agent);
-  const previewLine = useMemo(() => markdownPreviewText(agent.preview), [agent.preview]);
+  // An agent that waits in a channel says so, as its last message in its own chat is not the wait.
+  const waitingChannel = useWaitingChannel(agent.id, agent.serverId);
+  const lastMessage = useMemo(() => markdownPreviewText(agent.preview), [agent.preview]);
+  const previewLine = waitingChannel
+    ? t("mobile.chat.channelWork.waiting", { channel: waitingChannel.name })
+    : lastMessage;
   const isUnread = useAgentUnread(agent.id);
   const waitReason = useAgentWaitReason(agent.id);
   const isUnpinTarget = transition?.chatId === agent.id && transition.target === "row";

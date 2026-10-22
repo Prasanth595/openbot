@@ -1,4 +1,4 @@
-import type { SidebarLayoutSnapshot } from "@openbot/contracts/ipc";
+import type { ChannelSummary, SidebarLayoutSnapshot } from "@openbot/contracts/ipc";
 import { BlurTargetView } from "expo-blur";
 import { type Href, router, Stack } from "expo-router";
 import { Button, Typography } from "heroui-native";
@@ -44,6 +44,8 @@ import { EmptyAgentsScene, type WelcomeHandOff } from "@/features/agents/compone
 import { PinnedAgentsGrid } from "@/features/agents/components/pinned-agents-grid";
 import { SidebarSectionHeader } from "@/features/agents/components/sidebar-section-header";
 import { showFailureAlert } from "@/features/analytics/failure-reports";
+import { ChannelListRow } from "@/features/channels/components/channel-list";
+import { useChannels } from "@/features/channels/components/use-channels";
 import { OnboardingFlow } from "@/features/onboarding/components/onboarding-flow";
 import { useOnboardingGate } from "@/features/onboarding/model/use-onboarding-gate";
 import {
@@ -87,19 +89,30 @@ const LIST_REFLOW = LinearTransition.duration(240).easing(EASE_OUT).reduceMotion
 const LIST_WINDOW_SIZE = 7;
 const LIST_BATCH = 10;
 
+/** A chat row: an agent, or a channel with its server and the agents of that server. */
+interface ChatRowTarget {
+  agent?: MobileAgent;
+  channel?: ChannelSummary;
+  serverId?: string;
+  channelAgents?: ReadonlyMap<string, MobileAgent>;
+}
+
 const TransitioningChatRow = memo(function TransitioningChatRow({
   agent,
+  channel,
+  serverId,
+  channelAgents,
   index,
   reveal,
   collapsed,
-}: {
-  agent: MobileAgent;
+}: ChatRowTarget & {
   index: number;
   reveal: AgentListRevealState;
   collapsed: boolean;
 }) {
   const { transition } = useAgentPinTransition();
-  const isTarget = transition?.chatId === agent.id && transition.target === "row";
+  const chatId = agent?.id ?? channel?.id;
+  const isTarget = transition !== null && transition.chatId === chatId && transition.target === "row";
 
   const [initiallyExpanded] = useState(!collapsed);
   const [contentMounted, setContentMounted] = useState(!collapsed);
@@ -174,7 +187,17 @@ const TransitioningChatRow = memo(function TransitioningChatRow({
         >
           <Animated.View collapsable={false} entering={isTarget ? ROW_ENTER : undefined}>
             <AgentListRowReveal index={index} reveal={reveal} skip={isTarget}>
-              <AgentListRow agent={agent} leftInset={15} rightInset={24} />
+              {agent ? (
+                <AgentListRow agent={agent} leftInset={15} rightInset={24} />
+              ) : channel && serverId && channelAgents ? (
+                <ChannelListRow
+                  channel={channel}
+                  serverId={serverId}
+                  agents={channelAgents}
+                  leftInset={15}
+                  rightInset={24}
+                />
+              ) : null}
             </AgentListRowReveal>
           </Animated.View>
         </Animated.View>
@@ -247,11 +270,18 @@ export function ConnectedScreen() {
   const hiddenAgents = useMobileWorkspaceSelector((current) => current.hiddenAgents);
   const markAllRead = useMobileWorkspaceSelector((current) => current.markAllRead);
   const pinnedAgentIds = useMobileWorkspaceSelector((current) => current.pinnedAgentIds);
+  const pinnedChannelIds = useMobileWorkspaceSelector((current) => current.pinnedChannelIds);
+  const hiddenChannelIds = useMobileWorkspaceSelector((current) => current.hiddenChannelIds);
   const serverDirectoryError = useMobileWorkspaceSelector((current) => current.serverDirectoryError);
   const serverDirectoryState = useMobileWorkspaceSelector((current) => current.serverDirectoryState);
   const servers = useMobileWorkspaceSelector((current) => current.servers);
   const [collapsedByServer, setCollapsedByServer] = useState<Record<string, ReadonlySet<string>>>({});
   const collapsedSectionIds = collapsedByServer[activeServer.id];
+  const channels = useChannels(activeServer.id);
+  const channelAgents = useMemo(
+    () => new Map(agents.filter((agent) => agent.serverId === activeServer.id).map((agent) => [agent.id, agent])),
+    [agents, activeServer.id],
+  );
   const [foreground, muted] = useThemeColor(["foreground", "muted"]);
   // The Android header buttons have the glass of the search field.
   const buttonGlass = useChromeGlass();
@@ -289,13 +319,29 @@ export function ConnectedScreen() {
     const byId = new Map(activeAgents.map((agent) => [agent.id, agent]));
     return pinnedAgentIds.flatMap((agentId) => byId.get(agentId) ?? []);
   }, [activeAgents, pinnedAgentIds]);
-  const hasHiddenChats = hiddenAgents.length > 0;
-  const hasPins = pinnedAgents.length > 0;
+  // A deleted channel is archived on the host; the list and the pins leave it out.
+  const openChannels = useMemo(
+    () => channels.channels.filter((channel) => !channel.archived && !hiddenChannelIds.includes(channel.id)),
+    [channels.channels, hiddenChannelIds],
+  );
+  const pinnedChannels = useMemo(
+    () => openChannels.filter((channel) => pinnedChannelIds.includes(channel.id)),
+    [openChannels, pinnedChannelIds],
+  );
+  const hasHiddenChats =
+    hiddenAgents.length > 0 ||
+    channels.channels.some((channel) => !channel.archived && hiddenChannelIds.includes(channel.id));
+  const hasPins = pinnedAgents.length + pinnedChannels.length > 0;
+  // As Hidden chats, the menu offers Deleted channels only when the server has one to restore or read.
+  const hasDeletedChannels = channels.supported && channels.channels.some((channel) => channel.archived);
   const unreadAgentIds = useUnreadAgentIds();
   const hasUnread = useMemo(() => {
     const unread = new Set(unreadAgentIds);
-    return agents.some((agent) => agent.serverId === activeServer.id && unread.has(agent.id));
-  }, [agents, activeServer.id, unreadAgentIds]);
+    return (
+      channels.channels.some((channel) => channel.unreadCount > 0) ||
+      agents.some((agent) => agent.serverId === activeServer.id && unread.has(agent.id))
+    );
+  }, [agents, activeServer.id, unreadAgentIds, channels.channels]);
   const [markingAllRead, setMarkingAllRead] = useState(false);
   const activeServerOnline = showsOnline(activeServer);
   const canMarkAllRead = hasUnread && !markingAllRead && activeServerOnline;
@@ -330,11 +376,12 @@ export function ConnectedScreen() {
       ...mobileSidebarItems(
         sidebar?.layout ?? null,
         unpinnedAgents.filter((agent) => !waitingAgentIds.has(agent.id)),
+        openChannels.filter((channel) => !pinnedChannelIds.includes(channel.id)),
         undefined,
         t,
       ),
     ],
-    [sidebar?.layout, unpinnedAgents, waitingAgentIds, t],
+    [sidebar?.layout, unpinnedAgents, waitingAgentIds, openChannels, pinnedChannelIds, t],
   );
   const visibleSectionIds = useMemo(
     () => items.filter((item) => item.kind === "section").map((item) => item.id),
@@ -436,6 +483,15 @@ export function ConnectedScreen() {
             onToggle={toggleSection}
           />
         </AgentListRowReveal>
+      ) : item.kind === "channel" ? (
+        <TransitioningChatRow
+          channel={item.channel}
+          serverId={activeServer.id}
+          channelAgents={channelAgents}
+          index={index + rowOffset}
+          reveal={listReveal}
+          collapsed={collapsedChatIds.has(item.id)}
+        />
       ) : (
         <TransitioningChatRow
           agent={item.agent}
@@ -444,7 +500,16 @@ export function ConnectedScreen() {
           collapsed={collapsedChatIds.has(item.id)}
         />
       ),
-    [activeServer.id, collapsedChatIds, collapsedSectionIds, listReveal, rowOffset, toggleSection, visibleSectionIds],
+    [
+      activeServer.id,
+      channelAgents,
+      collapsedChatIds,
+      collapsedSectionIds,
+      listReveal,
+      rowOffset,
+      toggleSection,
+      visibleSectionIds,
+    ],
   );
   // Add actions come first, then a divider and the actions on existing chats.
   const optionsActions = useMemo<MenuAction[]>(() => {
@@ -459,6 +524,7 @@ export function ConnectedScreen() {
           ]
         : []),
       ...(hasHiddenChats ? [{ id: "hidden-chats", title: t("mobile.agent.hidden.title") }] : []),
+      ...(hasDeletedChannels ? [{ id: "deleted-chats", title: t("mobile.app.route.deletedChannels") }] : []),
     ];
     return [
       {
@@ -468,11 +534,12 @@ export function ConnectedScreen() {
         subactions: [
           { id: "add-agent", title: t("mobile.agent.home.addAgent") },
           ...(sidebar?.layout ? [{ id: "add-section", title: t("mobile.agent.sectionForm.newTitle") }] : []),
+          ...(channels.supported ? [{ id: "add-channel", title: t("mobile.agent.home.newChannel") }] : []),
         ],
       },
       ...(chatActions.length > 0 ? [{ id: "chats", title: "", displayInline: true, subactions: chatActions }] : []),
     ];
-  }, [hasHiddenChats, hasSelectedServer, canMarkAllRead, sidebar?.layout, t]);
+  }, [hasHiddenChats, hasDeletedChannels, hasSelectedServer, canMarkAllRead, channels.supported, sidebar?.layout, t]);
 
   return (
     <View className="flex-1 bg-background">
@@ -539,7 +606,19 @@ export function ConnectedScreen() {
                       </Button>
                     </View>
                   ) : null}
-                  <PinnedAgentsGrid agents={pinnedAgents} />
+                  <PinnedAgentsGrid agents={pinnedAgents}>
+                    {pinnedChannels.length > 0
+                      ? pinnedChannels.map((channel) => (
+                          <ChannelListRow
+                            key={channel.id}
+                            channel={channel}
+                            serverId={activeServer.id}
+                            agents={channelAgents}
+                            pinned
+                          />
+                        ))
+                      : null}
+                  </PinnedAgentsGrid>
                 </AgentListRowReveal>
               }
               ListEmptyComponent={
@@ -662,7 +741,11 @@ export function ConnectedScreen() {
                         if (event.nativeEvent.event === "add-section")
                           router.push({ pathname: "/section-form", params: { serverId: activeServer.id } });
                         if (event.nativeEvent.event === "add-agent") router.push("/add-agent");
+                        if (event.nativeEvent.event === "add-channel")
+                          router.push({ pathname: "/add-channel", params: { serverId: activeServer.id } });
                         if (event.nativeEvent.event === "hidden-chats") router.push("/hidden-chats");
+                        if (event.nativeEvent.event === "deleted-chats")
+                          router.push({ pathname: "/deleted-chats", params: { serverId: activeServer.id } });
                         if (event.nativeEvent.event === "mark-all-read") markAllChatsRead();
                       }}
                       style={{ height: 48, width: 48 }}
@@ -721,8 +804,16 @@ export function ConnectedScreen() {
                     {t("mobile.agent.sectionForm.newTitle")}
                   </Stack.Toolbar.MenuAction>
                 ) : null}
+                {channels.supported ? (
+                  <Stack.Toolbar.MenuAction
+                    icon="number"
+                    onPress={() => openFromMenu({ pathname: "/add-channel", params: { serverId: activeServer.id } })}
+                  >
+                    {t("mobile.agent.home.newChannel")}
+                  </Stack.Toolbar.MenuAction>
+                ) : null}
               </Stack.Toolbar.Menu>
-              {hasSelectedServer || hasHiddenChats ? (
+              {hasSelectedServer || hasHiddenChats || hasDeletedChannels ? (
                 <Stack.Toolbar.Menu inline>
                   {hasSelectedServer ? (
                     <Stack.Toolbar.MenuAction
@@ -736,6 +827,16 @@ export function ConnectedScreen() {
                   {hasHiddenChats ? (
                     <Stack.Toolbar.MenuAction icon="eye.slash" onPress={() => openFromMenu("/hidden-chats")}>
                       {t("mobile.agent.hidden.title")}
+                    </Stack.Toolbar.MenuAction>
+                  ) : null}
+                  {hasDeletedChannels ? (
+                    <Stack.Toolbar.MenuAction
+                      icon="trash"
+                      onPress={() =>
+                        openFromMenu({ pathname: "/deleted-chats", params: { serverId: activeServer.id } })
+                      }
+                    >
+                      {t("mobile.app.route.deletedChannels")}
                     </Stack.Toolbar.MenuAction>
                   ) : null}
                 </Stack.Toolbar.Menu>

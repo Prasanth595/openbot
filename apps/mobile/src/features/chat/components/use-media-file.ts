@@ -39,7 +39,7 @@ function mediaFolder() {
  * Where a host file is kept on this phone. A player reads a file, not the Base64 that the host
  * sends, and the file keeps the attachment's name so the share sheet shows it.
  */
-function mediaFile(serverId: string, attachment: AttachmentSummary) {
+export function mediaFile(serverId: string, attachment: AttachmentSummary) {
   const segment = (value: string) => value.replace(/[^\w.-]/gu, "_").replace(/^\.+/u, "_");
   let name = attachment.name.replace(/[/\\\p{Cc}]/gu, "_").replace(/^\.+/u, "_") || "file";
   // A player and the photo library read the type from the extension.

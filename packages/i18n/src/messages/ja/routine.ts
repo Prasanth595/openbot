@@ -164,6 +164,22 @@ export const messages = {
   "routine.card.webhookChanged": "変更は保存されていません",
   "routine.card.webhookSaveFailed": "イベントを保存できませんでした。",
   "routine.card.webhookFiltersInvalid": "フィルターの JSON Pointer が無効です。",
+
+  "routine.timezoneMove.title": "タイムゾーンが {zone} に変わりました",
+  "routine.timezoneMove.description": {
+    other:
+      "{server} の {count} 件のルーティンが {from} の時刻で実行されます。{zone} に移しますか？時刻はそのままです。",
+  },
+  "routine.timezoneMove.move": "移す",
+  "routine.timezoneMove.keep": "そのまま",
+  "routine.timezoneMove.moved": {
+    other: "{server} の {count} 件のルーティンを {zone} の時刻に移しました。",
+  },
+  "routine.timezoneMove.partial": {
+    other: "{server} の {count} 件のルーティンを {zone} の時刻に移せませんでした。",
+  },
+  "routine.timezoneMove.failed": "ルーティンを移せませんでした。",
+  "routine.timezoneMove.settingFailed": "{server} のサーバー設定のタイムゾーンを変更できませんでした。",
   "routine.calendar.title": "スケジュール",
   "routine.calendar.open": "スケジュールを開く",
   "routine.calendar.timeZone": "時刻は {zone} です",

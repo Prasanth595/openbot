@@ -82,6 +82,9 @@ export async function routeChannels(
   const input = parseChannelCommand(channelRequest(url.pathname, await readJson(request)));
   if (input.type === "archive" && !canAdministerServer(member.role))
     throw new HttpError(403, sourceText("error.team.membersCannotArchiveChannels"));
+  // A restore undoes a delete, so only the people who can delete a channel can restore it.
+  if (input.type === "restore" && !canAdministerServer(member.role))
+    throw new HttpError(403, sourceText("error.team.membersCannotRestoreChannels"));
   if (input.type === "save") requireChatForAddedAgents(context, input, channels, hiddenAgentIds);
   return json(
     200,

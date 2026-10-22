@@ -167,6 +167,24 @@ export const messages = {
   "routine.card.webhookChanged": "Cambios sin guardar",
   "routine.card.webhookSaveFailed": "No se pudieron guardar los eventos.",
   "routine.card.webhookFiltersInvalid": "Un filtro tiene un JSON Pointer no válido.",
+
+  "routine.timezoneMove.title": "Tu zona horaria ahora es {zone}",
+  "routine.timezoneMove.description": {
+    one: "{count} rutina en {server} usa la hora de {from}. ¿Moverla a {zone}? Su hora no cambia.",
+    other: "{count} rutinas en {server} usan la hora de {from}. ¿Moverlas a {zone}? Sus horas no cambian.",
+  },
+  "routine.timezoneMove.move": "Mover",
+  "routine.timezoneMove.keep": "Mantener",
+  "routine.timezoneMove.moved": {
+    one: "Se movió {count} rutina en {server} a la hora de {zone}.",
+    other: "Se movieron {count} rutinas en {server} a la hora de {zone}.",
+  },
+  "routine.timezoneMove.partial": {
+    one: "{count} rutina en {server} no se pudo mover a la hora de {zone}.",
+    other: "{count} rutinas en {server} no se pudieron mover a la hora de {zone}.",
+  },
+  "routine.timezoneMove.failed": "No se pudieron mover las rutinas.",
+  "routine.timezoneMove.settingFailed": "No se pudo cambiar la zona horaria de la configuración del servidor {server}.",
   "routine.calendar.title": "Programación",
   "routine.calendar.open": "Abrir programación",
   "routine.calendar.timeZone": "Horas en {zone}",

@@ -52,8 +52,10 @@ parts to other agents thus notifies once, at its end. The desktop reads the agen
 notification only when a reply is new, and it reads no channel list for a server whose replies
 cannot notify. The title of a prompt, an approval or
 a takeover on a channel thread names the agent and the channel (`notification.channelTitle`), and a
-click opens the channel. The phone has no channel view: it gets no channel reply notification, and a
-channel prompt shows in the agent's chat, with the agent name as the title, as before.
+click opens the channel. The phone gets no channel reply notification. For a phone that sends
+`channel-attention-v1`, the host names the channel in the title of a prompt, an approval or a
+takeover on a channel thread (`PushNotificationService` reads `HostService.channelForThread`), and a
+tap opens the channel. An older phone gets the agent name as the title, as before.
 
 The phone registers with every connected server that supports `push-notifications-v1`
 (`POST /v1/push-notifications/registration`): the APNs token of the app, the secret of that host (the
@@ -131,7 +133,8 @@ a selected lead, and linked agent conversations. Agent membership selects who ca
 It does not restrict human access: each authenticated server member can read and use its channels.
 The Electron app provides the channel interface. A creation dialog provides member search and optional
 coordination settings. The chat shows each author and keeps settings in a side panel. Channels use the sidebar
-context menu for management and have no Pause or Resume controls. The mobile app has no channel interface.
+context menu for management and have no Pause or Resume controls. The mobile app has its own channel
+interface (see below).
 
 `ChannelStore` stores the canonical transcript, channel configuration, tasks, assignments, summaries,
 execution threads, and human read positions in SQLite. Migration 18 adds these projections without
@@ -209,11 +212,49 @@ separate payload codecs. Released Team API adapters keep their existing meaning.
 the capability only when its channel service is connected. When a host does not advertise
 `channel-chats-v1`, the renderer hides the channel controls in the sidebar, search and schedule. The account API and Signal service add no channel storage or routing.
 
-The mobile app has no channel interface. It reads no channel routes or events, and its routine
-calendar and search show only agent routines. Its local preferences no longer keep channel pins or
-hidden channels: a saved record that has them still reads, and the next write drops them. The phone
-cannot read an outbox message that an older app version saved for a channel. It keeps the saved list
-aside as `messages.unreadable-<time>.json` and does not send that message.
+Mobile shows channels only on a host that advertises `channel-chats-v1`, and Delete and Restore only
+with `channel-delete-v1`. It uses the same host channel IDs and commands. The host database stores
+channel settings, members, messages, memories, routines, and read positions. Mobile keeps only an
+in-memory view. Reconnect loads the host list again. `channels-changed` events refresh the list and
+open channel history, with one request sequence per host and one pending refresh for an event burst.
+Closing a channel retains a short message window (up to 50 messages), as single chats do,
+and releases larger windows. Only open channels refresh their history. Server removal discards its cached channels and late
+responses. The mobile chat list and message history use virtualized lists. Channel member selection
+uses static avatar thumbnails without activity subscriptions or animation timers. Channels appear
+next to agents in the same list, with up to four static member avatars that fade when the host
+is offline. Channel pins share the existing pinned grid and 16-chat limit; local preferences
+preserve agent pins and channel pins separately. Hide removes a channel from the home list and
+unpins it; the shared Hidden chats sheet restores it. Channel and agent pinning use the same
+measured overlay movement, with static folder artwork for channels. Agent and channel screens
+use the same mobile `ChatView`, header, message list, reply gestures, composer, camera, and keyboard
+motion. Their data adapters provide history, sending, and read positions; channels also provide
+author labels and task actions. Channel send retries keep their operation ID and uploaded files.
+A channel message shows plan cards and `ask_ui` questions as an agent chat does; it has no reactions,
+because the reaction route is an agent route. A channel send is done when the host accepts its
+operation: the host stores a repeated operation once. The send then reads the history of an open
+channel, so the host's row replaces the phone's own; a failed read is not a failed send, and a closed
+channel reads its history when it opens. A channel message that an app before channels came back
+kept aside in `messages.unreadable-<time>.json` stays there.
+
+On a host with `channel-attention-v1`, each channel summary names the threads of its members. The
+channel then shows the approvals and browser steps of those threads, and the agent's own chat does
+not. An older host gives no threads: the channel shows the approvals of the members that run one of
+its tasks, as before. A member with a request in the channel shows as waiting there, with the reason
+of the request. The agent's own chat does not show a turn of another thread (the activity keeps the
+`threadId` of its events); for a channel thread, a card under the chat names the channel and opens it. Its home row says that it waits
+in that channel in place of its last message (`useWaitingChannel`).
+The channel header always has the browser button. It opens the browser of the member that asks for
+a browser step, else of the lead, else of the first member. In a channel with more than one member,
+the agent in the browser header is a glass button with a menu that switches to the browser of any
+member. The Deleted channels sheet restores a channel (`restore`) for the people who
+can delete one. The phone has no local notifications of channel replies: a host sends a notification
+only while the phone is away (see iPhone notifications). A tap on a notification whose thread is a
+channel thread opens the channel, when the phone has the channel list of that server.
+
+Mobile channel settings use one native sheet with a nested stack for memories and routines. The
+memory and routine editors share their controls with agent settings and use channel API operations.
+Channel settings have no provider or model controls because each member retains its own runtime.
+No account API, Signal, IPC contract, or database migration changes are required for mobile channels.
 
 ## Messaging connections
 

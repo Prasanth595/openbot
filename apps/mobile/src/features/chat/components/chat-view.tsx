@@ -22,6 +22,7 @@ import { MobileConversationAnalytics } from "@/features/analytics/conversation";
 import { reportMobileNotification } from "@/features/analytics/failure-reports";
 import { mobileAnalytics } from "@/features/analytics/mobile-analytics";
 import { useBrowserFeature } from "@/features/browser/components/use-browser-feature";
+import { channelRecipient } from "@/features/channels/model/channel-draft";
 import type { ApprovalDecision } from "@/features/chat/components/chat-approval-card";
 import { ChatComposer, VOICE_BUTTON_SIZE } from "@/features/chat/components/chat-composer";
 import { ChatGlassIconButton } from "@/features/chat/components/chat-glass-icon-button";
@@ -90,14 +91,27 @@ export interface ChatViewProps {
   canSend: boolean;
   /** A note in place of the composer that says why the person cannot write here. */
   notice?: string | null;
+  /** The chat only shows its history, such as a deleted channel: no replies, answers or browser steps. */
+  readOnly?: boolean;
   activity?: MobileAgentActivity;
+  /** The activity of each member agent that works in a channel. */
+  activities?: MobileAgentActivity[];
   activeTurnId: string | null;
-  stopTurn: (turnId: string) => Promise<void>;
+  /** Absent for a chat that cannot stop a turn, such as a channel. */
+  stopTurn?: (turnId: string) => Promise<void>;
   questionForm?: QuestionPromptController;
+  /** Opens the form of an open question, in a channel where several agents can ask. */
+  onSelectQuestion?: (messageId: string) => void;
+  /** A channel task needs the user. */
+  needsAction?: boolean;
+  /** The lead of a channel. Its browser opens when no member asks for a browser step. */
+  channelLeadAgentId?: string | null;
   /** Rows under the agent's activity, such as the tasks that the agent works on. */
   activityAccessory?: ReactNode;
   /** This chat's thread. Browser requests of the agent's other threads, such as its tasks, do not show here. */
   threadId?: string | null;
+  /** The threads of a channel's member agents, from a host with `channel-attention-v1`. */
+  channelThreadIds?: ReadonlySet<string> | null;
   /** The approvals of this chat's agents, from the caller that knows which thread is this chat's. */
   approvals?: readonly PendingApproval[];
   readBoundary: string | null;
@@ -175,12 +189,18 @@ export function ChatView({
   historyLoadFailed,
   canSend,
   notice = null,
+  readOnly = false,
   activity,
+  activities,
   activeTurnId,
   stopTurn,
   questionForm,
+  onSelectQuestion,
+  needsAction = false,
+  channelLeadAgentId = null,
   activityAccessory,
   threadId = null,
+  channelThreadIds = null,
   approvals,
   readBoundary,
   markRead,
@@ -204,12 +224,29 @@ export function ChatView({
   const browserRequests = useBrowserRequests(target.serverId);
   const chatBrowserRequests = useMemo(
     () =>
-      browserRequests.filter(
-        (request) => request.agentId === target.id && (threadId === null || request.threadId === threadId),
+      browserRequests.filter((request) =>
+        target.kind === "agent"
+          ? request.agentId === target.id && (threadId === null || request.threadId === threadId)
+          : // A host with channel-attention-v1 names the channel's threads; an older host only its members.
+            channelThreadIds?.size
+            ? channelThreadIds.has(request.threadId)
+            : target.members.some((member) => member.id === request.agentId),
       ),
-    [browserRequests, target.id, threadId],
+    [browserRequests, target, threadId, channelThreadIds],
   );
   const browserAllowed = useBrowserFeature();
+  // A channel always has the browser of one member: the member that asks for a browser step, else
+  // the lead, else the first member. The browser screen switches to the browser of any member.
+  const channelBrowser = useMemo(() => {
+    if (target.kind !== "channel") return null;
+    const memberIds = target.members.map((member) => member.id);
+    const request = chatBrowserRequests.find((item) => memberIds.includes(item.agentId));
+    const agentId =
+      request?.agentId ??
+      (channelLeadAgentId && memberIds.includes(channelLeadAgentId) ? channelLeadAgentId : memberIds[0]);
+    if (!agentId) return null;
+    return { agentId, agentIds: memberIds, ...(request ? { tabId: request.tabId } : {}) };
+  }, [target, chatBrowserRequests, channelLeadAgentId]);
   const isFocused = useIsFocused();
   const foregroundVisit = useAppForeground();
   const [conversationAnalytics] = useState(() => new MobileConversationAnalytics(mobileAnalytics));
@@ -239,7 +276,7 @@ export function ChatView({
     cause: CauseCode;
     context: Partial<Pick<FailureProperties, "provider" | "model">>;
   } | null>(null);
-  const failureAgent = serverAgents.find((agent) => agent.id === target.id);
+  const failureAgent = target.kind === "agent" ? serverAgents.find((agent) => agent.id === target.id) : undefined;
   const failureContext = useMemo(
     () => (failureAgent ? { provider: failureAgent.provider, model: failureAgent.model } : {}),
     [failureAgent],
@@ -400,20 +437,20 @@ export function ChatView({
   // the one the user returns to.
   const composerRequest = useComposerRequest((state) => state.request);
   useEffect(() => {
-    if (!isFocused || !composerRequest) return;
+    if (!isFocused || !composerRequest || target.kind !== "agent") return;
     const request = takeComposerRequest(target.serverId, target.id);
     if (!request) return;
     const files = request.files ?? [];
     void composerAttachments
       .addShared(request.text, files, (text) => setDraft((current) => (current ? `${current}\n${text}` : text)))
       .finally(() => deleteComposerFiles(files));
-  }, [isFocused, composerRequest, target.serverId, target.id, composerAttachments.addShared]);
+  }, [isFocused, composerRequest, target.kind, target.serverId, target.id, composerAttachments.addShared]);
   const composerFocus = useComposerRequest((state) => state.focus);
   const [handoffFocusVersion, setHandoffFocusVersion] = useState(0);
   useEffect(() => {
-    if (!isFocused || !composerFocus) return;
+    if (!isFocused || !composerFocus || target.kind !== "agent") return;
     if (takeComposerFocus(target.serverId, target.id)) setHandoffFocusVersion((version) => version + 1);
-  }, [isFocused, composerFocus, target.serverId, target.id]);
+  }, [isFocused, composerFocus, target.kind, target.serverId, target.id]);
   const lastUserId =
     messages.findLast((message) => message.kind === "message" && message.author === "user")?.id ?? null;
   // The host accepted a message to an idle agent, and nothing shows its turn yet. Turn events can
@@ -437,6 +474,8 @@ export function ChatView({
   // Each receipt starts the wait once. A message that the host queues behind a turn has its own row.
   const awaitedReceipts = useRef(new Set<string>());
   useEffect(() => {
+    // A channel message gets no receipt with a message ID, and its routing can start no turn.
+    if (target.kind !== "agent") return;
     for (const message of outboxMessages)
       if (
         message.messageId !== null &&
@@ -446,7 +485,7 @@ export function ChatView({
         awaitedReceipts.current.add(message.clientMessageId);
         setAwaitingTurn(true);
       }
-  }, [outboxMessages]);
+  }, [outboxMessages, target.kind]);
   const rowsShown = useRowsAfterOpenTransition();
   const motion = useChatMotion(
     insets.top + 84,
@@ -474,23 +513,30 @@ export function ChatView({
   // Speech goes to the voice mode's own transcript, and only Send makes it a
   // message. Leaving the chat or losing the server stops listening and keeps it.
   const voice = useVoiceMode({
-    enabled: isFocused && serverOnline && canSend,
+    enabled: isFocused && serverOnline && canSend && !readOnly && !notice,
     focused: isFocused,
     sendable: serverOnline && canSend,
     onSend: sendMessage,
   });
   // Not gated on `appActive`. Notification Center and other system overlays make iOS report the app
   // inactive, and a request must stay with its typed value. It goes when the app leaves.
-  const showBrowserRequests = serverOnline && foregroundVisit && isFocused;
+  const showBrowserRequests = serverOnline && foregroundVisit && isFocused && !readOnly;
   const voiceOpen = voice.stage !== "closed";
   // A password or a code is typed where the composer is, so the screen has one field. The voice
   // mode and the attachment card keep the composer until they close. Other secret requests wait.
   const secretRequest =
     showBrowserRequests && !voiceOpen && !attachments.menuOpen ? chatBrowserRequests.find(asksForSecret) : undefined;
   const dark = useColorScheme() === "dark";
-  // The glow and the filled voice controls take the agent's own colour.
-  const voiceColor = getBloubAvatarColor(target.avatarSeed, target.avatarHue);
-  const palette = useMemo(() => voicePalette(voiceColor, dark), [voiceColor, dark]);
+  // The glow and the filled voice controls take the agent's own colour. A channel mixes the colours
+  // of its first members.
+  const voiceColors = useMemo(
+    () =>
+      target.kind === "agent"
+        ? [getBloubAvatarColor(target.avatarSeed, target.avatarHue)]
+        : target.members.slice(0, 4).map((member) => getBloubAvatarColor(member.avatarSeed, member.avatarHue)),
+    [target],
+  );
+  const palette = useMemo(() => voicePalette(voiceColors, dark), [voiceColors, dark]);
   const accent = useMemo(() => voiceAccent(palette), [palette]);
   useEffect(() => {
     conversationAnalytics.update(
@@ -562,7 +608,7 @@ export function ChatView({
   const stopping = stoppingTurnId !== null && stoppingTurnId === activeTurnId;
 
   const requestStop = useMemo(() => {
-    if (!activeTurnId) return undefined;
+    if (!stopTurn || !activeTurnId) return undefined;
     const turnId = activeTurnId;
     return () => {
       setStoppingTurnId(turnId);
@@ -653,7 +699,17 @@ export function ChatView({
     setShowStarter(false);
     // The outbox keeps the message on this phone and sends it while the server is online.
     outbox.add(
-      { kind: "agent", serverId: target.serverId, agentId: target.id },
+      target.kind === "agent"
+        ? { kind: "agent", serverId: target.serverId, agentId: target.id }
+        : {
+            kind: "channel",
+            serverId: target.serverId,
+            channelId: target.id,
+            recipientAgentId: channelRecipient(
+              text,
+              target.members.map((member) => ({ agentId: member.id })),
+            ),
+          },
       { text, replyToMessageId, files },
       replaces,
     );
@@ -760,6 +816,8 @@ export function ChatView({
       workspace().setMessageReaction(target.id, target.serverId, hostMessageIds.get(message.id) ?? message.id, emoji),
     [workspace, target.id, target.serverId, hostMessageIds],
   );
+  // The reaction route is an agent route. A channel message has no reaction.
+  const canReact = target.kind === "agent";
   // Select text starts the selection, and a second tap on it ends the selection.
   const selectText = useCallback((message: ChatBubbleMessage) => {
     Keyboard.dismiss();
@@ -821,6 +879,8 @@ export function ChatView({
           >
             <ChatHeader
               target={target}
+              needsAction={needsAction && !readOnly}
+              channelBrowser={readOnly ? null : channelBrowser}
               fallbackBackground={fieldBackground}
               foreground={foreground}
               liquidGlassAvailable={liquidGlassAvailable}
@@ -842,6 +902,7 @@ export function ChatView({
               canSend={serverOnline && canSend}
               online={serverOnline}
               activity={activity}
+              activities={activities}
               historyState={
                 ready
                   ? "ready"
@@ -856,8 +917,9 @@ export function ChatView({
               appActive={appActive}
               activeTurnId={activeTurnId}
               questionForm={questionForm}
+              onSelectQuestion={readOnly ? undefined : onSelectQuestion}
               activityAccessory={activityAccessory}
-              approvals={approvals}
+              approvals={readOnly ? undefined : approvals}
               browserRequests={chatBrowserRequests}
               serverName={server?.name ?? ""}
               onRespondApproval={respondToApproval}
@@ -870,8 +932,8 @@ export function ChatView({
               olderLoading={olderLoading}
               olderError={olderError}
               onLoadOlder={loadOlder}
-              onReply={replyToMessage}
-              onReact={react}
+              onReply={readOnly ? undefined : replyToMessage}
+              onReact={canReact && !readOnly ? react : undefined}
               selectingMessageId={selection?.message.id ?? null}
               onSelectText={selectText}
               onSelectionChange={changeSelection}

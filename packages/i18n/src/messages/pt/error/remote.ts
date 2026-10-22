@@ -200,5 +200,10 @@ export const messages = {
   "error.remote.hostOtherAccount": "Este computador anfitrião pertence a outra conta.",
   "error.remote.remoteNotConfigured": "As conexões remotas não estão configuradas neste serviço do OpenBot.",
   "error.remote.hostRefused": "O computador anfitrião recusou a solicitação ({status}).",
+  "error.remote.formUnavailable": "Este formulário não está mais disponível.",
   "error.remote.hostedServerRemoval": "Use a seção Cobrança para excluir um servidor hospedado.",
+  "error.remote.channelsUnsupported": "Atualize este servidor no computador para usar canais.",
+  "error.remote.channelDeleteUnsupported": "Atualize este servidor no computador para excluir canais.",
+  "error.remote.historyRefreshFailed": "A mensagem foi enviada, mas não foi possível atualizar o histórico do chat.",
+  "error.remote.taskHistoryRefreshFailed": "A tarefa foi alterada, mas não foi possível atualizar o histórico do chat.",
 } as const satisfies PartialTranslation<typeof source>;

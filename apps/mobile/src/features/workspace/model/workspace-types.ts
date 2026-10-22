@@ -94,6 +94,7 @@ import type { RemoteFileUpload } from "@openbot/team-client/remote-peer";
 import type { MessagingConnectorPage } from "@openbot/team-client/team-admin-requests";
 import type { MobileBrowserTab } from "@/features/browser/model/browser-tabs";
 import type { BrowserViewBridgeEvent, RemoteBrowserViewSession } from "@/features/browser/model/browser-view-bridge";
+import type { MobileChannelStore } from "@/features/channels/model/channel-store";
 import type { ProviderAdmin } from "@/features/servers/model/provider-admin";
 import type { MobileConversationStore } from "./conversation-store";
 import type { LiveWorkspaceStore } from "./live-workspace-store";
@@ -221,6 +222,7 @@ export interface MobileWorkspaceContextValue {
   /** Sets the reader's reaction on a message of an agent chat. `null` removes it. */
   setMessageReaction: (agentId: string, serverId: string, messageId: string, emoji: string | null) => Promise<void>;
   interruptTurn: (agentId: string, turnId: string, serverId?: string) => Promise<void>;
+  channelStore: MobileChannelStore;
   /** The servers in the order saved on this device. The app opens on the first one. */
   servers: MobileServer[];
   /** Saves the order of all servers on this device. Returns false and keeps the old order on failure. */
@@ -238,6 +240,11 @@ export interface MobileWorkspaceContextValue {
   activeAgents: MobileAgent[];
   hiddenAgents: MobileAgent[];
   pinnedAgentIds: string[];
+  pinnedChannelIds: string[];
+  hiddenChannelIds: string[];
+  hideChannel: (channelId: string, serverId: string) => boolean;
+  unhideChannel: (channelId: string, serverId: string) => boolean;
+  toggleChannelPin: (channelId: string, serverId: string) => ToggleAgentPinResult;
   conversationStore: MobileConversationStore;
   /** Activity, unread agents, and browser requests. Read them with a selector hook, not from the context. */
   liveState: LiveWorkspaceStore;
@@ -391,10 +398,10 @@ export interface MobileWorkspaceContextValue {
   ) => Promise<AgentMemorySelectionState>;
   loadAgentMemories: (agentId: string, serverId: string) => Promise<AgentMemory[]>;
   loadAgentRoutines: (agentId: string, serverId: string) => Promise<Routine[]>;
-  /** Every routine of the server's agents, with its runs in the range. */
+  /** Every routine of the server, of agents and channels, with its runs in the range. */
   /**
-   * `owners` are the agents whose routines to read, when the caller already knows them.
-   * Without it, the phone reads the agent list of the host first.
+   * `owners` are the agents and channels whose routines to read, when the caller already knows them.
+   * Without it, the phone reads the agent and channel lists of the host first.
    */
   loadRoutineCalendar: (
     input: RoutineCalendarInput,
@@ -578,6 +585,8 @@ type MobileWorkspaceStateKey =
   | "activeAgents"
   | "hiddenAgents"
   | "pinnedAgentIds"
+  | "pinnedChannelIds"
+  | "hiddenChannelIds"
   | "hidesAgentsOnServer"
   | "canUnhideAgent"
   | "canEditServerIdentity"

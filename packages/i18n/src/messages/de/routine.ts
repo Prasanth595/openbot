@@ -166,6 +166,26 @@ export const messages = {
   "routine.card.webhookChanged": "Änderungen nicht gespeichert",
   "routine.card.webhookSaveFailed": "Die Ereignisse konnten nicht gespeichert werden.",
   "routine.card.webhookFiltersInvalid": "Ein Filter hat einen ungültigen JSON Pointer.",
+
+  "routine.timezoneMove.title": "Ihre Zeitzone ist jetzt {zone}",
+  "routine.timezoneMove.description": {
+    one: "{count} Routine auf {server} läuft nach Zeit {from}. In {zone} verschieben? Die Uhrzeit bleibt gleich.",
+    other:
+      "{count} Routinen auf {server} laufen nach Zeit {from}. In {zone} verschieben? Die Uhrzeiten bleiben gleich.",
+  },
+  "routine.timezoneMove.move": "Verschieben",
+  "routine.timezoneMove.keep": "Behalten",
+  "routine.timezoneMove.moved": {
+    one: "{count} Routine auf {server} nach Zeit {zone} verschoben.",
+    other: "{count} Routinen auf {server} nach Zeit {zone} verschoben.",
+  },
+  "routine.timezoneMove.partial": {
+    one: "{count} Routine auf {server} konnte nicht nach Zeit {zone} verschoben werden.",
+    other: "{count} Routinen auf {server} konnten nicht nach Zeit {zone} verschoben werden.",
+  },
+  "routine.timezoneMove.failed": "Die Routinen konnten nicht verschoben werden.",
+  "routine.timezoneMove.settingFailed":
+    "Die Zeitzone in den Servereinstellungen von {server} konnte nicht geändert werden.",
   "routine.calendar.title": "Zeitplan",
   "routine.calendar.open": "Zeitplan öffnen",
   "routine.calendar.timeZone": "Zeiten in {zone}",
