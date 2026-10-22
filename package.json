@@ -389,7 +389,8 @@
     "expo@57.0.24": "patches/expo@57.0.24.patch",
     "react-native-screens@4.26.2": "patches/react-native-screens@4.26.2.patch",
     "react-native-reanimated@4.5.5": "patches/react-native-reanimated@4.5.5.patch",
-    "react-native-uitextview@2.7.1": "patches/react-native-uitextview@2.7.1.patch"
+    "react-native-uitextview@2.7.1": "patches/react-native-uitextview@2.7.1.patch",
+    "expo-splash-screen@57.0.9": "patches/expo-splash-screen@57.0.9.patch"
   },
   "trustedDependencies": [
     "electron-winstaller",
