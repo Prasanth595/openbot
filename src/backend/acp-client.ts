@@ -1584,6 +1584,7 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
     this.#publishSessionSettings(thread);
     const turnId = getString(params, "clientUserMessageId") ?? randomUUID();
     const blocks = yield* promptBlocksEffect(params);
+    yield* providerSync(() => this.#requireServedModel(thread));
     // The session keeps the instructions in its context, so a prompt carries them only when the
     // session lacks them. An agent that reports no context size cannot show a compaction, so it
     // gets them again after a number of prompts.
@@ -1600,7 +1601,6 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
       thread.instructionsSent = thread.developerInstructions;
       thread.promptsSinceInstructions = 1;
     }
-    yield* providerSync(() => this.#requireServedModel(thread));
     const currentSecond = Date.now() / 1_000;
     const startedAt = Math.max(currentSecond, this.#lastTurnStartedAt + 0.001);
     this.#lastTurnStartedAt = startedAt;
