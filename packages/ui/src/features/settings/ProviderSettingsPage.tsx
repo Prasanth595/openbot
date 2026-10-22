@@ -989,7 +989,9 @@ function ApiKeySection(props: SectionProps) {
             <ItemDescription>
               {props.option.id === "opencode"
                 ? t("provider.settings.keyOptional")
-                : t("provider.settings.keyAlternative", { name: props.option.name })}
+                : props.option.id === "antigravity" && saved()
+                  ? t("provider.settings.geminiKeyInUse")
+                  : t("provider.settings.keyAlternative", { name: props.option.name })}
             </ItemDescription>
           </ItemContent>
           <ItemActions>

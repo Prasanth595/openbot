@@ -220,6 +220,7 @@ export const messages = defineMessages("provider", {
   "provider.settings.noKey": "No key",
   "provider.settings.keyOptional": "Optional. A key adds paid models.",
   "provider.settings.keyAlternative": "Or paste a {name} API key.",
+  "provider.settings.geminiKeyInUse": "Gemini uses this key, not your Google AI plan. The plan's usage is not shown.",
   "provider.settings.addKey": "Add key",
   "provider.settings.changeKey": "Change key",
   "provider.settings.runtime": "Runtime",

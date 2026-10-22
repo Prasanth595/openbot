@@ -434,7 +434,8 @@ also after it closes. `src/backend/antigravity-usage.ts` reads the Gemini groups
 share another limit, so `accountUsageCoversModel` covers only Gemini models. An older runtime, an
 API key sign-in ("Not applicable for current authentication method") and an answer that does not
 parse give no reading. A saved Gemini API key comes before the Google sign-in, so the provider
-status sets `apiKeyInUse` and the dock says that a key, not the plan, serves the turns.
+status sets `apiKeyInUse`, and the API key section of the Gemini provider page says that the key,
+not the plan, serves the turns. The dock shows no Gemini row then, because it has no reading.
 
 A limit failure stays a turn error even though the descriptor sets `reportsUsage: true`, because
 many Gemini setups have no reading to explain it. `GEMINI_REQUEST_FAILURES` in `src/backend/acp-client.ts`

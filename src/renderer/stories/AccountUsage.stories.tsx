@@ -48,7 +48,7 @@ const unreportedRows = accountUsageProviderRows(
   },
   [
     { id: "grok", state: "available" },
-    { id: "antigravity", state: "available", apiKeyInUse: true },
+    { id: "antigravity", state: "available" },
   ],
 );
 const warningRows = accountUsageProviderRows({
