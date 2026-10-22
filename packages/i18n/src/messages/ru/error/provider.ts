@@ -222,6 +222,8 @@ export const messages = {
   "error.provider.antigravitySignIn": "Войдите через Google, чтобы использовать Gemini.",
   "error.provider.antigravityRateLimited":
     "Gemini отклонил запрос: достигнут лимит частоты запросов или квота тарифа. Подождите несколько минут или выберите другую модель и повторите попытку.\n{detail}",
+  "error.provider.antigravityQuotaReached":
+    "Google сообщает, что достигнут лимит использования Gemini. Лимит может относиться к одной модели, поэтому на странице использования вашего тарифа может быть показан остаток. Выберите другую модель Gemini или дождитесь сброса.\n{detail}",
   "error.provider.antigravityModelUnavailable":
     "Gemini сейчас не может использовать эту модель. Выберите другую модель и повторите попытку.\n{detail}",
   "error.provider.antigravityServiceFailure":

@@ -224,6 +224,8 @@ export const messages = {
   "error.provider.antigravitySignIn": "Gemini'yi kullanmak için Google ile oturum açın.",
   "error.provider.antigravityRateLimited":
     "Bir hız sınırına veya planın kotasına ulaşıldığı için Gemini isteği reddetti. Birkaç dakika bekleyin ya da başka bir model seçin, sonra yeniden deneyin.\n{detail}",
+  "error.provider.antigravityQuotaReached":
+    "Google, bir Gemini kullanım sınırına ulaşıldığını bildiriyor. Sınır tek bir model için olabilir; bu yüzden planınızın kullanım sayfası hâlâ kalan hak gösterebilir. Başka bir Gemini modeli seçin ya da sıfırlanmayı bekleyin.\n{detail}",
   "error.provider.antigravityModelUnavailable":
     "Gemini şu anda bu modeli kullanamıyor. Başka bir model seçin, sonra yeniden deneyin.\n{detail}",
   "error.provider.antigravityServiceFailure":

@@ -64,11 +64,13 @@ export const ANTIGRAVITY_ACP_FLAVOR: AcpFlavor = {
     failedSession: (stderrLine) => GEMINI_SDK_FAILURE.exec(stderrLine)?.[1],
     answerIsFailure: GEMINI_EXECUTION_ERROR_ANSWER,
     turnFailure: geminiTurnFailure,
-    // Antigravity reports an exhausted quota as answer text and ends the turn as a success.
+    // Antigravity reports an exhausted quota as answer text and ends the turn as a success. Google
+    // sends it only for a spent quota, which resets in days, not for a request-rate limit. The
+    // server names no bucket, and the usage page of the plan can still show room.
     quota: (text) => {
       const quota = GEMINI_QUOTA_CHUNK.exec(text);
       return quota
-        ? sourceText("error.provider.antigravityRateLimited", { detail: shownFailureDetail(quota[1]?.trim() ?? "") })
+        ? sourceText("error.provider.antigravityQuotaReached", { detail: shownFailureDetail(quota[1]?.trim() ?? "") })
         : null;
     },
   },

@@ -215,6 +215,8 @@ export const messages = defineMessages("error.provider", {
   "error.provider.antigravitySignIn": "Sign in with Google to use Gemini.",
   "error.provider.antigravityRateLimited":
     "Gemini refused the request because a rate limit or the plan's quota is reached. Wait a few minutes or choose another model, then try again.\n{detail}",
+  "error.provider.antigravityQuotaReached":
+    "Google says a Gemini usage limit is reached. The limit can be for one model, so the usage page of your plan can show more left. Choose another Gemini model, or wait for the reset.\n{detail}",
   "error.provider.antigravityModelUnavailable":
     "Gemini cannot use this model now. Choose another model, then try again.\n{detail}",
   "error.provider.antigravityServiceFailure":

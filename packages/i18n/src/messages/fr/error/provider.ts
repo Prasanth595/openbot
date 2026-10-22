@@ -240,6 +240,8 @@ export const messages = {
   "error.provider.antigravitySignIn": "Connectez-vous avec Google pour utiliser Gemini.",
   "error.provider.antigravityRateLimited":
     "Gemini a refusé la requête, car une limite de débit ou le quota de l’abonnement est atteint. Attendez quelques minutes ou choisissez un autre modèle, puis réessayez.\n{detail}",
+  "error.provider.antigravityQuotaReached":
+    "Google indique qu’une limite d’utilisation de Gemini est atteinte. La limite peut concerner un seul modèle, donc la page d’utilisation de votre abonnement peut afficher du reste. Choisissez un autre modèle Gemini ou attendez la réinitialisation.\n{detail}",
   "error.provider.antigravityModelUnavailable":
     "Gemini ne peut pas utiliser ce modèle pour le moment. Choisissez un autre modèle, puis réessayez.\n{detail}",
   "error.provider.antigravityServiceFailure":
