@@ -47,6 +47,7 @@ export function DiagramNewAgentCard(props: {
   const [purpose, setPurpose] = createSignal("");
   const [busy, setBusy] = createSignal(false);
   const [choice, setChoice] = createSignal(props.models?.initial ?? null);
+  const [height, setHeight] = createSignal<number | null>(null);
   let nameInput: HTMLInputElement | undefined;
   let form: HTMLFormElement | undefined;
   onSettled(() => {
@@ -60,7 +61,14 @@ export function DiagramNewAgentCard(props: {
       props.onCancel();
     };
     document.addEventListener("pointerdown", dismiss);
-    return () => document.removeEventListener("pointerdown", dismiss);
+    // The card stays inside the canvas at the height it has now. The count and the error under the
+    // purpose field make it taller.
+    const resize = new ResizeObserver(() => setHeight(form?.offsetHeight ?? null));
+    if (form) resize.observe(form);
+    return () => {
+      document.removeEventListener("pointerdown", dismiss);
+      resize.disconnect();
+    };
   });
   const create = () => {
     if (!name().trim() || instructionsTooLong(purpose()) || busy()) return;
@@ -79,7 +87,11 @@ export function DiagramNewAgentCard(props: {
     <form
       ref={(element) => (form = element)}
       class="diagram-new-agent"
-      style={{ "--diagram-new-agent-x": `${props.at.x}px`, "--diagram-new-agent-y": `${props.at.y}px` }}
+      style={{
+        "--diagram-new-agent-x": `${props.at.x}px`,
+        "--diagram-new-agent-y": `${props.at.y}px`,
+        "--diagram-new-agent-height": height() === null ? undefined : `${height()}px`,
+      }}
       aria-label={t("diagram.newAgent.label")}
       data-diagram-overlay=""
       onSubmit={(event: SubmitEvent) => {
