@@ -1068,7 +1068,8 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
       // Each content block repeats its request's message; the last copy has the final count.
       const id = getString(message.message, "id");
       const model = getString(message.message, "model");
-      if (id && model && isRecord(message.message))
+      // Only the first usage report of a resumed process needs the requests of its turn.
+      if (runtime.resumedUsage && id && model && isRecord(message.message))
         runtime.requestUsage.set(id, { model, usage: message.message.usage });
     }
     if (message.type === "system" && message.subtype === "status") {
@@ -1265,8 +1266,8 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
         },
       });
       runtime.resumedUsage = false;
+      runtime.requestUsage.clear();
     }
-    runtime.requestUsage.clear();
     const fallback = message.subtype === "success" ? message.result : "";
     const errors = message.errors ?? [];
     const interrupted =

@@ -76,7 +76,13 @@ export function collectProviderUsage(
         // `modelUsage` counts the whole session, and a resumed session starts from its saved
         // totals. The first report of a resumed process carries `turnModelUsage`: the totals
         // before this turn's requests are the baseline, so the turn books only its own requests.
-        previousTokens: turnModels && earlier(tokens, claudeTurnTokens(getRecord(turnModels, model))),
+        // Assistant messages name the model without the `[1m]` context suffix of its usage key.
+        previousTokens:
+          turnModels &&
+          earlier(
+            tokens,
+            claudeTurnTokens(getRecord(turnModels, model) ?? getRecord(turnModels, model.replace(/\[1m\]$/, ""))),
+          ),
         baseline: false,
         tokens,
         reportedCost: value.costBasis === "unknown" || value.costBasis === "managed" ? null : cost(value.costUSD),
@@ -124,14 +130,13 @@ function claudeTurnTokens(value: DynamicRecord | null): UsageTokens {
   };
 }
 
-/** The totals before `recent`, with each count at least 0, or `null` when a count is unknown. */
-function earlier(total: UsageTokens, recent: UsageTokens): UsageTokens | null {
+/** The totals before `recent`, with each count at least 0. A count is `null` when either value is unknown. */
+function earlier(total: UsageTokens, recent: UsageTokens): UsageTokens {
   const result = { ...total };
   for (const key of ["uncachedInput", "cachedInput", "cacheCreation", "output"] as const) {
     const all = total[key];
     const part = recent[key];
-    if (all === null || part === null) return null;
-    result[key] = Math.max(0, all - part);
+    result[key] = all === null || part === null ? null : Math.max(0, all - part);
   }
   return result;
 }

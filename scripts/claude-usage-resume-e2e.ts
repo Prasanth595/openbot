@@ -30,6 +30,8 @@ const sessionsDir = join(root, "claude-sessions");
 const spawnLog = join(root, "claude-spawns.jsonl");
 const claudeExecutable = join(root, "claude");
 const CLAUDE_MODEL = defaultProviderModel("claude");
+/** Claude keys `modelUsage` with the `[1m]` suffix of a 1M context, but its messages name the model without it. */
+const USAGE_MODEL = `${CLAUDE_MODEL}[1m]`;
 /** The stand-in's counts for each request, and its list-price cost. */
 const UNCACHED = 10;
 const CACHE_WRITE = 5;
@@ -96,7 +98,7 @@ const turn = (message) => {
   write({ type: "result", subtype: "success", is_error: false, result: "Done.", session_id: sessionId, uuid: randomUUID(),
     duration_ms: 1, duration_api_ms: 1, num_turns: prompts.length, total_cost_usd: total.costUSD,
     usage: { input_tokens: 0, output_tokens: 0 }, permission_denials: [],
-    modelUsage: { ${JSON.stringify(CLAUDE_MODEL)}: { ...total, webSearchRequests: 0, contextWindow: 200000, maxOutputTokens: 32000 } } });
+    modelUsage: { ${JSON.stringify(USAGE_MODEL)}: { ...total, webSearchRequests: 0, contextWindow: 200000, maxOutputTokens: 32000 } } });
 };
 let buffer = "";
 process.stdin.setEncoding("utf8");
@@ -212,7 +214,7 @@ const report: {
   oldFirstResumedTurn?: UsageTokens;
   passed: boolean;
   error?: string;
-} = { model: CLAUDE_MODEL, turns: [], passed: false };
+} = { model: USAGE_MODEL, turns: [], passed: false };
 
 const unused = () => Effect.die(new Error("Not used by this check."));
 const browser: AgentBrowserHost = {
@@ -309,7 +311,7 @@ function turnsOf(agentId: string): string[] {
 function records(turnId: string): { tokens: UsageTokens; cost: number | null }[] {
   return sqlite()
     .prepare("SELECT tokens_json, estimated_cost_usd FROM agent_usage_records WHERE turn_id = ? AND model = ?")
-    .all(turnId, CLAUDE_MODEL)
+    .all(turnId, USAGE_MODEL)
     .map((row) => ({
       tokens: decodeUsageTokens(JSON.parse(String(row.tokens_json))),
       cost: typeof row.estimated_cost_usd === "number" ? row.estimated_cost_usd : null,
