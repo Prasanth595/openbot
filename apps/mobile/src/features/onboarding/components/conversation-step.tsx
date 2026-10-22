@@ -100,6 +100,10 @@ export function ConversationStep({
         onLayout={() => {
           if (composing.current) scroller.current?.scrollToEnd({ animated: false });
         }}
+        // Text under the replies, such as an error, can come while the user writes. It stays in view.
+        onContentSizeChange={() => {
+          if (composing.current) scroller.current?.scrollToEnd({ animated: true });
+        }}
         className="flex-1"
         contentContainerClassName="grow gap-4 px-6 pt-4 pb-4"
         keyboardShouldPersistTaps="handled"

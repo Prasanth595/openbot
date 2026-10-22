@@ -31,7 +31,7 @@ import { AgentSessionSettingsSection } from "@/features/agents/components/agent-
 import { AgentSharedTables } from "@/features/agents/components/agent-shared-tables";
 import { AgentTasksRow } from "@/features/agents/components/agent-tasks-row";
 import { BloubAvatarPreview } from "@/features/agents/components/bloub-avatar";
-import { InstructionsLimit } from "@/features/agents/components/instructions-limit";
+import { InstructionsLimit, instructionsTooLong } from "@/features/agents/components/instructions-limit";
 import { SettingsRow, SettingsSection } from "@/features/settings/components/settings-content";
 import {
   type MobileAgent,
@@ -160,7 +160,7 @@ function AgentForm({
     (Boolean(name.trim()) &&
       name.length <= INPUT_LIMITS.agentName &&
       title.length <= INPUT_LIMITS.agentTitle &&
-      description.length <= INPUT_LIMITS.agentDescription);
+      !instructionsTooLong(description));
 
   usePreventRemove(dirty || saving || pickingPhoto, ({ data }) => {
     if (pending.current || pickingPhoto) return;
