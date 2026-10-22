@@ -76,13 +76,7 @@ export function collectProviderUsage(
         // `modelUsage` counts the whole session, and a resumed session starts from its saved
         // totals. The first report of a resumed process carries `turnModelUsage`: the totals
         // before this turn's requests are the baseline, so the turn books only its own requests.
-        // Assistant messages name the model without the `[1m]` context suffix of its usage key.
-        previousTokens:
-          turnModels &&
-          earlier(
-            tokens,
-            claudeTurnTokens(getRecord(turnModels, model) ?? getRecord(turnModels, model.replace(/\[1m\]$/, ""))),
-          ),
+        previousTokens: turnModels && earlier(tokens, claudeTurnTokens(claudeTurnModel(turnModels, models, model))),
         baseline: false,
         tokens,
         reportedCost: value.costBasis === "unknown" || value.costBasis === "managed" ? null : cost(value.costUSD),
@@ -118,6 +112,16 @@ export function collectProviderUsage(
       output: count(value.outputTokens),
     },
   });
+}
+
+/**
+ * The turn usage of one `modelUsage` key. Assistant messages name the model without the `[1m]`
+ * context suffix of its key, so a suffixed key takes the plain name's usage. When the session also
+ * has the plain key, that key takes it, so the turn is counted once.
+ */
+function claudeTurnModel(turnModels: DynamicRecord, models: DynamicRecord, model: string): DynamicRecord | null {
+  const plain = model.replace(/\[1m\]$/, "");
+  return getRecord(turnModels, model) ?? (plain !== model && !(plain in models) ? getRecord(turnModels, plain) : null);
 }
 
 /** A model with no request in the turn used no tokens in it. */
