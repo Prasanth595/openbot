@@ -80,17 +80,21 @@ export function AccountUsageDetails(props: {
                         <span class="account-usage-provider-meta">
                           {!row().reportsUsage
                             ? t("account.usage.providerNotReported")
-                            : props.loading
-                              ? t("account.usage.window.limit")
-                              : t("account.usage.notReported")}
+                            : row().apiKeyInUse
+                              ? t("account.usage.apiKey")
+                              : props.loading
+                                ? t("account.usage.window.limit")
+                                : t("account.usage.notReported")}
                         </span>
                       </span>
                       <strong class="account-usage-provider-remaining">
                         {!row().reportsUsage
                           ? t("account.usage.value.notReported")
-                          : props.loading
-                            ? t("account.usage.value.loading")
-                            : t("account.usage.value.unavailable")}
+                          : row().apiKeyInUse
+                            ? t("account.usage.value.apiKey")
+                            : props.loading
+                              ? t("account.usage.value.loading")
+                              : t("account.usage.value.unavailable")}
                       </strong>
                     </>
                   }

@@ -424,9 +424,20 @@ The server runs confined; `antigravityStatePaths` gives it `~/.gemini/antigravit
 `~/.gemini/artifacts` and protects its settings files. Migration 22 adds `antigravity` to
 `projection_provider_sessions`.
 
-The server has no plan-usage reading, so the descriptor sets `reportsUsage: false`: the usage poll does
-not start Gemini, the dock says usage is not reported, and a limit failure is shown as a turn error
-instead of waiting for a usage notice. `GEMINI_REQUEST_FAILURES` in `src/backend/acp-client.ts`
+From 1.4.1 the server answers a prompt that starts with `/usage` itself, without a model turn: it
+reads the Google account's quota summary and sends one Markdown answer. The driver's
+`readRateLimits` sends it in a session that no thread owns (`privatePrompt` in
+`src/backend/acp-client.ts`). Each process keeps that one session for every read, because each new
+Antigravity session leaves a conversation database in `~/.gemini/antigravity-acp/conversations`,
+also after it closes. `src/backend/antigravity-usage.ts` reads the Gemini groups of the answer's
+"Quota Limits" section into the dock's windows. The Claude and GPT models that Antigravity also runs
+share another limit, so `accountUsageCoversModel` covers only Gemini models. An older runtime, an
+API key sign-in ("Not applicable for current authentication method") and an answer that does not
+parse give no reading. A saved Gemini API key comes before the Google sign-in, so the provider
+status sets `apiKeyInUse` and the dock says that a key, not the plan, serves the turns.
+
+A limit failure stays a turn error even though the descriptor sets `reportsUsage: true`, because
+many Gemini setups have no reading to explain it. `GEMINI_REQUEST_FAILURES` in `src/backend/acp-client.ts`
 names a rate limit or quota, an unavailable model, and a service failure from Google's status
 text. Antigravity does not document these texts.
 

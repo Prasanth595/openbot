@@ -647,11 +647,14 @@ export class TurnLifecycle {
         }
         // A spent quota or balance is explained by the usage notice, so only a provider that reports
         // usage can leave it out of the banner. Gemini's 429 reads as a spent quota, and it failed
-        // with nothing on screen. A plan window holds the queue until its reset for every provider.
+        // with nothing on screen; Gemini keeps the banner, because an API key sign-in, a runtime
+        // before 1.4.1 and a Claude or GPT model have no reading. A plan window holds the queue until
+        // its reset for every provider.
         if (
           error?.codexErrorInfo === "usageLimitExceeded" ||
           (isUsageLimitDiagnostic(message) &&
-            (agentProviderDescriptor(source.provider).reportsUsage || isPlanLimitDiagnostic(message))) ||
+            ((source.provider !== "antigravity" && agentProviderDescriptor(source.provider).reportsUsage) ||
+              isPlanLimitDiagnostic(message))) ||
           (errorTurnId !== null && this.#limitedTurns.has(errorTurnId))
         ) {
           // Only a plan window resets by itself. A spent balance fails as before, with its reason.

@@ -57,6 +57,12 @@ export interface AgentProviderStatus {
   /** A restart the user asked for waits for the provider's turns to end. New turns wait for it. */
   restartPending?: boolean;
   /**
+   * A saved API key serves the provider's turns in place of the plan sign-in, so the plan's usage
+   * does not apply. Gemini only: its saved key comes before the Google account. Local only:
+   * released Team API adapters omit it.
+   */
+  apiKeyInUse?: boolean;
+  /**
    * The last failure of the provider, redacted, kept after its toast is gone and cleared by the next
    * good model list. Only the computer that runs the provider sends it; the Team API does not.
    */
@@ -126,6 +132,7 @@ function isAgentProviderStatus(value: unknown): value is AgentProviderStatus {
     (value.cliSource === undefined || isBoundedString(value.cliSource, INPUT_LIMITS.identifier)) &&
     (value.off === undefined || typeof value.off === "boolean") &&
     (value.restartPending === undefined || typeof value.restartPending === "boolean") &&
+    (value.apiKeyInUse === undefined || typeof value.apiKeyInUse === "boolean") &&
     (value.lastError === undefined || isNullableBoundedString(value.lastError, INPUT_LIMITS.messageText)) &&
     (value.lastErrorAt === undefined || isFiniteNumber(value.lastErrorAt)) &&
     (value.accounts === undefined ||

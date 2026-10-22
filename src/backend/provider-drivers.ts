@@ -17,10 +17,12 @@ import {
   modelsAfterOpenCodeDiscoveryFailure,
 } from "./agent/provider-models";
 import type { AgentClient } from "./agent-client";
+import { ANTIGRAVITY_USAGE_PROMPT, antigravityRateLimits } from "./antigravity-usage";
 import { CodexAppServerClient } from "./app-server-client";
 import { ClaudeAgentClient } from "./claude-client";
 import {
   type AgentCliInfo,
+  antigravityAnswersUsageCommand,
   cliPathEnvironment,
   resolveAntigravityCli,
   resolveClaudeCli,
@@ -697,6 +699,10 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
         mcpToolRuntimes: context.mcpToolRuntimes,
         mcpEndpoint: context.mcpEndpoint,
         history: context.history?.("antigravity"),
+        readRateLimits: (_connection, privatePrompt) =>
+          antigravityAnswersUsageCommand(cli.version)
+            ? privatePrompt(ANTIGRAVITY_USAGE_PROMPT).pipe(Effect.map(antigravityRateLimits))
+            : Effect.succeed({ rateLimits: null, rateLimitsByLimitId: null }),
       }),
     // A profile-generation client asks one question and must not act: no MCP servers, and every
     // permission request is cancelled.

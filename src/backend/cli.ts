@@ -575,6 +575,14 @@ export function claudeTakesPromptSnapshotFlag(version: string): boolean {
   return isMinimumVersion(version, [2, 1, 263]);
 }
 
+/**
+ * Whether this Antigravity ACP server answers `/usage` itself, with no model turn. Checked in 1.4.1;
+ * 1.3.0 sends the command to the model.
+ */
+export function antigravityAnswersUsageCommand(version: string): boolean {
+  return isMinimumVersion(version, [1, 4, 1]);
+}
+
 function isMinimumVersion(version: string, minimum: readonly number[]): boolean {
   const parts = version.split(".").map(Number);
   for (const [index, required] of minimum.entries()) {

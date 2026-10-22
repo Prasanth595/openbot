@@ -11,10 +11,10 @@ const GEMINI_SDK_FAILURE = /\bAntigravity SDK error processing prompt for sessio
 const GEMINI_EXECUTION_ERROR_ANSWER = /^\s*Agent execution error: /u;
 
 /**
- * The kind of a Gemini request failure, first match wins. Gemini reports no usage, so a limit has
- * no usage notice to explain it, and the raw Google status left the user unsure whether waiting or
- * another model helps (#1676). The patterns follow Google's API status names, matched in capitals,
- * and a status number only after `status`, `code` or `HTTP`: a bare 404 or "unavailable" can be an
+ * The kind of a Gemini request failure, first match wins. Gemini reports usage only for a Google
+ * sign-in on 1.4.1 or later, so a limit often has no usage notice to explain it, and the raw Google
+ * status left the user unsure whether waiting or another model helps (#1676). The patterns follow
+ * Google's API status names, matched in capitals, and a status number only after `status`, `code` or `HTTP`: a bare 404 or "unavailable" can be an
  * MCP server or a tool. Antigravity does not document its failure texts.
  */
 const GEMINI_REQUEST_FAILURES = [

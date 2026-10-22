@@ -381,6 +381,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: bun run test:agent-mcp-tools
 
+      - name: Run the Gemini usage E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:antigravity-usage
+
       - name: Upload the reports
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -405,6 +409,7 @@ jobs:
             .openbot-build/claude-usage-resume-e2e/
             .openbot-build/zip-attachment-e2e/
             .openbot-build/agent-mcp-tools-e2e/
+            .openbot-build/antigravity-usage-e2e/
           if-no-files-found: ignore
 
   provider-fakes-e2e:

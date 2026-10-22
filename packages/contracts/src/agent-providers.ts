@@ -147,7 +147,7 @@ export interface AgentProviderDescriptor {
    * Whether OpenBot can read the plan's remaining usage. `false`: the CLI exposes no usage reading,
    * so the dock says the provider does not report usage instead of waiting for a reading. Declared
    * here because the renderer cannot see the drivers; set it to `true` with a driver's usage read
-   * (Codex and Claude read it themselves, Grok and OpenCode through `readRateLimits`).
+   * (Codex and Claude read it themselves, Grok, OpenCode and Antigravity through `readRateLimits`).
    */
   readonly reportsUsage: boolean;
   /**
@@ -265,7 +265,7 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     workspaceEnforcement: "confined-process",
     steer: "deferred",
     concurrentTurns: true,
-    reportsUsage: false,
+    reportsUsage: true,
     approvalsInFullAccess: true,
   },
   // The Cursor CLI (`cursor-agent acp`) with the user's Cursor plan. Sign-in is the ACP
@@ -566,7 +566,11 @@ export function isFreeOpencodeModel(id: string, name: string): boolean {
 /**
  * Whether the provider's account quota limits this model. OpenCode reports only the Go quota, and
  * OpenCode also runs free, custom and own-sign-in models that the Go quota does not limit.
+ * Antigravity reports only the Gemini quota; its Claude and GPT models share another limit. Its
+ * default model, an empty id, is Gemini.
  */
 export function accountUsageCoversModel(provider: AgentProviderId, model: string | null | undefined): boolean {
-  return provider !== "opencode" || Boolean(model?.toLowerCase().startsWith("opencode-go/"));
+  if (provider === "opencode") return Boolean(model?.toLowerCase().startsWith("opencode-go/"));
+  if (provider === "antigravity") return !model || model.toLowerCase().startsWith("gemini");
+  return true;
 }

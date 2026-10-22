@@ -25,7 +25,7 @@ import type { AgentSessionSettingsSnapshot, AgentSessionSettingValue } from "@op
 import { type DynamicRecord, isBoolean, isString } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
 import { redactText } from "@openbot/logging";
-import { Deferred, Effect, Exit, Fiber, Scope } from "effect";
+import { Deferred, Effect, Exit, Fiber, Scope, Semaphore } from "effect";
 import {
   AcpConfiguration,
   type AcpModel,
@@ -332,8 +332,13 @@ export interface AcpProviderOptions {
   readAccount?(
     connection: ClientSideConnection,
   ): Effect.Effect<Partial<AcpProviderAccount>, ProviderClientOperationError>;
+  /**
+   * Reads the account's plan usage. `privatePrompt` sends one prompt in a session that no thread
+   * owns and returns the answer text, for an agent that reports usage through a slash command.
+   */
   readRateLimits?(
     connection: ClientSideConnection,
+    privatePrompt: (text: string) => Effect.Effect<string, ProviderClientOperationError>,
   ): Effect.Effect<AccountRateLimitsReadResult, ProviderClientOperationError>;
 }
 
@@ -383,6 +388,14 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
   >();
   /** Session loads currently being consumed as history. These updates must never become live turns. */
   readonly #historyReplays = new Map<string, HistoryReplay>();
+  /**
+   * The session of `#privatePrompt`, kept for the process: no thread or transcript sees it, and each
+   * new Antigravity session leaves a conversation database of its own on disk, also after it closes.
+   */
+  #privateSession: { connection: ClientSideConnection; sessionId: string } | null = null;
+  /** The answer text of the private prompt in progress. One prompt runs at a time. */
+  #privateAnswer: string[] | null = null;
+  readonly #privatePromptLock = Semaphore.makeUnsafe(1);
   readonly #serverRequests = new PendingServerRequests((request) => this.emit("request", request));
   #initialized: Deferred.Deferred<void, ProviderClientOperationError> | null = null;
   #scope = Scope.makeUnsafe();
@@ -693,6 +706,36 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
     );
   });
 
+  #privatePrompt(text: string): Effect.Effect<string, ProviderClientOperationError> {
+    return this.#privatePromptLock.withPermit(this.#privatePromptOnce(text));
+  }
+
+  /** A prompt that fails or times out drops the session, because the agent may still be answering it. */
+  readonly #privatePromptOnce = Effect.fn("AcpAgentClient.privatePrompt")(function* (
+    this: AcpAgentClient,
+    text: string,
+  ): Effect.fn.Return<string, ProviderClientOperationError> {
+    const connection = yield* providerSync(() => this.#requireConnection());
+    if (this.#privateSession?.connection !== connection) {
+      const { sessionId } = yield* providerCall(() =>
+        connection.newSession({ cwd: this.options.discoveryCwd?.() ?? process.cwd(), mcpServers: [] }),
+      );
+      this.#privateSession = { connection, sessionId };
+    }
+    const { sessionId } = this.#privateSession;
+    const answer: string[] = [];
+    this.#privateAnswer = answer;
+    return yield* providerCall(() => connection.prompt({ sessionId, prompt: [{ type: "text", text }] })).pipe(
+      Effect.map(() => answer.join("")),
+      Effect.onExit((exit) =>
+        Effect.sync(() => {
+          this.#privateAnswer = null;
+          if (Exit.isFailure(exit)) this.#privateSession = null;
+        }),
+      ),
+    );
+  });
+
   readonly request = Effect.fn("AcpAgentClient.request")(function* <T>(
     this: AcpAgentClient,
     method: string,
@@ -758,7 +801,7 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
         {
           const readRateLimits = this.options.readRateLimits;
           const response = readRateLimits
-            ? yield* readRateLimits(this.#requireConnection()).pipe(
+            ? yield* readRateLimits(this.#requireConnection(), (text) => this.#privatePrompt(text)).pipe(
                 Effect.timeoutOrElse({
                   duration: timeoutMs ?? this.#requestTimeoutMs,
                   orElse: () =>
@@ -1704,6 +1747,12 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
   });
 
   #sessionUpdate(notification: SessionNotification): void {
+    if (notification.sessionId === this.#privateSession?.sessionId) {
+      const update = notification.update;
+      if (update.sessionUpdate === "agent_message_chunk" && update.content.type === "text")
+        this.#privateAnswer?.push(update.content.text);
+      return;
+    }
     const replay = this.#historyReplays.get(notification.sessionId);
     if (replay) {
       this.#historyUpdate(replay, notification);

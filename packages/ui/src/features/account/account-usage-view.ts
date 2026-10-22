@@ -39,6 +39,8 @@ export interface AccountUsageProviderRow {
   windows: AccountUsageWindowRow[];
   /** `false` for a provider that has no usage reading, so a missing amount is not a failure. */
   reportsUsage: boolean;
+  /** A saved API key serves the provider's turns, so the plan's usage does not apply. */
+  apiKeyInUse: boolean;
 }
 
 /** Remaining quota from a provider-reported used percentage. */
@@ -57,9 +59,16 @@ export function usageTone(remainingPercent: number | null): AccountUsageTone {
  */
 export function accountUsageProviderRows(
   usage: AccountUsage | null,
-  providers?: ReadonlyArray<{ id: string; state: string; accounts?: readonly ProviderAccountStatus[] | undefined }>,
+  providers?: ReadonlyArray<{
+    id: string;
+    state: string;
+    accounts?: readonly ProviderAccountStatus[] | undefined;
+    apiKeyInUse?: boolean | undefined;
+  }>,
   text: UsageText = currentText(),
 ): AccountUsageProviderRow[] {
+  const apiKeyInUse = (provider: AgentProviderId) =>
+    providers?.find((candidate) => candidate.id === provider)?.apiKeyInUse === true;
   const accountsOf = (provider: AgentProviderId) => {
     const accounts = providers?.find((candidate) => candidate.id === provider)?.accounts ?? [];
     return accounts.length > 1 ? accounts : [];
@@ -68,7 +77,10 @@ export function accountUsageProviderRows(
   for (const limit of usage?.limits ?? []) {
     if (!isAgentProvider(limit.id)) continue;
     const accountId = limit.accountId ?? null;
-    rows.set(usageRowKey(limit.id, accountId), usageRow(limit.id, accountId, accountsOf(limit.id), limit, text));
+    rows.set(
+      usageRowKey(limit.id, accountId),
+      usageRow(limit.id, accountId, accountsOf(limit.id), limit, apiKeyInUse(limit.id), text),
+    );
   }
   for (const provider of providers ?? []) {
     if (!isAgentProvider(provider.id) || provider.state !== "available" || provider.id === "opencode") continue;
@@ -80,7 +92,10 @@ export function accountUsageProviderRows(
       : [null];
     for (const accountId of ids) {
       if (!rows.has(usageRowKey(provider.id, accountId)))
-        rows.set(usageRowKey(provider.id, accountId), usageRow(provider.id, accountId, accounts, null, text));
+        rows.set(
+          usageRowKey(provider.id, accountId),
+          usageRow(provider.id, accountId, accounts, null, apiKeyInUse(provider.id), text),
+        );
     }
   }
   const accountOrder = (row: AccountUsageProviderRow) =>
@@ -106,6 +121,7 @@ function usageRow(
   accountId: string | null,
   accounts: readonly ProviderAccountStatus[],
   limit: AccountUsageLimit | null,
+  apiKeyInUse: boolean,
   text: UsageText,
 ): AccountUsageProviderRow {
   const windows = (limit ? reportedWindows(limit) : []).map((window): AccountUsageWindowRow => {
@@ -134,6 +150,7 @@ function usageRow(
     tone: usageTone(remainingPercent),
     windows,
     reportsUsage: agentProviderDescriptor(provider).reportsUsage,
+    apiKeyInUse,
   };
 }
 
@@ -189,6 +206,7 @@ export function accountUsageRowLabel(
 ): string {
   const { t } = text;
   if (!row.reportsUsage) return t("account.usage.row.notReported", { name: row.name });
+  if (row.remainingPercent === null && row.apiKeyInUse) return t("account.usage.row.apiKey", { name: row.name });
   if (row.remainingPercent === null)
     return t(loading ? "account.usage.row.loading" : "account.usage.row.unavailable", { name: row.name });
   const parts = [row.name];
