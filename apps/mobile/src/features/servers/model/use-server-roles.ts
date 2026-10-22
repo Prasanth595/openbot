@@ -1,4 +1,10 @@
-import type { AgentAccessChange, AgentAccessLevel, AgentAccessLevels, AgentAccessRole } from "@openbot/contracts/ipc";
+import {
+  type AgentAccessChange,
+  type AgentAccessLevel,
+  type AgentAccessLevels,
+  type AgentAccessRole,
+  canAdministerServer,
+} from "@openbot/contracts/ipc";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef } from "react";
 import { useQueryScope } from "@/features/auth/context/mobile-session-context";
@@ -84,7 +90,7 @@ export function useServerRoles(serverId: string) {
  * checks each write.
  */
 export function useAgentViewOnly(serverId: string, agentId: string): boolean {
-  const { hasAgentAccessLimits } = useMobileWorkspace();
+  const { hasAgentAccessLimits, servers } = useMobileWorkspace();
   const { loadServerRoles } = useMobileWorkspaceActions();
   const queryScope = useQueryScope();
   const access = useQuery({
@@ -95,7 +101,9 @@ export function useAgentViewOnly(serverId: string, agentId: string): boolean {
     gcTime: Number.POSITIVE_INFINITY,
     queryFn: () => loadServerRoles(serverId),
   });
-  return access.data?.mine[agentId] === "view";
+  // An owner or admin can use all agents, also with levels read before a promotion.
+  const role = servers.find((server) => server.id === serverId)?.role;
+  return !canAdministerServer(role) && access.data?.mine[agentId] === "view";
 }
 
 /** Adds `memberId` to the role or takes it out. */
