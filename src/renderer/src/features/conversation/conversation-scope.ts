@@ -1196,8 +1196,14 @@ export function createConversationViewScope(props: ConversationProps) {
       return { agentId, panel: agentId ? rightPanels()[agentId] : undefined, request: props.settingsRequest };
     },
     ({ agentId, panel, request }) => {
-      if (agentId !== lastPanelAgentId) resetPanelsForAgent(agentId, panel);
-      if (!request || agentId !== request.agentId || request.nonce === lastHandledSettingsRequestNonce) return;
+      const settingsRequested =
+        request !== null && agentId === request.agentId && request.nonce !== lastHandledSettingsRequestNonce;
+      if (agentId !== lastPanelAgentId) {
+        resetPanelsForAgent(agentId, panel);
+        // The user can type to the agent they opened. A settings request keeps the focus for its panel.
+        if (agentId && !settingsRequested) setComposerFocusRequest((value) => value + 1);
+      }
+      if (!request || !settingsRequested) return;
       lastHandledSettingsRequestNonce = request.nonce;
       if (request.routine) openRoutineSettings(request.routine);
       else setActiveRightPanel("settings", agentId);
