@@ -358,4 +358,5 @@ export const messages = {
   "mobile.chat.tasks.open": "Ouvrir la tâche {title}, {status}",
   "mobile.chat.tasks.close": "Fermer la tâche {title}",
   "mobile.chat.tasks.status": "Tâche · {status}",
+  "mobile.chat.viewOnly": "Vous pouvez seulement consulter cet agent.",
 } as const satisfies PartialTranslation<typeof source>;

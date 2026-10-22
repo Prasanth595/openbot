@@ -343,4 +343,5 @@ export const messages = {
   "mobile.chat.tasks.open": "タスク{title}を開く、{status}",
   "mobile.chat.tasks.close": "タスク {title} を閉じる",
   "mobile.chat.tasks.status": "タスク · {status}",
+  "mobile.chat.viewOnly": "このエージェントは表示のみできます。",
 } as const satisfies PartialTranslation<typeof source>;

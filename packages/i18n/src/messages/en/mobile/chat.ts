@@ -345,4 +345,5 @@ export const messages = defineMessages("mobile.chat", {
   "mobile.chat.tasks.open": "Open task {title}, {status}",
   "mobile.chat.tasks.close": "Close task {title}",
   "mobile.chat.tasks.status": "Task · {status}",
+  "mobile.chat.viewOnly": "You can only view this agent.",
 });

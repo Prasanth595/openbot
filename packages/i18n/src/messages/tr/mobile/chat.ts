@@ -352,4 +352,5 @@ export const messages = {
   "mobile.chat.tasks.open": "{title} görevini aç, {status}",
   "mobile.chat.tasks.close": "{title} görevini kapat",
   "mobile.chat.tasks.status": "Görev · {status}",
+  "mobile.chat.viewOnly": "Bu ajanı yalnızca görüntüleyebilirsiniz.",
 } as const satisfies PartialTranslation<typeof source>;

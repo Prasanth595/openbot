@@ -78,6 +78,24 @@ export function useServerRoles(serverId: string) {
   };
 }
 
+/**
+ * True when the roles let this person only view `agentId`. The host sends each change of the roles as
+ * `agents-changed` too, and that event reads the levels again. Unknown levels do not limit: the host
+ * checks each write.
+ */
+export function useAgentViewOnly(serverId: string, agentId: string): boolean {
+  const { hasAgentAccessLimits } = useMobileWorkspace();
+  const { loadServerRoles } = useMobileWorkspaceActions();
+  const queryScope = useQueryScope();
+  const access = useQuery({
+    queryKey: queryKeys.serverRoles(queryScope, serverId),
+    enabled: hasAgentAccessLimits(serverId),
+    queryFn: () => loadServerRoles(serverId),
+  });
+  // Offline, the last levels that the host sent still apply.
+  return access.data?.mine[agentId] === "view";
+}
+
 /** Adds `memberId` to the role or takes it out. */
 export function setRoleMember(change: AgentAccessChange, roleId: string, memberId: string, on: boolean): void {
   const role = change.roles.find((item) => item.id === roleId);

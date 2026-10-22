@@ -1478,6 +1478,15 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       canManageServerTimezone: (serverId) => administers(serverId, HOST_TIMEZONE_CAPABILITY),
       canManageAgentMemoryLimit: (serverId) => administers(serverId, AGENT_MEMORY_LIMIT_CAPABILITY),
       canManageServerRoles: (serverId) => administers(serverId, AGENT_ACCESS_CAPABILITY),
+      hasAgentAccessLimits: (serverId) => {
+        const server = servers.find((candidate) => candidate.id === serverId);
+        return Boolean(
+          server &&
+            showsOnline(server) &&
+            !canAdministerServer(server.role) &&
+            hasCapability(serverCapabilities.current, serverId, AGENT_ACCESS_CAPABILITY),
+        );
+      },
       canManageConnectors: (serverId) => administers(serverId, CONNECTORS_CAPABILITY),
       canManageOnePasswordConnector: (serverId) => administers(serverId, ONEPASSWORD_CONNECTOR_CAPABILITY),
       // The same rule as the Updates section of the desktop Server Settings.
