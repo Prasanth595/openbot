@@ -1163,6 +1163,19 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         requeueChannelDelivery: (deliveryId) => this.#requeueChannelDelivery(deliveryId),
         quietRoutineDelivery: (deliveryId) => this.#routines.quietRunForDelivery(deliveryId),
         takeRoutinePreview: (deliveryId) => this.#routines.takePreviewBeforeRun(deliveryId),
+        closeRoutineSession: (externalThreadId) => this.#threads.closeRoutineThread(externalThreadId),
+        routineAnswered: (agentId, deliveryId, answer) => {
+          const agent = this.#store.list().find((item) => item.id === agentId);
+          const run = this.#routines.runForDelivery(deliveryId);
+          if (!agent || !run) return Effect.void;
+          return this.#threads
+            .addRoutineDigest(agent, run.routineName, answer)
+            .pipe(
+              Effect.catch((failure) =>
+                Effect.sync(() => this.#emitError("routine_digest_failed", failure.cause, agentId)),
+              ),
+            );
+        },
         taskForThread: (threadId) => this.#tasks.taskForThread(threadId),
         taskFailed: (taskId, message) => this.#tasks.failed(taskId, this.#mcp.redact(message)),
       },
@@ -3227,11 +3240,8 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     for (const [agentId, snapshot] of this.#conversation.activeSnapshots()) {
       if (!snapshot.activeTurnId) continue;
       const agent = this.#store.list().find((item) => item.id === agentId);
-      const session =
-        agent && snapshot.threadId
-          ? this.#store.database.activeProviderSession(snapshot.threadId, agent.provider)
-          : null;
-      if (session) this.#images.interrupt(agentId, session.externalSessionId, snapshot.activeTurnId);
+      const session = agent && snapshot.threadId ? this.#runningSession(agent, snapshot.threadId) : undefined;
+      if (session) this.#images.interrupt(agentId, session, snapshot.activeTurnId);
     }
     yield* this.#turn.dispose();
     yield* this.#usageLimits.dispose();
@@ -3931,18 +3941,29 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     // running turn, whatever `turnId` says. A channel thread is not in these snapshots.
     if (!executionThreadId && !snapshot) return false;
     const targetThreadId = executionThreadId ?? snapshot?.threadId;
-    const session = targetThreadId
-      ? this.#store.database.activeProviderSession(targetThreadId, agent.provider)
-      : this.#store.activeProviderSession(agentId);
+    const session = this.#runningSession(agent, targetThreadId);
     if (!session) return false;
-    this.#images.interrupt(agentId, session.externalSessionId, turnId);
+    this.#images.interrupt(agentId, session, turnId);
     yield* client
-      .request("turn/interrupt", { threadId: session.externalSessionId, turnId }, decodeRecordResponse)
+      .request("turn/interrupt", { threadId: session, turnId }, decodeRecordResponse)
       .pipe(
         Effect.mapError((failure) => new AgentLifecycleFailed({ operation: "interrupt turn", cause: failure.cause })),
       );
     return true;
   }, Effect.uninterruptible);
+
+  /**
+   * The provider session that runs the turn of this thread: a routine run's own session while one
+   * runs in the agent's chat, else the thread's active session. No thread means the agent's chat.
+   */
+  #runningSession(agent: AgentSummary, threadId: string | null | undefined): string | undefined {
+    const publicThreadId = threadId ?? agent.threadId;
+    if (!publicThreadId) return undefined;
+    return (
+      (publicThreadId === agent.threadId ? this.#conversation.routineSession(agent.id) : undefined) ??
+      this.#store.database.activeProviderSession(publicThreadId, agent.provider)?.externalSessionId
+    );
+  }
 
   readonly interruptAll = Effect.fn("AgentService.interruptAll")(function* (this: AgentService) {
     if (!this.#providers.isReady()) return;
@@ -3952,15 +3973,15 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       if (!snapshot.threadId || !turnId) continue;
       const agent = this.#store.list().find((candidate) => candidate.id === agentId);
       const client = agent ? this.#providers.clientForAgent(agent) : null;
-      const session = agent ? this.#store.database.activeProviderSession(snapshot.threadId, agent.provider) : null;
+      const session = agent ? this.#runningSession(agent, snapshot.threadId) : undefined;
       if (!client || !session) continue;
-      this.#images.interrupt(agentId, session.externalSessionId, turnId);
+      this.#images.interrupt(agentId, session, turnId);
       requests.push(
         client
           .request(
             "turn/interrupt",
             {
-              threadId: session.externalSessionId,
+              threadId: session,
               turnId,
             },
             decodeRecordResponse,

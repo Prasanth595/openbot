@@ -46,7 +46,12 @@ import type { ContextCompaction } from "./context-compaction";
 import type { ConversationRuntime } from "./conversation-runtime";
 import { agentNamesById } from "./delivery-content";
 import { developerInstructions, memoryContext, type SectionTeammates } from "./developer-instructions";
-import { readHandoffHistory, renderProviderHandoff } from "./handoff-history";
+import {
+  appendRoutineDigest,
+  readHandoffHistory,
+  renderProviderHandoff,
+  renderRoutineHandoff,
+} from "./handoff-history";
 import { decodeCapturedSteps, readCapturedSteps } from "./handoff-tool-steps";
 import { sessionSettingsIdentity } from "./session-settings";
 import { isArchivedThreadError, isMissingProviderSessionError } from "./thread-items";
@@ -404,12 +409,85 @@ export class ThreadLifecycle {
     );
   }, Effect.uninterruptible).bind(this);
 
-  readonly #startProviderThread = Effect.fn("ThreadLifecycle.prepareProviderThread")(function* (
+  /**
+   * Starts the provider session of one routine run. It is not saved as a session of the agent's
+   * chat, and `closeRoutineThread` ends it with the run: so the chat session does not grow with each
+   * run, and a run does not read that whole session again. Its items still go to the agent's chat.
+   * Its first turn reads the newest messages of that chat.
+   */
+  readonly startRoutineThread = Effect.fn("ThreadLifecycle.startRoutineThread")(function* (
+    this: ThreadLifecycle,
+    owner: AgentSummary,
+    client: AgentClient,
+  ) {
+    const publicThreadId = yield* this.#store.ensureThreadId(owner.id).pipe(toThreadOperationFailed);
+    const handoff = yield* threadStep(() => {
+      const names = agentNamesById(this.#store.list());
+      return renderRoutineHandoff(readHandoffHistory(this.#store.database, owner.id, publicThreadId, names), names);
+    });
+    const { params } = yield* this.#startParams(owner, client, publicThreadId);
+    const response = yield* client
+      .request("thread/start", { ...params, ephemeral: true, persistSession: false }, decodeThreadResponse)
+      .pipe(toThreadOperationFailed);
+    const externalThreadId = response.thread.id;
+    this.#conversation.bindThread(externalThreadId, owner.id, publicThreadId);
+    this.#conversation.markThreadLoaded(externalThreadId, client);
+    this.#conversation.registerRoutineSession(owner.id, externalThreadId);
+    // Only in memory: the session ends with the run, and a restart ends the run.
+    if (handoff) this.#pendingHandoffs.set(externalThreadId, handoff);
+    return externalThreadId;
+  }, Effect.uninterruptible).bind(this);
+
+  /** Ends the provider session of a routine run. A second call does nothing. */
+  readonly closeRoutineThread = Effect.fn("ThreadLifecycle.closeRoutineThread")(function* (
+    this: ThreadLifecycle,
+    externalThreadId: string,
+  ) {
+    if (!this.#conversation.isRoutineSession(externalThreadId)) return;
+    this.#conversation.forgetRoutineSession(externalThreadId);
+    yield* this.#releaseProviderSession(externalThreadId);
+    this.#conversation.unbindThread(externalThreadId);
+    this.#conversation.unloadThread(externalThreadId);
+    this.#compaction.forgetThread(externalThreadId);
+    this.#pendingHandoffs.delete(externalThreadId);
+  }, Effect.uninterruptible).bind(this);
+
+  /**
+   * Gives the answer of a routine run to the agent's own session, which reads it with its next turn.
+   * With no active session there is nothing to add: the next session reads the history.
+   */
+  readonly addRoutineDigest = Effect.fn("ThreadLifecycle.addRoutineDigest")(function* (
+    this: ThreadLifecycle,
+    agent: AgentSummary,
+    routineName: string,
+    answer: string,
+  ) {
+    const session = agent.threadId ? this.#store.database.activeProviderSession(agent.threadId, agent.provider) : null;
+    if (!session) return;
+    const id = session.externalSessionId;
+    let existing = this.#pendingHandoffs.get(id);
+    if (existing === undefined) {
+      const stored = yield* Effect.result(threadIo(() => readFile(this.handoffPath(id), "utf8")));
+      if (Result.isSuccess(stored)) existing = stored.success;
+      else if (!missingSessionFile(stored.failure.cause)) return yield* stored.failure;
+    }
+    const handoff = appendRoutineDigest(existing, routineName, answer);
+    yield* threadIo(() =>
+      mkdir(join(this.#store.database.userDataPath, "provider-handoffs"), { recursive: true, mode: 0o700 }),
+    );
+    yield* threadIo(() => writeFile(this.handoffPath(id), handoff, { mode: 0o600 }));
+    this.#pendingHandoffs.set(id, handoff);
+  }).bind(this);
+
+  /**
+   * What a new provider session of this agent starts with. Each value is read once, so the request
+   * and the tool manifest that records it see the same set.
+   */
+  readonly #startParams = Effect.fn("ThreadLifecycle.startParams")(function* (
     this: ThreadLifecycle,
     owner: AgentSummary,
     client: AgentClient,
     publicThreadId: string,
-    reason?: "configuration-change" | "missing-session",
   ) {
     const agent = this.#sessionAgent(owner, publicThreadId);
     // One reading of the MCP set for the request and for the manifest below. Read twice, a change
@@ -429,26 +507,37 @@ export class ThreadLifecycle {
     // Read before the configuration, which starts the same listener: both see one port.
     const proxy = client.provider === "codex" ? yield* this.#proxyFingerprint(mcpServers) : null;
     const config = yield* this.codexConfigEffect(agent, client, mcpServers, disabled, toolRuntimes, environment);
+    const params: DynamicRecord = {
+      ...config,
+      model: agent.model,
+      effort: agent.reasoningEffort,
+      cwd: agent.workspacePath,
+      runtimeWorkspaceRoots: workspaceWritableRoots(agent, this.#store.sharedRoot),
+      approvalPolicy: "on-request",
+      sandbox: codexSandboxMode(agent),
+      ...this.#workspaceOnlyParam(agent, client),
+      ...this.#computerUseParam(agent, client),
+      ...this.#instructions(agent, client, section, this.#computerUseInOwnChat(owner, publicThreadId)),
+      serviceName: "openbot",
+      dynamicTools: VISIBLE_DYNAMIC_TOOLS,
+    };
+    return { agent, mcpServers, toolRuntimes, disabled, environment, section, proxy, params };
+  });
+
+  readonly #startProviderThread = Effect.fn("ThreadLifecycle.prepareProviderThread")(function* (
+    this: ThreadLifecycle,
+    owner: AgentSummary,
+    client: AgentClient,
+    publicThreadId: string,
+    reason?: "configuration-change" | "missing-session",
+  ) {
+    const { agent, mcpServers, toolRuntimes, disabled, environment, section, proxy, params } = yield* this.#startParams(
+      owner,
+      client,
+      publicThreadId,
+    );
     const response = yield* client
-      .request(
-        "thread/start",
-        {
-          ...config,
-          model: agent.model,
-          effort: agent.reasoningEffort,
-          cwd: agent.workspacePath,
-          runtimeWorkspaceRoots: workspaceWritableRoots(agent, this.#store.sharedRoot),
-          approvalPolicy: "on-request",
-          sandbox: codexSandboxMode(agent),
-          ...this.#workspaceOnlyParam(agent, client),
-          ...this.#computerUseParam(agent, client),
-          ...this.#instructions(agent, client, section, this.#computerUseInOwnChat(owner, publicThreadId)),
-          ephemeral: false,
-          serviceName: "openbot",
-          dynamicTools: VISIBLE_DYNAMIC_TOOLS,
-        },
-        decodeThreadResponse,
-      )
+      .request("thread/start", { ...params, ephemeral: false }, decodeThreadResponse)
       .pipe(toThreadOperationFailed);
     const sessions = this.#store.database.listProviderSessions(publicThreadId);
     const previousSession = sessions.at(-1);

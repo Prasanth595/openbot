@@ -128,6 +128,10 @@ export interface TurnHooks {
    * Null after a restart or for any other delivery.
    */
   takeRoutinePreview(deliveryId: string): { previous: string; shown: string } | null;
+  /** Ends the provider session of a routine run. Nothing for any other session, or a second time. */
+  closeRoutineSession(externalThreadId: string): Effect.Effect<void>;
+  /** Gives the answer of a routine run in its own session to the session of the agent's chat. */
+  routineAnswered(agentId: string, deliveryId: string, answer: string): Effect.Effect<void>;
 }
 
 export interface TurnLifecycleOptions {
@@ -372,10 +376,14 @@ export class TurnLifecycle {
     ) {
       const agent = this.#store.list().find((entry) => entry.id === agentId);
       // A task or other side thread keeps its provider sessions under its own thread, not the agent's.
+      // A routine run's own session is not saved, so its usage has its own session id.
       const session = agent
-        ? this.#store.database
+        ? (this.#store.database
             .listProviderSessions(this.#conversation.publicThreadId(agentId, threadId))
-            .find((entry) => entry.externalSessionId === threadId && entry.provider === source.provider)
+            .find((entry) => entry.externalSessionId === threadId && entry.provider === source.provider) ??
+          (this.#conversation.isRoutineSession(threadId)
+            ? { id: `routine:${threadId}`, provider: source.provider, createdAt: new Date().toISOString() }
+            : undefined))
         : undefined;
       if (agent && session) {
         try {
@@ -742,7 +750,9 @@ export class TurnLifecycle {
       this.#memories.finishTurn(turnId, status);
       // A refused session is closed below, and a spent plan would refuse the summary turn too, so
       // neither is compacted.
-      const shouldCompact = !refused && !limited && this.#compaction.reserve(agentId, threadId);
+      // A routine run's own session closes after this turn, so it is not compacted either.
+      const routineSession = this.#conversation.isRoutineSession(threadId);
+      const shouldCompact = !refused && !limited && !routineSession && this.#compaction.reserve(agentId, threadId);
       this.#browser.endControl(this.#conversation.publicThreadId(agentId, threadId), turnId);
       const snapshot = this.#conversation.ensureSnapshot(agentId, threadId);
       snapshot.activeTurnId = null;
@@ -860,6 +870,9 @@ export class TurnLifecycle {
           this.#hooks.emit({ type: "agents-changed", agents: this.#hooks.listAgents() });
         }
       }
+      const routineDelivery = deliveries[0]?.delivery.id;
+      if (routineSession && routineDelivery && outcome === "completed" && !quiet && !markerAnswer && latestAssistant)
+        yield* this.#hooks.routineAnswered(agentId, routineDelivery, latestAssistant.text);
       this.#conversation.emitConversation(snapshot, "turn.completed", { turnId, status: outcome });
       if (deliveries.length > 0) {
         try {
@@ -891,7 +904,12 @@ export class TurnLifecycle {
             ? Effect.void
             : this.settleOrphanedTurn(agentId, threadId, turnId, status === "failed" ? "failed" : "interrupted"),
         ),
-        Effect.ensuring(Effect.sync(() => this.#completingTurns.delete(turnId))),
+        Effect.ensuring(
+          Effect.andThen(
+            Effect.sync(() => this.#completingTurns.delete(turnId)),
+            this.#hooks.closeRoutineSession(threadId),
+          ),
+        ),
       ),
   );
 
@@ -974,6 +992,10 @@ export class TurnLifecycle {
       });
     }).pipe(Effect.catchCause(report));
     for (const [itemId, itemTurnId] of this.#itemTurns) if (itemTurnId === turnId) this.#itemTurns.delete(itemId);
+    // A routine run's own session ends with its turn. One agent's chat runs one turn at a time.
+    const routineSession = this.#conversation.routineSession(agentId);
+    if (routineSession && deliveries.some(({ delivery }) => delivery.sender.kind === "routine"))
+      yield* this.#hooks.closeRoutineSession(routineSession);
     yield* turnStep(() => this.#mailboxSync.emitQueue(agentId)).pipe(Effect.catchCause(report));
     yield* turnStep(() => {
       for (const { delivery } of deliveries) {

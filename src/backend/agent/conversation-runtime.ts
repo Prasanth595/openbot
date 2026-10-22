@@ -186,6 +186,11 @@ export class ConversationRuntime {
   readonly #forgottenExecutionThreads = new Set<string>();
   /** The execution threads that are tasks: they run beside the agent's own chat, not after it. */
   readonly #taskThreads = new Set<string>();
+  /**
+   * The open provider sessions of routine runs, with their agent. A routine run has its own session,
+   * which closes when the run ends, so the agent's long chat session does not grow with it.
+   */
+  readonly #routineSessions = new Map<string, string>();
 
   constructor(store: AgentStore, emit: (event: AgentEvent) => void, listAgents: () => AgentSummary[]) {
     this.#store = store;
@@ -789,6 +794,26 @@ export class ConversationRuntime {
     return open;
   }
 
+  /** Marks this provider session as the one routine run of the agent. Its items show in the agent's own chat. */
+  registerRoutineSession(agentId: string, externalThreadId: string): void {
+    this.#routineSessions.set(externalThreadId, agentId);
+  }
+
+  forgetRoutineSession(externalThreadId: string): void {
+    this.#routineSessions.delete(externalThreadId);
+  }
+
+  /** The newest open routine session of this agent. Its chat runs one turn at a time. */
+  routineSession(agentId: string): string | undefined {
+    let newest: string | undefined;
+    for (const [externalThreadId, owner] of this.#routineSessions) if (owner === agentId) newest = externalThreadId;
+    return newest;
+  }
+
+  isRoutineSession(externalThreadId: string): boolean {
+    return this.#routineSessions.has(externalThreadId);
+  }
+
   forgetExecutionThread(threadId: string): void {
     this.#forgottenExecutionThreads.add(threadId);
     this.#taskThreads.delete(threadId);
@@ -813,6 +838,8 @@ export class ConversationRuntime {
     const threadId = (this.#snapshots.get(agentId) ?? this.#evictedSnapshots.get(agentId))?.threadId;
     if (threadId) this.#conversationSignatures.delete(threadId);
     this.#snapshots.delete(agentId);
+    for (const [externalThreadId, owner] of this.#routineSessions)
+      if (owner === agentId) this.#routineSessions.delete(externalThreadId);
     this.#dropCachedSnapshot(agentId);
     this.#snapshotUsedAt.delete(agentId);
     this.#evictedSnapshots.delete(agentId);

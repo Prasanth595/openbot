@@ -505,8 +505,11 @@ export class DrainScheduler {
           ? this.#channels?.store.context(assignment.channelId, assignment.agentId).threadId
           : (this.#messaging?.threadForDelivery(context.delivery.id) ?? agent?.threadId);
         if (agent && publicThreadId === agent.threadId) this.#hooks.dropRequestedNewChat(agentId);
+        // A routine run in its own session leaves the chat session as it is.
         const session =
-          agent && publicThreadId ? this.#store.database.activeProviderSession(publicThreadId, agent.provider) : null;
+          agent && publicThreadId && !this.#runsInOwnSession(context)
+            ? this.#store.database.activeProviderSession(publicThreadId, agent.provider)
+            : null;
         if (session && this.#compaction.reserve(agentId, session.externalSessionId)) {
           yield* this.#compaction.request(agentId, session.externalSessionId);
           return;
@@ -535,16 +538,19 @@ export class DrainScheduler {
     const channelDelivery = this.#channels ? this.#channels.store.assignmentForDelivery(delivery.id) !== null : false;
     const messagingDelivery = this.#messaging?.ownsDelivery(delivery.id) ?? false;
     const taskId = this.#mailbox.taskIdForDelivery(delivery.id);
-    // The teammate answers that start in this turn too. A channel task and an external message
-    // always run alone; a teammate's answer in an external conversation takes the other answers to
-    // the same request. The person's message goes last, so the turn answers it with the answers
-    // already read.
+    const ownSession = this.#runsInOwnSession(context);
+    // The teammate answers that start in this turn too. A channel task, an external message and a
+    // routine run in its own session always run alone; a teammate's answer in an external
+    // conversation takes the other answers to the same request. The person's message goes last, so
+    // the turn answers it with the answers already read.
     const companions =
-      channelDelivery || (messagingDelivery && delivery.sender.kind !== "agent")
+      channelDelivery || ownSession || (messagingDelivery && delivery.sender.kind !== "agent")
         ? []
         : this.#mailbox.repliesToStartWith(delivery.id);
     let batch = delivery.sender.kind === "user" ? [...companions, context] : [context, ...companions];
     let confirmedTurnId: string | null = null;
+    // The session of a routine run in its own session. Closed here when no turn starts on it.
+    let routineThreadId: string | null = null;
     const claimed = this.#deliveryProviders(delivery.recipientAgentId);
     for (const provider of claimed) this.#startingDeliveries.set(provider, this.#starting(provider) + 1);
     // Held from the refresh below until this start ends, because everything between them awaits the
@@ -626,7 +632,19 @@ export class DrainScheduler {
         return;
       }
       if (taskThreadId) this.#conversation.registerTaskThread(agent.id, taskThreadId);
-      let threadId = yield* this.#threads.ensureThread(agent, client, execution?.threadId).pipe(toDeliveryStartFailed);
+      if (ownSession) {
+        const publicThreadId = yield* this.#store.ensureThreadId(agent.id).pipe(toDeliveryStartFailed);
+        // Checked again below. Here, so a busy chat does not start a session for nothing.
+        if (this.#conversation.ensureSnapshot(agent.id, publicThreadId).activeTurnId) {
+          for (const item of batch) yield* this.#mailbox.restoreQueued(item.delivery.id).pipe(toDeliveryStartFailed);
+          this.#mailboxSync.emitQueue(agent.id);
+          return;
+        }
+        routineThreadId = yield* this.#threads.startRoutineThread(agent, client).pipe(toDeliveryStartFailed);
+      }
+      let threadId =
+        routineThreadId ??
+        (yield* this.#threads.ensureThread(agent, client, execution?.threadId).pipe(toDeliveryStartFailed));
       const snapshot = this.#conversation.ensureSnapshot(agent.id, threadId);
       // A turn started on this thread while the provider and the thread were prepared. The user
       // cannot see that race, so the delivery goes back to the head of the queue rather than
@@ -733,13 +751,15 @@ export class DrainScheduler {
       else {
         // Codex compacts this thread, so the input did not reach it. The messages keep their place
         // and wait for the compaction turn to end.
-        if (isCodexCompactionRefusal(firstStart.failure.cause)) {
+        if (!routineThreadId && isCodexCompactionRefusal(firstStart.failure.cause)) {
           for (const item of batch) yield* this.#mailbox.restoreQueued(item.delivery.id).pipe(toDeliveryStartFailed);
           this.#compaction.holdForRefusal(agent.id, threadId, client);
           this.#mailboxSync.emitQueue(agent.id);
           return;
         }
-        if (!isMissingProviderSessionError(firstStart.failure.cause, client.provider)) return yield* firstStart.failure;
+        // A routine session started just now. When it is gone, the provider failed, and the run fails.
+        if (routineThreadId || !isMissingProviderSessionError(firstStart.failure.cause, client.provider))
+          return yield* firstStart.failure;
         const unavailableThreadId = threadId;
         if (this.#conversation.loadedClientFor(unavailableThreadId) === client) {
           this.#conversation.unloadThread(unavailableThreadId);
@@ -883,7 +903,10 @@ export class DrainScheduler {
         }),
       ),
       Effect.ensuring(
-        Effect.sync(() => {
+        Effect.gen({ self: this }, function* () {
+          // A turn that started, or that may still start, closes the session when it ends.
+          if (routineThreadId && !confirmedTurnId && !turnMayRun)
+            yield* this.#threads.closeRoutineThread(routineThreadId);
           releaseRuntimeRefresh();
           if (!confirmedTurnId && !turnMayRun) releaseReservation();
           for (const provider of claimed) this.#startingDeliveries.set(provider, this.#starting(provider) - 1);
@@ -891,6 +914,22 @@ export class DrainScheduler {
       ),
     );
   }, Effect.uninterruptible);
+
+  /**
+   * Whether this delivery is a routine run in the agent's own chat. It runs in a provider session
+   * of its own, which closes when the run ends: the chat session does not grow with each run, and a
+   * run does not read that whole session again. A routine run for a channel, an external
+   * conversation or a task runs in that thread's session.
+   */
+  #runsInOwnSession(context: DeliveryContext): boolean {
+    const id = context.delivery.id;
+    return (
+      context.delivery.sender.kind === "routine" &&
+      this.#mailbox.taskIdForDelivery(id) === null &&
+      !this.#channels?.store.assignmentForDelivery(id) &&
+      !this.#messaging?.ownsDelivery(id)
+    );
+  }
 
   /**
    * Ends the messages of an unconfirmed `turn/start` that no turn took by the deadline. A turn that

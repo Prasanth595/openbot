@@ -220,9 +220,11 @@ export class QueueControls {
       const client = this.#providers.requireReadyClientForAgent(agent);
       // A task message steers the task's turn, in the task's own provider session.
       const taskThreadId = this.#hooks.taskThreadId(input.deliveryId);
+      // A routine run in its own session takes the message in that session.
       const session = taskThreadId
-        ? this.#store.database.activeProviderSession(taskThreadId, agent.provider)
-        : this.#store.activeProviderSession(agent.id);
+        ? this.#store.database.activeProviderSession(taskThreadId, agent.provider)?.externalSessionId
+        : (this.#conversation.routineSession(agent.id) ??
+          this.#store.activeProviderSession(agent.id)?.externalSessionId);
       const snapshot = this.#conversation.ensureSnapshot(agent.id, taskThreadId ?? agent.threadId);
       if (!session || !snapshot.activeTurnId || snapshot.activeTurnId !== input.expectedTurnId)
         throw new Error(sourceText("error.backend.steerTurnChanged"));
@@ -248,7 +250,7 @@ export class QueueControls {
       .request(
         "turn/steer",
         {
-          threadId: session.externalSessionId,
+          threadId: session,
           expectedTurnId: turnId,
           clientUserMessageId: input.deliveryId,
           input: deliveryPromptInput(context, {

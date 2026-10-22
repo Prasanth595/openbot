@@ -80,6 +80,22 @@ not put the marker in the preview either. The provider history import
 routine delivery started, it skips each answer that is only the marker, and when every answer is
 the marker it skips the turn's thinking too, so a later import does not bring a quiet turn back.
 
+## Routine sessions
+
+A routine run in an agent's own chat (no task, channel or messaging delivery) does not resume the
+chat's provider session. `DrainScheduler.startDelivery` starts a new session for it with
+`ThreadLifecycle.startRoutineThread`: the chat's thread parameters, with `ephemeral: true` and
+`persistSession: false`. `ConversationRuntime` binds the session to the agent's public thread, so the
+run's items show in the chat, and `registerRoutineSession` marks it. The first message reads a short
+handoff of the newest chat messages (`renderRoutineHandoff`, 8,000 characters). Interrupt and steer
+go to the routine session while it runs. Usage records of the run use the session id
+`routine:<external id>`; their origin stays `routine`.
+
+When the turn ends, `TurnLifecycle` closes the session (`closeRoutineThread`). A non-quiet run adds a
+short digest of its answer to the chat session's pending handoff (`appendRoutineDigest`: 1,500
+characters for each run, 6,000 in total), so the next chat turn reads it. The chat session keeps its
+id and its context. A restart during a run marks the run interrupted: the session is not saved.
+
 ## Routine calendar feed
 
 `src/main/routine-feed-server.ts` is a loopback HTTP listener that serves the routines of this

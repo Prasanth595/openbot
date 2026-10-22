@@ -1020,7 +1020,7 @@ export class RoutineScheduler implements RoutineDueSource {
       activeTurnIds.add(delivery.turnId);
     }
     if (activeTurnIds.size === 0) return cancellableRuns;
-    if (!this.#store.activeProviderSession(agentId)) {
+    if (!this.#store.activeProviderSession(agentId) && !this.#conversation.routineSession(agentId)) {
       return yield* new RoutineOperationFailed({ cause: new Error(sourceText("error.backend.routineRunNoSession")) });
     }
     for (const turnId of activeTurnIds) yield* this.#hooks.interrupt(agentId, turnId);
