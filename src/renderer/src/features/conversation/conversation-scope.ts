@@ -8,6 +8,7 @@ import {
 import type { McpSignInRelayPage, UpdateAgentInput } from "@openbot/contracts/ipc";
 import type { QuoteRequest } from "@openbot/ui/features/conversation/ComposerEditor";
 import { currentText } from "@openbot/ui/text";
+import { usesTouchLayout } from "@openbot/ui/utils";
 import { errorReference } from "@openbot/user-errors";
 import {
   createContext,
@@ -1200,8 +1201,10 @@ export function createConversationViewScope(props: ConversationProps) {
         request !== null && agentId === request.agentId && request.nonce !== lastHandledSettingsRequestNonce;
       if (agentId !== lastPanelAgentId) {
         resetPanelsForAgent(agentId, panel);
-        // The user can type to the agent they opened. A settings request keeps the focus for its panel.
-        if (agentId && !settingsRequested) setComposerFocusRequest((value) => value + 1);
+        // The user can type to the agent they opened. Edit agent leaves the focus where it is, and a touch
+        // screen does not open its keyboard over the transcript.
+        if (agentId && !channel && !settingsRequested && !usesTouchLayout())
+          setComposerFocusRequest((value) => value + 1);
       }
       if (!request || !settingsRequested) return;
       lastHandledSettingsRequestNonce = request.nonce;
