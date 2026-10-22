@@ -122,6 +122,11 @@ routine or has this routine. A run with `waitId` wakes only that wait. When no s
 the run starts without a wait. The run's input repeats the request and the agent's note, so the
 agent can continue the request.
 
+An agent can have at most 20 open waits. `openbot.list_waits` shows an agent's open waits with their
+IDs, and `openbot.close_wait` closes one by ID. With `agentId`, both tools act on another local
+agent's waits, as the routine tools do. `openbot.list_agents` shows `openWaits` for each agent that
+has open waits.
+
 Answer: `202 { "runId": string, "deliveryId": string | null }`.
 
 `202` means that the run is in the queue, not that it ran. When the agent's provider account is at

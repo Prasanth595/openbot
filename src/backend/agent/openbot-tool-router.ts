@@ -742,6 +742,7 @@ export class OpenBotToolRouter {
     if (params.tool === "list_agents") {
       // A delivery that is starting holds no turn yet, and a channel turn runs on a thread of its own.
       const unresolved = new Set(this.#mailbox.unresolvedDeliveries().map(({ delivery }) => delivery.recipientAgentId));
+      const openWaits = this.#waits.countByAgent();
       // A hidden agent takes no new messages, so the list leaves it out.
       const agents = this.#hooks
         .listAgents()
@@ -766,6 +767,7 @@ export class OpenBotToolRouter {
             queuedMessages,
             ...(working && startedAt !== null ? { turnStartedAt: new Date(startedAt).toISOString() } : {}),
             ...(lastActivity > 0 ? { lastActivityAt: new Date(lastActivity).toISOString() } : {}),
+            ...(openWaits.has(agent.id) ? { openWaits: openWaits.get(agent.id) } : {}),
           };
         });
       return openBotToolResult({ agents });

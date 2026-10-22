@@ -33,6 +33,8 @@ import {
   awaitEventToolSchema,
   CLOSE_WAIT_TOOL,
   closeWaitToolSchema,
+  LIST_WAITS_TOOL,
+  listWaitsToolSchema,
 } from "./agent-waits/agent-waits";
 import { CHANNEL_TOOL_DEFINITIONS } from "./channel-tools";
 import { MESSAGING_TOOL_DEFINITIONS } from "./messaging/messaging-tools";
@@ -339,7 +341,7 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
   {
     name: "list_agents",
     description:
-      "List local OpenBot agents with their name, title, description, and progress: status (working, queued, or ready), queuedMessages, turnStartedAt while working, and lastActivityAt. Call it to find the teammate for work outside your remit: match the work to titles and descriptions. OpenBot does not track which files an agent changed.",
+      "List local OpenBot agents with their name, title, description, and progress: status (working, queued, or ready), queuedMessages, turnStartedAt while working, lastActivityAt, and openWaits when it has open waits. Call it to find the teammate for work outside your remit: match the work to titles and descriptions. OpenBot does not track which files an agent changed.",
     shape: {},
   },
   {
@@ -450,8 +452,14 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
   {
     name: CLOSE_WAIT_TOOL,
     description:
-      "Close an open wait when its request is done, or when it can no longer be done. Leave it open to wait for the next run again.",
+      "Close an open wait when its request is done, or when it can no longer be done. Leave it open to wait for the next run again. Give agentId to close a finished wait of another local agent.",
     shape: closeWaitToolSchema.shape,
+  },
+  {
+    name: LIST_WAITS_TOOL,
+    description:
+      "List your open waits, or another local agent's when you give agentId: waitId, note, openedAt, routineId (null: any of its routines wakes it), and wokenAt. Use it to find and close waits whose request is done. Read-only.",
+    shape: listWaitsToolSchema.shape,
   },
   {
     name: START_TASK_TOOL,
