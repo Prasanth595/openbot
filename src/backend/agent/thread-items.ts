@@ -40,7 +40,7 @@ export function isCodexMissingRollout(error: unknown): boolean {
  * Codex has no rollout for this id. A new session is the recovery. Codex 0.163.0 answers
  * `thread/resume` with `no rollout found`, and `turn/start` on an unloaded thread with `thread not found`.
  */
-export function isCodexMissingThreadError(error: unknown): boolean {
+function isCodexMissingThreadError(error: unknown): boolean {
   return (
     error instanceof AppServerError &&
     (/thread not found:/i.test(error.message) || /\bno rollout found\b/i.test(error.message))

@@ -55,7 +55,9 @@ if (process.argv.includes("--version")) {
 }
 const codexHome = process.env.CODEX_HOME;
 const rolloutsPath = path.join(codexHome, "fake-rollouts.json");
+// The saved turns, as { threadId, turnId }.
 const rollouts = () => { try { return JSON.parse(fs.readFileSync(rolloutsPath, "utf8")); } catch { return []; } };
+const hasRollout = (threadId) => rollouts().some((turn) => turn.threadId === threadId);
 const control = () => { try { return JSON.parse(fs.readFileSync(process.env.OPENBOT_FAKE_CODEX_CONTROL, "utf8")); } catch { return {}; } };
 const log = (entry) => fs.appendFileSync(process.env.OPENBOT_FAKE_CODEX_LOG, JSON.stringify({ pid: process.pid, codexHome, ...entry }) + "\\n");
 log({ start: true });
@@ -85,16 +87,22 @@ const answer = (message) => {
       return write({ id: message.id, result: { thread: { id, turns: [] } } });
     }
     case "thread/resume":
-      if (!loaded.has(params.threadId) && !rollouts().includes(params.threadId))
+      if (!loaded.has(params.threadId) && !hasRollout(params.threadId))
         return write({ id: message.id, error: { code: -32600, message: "no rollout found for thread id " + params.threadId } });
       loaded.add(params.threadId);
       return write({ id: message.id, result: { thread: { id: params.threadId, turns: [] } } });
     case "thread/unsubscribe": return write({ id: message.id, result: { status: "unsubscribed" } });
     case "thread/turns/list":
-      if (!loaded.has(params.threadId) && !rollouts().includes(params.threadId))
+      if (!loaded.has(params.threadId) && !hasRollout(params.threadId))
         return write({ id: message.id, error: { code: -32600, message: "thread not loaded: " + params.threadId } });
-      return write({ id: message.id, result: { data: [], nextCursor: null } });
-    case "thread/items/list": return write({ id: message.id, result: { data: [], nextCursor: null } });
+      return write({ id: message.id, result: {
+        data: rollouts().filter((turn) => turn.threadId === params.threadId).reverse().map((turn) => ({ id: turn.turnId, status: "completed" })),
+        nextCursor: null,
+      } });
+    case "thread/items/list": {
+      const item = { type: "agentMessage", id: "message-" + params.turnId, text: "Done.", phase: "final_answer" };
+      return write({ id: message.id, result: { data: [{ turnId: params.turnId, item }], nextCursor: null } });
+    }
     case "turn/start": {
       if (control().refuseTurns) return write({ id: message.id, error: { code: -32603, message: "Fake turn refusal." } });
       if (!loaded.has(params.threadId))
@@ -103,8 +111,7 @@ const answer = (message) => {
       write({ id: message.id, result: { turn: { id: turnId, status: "inProgress", items: [] } } });
       write({ method: "turn/started", params: { threadId: params.threadId, turn: { id: turnId } } });
       setTimeout(() => {
-        const saved = rollouts();
-        if (!saved.includes(params.threadId)) fs.writeFileSync(rolloutsPath, JSON.stringify([...saved, params.threadId]));
+        fs.writeFileSync(rolloutsPath, JSON.stringify([...rollouts(), { threadId: params.threadId, turnId }]));
         const item = { type: "agentMessage", id: "message-" + turnId, text: "Done.", phase: "final_answer" };
         write({ method: "item/completed", params: { threadId: params.threadId, turnId, item } });
         write({ method: "turn/completed", params: { threadId: params.threadId, turn: { id: turnId, status: "completed" } } });
@@ -218,6 +225,13 @@ async function startApp() {
   return { database, store, agents, providerAccounts, errors };
 }
 
+/** True when the backfill completed the import of the agent's provider session after `since`. */
+function importedSince(agentId: string, since: string): boolean {
+  const session = app.store.activeProviderSession(agentId);
+  const imported = session ? app.store.database.providerHistoryImport(session.id) : null;
+  return imported?.state === "complete" && imported.updatedAt > since;
+}
+
 const idle = (app: Awaited<ReturnType<typeof startApp>>, agentId: string) =>
   !app.agents
     .listQueue(agentId)
@@ -288,6 +302,7 @@ try {
   await runCauseEffect(app.agents.stop());
   app.database.close();
   const linesBefore = protocol().length;
+  const startedAt = new Date().toISOString();
   app = await startApp();
   await runCauseEffect(app.agents.initialize());
   const reads = (pid: number) => {
@@ -305,18 +320,19 @@ try {
       .slice(linesBefore)
       .find((line) => line.start && line.codexHome === defaultHome),
   );
-  // The control is the last session read, so the others are done when it is read.
-  await waitFor("the backfill at the first start", () => reads(shared.pid).completeReads > 0);
+  // The control is the last session read, so the others are done when its import is.
+  await waitFor("the backfill at the first start", () => importedSince(complete.id, startedAt));
   report.firstStart = reads(shared.pid);
 
   // The provider restarts, and its readiness runs the backfill again.
+  const restartedAt = new Date().toISOString();
   process.kill(shared.pid, "SIGTERM");
   const restarted = await waitFor("Codex to start again", () =>
     protocol()
       .slice(linesBefore)
       .find((line) => line.start && line.codexHome === defaultHome && line.pid !== shared.pid),
   );
-  await waitFor("the backfill after the restart", () => reads(restarted.pid).completeReads > 0);
+  await waitFor("the backfill after the restart", () => importedSince(complete.id, restartedAt));
   report.providerRestart = reads(restarted.pid);
   report.backfillErrors = app.errors
     .filter((error) => error.code === "provider_history_backfill_pending")

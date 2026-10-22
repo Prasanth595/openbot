@@ -335,9 +335,10 @@ export class BootRecovery {
           const imported = this.#store.database.providerHistoryImport(session.id);
           if (imported?.state === "complete" && imported.updatedAt >= session.updatedAt) continue;
         }
-        // A session of the agent's provider can be in the folder of the agent's provider account.
+        // The active session is in the folder of the agent's provider account. An account change
+        // retires the sessions, so a retired one can be in the folder of an earlier account.
         const client =
-          session.provider === providerForAgent(agent)
+          session.externalSessionId === active?.externalSessionId
             ? this.#providers.historyClientForAgent(agent)
             : this.#providers.clientFor(session.provider);
         if (!client) continue;
