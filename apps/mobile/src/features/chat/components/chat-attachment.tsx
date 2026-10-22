@@ -1,22 +1,28 @@
-import { playableMediaKind } from "@openbot/contracts/attachment-files";
+import { attachmentFileExtension, playableMediaKind } from "@openbot/contracts/attachment-files";
 import type { AttachmentSummary } from "@openbot/contracts/ipc";
 import { MOBILE_ATTACHMENT_BYTES } from "@openbot/team-client/remote-peer";
 import { requireOptionalNativeModule } from "expo";
+import { File } from "expo-file-system";
 import { Image } from "expo-image";
+import { router } from "expo-router";
 import { Button, Skeleton, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
+import ChevronRight from "lucide-react-native/icons/chevron-right";
 import ExternalLink from "lucide-react-native/icons/external-link";
 import ImageOff from "lucide-react-native/icons/image-off";
 import { useEffect, useRef, useState } from "react";
 import { Pressable, useWindowDimensions, View } from "react-native";
 import Animated from "react-native-reanimated";
+import { showFailureAlert } from "@/features/analytics/failure-reports";
 import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
 import { attachmentFrame, FILL, FRAME_RADIUS, MAX_FRAME_WIDTH } from "../model/attachment-frame";
+import { storeCodePreview } from "../model/code-preview-store";
 import type { ImageDimensions } from "../model/image-dimensions";
 import { attachmentTypeLabel, rememberImageDimensions, useAttachmentFile } from "./attachment-preview";
 import { ImageViewer } from "./image-viewer";
 import { UPLOAD_BLUR_RADIUS, UPLOAD_SETTLE_MS, UploadProgressCircle, useUploadRevealStyle } from "./upload-progress";
+import { useMediaFile } from "./use-media-file";
 
 // The width reserved while the shape is still unknown: a portrait phone photo.
 const UNKNOWN_RATIO = 3 / 4;
@@ -28,6 +34,14 @@ const UNKNOWN_RATIO = 3 / 4;
 const chatVideo: typeof import("./chat-video.native") | null = requireOptionalNativeModule("ExpoVideo")
   ? require("./chat-video.native")
   : null;
+/** The audio player uses the same native module, so an older build shows audio as a file too. */
+const chatAudio: typeof import("./chat-audio.native") | null = chatVideo ? require("./chat-audio.native") : null;
+
+/** A Markdown file, which opens in the preview screen instead of the share sheet. */
+function isMarkdownFile(attachment: AttachmentSummary) {
+  const extension = attachmentFileExtension(attachment.name);
+  return attachment.mimeType === "text/markdown" || extension === "md" || extension === "markdown";
+}
 
 /** Two sizes with the same shape, allowing for rounding in a scaled copy. */
 function sameShape(left: ImageDimensions, right: ImageDimensions) {
@@ -40,19 +54,26 @@ interface ChatAttachmentProps {
   alignment?: "left" | "right";
   /** The sent fraction of this file, from 0 to 1, while the message that carries it is sending. */
   upload?: number;
+  /** The agent's color for the controls of a player, unless the user turned off agent colors. */
+  tint?: AttachmentTint;
+}
+
+export interface AttachmentTint {
+  color: string;
+  /** Text and icons on the color. */
+  foreground: string;
 }
 
 export function ChatAttachmentView(props: ChatAttachmentProps) {
   const { attachment } = props;
-  // A video plays once it is on the host. While it uploads, the file card shows the progress.
-  if (
-    chatVideo &&
+  // Media plays once it is on the host. While it uploads, the file card shows the progress.
+  const playable =
     props.upload === undefined &&
-    playableMediaKind(attachment.mimeType) === "video" &&
     attachment.size <= MOBILE_ATTACHMENT_BYTES &&
-    !attachment.id.startsWith("mobile-draft-attachment-")
-  )
-    return <chatVideo.ChatVideoAttachment {...props} />;
+    !attachment.id.startsWith("mobile-draft-attachment-");
+  const media = playable ? playableMediaKind(attachment.mimeType) : null;
+  if (chatVideo && media === "video") return <chatVideo.ChatVideoAttachment {...props} />;
+  if (chatAudio && media === "audio") return <chatAudio.ChatAudioAttachment {...props} />;
   return <ChatFileAttachment {...props} />;
 }
 
@@ -92,7 +113,38 @@ function ChatFileAttachment({ attachment, serverId, alignment = "left", upload }
   const shape = decoded ?? dimensions;
   const frame = attachmentFrame(shape, maxWidth, UNKNOWN_RATIO);
   const failed = Boolean(query.error) || imageFailed;
-  const busy = sharing || query.isFetching;
+  const markdown = !tooLarge && isMarkdownFile(attachment);
+  // A Markdown file downloads when the user opens it, to the same place a player reads from.
+  const markdownFile = useMediaFile(serverId, attachment, false);
+  const [opening, setOpening] = useState(false);
+  const busy = sharing || query.isFetching || opening;
+
+  async function openMarkdown() {
+    setOpening(true);
+    try {
+      const result = markdownFile.data ? { data: markdownFile.data, error: null } : await markdownFile.refetch();
+      if (result.error) throw result.error;
+      if (!result.data) throw new Error(t("mobile.chat.attachment.unavailable"));
+      const source = await new File(result.data).text();
+      const previewId = storeCodePreview({
+        kind: "markdown",
+        source,
+        language: "markdown",
+        file: { uri: result.data, name: attachment.name, mimeType: attachment.mimeType },
+      });
+      router.push({ pathname: "/code-preview/[previewId]", params: { previewId } });
+    } catch (error) {
+      void haptics.notification("error");
+      showFailureAlert(
+        error,
+        "turn",
+        t("mobile.chat.attachment.openFailed"),
+        error instanceof Error ? sourceText(error.message) : t("mobile.chat.tryAgain"),
+      );
+    } finally {
+      setOpening(false);
+    }
+  }
 
   if (image)
     return (
@@ -240,13 +292,18 @@ function ChatFileAttachment({ attachment, serverId, alignment = "left", upload }
         className="h-auto flex-row justify-start gap-3 rounded-2xl border border-border bg-control p-3"
         style={{ width: maxWidth, maxWidth: "100%" }}
         isDisabled={pending || busy || tooLarge}
-        accessibilityLabel={t("mobile.chat.attachment.openOrSave", { name: attachment.name })}
+        accessibilityLabel={
+          markdown
+            ? t("mobile.chat.attachment.preview", { name: attachment.name })
+            : t("mobile.chat.attachment.openOrSave", { name: attachment.name })
+        }
         accessibilityHint={tooLarge ? t("mobile.chat.attachment.tooLargeHint") : undefined}
         // The card is one element to a screen reader, so the progress inside it is read from here.
         accessibilityValue={upload !== undefined ? { min: 0, max: 100, now: Math.round(upload * 100) } : undefined}
         onPress={() => {
           void haptics.impact("soft");
-          share();
+          if (markdown) void openMarkdown();
+          else share();
         }}
       >
         <View className="size-11 items-center justify-center rounded-xl bg-success/15">
@@ -265,6 +322,8 @@ function ChatFileAttachment({ attachment, serverId, alignment = "left", upload }
         {/* Where the share icon will be: the file's progress, then a check, then the icon. */}
         {shownUpload !== undefined ? (
           <UploadProgressCircle progress={shownUpload} />
+        ) : markdown ? (
+          <ChevronRight size={18} color={muted} />
         ) : (
           <ExternalLink size={18} color={muted} />
         )}

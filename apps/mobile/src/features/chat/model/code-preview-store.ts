@@ -1,9 +1,12 @@
 import type { ChatPreviewKind } from "@openbot/contracts/chat-preview";
 
 export interface CodePreviewEntry {
-  kind: ChatPreviewKind;
+  /** A ```html or ```mermaid block from a reply, or a Markdown file from the chat. */
+  kind: ChatPreviewKind | "markdown";
   source: string;
   language?: string;
+  /** The file the source came from. The screen shows its name and can share it. */
+  file?: { uri: string; name: string; mimeType: string };
 }
 
 // A route param cannot carry a whole page, so the chat keeps the block here and passes its id. The

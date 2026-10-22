@@ -84,7 +84,7 @@ import type { ChatTarget } from "../model/chat-target";
 import { nativeTextSelection } from "../model/native-text-selection";
 import { isStreamingReply } from "../model/reply-reveal";
 import { uploadProgressAt } from "../model/upload-progress";
-import { ChatAttachmentView } from "./chat-attachment";
+import { type AttachmentTint, ChatAttachmentView } from "./chat-attachment";
 import { ChatImageGeneration, imageGenerationStatus } from "./chat-image-generation";
 import { ChatMessageActions } from "./chat-message-actions";
 import { ChatMessageGesture } from "./chat-message-gesture";
@@ -301,6 +301,8 @@ interface MessageRowShared {
   userForeground: string;
   /** Unset when the user's messages do not use the agent color. */
   userBubbleStyle: ComponentProps<typeof Animated.View>["style"] | undefined;
+  /** The agent color for the controls of an attachment, unset with the same setting. */
+  attachmentTint: AttachmentTint | undefined;
   firstMessageStyle: ComponentProps<typeof Animated.View>["style"];
   /** Arriving replies animate: the screen is focused, online, active, and shows the response. */
   animationActive: boolean;
@@ -555,6 +557,7 @@ const MessageRow = memo(function MessageRow({
             serverId={serverId}
             alignment={message.author === "user" ? "right" : "left"}
             upload={upload ? uploadProgressAt(index, upload.completed, upload.current) : undefined}
+            tint={shared.attachmentTint}
           />
         ))}
         {upload && upload.completed < (message.attachments?.length ?? 0) ? (
@@ -1016,6 +1019,7 @@ export const ChatMessageList = memo(function ChatMessageList({
       foreground,
       userForeground,
       userBubbleStyle: agentColorMessages ? userBubbleStyle : undefined,
+      attachmentTint: agentColorMessages ? { color: userBubbleColor, foreground: userForeground } : undefined,
       firstMessageStyle: motion.firstMessageStyle,
       animationActive,
       playbackActive: animationActive && textReveal && !screenReaderEnabled,
@@ -1039,6 +1043,7 @@ export const ChatMessageList = memo(function ChatMessageList({
       foreground,
       userForeground,
       userBubbleStyle,
+      userBubbleColor,
       agentColorMessages,
       motion.firstMessageStyle,
       screenReaderEnabled,
