@@ -416,7 +416,11 @@ export function AgentInformation({
                 key={recordId}
                 agent={agent}
                 available={available && !routines.isError && !(eventsEnabled && eventRoutines.isError)}
-                routine={allRoutines.find((item) => item.id === recordId)}
+                // The event record carries what the routine does with missed runs; the released one does not.
+                routine={
+                  eventRoutines.data?.find((item) => item.id === recordId) ??
+                  allRoutines.find((item) => item.id === recordId)
+                }
               />
             ) : (
               <SettingsRow>

@@ -1,5 +1,39 @@
 [
   {
+    "version": "0.48.0",
+    "date": "2026-10-22",
+    "notices": [],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "Channels are back. Create one from the + menu in the sidebar. Restore a deleted or archived channel from its row menu in Deleted channels.",
+          "Settings → General → Appearance has an Interface size control. Zoom In, Zoom Out and Actual Size in the View menu also change it.",
+          "In a voice conversation, speak while the agent thinks or reads its reply to interrupt it.",
+          "Owners and admins of a joined server can set an agent's backup models.",
+          "Settings → Voice has a Remove button for each downloaded voice model.",
+          "Edit a saved custom endpoint in Server settings → Providers → Custom."
+        ]
+      },
+      {
+        "type": "changed",
+        "items": [
+          "Tasks opens in the main pane, as Routines does.",
+          "The Usage tab shows tokens without cache reads in its total.",
+          "A routine run in an agent's own chat starts its own provider session, so it uses fewer tokens."
+        ]
+      },
+      {
+        "type": "fixed",
+        "items": [
+          "An agent question that lets you pick more than one option shows check boxes and a Submit answer button.",
+          "Agent chats stay at the latest message while a turn runs.",
+          "Claude usage counts each turn once after OpenBot resumes a session."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.47.1",
     "date": "2026-10-21",
     "notices": [],

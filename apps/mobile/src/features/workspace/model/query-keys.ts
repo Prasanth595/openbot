@@ -56,6 +56,16 @@ export const queryKeys = {
     ...queryKeys.agentRecord(scope, serverId, agentId, "routines"),
     "flow",
   ],
+  /** Under the agent's routines, so the routine change events reload them too. */
+  agentRoutineResultOptions: (scope: QueryScope, serverId: string, agentId: string) => [
+    ...queryKeys.agentRecord(scope, serverId, agentId, "routines"),
+    "result-options",
+  ],
+  agentRoutineResultDestination: (scope: QueryScope, serverId: string, agentId: string, routineId: string) => [
+    ...queryKeys.agentRecord(scope, serverId, agentId, "routines"),
+    "result-destination",
+    routineId,
+  ],
   agentProviderAccounts: (scope: QueryScope, serverId: string, agentId: string) => [
     ...queryKeys.agentInfo(scope, serverId, agentId),
     "provider-accounts",

@@ -699,6 +699,18 @@ code.routine-webhook-secret {
   gap: var(--openbot-space-2);
 }
 
+/* In a chat card the rows are one block, so the card gap does not split them, and they line up
+ * with the card title. */
+.routine-webhook-card-endpoint {
+  display: grid;
+  border-bottom: 1px solid var(--openbot-border);
+}
+
+.routine-webhook-card-endpoint > .routine-webhook-field,
+.routine-webhook-card-endpoint > .routine-webhook-note {
+  padding-left: 0;
+}
+
 .routine-webhook-events {
   display: grid;
   gap: var(--openbot-space-3);

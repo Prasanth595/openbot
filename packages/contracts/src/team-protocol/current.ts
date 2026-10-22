@@ -62,6 +62,7 @@ import { TEAM_QUEUE_EDIT_CAPABILITY } from "./queue-edit-v1";
 import { QUIET_TURN_CAPABILITY } from "./quiet-turn-v1";
 import { ROUTINE_FLOWS_CAPABILITY } from "./routine-flows-v1";
 import { ROUTINE_RECOVERY_CAPABILITY } from "./routine-recovery-v1";
+import { ROUTINE_RESULTS_CAPABILITY } from "./routine-results-v1";
 import { SHARED_TABLES_CAPABILITY } from "./shared-tables-v1";
 import { SIDE_QUESTION_CAPABILITY } from "./side-question-v1";
 import { SIGN_IN_RELAY_CAPABILITY } from "./sign-in-relay-v1";
@@ -153,6 +154,7 @@ export {
   QUIET_TURN_CAPABILITY,
   ROUTINE_FLOWS_CAPABILITY,
   ROUTINE_RECOVERY_CAPABILITY,
+  ROUTINE_RESULTS_CAPABILITY,
   SHARED_TABLES_CAPABILITY,
   SIDE_QUESTION_CAPABILITY,
   SIGN_IN_RELAY_CAPABILITY,
@@ -262,6 +264,7 @@ export const TEAM_CURRENT_CAPABILITIES = [
   TEAM_PROMPT_MULTI_SELECT_CAPABILITY,
   TEAM_CHANNEL_ATTENTION_CAPABILITY,
   AGENT_BACKUP_MODELS_CAPABILITY,
+  ROUTINE_RESULTS_CAPABILITY,
 ] as const;
 
 export type TeamCurrentCapability = (typeof TEAM_CURRENT_CAPABILITIES)[number];
@@ -366,7 +369,8 @@ export const TEAM_BOOTSTRAP_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
     capability !== AGENT_ACCESS_CAPABILITY &&
     capability !== TEAM_PROMPT_MULTI_SELECT_CAPABILITY &&
     capability !== TEAM_CHANNEL_ATTENTION_CAPABILITY &&
-    capability !== AGENT_BACKUP_MODELS_CAPABILITY,
+    capability !== AGENT_BACKUP_MODELS_CAPABILITY &&
+    capability !== ROUTINE_RESULTS_CAPABILITY,
 );
 // A v7 host does not know the v8 markers, so a client sends them only after it negotiates protocol 8.
 const TEAM_PROTOCOL_V7_CURRENT_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
@@ -414,6 +418,7 @@ export function legacyTeamCapabilities(capabilities: readonly string[]): string[
       capability !== AGENT_ACCESS_CAPABILITY &&
       capability !== TEAM_PROMPT_MULTI_SELECT_CAPABILITY &&
       capability !== TEAM_CHANNEL_ATTENTION_CAPABILITY &&
-      capability !== AGENT_BACKUP_MODELS_CAPABILITY,
+      capability !== AGENT_BACKUP_MODELS_CAPABILITY &&
+      capability !== ROUTINE_RESULTS_CAPABILITY,
   );
 }

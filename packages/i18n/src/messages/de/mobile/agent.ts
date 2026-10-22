@@ -251,6 +251,20 @@ export const messages = {
   "mobile.agent.record.dayOfMonth": "Tag des Monats",
   "mobile.agent.record.minute": "Minute",
   "mobile.agent.record.timeZone": "Zeitzone",
+  "mobile.agent.record.missedPolicy": "Wenn der Server zur geplanten Zeit aus war",
+  "mobile.agent.record.missedPolicy.skip": "Diese Ausführung überspringen",
+  "mobile.agent.record.missedPolicy.runOnce": "Einmal ausführen, wenn der Server wieder läuft",
+  "mobile.agent.record.resultDestination": "Antworten senden an",
+  "mobile.agent.record.resultDestination.none": "Nur dieser Chat",
+  "mobile.agent.record.resultDestination.unavailable": "{place} (aus)",
+  "mobile.agent.record.resultDestination.placesFailed": "Die Orte von {connection} konnten nicht geladen werden.",
+  "mobile.agent.record.resultDestination.loadFailed": "Die Messaging-Orte konnten nicht geladen werden.",
+  "mobile.agent.record.resultDestination.saveFailed":
+    "Der Messaging-Ort konnte nicht gespeichert werden. Versuche es erneut.",
+  "mobile.agent.record.resultDestination.createFailed":
+    "Die Routine ist gespeichert, aber ihr Messaging-Ort nicht. Öffne die Routine und wähle den Ort erneut.",
+  "mobile.agent.record.resultDestinationUnsupported":
+    "Dieser Host kann Antworten von Routinen nicht an einen Messaging-Ort senden. Aktualisiere OpenBot auf dem Host.",
   "mobile.agent.record.enabled": "Aktiviert",
   "mobile.agent.record.routine": "Routine",
   "mobile.agent.record.testStarting": "Wird gestartet…",

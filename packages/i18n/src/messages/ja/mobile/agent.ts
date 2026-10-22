@@ -246,6 +246,20 @@ export const messages = {
   "mobile.agent.record.dayOfMonth": "日付",
   "mobile.agent.record.minute": "分",
   "mobile.agent.record.timeZone": "タイムゾーン",
+  "mobile.agent.record.missedPolicy": "予定時刻にサーバーがオフだった場合",
+  "mobile.agent.record.missedPolicy.skip": "この実行をスキップ",
+  "mobile.agent.record.missedPolicy.runOnce": "サーバーが戻ったときに 1 回実行",
+  "mobile.agent.record.resultDestination": "回答の送信先",
+  "mobile.agent.record.resultDestination.none": "このチャットのみ",
+  "mobile.agent.record.resultDestination.unavailable": "{place}（オフ）",
+  "mobile.agent.record.resultDestination.placesFailed": "{connection} の場所を読み込めませんでした。",
+  "mobile.agent.record.resultDestination.loadFailed": "メッセージの送信先を読み込めませんでした。",
+  "mobile.agent.record.resultDestination.saveFailed":
+    "メッセージの送信先を保存できませんでした。もう一度お試しください。",
+  "mobile.agent.record.resultDestination.createFailed":
+    "ルーティンは保存されましたが、メッセージの送信先は保存されていません。ルーティンを開いて送信先をもう一度選んでください。",
+  "mobile.agent.record.resultDestinationUnsupported":
+    "このホストはルーティンの回答をメッセージの送信先に送れません。ホストの OpenBot を更新してください。",
   "mobile.agent.record.enabled": "有効",
   "mobile.agent.record.routine": "ルーティン",
   "mobile.agent.record.testStarting": "開始中…",

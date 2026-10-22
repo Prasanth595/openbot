@@ -160,6 +160,12 @@ export const messages = {
   "routine.card.created": "Rutin oluşturuldu",
   "routine.card.updated": "Rutin güncellendi",
   "routine.card.open": "{name} rutinini aç",
+  "routine.card.webhookCreated": "Webhook rutini oluşturuldu",
+  "routine.card.webhookSecretNote": "İmza sırrını almak için yeniden oluşturun. Ajan sırrı almaz.",
+  "routine.card.webhookUpdated": "Webhook rutini güncellendi",
+  "routine.card.webhookChanged": "Değişiklikler kaydedilmedi",
+  "routine.card.webhookSaveFailed": "Olaylar kaydedilemedi.",
+  "routine.card.webhookFiltersInvalid": "Bir filtrenin JSON Pointer değeri geçersiz.",
 
   "routine.timezoneMove.title": "Saat diliminiz artık {zone}",
   "routine.timezoneMove.description": {

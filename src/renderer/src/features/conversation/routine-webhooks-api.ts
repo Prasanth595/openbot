@@ -1,3 +1,4 @@
+import type { ServerSummary } from "@openbot/contracts/ipc";
 import type {
   EventActivity,
   EventRoutine,
@@ -24,6 +25,8 @@ import {
 } from "@openbot/team-client/team-admin-requests";
 import type { TeamApiRequest } from "@openbot/team-client/team-api-requests";
 import { Effect } from "effect";
+import { remoteRoutineRecovery, serverCanAdminister } from "../servers/server-capabilities";
+import type { ConversationRuntime } from "./conversation-runtime";
 
 /** The webhook operations of one host that the routine editor uses. Every action names its routine. */
 export interface RoutineWebhooksApi {
@@ -43,6 +46,19 @@ export interface EventRoutinesApi extends RoutineWebhooksApi {
    * The same host also reads and saves `missedPolicy`.
    */
   readonly listRuns?: ((input: ListEventRoutineRunsInput) => Promise<EventRoutineRun[]>) | undefined;
+}
+
+/**
+ * The event API of the host of a desktop chat, when this person can manage its webhook routines.
+ * A chat with a `runtime` is the browser client, which has no desktop bridge.
+ */
+export function desktopChatEventRoutinesApi(
+  server: ServerSummary | undefined,
+  runtime: ConversationRuntime | undefined,
+): EventRoutinesApi | undefined {
+  return !runtime && serverCanAdminister(server, "events-v1")
+    ? desktopEventRoutinesApi(server.id, remoteRoutineRecovery(server))
+    : undefined;
 }
 
 /**

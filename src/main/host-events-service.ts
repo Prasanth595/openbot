@@ -18,12 +18,20 @@ import {
 import { WEBHOOK_ROUTES_LIMIT } from "@openbot/contracts/signal-protocol/webhook-route";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, registerSecretValue } from "@openbot/logging";
+import { RoutineInputError } from "@openbot/team-client/routine-schedule";
 import { Effect, Semaphore } from "effect";
+import { RoutineOperationFailed } from "../backend/agent/routine-scheduler";
+import type { WebhookRoutineWriter } from "../backend/agent/webhook-routine-tool";
 import { causeHelpers } from "../backend/effect-boundary";
 import type { RoutineRecords } from "../backend/routine-records";
 import type { OwnedRoutineRecord, RoutineRecordInput } from "../backend/routine-store";
 import { WEBHOOK_EVENT_TYPE_MAX_LENGTH } from "../backend/webhook-trigger";
-import { type HostEventsApi, HostEventsFailure, WebhookRouteConflict } from "./host-events-api";
+import {
+  type HostEventsApi,
+  HostEventsFailure,
+  hostEventsFailureMessage,
+  WebhookRouteConflict,
+} from "./host-events-api";
 import type { SecretCipher } from "./provider-credential-store";
 import type { WebhookIngressDelivery } from "./signal-ingress";
 import { verifyWebhookSignature } from "./webhook-security";
@@ -404,4 +412,30 @@ export class HostEventsService implements HostEventsApi {
       return this.#options.cipher.encrypt(secret).toString("base64");
     });
   });
+}
+
+/**
+ * The webhook routine tools of an agent, through the events service. A new routine's save makes the
+ * first secret, and this drops it: the tool result goes to the model provider. The chat card makes
+ * a new secret for the user.
+ */
+export function agentWebhookRoutineWriter(events: HostEventsService): WebhookRoutineWriter {
+  return {
+    save: ({ routineId, agentId, eventType, filters, ...routine }) =>
+      events
+        .saveRoutine({
+          ...routine,
+          ...(routineId === undefined ? {} : { id: routineId }),
+          owner: { kind: "agent", id: agentId },
+          trigger: { kind: "webhook", eventType, filters },
+        })
+        .pipe(
+          Effect.map((saved) => saved.routine),
+          Effect.mapError((failure) => {
+            // A reason the model can correct, such as the route limit, comes back as a tool failure.
+            const message = hostEventsFailureMessage(failure);
+            return new RoutineOperationFailed({ cause: message === null ? failure : new RoutineInputError(message) });
+          }),
+        ),
+  };
 }

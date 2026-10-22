@@ -162,6 +162,13 @@ export const messages = {
   "routine.card.created": "Routine créée",
   "routine.card.updated": "Routine mise à jour",
   "routine.card.open": "Ouvrir la routine {name}",
+  "routine.card.webhookCreated": "Routine webhook créée",
+  "routine.card.webhookSecretNote":
+    "Pour obtenir le secret de signature, régénérez-le. L’agent ne reçoit pas le secret.",
+  "routine.card.webhookUpdated": "Routine webhook mise à jour",
+  "routine.card.webhookChanged": "Modifications non enregistrées",
+  "routine.card.webhookSaveFailed": "Impossible d’enregistrer les événements.",
+  "routine.card.webhookFiltersInvalid": "Un filtre a un JSON Pointer non valide.",
 
   "routine.timezoneMove.title": "Votre fuseau horaire est maintenant {zone}",
   "routine.timezoneMove.description": {

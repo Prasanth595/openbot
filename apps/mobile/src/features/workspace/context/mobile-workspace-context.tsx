@@ -31,6 +31,8 @@ import { PROVIDER_ACCOUNTS_CAPABILITY } from "@openbot/contracts/team-protocol/p
 import { PROVIDERS_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/providers-v1";
 import { ANDROID_PUSH_NOTIFICATIONS_CAPABILITY } from "@openbot/contracts/team-protocol/push-notifications-android-v1";
 import { PUSH_NOTIFICATIONS_CAPABILITY } from "@openbot/contracts/team-protocol/push-notifications-v1";
+import { ROUTINE_RECOVERY_CAPABILITY } from "@openbot/contracts/team-protocol/routine-recovery-v1";
+import { ROUTINE_RESULTS_CAPABILITY } from "@openbot/contracts/team-protocol/routine-results-v1";
 import { SHARED_TABLES_CAPABILITY } from "@openbot/contracts/team-protocol/shared-tables-v1";
 import { SKILLS_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/skills-admin-v1";
 import type { TeamProtocolV2Json } from "@openbot/contracts/team-protocol/v2";
@@ -1760,6 +1762,9 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       canSendNotifications: (serverId) =>
         servers.some((server) => server.id === serverId && showsOnline(server)) && supportsPushNotifications(serverId),
       canManageEvents: (serverId) => administers(serverId, EVENTS_CAPABILITY),
+      canManageMissedRuns: (serverId) =>
+        administers(serverId, EVENTS_CAPABILITY) && administers(serverId, ROUTINE_RECOVERY_CAPABILITY),
+      canManageRoutineResults: (serverId) => administers(serverId, ROUTINE_RESULTS_CAPABILITY),
       canManageAgentSkills: (serverId) => administers(serverId, SKILLS_ADMIN_CAPABILITY),
       canManageSharedTables: (serverId) => administers(serverId, SHARED_TABLES_CAPABILITY),
       canManageAgentAccess: (serverId) => administers(serverId, AGENT_ADMIN_CAPABILITY),

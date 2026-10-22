@@ -66,10 +66,14 @@ import type {
   RoutineCalendarInput,
   RoutineCalendarOwner,
   RoutineFlowCanvas,
+  RoutineResultConnectionOption,
+  RoutineResultDestination,
+  RoutineResultRoutineInput,
   SetAgentMemoryInclusionInput,
   SetAgentProviderAccountInput,
   SetAgentSessionSettingInput,
   SetEnabledSkillInput,
+  SetRoutineResultDestinationInput,
   SharedTable,
   SidebarLayoutAction,
   SidebarLayoutSnapshot,
@@ -388,6 +392,24 @@ export interface MobileWorkspaceContextValue {
   testAgentRoutine: (agentId: string, routineId: string, serverId: string) => Promise<void>;
   /** Event administration is available only to owners and admins on hosts with events-v1. */
   canManageEvents: (serverId: string) => boolean;
+  /**
+   * An owner or admin of a host with events-v1 and `routine-recovery-v1`: the event routes then carry
+   * what a scheduled routine does with the runs that came due while the host was off.
+   */
+  canManageMissedRuns: (serverId: string) => boolean;
+  /** An owner or admin of a host with `routine-results-v1`: an agent routine can send its answers on. */
+  canManageRoutineResults: (serverId: string) => boolean;
+  /** The host's enabled messaging connections, with the places that each one can post in. */
+  loadRoutineResultOptions: (serverId: string) => Promise<RoutineResultConnectionOption[]>;
+  loadRoutineResultDestination: (
+    input: RoutineResultRoutineInput,
+    serverId: string,
+  ) => Promise<RoutineResultDestination | null>;
+  /** A null destination stops sending. The host refuses a connection that is off. */
+  setRoutineResultDestination: (
+    input: SetRoutineResultDestinationInput,
+    serverId: string,
+  ) => Promise<RoutineResultDestination | null>;
   listEventRoutines: (owner: EventRoutineOwner, serverId: string) => Promise<EventRoutine[]>;
   /** The result has the signing secret only when the save made a new webhook trigger. */
   saveEventRoutine: (input: SaveEventRoutineInput, serverId: string) => Promise<SaveEventRoutineResult>;
@@ -615,6 +637,8 @@ type MobileWorkspaceStateKey =
   | "canManageMcpServers"
   | "canSendNotifications"
   | "canManageEvents"
+  | "canManageMissedRuns"
+  | "canManageRoutineResults"
   | "canManageAgentSkills"
   | "canManageAgentAccess"
   | "canManageAgentHostSettings"

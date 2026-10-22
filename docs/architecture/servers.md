@@ -302,6 +302,7 @@ host advertises a capability only when its `TeamApiAdmin` member exists.
 | `discord-access-v1` | Read and set which Discord roles can use OpenBot in a Discord server; list its roles | `messaging` |
 | `events-v1` | Manage webhook routines, their secrets, and activity | `events` |
 | `routine-recovery-v1` | Read and set a routine's missed-run policy; read its runs with the missed occurrences | `events` |
+| `routine-results-v1` | List the messaging connections and their places; read and set where an agent routine sends its answers. Deliveries stay on the host | none: only the mobile app sends it |
 
 These IPC groups take a required server id and route with `scopedHandler`. A key travels only towards
 the host; no response carries one. `providers-v1` has no progress event, so the renderer reads runtime
