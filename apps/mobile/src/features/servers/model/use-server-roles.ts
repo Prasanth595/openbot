@@ -90,9 +90,11 @@ export function useAgentViewOnly(serverId: string, agentId: string): boolean {
   const access = useQuery({
     queryKey: queryKeys.serverRoles(queryScope, serverId),
     enabled: hasAgentAccessLimits(serverId),
+    // Kept while the app runs: offline, the last levels that the host sent still apply. After a
+    // restart offline, the levels are unknown until the host answers.
+    gcTime: Number.POSITIVE_INFINITY,
     queryFn: () => loadServerRoles(serverId),
   });
-  // Offline, the last levels that the host sent still apply.
   return access.data?.mine[agentId] === "view";
 }
 
