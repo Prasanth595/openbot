@@ -107,7 +107,7 @@ export interface BrowserTabProfile {
   hue: AvatarHue | null;
 }
 
-function decodeSummary(value: unknown): BrowserProfileSummary {
+export function decodeBrowserProfileSummary(value: unknown): BrowserProfileSummary {
   const name = isDynamicRecord(value) ? browserProfileName(value.name) : null;
   if (
     !isDynamicRecord(value) ||
@@ -122,10 +122,6 @@ function decodeSummary(value: unknown): BrowserProfileSummary {
   return { id: value.id, name, hue: value.hue, agentIds: [...value.agentIds], tabCount: value.tabCount };
 }
 
-export function decodeBrowserProfileSummary(value: unknown): BrowserProfileSummary {
-  return decodeSummary(value);
-}
-
 export function decodeBrowserProfileList(value: unknown): BrowserProfileList {
   if (
     !isDynamicRecord(value) ||
@@ -135,7 +131,7 @@ export function decodeBrowserProfileList(value: unknown): BrowserProfileList {
     !value.sharedAgentIds.every(isIdentifier)
   )
     throw new Error("Invalid browser profiles.");
-  return { profiles: value.profiles.map(decodeSummary), sharedAgentIds: [...value.sharedAgentIds] };
+  return { profiles: value.profiles.map(decodeBrowserProfileSummary), sharedAgentIds: [...value.sharedAgentIds] };
 }
 
 export function decodeAgentBrowserProfile(value: unknown): AgentBrowserProfile {

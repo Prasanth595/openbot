@@ -57,10 +57,6 @@ export function agentQuickAcknowledgementEnabled(agent: { quickAcknowledgement?:
   return agent.quickAcknowledgement === true;
 }
 
-export function agentOwnBrowserSessionEnabled(agent: { ownBrowserSession?: boolean | undefined }): boolean {
-  return agent.ownBrowserSession === true;
-}
-
 /**
  * Whether this agent runs inside the workspace sandbox now. Every provider enforces it. Codex runs the
  * agent in its `workspace-write` sandbox. Claude runs Bash in its sandbox and asks before a file edit
@@ -198,8 +194,8 @@ export interface AgentSummary {
   quickAcknowledgement?: boolean;
   /**
    * Whether the browser tabs of the agent use a session of their own, with their own cookies and
-   * sign-ins. Local-only, like `access`. Absent means off: the tabs use the shared session; see
-   * `agentOwnBrowserSessionEnabled`.
+   * sign-ins. Local-only, like `access`. Absent means off: the tabs use the shared session. When
+   * `browserProfileId` is also set, the named profile applies; see `agentBrowserProfile`.
    */
   ownBrowserSession?: boolean;
   /**
