@@ -182,9 +182,9 @@ try {
     assert.ok(!redactText(`curl -H "Authorization: Bearer ${KEY}"`).includes(KEY));
   });
 
-  await step("an admin replaces the key", async () => {
+  await step("an admin replaces the key, and the pasted spaces are not saved", async () => {
     const { id, spec } = requestKey({ name: "OPENAI_API_KEY", title: "New OpenAI API key" }, "turn-2");
-    await answer(id, submitted(spec, NEW_KEY), ADMIN);
+    await answer(id, submitted(spec, `  ${NEW_KEY}\t`), ADMIN);
     assert.equal(agentAnswer(client.answers.get(id)).status, "saved");
     assert.equal(await readFile(join(root, "agent-api-keys", AGENT, "OPENAI_API_KEY"), "utf8"), NEW_KEY);
   });

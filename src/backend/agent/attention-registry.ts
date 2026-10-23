@@ -456,9 +456,11 @@ export class AttentionRegistry {
       const apiKey = pending?.uiBlock?.apiKey;
       if (!pending?.uiBlock || !apiKey) return null;
       if (pending.savingApiKey) throw new Error(sourceText("error.backend.apiKeySaving"));
-      const value = uiBlockAnswer(pending.uiBlock.spec, input.answers, responder)?.values?.[API_KEY_FIELD_ID];
+      const answered = uiBlockAnswer(pending.uiBlock.spec, input.answers, responder)?.values?.[API_KEY_FIELD_ID];
+      // A pasted key often brings a space or a line break, which the service would refuse.
+      const value = typeof answered === "string" ? answered.trim() : "";
       // A skip saves nothing, so a member may give it: the turn must not wait for an owner.
-      if (typeof value !== "string" || value === "") return null;
+      if (value === "") return null;
       // The key goes to an agent of this server that every member may run.
       if (responder && !responder.privileged)
         throw new ForbiddenAttentionAnswer(sourceText("error.backend.apiKeyNotAllowed"));

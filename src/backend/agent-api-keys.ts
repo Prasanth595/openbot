@@ -4,6 +4,7 @@ import { sourceText } from "@openbot/i18n/source";
 import { registerSecretValue } from "@openbot/logging";
 import { Effect, Schema } from "effect";
 import { writeFileAtomically } from "./atomic-json-file";
+import { isMissingFileError } from "./file-errors";
 
 /** An environment variable name, which is also the file name of the key. */
 export const API_KEY_NAME_PATTERN = /^[A-Z][A-Z0-9_]{0,63}$/;
@@ -59,9 +60,14 @@ export class AgentApiKeys {
   /** False when the agent has no key with that name. */
   readonly remove = Effect.fn("AgentApiKeys.remove")(function* (this: AgentApiKeys, agentId: string, name: string) {
     const path = yield* this.#keyPath(agentId, name);
-    const saved = (yield* this.list(agentId)).some((key) => key.name === name);
-    if (saved) yield* Effect.tryPromise({ try: () => rm(path, { force: true }), catch: failed });
-    return saved;
+    return yield* Effect.tryPromise({
+      try: () =>
+        rm(path).then(
+          () => true,
+          (error: unknown) => (isMissingFileError(error) ? false : Promise.reject(error)),
+        ),
+      catch: failed,
+    });
   });
 
   /** Removes every key of a deleted agent. */
@@ -97,7 +103,7 @@ async function folderNames(folder: string): Promise<string[]> {
   try {
     return await readdir(folder);
   } catch (error) {
-    if (error instanceof Error && "code" in error && error.code === "ENOENT") return [];
+    if (isMissingFileError(error)) return [];
     throw error;
   }
 }
