@@ -348,6 +348,28 @@ const server = createServer((request, response) => {
     } else setTimeout(finish, 250);
     return;
   }
+  // The page starts a second main-frame navigation while the first load is still open, as a sign-in
+  // or consent redirect does. `loadURL` then rejects inside Electron's `did-start-navigation` event.
+  // The slow image keeps the first load open until the redirect starts.
+  if (url.pathname === "/redirect-start") {
+    response.setHeader("content-type", "text/html; charset=utf-8");
+    response.end(
+      `<!doctype html><script>setTimeout(() => location.replace('/redirect-end${url.search}'), 0)</script><img src="/redirect-image">`,
+    );
+    return;
+  }
+  if (url.pathname === "/redirect-image") {
+    setTimeout(() => response.end(), 300);
+    return;
+  }
+  if (url.pathname === "/redirect-end") {
+    response.setHeader("content-type", "text/html; charset=utf-8");
+    if (url.search === "?slow") {
+      response.write("<!doctype html><main>loading</main>");
+      setTimeout(() => response.end("<script>document.querySelector('main').textContent='redirected'</script>"), 200);
+    } else response.end("<!doctype html><main>redirected</main>");
+    return;
+  }
   if (url.pathname === "/v2") {
     const port = request.socket.localPort;
     response.setHeader("content-type", "text/html; charset=utf-8");
@@ -409,6 +431,7 @@ const SCENARIOS = [
   "live-view",
   "secret-handoff",
   "popups",
+  "redirect-navigation",
 ];
 
 void main().catch((error) => {
@@ -492,6 +515,8 @@ async function main(): Promise<void> {
           await runSecretHandoffScenario(browser, origin);
         } else if (scenario === "tool-boundary") {
           await runToolBoundaryScenario(browser, origin);
+        } else if (scenario === "redirect-navigation") {
+          await runRedirectNavigationScenario(browser, origin);
         } else {
           const { tab, contents } = await openTabWithContents(browser, `${origin}/v2`, "smoke-thread", "smoke-bot");
           try {
@@ -580,6 +605,7 @@ async function main(): Promise<void> {
     process.stdout.write("BrowserHost: snapshot and actions passed.\n");
 
     await runDoubleClickScenario(browser, origin);
+    await runRedirectNavigationScenario(browser, origin);
     const v2Tab = await runCauseEffect(browser.open(`${origin}/v2`, "smoke-thread", "smoke-bot"));
     const v2Contents = webContents
       .getAllWebContents()
@@ -1980,6 +2006,53 @@ async function runFocusScenario(browser: BrowserHost, origin: string): Promise<v
   if (focusLosses !== 0) throw new Error(`Background browser actions interrupted typing ${focusLosses} times.`);
   await runCauseEffect(browser.close(backgroundTab.id));
   focusSentinel.destroy();
+}
+
+/**
+ * A page that redirects while it loads made `loadURL` reject inside Electron's `did-start-navigation`
+ * event, and the tab then called `webContents.stop()` before that event returned. Chromium stops the
+ * process when a navigation is cancelled while it starts. The process must survive and end on the
+ * redirected page.
+ */
+async function runRedirectNavigationScenario(browser: BrowserHost, origin: string): Promise<void> {
+  const tab = await runCauseEffect(browser.open(origin, "smoke-thread", "smoke-bot"));
+  const outcomes: { via: string; url: string; success: boolean; error?: string }[] = [];
+  try {
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      for (const url of [`${origin}/redirect-start`, `${origin}/redirect-start?slow`]) {
+        const result = await callBrowserTool(browser, "navigate", { tabId: tab.id, url, timeoutMs: 5_000 });
+        outcomes.push({
+          via: "tool",
+          url,
+          success: result.success,
+          ...(result.success ? {} : { error: toolError(result) }),
+        });
+        const exit = await Effect.runPromiseExit(browser.loadUrl(tab.id, url));
+        outcomes.push({
+          via: "loadUrl",
+          url,
+          success: exit._tag === "Success",
+          ...(exit._tag === "Success" ? {} : { error: String(exit.cause) }),
+        });
+      }
+    }
+    await waitFor(
+      async () =>
+        browser
+          .listTabs()
+          .find((candidate) => candidate.id === tab.id)
+          ?.url.includes("/redirect-end") === true,
+      "redirected tab URL",
+    );
+  } finally {
+    await runCauseEffect(browser.close(tab.id));
+  }
+  await mkdir(".openbot-build", { recursive: true });
+  await writeFile(
+    ".openbot-build/browser-redirect-navigation-report.json",
+    JSON.stringify({ processAlive: true, attempts: outcomes.length, outcomes }, null, 2),
+  );
+  process.stdout.write(`BrowserHost: ${outcomes.length} redirecting navigations kept the process alive.\n`);
 }
 
 async function runBackgroundScenario(browser: BrowserHost, origin: string): Promise<void> {
