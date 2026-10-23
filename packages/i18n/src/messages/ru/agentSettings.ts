@@ -29,7 +29,7 @@ export const messages = {
   "agentSettings.backupModels.intro":
     "Если {model} достигнет лимита использования до того, как {name} начнёт писать, {name} спросит вас, какую модель использовать.",
   "agentSettings.backupModels.introAutomatic":
-    "Если {model} достигнет лимита использования до того, как {name} начнёт писать, {name} переключится на первую доступную модель по порядку.",
+    "Если {model} достигнет лимита использования или завершится с ошибкой провайдера до того, как {name} начнёт писать, {name} переключится на первую доступную модель по порядку.",
   "agentSettings.backupModels.ask": "Спрашивать перед переключением",
   "agentSettings.backupModels.order": "Порядок",
   "agentSettings.backupModels.listLabel": "Резервные модели по порядку",
@@ -42,7 +42,7 @@ export const messages = {
   "agentSettings.backupModels.unavailable": "Сейчас недоступна · пропущена",
   "agentSettings.backupModels.withAccount": "{model} · {account}",
   "agentSettings.backupModels.note":
-    "После начала ответа {name} не переключает модель. Когда лимит закончится, {name} вернётся к {model}.",
+    "После начала ответа {name} не переключает модель. Когда лимит закончится или через 10 минут после ошибки провайдера, {name} вернётся к {model}.",
   "agentSettings.groups.brain": "Мозг",
   "agentSettings.groups.knows": "Знает",
   "agentSettings.groups.does": "Делает",

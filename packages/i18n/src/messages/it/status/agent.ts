@@ -7,6 +7,8 @@ export const messages = {
   "status.agent.contextCleared": "Contesto cancellato. Da qui inizia una nuova chat.",
   "status.agent.modelSwitchedForLimit": "Limite di utilizzo raggiunto. Passato a {model}.",
   "status.agent.modelReturnedAfterLimit": "Limite di utilizzo terminato. Tornato a {model}.",
+  "status.agent.modelSwitchedForError": "Errore del provider. Passato a {model}.",
+  "status.agent.modelReturnedAfterError": "Tornato a {model} dopo l’errore del provider.",
   "status.agent.marketplaceSuggested": "Ha suggerito un'app del Marketplace: {app}.",
   "status.agent.screenCaptureScreen":
     "Acquisizione dello schermo principale e invio dell'immagine al modello dell'agente.",

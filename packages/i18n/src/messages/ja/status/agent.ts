@@ -7,6 +7,8 @@ export const messages = {
   "status.agent.contextCleared": "コンテキストを消去しました。ここから新しいチャットが始まります。",
   "status.agent.modelSwitchedForLimit": "使用量の上限に達しました。{model} に切り替えました。",
   "status.agent.modelReturnedAfterLimit": "使用量の上限が解除されました。{model} に戻しました。",
+  "status.agent.modelSwitchedForError": "プロバイダーのエラーが発生しました。{model} に切り替えました。",
+  "status.agent.modelReturnedAfterError": "プロバイダーのエラーの後、{model} に戻しました。",
   "status.agent.marketplaceSuggested": "マーケットプレイスのアプリを提案しました: {app}。",
   "status.agent.screenCaptureScreen": "メイン画面をキャプチャし、その画像をエージェントのモデルに送信します。",
   "status.agent.screenCaptureChannel":

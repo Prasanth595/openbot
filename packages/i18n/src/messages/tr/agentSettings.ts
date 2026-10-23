@@ -24,7 +24,7 @@ export const messages = {
   "agentSettings.backupModels.intro":
     "{model}, {name} yazmaya başlamadan önce kullanım sınırına ulaşırsa {name} hangi modelin kullanılacağını size sorar.",
   "agentSettings.backupModels.introAutomatic":
-    "{model}, {name} yazmaya başlamadan önce kullanım sınırına ulaşırsa {name} sıradaki ilk uygun modele geçer.",
+    "{model}, {name} yazmaya başlamadan önce kullanım sınırına ulaşırsa veya bir sağlayıcı hatasıyla başarısız olursa {name} sıradaki ilk uygun modele geçer.",
   "agentSettings.backupModels.ask": "Değiştirmeden önce sor",
   "agentSettings.backupModels.order": "Sıra",
   "agentSettings.backupModels.listLabel": "Yedek modeller, sırayla",
@@ -37,7 +37,7 @@ export const messages = {
   "agentSettings.backupModels.unavailable": "Şu an uygun değil · atlandı",
   "agentSettings.backupModels.withAccount": "{model} · {account}",
   "agentSettings.backupModels.note":
-    "{name} yazmaya başladıktan sonra asla model değiştirmez. Sınır bittiğinde {model} modeline geri döner.",
+    "{name} yazmaya başladıktan sonra asla model değiştirmez. Sınır bittiğinde veya bir sağlayıcı hatasından 10 dakika sonra {model} modeline geri döner.",
   "agentSettings.groups.brain": "Beyin",
   "agentSettings.groups.knows": "Bilgi",
   "agentSettings.groups.does": "Görevler",
