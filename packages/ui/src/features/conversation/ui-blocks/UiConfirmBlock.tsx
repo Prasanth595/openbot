@@ -46,6 +46,14 @@ function UiConfirmPreview(props: { children: JSX.Element }) {
     setClamped(preview.scrollHeight > preview.clientHeight);
   }
 
+  // A text that fits after the card got wider while open keeps the box height on close, so no
+  // resize says that nothing is cut off any more.
+  function toggle(): void {
+    setExpanded((open) => !open);
+    flush();
+    measure();
+  }
+
   onSettled(() => {
     if (!preview || typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(measure);
@@ -75,7 +83,7 @@ function UiConfirmPreview(props: { children: JSX.Element }) {
           class="ui-block-preview-toggle"
           aria-expanded={expanded() ? "true" : "false"}
           aria-controls={previewId}
-          onClick={() => setExpanded((open) => !open)}
+          onClick={toggle}
         >
           {expanded() ? t("uiBlock.confirm.hideFullPreview") : t("uiBlock.confirm.showFullPreview")}
         </Button>
