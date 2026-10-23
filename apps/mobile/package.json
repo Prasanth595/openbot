@@ -73,6 +73,7 @@
     "lucide-react-native": "^1.38.0",
     "marked": "catalog:",
     "mermaid": "catalog:",
+    "pdfjs-dist": "catalog:",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.3",

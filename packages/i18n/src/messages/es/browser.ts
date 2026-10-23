@@ -103,6 +103,8 @@ export const messages = {
   "browser.userControl.status": "Controlas esta página",
   "browser.dock.messageTo": "Mensaje para {name}",
   "browser.dock.needsYou": "{name} te necesita en esta página",
+  "browser.dock.needsAnswer": "{name} necesita tu respuesta",
+  "browser.dock.needsApproval": "{name} necesita tu aprobación",
   "browser.dock.answerInChat": "Responder en el chat",
   "browser.tab.newRight": "Nueva pestaña a la derecha",
   "browser.tab.duplicate": "Duplicar",
@@ -126,4 +128,20 @@ export const messages = {
   "browser.address.switchToTab": "Ir a la pestaña",
   "browser.address.search": "Buscar en Google",
   "browser.pageActions": "Acciones de la página",
+  "browser.signIn.local": "Iniciar sesión en este ordenador",
+  "browser.signIn.title": "Iniciar sesión en {site}",
+  "browser.signIn.description":
+    "Algunos sitios rechazan un inicio de sesión desde un servidor. Inicia sesión en este ordenador y OpenBot enviará el inicio de sesión de {site} a {server}. Todos los agentes y miembros de {server} podrán usarlo en el navegador.",
+  "browser.signIn.windowOpen":
+    "Inicia sesión en la ventana que se abrió. OpenBot envía el inicio de sesión cuando está completo. Si la ventana sigue abierta, selecciona Listo.",
+  "browser.signIn.windowClosed":
+    "La ventana de inicio de sesión está cerrada. Selecciona Listo para enviar el inicio de sesión o abre la ventana de nuevo.",
+  "browser.signIn.reopen": "Abrir la ventana de inicio de sesión",
+  "browser.signIn.sending": "Enviando a {server}…",
+  "browser.signIn.sent": "Sesión iniciada en {site} en {server}",
+  "browser.signIn.notFound":
+    "OpenBot no encontró un inicio de sesión para {site}. Inicia sesión en la ventana y selecciona Listo.",
+  "browser.signIn.stillSignedOut":
+    "{server} todavía muestra una página de inicio de sesión de {site}. Termina el inicio de sesión en la ventana.",
+  "browser.signIn.failed": "OpenBot no pudo enviar el inicio de sesión.",
 } as const satisfies PartialTranslation<typeof source>;

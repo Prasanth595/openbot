@@ -147,7 +147,7 @@ export interface AgentProviderDescriptor {
    * Whether OpenBot can read the plan's remaining usage. `false`: the CLI exposes no usage reading,
    * so the dock says the provider does not report usage instead of waiting for a reading. Declared
    * here because the renderer cannot see the drivers; set it to `true` with a driver's usage read
-   * (Codex and Claude read it themselves, Grok, OpenCode and Antigravity through `readRateLimits`).
+   * (Codex and Claude read it themselves, Grok, OpenCode, Antigravity and Cursor through `readRateLimits`).
    */
   readonly reportsUsage: boolean;
   /**
@@ -287,7 +287,7 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     workspaceEnforcement: "confined-process",
     steer: "deferred",
     concurrentTurns: true,
-    reportsUsage: false,
+    reportsUsage: true,
     approvalsInFullAccess: true,
   },
   // The Cline CLI (`cline --acp`). Sign-in is the ACP `cline` method, which opens a browser. A Cline

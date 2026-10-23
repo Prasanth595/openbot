@@ -107,7 +107,12 @@ function usageRow(
   const windows = (limit ? reportedUsageWindows(limit) : []).map((window): AccountUsageWindowRow => {
     const remainingPercent = usageRemainingPercent(window.usedPercent);
     return {
-      label: usageWindowLabel(window.windowDurationMins, text),
+      // Cursor's two windows share one billing cycle and differ by the models they cover. One
+      // window alone is the whole plan.
+      label:
+        provider === "cursor" && limit?.primary && limit.secondary
+          ? text.t(window === limit?.primary ? "account.usage.window.cursorModels" : "account.usage.window.otherModels")
+          : usageWindowLabel(window.windowDurationMins, text),
       remainingPercent,
       tone: usageTone(remainingPercent),
       resetsAt: window.resetsAt,

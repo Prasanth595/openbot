@@ -50,6 +50,9 @@ export const messages = {
     "Esta aba do navegador está esperando um segredo. Responda primeiro ao pedido do segredo.",
   "error.backend.browserUserControlUnsupported":
     "Este computador anfitrião remoto não oferece suporte para assumir o controle de uma aba do navegador.",
+  "error.backend.browserSignInUnsupported": "Este host remoto não pode receber um início de sessão deste computador.",
+  "error.backend.browserSignInOpenFailed": "O OpenBot não conseguiu abrir a janela de login.",
+  "error.backend.browserSignInReadFailed": "O OpenBot não conseguiu ler o login da janela.",
   "error.backend.browserStopUnsupported":
     "Este computador anfitrião remoto não consegue parar o carregamento de uma página.",
   "error.backend.sharedDataLocalOnly":
@@ -271,6 +274,10 @@ export const messages = {
   "error.backend.approvalInactive": "Esta aprovação não está mais ativa.",
   "error.backend.takeoverInactive": "Este controle manual do navegador não está mais ativo.",
   "error.backend.authSubmitting": "O envio da autenticação já está em andamento.",
+  "error.backend.apiKeySaveFailed": "O OpenBot não conseguiu salvar a chave de API. Tente novamente.",
+  "error.backend.apiKeyNotAllowed":
+    "Somente o proprietário do servidor ou um administrador pode inserir uma chave de API.",
+  "error.backend.apiKeySaving": "A chave de API já está sendo salva.",
   "error.backend.authRequestInactive": "Esta solicitação de autenticação segura não está mais ativa.",
   "error.backend.secureAuthUnavailable": "A autenticação segura está indisponível.",
   "error.backend.browserUrlRequired": "É necessário informar uma URL para o navegador.",

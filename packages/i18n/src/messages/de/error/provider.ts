@@ -318,6 +318,9 @@ export const messages = {
   "error.provider.useChangeFailed": "OpenBot konnte die Anbietereinstellung nicht ändern.",
   "error.provider.accountsUnsupported": "{provider} unterstützt nur ein Konto.",
   "error.provider.accountNeedsConnection": "Verbinde {provider}, bevor du ein weiteres Konto hinzufügst.",
+  "error.provider.usageResetUnsupported": "{provider} kann Nutzungslimits nicht zurücksetzen.",
+  "error.provider.usageResetNotConnected":
+    "Melde dich erneut bei diesem {provider}-Konto an, bevor du seine Nutzung zurücksetzt.",
   "error.provider.accountLimit": "{provider} unterstützt höchstens {limit} Konten.",
   "error.provider.accountNotFound":
     "Dieses {provider}-Konto ist nicht auf diesem Computer. Aktualisiere und versuche es erneut.",

@@ -565,7 +565,18 @@ export function decodeRemoteDesktopTestFromMain(value: unknown): RemoteDesktopTe
 }
 
 export function decodeBitwardenConnectorStatus(value: unknown): BitwardenConnectorStatus {
-  if (!value || typeof value !== "object" || !("connected" in value) || typeof value.connected !== "boolean")
+  if (
+    !value ||
+    typeof value !== "object" ||
+    !("connected" in value) ||
+    !isBoolean(value.connected) ||
+    !("connecting" in value) ||
+    !isBoolean(value.connecting) ||
+    !("serverUrl" in value) ||
+    !(value.serverUrl === null || isString(value.serverUrl)) ||
+    !("error" in value) ||
+    !(value.error === null || isString(value.error))
+  )
     throw new Error("Invalid Bitwarden connector response.");
-  return { connected: value.connected };
+  return { connected: value.connected, connecting: value.connecting, serverUrl: value.serverUrl, error: value.error };
 }

@@ -1,5 +1,13 @@
+import { PROVIDER_USAGE_RESET_OUTCOMES, type ProviderUsageResetOutcome } from "@openbot/contracts/ipc";
 import { decodeRecord, requiredString } from "@openbot/contracts/ipc-decoding";
-import { type DynamicRecord, isBoolean, isDynamicRecord, isNumber, isString } from "@openbot/contracts/runtime-values";
+import {
+  type DynamicRecord,
+  isBoolean,
+  isDynamicRecord,
+  isNumber,
+  isOneOf,
+  isString,
+} from "@openbot/contracts/runtime-values";
 
 export type RequestId = string | number;
 
@@ -111,6 +119,8 @@ export interface AccountRateLimitResult {
 export interface AccountRateLimitsReadResult {
   rateLimits?: AccountRateLimitResult | null | undefined;
   rateLimitsByLimitId?: Record<string, AccountRateLimitResult | undefined> | null | undefined;
+  /** Codex only: the usage reset credits of the account. Null when Codex could not count them. */
+  rateLimitResetCredits?: { availableCount: number } | null | undefined;
 }
 
 export interface ThreadItem {
@@ -268,10 +278,18 @@ export function decodeAccountRateLimitsReadResult(value: unknown): AccountRateLi
   const record = decodeRecord(value, "rate limits response");
   const rateLimits = decodeRateLimit(record.rateLimits);
   const rateLimitsByLimitId = decodeRateLimitsById(record.rateLimitsByLimitId);
+  const rateLimitResetCredits = decodeRateLimitResetCredits(record.rateLimitResetCredits);
   return {
     ...(rateLimits === undefined ? {} : { rateLimits }),
     ...(rateLimitsByLimitId === undefined ? {} : { rateLimitsByLimitId }),
+    ...(rateLimitResetCredits === undefined ? {} : { rateLimitResetCredits }),
   };
+}
+
+export function decodeRateLimitResetCreditConsumeResult(value: unknown): ProviderUsageResetOutcome {
+  const outcome = decodeRecord(value, "rate limit reset response").outcome;
+  if (!isOneOf(PROVIDER_USAGE_RESET_OUTCOMES, outcome)) throw new Error("Invalid rate limit reset outcome.");
+  return outcome;
 }
 
 /** A sparse `account/rateLimits/updated` push: only the windows it holds changed. */
@@ -388,6 +406,18 @@ function decodeRateLimitWindow(value: unknown): AccountRateLimitWindowResult | n
     ...(windowDurationMins === undefined ? {} : { windowDurationMins }),
     ...(resetsAt === undefined ? {} : { resetsAt }),
   };
+}
+
+/**
+ * Only the count: the credit rows are display text that OpenBot does not show. A count it cannot
+ * read is unknown, so the usage reading that carries it still decodes.
+ */
+function decodeRateLimitResetCredits(value: unknown): AccountRateLimitsReadResult["rateLimitResetCredits"] {
+  if (value === undefined) return value;
+  const availableCount = isDynamicRecord(value) ? value.availableCount : undefined;
+  return typeof availableCount === "number" && Number.isSafeInteger(availableCount) && availableCount >= 0
+    ? { availableCount }
+    : null;
 }
 
 function decodeRateLimitsById(value: unknown): AccountRateLimitsReadResult["rateLimitsByLimitId"] {

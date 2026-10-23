@@ -448,7 +448,7 @@
   cursor: pointer;
 }
 
-/* The time, then a muted note: an ignored webhook request, skipped runs, or a late start. */
+/* The time, then a muted note: an ignored webhook request, skipped runs, a late start, or why a run failed. */
 .agent-routine-run-text {
   display: flex;
   min-width: 0;

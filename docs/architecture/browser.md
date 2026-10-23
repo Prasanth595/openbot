@@ -100,7 +100,7 @@ It preserves hints supplied by Chromium and does not add high-entropy hints. The
 `bun run test:browser --scenario=identity`; add `--google-live` for the Google identifier check.
 The local identity report is `.openbot-build/browser-identity.json`.
 Website popups are adopted into managed `WebContentsView` tabs through Electron's window creation
-hook. Native guests retain their opener, request body, and shared browser session. Local tab and
+hook. Native guests retain their opener, request body, and the browser session of the opener. Local tab and
 agent tool results expose `openerTabId` while that relationship is live. Independent `noopener`
 tabs survive parent closure; dependent popups close with the parent. Closing a popup returns to its
 opener. Saved popup URLs omit OAuth callback credentials. Popup state is not restored as a live
@@ -169,6 +169,24 @@ It includes actual runtime versions, completed cases, three warm-up pairs and tw
 serialized result bytes, and observed snapshot counts. Measurements include tool execution and loopback fixture
 confirmation. They do not measure provider tokens, model speed, or billable cost.
 
+### Browser sessions
+
+All tabs use the persistent partition `persist:openbot-browser`, except in two cases:
+
+- `openPrivate` opens a sign-in page for another person in an in-memory partition. The tab is not
+  saved, and its storage is cleared when its last tab closes.
+- An agent with the local setting `ownBrowserSession` opens its new tabs in
+  `persist:openbot-browser-agent-<key>`. The key is the first 32 hex characters of the SHA-256 of
+  the agent id, so an agent id never becomes part of a path. The user's tabs in that agent's panel
+  use the same partition, so the user can sign in for the agent there.
+
+A tab keeps its partition for its life, and its popups use the same partition. The state file
+saves the key as `agentSession`. A restart restores each tab in its saved partition, whatever the
+setting is now. A tab without a key, such as a tab from an older version, opens in the shared
+partition. A tab with a malformed key is dropped, so it never opens signed in to another account.
+`#configureSession` applies the same user agent, headers, permissions and download policy to every
+partition. Shutdown and `flushPersistentStorage` flush every persistent partition.
+
 ### Tab lifetime
 
 The agent decides when a tab closes. Nothing closes a tab when a turn ends: `close_tab` is the only
@@ -191,7 +209,8 @@ refusal in `AgentService` stays beside it rather than being folded in: it also c
 | Retry | Same thread and agent, so the same tabs are still reachable. |
 | Restart | Restored from the browser's own state file. |
 | Idle 30 min (5 min when memory is low) | Stays open, but its page unloads. The next use loads the page again. |
-| Agent deleted | That agent's tabs are closed, including a legacy tab holding only its thread id. |
+| Agent deleted | That agent's tabs are closed, including a legacy tab holding only its thread id. Its own browser session is cleared. |
+| Own browser session changed | That agent's tabs are closed. Its next tab opens in the session it chose. Both sessions keep their data. |
 | Takeover held | No agent tool touches that tab, `close_tab` included. |
 
 Deleting an agent is the one sweep, and it exists because those tabs are otherwise unreachable: no

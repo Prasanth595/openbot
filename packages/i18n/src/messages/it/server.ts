@@ -297,6 +297,16 @@ export const messages = {
   "server.settings.notReachable": "Non raggiungibile online. I membri e gli inviti esistenti restano.",
   "server.settings.notPublished": "Non raggiungibile online.",
   "server.settings.generatedName": "Server di {name}",
+  "server.settings.hostKeyTitle": "Chiave del server",
+  "server.settings.hostKeyRotate": "Cambia la chiave del server",
+  "server.settings.hostKeyDescription":
+    "Crea una nuova chiave di identità per questo server. I computer e i telefoni associati e le route webhook restano connessi.",
+  "server.settings.hostKeyRotateAction": "Cambia",
+  "server.settings.hostKeyConfirmTitle": "Cambiare la chiave del server?",
+  "server.settings.hostKeyConfirmDescription":
+    "La chiave attuale e quella nuova firmano un passaggio. Le app dei membri passano alla nuova chiave alla prossima connessione. Fallo se il file della chiave è stato copiato o esposto.",
+  "server.settings.hostKeyRotated": "Chiave del server cambiata",
+  "server.settings.hostKeyLocalOnly": "Qui solo il server su questo computer può cambiare la sua chiave.",
   "server.settings.removeTitle": "Rimuovi il server",
   "server.settings.removeDescription":
     "Rimuovi questo server dal servizio account per tutti i membri. Usalo quando il suo computer non è più disponibile.",

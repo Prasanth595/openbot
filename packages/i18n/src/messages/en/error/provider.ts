@@ -291,6 +291,8 @@ export const messages = defineMessages("error.provider", {
   "error.provider.useChangeFailed": "OpenBot could not change the provider setting.",
   "error.provider.accountsUnsupported": "{provider} can hold one account only.",
   "error.provider.accountNeedsConnection": "Connect {provider} before you add another account.",
+  "error.provider.usageResetUnsupported": "{provider} cannot reset usage limits.",
+  "error.provider.usageResetNotConnected": "Sign in to this {provider} account again before you reset its usage.",
   "error.provider.accountLimit": "{provider} can hold at most {limit} accounts.",
   "error.provider.accountNotFound": "This {provider} account is not on this computer. Refresh and try again.",
   "error.provider.accountAlreadyAdded": "This {provider} account is already connected.",

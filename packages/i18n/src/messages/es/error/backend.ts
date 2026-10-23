@@ -48,6 +48,9 @@ export const messages = {
     "Esta pestaña del navegador espera un secreto. Responde primero a la solicitud del secreto.",
   "error.backend.browserUserControlUnsupported":
     "Este host remoto no admite tomar el control de una pestaña del navegador.",
+  "error.backend.browserSignInUnsupported": "Este host remoto no puede recibir un inicio de sesión de este equipo.",
+  "error.backend.browserSignInOpenFailed": "OpenBot no pudo abrir la ventana de inicio de sesión.",
+  "error.backend.browserSignInReadFailed": "OpenBot no pudo leer el inicio de sesión de la ventana.",
   "error.backend.browserStopUnsupported": "Este host remoto no puede detener la carga de una página.",
   "error.backend.sharedDataLocalOnly": "Los datos compartidos se gestionan en el equipo que ejecuta estos agentes.",
   "error.backend.browserUrlProtocol": "Solo se permiten URL HTTP(S) en el navegador.",
@@ -272,6 +275,10 @@ export const messages = {
   "error.backend.approvalInactive": "Esta aprobación ya no está activa.",
   "error.backend.takeoverInactive": "Esta toma de control del navegador ya no está activa.",
   "error.backend.authSubmitting": "Ya se están enviando los datos de autenticación.",
+  "error.backend.apiKeySaveFailed": "OpenBot no pudo guardar la clave de API. Inténtalo de nuevo.",
+  "error.backend.apiKeyNotAllowed":
+    "Solo el propietario del servidor o un administrador puede introducir una clave de API.",
+  "error.backend.apiKeySaving": "La clave de API ya se está guardando.",
   "error.backend.authRequestInactive": "Esta solicitud de autenticación segura ya no está activa.",
   "error.backend.secureAuthUnavailable": "La autenticación segura no está disponible.",
   "error.backend.browserUrlRequired": "Se requiere una URL para el navegador.",

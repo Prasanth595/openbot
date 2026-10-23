@@ -48,6 +48,7 @@ import type { SidebarLayoutStore } from "../../backend/sidebar-layout-store";
 import type { StorageUsageService } from "../../backend/storage-usage";
 import type { TeamChatStore } from "../../backend/team-chat-store";
 import type { AgentImportService } from "../agent-import-service";
+import type { BitwardenConnectorService } from "../bitwarden-connector-service";
 import type { BrowserViewGateway } from "../browser-view-gateway";
 import type { GitHubConnectorService } from "../github-connector-service";
 import type { HostedSiteDesktopService } from "../hosted-site-service";
@@ -205,6 +206,9 @@ export type TeamApiProviderAccounts = Pick<
   "list" | "usage" | "startSignIn" | "signInStatus" | "cancelSignIn" | "rename" | "remove" | "setAgentAccount"
 >;
 
+/** Its presence is what `#protocolSupport` advertises `provider-usage-reset-v1` on. The routes are admin-only. */
+export type TeamApiProviderUsageResets = Pick<AgentService, "providerUsageResets" | "resetProviderUsage">;
+
 /** Its presence is what `#protocolSupport` advertises `storage-v1` on. */
 export type TeamApiStorage = Pick<StorageUsageService, "usage" | "deleteFile" | "clear">;
 /** `hosted-sites-v1`: the openbot.site sites of this server. Members list; only admins delete. */
@@ -347,6 +351,8 @@ export type TeamApiBrowser = Pick<
   | "releaseUserControlHeldBy"
   // Behind `browser-page-state`.
   | "stop"
+  // Behind `browser-sign-in`.
+  | "importSignIn"
   // The live view, behind `browser-view`. `browser-view-gateway.ts` is what reaches these; a route
   // cannot, because frames outlive the request that asked for them.
   | "startView"
@@ -379,6 +385,9 @@ export type TeamApiOnePasswordConnector = Pick<
   "status" | "refreshLogins" | "connectWithToken" | "disconnect"
 >;
 
+/** `bitwarden-connector-v1`: the Bitwarden connection of this host, by an API key and the master password. */
+export type TeamApiBitwardenConnector = Pick<BitwardenConnectorService, "status" | "connectWithApiKey" | "disconnect">;
+
 export type TeamApiAgentAccess = Pick<AgentAccessStore, "copyAgent" | "get" | "levels" | "set" | "subscribe">;
 
 export interface TeamApiOptions {
@@ -390,8 +399,10 @@ export interface TeamApiOptions {
   signInRelay?: TeamApiSignInRelay | undefined;
   connectors?: TeamApiConnectors | undefined;
   onePasswordConnector?: TeamApiOnePasswordConnector | undefined;
+  bitwardenConnector?: TeamApiBitwardenConnector | undefined;
   providerHostSignIns?: TeamApiProviderHostSignIns | undefined;
   providerAccounts?: TeamApiProviderAccounts | undefined;
+  providerUsageResets?: TeamApiProviderUsageResets | undefined;
   /** Starts and waits for the managed tool runtimes behind the MCP save, enable, and test routes. */
   mcpToolRuntimePreparation?: McpToolRuntimePreparation;
   storage?: TeamApiStorage;

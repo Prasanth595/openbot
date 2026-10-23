@@ -25,7 +25,7 @@ import { isBoundedString, isIdentifier } from "./ipc-bounded-values";
 import { isHiddenAt } from "./ipc-hidden-agents";
 import { type BusyMessageMode, isBusyMessageMode } from "./ipc-queue";
 import type { SidebarLayoutSnapshot } from "./ipc-sidebar-layout";
-import { type DynamicRecord, isBoolean, isDynamicRecord, isNumber, isOneOf } from "./runtime-values";
+import { type DynamicRecord, isBoolean, isDynamicRecord, isNumber, isOneOf, isString } from "./runtime-values";
 
 /**
  * How far an agent may reach on this computer. `workspace` limits writes to the agent's workspace, the
@@ -56,6 +56,10 @@ export function agentQuickAcknowledgementEnabled(agent: { quickAcknowledgement?:
   return agent.quickAcknowledgement === true;
 }
 
+export function agentOwnBrowserSessionEnabled(agent: { ownBrowserSession?: boolean | undefined }): boolean {
+  return agent.ownBrowserSession === true;
+}
+
 /**
  * Whether this agent runs inside the workspace sandbox now. Every provider enforces it. Codex runs the
  * agent in its `workspace-write` sandbox. Claude runs Bash in its sandbox and asks before a file edit
@@ -79,7 +83,8 @@ export const AGENT_BACKUP_MODEL_LIMIT = 8;
 
 /**
  * What an agent does when a usage limit holds a message that has not started. Absent means the
- * agent asks in the chat, with no saved order.
+ * agent asks in the chat, with no saved order. An automatic order also moves the agent when a
+ * provider error fails a turn that did no work yet.
  */
 export interface AgentBackupModels {
   /** True: the agent switches at once to the first available model in `order`. False: it asks first. */
@@ -97,13 +102,23 @@ export function isAgentModelChoice(value: unknown): value is AgentModelChoice {
   );
 }
 
-/** The model an agent left for a usage limit, with the reasoning effort it had there. */
+/** The model an agent left for a usage limit or a provider error, with the reasoning effort it had there. */
 export interface AgentUsageLimitReturn extends AgentModelChoice {
   reasoningEffort: AgentReasoningEffort;
+  /**
+   * "provider-error" when a provider error made the agent leave. Absent means a usage limit. Another
+   * value, from a newer build, reads as a usage limit, so the agent still goes back.
+   */
+  cause?: string | undefined;
 }
 
 export function isAgentUsageLimitReturn(value: unknown): value is AgentUsageLimitReturn {
-  return isDynamicRecord(value) && isAgentModelChoice(value) && isReasoningEffort(value.reasoningEffort);
+  return (
+    isDynamicRecord(value) &&
+    isAgentModelChoice(value) &&
+    isReasoningEffort(value.reasoningEffort) &&
+    (value.cause === undefined || isString(value.cause))
+  );
 }
 
 export function isAgentBackupModels(value: unknown): value is AgentBackupModels {
@@ -125,7 +140,8 @@ export function sameAgentModelChoice(left: AgentModelChoice, right: AgentModelCh
   );
 }
 
-function isMarketplaceSource(value: unknown): value is NonNullable<AgentSummary["marketplaceSource"]> {
+/** The listing an agent was added from, as the host sends it. Clients read it to show what is installed. */
+export function isAgentMarketplaceSource(value: unknown): value is NonNullable<AgentSummary["marketplaceSource"]> {
   return (
     isDynamicRecord(value) &&
     isIdentifier(value.listingId) &&
@@ -179,6 +195,12 @@ export interface AgentSummary {
    * Local-only, like `access`. Absent means off; see `agentQuickAcknowledgementEnabled`.
    */
   quickAcknowledgement?: boolean;
+  /**
+   * Whether the browser tabs of the agent use a session of their own, with their own cookies and
+   * sign-ins. Local-only, like `access`. Absent means off: the tabs use the shared session; see
+   * `agentOwnBrowserSessionEnabled`.
+   */
+  ownBrowserSession?: boolean;
   /**
    * Whether the agent asks Codex for the fast service tier of its model. Local-only, like `access`.
    * Absent means that OpenBot leaves the tier to Codex.
@@ -258,6 +280,7 @@ function hasAgentSummaryFields(value: DynamicRecord): boolean {
     (value.allowAutomation === undefined || isBoolean(value.allowAutomation)) &&
     (value.allowNewChat === undefined || isBoolean(value.allowNewChat)) &&
     (value.quickAcknowledgement === undefined || isBoolean(value.quickAcknowledgement)) &&
+    (value.ownBrowserSession === undefined || isBoolean(value.ownBrowserSession)) &&
     (value.fastMode === undefined || isBoolean(value.fastMode)) &&
     (value.busyMessageMode === undefined || isBusyMessageMode(value.busyMessageMode)) &&
     (value.taskLimit === undefined || isAgentTaskLimit(value.taskLimit)) &&
@@ -272,7 +295,7 @@ function hasAgentSummaryFields(value: DynamicRecord): boolean {
     isAvatarSeed(value.avatarSeed) &&
     (value.avatarHue === null || isAvatarHue(value.avatarHue)) &&
     (value.avatarUrl === null || isBoundedString(value.avatarUrl, INPUT_LIMITS.avatarUrl)) &&
-    (value.marketplaceSource === undefined || isMarketplaceSource(value.marketplaceSource))
+    (value.marketplaceSource === undefined || isAgentMarketplaceSource(value.marketplaceSource))
   );
 }
 
@@ -307,6 +330,7 @@ export interface UpdateAgentInput {
   allowAutomation?: boolean;
   allowNewChat?: boolean;
   quickAcknowledgement?: boolean;
+  ownBrowserSession?: boolean;
   fastMode?: boolean;
   /** `null` returns the agent to the app default. */
   busyMessageMode?: BusyMessageMode | null;

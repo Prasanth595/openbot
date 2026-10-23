@@ -47,6 +47,10 @@ export const messages = {
     "Dieser Browser-Tab wartet auf ein Geheimnis. Beantworte zuerst die Anfrage nach dem Geheimnis.",
   "error.backend.browserUserControlUnsupported":
     "Dieser entfernte Host unterstützt die Übernahme eines Browser-Tabs nicht.",
+  "error.backend.browserSignInUnsupported":
+    "Dieser entfernte Host kann keine Anmeldung von diesem Computer übernehmen.",
+  "error.backend.browserSignInOpenFailed": "OpenBot konnte das Anmeldefenster nicht öffnen.",
+  "error.backend.browserSignInReadFailed": "OpenBot konnte die Anmeldung im Fenster nicht lesen.",
   "error.backend.browserStopUnsupported": "Dieser entfernte Host kann das Laden einer Seite nicht stoppen.",
   "error.backend.sharedDataLocalOnly":
     "Geteilte Daten werden auf dem Computer verwaltet, auf dem diese Agenten laufen.",
@@ -285,6 +289,9 @@ export const messages = {
   "error.backend.approvalInactive": "Diese Genehmigung ist nicht mehr aktiv.",
   "error.backend.takeoverInactive": "Diese Browserübernahme ist nicht mehr aktiv.",
   "error.backend.authSubmitting": "Die Authentifizierung wird bereits übermittelt.",
+  "error.backend.apiKeySaveFailed": "OpenBot konnte den API-Schlüssel nicht speichern. Versuche es erneut.",
+  "error.backend.apiKeyNotAllowed": "Nur der Serverinhaber oder ein Admin kann einen API-Schlüssel eingeben.",
+  "error.backend.apiKeySaving": "Der API-Schlüssel wird bereits gespeichert.",
   "error.backend.authRequestInactive": "Diese sichere Authentifizierungsanfrage ist nicht mehr aktiv.",
   "error.backend.secureAuthUnavailable": "Die sichere Authentifizierung ist nicht verfügbar.",
   "error.backend.browserUrlRequired": "Eine Browser-URL ist erforderlich.",

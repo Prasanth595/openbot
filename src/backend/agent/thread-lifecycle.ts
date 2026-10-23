@@ -28,6 +28,7 @@ import {
   type CodexOwnServers,
   type CodexOwnTransports,
   codexDisabledServers,
+  codexMcpNamespaces,
   codexMcpServerKey,
   codexMcpServers,
   codexThreadMcpServers,
@@ -88,7 +89,8 @@ const CODEX_TOOLS_CONFIG = { update_plan: { enabled: true } } as const;
  * In code mode the model calls tools from an `exec` cell, and `exec` gives control back to the model
  * after its yield time while `ask_user` still waits. A model that then ends its turn expires the
  * question within seconds. Direct calls keep the turn waiting for the answer. It goes in as one
- * dotted key, as the agent environment does, so it does not turn code mode on or off.
+ * dotted key, as the agent environment does, so it does not turn code mode on or off. Each thread
+ * adds the namespaces of its MCP servers, see `codexMcpNamespaces`.
  */
 const CODEX_DIRECT_ONLY_NAMESPACES = VISIBLE_DYNAMIC_TOOLS.map((namespace) => namespace.name);
 
@@ -129,6 +131,8 @@ export interface ThreadLifecycleOptions {
   agentEnvironment?: (inherited?: NodeJS.ProcessEnv) => Readonly<Record<string, string>>;
   /** Whether a password vault is connected, read at each start and resume of a session. */
   passwordVaultConnected?: () => boolean;
+  /** OpenBot runs on a server. The prompt then names the sign-in on the user's computer. */
+  serverHost?: boolean;
   /** The other agents in an agent's sidebar section, read at each start and resume of a session. */
   sectionTeammates?: (agentId: string) => SectionTeammates | null;
 }
@@ -159,6 +163,7 @@ export class ThreadLifecycle {
   ) => Effect.Effect<string | null, McpOperationError>;
   readonly #agentEnvironment: () => Readonly<Record<string, string>>;
   readonly #passwordVaultConnected: () => boolean;
+  readonly #serverHost: boolean;
   readonly #sectionTeammates: (agentId: string) => SectionTeammates | null;
   readonly #pendingHandoffs = new Map<string, string>();
   readonly #pendingRuntimeRefreshes = new Set<string>();
@@ -185,6 +190,7 @@ export class ThreadLifecycle {
     this.#mcpProxyFingerprint = options.mcpProxyFingerprint ?? (() => Effect.succeed(null));
     this.#agentEnvironment = options.agentEnvironment ?? (() => ({}));
     this.#passwordVaultConnected = options.passwordVaultConnected ?? (() => false);
+    this.#serverHost = options.serverHost ?? false;
     this.#sectionTeammates = options.sectionTeammates ?? (() => null);
   }
 
@@ -703,7 +709,7 @@ export class ThreadLifecycle {
       config?: {
         mcp_servers?: Record<string, CodexMcpServer | CodexDisabledMcpServer>;
         tools: typeof CODEX_TOOLS_CONFIG;
-        "features.code_mode.direct_only_tool_namespaces": typeof CODEX_DIRECT_ONLY_NAMESPACES;
+        "features.code_mode.direct_only_tool_namespaces": string[];
         [variable: `shell_environment_policy.set.${string}`]: string;
       } & ReturnType<typeof codexSandboxConfig>;
     },
@@ -718,7 +724,10 @@ export class ThreadLifecycle {
       config: {
         ...(Object.keys(mcpServers).length > 0 ? { mcp_servers: mcpServers } : {}),
         tools: CODEX_TOOLS_CONFIG,
-        "features.code_mode.direct_only_tool_namespaces": CODEX_DIRECT_ONLY_NAMESPACES,
+        "features.code_mode.direct_only_tool_namespaces": [
+          ...CODEX_DIRECT_ONLY_NAMESPACES,
+          ...codexMcpNamespaces(servers),
+        ],
         ...codexSandboxConfig(agent, this.#store.sharedRoot),
         ...Object.fromEntries(
           Object.entries(environment).map(([name, value]) => [`shell_environment_policy.set.${name}`, value]),
@@ -923,6 +932,7 @@ export class ThreadLifecycle {
     const options = {
       computerUseInOwnChat,
       passwordVault: this.#passwordVaultConnected(),
+      serverHost: this.#serverHost,
       memoryLimit: this.#memories.limit(),
       storedMemoryCount: this.#memories.listFor(agent.id).length,
       memoriesInTurns: client.provider === "claude",

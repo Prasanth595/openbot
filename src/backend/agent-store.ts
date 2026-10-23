@@ -85,6 +85,8 @@ type PersistedStoredAgent = Omit<StoredAgent, "avatarUrl" | "provider" | "access
   allowNewChat?: boolean;
   // Absent on every agent stored before the setting existed, which keeps the acknowledgement off.
   quickAcknowledgement?: boolean;
+  // Absent on every agent stored before the setting existed, which keeps its tabs in the shared browser session.
+  ownBrowserSession?: boolean;
   // Absent on every agent stored before the setting existed, which leaves the service tier to Codex.
   fastMode?: boolean;
   // Absent means the app default, as for every agent stored before the setting existed.
@@ -693,6 +695,10 @@ export class AgentStore {
       if (input.quickAcknowledgement !== undefined) {
         if (!isBoolean(input.quickAcknowledgement)) throw new Error("Invalid quick acknowledgement value.");
         next.quickAcknowledgement = input.quickAcknowledgement;
+      }
+      if (input.ownBrowserSession !== undefined) {
+        if (!isBoolean(input.ownBrowserSession)) throw new Error("Invalid browser session value.");
+        next.ownBrowserSession = input.ownBrowserSession;
       }
       if (input.fastMode !== undefined) {
         if (!isBoolean(input.fastMode)) throw new Error("Invalid fast mode value.");
@@ -1782,6 +1788,7 @@ function isStoredAgent(value: unknown): value is PersistedStoredAgent {
     (record.allowAutomation === undefined || isBoolean(record.allowAutomation)) &&
     (record.allowNewChat === undefined || isBoolean(record.allowNewChat)) &&
     (record.quickAcknowledgement === undefined || isBoolean(record.quickAcknowledgement)) &&
+    (record.ownBrowserSession === undefined || isBoolean(record.ownBrowserSession)) &&
     (record.fastMode === undefined || isBoolean(record.fastMode)) &&
     (record.busyMessageMode === undefined || isBusyMessageMode(record.busyMessageMode)) &&
     (record.taskLimit === undefined || isAgentTaskLimit(record.taskLimit)) &&
@@ -1855,6 +1862,10 @@ function readStoredAgent(value: unknown): ReadStoredAgent | UnreadableStoredAgen
     value.quickAcknowledgement === undefined || isBoolean(value.quickAcknowledgement)
       ? value.quickAcknowledgement
       : reset("quickAcknowledgement", undefined);
+  const ownBrowserSession =
+    value.ownBrowserSession === undefined || isBoolean(value.ownBrowserSession)
+      ? value.ownBrowserSession
+      : reset("ownBrowserSession", undefined);
   const fastMode =
     value.fastMode === undefined || isBoolean(value.fastMode) ? value.fastMode : reset("fastMode", undefined);
   const busyMessageMode =
@@ -1925,6 +1936,7 @@ function readStoredAgent(value: unknown): ReadStoredAgent | UnreadableStoredAgen
     ...(allowAutomation === undefined ? {} : { allowAutomation }),
     ...(allowNewChat === undefined ? {} : { allowNewChat }),
     ...(quickAcknowledgement === undefined ? {} : { quickAcknowledgement }),
+    ...(ownBrowserSession === undefined ? {} : { ownBrowserSession }),
     ...(fastMode === undefined ? {} : { fastMode }),
     ...(busyMessageMode === undefined ? {} : { busyMessageMode }),
     ...(taskLimit === undefined ? {} : { taskLimit }),

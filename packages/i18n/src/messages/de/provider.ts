@@ -176,4 +176,18 @@ export const messages = {
   "provider.account.finishSignIn": "Schließen Sie die Anmeldung im Browser ab.",
   "provider.account.remove": "Konto entfernen",
   "provider.account.actionFailed": "Das {name}-Konto konnte nicht geändert werden.",
+  "provider.account.resetUsage": "Nutzung zurücksetzen",
+  "provider.account.resetUsageTitle": "Nutzung von {name} zurücksetzen?",
+  "provider.account.resetUsageDescription": {
+    one: "Damit verbrauchst du dein letztes Guthaben zum Zurücksetzen der Nutzung. Die ausgeschöpften Nutzungslimits dieses Kontos beginnen jetzt neu. Das kannst du nicht rückgängig machen.",
+    other:
+      "Damit verbrauchst du 1 von {count} Guthaben zum Zurücksetzen der Nutzung. Die ausgeschöpften Nutzungslimits dieses Kontos beginnen jetzt neu. Das kannst du nicht rückgängig machen.",
+  },
+  "provider.account.resetUsagePending": "Wird zurückgesetzt…",
+  "provider.account.resetUsageDone": "Die Nutzungslimits von {name} beginnen jetzt neu.",
+  "provider.account.resetUsageNothing":
+    "{name} hat kein ausgeschöpftes Nutzungslimit. Es wurde kein Guthaben verbraucht.",
+  "provider.account.resetUsageNoCredit": "{name} hat kein Guthaben zum Zurücksetzen der Nutzung mehr.",
+  "provider.account.resetUsageAlreadyRedeemed": "Dieses Guthaben von {name} wurde bereits verwendet.",
+  "provider.account.resetUsageFailed": "Die Nutzung von {name} konnte nicht zurückgesetzt werden.",
 } as const satisfies PartialTranslation<typeof source>;

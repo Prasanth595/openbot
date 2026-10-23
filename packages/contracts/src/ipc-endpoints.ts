@@ -88,8 +88,11 @@ import type {
   ProviderCodeLoginStart,
   ProviderHostSignInStatus,
   ProviderRelaySignInStatus,
+  ProviderUsageResetOutcome,
+  ProviderUsageResets,
   RemoveProviderAccountInput,
   RenameProviderAccountInput,
+  ResetProviderUsageInput,
   SetProviderApiKeyInput,
   SubmitProviderCodeLoginInput,
 } from "./ipc-agent-status";
@@ -157,12 +160,16 @@ import type {
   OpenWorkspaceFileInput,
   WorkspaceDirectory,
 } from "./ipc-attachments";
-import type { BitwardenConnectorStatus } from "./ipc-bitwarden-connector";
+import type { BitwardenConnectorStatus, BitwardenHostConnectInput } from "./ipc-bitwarden-connector";
 import type {
   BrowserBounds,
   BrowserControlState,
   BrowserDisplayState,
   BrowserLiveViewEvent,
+  BrowserLocalSignInEnd,
+  BrowserLocalSignInFinish,
+  BrowserLocalSignInInput,
+  BrowserLocalSignInResult,
   BrowserNavigateInput,
   BrowserOpenInput,
   BrowserPictureInPictureEvent,
@@ -658,6 +665,10 @@ export const IPC_ENDPOINTS = {
     ),
     renameProviderAccount: request<RenameProviderAccountInput, AgentStatus>()("app:rename-provider-account"),
     removeProviderAccount: request<RemoveProviderAccountInput, AgentStatus>()("app:remove-provider-account"),
+    /** The usage reset credits of each connected account of a provider. It reads the usage of each. */
+    providerUsageResets: request<AgentProviderId, ProviderUsageResets[]>()("app:provider-usage-resets"),
+    /** Spends one usage reset credit of an account. A reset ends the usage limit that holds its agents. */
+    resetProviderUsage: request<ResetProviderUsageInput, ProviderUsageResetOutcome>()("app:reset-provider-usage"),
   },
   providerRuntimes: {
     getStatus: request<undefined, ProviderRuntimeSnapshot>()("provider-runtimes:get-status"),
@@ -850,6 +861,12 @@ export const IPC_ENDPOINTS = {
     cancelAccountSignIn: scopedRequest<AgentProviderId, void, "required">()("provider-admin:cancel-account-sign-in"),
     renameAccount: scopedRequest<RenameProviderAccountInput, void, "required">()("provider-admin:rename-account"),
     removeAccount: scopedRequest<RemoveProviderAccountInput, void, "required">()("provider-admin:remove-account"),
+    // The usage reset credits of a joined server's host's accounts, and the reset that spends one
+    // (`provider-usage-reset-v1`).
+    usageResets: scopedRequest<AgentProviderId, ProviderUsageResets[], "required">()("provider-admin:usage-resets"),
+    resetUsage: scopedRequest<ResetProviderUsageInput, ProviderUsageResetOutcome, "required">()(
+      "provider-admin:reset-usage",
+    ),
     // A sign-in that a joined server's host starts and that opens in this computer's browser
     // (`sign-in-relay-v1`). This computer takes the callback and sends its query to the host.
     // `openRelaySignIn` opens the page when the user asks, and `pasteRelaySignIn` takes the address
@@ -986,13 +1003,20 @@ export const IPC_ENDPOINTS = {
     hostOpenVerification: scopedQuery<void, "required">()("github-connector:host-open-verification"),
     hostOpenInstall: scopedQuery<void, "required">()("github-connector:host-open-install"),
   },
-  // The Bitwarden connection of this computer. Local only, like `onePasswordConnector`. The session
-  // key goes from the renderer to main once, in `connect`; every answer is the status only.
+  // The Bitwarden connection of this computer. The session key goes from the renderer to main once,
+  // in `connect`; every answer is the status only. The `host*` endpoints do the same for a joined
+  // server (`bitwarden-connector-v1`), with an API key and the master password: a session key from
+  // this computer cannot open the host's vault.
   bitwardenConnector: {
     status: request<undefined, BitwardenConnectorStatus>()("bitwarden-connector:status"),
     connect: request<string, BitwardenConnectorStatus>()("bitwarden-connector:connect"),
     disconnect: request<undefined, BitwardenConnectorStatus>()("bitwarden-connector:disconnect"),
     changed: event<BitwardenConnectorStatus>()("bitwarden-connector:changed"),
+    hostStatus: scopedQuery<BitwardenConnectorStatus, "required">()("bitwarden-connector:host-status"),
+    hostConnect: scopedRequest<BitwardenHostConnectInput, BitwardenConnectorStatus, "required">()(
+      "bitwarden-connector:host-connect",
+    ),
+    hostDisconnect: scopedQuery<BitwardenConnectorStatus, "required">()("bitwarden-connector:host-disconnect"),
   },
   // The 1Password connection of this computer. The token goes from the renderer to main once, in
   // `connectWithToken`; every answer is the status only. The `host*` endpoints do the same for a
@@ -1323,6 +1347,11 @@ export const IPC_ENDPOINTS = {
     dockPictureInPicture: request<undefined, void>()("browser:picture-in-picture-dock"),
     hidePictureInPicture: request<undefined, void>()("browser:picture-in-picture-hide"),
     pictureInPictureEvent: event<BrowserPictureInPictureEvent>()("browser:picture-in-picture-event"),
+    // Resolves when the local sign-in window closes, or when the site in it looks signed in.
+    openLocalSignIn: request<BrowserLocalSignInInput, BrowserLocalSignInEnd>()("browser:local-sign-in-open"),
+    finishLocalSignIn: request<BrowserLocalSignInFinish, BrowserLocalSignInResult | null>()(
+      "browser:local-sign-in-finish",
+    ),
   },
   // Not part of `browser`, so that group can be bridged: this is the one untyped endpoint. The renderer
   // sends `BrowserLiveViewInput` and main reads the wire `BrowserViewInput`, which differ on purpose
@@ -1497,6 +1526,8 @@ export const IPC_ENDPOINTS = {
     getStatus: request<undefined, HostStatus>()("host:get-status"),
     configure: request<ConfigureHostInput, HostStatus>()("host:configure"),
     updateIdentity: request<UpdateHostIdentityInput, HostStatus>()("host:update-identity"),
+    /** Changes this computer's server key. Paired devices follow a handover that both keys sign. */
+    rotateIdentityKey: request<undefined, HostStatus>()("host:rotate-identity-key"),
     getPresence: request<undefined, TeamPresenceSnapshot>()("host:get-presence"),
     start: request<undefined, HostStatus>()("host:start"),
     stop: request<undefined, HostStatus>()("host:stop"),

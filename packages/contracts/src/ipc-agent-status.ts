@@ -264,6 +264,30 @@ export interface RemoveProviderAccountInput {
   accountId: string;
 }
 
+/** Spends one usage reset credit of a provider account, which restores its spent limits now. */
+export interface ResetProviderUsageInput {
+  provider: AgentProviderId;
+  accountId: string;
+}
+
+/**
+ * The usage reset credits that a provider gave one account, as its last usage reading counted them.
+ * Codex gives them; an account of another provider has none.
+ */
+export interface ProviderUsageResets {
+  provider: AgentProviderId;
+  /** `DEFAULT_PROVIDER_ACCOUNT_ID` for the provider's own sign-in. */
+  accountId: string;
+  available: number;
+}
+
+/**
+ * What the provider did with a reset. `nothingToReset` and `alreadyRedeemed` spend no new credit;
+ * `noCredit` means the account had none left.
+ */
+export const PROVIDER_USAGE_RESET_OUTCOMES = ["reset", "nothingToReset", "noCredit", "alreadyRedeemed"] as const;
+export type ProviderUsageResetOutcome = (typeof PROVIDER_USAGE_RESET_OUTCOMES)[number];
+
 /**
  * The accounts of a joined server's host (`provider-accounts-v1`). The host's released status and
  * agent list do not carry them, so the client adds them to its copy.

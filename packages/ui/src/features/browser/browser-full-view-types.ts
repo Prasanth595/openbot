@@ -44,6 +44,11 @@ export interface BrowserFullViewProps {
   onBack: () => void;
   onEnterPip: () => void;
   /**
+   * Opens a sign-in for the tab on this computer, for a server whose address a site refuses. Absent where
+   * the host cannot take one, or where this app cannot open a window.
+   */
+  onSignInLocally?: ((tabId: string) => void) | undefined;
+  /**
    * Whether the window draws the macOS traffic lights over this view. The view is portaled to
    * `document.body`, so it cannot read the platform class of `.app-frame`.
    */
@@ -55,6 +60,11 @@ export interface BrowserFullViewProps {
   shortcuts?: BrowserShortcutPlatform | undefined;
   /** The island, the queue and the composer of the tab's agent, over the page. */
   dock?: JSX.Element;
+  /**
+   * Dialogs of the view, such as a sign-in on this computer. They render in the view, so that a dialog
+   * portal finds the owner of its clicks when the view itself is in a portal.
+   */
+  dialogs?: JSX.Element;
 }
 
 /** Only a host that reports the history state can stop a load, so an older host keeps Reload. */

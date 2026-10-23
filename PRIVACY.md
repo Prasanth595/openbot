@@ -27,6 +27,15 @@ of their own computer. That computer then sends the address the page returns to,
 sign-in code, to the host through the same encrypted host connection, not through the account
 Worker. A Slack or Discord install sends its sealed grant to the host on the same path; the user's
 computer cannot open it. Neither computer logs the code, and the host keeps the grant.
+When a member of a joined server selects "Sign in on this computer" in that server's browser, the
+desktop app opens the site in a window on their computer, with a session in memory only. When the
+window finds a completed sign-in, or when the member selects Done, it sends the cookies of that site,
+and of no other site, to the host through the same encrypted host connection, not through the account
+Worker. The host sets them in the browser session of the tab: the shared session, which every agent
+and member of the server can use, or the session of an agent that has a browser session of its own.
+When the server tab still shows a sign-in step, the app also sends the address of the window's page,
+and the server tab opens it.
+Neither computer logs the cookie values. The desktop app then removes the window's session.
 To show each server's state, the browser also keeps a status connection to each host of the account
 that no tab has open, as the mobile app does; the host then shows the member as present. Host logos
 come from the account Worker to members of the host, and the browser can cache them.
@@ -155,8 +164,13 @@ message and prompt-answer submissions, attachment operations, agent/routine/memo
 server selection/join/leave, search result counts, pin/unpin, hide/unhide, Usage views and sign-out.
 It also records email sign-in steps, whether pairing started from a QR code or a link, hosted
 server plans views, setup steps, notification settings and the notification permission result,
-Live Activity starts and ends, voice conversation and spoken turn outcomes, and agent template
-installs.
+Live Activity starts and ends, voice conversation and spoken turn outcomes, agent template
+installs, and Marketplace installs (agent, skill or app, and the result; no listing name).
+
+The mobile Marketplace reads the public catalog and the plugin app icons from the account service,
+without account credentials. The phone sends no request to a plugin vendor until the user connects
+that vendor's app. A key the user types, or the grant of a browser sign-in, goes only to the user's
+own host over the encrypted Team channel.
 Mobile properties include app version/build, iOS or Android, result, timing, bounded connection stage,
 counts, coarse attachment size buckets, and provider/model/reasoning metadata where available.
 Mobile never sends scanned QR values, install-referrer URLs or route identifiers. It does not
@@ -547,6 +561,15 @@ is not included in analytics; provider output uses the application's secret reda
   codes go through the main process to the browser page. This folder is an OpenBot access rule;
   the CLI session key can decrypt the wider vault. Use a separate Bitwarden account if you need
   the password manager itself to enforce that separation.
+  An owner or admin of a joined server can connect that server's Bitwarden or Vaultwarden in Server
+  settings › Connectors with the server address, the personal API key and the master password. They
+  go once, over the encrypted connection, to the server, which keeps them in
+  `openbot-bitwarden-connector-v1.json` in its application data folder, encrypted by its operating
+  system's secret storage, so it can unlock again after a restart. Its CLI keeps its own encrypted
+  vault cache in `provider-state/bitwarden-host` in the same folder. The computer that sent them does
+  not keep them, and no answer from the server carries them. Disconnect deletes the file and the
+  cache. The API key and the master password can open the whole vault, not only the shared folder.
+  They are redacted from logs, exports and diagnostics.
 - The 1Password connection (Marketplace > 1Password) is kept in
   `~/Library/Application Support/OpenBot/openbot-onepassword-connector-v1.json`, encrypted by the
   operating system's secret storage. It holds the service account token and the account ID only.
@@ -672,7 +695,12 @@ Network traffic can also occur when:
   deleted with the agent's or channel's data;
 - the user connects Bitwarden. OpenBot runs the installed `bw` CLI to sync with the server already
   configured in that CLI, including a self-hosted server. It syncs before listing or filling logins.
-  These calls send no OpenBot conversations, files, or agent instructions to Bitwarden;
+  These calls send no OpenBot conversations, files, or agent instructions to Bitwarden. For a
+  joined server's connection, the server's own `bw` signs in to the server address that the admin
+  entered with the API key, and unlocks with the master password on that server. When that server has
+  no `bw`, it downloads the Bitwarden CLI release that OpenBot pins from `github.com`, checks its
+  SHA-256, and keeps it in `provider-state/bitwarden-cli` in its application data folder. That
+  download carries no user data;
 - the user connects 1Password. Connect runs the user's own 1Password CLI (`op`) on this computer to
   create the vault "Shared with OpenBot" and a service account that can read only it. OpenBot then
   reads that vault from 1Password's servers with the token: the vault names, the login titles and
@@ -1011,9 +1039,16 @@ attachments, and tool results go to that process, and the CLI sends them to Curs
 Cursor's sign-in page in your browser, or the CLI uses `CURSOR_API_KEY` from the environment that
 started OpenBot. OpenBot gives that key only to the local CLI, in its environment, and does
 not store it. The CLI keeps its login and session files
-in `~/.cursor` (on Linux, the login is in `~/.config/cursor`). OpenBot does not read, copy, or
-upload these files. Cursor's terms apply: <https://cursor.com/terms-of-service>. Team members see
-the host's Cursor agents, as for the other providers, when their app supports Cursor.
+in `~/.cursor` (on Linux, the login is in `~/.config/cursor`). On macOS the CLI keeps its login in
+the login Keychain. OpenBot does not copy or upload these files. Cursor's terms apply:
+<https://cursor.com/terms-of-service>. Team members see the host's Cursor agents, as for the other
+providers, when their app supports Cursor.
+
+To show the remaining Cursor plan usage in Usage, OpenBot reads the CLI's access token: on macOS
+from the Keychain item `cursor-access-token`, else from the CLI's `auth.json`. OpenBot sends the
+token only to Cursor (`api2.cursor.sh`, or `CURSOR_API_ENDPOINT` when you set it for the CLI), in
+the same usage request that the CLI sends. The request contains no conversation, file, or model
+data. OpenBot does not store, log, or send the token or the usage to its maintainer.
 
 ### Cline
 

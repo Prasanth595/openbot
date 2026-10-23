@@ -11,6 +11,8 @@ import {
   DEFAULT_PROVIDER_ACCOUNT_ID,
   MAX_PROVIDER_ACCOUNTS,
   type ProviderAccountState,
+  type ProviderUsageResetOutcome,
+  type ProviderUsageResets,
 } from "@openbot/contracts/ipc";
 import type { AppTextKey } from "@openbot/i18n";
 import {
@@ -23,6 +25,7 @@ import {
   Copy,
   DropdownMenu,
   Ellipsis,
+  Gauge,
   Input,
   Item,
   ItemActions,
@@ -533,12 +536,62 @@ function AccountsSection(props: SectionProps) {
   const { t, format, errorMessage, sourceText } = useText();
   const accounts = () => props.option.accounts ?? [];
   const [removing, setRemoving] = createSignal<ProviderPickerAccount | null>(null);
+  const [resetting, setResetting] = createSignal<ProviderPickerAccount | null>(null);
   const [error, setError] = createSignal<string | null>(null);
+  /** How the last usage reset ended, when it did not fail. */
+  const [notice, setNotice] = createSignal<string | null>(null);
+  const [usageResets, setUsageResets] = createSignal<readonly ProviderUsageResets[]>([]);
   const run = (name: string, action: () => Promise<void> | undefined) => {
     setError(null);
+    setNotice(null);
     void Promise.resolve(action()).catch((failure: unknown) =>
       setError(errorMessage(failure, t("provider.account.actionFailed", { name }))),
     );
+  };
+  /** The credits are read again when an account connects or goes, and after each reset. Only the last read counts. */
+  let resetsRead = 0;
+  const readUsageResets = (): void => {
+    const serial = ++resetsRead;
+    const read = props.accountActions?.usageResets;
+    const apply = (readings: readonly ProviderUsageResets[]) => {
+      if (serial === resetsRead) setUsageResets(readings);
+    };
+    if (read) void read(props.option.id).then(apply, () => apply([]));
+    else apply([]);
+  };
+  // The actions can arrive after the page: a joined server's capabilities come after its status.
+  createEffect(
+    () => [
+      props.option.id,
+      accounts()
+        .map((account) => `${account.id}:${account.state}`)
+        .join(),
+      props.accountActions?.usageResets,
+    ],
+    readUsageResets,
+  );
+  const resetsLeft = (accountId: string) =>
+    usageResets().find((reading) => reading.accountId === accountId)?.available ?? 0;
+  const resetUsage = async (target: ProviderPickerAccount) => {
+    const name = providerAccountName(t, accounts(), target.id);
+    setError(null);
+    setNotice(null);
+    try {
+      const outcome = await props.accountActions?.resetUsage?.(props.option.id, target.id);
+      if (outcome) {
+        const text: Record<ProviderUsageResetOutcome, string> = {
+          reset: t("provider.account.resetUsageDone", { name }),
+          nothingToReset: t("provider.account.resetUsageNothing", { name }),
+          noCredit: t("provider.account.resetUsageNoCredit", { name }),
+          alreadyRedeemed: t("provider.account.resetUsageAlreadyRedeemed", { name }),
+        };
+        setNotice(text[outcome]);
+      }
+    } catch (failure) {
+      setError(errorMessage(failure, t("provider.account.resetUsageFailed", { name })));
+    }
+    setResetting(null);
+    readUsageResets();
   };
   const adding = () => accounts().some((account) => account.state === "connecting" && account.email == null);
   const removeDescription = (account: ProviderPickerAccount | null) => {
@@ -584,6 +637,8 @@ function AccountsSection(props: SectionProps) {
               accounts={accounts()}
               run={run}
               onRemove={() => setRemoving({ ...account() })}
+              resetsLeft={props.accountActions?.resetUsage ? resetsLeft(account().id) : 0}
+              onResetUsage={() => setResetting({ ...account() })}
             />
           )}
         </For>
@@ -591,6 +646,7 @@ function AccountsSection(props: SectionProps) {
       <Show when={props.option.checkError}>
         {(message) => <ItemDescription>{sourceText(message())}</ItemDescription>}
       </Show>
+      <Show when={notice()}>{(message) => <ItemDescription role="status">{message()}</ItemDescription>}</Show>
       {/* A Reconnect of the provider's own sign-in reports here, as the sign-in card does. */}
       <Show
         when={
@@ -625,10 +681,28 @@ function AccountsSection(props: SectionProps) {
           }
         }}
       />
+      <ConfirmDialog
+        open={resetting() !== null}
+        tone="default"
+        icon={<Gauge aria-hidden="true" />}
+        title={t("provider.account.resetUsageTitle", {
+          name: resetting() ? providerAccountName(t, accounts(), resetting()?.id ?? "") : "",
+        })}
+        description={t("provider.account.resetUsageDescription", {
+          count: resetsLeft(resetting()?.id ?? ""),
+        })}
+        confirmLabel={t("provider.account.resetUsage")}
+        pendingLabel={t("provider.account.resetUsagePending")}
+        initialFocus="cancel"
+        onCancel={() => setResetting(null)}
+        onConfirm={() => {
+          const target = resetting();
+          return target ? resetUsage(target) : undefined;
+        }}
+      />
     </SettingsSection>
   );
 }
-
 const ACCOUNT_STATE_TEXT = {
   connected: "provider.status.connected",
   connecting: "provider.account.finishSignIn",
@@ -644,6 +718,9 @@ function AccountRow(
     accounts: readonly ProviderPickerAccount[];
     run: (name: string, action: () => Promise<void> | undefined) => void;
     onRemove: () => void;
+    /** The usage reset credits the provider gave this account; the menu offers a reset only when there is one. */
+    resetsLeft: number;
+    onResetUsage: () => void;
   },
 ) {
   const { t, format } = useText();
@@ -752,6 +829,12 @@ function AccountRow(
                 <Pencil aria-hidden="true" />
                 {t("common.rename")}
               </DropdownMenu.Item>
+              <Show when={state() === "connected" && props.resetsLeft > 0}>
+                <DropdownMenu.Item onSelect={() => props.onResetUsage()}>
+                  <Gauge aria-hidden="true" />
+                  {t("provider.account.resetUsage")}
+                </DropdownMenu.Item>
+              </Show>
               <Show when={reconnect()}>
                 {(action) => (
                   <DropdownMenu.Item onSelect={() => props.row.runAction(action())}>

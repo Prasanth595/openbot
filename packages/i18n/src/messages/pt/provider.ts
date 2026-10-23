@@ -165,4 +165,17 @@ export const messages = {
   "provider.account.finishSignIn": "Conclua a entrada no navegador.",
   "provider.account.remove": "Remover conta",
   "provider.account.actionFailed": "Não foi possível alterar a conta de {name}.",
+  "provider.account.resetUsage": "Redefinir uso",
+  "provider.account.resetUsageTitle": "Redefinir o uso de {name}?",
+  "provider.account.resetUsageDescription": {
+    one: "Isso usa seu último crédito de redefinição de uso. Os limites de uso esgotados desta conta recomeçam agora. Você não pode desfazer isso.",
+    other:
+      "Isso usa 1 dos seus {count} créditos de redefinição de uso. Os limites de uso esgotados desta conta recomeçam agora. Você não pode desfazer isso.",
+  },
+  "provider.account.resetUsagePending": "Redefinindo…",
+  "provider.account.resetUsageDone": "Os limites de uso de {name} recomeçam agora.",
+  "provider.account.resetUsageNothing": "{name} não tem limite de uso esgotado. Nenhum crédito foi usado.",
+  "provider.account.resetUsageNoCredit": "{name} não tem mais créditos de redefinição de uso.",
+  "provider.account.resetUsageAlreadyRedeemed": "Este crédito de redefinição de {name} já foi usado.",
+  "provider.account.resetUsageFailed": "Não foi possível redefinir o uso de {name}.",
 } as const satisfies PartialTranslation<typeof source>;

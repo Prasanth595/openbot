@@ -39,6 +39,11 @@ export interface BrowserHostTab {
    * for someone else. Such a tab is not saved, and its cookies go when it closes.
    */
   privateSession?: Session;
+  /**
+   * The key of the agent session this tab and its popups use, for an agent with a browser session of
+   * its own. Absent: the shared session. Fixed for the life of the tab.
+   */
+  agentSessionKey?: string;
   popup: boolean;
   popupFailure?: BrowserTab["popupFailure"];
   closing?: boolean;

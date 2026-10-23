@@ -10,6 +10,7 @@ export const messages = {
   "error.team.accountChangedDuringCreate":
     "Аккаунт, в который выполнен вход, изменился во время создания этого сервера.",
   "error.team.notConfigured": "Этот OpenBot не настроен.",
+  "error.team.keyRotationMissing": "Нет ожидающей смены ключа сервера.",
   "error.team.serverNotActive": "Этот сервер больше не является активным для аккаунта, в который выполнен вход.",
   "error.team.logoInvalid": "Выберите корректное изображение PNG, JPEG или WebP размером до 512 КБ.",
   "error.team.ownerMembershipConflict": "Членство владельца в панели управления противоречит этому хосту.",

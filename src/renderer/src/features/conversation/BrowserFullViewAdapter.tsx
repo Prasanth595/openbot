@@ -1,7 +1,8 @@
 import type { BrowserTab } from "@openbot/contracts/ipc";
 import BrowserFullView from "@openbot/ui/features/browser/BrowserFullView";
+import BrowserLocalSignInDialog from "@openbot/ui/features/browser/BrowserLocalSignInDialog";
 import { BROWSER_NEW_TAB_URL } from "@openbot/ui/features/browser/browser-suggestions";
-import { createEffect, createMemo, untrack } from "solid-js";
+import { createEffect, createMemo, onCleanup, Show, untrack } from "solid-js";
 import {
   browserSessionHistory,
   canReopenBrowserTab,
@@ -42,6 +43,7 @@ export default function BrowserFullViewAdapter() {
     setBrowserSurfaceElement,
     showBrowserPip,
     showBrowserTabOf,
+    localSignIn,
   } = useConversationViewScope();
   const serverId = () => props.server?.id ?? "";
   const tabs = createMemo(() => orderedBrowserTabs(serverId(), allBrowserTabs()));
@@ -99,6 +101,9 @@ export default function BrowserFullViewAdapter() {
     }
   }
 
+  // The session of the sign-in stays in main only while this dialog can finish it.
+  onCleanup(localSignIn.cancel);
+
   return (
     <BrowserFullView
       open={browserExpandedOpen()}
@@ -138,8 +143,26 @@ export default function BrowserFullViewAdapter() {
       liveViewClipboard={serverSupportsCapability(props.server, "browser-view-clipboard")}
       onBack={() => setActiveRightPanel("browser")}
       onEnterPip={props.runtime ? () => undefined : showBrowserPip}
+      onSignInLocally={localSignIn.canStart(activeBrowserTab()) ? localSignIn.start : undefined}
       // A local tab is a native view above this window, so its dock goes in the overlay above the page.
       dock={<BrowserDockAdapter tab={activeBrowserTab()} overlay={!props.runtime && props.server?.kind === "local"} />}
+      dialogs={
+        <Show when={localSignIn.state()}>
+          {(current) => (
+            <BrowserLocalSignInDialog
+              open
+              site={current().site}
+              server={props.server?.name ?? ""}
+              windowOpen={current().windowOpen}
+              pending={current().pending}
+              error={current().error}
+              onReopen={() => localSignIn.reopen(current().tabId, current().url)}
+              onCancel={localSignIn.cancel}
+              onDone={localSignIn.finish}
+            />
+          )}
+        </Show>
+      }
     />
   );
 }

@@ -416,6 +416,7 @@ export const messages = {
   "settings.hostedServers.deleteFailed": "Не удалось удалить сервер.",
   "settings.hostedServers.plan.label": "Тариф",
   "settings.hostedServers.plan.recommended": "Самый выгодный",
+  "settings.hostedServers.plan.soldOut": "Распродано",
   "settings.hostedServers.plan.perMonth": "/ мес.",
   "settings.hostedServers.plan.disk": "{count} ГБ хранилища",
   "settings.hostedServers.plan.linux": "Машина с Linux",

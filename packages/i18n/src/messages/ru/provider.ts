@@ -192,4 +192,19 @@ export const messages = {
   "provider.account.finishSignIn": "Завершите вход в браузере.",
   "provider.account.remove": "Удалить аккаунт",
   "provider.account.actionFailed": "Не удалось изменить аккаунт {name}.",
+  "provider.account.resetUsage": "Сбросить использование",
+  "provider.account.resetUsageTitle": "Сбросить использование {name}?",
+  "provider.account.resetUsageDescription": {
+    one: "Будет потрачен ваш последний кредит сброса использования. Исчерпанные лимиты использования этого аккаунта сейчас начнутся заново. Это действие нельзя отменить.",
+    few: "Будет потрачен 1 из {count} кредитов сброса использования. Исчерпанные лимиты использования этого аккаунта сейчас начнутся заново. Это действие нельзя отменить.",
+    many: "Будет потрачен 1 из {count} кредитов сброса использования. Исчерпанные лимиты использования этого аккаунта сейчас начнутся заново. Это действие нельзя отменить.",
+    other:
+      "Будет потрачен 1 из {count} кредитов сброса использования. Исчерпанные лимиты использования этого аккаунта сейчас начнутся заново. Это действие нельзя отменить.",
+  },
+  "provider.account.resetUsagePending": "Сброс…",
+  "provider.account.resetUsageDone": "Лимиты использования {name} начались заново.",
+  "provider.account.resetUsageNothing": "У {name} нет исчерпанных лимитов использования. Кредит не потрачен.",
+  "provider.account.resetUsageNoCredit": "У {name} не осталось кредитов сброса использования.",
+  "provider.account.resetUsageAlreadyRedeemed": "Этот кредит сброса {name} уже использован.",
+  "provider.account.resetUsageFailed": "Не удалось сбросить использование {name}.",
 } as const satisfies PartialTranslation<typeof source>;

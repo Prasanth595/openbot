@@ -29,7 +29,7 @@ export const messages = {
   "agentSettings.backupModels.intro":
     "Если {model} достигнет лимита использования до того, как {name} начнёт писать, {name} спросит вас, какую модель использовать.",
   "agentSettings.backupModels.introAutomatic":
-    "Если {model} достигнет лимита использования до того, как {name} начнёт писать, {name} переключится на первую доступную модель по порядку.",
+    "Если {model} достигнет лимита использования или завершится с ошибкой провайдера до того, как {name} начнёт писать, {name} переключится на первую доступную модель по порядку.",
   "agentSettings.backupModels.ask": "Спрашивать перед переключением",
   "agentSettings.backupModels.order": "Порядок",
   "agentSettings.backupModels.listLabel": "Резервные модели по порядку",
@@ -42,7 +42,7 @@ export const messages = {
   "agentSettings.backupModels.unavailable": "Сейчас недоступна · пропущена",
   "agentSettings.backupModels.withAccount": "{model} · {account}",
   "agentSettings.backupModels.note":
-    "После начала ответа {name} не переключает модель. Когда лимит закончится, {name} вернётся к {model}.",
+    "После начала ответа {name} не переключает модель. Когда лимит закончится или через 10 минут после ошибки провайдера, {name} вернётся к {model}.",
   "agentSettings.groups.brain": "Мозг",
   "agentSettings.groups.knows": "Знает",
   "agentSettings.groups.does": "Делает",
@@ -182,6 +182,9 @@ export const messages = {
   "agentSettings.quickAcknowledgement.title": "Показывать план перед долгими задачами",
   "agentSettings.quickAcknowledgement.description":
     "Перед долгой задачей агент показывает свой план. Он начинает через 10 с или когда вы нажимаете «Начать».",
+  "agentSettings.ownBrowserSession.title": "Своя сессия браузера",
+  "agentSettings.ownBrowserSession.description":
+    "Вкладки агента хранят свои входы в аккаунты и cookie. Изменение закрывает открытые вкладки агента.",
   "agentSettings.runtime.workspaceEnforcedProcess":
     "Весь процесс {provider} работает в песочнице, поэтому запись за пределами рабочего пространства не удастся. Доступно только в macOS.",
 } as const satisfies PartialTranslation<typeof source>;

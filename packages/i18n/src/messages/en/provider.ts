@@ -184,6 +184,19 @@ export const messages = defineMessages("provider", {
   "provider.account.finishSignIn": "Finish the sign-in in the browser.",
   "provider.account.remove": "Remove account",
   "provider.account.actionFailed": "Could not change the {name} account.",
+  "provider.account.resetUsage": "Reset usage",
+  "provider.account.resetUsageTitle": "Reset the usage of {name}?",
+  "provider.account.resetUsageDescription": {
+    one: "This uses your last usage reset credit. The spent usage limits of this account start again now. You cannot undo this.",
+    other:
+      "This uses 1 of your {count} usage reset credits. The spent usage limits of this account start again now. You cannot undo this.",
+  },
+  "provider.account.resetUsagePending": "Resetting…",
+  "provider.account.resetUsageDone": "The usage limits of {name} start again now.",
+  "provider.account.resetUsageNothing": "{name} has no spent usage limit. No credit was used.",
+  "provider.account.resetUsageNoCredit": "{name} has no usage reset credits left.",
+  "provider.account.resetUsageAlreadyRedeemed": "This reset credit of {name} was already used.",
+  "provider.account.resetUsageFailed": "Could not reset the usage of {name}.",
 
   // Settings > Providers: a list of providers, and one page for each provider.
   "provider.settings.connected": "Connected",

@@ -37,6 +37,10 @@ import {
   PROVIDER_HOST_SIGN_IN_ERROR_LIMIT,
   PROVIDER_HOST_SIGN_IN_ROUTES,
 } from "@openbot/contracts/team-protocol/provider-host-sign-in-v1";
+import {
+  PROVIDER_USAGE_RESET_CAPABILITY,
+  PROVIDER_USAGE_RESET_ROUTES,
+} from "@openbot/contracts/team-protocol/provider-usage-reset-v1";
 import { PROVIDERS_ADMIN_CAPABILITY, PROVIDERS_ADMIN_ROUTES } from "@openbot/contracts/team-protocol/providers-v1";
 import {
   PROVIDERS_RUNTIMES_V2_CAPABILITY,
@@ -59,7 +63,12 @@ import { runCauseEffect } from "../../backend/effect-boundary";
 import type { PeerCustomProviderChanges } from "../custom-provider-changes";
 import type { ProviderCredentialStore } from "../provider-credential-store";
 import type { ProviderRuntimeManager } from "../provider-runtime-manager";
-import { decodeAgentStatusFromHost, decodeHostProviderAccountsFromHost } from "../remote-agent-decoding";
+import {
+  decodeAgentStatusFromHost,
+  decodeHostProviderAccountsFromHost,
+  decodeProviderUsageResetOutcomeFromHost,
+  decodeProviderUsageResetsFromHost,
+} from "../remote-agent-decoding";
 import { acceptEmpty, type ResponseDecoder } from "../remote-host-decoding";
 import type { RemoteRequestInit } from "../remote-server-client";
 import { type SignInRelayClient, signInRelayRemote } from "../sign-in-relay-client";
@@ -72,6 +81,7 @@ import {
   parseProviderApiKeyInput,
   parseRemoveProviderAccountInput,
   parseRenameProviderAccountInput,
+  parseResetProviderUsageInput,
 } from "./provider-handlers";
 import { scopedHandler, scopedQueryHandler } from "./scoped-handler";
 import { isObject, requireString } from "./validation";
@@ -199,6 +209,25 @@ export function providerAdminIpcHandlers({
     });
 
   /**
+   * The usage reset credits of a joined server's host's accounts, which only a host with
+   * `provider-usage-reset-v1` spends. This computer's own go through `providers`.
+   */
+  const usageResetRequest = <I, T>(
+    parse: (value: unknown) => I,
+    path: string,
+    decoder: ResponseDecoder<T>,
+    body: (input: I) => unknown = (input) => input,
+  ) =>
+    scopedHandler(parse, {
+      local: () => Promise.reject(new Error(sourceText("error.team.providersUnsupported"))),
+      remote: (input: I, serverId: string) => {
+        if (!remoteServers.supportsCapability(serverId, PROVIDER_USAGE_RESET_CAPABILITY))
+          throw new Error(sourceText("error.team.providersUnsupported"));
+        return runCauseEffect(remoteServers.request(serverId, path, decoder, { method: "POST", body: body(input) }));
+      },
+    });
+
+  /**
    * A sign-in that a joined server's host starts and that opens in this computer's browser, for the
    * providers that only a host with `sign-in-relay-v1` relays. It runs here until it ends, and the
    * renderer reads `relaySignInStatus` as it does for the host's own page.
@@ -287,6 +316,17 @@ export function providerAdminIpcHandlers({
       ),
       renameAccount: accountsRequest(parseRenameProviderAccountInput, PROVIDER_ACCOUNTS_ROUTES.rename, acceptEmpty),
       removeAccount: accountsRequest(parseRemoveProviderAccountInput, PROVIDER_ACCOUNTS_ROUTES.remove, acceptEmpty),
+      usageResets: usageResetRequest(
+        parseProviderId,
+        PROVIDER_USAGE_RESET_ROUTES.list,
+        decodeProviderUsageResetsFromHost,
+        (provider) => ({ provider }),
+      ),
+      resetUsage: usageResetRequest(
+        parseResetProviderUsageInput,
+        PROVIDER_USAGE_RESET_ROUTES.consume,
+        decodeProviderUsageResetOutcomeFromHost,
+      ),
       startRelaySignIn: relaySignIn(parseProviderId, async (provider, serverId) => {
         requireRelay(serverId, provider);
         const key = relayKey(serverId, provider);

@@ -506,6 +506,7 @@ function registerIpcHandlers({
   mailbox,
   browser,
   browserPictureInPicture,
+  localSignIn,
   browserDock,
   browserView,
   updater,
@@ -613,7 +614,7 @@ function registerIpcHandlers({
     ...hostedSiteIpcHandlers({ hostedSites, remoteServers, getMainWindow, translate: language.translate }),
     ...githubConnectorIpcHandlers({ githubConnector, remoteServers, openExternal: (url) => shell.openExternal(url) }),
     ...onePasswordConnectorIpcHandlers({ onePasswordConnector, remoteServers }),
-    ...bitwardenConnectorIpcHandlers({ bitwardenConnector }),
+    ...bitwardenConnectorIpcHandlers({ bitwardenConnector, remoteServers }),
     ...billingIpcHandlers({ billing }),
     ...licenseIpcHandlers({ license }),
     ...routineFeedIpcHandlers({ routineFeed }),
@@ -727,7 +728,7 @@ function registerIpcHandlers({
       }),
       openExternal: (address) => shell.openExternal(address),
     }),
-    ...browserIpcHandlers({ browserPictureInPicture, browser, remoteServers, browserView }),
+    ...browserIpcHandlers({ browserPictureInPicture, browser, remoteServers, browserView, localSignIn }),
   });
 }
 

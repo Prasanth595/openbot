@@ -74,6 +74,8 @@ export const messages = {
   "composer.upload.cancel": "Yüklemeyi iptal et",
   "composer.voice.progress": "Ses modeli indiriliyor %{progress}",
   "composer.voice.recording": "Ses kaydı",
+  "composer.voice.limitSoon": "Kayıt {seconds} saniye içinde duracak.",
+  "composer.voice.limitReached": "Kayıt 2 dakika sınırında durdu. Söyledikleriniz mesajda.",
   "composer.send.saveQueued": "Kuyruktaki mesajı kaydet",
   "composer.send.voice": "Sesli mesaj gönder",
   "composer.send.message": "Mesaj gönder",

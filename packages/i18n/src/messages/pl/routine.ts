@@ -77,7 +77,6 @@ export const messages = {
   "routine.hours.window": "{start}–{end}",
   "routine.hours.windowSameHalf": "{start}–{end} {meridiem}",
   "routine.hours.everyShort": "Co {hours} godz.",
-  "routine.hours.endBeforeStart": "Godzina końca musi być późniejsza niż godzina początku",
   "routine.hours.runsPerDay": {
     one: "Raz dziennie",
     few: "{count} razy dziennie",
@@ -92,7 +91,6 @@ export const messages = {
   "routine.hours.endTime": "Koniec",
   "routine.hours.repeat": "Powtarzaj",
 
-  "routine.problem.endBeforeStart": "Godzina końca musi być późniejsza niż godzina początku.",
   "routine.problem.invalidDate": "Wybierz istniejącą datę.",
   "routine.problem.cronRequired": "Wpisz wyrażenie cron.",
   "routine.problem.cronTooLong": "Wyrażenie cron jest za długie.",

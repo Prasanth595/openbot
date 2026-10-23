@@ -105,8 +105,13 @@ The native document and photo pickers and the in-chat camera panel prepare local
 uploads them to the host before one message commits the ordered draft IDs. Mobile limits each file
 to 10 MB because the native/DOM bridge copies Base64 data. Downloads use the same authenticated file
 channel, validate size, chunk order, and SHA-256, and pass verified bytes back through the command
-bridge. Mobile queues downloads to limit concurrent copies. Image previews preserve aspect ratio;
-other files use the system share sheet through a temporary cache file.
+bridge. Mobile queues downloads to limit concurrent copies. Image previews preserve aspect ratio.
+Audio and video play in the chat. Other files take the desktop preview kind from
+`filePreviewKindForFile`: Markdown, text, HTML, PDF and `.xlsx` files open on the preview screen.
+The `.xlsx` parser in `packages/contracts/src/spreadsheet-workbook.ts` runs in a DOM component,
+because it needs `DOMParser`. iOS shows a PDF in a native web view with no scripts; Android draws
+its pages with pdf.js in a DOM component. A visual reply shows its page in the chat, with no
+scripts. Files with no preview use the system share sheet through a temporary cache file.
 
 Mobile chat loads the latest 50 messages through `conversation-page` and loads older pages by cursor.
 Its Legend List (`KeyboardAwareLegendList` from `@legendapp/list/keyboard`) renders only the rows near

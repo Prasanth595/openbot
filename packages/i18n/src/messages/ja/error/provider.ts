@@ -310,6 +310,9 @@ export const messages = {
   "error.provider.useChangeFailed": "OpenBot はプロバイダーの設定を変更できませんでした。",
   "error.provider.accountsUnsupported": "{provider} で使えるアカウントは 1 つだけです。",
   "error.provider.accountNeedsConnection": "別のアカウントを追加する前に {provider} に接続してください。",
+  "error.provider.usageResetUnsupported": "{provider} は使用量の上限をリセットできません。",
+  "error.provider.usageResetNotConnected":
+    "使用量をリセットする前に、この {provider} アカウントにもう一度サインインしてください。",
   "error.provider.accountLimit": "{provider} で使えるアカウントは最大 {limit} 個です。",
   "error.provider.accountNotFound":
     "この {provider} アカウントはこのコンピューターにありません。更新してからもう一度お試しください。",

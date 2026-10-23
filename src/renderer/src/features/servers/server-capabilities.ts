@@ -33,12 +33,14 @@ export function serverSupportsCapability(
       capability === "browser-view" ||
       capability === "browser-view-clipboard" ||
       capability === "browser-user-control" ||
+      capability === "browser-sign-in" ||
       capability === "mcp-servers-v1" ||
       capability === "mcp-sign-in-v1" ||
       capability === "mcp-sign-in-app-v1" ||
       capability === "sign-in-relay-v1" ||
       capability === "connectors-v1" ||
       capability === "onepassword-connector-v1" ||
+      capability === "bitwarden-connector-v1" ||
       capability === "provider-host-sign-in-v1" ||
       capability === "storage-v1" ||
       capability === "hosted-sites-v1" ||
@@ -46,6 +48,7 @@ export function serverSupportsCapability(
       capability === "agent-host-settings-v1" ||
       capability === "agent-backup-models-v1" ||
       capability === "agent-task-limit-v1" ||
+      capability === "provider-usage-reset-v1" ||
       capability === "skills-admin-v1" ||
       capability === "shared-tables-v1" ||
       capability === "agent-install-v1" ||

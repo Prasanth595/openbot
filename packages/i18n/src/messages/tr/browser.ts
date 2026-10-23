@@ -103,6 +103,8 @@ export const messages = {
   "browser.userControl.status": "Bu sayfayı siz kontrol ediyorsunuz",
   "browser.dock.messageTo": "{name} için mesaj",
   "browser.dock.needsYou": "{name} bu sayfada size ihtiyaç duyuyor",
+  "browser.dock.needsAnswer": "{name} yanıtınızı bekliyor",
+  "browser.dock.needsApproval": "{name} onayınızı bekliyor",
   "browser.dock.answerInChat": "Sohbette yanıtla",
   "browser.tab.newRight": "Sağa yeni sekme",
   "browser.tab.duplicate": "Çoğalt",
@@ -126,4 +128,19 @@ export const messages = {
   "browser.address.switchToTab": "Sekmeye geç",
   "browser.address.search": "Google'da ara",
   "browser.pageActions": "Sayfa işlemleri",
+  "browser.signIn.local": "Bu bilgisayarda oturum aç",
+  "browser.signIn.title": "{site} sitesinde oturum aç",
+  "browser.signIn.description":
+    "Bazı siteler bir sunucudan oturum açmayı reddeder. Bu bilgisayarda oturum açın; OpenBot {site} oturumunu {server} sunucusuna gönderir. {server} üzerindeki tüm ajanlar ve üyeler bunu tarayıcıda kullanabilir.",
+  "browser.signIn.windowOpen":
+    "Açılan pencerede oturum açın. Oturum açma tamamlanınca OpenBot onu gönderir. Pencere açık kalırsa Bitti'yi seçin.",
+  "browser.signIn.windowClosed":
+    "Oturum açma penceresi kapalı. Oturumu göndermek için Bitti'yi seçin veya pencereyi yeniden açın.",
+  "browser.signIn.reopen": "Oturum açma penceresini aç",
+  "browser.signIn.sending": "{server} sunucusuna gönderiliyor…",
+  "browser.signIn.sent": "{server} üzerinde {site} oturumu açıldı",
+  "browser.signIn.notFound": "OpenBot {site} için oturum bulamadı. Pencerede oturum açın, sonra Bitti'yi seçin.",
+  "browser.signIn.stillSignedOut":
+    "{server} hâlâ {site} için bir oturum açma sayfası gösteriyor. Oturum açmayı pencerede tamamlayın.",
+  "browser.signIn.failed": "OpenBot oturumu gönderemedi.",
 } as const satisfies PartialTranslation<typeof source>;

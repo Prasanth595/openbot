@@ -103,6 +103,8 @@ export const messages = {
   "browser.userControl.status": "Vous contrôlez cette page",
   "browser.dock.messageTo": "Message à {name}",
   "browser.dock.needsYou": "{name} a besoin de vous sur cette page",
+  "browser.dock.needsAnswer": "{name} attend votre réponse",
+  "browser.dock.needsApproval": "{name} attend votre approbation",
   "browser.dock.answerInChat": "Répondre dans le chat",
   "browser.tab.newRight": "Nouvel onglet à droite",
   "browser.tab.duplicate": "Dupliquer",
@@ -126,4 +128,20 @@ export const messages = {
   "browser.address.switchToTab": "Aller à l’onglet",
   "browser.address.search": "Recherche Google",
   "browser.pageActions": "Actions de la page",
+  "browser.signIn.local": "Se connecter sur cet ordinateur",
+  "browser.signIn.title": "Se connecter à {site}",
+  "browser.signIn.description":
+    "Certains sites refusent une connexion depuis un serveur. Connectez-vous sur cet ordinateur, et OpenBot envoie la connexion à {site} vers {server}. Tous les agents et membres de {server} peuvent ensuite l’utiliser dans le navigateur.",
+  "browser.signIn.windowOpen":
+    "Connectez-vous dans la fenêtre qui s’est ouverte. OpenBot envoie la connexion quand elle est terminée. Si la fenêtre reste ouverte, sélectionnez Terminé.",
+  "browser.signIn.windowClosed":
+    "La fenêtre de connexion est fermée. Sélectionnez Terminé pour envoyer la connexion, ou ouvrez à nouveau la fenêtre.",
+  "browser.signIn.reopen": "Ouvrir la fenêtre de connexion",
+  "browser.signIn.sending": "Envoi vers {server}…",
+  "browser.signIn.sent": "Connecté à {site} sur {server}",
+  "browser.signIn.notFound":
+    "OpenBot n’a trouvé aucune connexion pour {site}. Connectez-vous dans la fenêtre, puis sélectionnez Terminé.",
+  "browser.signIn.stillSignedOut":
+    "{server} affiche toujours une page de connexion de {site}. Terminez la connexion dans la fenêtre.",
+  "browser.signIn.failed": "OpenBot n’a pas pu envoyer la connexion.",
 } as const satisfies PartialTranslation<typeof source>;

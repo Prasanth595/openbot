@@ -184,6 +184,7 @@ import { createWebAccountUsage } from "./web-account-usage";
 import { createWebAgentImportCalls } from "./web-agent-import";
 import { openWebLink } from "./web-attachments";
 import { createWebBillingCalls, createWebLicenseCalls } from "./web-billing";
+import { webBitwardenConnectorPort } from "./web-bitwarden-connector";
 import { createWebChannelsPort } from "./web-channels-runtime";
 import { createWebWorkspace, type WebRuntimeFactory } from "./web-client-context";
 import { createWebConversationRuntime } from "./web-conversation-runtime";
@@ -776,6 +777,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   const connectorTarget = createMemo(() => remoteAdminServer(server(), CONNECTORS_CAPABILITY));
   const githubPort = webGitHubConnectorPort(() => hostRequest());
   const onePasswordPort = webOnePasswordConnectorPort(() => hostRequest());
+  const bitwardenPort = webBitwardenConnectorPort(() => hostRequest());
   const webMessaging = webHostMessaging(hostRequest, () =>
     workspace.state.capabilities.includes(DISCORD_ACCESS_CAPABILITY),
   );
@@ -786,6 +788,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
       {
         github: () => githubPort,
         onePassword: () => onePasswordPort,
+        bitwarden: () => bitwardenPort,
         messaging: hostMessagingApi(
           () => connectorTarget()?.id,
           () => webMessaging.api,
@@ -1153,6 +1156,11 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   const routineFlowsHost = webRoutineFlowsHost(workspace.runtime, workspace.onHostEvent, () =>
     eventsEnabled() ? webhookRoutines : undefined,
   );
+  /** The host's Providers settings, which an owner or admin of the host can open. */
+  const openProviderSettings = (trigger: HTMLElement) => {
+    const current = server();
+    if (current) void openServerSettings(current.id, trigger, "providers");
+  };
   /** A new agent on the canvas starts on the model the agent form would pick. */
   const newAgentModels = createMemo((): DiagramModelChoice | undefined => {
     if (!workspace.state.capabilities.includes(TEAM_AGENT_CREATE_MODEL_CAPABILITY)) return undefined;
@@ -2041,6 +2049,9 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 first={firstAgent()}
                 preference={serverSetupChoice()}
                 customProviders={providerSettings()?.customProviders}
+                onManageProviders={providerSettings() ? openProviderSettings : undefined}
+                liveModels={models()}
+                liveStatus={status()}
                 // A new form starts empty, with the avatar that the first-agent row showed.
                 initialDraft={{ ...createFirstAgentDraft(), ...untrack(agentAvatar) }}
                 onDraftChange={({ avatarSeed, avatarHue }) => setAgentAvatar({ avatarSeed, avatarHue })}
@@ -2230,14 +2241,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   (providerSettings()?.connection?.connectKind(provider) ?? null) !== null
                 }
                 onSignInProvider={composerSignIn() ? connectFromComposer : undefined}
-                onManageProviders={
-                  providerSettings()
-                    ? (trigger: HTMLElement) => {
-                        const current = server();
-                        if (current) void openServerSettings(current.id, trigger, "providers");
-                      }
-                    : undefined
-                }
+                onManageProviders={providerSettings() ? openProviderSettings : undefined}
                 agent={conversationAgent()}
                 agents={workspace.profiles()}
                 modelOptions={models()}

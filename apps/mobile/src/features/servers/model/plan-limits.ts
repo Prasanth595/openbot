@@ -131,9 +131,9 @@ export function planLimitName(row: PlanLimitRow, accounts: PlanLimits["accounts"
   return `${provider} · ${name}`;
 }
 
-/** The identity of a window in a reading: a provider reports each window length once. */
-export function planLimitWindowKey(window: PlanLimitWindow): string {
-  return `${window.durationMins ?? "limit"}-${window.resetsAt ?? ""}`;
+/** The identity of a window in a reading. Cursor reports two windows of the same length, so the position is part of it. */
+export function planLimitWindowKey(window: PlanLimitWindow, index: number): string {
+  return `${index}-${window.durationMins ?? "limit"}-${window.resetsAt ?? ""}`;
 }
 
 /** The name of a limit window, as desktop names it: 5-hour, Weekly, Monthly. */

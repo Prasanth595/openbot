@@ -171,4 +171,16 @@ export const messages = {
   "provider.account.finishSignIn": "ブラウザーでサインインを完了してください。",
   "provider.account.remove": "アカウントを削除",
   "provider.account.actionFailed": "{name} のアカウントを変更できませんでした。",
+  "provider.account.resetUsage": "使用量をリセット",
+  "provider.account.resetUsageTitle": "{name} の使用量をリセットしますか？",
+  "provider.account.resetUsageDescription": {
+    other:
+      "使用量リセットのクレジット {count} 件のうち 1 件を使います。このアカウントの上限に達した使用量は今すぐリセットされます。この操作は元に戻せません。",
+  },
+  "provider.account.resetUsagePending": "リセット中…",
+  "provider.account.resetUsageDone": "{name} の使用量の上限がリセットされました。",
+  "provider.account.resetUsageNothing": "{name} に上限に達した使用量はありません。クレジットは使われていません。",
+  "provider.account.resetUsageNoCredit": "{name} には使用量リセットのクレジットが残っていません。",
+  "provider.account.resetUsageAlreadyRedeemed": "{name} のこのリセットのクレジットはすでに使われています。",
+  "provider.account.resetUsageFailed": "{name} の使用量をリセットできませんでした。",
 } as const satisfies PartialTranslation<typeof source>;

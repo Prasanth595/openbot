@@ -31,6 +31,7 @@ import { createOpenBotLogger, redactText } from "@openbot/logging";
 import { Effect, Result } from "effect";
 import { z } from "zod";
 import pluginCatalog from "../../../resources/plugin-catalog/catalog.json";
+import type { AgentApiKeys } from "../agent-api-keys";
 import type { AgentClient, AgentProvider } from "../agent-client";
 import type { AgentTables } from "../agent-data/agent-tables";
 import type { AgentStore } from "../agent-store";
@@ -50,6 +51,9 @@ import {
   CHAT_VISUAL_PREVIEW_DEFAULT_WIDTH,
   htmlPreviewToolSchema,
   htmlRenderToolSchema,
+  removeApiKeyToolSchema,
+  requestApiKeyToolSchema,
+  routineReportFailureToolSchema,
 } from "../openbot-tools";
 import { type AppServerRequest, type DynamicToolCallParams, type DynamicToolResult, isRecord } from "../protocol";
 import { handleRoutineFlowTool, type RoutineFlowTools } from "../routine-flows/routine-flow-tools";
@@ -91,8 +95,8 @@ import {
   updateProfileToolSchema,
   widensAgentSettings,
 } from "./profile-tools";
-import { browserUserControlResult } from "./prompts";
-import { ROUTINE_NO_UPDATE_TOOL } from "./routine-quiet-runs";
+import { apiKeyFormSpec, browserUserControlResult } from "./prompts";
+import { ROUTINE_NO_UPDATE_TOOL, ROUTINE_REPORT_FAILURE_TOOL } from "./routine-quiet-runs";
 import type { RoutineScheduler } from "./routine-scheduler";
 import { type OpenBotToolResponse, openBotToolFailure, openBotToolResult } from "./routine-tools";
 import {
@@ -115,6 +119,9 @@ const logger = createOpenBotLogger("openbot-tool-router");
 
 /** How long the plan card of `acknowledge_request` waits before the host presses its start button. */
 const ACKNOWLEDGE_START_MS = 10_000;
+
+/** The tools that `#apiKeyTool` answers. */
+const API_KEY_TOOLS: ReadonlySet<string> = new Set(["request_api_key", "list_api_keys", "remove_api_key"]);
 
 /** The Marketplace apps that the chat draws a card for: the bundled catalog plugins and the connectors. */
 const MARKETPLACE_APP_IDS: readonly string[] = [
@@ -153,6 +160,8 @@ export interface OpenBotToolRouterHooks {
   turnActivity(agentId: string, turnId: string | null): { startedAt: number | null; lastEventAt: number | null };
   /** Records a no-update tool call for the turn; null when no routine run started the turn. */
   requestNoUpdate(agentId: string, threadId: string, turnId: string): "quiet" | "shown" | null;
+  /** Records the reason a routine run failed for the turn; false when no routine run started the turn. */
+  reportRoutineFailure(agentId: string, turnId: string, reason: string): boolean;
   /** Starts a new chat with the agent when its turn ends and its queue is empty. */
   requestNewChat(agentId: string): void;
 }
@@ -186,6 +195,8 @@ export interface OpenBotToolRouterOptions {
   screenCapture?: ScreenCaptureHost | null | undefined;
   /** The MCP servers of this OpenBot server, for the MCP tools; null where nothing holds them. */
   mcpServers?: AgentMcpServers | null | undefined;
+  /** The API keys that users saved for agents; null where nothing can save them. */
+  apiKeys?: AgentApiKeys | null | undefined;
   hooks: OpenBotToolRouterHooks;
 }
 
@@ -222,6 +233,7 @@ export class OpenBotToolRouter {
   readonly #visualPreview: ChatVisualPreviewHost | null;
   readonly #screenCapture: ScreenCaptureHost | null;
   readonly #mcpServers: AgentMcpServers | null;
+  readonly #apiKeys: AgentApiKeys | null;
   readonly #hooks: OpenBotToolRouterHooks;
   readonly #interruptTool: AgentInterruptTool;
 
@@ -255,6 +267,7 @@ export class OpenBotToolRouter {
     this.#visualPreview = options.visualPreview ?? null;
     this.#screenCapture = options.screenCapture ?? null;
     this.#mcpServers = options.mcpServers ?? null;
+    this.#apiKeys = options.apiKeys ?? null;
     this.#hooks = options.hooks;
     this.#interruptTool = new AgentInterruptTool({
       store: options.store,
@@ -429,6 +442,11 @@ export class OpenBotToolRouter {
               if (!toolRequest.signal?.aborted && client.running) client.respond(toolRequest.id, result);
               return;
             }
+            if (API_KEY_TOOLS.has(toolRequest.params.tool)) {
+              const result = yield* this.#apiKeyTool(client, toolRequest, toolRequest.params);
+              if (result && !toolRequest.signal?.aborted && client.running) client.respond(toolRequest.id, result);
+              return;
+            }
             if (isMcpServerTool(toolRequest.params.tool)) {
               const result = yield* this.#mcpServerTool(client, toolRequest, toolRequest.params);
               if (!toolRequest.signal?.aborted && client.running) client.respond(toolRequest.id, result);
@@ -500,6 +518,60 @@ export class OpenBotToolRouter {
     }
     this.#attention.surfaceUiBlock(client, request, { blockId, spec });
   }
+
+  /**
+   * The API key tools. `request_api_key` shows a form with one secret field, and the attention registry
+   * answers it with the path of the saved key, so it returns null. The others answer at once. No result
+   * holds a key value.
+   */
+  readonly #apiKeyTool = Effect.fn("OpenBotToolRouter.apiKeyTool")(function* (
+    this: OpenBotToolRouter,
+    client: AgentClient,
+    request: AppServerRequest,
+    params: DynamicToolCallParams,
+  ) {
+    const agentId = this.#conversation.agentForThread(params.threadId);
+    if (!agentId) throw new Error("The calling OpenBot agent is unknown.");
+    const apiKeys = this.#apiKeys;
+    if (!apiKeys) return openBotToolFailure("This OpenBot server cannot save API keys.");
+    const failed = (failure: { cause: unknown }) =>
+      Effect.succeed(
+        openBotToolFailure(
+          failure.cause instanceof Error ? failure.cause.message : sourceText("error.backend.apiKeySaveFailed"),
+        ),
+      );
+    if (params.tool === "list_api_keys")
+      return yield* apiKeys.list(agentId).pipe(
+        Effect.map((keys) => openBotToolResult({ keys })),
+        Effect.catch(failed),
+      );
+    if (params.tool === "remove_api_key") {
+      const parsed = removeApiKeyToolSchema.safeParse(params.arguments);
+      if (!parsed.success)
+        return openBotToolFailure(`${z.prettifyError(parsed.error)}\nCorrect the arguments and retry.`);
+      return yield* apiKeys.remove(agentId, parsed.data.name).pipe(
+        Effect.map((removed) =>
+          openBotToolResult({ status: removed ? "removed" : "not_found", name: parsed.data.name }),
+        ),
+        Effect.catch(failed),
+      );
+    }
+    const parsed = requestApiKeyToolSchema.safeParse(params.arguments);
+    if (!parsed.success)
+      return openBotToolFailure(`${z.prettifyError(parsed.error)}\nCorrect the arguments and retry.`);
+    if (this.#messaging.store.linkForThread(this.#conversation.publicThreadId(agentId, params.threadId)))
+      return openBotToolFailure(
+        "request_api_key does not work in a Slack, Discord or Telegram chat. Ask the user to give you the key in OpenBot.",
+      );
+    const spec = apiKeyFormSpec(parsed.data);
+    if (!spec) return openBotToolFailure("OpenBot could not show this form. Use a shorter title and retry.");
+    this.#attention.surfaceUiBlock(client, request, {
+      blockId: randomUUID(),
+      spec,
+      apiKey: { name: parsed.data.name },
+    });
+    return null;
+  });
 
   /**
    * Shows the plan card of `acknowledge_request` and waits like `ask_ui`. When nobody answers in
@@ -831,6 +903,13 @@ export class OpenBotToolRouter {
           ? { status: "quiet", note: "This run ends without a message or a notification. End your turn now." }
           : { status: "shown", note: "Someone waits for this answer. Report the result as usual." },
       );
+    }
+
+    if (params.tool === ROUTINE_REPORT_FAILURE_TOOL) {
+      const { reason } = routineReportFailureToolSchema.parse(params.arguments ?? {});
+      if (!this.#hooks.reportRoutineFailure(senderAgentId, params.turnId, reason))
+        return openBotToolFailure("Use this tool only in a routine run.");
+      return openBotToolResult({ status: "failed", note: "This run ends as failed. Give your answer as usual." });
     }
 
     const sidebarResult = yield* handleSidebarTool(

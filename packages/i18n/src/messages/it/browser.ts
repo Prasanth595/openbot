@@ -103,6 +103,8 @@ export const messages = {
   "browser.userControl.status": "Controlli tu questa pagina",
   "browser.dock.messageTo": "Messaggio a {name}",
   "browser.dock.needsYou": "{name} ha bisogno di te in questa pagina",
+  "browser.dock.needsAnswer": "{name} ha bisogno della tua risposta",
+  "browser.dock.needsApproval": "{name} ha bisogno della tua approvazione",
   "browser.dock.answerInChat": "Rispondi in chat",
   "browser.tab.newRight": "Nuova scheda a destra",
   "browser.tab.duplicate": "Duplica",
@@ -126,4 +128,19 @@ export const messages = {
   "browser.address.switchToTab": "Passa alla scheda",
   "browser.address.search": "Cerca con Google",
   "browser.pageActions": "Azioni pagina",
+  "browser.signIn.local": "Accedi su questo computer",
+  "browser.signIn.title": "Accedi a {site}",
+  "browser.signIn.description":
+    "Alcuni siti rifiutano un accesso da un server. Accedi su questo computer e OpenBot invia l’accesso a {site} a {server}. Tutti gli agenti e i membri di {server} potranno usarlo nel browser.",
+  "browser.signIn.windowOpen":
+    "Accedi nella finestra che si è aperta. OpenBot invia l’accesso quando è completo. Se la finestra resta aperta, seleziona Fine.",
+  "browser.signIn.windowClosed":
+    "La finestra di accesso è chiusa. Seleziona Fine per inviare l’accesso, o apri di nuovo la finestra.",
+  "browser.signIn.reopen": "Apri la finestra di accesso",
+  "browser.signIn.sending": "Invio a {server}…",
+  "browser.signIn.sent": "Accesso a {site} su {server} eseguito",
+  "browser.signIn.notFound": "OpenBot non ha trovato un accesso per {site}. Accedi nella finestra, poi seleziona Fine.",
+  "browser.signIn.stillSignedOut":
+    "{server} mostra ancora una pagina di accesso di {site}. Completa l’accesso nella finestra.",
+  "browser.signIn.failed": "OpenBot non è riuscito a inviare l’accesso.",
 } as const satisfies PartialTranslation<typeof source>;

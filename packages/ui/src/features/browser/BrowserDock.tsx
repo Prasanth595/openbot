@@ -63,6 +63,9 @@ export interface BrowserDockProps {
   /** Gives the page to the user, or back. Absent when the host cannot. */
   onHandoff?: (() => void) | undefined;
   onRespondSecret: (input: RespondToBrowserSecretInput) => Promise<void>;
+  /** Resolves true when the host has the answers. An empty record cancels the questions. */
+  onAnswerPrompt: (requestId: string | number, answers: Record<string, string[]>) => Promise<boolean>;
+  onRespondApproval: (requestId: string | number, decision: "accept" | "decline") => Promise<boolean>;
   onDismissReply: (id: string) => void;
   onOpenChat?: (() => void) | undefined;
   onSelectAgent: (agentId: string) => void;
@@ -276,8 +279,11 @@ export function BrowserDock(props: BrowserDockProps) {
               agent={props.agent}
               agents={props.agents}
               handoffPending={props.handoffPending}
+              sendShortcut={props.sendShortcut}
               onHandoff={props.onHandoff}
               onRespondSecret={props.onRespondSecret}
+              onAnswerPrompt={props.onAnswerPrompt}
+              onRespondApproval={props.onRespondApproval}
               onDismissReply={props.onDismissReply}
               onOpenChat={props.onOpenChat}
               onSelectAgent={props.onSelectAgent}

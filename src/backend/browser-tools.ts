@@ -1,4 +1,5 @@
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
+import { BROWSER_TAKEOVER_REASONS } from "@openbot/contracts/ipc";
 import { z } from "zod";
 import {
   BROWSER_FILL_FIELDS_MAX_FIELDS,
@@ -162,7 +163,13 @@ const BROWSER_TOOL_DEFINITIONS = [
     name: "request_takeover",
     description:
       "Ask the user to take over a tab for unclear OAuth account selection, CAPTCHA, passkeys, payment confirmation, or when secure password/code handoff is unavailable.",
-    shape: { tabId },
+    shape: {
+      tabId,
+      reason: z
+        .enum(BROWSER_TAKEOVER_REASONS)
+        .optional()
+        .describe("sign-in-blocked: the site refused the sign-in from the browser's network address."),
+    },
   }),
   browserTool({
     name: "navigate",

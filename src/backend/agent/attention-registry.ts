@@ -14,8 +14,12 @@ import type {
   RespondToBrowserTakeoverInput,
   RespondToPromptInput,
 } from "@openbot/contracts/ipc";
-import { AGENT_RUNTIME_ATTENTION_LIMIT, COMPUTER_USE_MCP_SERVER_NAME } from "@openbot/contracts/ipc";
-import type { DynamicRecord } from "@openbot/contracts/runtime-values";
+import {
+  AGENT_RUNTIME_ATTENTION_LIMIT,
+  BROWSER_TAKEOVER_REASONS,
+  COMPUTER_USE_MCP_SERVER_NAME,
+} from "@openbot/contracts/ipc";
+import { type DynamicRecord, isOneOf } from "@openbot/contracts/runtime-values";
 import {
   type ConversationUiBlock,
   normalizeConversationUiBlock,
@@ -36,6 +40,7 @@ import {
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, redactText, toLogValue } from "@openbot/logging";
 import { Deferred, Effect, Result, Schema } from "effect";
+import type { AgentApiKeys } from "../agent-api-keys";
 import type { AgentClient } from "../agent-client";
 import type { BrowserOperationError } from "../browser-effects";
 import type { PreparedBrowserSecret } from "../browser-host";
@@ -61,6 +66,8 @@ import {
 import type { HostedSiteMutationTool } from "./hosted-site-events";
 import { ForbiddenAttentionAnswer, InactiveAttentionRequest } from "./inactive-attention-request";
 import {
+  API_KEY_FIELD_ID,
+  apiKeyPromptResult,
   approvalPermissions,
   browserTakeoverError,
   browserTakeoverResult,
@@ -94,9 +101,21 @@ interface PendingPrompt {
   /** For `ui-block`, the fallback questions of the block. */
   questions: AgentPromptQuestion[];
   /** Set exactly when `responseKind` is `ui-block`. */
-  uiBlock?: { blockId: string; spec: UiBlockSpec };
+  uiBlock?: SurfacedUiBlock;
+  /** True while the answer of a `request_api_key` block is written to its file. */
+  savingApiKey?: boolean;
   /** The block's own answer, and the timer that gives it. Removing the prompt clears the timer. */
   autoAnswer?: { state: UiBlockAutoAnswer; timer: ReturnType<typeof setTimeout> };
+}
+
+/**
+ * An `ask_ui` block, or the form of `request_api_key`. With `apiKey`, the value of its secret field
+ * `API_KEY_FIELD_ID` is saved for the agent under that name, and the agent gets the file path only.
+ */
+export interface SurfacedUiBlock {
+  blockId: string;
+  spec: UiBlockSpec;
+  apiKey?: { name: string };
 }
 
 /**
@@ -214,6 +233,8 @@ export interface AttentionRegistryOptions {
    * saved there is filled without a card: putting the login in the shared vault is the consent.
    */
   passwordVault?: PasswordVault | null | undefined;
+  /** Where the answer of `request_api_key` is saved; null where nothing can save it. */
+  apiKeys?: AgentApiKeys | null | undefined;
 }
 
 export type RuntimeAttention = Pick<
@@ -249,6 +270,7 @@ export class AttentionRegistry {
   readonly #emitError: (code: string, error: unknown, agentId?: string) => void;
   readonly #emitRuntimeSnapshot: () => void;
   readonly #passwordVault: PasswordVault | null;
+  readonly #apiKeys: AgentApiKeys | null;
   readonly #prompts = new Map<RequestId, PendingPrompt>();
   readonly #approvals = new Map<RequestId, PendingApproval>();
   readonly #takeovers = new Map<RequestId, PendingBrowserTakeover>();
@@ -265,6 +287,7 @@ export class AttentionRegistry {
     this.#emitError = options.emitError;
     this.#emitRuntimeSnapshot = options.emitRuntimeSnapshot;
     this.#passwordVault = options.passwordVault ?? null;
+    this.#apiKeys = options.apiKeys ?? null;
   }
 
   /** The agent that asks `requestId`: a prompt, an approval, a browser takeover or a browser secret. */
@@ -361,20 +384,29 @@ export class AttentionRegistry {
     return { attentionComplete, pendingPrompts, pendingApprovals, pendingBrowserTakeovers };
   }
 
-  readonly respondToPrompt = Effect.fn("AttentionRegistry.respondToPrompt")(
-    (input: RespondToPromptInput, responder?: PromptResponder) =>
-      attentionStep(() => {
-        const pending = this.#prompts.get(input.requestId);
-        if (!pending) throw new InactiveAttentionRequest(sourceText("error.backend.promptInactive"));
-        const questionIds = new Set(pending.questions.map((question) => question.id));
-        if (Object.keys(input.answers).some((id) => !questionIds.has(id))) {
-          throw new Error(sourceText("error.backend.promptAnswerMismatch"));
-        }
-        // A refused UI block answer leaves the block open for an answer that fits.
-        const uiBlockResponse = pending.uiBlock ? uiBlockAnswer(pending.uiBlock.spec, input.answers, responder) : null;
-        this.#routines.markRunningForTurn(getString(pending.params, "turnId"));
+  readonly respondToPrompt = Effect.fn("AttentionRegistry.respondToPrompt")(function* (
+    this: AttentionRegistry,
+    input: RespondToPromptInput,
+    responder?: PromptResponder,
+  ) {
+    const saved = yield* this.#saveApiKeyAnswer(input, responder);
+    yield* attentionStep(() => {
+      const pending = this.#prompts.get(input.requestId);
+      // The turn ended while the key was written. The key stays saved, and the agent can list it.
+      if (saved && pending !== saved.pending) return;
+      if (!pending) throw new InactiveAttentionRequest(sourceText("error.backend.promptInactive"));
+      const questionIds = new Set(pending.questions.map((question) => question.id));
+      if (Object.keys(input.answers).some((id) => !questionIds.has(id))) {
+        throw new Error(sourceText("error.backend.promptAnswerMismatch"));
+      }
+      // A refused UI block answer leaves the block open for an answer that fits.
+      const uiBlockResponse = pending.uiBlock ? uiBlockAnswer(pending.uiBlock.spec, input.answers, responder) : null;
+      this.#routines.markRunningForTurn(getString(pending.params, "turnId"));
 
-        const result = pending.uiBlock
+      // The form of `request_api_key` never gives the agent its values, whatever the answer was.
+      const result = pending.uiBlock?.apiKey
+        ? apiKeyPromptResult(pending.uiBlock.blockId, saved?.key ?? null)
+        : pending.uiBlock
           ? uiBlockPromptResult(
               uiBlockResponse
                 ? { status: "answered", blockId: pending.uiBlock.blockId, response: uiBlockResponse }
@@ -389,26 +421,64 @@ export class AttentionRegistry {
                     Object.entries(input.answers).map(([id, values]) => [id, { answers: values }]),
                   ),
                 };
-        pending.client.respond(pending.id, result);
-        this.#prompts.delete(input.requestId);
-        clearTimeout(pending.autoAnswer?.timer);
-        this.#emitInputResolved("prompt", input.requestId, pending.agentId);
-        try {
-          if (pending.uiBlock) {
-            this.#resolvePersistedPrompt(
-              pending,
-              uiBlockResponse ? promptResolution(pending.questions, input.answers) : { status: "cancelled" },
-              answeredUiBlockState(pending.uiBlock.spec, uiBlockResponse, responder, pending.autoAnswer?.state),
-            );
-          } else {
-            this.#resolvePersistedPrompt(pending, promptResolution(pending.questions, input.answers));
-          }
-        } catch (error) {
-          this.#emitError("prompt_persistence_failed", error, pending.agentId);
+      pending.client.respond(pending.id, result);
+      this.#prompts.delete(input.requestId);
+      clearTimeout(pending.autoAnswer?.timer);
+      this.#emitInputResolved("prompt", input.requestId, pending.agentId);
+      try {
+        if (pending.uiBlock) {
+          this.#resolvePersistedPrompt(
+            pending,
+            uiBlockResponse ? promptResolution(pending.questions, input.answers) : { status: "cancelled" },
+            answeredUiBlockState(pending.uiBlock.spec, uiBlockResponse, responder, pending.autoAnswer?.state),
+          );
+        } else {
+          this.#resolvePersistedPrompt(pending, promptResolution(pending.questions, input.answers));
         }
-        this.#emitRuntimeSnapshot();
-      }),
-  ).bind(this);
+      } catch (error) {
+        this.#emitError("prompt_persistence_failed", error, pending.agentId);
+      }
+      this.#emitRuntimeSnapshot();
+    });
+  }).bind(this);
+
+  /**
+   * Saves the key of a submitted `request_api_key` form before its prompt resolves, so a failed write
+   * leaves the form open for another try. Null for every other prompt and answer.
+   */
+  readonly #saveApiKeyAnswer = Effect.fn("AttentionRegistry.saveApiKeyAnswer")(function* (
+    this: AttentionRegistry,
+    input: RespondToPromptInput,
+    responder: PromptResponder | undefined,
+  ) {
+    const answer = yield* attentionStep(() => {
+      const pending = this.#prompts.get(input.requestId);
+      const apiKey = pending?.uiBlock?.apiKey;
+      if (!pending?.uiBlock || !apiKey) return null;
+      if (pending.savingApiKey) throw new Error(sourceText("error.backend.apiKeySaving"));
+      const answered = uiBlockAnswer(pending.uiBlock.spec, input.answers, responder)?.values?.[API_KEY_FIELD_ID];
+      // A pasted key often brings a space or a line break, which the service would refuse.
+      const value = typeof answered === "string" ? answered.trim() : "";
+      // A skip saves nothing, so a member may give it: the turn must not wait for an owner.
+      if (value === "") return null;
+      // The key goes to an agent of this server that every member may run.
+      if (responder && !responder.privileged)
+        throw new ForbiddenAttentionAnswer(sourceText("error.backend.apiKeyNotAllowed"));
+      if (!this.#apiKeys) throw new Error(sourceText("error.backend.apiKeySaveFailed"));
+      pending.savingApiKey = true;
+      return { pending, apiKeys: this.#apiKeys, name: apiKey.name, value };
+    });
+    if (!answer) return null;
+    const key = yield* answer.apiKeys.save(answer.pending.agentId, answer.name, answer.value).pipe(
+      toAttentionOperationFailed,
+      Effect.ensuring(
+        Effect.sync(() => {
+          answer.pending.savingApiKey = false;
+        }),
+      ),
+    );
+    return { pending: answer.pending, key };
+  });
 
   readonly respondToApproval = Effect.fn("AttentionRegistry.respondToApproval")(function* (
     this: AttentionRegistry,
@@ -720,12 +790,14 @@ export class AttentionRegistry {
     }
 
     const requestId = params.tool === "submit_secret" ? randomUUID() : request.id;
+    const reason = getString(args, "reason");
     const takeover: BrowserTakeoverRequest = {
       requestId,
       agentId,
       threadId: publicThreadId,
       turnId,
       tabId,
+      ...(params.tool === "request_takeover" && isOneOf(BROWSER_TAKEOVER_REASONS, reason) ? { reason } : {}),
     };
     const completion = Deferred.makeUnsafe<DynamicToolResult>();
     const resolve = (result: DynamicToolResult) => Deferred.doneUnsafe(completion, Effect.succeed(result));
@@ -887,7 +959,7 @@ export class AttentionRegistry {
   surfaceUiBlock(
     client: AgentClient,
     request: AppServerRequest,
-    block: { blockId: string; spec: UiBlockSpec },
+    block: SurfacedUiBlock,
     autoAnswer?: { actionId: string; afterMs: number },
   ): void {
     const threadId = getString(request.params, "threadId");

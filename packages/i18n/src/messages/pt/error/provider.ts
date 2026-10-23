@@ -304,6 +304,8 @@ export const messages = {
   "error.provider.useChangeFailed": "O OpenBot não conseguiu mudar a configuração do provedor.",
   "error.provider.accountsUnsupported": "{provider} aceita apenas uma conta.",
   "error.provider.accountNeedsConnection": "Conecte {provider} antes de adicionar outra conta.",
+  "error.provider.usageResetUnsupported": "{provider} não pode redefinir limites de uso.",
+  "error.provider.usageResetNotConnected": "Entre novamente nesta conta do {provider} antes de redefinir o uso dela.",
   "error.provider.accountLimit": "{provider} aceita no máximo {limit} contas.",
   "error.provider.accountNotFound": "Esta conta de {provider} não está neste computador. Atualize e tente novamente.",
   "error.provider.accountAlreadyAdded": "Esta conta de {provider} já está conectada.",

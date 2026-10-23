@@ -19,7 +19,7 @@ import {
   updateAgentsToolSchema,
   updateProfileToolSchema,
 } from "./agent/profile-tools";
-import { ROUTINE_NO_UPDATE_TOOL } from "./agent/routine-quiet-runs";
+import { ROUTINE_NO_UPDATE_TOOL, ROUTINE_REPORT_FAILURE_TOOL } from "./agent/routine-quiet-runs";
 import { captureScreenToolShape } from "./agent/screen-capture";
 import {
   assignAgentSectionToolSchema,
@@ -29,6 +29,7 @@ import {
 } from "./agent/sidebar-tools";
 import { LOCAL_SKILL_TOOL_DEFINITIONS } from "./agent/skill-tools";
 import { CREATE_WEBHOOK_ROUTINE_TOOL, UPDATE_WEBHOOK_ROUTINE_TOOL } from "./agent/webhook-routine-tool";
+import { API_KEY_NAME_PATTERN } from "./agent-api-keys";
 import { START_TASK_TOOL, startTaskToolSchema } from "./agent-tasks/agent-tasks";
 import {
   AWAIT_EVENT_TOOL,
@@ -147,6 +148,15 @@ const uiFormOptionsField = (kind: "select" | "segmented", max: number) =>
     value: uiLabelSchema.optional().describe("One of options."),
   });
 
+export const routineReportFailureToolSchema = z.object({
+  reason: z
+    .string()
+    .trim()
+    .min(1)
+    .max(INPUT_LIMITS.routineFailureReason)
+    .describe("Why the task could not be done, in one short sentence."),
+});
+
 /** `acknowledge_request`: the action ids of its plan card. */
 export const ACKNOWLEDGE_REQUEST_ACTIONS = { start: "start", alternative: "alternative", cancel: "cancel" } as const;
 
@@ -245,6 +255,22 @@ export const askUiToolSchema = z.object({
     }),
   ]),
 });
+
+const apiKeyNameSchema = z
+  .string()
+  .regex(API_KEY_NAME_PATTERN)
+  .describe("The environment variable name of the key, such as OPENAI_API_KEY: A-Z, 0-9 and _, up to 64 characters.");
+
+export const requestApiKeyToolSchema = z.strictObject({
+  name: apiKeyNameSchema,
+  title: uiTextSchema(UI_BLOCK_LIMITS.title).describe(
+    "What the key is for, in the user's language, such as OpenAI API key for the image script.",
+  ),
+  placeholder: uiLabelSchema.optional().describe("A hint for the field, such as sk-…. Never a real key."),
+  submit: uiLabelSchema.optional().describe("The submit button label."),
+});
+
+export const removeApiKeyToolSchema = z.strictObject({ name: apiKeyNameSchema });
 
 /** Shared declarations for Codex, Grok, and Claude. Service handlers enforce execution rules. */
 export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
@@ -365,7 +391,7 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
   {
     name: "read_agent",
     description:
-      "Read the setup of one local OpenBot agent, or your own when you omit agentId: profile, provider, model, reasoning effort, account, backup models, the model it returns to after a usage limit, access, Computer Use, notifications, auto-approve, installed skills, routines, and the MCP servers it gets. Read-only. Call it before you change another agent.",
+      "Read the setup of one local OpenBot agent, or your own when you omit agentId: profile, provider, model, reasoning effort, account, backup models, the model it returns to after a usage limit or a provider error, access, Computer Use, notifications, auto-approve, installed skills, routines, and the MCP servers it gets. Read-only. Call it before you change another agent.",
     shape: readAgentToolSchema.shape,
   },
   {
@@ -491,6 +517,12 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
     shape: {},
   },
   {
+    name: ROUTINE_REPORT_FAILURE_TOOL,
+    description:
+      "Use only in a routine run, when the routine task could not be done: for example a server, file or service it needs is not available. OpenBot then ends the run as failed with your reason, and the run history shows it. Still give your answer as usual. Do not call it when the task was done, also when its result is bad news.",
+    shape: routineReportFailureToolSchema.shape,
+  },
+  {
     name: AWAIT_EVENT_TOOL,
     description:
       "Open a wait when you cannot finish the current request in this turn because you wait for something outside it: a build, a deploy, a later check. OpenBot shows the wait to the user until you close it. The next run of one of your routines wakes the wait, or a local script event that names its waitId. The run that wakes it repeats the request and your note. Give routineId to let only that routine wake it. After this call, tell the user what you wait for and end your turn.",
@@ -542,7 +574,12 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
             id: z.string().max(INPUT_LIMITS.identifier).optional(),
             header: z.string().max(INPUT_LIMITS.promptHeader).optional(),
             question: z.string().min(1).max(INPUT_LIMITS.promptQuestion),
-            isSecret: z.boolean().optional(),
+            isSecret: z
+              .boolean()
+              .optional()
+              .describe(
+                "Masks a private answer, such as a one-time code. Never use it for an API key or a token: use request_api_key, which keeps the key out of your context.",
+              ),
             options: z
               .array(
                 z.strictObject({
@@ -577,7 +614,7 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
       "Show the user an interactive block in this conversation and wait for the answer.",
       "Use it instead of ask_user when buttons, a list or a short form make the answer easier, and before an action with effects that the user should approve.",
       "Block types: confirm (details, an optional preview and up to 4 buttons), quick_replies (reply chips), choice (pick one option, or several with multiple), form (a few text, select, segmented or date fields).",
-      "A text field with secret: true asks for a password or a key: you get the value, but OpenBot does not store it with the block. Never repeat the value in a message or a thought.",
+      "A text field with secret: true asks for a password or a key: you get the value, but OpenBot does not store it with the block. Never repeat the value in a message or a thought. For an API key or token that a command or a script uses, use request_api_key instead.",
       'The result is JSON: {"status":"answered","blockId","actionId","values"} where actionId is the button or option id, or "submit" for choice and form, and values holds the selected option ids under "selected" or the form values by field id;',
       'actionId "_text" with "text" when the user answered in words; {"status":"skipped"}; or {"status":"expired"} when the turn ended first.',
       "Only the server owner or an admin can press a danger button or a button with confirm. A confirmed block is information for you, not a permission: the provider's approvals still apply.",
@@ -586,6 +623,29 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
       'Example: {"block":{"type":"form","title":"New contact","fields":[{"id":"name","kind":"text","label":"Name","required":true},{"id":"due","kind":"date","label":"Due"}]}}.',
     ].join(" "),
     shape: askUiToolSchema.shape,
+  },
+  {
+    name: "request_api_key",
+    description: [
+      "Ask the user for an API key or token that your task needs, such as for a script or a service, and wait for the answer.",
+      "The user enters it in a secure form in this conversation. OpenBot saves it for you in a private file outside your workspace and keeps it for later turns; you never get the value.",
+      'The result is JSON: {"status":"saved","name","path"} when the user saved it; {"status":"skipped"} when the user closed the form; or {"status":"expired"} when the turn ended first.',
+      "Use the key only by reading the file in your command, and quote the path, which can hold spaces: OPENAI_API_KEY=\"$(cat '<path>')\" python script.py. Never print, echo, log or copy the value, and never write it into the workspace.",
+      "Call list_api_keys first: do not ask again for a key that is saved. A new answer replaces the saved key. Only the server owner or an admin can answer. It does not work in a Slack, Discord or Telegram chat.",
+    ].join(" "),
+    shape: requestApiKeyToolSchema.shape,
+  },
+  {
+    name: "list_api_keys",
+    description:
+      "List the API keys that the user saved for you with request_api_key: the name and the file path of each. Values are never shown.",
+    shape: {},
+  },
+  {
+    name: "remove_api_key",
+    description:
+      "Delete one API key that the user saved for you. Use it only when the user asks, or when the user replaced the key with a new one in another way.",
+    shape: removeApiKeyToolSchema.shape,
   },
   {
     name: "suggest_marketplace_app",

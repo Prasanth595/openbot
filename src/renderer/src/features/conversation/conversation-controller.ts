@@ -27,6 +27,7 @@ import { releaseFilePreviewPage } from "./conversation-port";
 import type {
   ComposerDraft,
   ConversationProps,
+  ConversationTarget,
   RightPanelMode,
   SidebarFilePreview,
   VoiceLiveTranscript,
@@ -223,6 +224,8 @@ export function createStableConversationState(
   const [voiceElapsedSeconds, setVoiceElapsedSeconds] = createSignal(0);
   const [voiceLiveTranscript, setVoiceLiveTranscript] = createSignal<VoiceLiveTranscript | null>(null);
   const [voiceLevels, setVoiceLevels] = createSignal<number[]>([]);
+  /** The conversation whose last recording stopped at the time limit. */
+  const [voiceLimitReached, setVoiceLimitReached] = createSignal<ConversationTarget | null>(null);
   const [browserPipBounds, setBrowserPipBounds] = createSignal<BrowserBounds | null>(readBrowserPipBounds());
   const [settingsPanelWidth, setSettingsPanelWidth] = createSignal(SETTINGS_PANEL_DEFAULT);
   const [browserPanelWidth, setBrowserPanelWidth] = createSignal(BROWSER_PANEL_DEFAULT);
@@ -339,6 +342,8 @@ export function createStableConversationState(
     setVoiceLiveTranscript,
     voiceLevels,
     setVoiceLevels,
+    voiceLimitReached,
+    setVoiceLimitReached,
     browserPipBounds,
     setBrowserPipBounds,
     settingsPanelWidth,

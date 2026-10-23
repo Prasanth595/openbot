@@ -111,6 +111,8 @@ export function createConversationViewScope(props: ConversationProps) {
     setVoiceLiveTranscript,
     voiceLevels,
     setVoiceLevels,
+    voiceLimitReached,
+    setVoiceLimitReached,
     markingRead,
     setMarkingRead,
     submitting,
@@ -377,6 +379,7 @@ export function createConversationViewScope(props: ConversationProps) {
     browserTakeoverResolution,
     respondToBrowserTakeover,
     openBrowserTakeoverTab,
+    localSignIn,
     activeBrowserControl,
     actingBrowserControl,
     browserControlAgent,
@@ -540,6 +543,11 @@ export function createConversationViewScope(props: ConversationProps) {
     clearConversationError,
     setConversationError,
     viewIsMounted,
+    // A recording in one conversation does not end the notice of another.
+    setVoiceLimitReached: (target, reached) =>
+      setVoiceLimitReached((current) =>
+        reached ? target : current?.agentId === target.agentId && current.serverId === target.serverId ? null : current,
+      ),
     hooks: {
       saveEdit: (...args) => actions.saveQueuedMessageEdit(...args),
       submit: (...args) => actions.submitMessage(...args),
@@ -554,6 +562,20 @@ export function createConversationViewScope(props: ConversationProps) {
       ? live.text
       : "";
   };
+  const voiceLimitNotice = () => {
+    const reached = voiceLimitReached();
+    return Boolean(
+      reached && reached.agentId === conversationOwnerId(props) && reached.serverId === (props.server?.id ?? "local"),
+    );
+  };
+  const dismissVoiceLimitNotice = () => setVoiceLimitReached(null);
+  // The notice explains the text in the message box, so it ends when that text is sent or cleared.
+  createEffect(
+    () => voiceLimitNotice() && !currentDraft().text.trim(),
+    (emptied) => {
+      if (emptied) dismissVoiceLimitNotice();
+    },
+  );
   const actions = createComposerActions({
     props,
     attachmentBusy,
@@ -1573,6 +1595,7 @@ export function createConversationViewScope(props: ConversationProps) {
     browserTakeoverTab,
     respondToBrowserTakeover,
     openBrowserTakeoverTab,
+    localSignIn,
     activeChatSearchIndex,
     agentActivity,
     runningTurnRuntime,
@@ -1753,6 +1776,8 @@ export function createConversationViewScope(props: ConversationProps) {
     updateUnreadDividerVisibility,
     voiceElapsedSeconds,
     voiceLevels,
+    voiceLimitNotice,
+    dismissVoiceLimitNotice,
     voiceLiveText,
     voicePhase,
     voiceModelProgress,

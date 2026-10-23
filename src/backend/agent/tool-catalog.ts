@@ -24,9 +24,11 @@ const DIRECT_NAMES = new Set([
   "send_message",
   "search_memories",
   "routine_no_update",
+  "routine_report_failure",
   "remember",
   "forget_memory",
   "react_to_user_message",
+  "request_api_key",
 ]);
 
 // Names keep the complete, stable catalog below 4,000 characters without schema duplication.

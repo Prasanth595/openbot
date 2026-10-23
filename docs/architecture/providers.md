@@ -5,10 +5,10 @@ To add a provider, or to see how a provider signs in on a joined server, read
 
 ## Built-in tool discovery
 
-`agent/tool-catalog.ts` exposes nine direct tools and three discovery tools to every adapter.
+`agent/tool-catalog.ts` exposes ten direct tools and three discovery tools to every adapter.
 Claude uses its native question tool instead of `ask_user`. The direct tools are `ask_user`,
 `attach_files_to_response`, `list_agents`, `send_message`, `search_memories`, `remember`,
-`forget_memory`, `react_to_user_message`, and `routine_no_update`. External plugin registration stays with each provider adapter.
+`forget_memory`, `react_to_user_message`, `routine_no_update`, and `routine_report_failure`. External plugin registration stays with each provider adapter.
 
 `tool_search` uses local keyword matching. Exact names come first, then word matches, with stable
 catalog order for ties. It returns five results by default and at most ten. It accepts `queries`, or
@@ -502,6 +502,20 @@ hooks, rules, MCP and permission files there and in the CLI config folder, and t
 `.workspace-trusted` and `mcp-approvals.json` files in each folder in `projects`. Migration 24 adds
 `cursor` to `projection_provider_sessions`.
 
+The CLI reports no usage over ACP. The driver's `readRateLimits` (`src/backend/cursor-usage.ts`)
+sends the request that the CLI sends itself, `aiserver.v1.DashboardService/GetCurrentPeriodUsage`
+as Connect JSON to `https://api2.cursor.sh` or `CURSOR_API_ENDPOINT`, with the CLI's access token.
+The token comes from where the CLI keeps it: on macOS the login Keychain item `cursor-access-token`
+(account `cursor-user`), read with `/usr/bin/security` because the CLI writes it with that tool,
+then `~/.cursor/auth.json`; on Linux `$XDG_CONFIG_HOME/cursor/auth.json` or
+`~/.config/cursor/auth.json`; on Windows `%APPDATA%\Cursor\auth.json`. Cursor does not document
+this API. `autoPercentUsed` (Cursor's own models) fills the primary window and `apiPercentUsed`
+(all other models) the secondary one, both for the billing cycle; the dock names them by slot for a
+`cursor` row, because both windows have the same length. A plan with only `totalPercentUsed` fills
+the primary window. No token, a 401 or 403, or no percentage gives no reading. The dock poll calls
+`readCursorUsage` directly, as it does for OpenCode, so it does not start the CLI for a reading.
+`scripts/cursor-usage-e2e.ts` covers it.
+
 Team API v1–v5 do not know `cursor`. The host hides Cursor agents, models, status, and sign-in
 state from peers on those versions, and the `providers-v1` to `providers-v3` routes omit it. A route
 that reads an agent ID from the body answers 404 for a hidden agent (`requireVisibleBodyAgent`). A
@@ -633,6 +647,49 @@ the change while an agent uses the provider. New model assignments use the same 
 The switch is local IPC only; released Team API adapters stay unchanged. Remote
 clients receive the host's filtered model list.
 
+### Backup models and failover
+
+An agent keeps an ordered list of backup models (`AgentBackupModels`, at most 8) in `agent_json`.
+The settings page, the admin route `agent-backup-models-v1`, and the `update_profile` tool set it.
+When the list is automatic, `UsageLimitGate` and `AgentService.#usageLimitMove` move the agent to the
+first ready model in the order that no hold covers. `usageLimitReturn` keeps the model the agent
+left, and the agent goes back to it when its hold ends. A model the user picks drops the return.
+
+Two holds move an agent:
+
+- A plan usage limit holds the queue of every agent on that provider account and model until the
+  reset. A usage reset that the user starts also ends it (see [Usage reset credits](#usage-reset-credits)).
+- A provider error holds nothing. `TurnLifecycle` checks the turn's error with `classifyFailure`.
+  The causes are `billing`, `provider_unavailable`, `rate_limit`, `authentication`, `network` and
+  `timeout`. When the turn did no work yet (`!acted`) and the agent has a ready backup, the turn's
+  messages go back to the queue and `UsageLimitGate.failed` passes over that model for 10 minutes.
+  The next drain moves the agent, and the turn runs again on the backup with no error banner. The
+  hold also ends when a turn on the model completes. A restart clears the holds, so the first drain
+  after it goes back. The return is marked `cause: "provider-error"`, so the notes read
+  `model-switch:provider-error` and `model-switch:provider-error-ended`.
+
+A turn that wrote text or ran a tool fails with its error, as with no backup. Tasks, channel tasks,
+a refused `turn/start`, and a provider that fails to start do not fail over. A message runs again at
+most once for each model that failed it, so a move that cannot happen shows the error on the next
+failure; the check for a ready backup runs again when the turn ends.
+
+### Usage reset credits
+
+Codex can give an account usage reset credits: one restores the spent usage limits of the account at
+once (issue #2859). `account/rateLimits/read` counts them in `rateLimitResetCredits.availableCount`,
+and `account/rateLimitResetCredit/consume` spends one; both are stable Codex app-server methods since
+0.156.0. `ProviderRuntime.#refreshUsage` keeps the count of each client with its usage reading.
+`usageResets` reads the provider's own sign-in again while its process runs, and keeps the last count
+while it is released; an account after the first uses the reading that the dock keeps for five
+minutes. An account whose reading has no count is left out. `resetUsage` sends the consume with a new
+`idempotencyKey` for each reset the user asks for, through the running client, an agent's process or a
+short one in the account's folder. Then it reads the account's usage again and sends `usage-changed`.
+After the answer `reset`, or `nothingToReset` (no limit of the account is spent), `AgentService` calls
+`UsageLimitGate.accountReset`, which ends each limit of that account, so its held agents start again. Other providers have no credits: `resetUsage` refuses them.
+
+Settings > Providers shows **Reset usage** in the ⋯ menu of a connected account that has a credit.
+The confirmation names the credits left, and the answer shows under the accounts. A joined server
+uses the optional `provider-usage-reset-v1` routes (see [Admin capabilities](servers.md#admin-capabilities)).
 
 ## Provider settings and the ACP registry
 

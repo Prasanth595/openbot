@@ -253,6 +253,33 @@ sends `browser-page-state-changed` with the same list. A stop ends the load at o
 tab operations, and a stop of a tab that does not load changes nothing. A client shows Stop only for a
 host that reports the page state; for an older host, Back and Forward stay enabled.
 
+`browser-sign-in-v1` adds `POST /v1/browser/sign-in` with `{ tabId, cookies }`, up to 150 cookies,
+and answers with `{ cookies }`, the count that the host set. Some sites refuse a sign-in from a
+data-center address, but accept the session that the member's own computer made. The desktop opens a
+window on this computer (`src/main/local-sign-in-window.ts`) with its own session in memory, the
+sandbox of the embedded browser, and no downloads or permissions other than a clipboard write. When
+the member selects Done, it sends only the cookies of the tab's site: the tab's host, a parent domain
+that is not a top-level one, or a subdomain (`browserSignInCookieFitsHost`, which both sides apply).
+It leaves out Cloudflare's address-bound `__cf*` and `cf_*` cookies. The host sets the cookies in the
+tab's session and loads the tab again. A shared tab uses the shared browser session, so every agent
+and member on the server then has the sign-in. The host never sends the values back or records them.
+On a server, the agent prompt tells the agent to stop a refused sign-in and call `request_takeover`
+with `reason: "sign-in-blocked"`. The host adds that reason beside the frozen takeover projection, in
+the `browser-takeover-requested` event and in `pendingBrowserTakeovers`, only for a client with
+`browser-sign-in`. A client decodes a present reason and refuses an unknown one. The takeover card in
+the desktop app shows the button for a web tab. With the reason, the card asks only for the sign-in
+on this computer and has no "I'm done" button. A sign-in that sets cookies completes the takeover of
+that tab.
+The window also sends by itself (`src/main/browser-sign-in-page.ts`): after a page with a sign-in
+address or a visible password field, a new `HttpOnly` cookie of the site, and then a page of the site
+that is not a sign-in step. This is a guess, so after that send the desktop reads the server's tab
+list. When the tab still shows a sign-in step, it opens the window's page in the tab (with
+`browser-navigation`) and reads the list again. The window closes only when the tab left the sign-in
+steps; otherwise it stays open and waits for the next cookie. Done sends without this check.
+The desktop discards the window's session after a send that set cookies, on Cancel, and at shutdown.
+A failed send keeps it, so Done can try again. The web client has no menu item: a web page cannot
+read the cookies of another site.
+
 ### Skill events
 
 `skills-events-v1` adds one optional event, `skills-changed { agentId }`. The host sends it after
@@ -295,6 +322,7 @@ host advertises a capability only when its `TeamApiAdmin` member exists.
 | `instance-transfer-v1` | Export and import the server's agents and server settings as a transfer file | `instanceTransfer` |
 | `providers-v3` | Code sign-in for Codex, Claude and Grok; send the code a Claude sign-in page shows | `providerAdmin` |
 | `providers-v4` | Code or link sign-in and managed runtimes, Cursor and Cline included | `providerAdmin` |
+| `provider-usage-reset-v1` | Read the usage reset credits of each provider account on the host, and spend one. Only Codex gives credits | `providerAdmin` |
 | `host-admin-v1` | Server name and logo | `hostAdmin` |
 | `host-update-v1` | Check for, download and restart into an app update; cancel a restart that waits | `hostAdmin` |
 | `host-timezone-v1` | Read and set the server timezone | `hostAdmin` |

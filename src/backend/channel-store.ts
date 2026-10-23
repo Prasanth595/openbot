@@ -147,6 +147,7 @@ export class ChannelStore {
                 AND json_extract(m.message_json, '$.author.id') IS NOT ?
                 AND COALESCE(json_extract(m.message_json, '$.message.itemType'), '') != 'plan'
                 AND COALESCE(json_extract(m.message_json, '$.message.itemType'), '') != 'subagents'
+                AND COALESCE(json_extract(m.message_json, '$.message.itemType'), '') != 'channel-change'
                 AND COALESCE(json_extract(m.message_json, '$.message.itemType'), '') NOT LIKE ?) AS unread,
             (SELECT COUNT(*) FROM projection_channel_tasks AS t
               WHERE t.channel_id = c.channel_id

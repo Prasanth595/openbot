@@ -48,6 +48,12 @@ export function WorkspaceAgentSetup() {
   const localProviderDownloads = createMemo(
     () => activeServer()?.kind === "local" && providerRuntimeDownloadsAvailable(),
   );
+  /** Providers are managed on this computer, or on a joined host by its owner or an admin. */
+  const manageProviders = createMemo(() => activeServer()?.kind === "local" || providerAdminServerId() !== undefined);
+  const openProviderSettings = (trigger: HTMLElement) => {
+    const server = activeServer();
+    if (server) openServerSettings(server.id, trigger, "providers");
+  };
   /**
    * A remote host without the capability drops the pair in its frozen projection and starts the
    * agent on its own default, so the form offers no choice there: the backend default stands.
@@ -94,14 +100,8 @@ export function WorkspaceAgentSetup() {
       onDownloadProvider={localProviderDownloads() ? downloadProviderRuntime : undefined}
       onCancelProviderDownload={localProviderDownloads() ? cancelProviderRuntimeDownload : undefined}
       onConnectProvider={localProviderDownloads() ? connectProvider : undefined}
-      onAddCustomProvider={
-        activeServer()?.kind === "local" || providerAdminServerId() !== undefined
-          ? (trigger: HTMLElement) => {
-              const server = activeServer();
-              if (server) openServerSettings(server.id, trigger, "providers");
-            }
-          : undefined
-      }
+      onAddCustomProvider={manageProviders() ? openProviderSettings : undefined}
+      onManageProviders={manageProviders() ? openProviderSettings : undefined}
       onChange={(next) => {
         const current = agentSetupDraft();
         if (next.provider !== current.provider || next.model !== current.model) setModelTouched(true);

@@ -106,6 +106,8 @@ export function ConversationComposer() {
     updateTeamTyping,
     voiceElapsedSeconds,
     voiceLevels,
+    voiceLimitNotice,
+    dismissVoiceLimitNotice,
     voiceLiveText,
     voicePhase,
     voiceModelProgress,
@@ -412,6 +414,15 @@ export function ConversationComposer() {
                 {t("composer.queueEdit.cancel")}
               </Button>
             }
+          />
+        </Show>
+        <Show when={voiceLimitNotice()}>
+          <ComposerNotice
+            body={t("composer.voice.limitReached")}
+            onDismiss={() => {
+              dismissVoiceLimitNotice();
+              setComposerFocusRequest((current) => current + 1);
+            }}
           />
         </Show>
         <Show when={replyTarget()}>

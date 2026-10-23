@@ -181,4 +181,17 @@ export const messages = {
   "provider.account.finishSignIn": "Terminez la connexion dans le navigateur.",
   "provider.account.remove": "Supprimer le compte",
   "provider.account.actionFailed": "Impossible de modifier le compte {name}.",
+  "provider.account.resetUsage": "Réinitialiser l’usage",
+  "provider.account.resetUsageTitle": "Réinitialiser l’usage de {name} ?",
+  "provider.account.resetUsageDescription": {
+    one: "Cela utilise votre dernier crédit de réinitialisation d’usage. Les limites d’usage épuisées de ce compte repartent maintenant. Vous ne pouvez pas annuler cette action.",
+    other:
+      "Cela utilise 1 de vos {count} crédits de réinitialisation d’usage. Les limites d’usage épuisées de ce compte repartent maintenant. Vous ne pouvez pas annuler cette action.",
+  },
+  "provider.account.resetUsagePending": "Réinitialisation…",
+  "provider.account.resetUsageDone": "Les limites d’usage de {name} repartent maintenant.",
+  "provider.account.resetUsageNothing": "{name} n’a aucune limite d’usage épuisée. Aucun crédit n’a été utilisé.",
+  "provider.account.resetUsageNoCredit": "{name} n’a plus de crédits de réinitialisation d’usage.",
+  "provider.account.resetUsageAlreadyRedeemed": "Ce crédit de réinitialisation de {name} a déjà été utilisé.",
+  "provider.account.resetUsageFailed": "Impossible de réinitialiser l’usage de {name}.",
 } as const satisfies PartialTranslation<typeof source>;

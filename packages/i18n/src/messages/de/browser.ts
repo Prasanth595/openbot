@@ -105,6 +105,8 @@ export const messages = {
   "browser.userControl.status": "Du steuerst diese Seite",
   "browser.dock.messageTo": "Nachricht an {name}",
   "browser.dock.needsYou": "{name} braucht dich auf dieser Seite",
+  "browser.dock.needsAnswer": "{name} braucht deine Antwort",
+  "browser.dock.needsApproval": "{name} braucht deine Freigabe",
   "browser.dock.answerInChat": "Im Chat antworten",
   "browser.tab.newRight": "Neuer Tab rechts",
   "browser.tab.duplicate": "Duplizieren",
@@ -128,4 +130,20 @@ export const messages = {
   "browser.address.switchToTab": "Zum Tab wechseln",
   "browser.address.search": "Google-Suche",
   "browser.pageActions": "Seitenaktionen",
+  "browser.signIn.local": "Auf diesem Computer anmelden",
+  "browser.signIn.title": "Bei {site} anmelden",
+  "browser.signIn.description":
+    "Manche Websites lehnen eine Anmeldung von einem Server ab. Melde dich auf diesem Computer an, und OpenBot sendet die Anmeldung für {site} an {server}. Alle Agenten und Mitglieder auf {server} können sie dann im Browser verwenden.",
+  "browser.signIn.windowOpen":
+    "Melde dich in dem geöffneten Fenster an. OpenBot sendet die Anmeldung, wenn sie fertig ist. Wenn das Fenster offen bleibt, wähle Fertig.",
+  "browser.signIn.windowClosed":
+    "Das Anmeldefenster ist geschlossen. Wähle Fertig, um die Anmeldung zu senden, oder öffne das Fenster erneut.",
+  "browser.signIn.reopen": "Anmeldefenster öffnen",
+  "browser.signIn.sending": "Wird an {server} gesendet…",
+  "browser.signIn.sent": "Bei {site} auf {server} angemeldet",
+  "browser.signIn.notFound":
+    "OpenBot hat keine Anmeldung für {site} gefunden. Melde dich im Fenster an und wähle dann Fertig.",
+  "browser.signIn.stillSignedOut":
+    "{server} zeigt für {site} noch eine Anmeldeseite. Schließe die Anmeldung im Fenster ab.",
+  "browser.signIn.failed": "OpenBot konnte die Anmeldung nicht senden.",
 } as const satisfies PartialTranslation<typeof source>;

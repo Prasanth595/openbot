@@ -24,7 +24,7 @@ export const messages = {
   "agentSettings.backupModels.intro":
     "Cuando {model} alcanza su límite de uso antes de que {name} empiece a escribir, {name} te pregunta qué modelo usar.",
   "agentSettings.backupModels.introAutomatic":
-    "Cuando {model} alcanza su límite de uso antes de que {name} empiece a escribir, {name} cambia al primer modelo disponible del orden.",
+    "Cuando {model} alcanza su límite de uso o falla con un error del proveedor antes de que {name} empiece a escribir, {name} cambia al primer modelo disponible del orden.",
   "agentSettings.backupModels.ask": "Preguntar antes de cambiar",
   "agentSettings.backupModels.order": "Orden",
   "agentSettings.backupModels.listLabel": "Modelos de respaldo, en orden",
@@ -37,7 +37,7 @@ export const messages = {
   "agentSettings.backupModels.unavailable": "No disponible ahora · omitido",
   "agentSettings.backupModels.withAccount": "{model} · {account}",
   "agentSettings.backupModels.note":
-    "{name} nunca cambia después de empezar a escribir. Vuelve a {model} cuando termina el límite.",
+    "{name} nunca cambia después de empezar a escribir. Vuelve a {model} cuando termina el límite, o 10 minutos después de un error del proveedor.",
   "agentSettings.groups.brain": "Cerebro",
   "agentSettings.groups.knows": "Sabe",
   "agentSettings.groups.does": "Hace",
@@ -161,6 +161,9 @@ export const messages = {
   "agentSettings.quickAcknowledgement.title": "Mostrar el plan antes de tareas largas",
   "agentSettings.quickAcknowledgement.description":
     "Antes de una tarea larga, el agente muestra su plan. Empieza tras 10 s o cuando pulsas Iniciar.",
+  "agentSettings.ownBrowserSession.title": "Sesión de navegador propia",
+  "agentSettings.ownBrowserSession.description":
+    "Las pestañas del agente guardan sus propios inicios de sesión y cookies. Un cambio cierra las pestañas abiertas del agente.",
   "agentSettings.runtime.workspaceEnforcedProcess":
     "Todo el proceso de {provider} se ejecuta en un entorno aislado, por lo que la escritura fuera falla. Solo disponible en macOS.",
 } as const satisfies PartialTranslation<typeof source>;

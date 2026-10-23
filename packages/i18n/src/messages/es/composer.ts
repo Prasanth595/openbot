@@ -72,6 +72,9 @@ export const messages = {
   "composer.upload.cancel": "Cancelar carga",
   "composer.voice.progress": "Descargando modelo de voz {progress}%",
   "composer.voice.recording": "Grabación de voz",
+  "composer.voice.limitSoon": "La grabación se detiene en {seconds} segundos.",
+  "composer.voice.limitReached":
+    "La grabación se detuvo al llegar al límite de 2 minutos. Lo que dijiste está en el mensaje.",
   "composer.send.saveQueued": "Guardar mensaje en cola",
   "composer.send.voice": "Enviar mensaje de voz",
   "composer.send.message": "Enviar mensaje",

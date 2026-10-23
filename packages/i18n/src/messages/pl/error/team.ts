@@ -9,6 +9,7 @@ export const messages = {
   "error.team.identityCreateFailed": "Nie udało się utworzyć tożsamości zespołu.",
   "error.team.accountChangedDuringCreate": "Zalogowane konto zmieniło się podczas tworzenia tego serwera.",
   "error.team.notConfigured": "Ten OpenBot nie został skonfigurowany.",
+  "error.team.keyRotationMissing": "Żadna zmiana klucza serwera nie czeka.",
   "error.team.serverNotActive": "Ten serwer nie jest już aktywnym serwerem zalogowanego konta.",
   "error.team.logoInvalid": "Wybierz prawidłowy obraz PNG, JPEG lub WebP o rozmiarze do 512 KB.",
   "error.team.ownerMembershipConflict": "Członkostwo właściciela w warstwie sterowania koliduje z tym hostem.",

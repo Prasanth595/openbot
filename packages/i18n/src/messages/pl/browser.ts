@@ -105,6 +105,8 @@ export const messages = {
   "browser.userControl.status": "Sterujesz tą stroną",
   "browser.dock.messageTo": "Wiadomość do: {name}",
   "browser.dock.needsYou": "{name} potrzebuje Twojej pomocy na tej stronie",
+  "browser.dock.needsAnswer": "{name} czeka na Twoją odpowiedź",
+  "browser.dock.needsApproval": "{name} czeka na Twoją zgodę",
   "browser.dock.answerInChat": "Odpowiedz na czacie",
   "browser.tab.newRight": "Nowa karta po prawej",
   "browser.tab.duplicate": "Duplikuj",
@@ -132,4 +134,19 @@ export const messages = {
   "browser.address.switchToTab": "Przejdź do karty",
   "browser.address.search": "Szukaj w Google",
   "browser.pageActions": "Akcje strony",
+  "browser.signIn.local": "Zaloguj się na tym komputerze",
+  "browser.signIn.title": "Zaloguj się do {site}",
+  "browser.signIn.description":
+    "Niektóre witryny odrzucają logowanie z serwera. Zaloguj się na tym komputerze, a OpenBot wyśle logowanie do {site} na {server}. Wszyscy agenci i członkowie na {server} mogą go potem używać w przeglądarce.",
+  "browser.signIn.windowOpen":
+    "Zaloguj się w oknie, które się otworzyło. OpenBot wyśle logowanie, gdy będzie gotowe. Jeśli okno pozostanie otwarte, wybierz Gotowe.",
+  "browser.signIn.windowClosed":
+    "Okno logowania jest zamknięte. Wybierz Gotowe, aby wysłać logowanie, albo otwórz okno ponownie.",
+  "browser.signIn.reopen": "Otwórz okno logowania",
+  "browser.signIn.sending": "Wysyłanie na {server}…",
+  "browser.signIn.sent": "Zalogowano do {site} na {server}",
+  "browser.signIn.notFound":
+    "OpenBot nie znalazł logowania do {site}. Zaloguj się w oknie, a następnie wybierz Gotowe.",
+  "browser.signIn.stillSignedOut": "{server} nadal pokazuje stronę logowania do {site}. Dokończ logowanie w oknie.",
+  "browser.signIn.failed": "OpenBot nie mógł wysłać logowania.",
 } as const satisfies PartialTranslation<typeof source>;
