@@ -29,7 +29,7 @@ export function agentBrowserSessionKey(agentId: string): string {
   return createHash("sha256").update(agentId).digest("hex").slice(0, 32);
 }
 
-export function isAgentBrowserSessionKey(value: unknown): value is string {
+function isAgentBrowserSessionKey(value: unknown): value is string {
   return isString(value) && /^[0-9a-f]{32}$/.test(value);
 }
 
