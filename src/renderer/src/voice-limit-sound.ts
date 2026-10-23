@@ -1,21 +1,10 @@
+import { appSoundContext } from "./completion-sound";
+
 /**
  * The cues of the voice recording limit, made with Web Audio like the task completion sound. They
  * play whatever the sound settings say: the user is speaking, and may not look at the screen.
+ * `unlockCompletionSound` starts their audio context from the click that starts a recording.
  */
-let limitAudioContext: AudioContext | undefined;
-
-/**
- * Starts the audio context from the click that starts a recording. Safari starts a context only
- * from a user action, and the cues play up to two minutes later.
- */
-export function unlockVoiceLimitSound(): void {
-  try {
-    limitAudioContext ??= new AudioContext();
-    if (limitAudioContext.state !== "running") void limitAudioContext.resume().catch(() => undefined);
-  } catch {
-    limitAudioContext = undefined;
-  }
-}
 
 /** Two short high pips: the recording stops soon. */
 export function playVoiceLimitWarning(): void {
@@ -37,9 +26,7 @@ async function playTones(
   tones: ReadonlyArray<{ frequency: number; at: number; duration: number; volume: number }>,
 ): Promise<void> {
   try {
-    limitAudioContext ??= new AudioContext();
-    const context = limitAudioContext;
-    if (context.state === "suspended") await context.resume();
+    const context = await appSoundContext();
     const startedAt = context.currentTime;
     for (const tone of tones) {
       const start = startedAt + tone.at;
@@ -64,6 +51,6 @@ async function playTones(
       oscillator.stop(start + tone.duration);
     }
   } catch {
-    limitAudioContext = undefined;
+    // A cue that cannot play is not worth an error: the countdown still shows.
   }
 }

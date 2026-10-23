@@ -542,7 +542,11 @@ export function createConversationViewScope(props: ConversationProps) {
     clearConversationError,
     setConversationError,
     viewIsMounted,
-    setVoiceLimitReached,
+    // A recording in one conversation does not end the notice of another.
+    setVoiceLimitReached: (target, reached) =>
+      setVoiceLimitReached((current) =>
+        reached ? target : current?.agentId === target.agentId && current.serverId === target.serverId ? null : current,
+      ),
     hooks: {
       saveEdit: (...args) => actions.saveQueuedMessageEdit(...args),
       submit: (...args) => actions.submitMessage(...args),

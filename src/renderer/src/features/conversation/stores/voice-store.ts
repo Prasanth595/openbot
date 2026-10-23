@@ -3,7 +3,8 @@ import { VOICE_LIMIT_WARNING_SECONDS } from "@openbot/ui/features/conversation/V
 import { currentText } from "@openbot/ui/text";
 import { onCleanup } from "solid-js";
 import { desktopAnalytics } from "../../../analytics";
-import { playVoiceLimitStop, playVoiceLimitWarning, unlockVoiceLimitSound } from "../../../voice-limit-sound";
+import { unlockCompletionSound } from "../../../completion-sound";
+import { playVoiceLimitStop, playVoiceLimitWarning } from "../../../voice-limit-sound";
 import { appendVoiceTranscript, encodePcm16, recordingToSamples, recordingToWav } from "../../../voice-recording";
 import { forgetDictatedMessage, noteDictatedMessage, stopSpokenReply } from "../../speech/speech-replies";
 import { EMPTY_DRAFT } from "../composer-draft";
@@ -102,8 +103,8 @@ export interface VoiceStoreDeps {
   clearConversationError: (target: ConversationTarget) => void;
   setConversationError: (target: ConversationTarget, message: string) => void;
   viewIsMounted: () => boolean;
-  /** The conversation whose recording stopped at the time limit, or null when that notice ends. */
-  setVoiceLimitReached?: (target: ConversationTarget | null) => void;
+  /** Shows or ends the notice that the recording of this conversation stopped at the time limit. */
+  setVoiceLimitReached?: (target: ConversationTarget, reached: boolean) => void;
   hooks: VoiceSubmitHooks;
 }
 
@@ -120,9 +121,10 @@ export function createVoiceStore(deps: VoiceStoreDeps) {
     if (!agentId || deps.voicePhase() !== "idle") return;
     // The user speaks again: the reply that is read aloud stops.
     stopSpokenReply();
-    unlockVoiceLimitSound();
+    // The limit cues play up to two minutes after this click, and audio starts surely only from one.
+    unlockCompletionSound();
     const target = { agentId, serverId };
-    deps.setVoiceLimitReached?.(null);
+    deps.setVoiceLimitReached?.(target, false);
     deps.clearConversationError(target);
     resources.voiceSubmitRequest = undefined;
     deps.setComposerError(null);
@@ -487,7 +489,7 @@ export function createVoiceStore(deps: VoiceStoreDeps) {
         if (spokenReply) noteDictatedMessage(recordingTarget, result.text);
         const key = composerDraftKey(recordingTarget);
         deps.setDrafts((current) => ({ ...current, [key]: transcribedDraft }));
-        if (atLimit) deps.setVoiceLimitReached?.(recordingTarget);
+        if (atLimit) deps.setVoiceLimitReached?.(recordingTarget, true);
         if (deps.props.agent?.id === targetAgentId && (deps.props.server?.id ?? "local") === targetServerId) {
           deps.setComposerFocusRequest((current) => current + 1);
         }
