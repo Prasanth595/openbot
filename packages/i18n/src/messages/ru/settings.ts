@@ -191,6 +191,19 @@ export const messages = {
   "settings.mobileConnect.link.error.revoke": "Не удалось отозвать постоянную ссылку.",
   "settings.mobileConnect.devices.title": "Подключённые устройства",
   "settings.mobileConnect.devices.refreshing": "Обновление…",
+  "settings.mobileConnect.route.title": "Как подключаются устройства",
+  "settings.mobileConnect.route.description":
+    "Для телефонов, других компьютеров и участников команды, которые подключаются к этому компьютеру.",
+  "settings.mobileConnect.route.openbot.title": "Через OpenBot",
+  "settings.mobileConnect.route.openbot.badge": "Рекомендуется",
+  "settings.mobileConnect.route.openbot.description":
+    "Работает в любой сети. Чаты и файлы шифруются между вашими устройствами.",
+  "settings.mobileConnect.route.private.title": "Частная сеть",
+  "settings.mobileConnect.route.private.tailscale": "Найден Tailscale",
+  "settings.mobileConnect.route.private.description":
+    "Tailscale или эта сеть Wi-Fi. Устройства по-прежнему входят через OpenBot. Чаты и файлы никогда не проходят через серверы OpenBot, а устройства подключаются только в этой сети.",
+  "settings.mobileConnect.route.error.load": "Не удалось загрузить способ подключения устройств.",
+  "settings.mobileConnect.route.error.save": "Не удалось изменить способ подключения устройств.",
   "settings.mobileConnect.disconnectInfo.title": "Отключение устройства",
   "settings.mobileConnect.disconnectInfo.description":
     "Доступ отзывается сразу. Мобильное приложение может продолжать показывать текущий экран, пока его не откроют заново или не вернут из фона.",

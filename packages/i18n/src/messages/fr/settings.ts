@@ -204,6 +204,19 @@ export const messages = {
   "settings.mobileConnect.link.error.revoke": "Impossible de révoquer le lien permanent.",
   "settings.mobileConnect.devices.title": "Appareils connectés",
   "settings.mobileConnect.devices.refreshing": "Actualisation…",
+  "settings.mobileConnect.route.title": "Connexion des appareils",
+  "settings.mobileConnect.route.description":
+    "Pour les téléphones, autres ordinateurs et membres de l’équipe qui se connectent à cet ordinateur.",
+  "settings.mobileConnect.route.openbot.title": "Via OpenBot",
+  "settings.mobileConnect.route.openbot.badge": "Recommandé",
+  "settings.mobileConnect.route.openbot.description":
+    "Fonctionne sur tout réseau. Les chats et fichiers sont chiffrés entre vos appareils.",
+  "settings.mobileConnect.route.private.title": "Réseau privé",
+  "settings.mobileConnect.route.private.tailscale": "Tailscale détecté",
+  "settings.mobileConnect.route.private.description":
+    "Tailscale ou ce Wi-Fi. Les appareils se connectent toujours avec OpenBot. Les chats et fichiers ne passent jamais par les serveurs OpenBot, et les appareils se connectent uniquement sur ce réseau.",
+  "settings.mobileConnect.route.error.load": "Impossible de charger la connexion des appareils.",
+  "settings.mobileConnect.route.error.save": "Impossible de modifier la connexion des appareils.",
   "settings.mobileConnect.disconnectInfo.title": "Déconnecter un appareil",
   "settings.mobileConnect.disconnectInfo.description":
     "L’accès est révoqué immédiatement. L’application mobile peut continuer à afficher son écran actuel jusqu’à ce qu’elle soit rouverte ou ramenée au premier plan.",

@@ -191,6 +191,19 @@ export const messages = {
   "settings.mobileConnect.link.error.revoke": "Kalıcı bağlantı iptal edilemedi.",
   "settings.mobileConnect.devices.title": "Bağlı cihazlar",
   "settings.mobileConnect.devices.refreshing": "Yenileniyor…",
+  "settings.mobileConnect.route.title": "Cihazlar nasıl bağlanır",
+  "settings.mobileConnect.route.description":
+    "Bu bilgisayara bağlanan telefonlar, diğer bilgisayarlar ve ekip üyeleri için.",
+  "settings.mobileConnect.route.openbot.title": "OpenBot üzerinden",
+  "settings.mobileConnect.route.openbot.badge": "Önerilen",
+  "settings.mobileConnect.route.openbot.description":
+    "Her ağda çalışır. Sohbetler ve dosyalar cihazlarınız arasında şifrelenir.",
+  "settings.mobileConnect.route.private.title": "Özel ağ",
+  "settings.mobileConnect.route.private.tailscale": "Tailscale bulundu",
+  "settings.mobileConnect.route.private.description":
+    "Tailscale veya bu Wi-Fi. Cihazlar yine OpenBot ile oturum açar. Sohbetler ve dosyalar asla OpenBot sunucularından geçmez ve cihazlar yalnızca o ağda bağlanır.",
+  "settings.mobileConnect.route.error.load": "Cihazların nasıl bağlandığı yüklenemedi.",
+  "settings.mobileConnect.route.error.save": "Cihazların nasıl bağlandığı değiştirilemedi.",
   "settings.mobileConnect.disconnectInfo.title": "Bir cihazın bağlantısını kesme",
   "settings.mobileConnect.disconnectInfo.description":
     "Erişim hemen iptal edilir. Mobil uygulama yeniden açılana veya arka plandan geri getirilene kadar mevcut ekranını göstermeye devam edebilir.",

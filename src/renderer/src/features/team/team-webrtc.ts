@@ -569,7 +569,8 @@ async function handleSignal(state: PeerState, message: SignalServerMessage): Pro
       version: SIGNAL_PROTOCOL_VERSION,
       connectionId: message.connectionId,
       channel: "team",
-      sdp: requiredDescriptionSdp(answer),
+      // An answer after gathering, such as on an ICE restart, can already hold candidates.
+      sdp: state.privateNetwork ? privateNetworkSdp(requiredDescriptionSdp(answer)) : requiredDescriptionSdp(answer),
     });
   } else if (message.type === "answer") {
     const previousFingerprint = sdpFingerprint(state.peerConnection?.remoteDescription?.sdp);

@@ -184,8 +184,13 @@ export function appIpcHandlers({
       })),
       // The private route drops the connected devices, so each connects again without the relay.
       setRemoteNetworkRoute: payloadHandler(parseRemoteNetworkRoutePreference, async (parsed) => {
+        const previous = remoteNetworkRoute.get();
         const saved = await runCauseEffect(remoteNetworkRoute.set(parsed));
-        await applyRemoteNetworkRoute();
+        // A route that the host did not apply must not stay saved: the next connection would read it.
+        await applyRemoteNetworkRoute().catch(async (error: unknown) => {
+          await runCauseEffect(remoteNetworkRoute.set(previous));
+          throw error;
+        });
         return { ...saved, tailscaleConnected: isTailscaleConnected() };
       }),
       getAppBehaviorPreference: handler(() => runCauseEffect(appBehavior.get())),

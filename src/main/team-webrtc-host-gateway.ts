@@ -49,12 +49,16 @@ class HostSignal extends Context.Service<
             }),
             () =>
               Effect.gen(function* () {
+                // The route is read after the bridge starts: a change before that finds no port to post to.
                 const connecting = yield* Effect.forkIn(
-                  bridge
-                    .connect({ peerId, signalUrl, token, peer: "host", privateNetwork: privateNetwork() })
-                    .pipe(
-                      Effect.tapError((error) => Effect.sync(() => Deferred.doneUnsafe(ready, Effect.fail(error)))),
+                  bridge.start().pipe(
+                    Effect.andThen(
+                      Effect.suspend(() =>
+                        bridge.connect({ peerId, signalUrl, token, peer: "host", privateNetwork: privateNetwork() }),
+                      ),
                     ),
+                    Effect.tapError((error) => Effect.sync(() => Deferred.doneUnsafe(ready, Effect.fail(error)))),
+                  ),
                   scope,
                   { startImmediately: false },
                 );

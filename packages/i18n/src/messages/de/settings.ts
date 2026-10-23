@@ -194,6 +194,19 @@ export const messages = {
   "settings.mobileConnect.link.error.revoke": "Der dauerhafte Link konnte nicht widerrufen werden.",
   "settings.mobileConnect.devices.title": "Verbundene Geräte",
   "settings.mobileConnect.devices.refreshing": "Wird aktualisiert…",
+  "settings.mobileConnect.route.title": "Wie Geräte sich verbinden",
+  "settings.mobileConnect.route.description":
+    "Für Telefone, andere Computer und Teammitglieder, die sich mit diesem Computer verbinden.",
+  "settings.mobileConnect.route.openbot.title": "Über OpenBot",
+  "settings.mobileConnect.route.openbot.badge": "Empfohlen",
+  "settings.mobileConnect.route.openbot.description":
+    "Funktioniert in jedem Netzwerk. Chats und Dateien sind zwischen deinen Geräten verschlüsselt.",
+  "settings.mobileConnect.route.private.title": "Privates Netzwerk",
+  "settings.mobileConnect.route.private.tailscale": "Tailscale gefunden",
+  "settings.mobileConnect.route.private.description":
+    "Tailscale oder dieses WLAN. Geräte melden sich weiter mit OpenBot an. Chats und Dateien gehen nie über OpenBot-Server, und Geräte verbinden sich nur in diesem Netzwerk.",
+  "settings.mobileConnect.route.error.load": "Verbindungsart konnte nicht geladen werden.",
+  "settings.mobileConnect.route.error.save": "Verbindungsart konnte nicht geändert werden.",
   "settings.mobileConnect.disconnectInfo.title": "Gerät trennen",
   "settings.mobileConnect.disconnectInfo.description":
     "Der Zugriff wird sofort widerrufen. Die mobile App kann ihren aktuellen Bildschirm weiter anzeigen, bis sie erneut geöffnet oder aus dem Hintergrund zurückgeholt wird.",

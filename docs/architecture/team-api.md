@@ -14,7 +14,9 @@ The host's network route preference (`openbot-remote-network-route-v1.json`) app
 remote connection to the computer. With `private`, the host gives WebRTC no ICE servers, and the
 hidden page removes each local, remote, and SDP candidate that is not a `host` candidate on a private
 address (RFC 1918, 100.64.0.0/10, `fc00::/7`, or `.local`). A change to `private` closes the
-connected peers, so each one connects again without the relay.
+connected peers, so each one connects again without the relay. The Remote Desktop runtime reads its
+ICE servers from main for each stream and sends them to the viewer, so its media also has no relay.
+Its candidates are not filtered; a direct public IPv6 path stays possible.
 Mobile server labels in the drawer and connection settings describe the authenticated application
 connection, not membership or Signal presence. Each membership has its own transport and recovery controller while mobile is active.
 On a return to the app, the selected server connects first; the others become active when it is

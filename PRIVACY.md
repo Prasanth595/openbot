@@ -618,8 +618,9 @@ images of the host's browser tab, and the watching member's pointer and key inpu
 media connection. ICE uses a direct peer-to-peer path when possible. If a direct path is not possible, encrypted WebRTC traffic uses an OpenBot coturn relay.
 When the owner selects **Private network** in Settings › Mobile Connect, the host gets no STUN or
 TURN server, so no WebRTC traffic goes through an OpenBot relay. Team API connections then use only
-addresses on a private network, such as the Wi-Fi or a Tailscale tailnet. Sign-in and Signal
-messages do not change.
+addresses on a private network, such as the Wi-Fi or a Tailscale tailnet. The desktop media
+connection gets the same empty server list for each new stream, so it also uses only a direct path,
+which can be a public IPv6 address of the computer. Sign-in and Signal messages do not change.
 
 Agents, conversations, queues, direct messages, attachments, browser data, prompts, approvals, and
 Remote Desktop data remain on the host. The central account service does not copy them into D1 or

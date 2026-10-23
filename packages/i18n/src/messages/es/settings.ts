@@ -193,6 +193,19 @@ export const messages = {
   "settings.mobileConnect.link.error.revoke": "No se pudo revocar el enlace permanente.",
   "settings.mobileConnect.devices.title": "Dispositivos conectados",
   "settings.mobileConnect.devices.refreshing": "Actualizando…",
+  "settings.mobileConnect.route.title": "Cómo se conectan los dispositivos",
+  "settings.mobileConnect.route.description":
+    "Para teléfonos, otros ordenadores y miembros del equipo que se conectan a este ordenador.",
+  "settings.mobileConnect.route.openbot.title": "A través de OpenBot",
+  "settings.mobileConnect.route.openbot.badge": "Recomendado",
+  "settings.mobileConnect.route.openbot.description":
+    "Funciona en cualquier red. Los chats y archivos se cifran entre tus dispositivos.",
+  "settings.mobileConnect.route.private.title": "Red privada",
+  "settings.mobileConnect.route.private.tailscale": "Tailscale detectado",
+  "settings.mobileConnect.route.private.description":
+    "Tailscale o esta wifi. Los dispositivos siguen iniciando sesión con OpenBot. Los chats y archivos nunca pasan por servidores de OpenBot, y los dispositivos solo se conectan en esa red.",
+  "settings.mobileConnect.route.error.load": "No se pudo cargar cómo se conectan los dispositivos.",
+  "settings.mobileConnect.route.error.save": "No se pudo cambiar cómo se conectan los dispositivos.",
   "settings.mobileConnect.disconnectInfo.title": "Desconectar un dispositivo",
   "settings.mobileConnect.disconnectInfo.description":
     "El acceso se revoca de inmediato. La aplicación móvil puede seguir mostrando su pantalla actual hasta que se vuelva a abrir o regrese del segundo plano.",

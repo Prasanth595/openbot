@@ -190,6 +190,19 @@ export const messages = {
   "settings.mobileConnect.link.error.revoke": "永続リンクを取り消せませんでした。",
   "settings.mobileConnect.devices.title": "接続済みのデバイス",
   "settings.mobileConnect.devices.refreshing": "更新中…",
+  "settings.mobileConnect.route.title": "デバイスの接続方法",
+  "settings.mobileConnect.route.description":
+    "このコンピューターに接続するスマートフォン、ほかのコンピューター、チームメンバー向けです。",
+  "settings.mobileConnect.route.openbot.title": "OpenBot 経由",
+  "settings.mobileConnect.route.openbot.badge": "推奨",
+  "settings.mobileConnect.route.openbot.description":
+    "どのネットワークでも使えます。チャットとファイルはデバイス間で暗号化されます。",
+  "settings.mobileConnect.route.private.title": "プライベートネットワーク",
+  "settings.mobileConnect.route.private.tailscale": "Tailscale を検出",
+  "settings.mobileConnect.route.private.description":
+    "Tailscale またはこの Wi-Fi。デバイスのサインインは引き続き OpenBot で行います。チャットとファイルは OpenBot のサーバーを通らず、デバイスはそのネットワーク上でのみ接続します。",
+  "settings.mobileConnect.route.error.load": "デバイスの接続方法を読み込めませんでした。",
+  "settings.mobileConnect.route.error.save": "デバイスの接続方法を変更できませんでした。",
   "settings.mobileConnect.disconnectInfo.title": "デバイスの接続解除",
   "settings.mobileConnect.disconnectInfo.description":
     "アクセスはすぐに取り消されます。モバイルアプリは、再度開くかバックグラウンドから戻すまで現在の画面を表示し続けることがあります。",
