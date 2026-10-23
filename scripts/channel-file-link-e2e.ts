@@ -27,8 +27,8 @@ interface Report {
   workspace?: { linkInOwnMessage: number; linkInAgentReply: boolean; opened: boolean };
   directChat?: { sharedOpened: boolean; workspaceOpened: boolean };
   /** What the agent wrote, and the state of its task, when a step fails. */
-  agentReplies?: string[];
-  taskStates?: string[];
+  agentReplies?: string[] | undefined;
+  taskStates?: string[] | undefined;
   pageErrors: string[];
   screenshots: string[];
   passed: boolean;
