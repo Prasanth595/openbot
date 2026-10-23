@@ -9,7 +9,8 @@
 // 4. `rotate` makes a second step, so a client that is two keys behind follows a chain.
 //
 // The client part runs the team client's `followHostKeyHandovers` on the handovers that the host
-// signed: a client that trusts the first key reaches the last key, and a changed signature, a step of
+// signed, once with the `node:crypto` check of desktop main and once with the check of the other
+// clients: a client that trusts the first key reaches the last key, and a changed signature, a step of
 // another host or a key with no handover fails.
 // Run: `bun scripts/host-key-rotation-e2e.ts`.
 // Writes .openbot-build/host-key-rotation-e2e/report.json.
@@ -22,8 +23,10 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { decodeHostKeyHandover, type HostKeyHandover } from "@openbot/contracts/host-key-handover";
 import { decodeRecord, requiredString } from "@openbot/contracts/ipc-decoding";
+import { verifyEd25519Base64Url } from "@openbot/team-client/ed25519";
 import { followHostKeyHandovers, remoteHostFingerprint } from "@openbot/team-client/host-key-handover";
 import { Effect } from "effect";
+import { verifyHostKeySignature } from "../src/main/remote-server-host-directory";
 
 const OUT = resolve(import.meta.dirname, "../.openbot-build/host-key-rotation-e2e");
 const HOST_LINE = "host-key-rotation ";
@@ -119,13 +122,19 @@ function decodeStepResult(value: unknown): StepResult {
 
 // --- Checks ---
 
-function follows(input: {
+async function follows(input: {
   hostId: string;
   trustedFingerprint: string;
   advertisedPublicKey: string;
   handovers: readonly HostKeyHandover[];
 }): Promise<boolean> {
-  return Effect.runPromise(followHostKeyHandovers(input));
+  // Desktop main checks with `node:crypto`, the other clients with `@noble/ed25519`. Both must agree.
+  const [desktop, client] = await Promise.all([
+    Effect.runPromise(followHostKeyHandovers({ ...input, verify: verifyHostKeySignature })),
+    Effect.runPromise(followHostKeyHandovers({ ...input, verify: verifyEd25519Base64Url })),
+  ]);
+  assert.equal(desktop, client, "The desktop check and the client check must agree.");
+  return desktop;
 }
 
 /** The fingerprint that the desktop main process stores, from `src/main/team-store.ts`. */

@@ -99,7 +99,7 @@ import { RemoteServerConnections } from "./remote-server-connections";
 import { RemoteProtocolError, RemoteRequestError } from "./remote-server-errors";
 import { RemoteEventRefresh } from "./remote-server-event-refresh";
 import { RemoteEventStream } from "./remote-server-event-stream";
-import { followedHostKeyHandovers, reconcileWebRtcHosts } from "./remote-server-host-directory";
+import { followedHostKeyHandovers, reconcileWebRtcHosts, verifyHostKeySignature } from "./remote-server-host-directory";
 import { requestJson, throwRemoteResponseError } from "./remote-server-http";
 import { RemotePresenceCache } from "./remote-server-presence";
 import { RemoteServerStore, type TokenCipher } from "./remote-server-store";
@@ -721,6 +721,7 @@ export class RemoteServerManager extends EventEmitter<RemoteServerEvents> {
               trustedFingerprint: invite.fingerprint,
               advertisedPublicKey: publicKey,
               handovers: preview.keyHandovers,
+              verify: verifyHostKeySignature,
             })))
         ) {
           return yield* new RemoteWorkflowError({

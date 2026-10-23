@@ -23,8 +23,9 @@
 // Order is preserved deliberately: surviving stored servers keep their positions, and hosts the
 // user has not seen before are appended in directory order. The user drags this list.
 
+import { verify } from "node:crypto";
 import { REMOTE_ACCOUNT_CHECK_INTERVAL_MS } from "@openbot/team-client";
-import { followHostKeyHandovers } from "@openbot/team-client/host-key-handover";
+import { followHostKeyHandovers, type HostKeySignatureCheck } from "@openbot/team-client/host-key-handover";
 import { Effect } from "effect";
 import type { RemoteHostSummary } from "./central-auth-records";
 import type { PreservedHostIdentity, StoredRemoteServerView } from "./remote-server-store";
@@ -86,6 +87,13 @@ export interface WebRtcHostReconciliationInput {
   readonly followedHandovers?: ReadonlySet<string>;
 }
 
+/** The handover signature check of main, with `node:crypto` rather than the team client's verifier. */
+export const verifyHostKeySignature: HostKeySignatureCheck = (signature, message, publicKeyPem) =>
+  Effect.try({
+    try: () => verify(null, message, publicKeyPem, Buffer.from(signature, "base64url")),
+    catch: () => false,
+  }).pipe(Effect.catch(() => Effect.succeed(false)));
+
 /**
  * The listed hosts whose advertised key differs from the pinned one, and a handover chain signed by
  * each key in turn leads from the pinned key to the advertised one. Only these may replace a pin.
@@ -106,6 +114,7 @@ export const followedHostKeyHandovers = Effect.fn("RemoteHostDirectory.followedH
         trustedFingerprint,
         advertisedPublicKey: advertised,
         handovers: host.keyHandovers,
+        verify: verifyHostKeySignature,
       })
     )
       followed.add(host.hostId);

@@ -16,7 +16,7 @@ import { sourceText } from "@openbot/i18n/source";
 import { referenceFrom, safeReference } from "@openbot/user-errors/reference";
 import { Deferred, Effect, Schema, Semaphore } from "effect";
 import { runTeamEffect } from "./effect-boundary";
-import { followHostKeyHandovers, remoteHostFingerprint } from "./host-key-handover";
+import { followHostKeyHandovers, type HostKeySignatureCheck, remoteHostFingerprint } from "./host-key-handover";
 import type { TeamClientFetch } from "./index";
 
 export interface RemoteTeamHost {
@@ -135,6 +135,7 @@ export class RemoteTeamDirectoryClient {
   readonly #hostKeys: RemoteHostKeyStore;
   readonly #pairedHost: MobileConnectHostBinding | undefined;
   readonly #inviteLinks: InviteLinkOptions;
+  readonly #verifyHostKeySignature: HostKeySignatureCheck;
   readonly #pinLock = Semaphore.makeUnsafe(1);
 
   constructor(
@@ -145,6 +146,8 @@ export class RemoteTeamDirectoryClient {
       pairedHost?: MobileConnectHostBinding;
       /** A development client passes `allowLocalDevelopmentApiUrl` to use a local account service. */
       inviteLinks?: InviteLinkOptions;
+      /** Checks the signatures of a host key handover, usually `verifyEd25519Base64Url`. */
+      verifyHostKeySignature: HostKeySignatureCheck;
     } & ({ token: string; authentication?: never } | { token?: never; authentication: { kind: "browser" } }),
   ) {
     this.#apiUrl = input.apiUrl;
@@ -152,6 +155,7 @@ export class RemoteTeamDirectoryClient {
     this.#authentication = input.authentication ?? { kind: "bearer", token: input.token ?? "" };
     this.#fetch = input.fetch;
     this.#pairedHost = input.pairedHost;
+    this.#verifyHostKeySignature = input.verifyHostKeySignature;
     // A self-hosted account service accepts invitations that name it. `previewInvite` still refuses
     // an invitation for any other service.
     this.#inviteLinks = { selfHostedApiOrigin: selfHostedApiOrigin(input.apiUrl), ...input.inviteLinks };
@@ -221,6 +225,7 @@ export class RemoteTeamDirectoryClient {
             trustedFingerprint: binding.fingerprint,
             advertisedPublicKey: paired.devicePublicKey,
             handovers: handoversByHost.get(paired.hostId) ?? [],
+            verify: this.#verifyHostKeySignature,
           }))
         ) {
           return yield* directoryFailure(sourceText("error.remote.pairedIdentityChanged"));
@@ -443,6 +448,7 @@ export class RemoteTeamDirectoryClient {
             trustedFingerprint: invite.fingerprint,
             advertisedPublicKey: preview.devicePublicKey,
             handovers: preview.keyHandovers,
+            verify: this.#verifyHostKeySignature,
           })))
       ) {
         return yield* directoryFailure(sourceText("error.remote.inviteFingerprintMismatch"));
@@ -502,6 +508,7 @@ export class RemoteTeamDirectoryClient {
           trustedFingerprint: pinnedFingerprint,
           advertisedPublicKey,
           handovers,
+          verify: this.#verifyHostKeySignature,
         });
         if (!followed) return yield* directoryFailure(sourceText("error.remote.serverIdentityChanged"));
         yield* directoryIO(() => this.#hostKeys.set(hostId, advertisedPublicKey));

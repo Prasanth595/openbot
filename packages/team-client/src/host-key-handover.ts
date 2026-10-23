@@ -1,8 +1,20 @@
 import { sha256 } from "@noble/hashes/sha2.js";
 import { type HostKeyHandover, hostKeyHandoverStatement } from "@openbot/contracts/host-key-handover";
 import { Effect } from "effect";
-import { base64UrlToBytes, bytesToBase64Url } from "./base64";
-import { verifyEd25519Pem } from "./ed25519";
+import { bytesToBase64Url } from "./base64";
+
+/**
+ * Checks one base64url Ed25519 signature, and is `false` when the key or the signature is malformed.
+ * The caller gives the check: desktop main uses `node:crypto`, other clients `verifyEd25519Base64Url`.
+ * Main bundles this module and `remote-directory.ts`, so they must not import `./ed25519`: the
+ * electron-vite ESM shim goes after the last `import` text in the bundle, and a JSDoc example in
+ * `@noble/ed25519` matches it, so main then starts with no `__dirname`.
+ */
+export type HostKeySignatureCheck = (
+  signature: string,
+  message: Uint8Array,
+  publicKeyPem: string,
+) => Effect.Effect<boolean>;
 
 export function remoteHostFingerprint(publicKey: string): string {
   const digest = sha256(new TextEncoder().encode(publicKey));
@@ -19,6 +31,7 @@ export const followHostKeyHandovers = Effect.fn("HostKeyHandover.follow")(functi
   trustedFingerprint: string;
   advertisedPublicKey: string;
   handovers: readonly HostKeyHandover[];
+  verify: HostKeySignatureCheck;
 }): Effect.fn.Return<boolean> {
   const target = remoteHostFingerprint(input.advertisedPublicKey);
   let current = input.trustedFingerprint;
@@ -26,17 +39,10 @@ export const followHostKeyHandovers = Effect.fn("HostKeyHandover.follow")(functi
     if (current === target) break;
     if (handover.hostId !== input.hostId || remoteHostFingerprint(handover.previousPublicKey) !== current) continue;
     const statement = new TextEncoder().encode(hostKeyHandoverStatement(handover));
-    const signedByPrevious = yield* verifySignature(handover.previousSignature, statement, handover.previousPublicKey);
-    const signedByNext =
-      signedByPrevious && (yield* verifySignature(handover.signature, statement, handover.publicKey));
+    const signedByPrevious = yield* input.verify(handover.previousSignature, statement, handover.previousPublicKey);
+    const signedByNext = signedByPrevious && (yield* input.verify(handover.signature, statement, handover.publicKey));
     if (!signedByNext) return false;
     current = remoteHostFingerprint(handover.publicKey);
   }
   return current === target;
 });
-
-function verifySignature(signature: string, message: Uint8Array, publicKey: string): Effect.Effect<boolean> {
-  return Effect.suspend(() => verifyEd25519Pem(base64UrlToBytes(signature), message, publicKey)).pipe(
-    Effect.catch(() => Effect.succeed(false)),
-  );
-}
