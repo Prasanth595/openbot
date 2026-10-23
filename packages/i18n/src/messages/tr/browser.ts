@@ -103,6 +103,8 @@ export const messages = {
   "browser.userControl.status": "Bu sayfayı siz kontrol ediyorsunuz",
   "browser.dock.messageTo": "{name} için mesaj",
   "browser.dock.needsYou": "{name} bu sayfada size ihtiyaç duyuyor",
+  "browser.dock.needsAnswer": "{name} yanıtınızı bekliyor",
+  "browser.dock.needsApproval": "{name} onayınızı bekliyor",
   "browser.dock.answerInChat": "Sohbette yanıtla",
   "browser.tab.newRight": "Sağa yeni sekme",
   "browser.tab.duplicate": "Çoğalt",

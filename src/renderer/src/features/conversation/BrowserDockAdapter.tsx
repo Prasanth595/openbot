@@ -7,13 +7,14 @@ import {
   type BrowserDockPresentation,
   type BrowserDockSkill,
   type BrowserTab,
+  isBrowserDockIsland,
 } from "@openbot/contracts/ipc";
 import { BROWSER_USER_CONTROL_CAPABILITY } from "@openbot/contracts/team-protocol/browser-user-control-v1";
 import type { ComposerAgent, ComposerMcpServer, ComposerSkill } from "@openbot/ui/data";
 import { BrowserDock, type BrowserIslandContent } from "@openbot/ui/features/browser/BrowserDock";
 import { browserActionLabel } from "@openbot/ui/features/browser/browser-action-labels";
 import { useText } from "@openbot/ui/text";
-import { createEffect, createMemo, createSignal, Show, snapshot, untrack } from "solid-js";
+import { createEffect, createMemo, createSignal, createStore, Show, snapshot, untrack } from "solid-js";
 import { deviceSendShortcut } from "../../send-shortcut-preference";
 import { serverSupportsCapability } from "../servers/server-capabilities";
 import { conversationPort } from "./conversation-port";
@@ -75,13 +76,43 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined; 
     const request = props.browserTakeover;
     return request && request.tabId === adapterProps.tab?.id ? request : undefined;
   };
-  /** One open question with no choices is answered from the field. Others need the chat. */
+  /**
+   * `sent` is the card that the user answered. It goes from the dock at once, and the dock shows the agent's
+   * work. When the answer fails, the card shows again as a new `attempt`.
+   */
+  const [answer, setAnswer] = createStore<{ sent: string | undefined; attempt: number }>({
+    sent: undefined,
+    attempt: 0,
+  });
+  /**
+   * One open question with no choices is answered from the field. Other questions show as a card over the
+   * page. A secret answer, a card of the agent's own design, and a card that main would refuse need the chat.
+   */
   const question = () => {
     const prompt = props.prompt;
     if (!prompt || prompt.agentId !== props.agent?.id || prompt.questions.length === 0) return undefined;
+    if (answer.sent === `prompt:${prompt.requestId}`) return undefined;
     const [first] = prompt.questions;
     const fromField = prompt.questions.length === 1 && first && first.options === null && !first.isSecret;
-    return { prompt, first: fromField ? first : undefined };
+    const card: BrowserIslandContent = {
+      kind: "prompt",
+      requestId: prompt.requestId,
+      questions: prompt.questions,
+      attempt: answer.attempt,
+    };
+    const inDock =
+      !fromField &&
+      !props.promptUiBlock &&
+      prompt.questions.every((entry) => !entry.isSecret) &&
+      isBrowserDockIsland(card);
+    return { prompt, first: fromField ? first : undefined, card: inDock ? card : undefined };
+  };
+  const approval = (): BrowserIslandContent | undefined => {
+    const current = props.approval;
+    if (!current || current.agentId !== props.agent?.id) return undefined;
+    if (answer.sent === `approval:${current.requestId}`) return undefined;
+    const card: BrowserIslandContent = { kind: "approval", approval: current, attempt: answer.attempt };
+    return isBrowserDockIsland(card) ? card : undefined;
   };
   const reply = createMemo(() => {
     const agentId = props.agent?.id;
@@ -104,7 +135,10 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined; 
     if (request?.secret) return { kind: "secret", request };
     if (request) return { kind: "activity", control: "request" };
     if (adapterProps.tab?.userControl) return { kind: "activity", control: "user" };
+    const approvalCard = approval();
+    if (approvalCard) return approvalCard;
     const asked = question();
+    if (asked?.card) return asked.card;
     if (asked) {
       const id = `prompt:${asked.prompt.requestId}`;
       const body = asked.prompt.questions.map((entry) => entry.question).join("\n\n");
@@ -170,6 +204,38 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined; 
       return;
     }
     void submitComposer();
+  }
+
+  /** Answers the card on the page. An answer for a card that has gone does nothing. */
+  async function answerPrompt(requestId: string | number, answers: Record<string, string[]>): Promise<boolean> {
+    const current = question()?.card;
+    if (current?.kind !== "prompt" || String(current.requestId) !== String(requestId)) return false;
+    return sendAnswer(`prompt:${current.requestId}`, () => props.onAnswerPrompt(answers));
+  }
+
+  async function respondApproval(requestId: string | number, decision: "accept" | "decline"): Promise<boolean> {
+    const current = approval();
+    if (current?.kind !== "approval" || String(current.approval.requestId) !== String(requestId)) return false;
+    return sendAnswer(`approval:${current.approval.requestId}`, () => props.onRespondToApproval(decision));
+  }
+
+  /** Removes the card while its answer goes to the agent, and shows it again when the answer fails. */
+  async function sendAnswer(card: string, respond: () => Promise<boolean>): Promise<boolean> {
+    setAnswer((state) => {
+      state.sent = card;
+    });
+    let done = false;
+    try {
+      done = await respond();
+      return done;
+    } finally {
+      if (!done) {
+        setAnswer((state) => {
+          if (state.sent === card) state.sent = undefined;
+          state.attempt += 1;
+        });
+      }
+    }
   }
 
   /** The overlay's field: a revision changes only for a draft that did not come from the overlay. */
@@ -258,6 +324,12 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined; 
       case "dismiss-reply":
         dismissReply(action.id);
         return;
+      case "answer-prompt":
+        void answerPrompt(action.requestId, action.answers);
+        return;
+      case "respond-approval":
+        void respondApproval(action.requestId, action.decision);
+        return;
       case "open-chat":
         setActiveRightPanel("browser");
         return;
@@ -319,6 +391,8 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined; 
             onReorder={reorderPresentedQueue}
             onHandoff={onHandoff()}
             onRespondSecret={(input) => conversationRuntime(props).agent.respondToBrowserSecret(input)}
+            onAnswerPrompt={answerPrompt}
+            onRespondApproval={respondApproval}
             onDismissReply={dismissReply}
             onOpenChat={() => setActiveRightPanel("browser")}
             onSelectAgent={props.onSelectAgent}

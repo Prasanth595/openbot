@@ -105,6 +105,8 @@ export const messages = {
   "browser.userControl.status": "Sterujesz tą stroną",
   "browser.dock.messageTo": "Wiadomość do: {name}",
   "browser.dock.needsYou": "{name} potrzebuje Twojej pomocy na tej stronie",
+  "browser.dock.needsAnswer": "{name} czeka na Twoją odpowiedź",
+  "browser.dock.needsApproval": "{name} czeka na Twoją zgodę",
   "browser.dock.answerInChat": "Odpowiedz na czacie",
   "browser.tab.newRight": "Nowa karta po prawej",
   "browser.tab.duplicate": "Duplikuj",

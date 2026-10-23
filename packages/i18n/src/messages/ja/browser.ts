@@ -102,6 +102,8 @@ export const messages = {
   "browser.userControl.status": "このページを操作中",
   "browser.dock.messageTo": "{name} へのメッセージ",
   "browser.dock.needsYou": "{name} がこのページで手助けを求めています",
+  "browser.dock.needsAnswer": "{name} が回答を待っています",
+  "browser.dock.needsApproval": "{name} が承認を待っています",
   "browser.dock.answerInChat": "チャットで回答",
   "browser.tab.newRight": "右に新しいタブ",
   "browser.tab.duplicate": "複製",
