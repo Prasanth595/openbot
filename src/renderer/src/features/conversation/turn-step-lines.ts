@@ -3,7 +3,7 @@
  * they came. The host sends each line once and stores none, so a window keeps them in memory for its
  * newest turns: after a restart a turn shows only its stored thinking and memory changes.
  */
-export interface TurnStepLine {
+interface TurnStepLine {
   id: string;
   /** The host's English source text. The chat renders it with `sourceText`. */
   text: string;
