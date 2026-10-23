@@ -129,6 +129,8 @@ export function MobileChatView({
       // The list can show the message, and clear the focus, before the request ends.
       if (messageId && request.current === id)
         setFocus((current) => (current?.messageId === messageId ? { messageId, loaded: true } : current));
+      // Events keep a loaded chat up to date while the connection stays, so it opens without a read.
+      if (conversationStore.isUpToDate(agent.id)) return;
       // A latest page that meets the window around the message joins the two.
       await loadConversation(agent.id, agent.serverId);
     };

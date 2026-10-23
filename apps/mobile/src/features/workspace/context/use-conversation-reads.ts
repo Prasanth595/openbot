@@ -54,20 +54,48 @@ export function useConversationReads({
     [liveState],
   );
 
+  const readLoads = useRef(new Map<string, { promise: Promise<void>; again: boolean }>());
+  /**
+   * Reads the host read state. Each message event asks for it, so a call during a read waits for one
+   * more read after it, which all the calls of that time share.
+   */
   const refreshConversationReads = useCallback(
-    async (serverId = activeServerId.current) => {
-      if (!serverId) return;
-      await runTeamEffect(
-        readRefresh.refresh(
-          serverId,
-          () =>
-            Effect.tryPromise(() =>
-              request("GET", TEAM_API_ROUTES.agents.conversationReads, decodeConversationReads, undefined, serverId),
-            ),
-          applyConversationReads,
-          () => !removedServers.current.has(serverId),
-        ),
-      );
+    (serverId = activeServerId.current): Promise<void> => {
+      if (!serverId) return Promise.resolve();
+      const pending = readLoads.current.get(serverId);
+      if (pending) {
+        pending.again = true;
+        return pending.promise;
+      }
+      const read = () =>
+        runTeamEffect(
+          readRefresh.refresh(
+            serverId,
+            () =>
+              Effect.tryPromise(() =>
+                request("GET", TEAM_API_ROUTES.agents.conversationReads, decodeConversationReads, undefined, serverId),
+              ),
+            applyConversationReads,
+            () => !removedServers.current.has(serverId),
+          ),
+        );
+      const load = { again: false, promise: Promise.resolve() };
+      load.promise = (async () => {
+        try {
+          do {
+            load.again = false;
+            try {
+              await read();
+            } catch (error) {
+              if (!load.again) throw error;
+            }
+          } while (load.again && !removedServers.current.has(serverId));
+        } finally {
+          readLoads.current.delete(serverId);
+        }
+      })();
+      readLoads.current.set(serverId, load);
+      return load.promise;
     },
     [request, readRefresh, applyConversationReads, activeServerId, removedServers],
   );
