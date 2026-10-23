@@ -35,7 +35,8 @@ generation. Desktop generation 11 adds `trigger` on the `interrupt` action of
 `skipped` on `onboarding_completed`, two `team_action` actions, and removes `maintenance_action`,
 which had no sender. Web generation 2 sends the desktop product events from `/app`, with
 `surface: web`; generation 1 sent only failure reports. Mobile generation 3 adds sign-in, pairing
-`entry_point`, plans, onboarding, notification, Live Activity, voice and template events. Desktop generation 9 adds `voice_conversation_action`, `voice_turn`, `speech_reply`,
+`entry_point`, plans, onboarding, notification, Live Activity, voice and template events. Mobile generation 4 adds
+`marketplace_action` for agent, skill and plugin installs and agent updates, without `listing_slug`. Desktop generation 9 adds `voice_conversation_action`, `voice_turn`, `speech_reply`,
 `speech_model_action` and `speech_settings_action`. Desktop generation 8 adds `hosted_server_upsell`. Host generation 9 adds the token
 properties of `system_turn_completed` and `system_token_usage`. Host generation 8 adds `system_resources`. Desktop and host generation 7 adds safe error causes and durable failure delivery. Generation 6 added the usage events below (`system_tool_used`,
 `system_site_visited`, `system_routine_run`, `system_inventory`), `agent_source` and `agent_listing`
@@ -126,7 +127,7 @@ off. Turning analytics off on any surface first sends one `analytics_preference_
 | `search_action` | Is search useful and healthy? | Search returned a safe result count |
 | `remote_desktop_action` | Is Remote Desktop usable? | Session/display operation completed |
 | `update_action` | Do update checks and downloads work? | Returned status is not an error; actual installs use `app_updated` |
-| `marketplace_action` | Do marketplace views convert to installs/updates? | Marketplace operation completed. `entity` is `skill`, `agent`, or `plugin`; `listing_slug` names only a curated skill or agent or a catalog plugin |
+| `marketplace_action` | Do marketplace views convert to installs/updates? | Marketplace operation completed. `entity` is `skill`, `agent`, or `plugin`; `listing_slug` names only a curated skill or agent or a catalog plugin. Mobile from generation 4 sends `install` and `update` with no `listing_slug` |
 | `memory_action` | Are manual memories used? | Memory persistence operation completed |
 | `voice_transcription` | Is local voice input reliable and fast? | Transcription returned text without sending it to analytics |
 | `voice_conversation_action` | Do users talk to agents in the Voice pane, and for how long? | `action`: `start` (both voice models are ready; `duration_ms` includes a speech model download; fails with `load_failed`), `end` (the pane closed; `duration_ms` of the conversation and `turn_count` of sent turns), `interrupt`, `mute`, or `unmute`. From desktop generation 11, `interrupt` has `trigger`: `button` (the Stop button) or `voice` (the user spoke while the agent thought or spoke). `server_kind` is `local` or `remote`; `transcription` is `local` or `cloud`. Mobile from generation 3 sends `start` and `end` only, with `server_kind: remote` and no `transcription` |

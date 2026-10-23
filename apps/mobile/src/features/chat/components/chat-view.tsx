@@ -24,7 +24,7 @@ import { mobileAnalytics } from "@/features/analytics/mobile-analytics";
 import { useBrowserFeature } from "@/features/browser/components/use-browser-feature";
 import { channelRecipient } from "@/features/channels/model/channel-draft";
 import type { ApprovalDecision } from "@/features/chat/components/chat-approval-card";
-import { ChatComposer, VOICE_BUTTON_SIZE } from "@/features/chat/components/chat-composer";
+import { ChatComposer, type MentionSkill, VOICE_BUTTON_SIZE } from "@/features/chat/components/chat-composer";
 import { ChatGlassIconButton } from "@/features/chat/components/chat-glass-icon-button";
 import { ChatHeader } from "@/features/chat/components/chat-header";
 import { ChatMessageList } from "@/features/chat/components/chat-message-list";
@@ -83,6 +83,8 @@ export interface ChatViewProps {
   queue?: ChatQueueController;
   agents: MobileAgent[];
   mentionAgents: MobileAgent[];
+  /** The skills of the chat's agent, for `@` and for Use skill in the plus menu. */
+  mentionSkills?: readonly MentionSkill[];
   projectedMessages: ChatMessage[];
   referenceMessages: ChatMessage[];
   ready: boolean;
@@ -183,6 +185,7 @@ export function ChatView({
   queue,
   agents: serverAgents,
   mentionAgents,
+  mentionSkills,
   projectedMessages,
   referenceMessages,
   ready,
@@ -289,6 +292,8 @@ export function ChatView({
   }, [isFocused, sendError, target.id]);
   const [sendRetryVersion, setSendRetryVersion] = useState(0);
   const queryClient = useQueryClient();
+  // Use skill in the plus menu bumps it; the composer then writes `@` and offers the skills.
+  const [skillPickerVersion, setSkillPickerVersion] = useState(0);
   const composerAttachments = useChatAttachments([], undefined, () => workspace().attachmentSupport(target.serverId));
   const attachments = composerAttachments;
   const [messageAliases, setMessageAliases] = useState<ReadonlyMap<string, string>>(new Map());
@@ -1082,6 +1087,8 @@ export function ChatView({
                   handoffFocusVersion={handoffFocusVersion}
                   onCancelReply={cancelReply}
                   mentionAgents={mentionAgents}
+                  mentionSkills={mentionSkills}
+                  skillPickerVersion={skillPickerVersion}
                   key={target.id}
                   action={action}
                   actionForeground={actionForeground}
@@ -1132,6 +1139,7 @@ export function ChatView({
             keyboardOffset={keyboardOffset}
             liquidGlassAvailable={liquidGlassAvailable}
             onClose={attachments.closeMenu}
+            onUseSkill={mentionSkills?.length ? () => setSkillPickerVersion((version) => version + 1) : undefined}
             progress={menuProgress}
           />
         ) : null}

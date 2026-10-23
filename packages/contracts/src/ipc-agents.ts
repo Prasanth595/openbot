@@ -136,7 +136,8 @@ export function sameAgentModelChoice(left: AgentModelChoice, right: AgentModelCh
   );
 }
 
-function isMarketplaceSource(value: unknown): value is NonNullable<AgentSummary["marketplaceSource"]> {
+/** The listing an agent was added from, as the host sends it. Clients read it to show what is installed. */
+export function isAgentMarketplaceSource(value: unknown): value is NonNullable<AgentSummary["marketplaceSource"]> {
   return (
     isDynamicRecord(value) &&
     isIdentifier(value.listingId) &&
@@ -282,7 +283,7 @@ function hasAgentSummaryFields(value: DynamicRecord): boolean {
     isAvatarSeed(value.avatarSeed) &&
     (value.avatarHue === null || isAvatarHue(value.avatarHue)) &&
     (value.avatarUrl === null || isBoundedString(value.avatarUrl, INPUT_LIMITS.avatarUrl)) &&
-    (value.marketplaceSource === undefined || isMarketplaceSource(value.marketplaceSource))
+    (value.marketplaceSource === undefined || isAgentMarketplaceSource(value.marketplaceSource))
   );
 }
 

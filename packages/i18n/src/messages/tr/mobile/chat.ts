@@ -111,6 +111,7 @@ export const messages = {
   "mobile.chat.attachment.files": "Dosyalar",
   "mobile.chat.attachment.photos": "Fotoğraflar",
   "mobile.chat.attachment.camera": "Kamera",
+  "mobile.chat.attachment.useSkill": "Beceri kullan",
   "mobile.chat.attachment.addFailed": "Ek eklenemedi",
   "mobile.chat.attachment.limit": "En fazla {limit} dosya ekleyebilirsiniz.",
   "mobile.chat.attachment.unsupported":
@@ -128,6 +129,8 @@ export const messages = {
   "mobile.chat.composer.dictate": "Mesajı sesle yaz",
   "mobile.chat.composer.stopDictation": "Dikteyi durdur",
   "mobile.chat.composer.mention": "{name} ajanından bahset",
+  "mobile.chat.composer.skills": "Beceriler",
+  "mobile.chat.composer.useSkill": "{name} becerisini kullan",
   "mobile.chat.composer.cancelReply": "Yanıtı iptal et",
   "mobile.chat.composer.messageAgent": "{name} ajanına mesaj gönder",
   "mobile.chat.composer.pasteFailed": "Yapıştırılan metin eklenemedi",

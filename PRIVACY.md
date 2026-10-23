@@ -155,8 +155,13 @@ message and prompt-answer submissions, attachment operations, agent/routine/memo
 server selection/join/leave, search result counts, pin/unpin, hide/unhide, Usage views and sign-out.
 It also records email sign-in steps, whether pairing started from a QR code or a link, hosted
 server plans views, setup steps, notification settings and the notification permission result,
-Live Activity starts and ends, voice conversation and spoken turn outcomes, and agent template
-installs.
+Live Activity starts and ends, voice conversation and spoken turn outcomes, agent template
+installs, and Marketplace installs (agent, skill or app, and the result; no listing name).
+
+The mobile Marketplace reads the public catalog and the plugin app icons from the account service,
+without account credentials. The phone sends no request to a plugin vendor until the user connects
+that vendor's app. A key the user types, or the grant of a browser sign-in, goes only to the user's
+own host over the encrypted Team channel.
 Mobile properties include app version/build, iOS or Android, result, timing, bounded connection stage,
 counts, coarse attachment size buckets, and provider/model/reasoning metadata where available.
 Mobile never sends scanned QR values, install-referrer URLs or route identifiers. It does not

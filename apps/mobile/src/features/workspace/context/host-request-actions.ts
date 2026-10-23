@@ -69,6 +69,7 @@ import { TEAM_QUEUE_EDIT_CAPABILITY } from "@openbot/contracts/team-protocol/que
 import { ROUTINE_RECOVERY_CAPABILITY } from "@openbot/contracts/team-protocol/routine-recovery-v1";
 import { ROUTINE_RESULTS_CAPABILITY } from "@openbot/contracts/team-protocol/routine-results-v1";
 import { SHARED_TABLES_CAPABILITY } from "@openbot/contracts/team-protocol/shared-tables-v1";
+import { SIGN_IN_RELAY_CAPABILITY } from "@openbot/contracts/team-protocol/sign-in-relay-v1";
 import { SKILLS_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/skills-admin-v1";
 import { STORAGE_ROUTES } from "@openbot/contracts/team-protocol/storage-v1";
 import type { TeamProtocolV2Json } from "@openbot/contracts/team-protocol/v2";
@@ -79,8 +80,10 @@ import type { RemoteFileUpload } from "@openbot/team-client/remote-peer";
 import { buildRoutineCalendar, type RoutineCalendarSource } from "@openbot/team-client/routine-calendar";
 import {
   cancelHostUpdate,
+  cancelSignInRelay,
   checkHostForUpdate,
   checkHostRelease,
+  completeSignInRelay,
   deleteEventRoutine,
   deleteHostedSite,
   deleteSharedTable,
@@ -92,7 +95,9 @@ import {
   getRoutineResultDestination,
   githubConnectorRepositories,
   githubConnectorRequest,
+  installAgentSkill,
   installAgentTemplate,
+  installMarketplaceAgent,
   listAgentSkills,
   listEventActivity,
   listEventRoutines,
@@ -129,8 +134,10 @@ import {
   setHostUpdateSettings,
   setMcpServerEnabled,
   setRoutineResultDestination,
+  signInRelayStatus,
   signOutMcpServer,
   startHostUpdate,
+  startMcpSignInRelay,
   testEventRoutine,
   testMcpServer,
   uninstallAgentSkill,
@@ -218,6 +225,7 @@ type HostRequestActions = Pick<
   | "controlAgentTask"
   | "respondToTaskPrompt"
   | "loadAgentSkills"
+  | "installAgentSkill"
   | "setAgentSkillEnabled"
   | "uninstallAgentSkill"
   | "loadAgentStorage"
@@ -276,6 +284,8 @@ type HostRequestActions = Pick<
   | "unpublishAgentTemplate"
   | "deleteStoredFile"
   | "installAgentTemplate"
+  | "installMarketplaceAgent"
+  | "mcpSignInRelay"
   | "loadAgentAvatar"
   | "duplicateAgent"
   | "loadQueue"
@@ -668,6 +678,7 @@ export function createHostRequestActions({
         ? request("GET", TEAM_API_ROUTES.agent.skills(agentId), decodeInstalledSkills, undefined, serverId)
         : null;
     },
+    installAgentSkill: async (input, serverId) => runTeamRequest(installAgentSkill(skillsAdmin(serverId), input)),
     setAgentSkillEnabled: async (input, serverId) => runTeamRequest(setAgentSkillEnabled(skillsAdmin(serverId), input)),
     uninstallAgentSkill: async (input, serverId) => runTeamRequest(uninstallAgentSkill(skillsAdmin(serverId), input)),
     loadAgentStorage: async (agentId, serverId, force = false) => {
@@ -741,6 +752,20 @@ export function createHostRequestActions({
       // A host too old to know the route answers 404, so refuse before the request.
       requireCapability(capabilities, serverId, AGENT_INSTALL_CAPABILITY, "mobile.link.template.error.unsupported");
       return runTeamRequest(installAgentTemplate(teamApi(serverId), input));
+    },
+    installMarketplaceAgent: async (input, serverId) => {
+      // A host too old to know the route answers 404, so refuse before the request.
+      requireCapability(capabilities, serverId, AGENT_INSTALL_CAPABILITY, "mobile.marketplace.error.agentUnsupported");
+      return runTeamRequest(installMarketplaceAgent(teamApi(serverId), input));
+    },
+    mcpSignInRelay: (serverId) => {
+      const relay = capabilityApi(serverId, SIGN_IN_RELAY_CAPABILITY, "mobile.marketplace.error.signInUnsupported");
+      return {
+        start: async (config) => (await runTeamRequest(startMcpSignInRelay(relay, { config }))).flowId,
+        status: (flowId) => runTeamRequest(signInRelayStatus(relay, flowId)),
+        complete: (flowId, query) => runTeamRequest(completeSignInRelay(relay, flowId, query)),
+        cancel: (flowId) => runTeamRequest(cancelSignInRelay(relay, flowId)),
+      };
     },
     loadAgentAvatar: (agentId, avatarUrl, serverId) => requestAgentAvatar(request, agentId, avatarUrl, serverId),
     duplicateAgent: async (agentId) => {

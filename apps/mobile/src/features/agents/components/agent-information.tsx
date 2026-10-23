@@ -1,10 +1,11 @@
-import { analyticsRange, canAdministerServer, type InstalledSkill } from "@openbot/contracts/ipc";
+import { analyticsRange, canAdministerServer } from "@openbot/contracts/ipc";
 import type { MobileTextKey } from "@openbot/i18n/mobile";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { Button, Typography } from "heroui-native";
 import { type PropsWithChildren, useEffect, useRef, useState } from "react";
 import { View } from "react-native";
+import { userAssignedSkills } from "@/features/agents/model/user-assigned-skills";
 import { mobileAnalytics } from "@/features/analytics/mobile-analytics";
 import { useQueryScope } from "@/features/auth/context/mobile-session-context";
 import { SettingsNote, SettingsRow, SettingsSection } from "@/features/settings/components/settings-content";
@@ -498,14 +499,4 @@ function InformationSection({
       </SettingsRow>
     </SettingsSection>
   );
-}
-
-/** The skills the user assigned, as the desktop agent settings list them: built-in skills are hidden. */
-function userAssignedSkills(skills: InstalledSkill[]): InstalledSkill[] {
-  return skills
-    .filter(
-      (skill) =>
-        skill.origin !== "managed" && skill.slug !== "openbot-site-hosting" && skill.skillId !== "openbot-site-hosting",
-    )
-    .sort((left, right) => left.name.localeCompare(right.name));
 }

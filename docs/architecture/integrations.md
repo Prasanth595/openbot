@@ -309,8 +309,10 @@ is one folder per plugin in [`marketplace/plugin-catalog/`](../../marketplace/pl
    bun run marketplace:build:plugins -- --check
    ```
    The build writes `src/renderer/src/features/settings/marketplace-plugin-catalog.ts`,
-   `apps/auth-api/src/lib/plugin-catalog.generated.ts` and `resources/plugin-catalog/`. Do not edit
-   them by hand.
+   `apps/auth-api/src/lib/plugin-catalog.generated.ts`,
+   `apps/mobile/src/features/marketplace/model/plugin-catalog.generated.ts` and
+   `resources/plugin-catalog/`. Do not edit them by hand. The mobile copy states its own types and
+   leaves out the vendor icon addresses: the phone loads icons from `/plugins/icon/<slug>?app=<id>`.
 5. For an `http` server, run `bun run test:mcp-catalog`
    ([`mcp-catalog-smoke.ts`](../../scripts/mcp-catalog-smoke.ts)). It connects to the live servers
    with no account and writes `.openbot-build/mcp-catalog-smoke/report.json`. It needs the network,

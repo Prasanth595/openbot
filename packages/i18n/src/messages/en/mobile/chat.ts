@@ -109,6 +109,7 @@ export const messages = defineMessages("mobile.chat", {
   "mobile.chat.attachment.files": "Files",
   "mobile.chat.attachment.photos": "Photos",
   "mobile.chat.attachment.camera": "Camera",
+  "mobile.chat.attachment.useSkill": "Use skill",
   "mobile.chat.attachment.addFailed": "Could not add attachment",
   "mobile.chat.attachment.limit": "You can attach up to {limit} files.",
   "mobile.chat.attachment.unsupported":
@@ -126,6 +127,8 @@ export const messages = defineMessages("mobile.chat", {
   "mobile.chat.composer.dictate": "Dictate message",
   "mobile.chat.composer.stopDictation": "Stop dictation",
   "mobile.chat.composer.mention": "Mention {name}",
+  "mobile.chat.composer.skills": "Skills",
+  "mobile.chat.composer.useSkill": "Use the skill {name}",
   "mobile.chat.composer.cancelReply": "Cancel reply",
   "mobile.chat.composer.messageAgent": "Message {name}",
   "mobile.chat.composer.pasteFailed": "Could not attach pasted text",

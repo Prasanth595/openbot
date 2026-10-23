@@ -6,6 +6,7 @@ import ArrowUp from "lucide-react-native/icons/arrow-up";
 import Mic from "lucide-react-native/icons/mic";
 import Plus from "lucide-react-native/icons/plus";
 import Reply from "lucide-react-native/icons/reply";
+import Sparkles from "lucide-react-native/icons/sparkles";
 import Square from "lucide-react-native/icons/square";
 import X from "lucide-react-native/icons/x";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -127,6 +128,10 @@ interface ChatComposerProps {
   /** Replaces "Ask {name}", such as while the composer answers a question. */
   placeholder?: string;
   mentionAgents: MobileAgent[];
+  /** The skills of the chat's agent. `@` offers them after the agents, as references to that skill. */
+  mentionSkills?: readonly MentionSkill[];
+  /** A new value writes `@` in the field and offers the skills alone, for Use skill in the plus menu. */
+  skillPickerVersion?: number;
   bottomInset: number;
   disabled: boolean;
   draft: string;
@@ -163,6 +168,14 @@ interface ChatComposerProps {
 }
 
 const NO_FILES: ChatAttachments["items"] = [];
+const NO_SKILLS: readonly MentionSkill[] = [];
+
+/** A skill that the composer can name, as `@[name](skill:id)`. */
+export interface MentionSkill {
+  id: string;
+  name: string;
+  description: string;
+}
 
 /** Bars that follow the microphone level, drawn in the listening voice button. */
 function VoiceLevelBars({ level, color }: { level: SharedValue<number>; color: string }) {
@@ -194,6 +207,8 @@ export const ChatComposer = memo(function ChatComposer({
   agentName,
   placeholder,
   mentionAgents,
+  mentionSkills = NO_SKILLS,
+  skillPickerVersion = 0,
   bottomInset,
   disabled,
   draft,
@@ -234,8 +249,19 @@ export const ChatComposer = memo(function ChatComposer({
   const [previewId, setPreviewId] = useState<string | null>(null);
   const previewItem = files.find((item) => item.id === previewId) ?? null;
   const query = mentionQuery(draft, cursor);
+  // Set by Use skill in the plus menu: the list under that `@` shows the skills alone.
+  const [skillsOnly, setSkillsOnly] = useState(false);
+  const hasQuery = query !== null;
+  useEffect(() => {
+    if (!hasQuery) setSkillsOnly(false);
+  }, [hasQuery]);
+  const skillSuggestions = query
+    ? mentionSkills
+        .filter((skill) => `${skill.name} ${skill.description}`.toLocaleLowerCase().includes(query.query.trim()))
+        .slice(0, 8)
+    : [];
   // The limit comes after the rank, so it never cuts an agent whose name matches.
-  const suggestions = query ? rankAgentMentions(mentionAgents, query.query).slice(0, 8) : [];
+  const suggestions = query && !skillsOnly ? rankAgentMentions(mentionAgents, query.query).slice(0, 8) : [];
   // What the bar has to stay open for. A send takes the text and the files out of
   // the composer at once, so a draft is always a new one.
   const hasDraft = Boolean(draft.trim()) || files.length > 0;
@@ -303,6 +329,21 @@ export const ChatComposer = memo(function ChatComposer({
     pendingCursor.current = null;
     inputRef.current?.setNativeProps({ selection: { start: position, end: position } });
   }, [displayText]);
+  const pickedSkillVersion = useRef(skillPickerVersion);
+  useEffect(() => {
+    if (pickedSkillVersion.current === skillPickerVersion) return;
+    pickedSkillVersion.current = skillPickerVersion;
+    // An `@` at the end, after a space, opens the list; the skills show alone until one is chosen.
+    const source = latestTextRef.current;
+    const next = source && !/\s$/u.test(source) ? `${source} @` : `${source}@`;
+    latestTextRef.current = next;
+    onChangeDraft(next);
+    const position = mentionDraft(next).text.length;
+    setCursor(position);
+    pendingCursor.current = position;
+    setSkillsOnly(true);
+    inputRef.current?.focus();
+  }, [skillPickerVersion, onChangeDraft]);
   const { fontScale, width: windowWidth } = useWindowDimensions();
   const lineHeight = 22 * fontScale;
   // Without the plus, the text starts at the card's own inset.
@@ -573,19 +614,20 @@ export const ChatComposer = memo(function ChatComposer({
     }
   }, [disabled, sendGate]);
 
-  const suggestionsVisible = Boolean(focused && query && suggestions.length > 0 && !disabled);
+  const suggestionCount = suggestions.length + skillSuggestions.length;
+  const suggestionsVisible = Boolean(focused && query && suggestionCount > 0 && !disabled);
   const announcedSuggestions = useRef("");
   useEffect(() => {
     // The list opens and closes under the keyboard with no focus change, so a
     // screen reader gets no event. Announce the count, once per distinct query.
-    const announcement = suggestionsVisible ? `${suggestions.length}:${query?.query ?? ""}` : "";
+    const announcement = suggestionsVisible ? `${suggestionCount}:${query?.query ?? ""}` : "";
     if (announcedSuggestions.current === announcement) return;
     announcedSuggestions.current = announcement;
     if (!suggestionsVisible) return;
     AccessibilityInfo.announceForAccessibility(
-      suggestions.length === 1 ? "1 teammate suggestion" : `${suggestions.length} teammate suggestions`,
+      suggestionCount === 1 ? "1 teammate suggestion" : `${suggestionCount} teammate suggestions`,
     );
-  }, [suggestionsVisible, suggestions.length, query?.query]);
+  }, [suggestionsVisible, suggestionCount, query?.query]);
 
   const busy = preparing;
   const attachmentsBlocked = disabled || preparing;
@@ -712,6 +754,37 @@ export const ChatComposer = memo(function ChatComposer({
                 />
                 <Typography.Paragraph numberOfLines={1} className="flex-1">
                   {agent.name}
+                </Typography.Paragraph>
+              </Button>
+            ))}
+            {skillSuggestions.length > 0 && suggestions.length > 0 ? (
+              <Typography type="body-xs" className="px-4 pt-2 pb-1 text-muted">
+                {t("mobile.chat.composer.skills")}
+              </Typography>
+            ) : null}
+            {skillSuggestions.map((skill) => (
+              <Button
+                key={skill.id}
+                variant="ghost"
+                className="min-h-12 flex-row justify-start gap-3 rounded-none px-4"
+                accessibilityLabel={t("mobile.chat.composer.useSkill", { name: skill.name })}
+                onPress={() => {
+                  void haptics.selection();
+                  const next = insertMention(latestTextRef.current, query, skill, "skill");
+                  latestTextRef.current = next;
+                  onChangeDraft(next);
+                  const position = query.start + skill.name.length + 2;
+                  setCursor(position);
+                  pendingCursor.current = position;
+                  setSkillsOnly(false);
+                  inputRef.current?.focus();
+                }}
+              >
+                <View className="size-7 items-center justify-center rounded-lg bg-control">
+                  <Sparkles color={String(foreground)} size={16} strokeWidth={1.9} />
+                </View>
+                <Typography.Paragraph numberOfLines={1} className="flex-1">
+                  {skill.name}
                 </Typography.Paragraph>
               </Button>
             ))}

@@ -112,6 +112,7 @@ export const messages = {
   "mobile.chat.attachment.files": "Archivos",
   "mobile.chat.attachment.photos": "Fotos",
   "mobile.chat.attachment.camera": "Cámara",
+  "mobile.chat.attachment.useSkill": "Usar habilidad",
   "mobile.chat.attachment.addFailed": "No se pudo añadir el archivo adjunto",
   "mobile.chat.attachment.limit": "Puedes adjuntar hasta {limit} archivos.",
   "mobile.chat.attachment.unsupported":
@@ -129,6 +130,8 @@ export const messages = {
   "mobile.chat.composer.dictate": "Dictar mensaje",
   "mobile.chat.composer.stopDictation": "Detener dictado",
   "mobile.chat.composer.mention": "Mencionar a {name}",
+  "mobile.chat.composer.skills": "Habilidades",
+  "mobile.chat.composer.useSkill": "Usar la habilidad {name}",
   "mobile.chat.composer.cancelReply": "Cancelar respuesta",
   "mobile.chat.composer.messageAgent": "Enviar mensaje a {name}",
   "mobile.chat.composer.pasteFailed": "No se pudo adjuntar el texto pegado",

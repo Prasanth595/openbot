@@ -116,6 +116,7 @@ export const messages = {
   "mobile.chat.attachment.files": "Файлы",
   "mobile.chat.attachment.photos": "Фото",
   "mobile.chat.attachment.camera": "Камера",
+  "mobile.chat.attachment.useSkill": "Использовать навык",
   "mobile.chat.attachment.addFailed": "Не удалось добавить вложение",
   "mobile.chat.attachment.limit": "Можно прикрепить не более {limit} файлов.",
   "mobile.chat.attachment.unsupported":
@@ -133,6 +134,8 @@ export const messages = {
   "mobile.chat.composer.dictate": "Надиктовать сообщение",
   "mobile.chat.composer.stopDictation": "Остановить диктовку",
   "mobile.chat.composer.mention": "Упомянуть: {name}",
+  "mobile.chat.composer.skills": "Навыки",
+  "mobile.chat.composer.useSkill": "Использовать навык: {name}",
   "mobile.chat.composer.cancelReply": "Отменить ответ",
   "mobile.chat.composer.messageAgent": "Сообщение для {name}",
   "mobile.chat.composer.pasteFailed": "Не удалось прикрепить вставленный текст",
