@@ -136,8 +136,8 @@ async function main(): Promise<void> {
     phase("clear");
     const partitionCookies = (agentId: string) =>
       session.fromPartition(`persist:openbot-browser-agent-${agentBrowserSessionKey(agentId)}`).cookies.get({});
-    // A tab that is still open keeps its session.
-    await runCauseEffect(second.clearAgentSession("agent-b"));
+    // A tab that is still open keeps its session, and the call says so.
+    await assert.rejects(runCauseEffect(second.clearAgentSession("agent-b")));
     assert.equal((await partitionCookies("agent-b")).length, 1);
     await runCauseEffect(second.close(b.id));
     await runCauseEffect(second.clearAgentSession("agent-b"));

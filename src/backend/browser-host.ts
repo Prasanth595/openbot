@@ -320,6 +320,8 @@ export class BrowserHost {
   readonly #siteVisitListeners = new Set<(...args: BrowserHostEvents["siteVisited"]) => void>();
   readonly #controls = new BrowserControlSessions();
   readonly #reservedDownloadPaths = new Set<string>();
+  /** Downloads in progress in all sessions, so an agent's own session does not add to the limit. */
+  #activeDownloads = 0;
   readonly #recorder: BrowserRecorder;
   #activeTabId: string | null = null;
   #visible = false;
@@ -1996,14 +1998,17 @@ export class BrowserHost {
     agentId: string,
   ): Effect.fn.Return<void, BrowserOperationError> {
     const key = agentBrowserSessionKey(agentId);
-    if ([...this.#tabs.values()].some((tab) => tab.agentSessionKey === key)) return;
+    if ([...this.#tabs.values()].some((tab) => tab.agentSessionKey === key))
+      return yield* browserFailure(new Error("A tab still uses the agent's browser session."));
     // An agent that never had a session of its own has nothing to clear, and opening one would create it.
     if (
       !this.#agentSessions.has(key) &&
-      !existsSync(join(app.getPath("sessionData"), "Partitions", `openbot-browser-agent-${key}`))
+      !existsSync(join(app.getPath("sessionData"), "Partitions", agentPartitionName(key)))
     )
       return;
-    const target = this.#agentSession(key);
+    const target =
+      this.#agentSessions.get(key) ?? session.fromPartition(`persist:${agentPartitionName(key)}`, { cache: true });
+    this.#agentSessions.delete(key);
     yield* browserCall(() => target.clearStorageData());
     yield* browserCall(() => target.clearCache());
   }).bind(this);
@@ -2012,14 +2017,14 @@ export class BrowserHost {
     return [this.#session, ...this.#agentSessions.values()];
   }
 
-  #tabSession(tab: BrowserHostTab): Session {
+  #tabSession(tab: Pick<BrowserHostTab, "privateSession" | "agentSessionKey">): Session {
     return tab.privateSession ?? (tab.agentSessionKey ? this.#agentSession(tab.agentSessionKey) : this.#session);
   }
 
   #agentSession(key: string): Session {
     const existing = this.#agentSessions.get(key);
     if (existing) return existing;
-    const target = session.fromPartition(`persist:openbot-browser-agent-${key}`, { cache: true });
+    const target = session.fromPartition(`persist:${agentPartitionName(key)}`, { cache: true });
     this.#configureSession(target);
     this.#agentSessions.set(key, target);
     return target;
@@ -2038,7 +2043,10 @@ export class BrowserHost {
     if (this.#destroying) throw new Error("BrowserHost is shutting down.");
     const view = this.#createView(
       popupOptions,
-      privateSession ?? (agentSessionKey ? this.#agentSession(agentSessionKey) : this.#session),
+      this.#tabSession({
+        ...(privateSession ? { privateSession } : {}),
+        ...(agentSessionKey ? { agentSessionKey } : {}),
+      }),
     );
     this.#mountView(view);
     const diagnostics = new BrowserDiagnostics();
@@ -2127,13 +2135,12 @@ export class BrowserHost {
       callback(isAllowedBrowserPermission(permission)),
     );
     target.setPermissionCheckHandler((_webContents, permission) => isAllowedBrowserPermission(permission));
-    let activeDownloads = 0;
     target.on("will-download", (event, item, contents) => {
       if ([...this.#tabs.values()].some((tab) => tab.secret && tab.contents === contents)) {
         event.preventDefault();
         return;
       }
-      if (activeDownloads >= MAX_ACTIVE_DOWNLOADS || item.getTotalBytes() > MAX_DOWNLOAD_BYTES) {
+      if (this.#activeDownloads >= MAX_ACTIVE_DOWNLOADS || item.getTotalBytes() > MAX_DOWNLOAD_BYTES) {
         event.preventDefault();
         return;
       }
@@ -2145,7 +2152,7 @@ export class BrowserHost {
       );
       this.#reservedDownloadPaths.add(downloadPath);
       item.setSavePath(downloadPath);
-      activeDownloads += 1;
+      this.#activeDownloads += 1;
       // A server can send no size, or a wrong one, so the received bytes are checked as they arrive.
       item.on("updated", () => {
         if (item.getState() !== "progressing" || item.getReceivedBytes() <= MAX_DOWNLOAD_BYTES) return;
@@ -2153,7 +2160,7 @@ export class BrowserHost {
         item.cancel();
       });
       item.once("done", () => {
-        activeDownloads -= 1;
+        this.#activeDownloads -= 1;
         this.#reservedDownloadPaths.delete(downloadPath);
       });
     });
@@ -2797,6 +2804,11 @@ export class BrowserHost {
       writeJsonFileAtomically(this.#statePath, state).pipe(Effect.mapError((error) => browserFailure(error.cause))),
     );
   });
+}
+
+/** The directory name of an agent's own session under `Partitions`. Its partition is `persist:` and this name. */
+function agentPartitionName(key: string): string {
+  return `openbot-browser-agent-${key}`;
 }
 
 function currentPreviewPage(tab: BrowserHostTab): BrowserPreviewPage {
