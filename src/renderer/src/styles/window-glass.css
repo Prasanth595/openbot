@@ -24,6 +24,13 @@
 }
 
 @media (min-width: 721px) {
+  /* The window paints the frame once. Opaque, these layers repeat its color; translucent, each one
+   * would add its tint again, and the top row would show darker than the page rail. */
+  :root[data-openbot-window-glass] .app-window > .app-frame-edge,
+  :root[data-openbot-window-glass] .app-window > .app-frame-edge > .server-rail {
+    background: transparent;
+  }
+
   :root[data-openbot-window-glass] .app-window > .app-frame-edge::before,
   :root[data-openbot-window-glass]
     .app-window
