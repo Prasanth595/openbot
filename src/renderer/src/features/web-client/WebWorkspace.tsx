@@ -2036,6 +2036,8 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 preference={serverSetupChoice()}
                 customProviders={providerSettings()?.customProviders}
                 onManageProviders={providerSettings() ? openProviderSettings : undefined}
+                liveModels={models()}
+                liveStatus={status()}
                 // A new form starts empty, with the avatar that the first-agent row showed.
                 initialDraft={{ ...createFirstAgentDraft(), ...untrack(agentAvatar) }}
                 onDraftChange={({ avatarSeed, avatarHue }) => setAgentAvatar({ avatarSeed, avatarHue })}
