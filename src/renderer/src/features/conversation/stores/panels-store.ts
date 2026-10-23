@@ -19,6 +19,7 @@ import type {
   SidePanelPane,
 } from "../conversation-types";
 import { agentSkillsMode } from "../installed-skills-source";
+import { filePreviewQuoteId } from "../quoted-text";
 import { conversationOwnerId } from "./composer-store";
 
 // Each member reads the interface language when it is called.
@@ -416,6 +417,17 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
     openWorkspaceFile(path, file?.directory?.path, previewWorkspaceAgentId());
   }
 
+  /** The quote id of the file that the side panel shows. See `filePreviewQuoteId`. */
+  function previewQuoteId(): string | undefined {
+    const file = deps.sidebarFilePreview();
+    const source = file?.source;
+    const workspacePath =
+      deps.props.channel && source?.kind === "workspace"
+        ? deps.props.agents.find((agent) => agent.id === source.agentId)?.workspacePath
+        : undefined;
+    return filePreviewQuoteId(file, workspacePath);
+  }
+
   /** Back to the folder a file came from, or up one folder. Absent when there is nowhere to go. */
   function sidebarFileBack(): string | null {
     const file = deps.sidebarFilePreview();
@@ -498,6 +510,7 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
     openWorkspaceFile,
     openWorkspaceFolder,
     openWorkspaceFolderEntry,
+    previewQuoteId,
     sidebarFileBack,
     openSidebarFileBack,
     openSidebarFileExternally,

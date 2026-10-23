@@ -6,16 +6,17 @@
 // It writes one file in the shared directory and one in the agent's workspace, makes a channel with
 // the agent, and sends a message with a link to each file. The person's message must show the shared
 // link and no workspace link, because a person's message in a channel names no workspace. The
-// agent repeats the workspace link, and each link must open its file in the preview panel. Then the
-// same links must still open from the person's message in the agent's own chat. It deletes its
-// channel and its two files at the end.
+// agent repeats the workspace link, and each link must open its file in the preview panel. A quote of
+// the workspace file must name its absolute path and open the file again. Then the same links must
+// still open from the person's message in the agent's own chat. It deletes its channel and its two
+// files at the end.
 // Writes .openbot-build/channel-file-link-e2e/report.json and screenshots.
 import assert from "node:assert/strict";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { translateFor } from "@openbot/i18n";
-import { ChannelClient, connectChannelE2e, WAIT_MS, writeReport } from "./channel-e2e-support";
+import { ChannelClient, connectChannelE2e, WAIT_MS, waitFor, writeReport } from "./channel-e2e-support";
 
 const OUT = resolve(import.meta.dirname, "../.openbot-build/channel-file-link-e2e");
 const UI_WAIT_MS = 15_000;
@@ -25,6 +26,7 @@ interface Report {
   channelId?: string;
   shared?: { linkShown: boolean; opened: boolean };
   workspace?: { linkInOwnMessage: number; linkInAgentReply: boolean; opened: boolean };
+  quote?: { absolutePath: boolean; reopened: boolean };
   directChat?: { sharedOpened: boolean; workspaceOpened: boolean };
   /** What the agent wrote, and the state of its task, when a step fails. */
   agentReplies?: string[] | undefined;
@@ -110,7 +112,40 @@ try {
   report.workspace = { linkInOwnMessage, linkInAgentReply: true, opened: true };
   await shot("workspace-preview");
 
-  // 3. In the agent's own chat, the person's message links both files, and both still open.
+  // 3. A quote of the workspace file names its absolute path, and the quote opens the file again.
+  await panel().getByText(workspaceText).selectText();
+  // The selection actions read the selection on a key or pointer release.
+  await page.keyboard.press("Shift");
+  await page.getByRole("button", { name: english("chat.selection.quote"), exact: true }).click();
+  await conversation()
+    .getByRole("button", { name: english("composer.send.message"), exact: true })
+    .click();
+  const quoteId = await waitFor(
+    page,
+    "the sent quote",
+    async () =>
+      (await client.read(channel.id)).messages
+        .filter((entry) => entry.author.kind === "member")
+        .map((entry) => /\(quote(?:\+uri)?:([^)]*)\)/u.exec(entry.message.text)?.[1])
+        .find((quote) => quote !== undefined),
+    (quote) => quote !== undefined,
+    UI_WAIT_MS,
+  );
+  await panel()
+    .getByRole("button", { name: english("preview.panel.close"), exact: true })
+    .click();
+  await panel().waitFor({ state: "detached", timeout: UI_WAIT_MS });
+  await conversation()
+    .getByRole("button", { name: english("chat.reference.open.quote", { name: workspaceText }), exact: true })
+    .click();
+  await panel().getByText(workspaceText).waitFor({ timeout: UI_WAIT_MS });
+  report.quote = {
+    absolutePath: decodeURIComponent(quoteId ?? "").includes(workspaceFile),
+    reopened: true,
+  };
+  await shot("quote-reopened");
+
+  // 4. In the agent's own chat, the person's message links both files, and both still open.
   await page
     .getByRole("navigation", { name: english("sidebar.nav.label") })
     .getByRole("button", { name: new RegExp(`^${literal(agent.name)},`) })
@@ -128,6 +163,7 @@ try {
   await shot("direct-chat-preview");
 
   assert.equal(linkInOwnMessage, 0, "A person's message in a channel must not link a workspace path.");
+  assert.equal(report.quote?.absolutePath, true, "A channel quote of a workspace file must name its absolute path.");
   assert.deepEqual(report.pageErrors, []);
   report.passed = true;
 } catch (error) {
