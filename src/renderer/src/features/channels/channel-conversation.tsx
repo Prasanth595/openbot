@@ -69,6 +69,8 @@ export function createChannelConversation(env: ChannelConversationEnvironment) {
     return agent?.name ?? authored?.author.name ?? t("chat.message.agentFallback");
   };
 
+  const entries = createMemo(() => page()?.messages.filter(channelMessageHasContent) ?? []);
+
   /*
    * A row keeps its object while it does not change, so a streamed chunk draws one row again and not
    * the whole transcript.
@@ -78,7 +80,7 @@ export function createChannelConversation(env: ChannelConversationEnvironment) {
     const current = page();
     if (!current) return [];
     const next = new Map<string, AgentMessage>();
-    const rows = channelConversationRows(current.messages.filter(channelMessageHasContent)).map((mapped) => {
+    const rows = channelConversationRows(entries()).map((mapped) => {
       const known = rowsById.get(mapped.id);
       const row = known && agentMessagesEqual(known, mapped) ? known : mapped;
       next.set(row.id, row);
@@ -254,7 +256,7 @@ export function createChannelConversation(env: ChannelConversationEnvironment) {
     loaded: () => page() !== null,
     messages,
     unreadCount,
-    firstUnreadMessageId: () => firstUnreadChannelMessageId(messages(), unreadCount(), env.isOwnSender),
+    firstUnreadMessageId: () => firstUnreadChannelMessageId(entries(), unreadCount(), env.isOwnSender),
     hasOlder: () => Boolean(page()?.olderCursor),
     unloadedHistory: () => unloadedHistory(page()),
     /** The agents that a mention can name: the members. A hidden agent gets no work here either. */

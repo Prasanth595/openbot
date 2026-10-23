@@ -1034,7 +1034,7 @@ export function ConversationTimeline() {
                         }}
                       />
                     </Show>
-                    <Show when={channel ? undefined : turnSteps.stepsAbove(message()?.id)}>
+                    <Show when={turnSteps.stepsAbove(message()?.id)}>
                       {(steps) => (
                         <ChatRowBoundary>
                           <AgentStepsDisclosure steps={steps()} defaultOpen={showAgentSteps()} />

@@ -29,7 +29,7 @@ export function channelMessageHasContent(entry: ChannelMessage): boolean {
  * the coordinator's message names its author by `senderAgentId`. A routing receipt is an activity
  * row, like the "Messaged" marker of an agent chat: it has no bubble and does not count as new.
  */
-export function channelConversationMessage(entry: ChannelMessage): AgentMessage {
+function channelConversationMessage(entry: ChannelMessage): AgentMessage {
   const member = entry.author.kind === "member";
   const row = toAgentMessage(entry.message, member ? undefined : entry.author.id);
   const routing = channelRoutingConversationEvent(entry.message);
@@ -45,10 +45,16 @@ export function channelConversationMessage(entry: ChannelMessage): AgentMessage 
   return { ...row, id: entry.id, author: "agent", senderAgentId: entry.author.id };
 }
 
+/** The thinking and the narration of a turn, which fold into the steps above its answer. */
+function foldedEntry(entry: ChannelMessage): boolean {
+  return entry.message.author === "assistant" && entry.message.itemType === "commentary";
+}
+
 /**
  * The rows of a channel page. The thinking and narration of a member's turn fold into one thinking
- * row, as in an agent chat, and that row names the member. Without this a model that streams its
- * whole reasoning (DeepSeek through OpenCode) showed it as a long message of its own.
+ * row, as in an agent chat, and show as the steps above the member's answer. That row names the
+ * member. Before, each part showed as a message, and a model that streams its whole reasoning
+ * (DeepSeek through OpenCode) showed a very long one.
  */
 export function channelConversationRows(entries: readonly ChannelMessage[]): AgentMessage[] {
   const byId = new Map(entries.map((entry) => [entry.id, entry] as const));
@@ -72,24 +78,29 @@ export function channelConversationRows(entries: readonly ChannelMessage[]): Age
  * The count comes from the channel list, and it leaves out what the reader wrote, activity rows,
  * plans and subagents, so the walk back leaves them out too. The page has no read pointer of its
  * own: its `throughSequence` is the newest message of the channel, not the newest the reader saw.
+ *
+ * The walk goes over the stored entries, because the count has one message for each folded item and
+ * a thinking row stands where the first item of its turn is. The divider then stands on the first
+ * row at or after the first unread entry that is not folded.
  */
 export function firstUnreadChannelMessageId(
-  messages: readonly AgentMessage[],
+  entries: readonly ChannelMessage[],
   unreadCount: number,
   isOwnSender: (memberId: string) => boolean,
 ): string | null {
   if (unreadCount <= 0) return null;
+  const shownFrom = (start: number) => entries.slice(start).find((entry) => !foldedEntry(entry))?.id ?? null;
   let remaining = unreadCount;
-  for (let index = messages.length - 1; index >= 0; index -= 1) {
-    const message = messages[index];
-    if (!message) continue;
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const entry = entries[index];
+    if (!entry) continue;
+    const message = channelConversationMessage(entry);
     const own = message.author === "you" && (!message.senderMember || isOwnSender(message.senderMember.id));
     if (own || message.actionMarker || message.kind === "plan" || message.itemType === "subagents") continue;
-    // The count has one message for each item that a thinking row folds.
-    remaining -= message.kind === "thinking" ? (message.items?.length ?? 1) : 1;
-    if (remaining <= 0) return message.id;
+    remaining -= 1;
+    if (remaining === 0) return shownFrom(index);
   }
-  return messages[0]?.id ?? null;
+  return shownFrom(0);
 }
 
 /**
