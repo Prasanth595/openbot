@@ -1,6 +1,6 @@
 import { EventEmitter } from "node:events";
 import { appendFile, mkdir, readdir, readFile, rename, rm, stat } from "node:fs/promises";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import type {
   IdleRestart,
   ScheduledUpdateRestart,
@@ -929,7 +929,10 @@ function pruneInstalledUpdate(directory: string, currentVersion: string): Effect
     // electron-builder.yml names each artifact `${productName}-${version}-${arch}.${ext}`.
     const version = /-(\d+\.\d+\.\d+)-/u.exec(fileName)?.[1];
     if (version === undefined || isNewerRelease(version, currentVersion)) return;
-    yield* updateIO(() => rm(pending, { recursive: true, force: true }));
+    // The marker goes last: when Windows still locks the installer, the next start tries again.
+    // Only these two files go, so a download that this session has started keeps its temp file.
+    yield* updateIO(() => rm(join(pending, basename(fileName)), { force: true }));
+    yield* updateIO(() => rm(join(pending, "update-info.json"), { force: true }));
   }).pipe(Effect.catch(() => Effect.void));
 }
 
