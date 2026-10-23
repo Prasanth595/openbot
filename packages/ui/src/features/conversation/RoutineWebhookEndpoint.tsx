@@ -36,7 +36,7 @@ export function RoutineWebhookUrlField(props: RoutineWebhookUrlFieldProps) {
               label={t("routine.webhook.copyUrl")}
               copiedLabel={t("common.copied")}
               iconOnly
-              onCopy={props.onCopy}
+              onCopy={() => props.onCopy?.()}
             />
           </>
         )}
@@ -105,7 +105,7 @@ export function RoutineWebhookSecretField(props: RoutineWebhookSecretFieldProps)
                 label={t("routine.webhook.copySecret")}
                 copiedLabel={t("common.copied")}
                 iconOnly
-                onCopy={props.onCopy}
+                onCopy={() => props.onCopy?.()}
               />
             </>
           )}
