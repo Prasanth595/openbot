@@ -87,7 +87,7 @@ export function pluginSkills(plugin: SitePlugin): SitePluginSkill[] {
 }
 
 /** One value a `key` sign-in asks for: what the app's field calls it, and where to find it. */
-export interface SitePluginKeyField {
+interface SitePluginKeyField {
   label: string;
   hint: string | null;
   optional: boolean;

@@ -7,7 +7,7 @@ import type { ComparisonQuestion, ComparisonSource } from "../compare/comparison
 // not disagree.
 
 /** One kind of work an agent can do through the plugin's tools. */
-export interface PluginUse {
+interface PluginUse {
   title: string;
   text: string;
 }
