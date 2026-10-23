@@ -20,6 +20,7 @@ import {
   OPENBOT_LINKS,
 } from "./landing-links";
 import { MOBILE_APPS } from "./mobile-apps";
+import { PRIVACY_POLICY_ROUTE } from "./privacy-policy";
 import { TEAMS_ROUTE } from "./teams-page";
 
 const OPENPANEL_API_URL = "https://analytics.openbot.run/api";
@@ -124,6 +125,7 @@ export type LandingScreenPath =
   | "/contact"
   | "/billing/return"
   | typeof TEAMS_ROUTE
+  | typeof PRIVACY_POLICY_ROUTE
   | DownloadPagePath
   | CollectionIndexRoute
   | `${CollectionIndexRoute}/${string}`;
@@ -133,6 +135,7 @@ const FIXED_SCREEN_PATHS = [
   "/join",
   "/contact",
   TEAMS_ROUTE,
+  PRIVACY_POLICY_ROUTE,
   ...Object.values(OPENBOT_DOWNLOAD_PAGE_LINKS),
   "/news",
   "/guides",
@@ -218,6 +221,7 @@ const LINK_DESTINATIONS = new Map<string, LandingDestination>([
   [OPENBOT_LINKS.changelog, "releases"],
   [OPENBOT_LINKS.license, "license"],
   [OPENBOT_LINKS.privacy, "privacy"],
+  [PRIVACY_POLICY_ROUTE, "privacy"],
   [OPENBOT_LINKS.documentation, "documentation"],
   [OPENBOT_LINKS.troubleshooting, "troubleshooting"],
   [OPENBOT_LINKS.architecture, "architecture"],
