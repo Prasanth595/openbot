@@ -1,5 +1,7 @@
 import { createFileRoute, notFound } from "@tanstack/solid-router";
 import { PluginPage } from "../../components/plugins/PluginPage";
+import { comparisonFaqStructuredData } from "../../content/compare/comparison";
+import { findPluginGuide } from "../../content/plugins";
 import { pluginHead } from "../../lib/content-metadata";
 import { findPlugin, type SitePlugin } from "../../lib/plugins";
 
@@ -13,7 +15,14 @@ function loadPlugin(slug: string): SitePlugin {
 
 export const Route = createFileRoute("/plugins/$slug")({
   loader: ({ params }) => loadPlugin(params.slug),
-  head: ({ loaderData, match }) => (loaderData ? pluginHead(loaderData, match.context.siteUrl) : {}),
+  head: ({ loaderData, match }) => {
+    if (!loaderData) return {};
+    const head = pluginHead(loaderData, match.context.siteUrl);
+    // The questions the page shows, as the provider and compare routes add theirs.
+    const guide = findPluginGuide(loaderData.slug);
+    if (!guide) return head;
+    return { ...head, meta: [...head.meta, { "script:ld+json": comparisonFaqStructuredData(guide) }] };
+  },
   component: PluginRoute,
 });
 
