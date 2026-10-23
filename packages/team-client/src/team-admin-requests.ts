@@ -45,6 +45,8 @@ import {
   type AgentTemplatePreview,
   type AgentTemplatePublication,
   assertStorageUsageScope,
+  type BitwardenConnectorStatus,
+  type BitwardenHostConnectInput,
   type CancelMcpSignInInput,
   type ClearStorageInput,
   type ConnectProviderAccountInput,
@@ -59,6 +61,7 @@ import {
   decodeHostAgentMemoryLimit,
   decodeHostAgentTemplatePreview,
   decodeHostAgentTemplatePublication,
+  decodeHostBitwardenConnectorStatus,
   decodeHostGitHubConnectorRepositories,
   decodeHostGitHubConnectorStatus,
   decodeHostMessagingOverview,
@@ -175,6 +178,7 @@ import { AGENT_ADMIN_ROUTES } from "@openbot/contracts/team-protocol/agent-admin
 import { AGENT_INSTALL_ROUTES } from "@openbot/contracts/team-protocol/agent-install-v1";
 import { AGENT_PUBLISH_IMAGE_BYTES, AGENT_PUBLISH_ROUTES } from "@openbot/contracts/team-protocol/agent-publish-v1";
 import { AGENT_UPDATE_ROUTES } from "@openbot/contracts/team-protocol/agent-update-v1";
+import { BITWARDEN_CONNECTOR_ROUTES } from "@openbot/contracts/team-protocol/bitwarden-connector-v1";
 import { CONNECTORS_ROUTES } from "@openbot/contracts/team-protocol/connectors-v1";
 import { EVENTS_ROUTES } from "@openbot/contracts/team-protocol/events-v1";
 import { HOST_ADMIN_ROUTES } from "@openbot/contracts/team-protocol/host-admin-v1";
@@ -1126,6 +1130,20 @@ export function onePasswordConnectorRequest(
 ): Effect.Effect<OnePasswordConnectorStatus, TeamAdminRequestError> {
   return adminCall(() =>
     request("POST", ONEPASSWORD_CONNECTOR_ROUTES[route], decodeHostOnePasswordConnectorStatus, { ...body }),
+  );
+}
+
+/**
+ * The host's Bitwarden connection (`bitwarden-connector-v1`): read it, connect with an API key and
+ * the master password, or disconnect. No answer carries them.
+ */
+export function bitwardenConnectorRequest(
+  request: TeamApiRequest,
+  route: keyof typeof BITWARDEN_CONNECTOR_ROUTES,
+  body: BitwardenHostConnectInput | Record<string, never> = {},
+): Effect.Effect<BitwardenConnectorStatus, TeamAdminRequestError> {
+  return adminCall(() =>
+    request("POST", BITWARDEN_CONNECTOR_ROUTES[route], decodeHostBitwardenConnectorStatus, { ...body }),
   );
 }
 

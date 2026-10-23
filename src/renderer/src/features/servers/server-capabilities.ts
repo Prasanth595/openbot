@@ -40,6 +40,7 @@ export function serverSupportsCapability(
       capability === "sign-in-relay-v1" ||
       capability === "connectors-v1" ||
       capability === "onepassword-connector-v1" ||
+      capability === "bitwarden-connector-v1" ||
       capability === "provider-host-sign-in-v1" ||
       capability === "storage-v1" ||
       capability === "hosted-sites-v1" ||

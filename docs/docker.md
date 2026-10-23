@@ -439,6 +439,9 @@ does not use systemd.
 - Gemini signs in on a Google page in the browser of the container. An owner or admin opens it
   with Connect in the app, and signs in through the live view of that page. This needs a release
   with `provider-host-sign-in-v1` on both sides. It was not tested in a container.
+- Bitwarden and Vaultwarden connect with an API key and the master password (`bitwarden-connector-v1`).
+  The container must reach the vault server over HTTPS. On a host with several instances, the
+  firewall blocks private addresses, so a Vaultwarden server on the local network cannot be used.
 
 ## Not confirmed
 

@@ -48,6 +48,7 @@ import type { SidebarLayoutStore } from "../../backend/sidebar-layout-store";
 import type { StorageUsageService } from "../../backend/storage-usage";
 import type { TeamChatStore } from "../../backend/team-chat-store";
 import type { AgentImportService } from "../agent-import-service";
+import type { BitwardenConnectorService } from "../bitwarden-connector-service";
 import type { BrowserViewGateway } from "../browser-view-gateway";
 import type { GitHubConnectorService } from "../github-connector-service";
 import type { HostedSiteDesktopService } from "../hosted-site-service";
@@ -383,6 +384,9 @@ export type TeamApiOnePasswordConnector = Pick<
   "status" | "refreshLogins" | "connectWithToken" | "disconnect"
 >;
 
+/** `bitwarden-connector-v1`: the Bitwarden connection of this host, by an API key and the master password. */
+export type TeamApiBitwardenConnector = Pick<BitwardenConnectorService, "status" | "connectWithApiKey" | "disconnect">;
+
 export type TeamApiAgentAccess = Pick<AgentAccessStore, "copyAgent" | "get" | "levels" | "set" | "subscribe">;
 
 export interface TeamApiOptions {
@@ -394,6 +398,7 @@ export interface TeamApiOptions {
   signInRelay?: TeamApiSignInRelay | undefined;
   connectors?: TeamApiConnectors | undefined;
   onePasswordConnector?: TeamApiOnePasswordConnector | undefined;
+  bitwardenConnector?: TeamApiBitwardenConnector | undefined;
   providerHostSignIns?: TeamApiProviderHostSignIns | undefined;
   providerAccounts?: TeamApiProviderAccounts | undefined;
   providerUsageResets?: TeamApiProviderUsageResets | undefined;

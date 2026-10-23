@@ -182,6 +182,7 @@ import { createWebAccountUsage } from "./web-account-usage";
 import { createWebAgentImportCalls } from "./web-agent-import";
 import { openWebLink } from "./web-attachments";
 import { createWebBillingCalls, createWebLicenseCalls } from "./web-billing";
+import { webBitwardenConnectorPort } from "./web-bitwarden-connector";
 import { createWebChannelsPort } from "./web-channels-runtime";
 import { createWebWorkspace, type WebRuntimeFactory } from "./web-client-context";
 import { createWebConversationRuntime } from "./web-conversation-runtime";
@@ -765,6 +766,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   const connectorTarget = createMemo(() => remoteAdminServer(server(), CONNECTORS_CAPABILITY));
   const githubPort = webGitHubConnectorPort(() => hostRequest());
   const onePasswordPort = webOnePasswordConnectorPort(() => hostRequest());
+  const bitwardenPort = webBitwardenConnectorPort(() => hostRequest());
   const webMessaging = webHostMessaging(hostRequest, () =>
     workspace.state.capabilities.includes(DISCORD_ACCESS_CAPABILITY),
   );
@@ -775,6 +777,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
       {
         github: () => githubPort,
         onePassword: () => onePasswordPort,
+        bitwarden: () => bitwardenPort,
         messaging: hostMessagingApi(
           () => connectorTarget()?.id,
           () => webMessaging.api,

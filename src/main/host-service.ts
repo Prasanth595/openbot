@@ -88,6 +88,7 @@ interface HostServiceOptions {
   signInRelay?: ForwardedApiOptions["signInRelay"];
   connectors?: ForwardedApiOptions["connectors"];
   onePasswordConnector?: ForwardedApiOptions["onePasswordConnector"];
+  bitwardenConnector?: ForwardedApiOptions["bitwardenConnector"];
   providerHostSignIns?: ForwardedApiOptions["providerHostSignIns"];
   providerAccounts?: ForwardedApiOptions["providerAccounts"];
   providerUsageResets?: ForwardedApiOptions["providerUsageResets"];
@@ -367,6 +368,7 @@ export class HostService extends EventEmitter<HostEvents> {
       ...(options.signInRelay === undefined ? {} : { signInRelay: options.signInRelay }),
       ...(options.connectors === undefined ? {} : { connectors: options.connectors }),
       ...(options.onePasswordConnector === undefined ? {} : { onePasswordConnector: options.onePasswordConnector }),
+      ...(options.bitwardenConnector === undefined ? {} : { bitwardenConnector: options.bitwardenConnector }),
       ...(options.providerHostSignIns === undefined ? {} : { providerHostSignIns: options.providerHostSignIns }),
       ...(options.providerAccounts === undefined ? {} : { providerAccounts: options.providerAccounts }),
       ...(options.providerUsageResets === undefined ? {} : { providerUsageResets: options.providerUsageResets }),

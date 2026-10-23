@@ -91,7 +91,20 @@ site; this feature does not authorize or constrain actions after sign-in.
 `bitwarden:`. Existing 1Password ids stay unchanged. A failed list stops automatic account selection
 rather than hiding a source and selecting a different account. Main returns only connection state
 through the local Bitwarden IPC group. The shared panel is used in desktop Marketplace and server
-settings; remote web and mobile clients do not manage this local connection.
+settings.
+
+A session key from one computer cannot open the vault of another, so a joined server signs in with
+its own CLI (`bitwarden-connector-v1`, see [integrations](integrations.md#bitwarden-on-a-joined-server)).
+An owner or admin enters the server address (Bitwarden or a self-hosted Vaultwarden, `https:` only),
+the personal API key (`client_id`, `client_secret`) and the master password in the desktop or browser
+client. The host keeps them in `openbot-bitwarden-connector-v1.json`, encrypted with `safeStorage`,
+and its CLI data in `<userData>/provider-state/bitwarden-host` (`BITWARDENCLI_APPDATA_DIR`), apart from
+any `bw` configuration of the user. Without `bw` on `PATH`, it downloads the release that
+`src/main/bitwarden-cli-installer.ts` pins, with a SHA-256 per target, into
+`<userData>/provider-state/bitwarden-cli`. It runs `bw config server`, `bw login --apikey` and
+`bw unlock --passwordenv`; the secrets go to `bw` only in its environment. After a restart or eight
+idle hours, the next vault call unlocks again from the stored record. Disconnect removes the record and
+the CLI data. The phone shows the connector with no action.
 
 The GitHub connector is built in and has no SQLite row. `src/main/github-connector-service.ts` signs
 in to the `openbotgit` GitHub App with the device flow, which needs only the public Client ID, and keeps

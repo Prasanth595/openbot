@@ -614,7 +614,7 @@ function registerIpcHandlers({
     ...hostedSiteIpcHandlers({ hostedSites, remoteServers, getMainWindow, translate: language.translate }),
     ...githubConnectorIpcHandlers({ githubConnector, remoteServers, openExternal: (url) => shell.openExternal(url) }),
     ...onePasswordConnectorIpcHandlers({ onePasswordConnector, remoteServers }),
-    ...bitwardenConnectorIpcHandlers({ bitwardenConnector }),
+    ...bitwardenConnectorIpcHandlers({ bitwardenConnector, remoteServers }),
     ...billingIpcHandlers({ billing }),
     ...licenseIpcHandlers({ license }),
     ...routineFeedIpcHandlers({ routineFeed }),

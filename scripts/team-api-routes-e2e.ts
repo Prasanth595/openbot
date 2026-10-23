@@ -2,12 +2,13 @@
 // store and the direct-message store are the real ones on temporary files. The agent service, the
 // mailbox and the browser are small in-memory stand-ins that record each call, so a check can show
 // that a refused request did not reach them. The checks cover the protocol and auth gates, sign-in
-// and account tickets, the admin-only routes, direct-message isolation, agents hidden from an older
+// and account tickets, the admin-only routes, the host's Bitwarden connection over a fake `bw`,
+// direct-message isolation, agents hidden from an older
 // protocol, the queue routes, the attachment and file routes with their size limits, and the error
 // codes. Writes .openbot-build/team-api-routes-e2e/report.json.
 // Run: `bun run test:team-api-routes` (the preload gives the server's import graph an `electron`).
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { request as httpRequest } from "node:http";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -18,6 +19,7 @@ import {
   type AgentProviderId,
   type AgentSummary,
   type AttachmentDataInput,
+  type BitwardenConnectorStatus,
   type CentralAuthUser,
   type HiddenAgentsSnapshot,
   type QueueSnapshot,
@@ -30,6 +32,10 @@ import {
   AGENT_BACKUP_MODELS_ROUTES,
 } from "@openbot/contracts/team-protocol/agent-backup-models-v1";
 import { AGENT_HIDDEN_CAPABILITY, AGENT_HIDDEN_ROUTES } from "@openbot/contracts/team-protocol/agent-hidden-v1";
+import {
+  BITWARDEN_CONNECTOR_CAPABILITY,
+  BITWARDEN_CONNECTOR_ROUTES,
+} from "@openbot/contracts/team-protocol/bitwarden-connector-v1";
 import {
   PROVIDER_USAGE_RESET_CAPABILITY,
   PROVIDER_USAGE_RESET_ROUTES,
@@ -55,6 +61,8 @@ import { OpenBotDatabase } from "../src/backend/openbot-database";
 import { RoutineResultError } from "../src/backend/routine-results/routine-results";
 import { TeamChatStore } from "../src/backend/team-chat-store";
 import { createAgentHostSettings } from "../src/main/agent-host-settings";
+import { type BitwardenCliRunner, BitwardenConnectorService } from "../src/main/bitwarden-connector-service";
+import { BitwardenConnectorStore } from "../src/main/bitwarden-connector-store";
 import type { TeamApiAgents, TeamApiBrowser, TeamApiMailbox } from "../src/main/team-api/dependencies";
 import { isPeerHiddenProvider } from "../src/main/team-api/provider-visibility";
 import { TeamApiServer } from "../src/main/team-api-server";
@@ -405,6 +413,96 @@ const accountUsers: Record<string, CentralAuthUser> = {
 };
 const redeemedServerIds: string[] = [];
 
+// The host's Bitwarden connection: the real service and store, over a fake `bw` that keeps the state
+// that the real CLI keeps in its data folder (the server and the sign-in) and records each call.
+const BW_ITEM_ID = "12345678-1234-1234-1234-123456789abc";
+const BW_CLIENT_ID = "user.e2e-client";
+const BW_CLIENT_SECRET = ["bw", "e2e", "client", "secret"].join("-");
+const BW_MASTER_PASSWORD = ["bw", "e2e", "master", "password"].join("-");
+const BW_SESSION_KEY = ["bw", "e2e", "session"].join("-");
+const BW_LOGIN_PASSWORD = ["bw", "e2e", "login", "password"].join("-");
+const BW_SECRETS = [BW_CLIENT_SECRET, BW_MASTER_PASSWORD, BW_SESSION_KEY, BW_LOGIN_PASSWORD];
+const bitwardenData = join(root, "bitwarden-host");
+const bitwardenFile = join(root, "openbot-bitwarden-connector-v1.json");
+const bitwardenCalls: { args: string[]; env: Record<string, string> }[] = [];
+/** The CLI's own state lives in its data folder, so removing the folder signs it out. */
+function bitwardenCliState(): { server: string | null; signedIn: boolean } {
+  const path = join(bitwardenData, "data.json");
+  return existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : { server: null, signedIn: false };
+}
+function saveBitwardenCliState(change: Partial<{ server: string | null; signedIn: boolean }>): void {
+  mkdirSync(bitwardenData, { recursive: true });
+  writeFileSync(join(bitwardenData, "data.json"), JSON.stringify({ ...bitwardenCliState(), ...change }));
+}
+const fakeBitwardenCli: BitwardenCliRunner = async (_executable, args, env) => {
+  bitwardenCalls.push({ args, env: { ...env } });
+  if (env.BITWARDENCLI_APPDATA_DIR !== bitwardenData) throw new Error("bw ran outside the host data folder.");
+  const [command, target] = args;
+  const state = bitwardenCliState();
+  if (command === "status")
+    return JSON.stringify({ status: state.signedIn ? "locked" : "unauthenticated", serverUrl: state.server });
+  if (command === "logout") {
+    saveBitwardenCliState({ signedIn: false });
+    return "";
+  }
+  if (command === "config") {
+    if (state.signedIn) throw new Error("Logout required before server config update.");
+    saveBitwardenCliState({ server: args[2] ?? null });
+    return "Saved setting `config`.";
+  }
+  if (command === "login") {
+    if (env.BW_CLIENTID !== BW_CLIENT_ID || env.BW_CLIENTSECRET !== BW_CLIENT_SECRET) throw new Error("bad key");
+    saveBitwardenCliState({ signedIn: true });
+    return "You are logged in!";
+  }
+  if (command === "unlock") {
+    if (!state.signedIn || env.BW_PASSWORD !== BW_MASTER_PASSWORD) throw new Error("bad password");
+    return `${BW_SESSION_KEY}\n`;
+  }
+  if (env.BW_SESSION !== BW_SESSION_KEY) throw new Error("locked");
+  const item = {
+    id: BW_ITEM_ID,
+    name: "Example",
+    type: 1,
+    folderId: "shared",
+    login: { username: "ada", password: BW_LOGIN_PASSWORD, uris: [{ uri: "https://example.com/login", match: null }] },
+  };
+  if (command === "sync") return "Syncing complete.";
+  if (command === "list" && target === "folders")
+    return JSON.stringify([{ id: "shared", name: "Shared with OpenBot" }]);
+  if (command === "list" && target === "items") return JSON.stringify([item]);
+  if (command === "get" && target === "item") return JSON.stringify(item);
+  throw new Error(`Unexpected bw call: ${command}`);
+};
+/** Reversible, and the stored file holds no secret in plain text. */
+const fakeCipher = {
+  encrypt: (value: string) => Buffer.from(Buffer.from(value, "utf8").toString("hex"), "utf8"),
+  decrypt: (value: Buffer) => Buffer.from(value.toString("utf8"), "hex").toString("utf8"),
+};
+const createBitwardenHost = () =>
+  new BitwardenConnectorService({
+    runCli: fakeBitwardenCli,
+    findCli: async () => "/fixture/bw",
+    host: {
+      store: new BitwardenConnectorStore(bitwardenFile, fakeCipher),
+      dataDirectory: bitwardenData,
+      installCli: null,
+    },
+  });
+const bitwardenConnector = createBitwardenHost();
+/** Resolves with the first status after a host sign-in started (`connecting`) and then ended. */
+function bitwardenSettled(connector: BitwardenConnectorService): Promise<BitwardenConnectorStatus> {
+  return new Promise((resolveStatus) => {
+    let started = false;
+    const stop = connector.onChanged((status) => {
+      if (status.connecting) started = true;
+      if (!started || status.connecting) return;
+      stop();
+      resolveStatus(status);
+    });
+  });
+}
+
 const store = new TeamStore(join(root, "team.json"));
 const database = new OpenBotDatabase(join(root, "user-data"));
 let server: TeamApiServer | null = null;
@@ -461,6 +559,7 @@ try {
           }),
       },
     },
+    bitwardenConnector,
     // The host's own sign-in has two usage reset credits; a reset spends one.
     providerUsageResets: {
       providerUsageResets: (provider) =>
@@ -1264,6 +1363,130 @@ try {
         isDeepStrictEqual(adminReset.body, { outcome: "reset" }) &&
         isDeepStrictEqual(callsOf("resetProviderUsage"), [[{ provider: "codex", accountId: "default" }]]),
       [summary(badAccount), summary(adminReset)],
+    );
+  }
+
+  // ---- Bitwarden on the host (bitwarden-connector-v1) ----
+  {
+    const bitwardenCapabilities = [BITWARDEN_CONNECTOR_CAPABILITY];
+    const input = {
+      serverUrl: "https://vault.example.com/",
+      clientId: BW_CLIENT_ID,
+      clientSecret: BW_CLIENT_SECRET,
+      masterPassword: BW_MASTER_PASSWORD,
+    };
+    const connectAs = (token: string, json: unknown) =>
+      call("POST", BITWARDEN_CONNECTOR_ROUTES.connect, { token, json, capabilities: bitwardenCapabilities });
+    const unsupported = await call("POST", BITWARDEN_CONNECTOR_ROUTES.status, { token: adaToken, json: {} });
+    check(
+      "the Bitwarden routes without the capability get 400 connectorsUnsupported",
+      errorIs(unsupported, 400, sourceText("error.team.connectorsUnsupported")),
+      summary(unsupported),
+    );
+    const memberConnect = await connectAs(bobToken, input);
+    const memberDisconnect = await call("POST", BITWARDEN_CONNECTOR_ROUTES.disconnect, {
+      token: bobToken,
+      json: {},
+      capabilities: bitwardenCapabilities,
+    });
+    check(
+      "a member cannot connect or disconnect the host's Bitwarden",
+      errorIs(memberConnect, 403, sourceText("error.team.adminRequired")) &&
+        errorIs(memberDisconnect, 403, sourceText("error.team.adminRequired")) &&
+        bitwardenCalls.length === 0,
+      [summary(memberConnect), summary(memberDisconnect)],
+    );
+    const plainHttp = await connectAs(adaToken, { ...input, serverUrl: "http://vault.example.com" });
+    check(
+      "a server address that is not https is refused before bw runs",
+      plainHttp.status === 200 &&
+        isDeepStrictEqual(plainHttp.body, {
+          state: "disconnected",
+          serverUrl: null,
+          error: sourceText("error.connector.bitwardenHostInput"),
+        }) &&
+        bitwardenCalls.length === 0,
+      summary(plainHttp),
+    );
+    const wrongSettled = bitwardenSettled(bitwardenConnector);
+    const wrong = await connectAs(adaToken, { ...input, masterPassword: "wrong-master-password" });
+    const wrongStatus = await wrongSettled;
+    check(
+      "a wrong master password leaves no connection and no stored file",
+      field(wrong.body, "state") === "connecting" &&
+        !wrongStatus.connected &&
+        wrongStatus.error === sourceText("error.connector.bitwardenHostFailed") &&
+        !existsSync(bitwardenFile),
+      { wrong: summary(wrong), wrongStatus },
+    );
+    bitwardenCalls.length = 0;
+    const settled = bitwardenSettled(bitwardenConnector);
+    const connect = await connectAs(adaToken, input);
+    const connected = await settled;
+    const status = await call("POST", BITWARDEN_CONNECTOR_ROUTES.status, {
+      token: adaToken,
+      json: {},
+      capabilities: bitwardenCapabilities,
+    });
+    check(
+      "an admin connects: the host answers connecting at once, then reports connected",
+      isDeepStrictEqual(connect.body, { state: "connecting", serverUrl: "https://vault.example.com", error: null }) &&
+        connected.connected &&
+        isDeepStrictEqual(status.body, { state: "connected", serverUrl: "https://vault.example.com", error: null }),
+      { connect: summary(connect), connected, status: summary(status) },
+    );
+    const commands = bitwardenCalls.map((entry) => entry.args.join(" "));
+    const envOf = (prefix: string) => bitwardenCalls.find((entry) => entry.args.join(" ").startsWith(prefix))?.env;
+    check(
+      "the host signs in with the API key and unlocks with the master password, only through the environment",
+      commands.includes("config server https://vault.example.com") &&
+        commands.includes("login --apikey") &&
+        commands.includes("unlock --passwordenv BW_PASSWORD --raw") &&
+        envOf("login")?.BW_CLIENTSECRET === BW_CLIENT_SECRET &&
+        envOf("unlock")?.BW_PASSWORD === BW_MASTER_PASSWORD &&
+        bitwardenCalls.every(
+          (entry) =>
+            !entry.args.some((arg) => BW_SECRETS.includes(arg)) &&
+            (entry.args[0] === "unlock" || entry.env.BW_PASSWORD === undefined) &&
+            (entry.args[0] === "login" || entry.env.BW_CLIENTSECRET === undefined),
+        ),
+      commands,
+    );
+    const stored = existsSync(bitwardenFile) ? readFileSync(bitwardenFile, "utf8") : "";
+    const replies = [plainHttp, wrong, connect, status].map((reply) => reply.text).join("\n");
+    check(
+      "the stored file, the answers and the logs carry no secret in plain text",
+      stored !== "" && ![stored, replies, ...logged].some((text) => BW_SECRETS.some((secret) => text.includes(secret))),
+      { storedBytes: stored.length },
+    );
+    const restarted = createBitwardenHost();
+    await runCauseEffect(restarted.load());
+    const before = bitwardenCalls.length;
+    const logins = await runCauseEffect(restarted.loginsFor("https://example.com"));
+    const password = await runCauseEffect(restarted.secretFor(BW_ITEM_ID, "https://example.com", "password"));
+    const afterRestart = bitwardenCalls.slice(before).map((entry) => entry.args.join(" "));
+    check(
+      "after a restart the host unlocks again from the stored connection, with no new sign-in",
+      restarted.connected() &&
+        logins?.[0]?.username === "ada" &&
+        password === BW_LOGIN_PASSWORD &&
+        afterRestart.includes("unlock --passwordenv BW_PASSWORD --raw") &&
+        !afterRestart.some((command) => command.startsWith("login") || command.startsWith("config")),
+      { afterRestart, logins },
+    );
+    await runCauseEffect(restarted.dispose());
+    const disconnect = await call("POST", BITWARDEN_CONNECTOR_ROUTES.disconnect, {
+      token: adaToken,
+      json: {},
+      capabilities: bitwardenCapabilities,
+    });
+    check(
+      "disconnect removes the stored connection and the host's CLI data",
+      isDeepStrictEqual(disconnect.body, { state: "disconnected", serverUrl: null, error: null }) &&
+        !existsSync(bitwardenFile) &&
+        !existsSync(bitwardenData) &&
+        !bitwardenConnector.connected(),
+      summary(disconnect),
     );
   }
 

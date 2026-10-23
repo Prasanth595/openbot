@@ -740,6 +740,9 @@ const openbotApi: OpenBotDesktopApi = {
     connect: decodeBitwardenConnectorStatus,
     disconnect: decodeBitwardenConnectorStatus,
     changed: decodeBitwardenConnectorStatus,
+    hostStatus: decodeBitwardenConnectorStatus,
+    hostConnect: decodeBitwardenConnectorStatus,
+    hostDisconnect: decodeBitwardenConnectorStatus,
   }),
   onePasswordConnector: bridgeGroup(IPC_ENDPOINTS.onePasswordConnector, {
     status: decodeOnePasswordConnectorStatus,

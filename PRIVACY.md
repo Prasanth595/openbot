@@ -561,6 +561,15 @@ is not included in analytics; provider output uses the application's secret reda
   codes go through the main process to the browser page. This folder is an OpenBot access rule;
   the CLI session key can decrypt the wider vault. Use a separate Bitwarden account if you need
   the password manager itself to enforce that separation.
+  An owner or admin of a joined server can connect that server's Bitwarden or Vaultwarden in Server
+  settings › Connectors with the server address, the personal API key and the master password. They
+  go once, over the encrypted connection, to the server, which keeps them in
+  `openbot-bitwarden-connector-v1.json` in its application data folder, encrypted by its operating
+  system's secret storage, so it can unlock again after a restart. Its CLI keeps its own encrypted
+  vault cache in `provider-state/bitwarden-host` in the same folder. The computer that sent them does
+  not keep them, and no answer from the server carries them. Disconnect deletes the file and the
+  cache. The API key and the master password can open the whole vault, not only the shared folder.
+  They are redacted from logs, exports and diagnostics.
 - The 1Password connection (Marketplace > 1Password) is kept in
   `~/Library/Application Support/OpenBot/openbot-onepassword-connector-v1.json`, encrypted by the
   operating system's secret storage. It holds the service account token and the account ID only.
@@ -686,7 +695,12 @@ Network traffic can also occur when:
   deleted with the agent's or channel's data;
 - the user connects Bitwarden. OpenBot runs the installed `bw` CLI to sync with the server already
   configured in that CLI, including a self-hosted server. It syncs before listing or filling logins.
-  These calls send no OpenBot conversations, files, or agent instructions to Bitwarden;
+  These calls send no OpenBot conversations, files, or agent instructions to Bitwarden. For a
+  joined server's connection, the server's own `bw` signs in to the server address that the admin
+  entered with the API key, and unlocks with the master password on that server. When that server has
+  no `bw`, it downloads the Bitwarden CLI release that OpenBot pins from `github.com`, checks its
+  SHA-256, and keeps it in `provider-state/bitwarden-cli` in its application data folder. That
+  download carries no user data;
 - the user connects 1Password. Connect runs the user's own 1Password CLI (`op`) on this computer to
   create the vault "Shared with OpenBot" and a service account that can read only it. OpenBot then
   reads that vault from 1Password's servers with the token: the vault names, the login titles and

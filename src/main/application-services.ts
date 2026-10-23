@@ -133,7 +133,9 @@ import { AppBehaviorService } from "./app-behavior-service";
 import { ApprovalAutomation, readApprovalAutomation } from "./approval-automation-store";
 import { AutomationServer } from "./automation-server";
 import { BillingDesktopService } from "./billing-service";
+import { managedBitwardenCli } from "./bitwarden-cli-installer";
 import { BitwardenConnectorService } from "./bitwarden-connector-service";
+import { BitwardenConnectorStore } from "./bitwarden-connector-store";
 import { BrowserDockOverlay } from "./browser-dock-overlay";
 import { BrowserPictureInPicture } from "./browser-picture-in-picture";
 import { BrowserViewClient } from "./browser-view-client";
@@ -332,6 +334,8 @@ const MCP_OAUTH_PROXY_FILE = "openbot-mcp-oauth-proxy-v1.json";
 const GITHUB_CONNECTOR_FILE = "openbot-github-connector-v1.json";
 /** The 1Password service account token of this computer, with the same cipher. */
 const ONEPASSWORD_CONNECTOR_FILE = "openbot-onepassword-connector-v1.json";
+/** The Bitwarden API key and master password of a host connection (`bitwarden-connector-v1`), with the same cipher. */
+const BITWARDEN_CONNECTOR_FILE = "openbot-bitwarden-connector-v1.json";
 /** Which agent each imported Hermes profile made, so a second import updates that agent. */
 const HERMES_IMPORT_LINKS_FILE = "openbot-hermes-imports-v1.json";
 
@@ -1276,7 +1280,27 @@ export async function createApplicationServices({
   teardown.push(TEARDOWN_ORDER.githubConnector, "the GitHub connection", () =>
     runCauseEffect(githubConnector.dispose()),
   );
-  const bitwardenConnector = new BitwardenConnectorService();
+  /*
+   * The Bitwarden connection. A host connection's API key and master password are stored, so the
+   * host unlocks again after a restart; its CLI data and OpenBot's copy of `bw` stay outside every
+   * root an agent can write.
+   */
+  const bitwardenCliTarget = runtimeTarget(process.platform, process.arch);
+  const bitwardenConnector = new BitwardenConnectorService({
+    host: {
+      store: new BitwardenConnectorStore(join(app.getPath("userData"), BITWARDEN_CONNECTOR_FILE), secretCipher),
+      dataDirectory: join(app.getPath("userData"), "provider-state", "bitwarden-host"),
+      installCli: bitwardenCliTarget
+        ? (signal) =>
+            managedBitwardenCli({
+              directory: join(app.getPath("userData"), "provider-state", "bitwarden-cli"),
+              target: bitwardenCliTarget,
+              signal,
+            })
+        : null,
+    },
+  });
+  await runCauseEffect(bitwardenConnector.load());
   teardown.push(TEARDOWN_ORDER.bitwardenConnector, "the Bitwarden connection", async () => {
     await runCauseEffect(bitwardenConnector.dispose());
   });
@@ -2018,6 +2042,9 @@ export async function createApplicationServices({
     // Present, so the host advertises `onepassword-connector-v1`. An owner or admin connects it with
     // a service account token, as a host with no screen cannot approve the 1Password app.
     onePasswordConnector,
+    // Present, so the host advertises `bitwarden-connector-v1`. An owner or admin connects it with an
+    // API key and the master password: a session key from their computer cannot open this vault.
+    bitwardenConnector,
     // Present on Linux, so the host advertises `provider-host-sign-in-v1`. The routes are admin-only.
     providerHostSignIns,
     // Present, so the host advertises `provider-accounts-v1`. The routes are admin-only.
