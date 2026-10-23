@@ -68,6 +68,7 @@ export const messages = {
   "error.backend.channelRoutingTooLong":
     "Bu istek yönlendirme bağlamı sınırını aşıyor. Bir üye seçin veya daha kısa bir istek gönderin.",
   "error.backend.channelTaskMemberRequired": "Bu görev için bir üye seçin.",
+  "error.backend.channelRoutingFailed": "Yönlendirme başarısız oldu. Bir üye seçin veya tekrar deneyin.",
   "error.backend.channelRequestMemberRequired": "Bu istek için bir üye seçin.",
   "error.backend.channelDeliveryNotCreated": "Kanal teslimatı oluşturulamadı.",
   "error.backend.channelAssignmentStopped": "Bu kanal ataması durduruldu veya değiştirildi.",

@@ -70,6 +70,7 @@ export const messages = {
   "error.backend.channelRoutingTooLong":
     "Cette demande dépasse la limite de contexte de routage. Sélectionnez un membre ou envoyez une demande plus courte.",
   "error.backend.channelTaskMemberRequired": "Choisissez un membre pour cette tâche.",
+  "error.backend.channelRoutingFailed": "Le routage a échoué. Choisissez un membre ou réessayez.",
   "error.backend.channelRequestMemberRequired": "Choisissez un membre pour cette demande.",
   "error.backend.channelDeliveryNotCreated": "La distribution dans le canal n’a pas été créée.",
   "error.backend.channelAssignmentStopped": "Cette tâche de canal a été arrêtée ou remplacée.",

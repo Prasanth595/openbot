@@ -70,6 +70,7 @@ export const messages = {
   "error.backend.channelRoutingTooLong":
     "この依頼はルーティングのコンテキスト上限を超えています。メンバーを選択するか、短い依頼を送信してください。",
   "error.backend.channelTaskMemberRequired": "このタスクのメンバーを選択してください。",
+  "error.backend.channelRoutingFailed": "ルーティングに失敗しました。メンバーを選択するか、もう一度お試しください。",
   "error.backend.channelRequestMemberRequired": "この依頼のメンバーを選択してください。",
   "error.backend.channelDeliveryNotCreated": "チャンネルへの配信を作成できませんでした。",
   "error.backend.channelAssignmentStopped": "このチャンネルの割り当ては停止されたか、置き換えられました。",

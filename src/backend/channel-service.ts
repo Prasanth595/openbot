@@ -21,7 +21,7 @@ import {
   type UpdateChannelMemoryInput,
 } from "@openbot/contracts/ipc";
 import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
-import { sourceText } from "@openbot/i18n/source";
+import { isFixedSourceText, sourceText } from "@openbot/i18n/source";
 import { Deferred, Effect, Exit, Fiber, Result, Schema, Scope } from "effect";
 import { type ChannelOperationError, channelFailure, channelResult, channelSync } from "./channel-effects";
 import { ChannelHistory, type ChannelTextModel, isMemberThinking } from "./channel-history";
@@ -963,8 +963,13 @@ export class ChannelService {
             continue;
           }
           channel = yield* channelSync(() => this.store.get(channelId));
-          const detail =
-            error instanceof ChannelRoutingError ? error.message : "Routing failed. Choose a member or try again.";
+          // Catalog text without a placeholder, such as an unavailable lead model or a timed-out
+          // routing turn, holds nothing from a provider, so the channel shows it. Any other cause
+          // goes to the redacted error path; without it no one could see why routing failed.
+          const shown =
+            error instanceof ChannelRoutingError || (error instanceof Error && isFixedSourceText(error.message));
+          if (!shown) this.hooks.error(error);
+          const detail = shown ? error.message : sourceText("error.backend.channelRoutingFailed");
           yield* channelSync(() =>
             this.store.update(channel, {
               tasks: [{ ...task, state: "paused", error: detail }],

@@ -69,6 +69,7 @@ export const messages = {
   "error.backend.channelRoutingTooLong":
     "To żądanie przekracza limit kontekstu kierowania. Wybierz członka lub wyślij krótsze żądanie.",
   "error.backend.channelTaskMemberRequired": "Wybierz członka do tego zadania.",
+  "error.backend.channelRoutingFailed": "Kierowanie nie powiodło się. Wybierz członka lub spróbuj ponownie.",
   "error.backend.channelRequestMemberRequired": "Wybierz członka do tego żądania.",
   "error.backend.channelDeliveryNotCreated": "Nie utworzono dostarczenia kanału.",
   "error.backend.channelAssignmentStopped": "Ten przydział kanału został zatrzymany lub zastąpiony.",
