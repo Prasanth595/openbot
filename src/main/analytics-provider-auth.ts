@@ -32,8 +32,8 @@ export function providerAuthKind(agent: AgentSummary, facts: ProviderAuthFacts):
       if (addedAccount) return "unknown";
       return facts.account("claude")?.planType ? "subscription" : "unknown";
     case "grok":
-      // With both a key and a sign-in, the CLI picks the method it advertises, which the host does not see.
-      if (facts.envKey("XAI_API_KEY")) return facts.account("grok") ? "unknown" : "api_key";
+      // With a key set, the CLI picks the method it advertises, which the host does not see.
+      if (facts.envKey("XAI_API_KEY")) return "unknown";
       return facts.account("grok") ? "subscription" : "unknown";
     case "antigravity":
       return facts.hasApiKey("antigravity") ? "api_key" : "subscription";
