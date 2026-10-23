@@ -185,7 +185,7 @@ export function createBrowserProfileService({
 /** A change that the person who manages the profiles can correct: its message is catalog text for them. */
 export class BrowserProfileRejectedError extends Error {}
 
-export class BrowserProfileFailure extends Schema.TaggedError<BrowserProfileFailure>()("BrowserProfileFailure", {
+class BrowserProfileFailure extends Schema.TaggedError<BrowserProfileFailure>()("BrowserProfileFailure", {
   cause: Schema.Defect(),
 }) {}
 
