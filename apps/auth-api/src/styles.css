@@ -8552,6 +8552,12 @@ a {
   margin-top: 0;
 }
 
+/* No use is more important than the others, so the first card does not take the accent. */
+.plugin-uses .provider-add:first-child {
+  border-color: var(--openbot-border);
+  background: var(--openbot-bg-surface);
+}
+
 .plugin-uses .provider-add-title {
   margin-top: 0;
 }

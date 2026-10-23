@@ -79,8 +79,8 @@ function PluginConnectStep(props: { step: SitePluginConnectStep; appCount: numbe
       <Show when={props.step.kind === "link"}>
         <h3 class="provider-step-title">{prefix()}Sign in</h3>
         <p class="provider-step-text">
-          Press Connect and finish the sign-in in your browser. OpenBot keeps the token on this computer. You can
-          disconnect at any time.
+          Press Connect and finish the sign-in in your browser. OpenBot keeps the token on the computer that runs
+          OpenBot. You can disconnect at any time.
         </p>
       </Show>
       <Show when={props.step.kind === "key" ? props.step : undefined}>
@@ -91,13 +91,14 @@ function PluginConnectStep(props: { step: SitePluginConnectStep; appCount: numbe
             </h3>
             <p class="provider-step-text">
               Press Connect and enter {step().fields.length > 1 ? "these values" : "this value"}. OpenBot keeps{" "}
-              {step().fields.length > 1 ? "them" : "it"} on this computer.
+              {step().fields.length > 1 ? "them" : "it"} on the computer that runs OpenBot.
             </p>
             <ul class="plugin-connect-fields">
               <For each={step().fields}>
                 {(field) => (
                   <li>
                     <strong class="plugin-connect-field-label">{field.label}</strong>
+                    <Show when={field.optional}> (optional)</Show>
                     <Show when={field.hint}>{(hint) => <> - {hint()}</>}</Show>
                   </li>
                 )}
@@ -122,7 +123,9 @@ function PluginConnectStep(props: { step: SitePluginConnectStep; appCount: numbe
             <h3 class="provider-step-title">
               {prefix()}Set up the {step().label}
             </h3>
-            <p class="provider-step-text">The server runs on your computer, so it needs the {step().label} first.</p>
+            <p class="provider-step-text">
+              The server runs on the computer that runs OpenBot, so it needs the {step().label} first.
+            </p>
             <ol class="plugin-connect-fields">
               <For each={step().steps}>{(line) => <li>{line}</li>}</For>
             </ol>
@@ -131,7 +134,7 @@ function PluginConnectStep(props: { step: SitePluginConnectStep; appCount: numbe
               {(href) => (
                 <p class="provider-step-links">
                   <a href={href()} target="_blank" rel={EXTERNAL_LINK_REL}>
-                    Documentation
+                    {step().docsLabel ?? "Documentation"}
                     <LandingIcon name="arrow-up-right" class="provider-step-arrow" />
                   </a>
                 </p>
@@ -266,9 +269,10 @@ export function PluginPage(props: PluginPageProps) {
                 <li class="provider-step">
                   <h3 class="provider-step-title">Give an agent a task</h3>
                   <p class="provider-step-text">
-                    {connectSteps().length === 0 ? `${props.plugin.name} needs no sign-in or key. ` : ""}Ask an agent
-                    for work that needs {props.plugin.name}, such as one of the example prompts below. The agent uses
-                    the plugin's tools to do it.
+                    {connectSteps().length === 0 ? `OpenBot asks for no sign-in or key for ${props.plugin.name}. ` : ""}
+                    Ask an agent for work that needs {props.plugin.name}
+                    {props.plugin.prompts.length > 0 ? ", such as one of the example prompts below" : ""}. The agent
+                    uses the plugin's tools to do it.
                   </p>
                 </li>
               </ol>

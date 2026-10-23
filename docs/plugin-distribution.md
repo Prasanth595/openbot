@@ -306,7 +306,8 @@ The page follows `apps/auth-api/src/routes/guides/$slug.tsx`:
   true 404. The page for a missing plugin gives a next step: the plugin list, and the download link;
 - the head tags follow `articleHead` in `apps/auth-api/src/lib/content-metadata.ts`. The canonical
   URL comes from the site URL of the server that answers, so a preview does not name production;
-- `SoftwareApplication` structured data gives the name, the description and the version;
+- `SoftwareApplication` structured data gives the name, the description and the version. When the
+  plugin has a written guide, `FAQPage` structured data gives the guide's questions;
 - `contentSitemapXml()` in `apps/auth-api/src/server/content-feed.ts` gets `/plugins` and one entry
   for each plugin. The JSON URLs stay out of the sitemap, because they are data and not pages.
 
@@ -316,6 +317,16 @@ plugin link holds no secret.
 The page shows the listing text, the example prompts as text, the apps, the skills, the developer,
 the version, and the developer's links. It does not show install counts, account state, or the MCP
 server address. A reader must not learn how to add the server by hand and miss the app's checks.
+
+Two sections come between the listing text and the example prompts. "What an agent can do" comes
+from the written guide. "How to connect" is built from the catalog's `auth` entries only, by
+`pluginConnectSteps` in `apps/auth-api/src/lib/plugins.ts`. It never reads the server address. The
+guide's questions and sources come after the information table.
+
+The written guide for a plugin is `apps/auth-api/src/content/plugins/<slug>.ts`, listed in `index.ts`
+there. Add one when you add a listing. Each statement in it needs a vendor page in `sources`. A
+listing with no guide still gets the generated "How to connect" section, but no uses, questions or
+sources, and nothing warns about it.
 
 The page has one main button, `Open in OpenBot`, and a second button, `Download OpenBot`.
 
