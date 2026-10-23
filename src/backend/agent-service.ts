@@ -360,8 +360,8 @@ const USER_SEND_RETRY_WINDOW_MS = 24 * 60 * 60 * 1000;
 /** The `send_message` recipient limit, so one message can reach every section-mate the prompt names. */
 const MAX_SECTION_TEAMMATES = 32;
 
-/** The user's update, and the named browser profile that the profile operations set after their checks. */
-export type AgentUpdate = UpdateAgentInput & { browserProfileId?: string | null };
+/** The user's update, and the browser profile choice that the profile operations set after their checks. */
+export type AgentUpdate = UpdateAgentInput & { ownBrowserSession?: boolean; browserProfileId?: string | null };
 
 export class AgentService extends EventEmitter<AgentServiceEvents> {
   readonly channels: ChannelService;

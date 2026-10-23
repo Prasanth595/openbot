@@ -647,6 +647,8 @@ export class AgentStore {
     input: UpdateAgentInput & {
       /** The model to go back to after a usage limit. `null` removes it. */
       usageLimitReturn?: AgentUsageLimitReturn | null;
+      /** The shared or the agent's own session. It replaces a named profile. */
+      ownBrowserSession?: boolean;
       /** The named browser profile. `null` removes it. The caller checks that the profile exists. */
       browserProfileId?: string | null;
     },

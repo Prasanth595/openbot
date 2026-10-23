@@ -649,10 +649,6 @@ export function parseUpdateAgent(value: unknown): UpdateAgentInput {
     if (!isBoolean(value.quickAcknowledgement)) throw new Error("Invalid quick acknowledgement value.");
     result.quickAcknowledgement = value.quickAcknowledgement;
   }
-  if (value.ownBrowserSession !== undefined) {
-    if (!isBoolean(value.ownBrowserSession)) throw new Error("Invalid browser session value.");
-    result.ownBrowserSession = value.ownBrowserSession;
-  }
   if (value.fastMode !== undefined) {
     if (!isBoolean(value.fastMode)) throw new Error("Invalid fast mode value.");
     result.fastMode = value.fastMode;

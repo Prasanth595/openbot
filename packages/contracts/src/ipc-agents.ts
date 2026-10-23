@@ -334,7 +334,6 @@ export interface UpdateAgentInput {
   allowAutomation?: boolean;
   allowNewChat?: boolean;
   quickAcknowledgement?: boolean;
-  ownBrowserSession?: boolean;
   fastMode?: boolean;
   /** `null` returns the agent to the app default. */
   busyMessageMode?: BusyMessageMode | null;

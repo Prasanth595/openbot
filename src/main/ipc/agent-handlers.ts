@@ -444,7 +444,7 @@ export function agentIpcHandlers({
           if (input.quickAcknowledgement !== undefined) {
             throw new Error(sourceText("error.agent.quickAcknowledgementLocalOnly"));
           }
-          if (input.fastMode !== undefined || input.ownBrowserSession !== undefined) {
+          if (input.fastMode !== undefined) {
             throw new Error(sourceText("error.agent.settingsLocalOnly"));
           }
           if (input.busyMessageMode !== undefined) {
