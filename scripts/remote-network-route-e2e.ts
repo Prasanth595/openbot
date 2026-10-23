@@ -196,9 +196,10 @@ try {
   report.passed = true;
 } finally {
   if (!report.passed && web) {
-    report.webPeers = await web
+    const webPeers = await web
       .evaluate(() => (window.__routeE2ePeers ?? []).map((pc) => pc.connectionState))
       .catch(() => undefined);
+    if (webPeers) report.webPeers = webPeers;
     mkdirSync(OUT, { recursive: true });
     const failure = resolve(OUT, "web-failure.png");
     if (
