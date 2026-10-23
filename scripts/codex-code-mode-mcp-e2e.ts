@@ -253,16 +253,21 @@ async function open(home: string) {
     if (notification.method === "turn/completed") turnDone();
   });
   client.start();
-  await runCauseEffect(
-    client.request(
-      "initialize",
-      {
-        clientInfo: { name: "openbot_e2e", title: "OpenBot E2E", version: "0.0.0" },
-        capabilities: { experimentalApi: true },
-      },
-      decodeRecordResponse,
-    ),
-  );
+  try {
+    await runCauseEffect(
+      client.request(
+        "initialize",
+        {
+          clientInfo: { name: "openbot_e2e", title: "OpenBot E2E", version: "0.0.0" },
+          capabilities: { experimentalApi: true },
+        },
+        decodeRecordResponse,
+      ),
+    );
+  } catch (error) {
+    await runCauseEffect(client.stop());
+    throw error;
+  }
   client.notify("initialized");
   const turn = async (threadId: string) => {
     const done = new Promise<void>((resolveTurn) => {
@@ -424,6 +429,16 @@ try {
     { name: "prefixed", rows: [row("mcp__calendar")] },
     (o) => {
       assert.deepEqual(o.offered, ["mcp__calendar"]);
+      assert.deepEqual(o.calls, [TOOL]);
+    },
+  );
+  await step(
+    "a hyphen in the key becomes an underscore, as Codex names the namespace",
+    { name: "hyphen", rows: [row("google-calendar")] },
+    (o) => {
+      assert.deepEqual(o.keys, ["google-calendar"]);
+      assert.deepEqual(o.offered, ["mcp__google_calendar"]);
+      assert.ok(o.directOnly.includes("mcp__google_calendar"), `direct-only ${o.directOnly.join(", ")}`);
       assert.deepEqual(o.calls, [TOOL]);
     },
   );

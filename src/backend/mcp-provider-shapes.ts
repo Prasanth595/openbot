@@ -668,10 +668,14 @@ export function codexThreadMcpServers(
  * such as GPT-6, Codex otherwise defers MCP tools into `exec` without naming them, and the model
  * does not find them. These join the direct-only list, so the request names the tools. The keys are
  * the ones `codexMcpServers` chose, renamed keys included; a name Codex's own files declare is turned
- * off and has no tools. Codex adds `mcp__` unless the key starts with it.
+ * off and has no tools. Codex changes each character other than a letter, a digit or `_` to `_`, then
+ * adds `mcp__` unless the name starts with it.
  */
 export function codexMcpNamespaces(servers: Readonly<Record<string, CodexMcpServer>>): string[] {
-  return Object.keys(servers).map((key) => (key.startsWith("mcp__") ? key : `mcp__${key}`));
+  return Object.keys(servers).map((key) => {
+    const name = key.replace(/[^A-Za-z0-9_]/gu, "_");
+    return name.startsWith("mcp__") ? name : `mcp__${name}`;
+  });
 }
 
 export function codexMcpServers(
