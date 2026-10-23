@@ -1434,6 +1434,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
         <div class="app-window web-app-window">
           <PageRail
             hidden={false}
+            logo={{ variant: "production", href: "/" }}
             current={railPage()}
             usageRows={usageRows()}
             onAgents={() => showSidebarView("agents")}

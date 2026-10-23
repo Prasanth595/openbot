@@ -50,6 +50,7 @@ export const messages = {
   "app.standingApproval.title": "{name} を常に許可しますか？",
   "app.standingApproval.titleUnnamed": "このエージェントを常に許可しますか？",
   "app.rail.label": "ページ",
+  "app.rail.website": "OpenBot のウェブサイト",
   "app.rail.agents": "エージェント",
   "app.rail.schedule": "スケジュール",
   "app.rail.tasks": "タスク",

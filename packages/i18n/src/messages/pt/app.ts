@@ -49,6 +49,7 @@ export const messages = {
   "app.standingApproval.title": "Sempre permitir {name}?",
   "app.standingApproval.titleUnnamed": "Sempre permitir este agente?",
   "app.rail.label": "Páginas",
+  "app.rail.website": "Site do OpenBot",
   "app.rail.agents": "Agentes",
   "app.rail.schedule": "Agenda",
   "app.rail.tasks": "Tarefas",

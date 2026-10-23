@@ -37,6 +37,16 @@
   }
 }
 
+/* With the logo in the rail instead of the window buttons, the server menu starts at the left edge
+ * of the search field and the rows below it, at all widths. The web frame has the macOS class but
+ * no buttons. */
+.app-window
+  > :is(.web-app-frame, .app-frame:not(.app-frame-platform-darwin)):not(.app-frame-with-server-rail)
+  > .sidebar:not(.sidebar-compact)
+  .sidebar-topbar {
+  padding-left: var(--openbot-space-3);
+}
+
 @media (min-width: 721px) {
   /* The top row holds a short line at the end of the sidebar. */
   .app-window > .app-frame-edge > .sidebar:not(.sidebar-compact) .sidebar-topbar {
