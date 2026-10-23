@@ -1325,6 +1325,10 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     return this.#providers.status();
   }
 
+  getProviderAccountKind(provider: AgentProvider): { type: string; planType: string | null } | null {
+    return this.#providers.accountKind(provider);
+  }
+
   getAnalytics(input: AgentAnalyticsInput) {
     if (!this.listAgents().some((agent) => agent.id === input.agentId))
       throw new Error(sourceText("error.team.agentNotFound"));

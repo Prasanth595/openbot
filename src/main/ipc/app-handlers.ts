@@ -19,6 +19,7 @@ import type { MailboxStore } from "../../backend/mailbox-store";
 import type { AgentMemoryLimitSetting } from "../agent-memory-limit-preference-store";
 import { readAnalyticsPreference, writeAnalyticsPreference } from "../analytics-preference-store";
 import type { AppBehaviorService } from "../app-behavior-service";
+import type { AppearanceService } from "../appearance-service";
 import type { ApprovalAutomation } from "../approval-automation-store";
 import type { BusyMessageModePreferenceStore } from "../busy-message-mode-preference-store";
 import type { InterfaceSizeService } from "../interface-size-service";
@@ -34,6 +35,7 @@ import { readSetupState, writeSetupState } from "../setup-store";
 import type { UpdateService } from "../update-service";
 import {
   parseAnalyticsPreference,
+  parseAppAppearancePreference,
   parseAppBehaviorPreferenceChange,
   parseAppInterfaceSizePreference,
   parseAppLanguagePreference,
@@ -98,6 +100,7 @@ export interface AppIpcDependencies {
   appBehavior: AppBehaviorService;
   language: LanguageService;
   logoColor: LogoColorService;
+  appearance: AppearanceService;
   interfaceSize: InterfaceSizeService;
   initializeAgent: () => Promise<void>;
   appVariant: AppVariant;
@@ -125,6 +128,7 @@ export function appIpcHandlers({
   appBehavior,
   language,
   logoColor,
+  appearance,
   interfaceSize,
   initializeAgent,
   appVariant,
@@ -204,6 +208,10 @@ export function appIpcHandlers({
       getAppLogoColorPreference: handler(() => logoColor.preference),
       setAppLogoColorPreference: payloadHandler(parseAppLogoColorPreference, (parsed) =>
         runCauseEffect(logoColor.set(parsed)),
+      ),
+      getAppAppearancePreference: handler(() => appearance.preference),
+      setAppAppearancePreference: payloadHandler(parseAppAppearancePreference, (parsed) =>
+        runCauseEffect(appearance.set(parsed)),
       ),
       getAppInterfaceSizePreference: handler(() => interfaceSize.preference),
       setAppInterfaceSizePreference: payloadHandler(parseAppInterfaceSizePreference, (parsed) =>

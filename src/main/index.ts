@@ -114,6 +114,7 @@ import { trustSystemCertificates } from "./system-certificates";
 import { TeardownRegistry } from "./teardown-registry";
 import type { TraceFile } from "./trace-file";
 import { setIpcCallObserver } from "./trusted-ipc";
+import { setWindowAppearance } from "./window-appearance";
 
 const logger = createOpenBotLogger("main");
 
@@ -520,6 +521,7 @@ function registerIpcHandlers({
   agentHostSettings,
   language,
   logoColor,
+  appearance,
   interfaceSize,
   notificationPreference,
   busyMessageMode,
@@ -594,6 +596,7 @@ function registerIpcHandlers({
       appBehavior,
       language,
       logoColor,
+      appearance,
       interfaceSize,
       initializeAgent: () => runCauseEffect(agentInitialization.start()),
       appVariant,
@@ -1076,6 +1079,7 @@ if (!hasSingleInstanceLock) {
         teamStore,
         language,
         logoColor,
+        appearance,
         interfaceSize,
         trace,
         appBehavior,
@@ -1220,6 +1224,13 @@ if (!hasSingleInstanceLock) {
         applyAppIconColor(preference.color);
         for (const window of BrowserWindow.getAllWindows()) {
           sendToRenderer(window, IPC_ENDPOINTS.app.appLogoColorPreference, preference);
+        }
+      });
+      setWindowAppearance(appearance.preference.appearance);
+      appearance.subscribe((preference) => {
+        setWindowAppearance(preference.appearance);
+        for (const window of BrowserWindow.getAllWindows()) {
+          sendToRenderer(window, IPC_ENDPOINTS.app.appAppearancePreference, preference);
         }
       });
       interfaceSize.subscribe((preference) => {

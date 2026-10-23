@@ -50,6 +50,7 @@ export const messages = {
   "app.standingApproval.title": "Consentire sempre {name}?",
   "app.standingApproval.titleUnnamed": "Consentire sempre questo agente?",
   "app.rail.label": "Pagine",
+  "app.rail.website": "Sito web di OpenBot",
   "app.rail.agents": "Agenti",
   "app.rail.schedule": "Pianificazione",
   "app.rail.tasks": "Attività",

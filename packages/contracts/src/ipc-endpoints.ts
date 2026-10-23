@@ -27,6 +27,7 @@ import type {
 // for the checker, and the runtime value is still `{ kind, channel }`.
 
 import type { ManagedProviderId } from "./agent-providers";
+import type { AppAppearancePreference, SetAppAppearancePreferenceInput } from "./app-appearance";
 import type { AppInterfaceSizePreference, SetAppInterfaceSizePreferenceInput } from "./app-interface-size";
 import type { AppLanguagePreference, SetAppLanguagePreferenceInput } from "./app-language";
 import type { AppLogoColorPreference, SetAppLogoColorPreferenceInput } from "./app-logo-color";
@@ -598,6 +599,12 @@ export const IPC_ENDPOINTS = {
     // Every window draws the logo, and the Dynamic Island has no Settings of its own, so the choice
     // is broadcast in the same way as the language.
     appLogoColorPreference: event<AppLogoColorPreference>()("app:logo-color-preference"),
+    getAppAppearancePreference: request<undefined, AppAppearancePreference>()("app:get-appearance-preference"),
+    setAppAppearancePreference: request<SetAppAppearancePreferenceInput, AppAppearancePreference>()(
+      "app:set-appearance-preference",
+    ),
+    // Sent to every window, because each window applies the choice to its own page.
+    appAppearancePreference: event<AppAppearancePreference>()("app:appearance-preference"),
     getAppInterfaceSizePreference: request<undefined, AppInterfaceSizePreference>()(
       "app:get-interface-size-preference",
     ),

@@ -6,14 +6,17 @@ import type { OpenBotDesktopApi } from "@openbot/contracts/ipc";
  */
 export interface AppPort {
   getAppInfo: OpenBotDesktopApi["getAppInfo"];
+  getAppAppearancePreference: OpenBotDesktopApi["getAppAppearancePreference"];
   getAppInterfaceSizePreference: OpenBotDesktopApi["getAppInterfaceSizePreference"];
   getAppLanguagePreference: OpenBotDesktopApi["getAppLanguagePreference"];
   getAppLogoColorPreference: OpenBotDesktopApi["getAppLogoColorPreference"];
+  onAppAppearancePreference: OpenBotDesktopApi["onAppAppearancePreference"];
   onAppInterfaceSizePreference: OpenBotDesktopApi["onAppInterfaceSizePreference"];
   onAppLanguagePreference: OpenBotDesktopApi["onAppLanguagePreference"];
   onAppLogoColorPreference: OpenBotDesktopApi["onAppLogoColorPreference"];
   openExternal: OpenBotDesktopApi["openExternal"];
   openUrl: OpenBotDesktopApi["openUrl"];
+  setAppAppearancePreference: OpenBotDesktopApi["setAppAppearancePreference"];
   setAppInterfaceSizePreference: OpenBotDesktopApi["setAppInterfaceSizePreference"];
   setAppLanguagePreference: OpenBotDesktopApi["setAppLanguagePreference"];
   setAppLogoColorPreference: OpenBotDesktopApi["setAppLogoColorPreference"];

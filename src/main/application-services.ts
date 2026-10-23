@@ -130,7 +130,9 @@ import { HostAnalytics } from "./analytics";
 import { analyticsInventoryDayStore, collectAnalyticsInventory } from "./analytics-inventory";
 import { catalogPluginSlug, isReportedMcpServerName, loadCatalogPluginServers } from "./analytics-plugin-catalog";
 import { readAnalyticsPreference } from "./analytics-preference-store";
+import { providerAuthKind } from "./analytics-provider-auth";
 import { AppBehaviorService } from "./app-behavior-service";
+import { AppearanceService } from "./appearance-service";
 import { ApprovalAutomation, readApprovalAutomation } from "./approval-automation-store";
 import { AutomationServer } from "./automation-server";
 import { BillingDesktopService } from "./billing-service";
@@ -311,6 +313,7 @@ const ROUTINE_FEED_FILE = "openbot-routine-feed-v1.json";
 const LEGACY_APPROVAL_AUTOMATION_FILE = "openbot-approval-automation-v1.json";
 const LANGUAGE_PREFERENCE_FILE = "openbot-language-preference-v1.json";
 const LOGO_COLOR_PREFERENCE_FILE = "openbot-logo-color-preference-v1.json";
+const APPEARANCE_PREFERENCE_FILE = "openbot-appearance-preference-v1.json";
 const INTERFACE_SIZE_PREFERENCE_FILE = "openbot-interface-size-preference-v1.json";
 const UPDATE_PREFERENCE_FILE = "openbot-update-preference-v1.json";
 const NOTIFICATION_PREFERENCE_FILE = "openbot-notification-preference-v1.json";
@@ -506,6 +509,7 @@ export interface ApplicationServices {
   agentHostSettings: AgentHostSettingsService;
   language: LanguageService;
   logoColor: LogoColorService;
+  appearance: AppearanceService;
   interfaceSize: InterfaceSizeService;
   notificationPreference: NotificationPreferenceStore;
   busyMessageMode: BusyMessageModePreferenceStore;
@@ -1036,6 +1040,9 @@ export async function createApplicationServices({
   await runCauseEffect(language.load());
   const logoColor = new LogoColorService({ path: join(app.getPath("userData"), LOGO_COLOR_PREFERENCE_FILE) });
   await runCauseEffect(logoColor.load());
+  // Before the renderer loads, so the window background takes the saved colors.
+  const appearance = new AppearanceService({ path: join(app.getPath("userData"), APPEARANCE_PREFERENCE_FILE) });
+  await runCauseEffect(appearance.load());
   // Before the renderer loads, so its first navigation applies the saved size.
   const interfaceSize = new InterfaceSizeService({
     path: join(app.getPath("userData"), INTERFACE_SIZE_PREFERENCE_FILE),
@@ -2306,6 +2313,13 @@ export async function createApplicationServices({
         : null;
     },
     resolveAgent: (agentId) => service.listAgents().find((agent) => agent.id === agentId) ?? null,
+    resolveProviderAuth: (agent) =>
+      providerAuthKind(agent, {
+        account: (provider) => service.getProviderAccountKind(provider),
+        hasApiKey: (provider) => providerCredentials.status(provider) === "saved",
+        customProviderIds: () => customProviders.list().map((provider) => provider.id),
+        envKey: (name) => Boolean(process.env[name]?.trim()),
+      }),
     resolveTurnUsage: (agentId, turnId, since) => service.getTurnUsage(agentId, turnId, since),
     resolveMcpServer: (name) => {
       const configs = service.listMcpServers().filter((server) => isReportedMcpServerName(server.name, name));
@@ -2770,6 +2784,7 @@ export async function createApplicationServices({
     agentHostSettings,
     language,
     logoColor,
+    appearance,
     interfaceSize,
     notificationPreference,
     busyMessageMode,

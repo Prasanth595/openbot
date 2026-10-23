@@ -26,6 +26,7 @@ import type {
   ReplaceHostedSiteInput,
   SaveSetupInput,
   SetAnalyticsPreferenceInput,
+  SetAppAppearancePreferenceInput,
   SetAppInterfaceSizePreferenceInput,
   SetAppLanguagePreferenceInput,
   SetAppLogoColorPreferenceInput,
@@ -42,6 +43,7 @@ import {
   isAgentMemoryLimit,
   isAgentModel,
   isAgentProvider,
+  isAppAppearance,
   isAppInterfaceSize,
   isAppLanguage,
   isAppLogoColor,
@@ -118,6 +120,11 @@ export function parseAppLanguagePreference(input: unknown): SetAppLanguagePrefer
 export function parseAppLogoColorPreference(input: unknown): SetAppLogoColorPreferenceInput {
   if (!isDynamicRecord(input) || !isAppLogoColor(input.color)) throw new Error("Logo color is required.");
   return { color: input.color };
+}
+
+export function parseAppAppearancePreference(input: unknown): SetAppAppearancePreferenceInput {
+  if (!isDynamicRecord(input) || !isAppAppearance(input.appearance)) throw new Error("Appearance is required.");
+  return { appearance: input.appearance };
 }
 
 export function parseAppInterfaceSizePreference(input: unknown): SetAppInterfaceSizePreferenceInput {

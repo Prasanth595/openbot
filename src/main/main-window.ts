@@ -56,6 +56,10 @@ import type { RemoteWorkflowError } from "./remote-service-effects";
 import { sendToRenderer } from "./renderer-ipc";
 import { isTrustedRendererUrl } from "./trusted-renderer";
 import type { UpdateService } from "./update-service";
+import { followAppearance, windowBackgroundColor } from "./window-appearance";
+
+/** The dark background of the main and setup windows, under the page's own canvas. */
+const MAIN_WINDOW_DARK_BACKGROUND = "#0b0d0e";
 
 /**
  * What the window surface reads off the running application. Deliberately narrower than
@@ -150,7 +154,7 @@ export function createMainWindowController({
       minWidth: 960,
       minHeight: 640,
       show: false,
-      backgroundColor: "#0b0d0e",
+      backgroundColor: windowBackgroundColor(MAIN_WINDOW_DARK_BACKGROUND),
       title:
         developmentProfile === "test-client"
           ? getTranslate()("window.localClientTitle")
@@ -175,6 +179,7 @@ export function createMainWindowController({
         webSecurity: true,
       },
     });
+    followAppearance(window, MAIN_WINDOW_DARK_BACKGROUND);
 
     window.once("ready-to-show", () => {
       performance.mark("openbot:window-ready");
@@ -489,7 +494,7 @@ export function createComputerUsePermissionHelpWindow(translate: AppTranslate): 
     fullscreenable: false,
     skipTaskbar: true,
     alwaysOnTop: true,
-    backgroundColor: "#0b0d0e",
+    backgroundColor: windowBackgroundColor(MAIN_WINDOW_DARK_BACKGROUND),
     title: translate("window.computerUsePermissionTitle"),
     ...(process.platform === "darwin"
       ? { titleBarStyle: "hiddenInset" as const, trafficLightPosition: { x: 12, y: 13 } }
@@ -506,6 +511,7 @@ export function createComputerUsePermissionHelpWindow(translate: AppTranslate): 
   // Over System Settings, which opens in front of everything: a window the pane covers would carry
   // the steps to nobody.
   window.setAlwaysOnTop(true, "floating");
+  followAppearance(window, MAIN_WINDOW_DARK_BACKGROUND);
   // The fixed height fits the contents only at 100%; the main window zoom would clip the steps.
   window.webContents.setZoomMode("isolated");
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
