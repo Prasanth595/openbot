@@ -44,6 +44,7 @@ import {
 } from "../speech/speech-replies";
 import { groupedMessageIds } from "./agent-message-timeline";
 import { continuesSenderRun } from "./chat-grouping";
+import { isChatVisualAppShortcut } from "./chat-visual-shortcuts";
 import { chatVisualPageUrl } from "./chat-visual-url";
 import { conversationRuntime } from "./conversation-runtime";
 import { useConversationViewScope } from "./conversation-scope";
@@ -161,6 +162,8 @@ export function ConversationTimeline() {
     replyJump,
     respondToBrowserTakeover,
     replyToMessage,
+    replyFromPage,
+    setPageContext,
     retryPendingSend,
     scheduleUnreadDividerVisibilityUpdate,
     setChatSearchQuery,
@@ -962,6 +965,11 @@ export function ConversationTimeline() {
                             title={(message() ?? initialMessage).body}
                             height={visual().height}
                             onOpenLink={(url) => void openExternalMessageUrl(url)}
+                            onMessage={(text) => replyFromPage(message() ?? initialMessage, text)}
+                            onContext={(text) =>
+                              setPageContext((message() ?? initialMessage).id, (message() ?? initialMessage).body, text)
+                            }
+                            isAppShortcut={isChatVisualAppShortcut}
                           />
                         </article>
                       </ChatRowBoundary>

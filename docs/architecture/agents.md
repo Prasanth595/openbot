@@ -419,7 +419,17 @@ the page on `openbot-visual:` (`openbot-remote-visual:` for a remote host) with
 `Content-Security-Policy: sandbox allow-scripts allow-forms` and the frame script, and the frame has
 the same sandbox without `allow-same-origin`. The page runs its scripts and can load files from the
 network, but it has an opaque origin, gets no permission, and talks to the app only with the checked
-MCP Apps messages for its height, its theme and a link that the user clicked. Mobile shows the
+messages of `parseChatVisualMessage`: its height, its theme, its display mode, a link, a message, its
+context, an image and an app shortcut. The frame script gives the page `window.openbotPage`
+(`sendMessage`, `setContext`, `requestFullscreen`, `exitFullscreen`, `displayMode`) over the MCP Apps
+methods `ui/message`, `ui/update-model-context` and `ui/request-display-mode`. A link, a message, an
+image, full screen and a shortcut need the frame to have the focus and the user's activation, so a page
+acts only after a click or a key in it. A message goes into the composer as a reply to the visual
+message, and the user sends it. The context shows in the composer as a removable chip; it stays in
+renderer memory per chat and the next send puts it first as a quote tag. Full screen puts the frame's
+box in the top layer with the Popover API, so the frame does not load again; it exits before the app
+opens a dialog for the page. Only the renderer's allowlist of shortcuts (`chat-visual-shortcuts.ts`)
+leaves the page, as a key event on the frame element. Mobile shows the
 page as its file and does not run it: in react-native-webview, a script in any frame can reach the
 bridge to the app. `html_preview` lets the agent look at a page before it publishes it: the main
 process draws it in a hidden window with its own in-memory session (`ChatVisualPreviewer`)

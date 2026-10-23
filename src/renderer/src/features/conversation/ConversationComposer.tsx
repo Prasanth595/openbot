@@ -92,6 +92,8 @@ export function ConversationComposer() {
     removeAttachment,
     reorderPresentedQueue,
     replyTarget,
+    currentPageContext,
+    removePageContext,
     setComposerFocusRequest,
     setAttachmentPickerElement,
     setShowComposerActions,
@@ -444,6 +446,29 @@ export function ConversationComposer() {
                 aria-label={t("composer.reply.cancel")}
                 disabled={voicePhase() === "transcribing"}
                 onClick={() => updateCurrentDraft({ replyToMessageId: null })}
+              >
+                <CloseIcon />
+              </Button>
+            </div>
+          )}
+        </Show>
+        <Show when={currentPageContext()}>
+          {(context) => (
+            <div class="composer-reply-preview">
+              <div>
+                <span>{t("chat.visual.pageContext", { title: context().title })}</span>
+                {/* Plain text: page text is not Markdown, so it cannot load an image in the app. */}
+                <div class="message-reply-quote" inert>
+                  <div class="message-markdown">
+                    <p>{context().text}</p>
+                  </div>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                type="button"
+                aria-label={t("chat.visual.removePageContext", { title: context().title })}
+                onClick={removePageContext}
               >
                 <CloseIcon />
               </Button>

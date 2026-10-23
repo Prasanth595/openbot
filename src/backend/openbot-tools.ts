@@ -67,6 +67,13 @@ const VISUAL_PAGE_RULES = [
   "OpenBot sets these CSS variables on :root from the app theme, which is dark on the desktop: --background (transparent), --foreground, --muted-foreground, --muted, --card, --card-foreground, --border, --accent, --destructive, --success, --chart-1 to --chart-6, --radius, --font-sans, --font-mono. The base style sets the body font and color from them.",
 ].join(" ");
 
+/** What an `html_render` page can ask of the app. The names match `window.openbotPage` in the frame bootstrap. */
+const VISUAL_PAGE_ACTIONS = [
+  "A page can answer you. For a choice, a form or a game, call openbotPage.sendMessage(text) from a click: OpenBot puts the text in the user's message box as a reply to the page, and the user sends it. It does nothing without a click.",
+  "Call openbotPage.setContext(text) with the current state that you must read with the user's next message, up to 2000 characters; the latest call replaces the one before, and empty text removes it. The user sees it and can remove it.",
+  "A click on an image opens it large. openbotPage.requestFullscreen() from a click shows the page in a large view, and openbotPage.exitFullscreen() goes back; openbotPage.displayMode is 'inline' or 'fullscreen'. In the mobile app the page runs no scripts, so these calls do nothing there.",
+].join(" ");
+
 export const htmlRenderToolSchema = z.object({
   html: z.string().min(1).max(CHAT_VISUAL_HTML_LIMIT).describe("A complete, self-contained HTML document."),
   title: z.string().trim().min(1).max(CHAT_VISUAL_TITLE_LIMIT).describe("A short name for the page."),
@@ -328,7 +335,7 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
   },
   {
     name: "html_render",
-    description: `Show a finished HTML page (chart, table, diagram, collage, mockup) in this conversation, above your final text reply; call it before you write that reply. The user already sees the page, so the reply must not announce it or restate it: add only what the page does not say. In a channel, each member who reads the channel sees it. OpenBot fits the frame to the page height. A height lower than the page caps the frame, and the rest scrolls in it. ${VISUAL_PAGE_RULES}`,
+    description: `Show a finished HTML page (chart, table, diagram, collage, mockup) in this conversation, above your final text reply; call it before you write that reply. The user already sees the page, so the reply must not announce it or restate it: add only what the page does not say. In a channel, each member who reads the channel sees it. OpenBot fits the frame to the page height. A height lower than the page caps the frame, and the rest scrolls in it. ${VISUAL_PAGE_RULES} ${VISUAL_PAGE_ACTIONS}`,
     shape: htmlRenderToolSchema.shape,
   },
   {

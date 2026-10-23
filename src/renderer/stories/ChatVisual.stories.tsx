@@ -14,6 +14,7 @@ import {
   COMPARISON_MOCKUP,
   IMAGE_COLLAGE,
   INLINE_SVG_CHART,
+  INTERACTIVE_CHOICE,
   LINK_OUT,
   publishChatVisualPage,
   TALL_PAGE,
@@ -35,6 +36,8 @@ interface StageProps {
   /** A page that the app is still getting, or that it cannot get. */
   state?: "loading" | "failed" | undefined;
   onOpenLink: (url: string) => void;
+  onMessage?: ((text: string) => void) | undefined;
+  onContext?: ((text: string) => void) | undefined;
 }
 
 /** The page from the Storybook server. A page that the server did not keep shows as failed. */
@@ -63,6 +66,8 @@ function VisualStage(props: StageProps) {
       title={props.title}
       height={props.height}
       onOpenLink={props.onOpenLink}
+      onMessage={props.onMessage}
+      onContext={props.onContext}
     />
   );
 }
@@ -70,7 +75,7 @@ function VisualStage(props: StageProps) {
 const meta = {
   title: "Conversation/ChatVisual",
   component: VisualStage,
-  args: { html: INLINE_SVG_CHART, title: "Agent runs per day", onOpenLink: fn() },
+  args: { html: INLINE_SVG_CHART, title: "Agent runs per day", onOpenLink: fn(), onMessage: fn(), onContext: fn() },
   argTypes: { html: { control: false } },
   parameters: { layout: "fullscreen" },
   render: (args) => (
@@ -114,6 +119,15 @@ export const AgentHeightLimit: Story = {
 /** Screenshots that the app put into the page as data URLs when the agent published it. */
 export const ImageCollage: Story = {
   args: { html: IMAGE_COLLAGE, title: "Screenshots" },
+};
+
+/**
+ * A page that answers the agent. A pick calls `onMessage`, and the count calls `onContext`. The
+ * expand button or the page's own button shows it full screen, and the count stays. A click on the
+ * chart image opens it in the image viewer.
+ */
+export const InteractiveChoice: Story = {
+  args: { html: INTERACTIVE_CHOICE, title: "Pick a plan" },
 };
 
 /** While the app gets the page, the box keeps the agent's height and shows nothing. */
