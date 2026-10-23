@@ -57,6 +57,11 @@ export const messages = {
   "mobile.chat.preview.wrapLines": "Retour à la ligne",
   "mobile.chat.preview.selectHint": "Touchez longuement pour sélectionner une partie du code.",
   "mobile.chat.preview.share": "Partager",
+  "mobile.chat.preview.truncated": "Aperçu tronqué après {limit} caractères.",
+  "mobile.chat.preview.pdfFailed": "Impossible d’afficher ce PDF.",
+  "mobile.chat.preview.spreadsheetFailed": "Impossible de lire cette feuille de calcul.",
+  "mobile.chat.preview.spreadsheetTruncated":
+    "Aperçu limité aux {rows} premières lignes et aux {columns} premières colonnes.",
   "mobile.chat.copyFailedMessage": "Veuillez réessayer.",
   "mobile.chat.message.copyFailed": "Impossible de copier le message",
   "mobile.chat.question.answerCancelled": "Annulé",

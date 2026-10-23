@@ -402,7 +402,6 @@
     "@openbot/user-errors": "workspace:*",
     "@norbert_bodziony/bloub": "catalog:",
     "@speed-highlight/core": "catalog:",
-    "fflate": "catalog:",
     "katex": "catalog:",
     "marked": "catalog:",
     "mermaid": "catalog:",

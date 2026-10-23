@@ -606,6 +606,7 @@ const MessageRow = memo(function MessageRow({
               alignment={message.author === "user" ? "right" : "left"}
               upload={upload ? uploadProgressAt(index, upload.completed, upload.current) : undefined}
               tint={shared.attachmentTint}
+              visual={message.visual}
             />
           ),
         )}

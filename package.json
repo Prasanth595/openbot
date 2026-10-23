@@ -57,6 +57,7 @@
       "katex": "0.18.9",
       "marked": "18.0.10",
       "mermaid": "12.1.0",
+      "pdfjs-dist": "6.4.299",
       "tailwindcss": "4.3.3",
       "typescript": "7.0.2",
       "vite": "7.3.6",

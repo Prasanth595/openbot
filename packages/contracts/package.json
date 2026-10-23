@@ -55,6 +55,7 @@
     "./signal-protocol/ticket": "./src/signal-protocol/ticket.ts",
     "./signal-protocol/webhook-route": "./src/signal-protocol/webhook-route.ts",
     "./slack-app": "./src/slack-app.ts",
+    "./spreadsheet-workbook": "./src/spreadsheet-workbook.ts",
     "./slack-workspace-grant": "./src/slack-workspace-grant.ts",
     "./web-messaging-install": "./src/web-messaging-install.ts",
     "./telegram-app": "./src/telegram-app.ts",
@@ -161,6 +162,7 @@
   },
   "dependencies": {
     "emoji-regex": "10.6.0",
+    "fflate": "catalog:",
     "marked": "catalog:"
   },
   "devDependencies": {
