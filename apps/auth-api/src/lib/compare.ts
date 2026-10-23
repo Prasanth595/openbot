@@ -21,6 +21,15 @@ export const COMPARE_COLLECTION: ContentCollection<"compare"> = {
   imageEyebrow: "OPENBOT · COMPARE",
   articles: publishedFirst([
     {
+      slug: "paperclip",
+      title: "OpenBot vs Paperclip: An App, Not a Server to Set Up",
+      description:
+        "OpenBot vs Paperclip: a desktop app with iPhone and Android apps and no VPN, or a Node.js server with an org chart and budgets. Setup, phones, price and license.",
+      publishedAt: "2026-10-23",
+      updatedAt: "2026-10-23",
+      author: NEWS_AUTHOR,
+    },
+    {
       slug: "instinct",
       title: "OpenBot vs Instinct: A Private, Local Alternative",
       description:
