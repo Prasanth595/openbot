@@ -144,7 +144,7 @@ export function UiConfirmBlock(props: UiConfirmBlockProps) {
       </Show>
       <Show when={props.spec.preview}>
         {(preview) => (
-          <section class="ui-block-preview" aria-label={t("uiBlock.confirm.previewLabel")}>
+          <section class="ui-block-preview" aria-label={t("uiBlock.confirm.previewLabel")} tabindex="0">
             <Show when={props.renderPreview} fallback={<p class="ui-block-preview-text">{preview()}</p>}>
               {(render) => render()(preview())}
             </Show>
