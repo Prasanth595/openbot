@@ -118,9 +118,12 @@ function PreviewContent({ entry }: { entry: CodePreviewEntry }) {
             : entry.kind === "spreadsheet"
               ? Sheet
               : FileText;
-  const truncatedNote = entry.truncated
-    ? t("mobile.chat.preview.truncated", { limit: format.number(PREVIEW_TEXT_LIMIT) })
-    : null;
+  // An HTML page keeps its whole source for the page view; the code view shows only the first part.
+  const codeText = entry.source.slice(0, PREVIEW_TEXT_LIMIT);
+  const truncatedNote =
+    entry.truncated || codeText.length < entry.source.length
+      ? t("mobile.chat.preview.truncated", { limit: format.number(PREVIEW_TEXT_LIMIT) })
+      : null;
   const file = entry.file;
 
   const select = (next: PreviewView) => {
@@ -214,7 +217,7 @@ function PreviewContent({ entry }: { entry: CodePreviewEntry }) {
       {documentFile ? null : (
         <SwitchLayer shown={view === "code"} reducedMotion={reducedMotion}>
           <CodeDocument
-            text={entry.source}
+            text={codeText}
             language={entry.language}
             title={headerTitle}
             wrap={wrap}
