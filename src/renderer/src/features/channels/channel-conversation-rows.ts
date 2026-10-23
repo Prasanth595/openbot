@@ -16,7 +16,7 @@ import {
 } from "@openbot/contracts/ipc";
 import type { AgentMessage, AgentProfile } from "@openbot/ui/data";
 import type { ChannelWorker } from "@openbot/ui/features/channels/ChannelActivityIndicator";
-import { toAgentMessage } from "../../app-message-projection";
+import { toAgentMessage, toAgentMessages } from "../../app-message-projection";
 
 /** A row with no text, no attachment and no question has nothing to draw. */
 export function channelMessageHasContent(entry: ChannelMessage): boolean {
@@ -46,6 +46,27 @@ export function channelConversationMessage(entry: ChannelMessage): AgentMessage 
 }
 
 /**
+ * The rows of a channel page. The thinking and narration of a member's turn fold into one thinking
+ * row, as in an agent chat, and that row names the member. Without this a model that streams its
+ * whole reasoning (DeepSeek through OpenCode) showed it as a long message of its own.
+ */
+export function channelConversationRows(entries: readonly ChannelMessage[]): AgentMessage[] {
+  const byId = new Map(entries.map((entry) => [entry.id, entry] as const));
+  return toAgentMessages(
+    entries.map((entry) => ({ ...entry.message, id: entry.id })),
+    undefined,
+    (message, index) => {
+      const entry = entries[index];
+      return entry ? channelConversationMessage(entry) : toAgentMessage(message);
+    },
+  ).map((row) => {
+    if (row.kind !== "thinking") return row;
+    const author = byId.get(row.itemIds?.[0] ?? "")?.author;
+    return author ? { ...row, senderAgentId: author.id } : row;
+  });
+}
+
+/**
  * The row the unread divider stands on, or `null` when the reader has seen everything.
  *
  * The count comes from the channel list, and it leaves out what the reader wrote, activity rows,
@@ -64,8 +85,9 @@ export function firstUnreadChannelMessageId(
     if (!message) continue;
     const own = message.author === "you" && (!message.senderMember || isOwnSender(message.senderMember.id));
     if (own || message.actionMarker || message.kind === "plan" || message.itemType === "subagents") continue;
-    remaining -= 1;
-    if (remaining === 0) return message.id;
+    // The count has one message for each item that a thinking row folds.
+    remaining -= message.kind === "thinking" ? (message.items?.length ?? 1) : 1;
+    if (remaining <= 0) return message.id;
   }
   return messages[0]?.id ?? null;
 }

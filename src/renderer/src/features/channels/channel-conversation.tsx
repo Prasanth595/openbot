@@ -29,7 +29,7 @@ import {
   activeChannelRuns,
   channelApproval,
   channelBrowserTakeover,
-  channelConversationMessage,
+  channelConversationRows,
   channelMessageHasContent,
   channelWorkers,
   firstUnreadChannelMessageId,
@@ -78,8 +78,7 @@ export function createChannelConversation(env: ChannelConversationEnvironment) {
     const current = page();
     if (!current) return [];
     const next = new Map<string, AgentMessage>();
-    const rows = current.messages.filter(channelMessageHasContent).map((entry) => {
-      const mapped = channelConversationMessage(entry);
+    const rows = channelConversationRows(current.messages.filter(channelMessageHasContent)).map((mapped) => {
       const known = rowsById.get(mapped.id);
       const row = known && agentMessagesEqual(known, mapped) ? known : mapped;
       next.set(row.id, row);
