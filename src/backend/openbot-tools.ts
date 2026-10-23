@@ -1,4 +1,5 @@
 import {
+  CHAT_VISUAL_CONTEXT_LIMIT,
   CHAT_VISUAL_HTML_LIMIT,
   CHAT_VISUAL_MAX_HEIGHT,
   CHAT_VISUAL_MIN_HEIGHT,
@@ -61,7 +62,7 @@ interface OpenBotToolDefinition {
 /** The page rules for `html_render` and `html_preview`. The names match the variables that `ChatVisual` sends. */
 const VISUAL_PAGE_RULES = [
   "Write one self-contained HTML document with inline <style> and <script>. Remote http(s) files, such as a chart library from a CDN, load as they are; local file paths do not load.",
-  "The page runs in a sandbox: it cannot use cookies, storage, pop-up windows or the OpenBot app. A click on an http(s) link opens the link in the user's browser.",
+  "The page runs in a sandbox: it cannot use cookies, storage or pop-up windows. A click on an http(s) link opens the link in the user's browser.",
   "The frame has no border and sits on the chat background, as wide as the reply column (about 360px on phones). Leave html and body with no background, use a fluid width and no outer card or banner title: the page is part of your reply.",
   "Give charts fixed pixel heights. Let the content set the page height; do not use 100vh or height:100% on html or body. The frame cuts what is outside the page box, so highlight a box with its border, not an outline or an outer shadow.",
   "OpenBot sets these CSS variables on :root from the app theme, which is dark on the desktop: --background (transparent), --foreground, --muted-foreground, --muted, --card, --card-foreground, --border, --accent, --destructive, --success, --chart-1 to --chart-6, --radius, --font-sans, --font-mono. The base style sets the body font and color from them.",
@@ -69,9 +70,9 @@ const VISUAL_PAGE_RULES = [
 
 /** What an `html_render` page can ask of the app. The names match `window.openbotPage` in the frame bootstrap. */
 const VISUAL_PAGE_ACTIONS = [
-  "A page can answer you. For a choice, a form or a game, call openbotPage.sendMessage(text) from a click: OpenBot puts the text in the user's message box as a reply to the page, and the user sends it. It does nothing without a click.",
-  "Call openbotPage.setContext(text) with the current state that you must read with the user's next message, up to 2000 characters; the latest call replaces the one before, and empty text removes it. The user sees it and can remove it.",
-  "A click on an image opens it large. openbotPage.requestFullscreen() from a click shows the page in a large view, and openbotPage.exitFullscreen() goes back; openbotPage.displayMode is 'inline' or 'fullscreen'. In the mobile app the page runs no scripts, so these calls do nothing there.",
+  "For a choice, a form or a game, call openbotPage.sendMessage(text) from a click: OpenBot puts the text in the user's message box as a reply to the page, and the user sends it.",
+  `openbotPage.setContext(text) keeps the page state that you read with the user's next message, up to ${CHAT_VISUAL_CONTEXT_LIMIT} characters; the user sees it, and empty text removes it.`,
+  "OpenBot gives each page a full-screen button and opens a clicked image large, so do not build them. The mobile app runs no page scripts.",
 ].join(" ");
 
 export const htmlRenderToolSchema = z.object({
