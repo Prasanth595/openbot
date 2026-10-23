@@ -460,6 +460,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: bun run test:acp-flavors
 
+      - name: Run the ACP MCP server names E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:acp-mcp-names
+
       - name: Run the ACP instructions once E2E test
         if: ${{ !cancelled() }}
         run: bun run test:acp-instructions-once
@@ -503,6 +507,7 @@ jobs:
             .openbot-build/codex-login-path-e2e/
             .openbot-build/acp-additional-directories-e2e/
             .openbot-build/acp-flavor-e2e/
+            .openbot-build/acp-mcp-server-names-e2e/
             .openbot-build/acp-instructions-once-e2e/
             .openbot-build/muse-instructions-once-e2e/
             .openbot-build/provider-conformance-e2e/

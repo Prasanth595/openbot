@@ -28,6 +28,7 @@ import { CodexAppServerClient } from "./../app-server-client";
 import { type AgentCliInfo, type BundledProviderExecutables, CodexCliError, cliPathEnvironment } from "./../cli";
 import { causeHelpers } from "../effect-boundary";
 import { McpHandoffLog } from "./../mcp-handoff-log";
+import { providerMcpServerName } from "./../mcp-provider-shapes";
 import { openCodeSignInMessage } from "./../opencode-config";
 import { readOpenCodeGoUsage } from "./../opencode-usage";
 import type { ProcessConfinement } from "../process-confinement";
@@ -3041,7 +3042,7 @@ export class ProviderRuntime implements ProviderPort {
         return;
       }
       const names = new Set([
-        ...this.#credentials.mcpServers().map((config) => config.name),
+        ...this.#credentials.mcpServers().flatMap((config) => [config.name, providerMcpServerName(config.name)]),
         ...this.#mcpHandoff.names(),
       ]);
       if (isMcpSubsystemDiagnostic(message, [...names])) {

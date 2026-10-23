@@ -484,6 +484,11 @@ export function claudeMcpServers(servers: readonly UsableMcpServer[]): McpHandof
  * in the provider's own. A server told to open `./data.db` would otherwise pass its test and then
  * create a second, empty database beside the agent's workspace. The form says so before the save,
  * the row says so afterwards, and the hand-off reports it as a drop.
+ *
+ * **Names travel as `providerMcpServerName`.** Antigravity refuses `session/new` with `invalid
+ * params` when one name has a space, so a server the user named "My Server" failed every Gemini
+ * task (#2801). Two names that become the same, or a changed name that becomes one of OpenBot's own,
+ * keep the first; the second is reported as a drop.
  */
 export type AcpMcpServer =
   | { name: string; command: string; args: string[]; env: Array<{ name: string; value: string }> }
@@ -498,6 +503,11 @@ export function acpMcpServers(servers: readonly UsableMcpServer[]): McpHandoff<A
       continue;
     }
     const { config } = server;
+    const name = providerMcpServerName(config.name);
+    if (entries.some((entry) => entry.name === name) || (name !== config.name && isReservedMcpServerName(name))) {
+      dropped.push({ name: config.name, reason: "name_conflict", detail: NAME_CONFLICT });
+      continue;
+    }
     if (config.transport === "stdio") {
       if (config.workingDirectory) {
         dropped.push({
@@ -508,7 +518,7 @@ export function acpMcpServers(servers: readonly UsableMcpServer[]): McpHandoff<A
         continue;
       }
       entries.push({
-        name: config.name,
+        name,
         command: server.command,
         args: [...config.args],
         env: Object.entries(mcpLaunchEnvironment(server)).map(([name, value]) => ({ name, value })),
@@ -516,7 +526,7 @@ export function acpMcpServers(servers: readonly UsableMcpServer[]): McpHandoff<A
     } else {
       entries.push({
         type: "http",
-        name: config.name,
+        name,
         url: server.url,
         headers: Object.entries(mcpHandoffHeaders(server)).map(([name, value]) => ({ name, value })),
       });
@@ -540,7 +550,7 @@ export function acpMcpServers(servers: readonly UsableMcpServer[]): McpHandoff<A
  * app-server: an entry with an invalid credential is listed as failed with the server's own 401,
  * which is the handshake reaching the server rather than the shape being dropped.
  *
- * **Names travel as `codexMcpServerName`.** Codex does not start a server whose name does not match
+ * **Names travel as `providerMcpServerName`.** Codex does not start a server whose name does not match
  * `^[a-zA-Z0-9_-]+$`, and it tells no one. A server the user named "Home Assistant" passed its test
  * and gave a Codex agent no tools. Two names that become the same key keep the first; the second is
  * reported as a drop.
@@ -601,8 +611,8 @@ export interface CodexDisabledMcpServer {
   tools?: DynamicRecord;
 }
 
-/** A server name in the form Codex accepts. Claude makes the same change by itself. */
-function codexMcpServerName(name: string): string {
+/** A server name in the form Codex and ACP agents accept. Claude makes the same change by itself. */
+export function providerMcpServerName(name: string): string {
   return name.replace(/[^A-Za-z0-9_-]/gu, "_");
 }
 
@@ -616,7 +626,7 @@ function codexMcpServerName(name: string): string {
  * Computer Use keeps its key: its tool consent and its instructions are found by that name.
  */
 export function codexMcpServerKey(config: McpServerConfig, own: CodexOwnTransports = {}): string {
-  const name = codexMcpServerName(config.name);
+  const name = providerMcpServerName(config.name);
   return config.id !== COMPUTER_USE_MCP_SERVER_ID && Object.hasOwn(own, name) && own[name] !== config.transport
     ? `openbot_${name}`
     : name;
@@ -630,7 +640,7 @@ function codexMcpServerKeyTaken(
   record: Readonly<Record<string, CodexMcpServer>>,
 ): boolean {
   if (Object.hasOwn(record, key)) return true;
-  if (key === codexMcpServerName(config.name)) return false;
+  if (key === providerMcpServerName(config.name)) return false;
   return Object.hasOwn(own, key) || isReservedMcpServerName(key);
 }
 
