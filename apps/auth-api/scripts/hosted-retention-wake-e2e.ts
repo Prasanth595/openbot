@@ -1,8 +1,9 @@
 // Runs the real account server hosted-server service on a migrated SQLite database, with a boat API
 // that starts and stops sandboxes. boat deletes the disk of a sandbox 14 days after its stop, so the
 // cron must start an idle server with no use for 10 days, and the idle rule must stop it again when no
-// client connects. One start goes in each tick, and a start that boat failed goes again later. A server
-// with less sleep, a disk that boat deleted, a due deletion, or a plan that ended must not start.
+// client connects. One start goes in each 10 minutes of cron time, and a start that boat failed goes
+// again later. A server with less sleep, a disk that boat deleted, a due deletion, or a plan that
+// ended must not start.
 //
 // Run: bun run test:hosted-retention-wake
 // It writes .openbot-build/hosted-retention-wake-e2e/report.json and exits non-zero on a failure.
@@ -147,16 +148,21 @@ async function run() {
     { result: first, row: reverted },
   );
 
-  const second = await tick(t0 + MINUTE);
+  // The test Worker runs the cron each minute, production each 5 minutes.
+  await tick(t0 + MINUTE);
+  await tick(t0 + 5 * MINUTE);
+  check("no keep-alive start until 10 minutes of cron time pass", resumes("due") === 0, calls);
+
+  const second = await tick(t0 + 10 * MINUTE);
   const woken = row("due");
-  check("the next tick starts the next idle server with no use for 10 days", resumes("due") === 1, calls);
+  check("the next slot starts the next idle server with no use for 10 days", resumes("due") === 1, calls);
   check("the tick counts the keep-alive start", second.retained === 1 && second.scheduled === 0, second);
   check(
     "the server runs with the stored reason schedule and keeps its next routine run",
     woken?.desired_state === "running" &&
       woken.observed_state === "waking" &&
       woken.last_wake_reason === "schedule" &&
-      woken.last_active_at === t0 + MINUTE &&
+      woken.last_active_at === t0 + 10 * MINUTE &&
       woken.next_run_at === nextRunAt,
     woken,
   );
@@ -172,14 +178,14 @@ async function run() {
   );
   check("a server with 9 days of sleep does not start", resumes("recent") === 0, calls);
 
-  await tick(t0 + 3 * MINUTE);
-  check("a later tick starts the server again after the boat fault", resumes("flaky") === 2, calls);
+  await tick(t0 + 20 * MINUTE);
+  check("a later slot starts the server again after the boat fault", resumes("flaky") === 2, calls);
   check("the started server is running", row("due")?.observed_state === "running", row("due"));
 
-  await tick(t0 + 15 * MINUTE);
+  await tick(t0 + 24 * MINUTE);
   check("the server does not stop before 15 minutes with no use", stops("due") === 0, calls);
 
-  await tick(t0 + 20 * MINUTE);
+  await tick(t0 + 40 * MINUTE);
   check(
     "with no client the idle rule stops the server, and boat saves the disk",
     stops("due") === 1 && row("due")?.desired_state === "idle",
@@ -191,7 +197,7 @@ async function run() {
     events,
   );
 
-  await tick(t0 + 23 * MINUTE);
+  await tick(t0 + 45 * MINUTE);
   const asleep = row("due");
   check(
     "the server sleeps again and is not started again",
@@ -201,7 +207,7 @@ async function run() {
 
   await tick(t0 + 9 * DAY);
   check("no second start before 10 days", resumes("due") === 1, calls);
-  await tick(t0 + 10 * DAY + 2 * MINUTE);
+  await tick(t0 + 10 * DAY + 10 * MINUTE);
   check("a second start after 10 more days", resumes("due") === 2, calls);
   check("a server whose plan ended never starts", resumes("ended") === 0, calls);
   check("a server whose disk is older than 14 days never starts", resumes("expired") === 0, calls);

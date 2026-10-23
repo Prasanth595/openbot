@@ -134,8 +134,10 @@ when a server is idle or boat stops a sandbox; and `error` and `deleted`. The Wo
    sends an email on day 11), and a resume then fails with `snapshot_data_expired`. Each stop saves
    a new disk. The cron starts an idle server whose last use (`last_active_at`) is 10 to 14 days
    ago and keeps its `next_run_at`. The start counts as use, so with no client the idle stop comes
-   15 to 25 minutes later and saves the disk again. It sends one such start in each tick, the oldest
-   change first: the test and production Workers share the boat start and sandbox limits. After a
+   15 to 25 minutes later and saves the disk again. It sends one such start in each 10 minutes of
+   cron time (a tick whose UTC minute is a multiple of 10, so at most 144 each day for each Worker
+   with a cron each 5 minutes or each minute), the oldest change first: the test and production
+   Workers share the boat limits of 200 starts each day and 100 active sandboxes. After a
    boat fault (5xx or no answer) the server sleeps again with its last use, and a later tick tries
    again. `last_wake_reason` is `schedule` (its D1 check has no other value); the `woken` analytics
    event has the reason `retention`. A server whose plan ended (`stopped`), whose deletion is due,

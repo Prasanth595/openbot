@@ -114,9 +114,10 @@ const RETENTION_WAKE_AFTER_MS = 10 * 24 * 60 * 60_000;
 const RETENTION_DISK_KEPT_MS = 14 * 24 * 60 * 60_000;
 /**
  * The test and production Workers share one boat account: 200 starts each day and 100 active
- * sandboxes. One start each tick (12 each hour) leaves them to clients.
+ * sandboxes. One start in each 10 minutes of cron time (at most 144 each day for each Worker, with a
+ * cron each 5 minutes or each minute) leaves them to clients.
  */
-const RETENTION_WAKES_PER_TICK = 1;
+const RETENTION_WAKE_EVERY_MINUTES = 10;
 /** A server can report a routine run at most this far ahead. A later run is reported when it comes nearer. */
 const NEXT_RUN_MAX_AHEAD_MS = 400 * 24 * 60 * 60_000;
 /**
@@ -1246,19 +1247,21 @@ export class HostedServerService {
       // disk is never older than the last use. A disk older than 14 days is gone: boat refuses its resume
       // with a 409, which `#resume` reads as a start in progress. The oldest change goes first, so a
       // start that failed goes after the others.
-      const expiring = yield* hostedCall(() =>
-        dependencies.database
-          .prepare(
-            `SELECT ${ROW_COLUMNS} FROM hosted_servers
-         WHERE desired_state = 'idle' AND observed_state = 'stopped' AND provider_sandbox_id IS NOT NULL
-           AND last_active_at > ? AND last_active_at <= ?
-           AND (deletion_scheduled_at IS NULL OR deletion_scheduled_at > ?)
-         ORDER BY updated_at LIMIT ?`,
-          )
-          .bind(now - RETENTION_DISK_KEPT_MS, now - RETENTION_WAKE_AFTER_MS, now, RETENTION_WAKES_PER_TICK)
-          .all<HostedServerRow>(),
-      );
-      result.retained = yield* run(expiring.results, (row) => this.#wakeForRetention(row, now));
+      if (new Date(now).getUTCMinutes() % RETENTION_WAKE_EVERY_MINUTES === 0) {
+        const expiring = yield* hostedCall(() =>
+          dependencies.database
+            .prepare(
+              `SELECT ${ROW_COLUMNS} FROM hosted_servers
+           WHERE desired_state = 'idle' AND observed_state = 'stopped' AND provider_sandbox_id IS NOT NULL
+             AND last_active_at > ? AND last_active_at <= ?
+             AND (deletion_scheduled_at IS NULL OR deletion_scheduled_at > ?)
+           ORDER BY updated_at LIMIT 1`,
+            )
+            .bind(now - RETENTION_DISK_KEPT_MS, now - RETENTION_WAKE_AFTER_MS, now)
+            .all<HostedServerRow>(),
+        );
+        result.retained = yield* run(expiring.results, (row) => this.#wakeForRetention(row, now));
+      }
       // A server that must stop and still runs: the first stop did not happen.
       const unstopped = yield* hostedCall(() =>
         dependencies.database
