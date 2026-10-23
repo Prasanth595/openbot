@@ -62,11 +62,10 @@ export function MarketplaceScreen() {
   };
   const listMode = isMarketplaceFiltered(filter) || catalog.search.length > 0;
 
-  let content: ReactNode;
-  if (!server) content = <SettingsNote>{t("mobile.server.unavailable")}</SettingsNote>;
-  else if (catalog.error && catalog.listings.length === 0)
-    content = (
-      <View className="items-center gap-3 px-6 py-10">
+  // The agents and skills did not load. The bundled apps still show under it, with a way to retry.
+  const loadFailed =
+    server && catalog.failed ? (
+      <View className="items-center gap-3 px-6 py-4">
         <Typography.Paragraph align="center" className="text-grouped-secondary">
           {t("mobile.marketplace.loadFailed")}
         </Typography.Paragraph>
@@ -74,7 +73,9 @@ export function MarketplaceScreen() {
           <Button.Label>{t("common.tryAgain")}</Button.Label>
         </Button>
       </View>
-    );
+    ) : null;
+  let content: ReactNode;
+  if (!server) content = <SettingsNote>{t("mobile.server.unavailable")}</SettingsNote>;
   else if (listMode)
     content = (
       <FilteredList
@@ -119,7 +120,10 @@ export function MarketplaceScreen() {
         onScroll={scroll.onScroll}
       >
         <LargeTitle scroll={scroll} title={title} caption={server?.name} />
-        <View className="gap-7 pt-3">{content}</View>
+        <View className="gap-7 pt-3">
+          {loadFailed}
+          {content}
+        </View>
       </Animated.ScrollView>
       <LargeTitleBar scroll={scroll} title={title} surface="sheet" />
       {server ? (

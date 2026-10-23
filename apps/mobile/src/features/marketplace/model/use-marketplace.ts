@@ -76,7 +76,11 @@ export function useMarketplaceCatalog({ query, filter }: { query: string; filter
     /** The debounced search, which the listings match. */
     search,
     pending,
-    error: agents.error ?? skills.error ?? null,
+    /**
+     * A catalog read failed with nothing to show for it. The bundled apps always list, so the listings
+     * are never empty and cannot tell this.
+     */
+    failed: (agents.isError && !agents.data) || (skills.isError && !skills.data),
     refetch: () => Promise.all([agents.refetch(), skills.refetch()]),
   };
 }
