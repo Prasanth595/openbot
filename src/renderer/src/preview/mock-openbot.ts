@@ -59,6 +59,7 @@ import {
   DEFAULT_PROVIDER_DETECTION_SETTINGS,
   DEFAULT_REMOTE_NETWORK_ROUTE,
   DEFAULT_REMOTE_SESSION_REUSE_PREFERENCE,
+  DEFAULT_TRANSPARENT_WINDOW,
   type DirectConversationSnapshot,
   type DirectMessageRealtimeEvent,
   type DirectTypingRealtimeEvent,
@@ -314,7 +315,10 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
   const languageListeners = new Set<(preference: AppLanguagePreference) => void>();
   let logoColorPreference: AppLogoColorPreference = { color: DEFAULT_APP_LOGO_COLOR };
   const logoColorListeners = new Set<(preference: AppLogoColorPreference) => void>();
-  let appearancePreference: AppAppearancePreference = { appearance: DEFAULT_APP_APPEARANCE };
+  let appearancePreference: AppAppearancePreference = {
+    appearance: DEFAULT_APP_APPEARANCE,
+    transparentWindow: DEFAULT_TRANSPARENT_WINDOW,
+  };
   const appearanceListeners = new Set<(preference: AppAppearancePreference) => void>();
   let interfaceSizePreference: AppInterfaceSizePreference = { percent: DEFAULT_APP_INTERFACE_SIZE };
   const interfaceSizeListeners = new Set<(preference: AppInterfaceSizePreference) => void>();
@@ -861,8 +865,8 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
     // The preview has no main process to set `prefers-color-scheme`, so the choice is saved only.
     // The Storybook toolbar sets the colors of a story.
     getAppAppearancePreference: async () => clone(appearancePreference),
-    setAppAppearancePreference: async ({ appearance }) => {
-      appearancePreference = { appearance };
+    setAppAppearancePreference: async (change) => {
+      appearancePreference = { ...appearancePreference, ...change };
       for (const listener of appearanceListeners) listener(clone(appearancePreference));
       return clone(appearancePreference);
     },

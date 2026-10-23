@@ -13,7 +13,8 @@ function applyColorScheme(scheme: "light" | "dark"): void {
 /**
  * Keeps this window's colors on the appearance choice, and returns the functions that refresh it
  * after the choice changes and that stop it. System follows `prefers-color-scheme`, which is the
- * computer's setting: main does not change it, so visited websites keep the computer's colors.
+ * computer's setting, so visited websites keep the computer's colors. Main changes it only while the
+ * window is transparent, and then to Light or Dark only; System still gives the computer's setting.
  */
 export function syncColorScheme(choice: () => AppAppearance) {
   const query = window.matchMedia(LIGHT_QUERY);

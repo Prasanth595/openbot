@@ -123,8 +123,16 @@ export function parseAppLogoColorPreference(input: unknown): SetAppLogoColorPref
 }
 
 export function parseAppAppearancePreference(input: unknown): SetAppAppearancePreferenceInput {
-  if (!isDynamicRecord(input) || !isAppAppearance(input.appearance)) throw new Error("Appearance is required.");
-  return { appearance: input.appearance };
+  if (!isDynamicRecord(input)) throw new Error("Appearance is required.");
+  const { appearance, transparentWindow } = input;
+  if (appearance !== undefined && !isAppAppearance(appearance)) throw new Error("Appearance is invalid.");
+  if (transparentWindow !== undefined && typeof transparentWindow !== "boolean")
+    throw new Error("Transparent window must be true or false.");
+  if (appearance === undefined && transparentWindow === undefined) throw new Error("Appearance is required.");
+  return {
+    ...(appearance === undefined ? {} : { appearance }),
+    ...(transparentWindow === undefined ? {} : { transparentWindow }),
+  };
 }
 
 export function parseAppInterfaceSizePreference(input: unknown): SetAppInterfaceSizePreferenceInput {

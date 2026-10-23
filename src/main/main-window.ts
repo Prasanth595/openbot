@@ -56,7 +56,7 @@ import type { RemoteWorkflowError } from "./remote-service-effects";
 import { sendToRenderer } from "./renderer-ipc";
 import { isTrustedRendererUrl } from "./trusted-renderer";
 import type { UpdateService } from "./update-service";
-import { followAppearance, windowBackgroundColor } from "./window-appearance";
+import { followAppearance, followWindowGlass, windowBackgroundColor } from "./window-appearance";
 
 /** The dark background of the main and setup windows, under the page's own canvas. */
 const MAIN_WINDOW_DARK_BACKGROUND = "#0b0d0e";
@@ -179,7 +179,7 @@ export function createMainWindowController({
         webSecurity: true,
       },
     });
-    followAppearance(window, MAIN_WINDOW_DARK_BACKGROUND);
+    followWindowGlass(window, MAIN_WINDOW_DARK_BACKGROUND);
 
     window.once("ready-to-show", () => {
       performance.mark("openbot:window-ready");

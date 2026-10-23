@@ -11,6 +11,9 @@ export const messages = {
   "settings.appearance.theme.system": "システム",
   "settings.appearance.theme.light": "ライト",
   "settings.appearance.theme.dark": "ダーク",
+  "settings.appearance.transparentWindow.title": "透明なウインドウ",
+  "settings.appearance.transparentWindow.description":
+    "ウインドウの後ろにぼかしたデスクトップを表示します。Webサイトとメニューもアプリのテーマになります。",
   "settings.interfaceSize.title": "インターフェイスのサイズ",
   "settings.interfaceSize.description": "OpenBot のテキストとコントロールのサイズです。",
   "settings.logoColor.title": "ロゴの色",

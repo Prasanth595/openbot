@@ -78,6 +78,15 @@ export function SettingsGeneralTab(props: SettingsGeneralTabProps) {
               />
             </ItemActions>
           </Item>
+          <Show when={props.platform === "darwin"}>
+            <SwitchField
+              data-settings-row="settings.appearance.transparentWindow.title"
+              checked={appearance.transparentWindow()}
+              onChange={appearance.changeTransparentWindow}
+              label={i18n.t("settings.appearance.transparentWindow.title")}
+              description={i18n.t("settings.appearance.transparentWindow.description")}
+            />
+          </Show>
           <Item data-settings-row="settings.language.title" class="settings-modal-row">
             <ItemContent>
               <ItemTitle>{i18n.t("settings.language.title")}</ItemTitle>

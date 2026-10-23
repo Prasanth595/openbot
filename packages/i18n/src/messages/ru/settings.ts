@@ -11,6 +11,9 @@ export const messages = {
   "settings.appearance.theme.system": "Системная",
   "settings.appearance.theme.light": "Светлая",
   "settings.appearance.theme.dark": "Тёмная",
+  "settings.appearance.transparentWindow.title": "Прозрачное окно",
+  "settings.appearance.transparentWindow.description":
+    "Показывать размытый рабочий стол за окном. Сайты и меню тогда используют тему приложения.",
   "settings.interfaceSize.title": "Размер интерфейса",
   "settings.interfaceSize.description": "Размер текста и элементов управления в OpenBot.",
   "settings.logoColor.title": "Цвет логотипа",

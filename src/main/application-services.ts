@@ -1040,7 +1040,10 @@ export async function createApplicationServices({
   const logoColor = new LogoColorService({ path: join(app.getPath("userData"), LOGO_COLOR_PREFERENCE_FILE) });
   await runCauseEffect(logoColor.load());
   // Before the renderer loads, so the window background takes the saved colors.
-  const appearance = new AppearanceService({ path: join(app.getPath("userData"), APPEARANCE_PREFERENCE_FILE) });
+  const appearance = new AppearanceService({
+    path: join(app.getPath("userData"), APPEARANCE_PREFERENCE_FILE),
+    supportsTransparentWindow: process.platform === "darwin",
+  });
   await runCauseEffect(appearance.load());
   // Before the renderer loads, so its first navigation applies the saved size.
   const interfaceSize = new InterfaceSizeService({

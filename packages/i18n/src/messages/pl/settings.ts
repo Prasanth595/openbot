@@ -11,6 +11,9 @@ export const messages = {
   "settings.appearance.theme.system": "Systemowy",
   "settings.appearance.theme.light": "Jasny",
   "settings.appearance.theme.dark": "Ciemny",
+  "settings.appearance.transparentWindow.title": "Przezroczyste okno",
+  "settings.appearance.transparentWindow.description":
+    "Pokazuj rozmyty pulpit za oknem. Strony i menu używają wtedy motywu aplikacji.",
   "settings.interfaceSize.title": "Rozmiar interfejsu",
   "settings.interfaceSize.description": "Rozmiar tekstu i elementów sterujących w OpenBot.",
   "settings.logoColor.title": "Kolor logo",

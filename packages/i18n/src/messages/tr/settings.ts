@@ -11,6 +11,9 @@ export const messages = {
   "settings.appearance.theme.system": "Sistem",
   "settings.appearance.theme.light": "Açık",
   "settings.appearance.theme.dark": "Koyu",
+  "settings.appearance.transparentWindow.title": "Saydam pencere",
+  "settings.appearance.transparentWindow.description":
+    "Pencerenin arkasında bulanık masaüstünü gösterir. Siteler ve menüler bu durumda uygulama temasını kullanır.",
   "settings.interfaceSize.title": "Arayüz boyutu",
   "settings.interfaceSize.description": "OpenBot'taki metin ve denetimlerin boyutu.",
   "settings.logoColor.title": "Logo rengi",

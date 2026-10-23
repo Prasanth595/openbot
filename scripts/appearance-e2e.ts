@@ -2,12 +2,16 @@
 // palette of the choice: the root attribute, the canvas token and the page background. Light and Dark
 // must not change `prefers-color-scheme`, because visited websites follow it. For System, it emulates
 // a light and a dark system, because main cannot change the computer's setting.
-// Restores the saved theme at the end. Writes .openbot-build/appearance/report.json and Settings and
+// On macOS it then turns on Transparent window: the page background is clear, and while it is on,
+// `prefers-color-scheme` follows Light and Dark, because the blur takes its shade from it. It captures
+// the window with the blur, then turns the switch off and checks that the window is solid again.
+// Restores the saved preference at the end. Writes .openbot-build/appearance/report.json and Settings and
 // workspace screenshots per theme. Needs `--allow-mutations`, because it changes the theme setting.
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { type AppAppearance, isAppAppearance } from "@openbot/contracts/app-appearance";
+import { type AppAppearance, type AppAppearancePreference, isAppAppearance } from "@openbot/contracts/app-appearance";
 import type { OpenBotDesktopApi } from "@openbot/contracts/ipc";
 import { en } from "@openbot/i18n";
 import { createOpenBotLogger } from "@openbot/logging";
@@ -49,10 +53,10 @@ const session = await connectToDevApp(instance.remoteDebuggingPort, logger, {
   ownerPid: instance.pid,
 });
 
-async function savedAppearance(page: Page): Promise<AppAppearance> {
+async function savedPreference(page: Page): Promise<AppAppearancePreference> {
   const preference = await page.evaluate(() => window.openbot.getAppAppearancePreference());
   assert.ok(isAppAppearance(preference.appearance));
-  return preference.appearance;
+  return preference;
 }
 
 function settingsTitle(page: Page) {
@@ -73,6 +77,13 @@ async function openSettings(page: Page) {
   await themeButton(page).waitFor();
 }
 
+async function closeSettings(page: Page) {
+  // A focused settings tab keeps Escape for itself, so Escape goes from the title.
+  await settingsTitle(page).focus();
+  await page.keyboard.press("Escape");
+  await settingsTitle(page).waitFor({ state: "hidden" });
+}
+
 async function chooseAppearance(page: Page, next: AppAppearance) {
   await openSettings(page);
   await themeButton(page).click();
@@ -81,6 +92,30 @@ async function chooseAppearance(page: Page, next: AppAppearance) {
     async (expected) => (await window.openbot.getAppAppearancePreference()).appearance === expected,
     next,
   );
+}
+
+/** Turns Transparent window on or off with its Settings switch. */
+async function chooseTransparentWindow(page: Page, next: boolean) {
+  await openSettings(page);
+  const toggle = page.getByRole("switch", { name: en["settings.appearance.transparentWindow.title"] });
+  if ((await toggle.isChecked()) !== next)
+    await page.getByText(en["settings.appearance.transparentWindow.title"], { exact: true }).click();
+  await page.waitForFunction(
+    async (expected) => (await window.openbot.getAppAppearancePreference()).transparentWindow === expected,
+    next,
+  );
+  await page.waitForFunction(
+    (expected) => document.documentElement.hasAttribute("data-openbot-window-glass") === expected,
+    next,
+  );
+}
+
+/** Captures the window as the screen shows it, with the blur behind the page. */
+async function captureWindow(page: Page, name: string): Promise<string> {
+  const bounds = await page.evaluate(() => [window.screenX, window.screenY, window.outerWidth, window.outerHeight]);
+  const path = resolve(OUT, `${name}.png`);
+  execFileSync("screencapture", ["-x", "-o", `-R${bounds.join(",")}`, path]);
+  return path;
 }
 
 /** What the window shows: the root attribute, the canvas token and the painted page background. */
@@ -115,17 +150,18 @@ assert.equal(
   "visible",
   "Bring the dev app window to the front first.",
 );
-const original = await savedAppearance(page);
+const original = await savedPreference(page);
 const results = [];
+const glass = [];
 try {
+  // Transparent window changes `prefers-color-scheme`, so the theme checks start with it off.
+  if (original.transparentWindow)
+    await page.evaluate(() => window.openbot.setAppAppearancePreference({ transparentWindow: false }));
   for (const appearance of ["light", "dark"] as const) {
     await chooseAppearance(page, appearance);
     const shown = await waitForScheme(page, appearance);
     await page.screenshot({ path: resolve(OUT, `settings-${appearance}.png`) });
-    // A focused settings tab keeps Escape for itself, so Escape goes from the title.
-    await settingsTitle(page).focus();
-    await page.keyboard.press("Escape");
-    await settingsTitle(page).waitFor({ state: "hidden" });
+    await closeSettings(page);
     await page.screenshot({ path: resolve(OUT, `workspace-${appearance}.png`) });
     results.push({ appearance, system: null, shown });
   }
@@ -144,10 +180,53 @@ try {
     await page.screenshot({ path: resolve(OUT, `settings-system-${system}.png`) });
     results.push({ appearance: "system", system, shown });
   }
+  await page.emulateMedia({ colorScheme: null });
+
+  const { platform } = await page.evaluate(() => window.openbot.getAppInfo());
+  if (platform === "darwin") {
+    const computerLight = light?.shown.systemLight;
+    for (const appearance of ["light", "dark"] as const) {
+      await chooseAppearance(page, appearance);
+      await chooseTransparentWindow(page, true);
+      await closeSettings(page);
+      const shown = await waitForScheme(page, appearance);
+      assert.equal(shown.bodyBackground, "rgba(0, 0, 0, 0)", "The page under a transparent window is not clear.");
+      assert.equal(
+        shown.systemLight,
+        appearance === "light",
+        `While the window is transparent, prefers-color-scheme does not follow ${appearance}.`,
+      );
+      glass.push({
+        appearance,
+        transparentWindow: true,
+        shown,
+        capture: await captureWindow(page, `glass-${appearance}`),
+      });
+    }
+    await chooseTransparentWindow(page, false);
+    await closeSettings(page);
+    const shown = await waitForScheme(page, "dark");
+    assert.notEqual(
+      shown.bodyBackground,
+      "rgba(0, 0, 0, 0)",
+      "The page is still clear after Transparent window is off.",
+    );
+    assert.equal(
+      shown.systemLight,
+      computerLight,
+      "With Transparent window off, websites do not follow the computer again.",
+    );
+    glass.push({
+      appearance: "dark",
+      transparentWindow: false,
+      shown,
+      capture: await captureWindow(page, "solid-dark"),
+    });
+  }
 } finally {
   await page.emulateMedia({ colorScheme: null });
-  await page.evaluate((appearance) => window.openbot.setAppAppearancePreference({ appearance }), original);
-  writeFileSync(resolve(OUT, "report.json"), `${JSON.stringify({ original, results }, null, 2)}\n`);
+  await page.evaluate((preference) => window.openbot.setAppAppearancePreference(preference), original);
+  writeFileSync(resolve(OUT, "report.json"), `${JSON.stringify({ original, results, glass }, null, 2)}\n`);
   await session.close();
 }
-logger.info(`Checked Light, Dark and System. Wrote ${resolve(OUT, "report.json")}.`);
+logger.info(`Checked Light, Dark, System and Transparent window. Wrote ${resolve(OUT, "report.json")}.`);
