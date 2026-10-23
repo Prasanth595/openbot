@@ -7,7 +7,6 @@
 
 import type { AppTextKey } from "@openbot/i18n";
 import { Button } from "@openbot/ui";
-import type { JSX } from "@solidjs/web";
 import { createMemo, createSignal, For, onSettled, Show } from "solid-js";
 import { useText } from "../../text";
 import { prefersReducedMotion } from "../../utils";
@@ -139,8 +138,6 @@ function weekdayMornings(from: Date, count: number): string[] {
 export interface DiagramBoardEmptyProps {
   /** Opens the settings of a new routine. Without it, the pitch has no action. */
   onCreateRoutine?: (() => void) | undefined;
-  /** Overlays on the canvas, such as the chat panel. They stay usable. */
-  children?: JSX.Element;
 }
 
 export function DiagramBoardEmpty(props: DiagramBoardEmptyProps) {
@@ -191,7 +188,6 @@ export function DiagramBoardEmpty(props: DiagramBoardEmptyProps) {
           </Show>
         </div>
       </div>
-      {props.children}
     </div>
   );
 }

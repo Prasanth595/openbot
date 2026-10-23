@@ -100,6 +100,14 @@
   padding-right: var(--diagram-inspector-width);
 }
 
+/* The board, or the empty canvas, and the chat panel over it. The panel keeps to this box. */
+.diagram-view-canvas {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex: 1;
+}
+
 .diagram-view-chat {
   position: absolute;
   bottom: var(--openbot-space-4);

@@ -131,8 +131,11 @@ export function DiagramView(props: DiagramViewProps) {
     props.onRunRoutine?.(routineId);
   };
   const runTarget = () => focusRoutineId() ?? routines()[0]?.id;
-  /** Before its first routine, the canvas shows how one works, and nothing in it to inspect. */
-  const empty = () => routines().length === 0;
+  /**
+   * Before its first routine, while it holds at most the owner's own card, the canvas shows how a
+   * routine works, and nothing in it to inspect. Agents placed before a routine stay on the board.
+   */
+  const empty = () => props.diagram.nodes.every((node) => node.kind === "agent" && node.agentId === props.owner?.id);
   /** The routines to highlight, after the choice to show them all. */
   const routineOptions = (): RoutineOption[] => [
     { id: ALL, name: t("diagram.routine.all"), color: undefined, status: undefined },
@@ -152,28 +155,6 @@ export function DiagramView(props: DiagramViewProps) {
         state.inspector = true;
       });
   };
-  /** The assistant over the canvas. Each canvas calls it, so each gets its own panel. */
-  const chat = () => (
-    <Show when={props.assistant}>
-      {(assistant) => (
-        <div class="diagram-view-chat">
-          <DiagramChatPanel
-            agent={assistant().agent}
-            messages={assistant().messages}
-            working={assistant().working}
-            open={panels.chat}
-            onOpenChange={(open) =>
-              setPanels((state) => {
-                state.chat = open;
-              })
-            }
-            onSend={(text) => assistant().onSend(text)}
-            onOpenLink={(url) => assistant().onOpenLink?.(url)}
-          />
-        </div>
-      )}
-    </Show>
-  );
   return (
     <main class="diagram-view" aria-label={t("diagram.view.label", { name: props.diagram.name })}>
       <header class="window-drag diagram-view-header">
@@ -220,63 +201,81 @@ export function DiagramView(props: DiagramViewProps) {
       </header>
 
       <div class="diagram-view-body" data-inspector={panels.inspector && !empty() ? "open" : undefined}>
-        <Show
-          when={!empty()}
-          fallback={<DiagramBoardEmpty onCreateRoutine={props.onCreateRoutine}>{chat()}</DiagramBoardEmpty>}
-        >
-          <DiagramBoard
-            diagram={props.diagram}
-            agents={props.agents}
-            selectedNodeId={selectedNodeId()}
-            focusRoutineId={focusRoutineId()}
-            editable={props.editable}
-            onSelectNode={select}
-            onFocusRoutine={setPicked}
-            onMoveNode={props.onMoveNode}
-            onConnect={(from, to) => props.onConnect(from, to, focusRoutineId())}
-            onRemoveEdge={props.onRemoveEdge}
-            onRemoveNode={(nodeId) => {
-              if (selectedNodeId() === nodeId) setSelectedNodeId(null);
-              props.onRemoveNode(nodeId, focusRoutineId());
-            }}
-            connectable={!props.connectsWithinRoutine || focusRoutineId() !== null}
-            canRemoveNode={props.canRemoveNode}
-            canRemoveEdge={props.canRemoveEdge}
-            onRunRoutine={props.onRunRoutine ? runRoutine : undefined}
-            addableAgents={props.addableAgents}
-            onPlaceAgent={props.onPlaceAgent}
-            onCreateAgent={props.onCreateAgent}
-            newAgentModels={props.newAgentModels}
-          >
-            <Show when={routines().length > 1}>
-              <div class="diagram-view-lens-bar" data-diagram-overlay="">
-                <Select<RoutineOption>
-                  class="diagram-view-lens"
-                  options={routineOptions()}
-                  optionValue="id"
-                  optionTextValue="name"
-                  value={routineOptions().find((option) => option.id === (focusRoutineId() ?? ALL)) ?? null}
-                  onChange={(option) => option && setPicked(option.id === ALL ? null : option.id)}
-                  placement="bottom"
-                  sameWidth={false}
-                  itemComponent={(itemProps) => (
-                    <SelectItem item={itemProps.item}>
-                      <RoutineOptionLabel option={itemProps.item.rawValue} />
-                    </SelectItem>
-                  )}
-                >
-                  <SelectTrigger size="sm" class="diagram-view-lens-trigger" aria-label={t("diagram.routine.lens")}>
-                    <SelectValue<RoutineOption>>
-                      {(state) => <RoutineOptionLabel option={state.selectedOption()} />}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent />
-                </Select>
+        <div class="diagram-view-canvas">
+          <Show when={!empty()} fallback={<DiagramBoardEmpty onCreateRoutine={props.onCreateRoutine} />}>
+            <DiagramBoard
+              diagram={props.diagram}
+              agents={props.agents}
+              selectedNodeId={selectedNodeId()}
+              focusRoutineId={focusRoutineId()}
+              editable={props.editable}
+              onSelectNode={select}
+              onFocusRoutine={setPicked}
+              onMoveNode={props.onMoveNode}
+              onConnect={(from, to) => props.onConnect(from, to, focusRoutineId())}
+              onRemoveEdge={props.onRemoveEdge}
+              onRemoveNode={(nodeId) => {
+                if (selectedNodeId() === nodeId) setSelectedNodeId(null);
+                props.onRemoveNode(nodeId, focusRoutineId());
+              }}
+              connectable={!props.connectsWithinRoutine || focusRoutineId() !== null}
+              canRemoveNode={props.canRemoveNode}
+              canRemoveEdge={props.canRemoveEdge}
+              onRunRoutine={props.onRunRoutine ? runRoutine : undefined}
+              addableAgents={props.addableAgents}
+              onPlaceAgent={props.onPlaceAgent}
+              onCreateAgent={props.onCreateAgent}
+              newAgentModels={props.newAgentModels}
+            >
+              <Show when={routines().length > 1}>
+                <div class="diagram-view-lens-bar" data-diagram-overlay="">
+                  <Select<RoutineOption>
+                    class="diagram-view-lens"
+                    options={routineOptions()}
+                    optionValue="id"
+                    optionTextValue="name"
+                    value={routineOptions().find((option) => option.id === (focusRoutineId() ?? ALL)) ?? null}
+                    onChange={(option) => option && setPicked(option.id === ALL ? null : option.id)}
+                    placement="bottom"
+                    sameWidth={false}
+                    itemComponent={(itemProps) => (
+                      <SelectItem item={itemProps.item}>
+                        <RoutineOptionLabel option={itemProps.item.rawValue} />
+                      </SelectItem>
+                    )}
+                  >
+                    <SelectTrigger size="sm" class="diagram-view-lens-trigger" aria-label={t("diagram.routine.lens")}>
+                      <SelectValue<RoutineOption>>
+                        {(state) => <RoutineOptionLabel option={state.selectedOption()} />}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent />
+                  </Select>
+                </div>
+              </Show>
+            </DiagramBoard>
+          </Show>
+          {/* Outside the switch, so the first routine keeps the draft and the place of the panel. */}
+          <Show when={props.assistant}>
+            {(assistant) => (
+              <div class="diagram-view-chat">
+                <DiagramChatPanel
+                  agent={assistant().agent}
+                  messages={assistant().messages}
+                  working={assistant().working}
+                  open={panels.chat}
+                  onOpenChange={(open) =>
+                    setPanels((state) => {
+                      state.chat = open;
+                    })
+                  }
+                  onSend={(text) => assistant().onSend(text)}
+                  onOpenLink={(url) => assistant().onOpenLink?.(url)}
+                />
               </div>
-            </Show>
-            {chat()}
-          </DiagramBoard>
-        </Show>
+            )}
+          </Show>
+        </div>
 
         <Show when={panels.inspector && !empty()}>
           <DiagramInspector
