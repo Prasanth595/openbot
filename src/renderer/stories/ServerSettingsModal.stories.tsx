@@ -536,3 +536,12 @@ export const Roles: Story = {
 export const MembersWithRoles: Story = {
   args: { initialSection: "members", agentAccess: storyAgentAccess() },
 };
+
+/** Only the owner and no invitation: sample invitations land behind the invite action, one at a time. */
+export const MembersEmpty: Story = {
+  args: {
+    initialSection: "members",
+    members: STORY_PRESENCE.members.filter((member) => member.role === "owner"),
+    invites: [],
+  },
+};

@@ -355,6 +355,30 @@
     padding: var(--openbot-space-4) var(--openbot-space-6) var(--openbot-space-6);
   }
 
+  /* The empty month fills the card and clips at its bottom edge, so the pitch stays in the middle of
+   * what the user sees. A pitch taller than the card scrolls. */
+  .app-window > .app-frame-edge > .window-page .routine-planner-empty {
+    min-height: 0;
+    overflow-y: auto;
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .app-window > .app-frame-edge > .window-page :is(.routine-planner-empty-board, .routine-planner-empty-board > *) {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .app-window > .app-frame-edge > .window-page .routine-planner-empty-board {
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  /* A narrow card puts the runs below the pitch, so both rows keep their height and scroll. */
+  @container (max-width: 920px) {
+    .app-window > .app-frame-edge > .window-page .routine-planner-empty {
+      grid-template-rows: none;
+    }
+  }
+
   /* The Tasks page sits in the middle pane beside the agent list, as the routine canvas does. Its title
    * goes in the top row, as the chat header does. The list and the task panel go in the card below it.
    * The card draws the surface, so the page has no background of its own. */
@@ -488,6 +512,8 @@
       .agent-usage-body,
       .routine-planner-toolbar,
       .routine-planner-body,
+      .routine-planner-empty,
+      .routine-planner-error,
       .marketplace-crumbs,
       .skills-marketplace-body
     ) {

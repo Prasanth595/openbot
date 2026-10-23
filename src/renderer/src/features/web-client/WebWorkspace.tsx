@@ -1428,6 +1428,11 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     void select(agentId);
     setSettingsRequest({ agentId, nonce: Date.now(), routine: { routineId: routine.id, name: routine.name } });
   }
+  function createRoutine(agentId: string): void {
+    setMobilePane("conversation");
+    void select(agentId);
+    setSettingsRequest({ agentId, nonce: Date.now(), routine: "new" });
+  }
   const unavailable = async (): Promise<never> => {
     throw new Error(t("webClient.error.desktopOnly"));
   };
@@ -1590,6 +1595,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                             void select(agentId);
                           }}
                           onOpenRoutine={openRoutine}
+                          onCreateRoutine={createRoutine}
                         />
                       </Loading>
                     </Match>

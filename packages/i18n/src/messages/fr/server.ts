@@ -402,6 +402,8 @@ export const messages = {
   "server.invite.pendingTitle": "Invitations en attente",
   "server.invite.pendingCount": "{total} en attente",
   "server.invite.noPending": "Aucune invitation en attente.",
+  "server.invite.emptyTitle": "Envoyez la première {word}.",
+  "server.invite.emptyWord": "invitation",
   "server.invite.neverExpires": {
     one: "N’expire jamais · {count} adhésion",
     other: "N’expire jamais · {count} adhésions",

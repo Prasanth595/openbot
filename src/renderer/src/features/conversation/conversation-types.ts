@@ -51,11 +51,11 @@ import type { TurnStepLines } from "./turn-step-lines";
  * through only because one direction is `import type`.
  */
 
-/** Opens an agent's settings panel. A `routine` opens that routine's settings in it. */
+/** Opens an agent's settings panel. A `routine` opens that routine's settings in it; `"new"` starts a routine. */
 export interface AgentSettingsRequest {
   agentId: string;
   nonce: number;
-  routine?: { routineId: string; name: string };
+  routine?: { routineId: string; name: string } | "new";
 }
 
 /** The conversation that a draft, an error or a send belongs to. For a channel, `agentId` is the channel id. */

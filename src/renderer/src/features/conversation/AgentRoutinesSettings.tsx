@@ -73,7 +73,8 @@ import { isEventRoutine, routineListSummary, routineScheduleOf } from "./routine
 import type { RoutineEditorRecord, RoutinesPort } from "./routines-port";
 
 export interface RoutineSelectionRequest {
-  routineId: string;
+  /** Null starts a new routine. */
+  routineId: string | null;
   routineName: string;
   nonce: number;
 }
@@ -81,6 +82,7 @@ export interface RoutineSelectionRequest {
 type PendingRoutineExit =
   | "list"
   | "close"
+  | "new"
   | { kind: "routine-selection"; routine: RoutineEditorRecord | null; routineName: string }
   | { kind: "conversation-message"; messageId: string };
 
@@ -279,7 +281,14 @@ export function AgentRoutinesSettings(props: AgentRoutinesSettingsProps) {
       lastSelectionRequestNonce = request.nonce;
       props.onSelectionRequestHandled?.(request.nonce);
       if (!loaded) return;
-      requestRoutineSelection(request, currentRoutines.find((routine) => routine.id === request.routineId) ?? null);
+      // The editor state is read once, when the request arrives; a later edit must not run it again.
+      untrack(() => {
+        if (request.routineId === null) {
+          requestExit("new");
+          return;
+        }
+        requestRoutineSelection(request, currentRoutines.find((routine) => routine.id === request.routineId) ?? null);
+      });
     },
   );
 
@@ -432,6 +441,10 @@ export function AgentRoutinesSettings(props: AgentRoutinesSettingsProps) {
     }
     if (target === "close") {
       props.onClose?.();
+      return;
+    }
+    if (target === "new") {
+      createDraft();
       return;
     }
     if (target.kind === "conversation-message") {

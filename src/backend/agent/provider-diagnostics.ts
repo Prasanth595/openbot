@@ -121,8 +121,10 @@ function bracketBalance(line: string) {
  * and can try again, and the chat marks the step as failed. The user met it as a "Provider error"
  * toast during an embedded-browser click, with nothing to do about it. It belongs in the log.
  *
- * Codex logs a cancelled dynamic tool call when a turn stops before its reply. The turn's
- * interrupted state is the user feedback; this record does not mean the provider failed.
+ * Codex logs each failed tool call as `codex_core::tools::router: error=…`, such as a cancelled
+ * dynamic tool call or a failed image generation. It sends the error to the model as the tool's
+ * result, and the turn continues. The toast had no chat, so it stayed over each chat the user
+ * opened (#2965). Only a `Fatal error:` stops the turn, and it stays visible.
  *
  * Antigravity logs failed MCP calls as `error executing cascade step: CORTEX_STEP_TYPE_MCP_TOOL:`,
  * followed by the tool's error (`Error: …` or `calling "tools/call": Error: …`) or its own call
@@ -131,9 +133,7 @@ function bracketBalance(line: string) {
  */
 export function isToolCallDiagnostic(message: string): boolean {
   return (
-    /\bcodex_core:[^\r\n]*\brouter:\s*error=dynamic tool call was cancelled before receiving a response\s*$/.test(
-      message,
-    ) ||
+    /^[^\r\n]*\bcodex_core:[^\r\n]*\brouter:\s*error=(?!Fatal error:)/.test(message) ||
     /\btool_error:\s*(?:tool_output_error|execution_failure|parse_failure)\b/.test(message) ||
     /\berror executing cascade step:\s*CORTEX_STEP_TYPE_MCP_TOOL:\s*(?:calling "tools\/call":\s*)?Error:/.test(
       message,

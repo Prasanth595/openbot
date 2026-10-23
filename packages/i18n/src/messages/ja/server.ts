@@ -394,6 +394,8 @@ export const messages = {
   "server.invite.pendingTitle": "保留中の招待",
   "server.invite.pendingCount": "保留中 {total} 件",
   "server.invite.noPending": "保留中の招待はありません。",
+  "server.invite.emptyTitle": "最初の{word}を送りましょう。",
+  "server.invite.emptyWord": "招待",
   "server.invite.neverExpires": { other: "期限なし · 参加 {count} 件" },
   "server.invite.expires": "有効期限 {date}",
   "server.invite.revoke": "取り消す",
