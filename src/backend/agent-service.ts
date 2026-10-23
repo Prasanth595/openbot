@@ -167,6 +167,7 @@ import { type AgentClientFactory, ProviderRuntime, toProviderOperationFailed } f
 import { QueueControls } from "./agent/queue-controls";
 import { quietRoutineRun } from "./agent/routine-quiet-runs";
 import { type RoutineMutationOptions, RoutineScheduler, toRoutineOperationFailed } from "./agent/routine-scheduler";
+import { localTimezone } from "./agent/routine-tools";
 import { buildRuntimeSnapshot } from "./agent/runtime-snapshot";
 import type { ScreenCaptureHost } from "./agent/screen-capture";
 import { SessionSettings } from "./agent/session-settings";
@@ -302,6 +303,11 @@ export interface AgentServiceOptions {
    * sender. The main process owns the preference. Omitted, the host system zone.
    */
   timezone?: () => string;
+  /**
+   * Whether the person who asked a channel member to add an agent may chat with that agent, as the
+   * Team API requires of their own save. Omitted, every person may.
+   */
+  channelMemberAccess?: (personId: string, agentId: string) => boolean;
   deleteWithRevokedApproval?: (
     agentId: string,
     remove: () => Effect.Effect<void, AgentRemovalFailed>,
@@ -974,6 +980,14 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         this.#emit({ type: "channels-changed", channelId, revision });
       },
       memoriesChanged: (channelId) => this.#emit({ type: "channel-memories-changed", channelId }),
+      ...(options.channelMemberAccess ? { mayAddMember: options.channelMemberAccess } : {}),
+      routines: {
+        list: (channelId) => this.#channelRoutines.list(channelId),
+        create: (input) => this.#channelRoutines.create(input),
+        update: (input) => this.#channelRoutines.update(input),
+        delete: (input) => this.#channelRoutines.delete(input),
+        timezone: options.timezone ?? localTimezone,
+      },
       // A held agent starts nothing, so its queue has no event of its own while the reservation
       // moves. Without this its panel keeps naming the channel task that has already ended.
       queueHoldChanged: () => {

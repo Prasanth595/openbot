@@ -8,6 +8,12 @@ export const messages = {
   "status.agent.modelSwitchedForLimit": "Limite d’utilisation atteinte. Passage à {model}.",
   "status.agent.modelReturnedAfterLimit": "Limite d’utilisation terminée. Retour à {model}.",
   "status.agent.marketplaceSuggested": "Application de la Marketplace suggérée : {app}.",
+  "status.agent.channelMemberAdded": "{agent} a ajouté {member} au canal. {person} l’a demandé.",
+  "status.agent.channelMemberRemoved": "{agent} a retiré {member} du canal. {person} l’a demandé.",
+  "status.agent.channelInstructionsChanged": "{agent} a modifié les instructions du canal. {person} l’a demandé.",
+  "status.agent.channelRoutineCreated": "{agent} a créé la routine {routine}. {person} l’a demandé.",
+  "status.agent.channelRoutineUpdated": "{agent} a modifié la routine {routine}. {person} l’a demandé.",
+  "status.agent.channelRoutineDeleted": "{agent} a supprimé la routine {routine}. {person} l’a demandé.",
   "status.agent.screenCaptureScreen": "Capturer l’écran principal et envoyer l’image au modèle de l’agent.",
   "status.agent.screenCaptureChannel":
     "L’image s’affiche dans le canal {channel}, et chaque membre de ce serveur qui lit le canal peut la voir.",

@@ -1,0 +1,240 @@
+import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
+import type {
+  AgentSummary,
+  Channel,
+  ChannelDraft,
+  ChannelMessage,
+  ChannelRoutine,
+  ChannelTask,
+  CreateChannelRoutineInput,
+  DeleteChannelRoutineInput,
+  UpdateChannelRoutineInput,
+} from "@openbot/contracts/ipc";
+import { type DynamicRecord, isBoolean, isString } from "@openbot/contracts/runtime-values";
+import { sourceText } from "@openbot/i18n/source";
+import { RoutineInputError } from "@openbot/team-client/routine-schedule";
+import {
+  routineToolArguments,
+  routineToolPolicies,
+  routineToolSchedule,
+  routineToolString,
+} from "./agent/routine-tools";
+
+/**
+ * The tools a member agent changes its channel with. Only a person's request may start them, so a
+ * routine run or a message that only an agent wrote cannot change who is in the channel.
+ */
+export const CHANNEL_MANAGEMENT_TOOLS: ReadonlySet<string> = new Set([
+  "channel_add_member",
+  "channel_remove_member",
+  "channel_set_instructions",
+  "channel_list_routines",
+  "channel_create_routine",
+  "channel_update_routine",
+  "channel_delete_routine",
+]);
+
+const ROUTINE_TOOLS: ReadonlySet<string> = new Set([
+  "channel_list_routines",
+  "channel_create_routine",
+  "channel_update_routine",
+  "channel_delete_routine",
+]);
+
+export function isChannelRoutineTool(tool: string): boolean {
+  return ROUTINE_TOOLS.has(tool);
+}
+
+export const PERSON_REQUEST_REQUIRED =
+  "Only a person's request in this channel can change its members, instructions or routines. This task started from a routine run or from an agent.";
+
+/** The schedule routines of the channels, as the channel settings change them. */
+export interface ChannelRoutineToolPort {
+  list(channelId: string): ChannelRoutine[];
+  create(input: CreateChannelRoutineInput): ChannelRoutine;
+  update(input: UpdateChannelRoutineInput): ChannelRoutine;
+  delete(input: DeleteChannelRoutineInput): void;
+  /** The server timezone, for a routine that the call gives no timezone. */
+  timezone(): string;
+}
+
+/** The text of the note a change leaves in the channel, from the agent that made it and the person who asked. */
+export type ChannelChangeNote = (agent: string, person: string) => string;
+
+/**
+ * The person whose message started the work of `task`. A routine run is written as a member with a
+ * `routine:` id (`ChannelService.apply`), so the id tells it from a person. A subtask that an agent
+ * assigned counts as the person's request that its root task answers.
+ */
+export function channelRequester(
+  task: ChannelTask,
+  tasks: readonly ChannelTask[],
+  message: (messageId: string) => ChannelMessage | null,
+): { id: string; name: string } | null {
+  const root = tasks.find((item) => item.id === task.rootTaskId);
+  const request = root ? message(root.requestMessageId) : null;
+  if (request?.author.kind !== "member" || request.author.id.startsWith("routine:")) return null;
+  return { id: request.author.id, name: request.author.name };
+}
+
+/**
+ * The draft that a member or instructions tool saves, from the channel as it is stored when the
+ * save's turn in the command queue comes. The caller cannot remove itself: the removal would stop
+ * the task that runs this call.
+ */
+export function channelDraftChange(
+  channel: Channel,
+  tool: string,
+  args: DynamicRecord,
+  callerAgentId: string,
+  agents: readonly AgentSummary[],
+  access: { hidden(agentId: string): boolean; mayAdd(agentId: string): boolean },
+): { draft: ChannelDraft; note: ChannelChangeNote } {
+  const draft: ChannelDraft = {
+    name: channel.name,
+    title: channel.title,
+    instructions: channel.instructions,
+    members: channel.members,
+    leadAgentId: channel.leadAgentId,
+  };
+  if (tool === "channel_set_instructions") {
+    if (!isString(args.instructions) || args.instructions.length > INPUT_LIMITS.agentDescription)
+      throw new Error(`Provide instructions of at most ${INPUT_LIMITS.agentDescription} characters.`);
+    return {
+      draft: { ...draft, instructions: args.instructions },
+      note: (agent, person) => sourceText("status.agent.channelInstructionsChanged", { agent, person }),
+    };
+  }
+  if (!isString(args.agentId) || !args.agentId) throw new Error("Provide the agentId of the member.");
+  const agentId = args.agentId;
+  const member = channel.members.some((item) => item.agentId === agentId);
+  const name = agents.find((agent) => agent.id === agentId)?.name ?? agentId;
+  if (tool === "channel_add_member") {
+    if (member) throw new Error(`${name} is already a member of this channel.`);
+    if (!agents.some((agent) => agent.id === agentId))
+      throw new Error("No agent has that id. Get the id from openbot.list_agents.");
+    if (!access.mayAdd(agentId)) throw new Error(`The person who asked cannot chat with ${name}, so it stays out.`);
+    if (access.hidden(agentId)) throw new Error(`${name} is hidden. Ask a person to show it again first.`);
+    if (channel.members.length >= INPUT_LIMITS.agents)
+      throw new Error(`A channel has at most ${INPUT_LIMITS.agents} members.`);
+    return {
+      draft: { ...draft, members: [...channel.members, { agentId }] },
+      note: (agent, person) => sourceText("status.agent.channelMemberAdded", { agent, member: name, person }),
+    };
+  }
+  if (tool !== "channel_remove_member") throw new Error("Unknown channel tool.");
+  if (!member) throw new Error(`${name} is not a member of this channel.`);
+  if (agentId === callerAgentId) throw new Error("You cannot remove yourself. Ask a person to do it.");
+  return {
+    draft: {
+      ...draft,
+      members: channel.members.filter((item) => item.agentId !== agentId),
+      leadAgentId: channel.leadAgentId === agentId ? null : channel.leadAgentId,
+    },
+    note: (agent, person) => sourceText("status.agent.channelMemberRemoved", { agent, member: name, person }),
+  };
+}
+
+/** Runs one routine tool on `channelId`. A change returns the note it leaves in the channel. */
+export function channelRoutineTool(
+  routines: ChannelRoutineToolPort,
+  channelId: string,
+  tool: string,
+  value: unknown,
+): { result: unknown; note?: ChannelChangeNote } {
+  if (tool === "channel_list_routines") {
+    routineToolArguments(value, []);
+    return { result: { routines: routines.list(channelId) } };
+  }
+  if (tool === "channel_create_routine") {
+    const args = routineToolArguments(value, [
+      "name",
+      "instruction",
+      "schedule",
+      "active",
+      "timezone",
+      "limitPolicy",
+      "missedPolicy",
+    ]);
+    const active = args.active ?? true;
+    if (!isBoolean(active)) throw new RoutineInputError("active must be a boolean.");
+    const name = routineToolString(args.name, "name", INPUT_LIMITS.routineName, "A routine name is required.");
+    requireFreeName(routines.list(channelId), name);
+    const routine = routines.create({
+      channelId,
+      name,
+      instruction: routineToolString(
+        args.instruction,
+        "instruction",
+        INPUT_LIMITS.routineInstruction,
+        "A routine instruction is required.",
+      ),
+      active,
+      timezone:
+        args.timezone === undefined
+          ? routines.timezone()
+          : routineToolString(args.timezone, "timezone", 128, "A routine timezone is required."),
+      schedule: routineToolSchedule(args.schedule),
+      ...routineToolPolicies(args),
+    });
+    return {
+      result: routine,
+      note: (agent, person) =>
+        sourceText("status.agent.channelRoutineCreated", { agent, routine: routine.name, person }),
+    };
+  }
+  const args = routineToolArguments(
+    value,
+    tool === "channel_update_routine"
+      ? ["routineId", "name", "instruction", "schedule", "active", "limitPolicy", "missedPolicy"]
+      : ["routineId"],
+  );
+  const routineId = routineToolString(args.routineId, "routineId", INPUT_LIMITS.identifier, "routineId is required.");
+  const existing = routines.list(channelId);
+  const current = existing.find((routine) => routine.id === routineId);
+  if (!current)
+    throw new RoutineInputError(
+      `This channel has no scheduled routine with routineId ${routineId}. Call channel_list_routines.`,
+    );
+  if (tool === "channel_delete_routine") {
+    routines.delete({ channelId, routineId });
+    return {
+      result: { deleted: true, routineId },
+      note: (agent, person) =>
+        sourceText("status.agent.channelRoutineDeleted", { agent, routine: current.name, person }),
+    };
+  }
+  if (tool !== "channel_update_routine") throw new Error("Unknown channel tool.");
+  const input: UpdateChannelRoutineInput = { channelId, routineId, ...routineToolPolicies(args) };
+  if (args.name !== undefined) {
+    input.name = routineToolString(args.name, "name", INPUT_LIMITS.routineName, "A routine name is required.");
+    if (input.name.trim().toLowerCase() !== current.name.trim().toLowerCase()) requireFreeName(existing, input.name);
+  }
+  if (args.instruction !== undefined)
+    input.instruction = routineToolString(
+      args.instruction,
+      "instruction",
+      INPUT_LIMITS.routineInstruction,
+      "A routine instruction is required.",
+    );
+  if (args.active !== undefined) {
+    if (!isBoolean(args.active)) throw new RoutineInputError("active must be a boolean.");
+    input.active = args.active;
+  }
+  if (args.schedule !== undefined) input.schedule = routineToolSchedule(args.schedule);
+  if (Object.keys(input).length === 2) throw new RoutineInputError("At least one routine update is required.");
+  const routine = routines.update(input);
+  return {
+    result: routine,
+    note: (agent, person) => sourceText("status.agent.channelRoutineUpdated", { agent, routine: routine.name, person }),
+  };
+}
+
+function requireFreeName(routines: readonly ChannelRoutine[], name: string): void {
+  const key = name.trim().toLowerCase();
+  const existing = routines.find((routine) => routine.name.trim().toLowerCase() === key);
+  if (existing)
+    throw new RoutineInputError(
+      `Routine "${existing.name}" already exists with routineId ${existing.id}. Call channel_update_routine to change it instead of creating another.`,
+    );
+}

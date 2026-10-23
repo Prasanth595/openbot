@@ -163,6 +163,20 @@ Only assignments and awaited results start turns. Completed child results are co
 owner returns. The limit is eight automatic assignments per root request and two active assignments
 per channel (`CHANNEL_PARALLEL_LIMIT`).
 
+A member can also change its channel when a person asks: `channel_add_member`,
+`channel_remove_member`, `channel_set_instructions`, and `channel_list_routines`,
+`channel_create_routine`, `channel_update_routine`, `channel_delete_routine` for the schedule
+routines. They act only on the channel of the running task (`channel-management.ts`). The request
+message of the root task must have a person as author. A routine run (author id `routine:<id>`)
+and a request that only an agent wrote are refused, so untrusted run input cannot change the
+channel. A member change is a `save` through the command queue, with the draft read from the stored
+channel when its turn comes. The caller cannot remove itself, and removing the lead clears the lead.
+An agent that a person adds must be one that person can chat with: main answers
+`mayAddMember` with the Team API rule for a save (`HostService.mayAddChannelMember`). Each change
+writes a `channel-change` note in the same commit, with the agent as author and a source text that
+names the agent, the change and the person. Clients show it as an activity row, and it is not
+unread and not in the model packet.
+
 Channel work holds only the agent that does it. An agent runs one main-lane turn at a time: its chat,
 a channel delivery or a messaging delivery. While the agent has an active assignment,
 `ChannelService.mayDrain` holds its other main-lane requests. The work of other agents does not hold

@@ -6,6 +6,7 @@ import {
   type AgentEvent,
   type AgentSummary,
   CHANNEL_ASSIGNMENT_LIMIT,
+  CHANNEL_CHANGE_ITEM_TYPE,
   CHANNEL_PARALLEL_LIMIT,
   type Channel,
   type ChannelCommand,
@@ -20,11 +21,21 @@ import {
   type QueueHold,
   type UpdateChannelMemoryInput,
 } from "@openbot/contracts/ipc";
-import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
+import { type DynamicRecord, isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
 import { Deferred, Effect, Exit, Fiber, Result, Schema, Scope } from "effect";
 import { type ChannelOperationError, channelFailure, channelResult, channelSync } from "./channel-effects";
 import { ChannelHistory, type ChannelTextModel, isMemberThinking } from "./channel-history";
+import {
+  CHANNEL_MANAGEMENT_TOOLS,
+  type ChannelChangeNote,
+  type ChannelRoutineToolPort,
+  channelDraftChange,
+  channelRequester,
+  channelRoutineTool,
+  isChannelRoutineTool,
+  PERSON_REQUEST_REQUIRED,
+} from "./channel-management";
 import { ChannelMemoryStore } from "./channel-memory-store";
 import { type ChannelAssignment, ChannelStore } from "./channel-store";
 import type { DeliveryContext, MailboxStore } from "./mailbox-store";
@@ -69,6 +80,13 @@ export interface ChannelHooks {
   queueHoldChanged?(): void;
   /** A memory is not part of the channel revision, so a tool write needs its own notification. */
   memoriesChanged?(channelId: string): void;
+  /**
+   * Whether the person who asked may add this agent to a channel, as a save of theirs from the Team
+   * API may. Omitted, every person may: only this computer's user reaches the channel.
+   */
+  mayAddMember?(personId: string, agentId: string): boolean;
+  /** The schedule routines of the channels, for the routine tools. Omitted, those tools fail. */
+  routines?: ChannelRoutineToolPort;
   error(error: unknown): void;
 }
 
@@ -251,6 +269,8 @@ export class ChannelService {
     this: ChannelService,
     command: ChannelCommand,
     actor: { id: string; name: string },
+    /** Messages a save writes with the change, in the same commit. */
+    notes: ChannelMessage[] = [],
   ): Effect.fn.Return<Channel, ChannelOperationError> {
     const operationId = `${actor.id}:${command.operationId}`;
     const receipt = yield* channelSync(() => this.store.database.commandResult(`channels:${operationId}`));
@@ -302,6 +322,7 @@ export class ChannelService {
         this.store.update(
           { ...channel, ...command.draft },
           {
+            messages: notes,
             tasks: tasks.map((task) => ({
               ...task,
               state: "paused",
@@ -1838,6 +1859,77 @@ export class ChannelService {
     });
   }
 
+  /**
+   * A change that a member makes at a person's request, with a note that names both. It waits for
+   * the commands queued before it, so it changes the channel that those leave.
+   */
+  readonly #manage = Effect.fn("ChannelService.manage")(function* (
+    this: ChannelService,
+    channelId: string,
+    taskId: string,
+    agentId: string,
+    operationId: string,
+    person: { id: string; name: string },
+    tool: string,
+    args: DynamicRecord,
+  ): Effect.fn.Return<unknown, ChannelOperationError> {
+    const agent = { id: agentId, name: this.memberName(agentId) };
+    const note = (text: ChannelChangeNote): ChannelMessage => {
+      const message = this.message(
+        channelId,
+        taskId,
+        { kind: "agent", ...agent },
+        text(agent.name, person.name),
+        undefined,
+        CHANNEL_CHANGE_ITEM_TYPE,
+      );
+      return { ...message, message: { ...message.message, source: "system" } };
+    };
+    if (isChannelRoutineTool(tool)) {
+      const routines = this.hooks.routines;
+      if (!routines) return yield* channelFailure(new Error("Channel routines are unavailable on this computer."));
+      let result: unknown;
+      yield* this.#serialize(
+        channelId,
+        Effect.gen({ self: this }, function* () {
+          const outcome = yield* channelSync(() => channelRoutineTool(routines, channelId, tool, args));
+          result = outcome.result;
+          const changed = outcome.note;
+          if (!changed) return;
+          yield* channelSync(() => this.store.update(this.store.get(channelId), { messages: [note(changed)] }));
+          this.publish(channelId);
+        }),
+      );
+      return result;
+    }
+    // A save that already committed: a retried call must not find the member it added and fail.
+    if (
+      (yield* channelSync(() => this.store.database.commandResult(`channels:${agentId}:${operationId}`))) !== undefined
+    )
+      return { accepted: true };
+    const channel = yield* this.#serialize(
+      channelId,
+      Effect.gen({ self: this }, function* () {
+        const current = yield* channelSync(() => this.store.get(channelId));
+        const change = yield* channelSync(() =>
+          channelDraftChange(current, tool, args, agentId, this.hooks.agents(), {
+            hidden: (id) => this.hooks.hidden?.(id) ?? false,
+            mayAdd: (id) => this.hooks.mayAddMember?.(person.id, id) ?? true,
+          }),
+        );
+        return yield* this.apply({ type: "save", operationId, channelId, draft: change.draft, update: true }, agent, [
+          note(change.note),
+        ]);
+      }),
+    );
+    return {
+      accepted: true,
+      members: channel.members.map((member) => ({ agentId: member.agentId, name: this.memberName(member.agentId) })),
+      leadAgentId: channel.leadAgentId,
+      instructions: channel.instructions,
+    };
+  });
+
   readonly tool = Effect.fn("ChannelService.tool")(function* (
     this: ChannelService,
     channelId: string,
@@ -1859,6 +1951,11 @@ export class ChannelService {
     if (!task || task.revision !== assignment.taskRevision || task.state !== "running")
       return yield* channelFailure(new Error("The channel task has changed."));
     if (!isDynamicRecord(args)) return yield* channelFailure(new Error("Provide channel tool arguments."));
+    if (CHANNEL_MANAGEMENT_TOOLS.has(tool)) {
+      const person = channelRequester(task, tasks, (messageId) => this.store.message(channelId, messageId));
+      if (!person) return yield* channelFailure(new Error(PERSON_REQUEST_REQUIRED));
+      return yield* this.#manage(channelId, task.id, agentId, `tool:${turnId}:${callId}`, person, tool, args);
+    }
     if (tool === "channel_history") {
       if (isString(args.attachmentId)) {
         if (

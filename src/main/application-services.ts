@@ -1535,6 +1535,8 @@ export async function createApplicationServices({
     busyMessageMode: () => busyMessageMode.get().mode,
     agentMemoryLimit: () => agentMemoryLimit.get().limit,
     timezone: () => serverTimezone.effective(),
+    // `host` is built later, after the agent service; a channel tool reads it when it runs.
+    channelMemberAccess: (personId, agentId) => host.mayAddChannelMember(personId, agentId),
     deleteWithRevokedApproval: (agentId, remove) =>
       approvalAutomation.deleteAgent(agentId, remove).pipe(toAgentRemovalFailed),
     tables,

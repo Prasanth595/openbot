@@ -34,7 +34,7 @@ import type {
   UpdateHostIdentityInput,
   UpdateTeamMemberInput,
 } from "@openbot/contracts/ipc";
-import { conversationMessageSender, SIGNED_OUT_CHANNEL_MEMBER_ID } from "@openbot/contracts/ipc";
+import { agentAccessRank, conversationMessageSender, SIGNED_OUT_CHANNEL_MEMBER_ID } from "@openbot/contracts/ipc";
 import type { LiveActivityRelayPush } from "@openbot/contracts/live-activity-relay";
 import type { HostRestartState } from "@openbot/contracts/team-protocol/host-update-v1";
 import { sourceText } from "@openbot/i18n/source";
@@ -1510,6 +1510,20 @@ export class HostService extends EventEmitter<HostEvents> {
       return { id: SIGNED_OUT_CHANNEL_MEMBER_ID, name: "You" };
     }
     return { id: this.#currentAgentReaderId(), name: user.name ?? "You" };
+  }
+
+  /**
+   * Whether `personId`, who asked a channel member to add `agentId`, can chat with that agent: the
+   * rule for a save that the person sends through the Team API. This computer's user always can.
+   */
+  mayAddChannelMember(personId: string, agentId: string): boolean {
+    if (personId === SIGNED_OUT_CHANNEL_MEMBER_ID) return true;
+    try {
+      if (personId === `local-user:${this.#options.getSignedInUser().id}`) return true;
+    } catch {
+      // Signed out: the person is a team member or nobody this computer knows.
+    }
+    return agentAccessRank(this.#api.agentLevel(personId, agentId)) >= agentAccessRank("chat");
   }
 
   /** The channel list as the host user reads it, as the IPC list does. Empty without channels. */
