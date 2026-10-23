@@ -222,6 +222,7 @@ export const messages = {
   "error.provider.tryAgain": "Versuche es erneut.",
   "error.provider.noAgentProcess": "{provider} hat keinen laufenden Prozess für diesen Agenten.",
   "error.provider.stoppedBeforeAgentProcess": "{provider} wurde gestoppt, bevor der Agentenprozess gestartet wurde.",
+  "error.provider.namedFailure": "{provider} hat einen Fehler gemeldet: {detail}",
   "error.provider.archiveUnreadable":
     "Das Laufzeitarchiv kann nicht gelesen werden oder verwendet ein nicht unterstütztes Format.",
   "error.provider.antigravityArchivePath": "Das Gemini-Archiv enthält eine unerwartete Datei.",

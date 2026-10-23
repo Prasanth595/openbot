@@ -205,6 +205,7 @@ export const messages = defineMessages("error.provider", {
   "error.provider.tryAgain": "Try again.",
   "error.provider.noAgentProcess": "{provider} has no process running for this agent.",
   "error.provider.stoppedBeforeAgentProcess": "{provider} stopped before the agent's process started.",
+  "error.provider.namedFailure": "{provider} reported an error: {detail}",
   "error.provider.archiveUnreadable": "The runtime archive cannot be read or uses an unsupported format.",
   "error.provider.antigravityArchivePath": "The Gemini archive has an unexpected file.",
   "error.provider.antigravityChecksum": "Gemini runtime checksum mismatch.",

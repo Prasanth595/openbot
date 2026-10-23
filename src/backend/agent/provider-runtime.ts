@@ -20,6 +20,7 @@ import {
 } from "@openbot/contracts/ipc";
 import { matchingSourceKeys, sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, redactText } from "@openbot/logging";
+import { classifyFailure } from "@openbot/telemetry";
 import { classifyUserError } from "@openbot/user-errors";
 import { Deferred, Effect, Exit, Result, Schema, Scope, Semaphore } from "effect";
 import { startAcpAuthentication } from "./../acp-sign-in";
@@ -59,6 +60,7 @@ import { startCliCodeLogin } from "./cli-code-login";
 import { CliLoginFailed, CliLoginFlow, toCliLoginFailed } from "./cli-login-flow";
 import { CodexLoginFlow, toCodexLoginFailed } from "./codex-login";
 import type { ConversationRuntime } from "./conversation-runtime";
+import type { FailureContext } from "./failure-signal";
 import { ModelCatalog } from "./model-catalog";
 import { startMuseDeviceLogin } from "./muse-login";
 import type { ProviderAccountStore, StoredProviderAccount } from "./provider-account-store";
@@ -312,7 +314,7 @@ export class ProviderRuntime implements ProviderPort {
   readonly #conversation: ConversationRuntime;
   readonly #hooks: ProviderHooks;
   readonly #emit: (event: AgentEvent) => void;
-  readonly #emitError: (code: string, error: unknown, agentId?: string) => void;
+  readonly #emitError: (code: string, error: unknown, agentId?: string, context?: FailureContext) => void;
   readonly #requestTimeoutMs: number;
   readonly #clientFactory: AgentClientFactory | null;
   readonly #bundledExecutables: BundledProviderExecutables;
@@ -445,7 +447,7 @@ export class ProviderRuntime implements ProviderPort {
     conversation: ConversationRuntime;
     hooks: ProviderHooks;
     emit: (event: AgentEvent) => void;
-    emitError: (code: string, error: unknown, agentId?: string) => void;
+    emitError: (code: string, error: unknown, agentId?: string, context?: FailureContext) => void;
     requestTimeoutMs: number;
     preferredProvider: AgentProvider;
     preferredModel?: AgentModelId | null;
@@ -3309,7 +3311,10 @@ export class ProviderRuntime implements ProviderPort {
   /** Shows a provider failure to the user and keeps it on the provider row. */
   #emitProviderError(provider: AgentProvider, kind: string, error: unknown, agentId?: string): void {
     this.#recordProviderError(provider, error);
-    this.#emitError(`${provider}_${kind}`, error, agentId);
+    // A toast or a chat banner can show it far from the provider row, so it names the provider (#2850).
+    const detail = error instanceof Error ? error.message : String(error);
+    const named = new Error(sourceText("error.provider.namedFailure", { provider: providerLabel(provider), detail }));
+    this.#emitError(`${provider}_${kind}`, named, agentId, { causeCode: classifyFailure(error) });
     this.#setStatus({});
   }
 

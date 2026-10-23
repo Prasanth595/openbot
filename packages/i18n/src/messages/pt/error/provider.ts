@@ -215,6 +215,7 @@ export const messages = {
   "error.provider.tryAgain": "Tente novamente.",
   "error.provider.noAgentProcess": "{provider} não tem nenhum processo em execução para este agente.",
   "error.provider.stoppedBeforeAgentProcess": "{provider} parou antes de o processo do agente iniciar.",
+  "error.provider.namedFailure": "{provider} informou um erro: {detail}",
   "error.provider.archiveUnreadable":
     "O arquivo compactado do ambiente de execução não pode ser lido ou usa um formato incompatível.",
   "error.provider.antigravityArchivePath": "O arquivo compactado do Gemini contém um arquivo inesperado.",
