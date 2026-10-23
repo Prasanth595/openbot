@@ -610,7 +610,7 @@ export interface MobileWorkspaceContextValue {
  * One host's relayed MCP sign-ins (`sign-in-relay-v1`). The host starts the sign-in and opens no page;
  * the phone opens the page, and the address it ends on goes back with `complete`.
  */
-export interface McpSignInRelay {
+interface McpSignInRelay {
   /** Starts the sign-in of `config` and answers its flow id. */
   start: (config: McpServerConfig) => Promise<string>;
   status: (flowId: string) => Promise<SignInRelayStatus>;

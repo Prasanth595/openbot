@@ -702,7 +702,7 @@ export type MobilePluginAuthFlow =
       docsLabel?: string;
     };
 
-export type MobilePluginServer =
+type MobilePluginServer =
   | { name: string; transport: "http"; url: string; auth?: MobilePluginAuthFlow[] }
   | { name: string; transport: "stdio"; command: string; args: string[]; auth?: MobilePluginAuthFlow[] };
 

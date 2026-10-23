@@ -63,7 +63,7 @@ export function pluginKeyComplete(fields: readonly MobilePluginAuthField[], valu
 }
 
 /** The address is https and on the listing's host, or on a subdomain of it. */
-export function isListingUrl(value: string, listingUrl: string): boolean {
+function isListingUrl(value: string, listingUrl: string): boolean {
   let url: URL;
   try {
     url = new URL(value);
@@ -119,7 +119,7 @@ export function applyPluginKey(
  * Whether a row the host holds is the one this app installs. The name and the address (or the command
  * and its words) are compared, not the headers: the saved row carries the credential the user typed.
  */
-export function isPluginAppConfig(config: McpServerConfig, app: MobilePluginApp): boolean {
+function isPluginAppConfig(config: McpServerConfig, app: MobilePluginApp): boolean {
   const server = app.server;
   if (config.name !== server.name || config.transport !== server.transport) return false;
   if (server.transport === "http") {
