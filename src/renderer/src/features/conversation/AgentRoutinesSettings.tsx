@@ -661,13 +661,17 @@ export function AgentRoutinesSettings(props: AgentRoutinesSettingsProps) {
     return props.port.onceSchedule ? ROUTINE_LOCAL_DRAFT_KINDS : ROUTINE_SAVED_DRAFT_KINDS;
   }
 
-  /** Sends one signed test event to the saved routine, then shows its run. */
+  /**
+   * Sends one signed test event to the saved routine, then shows its run. Undefined when the host
+   * cannot send one; the card shows the step disabled until the routine is saved.
+   */
   function sendTestEvent(): (() => Promise<WebhookTestResult>) | undefined {
     const events = props.port.events;
     const send = events?.api.sendTestEvent;
-    const id = draft()?.id;
-    if (!events || !send || !id) return undefined;
+    if (!events || !send) return undefined;
     return async () => {
+      const id = draft()?.id;
+      if (!id) throw new Error(t("routine.webhook.testFailed"));
       const result = await send({ id, owner: events.owner });
       if (draft()?.id === id) await loadRuns(id);
       return result;
@@ -984,7 +988,7 @@ export function AgentRoutinesSettings(props: AgentRoutinesSettingsProps) {
                       onRegenerateSecret={regenerateSecret}
                       onSave={() => void saveDraft()}
                       saving={saving()}
-                      onSendTest={savedWebhook() ? sendTestEvent() : undefined}
+                      onSendTest={sendTestEvent()}
                     />
                   }
                 >
