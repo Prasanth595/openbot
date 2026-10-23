@@ -1,4 +1,4 @@
-import { type AccountUsage, agentProviderName, isAccountUsage } from "@openbot/contracts/ipc";
+import { agentProviderName, decodeHostProviderAccounts, isAccountUsage } from "@openbot/contracts/ipc";
 import {
   type PlanLimitRow,
   type PlanLimits,
@@ -23,38 +23,58 @@ type Translate = MobileText["t"];
 const PLAN_LIMITS_REFRESH_MS = 5 * 60_000;
 const SAVED_FILE = "plan-limits-v1.json";
 
-/** The last usage of each server, by account and server. Read on first use. */
-let savedUsage: Map<string, AccountUsage> | null = null;
+/** The last reading of each server, by account and server. Read on first use. */
+let savedReadings: Map<string, PlanLimits> | null = null;
 
 function savedKey(account: string, serverId: string): string {
   return JSON.stringify([account, serverId]);
 }
 
-/** The saved entries a later launch can trust. Anything else is dropped. */
-function decodeSavedUsage(value: unknown): [string, AccountUsage][] {
-  if (!Array.isArray(value)) return [];
-  return value.flatMap((entry): [string, AccountUsage][] =>
-    Array.isArray(entry) && typeof entry[0] === "string" && isAccountUsage(entry[1]) ? [[entry[0], entry[1]]] : [],
-  );
+/** The reading without the account emails and messages. The labels and the order name the rows. */
+function withoutPersonalData(limits: PlanLimits): PlanLimits {
+  return {
+    usage: limits.usage,
+    accounts:
+      limits.accounts?.map((entry) => ({
+        provider: entry.provider,
+        accounts: entry.accounts.map((item) => ({ ...item, email: null, message: null })),
+      })) ?? null,
+  };
 }
 
-function loadSavedUsage(): Map<string, AccountUsage> {
-  if (savedUsage) return savedUsage;
-  savedUsage = new Map();
+/** The saved entries a later launch can trust. Anything else is dropped. */
+function decodeSavedReadings(value: unknown): [string, PlanLimits][] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry): [string, PlanLimits][] => {
+    if (!Array.isArray(entry) || typeof entry[0] !== "string" || !isAccountUsage(entry[1]?.usage)) return [];
+    try {
+      const accounts =
+        entry[1].accounts === null ? null : decodeHostProviderAccounts({ providers: entry[1].accounts, agents: [] });
+      return [[entry[0], { usage: entry[1].usage, accounts: accounts?.providers ?? null }]];
+    } catch {
+      return [];
+    }
+  });
+}
+
+function loadSavedReadings(): Map<string, PlanLimits> {
+  if (savedReadings) return savedReadings;
+  savedReadings = new Map();
   try {
     const file = new File(Paths.cache, SAVED_FILE);
-    if (file.exists) savedUsage = new Map(decodeSavedUsage(JSON.parse(file.textSync())));
+    if (file.exists) savedReadings = new Map(decodeSavedReadings(JSON.parse(file.textSync())));
   } catch {
     // A damaged file costs the saved readings only. The next reading replaces it.
   }
-  return savedUsage;
+  return savedReadings;
 }
 
-function saveUsage(account: string, serverId: string, usage: AccountUsage): void {
-  const saved = loadSavedUsage();
+function saveReading(account: string, serverId: string, limits: PlanLimits): void {
+  const saved = loadSavedReadings();
   const key = savedKey(account, serverId);
-  if (saved.get(key) === usage) return;
-  saved.set(key, usage);
+  const reading = withoutPersonalData(limits);
+  if (JSON.stringify(saved.get(key)) === JSON.stringify(reading)) return;
+  saved.set(key, reading);
   try {
     new File(Paths.cache, SAVED_FILE).write(JSON.stringify([...saved]));
   } catch {
@@ -66,7 +86,8 @@ function saveUsage(account: string, serverId: string, usage: AccountUsage): void
  * The limits of the server's providers. An owner or admin also gets the accounts after the first. While
  * the server is offline, the last reading stays, so the header button does not come and go with the
  * connection. The last usage is also kept on this phone, so the button shows at once when the app starts
- * or the server changes. The account names are not kept: they come with the next reading.
+ * or the server changes. The account emails are not kept: an account without a label shows its number until
+ * the next reading.
  */
 export function usePlanLimits(serverId: string) {
   const workspace = useMobileWorkspaceActions();
@@ -82,19 +103,16 @@ export function usePlanLimits(serverId: string) {
     queryKey: queryKeys.planLimits(queryScope, serverId),
     queryFn: () => workspace.loadPlanLimits(serverId, accounts),
     enabled: online,
-    initialData: () => {
-      const usage = account ? loadSavedUsage().get(savedKey(account, serverId)) : undefined;
-      return usage ? { usage, accounts: null } : undefined;
-    },
+    initialData: () => (account ? loadSavedReadings().get(savedKey(account, serverId)) : undefined),
     // A saved reading is old: the server is read again as soon as it is online.
     initialDataUpdatedAt: 0,
     refetchInterval: PLAN_LIMITS_REFRESH_MS,
     retry: false,
   });
-  const usage = limits.dataUpdatedAt > 0 ? limits.data?.usage : undefined;
+  const reading = limits.dataUpdatedAt > 0 ? limits.data : undefined;
   useEffect(() => {
-    if (account && usage) saveUsage(account, serverId, usage);
-  }, [account, serverId, usage]);
+    if (account && reading) saveReading(account, serverId, reading);
+  }, [account, serverId, reading]);
   const rows = useMemo(() => planLimitRows(limits.data?.usage), [limits.data]);
   return { rows, accounts: limits.data?.accounts ?? null, online, loading: online && limits.isPending };
 }
