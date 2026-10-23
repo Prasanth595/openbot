@@ -488,6 +488,8 @@
       .agent-usage-body,
       .routine-planner-toolbar,
       .routine-planner-body,
+      .routine-planner-empty,
+      .routine-planner-error,
       .marketplace-crumbs,
       .skills-marketplace-body
     ) {

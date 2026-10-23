@@ -591,9 +591,8 @@
 }
 
 /* The one handwritten word of the title. It writes itself once. */
+/* Inline, not inline-block: a reader then hears "done." with no space before the full stop. */
 .routine-planner-empty-done {
-  display: inline-block;
-  line-height: 1;
   clip-path: inset(-0.4em 100% -0.4em -0.2em);
   animation: routine-planner-empty-write 520ms linear 500ms forwards;
 }

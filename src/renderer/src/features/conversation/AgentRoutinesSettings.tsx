@@ -281,11 +281,14 @@ export function AgentRoutinesSettings(props: AgentRoutinesSettingsProps) {
       lastSelectionRequestNonce = request.nonce;
       props.onSelectionRequestHandled?.(request.nonce);
       if (!loaded) return;
-      if (request.routineId === null) {
-        requestExit("new");
-        return;
-      }
-      requestRoutineSelection(request, currentRoutines.find((routine) => routine.id === request.routineId) ?? null);
+      // The editor state is read once, when the request arrives; a later edit must not run it again.
+      untrack(() => {
+        if (request.routineId === null) {
+          requestExit("new");
+          return;
+        }
+        requestRoutineSelection(request, currentRoutines.find((routine) => routine.id === request.routineId) ?? null);
+      });
     },
   );
 
