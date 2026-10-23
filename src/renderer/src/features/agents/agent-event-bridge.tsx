@@ -313,11 +313,15 @@ export function AgentEventBridge() {
           const message = readableAgentError(event.message);
           setConversationErrors((current) => ({ ...current, [key]: message }));
           // The provider and model above the error let the user report which run failed (#2858).
-          if (event.provider) {
-            const provider = providerDisplayName(event.provider);
-            const run = event.model ? currentText().t("agent.error.run", { provider, model: event.model }) : provider;
-            setConversationErrorRuns((current) => ({ ...current, [key]: { message, run } }));
-          }
+          const provider = event.provider ? providerDisplayName(event.provider) : null;
+          const run =
+            provider && event.model ? currentText().t("agent.error.run", { provider, model: event.model }) : provider;
+          setConversationErrorRuns((current) => {
+            if (run) return { ...current, [key]: { message, run } };
+            if (!(key in current)) return current;
+            const { [key]: _replaced, ...next } = current;
+            return next;
+          });
           return;
         }
         // No agent to attach it to - a provider that fails to start is the common case - so this

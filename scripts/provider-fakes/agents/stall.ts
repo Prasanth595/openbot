@@ -2,12 +2,13 @@
 // - `hang` never answers and ignores `session/cancel`, as an OpenCode prompt that stays open (#2858).
 // - `tool` keeps one tool call open for `FAKE_TOOL_MS`, then answers.
 // - `stream` sends its answer in two chunks `FAKE_CHUNK_GAP_MS` apart, then answers.
-// Each other prompt answers at once.
+// Each other prompt answers at once. `FAKE_NO_LOAD=1` offers no `session/load`, as some custom agents.
 import { type AcpParams, type AcpPeer, type AcpRequest, logEntry, serveFakeAcpAgent } from "../acp-agent";
 
 const MODELS = [{ modelId: "fake-alpha", name: "Fake Alpha" }];
 const toolMs = Number(process.env.FAKE_TOOL_MS ?? 0);
 const chunkGapMs = Number(process.env.FAKE_CHUNK_GAP_MS ?? 0);
+const loadSession = process.env.FAKE_NO_LOAD !== "1";
 let count = 0;
 
 function setup(sessionId: string) {
@@ -33,8 +34,10 @@ function restore(request: AcpRequest, peer: AcpPeer): void {
   peer.reply(request, setup(sessionId));
 }
 
+/** The user's text, without the instructions that OpenBot puts first in a new or loaded session. */
 function promptText(params: AcpParams): string {
-  return (params.prompt ?? []).map((block) => block.text ?? "").join("");
+  const text = (params.prompt ?? []).map((block) => block.text ?? "").join("");
+  return text.replace(/^[\s\S]*<\/openbot-developer-instructions>/u, "");
 }
 
 serveFakeAcpAgent(
@@ -43,11 +46,12 @@ serveFakeAcpAgent(
       peer.reply(request, {
         protocolVersion: 1,
         agentInfo: { name: "stall", version: "1.0.0" },
-        agentCapabilities: { loadSession: true },
+        agentCapabilities: { loadSession },
         authMethods: [],
       }),
     "session/new": (request, peer) => {
       count += 1;
+      logEntry({ event: "session/new" });
       peer.reply(request, setup(`s-${process.pid}-${count}`));
     },
     "session/load": restore,

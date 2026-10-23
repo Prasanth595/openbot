@@ -152,6 +152,8 @@ interface AcpTurn {
   lastActivityAt: number;
   /** Questions and approvals that wait for the user. The turn is not stalled while one is open. */
   waitingOnUser: number;
+  /** OpenBot ended the turn because the agent did not. Its open tool calls get no more updates. */
+  abandoned: boolean;
 }
 
 interface AcpThread {
@@ -1690,6 +1692,7 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
       task: null,
       lastActivityAt: Date.now(),
       waitingOnUser: 0,
+      abandoned: false,
     };
     thread.activeTurn = turn;
     this.#threads.holdForTurn(thread);
@@ -1963,7 +1966,8 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
 
   /**
    * Ends a turn that the agent did not end. The prompt may still run in the agent, so the next
-   * prompt opens the session again first, and a tool that the old prompt asks for is refused.
+   * prompt opens the session again first, and a tool that the old prompt asks for is refused. An
+   * agent that cannot give a session back keeps it, because opening it again would replace it.
    */
   readonly #abandonTurn = Effect.fn("AcpAgentClient.abandonTurn")(function* (
     this: AcpAgentClient,
@@ -1973,7 +1977,8 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
     error: string | null,
   ) {
     if (thread.activeTurn !== turn || turn.completing) return;
-    thread.needsResume = true;
+    if (this.#supportsSessionResume || this.#loadsSessions) thread.needsResume = true;
+    turn.abandoned = true;
     if (turn.task) yield* Fiber.interrupt(turn.task);
     yield* this.#completeTurn(thread, turn, status, error);
   });
@@ -2039,7 +2044,7 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
     for (const item of turn.toolItems.values()) {
       // A stopped stream cannot provide another tool result. Preserve its last output without
       // reporting successful execution. A normal completion can leave background tasks active.
-      const interrupted = this.#flavor.interruptToolsOnStop === true && status !== "completed";
+      const interrupted = (this.#flavor.interruptToolsOnStop === true || turn.abandoned) && status !== "completed";
       const settled = interrupted ? { ...item, status: status === "failed" ? "failed" : "interrupted" } : item;
       turn.messages.push(settled);
       if (interrupted)
