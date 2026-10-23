@@ -625,7 +625,7 @@ do not all pass the check before their processes grow. A start that fails counts
 When the level is `ok` again, each held message starts. If a file cannot be read, the level stays
 `ok` and main logs one warning.
 
-Only a fixed number of turns run at the same time, from the memory of the server: 4 up to 5 GiB,
+Only a fixed number of turns run at the same time, from the memory of the server: 2 up to 5 GiB,
 8 up to 10 GiB, and 16 above. A turn that starts, runs, or compacts the context uses a slot. When
 the slots are full, the messages wait in the queue: a message from a person starts first, then
 routine runs and teammate messages, and the oldest first in each group. No turn waits for a slot
