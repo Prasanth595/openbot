@@ -122,19 +122,11 @@ export function decodeAccountUsageFromMain(value: unknown): AccountUsage {
 
 /** Main has already left out the providers that this build does not know, so each one must be known. */
 export function decodeProviderUsageResetsFromMain(value: unknown): ProviderUsageResets[] {
-  if (
-    !Array.isArray(value) ||
-    !value.every(
-      (row: unknown) =>
-        isDynamicRecord(row) &&
-        isAgentProvider(row.provider) &&
-        isProviderAccountId(row.accountId) &&
-        Number.isSafeInteger(row.available) &&
-        Number(row.available) >= 0,
-    )
-  )
+  const resets = decodeProviderUsageResets(value);
+  // The shared decoder leaves an unknown provider out; here that row is invalid.
+  if (!Array.isArray(value) || resets.length !== value.length)
     throw new Error("Invalid provider usage resets response.");
-  return decodeProviderUsageResets(value);
+  return resets;
 }
 
 export function decodeProviderUsageResetOutcomeFromMain(value: unknown): ProviderUsageResetOutcome {

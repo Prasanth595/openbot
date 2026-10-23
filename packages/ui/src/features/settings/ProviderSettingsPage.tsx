@@ -559,8 +559,15 @@ function AccountsSection(props: SectionProps) {
     if (read) void read(props.option.id).then(apply, () => apply([]));
     else apply([]);
   };
+  // The actions can arrive after the page: a joined server's capabilities come after its status.
   createEffect(
-    () => `${props.option.id}\n${accounts().map((account) => `${account.id}:${account.state}`)}`,
+    () => [
+      props.option.id,
+      accounts()
+        .map((account) => `${account.id}:${account.state}`)
+        .join(),
+      props.accountActions?.usageResets,
+    ],
     readUsageResets,
   );
   const resetsLeft = (accountId: string) =>

@@ -684,8 +684,8 @@ while it is released; an account after the first uses the reading that the dock 
 minutes. An account whose reading has no count is left out. `resetUsage` sends the consume with a new
 `idempotencyKey` for each reset the user asks for, through the running client, an agent's process or a
 short one in the account's folder. Then it reads the account's usage again and sends `usage-changed`.
-After the answer `reset`, `AgentService` calls `UsageLimitGate.accountReset`, which ends each limit of
-that account, so its held agents start again. Other providers have no credits: `resetUsage` refuses them.
+After the answer `reset`, or `nothingToReset` (no limit of the account is spent), `AgentService` calls
+`UsageLimitGate.accountReset`, which ends each limit of that account, so its held agents start again. Other providers have no credits: `resetUsage` refuses them.
 
 Settings > Providers shows **Reset usage** in the ⋯ menu of a connected account that has a credit.
 The confirmation names the credits left, and the answer shows under the accounts. A joined server

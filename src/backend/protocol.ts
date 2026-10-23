@@ -1,5 +1,13 @@
+import { PROVIDER_USAGE_RESET_OUTCOMES, type ProviderUsageResetOutcome } from "@openbot/contracts/ipc";
 import { decodeRecord, requiredString } from "@openbot/contracts/ipc-decoding";
-import { type DynamicRecord, isBoolean, isDynamicRecord, isNumber, isString } from "@openbot/contracts/runtime-values";
+import {
+  type DynamicRecord,
+  isBoolean,
+  isDynamicRecord,
+  isNumber,
+  isOneOf,
+  isString,
+} from "@openbot/contracts/runtime-values";
 
 export type RequestId = string | number;
 
@@ -114,9 +122,6 @@ export interface AccountRateLimitsReadResult {
   /** Codex only: the usage reset credits of the account. Null when Codex could not count them. */
   rateLimitResetCredits?: { availableCount: number } | null | undefined;
 }
-
-/** What `account/rateLimitResetCredit/consume` did. */
-export type AccountRateLimitResetOutcome = "reset" | "nothingToReset" | "noCredit" | "alreadyRedeemed";
 
 export interface ThreadItem {
   type: string;
@@ -281,13 +286,10 @@ export function decodeAccountRateLimitsReadResult(value: unknown): AccountRateLi
   };
 }
 
-const RESET_OUTCOMES = ["reset", "nothingToReset", "noCredit", "alreadyRedeemed"] as const;
-
-export function decodeRateLimitResetCreditConsumeResult(value: unknown): AccountRateLimitResetOutcome {
+export function decodeRateLimitResetCreditConsumeResult(value: unknown): ProviderUsageResetOutcome {
   const outcome = decodeRecord(value, "rate limit reset response").outcome;
-  const known = RESET_OUTCOMES.find((candidate) => candidate === outcome);
-  if (!known) throw new Error("Invalid rate limit reset outcome.");
-  return known;
+  if (!isOneOf(PROVIDER_USAGE_RESET_OUTCOMES, outcome)) throw new Error("Invalid rate limit reset outcome.");
+  return outcome;
 }
 
 /** A sparse `account/rateLimits/updated` push: only the windows it holds changed. */

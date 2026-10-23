@@ -3100,7 +3100,8 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
           (failure) => new AgentLifecycleFailed({ operation: "resetProviderUsage", cause: failure.cause }),
         ),
       );
-    if (outcome === "reset")
+    // `nothingToReset` says that no limit of the account is spent, so a hold on it is out of date too.
+    if (outcome === "reset" || outcome === "nothingToReset")
       yield* this.#usageLimits.accountReset(provider, accountId === DEFAULT_PROVIDER_ACCOUNT_ID ? null : accountId);
     return outcome;
   }).bind(this);

@@ -3,7 +3,7 @@
 // `account/rateLimitResetCredit/consume`, as Codex 0.160.1 does. The first turn hits the plan limit, so
 // the usage limit gate holds the agent. Cases: the credits are read; a reset answers `reset`, spends one
 // credit with one idempotency key, and the held message runs; a second reset with no spent limit answers
-// `nothingToReset` and spends none; another provider is refused.
+// `nothingToReset`, spends none, and ends a hold that a refused turn left; another provider is refused.
 // `bun scripts/codex-usage-reset-e2e.ts`. Writes .openbot-build/codex-usage-reset-e2e/report.json.
 import assert from "node:assert/strict";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -50,6 +50,7 @@ let turns = 0;
 let credits = 2;
 let spent = false;
 let hit = false;
+let transientHit = false;
 const resetsAt = Math.floor(Date.now() / 1000) + 3600;
 process.stdout.on("error", (error) => {
   if (error.code === "EPIPE") process.exit(0);
@@ -86,10 +87,13 @@ const answer = (message) => {
     case "turn/start": {
       const turnId = "turn-" + (++turns);
       if (!hit && JSON.stringify(params.input).includes("limit")) { hit = true; spent = true; }
+      // A refusal that the plan does not show, as when Codex counted a limit that ended since.
+      const transient = !transientHit && JSON.stringify(params.input).includes("transient");
+      if (transient) transientHit = true;
       write({ id: message.id, result: { turn: { id: turnId, status: "inProgress", items: [] } } });
       write({ method: "turn/started", params: { threadId: params.threadId, turn: { id: turnId } } });
       setTimeout(() => {
-        if (spent) {
+        if (spent || transient) {
           const error = { message: "You've hit your usage limit. Try again later.", codexErrorInfo: "usageLimitExceeded" };
           write({ method: "error", params: { threadId: params.threadId, turnId, error, willRetry: false } });
           write({ method: "turn/completed", params: { threadId: params.threadId, turn: { id: turnId, status: "failed", error } } });
@@ -232,14 +236,30 @@ try {
     passed: true,
   });
 
+  // A refused turn holds the agent, but the plan shows no spent window: the gate waits for its timer.
+  await runCauseEffect(agents.sendMessage({ agentId: agent.id, text: "A transient refusal." }));
+  await waitFor("the refusal to hold the agent again", () =>
+    agents.getRuntimeSnapshot().usageLimits?.some((limit) => limit.agentId === agent.id),
+  );
   const nothing = await runCauseEffect(agents.resetProviderUsage("codex", DEFAULT_PROVIDER_ACCOUNT_ID));
   assert.equal(nothing, "nothingToReset");
   const second = consumed();
   assert.equal(second.length, 2);
   assert.notEqual(second[1]?.idempotencyKey, second[0]?.idempotencyKey, "Each reset has its own key.");
+  assert.ok(
+    !agents.getRuntimeSnapshot().usageLimits?.some((limit) => limit.agentId === agent.id),
+    "Nothing to reset ends the hold, because no limit of the account is spent.",
+  );
+  await waitFor("the message after the refusal to run", () =>
+    agents.listQueue(agent.id).deliveries.every((delivery) => delivery.status === "completed"),
+  );
   const left = await runCauseEffect(agents.providerUsageResets("codex"));
   assert.equal(left[0]?.available, 1, "A reset with nothing to reset spends no credit.");
-  report.cases.push({ name: "nothing to reset spends no credit", details: { nothing, left }, passed: true });
+  report.cases.push({
+    name: "nothing to reset spends no credit and ends a hold that is out of date",
+    details: { nothing, left },
+    passed: true,
+  });
 
   const refused = await runCauseEffect(agents.resetProviderUsage("claude", DEFAULT_PROVIDER_ACCOUNT_ID)).then(
     () => null,
