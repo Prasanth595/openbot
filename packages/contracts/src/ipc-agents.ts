@@ -79,7 +79,8 @@ export const AGENT_BACKUP_MODEL_LIMIT = 8;
 
 /**
  * What an agent does when a usage limit holds a message that has not started. Absent means the
- * agent asks in the chat, with no saved order.
+ * agent asks in the chat, with no saved order. An automatic order also moves the agent when a
+ * provider error fails a turn that did no work yet.
  */
 export interface AgentBackupModels {
   /** True: the agent switches at once to the first available model in `order`. False: it asks first. */
@@ -97,13 +98,20 @@ export function isAgentModelChoice(value: unknown): value is AgentModelChoice {
   );
 }
 
-/** The model an agent left for a usage limit, with the reasoning effort it had there. */
+/** The model an agent left for a usage limit or a provider error, with the reasoning effort it had there. */
 export interface AgentUsageLimitReturn extends AgentModelChoice {
   reasoningEffort: AgentReasoningEffort;
+  /** "provider-error" when a provider error made the agent leave. Absent means a usage limit. */
+  cause?: "provider-error" | undefined;
 }
 
 export function isAgentUsageLimitReturn(value: unknown): value is AgentUsageLimitReturn {
-  return isDynamicRecord(value) && isAgentModelChoice(value) && isReasoningEffort(value.reasoningEffort);
+  return (
+    isDynamicRecord(value) &&
+    isAgentModelChoice(value) &&
+    isReasoningEffort(value.reasoningEffort) &&
+    (value.cause === undefined || value.cause === "provider-error")
+  );
 }
 
 export function isAgentBackupModels(value: unknown): value is AgentBackupModels {

@@ -17,7 +17,7 @@ import {
 } from "@openbot/contracts/ipc";
 import { type DynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { createOpenBotLogger } from "@openbot/logging";
-import { classifyFailure } from "@openbot/telemetry";
+import { type CauseCode, classifyFailure } from "@openbot/telemetry";
 import { Cause, Deferred, Effect, Exit, Schema, Scope } from "effect";
 import type { AgentClient } from "../agent-client";
 import type { AgentStore } from "../agent-store";
@@ -71,6 +71,18 @@ import { USAGE_LIMIT_METHOD, type UsageLimitGate } from "./usage-limit-gate";
 
 const logger = createOpenBotLogger("turn-lifecycle");
 const ENDED_TURN_LIMIT = 256;
+/**
+ * The provider errors that move an agent set to switch without asking to its next backup model. Each
+ * one can pass on another provider, account or model; a request the model refuses fails on each.
+ */
+const FAILOVER_CAUSES: ReadonlySet<CauseCode> = new Set([
+  "billing",
+  "provider_unavailable",
+  "rate_limit",
+  "authentication",
+  "network",
+  "timeout",
+]);
 
 export interface AgentBrowserHost extends AttentionBrowserHost, BrowserUploadTarget {
   onChanged(listener: (tabs: BrowserTab[], activeTabId: string | null) => void): () => void;
@@ -109,6 +121,8 @@ export interface TurnHooks {
   emitToolUsage(usage: ToolUsageSignal): void;
   /** The model this turn was started with, or null when the drain no longer knows it. */
   turnModel(agentId: string, turnId: string): string | null;
+  /** Whether a provider error moves this agent to a backup model: it switches without asking and has a ready one. */
+  mayFailOver(agentId: string): boolean;
   /**
    * Gives a channel task back to its channel's queue after a spent plan refused its turn. False
    * when the delivery is not an active channel assignment that can go back.
@@ -207,6 +221,11 @@ export class TurnLifecycle {
   >();
   /** Running turns a provider plan refused, with the reset in epoch seconds when the provider gave it. */
   readonly #limitedTurns = new Map<string, number | null>();
+  /**
+   * Running turns that a provider error failed while their agent can move to a backup model, with
+   * the error and its context. The end of the turn runs the turn again on the backup, or shows the error.
+   */
+  readonly #failoverTurns = new Map<string, { message: string; context: FailureContext & { causeCode: CauseCode } }>();
   /** The deliveries run again after a refused session history. Each one gets a single retry. */
   readonly #refusedRetries = new Set<string>();
   /** Running turns whose agent called the no-update tool. The completion of the turn takes the entry. */
@@ -288,6 +307,7 @@ export class TurnLifecycle {
     this.#turnAssociations.clear();
     this.#turnErrors.clear();
     this.#limitedTurns.clear();
+    this.#failoverTurns.clear();
     this.#runningTurns.clear();
     this.#noUpdateTurns.clear();
     this.#endedTurns.clear();
@@ -683,6 +703,19 @@ export class TurnLifecycle {
           turnId: errorTurnId,
           severity: notification.method === "warning" ? ("warning" as const) : ("error" as const),
         };
+        // A provider error moves an agent set to switch without asking to its next backup model. The
+        // error waits for the end of the turn: a turn that did nothing yet runs again there instead.
+        if (
+          notification.method === "error" &&
+          agentId &&
+          errorTurnId !== null &&
+          this.#runningTurns.has(errorTurnId) &&
+          FAILOVER_CAUSES.has(context.causeCode) &&
+          this.#hooks.mayFailOver(agentId)
+        ) {
+          this.#failoverTurns.set(errorTurnId, { message, context });
+          return;
+        }
         const taskId =
           notification.method === "error" && agentId && threadId ? this.#taskForThread(agentId, threadId) : null;
         if (taskId !== null) {
@@ -748,6 +781,8 @@ export class TurnLifecycle {
       const limited = status === "failed" && this.#limitedTurns.has(turnId);
       const resetsAt = this.#limitedTurns.get(turnId) ?? null;
       this.#limitedTurns.delete(turnId);
+      const failover = this.#failoverTurns.get(turnId);
+      this.#failoverTurns.delete(turnId);
       this.#deltas.flushTurn(turnId);
       yield* this.#images.waitForOperations(threadId, turnId);
       const association = this.#turnAssociations.get(turnId);
@@ -757,7 +792,8 @@ export class TurnLifecycle {
       // neither is compacted.
       // A routine run's own session closes after this turn, so it is not compacted either.
       const routineSession = this.#conversation.isRoutineSession(threadId);
-      const shouldCompact = !refused && !limited && !routineSession && this.#compaction.reserve(agentId, threadId);
+      const shouldCompact =
+        !refused && !limited && !failover && !routineSession && this.#compaction.reserve(agentId, threadId);
       this.#browser.endControl(this.#conversation.publicThreadId(agentId, threadId), turnId);
       const snapshot = this.#conversation.ensureSnapshot(agentId, threadId);
       snapshot.activeTurnId = null;
@@ -781,12 +817,22 @@ export class TurnLifecycle {
       const repeatable = limited && running !== undefined && !running.acted && deliveries.length > 0;
       const channelTurn = !taskTurn && this.#conversation.isExecutionThread(snapshot.threadId);
       const requeue = repeatable && !channelTurn;
+      // The same for a provider error, when the agent moves to a backup model. A channel task fails
+      // as before: it waits in its channel, not in this queue.
+      const failedOver =
+        failover !== undefined &&
+        !limited &&
+        status === "failed" &&
+        running !== undefined &&
+        !running.acted &&
+        deliveries.length > 0 &&
+        !channelTurn;
       // A foreground subagent ends with its turn. A background one works on and reports later.
       const subagents = snapshot.messages.find((message) => message.id === `${turnId}:subagents`);
       stopRunningSubagents(subagents?.subagents, new Date().toISOString(), { background: false });
       for (const message of snapshot.messages) {
         if (this.#itemTurns.get(message.id) !== turnId || message.status !== "streaming") continue;
-        message.status = normalizeCompletionStatus(repeatable ? "interrupted" : status);
+        message.status = normalizeCompletionStatus(repeatable || failedOver ? "interrupted" : status);
         markIncompleteImageGeneration(message, message.status);
       }
       // Only this loop reads the map, so the finished turn's items go, or it holds every item ever seen.
@@ -799,6 +845,21 @@ export class TurnLifecycle {
         yield* this.#usageLimits.reached(agentId, resetsAt, model);
         this.#hooks.scheduleDrain(agentId);
         return;
+      }
+      if (failover && failedOver) {
+        this.#hooks.emitFailure?.({ code: "agent_error", agentId, ...failover.context });
+        yield* this.#requeueTurn(agentId, threadId, turnId, snapshot, deliveries);
+        this.#usageLimits.failed(agentId, model);
+        this.#hooks.scheduleDrain(agentId);
+        return;
+      }
+      if (failover) {
+        // The turn did work, or nothing waits to run again: the error shows as it does with no backup.
+        const taskId = this.#taskForThread(agentId, threadId);
+        if (taskId !== null) {
+          this.#hooks.emitFailure?.({ code: "agent_error", agentId, ...failover.context });
+          this.#hooks.taskFailed(taskId, failover.message);
+        } else this.#hooks.emitError("agent_error", failover.message, agentId, failover.context);
       }
       if (limited) yield* this.#usageLimits.reached(agentId, resetsAt, model);
       else if (status === "completed") yield* this.#usageLimits.completed(agentId, model);

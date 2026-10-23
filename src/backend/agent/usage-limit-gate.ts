@@ -15,6 +15,12 @@ const USAGE_LIMIT_RECHECK_MS = 15 * 60_000;
 /** Time after the reported reset before work starts again, so the provider's clock has passed it too. */
 const RESET_GRACE_MS = 30_000;
 
+/**
+ * How long a model that failed a turn with a provider error is passed over, so an agent on a backup
+ * does not go back to a model that still fails at once. A provider error names no reset.
+ */
+const PROVIDER_FAILURE_HOLD_MS = 10 * 60_000;
+
 /** The longest delay `setTimeout` keeps. A longer wait is armed again when it fires. */
 const MAX_TIMER_MS = 2_147_483_647;
 
@@ -46,6 +52,10 @@ export interface UsageLimitKey {
   model: string;
 }
 
+interface ProviderFailure extends UsageLimitKey {
+  timer: ReturnType<typeof setTimeout>;
+}
+
 interface UsageLimit extends UsageLimitKey {
   /** Epoch seconds, or null while the provider has not said. */
   resetsAt: number | null;
@@ -63,6 +73,9 @@ interface UsageLimit extends UsageLimitKey {
  * The entry ends at the reported reset, after a usage read that finds no spent window, or when a
  * turn on that provider and model completes. It is kept in memory only: after a restart the first
  * refused turn closes the gate again.
+ *
+ * It also owns the models that failed a turn with a provider error. They hold no queue: they only
+ * move agents set to switch without asking to a backup, and keep them there for a while.
  */
 export class UsageLimitGate {
   readonly #store: AgentStore;
@@ -72,6 +85,7 @@ export class UsageLimitGate {
   #scope = Scope.makeUnsafe();
   /** Providers the user was told about in this limit, so a limit that closes again is not announced twice. */
   readonly #announced = new Set<AgentProvider>();
+  readonly #failures = new Map<string, ProviderFailure>();
 
   constructor(options: UsageLimitGateOptions) {
     this.#store = options.store;
@@ -86,6 +100,36 @@ export class UsageLimitGate {
   /** Whether a limit holds this provider account and model. */
   isLimited(limit: UsageLimitKey): boolean {
     return this.#limits.has(limitKey(limit.provider, limit.accountId, limit.model));
+  }
+
+  /** Whether a provider error passes over this provider account and model. */
+  isFailed(limit: UsageLimitKey): boolean {
+    return this.#failures.has(limitKey(limit.provider, limit.accountId, limit.model));
+  }
+
+  /**
+   * A provider error failed a turn of this agent on `model`, the agent's current model when null.
+   * The model is passed over until the hold ends or a turn on it completes. Then the agents that
+   * left it go back.
+   */
+  failed(agentId: string, model: string | null = null): void {
+    const agent = this.#agent(agentId);
+    if (!agent) return;
+    const provider = providerForAgent(agent);
+    const accountId = accountOf(agent);
+    const turnModel = model ?? agent.model;
+    const key = limitKey(provider, accountId, turnModel);
+    const previous = this.#failures.get(key);
+    if (previous) clearTimeout(previous.timer);
+    this.#failures.set(key, {
+      provider,
+      accountId,
+      model: turnModel,
+      timer: setTimeout(
+        () => Effect.runFork(this.#releaseFailure(key).pipe(Effect.forkIn(this.#scope))),
+        PROVIDER_FAILURE_HOLD_MS,
+      ),
+    });
   }
 
   /** The agents whose queue a limit holds, for the runtime snapshot. */
@@ -155,12 +199,15 @@ export class UsageLimitGate {
     const provider = providerForAgent(agent);
     const key = limitKey(provider, accountOf(agent), model ?? agent.model);
     if (this.#limits.has(key)) yield* this.#release(key);
+    if (this.#failures.has(key)) yield* this.#releaseFailure(key);
     if (![...this.#limits.values()].some((limit) => limit.provider === provider)) this.#announced.delete(provider);
   }).bind(this);
 
   readonly dispose = Effect.fn("UsageLimitGate.dispose")(function* (this: UsageLimitGate) {
     for (const limit of this.#limits.values()) if (limit.timer) clearTimeout(limit.timer);
     this.#limits.clear();
+    for (const failure of this.#failures.values()) clearTimeout(failure.timer);
+    this.#failures.clear();
     this.#announced.clear();
     yield* Scope.close(this.#scope, Exit.void);
     this.#scope = Scope.makeUnsafe();
@@ -237,6 +284,14 @@ export class UsageLimitGate {
     this.#hooks.emitRuntimeSnapshot();
     for (const agent of this.#heldAgents(limit)) this.#hooks.scheduleDrain(agent.id);
     yield* this.#hooks.released({ provider: limit.provider, accountId: limit.accountId, model: limit.model });
+  });
+
+  readonly #releaseFailure = Effect.fn("UsageLimitGate.releaseFailure")(function* (this: UsageLimitGate, key: string) {
+    const failure = this.#failures.get(key);
+    if (!failure) return;
+    clearTimeout(failure.timer);
+    this.#failures.delete(key);
+    yield* this.#hooks.released({ provider: failure.provider, accountId: failure.accountId, model: failure.model });
   });
 
   #heldAgents(limit: UsageLimit) {

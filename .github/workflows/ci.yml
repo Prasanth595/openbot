@@ -381,6 +381,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: bun run test:claude-usage-resume
 
+      - name: Run the backup model failover E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:backup-model-failover
+
       - name: Run the ZIP attachment E2E test
         if: ${{ !cancelled() }}
         run: bun run test:zip-attachments
@@ -417,6 +421,7 @@ jobs:
             .openbot-build/routine-fresh-session-e2e/
             .openbot-build/agent-webhook-routine-e2e/
             .openbot-build/claude-usage-resume-e2e/
+            .openbot-build/backup-model-failover-e2e/
             .openbot-build/zip-attachment-e2e/
             .openbot-build/agent-mcp-tools-e2e/
             .openbot-build/antigravity-usage-e2e/

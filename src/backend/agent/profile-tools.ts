@@ -1,11 +1,13 @@
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import {
   AGENT_ACCESS_MODES,
+  AGENT_BACKUP_MODEL_LIMIT,
   AGENT_PROVIDERS,
   AGENT_REASONING_EFFORTS,
   AVATAR_HUES,
   AVATAR_SEED_PATTERN,
   isAvatarHue,
+  isProviderAccountId,
 } from "@openbot/contracts/ipc";
 import { z } from "zod";
 
@@ -100,6 +102,36 @@ export const updateProfileToolSchema = z
       .describe("false turns Computer Use off for the agent. Only the user can turn it on.")
       .optional(),
     notifications: z.boolean().describe("Whether the user gets notifications for the agent.").optional(),
+    backupModels: z
+      .object({
+        automatic: z
+          .boolean()
+          .describe(
+            "true switches at once to the first ready model in order. false asks the user in the chat at a usage limit.",
+          ),
+        order: z
+          .array(
+            z
+              .object({
+                provider: z.enum(AGENT_PROVIDERS),
+                model: z.string().trim().min(1).max(INPUT_LIMITS.modelName).describe("Model id from list_models."),
+                providerAccountId: z
+                  .string()
+                  .refine(isProviderAccountId, "Invalid provider account id.")
+                  .describe("Account id from read_agent. Omit it to use the provider's own sign-in.")
+                  .optional(),
+              })
+              .strict(),
+          )
+          .max(AGENT_BACKUP_MODEL_LIMIT)
+          .describe("Backup models, first to last. The agent's own provider and model come first and are not listed."),
+      })
+      .strict()
+      .nullable()
+      .describe(
+        "The ordered backup models. This replaces the whole list. null removes it. A usage limit or a provider error moves the agent to the next ready model, and it goes back later.",
+      )
+      .optional(),
   })
   .strict();
 

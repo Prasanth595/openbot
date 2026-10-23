@@ -1,9 +1,15 @@
-import type { AgentModelOption, AgentReasoningEffort, AgentSummary, UpdateAgentInput } from "@openbot/contracts/ipc";
+import type {
+  AgentBackupModels,
+  AgentModelOption,
+  AgentReasoningEffort,
+  AgentSummary,
+  UpdateAgentInput,
+} from "@openbot/contracts/ipc";
 import { AGENT_PROVIDERS, defaultProviderModel } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import type { AgentProvider } from "../agent-client";
 import { AgentSettingsRefused } from "./agent-settings-refused";
-import { providerLabel } from "./thread-items";
+import { agentProviderAccount, providerLabel } from "./thread-items";
 
 export interface ModelRequest {
   provider?: AgentProvider | undefined;
@@ -142,4 +148,33 @@ export function requestedRuntime(
   }
   requireReasoningEffort(current, request.reasoningEffort);
   return { reasoningEffort: request.reasoningEffort };
+}
+
+/**
+ * The backup models that an `update_profile` call names, checked as `requestedRuntime` checks the
+ * agent's own model: a model that is not listed, or an account that is not on this computer, is an
+ * error that the calling agent can correct. The settings page offers only listed models.
+ */
+export function requestedBackupModels(
+  request: AgentBackupModels | null,
+  models: AgentModelOption[],
+  hasAccount: (provider: AgentProvider, accountId: string) => boolean,
+): AgentBackupModels | null {
+  if (request === null) return null;
+  return {
+    automatic: request.automatic,
+    order: request.order.map((choice) => {
+      requestedToolModel({ provider: choice.provider, model: choice.model }, models);
+      const accountId = agentProviderAccount(choice);
+      if (accountId !== null && !hasAccount(choice.provider, accountId))
+        throw new AgentSettingsRefused(
+          sourceText("error.provider.accountNotFound", { provider: providerLabel(choice.provider) }),
+        );
+      return {
+        provider: choice.provider,
+        model: choice.model,
+        ...(accountId !== null ? { providerAccountId: accountId } : {}),
+      };
+    }),
+  };
 }

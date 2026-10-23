@@ -633,6 +633,30 @@ the change while an agent uses the provider. New model assignments use the same 
 The switch is local IPC only; released Team API adapters stay unchanged. Remote
 clients receive the host's filtered model list.
 
+### Backup models and failover
+
+An agent keeps an ordered list of backup models (`AgentBackupModels`, at most 8) in `agent_json`.
+The settings page, the admin route `agent-backup-models-v1`, and the `update_profile` tool set it.
+When the list is automatic, `UsageLimitGate` and `AgentService.#usageLimitMove` move the agent to the
+first ready model in the order that no hold covers. `usageLimitReturn` keeps the model the agent
+left, and the agent goes back to it when its hold ends. A model the user picks drops the return.
+
+Two holds move an agent:
+
+- A plan usage limit holds the queue of every agent on that provider account and model until the
+  reset.
+- A provider error holds nothing. `TurnLifecycle` checks the turn's error with `classifyFailure`.
+  The causes are `billing`, `provider_unavailable`, `rate_limit`, `authentication`, `network` and
+  `timeout`. When the turn did no work yet (`!acted`) and the agent has a ready backup, the turn's
+  messages go back to the queue and `UsageLimitGate.failed` passes over that model for 10 minutes.
+  The next drain moves the agent, and the turn runs again on the backup with no error banner. The
+  hold also ends when a turn on the model completes. A restart clears the holds, so the first drain
+  after it goes back. The return is marked `cause: "provider-error"`, so the notes read
+  `model-switch:provider-error` and `model-switch:provider-error-ended`.
+
+A turn that wrote text or ran a tool fails with its error, as with no backup. Channel tasks, a
+refused `turn/start`, and a provider that fails to start do not fail over.
+
 
 ## Provider settings and the ACP registry
 

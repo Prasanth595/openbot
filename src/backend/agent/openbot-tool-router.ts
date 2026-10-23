@@ -73,6 +73,7 @@ import { type AgentMcpServers, handleMcpServerTool, isMcpServerTool } from "./mc
 import {
   listModelsPayload,
   modelList,
+  requestedBackupModels,
   requestedRuntime,
   requestedToolModel,
   requireReasoningEffort,
@@ -123,6 +124,8 @@ function captureFailure(failure: ScreenCaptureFailed) {
 export interface OpenBotToolRouterHooks {
   listAgents(): AgentSummary[];
   listModels(): AgentModelOption[];
+  /** True when `accountId` names an account after the first that this computer holds. */
+  hasProviderAccount(provider: AgentProvider, accountId: string): boolean;
   preferredProvider(): AgentProvider;
   createAgent(
     input: CreateAgentInput,
@@ -591,6 +594,9 @@ export class OpenBotToolRouter {
       access: workspaceAccessEnforced(agent) ? "workspace" : "full",
       computerUse,
       notifications: agent.notifications,
+      backupModels: agent.backupModels ?? null,
+      // Set while a usage limit or a provider error keeps the agent on a backup model.
+      returnTo: agent.usageLimitReturn ?? null,
       autoApprove: this.#approvalAutomation.autoApproves(agent.id),
       ...(skills ? { skills } : { skillsError }),
       routines: this.#routines.list(agent.id).map((routine) => ({
@@ -1314,7 +1320,18 @@ export class OpenBotToolRouter {
       senderAgentId: string,
     ): Effect.fn.Return<OpenBotToolResponse, ToolOperationFailed> {
       const args = updateProfileToolSchema.parse(params.arguments, { reportInput: true });
-      const { agentId, avatarHue, avatarPath, provider, model, reasoningEffort, access, computerUse, ...fields } = args;
+      const {
+        agentId,
+        avatarHue,
+        avatarPath,
+        provider,
+        model,
+        reasoningEffort,
+        access,
+        computerUse,
+        backupModels,
+        ...fields
+      } = args;
       if (avatarPath !== undefined && (args.avatarSeed !== undefined || avatarHue !== undefined)) {
         throw new Error("Use avatarPath or generated avatar settings, not both.");
       }
@@ -1325,7 +1342,8 @@ export class OpenBotToolRouter {
         access === undefined &&
         computerUse === undefined &&
         avatarHue === undefined &&
-        avatarPath === undefined
+        avatarPath === undefined &&
+        backupModels === undefined
       ) {
         throw new Error("At least one profile field is required.");
       }
@@ -1343,6 +1361,12 @@ export class OpenBotToolRouter {
       // Checked before anything is written, so a model the provider does not list leaves the name
       // and every other field of the same call unchanged.
       const runtime = requestedRuntime(target, runtimeRequest, this.#hooks.listModels());
+      const backups =
+        backupModels === undefined
+          ? undefined
+          : requestedBackupModels(backupModels, this.#hooks.listModels(), (id, accountId) =>
+              this.#hooks.hasProviderAccount(id, accountId),
+            );
       const image =
         avatarPath === undefined
           ? undefined
@@ -1359,6 +1383,7 @@ export class OpenBotToolRouter {
         ...(access === "workspace" ? { access } : {}),
         ...(computerUse === false ? { computerUse } : {}),
         ...(avatarHue === undefined ? {} : { avatarHue }),
+        ...(backups === undefined ? {} : { backupModels: backups }),
       };
       let updated = yield* this.#hooks.updateAgent(input, senderAgentId).pipe(toToolOperationFailed);
       if (image !== undefined) {
@@ -1385,6 +1410,7 @@ export class OpenBotToolRouter {
               access: workspaceAccessEnforced(updated) ? "workspace" : "full",
               computerUse: agentComputerUseEnabled(updated),
               notifications: updated.notifications,
+              backupModels: updated.backupModels ?? null,
             }),
           },
         ],
