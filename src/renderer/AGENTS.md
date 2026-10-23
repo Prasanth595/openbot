@@ -118,7 +118,9 @@ Use `lucide-solid` icons, and reuse a suitable one before adding an inline SVG o
 component — document the exception next to any custom icon. The `:root` properties in
 `packages/brand/src/tokens.css` are the palette, shared with the web and mobile apps: use the
 closest semantic `--openbot-*` token, including opacity variants, instead of a colour literal, and
-add a token only for a new semantic role — there, not in a renderer stylesheet. Keep compatibility
+add a token only for a new semantic role — there, not in a renderer stylesheet. A token whose dark
+value does not read on a light canvas also needs a value in `tokens-light.css`; a surface that stays
+light in both themes uses the `paper-*` tokens, not the inverted `*-on-light` ones. Keep compatibility
 aliases that are in use, and isolate fixed integration, generated-asset, SVG and platform colours at
 their boundaries.
 

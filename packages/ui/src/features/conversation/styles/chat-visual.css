@@ -5,7 +5,9 @@
   display: block;
   border: 0;
   background: transparent;
-  /* The page also uses the dark scheme, so its canvas stays transparent. */
+  /* The page also uses the dark scheme, so its canvas stays transparent. Both stay dark in the light
+     theme: a frame and a page with different schemes get an opaque canvas. The colors come from
+     the theme variables, which follow the palette. */
   color-scheme: dark;
 }
 

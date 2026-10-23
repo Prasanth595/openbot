@@ -7,7 +7,8 @@ import {
   chatVisualThemeMessage,
   parseChatVisualMessage,
 } from "@openbot/contracts/chat-visual";
-import { createSignal, onSettled, Show, untrack } from "solid-js";
+import { createEffect, createSignal, onSettled, Show, untrack } from "solid-js";
+import { documentColorScheme } from "../../document-color-scheme";
 import { useText } from "../../text";
 import { safeBrowserUrl } from "./RichMessageText";
 
@@ -134,6 +135,13 @@ function VisualFrame(props: ChatVisualProps) {
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
   });
+  // A page that is open gets the colors of the other palette as a message, so it does not load again.
+  let shownScheme = untrack(documentColorScheme);
+  createEffect(documentColorScheme, (scheme) => {
+    if (scheme === shownScheme) return;
+    shownScheme = scheme;
+    if (frame && untrack(theme)) frame.contentWindow?.postMessage(chatVisualThemeMessage(visualTheme(frame)), "*");
+  });
 
   return (
     <iframe
@@ -152,8 +160,8 @@ function VisualFrame(props: ChatVisualProps) {
       style={props.fill ? undefined : `height: ${chatVisualFrameHeight(reported(), props.height)}px`}
       // The frame loads `about:blank` while it is inserted, which runs this handler inside a render.
       onLoad={() => {
-        const current = untrack(theme);
-        if (current) frame?.contentWindow?.postMessage(chatVisualThemeMessage(current), "*");
+        // The colors at this time, which can be the other palette since the URL was made.
+        if (frame && untrack(theme)) frame.contentWindow?.postMessage(chatVisualThemeMessage(visualTheme(frame)), "*");
       }}
     />
   );

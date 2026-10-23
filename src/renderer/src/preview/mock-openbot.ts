@@ -21,6 +21,7 @@ import {
   type AgentTasksSnapshot,
   type AgentTemplatePublication,
   type AnalyticsPreference,
+  type AppAppearancePreference,
   type AppBehaviorPreference,
   type AppInfo,
   type AppInterfaceSizePreference,
@@ -48,6 +49,7 @@ import {
   createMcpServerId,
   DEFAULT_AGENT_ACCESS,
   DEFAULT_AGENT_MEMORY_LIMIT,
+  DEFAULT_APP_APPEARANCE,
   DEFAULT_APP_INTERFACE_SIZE,
   DEFAULT_APP_LOGO_COLOR,
   DEFAULT_APPROVAL_AUTOMATION_PREFERENCE,
@@ -312,6 +314,8 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
   const languageListeners = new Set<(preference: AppLanguagePreference) => void>();
   let logoColorPreference: AppLogoColorPreference = { color: DEFAULT_APP_LOGO_COLOR };
   const logoColorListeners = new Set<(preference: AppLogoColorPreference) => void>();
+  let appearancePreference: AppAppearancePreference = { appearance: DEFAULT_APP_APPEARANCE };
+  const appearanceListeners = new Set<(preference: AppAppearancePreference) => void>();
   let interfaceSizePreference: AppInterfaceSizePreference = { percent: DEFAULT_APP_INTERFACE_SIZE };
   const interfaceSizeListeners = new Set<(preference: AppInterfaceSizePreference) => void>();
   const approvalAutomationListeners = new Set<(preference: ApprovalAutomationPreference) => void>();
@@ -853,6 +857,18 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
     onAppLogoColorPreference: (listener) => {
       logoColorListeners.add(listener);
       return () => logoColorListeners.delete(listener);
+    },
+    // The preview has no main process to set `prefers-color-scheme`, so the choice is saved only.
+    // The Storybook toolbar sets the colors of a story.
+    getAppAppearancePreference: async () => clone(appearancePreference),
+    setAppAppearancePreference: async ({ appearance }) => {
+      appearancePreference = { appearance };
+      for (const listener of appearanceListeners) listener(clone(appearancePreference));
+      return clone(appearancePreference);
+    },
+    onAppAppearancePreference: (listener) => {
+      appearanceListeners.add(listener);
+      return () => appearanceListeners.delete(listener);
     },
     getAppInterfaceSizePreference: async () => clone(interfaceSizePreference),
     setAppInterfaceSizePreference: async ({ percent }) => {

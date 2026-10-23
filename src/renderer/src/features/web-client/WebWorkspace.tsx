@@ -1,4 +1,5 @@
 import { isKnownAgentProvider } from "@openbot/contracts/agent-providers";
+import type { AppAppearance } from "@openbot/contracts/app-appearance";
 import type { AppLanguage } from "@openbot/contracts/app-language";
 import { HOSTED_SERVER_CONTACT_URL } from "@openbot/contracts/hosted-servers";
 import {
@@ -260,6 +261,9 @@ type WebWorkspaceProps = {
   /** The interface language this browser keeps. Account settings change it. */
   language: AppLanguage;
   onChangeLanguage: (language: AppLanguage) => void;
+  /** The theme this browser keeps. Account settings change it. */
+  appearance: AppAppearance;
+  onChangeAppearance: (appearance: AppAppearance) => void;
 };
 
 const WebAccountSettings = lazy(() => import("./WebAccountSettings"));
@@ -1817,6 +1821,8 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                       calls={accountCalls}
                       language={props.language}
                       onChangeLanguage={props.onChangeLanguage}
+                      appearance={props.appearance}
+                      onChangeAppearance={props.onChangeAppearance}
                       onOpenBilling={() => setBillingOpen(true)}
                       onSignOut={signOut}
                     />

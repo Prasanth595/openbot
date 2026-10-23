@@ -8,6 +8,12 @@ export const messages = {
   "settings.language.system": "Langue du système",
   // The logo color setting, General tab.
   "settings.appearance.title": "Apparence",
+  "settings.appearance.theme.title": "Thème",
+  "settings.appearance.theme.description":
+    "Couleurs claires ou sombres. « Système » suit le réglage de votre appareil.",
+  "settings.appearance.theme.system": "Système",
+  "settings.appearance.theme.light": "Clair",
+  "settings.appearance.theme.dark": "Sombre",
   "settings.interfaceSize.title": "Taille de l’interface",
   "settings.interfaceSize.description": "La taille du texte et des commandes dans OpenBot.",
   "settings.logoColor.title": "Couleur du logo",

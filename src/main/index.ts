@@ -20,6 +20,7 @@ import {
   type NativeImage,
   Notification,
   nativeImage,
+  nativeTheme,
   net,
   powerMonitor,
   protocol,
@@ -520,6 +521,7 @@ function registerIpcHandlers({
   agentHostSettings,
   language,
   logoColor,
+  appearance,
   interfaceSize,
   notificationPreference,
   busyMessageMode,
@@ -594,6 +596,7 @@ function registerIpcHandlers({
       appBehavior,
       language,
       logoColor,
+      appearance,
       interfaceSize,
       initializeAgent: () => runCauseEffect(agentInitialization.start()),
       appVariant,
@@ -1076,6 +1079,7 @@ if (!hasSingleInstanceLock) {
         teamStore,
         language,
         logoColor,
+        appearance,
         interfaceSize,
         trace,
         appBehavior,
@@ -1220,6 +1224,15 @@ if (!hasSingleInstanceLock) {
         applyAppIconColor(preference.color);
         for (const window of BrowserWindow.getAllWindows()) {
           sendToRenderer(window, IPC_ENDPOINTS.app.appLogoColorPreference, preference);
+        }
+      });
+      // Before the renderer loads: Chromium gives every window `prefers-color-scheme` from this, so
+      // each page opens in the saved colors, and the native menus and controls follow them too.
+      nativeTheme.themeSource = appearance.preference.appearance;
+      appearance.subscribe((preference) => {
+        nativeTheme.themeSource = preference.appearance;
+        for (const window of BrowserWindow.getAllWindows()) {
+          sendToRenderer(window, IPC_ENDPOINTS.app.appAppearancePreference, preference);
         }
       });
       interfaceSize.subscribe((preference) => {

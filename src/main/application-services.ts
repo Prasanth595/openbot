@@ -131,6 +131,7 @@ import { analyticsInventoryDayStore, collectAnalyticsInventory } from "./analyti
 import { catalogPluginSlug, isReportedMcpServerName, loadCatalogPluginServers } from "./analytics-plugin-catalog";
 import { readAnalyticsPreference } from "./analytics-preference-store";
 import { AppBehaviorService } from "./app-behavior-service";
+import { AppearanceService } from "./appearance-service";
 import { ApprovalAutomation, readApprovalAutomation } from "./approval-automation-store";
 import { AutomationServer } from "./automation-server";
 import { BillingDesktopService } from "./billing-service";
@@ -311,6 +312,7 @@ const ROUTINE_FEED_FILE = "openbot-routine-feed-v1.json";
 const LEGACY_APPROVAL_AUTOMATION_FILE = "openbot-approval-automation-v1.json";
 const LANGUAGE_PREFERENCE_FILE = "openbot-language-preference-v1.json";
 const LOGO_COLOR_PREFERENCE_FILE = "openbot-logo-color-preference-v1.json";
+const APPEARANCE_PREFERENCE_FILE = "openbot-appearance-preference-v1.json";
 const INTERFACE_SIZE_PREFERENCE_FILE = "openbot-interface-size-preference-v1.json";
 const UPDATE_PREFERENCE_FILE = "openbot-update-preference-v1.json";
 const NOTIFICATION_PREFERENCE_FILE = "openbot-notification-preference-v1.json";
@@ -506,6 +508,7 @@ export interface ApplicationServices {
   agentHostSettings: AgentHostSettingsService;
   language: LanguageService;
   logoColor: LogoColorService;
+  appearance: AppearanceService;
   interfaceSize: InterfaceSizeService;
   notificationPreference: NotificationPreferenceStore;
   busyMessageMode: BusyMessageModePreferenceStore;
@@ -1036,6 +1039,9 @@ export async function createApplicationServices({
   await runCauseEffect(language.load());
   const logoColor = new LogoColorService({ path: join(app.getPath("userData"), LOGO_COLOR_PREFERENCE_FILE) });
   await runCauseEffect(logoColor.load());
+  // Before the first window, so main sets `nativeTheme` and each window opens in the saved colors.
+  const appearance = new AppearanceService({ path: join(app.getPath("userData"), APPEARANCE_PREFERENCE_FILE) });
+  await runCauseEffect(appearance.load());
   // Before the renderer loads, so its first navigation applies the saved size.
   const interfaceSize = new InterfaceSizeService({
     path: join(app.getPath("userData"), INTERFACE_SIZE_PREFERENCE_FILE),
@@ -2770,6 +2776,7 @@ export async function createApplicationServices({
     agentHostSettings,
     language,
     logoColor,
+    appearance,
     interfaceSize,
     notificationPreference,
     busyMessageMode,

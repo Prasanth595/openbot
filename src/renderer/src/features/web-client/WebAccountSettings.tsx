@@ -1,3 +1,4 @@
+import type { AppAppearance } from "@openbot/contracts/app-appearance";
 import type { AppLanguage } from "@openbot/contracts/app-language";
 import type { CentralAuthUser } from "@openbot/contracts/ipc";
 import type { AppTextKey } from "@openbot/i18n";
@@ -16,6 +17,7 @@ import {
   Tabs,
   UserRound,
 } from "@openbot/ui";
+import { AppearanceSelect } from "@openbot/ui/features/settings/AppearanceSelect";
 import { LanguageSelect } from "@openbot/ui/features/settings/LanguageSelect";
 import { SendShortcutSelect } from "@openbot/ui/features/settings/SendShortcutSelect";
 import { SettingsDialogShell, type SettingsPagePlacement } from "@openbot/ui/features/settings/SettingsDialogShell";
@@ -60,6 +62,8 @@ export interface WebAccountSettingsProps {
   calls: WebAccountCalls;
   language: AppLanguage;
   onChangeLanguage: (language: AppLanguage) => void;
+  appearance: AppAppearance;
+  onChangeAppearance: (appearance: AppAppearance) => void;
   /** Closes these settings and opens the plans and servers of the account. */
   onOpenBilling: () => void;
   onSignOut: () => Promise<void>;
@@ -200,6 +204,19 @@ export default function WebAccountSettings(props: WebAccountSettingsProps) {
                   <LanguageSelect
                     value={props.language}
                     onChange={props.onChangeLanguage}
+                    {...(modalElement ? { mount: modalElement } : {})}
+                  />
+                </ItemActions>
+              </Item>
+              <Item class="settings-modal-row">
+                <ItemContent>
+                  <ItemTitle>{t("settings.appearance.theme.title")}</ItemTitle>
+                  <ItemDescription>{t("settings.appearance.theme.description")}</ItemDescription>
+                </ItemContent>
+                <ItemActions>
+                  <AppearanceSelect
+                    value={props.appearance}
+                    onChange={props.onChangeAppearance}
                     {...(modalElement ? { mount: modalElement } : {})}
                   />
                 </ItemActions>
