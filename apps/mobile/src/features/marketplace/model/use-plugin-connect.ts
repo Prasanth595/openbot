@@ -130,6 +130,9 @@ export function usePluginConnect(serverId: string, app: MobilePluginApp | null, 
         }
         await pause();
       }
+      // The page left while the sign-in ran, and the cleanup ended it on the host. Nothing was saved,
+      // so the operation must not count as an install. No one sees this text: the page is gone.
+      throw new Error("The sign-in stopped because its page closed.");
     } catch (cause) {
       if (activeFlow.current === flowId) {
         activeFlow.current = null;
