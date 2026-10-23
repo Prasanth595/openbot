@@ -506,6 +506,7 @@ function registerIpcHandlers({
   mailbox,
   browser,
   browserPictureInPicture,
+  localSignIn,
   browserDock,
   browserView,
   updater,
@@ -727,7 +728,7 @@ function registerIpcHandlers({
       }),
       openExternal: (address) => shell.openExternal(address),
     }),
-    ...browserIpcHandlers({ browserPictureInPicture, browser, remoteServers, browserView }),
+    ...browserIpcHandlers({ browserPictureInPicture, browser, remoteServers, browserView, localSignIn }),
   });
 }
 

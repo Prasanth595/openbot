@@ -27,6 +27,7 @@ import {
   HostedUpdateAdapter,
 } from "./hosted-update-adapter";
 import { LicenseDesktopService } from "./license-service";
+import { LocalSignInWindows } from "./local-sign-in-window";
 import { LocalSkillLibrary } from "./local-skill-library";
 import { localSkillTools } from "./local-skill-tools";
 import { MAC_PERMISSION_URLS } from "./mac-permission-urls";
@@ -369,6 +370,7 @@ const TEARDOWN_ORDER = {
   mcpHostSignIns: 29,
   browser: 30,
   browserPictureInPicture: 40,
+  localSignIn: 41,
   browserDock: 42,
   browserView: 45,
   providerDetection: 48,
@@ -472,6 +474,7 @@ export interface ApplicationServices {
   storageUsage: StorageUsageService;
   browser: BrowserHost;
   browserPictureInPicture: BrowserPictureInPicture;
+  localSignIn: LocalSignInWindows;
   browserDock: BrowserDockOverlay;
   browserView: BrowserViewClient;
   updater: UpdateService;
@@ -989,6 +992,8 @@ export async function createApplicationServices({
     },
   });
   teardown.push(TEARDOWN_ORDER.browserPictureInPicture, "picture in picture", () => browserPictureInPicture.destroy());
+  const localSignIn = new LocalSignInWindows();
+  teardown.push(TEARDOWN_ORDER.localSignIn, "the local sign-in window", () => Effect.runPromise(localSignIn.discard()));
   // A value, as for Picture in Picture: the overlay is a view in the window that the browser shows its pages in.
   const browserDock = new BrowserDockOverlay({
     mainWindow,
@@ -2704,6 +2709,7 @@ export async function createApplicationServices({
     storageUsage,
     browser,
     browserPictureInPicture,
+    localSignIn,
     browserDock,
     browserView,
     updater,

@@ -33,6 +33,7 @@ export function serverSupportsCapability(
       capability === "browser-view" ||
       capability === "browser-view-clipboard" ||
       capability === "browser-user-control" ||
+      capability === "browser-sign-in" ||
       capability === "mcp-servers-v1" ||
       capability === "mcp-sign-in-v1" ||
       capability === "mcp-sign-in-app-v1" ||

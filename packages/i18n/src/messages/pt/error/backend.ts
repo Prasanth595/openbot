@@ -50,6 +50,9 @@ export const messages = {
     "Esta aba do navegador está esperando um segredo. Responda primeiro ao pedido do segredo.",
   "error.backend.browserUserControlUnsupported":
     "Este computador anfitrião remoto não oferece suporte para assumir o controle de uma aba do navegador.",
+  "error.backend.browserSignInUnsupported": "Este host remoto não pode receber um início de sessão deste computador.",
+  "error.backend.browserSignInOpenFailed": "O OpenBot não conseguiu abrir a janela de login.",
+  "error.backend.browserSignInReadFailed": "O OpenBot não conseguiu ler o login da janela.",
   "error.backend.browserStopUnsupported":
     "Este computador anfitrião remoto não consegue parar o carregamento de uma página.",
   "error.backend.sharedDataLocalOnly":

@@ -395,6 +395,7 @@ const browser: TeamApiBrowser = {
   startView: unused("startView"),
   dispatchViewInput: unused("dispatchViewInput"),
   copyViewSelection: unused("copyViewSelection"),
+  importSignIn: unused("importSignIn"),
 };
 
 // Account tickets that the fake account service redeems. Anything else is a ticket it refuses.

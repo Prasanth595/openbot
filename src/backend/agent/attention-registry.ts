@@ -14,8 +14,12 @@ import type {
   RespondToBrowserTakeoverInput,
   RespondToPromptInput,
 } from "@openbot/contracts/ipc";
-import { AGENT_RUNTIME_ATTENTION_LIMIT, COMPUTER_USE_MCP_SERVER_NAME } from "@openbot/contracts/ipc";
-import type { DynamicRecord } from "@openbot/contracts/runtime-values";
+import {
+  AGENT_RUNTIME_ATTENTION_LIMIT,
+  BROWSER_TAKEOVER_REASONS,
+  COMPUTER_USE_MCP_SERVER_NAME,
+} from "@openbot/contracts/ipc";
+import { type DynamicRecord, isOneOf } from "@openbot/contracts/runtime-values";
 import {
   type ConversationUiBlock,
   normalizeConversationUiBlock,
@@ -720,12 +724,14 @@ export class AttentionRegistry {
     }
 
     const requestId = params.tool === "submit_secret" ? randomUUID() : request.id;
+    const reason = getString(args, "reason");
     const takeover: BrowserTakeoverRequest = {
       requestId,
       agentId,
       threadId: publicThreadId,
       turnId,
       tabId,
+      ...(params.tool === "request_takeover" && isOneOf(BROWSER_TAKEOVER_REASONS, reason) ? { reason } : {}),
     };
     const completion = Deferred.makeUnsafe<DynamicToolResult>();
     const resolve = (result: DynamicToolResult) => Deferred.doneUnsafe(completion, Effect.succeed(result));

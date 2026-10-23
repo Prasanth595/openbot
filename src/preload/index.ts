@@ -163,6 +163,8 @@ import {
   decodeBrowserControlState,
   decodeBrowserDisplayState,
   decodeBrowserLiveViewEvent,
+  decodeBrowserLocalSignInEnd,
+  decodeBrowserLocalSignInResult,
   decodeBrowserPictureInPictureEvent,
   decodeBrowserPreviewFromMain,
   decodeBrowserTab,
@@ -1039,6 +1041,8 @@ const openbotApi: OpenBotDesktopApi = {
       dockPictureInPicture: decodeVoid,
       hidePictureInPicture: decodeVoid,
       pictureInPictureEvent: decodeBrowserPictureInPictureEvent,
+      openLocalSignIn: decodeBrowserLocalSignInEnd,
+      finishLocalSignIn: decodeBrowserLocalSignInResult,
     }),
     // Untyped: the renderer and wire input shapes differ on purpose. See `IPC_ENDPOINTS.browserInput`.
     sendLiveViewInput: (input) =>

@@ -194,6 +194,7 @@ const teamBrowser: TeamApiBrowser = {
   startView: unused,
   dispatchViewInput: unused,
   copyViewSelection: unused,
+  importSignIn: unused,
 };
 /** Stored tokens are not read here: the local server has none. */
 const cipher = {

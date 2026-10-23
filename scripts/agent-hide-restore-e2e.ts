@@ -178,6 +178,7 @@ const teamBrowser: TeamApiBrowser = {
   startView: unused,
   dispatchViewInput: unused,
   copyViewSelection: unused,
+  importSignIn: unused,
 };
 
 const root = await mkdtemp(join(tmpdir(), "openbot-agent-hide-"));

@@ -132,4 +132,18 @@ export const messages = {
   "browser.address.switchToTab": "Перейти на вкладку",
   "browser.address.search": "Поиск в Google",
   "browser.pageActions": "Действия со страницей",
+  "browser.signIn.local": "Войти на этом компьютере",
+  "browser.signIn.title": "Вход в {site}",
+  "browser.signIn.description":
+    "Некоторые сайты отклоняют вход с сервера. Войдите на этом компьютере, и OpenBot отправит вход в {site} на {server}. Все агенты и участники на {server} смогут использовать его в браузере.",
+  "browser.signIn.windowOpen":
+    "Войдите в открывшемся окне. OpenBot отправит вход, когда он будет выполнен. Если окно останется открытым, выберите «Готово».",
+  "browser.signIn.windowClosed":
+    "Окно входа закрыто. Выберите «Готово», чтобы отправить вход, или откройте окно снова.",
+  "browser.signIn.reopen": "Открыть окно входа",
+  "browser.signIn.sending": "Отправка на {server}…",
+  "browser.signIn.sent": "Выполнен вход в {site} на {server}",
+  "browser.signIn.notFound": "OpenBot не нашёл вход в {site}. Войдите в окне, затем выберите «Готово».",
+  "browser.signIn.stillSignedOut": "{server} всё ещё показывает страницу входа в {site}. Завершите вход в окне.",
+  "browser.signIn.failed": "OpenBot не удалось отправить вход.",
 } as const satisfies PartialTranslation<typeof source>;

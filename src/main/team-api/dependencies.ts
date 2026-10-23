@@ -349,6 +349,8 @@ export type TeamApiBrowser = Pick<
   | "releaseUserControlHeldBy"
   // Behind `browser-page-state`.
   | "stop"
+  // Behind `browser-sign-in`.
+  | "importSignIn"
   // The live view, behind `browser-view`. `browser-view-gateway.ts` is what reaches these; a route
   // cannot, because frames outlive the request that asked for them.
   | "startView"

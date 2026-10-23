@@ -140,6 +140,7 @@ export function ConversationTimeline() {
     openExternalMessageUrl,
     openReactionMessageId,
     openBrowserTakeoverTab,
+    localSignIn,
     openRoutineSettings,
     openSkillSettings,
     openSharedFile,
@@ -1253,6 +1254,8 @@ export function ConversationTimeline() {
                 onOpen={openBrowserTakeoverTab}
                 onComplete={() => respondToBrowserTakeover("complete")}
                 onCancel={() => respondToBrowserTakeover("cancel")}
+                onSignInLocally={localSignIn.canStart(browserTakeoverTab()) ? localSignIn.startForTakeover : undefined}
+                signInBlocked={localSignIn.blockedTakeover()}
                 browserSecret={{
                   loadPreview: runtime.browser.capturePreview,
                   onRespond: runtime.agent.respondToBrowserSecret,
@@ -1268,6 +1271,7 @@ export function ConversationTimeline() {
                 preview={resolution().preview}
                 previewStatus={resolution().previewStatus}
                 decision={resolution().decision}
+                signInBlocked={resolution().signInBlocked}
                 onComplete={async () => false}
                 onCancel={async () => false}
               />

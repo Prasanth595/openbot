@@ -123,4 +123,20 @@ export const messages = {
   "browser.address.switchToTab": "タブに切り替え",
   "browser.address.search": "Google 検索",
   "browser.pageActions": "ページの操作",
+  "browser.signIn.local": "このコンピュータでサインイン",
+  "browser.signIn.title": "{site} にサインイン",
+  "browser.signIn.description":
+    "一部のサイトはサーバーからのサインインを拒否します。このコンピュータでサインインすると、OpenBot が {site} のサインインを {server} に送信します。{server} のすべてのエージェントとメンバーがブラウザでそれを使用できます。",
+  "browser.signIn.windowOpen":
+    "開いたウィンドウでサインインしてください。サインインが完了すると、OpenBot が送信します。ウィンドウが開いたままの場合は、完了を選択してください。",
+  "browser.signIn.windowClosed":
+    "サインインウィンドウは閉じています。完了を選択してサインインを送信するか、ウィンドウをもう一度開いてください。",
+  "browser.signIn.reopen": "サインインウィンドウを開く",
+  "browser.signIn.sending": "{server} に送信中…",
+  "browser.signIn.sent": "{server} で {site} にサインインしました",
+  "browser.signIn.notFound":
+    "OpenBot は {site} のサインインを見つけられませんでした。ウィンドウでサインインしてから、完了を選択してください。",
+  "browser.signIn.stillSignedOut":
+    "{server} にはまだ {site} のサインインページが表示されています。ウィンドウでサインインを完了してください。",
+  "browser.signIn.failed": "OpenBot はサインインを送信できませんでした。",
 } as const satisfies PartialTranslation<typeof source>;

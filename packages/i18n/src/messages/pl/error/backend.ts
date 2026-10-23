@@ -48,6 +48,9 @@ export const messages = {
     "Ta karta przeglądarki czeka na sekret. Najpierw odpowiedz na prośbę o sekret.",
   "error.backend.browserUserControlUnsupported":
     "Ten zdalny host nie obsługuje przejmowania kontroli nad kartą przeglądarki.",
+  "error.backend.browserSignInUnsupported": "Ten zdalny host nie może przyjąć logowania z tego komputera.",
+  "error.backend.browserSignInOpenFailed": "OpenBot nie mógł otworzyć okna logowania.",
+  "error.backend.browserSignInReadFailed": "OpenBot nie mógł odczytać logowania z okna.",
   "error.backend.browserStopUnsupported": "Ten zdalny host nie może zatrzymać wczytywania strony.",
   "error.backend.sharedDataLocalOnly": "Dane współdzielone są zarządzane na komputerze, na którym działają ci agenci.",
   "error.backend.browserUrlProtocol": "Dozwolone są tylko adresy URL HTTP(S).",

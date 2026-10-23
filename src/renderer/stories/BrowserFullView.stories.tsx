@@ -91,6 +91,15 @@ type Story = StoryObj<typeof meta>;
 /** Four tabs: three of the agent, one of the user, one loading. */
 export const Tabs: Story = {};
 
+/** A tab of a remote server: the page menu has "Sign in on this computer". */
+export const SignInOnThisComputer: Story = {
+  args: {
+    activeTab: { ...tab, title: "Log in to X / X", url: "https://x.com/i/flow/login" },
+    tabs: [{ ...tab, title: "Log in to X / X", url: "https://x.com/i/flow/login" }, ...tabs.slice(1)],
+    onSignInLocally: fn(),
+  },
+};
+
 /** On macOS the traffic lights are over the top row, so the tabs start clear of them. */
 export const MacWindowControls: Story = { args: { macWindowControls: true } };
 

@@ -191,6 +191,7 @@ const teamBrowser: TeamApiBrowser = {
   startView: unused,
   dispatchViewInput: unused,
   copyViewSelection: unused,
+  importSignIn: unused,
 };
 
 interface WireResponse {

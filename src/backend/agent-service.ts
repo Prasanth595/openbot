@@ -861,6 +861,8 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       mcpProxyFingerprint: (configs) => this.#mcp.proxyFingerprint(configs).pipe(toMcpOperationError),
       ...(credentials.agentEnvironment ? { agentEnvironment: credentials.agentEnvironment } : {}),
       passwordVaultConnected: () => options.passwordVault?.connected() ?? false,
+      // Only a server has a memory reading.
+      serverHost: hostMemory !== null,
       sectionTeammates: (agentId) => this.sectionTeammates(agentId),
       hooks: {
         logRecovery: (agentId, provider, outcome) =>

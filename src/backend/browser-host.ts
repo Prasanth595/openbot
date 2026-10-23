@@ -20,6 +20,10 @@ import type {
 } from "@openbot/contracts/ipc";
 import { isNumber, isString } from "@openbot/contracts/runtime-values";
 import {
+  type BrowserSignInCookie,
+  browserSignInCookieFitsHost,
+} from "@openbot/contracts/team-protocol/browser-sign-in-v1";
+import {
   BROWSER_VIEW_CONTEXT_MENU_URL_MAX_LENGTH,
   type BrowserViewContextMenu,
   type BrowserViewCursor,
@@ -832,6 +836,46 @@ export class BrowserHost {
         }),
       true,
     );
+  }).bind(this);
+
+  /**
+   * Sets the cookies of a sign-in that a member made on their own device, then loads the page again.
+   * Only the cookies of the site that the tab shows go in: its host, its parent domains, and its
+   * subdomains. Chromium refuses a public suffix domain. The answer is the count that Chromium set.
+   */
+  readonly importSignIn = Effect.fn("BrowserHost.importSignIn")(function* (
+    this: BrowserHost,
+    tabId: string,
+    cookies: readonly BrowserSignInCookie[],
+  ): Effect.fn.Return<number, BrowserOperationError> {
+    const tab = yield* this.#requireTab(tabId);
+    const page = URL.canParse(tab.contents.getURL()) ? new URL(tab.contents.getURL()) : null;
+    if (!page || (page.protocol !== "https:" && page.protocol !== "http:")) return 0;
+    const target = tab.privateSession ?? this.#session;
+    const results = yield* Effect.forEach(
+      cookies.filter((cookie) => browserSignInCookieFitsHost(cookie.domain, page.hostname)),
+      (cookie) =>
+        browserCall(() =>
+          target.cookies.set({
+            url: `${cookie.secure ? "https" : "http"}://${cookie.domain.replace(/^\./u, "")}${cookie.path}`,
+            name: cookie.name,
+            value: cookie.value,
+            // A cookie with no leading dot is for one host only, so it has no domain attribute.
+            ...(cookie.domain.startsWith(".") ? { domain: cookie.domain } : {}),
+            path: cookie.path,
+            secure: cookie.secure,
+            httpOnly: cookie.httpOnly,
+            sameSite: cookie.sameSite,
+            ...(cookie.expirationDate === null ? {} : { expirationDate: cookie.expirationDate }),
+          }),
+        ).pipe(Effect.match({ onSuccess: () => 1, onFailure: () => 0 })),
+    );
+    const count = results.reduce((total, set) => total + set, 0);
+    if (count === 0) return 0;
+    yield* browserCall(() => target.cookies.flushStore());
+    // The cookies are set. A page that does not load again shows its own error in the tab.
+    yield* this.reload(tabId).pipe(Effect.ignore);
+    return count;
   }).bind(this);
 
   /**

@@ -17,6 +17,7 @@ import { AGENT_SESSION_SETTINGS_CODECS } from "./agent-session-settings-v1";
 import { AGENT_TASKS_CODECS } from "./agent-tasks-v1";
 import { AGENT_UPDATE_CODECS } from "./agent-update-v1";
 import { BROWSER_PAGE_STATE_CODECS } from "./browser-page-state-v1";
+import { BROWSER_SIGN_IN_CODECS } from "./browser-sign-in-v1";
 import { BROWSER_USER_CONTROL_CODECS } from "./browser-user-control-v1";
 import { CONNECTORS_CODECS } from "./connectors-v1";
 import { CONTEXT_RESET_CODECS } from "./context-reset-v1";
@@ -110,6 +111,7 @@ const CODECS: ReadonlyMap<string, OptionalRouteCodec> = new Map([
   ...AGENT_HIDDEN_CODECS,
   ...BROWSER_USER_CONTROL_CODECS,
   ...BROWSER_PAGE_STATE_CODECS,
+  ...BROWSER_SIGN_IN_CODECS,
   ...AGENT_TASKS_CODECS,
   ...SIDE_QUESTION_CODECS,
 ]);

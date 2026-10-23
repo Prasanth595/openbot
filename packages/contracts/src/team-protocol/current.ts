@@ -18,6 +18,7 @@ import { AGENT_TASKS_CAPABILITY } from "./agent-tasks-v1";
 import { AGENT_UPDATE_CAPABILITY } from "./agent-update-v1";
 import { TEAM_BROWSER_NAVIGATION_CAPABILITY } from "./browser-navigation-v1";
 import { BROWSER_PAGE_STATE_CAPABILITY } from "./browser-page-state-v1";
+import { BROWSER_SIGN_IN_CAPABILITY } from "./browser-sign-in-v1";
 import { BROWSER_USER_CONTROL_CAPABILITY } from "./browser-user-control-v1";
 import {
   TEAM_BROWSER_VIEW_CAPABILITY,
@@ -124,6 +125,7 @@ export {
   AGENT_UPDATE_CAPABILITY,
   ANDROID_PUSH_NOTIFICATIONS_CAPABILITY,
   BROWSER_PAGE_STATE_CAPABILITY,
+  BROWSER_SIGN_IN_CAPABILITY,
   BROWSER_USER_CONTROL_CAPABILITY,
   CHANNEL_DELETE_CAPABILITY,
   CONNECTORS_CAPABILITY,
@@ -260,6 +262,7 @@ export const TEAM_CURRENT_CAPABILITIES = [
   AGENT_TASKS_CAPABILITY,
   BROWSER_USER_CONTROL_CAPABILITY,
   BROWSER_PAGE_STATE_CAPABILITY,
+  BROWSER_SIGN_IN_CAPABILITY,
   AGENT_MEMORY_LIMIT_CAPABILITY,
   DISCORD_ACCESS_CAPABILITY,
   SIDE_QUESTION_CAPABILITY,
@@ -366,6 +369,7 @@ export const TEAM_BOOTSTRAP_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
     capability !== TEAM_QUEUE_WINDOW_CAPABILITY &&
     capability !== BROWSER_USER_CONTROL_CAPABILITY &&
     capability !== BROWSER_PAGE_STATE_CAPABILITY &&
+    capability !== BROWSER_SIGN_IN_CAPABILITY &&
     capability !== TEAM_UI_BLOCKS_CAPABILITY &&
     capability !== AGENT_TASKS_CAPABILITY &&
     capability !== AGENT_MEMORY_LIMIT_CAPABILITY &&
@@ -417,6 +421,7 @@ export function legacyTeamCapabilities(capabilities: readonly string[]): string[
       capability !== TEAM_QUEUE_WINDOW_CAPABILITY &&
       capability !== BROWSER_USER_CONTROL_CAPABILITY &&
       capability !== BROWSER_PAGE_STATE_CAPABILITY &&
+      capability !== BROWSER_SIGN_IN_CAPABILITY &&
       capability !== TEAM_UI_BLOCKS_CAPABILITY &&
       capability !== AGENT_TASKS_CAPABILITY &&
       capability !== AGENT_MEMORY_LIMIT_CAPABILITY &&
