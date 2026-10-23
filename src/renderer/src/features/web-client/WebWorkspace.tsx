@@ -1142,6 +1142,11 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   const routineFlowsHost = webRoutineFlowsHost(workspace.runtime, workspace.onHostEvent, () =>
     eventsEnabled() ? webhookRoutines : undefined,
   );
+  /** The host's Providers settings, which an owner or admin of the host can open. */
+  const openProviderSettings = (trigger: HTMLElement) => {
+    const current = server();
+    if (current) void openServerSettings(current.id, trigger, "providers");
+  };
   /** A new agent on the canvas starts on the model the agent form would pick. */
   const newAgentModels = createMemo((): DiagramModelChoice | undefined => {
     if (!workspace.state.capabilities.includes(TEAM_AGENT_CREATE_MODEL_CAPABILITY)) return undefined;
@@ -2030,6 +2035,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 first={firstAgent()}
                 preference={serverSetupChoice()}
                 customProviders={providerSettings()?.customProviders}
+                onManageProviders={providerSettings() ? openProviderSettings : undefined}
                 // A new form starts empty, with the avatar that the first-agent row showed.
                 initialDraft={{ ...createFirstAgentDraft(), ...untrack(agentAvatar) }}
                 onDraftChange={({ avatarSeed, avatarHue }) => setAgentAvatar({ avatarSeed, avatarHue })}
@@ -2219,14 +2225,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   (providerSettings()?.connection?.connectKind(provider) ?? null) !== null
                 }
                 onSignInProvider={composerSignIn() ? connectFromComposer : undefined}
-                onManageProviders={
-                  providerSettings()
-                    ? (trigger: HTMLElement) => {
-                        const current = server();
-                        if (current) void openServerSettings(current.id, trigger, "providers");
-                      }
-                    : undefined
-                }
+                onManageProviders={providerSettings() ? openProviderSettings : undefined}
                 agent={conversationAgent()}
                 agents={workspace.profiles()}
                 modelOptions={models()}

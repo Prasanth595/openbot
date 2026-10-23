@@ -22,6 +22,8 @@ export function WebAgentSettings(props: {
   preference?: CreationPreference | null | undefined;
   /** The host's endpoints, so the picker lists their models on its Custom tab. */
   customProviders?: readonly CustomProviderSummary[] | undefined;
+  /** Opens the host's provider settings from a plus button in the model picker. */
+  onManageProviders?: ((trigger: HTMLElement) => void) | undefined;
   /** The draft the form starts from. */
   initialDraft?: FirstAgentDraft;
   onDraftChange?: (draft: FirstAgentDraft) => void;
@@ -155,6 +157,7 @@ export function WebAgentSettings(props: {
       modelOptions={supportsModelSelection() && state.models.length > 0 ? state.models : undefined}
       agentStatus={state.status ?? undefined}
       customProviders={props.customProviders}
+      onManageProviders={props.onManageProviders}
       onChange={(value) => {
         setState((draft) => {
           if (value.provider !== draft.draft.provider || value.model !== draft.draft.model) draft.modelTouched = true;
