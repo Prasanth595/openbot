@@ -66,9 +66,8 @@ const ROLE_LABELS = {
   member: "server.role.member",
 } as const satisfies Record<TeamRole, AppTextKey>;
 const EMAIL_PLACEHOLDER = "person@company.com";
-/** How long a single-use invite lasts: 24 hours on an OpenBot host, 7 days on the account plane. */
-const HOST_INVITE_LIFETIME_MS = 24 * 60 * 60 * 1_000;
-const ACCOUNT_INVITE_LIFETIME_MS = 7 * 24 * 60 * 60 * 1_000;
+/** How long the account service keeps a single-use invite. Every server but a local development host uses it. */
+const INVITE_LIFETIME_MS = 7 * 24 * 60 * 60 * 1_000;
 
 /** The invite composer. `mode` picks which of `email` and `link` the panel is filling in. */
 interface InvitePanel {
@@ -155,8 +154,7 @@ export function createServerMembersSection(
   );
   /** The invites the empty pending list shows as a faint example: the kinds this server can make. */
   const sampleInvites = createMemo((): TeamInviteSummary[] => {
-    const lifetime = !local() && props.server.apiUrl === null ? ACCOUNT_INVITE_LIFETIME_MS : HOST_INVITE_LIFETIME_MS;
-    const expiresAt = new Date(now() + lifetime).toISOString();
+    const expiresAt = new Date(now() + INVITE_LIFETIME_MS).toISOString();
     const sample = { expiresAt, usedAt: null, email: null, permanent: false, useCount: 0 } as const;
     return [
       { ...sample, id: "sample-email", role: "member", email: EMAIL_PLACEHOLDER },
@@ -381,7 +379,7 @@ export function createServerMembersSection(
   /** The empty pending list's action: the composer above, on its email field. */
   function startEmailInvite(): void {
     if (panels.invite.mode !== "email") inviteTabsProps.onChange("email");
-    // The email panel mounts on the next frame when the composer shows another mode.
+    // A hidden tab panel is inert, so the email field takes focus only after the tab change renders.
     requestAnimationFrame(() => {
       inviteEmailInput?.scrollIntoView({ block: "center", behavior: prefersReducedMotion() ? "auto" : "smooth" });
       inviteEmailInput?.focus({ preventScroll: true });
