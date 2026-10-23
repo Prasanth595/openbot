@@ -580,8 +580,9 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
    * Sends a key handover that the host signed with its current and its new key. Returns `refused`
    * for each final client error, such as another key for the host (409), a stale machine token (401)
    * or an account service with no handover route (404): the service stores nothing before it sends
-   * one, and the same request again cannot succeed. It is also `refused` when this computer has no
-   * machine token for the host, for example after a sign-out. A pending handover runs before each
+   * one, and the same request again cannot succeed. With no machine token for the host, for example
+   * after a sign-out, the handover cannot be sent: the host list tells if the service stored it
+   * before, because then it advertises the new key. A pending handover runs before each
    * registration, and only a registration gets a new token, so a handover that stays pending after a
    * final error stops the host from registering. A timeout, a rate limit, a server error or a lost
    * answer keeps it pending, because the step can be stored already.
@@ -593,7 +594,11 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
       handover: HostKeyHandover,
     ): Effect.fn.Return<"accepted" | "refused", CentralAuthOperationError, CentralAuthTransport> {
       const machineToken = this.#teamHostTokens.get(hostId.toLowerCase());
-      if (!machineToken) return "refused";
+      if (!machineToken) {
+        const hosts = yield* this.#authorizedRequestEffect("/v2/remote/hosts/", { method: "GET" }, decodeRemoteHosts);
+        const host = hosts.find((entry) => entry.hostId.toLowerCase() === hostId.toLowerCase());
+        return host?.devicePublicKey === handover.publicKey ? "accepted" : "refused";
+      }
       return yield* this.#authorizedRequestEffect(
         `/v2/remote/hosts/${encodeURIComponent(hostId)}/key-handover`,
         {
