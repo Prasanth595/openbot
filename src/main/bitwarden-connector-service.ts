@@ -175,6 +175,8 @@ export class BitwardenConnectorService implements PasswordVault {
   #session: Session | null = null;
   /** The host sign-in that runs, and the server it signs in to. */
   #connecting: { abort: AbortController; serverUrl: string } | null = null;
+  /** The unlock from the stored record that runs. */
+  #unlockAbort: AbortController | null = null;
   #error: string | null = null;
   #timer: ReturnType<typeof setTimeout> | undefined;
   #attempt = 0;
@@ -270,6 +272,10 @@ export class BitwardenConnectorService implements PasswordVault {
             logger.warn("Unable to connect Bitwarden with an API key", { cause: toLogValue(cause) });
             this.#error = hostError(cause);
             yield* this.#dropSession();
+            // `bw login` can have worked before a later step failed: remove its signed-in data.
+            yield* Effect.promise(() => Promise.allSettled([...this.#running]));
+            if (this.#connecting === attempt)
+              yield* vaultCall(() => rm(host.dataDirectory, { recursive: true, force: true })).pipe(Effect.ignore);
           }),
         ),
         Effect.ensuring(
@@ -367,12 +373,21 @@ export class BitwardenConnectorService implements PasswordVault {
         if (this.#session?.folderId) return this.#session;
         const record = this.#host?.store.read();
         if (this.#connecting || !record) return null;
-        return yield* this.#unlock(record, new AbortController().signal).pipe(
+        // `#stop` aborts it, so a stopped unlock neither reports an error nor touches a newer session.
+        const abort = new AbortController();
+        this.#unlockAbort = abort;
+        return yield* this.#unlock(record, abort.signal).pipe(
           Effect.tapError(({ cause }) =>
-            Effect.gen({ self: this }, function* () {
+            Effect.sync(() => {
+              if (abort.signal.aborted) return;
               logger.warn("Unable to unlock Bitwarden with the stored connection", { cause: toLogValue(cause) });
               this.#error = hostError(cause);
-              yield* this.#dropSession();
+              this.#emit();
+            }),
+          ),
+          Effect.ensuring(
+            Effect.sync(() => {
+              if (this.#unlockAbort === abort) this.#unlockAbort = null;
             }),
           ),
         );
@@ -453,6 +468,8 @@ export class BitwardenConnectorService implements PasswordVault {
     return Effect.suspend(() => {
       this.#connecting?.abort.abort();
       this.#connecting = null;
+      this.#unlockAbort?.abort();
+      this.#unlockAbort = null;
       return this.#dropSession();
     });
   }

@@ -28,8 +28,11 @@ export type HostBitwardenActions = Pick<BitwardenConnectorPort, "status" | "conn
 
 /** How often a joined server's connection is read while the host signs in. */
 const HOST_POLL_MS = 2_000;
-/** The first sign-in can download `bw`. After this many reads, opening the page reads again. */
-const HOST_POLL_LIMIT = 90;
+/**
+ * The first sign-in can download `bw`, which the host waits for up to 5 minutes, then syncs. After
+ * this many reads (8 minutes), opening the page reads again.
+ */
+const HOST_POLL_LIMIT = 240;
 
 /**
  * A port to a joined server's connection. The host sends no event, so `onChanged` reads the status

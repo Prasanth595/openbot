@@ -425,6 +425,8 @@ const BW_SECRETS = [BW_CLIENT_SECRET, BW_MASTER_PASSWORD, BW_SESSION_KEY, BW_LOG
 const bitwardenData = join(root, "bitwarden-host");
 const bitwardenFile = join(root, "openbot-bitwarden-connector-v1.json");
 const bitwardenCalls: { args: string[]; env: Record<string, string> }[] = [];
+/** While set, `unlock` reports that it started and waits for `released`. */
+let bitwardenUnlockGate: { started: () => void; released: Promise<void> } | null = null;
 /** The CLI's own state lives in its data folder, so removing the folder signs it out. */
 function bitwardenCliState(): { server: string | null; signedIn: boolean } {
   const path = join(bitwardenData, "data.json");
@@ -456,6 +458,10 @@ const fakeBitwardenCli: BitwardenCliRunner = async (_executable, args, env) => {
     return "You are logged in!";
   }
   if (command === "unlock") {
+    if (bitwardenUnlockGate) {
+      bitwardenUnlockGate.started();
+      await bitwardenUnlockGate.released;
+    }
     if (!state.signedIn || env.BW_PASSWORD !== BW_MASTER_PASSWORD) throw new Error("bad password");
     return `${BW_SESSION_KEY}\n`;
   }
@@ -1412,11 +1418,13 @@ try {
     const wrong = await connectAs(adaToken, { ...input, masterPassword: "wrong-master-password" });
     const wrongStatus = await wrongSettled;
     check(
-      "a wrong master password leaves no connection and no stored file",
+      "a wrong master password leaves no connection, no stored file and no signed-in CLI data",
       field(wrong.body, "state") === "connecting" &&
         !wrongStatus.connected &&
         wrongStatus.error === sourceText("error.connector.bitwardenHostFailed") &&
-        !existsSync(bitwardenFile),
+        bitwardenCalls.some((entry) => entry.args[0] === "login") &&
+        !existsSync(bitwardenFile) &&
+        !existsSync(bitwardenData),
       { wrong: summary(wrong), wrongStatus },
     );
     bitwardenCalls.length = 0;
@@ -1475,6 +1483,29 @@ try {
       { afterRestart, logins },
     );
     await runCauseEffect(restarted.dispose());
+    // A disconnect while an agent's vault call unlocks from the stored record: the stopped unlock
+    // must not put an error back into the status that the disconnect cleared.
+    const racing = createBitwardenHost();
+    await runCauseEffect(racing.load());
+    let release = () => {};
+    const unlockStarted = new Promise<void>((started) => {
+      bitwardenUnlockGate = { started, released: new Promise<void>((done) => (release = done)) };
+    });
+    const pendingLogins = runCauseEffect(racing.loginsFor("https://example.com")).then(
+      (value) => ({ value }),
+      () => ({ value: "failed" as const }),
+    );
+    await unlockStarted;
+    const pendingDisconnect = runCauseEffect(racing.disconnect());
+    bitwardenUnlockGate = null;
+    release();
+    const [raced] = await Promise.all([pendingLogins, pendingDisconnect]);
+    check(
+      "a disconnect during an unlock from the stored connection leaves no error and no access",
+      racing.status().error === null && !racing.connected() && (raced.value === "failed" || raced.value === null),
+      { status: racing.status(), raced },
+    );
+    await runCauseEffect(racing.dispose());
     const disconnect = await call("POST", BITWARDEN_CONNECTOR_ROUTES.disconnect, {
       token: adaToken,
       json: {},
