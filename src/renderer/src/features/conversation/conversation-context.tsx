@@ -553,7 +553,9 @@ const Conversation = createSimpleContext({
           previous,
           windowedSnapshotMessages(previous, allMappedMessages, {
             mode: windowMode,
-            capped: snapshot.messages.length >= CONVERSATION_SNAPSHOT_MESSAGE_LIMIT,
+            // Main also cuts a snapshot by size, so a window with older pages takes it as a tail too.
+            capped:
+              snapshot.messages.length >= CONVERSATION_SNAPSHOT_MESSAGE_LIMIT || conversation.page?.hasOlder === true,
           }),
         );
         const next = mappedMessages.map((mapped) => {

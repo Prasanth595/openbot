@@ -60,28 +60,28 @@ export function missingReplyOriginals(page: Pick<ConversationPage, "messages" | 
  * The part of a refreshed snapshot a conversation may show without losing its
  * window.
  *
- * A snapshot below main's message limit is the whole conversation. A capped
- * one is only its tail: loaded messages before the first one it shares are
- * older than that tail, so they stay. The window keeps the snapshot messages
- * already on screen, plus everything after the last one it recognises - that
- * is the new arrivals. A window loaded *around* a message takes them only when
- * its last message is in the snapshot; otherwise they belong to the far end of
- * a gap. A window that shares nothing with the snapshot is replaced by it,
- * except a window around a message older than a capped tail.
+ * A snapshot that is not capped is the whole conversation, so it is shown
+ * whole. A capped one is only the tail: loaded messages before the first one it
+ * shares are older than that tail, so they stay. After them, a window at the
+ * latest end shows the snapshot from that first shared message, so a new
+ * message shows wherever it sorts. A window loaded *around* a message keeps
+ * only the messages already on screen, because the rest of the snapshot
+ * belongs to the far end of a gap.
  */
 export function windowedSnapshotMessages<Message extends { id: string }>(
   loaded: readonly Message[],
   snapshot: readonly Message[],
   window: { mode: "latest" | "around"; capped: boolean },
 ): Message[] {
+  if (!window.capped) return [...snapshot];
   const snapshotIds = new Set(snapshot.map((message) => message.id));
   const firstShared = loaded.findIndex((message) => snapshotIds.has(message.id));
-  if (firstShared === -1 && (window.mode === "latest" || !window.capped)) return [...snapshot];
-  const older = window.capped ? loaded.slice(0, firstShared === -1 ? loaded.length : firstShared) : [];
-  const loadedIds = new Set(loaded.map((message) => message.id));
-  const takesArrivals = window.mode === "latest" || snapshotIds.has(loaded.at(-1)?.id ?? "");
-  const lastLoadedIndex = takesArrivals
-    ? snapshot.reduce((last, message, index) => (loadedIds.has(message.id) ? index : last), -1)
-    : snapshot.length;
-  return [...older, ...snapshot.filter((message, index) => loadedIds.has(message.id) || index > lastLoadedIndex)];
+  if (window.mode === "latest" && firstShared === -1) return [...snapshot];
+  const older = loaded.slice(0, firstShared === -1 ? loaded.length : firstShared);
+  if (window.mode === "around") {
+    const loadedIds = new Set(loaded.map((message) => message.id));
+    return [...older, ...snapshot.filter((message) => loadedIds.has(message.id))];
+  }
+  const firstSharedId = loaded[firstShared]?.id;
+  return [...older, ...snapshot.slice(snapshot.findIndex((message) => message.id === firstSharedId))];
 }
