@@ -50,7 +50,7 @@ export function ServerSettingsScreen() {
       <View className="gap-2">
         <Typography.Heading style={typeScale.teamLead}>{server.name}</Typography.Heading>
         <Typography.Paragraph className="text-muted" style={typeScale.teamMeta}>
-          {t("mobile.server.route.settings").toUpperCase()}
+          {t("mobile.server.route.settings")}
         </Typography.Paragraph>
       </View>
       <ServerSettingsSection title={t("mobile.server.settings.overviewTitle")}>

@@ -18,7 +18,6 @@ export const messages = {
   "mobile.market.empty": "Ничего не найдено.",
   "mobile.market.loading": "Загрузка каталога…",
   "mobile.market.loadFailed": "Не удалось загрузить каталог.",
-  "mobile.market.more": "Загрузить ещё",
   "mobile.market.add": "Добавить",
   "mobile.market.install": "Установить",
   "mobile.market.added": "Добавлен",

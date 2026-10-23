@@ -2,6 +2,20 @@ import type { PartialTranslation } from "../../../message";
 import type { messages as source } from "../../en/mobile/agent";
 
 export const messages = {
+  "mobile.agent.team.title": "あなたのチーム",
+  "mobile.agent.team.agents": { other: "{count} エージェント" },
+  "mobile.agent.team.groups": { other: "{count} グループ" },
+  "mobile.agent.team.lead": "メインエージェント",
+  "mobile.agent.team.openChat": "チャットを開く",
+  "mobile.agent.team.sectionCount": "{count} + メイン",
+  "mobile.agent.team.tabTeam": "チーム",
+  "mobile.agent.team.tabTasks": "タスク",
+  "mobile.agent.team.tabRoutines": "ルーティン",
+  "mobile.agent.team.tabMarket": "Market",
+  "mobile.agent.team.tabSettings": "設定",
+  "mobile.agent.team.previewTitle": "デザインプレビュー",
+  "mobile.agent.team.previewBody":
+    "このプレビューではサンプルのエージェントを使用しています。チームのチャット、検索、画面の移動を利用するには、サインインしてください。",
   "mobile.agent.session.title": "プロバイダーの設定",
   "mobile.agent.session.failed": "プロバイダーの設定を変更できませんでした。",
   "mobile.agent.session.readFailed": "プロバイダーの設定を読み取れませんでした。",
@@ -42,6 +56,8 @@ export const messages = {
   "mobile.agent.menu.deleteBody": "このサーバーからエージェントを削除します。",
   "mobile.agent.menu.markRead": "既読にする",
   "mobile.agent.menu.markUnread": "未読にする",
+  "mobile.agent.menu.makeLead": "メインに設定",
+  "mobile.agent.menu.removeLead": "メイン設定を解除",
   "mobile.agent.menu.hide": "非表示",
   "mobile.agent.menu.info": "情報",
   "mobile.agent.menu.more": "その他",
@@ -285,6 +301,8 @@ export const messages = {
   "mobile.agent.runtime.accountUnsupported":
     "このホストでは、リモートデバイスからエージェントのアカウントを変更できません。",
   "mobile.agent.runtime.model": "モデル",
+  "mobile.agent.runtime.moreModels": "他のモデル",
+  "mobile.agent.runtime.showFewerModels": "モデルを減らす",
   "mobile.agent.runtime.reasoning": "推論",
   "mobile.agent.runtime.effort.low": "低",
   "mobile.agent.runtime.effort.medium": "中",

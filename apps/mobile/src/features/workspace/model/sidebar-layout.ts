@@ -44,6 +44,11 @@ export function mobileSidebarItems(
   });
 }
 
+/** Show only the explicitly selected lead when that agent is visible. Never select a fallback. */
+export function mobileLeadAgent(agents: MobileAgent[], leadAgentId: string | null): MobileAgent | undefined {
+  return agents.find((agent) => agent.id === leadAgentId);
+}
+
 /**
  * "Needs you": the agents that wait for the user, above the sections, in layout order. As on the
  * desktop, the group is not a section of the layout. The layout keeps each agent's place, so an

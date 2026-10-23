@@ -98,10 +98,10 @@ export function TaskListRow({
         </Typography.Paragraph>
         {variant === "card" ? (
           <Typography.Paragraph
-            className="text-muted"
+            className="text-muted uppercase"
             style={[typeScale.workStatus, typeof cardColor === "string" ? { color: cardColor } : undefined]}
           >
-            {status.toUpperCase()}
+            {status}
           </Typography.Paragraph>
         ) : (
           <Typography.Paragraph className="text-muted" numberOfLines={1} style={typeScale.caption}>

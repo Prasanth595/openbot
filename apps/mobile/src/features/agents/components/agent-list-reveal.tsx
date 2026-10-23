@@ -1,3 +1,4 @@
+import { useFocusEffect } from "expo-router";
 import { type PropsWithChildren, useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Animated, {
   cancelAnimation,
@@ -32,6 +33,19 @@ export function useAgentListReveal(ready: boolean, scope: string): AgentListReve
   const finished = finishedScope === scope;
   const [laidOutScope, setLaidOutScope] = useState<string | null>(null);
   const onLayout = useCallback(() => setLaidOutScope(scope), [scope]);
+  const latest = useRef({ ready, scope, laidOutScope });
+  latest.current = { ready, scope, laidOutScope };
+  useFocusEffect(
+    useCallback(() => {
+      const current = latest.current;
+      // A returned tab must not depend on an animation that ran while its content was frozen.
+      // The first presentation still waits for layout and uses the reveal below.
+      if (!current.ready || current.laidOutScope !== current.scope) return;
+      cancelAnimation(elapsed);
+      elapsed.set(ROW_DURATION + MAX_DELAY);
+      setFinishedScope(current.scope);
+    }, [elapsed]),
+  );
 
   useLayoutEffect(() => {
     elapsed.set(0);

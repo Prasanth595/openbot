@@ -275,7 +275,7 @@ function AgentForm({
   return (
     <SheetScrollView
       className={page === "info" ? "bg-team-canvas" : "bg-sheet"}
-      headerOverlaysContent={page !== "info"}
+      headerOverlaysContent
       contentContainerClassName={
         page === "info" ? "gap-5 px-5 pb-safe-offset-5 pt-3" : "gap-5 px-5 pb-safe-offset-5 pt-5"
       }

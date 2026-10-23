@@ -13,7 +13,6 @@ export function ServerSettingsContent({ children }: PropsWithChildren) {
     <SheetScrollView
       className="bg-team-canvas"
       contentContainerClassName="gap-5 px-5 pb-safe-offset-10 pt-2"
-      headerOverlaysContent={false}
       scrollEdgeEffect={false}
       keyboardDismissMode="interactive"
       keyboardShouldPersistTaps="handled"
@@ -32,7 +31,7 @@ export function ServerSettingsSection({
     <View style={{ gap: 10 }}>
       {title ? (
         <Typography.Paragraph className="px-1 text-muted" style={typeScale.teamMeta}>
-          {title.toUpperCase()}
+          {title}
         </Typography.Paragraph>
       ) : null}
       <ListGroup

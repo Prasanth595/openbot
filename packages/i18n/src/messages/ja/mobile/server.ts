@@ -196,6 +196,7 @@ export const messages = {
   "mobile.server.routineDetail.resume": "ルーティンを再開",
   "mobile.server.routineDetail.edit": "ルーティンを編集",
   "mobile.server.routineDetail.ask": "エージェントにこのルーティンの編集を依頼",
+  "mobile.server.routineDetail.chatContext": "ルーティン「{name}」（{id}）について:\n\n{message}",
   "mobile.server.routineDetail.emptyRuns": "このルーティンはまだ実行されていません。",
   "mobile.server.routineDetail.stepsUnavailable": "このホストは実行ステップを提供していません。",
   "mobile.server.routineDetail.olderSteps": "ステップは最新の実行でのみ確認できます。",

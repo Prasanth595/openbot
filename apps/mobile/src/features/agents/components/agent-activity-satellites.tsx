@@ -33,7 +33,7 @@ const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 const PERIODS = [7.2, 4, 2.7, 1.2];
 const DOT_IDS = ["lavender", "green", "mustard"] as const;
 
-const SatelliteMotionContext = createContext<{
+export const SatelliteMotionContext = createContext<{
   agentId: string;
   serverId: string;
   motion: ReturnType<typeof useSatelliteMotion>;

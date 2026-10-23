@@ -18,7 +18,6 @@ export const messages = {
   "mobile.market.empty": "Eşleşen öğe yok.",
   "mobile.market.loading": "Katalog yükleniyor…",
   "mobile.market.loadFailed": "Katalog yüklenemedi.",
-  "mobile.market.more": "Daha fazla yükle",
   "mobile.market.add": "Ekle",
   "mobile.market.install": "Yükle",
   "mobile.market.added": "Eklendi",

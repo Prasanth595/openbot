@@ -18,6 +18,9 @@ export interface ServerTasks {
   supported: boolean;
   /** Each list loaded or failed. */
   ready: boolean;
+  /** True while a task list refreshes, including lists that already have data. */
+  refreshing: boolean;
+  refresh: () => Promise<void>;
   /** Reads the failed lists again; `null` when none failed. */
   retry: (() => void) | null;
 }
@@ -61,6 +64,11 @@ export function useServerTasks(serverId: string, options: { agentId?: string; en
     tasks: lists.flatMap((list) => list.data?.tasks ?? []).filter((task) => known.has(task.agentId)),
     online,
     supported,
+    refreshing: lists.some((list) => list.isFetching),
+    refresh: async () => {
+      if (!online || !supported) return;
+      await Promise.all(lists.map((list) => list.refetch()));
+    },
     ready: lists.every((list) => list.data !== undefined || list.isError),
     retry:
       failed.length > 0

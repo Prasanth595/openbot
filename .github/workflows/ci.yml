@@ -393,32 +393,12 @@ jobs:
         if: ${{ !cancelled() }}
         run: bun run test:antigravity-usage
 
-      - name: Run the Live Activity lifecycle E2E test
-        if: ${{ !cancelled() }}
-        run: bun scripts/live-activity-lifecycle-e2e.ts
-
-      - name: Run the mobile Live Activity recovery E2E test
-        if: ${{ !cancelled() }}
-        run: bun scripts/live-activity-server-mute-e2e.ts
-
-      - name: Run the mobile provider usage refresh E2E test
-        if: ${{ !cancelled() }}
-        run: bun scripts/mobile-provider-usage-e2e.ts
-
-      - name: Run the mobile Marketplace receipt E2E test
-        if: ${{ !cancelled() }}
-        run: bun scripts/mobile-market-install-e2e.ts
-
       - name: Upload the reports
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reverse-actions-e2e
           path: |
-            .openbot-build/live-activity-lifecycle-e2e/
-            .openbot-build/live-activity-server-mute-e2e/
-            .openbot-build/mobile-provider-usage-e2e/
-            .openbot-build/mobile-market-install-e2e/
             .openbot-build/team-api-legacy-clients-e2e/
             .openbot-build/team-session-revoke-e2e/
             .openbot-build/server-mute-e2e/
@@ -440,6 +420,61 @@ jobs:
             .openbot-build/zip-attachment-e2e/
             .openbot-build/agent-mcp-tools-e2e/
             .openbot-build/antigravity-usage-e2e/
+          if-no-files-found: ignore
+
+  mobile-e2e:
+    # These scripts read mobile state and host services. Run them for either lane, including
+    # a pull request that changes only apps/mobile. They need no device, account, or display.
+    name: Mobile state E2E
+    needs: detect
+    if: needs.detect.outputs.desktop == 'true' || needs.detect.outputs.surfaces == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Bun
+        uses: ./.github/actions/setup-bun
+        with:
+          install: ignore-scripts
+
+      - name: Run the Live Activity lifecycle E2E test
+        if: ${{ !cancelled() }}
+        run: bun scripts/live-activity-lifecycle-e2e.ts
+
+      - name: Run the mobile Live Activity recovery E2E test
+        if: ${{ !cancelled() }}
+        run: bun scripts/live-activity-server-mute-e2e.ts
+
+      - name: Run the mobile provider usage refresh E2E test
+        if: ${{ !cancelled() }}
+        run: bun scripts/mobile-provider-usage-e2e.ts
+
+      - name: Run the mobile Marketplace receipt E2E test
+        if: ${{ !cancelled() }}
+        run: bun scripts/mobile-market-install-e2e.ts
+
+      - name: Run the mobile conversation cache E2E test
+        if: ${{ !cancelled() }}
+        run: bun scripts/mobile-chat-cache-e2e.ts --service
+
+      - name: Run the mobile agent pin E2E test
+        if: ${{ !cancelled() }}
+        run: bun scripts/mobile-agent-pins-e2e.ts
+
+      - name: Upload the reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mobile-state-e2e
+          path: |
+            .openbot-build/live-activity-lifecycle-e2e/
+            .openbot-build/live-activity-server-mute-e2e/
+            .openbot-build/mobile-provider-usage-e2e/
+            .openbot-build/mobile-market-install-e2e/
+            .openbot-build/mobile-chat-cache-e2e/service-report.json
+            .openbot-build/mobile-agent-pins-e2e/
           if-no-files-found: ignore
 
   provider-fakes-e2e:
@@ -670,7 +705,7 @@ jobs:
     # fails this one.
     name: All required checks pass
     if: always()
-    needs: [detect, check, browser, tests-desktop, signal-e2e, automation-cli-e2e, team-api-routes-e2e, reverse-actions-e2e, provider-fakes-e2e, surfaces, api, storybook]
+    needs: [detect, check, browser, tests-desktop, signal-e2e, automation-cli-e2e, team-api-routes-e2e, reverse-actions-e2e, mobile-e2e, provider-fakes-e2e, surfaces, api, storybook]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -696,7 +731,7 @@ jobs:
     # `apps/auth-api`, which `api` already covers: mobile, the site router, the
     # team client and the remote stack all consume the account API, so a red
     # Surfaces is the signal that this deploy is the thing about to break them.
-    needs: [check, browser, tests-desktop, signal-e2e, automation-cli-e2e, team-api-routes-e2e, reverse-actions-e2e, provider-fakes-e2e, api, storybook, surfaces]
+    needs: [check, browser, tests-desktop, signal-e2e, automation-cli-e2e, team-api-routes-e2e, reverse-actions-e2e, mobile-e2e, provider-fakes-e2e, api, storybook, surfaces]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: cloudflare-production

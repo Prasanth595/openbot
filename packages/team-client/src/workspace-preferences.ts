@@ -5,6 +5,8 @@ import { remoteHostFingerprint } from "./remote-directory";
 const WorkspacePreferences = Schema.Struct({
   hidden: Schema.mutableKey(Schema.mutable(Schema.Array(Schema.String))),
   pinned: Schema.mutableKey(Schema.mutable(Schema.Array(Schema.String))),
+  /** The explicit mobile lead of this server. Older saved documents have no choice. */
+  leadAgentId: Schema.mutableKey(Schema.optional(Schema.NullOr(Schema.String))),
   pinnedChannels: Schema.mutableKey(Schema.optional(Schema.mutable(Schema.Array(Schema.String)))),
   hiddenChannels: Schema.mutableKey(Schema.optional(Schema.mutable(Schema.Array(Schema.String)))),
 });
@@ -42,6 +44,7 @@ export function createWorkspacePreferences(
     const preferences: RemoteWorkspacePreferences = {
       hidden: value.hidden,
       pinned: value.pinned,
+      ...(value.leadAgentId !== undefined ? { leadAgentId: value.leadAgentId } : {}),
       ...(value.pinnedChannels ? { pinnedChannels: value.pinnedChannels } : {}),
       ...(value.hiddenChannels ? { hiddenChannels: value.hiddenChannels } : {}),
     };

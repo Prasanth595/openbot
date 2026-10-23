@@ -108,7 +108,8 @@ Its main jobs are:
 | Signal E2E | `ubuntu-latest` | `bun run test:signal`, when `remote/` or `scripts/` changes |
 | Local scripts CLI E2E | `ubuntu-latest` | `bun run test:automation-cli` |
 | Team API routes E2E | `ubuntu-latest` | `bun run test:team-api-routes`, when desktop code changes |
-| Team API and reverse actions E2E | `ubuntu-latest` | `test:team-legacy-clients`, `test:team-session-revoke`, `test:server-mute`, `test:routine-pause-resume`, `test:agent-hide-restore`, `test:messaging-pause-resume`, `test:messaging-discord-access`, `test:provider-update-busy`, `test:provider-exit-session`, `test:codex-missing-rollout` and `test:zip-attachments`, each with `bun run` in its own step, plus `scripts/{live-activity-lifecycle,live-activity-server-mute,mobile-provider-usage,mobile-market-install}-e2e.ts` with `bun` for phone lifecycle/recovery, quota refresh and Marketplace receipts, when the `desktop` lane runs |
+| Team API and reverse actions E2E | `ubuntu-latest` | `test:team-legacy-clients`, `test:team-session-revoke`, `test:server-mute`, `test:routine-pause-resume`, `test:agent-hide-restore`, `test:messaging-pause-resume`, `test:messaging-discord-access`, `test:provider-update-busy`, `test:provider-exit-session`, `test:codex-missing-rollout` and `test:zip-attachments`, each with `bun run` in its own step, when the `desktop` lane runs |
+| Mobile state E2E | `ubuntu-latest` | `scripts/{live-activity-lifecycle,live-activity-server-mute,mobile-provider-usage,mobile-market-install,mobile-agent-pins}-e2e.ts` and `bun scripts/mobile-chat-cache-e2e.ts --service`, each in its own step, when either the `desktop` or `surfaces` lane runs |
 | Provider fakes E2E | `ubuntu-latest` | `test:custom-agents`, `test:custom-agents:login-path`, `test:acp-directories`, `test:acp-flavors`, `test:provider-conformance`, `test:opencode-expired-key`, `test:opencode-downgraded-session`, `test:cline-free-models` and `test:provider-transcript-replay`, each with `bun run` in its own step, when the `desktop` lane runs. The fake agents are in `scripts/provider-fakes/`; the replayed transcripts of released CLIs are in `scripts/provider-fakes/transcripts/`, and `bun scripts/record-provider-transcript.ts` records a new one |
 | Surfaces | `ubuntu-latest` | Parallel groups described below, then `bun run remote:check:compose` |
 | API | `ubuntu-latest` | `bun run check:api`, then, for a pull request from this repository, upload `apps/auth-api/dist` |
@@ -144,6 +145,13 @@ builds the `main` Worker config, and `scripts/check-preview-worker-config.ts` st
 the pull request's generated `wrangler.json` differs from it in anything but the code entry and the
 compatibility settings. Thus a pull request that changes the preview Worker name, bindings, vars, or
 routes gets no preview. A change to `cloudflare-preview.yml` takes effect only after it merges.
+
+The Mobile state E2E job also runs for a mobile-only pull request. The lifecycle scripts drive the
+real host push service and mobile sync state with injected notification transport and clock. The
+quota and Marketplace scripts use a loopback HTTP host and the real mobile query cache. The pin
+script reopens the released preference service over isolated disk storage. The conversation script
+drives the real mobile cache and checks late history responses after close and reopen. They write
+JSON reports under `.openbot-build/`; they need no account, provider, native build, or device.
 
 All of these jobs gate Cloudflare production deployment on `main`. Surfaces was previously missing from
 that dependency list, which allowed deployment despite a failed mobile or remote check.

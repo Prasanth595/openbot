@@ -3,6 +3,7 @@ import { type ComponentProps, createContext, useContext, useEffect, useRef } fro
 import { type GestureResponderEvent, Pressable } from "react-native";
 import type { createChatNavigationGate } from "@/features/agents/model/chat-navigation-gate";
 import { beginChatOpen } from "@/features/chat/model/chat-open-performance";
+import { useMobileWorkspaceActions } from "@/features/workspace/context/mobile-workspace-context";
 import { haptics } from "@/shared/lib/haptics";
 
 export const ChatNavigationGateContext = createContext<ReturnType<typeof createChatNavigationGate> | null>(null);
@@ -25,6 +26,7 @@ export function ChatLinkPressable({
   chatId?: string;
   serverId?: string;
 }) {
+  const { prefetchConversation } = useMobileWorkspaceActions();
   const gate = useContext(ChatNavigationGateContext);
   const route = useRoute();
   const navigation = useNavigation();
@@ -49,7 +51,10 @@ export function ChatLinkPressable({
       {...props}
       onPress={(event) => {
         if (event.defaultPrevented) return;
-        if (chatId && serverId) beginChatOpen(serverId, chatId, "team");
+        if (chatId && serverId) {
+          beginChatOpen(serverId, chatId, "team");
+          prefetchConversation(chatId, serverId);
+        }
         void haptics.impact("soft");
         event.persist();
         const navigate = () => {

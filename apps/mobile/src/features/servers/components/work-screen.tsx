@@ -1,20 +1,30 @@
+import { Stack } from "expo-router";
 import { Typography } from "heroui-native";
-import type { ReactNode } from "react";
-import { View } from "react-native";
+import type { ReactElement, ReactNode } from "react";
+import { type RefreshControlProps, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScrollTouchArea } from "@/shared/components/scroll-touch-area";
-import { isAndroid } from "@/shared/lib/platform";
 import { typeScale } from "@/shared/lib/type-scale";
 
-/** Native tabs own the safe area; work content keeps the Pencil gutters. */
-export function WorkScreen({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
-  const insets = useSafeAreaInsets();
+/** Native navigation owns the title and safe areas; the content keeps the shared gutters. */
+export function WorkScreen({
+  title,
+  subtitle,
+  children,
+  refreshControl,
+}: {
+  title: string;
+  subtitle?: string;
+  children: ReactNode;
+  refreshControl?: ReactElement<RefreshControlProps>;
+}) {
   return (
-    <View className="flex-1 bg-team-canvas">
+    <View collapsable={false} className="flex-1 bg-team-canvas">
+      <Stack.Title large={false}>{title}</Stack.Title>
       <ScrollTouchArea>
         <KeyboardAwareScrollView
           style={{ flex: 1 }}
+          refreshControl={refreshControl}
           mode="insets"
           bottomOffset={20}
           contentInsetAdjustmentBehavior="automatic"
@@ -23,20 +33,17 @@ export function WorkScreen({ title, subtitle, children }: { title: string; subti
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
             flexGrow: 1,
-            paddingTop: (isAndroid ? insets.top : 0) + 8,
+            paddingTop: 8,
             paddingBottom: 24,
             paddingHorizontal: 20,
             gap: 20,
           }}
         >
-          <View style={{ gap: 8 }}>
-            <Typography.Heading style={typeScale.teamDisplay}>{title}</Typography.Heading>
-            {subtitle ? (
-              <Typography.Paragraph className="text-muted" style={typeScale.teamMeta}>
-                {subtitle.toUpperCase()}
-              </Typography.Paragraph>
-            ) : null}
-          </View>
+          {subtitle ? (
+            <Typography.Paragraph className="text-muted" style={typeScale.teamMeta}>
+              {subtitle}
+            </Typography.Paragraph>
+          ) : null}
           {children}
         </KeyboardAwareScrollView>
       </ScrollTouchArea>

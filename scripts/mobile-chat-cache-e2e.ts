@@ -1,11 +1,25 @@
 // Drives the existing native development client and its real conversation-cache service.
 // Run: bun scripts/mobile-chat-cache-e2e.ts <simulator-uuid> [metro-port]
+// Or run the real service without a native client: bun scripts/mobile-chat-cache-e2e.ts --service
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
 import WebSocket from "ws";
+
+if (process.argv[2] === "--service") {
+  const { runConversationCacheProbe } = await import(
+    "../apps/mobile/src/features/workspace/model/conversation-cache-probe"
+  );
+  const checks = await runConversationCacheProbe();
+  const output = resolve(import.meta.dirname, "../.openbot-build/mobile-chat-cache-e2e");
+  await mkdir(output, { recursive: true });
+  await writeFile(resolve(output, "service-report.json"), `${JSON.stringify({ mode: "service", checks }, null, 2)}\n`);
+  for (const [name, passed] of Object.entries(checks)) assert.equal(passed, true, name);
+  process.stdout.write(`${JSON.stringify({ passed: true, mode: "service", checks: Object.keys(checks).length })}\n`);
+  process.exit(0);
+}
 
 const simulator = process.argv[2];
 assert.ok(simulator && /^[\da-f-]{36}$/iu.test(simulator), "Supply the existing simulator UUID.");

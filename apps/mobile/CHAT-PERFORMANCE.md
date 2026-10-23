@@ -12,20 +12,22 @@ layout or avatar source; Team taps retain their zoom transition. An already-open
 
 ## Local timing
 
-`chat-open-performance.ts` retains up to 40 samples with local stage durations only. It sends no event,
-identifier, URL, message, or file content. Stages record connection, fetch, data, projection, navigation,
-message layout and composer layout. Two animation frames after layout are a visibility proxy; they do
-not replace a native render trace. Low-priority foreground work waits for this frame. A two-second
-deadline prevents an unavailable host from blocking that work indefinitely. Background Live Activity
-registration does not wait for animation frames.
+In development, `chat-open-performance.ts` retains up to 40 samples with local stage durations only.
+It sends no event, identifier, URL, message, or file content. Stages record connection, fetch, data,
+projection, navigation, message layout and composer layout. Two animation frames after layout are a
+visibility proxy; they do not replace a native render trace. In development, low-priority foreground
+work waits for this frame. A two-second deadline prevents an unavailable host from blocking that
+work indefinitely. Background Live Activity registration does not wait for animation frames.
 
-The native development inspector can read these durations. Production exposes no inspector hook.
+The native development inspector can read these durations. Release builds do not record samples or
+wait for measurement stages. Their deferred foreground work yields one frame before it starts.
 
 ## Focused verification
 
-Use the existing Metro instance and development client:
+Run the service checks without a device, or use the existing Metro instance and development client:
 
 ```sh
+bun scripts/mobile-chat-cache-e2e.ts --service
 bun scripts/mobile-chat-cache-e2e.ts <simulator-uuid> <metro-port>
 bun scripts/mobile-chat-navigation-e2e.ts <simulator-uuid> <metro-port> --repeat
 bun scripts/mobile-activity-e2e.ts <simulator-uuid> <metro-port>
@@ -33,8 +35,10 @@ bun scripts/live-activity-lifecycle-e2e.ts
 bun scripts/live-activity-server-mute-e2e.ts
 ```
 
-The cache preview uses synthetic messages in the real app cache service. Navigation uses an accessible
-agent in the running app and can mark that chat read. It sends no message. The repeat check performs
+The cache checks use synthetic messages in the real app cache service. The `--service` mode runs
+without a device or Metro; the native mode runs the same checks in the development client.
+Navigation uses an accessible agent in the running app and can mark that chat read. It sends no
+message. The repeat check performs
 20 warm external opens and 10 background returns. Its artifact explicitly identifies development mode
 and does not claim a speed improvement. Reports are under `.openbot-build/`.
 

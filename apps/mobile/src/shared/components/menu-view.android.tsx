@@ -7,6 +7,7 @@ import ChartColumn from "lucide-react-native/icons/chart-column";
 import CircleCheck from "lucide-react-native/icons/circle-check";
 import CircleStop from "lucide-react-native/icons/circle-stop";
 import ClipboardPaste from "lucide-react-native/icons/clipboard-paste";
+import Clock from "lucide-react-native/icons/clock";
 import Code from "lucide-react-native/icons/code";
 import Copy from "lucide-react-native/icons/copy";
 import CopyPlus from "lucide-react-native/icons/copy-plus";
@@ -27,9 +28,12 @@ import MousePointerClick from "lucide-react-native/icons/mouse-pointer-click";
 import Pin from "lucide-react-native/icons/pin";
 import PinOff from "lucide-react-native/icons/pin-off";
 import Plus from "lucide-react-native/icons/plus";
+import Reply from "lucide-react-native/icons/reply";
 import RotateCw from "lucide-react-native/icons/rotate-cw";
 import Settings from "lucide-react-native/icons/settings";
 import Share from "lucide-react-native/icons/share";
+import Smile from "lucide-react-native/icons/smile";
+import TextSelect from "lucide-react-native/icons/square-dashed-text";
 import Star from "lucide-react-native/icons/star";
 import StarOff from "lucide-react-native/icons/star-off";
 import TextWrap from "lucide-react-native/icons/text-wrap";
@@ -47,6 +51,10 @@ export type { MenuAction, MenuComponentRef } from "@expo/ui/community/menu";
 /** The Lucide icon for each SF Symbol that a menu action names. */
 const ICONS: Partial<Record<string, LucideIcon>> = {
   "arrow.clockwise": RotateCw,
+  "arrowshape.turn.up.left": Reply,
+  "face.smiling": Smile,
+  "selection.pin.in.out": TextSelect,
+  clock: Clock,
   "arrow.up.arrow.down": ArrowUpDown,
   "bubble.left.and.bubble.right": MessagesSquare,
   calendar: Calendar,

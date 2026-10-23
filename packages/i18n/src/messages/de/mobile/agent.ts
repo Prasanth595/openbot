@@ -2,6 +2,20 @@ import type { PartialTranslation } from "../../../message";
 import type { messages as source } from "../../en/mobile/agent";
 
 export const messages = {
+  "mobile.agent.team.title": "Dein Team",
+  "mobile.agent.team.agents": { one: "{count} AGENT", other: "{count} AGENTEN" },
+  "mobile.agent.team.groups": { one: "{count} GRUPPE", other: "{count} GRUPPEN" },
+  "mobile.agent.team.lead": "HAUPTAGENT",
+  "mobile.agent.team.openChat": "Chat öffnen",
+  "mobile.agent.team.sectionCount": "{count} + HAUPTAGENT",
+  "mobile.agent.team.tabTeam": "Team",
+  "mobile.agent.team.tabTasks": "Aufgaben",
+  "mobile.agent.team.tabRoutines": "Routinen",
+  "mobile.agent.team.tabMarket": "Market",
+  "mobile.agent.team.tabSettings": "Einstellungen",
+  "mobile.agent.team.previewTitle": "Designvorschau",
+  "mobile.agent.team.previewBody":
+    "Diese Vorschau nutzt Beispielagenten. Melde dich an, um Chats, Suche und Navigation mit deinem Team zu nutzen.",
   "mobile.agent.session.title": "Anbietereinstellungen",
   "mobile.agent.session.failed": "Die Anbietereinstellungen konnten nicht geändert werden.",
   "mobile.agent.session.readFailed": "Die Anbietereinstellungen konnten nicht gelesen werden.",
@@ -42,6 +56,8 @@ export const messages = {
   "mobile.agent.menu.deleteBody": "Dadurch wird der Agent von diesem Server entfernt.",
   "mobile.agent.menu.markRead": "Als gelesen markieren",
   "mobile.agent.menu.markUnread": "Als ungelesen markieren",
+  "mobile.agent.menu.makeLead": "Als Hauptagent festlegen",
+  "mobile.agent.menu.removeLead": "Hauptagent abwählen",
   "mobile.agent.menu.hide": "Ausblenden",
   "mobile.agent.menu.info": "Info",
   "mobile.agent.menu.more": "Mehr",
@@ -290,6 +306,8 @@ export const messages = {
   "mobile.agent.runtime.accountUnsupported":
     "Dieser Host kann das Konto des Agenten nicht von einem Remote-Gerät aus ändern.",
   "mobile.agent.runtime.model": "Modell",
+  "mobile.agent.runtime.moreModels": "Mehr Modelle",
+  "mobile.agent.runtime.showFewerModels": "Weniger Modelle",
   "mobile.agent.runtime.reasoning": "Denkaufwand",
   "mobile.agent.runtime.effort.low": "Niedrig",
   "mobile.agent.runtime.effort.medium": "Mittel",

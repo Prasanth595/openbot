@@ -24,7 +24,7 @@ All text uses Inter, the desktop and web font, with the system font as fallback.
 | Product headings, paragraphs, labels, and inline text | HeroUI Native `Typography` | Use semantic type, color, weight, and alignment props instead of React Native `Text` and screen-local font styling. |
 | Screen stacks, titles, back buttons, headers, and route transitions | Expo Router native `Stack` | Configure them in route layouts or screen options instead of drawing custom headers. |
 | Tab navigation | Expo Router `NativeTabs` | Use native tab triggers, labels, badges, and platform icons instead of a custom tab bar. |
-| Search integrated with navigation | `Stack.SearchBar` and native toolbar search slots | Do not place a HeroUI input inside a handmade navigation bar. The home search field is the documented exception; see [Home search](#home-search). |
+| Search integrated with navigation | `Stack.SearchBar` and native toolbar search slots | Use native search for ordinary queries; see [Home search](#home-search). |
 | Header and bottom toolbar actions or menus | `Stack.Toolbar` native items | Let the platform render placement, materials, menus, and interaction behavior. |
 | Route-level modals and form sheets | Expo Router native presentations | Prefer native modal or form-sheet presentation over a custom full-screen overlay. |
 | Native pickers, switches, sliders, menus, and grouped system forms | `@expo/ui` | Use when the interaction should look and behave like a platform control. Keep every `@expo/ui` tree inside `Host`. Import `MenuView` from `@/shared/components/menu-view`, not `@expo/ui/community/menu`. iOS keeps the native menu. Android draws the HeroUI `Menu`, because the Material menu takes the device palette and shape, and shows a Lucide icon for each SF Symbol `image` that the component maps. Add the mapping when you use a new symbol. |
@@ -33,13 +33,15 @@ All text uses Inter, the desktop and web font, with the system font as fallback.
 
 Native ownership takes priority over HeroUI for navigation chrome. HeroUI ownership takes priority for application content.
 
+Market uses a compact native title. The latest user request removes the large-title gap and replaces
+the large-title part of review N2. Native search, toolbar actions and automatic list insets stay in use.
+
 ### Pencil B01, B02, B03, B05, B06, B07, B08 and Flow – Práce
 
-These screens follow the approved Pencil concept. Their exact capsule shapes, Inter type, compact
-headers use React Native layouts and HeroUI controls. This request takes priority
-over the native-chrome default for these screen headers. Expo Router owns navigation, sheets, and
-the chat zoom. The later navigation request replaces the five-item concept bar with native tabs. The controls keep accessible labels, safe areas, and the app theme. Solid themed
-surfaces keep the layout readable with Reduce Transparency.
+The approved Pencil concept defines product content and hierarchy. Native Expo Router stacks,
+large titles, toolbars, search bars and tabs own navigation chrome. Capsule shapes and compact
+custom headers do not override native navigation. Keep accessible labels, safe areas and the app
+theme. Let the system control Liquid Glass and Reduce Transparency.
 
 The agent profile, collaboration events and brain selector also follow the
 approved concept. The profile is a full-screen native stack page, with native form inputs.
@@ -52,20 +54,24 @@ Does group when the host supports browser streaming. Channel Info uses the same 
 header, identity layout, fields and grouped action rows. It keeps channel member and lead selection,
 Browser, Memories and Routines. New channel remains a native form sheet.
 
-The team card shows the first pinned agent. A complete server list adds a default lead pin if no
-visible pin exists. The lead cannot be unpinned; pin commands and native menus enforce this rule.
-Other pins stay below the card and retain pin/unpin controls. Hiding or deleting the lead selects
-a replacement without restoring a hidden agent. Add agent remains in the Team options menu. Settings remains in
-that menu and the workspace drawer. Search keeps
-task creation through `@` and uses the existing bottom field when an agent is selected for a task.
+The team card shows only the lead explicitly selected for this server on this phone. There is no
+fallback to the first agent or pin. Set as lead is available only when no lead is selected.
+The selected agent offers Remove lead; other agents keep their ordinary pin actions. The saved
+lead choice is separate from pins, so selecting or removing it does not change pin order or use a
+pin slot. Pins appear below the lead card, without a second tile for the same agent. Hiding an
+agent preserves its saved choice and pin, but hides its lead card. A complete host list clears a
+deleted lead without selecting a replacement. Loading and offline state do not clear the choice.
+Add agent remains in the Team options menu. Settings remains in that menu and the workspace drawer.
+Search keeps task creation through `@` and uses the existing bottom composer only after an agent is
+selected for a task.
 Agent and channel chats share the full-width composer. Agent chat adds its model control; the task
 composer keeps its adaptive layout. New users get neutral message bubbles. A saved agent-color
 preference still applies.
 
 Consecutive replies from the same agent within five minutes share one author label and an 8 pt
 content gap. Only the last reply shows the action row and timestamp. Earlier replies use swipe to
-reply and touch and hold to copy their own text. Do not show a More button or copy empty file-only
-messages. Keep saved reactions visible. A screen reader keeps each message's full action row so
+reply and a native long-press menu for Copy, Reply, reactions, Select text and time. Do not show a
+More button or copy empty file-only messages. Keep saved reactions visible. A screen reader keeps each message's full action row so
 copy and reply do not depend on gestures or hide attachment and link focus. A longer pause on the
 same day starts a separate block with a time divider. A new day, sender, marker, explicit reply,
 failed message or superseded message starts a new block. Keep message IDs and list rows unchanged
@@ -85,8 +91,8 @@ not use the small element size, which turns actions into an icon palette on iOS 
 
 Flow – Práce extends the same approved layout to B09 Tasks, B11 Routines and B12 Routine detail.
 Team, Tasks, Routines, Market and Settings use one persistent Expo Router NativeTabs navigator with native platform
-icons and labels. Detail pages stay in the parent native stack, outside the tab bar. The three
-public paths stay unchanged. Native tabs keep list positions, dates and local drafts when switched;
+icons and labels. Each tab owns a native stack. Task details belong to the Tasks stack, and routine details belong
+to the Routines stack. Public task and routine paths stay unchanged. Native tabs keep list positions, dates and local drafts when switched;
 task drafts, selected agents and errors are scoped by host. Direct host links select the host once.
 The work tabs keep 20 pt content gutters. Tasks use a native inline text input,
 a native agent menu and the existing task-start operation. Unsaved drafts keep their discard guard.
@@ -97,8 +103,7 @@ The full-screen detail keeps a fixed bottom action area and the shared full-widt
 Flow – Market applies B13 Agents, B14 Apps and B15 Skills. Use the canonical public agent and
 skill catalogs, and the bundled app catalog from `marketplace/plugin-catalog`. Keep real names,
 counts and saved MCP state. On means enabled; it does not prove a successful connection.
-Market search is an in-content HeroUI field below the category tabs, as drawn in Pencil. Native
-menus own filters. Agent and skill actions open a native review sheet with the target host and,
+Market search uses the native Stack search bar. Native menus own filters. Agent and skill actions open a native review sheet with the target host and,
 for a skill, a real agent picker. Install stays gated by role, connection and host capability.
 Agent rows show Added from their saved Marketplace listing identity. Skill rows show Installed from
 the installed skill ID and Marketplace origin. A successful agent receipt covers host-event delay;
@@ -114,18 +119,9 @@ stay unknown; a known zero stays zero. The server overview shows supported actio
 Roles remain in Members; a separate mobile Import action is not available.
 
 Settings → Usage shows remaining plan allowances above the server's token and cost report.
-The sidebar shows compact provider rings above the profile. They open the full Usage page. Their
-content stays in the drawer's scroll area so large text and multiple accounts cannot cover the profile.
-The quota section is collapsible and starts closed each time the drawer opens or its host changes.
-Pencil B32 keeps 32 pt provider rings, remaining percentages and reset countdowns visible when collapsed.
-The collapsed ring, percentage and reset all use the shortest reported quota window, such as 5 hours.
-B33 expands to 44 pt two-window rings, a window legend, retry actions and an updated-time footer.
-Provider rows and Usage & costs open the Usage page. The closed drawer does not fetch or poll
-provider usage; the open summary uses the same five-minute cache as Usage. Short countdown units
-come from catalog keys because native unit formatting can convert hour/minute values to seconds.
-Usage events update the cached reading; they must not trigger another usage request because the
-host broadcasts them during the read itself. Status events mark quota data stale without an immediate
-read. Ordinary visible polling uses the desktop's five-minute interval.
+Plan limits remain in the Team header and open the existing Usage page. The workspace drawer
+shows no Plan limits card or provider rings. The Usage page retains real provider windows,
+remaining values, reset times, and the existing five-minute cache and visible polling rules.
 Main work, market and usage screens and shared settings scroll containers use `ScrollTouchArea`.
 It enables the installed iOS keyboard controller fix for React Native #54123, so a drag in empty
 content or insets reaches the native scroll view. Android keeps a normal flex container. Keep this
@@ -150,45 +146,42 @@ account. Release builds cannot open this route.
 - Treat older iOS versions and Android as first-class fallbacks. The interface must remain complete and readable when Liquid Glass is unavailable or reduced transparency is enabled.
 - Use platform-native icons in native navigation (`sf` on iOS and the corresponding Material icon on Android). Use the existing application icon convention for HeroUI content.
 
-### Big headers
+### Native titles and back navigation
 
-Home and Routines have a big header that the screen draws, not `headerLargeTitle`. The native
-large title does not work under the custom scroll edge effect on iOS 27, and Android has none. Use
-`src/shared/components/large-title.tsx`:
+Team, Tasks, Routines, Market and Settings use a native stack in each tab. Use compact `Stack.Title`
+for main pages, native `Stack.Toolbar` actions and menus, and automatic content insets on iOS.
+Do not add custom large-title bars or opaque status-bar filler views to these pages.
 
-- `useLargeTitleScroll` gives the scroll handler and the scroll distance from the rest position.
-- `LargeTitle` is the first item of the scroll content: an optional caption (the server name) and the
-  34 pt bold title. On iOS a pull past the top grows it a little, as the native title does.
-- `LargeTitleBar` draws the scroll edge effect and the 17 pt small title. The small title fades in,
-  4 pt up, in 200 ms when the text of the big title reaches the bottom of the bar.
-- Android uses Material 3, not an iOS copy: a 28 dp bold title (a medium top app bar), the surface
-  solid under the bar and a 32 dp fade below it, as the top fade of the design,
-  a 22 dp regular small title on the 72 dp line, and 48 dp icon buttons with a round ripple: a 40 dp glass circle on full screens, the plain icon in sheets.
-- Android has no Liquid Glass, and its blur does not work over a scroll view. The search field and the
-  bar buttons use `useChromeGlass()`: the solid glass of the design (`--openbot-bg-chrome-glass`, 94-96%
-  opaque), a hairline edge, a soft shadow and the top light of `ChromeGlassSheen`. The home search
-  field has a real blur on Android 12 and later: the home content is in a `BlurTargetView`, and the
-  field draws a `BlurView` of it (radius 24) under the lighter `--openbot-bg-chrome-blur` fill. While
-  the results are open, the field shows the solid glass over the blur, because the results are not in
-  the target. iOS without Liquid Glass keeps the solid capsule.
-  Stacks set `androidBackOptions` in `screenOptions`, so the back button of every inner page, in
-  sheets too, is the same round button and not the native arrow.
-- `LargeTitleScrollView` puts grouped content under a big header on the sheet surface.
+Agent Info, Channel Info and Server Settings are ordinary routes in the parent native stack.
+Their public paths stay unchanged. Their root and child pages share the native back history,
+save actions and unsaved-change guards. A nested stack root cannot reliably pop its parent:
+SDK 57 native-stack targets its back action at the child state. Keep these routes in the parent
+stack instead of adding a custom chevron. Native back buttons and gestures add no app haptics.
+A direct chat link with no back history keeps one explicit exit to Team. Android toolbar SF Symbols
+are not supported by the installed SDK 57 API; toolbar views host existing Lucide controls there,
+and header menus keep the shared accessible adapter. iOS uses native toolbar buttons and menus.
 
-The native header stays, transparent, with an empty title. It keeps the native Liquid Glass buttons on
-iOS: back, `Stack.Toolbar` actions and menus. Android draws its buttons with `AndroidHeaderButton`,
-and the stack draws the back button with `androidBackOptions`. Text sizes that HeroUI `Typography` has no variant for come from
-`src/shared/lib/type-scale.ts`; spread them into `style`.
+Chat and task detail keep compact native titles. Their keyboard-aware virtual list owns message
+anchors and uses manual content insets. It cannot safely rely on a transparent header's native
+scroll edge to hide transcript text: older messages and action icons remained visible through the
+title and status area in the Simulator. These routes therefore use a solid native canvas header,
+with no blur or top scroll-edge effect, and the native stack places content below it. Keep only the
+16 pt content gap; do not add the native header height again. Back, Info and task/channel controls
+remain native. Show the native Back control when back history exists, or the explicit direct-link
+exit when it does not; never show both. Read native back history from `HeaderBackContext`, not an
+imperative global router read during the first render. Reserve the leading 24 pt plus the safe-area
+inset for Back. Message reply gestures fail in that edge. Enable the native content-pop recognizer
+with the same response bound, so iOS 26 can navigate Back without taking interior reply swipes.
 
 ### Home search
 
-Search is a field at the bottom of home (`features/search/components/home-search.tsx`), not a header
-button or a sheet. It is an in-content glass surface: `GlassView` with Liquid Glass, and a solid
-`default` capsule without it or with Reduce Transparency. The field rides on the keyboard. When it
-takes focus, the results come in over the list (220 ms, opacity and 8 pt up; opacity only with
-reduced motion), a close button comes in beside the field, and the drawer pan stops. Close, Android
-Back, or a result closes them in 160 ms. With no query the results show shortcuts and the agents of
-the server; a query shows the same sections as before, with `BlurSwap` between states.
+`Stack.SearchBar` owns ordinary Home search. Native focus opens the existing result content;
+native Cancel and Android Back close it. Quick actions focus the same native search control.
+The query and result logic still supports `@` agent selection and task creation.
+
+Once an agent is selected, the task composer remains in the content and follows the keyboard.
+This field is a product composer, not a replacement navigation bar. Clear the selected agent to
+return to native search. Keep task errors, retry behavior and draft state.
 
 ## Sheets
 

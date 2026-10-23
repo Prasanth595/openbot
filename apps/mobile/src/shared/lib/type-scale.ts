@@ -6,10 +6,11 @@ import type { TextStyle } from "react-native";
  * `text-label` reads to tailwind-merge as a color, so next to `text-muted` one of the two is lost.
  */
 export const typeScale = {
+  workComposer: { fontFamily: "Inter", fontSize: 18, lineHeight: 24, fontWeight: "500" },
   workTitle: { fontFamily: "Inter", fontSize: 15, lineHeight: 20, fontWeight: "500" },
   workStatus: { fontFamily: "Inter", fontSize: 10, lineHeight: 14, letterSpacing: 0.72, fontWeight: "600" },
-  teamDisplay: { fontFamily: "Inter", fontSize: 44, lineHeight: 44, letterSpacing: -2.2, fontWeight: "500" },
-  teamLead: { fontFamily: "Inter", fontSize: 40, lineHeight: 40, letterSpacing: -2, fontWeight: "500" },
+  teamDisplay: { fontFamily: "Inter", fontSize: 44, lineHeight: 53, letterSpacing: -2.2, fontWeight: "500" },
+  teamLead: { fontFamily: "Inter", fontSize: 40, lineHeight: 48, letterSpacing: -2, fontWeight: "500" },
   teamSection: { fontFamily: "Inter", fontSize: 28, lineHeight: 34, letterSpacing: -1.4, fontWeight: "500" },
   teamMeta: { fontFamily: "Inter", fontSize: 12, lineHeight: 15, letterSpacing: 0.72, fontWeight: "600" },
   teamName: { fontFamily: "Inter", fontSize: 17, lineHeight: 21, fontWeight: "600" },

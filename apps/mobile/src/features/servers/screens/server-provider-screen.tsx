@@ -16,6 +16,7 @@ import {
   SettingsRow,
   SettingsSection,
 } from "@/features/settings/components/settings-content";
+import { invalidateProviderUsageQueries } from "@/features/workspace/model/provider-usage-cache";
 import { queryKeys } from "@/features/workspace/model/query-keys";
 import { SheetFormField } from "@/shared/components/sheet-form-field";
 import { SheetSaveAction } from "@/shared/components/sheet-save-action";
@@ -50,7 +51,7 @@ export function ServerProviderScreen() {
   const provider = isAgentProvider(params.provider) ? params.provider : null;
   const [signIn, setSignIn] = useState<SignIn | null>(null);
   const providers = useServerProviders(serverId, { watchStatus: signIn !== null && signIn.kind !== "relay" });
-  const { available, admin, status, rows, applyStatus, applyRuntimes, refreshStatus } = providers;
+  const { available, admin, status, rows, applyStatus, applyRuntimes, refreshStatus, invalidateUsage } = providers;
   const row = rows.find((candidate) => candidate.id === provider);
   const locked = useRef(false);
   const [pending, setPending] = useState<string | null>(null);
@@ -90,10 +91,11 @@ export function ServerProviderScreen() {
   useEffect(() => {
     if (state !== "available" || signIn === null || signIn.kind === "relay" || signIn.kind === "starting") return;
     if (reconnecting && (connecting || !sawConnecting)) return;
+    invalidateUsage();
     setSignIn(null);
     setCode("");
     void haptics.notification("success");
-  }, [state, connecting, signIn, reconnecting, sawConnecting]);
+  }, [state, connecting, signIn, reconnecting, sawConnecting, invalidateUsage]);
 
   // The host keeps a sign-in open until it ends or is cancelled, so leaving the page cancels it.
   const active = useRef<{ admin: ProviderAdmin; signIn: SignIn; provider: AgentProviderId } | null>(null);
@@ -126,7 +128,10 @@ export function ServerProviderScreen() {
             if (relay.result.error) {
               setError(sourceText(relay.result.error));
               void haptics.notification("error");
-            } else void haptics.notification("success");
+            } else {
+              invalidateUsage();
+              void haptics.notification("success");
+            }
             void refreshStatus();
             return;
           }
@@ -156,7 +161,7 @@ export function ServerProviderScreen() {
       current = false;
       clearInterval(timer);
     };
-  }, [admin, relayFlow, relayReady, sourceText, applyStatus, refreshStatus]);
+  }, [admin, relayFlow, relayReady, sourceText, applyStatus, refreshStatus, invalidateUsage]);
 
   if (!available || !admin || !provider || !row)
     return (
@@ -193,6 +198,7 @@ export function ServerProviderScreen() {
           return;
         }
         if (started.kind === "connected") {
+          invalidateUsage();
           setSignIn(null);
           await applyStatus(await admin.readStatus());
           return;
@@ -327,6 +333,7 @@ export function ServerProviderScreen() {
               const relay = await admin.completeRelay(signIn.flowId, query);
               if (relay.result?.error) throw new Error(sourceText(relay.result.error));
               if (relay.result) {
+                invalidateUsage();
                 setSignIn(null);
                 setAddress("");
                 await refreshStatus();
@@ -583,7 +590,9 @@ function ProviderKeySection({
     setSaving(true);
     setError(null);
     try {
-      await onStatus(await operation());
+      const next = await operation();
+      invalidateProviderUsageQueries(queryClient, queryScope, serverId);
+      await onStatus(next);
       setDraft("");
       await queryClient.invalidateQueries({ queryKey, exact: true });
       void haptics.notification("success");

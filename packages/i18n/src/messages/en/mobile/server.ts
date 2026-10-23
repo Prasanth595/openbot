@@ -201,6 +201,7 @@ export const messages = defineMessages("mobile.server", {
   "mobile.server.routineDetail.resume": "Resume routine",
   "mobile.server.routineDetail.edit": "Edit routine",
   "mobile.server.routineDetail.ask": "Ask an agent to edit this routine",
+  "mobile.server.routineDetail.chatContext": "About routine “{name}” ({id}):\n\n{message}",
   "mobile.server.routineDetail.emptyRuns": "This routine has no runs yet.",
   "mobile.server.routineDetail.stepsUnavailable": "This host does not provide run steps.",
   "mobile.server.routineDetail.olderSteps": "Steps are available for the latest run only.",

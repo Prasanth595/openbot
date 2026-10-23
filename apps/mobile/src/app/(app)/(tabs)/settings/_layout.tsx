@@ -1,8 +1,6 @@
 import { Stack } from "expo-router/stack";
 import { useCSSVariable } from "uniwind";
-import { androidBackOptions } from "@/shared/components/android-header-button";
 import { isIOS } from "@/shared/lib/platform";
-import { sheetBackHaptics } from "@/shared/lib/sheet-back-haptics";
 import { useText } from "@/shared/lib/text";
 
 export const unstable_settings = { initialRouteName: "index" };
@@ -10,22 +8,29 @@ export const unstable_settings = { initialRouteName: "index" };
 export default function SettingsLayout() {
   const { t } = useText();
   const background = String(useCSSVariable("--openbot-bg-sheet"));
+  const canvas = String(useCSSVariable("--openbot-bg-canvas"));
   return (
     <Stack
-      screenListeners={sheetBackHaptics}
-      screenOptions={(props) => ({
-        ...androidBackOptions(props),
+      screenOptions={{
         presentation: "card",
         headerBackButtonDisplayMode: "minimal",
         headerShadowVisible: false,
         headerTransparent: isIOS,
         headerStyle: { backgroundColor: isIOS ? "transparent" : background },
-        headerBlurEffect: "none",
-        scrollEdgeEffects: { top: "hidden", bottom: "soft" },
+        scrollEdgeEffects: { top: "soft", bottom: "soft" },
         contentStyle: { backgroundColor: background },
-      })}
+      }}
     >
-      <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="index"
+        options={{
+          headerShown: true,
+          headerStyle: { backgroundColor: isIOS ? "transparent" : canvas },
+          contentStyle: { backgroundColor: canvas },
+        }}
+      >
+        <Stack.Title>{t("mobile.app.route.settings")}</Stack.Title>
+      </Stack.Screen>
       <Stack.Screen name="profile" options={{ title: t("mobile.app.route.profile") }} />
       <Stack.Screen name="appearance" options={{ title: t("mobile.settings.appearance.title") }} />
       <Stack.Screen name="animations" options={{ title: t("mobile.settings.animations.title") }} />

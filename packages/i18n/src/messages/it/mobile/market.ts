@@ -18,7 +18,6 @@ export const messages = {
   "mobile.market.empty": "Nessun risultato.",
   "mobile.market.loading": "Caricamento catalogo…",
   "mobile.market.loadFailed": "Impossibile caricare il catalogo.",
-  "mobile.market.more": "Carica altro",
   "mobile.market.add": "Aggiungi",
   "mobile.market.install": "Installa",
   "mobile.market.added": "Aggiunto",

@@ -250,6 +250,8 @@ export interface MobileWorkspaceContextValue {
   activeAgents: MobileAgent[];
   hiddenAgents: MobileAgent[];
   pinnedAgentIds: string[];
+  /** The explicit lead selected for the active server on this phone. */
+  leadAgentId: string | null;
   pinnedChannelIds: string[];
   hiddenChannelIds: string[];
   hideChannel: (channelId: string, serverId: string) => boolean;
@@ -597,6 +599,10 @@ export interface MobileWorkspaceContextValue {
   /** Marks every unread chat of the active server read. It rejects when a chat stays unread. */
   markAllRead: () => Promise<void>;
   toggleAgentPin: (agentId: string) => ToggleAgentPinResult;
+  /** Select a lead only when the active server has no explicit lead. Pins stay unchanged. */
+  makeLeadAgent: (agentId: string) => "updated" | "error";
+  /** Remove the explicit lead choice without changing any pin. */
+  removeLeadAgent: (agentId: string) => "updated" | "error";
 }
 
 /** The checks that read what a host advertised. Their answer changes when a server connects. */
@@ -624,6 +630,7 @@ type MobileWorkspaceStateKey =
   | "activeAgents"
   | "hiddenAgents"
   | "pinnedAgentIds"
+  | "leadAgentId"
   | "pinnedChannelIds"
   | "hiddenChannelIds"
   | "hidesAgentsOnServer"

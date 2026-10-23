@@ -2,7 +2,6 @@ import { Stack } from "expo-router/stack";
 import { useCSSVariable } from "uniwind";
 import { androidBackOptions } from "@/shared/components/android-header-button";
 import { isIOS } from "@/shared/lib/platform";
-import { sheetBackHaptics } from "@/shared/lib/sheet-back-haptics";
 import { sheetHeaderInsetOptions } from "@/shared/lib/sheet-header";
 import { useText } from "@/shared/lib/text";
 
@@ -13,7 +12,6 @@ export default function QueuedMessagesLayout() {
   const background = String(useCSSVariable("--openbot-bg-sheet"));
   return (
     <Stack
-      screenListeners={sheetBackHaptics}
       screenOptions={(props) => ({
         ...androidBackOptions(props),
         ...sheetHeaderInsetOptions,

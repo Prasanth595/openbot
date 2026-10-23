@@ -18,7 +18,6 @@ export const messages = {
   "mobile.market.empty": "Brak pasujących elementów.",
   "mobile.market.loading": "Wczytywanie katalogu…",
   "mobile.market.loadFailed": "Nie można wczytać katalogu.",
-  "mobile.market.more": "Wczytaj więcej",
   "mobile.market.add": "Dodaj",
   "mobile.market.install": "Zainstaluj",
   "mobile.market.added": "Dodano",

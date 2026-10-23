@@ -108,8 +108,11 @@ export const AgentListRow = memo(function AgentListRow({ agent, leftInset = 20, 
   const background = String(useCSSVariable("--openbot-bg-canvas"));
   const border = String(useCSSVariable("--openbot-border-grouped"));
   const pinBlocked = useMobileWorkspaceSelector(
-    ({ pinnedAgentIds, pinnedChannelIds }) =>
-      !canToggleAgentPin([...pinnedAgentIds, ...pinnedChannelIds], agent.id, pinnedAgentIds[0] ?? null),
+    ({ pinnedAgentIds, pinnedChannelIds }) => !canToggleAgentPin([...pinnedAgentIds, ...pinnedChannelIds], agent.id),
+  );
+  const isPinned = useMobileWorkspaceSelector(({ pinnedAgentIds }) => pinnedAgentIds.includes(agent.id));
+  const leadAgentId = useMobileWorkspaceSelector(({ activeServer, leadAgentId }) =>
+    activeServer.id === agent.serverId ? leadAgentId : null,
   );
   const { toggleAgentPinAnimated, transition } = useAgentPinTransition();
   // Each long press mounts the Android menu again, so it opens even if an earlier one did not close.
@@ -150,12 +153,28 @@ export const AgentListRow = memo(function AgentListRow({ agent, leftInset = 20, 
       }
       accessibilityRole="button"
       accessibilityActions={[
-        { name: "pin", label: t("mobile.agent.pin.pinNamed", { name: agent.name }) },
+        ...(!pinBlocked
+          ? [
+              {
+                name: "pin",
+                label: t(isPinned ? "mobile.agent.pin.unpinNamed" : "mobile.agent.pin.pinNamed", { name: agent.name }),
+              },
+            ]
+          : []),
+        ...(leadAgentId === null ? [{ name: "make-lead", label: t("mobile.agent.menu.makeLead") }] : []),
+        ...(leadAgentId === agent.id ? [{ name: "remove-lead", label: t("mobile.agent.menu.removeLead") }] : []),
         { name: "read", label: t(isUnread ? "mobile.agent.menu.markRead" : "mobile.agent.menu.markUnread") },
       ]}
       onAccessibilityAction={(event) => {
         if (event.nativeEvent.actionName === "pin") toggleAgentPinAnimated(agent.id);
         else if (event.nativeEvent.actionName === "read") toggleRead();
+        else if (event.nativeEvent.actionName === "make-lead") {
+          if (workspace().makeLeadAgent(agent.id) === "error") void haptics.notification("error");
+          else void haptics.selection();
+        } else if (event.nativeEvent.actionName === "remove-lead") {
+          if (workspace().removeLeadAgent(agent.id) === "error") void haptics.notification("error");
+          else void haptics.selection();
+        }
       }}
       className="w-full"
       onPressIn={agentChatPreview.onPressIn}
@@ -205,6 +224,7 @@ export const AgentListRow = memo(function AgentListRow({ agent, leftInset = 20, 
   return (
     <AgentPinSwipeRow
       agentName={agent.name}
+      pinned={isPinned}
       pinBlocked={pinBlocked}
       unread={isUnread}
       onRead={toggleRead}

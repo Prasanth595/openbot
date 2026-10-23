@@ -17,6 +17,8 @@ export interface SettingsSwitchProps {
   value: boolean;
   disabled: boolean;
   label: string;
+  /** Hide the visual label when its row already shows it. The switch keeps its accessible label. */
+  hideLabel?: boolean;
   dark: boolean;
   onValueChange: (value: boolean) => void;
 }

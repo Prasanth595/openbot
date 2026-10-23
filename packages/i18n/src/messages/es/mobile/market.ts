@@ -18,7 +18,6 @@ export const messages = {
   "mobile.market.empty": "No hay coincidencias.",
   "mobile.market.loading": "Cargando catálogo…",
   "mobile.market.loadFailed": "No se pudo cargar el catálogo.",
-  "mobile.market.more": "Cargar más",
   "mobile.market.add": "Añadir",
   "mobile.market.install": "Instalar",
   "mobile.market.added": "Añadido",

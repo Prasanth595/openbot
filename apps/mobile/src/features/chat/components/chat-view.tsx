@@ -38,6 +38,7 @@ import type { QuestionPromptController } from "@/features/chat/components/use-qu
 import { useOutbox } from "@/features/chat/context/outbox-context";
 import { usePublishedQueuedChat } from "@/features/chat/context/queued-messages-context";
 import { presentChatActivity } from "@/features/chat/model/chat-activity";
+import { CHAT_BACK_EDGE_WIDTH } from "@/features/chat/model/chat-layout";
 import {
   type ChatBubbleMessage,
   type ChatMessage,
@@ -139,7 +140,6 @@ export interface ChatViewProps {
   onLeave: () => void;
 }
 
-const CHAT_BACK_EDGE_WIDTH = 24;
 /** A host starts a turn within a second or two; this only ends a wait for a turn that never shows. */
 const AWAIT_TURN_MS = 10_000;
 
@@ -492,7 +492,7 @@ export function ChatView({
   }, [outboxMessages, target.kind]);
   const rowsShown = useRowsAfterOpenTransition();
   const motion = useChatMotion(
-    insets.top + 76,
+    16,
     keyboardOffset,
     // The list takes its place at the latest message once its rows render.
     ready && rowsShown,
@@ -887,8 +887,9 @@ export function ChatView({
 
   const content = (
     <GestureDetector gesture={edgeBackGesture}>
-      <View className="flex-1" style={{ backgroundColor: String(chatCanvas) }}>
+      <View collapsable={false} className="flex-1" style={{ backgroundColor: String(chatCanvas) }}>
         <View
+          collapsable={false}
           className="flex-1"
           // Nothing here may switch on the card: this view is an ancestor of
           // the focused input, and each of pointerEvents and
@@ -899,6 +900,7 @@ export function ChatView({
           importantForAccessibility={attachments.menuOpen ? "no-hide-descendants" : "auto"}
         >
           <KeyboardGestureArea
+            collapsable={false}
             style={{ flex: 1 }}
             textInputNativeID="chat-composer-input"
             interpolator="ios"
@@ -913,10 +915,6 @@ export function ChatView({
             <ChatHeader
               target={target}
               needsAction={needsAction && !readOnly}
-              fallbackBackground={fieldBackground}
-              foreground={foreground}
-              liquidGlassAvailable={liquidGlassAvailable}
-              topInset={insets.top}
               onBack={leaveConversation}
               // The voice overlay covers the chat. It blocks touches, and this
               // keeps screen readers on the transcript and the voice controls.
@@ -975,7 +973,6 @@ export function ChatView({
               showStarter={
                 showStarter && serverOnline && canSend && ready && !activity && projectedMessages.length === 0
               }
-              topInset={insets.top}
               onDismissStarter={dismissStarter}
               onSelectStarter={send}
               onRetryHistory={fetchHistory}

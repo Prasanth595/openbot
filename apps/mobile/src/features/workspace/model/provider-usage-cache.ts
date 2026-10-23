@@ -2,6 +2,12 @@ import { type AccountUsage, type AgentEvent, isAccountUsage, type TeamRealtimeEv
 import type { QueryClient } from "@tanstack/react-query";
 import { type QueryScope, queryKeys } from "./query-keys";
 
+/** A confirmed local sign-in, key or account change makes both cached readings old. */
+export function invalidateProviderUsageQueries(queryClient: QueryClient, scope: QueryScope, serverId: string): void {
+  void queryClient.invalidateQueries({ queryKey: queryKeys.providerUsage(scope, serverId), exact: true });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.providerAccountUsage(scope, serverId), exact: true });
+}
+
 /** Usage replies broadcast progressive events: update the reading without feeding a new request back. */
 export function syncProviderUsageQueries(
   queryClient: QueryClient,
@@ -19,13 +25,7 @@ export function syncProviderUsageQueries(
       return { limits: [...limits.values()] };
     });
   }
-  if (event.type === "status" || event.type === "agents-changed") {
-    // Starting a provider to read its quota can also emit status. The next visible poll or manual
-    // refresh can read stale data; the event itself must not start another quota read.
-    void queryClient.invalidateQueries({ queryKey: queryKeys.providerUsage(scope, serverId), refetchType: "none" });
-    void queryClient.invalidateQueries({
-      queryKey: queryKeys.providerAccountUsage(scope, serverId),
-      refetchType: "none",
-    });
-  }
+  // Quota reads can emit status, and each message can emit agents-changed. Neither event identifies
+  // an account change in the released protocol. Keep the five-minute cache fresh across them;
+  // actual usage events, visible polling and manual refresh supply the next reading.
 }

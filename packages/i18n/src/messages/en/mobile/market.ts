@@ -17,7 +17,6 @@ export const messages = defineMessages("mobile.market", {
   "mobile.market.empty": "No matching items.",
   "mobile.market.loading": "Loading catalog…",
   "mobile.market.loadFailed": "Could not load the catalog.",
-  "mobile.market.more": "Load more",
   "mobile.market.add": "Add",
   "mobile.market.install": "Install",
   "mobile.market.added": "Added",

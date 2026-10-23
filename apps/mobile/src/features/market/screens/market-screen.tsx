@@ -16,9 +16,8 @@ import Download from "lucide-react-native/icons/download";
 import Plus from "lucide-react-native/icons/plus";
 import Settings2 from "lucide-react-native/icons/settings-2";
 import Sparkles from "lucide-react-native/icons/sparkles";
-import { useCallback, useDeferredValue, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { FlatList, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BloubAvatarPreview } from "@/features/agents/components/bloub-avatar";
 import { useMobileSession, useQueryScope } from "@/features/auth/context/mobile-session-context";
 import { MarketHeader, type MarketTab } from "@/features/market/components/market-header";
@@ -32,7 +31,6 @@ import { queryKeys } from "@/features/workspace/model/query-keys";
 import { showsOnline } from "@/features/workspace/model/server-status";
 import { ScrollTouchArea } from "@/shared/components/scroll-touch-area";
 import { haptics } from "@/shared/lib/haptics";
-import { isAndroid } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
 import { typeScale } from "@/shared/lib/type-scale";
 import { useAppForeground } from "@/shared/lib/use-app-foreground";
@@ -44,12 +42,12 @@ type MarketRow =
   | { kind: "app"; id: string; app: MarketApp }
   | { kind: "configured"; id: string; config: McpServerConfig; app: MarketApp | undefined };
 
-/** A catalog image may use a relative account-service path, but never a local or custom URL scheme. */
+/** Catalog images load only from the configured HTTPS account-service origin. */
 function catalogImageUrl(value: string | null, apiUrl: string): string | null {
   if (!value) return null;
   try {
     const url = new URL(value, apiUrl);
-    return (url.protocol === "https:" || url.protocol === "http:") && !url.username && !url.password
+    return url.protocol === "https:" && url.origin === new URL(apiUrl).origin && !url.username && !url.password
       ? url.toString()
       : null;
   } catch {
@@ -67,7 +65,6 @@ export function MarketScreen() {
   const apiUrl = session?.apiUrl ?? OPENBOT_CONTROL_PLANE_ORIGIN;
   const catalog = useMemo(() => createMobileMarketCatalog(apiUrl), [apiUrl]);
   const scope = useQueryScope();
-  const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<MarketTab>(
     requestedTab === "apps" || requestedTab === "skills" ? requestedTab : "agents",
   );
@@ -82,7 +79,15 @@ export function MarketScreen() {
   const focused = useIsFocused();
   const foreground = useAppForeground();
   const [queries, setQueries] = useState({ agents: "", apps: "", skills: "" });
-  const query = useDeferredValue(queries[tab].trim());
+  const [debouncedQueries, setDebouncedQueries] = useState(queries);
+  const searchInput = queries[tab];
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedQueries((current) => ({ ...current, [tab]: searchInput }));
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [searchInput, tab]);
+  const query = debouncedQueries[tab].trim();
   const [category, setCategory] = useState<SkillCategory>();
   const [featuredOnly, setFeaturedOnly] = useState(false);
   const options = {
@@ -288,7 +293,7 @@ export function MarketScreen() {
     );
   };
   return (
-    <View className="flex-1 bg-team-canvas">
+    <View collapsable={false} className="flex-1 bg-team-canvas">
       <ScrollTouchArea>
         <FlatList
           data={rows}
@@ -300,9 +305,14 @@ export function MarketScreen() {
           showsVerticalScrollIndicator={false}
           alwaysBounceVertical={false}
           contentContainerStyle={{
-            paddingTop: (isAndroid ? insets.top : 0) + 8,
+            paddingTop: 8,
             paddingHorizontal: 20,
             paddingBottom: 24,
+          }}
+          onEndReachedThreshold={0.5}
+          onEndReached={() => {
+            if (tab !== "apps" && selectedQuery.hasNextPage && !selectedQuery.isFetching && !failed)
+              void selectedQuery.fetchNextPage();
           }}
           ListHeaderComponent={
             <MarketHeader
@@ -311,7 +321,9 @@ export function MarketScreen() {
               category={category}
               featuredOnly={featuredOnly}
               onTabChange={setTab}
-              onQueryChange={(value) => setQueries((current) => ({ ...current, [tab]: value }))}
+              onQueryChange={(value) =>
+                setQueries((current) => (current[tab] === value ? current : { ...current, [tab]: value }))
+              }
               onCategoryChange={setCategory}
               onFeaturedChange={setFeaturedOnly}
             />
@@ -361,22 +373,15 @@ export function MarketScreen() {
                   <Button.Label>{t("common.retry")}</Button.Label>
                 </Button>
               ) : null}
-              {tab !== "apps" && selectedQuery.hasNextPage ? (
-                <Button
-                  variant="secondary"
-                  isDisabled={selectedQuery.isFetchingNextPage}
-                  onPress={() => void selectedQuery.fetchNextPage()}
-                >
-                  <Button.Label>
-                    {t(selectedQuery.isFetchingNextPage ? "mobile.market.loading" : "mobile.market.more")}
-                  </Button.Label>
-                </Button>
+              {tab !== "apps" && selectedQuery.isFetchingNextPage ? (
+                <Typography.Paragraph className="text-muted" style={typeScale.marketDescription}>
+                  {t("mobile.market.loading")}
+                </Typography.Paragraph>
               ) : null}
             </View>
           }
         />
       </ScrollTouchArea>
-      <View pointerEvents="none" className="absolute inset-x-0 top-0 bg-team-canvas" style={{ height: insets.top }} />
     </View>
   );
 }

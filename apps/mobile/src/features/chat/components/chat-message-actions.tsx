@@ -7,7 +7,7 @@ import SmilePlus from "lucide-react-native/icons/face-slightly-smiling-plus";
 import Plus from "lucide-react-native/icons/plus";
 import Reply from "lucide-react-native/icons/reply";
 import TextSelect from "lucide-react-native/icons/square-dashed-text";
-import { type PropsWithChildren, useState } from "react";
+import { type PropsWithChildren, useEffect, useState } from "react";
 import { type AccessibilityState, Pressable, View } from "react-native";
 import Animated, { FadeIn, FadeOut, ReduceMotion } from "react-native-reanimated";
 import { showFailureAlert } from "@/features/analytics/failure-reports";
@@ -48,7 +48,7 @@ function ActionButton({
       accessibilityLabel={accessibilityLabel}
       accessibilityState={accessibilityState}
       onPress={onPress}
-      className={`h-11 items-center justify-center rounded-full active:bg-default-hover/30 ${label ? "px-2" : "w-10"} ${selected ? "bg-default" : ""}`}
+      className={`min-h-11 items-center justify-center rounded-full active:bg-default-hover/30 ${label ? "px-2" : "w-10"} ${selected ? "bg-default" : ""}`}
       style={({ pressed }) => (pressed ? PRESSED : undefined)}
     >
       {children}
@@ -73,6 +73,7 @@ export function ChatMessageActions({
   onSelectText,
   selecting = false,
   collapsed = false,
+  reactionRequest = 0,
 }: {
   align: "start" | "end";
   /** The text that Copy puts on the clipboard. Empty for a message of files only. */
@@ -90,12 +91,19 @@ export function ChatMessageActions({
   selecting?: boolean;
   /** Earlier replies in a burst keep saved reactions without a toolbar or timestamp. */
   collapsed?: boolean;
+  /** A custom accessibility action can open the picker on an earlier reply. */
+  reactionRequest?: number;
 }) {
   const { t, format } = useText();
   const [mutedColor, foregroundColor] = useThemeColor(["muted", "foreground"]);
   const muted = String(mutedColor);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [moreEmoji, setMoreEmoji] = useState(false);
+  useEffect(() => {
+    if (!reactionRequest) return;
+    setPickerOpen(true);
+    setMoreEmoji(false);
+  }, [reactionRequest]);
   const controlsVisible = !collapsed || selecting;
   // The reader's reaction shows at once. The host sends the saved list after it, and that list wins.
   const [pending, setPending] = useState<{
@@ -133,7 +141,7 @@ export function ChatMessageActions({
         <View
           accessibilityRole="toolbar"
           accessibilityLabel={t("mobile.chat.message.actions")}
-          className="flex-row items-center"
+          className="flex-row flex-wrap items-center"
         >
           {shown.map((reaction) =>
             reaction.actor.kind === "user" && onReact ? (
@@ -221,7 +229,7 @@ export function ChatMessageActions({
           ) : null}
         </View>
       ) : null}
-      {controlsVisible && pickerOpen ? (
+      {pickerOpen ? (
         <Animated.View
           entering={PICKER_IN}
           exiting={PICKER_OUT}

@@ -200,6 +200,7 @@ export const messages = {
   "mobile.server.routineDetail.resume": "Retomar rotina",
   "mobile.server.routineDetail.edit": "Editar rotina",
   "mobile.server.routineDetail.ask": "Peça a um agente para editar esta rotina",
+  "mobile.server.routineDetail.chatContext": "Sobre a rotina “{name}” ({id}):\n\n{message}",
   "mobile.server.routineDetail.emptyRuns": "Esta rotina ainda não foi executada.",
   "mobile.server.routineDetail.stepsUnavailable": "Este host não fornece as etapas de execução.",
   "mobile.server.routineDetail.olderSteps": "As etapas estão disponíveis apenas para a última execução.",

@@ -231,6 +231,7 @@ export const messages = {
   "mobile.server.routineDetail.resume": "Возобновить задачу",
   "mobile.server.routineDetail.edit": "Изменить задачу",
   "mobile.server.routineDetail.ask": "Попросить агента изменить эту регулярную задачу",
+  "mobile.server.routineDetail.chatContext": "О регулярной задаче «{name}» ({id}):\n\n{message}",
   "mobile.server.routineDetail.emptyRuns": "Эта регулярная задача ещё не запускалась.",
   "mobile.server.routineDetail.stepsUnavailable": "Этот хост не предоставляет шаги запуска.",
   "mobile.server.routineDetail.olderSteps": "Шаги доступны только для последнего запуска.",

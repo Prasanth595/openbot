@@ -1,6 +1,5 @@
 import { Stack } from "expo-router/stack";
 import { useCSSVariable } from "uniwind";
-import { sheetBackHaptics } from "@/shared/lib/sheet-back-haptics";
 import { sheetHeaderInsetOptions } from "@/shared/lib/sheet-header";
 
 export const unstable_settings = { initialRouteName: "index" };
@@ -11,7 +10,6 @@ export default function AddServerLayout() {
   const background = String(useCSSVariable("--openbot-bg-sheet"));
   return (
     <Stack
-      screenListeners={sheetBackHaptics}
       screenOptions={{
         ...sheetHeaderInsetOptions,
         presentation: "card",

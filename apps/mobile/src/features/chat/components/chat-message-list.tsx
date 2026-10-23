@@ -2,7 +2,12 @@ import { KeyboardAwareLegendList } from "@legendapp/list/keyboard";
 import type { AnchoredEndSpaceConfig } from "@legendapp/list/react-native";
 import { expandAttachmentReferences } from "@openbot/contracts/attachment-references";
 import { expandChatTagReferences } from "@openbot/contracts/chat-tag-references";
-import type { AttachmentSummary, BrowserTakeoverRequest } from "@openbot/contracts/ipc";
+import {
+  type AttachmentSummary,
+  type BrowserTakeoverRequest,
+  MESSAGE_REACTIONS,
+  MORE_MESSAGE_REACTIONS,
+} from "@openbot/contracts/ipc";
 import { markdownPlainText } from "@openbot/contracts/markdown-preview-text";
 import type { MobileTextKey } from "@openbot/i18n/mobile";
 import { useIsFocused } from "expo-router";
@@ -32,6 +37,7 @@ import {
   useState,
 } from "react";
 import {
+  type AccessibilityActionInfo,
   AccessibilityInfo,
   type GestureResponderEvent,
   Pressable,
@@ -44,6 +50,7 @@ import { useCSSVariable } from "uniwind";
 import { BloubAvatarThumbnail } from "@/features/agents/components/bloub-avatar";
 import { TeamAgentAvatar } from "@/features/agents/components/team-agent-avatar";
 import { getBloubAvatarColor } from "@/features/agents/model/bloub-activity";
+import { showFailureAlert } from "@/features/analytics/failure-reports";
 import { ChatActivityRow, type ChatActivitySpec } from "@/features/chat/components/chat-activity-row";
 import { type ApprovalDecision, approvalTitle, ChatApprovalCard } from "@/features/chat/components/chat-approval-card";
 import { ChatExchangeGroup, ChatExchangeMarker } from "@/features/chat/components/chat-exchange-marker";
@@ -69,6 +76,7 @@ import { useConnectionAppearance } from "@/features/workspace/components/use-con
 import type { MobileAgent } from "@/features/workspace/context/mobile-workspace-context";
 import { agentActivityMood, type MobileAgentActivity } from "@/features/workspace/model/agent-activity";
 import type { PendingApproval } from "@/features/workspace/model/pending-approvals";
+import type { MenuAction } from "@/shared/components/menu-view";
 import { haptics } from "@/shared/lib/haptics";
 import { useMotionPreference, useReducedMotion } from "@/shared/lib/motion";
 import { useText } from "@/shared/lib/text";
@@ -131,15 +139,13 @@ function chatDayDividers(messages: readonly VisibleMessage[]): ReadonlyMap<strin
   return dividers;
 }
 
-function ChatDayDivider({ date }: { date: Date }) {
+function ChatDayDivider({ date, today }: { date: Date; today: string }) {
   const { t, format } = useText();
   const time = format.date(date, { timeStyle: "short" });
   const label =
-    date.toDateString() === new Date().toDateString()
-      ? t("mobile.chat.day.today", { time })
-      : format.date(date, { dateStyle: "medium" });
+    date.toDateString() === today ? t("mobile.chat.day.today", { time }) : format.date(date, { dateStyle: "medium" });
   return (
-    <View className="items-center pb-3.5">
+    <View accessible accessibilityRole="header" className="items-center pb-3.5">
       <Typography.Paragraph className="text-muted uppercase" style={typeScale.chatDay}>
         {label}
       </Typography.Paragraph>
@@ -231,7 +237,6 @@ interface ChatMessageListProps {
   muted: ViewStyle["backgroundColor"];
   raised: ViewStyle["backgroundColor"];
   showStarter: boolean;
-  topInset: number;
   onDismissStarter: () => void;
   onSelectStarter: (value: string) => void;
   onRetryHistory: () => void;
@@ -433,7 +438,8 @@ const MessageRow = memo(function MessageRow({
   selecting?: boolean;
   shared: MessageRowShared;
 }) {
-  const { t } = useText();
+  const { t, format } = useText();
+  const [reactionRequest, setReactionRequest] = useState(0);
   const [selectionHeight, setSelectionHeight] = useState(0);
   // Native text views keep a selection until they draw again. When the chat ends the selection
   // from outside, such as with a tap elsewhere, the next generation draws them without it.
@@ -452,10 +458,10 @@ const MessageRow = memo(function MessageRow({
   const nativeSelect = shared.actions.nativeSelection;
   const nativeSelection = useMemo(
     () =>
-      bubble && !compactActions && nativeTextSelection && shared.canSelectText
+      bubble && selecting && nativeTextSelection && shared.canSelectText
         ? { generation: selectionGeneration, onSelect: (selected: string) => nativeSelect(bubble, selected) }
         : undefined,
-    [bubble, compactActions, nativeSelect, selectionGeneration, shared.canSelectText],
+    [bubble, selecting, nativeSelect, selectionGeneration, shared.canSelectText],
   );
   const {
     agents,
@@ -644,7 +650,7 @@ const MessageRow = memo(function MessageRow({
                   body={message.body}
                   bodyLineHeight={message.author === "user" ? 23.2 : 24.8}
                   finished={!isStreamingReply(message)}
-                  selectable={message.author === "user"}
+                  selectable={selecting && message.author === "user"}
                   color={textColor}
                   playback={playback}
                   animationEnabled={shared.animationActive && arriving}
@@ -666,9 +672,65 @@ const MessageRow = memo(function MessageRow({
       </Animated.View>
     );
   if (message.kind !== "message") return rendered;
-  // The fallback selection starts from Select text or a touch and hold. Native text views select
-  // the word under the finger on their own, so they need neither.
-  const selectable = shared.canSelectText && !nativeTextSelection && Boolean(message.body.trim());
+  // Select text enters native selection mode, or the read-only field on unsupported platforms.
+  const selectable = shared.canSelectText && Boolean(message.body.trim());
+  const ownReaction = message.reactions?.find((reaction) => reaction.actor.kind === "user")?.emoji;
+  const menuActions: MenuAction[] = [];
+  const accessibilityActions: AccessibilityActionInfo[] = [];
+  if (bubble) {
+    if (copyText) {
+      menuActions.push({ id: "copy", title: t("mobile.chat.message.copy"), image: "doc.on.doc" });
+      accessibilityActions.push({ name: "copy", label: t("mobile.chat.message.copy") });
+    }
+    if (shared.canReply) {
+      menuActions.push({ id: "reply", title: t("mobile.chat.message.reply"), image: "arrowshape.turn.up.left" });
+      accessibilityActions.push({ name: "reply", label: t("mobile.chat.message.reply") });
+    }
+    if (shared.canReact) {
+      menuActions.push({
+        id: "react",
+        title: t("mobile.chat.message.addReaction"),
+        image: "face.smiling",
+        subactions: [
+          ...[...MESSAGE_REACTIONS, ...MORE_MESSAGE_REACTIONS].map((emoji) => ({
+            id: `react:${emoji}`,
+            title: t("mobile.chat.message.react", { emoji }),
+            state: emoji === ownReaction ? ("on" as const) : ("off" as const),
+          })),
+          ...(ownReaction
+            ? [{ id: "remove-reaction", title: t("mobile.chat.message.removeReaction", { emoji: ownReaction }) }]
+            : []),
+        ],
+      });
+      accessibilityActions.push({ name: "react", label: t("mobile.chat.message.addReaction") });
+    }
+    if (selectable) {
+      menuActions.push({ id: "select", title: t("mobile.chat.message.selectText"), image: "selection.pin.in.out" });
+      accessibilityActions.push({ name: "select", label: t("mobile.chat.message.selectText") });
+    }
+    if (message.createdAt)
+      menuActions.push({
+        id: "time",
+        title: format.date(new Date(message.createdAt), { dateStyle: "medium", timeStyle: "short" }),
+        image: "clock",
+        attributes: { disabled: true },
+      });
+  }
+  const runMessageAction = (name: string) => {
+    if (!bubble) return;
+    if (name === "copy" && copyText) void copy();
+    else if (name === "reply" && shared.canReply) actions.reply(message);
+    else if (name === "select" && selectable) actions.selectText(message);
+    else if (name === "react" && shared.canReact) setReactionRequest((request) => request + 1);
+    else if (shared.canReact && (name.startsWith("react:") || name === "remove-reaction")) {
+      const emoji = name === "remove-reaction" ? null : name.slice("react:".length);
+      if (emoji !== null && ![...MESSAGE_REACTIONS, ...MORE_MESSAGE_REACTIONS].some((candidate) => candidate === emoji))
+        return;
+      void actions.react(message, emoji === ownReaction ? null : emoji).catch((error: unknown) => {
+        showFailureAlert(error, "turn", t("mobile.chat.message.reactionFailed"), t("mobile.chat.copyFailedMessage"));
+      });
+    }
+  };
   const replyPreview =
     source?.kind === "message"
       ? mentionDraft(source.body).text || t("mobile.chat.reply.attachment")
@@ -700,12 +762,28 @@ const MessageRow = memo(function MessageRow({
           </Typography.Paragraph>
         </View>
       ) : null}
-      {message.author === "agent" ? (
+      {bubble ? (
         <ChatMessageGesture
           selecting={selecting}
-          onReply={shared.canReply ? () => actions.reply(message) : undefined}
-          onCopy={compactActions && copyText ? () => void copy() : undefined}
-          onSelectText={!compactActions && selectable ? () => actions.selectText(message) : undefined}
+          align={message.author === "user" ? "end" : "start"}
+          maxWidth={
+            message.author === "user" && message.attachments?.length
+              ? shared.listWidth
+              : shared.listWidth * USER_BUBBLE_WIDTH
+          }
+          onReply={message.author === "agent" && shared.canReply ? () => actions.reply(message) : undefined}
+          menuActions={menuActions}
+          accessibilityActions={accessibilityActions}
+          accessibilityLabel={[
+            t("mobile.chat.message.actions"),
+            copyText,
+            message.createdAt
+              ? format.date(new Date(message.createdAt), { dateStyle: "medium", timeStyle: "short" })
+              : "",
+          ]
+            .filter(Boolean)
+            .join(", ")}
+          onAction={runMessageAction}
         >
           {rendered}
         </ChatMessageGesture>
@@ -724,6 +802,7 @@ const MessageRow = memo(function MessageRow({
       {bubble ? (
         <ChatMessageActions
           collapsed={compactActions}
+          reactionRequest={reactionRequest}
           align={message.author === "user" ? "end" : "start"}
           copyText={copyText}
           onCopy={copy}
@@ -756,6 +835,7 @@ interface RowContextValue {
   firstUserId: string | null;
   messagesById: ReadonlyMap<string, ChatMessage>;
   dayDividers: ReadonlyMap<string, Date>;
+  today: string;
   agentRuns: ReturnType<typeof agentMessageRuns>;
   promptController: QuestionPromptController | undefined;
   upload: ChatUpload | null | undefined;
@@ -780,7 +860,7 @@ function ChatRow({ message }: { message: VisibleMessage }) {
       accessibilityElementsHidden={response && !row.responseVisible}
       importantForAccessibility={response && !row.responseVisible ? "no-hide-descendants" : "auto"}
     >
-      {day ? <ChatDayDivider date={day} /> : null}
+      {day ? <ChatDayDivider date={day} today={row.today} /> : null}
       {!day && pause ? <ChatTimeDivider date={pause} /> : null}
       <MessageRow
         message={message}
@@ -883,7 +963,6 @@ export const ChatMessageList = memo(function ChatMessageList({
   muted,
   raised,
   showStarter,
-  topInset,
   onDismissStarter,
   onSelectStarter,
   onRetryHistory,
@@ -900,6 +979,19 @@ export const ChatMessageList = memo(function ChatMessageList({
   const activity = activityPresentation.activity;
   const { t, sourceText } = useText();
   const isFocused = useIsFocused();
+  const [today, setToday] = useState(() => new Date().toDateString());
+  useEffect(() => {
+    if (!isFocused || !appActive) return;
+    let timer: ReturnType<typeof setTimeout>;
+    const updateDay = () => {
+      const now = new Date();
+      setToday(now.toDateString());
+      const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      timer = setTimeout(updateDay, midnight.getTime() - now.getTime());
+    };
+    updateDay();
+    return () => clearTimeout(timer);
+  }, [isFocused, appActive]);
   const agentsById = useMemo(() => new Map(agents.map((agent) => [agent.id, agent])), [agents]);
   const messagesById = useMemo(
     () => indexChatMessages(messages, messageAliases, referenceMessages),
@@ -1019,7 +1111,7 @@ export const ChatMessageList = memo(function ChatMessageList({
     // The search hold ends after the row is in view, so the chat does not move to the latest message first.
     void focusHandlers.current.openAt(focusIndex).then(() => focusHandlers.current.onFocusPlaced?.());
   }, [focusId, focusIndex, motion.listPlaced]);
-  const header = topInset + 60 + 16;
+  const header = 16;
   const sharedValues = useMemo(() => ({ scrollOffset: motion.scrollOffset }), [motion.scrollOffset]);
   const screen = useWindowDimensions();
   const estimatedListSize = useMemo(
@@ -1173,7 +1265,7 @@ export const ChatMessageList = memo(function ChatMessageList({
       keepTurnAnchor && tailIndex >= 0
         ? { anchorIndex: tailIndex, anchorOffset: header, onReady: motion.onAnchorReady }
         : undefined,
-    [keepTurnAnchor, tailIndex, header, motion.onAnchorReady],
+    [keepTurnAnchor, tailIndex, motion.onAnchorReady],
   );
   // An idle chat has no trailing reserve to absorb a keyboard or composer resize. Keep its end
   // position through those layouts only while the reader still follows the latest messages.
@@ -1194,6 +1286,7 @@ export const ChatMessageList = memo(function ChatMessageList({
       firstUserId,
       messagesById,
       dayDividers,
+      today,
       agentRuns,
       promptController,
       upload,
@@ -1210,6 +1303,7 @@ export const ChatMessageList = memo(function ChatMessageList({
       firstUserId,
       messagesById,
       dayDividers,
+      today,
       agentRuns,
       promptController,
       upload,
@@ -1298,6 +1392,8 @@ export const ChatMessageList = memo(function ChatMessageList({
 
   return (
     <Animated.View
+      // Native scroll-edge lookup follows the first native child through this viewport.
+      collapsable={false}
       onTouchStart={selectingMessageId ? onTouchStart : undefined}
       onTouchEnd={selectingMessageId ? onTouchEnd : undefined}
       style={[{ flex: 1 }, historyState === "ready" ? motion.historyStyle : undefined]}

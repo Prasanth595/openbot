@@ -2,34 +2,30 @@ import type { createWorkspacePreferences, RemoteWorkspacePreferences } from "@op
 
 const MAX_PINNED_AGENTS = 16;
 
-/** Protect only the lead agent; the shared limit includes agent and channel pins. */
-export function canToggleAgentPin(
-  pinned: readonly string[],
-  chatId: string,
-  leadAgentId: string | null = null,
-): boolean {
-  return chatId !== leadAgentId && (pinned.includes(chatId) || pinned.length < MAX_PINNED_AGENTS);
+/** The shared limit includes agent and channel pins. */
+export function canToggleAgentPin(pinned: readonly string[], chatId: string): boolean {
+  return pinned.includes(chatId) || pinned.length < MAX_PINNED_AGENTS;
 }
 
-/**
- * Keep a visible lead pinned without restoring an agent the user hid. A mandatory lead may exceed
- * the soft limit when all 16 saved pins are channels. Keep those pins; block further manual pins.
- */
-export function withLeadAgentPin(
+/** Remove deleted agents only. Hidden pins stay saved and return when the agent is shown again. */
+export function withAvailableAgentPins(
   current: RemoteWorkspacePreferences,
   agents: readonly { id: string }[],
-  hostHidden: readonly string[] = [],
 ): RemoteWorkspacePreferences {
-  const hidden = new Set([...current.hidden, ...hostHidden]);
-  const available = new Set(agents.filter((agent) => !hidden.has(agent.id)).map((agent) => agent.id));
+  const available = new Set(agents.map((agent) => agent.id));
   const pinned = current.pinned.filter((id) => available.has(id));
-  if (pinned.length === 0) {
-    const first = agents.find((agent) => available.has(agent.id));
-    if (first) pinned.push(first.id);
-  }
-  return pinned.length === current.pinned.length && pinned.every((id, index) => id === current.pinned[index])
-    ? current
-    : { ...current, pinned };
+  return pinned.length === current.pinned.length ? current : { ...current, pinned };
+}
+
+/** Save a lead only when the server has none. This choice does not change its pins. */
+export function withLeadAgent(current: RemoteWorkspacePreferences, agentId: string): RemoteWorkspacePreferences {
+  if (current.leadAgentId != null) return current;
+  return { ...current, leadAgentId: agentId };
+}
+
+/** Clear only the selected lead, so a stale menu cannot remove a later choice. */
+export function withoutLeadAgent(current: RemoteWorkspacePreferences, agentId: string): RemoteWorkspacePreferences {
+  return current.leadAgentId === agentId ? { ...current, leadAgentId: null } : current;
 }
 
 /** Call only with a complete server list, never a filtered or loading list. */
@@ -37,10 +33,13 @@ export function reconcileAgentPins(
   store: ReturnType<typeof createWorkspacePreferences>,
   serverId: string,
   agents: readonly { id: string }[],
-  hostHidden: readonly string[] = [],
 ) {
   const current = store.read(serverId);
-  const next = withLeadAgentPin(current, agents, hostHidden);
+  const availablePins = withAvailableAgentPins(current, agents);
+  const next =
+    current.leadAgentId && !agents.some((agent) => agent.id === current.leadAgentId)
+      ? { ...availablePins, leadAgentId: null }
+      : availablePins;
   if (next !== current) store.write(serverId, next);
   return next;
 }

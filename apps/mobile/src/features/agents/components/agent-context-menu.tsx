@@ -1,7 +1,7 @@
 import * as Clipboard from "expo-clipboard";
 import { Link, router } from "expo-router";
-import { type ReactNode, useEffect, useRef, useState } from "react";
-import { Alert, StyleSheet, View } from "react-native";
+import { type ReactElement, type ReactNode, useEffect, useRef, useState } from "react";
+import { Alert, StyleSheet, View, type ViewProps } from "react-native";
 import { useUniwind } from "uniwind";
 import { useAgentPinTransition } from "@/features/agents/components/agent-pin-transition";
 import { useChatSectionMenu } from "@/features/agents/components/use-chat-section-menu";
@@ -23,9 +23,13 @@ function useAgentMenuActions(agent: MobileAgent) {
   const sectionMenu = useChatSectionMenu(agent.serverId, agent.id);
   const isPinned = useMobileWorkspaceSelector(({ pinnedAgentIds }) => pinnedAgentIds.includes(agent.id));
   const canPin = useMobileWorkspaceSelector(({ pinnedAgentIds, pinnedChannelIds }) =>
-    canToggleAgentPin([...pinnedAgentIds, ...pinnedChannelIds], agent.id, pinnedAgentIds[0] ?? null),
+    canToggleAgentPin([...pinnedAgentIds, ...pinnedChannelIds], agent.id),
   );
-  const isLead = useMobileWorkspaceSelector(({ pinnedAgentIds }) => pinnedAgentIds[0] === agent.id);
+  const leadAgentId = useMobileWorkspaceSelector(({ activeServer, leadAgentId }) =>
+    activeServer.id === agent.serverId ? leadAgentId : null,
+  );
+  const isLead = leadAgentId === agent.id;
+  const canMakeLead = leadAgentId === null;
   const isUnread = useAgentUnread(agent.id);
   const actionPending = useRef(false);
   const { t } = useText();
@@ -52,6 +56,14 @@ function useAgentMenuActions(agent: MobileAgent) {
   }
 
   const handlePin = () => toggleAgentPinAnimated(agent.id);
+  const handleMakeLead = () => {
+    if (workspace().makeLeadAgent(agent.id) === "error") void haptics.notification("error");
+    else void haptics.selection();
+  };
+  const handleRemoveLead = () => {
+    if (workspace().removeLeadAgent(agent.id) === "error") void haptics.notification("error");
+    else void haptics.selection();
+  };
 
   const handleCopyId = () => {
     void Clipboard.setStringAsync(agent.id).then(() => {
@@ -89,11 +101,14 @@ function useAgentMenuActions(agent: MobileAgent) {
   return {
     isPinned,
     isLead,
+    canMakeLead,
     isUnread,
     canPin,
     sectionMenu,
     handleRead,
     handlePin,
+    handleMakeLead,
+    handleRemoveLead,
     handleHide,
     handleInfo,
     handleCopyId,
@@ -107,11 +122,14 @@ function useAgentContextMenu(agent: MobileAgent) {
   const {
     isPinned,
     isLead,
+    canMakeLead,
     isUnread,
     canPin,
     sectionMenu,
     handleRead,
     handlePin,
+    handleMakeLead,
+    handleRemoveLead,
     handleHide,
     handleInfo,
     handleCopyId,
@@ -124,9 +142,17 @@ function useAgentContextMenu(agent: MobileAgent) {
         <Link.MenuAction icon={isUnread ? "envelope.open" : "envelope.badge"} onPress={handleRead}>
           {t(isUnread ? "mobile.agent.menu.markRead" : "mobile.agent.menu.markUnread")}
         </Link.MenuAction>
-        {!isLead ? (
-          <Link.MenuAction icon={isPinned ? "pin.slash" : "pin"} isOn={isPinned} onPress={handlePin} disabled={!canPin}>
-            {t(isPinned ? "mobile.agent.pin.unpin" : "mobile.agent.pin.pin")}
+        <Link.MenuAction icon={isPinned ? "pin.slash" : "pin"} isOn={isPinned} onPress={handlePin} disabled={!canPin}>
+          {t(isPinned ? "mobile.agent.pin.unpin" : "mobile.agent.pin.pin")}
+        </Link.MenuAction>
+        {canMakeLead ? (
+          <Link.MenuAction icon="star" onPress={handleMakeLead}>
+            {t("mobile.agent.menu.makeLead")}
+          </Link.MenuAction>
+        ) : null}
+        {isLead ? (
+          <Link.MenuAction icon="star.slash" onPress={handleRemoveLead}>
+            {t("mobile.agent.menu.removeLead")}
           </Link.MenuAction>
         ) : null}
         {sectionMenu.menu}
@@ -163,15 +189,30 @@ export function AgentContextMenuLink({
 }: {
   agent: MobileAgent;
   preview: ReactNode;
-  children: ReactNode;
+  children: ReactElement<ViewProps>;
 }) {
   const agentContextMenu = useAgentContextMenu(agent);
   return (
-    <Link href={{ pathname: "/chat/[agentId]", params: { agentId: agent.id, serverId: agent.serverId } }} asChild>
-      <Link.Trigger>{children}</Link.Trigger>
-      {preview}
-      {agentContextMenu}
-    </Link>
+    // The native preview uses display:contents. Give accessibility one ordinary row container.
+    <View
+      collapsable={false}
+      className="w-full"
+      accessible
+      accessibilityRole={children.props.accessibilityRole ?? "button"}
+      accessibilityLabel={children.props.accessibilityLabel}
+      accessibilityState={children.props.accessibilityState}
+      accessibilityActions={children.props.accessibilityActions}
+      onAccessibilityAction={children.props.onAccessibilityAction}
+      onAccessibilityTap={() =>
+        router.push({ pathname: "/chat/[agentId]", params: { agentId: agent.id, serverId: agent.serverId } })
+      }
+    >
+      <Link href={{ pathname: "/chat/[agentId]", params: { agentId: agent.id, serverId: agent.serverId } }} asChild>
+        <Link.Trigger>{children}</Link.Trigger>
+        {preview}
+        {agentContextMenu}
+      </Link>
+    </View>
   );
 }
 
@@ -213,11 +254,14 @@ function OpenAgentMenu({
   const {
     isPinned,
     isLead,
+    canMakeLead,
     isUnread,
     canPin,
     sectionMenu,
     handleRead,
     handlePin,
+    handleMakeLead,
+    handleRemoveLead,
     handleHide,
     handleInfo,
     handleCopyId,
@@ -237,7 +281,13 @@ function OpenAgentMenu({
       title: t(isUnread ? "mobile.agent.menu.markRead" : "mobile.agent.menu.markUnread"),
       image: isUnread ? "envelope.open" : "envelope.badge",
     },
-    ...(!isLead ? [pinAction] : []),
+    pinAction,
+    ...(canMakeLead
+      ? [{ id: "make-lead", title: t("mobile.agent.menu.makeLead"), image: "star" } satisfies MenuAction]
+      : []),
+    ...(isLead
+      ? [{ id: "remove-lead", title: t("mobile.agent.menu.removeLead"), image: "star.slash" } satisfies MenuAction]
+      : []),
     ...sectionMenu.androidActions,
     { id: "info", title: t("mobile.agent.menu.info"), image: "info.circle" },
     {
@@ -255,6 +305,8 @@ function OpenAgentMenu({
   const handlers: Record<string, () => void> = {
     read: handleRead,
     pin: handlePin,
+    "make-lead": handleMakeLead,
+    "remove-lead": handleRemoveLead,
     hide: handleHide,
     info: handleInfo,
     copy: handleCopyId,

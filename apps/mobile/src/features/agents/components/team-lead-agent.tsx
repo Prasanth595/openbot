@@ -4,19 +4,31 @@ import { View } from "react-native";
 import { useAgentChatPreview } from "@/features/agents/components/agent-chat-preview";
 import { AgentAndroidMenu, AgentContextMenuLink } from "@/features/agents/components/agent-context-menu";
 import { AgentPinAvatar } from "@/features/agents/components/agent-pin-avatar";
+import { useAgentPinTransition } from "@/features/agents/components/agent-pin-transition";
 import { AgentWaitBadge } from "@/features/agents/components/agent-wait-badge";
 import { ChatLinkPressable } from "@/features/agents/components/chat-link-pressable";
 import { ChatZoomSource } from "@/features/agents/components/chat-zoom-source";
 import { TeamAgentAvatar } from "@/features/agents/components/team-agent-avatar";
 import { TeamLeadCard } from "@/features/agents/components/team-home-parts";
 import { useAgentWaitReason } from "@/features/workspace/components/use-agent-activity";
-import { type MobileAgent, useMobileWorkspaceSelector } from "@/features/workspace/context/mobile-workspace-context";
+import {
+  type MobileAgent,
+  useMobileWorkspaceReader,
+  useMobileWorkspaceSelector,
+} from "@/features/workspace/context/mobile-workspace-context";
+import { canToggleAgentPin } from "@/features/workspace/model/agent-pins";
+import { haptics } from "@/shared/lib/haptics";
 import { isAndroid } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
 
 export function TeamLeadAgent({ agent, total }: { agent: MobileAgent; total: number }) {
   const { t } = useText();
+  const workspace = useMobileWorkspaceReader();
   const preview = useAgentChatPreview(agent);
+  const { toggleAgentPinAnimated } = useAgentPinTransition();
+  const canPin = useMobileWorkspaceSelector(({ pinnedAgentIds, pinnedChannelIds }) =>
+    canToggleAgentPin([...pinnedAgentIds, ...pinnedChannelIds], agent.id),
+  );
   const pinned = useMobileWorkspaceSelector((workspace) => workspace.pinnedAgentIds.includes(agent.id));
   const waitReason = useAgentWaitReason(agent.id);
   const [menuKey, setMenuKey] = useState(0);
@@ -26,6 +38,24 @@ export function TeamLeadAgent({ agent, total }: { agent: MobileAgent; total: num
       serverId={agent.serverId}
       accessibilityRole="button"
       accessibilityLabel={t("mobile.agent.list.open", { name: agent.name })}
+      accessibilityActions={[
+        ...(canPin
+          ? [
+              {
+                name: "pin",
+                label: t(pinned ? "mobile.agent.pin.unpinNamed" : "mobile.agent.pin.pinNamed", { name: agent.name }),
+              },
+            ]
+          : []),
+        { name: "remove-lead", label: t("mobile.agent.menu.removeLead") },
+      ]}
+      onAccessibilityAction={({ nativeEvent }) => {
+        if (nativeEvent.actionName === "pin") toggleAgentPinAnimated(agent.id);
+        else if (nativeEvent.actionName === "remove-lead") {
+          if (workspace().removeLeadAgent(agent.id) === "error") void haptics.notification("error");
+          else void haptics.selection();
+        }
+      }}
       onPressIn={preview.onPressIn}
       onLongPress={isAndroid ? () => setMenuKey((key) => key + 1) : undefined}
     >

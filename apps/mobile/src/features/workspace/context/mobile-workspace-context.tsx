@@ -111,7 +111,9 @@ import {
   reconcileAgentPins,
   reconcileChannelPins,
   setChannelHidden,
-  withLeadAgentPin,
+  withAvailableAgentPins,
+  withLeadAgent,
+  withoutLeadAgent,
 } from "@/features/workspace/model/agent-pins";
 import { ConnectionWaits } from "@/features/workspace/model/connection-waits";
 import { conversationMessageId, decodeConversationPage } from "@/features/workspace/model/conversation";
@@ -341,48 +343,29 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     return next;
   }, [preferences, hostHidden]);
   /** Puts the whole hidden list of a host in place; null drops the list of a host without the capability. */
-  const applyHostHidden = useCallback(
-    (serverId: string, hidden: readonly { agentId: string }[] | null) => {
-      if (removedServers.current.has(serverId)) return;
-      const completeAgents = pinAgentsByServer.current.get(serverId);
-      const hiddenIds = hidden?.map((agent) => agent.agentId);
-      const nextHidden = { ...hostHiddenRef.current };
-      if (hiddenIds) nextHidden[serverId] = hiddenIds;
-      else delete nextHidden[serverId];
-      hostHiddenRef.current = nextHidden;
-      if (completeAgents) {
-        try {
-          const saved = reconcileAgentPins(preferenceStore, serverId, completeAgents, hiddenIds);
-          setPreferences((current) => {
-            const next = replaceEqualDeep(current[serverId], saved);
-            return next === current[serverId] ? current : { ...current, [serverId]: next };
-          });
-        } catch (error) {
-          showFailureAlert(
-            error,
-            "settings",
-            currentText().t("mobile.workspace.alert.preferencesTitle"),
-            currentText().t("mobile.workspace.alert.preferencesBody"),
-          );
-        }
+  const applyHostHidden = useCallback((serverId: string, hidden: readonly { agentId: string }[] | null) => {
+    if (removedServers.current.has(serverId)) return;
+    const hiddenIds = hidden?.map((agent) => agent.agentId);
+    const nextHidden = { ...hostHiddenRef.current };
+    if (hiddenIds) nextHidden[serverId] = hiddenIds;
+    else delete nextHidden[serverId];
+    hostHiddenRef.current = nextHidden;
+    setHostHidden((current) => {
+      if (hidden === null) {
+        if (!(serverId in current)) return current;
+        const next = { ...current };
+        delete next[serverId];
+        return next;
       }
-      setHostHidden((current) => {
-        if (hidden === null) {
-          if (!(serverId in current)) return current;
-          const next = { ...current };
-          delete next[serverId];
-          return next;
-        }
-        const ids = replaceEqualDeep(
-          current[serverId],
-          hidden.map((agent) => agent.agentId),
-        );
-        return ids === current[serverId] ? current : { ...current, [serverId]: ids };
-      });
-    },
-    [preferenceStore],
-  );
+      const ids = replaceEqualDeep(
+        current[serverId],
+        hidden.map((agent) => agent.agentId),
+      );
+      return ids === current[serverId] ? current : { ...current, [serverId]: ids };
+    });
+  }, []);
   const pinnedAgentIds = (activeServerId ? preferences[activeServerId]?.pinned : null) ?? NO_IDS;
+  const leadAgentId = (activeServerId ? preferences[activeServerId]?.leadAgentId : null) ?? null;
   const hiddenChannelIds = (activeServerId ? preferences[activeServerId]?.hiddenChannels : null) ?? NO_IDS;
   const pinnedChannelIds = (activeServerId ? preferences[activeServerId]?.pinnedChannels : null) ?? NO_IDS;
 
@@ -600,7 +583,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         summaries.map(({ id }) => ({ id })),
       );
       try {
-        const saved = reconcileAgentPins(preferenceStore, serverId, summaries, hostHiddenRef.current[serverId]);
+        const saved = reconcileAgentPins(preferenceStore, serverId, summaries);
         // agents-changed arrives for each delivered message. Keep unchanged preferences and agents,
         // so the workspace context does not notify every consumer for each message.
         setPreferences((current) => {
@@ -1156,13 +1139,12 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
   const updatePreferences = useCallback(
     (serverId: string, change: (current: RemoteWorkspacePreferences) => RemoteWorkspacePreferences) => {
       try {
-        const changed = change(preferenceStore.read(serverId));
+        const saved = preferenceStore.read(serverId);
+        const changed = change(saved);
         const completeAgents = pinAgentsByServer.current.get(serverId);
-        const next = completeAgents
-          ? withLeadAgentPin(changed, completeAgents, hostHiddenRef.current[serverId])
-          : changed;
-        preferenceStore.write(serverId, next);
-        setPreferences((current) => ({ ...current, [serverId]: next }));
+        const next = completeAgents ? withAvailableAgentPins(changed, completeAgents) : changed;
+        if (next !== saved) preferenceStore.write(serverId, next);
+        setPreferences((current) => (current[serverId] === next ? current : { ...current, [serverId]: next }));
         return next;
       } catch (error) {
         showFailureAlert(
@@ -1179,7 +1161,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
   /**
    * Hides or restores an agent on a host that serves `agent-hidden-v1`. The list changes at once; the
    * answer of the host replaces it, and a failure puts the agent back and shows an alert. Writes of
-   * one host settle in order, so a rollback completes before the next write captures its pin order.
+   * one host settle in order, so a rollback completes before the next hidden-list change.
    */
   const changeHostHidden = useCallback(
     (serverId: string, agentId: string, hidden: boolean) => {
@@ -1195,12 +1177,10 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
           if (ids.includes(agentId) === hide) return current;
           return { ...current, [serverId]: hide ? [...ids, agentId] : ids.filter((id) => id !== agentId) };
         };
-        const pinnedBefore = preferenceStore.read(serverId).pinned;
         applyHostHidden(
           serverId,
           (change(hostHiddenRef.current, hidden)[serverId] ?? NO_IDS).map((agentId) => ({ agentId })),
         );
-        const automaticPins = preferenceStore.read(serverId).pinned.filter((id) => !pinnedBefore.includes(id));
         const action = hidden ? "hide" : "unhide";
         await writeHostAgentHidden(teamApi(serverId), { agentId, hidden }).then(
           (agents) => {
@@ -1213,19 +1193,6 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
               serverId,
               (change(hostHiddenRef.current, !hidden)[serverId] ?? NO_IDS).map((agentId) => ({ agentId })),
             );
-            if (hidden && pinnedBefore.includes(agentId)) {
-              updatePreferences(serverId, (current) => {
-                // Remove the automatic replacement, but retain explicit pin edits made while waiting.
-                const retained = current.pinned.filter((id) => !automaticPins.includes(id));
-                return {
-                  ...current,
-                  pinned: [
-                    ...pinnedBefore.filter((id) => id === agentId || retained.includes(id)),
-                    ...retained.filter((id) => !pinnedBefore.includes(id)),
-                  ],
-                };
-              });
-            }
             mobileAnalytics.track("conversation_action", { action, result: "failed" });
             const text = currentText();
             showFailureAlert(
@@ -1253,7 +1220,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         if (hiddenWrites.current.get(serverId) === write) hiddenWrites.current.delete(serverId);
       });
     },
-    [teamApi, applyHostHidden, updatePreferences, preferenceStore],
+    [teamApi, applyHostHidden],
   );
 
   /** Drops a server that this account left or removed, and its local state. */
@@ -1572,7 +1539,6 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         const saved = updatePreferences(serverId, (current) => ({
           ...current,
           hidden: [...new Set([...current.hidden, agentId])],
-          pinned: current.pinned.filter((id) => id !== agentId),
         }));
         mobileAnalytics.track("conversation_action", { action: "hide", result: saved ? "succeeded" : "failed" });
       },
@@ -1614,7 +1580,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         let result: "pinned" | "unpinned" = "pinned";
         const saved = updatePreferences(serverId, (current) => {
           const pinned = current.pinnedChannels ?? [];
-          if (!canToggleAgentPin([...current.pinned, ...pinned], channelId, current.pinned[0] ?? null)) return current;
+          if (!canToggleAgentPin([...current.pinned, ...pinned], channelId)) return current;
           result = pinned.includes(channelId) ? "unpinned" : "pinned";
           return {
             ...current,
@@ -1625,24 +1591,35 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         return result;
       },
       toggleAgentPin: (agentId) => {
-        const pinned = currentPinnedAgentIds();
         const serverId = currentActiveServer().id;
-        const pinnedChannels = preferencesRef.current[serverId]?.pinnedChannels ?? NO_IDS;
-        if (!canToggleAgentPin([...pinned, ...pinnedChannels], agentId, pinned[0] ?? null)) return "error";
-        if (pinned.includes(agentId)) {
-          return updatePreferences(serverId, (current) => ({
+        let result: "pinned" | "unpinned" | "error" = "error";
+        const saved = updatePreferences(serverId, (current) => {
+          const pinnedChannels = current.pinnedChannels ?? NO_IDS;
+          if (!canToggleAgentPin([...current.pinned, ...pinnedChannels], agentId)) return current;
+          result = current.pinned.includes(agentId) ? "unpinned" : "pinned";
+          return {
             ...current,
-            pinned: current.pinned.filter((id) => id !== agentId),
-          }))
-            ? "unpinned"
-            : "error";
-        }
-        return updatePreferences(serverId, (current) => ({
-          ...current,
-          pinned: [...new Set([...current.pinned, agentId])],
-        }))
-          ? "pinned"
-          : "error";
+            pinned:
+              result === "unpinned" ? current.pinned.filter((id) => id !== agentId) : [...current.pinned, agentId],
+          };
+        });
+        return saved ? result : "error";
+      },
+      makeLeadAgent: (agentId) => {
+        const serverId = currentActiveServer().id;
+        if (!agentsRef.current.some((agent) => agent.id === agentId && agent.serverId === serverId)) return "error";
+        const saved = updatePreferences(serverId, (current) => withLeadAgent(current, agentId));
+        return saved?.leadAgentId === agentId ? "updated" : "error";
+      },
+      removeLeadAgent: (agentId) => {
+        const serverId = currentActiveServer().id;
+        let result: "updated" | "error" = "error";
+        const saved = updatePreferences(serverId, (current) => {
+          if (current.leadAgentId !== agentId) return current;
+          result = "updated";
+          return withoutLeadAgent(current, agentId);
+        });
+        return saved ? result : "error";
       },
     };
     return trackWorkspaceActions(workspace, () => ({
@@ -1718,6 +1695,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       activeServer,
       activeAgents,
       hiddenAgents,
+      leadAgentId,
       pinnedAgentIds,
       pinnedChannelIds,
       hiddenChannelIds,
@@ -1785,6 +1763,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     activeServer,
     activeAgents,
     hiddenAgents,
+    leadAgentId,
     pinnedAgentIds,
     pinnedChannelIds,
     hiddenChannelIds,

@@ -1,4 +1,5 @@
 import { router, useGlobalSearchParams, useSegments } from "expo-router";
+import type { NativeStackNavigationOptions } from "expo-router/native-stack";
 import { Stack } from "expo-router/stack";
 import { useThemeColor } from "heroui-native/hooks";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -31,7 +32,6 @@ import {
   MobileWorkspaceProvider,
   useMobileWorkspaceReader,
 } from "@/features/workspace/context/mobile-workspace-context";
-import { androidBackOptions } from "@/shared/components/android-header-button";
 import { useReducedMotion } from "@/shared/lib/motion";
 import { isAndroid, isIOS } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
@@ -61,6 +61,11 @@ function AuthenticatedStack() {
   const { t } = useText();
   const background = useThemeColor("background");
   const sheetBackground = String(useCSSVariable("--openbot-bg-sheet") ?? background);
+  const profileOptions = {
+    presentation: "card",
+    animation: pushAnimation,
+    contentStyle: { backgroundColor: sheetBackground },
+  } satisfies NativeStackNavigationOptions;
   const [navigationGate] = useState(createChatNavigationGate);
   const { closeDrawer } = useAppDrawer();
   const workspace = useMobileWorkspaceReader();
@@ -235,9 +240,7 @@ function AuthenticatedStack() {
                 },
               }
         }
-        screenOptions={(props) => ({
-          // The full screens put the back arrow in the glass circle, as the home buttons are.
-          ...androidBackOptions(props, { glass: true }),
+        screenOptions={() => ({
           headerBackButtonDisplayMode: "minimal",
           headerShadowVisible: false,
           headerTransparent: isIOS,
@@ -252,17 +255,6 @@ function AuthenticatedStack() {
         </Stack.Protected>
         <Stack.Screen
           name="chat/[agentId]"
-          options={{
-            animation: pushAnimation,
-            contentStyle: { backgroundColor: background },
-            fullScreenGestureEnabled: false,
-            gestureEnabled: true,
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="task/[taskId]"
-          // A task is a chat of its own, so it opens as the agent's chat does.
           options={{
             animation: pushAnimation,
             contentStyle: { backgroundColor: background },
@@ -318,13 +310,38 @@ function AuthenticatedStack() {
           }}
         />
         <Stack.Screen
-          name="channel-info/[channelId]"
+          name="channel-info/[channelId]/index"
           options={{
-            contentStyle: { backgroundColor: sheetBackground },
-            headerShown: false,
-            scrollEdgeEffects: { top: "hidden", bottom: "soft" },
-            presentation: "card",
-            animation: pushAnimation,
+            ...profileOptions,
+            title: t("mobile.channel.route.info"),
+          }}
+        />
+        <Stack.Screen
+          name="channel-info/[channelId]/memories"
+          options={{
+            ...profileOptions,
+            title: t("mobile.channel.route.memories"),
+          }}
+        />
+        <Stack.Screen
+          name="channel-info/[channelId]/memory"
+          options={{
+            ...profileOptions,
+            title: t("mobile.channel.route.memory"),
+          }}
+        />
+        <Stack.Screen
+          name="channel-info/[channelId]/routines"
+          options={{
+            ...profileOptions,
+            title: t("mobile.channel.route.routines"),
+          }}
+        />
+        <Stack.Screen
+          name="channel-info/[channelId]/routine"
+          options={{
+            ...profileOptions,
+            title: t("mobile.channel.route.routine"),
           }}
         />
         <Stack.Screen
@@ -375,13 +392,108 @@ function AuthenticatedStack() {
           }}
         />
         <Stack.Screen
-          name="agent-info/[agentId]"
+          name="agent-info/[agentId]/index"
           options={{
-            contentStyle: { backgroundColor: sheetBackground },
-            headerShown: false,
-            scrollEdgeEffects: { top: "hidden", bottom: "soft" },
-            presentation: "card",
-            animation: pushAnimation,
+            ...profileOptions,
+            title: t("mobile.agent.profile.heading"),
+          }}
+        />
+        <Stack.Screen
+          name="agent-info/[agentId]/appearance"
+          options={{
+            ...profileOptions,
+            title: t("mobile.agent.route.appearance"),
+          }}
+        />
+        <Stack.Screen
+          name="agent-info/[agentId]/usage"
+          options={{
+            ...profileOptions,
+            title: t("mobile.agent.info.usage.title"),
+          }}
+        />
+        <Stack.Screen
+          name="agent-info/[agentId]/memories"
+          options={{
+            ...profileOptions,
+            title: t("mobile.agent.info.memories.title"),
+          }}
+        />
+        <Stack.Screen
+          name="agent-info/[agentId]/skills"
+          options={{
+            ...profileOptions,
+            title: t("mobile.agent.info.skills.title"),
+          }}
+        />
+        <Stack.Screen
+          name="agent-info/[agentId]/files"
+          options={{
+            ...profileOptions,
+            title: t("mobile.agent.info.files.title"),
+          }}
+        />
+        <Stack.Screen
+          name="agent-info/[agentId]/routines"
+          options={{
+            ...profileOptions,
+            title: t("mobile.agent.info.routines.title"),
+          }}
+        />
+        <Stack.Screen
+          name="agent-info/[agentId]/tables"
+          options={{
+            ...profileOptions,
+            title: t("mobile.agent.tables.title"),
+          }}
+        />
+        <Stack.Screen
+          name="agent-info/[agentId]/publish"
+          options={{
+            ...profileOptions,
+            title: t("mobile.agent.publish.title"),
+          }}
+        />
+        <Stack.Screen
+          name="agent-info/[agentId]/memory"
+          options={{
+            ...profileOptions,
+            title: t("mobile.agent.record.memory"),
+          }}
+        />
+        <Stack.Screen
+          name="agent-info/[agentId]/routine"
+          options={{
+            ...profileOptions,
+            title: t("mobile.agent.record.routine"),
+          }}
+        />
+        <Stack.Screen
+          name="agent-info/[agentId]/runtime"
+          options={{
+            ...profileOptions,
+            title: t("mobile.agent.groups.brain"),
+          }}
+        />
+        <Stack.Screen
+          name="agent-info/[agentId]/permissions"
+          options={{
+            ...profileOptions,
+            title: t("mobile.agent.permissions.title"),
+          }}
+        />
+        <Stack.Screen
+          name="agent-info/[agentId]/advanced"
+          options={{
+            ...profileOptions,
+            title: t("mobile.agent.advanced.title"),
+          }}
+        />
+        <Stack.Screen
+          name="agent-info/[agentId]/crop-photo"
+          options={{
+            ...profileOptions,
+            title: t("mobile.agent.route.cropPhoto"),
           }}
         />
         <Stack.Screen
@@ -493,44 +605,150 @@ function AuthenticatedStack() {
           }}
         />
         <Stack.Screen
-          name="server-settings"
+          name="server-settings/index"
           options={{
-            contentStyle: { backgroundColor: sheetBackground },
-            headerShown: false,
-            scrollEdgeEffects: { top: "hidden", bottom: "soft" },
-            presentation: "card",
-            animation: pushAnimation,
-          }}
-        />
-        {/* Full screens with a big header that the screen draws: the native bar keeps only its buttons. */}
-        <Stack.Screen
-          name="server-routines/edit-routine"
-          options={{
-            animation: pushAnimation,
-            contentStyle: { backgroundColor: sheetBackground },
-            headerStyle: { backgroundColor: isIOS ? "transparent" : sheetBackground },
-            headerBlurEffect: "none",
-            scrollEdgeEffects: { top: "hidden", bottom: "soft" },
-            title: t("mobile.app.route.routine"),
+            ...profileOptions,
+            title: t("mobile.server.settings.overviewTitle"),
           }}
         />
         <Stack.Screen
-          name="server-routines/channel-routine"
+          name="server-settings/general"
           options={{
-            animation: pushAnimation,
-            contentStyle: { backgroundColor: sheetBackground },
-            headerStyle: { backgroundColor: isIOS ? "transparent" : sheetBackground },
-            headerBlurEffect: "none",
-            scrollEdgeEffects: { top: "hidden", bottom: "soft" },
-            title: t("mobile.app.route.routine"),
+            ...profileOptions,
+            title: t("mobile.server.settings.general"),
           }}
         />
         <Stack.Screen
-          name="server-routines/agent-routine"
+          name="server-settings/members"
           options={{
-            headerShown: false,
-            animation: pushAnimation,
-            contentStyle: { backgroundColor: sheetBackground },
+            ...profileOptions,
+            title: t("mobile.app.route.members"),
+          }}
+        />
+        <Stack.Screen
+          name="server-settings/invite"
+          options={{
+            ...profileOptions,
+            title: t("mobile.server.route.invite"),
+          }}
+        />
+        <Stack.Screen
+          name="server-settings/member"
+          options={{
+            ...profileOptions,
+            title: t("mobile.server.route.member"),
+          }}
+        />
+        <Stack.Screen
+          name="server-settings/member-roles"
+          options={{
+            ...profileOptions,
+            title: t("mobile.server.route.roles"),
+          }}
+        />
+        <Stack.Screen
+          name="server-settings/roles"
+          options={{
+            ...profileOptions,
+            title: t("mobile.server.route.roles"),
+          }}
+        />
+        <Stack.Screen
+          name="server-settings/role"
+          options={{
+            ...profileOptions,
+            title: t("mobile.server.route.role"),
+          }}
+        />
+        <Stack.Screen
+          name="server-settings/timezone"
+          options={{
+            ...profileOptions,
+            title: t("mobile.server.route.timezone"),
+          }}
+        />
+        <Stack.Screen
+          name="server-settings/connectors"
+          options={{
+            ...profileOptions,
+            title: t("mobile.server.route.connectors"),
+          }}
+        />
+        <Stack.Screen
+          name="server-settings/connector"
+          options={{
+            ...profileOptions,
+            title: t("mobile.server.route.connectors"),
+          }}
+        />
+        <Stack.Screen
+          name="server-settings/github-repositories"
+          options={{
+            ...profileOptions,
+            title: t("mobile.server.connectors.github.repositoriesTitle"),
+          }}
+        />
+        <Stack.Screen
+          name="server-settings/updates"
+          options={{
+            ...profileOptions,
+            title: t("mobile.server.route.updates"),
+          }}
+        />
+        <Stack.Screen
+          name="server-settings/storage"
+          options={{
+            ...profileOptions,
+            title: t("mobile.server.route.storage"),
+          }}
+        />
+        <Stack.Screen
+          name="server-settings/storage-files"
+          options={{
+            ...profileOptions,
+            title: t("mobile.server.route.storageFiles"),
+          }}
+        />
+        <Stack.Screen
+          name="server-settings/sites"
+          options={{
+            ...profileOptions,
+            title: t("mobile.server.route.sites"),
+          }}
+        />
+        <Stack.Screen
+          name="server-settings/providers"
+          options={{
+            ...profileOptions,
+            title: t("mobile.server.route.providers"),
+          }}
+        />
+        <Stack.Screen
+          name="server-settings/provider"
+          options={{
+            ...profileOptions,
+            title: t("mobile.server.route.provider"),
+          }}
+        />
+        <Stack.Screen
+          name="server-settings/mcp"
+          options={{
+            ...profileOptions,
+            title: t("mobile.server.route.mcp"),
+          }}
+        />
+        <Stack.Screen
+          name="server-settings/mcp-server"
+          options={{
+            ...profileOptions,
+            title: t("mobile.server.route.mcpServer"),
+          }}
+        />
+        <Stack.Screen
+          name="server-settings/crop-logo"
+          options={{
+            ...profileOptions,
+            title: t("mobile.server.route.cropLogo"),
           }}
         />
         <Stack.Screen

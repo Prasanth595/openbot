@@ -28,7 +28,8 @@ const events = new EventEmitter<{ event: [AgentEvent] }>();
 const secret = randomBytes(LIVE_ACTIVITY_SECRET_BYTES);
 const keys = liveActivityKeys(secret);
 const checks: string[] = [];
-const observations: { mode: string | null; priority: number; at: number }[] = [];
+const observations: { mode: string | null; priority: number }[] = [];
+let now = Date.parse("2026-10-22T00:00:00.000Z");
 const native: { shown: string | null; starts: number; updates: number; ends: number } = {
   shown: null,
   starts: 0,
@@ -46,7 +47,7 @@ const sync = new LiveActivitySync<string>({
     native.starts += 1;
     native.shown = props;
     return {
-      startedAt: Date.now(),
+      startedAt: now,
       async update(next) {
         native.updates += 1;
         updateEntered();
@@ -84,6 +85,7 @@ const snapshot: AgentRuntimeSnapshot = {
 };
 let notify = () => {};
 const service = new LiveActivityPushService({
+  now: () => now,
   agents: {
     on: (name, listener) => events.on(name, listener),
     off: (name, listener) => events.off(name, listener),
@@ -106,7 +108,7 @@ const service = new LiveActivityPushService({
           mode = decodedMode(JSON.parse(text));
           await sync.show(text);
         } else await sync.show(null);
-        observations.push({ mode, priority: push.priority, at: Date.now() });
+        observations.push({ mode, priority: push.priority });
         notify();
         return "sent" as const;
       },
@@ -161,13 +163,34 @@ try {
 
   snapshot.activeTurns.push({ agentId: "b", threadId: "thread-b", turnId: "two" });
   snapshot.work.push({ id: "work-b", agentId: "b", turnId: "two", status: "running", text: "Second", error: null });
-  events.emit("event", { type: "turn-started", agentId: "b", threadId: "thread-b", turnId: "two" });
+  // Several urgent events at one clock value keep only the final host state.
+  for (let index = 0; index < 10; index += 1) {
+    const work = snapshot.work[1];
+    assert.ok(work);
+    work.text = `Delegated ${index}`;
+    events.emit("event", { type: "turn-started", agentId: "b", threadId: "thread-b", turnId: "two" });
+  }
+  assert.equal(observations.length, 1);
+  // Queue another event on the next turn. The first burst must still be pending then.
+  await new Promise<void>((done) => {
+    setTimeout(() => {
+      now += 1_000;
+      const work = snapshot.work[1];
+      assert.ok(work);
+      work.text = "Delegated latest";
+      events.emit("event", { type: "turn-started", agentId: "b", threadId: "thread-b", turnId: "two" });
+      done();
+    }, 0);
+  });
   await received(2);
+  assert.equal(observations.length, 2);
   assert.equal(observations[1]?.mode, "working");
   assert.equal(observations[1]?.priority, 10);
   assert.ok(native.shown?.includes('"compact":"2"'));
-  checks.push("A second start bypasses text spacing while the mode stays working.");
+  assert.ok(native.shown?.includes("Delegated latest"));
+  checks.push("Urgent bursts keep one newest state and its high priority.");
 
+  now += 5_000;
   for (let index = 0; index < 12; index += 1) {
     const work = snapshot.work[0];
     assert.ok(work);
@@ -177,10 +200,10 @@ try {
   await received(3);
   assert.equal(observations.length, 3);
   assert.equal(observations[2]?.priority, 5);
-  assert.ok((observations[2]?.at ?? 0) - (observations[1]?.at ?? 0) >= 4_900);
   assert.ok(native.shown?.includes("Progress 11"));
-  checks.push("Text bursts send only the newest content and keep the five-second host interval.");
+  checks.push("After the injected clock advances, text bursts send the newest content at low priority.");
 
+  now += 1_000;
   snapshot.failedTurns = [{ agentId: "a", turnId: "one" }];
   snapshot.activeTurns = snapshot.activeTurns.filter((turn) => turn.agentId !== "a");
   snapshot.work = snapshot.work.filter((work) => work.agentId !== "a");
@@ -189,6 +212,12 @@ try {
   assert.equal(observations[3]?.mode, "failed");
   assert.equal(observations[3]?.priority, 10);
   checks.push("Failure interrupts ordinary text updates.");
+  assert.deepEqual(observations, [
+    { mode: "working", priority: 10 },
+    { mode: "working", priority: 10 },
+    { mode: "working", priority: 5 },
+    { mode: "failed", priority: 10 },
+  ]);
 
   service.remove("fixture");
   assert.equal(events.listenerCount("event"), 0);

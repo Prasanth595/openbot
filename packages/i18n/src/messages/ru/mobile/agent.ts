@@ -2,6 +2,30 @@ import type { PartialTranslation } from "../../../message";
 import type { messages as source } from "../../en/mobile/agent";
 
 export const messages = {
+  "mobile.agent.team.title": "Ваша команда",
+  "mobile.agent.team.agents": {
+    one: "{count} АГЕНТ",
+    few: "{count} АГЕНТА",
+    many: "{count} АГЕНТОВ",
+    other: "{count} АГЕНТА",
+  },
+  "mobile.agent.team.groups": {
+    one: "{count} ГРУППА",
+    few: "{count} ГРУППЫ",
+    many: "{count} ГРУПП",
+    other: "{count} ГРУППЫ",
+  },
+  "mobile.agent.team.lead": "ВЕДУЩИЙ АГЕНТ",
+  "mobile.agent.team.openChat": "Открыть чат",
+  "mobile.agent.team.sectionCount": "{count} + ВЕДУЩИЙ",
+  "mobile.agent.team.tabTeam": "Команда",
+  "mobile.agent.team.tabTasks": "Задачи",
+  "mobile.agent.team.tabRoutines": "Автозадачи",
+  "mobile.agent.team.tabMarket": "Market",
+  "mobile.agent.team.tabSettings": "Настройки",
+  "mobile.agent.team.previewTitle": "Предпросмотр дизайна",
+  "mobile.agent.team.previewBody":
+    "В этом предпросмотре используются примеры агентов. Войдите, чтобы использовать чаты, поиск и навигацию со своей командой.",
   "mobile.agent.session.title": "Настройки провайдера",
   "mobile.agent.session.failed": "Не удалось изменить настройки провайдера.",
   "mobile.agent.session.readFailed": "Не удалось прочитать настройки провайдера.",
@@ -42,6 +66,8 @@ export const messages = {
   "mobile.agent.menu.deleteBody": "Агент будет удалён с этого сервера.",
   "mobile.agent.menu.markRead": "Прочитано",
   "mobile.agent.menu.markUnread": "Не прочитано",
+  "mobile.agent.menu.makeLead": "Назначить ведущим",
+  "mobile.agent.menu.removeLead": "Снять роль ведущего",
   "mobile.agent.menu.hide": "Скрыть",
   "mobile.agent.menu.info": "Информация",
   "mobile.agent.menu.more": "Ещё",
@@ -307,6 +333,8 @@ export const messages = {
   "mobile.agent.runtime.accountNumbered": "Аккаунт {number}",
   "mobile.agent.runtime.accountUnsupported": "Этот хост не позволяет менять аккаунт агента с удалённого устройства.",
   "mobile.agent.runtime.model": "Модель",
+  "mobile.agent.runtime.moreModels": "Больше моделей",
+  "mobile.agent.runtime.showFewerModels": "Меньше моделей",
   "mobile.agent.runtime.reasoning": "Рассуждение",
   "mobile.agent.runtime.effort.low": "Низкое",
   "mobile.agent.runtime.effort.medium": "Среднее",

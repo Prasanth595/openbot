@@ -2,6 +2,30 @@ import type { PartialTranslation } from "../../../message";
 import type { messages as source } from "../../en/mobile/agent";
 
 export const messages = {
+  "mobile.agent.team.title": "Twój zespół",
+  "mobile.agent.team.agents": {
+    one: "{count} AGENT",
+    few: "{count} AGENCI",
+    many: "{count} AGENTÓW",
+    other: "{count} AGENTA",
+  },
+  "mobile.agent.team.groups": {
+    one: "{count} GRUPA",
+    few: "{count} GRUPY",
+    many: "{count} GRUP",
+    other: "{count} GRUPY",
+  },
+  "mobile.agent.team.lead": "GŁÓWNY AGENT",
+  "mobile.agent.team.openChat": "Otwórz czat",
+  "mobile.agent.team.sectionCount": "{count} + GŁÓWNY",
+  "mobile.agent.team.tabTeam": "Zespół",
+  "mobile.agent.team.tabTasks": "Zadania",
+  "mobile.agent.team.tabRoutines": "Rutyny",
+  "mobile.agent.team.tabMarket": "Market",
+  "mobile.agent.team.tabSettings": "Ustawienia",
+  "mobile.agent.team.previewTitle": "Podgląd projektu",
+  "mobile.agent.team.previewBody":
+    "Ten podgląd używa przykładowych agentów. Zaloguj się, aby korzystać z czatów, wyszukiwania i nawigacji ze swoim zespołem.",
   "mobile.agent.session.title": "Ustawienia dostawcy",
   "mobile.agent.session.failed": "Nie udało się zmienić ustawień dostawcy.",
   "mobile.agent.session.readFailed": "Nie udało się odczytać ustawień dostawcy.",
@@ -42,6 +66,8 @@ export const messages = {
   "mobile.agent.menu.deleteBody": "Agent zostanie usunięty z tego serwera.",
   "mobile.agent.menu.markRead": "Oznacz jako przeczytane",
   "mobile.agent.menu.markUnread": "Oznacz jako nieprzeczytane",
+  "mobile.agent.menu.makeLead": "Ustaw jako głównego",
+  "mobile.agent.menu.removeLead": "Usuń rolę głównego",
   "mobile.agent.menu.hide": "Ukryj",
   "mobile.agent.menu.info": "Informacje",
   "mobile.agent.menu.more": "Więcej",
@@ -305,6 +331,8 @@ export const messages = {
   "mobile.agent.runtime.accountNumbered": "Konto {number}",
   "mobile.agent.runtime.accountUnsupported": "Ten host nie może zmieniać konta agenta ze zdalnego urządzenia.",
   "mobile.agent.runtime.model": "Model",
+  "mobile.agent.runtime.moreModels": "Więcej modeli",
+  "mobile.agent.runtime.showFewerModels": "Mniej modeli",
   "mobile.agent.runtime.reasoning": "Rozumowanie",
   "mobile.agent.runtime.effort.low": "Niskie",
   "mobile.agent.runtime.effort.medium": "Średnie",

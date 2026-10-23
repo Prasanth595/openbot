@@ -2,6 +2,20 @@ import type { PartialTranslation } from "../../../message";
 import type { messages as source } from "../../en/mobile/agent";
 
 export const messages = {
+  "mobile.agent.team.title": "Votre équipe",
+  "mobile.agent.team.agents": { one: "{count} AGENT", other: "{count} AGENTS" },
+  "mobile.agent.team.groups": { one: "{count} GROUPE", other: "{count} GROUPES" },
+  "mobile.agent.team.lead": "AGENT PRINCIPAL",
+  "mobile.agent.team.openChat": "Ouvrir la discussion",
+  "mobile.agent.team.sectionCount": "{count} + PRINCIPAL",
+  "mobile.agent.team.tabTeam": "Équipe",
+  "mobile.agent.team.tabTasks": "Tâches",
+  "mobile.agent.team.tabRoutines": "Routines",
+  "mobile.agent.team.tabMarket": "Market",
+  "mobile.agent.team.tabSettings": "Réglages",
+  "mobile.agent.team.previewTitle": "Aperçu du design",
+  "mobile.agent.team.previewBody":
+    "Cet aperçu utilise des agents de démonstration. Connectez-vous pour utiliser les discussions, la recherche et la navigation avec votre équipe.",
   "mobile.agent.session.title": "Réglages du fournisseur",
   "mobile.agent.session.failed": "Impossible de modifier les réglages du fournisseur.",
   "mobile.agent.session.readFailed": "Impossible de lire les réglages du fournisseur.",
@@ -42,6 +56,8 @@ export const messages = {
   "mobile.agent.menu.deleteBody": "Cette action supprime l’agent de ce serveur.",
   "mobile.agent.menu.markRead": "Marquer comme lu",
   "mobile.agent.menu.markUnread": "Marquer comme non lu",
+  "mobile.agent.menu.makeLead": "Définir comme principal",
+  "mobile.agent.menu.removeLead": "Retirer le rôle principal",
   "mobile.agent.menu.hide": "Masquer",
   "mobile.agent.menu.info": "Infos",
   "mobile.agent.menu.more": "Plus",
@@ -292,6 +308,8 @@ export const messages = {
   "mobile.agent.runtime.accountUnsupported":
     "Cet hôte ne permet pas de modifier le compte de l’agent depuis un appareil distant.",
   "mobile.agent.runtime.model": "Modèle",
+  "mobile.agent.runtime.moreModels": "Plus de modèles",
+  "mobile.agent.runtime.showFewerModels": "Moins de modèles",
   "mobile.agent.runtime.reasoning": "Raisonnement",
   "mobile.agent.runtime.effort.low": "Faible",
   "mobile.agent.runtime.effort.medium": "Moyen",

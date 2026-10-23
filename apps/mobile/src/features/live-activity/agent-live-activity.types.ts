@@ -17,6 +17,8 @@ export interface AgentLiveActivityNative {
   saveAvatar(name: string, dataUrl: string): string | null;
   /** Whether the App Group has the picture file already. */
   hasAvatar(file: string): boolean;
+  /** Files that failed preparation use the mode symbol, including in sealed host updates. */
+  setMissingAvatars(files: readonly string[]): void;
   /** Draws the agent bloub with the face of `mood` as a PNG data URL, for `saveAvatar`. */
   renderBloub(seed: string, hue: AvatarHue | null, mood: AvatarMood): string | null;
   /** Deletes the picture files that `keep` does not name. */

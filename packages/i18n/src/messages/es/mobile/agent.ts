@@ -2,6 +2,20 @@ import type { PartialTranslation } from "../../../message";
 import type { messages as source } from "../../en/mobile/agent";
 
 export const messages = {
+  "mobile.agent.team.title": "Tu equipo",
+  "mobile.agent.team.agents": { one: "{count} AGENTE", other: "{count} AGENTES" },
+  "mobile.agent.team.groups": { one: "{count} GRUPO", other: "{count} GRUPOS" },
+  "mobile.agent.team.lead": "AGENTE PRINCIPAL",
+  "mobile.agent.team.openChat": "Abrir chat",
+  "mobile.agent.team.sectionCount": "{count} + PRINCIPAL",
+  "mobile.agent.team.tabTeam": "Equipo",
+  "mobile.agent.team.tabTasks": "Tareas",
+  "mobile.agent.team.tabRoutines": "Rutinas",
+  "mobile.agent.team.tabMarket": "Market",
+  "mobile.agent.team.tabSettings": "Ajustes",
+  "mobile.agent.team.previewTitle": "Vista previa del diseño",
+  "mobile.agent.team.previewBody":
+    "Esta vista previa usa agentes de ejemplo. Inicia sesión para usar chats, búsquedas y navegación con tu equipo.",
   "mobile.agent.session.title": "Ajustes del proveedor",
   "mobile.agent.session.failed": "No se pudieron cambiar los ajustes del proveedor.",
   "mobile.agent.session.readFailed": "No se pudieron leer los ajustes del proveedor.",
@@ -42,6 +56,8 @@ export const messages = {
   "mobile.agent.menu.deleteBody": "Esto quita el agente de este servidor.",
   "mobile.agent.menu.markRead": "Marcar como leído",
   "mobile.agent.menu.markUnread": "Marcar como no leído",
+  "mobile.agent.menu.makeLead": "Establecer como principal",
+  "mobile.agent.menu.removeLead": "Quitar como principal",
   "mobile.agent.menu.hide": "Ocultar",
   "mobile.agent.menu.info": "Información",
   "mobile.agent.menu.more": "Más",
@@ -282,6 +298,8 @@ export const messages = {
   "mobile.agent.runtime.accountUnsupported":
     "Este host no puede cambiar la cuenta del agente desde un dispositivo remoto.",
   "mobile.agent.runtime.model": "Modelo",
+  "mobile.agent.runtime.moreModels": "Más modelos",
+  "mobile.agent.runtime.showFewerModels": "Menos modelos",
   "mobile.agent.runtime.reasoning": "Razonamiento",
   "mobile.agent.runtime.effort.low": "Bajo",
   "mobile.agent.runtime.effort.medium": "Medio",

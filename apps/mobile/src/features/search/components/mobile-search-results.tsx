@@ -426,7 +426,7 @@ export function SearchCaption({
     // 24 pt above each heading, so the sections read as groups and do not run into each other.
     <View className="flex-row items-center justify-between gap-3" style={{ paddingHorizontal: 24, paddingBottom: 4 }}>
       <Typography.Paragraph accessibilityRole="header" className="text-muted" style={typeScale.teamMeta}>
-        {label.toUpperCase()}
+        {label}
       </Typography.Paragraph>
       {action ? (
         <Button size="sm" variant="ghost" accessibilityLabel={action.accessibilityLabel} onPress={action.onPress}>

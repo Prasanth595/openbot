@@ -13,6 +13,7 @@ import { useProviderUsage } from "@/features/servers/model/use-provider-usage";
 import { useServerProviders } from "@/features/servers/model/use-server-providers";
 import { haptics } from "@/shared/lib/haptics";
 import { type MobileText, useText } from "@/shared/lib/text";
+import { typeScale } from "@/shared/lib/type-scale";
 import { useAppForeground } from "@/shared/lib/use-app-foreground";
 import { AllowanceRings, quotaTextClass, usageWindowLabel } from "./provider-usage-section";
 
@@ -170,7 +171,7 @@ function PlanLimits({
                   <Typography.Paragraph
                     weight="semibold"
                     className={percent === null ? "text-text-secondary" : quotaTextClass(percent)}
-                    style={{ fontSize: 14, lineHeight: 18 }}
+                    style={typeScale.preview}
                   >
                     {percent === null ? t("mobile.server.providers.usage.unknown") : format.percent(percent / 100)}
                   </Typography.Paragraph>
@@ -205,7 +206,7 @@ function PlanLimits({
             )}
           </Typography.Paragraph>
           <Button variant="ghost" className="h-auto min-h-11 flex-row gap-1 rounded-lg px-0 py-0" onPress={onPress}>
-            <Typography.Paragraph className="text-accent-text" weight="medium" style={{ fontSize: 14, lineHeight: 18 }}>
+            <Typography.Paragraph className="text-accent-text" weight="medium" style={typeScale.preview}>
               {t("mobile.server.providers.usage.costs")}
             </Typography.Paragraph>
             <ArrowUpRight size={14} color={accent} />
@@ -258,11 +259,7 @@ function ExpandedLimit({
               {row.name}
             </Typography.Paragraph>
             {percent !== null ? (
-              <Typography.Paragraph
-                weight="semibold"
-                className={quotaTextClass(percent)}
-                style={{ fontSize: 14, lineHeight: 18 }}
-              >
+              <Typography.Paragraph weight="semibold" className={quotaTextClass(percent)} style={typeScale.preview}>
                 {t("mobile.server.providers.usage.remaining", { percent: format.percent(percent / 100) })}
               </Typography.Paragraph>
             ) : null}
@@ -295,7 +292,7 @@ function ExpandedLimit({
           accessibilityLabel={`${row.name}, ${t("common.retry")}`}
         >
           <RotateCw size={14} color={accent} />
-          <Typography.Paragraph className="text-accent-text" weight="medium" style={{ fontSize: 14, lineHeight: 18 }}>
+          <Typography.Paragraph className="text-accent-text" weight="medium" style={typeScale.preview}>
             {t("common.retry")}
           </Typography.Paragraph>
         </Button>

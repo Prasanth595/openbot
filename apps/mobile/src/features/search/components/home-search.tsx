@@ -2,10 +2,14 @@ import { isAgentTaskOpen, taskNeedsYou } from "@openbot/team-client/agent-tasks"
 import { BlurView } from "expo-blur";
 import * as Crypto from "expo-crypto";
 import { GlassView } from "expo-glass-effect";
-import { type Href, router, useFocusEffect, useNavigation } from "expo-router";
+import { type Href, router, Stack, useFocusEffect, useNavigation } from "expo-router";
 import type { NativeStackNavigationProp } from "expo-router/native-stack";
-import { type ParamListBase, useNavigation as useTabNavigation } from "expo-router/react-navigation";
-import { Button, Spinner, Typography } from "heroui-native";
+import {
+  HeaderHeightContext,
+  type ParamListBase,
+  useNavigation as useTabNavigation,
+} from "expo-router/react-navigation";
+import { Spinner, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
 import type { LucideIcon } from "lucide-react-native";
 import ArrowUp from "lucide-react-native/icons/arrow-up";
@@ -41,6 +45,7 @@ import {
   ScrollView,
   StyleSheet,
   TextInput,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { KeyboardAwareScrollView, useReanimatedKeyboardAnimation } from "react-native-keyboard-controller";
@@ -57,6 +62,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import type { SearchBarCommands } from "react-native-screens";
 import { scheduleOnRN } from "react-native-worklets";
 import { useCSSVariable, useUniwind } from "uniwind";
 import { BloubAvatar } from "@/features/agents/components/bloub-avatar";
@@ -169,6 +175,7 @@ export interface HomeSearch {
   /** Closes the search for a result that opens another screen. */
   leave: () => void;
   input: RefObject<TextInput | null>;
+  nativeSearch: RefObject<SearchBarCommands | null>;
   progress: SharedValue<number>;
   /** 1 while the results leave. Opening and closing move differently. */
   closing: SharedValue<number>;
@@ -215,6 +222,7 @@ export function useHomeSearch(): HomeSearch {
   const agents = useMobileWorkspaceSelector((current) => current.activeAgents);
   const canUseTasks = useMobileWorkspaceSelector((current) => current.canUseTasks(current.activeServer.id));
   const input = useRef<TextInput>(null);
+  const nativeSearch = useRef<SearchBarCommands>(null);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -259,7 +267,9 @@ export function useHomeSearch(): HomeSearch {
     setPrepared(false);
   }, []);
   const closeSearch = useCallback(() => {
+    if (!openNow.current) return;
     openNow.current = false;
+    nativeSearch.current?.cancelSearch();
     input.current?.blur();
     Keyboard.dismiss();
     setOpen(false);
@@ -390,6 +400,7 @@ export function useHomeSearch(): HomeSearch {
     closeSearch,
     leave: closeSearch,
     input,
+    nativeSearch,
     progress,
     closing,
     canUseTasks,
@@ -441,7 +452,7 @@ export function HomeSearchList({
   });
   // Keep the same animated style mounted. Removing it can retain the last hidden native opacity.
   return (
-    <Animated.View className="flex-1" style={style}>
+    <Animated.View collapsable={false} className="flex-1" style={style}>
       {children}
     </Animated.View>
   );
@@ -461,6 +472,9 @@ export function HomeSearchResults({
   barHeight: number;
 }) {
   const insets = useSafeAreaInsets();
+  const { fontScale } = useWindowDimensions();
+  const composerHeight = Math.max(HOME_SEARCH_HEIGHT, 24 * fontScale + 12);
+  const headerHeight = useContext(HeaderHeightContext) ?? 0;
   const reduced = useReducedMotion();
   const { progress, closing } = search;
   const style = useAnimatedStyle(() => {
@@ -489,11 +503,11 @@ export function HomeSearchResults({
         style={{ flex: 1 }}
         contentInsetAdjustmentBehavior="never"
         contentContainerStyle={{
-          paddingTop: insets.top + 64,
-          paddingBottom: (search.target ? HOME_SEARCH_HEIGHT : 0) + Math.max(insets.bottom, 12) + 24,
+          paddingTop: isAndroid ? 12 : headerHeight + 12,
+          paddingBottom: (search.target ? composerHeight : 0) + Math.max(insets.bottom, 12) + 24,
         }}
         mode="insets"
-        bottomOffset={search.target ? HOME_SEARCH_HEIGHT + KEYBOARD_GAP : KEYBOARD_GAP}
+        bottomOffset={search.target ? composerHeight + KEYBOARD_GAP : KEYBOARD_GAP}
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -582,7 +596,40 @@ function TaskTargetRow({ agent, onPress }: { agent: MobileAgent; onPress: () => 
   );
 }
 
-/** The field at the bottom of home. It rides on the keyboard, and a close button comes in beside it. */
+/** Native navigation search owns ordinary queries; the bottom field is only a task composer. */
+export function HomeSearchNavigation({ search }: { search: HomeSearch }) {
+  const { t } = useText();
+  const { nativeSearch, openSearch, closeSearch, query, target, result } = search;
+  useEffect(() => {
+    setHomeSearchOpener(() => {
+      openSearch();
+      nativeSearch.current?.focus();
+    });
+    return () => setHomeSearchOpener(null);
+  }, [nativeSearch, openSearch]);
+  useEffect(() => {
+    if (target || result) return;
+    nativeSearch.current?.setText(query);
+    if (query.startsWith("@")) nativeSearch.current?.focus();
+  }, [nativeSearch, query, target, result]);
+  if (target || result) return null;
+  return (
+    <Stack.SearchBar
+      ref={nativeSearch}
+      placeholder={t(search.canUseTasks ? "mobile.search.placeholder" : "common.search")}
+      autoCapitalize="none"
+      hideNavigationBar={false}
+      hideWhenScrolling={false}
+      obscureBackground={false}
+      onChangeText={({ nativeEvent }) => search.setQuery(nativeEvent.text)}
+      onSearchButtonPress={search.submit}
+      onFocus={openSearch}
+      onCancelButtonPress={closeSearch}
+      onClose={closeSearch}
+    />
+  );
+}
+
 export function HomeSearchBar({
   search,
   blurTarget,
@@ -598,15 +645,6 @@ export function HomeSearchBar({
   // touch on the field opens. A drag leaves it set, so each focus that no touch on the field caused
   // clears it first.
   const touched = useRef(false);
-  // A quick action of the app icon opens the search with the keyboard. The field registers it, so a
-  // request that comes while the list loads waits until the field and its input are mounted.
-  useEffect(() => {
-    setHomeSearchOpener(() => {
-      touched.current = false;
-      input.current?.focus();
-    });
-    return () => setHomeSearchOpener(null);
-  }, [input]);
   const insets = useSafeAreaInsets();
   const liquidGlass = useLiquidGlass();
   const reduced = useReducedMotion();
@@ -617,7 +655,6 @@ export function HomeSearchBar({
     "background",
   ]);
   const danger = String(useCSSVariable("--openbot-danger-text"));
-  const searchAccent = useCSSVariable("--openbot-accent");
   // The last result stays in the field while it fades out, so its text and color do not change then.
   const [shownResult, setShownResult] = useState(search.result);
   if (search.result && search.result !== shownResult) setShownResult(search.result);
@@ -642,7 +679,7 @@ export function HomeSearchBar({
   const homeAtRest = useHomeAtRest();
   const { target } = search;
   useEffect(() => {
-    if (search.open && !target) input.current?.focus();
+    if (search.open && target) input.current?.focus();
   }, [search.open, target, input]);
   const prepareFromTouch = () => {
     if (search.open) return;
@@ -662,67 +699,7 @@ export function HomeSearchBar({
       ? t("mobile.search.placeholder")
       : t("common.search");
 
-  if (!target && !showsResult) {
-    return (
-      <View
-        className="absolute inset-x-0 bg-team-canvas"
-        style={{
-          top: insets.top,
-          paddingTop: 4,
-          paddingBottom: 12,
-          paddingHorizontal: 20,
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 12,
-        }}
-      >
-        <View
-          className="bg-team-surface"
-          style={{
-            flex: 1,
-            height: 44,
-            borderRadius: 999,
-            borderWidth: 1,
-            borderColor: String(searchAccent),
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 10,
-            paddingHorizontal: 14,
-          }}
-        >
-          <Search color={String(muted)} size={18} />
-          <TextInput
-            ref={search.input}
-            accessibilityLabel={placeholder}
-            placeholder={placeholder}
-            placeholderTextColor={String(muted)}
-            value={search.query}
-            onChangeText={search.setQuery}
-            onFocus={openFromFocus}
-            onSubmitEditing={search.submit}
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="search"
-            selectionColor={String(foreground)}
-            style={{
-              flex: 1,
-              minWidth: 0,
-              height: 44,
-              paddingVertical: 0,
-              fontFamily: "Inter",
-              fontSize: 16,
-              color: String(foreground),
-            }}
-          />
-        </View>
-        <Button variant="ghost" onPress={search.closeSearch} style={{ paddingHorizontal: 0, height: 44 }}>
-          <Button.Label className="text-accent-text" style={{ fontFamily: "Inter", fontSize: 16, fontWeight: "500" }}>
-            {t("common.cancel")}
-          </Button.Label>
-        </Button>
-      </View>
-    );
-  }
+  if (!target && !showsResult) return null;
 
   return (
     <Animated.View
@@ -827,7 +804,7 @@ export function HomeSearchBar({
                 accessibilityLabel={target ? t("mobile.search.task.fieldLabel", { name: target.name }) : placeholder}
                 autoCapitalize={target ? "sentences" : "none"}
                 autoCorrect={Boolean(target)}
-                className="h-10 min-w-0 flex-1 font-sans text-foreground"
+                className="min-h-10 min-w-0 flex-1 font-sans text-foreground"
                 placeholder={placeholder}
                 placeholderTextColor={muted}
                 returnKeyType={target ? "send" : "search"}
@@ -997,7 +974,7 @@ function TargetChip({ agent, onPress }: { agent: MobileAgent; onPress: () => voi
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={t("mobile.search.task.changeAgent")}
-      className="-ml-2.5 h-10 flex-row items-center gap-1 rounded-full pr-2.5 pl-1"
+      className="-ml-2.5 min-h-10 flex-row items-center gap-1 rounded-full pr-2.5 pl-1"
       // 40 pt in the 52 pt field: the same 6 pt inset above, below and at the left edge.
       // The agent color at 18% opacity, so the avatar in the same color stays visible on it.
       style={{ backgroundColor: `${color}2e` }}
@@ -1105,6 +1082,7 @@ function GlassCapsule({
   // Android has no glass: the capsule blurs the content under it and lays the milky fill of the
   // design over the blur. iOS without Liquid Glass, or with Reduce Transparency, keeps the solid capsule.
   const milky = useChromeGlass();
+  const { fontScale } = useWindowDimensions();
   const { theme } = useUniwind();
   const blurFill = String(useCSSVariable("--openbot-bg-chrome-blur"));
   const blurs = ANDROID_BLUR && !liquidGlass && blurTarget !== undefined && !blurPaused;
@@ -1126,7 +1104,7 @@ function GlassCapsule({
         {
           borderCurve: "continuous",
           borderRadius: HOME_SEARCH_HEIGHT / 2,
-          height: HOME_SEARCH_HEIGHT,
+          minHeight: Math.max(HOME_SEARCH_HEIGHT, 24 * fontScale + 12),
           overflow: "hidden",
           width,
         },

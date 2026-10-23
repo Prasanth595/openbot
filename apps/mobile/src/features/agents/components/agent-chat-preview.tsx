@@ -6,11 +6,7 @@ import { useState } from "react";
 import { useWindowDimensions, View } from "react-native";
 import { BloubAvatar } from "@/features/agents/components/bloub-avatar";
 import { ChatMarkdown } from "@/features/chat/components/chat-markdown";
-import {
-  type MobileAgent,
-  useMobileWorkspaceActions,
-  useMobileWorkspaceSelector,
-} from "@/features/workspace/context/mobile-workspace-context";
+import { type MobileAgent, useMobileWorkspaceSelector } from "@/features/workspace/context/mobile-workspace-context";
 import { isIOS } from "@/shared/lib/platform";
 
 const HEADER_HEIGHT = 64;
@@ -55,7 +51,6 @@ function PreviewBubble({ text, onHeight }: { text: string; onHeight?: (height: n
  * that opens the chat does not also parse the latest message.
  */
 export function useAgentChatPreview(agent: MobileAgent) {
-  const { prefetchConversation } = useMobileWorkspaceActions();
   const { width: screenWidth, fontScale } = useWindowDimensions();
   const [measuring, setMeasuring] = useState(false);
   const [bubbleHeight, setBubbleHeight] = useState<number | null>(null);
@@ -112,7 +107,6 @@ export function useAgentChatPreview(agent: MobileAgent) {
     preview,
     measurer,
     onPressIn: () => {
-      prefetchConversation(agent.id, agent.serverId);
       if (isIOS) setMeasuring(true);
     },
   };

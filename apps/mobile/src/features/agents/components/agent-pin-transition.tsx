@@ -152,11 +152,7 @@ export function AgentPinTransitionProvider({ children }: PropsWithChildren) {
       options?: { haptic: boolean },
     ) => {
       const { pinnedAgentIds, pinnedChannelIds } = workspace();
-      if (
-        transitionRef.current ||
-        !canToggleAgentPin([...pinnedAgentIds, ...pinnedChannelIds], chatId, pinnedAgentIds[0] ?? null)
-      )
-        return;
+      if (transitionRef.current || !canToggleAgentPin([...pinnedAgentIds, ...pinnedChannelIds], chatId)) return;
       const source: AgentAvatarLocation = isPinned ? "pinned" : "row";
       const target: AgentAvatarLocation = isPinned ? "row" : "pinned";
       const sourceNode = avatarRefs.get(chatId)?.[source];

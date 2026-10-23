@@ -4,7 +4,6 @@ import * as Crypto from "expo-crypto";
 import { router, Stack, useLocalSearchParams, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
 import { Typography } from "heroui-native";
-import ArrowLeft from "lucide-react-native/icons/arrow-left";
 import Brain from "lucide-react-native/icons/brain";
 import Check from "lucide-react-native/icons/check";
 import Clock from "lucide-react-native/icons/clock";
@@ -245,38 +244,39 @@ function ChannelForm({
   return (
     <SheetScrollView
       className={create ? "bg-sheet" : "bg-team-canvas"}
-      headerOverlaysContent={create}
+      headerOverlaysContent
       contentContainerClassName={create ? "gap-5 px-5 pt-5 pb-safe-offset-5" : "gap-5 px-5 pt-3 pb-safe-offset-5"}
       keyboardDismissMode="interactive"
       keyboardShouldPersistTaps="handled"
     >
-      {isAndroid ? (
-        <AndroidHeaderButton
-          placement="left"
-          icon={create ? X : ArrowLeft}
-          glass={!create}
-          accessibilityLabel={t(create ? "common.close" : "common.back")}
-          disabled={saving}
-          onPress={() => {
-            void haptics.impact("soft");
-            router.back();
-          }}
-        />
-      ) : (
-        <Stack.Toolbar placement="left">
-          <Stack.Toolbar.Button
-            icon={create ? "xmark" : "chevron.left"}
-            accessibilityLabel={t(create ? "common.close" : "common.back")}
+      {create ? (
+        isAndroid ? (
+          <AndroidHeaderButton
+            placement="left"
+            icon={X}
+            accessibilityLabel={t("common.close")}
             disabled={saving}
             onPress={() => {
               void haptics.impact("soft");
               router.back();
             }}
-          >
-            {t(create ? "common.close" : "common.back")}
-          </Stack.Toolbar.Button>
-        </Stack.Toolbar>
-      )}
+          />
+        ) : (
+          <Stack.Toolbar placement="left">
+            <Stack.Toolbar.Button
+              icon="xmark"
+              accessibilityLabel={t("common.close")}
+              disabled={saving}
+              onPress={() => {
+                void haptics.impact("soft");
+                router.back();
+              }}
+            >
+              {t("common.close")}
+            </Stack.Toolbar.Button>
+          </Stack.Toolbar>
+        )
+      ) : null}
       <SheetSaveAction
         dirty={dirty}
         canSave={valid && !disabled}

@@ -27,6 +27,8 @@ import type { markerExclusionsForCapabilities } from "./team-api/request-helpers
 
 /** Events come in bursts, such as a streamed reply. One update covers each burst. */
 const EVENT_DELAY_MS = 1_000;
+/** State changes and alerts share this minimum interval, so a burst uses one push. */
+const MIN_SEND_INTERVAL_MS = 1_000;
 /** iOS limits how often a Live Activity gets updates. A change inside one state waits this long. */
 const SAME_MODE_INTERVAL_MS = 5_000;
 /** Content older than this looks out of date, as when this computer sleeps and sends nothing. */
@@ -103,6 +105,7 @@ export class LiveActivityPushService {
   readonly #listener = (event: AgentEvent) => {
     const immediate = liveActivityEventIsImmediate(event);
     for (const registration of this.#registrations.values()) {
+      if (!away(registration)) continue;
       registration.immediate ||= immediate;
       registration.pending = true;
       this.#schedule(registration, immediate ? 0 : EVENT_DELAY_MS);
@@ -198,7 +201,11 @@ export class LiveActivityPushService {
   /** Runs an update after `delay`, or keeps an earlier one that is already planned. */
   #schedule(registration: Registration, delay: number): void {
     if (this.#registrations.get(registration.sessionId) !== registration || !away(registration)) return;
-    const at = Math.max(this.#now() + delay, registration.retryAt);
+    const at = Math.max(
+      this.#now() + delay,
+      registration.retryAt,
+      registration.sent ? registration.sent.at + MIN_SEND_INTERVAL_MS : 0,
+    );
     if (registration.timer && registration.timer.at <= at) return;
     this.#clearTimer(registration);
     registration.timer = {
@@ -227,8 +234,8 @@ export class LiveActivityPushService {
       registration.pending = true;
       return;
     }
-    // A timer from before a failed send can fire early. `#schedule` moves the update to the retry time.
-    if (now < registration.retryAt) {
+    // A timer can precede a send or failure. Schedule again with the current limits.
+    if (now < registration.retryAt || (registration.sent && now < registration.sent.at + MIN_SEND_INTERVAL_MS)) {
       this.#schedule(registration, 0);
       return;
     }
@@ -237,7 +244,7 @@ export class LiveActivityPushService {
     const mode = props?.mode ?? null;
     const key = JSON.stringify(props);
     const sent = registration.sent;
-    // An alert goes at once, also when the view did not change.
+    // An alert also sends when the view did not change, within the minimum send interval.
     const alert = props ? registration.alert : null;
     if (!alert && sent && sent.key === key && now - sent.at < KEEPALIVE_MS) {
       registration.immediate = false;

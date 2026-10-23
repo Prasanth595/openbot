@@ -94,10 +94,6 @@ const VOICE_SIDE_SIZE = 56;
 const VOICE_SIDE_GAP = 20;
 const VOICE_SIDE_OFFSET = VOICE_BUTTON_SIZE / 2 + VOICE_SIDE_GAP + VOICE_SIDE_SIZE / 2;
 const CARD_RADIUS = 24;
-// The mic sits at the end of the toolbar. These move it to the centre of the
-// round button, which is where the card's own shrinking takes it most of the way.
-const VOICE_CONTROL_SHIFT_X = TOOLBAR_PADDING - (VOICE_BUTTON_SIZE - CONTROL_SIZE) / 2;
-const VOICE_CONTROL_SHIFT_Y = -(VOICE_BUTTON_SIZE - TOOLBAR_HEIGHT) / 2;
 // The glyph grows with the button instead of changing size, so the mic is the
 // same drawing when the composer comes back.
 const VOICE_CONTROL_SCALE = 1.15;
@@ -228,6 +224,13 @@ export const ChatComposer = memo(function ChatComposer({
   const chromeBorder = String(useCSSVariable("--openbot-border-chrome-glass"));
   const barInset = cardLayout ? 20 : BAR_INSET;
   const toolbarHeight = cardLayout ? 52 : TOOLBAR_HEIGHT;
+  const toolbarBottomPadding = cardLayout ? 8 : 0;
+  const cardBorderWidth = cardLayout ? 1 : 0;
+  // The border is outside the field. Keep the finished voice button square and
+  // place its glyph from the same toolbar dimensions used to draw the controls.
+  const voiceContentSize = VOICE_BUTTON_SIZE - cardBorderWidth * 2;
+  const voiceControlShiftX = TOOLBAR_PADDING - (voiceContentSize - CONTROL_SIZE) / 2;
+  const voiceControlShiftY = -(voiceContentSize - toolbarHeight - toolbarBottomPadding) / 2;
   // The model, mic and attachment controls share the same toolbar centre.
   const attachmentBottom = cardLayout ? 10 : 4;
   const fieldPadding = cardLayout ? 14 : FIELD_VERTICAL_PADDING;
@@ -439,8 +442,8 @@ export const ChatComposer = memo(function ChatComposer({
     const scale = interpolate(progress, [0, 1], [REST_CONTROL_SCALE, 1]);
     return {
       transform: [
-        { translateX: x + (VOICE_CONTROL_SHIFT_X - x) * voiced },
-        { translateY: y + (VOICE_CONTROL_SHIFT_Y - y) * voiced },
+        { translateX: x + (voiceControlShiftX - x) * voiced },
+        { translateY: y + (voiceControlShiftY - y) * voiced },
         { scale: scale + (VOICE_CONTROL_SCALE - scale) * voiced },
       ],
     };
@@ -462,6 +465,9 @@ export const ChatComposer = memo(function ChatComposer({
     );
   }, [listening, voiceFill]);
   const voiceFillStyle = useAnimatedStyle(() => ({ opacity: voiceFill.get() * morph.get() }));
+  const modelControlStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(morph.get(), [0, 0.3], [1, 0], Extrapolation.CLAMP),
+  }));
   // Cancel and Send start behind the round button and come out of its sides.
   // Glass does not fade: iOS does not draw a glass effect under a parent with
   // an opacity below 1. The round button is glass too, so the two show through
@@ -533,7 +539,7 @@ export const ChatComposer = memo(function ChatComposer({
       // The text and the placeholder leave in the first part of the morph.
       opacity: interpolate(voiced, [0, 0.4], [1, 0], Extrapolation.CLAMP),
       // The voice mode closes the card to the round button's height.
-      height: height + (VOICE_BUTTON_SIZE - height) * voiced,
+      height: height + (voiceContentSize - height) * voiced,
       // The controls hold the bottom of the card. In a single row they overlay
       // the field, so the text clears their width instead.
       marginBottom: interpolate(stackedValue.get(), [0, 1], [0, toolbarHeight]) * (1 - voiced),
@@ -853,9 +859,9 @@ export const ChatComposer = memo(function ChatComposer({
             style={[
               {
                 backgroundColor: liquidGlassAvailable ? "transparent" : fallbackBackground,
-                borderCurve: "continuous",
+                borderCurve: voiceOpen ? "circular" : "continuous",
                 borderRadius: CARD_RADIUS,
-                borderWidth: cardLayout ? 1 : 0,
+                borderWidth: cardBorderWidth,
                 borderColor: chromeBorder,
                 overflow: "hidden",
                 opacity: disabled ? 0.45 : 1,
@@ -1133,21 +1139,27 @@ export const ChatComposer = memo(function ChatComposer({
                   alignItems: "center",
                   justifyContent: "flex-end",
                   paddingHorizontal: TOOLBAR_PADDING,
-                  paddingBottom: cardLayout ? 8 : 0,
+                  paddingBottom: toolbarBottomPadding,
                 }}
               >
                 {modelControl ? (
-                  <View
-                    style={{
-                      position: "absolute",
-                      left: attachments ? 56 : 16,
-                      right: 60,
-                      bottom: 16,
-                      alignItems: "flex-start",
-                    }}
+                  <Animated.View
+                    pointerEvents={voiceOpen ? "none" : "auto"}
+                    accessibilityElementsHidden={voiceOpen}
+                    importantForAccessibility={voiceOpen ? "no-hide-descendants" : "auto"}
+                    style={[
+                      {
+                        position: "absolute",
+                        left: attachments ? 56 : 16,
+                        right: 60,
+                        bottom: 16,
+                        alignItems: "flex-start",
+                      },
+                      modelControlStyle,
+                    ]}
                   >
                     {modelControl}
-                  </View>
+                  </Animated.View>
                 ) : null}
                 <Animated.View style={controlStyle}>
                   {voiceOpen && voice ? (
@@ -1168,7 +1180,7 @@ export const ChatComposer = memo(function ChatComposer({
                           <VoiceLevelBars level={voice.level} color={listeningGlyph} />
                         )
                       ) : (
-                        <Mic color={String(cardLayout ? actionForeground : foreground)} size={21} strokeWidth={1.8} />
+                        <Mic color={String(foreground)} size={21} strokeWidth={1.8} />
                       )}
                     </Pressable>
                   ) : (

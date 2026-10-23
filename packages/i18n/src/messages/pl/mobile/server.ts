@@ -232,6 +232,7 @@ export const messages = {
   "mobile.server.routineDetail.resume": "Wznów rutynę",
   "mobile.server.routineDetail.edit": "Edytuj rutynę",
   "mobile.server.routineDetail.ask": "Poproś agenta o edycję tej rutyny",
+  "mobile.server.routineDetail.chatContext": "W sprawie rutyny „{name}” ({id}):\n\n{message}",
   "mobile.server.routineDetail.emptyRuns": "Ta rutyna nie została jeszcze uruchomiona.",
   "mobile.server.routineDetail.stepsUnavailable": "Ten host nie udostępnia kroków uruchomienia.",
   "mobile.server.routineDetail.olderSteps": "Kroki są dostępne tylko dla ostatniego uruchomienia.",

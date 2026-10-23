@@ -73,7 +73,7 @@ export function SheetScrollView({
     : null;
 
   return (
-    <View style={{ flex: 1 }}>
+    <View collapsable={false} style={{ flex: 1 }}>
       <ScrollTouchArea>
         <StyledKeyboardAwareScrollView
           className={className}

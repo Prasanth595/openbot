@@ -630,7 +630,9 @@ Network traffic can also occur when:
 - the local Claude Agent SDK connects to Anthropic through Claude CLI;
 - a user or an agent visits a page in the embedded browser;
 - a user browses Market on mobile. The phone reads public agent and skill listings from the account
-  service and sends catalog search terms and filters without a session credential. App listings
+  service and sends catalog search terms and filters without a session credential. The phone also
+  loads catalog images over HTTPS from that same account-service origin, without a session
+  credential. The service receives the phone's IP address for these requests. App listings
   ship with the mobile app. On installation, the phone sends the listing or skill ID to the selected
   host; that host downloads the item with its own account. The phone does not upload local chats or
   files to the public catalog;

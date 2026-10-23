@@ -1,16 +1,29 @@
 ### Changed
 
 - Use native tabs for Team, Tasks, Routines, Market and Settings. Keep tab state and host-specific task drafts when switching pages.
-- Add a lead-agent card, protected lead pin, read/unread actions and consistent agent artwork across Team, chat and profiles. Keep channels and their shared pin limit.
+- Show a lead-agent card only after Set as lead is selected. Save one explicit lead per server on this phone; offer Remove lead before another choice. Keep pins below the card without changing their saved order, and preserve hidden choices and pins. Add read/unread actions and consistent agent artwork across Team, chat and profiles. Keep channels and the shared pin limit.
 - Update search, chat, agent profiles and Brain settings. Show collaboration events and synchronized satellite activity, and keep completed replies clear of stale activity rows.
 - Add mobile Marketplace agent and skill installation, installed state and existing MCP setup. Reconcile temporary receipts with later complete host lists.
-- Show provider plan limits and reset times in a collapsed sidebar summary, with details in Usage. Show the shortest limit first.
+- Keep provider plan limits in the Team header, with details in Usage. Remove the duplicate sidebar card and show the shortest limit first.
 - Keep the latest page of five recent chats in memory for up to ten minutes, within a 10 MiB payload limit. Prefetch on agent press and open external chat links without waiting for Team layout.
-- Publish important Live Activity transitions at once, serialize native updates and defer avatar preparation until after chat opens. Retry failed avatar preparation once without naming missing files.
+- Publish important Live Activity transitions with a one-second minimum send interval. Serialize native updates and defer avatar preparation until after chat opens. Keep push registration and symbol fallback after avatar preparation fails.
 - Respect member access in task, routine and Brain controls. Retain the host in routine chat links, preserve lead pin order after failed hides, and fix Android header clearance and iOS scroll touch areas.
 - Open the home screen for Expo development-client launch links, and retain native iOS back-swipe recognition across the chat.
 - Keep Open browser in channel Info and remove the duplicate group-chat header action.
 - Use the same Team canvas color for channel and agent rows.
 - Use the same full-width message field and controls in agent and group chats.
-- Group consecutive replies from the same agent with one author label and tighter spacing. Show actions and time only on the last reply; earlier replies keep swipe to reply and long press to copy. Show a time break for later replies and retain accessible controls.
+- Group consecutive replies from the same agent with one author label and tighter spacing. Show actions and time only on the last reply; earlier replies keep swipe to reply and a native long-press menu for Copy, Reply, reactions, Select text and time. Show a time break for later replies and retain accessible controls.
 - Open channel Info as a full-screen profile with a native Back action. Use the solo profile header, identity, fields and action rows. Keep channel member and lead selection, Browser, Memories and Routines.
+- Align the Notifications icon, label and native switch in the agent profile.
+- Keep dictation controls round and centered, hide the model selector during voice input, and keep the Continue microphone visible on its background.
+- Use native navigation titles, search bars, menus, back buttons and segmented controls. Keep task and routine details in their tab stacks and preserve public route paths.
+- Save Brain edits from the native header. Let content grow with larger text and add pull to refresh for Team, Tasks and Routines.
+- Add missing navigation and search translations in all supported languages. Remove duplicate font loading from startup.
+- Reject catalog images outside the HTTPS account-service origin, debounce Market search and load further results while scrolling.
+- Keep recent conversation pages when older-history requests finish after a chat closes. Read cache snapshots without maintenance work and prefetch only after a completed press.
+- Preserve provider quota cache freshness across ordinary chat events. Refresh after local account or key changes and on visible polling or manual refresh.
+- Keep development preview and diagnostic modules behind development guards. Refresh chat day labels at midnight and after returning to the app.
+- Use supported Expo Router imports so Metro can load chat and task screens with Expo SDK 57.
+- Use compact native titles on the five main tabs. Keep chat content below its native header, show one Back control, and preserve Server settings header clearance.
+- Bound chat text and native titles to the available width. Keep Team rows visible and accessible after returning to the tab, and start pull-to-refresh only for a user pull.
+- Reserve the screen edge for native Back in agent, channel and task chats. Keep swipe-to-reply inside messages and derive the Back control from native navigation history.

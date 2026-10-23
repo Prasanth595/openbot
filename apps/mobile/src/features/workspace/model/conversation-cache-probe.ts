@@ -34,12 +34,16 @@ function deferredPage() {
   return { promise, resolve };
 }
 
-/** Runs only from the native development preview. It uses synthetic data and the app's real cache service. */
+/** Uses synthetic data and the real cache service, from the development preview or the E2E script. */
 export async function runConversationCacheProbe(): Promise<Record<string, boolean>> {
   let clock = 0;
+  let clockReads = 0;
   const store = new MobileConversationStore(
     () => () => {},
-    () => clock,
+    () => {
+      clockReads++;
+      return clock;
+    },
   );
   const checks: Record<string, boolean> = {};
   const host = "cache-probe-host";
@@ -61,6 +65,56 @@ export async function runConversationCacheProbe(): Promise<Record<string, boolea
     pending.resolve(latest);
     await first;
     checks.latestPageHasFiftyMessages = store.get(agent, host)?.messages.length === 50;
+    const snapshot = store.get(agent, host);
+    const readsBeforeSnapshot = clockReads;
+    checks.snapshotReadKeepsIdentity = Array.from({ length: 10 }, () => store.get(agent, host)).every(
+      (value) => value === snapshot,
+    );
+    checks.snapshotReadDoesNoCacheMaintenance = clockReads === readsBeforeSnapshot;
+
+    const releasePending = store.subscribe(agent, host, () => {});
+    const lateOlder = deferredPage();
+    const lateLoad = store.loadOlder(
+      host,
+      agent,
+      () => lateOlder.promise,
+      () => true,
+    );
+    checks.pendingOlderPageShowsLoading = store.get(agent, host)?.olderLoading === true;
+    releasePending();
+    const restored = store.get(agent, host);
+    lateOlder.resolve(page(agent, 0));
+    await lateLoad;
+    checks.closedChatRejectsLateOlderPage = store.get(agent, host) === restored && restored?.messages.length === 50;
+    checks.closedChatClearsOlderLoading = restored?.olderLoading === false;
+
+    const releaseReopened = store.subscribe(agent, host, () => {});
+    const previousOlder = deferredPage();
+    const previousLoad = store.loadOlder(
+      host,
+      agent,
+      () => previousOlder.promise,
+      () => true,
+    );
+    releaseReopened();
+    const releaseNewReader = store.subscribe(agent, host, () => {});
+    const nextOlder = deferredPage();
+    const nextLoad = store.loadOlder(
+      host,
+      agent,
+      () => nextOlder.promise,
+      () => true,
+    );
+    previousOlder.resolve(page(agent, 0));
+    await previousLoad;
+    checks.reopenedChatRejectsPreviousOlderPage = store.get(agent, host)?.messages.length === 50;
+    checks.previousLoadDoesNotClearNewLoading = store.get(agent, host)?.olderLoading === true;
+    nextOlder.resolve(page(agent, 0));
+    await nextLoad;
+    checks.reopenedChatCanLoadOlderPage =
+      store.get(agent, host)?.messages.length === 100 && store.get(agent, host)?.olderLoading === false;
+    releaseNewReader();
+
     const unsubscribe = store.subscribe(agent, host, () => {});
     let olderCursor: string | undefined;
     await store.loadOlder(
@@ -160,6 +214,8 @@ export async function runConversationCacheProbe(): Promise<Record<string, boolea
       [1, 2, 3, 4, 5].every((index) => store.get(`cache-probe-recent-${index}`, host) !== undefined);
     checks.activeChatIsOutsideCountLimit = store.get(active, host) !== undefined;
     clock += 10 * 60_000;
+    // A page update runs maintenance at the advanced clock without waiting ten real minutes.
+    store.applyPage(page(active), host);
     checks.inactivePagesExpireAfterTenMinutes = [1, 2, 3, 4, 5].every(
       (index) => store.get(`cache-probe-recent-${index}`, host) === undefined,
     );

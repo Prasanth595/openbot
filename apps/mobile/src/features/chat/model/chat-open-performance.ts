@@ -28,6 +28,7 @@ function release() {
 }
 
 export function beginChatOpen(serverId: string, agentId: string, source: ChatOpenSource) {
+  if (typeof __DEV__ === "undefined" || !__DEV__) return;
   if (opening) clearTimeout(opening.deadline);
   const sample: ChatOpenSample = { id: ++sequence, source, started: performance.now(), stages: {} };
   measurement = { key: key(serverId, agentId), sample };
@@ -42,10 +43,12 @@ export function beginChatOpen(serverId: string, agentId: string, source: ChatOpe
 }
 
 export function ensureChatOpen(serverId: string, agentId: string) {
+  if (typeof __DEV__ === "undefined" || !__DEV__) return;
   if (opening?.key !== key(serverId, agentId)) beginChatOpen(serverId, agentId, "screen");
 }
 
 export function markChatOpen(serverId: string, agentId: string, stage: ChatOpenStage) {
+  if (typeof __DEV__ === "undefined" || !__DEV__) return;
   if (measurement?.key !== key(serverId, agentId)) return;
   measurement.sample.stages[stage] ??= performance.now() - measurement.sample.started;
   if (opening && measurement.sample.stages.messages !== undefined && measurement.sample.stages.composer !== undefined)
@@ -54,6 +57,7 @@ export function markChatOpen(serverId: string, agentId: string, stage: ChatOpenS
 
 /** A layout followed by two animation frames is a visibility proxy, not a native render trace. */
 export function markChatOpenFrame(serverId: string, agentId: string, stage: "messages" | "composer") {
+  if (typeof __DEV__ === "undefined" || !__DEV__) return () => undefined;
   const sample = measurement?.sample;
   let frame = requestAnimationFrame(() => {
     frame = requestAnimationFrame(() => {
@@ -63,7 +67,7 @@ export function markChatOpenFrame(serverId: string, agentId: string, stage: "mes
   return () => cancelAnimationFrame(frame);
 }
 
-/** Run lower-priority work after the opening layout and frame, without blocking an offline chat. */
+/** Yield one frame in release builds. Development measurements can wait for the opening layout. */
 export function afterChatFirstPaint(work: () => void): () => void {
   let cancelled = false;
   let frame: number | undefined;
@@ -72,7 +76,7 @@ export function afterChatFirstPaint(work: () => void): () => void {
       if (!cancelled) work();
     });
   };
-  if (opening) deferred.add(run);
+  if (typeof __DEV__ !== "undefined" && __DEV__ && opening) deferred.add(run);
   else run();
   return () => {
     cancelled = true;

@@ -2,6 +2,9 @@ import type { PartialTranslation } from "../../../message";
 import type { messages as source } from "../../en/mobile/search";
 
 export const messages = {
+  "mobile.search.sectionCount": "{label} · {count}",
+  "mobile.search.authorYou": "Вы",
+  "mobile.search.messageResult": "Сообщение в {name}: {text}",
   "mobile.search.clear": "Очистить поиск",
   "mobile.search.close": "Закрыть поиск",
   "mobile.search.goTo": "Перейти",

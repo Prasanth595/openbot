@@ -66,7 +66,12 @@ export function MarketInstallScreen() {
       if (kind === "agent") {
         const item = await runTeamEffect(catalog.agents.get(id), signal);
         if (item.id !== id) throw new Error(t("mobile.market.loadFailed"));
-        return { kind: "agent" as const, item };
+        return {
+          kind: "agent" as const,
+          item,
+          // Published routines have no IDs and can have the same name. Keep one local ID per loaded row.
+          routines: item.routines.map((routine) => ({ id: Crypto.randomUUID(), routine })),
+        };
       }
       const item = await runTeamEffect(catalog.skills.get(id), signal);
       if (item.id !== id) throw new Error(t("mobile.market.loadFailed"));
@@ -231,9 +236,9 @@ export function MarketInstallScreen() {
               ) : null}
               {loaded.item.routines.length > 0 ? (
                 <SettingsSection title={t("mobile.link.template.section.routines")}>
-                  {loaded.item.routines.map((routine) => (
+                  {loaded.routines.map(({ id, routine }) => (
                     <SettingsRow
-                      key={JSON.stringify(routine)}
+                      key={id}
                       disclosure={false}
                       supportingText={`${routineScheduleSummary(routine.schedule, text)} · ${t(routine.active ? "mobile.server.routines.status.active" : "mobile.server.routines.status.paused")}`}
                     >

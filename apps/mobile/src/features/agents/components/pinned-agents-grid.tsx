@@ -14,13 +14,19 @@ import Animated, {
 import { useAgentChatPreview } from "@/features/agents/components/agent-chat-preview";
 import { AgentAndroidMenu, AgentContextMenuLink } from "@/features/agents/components/agent-context-menu";
 import { AgentPinAvatar } from "@/features/agents/components/agent-pin-avatar";
+import { useAgentPinTransition } from "@/features/agents/components/agent-pin-transition";
 import { AGENT_WAIT_STATE, AgentWaitBadge } from "@/features/agents/components/agent-wait-badge";
 import { BloubAvatar } from "@/features/agents/components/bloub-avatar";
 import { ChatLinkPressable } from "@/features/agents/components/chat-link-pressable";
 import { ChatZoomSource } from "@/features/agents/components/chat-zoom-source";
 import { useAgentWaitReason } from "@/features/workspace/components/use-agent-activity";
 import { useAgentUnread } from "@/features/workspace/components/use-live-workspace";
-import type { MobileAgent } from "@/features/workspace/context/mobile-workspace-context";
+import {
+  type MobileAgent,
+  useMobileWorkspaceReader,
+  useMobileWorkspaceSelector,
+} from "@/features/workspace/context/mobile-workspace-context";
+import { haptics } from "@/shared/lib/haptics";
 import { isAndroid } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
 import { typeScale } from "@/shared/lib/type-scale";
@@ -66,6 +72,9 @@ export function PinnedAgentsGrid({ agents, children }: PropsWithChildren<{ agent
 
 const PinnedAgentItem = memo(function PinnedAgentItem({ agent }: { agent: MobileAgent }) {
   const { t } = useText();
+  const workspace = useMobileWorkspaceReader();
+  const canMakeLead = useMobileWorkspaceSelector(({ leadAgentId }) => leadAgentId === null);
+  const { toggleAgentPinAnimated } = useAgentPinTransition();
   const [background, accent] = useThemeColor(["background", "accent"]);
   const agentChatPreview = useAgentChatPreview(agent);
   // Each long press mounts the Android menu again, so it opens even if an earlier one did not close.
@@ -86,6 +95,17 @@ const PinnedAgentItem = memo(function PinnedAgentItem({ agent }: { agent: Mobile
           : openLabel
       }
       accessibilityRole="button"
+      accessibilityActions={[
+        { name: "pin", label: t("mobile.agent.pin.unpinNamed", { name: agent.name }) },
+        ...(canMakeLead ? [{ name: "make-lead", label: t("mobile.agent.menu.makeLead") }] : []),
+      ]}
+      onAccessibilityAction={({ nativeEvent }) => {
+        if (nativeEvent.actionName === "pin") toggleAgentPinAnimated(agent.id);
+        else if (nativeEvent.actionName === "make-lead") {
+          if (workspace().makeLeadAgent(agent.id) === "error") void haptics.notification("error");
+          else void haptics.selection();
+        }
+      }}
       className="w-full items-center gap-2 px-1"
       onPressIn={agentChatPreview.onPressIn}
       onLongPress={isAndroid ? () => setMenuKey((key) => key + 1) : undefined}

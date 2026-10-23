@@ -2,8 +2,8 @@ import type { AgentTask, RespondToPromptInput } from "@openbot/contracts/ipc";
 import type { MobileTextKey } from "@openbot/i18n/mobile";
 import { useQuery } from "@tanstack/react-query";
 import * as Crypto from "expo-crypto";
-import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
-import { router, useIsFocused, useLocalSearchParams } from "expo-router";
+import { isLiquidGlassAvailable } from "expo-glass-effect";
+import { router, Stack, useIsFocused, useLocalSearchParams } from "expo-router";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
 import ArrowLeft from "lucide-react-native/icons/arrow-left";
@@ -79,7 +79,7 @@ function leaveTask() {
 
 /**
  * One task of an agent, laid out as the agent's chat: the same header, message list and composer.
- * The header has the task's actions in place of the browser, and the composer has no files:
+ * The native header has the task's actions, and the composer has no files:
  * `agent-tasks-v1` carries text only.
  */
 export function AgentTaskScreen() {
@@ -105,9 +105,10 @@ function TaskNote({ note, retry }: { note: string; retry?: () => void }) {
         accessibilityRole="button"
         className="min-h-12 flex-row items-center gap-2 rounded-full bg-control px-5"
         onPress={() => {
-          void haptics.impact("soft");
-          if (retry) retry();
-          else leaveTask();
+          if (retry) {
+            void haptics.impact("soft");
+            retry();
+          } else leaveTask();
         }}
       >
         {retry ? null : <ArrowLeft color={String(foreground)} size={20} strokeWidth={2} />}
@@ -247,7 +248,7 @@ function AgentTaskChat({ target, taskId }: { target: AgentChatTarget; taskId: st
   const rowsShown = useRowsAfterOpenTransition();
   const lastUserId = messages.findLast((row) => row.kind === "message" && row.author === "user")?.id ?? null;
   const motion = useChatMotion(
-    insets.top + 84,
+    16,
     keyboardOffset,
     ready && rowsShown,
     rowsShown && messages.some((row) => row.kind !== "thinking"),
@@ -342,38 +343,31 @@ function AgentTaskChat({ target, taskId }: { target: AgentChatTarget; taskId: st
   const taskActionId = task ? taskAction(task) : null;
   const actions =
     taskActionId === null ? null : (
-      <MenuView
-        colorScheme={theme === "dark" ? "dark" : "light"}
-        actions={[
-          {
-            id: taskActionId,
-            title: t(ACTION_TEXT[taskActionId].label),
-            image: ACTION_TEXT[taskActionId].icon,
-            attributes: { disabled: acting, destructive: taskActionId === "stop" },
-          },
-        ]}
-        onPressAction={({ nativeEvent }) => {
-          if (nativeEvent.event === taskActionId) void act(taskActionId);
-        }}
-      >
-        <GlassView
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel={t("mobile.server.tasks.actions")}
-          glassEffectStyle={liquidGlassAvailable ? "regular" : "none"}
-          isInteractive
-          style={{
-            width: 48,
-            height: 48,
-            borderRadius: 24,
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: liquidGlassAvailable ? "transparent" : fieldBackground,
+      <Stack.Toolbar.View>
+        <MenuView
+          colorScheme={theme === "dark" ? "dark" : "light"}
+          actions={[
+            {
+              id: taskActionId,
+              title: t(ACTION_TEXT[taskActionId].label),
+              image: ACTION_TEXT[taskActionId].icon,
+              attributes: { disabled: acting, destructive: taskActionId === "stop" },
+            },
+          ]}
+          onPressAction={({ nativeEvent }) => {
+            if (nativeEvent.event === taskActionId) void act(taskActionId);
           }}
         >
-          <Ellipsis color={String(foreground)} size={24} strokeWidth={2} />
-        </GlassView>
-      </MenuView>
+          <View
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={t("mobile.server.tasks.actions")}
+            className="min-h-12 min-w-12 items-center justify-center"
+          >
+            <Ellipsis color={String(foreground)} size={24} strokeWidth={2} />
+          </View>
+        </MenuView>
+      </Stack.Toolbar.View>
     );
 
   // Under the activity, as the desktop task panel: why the task waits, its queued messages and its failure.
@@ -416,8 +410,9 @@ function AgentTaskChat({ target, taskId }: { target: AgentChatTarget; taskId: st
   ) : null;
 
   const content = (
-    <View className="flex-1" style={{ backgroundColor: background }}>
+    <View collapsable={false} className="flex-1" style={{ backgroundColor: background }}>
       <KeyboardGestureArea
+        collapsable={false}
         style={{ flex: 1 }}
         textInputNativeID="chat-composer-input"
         interpolator="ios"
@@ -428,10 +423,6 @@ function AgentTaskChat({ target, taskId }: { target: AgentChatTarget; taskId: st
           kicker={t("mobile.app.route.task")}
           title={task?.title ?? ""}
           trailing={actions}
-          fallbackBackground={fieldBackground}
-          foreground={foreground}
-          liquidGlassAvailable={liquidGlassAvailable}
-          topInset={insets.top}
           onBack={leaveTask}
           accessibilityHidden={voiceOpen}
         />
@@ -479,7 +470,6 @@ function AgentTaskChat({ target, taskId }: { target: AgentChatTarget; taskId: st
           muted={muted}
           raised={raised}
           showStarter={false}
-          topInset={insets.top}
           onDismissStarter={() => {}}
           onSelectStarter={() => {}}
           onRetryHistory={() => void conversation.refetch()}

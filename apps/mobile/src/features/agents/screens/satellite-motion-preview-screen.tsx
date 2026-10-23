@@ -1,5 +1,5 @@
 import { AVATAR_HUES } from "@openbot/contracts/ipc";
-import { Redirect, router, Stack, useLocalSearchParams } from "expo-router";
+import { Redirect, Stack, useLocalSearchParams } from "expo-router";
 import { Button, Typography } from "heroui-native";
 import { useEffect, useMemo, useState } from "react";
 import { ScrollView, View } from "react-native";
@@ -8,13 +8,12 @@ import { SatelliteMotionProvider } from "@/features/agents/components/agent-acti
 import { BloubAvatarPreview } from "@/features/agents/components/bloub-avatar";
 import type { SatellitePhase } from "@/features/agents/model/satellite-motion";
 import { ChatActivityRow } from "@/features/chat/components/chat-activity-row";
-import { ChatHeader } from "@/features/chat/components/chat-header";
+import { ChatHeaderTitle } from "@/features/chat/components/chat-header";
 import { presentChatActivity } from "@/features/chat/model/chat-activity";
 import type { ChatMessage } from "@/features/chat/model/chat-messages";
 import { SettingsSwitch } from "@/features/settings/components/settings-controls";
 import { useMobileWorkspaceSelector } from "@/features/workspace/context/mobile-workspace-context";
 import { reduceAgentActivity } from "@/features/workspace/model/agent-activity";
-import { runConversationCacheProbe } from "@/features/workspace/model/conversation-cache-probe";
 import { useText } from "@/shared/lib/text";
 
 const SIZES = [24, 36, 64, 88];
@@ -183,11 +182,7 @@ function SynchronizedChatPreview({
   const agent = useMobileWorkspaceSelector((workspace) =>
     workspace.agents.find((item) => item.serverId === workspace.activeServer.id),
   );
-  const [foreground, muted, canvas] = useCSSVariable([
-    "--openbot-text-primary",
-    "--openbot-text-secondary",
-    "--openbot-bg-canvas",
-  ]);
+  const [foreground, muted] = useCSSVariable(["--openbot-text-primary", "--openbot-text-secondary"]);
   const fixture = useMemo(() => previewActivity(phase, showReply), [phase, showReply]);
   const { presentation, checks } = fixture;
   useEffect(() => {
@@ -212,15 +207,8 @@ function SynchronizedChatPreview({
   return (
     <SatelliteMotionProvider agentId={agent.id} serverId={agent.serverId} phase={presentation.phase} enabled={animate}>
       <View style={{ minHeight: 160 }}>
-        <View style={{ height: 140 }}>
-          <ChatHeader
-            target={{ ...agent, kind: "agent" }}
-            fallbackBackground={String(canvas)}
-            foreground={String(foreground)}
-            liquidGlassAvailable={false}
-            topInset={0}
-            onBack={() => router.back()}
-          />
+        <View style={{ minHeight: 140 }}>
+          <ChatHeaderTitle target={{ ...agent, kind: "agent" }} />
         </View>
         {showReply ? (
           <View className="gap-2 px-4 pb-3">
@@ -261,6 +249,8 @@ export function SatelliteMotionPreviewScreen() {
       : "thinking";
   useEffect(() => {
     if (!__DEV__ || params.cache !== "1") return;
+    const { runConversationCacheProbe }: typeof import("@/features/workspace/model/conversation-cache-probe") =
+      require("@/features/workspace/model/conversation-cache-probe");
     let cancelled = false;
     globalThis.__OPENBOT_CHAT_CACHE_PREVIEW__ = { ready: false, checks: {} };
     void runConversationCacheProbe().then(

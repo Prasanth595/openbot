@@ -8,6 +8,8 @@ export function ScrollTouchArea({ children }: PropsWithChildren) {
   if (!isIOS) return <View style={{ flex: 1 }}>{children}</View>;
   const props: ClippingScrollViewProps = {
     style: { flex: 1 },
+    // Keep the native first-child path stable for large titles and scroll-edge effects.
+    collapsable: false,
     applyWorkaroundForContentInsetHitTestBug: true,
   };
   return <ClippingScrollView {...props}>{children}</ClippingScrollView>;

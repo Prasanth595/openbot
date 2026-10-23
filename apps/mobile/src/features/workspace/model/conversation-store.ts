@@ -42,7 +42,6 @@ export class MobileConversationStore {
   ) {}
 
   get(agentId: string, serverId: string) {
-    this.#evict();
     return this.#entries.get(conversationKey(agentId, serverId, this.accountScope));
   }
 
@@ -74,6 +73,8 @@ export class MobileConversationStore {
   }
 
   #restore(key: string) {
+    // A response for the expanded window must not change the restored latest page.
+    this.#olderLoads.delete(key);
     const cached = this.#latest.get(key);
     if (!cached) {
       this.#remove(key);

@@ -53,7 +53,7 @@ function RowActions({
 
   return (
     <Animated.View
-      className="flex-row items-stretch gap-1 py-1 pr-2"
+      className="flex-row self-stretch items-stretch"
       style={[{ width: PIN_REVEAL_DISTANCE }, actionStyle]}
       accessibilityElementsHidden={!revealed}
       importantForAccessibility={revealed ? "auto" : "no-hide-descendants"}
@@ -63,7 +63,7 @@ function RowActions({
         accessibilityRole="button"
         accessibilityState={{ disabled: readDisabled }}
         disabled={readDisabled}
-        className="min-w-0 flex-1 items-center justify-center gap-1 rounded-xl px-1"
+        className="min-w-0 flex-1 items-center justify-center gap-1 px-1"
         onPress={onRead}
         style={({ pressed }) => ({ backgroundColor: accent, opacity: readDisabled ? 0.45 : pressed ? 0.72 : 1 })}
       >
@@ -80,7 +80,7 @@ function RowActions({
         accessibilityState={{ disabled: pinBlocked }}
         accessibilityHint={pinBlocked ? t("mobile.agent.pin.limitReached") : undefined}
         disabled={pinBlocked}
-        className="min-w-0 flex-1 items-center justify-center gap-1 rounded-xl px-1"
+        className="min-w-0 flex-1 items-center justify-center gap-1 px-1"
         onPress={onPress}
         style={({ pressed }) => ({ backgroundColor: control, opacity: pinBlocked ? 0.45 : pressed ? 0.72 : 1 })}
       >

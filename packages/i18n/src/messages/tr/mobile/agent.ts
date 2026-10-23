@@ -2,6 +2,20 @@ import type { PartialTranslation } from "../../../message";
 import type { messages as source } from "../../en/mobile/agent";
 
 export const messages = {
+  "mobile.agent.team.title": "Ekibiniz",
+  "mobile.agent.team.agents": { one: "{count} AJAN", other: "{count} AJAN" },
+  "mobile.agent.team.groups": { one: "{count} GRUP", other: "{count} GRUP" },
+  "mobile.agent.team.lead": "LİDER AJAN",
+  "mobile.agent.team.openChat": "Sohbeti aç",
+  "mobile.agent.team.sectionCount": "{count} + LİDER",
+  "mobile.agent.team.tabTeam": "Ekip",
+  "mobile.agent.team.tabTasks": "Görevler",
+  "mobile.agent.team.tabRoutines": "Rutinler",
+  "mobile.agent.team.tabMarket": "Market",
+  "mobile.agent.team.tabSettings": "Ayarlar",
+  "mobile.agent.team.previewTitle": "Tasarım önizlemesi",
+  "mobile.agent.team.previewBody":
+    "Bu önizleme örnek ajanlar kullanır. Ekibinizle sohbet, arama ve gezinmeyi kullanmak için oturum açın.",
   "mobile.agent.session.title": "Sağlayıcı ayarları",
   "mobile.agent.session.failed": "Sağlayıcı ayarları değiştirilemedi.",
   "mobile.agent.session.readFailed": "Sağlayıcı ayarları okunamadı.",
@@ -41,6 +55,8 @@ export const messages = {
   "mobile.agent.menu.deleteBody": "Bu işlem ajanı bu sunucudan kaldırır.",
   "mobile.agent.menu.markRead": "Okundu olarak işaretle",
   "mobile.agent.menu.markUnread": "Okunmadı olarak işaretle",
+  "mobile.agent.menu.makeLead": "Lider olarak ayarla",
+  "mobile.agent.menu.removeLead": "Liderliği kaldır",
   "mobile.agent.menu.hide": "Gizle",
   "mobile.agent.menu.info": "Bilgi",
   "mobile.agent.menu.more": "Daha fazla",
@@ -294,6 +310,8 @@ export const messages = {
   "mobile.agent.runtime.accountNumbered": "Hesap {number}",
   "mobile.agent.runtime.accountUnsupported": "Bu ana makine uzak bir cihazdan ajan hesabını değiştiremez.",
   "mobile.agent.runtime.model": "Model",
+  "mobile.agent.runtime.moreModels": "Daha fazla model",
+  "mobile.agent.runtime.showFewerModels": "Daha az model",
   "mobile.agent.runtime.reasoning": "Akıl yürütme",
   "mobile.agent.runtime.effort.low": "Düşük",
   "mobile.agent.runtime.effort.medium": "Orta",

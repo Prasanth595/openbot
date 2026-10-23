@@ -7,6 +7,7 @@ import { View } from "react-native";
 import { useUsageSeriesColor } from "@/features/agents/components/usage-chart";
 import { UsageBar, UsageValue } from "@/features/agents/components/usage-motion";
 import { UsageDailyBars } from "@/features/servers/components/usage-daily-bars";
+import { NativeSegmentedControl } from "@/shared/components/native-segmented-control";
 import { useText } from "@/shared/lib/text";
 
 export type UsageMetric = "processedTokens" | "estimatedCostUsd";
@@ -271,28 +272,13 @@ export function ServerUsageReport({
         >
           {t("mobile.server.usage.breakdown")}
         </Typography.Heading>
-        <View className="h-10 flex-row gap-1 rounded-full border border-grouped-border bg-grouped p-1">
-          {breakdownOptions.map((option) => (
-            <Button
-              key={option.value}
-              variant="ghost"
-              className={`h-full min-h-0 flex-1 rounded-full px-1 py-0 ${effectiveBreakdown === option.value ? "bg-action" : ""}`}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: effectiveBreakdown === option.value }}
-              onPress={() => {
-                if (option.value === "agent" || option.value === "model" || option.value === "day")
-                  setBreakdown(option.value);
-              }}
-            >
-              <Button.Label
-                className={effectiveBreakdown === option.value ? "text-action-foreground" : "text-grouped-secondary"}
-                style={{ fontFamily: "Inter", fontSize: 14, lineHeight: 20, fontWeight: "600" }}
-              >
-                {option.label}
-              </Button.Label>
-            </Button>
-          ))}
-        </View>
+        <NativeSegmentedControl
+          options={breakdownOptions}
+          value={effectiveBreakdown}
+          onChange={(value) => {
+            if (value === "agent" || value === "model" || value === "day") setBreakdown(value);
+          }}
+        />
         <View className="overflow-hidden border border-grouped-border bg-grouped" style={{ borderRadius: 14 }}>
           {effectiveBreakdown === "agent" ? (
             result.agents.length ? (

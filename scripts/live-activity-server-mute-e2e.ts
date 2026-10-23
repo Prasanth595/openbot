@@ -2,7 +2,7 @@
 // server that the user muted, or set to notify about "Nothing", does not start or update the
 // activity, and its host does not get the push token that updates it. A change ends or starts the
 // activity at once, also while it runs, and a timed mute that ends shows the server again.
-// Avatar failures also recover with a bounded retry before the host can name the saved files.
+// Avatar failures get a bounded retry. A permanent failure keeps push registration and the symbol fallback.
 //
 // It renders the real mobile hook (`useLiveActivity`) with React, with the real settings stores, the
 // Dynamic Island coordinator, the Live Activity view, and `LiveActivitySync`. Only the boundaries
@@ -43,6 +43,7 @@ interface ActivityRecord {
 
 const activities: ActivityRecord[] = [];
 const avatarFiles = new Set<string>();
+let missingAvatars = new Set<string>();
 const avatarAttempts = new Map<string, number>();
 type AvatarFailure = "render-null" | "render-throw" | "save-null" | "save-throw";
 let avatarFault: { kind: AvatarFailure; remaining: number; onFailure?: () => void } | null = null;
@@ -97,6 +98,9 @@ const native = {
     return file;
   },
   hasAvatar: (file: string) => avatarFiles.has(file),
+  setMissingAvatars: (files: readonly string[]) => {
+    missingAvatars = new Set(files);
+  },
   renderBloub: (seed: string, hue: null, mood: (typeof LIVE_ACTIVITY_MOODS)[number]) => {
     const file = liveActivityBloubFile(seed, hue, mood);
     avatarAttempts.set(file, (avatarAttempts.get(file) ?? 0) + 1);
@@ -263,7 +267,12 @@ const requests: { serverId: string; path: string; token?: string; away?: boolean
 const post: Post = async (serverId, path, body) => {
   if (path === LIVE_ACTIVITY_PUSH_ROUTES.register) {
     // The real host derives these fallback names when no agent photo was registered.
-    if (LIVE_ACTIVITY_MOODS.some((mood) => !avatarFiles.has(liveActivityBloubFile(`seed-${serverId}`, null, mood))))
+    if (
+      LIVE_ACTIVITY_MOODS.some((mood) => {
+        const file = liveActivityBloubFile(`seed-${serverId}`, null, mood);
+        return !avatarFiles.has(file) && !missingAvatars.has(file);
+      })
+    )
       invalidAvatarRegistrations += 1;
   }
   const token = typeof body === "object" && body !== null && "token" in body ? String(body.token) : undefined;
@@ -336,6 +345,7 @@ async function startSession(
   requests.length = 0;
   keychain.clear();
   avatarFiles.clear();
+  missingAvatars.clear();
   avatarAttempts.clear();
   avatarFailures = 0;
   invalidAvatarRegistrations = 0;
@@ -483,35 +493,42 @@ const cases: [string, () => Promise<CaseResult>][] = [
       },
     ],
   ),
-  [
-    "a permanent avatar failure stops and a later foreground change can recover",
-    async () => {
-      avatarFault = { kind: "render-null", remaining: Number.POSITIVE_INFINITY };
-      let session: Awaited<ReturnType<typeof startSession>> | undefined;
-      try {
-        session = await startSession([SERVER_A], {});
-        await waitFor("both bounded avatar attempts fail", () => avatarFailures === 2);
-        // Let queued React work finish. A failed preparation must not schedule another render.
-        await new Promise((done) => setImmediate(done));
-        assert.equal(avatarAttempts.get(FAILED_AVATAR), 2);
-        assert.equal(everRegisteredWith(SERVER_A), false, "Missing fallback files must block host registration.");
-        assert.ok(shows(SERVER_A), "The app can still show the current activity.");
-        avatarFault = null;
-        session.setForeground(false);
-        await waitFor("a new preparation repairs the cached failure", () => registeredWith(SERVER_A));
-        assert.equal(avatarAttempts.get(FAILED_AVATAR), 3);
-        assert.equal(invalidAvatarRegistrations, 0);
-        return {
-          name: "permanent avatar failure and later recovery",
-          passed: true,
-          checks: { attemptsBounded: true, noUnsafeRegistration: true, foregroundChangeRecovers: true },
-        };
-      } finally {
-        session?.root.unmount();
-        avatarFault = null;
-      }
-    },
-  ],
+  ...(["render-null", "render-throw", "save-null", "save-throw"] as const).map(
+    (kind): [string, () => Promise<CaseResult>] => [
+      `a permanent ${kind} avatar failure keeps push registration and can recover`,
+      async () => {
+        avatarFault = { kind, remaining: Number.POSITIVE_INFINITY };
+        let session: Awaited<ReturnType<typeof startSession>> | undefined;
+        try {
+          session = await startSession([SERVER_A], {});
+          await waitFor("the host registers with a missing avatar", () => registeredWith(SERVER_A));
+          assert.equal(avatarFailures, 2);
+          assert.equal(avatarAttempts.get(FAILED_AVATAR), 2);
+          assert.ok(missingAvatars.has(FAILED_AVATAR), "The widget must use the mode symbol for the missing file.");
+          assert.equal(invalidAvatarRegistrations, 0);
+          assert.ok(shows(SERVER_A), "The app can still show the current activity.");
+          avatarFault = null;
+          session.setForeground(false);
+          await waitFor("a new preparation repairs the cached failure", () => !missingAvatars.has(FAILED_AVATAR));
+          assert.equal(avatarAttempts.get(FAILED_AVATAR), 3);
+          assert.equal(invalidAvatarRegistrations, 0);
+          return {
+            name: `permanent ${kind} avatar failure and later recovery`,
+            passed: true,
+            checks: {
+              attemptsBounded: true,
+              hostRegistered: true,
+              symbolFallback: true,
+              foregroundChangeRecovers: true,
+            },
+          };
+        } finally {
+          session?.root.unmount();
+          avatarFault = null;
+        }
+      },
+    ],
+  ),
   [
     "a host change cancels the failed avatar preparation before its retry",
     async () => {

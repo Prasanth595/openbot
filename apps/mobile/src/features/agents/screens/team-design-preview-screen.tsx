@@ -1,4 +1,4 @@
-import { Redirect } from "expo-router";
+import { Redirect, Stack } from "expo-router";
 import { useState } from "react";
 import { Alert, FlatList, Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -10,7 +10,6 @@ import {
   TeamMoreIcon,
   TeamOrb,
   TeamSectionHeading,
-  TeamTabs,
   TeamTitle,
 } from "@/features/agents/components/team-home-parts";
 import type { MobileAgent } from "@/features/workspace/model/workspace-types";
@@ -116,14 +115,16 @@ export function TeamDesignPreviewScreen() {
         onWorkspace={explainPreview}
         onSearch={explainPreview}
         options={
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("mobile.agent.home.chatOptions")}
-            onPress={explainPreview}
-            style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}
-          >
-            <TeamMoreIcon />
-          </Pressable>
+          <Stack.Toolbar.View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("mobile.agent.home.chatOptions")}
+              onPress={explainPreview}
+              style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}
+            >
+              <TeamMoreIcon />
+            </Pressable>
+          </Stack.Toolbar.View>
         }
       />
       <FlatList
@@ -189,7 +190,6 @@ export function TeamDesignPreviewScreen() {
           </View>
         )}
       />
-      <TeamTabs onSelect={explainPreview} />
     </View>
   );
 }

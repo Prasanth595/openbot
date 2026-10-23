@@ -7,7 +7,6 @@ import { type ReactNode, useLayoutEffect, useMemo, useRef } from "react";
 import { Pressable, View, type ViewStyle } from "react-native";
 import { ChromeGlassSheen } from "@/shared/components/chrome-glass-sheen";
 import { useChromeGlass } from "@/shared/lib/chrome-glass";
-import { haptics } from "@/shared/lib/haptics";
 import { isAndroid } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
 
@@ -89,10 +88,7 @@ function AndroidStackBackButton({ glass: hasGlass, onPress }: { glass: boolean; 
       accessibilityLabel={t("common.back")}
       android_ripple={ICON_RIPPLE}
       className="size-12 items-center justify-center rounded-full"
-      onPress={() => {
-        void haptics.impact("soft");
-        onPress();
-      }}
+      onPress={onPress}
     >
       <GlassCircle glass={hasGlass ? glass : undefined}>
         <ArrowLeft color={String(foreground)} size={22} strokeWidth={2} />

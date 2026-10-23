@@ -3,12 +3,11 @@ import type { MobileTextKey } from "@openbot/i18n/mobile";
 import { nextValidRoutineOccurrence } from "@openbot/team-client/routine-schedule";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Crypto from "expo-crypto";
-import { router, useFocusEffect, useIsFocused, useLocalSearchParams, useNavigation } from "expo-router";
+import { router, Stack, useFocusEffect, useIsFocused, useLocalSearchParams, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
 import { Button, Typography } from "heroui-native";
 import AlarmClock from "lucide-react-native/icons/alarm-clock";
 import Check from "lucide-react-native/icons/check";
-import ChevronLeft from "lucide-react-native/icons/chevron-left";
 import Ellipsis from "lucide-react-native/icons/ellipsis";
 import Play from "lucide-react-native/icons/play";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -33,7 +32,9 @@ import { showsOnline } from "@/features/workspace/model/server-status";
 import type { MobileAgent } from "@/features/workspace/model/workspace-types";
 import { type MenuAction, MenuView } from "@/shared/components/menu-view";
 import { haptics } from "@/shared/lib/haptics";
+import { isAndroid } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
+import { useLiquidGlass } from "@/shared/lib/use-liquid-glass";
 
 const STATUS_TEXT = {
   queued: "mobile.server.routineDetail.status.queued",
@@ -57,6 +58,7 @@ const SOURCE_TEXT = {
 
 export function RoutineDetailScreen() {
   const text = useText();
+  const liquidGlass = useLiquidGlass();
   const { t, format, errorMessage } = text;
   const { agentId, serverId, recordId, runId } = useLocalSearchParams<{
     agentId: string;
@@ -147,7 +149,6 @@ export function RoutineDetailScreen() {
   const muted = String(useCSSVariable("--openbot-text-muted"));
   const canvas = String(useCSSVariable("--openbot-bg-canvas"));
   const glass = String(useCSSVariable("--openbot-bg-chrome-glass"));
-  const edge = String(useCSSVariable("--openbot-border-chrome-glass"));
   const ink = String(useCSSVariable("--openbot-text-on-light"));
   const raised = String(useCSSVariable("--openbot-bg-surface-raised"));
   const canEdit =
@@ -222,10 +223,9 @@ export function RoutineDetailScreen() {
     const request = sendRequest.current?.text === text ? sendRequest.current : { text, id: Crypto.randomUUID() };
     sendRequest.current = request;
     try {
-      const context = JSON.stringify({ routineId: routine.id, agentId, name: routine.name });
       const messageId = await workspace.sendMessage(
         agentId,
-        `Routine to edit: ${context}\n\n${text}`,
+        t("mobile.server.routineDetail.chatContext", { name: routine.name, id: routine.id, message: text }),
         [],
         null,
         hostId,
@@ -328,49 +328,53 @@ export function RoutineDetailScreen() {
   const source = selected
     ? t(SOURCE_TEXT[selected.kind === "scheduled" ? "scheduled" : (selected.source ?? "test")])
     : null;
-  const buttonStyle = {
-    width: 44,
-    height: 44,
-    minWidth: 44,
-    borderRadius: 999,
-    backgroundColor: glass,
-    borderColor: edge,
-    borderWidth: 1,
-  };
   return (
-    <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: canvas, paddingTop: insets.top }}>
-      <View style={styles.header}>
-        <Button
-          isIconOnly
-          variant="secondary"
-          accessibilityLabel={t("common.back")}
-          style={buttonStyle}
-          onPress={() => router.back()}
-        >
-          <ChevronLeft size={22} color={foreground} />
-        </Button>
-        <Typography.Paragraph style={[styles.kicker, { letterSpacing: 1.2 }]}>
-          {t("mobile.server.routineDetail.heading")}
-        </Typography.Paragraph>
-        <MenuView
-          colorScheme={theme === "dark" ? "dark" : "light"}
-          actions={actions}
-          onPressAction={({ nativeEvent }) => onMenu(nativeEvent.event)}
-        >
-          <View
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={t("mobile.agent.menu.more")}
-            style={[buttonStyle, styles.center]}
-          >
-            <Ellipsis size={20} color={foreground} />
-          </View>
-        </MenuView>
-      </View>
+    <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: canvas }}>
+      <Stack.Title large>{routine?.name ?? t("mobile.server.routineDetail.heading")}</Stack.Title>
+      {isAndroid ? (
+        // Android toolbar menus require an image source; keep the shared menu adapter and Lucide trigger.
+        <Stack.Screen
+          options={{
+            headerRight: () => (
+              <MenuView
+                colorScheme={theme === "dark" ? "dark" : "light"}
+                actions={actions}
+                onPressAction={({ nativeEvent }) => onMenu(nativeEvent.event)}
+              >
+                <View
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel={t("mobile.agent.menu.more")}
+                  className="size-12 items-center justify-center"
+                >
+                  <Ellipsis size={22} color={foreground} />
+                </View>
+              </MenuView>
+            ),
+          }}
+        />
+      ) : (
+        <Stack.Toolbar placement="right">
+          <Stack.Toolbar.Menu icon="ellipsis" accessibilityLabel={t("mobile.agent.menu.more")}>
+            {actions.map((action) => (
+              <Stack.Toolbar.MenuAction
+                key={action.id}
+                disabled={action.attributes?.disabled}
+                destructive={action.attributes?.destructive}
+                onPress={() => {
+                  if (action.id) onMenu(action.id);
+                }}
+              >
+                {action.title}
+              </Stack.Toolbar.MenuAction>
+            ))}
+          </Stack.Toolbar.Menu>
+        </Stack.Toolbar>
+      )}
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={styles.content}
-        contentInsetAdjustmentBehavior="never"
+        contentInsetAdjustmentBehavior="automatic"
         keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
         alwaysBounceVertical={false}
@@ -378,7 +382,6 @@ export function RoutineDetailScreen() {
         {routine ? (
           <>
             <View style={{ gap: 10 }}>
-              <Typography.Heading style={styles.title}>{routine.name}</Typography.Heading>
               <View className="flex-row flex-wrap items-center gap-2">
                 {status ? <RoutineStatus status={status} /> : null}
                 {lastTime ? (
@@ -499,7 +502,6 @@ export function RoutineDetailScreen() {
             <Play size={16} color={canvas} />
           </Button>
           <ChatComposer
-            layout="card"
             action={foreground}
             actionForeground={canvas}
             agentName={agent.name}
@@ -510,7 +512,7 @@ export function RoutineDetailScreen() {
             draft={draft}
             fallbackBackground={glass}
             foreground={foreground}
-            liquidGlassAvailable={false}
+            liquidGlassAvailable={liquidGlass}
             muted={muted}
             raised={raised}
             onChangeDraft={setDraft}
@@ -617,16 +619,7 @@ function RoutineStepCard({
 }
 
 const styles = StyleSheet.create({
-  header: {
-    height: 56,
-    paddingHorizontal: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  center: { alignItems: "center", justifyContent: "center" },
   content: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 24, gap: 16 },
-  title: { fontFamily: "Inter", fontSize: 30, lineHeight: 33, fontWeight: "500", letterSpacing: -1.2 },
   kicker: {
     fontFamily: "Inter",
     fontSize: 12,

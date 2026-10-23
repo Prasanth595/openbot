@@ -6,6 +6,7 @@ import { showFailureAlert } from "@/features/analytics/failure-reports";
 import { SettingsRow, SettingsSection } from "@/features/settings/components/settings-content";
 import { SettingsSwitch } from "@/features/settings/components/settings-controls";
 import { type MobileAgent, useMobileWorkspaceActions } from "@/features/workspace/context/mobile-workspace-context";
+import { ProfileRow } from "@/shared/components/profile-content";
 import { haptics } from "@/shared/lib/haptics";
 import { currentText, useText } from "@/shared/lib/text";
 
@@ -28,6 +29,8 @@ export function AgentNotificationsRow({
   // The requested value shows until the host answers, so the switch does not move back during the save.
   const [pending, setPending] = useState<boolean | null>(null);
   if (agent.notifications === undefined) return null;
+  const value = pending ?? agent.notifications;
+  const disabled = !available || pending !== null;
 
   async function save(notifications: boolean): Promise<void> {
     setPending(notifications);
@@ -49,15 +52,27 @@ export function AgentNotificationsRow({
   }
 
   return (
-    <SettingsRow leading={leading}>
-      <SettingsSwitch
-        value={pending ?? agent.notifications}
-        disabled={!available || pending !== null}
-        label={t("mobile.agent.notifications.title")}
-        dark={theme === "dark"}
-        onValueChange={(next) => void save(next)}
-      />
-    </SettingsRow>
+    <ProfileRow
+      leading={leading}
+      trailing={
+        <SettingsSwitch
+          value={value}
+          disabled={disabled}
+          label={t("mobile.agent.notifications.title")}
+          hideLabel
+          dark={theme === "dark"}
+          onValueChange={(next) => void save(next)}
+        />
+      }
+    >
+      <Typography.Paragraph
+        accessible={false}
+        onPress={disabled ? undefined : () => void save(!value)}
+        style={{ fontFamily: "Inter", fontSize: 16, lineHeight: 23, fontWeight: "500" }}
+      >
+        {t("mobile.agent.notifications.title")}
+      </Typography.Paragraph>
+    </ProfileRow>
   );
 }
 

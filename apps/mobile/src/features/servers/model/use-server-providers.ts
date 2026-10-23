@@ -7,6 +7,7 @@ import {
   useMobileWorkspaceActions,
   useMobileWorkspaceSelector,
 } from "@/features/workspace/context/mobile-workspace-context";
+import { invalidateProviderUsageQueries } from "@/features/workspace/model/provider-usage-cache";
 import { queryKeys } from "@/features/workspace/model/query-keys";
 
 /** The host sends no runtime event, so the runtimes are read again while a download runs, as on the web. */
@@ -30,8 +31,12 @@ export function useServerProviders(
   const statusKey = queryKeys.providerStatus(queryScope, serverId);
   const runtimesKey = queryKeys.providerRuntimes(queryScope, serverId);
   // The scope is a new array on each render, so the callbacks read the keys of the latest render.
-  const keys = useRef({ statusKey, runtimesKey });
-  keys.current = { statusKey, runtimesKey };
+  const keys = useRef({ statusKey, runtimesKey, queryScope, serverId });
+  keys.current = { statusKey, runtimesKey, queryScope, serverId };
+  const invalidateUsage = useCallback(
+    () => invalidateProviderUsageQueries(queryClient, keys.current.queryScope, keys.current.serverId),
+    [queryClient],
+  );
   /** Shows the status that an action answered, and stops an older read from replacing it. */
   const applyStatus = useCallback(
     async (next: AgentStatus) => {
@@ -86,5 +91,6 @@ export function useServerProviders(
     applyStatus,
     applyRuntimes,
     refreshStatus,
+    invalidateUsage,
   };
 }

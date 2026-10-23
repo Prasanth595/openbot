@@ -5,8 +5,8 @@ import * as Crypto from "expo-crypto";
 import { Link, router } from "expo-router";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { memo, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, StyleSheet, View } from "react-native";
+import { memo, type ReactElement, useEffect, useMemo, useRef, useState } from "react";
+import { Alert, StyleSheet, View, type ViewProps } from "react-native";
 import { useCSSVariable, useUniwind } from "uniwind";
 import { AgentPinAvatar } from "@/features/agents/components/agent-pin-avatar";
 import { AgentPinSwipeRow } from "@/features/agents/components/agent-pin-swipe-row";
@@ -37,7 +37,7 @@ function useChannelMenuActions(channel: ChannelSummary, serverId: string) {
   const sectionMenu = useChatSectionMenu(serverId, channel.id);
   const isPinned = useMobileWorkspaceSelector(({ pinnedChannelIds }) => pinnedChannelIds.includes(channel.id));
   const canPin = useMobileWorkspaceSelector(({ pinnedAgentIds, pinnedChannelIds }) =>
-    canToggleAgentPin([...pinnedAgentIds, ...pinnedChannelIds], channel.id, pinnedAgentIds[0] ?? null),
+    canToggleAgentPin([...pinnedAgentIds, ...pinnedChannelIds], channel.id),
   );
   const online = useMobileWorkspaceSelector(({ servers }) =>
     servers.some((server) => server.id === serverId && server.state === "online"),
@@ -143,42 +143,56 @@ function ChannelContextMenuLink({
 }: {
   channel: ChannelSummary;
   serverId: string;
-  children: ReactNode;
+  children: ReactElement<ViewProps>;
 }) {
   const { t } = useText();
   const { isPinned, canPin, canDelete, sectionMenu, handlePin, handleHide, handleInfo, handleCopyId, handleDelete } =
     useChannelMenuActions(channel, serverId);
   return (
-    <Link href={{ pathname: "/channel/[channelId]", params: { channelId: channel.id, serverId } }} asChild>
-      <Link.Trigger>{children}</Link.Trigger>
-      <Link.Menu>
-        <Link.MenuAction
-          icon={isPinned ? "pin.slash" : "pin"}
-          isOn={isPinned}
-          disabled={!canPin}
-          onPress={() => handlePin()}
-        >
-          {t(isPinned ? "mobile.agent.pin.unpin" : "mobile.agent.pin.pin")}
-        </Link.MenuAction>
-        <Link.MenuAction icon="eye.slash" onPress={handleHide}>
-          {t("mobile.agent.menu.hide")}
-        </Link.MenuAction>
-        {sectionMenu.menu}
-        <Link.MenuAction icon="info.circle" onPress={handleInfo}>
-          {t("mobile.agent.menu.info")}
-        </Link.MenuAction>
-        <Link.Menu icon="ellipsis" title={t("mobile.agent.menu.more")}>
-          <Link.MenuAction icon="doc.on.doc" onPress={handleCopyId}>
-            {t("mobile.agent.menu.copyId")}
+    <View
+      collapsable={false}
+      className="w-full"
+      accessible
+      accessibilityRole={children.props.accessibilityRole ?? "button"}
+      accessibilityLabel={children.props.accessibilityLabel}
+      accessibilityState={children.props.accessibilityState}
+      accessibilityActions={children.props.accessibilityActions}
+      onAccessibilityAction={children.props.onAccessibilityAction}
+      onAccessibilityTap={() =>
+        router.push({ pathname: "/channel/[channelId]", params: { channelId: channel.id, serverId } })
+      }
+    >
+      <Link href={{ pathname: "/channel/[channelId]", params: { channelId: channel.id, serverId } }} asChild>
+        <Link.Trigger>{children}</Link.Trigger>
+        <Link.Menu>
+          <Link.MenuAction
+            icon={isPinned ? "pin.slash" : "pin"}
+            isOn={isPinned}
+            disabled={!canPin}
+            onPress={() => handlePin()}
+          >
+            {t(isPinned ? "mobile.agent.pin.unpin" : "mobile.agent.pin.pin")}
           </Link.MenuAction>
-          {canDelete ? (
-            <Link.MenuAction destructive icon="trash" onPress={handleDelete}>
-              {t("common.delete")}
+          <Link.MenuAction icon="eye.slash" onPress={handleHide}>
+            {t("mobile.agent.menu.hide")}
+          </Link.MenuAction>
+          {sectionMenu.menu}
+          <Link.MenuAction icon="info.circle" onPress={handleInfo}>
+            {t("mobile.agent.menu.info")}
+          </Link.MenuAction>
+          <Link.Menu icon="ellipsis" title={t("mobile.agent.menu.more")}>
+            <Link.MenuAction icon="doc.on.doc" onPress={handleCopyId}>
+              {t("mobile.agent.menu.copyId")}
             </Link.MenuAction>
-          ) : null}
+            {canDelete ? (
+              <Link.MenuAction destructive icon="trash" onPress={handleDelete}>
+                {t("common.delete")}
+              </Link.MenuAction>
+            ) : null}
+          </Link.Menu>
         </Link.Menu>
-      </Link.Menu>
-    </Link>
+      </Link>
+    </View>
   );
 }
 
@@ -296,8 +310,7 @@ export const ChannelListRow = memo(function ChannelListRow({
   const { toggleChannelPinAnimated } = useAgentPinTransition();
   const isPinned = useMobileWorkspaceSelector(({ pinnedChannelIds }) => pinnedChannelIds.includes(channel.id));
   const pinBlocked = useMobileWorkspaceSelector(
-    ({ pinnedAgentIds, pinnedChannelIds }) =>
-      !canToggleAgentPin([...pinnedAgentIds, ...pinnedChannelIds], channel.id, pinnedAgentIds[0] ?? null),
+    ({ pinnedAgentIds, pinnedChannelIds }) => !canToggleAgentPin([...pinnedAgentIds, ...pinnedChannelIds], channel.id),
   );
   const disconnected = useMobileWorkspaceSelector(
     ({ servers }) => !servers.some((server) => server.id === serverId && server.state === "online"),

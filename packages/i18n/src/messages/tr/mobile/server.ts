@@ -199,6 +199,7 @@ export const messages = {
   "mobile.server.routineDetail.resume": "Rutini sürdür",
   "mobile.server.routineDetail.edit": "Rutini düzenle",
   "mobile.server.routineDetail.ask": "Bir ajandan bu rutini düzenlemesini iste",
+  "mobile.server.routineDetail.chatContext": "“{name}” ({id}) rutini hakkında:\n\n{message}",
   "mobile.server.routineDetail.emptyRuns": "Bu rutin henüz çalıştırılmadı.",
   "mobile.server.routineDetail.stepsUnavailable": "Bu ana makine çalıştırma adımlarını sağlamıyor.",
   "mobile.server.routineDetail.olderSteps": "Adımlar yalnızca son çalıştırma için kullanılabilir.",

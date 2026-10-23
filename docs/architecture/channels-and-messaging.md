@@ -11,8 +11,9 @@ its activity with the active host (`live-activity-push-v1`, `POST /v1/live-activ
 with `away: true` when it leaves the foreground. `LiveActivityPushService` in `src/main` keeps the
 registration in memory for that session. While the phone is away, each agent event (at most once a
 second) reads the runtime snapshot of the agents the member can see and the member's read state,
-builds the props, and sends a change. A change of state has priority 10; a change inside a state
-waits 5 seconds and has priority 5. An unchanged state is sent again every 10 minutes, so its stale
+builds the props, and sends a change. All sends share a one-second minimum interval; pending
+events use the newest state. A change of state has priority 10; a change inside a state waits
+5 seconds and has priority 5. An unchanged state is sent again every 10 minutes, so its stale
 date moves on; a host that sleeps stops this, and the view then shows that it is out of date. An idle
 state ends the activity.
 
@@ -79,8 +80,8 @@ can end at any time after the member leaves the computer. While the phone shows 
 this host that iOS still updates (8 hours from its start, which the phone gives because a host that
 restarted does not know it), the host sends no notification
 (`LiveActivityPushService.showsEvent`). With a sound (Settings > Notifications > Sound), the next
-update of the activity alerts at once, so iOS lights up the screen, shows the activity, and plays
-that sound; with Play sound off, the activity updates silently. iOS does not tell the host when
+update of the activity alerts within the one-second send limit, so iOS lights up the screen,
+shows the activity, and plays that sound; with Play sound off, the activity updates silently. iOS does not tell the host when
 the user removes the activity, so until the app runs again such an event shows nowhere.
 
 `push-notification-seal.ts` seals the notification with keys of their own, made from the host secret.

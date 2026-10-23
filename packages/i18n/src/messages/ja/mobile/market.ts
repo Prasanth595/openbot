@@ -18,7 +18,6 @@ export const messages = {
   "mobile.market.empty": "一致する項目はありません。",
   "mobile.market.loading": "カタログを読み込み中…",
   "mobile.market.loadFailed": "カタログを読み込めませんでした。",
-  "mobile.market.more": "さらに読み込む",
   "mobile.market.add": "追加",
   "mobile.market.install": "インストール",
   "mobile.market.added": "追加済み",

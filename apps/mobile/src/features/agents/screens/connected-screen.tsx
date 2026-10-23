@@ -1,6 +1,6 @@
 import type { ChannelSummary, SidebarLayoutSnapshot } from "@openbot/contracts/ipc";
 import { BlurTargetView } from "expo-blur";
-import { type Href, router } from "expo-router";
+import { type Href, router, Stack } from "expo-router";
 import { Button, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
 import Layers3 from "lucide-react-native/icons/layers";
@@ -16,7 +16,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { StyleSheet, View } from "react-native";
+import { RefreshControl, StyleSheet, View } from "react-native";
 import Animated, {
   cancelAnimation,
   Easing,
@@ -42,7 +42,7 @@ import { AgentWaitingGroupHeader } from "@/features/agents/components/agent-wait
 import { EmptyAgentsScene, type WelcomeHandOff } from "@/features/agents/components/empty-agents-scene";
 import { PinnedAgentsGrid } from "@/features/agents/components/pinned-agents-grid";
 import { SidebarSectionHeader } from "@/features/agents/components/sidebar-section-header";
-import { TeamHeader, TeamMoreIcon, TeamTitle } from "@/features/agents/components/team-home-parts";
+import { TeamHeader, TeamTitle } from "@/features/agents/components/team-home-parts";
 import { TeamLeadAgent } from "@/features/agents/components/team-lead-agent";
 import { showFailureAlert } from "@/features/analytics/failure-reports";
 import { ChannelListRow } from "@/features/channels/components/channel-list";
@@ -50,9 +50,9 @@ import { useChannels } from "@/features/channels/components/use-channels";
 import { OnboardingFlow } from "@/features/onboarding/components/onboarding-flow";
 import { useOnboardingGate } from "@/features/onboarding/model/use-onboarding-gate";
 import {
-  HOME_SEARCH_HEIGHT,
   HomeSearchBar,
   HomeSearchList,
+  HomeSearchNavigation,
   HomeSearchResults,
   useHomeSearch,
 } from "@/features/search/components/home-search";
@@ -71,11 +71,12 @@ import {
 import { showsOnline } from "@/features/workspace/model/server-status";
 import {
   type MobileSidebarItem,
+  mobileLeadAgent,
   mobileSidebarItems,
   mobileWaitingItems,
 } from "@/features/workspace/model/sidebar-layout";
 import { useAppLoadingOverlay, useScreenLoadingLabel } from "@/shared/components/app-loading-overlay";
-import { type MenuAction, MenuView } from "@/shared/components/menu-view";
+import type { MenuAction } from "@/shared/components/menu-view";
 import { useChromeGlass } from "@/shared/lib/chrome-glass";
 import { haptics } from "@/shared/lib/haptics";
 import { isAndroid } from "@/shared/lib/platform";
@@ -219,7 +220,9 @@ function SearchBlurTarget({ target, children }: { target: RefObject<View | null>
   if (!isAndroid) return children;
   return (
     <BlurTargetView ref={target} style={{ flex: 1 }}>
-      <View className="flex-1 bg-team-canvas">{children}</View>
+      <View collapsable={false} className="flex-1 bg-team-canvas">
+        {children}
+      </View>
     </BlurTargetView>
   );
 }
@@ -242,6 +245,7 @@ export function ConnectedScreen() {
   const hiddenAgents = useMobileWorkspaceSelector((current) => current.hiddenAgents);
   const markAllRead = useMobileWorkspaceSelector((current) => current.markAllRead);
   const pinnedAgentIds = useMobileWorkspaceSelector((current) => current.pinnedAgentIds);
+  const leadAgentId = useMobileWorkspaceSelector((current) => current.leadAgentId);
   const pinnedChannelIds = useMobileWorkspaceSelector((current) => current.pinnedChannelIds);
   const hiddenChannelIds = useMobileWorkspaceSelector((current) => current.hiddenChannelIds);
   const serverDirectoryError = useMobileWorkspaceSelector((current) => current.serverDirectoryError);
@@ -333,13 +337,7 @@ export function ConnectedScreen() {
       .finally(() => setMarkingAllRead(false));
   };
   const sidebar = sidebarByServer[activeServer.id];
-  const leadAgent = useMemo(
-    () =>
-      pinnedAgents[0] ??
-      mobileSidebarItems(sidebar?.layout ?? null, activeAgents, [], undefined, t).find((item) => item.kind === "agent")
-        ?.agent,
-    [pinnedAgents, sidebar?.layout, activeAgents, t],
-  );
+  const leadAgent = useMemo(() => mobileLeadAgent(activeAgents, leadAgentId), [activeAgents, leadAgentId]);
   const unpinnedAgents = useMemo(() => {
     const pinned = new Set(pinnedAgentIds);
     return activeAgents.filter((agent) => !pinned.has(agent.id) || agent.id === leadAgent?.id);
@@ -529,9 +527,33 @@ export function ConnectedScreen() {
     ];
   }, [hasHiddenChats, hasDeletedChannels, hasSelectedServer, canMarkAllRead, channels.supported, sidebar?.layout, t]);
 
+  const selectOption = (id: string) => {
+    if (id === "add-section") openFromMenu({ pathname: "/section-form", params: { serverId: activeServer.id } });
+    if (id === "add-agent") openFromMenu("/add-agent");
+    if (id === "add-channel") openFromMenu({ pathname: "/add-channel", params: { serverId: activeServer.id } });
+    if (id === "settings") openFromMenu("/settings");
+    if (id === "hidden-chats") openFromMenu("/hidden-chats");
+    if (id === "deleted-chats") openFromMenu({ pathname: "/deleted-chats", params: { serverId: activeServer.id } });
+    if (id === "mark-all-read") markAllChatsRead();
+  };
+  const [refreshing, setRefreshing] = useState(false);
+  const refresh = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      if (hasSelectedServer) await workspace().refreshServer(activeServer.id);
+      else await workspace().refreshServers();
+    } catch (error) {
+      showFailureAlert(error, "settings", t("mobile.agent.home.serversFailed"));
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   return (
-    <View className="flex-1 bg-team-canvas">
-      {headerActions && !search.mounted ? (
+    <View collapsable={false} className="flex-1 bg-team-canvas">
+      <Stack.Screen options={{ headerShown: headerActions }} />
+      {headerActions ? (
         <TeamHeader
           name={activeServer.name}
           onWorkspace={openDrawer}
@@ -546,43 +568,57 @@ export function ConnectedScreen() {
               />
             ) : null
           }
-          onSearch={() => {
-            search.openSearch();
-            search.input.current?.focus();
-          }}
+          onSearch={
+            searchShows
+              ? () => {
+                  search.openSearch();
+                  search.nativeSearch.current?.focus();
+                }
+              : undefined
+          }
+          connectionStatus={
+            hasSelectedServer && !activeServer.initialConnectionPending && !activeServerOnline ? (
+              <ConnectionHeaderStatus server={activeServer} />
+            ) : null
+          }
           options={
-            <MenuView
-              actions={optionsActions}
-              onPressAction={({ nativeEvent }) => {
-                if (nativeEvent.event === "add-section")
-                  openFromMenu({ pathname: "/section-form", params: { serverId: activeServer.id } });
-                if (nativeEvent.event === "add-agent") openFromMenu("/add-agent");
-                if (nativeEvent.event === "add-channel")
-                  openFromMenu({ pathname: "/add-channel", params: { serverId: activeServer.id } });
-                if (nativeEvent.event === "settings") openFromMenu("/settings");
-                if (nativeEvent.event === "hidden-chats") openFromMenu("/hidden-chats");
-                if (nativeEvent.event === "deleted-chats")
-                  openFromMenu({ pathname: "/deleted-chats", params: { serverId: activeServer.id } });
-                if (nativeEvent.event === "mark-all-read") markAllChatsRead();
-              }}
+            <Stack.Toolbar.Menu
+              icon={isAndroid ? undefined : "ellipsis"}
+              accessibilityLabel={t("mobile.agent.home.chatOptions")}
             >
-              <View
-                accessible
-                accessibilityRole="button"
-                accessibilityLabel={t("mobile.agent.home.chatOptions")}
-                style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}
-              >
-                <TeamMoreIcon />
-              </View>
-            </MenuView>
+              <Stack.Toolbar.Label>{t("mobile.agent.home.chatOptions")}</Stack.Toolbar.Label>
+              {optionsActions.map((group) =>
+                group.subactions ? (
+                  <Stack.Toolbar.Menu key={group.id} inline>
+                    {group.subactions.map((action) => (
+                      <Stack.Toolbar.MenuAction
+                        key={action.id}
+                        disabled={action.attributes?.disabled}
+                        onPress={() => {
+                          if (action.id) selectOption(action.id);
+                        }}
+                      >
+                        {action.title}
+                      </Stack.Toolbar.MenuAction>
+                    ))}
+                  </Stack.Toolbar.Menu>
+                ) : (
+                  <Stack.Toolbar.MenuAction
+                    key={group.id}
+                    disabled={group.attributes?.disabled}
+                    onPress={() => {
+                      if (group.id) selectOption(group.id);
+                    }}
+                  >
+                    {group.title}
+                  </Stack.Toolbar.MenuAction>
+                ),
+              )}
+            </Stack.Toolbar.Menu>
           }
         />
       ) : null}
-      {headerActions && hasSelectedServer && !activeServer.initialConnectionPending && !activeServerOnline ? (
-        <View style={{ paddingHorizontal: 20 }}>
-          <ConnectionHeaderStatus server={activeServer} />
-        </View>
-      ) : null}
+      {searchShows ? <HomeSearchNavigation search={search} /> : null}
       <SearchBlurTarget target={searchBlurTarget}>
         <HomeSearchList search={search} barHeight={searchBarOffset}>
           {onboarding.active ? null : sceneShows ? (
@@ -602,17 +638,17 @@ export function ConnectedScreen() {
               skipEnteringExitingAnimations
               removeClippedSubviews={false}
               className="flex-1 bg-team-canvas"
-              alwaysBounceVertical={false}
+              alwaysBounceVertical
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} />}
               contentContainerClassName={items.length > 0 ? undefined : "grow"}
-              // Android has no content inset, so the list starts below the transparent header. The end of
-              // the list scrolls clear of the search field.
+              // The native header owns iOS insets. The task composer is only mounted during search.
               contentContainerStyle={{
                 paddingTop: 0,
-                paddingBottom: HOME_SEARCH_HEIGHT + 24,
+                paddingBottom: 24,
               }}
               scrollEventThrottle={16}
               // Keep the native header inset even when short content cannot scroll or bounce.
-              contentInsetAdjustmentBehavior="never"
+              contentInsetAdjustmentBehavior="automatic"
               data={items}
               keyExtractor={listItemKey}
               renderItem={renderItem}
@@ -730,7 +766,7 @@ export function ConnectedScreen() {
       {/* The results lie over the bar's edge, so its blur cannot soften them; they have their own. */}
       {searchShows ? <HomeSearchResults search={search} barHeight={searchBarOffset} /> : null}
 
-      {searchShows ? (
+      {searchShows && (search.target || search.result) ? (
         <View
           pointerEvents={search.mounted ? "box-none" : "none"}
           style={[StyleSheet.absoluteFill, { opacity: search.mounted ? 1 : 0 }]}

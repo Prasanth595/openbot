@@ -183,7 +183,11 @@ export function useLiveActivity({
   const keptAvatars = useRef(0);
   const keepAvatars = useCallback(() => {
     keptAvatars.current = avatars.current.size;
-    live?.native.removeAvatars(new Set([...avatars.current.values()].filter((file) => file !== null)));
+    try {
+      live?.native.removeAvatars(new Set([...avatars.current.values()].filter((file) => file !== null)));
+    } catch {
+      // A file cleanup failure must not stop an activity update or push registration.
+    }
   }, [live]);
 
   /** The file of a drawn bloub. It draws the picture the first time. */
@@ -556,11 +560,12 @@ export function useLiveActivity({
     const serverAgents = agents.filter((agent) => agent.serverId === pushServerId);
     const prepare = () => {
       void (async () => {
-        // The host names only pictures that exist, so the phone draws each face before the host needs it.
+        // Prepare each face before the host needs it. Missing files use the mode symbol.
+        const missingAvatars: string[] = [];
         let drawn = 0;
         for (const agent of serverAgents) {
           if (agent.avatarUrl) loadPhotoRef.current(pushServerId, agent.id, agent.avatarUrl);
-          // A photo may still be loading. Every fallback face must also exist before registration.
+          // A photo may still be loading, so also prepare each fallback face.
           for (const mood of LIVE_ACTIVITY_MOODS) {
             const file = liveActivityBloubFile(agent.avatarSeed, agent.avatarHue, mood);
             if (live.native.hasAvatar(file)) {
@@ -569,12 +574,14 @@ export function useLiveActivity({
             }
             let written = bloubFile(agent, mood);
             if (!written || !live.native.hasAvatar(written)) {
-              // A temporary drawing or App Group failure must not block this host until sign-out.
-              // Yield before one more attempt. A permanent failure waits for a new preparation.
+              // Yield before one more attempt. A failed file must not block push registration.
               await new Promise((resolve) => setTimeout(resolve, 0));
               if (cancelled || disposed.current) return;
               written = bloubFile(agent, mood, true);
-              if (!written || !live.native.hasAvatar(written)) return;
+              if (!written || !live.native.hasAvatar(written)) {
+                missingAvatars.push(file);
+                continue;
+              }
             }
             drawn += 1;
             if (drawn % BLOUBS_PER_PAUSE === 0) await new Promise((resolve) => setTimeout(resolve, 0));
@@ -582,6 +589,11 @@ export function useLiveActivity({
           }
         }
         if (cancelled || disposed.current) return;
+        try {
+          live.native.setMissingAvatars(missingAvatars);
+        } catch {
+          // The App Group can also refuse the layout write. The host still needs the token.
+        }
         keepAvatars();
         const registration: LiveActivityPushRegistration = {
           serverId: pushServerId,

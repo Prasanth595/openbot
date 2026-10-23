@@ -5,7 +5,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { Button, Typography } from "heroui-native";
 import Inbox from "lucide-react-native/icons/inbox";
 import { useState } from "react";
-import { Pressable, View } from "react-native";
+import { Pressable, RefreshControl, View } from "react-native";
 import { useCSSVariable } from "uniwind";
 import { TaskListRow } from "@/features/servers/components/task-list-row";
 import { WorkScreen } from "@/features/servers/components/work-screen";
@@ -38,9 +38,19 @@ export function ServerTasksScreen() {
     ? agentId
     : undefined;
   const server = servers.find((item) => item.id === serverId);
-  const { agents, tasks: serverTasks, online, supported, ready, retry } = useServerTasks(serverId);
+  const { agents, tasks: serverTasks, online, supported, ready, retry, refresh } = useServerTasks(serverId);
   const tasks = scopedAgentId ? serverTasks.filter((task) => task.agentId === scopedAgentId) : serverTasks;
   const [showAllClosed, setShowAllClosed] = useState(false);
+  const [pullRefreshing, setPullRefreshing] = useState(false);
+  const refreshFromPull = async () => {
+    if (pullRefreshing) return;
+    setPullRefreshing(true);
+    try {
+      await refresh();
+    } finally {
+      setPullRefreshing(false);
+    }
+  };
   const agent = scopedAgentId ? agents.find((item) => item.id === scopedAgentId) : undefined;
   const agentOf = (id: string) => agents.find((item) => item.id === id);
   const title = agent ? t("mobile.server.tasks.agentTitle", { name: agent.name }) : t("mobile.app.route.tasks");
@@ -63,7 +73,16 @@ export function ServerTasksScreen() {
   const sections = note ? [] : taskSections(tasks, showAllClosed).filter((section) => section.tasks.length > 0);
 
   return (
-    <WorkScreen title={title}>
+    <WorkScreen
+      title={title}
+      refreshControl={
+        <RefreshControl
+          refreshing={pullRefreshing}
+          onRefresh={() => void refreshFromPull()}
+          enabled={online && supported}
+        />
+      }
+    >
       {scopedAgentId ? (
         <Button
           variant="secondary"
@@ -92,11 +111,7 @@ export function ServerTasksScreen() {
           <Typography.Paragraph className="text-muted" weight="semibold" style={typeScale.workTitle}>
             {t("mobile.server.tasks.noOpen")}
           </Typography.Paragraph>
-          <Typography.Paragraph
-            align="center"
-            className="text-muted"
-            style={{ fontFamily: "Inter", fontSize: 13, lineHeight: 18 }}
-          >
+          <Typography.Paragraph align="center" className="text-muted" style={typeScale.caption}>
             {t("mobile.server.tasks.openHint")}
           </Typography.Paragraph>
         </View>
@@ -106,10 +121,10 @@ export function ServerTasksScreen() {
           <View className="flex-row flex-wrap items-center gap-1.5 px-1">
             <Typography.Paragraph
               accessibilityRole="header"
-              className="font-medium text-muted"
+              className="font-medium text-muted uppercase"
               style={typeScale.teamMeta}
             >
-              {t(SECTION_TITLE[section.id]).toUpperCase()}
+              {t(SECTION_TITLE[section.id])}
             </Typography.Paragraph>
             <Typography.Paragraph className="text-muted opacity-60" style={typeScale.teamMeta}>
               {"· "}

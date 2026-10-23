@@ -1,4 +1,5 @@
 import { Host, Picker, Switch } from "@expo/ui";
+import { labelsHidden } from "@expo/ui/swift-ui/modifiers";
 import { nativeLabelFont } from "@/shared/lib/native-label-font";
 import type { SettingsPickerProps, SettingsSwitchProps } from "./settings-controls.types";
 
@@ -20,14 +21,26 @@ export function SettingsPicker<T extends string | number>({
   );
 }
 
-export function SettingsSwitch({ value, disabled, label, dark, onValueChange }: SettingsSwitchProps) {
+export function SettingsSwitch({
+  value,
+  disabled,
+  label,
+  hideLabel = false,
+  dark,
+  onValueChange,
+}: SettingsSwitchProps) {
   return (
-    <Host matchContents={{ vertical: true }} style={{ width: "100%" }} colorScheme={dark ? "dark" : "light"}>
+    <Host
+      matchContents={hideLabel ? true : { vertical: true }}
+      style={hideLabel ? undefined : { width: "100%" }}
+      ignoreSafeArea={hideLabel ? "all" : undefined}
+      colorScheme={dark ? "dark" : "light"}
+    >
       <Switch
         value={value}
         disabled={disabled}
         label={label}
-        modifiers={nativeLabelFont}
+        modifiers={hideLabel ? [...nativeLabelFont, labelsHidden()] : nativeLabelFont}
         onValueChange={onValueChange}
       />
     </Host>

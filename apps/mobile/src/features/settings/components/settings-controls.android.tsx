@@ -51,18 +51,23 @@ export function SettingsPicker<T extends string | number>({
   );
 }
 
-export function SettingsSwitch({ value, disabled, label, onValueChange }: SettingsSwitchProps) {
+export function SettingsSwitch({ value, disabled, label, hideLabel = false, onValueChange }: SettingsSwitchProps) {
   const accent = String(useCSSVariable("--openbot-accent"));
-  return (
+  const control = (
+    <Switch
+      accessibilityLabel={label}
+      value={value}
+      disabled={disabled}
+      trackColor={{ true: accent }}
+      onValueChange={onValueChange}
+    />
+  );
+  return hideLabel ? (
+    control
+  ) : (
     <View className="min-w-0 flex-1 flex-row items-center gap-3">
       <Typography.Paragraph className="min-w-0 flex-1">{label}</Typography.Paragraph>
-      <Switch
-        accessibilityLabel={label}
-        value={value}
-        disabled={disabled}
-        trackColor={{ true: accent }}
-        onValueChange={onValueChange}
-      />
+      {control}
     </View>
   );
 }

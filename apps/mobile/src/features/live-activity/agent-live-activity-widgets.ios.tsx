@@ -30,7 +30,7 @@ import { openSealedLiveActivity } from "./model/live-activity-open";
 import type { LiveActivityInstance } from "./model/live-activity-sync";
 
 /** The props of the layout: the activity props, and the App Group folder that has the pictures. */
-type AgentLiveActivityLayoutProps = AgentLiveActivityProps & { dir: string };
+type AgentLiveActivityLayoutProps = AgentLiveActivityProps & { dir: string; missingAvatars: readonly string[] };
 
 /**
  * The Lock Screen and Dynamic Island views. The `widget` directive turns this function into a string
@@ -59,7 +59,7 @@ function agentLiveActivityLayout(
   const buttons = stale || reduced ? [] : props.buttons;
   // The props name a picture file, and the App Group folder is the same for all of them.
   const photo = (file: string, size: number, key?: string) =>
-    file ? (
+    file && !props.missingAvatars.includes(file) ? (
       <Image
         key={key}
         uiImage={props.dir + file}
@@ -274,14 +274,7 @@ function agentLiveActivityLayout(
     // A short state or a count keeps the compact island readable.
     compactTrailing: (
       <HStack modifiers={[padding({ trailing: 6 }), frame({ maxWidth: 76 })]}>
-        <Text
-          modifiers={[
-            font({ size: 15, weight: "semibold" }),
-            foregroundStyle(islandTint),
-            lineLimit(1),
-            privacySensitive(),
-          ]}
-        >
+        <Text modifiers={[font({ size: 15, weight: "semibold" }), foregroundStyle(islandTint), lineLimit(1)]}>
           {stale ? "…" : ["question", "approval", "takeover"].includes(props.mode) ? label : props.compact}
         </Text>
       </HStack>
@@ -333,6 +326,7 @@ function composeLayout(constants: {
   seal: string;
   tag: string;
   fallback: AgentLiveActivityProps | null;
+  missingAvatars: readonly string[];
 }): string {
   return `(function () {
   var c = ${JSON.stringify(constants)};
@@ -348,7 +342,7 @@ function composeLayout(constants: {
       shown = opened || c.fallback || {};
       if (!opened) context = Object.assign({}, environment, { isStale: true });
     }
-    return layout(Object.assign({}, shown, { dir: c.dir }), context);
+    return layout(Object.assign({}, shown, { dir: c.dir, missingAvatars: c.missingAvatars }), context);
   };
 })()`;
 }
@@ -407,11 +401,15 @@ let native: AgentLiveActivityNative | undefined;
 export const agentLiveActivity: AgentLiveActivityLoader = () => {
   if (native) return native;
   const dir = widgetsDirectory ?? "";
-  let factory = new ExpoWidgetsModule.LiveActivityFactory(
-    ACTIVITY_NAME,
-    composeLayout({ dir, seal: "", tag: "", fallback: null }),
-  );
-  let layoutKeys = "";
+  const layout: Parameters<typeof composeLayout>[0] = { dir, seal: "", tag: "", fallback: null, missingAvatars: [] };
+  let factory = new ExpoWidgetsModule.LiveActivityFactory(ACTIVITY_NAME, composeLayout(layout));
+  let layoutKey = JSON.stringify(layout);
+  const updateLayout = () => {
+    const next = JSON.stringify(layout);
+    if (next === layoutKey) return;
+    factory = new ExpoWidgetsModule.LiveActivityFactory(ACTIVITY_NAME, composeLayout(layout));
+    layoutKey = next;
+  };
   native = {
     starter: {
       start: (props, staleDate) => {
@@ -427,13 +425,14 @@ export const agentLiveActivity: AgentLiveActivityLoader = () => {
         }),
     },
     setSealKeys(keys, fallback) {
-      const next = JSON.stringify([keys, fallback]);
-      if (next === layoutKeys) return;
-      layoutKeys = next;
-      factory = new ExpoWidgetsModule.LiveActivityFactory(
-        ACTIVITY_NAME,
-        composeLayout({ dir, seal: keys?.seal ?? "", tag: keys?.tag ?? "", fallback }),
-      );
+      layout.seal = keys?.seal ?? "";
+      layout.tag = keys?.tag ?? "";
+      layout.fallback = fallback;
+      updateLayout();
+    },
+    setMissingAvatars(files) {
+      layout.missingAvatars = files;
+      updateLayout();
     },
     saveAvatar(name, dataUrl) {
       const match = /^data:([a-z/]+);base64,(.+)$/u.exec(dataUrl);
@@ -445,7 +444,13 @@ export const agentLiveActivity: AgentLiveActivityLoader = () => {
       if (!file.exists) file.write(match[2], { encoding: "base64" });
       return fileName;
     },
-    hasAvatar: (fileName) => Boolean(widgetsDirectory) && new File(widgetsDirectory, fileName).exists,
+    hasAvatar(fileName) {
+      try {
+        return Boolean(widgetsDirectory) && new File(widgetsDirectory, fileName).exists;
+      } catch {
+        return false;
+      }
+    },
     renderBloub: (seed, hue, mood) => renderBloubAvatar(seed, hue, mood, BLOUB_PIXELS),
     removeAvatars(keep) {
       if (!widgetsDirectory) return;

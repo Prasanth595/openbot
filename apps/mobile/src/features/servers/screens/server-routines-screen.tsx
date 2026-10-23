@@ -17,7 +17,7 @@ import ChevronLeft from "lucide-react-native/icons/chevron-left";
 import ChevronRight from "lucide-react-native/icons/chevron-right";
 import ClockAlert from "lucide-react-native/icons/clock-alert";
 import { type ReactNode, useEffect, useState } from "react";
-import { View } from "react-native";
+import { RefreshControl, View } from "react-native";
 import { useCSSVariable, useUniwind } from "uniwind";
 import { useQueryScope } from "@/features/auth/context/mobile-session-context";
 import { useChannels } from "@/features/channels/components/use-channels";
@@ -30,8 +30,10 @@ import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspac
 import { queryKeys } from "@/features/workspace/model/query-keys";
 import type { MobileAgent } from "@/features/workspace/model/workspace-types";
 import { MenuView } from "@/shared/components/menu-view";
+import { NativeSegmentedControl } from "@/shared/components/native-segmented-control";
 import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
+import { typeScale } from "@/shared/lib/type-scale";
 
 const DAY = 86_400_000;
 /** As on desktop: a week day shows this many runs. The rest are one step away, in the day view. */
@@ -291,45 +293,45 @@ export function ServerRoutinesScreen() {
   const clockChange = clockChangeDay(shownDays, timeZone);
   const title = t("mobile.app.route.routines");
   const note = (key: MobileTextKey) => (
-    <Typography.Paragraph
-      className="text-grouped-secondary"
-      style={{ fontFamily: "Inter", fontSize: 14, lineHeight: 20 }}
-    >
+    <Typography.Paragraph className="text-grouped-secondary" style={typeScale.marketDescription}>
       {t(key)}
     </Typography.Paragraph>
   );
 
+  const [pullRefreshing, setPullRefreshing] = useState(false);
+  const refreshFromPull = async () => {
+    if (!online || pullRefreshing) return;
+    setPullRefreshing(true);
+    try {
+      await Promise.all(weeks.map((week) => week.refetch()));
+    } finally {
+      setPullRefreshing(false);
+    }
+  };
+
   return (
-    <WorkScreen title={title} subtitle={t("mobile.server.routines.timeZone", { zone: timeZone.replaceAll("_", " ") })}>
+    <WorkScreen
+      title={title}
+      subtitle={t("mobile.server.routines.timeZone", { zone: timeZone.replaceAll("_", " ") })}
+      refreshControl={
+        <RefreshControl refreshing={pullRefreshing} enabled={online} onRefresh={() => void refreshFromPull()} />
+      }
+    >
       {!server ? (
         note("mobile.server.unavailable")
       ) : (
         <>
-          <View
-            className="flex-row gap-1 rounded-full border border-grouped-border bg-grouped p-1"
-            style={{ height: 40 }}
-          >
-            {(["schedule", "routines"] as const).map((item) => (
-              <Button
-                key={item}
-                variant="ghost"
-                className={`h-full min-h-0 flex-1 rounded-full px-2 py-0 ${tab === item ? "bg-action" : ""}`}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: tab === item }}
-                onPress={() => {
-                  void haptics.selection();
-                  setTab(item);
-                }}
-              >
-                <Button.Label
-                  className={tab === item ? "text-action-foreground" : "text-grouped-secondary"}
-                  style={{ fontFamily: "Inter", fontSize: 14, lineHeight: 20, fontWeight: "600" }}
-                >
-                  {t(item === "schedule" ? "mobile.server.routines.schedule" : "mobile.app.route.routines")}
-                </Button.Label>
-              </Button>
-            ))}
-          </View>
+          <NativeSegmentedControl
+            options={[
+              { value: "schedule", label: t("mobile.server.routines.schedule") },
+              { value: "routines", label: t("mobile.app.route.routines") },
+            ]}
+            value={tab}
+            onChange={(value) => {
+              void haptics.selection();
+              setTab(value);
+            }}
+          />
           {tab === "schedule" ? (
             <>
               {clockChange ? (
@@ -340,7 +342,7 @@ export function ServerRoutinesScreen() {
                   <ClockAlert size={18} color={warning} />
                   <Typography.Paragraph
                     className="min-w-0 flex-1 text-warning-text"
-                    style={{ fontFamily: "Inter", fontSize: 14, lineHeight: 20 }}
+                    style={typeScale.marketDescription}
                   >
                     {t("mobile.server.routines.clockChange", {
                       day: longDay(clockChange),
@@ -396,11 +398,7 @@ export function ServerRoutinesScreen() {
                           moveStart(addCalendarDays(start, event.nativeEvent.actionName === "increment" ? 7 : -7))
                         }
                       >
-                        <Typography.Paragraph
-                          weight="semibold"
-                          align="center"
-                          style={{ fontFamily: "Inter", fontSize: 15, lineHeight: 20 }}
-                        >
+                        <Typography.Paragraph weight="semibold" align="center" style={typeScale.teamPreview}>
                           {rangeLabel}
                         </Typography.Paragraph>
                         <ChevronDown size={14} color={foreground} />
@@ -513,10 +511,7 @@ function RoutineSection({ title, children }: { title: string; children: ReactNod
       <Typography.Paragraph
         className="px-1 text-grouped-secondary"
         style={{
-          fontFamily: "Inter",
-          fontSize: 12,
-          fontWeight: "600",
-          letterSpacing: 0.72,
+          ...typeScale.teamMeta,
           textTransform: "uppercase",
         }}
       >

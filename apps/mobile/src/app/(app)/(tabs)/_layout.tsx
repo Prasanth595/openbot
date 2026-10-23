@@ -25,7 +25,7 @@ export default function TeamTabsLayout() {
         <NativeTabs.Trigger.Icon sf={{ default: "person.2", selected: "person.2.fill" }} md="group" />
         <NativeTabs.Trigger.Label>{t("mobile.agent.team.tabTeam")}</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="server-tasks" disabled={!hasServer}>
+      <NativeTabs.Trigger name="(tasks)" disabled={!hasServer}>
         <NativeTabs.Trigger.Icon sf="checklist" md="checklist" />
         <NativeTabs.Trigger.Label>{t("mobile.agent.team.tabTasks")}</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>

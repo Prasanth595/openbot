@@ -1,31 +1,23 @@
 import { markdownPreviewText } from "@openbot/contracts/markdown-preview-text";
 import { cleanAgentMessageText } from "@openbot/team-client/agent-message-text";
+import { Stack } from "expo-router";
 import { Button, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
 import ArrowRight from "lucide-react-native/icons/arrow-right";
-import CalendarClock from "lucide-react-native/icons/calendar-clock";
 import ChevronDown from "lucide-react-native/icons/chevron-down";
 import Ellipsis from "lucide-react-native/icons/ellipsis";
-import Layers from "lucide-react-native/icons/layers";
-import ListChecks from "lucide-react-native/icons/list-checks";
-import Search from "lucide-react-native/icons/search";
-import Settings2 from "lucide-react-native/icons/settings-2";
-import Store from "lucide-react-native/icons/store";
-import UsersRound from "lucide-react-native/icons/users-round";
-import { type ReactNode, useId } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, { Defs, LinearGradient, Path, Rect, Stop } from "react-native-svg";
+import Svg, { Path } from "react-native-svg";
 import { useCSSVariable } from "uniwind";
+
 import { TeamOrb } from "@/features/agents/components/team-orb";
-
-export { TeamOrb } from "@/features/agents/components/team-orb";
-
 import type { MobileAgent } from "@/features/workspace/model/workspace-types";
+import { isAndroid } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
 import { typeScale } from "@/shared/lib/type-scale";
 
-export type TeamDestination = "team" | "tasks" | "routines" | "market" | "settings";
+export { TeamOrb };
 
 export function TeamSectionHeading({
   name,
@@ -110,9 +102,6 @@ export function TeamTitle({ agents, groups }: { agents: number; groups: number }
   const { t } = useText();
   return (
     <View style={styles.title}>
-      <Typography.Heading weight="medium" style={typeScale.teamDisplay}>
-        {t("mobile.agent.team.title")}
-      </Typography.Heading>
       <Typography.Paragraph className="text-muted" style={typeScale.teamMeta}>
         {t("mobile.agent.team.agents", { count: agents })}
         {" · "}
@@ -201,127 +190,49 @@ export function TeamHeader({
   onWorkspace,
   onSearch,
   planLimits,
+  connectionStatus,
   options,
 }: {
   name: string;
   onWorkspace: () => void;
-  onSearch: () => void;
-  planLimits?: ReactNode;
+  onSearch?: () => void;
+  planLimits?: ReactElement | null;
+  connectionStatus?: ReactElement | null;
   options: ReactNode;
 }) {
   const { t } = useText();
-  const insets = useSafeAreaInsets();
-  const [foreground, muted] = useThemeColor(["foreground", "muted"]);
-  const glass = String(useCSSVariable("--openbot-bg-chrome-glass"));
-  const edge = String(useCSSVariable("--openbot-border-chrome-glass"));
-  const ink = String(useCSSVariable("--openbot-text-on-light"));
   return (
-    <View className="bg-team-canvas" style={{ paddingTop: insets.top }}>
-      <View style={styles.header}>
-        <Pressable
-          accessibilityRole="button"
+    <>
+      <Stack.Title large={false}>{t("mobile.agent.team.title")}</Stack.Title>
+      <Stack.Toolbar placement="left">
+        <Stack.Toolbar.Button
+          icon={isAndroid ? undefined : "square.stack.3d.up.fill"}
           accessibilityLabel={t("mobile.agent.home.serverTitle", { name })}
           onPress={onWorkspace}
-          style={({ pressed }) => [
-            styles.workspace,
-            { backgroundColor: glass, borderColor: edge, opacity: pressed ? 0.6 : 1 },
-          ]}
         >
-          <View className="bg-feature" style={styles.workspaceIcon}>
-            <Layers size={16} color={ink} />
-          </View>
-          <Typography.Paragraph numberOfLines={1} style={[typeScale.teamMeta, { flexShrink: 1 }]}>
-            {name.toUpperCase()}
-          </Typography.Paragraph>
-          <ChevronDown size={16} color={String(muted)} />
-        </Pressable>
-        <View style={styles.actions}>
-          {planLimits}
-          <Button
-            isIconOnly
-            variant="secondary"
-            accessibilityLabel={t("mobile.search.placeholder")}
-            onPress={onSearch}
-            style={[styles.iconButton, { backgroundColor: glass, borderColor: edge }]}
-          >
-            <Search size={20} color={String(foreground)} />
-          </Button>
-          <View style={[styles.iconButton, { backgroundColor: glass, borderColor: edge }]}>{options}</View>
-        </View>
-      </View>
-    </View>
+          {name}
+        </Stack.Toolbar.Button>
+        {connectionStatus ? <Stack.Toolbar.View hidesSharedBackground>{connectionStatus}</Stack.Toolbar.View> : null}
+      </Stack.Toolbar>
+      <Stack.Toolbar placement="right">
+        {planLimits ? <Stack.Toolbar.View hidesSharedBackground>{planLimits}</Stack.Toolbar.View> : null}
+        <Stack.Toolbar.Button
+          hidden={!onSearch}
+          icon={isAndroid ? undefined : "magnifyingglass"}
+          accessibilityLabel={t("mobile.search.placeholder")}
+          onPress={onSearch}
+        >
+          {t("common.search")}
+        </Stack.Toolbar.Button>
+        {options}
+      </Stack.Toolbar>
+    </>
   );
 }
 
 export function TeamMoreIcon() {
   const color = String(useThemeColor("foreground"));
   return <Ellipsis size={20} color={color} />;
-}
-
-export function TeamTabs({
-  onSelect,
-  disabled = false,
-  activeTab = "team",
-}: {
-  onSelect: (tab: TeamDestination) => void;
-  disabled?: boolean;
-  activeTab?: TeamDestination;
-}) {
-  const { t } = useText();
-  const insets = useSafeAreaInsets();
-  const muted = useThemeColor("muted");
-  const glass = String(useCSSVariable("--openbot-bg-chrome-glass"));
-  const edge = String(useCSSVariable("--openbot-border-chrome-glass"));
-  const selected = String(useCSSVariable("--openbot-action"));
-  const selectedInk = String(useCSSVariable("--openbot-action-foreground"));
-  const canvas = String(useCSSVariable("--openbot-bg-canvas"));
-  const id = useId();
-  const tabs = [
-    { id: "team", key: "mobile.agent.team.tabTeam", Icon: UsersRound },
-    { id: "tasks", key: "mobile.agent.team.tabTasks", Icon: ListChecks },
-    { id: "routines", key: "mobile.agent.team.tabRoutines", Icon: CalendarClock },
-    { id: "market", key: "mobile.agent.team.tabMarket", Icon: Store },
-    { id: "settings", key: "mobile.agent.team.tabSettings", Icon: Settings2 },
-  ] as const;
-  return (
-    <View pointerEvents="box-none" style={[styles.tabWrap, { paddingBottom: Math.max(30, insets.bottom - 4) }]}>
-      <Svg pointerEvents="none" width="100%" height="100%" style={StyleSheet.absoluteFill}>
-        <Defs>
-          <LinearGradient id={id} x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor={canvas} stopOpacity={0} />
-            <Stop offset="0.5" stopColor={canvas} stopOpacity={0.95} />
-          </LinearGradient>
-        </Defs>
-        <Rect width="100%" height="100%" fill={`url(#${id})`} />
-      </Svg>
-      <View accessibilityRole="tablist" style={[styles.tabBar, { backgroundColor: glass, borderColor: edge }]}>
-        {tabs.map(({ id: destination, key, Icon }) => (
-          <Pressable
-            key={destination}
-            accessibilityRole="tab"
-            accessibilityState={{
-              selected: destination === activeTab,
-              disabled: disabled && destination !== "settings",
-            }}
-            disabled={disabled && destination !== "settings"}
-            onPress={() => onSelect(destination)}
-            style={({ pressed }) => [
-              styles.tab,
-              { backgroundColor: destination === activeTab ? selected : "transparent", opacity: pressed ? 0.6 : 1 },
-            ]}
-          >
-            <Icon size={20} color={destination === activeTab ? selectedInk : String(muted)} />
-            <Typography.Paragraph
-              numberOfLines={1}
-              style={[styles.tabLabel, { color: destination === activeTab ? selectedInk : String(muted) }]}
-            >
-              {t(key)}
-            </Typography.Paragraph>
-          </Pressable>
-        ))}
-      </View>
-    </View>
-  );
 }
 
 const styles = StyleSheet.create({
@@ -333,48 +244,6 @@ const styles = StyleSheet.create({
   identity: { flexDirection: "row", alignItems: "center", gap: 14, minHeight: 60 },
   role: { fontFamily: "Inter", fontSize: 14, lineHeight: 17, fontWeight: "500" },
   leadPreview: { fontFamily: "Inter", fontSize: 15, lineHeight: 21.75, minHeight: 43.5 },
-  openChat: { borderRadius: 999, height: 44, minHeight: 44, paddingHorizontal: 18, gap: 8 },
+  openChat: { borderRadius: 999, minHeight: 44, paddingHorizontal: 18, gap: 8 },
   openChatLabel: { fontFamily: "Inter", fontSize: 15, fontWeight: "600", color: "white" },
-  header: {
-    height: 52,
-    paddingHorizontal: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  workspace: {
-    flexShrink: 1,
-    flexDirection: "row",
-    gap: 8,
-    alignItems: "center",
-    height: 44,
-    paddingLeft: 6,
-    paddingRight: 14,
-    borderRadius: 999,
-    borderWidth: 1,
-  },
-  workspaceIcon: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
-  actions: { flexDirection: "row", alignItems: "center", gap: 8 },
-  iconButton: {
-    width: 44,
-    height: 44,
-    minWidth: 44,
-    borderRadius: 999,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  tabWrap: { position: "absolute", bottom: 0, left: 0, right: 0, paddingTop: 26, paddingHorizontal: 20 },
-  tabBar: { minHeight: 64, flexDirection: "row", padding: 6, gap: 4, borderRadius: 999, borderWidth: 1 },
-  tab: {
-    flex: 1,
-    minHeight: 50,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 999,
-    gap: 3,
-    paddingVertical: 4,
-  },
-  tabLabel: { fontFamily: "Inter", fontSize: 11, lineHeight: 14, fontWeight: "600" },
 });

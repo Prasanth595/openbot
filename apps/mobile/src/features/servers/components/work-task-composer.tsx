@@ -23,6 +23,7 @@ import type { MobileAgent } from "@/features/workspace/model/workspace-types";
 import { MenuView } from "@/shared/components/menu-view";
 import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
+import { typeScale } from "@/shared/lib/type-scale";
 
 /** The inline task form uses the same host operation and draft guard as the new-task sheet. */
 export function WorkTaskComposer({
@@ -128,10 +129,7 @@ export function WorkTaskComposer({
           if (error) setError(null);
         }}
         style={{
-          fontFamily: "Inter",
-          fontSize: 18,
-          lineHeight: 24,
-          fontWeight: "500",
+          ...typeScale.workComposer,
           color: typeof foreground === "string" ? foreground : undefined,
           minHeight: 26,
           maxHeight: 160,
@@ -173,7 +171,8 @@ export function WorkTaskComposer({
             {chosen ? <TeamAgentAvatar agent={chosen} size={24} /> : null}
             <Typography.Paragraph
               numberOfLines={1}
-              style={{ fontFamily: "Inter", fontSize: 14, lineHeight: 20, fontWeight: "600", flexShrink: 1 }}
+              weight="semibold"
+              style={[typeScale.marketDescription, { flexShrink: 1 }]}
             >
               {chosen?.name ?? t("mobile.server.tasks.chooseAgent")}
             </Typography.Paragraph>

@@ -159,6 +159,7 @@ import { Effect } from "effect";
 import * as Crypto from "expo-crypto";
 import { createProviderAdmin } from "@/features/servers/model/provider-admin";
 import { decodeConversationSearchPage } from "@/features/workspace/model/conversation";
+import { invalidateProviderUsageQueries } from "@/features/workspace/model/provider-usage-cache";
 import { type QueryScope, queryKeys } from "@/features/workspace/model/query-keys";
 import { saveAgentRecord } from "@/features/workspace/model/save-agent-record";
 import {
@@ -729,6 +730,7 @@ export function createHostRequestActions({
         "mobile.agent.runtime.accountUnsupported",
       );
       await runTeamRequest(setAgentProviderAccount(teamApi(serverId), input));
+      invalidateProviderUsageQueries(queryClient, queryScope, serverId);
     },
     startNewChat: async (agentId, serverId) => {
       // A host too old to know the route answers 404, so refuse before the request.
