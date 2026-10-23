@@ -71,6 +71,22 @@ function PluginTextSection(props: { id: string; title: string; children: JSX.Ele
   );
 }
 
+/** The vendor page a key or local step links to, under the label the catalog gives it. */
+function PluginConnectDocsLink(props: { href: string | null; label: string | null }) {
+  return (
+    <Show when={props.href}>
+      {(href) => (
+        <p class="provider-step-links">
+          <a href={href()} target="_blank" rel={EXTERNAL_LINK_REL}>
+            {props.label ?? "Documentation"}
+            <LandingIcon name="arrow-up-right" class="provider-step-arrow" />
+          </a>
+        </p>
+      )}
+    </Show>
+  );
+}
+
 /** The step an app's sign-in adds, in the words the app's own sign-in uses. */
 function PluginConnectStep(props: { step: SitePluginConnectStep; appCount: number }) {
   const prefix = () => (props.appCount > 1 ? `${props.step.app}: ` : "");
@@ -104,16 +120,7 @@ function PluginConnectStep(props: { step: SitePluginConnectStep; appCount: numbe
                 )}
               </For>
             </ul>
-            <Show when={step().docsUrl}>
-              {(href) => (
-                <p class="provider-step-links">
-                  <a href={href()} target="_blank" rel={EXTERNAL_LINK_REL}>
-                    {step().docsLabel ?? "Documentation"}
-                    <LandingIcon name="arrow-up-right" class="provider-step-arrow" />
-                  </a>
-                </p>
-              )}
-            </Show>
+            <PluginConnectDocsLink href={step().docsUrl} label={step().docsLabel} />
           </>
         )}
       </Show>
@@ -130,16 +137,7 @@ function PluginConnectStep(props: { step: SitePluginConnectStep; appCount: numbe
               <For each={step().steps}>{(line) => <li>{line}</li>}</For>
             </ol>
             <Show when={step().note}>{(note) => <p class="provider-step-text">{note()}</p>}</Show>
-            <Show when={step().docsUrl}>
-              {(href) => (
-                <p class="provider-step-links">
-                  <a href={href()} target="_blank" rel={EXTERNAL_LINK_REL}>
-                    {step().docsLabel ?? "Documentation"}
-                    <LandingIcon name="arrow-up-right" class="provider-step-arrow" />
-                  </a>
-                </p>
-              )}
-            </Show>
+            <PluginConnectDocsLink href={step().docsUrl} label={step().docsLabel} />
           </>
         )}
       </Show>
