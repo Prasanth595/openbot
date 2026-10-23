@@ -1285,6 +1285,25 @@ try {
         errorIs(missing, 404, sourceText("error.team.agentNotFound")),
       [summary(adminClear), summary(missing)],
     );
+    const hiddenRead = await call("POST", AGENT_TASK_LIMIT_ROUTES.settings, {
+      token: adaToken,
+      json: { agentId: "agent-pi" },
+      capabilities: limitCapabilities,
+      protocol: 6,
+    });
+    const hiddenSet = await call("POST", AGENT_TASK_LIMIT_ROUTES.update, {
+      token: adaToken,
+      json: { agentId: "agent-pi", taskLimit: 3 },
+      capabilities: limitCapabilities,
+      protocol: 6,
+    });
+    check(
+      "an admin cannot read or set the task limit of an agent that the client protocol does not show",
+      errorIs(hiddenRead, 404, sourceText("error.team.agentNotFound")) &&
+        errorIs(hiddenSet, 404, sourceText("error.team.agentNotFound")) &&
+        callsOf("updateAgent").length === writes + 2,
+      [summary(hiddenRead), summary(hiddenSet)],
+    );
   }
 
   // ---- Routine result destinations (routine-results-v1) ----
