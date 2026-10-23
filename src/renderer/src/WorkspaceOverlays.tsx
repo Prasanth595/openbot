@@ -38,6 +38,7 @@ import { useServerSwitch } from "./features/servers/server-switch";
 import { useServers } from "./features/servers/servers-context";
 import type { HostProviderSettings } from "./features/settings/ProviderSettingsSection";
 import { useSettings } from "./features/settings/settings-context";
+import { settingsPort } from "./features/settings/settings-port";
 import { useUpdates } from "./features/updates/updates-context";
 import { useWhatsNew } from "./features/updates/whats-new-context";
 import { usePlanLimitRows } from "./features/usage/plan-limit-rows";
@@ -784,6 +785,8 @@ function AppSettings(props: AccountProps) {
         onRevokeMobileConnectLink={auth.revokeMobileConnectLink}
         onListMobileConnectedDevices={auth.listMobileConnectedDevices}
         onRevokeMobileConnectedDevice={auth.revokeMobileConnectedDevice}
+        onGetRemoteNetworkRoute={() => settingsPort().getRemoteNetworkRoute()}
+        onSetRemoteNetworkRoute={(route) => settingsPort().setRemoteNetworkRoute({ route })}
         onListAccountSessions={auth.listAccountSessions}
         onRevokeAccountSession={auth.revokeAccountSession}
         onSignOut={platform.landingPreview ? undefined : auth.logoutCentralAccount}

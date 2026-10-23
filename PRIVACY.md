@@ -616,6 +616,10 @@ Desktop media and input use a separate WebRTC connection. A paste in the Remote 
 sends the member's clipboard text to the host, which puts it on the host's clipboard. The live browser view sends compressed
 images of the host's browser tab, and the watching member's pointer and key input, over that same
 media connection. ICE uses a direct peer-to-peer path when possible. If a direct path is not possible, encrypted WebRTC traffic uses an OpenBot coturn relay.
+When the owner selects **Private network** in Settings › Mobile Connect, the host gets no STUN or
+TURN server, so no WebRTC traffic goes through an OpenBot relay. Team API connections then use only
+addresses on a private network, such as the Wi-Fi or a Tailscale tailnet. Sign-in and Signal
+messages do not change.
 
 Agents, conversations, queues, direct messages, attachments, browser data, prompts, approvals, and
 Remote Desktop data remain on the host. The central account service does not copy them into D1 or

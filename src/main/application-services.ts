@@ -234,6 +234,7 @@ import { resolveRemoteDesktopRuntime } from "./remote-desktop-runtime-artifact";
 import { loadOrCreateRemoteDesktopCredentials } from "./remote-desktop-secret-store";
 import { appendRemoteDiagnosticLog } from "./remote-diagnostics";
 import { decodeVoid } from "./remote-host-decoding";
+import { RemoteNetworkRoutePreferenceStore } from "./remote-network-route-preference-store";
 import { RemoteServerManager } from "./remote-server-manager";
 import { RemoteSessionCache } from "./remote-session-cache";
 import { RemoteSessionReusePreferenceStore } from "./remote-session-reuse-preference-store";
@@ -309,6 +310,7 @@ const BUSY_MESSAGE_MODE_PREFERENCE_FILE = "openbot-busy-message-mode-v1.json";
 const AGENT_MEMORY_LIMIT_PREFERENCE_FILE = "openbot-agent-memory-limit-v1.json";
 const SERVER_TIMEZONE_PREFERENCE_FILE = "openbot-server-timezone-v1.json";
 const REMOTE_SESSION_REUSE_PREFERENCE_FILE = "openbot-remote-session-reuse-preference-v1.json";
+const REMOTE_NETWORK_ROUTE_PREFERENCE_FILE = "openbot-remote-network-route-v1.json";
 const APP_BEHAVIOR_PREFERENCE_FILE = "openbot-app-behavior-preference-v1.json";
 const DYNAMIC_ISLAND_PREFERENCE_FILE = "openbot-dynamic-island-preference-v1.json";
 const BROWSER_STATE_FILE = "openbot-browser-state-v1.json";
@@ -500,6 +502,7 @@ export interface ApplicationServices {
   agentAccess: AgentAccessStore;
   serverTimezone: ServerTimezonePreferenceStore;
   remoteSessionReuse: RemoteSessionReusePreferenceStore;
+  remoteNetworkRoute: RemoteNetworkRoutePreferenceStore;
   remoteSessionCache: RemoteSessionCache;
   appBehavior: AppBehaviorService;
   agentInitialization: AgentInitializationGate<AgentLifecycleFailed>;
@@ -1050,6 +1053,10 @@ export async function createApplicationServices({
     join(app.getPath("userData"), REMOTE_SESSION_REUSE_PREFERENCE_FILE),
   );
   await runCauseEffect(remoteSessionReuse.load());
+  const remoteNetworkRoute = new RemoteNetworkRoutePreferenceStore(
+    join(app.getPath("userData"), REMOTE_NETWORK_ROUTE_PREFERENCE_FILE),
+  );
+  await runCauseEffect(remoteNetworkRoute.load());
   const appBehavior = new AppBehaviorService({
     path: join(app.getPath("userData"), APP_BEHAVIOR_PREFERENCE_FILE),
     loginItem: createLoginItem({ appVariant, server: Boolean(hostedServer || serverModeEnvironment) }),
@@ -2082,6 +2089,7 @@ export async function createApplicationServices({
       toolRuntimes: () => providerRuntimes.mcpToolRuntimes(),
     },
     teamWebRtcBridge,
+    privateNetwork: () => remoteNetworkRoute.get().route === "private",
     registerRemoteHost: (input) => centralAuth.registerRemoteHost(input).pipe(toRemoteWorkflowError),
     issueRemoteHostTicket: (hostId) => centralAuth.issueRemoteHostTicket(hostId).pipe(toRemoteWorkflowError),
     sendLiveActivityPush: (hostId, push) => centralAuth.sendLiveActivityPush(hostId, push).pipe(toRemoteWorkflowError),
@@ -2172,7 +2180,8 @@ export async function createApplicationServices({
     getRemoteDesktopIceServers: () =>
       Effect.try({
         try: () => {
-          if (developmentRemoteRole === "host") return [];
+          // The private route has no relay, so the remote desktop also connects only over a direct path.
+          if (developmentRemoteRole === "host" || remoteNetworkRoute.get().route === "private") return [];
           const identity = teamStore.getIdentity();
           if (!identity) throw new Error(sourceText("error.app.remoteIdentityUnavailable"));
           const iceServers = teamWebRtcBridge.getIceServers(identity.serverId);
@@ -2728,6 +2737,7 @@ export async function createApplicationServices({
     agentAccess,
     serverTimezone,
     remoteSessionReuse,
+    remoteNetworkRoute,
     remoteSessionCache,
     appBehavior,
     agentInitialization,

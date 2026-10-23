@@ -199,6 +199,19 @@ export const messages = defineMessages("settings", {
   "settings.mobileConnect.link.error.revoke": "Could not revoke the permanent link.",
   "settings.mobileConnect.devices.title": "Connected devices",
   "settings.mobileConnect.devices.refreshing": "Refreshing…",
+  "settings.mobileConnect.route.title": "How devices connect",
+  "settings.mobileConnect.route.description":
+    "For phones, other computers and team members that connect to this computer.",
+  "settings.mobileConnect.route.openbot.title": "Through OpenBot",
+  "settings.mobileConnect.route.openbot.badge": "Recommended",
+  "settings.mobileConnect.route.openbot.description":
+    "Works on any network. Chats and files are encrypted between your devices.",
+  "settings.mobileConnect.route.private.title": "Private network",
+  "settings.mobileConnect.route.private.tailscale": "Tailscale found",
+  "settings.mobileConnect.route.private.description":
+    "Tailscale or this Wi-Fi. Devices still sign in with OpenBot. Chats and files never go through OpenBot servers, and devices connect only on that network.",
+  "settings.mobileConnect.route.error.load": "Could not load how devices connect.",
+  "settings.mobileConnect.route.error.save": "Could not change how devices connect.",
   "settings.mobileConnect.disconnectInfo.title": "Disconnecting a device",
   "settings.mobileConnect.disconnectInfo.description":
     "Access is revoked immediately. The mobile app may keep showing its current screen until it is reopened or brought back from the background.",

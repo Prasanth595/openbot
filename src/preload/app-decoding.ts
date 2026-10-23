@@ -66,6 +66,7 @@ import {
   isProviderDetectionSettings,
   isRemoteDesktopSetupStatus,
   isRemoteDesktopTestStatus,
+  isRemoteNetworkRoute,
   isSpeechVoice,
   isVoiceLanguage,
   isVoiceModelId,
@@ -81,6 +82,7 @@ import {
   parseOnePasswordConnectorStatus,
   type RemoteDesktopSetupStatus,
   type RemoteDesktopTestStatus,
+  type RemoteNetworkRouteState,
   type RemoteSessionReusePreference,
   SPEECH_MODEL_ID,
   type SpeechAudio,
@@ -320,6 +322,12 @@ export function decodeRemoteSessionReusePreference(value: unknown): RemoteSessio
   return {
     keepBetweenRuns: requiredBoolean(decodeRecord(value, "remote session preference"), "keepBetweenRuns"),
   };
+}
+
+export function decodeRemoteNetworkRouteState(value: unknown): RemoteNetworkRouteState {
+  const state = decodeRecord(value, "remote network route");
+  if (!isRemoteNetworkRoute(state.route)) throw new Error("Invalid remote network route.");
+  return { route: state.route, tailscaleConnected: requiredBoolean(state, "tailscaleConnected") };
 }
 
 export function decodeNotificationPreference(value: unknown): NotificationPreference {

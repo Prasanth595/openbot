@@ -143,6 +143,8 @@ interface HostServiceOptions {
   platform?: "darwin" | "win32" | "linux";
   unattended?: boolean;
   teamWebRtcBridge?: TeamWebRtcBridge;
+  /** Whether devices may connect to this computer only over a private network, such as Tailscale. */
+  privateNetwork?: () => boolean;
   registerRemoteHost?: (input: {
     hostId: string;
     name: string;
@@ -448,9 +450,15 @@ export class HostService extends EventEmitter<HostEvents> {
               this.#options.browser.releaseUserControlHeldBy({ kind: "session", sessionId });
             }),
           ...(options.verifyRemoteSessionTicket ? { verifyClientTicket: options.verifyRemoteSessionTicket } : {}),
+          ...(options.privateNetwork ? { privateNetwork: options.privateNetwork } : {}),
         })
       : null;
   }
+
+  /** Applies a changed network route to the devices that are connected now. */
+  readonly applyNetworkRoute = Effect.fn("HostService.applyNetworkRoute")(function* (this: HostService) {
+    if (this.#webrtcGateway) yield* this.#webrtcGateway.applyNetworkRoute();
+  }).bind(this);
 
   getStatus(): HostStatus {
     const capabilities = this.#remoteScreen.capabilities();

@@ -353,7 +353,11 @@ import type {
   RemoteDesktopTestInput,
   RemoteDesktopTestStatus,
 } from "./ipc-remote-desktop-setup";
-import type { RemoteSessionReusePreference } from "./ipc-remote-sessions";
+import type {
+  RemoteNetworkRoutePreference,
+  RemoteNetworkRouteState,
+  RemoteSessionReusePreference,
+} from "./ipc-remote-sessions";
 import type {
   ConnectRoutineFlowInput,
   DisconnectRoutineFlowInput,
@@ -568,6 +572,10 @@ export const IPC_ENDPOINTS = {
     getRemoteSessionReusePreference: request<undefined, RemoteSessionReusePreference>()("app:get-remote-session-reuse"),
     setRemoteSessionReusePreference: request<RemoteSessionReusePreference, RemoteSessionReusePreference>()(
       "app:set-remote-session-reuse",
+    ),
+    getRemoteNetworkRoute: request<undefined, RemoteNetworkRouteState>()("app:get-remote-network-route"),
+    setRemoteNetworkRoute: request<RemoteNetworkRoutePreference, RemoteNetworkRouteState>()(
+      "app:set-remote-network-route",
     ),
     getAppBehaviorPreference: request<undefined, AppBehaviorPreference>()("app:get-behavior-preference"),
     setAppBehaviorPreference: request<AppBehaviorPreferenceChange, AppBehaviorPreference>()(

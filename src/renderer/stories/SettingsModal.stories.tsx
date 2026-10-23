@@ -159,6 +159,8 @@ function SettingsModalStory(props: {
             onRevokeMobileConnectedDevice={async (sessionId) => {
               setMobileDevices((current) => current.filter((device) => device.sessionId !== sessionId));
             }}
+            onGetRemoteNetworkRoute={mock.api.getRemoteNetworkRoute}
+            onSetRemoteNetworkRoute={(route) => mock.api.setRemoteNetworkRoute({ route })}
             onUpdateAction={runUpdateAction}
             billingApi={billingApi}
             hostedServersApi={props.hostedServers ? hostedServersApi : undefined}

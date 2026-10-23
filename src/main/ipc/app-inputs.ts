@@ -21,6 +21,7 @@ import type {
   MarketplaceSkillQuery,
   NotificationPreference,
   PublishHostedSiteInput,
+  RemoteNetworkRoutePreference,
   RemoteSessionReusePreference,
   ReplaceHostedSiteInput,
   SaveSetupInput,
@@ -52,6 +53,7 @@ import {
   isDynamicIslandInteractive,
   isDynamicIslandPreference,
   isDynamicIslandPresentation,
+  isRemoteNetworkRoute,
   isSkillCategory,
 } from "@openbot/contracts/ipc";
 import {
@@ -101,6 +103,11 @@ export function parseRemoteSessionReusePreference(input: unknown): RemoteSession
   if (!isDynamicRecord(input) || !isBoolean(input.keepBetweenRuns))
     throw new Error("The remote session setting is required.");
   return { keepBetweenRuns: input.keepBetweenRuns };
+}
+
+export function parseRemoteNetworkRoutePreference(input: unknown): RemoteNetworkRoutePreference {
+  if (!isDynamicRecord(input) || !isRemoteNetworkRoute(input.route)) throw new Error("The network route is required.");
+  return { route: input.route };
 }
 
 export function parseAppLanguagePreference(input: unknown): SetAppLanguagePreferenceInput {

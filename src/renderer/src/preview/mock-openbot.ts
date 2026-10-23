@@ -54,6 +54,7 @@ import {
   DEFAULT_DYNAMIC_ISLAND_PREFERENCE,
   DEFAULT_PROVIDER_ACCOUNT_ID,
   DEFAULT_PROVIDER_DETECTION_SETTINGS,
+  DEFAULT_REMOTE_NETWORK_ROUTE,
   DEFAULT_REMOTE_SESSION_REUSE_PREFERENCE,
   type DirectConversationSnapshot,
   type DirectMessageRealtimeEvent,
@@ -81,6 +82,7 @@ import {
   type QueuedMessageReceipt,
   type QueueSnapshot,
   type RemoteDesktopSession,
+  type RemoteNetworkRouteState,
   type RemoteSessionReusePreference,
   type ReorderQueueInput,
   type RespondToPromptInput,
@@ -302,6 +304,8 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
   let agentAccess: AgentAccessChange = { revision: 0, everyone: {}, roles: [] };
   const agentMemoryLimitListeners = new Set<(preference: AgentMemoryLimitPreference) => void>();
   let remoteSessionReuse: RemoteSessionReusePreference = { ...DEFAULT_REMOTE_SESSION_REUSE_PREFERENCE };
+  // The preview computer has Tailscale, so the private route shows what it finds.
+  let remoteNetworkRoute: RemoteNetworkRouteState = { route: DEFAULT_REMOTE_NETWORK_ROUTE, tailscaleConnected: true };
   let appBehavior: AppBehaviorPreference = { launchAtLogin: false, keepRunningInBackground: false };
   let languagePreference = clone<AppLanguagePreference>(options.languagePreference ?? { language: "system" });
   const languageListeners = new Set<(preference: AppLanguagePreference) => void>();
@@ -812,6 +816,11 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
     setRemoteSessionReusePreference: async ({ keepBetweenRuns }) => {
       remoteSessionReuse = { keepBetweenRuns };
       return clone(remoteSessionReuse);
+    },
+    getRemoteNetworkRoute: async () => clone(remoteNetworkRoute),
+    setRemoteNetworkRoute: async ({ route }) => {
+      remoteNetworkRoute = { ...remoteNetworkRoute, route };
+      return clone(remoteNetworkRoute);
     },
     setBusyMessageModePreference: async ({ mode }) => {
       busyMessageMode = { mode };

@@ -10,6 +10,8 @@ import type {
   MobileConnectedDevice,
   MobileConnectLink,
   MobileConnectTicket,
+  RemoteNetworkRoute,
+  RemoteNetworkRouteState,
   ServerSummary,
   UpdateStatus,
 } from "@openbot/contracts/ipc";
@@ -78,6 +80,8 @@ export interface SettingsModalProps {
   onRevokeMobileConnectLink?: () => Promise<void>;
   onListMobileConnectedDevices?: () => Promise<MobileConnectedDevice[]>;
   onRevokeMobileConnectedDevice?: (sessionId: string) => Promise<void>;
+  onGetRemoteNetworkRoute?: () => Promise<RemoteNetworkRouteState>;
+  onSetRemoteNetworkRoute?: (route: RemoteNetworkRoute) => Promise<RemoteNetworkRouteState>;
   onListAccountSessions?: () => Promise<AccountSession[]>;
   onRevokeAccountSession?: (sessionId: string) => Promise<void>;
   onSignOut?: (() => Promise<void>) | undefined;
@@ -328,6 +332,7 @@ export function SettingsModal(props: SettingsModalProps) {
             canCancelTicket={Boolean(props.onCancelMobileConnect)}
             canManageLink={Boolean(props.onCreateMobileConnectLink && props.onRevokeMobileConnectLink)}
             canRevokeDevice={Boolean(props.onRevokeMobileConnectedDevice)}
+            canSetRoute={Boolean(props.onSetRemoteNetworkRoute)}
           />
         </Tabs.Content>
 

@@ -10,6 +10,11 @@ OpenBot Mobile uses the same ticket, authentication transcript, framing, RPC cod
 In Expo Go, an Expo DOM component owns the browser `RTCPeerConnection` inside a hidden WebView and
 passes only serializable, validated commands and events to the native React UI; no native WebRTC
 module or development build is required.
+The host's network route preference (`openbot-remote-network-route-v1.json`) applies to every
+remote connection to the computer. With `private`, the host gives WebRTC no ICE servers, and the
+hidden page removes each local, remote, and SDP candidate that is not a `host` candidate on a private
+address (RFC 1918, 100.64.0.0/10, `fc00::/7`, or `.local`). A change to `private` closes the
+connected peers, so each one connects again without the relay.
 Mobile server labels in the drawer and connection settings describe the authenticated application
 connection, not membership or Signal presence. Each membership has its own transport and recovery controller while mobile is active.
 On a return to the app, the selected server connects first; the others become active when it is

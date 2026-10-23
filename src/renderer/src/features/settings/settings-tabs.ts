@@ -146,6 +146,10 @@ export const navItems: ReadonlyArray<SettingsNavItem> = [
       { titleKey: "settings.mobileConnect.signIn.title", descriptionKey: "settings.mobileConnect.signIn.description" },
       { titleKey: "settings.mobileConnect.link.title", descriptionKey: "settings.mobileConnect.link.description" },
       { titleKey: "settings.mobileConnect.devices.title" },
+      {
+        titleKey: "settings.mobileConnect.route.title",
+        descriptionKey: "settings.mobileConnect.route.description",
+      },
     ],
   },
   {
