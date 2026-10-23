@@ -24,10 +24,10 @@ const english = translateFor("en");
 
 interface Report {
   channelId?: string;
-  shared?: { linkShown: boolean; opened: boolean };
+  shared?: { linkShown: boolean; opened: boolean; workspaceLinksInFile: number };
   workspace?: { linkInOwnMessage: number; linkInAgentReply: boolean; opened: boolean };
   quote?: { absolutePath: boolean; reopened: boolean };
-  directChat?: { sharedOpened: boolean; workspaceOpened: boolean };
+  directChat?: { sharedOpened: boolean; workspaceOpened: boolean; workspaceLinksInSharedFile: number };
   /** What the agent wrote, and the state of its task, when a step fails. */
   agentReplies?: string[] | undefined;
   taskStates?: string[] | undefined;
@@ -63,6 +63,9 @@ const workspaceLink = () =>
     exact: true,
   });
 
+const panelWorkspaceLink = () =>
+  panel().getByRole("button", { name: english("chat.file.openWorkspace", { name: workspaceName }), exact: true });
+
 async function shot(label: string): Promise<void> {
   const path = resolve(OUT, `${label}.png`);
   await page.screenshot({ path });
@@ -73,7 +76,7 @@ try {
   const [agent] = await client.agents();
   assert.ok(agent, "This check needs one visible agent.");
   mkdirSync(join(homedir(), "OpenBot", "Shared"), { recursive: true });
-  writeFileSync(sharedFile, `# ${sharedText}\n`);
+  writeFileSync(sharedFile, `# ${sharedText}\n\n[inner spec](${workspaceName})\n`);
   workspaceFile = join(agent.workspacePath, workspaceName);
   writeFileSync(workspaceFile, `# ${workspaceText}\n`);
 
@@ -102,7 +105,9 @@ try {
   const linkInOwnMessage = await workspaceLink().count();
   await sharedLink().first().click();
   await panel().getByText(sharedText).waitFor({ timeout: UI_WAIT_MS });
-  report.shared = { linkShown: true, opened: true };
+  // The shared file names no agent, so in a channel its workspace path stays text.
+  const workspaceLinksInSharedFile = await panelWorkspaceLink().count();
+  report.shared = { linkShown: true, opened: true, workspaceLinksInFile: workspaceLinksInSharedFile };
   await shot("shared-preview");
 
   // 2. The agent's reply links its workspace file, and the link opens it.
@@ -159,10 +164,16 @@ try {
   await panel().getByText(workspaceText).waitFor({ timeout: UI_WAIT_MS });
   await sharedLink().last().click({ timeout: UI_WAIT_MS });
   await panel().getByText(sharedText).waitFor({ timeout: UI_WAIT_MS });
-  report.directChat = { sharedOpened: true, workspaceOpened: true };
+  report.directChat = {
+    sharedOpened: true,
+    workspaceOpened: true,
+    workspaceLinksInSharedFile: await panelWorkspaceLink().count(),
+  };
   await shot("direct-chat-preview");
 
   assert.equal(linkInOwnMessage, 0, "A person's message in a channel must not link a workspace path.");
+  assert.equal(workspaceLinksInSharedFile, 0, "A shared file in a channel must not link a workspace path.");
+  assert.equal(report.directChat?.workspaceLinksInSharedFile, 1, "A shared file in a direct chat links it.");
   assert.equal(report.quote?.absolutePath, true, "A channel quote of a workspace file must name its absolute path.");
   assert.deepEqual(report.pageErrors, []);
   report.passed = true;

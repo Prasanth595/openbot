@@ -511,6 +511,7 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
     openWorkspaceFolder,
     openWorkspaceFolderEntry,
     previewQuoteId,
+    previewWorkspaceAgentId,
     sidebarFileBack,
     openSidebarFileBack,
     openSidebarFileExternally,
