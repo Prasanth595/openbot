@@ -1,11 +1,13 @@
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import {
   AGENT_ACCESS_MODES,
+  AGENT_BACKUP_MODEL_LIMIT,
   AGENT_PROVIDERS,
   AGENT_REASONING_EFFORTS,
   AVATAR_HUES,
   AVATAR_SEED_PATTERN,
   isAvatarHue,
+  isProviderAccountId,
 } from "@openbot/contracts/ipc";
 import { z } from "zod";
 
@@ -63,6 +65,8 @@ export const listModelsToolSchema = z
   })
   .strict();
 
+const providerAccountId = z.string().refine(isProviderAccountId, "Use an account id from list_models.");
+
 export const updateProfileToolSchema = z
   .object({
     agentId: z.string().trim().min(1).max(INPUT_LIMITS.identifier),
@@ -89,6 +93,40 @@ export const updateProfileToolSchema = z
       .enum(AGENT_REASONING_EFFORTS)
       .describe(
         "New reasoning effort that the model supports, from list_models. Omit to keep the current effort when the model supports it, else to use the model's default.",
+      )
+      .optional(),
+    providerAccountId: providerAccountId
+      .nullable()
+      .describe(
+        "Account id from list_models for the agent's provider, or null for the provider's own sign-in. A provider change without it uses the new provider's own sign-in. An account change fails while the agent has a turn or queued messages.",
+      )
+      .optional(),
+    backupModels: z
+      .object({
+        automatic: z
+          .boolean()
+          .describe(
+            "true: when a usage limit holds a message, the agent moves at once to the first ready model in order. false: it asks in the chat first.",
+          ),
+        order: z
+          .array(
+            z
+              .object({
+                provider: z.enum(AGENT_PROVIDERS),
+                model: z.string().trim().min(1).max(INPUT_LIMITS.modelName).describe("Model id from list_models."),
+                providerAccountId: providerAccountId
+                  .describe("Account id from list_models. Omit it for the provider's own sign-in.")
+                  .optional(),
+              })
+              .strict(),
+          )
+          .max(AGENT_BACKUP_MODEL_LIMIT)
+          .describe("The backup models to try, first to last. They use the agent's reasoning effort where they can."),
+      })
+      .strict()
+      .nullable()
+      .describe(
+        "Replaces the agent's backup models. null removes them: the agent asks in the chat, with no saved order.",
       )
       .optional(),
     access: z

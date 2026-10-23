@@ -220,6 +220,7 @@
     "test:codex-usage-metering": "bun scripts/codex-usage-metering-e2e.ts",
     "test:routine-fresh-session": "bun scripts/routine-fresh-session-e2e.ts",
     "test:agent-webhook-routine": "bun scripts/agent-webhook-routine-e2e.ts",
+    "test:agent-profile-accounts": "bun scripts/agent-profile-accounts-e2e.ts",
     "test:claude-usage-resume": "bun scripts/claude-usage-resume-e2e.ts",
     "test:zip-attachments": "bun scripts/zip-attachment-e2e.ts",
     "test:acp-effort-variants": "bun scripts/acp-effort-variants-e2e.ts",

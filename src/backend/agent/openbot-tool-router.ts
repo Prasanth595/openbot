@@ -71,8 +71,11 @@ import { isHostedSiteMutationTool } from "./hosted-site-events";
 import type { MailboxSync } from "./mailbox-sync";
 import { type AgentMcpServers, handleMcpServerTool, isMcpServerTool } from "./mcp-tools";
 import {
+  agentAccountSetup,
   listModelsPayload,
   modelList,
+  type ProviderAccountRows,
+  requestedBackupModels,
   requestedRuntime,
   requestedToolModel,
   requireReasoningEffort,
@@ -123,6 +126,8 @@ function captureFailure(failure: ScreenCaptureFailed) {
 export interface OpenBotToolRouterHooks {
   listAgents(): AgentSummary[];
   listModels(): AgentModelOption[];
+  /** The accounts of a signed-in provider, as the settings page lists them. */
+  providerAccounts: ProviderAccountRows;
   preferredProvider(): AgentProvider;
   createAgent(
     input: CreateAgentInput,
@@ -588,6 +593,7 @@ export class OpenBotToolRouter {
       provider: agent.provider,
       model: agent.model,
       reasoningEffort: agent.reasoningEffort,
+      ...agentAccountSetup(agent),
       access: workspaceAccessEnforced(agent) ? "workspace" : "full",
       computerUse,
       notifications: agent.notifications,
@@ -775,8 +781,13 @@ export class OpenBotToolRouter {
 
     if (params.tool === "list_models") {
       const args = listModelsToolSchema.parse(params.arguments ?? {});
-      const payload = listModelsPayload(this.#hooks.listModels(), this.#hooks.preferredProvider(), args.provider);
-      return { success: true, contentItems: [{ type: "inputText", text: JSON.stringify(payload) }] };
+      const payload = listModelsPayload(
+        this.#hooks.listModels(),
+        this.#hooks.preferredProvider(),
+        this.#hooks.providerAccounts,
+        args.provider,
+      );
+      return { success: true, contentItems: [{ type: "inputText", text: redactText(JSON.stringify(payload)) }] };
     }
 
     if (params.tool === "interrupt_agent") return yield* this.#interruptTool.handle(params, senderAgentId);
@@ -1314,7 +1325,19 @@ export class OpenBotToolRouter {
       senderAgentId: string,
     ): Effect.fn.Return<OpenBotToolResponse, ToolOperationFailed> {
       const args = updateProfileToolSchema.parse(params.arguments, { reportInput: true });
-      const { agentId, avatarHue, avatarPath, provider, model, reasoningEffort, access, computerUse, ...fields } = args;
+      const {
+        agentId,
+        avatarHue,
+        avatarPath,
+        provider,
+        model,
+        reasoningEffort,
+        providerAccountId,
+        backupModels,
+        access,
+        computerUse,
+        ...fields
+      } = args;
       if (avatarPath !== undefined && (args.avatarSeed !== undefined || avatarHue !== undefined)) {
         throw new Error("Use avatarPath or generated avatar settings, not both.");
       }
@@ -1322,6 +1345,8 @@ export class OpenBotToolRouter {
       if (
         Object.values(fields).every((value) => value === undefined) &&
         Object.values(runtimeRequest).every((value) => value === undefined) &&
+        providerAccountId === undefined &&
+        backupModels === undefined &&
         access === undefined &&
         computerUse === undefined &&
         avatarHue === undefined &&
@@ -1343,6 +1368,10 @@ export class OpenBotToolRouter {
       // Checked before anything is written, so a model the provider does not list leaves the name
       // and every other field of the same call unchanged.
       const runtime = requestedRuntime(target, runtimeRequest, this.#hooks.listModels());
+      const backups =
+        backupModels === undefined
+          ? undefined
+          : requestedBackupModels(backupModels, this.#hooks.listModels(), this.#hooks.providerAccounts);
       const image =
         avatarPath === undefined
           ? undefined
@@ -1355,6 +1384,9 @@ export class OpenBotToolRouter {
         ...(fields.avatarSeed === undefined ? {} : { avatarSeed: fields.avatarSeed }),
         ...(fields.notifications === undefined ? {} : { notifications: fields.notifications }),
         ...runtime,
+        // The agent service checks that the account exists for the agent's provider after this change.
+        ...(providerAccountId === undefined ? {} : { providerAccountId }),
+        ...(backups === undefined ? {} : { backupModels: backups }),
         // Only a restriction is written, so a user change between the check and this write is never undone.
         ...(access === "workspace" ? { access } : {}),
         ...(computerUse === false ? { computerUse } : {}),
@@ -1382,6 +1414,7 @@ export class OpenBotToolRouter {
               provider: updated.provider,
               model: updated.model,
               reasoningEffort: updated.reasoningEffort,
+              ...agentAccountSetup(updated),
               access: workspaceAccessEnforced(updated) ? "workspace" : "full",
               computerUse: agentComputerUseEnabled(updated),
               notifications: updated.notifications,

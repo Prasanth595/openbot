@@ -340,14 +340,23 @@ These are manual model evaluations, separate from the fake-provider lifecycle re
 Users create and edit agent profiles by asking an agent in the normal desktop or mobile
 conversation. `openbot.create_agent` creates a persistent teammate with instructions and a first
 task; `openbot.update_profile` changes an existing agent's name, title, instructions, generated
-or custom avatar, provider, model, reasoning effort, access, Computer Use, or notifications. `avatarPath` accepts a local PNG, JPEG, or WebP file up to 512 KB, with relative
+or custom avatar, provider, model, reasoning effort, account, backup models, access, Computer Use, or notifications. `avatarPath` accepts a local PNG, JPEG, or WebP file up to 512 KB, with relative
 paths resolved from the calling agent’s workspace. The agent uses its available tools to resize or
 compress a copy when needed. OpenBot validates the prepared file before profile changes and copies
 it into managed avatar storage. Generated avatar settings remove the custom image. Both run through
 the existing agent service and validate arguments before changing state.
 `openbot.create_agent` also accepts an optional `provider`, `model` and `reasoningEffort`. The
 read-only `openbot.list_models` returns the models of each provider that the model picker shows, with
-their reasoning efforts and the default model for a request that names only a provider. An unknown
+their reasoning efforts and the default model for a request that names only a provider. A provider
+that can hold more than one account also lists its accounts, with the provider's own sign-in
+(`default`) first: the id, the name the user gave it (or null), and the state. It never lists the
+account email, credentials or account folders. `update_profile` takes the
+agent's `providerAccountId` and its `backupModels` (`automatic` and an `order` of provider, model
+and account), the same choices that the settings page offers. OpenBot checks each backup model and
+account against the lists before it writes, and the agent service checks the primary account; an
+account change, like a provider change, waits until the agent is idle. These changes apply at once,
+as the other profile fields do. `read_agent` and the `update_profile` result return the account,
+the backup models and `usageLimitReturn`, the model that the agent left for a usage limit. An unknown
 model or an unsupported effort is an error that names the valid values; OpenBot checks them before
 it creates the agent. Without a provider and a model, the new agent starts on the calling agent's
 provider, model and reasoning effort, so a team that one agent creates runs where that agent runs.
