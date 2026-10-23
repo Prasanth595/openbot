@@ -70,6 +70,8 @@ export const listModelsToolSchema = z
   })
   .strict();
 
+const providerAccountId = z.string().refine(isProviderAccountId, "Use an account id from list_models.");
+
 export const updateProfileToolSchema = z
   .object({
     agentId: z.string().trim().min(1).max(INPUT_LIMITS.identifier),
@@ -98,6 +100,40 @@ export const updateProfileToolSchema = z
         "New reasoning effort that the model supports, from list_models. Omit to keep the current effort when the model supports it, else to use the model's default.",
       )
       .optional(),
+    providerAccountId: providerAccountId
+      .nullable()
+      .describe(
+        "Account id from list_models for the agent's provider, or null for the provider's own sign-in. A provider change without it uses the new provider's own sign-in. An account change fails while the agent has a turn or queued messages.",
+      )
+      .optional(),
+    backupModels: z
+      .object({
+        automatic: z
+          .boolean()
+          .describe(
+            "true: when a usage limit holds a message, or a provider error fails a turn before it did work, the agent moves at once to the first ready model in order. false: it asks in the chat first.",
+          ),
+        order: z
+          .array(
+            z
+              .object({
+                provider: z.enum(AGENT_PROVIDERS),
+                model: z.string().trim().min(1).max(INPUT_LIMITS.modelName).describe("Model id from list_models."),
+                providerAccountId: providerAccountId
+                  .describe("Account id from list_models. Omit it for the provider's own sign-in.")
+                  .optional(),
+              })
+              .strict(),
+          )
+          .max(AGENT_BACKUP_MODEL_LIMIT)
+          .describe("The backup models to try, first to last. They use the agent's reasoning effort where they can."),
+      })
+      .strict()
+      .nullable()
+      .describe(
+        "Replaces the agent's backup models. null removes them: the agent asks in the chat, with no saved order.",
+      )
+      .optional(),
     access: z
       .enum(AGENT_ACCESS_MODES)
       .describe("workspace limits the agent to writing in its workspace. Only the user can set full.")
@@ -107,36 +143,6 @@ export const updateProfileToolSchema = z
       .describe("false turns Computer Use off for the agent. Only the user can turn it on.")
       .optional(),
     notifications: z.boolean().describe("Whether the user gets notifications for the agent.").optional(),
-    backupModels: z
-      .object({
-        automatic: z
-          .boolean()
-          .describe(
-            "true switches at once to the first ready model in order. false asks the user in the chat at a usage limit.",
-          ),
-        order: z
-          .array(
-            z
-              .object({
-                provider: z.enum(AGENT_PROVIDERS),
-                model: z.string().trim().min(1).max(INPUT_LIMITS.modelName).describe("Model id from list_models."),
-                providerAccountId: z
-                  .string()
-                  .refine(isProviderAccountId, "Invalid provider account id.")
-                  .describe("Account id from read_agent. Omit it to use the provider's own sign-in.")
-                  .optional(),
-              })
-              .strict(),
-          )
-          .max(AGENT_BACKUP_MODEL_LIMIT)
-          .describe("Backup models, first to last. The agent's own provider and model come first and are not listed."),
-      })
-      .strict()
-      .nullable()
-      .describe(
-        "The ordered backup models. This replaces the whole list. null removes it. A usage limit or a provider error moves the agent to the next ready model, and it goes back later.",
-      )
-      .optional(),
   })
   .strict();
 

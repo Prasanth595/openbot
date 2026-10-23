@@ -1,6 +1,5 @@
 // Checks that a provider error moves an agent set to switch without asking to its next backup model,
-// and that agents can read and set the ordered backup models with read_agent and update_profile
-// (#2834). Runs the real agent service on a temporary profile. Claude is the real `ClaudeAgentClient`,
+// and that read_agent shows the move (#2834). Runs the real agent service on a temporary profile. Claude is the real `ClaudeAgentClient`,
 // which the Claude Agent SDK connects to a stand-in `claude` executable. The stand-in answers each
 // message on its current model, and fails it with "API Error: 503 Service Unavailable" when that model
 // is in `failing.json`. A message with `act-then-fail` writes text before it fails.
@@ -8,7 +7,7 @@
 //   1. A turn that wrote text before the error does not move: it fails with its error, as before.
 //   2. An agent with no backup models fails with its error, as before.
 //   3. A turn that did nothing yet runs again on the backup model, with a note and no error.
-//   4. read_agent returns the order and the model to go back to; update_profile checks and sets the order.
+//   4. read_agent shows the backup model, and the model to go back to with the provider error as cause.
 //   5. After a restart, the agent goes back to its own model, with a note.
 // `bun run test:backup-model-failover`. Writes .openbot-build/backup-model-failover-e2e/report.json.
 import assert from "node:assert/strict";
@@ -423,40 +422,15 @@ try {
     return { ran, notes };
   });
 
-  await check("read_agent and update_profile read and set the backup models", async () => {
+  // `agent-profile-accounts-e2e.ts` checks that update_profile sets and clears the order.
+  await check("read_agent shows that a provider error moved the agent", async () => {
     const read = await callTool("read_agent", { agentId: mover.id });
     assert.ok(read.success, read.text);
     const setup = JSON.parse(read.text);
-    assert.deepEqual(setup.backupModels, { automatic: true, order: [{ provider: "claude", model: BACKUP }] });
-    assert.equal(setup.returnTo?.model, PRIMARY, "read_agent names the model to go back to.");
-    assert.equal(setup.returnTo?.cause, "provider-error");
-
-    const unknown = await callTool("update_profile", {
-      agentId: stayer.id,
-      backupModels: { automatic: true, order: [{ provider: "claude", model: "claude-unknown-1" }] },
-    });
-    assert.equal(unknown.success, false, "An unlisted model is refused.");
-    assert.ok(unknown.text.includes(BACKUP), "The refusal lists the valid models.");
-    assert.equal(agentOf(stayer.id).backupModels, undefined, "A refused call writes nothing.");
-
-    const set = await callTool("update_profile", {
-      agentId: stayer.id,
-      backupModels: { automatic: false, order: [{ provider: "claude", model: BACKUP }] },
-    });
-    assert.ok(set.success, set.text);
-    assert.deepEqual(JSON.parse(set.text).backupModels, {
-      automatic: false,
-      order: [{ provider: "claude", model: BACKUP }],
-    });
-    assert.deepEqual(agentOf(stayer.id).backupModels, {
-      automatic: false,
-      order: [{ provider: "claude", model: BACKUP }],
-    });
-
-    const cleared = await callTool("update_profile", { agentId: stayer.id, backupModels: null });
-    assert.ok(cleared.success, cleared.text);
-    assert.equal(agentOf(stayer.id).backupModels, undefined, "null removes the order.");
-    return { setup, unknown: unknown.text };
+    assert.equal(setup.model, BACKUP, "read_agent shows the backup model.");
+    assert.equal(setup.usageLimitReturn?.model, PRIMARY, "read_agent names the model to go back to.");
+    assert.equal(setup.usageLimitReturn?.cause, "provider-error", "read_agent names the provider error.");
+    return { model: setup.model, usageLimitReturn: setup.usageLimitReturn };
   });
 
   await check("after a restart the agent goes back to its own model", async () => {

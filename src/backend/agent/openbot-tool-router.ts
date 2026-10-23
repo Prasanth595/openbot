@@ -3,6 +3,7 @@ import { chatVisualItemType } from "@openbot/contracts/chat-visual";
 import { sortConversationMessages } from "@openbot/contracts/conversation-order";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import type {
+  AgentModelChoice,
   AgentModelOption,
   AgentSummary,
   AvatarImageInput,
@@ -71,8 +72,10 @@ import { isHostedSiteMutationTool } from "./hosted-site-events";
 import type { MailboxSync } from "./mailbox-sync";
 import { type AgentMcpServers, handleMcpServerTool, isMcpServerTool } from "./mcp-tools";
 import {
+  agentAccountSetup,
   listModelsPayload,
   modelList,
+  type ProviderAccountRows,
   requestedBackupModels,
   requestedRuntime,
   requestedToolModel,
@@ -127,8 +130,8 @@ function captureFailure(failure: ScreenCaptureFailed) {
 export interface OpenBotToolRouterHooks {
   listAgents(): AgentSummary[];
   listModels(): AgentModelOption[];
-  /** True when `accountId` names an account after the first that this computer holds. */
-  hasProviderAccount(provider: AgentProvider, accountId: string): boolean;
+  /** The accounts of a signed-in provider, as the settings page lists them. */
+  providerAccounts: ProviderAccountRows;
   preferredProvider(): AgentProvider;
   createAgent(
     input: CreateAgentInput,
@@ -594,12 +597,10 @@ export class OpenBotToolRouter {
       provider: agent.provider,
       model: agent.model,
       reasoningEffort: agent.reasoningEffort,
+      ...agentAccountSetup(agent),
       access: workspaceAccessEnforced(agent) ? "workspace" : "full",
       computerUse,
       notifications: agent.notifications,
-      backupModels: agent.backupModels ?? null,
-      // Set while a usage limit or a provider error keeps the agent on a backup model.
-      returnTo: agent.usageLimitReturn ?? null,
       autoApprove: this.#approvalAutomation.autoApproves(agent.id),
       ...(skills ? { skills } : { skillsError }),
       routines: this.#routines.list(agent.id).map((routine) => ({
@@ -784,8 +785,13 @@ export class OpenBotToolRouter {
 
     if (params.tool === "list_models") {
       const args = listModelsToolSchema.parse(params.arguments ?? {});
-      const payload = listModelsPayload(this.#hooks.listModels(), this.#hooks.preferredProvider(), args.provider);
-      return { success: true, contentItems: [{ type: "inputText", text: JSON.stringify(payload) }] };
+      const payload = listModelsPayload(
+        this.#hooks.listModels(),
+        this.#hooks.preferredProvider(),
+        this.#hooks.providerAccounts,
+        args.provider,
+      );
+      return { success: true, contentItems: [{ type: "inputText", text: redactText(JSON.stringify(payload)) }] };
     }
 
     if (params.tool === "interrupt_agent") return yield* this.#interruptTool.handle(params, senderAgentId);
@@ -1332,9 +1338,10 @@ export class OpenBotToolRouter {
         provider,
         model,
         reasoningEffort,
+        providerAccountId,
+        backupModels,
         access,
         computerUse,
-        backupModels,
         ...fields
       } = args;
       if (avatarPath !== undefined && (args.avatarSeed !== undefined || avatarHue !== undefined)) {
@@ -1344,11 +1351,12 @@ export class OpenBotToolRouter {
       if (
         Object.values(fields).every((value) => value === undefined) &&
         Object.values(runtimeRequest).every((value) => value === undefined) &&
+        providerAccountId === undefined &&
+        backupModels === undefined &&
         access === undefined &&
         computerUse === undefined &&
         avatarHue === undefined &&
-        avatarPath === undefined &&
-        backupModels === undefined
+        avatarPath === undefined
       ) {
         throw new Error("At least one profile field is required.");
       }
@@ -1360,14 +1368,24 @@ export class OpenBotToolRouter {
       }
       // Checked before anything is written, so a model the provider does not list leaves the name
       // and every other field of the same call unchanged.
-      const models = this.#hooks.listModels();
-      const runtime = requestedRuntime(target, runtimeRequest, models);
+      const runtime = requestedRuntime(target, runtimeRequest, this.#hooks.listModels());
+      // The model and account the agent has after this call. A provider change without an account
+      // moves the agent to the new provider's own sign-in.
+      const ownProvider = runtime.provider ?? target.provider;
+      const own: AgentModelChoice = {
+        provider: ownProvider,
+        model: runtime.model ?? target.model,
+        providerAccountId:
+          providerAccountId !== undefined
+            ? (providerAccountId ?? undefined)
+            : ownProvider === target.provider
+              ? target.providerAccountId
+              : undefined,
+      };
       const backups =
         backupModels === undefined
           ? undefined
-          : requestedBackupModels(backupModels, models, (id, accountId) =>
-              this.#hooks.hasProviderAccount(id, accountId),
-            );
+          : requestedBackupModels(backupModels, this.#hooks.listModels(), this.#hooks.providerAccounts, own);
       const image =
         avatarPath === undefined
           ? undefined
@@ -1380,9 +1398,11 @@ export class OpenBotToolRouter {
         ...(fields.avatarSeed === undefined ? {} : { avatarSeed: fields.avatarSeed }),
         ...(fields.notifications === undefined ? {} : { notifications: fields.notifications }),
         ...runtime,
+        // The agent service checks that the account exists for the agent's provider after this change.
+        ...(providerAccountId === undefined ? {} : { providerAccountId }),
+        ...(backups === undefined ? {} : { backupModels: backups }),
         ...restrictionInput(access, computerUse),
         ...(avatarHue === undefined ? {} : { avatarHue }),
-        ...(backups === undefined ? {} : { backupModels: backups }),
       };
       let updated = yield* this.#hooks.updateAgent(input, senderAgentId).pipe(toToolOperationFailed);
       if (image !== undefined) {
@@ -1406,11 +1426,10 @@ export class OpenBotToolRouter {
               provider: updated.provider,
               model: updated.model,
               reasoningEffort: updated.reasoningEffort,
+              ...agentAccountSetup(updated),
               access: workspaceAccessEnforced(updated) ? "workspace" : "full",
               computerUse: agentComputerUseEnabled(updated),
               notifications: updated.notifications,
-              backupModels: updated.backupModels ?? null,
-              returnTo: updated.usageLimitReturn ?? null,
             }),
           },
         ],

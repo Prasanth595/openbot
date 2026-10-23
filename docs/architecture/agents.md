@@ -340,28 +340,32 @@ These are manual model evaluations, separate from the fake-provider lifecycle re
 Users create and edit agent profiles by asking an agent in the normal desktop or mobile
 conversation. `openbot.create_agent` creates a persistent teammate with instructions and a first
 task; `openbot.update_profile` changes an existing agent's name, title, instructions, generated
-or custom avatar, provider, model, reasoning effort, ordered backup models, access, Computer Use, or notifications. `avatarPath` accepts a local PNG, JPEG, or WebP file up to 512 KB, with relative
+or custom avatar, provider, model, reasoning effort, account, backup models, access, Computer Use, or notifications. `avatarPath` accepts a local PNG, JPEG, or WebP file up to 512 KB, with relative
 paths resolved from the calling agent’s workspace. The agent uses its available tools to resize or
 compress a copy when needed. OpenBot validates the prepared file before profile changes and copies
 it into managed avatar storage. Generated avatar settings remove the custom image. Both run through
 the existing agent service and validate arguments before changing state.
 `openbot.create_agent` also accepts an optional `provider`, `model` and `reasoningEffort`. The
 read-only `openbot.list_models` returns the models of each provider that the model picker shows, with
-their reasoning efforts and the default model for a request that names only a provider. An unknown
+their reasoning efforts and the default model for a request that names only a provider. A provider
+that can hold more than one account also lists its accounts, with the provider's own sign-in
+(`default`) first: the id, the name the user gave it (or null), and the state. It never lists the
+account email, credentials or account folders. `update_profile` takes the
+agent's `providerAccountId` and its `backupModels` (`automatic` and an `order` of provider, model
+and account), the same choices that the settings page offers. OpenBot checks each backup model and
+account against the lists before it writes, and the agent service checks the primary account; an
+account change, like a provider change, waits until the agent is idle. These changes apply at once,
+as the other profile fields do. `read_agent` and the `update_profile` result return the account,
+the backup models and `usageLimitReturn`, the model that the agent left for a usage limit or a provider error (`cause: "provider-error"`). An unknown
 model or an unsupported effort is an error that names the valid values; OpenBot checks them before
 it creates the agent. Without a provider and a model, the new agent starts on the calling agent's
 provider, model and reasoning effort, so a team that one agent creates runs where that agent runs.
 When the caller's provider no longer lists its model, the new agent starts on the user's default.
 Creation stays this small. The calling agent then configures the new agent, or any other local
 agent, with the same tools that act on itself. `openbot.read_agent` returns one agent's setup:
-profile, runtime, the ordered backup models, the model it goes back to while it runs on a backup
-(`returnTo`), access, Computer Use, notifications, auto-approve, installed skills, routines,
+profile, runtime, access, Computer Use, notifications, auto-approve, installed skills, routines,
 and the names and transports of the MCP servers it gets. It does not return MCP commands,
-environment values, URLs, or headers, because they can hold secrets. `update_profile` takes
-`backupModels` (`{ automatic, order }`, at most 8 entries) and replaces the whole list; `null`
-removes it. Each entry is checked against `list_models`, and an account id must name an account on
-this computer. Like a model change, the list is written at once with no approval card. Account
-labels and emails are not returned. `install_local_skill`,
+environment values, URLs, or headers, because they can hold secrets. `install_local_skill`,
 `set_skill_enabled`, `uninstall_skill`, and the routine tools take an optional `agentId`; without
 it they act on the caller. `uninstall_skill` never removes skill files that the user changed.
 `openbot.update_agents` gives several agents the same provider, model, reasoning effort, access,

@@ -1256,7 +1256,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       hooks: {
         listAgents: () => this.listAgents(),
         listModels: () => this.listModels(),
-        hasProviderAccount: (provider, accountId) => this.#providers.hasProviderAccount(provider, accountId),
+        providerAccounts: (provider) => this.getStatus().providers?.find((row) => row.id === provider)?.accounts,
         preferredProvider: () => this.preferredProvider(),
         createAgent: (input, configure) =>
           this.createAgent(
