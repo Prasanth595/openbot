@@ -663,6 +663,11 @@ export function codexThreadMcpServers(
   return record;
 }
 
+/** Code-mode-only models must see configured external MCP tools alongside the direct built-ins. */
+export function codexMcpToolNamespaces(servers: Readonly<Record<string, CodexMcpServer>>): string[] {
+  return Object.keys(servers).map((name) => `mcp__${name}`);
+}
+
 export function codexMcpServers(
   servers: readonly UsableMcpServer[],
   own: CodexOwnTransports = {},

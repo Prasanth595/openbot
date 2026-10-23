@@ -105,6 +105,8 @@ export const messages = {
   "marketplace.app.connectNamed": "Подключить: {name}",
   "marketplace.app.reconnectNamed": "Переподключить: {name}",
   "marketplace.app.connected": "Подключено",
+  "marketplace.app.installed": "Установлены",
+  "marketplace.app.notInstalled": "Не установлены",
   "marketplace.app.attention": "Требует внимания",
   "marketplace.app.notConnected": "Не подключено",
   "marketplace.app.custom": "Сервер MCP",

@@ -85,6 +85,8 @@ export const messages = {
   "marketplace.app.connectNamed": "{name} を接続",
   "marketplace.app.reconnectNamed": "{name} を再接続",
   "marketplace.app.connected": "接続済み",
+  "marketplace.app.installed": "インストール済み",
+  "marketplace.app.notInstalled": "未インストール",
   "marketplace.app.attention": "対応が必要",
   "marketplace.app.notConnected": "未接続",
   "marketplace.app.custom": "MCP サーバー",

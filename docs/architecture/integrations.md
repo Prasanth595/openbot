@@ -50,6 +50,23 @@ A dropped token is not handed to an agent: `accessToken` answers `null`. The IPC
 `McpSignInState.needsSignIn` tells the panel to show the sign-in badge and the Sign in button with
 no test. The frozen `mcp-sign-in-v1` wire keeps only `mcpServerId` and `signedIn`.
 
+Agent MCP management tools report this local token state as `server.oauth`, with `signedIn` and
+`needsSignIn`. A server that uses a key can answer with neither OAuth flag set. A successful
+`save_mcp_server` or `test_mcp_server` returns `status: "ready"` and
+`verificationScope: "mcp_tool_discovery"`: the handshake and tool list worked at test time. It does
+not confirm access to an app behind a discovery server such as Composio. The agent must discover
+the app's tools, check its account connection and verify the requested access separately.
+Marketplace shows a saved catalog plugin as Installed; connector connection state stays separate.
+The OpenBot tool search, describe and call bridge covers built-in and embedded-browser tools only.
+External MCP tools use the provider's native tool surface and discovery. A configuration change
+refreshes sessions for the next turn; running a test does not add tools or require another message.
+
+Codex threads expose the enabled MCP servers as direct tool namespaces, beside the built-in
+OpenBot namespace. The names come from the final Codex server keys after transport-collision
+handling. This keeps them callable on models that use Code Mode only; tool discovery alone does
+not put them on that model's tool surface. Adapter version 8 refreshes sessions created with the
+older namespace configuration, with no change to the public conversation or agent identity.
+
 Sign-out and removal delete the local tokens first. Then OpenBot sends one best-effort RFC 7009
 request per token, refresh token first, to the `revocation_endpoint` of the authorization server.
 The request goes through `secureOAuthFetch`, with the client authentication of the registration and

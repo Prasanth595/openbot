@@ -131,8 +131,8 @@ function SkillCard(props: { scope: MarketplaceScope; skill: MarketplaceSkillSumm
 }
 
 /**
- * "Connect", or "Reconnect" for an app that needs attention. A connected app shows "Connected" in a
- * list; its page shows the status in the header instead. A connect removes this button, so
+ * "Connect", or "Reconnect" for an app that needs attention. A saved plugin shows "Installed";
+ * a connector shows "Connected". The page shows the status in the header. A connect removes this button, so
  * `onConnected` gives the focus a new place.
  */
 export function AppAction(props: {
@@ -176,7 +176,7 @@ export function AppAction(props: {
       when={props.app.status !== "connected"}
       fallback={
         <Show when={props.size}>
-          <Done>{t("marketplace.app.connected")}</Done>
+          <Done>{t(props.app.kind === "plugin" ? "marketplace.app.installed" : "marketplace.app.connected")}</Done>
         </Show>
       }
     >

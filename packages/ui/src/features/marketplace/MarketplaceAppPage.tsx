@@ -34,6 +34,12 @@ const STATUS_LABEL = {
   idle: "marketplace.app.notConnected",
 } as const satisfies Record<MarketplaceAppStatus, string>;
 
+const PLUGIN_STATUS_LABEL = {
+  ...STATUS_LABEL,
+  connected: "marketplace.app.installed",
+  idle: "marketplace.app.notInstalled",
+} as const satisfies Record<MarketplaceAppStatus, string>;
+
 function PluginAppPage(props: { scope: MarketplaceScope; app: PluginApp }) {
   const { t } = useText();
   const model = () => props.scope.model;
@@ -60,7 +66,7 @@ function PluginAppPage(props: { scope: MarketplaceScope; app: PluginApp }) {
         logo={<AppMark app={props.app} />}
         name={props.app.name}
         status={props.app.status}
-        statusLabel={t(STATUS_LABEL[props.app.status])}
+        statusLabel={t(PLUGIN_STATUS_LABEL[props.app.status])}
         subtitle={props.app.tagline}
         actions={
           <>

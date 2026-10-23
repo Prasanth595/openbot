@@ -92,6 +92,8 @@ export const messages = defineMessages("marketplace", {
   "marketplace.app.connectNamed": "Connect {name}",
   "marketplace.app.reconnectNamed": "Reconnect {name}",
   "marketplace.app.connected": "Connected",
+  "marketplace.app.installed": "Installed",
+  "marketplace.app.notInstalled": "Not installed",
   "marketplace.app.attention": "Needs attention",
   "marketplace.app.notConnected": "Not connected",
   "marketplace.app.custom": "MCP server",

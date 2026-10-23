@@ -435,7 +435,8 @@ jobs:
   provider-fakes-e2e:
     # Runs the real ACP provider drivers (custom agents, OpenCode, Cline) over fake agents from
     # `scripts/provider-fakes/`. The fakes speak ACP on stdio as the released CLIs do, or replay a
-    # recorded transcript of a released CLI, so the job needs no provider account, network or display.
+    # recorded transcript of a released CLI. The MCP test installs pinned Codex and uses a local
+    # model and MCP server. No test needs a provider account, external service or display.
     name: Provider fakes E2E
     needs: detect
     if: needs.detect.outputs.desktop == 'true'
@@ -461,6 +462,16 @@ jobs:
       - name: Run the Codex login shell PATH E2E test
         if: ${{ !cancelled() }}
         run: bun run test:codex:login-path
+
+      - name: Install pinned Codex for MCP discovery E2E
+        if: ${{ !cancelled() }}
+        run: bun run install:codex-runtime
+
+      - name: Run the Codex MCP discovery E2E test
+        if: ${{ !cancelled() }}
+        env:
+          OPENBOT_TEST_CODEX_EXECUTABLE: ${{ github.workspace }}/build/codex/linux/x64/bin/codex
+        run: bun scripts/codex-mcp-discovery-e2e.ts
 
       - name: Run the ACP additional directories E2E test
         if: ${{ !cancelled() }}
@@ -519,6 +530,7 @@ jobs:
             .openbot-build/custom-acp-agent-e2e/
             .openbot-build/custom-acp-agent-login-path-e2e/
             .openbot-build/codex-login-path-e2e/
+            .openbot-build/codex-mcp-discovery-e2e/
             .openbot-build/acp-additional-directories-e2e/
             .openbot-build/acp-flavor-e2e/
             .openbot-build/acp-mcp-server-names-e2e/

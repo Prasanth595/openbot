@@ -13,6 +13,7 @@ import { Effect } from "effect";
 import { McpGateway } from "../src/backend/agent/mcp-gateway";
 import { handleMcpServerTool, type McpServerToolName, mcpServersFromGateway } from "../src/backend/agent/mcp-tools";
 import { runCauseEffect } from "../src/backend/effect-boundary";
+import { McpOAuth, type McpOAuthRecord, normalizeResource } from "../src/backend/mcp-oauth-provider";
 import { McpServerStore } from "../src/backend/mcp-server-store";
 import { OpenBotDatabase } from "../src/backend/openbot-database";
 import { NO_PROVIDER_CREDENTIALS } from "../src/backend/provider-drivers";
@@ -22,7 +23,7 @@ const URL_SECRET = "url-secret-7f3a91";
 const HEADER_SECRET = "header-secret-2c8d40";
 
 /** How each local server answers a request without a token. */
-type Mode = "open" | "sign-in" | "key";
+type Mode = "open" | "sign-in" | "key" | "consumer-key";
 
 async function body(request: IncomingMessage): Promise<string> {
   const chunks: Buffer[] = [];
@@ -43,6 +44,8 @@ async function mcpServer(mode: Mode): Promise<{ url: string; close: () => Promis
       if (mode === "sign-in")
         return json(response, 401, { error: "unauthorized" }, { "www-authenticate": 'Bearer realm="e2e"' });
       if (mode === "key") return json(response, 401, { error: "unauthorized" });
+      if (mode === "consumer-key" && request.headers["x-consumer-api-key"] !== HEADER_SECRET)
+        return json(response, 401, { error: "unauthorized" });
       if (request.method !== "POST") {
         response.writeHead(405).end();
         return;
@@ -67,7 +70,12 @@ async function mcpServer(mode: Mode): Promise<{ url: string; close: () => Promis
         return json(response, 200, {
           jsonrpc: "2.0",
           id: message.id,
-          result: { tools: [tool("search"), tool("read_page"), tool("create_page")] },
+          result: {
+            tools:
+              mode === "consumer-key"
+                ? Array.from({ length: 11 }, (_, index) => tool(`discovery_${index + 1}`))
+                : [tool("search"), tool("read_page"), tool("create_page")],
+          },
         });
       }
       return json(response, 200, { jsonrpc: "2.0", id: message.id, error: { code: -32601, message: "unknown" } });
@@ -90,12 +98,21 @@ async function closedUrl(): Promise<string> {
 }
 
 /** The JSON of an MCP tool result, as the agent reads it. */
+interface ServerAnswer {
+  name: string;
+  enabled: boolean;
+  headerNames?: string[];
+  oauth?: { signedIn: boolean; needsSignIn: boolean };
+}
+
 interface ToolAnswer {
   status?: string;
+  verificationScope?: string;
   error?: string;
   toolCount?: number;
   tools?: string[];
-  servers?: Array<{ name: string; headerNames?: string[] }>;
+  server?: ServerAnswer;
+  servers?: ServerAnswer[];
   enabled?: boolean;
   removed?: boolean;
 }
@@ -117,7 +134,20 @@ const servers: Record<Mode, { url: string; close: () => Promise<void> }> = {
   open: await mcpServer("open"),
   "sign-in": await mcpServer("sign-in"),
   key: await mcpServer("key"),
+  "consumer-key": await mcpServer("consumer-key"),
 };
+const oauthRecords = new Map<string, McpOAuthRecord>();
+const oauth = new McpOAuth({
+  storage: {
+    read: (resource) => oauthRecords.get(resource) ?? null,
+    write: (resource, record) => Effect.sync(() => void oauthRecords.set(resource, record)),
+    clear: (resource) => Effect.sync(() => void oauthRecords.delete(resource)),
+  },
+  openExternal: async () => {
+    throw new Error("A silent MCP test must not open a sign-in page.");
+  },
+  redirectUrl: "http://127.0.0.1:28417/mcp-auth",
+});
 const calls: Call[] = [];
 let refreshes = 0;
 const report: { passed: boolean; calls: Call[]; refreshes: number; failures: string[] } = {
@@ -132,7 +162,7 @@ try {
   const store = new McpServerStore(database);
   const gateway = new McpGateway({
     servers: store,
-    credentials: NO_PROVIDER_CREDENTIALS,
+    credentials: { ...NO_PROVIDER_CREDENTIALS, mcpOAuth: oauth },
     computerUseMcpServer: () => null,
     logger: createOpenBotLogger("agent-service", () => undefined),
     hooks: {
@@ -200,6 +230,8 @@ try {
   assert.equal(added.result.status, "ready");
   assert.deepEqual(added.result.tools, ["search", "read_page", "create_page"]);
   assert.equal(added.result.toolCount, 3);
+  assert.equal(added.result.verificationScope, "mcp_tool_discovery");
+  assert.deepEqual(added.result.server?.oauth, { signedIn: false, needsSignIn: false });
   assert.match(added.approvals[0] ?? "", /Every agent on this server/u);
   assert.equal(row("docs")?.enabled, true);
   assert.equal(refreshes, 1);
@@ -282,6 +314,58 @@ try {
   assert.equal(tested.result.status, "ready");
   assert.equal(tested.approvals.length, 0);
 
+  const on = await call("turn a server on again", "set_mcp_server_enabled", { name: "docs", enabled: true });
+  assert.equal(on.success, true);
+  assert.equal(row("docs")?.enabled, true);
+
+  const consumer = await call("add a server that requires a consumer key", "save_mcp_server", {
+    name: "discovery",
+    url: servers["consumer-key"].url,
+  });
+  assert.equal(consumer.result.status, "needs_key");
+  const consumerRow = row("discovery");
+  assert.ok(consumerRow);
+  store.save({ ...consumerRow, headers: [{ key: "x-consumer-api-key", value: HEADER_SECRET }] });
+  const keyReady = await call("key works without an OpenBot OAuth token", "test_mcp_server", { name: "discovery" });
+  assert.equal(keyReady.result.status, "ready");
+  assert.equal(keyReady.result.verificationScope, "mcp_tool_discovery");
+  assert.equal(keyReady.result.toolCount, 11);
+  assert.equal(keyReady.result.tools?.length, 11);
+  assert.deepEqual(keyReady.result.server?.oauth, { signedIn: false, needsSignIn: false });
+  assert.deepEqual(keyReady.result.server?.headerNames, ["x-consumer-api-key"]);
+  assert.equal(keyReady.signInCards.length, 0);
+  assert.ok(keyReady.result.server && !("signedIn" in keyReady.result.server));
+
+  const keyListed = await call("list scopes the key server's OAuth state", "list_mcp_servers", {});
+  assert.deepEqual(keyListed.result.servers?.find((entry) => entry.name === "discovery")?.oauth, {
+    signedIn: false,
+    needsSignIn: false,
+  });
+  store.save({ ...consumerRow, headers: [{ key: "x-consumer-api-key", value: "wrong-fixture-key" }] });
+  const invalidKey = await call("an invalid consumer key needs a key", "test_mcp_server", { name: "discovery" });
+  assert.equal(invalidKey.result.status, "needs_key");
+  assert.equal(invalidKey.signInCards.length, 0);
+  store.save({ ...consumerRow, headers: [{ key: "x-consumer-api-key", value: HEADER_SECRET }] });
+  const keyRestored = await call("a corrected key restores discovery", "test_mcp_server", { name: "discovery" });
+  assert.equal(keyRestored.result.status, "ready");
+
+  const docs = row("docs");
+  assert.ok(docs);
+  const oauthResource = normalizeResource(docs.url);
+  assert.ok(oauthResource);
+  oauthRecords.set(oauthResource, { tokens: { access_token: HEADER_SECRET, token_type: "Bearer" } });
+  const signedIn = await call("list scopes stored OAuth tokens", "list_mcp_servers", {});
+  assert.deepEqual(signedIn.result.servers?.find((entry) => entry.name === "docs")?.oauth, {
+    signedIn: true,
+    needsSignIn: false,
+  });
+  oauthRecords.set(oauthResource, { lostAt: Date.now() });
+  const lost = await call("list preserves a lost OAuth sign-in", "list_mcp_servers", {});
+  assert.deepEqual(lost.result.servers?.find((entry) => entry.name === "docs")?.oauth, {
+    signedIn: false,
+    needsSignIn: true,
+  });
+
   const unknown = await call("an unknown name", "test_mcp_server", { name: "nothing" });
   assert.equal(unknown.success, false);
 
@@ -306,6 +390,7 @@ try {
 } finally {
   report.refreshes = refreshes;
   await Promise.all(Object.values(servers).map((server) => server.close()));
+  await runCauseEffect(oauth.close());
   database.close();
   await rm(root, { recursive: true, force: true });
   await mkdir(OUT, { recursive: true });

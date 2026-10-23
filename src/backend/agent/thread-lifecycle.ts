@@ -30,6 +30,7 @@ import {
   codexDisabledServers,
   codexMcpServerKey,
   codexMcpServers,
+  codexMcpToolNamespaces,
   codexThreadMcpServers,
   type McpEndpointSource,
   type McpServerDrop,
@@ -71,9 +72,10 @@ const logger = createOpenBotLogger("thread-lifecycle");
  * the payload, 3 is the sweep that turns off the servers `~/.codex/config.toml` declares, and 4 is
  * the managed tool runtimes joining the fingerprint, so a session started before Bun finished
  * downloading is replaced once its servers can actually start, 5 is the plan tool below, and 6 is
- * server names in the form Codex accepts. Version 7 keeps approvals for custom MCP servers.
+ * server names in the form Codex accepts. Version 7 keeps approvals for custom MCP servers;
+ * version 8 exposes their namespaces to code-mode-only models.
  */
-const CODEX_MCP_ADAPTER_VERSION = 7;
+const CODEX_MCP_ADAPTER_VERSION = 8;
 
 /** What a provider other than Codex, or a Codex with no file to read, has in its own files. */
 const NO_CODEX_OWN_SERVERS: CodexOwnServers = { disabled: {}, transports: {} };
@@ -88,7 +90,8 @@ const CODEX_TOOLS_CONFIG = { update_plan: { enabled: true } } as const;
  * In code mode the model calls tools from an `exec` cell, and `exec` gives control back to the model
  * after its yield time while `ask_user` still waits. A model that then ends its turn expires the
  * question within seconds. Direct calls keep the turn waiting for the answer. It goes in as one
- * dotted key, as the agent environment does, so it does not turn code mode on or off.
+ * dotted key, as the agent environment does, so it does not turn code mode on or off. External MCP
+ * namespaces join this list per thread so code-mode-only models can also call their tools.
  */
 const CODEX_DIRECT_ONLY_NAMESPACES = VISIBLE_DYNAMIC_TOOLS.map((namespace) => namespace.name);
 
@@ -718,7 +721,10 @@ export class ThreadLifecycle {
       config: {
         ...(Object.keys(mcpServers).length > 0 ? { mcp_servers: mcpServers } : {}),
         tools: CODEX_TOOLS_CONFIG,
-        "features.code_mode.direct_only_tool_namespaces": CODEX_DIRECT_ONLY_NAMESPACES,
+        "features.code_mode.direct_only_tool_namespaces": [
+          ...CODEX_DIRECT_ONLY_NAMESPACES,
+          ...codexMcpToolNamespaces(servers),
+        ],
         ...codexSandboxConfig(agent, this.#store.sharedRoot),
         ...Object.fromEntries(
           Object.entries(environment).map(([name, value]) => [`shell_environment_policy.set.${name}`, value]),

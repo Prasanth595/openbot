@@ -105,6 +105,8 @@ export const messages = {
   "marketplace.app.connectNamed": "{name} uygulamasına bağlan",
   "marketplace.app.reconnectNamed": "{name} uygulamasına yeniden bağlan",
   "marketplace.app.connected": "Bağlandı",
+  "marketplace.app.installed": "Kurulu",
+  "marketplace.app.notInstalled": "Kurulu değil",
   "marketplace.app.attention": "Dikkat gerekiyor",
   "marketplace.app.notConnected": "Bağlı değil",
   "marketplace.app.custom": "MCP sunucusu",

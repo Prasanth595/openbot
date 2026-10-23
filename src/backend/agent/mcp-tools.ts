@@ -60,7 +60,7 @@ const MCP_APPROVAL =
 export const MCP_SERVER_TOOL_DEFINITIONS = [
   {
     name: "list_mcp_servers",
-    description: `List the MCP servers of this OpenBot server: name, transport, on or off, address or command, the names of its headers and environment variables, and whether it is signed in. Values are never shown. ${MCP_SCOPE} Read-only.`,
+    description: `List the MCP servers of this OpenBot server: name, transport, on or off, address or command, the names of its headers and environment variables, and OAuth state held by OpenBot. oauth.signedIn is only the local OAuth token state; false does not mean a server that uses a key needs sign-in. Values are never shown. ${MCP_SCOPE} Read-only.`,
     shape: {},
   },
   {
@@ -71,7 +71,7 @@ export const MCP_SERVER_TOOL_DEFINITIONS = [
   {
     name: "test_mcp_server",
     description:
-      "Connect to one saved MCP server and report its tools, or what it needs: a sign-in, a key, or the error. Call it again after the user signs in or enters a key.",
+      "Connect to one saved MCP server and report its tools, or what it needs: a sign-in, a key, or the error. ready confirms MCP tool discovery only, not access to an app behind the server. oauth.signedIn reports only OAuth tokens held by OpenBot. Call it again after the user signs in or enters a key.",
     shape: namedServerSchema.shape,
   },
   {
@@ -240,6 +240,7 @@ const report = Effect.fnUntraced(function* (
   if (outcome.error === null)
     return openBotToolResult({
       status: "ready",
+      verificationScope: "mcp_tool_discovery",
       server,
       toolCount: outcome.toolCount,
       tools: outcome.tools,
@@ -306,8 +307,10 @@ function describeServer(config: McpServerConfig, signIns: readonly McpSignInStat
       enabled: config.enabled,
       url: addressWithoutQuery(config.url),
       headerNames: config.headers.map(({ key }) => key),
-      signedIn: signIn?.signedIn ?? false,
-      ...(signIn?.needsSignIn ? { needsSignIn: true } : {}),
+      oauth: {
+        signedIn: signIn?.signedIn ?? false,
+        needsSignIn: signIn?.needsSignIn ?? false,
+      },
     };
   }
   return {

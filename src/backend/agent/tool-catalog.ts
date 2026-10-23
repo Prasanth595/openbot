@@ -96,11 +96,11 @@ export function claudeBridgedToolName(name: string, input: unknown): string {
 }
 
 /**
- * Search matches whole words, so a query that names a web service, such as "gmail" or "read mail",
- * finds no browser tool. Without this note the agent reports that it has no tool for that service.
+ * A built-in search cannot establish whether an external MCP tool exists. Name that scope before
+ * suggesting a browser fallback for a web service that has no built-in tool.
  */
 const BROWSER_SEARCH_NOTE =
-  "No browser tool is in these results. A website or web app with no dedicated tool, such as mail or a calendar, is reached through openbot_browser. Call openbot_browser.list_tabs first: your signed-in tabs stay open across sessions.";
+  "These results cover built-in OpenBot and embedded browser tools only, not external MCP tools. Check your provider's native MCP tool surface or native discovery for an installed service; use its own search tools when it offers app discovery. No browser tool is in these results. If no dedicated tool is available, use openbot_browser.list_tabs to reach the website: your signed-in tabs stay open across sessions.";
 
 function words(text: string): string[] {
   return text
