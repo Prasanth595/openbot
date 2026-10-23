@@ -234,10 +234,16 @@ import { resolveRemoteDesktopRuntime } from "./remote-desktop-runtime-artifact";
 import { loadOrCreateRemoteDesktopCredentials } from "./remote-desktop-secret-store";
 import { appendRemoteDiagnosticLog } from "./remote-diagnostics";
 import { decodeVoid } from "./remote-host-decoding";
-import { RemoteNetworkRoutePreferenceStore } from "./remote-network-route-preference-store";
+import {
+  createRemoteNetworkRoutePreferenceStore,
+  type RemoteNetworkRoutePreferenceStore,
+} from "./remote-network-route-preference-store";
 import { RemoteServerManager } from "./remote-server-manager";
 import { RemoteSessionCache } from "./remote-session-cache";
-import { RemoteSessionReusePreferenceStore } from "./remote-session-reuse-preference-store";
+import {
+  createRemoteSessionReusePreferenceStore,
+  type RemoteSessionReusePreferenceStore,
+} from "./remote-session-reuse-preference-store";
 import { sendToRenderer } from "./renderer-ipc";
 import { RequestedUpdate, RequestedUpdateRefusal } from "./requested-update";
 import { ResourceMonitor } from "./resource-monitor";
@@ -1049,11 +1055,11 @@ export async function createApplicationServices({
     join(app.getPath("userData"), SERVER_TIMEZONE_PREFERENCE_FILE),
   );
   await runCauseEffect(serverTimezone.load());
-  const remoteSessionReuse = new RemoteSessionReusePreferenceStore(
+  const remoteSessionReuse = createRemoteSessionReusePreferenceStore(
     join(app.getPath("userData"), REMOTE_SESSION_REUSE_PREFERENCE_FILE),
   );
   await runCauseEffect(remoteSessionReuse.load());
-  const remoteNetworkRoute = new RemoteNetworkRoutePreferenceStore(
+  const remoteNetworkRoute = createRemoteNetworkRoutePreferenceStore(
     join(app.getPath("userData"), REMOTE_NETWORK_ROUTE_PREFERENCE_FILE),
   );
   await runCauseEffect(remoteNetworkRoute.load());
