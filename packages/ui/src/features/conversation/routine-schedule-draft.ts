@@ -204,9 +204,7 @@ export function routineRunsPerDayLabel(
   everyHours: number,
   text: RoutineText = currentText(),
 ): string {
-  const runs = routineRunsPerDay(window, everyHours);
-  if (runs === 0) return text.t("routine.hours.endBeforeStart");
-  return text.t("routine.hours.runsPerDay", { count: runs });
+  return text.t("routine.hours.runsPerDay", { count: routineRunsPerDay(window, everyHours) });
 }
 
 /** "Thu, Sep 24". */
