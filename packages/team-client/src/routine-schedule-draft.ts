@@ -170,9 +170,12 @@ function windowEndMinutes(window: NonNullable<RoutineHoursWindow>): number {
   return end < routineTimeMinutes(window.start) ? end + 24 * 60 : end;
 }
 
-/** The first hour after midnight of runs that start at `first` and repeat every `everyHours`. */
+/**
+ * The first hour after midnight of runs that start at `first` and repeat every `everyHours`.
+ * Each step in `ROUTINE_EVERY_HOURS` divides 24, so the steps continue at `first % everyHours`.
+ */
 function nextDayFirstHour(first: number, everyHours: number): number {
-  return first + Math.ceil((24 - first) / everyHours) * everyHours - 24;
+  return first % everyHours;
 }
 
 /** The minute past the hour of each run. */

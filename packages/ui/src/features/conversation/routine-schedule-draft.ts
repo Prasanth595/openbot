@@ -166,7 +166,8 @@ export function routineHoursLabel(window: RoutineHoursWindow, minute = 0, text: 
   }
   const start = splitClock(window.start);
   const end = splitClock(window.end);
-  if (start.meridiem === end.meridiem) {
+  // A window that ends the next day shows both halves: "11 PM–10 PM", not "11–10 PM".
+  if (start.meridiem === end.meridiem && window.end >= window.start) {
     return t("routine.hours.windowSameHalf", {
       start: shortClockDigits(start),
       end: shortClockDigits(end),
