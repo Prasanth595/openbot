@@ -15,12 +15,14 @@ import {
   SettingsSection,
   SwitchField,
 } from "@openbot/ui";
+import { AppearanceSelect } from "@openbot/ui/features/settings/AppearanceSelect";
 import type { GeneralSettingsValue } from "@openbot/ui/features/settings/app-settings";
 import { LanguageSelect } from "@openbot/ui/features/settings/LanguageSelect";
 import { LogoColorPicker } from "@openbot/ui/features/settings/LogoColorPicker";
 import { SendShortcutSelect } from "@openbot/ui/features/settings/SendShortcutSelect";
 import { useText } from "@openbot/ui/text";
 import { Show } from "solid-js";
+import { useAppearanceChoice } from "../../appearance-choice";
 import { useI18n } from "../../i18n-context";
 import { useInterfaceSizeChoice } from "../../interface-size";
 import { useLogoColorChoice } from "../../logo-color";
@@ -53,6 +55,7 @@ export function SettingsGeneralTab(props: SettingsGeneralTabProps) {
   const i18n = useI18n();
   const linkTargetLabel = (value: GeneralSettingsValue["externalLinkTarget"] | undefined) =>
     value === undefined ? "" : i18n.t(LINK_TARGET_KEYS[value]);
+  const appearance = useAppearanceChoice();
   const logoColor = useLogoColorChoice();
   const interfaceSize = useInterfaceSizeChoice();
   const { format } = useText();
@@ -62,6 +65,28 @@ export function SettingsGeneralTab(props: SettingsGeneralTabProps) {
     <>
       <SettingsSection title={i18n.t("settings.appearance.title")}>
         <ItemGroup class="settings-modal-card">
+          <Item data-settings-row="settings.appearance.theme.title" class="settings-modal-row">
+            <ItemContent>
+              <ItemTitle>{i18n.t("settings.appearance.theme.title")}</ItemTitle>
+              <ItemDescription>{i18n.t("settings.appearance.theme.description")}</ItemDescription>
+            </ItemContent>
+            <ItemActions>
+              <AppearanceSelect
+                value={appearance.appearance()}
+                onChange={appearance.changeAppearance}
+                mount={props.selectMount}
+              />
+            </ItemActions>
+          </Item>
+          <Show when={props.platform === "darwin"}>
+            <SwitchField
+              data-settings-row="settings.appearance.transparentWindow.title"
+              checked={appearance.transparentWindow()}
+              onChange={appearance.changeTransparentWindow}
+              label={i18n.t("settings.appearance.transparentWindow.title")}
+              description={i18n.t("settings.appearance.transparentWindow.description")}
+            />
+          </Show>
           <Item data-settings-row="settings.language.title" class="settings-modal-row">
             <ItemContent>
               <ItemTitle>{i18n.t("settings.language.title")}</ItemTitle>

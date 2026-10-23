@@ -113,6 +113,15 @@ export function createTurnSteps(deps: {
       const turnId = deps.activeTurnId();
       return turnId && sources().answers.has(turnId) ? NO_STEPS : stepsOf(turnId);
     }),
+    /**
+     * The steps of the channel turns that run, while they have no answer. A channel runs several turns
+     * at once and has no single running turn.
+     */
+    workingSteps(turnIds: readonly string[]): AgentStep[] {
+      const { answers } = sources();
+      const turns = turnIds.filter((turnId) => !answers.has(turnId));
+      return turns.length === 0 ? NO_STEPS : turns.flatMap(stepsOf);
+    },
     /** The steps above an answer, or undefined for a message that has none. */
     stepsAbove(messageId: string | undefined): AgentStep[] | undefined {
       const turnId = messageId === undefined ? undefined : turnOfAnswer().get(messageId);

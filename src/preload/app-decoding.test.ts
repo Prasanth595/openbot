@@ -12,6 +12,7 @@ import { describe, expect, it } from "vitest";
 import {
   decodeAccountSessions,
   decodeAnalyticsPreference,
+  decodeAppAppearancePreference,
   decodeAppInfo,
   decodeAppLanguagePreference,
   decodeApprovalAutomationPreference,
@@ -85,6 +86,7 @@ const valid: [string, (value: unknown) => unknown, unknown][] = [
     } satisfies ApprovalAutomationPreference,
   ],
   ["language preference", decodeAppLanguagePreference, { language: "fr" }],
+  ["appearance preference", decodeAppAppearancePreference, { appearance: "light", transparentWindow: true }],
   ["signed out", decodeCentralAuthState, { status: "signed_out" } satisfies CentralAuthState],
   ["code sent", decodeCentralAuthState, codeSent],
   [
@@ -162,6 +164,12 @@ const malformed: [string, (value: unknown) => unknown, unknown][] = [
   ["analytics preference without a switch", decodeAnalyticsPreference, {}],
   ["approval automation without overrides", decodeApprovalAutomationPreference, { defaultAutoApprove: true }],
   ["language preference with an unknown tag", decodeAppLanguagePreference, { language: "xx" }],
+  ["appearance preference with no transparent window", decodeAppAppearancePreference, { appearance: "dark" }],
+  [
+    "appearance preference with a string transparent window",
+    decodeAppAppearancePreference,
+    { appearance: "dark", transparentWindow: "true" },
+  ],
   ["an unknown account status", decodeCentralAuthState, { status: "banned" }],
   ["signed in without a user", decodeCentralAuthState, { status: "signed_in" }],
   ["code sent with a text expiry", decodeCentralAuthState, { ...codeSent, expiresAt: "soon" }],

@@ -29,7 +29,7 @@ const context = createSimpleContext({
   init: () => {
     const { activeServer } = useServers();
     const { serverSettingsTarget } = useServerSettings();
-    const { agentList, agentStatus, modelOptions, serverSetupChoice } = useAgents();
+    const { agentList, agentStatus, modelOptions, serverSetupChoice, developmentCreation } = useAgents();
     const { setupState } = useSetup();
     const endpoints = useCustomProviders();
     const localAgents = useCustomAgents();
@@ -43,7 +43,7 @@ const context = createSimpleContext({
       return {
         modelOptions: options,
         agentStatus: agentStatus(),
-        initial: resolveCreationModel(serverSetupChoice() ?? setupState(), options),
+        initial: resolveCreationModel(serverSetupChoice() ?? setupState(), options, developmentCreation()),
         customProviders: endpoints.customProviders(),
         customAgents: localAgents.customAgents(),
       };

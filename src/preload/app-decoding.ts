@@ -19,6 +19,7 @@ import {
   type AccountSession,
   type AgentMemoryLimitPreference,
   type AnalyticsPreference,
+  type AppAppearancePreference,
   type AppBehaviorPreference,
   type AppInfo,
   type AppInterfaceSizePreference,
@@ -50,6 +51,7 @@ import {
   isAgentMemoryLimit,
   isAgentModel,
   isAgentProvider,
+  isAppAppearance,
   isAppInterfaceSize,
   isAppLanguage,
   isAppLogoColor,
@@ -168,6 +170,13 @@ export function decodeAppLogoColorPreference(value: unknown): AppLogoColorPrefer
   const preference = decodeRecord(value, "logo color preference");
   if (!isAppLogoColor(preference.color)) throw new Error("Invalid logo color.");
   return { color: preference.color };
+}
+
+export function decodeAppAppearancePreference(value: unknown): AppAppearancePreference {
+  const preference = decodeRecord(value, "appearance preference");
+  if (!isAppAppearance(preference.appearance)) throw new Error("Invalid appearance.");
+  if (typeof preference.transparentWindow !== "boolean") throw new Error("Invalid transparent window.");
+  return { appearance: preference.appearance, transparentWindow: preference.transparentWindow };
 }
 
 export function decodeAppInterfaceSizePreference(value: unknown): AppInterfaceSizePreference {

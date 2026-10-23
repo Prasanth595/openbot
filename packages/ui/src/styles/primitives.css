@@ -1425,7 +1425,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--openbot-space-1);
-  color: var(--openbot-text-on-light);
+  color: var(--openbot-paper-text);
   visibility: hidden;
 }
 
@@ -1606,7 +1606,8 @@
   color: var(--openbot-text-primary);
 }
 
-.ui-toaster[data-sonner-toaster][data-sonner-theme="dark"] {
+/* Both themes: Sonner sets its own colors under `[data-sonner-theme]`, so this keeps the same weight. */
+.ui-toaster[data-sonner-toaster][data-sonner-theme] {
   z-index: var(--openbot-layer-toast);
   color: var(--openbot-text-primary);
   font-family: var(--openbot-font-sans);

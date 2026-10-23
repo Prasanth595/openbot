@@ -44,6 +44,7 @@ import {
 } from "../speech/speech-replies";
 import { groupedMessageIds } from "./agent-message-timeline";
 import { continuesSenderRun } from "./chat-grouping";
+import { isChatVisualAppShortcut } from "./chat-visual-shortcuts";
 import { chatVisualPageUrl } from "./chat-visual-url";
 import { conversationRuntime } from "./conversation-runtime";
 import { useConversationViewScope } from "./conversation-scope";
@@ -161,6 +162,8 @@ export function ConversationTimeline() {
     replyJump,
     respondToBrowserTakeover,
     replyToMessage,
+    addPageText,
+    setPageContext,
     retryPendingSend,
     scheduleUnreadDividerVisibilityUpdate,
     setChatSearchQuery,
@@ -392,6 +395,7 @@ export function ConversationTimeline() {
     activeTurnId: () => props.activeTurnId,
   });
   const showAgentSteps = useShowAgentSteps();
+  const channelWorkingSteps = createMemo(() => (channel ? turnSteps.workingSteps(channel.workingTurns()) : []));
   let cachedPrompt: { key: string; prompt: NonNullable<ConversationProps["prompt"]> } | null = null;
   const keyedPrompt = createMemo(() => {
     const prompt = props.prompt;
@@ -962,6 +966,9 @@ export function ConversationTimeline() {
                             title={(message() ?? initialMessage).body}
                             height={visual().height}
                             onOpenLink={(url) => void openExternalMessageUrl(url)}
+                            onMessage={addPageText}
+                            onContext={(text) => setPageContext(message() ?? initialMessage, text)}
+                            isAppShortcut={isChatVisualAppShortcut}
                           />
                         </article>
                       </ChatRowBoundary>
@@ -1028,7 +1035,7 @@ export function ConversationTimeline() {
                         }}
                       />
                     </Show>
-                    <Show when={channel ? undefined : turnSteps.stepsAbove(message()?.id)}>
+                    <Show when={turnSteps.stepsAbove(message()?.id)}>
                       {(steps) => (
                         <ChatRowBoundary>
                           <AgentStepsDisclosure steps={steps()} defaultOpen={showAgentSteps()} />
@@ -1076,54 +1083,55 @@ export function ConversationTimeline() {
                             onOpenQuote={openQuote}
                             onDownload={(attachment) => attachmentAction(attachment, "download")}
                             mediaSource={runtime.attachmentMedia}
-                            class={pending() ? "message-entry-pending" : undefined}
-                            footer={
-                              pending() ? (
-                                <PendingSendStatus
-                                  state={pendingState()}
-                                  updateRequired={Boolean(providerUpdateRequired())}
-                                  error={pendingSend()?.error ?? null}
-                                  retrySafe={pendingRetrySafe()}
-                                  canEdit={!composerHasContent() && !editingDeliveryId()}
-                                  onRetry={() => {
-                                    const send = pendingSend();
-                                    if (send) retryPendingSend(send.clientMessageId);
-                                  }}
-                                  onEdit={() => {
-                                    const send = pendingSend();
-                                    if (send) editPendingSend(send.clientMessageId);
-                                  }}
-                                  onDismiss={() => {
-                                    const send = pendingSend();
-                                    if (send) dismissPendingSend(send.clientMessageId);
-                                  }}
-                                />
-                              ) : undefined
-                            }
                             actions={
-                              <Show when={!hostless()}>
-                                <MessageActions
-                                  message={message() ?? initialMessage}
-                                  pickerOpen={openReactionMessageId() === message()?.id}
-                                  expandedEmoji={expandedEmojiMessageId() === message()?.id}
-                                  copied={copiedMessageId() === message()?.id}
-                                  reactions={!channel}
-                                  authorName={channel ? author().name : undefined}
-                                  onTogglePicker={() => {
-                                    const messageId = message()?.id;
-                                    if (!messageId) return;
-                                    setOpenReactionMessageId((current) => (current === messageId ? null : messageId));
-                                    setExpandedEmojiMessageId(null);
-                                  }}
-                                  onExpandEmoji={() => {
-                                    const messageId = message()?.id;
-                                    if (!messageId) return;
-                                    setExpandedEmojiMessageId((current) => (current === messageId ? null : messageId));
-                                  }}
-                                  {...messageActions}
-                                  readAloud={messageReadAloud()}
-                                />
-                              </Show>
+                              <>
+                                <Show when={pending()}>
+                                  <PendingSendStatus
+                                    state={pendingState()}
+                                    updateRequired={Boolean(providerUpdateRequired())}
+                                    error={pendingSend()?.error ?? null}
+                                    retrySafe={pendingRetrySafe()}
+                                    canEdit={!composerHasContent() && !editingDeliveryId()}
+                                    onRetry={() => {
+                                      const send = pendingSend();
+                                      if (send) retryPendingSend(send.clientMessageId);
+                                    }}
+                                    onEdit={() => {
+                                      const send = pendingSend();
+                                      if (send) editPendingSend(send.clientMessageId);
+                                    }}
+                                    onDismiss={() => {
+                                      const send = pendingSend();
+                                      if (send) dismissPendingSend(send.clientMessageId);
+                                    }}
+                                  />
+                                </Show>
+                                <Show when={!hostless()}>
+                                  <MessageActions
+                                    message={message() ?? initialMessage}
+                                    pickerOpen={openReactionMessageId() === message()?.id}
+                                    expandedEmoji={expandedEmojiMessageId() === message()?.id}
+                                    copied={copiedMessageId() === message()?.id}
+                                    reactions={!channel}
+                                    authorName={channel ? author().name : undefined}
+                                    onTogglePicker={() => {
+                                      const messageId = message()?.id;
+                                      if (!messageId) return;
+                                      setOpenReactionMessageId((current) => (current === messageId ? null : messageId));
+                                      setExpandedEmojiMessageId(null);
+                                    }}
+                                    onExpandEmoji={() => {
+                                      const messageId = message()?.id;
+                                      if (!messageId) return;
+                                      setExpandedEmojiMessageId((current) =>
+                                        current === messageId ? null : messageId,
+                                      );
+                                    }}
+                                    {...messageActions}
+                                    readAloud={messageReadAloud()}
+                                  />
+                                </Show>
+                              </>
                             }
                             menu={
                               hostless()
@@ -1207,7 +1215,11 @@ export function ConversationTimeline() {
               when={!channel}
               fallback={
                 <Show when={channel && channel.workers().length > 0}>
-                  <ChannelActivityIndicator workers={channel?.workers() ?? []} />
+                  <ChannelActivityIndicator
+                    workers={channel?.workers() ?? []}
+                    steps={channelWorkingSteps()}
+                    stepsOpenByDefault={showAgentSteps()}
+                  />
                 </Show>
               }
             >

@@ -3,7 +3,13 @@ import { createMemo, For } from "solid-js";
 import type { AgentProfile } from "../../data";
 import { useText } from "../../text";
 import { AgentAvatar } from "../agents/AgentAvatar";
-import { type AgentActivityLabel, agentActivityLabelKey, nextAgentActivityLabel } from "../conversation/AgentActivity";
+import {
+  AgentActivityBody,
+  type AgentActivityLabel,
+  agentActivityLabelKey,
+  nextAgentActivityLabel,
+} from "../conversation/AgentActivity";
+import type { AgentStep } from "../conversation/AgentSteps";
 
 /** One agent the channel is waiting on. The profile is missing while the agent list has no such id. */
 export interface ChannelWorker {
@@ -34,8 +40,14 @@ export function channelActivitySentence(names: string[], t: AppTranslate): strin
  * who moves between a channel and an agent chat meets one indicator. What differs is the number of
  * faces: a channel runs at most `CHANNEL_PARALLEL_LIMIT` agents, which is what keeps the count of
  * animating avatars low - each one costs the renderer a style recalculation and a paint per frame.
+ * The steps of the turns that have no answer yet open under the line, as in the agent chat.
  */
-export function ChannelActivityIndicator(props: { workers: ChannelWorker[] }) {
+export function ChannelActivityIndicator(props: {
+  workers: ChannelWorker[];
+  steps?: readonly AgentStep[] | undefined;
+  /** The "Show agent steps" setting: the steps are open when the work starts. */
+  stepsOpenByDefault?: boolean | undefined;
+}) {
   const { t } = useText();
   const key = createMemo(() =>
     props.workers
@@ -65,7 +77,12 @@ export function ChannelActivityIndicator(props: { workers: ChannelWorker[] }) {
         aria-atomic="true"
         aria-label={t("channel.activity.status", { sentence: sentence(), label: t(agentActivityLabelKey(label())) })}
       />
-      <section class="agent-activity-content channel-activity-content" aria-label={t("chat.activity.current")}>
+      <AgentActivityBody
+        class="channel-activity-content"
+        steps={props.steps}
+        stepsOpenByDefault={props.stepsOpenByDefault}
+        live
+      >
         <div class="channel-activity-faces">
           <For each={props.workers}>
             {(worker) => (
@@ -79,7 +96,7 @@ export function ChannelActivityIndicator(props: { workers: ChannelWorker[] }) {
           </For>
         </div>
         <span class="agent-activity-label">{t(agentActivityLabelKey(label()))}</span>
-      </section>
+      </AgentActivityBody>
     </div>
   );
 }

@@ -7,6 +7,14 @@ export const messages = defineMessages("settings", {
   "settings.language.system": "System default",
   // The logo color setting, General tab.
   "settings.appearance.title": "Appearance",
+  "settings.appearance.theme.title": "Theme",
+  "settings.appearance.theme.description": "Light or dark colors. System follows the setting of your device.",
+  "settings.appearance.theme.system": "System",
+  "settings.appearance.theme.light": "Light",
+  "settings.appearance.theme.dark": "Dark",
+  "settings.appearance.transparentWindow.title": "Transparent window",
+  "settings.appearance.transparentWindow.description":
+    "Show the blurred desktop behind the window. Websites and menus then use the app theme.",
   "settings.interfaceSize.title": "Interface size",
   "settings.interfaceSize.description": "The size of text and controls in OpenBot.",
   "settings.logoColor.title": "Logo color",

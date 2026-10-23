@@ -2,6 +2,8 @@
 @import "@fontsource-variable/inter/wght-italic.css";
 @import "tailwindcss";
 @import "@openbot/brand/tokens.css";
+/* Only the web client at /app sets the attribute that turns it on. The public pages stay dark. */
+@import "@openbot/brand/tokens-light.css";
 @import "@openbot/ui/stagger.css";
 
 /* Arial with the size and line metrics of Inter. Until Inter loads, the text takes the same space,

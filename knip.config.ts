@@ -36,6 +36,8 @@ const config: KnipConfig = {
     "say",
     // Finds the child processes of the dev app in the channel E2E scripts.
     "pgrep",
+    // Captures the transparent main window in the appearance E2E script on macOS.
+    "screencapture",
   ],
   workspaces: {
     ".": {

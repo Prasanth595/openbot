@@ -49,6 +49,7 @@ export const messages = {
   "app.standingApproval.title": "{name} için her zaman izin verilsin mi?",
   "app.standingApproval.titleUnnamed": "Bu ajan için her zaman izin verilsin mi?",
   "app.rail.label": "Sayfalar",
+  "app.rail.website": "OpenBot web sitesi",
   "app.rail.agents": "Ajanlar",
   "app.rail.schedule": "Zamanlama",
   "app.rail.tasks": "Görevler",
