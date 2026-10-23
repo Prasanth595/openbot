@@ -1,5 +1,5 @@
 import { chatVisualReply } from "@openbot/contracts/chat-visual";
-import type { ConversationMessageSender } from "@openbot/contracts/ipc";
+import type { ConversationMessageSender, MessageReaction } from "@openbot/contracts/ipc";
 import type { ConversationUiBlock } from "@openbot/contracts/ui-blocks";
 import { Button } from "@openbot/ui";
 import type { AgentMessage, ChatActionMarkerModel } from "@openbot/ui/data";
@@ -18,7 +18,7 @@ import { ContextCompactionMarker, type ContextCompactionView } from "@openbot/ui
 import { BrowserTakeoverCard } from "@openbot/ui/features/conversation/ConversationPrompts";
 import { dayMarkerLabel } from "@openbot/ui/features/conversation/chat-day-markers";
 import { ReplyReturnButton, ScrollToLatestButton } from "@openbot/ui/features/conversation/MessageNavigation";
-import { MessageActions } from "@openbot/ui/features/conversation/MessageRendering";
+import { MessageActions, MessageMenu } from "@openbot/ui/features/conversation/MessageRendering";
 import { PendingSendStatus } from "@openbot/ui/features/conversation/PendingSendStatus";
 import { SubagentGroup } from "@openbot/ui/features/conversation/Subagents";
 import { TaskList } from "@openbot/ui/features/conversation/TaskList";
@@ -929,6 +929,25 @@ export function ConversationTimeline() {
                     actor: { kind: "user" as const },
                   }));
                 });
+                // The action row and the right-click menu run the same actions.
+                const messageActions = {
+                  onReact: (emoji: MessageReaction | null) => {
+                    const currentMessage = message();
+                    if (currentMessage) void reactToMessage(currentMessage, emoji);
+                  },
+                  onReply: () => {
+                    const currentMessage = message();
+                    if (currentMessage) replyToMessage(currentMessage);
+                  },
+                  onCopy: () => {
+                    const currentMessage = message();
+                    if (currentMessage) void copyMessage(currentMessage);
+                  },
+                };
+                const messageReadAloud = () =>
+                  spokenReplyIds().has((message() ?? initialMessage).id)
+                    ? undefined
+                    : readAloudAction(message() ?? initialMessage);
                 return (
                   <div
                     data-index={virtualRow.index}
@@ -1040,25 +1059,23 @@ export function ConversationTimeline() {
                                     if (!messageId) return;
                                     setExpandedEmojiMessageId((current) => (current === messageId ? null : messageId));
                                   }}
-                                  onReact={(emoji) => {
-                                    const currentMessage = message();
-                                    if (currentMessage) void reactToMessage(currentMessage, emoji);
-                                  }}
-                                  onReply={() => {
-                                    const currentMessage = message();
-                                    if (currentMessage) replyToMessage(currentMessage);
-                                  }}
-                                  onCopy={() => {
-                                    const currentMessage = message();
-                                    if (currentMessage) void copyMessage(currentMessage);
-                                  }}
-                                  readAloud={
-                                    spokenReplyIds().has((message() ?? initialMessage).id)
-                                      ? undefined
-                                      : readAloudAction(message() ?? initialMessage)
-                                  }
+                                  {...messageActions}
+                                  readAloud={messageReadAloud()}
                                 />
                               </Show>
+                            }
+                            menu={
+                              hostless()
+                                ? undefined
+                                : () => (
+                                    <MessageMenu
+                                      message={message() ?? initialMessage}
+                                      reactions={!channel}
+                                      authorName={channel ? author().name : undefined}
+                                      {...messageActions}
+                                      readAloud={messageReadAloud()}
+                                    />
+                                  )
                             }
                           >
                             <Show when={playerKind()}>

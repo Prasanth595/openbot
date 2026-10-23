@@ -4,7 +4,7 @@ import {
   BubbleContent,
   BubbleReactions,
   Button,
-  Message,
+  ContextMenu,
   MessageAvatar,
   MessageContent,
   MessageFooter,
@@ -61,6 +61,8 @@ export interface ChatMessageRowProps {
   reactionOverflowCount?: number | undefined;
   onRemoveReaction?: (() => void) | undefined;
   actions?: JSX.Element;
+  /** Draws the right-click menu, a `MessageMenu`. Without it, right-click keeps the native menu. */
+  menu?: (() => JSX.Element) | undefined;
   footer?: JSX.Element;
   /** Extra content inside the bubble, under the body: a question prompt, a note about the message. */
   children?: JSX.Element;
@@ -104,155 +106,197 @@ export function ChatMessageRow(props: ChatMessageRowProps): JSX.Element {
     if (own() || currentSeed === undefined) return undefined;
     return `--message-author-color: ${avatarHeadColor(currentSeed, props.author.agent?.avatarHue ?? null)}`;
   };
+  // The native menu copies selected text and links, and Shift opens Inspect Element. These cases
+  // stop the event before the trigger's delegated handler, which would prevent its default, so the
+  // native menu still opens.
+  const keepNativeMenu = (row: HTMLElement) =>
+    row.addEventListener(
+      "contextmenu",
+      (event) => {
+        const selection = window.getSelection();
+        const selectedHere =
+          selection !== null &&
+          !selection.isCollapsed &&
+          selection.toString().trim() !== "" &&
+          selection.getRangeAt(0).intersectsNode(row);
+        const link = event.target instanceof Element && event.target.closest("a[href]") !== null;
+        if (event.shiftKey || link || selectedHere) event.stopPropagation();
+      },
+      { capture: true },
+    );
   return (
-    <Message
-      role="article"
-      align={person() ? "end" : "start"}
-      aria-label={t("chat.row.label", { name: props.author.name })}
-      data-author={person() ? "user" : "assistant"}
-      data-chat-search-message={props["data-chat-search-message"]}
-      style={authorStyle()}
-      class={[
-        "message-entry",
-        {
-          "message-entry-animated": props.animate === true,
-          "message-entry-user": person(),
-          "message-entry-agent": !person(),
-          "message-entry-with-author": props.showAuthor === true && !person(),
-        },
-        props.class,
-      ]}
-    >
-      <Show when={props.showAuthor && !person()}>
-        <MessageAvatar class="message-author-avatar">
-          <Show when={props.author.agent} fallback={<AgentAvatar seed={seed()} />}>
-            {(agent) => (
-              <Button
-                variant="ghost"
-                class="message-author-avatar-button"
-                aria-label={t("chat.row.openChat", { name: props.author.name })}
-                onClick={() => props.onSelectAgent(agent().id)}
-              >
-                <AgentAvatar agent={agent()} seed={seed()} />
-              </Button>
-            )}
-          </Show>
-        </MessageAvatar>
-      </Show>
-      <Show when={props.showAuthor === false && !person()}>
-        <div class="message-author-gutter" aria-hidden="true" />
-      </Show>
-      <MessageContent>
-        <Show when={props.showAuthor && !own()}>
-          <MessageHeader class="message-author-name">
-            <Show when={props.author.agent} fallback={<span>{props.author.name}</span>}>
+    <ContextMenu.Root modal={false}>
+      <ContextMenu.Trigger
+        as="div"
+        ref={keepNativeMenu}
+        disabled={!props.menu}
+        aria-keyshortcuts={props.menu ? "Shift+F10" : undefined}
+        onKeyDown={(event: KeyboardEvent & { currentTarget: HTMLElement }) => {
+          if (!props.menu || (event.key !== "ContextMenu" && !(event.shiftKey && event.key === "F10"))) return;
+          event.preventDefault();
+          const bounds = event.currentTarget.getBoundingClientRect();
+          event.currentTarget.dispatchEvent(
+            new MouseEvent("contextmenu", {
+              bubbles: true,
+              cancelable: true,
+              clientX: bounds.left,
+              clientY: bounds.top,
+            }),
+          );
+        }}
+        role="article"
+        // The trigger is the row, so it draws the `Message` primitive's element itself:
+        // `as={Message}` would spread Kobalte's own props onto the DOM.
+        data-slot="message"
+        data-align={person() ? "end" : "start"}
+        aria-label={t("chat.row.label", { name: props.author.name })}
+        data-author={person() ? "user" : "assistant"}
+        data-chat-search-message={props["data-chat-search-message"]}
+        style={authorStyle()}
+        class={[
+          "ui-message",
+          "message-entry",
+          {
+            "message-entry-animated": props.animate === true,
+            "message-entry-user": person(),
+            "message-entry-agent": !person(),
+            "message-entry-with-author": props.showAuthor === true && !person(),
+          },
+          props.class,
+        ]}
+      >
+        <Show when={props.showAuthor && !person()}>
+          <MessageAvatar class="message-author-avatar">
+            <Show when={props.author.agent} fallback={<AgentAvatar seed={seed()} />}>
               {(agent) => (
                 <Button
                   variant="ghost"
-                  class="message-author-name-button"
+                  class="message-author-avatar-button"
                   aria-label={t("chat.row.openChat", { name: props.author.name })}
                   onClick={() => props.onSelectAgent(agent().id)}
                 >
-                  {props.author.name}
+                  <AgentAvatar agent={agent()} seed={seed()} />
                 </Button>
               )}
             </Show>
-            <Show when={props.showTime}>
+          </MessageAvatar>
+        </Show>
+        <Show when={props.showAuthor === false && !person()}>
+          <div class="message-author-gutter" aria-hidden="true" />
+        </Show>
+        <MessageContent>
+          <Show when={props.showAuthor && !own()}>
+            <MessageHeader class="message-author-name">
+              <Show when={props.author.agent} fallback={<span>{props.author.name}</span>}>
+                {(agent) => (
+                  <Button
+                    variant="ghost"
+                    class="message-author-name-button"
+                    aria-label={t("chat.row.openChat", { name: props.author.name })}
+                    onClick={() => props.onSelectAgent(agent().id)}
+                  >
+                    {props.author.name}
+                  </Button>
+                )}
+              </Show>
+              <Show when={props.showTime}>
+                <time class="message-time" datetime={props.message.createdAt}>
+                  {props.message.time}
+                </time>
+              </Show>
+            </MessageHeader>
+          </Show>
+          <div class="message-shell">
+            <Bubble
+              class={member() ? "message-bubble-member" : undefined}
+              align={person() ? "end" : "start"}
+              variant={variant()}
+              data-author={person() ? "user" : "assistant"}
+              data-streaming={props.message.streaming === true ? "" : undefined}
+            >
+              <BubbleContent>
+                <MessageBody
+                  animate={props.animate}
+                  message={props.message}
+                  referencedMessage={props.referencedMessage}
+                  referencedAuthorName={props.referencedAuthorName}
+                  onOpenReference={props.onOpenReference}
+                  referenceState={props.referenceState}
+                  agents={props.agents}
+                  skills={props.skills}
+                  onSelectAgent={props.onSelectAgent}
+                  onOpenLink={props.onOpenLink}
+                  onPreview={props.onPreview}
+                  onAttachmentAction={props.onAttachmentAction}
+                  onOpenSharedFile={props.onOpenSharedFile}
+                  onOpenWorkspaceFile={props.onOpenWorkspaceFile}
+                  onOpenQuote={props.onOpenQuote}
+                  onDownload={props.onDownload}
+                  mediaSource={props.mediaSource}
+                />
+                {props.children}
+              </BubbleContent>
+              <Show when={(props.reactions?.length ?? 0) > 0}>
+                <BubbleReactions
+                  class="message-reaction-anchor"
+                  align={person() ? "start" : "end"}
+                  overflowCount={props.reactionOverflowCount}
+                  role="group"
+                  aria-label={t("chat.row.reactions", {
+                    emoji: (props.reactions ?? []).map((reaction) => reaction.emoji).join(", "),
+                  })}
+                >
+                  <For each={props.reactions ?? []}>
+                    {(reaction) => (
+                      <Show
+                        when={reaction.actor.kind === "user"}
+                        fallback={
+                          <span
+                            class="message-reaction-pill message-reaction-pill-readonly"
+                            role="img"
+                            aria-label={t("chat.row.agentReaction", {
+                              name:
+                                props.agents.find(
+                                  (agent) => reaction.actor.kind === "agent" && agent.id === reaction.actor.agentId,
+                                )?.name ?? t("chat.message.agentFallback"),
+                              emoji: reaction.emoji,
+                            })}
+                          >
+                            <span aria-hidden="true">{reaction.emoji}</span>
+                          </span>
+                        }
+                      >
+                        <Button
+                          variant="ghost"
+                          type="button"
+                          class="message-reaction-pill"
+                          aria-label={t("chat.row.removeReaction", { emoji: reaction.emoji })}
+                          onClick={() => props.onRemoveReaction?.()}
+                        >
+                          <span aria-hidden="true">{reaction.emoji}</span>
+                        </Button>
+                      </Show>
+                    )}
+                  </For>
+                </BubbleReactions>
+              </Show>
+            </Bubble>
+          </div>
+          {/* The actions and the time stand under the bubble. A named author shows the time beside the name. */}
+          <div class="message-action-row">
+            {props.actions}
+            <Show when={!props.showAuthor || own()}>
               <time class="message-time" datetime={props.message.createdAt}>
                 {props.message.time}
               </time>
             </Show>
-          </MessageHeader>
-        </Show>
-        <div class="message-shell">
-          <Bubble
-            class={member() ? "message-bubble-member" : undefined}
-            align={person() ? "end" : "start"}
-            variant={variant()}
-            data-author={person() ? "user" : "assistant"}
-            data-streaming={props.message.streaming === true ? "" : undefined}
-          >
-            <BubbleContent>
-              <MessageBody
-                animate={props.animate}
-                message={props.message}
-                referencedMessage={props.referencedMessage}
-                referencedAuthorName={props.referencedAuthorName}
-                onOpenReference={props.onOpenReference}
-                referenceState={props.referenceState}
-                agents={props.agents}
-                skills={props.skills}
-                onSelectAgent={props.onSelectAgent}
-                onOpenLink={props.onOpenLink}
-                onPreview={props.onPreview}
-                onAttachmentAction={props.onAttachmentAction}
-                onOpenSharedFile={props.onOpenSharedFile}
-                onOpenWorkspaceFile={props.onOpenWorkspaceFile}
-                onOpenQuote={props.onOpenQuote}
-                onDownload={props.onDownload}
-                mediaSource={props.mediaSource}
-              />
-              {props.children}
-            </BubbleContent>
-            <Show when={(props.reactions?.length ?? 0) > 0}>
-              <BubbleReactions
-                class="message-reaction-anchor"
-                align={person() ? "start" : "end"}
-                overflowCount={props.reactionOverflowCount}
-                role="group"
-                aria-label={t("chat.row.reactions", {
-                  emoji: (props.reactions ?? []).map((reaction) => reaction.emoji).join(", "),
-                })}
-              >
-                <For each={props.reactions ?? []}>
-                  {(reaction) => (
-                    <Show
-                      when={reaction.actor.kind === "user"}
-                      fallback={
-                        <span
-                          class="message-reaction-pill message-reaction-pill-readonly"
-                          role="img"
-                          aria-label={t("chat.row.agentReaction", {
-                            name:
-                              props.agents.find(
-                                (agent) => reaction.actor.kind === "agent" && agent.id === reaction.actor.agentId,
-                              )?.name ?? t("chat.message.agentFallback"),
-                            emoji: reaction.emoji,
-                          })}
-                        >
-                          <span aria-hidden="true">{reaction.emoji}</span>
-                        </span>
-                      }
-                    >
-                      <Button
-                        variant="ghost"
-                        type="button"
-                        class="message-reaction-pill"
-                        aria-label={t("chat.row.removeReaction", { emoji: reaction.emoji })}
-                        onClick={() => props.onRemoveReaction?.()}
-                      >
-                        <span aria-hidden="true">{reaction.emoji}</span>
-                      </Button>
-                    </Show>
-                  )}
-                </For>
-              </BubbleReactions>
-            </Show>
-          </Bubble>
-        </div>
-        {/* The actions and the time stand under the bubble. A named author shows the time beside the name. */}
-        <div class="message-action-row">
-          {props.actions}
-          <Show when={!props.showAuthor || own()}>
-            <time class="message-time" datetime={props.message.createdAt}>
-              {props.message.time}
-            </time>
+          </div>
+          <Show when={props.footer}>
+            <MessageFooter>{props.footer}</MessageFooter>
           </Show>
-        </div>
-        <Show when={props.footer}>
-          <MessageFooter>{props.footer}</MessageFooter>
-        </Show>
-      </MessageContent>
-    </Message>
+        </MessageContent>
+      </ContextMenu.Trigger>
+      <ContextMenu.Portal>{props.menu?.()}</ContextMenu.Portal>
+    </ContextMenu.Root>
   );
 }
