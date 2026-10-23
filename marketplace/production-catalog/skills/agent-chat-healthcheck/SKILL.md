@@ -19,7 +19,8 @@ The default window is since the last successful run, or the last 24 hours if tha
 
 1. Call `list_agents`.
 2. Keep the agents whose `lastActivityAt` is inside the window. Skip the others. No activity is a finding.
-3. Include your own chat.
+3. `lastActivityAt` also counts the messages of the last healthcheck and the replies to it. Use `search_memories` to find the memory "agent chat healthcheck: last reply at <time>". Skip an agent whose `lastActivityAt` is not later than that time.
+4. Include your own chat.
 
 State the window and the number of agents back before you start.
 
@@ -47,7 +48,7 @@ Friction to look for:
 - the agent asking preference questions that an experiment could settle
 - quiet failure (the user leaves a thread)
 
-Do not wait in a loop. Use the replies that arrive. Say which agents did not reply.
+Do not wait in a loop. Use the replies that arrive. Say which agents did not reply. After the last reply, save the time with `remember` as "agent chat healthcheck: last reply at <time>", and replace the earlier memory with `forget_memory`.
 
 ## Report
 

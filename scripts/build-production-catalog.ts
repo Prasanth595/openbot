@@ -6,13 +6,13 @@ import { fileURLToPath } from "node:url";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import {
   type AvatarHue,
+  isAgentTemplateRoutine,
   isAvatarHue,
-  isReleasedRoutineSchedule,
   isSkillCategory,
   type MarketplaceAgentRoutine,
   type SkillCategory,
 } from "@openbot/contracts/ipc";
-import { isBoolean, isDynamicRecord, isNumber, isString } from "@openbot/contracts/runtime-values";
+import { isDynamicRecord, isNumber, isString } from "@openbot/contracts/runtime-values";
 import { createOpenBotLogger, toLogValue } from "@openbot/logging";
 import { unzipSync, zipSync } from "fflate";
 import { parse as parseYaml } from "yaml";
@@ -588,8 +588,13 @@ function parseAgentSpec(value: unknown): AgentSpec {
   ) {
     throw new Error("Production catalog contains an invalid agent.");
   }
+  // The publisher writes routines straight to D1, so they get the checks that a submission gets.
   const routines = value.routines ?? [];
-  if (!Array.isArray(routines) || routines.length > INPUT_LIMITS.agentRoutines || !routines.every(isCatalogRoutine)) {
+  if (
+    !Array.isArray(routines) ||
+    routines.length > INPUT_LIMITS.agentRoutines ||
+    !routines.every(isAgentTemplateRoutine)
+  ) {
     throw new Error(`Production catalog agent ${value.slug} has an invalid routine.`);
   }
   return {
@@ -603,21 +608,6 @@ function parseAgentSpec(value: unknown): AgentSpec {
     skills: value.skills,
     routines,
   };
-}
-
-/** The publisher writes routines straight to D1, so they get the checks of the Worker's `isRoutine`. */
-function isCatalogRoutine(value: unknown): value is MarketplaceAgentRoutine {
-  return (
-    isDynamicRecord(value) &&
-    isString(value.name) &&
-    value.name.trim().length > 0 &&
-    value.name.length <= INPUT_LIMITS.routineName &&
-    isString(value.instruction) &&
-    value.instruction.trim().length > 0 &&
-    value.instruction.length <= INPUT_LIMITS.routineInstruction &&
-    isBoolean(value.active) &&
-    isReleasedRoutineSchedule(value.schedule)
-  );
 }
 
 function createSkillNotice(skill: Extract<SkillSpec, { upstreamSkill: string }>, upstream: UpstreamSource): string {

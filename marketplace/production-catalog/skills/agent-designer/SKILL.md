@@ -47,11 +47,11 @@ Put into the description:
 
 - one job and anti-jobs
 - unslopped, short replies
-- `$pstack-<name>` skills are installed skill files, not app commands
+- `$pstack-<name>` skills are installed skill files, not app commands (only when the new agent has pstack)
 - copy the model choice from an existing coding agent unless the user names one (`list_models`, `read_agent`)
 - pstack and poteto-mode are situational, not standing
 
-Do not paste the full pstack playbook into the description. Install the skills the new agent needs with `install_local_skill`.
+Do not paste the full pstack playbook into the description. `install_local_skill` installs only the user's local skills. No tool installs a Marketplace skill such as pstack on another agent: ask the user to add pstack in the new agent's Skills settings with "Add from marketplace", then confirm it with `read_agent`.
 
 If pstack is not installed, say so and keep the same tightness anyway.
 
