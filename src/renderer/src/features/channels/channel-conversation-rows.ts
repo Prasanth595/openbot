@@ -53,7 +53,7 @@ function foldedEntry(entry: ChannelMessage): boolean {
 /**
  * The rows of a channel page. The thinking and narration of a member's turn fold into one thinking
  * row, as in an agent chat, and show as the steps above the member's answer. That row names the
- * member. Before, each part showed as a message, and a model that streams its whole reasoning
+ * member, so the activity line shows the steps of each member that works. Before, each part showed as a message, and a model that streams its whole reasoning
  * (DeepSeek through OpenCode) showed a very long one.
  */
 export function channelConversationRows(entries: readonly ChannelMessage[]): AgentMessage[] {

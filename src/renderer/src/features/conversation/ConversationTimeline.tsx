@@ -395,6 +395,9 @@ export function ConversationTimeline() {
     activeTurnId: () => props.activeTurnId,
   });
   const showAgentSteps = useShowAgentSteps();
+  const channelWorkingSteps = createMemo(() =>
+    channel ? turnSteps.workingSteps(channel.workers().map((worker) => worker.id)) : [],
+  );
   let cachedPrompt: { key: string; prompt: NonNullable<ConversationProps["prompt"]> } | null = null;
   const keyedPrompt = createMemo(() => {
     const prompt = props.prompt;
@@ -1214,7 +1217,11 @@ export function ConversationTimeline() {
               when={!channel}
               fallback={
                 <Show when={channel && channel.workers().length > 0}>
-                  <ChannelActivityIndicator workers={channel?.workers() ?? []} />
+                  <ChannelActivityIndicator
+                    workers={channel?.workers() ?? []}
+                    steps={channelWorkingSteps()}
+                    stepsOpenByDefault={showAgentSteps()}
+                  />
                 </Show>
               }
             >
