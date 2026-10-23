@@ -3,8 +3,16 @@ import { mkdir, mkdtemp, readdir, readFile, rename, rm, stat, writeFile } from "
 import { homedir, tmpdir } from "node:os";
 import { dirname, join, parse, posix, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { type AvatarHue, isAvatarHue, isSkillCategory, type SkillCategory } from "@openbot/contracts/ipc";
-import { isDynamicRecord, isNumber, isString } from "@openbot/contracts/runtime-values";
+import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
+import {
+  type AvatarHue,
+  isAvatarHue,
+  isReleasedRoutineSchedule,
+  isSkillCategory,
+  type MarketplaceAgentRoutine,
+  type SkillCategory,
+} from "@openbot/contracts/ipc";
+import { isBoolean, isDynamicRecord, isNumber, isString } from "@openbot/contracts/runtime-values";
 import { createOpenBotLogger, toLogValue } from "@openbot/logging";
 import { unzipSync, zipSync } from "fflate";
 import { parse as parseYaml } from "yaml";
@@ -62,6 +70,7 @@ interface AgentSpec {
   description: string;
   avatarHue: AvatarHue;
   skills: string[];
+  routines: MarketplaceAgentRoutine[];
 }
 
 interface CatalogSpec {
@@ -447,7 +456,7 @@ function buildAgent(agent: AgentSpec, skills: BuiltSkill[], version: number) {
     avatarHue: agent.avatarHue,
     version,
     skills: selected,
-    routines: [],
+    routines: agent.routines,
   };
   const snapshotHash = sha256(JSON.stringify(snapshot));
   return {
@@ -579,6 +588,10 @@ function parseAgentSpec(value: unknown): AgentSpec {
   ) {
     throw new Error("Production catalog contains an invalid agent.");
   }
+  const routines = value.routines ?? [];
+  if (!Array.isArray(routines) || routines.length > INPUT_LIMITS.agentRoutines || !routines.every(isCatalogRoutine)) {
+    throw new Error(`Production catalog agent ${value.slug} has an invalid routine.`);
+  }
   return {
     slug: value.slug,
     name: value.name,
@@ -588,7 +601,23 @@ function parseAgentSpec(value: unknown): AgentSpec {
     description: value.description,
     avatarHue: value.avatarHue,
     skills: value.skills,
+    routines,
   };
+}
+
+/** The publisher writes routines straight to D1, so they get the checks of the Worker's `isRoutine`. */
+function isCatalogRoutine(value: unknown): value is MarketplaceAgentRoutine {
+  return (
+    isDynamicRecord(value) &&
+    isString(value.name) &&
+    value.name.trim().length > 0 &&
+    value.name.length <= INPUT_LIMITS.routineName &&
+    isString(value.instruction) &&
+    value.instruction.trim().length > 0 &&
+    value.instruction.length <= INPUT_LIMITS.routineInstruction &&
+    isBoolean(value.active) &&
+    isReleasedRoutineSchedule(value.schedule)
+  );
 }
 
 function createSkillNotice(skill: Extract<SkillSpec, { upstreamSkill: string }>, upstream: UpstreamSource): string {
