@@ -8,7 +8,6 @@ import {
   Message,
   MessageAvatar,
   MessageContent,
-  MessageFooter,
   MessageHeader,
 } from "@openbot/ui";
 import type { JSX } from "@solidjs/web";
@@ -64,7 +63,6 @@ export interface ChatMessageRowProps {
   actions?: JSX.Element;
   /** Draws the right-click menu, a `MessageMenu`. Without it, right-click keeps the native menu. */
   menu?: (() => JSX.Element) | undefined;
-  footer?: JSX.Element;
   /** Extra content inside the bubble, under the body: a question prompt, a note about the message. */
   children?: JSX.Element;
   class?: string | undefined;
@@ -83,7 +81,7 @@ export interface ChatMessageRowProps {
 
 /**
  * One message of a chat: the alignment, the face, the name, the bubble, its reactions, the action
- * row under the bubble and the footer.
+ * row under the bubble.
  *
  * It is shared because the agent chat and the channel chat draw the same message. They differed on
  * every part around the bubble - the channel had no entrance animation, no streaming state on the
@@ -286,9 +284,6 @@ export function ChatMessageRow(props: ChatMessageRowProps): JSX.Element {
             </time>
           </Show>
         </div>
-        <Show when={props.footer}>
-          <MessageFooter>{props.footer}</MessageFooter>
-        </Show>
       </MessageContent>
     </>
   );
