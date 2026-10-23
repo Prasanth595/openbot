@@ -19,7 +19,7 @@ import {
   updateAgentsToolSchema,
   updateProfileToolSchema,
 } from "./agent/profile-tools";
-import { ROUTINE_NO_UPDATE_TOOL } from "./agent/routine-quiet-runs";
+import { ROUTINE_NO_UPDATE_TOOL, ROUTINE_REPORT_FAILURE_TOOL } from "./agent/routine-quiet-runs";
 import { captureScreenToolShape } from "./agent/screen-capture";
 import {
   assignAgentSectionToolSchema,
@@ -146,6 +146,15 @@ const uiFormOptionsField = (kind: "select" | "segmented", max: number) =>
     options: uiStringOptionsSchema(max),
     value: uiLabelSchema.optional().describe("One of options."),
   });
+
+export const routineReportFailureToolSchema = z.object({
+  reason: z
+    .string()
+    .trim()
+    .min(1)
+    .max(INPUT_LIMITS.routineFailureReason)
+    .describe("Why the task could not be done, in one short sentence."),
+});
 
 /** `acknowledge_request`: the action ids of its plan card. */
 export const ACKNOWLEDGE_REQUEST_ACTIONS = { start: "start", alternative: "alternative", cancel: "cancel" } as const;
@@ -489,6 +498,12 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
     description:
       "Use only in a scheduled, script or webhook routine run, when the routine task gives nothing to report. OpenBot then collapses your text answers of this run into the run in the chat and sends no notification; the run history still shows the run. Do not call it when you report anything. A requested reminder or message is a report. Write it in your final answer. Do not call this tool for it unless the notification conditions of the task say to send nothing. In a manual Test run, the user sees your answer.",
     shape: {},
+  },
+  {
+    name: ROUTINE_REPORT_FAILURE_TOOL,
+    description:
+      "Use only in a routine run, when the routine task could not be done: for example a server, file or service it needs is not available. OpenBot then ends the run as failed with your reason, and the run history shows it. Still give your answer as usual. Do not call it when the task was done, also when its result is bad news.",
+    shape: routineReportFailureToolSchema.shape,
   },
   {
     name: AWAIT_EVENT_TOOL,

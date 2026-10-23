@@ -50,6 +50,7 @@ import {
   CHAT_VISUAL_PREVIEW_DEFAULT_WIDTH,
   htmlPreviewToolSchema,
   htmlRenderToolSchema,
+  routineReportFailureToolSchema,
 } from "../openbot-tools";
 import { type AppServerRequest, type DynamicToolCallParams, type DynamicToolResult, isRecord } from "../protocol";
 import { handleRoutineFlowTool, type RoutineFlowTools } from "../routine-flows/routine-flow-tools";
@@ -92,7 +93,7 @@ import {
   widensAgentSettings,
 } from "./profile-tools";
 import { browserUserControlResult } from "./prompts";
-import { ROUTINE_NO_UPDATE_TOOL } from "./routine-quiet-runs";
+import { ROUTINE_NO_UPDATE_TOOL, ROUTINE_REPORT_FAILURE_TOOL } from "./routine-quiet-runs";
 import type { RoutineScheduler } from "./routine-scheduler";
 import { type OpenBotToolResponse, openBotToolFailure, openBotToolResult } from "./routine-tools";
 import {
@@ -153,6 +154,8 @@ export interface OpenBotToolRouterHooks {
   turnActivity(agentId: string, turnId: string | null): { startedAt: number | null; lastEventAt: number | null };
   /** Records a no-update tool call for the turn; null when no routine run started the turn. */
   requestNoUpdate(agentId: string, threadId: string, turnId: string): "quiet" | "shown" | null;
+  /** Records the reason a routine run failed for the turn; false when no routine run started the turn. */
+  reportRoutineFailure(agentId: string, turnId: string, reason: string): boolean;
   /** Starts a new chat with the agent when its turn ends and its queue is empty. */
   requestNewChat(agentId: string): void;
 }
@@ -831,6 +834,13 @@ export class OpenBotToolRouter {
           ? { status: "quiet", note: "This run ends without a message or a notification. End your turn now." }
           : { status: "shown", note: "Someone waits for this answer. Report the result as usual." },
       );
+    }
+
+    if (params.tool === ROUTINE_REPORT_FAILURE_TOOL) {
+      const { reason } = routineReportFailureToolSchema.parse(params.arguments ?? {});
+      if (!this.#hooks.reportRoutineFailure(senderAgentId, params.turnId, reason))
+        return openBotToolFailure("Use this tool only in a routine run.");
+      return openBotToolResult({ status: "failed", note: "This run ends as failed. Give your answer as usual." });
     }
 
     const sidebarResult = yield* handleSidebarTool(

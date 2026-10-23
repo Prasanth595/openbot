@@ -5,10 +5,10 @@ To add a provider, or to see how a provider signs in on a joined server, read
 
 ## Built-in tool discovery
 
-`agent/tool-catalog.ts` exposes nine direct tools and three discovery tools to every adapter.
+`agent/tool-catalog.ts` exposes ten direct tools and three discovery tools to every adapter.
 Claude uses its native question tool instead of `ask_user`. The direct tools are `ask_user`,
 `attach_files_to_response`, `list_agents`, `send_message`, `search_memories`, `remember`,
-`forget_memory`, `react_to_user_message`, and `routine_no_update`. External plugin registration stays with each provider adapter.
+`forget_memory`, `react_to_user_message`, `routine_no_update`, and `routine_report_failure`. External plugin registration stays with each provider adapter.
 
 `tool_search` uses local keyword matching. Exact names come first, then word matches, with stable
 catalog order for ties. It returns five results by default and at most ten. It accepts `queries`, or

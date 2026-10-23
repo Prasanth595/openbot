@@ -188,17 +188,27 @@ function RunRow(props: { run: RoutineRunFields; onOpenRun?: ((messageId: string)
     return t("routine.history.manualRun", { time });
   };
   const late = () => lateStart(props.run);
+  const failure = () => (props.run.status === "failed" && props.run.error ? text.sourceText(props.run.error) : null);
   const content = (
     <>
-      <Show when={late()} fallback={<span>{label()}</span>}>
-        {(startedAt) => (
-          <span class="agent-routine-run-text">
-            <span>{label()}</span>
-            <span class="agent-routine-run-note">
-              {t("routine.history.ranLate", { time: formatLateStart(props.run.scheduledFor, startedAt(), text) })}
-            </span>
-          </span>
-        )}
+      <Show when={late() || failure()} fallback={<span>{label()}</span>}>
+        <span class="agent-routine-run-text">
+          <span>{label()}</span>
+          <Show when={late()}>
+            {(startedAt) => (
+              <span class="agent-routine-run-note">
+                {t("routine.history.ranLate", { time: formatLateStart(props.run.scheduledFor, startedAt(), text) })}
+              </span>
+            )}
+          </Show>
+          <Show when={failure()}>
+            {(reason) => (
+              <span class="agent-routine-run-note" title={reason()}>
+                {reason()}
+              </span>
+            )}
+          </Show>
+        </span>
       </Show>
       <RoutineRunStatus status={props.run.status} />
     </>

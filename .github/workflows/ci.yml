@@ -373,6 +373,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: bun run test:routine-fresh-session
 
+      - name: Run the routine failure report E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:routine-report-failure
+
       - name: Run the agent webhook routine E2E test
         if: ${{ !cancelled() }}
         run: bun run test:agent-webhook-routine
@@ -423,6 +427,7 @@ jobs:
             .openbot-build/codex-missing-rollout-e2e/
             .openbot-build/codex-usage-metering-e2e/
             .openbot-build/routine-fresh-session-e2e/
+            .openbot-build/routine-report-failure-e2e/
             .openbot-build/agent-webhook-routine-e2e/
             .openbot-build/agent-profile-accounts-e2e/
             .openbot-build/claude-usage-resume-e2e/

@@ -211,6 +211,8 @@ export class TurnLifecycle {
   readonly #refusedRetries = new Set<string>();
   /** Running turns whose agent called the no-update tool. The completion of the turn takes the entry. */
   readonly #noUpdateTurns = new Set<string>();
+  /** Running turns whose agent reported that its routine run failed, with the reason. The completion takes it. */
+  readonly #reportedFailures = new Map<string, string>();
   /**
    * The newest turns that ended. A provider can end a turn before the drain reads its `turn/start`
    * answer, and the drain must not then mark the turn active again. Past the cap, the oldest goes.
@@ -290,6 +292,7 @@ export class TurnLifecycle {
     this.#limitedTurns.clear();
     this.#runningTurns.clear();
     this.#noUpdateTurns.clear();
+    this.#reportedFailures.clear();
     this.#endedTurns.clear();
     this.#refusedRetries.clear();
     this.#lastEventAt.clear();
@@ -706,6 +709,17 @@ export class TurnLifecycle {
     return this.#quietRoutineTurn(threadId, deliveries) ? "quiet" : "shown";
   }
 
+  /**
+   * Records a call to the failure tool; the latest reason wins. False when no routine run started the
+   * turn. A flow handoff counts: its call fails that step only, because a handoff has no run of its own.
+   */
+  reportRoutineFailure(agentId: string, turnId: string, reason: string): boolean {
+    const deliveries = this.#mailbox.findDeliveriesByTurn(agentId, turnId);
+    if (!deliveries.some(({ delivery }) => delivery.sender.kind === "routine")) return false;
+    this.#reportedFailures.set(turnId, reason);
+    return true;
+  }
+
   /** Only a turn that runs nothing but quiet routine runs, outside a channel or messaging thread. */
   #quietRoutineTurn(threadId: string | null, deliveries: readonly DeliveryContext[]): boolean {
     return (
@@ -724,6 +738,8 @@ export class TurnLifecycle {
       this.#markEnded(turnId);
       this.#completingTurns.add(turnId);
       const noUpdateCalled = this.#noUpdateTurns.delete(turnId);
+      const reportedFailure = this.#reportedFailures.get(turnId);
+      this.#reportedFailures.delete(turnId);
       if (running) {
         // `waitMs` is OpenBot's part of a slow reply: the queue (a usage-limit hold included), the
         // provider start, the session and its settings. `firstOutputMs` is the provider's: the time
@@ -827,9 +843,10 @@ export class TurnLifecycle {
         dropPlaceholderAnswers(snapshot, turnId);
       }
       // Only a turn that ran nothing but scheduled, script or webhook runs: a person who wrote in the
-      // same turn, or who started a Test run, waits for the answer.
+      // same turn, or who started a Test run, waits for the answer. A failed run is never quiet.
       const quiet =
         outcome === "completed" &&
+        reportedFailure === undefined &&
         this.#quietRoutineTurn(snapshot.threadId, deliveries) &&
         settleQuietRoutineTurn(snapshot, turnId, noUpdateCalled);
       const latestAssistant = latestTurnAnswer(snapshot.messages, turnId);
@@ -848,7 +865,13 @@ export class TurnLifecycle {
         const terminal = outcome === "failed" ? "failed" : outcome === "interrupted" ? "interrupted" : "completed";
         for (const delivery of deliveries) {
           this.#refusedRetries.delete(delivery.delivery.id);
-          const reason = terminal === "failed" && failure ? this.#hooks.redactMcp(failure) : null;
+          // A reported failure leaves the delivery completed, since the agent did answer; its run ends failed.
+          const reason =
+            terminal === "failed" && failure
+              ? this.#hooks.redactMcp(failure)
+              : terminal === "completed" && reportedFailure !== undefined && delivery.delivery.sender.kind === "routine"
+                ? this.#hooks.redactMcp(reportedFailure)
+                : null;
           yield* this.#mailbox.markTerminal(delivery.delivery.id, terminal, reason).pipe(toTurnOperationFailed);
           this.#mailboxSync.syncDeliveryMessage(snapshot, delivery.delivery.id);
         }
@@ -937,6 +960,7 @@ export class TurnLifecycle {
       reportOriginalFailure(cause, (failure) => this.#hooks.emitError("turn_completion_failed", failure, agentId));
     const runningThreadId = this.#runningTurns.get(turnId)?.threadId ?? threadId;
     this.#runningTurns.delete(turnId);
+    this.#reportedFailures.delete(turnId);
     this.#markEnded(turnId);
     const deliveries = yield* turnStep(() => this.#mailbox.findDeliveriesByTurn(agentId, turnId)).pipe(
       Effect.catchCause((cause) => report(cause).pipe(Effect.as([]))),

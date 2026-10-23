@@ -74,6 +74,23 @@ the Dynamic Island shows no new reply. A client without the capability gets the 
 `turn-completed` event and shows the run as finished, as before. A malformed
 `quiet-turn-completed` event is an error.
 
+## Failed routine runs
+
+A run's status comes from its queue delivery (`routineStatusForDelivery`), so a completed turn is a
+`succeeded` run, also when the task inside it failed. Every run prompt names the
+`routine_report_failure` tool, the Test run and a flow handoff too. The agent calls it with a short
+`reason` when the task could not be done. The reason is held in memory until the turn completes.
+When the turn completes, each routine delivery of the turn ends `completed` with the reason in its
+`error` column (redacted as other errors). The agent did answer, so the answer, the chat digest and
+the notification are as before. `routineStatusForDelivery` maps a completed delivery with an error to
+a `failed` run with that error, so the run goes from `running` to `failed` in one step, and every
+later reconcile keeps it failed. No column was added. A failed run is never quiet, also after a call
+to `routine_no_update`. A provider error or an interrupt still wins: the delivery then ends `failed`
+or `interrupted` with its own error. The run history shows the error of a failed run. A result
+destination gets the answer of a failed run whose delivery completed; a provider failure has no
+answer and sends nothing. Outside a routine run the tool returns the same error as
+`routine_no_update`.
+
 A routine run whose last answer is only the marker, also a Test run that shows it in the chat, does
 not put the marker in the preview either. The provider history import
 (`src/backend/provider-history-import.ts`) decides from the staged items alone: in a turn that a
@@ -142,7 +159,8 @@ on a joined host.
   skipped, so a failure never leaves a flow waiting.
 - A handoff is a mailbox delivery from the routine (`RoutineScheduler.enqueueHandoff`). It names the
   same routine and run, but `reconcileDelivery` finds a run only by its own delivery, so the run status
-  does not change.
+  does not change. A `routine_report_failure` call in a handoff turn fails only that step, through its
+  completed delivery's error, and the agents after it are skipped.
 - A canvas shows routines of every trigger kind (`routine-flow-routines.ts`). A webhook routine
   carries its endpoint, event type and filters; the details panel saves them, rotates the secret and
   runs a test through the events API, as the routine settings do. On a joined host only an owner or
