@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { chmod, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import type { HostKeyHandover } from "@openbot/contracts/host-key-handover";
 import { parseHostedServerClaim } from "@openbot/contracts/hosted-servers";
 import type {
   AvatarImageInput,
@@ -571,6 +572,37 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
       if (result.machineToken) this.#teamHostTokens.set(input.hostId.toLowerCase(), result.machineToken);
       yield* this.#writeStoredSession();
       return result;
+    },
+    (operation) => this.#owned(operation),
+  ).bind(this);
+
+  /**
+   * Sends a key handover that the host signed with its current and its new key. Returns `refused`
+   * when the account service has another key for the host, so the handover can never apply.
+   */
+  readonly handOverRemoteHostKey = Effect.fn("CentralAuth.handOverRemoteHostKey")(
+    function* (
+      this: CentralAuthManager,
+      hostId: string,
+      handover: HostKeyHandover,
+    ): Effect.fn.Return<"accepted" | "refused", CentralAuthOperationError, CentralAuthTransport> {
+      const machineToken = yield* this.#hostMachineToken(hostId);
+      return yield* this.#authorizedRequestEffect(
+        `/v2/remote/hosts/${encodeURIComponent(hostId)}/key-handover`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ machineToken, handover }),
+        },
+        () => undefined,
+      ).pipe(
+        Effect.as("accepted" as const),
+        Effect.catch(({ cause: error }) =>
+          error instanceof AuthApiError && error.status === 409 && error.code === "host_key_handover_conflict"
+            ? Effect.succeed("refused" as const)
+            : Effect.fail(new CentralAuthOperationError({ cause: error })),
+        ),
+      );
     },
     (operation) => this.#owned(operation),
   ).bind(this);

@@ -1512,6 +1512,8 @@ export const IPC_ENDPOINTS = {
     getStatus: request<undefined, HostStatus>()("host:get-status"),
     configure: request<ConfigureHostInput, HostStatus>()("host:configure"),
     updateIdentity: request<UpdateHostIdentityInput, HostStatus>()("host:update-identity"),
+    /** Changes this computer's server key. Paired devices follow a handover that both keys sign. */
+    rotateIdentityKey: request<undefined, HostStatus>()("host:rotate-identity-key"),
     getPresence: request<undefined, TeamPresenceSnapshot>()("host:get-presence"),
     start: request<undefined, HostStatus>()("host:start"),
     stop: request<undefined, HostStatus>()("host:stop"),

@@ -9,6 +9,7 @@ export const messages = defineMessages("error.team", {
   "error.team.identityCreateFailed": "The team identity could not be created.",
   "error.team.accountChangedDuringCreate": "The signed-in account changed while this server was being created.",
   "error.team.notConfigured": "This OpenBot has not been configured.",
+  "error.team.keyRotationMissing": "No server key change is waiting.",
   "error.team.serverNotActive": "This server is no longer the active one for the signed-in account.",
   "error.team.logoInvalid": "Choose a valid PNG, JPEG, or WebP image up to 512 KB.",
   "error.team.ownerMembershipConflict": "The control-plane owner membership conflicts with this host.",

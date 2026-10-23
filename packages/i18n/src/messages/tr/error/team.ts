@@ -10,6 +10,7 @@ export const messages = {
   "error.team.identityCreateFailed": "Ekip kimliği oluşturulamadı.",
   "error.team.accountChangedDuringCreate": "Bu sunucu oluşturulurken oturum açmış hesap değişti.",
   "error.team.notConfigured": "Bu OpenBot yapılandırılmamış.",
+  "error.team.keyRotationMissing": "Bekleyen bir sunucu anahtarı değişikliği yok.",
   "error.team.serverNotActive": "Bu sunucu artık oturum açmış hesap için etkin olan sunucu değil.",
   "error.team.logoInvalid": "512 KB'a kadar geçerli bir PNG, JPEG veya WebP görseli seçin.",
   "error.team.ownerMembershipConflict": "Kontrol düzlemi sahibi üyeliği bu ana makineyle çakışıyor.",

@@ -10,6 +10,7 @@ export const messages = {
   "error.team.accountChangedDuringCreate":
     "L'account con cui hai effettuato l'accesso è cambiato durante la creazione del server.",
   "error.team.notConfigured": "Questo OpenBot non è stato configurato.",
+  "error.team.keyRotationMissing": "Nessun cambio della chiave del server è in attesa.",
   "error.team.serverNotActive": "Questo server non è più quello attivo per l'account con cui hai effettuato l'accesso.",
   "error.team.logoInvalid": "Scegli un'immagine PNG, JPEG o WebP valida, fino a 512 KB.",
   "error.team.ownerMembershipConflict":

@@ -379,6 +379,7 @@ function ServerSettings(props: { connectors: ConnectorRegistry }) {
     refreshServerSettings,
     saveServerIdentity,
     recheckScreenRecording,
+    rotateHostKey,
     setServerPublished,
     createServerInvite,
     updateServerMember,
@@ -601,6 +602,7 @@ function ServerSettings(props: { connectors: ConnectorRegistry }) {
           onRetry={() => refreshServerSettings(server().id)}
           onSaveIdentity={saveServerIdentity}
           onSetPublished={setServerPublished}
+          onRotateHostKey={server().kind === "local" ? rotateHostKey : undefined}
           onSetMuted={(muted) => setServerMuted(server().id, muted)}
           onSetNotificationLevel={(level) => setServerNotificationLevel(server().id, level)}
           onCreateInvite={createServerInvite}

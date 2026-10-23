@@ -10,6 +10,7 @@ export const messages = {
   "error.team.identityCreateFailed": "チームの ID を作成できませんでした。",
   "error.team.accountChangedDuringCreate": "このサーバーの作成中に、サインイン中のアカウントが変わりました。",
   "error.team.notConfigured": "この OpenBot はまだ設定されていません。",
+  "error.team.keyRotationMissing": "保留中のサーバーキー変更はありません。",
   "error.team.serverNotActive": "このサーバーは、サインイン中のアカウントの有効なサーバーではなくなりました。",
   "error.team.logoInvalid": "512 KB 以下の有効な PNG、JPEG、または WebP 画像を選択してください。",
   "error.team.ownerMembershipConflict": "コントロールプレーンのオーナーのメンバーシップがこのホストと競合しています。",

@@ -1103,6 +1103,7 @@ const openbotApi: OpenBotDesktopApi = {
     getStatus: decodeHostStatus,
     configure: decodeHostStatus,
     updateIdentity: decodeHostStatus,
+    rotateIdentityKey: decodeHostStatus,
     getPresence: decodeTeamPresenceSnapshot,
     start: decodeHostStatus,
     stop: decodeHostStatus,

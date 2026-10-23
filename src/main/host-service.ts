@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { dirname, join } from "node:path";
+import type { HostKeyHandover } from "@openbot/contracts/host-key-handover";
 import { createInviteUrl, selfHostedApiOrigin } from "@openbot/contracts/invite-links";
 import type {
   AgentEvent,
@@ -149,6 +150,14 @@ interface HostServiceOptions {
     ownerMembershipId: string;
     devicePublicKey?: string | null;
   }) => Effect.Effect<unknown, RemoteWorkflowError>;
+  /**
+   * Sends a signed key handover to the account service. `refused` means the account service has
+   * another key for this host, so the handover can never apply.
+   */
+  handOverRemoteHostKey?: (
+    hostId: string,
+    handover: HostKeyHandover,
+  ) => Effect.Effect<"accepted" | "refused", RemoteWorkflowError>;
   issueRemoteHostTicket?: (
     hostId: string,
   ) => Effect.Effect<{ ticket: string; signalUrl: string; expiresAt: number }, RemoteWorkflowError>;
@@ -669,12 +678,7 @@ export class HostService extends EventEmitter<HostEvents> {
       const ownerMembershipId = yield* remoteDecode(() => this.#requiredOwnerMemberId());
       const attempt0 = yield* Effect.gen({ self: this }, function* () {
         if (!this.#isActiveHost(identity.serverId)) return this.getStatus();
-        yield* optionalRegisterRemoteHost?.({
-          hostId: identity.serverId,
-          name: identity.serverName,
-          ownerMembershipId,
-          devicePublicKey: identity.publicKey,
-        }) ?? Effect.succeed(undefined);
+        if (optionalRegisterRemoteHost) yield* this.#registerRemoteHost(optionalRegisterRemoteHost, ownerMembershipId);
         if (input.logo !== undefined && this.#isActiveHost(identity.serverId)) {
           yield* optionalUpdateRemoteHostLogo?.(identity.serverId, input.logo ?? null, identity.logoVersion) ??
             Effect.succeed(undefined);
@@ -717,12 +721,7 @@ export class HostService extends EventEmitter<HostEvents> {
       });
       this.#api.refreshIdentity();
       const ownerMembershipId = yield* remoteDecode(() => this.#requiredOwnerMemberId());
-      yield* optionalRegisterRemoteHost?.({
-        hostId: identity.serverId,
-        name: identity.serverName,
-        ownerMembershipId,
-        devicePublicKey: identity.publicKey,
-      }) ?? Effect.succeed(undefined);
+      if (optionalRegisterRemoteHost) yield* this.#registerRemoteHost(optionalRegisterRemoteHost, ownerMembershipId);
       if (input.logo !== undefined && this.#isActiveHost(identity.serverId)) {
         yield* optionalUpdateRemoteHostLogo?.(identity.serverId, input.logo ?? null, identity.logoVersion) ??
           Effect.succeed(undefined);
@@ -731,6 +730,63 @@ export class HostService extends EventEmitter<HostEvents> {
     },
     (operation) => this.#provide(operation),
   ).bind(this);
+
+  /**
+   * Changes the host's key without a new pairing. The current and the new key both sign a
+   * handover, and every client that trusts the current key follows it to the new key. The host
+   * uses the new key only after the account service accepts the handover.
+   */
+  readonly rotateIdentityKey = Effect.fn("HostService.rotateIdentityKey")(
+    function* (this: HostService): Effect.fn.Return<HostStatus, RemoteWorkflowError> {
+      if (!this.#options.handOverRemoteHostKey || !this.#options.registerRemoteHost)
+        return yield* new RemoteWorkflowError({ cause: new Error(sourceText("error.host.keyRotationUnavailable")) });
+      yield* remoteDecode(() => this.#options.store.assertOwnerAccount(this.#options.getSignedInUser()));
+      const handover = yield* this.#options.store.beginKeyRotation();
+      const result = yield* this.#resolvePendingKeyRotation();
+      if (result !== "accepted" || this.#options.store.getIdentity()?.publicKey !== handover.publicKey)
+        return yield* new RemoteWorkflowError({ cause: new Error(sourceText("error.host.keyRotationRefused")) });
+      if (this.#isActiveHost(handover.hostId)) {
+        this.#setStatus({ message: sourceText("status.host.keyRotated") });
+        this.#api.refreshIdentity();
+      }
+      return this.getStatus();
+    },
+    (operation) => this.#provide(operation),
+  ).bind(this);
+
+  /**
+   * Sends a handover that is still pending, for example after a restart or a lost answer. This
+   * runs before each registration: a registration with the previous key would change the account
+   * service back to it after it accepted the handover.
+   */
+  readonly #resolvePendingKeyRotation = Effect.fn("HostService.resolvePendingKeyRotation")(function* (
+    this: HostService,
+  ): Effect.fn.Return<"accepted" | "refused" | "none", RemoteWorkflowError> {
+    const handover = this.#options.store.getPendingKeyHandover();
+    const handOver = this.#options.handOverRemoteHostKey;
+    if (!handover || !handOver) return "none";
+    const result = yield* handOver(handover.hostId, handover);
+    if (result === "accepted") yield* this.#options.store.completeKeyRotation(handover);
+    else yield* this.#options.store.discardKeyRotation(handover);
+    return result;
+  });
+
+  /** Registers the active host with the key that it uses after any pending handover. */
+  readonly #registerRemoteHost = Effect.fn("HostService.registerRemoteHost")(function* (
+    this: HostService,
+    register: NonNullable<HostServiceOptions["registerRemoteHost"]>,
+    ownerMembershipId: string,
+  ): Effect.fn.Return<void, RemoteWorkflowError> {
+    yield* this.#resolvePendingKeyRotation();
+    const identity = this.#options.store.getIdentity();
+    if (!identity) return;
+    yield* register({
+      hostId: identity.serverId,
+      name: identity.serverName,
+      ownerMembershipId,
+      devicePublicKey: identity.publicKey,
+    });
+  });
 
   /**
    * Every remote step runs under the signed-in account's authentication, so one that started
@@ -796,12 +852,10 @@ export class HostService extends EventEmitter<HostEvents> {
       if (!gateway || !optionalRegisterRemoteHost || !optionalIssueRemoteHostTicket) {
         return yield* new RemoteWorkflowError({ cause: new Error(sourceText("error.host.webRtcNotConfigured")) });
       }
-      yield* optionalRegisterRemoteHost({
-        hostId: identity.serverId,
-        name: identity.serverName,
-        ownerMembershipId: yield* remoteDecode(() => this.#requiredOwnerMemberId()),
-        devicePublicKey: identity.publicKey,
-      });
+      yield* this.#registerRemoteHost(
+        optionalRegisterRemoteHost,
+        yield* remoteDecode(() => this.#requiredOwnerMemberId()),
+      );
       if (yield* this.#cancelSupersededStartEffect(generation)) return this.getStatus();
       if (this.#usesAccountDirectory() && optionalListRemoteMembers) {
         const members = yield* optionalListRemoteMembers(identity.serverId);
