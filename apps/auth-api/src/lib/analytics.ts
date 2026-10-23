@@ -22,6 +22,7 @@ import {
 import { MOBILE_APPS } from "./mobile-apps";
 import { PRIVACY_POLICY_ROUTE } from "./privacy-policy";
 import { TEAMS_ROUTE } from "./teams-page";
+import { TERMS_ROUTE } from "./terms";
 
 const OPENPANEL_API_URL = "https://analytics.openbot.run/api";
 const OPENPANEL_CLIENT_ID = "6c989975-87ef-4f0c-857e-ab449a65b5c2";
@@ -126,6 +127,7 @@ export type LandingScreenPath =
   | "/billing/return"
   | typeof TEAMS_ROUTE
   | typeof PRIVACY_POLICY_ROUTE
+  | typeof TERMS_ROUTE
   | DownloadPagePath
   | CollectionIndexRoute
   | `${CollectionIndexRoute}/${string}`;
@@ -136,6 +138,7 @@ const FIXED_SCREEN_PATHS = [
   "/contact",
   TEAMS_ROUTE,
   PRIVACY_POLICY_ROUTE,
+  TERMS_ROUTE,
   ...Object.values(OPENBOT_DOWNLOAD_PAGE_LINKS),
   "/news",
   "/guides",
