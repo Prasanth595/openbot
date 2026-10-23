@@ -31,6 +31,7 @@ import { ROUTINE_FLOWS_CAPABILITY } from "@openbot/contracts/team-protocol/routi
 import { ROUTINE_RECOVERY_CAPABILITY } from "@openbot/contracts/team-protocol/routine-recovery-v1";
 import { SIDE_QUESTION_CAPABILITY } from "@openbot/contracts/team-protocol/side-question-v1";
 import { SIGN_IN_RELAY_CAPABILITY } from "@openbot/contracts/team-protocol/sign-in-relay-v1";
+import { WEBHOOK_TESTS_CAPABILITY } from "@openbot/contracts/team-protocol/webhook-tests-v1";
 import { runTeamEffect } from "@openbot/team-client";
 import { channelForThread } from "@openbot/team-client/channel-notifications";
 import {
@@ -592,6 +593,8 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   // The same owner or admin reads and saves `missedPolicy` and the missed-run history on such a host.
   const routineRecoveryEnabled = () =>
     eventsEnabled() && workspace.state.capabilities.includes(ROUTINE_RECOVERY_CAPABILITY);
+  // The same owner or admin asks such a host to send a test event to a webhook routine.
+  const webhookTestsEnabled = () => eventsEnabled() && workspace.state.capabilities.includes(WEBHOOK_TESTS_CAPABILITY);
   const providerAdmin = createWebProviderSettings({
     server: () => (workspace.runtime.admin ? server() : undefined),
     request: hostRequest,
@@ -640,6 +643,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
       canAdministerServer(workspace.state.host?.role),
     routineRecoveryEnabled,
     () => workspace.state.capabilities.includes(SIDE_QUESTION_CAPABILITY),
+    webhookTestsEnabled,
   );
   const remoteAgentAdmin = createRemoteAgentAdmin(
     () => {
@@ -1014,6 +1018,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     () => workspace.state.host?.hostId ?? "",
     eventsEnabled,
     routineRecoveryEnabled,
+    webhookTestsEnabled,
   );
   const channelsSupported = () =>
     workspace.state.status === "online" &&
@@ -1115,7 +1120,11 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   createEffect(firstAgent, (first) => {
     if (first && !untrack(channelOpen)) setCreating(true);
   });
-  const webhookRoutines = webEventRoutinesApi((...args) => hostRequest()(...args), routineRecoveryEnabled);
+  const webhookRoutines = webEventRoutinesApi(
+    (...args) => hostRequest()(...args),
+    routineRecoveryEnabled,
+    webhookTestsEnabled,
+  );
   // Asks to move the connected host's routines after this device's time zone changed.
   createRoutineTimezonePrompt(() => {
     const current = server();
@@ -2040,7 +2049,12 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                     isOwnSender,
                     connectionReady: () => workspace.state.status === "online",
                     // The routines of a joined host go through its event API, which the channels port gives.
-                    routines: { localHost: () => false, eventsServerId: () => undefined, routineRecovery: () => false },
+                    routines: {
+                      localHost: () => false,
+                      eventsServerId: () => undefined,
+                      routineRecovery: () => false,
+                      webhookTests: () => false,
+                    },
                     approvals: () => workspace.state.approvals,
                     takeovers: () => workspace.state.takeovers,
                   });

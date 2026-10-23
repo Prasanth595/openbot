@@ -52,6 +52,7 @@ import { SHARED_TABLES_CODECS } from "./shared-tables-v1";
 import { SIDE_QUESTION_CODECS } from "./side-question-v1";
 import { SIGN_IN_RELAY_CODECS } from "./sign-in-relay-v1";
 import { SKILLS_ADMIN_CODECS } from "./skills-admin-v1";
+import { WEBHOOK_TESTS_CODECS } from "./webhook-tests-v1";
 import { WORKSPACE_DIRECTORY_CODECS } from "./workspace-directory-v1";
 
 export type { OptionalRouteCodec } from "./admin-wire";
@@ -100,6 +101,7 @@ const CODECS: ReadonlyMap<string, OptionalRouteCodec> = new Map([
   ...ROUTINE_FLOWS_CODECS,
   ...ROUTINE_RECOVERY_CODECS,
   ...ROUTINE_RESULTS_CODECS,
+  ...WEBHOOK_TESTS_CODECS,
   ...PROVIDER_ACCOUNTS_CODECS,
   ...ONEPASSWORD_CONNECTOR_CODECS,
   ...AGENT_ACCESS_CODECS,

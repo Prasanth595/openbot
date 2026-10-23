@@ -249,7 +249,6 @@ export const messages = {
   "routine.settings.webhookSummaryAny": "Webhook を受信したとき",
   "routine.trigger.change": "トリガーを変更",
   "routine.trigger.groupSchedule": "スケジュール",
-  "routine.trigger.groupAdvanced": "詳細",
   "routine.trigger.onceDescription": "指定した日時に",
   "routine.trigger.hourlyDescription": "指定した時間帯に 1 時間ごと",
   "routine.trigger.dailyDescription": "毎日、指定した時刻に",

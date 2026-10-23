@@ -1,9 +1,22 @@
-import type { EventFilterDraft } from "@openbot/contracts/event-filter-value";
-import { Text, Webhook } from "@openbot/ui";
+import { type EventFilterDraft, MASKED_WEBHOOK_SECRET } from "@openbot/contracts/event-filter-value";
+import type { WebhookTestResult } from "@openbot/contracts/ipc-events";
+import type { AppTextKey } from "@openbot/i18n";
+import {
+  Button,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  ConfirmDialog,
+  CopyButton,
+  IconButton,
+  RefreshCw,
+  Text,
+  Webhook,
+} from "@openbot/ui";
 import type { JSX } from "@solidjs/web";
-import { Show } from "solid-js";
+import { createSignal, createStore, Show } from "solid-js";
 import { useText } from "../../text";
-import { RoutineWebhookEndpoint } from "./RoutineWebhookEndpoint";
+import { CodeBlock } from "./CodeBlock";
 import { RoutineWebhookEvents } from "./RoutineWebhookEvents";
 
 export interface RoutineWebhookTriggerProps {
@@ -24,14 +37,101 @@ export interface RoutineWebhookTriggerProps {
   onRegenerateSecret: () => Promise<void>;
   /** A control at the end of the header, such as the menu that changes the trigger. */
   menu?: JSX.Element;
+  /** Saves a new routine, so the host makes its URL and secret. Without it the card only asks for a save. */
+  onSave?: (() => void) | undefined;
+  saving?: boolean | undefined;
+  /** Sends one signed test event to the saved routine. Without it the card leaves out the test step. */
+  onSendTest?: (() => Promise<WebhookTestResult>) | undefined;
+}
+
+/** What the card keeps about its steps. A copy or a test in this view marks its step done. */
+interface WebhookStepsState {
+  urlCopied: boolean;
+  secretCopied: boolean;
+  exampleOpen: boolean;
+  testing: boolean;
+  result: WebhookTestResult | null;
+  testError: string | null;
+}
+
+const IGNORED_TEXT = {
+  "event-type": "routine.webhook.testIgnoredEventType",
+  filter: "routine.webhook.testIgnoredFilter",
+  inactive: "routine.webhook.testIgnoredInactive",
+} as const satisfies Record<NonNullable<WebhookTestResult["reason"]>, AppTextKey>;
+
+/** A request that a sender can copy. The secret stays in an environment variable, not in the text. */
+function curlExample(url: string): string {
+  return [
+    `BODY='{"type":"order.created","data":{"order":{"status":"paid"}}}'`,
+    "TS=$(date +%s); ID=$(uuidgen)",
+    `SIG=$(printf '%s.%s.%s' "$TS" "$ID" "$BODY" | openssl dgst -sha256 -hmac "$OPENBOT_WEBHOOK_SECRET" | sed 's/^.* //')`,
+    `curl -X POST "${url}" \\`,
+    `  -H "Content-Type: application/json" \\`,
+    `  -H "X-OpenBot-Timestamp: $TS" \\`,
+    `  -H "X-OpenBot-Delivery-Id: $ID" \\`,
+    `  -H "X-OpenBot-Signature: sha256=$SIG" \\`,
+    `  --data "$BODY"`,
+  ].join("\n");
 }
 
 /**
- * The webhook trigger as one card: what starts the routine, the endpoint, the signing secret
- * and the events that start it. Each value has one action beside it.
+ * The webhook trigger as one card with numbered steps: copy the URL, add the signing secret to the
+ * sender, and send a test event. Each step shows a check when it is done. The events that start the
+ * routine stay under the steps.
  */
 export function RoutineWebhookTrigger(props: RoutineWebhookTriggerProps) {
-  const { t } = useText();
+  const { t, errorMessage } = useText();
+  const [confirm, setConfirm] = createSignal<{ pending: boolean; error: string | null } | null>(null);
+  const [steps, setSteps] = createStore<WebhookStepsState>({
+    urlCopied: false,
+    secretCopied: false,
+    exampleOpen: false,
+    testing: false,
+    result: null,
+    testError: null,
+  });
+  async function regenerate(): Promise<void> {
+    if (confirm()?.pending) return;
+    setConfirm({ pending: true, error: null });
+    try {
+      await props.onRegenerateSecret();
+      setConfirm(null);
+    } catch (cause) {
+      setConfirm({ pending: false, error: errorMessage(cause, t("routine.webhook.regenerateFailed")) });
+    }
+  }
+
+  async function sendTest(): Promise<void> {
+    const send = props.onSendTest;
+    if (!send || steps.testing) return;
+    setSteps((state) => {
+      state.testing = true;
+      state.result = null;
+      state.testError = null;
+    });
+    try {
+      const result = await send();
+      setSteps((state) => {
+        state.result = result;
+      });
+    } catch (cause) {
+      const message = errorMessage(cause, t("routine.webhook.testFailed"));
+      setSteps((state) => {
+        state.testError = message;
+      });
+    } finally {
+      setSteps((state) => {
+        state.testing = false;
+      });
+    }
+  }
+
+  const testText = (result: WebhookTestResult) =>
+    result.status === "started"
+      ? t("routine.webhook.testStarted", { eventType: result.eventType })
+      : t(IGNORED_TEXT[result.reason ?? "filter"]);
+
   return (
     <div class="routine-trigger-card">
       <div class="routine-trigger-card-header">
@@ -42,22 +142,225 @@ export function RoutineWebhookTrigger(props: RoutineWebhookTriggerProps) {
         <span class="routine-trigger-action">{props.menu}</span>
       </div>
 
-      <Show
-        when={props.saved}
-        fallback={
-          <Text variant="caption" tone="muted" class="routine-webhook-note">
-            {t("routine.webhook.urlAfterSave")}
-          </Text>
-        }
-      >
-        <RoutineWebhookEndpoint
-          url={props.url}
-          connected={props.connected}
-          secret={props.secret}
-          onSecretDismiss={props.onSecretDismiss}
-          onRegenerateSecret={props.onRegenerateSecret}
-        />
-      </Show>
+      <ol class="routine-webhook-steps">
+        <li>
+          <StepMarker number={1} done={steps.urlCopied} />
+          <div class="routine-webhook-step-body">
+            <strong>{t("routine.webhook.stepUrl")}</strong>
+            <Show
+              when={props.saved}
+              fallback={
+                <>
+                  <Text variant="caption" tone="muted">
+                    {t("routine.webhook.urlAfterSave")}
+                  </Text>
+                  <Show when={props.onSave}>
+                    {(save) => (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        class="routine-webhook-step-button"
+                        loading={props.saving === true}
+                        loadingLabel={t("common.saving")}
+                        onClick={() => save()()}
+                      >
+                        {t("routine.webhook.saveForUrl")}
+                      </Button>
+                    )}
+                  </Show>
+                </>
+              }
+            >
+              <div class="routine-webhook-inset">
+                <div class="routine-webhook-field">
+                  <span class="routine-webhook-label">{t("routine.webhook.url")}</span>
+                  <Show
+                    when={props.url}
+                    fallback={
+                      <Text variant="caption" tone="muted" role="status" class="routine-webhook-value">
+                        {t(
+                          props.connected === false
+                            ? "routine.webhook.urlPendingOffline"
+                            : "routine.webhook.urlPending",
+                        )}
+                      </Text>
+                    }
+                  >
+                    {(url) => (
+                      <>
+                        {/* The row leaves out "https://" to show more of the path. Copy gives the full URL. */}
+                        <code class="routine-webhook-value" title={url()}>
+                          {url().replace(/^https:\/\//, "")}
+                        </code>
+                        <CopyButton
+                          value={url()}
+                          label={t("routine.webhook.copyUrl")}
+                          copiedLabel={t("common.copied")}
+                          iconOnly
+                          onCopy={() =>
+                            setSteps((state) => {
+                              state.urlCopied = true;
+                            })
+                          }
+                        />
+                      </>
+                    )}
+                  </Show>
+                </div>
+              </div>
+              <Show
+                when={props.url && props.connected === false}
+                fallback={
+                  <Text variant="caption" tone="muted">
+                    {t("routine.webhook.stepUrlHint")}
+                  </Text>
+                }
+              >
+                <Text variant="caption" tone="warning">
+                  {t("routine.webhook.relayOffline")}
+                </Text>
+              </Show>
+            </Show>
+          </div>
+        </li>
+
+        <li data-disabled={props.saved ? undefined : ""}>
+          <StepMarker number={2} done={steps.secretCopied} />
+          <div class="routine-webhook-step-body">
+            <strong>{t("routine.webhook.stepSecret")}</strong>
+            <Text variant="caption" tone="muted">
+              {t("routine.webhook.stepSecretHint")}
+            </Text>
+            <Show when={props.saved}>
+              <div class="routine-webhook-inset">
+                <div class="routine-webhook-field">
+                  <span class="routine-webhook-label">{t("routine.webhook.secretTitle")}</span>
+                  <Show
+                    when={props.secret}
+                    fallback={
+                      <>
+                        <code class="routine-webhook-value" aria-hidden="true">
+                          {MASKED_WEBHOOK_SECRET}
+                        </code>
+                        <span class="sr-only">{t("routine.webhook.secretHidden")}</span>
+                        <IconButton
+                          variant="ghost"
+                          label={t("routine.webhook.regenerateSecret")}
+                          onClick={() => setConfirm({ pending: false, error: null })}
+                        >
+                          <RefreshCw aria-hidden="true" />
+                        </IconButton>
+                      </>
+                    }
+                  >
+                    {(secret) => (
+                      <>
+                        <code class="routine-webhook-value routine-webhook-secret" title={secret()}>
+                          {secret()}
+                        </code>
+                        <CopyButton
+                          value={secret()}
+                          label={t("routine.webhook.copySecret")}
+                          copiedLabel={t("common.copied")}
+                          iconOnly
+                          onCopy={() =>
+                            setSteps((state) => {
+                              state.secretCopied = true;
+                            })
+                          }
+                        />
+                      </>
+                    )}
+                  </Show>
+                </div>
+                <Show when={props.secret}>
+                  <div class="routine-webhook-note routine-webhook-secret-note">
+                    <Text variant="caption" tone="warning">
+                      {t("routine.webhook.secretWarning")}
+                    </Text>
+                    <Button type="button" size="xs" variant="ghost" onClick={props.onSecretDismiss}>
+                      {t("common.done")}
+                    </Button>
+                  </div>
+                </Show>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                class="routine-webhook-disclosure"
+                aria-expanded={steps.exampleOpen ? "true" : "false"}
+                onClick={() =>
+                  setSteps((state) => {
+                    state.exampleOpen = !state.exampleOpen;
+                  })
+                }
+              >
+                <Show
+                  when={steps.exampleOpen}
+                  fallback={<ChevronRight class="routine-webhook-disclosure-icon" aria-hidden="true" />}
+                >
+                  <ChevronDown class="routine-webhook-disclosure-icon" aria-hidden="true" />
+                </Show>
+                {t("routine.webhook.howToSign")}
+              </Button>
+              <Show when={steps.exampleOpen}>
+                <CodeBlock
+                  block={{ type: "code", language: "bash", code: curlExample(props.url ?? "https://<endpoint>") }}
+                />
+                <Text variant="caption" tone="muted">
+                  {t("routine.webhook.howToSignHint")}
+                </Text>
+              </Show>
+            </Show>
+          </div>
+        </li>
+
+        <Show when={props.onSendTest}>
+          <li data-disabled={props.saved ? undefined : ""}>
+            <StepMarker number={3} done={steps.result?.status === "started"} />
+            <div class="routine-webhook-step-body">
+              <strong>{t("routine.webhook.stepTest")}</strong>
+              <Text variant="caption" tone="muted">
+                {t("routine.webhook.stepTestHint")}
+              </Text>
+              <Show when={props.saved}>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  class="routine-webhook-step-button"
+                  loading={steps.testing}
+                  loadingLabel={t("routine.webhook.sendingTest")}
+                  onClick={() => void sendTest()}
+                >
+                  {t("routine.webhook.sendTest")}
+                </Button>
+              </Show>
+              <Show when={steps.result}>
+                {(result) => (
+                  <Text
+                    variant="caption"
+                    tone={result().status === "started" ? "success" : "warning"}
+                    role="status"
+                    class="routine-webhook-test-result"
+                  >
+                    {testText(result())}
+                  </Text>
+                )}
+              </Show>
+              <Show when={steps.testError}>
+                {(message) => (
+                  <Text variant="caption" tone="danger" role="alert" class="routine-webhook-test-result">
+                    {message()}
+                  </Text>
+                )}
+              </Show>
+            </div>
+          </li>
+        </Show>
+      </ol>
 
       <RoutineWebhookEvents
         eventType={props.eventType}
@@ -65,6 +368,32 @@ export function RoutineWebhookTrigger(props: RoutineWebhookTriggerProps) {
         onEventTypeChange={props.onEventTypeChange}
         onFiltersChange={props.onFiltersChange}
       />
+
+      <ConfirmDialog
+        open={confirm() !== null}
+        tone="destructive"
+        title={t("routine.webhook.regenerateTitle")}
+        description={t("routine.webhook.regenerateDescription")}
+        confirmLabel={t("routine.webhook.regenerateConfirm")}
+        cancelLabel={t("common.cancel")}
+        pending={confirm()?.pending ?? false}
+        error={confirm()?.error ?? undefined}
+        initialFocus="cancel"
+        onCancel={() => setConfirm(null)}
+        onConfirm={regenerate}
+      />
     </div>
+  );
+}
+
+/** The number of a step, or a check when the step is done. The list itself gives the order. */
+function StepMarker(props: { number: number; done: boolean }) {
+  const { t } = useText();
+  return (
+    <span class="routine-webhook-step-marker" data-done={props.done ? "" : undefined}>
+      <Show when={props.done} fallback={<span aria-hidden="true">{props.number}</span>}>
+        <Check class="routine-webhook-step-check" aria-label={t("routine.webhook.stepDone")} />
+      </Show>
+    </span>
   );
 }

@@ -7,6 +7,9 @@ export const messages = defineMessages("error.backend", {
   "error.backend.webhookSettingsInvalid": "Check the webhook settings and try again.",
   "error.backend.webhookRouteUnavailable":
     "The public webhook route is not ready. Check the host connection and try again.",
+  "error.backend.webhookTestUnavailable":
+    "The host cannot take the test event now. Make sure it is signed in, then try again.",
+  "error.backend.webhookTestFailed": "The test event did not reach the routine. Try again.",
   // Errors that the backend services send: channels, messages, routines, memories, MCP, browser and remote desktop.
   "error.backend.browserViewRemoteOnly": "A live browser view is only for a remote host.",
   "error.backend.browserViewUnsupported": "This remote host does not support a live browser view.",

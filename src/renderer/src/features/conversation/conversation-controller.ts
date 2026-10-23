@@ -36,7 +36,7 @@ import { createPendingSendStore } from "./stores/pending-send-store";
 import type { SideQuestionState } from "./stores/side-question-store";
 import type { VoiceCloudStream } from "./stores/voice-store";
 
-const SETTINGS_PANEL_DEFAULT = 296;
+const SETTINGS_PANEL_DEFAULT = 360;
 const BROWSER_PANEL_DEFAULT = 380;
 const BROWSER_PIP_STORAGE_KEY = "openbot:browser-pip-native-bounds";
 
