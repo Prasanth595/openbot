@@ -4,6 +4,24 @@ import { silentAgentAnswer } from "@openbot/ui/features/conversation/new-message
 import { createMemo } from "solid-js";
 import type { TurnStepLines } from "./turn-step-lines";
 
+const NO_STEPS: AgentStep[] = [];
+
+function sameSteps(left: readonly AgentStep[], right: readonly AgentStep[]): boolean {
+  return (
+    left.length === right.length &&
+    left.every((step, index) => {
+      const other = right[index];
+      if (other?.id !== step.id || other.kind !== step.kind) return false;
+      if (step.kind === "memory" && other.kind === "memory" && other.change.action !== step.change.action) return false;
+      return stepText(other) === stepText(step);
+    })
+  );
+}
+
+function stepText(step: AgentStep): string {
+  return step.kind === "memory" ? step.change.text : step.text;
+}
+
 /** A message that the chat draws as the agent's answer, which the steps of its turn stand above. */
 export function isTurnAnswer(message: AgentMessage): boolean {
   return message.author === "agent" && message.kind === "text" && !silentAgentAnswer(message);
@@ -22,6 +40,7 @@ export function createTurnSteps(deps: {
   // When this window first saw each thought. A progress line has its own time, and the two are
   // ordered by them, so a line shows between the thoughts it came between.
   const seenAt = new Map<string, number>();
+  const lists = new Map<string, AgentStep[]>();
   const sources = createMemo(() => {
     const thinking = new Map<string, AgentMessage>();
     const memory = new Map<string, AgentMessage>();
@@ -61,6 +80,11 @@ export function createTurnSteps(deps: {
     } else if (changes) {
       steps.push({ id: changes.id, kind: "memory-summary", text: changes.body });
     }
+    // Each streamed word changes the messages. A turn whose steps did not change keeps its list, so
+    // its row does not draw again.
+    const previous = lists.get(turnId);
+    if (previous && sameSteps(previous, steps)) return previous;
+    lists.set(turnId, steps);
     return steps;
   }
 
@@ -73,8 +97,14 @@ export function createTurnSteps(deps: {
   });
 
   return {
-    /** The steps of the running turn, for the activity line. */
-    activeSteps: createMemo(() => stepsOf(deps.activeTurnId())),
+    /**
+     * The steps of the running turn, for the activity line. None once the turn writes its answer: the
+     * activity line is under the answer, and the steps then show above it when the turn ends.
+     */
+    activeSteps: createMemo(() => {
+      const turnId = deps.activeTurnId();
+      return turnId && sources().answers.has(turnId) ? NO_STEPS : stepsOf(turnId);
+    }),
     /** The steps above an answer, or undefined for a message that has none. */
     stepsAbove(messageId: string | undefined): AgentStep[] | undefined {
       const turnId = messageId === undefined ? undefined : turnOfAnswer().get(messageId);

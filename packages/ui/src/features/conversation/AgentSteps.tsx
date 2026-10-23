@@ -140,16 +140,19 @@ export function AgentStepsDisclosure(props: { steps: readonly AgentStep[]; defau
         variant="ghost"
         class="agent-steps-header"
         aria-expanded={open() ? "true" : "false"}
-        aria-controls={panelId}
+        aria-controls={open() ? panelId : undefined}
         onClick={() => setChoice(!open())}
       >
         <Sparkles class="agent-steps-header-icon" aria-hidden="true" />
         <span class="agent-steps-summary">{stepsSummary(props.steps, text)}</span>
         <ChevronDown class="agent-steps-chevron" aria-hidden="true" />
       </Button>
-      <div class="agent-steps-panel" inert={!open()}>
-        <AgentStepList id={panelId} steps={props.steps} live={false} />
-      </div>
+      {/* A long chat has a row for each turn, so a closed row builds no list. */}
+      <Show when={open()}>
+        <div class="agent-steps-panel">
+          <AgentStepList id={panelId} steps={props.steps} live={false} />
+        </div>
+      </Show>
     </div>
   );
 }

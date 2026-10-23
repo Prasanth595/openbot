@@ -83,16 +83,19 @@
 .agent-steps-panel {
   display: grid;
   width: 100%;
-  grid-template-rows: 0fr;
-  opacity: 0;
+  grid-template-rows: 1fr;
+  opacity: 1;
   transition:
     grid-template-rows var(--openbot-duration-overlay) var(--openbot-ease-out),
     opacity var(--openbot-duration-normal) var(--openbot-ease-out);
 }
 
-.agent-steps[data-open] .agent-steps-panel {
-  grid-template-rows: 1fr;
-  opacity: 1;
+/* The panel exists only while the row is open, so it opens from its first frame. */
+@starting-style {
+  .agent-steps-panel {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
 }
 
 .agent-steps-viewport {
