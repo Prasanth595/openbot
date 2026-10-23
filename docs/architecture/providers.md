@@ -658,7 +658,7 @@ left, and the agent goes back to it when its hold ends. A model the user picks d
 Two holds move an agent:
 
 - A plan usage limit holds the queue of every agent on that provider account and model until the
-  reset.
+  reset. A usage reset that the user starts also ends it (see [Usage reset credits](#usage-reset-credits)).
 - A provider error holds nothing. `TurnLifecycle` checks the turn's error with `classifyFailure`.
   The causes are `billing`, `provider_unavailable`, `rate_limit`, `authentication`, `network` and
   `timeout`. When the turn did no work yet (`!acted`) and the agent has a ready backup, the turn's
@@ -673,6 +673,23 @@ a refused `turn/start`, and a provider that fails to start do not fail over. A m
 most once for each model that failed it, so a move that cannot happen shows the error on the next
 failure; the check for a ready backup runs again when the turn ends.
 
+### Usage reset credits
+
+Codex can give an account usage reset credits: one restores the spent usage limits of the account at
+once (issue #2859). `account/rateLimits/read` counts them in `rateLimitResetCredits.availableCount`,
+and `account/rateLimitResetCredit/consume` spends one; both are stable Codex app-server methods since
+0.156.0. `ProviderRuntime.#refreshUsage` keeps the count of each client with its usage reading.
+`usageResets` reads the provider's own sign-in again while its process runs, and keeps the last count
+while it is released; an account after the first uses the reading that the dock keeps for five
+minutes. An account whose reading has no count is left out. `resetUsage` sends the consume with a new
+`idempotencyKey` for each reset the user asks for, through the running client, an agent's process or a
+short one in the account's folder. Then it reads the account's usage again and sends `usage-changed`.
+After the answer `reset`, `AgentService` calls `UsageLimitGate.accountReset`, which ends each limit of
+that account, so its held agents start again. Other providers have no credits: `resetUsage` refuses them.
+
+Settings > Providers shows **Reset usage** in the ⋯ menu of a connected account that has a credit.
+The confirmation names the credits left, and the answer shows under the accounts. A joined server
+uses the optional `provider-usage-reset-v1` routes (see [Admin capabilities](servers.md#admin-capabilities)).
 
 ## Provider settings and the ACP registry
 

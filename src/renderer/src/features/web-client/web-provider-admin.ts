@@ -8,6 +8,7 @@ import type {
 import { decodeRegistryEntries, decodeRegistryInstallResult, decodeRegistryOperations } from "@openbot/contracts/ipc";
 import { ACP_REGISTRY_ROUTES } from "@openbot/contracts/team-protocol/acp-registry-v1";
 import { PROVIDER_ACCOUNTS_CAPABILITY } from "@openbot/contracts/team-protocol/provider-accounts-v1";
+import { PROVIDER_USAGE_RESET_CAPABILITY } from "@openbot/contracts/team-protocol/provider-usage-reset-v1";
 import { PROVIDERS_ADMIN_ROUTES } from "@openbot/contracts/team-protocol/providers-v1";
 import {
   PROVIDERS_RUNTIMES_V2_CAPABILITY,
@@ -39,8 +40,10 @@ import {
   providerAccountSignInStatus,
   providerAccountUsage,
   providerHostSignInStatus,
+  providerUsageResets,
   removeProviderAccount,
   renameProviderAccount,
+  resetProviderUsage,
   saveCustomProvider,
   setProviderApiKey,
   startProviderAccountSignIn,
@@ -191,6 +194,10 @@ function webProviderAdmin(
       runTeamEffect(renameProviderAccount(request(serverId), input).pipe(Effect.mapError((error) => error.cause))),
     removeAccount: async (input, serverId) =>
       runTeamEffect(removeProviderAccount(request(serverId), input).pipe(Effect.mapError((error) => error.cause))),
+    usageResets: async (provider, serverId) =>
+      runTeamEffect(providerUsageResets(request(serverId), provider).pipe(Effect.mapError((error) => error.cause))),
+    resetUsage: async (input, serverId) =>
+      runTeamEffect(resetProviderUsage(request(serverId), input).pipe(Effect.mapError((error) => error.cause))),
     ...webProviderRelay(request),
   };
 }
@@ -350,6 +357,17 @@ export function createWebProviderSettings(options: WebProviderSettingsOptions) {
       },
       rename: (provider, accountId, label) => changed(admin.renameAccount({ provider, accountId, label }, id)),
       remove: (provider, accountId) => changed(admin.removeAccount({ provider, accountId }, id)),
+      ...(remoteAdminServer(options.server(), PROVIDER_USAGE_RESET_CAPABILITY)?.id === id
+        ? {
+            usageResets: (provider: AgentProviderId) => admin.usageResets(provider, id),
+            resetUsage: async (provider: AgentProviderId, accountId: string) => {
+              const outcome = await admin.resetUsage({ provider, accountId }, id);
+              // The host sends the reading of its own sign-in; the accounts after the first are read here.
+              await hostAccounts.refreshUsage().catch(() => undefined);
+              return outcome;
+            },
+          }
+        : {}),
     };
   });
   // The host sends status events, but a browser that reconnects in the middle can miss the one that

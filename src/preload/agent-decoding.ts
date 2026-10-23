@@ -21,6 +21,8 @@ import {
   type DuplicateAgentResult,
   decodeOptionalAgentAnalytics,
   decodeOptionalHostAnalytics,
+  decodeProviderUsageResetOutcome,
+  decodeProviderUsageResets,
   type HostProviderAccounts,
   isAccountUsage,
   isAgentHostSettings,
@@ -42,6 +44,8 @@ import {
   MAX_PROVIDER_ACCOUNTS,
   type ProviderApiKeyState,
   type ProviderCodeLoginStart,
+  type ProviderUsageResetOutcome,
+  type ProviderUsageResets,
   type SharedTable,
   type SidebarLayoutSnapshot,
 } from "@openbot/contracts/ipc";
@@ -114,6 +118,27 @@ export function decodeAgentRuntimeSnapshot(value: unknown): AgentRuntimeSnapshot
 export function decodeAccountUsageFromMain(value: unknown): AccountUsage {
   if (!isAccountUsage(value)) throw new Error("Invalid agent usage response.");
   return value;
+}
+
+/** Main has already left out the providers that this build does not know, so each one must be known. */
+export function decodeProviderUsageResetsFromMain(value: unknown): ProviderUsageResets[] {
+  if (
+    !Array.isArray(value) ||
+    !value.every(
+      (row: unknown) =>
+        isDynamicRecord(row) &&
+        isAgentProvider(row.provider) &&
+        isProviderAccountId(row.accountId) &&
+        Number.isSafeInteger(row.available) &&
+        Number(row.available) >= 0,
+    )
+  )
+    throw new Error("Invalid provider usage resets response.");
+  return decodeProviderUsageResets(value);
+}
+
+export function decodeProviderUsageResetOutcomeFromMain(value: unknown): ProviderUsageResetOutcome {
+  return decodeProviderUsageResetOutcome(value);
 }
 
 /** Main has already left out the providers that this build does not know, so each one must be known. */

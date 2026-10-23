@@ -400,6 +400,8 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
   let updateStatus = clone(options.updateStatus ?? STORY_UPDATE_STATUS);
   let updatePreference: UpdatePreference = { autoDownload: true, allowRemoteUpdates: true, autoInstall: false };
   const usage = clone(options.usage ?? STORY_USAGE);
+  /** The usage resets left on each provider account after the preview spent one. */
+  const usageResets = new Map<string, number>();
   let agentCounter = agents.length;
   let hostedSites = clone(STORY_HOSTED_SITES);
   let detectionSettings: ProviderDetectionSettings = clone(DEFAULT_PROVIDER_DETECTION_SETTINGS);
@@ -992,6 +994,24 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         changeProviderAccounts(provider, (accounts) => accounts.filter((account) => account.id !== accountId)),
       );
     },
+    // Codex gives the preview's own sign-in two usage resets; each other connected Codex account has none.
+    providerUsageResets: async (provider) =>
+      provider === "codex"
+        ? (agentStatus.providers?.find((row) => row.id === provider)?.accounts ?? [])
+            .filter((account) => account.state === "connected")
+            .map((account) => ({
+              provider,
+              accountId: account.id,
+              available: usageResets.get(account.id) ?? (account.id === DEFAULT_PROVIDER_ACCOUNT_ID ? 2 : 0),
+            }))
+        : [],
+    resetProviderUsage: async ({ provider, accountId }) => {
+      const readings = await api.providerUsageResets(provider);
+      const available = readings.find((reading) => reading.accountId === accountId)?.available ?? 0;
+      if (available === 0) return "noCredit";
+      usageResets.set(accountId, available - 1);
+      return "reset";
+    },
     getProviderApiKeyState: async (provider) => ({
       provider,
       status: providerApiKeys.has(provider) ? "saved" : "missing",
@@ -1219,6 +1239,8 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       removeAccount: async (input) => {
         await api.removeProviderAccount(input);
       },
+      usageResets: (provider) => api.providerUsageResets(provider),
+      resetUsage: (input) => api.resetProviderUsage(input),
       startRelaySignIn: async () => undefined,
       relaySignInStatus: async () => ({ page: null, result: null }),
       openRelaySignIn: async () => undefined,

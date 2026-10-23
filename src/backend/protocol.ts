@@ -111,7 +111,12 @@ export interface AccountRateLimitResult {
 export interface AccountRateLimitsReadResult {
   rateLimits?: AccountRateLimitResult | null | undefined;
   rateLimitsByLimitId?: Record<string, AccountRateLimitResult | undefined> | null | undefined;
+  /** Codex only: the usage reset credits of the account. Null when Codex could not count them. */
+  rateLimitResetCredits?: { availableCount: number } | null | undefined;
 }
+
+/** What `account/rateLimitResetCredit/consume` did. */
+export type AccountRateLimitResetOutcome = "reset" | "nothingToReset" | "noCredit" | "alreadyRedeemed";
 
 export interface ThreadItem {
   type: string;
@@ -268,10 +273,21 @@ export function decodeAccountRateLimitsReadResult(value: unknown): AccountRateLi
   const record = decodeRecord(value, "rate limits response");
   const rateLimits = decodeRateLimit(record.rateLimits);
   const rateLimitsByLimitId = decodeRateLimitsById(record.rateLimitsByLimitId);
+  const rateLimitResetCredits = decodeRateLimitResetCredits(record.rateLimitResetCredits);
   return {
     ...(rateLimits === undefined ? {} : { rateLimits }),
     ...(rateLimitsByLimitId === undefined ? {} : { rateLimitsByLimitId }),
+    ...(rateLimitResetCredits === undefined ? {} : { rateLimitResetCredits }),
   };
+}
+
+const RESET_OUTCOMES = ["reset", "nothingToReset", "noCredit", "alreadyRedeemed"] as const;
+
+export function decodeRateLimitResetCreditConsumeResult(value: unknown): AccountRateLimitResetOutcome {
+  const outcome = decodeRecord(value, "rate limit reset response").outcome;
+  const known = RESET_OUTCOMES.find((candidate) => candidate === outcome);
+  if (!known) throw new Error("Invalid rate limit reset outcome.");
+  return known;
 }
 
 /** A sparse `account/rateLimits/updated` push: only the windows it holds changed. */
@@ -388,6 +404,18 @@ function decodeRateLimitWindow(value: unknown): AccountRateLimitWindowResult | n
     ...(windowDurationMins === undefined ? {} : { windowDurationMins }),
     ...(resetsAt === undefined ? {} : { resetsAt }),
   };
+}
+
+/**
+ * Only the count: the credit rows are display text that OpenBot does not show. A count it cannot
+ * read is unknown, so the usage reading that carries it still decodes.
+ */
+function decodeRateLimitResetCredits(value: unknown): AccountRateLimitsReadResult["rateLimitResetCredits"] {
+  if (value === undefined) return value;
+  const availableCount = isDynamicRecord(value) ? value.availableCount : undefined;
+  return typeof availableCount === "number" && Number.isSafeInteger(availableCount) && availableCount >= 0
+    ? { availableCount }
+    : null;
 }
 
 function decodeRateLimitsById(value: unknown): AccountRateLimitsReadResult["rateLimitsByLimitId"] {

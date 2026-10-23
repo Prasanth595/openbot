@@ -171,4 +171,17 @@ export const messages = {
   "provider.account.finishSignIn": "Oturum açma işlemini tarayıcıda tamamlayın.",
   "provider.account.remove": "Hesabı kaldır",
   "provider.account.actionFailed": "{name} hesabı değiştirilemedi.",
+  "provider.account.resetUsage": "Kullanımı sıfırla",
+  "provider.account.resetUsageTitle": "{name} kullanımı sıfırlansın mı?",
+  "provider.account.resetUsageDescription": {
+    one: "Bu, son kullanım sıfırlama kredinizi kullanır. Bu hesabın dolan kullanım sınırları şimdi yeniden başlar. Bu işlemi geri alamazsınız.",
+    other:
+      "Bu, {count} kullanım sıfırlama kredinizden birini kullanır. Bu hesabın dolan kullanım sınırları şimdi yeniden başlar. Bu işlemi geri alamazsınız.",
+  },
+  "provider.account.resetUsagePending": "Sıfırlanıyor…",
+  "provider.account.resetUsageDone": "{name} kullanım sınırları şimdi yeniden başladı.",
+  "provider.account.resetUsageNothing": "{name} hesabında dolan kullanım sınırı yok. Kredi kullanılmadı.",
+  "provider.account.resetUsageNoCredit": "{name} hesabında kullanım sıfırlama kredisi kalmadı.",
+  "provider.account.resetUsageAlreadyRedeemed": "{name} hesabının bu sıfırlama kredisi zaten kullanıldı.",
+  "provider.account.resetUsageFailed": "{name} kullanımı sıfırlanamadı.",
 } as const satisfies PartialTranslation<typeof source>;

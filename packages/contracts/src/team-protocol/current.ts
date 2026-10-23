@@ -50,6 +50,7 @@ import { ONEPASSWORD_CONNECTOR_CAPABILITY } from "./onepassword-connector-v1";
 import { TEAM_PROMPT_MULTI_SELECT_CAPABILITY } from "./prompt-multi-select-v1";
 import { PROVIDER_ACCOUNTS_CAPABILITY } from "./provider-accounts-v1";
 import { PROVIDER_HOST_SIGN_IN_CAPABILITY } from "./provider-host-sign-in-v1";
+import { PROVIDER_USAGE_RESET_CAPABILITY } from "./provider-usage-reset-v1";
 import { PROVIDERS_ADMIN_CAPABILITY } from "./providers-v1";
 import { PROVIDERS_RUNTIMES_V2_CAPABILITY } from "./providers-v2";
 import { PROVIDERS_SIGN_IN_V3_CAPABILITY } from "./providers-v3";
@@ -145,6 +146,7 @@ export {
   ONEPASSWORD_CONNECTOR_CAPABILITY,
   PROVIDER_ACCOUNTS_CAPABILITY,
   PROVIDER_HOST_SIGN_IN_CAPABILITY,
+  PROVIDER_USAGE_RESET_CAPABILITY,
   PROVIDERS_ADMIN_CAPABILITY,
   PROVIDERS_RUNTIMES_V2_CAPABILITY,
   PROVIDERS_SIGN_IN_V3_CAPABILITY,
@@ -268,6 +270,7 @@ export const TEAM_CURRENT_CAPABILITIES = [
   AGENT_BACKUP_MODELS_CAPABILITY,
   ROUTINE_RESULTS_CAPABILITY,
   WEBHOOK_TESTS_CAPABILITY,
+  PROVIDER_USAGE_RESET_CAPABILITY,
 ] as const;
 
 export type TeamCurrentCapability = (typeof TEAM_CURRENT_CAPABILITIES)[number];
@@ -374,7 +377,8 @@ export const TEAM_BOOTSTRAP_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
     capability !== TEAM_CHANNEL_ATTENTION_CAPABILITY &&
     capability !== AGENT_BACKUP_MODELS_CAPABILITY &&
     capability !== ROUTINE_RESULTS_CAPABILITY &&
-    capability !== WEBHOOK_TESTS_CAPABILITY,
+    capability !== WEBHOOK_TESTS_CAPABILITY &&
+    capability !== PROVIDER_USAGE_RESET_CAPABILITY,
 );
 // A v7 host does not know the v8 markers, so a client sends them only after it negotiates protocol 8.
 const TEAM_PROTOCOL_V7_CURRENT_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
@@ -424,6 +428,7 @@ export function legacyTeamCapabilities(capabilities: readonly string[]): string[
       capability !== TEAM_CHANNEL_ATTENTION_CAPABILITY &&
       capability !== AGENT_BACKUP_MODELS_CAPABILITY &&
       capability !== ROUTINE_RESULTS_CAPABILITY &&
-      capability !== WEBHOOK_TESTS_CAPABILITY,
+      capability !== WEBHOOK_TESTS_CAPABILITY &&
+      capability !== PROVIDER_USAGE_RESET_CAPABILITY,
   );
 }

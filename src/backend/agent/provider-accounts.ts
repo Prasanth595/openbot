@@ -8,6 +8,8 @@ import {
   MAX_PROVIDER_ACCOUNTS,
   type ProviderAccountState,
   type ProviderAccountStatus,
+  type ProviderUsageResetOutcome,
+  type ProviderUsageResets,
 } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger } from "@openbot/logging";
@@ -64,6 +66,9 @@ export interface ProviderAccountsHost {
   agentClient(provider: AgentProviderId, accountId: string): AgentClient | null;
   stopAgentClients(provider: AgentProviderId, accountId: string): Effect.Effect<void>;
   readUsage(client: AgentClient, model?: string): Effect.Effect<AccountUsage, ProviderAccountFailed>;
+  /** The usage reset credits that the client's last usage reading counted; undefined for a provider with none. */
+  resetCredits(client: AgentClient): number | null | undefined;
+  consumeUsageReset(client: AgentClient): Effect.Effect<ProviderUsageResetOutcome, ProviderAccountFailed>;
   changed(): void;
   redact(text: string): string;
 }
@@ -81,7 +86,11 @@ export class ProviderAccounts {
   /** Accounts whose first sign-in runs. A cancel removes them with their folder. */
   readonly #added = new Set<string>();
   readonly #checks = new Map<string, Fiber.Fiber<void>>();
-  readonly #usage = new Map<string, { limit: AccountUsageLimit; at: number }>();
+  /** The last usage reading of each account, with the usage reset credits it counted. */
+  readonly #usage = new Map<
+    string,
+    { limit: AccountUsageLimit; resetCredits: number | null | undefined; at: number }
+  >();
 
   constructor(store: ProviderAccountStore, host: ProviderAccountsHost) {
     this.#store = store;
@@ -375,6 +384,57 @@ export class ProviderAccounts {
     return { limits: kept ? [kept.limit] : [] } satisfies AccountUsage;
   }).bind(this);
 
+  /**
+   * The usage reset credits of each connected account of a provider, from the readings that `usage`
+   * keeps or reads again. An account whose provider could not count its credits is left out.
+   */
+  readonly usageResets = Effect.fn("ProviderAccounts.usageResets")(function* (
+    this: ProviderAccounts,
+    provider: AgentProviderId,
+    model: string | undefined,
+  ) {
+    yield* this.usage(provider, model);
+    return this.#store.list(provider).flatMap((account): ProviderUsageResets[] => {
+      if (this.#states.get(account.id)?.state !== "connected") return [];
+      const available = this.#usage.get(account.id)?.resetCredits;
+      return typeof available === "number" ? [{ provider, accountId: account.id, available }] : [];
+    });
+  }).bind(this);
+
+  /**
+   * Spends one usage reset credit of an account, through its agent's process or a short one, then
+   * reads its usage again. `limit` is that reading, or null when the provider gave none.
+   */
+  readonly resetUsage = Effect.fn("ProviderAccounts.resetUsage")(function* (
+    this: ProviderAccounts,
+    provider: AgentProviderId,
+    accountId: string,
+    model: string | undefined,
+  ) {
+    const account = this.#store.get(provider, accountId);
+    const cli = this.#host.cli(provider);
+    if (!account || this.#states.get(accountId)?.state !== "connected" || !cli)
+      return yield* accountFailure(
+        sourceText("error.provider.usageResetNotConnected", { provider: providerLabel(provider) }),
+      );
+    const reset = (client: AgentClient) =>
+      Effect.gen({ self: this }, function* () {
+        const outcome = yield* this.#host.consumeUsageReset(client);
+        const limit = yield* this.#host.readUsage(client, model).pipe(
+          Effect.flatMap((usage) => this.#storeUsage(account, client, usage)),
+          Effect.catch(() => Effect.succeed(null)),
+        );
+        return { outcome, limit };
+      });
+    const running = this.#host.agentClient(provider, accountId);
+    if (running) return yield* reset(running);
+    return yield* Effect.acquireUseRelease(
+      this.#host.authenticate(provider, cli, this.environment(account)),
+      ({ client }) => reset(client),
+      ({ client }) => this.#host.stopClient(client),
+    );
+  }).bind(this);
+
   /** Starts a client in the account's folder, reads who it is and its usage, and stops it. */
   readonly #check = Effect.fn("ProviderAccounts.check")(function* (
     this: ProviderAccounts,
@@ -399,9 +459,11 @@ export class ProviderAccounts {
             );
           this.#setState(account.id, { state: "connected", email, message: null });
           if (agentProviderDescriptor(provider).reportsUsage)
-            yield* this.#storeUsage(account, yield* this.#host.readUsage(client, defaultUsageModel(provider))).pipe(
-              Effect.ignore,
-            );
+            yield* this.#storeUsage(
+              account,
+              client,
+              yield* this.#host.readUsage(client, defaultUsageModel(provider)),
+            ).pipe(Effect.ignore);
         }),
       ({ client }) => this.#host.stopClient(client),
     );
@@ -413,25 +475,29 @@ export class ProviderAccounts {
     model: string | undefined,
   ) {
     const running = this.#host.agentClient(account.provider, account.id);
-    if (running) return yield* this.#storeUsage(account, yield* this.#host.readUsage(running, model));
+    if (running) return yield* this.#storeUsage(account, running, yield* this.#host.readUsage(running, model));
     const cli = this.#host.cli(account.provider);
     if (!cli) return null;
     return yield* Effect.acquireUseRelease(
       this.#host.authenticate(account.provider, cli, this.environment(account)),
       ({ client }) =>
         Effect.gen({ self: this }, function* () {
-          return yield* this.#storeUsage(account, yield* this.#host.readUsage(client, model));
+          return yield* this.#storeUsage(account, client, yield* this.#host.readUsage(client, model));
         }),
       ({ client }) => this.#host.stopClient(client),
     );
   });
 
-  #storeUsage(account: StoredProviderAccount, usage: AccountUsage): Effect.Effect<AccountUsageLimit | null> {
+  #storeUsage(
+    account: StoredProviderAccount,
+    client: AgentClient,
+    usage: AccountUsage,
+  ): Effect.Effect<AccountUsageLimit | null> {
     return Effect.sync(() => {
       const first = usage.limits[0];
       if (!first || (!first.primary && !first.secondary)) return null;
       const limit = { ...first, id: account.provider, accountId: account.id };
-      this.#usage.set(account.id, { limit, at: Date.now() });
+      this.#usage.set(account.id, { limit, resetCredits: this.#host.resetCredits(client), at: Date.now() });
       return limit;
     });
   }

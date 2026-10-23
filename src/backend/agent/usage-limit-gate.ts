@@ -212,6 +212,19 @@ export class UsageLimitGate {
     if (![...this.#limits.values()].some((limit) => limit.provider === provider)) this.#announced.delete(provider);
   }).bind(this);
 
+  /**
+   * The user spent a usage reset credit of a provider account, so each limit of that account ends now
+   * and its agents take turns again. A null account is the provider's own sign-in.
+   */
+  readonly accountReset = Effect.fn("UsageLimitGate.accountReset")(function* (
+    this: UsageLimitGate,
+    provider: AgentProvider,
+    accountId: string | null,
+  ) {
+    for (const [key, limit] of [...this.#limits])
+      if (limit.provider === provider && limit.accountId === accountId) yield* this.#release(key, true);
+  }).bind(this);
+
   readonly dispose = Effect.fn("UsageLimitGate.dispose")(function* (this: UsageLimitGate) {
     for (const limit of this.#limits.values()) if (limit.timer) clearTimeout(limit.timer);
     this.#limits.clear();

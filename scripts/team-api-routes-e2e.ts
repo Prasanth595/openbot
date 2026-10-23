@@ -30,6 +30,10 @@ import {
   AGENT_BACKUP_MODELS_ROUTES,
 } from "@openbot/contracts/team-protocol/agent-backup-models-v1";
 import { AGENT_HIDDEN_CAPABILITY, AGENT_HIDDEN_ROUTES } from "@openbot/contracts/team-protocol/agent-hidden-v1";
+import {
+  PROVIDER_USAGE_RESET_CAPABILITY,
+  PROVIDER_USAGE_RESET_ROUTES,
+} from "@openbot/contracts/team-protocol/provider-usage-reset-v1";
 import { QueueEditRejectedError, TEAM_QUEUE_EDIT_CAPABILITY } from "@openbot/contracts/team-protocol/queue-edit-v1";
 import {
   ROUTINE_RESULTS_CAPABILITY,
@@ -455,6 +459,19 @@ try {
             return Effect.succeed(routineDestination);
           }),
       },
+    },
+    // The host's own sign-in has two usage reset credits; a reset spends one.
+    providerUsageResets: {
+      providerUsageResets: (provider) =>
+        Effect.sync(() => {
+          record("providerUsageResets", provider);
+          return [{ provider, accountId: "default", available: 2 }];
+        }),
+      resetProviderUsage: (provider, accountId) =>
+        Effect.sync(() => {
+          record("resetProviderUsage", { provider, accountId });
+          return "reset" as const;
+        }),
     },
     hiddenAgents: {
       listHiddenAgents: () => hidden,
@@ -1186,6 +1203,66 @@ try {
         isDeepStrictEqual(adminClear.body, { backupModels: null, usageLimitReturn: null }) &&
         errorIs(missing, 404, sourceText("error.team.agentNotFound")),
       [summary(adminClear), summary(missing)],
+    );
+  }
+
+  // ---- Usage reset credits (provider-usage-reset-v1) ----
+  {
+    const resetCapabilities = [PROVIDER_USAGE_RESET_CAPABILITY];
+    const unsupported = await call("POST", PROVIDER_USAGE_RESET_ROUTES.list, {
+      token: adaToken,
+      json: { provider: "codex" },
+    });
+    check(
+      "the usage reset routes without the capability get 400 providersUnsupported",
+      errorIs(unsupported, 400, sourceText("error.team.providersUnsupported")),
+      summary(unsupported),
+    );
+    const memberList = await call("POST", PROVIDER_USAGE_RESET_ROUTES.list, {
+      token: bobToken,
+      json: { provider: "codex" },
+      capabilities: resetCapabilities,
+    });
+    const memberReset = await call("POST", PROVIDER_USAGE_RESET_ROUTES.consume, {
+      token: bobToken,
+      json: { provider: "codex", accountId: "default" },
+      capabilities: resetCapabilities,
+    });
+    check(
+      "a member cannot read or spend usage reset credits",
+      errorIs(memberList, 403, sourceText("error.team.adminRequired")) &&
+        errorIs(memberReset, 403, sourceText("error.team.adminRequired")) &&
+        callsOf("resetProviderUsage").length === 0,
+      [summary(memberList), summary(memberReset)],
+    );
+    const adminList = await call("POST", PROVIDER_USAGE_RESET_ROUTES.list, {
+      token: adaToken,
+      json: { provider: "codex" },
+      capabilities: resetCapabilities,
+    });
+    check(
+      "an admin reads the usage reset credits of the host's accounts",
+      adminList.status === 200 &&
+        isDeepStrictEqual(adminList.body, { accounts: [{ provider: "codex", accountId: "default", available: 2 }] }),
+      summary(adminList),
+    );
+    const badAccount = await call("POST", PROVIDER_USAGE_RESET_ROUTES.consume, {
+      token: adaToken,
+      json: { provider: "codex", accountId: "../default" },
+      capabilities: resetCapabilities,
+    });
+    const adminReset = await call("POST", PROVIDER_USAGE_RESET_ROUTES.consume, {
+      token: adaToken,
+      json: { provider: "codex", accountId: "default" },
+      capabilities: resetCapabilities,
+    });
+    check(
+      "an admin spends one credit, and an invalid account gets 400",
+      badAccount.status === 400 &&
+        adminReset.status === 200 &&
+        isDeepStrictEqual(adminReset.body, { outcome: "reset" }) &&
+        isDeepStrictEqual(callsOf("resetProviderUsage"), [[{ provider: "codex", accountId: "default" }]]),
+      [summary(badAccount), summary(adminReset)],
     );
   }
 

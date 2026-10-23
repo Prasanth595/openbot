@@ -86,8 +86,11 @@ import type {
   ProviderCodeLoginStart,
   ProviderHostSignInStatus,
   ProviderRelaySignInStatus,
+  ProviderUsageResetOutcome,
+  ProviderUsageResets,
   RemoveProviderAccountInput,
   RenameProviderAccountInput,
+  ResetProviderUsageInput,
   SetProviderApiKeyInput,
   SubmitProviderCodeLoginInput,
 } from "./ipc-agent-status";
@@ -656,6 +659,10 @@ export const IPC_ENDPOINTS = {
     ),
     renameProviderAccount: request<RenameProviderAccountInput, AgentStatus>()("app:rename-provider-account"),
     removeProviderAccount: request<RemoveProviderAccountInput, AgentStatus>()("app:remove-provider-account"),
+    /** The usage reset credits of each connected account of a provider. It reads the usage of each. */
+    providerUsageResets: request<AgentProviderId, ProviderUsageResets[]>()("app:provider-usage-resets"),
+    /** Spends one usage reset credit of an account. A reset ends the usage limit that holds its agents. */
+    resetProviderUsage: request<ResetProviderUsageInput, ProviderUsageResetOutcome>()("app:reset-provider-usage"),
   },
   providerRuntimes: {
     getStatus: request<undefined, ProviderRuntimeSnapshot>()("provider-runtimes:get-status"),
@@ -848,6 +855,12 @@ export const IPC_ENDPOINTS = {
     cancelAccountSignIn: scopedRequest<AgentProviderId, void, "required">()("provider-admin:cancel-account-sign-in"),
     renameAccount: scopedRequest<RenameProviderAccountInput, void, "required">()("provider-admin:rename-account"),
     removeAccount: scopedRequest<RemoveProviderAccountInput, void, "required">()("provider-admin:remove-account"),
+    // The usage reset credits of a joined server's host's accounts, and the reset that spends one
+    // (`provider-usage-reset-v1`).
+    usageResets: scopedRequest<AgentProviderId, ProviderUsageResets[], "required">()("provider-admin:usage-resets"),
+    resetUsage: scopedRequest<ResetProviderUsageInput, ProviderUsageResetOutcome, "required">()(
+      "provider-admin:reset-usage",
+    ),
     // A sign-in that a joined server's host starts and that opens in this computer's browser
     // (`sign-in-relay-v1`). This computer takes the callback and sends its query to the host.
     // `openRelaySignIn` opens the page when the user asks, and `pasteRelaySignIn` takes the address

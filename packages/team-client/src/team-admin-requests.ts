@@ -79,6 +79,8 @@ import {
   decodeProviderHostSignInStatus,
   decodeProviderRuntimeSnapshot,
   decodeProviderRuntimeSnapshotV8,
+  decodeProviderUsageResetOutcome,
+  decodeProviderUsageResets,
   decodeRoutineResultConnectionOptions,
   decodeRoutineResultDestinationAnswer,
   decodeSignInRelayFlow,
@@ -118,10 +120,13 @@ import {
   type ProviderCodeLoginStart,
   type ProviderHostSignInStatus,
   type ProviderRuntimeSnapshot,
+  type ProviderUsageResetOutcome,
+  type ProviderUsageResets,
   type PublishAgentTemplateInput,
   type RemoveMcpServerInput,
   type RemoveProviderAccountInput,
   type RenameProviderAccountInput,
+  type ResetProviderUsageInput,
   type RoutineResultConnectionOption,
   type RoutineResultDestination,
   type RoutineResultRoutineInput,
@@ -181,6 +186,7 @@ import { MCP_ROUTES } from "@openbot/contracts/team-protocol/mcp-v1";
 import { ONEPASSWORD_CONNECTOR_ROUTES } from "@openbot/contracts/team-protocol/onepassword-connector-v1";
 import { PROVIDER_ACCOUNTS_ROUTES } from "@openbot/contracts/team-protocol/provider-accounts-v1";
 import { PROVIDER_HOST_SIGN_IN_ROUTES } from "@openbot/contracts/team-protocol/provider-host-sign-in-v1";
+import { PROVIDER_USAGE_RESET_ROUTES } from "@openbot/contracts/team-protocol/provider-usage-reset-v1";
 import { PROVIDERS_ADMIN_ROUTES } from "@openbot/contracts/team-protocol/providers-v1";
 import type { PROVIDERS_RUNTIMES_V2_ROUTES } from "@openbot/contracts/team-protocol/providers-v2";
 import { PROVIDERS_SIGN_IN_V3_ROUTES } from "@openbot/contracts/team-protocol/providers-v3";
@@ -891,6 +897,36 @@ export function removeProviderAccount(
   input: RemoveProviderAccountInput,
 ): Effect.Effect<void, TeamAdminRequestError> {
   return adminCall(() => request("POST", PROVIDER_ACCOUNTS_ROUTES.remove, ignoreResponse, { ...input }));
+}
+
+/** `provider-usage-reset-v1`: the usage reset credits of each connected account of a provider on the host. */
+export function providerUsageResets(
+  request: TeamApiRequest,
+  provider: AgentProviderId,
+): Effect.Effect<ProviderUsageResets[], TeamAdminRequestError> {
+  return adminCall(() =>
+    request(
+      "POST",
+      PROVIDER_USAGE_RESET_ROUTES.list,
+      (value) => decodeProviderUsageResets(decodeRecord(value, "provider usage resets").accounts),
+      { provider },
+    ),
+  );
+}
+
+/** Spends one usage reset credit of an account on the host. */
+export function resetProviderUsage(
+  request: TeamApiRequest,
+  input: ResetProviderUsageInput,
+): Effect.Effect<ProviderUsageResetOutcome, TeamAdminRequestError> {
+  return adminCall(() =>
+    request(
+      "POST",
+      PROVIDER_USAGE_RESET_ROUTES.consume,
+      (value) => decodeProviderUsageResetOutcome(decodeRecord(value, "provider usage reset").outcome),
+      { ...input },
+    ),
+  );
 }
 
 /** Moves the agent to an account of its provider; null is the provider's own sign-in. */

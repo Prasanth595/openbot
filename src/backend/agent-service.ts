@@ -59,6 +59,7 @@ import type {
   McpSignInState,
   McpTestResult,
   ProviderCodeLoginStart,
+  ProviderUsageResets,
   QueuedMessageReceipt,
   QueueSnapshot,
   RemoveMcpServerInput,
@@ -3058,6 +3059,29 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         ),
       );
   }
+
+  /** The usage reset credits of each connected account of a provider. An account that has no count is left out. */
+  providerUsageResets(provider: AgentProvider): Effect.Effect<ProviderUsageResets[]> {
+    return this.#providers.usageResets(provider);
+  }
+
+  /** Spends one usage reset credit of an account. A reset ends the usage limit that holds its agents. */
+  readonly resetProviderUsage = Effect.fn("AgentService.resetProviderUsage")(function* (
+    this: AgentService,
+    provider: AgentProvider,
+    accountId: string,
+  ) {
+    const outcome = yield* this.#providers
+      .resetUsage(provider, accountId)
+      .pipe(
+        Effect.mapError(
+          (failure) => new AgentLifecycleFailed({ operation: "resetProviderUsage", cause: failure.cause }),
+        ),
+      );
+    if (outcome === "reset")
+      yield* this.#usageLimits.accountReset(provider, accountId === DEFAULT_PROVIDER_ACCOUNT_ID ? null : accountId);
+    return outcome;
+  }).bind(this);
 
   /**
    * Moves the account's agents to the provider's own sign-in, then removes the account and its

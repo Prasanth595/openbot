@@ -174,4 +174,17 @@ export const messages = {
   "provider.account.finishSignIn": "Termina de iniciar sesión en el navegador.",
   "provider.account.remove": "Eliminar cuenta",
   "provider.account.actionFailed": "No se pudo cambiar la cuenta de {name}.",
+  "provider.account.resetUsage": "Restablecer uso",
+  "provider.account.resetUsageTitle": "¿Restablecer el uso de {name}?",
+  "provider.account.resetUsageDescription": {
+    one: "Esto usa tu último crédito de restablecimiento de uso. Los límites de uso agotados de esta cuenta empiezan de nuevo ahora. No puedes deshacerlo.",
+    other:
+      "Esto usa 1 de tus {count} créditos de restablecimiento de uso. Los límites de uso agotados de esta cuenta empiezan de nuevo ahora. No puedes deshacerlo.",
+  },
+  "provider.account.resetUsagePending": "Restableciendo…",
+  "provider.account.resetUsageDone": "Los límites de uso de {name} empiezan de nuevo ahora.",
+  "provider.account.resetUsageNothing": "{name} no tiene ningún límite de uso agotado. No se usó ningún crédito.",
+  "provider.account.resetUsageNoCredit": "{name} no tiene más créditos de restablecimiento de uso.",
+  "provider.account.resetUsageAlreadyRedeemed": "Este crédito de restablecimiento de {name} ya se usó.",
+  "provider.account.resetUsageFailed": "No se pudo restablecer el uso de {name}.",
 } as const satisfies PartialTranslation<typeof source>;

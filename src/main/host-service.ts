@@ -90,6 +90,7 @@ interface HostServiceOptions {
   onePasswordConnector?: ForwardedApiOptions["onePasswordConnector"];
   providerHostSignIns?: ForwardedApiOptions["providerHostSignIns"];
   providerAccounts?: ForwardedApiOptions["providerAccounts"];
+  providerUsageResets?: ForwardedApiOptions["providerUsageResets"];
   mcpToolRuntimePreparation?: ForwardedApiOptions["mcpToolRuntimePreparation"];
   storage?: ForwardedApiOptions["storage"];
   hostedSites?: ForwardedApiOptions["hostedSites"];
@@ -368,6 +369,7 @@ export class HostService extends EventEmitter<HostEvents> {
       ...(options.onePasswordConnector === undefined ? {} : { onePasswordConnector: options.onePasswordConnector }),
       ...(options.providerHostSignIns === undefined ? {} : { providerHostSignIns: options.providerHostSignIns }),
       ...(options.providerAccounts === undefined ? {} : { providerAccounts: options.providerAccounts }),
+      ...(options.providerUsageResets === undefined ? {} : { providerUsageResets: options.providerUsageResets }),
       ...(options.mcpToolRuntimePreparation === undefined
         ? {}
         : { mcpToolRuntimePreparation: options.mcpToolRuntimePreparation }),

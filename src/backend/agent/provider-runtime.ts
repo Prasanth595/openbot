@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { basename } from "node:path";
 import type {
   AccountUsage,
@@ -11,10 +12,13 @@ import type {
   CapabilityState,
   CustomProviderRestart,
   ProviderCodeLoginStart,
+  ProviderUsageResetOutcome,
+  ProviderUsageResets,
 } from "@openbot/contracts/ipc";
 import {
   accountUsageCoversModel,
   agentProviderDescriptor,
+  DEFAULT_PROVIDER_ACCOUNT_ID,
   isAgentProvider,
   workspaceAccessEnforced,
 } from "@openbot/contracts/ipc";
@@ -39,6 +43,7 @@ import {
   decodeAccountRateLimitsReadResult,
   decodeAccountRateLimitsUpdated,
   decodeAccountReadResult,
+  decodeRateLimitResetCreditConsumeResult,
   decodeRecordResponse,
   getString,
 } from "./../protocol";
@@ -98,6 +103,8 @@ const logger = createOpenBotLogger("provider-runtime");
 const stderrLogger = createOpenBotLogger("provider-stderr");
 
 const ACCOUNT_USAGE_READ_TIMEOUT_MS = 30_000;
+/** The providers whose app server spends a usage reset credit (`account/rateLimitResetCredit/consume`). */
+const USAGE_RESET_PROVIDERS: ReadonlySet<AgentProvider> = new Set(["codex"]);
 /**
  * How long a start may take when it holds back no other provider: the first start of a CLI that was
  * just installed, a start that follows a sign-in or a key change, and each start of a provider that
@@ -396,6 +403,13 @@ export class ProviderRuntime implements ProviderPort {
   /** The last usage each provider reported, shown for a released provider instead of starting it. */
   readonly #lastUsage = new Map<AgentProvider, AccountUsage["limits"][number]>();
   /**
+   * The usage reset credits that the last usage reading of each client counted, null when the
+   * provider could not count them. A provider that has no credits never sets one.
+   */
+  readonly #resetCredits = new WeakMap<AgentClient, number | null>();
+  /** The same count for each provider's own sign-in, kept for a released provider as `#lastUsage` is. */
+  readonly #ownResetCredits = new Map<AgentProvider, number | null>();
+  /**
    * Providers whose last usage read returned no limit, such as custom ACP agents. The dock polls
    * every five minutes, so starting a released one to ask again would keep its process running.
    */
@@ -530,6 +544,11 @@ export class ProviderRuntime implements ProviderPort {
             ),
           readUsage: (client, model) =>
             this.#refreshUsage(client, model, false).pipe(
+              Effect.mapError((error) => new ProviderAccountFailed({ cause: error.cause })),
+            ),
+          resetCredits: (client) => this.#resetCredits.get(client),
+          consumeUsageReset: (client) =>
+            this.#consumeUsageReset(client).pipe(
               Effect.mapError((error) => new ProviderAccountFailed({ cause: error.cause })),
             ),
           changed: () => this.#setStatus({}),
@@ -949,6 +968,87 @@ export class ProviderRuntime implements ProviderPort {
         orElse: () => Effect.fail(new ProviderOperationFailed({ cause: new Error("Usage read timed out.") })),
       }),
     );
+  }
+
+  /**
+   * The usage reset credits of each connected account of a provider. The provider's own sign-in is
+   * read again while its process runs and keeps its last count while the provider is released; an
+   * account after the first is read as the dock reads it. An account whose provider could not count
+   * its credits is left out.
+   */
+  readonly usageResets = Effect.fn("ProviderRuntime.usageResets")(function* (
+    this: ProviderRuntime,
+    provider: AgentProvider,
+  ) {
+    const resets: ProviderUsageResets[] = [];
+    if (!USAGE_RESET_PROVIDERS.has(provider) || this.#off.has(provider)) return resets;
+    const client = this.#clients.get(provider);
+    if (client)
+      yield* this.#refreshUsage(client, defaultUsageModel(provider), false).pipe(
+        Effect.timeoutOrElse({
+          duration: ACCOUNT_USAGE_READ_TIMEOUT_MS,
+          orElse: () => Effect.fail(new ProviderOperationFailed({ cause: new Error("Usage read timed out.") })),
+        }),
+        this.#logUsageFailure(provider),
+      );
+    const own = this.#ownResetCredits.get(provider);
+    if (typeof own === "number") resets.push({ provider, accountId: DEFAULT_PROVIDER_ACCOUNT_ID, available: own });
+    if (this.#providerAccounts && ProviderAccounts.support(provider))
+      resets.push(...(yield* this.#providerAccounts.usageResets(provider, defaultUsageModel(provider))));
+    return resets;
+  }).bind(this);
+
+  /**
+   * Spends one usage reset credit of an account. The account's usage is read again and sent, so
+   * every view shows the limits that the provider now reports. The service ends the limit that held
+   * the account's agents.
+   */
+  readonly resetUsage = Effect.fn("ProviderRuntime.resetUsage")(function* (
+    this: ProviderRuntime,
+    provider: AgentProvider,
+    accountId: string,
+  ) {
+    if (!USAGE_RESET_PROVIDERS.has(provider))
+      return yield* new ProviderOperationFailed({
+        cause: new Error(sourceText("error.provider.usageResetUnsupported", { provider: providerLabel(provider) })),
+      });
+    yield* providerStep(() => this.requireProviderOn(provider));
+    if (accountId !== DEFAULT_PROVIDER_ACCOUNT_ID) {
+      const accounts = yield* this.#requireAccounts(provider);
+      const { outcome, limit } = yield* accounts
+        .resetUsage(provider, accountId, defaultUsageModel(provider))
+        .pipe(toProviderOperationFailed);
+      if (limit) this.#emit({ type: "usage-changed", usage: { limits: [structuredClone(limit)] } });
+      return outcome;
+    }
+    if (!this.#clients.has(provider)) yield* this.ensureProvider(provider);
+    const client = this.#clients.get(provider);
+    if (!client)
+      return yield* new ProviderOperationFailed({
+        cause: new Error(sourceText("error.provider.accountNeedsConnection", { provider: providerLabel(provider) })),
+      });
+    const outcome: ProviderUsageResetOutcome = yield* this.#consumeUsageReset(client);
+    const usage = yield* this.#refreshUsage(client, defaultUsageModel(provider), false).pipe(
+      this.#logUsageFailure(provider),
+    );
+    const limit = usage ? usage.limits[0] : undefined;
+    if (limit && (limit.primary || limit.secondary)) {
+      const own = { ...limit, id: provider };
+      this.#lastUsage.set(provider, own);
+      this.#emit({ type: "usage-changed", usage: { limits: [structuredClone(own)] } });
+    }
+    return outcome;
+  }).bind(this);
+
+  /** A new key for each reset that the user asks for, which the provider spends at most one credit for. */
+  #consumeUsageReset(client: AgentClient) {
+    return client
+      .request(
+        "account/rateLimitResetCredit/consume",
+        { idempotencyKey: randomUUID() },
+        decodeRateLimitResetCreditConsumeResult,
+      )
+      .pipe(toProviderOperationFailed);
   }
 
   #logUsageFailure(provider: AgentProvider) {
@@ -3351,6 +3451,11 @@ export class ProviderRuntime implements ProviderPort {
         decodeAccountRateLimitsReadResult,
       )
       .pipe(toProviderOperationFailed);
+    if (rateLimits.rateLimitResetCredits !== undefined) {
+      const available = rateLimits.rateLimitResetCredits?.availableCount ?? null;
+      this.#resetCredits.set(client, available);
+      if (this.#clients.get(client.provider) === client) this.#ownResetCredits.set(client.provider, available);
+    }
     const usage = normalizeAccountUsage(rateLimits, client.provider === "codex" ? model : undefined);
     if (emit) this.#emit({ type: "usage-changed", usage: structuredClone(usage) });
     return structuredClone(usage);

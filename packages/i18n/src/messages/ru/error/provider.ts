@@ -299,6 +299,9 @@ export const messages = {
   "error.provider.useChangeFailed": "OpenBot не удалось изменить настройку провайдера.",
   "error.provider.accountsUnsupported": "{provider} поддерживает только один аккаунт.",
   "error.provider.accountNeedsConnection": "Подключите {provider}, прежде чем добавлять ещё один аккаунт.",
+  "error.provider.usageResetUnsupported": "{provider} не может сбрасывать лимиты использования.",
+  "error.provider.usageResetNotConnected":
+    "Снова войдите в этот аккаунт {provider}, прежде чем сбрасывать его использование.",
   "error.provider.accountLimit": "Максимум аккаунтов {provider}: {limit}.",
   "error.provider.accountNotFound":
     "Этого аккаунта {provider} нет на этом компьютере. Обновите список и повторите попытку.",

@@ -172,4 +172,17 @@ export const messages = {
   "provider.account.finishSignIn": "Completa l'accesso nel browser.",
   "provider.account.remove": "Rimuovi account",
   "provider.account.actionFailed": "Impossibile modificare l'account {name}.",
+  "provider.account.resetUsage": "Azzera utilizzo",
+  "provider.account.resetUsageTitle": "Azzerare l'utilizzo di {name}?",
+  "provider.account.resetUsageDescription": {
+    one: "Questo usa il tuo ultimo credito di azzeramento dell'utilizzo. I limiti di utilizzo esauriti di questo account ripartono ora. Non puoi annullare questa azione.",
+    other:
+      "Questo usa 1 dei tuoi {count} crediti di azzeramento dell'utilizzo. I limiti di utilizzo esauriti di questo account ripartono ora. Non puoi annullare questa azione.",
+  },
+  "provider.account.resetUsagePending": "Azzeramento…",
+  "provider.account.resetUsageDone": "I limiti di utilizzo di {name} ripartono ora.",
+  "provider.account.resetUsageNothing": "{name} non ha limiti di utilizzo esauriti. Non è stato usato nessun credito.",
+  "provider.account.resetUsageNoCredit": "{name} non ha più crediti di azzeramento dell'utilizzo.",
+  "provider.account.resetUsageAlreadyRedeemed": "Questo credito di azzeramento di {name} è già stato usato.",
+  "provider.account.resetUsageFailed": "Impossibile azzerare l'utilizzo di {name}.",
 } as const satisfies PartialTranslation<typeof source>;

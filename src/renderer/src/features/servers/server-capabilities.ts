@@ -45,6 +45,7 @@ export function serverSupportsCapability(
       capability === "agent-admin-v1" ||
       capability === "agent-host-settings-v1" ||
       capability === "agent-backup-models-v1" ||
+      capability === "provider-usage-reset-v1" ||
       capability === "skills-admin-v1" ||
       capability === "shared-tables-v1" ||
       capability === "agent-install-v1" ||

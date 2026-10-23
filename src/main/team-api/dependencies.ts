@@ -205,6 +205,9 @@ export type TeamApiProviderAccounts = Pick<
   "list" | "usage" | "startSignIn" | "signInStatus" | "cancelSignIn" | "rename" | "remove" | "setAgentAccount"
 >;
 
+/** Its presence is what `#protocolSupport` advertises `provider-usage-reset-v1` on. The routes are admin-only. */
+export type TeamApiProviderUsageResets = Pick<AgentService, "providerUsageResets" | "resetProviderUsage">;
+
 /** Its presence is what `#protocolSupport` advertises `storage-v1` on. */
 export type TeamApiStorage = Pick<StorageUsageService, "usage" | "deleteFile" | "clear">;
 /** `hosted-sites-v1`: the openbot.site sites of this server. Members list; only admins delete. */
@@ -391,6 +394,7 @@ export interface TeamApiOptions {
   onePasswordConnector?: TeamApiOnePasswordConnector | undefined;
   providerHostSignIns?: TeamApiProviderHostSignIns | undefined;
   providerAccounts?: TeamApiProviderAccounts | undefined;
+  providerUsageResets?: TeamApiProviderUsageResets | undefined;
   /** Starts and waits for the managed tool runtimes behind the MCP save, enable, and test routes. */
   mcpToolRuntimePreparation?: McpToolRuntimePreparation;
   storage?: TeamApiStorage;
