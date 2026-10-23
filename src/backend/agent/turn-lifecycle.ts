@@ -232,7 +232,10 @@ export class TurnLifecycle {
    * the error and its context. The end of the turn runs the turn again on the backup, or shows the error.
    */
   readonly #failoverTurns = new Map<string, HeldProviderError>();
-  /** The models each delivery ran again after a provider error failed it there, for one run per model. */
+  /**
+   * The provider accounts and models (`UsageLimitGate.failureKey`) where a provider error failed each
+   * delivery before it ran again, for one run again per key.
+   */
   readonly #failoverRetries = new Map<string, Set<string>>();
   /** The deliveries run again after a refused session history. Each one gets a single retry. */
   readonly #refusedRetries = new Set<string>();
@@ -846,13 +849,16 @@ export class TurnLifecycle {
       const model = this.#hooks.turnModel(agentId, turnId);
       // The same for a provider error, when the agent moves to a backup model. Only the agent's own
       // chat moves it: a task or a channel task fails as before. A message runs again once for each
-      // model that failed it, so a move that does not happen cannot run it on the same model again.
+      // provider account and model that failed it, so a move that does not happen cannot run it on
+      // the same one again.
+      const failedKey = this.#usageLimits.failureKey(agentId, model);
       const failedOver =
         mayRunAgain &&
+        failedKey !== null &&
         deliveries.length > 0 &&
         !taskTurn &&
         !channelTurn &&
-        deliveries.every(({ delivery }) => !this.#failoverRetries.get(delivery.id)?.has(model ?? "")) &&
+        deliveries.every(({ delivery }) => !this.#failoverRetries.get(delivery.id)?.has(failedKey)) &&
         this.#hooks.mayFailOver(agentId);
       // A foreground subagent ends with its turn. A background one works on and reports later.
       const subagents = snapshot.messages.find((message) => message.id === `${turnId}:subagents`);
@@ -871,11 +877,11 @@ export class TurnLifecycle {
         this.#hooks.scheduleDrain(agentId);
         return;
       }
-      if (failover && failedOver) {
+      if (failover && failedOver && failedKey !== null) {
         this.#hooks.emitFailure?.({ code: "agent_error", agentId, ...failover.context });
         for (const { delivery } of deliveries) {
-          const models = this.#failoverRetries.get(delivery.id) ?? new Set<string>();
-          this.#failoverRetries.set(delivery.id, models.add(model ?? ""));
+          const failed = this.#failoverRetries.get(delivery.id) ?? new Set<string>();
+          this.#failoverRetries.set(delivery.id, failed.add(failedKey));
         }
         yield* this.#requeueTurn(agentId, threadId, turnId, snapshot, deliveries);
         this.#usageLimits.failed(agentId, model);

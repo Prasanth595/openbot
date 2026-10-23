@@ -102,6 +102,15 @@ export class UsageLimitGate {
     return this.#limits.has(limitKey(limit.provider, limit.accountId, limit.model));
   }
 
+  /**
+   * The provider account and model that `failed` would hold for this agent's turn on `model`, as one
+   * key. Null when the agent no longer exists.
+   */
+  failureKey(agentId: string, model: string | null = null): string | null {
+    const agent = this.#agent(agentId);
+    return agent ? limitKey(providerForAgent(agent), accountOf(agent), model ?? agent.model) : null;
+  }
+
   /** Whether a provider error passes over this provider account and model. */
   isFailed(limit: UsageLimitKey): boolean {
     return this.#failures.has(limitKey(limit.provider, limit.accountId, limit.model));
