@@ -53,8 +53,9 @@ function foldedEntry(entry: ChannelMessage): boolean {
 /**
  * The rows of a channel page. The thinking and narration of a member's turn fold into one thinking
  * row, as in an agent chat, and show as the steps above the member's answer. That row names the
- * member, so the activity line shows the steps of each member that works. Before, each part showed as a message, and a model that streams its whole reasoning
- * (DeepSeek through OpenCode) showed a very long one.
+ * member, so the activity line shows the steps of each member that works. Before, each part showed
+ * as a message, and a model that streams its whole reasoning (DeepSeek through OpenCode) showed a
+ * very long one.
  */
 export function channelConversationRows(entries: readonly ChannelMessage[]): AgentMessage[] {
   const byId = new Map(entries.map((entry) => [entry.id, entry] as const));
@@ -76,12 +77,10 @@ export function channelConversationRows(entries: readonly ChannelMessage[]): Age
  * The row the unread divider stands on, or `null` when the reader has seen everything.
  *
  * The count comes from the channel list, and it leaves out what the reader wrote, activity rows,
- * plans and subagents, so the walk back leaves them out too. The page has no read pointer of its
- * own: its `throughSequence` is the newest message of the channel, not the newest the reader saw.
- *
- * The walk goes over the stored entries, because the count has one message for each folded item and
- * a thinking row stands where the first item of its turn is. The divider then stands on the first
- * row at or after the first unread entry that is not folded.
+ * plans, subagents and the folded thinking, so the walk back leaves them out too. The page has no
+ * read pointer of its own: its `throughSequence` is the newest message of the channel, not the
+ * newest the reader saw. The walk goes over the stored entries, because a thinking row stands where
+ * the first item of its turn is.
  */
 export function firstUnreadChannelMessageId(
   entries: readonly ChannelMessage[],
@@ -89,18 +88,18 @@ export function firstUnreadChannelMessageId(
   isOwnSender: (memberId: string) => boolean,
 ): string | null {
   if (unreadCount <= 0) return null;
-  const shownFrom = (start: number) => entries.slice(start).find((entry) => !foldedEntry(entry))?.id ?? null;
+  const shown = entries.filter((entry) => !foldedEntry(entry));
   let remaining = unreadCount;
-  for (let index = entries.length - 1; index >= 0; index -= 1) {
-    const entry = entries[index];
+  for (let index = shown.length - 1; index >= 0; index -= 1) {
+    const entry = shown[index];
     if (!entry) continue;
     const message = channelConversationMessage(entry);
     const own = message.author === "you" && (!message.senderMember || isOwnSender(message.senderMember.id));
     if (own || message.actionMarker || message.kind === "plan" || message.itemType === "subagents") continue;
     remaining -= 1;
-    if (remaining === 0) return shownFrom(index);
+    if (remaining === 0) return entry.id;
   }
-  return shownFrom(0);
+  return shown[0]?.id ?? null;
 }
 
 /**

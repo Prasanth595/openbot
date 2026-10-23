@@ -1,12 +1,15 @@
 import type { AppTranslate } from "@openbot/i18n";
-import { createEffect, createMemo, createSignal, createUniqueId, For, Show } from "solid-js";
-import { Button } from "../../button";
+import { createMemo, For } from "solid-js";
 import type { AgentProfile } from "../../data";
-import { ChevronDown } from "../../icons";
 import { useText } from "../../text";
 import { AgentAvatar } from "../agents/AgentAvatar";
-import { type AgentActivityLabel, agentActivityLabelKey, nextAgentActivityLabel } from "../conversation/AgentActivity";
-import { type AgentStep, AgentStepList } from "../conversation/AgentSteps";
+import {
+  AgentActivityBody,
+  type AgentActivityLabel,
+  agentActivityLabelKey,
+  nextAgentActivityLabel,
+} from "../conversation/AgentActivity";
+import type { AgentStep } from "../conversation/AgentSteps";
 
 /** One agent the channel is waiting on. The profile is missing while the agent list has no such id. */
 export interface ChannelWorker {
@@ -46,13 +49,6 @@ export function ChannelActivityIndicator(props: {
   stepsOpenByDefault?: boolean | undefined;
 }) {
   const { t } = useText();
-  const stepsId = createUniqueId();
-  const [stepsChoice, setStepsChoice] = createSignal<boolean>();
-  const hasSteps = () => (props.steps?.length ?? 0) > 0;
-  const stepsOpen = () => hasSteps() && (stepsChoice() ?? props.stepsOpenByDefault === true);
-  createEffect(hasSteps, (has) => {
-    if (!has) setStepsChoice(undefined);
-  });
   const key = createMemo(() =>
     props.workers
       .map((worker) => worker.id)
@@ -81,42 +77,26 @@ export function ChannelActivityIndicator(props: {
         aria-atomic="true"
         aria-label={t("channel.activity.status", { sentence: sentence(), label: t(agentActivityLabelKey(label())) })}
       />
-      <div class="agent-activity-body">
-        <section class="agent-activity-content channel-activity-content" aria-label={t("chat.activity.current")}>
-          <div class="channel-activity-faces">
-            <For each={props.workers}>
-              {(worker) => (
-                <AgentAvatar
-                  agent={worker.agent}
-                  seed={worker.agent ? undefined : worker.id}
-                  mood="working"
-                  class="agent-activity-avatar"
-                />
-              )}
-            </For>
-          </div>
-          <span class="agent-activity-label">{t(agentActivityLabelKey(label()))}</span>
-          <Show when={hasSteps()}>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-xs"
-              class="agent-steps-toggle"
-              aria-expanded={stepsOpen() ? "true" : "false"}
-              aria-controls={stepsOpen() ? stepsId : undefined}
-              aria-label={stepsOpen() ? t("chat.steps.hide") : t("chat.steps.show")}
-              onClick={() => setStepsChoice(!stepsOpen())}
-            >
-              <ChevronDown class="agent-steps-chevron" aria-hidden="true" />
-            </Button>
-          </Show>
-        </section>
-        <Show when={stepsOpen()}>
-          <div class="agent-activity-steps">
-            <AgentStepList id={stepsId} steps={props.steps ?? []} live />
-          </div>
-        </Show>
-      </div>
+      <AgentActivityBody
+        class="channel-activity-content"
+        steps={props.steps}
+        stepsOpenByDefault={props.stepsOpenByDefault}
+        live
+      >
+        <div class="channel-activity-faces">
+          <For each={props.workers}>
+            {(worker) => (
+              <AgentAvatar
+                agent={worker.agent}
+                seed={worker.agent ? undefined : worker.id}
+                mood="working"
+                class="agent-activity-avatar"
+              />
+            )}
+          </For>
+        </div>
+        <span class="agent-activity-label">{t(agentActivityLabelKey(label()))}</span>
+      </AgentActivityBody>
     </div>
   );
 }
