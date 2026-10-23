@@ -414,6 +414,8 @@ export const messages = {
   "server.invite.pendingTitle": "Ожидающие приглашения",
   "server.invite.pendingCount": "Ожидают: {total}",
   "server.invite.noPending": "Ожидающих приглашений нет.",
+  "server.invite.emptyTitle": "Отправьте первое {word}.",
+  "server.invite.emptyWord": "приглашение",
   "server.invite.neverExpires": {
     one: "Не истекает · {count} присоединение",
     few: "Не истекает · {count} присоединения",

@@ -399,6 +399,8 @@ export const messages = {
   "server.invite.pendingTitle": "Convites pendentes",
   "server.invite.pendingCount": "{total} pendentes",
   "server.invite.noPending": "Nenhum convite pendente.",
+  "server.invite.emptyTitle": "Envie o primeiro {word}.",
+  "server.invite.emptyWord": "convite",
   "server.invite.neverExpires": { one: "Nunca expira · {count} entrada", other: "Nunca expira · {count} entradas" },
   "server.invite.expires": "Expira em {date}",
   "server.invite.revoke": "Revogar",

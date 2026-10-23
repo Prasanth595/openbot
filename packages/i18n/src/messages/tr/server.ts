@@ -409,6 +409,8 @@ export const messages = {
   "server.invite.pendingTitle": "Bekleyen davetler",
   "server.invite.pendingCount": "{total} bekliyor",
   "server.invite.noPending": "Bekleyen davet yok.",
+  "server.invite.emptyTitle": "İlk {word} gönderin.",
+  "server.invite.emptyWord": "daveti",
   "server.invite.neverExpires": {
     one: "Süresi asla dolmaz · {count} katılım",
     other: "Süresi asla dolmaz · {count} katılım",

@@ -398,6 +398,8 @@ export const messages = {
   "server.invite.pendingTitle": "Inviti in sospeso",
   "server.invite.pendingCount": "{total} in sospeso",
   "server.invite.noPending": "Nessun invito in sospeso.",
+  "server.invite.emptyTitle": "Invia il primo {word}.",
+  "server.invite.emptyWord": "invito",
   "server.invite.neverExpires": { one: "Non scade mai · {count} adesione", other: "Non scade mai · {count} adesioni" },
   "server.invite.expires": "Scade il {date}",
   "server.invite.revoke": "Revoca",
