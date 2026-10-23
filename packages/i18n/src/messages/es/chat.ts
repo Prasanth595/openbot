@@ -204,8 +204,6 @@ export const messages = {
   "chat.visual.loadFailed": "No se puede cargar {title}",
   "chat.visual.fullScreen": "Pantalla completa",
   "chat.visual.exitFullScreen": "Salir de pantalla completa",
-  "chat.visual.pageContext": "Contexto de {title}",
-  "chat.visual.removePageContext": "Quitar el contexto de {title}",
   "chat.preview.switchLabel": "Vista previa o código",
   "chat.preview.code": "Código",
   "chat.preview.preview": "Vista previa",

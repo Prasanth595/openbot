@@ -9,7 +9,7 @@
 // 1. full screen and back keeps the counter, so the page does not load again;
 // 2. a click on the image opens the image viewer;
 // 3. "Pick B" puts its text in the composer as a reply to the page, and sends nothing;
-// 4. the context shows as a chip, and the sent message starts with a quote of the page;
+// 4. the context shows as a quote chip in the composer, and the sent message starts with it;
 // 5. Cmd+K (Ctrl+K off macOS) in the page opens the global search.
 // It deletes its channel at the end. Writes .openbot-build/chat-visual-e2e/report.json and screenshots.
 import assert from "node:assert/strict";
@@ -232,9 +232,9 @@ try {
   assert.equal(messagesAfter, messagesBefore, "The page sent a message itself.");
   await shot("composer-reply", conversation(desktop));
 
-  // 4. The context shows as a chip, and the send puts it first as a quote of the page.
+  // 4. The context shows as a quote chip at the start of the draft, and the send keeps it first.
   await page.getByRole("button", { name: "Share count" }).click();
-  const chip = conversation(desktop).getByText(english("chat.visual.pageContext", { title: TITLE }), { exact: true });
+  const chip = composer(desktop).getByLabel(english("composer.token.quote", { name: CONTEXT_TEXT }), { exact: true });
   await chip.waitFor({ timeout: UI_WAIT_MS });
   await shot("context-chip", conversation(desktop));
   const sentAfter = (await client.read(channel.id)).throughSequence;

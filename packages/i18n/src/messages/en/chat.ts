@@ -189,8 +189,6 @@ export const messages = defineMessages("chat", {
   "chat.visual.loadFailed": "Cannot load {title}",
   "chat.visual.fullScreen": "Full screen",
   "chat.visual.exitFullScreen": "Exit full screen",
-  "chat.visual.pageContext": "Context from {title}",
-  "chat.visual.removePageContext": "Remove context from {title}",
   "chat.preview.switchLabel": "Preview or code",
   "chat.preview.code": "Code",
   "chat.preview.preview": "Preview",

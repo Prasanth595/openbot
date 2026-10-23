@@ -966,9 +966,7 @@ export function ConversationTimeline() {
                             height={visual().height}
                             onOpenLink={(url) => void openExternalMessageUrl(url)}
                             onMessage={(text) => replyFromPage(message() ?? initialMessage, text)}
-                            onContext={(text) =>
-                              setPageContext((message() ?? initialMessage).id, (message() ?? initialMessage).body, text)
-                            }
+                            onContext={(text) => setPageContext(message() ?? initialMessage, text)}
                             isAppShortcut={isChatVisualAppShortcut}
                           />
                         </article>

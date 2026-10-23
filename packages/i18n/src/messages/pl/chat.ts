@@ -272,8 +272,6 @@ export const messages = {
   "chat.visual.loadFailed": "Nie można wczytać: {title}",
   "chat.visual.fullScreen": "Pełny ekran",
   "chat.visual.exitFullScreen": "Zamknij pełny ekran",
-  "chat.visual.pageContext": "Kontekst z: {title}",
-  "chat.visual.removePageContext": "Usuń kontekst z: {title}",
   "chat.preview.switchLabel": "Podgląd lub kod",
   "chat.preview.code": "Kod",
   "chat.preview.preview": "Podgląd",

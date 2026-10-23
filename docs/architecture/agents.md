@@ -422,11 +422,12 @@ network, but it has an opaque origin, gets no permission, and talks to the app o
 messages of `parseChatVisualMessage`: its height, its theme, its display mode, a link, a message, its
 context, an image and an app shortcut. The frame script gives the page `window.openbotPage`
 (`sendMessage`, `setContext`, `requestFullscreen`, `exitFullscreen`, `displayMode`) over the MCP Apps
-methods `ui/message`, `ui/update-model-context` and `ui/request-display-mode`. A link, a message, an
-image, full screen and a shortcut need the frame to have the focus and the user's activation, so a page
-acts only after a click or a key in it. A message goes into the composer as a reply to the visual
-message, and the user sends it. The context shows in the composer as a removable chip; it stays in
-renderer memory per chat and the next send puts it first as a quote tag. Full screen puts the frame's
+methods `ui/message`, `ui/update-model-context` and `ui/request-display-mode`. A link, a message, the
+context, an image, full screen and a shortcut need the frame to have the focus and the user's
+activation, so a page acts only after a click or a key in it. A message goes into the composer as a
+reply to the visual message, and the user sends it. The context is a quote tag of the visual message
+at the start of the draft, so it shows as a quote chip and is saved and sent with the draft; the
+page's next context replaces it. Full screen puts the frame's
 box in the top layer with the Popover API, so the frame does not load again; it exits before the app
 opens a dialog for the page. Only the renderer's allowlist of shortcuts (`chat-visual-shortcuts.ts`)
 leaves the page, as a key event on the frame element. Mobile shows the

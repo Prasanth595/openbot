@@ -267,8 +267,6 @@ export const messages = {
   "chat.visual.loadFailed": "Не удалось загрузить: {title}",
   "chat.visual.fullScreen": "Во весь экран",
   "chat.visual.exitFullScreen": "Выйти из полноэкранного режима",
-  "chat.visual.pageContext": "Контекст из: {title}",
-  "chat.visual.removePageContext": "Удалить контекст из: {title}",
   "chat.preview.switchLabel": "Предпросмотр или код",
   "chat.preview.code": "Код",
   "chat.preview.preview": "Предпросмотр",

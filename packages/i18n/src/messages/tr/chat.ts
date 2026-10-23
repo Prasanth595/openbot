@@ -196,8 +196,6 @@ export const messages = {
   "chat.visual.loadFailed": "{title} yüklenemiyor",
   "chat.visual.fullScreen": "Tam ekran",
   "chat.visual.exitFullScreen": "Tam ekrandan çık",
-  "chat.visual.pageContext": "{title} bağlamı",
-  "chat.visual.removePageContext": "{title} bağlamını kaldır",
   "chat.preview.switchLabel": "Önizleme veya kod",
   "chat.preview.code": "Kod",
   "chat.preview.preview": "Önizleme",

@@ -52,6 +52,12 @@ describe("ChatVisual page requests", () => {
     method: "ui/message",
     params: { role: "user", content: [{ type: "text", text }] },
   });
+  const context = (text: string) => ({
+    jsonrpc: "2.0",
+    id: 8,
+    method: "ui/update-model-context",
+    params: { content: [{ type: "text", text }] },
+  });
   const key = (init: { key: string; metaKey?: boolean; ctrlKey?: boolean }) => ({
     jsonrpc: "2.0",
     method: "openbot/notifications/keydown",
@@ -60,12 +66,14 @@ describe("ChatVisual page requests", () => {
 
   async function renderPage(props: { isAppShortcut?: (key: ChatVisualKey) => boolean } = {}) {
     const onMessage = vi.fn();
+    const onContext = vi.fn();
     render(() => (
       <ChatVisual
         html="<p>Choice</p>"
         title="Pick a plan"
         onOpenLink={vi.fn()}
         onMessage={onMessage}
+        onContext={onContext}
         isAppShortcut={props.isAppShortcut}
       />
     ));
@@ -75,7 +83,12 @@ describe("ChatVisual page requests", () => {
     if (!page) throw new Error("The frame has no window.");
     const post = (data: unknown, source: Window = page) =>
       window.dispatchEvent(new MessageEvent("message", { source, data }));
-    return { frame, onMessage, post };
+    /** The page asks for a message and the context, which both change the draft. */
+    const ask = (source?: Window) => {
+      post(message("Pick B"), source);
+      post(context("Count 3"), source);
+    };
+    return { frame, onMessage, onContext, post, ask };
   }
 
   function userActs(active: boolean) {
@@ -86,26 +99,24 @@ describe("ChatVisual page requests", () => {
     Reflect.deleteProperty(navigator, "userActivation");
   });
 
-  it("puts a message in the composer only after the user acts in the frame", async () => {
-    const { frame, onMessage, post } = await renderPage();
+  it("puts a message or the context in the composer only after the user acts in the frame", async () => {
+    const { frame, onMessage, onContext, ask } = await renderPage();
 
     userActs(true);
-    post(message("Pick B"), window);
-    expect(onMessage).not.toHaveBeenCalled();
-
+    ask(window);
     userActs(false);
     frame.focus();
-    post(message("Pick B"));
-    expect(onMessage).not.toHaveBeenCalled();
-
+    ask();
     userActs(true);
     frame.blur();
-    post(message("Pick B"));
+    ask();
     expect(onMessage).not.toHaveBeenCalled();
+    expect(onContext).not.toHaveBeenCalled();
 
     frame.focus();
-    post(message("Pick B"));
+    ask();
     expect(onMessage).toHaveBeenCalledWith("Pick B");
+    expect(onContext).toHaveBeenCalledWith("Count 3");
   });
 
   it("gives the app only the shortcuts that it accepts", async () => {
@@ -142,15 +153,19 @@ describe("ChatVisual page requests", () => {
     expect(parseChatVisualMessage(image("data:text/html,<script>alert(1)</script>"))).toBeNull();
     expect(parseChatVisualMessage(image("http://example.com/chart.png"))).toBeNull();
 
-    expect(parseChatVisualMessage(message("x".repeat(INPUT_LIMITS.messageText + 1)))).toBeNull();
-    expect(parseChatVisualMessage({ ...message("Pick B"), params: { role: "assistant", content: [] } })).toBeNull();
-    const context = (text: string) => ({
-      jsonrpc: "2.0",
-      id: 8,
-      method: "ui/update-model-context",
-      params: { content: [{ type: "text", text }] },
+    // A request with text out of range is refused, so the page's promise fails and does not wait.
+    expect(parseChatVisualMessage(message("x".repeat(INPUT_LIMITS.messageText + 1)))).toEqual({
+      type: "refused",
+      id: 7,
     });
-    expect(parseChatVisualMessage(context("x".repeat(CHAT_VISUAL_CONTEXT_LIMIT + 1)))).toBeNull();
+    expect(parseChatVisualMessage({ ...message("Pick B"), params: { role: "assistant", content: [] } })).toEqual({
+      type: "refused",
+      id: 7,
+    });
+    expect(parseChatVisualMessage(context("x".repeat(CHAT_VISUAL_CONTEXT_LIMIT + 1)))).toEqual({
+      type: "refused",
+      id: 8,
+    });
     expect(parseChatVisualMessage(key({ key: "a" }))).toBeNull();
   });
 });

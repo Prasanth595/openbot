@@ -1,4 +1,4 @@
-import { fileQuoteTarget, serializeChatTagReference } from "@openbot/contracts/chat-tag-references";
+import { fileQuoteTarget } from "@openbot/contracts/chat-tag-references";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import { type DraftAttachment, LOCAL_SERVER_ID, type QueueDelivery } from "@openbot/contracts/ipc";
 import { TEAM_MESSAGE_CLIENT_ID_CAPABILITY } from "@openbot/contracts/team-protocol/current";
@@ -11,7 +11,7 @@ import { rememberAttachmentKinds } from "../attachment-analytics";
 import { copyComposerDraft, EMPTY_DRAFT, QUEUE_EDIT_STORAGE_KEY, type StoredQueueEdit } from "../composer-draft";
 import { composerDraftKey } from "../conversation-keys";
 import { conversationRuntime } from "../conversation-runtime";
-import type { ComposerDraft, ConversationProps, ConversationTarget, PageContext } from "../conversation-types";
+import type { ComposerDraft, ConversationProps, ConversationTarget } from "../conversation-types";
 import { conversationOwnerId } from "./composer-store";
 import type { PendingSend, PendingSendStore } from "./pending-send-store";
 
@@ -52,9 +52,6 @@ export interface ComposerActionsDeps {
   /** `cause` is the failure behind `error`. The banner shows its code. */
   setComposerError: (error: string | null, targetOverride?: ConversationTarget, cause?: unknown) => void;
   setComposerFocusRequest: (update: (current: number) => number) => void;
-  /** The page context that the next message of the chat sends, and its removal once it is sent. */
-  pageContext: (target: ConversationTarget) => PageContext | undefined;
-  clearPageContext: (target: ConversationTarget) => void;
   setShowComposerActions: (show: boolean) => void;
   orderedQueuedDeliveries: () => QueueDelivery[];
   presentedQueueDeliveries: () => QueueDelivery[];
@@ -548,14 +545,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
     stopTeamTyping();
     deps.setComposerError(null, target);
     deps.clearConversationError(target);
-    // The page context goes first, as a quote of the page, so the user's words read as the answer to it.
-    const context = deps.pageContext(target);
-    if (context) {
-      deps.clearPageContext(target);
-      const quote = serializeChatTagReference("quote", context.text, context.messageId);
-      const sent = { ...draft, text: `${quote}\n${draft.text}` };
-      queueSend(target, sent, expandComposerMentions(sent.text), voice);
-    } else queueSend(target, draft, text, voice);
+    queueSend(target, draft, text, voice);
     deps.clearSubmittedDraft(target, submittedSnapshot ?? draft);
     return true;
   }

@@ -195,8 +195,10 @@ function VisualFrame(props: ChatVisualProps) {
         exitFullscreen();
         props.onMessage(message.text);
         return reply({});
+      case "refused":
+        return reply(null);
       case "context":
-        if (!props.onContext) return reply(null);
+        if (!props.onContext || !userActed()) return reply(null);
         props.onContext(message.text);
         return reply({});
       case "open-image":

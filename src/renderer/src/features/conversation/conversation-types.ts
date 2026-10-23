@@ -331,16 +331,6 @@ export interface ComposerDraft {
 }
 
 /**
- * The state that a visual reply's page gave for the agent. The composer shows it, and the next
- * message sends it as a quote of the page. It stays in memory only, not in the saved draft.
- */
-export interface PageContext {
-  messageId: string;
-  title: string;
-  text: string;
-}
-
-/**
  * What the file preview panel is showing. A shared or workspace file is named by its path, which
  * the main process reads; an attachment is named by its record, because its bytes arrive over
  * `previewUrl` and "open externally" goes through the attachment handler instead of a path.

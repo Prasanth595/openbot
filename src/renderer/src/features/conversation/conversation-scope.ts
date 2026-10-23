@@ -25,13 +25,7 @@ import { createAttachmentImportSounds } from "./attachment-import-sounds";
 import { useConversationController } from "./conversation-controller-context";
 import { agentConversationKey, composerDraftKey } from "./conversation-keys";
 import { conversationRuntime } from "./conversation-runtime";
-import type {
-  ComposerDraft,
-  ConversationProps,
-  ConversationTarget,
-  PageContext,
-  SidePanelPane,
-} from "./conversation-types";
+import type { ComposerDraft, ConversationProps, ConversationTarget, SidePanelPane } from "./conversation-types";
 import {
   clearQuotedTextHighlight,
   highlightQuotedText,
@@ -64,13 +58,6 @@ const READER_INPUT_WINDOW_MS = 250;
 function followConversationBottom(element: HTMLDivElement): void {
   element.scrollTop = element.scrollHeight - element.clientHeight;
 }
-
-/**
- * The page context of each chat, by `composerDraftKey`. A view shows one chat, so the context is
- * kept here to stay while the user opens other chats, as the draft does. It is not saved: a restart
- * removes it.
- */
-const [pageContexts, setPageContexts] = createSignal<Record<string, PageContext>>({});
 
 export function createConversationViewScope(props: ConversationProps) {
   const controller = useConversationController();
@@ -589,28 +576,6 @@ export function createConversationViewScope(props: ConversationProps) {
       if (emptied) dismissVoiceLimitNotice();
     },
   );
-  const clearPageContext = (target: ConversationTarget) =>
-    setPageContexts((current) => {
-      const key = composerDraftKey(target);
-      if (!(key in current)) return current;
-      const { [key]: _removed, ...next } = current;
-      return next;
-    });
-  const currentPageContext = () => {
-    const target = currentTarget();
-    return target ? pageContexts()[composerDraftKey(target)] : undefined;
-  };
-  /** A page's latest context replaces the one before it. Empty text removes the context of that page. */
-  function setPageContext(messageId: string, title: string, text: string) {
-    const target = currentTarget();
-    if (!target) return;
-    if (!text.trim()) {
-      if (currentPageContext()?.messageId === messageId) clearPageContext(target);
-      return;
-    }
-    const context = { messageId, title, text: limitedQuoteText(text) };
-    setPageContexts((current) => ({ ...current, [composerDraftKey(target)]: context }));
-  }
   const actions = createComposerActions({
     props,
     attachmentBusy,
@@ -636,8 +601,6 @@ export function createConversationViewScope(props: ConversationProps) {
     voicePhase,
     setComposerError: setScopedComposerError,
     setComposerFocusRequest,
-    pageContext: (target) => pageContexts()[composerDraftKey(target)],
-    clearPageContext,
     setShowComposerActions,
     orderedQueuedDeliveries,
     presentedQueueDeliveries,
@@ -734,7 +697,8 @@ export function createConversationViewScope(props: ConversationProps) {
     setComposerError: setScopedComposerError,
     setComposerFocusRequest,
   });
-  const { replyToMessage, replyFromPage, reactToMessage, copyMessage, removeAttachment } = messageActions;
+  const { replyToMessage, replyFromPage, setPageContext, reactToMessage, copyMessage, removeAttachment } =
+    messageActions;
   const settings = createSettingsStore({
     props,
     runtimeSettingsAttempts: resources.runtimeSettingsAttempts,
@@ -1764,12 +1728,7 @@ export function createConversationViewScope(props: ConversationProps) {
     replyTarget,
     replyToMessage,
     replyFromPage,
-    currentPageContext,
     setPageContext,
-    removePageContext: () => {
-      const target = currentTarget();
-      if (target) clearPageContext(target);
-    },
     skillSettingsRequest,
     openSkillSettings,
     routineSettingsRequest,

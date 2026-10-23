@@ -34,7 +34,7 @@ export const CHAT_VISUAL_KEY_DOWN = "openbot/notifications/keydown";
 export type ChatVisualDisplayMode = "inline" | "fullscreen";
 const DISPLAY_MODES: readonly ChatVisualDisplayMode[] = ["inline", "fullscreen"];
 
-/** The most characters of page context that the composer keeps for the next message. */
+/** The most characters of page context, the limit of a quote in the composer. */
 export const CHAT_VISUAL_CONTEXT_LIMIT = 2_000;
 /** The most characters of an image address, so a `data:` image as large as a page still opens. */
 const IMAGE_SOURCE_LIMIT = 8 * 1_024 * 1_024;
@@ -154,6 +154,8 @@ export type ChatVisualMessage =
   | { type: "message"; id: number | string; text: string }
   /** The page state for the agent, which goes with the user's next message. Empty text removes it. */
   | { type: "context"; id: number | string; text: string }
+  /** A request with values out of range. The host refuses it, so the page's promise fails. */
+  | { type: "refused"; id: number | string }
   | { type: "open-image"; src: string; name: string }
   | { type: "key"; key: ChatVisualKey };
 
@@ -223,23 +225,23 @@ export function parseChatVisualMessage(data: unknown): ChatVisualMessage | null 
     case CHAT_VISUAL_OPEN_LINK: {
       const id = requestId(data.id);
       const url = isBoundedString(params.url, INPUT_LIMITS.browserUrl) ? webUrl(params.url) : null;
-      return url && id !== null ? { type: "open-link", id, url } : null;
+      return url && id !== null ? { type: "open-link", id, url } : refused(id);
     }
     case CHAT_VISUAL_REQUEST_DISPLAY_MODE: {
       const id = requestId(data.id);
       return id !== null && isOneOf(DISPLAY_MODES, params.mode)
         ? { type: "display-mode", id, mode: params.mode }
-        : null;
+        : refused(id);
     }
     case CHAT_VISUAL_MESSAGE: {
       const id = requestId(data.id);
       const text = params.role === "user" ? contentText(params.content, INPUT_LIMITS.messageText) : null;
-      return id !== null && text ? { type: "message", id, text } : null;
+      return id !== null && text ? { type: "message", id, text } : refused(id);
     }
     case CHAT_VISUAL_UPDATE_MODEL_CONTEXT: {
       const id = requestId(data.id);
       const text = contentText(params.content, CHAT_VISUAL_CONTEXT_LIMIT);
-      return id !== null && text !== null ? { type: "context", id, text } : null;
+      return id !== null && text !== null ? { type: "context", id, text } : refused(id);
     }
     case CHAT_VISUAL_OPEN_IMAGE: {
       const src = isBoundedString(params.src, IMAGE_SOURCE_LIMIT) ? imageUrl(params.src) : null;
@@ -257,6 +259,10 @@ export function parseChatVisualMessage(data: unknown): ChatVisualMessage | null 
     default:
       return null;
   }
+}
+
+function refused(id: number | string | null): ChatVisualMessage | null {
+  return id === null ? null : { type: "refused", id };
 }
 
 function requestId(id: unknown): number | string | null {

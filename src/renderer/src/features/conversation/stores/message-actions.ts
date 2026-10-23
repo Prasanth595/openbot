@@ -3,7 +3,12 @@ import {
   expandAttachmentReferences,
   removeAttachmentReferences,
 } from "@openbot/contracts/attachment-references";
-import { expandChatTagReferences } from "@openbot/contracts/chat-tag-references";
+import {
+  chatTagReferences,
+  expandChatTagReferences,
+  limitedQuoteText,
+  serializeChatTagReference,
+} from "@openbot/contracts/chat-tag-references";
 import type { InstalledSkill, MessageReaction } from "@openbot/contracts/ipc";
 import type { AgentMessage } from "@openbot/ui/data";
 import { currentText } from "@openbot/ui/text";
@@ -52,6 +57,23 @@ export function createMessageActions(deps: MessageActionsDeps) {
     deps.updateCurrentDraft({ replyToMessageId: message.id, text: draft ? `${draft}\n${text}` : text });
     deps.setOpenReactionMessageId(null);
     deps.setComposerFocusRequest((value) => value + 1);
+  }
+
+  /**
+   * Keeps the state that a visual reply's page gave as a quote of the page at the start of the draft,
+   * so the user sees it and the next message sends it. The page's latest state replaces the one before
+   * it, and empty text removes it.
+   */
+  function setPageContext(message: AgentMessage, text: string) {
+    const draft = deps.currentDraft().text;
+    const quote = text.trim() ? serializeChatTagReference("quote", limitedQuoteText(text), message.id) : "";
+    const shown = chatTagReferences(draft).find(
+      (reference) => reference.kind === "quote" && reference.id === message.id,
+    );
+    // A removed quote takes the space that the editor put after it.
+    const end = shown && !quote && draft[shown.end] === " " ? shown.end + 1 : shown?.end;
+    const next = shown ? `${draft.slice(0, shown.start)}${quote}${draft.slice(end)}` : quote && `${quote} ${draft}`;
+    if (shown || quote) deps.updateCurrentDraft({ text: next });
   }
 
   async function reactToMessage(message: AgentMessage, emoji: MessageReaction | null) {
@@ -134,6 +156,7 @@ export function createMessageActions(deps: MessageActionsDeps) {
   return {
     replyToMessage,
     replyFromPage,
+    setPageContext,
     reactToMessage,
     copyMessage,
     removeAttachment,

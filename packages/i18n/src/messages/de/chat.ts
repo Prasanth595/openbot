@@ -206,8 +206,6 @@ export const messages = {
   "chat.visual.loadFailed": "{title} kann nicht geladen werden",
   "chat.visual.fullScreen": "Vollbild",
   "chat.visual.exitFullScreen": "Vollbild beenden",
-  "chat.visual.pageContext": "Kontext aus {title}",
-  "chat.visual.removePageContext": "Kontext aus {title} entfernen",
   "chat.preview.switchLabel": "Vorschau oder Code",
   "chat.preview.code": "Code",
   "chat.preview.preview": "Vorschau",
