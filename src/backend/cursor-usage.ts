@@ -122,7 +122,7 @@ const PlanUsage = Schema.Struct({
  * The primary window holds Cursor's own models and the secondary one every other model; the dock
  * names them by slot. A plan that reports only the total fills the primary window with it.
  */
-export function cursorRateLimits(value: unknown): AccountRateLimitsReadResult {
+function cursorRateLimits(value: unknown): AccountRateLimitsReadResult {
   const period = Schema.decodeUnknownOption(CurrentPeriodUsage)(value);
   const plan = Schema.decodeUnknownOption(PlanUsage)(getRecord(value, "planUsage") ?? {});
   if (Option.isNone(period) || Option.isNone(plan)) return NO_USAGE;
