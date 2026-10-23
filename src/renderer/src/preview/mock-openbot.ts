@@ -1527,6 +1527,15 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         await api.agent.updateAgent(input);
         return api.agent.getAgentBackupModels(input.agentId);
       },
+      getAgentTaskLimit: async (agentId) => {
+        const agent = agents.find((candidate) => candidate.id === agentId);
+        if (!agent) throw new Error("Agent not found");
+        return { taskLimit: agent.taskLimit ?? null };
+      },
+      updateAgentTaskLimit: async (input) => {
+        await api.agent.updateAgent(input);
+        return api.agent.getAgentTaskLimit(input.agentId);
+      },
       updateAgentAdminSettings: async ({ agentId, access, autoApprove }) => {
         const agent = agents.find((candidate) => candidate.id === agentId);
         if (!agent) throw new Error("Agent not found");

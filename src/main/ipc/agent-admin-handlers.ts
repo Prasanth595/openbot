@@ -9,12 +9,14 @@ import {
   type AgentAdminSettings,
   decodeAgentAdminSettings,
   decodeAgentBackupModelSettings,
+  decodeAgentTaskLimitSettings,
   decodeHostAddedAgent,
   decodeInstalledSkills,
   type InstalledSkill,
   parseUpdateAgentAdminSettingsInput,
   parseUpdateAgentBackupModelsInput,
   parseUpdateAgentHostSettingsInput,
+  parseUpdateAgentTaskLimitInput,
 } from "@openbot/contracts/ipc";
 import { AGENT_ADMIN_CAPABILITY, AGENT_ADMIN_ROUTES } from "@openbot/contracts/team-protocol/agent-admin-v1";
 import {
@@ -26,6 +28,10 @@ import {
   AGENT_HOST_SETTINGS_ROUTES,
 } from "@openbot/contracts/team-protocol/agent-host-settings-v1";
 import { AGENT_INSTALL_CAPABILITY, AGENT_INSTALL_ROUTES } from "@openbot/contracts/team-protocol/agent-install-v1";
+import {
+  AGENT_TASK_LIMIT_CAPABILITY,
+  AGENT_TASK_LIMIT_ROUTES,
+} from "@openbot/contracts/team-protocol/agent-task-limit-v1";
 import { AGENT_UPDATE_CAPABILITY, AGENT_UPDATE_ROUTES } from "@openbot/contracts/team-protocol/agent-update-v1";
 import type { TeamCurrentCapability } from "@openbot/contracts/team-protocol/current";
 import { SKILLS_ADMIN_CAPABILITY, SKILLS_ADMIN_ROUTES } from "@openbot/contracts/team-protocol/skills-admin-v1";
@@ -130,6 +136,14 @@ export function agentAdminIpcHandlers({
         local: (input) => runCauseEffect(hostSettings.updateBackupModels(input)),
         remote: (input, serverId) => remoteBackupModels(serverId, AGENT_BACKUP_MODELS_ROUTES.update, input),
       }),
+      getAgentTaskLimit: scopedHandler((value) => requireString(value, "agentId"), {
+        local: (agentId) => hostSettings.readTaskLimit(agentId),
+        remote: (agentId, serverId) => remoteTaskLimit(serverId, AGENT_TASK_LIMIT_ROUTES.settings, { agentId }),
+      }),
+      updateAgentTaskLimit: scopedHandler(parseUpdateAgentTaskLimitInput, {
+        local: (input) => runCauseEffect(hostSettings.updateTaskLimit(input)),
+        remote: (input, serverId) => remoteTaskLimit(serverId, AGENT_TASK_LIMIT_ROUTES.update, input),
+      }),
       getAgentAdminSettings: scopedHandler((value) => requireString(value, "agentId"), {
         local: (agentId) => settings.read(agentId),
         remote: (agentId, serverId) => remote(serverId, AGENT_ADMIN_ROUTES.settings, { agentId }),
@@ -186,6 +200,14 @@ export function agentAdminIpcHandlers({
       throw new Error(sourceText("error.team.agentSettingsUnsupported"));
     return runCauseEffect(
       remoteServers.request(serverId, path, decodeAgentBackupModelSettings, { method: "POST", body }),
+    );
+  }
+
+  function remoteTaskLimit(serverId: string, path: string, body: unknown) {
+    if (!remoteServers.supportsCapability(serverId, AGENT_TASK_LIMIT_CAPABILITY))
+      throw new Error(sourceText("error.team.agentSettingsUnsupported"));
+    return runCauseEffect(
+      remoteServers.request(serverId, path, decodeAgentTaskLimitSettings, { method: "POST", body }),
     );
   }
 }

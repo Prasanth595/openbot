@@ -30,6 +30,10 @@ import {
   AGENT_BACKUP_MODELS_ROUTES,
 } from "@openbot/contracts/team-protocol/agent-backup-models-v1";
 import { AGENT_HIDDEN_CAPABILITY, AGENT_HIDDEN_ROUTES } from "@openbot/contracts/team-protocol/agent-hidden-v1";
+import {
+  AGENT_TASK_LIMIT_CAPABILITY,
+  AGENT_TASK_LIMIT_ROUTES,
+} from "@openbot/contracts/team-protocol/agent-task-limit-v1";
 import { QueueEditRejectedError, TEAM_QUEUE_EDIT_CAPABILITY } from "@openbot/contracts/team-protocol/queue-edit-v1";
 import {
   ROUTINE_RESULTS_CAPABILITY,
@@ -432,6 +436,8 @@ try {
               if (!target) throw new Error("Agent not found.");
               if (input.backupModels === null) delete target.backupModels;
               else if (input.backupModels) target.backupModels = input.backupModels;
+              if (input.taskLimit === null) delete target.taskLimit;
+              else if (input.taskLimit !== undefined) target.taskLimit = input.taskLimit;
               return target;
             }),
         },
@@ -1184,6 +1190,98 @@ try {
       "an admin clears backup models, and an unknown agent gets 404",
       adminClear.status === 200 &&
         isDeepStrictEqual(adminClear.body, { backupModels: null, usageLimitReturn: null }) &&
+        errorIs(missing, 404, sourceText("error.team.agentNotFound")),
+      [summary(adminClear), summary(missing)],
+    );
+  }
+
+  // ---- Task limit (agent-task-limit-v1) ----
+  {
+    const limitCapabilities = [AGENT_HIDDEN_CAPABILITY, TEAM_QUEUE_EDIT_CAPABILITY, AGENT_TASK_LIMIT_CAPABILITY];
+    const writes = callsOf("updateAgent").length;
+    const adminRead = await call("POST", AGENT_TASK_LIMIT_ROUTES.settings, {
+      token: adaToken,
+      json: { agentId: "agent-ada" },
+      capabilities: limitCapabilities,
+    });
+    check(
+      "an admin reads a null task limit for an agent on the default",
+      adminRead.status === 200 && isDeepStrictEqual(adminRead.body, { taskLimit: null }),
+      summary(adminRead),
+    );
+    const unsupported = await call("POST", AGENT_TASK_LIMIT_ROUTES.settings, {
+      token: adaToken,
+      json: { agentId: "agent-ada" },
+    });
+    check(
+      "the task-limit routes without the capability get 400 agentSettingsUnsupported",
+      errorIs(unsupported, 400, sourceText("error.team.agentSettingsUnsupported")),
+      summary(unsupported),
+    );
+    const memberRead = await call("POST", AGENT_TASK_LIMIT_ROUTES.settings, {
+      token: bobToken,
+      json: { agentId: "agent-ada" },
+      capabilities: limitCapabilities,
+    });
+    const memberSet = await call("POST", AGENT_TASK_LIMIT_ROUTES.update, {
+      token: bobToken,
+      json: { agentId: "agent-ada", taskLimit: 3 },
+      capabilities: limitCapabilities,
+    });
+    check(
+      "a member cannot read or set the task limit",
+      errorIs(memberRead, 403, sourceText("error.team.adminRequired")) &&
+        errorIs(memberSet, 403, sourceText("error.team.adminRequired")) &&
+        callsOf("updateAgent").length === writes,
+      [summary(memberRead), summary(memberSet)],
+    );
+    const tooHigh = await call("POST", AGENT_TASK_LIMIT_ROUTES.update, {
+      token: adaToken,
+      json: { agentId: "agent-ada", taskLimit: 5 },
+      capabilities: limitCapabilities,
+    });
+    const zero = await call("POST", AGENT_TASK_LIMIT_ROUTES.update, {
+      token: adaToken,
+      json: { agentId: "agent-ada", taskLimit: 0 },
+      capabilities: limitCapabilities,
+    });
+    check(
+      "the host refuses a task limit outside 1 to 4, and writes nothing",
+      tooHigh.status === 400 && zero.status === 400 && callsOf("updateAgent").length === writes,
+      [summary(tooHigh), summary(zero)],
+    );
+    const adminSet = await call("POST", AGENT_TASK_LIMIT_ROUTES.update, {
+      token: adaToken,
+      json: { agentId: "agent-ada", taskLimit: 3 },
+      capabilities: limitCapabilities,
+    });
+    const readBack = await call("POST", AGENT_TASK_LIMIT_ROUTES.settings, {
+      token: adaToken,
+      json: { agentId: "agent-ada" },
+      capabilities: limitCapabilities,
+    });
+    check(
+      "an admin sets the task limit through the agent writer and reads it back",
+      adminSet.status === 200 &&
+        isDeepStrictEqual(adminSet.body, { taskLimit: 3 }) &&
+        isDeepStrictEqual(readBack.body, { taskLimit: 3 }) &&
+        isDeepStrictEqual(callsOf("updateAgent").at(-1), [{ agentId: "agent-ada", taskLimit: 3 }]),
+      [summary(adminSet), summary(readBack)],
+    );
+    const adminClear = await call("POST", AGENT_TASK_LIMIT_ROUTES.update, {
+      token: adaToken,
+      json: { agentId: "agent-ada", taskLimit: null },
+      capabilities: limitCapabilities,
+    });
+    const missing = await call("POST", AGENT_TASK_LIMIT_ROUTES.settings, {
+      token: adaToken,
+      json: { agentId: "agent-none" },
+      capabilities: limitCapabilities,
+    });
+    check(
+      "an admin returns the agent to the default task limit, and an unknown agent gets 404",
+      adminClear.status === 200 &&
+        isDeepStrictEqual(adminClear.body, { taskLimit: null }) &&
         errorIs(missing, 404, sourceText("error.team.agentNotFound")),
       [summary(adminClear), summary(missing)],
     );

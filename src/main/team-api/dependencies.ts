@@ -257,6 +257,7 @@ export interface TeamApiAdmin {
   /**
    * `agent-host-settings-v1`: Computer Use, local scripts and the busy-message mode of one agent.
    * `agent-backup-models-v1`: its backup models.
+   * `agent-task-limit-v1`: how many of its tasks run at the same time.
    */
   agentHost?: AgentHostSettingsService;
   sessionSettings?: Pick<
