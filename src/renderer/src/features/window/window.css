@@ -37,9 +37,9 @@
   }
 }
 
-/* With the logo in the rail instead of the window buttons, the server menu starts at the left edge
- * of the search field and the rows below it, at all widths. The web frame has the macOS class but
- * no buttons. */
+/* A window with no macOS window buttons starts the server menu at the left edge of the search field
+ * and the rows below it, at all widths. The web frame has the macOS class but no buttons. The
+ * selector must out-rank the macOS rule below, which also matches the web frame. */
 .app-window
   > :is(.web-app-frame, .app-frame:not(.app-frame-platform-darwin)):not(.app-frame-with-server-rail)
   > .sidebar:not(.sidebar-compact)

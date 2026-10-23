@@ -1,6 +1,6 @@
 /* The page rail at the left of the window, on desktop and on the web. The window styles place it in
  * the window grid. The window buttons of macOS sit at the top of the rail, in the top row. Other
- * windows show the OpenBot logo there. */
+ * windows can show the OpenBot logo there. */
 .window-rail {
   position: relative;
   display: flex;
@@ -13,8 +13,8 @@
   -webkit-app-region: drag;
 }
 
-/* The logo has the size of a rail icon, in the column of the icons. The top padding of the sidebar's
- * top row puts it on the center line of the server logo. */
+/* The logo has the size of a rail icon, in the column of the icons. Its top padding is the same as
+ * the top padding of `.sidebar-topbar`, so it is on the center line of the server logo. */
 .window-rail-logo {
   position: absolute;
   top: 0;

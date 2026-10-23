@@ -81,7 +81,7 @@ export const WebLogo: Story = {
   args: { logo: { variant: "production", href: "/" } },
 };
 
-/** Windows and Linux: the logo fills the top row, with no link. */
+/** Windows and Linux: the logo is in the top row, with no link. */
 export const DesktopLogo: Story = {
   args: { logo: { variant: "production" } },
 };
