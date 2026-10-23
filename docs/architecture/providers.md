@@ -512,7 +512,8 @@ then `~/.cursor/auth.json`; on Linux `$XDG_CONFIG_HOME/cursor/auth.json` or
 this API. `autoPercentUsed` (Cursor's own models) fills the primary window and `apiPercentUsed`
 (all other models) the secondary one, both for the billing cycle; the dock names them by slot for a
 `cursor` row, because both windows have the same length. A plan with only `totalPercentUsed` fills
-the primary window. No token, a 401 or 403, or no percentage gives no reading.
+the primary window. No token, a 401 or 403, or no percentage gives no reading. The dock poll calls
+`readCursorUsage` directly, as it does for OpenCode, so it does not start the CLI for a reading.
 `scripts/cursor-usage-e2e.ts` covers it.
 
 Team API v1–v5 do not know `cursor`. The host hides Cursor agents, models, status, and sign-in
