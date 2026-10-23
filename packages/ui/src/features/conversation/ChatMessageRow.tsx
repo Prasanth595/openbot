@@ -320,7 +320,7 @@ export function ChatMessageRow(props: ChatMessageRowProps): JSX.Element {
             aria-label={t("chat.row.label", { name: props.author.name })}
             data-author={person() ? "user" : "assistant"}
             data-chat-search-message={props["data-chat-search-message"]}
-            style={authorStyle()}
+            style={authorStyle() ?? ""}
             class={["ui-message", ...rowClass()]}
           >
             {body()}
