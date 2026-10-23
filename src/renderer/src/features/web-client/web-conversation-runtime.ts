@@ -44,11 +44,13 @@ function webHostAdmin(
   eventsEnabled?: () => boolean,
   sessionSettingsEnabled?: () => boolean,
   routineRecoveryEnabled?: () => boolean,
+  webhookTestsEnabled?: () => boolean,
 ): NonNullable<ConversationRuntime["admin"]> {
   // `request()` names the connected host at call time, so a host switch reaches the new host.
   const eventRoutines = webEventRoutinesApi(
     (...args) => request()(...args),
     () => routineRecoveryEnabled?.() === true,
+    () => webhookTestsEnabled?.() === true,
   );
   return {
     get sessionSettings() {
@@ -117,6 +119,7 @@ export function createWebConversationRuntime(
   signInRelayEnabled?: () => boolean,
   routineRecoveryEnabled?: () => boolean,
   sideQuestionEnabled?: () => boolean,
+  webhookTestsEnabled?: () => boolean,
 ): ConversationRuntime {
   const listeners = new Set<(event: AttachmentImportEvent) => void>();
   const files = createWebAttachmentFiles(remote, hostId);
@@ -264,7 +267,14 @@ export function createWebConversationRuntime(
     },
     cancelImportFiles,
     admin: adminRequest
-      ? webHostAdmin(adminRequest, onHostEvent, eventsEnabled, sessionSettingsEnabled, routineRecoveryEnabled)
+      ? webHostAdmin(
+          adminRequest,
+          onHostEvent,
+          eventsEnabled,
+          sessionSettingsEnabled,
+          routineRecoveryEnabled,
+          webhookTestsEnabled,
+        )
       : undefined,
   };
 }

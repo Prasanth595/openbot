@@ -68,6 +68,7 @@ export function serverSupportsCapability(
       capability === "context-reset-v1" ||
       capability === "routine-flows-v1" ||
       capability === "routine-recovery-v1" ||
+      capability === "webhook-tests-v1" ||
       capability === "agent-import-v1" ||
       capability === "instance-transfer-v1" ||
       capability === "agent-hidden-v1" ||
@@ -86,6 +87,11 @@ export function serverSupportsCapability(
  */
 export function remoteRoutineRecovery(server: ServerSummary | undefined): boolean {
   return server?.kind === "remote" && serverCanAdminister(server, "routine-recovery-v1");
+}
+
+/** Whether the routine editor can ask the host for a test event: this computer, or a joined server with `webhook-tests-v1`. */
+export function serverSendsWebhookTests(server: ServerSummary | undefined): boolean {
+  return serverCanAdminister(server, "webhook-tests-v1");
 }
 
 /**
