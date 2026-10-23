@@ -85,7 +85,7 @@ When the turn completes, each routine delivery of the turn ends `completed` with
 the notification are as before. `routineStatusForDelivery` maps a completed delivery with an error to
 a `failed` run with that error, so the run goes from `running` to `failed` in one step, and every
 later reconcile keeps it failed. No column was added. A failed run is never quiet, also after a call
-to `routine_no_update`. A provider error or an interrupt still wins: the delivery then ends `failed`
+to `routine_no_update`: that call then answers `shown`, and the history import keeps the answers. A provider error or an interrupt still wins: the delivery then ends `failed`
 or `interrupted` with its own error. The run history shows the error of a failed run. A result
 destination gets the answer of a failed run whose delivery completed; a provider failure has no
 answer and sends nothing. Outside a routine run the tool returns the same error as

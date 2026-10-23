@@ -27,7 +27,10 @@ export interface RoutineResultOutgoing {
   expiresAt: string;
 }
 
-/** A succeeded run whose routine has a destination, and no delivery yet. */
+/**
+ * A run with an answer (succeeded, or failed by its agent's report) whose routine has a destination,
+ * and no delivery yet.
+ */
 export interface RoutineResultPendingRun {
   runId: string;
   routineId: string;

@@ -367,6 +367,11 @@ try {
     `Check quietly. ${calls(noUpdate, reportFailure(REASON))}`,
   );
   const quietOk = createRoutine(checker.id, "Quiet ok", `Check quietly. ${calls(noUpdate)}`);
+  const failedThenQuiet = createRoutine(
+    checker.id,
+    "Failed then quiet",
+    `Check quietly. ${calls(reportFailure(REASON), noUpdate)}`,
+  );
   const relayed = createRoutine(
     relay.id,
     "Mirror check",
@@ -499,6 +504,20 @@ try {
       turnCompleted(quietFailedRun.delivery.turnId) !== undefined &&
       turnCompleted(quietFailedRun.delivery.turnId)?.quiet !== true,
     turnCompleted(quietFailedRun.delivery.turnId),
+  );
+  const failedThenQuietRun = await settledRun(
+    "Failed then quiet",
+    await runCauseEffect(
+      agents.runRoutineFromAutomation({ agentId: checker.id, routineId: failedThenQuiet.id, payload: "" }),
+    ),
+  );
+  const noUpdateAfterFailure = toolResults(failedThenQuietRun.delivery.turnId, "routine_no_update")[0]?.result;
+  pass(
+    "routine_no_update after a reported failure asks for the answer",
+    noUpdateAfterFailure?.contentItems.some((item) => item.text.includes('"shown"')) === true &&
+      failedThenQuietRun.run.status === "failed" &&
+      turnCompleted(failedThenQuietRun.delivery.turnId)?.quiet !== true,
+    noUpdateAfterFailure,
   );
   const scriptPrompt = fakeEntries().find(
     (entry) => entry.method === "turn/start" && entry.turnId === quietFailedRun.delivery.turnId,

@@ -764,6 +764,8 @@ export class TurnLifecycle {
     const deliveries = this.#mailbox.findDeliveriesByTurn(agentId, turnId);
     if (!deliveries.some(({ delivery }) => delivery.sender.kind === "routine")) return null;
     this.#noUpdateTurns.add(turnId);
+    // A failed run is never quiet, so its answer must still be written.
+    if (this.#reportedFailures.has(turnId)) return "shown";
     return this.#quietRoutineTurn(threadId, deliveries) ? "quiet" : "shown";
   }
 
