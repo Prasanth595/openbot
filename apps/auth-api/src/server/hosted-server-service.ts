@@ -111,6 +111,12 @@ const SCHEDULE_WAKE_BEFORE_MS = 10 * 60_000;
  * starts an idle server with no use for this long, and the idle stop saves its disk again.
  */
 const RETENTION_WAKE_AFTER_MS = 10 * 24 * 60 * 60_000;
+const RETENTION_DISK_KEPT_MS = 14 * 24 * 60 * 60_000;
+/**
+ * The test and production Workers share one boat account: 200 starts each day and 100 active
+ * sandboxes. One start each tick (12 each hour) leaves them to clients.
+ */
+const RETENTION_WAKES_PER_TICK = 1;
 /** A server can report a routine run at most this far ahead. A later run is reported when it comes nearer. */
 const NEXT_RUN_MAX_AHEAD_MS = 400 * 24 * 60 * 60_000;
 /**
@@ -1237,15 +1243,19 @@ export class HostedServerService {
       );
       result.scheduled = yield* run(scheduled.results, (row) => this.#wakeForSchedule(row, now));
       // An idle server starts before boat deletes its disk. The stop comes after the last use, so the
-      // disk is never older than the last use.
+      // disk is never older than the last use. A disk older than 14 days is gone: boat refuses its resume
+      // with a 409, which `#resume` reads as a start in progress. The oldest change goes first, so a
+      // start that failed goes after the others.
       const expiring = yield* hostedCall(() =>
         dependencies.database
           .prepare(
             `SELECT ${ROW_COLUMNS} FROM hosted_servers
          WHERE desired_state = 'idle' AND observed_state = 'stopped' AND provider_sandbox_id IS NOT NULL
-           AND COALESCE(last_active_at, 0) <= ? LIMIT ?`,
+           AND last_active_at > ? AND last_active_at <= ?
+           AND (deletion_scheduled_at IS NULL OR deletion_scheduled_at > ?)
+         ORDER BY updated_at LIMIT ?`,
           )
-          .bind(now - RETENTION_WAKE_AFTER_MS, TICK_BATCH_SIZE)
+          .bind(now - RETENTION_DISK_KEPT_MS, now - RETENTION_WAKE_AFTER_MS, now, RETENTION_WAKES_PER_TICK)
           .all<HostedServerRow>(),
       );
       result.retained = yield* run(expiring.results, (row) => this.#wakeForRetention(row, now));
@@ -1944,14 +1954,30 @@ export class HostedServerService {
       dependencies.database
         .prepare(
           `UPDATE hosted_servers SET desired_state = 'running', last_active_at = ?, updated_at = ?
-         WHERE server_id = ? AND desired_state = 'idle' AND observed_state = 'stopped'
-           AND COALESCE(last_active_at, 0) <= ?`,
+         WHERE server_id = ? AND desired_state = 'idle' AND observed_state = 'stopped' AND last_active_at = ?`,
         )
-        .bind(now, now, row.server_id, now - RETENTION_WAKE_AFTER_MS)
+        .bind(now, now, row.server_id, row.last_active_at)
         .run(),
     );
     if (started.meta.changes !== 1) return;
-    yield* this.#wake(yield* this.#requireRow(row.server_id), "retention");
+    const woken = yield* Effect.result(this.#wake(yield* this.#requireRow(row.server_id), "retention"));
+    if (Result.isSuccess(woken)) return;
+    const error = woken.failure;
+    // No client comes to start it again. After a boat fault the server sleeps with its last use, so a
+    // later tick tries again before the disk is gone.
+    if (error instanceof BoatApiError && error.status >= 500) {
+      yield* hostedCall(() =>
+        dependencies.database
+          .prepare(
+            `UPDATE hosted_servers SET desired_state = 'idle', observed_state = 'stopped', observed_error = NULL,
+             last_active_at = ?, updated_at = ?
+           WHERE server_id = ? AND desired_state = 'running' AND observed_state = 'error'`,
+          )
+          .bind(row.last_active_at, dependencies.now(), row.server_id)
+          .run(),
+      );
+    }
+    return yield* error;
   });
 
   /** Moves the boat stop time of a server in use, so boat does not stop it. */

@@ -1,7 +1,8 @@
 // Runs the real account server hosted-server service on a migrated SQLite database, with a boat API
 // that starts and stops sandboxes. boat deletes the disk of a sandbox 14 days after its stop, so the
 // cron must start an idle server with no use for 10 days, and the idle rule must stop it again when no
-// client connects. A server with less sleep, or one whose plan ended, must not start.
+// client connects. One start goes in each tick, and a start that boat failed goes again later. A server
+// with less sleep, a disk that boat deleted, a due deletion, or a plan that ended must not start.
 //
 // Run: bun run test:hosted-retention-wake
 // It writes .openbot-build/hosted-retention-wake-e2e/report.json and exits non-zero on a failure.
@@ -38,22 +39,49 @@ async function run() {
   const insert = database.prepare(
     `INSERT INTO hosted_servers(
        server_id, owner_user_id, name, provider_sandbox_id, size, plan, billing_interval, currency,
-       desired_state, observed_state, idempotency_key, last_active_at, next_run_at, created_at, updated_at
-     ) VALUES (?, ?, 'Cloud server', ?, 'small', 'starter', 'month', 'eur', ?, 'stopped', ?, ?, ?, 1, ?)`,
+       desired_state, observed_state, idempotency_key, last_active_at, next_run_at, deletion_scheduled_at,
+       created_at, updated_at
+     ) VALUES (?, ?, 'Cloud server', ?, 'small', 'starter', 'month', 'eur', ?, 'stopped', ?, ?, ?, ?, 1, ?)`,
   );
+  const server = (
+    id: string,
+    desired: string,
+    lastActiveAt: number,
+    extra: { nextRunAt?: number; deletionAt?: number } = {},
+  ) =>
+    insert.run(
+      id,
+      OWNER.id,
+      `bx_${id}`,
+      desired,
+      `key-${id}`,
+      lastActiveAt,
+      extra.nextRunAt ?? null,
+      extra.deletionAt ?? null,
+      lastActiveAt + 20 * MINUTE,
+    );
   const nextRunAt = t0 + 30 * DAY;
-  insert.run("due", OWNER.id, "bx_due", "idle", "key-due", t0 - 10 * DAY, nextRunAt, t0 - 10 * DAY);
-  insert.run("recent", OWNER.id, "bx_recent", "idle", "key-recent", t0 - 9 * DAY, null, t0 - 9 * DAY);
-  insert.run("ended", OWNER.id, "bx_ended", "stopped", "key-ended", t0 - 11 * DAY, null, t0 - 11 * DAY);
+  // The oldest change goes first, so `flaky` is the first start.
+  server("flaky", "idle", t0 - 11 * DAY);
+  server("due", "idle", t0 - 10 * DAY, { nextRunAt });
+  server("recent", "idle", t0 - 9 * DAY);
+  server("ended", "stopped", t0 - 11 * DAY);
+  server("expired", "idle", t0 - 15 * DAY);
+  server("deleting", "idle", t0 - 12 * DAY, { deletionAt: t0 - 1 });
 
   const calls: string[] = [];
   const running = new Set<string>();
+  let flakyFaults = 1;
   const boatFetch = async (input: string, init: RequestInit) => {
     const path = new URL(input).pathname.replace("/api/v1", "");
     const method = init.method ?? "GET";
     calls.push(`${method} ${path}`);
     const sandboxId = decodeURIComponent(path.split("/")[2] ?? "");
     if (path.endsWith("/resume")) {
+      if (sandboxId === "bx_flaky" && flakyFaults > 0) {
+        flakyFaults -= 1;
+        return Response.json({ ok: false, code: "internal_error" }, { status: 500 });
+      }
       running.add(sandboxId);
       return Response.json({ ok: true, status: "resuming" });
     }
@@ -99,22 +127,36 @@ async function run() {
   const row = (serverId: string) =>
     database
       .prepare(
-        "SELECT desired_state, observed_state, last_wake_reason, last_active_at, next_run_at FROM hosted_servers WHERE server_id = ?",
+        `SELECT desired_state, observed_state, observed_error, last_wake_reason, last_active_at, next_run_at
+         FROM hosted_servers WHERE server_id = ?`,
       )
       .get(serverId);
-  const callsFor = (sandboxId: string, action?: string) =>
-    calls.filter((call) => call.includes(`/${sandboxId}`) && (action === undefined || call.endsWith(action)));
+  const resumes = (id: string) => calls.filter((call) => call === `POST /sandboxes/bx_${id}/resume`).length;
+  const stops = (id: string) => calls.filter((call) => call === `POST /sandboxes/bx_${id}/stop`).length;
 
   const first = await tick(t0);
+  const reverted = row("flaky");
+  check("the cron sends one keep-alive start in a tick", resumes("flaky") === 1 && resumes("due") === 0, calls);
+  check(
+    "after a boat fault the server sleeps again with its last use",
+    first.retained === 0 &&
+      reverted?.desired_state === "idle" &&
+      reverted.observed_state === "stopped" &&
+      reverted.observed_error === null &&
+      reverted.last_active_at === t0 - 11 * DAY,
+    { result: first, row: reverted },
+  );
+
+  const second = await tick(t0 + MINUTE);
   const woken = row("due");
-  check("the cron starts an idle server with no use for 10 days", callsFor("bx_due", "/resume").length === 1, calls);
-  check("the tick counts the keep-alive start", first.retained === 1 && first.scheduled === 0, first);
+  check("the next tick starts the next idle server with no use for 10 days", resumes("due") === 1, calls);
+  check("the tick counts the keep-alive start", second.retained === 1 && second.scheduled === 0, second);
   check(
     "the server runs with the stored reason schedule and keeps its next routine run",
     woken?.desired_state === "running" &&
       woken.observed_state === "waking" &&
       woken.last_wake_reason === "schedule" &&
-      woken.last_active_at === t0 &&
+      woken.last_active_at === t0 + MINUTE &&
       woken.next_run_at === nextRunAt,
     woken,
   );
@@ -128,19 +170,19 @@ async function run() {
     ),
     events,
   );
-  check("a server with 9 days of sleep does not start", callsFor("bx_recent").length === 0, calls);
-  check("a server whose plan ended does not start", callsFor("bx_ended").length === 0, calls);
+  check("a server with 9 days of sleep does not start", resumes("recent") === 0, calls);
 
   await tick(t0 + 3 * MINUTE);
+  check("a later tick starts the server again after the boat fault", resumes("flaky") === 2, calls);
   check("the started server is running", row("due")?.observed_state === "running", row("due"));
 
   await tick(t0 + 15 * MINUTE);
-  check("the server does not stop before 15 minutes with no use", callsFor("bx_due", "/stop").length === 0, calls);
+  check("the server does not stop before 15 minutes with no use", stops("due") === 0, calls);
 
-  await tick(t0 + 19 * MINUTE);
+  await tick(t0 + 20 * MINUTE);
   check(
     "with no client the idle rule stops the server, and boat saves the disk",
-    callsFor("bx_due", "/stop").length === 1 && row("due")?.desired_state === "idle",
+    stops("due") === 1 && row("due")?.desired_state === "idle",
     { calls, row: row("due") },
   );
   check(
@@ -149,21 +191,21 @@ async function run() {
     events,
   );
 
-  await tick(t0 + 22 * MINUTE);
+  await tick(t0 + 23 * MINUTE);
   const asleep = row("due");
   check(
     "the server sleeps again and is not started again",
-    asleep?.desired_state === "idle" &&
-      asleep.observed_state === "stopped" &&
-      callsFor("bx_due", "/resume").length === 1,
+    asleep?.desired_state === "idle" && asleep.observed_state === "stopped" && resumes("due") === 1,
     { calls, row: asleep },
   );
 
   await tick(t0 + 9 * DAY);
-  check("no second start before 10 days", callsFor("bx_due", "/resume").length === 1, calls);
-  await tick(t0 + 10 * DAY);
-  check("a second start after 10 more days", callsFor("bx_due", "/resume").length === 2, calls);
-  check("a plan-ended server never starts", callsFor("bx_ended").length === 0, calls);
+  check("no second start before 10 days", resumes("due") === 1, calls);
+  await tick(t0 + 10 * DAY + 2 * MINUTE);
+  check("a second start after 10 more days", resumes("due") === 2, calls);
+  check("a server whose plan ended never starts", resumes("ended") === 0, calls);
+  check("a server whose disk is older than 14 days never starts", resumes("expired") === 0, calls);
+  check("a server with a due deletion never starts", resumes("deleting") === 0, calls);
   database.close();
 }
 
