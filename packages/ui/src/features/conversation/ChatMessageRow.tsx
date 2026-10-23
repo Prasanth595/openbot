@@ -120,28 +120,44 @@ export function ChatMessageRow(props: ChatMessageRowProps): JSX.Element {
   // The native menu copies selected text and links, and Shift opens Inspect Element. These cases
   // stop the event before the trigger's delegated handler, which would prevent its default, so the
   // native menu still opens. The keyboard opens the menu with a synthetic event, which always opens it.
-  const keepNativeMenu = (row: HTMLElement) =>
+  const onSelection = (event: MouseEvent) => {
+    const selection = window.getSelection();
+    return (
+      selection !== null &&
+      selection.rangeCount > 0 &&
+      !selection.isCollapsed &&
+      [...selection.getRangeAt(0).getClientRects()].some(
+        (rect) =>
+          event.clientX >= rect.left &&
+          event.clientX <= rect.right &&
+          event.clientY >= rect.top &&
+          event.clientY <= rect.bottom,
+      )
+    );
+  };
+  const keepNativeMenu = (row: HTMLElement) => {
+    // Chromium on macOS can select the word under the pointer before `contextmenu`, so the press
+    // that opens a menu records the selection the user made before it.
+    let pressOnSelection: boolean | undefined;
     row.addEventListener(
-      "contextmenu",
+      "pointerdown",
       (event) => {
-        if (!event.isTrusted) return;
-        const selection = window.getSelection();
-        const onSelection =
-          selection !== null &&
-          selection.rangeCount > 0 &&
-          !selection.isCollapsed &&
-          [...selection.getRangeAt(0).getClientRects()].some(
-            (rect) =>
-              event.clientX >= rect.left &&
-              event.clientX <= rect.right &&
-              event.clientY >= rect.top &&
-              event.clientY <= rect.bottom,
-          );
-        const link = event.target instanceof Element && event.target.closest("a[href]") !== null;
-        if (event.shiftKey || link || onSelection) event.stopPropagation();
+        if (event.button === 2 || event.ctrlKey) pressOnSelection = onSelection(event);
       },
       { capture: true },
     );
+    row.addEventListener(
+      "contextmenu",
+      (event) => {
+        const selected = pressOnSelection ?? onSelection(event);
+        pressOnSelection = undefined;
+        if (!event.isTrusted) return;
+        const link = event.target instanceof Element && event.target.closest("a[href]") !== null;
+        if (event.shiftKey || link || selected) event.stopPropagation();
+      },
+      { capture: true },
+    );
+  };
   const body = (): JSX.Element => (
     <>
       <Show when={props.showAuthor && !person()}>
