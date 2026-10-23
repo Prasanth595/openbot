@@ -26,9 +26,8 @@ const writeAppearancePreference = Effect.fn("AppearancePreference.write")(functi
 });
 
 /**
- * The light, dark or system appearance of every window. Main holds it because it sets
- * `nativeTheme.themeSource` before the first window opens, and it tells each window about a change
- * through `subscribe`.
+ * The light, dark or system appearance of OpenBot's own windows. Main holds it so every window
+ * reads one choice, and it tells each window about a change through `subscribe`.
  */
 export class AppearanceService {
   readonly #path: string;

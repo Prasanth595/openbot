@@ -1,9 +1,9 @@
 /*
  * The light palette of the desktop app and the web client. tokens.css declares every
  * token, dark; this file changes only the colors that must change, when the root element
- * has data-openbot-color-scheme="light". The desktop sets that attribute from
- * prefers-color-scheme, which main sets from the appearance choice through nativeTheme; the
- * web client sets it from its saved choice. The public site never sets it, so it stays dark.
+ * has data-openbot-color-scheme="light". Each desktop window and the web client set that
+ * attribute from the saved choice, and resolve System from prefers-color-scheme. The public
+ * site never sets it, so it stays dark.
  *
  * The rules of the dark palette stay true here, turned over: a raised surface is lighter
  * than the canvas, and a hover or a border is a translucent ink. In the dark palette that

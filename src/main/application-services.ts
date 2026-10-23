@@ -1039,7 +1039,7 @@ export async function createApplicationServices({
   await runCauseEffect(language.load());
   const logoColor = new LogoColorService({ path: join(app.getPath("userData"), LOGO_COLOR_PREFERENCE_FILE) });
   await runCauseEffect(logoColor.load());
-  // Before the first window, so main sets `nativeTheme` and each window opens in the saved colors.
+  // Before the renderer loads, so the window background takes the saved colors.
   const appearance = new AppearanceService({ path: join(app.getPath("userData"), APPEARANCE_PREFERENCE_FILE) });
   await runCauseEffect(appearance.load());
   // Before the renderer loads, so its first navigation applies the saved size.

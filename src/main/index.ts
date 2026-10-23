@@ -20,7 +20,6 @@ import {
   type NativeImage,
   Notification,
   nativeImage,
-  nativeTheme,
   net,
   powerMonitor,
   protocol,
@@ -115,6 +114,7 @@ import { trustSystemCertificates } from "./system-certificates";
 import { TeardownRegistry } from "./teardown-registry";
 import type { TraceFile } from "./trace-file";
 import { setIpcCallObserver } from "./trusted-ipc";
+import { setWindowAppearance } from "./window-appearance";
 
 const logger = createOpenBotLogger("main");
 
@@ -1226,11 +1226,9 @@ if (!hasSingleInstanceLock) {
           sendToRenderer(window, IPC_ENDPOINTS.app.appLogoColorPreference, preference);
         }
       });
-      // Before the renderer loads: Chromium gives every window `prefers-color-scheme` from this, so
-      // each page opens in the saved colors, and the native menus and controls follow them too.
-      nativeTheme.themeSource = appearance.preference.appearance;
+      setWindowAppearance(appearance.preference.appearance);
       appearance.subscribe((preference) => {
-        nativeTheme.themeSource = preference.appearance;
+        setWindowAppearance(preference.appearance);
         for (const window of BrowserWindow.getAllWindows()) {
           sendToRenderer(window, IPC_ENDPOINTS.app.appAppearancePreference, preference);
         }

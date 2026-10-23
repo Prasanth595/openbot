@@ -4,7 +4,7 @@ import { render } from "@solidjs/web";
 import "katex/contrib/copy-tex";
 import { App } from "./App";
 import { startActionSounds } from "./action-sounds";
-import { syncColorScheme } from "./color-scheme";
+import { syncAppearance } from "./appearance-choice";
 import { syncLogoColor } from "./logo-color";
 import "./styles.css";
 
@@ -17,7 +17,7 @@ if (!root) {
 // A startup mark for `dev:bench`, after the bundle is parsed.
 performance.mark("openbot:renderer-start");
 installPointerFocusGuard();
-syncColorScheme();
+syncAppearance();
 syncLogoColor();
 startActionSounds();
 

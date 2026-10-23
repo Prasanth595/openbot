@@ -603,8 +603,7 @@ export const IPC_ENDPOINTS = {
     setAppAppearancePreference: request<SetAppAppearancePreferenceInput, AppAppearancePreference>()(
       "app:set-appearance-preference",
     ),
-    // Each window takes its colors from `prefers-color-scheme`, which main sets for all of them
-    // through `nativeTheme`. The event only keeps an open Settings control on the saved choice.
+    // Sent to every window, because each window applies the choice to its own page.
     appAppearancePreference: event<AppAppearancePreference>()("app:appearance-preference"),
     getAppInterfaceSizePreference: request<undefined, AppInterfaceSizePreference>()(
       "app:get-interface-size-preference",

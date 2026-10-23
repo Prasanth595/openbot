@@ -1,6 +1,7 @@
 // Switches a running dev app through each theme in Settings, and checks that the window takes the
-// palette of the choice: the root attribute, the canvas token and the page background. For System,
-// it emulates a light and a dark system, because main cannot change the computer's setting.
+// palette of the choice: the root attribute, the canvas token and the page background. Light and Dark
+// must not change `prefers-color-scheme`, because visited websites follow it. For System, it emulates
+// a light and a dark system, because main cannot change the computer's setting.
 // Restores the saved theme at the end. Writes .openbot-build/appearance/report.json and Settings and
 // workspace screenshots per theme. Needs `--allow-mutations`, because it changes the theme setting.
 import assert from "node:assert/strict";
@@ -92,6 +93,7 @@ function shownPalette(page: Page) {
       canvas: style.getPropertyValue("--openbot-bg-canvas").trim(),
       colorScheme: style.colorScheme,
       bodyBackground: getComputedStyle(document.body).backgroundColor,
+      systemLight: matchMedia("(prefers-color-scheme: light)").matches,
     };
   });
 }
@@ -127,6 +129,12 @@ try {
     await page.screenshot({ path: resolve(OUT, `workspace-${appearance}.png`) });
     results.push({ appearance, system: null, shown });
   }
+  const [light, dark] = results;
+  assert.equal(
+    light?.shown.systemLight,
+    dark?.shown.systemLight,
+    "The theme choice changed prefers-color-scheme, so visited websites change with it.",
+  );
   // System follows `prefers-color-scheme`, which main sets from the computer. The emulation changes
   // it for this window only, so the window must follow the media query with no restart.
   await chooseAppearance(page, "system");

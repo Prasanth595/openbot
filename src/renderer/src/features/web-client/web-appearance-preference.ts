@@ -33,7 +33,8 @@ export function createWebAppearancePreference(storage?: AppearanceStorage) {
   const scheme = syncColorScheme(appearance);
   createEffect(appearance, () => scheme.refresh());
   function listen(event: StorageEvent): void {
-    if (event.key === STORAGE_KEY) setStoredAppearance(read(storage));
+    // `localStorage.clear()` in another tab sends no key.
+    if (event.key === STORAGE_KEY || event.key === null) setStoredAppearance(read(storage));
   }
   window.addEventListener("storage", listen);
   onCleanup(() => {

@@ -11,13 +11,11 @@ function applyColorScheme(scheme: "light" | "dark"): void {
 }
 
 /**
- * Keeps this window's colors on the appearance choice, and returns the function that stops it and
- * refreshes it. On the desktop the choice is already in `prefers-color-scheme`: main sets
- * `nativeTheme.themeSource` before the first window loads, so each window calls this with no
- * argument and needs no IPC. The Dynamic Island does not call it: it stays dark. The web client passes its saved choice, because a
- * browser's `prefers-color-scheme` is the system's.
+ * Keeps this window's colors on the appearance choice, and returns the functions that refresh it
+ * after the choice changes and that stop it. System follows `prefers-color-scheme`, which is the
+ * computer's setting: main does not change it, so visited websites keep the computer's colors.
  */
-export function syncColorScheme(choice: () => AppAppearance = () => "system") {
+export function syncColorScheme(choice: () => AppAppearance) {
   const query = window.matchMedia(LIGHT_QUERY);
   const refresh = () => {
     const appearance = choice();

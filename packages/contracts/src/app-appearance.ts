@@ -1,7 +1,7 @@
 /**
  * The color scheme the user picks for the desktop app: follow the system, or always light or dark.
- * The main process holds it and sets Electron's `nativeTheme.themeSource` from it, so every window
- * and the native menus follow the same choice.
+ * The main process holds it, and each OpenBot window applies it. Visited websites and the native
+ * menus follow the computer, as they did before the choice existed.
  *
  * The identifiers cross the IPC boundary and are saved as written. Add one, never rename one: a
  * renamed identifier reads back as the default on the next launch. The order is the Settings order.
