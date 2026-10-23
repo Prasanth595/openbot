@@ -53,6 +53,16 @@ export class MobileConversationStore {
     this.#upToDate.clear();
   }
 
+  /**
+   * Keeps an event change for a chat that nobody reads: it loads when it opens, not on each change.
+   * Returns true when the chat has a reader, so the caller reads its page now.
+   */
+  invalidate(agentId: string) {
+    if (this.isObserved(agentId)) return true;
+    this.#upToDate.delete(agentId);
+    return false;
+  }
+
   subscribe(agentId: string, listener: () => void) {
     let listeners = this.#listeners.get(agentId);
     if (!listeners) {

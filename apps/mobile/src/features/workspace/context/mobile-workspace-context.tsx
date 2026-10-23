@@ -1014,7 +1014,11 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         knownIds.add(event.snapshot.agentId);
         serverAgentIds.current.set(serverId, knownIds);
         const { agentId, revision, threadId } = event.snapshot;
-        if (conversationStore.get(agentId) && !conversationStore.holdsRevision(agentId, revision, threadId))
+        if (
+          conversationStore.get(agentId) &&
+          !conversationStore.holdsRevision(agentId, revision, threadId) &&
+          conversationStore.invalidate(agentId)
+        )
           void loadConversation(agentId, serverId, true).catch(() => undefined);
       } else if (event.type === "conversation-delta") {
         conversationStore.enqueue(event);
@@ -1027,11 +1031,16 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         if (conversationStore.get(event.page.agentId)) conversationStore.applyPage(event.page);
       } else if (event.type === "conversation-invalidated") {
         // A read cursor change sends the revision that the phone already has.
-        if (conversationStore.get(event.agentId) && !conversationStore.holdsRevision(event.agentId, event.revision))
+        if (
+          conversationStore.get(event.agentId) &&
+          !conversationStore.holdsRevision(event.agentId, event.revision) &&
+          conversationStore.invalidate(event.agentId)
+        )
           void loadConversation(event.agentId, serverId, true).catch(() => undefined);
       } else if (event.type === "turn-completed") {
         // The host sends the conversation of the ended turn first, so this joins the read that it started.
-        if (conversationStore.get(event.agentId)) void loadConversation(event.agentId, serverId).catch(() => undefined);
+        if (conversationStore.get(event.agentId) && conversationStore.invalidate(event.agentId))
+          void loadConversation(event.agentId, serverId).catch(() => undefined);
       } else if (event.type === "team-identity") {
         // The host uploads its logo to the account service under its own version, so that version
         // is also the directory key that loads the image.

@@ -115,11 +115,11 @@ export function useConversationReads({
         .then(async () => {
           if (generation !== loadGeneration.current) return;
           const cached = conversationStore.get(agentId);
-          // A window around a searched message does not hold the latest message.
+          // A window around a searched message, or a chat that missed changes, does not hold the latest message.
           const snapshot =
             visibleMessageId !== undefined
               ? null
-              : cached && !cached.detached
+              : cached && conversationStore.isUpToDate(agentId)
                 ? cached
                 : await loadConversation(agentId, serverId);
           if (generation !== loadGeneration.current) return;
