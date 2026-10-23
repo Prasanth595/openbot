@@ -602,7 +602,7 @@ export interface CodexDisabledMcpServer {
 }
 
 /** A server name in the form Codex accepts. Claude makes the same change by itself. */
-export function codexMcpServerName(name: string): string {
+function codexMcpServerName(name: string): string {
   return name.replace(/[^A-Za-z0-9_-]/gu, "_");
 }
 
@@ -612,10 +612,26 @@ export function codexMcpServerName(name: string): string {
  * its configuration at all, and the chat cannot start. The server then travels as `openbot_<key>`,
  * and the user's own entry stays as written, turned off. A clash with the same transport keeps the
  * key.
+ *
+ * Computer Use keeps its key: its tool consent and its instructions are found by that name.
  */
 export function codexMcpServerKey(config: McpServerConfig, own: CodexOwnTransports = {}): string {
   const name = codexMcpServerName(config.name);
-  return Object.hasOwn(own, name) && own[name] !== config.transport ? `openbot_${name}` : name;
+  return config.id !== COMPUTER_USE_MCP_SERVER_ID && Object.hasOwn(own, name) && own[name] !== config.transport
+    ? `openbot_${name}`
+    : name;
+}
+
+/** Whether a key from `codexMcpServerKey` is taken by another server, or a renamed key by OpenBot's own tools. */
+function codexMcpServerKeyTaken(
+  key: string,
+  config: McpServerConfig,
+  own: CodexOwnTransports,
+  record: Readonly<Record<string, CodexMcpServer>>,
+): boolean {
+  if (Object.hasOwn(record, key)) return true;
+  if (key === codexMcpServerName(config.name)) return false;
+  return Object.hasOwn(own, key) || isReservedMcpServerName(key);
 }
 
 /**
@@ -645,7 +661,7 @@ export function codexMcpServers(
       continue;
     }
     const name = codexMcpServerKey(server.config, own);
-    if (Object.hasOwn(record, name) || (name !== codexMcpServerName(server.config.name) && Object.hasOwn(own, name))) {
+    if (codexMcpServerKeyTaken(name, server.config, own, record)) {
       dropped.push({ name: server.config.name, reason: "name_conflict", detail: NAME_CONFLICT });
       continue;
     }

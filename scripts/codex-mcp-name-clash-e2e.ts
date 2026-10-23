@@ -347,6 +347,33 @@ try {
     assert.deepEqual(o.keys, ["github"]);
     assert.ok(o.offered.includes("mcp__github"), `offered ${o.offered.join(", ")}`);
   });
+  // Its tool consent keeps a card only under this name, so a clash must never rename it.
+  await step(
+    "Computer Use over a user http computer_use: the key stays computer_use",
+    {
+      name: "computer-use",
+      user: `[mcp_servers.computer_use]${NL}url = "${httpUrl}"${NL}enabled = true${NL}`,
+      rows: [row("computer_use", { id: "openbot-computer-use", command: "node", args: [script] })],
+    },
+    (o) => {
+      assert.deepEqual(o.keys, ["computer_use"]);
+      assert.deepEqual(table(o.file, "openbot_computer_use"), []);
+    },
+  );
+  await step(
+    "a rename onto OpenBot's browser tools: the row is left out, and the chat starts",
+    {
+      name: "reserved",
+      user: `[mcp_servers.browser]${NL}url = "${httpUrl}"${NL}enabled = true${NL}`,
+      rows: [row("browser", { command: "node", args: [script] })],
+    },
+    (o) => {
+      assert.equal(o.started, true, o.error ?? "");
+      assert.deepEqual(o.keys, []);
+      assert.ok(!o.offered.includes("mcp__openbot_browser"), `offered ${o.offered.join(", ")}`);
+      assert.deepEqual(table(o.file, "openbot_browser"), []);
+    },
+  );
 
   await writeFile(
     join(OUT, "report.json"),
