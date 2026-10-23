@@ -324,8 +324,6 @@ export const messages = {
   "chat.day.now": "agora",
   "chat.errorStatus.readState": "Não foi possível marcar a conversa como lida",
   "chat.errorStatus.send": "Não foi possível enviar a mensagem",
-  "chat.send.sending": "Enviando…",
-  "chat.send.waiting": "Aguardando envio",
   "chat.send.failed": "Não enviada",
   "chat.send.unconfirmed": "Não confirmada. Verifique o chat antes de enviar de novo.",
   "chat.send.edit": "Editar",

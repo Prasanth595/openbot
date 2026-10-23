@@ -334,8 +334,6 @@ export const messages = {
   "chat.day.now": "şimdi",
   "chat.errorStatus.readState": "Konuşma okundu olarak işaretlenemedi",
   "chat.errorStatus.send": "Mesaj gönderilemedi",
-  "chat.send.sending": "Gönderiliyor…",
-  "chat.send.waiting": "Gönderilmeyi bekliyor",
   "chat.send.failed": "Gönderilmedi",
   "chat.send.unconfirmed": "Onaylanmadı. Yeniden göndermeden önce sohbeti kontrol edin.",
   "chat.send.edit": "Düzenle",

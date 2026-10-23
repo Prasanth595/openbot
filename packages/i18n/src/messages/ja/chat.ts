@@ -310,8 +310,6 @@ export const messages = {
   "chat.day.now": "今",
   "chat.errorStatus.readState": "会話を既読にできませんでした",
   "chat.errorStatus.send": "メッセージを送信できませんでした",
-  "chat.send.sending": "送信中…",
-  "chat.send.waiting": "送信待ち",
   "chat.send.failed": "未送信",
   "chat.send.unconfirmed": "未確認です。もう一度送信する前にチャットを確認してください。",
   "chat.send.edit": "編集",

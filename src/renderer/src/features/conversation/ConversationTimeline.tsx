@@ -1076,54 +1076,55 @@ export function ConversationTimeline() {
                             onOpenQuote={openQuote}
                             onDownload={(attachment) => attachmentAction(attachment, "download")}
                             mediaSource={runtime.attachmentMedia}
-                            class={pending() ? "message-entry-pending" : undefined}
-                            footer={
-                              pending() ? (
-                                <PendingSendStatus
-                                  state={pendingState()}
-                                  updateRequired={Boolean(providerUpdateRequired())}
-                                  error={pendingSend()?.error ?? null}
-                                  retrySafe={pendingRetrySafe()}
-                                  canEdit={!composerHasContent() && !editingDeliveryId()}
-                                  onRetry={() => {
-                                    const send = pendingSend();
-                                    if (send) retryPendingSend(send.clientMessageId);
-                                  }}
-                                  onEdit={() => {
-                                    const send = pendingSend();
-                                    if (send) editPendingSend(send.clientMessageId);
-                                  }}
-                                  onDismiss={() => {
-                                    const send = pendingSend();
-                                    if (send) dismissPendingSend(send.clientMessageId);
-                                  }}
-                                />
-                              ) : undefined
-                            }
                             actions={
-                              <Show when={!hostless()}>
-                                <MessageActions
-                                  message={message() ?? initialMessage}
-                                  pickerOpen={openReactionMessageId() === message()?.id}
-                                  expandedEmoji={expandedEmojiMessageId() === message()?.id}
-                                  copied={copiedMessageId() === message()?.id}
-                                  reactions={!channel}
-                                  authorName={channel ? author().name : undefined}
-                                  onTogglePicker={() => {
-                                    const messageId = message()?.id;
-                                    if (!messageId) return;
-                                    setOpenReactionMessageId((current) => (current === messageId ? null : messageId));
-                                    setExpandedEmojiMessageId(null);
-                                  }}
-                                  onExpandEmoji={() => {
-                                    const messageId = message()?.id;
-                                    if (!messageId) return;
-                                    setExpandedEmojiMessageId((current) => (current === messageId ? null : messageId));
-                                  }}
-                                  {...messageActions}
-                                  readAloud={messageReadAloud()}
-                                />
-                              </Show>
+                              <>
+                                <Show when={pending()}>
+                                  <PendingSendStatus
+                                    state={pendingState()}
+                                    updateRequired={Boolean(providerUpdateRequired())}
+                                    error={pendingSend()?.error ?? null}
+                                    retrySafe={pendingRetrySafe()}
+                                    canEdit={!composerHasContent() && !editingDeliveryId()}
+                                    onRetry={() => {
+                                      const send = pendingSend();
+                                      if (send) retryPendingSend(send.clientMessageId);
+                                    }}
+                                    onEdit={() => {
+                                      const send = pendingSend();
+                                      if (send) editPendingSend(send.clientMessageId);
+                                    }}
+                                    onDismiss={() => {
+                                      const send = pendingSend();
+                                      if (send) dismissPendingSend(send.clientMessageId);
+                                    }}
+                                  />
+                                </Show>
+                                <Show when={!hostless()}>
+                                  <MessageActions
+                                    message={message() ?? initialMessage}
+                                    pickerOpen={openReactionMessageId() === message()?.id}
+                                    expandedEmoji={expandedEmojiMessageId() === message()?.id}
+                                    copied={copiedMessageId() === message()?.id}
+                                    reactions={!channel}
+                                    authorName={channel ? author().name : undefined}
+                                    onTogglePicker={() => {
+                                      const messageId = message()?.id;
+                                      if (!messageId) return;
+                                      setOpenReactionMessageId((current) => (current === messageId ? null : messageId));
+                                      setExpandedEmojiMessageId(null);
+                                    }}
+                                    onExpandEmoji={() => {
+                                      const messageId = message()?.id;
+                                      if (!messageId) return;
+                                      setExpandedEmojiMessageId((current) =>
+                                        current === messageId ? null : messageId,
+                                      );
+                                    }}
+                                    {...messageActions}
+                                    readAloud={messageReadAloud()}
+                                  />
+                                </Show>
+                              </>
                             }
                             menu={
                               hostless()

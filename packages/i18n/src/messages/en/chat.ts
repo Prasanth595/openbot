@@ -317,8 +317,6 @@ export const messages = defineMessages("chat", {
   "chat.day.now": "now",
   "chat.errorStatus.readState": "Could not mark the conversation as read",
   "chat.errorStatus.send": "Could not send the message",
-  "chat.send.sending": "Sending…",
-  "chat.send.waiting": "Waiting to send",
   "chat.send.failed": "Not sent",
   "chat.send.unconfirmed": "Not confirmed. Check the chat before you send it again.",
   "chat.send.edit": "Edit",

@@ -411,8 +411,6 @@ export const messages = {
   "chat.day.now": "сейчас",
   "chat.errorStatus.readState": "Не удалось отметить диалог как прочитанный",
   "chat.errorStatus.send": "Не удалось отправить сообщение",
-  "chat.send.sending": "Отправка…",
-  "chat.send.waiting": "Ожидает отправки",
   "chat.send.failed": "Не отправлено",
   "chat.send.unconfirmed": "Не подтверждено. Проверьте чат, прежде чем отправлять ещё раз.",
   "chat.send.edit": "Изменить",

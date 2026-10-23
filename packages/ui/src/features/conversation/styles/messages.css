@@ -1375,24 +1375,41 @@ button.chat-action-target:active,
   }
 }
 
-/* A message the host has not stored yet. It reads as the user's own, a step quieter, until it is. */
-.message-entry-pending .message-shell {
-  opacity: 0.7;
-}
-
+/* A failed send, beside the time under the bubble. A send in flight leaves it empty. */
 .pending-send-status {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
-  gap: var(--openbot-space-1);
+  gap: 2px;
+  color: var(--openbot-text-muted);
+  font-size: var(--openbot-text-sm);
+  line-height: var(--openbot-leading-sm);
 }
 
-.pending-send-status[data-state="failed"] .pending-send-label {
+.pending-send-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--openbot-space-1);
   color: var(--openbot-danger-text);
 }
 
+.pending-send-label:not(:empty) {
+  margin-inline-end: var(--openbot-space-1);
+}
+
+.pending-send-label > svg {
+  width: var(--openbot-icon-sm);
+  height: var(--openbot-icon-sm);
+  flex: none;
+}
+
 .pending-send-error {
-  margin-inline-start: var(--openbot-space-2);
+  color: var(--openbot-text-muted);
   overflow-wrap: anywhere;
+}
+
+.pending-send-error::before {
+  content: "·";
+  margin-inline-end: var(--openbot-space-1);
 }
