@@ -155,9 +155,15 @@ export const messages = {
   "agentSettings.quickAcknowledgement.title": "Mostra il piano prima delle attività lunghe",
   "agentSettings.quickAcknowledgement.description":
     "Prima di un'attività lunga, l'agente mostra il suo piano. Inizia dopo 10 s o quando premi Avvia.",
-  "agentSettings.ownBrowserSession.title": "Sessione del browser propria",
-  "agentSettings.ownBrowserSession.description":
-    "Le schede dell'agente mantengono accessi e cookie propri. Una modifica chiude le schede aperte dell'agente.",
+  "agentSettings.browserProfile.label": "Profilo del browser",
+  "agentSettings.browserProfile.shared": "Condiviso",
+  "agentSettings.browserProfile.agent": "Solo questo agente",
+  "agentSettings.browserProfile.missing": "Profilo eliminato",
+  "agentSettings.browserProfile.new": "Nuovo profilo",
+  "agentSettings.browserProfile.manageTitle": "Profili del browser",
+  "agentSettings.browserProfile.manageDescription":
+    "Ogni profilo mantiene accessi e cookie propri. Una modifica chiude le schede aperte dell'agente.",
+  "agentSettings.browserProfile.manage": "Gestisci",
   "agentSettings.runtime.workspaceEnforcedProcess":
     "L'intero processo di {provider} gira in una sandbox, quindi una scrittura all'esterno non riesce. Disponibile solo su macOS.",
 } as const satisfies PartialTranslation<typeof source>;

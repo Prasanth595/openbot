@@ -4,6 +4,7 @@ import {
   AGENT_TASK_LIMIT_DEFAULT,
   AGENT_TASK_LIMIT_MAX,
   type AgentBackupModels,
+  type AgentBrowserProfile,
   type AgentModelChoice,
   type AgentModelId,
   type AgentPermissionLevel,
@@ -13,13 +14,14 @@ import {
   type AvatarHue,
   type AvatarImageInput,
   agentAutomationAllowed,
+  agentBrowserProfile,
   agentComputerUseEnabled,
   agentNewChatAllowed,
-  agentOwnBrowserSessionEnabled,
   agentPermissionLevel,
   agentPermissionLevels,
   agentPermissionUpdate,
   agentQuickAcknowledgementEnabled,
+  type BrowserProfileSummary,
   type BusyMessageMode,
   type ClientAgentModelOption,
   type CustomAgentSummary,
@@ -71,6 +73,7 @@ import {
 import type { AgentProfile } from "@openbot/ui/data";
 import { AgentAvatar } from "@openbot/ui/features/agents/AgentAvatar";
 import { InstructionsLimit, instructionsTooLong } from "@openbot/ui/features/agents/InstructionsLimit";
+import { type BrowserProfileChoice, BrowserProfileSelect } from "@openbot/ui/features/browser/BrowserProfileSelect";
 import { errorReference } from "@openbot/user-errors";
 import type { JSX } from "@solidjs/web";
 import {
@@ -118,8 +121,8 @@ export interface AgentSettingsPanelProps {
   newChatEditable?: boolean;
   /** Whether the agent shows its plan before a long task. Local-only: the Team API does not carry it. */
   quickAcknowledgementEditable?: boolean;
-  /** Whether the agent's tabs use a browser session of their own. Local-only: the Team API does not carry it. */
-  ownBrowserSessionEditable?: boolean;
+  /** The browser profile of the agent's tabs. Left out when the host cannot change it. */
+  browserProfiles?: AgentBrowserProfileOptions | undefined;
   /** The busy-message setting is local-only too: the Team API does not carry it. */
   busyMessageModeEditable?: boolean;
   /** Tasks run only on this computer: the Team API has no task route. */
@@ -162,6 +165,30 @@ export interface AgentSettingsPanelProps {
    * it and keeps its setup. Left out when the host cannot do it.
    */
   onStartNewChat?: (() => Promise<void>) | undefined;
+}
+
+export interface AgentBrowserProfileOptions {
+  /** The named profiles of the computer that runs the agent. Undefined while they load. */
+  profiles: readonly Pick<BrowserProfileSummary, "id" | "name" | "hue">[] | undefined;
+  /**
+   * The agent's choice, as its host gives it. The summary of an agent on a joined server does not
+   * carry it; absent, the panel reads it from the agent.
+   */
+  current?: AgentBrowserProfile | undefined;
+  /** Saves the choice. The host closes the agent's open tabs. */
+  onChange: (agentId: string, profile: AgentBrowserProfile) => Promise<void>;
+  /** Makes a named profile and returns its id. */
+  onCreate: (name: string) => Promise<string>;
+  /** Opens the profiles in the settings of the computer that runs the agent. */
+  onManage: (trigger: HTMLElement) => void;
+}
+
+function browserProfileChoice(profile: AgentBrowserProfile): BrowserProfileChoice {
+  return profile.kind === "profile" ? profile.profileId : profile.kind;
+}
+
+function choiceBrowserProfile(choice: BrowserProfileChoice): AgentBrowserProfile {
+  return choice === "shared" || choice === "agent" ? { kind: choice } : { kind: "profile", profileId: choice };
 }
 
 const INSTRUCTIONS_SAVE_DELAY_MS = 400;
@@ -209,7 +236,7 @@ interface AgentSettingsDraft {
   allowAutomation: boolean;
   allowNewChat: boolean;
   quickAcknowledgement: boolean;
-  ownBrowserSession: boolean;
+  browserProfile: BrowserProfileChoice;
   /** `default` follows the app setting. */
   busyMessage: BusyMessageChoice;
   /** `default` is `AGENT_TASK_LIMIT_DEFAULT`. */
@@ -251,7 +278,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
     allowAutomation: false,
     allowNewChat: false,
     quickAcknowledgement: false,
-    ownBrowserSession: false,
+    browserProfile: "shared",
     busyMessage: "default",
     taskLimit: "default",
     backupModels: null,
@@ -373,7 +400,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
           String(agentAutomationAllowed(agent)),
           String(agentNewChatAllowed(agent)),
           String(agentQuickAcknowledgementEnabled(agent)),
-          String(agentOwnBrowserSessionEnabled(agent)),
+          browserProfileChoice(props.browserProfiles?.current ?? agentBrowserProfile(agent)),
           agent.busyMessageMode ?? "default",
           String(agent.taskLimit ?? "default"),
           JSON.stringify(agent.backupModels ?? null),
@@ -418,7 +445,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
           state.allowAutomation = agentAutomationAllowed(agent);
           state.allowNewChat = agentNewChatAllowed(agent);
           state.quickAcknowledgement = agentQuickAcknowledgementEnabled(agent);
-          state.ownBrowserSession = agentOwnBrowserSessionEnabled(agent);
+          state.browserProfile = browserProfileChoice(props.browserProfiles?.current ?? agentBrowserProfile(agent));
           state.busyMessage = agent.busyMessageMode ?? "default";
           state.taskLimit = taskLimitChoice(agent.taskLimit);
           state.backupModels = agent.backupModels ?? null;
@@ -870,16 +897,22 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
     }
   }
 
-  async function saveOwnBrowserSession(next: boolean): Promise<void> {
+  async function saveBrowserProfile(options: AgentBrowserProfileOptions, next: BrowserProfileChoice): Promise<void> {
     const agentId = props.agent.id;
+    const previous = draft.browserProfile;
     setDraft((state) => {
-      state.ownBrowserSession = next;
+      state.browserProfile = next;
     });
-    if (await saveAgentPatch({ ownBrowserSession: next }, agentId)) return;
-    if (!disposed && props.agent.id === agentId && draft.ownBrowserSession === next) {
-      setDraft((state) => {
-        state.ownBrowserSession = !next;
-      });
+    setSaveError(null);
+    try {
+      await options.onChange(agentId, choiceBrowserProfile(next));
+    } catch (error) {
+      if (disposed || props.agent.id !== agentId) return;
+      setSaveError(errorMessage(error, t("agentSettings.saveFailed")), error);
+      if (draft.browserProfile === next)
+        setDraft((state) => {
+          state.browserProfile = previous;
+        });
     }
   }
 
@@ -1412,6 +1445,16 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
                     <SelectContent />
                   </Select>
                 </Show>
+                <Show when={props.browserProfiles}>
+                  {(options) => (
+                    <BrowserProfileSelect
+                      value={draft.browserProfile}
+                      profiles={options().profiles}
+                      onChange={(next) => void saveBrowserProfile(options(), next)}
+                      onCreate={options().onCreate}
+                    />
+                  )}
+                </Show>
                 <div class="agent-settings-runtime-path">
                   <span class="agent-settings-runtime-label">{t("agentSettings.runtime.workingDirectory")}</span>
                   <span>
@@ -1479,19 +1522,22 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
                   />
                 </div>
               </Show>
-              <Show when={props.ownBrowserSessionEditable}>
-                <div class="agent-settings-notifications">
-                  <div>
-                    <strong>{t("agentSettings.ownBrowserSession.title")}</strong>
-                    <span>{t("agentSettings.ownBrowserSession.description")}</span>
+              <Show when={props.browserProfiles}>
+                {(options) => (
+                  <div class="agent-settings-notifications">
+                    <div>
+                      <strong>{t("agentSettings.browserProfile.manageTitle")}</strong>
+                      <span>{t("agentSettings.browserProfile.manageDescription")}</span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      type="button"
+                      onClick={(event) => options().onManage(event.currentTarget)}
+                    >
+                      {t("agentSettings.browserProfile.manage")}
+                    </Button>
                   </div>
-                  <Switch
-                    size="sm"
-                    aria-label={t("agentSettings.ownBrowserSession.title")}
-                    checked={draft.ownBrowserSession}
-                    onChange={(next) => void saveOwnBrowserSession(next)}
-                  />
-                </div>
+                )}
               </Show>
             </Show>
             <Show when={draft.saveError}>

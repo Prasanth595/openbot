@@ -191,6 +191,18 @@ A joined desktop, the web client and the mobile app use the optional `agent-hidd
 owner or an admin hides or restores an agent on a host.
 `/v1/agents` and the released agent codecs do not carry `hiddenAt`.
 
+## Browser profile
+
+Agent settings > Advanced selects the browser profile of an agent: Shared or a named profile
+that other agents can also use. For a joined server, an owner or admin sees the select when the host
+serves `browser-profiles-v1`; the agent summary does not carry the profile, so the panel reads it
+from the host. "Only this agent" shows only for an agent that already uses it. A change closes the agent's open tabs. "Manage" opens
+the Browser profiles section of the settings of the agent's server (`ServerBrowserProfilesPanel`), which adds,
+renames, changes the color of, clears and deletes the named profiles. It lists Shared first, with
+its agent count and no actions. A joined server without the capability has no section. The select, the browser toolbar and the tabs show the color of a named profile. A delete moves
+the profile's agents to Shared. The agent has no tool to change its profile, and tool results do not
+name it. See [Browser sessions](browser.md#browser-sessions) for the storage and the partitions.
+
 ## Agent tasks
 
 A task is a separate execution thread of one agent. The agent keeps one identity, workspace and

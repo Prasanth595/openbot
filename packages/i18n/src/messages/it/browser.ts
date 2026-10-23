@@ -143,4 +143,28 @@ export const messages = {
   "browser.signIn.stillSignedOut":
     "{server} mostra ancora una pagina di accesso di {site}. Completa l’accesso nella finestra.",
   "browser.signIn.failed": "OpenBot non è riuscito a inviare l’accesso.",
+  "browser.profiles.title": "Profili del browser",
+  "browser.profiles.subtitle": "Ogni profilo mantiene accessi, cookie e dati dei siti propri su questo computer.",
+  "browser.profiles.label": "Profili del browser",
+  "browser.profiles.newName": "Nome del profilo",
+  "browser.profiles.create": "Aggiungi",
+  "browser.profiles.usage": "{agents} · {tabs}",
+  "browser.profiles.agents": { one: "{count} agente", other: "{count} agenti" },
+  "browser.profiles.tabs": { one: "{count} scheda aperta", other: "{count} schede aperte" },
+  "browser.profiles.renameLabel": "Rinomina {name}",
+  "browser.profiles.actionsFor": "Azioni per {name}",
+  "browser.profiles.colorLabel": "Colore di {name}",
+  "browser.profiles.save": "Salva",
+  "browser.profiles.clear": "Cancella dati",
+  "browser.profiles.clearTitle": "Cancellare i dati di {name}?",
+  "browser.profiles.clearDescription":
+    "Questa azione esce da tutti i siti di questo profilo ed elimina i suoi cookie e i dati dei siti. Le sue schede aperte si chiudono.",
+  "browser.profiles.deleteTitle": "Eliminare {name}?",
+  "browser.profiles.deleteDescription":
+    "Questa azione elimina gli accessi, i cookie e i dati dei siti del profilo. Le sue schede aperte si chiudono.",
+  "browser.profiles.deleteAgents": "Questi agenti passano al profilo condiviso: {agents}.",
+  "browser.profiles.failed": "OpenBot non è riuscito a modificare i profili del browser.",
+  "browser.profiles.loadFailed": "OpenBot non è riuscito a caricare i profili del browser.",
+  "browser.profiles.tabLabel": "Profilo: {name}",
+  "browser.profiles.agentTabLabel": "Profilo proprio dell’agente",
 } as const satisfies PartialTranslation<typeof source>;

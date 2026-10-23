@@ -284,6 +284,11 @@ export const messages = {
   "error.backend.browserUrlRequired": "L'URL del browser è obbligatorio.",
   "error.backend.browserUrlTooLong": "L'URL del browser è troppo lungo.",
   "error.backend.browserTabLimit": "Il browser può avere fino a {limit} schede aperte.",
+  "error.backend.browserProfileMissing":
+    "Il profilo browser di questo agente non esiste più. Scegli un altro profilo nelle impostazioni dell’agente.",
+  "error.backend.browserProfileNotFound": "Questo profilo browser non esiste più.",
+  "error.backend.browserProfileNameTaken": "Esiste già un profilo browser con questo nome.",
+  "error.backend.browserProfileLimit": "Puoi avere fino a {limit} profili browser.",
   "error.backend.browserLowMemory":
     "Su questo server la memoria è quasi esaurita, quindi il browser non può aprire un'altra scheda. Chiudi una scheda o attendi che gli altri agenti finiscano.",
   "error.backend.browserOpenFailed": "Impossibile aprire {url}: {reason}",

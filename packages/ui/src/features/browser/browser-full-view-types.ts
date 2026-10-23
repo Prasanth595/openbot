@@ -1,4 +1,5 @@
-import type { BrowserControlSession, BrowserTab } from "@openbot/contracts/ipc";
+import type { BrowserControlSession, BrowserTab, BrowserTabProfile } from "@openbot/contracts/ipc";
+import type { AppTranslate } from "@openbot/i18n";
 import type { AgentProfile } from "@openbot/ui/data";
 import type { JSX } from "@solidjs/web";
 import type { BrowserViewRuntime } from "./BrowserLiveView";
@@ -19,6 +20,8 @@ export interface BrowserFullViewProps {
   controllerForTab: (tab: BrowserTab) => AgentProfile | undefined;
   /** The agent that opened the tab, or undefined for a tab of the user. */
   ownerForTab: (tab: BrowserTab) => AgentProfile | undefined;
+  /** The browser profile of the tab. Undefined for a tab in the shared profile, which shows no label. */
+  profileForTab?: ((tab: BrowserTab) => BrowserTabProfile | undefined) | undefined;
   onActivateTab: (tabId: string) => void;
   onCloseTabs: (tabIds: readonly string[]) => void;
   /** Opens a new tab after `afterId`, or at the end. The address field gets the focus when it resolves. */
@@ -70,4 +73,11 @@ export interface BrowserFullViewProps {
 /** Only a host that reports the history state can stop a load, so an older host keeps Reload. */
 export function browserTabStoppable(tab: BrowserTab | undefined): boolean {
   return tab?.loading === true && tab.canGoBack !== undefined;
+}
+
+/** The label of a tab's browser profile. The session of one agent has no name. */
+export function browserTabProfileLabel(t: AppTranslate, profile: BrowserTabProfile): string {
+  return profile.name === null
+    ? t("browser.profiles.agentTabLabel")
+    : t("browser.profiles.tabLabel", { name: profile.name });
 }

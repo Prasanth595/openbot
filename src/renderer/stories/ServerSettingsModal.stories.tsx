@@ -1,17 +1,20 @@
-import type {
-  AgentAccessChange,
-  AgentAccessSnapshot,
-  HostReleaseStatus,
-  HostStatus,
-  HostUpdateStatus,
-  McpServerConfig,
-  McpSignInState,
-  McpTestResult,
+import {
+  type AgentAccessChange,
+  type AgentAccessSnapshot,
+  type BrowserProfileSummary,
+  type HostReleaseStatus,
+  type HostStatus,
+  type HostUpdateStatus,
+  type McpServerConfig,
+  type McpSignInState,
+  type McpTestResult,
+  nextBrowserProfileHue,
 } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { createSignal, createStore, onSettled, snapshot } from "solid-js";
 import { fn } from "storybook/test";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import type { ServerBrowserProfilesOptions } from "../src/features/browser/ServerBrowserProfilesPanel";
 import type { McpPanelSignIn } from "../src/features/servers/ServerMcpPanel";
 import type { ServerAgentAccessOptions } from "../src/features/servers/ServerRolesSection";
 import { ServerSettingsModal, type ServerSettingsModalProps } from "../src/features/servers/ServerSettingsModal";
@@ -344,6 +347,90 @@ export const Sites: Story = {
       onOpenSite: fn(),
     },
   },
+};
+
+const STORY_BROWSER_PROFILES: BrowserProfileSummary[] = [
+  { id: "0a1b2c3d4e5f60718293a4b5c6d7e8f9", name: "Client A", hue: 215, agentIds: ["chief", "research"], tabCount: 3 },
+  { id: "f9e8d7c6b5a4938271605f4e3d2c1b0a", name: "Client B", hue: 30, agentIds: ["sales"], tabCount: 1 },
+  { id: "1b2c3d4e5f60718293a4b5c6d7e8f90a", name: "Personal", hue: 150, agentIds: [], tabCount: 0 },
+];
+
+/** Profiles in memory, so add, rename, color, clear and delete change the list as the host does. */
+function storyBrowserProfiles(initial: readonly BrowserProfileSummary[]): ServerBrowserProfilesOptions {
+  // Five agents in all: the ones that no named profile has use the shared profile.
+  const [state, setState] = createStore<{
+    profiles: BrowserProfileSummary[] | undefined;
+    sharedAgentIds: string[] | undefined;
+  }>({
+    profiles: initial.map((profile) => ({ ...profile, agentIds: [...profile.agentIds] })),
+    sharedAgentIds: ["chief", "research", "sales", "writer", "support"].filter(
+      (agentId) => !initial.some((profile) => profile.agentIds.includes(agentId)),
+    ),
+  });
+  const change = (recipe: (profiles: BrowserProfileSummary[]) => void) => async () =>
+    setState((draft) => {
+      if (draft.profiles) recipe(draft.profiles);
+    });
+  const names: Record<string, string> = { chief: "Chief", research: "Research", sales: "Sales Outbound" };
+  return {
+    agentName: (agentId) => names[agentId],
+    store: {
+      state,
+      refresh: async () => undefined,
+      create: async (name) => {
+        if (state.profiles?.some((profile) => profile.name.toLowerCase() === name.toLowerCase()))
+          throw new Error(sourceText("error.backend.browserProfileNameTaken"));
+        const id = crypto.randomUUID().replaceAll("-", "");
+        await change((profiles) => {
+          profiles.push({
+            id,
+            name,
+            hue: nextBrowserProfileHue(profiles.map((profile) => profile.hue)),
+            agentIds: [],
+            tabCount: 0,
+          });
+        })();
+        return id;
+      },
+      rename: (profileId, name) =>
+        change((profiles) => {
+          const profile = profiles.find((item) => item.id === profileId);
+          if (profile) profile.name = name;
+        })(),
+      recolor: (profileId, hue) =>
+        change((profiles) => {
+          const profile = profiles.find((item) => item.id === profileId);
+          if (profile) profile.hue = hue;
+        })(),
+      clear: (profileId) =>
+        change((profiles) => {
+          const profile = profiles.find((item) => item.id === profileId);
+          if (profile) profile.tabCount = 0;
+        })(),
+      remove: async (profileId) =>
+        setState((draft) => {
+          const index = draft.profiles?.findIndex((item) => item.id === profileId) ?? -1;
+          if (index < 0) return;
+          // A delete moves the agents of the profile to the shared profile.
+          draft.sharedAgentIds?.push(...(draft.profiles?.[index]?.agentIds ?? []));
+          draft.profiles?.splice(index, 1);
+        }),
+    },
+  };
+}
+
+/** The named browser profiles of this computer: a color, a name, and one menu for each profile. */
+export const BrowserProfiles: Story = {
+  args: { initialSection: "browser-profiles" },
+  render: (args) => (
+    <RemoteSetupStory settings={{ ...args, browserProfiles: storyBrowserProfiles(STORY_BROWSER_PROFILES) }} />
+  ),
+};
+
+/** No named profile yet: the agents use the shared profile or their own. */
+export const BrowserProfilesEmpty: Story = {
+  args: { initialSection: "browser-profiles" },
+  render: (args) => <RemoteSetupStory settings={{ ...args, browserProfiles: storyBrowserProfiles([]) }} />,
 };
 
 export const SitesForMember: Story = {

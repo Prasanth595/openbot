@@ -143,4 +143,29 @@ export const messages = {
   "browser.signIn.stillSignedOut":
     "{server} hâlâ {site} için bir oturum açma sayfası gösteriyor. Oturum açmayı pencerede tamamlayın.",
   "browser.signIn.failed": "OpenBot oturumu gönderemedi.",
+  "browser.profiles.title": "Tarayıcı profilleri",
+  "browser.profiles.subtitle":
+    "Her profil kendi oturum açma bilgilerini, çerezlerini ve site verilerini bu bilgisayarda tutar.",
+  "browser.profiles.label": "Tarayıcı profilleri",
+  "browser.profiles.newName": "Profil adı",
+  "browser.profiles.create": "Ekle",
+  "browser.profiles.usage": "{agents} · {tabs}",
+  "browser.profiles.agents": { one: "{count} ajan", other: "{count} ajan" },
+  "browser.profiles.tabs": { one: "{count} açık sekme", other: "{count} açık sekme" },
+  "browser.profiles.renameLabel": "{name} profilini yeniden adlandır",
+  "browser.profiles.actionsFor": "{name} için eylemler",
+  "browser.profiles.colorLabel": "{name} profilinin rengi",
+  "browser.profiles.save": "Kaydet",
+  "browser.profiles.clear": "Verileri temizle",
+  "browser.profiles.clearTitle": "{name} profilinin verileri temizlensin mi?",
+  "browser.profiles.clearDescription":
+    "Bu işlem, bu profildeki tüm sitelerden oturumu kapatır ve profilin çerezlerini ve site verilerini siler. Açık sekmeleri kapanır.",
+  "browser.profiles.deleteTitle": "{name} profili silinsin mi?",
+  "browser.profiles.deleteDescription":
+    "Bu işlem profilin oturum açma bilgilerini, çerezlerini ve site verilerini siler. Açık sekmeleri kapanır.",
+  "browser.profiles.deleteAgents": "Bu ajanlar paylaşılan profile geçer: {agents}.",
+  "browser.profiles.failed": "OpenBot tarayıcı profillerini değiştiremedi.",
+  "browser.profiles.loadFailed": "OpenBot tarayıcı profillerini yükleyemedi.",
+  "browser.profiles.tabLabel": "Profil: {name}",
+  "browser.profiles.agentTabLabel": "Ajanın kendi profili",
 } as const satisfies PartialTranslation<typeof source>;

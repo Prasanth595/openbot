@@ -146,4 +146,28 @@ export const messages = {
   "browser.signIn.stillSignedOut":
     "{server} zeigt für {site} noch eine Anmeldeseite. Schließe die Anmeldung im Fenster ab.",
   "browser.signIn.failed": "OpenBot konnte die Anmeldung nicht senden.",
+  "browser.profiles.title": "Browser-Profile",
+  "browser.profiles.subtitle": "Jedes Profil behält eigene Anmeldungen, Cookies und Website-Daten auf diesem Computer.",
+  "browser.profiles.label": "Browser-Profile",
+  "browser.profiles.newName": "Profilname",
+  "browser.profiles.create": "Hinzufügen",
+  "browser.profiles.usage": "{agents} · {tabs}",
+  "browser.profiles.agents": { one: "{count} Agent", other: "{count} Agenten" },
+  "browser.profiles.tabs": { one: "{count} offener Tab", other: "{count} offene Tabs" },
+  "browser.profiles.renameLabel": "{name} umbenennen",
+  "browser.profiles.actionsFor": "Aktionen für {name}",
+  "browser.profiles.colorLabel": "Farbe von {name}",
+  "browser.profiles.save": "Speichern",
+  "browser.profiles.clear": "Daten löschen",
+  "browser.profiles.clearTitle": "Daten von {name} löschen?",
+  "browser.profiles.clearDescription":
+    "Dies meldet dich bei allen Websites in diesem Profil ab und löscht seine Cookies und Website-Daten. Seine offenen Tabs werden geschlossen.",
+  "browser.profiles.deleteTitle": "{name} löschen?",
+  "browser.profiles.deleteDescription":
+    "Dies löscht die Anmeldungen, Cookies und Website-Daten des Profils. Seine offenen Tabs werden geschlossen.",
+  "browser.profiles.deleteAgents": "Diese Agenten wechseln zum gemeinsamen Profil: {agents}.",
+  "browser.profiles.failed": "OpenBot konnte die Browser-Profile nicht ändern.",
+  "browser.profiles.loadFailed": "OpenBot konnte die Browser-Profile nicht laden.",
+  "browser.profiles.tabLabel": "Profil: {name}",
+  "browser.profiles.agentTabLabel": "Eigenes Profil des Agenten",
 } as const satisfies PartialTranslation<typeof source>;

@@ -215,6 +215,14 @@ export const AgentNeedsApproval: Story = {
   },
 };
 
+/** A tab outside the shared profile names its profile beside the address and in its tab tooltip. */
+export const NamedProfile: Story = {
+  args: {
+    profileForTab: (entry: BrowserTab) =>
+      entry.ownerAgentId === chief.id ? { tabId: entry.id, name: "Client A", hue: 215 } : undefined,
+  },
+};
+
 /** Recording and diagnostic errors show beside the address. */
 export const RecordingWithDiagnosticErrors: Story = {
   args: { activeTab: { ...tab, recording: true, diagnosticErrorCount: 12 } },

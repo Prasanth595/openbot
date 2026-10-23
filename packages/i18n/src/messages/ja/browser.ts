@@ -141,4 +141,29 @@ export const messages = {
   "browser.signIn.stillSignedOut":
     "{server} にはまだ {site} のサインインページが表示されています。ウィンドウでサインインを完了してください。",
   "browser.signIn.failed": "OpenBot はサインインを送信できませんでした。",
+  "browser.profiles.title": "ブラウザープロファイル",
+  "browser.profiles.subtitle":
+    "各プロファイルは、専用のサインイン、Cookie、サイトデータをこのコンピューターに保持します。",
+  "browser.profiles.label": "ブラウザープロファイル",
+  "browser.profiles.newName": "プロファイル名",
+  "browser.profiles.create": "追加",
+  "browser.profiles.usage": "{agents} · {tabs}",
+  "browser.profiles.agents": { other: "{count} 件のエージェント" },
+  "browser.profiles.tabs": { other: "開いているタブ {count} 個" },
+  "browser.profiles.renameLabel": "{name} の名前を変更",
+  "browser.profiles.actionsFor": "{name} の操作",
+  "browser.profiles.colorLabel": "{name} の色",
+  "browser.profiles.save": "保存",
+  "browser.profiles.clear": "データを消去",
+  "browser.profiles.clearTitle": "{name} のデータを消去しますか？",
+  "browser.profiles.clearDescription":
+    "このプロファイルのすべてのサイトからサインアウトし、Cookie とサイトデータを削除します。開いているタブは閉じます。",
+  "browser.profiles.deleteTitle": "{name} を削除しますか？",
+  "browser.profiles.deleteDescription":
+    "プロファイルのサインイン、Cookie、サイトデータを削除します。開いているタブは閉じます。",
+  "browser.profiles.deleteAgents": "次のエージェントは共有プロファイルに切り替わります: {agents}。",
+  "browser.profiles.failed": "OpenBot はブラウザープロファイルを変更できませんでした。",
+  "browser.profiles.loadFailed": "OpenBot はブラウザープロファイルを読み込めませんでした。",
+  "browser.profiles.tabLabel": "プロファイル: {name}",
+  "browser.profiles.agentTabLabel": "エージェント専用のプロファイル",
 } as const satisfies PartialTranslation<typeof source>;

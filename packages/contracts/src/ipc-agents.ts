@@ -22,6 +22,7 @@ import {
 } from "./ipc-agent-status";
 import { isAgentTaskLimit } from "./ipc-agent-tasks";
 import { isBoundedString, isIdentifier } from "./ipc-bounded-values";
+import { isBrowserProfileId } from "./ipc-browser-profiles";
 import { isHiddenAt } from "./ipc-hidden-agents";
 import { type BusyMessageMode, isBusyMessageMode } from "./ipc-queue";
 import type { SidebarLayoutSnapshot } from "./ipc-sidebar-layout";
@@ -202,6 +203,12 @@ export interface AgentSummary {
    */
   ownBrowserSession?: boolean;
   /**
+   * The named browser profile that the tabs of the agent use. Local-only, like `access`. It comes
+   * before `ownBrowserSession`; see `agentBrowserProfile`. The agent store also sets
+   * `ownBrowserSession` with it, so an older OpenBot opens the agent's own session, never the shared one.
+   */
+  browserProfileId?: string;
+  /**
    * Whether the agent asks Codex for the fast service tier of its model. Local-only, like `access`.
    * Absent means that OpenBot leaves the tier to Codex.
    */
@@ -281,6 +288,7 @@ function hasAgentSummaryFields(value: DynamicRecord): boolean {
     (value.allowNewChat === undefined || isBoolean(value.allowNewChat)) &&
     (value.quickAcknowledgement === undefined || isBoolean(value.quickAcknowledgement)) &&
     (value.ownBrowserSession === undefined || isBoolean(value.ownBrowserSession)) &&
+    (value.browserProfileId === undefined || isBrowserProfileId(value.browserProfileId)) &&
     (value.fastMode === undefined || isBoolean(value.fastMode)) &&
     (value.busyMessageMode === undefined || isBusyMessageMode(value.busyMessageMode)) &&
     (value.taskLimit === undefined || isAgentTaskLimit(value.taskLimit)) &&

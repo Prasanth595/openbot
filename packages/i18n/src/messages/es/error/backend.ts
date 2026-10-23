@@ -284,6 +284,11 @@ export const messages = {
   "error.backend.browserUrlRequired": "Se requiere una URL para el navegador.",
   "error.backend.browserUrlTooLong": "La URL del navegador es demasiado larga.",
   "error.backend.browserTabLimit": "El navegador puede tener hasta {limit} pestañas abiertas.",
+  "error.backend.browserProfileMissing":
+    "El perfil de navegador de este agente ya no existe. Elige otro perfil en los ajustes del agente.",
+  "error.backend.browserProfileNotFound": "Este perfil de navegador ya no existe.",
+  "error.backend.browserProfileNameTaken": "Ya existe un perfil de navegador con este nombre.",
+  "error.backend.browserProfileLimit": "Puedes tener hasta {limit} perfiles de navegador.",
   "error.backend.browserLowMemory":
     "Este servidor tiene poca memoria disponible, por lo que el navegador no puede abrir otra pestaña. Cierra una pestaña o espera a que terminen otros agentes.",
   "error.backend.browserOpenFailed": "No se pudo abrir {url}: {reason}",

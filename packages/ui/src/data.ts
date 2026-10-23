@@ -242,6 +242,8 @@ export interface AgentProfile {
   quickAcknowledgement?: boolean | undefined;
   /** Absent means off. Absent for an agent on a remote host too, which does not share it. */
   ownBrowserSession?: boolean | undefined;
+  /** The named browser profile of the agent's tabs. Absent for the shared or the agent's own session. */
+  browserProfileId?: string | undefined;
   /** Absent means off. Absent for an agent on a remote host too, which does not share it. */
   fastMode?: boolean | undefined;
   /** Absent means the app default. Absent for an agent on a remote host too, which does not share it. */

@@ -102,7 +102,7 @@ async function main(): Promise<void> {
       webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false },
     });
     browser = new BrowserHost(window, join(fixtureRoot, "downloads"), join(fixtureRoot, "tabs.json"), {
-      ownBrowserSession: (agentId) => agentId === "own-session-agent",
+      browserProfile: (agentId) => (agentId === "own-session-agent" ? { kind: "agent" } : { kind: "shared" }),
     });
     const host = browser;
     const target = { serverId: "fixture-server", tabId: "" };

@@ -18,6 +18,7 @@ import {
   AlertDescription,
   AlertIcon,
   AlertTitle,
+  AppWindow,
   ArrowLeftRight,
   Blocks,
   Button,
@@ -51,6 +52,7 @@ import {
 import { useText } from "@openbot/ui/text";
 import { createEffect, createSignal, onCleanup, Show, untrack } from "solid-js";
 import { actionToast } from "../../action-toast";
+import { type ServerBrowserProfilesOptions, ServerBrowserProfilesPanel } from "../browser/ServerBrowserProfilesPanel";
 import { ConnectorsPanel, type ConnectorsPanelDetail } from "../connectors/ConnectorsPanel";
 import type { ConnectorRegistry } from "../connectors/connector-registry";
 import { type ServerStorageOptions, ServerStoragePanel } from "../files/ServerStoragePanel";
@@ -206,6 +208,11 @@ export interface ServerSettingsModalProps {
    * computer, so a remote server passes nothing.
    */
   routineFeed?: ServerRoutineFeedOptions | undefined;
+  /**
+   * The Browser profiles section appears only when a caller supplies this: for this computer, and for
+   * a host that serves `browser-profiles-v1` to an owner or admin.
+   */
+  browserProfiles?: ServerBrowserProfilesOptions | undefined;
   /** The section to show when the dialog opens. Updates shows General when the server has no Updates section. */
   initialSection?: ServerSettingsSection | null;
   /** Where the settings page shows, or nothing while the page is not on screen. */
@@ -233,6 +240,7 @@ export type ServerSettingsSection =
   | "import"
   | "transfer"
   | "routines"
+  | "browser-profiles"
   | "connectors";
 type Section = ServerSettingsSection;
 
@@ -249,6 +257,7 @@ const sections = {
   import: { title: "server.settings.importTitle", description: "server.settings.importDescription" },
   transfer: { title: "server.settings.transferTitle", description: "server.settings.transferDescription" },
   routines: { title: "server.settings.routinesTitle", description: "server.settings.routinesDescription" },
+  "browser-profiles": { title: "browser.profiles.title", description: "browser.profiles.subtitle" },
   connectors: { title: "server.settings.connectorsTitle", description: "server.settings.connectorsDescription" },
 } as const satisfies Record<Section, { title: AppTextKey; description: AppTextKey }>;
 
@@ -454,6 +463,7 @@ export function ServerSettingsModal(props: ServerSettingsModalProps) {
         value === "import" ||
         value === "transfer" ||
         value === "routines" ||
+        value === "browser-profiles" ||
         value === "connectors"
       )
         setSection(value);
@@ -668,6 +678,12 @@ export function ServerSettingsModal(props: ServerSettingsModalProps) {
                 <span>{t(sections.routines.title)}</span>
               </Tabs.Trigger>
             </Show>
+            <Show when={props.browserProfiles}>
+              <Tabs.Trigger class="settings-modal-nav-item" value="browser-profiles">
+                <AppWindow aria-hidden="true" />
+                <span>{t(sections["browser-profiles"].title)}</span>
+              </Tabs.Trigger>
+            </Show>
             <Show when={(props.connectors?.available().length ?? 0) > 0}>
               <Tabs.Trigger class="settings-modal-nav-item" value="connectors">
                 <Plug aria-hidden="true" />
@@ -821,6 +837,17 @@ export function ServerSettingsModal(props: ServerSettingsModalProps) {
                 menuMount={modalElement}
                 showCopyError={host.showCopyError}
               />
+            </Tabs.Content>
+          )}
+        </Show>
+        <Show when={props.browserProfiles}>
+          {(browserProfiles) => (
+            <Tabs.Content
+              value="browser-profiles"
+              class="settings-modal-tab-panel server-settings-panel"
+              data-tab="browser-profiles"
+            >
+              <ServerBrowserProfilesPanel {...browserProfiles()} menuMount={modalElement()} />
             </Tabs.Content>
           )}
         </Show>

@@ -7,6 +7,7 @@ import type { AgentHostSettingsService } from "../agent-host-settings";
 import type { AgentMarketplaceService } from "../agent-marketplace-service";
 import type { AgentMemoryLimitSetting } from "../agent-memory-limit-preference-store";
 import type { AgentTemplateService } from "../agent-template-service";
+import type { BrowserProfileService } from "../browser-profile-service";
 import type { PeerCustomProviderChanges } from "../custom-provider-changes";
 import type { HostEventsApi } from "../host-events-api";
 import type { HostReleaseService } from "../host-release-service";
@@ -226,6 +227,12 @@ export type TeamApiAgentTasks = Pick<
   "listAgents" | "listTasks" | "readTask" | "startTask" | "sendMessage" | "stopTask" | "closeTask" | "reopenTask"
 >;
 
+/**
+ * Its presence is what `#protocolSupport` advertises `browser-profiles-v1` on. Only admins change
+ * profiles; any member reads the profile labels of the tabs they can see.
+ */
+export type TeamApiBrowserProfiles = BrowserProfileService;
+
 /** Its presence is what `#protocolSupport` advertises `agent-import-v1` on. Any member can use it. */
 export type TeamApiAgentImport = Pick<AgentImportService, "stageUpload" | "apply" | "discard">;
 
@@ -414,6 +421,7 @@ export interface TeamApiOptions {
   /** `agent-access-v1`: the roles that limit what a member can do with each agent. */
   agentAccess?: TeamApiAgentAccess;
   agentTasks?: TeamApiAgentTasks;
+  browserProfiles?: TeamApiBrowserProfiles;
   admin?: TeamApiAdmin;
   appVersion?: string;
   store: TeamStore;

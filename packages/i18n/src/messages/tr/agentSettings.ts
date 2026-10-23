@@ -149,9 +149,15 @@ export const messages = {
   "agentSettings.quickAcknowledgement.title": "Uzun görevlerden önce planı göster",
   "agentSettings.quickAcknowledgement.description":
     "Uzun bir görevden önce ajan planını gösterir. 10 sn sonra veya Başlat'a bastığınızda başlar.",
-  "agentSettings.ownBrowserSession.title": "Kendi tarayıcı oturumu",
-  "agentSettings.ownBrowserSession.description":
-    "Ajanın sekmeleri kendi oturum açma bilgilerini ve çerezlerini tutar. Bir değişiklik ajanın açık sekmelerini kapatır.",
+  "agentSettings.browserProfile.label": "Tarayıcı profili",
+  "agentSettings.browserProfile.shared": "Paylaşılan",
+  "agentSettings.browserProfile.agent": "Yalnızca bu ajan",
+  "agentSettings.browserProfile.missing": "Silinmiş profil",
+  "agentSettings.browserProfile.new": "Yeni profil",
+  "agentSettings.browserProfile.manageTitle": "Tarayıcı profilleri",
+  "agentSettings.browserProfile.manageDescription":
+    "Her profil kendi oturum açma bilgilerini ve çerezlerini tutar. Bir değişiklik ajanın açık sekmelerini kapatır.",
+  "agentSettings.browserProfile.manage": "Yönet",
   "agentSettings.runtime.workspaceEnforcedProcess":
     "Tüm {provider} süreci bir korumalı alanda (sandbox) çalışır, bu nedenle dışarıya yazma işlemi başarısız olur. Yalnızca macOS'ta kullanılabilir.",
 } as const satisfies PartialTranslation<typeof source>;

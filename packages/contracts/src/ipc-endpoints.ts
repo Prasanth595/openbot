@@ -178,6 +178,15 @@ import type {
   BrowserVisibilityInput,
 } from "./ipc-browser";
 import type { BrowserDockAction, BrowserDockFrame, BrowserDockPresentation } from "./ipc-browser-dock";
+import type {
+  AgentBrowserProfile,
+  BrowserProfileList,
+  BrowserProfileSummary,
+  BrowserTabProfile,
+  ClearBrowserDataInput,
+  UpdateAgentBrowserProfileInput,
+  UpdateBrowserProfileInput,
+} from "./ipc-browser-profiles";
 import type { RespondToBrowserSecretInput } from "./ipc-browser-secret";
 import type {
   ChannelMemory,
@@ -1420,6 +1429,19 @@ export const IPC_ENDPOINTS = {
     updateAgentTaskLimit: scopedRequest<UpdateAgentTaskLimitInput, AgentTaskLimitSettings>()(
       "agent:admin:update-task-limit",
     ),
+    // Browser profiles of the computer that runs the agents, and the profile of one agent.
+    listBrowserProfiles: scopedQuery<BrowserProfileList>()("agent:admin:list-browser-profiles"),
+    createBrowserProfile: scopedRequest<string, BrowserProfileSummary>()("agent:admin:create-browser-profile"),
+    updateBrowserProfile: scopedRequest<UpdateBrowserProfileInput, BrowserProfileSummary>()(
+      "agent:admin:edit-browser-profile",
+    ),
+    clearBrowserData: scopedRequest<ClearBrowserDataInput, void>()("agent:admin:clear-browser-data"),
+    deleteBrowserProfile: scopedRequest<string, void>()("agent:admin:delete-browser-profile"),
+    getAgentBrowserProfile: scopedRequest<string, AgentBrowserProfile>()("agent:admin:get-browser-profile"),
+    updateAgentBrowserProfile: scopedRequest<UpdateAgentBrowserProfileInput, AgentBrowserProfile>()(
+      "agent:admin:update-browser-profile",
+    ),
+    listBrowserTabProfiles: scopedQuery<BrowserTabProfile[]>()("agent:admin:list-browser-tab-profiles"),
     getAgentAdminSettings: scopedRequest<string, AgentAdminSettings>()("agent:admin:get-settings"),
     updateAgentAdminSettings: scopedRequest<UpdateAgentAdminSettingsInput, AgentAdminSettings>()(
       "agent:admin:update-settings",

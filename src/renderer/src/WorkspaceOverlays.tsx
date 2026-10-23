@@ -1,4 +1,5 @@
 import type { CentralAuthUser, RoutineFields, ServerSummary } from "@openbot/contracts/ipc";
+import { BROWSER_PROFILES_CAPABILITY } from "@openbot/contracts/team-protocol/browser-profiles-v1";
 import { classifyFailure } from "@openbot/telemetry";
 import { isAgentAccount } from "@openbot/ui/components/provider-accounts";
 import type { AcpRegistrySettingsApi } from "@openbot/ui/features/custom-providers/AcpRegistrySettings";
@@ -8,12 +9,14 @@ import { LeaveServerDialog } from "@openbot/ui/features/servers/LeaveServerDialo
 import { RestartServerDialog } from "@openbot/ui/features/servers/RestartServerDialog";
 import type { HostedSiteDeleteResult } from "@openbot/ui/features/settings/stores/hosted-sites-store";
 import { currentText } from "@openbot/ui/text";
-import { createEffect, Loading, Show, untrack } from "solid-js";
+import { createEffect, createMemo, Loading, Show, untrack } from "solid-js";
 import { actionToast } from "./action-toast";
 import { desktopAnalytics } from "./analytics";
 import { appPort } from "./app-port";
 import { useAuth } from "./features/account/account-context";
 import { useAgents } from "./features/agents/agents-context";
+import { desktopBrowserProfileCalls } from "./features/browser/browser-profiles-port";
+import { createBrowserProfilesStore } from "./features/browser/stores/browser-profiles-store";
 import type { ConnectorRegistry } from "./features/connectors/connector-registry";
 import { useConnectors } from "./features/connectors/connectors-context";
 import { conversationPort } from "./features/conversation/conversation-port";
@@ -408,6 +411,12 @@ function ServerSettings(props: { connectors: ConnectorRegistry }) {
     setMcpServerEnabled,
     testMcpServer,
   } = useServerSettings();
+  /**
+   * The named browser profiles of the selected server: this computer, or a joined server whose host
+   * serves `browser-profiles-v1` to this owner or admin. The section lists them each time it opens.
+   */
+  const browserProfileCalls = createMemo(() => desktopBrowserProfileCalls(serverSettingsTarget()?.id));
+  const browserProfiles = createBrowserProfilesStore(browserProfileCalls);
   // The workspace belongs to the selected server. For another server, the switch comes first and
   // the agent is published for the scope it lands in; a message there opens as its agent's chat.
   const openOnServer = (server: ServerSummary, agentId: string, open: () => void) => {
@@ -706,6 +715,14 @@ function ServerSettings(props: { connectors: ConnectorRegistry }) {
           routineFeed={
             server().kind === "local"
               ? { api: appPort().routineFeed, listAgents: () => appPort().agent.listAgents(server().id) }
+              : undefined
+          }
+          browserProfiles={
+            serverCanAdminister(server(), BROWSER_PROFILES_CAPABILITY)
+              ? {
+                  store: browserProfiles,
+                  agentName: (agentId) => agentList().find((agent) => agent.id === agentId)?.name,
+                }
               : undefined
           }
         />

@@ -20,6 +20,7 @@ import { AGENT_UPDATE_CAPABILITY } from "./agent-update-v1";
 import { BITWARDEN_CONNECTOR_CAPABILITY } from "./bitwarden-connector-v1";
 import { TEAM_BROWSER_NAVIGATION_CAPABILITY } from "./browser-navigation-v1";
 import { BROWSER_PAGE_STATE_CAPABILITY } from "./browser-page-state-v1";
+import { BROWSER_PROFILES_CAPABILITY } from "./browser-profiles-v1";
 import { BROWSER_SIGN_IN_CAPABILITY } from "./browser-sign-in-v1";
 import { BROWSER_USER_CONTROL_CAPABILITY } from "./browser-user-control-v1";
 import {
@@ -129,6 +130,7 @@ export {
   ANDROID_PUSH_NOTIFICATIONS_CAPABILITY,
   BITWARDEN_CONNECTOR_CAPABILITY,
   BROWSER_PAGE_STATE_CAPABILITY,
+  BROWSER_PROFILES_CAPABILITY,
   BROWSER_SIGN_IN_CAPABILITY,
   BROWSER_USER_CONTROL_CAPABILITY,
   CHANNEL_DELETE_CAPABILITY,
@@ -280,6 +282,7 @@ export const TEAM_CURRENT_CAPABILITIES = [
   PROVIDER_USAGE_RESET_CAPABILITY,
   BITWARDEN_CONNECTOR_CAPABILITY,
   AGENT_TASK_LIMIT_CAPABILITY,
+  BROWSER_PROFILES_CAPABILITY,
 ] as const;
 
 export type TeamCurrentCapability = (typeof TEAM_CURRENT_CAPABILITIES)[number];
@@ -390,7 +393,8 @@ export const TEAM_BOOTSTRAP_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
     capability !== WEBHOOK_TESTS_CAPABILITY &&
     capability !== PROVIDER_USAGE_RESET_CAPABILITY &&
     capability !== BITWARDEN_CONNECTOR_CAPABILITY &&
-    capability !== AGENT_TASK_LIMIT_CAPABILITY,
+    capability !== AGENT_TASK_LIMIT_CAPABILITY &&
+    capability !== BROWSER_PROFILES_CAPABILITY,
 );
 // A v7 host does not know the v8 markers, so a client sends them only after it negotiates protocol 8.
 const TEAM_PROTOCOL_V7_CURRENT_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
@@ -444,6 +448,7 @@ export function legacyTeamCapabilities(capabilities: readonly string[]): string[
       capability !== WEBHOOK_TESTS_CAPABILITY &&
       capability !== PROVIDER_USAGE_RESET_CAPABILITY &&
       capability !== BITWARDEN_CONNECTOR_CAPABILITY &&
-      capability !== AGENT_TASK_LIMIT_CAPABILITY,
+      capability !== AGENT_TASK_LIMIT_CAPABILITY &&
+      capability !== BROWSER_PROFILES_CAPABILITY,
   );
 }

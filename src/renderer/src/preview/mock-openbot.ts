@@ -9,6 +9,7 @@ import type {
 import {
   type AccountUsage,
   type AgentAccessChange,
+  type AgentBrowserProfile,
   type AgentEvent,
   type AgentMemory,
   type AgentMemoryLimitPreference,
@@ -29,10 +30,13 @@ import {
   type ApprovalAutomationPreference,
   type AppSetupState,
   type AttachmentImportEvent,
+  type AvatarHue,
   agentAutoApprovalEnabled,
   agentAutomationAllowed,
+  agentBrowserProfile,
   agentComputerUseEnabled,
   agentTaskLimit,
+  type BrowserProfileSummary,
   type BusyMessageModePreference,
   type CentralAuthState,
   type ClientAgentModelOption,
@@ -71,6 +75,7 @@ import {
   isAgentSummary,
   isReleasedRoutineSchedule,
   type MacPermissionId,
+  nextBrowserProfileHue,
   normalizeMcpConfig,
   type OpenAttachmentInput,
   type OpenBotDesktopApi,
@@ -338,6 +343,36 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
     return agentStatus;
   };
   let agents = clone(options.agents ?? STORY_AGENT_SUMMARIES);
+  // Two profiles, so the agent select and the manage dialog show a list. "Client B" has no agents.
+  let browserProfiles: { id: string; name: string; hue: AvatarHue }[] = [
+    { id: "0a1b2c3d4e5f60718293a4b5c6d7e8f9", name: "Client A", hue: 215 },
+    { id: "f9e8d7c6b5a4938271605f4e3d2c1b0a", name: "Client B", hue: 30 },
+  ];
+  const browserProfileSummary = (profile: { id: string; name: string; hue: AvatarHue }): BrowserProfileSummary => ({
+    ...profile,
+    agentIds: agents.filter((agent) => agent.browserProfileId === profile.id).map((agent) => agent.id),
+    tabCount: 0,
+  });
+  // The agent store keeps `ownBrowserSession` set with a named profile, so an older build never
+  // opens the profile's tabs in the shared session.
+  const withBrowserProfile = (
+    { browserProfileId: _previous, ...agent }: ClientAgentSummary,
+    profile: AgentBrowserProfile,
+  ): ClientAgentSummary =>
+    profile.kind === "profile"
+      ? { ...agent, ownBrowserSession: true, browserProfileId: profile.profileId }
+      : { ...agent, ownBrowserSession: profile.kind === "agent" };
+  const requireBrowserProfile = (profileId: string) => {
+    const profile = browserProfiles.find((candidate) => candidate.id === profileId);
+    if (!profile) throw new Error(sourceText("error.backend.browserProfileNotFound"));
+    return profile;
+  };
+  const requireFreeBrowserProfileName = (name: string, profileId?: string) => {
+    if (
+      browserProfiles.some((profile) => profile.id !== profileId && profile.name.toLowerCase() === name.toLowerCase())
+    )
+      throw new Error(sourceText("error.backend.browserProfileNameTaken"));
+  };
   const sessionSettings = new Map<string, AgentSessionSettings>();
   function previewSessionSettings(agentId: string): AgentSessionSettings {
     const agent = agents.find((candidate) => candidate.id === agentId);
@@ -1568,6 +1603,47 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         await api.agent.updateAgent(input);
         return api.agent.getAgentTaskLimit(input.agentId);
       },
+      listBrowserProfiles: async () => ({
+        profiles: browserProfiles.map(browserProfileSummary),
+        sharedAgentIds: agents.filter((agent) => agentBrowserProfile(agent).kind === "shared").map((agent) => agent.id),
+      }),
+      createBrowserProfile: async (name) => {
+        requireFreeBrowserProfileName(name);
+        const hue = nextBrowserProfileHue(browserProfiles.map((profile) => profile.hue));
+        const profile = { id: crypto.randomUUID().replaceAll("-", ""), name, hue };
+        browserProfiles = [...browserProfiles, profile];
+        return browserProfileSummary(profile);
+      },
+      updateBrowserProfile: async ({ profileId, name, hue }) => {
+        const current = requireBrowserProfile(profileId);
+        if (name !== undefined) requireFreeBrowserProfileName(name, profileId);
+        const next = { ...current, name: name ?? current.name, hue: hue ?? current.hue };
+        browserProfiles = browserProfiles.map((profile) => (profile.id === profileId ? next : profile));
+        return browserProfileSummary(requireBrowserProfile(profileId));
+      },
+      clearBrowserData: async (input) => {
+        if ("profileId" in input) requireBrowserProfile(input.profileId);
+      },
+      deleteBrowserProfile: async (profileId) => {
+        requireBrowserProfile(profileId);
+        browserProfiles = browserProfiles.filter((profile) => profile.id !== profileId);
+        agents = agents.map((agent) =>
+          agent.browserProfileId === profileId ? withBrowserProfile(agent, { kind: "shared" }) : agent,
+        );
+        emitAgentEvent({ type: "agents-changed", agents });
+      },
+      getAgentBrowserProfile: async (agentId) => {
+        const agent = agents.find((candidate) => candidate.id === agentId);
+        if (!agent) throw new Error("Agent not found");
+        return agentBrowserProfile(agent);
+      },
+      updateAgentBrowserProfile: async ({ agentId, profile }) => {
+        if (profile.kind === "profile") requireBrowserProfile(profile.profileId);
+        agents = agents.map((agent) => (agent.id === agentId ? withBrowserProfile(agent, profile) : agent));
+        emitAgentEvent({ type: "agents-changed", agents });
+        return api.agent.getAgentBrowserProfile(agentId);
+      },
+      listBrowserTabProfiles: async () => [],
       updateAgentAdminSettings: async ({ agentId, access, autoApprove }) => {
         const agent = agents.find((candidate) => candidate.id === agentId);
         if (!agent) throw new Error("Agent not found");

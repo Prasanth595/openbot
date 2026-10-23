@@ -297,6 +297,11 @@ export const messages = {
   "error.backend.browserUrlRequired": "Eine Browser-URL ist erforderlich.",
   "error.backend.browserUrlTooLong": "Die Browser-URL ist zu lang.",
   "error.backend.browserTabLimit": "Im Browser können bis zu {limit} Tabs geöffnet sein.",
+  "error.backend.browserProfileMissing":
+    "Das Browserprofil dieses Agenten existiert nicht mehr. Wähle in den Agenteneinstellungen ein anderes Profil.",
+  "error.backend.browserProfileNotFound": "Dieses Browserprofil existiert nicht mehr.",
+  "error.backend.browserProfileNameTaken": "Es gibt bereits ein Browserprofil mit diesem Namen.",
+  "error.backend.browserProfileLimit": "Du kannst bis zu {limit} Browserprofile haben.",
   "error.backend.browserLowMemory":
     "Dieser Server hat wenig freien Arbeitsspeicher. Der Browser kann daher keinen weiteren Tab öffnen. Schließe einen Tab oder warte, bis andere Agenten fertig sind.",
   "error.backend.browserOpenFailed": "{url} konnte nicht geöffnet werden: {reason}",

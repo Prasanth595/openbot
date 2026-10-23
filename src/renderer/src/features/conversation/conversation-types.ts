@@ -174,6 +174,11 @@ export interface ConversationProps {
   onSignInWithCodeProvider?: ((provider: AgentProviderId) => void) | undefined;
   /** Open the Providers section of this server's settings, where the user adds an endpoint. */
   onManageProviders?: ((trigger: HTMLElement) => void) | undefined;
+  /**
+   * Open the Browser profiles section of the settings of the server that runs the agent. Absent for
+   * a member, and for a host without `browser-profiles-v1`.
+   */
+  onManageBrowserProfiles?: ((trigger: HTMLElement) => void) | undefined;
   agent: AgentProfile | undefined;
   agents: AgentProfile[];
   /**

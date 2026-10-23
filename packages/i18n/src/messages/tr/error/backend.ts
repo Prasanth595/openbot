@@ -268,6 +268,11 @@ export const messages = {
   "error.backend.browserUrlRequired": "Bir tarayıcı URL'si gereklidir.",
   "error.backend.browserUrlTooLong": "Tarayıcı URL'si çok uzun.",
   "error.backend.browserTabLimit": "Tarayıcıda en fazla {limit} açık sekme bulunabilir.",
+  "error.backend.browserProfileMissing":
+    "Bu ajanın tarayıcı profili artık yok. Ajan ayarlarından başka bir profil seçin.",
+  "error.backend.browserProfileNotFound": "Bu tarayıcı profili artık yok.",
+  "error.backend.browserProfileNameTaken": "Bu adla bir tarayıcı profili zaten var.",
+  "error.backend.browserProfileLimit": "En fazla {limit} tarayıcı profiliniz olabilir.",
   "error.backend.browserLowMemory":
     "Bu sunucunun belleği azaldı, bu nedenle tarayıcı başka bir sekme açamıyor. Bir sekmeyi kapatın veya diğer ajanların bitmesini bekleyin.",
   "error.backend.browserOpenFailed": "{url} açılamadı: {reason}",

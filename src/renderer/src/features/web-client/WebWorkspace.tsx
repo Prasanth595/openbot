@@ -21,6 +21,7 @@ import { AGENT_HOST_SETTINGS_ROUTES } from "@openbot/contracts/team-protocol/age
 import { AGENT_IMPORT_CAPABILITY } from "@openbot/contracts/team-protocol/agent-import-v1";
 import { AGENT_TASK_LIMIT_ROUTES } from "@openbot/contracts/team-protocol/agent-task-limit-v1";
 import { AGENT_TASKS_CAPABILITY } from "@openbot/contracts/team-protocol/agent-tasks-v1";
+import { BROWSER_PROFILES_CAPABILITY } from "@openbot/contracts/team-protocol/browser-profiles-v1";
 import { CONNECTORS_CAPABILITY } from "@openbot/contracts/team-protocol/connectors-v1";
 import { CONTEXT_RESET_CAPABILITY } from "@openbot/contracts/team-protocol/context-reset-v1";
 import { AGENT_HIDDEN_CAPABILITY, TEAM_AGENT_CREATE_MODEL_CAPABILITY } from "@openbot/contracts/team-protocol/current";
@@ -127,6 +128,8 @@ import { type CreationPreference, resolveCreationModel } from "../agents/agent-c
 import { claimErrorToast, readableAgentError } from "../agents/agent-error-text";
 import { withHostAccountUsage, withHostProfileAccount } from "../agents/host-provider-accounts";
 import { createRemoteAgentAdmin, updateRemoteAgent } from "../agents/remote-agent-admin";
+import type { ServerBrowserProfilesOptions } from "../browser/ServerBrowserProfilesPanel";
+import { createBrowserProfilesStore } from "../browser/stores/browser-profiles-store";
 import { ChannelErrorNotice } from "../channels/ChannelConversationParts";
 import { createChannelConversation } from "../channels/channel-conversation";
 import { readChannelSelection, writeChannelSelection } from "../channels/channel-selection";
@@ -647,6 +650,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     routineRecoveryEnabled,
     () => workspace.state.capabilities.includes(SIDE_QUESTION_CAPABILITY),
     webhookTestsEnabled,
+    () => workspace.state.capabilities.includes(BROWSER_PROFILES_CAPABILITY),
   );
   const remoteAgentAdmin = createRemoteAgentAdmin(
     () => {
@@ -1160,6 +1164,25 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   const openProviderSettings = (trigger: HTMLElement) => {
     const current = server();
     if (current) void openServerSettings(current.id, trigger, "providers");
+  };
+  // The Browser profiles section, for an owner or admin of a host with `browser-profiles-v1`. One
+  // store per host, so the list of the last host never shows for the next.
+  const browserProfiles = createMemo(() => {
+    const calls = runtime.browserProfiles;
+    const current = server();
+    return calls && serverCanAdminister(current, BROWSER_PROFILES_CAPABILITY)
+      ? createBrowserProfilesStore(() => calls)
+      : undefined;
+  });
+  const browserProfileSettings = createMemo((): ServerBrowserProfilesOptions | undefined => {
+    const store = browserProfiles();
+    return store
+      ? { store, agentName: (agentId) => workspace.profiles().find((agent) => agent.id === agentId)?.name }
+      : undefined;
+  });
+  const openBrowserProfileSettings = (trigger: HTMLElement) => {
+    const current = server();
+    if (current) void openServerSettings(current.id, trigger, "browser-profiles");
   };
   /** A new agent on the canvas starts on the model the agent form would pick. */
   const newAgentModels = createMemo((): DiagramModelChoice | undefined => {
@@ -1931,6 +1954,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                       hostTimezone={{ calls: hostTimezoneCalls }}
                       hostMemoryLimit={{ calls: hostMemoryLimitCalls }}
                       agentAccess={{ calls: hostAgentAccessCalls, listAgents: () => workspace.runtime.listAgents() }}
+                      browserProfiles={browserProfileSettings()}
                       // Any member imports into a host with `agent-import-v1`.
                       agentImport={
                         workspace.state.capabilities.includes(AGENT_IMPORT_CAPABILITY)
@@ -2242,6 +2266,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 }
                 onSignInProvider={composerSignIn() ? connectFromComposer : undefined}
                 onManageProviders={providerSettings() ? openProviderSettings : undefined}
+                onManageBrowserProfiles={browserProfiles() ? openBrowserProfileSettings : undefined}
                 agent={conversationAgent()}
                 agents={workspace.profiles()}
                 modelOptions={models()}

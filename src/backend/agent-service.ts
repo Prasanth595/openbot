@@ -102,8 +102,8 @@ import type {
 import {
   type AgentModelChoice,
   agentAutomationAllowed,
+  agentBrowserProfile,
   agentNewChatAllowed,
-  agentOwnBrowserSessionEnabled,
   agentTaskLimit,
   type BusyMessageMode,
   CONTEXT_RESET_ITEM_TYPE,
@@ -113,6 +113,7 @@ import {
   MODEL_SWITCH_ITEM_TYPES,
   type ModelSwitchReason,
   type QueueSteerFallback,
+  sameAgentBrowserProfile,
   sameAgentModelChoice,
   workspaceAccessEnforced,
 } from "@openbot/contracts/ipc";
@@ -356,6 +357,9 @@ export interface AgentServiceOptions {
 const USER_SEND_RETRY_WINDOW_MS = 24 * 60 * 60 * 1000;
 /** The `send_message` recipient limit, so one message can reach every section-mate the prompt names. */
 const MAX_SECTION_TEAMMATES = 32;
+
+/** The user's update, and the named browser profile that the profile operations set after their checks. */
+export type AgentUpdate = UpdateAgentInput & { browserProfileId?: string | null };
 
 export class AgentService extends EventEmitter<AgentServiceEvents> {
   readonly channels: ChannelService;
@@ -2308,7 +2312,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   }
 
   /** `initiatingAgentId` is set when an agent, not the user, asks for the change. */
-  updateAgent(input: UpdateAgentInput, initiatingAgentId?: string): Effect.Effect<AgentSummary, AgentLifecycleFailed> {
+  updateAgent(input: AgentUpdate, initiatingAgentId?: string): Effect.Effect<AgentSummary, AgentLifecycleFailed> {
     return this.#endpoints
       .runExclusive(() => this.#applyAgentUpdate(input, initiatingAgentId))
       .pipe(Effect.mapError((failure) => new AgentLifecycleFailed({ operation: "updateAgent", cause: failure.cause })));
@@ -2320,7 +2324,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
    */
   readonly #applyAgentUpdate = Effect.fn("AgentService.updateAgent")(function* (
     this: AgentService,
-    input: UpdateAgentInput,
+    input: AgentUpdate,
     initiatingAgentId?: string,
     move: ModelMove | null = null,
   ) {
@@ -2465,7 +2469,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       initiatingAgentId,
     );
     // A tab keeps the session it opened in, so the agent's next tab opens in the session it chose now.
-    if (previous && agentOwnBrowserSessionEnabled(previous) !== agentOwnBrowserSessionEnabled(agent))
+    if (previous && !sameAgentBrowserProfile(agentBrowserProfile(previous), agentBrowserProfile(agent)))
       yield* this.#removal.closeBrowserTabs(agent);
     if (moved && (leaving || returning))
       this.#appendModelSwitchMarker(

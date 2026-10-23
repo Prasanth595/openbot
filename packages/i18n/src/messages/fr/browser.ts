@@ -144,4 +144,29 @@ export const messages = {
   "browser.signIn.stillSignedOut":
     "{server} affiche toujours une page de connexion de {site}. Terminez la connexion dans la fenêtre.",
   "browser.signIn.failed": "OpenBot n’a pas pu envoyer la connexion.",
+  "browser.profiles.title": "Profils de navigateur",
+  "browser.profiles.subtitle":
+    "Chaque profil garde ses propres connexions, cookies et données de sites sur cet ordinateur.",
+  "browser.profiles.label": "Profils de navigateur",
+  "browser.profiles.newName": "Nom du profil",
+  "browser.profiles.create": "Ajouter",
+  "browser.profiles.usage": "{agents} · {tabs}",
+  "browser.profiles.agents": { one: "{count} agent", other: "{count} agents" },
+  "browser.profiles.tabs": { one: "{count} onglet ouvert", other: "{count} onglets ouverts" },
+  "browser.profiles.renameLabel": "Renommer {name}",
+  "browser.profiles.actionsFor": "Actions pour {name}",
+  "browser.profiles.colorLabel": "Couleur de {name}",
+  "browser.profiles.save": "Enregistrer",
+  "browser.profiles.clear": "Effacer",
+  "browser.profiles.clearTitle": "Effacer les données de {name} ?",
+  "browser.profiles.clearDescription":
+    "Cette action vous déconnecte de tous les sites de ce profil et supprime ses cookies et ses données de sites. Ses onglets ouverts se ferment.",
+  "browser.profiles.deleteTitle": "Supprimer {name} ?",
+  "browser.profiles.deleteDescription":
+    "Cette action supprime les connexions, les cookies et les données de sites du profil. Ses onglets ouverts se ferment.",
+  "browser.profiles.deleteAgents": "Ces agents passent au profil partagé : {agents}.",
+  "browser.profiles.failed": "OpenBot n’a pas pu modifier les profils de navigateur.",
+  "browser.profiles.loadFailed": "OpenBot n’a pas pu charger les profils de navigateur.",
+  "browser.profiles.tabLabel": "Profil : {name}",
+  "browser.profiles.agentTabLabel": "Profil propre à l’agent",
 } as const satisfies PartialTranslation<typeof source>;

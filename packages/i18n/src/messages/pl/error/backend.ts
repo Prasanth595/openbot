@@ -277,6 +277,11 @@ export const messages = {
   "error.backend.browserUrlRequired": "Adres URL przeglądarki jest wymagany.",
   "error.backend.browserUrlTooLong": "Adres URL przeglądarki jest za długi.",
   "error.backend.browserTabLimit": "Przeglądarka może mieć maksymalnie {limit} otwartych kart.",
+  "error.backend.browserProfileMissing":
+    "Profil przeglądarki tego agenta już nie istnieje. Wybierz inny profil w ustawieniach agenta.",
+  "error.backend.browserProfileNotFound": "Ten profil przeglądarki już nie istnieje.",
+  "error.backend.browserProfileNameTaken": "Profil przeglądarki o tej nazwie już istnieje.",
+  "error.backend.browserProfileLimit": "Możesz mieć maksymalnie {limit} profili przeglądarki.",
   "error.backend.browserLowMemory":
     "Na tym serwerze brakuje pamięci, więc przeglądarka nie może otworzyć kolejnej karty. Zamknij kartę lub poczekaj, aż inni agenci skończą.",
   "error.backend.browserOpenFailed": "Nie można otworzyć {url}: {reason}",

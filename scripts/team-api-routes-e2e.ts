@@ -41,6 +41,10 @@ import {
   BITWARDEN_CONNECTOR_ROUTES,
 } from "@openbot/contracts/team-protocol/bitwarden-connector-v1";
 import {
+  BROWSER_PROFILES_CAPABILITY,
+  BROWSER_PROFILES_ROUTES,
+} from "@openbot/contracts/team-protocol/browser-profiles-v1";
+import {
   PROVIDER_USAGE_RESET_CAPABILITY,
   PROVIDER_USAGE_RESET_ROUTES,
 } from "@openbot/contracts/team-protocol/provider-usage-reset-v1";
@@ -60,6 +64,8 @@ import { createOpenBotLogger } from "@openbot/logging";
 import { Effect } from "effect";
 import { SteerUnsupportedError } from "../src/backend/agent/queue-controls";
 import { AgentLifecycleFailed } from "../src/backend/agent-service";
+import { BrowserProfileStore } from "../src/backend/browser-profiles/browser-profile-store";
+import type { BrowserTabSession } from "../src/backend/browser-state";
 import { runCauseEffect } from "../src/backend/effect-boundary";
 import { OpenBotDatabase } from "../src/backend/openbot-database";
 import { RoutineResultError } from "../src/backend/routine-results/routine-results";
@@ -67,6 +73,7 @@ import { TeamChatStore } from "../src/backend/team-chat-store";
 import { createAgentHostSettings } from "../src/main/agent-host-settings";
 import { type BitwardenCliRunner, BitwardenConnectorService } from "../src/main/bitwarden-connector-service";
 import { BitwardenConnectorStore } from "../src/main/bitwarden-connector-store";
+import { createBrowserProfileService } from "../src/main/browser-profile-service";
 import type { TeamApiAgents, TeamApiBrowser, TeamApiMailbox } from "../src/main/team-api/dependencies";
 import { isPeerHiddenProvider } from "../src/main/team-api/provider-visibility";
 import { TeamApiServer } from "../src/main/team-api-server";
@@ -403,7 +410,8 @@ const browser: TeamApiBrowser = {
   setVisible: unused("setVisible"),
   getDisplayState: unused("getDisplayState"),
   loadUrl: unused("loadUrl"),
-  isPrivate: unused("isPrivate"),
+  // Only the browser-profiles tab route asks. `tab-private` holds an administrator's MCP sign-in.
+  isPrivate: (tabId) => tabId === "tab-private",
   startView: unused("startView"),
   dispatchViewInput: unused("dispatchViewInput"),
   copyViewSelection: unused("copyViewSelection"),
@@ -526,6 +534,45 @@ try {
   const serverId = store.getIdentity()?.serverId;
   assert.ok(serverId, "The team store has no identity after configure.");
 
+  // The real profile service over the test database. The host's open profile tabs are one list.
+  const profileTabs: { tabId: string; tabSession: BrowserTabSession }[] = [];
+  const inSession = (left: BrowserTabSession, right: BrowserTabSession) =>
+    left.kind === "profile" && right.kind === "profile"
+      ? left.profileId === right.profileId
+      : left.kind === "agent" && right.kind === "agent" && left.key === right.key;
+  const browserProfiles = createBrowserProfileService({
+    store: new BrowserProfileStore(database),
+    agents: {
+      listAgents: () => agents,
+      updateAgent: (input) =>
+        Effect.sync(() => {
+          record("updateAgentBrowserProfile", input);
+          const target = agents.find((item) => item.id === input.agentId);
+          if (!target) throw new Error("Agent not found.");
+          if (typeof input.browserProfileId === "string") target.browserProfileId = input.browserProfileId;
+          else if (input.ownBrowserSession !== undefined) {
+            delete target.browserProfileId;
+            target.ownBrowserSession = input.ownBrowserSession;
+          }
+          return target;
+        }),
+    },
+    browser: {
+      tabIdsInSession: (tabSession) =>
+        profileTabs.filter((tab) => inSession(tab.tabSession, tabSession)).map((tab) => tab.tabId),
+      listTabSessions: () => profileTabs.map((tab) => ({ ...tab })),
+      close: (tabId) =>
+        Effect.sync(() => {
+          record("closeProfileTab", tabId);
+          profileTabs.splice(
+            profileTabs.findIndex((tab) => tab.tabId === tabId),
+            1,
+          );
+        }),
+      clearTabSession: (tabSession) => Effect.sync(() => record("clearTabSession", tabSession)),
+    },
+  });
+
   server = new TeamApiServer({
     appVersion: APP_VERSION,
     store,
@@ -572,6 +619,7 @@ try {
       },
     },
     bitwardenConnector,
+    browserProfiles,
     // The host's own sign-in has two usage reset credits; a reset spends one.
     providerUsageResets: {
       providerUsageResets: (provider) =>
@@ -1426,6 +1474,170 @@ try {
         errorIs(hiddenSet, 404, sourceText("error.team.agentNotFound")) &&
         callsOf("updateAgent").length === writes + 2,
       [summary(hiddenRead), summary(hiddenSet)],
+    );
+  }
+
+  // ---- Browser profiles (browser-profiles-v1) ----
+  {
+    const profileCapabilities = [AGENT_HIDDEN_CAPABILITY, TEAM_QUEUE_EDIT_CAPABILITY, BROWSER_PROFILES_CAPABILITY];
+    const admin = (path: string, json: Json = {}, protocol?: number) =>
+      call("POST", path, {
+        token: adaToken,
+        json,
+        capabilities: profileCapabilities,
+        ...(protocol === undefined ? {} : { protocol }),
+      });
+    const unsupported = await call("POST", BROWSER_PROFILES_ROUTES.list, { token: adaToken, json: {} });
+    const unsupportedTabs = await call("POST", BROWSER_PROFILES_ROUTES.tabs, { token: bobToken, json: {} });
+    check(
+      "the browser-profiles routes without the capability get 400 agentSettingsUnsupported",
+      errorIs(unsupported, 400, sourceText("error.team.agentSettingsUnsupported")) &&
+        errorIs(unsupportedTabs, 400, sourceText("error.team.agentSettingsUnsupported")),
+      [summary(unsupported), summary(unsupportedTabs)],
+    );
+    const memberList = await call("POST", BROWSER_PROFILES_ROUTES.list, {
+      token: bobToken,
+      json: {},
+      capabilities: profileCapabilities,
+    });
+    const memberCreate = await call("POST", BROWSER_PROFILES_ROUTES.create, {
+      token: bobToken,
+      json: { name: "Member profile" },
+      capabilities: profileCapabilities,
+    });
+    const memberAssign = await call("POST", BROWSER_PROFILES_ROUTES.updateAgent, {
+      token: bobToken,
+      json: { agentId: "agent-ada", profile: { kind: "agent" } },
+      capabilities: profileCapabilities,
+    });
+    check(
+      "a member cannot list, create or assign browser profiles",
+      errorIs(memberList, 403, sourceText("error.team.adminRequired")) &&
+        errorIs(memberCreate, 403, sourceText("error.team.adminRequired")) &&
+        errorIs(memberAssign, 403, sourceText("error.team.adminRequired")) &&
+        callsOf("updateAgentBrowserProfile").length === 0,
+      [summary(memberList), summary(memberCreate), summary(memberAssign)],
+    );
+    const empty = await admin(BROWSER_PROFILES_ROUTES.list);
+    check(
+      "an admin lists no profile, and every agent in the shared profile",
+      empty.status === 200 &&
+        isDeepStrictEqual(empty.body, { profiles: [], sharedAgentIds: ["agent-ada", "agent-oc", "agent-pi"] }),
+      summary(empty),
+    );
+    const created = await admin(BROWSER_PROFILES_ROUTES.create, { name: "Client A" });
+    const profileId = field(created.body, "id");
+    const taken = await admin(BROWSER_PROFILES_ROUTES.create, { name: "client a" });
+    const longName = await admin(BROWSER_PROFILES_ROUTES.create, { name: "x".repeat(61) });
+    check(
+      "an admin creates a profile; a used name gets 409 and a long name 400",
+      created.status === 200 &&
+        typeof profileId === "string" &&
+        /^[0-9a-f]{32}$/.test(profileId) &&
+        field(created.body, "name") === "Client A" &&
+        isDeepStrictEqual(field(created.body, "agentIds"), []) &&
+        errorIs(taken, 409, sourceText("error.backend.browserProfileNameTaken")) &&
+        longName.status === 400,
+      [summary(created), summary(taken), summary(longName)],
+    );
+    assert.ok(typeof profileId === "string", "The browser profile was not created.");
+    const assigned = await admin(BROWSER_PROFILES_ROUTES.updateAgent, {
+      agentId: "agent-ada",
+      profile: { kind: "profile", profileId },
+    });
+    const readBack = await admin(BROWSER_PROFILES_ROUTES.agent, { agentId: "agent-ada" });
+    const listed = await admin(BROWSER_PROFILES_ROUTES.list);
+    check(
+      "an admin moves an agent into the profile, and the list shows it there",
+      assigned.status === 200 &&
+        isDeepStrictEqual(assigned.body, { kind: "profile", profileId }) &&
+        isDeepStrictEqual(readBack.body, { kind: "profile", profileId }) &&
+        isDeepStrictEqual(field(listed.body, "profiles", 0, "agentIds"), ["agent-ada"]) &&
+        isDeepStrictEqual(field(listed.body, "sharedAgentIds"), ["agent-oc", "agent-pi"]),
+      [summary(assigned), summary(readBack), summary(listed)],
+    );
+    const unknownProfile = await admin(BROWSER_PROFILES_ROUTES.updateAgent, {
+      agentId: "agent-oc",
+      profile: { kind: "profile", profileId: "0".repeat(32) },
+    });
+    const unknownAgent = await admin(BROWSER_PROFILES_ROUTES.agent, { agentId: "agent-none" });
+    const hiddenRead = await admin(BROWSER_PROFILES_ROUTES.agent, { agentId: "agent-pi" }, 6);
+    const hiddenAssign = await admin(
+      BROWSER_PROFILES_ROUTES.updateAgent,
+      { agentId: "agent-pi", profile: { kind: "agent" } },
+      6,
+    );
+    const olderList = await admin(BROWSER_PROFILES_ROUTES.list, {}, 6);
+    check(
+      "an unknown profile gets 409; an unknown agent, or one that the client protocol does not show, gets 404",
+      errorIs(unknownProfile, 409, sourceText("error.backend.browserProfileNotFound")) &&
+        errorIs(unknownAgent, 404, sourceText("error.team.agentNotFound")) &&
+        errorIs(hiddenRead, 404, sourceText("error.team.agentNotFound")) &&
+        errorIs(hiddenAssign, 404, sourceText("error.team.agentNotFound")) &&
+        isDeepStrictEqual(field(olderList.body, "sharedAgentIds"), ["agent-oc"]) &&
+        callsOf("updateAgentBrowserProfile").length === 1,
+      [summary(unknownProfile), summary(unknownAgent), summary(hiddenRead), summary(hiddenAssign), summary(olderList)],
+    );
+    profileTabs.push(
+      { tabId: "tab-open", tabSession: { kind: "profile", profileId } },
+      { tabId: "tab-private", tabSession: { kind: "profile", profileId } },
+    );
+    const hue = field(created.body, "hue");
+    const memberTabs = await call("POST", BROWSER_PROFILES_ROUTES.tabs, {
+      token: bobToken,
+      json: {},
+      capabilities: profileCapabilities,
+    });
+    const adminTabs = await admin(BROWSER_PROFILES_ROUTES.tabs);
+    check(
+      "a member reads the profile label of the tabs they can see, and nothing of a private tab",
+      memberTabs.status === 200 &&
+        isDeepStrictEqual(memberTabs.body, { tabs: [{ tabId: "tab-open", name: "Client A", hue }] }) &&
+        isDeepStrictEqual(
+          list(field(adminTabs.body, "tabs")).map((tab) => field(tab, "tabId")),
+          ["tab-open", "tab-private"],
+        ),
+      [summary(memberTabs), summary(adminTabs)],
+    );
+    const renamed = await admin(BROWSER_PROFILES_ROUTES.update, { profileId, name: "Client B", hue: 150 });
+    const badHue = await admin(BROWSER_PROFILES_ROUTES.update, { profileId, hue: 7 });
+    check(
+      "an admin renames and recolors a profile; a color outside the list gets 400",
+      renamed.status === 200 &&
+        field(renamed.body, "name") === "Client B" &&
+        field(renamed.body, "hue") === 150 &&
+        field(renamed.body, "tabCount") === 2 &&
+        badHue.status === 400,
+      [summary(renamed), summary(badHue)],
+    );
+    const bothTargets = await admin(BROWSER_PROFILES_ROUTES.clear, { profileId, agentId: "agent-ada" });
+    const cleared = await admin(BROWSER_PROFILES_ROUTES.clear, { profileId });
+    check(
+      "a clear closes the tabs of the profile and clears its session; a clear of two targets gets 400",
+      bothTargets.status === 400 &&
+        cleared.status === 200 &&
+        isDeepStrictEqual(cleared.body, {}) &&
+        profileTabs.length === 0 &&
+        isDeepStrictEqual(callsOf("clearTabSession").at(-1), [{ kind: "profile", profileId }]),
+      [summary(bothTargets), summary(cleared)],
+    );
+    const deleted = await admin(BROWSER_PROFILES_ROUTES.delete, { profileId });
+    const afterDelete = await admin(BROWSER_PROFILES_ROUTES.list);
+    const adaAfter = await admin(BROWSER_PROFILES_ROUTES.agent, { agentId: "agent-ada" });
+    check(
+      "a delete moves the agents of the profile to the shared profile",
+      deleted.status === 200 &&
+        isDeepStrictEqual(afterDelete.body, {
+          profiles: [],
+          sharedAgentIds: ["agent-ada", "agent-oc", "agent-pi"],
+        }) &&
+        isDeepStrictEqual(adaAfter.body, { kind: "shared" }),
+      [summary(deleted), summary(afterDelete), summary(adaAfter)],
+    );
+    check(
+      "the host logs no profile name",
+      !logged.some((line) => line.includes("Client A") || line.includes("Client B")),
+      null,
     );
   }
 

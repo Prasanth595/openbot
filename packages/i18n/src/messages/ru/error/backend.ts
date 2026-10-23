@@ -276,6 +276,11 @@ export const messages = {
   "error.backend.browserUrlRequired": "Нужен URL для браузера.",
   "error.backend.browserUrlTooLong": "URL для браузера слишком длинный.",
   "error.backend.browserTabLimit": "В браузере может быть не более {limit} открытых вкладок.",
+  "error.backend.browserProfileMissing":
+    "Профиль браузера этого агента больше не существует. Выберите другой профиль в настройках агента.",
+  "error.backend.browserProfileNotFound": "Этот профиль браузера больше не существует.",
+  "error.backend.browserProfileNameTaken": "Профиль браузера с таким названием уже существует.",
+  "error.backend.browserProfileLimit": "Можно создать не более {limit} профилей браузера.",
   "error.backend.browserLowMemory":
     "На этом сервере мало памяти, поэтому браузер не может открыть ещё одну вкладку. Закройте вкладку или дождитесь завершения работы других агентов.",
   "error.backend.browserOpenFailed": "Не удалось открыть {url}: {reason}",

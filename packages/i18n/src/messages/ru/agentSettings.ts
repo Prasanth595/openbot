@@ -182,9 +182,15 @@ export const messages = {
   "agentSettings.quickAcknowledgement.title": "Показывать план перед долгими задачами",
   "agentSettings.quickAcknowledgement.description":
     "Перед долгой задачей агент показывает свой план. Он начинает через 10 с или когда вы нажимаете «Начать».",
-  "agentSettings.ownBrowserSession.title": "Своя сессия браузера",
-  "agentSettings.ownBrowserSession.description":
-    "Вкладки агента хранят свои входы в аккаунты и cookie. Изменение закрывает открытые вкладки агента.",
+  "agentSettings.browserProfile.label": "Профиль браузера",
+  "agentSettings.browserProfile.shared": "Общий",
+  "agentSettings.browserProfile.agent": "Только этот агент",
+  "agentSettings.browserProfile.missing": "Удалённый профиль",
+  "agentSettings.browserProfile.new": "Новый профиль",
+  "agentSettings.browserProfile.manageTitle": "Профили браузера",
+  "agentSettings.browserProfile.manageDescription":
+    "Каждый профиль хранит свои входы в аккаунты и cookie. Изменение закрывает открытые вкладки агента.",
+  "agentSettings.browserProfile.manage": "Настроить",
   "agentSettings.runtime.workspaceEnforcedProcess":
     "Весь процесс {provider} работает в песочнице, поэтому запись за пределами рабочего пространства не удастся. Доступно только в macOS.",
 } as const satisfies PartialTranslation<typeof source>;

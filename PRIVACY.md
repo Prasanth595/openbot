@@ -32,7 +32,8 @@ desktop app opens the site in a window on their computer, with a session in memo
 window finds a completed sign-in, or when the member selects Done, it sends the cookies of that site,
 and of no other site, to the host through the same encrypted host connection, not through the account
 Worker. The host sets them in the browser session of the tab: the shared session, which every agent
-and member of the server can use, or the session of an agent that has a browser session of its own.
+and member of the server can use, the session of an agent that has a browser session of its own, or
+a named browser profile, which every agent assigned to that profile can use.
 When the server tab still shows a sign-in step, the app also sends the address of the window's page,
 and the server tab opens it.
 Neither computer logs the cookie values. The desktop app then removes the window's session.
@@ -526,8 +527,8 @@ is not included in analytics; provider output uses the application's secret reda
 - `~/OpenBot/Downloads` contains files downloaded by the embedded browser.
 - `~/Library/Application Support/OpenBot` contains the OpenBot SQLite database, agent metadata,
   conversations, message queues, direct messages, reactions, read state, attachment drafts and
-  indexes, team configuration, local team members and sessions, the shared browser profile, cookies,
-  application preferences, and the provider CLIs OpenBot downloads. The downloaded CLIs are kept in
+  indexes, team configuration, local team members and sessions, the browser profiles and their
+  cookies, application preferences, and the provider CLIs OpenBot downloads. The downloaded CLIs are kept in
   one store for the whole computer, which no other profile data shares.
 - The local team configuration contains team member profiles, password hashes and salts when local
   password sign-in is used, invite and session token hashes, and the team identity key pair.
@@ -611,7 +612,13 @@ is not included in analytics; provider output uses the application's secret reda
   [Android notifications](#android-notifications).
 
 Attachments copied into OpenBot remain in managed storage after their original file is moved or
-deleted. All agents share the embedded browser profile, including cookies and website sessions.
+deleted. By default, all agents share one embedded browser profile, including cookies and website
+sessions. An agent can instead use a profile of its own, or a named profile that only the agents
+assigned to it share. Profile names stay in the local database of the computer that runs the agents.
+On a joined server, an owner or admin reads the names, colors and agents of the host's profiles through
+the encrypted host connection, and each member reads the name and color of the profile of a browser tab
+that they can see. Cookies and site data of a profile do not leave the host. Clear data and Delete
+remove the cookies and site data of a profile.
 Websites receive the browser's Chromium user agent. HTTPS sites and local loopback HTTP sites also
 receive basic client hints with the Chromium major version, operating-system name, and desktop flag.
 Google account requests retain the Electron version token for sign-in compatibility.

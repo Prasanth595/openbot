@@ -171,21 +171,49 @@ confirmation. They do not measure provider tokens, model speed, or billable cost
 
 ### Browser sessions
 
-All tabs use the persistent partition `persist:openbot-browser`, except in two cases:
+Each agent has one **browser profile**: the persistent partition that its new tabs open in. The agent
+fields `ownBrowserSession` and `browserProfileId` (`agent_json`) select it:
 
-- `openPrivate` opens a sign-in page for another person in an in-memory partition. The tab is not
-  saved, and its storage is cleared when its last tab closes.
-- An agent with the local setting `ownBrowserSession` opens its new tabs in
-  `persist:openbot-browser-agent-<key>`. The key is the first 32 hex characters of the SHA-256 of
-  the agent id, so an agent id never becomes part of a path. The user's tabs in that agent's panel
-  use the same partition, so the user can sign in for the agent there.
+| Choice | Partition |
+| --- | --- |
+| Shared (default) | `persist:openbot-browser` |
+| Only this agent | `persist:openbot-browser-agent-<key>`. The key is the first 32 hex characters of the SHA-256 of the agent id. |
+| Named profile | `persist:openbot-browser-profile-<id>`. The id is 32 random hex characters. |
+
+Named profiles are rows of the `browser_profiles` table (migration 45). Many agents can use one
+profile, so they share its sign-ins; a profile has no owner agent, and the tab rules below do not
+change. The name is a label only and never becomes a path or a partition, so a rename keeps the
+data. An agent with `browserProfileId` also has `ownBrowserSession: true`. After a downgrade, an
+older build thus opens such an agent in a session of its own, never in the shared one. A duplicate
+and an imported agent start with Shared. The user's tabs in an agent's panel use the agent's partition, so
+the user can sign in for the agent there.
+
+`openPrivate` opens a sign-in page for another person in an in-memory partition. The tab is not
+saved, and its storage is cleared when its last tab closes.
 
 A tab keeps its partition for its life, and its popups use the same partition. The state file
-saves the key as `agentSession`. A restart restores each tab in its saved partition, whatever the
-setting is now. A tab without a key, such as a tab from an older version, opens in the shared
-partition. A tab with a malformed key is dropped, so it never opens signed in to another account.
+saves an agent key as `agentSession`, and a named profile as `profile` together with an
+`agentSession` key made from the profile id, which an older build reads. A restart restores each tab
+in its saved partition, whatever the setting is now. A tab without a key, such as a tab from an older
+version, opens in the shared partition. A tab with a malformed key or profile id, or with the id of a
+deleted profile, is dropped, so it never opens signed in to another account. A new tab for an agent
+whose profile no longer exists fails with `browserProfileMissing`; it never falls back to Shared.
 `#configureSession` applies the same user agent, headers, permissions and download policy to every
 partition. Shutdown and `flushPersistentStorage` flush every persistent partition.
+
+`src/main/browser-profile-service.ts` owns the operations: list, create (name of 1 to 60
+characters, unique, at most 100 profiles), update (name or color), clear data, delete, and assign.
+Clear and delete close the tabs in the partition before they clear its storage and cache. Delete also
+moves the profile's agents to Shared. Each named profile has a color (`hue`), one of the agent avatar
+hues. Create gives the color that the fewest profiles use (`nextBrowserProfileHue`); Server settings >
+Browser profiles changes it. The browser view shows a profile label with its color on the toolbar, a line in
+that color under the tab, and the name in the tab tooltip of a tab outside the shared profile
+(`agent:admin:list-browser-tab-profiles`). The select marks Shared with a gray dot, a color that no
+named profile has. "Only this agent" has no color, and the select offers it only to an agent that
+already uses it, so the agent keeps its sign-ins. An owner or admin of a joined server uses the same
+operations through `browser-profiles-v1` (`route-browser-profiles.ts`); each member reads the labels of
+the tabs that they can see, and a private tab is hidden from a member. A host without the capability
+answers `agentSettingsUnsupported`, and the client shows no select, section or label for it.
 
 ### Tab lifetime
 
@@ -210,7 +238,8 @@ refusal in `AgentService` stays beside it rather than being folded in: it also c
 | Restart | Restored from the browser's own state file. |
 | Idle 30 min (5 min when memory is low) | Stays open, but its page unloads. The next use loads the page again. |
 | Agent deleted | That agent's tabs are closed, including a legacy tab holding only its thread id. Its own browser session is cleared. |
-| Own browser session changed | That agent's tabs are closed. Its next tab opens in the session it chose. Both sessions keep their data. |
+| Browser profile changed | That agent's tabs are closed. Its next tab opens in the profile it chose. Both profiles keep their data. |
+| Profile cleared or deleted | Every tab in that profile is closed, then its data is cleared. |
 | Takeover held | No agent tool touches that tab, `close_tab` included. |
 
 Deleting an agent is the one sweep, and it exists because those tabs are otherwise unreachable: no

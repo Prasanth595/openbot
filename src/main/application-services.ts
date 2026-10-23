@@ -20,6 +20,7 @@ import { type AgentAdminSettingsService, createAgentAdminSettings } from "./agen
 import { spawnAgentDatabaseHost } from "./agent-database-host-process";
 import { agentDisplayEnvironment, hasSeparateAgentDisplay } from "./agent-display";
 import { type AgentHostSettingsService, createAgentHostSettings } from "./agent-host-settings";
+import { type BrowserProfileService, createBrowserProfileService } from "./browser-profile-service";
 import { HostReleaseService, readInstallationMode } from "./host-release-service";
 import {
   CONTAINER_UPDATE_PATHS,
@@ -74,7 +75,7 @@ import type {
   VoiceStreamTranscript,
 } from "@openbot/contracts/ipc";
 import {
-  agentOwnBrowserSessionEnabled,
+  agentBrowserProfile,
   IPC_ENDPOINTS,
   isManagedToolRuntime,
   isUpdateBusyPhase,
@@ -104,6 +105,7 @@ import { ProviderAccountStore } from "../backend/agent/provider-account-store";
 import { AgentLifecycleFailed, AgentService } from "../backend/agent-service";
 import { AgentStore } from "../backend/agent-store";
 import { BrowserHost } from "../backend/browser-host";
+import { BrowserProfileStore } from "../backend/browser-profiles/browser-profile-store";
 import { runCauseEffect } from "../backend/effect-boundary";
 import { MailboxStore } from "../backend/mailbox-store";
 import { McpOAuth } from "../backend/mcp-oauth-provider";
@@ -504,6 +506,7 @@ export interface ApplicationServices {
   approvalAutomation: ApprovalAutomation;
   agentAdminSettings: AgentAdminSettingsService;
   agentHostSettings: AgentHostSettingsService;
+  browserProfiles: BrowserProfileService;
   language: LanguageService;
   logoColor: LogoColorService;
   interfaceSize: InterfaceSizeService;
@@ -980,12 +983,14 @@ export async function createApplicationServices({
     hostMemory.start();
     teardown.push(TEARDOWN_ORDER.serverMemory, "the server memory reading", () => Effect.runPromise(hostMemory.stop()));
   }
+  const browserProfileStore = new BrowserProfileStore(store.database);
   const browser = new BrowserHost(mainWindow, store.downloadsRoot, join(app.getPath("userData"), BROWSER_STATE_FILE), {
     memoryLow: () => (hostMemory?.level() ?? "ok") !== "ok",
-    ownBrowserSession: (agentId) => {
+    browserProfile: (agentId) => {
       const agent = store.list().find((candidate) => candidate.id === agentId);
-      return agent ? agentOwnBrowserSessionEnabled(agent) : false;
+      return agent ? agentBrowserProfile(agent) : { kind: "shared" };
     },
+    profileExists: (profileId) => browserProfileStore.get(profileId) !== undefined,
   });
   teardown.push(TEARDOWN_ORDER.browser, "the browser", () => runCauseEffect(browser.destroy()));
   await runCauseEffect(browser.restore(store.list().map((agent) => ({ id: agent.id, threadId: agent.threadId }))));
@@ -1908,6 +1913,7 @@ export async function createApplicationServices({
   );
   const agentAdminSettings = createAgentAdminSettings({ agents: service, approvalAutomation });
   const agentHostSettings = createAgentHostSettings({ agents: service, busyMessageMode });
+  const browserProfiles = createBrowserProfileService({ store: browserProfileStore, agents: service, browser });
   const customProviderChanges = createCustomProviderChanges({ service, customProviders });
   const customAgentChanges = createCustomAgentChanges({ service, customAgents });
   const acpRegistry = createAcpRegistry({
@@ -2085,6 +2091,9 @@ export async function createApplicationServices({
     agentAccess,
     // Present, so the host advertises `agent-tasks-v1`. Any member who can send a message to the agent.
     agentTasks: service,
+    // Present, so the host advertises `browser-profiles-v1`. Only owners and admins change profiles;
+    // any member reads the profile labels of the tabs they can see.
+    browserProfiles,
     // True on a hosted server, so the host advertises `focus-use-v1`. Any member can send it.
     focusUse: hostedServer !== null,
     // Each member present advertises its admin capability. Every admin route requires an owner or admin.
@@ -2768,6 +2777,7 @@ export async function createApplicationServices({
     approvalAutomation,
     agentAdminSettings,
     agentHostSettings,
+    browserProfiles,
     language,
     logoColor,
     interfaceSize,

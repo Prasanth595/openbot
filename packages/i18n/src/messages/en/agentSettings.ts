@@ -154,9 +154,15 @@ export const messages = defineMessages("agentSettings", {
   "agentSettings.quickAcknowledgement.title": "Show the plan before long tasks",
   "agentSettings.quickAcknowledgement.description":
     "Before a long task, the agent shows its plan. It starts after 10 s, or when you press Start.",
-  "agentSettings.ownBrowserSession.title": "Own browser session",
-  "agentSettings.ownBrowserSession.description":
-    "The agent's tabs keep their own sign-ins and cookies. A change closes the agent's open tabs.",
+  "agentSettings.browserProfile.label": "Browser profile",
+  "agentSettings.browserProfile.shared": "Shared",
+  "agentSettings.browserProfile.agent": "Only this agent",
+  "agentSettings.browserProfile.missing": "Deleted profile",
+  "agentSettings.browserProfile.new": "New profile",
+  "agentSettings.browserProfile.manageTitle": "Browser profiles",
+  "agentSettings.browserProfile.manageDescription":
+    "Each profile keeps its own sign-ins and cookies. A change closes the agent's open tabs.",
+  "agentSettings.browserProfile.manage": "Manage",
   "agentSettings.runtime.workspaceEnforcedProcess":
     "The whole {provider} process runs in a sandbox, so a write outside fails. Available on macOS only.",
 });

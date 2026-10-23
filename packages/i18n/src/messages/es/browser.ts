@@ -144,4 +144,29 @@ export const messages = {
   "browser.signIn.stillSignedOut":
     "{server} todavía muestra una página de inicio de sesión de {site}. Termina el inicio de sesión en la ventana.",
   "browser.signIn.failed": "OpenBot no pudo enviar el inicio de sesión.",
+  "browser.profiles.title": "Perfiles del navegador",
+  "browser.profiles.subtitle":
+    "Cada perfil guarda sus propios inicios de sesión, cookies y datos de sitios en este equipo.",
+  "browser.profiles.label": "Perfiles del navegador",
+  "browser.profiles.newName": "Nombre del perfil",
+  "browser.profiles.create": "Añadir",
+  "browser.profiles.usage": "{agents} · {tabs}",
+  "browser.profiles.agents": { one: "{count} agente", other: "{count} agentes" },
+  "browser.profiles.tabs": { one: "{count} pestaña abierta", other: "{count} pestañas abiertas" },
+  "browser.profiles.renameLabel": "Cambiar el nombre de {name}",
+  "browser.profiles.actionsFor": "Acciones para {name}",
+  "browser.profiles.colorLabel": "Color de {name}",
+  "browser.profiles.save": "Guardar",
+  "browser.profiles.clear": "Borrar datos",
+  "browser.profiles.clearTitle": "¿Borrar los datos de {name}?",
+  "browser.profiles.clearDescription":
+    "Esto cierra la sesión en todos los sitios de este perfil y elimina sus cookies y datos de sitios. Sus pestañas abiertas se cierran.",
+  "browser.profiles.deleteTitle": "¿Eliminar {name}?",
+  "browser.profiles.deleteDescription":
+    "Esto elimina los inicios de sesión, las cookies y los datos de sitios del perfil. Sus pestañas abiertas se cierran.",
+  "browser.profiles.deleteAgents": "Estos agentes pasan al perfil compartido: {agents}.",
+  "browser.profiles.failed": "OpenBot no pudo cambiar los perfiles del navegador.",
+  "browser.profiles.loadFailed": "OpenBot no pudo cargar los perfiles del navegador.",
+  "browser.profiles.tabLabel": "Perfil: {name}",
+  "browser.profiles.agentTabLabel": "Perfil propio del agente",
 } as const satisfies PartialTranslation<typeof source>;

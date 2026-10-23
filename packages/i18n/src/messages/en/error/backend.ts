@@ -270,6 +270,11 @@ export const messages = defineMessages("error.backend", {
   "error.backend.browserUrlRequired": "A browser URL is required.",
   "error.backend.browserUrlTooLong": "The browser URL is too long.",
   "error.backend.browserTabLimit": "The browser can have up to {limit} open tabs.",
+  "error.backend.browserProfileMissing":
+    "The browser profile of this agent no longer exists. Choose another profile in the agent settings.",
+  "error.backend.browserProfileNotFound": "This browser profile no longer exists.",
+  "error.backend.browserProfileNameTaken": "A browser profile with this name already exists.",
+  "error.backend.browserProfileLimit": "You can have up to {limit} browser profiles.",
   "error.backend.browserLowMemory":
     "This server is low on memory, so the browser cannot open another tab. Close a tab, or wait for other agents to finish.",
   "error.backend.browserOpenFailed": "Unable to open {url}: {reason}",

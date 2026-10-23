@@ -4,6 +4,7 @@ import { isIP } from "node:net";
 import { basename, extname, join } from "node:path";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import type {
+  AgentBrowserProfile,
   BrowserBounds,
   BrowserControlState,
   BrowserEnvironment,
@@ -94,6 +95,8 @@ import {
 import {
   agentBrowserSessionKey,
   type BrowserTabOwner,
+  type BrowserTabSession,
+  browserTabPartition,
   defaultBrowserEnvironment,
   isPersistableBrowserUrl,
   persistentBrowserUrl,
@@ -101,6 +104,8 @@ import {
   reownStoredBrowserTab,
   resolveEnvironment,
   type StoredBrowserStateV2,
+  storedSessionFields,
+  storedTabSession,
 } from "./browser-state";
 import {
   BrowserToolHold,
@@ -312,9 +317,10 @@ export class BrowserHost {
   static readonly CONTROL_IDLE_GRACE_MS = BrowserControlSessions.IDLE_GRACE_MS;
   readonly #window: BrowserWindow;
   readonly #session: Session;
-  /** The persistent sessions of agents with a browser session of their own, by key. */
-  readonly #agentSessions = new Map<string, Session>();
-  readonly #ownBrowserSession: (agentId: string) => boolean;
+  /** The persistent sessions other than the shared one, by partition directory name. */
+  readonly #tabSessions = new Map<string, Session>();
+  readonly #browserProfile: (agentId: string) => AgentBrowserProfile;
+  readonly #profileExists: (profileId: string) => boolean;
   readonly #downloadsRoot: string;
   readonly #statePath: string;
   readonly #tabs = new Map<string, BrowserHostTab>();
@@ -362,13 +368,16 @@ export class BrowserHost {
       recordingMaxConcurrent?: number;
       recordingMaxAggregateBytes?: number;
       memoryLow?: () => boolean;
-      /** Whether the new tabs of this agent open in a session of its own. */
-      ownBrowserSession?: (agentId: string) => boolean;
+      /** The session that the new tabs of this agent open in. */
+      browserProfile?: (agentId: string) => AgentBrowserProfile;
+      /** Whether a named profile still exists. A tab never opens in a deleted profile. */
+      profileExists?: (profileId: string) => boolean;
     } = {},
   ) {
     this.#window = window;
     this.#memoryLow = options.memoryLow ?? (() => false);
-    this.#ownBrowserSession = options.ownBrowserSession ?? (() => false);
+    this.#browserProfile = options.browserProfile ?? (() => ({ kind: "shared" }));
+    this.#profileExists = options.profileExists ?? (() => false);
     this.#downloadsRoot = downloadsRoot;
     this.#statePath = statePath;
     this.#session = session.fromPartition("persist:openbot-browser", { cache: true });
@@ -416,7 +425,10 @@ export class BrowserHost {
         agents.find((agent) => agent.threadId === stored.ownerThreadId && stored.ownerThreadId !== null)?.id ??
         null;
       if (!this.#hasTabCapacity(stored.ownerThreadId, ownerAgentId)) continue;
-      // A tab comes back in the session it opened in, whatever the agent's setting is now.
+      // A tab comes back in the session it opened in, whatever the agent's setting is now. A tab of
+      // a deleted profile does not come back: no other session may load its page.
+      const tabSession = storedTabSession(stored);
+      if (tabSession?.kind === "profile" && !this.#profileExists(tabSession.profileId)) continue;
       const tab = this.#createTab(
         stored.id,
         stored.url,
@@ -425,7 +437,7 @@ export class BrowserHost {
         stored.environment,
         undefined,
         undefined,
-        stored.agentSession,
+        tabSession,
       );
       this.#tabs.set(tab.id, tab);
       this.#bindTabEvents(tab);
@@ -699,10 +711,7 @@ export class BrowserHost {
     if (this.#memoryLow()) return yield* browserFailure(new Error(sourceText("error.backend.browserLowMemory")));
     const normalizedUrl = yield* browserSync(() => normalizeBrowserUrl(url));
     const previouslyFocused = focus ? null : this.#focusedContentsOutsideTabs();
-    const agentSessionKey =
-      !privateSession && ownerAgentId && this.#ownBrowserSession(ownerAgentId)
-        ? agentBrowserSessionKey(ownerAgentId)
-        : undefined;
+    const tabSession = privateSession || !ownerAgentId ? undefined : yield* this.#agentTabSession(ownerAgentId);
     const tab = this.#createTab(
       randomUUID(),
       normalizedUrl,
@@ -711,7 +720,7 @@ export class BrowserHost {
       defaultBrowserEnvironment(),
       undefined,
       privateSession,
-      agentSessionKey,
+      tabSession,
     );
 
     this.#tabs.set(tab.id, tab);
@@ -2041,36 +2050,72 @@ export class BrowserHost {
     this: BrowserHost,
     agentId: string,
   ): Effect.fn.Return<void, BrowserOperationError> {
-    const key = agentBrowserSessionKey(agentId);
-    if ([...this.#tabs.values()].some((tab) => tab.agentSessionKey === key))
-      return yield* browserFailure(new Error("A tab still uses the agent's browser session."));
-    // An agent that never had a session of its own has nothing to clear, and opening one would create it.
-    if (
-      !this.#agentSessions.has(key) &&
-      !existsSync(join(app.getPath("sessionData"), "Partitions", agentPartitionName(key)))
-    )
+    yield* this.clearTabSession({ kind: "agent", key: agentBrowserSessionKey(agentId) });
+  }).bind(this);
+
+  /**
+   * Deletes the cookies, storage and cache of a session other than the shared one. Its tabs must be
+   * closed first: a tab still open in the session keeps it.
+   */
+  readonly clearTabSession = Effect.fn("BrowserHost.clearTabSession")(function* (
+    this: BrowserHost,
+    tabSession: BrowserTabSession,
+  ): Effect.fn.Return<void, BrowserOperationError> {
+    const partition = browserTabPartition(tabSession);
+    if (this.tabIdsInSession(tabSession).length > 0)
+      return yield* browserFailure(new Error("A tab still uses the browser session."));
+    // A session that never opened has nothing to clear, and opening one would create it.
+    if (!this.#tabSessions.has(partition) && !existsSync(join(app.getPath("sessionData"), "Partitions", partition)))
       return;
-    const target =
-      this.#agentSessions.get(key) ?? session.fromPartition(`persist:${agentPartitionName(key)}`, { cache: true });
-    this.#agentSessions.delete(key);
+    const target = this.#tabSessions.get(partition) ?? session.fromPartition(`persist:${partition}`, { cache: true });
+    this.#tabSessions.delete(partition);
     yield* browserCall(() => target.clearStorageData());
     yield* browserCall(() => target.clearCache());
   }).bind(this);
 
+  /** The open tabs in a session other than the shared one, popups included. */
+  tabIdsInSession(tabSession: BrowserTabSession): string[] {
+    const partition = browserTabPartition(tabSession);
+    return [...this.#tabs.values()]
+      .filter((tab) => tab.tabSession && browserTabPartition(tab.tabSession) === partition)
+      .map((tab) => tab.id);
+  }
+
+  /** The session of each open tab that is not in the shared session or a private one. */
+  listTabSessions(): { tabId: string; tabSession: BrowserTabSession }[] {
+    return [...this.#tabs.values()].flatMap((tab) =>
+      tab.tabSession && !tab.closing ? [{ tabId: tab.id, tabSession: tab.tabSession }] : [],
+    );
+  }
+
+  /** The session for a new tab of this agent. A profile that does not exist fails: no fallback. */
+  readonly #agentTabSession = Effect.fn("BrowserHost.agentTabSession")(function* (
+    this: BrowserHost,
+    agentId: string,
+  ): Effect.fn.Return<BrowserTabSession | undefined, BrowserOperationError> {
+    const profile = this.#browserProfile(agentId);
+    if (profile.kind === "shared") return undefined;
+    if (profile.kind === "agent") return { kind: "agent", key: agentBrowserSessionKey(agentId) };
+    if (!this.#profileExists(profile.profileId))
+      return yield* browserFailure(new Error(sourceText("error.backend.browserProfileMissing")));
+    return { kind: "profile", profileId: profile.profileId };
+  }).bind(this);
+
   #persistentSessions(): Session[] {
-    return [this.#session, ...this.#agentSessions.values()];
+    return [this.#session, ...this.#tabSessions.values()];
   }
 
-  #tabSession(tab: Pick<BrowserHostTab, "privateSession" | "agentSessionKey">): Session {
-    return tab.privateSession ?? (tab.agentSessionKey ? this.#agentSession(tab.agentSessionKey) : this.#session);
+  #tabSession(tab: Pick<BrowserHostTab, "privateSession" | "tabSession">): Session {
+    return tab.privateSession ?? (tab.tabSession ? this.#persistentTabSession(tab.tabSession) : this.#session);
   }
 
-  #agentSession(key: string): Session {
-    const existing = this.#agentSessions.get(key);
+  #persistentTabSession(tabSession: BrowserTabSession): Session {
+    const partition = browserTabPartition(tabSession);
+    const existing = this.#tabSessions.get(partition);
     if (existing) return existing;
-    const target = session.fromPartition(`persist:${agentPartitionName(key)}`, { cache: true });
+    const target = session.fromPartition(`persist:${partition}`, { cache: true });
     this.#configureSession(target);
-    this.#agentSessions.set(key, target);
+    this.#tabSessions.set(partition, target);
     return target;
   }
 
@@ -2082,14 +2127,14 @@ export class BrowserHost {
     environment: BrowserEnvironment = defaultBrowserEnvironment(),
     popupOptions?: BrowserWindowConstructorOptions,
     privateSession?: Session,
-    agentSessionKey?: string,
+    tabSession?: BrowserTabSession,
   ): BrowserHostTab {
     if (this.#destroying) throw new Error("BrowserHost is shutting down.");
     const view = this.#createView(
       popupOptions,
       this.#tabSession({
         ...(privateSession ? { privateSession } : {}),
-        ...(agentSessionKey ? { agentSessionKey } : {}),
+        ...(tabSession ? { tabSession } : {}),
       }),
     );
     this.#mountView(view);
@@ -2102,7 +2147,7 @@ export class BrowserHost {
       contents: view.webContents,
       popup: popupOptions !== undefined,
       ...(privateSession ? { privateSession } : {}),
-      ...(agentSessionKey ? { agentSessionKey } : {}),
+      ...(tabSession ? { tabSession } : {}),
       requestedUrl,
       ownerThreadId,
       ownerAgentId,
@@ -2445,7 +2490,7 @@ export class BrowserHost {
             structuredClone(tab.environment),
             options,
             tab.privateSession,
-            tab.agentSessionKey,
+            tab.tabSession,
           );
           // Chromium exposes no opener for noopener/noreferrer requests.
           if (options.webContents?.opener) {
@@ -2841,18 +2886,13 @@ export class BrowserHost {
         ownerThreadId: tab.ownerThreadId,
         ownerAgentId: tab.ownerAgentId,
         environment: tab.environment,
-        ...(tab.agentSessionKey ? { agentSession: tab.agentSessionKey } : {}),
+        ...storedSessionFields(tab.tabSession),
       })),
     };
     yield* this.#persistLock.withPermit(
       writeJsonFileAtomically(this.#statePath, state).pipe(Effect.mapError((error) => browserFailure(error.cause))),
     );
   });
-}
-
-/** The directory name of an agent's own session under `Partitions`. Its partition is `persist:` and this name. */
-function agentPartitionName(key: string): string {
-  return `openbot-browser-agent-${key}`;
 }
 
 function currentPreviewPage(tab: BrowserHostTab): BrowserPreviewPage {

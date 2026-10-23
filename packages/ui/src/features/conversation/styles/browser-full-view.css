@@ -188,6 +188,19 @@ body:has(.browser-full-view) .app-frame {
   transition: flex-basis var(--openbot-duration-normal) var(--openbot-ease-out);
 }
 
+/* A tab of a named profile has a line in the profile's color under its title. */
+.browser-full-chip[data-profile-color]::after {
+  position: absolute;
+  right: var(--openbot-space-2);
+  bottom: 2px;
+  left: var(--openbot-space-2);
+  height: 2px;
+  border-radius: var(--openbot-radius-pill);
+  background: var(--browser-profile-color);
+  content: "";
+  pointer-events: none;
+}
+
 /* After a close with the pointer, the chips keep their width until the pointer leaves the row. */
 .browser-full-chips[data-frozen] .browser-full-chip {
   flex: 0 0 var(--browser-full-chip-frozen);

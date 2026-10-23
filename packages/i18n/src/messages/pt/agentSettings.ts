@@ -148,9 +148,15 @@ export const messages = {
   "agentSettings.quickAcknowledgement.title": "Mostrar o plano antes de tarefas longas",
   "agentSettings.quickAcknowledgement.description":
     "Antes de uma tarefa longa, o agente mostra o plano. Ele começa após 10 s ou quando você toca em Iniciar.",
-  "agentSettings.ownBrowserSession.title": "Sessão de navegador própria",
-  "agentSettings.ownBrowserSession.description":
-    "As abas do agente mantêm logins e cookies próprios. Uma mudança fecha as abas abertas do agente.",
+  "agentSettings.browserProfile.label": "Perfil do navegador",
+  "agentSettings.browserProfile.shared": "Compartilhado",
+  "agentSettings.browserProfile.agent": "Somente este agente",
+  "agentSettings.browserProfile.missing": "Perfil excluído",
+  "agentSettings.browserProfile.new": "Novo perfil",
+  "agentSettings.browserProfile.manageTitle": "Perfis do navegador",
+  "agentSettings.browserProfile.manageDescription":
+    "Cada perfil mantém logins e cookies próprios. Uma mudança fecha as abas abertas do agente.",
+  "agentSettings.browserProfile.manage": "Gerenciar",
   "agentSettings.runtime.workspaceEnforcedProcess":
     "Todo o processo do {provider} é executado em um ambiente isolado, por isso a gravação fora desses locais falha. Disponível somente no macOS.",
 } as const satisfies PartialTranslation<typeof source>;
