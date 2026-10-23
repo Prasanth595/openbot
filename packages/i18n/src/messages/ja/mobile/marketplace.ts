@@ -57,6 +57,8 @@ export const messages = {
     "このサーバーはオフラインか、OpenBot が古すぎます。サーバーを実行しているコンピューターで OpenBot をアップデートしてください。",
   "mobile.marketplace.error.agentUnsupported":
     "マーケットプレイスからエージェントを追加するには、サーバーの OpenBot をアップデートしてください。",
+  "mobile.marketplace.error.agentUpdateUnsupported":
+    "マーケットプレイスからエージェントを更新するには、サーバーの OpenBot を更新してください。",
   "mobile.marketplace.error.signInUnsupported":
     "電話からアプリにサインインするには、サーバーの OpenBot をアップデートしてください。",
   "mobile.marketplace.agent.add": "エージェントを追加",

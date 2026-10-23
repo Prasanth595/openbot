@@ -528,6 +528,8 @@ export interface MobileWorkspaceContextValue {
   installAgentTemplate: (input: InstallAgentTemplateInput, serverId: string) => Promise<AddedAgent>;
   /** An owner or admin of an online host that serves `agent-install-v1`. The host checks the role again. */
   canAddMarketplaceAgents: (serverId: string) => boolean;
+  /** An owner or admin of an online host that serves `agent-update-v1`. The host checks the role again. */
+  canUpdateMarketplaceAgents: (serverId: string) => boolean;
   /** Owners and admins only. The host downloads the listing with its own account. */
   installMarketplaceAgent: (input: InstallMarketplaceAgentInput, serverId: string) => Promise<AddedAgent>;
   /** Owners and admins only; the host refuses a member. */
@@ -663,6 +665,7 @@ type MobileWorkspaceStateKey =
   | "canManageMcpServers"
   | "canRelayMcpSignIn"
   | "canAddMarketplaceAgents"
+  | "canUpdateMarketplaceAgents"
   | "canSendNotifications"
   | "canManageEvents"
   | "canManageMissedRuns"

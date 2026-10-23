@@ -58,6 +58,8 @@ export const messages = {
     "Ce serveur est hors ligne, ou son OpenBot est trop ancien pour cela. Mettez à jour OpenBot sur l’ordinateur qui l’exécute.",
   "mobile.marketplace.error.agentUnsupported":
     "Mettez à jour OpenBot sur le serveur pour ajouter des agents depuis la Marketplace.",
+  "mobile.marketplace.error.agentUpdateUnsupported":
+    "Mettez à jour OpenBot sur le serveur pour mettre à jour les agents du Marketplace.",
   "mobile.marketplace.error.signInUnsupported":
     "Mettez à jour OpenBot sur le serveur pour vous connecter aux apps depuis le téléphone.",
   "mobile.marketplace.agent.add": "Ajouter l’agent",

@@ -187,8 +187,17 @@ function AgentPage({
   const { installMarketplaceAgent, refreshServer } = useMobileWorkspaceActions();
   const canAdd = useMobileWorkspaceSelector((workspace) => workspace.canAddMarketplaceAgents(serverId));
   const installed = useMarketplaceInstalled(serverId);
+  const canUpdate = useMobileWorkspaceSelector((workspace) => workspace.canUpdateMarketplaceAgents(serverId));
   const added = installed.agentFor(detail.id);
-  const updatable = added?.marketplaceSource !== undefined && added.marketplaceSource.version < detail.version;
+  // The agent that this page added or updated, before the refreshed agent list shows it. Without it,
+  // the `+` comes back in that time, and a second tap adds a second agent.
+  const [finished, setFinished] = useState<string | null>(null);
+  const addedId = added?.id ?? finished;
+  const updatable =
+    finished === null &&
+    canUpdate &&
+    added?.marketplaceSource !== undefined &&
+    added.marketplaceSource.version < detail.version;
   const block = useInstallBlock(serverId, canAdd);
   const facts = useCatalogFacts(listing, detail.version, detail.updatedAt, detail.installs);
   const [muted] = useThemeColor(["muted"]);
@@ -203,7 +212,7 @@ function AgentPage({
     onBusy(true);
     setError(null);
     try {
-      await mobileAnalytics.operation(
+      const result = await mobileAnalytics.operation(
         "marketplace_action",
         { entity: "agent", action: added ? "update" : "install" },
         () =>
@@ -218,6 +227,7 @@ function AgentPage({
             serverId,
           ),
       );
+      setFinished(result.id);
       void haptics.notification("success");
       // The chat list shows the new agent; a failed refresh does not make the install fail.
       void refreshServer(serverId).catch(() => undefined);
@@ -235,7 +245,7 @@ function AgentPage({
     <>
       <ListingHeaderAction
         kind={updatable ? "update" : "add"}
-        hidden={(added !== undefined && !updatable) || block !== null}
+        hidden={(addedId !== null && !updatable) || block !== null}
         pending={pending}
         label={
           pending
@@ -258,18 +268,18 @@ function AgentPage({
           {t(updatable ? "mobile.marketplace.agent.updating" : "mobile.marketplace.agent.adding")}
         </SettingsNote>
       ) : null}
-      {added ? (
+      {addedId ? (
         // The app's own black or white action, not the accent; the scale feedback has no tinted flash.
         <Button
           className="bg-action"
           feedbackVariant="scale"
-          onPress={() => router.replace({ pathname: "/chat/[agentId]", params: { agentId: added.id } })}
+          onPress={() => router.replace({ pathname: "/chat/[agentId]", params: { agentId: addedId } })}
         >
           <Button.Label className="text-action-foreground">{t("mobile.marketplace.agent.openChat")}</Button.Label>
         </Button>
       ) : null}
       {updatable ? <SettingsNote>{t("mobile.marketplace.agent.updateAvailable")}</SettingsNote> : null}
-      {block && !added ? <SettingsNote>{block}</SettingsNote> : null}
+      {block && !addedId ? <SettingsNote>{block}</SettingsNote> : null}
       <ErrorText error={error} />
       {detail.skills.length > 0 ? (
         <ListingBlock title={t("mobile.marketplace.agent.skills")}>

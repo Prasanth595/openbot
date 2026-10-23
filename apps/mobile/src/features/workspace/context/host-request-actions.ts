@@ -38,6 +38,7 @@ import { AGENT_MEMORY_LIMIT_CAPABILITY } from "@openbot/contracts/team-protocol/
 import { AGENT_PUBLISH_CAPABILITY } from "@openbot/contracts/team-protocol/agent-publish-v1";
 import { AGENT_SESSION_SETTINGS_CAPABILITY } from "@openbot/contracts/team-protocol/agent-session-settings-v1";
 import { AGENT_TASKS_CAPABILITY } from "@openbot/contracts/team-protocol/agent-tasks-v1";
+import { AGENT_UPDATE_CAPABILITY } from "@openbot/contracts/team-protocol/agent-update-v1";
 import { CHANNEL_ROUTES } from "@openbot/contracts/team-protocol/channels-v1";
 import { CONNECTORS_CAPABILITY } from "@openbot/contracts/team-protocol/connectors-v1";
 import { CONTEXT_RESET_CAPABILITY } from "@openbot/contracts/team-protocol/context-reset-v1";
@@ -754,8 +755,22 @@ export function createHostRequestActions({
       return runTeamRequest(installAgentTemplate(teamApi(serverId), input));
     },
     installMarketplaceAgent: async (input, serverId) => {
-      // A host too old to know the route answers 404, so refuse before the request.
-      requireCapability(capabilities, serverId, AGENT_INSTALL_CAPABILITY, "mobile.marketplace.error.agentUnsupported");
+      // A host too old to know the route answers 404, so refuse before the request. An update goes
+      // to the `agent-update-v1` route, as on the desktop.
+      if (input.agentId)
+        requireCapability(
+          capabilities,
+          serverId,
+          AGENT_UPDATE_CAPABILITY,
+          "mobile.marketplace.error.agentUpdateUnsupported",
+        );
+      else
+        requireCapability(
+          capabilities,
+          serverId,
+          AGENT_INSTALL_CAPABILITY,
+          "mobile.marketplace.error.agentUnsupported",
+        );
       return runTeamRequest(installMarketplaceAgent(teamApi(serverId), input));
     },
     mcpSignInRelay: (serverId) => {

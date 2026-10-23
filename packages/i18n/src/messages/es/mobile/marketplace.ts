@@ -58,6 +58,8 @@ export const messages = {
     "Este servidor está sin conexión, o su OpenBot es demasiado antiguo para esto. Actualiza OpenBot en el ordenador que lo ejecuta.",
   "mobile.marketplace.error.agentUnsupported":
     "Actualiza OpenBot en el servidor para añadir agentes desde el marketplace.",
+  "mobile.marketplace.error.agentUpdateUnsupported":
+    "Actualiza OpenBot en el servidor para actualizar agentes del marketplace.",
   "mobile.marketplace.error.signInUnsupported":
     "Actualiza OpenBot en el servidor para iniciar sesión en apps desde el teléfono.",
   "mobile.marketplace.agent.add": "Añadir agente",

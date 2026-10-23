@@ -56,6 +56,8 @@ export const messages = {
   "mobile.marketplace.permission.unavailable":
     "Этот сервер не в сети, или его версия OpenBot слишком старая для этого. Обновите OpenBot на компьютере, где он работает.",
   "mobile.marketplace.error.agentUnsupported": "Обновите OpenBot на сервере, чтобы добавлять агентов из каталога.",
+  "mobile.marketplace.error.agentUpdateUnsupported":
+    "Обновите OpenBot на сервере, чтобы обновлять агентов из каталога.",
   "mobile.marketplace.error.signInUnsupported": "Обновите OpenBot на сервере, чтобы входить в приложения с телефона.",
   "mobile.marketplace.agent.add": "Добавить агента",
   "mobile.marketplace.agent.adding": "Добавление агента",

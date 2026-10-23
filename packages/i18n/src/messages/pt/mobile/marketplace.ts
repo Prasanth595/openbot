@@ -56,6 +56,7 @@ export const messages = {
   "mobile.marketplace.permission.unavailable":
     "Este servidor está offline, ou o OpenBot dele é antigo demais para isso. Atualize o OpenBot no computador que o executa.",
   "mobile.marketplace.error.agentUnsupported": "Atualize o OpenBot no servidor para adicionar agentes da loja.",
+  "mobile.marketplace.error.agentUpdateUnsupported": "Atualize o OpenBot no servidor para atualizar agentes da loja.",
   "mobile.marketplace.error.signInUnsupported": "Atualize o OpenBot no servidor para entrar em apps pelo celular.",
   "mobile.marketplace.agent.add": "Adicionar agente",
   "mobile.marketplace.agent.adding": "Adicionando agente",
