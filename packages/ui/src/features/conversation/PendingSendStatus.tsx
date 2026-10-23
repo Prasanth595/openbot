@@ -27,13 +27,16 @@ export interface PendingSendStatusProps {
 export function PendingSendStatus(props: PendingSendStatusProps): JSX.Element {
   const { t } = useText();
   const failed = () => props.state === "failed";
+  const label = () => (props.retrySafe ? t("chat.send.failed") : t("chat.send.unconfirmed"));
+  // The store falls back to the label text when an error has no message of its own.
+  const reason = () => (props.error === label() ? null : props.error);
   return (
     <div class="pending-send-status" data-state={props.state}>
       <span role="status" class="pending-send-label">
         <Show when={failed() && !props.updateRequired}>
           <TriangleAlert aria-hidden="true" />
-          {props.retrySafe ? t("chat.send.failed") : t("chat.send.unconfirmed")}
-          <Show when={props.error}>{(error) => <span class="pending-send-error">{error()}</span>}</Show>
+          {label()}
+          <Show when={reason()}>{(error) => <span class="pending-send-error">{error()}</span>}</Show>
         </Show>
       </span>
       <Show when={failed()}>
