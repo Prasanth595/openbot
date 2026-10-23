@@ -9,7 +9,8 @@ export interface ProviderAuthFacts {
   account: (provider: AgentSummary["provider"]) => { type: string; planType: string | null } | null;
   hasApiKey: (provider: AgentSummary["provider"]) => boolean;
   customProviderIds: () => readonly string[];
-  xaiApiKey: () => boolean;
+  /** Whether the main process environment, which the provider CLIs inherit, sets the key. */
+  envKey: (name: "XAI_API_KEY" | "CURSOR_API_KEY") => boolean;
 }
 
 /**
@@ -18,22 +19,22 @@ export interface ProviderAuthFacts {
  */
 export function providerAuthKind(agent: AgentSummary, facts: ProviderAuthFacts): ProviderAuthKind {
   const model: string = agent.model;
+  // The host reads the plan of the provider's own sign-in only; an added account stores no plan.
   const addedAccount = agent.providerAccountId !== undefined && agent.providerAccountId !== DEFAULT_PROVIDER_ACCOUNT_ID;
   switch (agent.provider) {
     case "codex": {
-      // An account after the first is always a ChatGPT sign-in.
-      if (addedAccount) return "subscription";
+      if (addedAccount) return "unknown";
       const account = facts.account("codex");
-      if (account?.type === "apiKey") return "api_key";
       if (account?.type !== "chatgpt") return "unknown";
       return account.planType === "free" ? "free" : "subscription";
     }
     case "claude":
-      if (addedAccount) return "subscription";
+      if (addedAccount) return "unknown";
       return facts.account("claude")?.planType ? "subscription" : "unknown";
     case "grok":
-      if (facts.xaiApiKey()) return "api_key";
-      return facts.account("grok") ? "subscription" : "unknown";
+      // Grok authenticates with the cached `grok login` token whenever one exists, also when a key is set.
+      if (facts.account("grok")) return "subscription";
+      return facts.envKey("XAI_API_KEY") ? "api_key" : "unknown";
     case "antigravity":
       return facts.hasApiKey("antigravity") ? "api_key" : "subscription";
     case "muse":
@@ -42,6 +43,7 @@ export function providerAuthKind(agent: AgentSummary, facts: ProviderAuthFacts):
     case "inception":
       return facts.hasApiKey("inception") ? "api_key" : "unknown";
     case "cursor":
+      if (facts.envKey("CURSOR_API_KEY")) return "api_key";
       return facts.account("cursor") ? "subscription" : "unknown";
     case "cline":
       return model.startsWith("cline-free/") ? "free" : "unknown";

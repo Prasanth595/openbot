@@ -585,18 +585,18 @@ export class ProviderRuntime implements ProviderPort {
     });
   }
 
-  /**
-   * Every read of the status names who owns each CLI, from the resolved binary rather than from a
-   * stored field, so a provider that switches between the user's install and the managed copy
-   * cannot leave a stale owner behind. It is added here, not in `#setStatus`, because both the
-   * getter and the events `#setStatus` emits go through it.
-   */
   /** The account type and plan of the provider's own sign-in, or `null` before it is read. */
   accountKind(provider: AgentProvider): { type: string; planType: string | null } | null {
     const account = this.#accounts.get(provider);
     return account ? { type: account.type, planType: account.planType ?? null } : null;
   }
 
+  /**
+   * Every read of the status names who owns each CLI, from the resolved binary rather than from a
+   * stored field, so a provider that switches between the user's install and the managed copy
+   * cannot leave a stale owner behind. It is added here, not in `#setStatus`, because both the
+   * getter and the events `#setStatus` emits go through it.
+   */
   status(): AgentStatus {
     const status = structuredClone(this.#status);
     if (!status.providers) return status;

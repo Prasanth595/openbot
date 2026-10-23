@@ -2312,7 +2312,7 @@ export async function createApplicationServices({
         account: (provider) => service.getProviderAccountKind(provider),
         hasApiKey: (provider) => providerCredentials.status(provider) === "saved",
         customProviderIds: () => customProviders.list().map((provider) => provider.id),
-        xaiApiKey: () => Boolean(process.env.XAI_API_KEY?.trim()),
+        envKey: (name) => Boolean(process.env[name]?.trim()),
       }),
     resolveTurnUsage: (agentId, turnId, since) => service.getTurnUsage(agentId, turnId, since),
     resolveMcpServer: (name) => {
