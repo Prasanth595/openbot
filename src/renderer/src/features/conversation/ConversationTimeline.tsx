@@ -153,6 +153,7 @@ export function ConversationTimeline() {
     openWorkspaceFile,
     openQuote,
     pendingSendFor,
+    presentedQueueDeliveries,
     providerUpdateRequired,
     previewAttachment,
     props,
@@ -415,11 +416,18 @@ export function ConversationTimeline() {
    */
   const pendingPromptBlock = createMemo(() => (keyedPrompt() ? props.promptUiBlock : undefined));
   /**
-   * A direct chat with no message yet, and no turn or question in progress. Its empty state plays a
-   * faint turn from the agent's own routine and skill.
+   * A direct chat with no message yet, and no turn, queued send or question. A queued send leaves the
+   * timeline for the queue tray, and the activity line shows only after a delay, so both are read here.
+   * Its empty state plays a faint turn from the agent's own routine and skill.
    */
   const emptyAgent = createMemo(() =>
-    !channel && timelineMessages().length === 0 && !props.hasOlder && !renderedAgentActivity() && !keyedPrompt()
+    !channel &&
+    timelineMessages().length === 0 &&
+    !props.hasOlder &&
+    !props.activeTurnId &&
+    presentedQueueDeliveries().length === 0 &&
+    !renderedAgentActivity() &&
+    !keyedPrompt()
       ? props.agent
       : undefined,
   );

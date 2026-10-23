@@ -1,7 +1,11 @@
-/* A direct chat before its first message: the agent, its line, and a faint sample turn below. */
+/* A direct chat before its first message: the agent, its line, and a faint sample turn below.
+   It fills the scroll area and no more, so the chat cannot open scrolled past the title: on a
+   short window, the turn row gets only the height that is left. */
 .agent-chat-empty {
-  min-height: 100%;
+  box-sizing: border-box;
+  height: 100%;
   display: grid;
+  grid-auto-rows: auto minmax(0, 21rem);
   align-content: center;
   justify-items: center;
   gap: var(--openbot-space-6);
@@ -72,7 +76,7 @@
 /* The faint turn, in a column of chat width. Its rows are the chat's own. */
 .agent-chat-empty-turn {
   width: min(100%, 40rem);
-  height: 21rem;
+  min-height: 0;
   overflow: hidden;
   opacity: 0.5;
   pointer-events: none;
