@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { type Stats, unwatchFile, watchFile } from "node:fs";
 import { basename } from "node:path";
 import type {
   AccountUsage,
@@ -116,6 +117,8 @@ const PROVIDER_IDLE_RELEASE_MS = 10 * 60_000;
  */
 const PROVIDER_UNASSIGNED_RELEASE_MS = 60_000;
 const PROVIDER_IDLE_CHECK_MS = 60_000;
+/** How often the host reads the time of a provider's sign-in file. A read is one `stat`. */
+const SIGN_IN_FILE_POLL_MS = 2_000;
 /**
  * Starts that fail in a row before OpenBot stops starting a provider by itself. A start that fails,
  * that times out, or whose process ends within `STABLE_RUN_MS` counts. Only a user action starts the
@@ -401,6 +404,8 @@ export class ProviderRuntime implements ProviderPort {
    */
   readonly #usageUnreported = new Set<AgentProvider>();
   #idleCheck: NodeJS.Timeout | null = null;
+  /** The listener of each watched sign-in file, by path. */
+  readonly #signInWatches = new Map<string, (current: Stats, previous: Stats) => void>();
   #status: AgentStatus = structuredClone(INITIAL_STATUS);
   #providerRefresh: Deferred.Deferred<AgentStatus, ProviderOperationFailed> | null = null;
   readonly #codexLogin: CodexLoginFlow;
@@ -969,11 +974,34 @@ export class ProviderRuntime implements ProviderPort {
       PROVIDER_IDLE_CHECK_MS,
     );
     this.#idleCheck.unref?.();
+    this.#watchSignInFiles();
     yield* this.#connect(
       "starting",
       BUILT_IN_PROVIDER_DRIVERS.map((driver) => driver.id),
     );
   }).bind(this);
+
+  /**
+   * A provider found signed out at start keeps no client, and nothing else asks it again. A user who
+   * signs in with the provider's own CLI, such as over SSH on a server, would see it signed out until
+   * a restart (#2895). A started or released client already has an account, and a sign-in that
+   * OpenBot started checks the account itself when it ends.
+   */
+  #watchSignInFiles(): void {
+    for (const driver of BUILT_IN_PROVIDER_DRIVERS) {
+      const path = driver.signInFile?.();
+      if (!path || this.#signInWatches.has(path)) continue;
+      const provider = driver.id;
+      const listener = (current: Stats, previous: Stats) => {
+        if (current.mtimeMs === previous.mtimeMs) return;
+        if (this.#status.phase === "starting" || this.#status.phase === "restarting") return;
+        if (this.#clients.has(provider) || this.#released.has(provider) || this.#cliLogin.has(provider)) return;
+        Effect.runFork(this.refreshProvider(provider).pipe(Effect.ignore, Effect.forkIn(this.#scope)));
+      };
+      this.#signInWatches.set(path, listener);
+      watchFile(path, { interval: SIGN_IN_FILE_POLL_MS, persistent: false }, listener);
+    }
+  }
 
   readonly setPreferredProvider = Effect.fn("ProviderRuntime.setPreferredProvider")(function* (
     this: ProviderRuntime,
@@ -2142,6 +2170,8 @@ export class ProviderRuntime implements ProviderPort {
     this.#restartsWhenIdle.clear();
     if (this.#idleCheck) clearInterval(this.#idleCheck);
     this.#idleCheck = null;
+    for (const [path, listener] of this.#signInWatches) unwatchFile(path, listener);
+    this.#signInWatches.clear();
     this.#released.clear();
     const loginClient = this.#codexLogin.dispose();
     const stopCliLogins = this.#cliLogin.dispose();
