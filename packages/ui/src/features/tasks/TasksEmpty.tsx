@@ -153,7 +153,7 @@ export function TasksEmptyBoard(props: { agents: readonly AgentProfile[] }) {
  */
 function SampleRow(props: { sample: SampleTask; age: Age; agent: AgentProfile | undefined }) {
   const { t } = useText();
-  const task = (): AgentTask => {
+  const task = createMemo((): AgentTask => {
     const at = new Date(0).toISOString();
     return {
       id: props.sample.id,
@@ -172,7 +172,7 @@ function SampleRow(props: { sample: SampleTask; age: Age; agent: AgentProfile | 
       updatedAt: at,
       closedAt: null,
     };
-  };
+  });
   return (
     <div
       class="tasks-page-empty-row"
