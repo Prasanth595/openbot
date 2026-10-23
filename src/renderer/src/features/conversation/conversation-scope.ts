@@ -25,7 +25,13 @@ import { createAttachmentImportSounds } from "./attachment-import-sounds";
 import { useConversationController } from "./conversation-controller-context";
 import { agentConversationKey, composerDraftKey } from "./conversation-keys";
 import { conversationRuntime } from "./conversation-runtime";
-import type { ComposerDraft, ConversationProps, ConversationTarget, SidePanelPane } from "./conversation-types";
+import type {
+  AgentSettingsRequest,
+  ComposerDraft,
+  ConversationProps,
+  ConversationTarget,
+  SidePanelPane,
+} from "./conversation-types";
 import {
   clearQuotedTextHighlight,
   highlightQuotedText,
@@ -54,6 +60,12 @@ import { createVoiceStore } from "./stores/voice-store";
 
 /** A keyboard or wheel scroll moves the chat within a few frames of its input. */
 const READER_INPUT_WINDOW_MS = 250;
+
+/**
+ * Settings requests that a chat has already opened. The request stays set after it is handled, and the
+ * chat mounts again when the user comes back from another page; it must not open a new routine again.
+ */
+const handledSettingsRequests = new WeakSet<AgentSettingsRequest>();
 
 function followConversationBottom(element: HTMLDivElement): void {
   element.scrollTop = element.scrollHeight - element.clientHeight;
@@ -748,7 +760,6 @@ export function createConversationViewScope(props: ConversationProps) {
   let stickToLatest = true;
   let lastConversationIdentity: string | undefined;
   let lastPanelAgentId: string | undefined;
-  let lastHandledSettingsRequestNonce: number | undefined;
   let lastHandledMessageFocusNonce: number | undefined;
   const [quoteRequest, setQuoteRequest] = createSignal<QuoteRequest | undefined>(undefined);
   let lastRuntimeSettingsSignature: string | undefined;
@@ -1235,7 +1246,7 @@ export function createConversationViewScope(props: ConversationProps) {
     },
     ({ agentId, panel, request }) => {
       const settingsRequested =
-        request !== null && agentId === request.agentId && request.nonce !== lastHandledSettingsRequestNonce;
+        request !== null && agentId === request.agentId && !handledSettingsRequests.has(request);
       if (agentId !== lastPanelAgentId) {
         resetPanelsForAgent(agentId, panel);
         // The user can type to the agent they opened. Edit agent leaves the focus where it is, and a touch
@@ -1244,7 +1255,7 @@ export function createConversationViewScope(props: ConversationProps) {
           setComposerFocusRequest((value) => value + 1);
       }
       if (!request || !settingsRequested) return;
-      lastHandledSettingsRequestNonce = request.nonce;
+      handledSettingsRequests.add(request);
       if (request.routine) openRoutineSettings(request.routine);
       else setActiveRightPanel("settings", agentId);
     },
