@@ -1,3 +1,4 @@
+import { rankAgentMentions } from "@openbot/contracts/agent-mention-rank";
 import { GlassView } from "expo-glass-effect";
 import { useIsFocused } from "expo-router";
 import { Button, Spinner, Typography } from "heroui-native";
@@ -233,13 +234,8 @@ export const ChatComposer = memo(function ChatComposer({
   const [previewId, setPreviewId] = useState<string | null>(null);
   const previewItem = files.find((item) => item.id === previewId) ?? null;
   const query = mentionQuery(draft, cursor);
-  const suggestions = query
-    ? mentionAgents
-        .filter((agent) =>
-          `${agent.name} ${agent.title} ${agent.description}`.toLocaleLowerCase().includes(query.query.trim()),
-        )
-        .slice(0, 8)
-    : [];
+  // The limit comes after the rank, so it never cuts an agent whose name matches.
+  const suggestions = query ? rankAgentMentions(mentionAgents, query.query).slice(0, 8) : [];
   // What the bar has to stay open for. A send takes the text and the files out of
   // the composer at once, so a draft is always a new one.
   const hasDraft = Boolean(draft.trim()) || files.length > 0;
