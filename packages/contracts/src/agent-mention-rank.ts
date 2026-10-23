@@ -24,8 +24,12 @@ export function agentMentionRank(agent: MentionableAgent, query: string): number
   if (name.startsWith(folded)) return 1;
   if (name.split(/[\s\-_]+/u).some((word) => word.startsWith(folded))) return 2;
   if (name.includes(folded)) return 3;
-  if (foldMentionText(agent.title).includes(folded)) return 4;
-  return foldMentionText(agent.description).includes(folded) ? 5 : null;
+  const title = foldMentionText(agent.title);
+  if (title.includes(folded)) return 4;
+  const description = foldMentionText(agent.description);
+  if (description.includes(folded)) return 5;
+  // A query can run across fields, such as `alice eng` for Alice the engineer.
+  return `${name} ${title} ${description}`.includes(folded) ? 6 : null;
 }
 
 /** The agents that match, best first. Agents of one rank keep their input order. */
