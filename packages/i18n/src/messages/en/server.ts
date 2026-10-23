@@ -448,6 +448,9 @@ export const messages = defineMessages("server", {
   "server.invite.pendingTitle": "Pending invitations",
   "server.invite.pendingCount": "{total} pending",
   "server.invite.noPending": "No pending invitations.",
+  // The empty pending list. {word} is the one handwritten word of the title.
+  "server.invite.emptyTitle": "Send the first {word}.",
+  "server.invite.emptyWord": "one",
   "server.invite.neverExpires": { one: "Never expires · {count} join", other: "Never expires · {count} joins" },
   "server.invite.expires": "Expires {date}",
   "server.invite.revoke": "Revoke",

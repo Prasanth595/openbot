@@ -127,7 +127,8 @@ export class ChannelStore {
   list(memberId: string, signedOutMessagesAreTheirs = false): ChannelSummary[] {
     // The sidebar is rebuilt on every `channels-changed`, and a streaming reply emits those while
     // it arrives. One query returns every summary: the previous per-channel latest-message, unread,
-    // and task queries made this O(channels x queries) per stream frame.
+    // and task queries made this O(channels x queries) per stream frame. A member's thinking is not
+    // unread, as in an agent chat: it folds into the steps of the member's answer.
     const excludedId = signedOutMessagesAreTheirs ? SIGNED_OUT_CHANNEL_MEMBER_ID : memberId;
     const rows = databaseRows(
       this.database.connection
@@ -148,6 +149,7 @@ export class ChannelStore {
                 AND COALESCE(json_extract(m.message_json, '$.message.itemType'), '') != 'plan'
                 AND COALESCE(json_extract(m.message_json, '$.message.itemType'), '') != 'subagents'
                 AND COALESCE(json_extract(m.message_json, '$.message.itemType'), '') != 'channel-change'
+                AND COALESCE(json_extract(m.message_json, '$.message.itemType'), '') != 'commentary'
                 AND COALESCE(json_extract(m.message_json, '$.message.itemType'), '') NOT LIKE ?) AS unread,
             (SELECT COUNT(*) FROM projection_channel_tasks AS t
               WHERE t.channel_id = c.channel_id
