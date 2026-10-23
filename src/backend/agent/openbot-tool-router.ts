@@ -82,8 +82,8 @@ import {
   listModelsToolSchema,
   PROFILE_TOOL_NAMES,
   profileToolErrorMessage,
-  profileToolPayload,
   readAgentToolSchema,
+  restrictionInput,
   updateProfileToolSchema,
   widensAgentSettings,
 } from "./profile-tools";
@@ -1355,9 +1355,7 @@ export class OpenBotToolRouter {
         ...(fields.avatarSeed === undefined ? {} : { avatarSeed: fields.avatarSeed }),
         ...(fields.notifications === undefined ? {} : { notifications: fields.notifications }),
         ...runtime,
-        // Only a restriction is written, so a user change between the check and this write is never undone.
-        ...(access === "workspace" ? { access } : {}),
-        ...(computerUse === false ? { computerUse } : {}),
+        ...restrictionInput(access, computerUse),
         ...(avatarHue === undefined ? {} : { avatarHue }),
       };
       let updated = yield* this.#hooks.updateAgent(input, senderAgentId).pipe(toToolOperationFailed);
@@ -1366,7 +1364,29 @@ export class OpenBotToolRouter {
       } else if (args.avatarSeed !== undefined || args.avatarHue !== undefined) {
         updated = yield* this.#hooks.setAvatar(agentId, null).pipe(toToolOperationFailed);
       }
-      return openBotToolResult(profileToolPayload(updated));
+      return {
+        success: true,
+        contentItems: [
+          {
+            type: "inputText",
+            text: JSON.stringify({
+              id: updated.id,
+              name: updated.name,
+              title: updated.title,
+              description: updated.description,
+              avatarSeed: updated.avatarSeed,
+              avatarHue: updated.avatarHue,
+              avatarUrl: updated.avatarUrl,
+              provider: updated.provider,
+              model: updated.model,
+              reasoningEffort: updated.reasoningEffort,
+              access: workspaceAccessEnforced(updated) ? "workspace" : "full",
+              computerUse: agentComputerUseEnabled(updated),
+              notifications: updated.notifications,
+            }),
+          },
+        ],
+      };
     },
     Effect.catchDefect((cause) => Effect.fail(new ToolOperationFailed({ cause }))),
     Effect.uninterruptible,

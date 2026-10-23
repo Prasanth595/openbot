@@ -1,9 +1,10 @@
 // Checks the `update_agents` tool of issue #2835 on the real SQLite agent store: a coordinator gives
 // several agents one setting in one call and reads the result for each agent. One agent that has a
 // turn refuses a provider change the way AgentService does, an unknown id and a request to widen
-// access fail for that agent only, and the other agents are still changed. Each call goes through
-// `handleUpdateAgentsTool`, as the tool router sends it, and a failed call becomes the correctable
-// tool failure of the router. No provider, account or network is started.
+// access fail for that agent only, and the other agents are still changed. A model that is not listed
+// fails the whole call. Each call goes through `handleUpdateAgentsTool`, as the tool router sends it,
+// and a failed call becomes the correctable tool failure of the router. No provider, account or
+// network is started.
 // Run: `bun scripts/agent-update-agents-e2e.ts`.
 // Writes .openbot-build/agent-update-agents-e2e/report.json.
 
@@ -152,6 +153,8 @@ try {
     );
     const [first, unknown, busy] = Array.isArray(value.results) ? value.results.filter(isDynamicRecord) : [];
     assert.equal(first?.ok, true);
+    assert.equal(first?.notifications, false, "The result has the agent's new settings.");
+    assert.equal("description" in (first ?? {}), false, "The result leaves out the agent's instructions.");
     assert.equal(unknown?.error, sourceText("error.agent.unknown", { id: "no-such-agent" }));
     assert.equal(busy?.error, sourceText("error.agent.waitBeforeProviderChange"));
     assert.equal(agent(writer.id).notifications, false);
@@ -181,11 +184,11 @@ try {
     return { restricted: restricted.value, widened: widened.value };
   });
 
-  await step("A model that is not listed fails for each agent and changes nothing", async () => {
+  await step("A model that is not listed fails the whole call once and changes nothing", async () => {
     const before = writes.length;
     const { success, value } = await call({ agentIds: [writer.id, tester.id], model: "no-such-model" });
-    assert.equal(success, true);
-    assert.equal(value.failed, 2);
+    assert.equal(success, false);
+    assert.match(String(value.error), /no-such-model/);
     assert.equal(writes.length, before);
     return value;
   });

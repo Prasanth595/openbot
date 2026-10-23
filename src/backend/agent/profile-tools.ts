@@ -9,6 +9,7 @@ import {
   AVATAR_SEED_PATTERN,
   agentComputerUseEnabled,
   isAvatarHue,
+  type UpdateAgentInput,
   workspaceAccessEnforced,
 } from "@openbot/contracts/ipc";
 import { z } from "zod";
@@ -163,23 +164,12 @@ export function widensAgentSettings(
   );
 }
 
-/** The profile that `update_profile` and `update_agents` return for a changed agent. */
-export function profileToolPayload(agent: AgentSummary) {
-  return {
-    id: agent.id,
-    name: agent.name,
-    title: agent.title,
-    description: agent.description,
-    avatarSeed: agent.avatarSeed,
-    avatarHue: agent.avatarHue,
-    avatarUrl: agent.avatarUrl,
-    provider: agent.provider,
-    model: agent.model,
-    reasoningEffort: agent.reasoningEffort,
-    access: workspaceAccessEnforced(agent) ? "workspace" : "full",
-    computerUse: agentComputerUseEnabled(agent),
-    notifications: agent.notifications,
-  };
+/** Only a restriction is written, so a user change between the check and this write is never undone. */
+export function restrictionInput(
+  access: AgentAccess | undefined,
+  computerUse: boolean | undefined,
+): Pick<UpdateAgentInput, "access" | "computerUse"> {
+  return { ...(access === "workspace" ? { access } : {}), ...(computerUse === false ? { computerUse } : {}) };
 }
 
 /**

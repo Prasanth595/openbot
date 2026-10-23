@@ -362,7 +362,8 @@ it they act on the caller. `uninstall_skill` never removes skill files that the 
 `openbot.update_agents` gives several agents the same provider, model, reasoning effort, access,
 Computer Use, or notifications setting in one call. Each agent gets the checks of `update_profile`
 and its own `updateAgent` write, in order. A failure for one agent does not stop or undo the others,
-and the result reports `ok` with the new profile, or the error, for each agent id.
+and the result reports `ok` with the new settings, or the error, for each agent id. A provider or
+model that is not listed fails the whole call before any write.
 An agent can only restrict access and Computer Use, for itself or a teammate. The router writes
 only a restriction, so a user change between its check and the write is never undone. Only the
 user widens them again, and only the user moves an agent between Ask first and Full access, and changes local script runs. An agent changes MCP servers only with the MCP server tools, after the user's request and approval. A new agent gets
