@@ -25,9 +25,12 @@ import {
   agentMcpServers,
   type CodexDisabledMcpServer,
   type CodexMcpServer,
+  type CodexOwnServers,
+  type CodexOwnTransports,
   codexDisabledServers,
-  codexMcpServerName,
+  codexMcpServerKey,
   codexMcpServers,
+  codexThreadMcpServers,
   type McpEndpointSource,
   type McpServerDrop,
   type McpServerSource,
@@ -71,6 +74,9 @@ const logger = createOpenBotLogger("thread-lifecycle");
  * server names in the form Codex accepts. Version 7 keeps approvals for custom MCP servers.
  */
 const CODEX_MCP_ADAPTER_VERSION = 7;
+
+/** What a provider other than Codex, or a Codex with no file to read, has in its own files. */
+const NO_CODEX_OWN_SERVERS: CodexOwnServers = { disabled: {}, transports: {} };
 
 /**
  * Codex offers `update_plan` only when this is on, and without it a turn sends no
@@ -499,14 +505,14 @@ export class ThreadLifecycle {
     const toolRuntimes = this.#toolRuntimes();
     // The same reading rule as above, and for the same reason: the manifest has to record the set
     // this session was started with, including the names swept out of the provider's own file.
-    const disabled = yield* this.codexOwnServersEffect(client, mcpServers, toolRuntimes);
+    const own = yield* this.codexOwnServersEffect(client, mcpServers, toolRuntimes);
     // The same single reading, so the manifest records the variables this session was started with.
     const environment = this.#agentEnvironment();
     // The same single reading, so the manifest records the section-mates these instructions name.
     const section = this.#sectionTeammates(agent.id);
     // Read before the configuration, which starts the same listener: both see one port.
     const proxy = client.provider === "codex" ? yield* this.#proxyFingerprint(mcpServers) : null;
-    const config = yield* this.codexConfigEffect(agent, client, mcpServers, disabled, toolRuntimes, environment);
+    const config = yield* this.codexConfigEffect(agent, client, mcpServers, own, toolRuntimes, environment);
     const params: DynamicRecord = {
       ...config,
       model: agent.model,
@@ -521,7 +527,7 @@ export class ThreadLifecycle {
       serviceName: "openbot",
       dynamicTools: VISIBLE_DYNAMIC_TOOLS,
     };
-    return { agent, mcpServers, toolRuntimes, disabled, environment, section, proxy, params };
+    return { agent, mcpServers, toolRuntimes, own, environment, section, proxy, params };
   });
 
   readonly #startProviderThread = Effect.fn("ThreadLifecycle.prepareProviderThread")(function* (
@@ -531,7 +537,7 @@ export class ThreadLifecycle {
     publicThreadId: string,
     reason?: "configuration-change" | "missing-session",
   ) {
-    const { agent, mcpServers, toolRuntimes, disabled, environment, section, proxy, params } = yield* this.#startParams(
+    const { agent, mcpServers, toolRuntimes, own, environment, section, proxy, params } = yield* this.#startParams(
       owner,
       client,
       publicThreadId,
@@ -563,7 +569,7 @@ export class ThreadLifecycle {
           yield* threadIo(() =>
             writeFile(
               this.toolManifestPath(externalThreadId),
-              this.toolFingerprint(agent, mcpServers, disabled, toolRuntimes, environment, section, proxy),
+              this.toolFingerprint(agent, mcpServers, own, toolRuntimes, environment, section, proxy),
               {
                 mode: 0o600,
               },
@@ -689,7 +695,7 @@ export class ThreadLifecycle {
     agent: AgentSummary,
     client: AgentClient,
     configs: readonly McpServerConfig[],
-    disabled: Record<string, CodexDisabledMcpServer>,
+    own: CodexOwnServers,
     toolRuntimes: McpToolRuntimes,
     environment: Readonly<Record<string, string>>,
   ): Effect.fn.Return<
@@ -705,12 +711,9 @@ export class ThreadLifecycle {
   > {
     if (client.provider !== "codex") return {};
     const usable = yield* usableMcpServers(configs, toolRuntimes, this.#mcpEndpoint).pipe(toThreadOperationFailed);
-    const { servers, dropped } = yield* threadStep(() => codexMcpServers(usable));
+    const { servers, dropped } = yield* threadStep(() => codexMcpServers(usable, own.transports));
     this.#hooks.reportMcpDrops(client.provider, dropped);
-    const mcpServers = { ...disabled, ...servers };
-    for (const [name, server] of Object.entries(servers)) {
-      mcpServers[name] = { ...disabled[name], ...server, enabled: true };
-    }
+    const mcpServers = codexThreadMcpServers(own.disabled, servers);
     return {
       config: {
         ...(Object.keys(mcpServers).length > 0 ? { mcp_servers: mcpServers } : {}),
@@ -736,14 +739,14 @@ export class ThreadLifecycle {
     client: AgentClient,
     configs: readonly McpServerConfig[],
     toolRuntimes: McpToolRuntimes,
-  ): Effect.fn.Return<Record<string, CodexDisabledMcpServer>, ThreadOperationFailed> {
-    if (client.provider !== "codex") return {};
+  ): Effect.fn.Return<CodexOwnServers, ThreadOperationFailed> {
+    if (client.provider !== "codex") return NO_CODEX_OWN_SERVERS;
     // Register only the servers selected by the runtime adapter, including name collisions.
     const usable = yield* usableMcpServers(configs, toolRuntimes).pipe(toThreadOperationFailed);
-    const { servers } = codexMcpServers(usable);
+    const servers = (own: CodexOwnTransports) => codexMcpServers(usable, own).servers;
     return yield* codexDisabledServers(() => readCodexMcpConfig(client, servers).pipe(toMcpShapeFailed)).pipe(
       Effect.catch(() =>
-        Object.keys(servers).length > 0
+        Object.keys(servers({})).length > 0
           ? Effect.fail(
               new ThreadOperationFailed({
                 cause: new Error(
@@ -755,7 +758,7 @@ export class ThreadLifecycle {
                 ),
               }),
             )
-          : Effect.succeed({}),
+          : Effect.succeed(NO_CODEX_OWN_SERVERS),
       ),
     );
   });
@@ -801,7 +804,7 @@ export class ThreadLifecycle {
   private toolFingerprint(
     agent: AgentSummary,
     configs: readonly McpServerConfig[],
-    disabled: Record<string, CodexDisabledMcpServer>,
+    { disabled, transports }: CodexOwnServers,
     toolRuntimes: McpToolRuntimes,
     environment: Readonly<Record<string, string>>,
     section: SectionTeammates | null,
@@ -814,10 +817,10 @@ export class ThreadLifecycle {
           mcpFingerprintValues(configs),
           Object.keys(disabled).sort(),
           // A revoked approval must also replace a loaded session with the old tool policy.
-          configs.map((config) => [
-            codexMcpServerName(config.name),
-            disabled[codexMcpServerName(config.name)]?.tools ?? {},
-          ]),
+          configs.map((config) => {
+            const key = codexMcpServerKey(config, transports);
+            return [key, disabled[key]?.tools ?? {}];
+          }),
           [toolRuntimes.binDirectories, toolRuntimes.commandAliases],
           CODEX_MCP_ADAPTER_VERSION,
           // Only a sandboxed agent, one that allows local scripts, or one that shows its plan adds a
@@ -890,13 +893,13 @@ export class ThreadLifecycle {
     }
     const configs = this.#agentMcpServers(agent);
     const toolRuntimes = this.#toolRuntimes();
-    const disabled = yield* this.codexOwnServersEffect(client, configs, toolRuntimes);
+    const own = yield* this.codexOwnServersEffect(client, configs, toolRuntimes);
     const proxy = yield* this.#proxyFingerprint(configs);
     const fingerprint = yield* threadStep(() =>
       this.toolFingerprint(
         agent,
         configs,
-        disabled,
+        own,
         toolRuntimes,
         this.#agentEnvironment(),
         this.#sectionTeammates(agent.id),

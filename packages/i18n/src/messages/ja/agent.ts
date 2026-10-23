@@ -64,6 +64,7 @@ export const messages = {
   "agent.error.codexConfigIgnored": "Codex の設定に関する警告",
   "agent.error.provider": "プロバイダーのエラー",
   "agent.error.run": "{provider} · {model}",
+  "agent.error.providerNamed": "{provider} のエラー",
   "agent.color.red": "赤",
   "agent.color.orange": "オレンジ",
   "agent.color.yellow": "黄",

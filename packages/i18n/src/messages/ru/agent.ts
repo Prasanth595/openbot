@@ -64,6 +64,7 @@ export const messages = {
   "agent.error.codexConfigIgnored": "Предупреждение о конфигурации Codex",
   "agent.error.provider": "Ошибка провайдера",
   "agent.error.run": "{provider} · {model}",
+  "agent.error.providerNamed": "Ошибка провайдера {provider}",
   "agent.color.red": "Красный",
   "agent.color.orange": "Оранжевый",
   "agent.color.yellow": "Жёлтый",
