@@ -174,6 +174,7 @@ const agentBrowser: AgentBrowserHost = {
   clearControls: () => {},
   endControl: () => {},
   close: () => Effect.void,
+  clearAgentSession: () => Effect.void,
 };
 /** Stored tokens are not read here: the local server has none. */
 const cipher = {

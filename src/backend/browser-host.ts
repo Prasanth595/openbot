@@ -88,6 +88,7 @@ import {
   isToggleDevToolsShortcut,
 } from "./browser-shortcuts";
 import {
+  agentBrowserSessionKey,
   type BrowserTabOwner,
   defaultBrowserEnvironment,
   isPersistableBrowserUrl,
@@ -307,6 +308,9 @@ export class BrowserHost {
   static readonly CONTROL_IDLE_GRACE_MS = BrowserControlSessions.IDLE_GRACE_MS;
   readonly #window: BrowserWindow;
   readonly #session: Session;
+  /** The persistent sessions of agents with a browser session of their own, by key. */
+  readonly #agentSessions = new Map<string, Session>();
+  readonly #ownBrowserSession: (agentId: string) => boolean;
   readonly #downloadsRoot: string;
   readonly #statePath: string;
   readonly #tabs = new Map<string, BrowserHostTab>();
@@ -316,6 +320,8 @@ export class BrowserHost {
   readonly #siteVisitListeners = new Set<(...args: BrowserHostEvents["siteVisited"]) => void>();
   readonly #controls = new BrowserControlSessions();
   readonly #reservedDownloadPaths = new Set<string>();
+  /** Downloads in progress in all sessions, so an agent's own session does not add to the limit. */
+  #activeDownloads = 0;
   readonly #recorder: BrowserRecorder;
   #activeTabId: string | null = null;
   #visible = false;
@@ -352,10 +358,13 @@ export class BrowserHost {
       recordingMaxConcurrent?: number;
       recordingMaxAggregateBytes?: number;
       memoryLow?: () => boolean;
+      /** Whether the new tabs of this agent open in a session of its own. */
+      ownBrowserSession?: (agentId: string) => boolean;
     } = {},
   ) {
     this.#window = window;
     this.#memoryLow = options.memoryLow ?? (() => false);
+    this.#ownBrowserSession = options.ownBrowserSession ?? (() => false);
     this.#downloadsRoot = downloadsRoot;
     this.#statePath = statePath;
     this.#session = session.fromPartition("persist:openbot-browser", { cache: true });
@@ -403,7 +412,17 @@ export class BrowserHost {
         agents.find((agent) => agent.threadId === stored.ownerThreadId && stored.ownerThreadId !== null)?.id ??
         null;
       if (!this.#hasTabCapacity(stored.ownerThreadId, ownerAgentId)) continue;
-      const tab = this.#createTab(stored.id, stored.url, stored.ownerThreadId, stored.ownerAgentId, stored.environment);
+      // A tab comes back in the session it opened in, whatever the agent's setting is now.
+      const tab = this.#createTab(
+        stored.id,
+        stored.url,
+        stored.ownerThreadId,
+        stored.ownerAgentId,
+        stored.environment,
+        undefined,
+        undefined,
+        stored.agentSession,
+      );
       this.#tabs.set(tab.id, tab);
       this.#bindTabEvents(tab);
       tabs.push(tab);
@@ -676,6 +695,10 @@ export class BrowserHost {
     if (this.#memoryLow()) return yield* browserFailure(new Error(sourceText("error.backend.browserLowMemory")));
     const normalizedUrl = yield* browserSync(() => normalizeBrowserUrl(url));
     const previouslyFocused = focus ? null : this.#focusedContentsOutsideTabs();
+    const agentSessionKey =
+      !privateSession && ownerAgentId && this.#ownBrowserSession(ownerAgentId)
+        ? agentBrowserSessionKey(ownerAgentId)
+        : undefined;
     const tab = this.#createTab(
       randomUUID(),
       normalizedUrl,
@@ -684,6 +707,7 @@ export class BrowserHost {
       defaultBrowserEnvironment(),
       undefined,
       privateSession,
+      agentSessionKey,
     );
 
     this.#tabs.set(tab.id, tab);
@@ -1905,7 +1929,7 @@ export class BrowserHost {
         // Capture the persisted tab list before removing native views.
         const persistence = yield* Effect.forkIn(this.#persistState(), this.#scope, { startImmediately: true });
         const drains = [...this.#closingTabDrains.values()].map(Fiber.join);
-        this.#session.flushStorageData();
+        for (const target of this.#persistentSessions()) target.flushStorageData();
         for (const tab of this.#tabs.values()) {
           tab.closing = true;
           this.#unmountView(tab.view);
@@ -1927,7 +1951,7 @@ export class BrowserHost {
         this.#siteVisitListeners.clear();
         const results = yield* Effect.all(
           [
-            browserCall(() => this.#session.cookies.flushStore()),
+            browserCall(() => Promise.all(this.#persistentSessions().map((target) => target.cookies.flushStore()))),
             Fiber.join(persistence),
             Effect.all(drains.map(Effect.exit), { concurrency: "unbounded" }).pipe(
               Effect.flatMap((results) =>
@@ -1945,7 +1969,7 @@ export class BrowserHost {
           { concurrency: "unbounded" },
         );
         this.#closingTabDrains.clear();
-        this.#session.flushStorageData();
+        for (const target of this.#persistentSessions()) target.flushStorageData();
         yield* this.#persistLock.withPermit(Effect.void);
         yield* Scope.close(this.#scope, Exit.void);
         const failure = results.find(Exit.isFailure);
@@ -1959,10 +1983,52 @@ export class BrowserHost {
   readonly flushPersistentStorage = Effect.fn("BrowserHost.flushPersistentStorage")(function* (
     this: BrowserHost,
   ): Effect.fn.Return<void, BrowserOperationError> {
-    this.#session.flushStorageData();
-    yield* browserCall(() => this.#session.cookies.flushStore());
+    const sessions = this.#persistentSessions();
+    for (const target of sessions) target.flushStorageData();
+    yield* browserCall(() => Promise.all(sessions.map((target) => target.cookies.flushStore())));
     yield* this.#persistState();
   }).bind(this);
+
+  /**
+   * Deletes the cookies, storage and cache of an agent's own session, for a deleted agent. Its tabs
+   * must be closed first: a tab still open in the session keeps it.
+   */
+  readonly clearAgentSession = Effect.fn("BrowserHost.clearAgentSession")(function* (
+    this: BrowserHost,
+    agentId: string,
+  ): Effect.fn.Return<void, BrowserOperationError> {
+    const key = agentBrowserSessionKey(agentId);
+    if ([...this.#tabs.values()].some((tab) => tab.agentSessionKey === key))
+      return yield* browserFailure(new Error("A tab still uses the agent's browser session."));
+    // An agent that never had a session of its own has nothing to clear, and opening one would create it.
+    if (
+      !this.#agentSessions.has(key) &&
+      !existsSync(join(app.getPath("sessionData"), "Partitions", agentPartitionName(key)))
+    )
+      return;
+    const target =
+      this.#agentSessions.get(key) ?? session.fromPartition(`persist:${agentPartitionName(key)}`, { cache: true });
+    this.#agentSessions.delete(key);
+    yield* browserCall(() => target.clearStorageData());
+    yield* browserCall(() => target.clearCache());
+  }).bind(this);
+
+  #persistentSessions(): Session[] {
+    return [this.#session, ...this.#agentSessions.values()];
+  }
+
+  #tabSession(tab: Pick<BrowserHostTab, "privateSession" | "agentSessionKey">): Session {
+    return tab.privateSession ?? (tab.agentSessionKey ? this.#agentSession(tab.agentSessionKey) : this.#session);
+  }
+
+  #agentSession(key: string): Session {
+    const existing = this.#agentSessions.get(key);
+    if (existing) return existing;
+    const target = session.fromPartition(`persist:${agentPartitionName(key)}`, { cache: true });
+    this.#configureSession(target);
+    this.#agentSessions.set(key, target);
+    return target;
+  }
 
   #createTab(
     id: string,
@@ -1972,9 +2038,16 @@ export class BrowserHost {
     environment: BrowserEnvironment = defaultBrowserEnvironment(),
     popupOptions?: BrowserWindowConstructorOptions,
     privateSession?: Session,
+    agentSessionKey?: string,
   ): BrowserHostTab {
     if (this.#destroying) throw new Error("BrowserHost is shutting down.");
-    const view = this.#createView(popupOptions, privateSession ?? this.#session);
+    const view = this.#createView(
+      popupOptions,
+      this.#tabSession({
+        ...(privateSession ? { privateSession } : {}),
+        ...(agentSessionKey ? { agentSessionKey } : {}),
+      }),
+    );
     this.#mountView(view);
     const diagnostics = new BrowserDiagnostics();
     const queue = Deferred.makeUnsafe<void>();
@@ -1985,6 +2058,7 @@ export class BrowserHost {
       contents: view.webContents,
       popup: popupOptions !== undefined,
       ...(privateSession ? { privateSession } : {}),
+      ...(agentSessionKey ? { agentSessionKey } : {}),
       requestedUrl,
       ownerThreadId,
       ownerAgentId,
@@ -2061,13 +2135,12 @@ export class BrowserHost {
       callback(isAllowedBrowserPermission(permission)),
     );
     target.setPermissionCheckHandler((_webContents, permission) => isAllowedBrowserPermission(permission));
-    let activeDownloads = 0;
     target.on("will-download", (event, item, contents) => {
       if ([...this.#tabs.values()].some((tab) => tab.secret && tab.contents === contents)) {
         event.preventDefault();
         return;
       }
-      if (activeDownloads >= MAX_ACTIVE_DOWNLOADS || item.getTotalBytes() > MAX_DOWNLOAD_BYTES) {
+      if (this.#activeDownloads >= MAX_ACTIVE_DOWNLOADS || item.getTotalBytes() > MAX_DOWNLOAD_BYTES) {
         event.preventDefault();
         return;
       }
@@ -2079,7 +2152,7 @@ export class BrowserHost {
       );
       this.#reservedDownloadPaths.add(downloadPath);
       item.setSavePath(downloadPath);
-      activeDownloads += 1;
+      this.#activeDownloads += 1;
       // A server can send no size, or a wrong one, so the received bytes are checked as they arrive.
       item.on("updated", () => {
         if (item.getState() !== "progressing" || item.getReceivedBytes() <= MAX_DOWNLOAD_BYTES) return;
@@ -2087,7 +2160,7 @@ export class BrowserHost {
         item.cancel();
       });
       item.once("done", () => {
-        activeDownloads -= 1;
+        this.#activeDownloads -= 1;
         this.#reservedDownloadPaths.delete(downloadPath);
       });
     });
@@ -2316,7 +2389,7 @@ export class BrowserHost {
         // The host owns cleanup. Electron otherwise destroys children on opener reload too.
         outlivesOpener: true,
         overrideBrowserWindowOptions: {
-          webPreferences: { ...BROWSER_WEB_PREFERENCES, session: tab.privateSession ?? this.#session },
+          webPreferences: { ...BROWSER_WEB_PREFERENCES, session: this.#tabSession(tab) },
         },
         createWindow: (options) => {
           if (popup) return popup.contents;
@@ -2328,6 +2401,7 @@ export class BrowserHost {
             structuredClone(tab.environment),
             options,
             tab.privateSession,
+            tab.agentSessionKey,
           );
           // Chromium exposes no opener for noopener/noreferrer requests.
           if (options.webContents?.opener) {
@@ -2723,12 +2797,18 @@ export class BrowserHost {
         ownerThreadId: tab.ownerThreadId,
         ownerAgentId: tab.ownerAgentId,
         environment: tab.environment,
+        ...(tab.agentSessionKey ? { agentSession: tab.agentSessionKey } : {}),
       })),
     };
     yield* this.#persistLock.withPermit(
       writeJsonFileAtomically(this.#statePath, state).pipe(Effect.mapError((error) => browserFailure(error.cause))),
     );
   });
+}
+
+/** The directory name of an agent's own session under `Partitions`. Its partition is `persist:` and this name. */
+function agentPartitionName(key: string): string {
+  return `openbot-browser-agent-${key}`;
 }
 
 function currentPreviewPage(tab: BrowserHostTab): BrowserPreviewPage {

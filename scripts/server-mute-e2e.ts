@@ -172,6 +172,7 @@ const agentBrowser: AgentBrowserHost = {
   clearControls: () => {},
   endControl: () => {},
   close: () => Effect.void,
+  clearAgentSession: () => Effect.void,
 };
 const teamBrowser: TeamApiBrowser = {
   listTabs: () => [],

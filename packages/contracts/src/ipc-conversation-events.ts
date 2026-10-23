@@ -326,6 +326,22 @@ export function modelSwitchReason(message: ConversationMessage): ModelSwitchReas
 }
 
 /**
+ * The item type of the note that a member agent changed its channel at a person's request: a
+ * member, the instructions or a routine. The text is a readable sentence that names the agent, the
+ * change and the person, as for the model switch.
+ */
+export const CHANNEL_CHANGE_ITEM_TYPE = "channel-change";
+
+export function isChannelChangeMarker(message: ConversationMessage): boolean {
+  return (
+    message.author === "system" &&
+    message.source === "system" &&
+    message.status === "completed" &&
+    message.itemType === CHANNEL_CHANGE_ITEM_TYPE
+  );
+}
+
+/**
  * The item type of a message that one agent sends to another, in the sender's thread and in the
  * recipient's thread. It is traffic between agents, not a message to the user.
  */

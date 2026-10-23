@@ -62,6 +62,7 @@ import {
   OPENCODE_CONFINED_ENV,
   openCodeStatePaths,
   type ProcessConfinement,
+  piAgentDirectory,
   piStatePaths,
   type SpawnTarget,
 } from "./process-confinement";
@@ -370,6 +371,12 @@ interface ProviderModelCatalog {
 export interface BuiltInProviderDriver {
   id: AgentProviderId;
   signIn: ProviderSignIn;
+  /**
+   * The file the provider's CLI writes when the user signs in with it. The host checks the account
+   * again when this file changes, so a sign-in done outside OpenBot, such as over SSH, needs no
+   * restart. Absent for a provider that OpenBot always signs in itself.
+   */
+  signInFile?(): string;
   /** Absent for a provider that has no sign-in on another device. */
   codeSignIn?: ProviderCodeSignIn;
   /** Absent for a provider that holds one account only. */
@@ -446,6 +453,7 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
   {
     id: "pi",
     signIn: { kind: "terminal", timeoutMs: CLI_LOGIN_TIMEOUT_MS },
+    signInFile: () => join(piAgentDirectory(), "auth.json"),
     resolveCli: resolvePiCli,
     createClient: (cli, timeout, context, confinement) => piClient("pi", cli, timeout, context, confinement),
     createProfileClient: (cli, timeout, context) => piProfileClient("pi", cli, timeout, context),

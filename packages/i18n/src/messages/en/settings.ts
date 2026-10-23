@@ -416,6 +416,7 @@ export const messages = defineMessages("settings", {
   // The plan picker. {count} is a number, such as 4. {price} is a formatted amount, such as "€50".
   "settings.hostedServers.plan.label": "Plan",
   "settings.hostedServers.plan.recommended": "Best value",
+  "settings.hostedServers.plan.soldOut": "Sold out",
   "settings.hostedServers.plan.perMonth": "/ month",
   "settings.hostedServers.plan.disk": "{count} GB storage",
   // Each plan is a Linux virtual machine. Agents run Linux commands and apps there, not macOS or Windows ones.

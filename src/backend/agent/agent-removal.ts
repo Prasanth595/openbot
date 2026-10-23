@@ -185,7 +185,11 @@ export class AgentRemoval {
         return new AgentRemovalFailed({ cause: new Error(sourceText("error.agent.deleteIncomplete")) });
       }),
     );
-    yield* this.#closeBrowserTabsEffect(agent);
+    yield* this.closeBrowserTabs(agent);
+    // Nobody can use the sign-ins of a deleted agent again.
+    const cleared = yield* Effect.result(this.#browser.clearAgentSession(agent.id));
+    if (Result.isFailure(cleared))
+      this.#logger.warn("Could not clear a deleted agent's browser session.", removalErrorCode(cleared.failure));
     yield* removalStep(() => {
       this.#conversation.forgetAgent(agent.id);
       this.#turn.forgetAgent(agent.id);
@@ -210,8 +214,11 @@ export class AgentRemoval {
    * The owner test matches the renderer's, so a tab the user could see under this agent is a tab this
    * closes -- including a legacy tab carrying only the thread id. Runs after the agent record is
    * already gone, so a failure here must not fail the deletion the user asked for.
+   *
+   * A change of the agent's own browser session closes its tabs too: each tab keeps the session it
+   * opened in.
    */
-  readonly #closeBrowserTabsEffect = Effect.fn("AgentRemoval.closeBrowserTabs")(function* (
+  readonly closeBrowserTabs = Effect.fn("AgentRemoval.closeBrowserTabs")(function* (
     this: AgentRemoval,
     agent: Pick<AgentSummary, "id" | "threadId">,
   ) {
@@ -226,9 +233,9 @@ export class AgentRemoval {
     for (const tab of owned) {
       const result = yield* Effect.result(this.#browser.close(tab.id).pipe(toAgentRemovalFailed));
       if (Result.isSuccess(result)) closed += 1;
-      else this.#logger.warn("Could not close a deleted agent's browser tab.", removalErrorCode(result.failure));
+      else this.#logger.warn("Could not close an agent's browser tab.", removalErrorCode(result.failure));
     }
-    if (closed > 0) this.#logger.info("Closed a deleted agent's browser tabs.", { agentId: agent.id, count: closed });
+    if (closed > 0) this.#logger.info("Closed an agent's browser tabs.", { agentId: agent.id, count: closed });
   });
 }
 

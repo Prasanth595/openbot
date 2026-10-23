@@ -157,6 +157,9 @@ export const messages = {
   "agentSettings.quickAcknowledgement.title": "Montrer le plan avant les longues tâches",
   "agentSettings.quickAcknowledgement.description":
     "Avant une longue tâche, l’agent montre son plan. Il commence après 10 s ou quand vous appuyez sur Démarrer.",
+  "agentSettings.ownBrowserSession.title": "Session de navigateur propre",
+  "agentSettings.ownBrowserSession.description":
+    "Les onglets de l’agent gardent leurs propres connexions et cookies. Un changement ferme les onglets ouverts de l’agent.",
   "agentSettings.runtime.workspaceEnforcedProcess":
     "Tout le processus {provider} s’exécute dans un bac à sable : une écriture à l’extérieur échoue donc. Disponible sur macOS uniquement.",
 } as const satisfies PartialTranslation<typeof source>;

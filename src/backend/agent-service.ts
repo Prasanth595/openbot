@@ -4,6 +4,7 @@ import { agentProviderDescriptor } from "@openbot/contracts/agent-providers";
 import { sortConversationMessages } from "@openbot/contracts/conversation-order";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import type {
+  AgentAccessLevel,
   AgentAnalyticsInput,
   AgentEvent,
   AgentMemory,
@@ -102,6 +103,7 @@ import {
   type AgentModelChoice,
   agentAutomationAllowed,
   agentNewChatAllowed,
+  agentOwnBrowserSessionEnabled,
   agentTaskLimit,
   type BusyMessageMode,
   CONTEXT_RESET_ITEM_TYPE,
@@ -168,6 +170,7 @@ import { type AgentClientFactory, ProviderRuntime, toProviderOperationFailed } f
 import { QueueControls } from "./agent/queue-controls";
 import { quietRoutineRun } from "./agent/routine-quiet-runs";
 import { type RoutineMutationOptions, RoutineScheduler, toRoutineOperationFailed } from "./agent/routine-scheduler";
+import { localTimezone } from "./agent/routine-tools";
 import { buildRuntimeSnapshot } from "./agent/runtime-snapshot";
 import type { ScreenCaptureHost } from "./agent/screen-capture";
 import { SessionSettings } from "./agent/session-settings";
@@ -303,6 +306,13 @@ export interface AgentServiceOptions {
    * sender. The main process owns the preference. Omitted, the host system zone.
    */
   timezone?: () => string;
+  /**
+   * The access level of the person who asked a channel member to add or remove an agent, for that
+   * agent, as the Team API gives it for their own save. Omitted, `manage`.
+   */
+  channelPersonAgentLevel?: (personId: string, agentId: string) => AgentAccessLevel;
+  /** Whether that person uses a remote client, which has only the released routine schedules. Omitted, no. */
+  channelRemotePerson?: (personId: string) => boolean;
   deleteWithRevokedApproval?: (
     agentId: string,
     remove: () => Effect.Effect<void, AgentRemovalFailed>,
@@ -975,6 +985,15 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         this.#emit({ type: "channels-changed", channelId, revision });
       },
       memoriesChanged: (channelId) => this.#emit({ type: "channel-memories-changed", channelId }),
+      ...(options.channelPersonAgentLevel ? { personAgentLevel: options.channelPersonAgentLevel } : {}),
+      ...(options.channelRemotePerson ? { remotePerson: options.channelRemotePerson } : {}),
+      routines: {
+        list: (channelId) => this.#channelRoutines.list(channelId),
+        create: (input) => this.#channelRoutines.create(input),
+        update: (input) => this.#channelRoutines.update(input),
+        delete: (input) => this.#channelRoutines.delete(input),
+        timezone: options.timezone ?? localTimezone,
+      },
       // A held agent starts nothing, so its queue has no event of its own while the reservation
       // moves. Without this its panel keeps naming the channel task that has already ended.
       queueHoldChanged: () => {
@@ -2437,6 +2456,9 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       },
       initiatingAgentId,
     );
+    // A tab keeps the session it opened in, so the agent's next tab opens in the session it chose now.
+    if (previous && agentOwnBrowserSessionEnabled(previous) !== agentOwnBrowserSessionEnabled(agent))
+      yield* this.#removal.closeBrowserTabs(agent);
     if (moved && (leaving || returning))
       this.#appendModelSwitchMarker(
         agent,

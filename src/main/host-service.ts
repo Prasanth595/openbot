@@ -34,7 +34,7 @@ import type {
   UpdateHostIdentityInput,
   UpdateTeamMemberInput,
 } from "@openbot/contracts/ipc";
-import { conversationMessageSender, SIGNED_OUT_CHANNEL_MEMBER_ID } from "@openbot/contracts/ipc";
+import { type AgentAccessLevel, conversationMessageSender, SIGNED_OUT_CHANNEL_MEMBER_ID } from "@openbot/contracts/ipc";
 import type { LiveActivityRelayPush } from "@openbot/contracts/live-activity-relay";
 import type { HostRestartState } from "@openbot/contracts/team-protocol/host-update-v1";
 import { sourceText } from "@openbot/i18n/source";
@@ -1512,6 +1512,32 @@ export class HostService extends EventEmitter<HostEvents> {
       return { id: SIGNED_OUT_CHANNEL_MEMBER_ID, name: "You" };
     }
     return { id: this.#currentAgentReaderId(), name: user.name ?? "You" };
+  }
+
+  /**
+   * The level of `personId`, who asked a channel member to add or remove `agentId`, for that agent:
+   * the level their own save through the Team API has. This computer's user manages every agent. A
+   * person who is no longer an active member of the team has none.
+   */
+  channelPersonAgentLevel(personId: string, agentId: string): AgentAccessLevel {
+    if (!this.channelPersonIsRemote(personId)) return "manage";
+    const member = this.#options.store.getMember(personId);
+    if (!member || member.disabled) return "none";
+    return this.#api.agentLevel(member, agentId);
+  }
+
+  /**
+   * Whether `personId`, who wrote a channel request, is someone other than this computer's user: a
+   * team member, whose app has only what the Team API gives it.
+   */
+  channelPersonIsRemote(personId: string): boolean {
+    if (personId === SIGNED_OUT_CHANNEL_MEMBER_ID || personId === this.#findCurrentMemberId()) return false;
+    try {
+      return personId !== `local-user:${this.#options.getSignedInUser().id}`;
+    } catch {
+      // Signed out: the person is a team member or nobody this computer knows.
+      return true;
+    }
   }
 
   /** The channel list as the host user reads it, as the IPC list does. Empty without channels. */

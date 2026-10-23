@@ -418,6 +418,7 @@ export const messages = {
   "settings.hostedServers.deleteFailed": "Impossible de supprimer le serveur.",
   "settings.hostedServers.plan.label": "Forfait",
   "settings.hostedServers.plan.recommended": "Meilleure offre",
+  "settings.hostedServers.plan.soldOut": "Épuisé",
   "settings.hostedServers.plan.perMonth": "/ mois",
   "settings.hostedServers.plan.disk": "{count} Go de stockage",
   "settings.hostedServers.plan.linux": "Machine Linux",

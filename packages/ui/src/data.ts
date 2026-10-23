@@ -146,6 +146,8 @@ export type ChatActionMarkerModel =
   | { kind: "context-reset"; timestamp: string }
   /** The agent left its model for a usage limit, or went back to it. `text` is the host's note. */
   | { kind: "model-switch"; reason: ModelSwitchReason; text: string; timestamp: string }
+  /** A member agent changed the channel at a person's request. `text` is the host's note. */
+  | { kind: "channel-change"; text: string; timestamp: string }
   | {
       kind: "unavailable";
       label: string;
@@ -229,6 +231,8 @@ export interface AgentProfile {
   allowNewChat?: boolean | undefined;
   /** Absent means off. Absent for an agent on a remote host too, which does not share it. */
   quickAcknowledgement?: boolean | undefined;
+  /** Absent means off. Absent for an agent on a remote host too, which does not share it. */
+  ownBrowserSession?: boolean | undefined;
   /** Absent means off. Absent for an agent on a remote host too, which does not share it. */
   fastMode?: boolean | undefined;
   /** Absent means the app default. Absent for an agent on a remote host too, which does not share it. */

@@ -161,6 +161,9 @@ export const messages = {
   "agentSettings.quickAcknowledgement.title": "Mostrar el plan antes de tareas largas",
   "agentSettings.quickAcknowledgement.description":
     "Antes de una tarea larga, el agente muestra su plan. Empieza tras 10 s o cuando pulsas Iniciar.",
+  "agentSettings.ownBrowserSession.title": "Sesión de navegador propia",
+  "agentSettings.ownBrowserSession.description":
+    "Las pestañas del agente guardan sus propios inicios de sesión y cookies. Un cambio cierra las pestañas abiertas del agente.",
   "agentSettings.runtime.workspaceEnforcedProcess":
     "Todo el proceso de {provider} se ejecuta en un entorno aislado, por lo que la escritura fuera falla. Solo disponible en macOS.",
 } as const satisfies PartialTranslation<typeof source>;

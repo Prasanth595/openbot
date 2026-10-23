@@ -174,6 +174,9 @@ export const messages = {
   "agentSettings.quickAcknowledgement.title": "Pokaż plan przed długimi zadaniami",
   "agentSettings.quickAcknowledgement.description":
     "Przed długim zadaniem agent pokazuje swój plan. Zaczyna po 10 s lub po naciśnięciu Start.",
+  "agentSettings.ownBrowserSession.title": "Własna sesja przeglądarki",
+  "agentSettings.ownBrowserSession.description":
+    "Karty agenta mają własne logowania i pliki cookie. Zmiana zamyka otwarte karty agenta.",
   "agentSettings.runtime.workspaceEnforcedProcess":
     "Cały proces {provider} działa w piaskownicy, więc zapis poza tymi folderami się nie powiedzie. Dostępne tylko w macOS.",
 } as const satisfies PartialTranslation<typeof source>;
