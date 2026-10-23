@@ -1,10 +1,11 @@
-import type {
-  AgentEvent,
-  AgentRuntimeSnapshot,
-  ConversationPage,
-  ConversationPageInfo,
-  ConversationReadState,
-  ConversationSnapshot,
+import {
+  type AgentEvent,
+  type AgentRuntimeSnapshot,
+  CONVERSATION_SNAPSHOT_MESSAGE_LIMIT,
+  type ConversationPage,
+  type ConversationPageInfo,
+  type ConversationReadState,
+  type ConversationSnapshot,
 } from "@openbot/contracts/ipc";
 import { cleanAgentMessageText } from "@openbot/team-client/agent-message-text";
 import type { AgentMessage } from "@openbot/ui/data";
@@ -550,7 +551,10 @@ const Conversation = createSimpleContext({
         const allMappedMessages = toAgentMessages(sourceMessages, snapshot.agentId);
         const mappedMessages = retainThinkingMessages(
           previous,
-          windowedSnapshotMessages(previous, allMappedMessages, windowMode),
+          windowedSnapshotMessages(previous, allMappedMessages, {
+            mode: windowMode,
+            capped: snapshot.messages.length >= CONVERSATION_SNAPSHOT_MESSAGE_LIMIT,
+          }),
         );
         const next = mappedMessages.map((mapped) => {
           const existing = previousById.get(mapped.id);

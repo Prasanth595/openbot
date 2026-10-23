@@ -60,25 +60,26 @@ export function missingReplyOriginals(page: Pick<ConversationPage, "messages" | 
  * The part of a refreshed snapshot a conversation may show without losing its
  * window.
  *
- * A snapshot is only the tail of the conversation: main caps it at its cache
- * limit. Loaded messages before the first one it shares are older than that
- * tail, so they stay. The window keeps the snapshot messages already on
- * screen, plus everything after the last one it recognises - that is the new
- * arrivals. A window loaded *around* a message takes them only when its last
- * message is in the snapshot; otherwise they belong to the far end of a gap. A
- * latest window that shares nothing with the snapshot is replaced by it.
+ * A snapshot below main's message limit is the whole conversation. A capped
+ * one is only its tail: loaded messages before the first one it shares are
+ * older than that tail, so they stay. The window keeps the snapshot messages
+ * already on screen, plus everything after the last one it recognises - that
+ * is the new arrivals. A window loaded *around* a message takes them only when
+ * its last message is in the snapshot; otherwise they belong to the far end of
+ * a gap. A window that shares nothing with the snapshot is replaced by it,
+ * except a window around a message older than a capped tail.
  */
 export function windowedSnapshotMessages<Message extends { id: string }>(
   loaded: readonly Message[],
   snapshot: readonly Message[],
-  mode: "latest" | "around",
+  window: { mode: "latest" | "around"; capped: boolean },
 ): Message[] {
   const snapshotIds = new Set(snapshot.map((message) => message.id));
   const firstShared = loaded.findIndex((message) => snapshotIds.has(message.id));
-  if (mode === "latest" && firstShared === -1) return [...snapshot];
-  const older = loaded.slice(0, firstShared === -1 ? loaded.length : firstShared);
+  if (firstShared === -1 && (window.mode === "latest" || !window.capped)) return [...snapshot];
+  const older = window.capped ? loaded.slice(0, firstShared === -1 ? loaded.length : firstShared) : [];
   const loadedIds = new Set(loaded.map((message) => message.id));
-  const takesArrivals = mode === "latest" || snapshotIds.has(loaded.at(-1)?.id ?? "");
+  const takesArrivals = window.mode === "latest" || snapshotIds.has(loaded.at(-1)?.id ?? "");
   const lastLoadedIndex = takesArrivals
     ? snapshot.reduce((last, message, index) => (loadedIds.has(message.id) ? index : last), -1)
     : snapshot.length;
