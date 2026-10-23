@@ -43,6 +43,7 @@ import { errorReference, type UserErrorDetails } from "@openbot/user-errors";
 import { createEffect, createMemo, createSignal, createStore, onSettled } from "solid-js";
 import { toAgentProfile } from "../../app-message-projection";
 import { mergeConversationPage, missingReplyOriginals } from "../conversation/conversation-merge";
+import { appendTurnStepLine, type TurnStepLines } from "../conversation/turn-step-lines";
 import { followsServerUpdate } from "../servers/server-update-flow";
 import { createSidebarPreferences } from "../sidebar/sidebar-preferences";
 import { defaultSidebarLayout } from "../sidebar/sidebar-sections";
@@ -234,6 +235,8 @@ export function createWebWorkspace(
     sidebarLayout: defaultSidebarLayout(),
     userHiddenAgents: [],
   });
+  // Every progress line of the newest turns, by turn, for the steps under the activity line.
+  const [stepLines, setStepLines] = createSignal<TurnStepLines>({});
   let generation = 0;
   let selectedId: string | null = null;
   let hostId: string | null = null;
@@ -482,6 +485,7 @@ export function createWebWorkspace(
           setState((draft) => {
             draft.progress[event.agentId] = { turnId: event.turnId, detail: cleanAgentMessageText(event.detail) };
           });
+          setStepLines((current) => appendTurnStepLine(current, event.turnId, cleanAgentMessageText(event.detail)));
         } else if (event.type === "turn-started") {
           setState((draft) => {
             delete draft.progress[event.agentId];
@@ -705,6 +709,7 @@ export function createWebWorkspace(
             draft.approvals = [];
             draft.prompts = [];
             draft.progress = {};
+            setStepLines({});
             draft.takeovers = [];
             draft.browserTabs = [];
             draft.activeBrowserTabId = null;
@@ -819,6 +824,7 @@ export function createWebWorkspace(
       draft.approvals = [];
       draft.prompts = [];
       draft.progress = {};
+      setStepLines({});
       draft.takeovers = [];
       draft.browserTabs = [];
       draft.activeBrowserTabId = null;
@@ -1456,6 +1462,7 @@ export function createWebWorkspace(
   });
   return {
     state,
+    stepLines,
     hostViews,
     profiles,
     retryPanels: loadPanels,

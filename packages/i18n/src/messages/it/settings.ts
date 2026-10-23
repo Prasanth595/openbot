@@ -39,6 +39,9 @@ export const messages = {
   "settings.sendShortcut.enter": "Invio per inviare",
   "settings.sendShortcut.modEnterMac": "⌘Invio per inviare",
   "settings.sendShortcut.modEnterWin": "Ctrl+Invio per inviare",
+  "settings.showAgentSteps.title": "Mostra i passaggi dell'agente",
+  "settings.showAgentSteps.description":
+    "Apre per impostazione predefinita il ragionamento, i passaggi degli strumenti e le modifiche alle memorie di ogni turno su questo dispositivo e browser.",
   "settings.busyMessage.title": "Indirizza gli agenti mentre lavorano",
   "settings.busyMessage.description":
     "I nuovi messaggi si uniscono al lavoro in corso dell'agente, non alla coda. Funziona con ChatGPT e Claude.",

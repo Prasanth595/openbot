@@ -14,6 +14,7 @@ import {
   tool,
 } from "@anthropic-ai/claude-agent-sdk";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import { type AgentContextCategoryUsage, defaultProviderModel } from "@openbot/contracts/ipc";
 import { type DynamicRecord, isDynamicRecord, isNumber, isOneOf, isString } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
@@ -1376,7 +1377,16 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
           typeof input.file_path === "string"
             ? [input.file_path]
             : undefined,
-        item: { id, type: "toolCall", name, status: completed ? "completed" : "in_progress" },
+        item: {
+          id,
+          type: "toolCall",
+          name,
+          status: completed ? "completed" : "in_progress",
+          // The skill that a `Skill` call loads, for the turn's activity line.
+          ...(name === "Skill" && isRecord(input) && typeof input.skill === "string"
+            ? { skill: input.skill.slice(0, INPUT_LIMITS.identifier) }
+            : {}),
+        },
       },
     });
   }

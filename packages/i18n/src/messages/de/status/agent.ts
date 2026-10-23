@@ -26,4 +26,13 @@ export const messages = {
     "Den Bildschirmbereich bei {x}, {y}, {width} × {height} Punkten aufnehmen und das Bild an das Modell des Agenten senden.",
   "status.agent.screenCaptureProgress": "Bildschirmaufnahme wird angefragt…",
   "status.agent.screenCaptureReviewing": "Bildschirmaufnahme wird geprüft…",
+  "status.agent.memoriesSearching": "Erinnerungen werden durchsucht…",
+  "status.agent.memoriesSearched": {
+    one: "Erinnerungen durchsucht: {count} gefunden",
+    other: "Erinnerungen durchsucht: {count} gefunden",
+  },
+  "status.agent.memoriesUpdating": "Erinnerungen werden aktualisiert…",
+  "status.agent.skillUsing": "Fähigkeit {name} wird verwendet…",
+  "status.agent.skillReading": "Fähigkeit wird gelesen…",
+  "status.agent.memoryChanges": "Erinnerungen: {saved} gespeichert, {updated} aktualisiert, {forgotten} vergessen.",
 } as const satisfies PartialTranslation<typeof source>;

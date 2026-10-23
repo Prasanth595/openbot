@@ -24,6 +24,15 @@ export const messages = defineMessages("status.agent", {
     "Capture the screen area at {x}, {y}, {width} × {height} points and send the image to the agent's model.",
   "status.agent.screenCaptureProgress": "Asking to capture the screen…",
   "status.agent.screenCaptureReviewing": "Reviewing the screen capture…",
+  "status.agent.memoriesSearching": "Searching its memories…",
+  "status.agent.memoriesSearched": {
+    one: "Searched its memories: {count} found",
+    other: "Searched its memories: {count} found",
+  },
+  "status.agent.memoriesUpdating": "Updating its memories…",
+  "status.agent.skillUsing": "Using the skill {name}…",
+  "status.agent.skillReading": "Reading a skill…",
+  "status.agent.memoryChanges": "Memory: {saved} saved, {updated} updated, {forgotten} forgotten.",
   "status.agent.mcpServerAdd":
     "Add the MCP server {name}: {target}. Every agent on this server gets its tools. OpenBot connects to it to test it.",
   "status.agent.mcpServerChange":

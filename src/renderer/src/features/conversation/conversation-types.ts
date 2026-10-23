@@ -40,6 +40,7 @@ import type { UnloadedHistory } from "@openbot/ui/features/conversation/ChatScro
 import type { JSX } from "@solidjs/web";
 import type { ConnectorRegistry } from "../connectors/connector-registry";
 import type { ConversationRuntime } from "./conversation-runtime";
+import type { TurnStepLines } from "./turn-step-lines";
 
 /**
  * What a conversation is, as data. These live apart from `ConversationView.tsx`
@@ -199,6 +200,8 @@ export interface ConversationProps {
   olderError?: string | null | undefined;
   activeTurnId: string | null | undefined;
   activityDetail?: string | undefined;
+  /** The host's progress lines of the newest turns, by turn, for the steps of each turn. */
+  turnStepLines?: TurnStepLines | undefined;
   skillsMarketplaceOpen?: boolean | undefined;
   /**
    * True while a surface that can add or remove one of the host's MCP servers is open: the server

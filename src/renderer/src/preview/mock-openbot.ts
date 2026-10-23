@@ -38,6 +38,7 @@ import {
   type ClientAgentModelOption,
   type ClientAgentSummary,
   CONTEXT_RESET_ITEM_TYPE,
+  CONVERSATION_MEMORY_CHANGES_ITEM_TYPE,
   type ComputerUseState,
   type ConversationMessage,
   type ConversationSnapshot,
@@ -2132,6 +2133,13 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
           turnId,
           detail: "Reviewing your request…",
         });
+        emitAgentEvent({
+          type: "turn-progress",
+          agentId: input.agentId,
+          threadId: getSnapshot(input.agentId).threadId ?? `thread-${input.agentId}`,
+          turnId,
+          detail: "Searched its memories: 1 found",
+        });
 
         schedule(() => {
           const assistantMessage: ConversationMessage = {
@@ -2143,9 +2151,25 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
             createdAt: new Date().toISOString(),
             status: "completed",
           };
+          // A message that asks the agent to remember something commits one memory, as a real turn does.
+          const memoryMessage: ConversationMessage[] = /\bremember\b/iu.test(input.text)
+            ? [
+                {
+                  id: `${turnId}:memory-changes`,
+                  turnId,
+                  author: "system",
+                  source: "system",
+                  text: "Memory: 1 saved, 0 updated, 0 forgotten.",
+                  createdAt: new Date().toISOString(),
+                  status: "completed",
+                  itemType: CONVERSATION_MEMORY_CHANGES_ITEM_TYPE,
+                  memoryChanges: [{ memoryId: `memory-${turnId}`, action: "saved", text: input.text.slice(0, 500) }],
+                },
+              ]
+            : [];
           updateSnapshot(input.agentId, (snapshot) => {
             snapshot.activeTurnId = null;
-            snapshot.messages = [...snapshot.messages, assistantMessage];
+            snapshot.messages = [...snapshot.messages, assistantMessage, ...memoryMessage];
           });
           queues.set(input.agentId, {
             agentId: input.agentId,

@@ -5,6 +5,7 @@ import { Button } from "@openbot/ui";
 import type { AgentMessage, ChatActionMarkerModel } from "@openbot/ui/data";
 import { ChannelActivityIndicator } from "@openbot/ui/features/channels/ChannelActivityIndicator";
 import { AgentActivityIndicator } from "@openbot/ui/features/conversation/AgentActivity";
+import { AgentStepsDisclosure } from "@openbot/ui/features/conversation/AgentSteps";
 import { AgentTaskChips } from "@openbot/ui/features/conversation/AgentTasks";
 import { AttachmentCards } from "@openbot/ui/features/conversation/AttachmentCards";
 import { UsageLimitAskCard } from "@openbot/ui/features/conversation/BackupModels";
@@ -27,6 +28,7 @@ import { VoicePlayer } from "@openbot/ui/features/conversation/VoicePlayer";
 import { teamMemberName } from "@openbot/ui/features/team/TeamPersonAvatar";
 import { useText } from "@openbot/ui/text";
 import { createMemo, createSignal, For, Loading, lazy, onCleanup, Show, untrack } from "solid-js";
+import { useShowAgentSteps } from "../../agent-steps-preference";
 import { planItems, planTitle } from "../../app-message-projection";
 import { deviceSendShortcut } from "../../send-shortcut-preference";
 import { remoteRoutineRecovery } from "../servers/server-capabilities";
@@ -53,6 +55,7 @@ import { RoutineChatCard } from "./RoutineChatCard";
 import { createChatWebhookRoutines, RoutineWebhookChatCard } from "./RoutineWebhookChatCard";
 import { desktopChatEventRoutinesApi } from "./routine-webhooks-api";
 import { PENDING_SEND_ID_PREFIX, pendingSendRetrySafe } from "./stores/pending-send-store";
+import { createTurnSteps } from "./turn-steps";
 
 /**
  * A message that renders only an action marker, with no bubble of its own. A routine instruction is
@@ -81,6 +84,7 @@ function rowDrawsTime(message: AgentMessage): boolean {
     !message.questionPrompt &&
     message.kind !== "plan" &&
     message.kind !== "subagents" &&
+    message.kind !== "memory-changes" &&
     chatVisualReply(message) === null
   );
 }
@@ -381,6 +385,12 @@ export function ConversationTimeline() {
     onLoadOlder: () => props.onLoadOlder?.(),
     onJump: () => setStickToLatest(false),
   });
+  const turnSteps = createTurnSteps({
+    messages: () => props.messages,
+    lines: () => props.turnStepLines,
+    activeTurnId: () => props.activeTurnId,
+  });
+  const showAgentSteps = useShowAgentSteps();
   let cachedPrompt: { key: string; prompt: NonNullable<ConversationProps["prompt"]> } | null = null;
   const keyedPrompt = createMemo(() => {
     const prompt = props.prompt;
@@ -854,6 +864,38 @@ export function ConversationTimeline() {
                     </div>
                   );
                 }
+                if (untrack(() => initialMessage.kind === "memory-changes")) {
+                  // Only a turn with no answer gets this row: an answer shows the changes in its steps.
+                  return (
+                    <div
+                      data-index={virtualRow.index}
+                      ref={messageVirtualizer.measureElement}
+                      class="virtual-chat-row"
+                      style={{
+                        transform: messageVirtualizer.isVirtualized()
+                          ? `translateY(${virtualRow.start - messageVirtualizer.scrollMargin()}px)`
+                          : "none",
+                      }}
+                    >
+                      <Show when={message()?.id === unreadBoundaryMessageId()}>
+                        <UnreadMessagesDivider
+                          elementRef={(element) => {
+                            setUnreadMessagesDividerElement(element);
+                            scheduleUnreadDividerVisibilityUpdate();
+                          }}
+                        />
+                      </Show>
+                      <ChatRowBoundary>
+                        <article data-chat-search-message={message()?.id}>
+                          <AgentStepsDisclosure
+                            steps={turnSteps.stepsOfTurn((message() ?? initialMessage).turnId)}
+                            defaultOpen={showAgentSteps()}
+                          />
+                        </article>
+                      </ChatRowBoundary>
+                    </div>
+                  );
+                }
                 const initialVisual = untrack(() => chatVisualReply(initialMessage));
                 // The desktop loads the page from its own scheme. The web client has no page URL: it
                 // reads the HTML and shows it as `srcdoc`. Another client shows the title and file.
@@ -984,6 +1026,13 @@ export function ConversationTimeline() {
                           scheduleUnreadDividerVisibilityUpdate();
                         }}
                       />
+                    </Show>
+                    <Show when={channel ? undefined : turnSteps.stepsAbove(message()?.id)}>
+                      {(steps) => (
+                        <ChatRowBoundary>
+                          <AgentStepsDisclosure steps={steps()} defaultOpen={showAgentSteps()} />
+                        </ChatRowBoundary>
+                      )}
                     </Show>
                     <ChatRowBoundary>
                       <Show
@@ -1169,6 +1218,8 @@ export function ConversationTimeline() {
                     label={activity().label}
                     phase={activity().phase}
                     since={activity().since}
+                    steps={turnSteps.activeSteps()}
+                    stepsOpenByDefault={showAgentSteps()}
                   />
                 )}
               </Show>

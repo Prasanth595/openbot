@@ -1,5 +1,6 @@
 import type { ClientAgentSummary, ConversationMessage, QueueDeliveryStatus } from "@openbot/contracts/ipc";
 import {
+  CONVERSATION_MEMORY_CHANGES_ITEM_TYPE,
   CONVERSATION_PLAN_ITEM_TYPE,
   CONVERSATION_SUBAGENTS_ITEM_TYPE,
   hostedSiteConversationEvent,
@@ -69,6 +70,7 @@ export function toAgentMessage(message: ConversationMessage, ownerAgentId?: stri
   const actionMarker = chatActionMarker(message, ownerAgentId, routineEvent, routineRunEvent, hostedSiteEvent);
   const plan = messagePlan(message);
   const subagents = message.itemType === CONVERSATION_SUBAGENTS_ITEM_TYPE ? message.subagents : undefined;
+  const memoryChanges = message.author === "system" && message.itemType === CONVERSATION_MEMORY_CHANGES_ITEM_TYPE;
   const senderMember = message.author === "user" ? message.senderMember : undefined;
   const status =
     message.exchange || message.routine
@@ -99,7 +101,9 @@ export function toAgentMessage(message: ConversationMessage, ownerAgentId?: stri
           ? "plan"
           : subagents?.length
             ? "subagents"
-            : "text",
+            : memoryChanges
+              ? "memory-changes"
+              : "text",
     ...(exchangeSenderId === undefined ? {} : { senderAgentId: exchangeSenderId }),
     ...(senderMember === undefined ? {} : { senderMember }),
     ...(message.replyToMessageId === undefined ? {} : { replyToMessageId: message.replyToMessageId }),
@@ -116,6 +120,7 @@ export function toAgentMessage(message: ConversationMessage, ownerAgentId?: stri
     ...(actionMarker ? { actionMarker } : {}),
     ...(plan ? { plan } : {}),
     ...(subagents?.length ? { subagents } : {}),
+    ...(memoryChanges && message.memoryChanges ? { memoryChanges: message.memoryChanges } : {}),
     ...(status === undefined ? {} : { status }),
   };
 }

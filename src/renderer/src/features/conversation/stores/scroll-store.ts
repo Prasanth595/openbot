@@ -32,6 +32,7 @@ import {
   routineRunTurnMessages,
   summarizeRoutineRunMessages,
 } from "../routine-run-timeline";
+import { isTurnAnswer } from "../turn-steps";
 import { conversationOwnerId } from "./composer-store";
 
 interface ScrollElements {
@@ -70,8 +71,18 @@ export function createScrollStore(deps: ScrollStoreDeps) {
   let talliedConversationIdentity: string | undefined;
 
   const [openRoutineRuns, setOpenRoutineRuns] = createSignal<RoutineRunOpenState>(new Map());
+  // The thinking and the memory changes of a turn show in the steps above its answer. A turn with
+  // no answer shows its memory changes in a row of their own.
+  const answeredTurns = createMemo(
+    () => new Set(deps.props.messages.flatMap((message) => (isTurnAnswer(message) ? [message.turnId] : []))),
+  );
   const shownMessages = createMemo(() =>
-    deps.props.messages.filter((message) => message.kind !== "thinking" && !silentAgentAnswer(message)),
+    deps.props.messages.filter(
+      (message) =>
+        message.kind !== "thinking" &&
+        !(message.kind === "memory-changes" && answeredTurns().has(message.turnId)) &&
+        !silentAgentAnswer(message),
+    ),
   );
   const routineRunTurns = createMemo(() => routineRunTurnMessages(deps.props.messages, shownMessages()));
   /* The messages of a routine run follow its row and open and close with it. */

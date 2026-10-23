@@ -128,6 +128,7 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
     approvalOfThread,
     activeTurns,
     turnProgress,
+    turnStepLines,
     answerPrompt,
     respondToApproval,
     respondToApprovalRequest,
@@ -523,6 +524,7 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
         browserTakeover={activeBrowserTakeover()}
         activeTurnId={activeAgent() ? activeTurns()[activeAgent()?.id ?? ""] : null}
         activityDetail={activeAgent() ? turnProgress()[activeAgent()?.id ?? ""]?.detail : undefined}
+        turnStepLines={turnStepLines()}
         skillsMarketplaceOpen={skillsMarketplaceOpen()}
         mcpSettingsOpen={serverSettingsOpen() || skillsMarketplaceOpen()}
         globalOverlayOpen={

@@ -42,6 +42,9 @@ export const messages = defineMessages("settings", {
   "settings.sendShortcut.enter": "Enter to send",
   "settings.sendShortcut.modEnterMac": "⌘Enter to send",
   "settings.sendShortcut.modEnterWin": "Ctrl+Enter to send",
+  "settings.showAgentSteps.title": "Show agent steps",
+  "settings.showAgentSteps.description":
+    "Open the thinking, tool steps and memory changes of each turn by default on this device and browser.",
   "settings.busyMessage.title": "Steer agents while they work",
   "settings.busyMessage.description":
     "New messages join the agent’s current work, not the queue. Works with ChatGPT and Claude.",

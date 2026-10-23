@@ -28,4 +28,13 @@ export const messages = {
     "Acquisizione dell'area dello schermo a {x}, {y}, {width} × {height} punti e invio dell'immagine al modello dell'agente.",
   "status.agent.screenCaptureProgress": "Richiesta di acquisizione dello schermo…",
   "status.agent.screenCaptureReviewing": "Analisi dell'acquisizione dello schermo…",
+  "status.agent.memoriesSearching": "Ricerca nelle sue memorie…",
+  "status.agent.memoriesSearched": {
+    one: "Ha cercato nelle sue memorie: {count} trovata",
+    other: "Ha cercato nelle sue memorie: {count} trovate",
+  },
+  "status.agent.memoriesUpdating": "Aggiornamento delle sue memorie…",
+  "status.agent.skillUsing": "Uso della skill {name}…",
+  "status.agent.skillReading": "Lettura di una skill…",
+  "status.agent.memoryChanges": "Memorie: {saved} salvate, {updated} aggiornate, {forgotten} dimenticate.",
 } as const satisfies PartialTranslation<typeof source>;

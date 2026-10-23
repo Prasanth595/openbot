@@ -25,4 +25,15 @@ export const messages = {
     "Сделать снимок области экрана {x}, {y}, {width} × {height} точек и отправить изображение модели агента.",
   "status.agent.screenCaptureProgress": "Запрос снимка экрана…",
   "status.agent.screenCaptureReviewing": "Просмотр снимка экрана…",
+  "status.agent.memoriesSearching": "Поиск в памяти…",
+  "status.agent.memoriesSearched": {
+    one: "Поиск в памяти: найдено {count}",
+    few: "Поиск в памяти: найдено {count}",
+    many: "Поиск в памяти: найдено {count}",
+    other: "Поиск в памяти: найдено {count}",
+  },
+  "status.agent.memoriesUpdating": "Обновление памяти…",
+  "status.agent.skillUsing": "Использование навыка {name}…",
+  "status.agent.skillReading": "Чтение навыка…",
+  "status.agent.memoryChanges": "Память: сохранено {saved}, обновлено {updated}, забыто {forgotten}.",
 } as const satisfies PartialTranslation<typeof source>;

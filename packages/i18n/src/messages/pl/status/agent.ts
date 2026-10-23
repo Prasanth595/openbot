@@ -25,4 +25,15 @@ export const messages = {
     "Przechwyć obszar ekranu w punkcie {x}, {y} o rozmiarze {width} × {height} punktów i wyślij obraz do modelu agenta.",
   "status.agent.screenCaptureProgress": "Prośba o przechwycenie ekranu…",
   "status.agent.screenCaptureReviewing": "Sprawdzanie przechwyconego ekranu…",
+  "status.agent.memoriesSearching": "Przeszukiwanie wspomnień…",
+  "status.agent.memoriesSearched": {
+    one: "Przeszukano wspomnienia, znalezione: {count}",
+    few: "Przeszukano wspomnienia, znalezione: {count}",
+    many: "Przeszukano wspomnienia, znalezione: {count}",
+    other: "Przeszukano wspomnienia, znalezione: {count}",
+  },
+  "status.agent.memoriesUpdating": "Aktualizowanie wspomnień…",
+  "status.agent.skillUsing": "Używanie umiejętności {name}…",
+  "status.agent.skillReading": "Czytanie umiejętności…",
+  "status.agent.memoryChanges": "Wspomnienia: zapisane {saved}, zaktualizowane {updated}, zapomniane {forgotten}.",
 } as const satisfies PartialTranslation<typeof source>;

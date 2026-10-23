@@ -124,6 +124,13 @@ export function SettingsGeneralTab(props: SettingsGeneralTabProps) {
             </ItemActions>
           </Item>
           <SwitchField
+            data-settings-row="settings.showAgentSteps.title"
+            checked={props.value.showAgentSteps}
+            onChange={(checked) => props.onUpdateSetting("showAgentSteps", checked)}
+            label={i18n.t("settings.showAgentSteps.title")}
+            description={i18n.t("settings.showAgentSteps.description")}
+          />
+          <SwitchField
             data-settings-row="settings.busyMessage.title"
             checked={props.value.busyMessageMode === "steer"}
             onChange={(checked) => props.onUpdateSetting("busyMessageMode", checked ? "steer" : "queue")}

@@ -3,6 +3,7 @@ import emojiRegex from "emoji-regex";
 import { INPUT_LIMITS } from "./input-limits";
 import { type AttachmentSummary, isAttachmentSummary } from "./ipc-attachments";
 import { isBoundedString, isIdentifier, isRequestId } from "./ipc-bounded-values";
+import { type ConversationMemoryChange, isConversationMemoryChanges } from "./ipc-conversation-memory-changes";
 import { CONVERSATION_PLAN_ITEM_TYPE, type ConversationPlan, isConversationPlan } from "./ipc-conversation-plan";
 import {
   CONVERSATION_SUBAGENTS_ITEM_TYPE,
@@ -222,6 +223,8 @@ export interface ConversationMessage {
   plan?: ConversationPlan | undefined;
   /** Set on the one `subagents` message of a turn. The text lists the same subagents by title. */
   subagents?: ConversationSubagent[] | undefined;
+  /** Set on the one `memory-changes` message of a turn. The text counts the same changes. */
+  memoryChanges?: ConversationMemoryChange[] | undefined;
   /**
    * An interactive block from `ask_ui` (see `ui-blocks.ts`). It rides on a `question_prompt` message
    * beside `questionPrompt`. Absent on a message from an older host.
@@ -272,6 +275,7 @@ export function isConversationMessage(value: unknown): value is ConversationMess
     (value.questionPrompt === undefined || isConversationQuestionPrompt(value.questionPrompt)) &&
     (value.plan === undefined || isConversationPlan(value.plan)) &&
     (value.subagents === undefined || isConversationSubagents(value.subagents)) &&
+    (value.memoryChanges === undefined || isConversationMemoryChanges(value.memoryChanges)) &&
     (value.uiBlock === undefined || isConversationUiBlock(value.uiBlock))
   );
 }

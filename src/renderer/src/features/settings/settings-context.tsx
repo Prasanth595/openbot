@@ -8,6 +8,7 @@ import { currentText } from "@openbot/ui/text";
 import { createEffect, createSignal, onSettled } from "solid-js";
 import { isActionSoundEnabled, readActionSoundTheme, setActionSoundChoice } from "../../action-sounds";
 import { actionToast } from "../../action-toast";
+import { readShowAgentSteps, setShowAgentSteps, useShowAgentSteps } from "../../agent-steps-preference";
 import { desktopAnalytics } from "../../analytics";
 import { isCompletionSoundEnabled, setCompletionSoundEnabled } from "../../completion-sound";
 import { usePlatform } from "../../platform";
@@ -95,6 +96,7 @@ const Settings = createSimpleContext({
       ...DEFAULT_GENERAL_SETTINGS,
       taskCompletionSound: isCompletionSoundEnabled(),
       sendShortcut: readSendShortcutMode(),
+      showAgentSteps: readShowAgentSteps(),
       soundFeedback: isActionSoundEnabled(),
       soundTheme: readActionSoundTheme(),
     });
@@ -106,6 +108,15 @@ const Settings = createSimpleContext({
       () => sendShortcutMode(),
       (mode) => {
         setGeneralSettings((current) => (current.sendShortcut === mode ? current : { ...current, sendShortcut: mode }));
+      },
+    );
+    const showAgentSteps = useShowAgentSteps();
+    createEffect(
+      () => showAgentSteps(),
+      (show) => {
+        setGeneralSettings((current) =>
+          current.showAgentSteps === show ? current : { ...current, showAgentSteps: show },
+        );
       },
     );
     const [approvalAutomation, setApprovalAutomation] = createSignal<ApprovalAutomationPreference>({
@@ -183,6 +194,9 @@ const Settings = createSimpleContext({
       }
       if (previous.sendShortcut !== value.sendShortcut) {
         setSendShortcutMode(value.sendShortcut);
+      }
+      if (previous.showAgentSteps !== value.showAgentSteps) {
+        setShowAgentSteps(value.showAgentSteps);
       }
       if (previous.soundFeedback !== value.soundFeedback || previous.soundTheme !== value.soundTheme) {
         setActionSoundChoice(value.soundFeedback ? value.soundTheme : "off");

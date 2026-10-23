@@ -33,6 +33,7 @@ export * from "./ipc-channel-memories";
 export * from "./ipc-channel-routines";
 export * from "./ipc-chat-channels";
 export * from "./ipc-conversation-events";
+export * from "./ipc-conversation-memory-changes";
 export * from "./ipc-conversation-messages";
 export * from "./ipc-conversation-plan";
 export * from "./ipc-conversation-subagents";

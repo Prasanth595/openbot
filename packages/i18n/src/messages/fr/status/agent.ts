@@ -25,4 +25,13 @@ export const messages = {
     "Capturer la zone de l’écran à {x}, {y}, {width} × {height} points et envoyer l’image au modèle de l’agent.",
   "status.agent.screenCaptureProgress": "Demande de capture d’écran…",
   "status.agent.screenCaptureReviewing": "Analyse de la capture d’écran…",
+  "status.agent.memoriesSearching": "Recherche dans ses souvenirs…",
+  "status.agent.memoriesSearched": {
+    one: "Souvenirs consultés : {count} trouvé",
+    other: "Souvenirs consultés : {count} trouvés",
+  },
+  "status.agent.memoriesUpdating": "Mise à jour de ses souvenirs…",
+  "status.agent.skillUsing": "Utilisation de la compétence {name}…",
+  "status.agent.skillReading": "Lecture d’une compétence…",
+  "status.agent.memoryChanges": "Souvenirs : {saved} enregistrés, {updated} mis à jour, {forgotten} oubliés.",
 } as const satisfies PartialTranslation<typeof source>;

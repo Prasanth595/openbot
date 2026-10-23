@@ -8,6 +8,7 @@ import type {
   AvatarHue,
   ChannelRoutingConversationEvent,
   ClientAgentSummary,
+  ConversationMemoryChange,
   ConversationMessageSender,
   ConversationPlan,
   ConversationQuestionPrompt,
@@ -38,6 +39,7 @@ export type MessageKind =
   | "action-marker"
   | "plan"
   | "subagents"
+  | "memory-changes"
   | "error";
 
 /** The plan of one turn. `stopped` is true when the turn was stopped or failed before it ended. */
@@ -208,6 +210,11 @@ export interface AgentMessage {
   plan?: AgentMessagePlan | undefined;
   /** The subagents that the agent started in this turn, on a `subagents` message. */
   subagents?: ConversationSubagent[] | undefined;
+  /**
+   * The memory changes that the turn committed, on a `memory-changes` message. Absent from a host
+   * that sends only the text, such as a Team API host.
+   */
+  memoryChanges?: ConversationMemoryChange[] | undefined;
 }
 
 export interface AgentProfile {

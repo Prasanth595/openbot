@@ -36,6 +36,8 @@ export interface GeneralSettingsValue {
   taskCompletionSound: boolean;
   /** How the user sends a message: plain Enter, or the platform modifier with Enter. */
   sendShortcut: SendShortcutMode;
+  /** The steps of an agent's turn (thinking, progress, memory changes) are open at first. */
+  showAgentSteps: boolean;
   /** What a message sent to a busy agent does, unless the agent or the message sets its own. */
   busyMessageMode: BusyMessageMode;
   /** How many memories one agent on this computer can hold. Read only here: Server settings set it. */
@@ -70,6 +72,7 @@ export const DEFAULT_GENERAL_SETTINGS: GeneralSettingsValue = {
   macBookNotchNewServers: true,
   taskCompletionSound: true,
   sendShortcut: "enter",
+  showAgentSteps: false,
   busyMessageMode: "queue",
   agentMemoryLimit: DEFAULT_AGENT_MEMORY_LIMIT,
   keepRemoteSessions: true,

@@ -25,4 +25,13 @@ export const messages = {
     "{x}, {y} konumundaki {width} × {height} noktalık ekran alanını yakala ve görüntüyü ajanın modeline gönder.",
   "status.agent.screenCaptureProgress": "Ekranı yakalamak için izin isteniyor…",
   "status.agent.screenCaptureReviewing": "Ekran görüntüsü inceleniyor…",
+  "status.agent.memoriesSearching": "Belleklerinde arıyor…",
+  "status.agent.memoriesSearched": {
+    one: "Belleklerinde aradı: {count} bulundu",
+    other: "Belleklerinde aradı: {count} bulundu",
+  },
+  "status.agent.memoriesUpdating": "Belleklerini güncelliyor…",
+  "status.agent.skillUsing": "{name} becerisini kullanıyor…",
+  "status.agent.skillReading": "Bir beceri okuyor…",
+  "status.agent.memoryChanges": "Bellek: {saved} kaydedildi, {updated} güncellendi, {forgotten} unutuldu.",
 } as const satisfies PartialTranslation<typeof source>;

@@ -25,6 +25,7 @@ import { createSettingsProfileStore } from "@openbot/ui/features/settings/stores
 import { useText } from "@openbot/ui/text";
 import { createSignal, onCleanup } from "solid-js";
 import { readActionSoundChoice, replayActionSoundChoice, setActionSoundChoice } from "../../action-sounds";
+import { setShowAgentSteps, useShowAgentSteps } from "../../agent-steps-preference";
 import { isCompletionSoundEnabled, setCompletionSoundEnabled } from "../../completion-sound";
 import { webReportsEnabled } from "../../error-reports";
 import { currentDevicePlatform, setSendShortcutMode, useSendShortcutMode } from "../../send-shortcut-preference";
@@ -75,6 +76,7 @@ export default function WebAccountSettings(props: WebAccountSettingsProps) {
   const [activeTab, setActiveTab] = createSignal<WebAccountSettingsTab>("profile");
   const [completionSound, setCompletionSound] = createSignal(isCompletionSoundEnabled());
   const sendShortcutMode = useSendShortcutMode();
+  const showAgentSteps = useShowAgentSteps();
   // Playback reads the stored value on each event, so the switch follows a change from another tab.
   const [soundChoice, setSoundChoice] = createSignal(readActionSoundChoice());
   const readSoundSettings = () => {
@@ -183,6 +185,12 @@ export default function WebAccountSettings(props: WebAccountSettingsProps) {
                   />
                 </ItemActions>
               </Item>
+              <SwitchField
+                checked={showAgentSteps()}
+                onChange={(checked) => setShowAgentSteps(checked)}
+                label={t("settings.showAgentSteps.title")}
+                description={t("settings.showAgentSteps.description")}
+              />
               <Item class="settings-modal-row">
                 <ItemContent>
                   <ItemTitle>{t("settings.language.title")}</ItemTitle>

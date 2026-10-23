@@ -39,6 +39,9 @@ export const messages = {
   "settings.sendShortcut.enter": "Отправка по Enter",
   "settings.sendShortcut.modEnterMac": "Отправка по ⌘Enter",
   "settings.sendShortcut.modEnterWin": "Отправка по Ctrl+Enter",
+  "settings.showAgentSteps.title": "Показывать шаги агента",
+  "settings.showAgentSteps.description":
+    "По умолчанию раскрывать размышления, шаги инструментов и изменения памяти в каждом ходе на этом устройстве и в этом браузере.",
   "settings.busyMessage.title": "Направлять агентов, пока они работают",
   "settings.busyMessage.description":
     "Новые сообщения присоединяются к текущей работе агента, а не встают в очередь. Работает с ChatGPT и Claude.",

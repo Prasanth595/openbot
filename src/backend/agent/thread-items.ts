@@ -291,6 +291,19 @@ export function toolProgressText(item: ThreadItem, completed: boolean): string |
   if (getString(item, "server") === COMPUTER_USE_MCP_SERVER_NAME || descriptor.includes(COMPUTER_USE_MCP_SERVER_NAME)) {
     return sourceText(completed ? "status.computerUse.progressDeciding" : "status.computerUse.progressActing");
   }
+  // OpenBot's memory and skill tools, before the generic words too. A memory search reports what it
+  // found when it ends, and a memory change shows after the turn commits it, so neither ends with a line.
+  if (/(?:^|[\s_])(?:search_memories|list_memories)(?:$|\s)/u.test(descriptor)) {
+    return completed ? null : sourceText("status.agent.memoriesSearching");
+  }
+  if (/(?:^|[\s_])(?:remember|forget_memory|set_memory_inclusion)(?:$|\s)/u.test(descriptor)) {
+    return completed ? null : sourceText("status.agent.memoriesUpdating");
+  }
+  if (/(?:^|[\s_])read_local_skill(?:$|\s)/u.test(descriptor)) {
+    return completed ? null : sourceText("status.agent.skillReading");
+  }
+  const skill = getString(item, "name") === "Skill" ? getString(item, "skill") : null;
+  if (skill) return completed ? null : sourceText("status.agent.skillUsing", { name: skill });
   if (descriptor.includes("capture_screen")) {
     return sourceText(completed ? "status.agent.screenCaptureReviewing" : "status.agent.screenCaptureProgress");
   }

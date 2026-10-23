@@ -25,4 +25,13 @@ export const messages = {
     "Capturar el área de la pantalla en {x}, {y}, de {width} × {height} puntos, y enviar la imagen al modelo del agente.",
   "status.agent.screenCaptureProgress": "Pidiendo permiso para capturar la pantalla…",
   "status.agent.screenCaptureReviewing": "Revisando la captura de pantalla…",
+  "status.agent.memoriesSearching": "Buscando en sus recuerdos…",
+  "status.agent.memoriesSearched": {
+    one: "Buscó en sus recuerdos: {count} encontrado",
+    other: "Buscó en sus recuerdos: {count} encontrados",
+  },
+  "status.agent.memoriesUpdating": "Actualizando sus recuerdos…",
+  "status.agent.skillUsing": "Usando la habilidad {name}…",
+  "status.agent.skillReading": "Leyendo una habilidad…",
+  "status.agent.memoryChanges": "Recuerdos: {saved} guardados, {updated} actualizados, {forgotten} olvidados.",
 } as const satisfies PartialTranslation<typeof source>;

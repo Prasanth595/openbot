@@ -21,6 +21,7 @@ import { useConversation } from "../conversation/conversation-context";
 import { useConversationController } from "../conversation/conversation-controller-context";
 import { agentConversationKey, composerDraftKey, promptRequestKey } from "../conversation/conversation-keys";
 import { latestIncomingConversationMessage } from "../conversation/conversation-read-state";
+import { appendTurnStepLine } from "../conversation/turn-step-lines";
 import { useServers } from "../servers/servers-context";
 import { useSidebar } from "../sidebar/sidebar-context";
 import { readDictatedReplies } from "../speech/speech-replies";
@@ -70,6 +71,7 @@ export function AgentEventBridge() {
   const {
     setActiveTurns,
     setTurnProgress,
+    setTurnStepLines,
     setFailedTurns,
     setUsageLimits,
     setUsageLimitedModels,
@@ -171,6 +173,7 @@ export function AgentEventBridge() {
           ...current,
           [event.agentId]: { turnId: event.turnId, detail: cleanAgentMessageText(event.detail) },
         }));
+        setTurnStepLines((current) => appendTurnStepLine(current, event.turnId, cleanAgentMessageText(event.detail)));
         return;
       case "queue-changed":
         queueSnapshotRequests.set(event.snapshot.agentId, (queueSnapshotRequests.get(event.snapshot.agentId) ?? 0) + 1);

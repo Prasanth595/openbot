@@ -1,22 +1,28 @@
+import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import {
   type AgentEvent,
   type AgentSummary,
   agentProviderDescriptor,
   type BrowserControlState,
   type BrowserTab,
+  CONVERSATION_MEMORY_CHANGE_LIMIT,
+  CONVERSATION_MEMORY_CHANGES_ITEM_TYPE,
   CONVERSATION_PLAN_ITEM_TYPE,
   CONVERSATION_SUBAGENTS_ITEM_TYPE,
+  type ConversationMemoryChange,
   type ConversationPlan,
   type ConversationSnapshot,
   type ConversationSubagent,
   clampConversationSubagents,
   conversationPlanText,
   conversationSubagentsText,
+  countConversationMemoryChanges,
   isAgentContextCategories,
   latestTurnAnswer,
 } from "@openbot/contracts/ipc";
 import { type DynamicRecord, isString } from "@openbot/contracts/runtime-values";
-import { createOpenBotLogger } from "@openbot/logging";
+import { sourceText } from "@openbot/i18n/source";
+import { createOpenBotLogger, redactText } from "@openbot/logging";
 import { type CauseCode, classifyFailure } from "@openbot/telemetry";
 import { Cause, Deferred, Effect, Exit, Schema, Scope } from "effect";
 import type { AgentClient } from "../agent-client";
@@ -835,7 +841,7 @@ export class TurnLifecycle {
       yield* this.#images.waitForOperations(threadId, turnId);
       const association = this.#turnAssociations.get(turnId);
       if (association) yield* Deferred.await(association).pipe(Effect.catch(() => Effect.void));
-      this.#memories.finishTurn(turnId, status);
+      const memoryChanges = this.#memories.finishTurn(turnId, status).get(agentId) ?? [];
       // A refused session is closed below, and a spent plan would refuse the summary turn too, so
       // neither is compacted.
       // A routine run's own session closes after this turn, so it is not compacted either. Nor is a
@@ -1001,6 +1007,7 @@ export class TurnLifecycle {
           this.#hooks.emit({ type: "agents-changed", agents: this.#hooks.listAgents() });
         }
       }
+      addMemoryChangesMessage(snapshot, turnId, memoryChanges);
       this.#conversation.emitConversation(snapshot, "turn.completed", { turnId, status: outcome });
       if (deliveries.length > 0) {
         try {
@@ -1422,6 +1429,37 @@ function isRepeatedWork(item: { type?: unknown; phase?: unknown; text?: unknown 
   if (item.type === "userMessage" || item.type === "reasoning" || item.type === "contextCompaction") return false;
   if (item.type !== "agentMessage") return true;
   return item.phase !== "commentary" && isString(item.text) && item.text.trim() !== "";
+}
+
+/**
+ * Puts the memory changes that the turn committed on one system message of the turn, after its
+ * answer. The text counts them for a client that does not read `memoryChanges`, such as a Team API
+ * client. The texts are redacted, as they are when the agent reads them back.
+ */
+function addMemoryChangesMessage(
+  snapshot: ConversationSnapshot,
+  turnId: string,
+  changes: readonly ConversationMemoryChange[],
+): void {
+  if (changes.length === 0) return;
+  const memoryChanges = changes.slice(0, CONVERSATION_MEMORY_CHANGE_LIMIT).map((change) => ({
+    ...change,
+    text: redactText(change.text).slice(0, INPUT_LIMITS.agentMemoryText),
+    ...(change.previousText === undefined
+      ? {}
+      : { previousText: redactText(change.previousText).slice(0, INPUT_LIMITS.agentMemoryText) }),
+  }));
+  snapshot.messages.push({
+    id: `${turnId}:memory-changes`,
+    turnId,
+    author: "system",
+    source: "system",
+    status: "completed",
+    createdAt: new Date().toISOString(),
+    itemType: CONVERSATION_MEMORY_CHANGES_ITEM_TYPE,
+    text: sourceText("status.agent.memoryChanges", countConversationMemoryChanges(memoryChanges)),
+    memoryChanges,
+  });
 }
 
 /** Which subagents a list holds and the state of each, without their steps. */
