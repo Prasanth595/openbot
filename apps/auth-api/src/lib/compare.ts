@@ -24,7 +24,7 @@ export const COMPARE_COLLECTION: ContentCollection<"compare"> = {
       slug: "paperclip",
       title: "OpenBot vs Paperclip: An App, Not a Server to Set Up",
       description:
-        "OpenBot vs Paperclip: a desktop app with iPhone and Android apps and no VPN, or a Node.js server with an org chart and budgets. Setup, phones, price and license.",
+        "OpenBot vs Paperclip: a desktop app with iPhone and Android apps and no VPN, or a Node.js server with an org chart and budgets. Setup, phones, price, license.",
       publishedAt: "2026-10-23",
       updatedAt: "2026-10-23",
       author: NEWS_AUTHOR,

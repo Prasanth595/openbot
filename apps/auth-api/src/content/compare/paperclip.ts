@@ -3,7 +3,7 @@ import type { Comparison } from "./comparison";
 
 // Every statement about Paperclip here is taken from paperclip.ing, its documentation, or
 // its repository (the README, the deployment and Tailscale guides, and the telemetry
-// config in packages/shared), and each page used is in `sources`. Paperclip lists no app
+// config and rules in packages/shared), and each page used is in `sources`. Paperclip lists no app
 // for iPhone or Android and no price for Paperclip Cloud, so the text says so. Check them
 // again, and move `checkedAt`, whenever this file changes.
 
@@ -18,7 +18,7 @@ export const PAPERCLIP_COMPARISON: Comparison = {
     "You want a desktop app for macOS, Windows or Linux, with no server, Node.js or database to set up.",
     "You want iPhone and Android apps that reach your agents from anywhere, with no Tailscale, VPN or public address.",
     "You want to chat with your agents, and see them give work to each other in shared channels.",
-    "You want a hosted server today, if you do not want to keep a computer on.",
+    "You do not want to keep a computer on, and want a hosted server that is available today.",
   ],
   rivalPlans:
     "Paperclip runs the agent tools that you install and sign in yourself, such as Claude Code, Codex, Cursor, Gemini CLI, OpenCode, Pi, Hermes Agent, Grok Build, Kimi Code and OpenClaw, or any process or HTTP service that can get a heartbeat. Paperclip itself is free under the MIT license.",
@@ -42,7 +42,7 @@ export const PAPERCLIP_COMPARISON: Comparison = {
       topic: "Where agents work",
       openbot: "On the computer that runs OpenBot.",
       rival:
-        "On the computer that runs the Paperclip server: your laptop, a server, Docker, or a cloud host that you set up.",
+        "On the computer that runs the Paperclip server, or in remote sandboxes and cloud agents that you connect to it. The Paperclip server runs on your laptop, a server, Docker, or a cloud host that you set up.",
     },
     {
       icon: "contact",
@@ -59,7 +59,7 @@ export const PAPERCLIP_COMPARISON: Comparison = {
       openbot:
         "Agents keep working on the computer or server that runs OpenBot, and routines start them on a schedule. If you do not want to keep a computer on, use a hosted OpenBot server in the EU, from €20 or $25 a month.",
       rival:
-        "Agents work on the computer or server that runs Paperclip. Paperclip Cloud has a waitlist only; until then, you set up and run your own server.",
+        "The Paperclip server must stay on to start its agents. Paperclip Cloud has a waitlist only, with no date or price; until it opens, you set up and run your own server.",
       better: "openbot",
     },
     {
@@ -85,7 +85,7 @@ export const PAPERCLIP_COMPARISON: Comparison = {
       openbot:
         "Workspaces, chats and files stay in a database on your computer. The provider you choose gets the requests you send. Product analytics, with no chat content, are on by default and linked to your account when you sign in; you can turn them off.",
       rival:
-        "Tasks, agents and files stay in a Postgres database and in files on the computer that runs Paperclip. Usage telemetry, with no prompts or model output, is on by default; you can turn it off.",
+        "By default, tasks, agents and files stay in a Postgres database and in files on the computer that runs Paperclip. Usage telemetry, with no prompts or model output, is on by default; you can turn it off.",
     },
     {
       icon: "tag",
@@ -112,27 +112,27 @@ export const PAPERCLIP_COMPARISON: Comparison = {
     },
   ],
   intro:
-    'Paperclip says: "If OpenClaw is an employee, Paperclip is the company." It is a Node.js server with a web UI that runs agent tools such as Claude Code and Codex as a company: an org chart, goals, tickets, budgets and approval stages. OpenBot also runs a team of agents, on a computer that you choose, with the AI plans you already pay for. The difference is how you set it up and how you work with the agents. Paperclip is a server that you start from a terminal and reach in a browser, and you manage tickets. OpenBot is an app that you download, you chat with your agents, and your phone reaches them from anywhere.',
+    'Paperclip says: "If OpenClaw is an employee, Paperclip is the company." It is a Node.js server with a web UI that runs agent tools such as Claude Code and Codex as a company: an org chart, goals, tickets, budgets and approval stages. OpenBot also runs a team of agents, on a computer that you choose, with the AI plans you already pay for. The difference is how you set it up and how you work with the agents. Paperclip is a server that you start from a terminal and reach in a browser, and you manage tickets. OpenBot is an app that you download. You chat with your agents, and your phone reaches them from anywhere.',
   sections: [
     {
       title: "Models and the plans you pay for",
       openbot:
         "OpenBot runs the provider tools you already use, with the plans you already pay for: Codex with your ChatGPT plan, Claude Code with your Claude plan, Gemini with your Google AI Pro or Ultra plan, Grok CLI with your Grok account or an xAI API key, Cursor CLI with your Cursor plan or a Cursor API key, and Cline with your Cline account. OpenCode runs free models, or your own model on any OpenAI-compatible server, also one on your computer. You choose the provider, the model and the reasoning effort for each agent. When you move an agent to a different provider, it keeps its role, workspace and conversation.",
       rival:
-        "Paperclip does not run models itself: it runs agent tools through adapters. It lists Claude Code, Codex, Cursor and Cursor Cloud, Gemini CLI, OpenCode, Pi, Hermes Agent, Grok Build, Kimi Code and OpenClaw, and also runs your own processes, HTTP services and adapter packages. Paperclip installs no agent tools for you: you install each one and sign in with its own account or API key. You choose the tool and the model for each agent.",
+        "Paperclip does not run models itself: it runs agent tools through adapters. It lists Claude Code, Codex, Cursor and Cursor Cloud, Gemini CLI, OpenCode, Pi, Hermes Agent, Grok Build, Kimi Code and OpenClaw, and also runs your own processes, HTTP services and adapter packages. Paperclip installs no agent tools for you, unless you use its Docker or sandbox image: you install each one and sign in with its own account or API key. You choose the tool and the model for each agent.",
     },
     {
       title: "Where the work happens",
       openbot:
         "OpenBot runs on the computer that hosts it. Agent workspaces, conversations and app data stay on that computer, so it must stay on while its agents work. Run it on a desktop or a server that stays on, and your agents keep working while your laptop is closed. If you do not want to keep a computer on, use a hosted OpenBot server. It is a Linux server in the EU (Germany, Finland or France), from €20 or $25 a month, and it keeps the workspaces and chats of its agents. Local-first is not offline: an agent that uses a hosted provider still sends its requests to that provider.",
       rival:
-        "Paperclip runs as one Node.js process on the computer that you choose, with an embedded Postgres database and files on that computer. You can also use your own Postgres, run it in Docker, or deploy it to a server or a cloud host. Agents wake on a schedule, when a task comes to them, or when someone mentions them. Paperclip Cloud has a waitlist, with no published date or price.",
+        "Paperclip runs as one Node.js process on the computer that you choose, with an embedded Postgres database and files on that computer. You can also use your own Postgres, run it in Docker, or deploy it to a server or a cloud host. Agents can also work in remote sandboxes, such as Daytona or e2b, but the server must stay on to start them. Agents wake on a schedule or when a task comes to them. Paperclip Cloud has a waitlist, with no published date or price.",
       better: "openbot",
     },
     {
       title: "Setup",
       openbot:
-        "Download OpenBot for macOS, Windows or Linux, open it, and sign in to the provider tools that you want to use. You set up no server, runtime or database: the app keeps its data in a SQLite database on your computer.",
+        "Download OpenBot for macOS, Windows or Linux, open it, and sign in to the provider tools that you want to use. OpenBot downloads and pins its own copy of each provider tool, or uses the one you installed. You set up no server, runtime or database: the app keeps its data in a SQLite database on your computer.",
       rival:
         "You install Node.js 24.11 or later and run npx paperclipai onboard in a terminal. Paperclip then runs as a local server, and you open its web UI in a browser. By default it is in local trusted mode: no sign-in, and it listens only on the computer itself. For other people or devices, you change the deployment mode on the server and claim ownership with a one-time link from the server log.",
       better: "openbot",
@@ -142,7 +142,7 @@ export const PAPERCLIP_COMPARISON: Comparison = {
       openbot:
         "The OpenBot apps for iPhone and Android connect to the computer that runs your agents. From anywhere, you chat with them, follow their progress, approve their actions and send files. The connection goes directly between your devices when it can, it is encrypted, and no cloud stores your chats or files. You set up no VPN or tunnel. Agents can also answer in Slack, Discord and Telegram. Remote access needs an OpenBot account.",
       rival:
-        "Paperclip says that you can manage your agents from your phone, in its web UI; it lists no app for iPhone or Android. To reach the server from another device, you switch it to authenticated mode and then use Tailscale, a VPN or your local network, or a public deployment with its own address and HTTPS.",
+        "Paperclip says that you can manage your agents from your phone, in its web UI; it lists no app for iPhone or Android. To reach the server from another device, you switch it to authenticated mode and then use Tailscale, a VPN or your local network, or a public deployment with its own public URL.",
       better: "openbot",
     },
     {
@@ -164,7 +164,7 @@ export const PAPERCLIP_COMPARISON: Comparison = {
     {
       question: "Is OpenBot an alternative to Paperclip?",
       answer:
-        "Yes. Both run a team of AI agents on a computer that you choose, with agent tools such as Codex and Claude Code. OpenBot is an app that you download, you chat with your agents, and your phone reaches them from anywhere. Paperclip is a server with a web UI, and you manage your agents through tickets, an org chart and budgets.",
+        "Yes. Both run a team of AI agents on a computer that you choose, with agent tools such as Codex and Claude Code. OpenBot is an app that you download. You chat with your agents, and your phone reaches them from anywhere. Paperclip is a server with a web UI, and you manage your agents through tickets, an org chart and budgets.",
     },
     {
       question: "What is the main difference between OpenBot and Paperclip?",
@@ -194,7 +194,7 @@ export const PAPERCLIP_COMPARISON: Comparison = {
     {
       question: "How much do OpenBot and Paperclip cost?",
       answer:
-        "Both apps are free. OpenBot is free for noncommercial use, and commercial use needs a separate license. Paperclip is free under the MIT License. With both, you pay for the agent tools or the model provider, and for a server if you rent one.",
+        "Both are free. OpenBot is free for noncommercial use, and commercial use needs a separate license. Paperclip is free under the MIT License. With both, you pay for the agent tools or the model provider, and for a server if you rent one.",
     },
     {
       question: "Is Paperclip open source?",
@@ -217,6 +217,10 @@ export const PAPERCLIP_COMPARISON: Comparison = {
     {
       label: "Paperclip telemetry settings",
       url: `${PAPERCLIP_REPO}/blob/master/packages/shared/src/telemetry/config.ts`,
+    },
+    {
+      label: "Paperclip telemetry rules",
+      url: `${PAPERCLIP_REPO}/blob/master/packages/shared/src/telemetry/README.md`,
     },
     { label: "Paperclip Cloud waitlist", url: "https://paperclip.ing/waitlist/" },
     { label: "OpenBot privacy notes", url: OPENBOT_LINKS.privacy },
