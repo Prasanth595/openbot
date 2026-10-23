@@ -463,9 +463,8 @@ It notifies only that role, not `@everyone` or `@here`. Run
 `bun scripts/discord-release-announcement.ts check x.y.z` to see it. The tag workflow and
 `bun run release:preflight` stop when the file is not for the release version, has fewer than 3 or
 more than 5 highlights, has a highlight that is empty or has a placeholder, a line break or a
-mention, or makes a message longer than 2000 characters. `bun run release:preflight` also stops
-when the `DISCORD_RELEASE_ROLE_ID` repository variable does not exist, and the tag workflow stops
-when it is set and is not a Discord role ID. After the GitHub Release, the Docker image and the
+mention, or makes a message longer than 2000 characters. They also stop when the
+`DISCORD_RELEASE_ROLE_ID` repository variable is not set or is not a Discord role ID. After the GitHub Release, the Docker image and the
 boat snapshot are published, the `discord-announce` job posts the message as OpenBot through the
 channel webhook in the `DISCORD_RELEASE_WEBHOOK_URL` secret of the `release` environment. The job
 fails, and posts nothing, when `DISCORD_RELEASE_ROLE_ID` is not set. A failed post does not undo the

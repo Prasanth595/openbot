@@ -82,6 +82,11 @@ jobs:
             exit 1
           fi
           bun scripts/check-release-notes.ts
+          # The `discord-announce` job of a tag push needs the role, so stop before the release.
+          if [[ "$GITHUB_EVENT_NAME" == "push" && -z "$DISCORD_RELEASE_ROLE_ID" ]]; then
+            echo "DISCORD_RELEASE_ROLE_ID is not set. See docs/RELEASING.md#discord-announcement." >&2
+            exit 1
+          fi
           bun scripts/discord-release-announcement.ts check "$package_version"
           echo "version=$package_version" >> "$GITHUB_OUTPUT"
           echo "tag=v$package_version" >> "$GITHUB_OUTPUT"

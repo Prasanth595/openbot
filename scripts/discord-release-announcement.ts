@@ -10,19 +10,21 @@
 // No package imports: `release.yml` runs this before `bun install`.
 
 import { readFileSync } from "node:fs";
-import { announcementFileProblems, postAnnouncement, releaseAnchor } from "./discord-announcement";
+import {
+  announcementFileProblems,
+  LONGEST_ROLE_ID,
+  postAnnouncement,
+  releaseAnchor,
+  roleIdProblems,
+} from "./discord-announcement";
 
 export const ANNOUNCEMENT_FILE = ".github/release-announcement.json";
 const DOCS = "docs/RELEASING.md#discord-announcement";
 /** The ID of the "Release Pings" role. A GitHub repository variable. */
-const ROLE_VARIABLE = "DISCORD_RELEASE_ROLE_ID";
-/** A Discord ID (snowflake) has at most 20 digits. */
-const ROLE_ID = /^\d{17,20}$/;
-const LONGEST_ROLE_ID = "0".repeat(20);
+export const ROLE_VARIABLE = "DISCORD_RELEASE_ROLE_ID";
 
 /** What stops `announcement` from being posted for `version`. Empty when it is ready. */
 export function announcementProblems(announcement: string, version: string): string[] {
-  // The longest role ID, so that the real mention cannot make the post too long.
   return announcementFileProblems(announcement, version, ANNOUNCEMENT_FILE, (highlights) =>
     announcementMessage(highlights, version, LONGEST_ROLE_ID),
   );
@@ -53,8 +55,7 @@ if (import.meta.main) {
   const announcement = readFileSync(ANNOUNCEMENT_FILE, "utf8");
   const problems = announcementProblems(announcement, version);
   const roleId = process.env[ROLE_VARIABLE] || undefined;
-  if (roleId !== undefined && !ROLE_ID.test(roleId)) problems.push(`${ROLE_VARIABLE} is not a Discord role ID.`);
-  if (command === "send" && roleId === undefined) problems.push(`${ROLE_VARIABLE} is not set.`);
+  problems.push(...roleIdProblems(ROLE_VARIABLE, roleId, command === "send"));
   if (problems.length > 0) {
     process.stderr.write(
       [

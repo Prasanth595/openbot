@@ -2,7 +2,8 @@ import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { createOpenBotLogger } from "@openbot/logging";
-import { ANNOUNCEMENT_FILE, announcementProblems } from "./discord-release-announcement";
+import { roleIdProblems } from "./discord-announcement";
+import { ANNOUNCEMENT_FILE, announcementProblems, ROLE_VARIABLE } from "./discord-release-announcement";
 import { releaseNotesProblems } from "./release-notes";
 
 const logger = createOpenBotLogger("release-preflight");
@@ -47,13 +48,19 @@ for (const name of [
   }
 }
 // The Discord post mentions this role. Without it, the post job fails after the release.
-let releaseRoleId = "";
 try {
-  releaseRoleId = run("gh", ["variable", "get", "DISCORD_RELEASE_ROLE_ID"]);
+  const roleId = run("gh", [
+    "variable",
+    "list",
+    "--json",
+    "name,value",
+    "--jq",
+    `.[] | select(.name == "${ROLE_VARIABLE}") | .value`,
+  ]);
+  failures.push(...roleIdProblems(`GitHub repository variable ${ROLE_VARIABLE}`, roleId, true));
 } catch {
-  // `gh` fails when the variable does not exist.
+  failures.push(`GitHub repository variable ${ROLE_VARIABLE} could not be inspected`);
 }
-if (!releaseRoleId) failures.push("GitHub repository variable DISCORD_RELEASE_ROLE_ID is missing");
 
 try {
   const productionSecrets = run("gh", ["secret", "list", "--env", "cloudflare-production"]);
