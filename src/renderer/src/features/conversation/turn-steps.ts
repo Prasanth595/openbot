@@ -53,6 +53,12 @@ export function createTurnSteps(deps: {
       else if (message.kind === "memory-changes") memory.set(turnId, message);
       else if (isTurnAnswer(message) && !answers.has(turnId)) answers.set(turnId, message.id);
     }
+    // The caches keep only what the chat still holds, so another page or chat frees them.
+    const thoughtIds = new Set([...thinking.values()].flatMap((message) => message.itemIds ?? []));
+    for (const id of seenAt.keys()) if (!thoughtIds.has(id)) seenAt.delete(id);
+    const lines = deps.lines() ?? {};
+    for (const turnId of lists.keys())
+      if (!thinking.has(turnId) && !memory.has(turnId) && !lines[turnId]) lists.delete(turnId);
     return { thinking, memory, answers };
   });
 

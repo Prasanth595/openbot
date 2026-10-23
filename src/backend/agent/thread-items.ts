@@ -268,6 +268,21 @@ function bridgedTool(item: ThreadItem) {
   return name ? BUILTIN_TOOL_CATALOG.find((entry) => entry.name === name) : undefined;
 }
 
+const TOOL_RESULT_PROGRESS = "Reviewing the latest tool result…";
+
+/**
+ * The OpenBot tool that an item calls, or null for any other tool: a Codex, Pi or Muse item names
+ * it, a Claude item names it `mcp__openbot__<tool>`, and a `tool_call` bridge item names it in its
+ * arguments. A tool of another MCP server with the same name is not OpenBot's.
+ */
+function openBotTool(item: ThreadItem): string | null {
+  const bridged = bridgedToolName(item);
+  if (bridged) return bridged.startsWith("openbot.") ? bridged.slice("openbot.".length) : null;
+  if (item.type === "toolCall") return /^mcp__openbot__(.+)$/u.exec(getString(item, "name") ?? "")?.[1] ?? null;
+  if (item.type === "mcpToolCall" && getString(item, "server") !== "openbot") return null;
+  return item.type === "dynamicToolCall" || item.type === "mcpToolCall" ? getString(item, "tool") : null;
+}
+
 export function toolProgressText(item: ThreadItem, completed: boolean): string | null {
   const type = item.type.toLowerCase();
   if (!/(tool.*call|commandexecution|filechange|websearch|computeraction)/u.test(type)) return null;
@@ -291,19 +306,18 @@ export function toolProgressText(item: ThreadItem, completed: boolean): string |
   if (getString(item, "server") === COMPUTER_USE_MCP_SERVER_NAME || descriptor.includes(COMPUTER_USE_MCP_SERVER_NAME)) {
     return sourceText(completed ? "status.computerUse.progressDeciding" : "status.computerUse.progressActing");
   }
-  // OpenBot's memory and skill tools, before the generic words too. A memory search reports what it
-  // found when it ends, and a memory change shows after the turn commits it, so neither ends with a line.
-  if (/(?:^|[\s_])(?:search_memories|list_memories)(?:$|\s)/u.test(descriptor)) {
+  // OpenBot's own memory and skill tools, before the generic words too. A memory search reports what
+  // it found itself, while it runs, so its end adds no line.
+  const openBot = openBotTool(item);
+  if (openBot === "search_memories" || openBot === "list_memories") {
     return completed ? null : sourceText("status.agent.memoriesSearching");
   }
-  if (/(?:^|[\s_])(?:remember|forget_memory|set_memory_inclusion)(?:$|\s)/u.test(descriptor)) {
-    return completed ? null : sourceText("status.agent.memoriesUpdating");
+  if (openBot === "remember" || openBot === "forget_memory" || openBot === "set_memory_inclusion") {
+    return completed ? TOOL_RESULT_PROGRESS : sourceText("status.agent.memoriesUpdating");
   }
-  if (/(?:^|[\s_])read_local_skill(?:$|\s)/u.test(descriptor)) {
-    return completed ? null : sourceText("status.agent.skillReading");
-  }
+  if (openBot === "read_local_skill") return completed ? TOOL_RESULT_PROGRESS : sourceText("status.agent.skillReading");
   const skill = getString(item, "name") === "Skill" ? getString(item, "skill") : null;
-  if (skill) return completed ? null : sourceText("status.agent.skillUsing", { name: skill });
+  if (skill) return completed ? TOOL_RESULT_PROGRESS : sourceText("status.agent.skillUsing", { name: skill });
   if (descriptor.includes("capture_screen")) {
     return sourceText(completed ? "status.agent.screenCaptureReviewing" : "status.agent.screenCaptureProgress");
   }
@@ -322,7 +336,7 @@ export function toolProgressText(item: ThreadItem, completed: boolean): string |
   if (/(agent|delegate|message|send)/u.test(descriptor)) {
     return completed ? "Reviewing the other agent’s response…" : "Coordinating with another agent…";
   }
-  return completed ? "Reviewing the latest tool result…" : "Working through the next tool-assisted step…";
+  return completed ? TOOL_RESULT_PROGRESS : "Working through the next tool-assisted step…";
 }
 
 /** The provider account after the first that an agent runs on, or null for the provider's own sign-in. */

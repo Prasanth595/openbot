@@ -22,10 +22,11 @@ export function appendTurnStepLine(lines: TurnStepLines, turnId: string, text: s
   const last = turn.at(-1);
   if (!text.trim() || last?.text === text) return lines;
   const sequence = last ? Number(last.id.slice(last.id.lastIndexOf(":") + 1)) + 1 : 0;
-  const next: Record<string, readonly TurnStepLine[]> = {
-    ...lines,
-    [turnId]: [...turn, { id: `${turnId}:${sequence}`, text, at }].slice(-LINE_LIMIT),
-  };
+  // The turn moves to the end, so the limit drops the turns that got no line for the longest time,
+  // and not a long turn that started first.
+  const next: Record<string, readonly TurnStepLine[]> = { ...lines };
+  delete next[turnId];
+  next[turnId] = [...turn, { id: `${turnId}:${sequence}`, text, at }].slice(-LINE_LIMIT);
   const turns = Object.keys(next);
   for (const old of turns.slice(0, Math.max(0, turns.length - TURN_LIMIT))) delete next[old];
   return next;

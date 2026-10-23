@@ -22,7 +22,7 @@ import {
 } from "@openbot/contracts/ipc";
 import { type DynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
-import { createOpenBotLogger, redactText } from "@openbot/logging";
+import { createOpenBotLogger } from "@openbot/logging";
 import { type CauseCode, classifyFailure } from "@openbot/telemetry";
 import { Cause, Deferred, Effect, Exit, Schema, Scope } from "effect";
 import type { AgentClient } from "../agent-client";
@@ -1007,7 +1007,7 @@ export class TurnLifecycle {
           this.#hooks.emit({ type: "agents-changed", agents: this.#hooks.listAgents() });
         }
       }
-      addMemoryChangesMessage(snapshot, turnId, memoryChanges);
+      addMemoryChangesMessage(snapshot, turnId, memoryChanges, (text) => this.#hooks.redactMcp(text));
       this.#conversation.emitConversation(snapshot, "turn.completed", { turnId, status: outcome });
       if (deliveries.length > 0) {
         try {
@@ -1434,20 +1434,22 @@ function isRepeatedWork(item: { type?: unknown; phase?: unknown; text?: unknown 
 /**
  * Puts the memory changes that the turn committed on one system message of the turn, after its
  * answer. The text counts them for a client that does not read `memoryChanges`, such as a Team API
- * client. The texts are redacted, as they are when the agent reads them back.
+ * client. `redact` is the redaction that the memory tools use when the agent reads them back,
+ * which also removes the secrets of the MCP servers.
  */
 function addMemoryChangesMessage(
   snapshot: ConversationSnapshot,
   turnId: string,
   changes: readonly ConversationMemoryChange[],
+  redact: (text: string) => string,
 ): void {
   if (changes.length === 0) return;
   const memoryChanges = changes.slice(0, CONVERSATION_MEMORY_CHANGE_LIMIT).map((change) => ({
     ...change,
-    text: redactText(change.text).slice(0, INPUT_LIMITS.agentMemoryText),
+    text: redact(change.text).slice(0, INPUT_LIMITS.agentMemoryText),
     ...(change.previousText === undefined
       ? {}
-      : { previousText: redactText(change.previousText).slice(0, INPUT_LIMITS.agentMemoryText) }),
+      : { previousText: redact(change.previousText).slice(0, INPUT_LIMITS.agentMemoryText) }),
   }));
   snapshot.messages.push({
     id: `${turnId}:memory-changes`,
