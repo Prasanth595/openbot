@@ -574,7 +574,12 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
             id: z.string().max(INPUT_LIMITS.identifier).optional(),
             header: z.string().max(INPUT_LIMITS.promptHeader).optional(),
             question: z.string().min(1).max(INPUT_LIMITS.promptQuestion),
-            isSecret: z.boolean().optional(),
+            isSecret: z
+              .boolean()
+              .optional()
+              .describe(
+                "Masks a private answer, such as a one-time code. Never use it for an API key or a token: use request_api_key, which keeps the key out of your context.",
+              ),
             options: z
               .array(
                 z.strictObject({

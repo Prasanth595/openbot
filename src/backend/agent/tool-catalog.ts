@@ -28,6 +28,7 @@ const DIRECT_NAMES = new Set([
   "remember",
   "forget_memory",
   "react_to_user_message",
+  "request_api_key",
 ]);
 
 // Names keep the complete, stable catalog below 4,000 characters without schema duplication.
