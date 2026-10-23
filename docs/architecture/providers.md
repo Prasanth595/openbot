@@ -368,7 +368,8 @@ A valid saved Google token answers `authenticate` with no browser page. So a Rec
 connected Google sign-in, with no saved key, first calls ACP `logout` when `initialize` advertises
 `agentCapabilities.auth.logout` (runtime 1.4.1 and later). The Google page then opens. The token is
 shared by every OpenBot profile on the computer, so they all sign out. A Reconnect is refused while
-a Gemini turn runs. A status probe must never call `authenticate`. The serving client does not call it.
+a Gemini turn runs. When the sign-in stops after the logout answered, OpenBot stops the old client
+and reports Gemini signed out; a failure keeps its own reason. A status probe must never call `authenticate`. The serving client does not call it.
 OpenBot checks authentication through model discovery (`session/new`), not the auth methods
 advertised by `initialize`. The runtime can answer "Authentication required", which OpenBot
 reports as sign-in required. In runtime 1.3.0, a saved OAuth method with no valid token can also

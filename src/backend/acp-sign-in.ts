@@ -50,6 +50,8 @@ export const startAcpAuthentication = Effect.fnUntraced(function* (options: {
   timeoutMs: number;
   /** Signs the server out before `authenticate`, when it advertises ACP `logout`. */
   logout?: boolean;
+  /** Called when the server answered `logout`: what it kept is gone, whether the sign-in ends or not. */
+  onLoggedOut?: () => void;
   /** Linux Gemini delegates its browser launch to the desktop so failure is visible. */
   openGoogleSignIn?: (url: string) => Promise<void>;
   /** A temporary folder of its own for the process (`provider-temp.ts`). */
@@ -163,6 +165,7 @@ export const startAcpAuthentication = Effect.fnUntraced(function* (options: {
           if (options.logout && isDynamicRecord(auth?.logout)) send({ id: 3, method: "logout", params: {} });
           else send({ id: 2, method: "authenticate", params: { methodId: options.methodId } });
         } else if (message.id === 3) {
+          options.onLoggedOut?.();
           send({ id: 2, method: "authenticate", params: { methodId: options.methodId } });
         } else if (message.id === 2) {
           settle(null);
