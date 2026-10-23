@@ -334,7 +334,10 @@ try {
   });
   pass("update_profile succeeds", updated.success, updated.text);
   const afterUpdate = storedAgent(worker.id);
-  report.stored = { providerAccountId: afterUpdate.providerAccountId, backupModels: afterUpdate.backupModels };
+  report.stored = {
+    ...(afterUpdate.providerAccountId === undefined ? {} : { providerAccountId: afterUpdate.providerAccountId }),
+    ...(afterUpdate.backupModels === undefined ? {} : { backupModels: afterUpdate.backupModels }),
+  };
   pass("The store has the new account", afterUpdate.providerAccountId === second.id);
   pass(
     "The store has the backup models as the settings page writes them",
