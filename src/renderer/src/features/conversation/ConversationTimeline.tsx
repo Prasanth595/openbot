@@ -555,6 +555,13 @@ export function ConversationTimeline() {
                   if (sender) return memberAuthor(sender).name;
                   return channel && referenced?.author === "agent" ? channel.author(referenced).name : undefined;
                 };
+                // A workspace path is in the workspace of the agent that wrote it. A person's message in
+                // a channel names no agent, so its paths stay text.
+                const workspaceAgentId = () => {
+                  if (!channel) return props.agent?.id;
+                  const current = message();
+                  return current?.author === "agent" ? current.senderAgentId : undefined;
+                };
                 // A row the host has not drawn yet has no reactions, replies or menu: its id is not the
                 // host's, even after the host answered.
                 const hostless = createMemo(() => message()?.id.startsWith(PENDING_SEND_ID_PREFIX) === true);
@@ -992,7 +999,11 @@ export function ConversationTimeline() {
                             onPreview={(attachment) => void previewAttachment(attachment)}
                             onAttachmentAction={attachmentAction}
                             onOpenSharedFile={openSharedFile}
-                            onOpenWorkspaceFile={openWorkspaceFile}
+                            onOpenWorkspaceFile={
+                              workspaceAgentId()
+                                ? (path) => openWorkspaceFile(path, undefined, workspaceAgentId())
+                                : undefined
+                            }
                             onOpenQuote={openQuote}
                             onDownload={(attachment) => attachmentAction(attachment, "download")}
                             mediaSource={runtime.attachmentMedia}

@@ -86,7 +86,6 @@ export function ConversationPanels(panelProps: { onOpenUsage?: ((trigger: HTMLBu
     openSharedFile,
     previewAttachment,
     openSidebarFileExternally,
-    openWorkspaceFile,
     openWorkspaceFolder,
     openWorkspaceFolderEntry,
     sidebarFileBack,
@@ -293,7 +292,7 @@ export function ConversationPanels(panelProps: { onOpenUsage?: ((trigger: HTMLBu
                 onWidthChange={setBrowserPanelWidth}
                 onOpenLink={(url) => void openExternalMessageUrl(url)}
                 onOpenSharedFile={openSharedFile}
-                onOpenWorkspaceFile={file().directory ? openWorkspaceFolderEntry : openWorkspaceFile}
+                onOpenWorkspaceFile={openWorkspaceFolderEntry}
                 onOpenWorkspaceFolder={openWorkspaceFolder}
                 onBack={sidebarFileBack() === null ? undefined : openSidebarFileBack}
                 sourceUrl={attached()?.previewUrl ?? null}
