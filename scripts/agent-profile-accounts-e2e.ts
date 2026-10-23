@@ -5,7 +5,7 @@
 // does, and logs the tool result that it gets.
 // The check asserts that the accounts list with their id and label and without their folders, that the
 // account and the backup models are written and read back, that an unknown account or model is a tool
-// failure that changes nothing, and that null returns both to their defaults.
+// failure that changes nothing, and that a reset returns both to their defaults.
 // `bun scripts/agent-profile-accounts-e2e.ts`. Writes .openbot-build/agent-profile-accounts-e2e/report.json.
 import assert from "node:assert/strict";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -44,6 +44,7 @@ const { OpenBotDatabase } = await import("../src/backend/openbot-database");
 
 const CALL_MARK = "PROFILE-CALL";
 const MODEL = "gpt-6-luna";
+const OTHER_MODEL = "gpt-6-sol";
 
 /**
  * A Codex app-server with the methods that the service calls. A turn whose input has
@@ -80,7 +81,7 @@ const answer = (message) => {
     case "initialize": return write({ id: message.id, result: {} });
     case "account/read": return write({ id: message.id, result: { account: { type: "chatgpt", email: process.env.CODEX_HOME.startsWith(${JSON.stringify(accountsRoot)}) ? "team-b@example.com" : "codex@example.com" } } });
     case "account/rateLimits/read": return write({ id: message.id, result: { rateLimits: { limitId: "codex", primary: null, secondary: null }, rateLimitsByLimitId: null } });
-    case "model/list": return write({ id: message.id, result: { data: [{ model: ${JSON.stringify(MODEL)}, displayName: "GPT-6 Luna" }] } });
+    case "model/list": return write({ id: message.id, result: { data: [{ model: ${JSON.stringify(MODEL)}, displayName: "GPT-6 Luna" }, { model: ${JSON.stringify(OTHER_MODEL)}, displayName: "GPT-6 Sol" }] } });
     case "plugin/list": return write({ id: message.id, result: { marketplaces: [] } });
     case "config/read": return write({ id: message.id, result: config });
     case "config/batchWrite": return write({ id: message.id, result: {} });
@@ -316,7 +317,8 @@ try {
     listed.text,
   );
 
-  // 2. update_profile sets the account and the backup models. Equal choices are kept once.
+  // 2. update_profile sets the account and the backup models. Equal choices are kept once, and the
+  // model and account that the agent has after the call are not a backup.
   const updated = await callTool("set account and backups", coordinator.id, "update_profile", {
     agentId: worker.id,
     providerAccountId: second.id,
@@ -325,6 +327,7 @@ try {
       order: [
         { provider: "codex", model: MODEL, providerAccountId: "default" },
         { provider: "codex", model: MODEL },
+        { provider: "codex", model: OTHER_MODEL, providerAccountId: second.id },
         { provider: "codex", model: MODEL, providerAccountId: second.id },
       ],
     },
@@ -340,7 +343,7 @@ try {
         automatic: true,
         order: [
           { provider: "codex", model: MODEL },
-          { provider: "codex", model: MODEL, providerAccountId: second.id },
+          { provider: "codex", model: OTHER_MODEL, providerAccountId: second.id },
         ],
       }),
     JSON.stringify(afterUpdate.backupModels),
@@ -361,6 +364,7 @@ try {
   // 4. An unknown account, an unknown backup account or an unknown backup model changes nothing.
   const unknownAccount = await callTool("unknown account", coordinator.id, "update_profile", {
     agentId: worker.id,
+    name: "Renamed",
     providerAccountId: "a0123456789abcdef",
   });
   const unknownBackupAccount = await callTool("unknown backup account", coordinator.id, "update_profile", {
@@ -380,9 +384,15 @@ try {
     agentId: worker.id,
     providerAccountId: "../other",
   });
+  const refused = (call: { success: boolean; text: string }, reason: string) =>
+    !call.success && call.text.includes(reason);
   pass(
-    "Unknown accounts, models and ids are tool failures",
-    [unknownAccount, unknownBackupAccount, unknownBackupModel, badId].every((call) => !call.success),
+    "Unknown accounts, models and ids are tool failures that name the reason",
+    refused(unknownAccount, "account is not on this computer") &&
+      refused(unknownBackupAccount, "account is not on this computer") &&
+      refused(unknownBackupModel, "Available models: gpt-6-luna, gpt-6-sol") &&
+      refused(badId, "Use an account id from list_models"),
+    [unknownAccount, unknownBackupAccount, unknownBackupModel, badId].map((call) => call.text).join("\n"),
   );
   const afterFailures = storedAgent(worker.id);
   pass(
@@ -392,15 +402,16 @@ try {
       JSON.stringify(afterFailures.backupModels) === JSON.stringify(afterUpdate.backupModels),
   );
 
-  // 5. null returns the agent to the provider's own sign-in and to no saved backup models.
+  // 5. A null account returns the agent to the provider's own sign-in. An order that asks first with
+  // no model is no saved backup models, as the settings page saves it.
   const reset = await callTool("reset", coordinator.id, "update_profile", {
     agentId: worker.id,
     providerAccountId: null,
-    backupModels: null,
+    backupModels: { automatic: false, order: [] },
   });
   const afterReset = storedAgent(worker.id);
   pass(
-    "null resets the account and the backup models",
+    "The reset clears the account and the backup models",
     reset.success &&
       afterReset.providerAccountId === undefined &&
       afterReset.backupModels === undefined &&

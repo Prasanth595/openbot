@@ -3,6 +3,7 @@ import { chatVisualItemType } from "@openbot/contracts/chat-visual";
 import { sortConversationMessages } from "@openbot/contracts/conversation-order";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import type {
+  AgentModelChoice,
   AgentModelOption,
   AgentSummary,
   AvatarImageInput,
@@ -1368,10 +1369,23 @@ export class OpenBotToolRouter {
       // Checked before anything is written, so a model the provider does not list leaves the name
       // and every other field of the same call unchanged.
       const runtime = requestedRuntime(target, runtimeRequest, this.#hooks.listModels());
+      // The model and account the agent has after this call. A provider change without an account
+      // moves the agent to the new provider's own sign-in.
+      const ownProvider = runtime.provider ?? target.provider;
+      const own: AgentModelChoice = {
+        provider: ownProvider,
+        model: runtime.model ?? target.model,
+        providerAccountId:
+          providerAccountId !== undefined
+            ? (providerAccountId ?? undefined)
+            : ownProvider === target.provider
+              ? target.providerAccountId
+              : undefined,
+      };
       const backups =
         backupModels === undefined
           ? undefined
-          : requestedBackupModels(backupModels, this.#hooks.listModels(), this.#hooks.providerAccounts);
+          : requestedBackupModels(backupModels, this.#hooks.listModels(), this.#hooks.providerAccounts, own);
       const image =
         avatarPath === undefined
           ? undefined

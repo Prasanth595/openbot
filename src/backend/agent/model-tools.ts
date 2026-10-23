@@ -107,12 +107,14 @@ export function agentAccountSetup(agent: AgentSummary) {
 /**
  * The backup models that an `update_profile` request names, checked against the models and accounts
  * of this computer, the ones the settings page offers. As the settings page writes it, the stored
- * order omits the provider's own sign-in and has each choice once.
+ * order omits the provider's own sign-in and the agent's own model, has each choice once, and an
+ * order that asks first with no model is null.
  */
 export function requestedBackupModels(
   request: AgentBackupModels | null,
   models: AgentModelOption[],
   accounts: ProviderAccountRows,
+  own: AgentModelChoice,
 ): AgentBackupModels | null {
   if (request === null) return null;
   const order: AgentModelChoice[] = [];
@@ -130,9 +132,9 @@ export function requestedBackupModels(
       model,
       ...(accountId === DEFAULT_PROVIDER_ACCOUNT_ID ? {} : { providerAccountId: accountId }),
     };
-    if (!order.some((other) => sameAgentModelChoice(other, choice))) order.push(choice);
+    if (![own, ...order].some((other) => sameAgentModelChoice(other, choice))) order.push(choice);
   }
-  return { automatic: request.automatic, order };
+  return request.automatic || order.length > 0 ? { automatic: request.automatic, order } : null;
 }
 
 export function modelList(models: AgentModelOption[], provider?: AgentProvider): string {
