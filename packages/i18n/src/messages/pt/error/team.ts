@@ -9,6 +9,7 @@ export const messages = {
   "error.team.identityCreateFailed": "Não foi possível criar a identidade da equipe.",
   "error.team.accountChangedDuringCreate": "A conta conectada mudou durante a criação deste servidor.",
   "error.team.notConfigured": "Este OpenBot não foi configurado.",
+  "error.team.keyRotationMissing": "Nenhuma alteração de chave do servidor está pendente.",
   "error.team.serverNotActive": "Este servidor não é mais o servidor ativo da conta conectada.",
   "error.team.logoInvalid": "Escolha uma imagem PNG, JPEG ou WebP válida de até 512 KB.",
   "error.team.ownerMembershipConflict":

@@ -85,6 +85,11 @@ export interface ServerSettingsModalProps {
   onRetry: () => Promise<void>;
   onSaveIdentity: (input: { serverName: string; logo?: AvatarImageInput | null }) => Promise<void>;
   onSetPublished: (published: boolean) => Promise<void>;
+  /**
+   * Changes the key of the server on this computer, and paired devices follow it. The Server key
+   * section appears only when a caller supplies this.
+   */
+  onRotateHostKey?: (() => Promise<void>) | undefined;
   /** The Notifications section appears only when a caller supplies both: they are desktop notifications. */
   onSetMuted?: (muted: boolean) => Promise<void>;
   onSetNotificationLevel?: (level: ServerNotificationLevel) => Promise<void>;
@@ -838,6 +843,7 @@ export function ServerSettingsModal(props: ServerSettingsModalProps) {
 
       <members.ConfirmDialogs />
       <general.LeaveDialog />
+      <general.RotateKeyDialog />
     </Tabs.Root>
   );
 }

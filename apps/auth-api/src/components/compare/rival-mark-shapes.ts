@@ -10,6 +10,7 @@
 // Claude, so it is the Claude mark. Devin is the mark from devin.ai, not the Cognition logo.
 // Instinct is the stick figure from instinct.com, redrawn with even strokes.
 // Paperclip is the paperclip from the favicon of its web app.
+// Viktor is the letter V from its avatar on viktor.com, without the gradient tile.
 // ChatGPT dots is the ring from chatgpt.com/features/dots, not the OpenAI logo.
 // Codex, Claude Code and Cursor use the marks that the provider logos draw: Codex has
 // no mark apart from the OpenAI blossom. Antigravity is the arch from the icon.svg that
@@ -31,7 +32,8 @@ export type RivalMarkName =
   | "manus"
   | "muse"
   | "openclaw"
-  | "paperclip";
+  | "paperclip"
+  | "viktor";
 
 export interface RivalMarkShape {
   /** `[x, y, width, height]`, as an SVG `viewBox`. */
@@ -122,5 +124,11 @@ export const RIVAL_MARK_SHAPES: Record<RivalMarkName, RivalMarkShape> = {
     viewBox: [0, 0, 24, 24],
     path: "M15.286 5.3L6.872 13.886A1 1 0 0 0 6.886 15.3A1 1 0 0 0 8.3 15.286L16.714 6.7A1 1 0 0 0 16.7 5.286A1 1 0 0 0 15.286 5.3ZM6.879 13.879A3 3 0 0 0 6 16.001A3 3 0 0 0 6.879 18.122A3 3 0 0 0 9.001 19.001A3 3 0 0 0 11.122 18.122L9.708 16.708A1 1 0 0 1 9.001 17.001A1 1 0 0 1 8.293 16.708A1 1 0 0 1 8 16A1 1 0 0 1 8.293 15.293ZM11.129 18.115L19.543 9.529A1 1 0 0 0 19.529 8.115A1 1 0 0 0 18.115 8.129L9.701 16.715A1 1 0 0 0 9.715 18.129A1 1 0 0 0 11.129 18.115ZM19.536 9.536A5 5 0 0 0 21.001 6A5 5 0 0 0 19.536 2.465A5 5 0 0 0 16 1A5 5 0 0 0 12.465 2.465L13.879 3.879A3 3 0 0 1 16.001 3A3 3 0 0 1 18.122 3.879A3 3 0 0 1 19.001 6.001A3 3 0 0 1 18.122 8.122ZM12.458 2.472L4.079 11.023A1 1 0 0 0 4.093 12.437A1 1 0 0 0 5.507 12.423L13.886 3.872A1 1 0 0 0 13.872 2.458A1 1 0 0 0 12.458 2.472ZM4.092 11.01A7 7 0 0 0 2.001 15.972A7 7 0 0 0 4.051 20.95A7 7 0 0 0 9.029 23A7 7 0 0 0 13.991 20.909L12.565 19.507A5 5 0 0 1 9.021 21A5 5 0 0 1 5.465 19.536A5 5 0 0 1 4.001 15.98A5 5 0 0 1 5.494 12.436ZM13.992 20.908L22.371 12.357A1 1 0 0 0 22.357 10.943A1 1 0 0 0 20.943 10.957L12.564 19.508A1 1 0 0 0 12.578 20.922A1 1 0 0 0 13.992 20.908Z",
     fillRule: "nonzero",
+  },
+  // viktor-avatar-color.svg from viktor.com/assets/brand/logos: the white V, without the
+  // gradient tile behind it, on a square around the letter.
+  viktor: {
+    viewBox: [27, 26, 106, 106],
+    path: "M36.875 28.4375H68.75C69.6876 28.4375 70.3124 29.0625 70.3124 30.0001V96.5626H75.7309C85.1059 96.5626 89.6876 91.5626 89.6876 81.5625V30.0001C89.6876 29.0625 90.3124 28.4375 91.25 28.4375H123.125C124.062 28.4375 124.688 29.0625 124.688 30.0001V90.625C124.688 112.812 102.5 130 73.125 130H36.875C35.9375 130 35.3125 129.375 35.3125 128.438V30.0001C35.3125 29.0625 35.9375 28.4375 36.875 28.4375Z",
   },
 };

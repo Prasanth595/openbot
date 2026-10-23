@@ -336,6 +336,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: bun run test:routine-timezone-move
 
+      - name: Run the routine overnight window E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:routine-overnight-window
+
       - name: Run the agent open-wait tools E2E test
         if: ${{ !cancelled() }}
         run: bun run test:agent-waits-tools
@@ -355,6 +359,10 @@ jobs:
       - name: Run the zero-filled settings file E2E test
         if: ${{ !cancelled() }}
         run: bun run test:zero-filled-settings
+
+      - name: Run the server key rotation E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:host-key-rotation
 
       - name: Run the provider update during a turn E2E test
         if: ${{ !cancelled() }}
@@ -440,6 +448,7 @@ jobs:
             .openbot-build/desktop-notifications-e2e/
             .openbot-build/routine-pause-resume-e2e/
             .openbot-build/routine-timezone-move-e2e/
+            .openbot-build/routine-overnight-window-e2e/
             .openbot-build/agent-waits-tools-e2e/
             .openbot-build/agent-hide-restore-e2e/
             .openbot-build/messaging-pause-resume-e2e/

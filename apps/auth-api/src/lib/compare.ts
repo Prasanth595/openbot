@@ -30,6 +30,15 @@ export const COMPARE_COLLECTION: ContentCollection<"compare"> = {
       author: NEWS_AUTHOR,
     },
     {
+      slug: "viktor",
+      title: "OpenBot vs Viktor: A Private, Local Alternative",
+      description:
+        "OpenBot is a free, private Viktor alternative: run a team of AI agents on your own computer, with the AI plans you already pay for, no credits, and your data kept there.",
+      publishedAt: "2026-10-23",
+      updatedAt: "2026-10-23",
+      author: NEWS_AUTHOR,
+    },
+    {
       slug: "instinct",
       title: "OpenBot vs Instinct: A Private, Local Alternative",
       description:

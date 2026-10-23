@@ -28,6 +28,7 @@
     "./hosted-servers": "./src/hosted-servers.ts",
     "./hosted-sites": "./src/hosted-sites.ts",
     "./host-grant": "./src/host-grant.ts",
+    "./host-key-handover": "./src/host-key-handover.ts",
     "./input-limits": "./src/input-limits.ts",
     "./invite-links": "./src/invite-links.ts",
     "./landing-preview-messages": "./src/landing-preview-messages.ts",

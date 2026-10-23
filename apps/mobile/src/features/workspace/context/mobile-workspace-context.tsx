@@ -56,6 +56,7 @@ import {
   remoteRecoveryMessage,
   runTeamEffect,
 } from "@openbot/team-client";
+import { verifyEd25519Base64Url } from "@openbot/team-client/ed25519";
 import { createFocusUsePing } from "@openbot/team-client/focus-use";
 import { createHostedServerWake, WAKE_RECONNECT_DELAY_MS } from "@openbot/team-client/hosted-server-wake";
 import type { RemoteFileUpload } from "@openbot/team-client/remote-peer";
@@ -227,6 +228,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         fetch,
         hostKeys: trustedHostKeys(session.apiUrl, session.user.id),
         pairedHost: session.host,
+        verifyHostKeySignature: verifyEd25519Base64Url,
       }),
     [session.apiUrl, session.sessionToken, session.user.id, session.host],
   );

@@ -299,6 +299,16 @@ export const messages = {
   "server.settings.notReachable": "Niedostępny online. Obecni członkowie i zaproszenia pozostają.",
   "server.settings.notPublished": "Niedostępny online.",
   "server.settings.generatedName": "Serwer: {name}",
+  "server.settings.hostKeyTitle": "Klucz serwera",
+  "server.settings.hostKeyRotate": "Zmień klucz serwera",
+  "server.settings.hostKeyDescription":
+    "Tworzy nowy klucz tożsamości tego serwera. Sparowane komputery i telefony oraz trasy webhooków pozostają połączone.",
+  "server.settings.hostKeyRotateAction": "Zmień",
+  "server.settings.hostKeyConfirmTitle": "Zmienić klucz serwera?",
+  "server.settings.hostKeyConfirmDescription":
+    "Obecny i nowy klucz podpisują przekazanie. Aplikacje członków przełączą się na nowy klucz przy następnym połączeniu. Zrób to, jeśli plik klucza został skopiowany lub ujawniony.",
+  "server.settings.hostKeyRotated": "Zmieniono klucz serwera",
+  "server.settings.hostKeyLocalOnly": "Tutaj klucz może zmienić tylko serwer na tym komputerze.",
   "server.settings.removeTitle": "Usuń serwer",
   "server.settings.removeDescription":
     "Usuń ten serwer z usługi kont dla wszystkich członków. Użyj tej opcji, gdy jego komputer nie jest już dostępny.",

@@ -326,6 +326,16 @@ export const messages = defineMessages("server", {
   "server.settings.notPublished": "Not reachable online.",
   // A name for a server that the user publishes before naming it. {name} is the first word of the account name.
   "server.settings.generatedName": "{name}’s server",
+  "server.settings.hostKeyTitle": "Server key",
+  "server.settings.hostKeyRotate": "Change the server key",
+  "server.settings.hostKeyDescription":
+    "Make a new identity key for this server. Paired computers and phones, and webhook routes, stay connected.",
+  "server.settings.hostKeyRotateAction": "Change key",
+  "server.settings.hostKeyConfirmTitle": "Change the server key?",
+  "server.settings.hostKeyConfirmDescription":
+    "The current key and the new key both sign a handover. Apps of members change to the new key when they connect again. Do this if the key file was copied or exposed.",
+  "server.settings.hostKeyRotated": "Server key changed",
+  "server.settings.hostKeyLocalOnly": "Only the server on this computer can change its key here.",
   "server.settings.removeTitle": "Remove server",
   "server.settings.removeDescription":
     "Remove this server from the account service for all members. Use this when its computer is no longer available.",

@@ -61,7 +61,6 @@ export const messages = defineMessages("routine", {
   "routine.hours.window": "{start}–{end}",
   "routine.hours.windowSameHalf": "{start}–{end} {meridiem}",
   "routine.hours.everyShort": "Every {hours}h",
-  "routine.hours.endBeforeStart": "End time must be after start time",
   "routine.hours.runsPerDay": { one: "Once a day", other: "{count} times a day" },
   "routine.hours.chipLabel": "Hours: {hours}",
   "routine.hours.choose": "Choose hours",
@@ -71,7 +70,6 @@ export const messages = defineMessages("routine", {
   "routine.hours.endTime": "End time",
   "routine.hours.repeat": "Repeat",
 
-  "routine.problem.endBeforeStart": "End time must be after start time.",
   "routine.problem.invalidDate": "Choose a date that exists.",
   "routine.problem.cronRequired": "Enter a cron expression.",
   "routine.problem.cronTooLong": "The cron expression is too long.",
