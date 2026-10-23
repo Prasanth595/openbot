@@ -932,6 +932,7 @@ export class TurnLifecycle {
         const terminal = outcome === "failed" ? "failed" : outcome === "interrupted" ? "interrupted" : "completed";
         for (const delivery of deliveries) {
           this.#refusedRetries.delete(delivery.delivery.id);
+          this.#failoverRetries.delete(delivery.delivery.id);
           const reason = terminal === "failed" && failure ? this.#hooks.redactMcp(failure) : null;
           yield* this.#mailbox.markTerminal(delivery.delivery.id, terminal, reason).pipe(toTurnOperationFailed);
           this.#mailboxSync.syncDeliveryMessage(snapshot, delivery.delivery.id);
