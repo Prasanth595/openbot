@@ -30,7 +30,13 @@ import { sourceText } from "@openbot/i18n/source";
 import { Context, Effect, Layer, Result, Schema } from "effect";
 import { type AccountAnalytics, type AccountAnalyticsEvent, NO_ACCOUNT_ANALYTICS } from "./account-analytics";
 import { getServerEntitlement } from "./billing-entitlement";
-import { BillingError, type BillingReturnTarget, type BillingService, type SubscriptionSync } from "./billing-service";
+import {
+  BillingError,
+  type BillingReturnTarget,
+  type BillingService,
+  SOLD_OUT_PLANS,
+  type SubscriptionSync,
+} from "./billing-service";
 import {
   BoatApiError,
   BoatClient,
@@ -387,6 +393,9 @@ export class HostedServerService {
       if (!isOneOf(BILLING_PLAN_IDS, input.plan)) return yield* invalid("plan");
       if (!isOneOf(BILLING_INTERVALS, input.interval)) return yield* invalid("interval");
       if (!isOneOf(BILLING_CURRENCIES, input.currency)) return yield* invalid("currency");
+      if (SOLD_OUT_PLANS.has(input.plan)) {
+        return yield* new HostedServerServiceError(409, "plan_sold_out", sourceText("error.billing.planSoldOut"));
+      }
       const size = HOSTED_PLAN_SIZE[input.plan];
       const previous = yield* hostedCall(() =>
         dependencies.database

@@ -414,6 +414,7 @@ export const messages = {
   "settings.hostedServers.deleteFailed": "Der Server konnte nicht gelöscht werden.",
   "settings.hostedServers.plan.label": "Tarif",
   "settings.hostedServers.plan.recommended": "Preistipp",
+  "settings.hostedServers.plan.soldOut": "Ausverkauft",
   "settings.hostedServers.plan.perMonth": "/ Monat",
   "settings.hostedServers.plan.disk": "{count} GB Speicherplatz",
   "settings.hostedServers.plan.linux": "Linux-Rechner",
