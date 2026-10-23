@@ -4,6 +4,7 @@ import { agentProviderDescriptor } from "@openbot/contracts/agent-providers";
 import { sortConversationMessages } from "@openbot/contracts/conversation-order";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import type {
+  AgentAccessLevel,
   AgentAnalyticsInput,
   AgentEvent,
   AgentMemory,
@@ -304,10 +305,10 @@ export interface AgentServiceOptions {
    */
   timezone?: () => string;
   /**
-   * Whether the person who asked a channel member to add an agent may chat with that agent, as the
-   * Team API requires of their own save. Omitted, every person may.
+   * The access level of the person who asked a channel member to add or remove an agent, for that
+   * agent, as the Team API gives it for their own save. Omitted, `manage`.
    */
-  channelMemberAccess?: (personId: string, agentId: string) => boolean;
+  channelPersonAgentLevel?: (personId: string, agentId: string) => AgentAccessLevel;
   deleteWithRevokedApproval?: (
     agentId: string,
     remove: () => Effect.Effect<void, AgentRemovalFailed>,
@@ -980,7 +981,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         this.#emit({ type: "channels-changed", channelId, revision });
       },
       memoriesChanged: (channelId) => this.#emit({ type: "channel-memories-changed", channelId }),
-      ...(options.channelMemberAccess ? { mayAddMember: options.channelMemberAccess } : {}),
+      ...(options.channelPersonAgentLevel ? { personAgentLevel: options.channelPersonAgentLevel } : {}),
       routines: {
         list: (channelId) => this.#channelRoutines.list(channelId),
         create: (input) => this.#channelRoutines.create(input),

@@ -170,9 +170,11 @@ routines. They act only on the channel of the running task (`channel-management.
 message of the root task must have a person as author. A routine run (author id `routine:<id>`)
 and a request that only an agent wrote are refused, so untrusted run input cannot change the
 channel. A member change is a `save` through the command queue, with the draft read from the stored
-channel when its turn comes. The caller cannot remove itself, and removing the lead clears the lead.
-An agent that a person adds must be one that person can chat with: main answers
-`mayAddMember` with the Team API rule for a save (`HostService.mayAddChannelMember`). Each change
+channel when its turn comes. The caller cannot remove itself or an owner of a task above its own,
+and removing the lead clears the lead. An agent that a person adds must be one that person can chat
+with, and one they remove must be one they can see: main answers `personAgentLevel` with the level
+their own Team API save has (`HostService.channelPersonAgentLevel`). A retried call finds the
+receipt of its change and changes nothing again. Each change
 writes a `channel-change` note in the same commit, with the agent as author and a source text that
 names the agent, the change and the person. Clients show it as an activity row, and it is not
 unread and not in the model packet.

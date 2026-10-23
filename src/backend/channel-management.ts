@@ -1,14 +1,16 @@
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
-import type {
-  AgentSummary,
-  Channel,
-  ChannelDraft,
-  ChannelMessage,
-  ChannelRoutine,
-  ChannelTask,
-  CreateChannelRoutineInput,
-  DeleteChannelRoutineInput,
-  UpdateChannelRoutineInput,
+import {
+  type AgentAccessLevel,
+  type AgentSummary,
+  agentAccessRank,
+  type Channel,
+  type ChannelDraft,
+  type ChannelMessage,
+  type ChannelRoutine,
+  type ChannelTask,
+  type CreateChannelRoutineInput,
+  type DeleteChannelRoutineInput,
+  type UpdateChannelRoutineInput,
 } from "@openbot/contracts/ipc";
 import { type DynamicRecord, isBoolean, isString } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
@@ -20,6 +22,13 @@ import {
   routineToolString,
 } from "./agent/routine-tools";
 
+const ROUTINE_TOOLS: ReadonlySet<string> = new Set([
+  "channel_list_routines",
+  "channel_create_routine",
+  "channel_update_routine",
+  "channel_delete_routine",
+]);
+
 /**
  * The tools a member agent changes its channel with. Only a person's request may start them, so a
  * routine run or a message that only an agent wrote cannot change who is in the channel.
@@ -28,17 +37,7 @@ export const CHANNEL_MANAGEMENT_TOOLS: ReadonlySet<string> = new Set([
   "channel_add_member",
   "channel_remove_member",
   "channel_set_instructions",
-  "channel_list_routines",
-  "channel_create_routine",
-  "channel_update_routine",
-  "channel_delete_routine",
-]);
-
-const ROUTINE_TOOLS: ReadonlySet<string> = new Set([
-  "channel_list_routines",
-  "channel_create_routine",
-  "channel_update_routine",
-  "channel_delete_routine",
+  ...ROUTINE_TOOLS,
 ]);
 
 export function isChannelRoutineTool(tool: string): boolean {
@@ -77,10 +76,26 @@ export function channelRequester(
   return { id: request.author.id, name: request.author.name };
 }
 
+/** The owners of `task` and of each task above it: the work that the call runs inside. */
+export function channelWorkOwners(task: ChannelTask, tasks: readonly ChannelTask[]): Set<string> {
+  const owners = new Set<string>();
+  const seen = new Set<string>();
+  for (let item: ChannelTask | undefined = task; item && !seen.has(item.id); ) {
+    seen.add(item.id);
+    if (item.ownerAgentId) owners.add(item.ownerAgentId);
+    const parentId: string | null = item.parentTaskId;
+    item = parentId ? tasks.find((candidate) => candidate.id === parentId) : undefined;
+  }
+  return owners;
+}
+
 /**
  * The draft that a member or instructions tool saves, from the channel as it is stored when the
- * save's turn in the command queue comes. The caller cannot remove itself: the removal would stop
- * the task that runs this call.
+ * save's turn in the command queue comes. The person who asked must be able to chat with an agent
+ * they add, and see one they remove, as for their own save through the Team API.
+ *
+ * A removal pauses every open task of the member and the tasks under them, so it cannot remove an
+ * owner of the work that runs this call (`workOwners`): the save would stop the caller's own turn.
  */
 export function channelDraftChange(
   channel: Channel,
@@ -88,7 +103,8 @@ export function channelDraftChange(
   args: DynamicRecord,
   callerAgentId: string,
   agents: readonly AgentSummary[],
-  access: { hidden(agentId: string): boolean; mayAdd(agentId: string): boolean },
+  access: { hidden(agentId: string): boolean; level(agentId: string): AgentAccessLevel },
+  workOwners: ReadonlySet<string>,
 ): { draft: ChannelDraft; note: ChannelChangeNote } {
   const draft: ChannelDraft = {
     name: channel.name,
@@ -113,7 +129,8 @@ export function channelDraftChange(
     if (member) throw new Error(`${name} is already a member of this channel.`);
     if (!agents.some((agent) => agent.id === agentId))
       throw new Error("No agent has that id. Get the id from openbot.list_agents.");
-    if (!access.mayAdd(agentId)) throw new Error(`The person who asked cannot chat with ${name}, so it stays out.`);
+    if (agentAccessRank(access.level(agentId)) < agentAccessRank("chat"))
+      throw new Error(`The person who asked cannot chat with ${name}, so it stays out.`);
     if (access.hidden(agentId)) throw new Error(`${name} is hidden. Ask a person to show it again first.`);
     if (channel.members.length >= INPUT_LIMITS.agents)
       throw new Error(`A channel has at most ${INPUT_LIMITS.agents} members.`);
@@ -123,8 +140,10 @@ export function channelDraftChange(
     };
   }
   if (tool !== "channel_remove_member") throw new Error("Unknown channel tool.");
-  if (!member) throw new Error(`${name} is not a member of this channel.`);
+  if (!member || access.level(agentId) === "none") throw new Error(`${name} is not a member of this channel.`);
   if (agentId === callerAgentId) throw new Error("You cannot remove yourself. Ask a person to do it.");
+  if (workOwners.has(agentId))
+    throw new Error(`${name} owns the work that this task is part of. Ask a person to remove ${name} after it ends.`);
   return {
     draft: {
       ...draft,

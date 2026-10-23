@@ -34,7 +34,7 @@ import type {
   UpdateHostIdentityInput,
   UpdateTeamMemberInput,
 } from "@openbot/contracts/ipc";
-import { agentAccessRank, conversationMessageSender, SIGNED_OUT_CHANNEL_MEMBER_ID } from "@openbot/contracts/ipc";
+import { type AgentAccessLevel, conversationMessageSender, SIGNED_OUT_CHANNEL_MEMBER_ID } from "@openbot/contracts/ipc";
 import type { LiveActivityRelayPush } from "@openbot/contracts/live-activity-relay";
 import type { HostRestartState } from "@openbot/contracts/team-protocol/host-update-v1";
 import { sourceText } from "@openbot/i18n/source";
@@ -1513,17 +1513,20 @@ export class HostService extends EventEmitter<HostEvents> {
   }
 
   /**
-   * Whether `personId`, who asked a channel member to add `agentId`, can chat with that agent: the
-   * rule for a save that the person sends through the Team API. This computer's user always can.
+   * The level of `personId`, who asked a channel member to add or remove `agentId`, for that agent:
+   * the level their own save through the Team API has. This computer's user manages every agent. A
+   * person who is no longer an active member of the team has none.
    */
-  mayAddChannelMember(personId: string, agentId: string): boolean {
-    if (personId === SIGNED_OUT_CHANNEL_MEMBER_ID) return true;
+  channelPersonAgentLevel(personId: string, agentId: string): AgentAccessLevel {
+    if (personId === SIGNED_OUT_CHANNEL_MEMBER_ID) return "manage";
     try {
-      if (personId === `local-user:${this.#options.getSignedInUser().id}`) return true;
+      if (personId === `local-user:${this.#options.getSignedInUser().id}`) return "manage";
     } catch {
       // Signed out: the person is a team member or nobody this computer knows.
     }
-    return agentAccessRank(this.#api.agentLevel(personId, agentId)) >= agentAccessRank("chat");
+    const member = this.#options.store.getMember(personId);
+    if (!member || member.disabled) return "none";
+    return this.#api.agentLevel(member, agentId);
   }
 
   /** The channel list as the host user reads it, as the IPC list does. Empty without channels. */

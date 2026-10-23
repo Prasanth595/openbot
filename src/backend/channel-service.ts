@@ -3,6 +3,7 @@ import { realpathSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, normalize, sep } from "node:path";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import {
+  type AgentAccessLevel,
   type AgentEvent,
   type AgentSummary,
   CHANNEL_ASSIGNMENT_LIMIT,
@@ -33,6 +34,7 @@ import {
   channelDraftChange,
   channelRequester,
   channelRoutineTool,
+  channelWorkOwners,
   isChannelRoutineTool,
   PERSON_REQUEST_REQUIRED,
 } from "./channel-management";
@@ -81,10 +83,11 @@ export interface ChannelHooks {
   /** A memory is not part of the channel revision, so a tool write needs its own notification. */
   memoriesChanged?(channelId: string): void;
   /**
-   * Whether the person who asked may add this agent to a channel, as a save of theirs from the Team
-   * API may. Omitted, every person may: only this computer's user reaches the channel.
+   * The access level of the person who asked a member to change the channel, for an agent that the
+   * change adds or removes, as the Team API gives it for their own save. Omitted, `manage`: only
+   * this computer's user reaches the channel.
    */
-  mayAddMember?(personId: string, agentId: string): boolean;
+  personAgentLevel?(personId: string, agentId: string): AgentAccessLevel;
   /** The schedule routines of the channels, for the routine tools. Omitted, those tools fail. */
   routines?: ChannelRoutineToolPort;
   error(error: unknown): void;
@@ -1885,6 +1888,17 @@ export class ChannelService {
       );
       return { ...message, message: { ...message.message, source: "system" } };
     };
+    // A change that already committed: a retried call must not find the member it added, or the
+    // routine it made, and fail. The change and its note commit under this one receipt.
+    const receipt = `${agentId}:${operationId}`;
+    if ((yield* channelSync(() => this.store.database.commandResult(`channels:${receipt}`))) !== undefined)
+      return { accepted: true };
+    // Archive does not wait in the queue, so the channel is read again at this change's turn.
+    const open = () => {
+      const current = this.store.get(channelId);
+      if (current.archived) throw new Error("The channel was archived.");
+      return current;
+    };
     if (isChannelRoutineTool(tool)) {
       const routines = this.hooks.routines;
       if (!routines) return yield* channelFailure(new Error("Channel routines are unavailable on this computer."));
@@ -1892,30 +1906,36 @@ export class ChannelService {
       yield* this.#serialize(
         channelId,
         Effect.gen({ self: this }, function* () {
+          yield* channelSync(open);
           const outcome = yield* channelSync(() => channelRoutineTool(routines, channelId, tool, args));
           result = outcome.result;
           const changed = outcome.note;
           if (!changed) return;
-          yield* channelSync(() => this.store.update(this.store.get(channelId), { messages: [note(changed)] }));
+          yield* channelSync(() => this.store.update(open(), { messages: [note(changed)] }, receipt));
           this.publish(channelId);
         }),
       );
       return result;
     }
-    // A save that already committed: a retried call must not find the member it added and fail.
-    if (
-      (yield* channelSync(() => this.store.database.commandResult(`channels:${agentId}:${operationId}`))) !== undefined
-    )
-      return { accepted: true };
     const channel = yield* this.#serialize(
       channelId,
       Effect.gen({ self: this }, function* () {
-        const current = yield* channelSync(() => this.store.get(channelId));
+        const current = yield* channelSync(open);
+        const tasks = yield* channelSync(() => this.store.tasks(channelId));
+        const task = tasks.find((item) => item.id === taskId);
         const change = yield* channelSync(() =>
-          channelDraftChange(current, tool, args, agentId, this.hooks.agents(), {
-            hidden: (id) => this.hooks.hidden?.(id) ?? false,
-            mayAdd: (id) => this.hooks.mayAddMember?.(person.id, id) ?? true,
-          }),
+          channelDraftChange(
+            current,
+            tool,
+            args,
+            agentId,
+            this.hooks.agents(),
+            {
+              hidden: (id) => this.hooks.hidden?.(id) ?? false,
+              level: (id) => this.hooks.personAgentLevel?.(person.id, id) ?? "manage",
+            },
+            task ? channelWorkOwners(task, tasks) : new Set([agentId]),
+          ),
         );
         return yield* this.apply({ type: "save", operationId, channelId, draft: change.draft, update: true }, agent, [
           note(change.note),

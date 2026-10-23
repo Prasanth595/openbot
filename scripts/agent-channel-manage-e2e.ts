@@ -40,6 +40,7 @@ const CALL_MARK = "CHANNEL-CALL";
 const PERSON = { id: "local", name: "Alex" };
 // A team member whose roles do not let them chat with the agents they ask to add.
 const LIMITED = { id: "member-limited", name: "Rui" };
+let limitedVisibleAgentId = "";
 
 /**
  * A Codex app-server with the methods that the service calls. A turn whose input has
@@ -224,7 +225,9 @@ const agents = new AgentService({
   preferredProvider: "codex",
   offProviders: AGENT_PROVIDERS.filter((provider) => provider !== "codex"),
   timezone: () => "UTC",
-  channelMemberAccess: (personId) => personId !== LIMITED.id,
+  // The limited member sees Tester but cannot chat with it, and does not see the other agents.
+  channelPersonAgentLevel: (personId, agentId) =>
+    personId !== LIMITED.id ? "manage" : agentId === limitedVisibleAgentId ? "view" : "none",
 });
 
 const channels = () => agents.channels;
@@ -422,7 +425,9 @@ try {
     lastNote(channelId)?.message.text === "Lead deleted the routine Standup. Alex asked for it.",
   );
 
-  // 6. A person whose roles do not let them chat with the agent cannot have it added.
+  // 6. A person whose roles do not let them chat with the agent cannot have it added, and a person
+  // who cannot see a member cannot have it removed.
+  limitedVisibleAgentId = tester.id;
   const limited = await callTool(
     "add for a limited member",
     channelId,
@@ -437,6 +442,21 @@ try {
       limited.text.includes("cannot chat with Tester") &&
       !channelOf(channelId).members.some((member) => member.agentId === tester.id),
     limited.text,
+  );
+  const unseen = await callTool(
+    "remove for a limited member",
+    channelId,
+    lead.id,
+    "channel_remove_member",
+    { agentId: writer.id },
+    LIMITED,
+  );
+  pass(
+    "A member who cannot see the agent cannot have it removed",
+    !unseen.success &&
+      unseen.text.includes("is not a member") &&
+      channelOf(channelId).members.some((member) => member.agentId === writer.id),
+    unseen.text,
   );
 
   // 7. Removing the lead leaves the channel without one.
