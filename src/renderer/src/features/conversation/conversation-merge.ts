@@ -60,22 +60,26 @@ export function missingReplyOriginals(page: Pick<ConversationPage, "messages" | 
  * The part of a refreshed snapshot a conversation may show without losing its
  * window.
  *
- * A snapshot with nothing older left to load is the whole conversation, so it
- * is shown whole. Otherwise it is the tail, and what the user is looking at
- * decides how much of it applies: a window loaded *around* a message keeps only
- * messages already on screen, because anything else in the snapshot belongs to
- * the far end of a gap. A window at the latest end keeps those, plus everything
- * after the last one it recognises - that is the new arrivals, and it is why a
- * refresh does not drop the older pages loaded above them.
+ * A snapshot is only the tail of the conversation: main caps it at its cache
+ * limit. Loaded messages before the first one it shares are older than that
+ * tail, so they stay. What the user is looking at decides how much of the
+ * snapshot applies: a window loaded *around* a message keeps only messages
+ * already on screen, because anything else in the snapshot belongs to the far
+ * end of a gap. A window at the latest end keeps those, plus everything after
+ * the last one it recognises - that is the new arrivals. A latest window that
+ * shares nothing with the snapshot is replaced by it.
  */
 export function windowedSnapshotMessages<Message extends { id: string }>(
   loaded: readonly Message[],
   snapshot: readonly Message[],
-  window: { hasOlder: boolean; mode: "latest" | "around" },
+  mode: "latest" | "around",
 ): Message[] {
-  if (!window.hasOlder) return [...snapshot];
+  const snapshotIds = new Set(snapshot.map((message) => message.id));
+  const firstShared = loaded.findIndex((message) => snapshotIds.has(message.id));
+  if (mode === "latest" && firstShared === -1) return [...snapshot];
+  const older = loaded.slice(0, firstShared === -1 ? loaded.length : firstShared);
   const loadedIds = new Set(loaded.map((message) => message.id));
-  if (window.mode === "around") return snapshot.filter((message) => loadedIds.has(message.id));
+  if (mode === "around") return [...older, ...snapshot.filter((message) => loadedIds.has(message.id))];
   const lastLoadedIndex = snapshot.reduce((last, message, index) => (loadedIds.has(message.id) ? index : last), -1);
-  return snapshot.filter((message, index) => loadedIds.has(message.id) || index > lastLoadedIndex);
+  return [...older, ...snapshot.filter((message, index) => loadedIds.has(message.id) || index > lastLoadedIndex)];
 }
