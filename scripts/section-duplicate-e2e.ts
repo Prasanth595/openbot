@@ -68,6 +68,7 @@ const agentBrowser: AgentBrowserHost = {
   clearControls: () => {},
   endControl: () => {},
   close: () => Effect.void,
+  clearAgentSession: () => Effect.void,
 };
 
 const root = await mkdtemp(join(tmpdir(), "openbot-section-duplicate-"));

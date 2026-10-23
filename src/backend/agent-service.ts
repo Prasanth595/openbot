@@ -101,6 +101,7 @@ import {
   type AgentModelChoice,
   agentAutomationAllowed,
   agentNewChatAllowed,
+  agentOwnBrowserSessionEnabled,
   agentTaskLimit,
   type BusyMessageMode,
   CONTEXT_RESET_ITEM_TYPE,
@@ -2436,6 +2437,9 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       },
       initiatingAgentId,
     );
+    // A tab keeps the session it opened in, so the agent's next tab opens in the session it chose now.
+    if (previous && agentOwnBrowserSessionEnabled(previous) !== agentOwnBrowserSessionEnabled(agent))
+      yield* this.#removal.closeBrowserTabs(agent);
     if (moved && (leaving || returning))
       this.#appendModelSwitchMarker(
         agent,

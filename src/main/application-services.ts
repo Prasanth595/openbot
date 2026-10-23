@@ -72,6 +72,7 @@ import type {
   VoiceStreamTranscript,
 } from "@openbot/contracts/ipc";
 import {
+  agentOwnBrowserSessionEnabled,
   IPC_ENDPOINTS,
   isManagedToolRuntime,
   isUpdateBusyPhase,
@@ -964,6 +965,10 @@ export async function createApplicationServices({
   }
   const browser = new BrowserHost(mainWindow, store.downloadsRoot, join(app.getPath("userData"), BROWSER_STATE_FILE), {
     memoryLow: () => (hostMemory?.level() ?? "ok") !== "ok",
+    ownBrowserSession: (agentId) => {
+      const agent = store.list().find((candidate) => candidate.id === agentId);
+      return agent ? agentOwnBrowserSessionEnabled(agent) : false;
+    },
   });
   teardown.push(TEARDOWN_ORDER.browser, "the browser", () => runCauseEffect(browser.destroy()));
   await runCauseEffect(browser.restore(store.list().map((agent) => ({ id: agent.id, threadId: agent.threadId }))));

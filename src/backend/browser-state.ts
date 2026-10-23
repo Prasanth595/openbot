@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import type { BrowserBounds, BrowserEnvironment } from "@openbot/contracts/ipc";
@@ -16,6 +17,20 @@ export interface StoredBrowserTab {
   ownerAgentId: string | null;
   /** Absent in a v1 file, and in a v2 file whose environment did not survive validation. */
   environment?: BrowserEnvironment;
+  /** The key of the agent session the tab opened in. Absent: the shared session. See `agentBrowserSessionKey`. */
+  agentSession?: string;
+}
+
+/**
+ * The partition key of an agent's own browser session. A hash, so an agent id never becomes part of
+ * a directory name, and the same agent always gets the same cookies back.
+ */
+export function agentBrowserSessionKey(agentId: string): string {
+  return createHash("sha256").update(agentId).digest("hex").slice(0, 32);
+}
+
+export function isAgentBrowserSessionKey(value: unknown): value is string {
+  return isString(value) && /^[0-9a-f]{32}$/.test(value);
 }
 
 /**
@@ -148,6 +163,9 @@ function storedBrowserTab(value: unknown): StoredBrowserTab | null {
     return null;
   }
   if (!isPersistableBrowserUrl(value.url)) return null;
+  // A tab whose session cannot be read is dropped: loading it in the shared session would show it
+  // signed in to another account.
+  if (value.agentSession !== undefined && !isAgentBrowserSessionKey(value.agentSession)) return null;
   const environment = browserEnvironment(value.environment);
   return {
     id: value.id,
@@ -155,6 +173,7 @@ function storedBrowserTab(value: unknown): StoredBrowserTab | null {
     ownerThreadId,
     ownerAgentId,
     ...(environment === null ? {} : { environment }),
+    ...(value.agentSession === undefined ? {} : { agentSession: value.agentSession }),
   };
 }
 

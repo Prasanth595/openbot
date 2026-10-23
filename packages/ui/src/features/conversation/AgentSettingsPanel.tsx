@@ -15,6 +15,7 @@ import {
   agentAutomationAllowed,
   agentComputerUseEnabled,
   agentNewChatAllowed,
+  agentOwnBrowserSessionEnabled,
   agentPermissionLevel,
   agentPermissionLevels,
   agentPermissionUpdate,
@@ -117,6 +118,8 @@ export interface AgentSettingsPanelProps {
   newChatEditable?: boolean;
   /** Whether the agent shows its plan before a long task. Local-only: the Team API does not carry it. */
   quickAcknowledgementEditable?: boolean;
+  /** Whether the agent's tabs use a browser session of their own. Local-only: the Team API does not carry it. */
+  ownBrowserSessionEditable?: boolean;
   /** The busy-message setting is local-only too: the Team API does not carry it. */
   busyMessageModeEditable?: boolean;
   /** Tasks run only on this computer: the Team API has no task route. */
@@ -206,6 +209,7 @@ interface AgentSettingsDraft {
   allowAutomation: boolean;
   allowNewChat: boolean;
   quickAcknowledgement: boolean;
+  ownBrowserSession: boolean;
   /** `default` follows the app setting. */
   busyMessage: BusyMessageChoice;
   /** `default` is `AGENT_TASK_LIMIT_DEFAULT`. */
@@ -247,6 +251,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
     allowAutomation: false,
     allowNewChat: false,
     quickAcknowledgement: false,
+    ownBrowserSession: false,
     busyMessage: "default",
     taskLimit: "default",
     backupModels: null,
@@ -368,6 +373,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
           String(agentAutomationAllowed(agent)),
           String(agentNewChatAllowed(agent)),
           String(agentQuickAcknowledgementEnabled(agent)),
+          String(agentOwnBrowserSessionEnabled(agent)),
           agent.busyMessageMode ?? "default",
           String(agent.taskLimit ?? "default"),
           JSON.stringify(agent.backupModels ?? null),
@@ -412,6 +418,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
           state.allowAutomation = agentAutomationAllowed(agent);
           state.allowNewChat = agentNewChatAllowed(agent);
           state.quickAcknowledgement = agentQuickAcknowledgementEnabled(agent);
+          state.ownBrowserSession = agentOwnBrowserSessionEnabled(agent);
           state.busyMessage = agent.busyMessageMode ?? "default";
           state.taskLimit = taskLimitChoice(agent.taskLimit);
           state.backupModels = agent.backupModels ?? null;
@@ -859,6 +866,19 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
     if (!disposed && props.agent.id === agentId && draft.quickAcknowledgement === next) {
       setDraft((state) => {
         state.quickAcknowledgement = !next;
+      });
+    }
+  }
+
+  async function saveOwnBrowserSession(next: boolean): Promise<void> {
+    const agentId = props.agent.id;
+    setDraft((state) => {
+      state.ownBrowserSession = next;
+    });
+    if (await saveAgentPatch({ ownBrowserSession: next }, agentId)) return;
+    if (!disposed && props.agent.id === agentId && draft.ownBrowserSession === next) {
+      setDraft((state) => {
+        state.ownBrowserSession = !next;
       });
     }
   }
@@ -1456,6 +1476,20 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
                     aria-label={t("agentSettings.quickAcknowledgement.title")}
                     checked={draft.quickAcknowledgement}
                     onChange={(next) => void saveQuickAcknowledgement(next)}
+                  />
+                </div>
+              </Show>
+              <Show when={props.ownBrowserSessionEditable}>
+                <div class="agent-settings-notifications">
+                  <div>
+                    <strong>{t("agentSettings.ownBrowserSession.title")}</strong>
+                    <span>{t("agentSettings.ownBrowserSession.description")}</span>
+                  </div>
+                  <Switch
+                    size="sm"
+                    aria-label={t("agentSettings.ownBrowserSession.title")}
+                    checked={draft.ownBrowserSession}
+                    onChange={(next) => void saveOwnBrowserSession(next)}
                   />
                 </div>
               </Show>

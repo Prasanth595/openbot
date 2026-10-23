@@ -56,6 +56,10 @@ export function agentQuickAcknowledgementEnabled(agent: { quickAcknowledgement?:
   return agent.quickAcknowledgement === true;
 }
 
+export function agentOwnBrowserSessionEnabled(agent: { ownBrowserSession?: boolean | undefined }): boolean {
+  return agent.ownBrowserSession === true;
+}
+
 /**
  * Whether this agent runs inside the workspace sandbox now. Every provider enforces it. Codex runs the
  * agent in its `workspace-write` sandbox. Claude runs Bash in its sandbox and asks before a file edit
@@ -191,6 +195,12 @@ export interface AgentSummary {
    */
   quickAcknowledgement?: boolean;
   /**
+   * Whether the browser tabs of the agent use a session of their own, with their own cookies and
+   * sign-ins. Local-only, like `access`. Absent means off: the tabs use the shared session; see
+   * `agentOwnBrowserSessionEnabled`.
+   */
+  ownBrowserSession?: boolean;
+  /**
    * Whether the agent asks Codex for the fast service tier of its model. Local-only, like `access`.
    * Absent means that OpenBot leaves the tier to Codex.
    */
@@ -268,6 +278,7 @@ function hasAgentSummaryFields(value: DynamicRecord): boolean {
     (value.allowAutomation === undefined || isBoolean(value.allowAutomation)) &&
     (value.allowNewChat === undefined || isBoolean(value.allowNewChat)) &&
     (value.quickAcknowledgement === undefined || isBoolean(value.quickAcknowledgement)) &&
+    (value.ownBrowserSession === undefined || isBoolean(value.ownBrowserSession)) &&
     (value.fastMode === undefined || isBoolean(value.fastMode)) &&
     (value.busyMessageMode === undefined || isBusyMessageMode(value.busyMessageMode)) &&
     (value.taskLimit === undefined || isAgentTaskLimit(value.taskLimit)) &&
@@ -317,6 +328,7 @@ export interface UpdateAgentInput {
   allowAutomation?: boolean;
   allowNewChat?: boolean;
   quickAcknowledgement?: boolean;
+  ownBrowserSession?: boolean;
   fastMode?: boolean;
   /** `null` returns the agent to the app default. */
   busyMessageMode?: BusyMessageMode | null;

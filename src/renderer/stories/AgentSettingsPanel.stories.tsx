@@ -17,6 +17,7 @@ const meta = {
     busyMessageModeEditable: true,
     newChatEditable: true,
     quickAcknowledgementEditable: true,
+    ownBrowserSessionEditable: true,
     defaultBusyMessageMode: "queue",
     width: 296,
     maxWidth: () => 640,
@@ -60,6 +61,7 @@ export const RemoteAgent: Story = {
     busyMessageModeEditable: false,
     newChatEditable: false,
     quickAcknowledgementEditable: false,
+    ownBrowserSessionEditable: false,
   },
 };
 /** An OpenCode model with no reasoning setting: OpenCode decides, and the row says so. */
