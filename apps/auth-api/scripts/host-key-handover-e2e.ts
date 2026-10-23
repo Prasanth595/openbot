@@ -266,6 +266,45 @@ async function onlyTheLatestStepsStay() {
   );
 }
 
+async function aRegistrationWithAnotherKeyDropsTheSteps() {
+  const { plane, first, now, host, storedSteps, hand } = await setup();
+  await hand(await handover(first, await hostKey(), now));
+  // The host lost its machine token, so it dropped its pending handover and registers its old key.
+  const registered = await result(
+    plane.registerHost(OWNER, {
+      hostId: HOST_ID,
+      name: "Studio",
+      ownerMembershipId: "membership-owner",
+      devicePublicKey: first.pem,
+    }),
+  );
+  check("a registration with another key succeeds", registered.code === null, registered.code);
+  check("a registration with another key drops the steps", storedSteps() === 0, { stored: storedSteps() });
+  const third = await hostKey();
+  const step = await handover(first, third, now - 1);
+  const moved = await hand(step, OWNER, registered.value?.machineToken ?? "");
+  check("the next handover after the registration succeeds", moved.code === null, moved.code);
+  const hosts = await Effect.runPromise(plane.listHosts(OWNER.id));
+  check(
+    "the host list sends only the step from the registered key",
+    JSON.stringify(hosts.find((entry) => entry.hostId === HOST_ID)?.keyHandovers) === JSON.stringify([step]),
+  );
+  check("the host has the key of the last step", host().key === third.pem);
+
+  const again = await result(
+    plane.registerHost(OWNER, {
+      hostId: HOST_ID,
+      name: "Studio",
+      ownerMembershipId: "membership-owner",
+      devicePublicKey: third.pem,
+    }),
+  );
+  check("a registration with the same key keeps the steps", again.code === null && storedSteps() === 1, {
+    code: again.code,
+    stored: storedSteps(),
+  });
+}
+
 async function aHostThatLeavesDropsItsSteps() {
   const { plane, first, now, storedSteps, hand } = await setup();
   await hand(await handover(first, await hostKey(), now));
@@ -280,6 +319,7 @@ const scenarios = [
   refusedHandoversChangeNothing,
   aStaleHandoverConflicts,
   onlyTheLatestStepsStay,
+  aRegistrationWithAnotherKeyDropsTheSteps,
   aHostThatLeavesDropsItsSteps,
 ];
 for (const scenario of scenarios) {

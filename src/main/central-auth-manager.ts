@@ -578,7 +578,9 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
 
   /**
    * Sends a key handover that the host signed with its current and its new key. Returns `refused`
-   * when the account service has another key for the host, so the handover can never apply.
+   * when the account service has another key for the host, so the handover can never apply. It is
+   * also `refused` when this computer has no machine token for the host, for example after a sign-out:
+   * only a registration gets a new token, and a pending handover runs before each registration.
    */
   readonly handOverRemoteHostKey = Effect.fn("CentralAuth.handOverRemoteHostKey")(
     function* (
@@ -586,7 +588,8 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
       hostId: string,
       handover: HostKeyHandover,
     ): Effect.fn.Return<"accepted" | "refused", CentralAuthOperationError, CentralAuthTransport> {
-      const machineToken = yield* this.#hostMachineToken(hostId);
+      const machineToken = this.#teamHostTokens.get(hostId.toLowerCase());
+      if (!machineToken) return "refused";
       return yield* this.#authorizedRequestEffect(
         `/v2/remote/hosts/${encodeURIComponent(hostId)}/key-handover`,
         {

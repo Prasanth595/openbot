@@ -276,6 +276,7 @@
     "test:remote-auth-events": "bun apps/auth-api/scripts/remote-auth-events-e2e.ts",
     "test:invite-acceptance": "bun apps/auth-api/scripts/invite-acceptance-e2e.ts",
     "test:host-key-handover": "bun apps/auth-api/scripts/host-key-handover-e2e.ts",
+    "test:host-key-rotation": "bun scripts/host-key-rotation-e2e.ts",
     "test:cloud-authorization": "bun apps/auth-api/scripts/cloud-authorization-e2e.ts",
     "test:billing-snapshot": "bun apps/auth-api/scripts/billing-snapshot-e2e.ts",
     "test:mobile-connected-devices": "bun scripts/mobile-connected-devices-e2e.ts",

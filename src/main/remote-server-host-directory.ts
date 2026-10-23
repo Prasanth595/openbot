@@ -92,7 +92,7 @@ export const verifyHostKeySignature: HostKeySignatureCheck = (signature, message
   Effect.try({
     try: () => verify(null, message, publicKeyPem, Buffer.from(signature, "base64url")),
     catch: () => false,
-  }).pipe(Effect.catch(() => Effect.succeed(false)));
+  }).pipe(Effect.orElseSucceed(() => false));
 
 /**
  * The listed hosts whose advertised key differs from the pinned one, and a handover chain signed by

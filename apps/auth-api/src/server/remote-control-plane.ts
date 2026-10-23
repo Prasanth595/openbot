@@ -607,8 +607,18 @@ export class RemoteControlPlane {
         Effect.mapError((error) => (error instanceof RemoteControlPlaneError ? error : new RemoteOperationError({}))),
       );
       const membershipId = ownerMembershipId;
-      const registration = yield* remoteCall(() =>
+      const [, ...registration] = yield* remoteCall(() =>
         dependencies.database.batch([
+          // A registration with another key is a new pairing. The stored handovers lead to a key that
+          // the host no longer has, and a client that follows them could not reach the next step.
+          dependencies.database
+            .prepare(
+              `DELETE FROM remote_host_key_handovers WHERE host_id = ? AND EXISTS(
+             SELECT 1 FROM remote_hosts
+             WHERE host_id = ? AND owner_user_id = ? AND device_public_key IS NOT ?
+           )`,
+            )
+            .bind(hostId, hostId, user.id, devicePublicKey),
           dependencies.database
             .prepare(
               `INSERT INTO remote_hosts(

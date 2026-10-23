@@ -40,7 +40,7 @@ import type { LiveActivityRelayPush } from "@openbot/contracts/live-activity-rel
 import type { HostRestartState } from "@openbot/contracts/team-protocol/host-update-v1";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, toLogValue } from "@openbot/logging";
-import { Cause, Context, Deferred, Effect, Fiber, Layer, ManagedRuntime, Result } from "effect";
+import { Cause, Context, Deferred, Effect, Fiber, Layer, ManagedRuntime, Result, Semaphore } from "effect";
 import type { AgentService } from "../backend/agent-service";
 import type { ChannelService } from "../backend/channel-service";
 import type { TeamChatStore } from "../backend/team-chat-store";
@@ -237,6 +237,8 @@ export class HostService extends EventEmitter<HostEvents> {
   #status: HostStatus;
   #runtimeGeneration = 0;
   #startOperation: Fiber.Fiber<HostStatus, RemoteWorkflowError> | null = null;
+  /** A registration and a key rotation each read the host key, so only one of them runs at a time. */
+  readonly #hostKeyLock = Semaphore.makeUnsafe(1);
   #webRtcOnline = false;
   /** `undefined` until the account service first reports, so the first report always binds. */
   #boundAccountId: string | null | undefined = undefined;
@@ -741,8 +743,12 @@ export class HostService extends EventEmitter<HostEvents> {
       if (!this.#options.handOverRemoteHostKey || !this.#options.registerRemoteHost)
         return yield* new RemoteWorkflowError({ cause: new Error(sourceText("error.host.keyRotationUnavailable")) });
       yield* remoteDecode(() => this.#options.store.assertOwnerAccount(this.#options.getSignedInUser()));
-      const handover = yield* this.#options.store.beginKeyRotation();
-      const result = yield* this.#resolvePendingKeyRotation();
+      const { handover, result } = yield* this.#hostKeyLock.withPermit(
+        Effect.gen({ self: this }, function* () {
+          const handover = yield* this.#options.store.beginKeyRotation();
+          return { handover, result: yield* this.#resolvePendingKeyRotation() };
+        }),
+      );
       if (result !== "accepted" || this.#options.store.getIdentity()?.publicKey !== handover.publicKey)
         return yield* new RemoteWorkflowError({ cause: new Error(sourceText("error.host.keyRotationRefused")) });
       if (this.#isActiveHost(handover.hostId)) {
@@ -772,21 +778,24 @@ export class HostService extends EventEmitter<HostEvents> {
   });
 
   /** Registers the active host with the key that it uses after any pending handover. */
-  readonly #registerRemoteHost = Effect.fn("HostService.registerRemoteHost")(function* (
-    this: HostService,
-    register: NonNullable<HostServiceOptions["registerRemoteHost"]>,
-    ownerMembershipId: string,
-  ): Effect.fn.Return<void, RemoteWorkflowError> {
-    yield* this.#resolvePendingKeyRotation();
-    const identity = this.#options.store.getIdentity();
-    if (!identity) return;
-    yield* register({
-      hostId: identity.serverId,
-      name: identity.serverName,
-      ownerMembershipId,
-      devicePublicKey: identity.publicKey,
-    });
-  });
+  readonly #registerRemoteHost = Effect.fn("HostService.registerRemoteHost")(
+    function* (
+      this: HostService,
+      register: NonNullable<HostServiceOptions["registerRemoteHost"]>,
+      ownerMembershipId: string,
+    ): Effect.fn.Return<void, RemoteWorkflowError> {
+      yield* this.#resolvePendingKeyRotation();
+      const identity = this.#options.store.getIdentity();
+      if (!identity) return;
+      yield* register({
+        hostId: identity.serverId,
+        name: identity.serverName,
+        ownerMembershipId,
+        devicePublicKey: identity.publicKey,
+      });
+    },
+    (operation) => this.#hostKeyLock.withPermit(operation),
+  );
 
   /**
    * Every remote step runs under the signed-in account's authentication, so one that started
