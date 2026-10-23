@@ -362,6 +362,8 @@ export class ProviderRuntime implements ProviderPort {
   readonly #providerStarts = new Map<AgentProvider, Deferred.Deferred<void, ProviderOperationFailed>>();
   readonly #providerConnectionCommands = new Map<AgentProvider, Deferred.Deferred<void, ProviderOperationFailed>>();
   readonly #replacingCli = new Set<AgentProvider>();
+  /** Sign-ins that signed the provider out first. One that does not finish leaves the old client stale. */
+  readonly #signedOutLogins = new Set<AgentProvider>();
   #removingCustomRuntime = false;
   /**
    * Providers whose idle process was stopped to give its memory back. Each one keeps its status,
@@ -494,10 +496,19 @@ export class ProviderRuntime implements ProviderPort {
       authenticate: (provider, cli) =>
         this.#authenticateClient(provider, cli, { startTimeoutMs: LONG_START_TIMEOUT_MS }).pipe(toCliLoginFailed),
       activate: (provider, client, cli, account, activateOptions) =>
-        this.#activateProviderClient(provider, client, cli, account, activateOptions).pipe(toCliLoginFailed),
+        this.#activateProviderClient(provider, client, cli, account, activateOptions).pipe(
+          Effect.tap(() => Effect.sync(() => this.#signedOutLogins.delete(provider))),
+          toCliLoginFailed,
+        ),
       setConnecting: (provider) => this.#setProviderConnectionState(provider, "connecting"),
-      clearConnectionState: (provider) => this.#clearProviderConnectionState(provider),
-      setFailure: (provider, error, version) => this.#setProviderConnectionFailure(provider, error, version),
+      clearConnectionState: (provider) => {
+        this.#clearProviderConnectionState(provider);
+        this.#checkAfterSignedOutLogin(provider);
+      },
+      setFailure: (provider, error, version) => {
+        this.#setProviderConnectionFailure(provider, error, version);
+        this.#checkAfterSignedOutLogin(provider);
+      },
     });
     this.#providerAccounts = options.accounts
       ? new ProviderAccounts(options.accounts, {
@@ -1134,7 +1145,23 @@ export class ProviderRuntime implements ProviderPort {
           .pipe(toProviderOperationFailed);
         return this.status();
       case "acp-authenticate": {
+        // A Reconnect of a Google sign-in signs out first: the saved token would answer it with no
+        // browser page. A saved key wins over Google, so it keeps the token. A provider that the idle
+        // timer released is still connected.
+        const fresh =
+          provider === "antigravity" &&
+          this.#status.providers?.find((row) => row.id === provider)?.state === "available" &&
+          !this.#credentials.apiKey("antigravity");
+        // The sign-out removes the credential that a running turn uses.
+        if (fresh && this.#hooks.isProviderBusy(provider)) {
+          return yield* new ProviderOperationFailed({
+            cause: new Error(sourceText("error.provider.cliBusyReconnect", { provider: providerLabel(provider) })),
+          });
+        }
+        // A Restart of the pending sign-in replaces it, so its cancel must not check the provider.
+        this.#signedOutLogins.delete(provider);
         yield* this.#cancelCliLogin(provider);
+        if (fresh) this.#signedOutLogins.add(provider);
         const temp = provider === "antigravity" ? antigravityTemp(this.#credentials) : undefined;
         yield* this.#cliLogin
           .start(provider, (cli) =>
@@ -1144,6 +1171,7 @@ export class ProviderRuntime implements ProviderPort {
               env: { ...signIn.env },
               methodId: signIn.methodId,
               timeoutMs: signIn.timeoutMs,
+              ...(fresh ? { logout: true } : {}),
               privateTemp: temp && { ...temp, provider: providerLabel(provider) },
               ...(provider === "antigravity" && (onHost || process.platform === "linux")
                 ? { openGoogleSignIn: openExternal }
@@ -2673,6 +2701,20 @@ export class ProviderRuntime implements ProviderPort {
         }),
     );
   }, Effect.uninterruptible);
+
+  /**
+   * A sign-in that signed the provider out and then stopped leaves a client that still reads as
+   * connected. Asking the provider again reports the account that is left, if any.
+   */
+  #checkAfterSignedOutLogin(provider: AgentProvider): void {
+    if (!this.#signedOutLogins.delete(provider)) return;
+    Effect.runFork(
+      this.#runProviderConnectionCommand(provider, () => this.#reprobeProvider(provider)).pipe(
+        Effect.ignore,
+        Effect.forkIn(this.#scope),
+      ),
+    );
+  }
 
   #cancelCliLogin(provider: AgentProvider): Effect.Effect<void, ProviderOperationFailed> {
     return this.#cliLogin.cancel(provider, null).pipe(toProviderOperationFailed);

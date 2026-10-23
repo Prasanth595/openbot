@@ -364,7 +364,11 @@ Sign in is an ACP `authenticate` call with `oauth-personal`, in a separate proce
 server and opens it with the desktop browser. The server browser launch is disabled for this
 process so the page opens once. A failed browser launch gives an actionable error; the OAuth
 link and browser error details are not logged. Other platforms let the server open the browser.
-A status probe must never call `authenticate`. The serving client does not call it.
+A valid saved Google token answers `authenticate` with no browser page. So a Reconnect of a
+connected Google sign-in, with no saved key, first calls ACP `logout` when `initialize` advertises
+`agentCapabilities.auth.logout` (runtime 1.4.1 and later). The Google page then opens. The token is
+shared by every OpenBot profile on the computer, so they all sign out. A Reconnect is refused while
+a Gemini turn runs. A status probe must never call `authenticate`. The serving client does not call it.
 OpenBot checks authentication through model discovery (`session/new`), not the auth methods
 advertised by `initialize`. The runtime can answer "Authentication required", which OpenBot
 reports as sign-in required. In runtime 1.3.0, a saved OAuth method with no valid token can also
