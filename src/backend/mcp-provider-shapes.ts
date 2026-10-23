@@ -663,6 +663,17 @@ export function codexThreadMcpServers(
   return record;
 }
 
+/**
+ * The namespace Codex gives the tools of each server OpenBot turns on. For a code-mode-only model,
+ * such as GPT-6, Codex otherwise defers MCP tools into `exec` without naming them, and the model
+ * does not find them. These join the direct-only list, so the request names the tools. The keys are
+ * the ones `codexMcpServers` chose, renamed keys included; a name Codex's own files declare is turned
+ * off and has no tools. Codex adds `mcp__` unless the key starts with it.
+ */
+export function codexMcpNamespaces(servers: Readonly<Record<string, CodexMcpServer>>): string[] {
+  return Object.keys(servers).map((key) => (key.startsWith("mcp__") ? key : `mcp__${key}`));
+}
+
 export function codexMcpServers(
   servers: readonly UsableMcpServer[],
   own: CodexOwnTransports = {},
