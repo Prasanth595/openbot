@@ -1,12 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { userAssignedSkills } from "@/features/agents/model/user-assigned-skills";
+import { agentSkillsQuery } from "@/features/agents/model/agent-skills-query";
 import { useQueryScope } from "@/features/auth/context/mobile-session-context";
 import {
   useMobileWorkspaceActions,
   useMobileWorkspaceSelector,
 } from "@/features/workspace/context/mobile-workspace-context";
-import { queryKeys } from "@/features/workspace/model/query-keys";
 import type { MentionSkill } from "../components/chat-composer";
 
 const NO_SKILLS: readonly MentionSkill[] = [];
@@ -21,14 +20,10 @@ export function useAgentMentionSkills(agentId: string, serverId: string, online:
   const { loadAgentSkills } = useMobileWorkspaceActions();
   const queryScope = useQueryScope();
   const skills = useQuery({
-    queryKey: queryKeys.agentSkills(queryScope, serverId, agentId, manage),
+    ...agentSkillsQuery(queryScope, serverId, agentId, manage, loadAgentSkills),
     enabled: online,
     staleTime: 60_000,
     retry: false,
-    queryFn: async () => {
-      const installed = await loadAgentSkills(agentId, serverId, manage);
-      return installed && userAssignedSkills(installed);
-    },
   });
   return useMemo(
     () =>

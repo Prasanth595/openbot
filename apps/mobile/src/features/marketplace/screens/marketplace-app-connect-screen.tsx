@@ -1,3 +1,4 @@
+import { type McpAuthValues, mcpFlowComplete } from "@openbot/contracts/mcp-connect-flows";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
 import { Button, Typography } from "heroui-native";
@@ -12,7 +13,7 @@ import { SheetScrollView } from "@/shared/components/sheet-scroll-view";
 import { useText } from "@/shared/lib/text";
 import { ListingIcon } from "../components/marketplace-parts";
 import { appListings } from "../model/marketplace-listings";
-import { type PluginAuthValues, pluginConnectMethod, pluginKeyComplete } from "../model/plugin-connect";
+import { pluginConnectMethod } from "../model/plugin-connect";
 import { usePluginConnect } from "../model/use-plugin-connect";
 
 /**
@@ -29,7 +30,7 @@ export function MarketplaceAppConnectScreen() {
   const canRelay = useMobileWorkspaceSelector((workspace) => workspace.canRelayMcpSignIn(serverId));
   const method = app ? pluginConnectMethod(app, canRelay) : null;
   const connect = usePluginConnect(serverId, app, method);
-  const [values, setValues] = useState<PluginAuthValues>({});
+  const [values, setValues] = useState<McpAuthValues>({});
   const [address, setAddress] = useState("");
   const phase = connect.state.phase;
   const working = phase === "working" || phase === "waiting";
@@ -50,7 +51,7 @@ export function MarketplaceAppConnectScreen() {
       </SheetScrollView>
     );
 
-  const ready = method.kind === "link" || pluginKeyComplete(method.flow.fields, values);
+  const ready = method.kind === "link" || mcpFlowComplete(method.flow, values);
   const signingIn = connect.state.phase === "signIn" ? connect.state : null;
 
   return (

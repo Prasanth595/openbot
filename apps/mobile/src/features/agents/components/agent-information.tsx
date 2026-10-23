@@ -5,7 +5,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { Button, Typography } from "heroui-native";
 import { type PropsWithChildren, useEffect, useRef, useState } from "react";
 import { View } from "react-native";
-import { userAssignedSkills } from "@/features/agents/model/user-assigned-skills";
+import { agentSkillsQuery } from "@/features/agents/model/agent-skills-query";
 import { mobileAnalytics } from "@/features/analytics/mobile-analytics";
 import { useQueryScope } from "@/features/auth/context/mobile-session-context";
 import { SettingsNote, SettingsRow, SettingsSection } from "@/features/settings/components/settings-content";
@@ -136,16 +136,9 @@ export function AgentInformation({
   const allRoutines = [...(routines.data ?? []), ...webhookRoutines];
   // An owner or admin reads the admin list, which has the enabled state, and can change it.
   const manageSkills = useMobileWorkspaceSelector((current) => current.canManageAgentSkills(agent.serverId));
-  const skillsKey = queryKeys.agentSkills(queryScope, agent.serverId, agent.id, manageSkills);
-  const skills = useQuery({
-    ...options,
-    enabled: available && section === "skills",
-    queryKey: skillsKey,
-    queryFn: async () => {
-      const installed = await workspace.loadAgentSkills(agent.id, agent.serverId, manageSkills);
-      return installed && userAssignedSkills(installed);
-    },
-  });
+  const skillsQuery = agentSkillsQuery(queryScope, agent.serverId, agent.id, manageSkills, workspace.loadAgentSkills);
+  const skillsKey = skillsQuery.queryKey;
+  const skills = useQuery({ ...options, ...skillsQuery, enabled: available && section === "skills" });
   // The host caches a scan. A retry or a deletion measures again, as on desktop.
   const forceStorageScan = useRef(false);
   const storage = useQuery({

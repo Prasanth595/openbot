@@ -1,7 +1,7 @@
 import type { InstalledSkill } from "@openbot/contracts/ipc";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { userAssignedSkills } from "@/features/agents/model/user-assigned-skills";
+import { agentSkillsQuery } from "@/features/agents/model/agent-skills-query";
 import { useMobileSession, useQueryScope } from "@/features/auth/context/mobile-session-context";
 import { useMcpServerList } from "@/features/servers/model/use-server-mcp";
 import {
@@ -94,14 +94,10 @@ export function useMarketplaceInstalled(serverId: string) {
   const agents = useMemo(() => allAgents.filter((agent) => agent.serverId === serverId), [allAgents, serverId]);
   const skillLists = useQueries({
     queries: agents.map((agent) => ({
-      // The agent page reads the same key, so both show the same list.
-      queryKey: queryKeys.agentSkills(queryScope, serverId, agent.id, manageSkills),
+      // The agent page reads the same query, so both show the same list.
+      ...agentSkillsQuery(queryScope, serverId, agent.id, manageSkills, loadAgentSkills),
       staleTime: 60_000,
       retry: false,
-      queryFn: async () => {
-        const installed = await loadAgentSkills(agent.id, serverId, manageSkills);
-        return installed && userAssignedSkills(installed);
-      },
     })),
   });
   const { list: mcpServers } = useMcpServerList(serverId);

@@ -1,4 +1,5 @@
 import { type McpServerConfig, relayCallbackQuery } from "@openbot/contracts/ipc";
+import { applyMcpFlow, type McpAuthValues } from "@openbot/contracts/mcp-connect-flows";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { Linking } from "react-native";
@@ -10,13 +11,7 @@ import { queryKeys } from "@/features/workspace/model/query-keys";
 import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
 import type { MobilePluginApp } from "./plugin-catalog.generated";
-import {
-  applyPluginKey,
-  type PluginAuthValues,
-  type PluginConnectMethod,
-  pluginAppConfig,
-  pluginKeyLinkError,
-} from "./plugin-connect";
+import { type PluginConnectMethod, pluginAppConfig, pluginKeyLinkError } from "./plugin-connect";
 
 /** How often the host is asked how a relayed sign-in is, as on the web and the provider page. */
 const RELAY_POLL_MS = 1_000;
@@ -85,17 +80,17 @@ export function usePluginConnect(serverId: string, app: MobilePluginApp | null, 
   }
 
   /** Adds an app that asks for nothing, or tests and adds one with the typed key. */
-  function connect(values: PluginAuthValues = {}) {
+  function connect(values: McpAuthValues = {}) {
     if (!app || !method || state.phase !== "idle") return;
     const base = pluginAppConfig(app);
     if (method.kind === "none") return run(() => save(base));
     if (method.kind === "key") {
-      const invalidLink = pluginKeyLinkError(base, method.flow.fields, values);
+      const invalidLink = pluginKeyLinkError(base, method.flow, values);
       if (invalidLink) {
         setError(t("mobile.marketplace.app.linkInvalid", { hostname: new URL(base.url).hostname }));
         return;
       }
-      const config = applyPluginKey(base, method.flow.fields, values);
+      const config = applyMcpFlow(base, method.flow, values);
       return run(async () => {
         const result = await testMcpServer(config, serverId);
         if (result.error) throw hostFailure(result.error);
