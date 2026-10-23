@@ -496,6 +496,8 @@ export function TasksView(props: TasksViewProps) {
       onToggleAgents={props.onToggleAgents}
       agents={props.agents}
       tasks={tasks()}
+      // A list that did not load keeps its agent out, so a failed load does not show the empty page.
+      loaded={props.agents.every((agent) => state.snapshots[agent.id] !== undefined)}
       agentId={agentId()}
       onAgentChange={(id) => {
         writeAgentSelection(TASK_AGENT_STORAGE_KEY, props.serverId, id);
