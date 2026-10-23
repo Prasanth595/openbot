@@ -138,7 +138,7 @@ The detail gives the shape of the MCP server. It never gives a secret value.
 ```
 
 `auth` lists the ways into the server, as `McpConnectFlow[]` in
-`packages/ui/src/features/settings/mcp-connect-auth.ts` declares them: a `"link"` flow signs in
+`packages/contracts/src/mcp-connect-flows.ts` declares them: a `"link"` flow signs in
 through the browser, a `"key"` flow names each field and where its value goes, and a `"local"` flow
 lists the steps that turn on a server that another app runs on this computer. Only a `"local"` flow
 can use a plain `http` address, and only on a loopback host. It is the only flow of its server. The user types the value in the
