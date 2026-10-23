@@ -332,15 +332,19 @@ export interface ComposerDraft {
  */
 type SidebarFilePreviewSource =
   | { kind: "shared"; path: string }
-  /** `folder` is the folder view the file was opened from, so the panel can go back to it. */
-  | { kind: "workspace"; path: string; folder?: string | undefined }
+  /**
+   * `agentId` is the agent whose workspace holds the path. In a channel it is the agent that wrote
+   * the link, not the channel. `folder` is the folder view the file was opened from, so the panel
+   * can go back to it.
+   */
+  | { kind: "workspace"; agentId: string; path: string; folder?: string | undefined }
   | { kind: "attachment"; attachment: AttachmentSummary };
 
 export type SidebarFilePreview =
   | { ownerAgentId: string; source: SidebarFilePreviewSource; preview: FilePreview; directory?: undefined }
   | {
       ownerAgentId: string;
-      source: { kind: "workspace-folder"; path: string };
+      source: { kind: "workspace-folder"; agentId: string; path: string };
       preview: null;
       directory: WorkspaceDirectory;
     };

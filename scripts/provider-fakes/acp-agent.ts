@@ -11,6 +11,7 @@ export interface AcpParams {
   sessionId?: string;
   cwd?: string;
   additionalDirectories?: string[];
+  mcpServers?: { name: string }[];
   prompt?: { type: string; text?: string }[];
   configId?: string;
   value?: string;

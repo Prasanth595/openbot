@@ -84,7 +84,9 @@ import {
   PROFILE_TOOL_NAMES,
   profileToolErrorMessage,
   readAgentToolSchema,
+  restrictionInput,
   updateProfileToolSchema,
+  widensAgentSettings,
 } from "./profile-tools";
 import { browserUserControlResult } from "./prompts";
 import { ROUTINE_NO_UPDATE_TOOL } from "./routine-quiet-runs";
@@ -104,6 +106,7 @@ import { toolCallIdempotencyKey } from "./tool-call-idempotency";
 import { discoverTools, resolveDeferredTool } from "./tool-catalog";
 import { ToolOperationFailed, toolStep, toToolOperationFailed } from "./tool-operation";
 import type { AgentBrowserHost } from "./turn-lifecycle";
+import { handleUpdateAgentsTool } from "./update-agents-tool";
 
 const logger = createOpenBotLogger("openbot-tool-router");
 
@@ -797,6 +800,8 @@ export class OpenBotToolRouter {
 
     if (params.tool === "update_profile") return yield* this.#updateProfile(params, senderAgentId);
 
+    if (params.tool === "update_agents") return yield* handleUpdateAgentsTool(params, senderAgentId, this.#hooks);
+
     if (params.tool === "start_new_chat") {
       const agent = this.#store.list().find((candidate) => candidate.id === senderAgentId);
       if (!agent || !agentNewChatAllowed(agent))
@@ -1349,13 +1354,8 @@ export class OpenBotToolRouter {
       }
       const sender = this.#hooks.listAgents().find((agent) => agent.id === senderAgentId);
       if (!sender) throw new Error("The calling agent no longer exists.");
-      // Only the user can widen what an agent may do. An agent can restrict itself or a teammate, and a
-      // request for the value the agent already has changes nothing.
       const target = this.#requireAgent(agentId);
-      if (
-        (access === "full" && workspaceAccessEnforced(target)) ||
-        (computerUse === true && !agentComputerUseEnabled(target))
-      ) {
+      if (widensAgentSettings(target, access, computerUse)) {
         return openBotToolFailure(sourceText("error.agent.onlyUserWidensSettings"));
       }
       // Checked before anything is written, so a model the provider does not list leaves the name
@@ -1380,9 +1380,7 @@ export class OpenBotToolRouter {
         ...(fields.avatarSeed === undefined ? {} : { avatarSeed: fields.avatarSeed }),
         ...(fields.notifications === undefined ? {} : { notifications: fields.notifications }),
         ...runtime,
-        // Only a restriction is written, so a user change between the check and this write is never undone.
-        ...(access === "workspace" ? { access } : {}),
-        ...(computerUse === false ? { computerUse } : {}),
+        ...restrictionInput(access, computerUse),
         ...(avatarHue === undefined ? {} : { avatarHue }),
         ...(backups === undefined ? {} : { backupModels: backups }),
       };

@@ -260,7 +260,6 @@ export const messages = {
   "routine.settings.webhookSummaryAny": "Quand un webhook arrive",
   "routine.trigger.change": "Changer de déclencheur",
   "routine.trigger.groupSchedule": "Planification",
-  "routine.trigger.groupAdvanced": "Avancé",
   "routine.trigger.onceDescription": "À une date et une heure choisies",
   "routine.trigger.hourlyDescription": "Toutes les heures, dans une plage horaire choisie",
   "routine.trigger.dailyDescription": "Tous les jours à une heure choisie",
