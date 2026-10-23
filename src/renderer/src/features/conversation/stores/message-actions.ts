@@ -49,13 +49,12 @@ export function createMessageActions(deps: MessageActionsDeps) {
   }
 
   /**
-   * Puts the text that a visual reply's page wrote at the end of the draft, as a reply to the page.
-   * The user reads it and sends it, so a page never sends a message itself.
+   * Puts the text that a visual reply's page wrote at the end of the draft. The user reads it and
+   * sends it, so a page never sends a message itself.
    */
-  function replyFromPage(message: AgentMessage, text: string) {
+  function addPageText(text: string) {
     const draft = deps.currentDraft().text.trimEnd();
-    deps.updateCurrentDraft({ replyToMessageId: message.id, text: draft ? `${draft}\n${text}` : text });
-    deps.setOpenReactionMessageId(null);
+    deps.updateCurrentDraft({ text: draft ? `${draft}\n${text}` : text });
     deps.setComposerFocusRequest((value) => value + 1);
   }
 
@@ -155,7 +154,7 @@ export function createMessageActions(deps: MessageActionsDeps) {
 
   return {
     replyToMessage,
-    replyFromPage,
+    addPageText,
     setPageContext,
     reactToMessage,
     copyMessage,

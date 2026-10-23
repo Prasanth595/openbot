@@ -424,8 +424,8 @@ context, an image and an app shortcut. The frame script gives the page `window.o
 (`sendMessage`, `setContext`, `requestFullscreen`, `exitFullscreen`, `displayMode`) over the MCP Apps
 methods `ui/message`, `ui/update-model-context` and `ui/request-display-mode`. A link, a message, the
 context, an image, full screen and a shortcut need the frame to have the focus and the user's
-activation, so a page acts only after a click or a key in it. A message goes into the composer as a
-reply to the visual message, and the user sends it. The context is a quote tag of the visual message
+activation, so a page acts only after a click or a key in it. A message goes at the end of the draft,
+and the user sends it. The context is a quote tag of the visual message
 at the start of the draft, so it shows as a quote chip and is saved and sent with the draft; the
 page's next context replaces it. Full screen puts the frame's
 box in the top layer with the Popover API, so the frame does not load again; it exits before the app

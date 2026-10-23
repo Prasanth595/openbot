@@ -697,8 +697,7 @@ export function createConversationViewScope(props: ConversationProps) {
     setComposerError: setScopedComposerError,
     setComposerFocusRequest,
   });
-  const { replyToMessage, replyFromPage, setPageContext, reactToMessage, copyMessage, removeAttachment } =
-    messageActions;
+  const { replyToMessage, addPageText, setPageContext, reactToMessage, copyMessage, removeAttachment } = messageActions;
   const settings = createSettingsStore({
     props,
     runtimeSettingsAttempts: resources.runtimeSettingsAttempts,
@@ -1727,7 +1726,7 @@ export function createConversationViewScope(props: ConversationProps) {
     reorderPresentedQueue,
     replyTarget,
     replyToMessage,
-    replyFromPage,
+    addPageText,
     setPageContext,
     skillSettingsRequest,
     openSkillSettings,

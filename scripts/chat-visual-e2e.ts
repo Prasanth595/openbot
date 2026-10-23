@@ -8,7 +8,7 @@
 // an image, a "Pick B" button and a context button. Then, on the desktop, it checks that:
 // 1. full screen and back keeps the counter, so the page does not load again;
 // 2. a click on the image opens the image viewer;
-// 3. "Pick B" puts its text in the composer as a reply to the page, and sends nothing;
+// 3. "Pick B" puts its text in the composer, with no reply block, and sends nothing;
 // 4. the context shows as a quote chip in the composer, and the sent message starts with it;
 // 5. Cmd+K (Ctrl+K off macOS) in the page opens the global search.
 // It deletes its channel at the end. Writes .openbot-build/chat-visual-e2e/report.json and screenshots.
@@ -207,7 +207,7 @@ try {
   await closeViewer.click();
   await closeViewer.waitFor({ state: "detached", timeout: UI_WAIT_MS });
 
-  // 3. "Pick B" writes the reply in the composer and sends nothing.
+  // 3. "Pick B" writes its text in the composer, with no reply block, and sends nothing.
   const messagesBefore = (await client.read(channel.id)).messages.length;
   await page.getByRole("button", { name: "Pick B" }).click();
   await waitFor(
@@ -217,10 +217,7 @@ try {
     (text) => text.includes(PICK_TEXT),
     UI_WAIT_MS,
   );
-  const replyingToPage = await conversation(desktop)
-    .getByText(english("composer.reply.toAgent"), { exact: true })
-    .waitFor({ timeout: UI_WAIT_MS })
-    .then(() => true);
+  const replyingToPage = (await conversation(desktop).getByText(english("composer.reply.toAgent")).count()) > 0;
   const messagesAfter = (await client.read(channel.id)).messages.length;
   report.pick = {
     composerText: await composer(desktop).innerText(),
@@ -228,7 +225,7 @@ try {
     messagesBefore,
     messagesAfter,
   };
-  assert.ok(replyingToPage, "The composer does not reply to the page.");
+  assert.equal(replyingToPage, false, "The composer shows a reply block for the page.");
   assert.equal(messagesAfter, messagesBefore, "The page sent a message itself.");
   await shot("composer-reply", conversation(desktop));
 

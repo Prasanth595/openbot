@@ -162,7 +162,7 @@ export function ConversationTimeline() {
     replyJump,
     respondToBrowserTakeover,
     replyToMessage,
-    replyFromPage,
+    addPageText,
     setPageContext,
     retryPendingSend,
     scheduleUnreadDividerVisibilityUpdate,
@@ -965,7 +965,7 @@ export function ConversationTimeline() {
                             title={(message() ?? initialMessage).body}
                             height={visual().height}
                             onOpenLink={(url) => void openExternalMessageUrl(url)}
-                            onMessage={(text) => replyFromPage(message() ?? initialMessage, text)}
+                            onMessage={addPageText}
                             onContext={(text) => setPageContext(message() ?? initialMessage, text)}
                             isAppShortcut={isChatVisualAppShortcut}
                           />
