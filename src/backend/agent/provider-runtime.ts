@@ -591,6 +591,12 @@ export class ProviderRuntime implements ProviderPort {
    * cannot leave a stale owner behind. It is added here, not in `#setStatus`, because both the
    * getter and the events `#setStatus` emits go through it.
    */
+  /** The account type and plan of the provider's own sign-in, or `null` before it is read. */
+  accountKind(provider: AgentProvider): { type: string; planType: string | null } | null {
+    const account = this.#accounts.get(provider);
+    return account ? { type: account.type, planType: account.planType ?? null } : null;
+  }
+
   status(): AgentStatus {
     const status = structuredClone(this.#status);
     if (!status.providers) return status;

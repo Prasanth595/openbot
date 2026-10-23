@@ -264,6 +264,10 @@ The local host also records how the agents are used:
 - **Agent source.** Turn events say whether the agent came from a curated listing, a community
   listing, or neither, and name only a curated listing. Marketplace events name only a curated
   skill, agent or catalog plugin.
+- **Payment type.** Turn events say how the turn is paid for: a provider plan, a saved API key, a
+  free model, an endpoint that the user added, or unknown. The host reads this from the sign-in type
+  that the provider's CLI reports and from whether a key is saved. It does not send the key, the
+  account, or the name of the plan.
 
 Hosted Site analytics records only the operation, entry point, result, and bounded failure code. It
 does not contain the site's URL, hostname, title, source path, site ID, or content. A one-time
