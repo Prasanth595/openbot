@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { statSync } from "node:fs";
 import { basename } from "node:path";
 import type {
   AccountUsage,
@@ -116,6 +117,21 @@ const PROVIDER_IDLE_RELEASE_MS = 10 * 60_000;
  */
 const PROVIDER_UNASSIGNED_RELEASE_MS = 60_000;
 const PROVIDER_IDLE_CHECK_MS = 60_000;
+/** How often the host reads a signed-out provider's sign-in file. A read is one `stat`. */
+const SIGN_IN_FILE_POLL_MS = 2_000;
+
+/**
+ * Identifies one write of a sign-in file. The time alone is not enough: a file system with 1 s
+ * times shows two writes in the same second as one, such as an empty file and then the credentials.
+ */
+function signInFileVersion(path: string): string {
+  try {
+    const stats = statSync(path, { throwIfNoEntry: false });
+    return stats ? `${stats.ino}:${stats.size}:${stats.mtimeMs}` : "missing";
+  } catch {
+    return "unreadable";
+  }
+}
 /**
  * Starts that fail in a row before OpenBot stops starting a provider by itself. A start that fails,
  * that times out, or whose process ends within `STABLE_RUN_MS` counts. Only a user action starts the
@@ -401,6 +417,9 @@ export class ProviderRuntime implements ProviderPort {
    */
   readonly #usageUnreported = new Set<AgentProvider>();
   #idleCheck: NodeJS.Timeout | null = null;
+  /** Each provider's sign-in file, and the version of it that the last account check saw. */
+  readonly #signInFiles = new Map<AgentProvider, { path: string; seen: string }>();
+  #signInCheck: NodeJS.Timeout | null = null;
   #status: AgentStatus = structuredClone(INITIAL_STATUS);
   #providerRefresh: Deferred.Deferred<AgentStatus, ProviderOperationFailed> | null = null;
   readonly #codexLogin: CodexLoginFlow;
@@ -969,11 +988,50 @@ export class ProviderRuntime implements ProviderPort {
       PROVIDER_IDLE_CHECK_MS,
     );
     this.#idleCheck.unref?.();
+    this.#watchSignInFiles();
     yield* this.#connect(
       "starting",
       BUILT_IN_PROVIDER_DRIVERS.map((driver) => driver.id),
     );
   }).bind(this);
+
+  /**
+   * A provider found signed out at start keeps no client, and nothing else asks it again. A user who
+   * signs in with the provider's own CLI, such as over SSH on a server, would see it signed out until
+   * a restart (#2895). The version is read before the start check, so a sign-in that ends during
+   * that check is not missed.
+   */
+  #watchSignInFiles(): void {
+    for (const driver of BUILT_IN_PROVIDER_DRIVERS) {
+      const path = driver.signInFile?.();
+      if (path && !this.#signInFiles.has(driver.id))
+        this.#signInFiles.set(driver.id, { path, seen: signInFileVersion(path) });
+    }
+    if (this.#signInFiles.size === 0) return;
+    this.#signInCheck ??= setInterval(() => this.#checkSignInFiles(), SIGN_IN_FILE_POLL_MS);
+    this.#signInCheck.unref?.();
+  }
+
+  /**
+   * Only a signed-out row is checked again: the CLI also writes the file to refresh a token, and a
+   * provider that stopped at `START_FAILURE_LIMIT` must wait for the user. A change that comes while
+   * a check runs keeps its new version, so a later poll checks it. A sign-in or a Connect that
+   * OpenBot started checks the account itself when it ends.
+   */
+  #checkSignInFiles(): void {
+    if (this.#status.phase === "starting" || this.#status.phase === "restarting" || this.#providerRefresh) return;
+    for (const [provider, file] of this.#signInFiles) {
+      const row = this.#status.providers?.find((candidate) => candidate.id === provider);
+      if (row?.state !== "sign-in-required") continue;
+      if (this.#cliLogin.has(provider) || this.#providerConnectionCommands.has(provider)) continue;
+      const version = signInFileVersion(file.path);
+      if (version === file.seen) continue;
+      file.seen = version;
+      Effect.runFork(
+        this.#startProvider(provider, { preserveCheckErrors: true }).pipe(Effect.ignore, Effect.forkIn(this.#scope)),
+      );
+    }
+  }
 
   readonly setPreferredProvider = Effect.fn("ProviderRuntime.setPreferredProvider")(function* (
     this: ProviderRuntime,
@@ -2142,6 +2200,9 @@ export class ProviderRuntime implements ProviderPort {
     this.#restartsWhenIdle.clear();
     if (this.#idleCheck) clearInterval(this.#idleCheck);
     this.#idleCheck = null;
+    if (this.#signInCheck) clearInterval(this.#signInCheck);
+    this.#signInCheck = null;
+    this.#signInFiles.clear();
     this.#released.clear();
     const loginClient = this.#codexLogin.dispose();
     const stopCliLogins = this.#cliLogin.dispose();

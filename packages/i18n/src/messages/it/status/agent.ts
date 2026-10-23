@@ -10,6 +10,12 @@ export const messages = {
   "status.agent.modelSwitchedForError": "Errore del provider. Passato a {model}.",
   "status.agent.modelReturnedAfterError": "Tornato a {model} dopo l’errore del provider.",
   "status.agent.marketplaceSuggested": "Ha suggerito un'app del Marketplace: {app}.",
+  "status.agent.channelMemberAdded": "{agent} ha aggiunto {member} al canale. Lo ha chiesto {person}.",
+  "status.agent.channelMemberRemoved": "{agent} ha rimosso {member} dal canale. Lo ha chiesto {person}.",
+  "status.agent.channelInstructionsChanged": "{agent} ha modificato le istruzioni del canale. Lo ha chiesto {person}.",
+  "status.agent.channelRoutineCreated": "{agent} ha creato la routine {routine}. Lo ha chiesto {person}.",
+  "status.agent.channelRoutineUpdated": "{agent} ha modificato la routine {routine}. Lo ha chiesto {person}.",
+  "status.agent.channelRoutineDeleted": "{agent} ha eliminato la routine {routine}. Lo ha chiesto {person}.",
   "status.agent.screenCaptureScreen":
     "Acquisizione dello schermo principale e invio dell'immagine al modello dell'agente.",
   "status.agent.screenCaptureChannel":

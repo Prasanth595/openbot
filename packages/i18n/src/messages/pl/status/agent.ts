@@ -10,6 +10,12 @@ export const messages = {
   "status.agent.modelSwitchedForError": "Błąd dostawcy. Przełączono na {model}.",
   "status.agent.modelReturnedAfterError": "Po błędzie dostawcy przełączono z powrotem na {model}.",
   "status.agent.marketplaceSuggested": "Zaproponowano aplikację z Marketplace: {app}.",
+  "status.agent.channelMemberAdded": "Agent {agent} dodał {member} do kanału. Prośba od: {person}.",
+  "status.agent.channelMemberRemoved": "Agent {agent} usunął {member} z kanału. Prośba od: {person}.",
+  "status.agent.channelInstructionsChanged": "Agent {agent} zmienił instrukcje kanału. Prośba od: {person}.",
+  "status.agent.channelRoutineCreated": "Agent {agent} utworzył rutynę {routine}. Prośba od: {person}.",
+  "status.agent.channelRoutineUpdated": "Agent {agent} zmienił rutynę {routine}. Prośba od: {person}.",
+  "status.agent.channelRoutineDeleted": "Agent {agent} usunął rutynę {routine}. Prośba od: {person}.",
   "status.agent.screenCaptureScreen": "Przechwyć główny ekran i wyślij obraz do modelu agenta.",
   "status.agent.screenCaptureChannel":
     "Obraz pojawi się na kanale {channel} i każdy członek tego serwera, który czyta kanał, może go zobaczyć.",
