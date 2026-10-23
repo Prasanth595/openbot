@@ -591,6 +591,13 @@ function computerUseCapability(state: ComputerUseState): CapabilityState {
   return "unavailable";
 }
 
+/** The base cache path of electron-updater 6.8.9 (`getAppCacheDir`), which differs from Electron's. */
+function electronUpdaterCacheRoot(): string {
+  if (process.platform === "win32") return process.env.LOCALAPPDATA || join(homedir(), "AppData", "Local");
+  if (process.platform === "darwin") return join(homedir(), "Library", "Caches");
+  return process.env.XDG_CACHE_HOME || join(homedir(), ".cache");
+}
+
 interface MessagingServicesContext {
   teardown: TeardownRegistry;
   secretCipher: ReturnType<typeof safeStorageCipher>;
@@ -2537,6 +2544,7 @@ export async function createApplicationServices({
   }
   let updateAdapter: UpdateAdapter = createDisabledUpdateAdapter();
   let updaterEnabled = updatesEnabled;
+  let updaterCacheDirectory: string | undefined;
   if (updatesEnabled && hostedInstaller) {
     updateAdapter = new HostedUpdateAdapter({
       currentVersion,
@@ -2549,6 +2557,7 @@ export async function createApplicationServices({
       const realAdapter = updaterModule.autoUpdater ?? updaterModule.default?.autoUpdater ?? updaterModule.default;
       if (realAdapter) {
         updateAdapter = realAdapter;
+        updaterCacheDirectory = join(electronUpdaterCacheRoot(), "openbot-updater");
       } else {
         updaterEnabled = false;
         logger.warn("OpenBot updates are disabled: electron-updater did not export autoUpdater");
@@ -2594,6 +2603,7 @@ export async function createApplicationServices({
     ...(process.platform === "darwin"
       ? { shipItDirectory: join(homedir(), "Library", "Caches", "app.openbot.desktop.ShipIt") }
       : {}),
+    updaterCacheDirectory,
   });
   teardown.push(TEARDOWN_ORDER.updater, "the update service", () => Effect.runPromise(updater.stop()));
   const agentInitialization = new AgentInitializationGate(() =>
