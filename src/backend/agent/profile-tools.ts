@@ -3,9 +3,13 @@ import {
   AGENT_ACCESS_MODES,
   AGENT_PROVIDERS,
   AGENT_REASONING_EFFORTS,
+  type AgentAccess,
+  type AgentSummary,
   AVATAR_HUES,
   AVATAR_SEED_PATTERN,
+  agentComputerUseEnabled,
   isAvatarHue,
+  workspaceAccessEnforced,
 } from "@openbot/contracts/ipc";
 import { z } from "zod";
 
@@ -103,6 +107,28 @@ export const updateProfileToolSchema = z
   })
   .strict();
 
+/** One `update_agents` call reaches at most this many agents. */
+const UPDATE_AGENTS_LIMIT = 100;
+
+const updateProfileFields = updateProfileToolSchema.shape;
+
+export const updateAgentsToolSchema = z
+  .object({
+    agentIds: z
+      .array(updateProfileFields.agentId)
+      .min(1)
+      .max(UPDATE_AGENTS_LIMIT)
+      .refine((ids) => new Set(ids).size === ids.length, "Pass each agent id once.")
+      .describe("Stable ids from list_agents of the agents to change."),
+    provider: updateProfileFields.provider,
+    model: updateProfileFields.model,
+    reasoningEffort: updateProfileFields.reasoningEffort,
+    access: updateProfileFields.access,
+    computerUse: updateProfileFields.computerUse,
+    notifications: updateProfileFields.notifications,
+  })
+  .strict();
+
 export const readAgentToolSchema = z
   .object({
     agentId: z
@@ -120,7 +146,41 @@ export const PROFILE_TOOL_NAMES: ReadonlySet<string> = new Set([
   "read_agent",
   "create_agent",
   "update_profile",
+  "update_agents",
 ]);
+
+/**
+ * Only the user can widen what an agent may do. An agent can restrict itself or a teammate, and a
+ * request for the value the agent already has changes nothing.
+ */
+export function widensAgentSettings(
+  target: AgentSummary,
+  access: AgentAccess | undefined,
+  computerUse: boolean | undefined,
+): boolean {
+  return (
+    (access === "full" && workspaceAccessEnforced(target)) || (computerUse === true && !agentComputerUseEnabled(target))
+  );
+}
+
+/** The profile that `update_profile` and `update_agents` return for a changed agent. */
+export function profileToolPayload(agent: AgentSummary) {
+  return {
+    id: agent.id,
+    name: agent.name,
+    title: agent.title,
+    description: agent.description,
+    avatarSeed: agent.avatarSeed,
+    avatarHue: agent.avatarHue,
+    avatarUrl: agent.avatarUrl,
+    provider: agent.provider,
+    model: agent.model,
+    reasoningEffort: agent.reasoningEffort,
+    access: workspaceAccessEnforced(agent) ? "workspace" : "full",
+    computerUse: agentComputerUseEnabled(agent),
+    notifications: agent.notifications,
+  };
+}
 
 /**
  * Describe a failed profile tool call. Schema failures omit submitted instructions and unknown field

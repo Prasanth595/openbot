@@ -82,8 +82,10 @@ import {
   listModelsToolSchema,
   PROFILE_TOOL_NAMES,
   profileToolErrorMessage,
+  profileToolPayload,
   readAgentToolSchema,
   updateProfileToolSchema,
+  widensAgentSettings,
 } from "./profile-tools";
 import { browserUserControlResult } from "./prompts";
 import { ROUTINE_NO_UPDATE_TOOL } from "./routine-quiet-runs";
@@ -103,6 +105,7 @@ import { toolCallIdempotencyKey } from "./tool-call-idempotency";
 import { discoverTools, resolveDeferredTool } from "./tool-catalog";
 import { ToolOperationFailed, toolStep, toToolOperationFailed } from "./tool-operation";
 import type { AgentBrowserHost } from "./turn-lifecycle";
+import { handleUpdateAgentsTool } from "./update-agents-tool";
 
 const logger = createOpenBotLogger("openbot-tool-router");
 
@@ -791,6 +794,8 @@ export class OpenBotToolRouter {
 
     if (params.tool === "update_profile") return yield* this.#updateProfile(params, senderAgentId);
 
+    if (params.tool === "update_agents") return yield* handleUpdateAgentsTool(params, senderAgentId, this.#hooks);
+
     if (params.tool === "start_new_chat") {
       const agent = this.#store.list().find((candidate) => candidate.id === senderAgentId);
       if (!agent || !agentNewChatAllowed(agent))
@@ -1331,13 +1336,8 @@ export class OpenBotToolRouter {
       }
       const sender = this.#hooks.listAgents().find((agent) => agent.id === senderAgentId);
       if (!sender) throw new Error("The calling agent no longer exists.");
-      // Only the user can widen what an agent may do. An agent can restrict itself or a teammate, and a
-      // request for the value the agent already has changes nothing.
       const target = this.#requireAgent(agentId);
-      if (
-        (access === "full" && workspaceAccessEnforced(target)) ||
-        (computerUse === true && !agentComputerUseEnabled(target))
-      ) {
+      if (widensAgentSettings(target, access, computerUse)) {
         return openBotToolFailure(sourceText("error.agent.onlyUserWidensSettings"));
       }
       // Checked before anything is written, so a model the provider does not list leaves the name
@@ -1366,29 +1366,7 @@ export class OpenBotToolRouter {
       } else if (args.avatarSeed !== undefined || args.avatarHue !== undefined) {
         updated = yield* this.#hooks.setAvatar(agentId, null).pipe(toToolOperationFailed);
       }
-      return {
-        success: true,
-        contentItems: [
-          {
-            type: "inputText",
-            text: JSON.stringify({
-              id: updated.id,
-              name: updated.name,
-              title: updated.title,
-              description: updated.description,
-              avatarSeed: updated.avatarSeed,
-              avatarHue: updated.avatarHue,
-              avatarUrl: updated.avatarUrl,
-              provider: updated.provider,
-              model: updated.model,
-              reasoningEffort: updated.reasoningEffort,
-              access: workspaceAccessEnforced(updated) ? "workspace" : "full",
-              computerUse: agentComputerUseEnabled(updated),
-              notifications: updated.notifications,
-            }),
-          },
-        ],
-      };
+      return openBotToolResult(profileToolPayload(updated));
     },
     Effect.catchDefect((cause) => Effect.fail(new ToolOperationFailed({ cause }))),
     Effect.uninterruptible,
