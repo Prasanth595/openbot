@@ -33,6 +33,8 @@ window finds a completed sign-in, or when the member selects Done, it sends the 
 and of no other site, to the host through the same encrypted host connection, not through the account
 Worker. The host sets them in the browser session of the tab: the shared session, which every agent
 and member of the server can use, or the session of an agent that has a browser session of its own.
+When the server tab still shows a sign-in step, the app also sends the address of the window's page,
+and the server tab opens it.
 Neither computer logs the cookie values. The desktop app then removes the window's session.
 To show each server's state, the browser also keeps a status connection to each host of the account
 that no tab has open, as the mobile app does; the host then shows the member as present. Host logos
