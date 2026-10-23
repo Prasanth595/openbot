@@ -393,9 +393,6 @@ export class HostedServerService {
       if (!isOneOf(BILLING_PLAN_IDS, input.plan)) return yield* invalid("plan");
       if (!isOneOf(BILLING_INTERVALS, input.interval)) return yield* invalid("interval");
       if (!isOneOf(BILLING_CURRENCIES, input.currency)) return yield* invalid("currency");
-      if (SOLD_OUT_PLANS.has(input.plan)) {
-        return yield* new HostedServerServiceError(409, "plan_sold_out", sourceText("error.billing.planSoldOut"));
-      }
       const size = HOSTED_PLAN_SIZE[input.plan];
       const previous = yield* hostedCall(() =>
         dependencies.database
@@ -404,6 +401,7 @@ export class HostedServerService {
           .first<HostedServerRow>(),
       );
       if (previous) return yield* this.#checkout(previous, user, billing, returnTo);
+      if (SOLD_OUT_PLANS.has(input.plan)) return yield* planSoldOut();
       const unpaid = yield* hostedCall(() =>
         dependencies.database
           .prepare(
@@ -1352,6 +1350,8 @@ export class HostedServerService {
     if (previous && (yield* billing.closeCheckout(previous).pipe(Effect.mapError(hostedFailure))) === "paid") {
       return { server: summary(yield* this.#requireRow(row.server_id)), checkoutUrl: null };
     }
+    // A server that has had no plan cannot buy a sold-out plan. A server whose plan ended can renew it.
+    if (awaiting && SOLD_OUT_PLANS.has(row.plan)) return yield* planSoldOut();
     const session = yield* billing
       .createCheckout({
         user: { id: user.id, email: user.email },
@@ -2572,6 +2572,10 @@ function notFound(): HostedServerServiceError {
 
 function invalidClaim(): HostedServerServiceError {
   return new HostedServerServiceError(401, "hosted_claim_invalid", "The server claim is invalid or used.");
+}
+
+function planSoldOut(): HostedServerServiceError {
+  return new HostedServerServiceError(409, "plan_sold_out", sourceText("error.billing.planSoldOut"));
 }
 
 function lifecycleFailure() {

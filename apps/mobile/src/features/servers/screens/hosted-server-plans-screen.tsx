@@ -345,7 +345,7 @@ function PlanRow({ plan, current }: { plan: HostedServerCatalogPlan; current: bo
             <Chip.Label>{t("mobile.server.hosted.currentPlan")}</Chip.Label>
           </Chip>
         ) : null}
-        {plan.soldOut ? (
+        {plan.soldOut && !current ? (
           <Chip size="sm" variant="soft">
             <Chip.Label>{t("mobile.server.hosted.soldOut")}</Chip.Label>
           </Chip>
