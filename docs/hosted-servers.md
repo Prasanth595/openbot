@@ -130,6 +130,14 @@ when a server is idle or boat stops a sandbox; and `error` and `deleted`. The Wo
    that run. After the start, OpenBot runs each routine that is due, and each run that it missed
    becomes one run.
 
+   **Keep-alive start.** boat deletes the disk of a stopped sandbox 14 days after the stop (it
+   sends an email on day 11), and a resume then fails with `snapshot_data_expired`. Each stop saves
+   a new disk. The cron starts an idle server with no use for 10 days (`last_active_at`) and keeps
+   its `next_run_at`. The start counts as use, so with no client the idle stop comes 15 to 25
+   minutes later and saves the disk again. `last_wake_reason` is `schedule` (its D1 check has no
+   other value); the `woken` analytics event has the reason `retention`. A server whose plan ended
+   (`stopped`) does not start.
+
    **Lease.** boat has no idle timer, and a boat trial refuses a sandbox with no auto-stop. Each
    create and resume sends `ttlSeconds: 7200`, so boat stops a sandbox that the Worker loses. An
    activity report extends the time (`PATCH /sandboxes/:id`) when less than 1 hour is left

@@ -106,6 +106,11 @@ const HELD_RESUME_START_TIMEOUT_SECONDS = 10;
  * and the time that the server takes to start. A server does not stop for no use in this time.
  */
 const SCHEDULE_WAKE_BEFORE_MS = 10 * 60_000;
+/**
+ * boat deletes the disk of a sandbox 14 days after its stop, and each stop saves a new disk. The cron
+ * starts an idle server with no use for this long, and the idle stop saves its disk again.
+ */
+const RETENTION_WAKE_AFTER_MS = 10 * 24 * 60 * 60_000;
 /** A server can report a routine run at most this far ahead. A later run is reported when it comes nearer. */
 const NEXT_RUN_MAX_AHEAD_MS = 400 * 24 * 60 * 60_000;
 /**
@@ -165,7 +170,8 @@ function hostedValidate<A>(operation: () => A): Effect.Effect<A, HostedFailure> 
  * (`stopped`). An idle server starts again on the next use; a stopped one only on renewal.
  */
 type DesiredState = "running" | "idle" | "stopped" | "deleted";
-type WakeReason = "create" | "message" | "restart" | "schedule";
+/** `last_wake_reason` stores `retention` as `schedule`: its D1 check has no other value. */
+type WakeReason = "create" | "message" | "restart" | "schedule" | "retention";
 
 interface HostedServerRow {
   server_id: string;
@@ -243,6 +249,7 @@ export interface HostedServerTickResult {
   resized: number;
   idle: number;
   scheduled: number;
+  retained: number;
   failed: number;
 }
 
@@ -1089,6 +1096,7 @@ export class HostedServerService {
         resized: 0,
         idle: 0,
         scheduled: 0,
+        retained: 0,
         failed: 0,
       };
       yield* hostedCall(() =>
@@ -1228,6 +1236,19 @@ export class HostedServerService {
           .all<HostedServerRow>(),
       );
       result.scheduled = yield* run(scheduled.results, (row) => this.#wakeForSchedule(row, now));
+      // An idle server starts before boat deletes its disk. The stop comes after the last use, so the
+      // disk is never older than the last use.
+      const expiring = yield* hostedCall(() =>
+        dependencies.database
+          .prepare(
+            `SELECT ${ROW_COLUMNS} FROM hosted_servers
+         WHERE desired_state = 'idle' AND observed_state = 'stopped' AND provider_sandbox_id IS NOT NULL
+           AND COALESCE(last_active_at, 0) <= ? LIMIT ?`,
+          )
+          .bind(now - RETENTION_WAKE_AFTER_MS, TICK_BATCH_SIZE)
+          .all<HostedServerRow>(),
+      );
+      result.retained = yield* run(expiring.results, (row) => this.#wakeForRetention(row, now));
       // A server that must stop and still runs: the first stop did not happen.
       const unstopped = yield* hostedCall(() =>
         dependencies.database
@@ -1912,6 +1933,27 @@ export class HostedServerService {
     yield* this.#wake(yield* this.#requireRow(row.server_id), "schedule");
   });
 
+  /** The start counts as use, so with no client the idle stop comes after 15 minutes and saves the disk. */
+  readonly #wakeForRetention = Effect.fn("HostedServerService.wakeForRetention")(function* (
+    this: HostedServerService,
+    row: HostedServerRow,
+    now: number,
+  ): Effect.fn.Return<void, HostedFailure, HostedServerDependencies> {
+    const dependencies = yield* HostedServerDependencies;
+    const started = yield* hostedCall(() =>
+      dependencies.database
+        .prepare(
+          `UPDATE hosted_servers SET desired_state = 'running', last_active_at = ?, updated_at = ?
+         WHERE server_id = ? AND desired_state = 'idle' AND observed_state = 'stopped'
+           AND COALESCE(last_active_at, 0) <= ?`,
+        )
+        .bind(now, now, row.server_id, now - RETENTION_WAKE_AFTER_MS)
+        .run(),
+    );
+    if (started.meta.changes !== 1) return;
+    yield* this.#wake(yield* this.#requireRow(row.server_id), "retention");
+  });
+
   /** Moves the boat stop time of a server in use, so boat does not stop it. */
   readonly #extendLease = Effect.fn("HostedServerService.extendLease")(function* (
     this: HostedServerService,
@@ -2082,7 +2124,7 @@ export class HostedServerService {
         .bind(
           rateLimited ? row.observed_error : null,
           rateLimited ? 1 : 0,
-          reason,
+          reason === "retention" ? "schedule" : reason,
           rateLimited ? row.provider_event_at : now,
           now,
           now + LEASE_TTL_SECONDS * 1000,
