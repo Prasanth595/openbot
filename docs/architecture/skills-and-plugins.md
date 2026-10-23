@@ -87,6 +87,17 @@ The session key can decrypt the wider vault; the folder limit is enforced by Ope
 All local agents share this grant. Prompt injection can still use an approved account on its own
 site; this feature does not authorize or constrain actions after sign-in.
 
+API keys that a task needs, such as for a script or a service, use `openbot.request_api_key`. The
+router builds a `form` UI block with one required secret field (`apiKeyFormSpec` in
+`src/backend/agent/prompts.ts`), so every client that shows `ask_ui` shows it; no IPC or Team API
+contract changed. When the user submits it, `AttentionRegistry` saves the value with `AgentApiKeys`
+(`src/backend/agent-api-keys.ts`) before the prompt resolves, as `<userData>/agent-api-keys/<agentId>/<NAME>`:
+a 0600 file in a 0700 folder, outside every workspace, and not encrypted. The agent gets only the name
+and the path, and reads the file in its own command. Only the server owner or an admin can answer. The
+value is registered for log redaction when it is saved and at startup, and the stored block keeps no
+secret field value. `list_api_keys` and `remove_api_key` are the reverse actions, and deleting the agent
+deletes its folder. The form is refused in Slack, Discord and Telegram chats.
+
 `password-vault-router.ts` joins metadata from both managers and prefixes Bitwarden ids with
 `bitwarden:`. Existing 1Password ids stay unchanged. A failed list stops automatic account selection
 rather than hiding a source and selecting a different account. Main returns only connection state

@@ -2,6 +2,7 @@ import type { AgentEvent, AgentSummary } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import type { Logger } from "@openbot/logging";
 import { Effect, Result, Schema } from "effect";
+import type { AgentApiKeys } from "../agent-api-keys";
 import type { AgentStore } from "../agent-store";
 import type { ChannelService } from "../channel-service";
 import { causeHelpers } from "../effect-boundary";
@@ -38,6 +39,8 @@ export interface AgentRemovalOptions {
   turn: TurnLifecycle;
   hostedSites: HostedSiteCoordinator;
   compaction: ContextCompaction;
+  /** The API keys that users saved for agents; null where nothing saves them. */
+  apiKeys?: AgentApiKeys | null | undefined;
   /** Runs `remove` with the agent's approvals revoked. The main process gives it. */
   deleteWithRevokedApproval: (
     agentId: string,
@@ -70,6 +73,7 @@ export class AgentRemoval {
   readonly #turn: TurnLifecycle;
   readonly #hostedSites: HostedSiteCoordinator;
   readonly #compaction: ContextCompaction;
+  readonly #apiKeys: AgentApiKeys | null;
   readonly #deleteWithRevokedApproval: AgentRemovalOptions["deleteWithRevokedApproval"];
   readonly #logger: Logger;
   readonly #hooks: AgentRemovalHooks;
@@ -88,6 +92,7 @@ export class AgentRemoval {
     this.#turn = options.turn;
     this.#hostedSites = options.hostedSites;
     this.#compaction = options.compaction;
+    this.#apiKeys = options.apiKeys ?? null;
     this.#deleteWithRevokedApproval = options.deleteWithRevokedApproval;
     this.#logger = options.logger;
     this.#hooks = options.hooks;
@@ -176,6 +181,8 @@ export class AgentRemoval {
       yield* this.#mailbox
         .deleteAgentData(agent.id, this.#channels.store.allContextThreads())
         .pipe(toAgentRemovalFailed);
+      stage = "api-keys";
+      if (this.#apiKeys) yield* this.#apiKeys.removeAgent(agent.id).pipe(toAgentRemovalFailed);
       stage = "agent-files-and-record";
       yield* this.#store.deleteAgent(agent.id).pipe(toAgentRemovalFailed);
     }).pipe(

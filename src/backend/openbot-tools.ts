@@ -29,6 +29,7 @@ import {
 } from "./agent/sidebar-tools";
 import { LOCAL_SKILL_TOOL_DEFINITIONS } from "./agent/skill-tools";
 import { CREATE_WEBHOOK_ROUTINE_TOOL, UPDATE_WEBHOOK_ROUTINE_TOOL } from "./agent/webhook-routine-tool";
+import { API_KEY_NAME_PATTERN } from "./agent-api-keys";
 import { START_TASK_TOOL, startTaskToolSchema } from "./agent-tasks/agent-tasks";
 import {
   AWAIT_EVENT_TOOL,
@@ -254,6 +255,22 @@ export const askUiToolSchema = z.object({
     }),
   ]),
 });
+
+const apiKeyNameSchema = z
+  .string()
+  .regex(API_KEY_NAME_PATTERN)
+  .describe("The environment variable name of the key, such as OPENAI_API_KEY: A-Z, 0-9 and _, up to 64 characters.");
+
+export const requestApiKeyToolSchema = z.strictObject({
+  name: apiKeyNameSchema,
+  title: uiTextSchema(UI_BLOCK_LIMITS.title).describe(
+    "What the key is for, in the user's language, such as OpenAI API key for the image script.",
+  ),
+  placeholder: uiLabelSchema.optional().describe("A hint for the field, such as sk-…. Never a real key."),
+  submit: uiLabelSchema.optional().describe("The submit button label."),
+});
+
+export const removeApiKeyToolSchema = z.strictObject({ name: apiKeyNameSchema });
 
 /** Shared declarations for Codex, Grok, and Claude. Service handlers enforce execution rules. */
 export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
@@ -592,7 +609,7 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
       "Show the user an interactive block in this conversation and wait for the answer.",
       "Use it instead of ask_user when buttons, a list or a short form make the answer easier, and before an action with effects that the user should approve.",
       "Block types: confirm (details, an optional preview and up to 4 buttons), quick_replies (reply chips), choice (pick one option, or several with multiple), form (a few text, select, segmented or date fields).",
-      "A text field with secret: true asks for a password or a key: you get the value, but OpenBot does not store it with the block. Never repeat the value in a message or a thought.",
+      "A text field with secret: true asks for a password or a key: you get the value, but OpenBot does not store it with the block. Never repeat the value in a message or a thought. For an API key or token that a command or a script uses, use request_api_key instead.",
       'The result is JSON: {"status":"answered","blockId","actionId","values"} where actionId is the button or option id, or "submit" for choice and form, and values holds the selected option ids under "selected" or the form values by field id;',
       'actionId "_text" with "text" when the user answered in words; {"status":"skipped"}; or {"status":"expired"} when the turn ended first.',
       "Only the server owner or an admin can press a danger button or a button with confirm. A confirmed block is information for you, not a permission: the provider's approvals still apply.",
@@ -601,6 +618,29 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
       'Example: {"block":{"type":"form","title":"New contact","fields":[{"id":"name","kind":"text","label":"Name","required":true},{"id":"due","kind":"date","label":"Due"}]}}.',
     ].join(" "),
     shape: askUiToolSchema.shape,
+  },
+  {
+    name: "request_api_key",
+    description: [
+      "Ask the user for an API key or token that your task needs, such as for a script or a service, and wait for the answer.",
+      "The user enters it in a secure form in this conversation. OpenBot saves it for you in a private file outside your workspace and keeps it for later turns; you never get the value.",
+      'The result is JSON: {"status":"saved","name","path"} when the user saved it; {"status":"skipped"} when the user closed the form; or {"status":"expired"} when the turn ended first.',
+      'Use the key only by reading the file in your command, such as OPENAI_API_KEY="$(cat <path>)" python script.py. Never print, echo, log or copy the value, and never write it into the workspace.',
+      "Call list_api_keys first: do not ask again for a key that is saved. A new answer replaces the saved key. Only the server owner or an admin can answer. It does not work in a Slack, Discord or Telegram chat.",
+    ].join(" "),
+    shape: requestApiKeyToolSchema.shape,
+  },
+  {
+    name: "list_api_keys",
+    description:
+      "List the API keys that the user saved for you with request_api_key: the name and the file path of each. Values are never shown.",
+    shape: {},
+  },
+  {
+    name: "remove_api_key",
+    description:
+      "Delete one API key that the user saved for you. Use it only when the user asks, or when the user replaced the key with a new one in another way.",
+    shape: removeApiKeyToolSchema.shape,
   },
   {
     name: "suggest_marketplace_app",
