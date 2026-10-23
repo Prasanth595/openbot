@@ -32,6 +32,7 @@ import {
   channelConversationRows,
   channelMessageHasContent,
   channelWorkers,
+  channelWorkingTurns,
   firstUnreadChannelMessageId,
   sentChannelMessageId,
   waitingChannelPrompt,
@@ -90,6 +91,11 @@ export function createChannelConversation(env: ChannelConversationEnvironment) {
     return rows;
   });
   const unreadCount = () => summary()?.unreadCount ?? 0;
+  const stoppedTurns = new Set<string>();
+  const workingTurns = createMemo(() => {
+    const current = page();
+    return current ? channelWorkingTurns(current, stoppedTurns) : [];
+  });
 
   const waiting = createMemo(() => {
     const current = page();
@@ -224,6 +230,7 @@ export function createChannelConversation(env: ChannelConversationEnvironment) {
       const current = page();
       return current ? channelWorkers(current, channels.agents(), t("chat.activity.agentFallback")) : [];
     },
+    workingTurns,
     interactionAgentName: () => {
       const agentId = approval()?.agentId ?? browserTakeover()?.agentId ?? prompt()?.agentId;
       return agentId ? agentName(agentId) : undefined;

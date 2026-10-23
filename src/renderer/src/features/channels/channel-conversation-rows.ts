@@ -52,13 +52,11 @@ function foldedEntry(entry: ChannelMessage): boolean {
 
 /**
  * The rows of a channel page. The thinking and narration of a member's turn fold into one thinking
- * row, as in an agent chat, and show as the steps above the member's answer. That row names the
- * member, so the activity line shows the steps of each member that works. Before, each part showed
+ * row, as in an agent chat, and show as the steps above the member's answer. Before, each part showed
  * as a message, and a model that streams its whole reasoning (DeepSeek through OpenCode) showed a
  * very long one.
  */
 export function channelConversationRows(entries: readonly ChannelMessage[]): AgentMessage[] {
-  const byId = new Map(entries.map((entry) => [entry.id, entry] as const));
   return toAgentMessages(
     entries.map((entry) => ({ ...entry.message, id: entry.id })),
     undefined,
@@ -66,11 +64,29 @@ export function channelConversationRows(entries: readonly ChannelMessage[]): Age
       const entry = entries[index];
       return entry ? channelConversationMessage(entry) : toAgentMessage(message);
     },
-  ).map((row) => {
-    if (row.kind !== "thinking") return row;
-    const author = byId.get(row.itemIds?.[0] ?? "")?.author;
-    return author ? { ...row, senderAgentId: author.id } : row;
-  });
+  );
+}
+
+/**
+ * The turns whose steps show under the activity line: the newest thinking turn of each member whose
+ * task runs. A stop or a resume keeps the task id, so a turn whose task this view saw stop goes into
+ * `stopped` and does not show again when the task starts a new turn. The set keeps only the turns of
+ * the page.
+ */
+export function channelWorkingTurns(page: ChannelPage, stopped: Set<string>): string[] {
+  const tasks = new Map(page.tasks.map((task) => [task.id, task] as const));
+  const turns = new Set<string>();
+  const newest = new Map<string, string>();
+  for (const entry of page.messages) {
+    const turnId = entry.message.turnId;
+    if (!turnId || !foldedEntry(entry)) continue;
+    turns.add(turnId);
+    const task = entry.taskId ? tasks.get(entry.taskId) : undefined;
+    if (task?.state !== "running" || task.ownerAgentId !== entry.author.id) stopped.add(turnId);
+    else if (!stopped.has(turnId)) newest.set(entry.author.id, turnId);
+  }
+  for (const turnId of stopped) if (!turns.has(turnId)) stopped.delete(turnId);
+  return [...newest.values()];
 }
 
 /**

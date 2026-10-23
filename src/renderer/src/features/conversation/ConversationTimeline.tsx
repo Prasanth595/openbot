@@ -395,9 +395,7 @@ export function ConversationTimeline() {
     activeTurnId: () => props.activeTurnId,
   });
   const showAgentSteps = useShowAgentSteps();
-  const channelWorkingSteps = createMemo(() =>
-    channel ? turnSteps.workingSteps(channel.workers().map((worker) => worker.id)) : [],
-  );
+  const channelWorkingSteps = createMemo(() => (channel ? turnSteps.workingSteps(channel.workingTurns()) : []));
   let cachedPrompt: { key: string; prompt: NonNullable<ConversationProps["prompt"]> } | null = null;
   const keyedPrompt = createMemo(() => {
     const prompt = props.prompt;

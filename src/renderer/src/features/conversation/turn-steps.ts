@@ -114,19 +114,12 @@ export function createTurnSteps(deps: {
       return turnId && sources().answers.has(turnId) ? NO_STEPS : stepsOf(turnId);
     }),
     /**
-     * The steps of the channel members that work: the newest turn of each one, while it has no
-     * answer. A channel runs several turns at once and has no single running turn.
+     * The steps of the channel turns that run, while they have no answer. A channel runs several turns
+     * at once and has no single running turn.
      */
-    workingSteps(agentIds: readonly string[]): AgentStep[] {
-      const { thinking, answers } = sources();
-      const newest = new Map<string, string>();
-      for (const [turnId, message] of thinking)
-        if (message.senderAgentId && agentIds.includes(message.senderAgentId))
-          newest.set(message.senderAgentId, turnId);
-      const turns = agentIds.flatMap((id) => {
-        const turnId = newest.get(id);
-        return turnId && !answers.has(turnId) ? [turnId] : [];
-      });
+    workingSteps(turnIds: readonly string[]): AgentStep[] {
+      const { answers } = sources();
+      const turns = turnIds.filter((turnId) => !answers.has(turnId));
       return turns.length === 0 ? NO_STEPS : turns.flatMap(stepsOf);
     },
     /** The steps above an answer, or undefined for a message that has none. */
