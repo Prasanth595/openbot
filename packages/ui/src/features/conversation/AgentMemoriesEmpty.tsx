@@ -24,6 +24,8 @@ const CYCLE = SAMPLE_MEMORIES.length + 1;
 const WRITE_START_MS = 500;
 const MS_PER_CHAR = 30;
 const LINE_GAP_MS = 140;
+/** A long memory writes faster: its writing ends at this time, so its meta line shows before the next step. */
+const WRITE_END_MS = 2600;
 /** A line of handwriting breaks before this width. A wide character, such as a kanji, counts as two. */
 const LINE_WIDTH = 46;
 const DAY_MS = 86_400_000;
@@ -120,16 +122,19 @@ function SampleRow(props: { memory: SampleMemory; age: number }) {
   const text = () => t(props.memory.text);
   const lines = createMemo(() => handLines(text()));
   const times = createMemo(() => {
+    const gaps = lines().length * LINE_GAP_MS;
+    const chars = lines().reduce((total, line) => total + line.length, 0);
+    const perChar = Math.min(MS_PER_CHAR, (WRITE_END_MS - WRITE_START_MS - gaps) / chars);
     let written = 0;
     const delays = lines().map((line, index) => {
-      const delay = WRITE_START_MS + written * MS_PER_CHAR + index * LINE_GAP_MS;
+      const delay = WRITE_START_MS + written * perChar + index * LINE_GAP_MS;
       written += line.length;
       return delay;
     });
-    return { delays, end: WRITE_START_MS + written * MS_PER_CHAR + lines().length * LINE_GAP_MS };
+    return { delays, perChar, end: WRITE_START_MS + written * perChar + gaps };
   });
   // The newest sample is from today, and each one before it is a day older.
-  const date = format.date(new Date(Date.now() - props.age * DAY_MS), { dateStyle: "medium" });
+  const date = () => format.date(new Date(Date.now() - props.age * DAY_MS), { dateStyle: "medium" });
   return (
     <span class="agent-memory-row agent-memories-empty-row">
       <span class="ui-button ui-button-variant-ghost ui-button-size-default agent-memory-row-main">
@@ -142,7 +147,7 @@ function SampleRow(props: { memory: SampleMemory; age: number }) {
                     class="agent-memories-empty-line"
                     style={{
                       "--agent-memories-empty-delay": `${times().delays[index()] ?? 0}ms`,
-                      "--agent-memories-empty-length": `${line.length * MS_PER_CHAR}ms`,
+                      "--agent-memories-empty-length": `${line.length * times().perChar}ms`,
                     }}
                   >
                     {line}
@@ -161,7 +166,7 @@ function SampleRow(props: { memory: SampleMemory; age: number }) {
         >
           {props.memory.origin === "automatic" ? t("memory.learned") : t("memory.manual")}
           {" · "}
-          {date}
+          {date()}
         </span>
       </span>
       <span class="ui-button ui-button-variant-destructive-ghost ui-button-size-icon-sm ui-icon-button agent-memory-delete-button">

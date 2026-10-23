@@ -131,8 +131,9 @@ export function AgentMemoriesModal(props: AgentMemoriesModalProps) {
       analytics.track("memory_action", { action: "create", result: "succeeded" });
       operationSucceeded = true;
       setNewText("");
-      setAddOpen(false);
+      // The composer closes after the reload, so the empty state does not show again for a moment.
       await loadMemories(false);
+      setAddOpen(false);
     } catch (caught) {
       if (!operationSucceeded) {
         analytics.track("memory_action", { action: "create", result: "failed", failure_code: "create_failed" });
