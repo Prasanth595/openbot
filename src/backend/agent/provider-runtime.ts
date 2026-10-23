@@ -3041,10 +3041,16 @@ export class ProviderRuntime implements ProviderPort {
         });
         return;
       }
-      const names = new Set([
-        ...this.#credentials.mcpServers().flatMap((config) => [config.name, providerMcpServerName(config.name)]),
-        ...this.#mcpHandoff.names(),
-      ]);
+      // Also the name a provider was given. One with no letter or digit, such as `__`, would match
+      // every `mcp__server__tool` line.
+      const names = new Set(
+        [...this.#credentials.mcpServers().map((config) => config.name), ...this.#mcpHandoff.names()].flatMap(
+          (name) => {
+            const given = providerMcpServerName(name);
+            return /[A-Za-z0-9]/u.test(given) ? [name, given] : [name];
+          },
+        ),
+      );
       if (isMcpSubsystemDiagnostic(message, [...names])) {
         stderrLogger.warn("A provider reported an MCP server failure.", { provider: client.provider, message });
         return;

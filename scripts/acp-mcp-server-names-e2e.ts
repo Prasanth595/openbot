@@ -1,8 +1,9 @@
 // Runs the real `acp` provider driver over a fake agent that refuses an MCP server name with a
 // character outside `[A-Za-z0-9_-]`, as Antigravity does. A server the user named "My Server" made
-// every Gemini task fail with `invalid params` (#2801). The session must start with the name changed
-// to `My_Server`; a second server that becomes the same name, and one that becomes a name of
-// OpenBot's own tools, are reported as drops.
+// every Gemini task fail with `invalid params` (#2801). The session must start with each name changed
+// to that form. A changed name that another server has (`computer use` and Computer Use's
+// `computer_use`), one that becomes a name of OpenBot's own tools, and the second of two that become
+// the same name are reported as drops.
 // `bun run test:acp-mcp-names`. Writes .openbot-build/acp-mcp-server-names-e2e/report.json.
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
@@ -68,6 +69,11 @@ try {
     server("spaced", "My Server"),
     server("underscored", "My_Server"),
     server("bridge-like", "openbot browser"),
+    server("computer-use-like", "computer use"),
+    // Stands for the built-in Computer Use server, which `McpGateway.enabled` puts after the user's.
+    server("computer-use", "computer_use"),
+    server("home", "Home Assistant"),
+    server("home-dotted", "Home.Assistant"),
   ];
   const driver = requireProviderDriver("acp");
   const context = {
@@ -96,15 +102,21 @@ try {
   const withServers = requests.filter((request) => request.names.length > 0);
   assert.ok(withServers.length > 0, "The thread's session request carries the servers.");
   for (const request of withServers) {
-    assert.deepEqual(request.names, ["My_Server"], `${request.method}: the user's server travels once, as My_Server.`);
+    assert.deepEqual(
+      request.names,
+      ["My_Server", "computer_use", "Home_Assistant"],
+      `${request.method}: each name travels once, in the form the agent accepts.`,
+    );
   }
   assert.deepEqual(
-    [...new Map(drops.map((drop) => [drop.name, drop.reason])).entries()],
+    drops.map((drop) => [drop.name, drop.reason]),
     [
-      ["My_Server", "name_conflict"],
+      ["My Server", "name_conflict"],
       ["openbot browser", "name_conflict"],
+      ["computer use", "name_conflict"],
+      ["Home.Assistant", "name_conflict"],
     ],
-    "The server that becomes the same name, and the one that becomes OpenBot's own, are reported.",
+    "Each changed name that is taken is reported once.",
   );
 
   report.passed = true;

@@ -487,8 +487,8 @@ export function claudeMcpServers(servers: readonly UsableMcpServer[]): McpHandof
  *
  * **Names travel as `providerMcpServerName`.** Antigravity refuses `session/new` with `invalid
  * params` when one name has a space, so a server the user named "My Server" failed every Gemini
- * task (#2801). Two names that become the same, or a changed name that becomes one of OpenBot's own,
- * keep the first; the second is reported as a drop.
+ * task (#2801). A changed name that another server already has, such as "computer use", or that is
+ * one of OpenBot's own, is reported as a drop. So is the second of two names that become the same.
  */
 export type AcpMcpServer =
   | { name: string; command: string; args: string[]; env: Array<{ name: string; value: string }> }
@@ -497,6 +497,7 @@ export type AcpMcpServer =
 export function acpMcpServers(servers: readonly UsableMcpServer[]): McpHandoff<AcpMcpServer[]> {
   const entries: AcpMcpServer[] = [];
   const dropped: McpServerDrop[] = [];
+  const configured = new Set(servers.map((server) => server.config.name));
   for (const server of servers) {
     if (server.error !== undefined) {
       dropped.push(unusableDrop(server));
@@ -504,7 +505,10 @@ export function acpMcpServers(servers: readonly UsableMcpServer[]): McpHandoff<A
     }
     const { config } = server;
     const name = providerMcpServerName(config.name);
-    if (entries.some((entry) => entry.name === name) || (name !== config.name && isReservedMcpServerName(name))) {
+    if (
+      entries.some((entry) => entry.name === name) ||
+      (name !== config.name && (configured.has(name) || isReservedMcpServerName(name)))
+    ) {
       dropped.push({ name: config.name, reason: "name_conflict", detail: NAME_CONFLICT });
       continue;
     }
