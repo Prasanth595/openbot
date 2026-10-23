@@ -3,7 +3,6 @@ import { useCSSVariable } from "uniwind";
 import { androidBackOptions } from "@/shared/components/android-header-button";
 import { isIOS } from "@/shared/lib/platform";
 import { sheetBackHaptics } from "@/shared/lib/sheet-back-haptics";
-import { sheetHeaderInsetOptions } from "@/shared/lib/sheet-header";
 import { useText } from "@/shared/lib/text";
 
 export const unstable_settings = { initialRouteName: "index" };
@@ -11,12 +10,12 @@ export const unstable_settings = { initialRouteName: "index" };
 export default function ChannelInfoLayout() {
   const { t } = useText();
   const background = String(useCSSVariable("--openbot-bg-sheet"));
+  const canvas = String(useCSSVariable("--openbot-bg-canvas"));
   return (
     <Stack
       screenListeners={sheetBackHaptics}
       screenOptions={(props) => ({
         ...androidBackOptions(props),
-        ...sheetHeaderInsetOptions,
         presentation: "card",
         headerBackButtonDisplayMode: "minimal",
         headerShadowVisible: false,
@@ -27,7 +26,18 @@ export default function ChannelInfoLayout() {
         contentStyle: { backgroundColor: background },
       })}
     >
-      <Stack.Screen name="index" options={{ title: t("mobile.channel.route.info") }} />
+      <Stack.Screen
+        name="index"
+        options={{
+          title: t("mobile.channel.route.info"),
+          headerTitleStyle: { fontFamily: "Inter", fontSize: 12, fontWeight: "600" },
+          headerTitleAlign: "center",
+          headerBackVisible: false,
+          headerTransparent: false,
+          headerStyle: { backgroundColor: canvas },
+          contentStyle: { backgroundColor: canvas },
+        }}
+      />
       <Stack.Screen name="memories" options={{ title: t("mobile.channel.route.memories") }} />
       <Stack.Screen name="memory" options={{ title: t("mobile.channel.route.memory") }} />
       <Stack.Screen name="routines" options={{ title: t("mobile.channel.route.routines") }} />

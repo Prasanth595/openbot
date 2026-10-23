@@ -13,3 +13,4 @@
 - Use the same Team canvas color for channel and agent rows.
 - Use the same full-width message field and controls in agent and group chats.
 - Group consecutive replies from the same agent with one author label and tighter spacing. Show actions and time only on the last reply; earlier replies keep swipe to reply and long press to copy. Show a time break for later replies and retain accessible controls.
+- Open channel Info as a full-screen profile with a native Back action. Use the solo profile header, identity, fields and action rows. Keep channel member and lead selection, Browser, Memories and Routines.

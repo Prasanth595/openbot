@@ -36,12 +36,7 @@ import { AgentNewChatSection, AgentNotificationsRow } from "@/features/agents/co
 import { AgentBusyMessageField, AgentHostPermissionFields } from "@/features/agents/components/agent-host-fields";
 import { AgentInformation } from "@/features/agents/components/agent-information";
 import { type AgentPhotoDraft, AgentPhotoPicker } from "@/features/agents/components/agent-photo-picker";
-import {
-  AgentProfileFields,
-  AgentProfileHero,
-  AgentProfileRow,
-  AgentProfileSection,
-} from "@/features/agents/components/agent-profile-content";
+import { AgentProfileFields, AgentProfileHero } from "@/features/agents/components/agent-profile-content";
 import { AgentPublish } from "@/features/agents/components/agent-publish";
 import { AgentRuntimeFields, useProviderAccounts } from "@/features/agents/components/agent-runtime-fields";
 import { AgentSessionSettingsSection } from "@/features/agents/components/agent-session-settings";
@@ -56,6 +51,7 @@ import {
   useMobileWorkspace,
 } from "@/features/workspace/context/mobile-workspace-context";
 import { showsOnline } from "@/features/workspace/model/server-status";
+import { ProfileRow, ProfileSection } from "@/shared/components/profile-content";
 import { SheetSaveAction } from "@/shared/components/sheet-save-action";
 import { SheetScrollView } from "@/shared/components/sheet-scroll-view";
 import { haptics } from "@/shared/lib/haptics";
@@ -363,8 +359,8 @@ function AgentForm({
       ) : null}
       {page === "advanced" ? (
         <>
-          <AgentProfileSection title={t("mobile.agent.groups.knows")}>
-            <AgentProfileRow
+          <ProfileSection title={t("mobile.agent.groups.knows")}>
+            <ProfileRow
               leading={<Brain size={18} color={foreground} />}
               onPress={() =>
                 router.push({
@@ -374,8 +370,8 @@ function AgentForm({
               }
             >
               <Typography.Paragraph>{t("mobile.agent.info.memories.title")}</Typography.Paragraph>
-            </AgentProfileRow>
-            <AgentProfileRow
+            </ProfileRow>
+            <ProfileRow
               leading={<Files size={18} color={foreground} />}
               onPress={() =>
                 router.push({
@@ -385,11 +381,11 @@ function AgentForm({
               }
             >
               <Typography.Paragraph>{t("mobile.agent.info.files.title")}</Typography.Paragraph>
-            </AgentProfileRow>
-          </AgentProfileSection>
-          <AgentProfileSection title={t("mobile.agent.groups.does")}>
+            </ProfileRow>
+          </ProfileSection>
+          <ProfileSection title={t("mobile.agent.groups.does")}>
             <AgentTasksRow agent={agent} />
-            <AgentProfileRow
+            <ProfileRow
               leading={<Clock size={18} color={foreground} />}
               onPress={() =>
                 router.push({
@@ -399,8 +395,8 @@ function AgentForm({
               }
             >
               <Typography.Paragraph>{t("mobile.agent.info.routines.title")}</Typography.Paragraph>
-            </AgentProfileRow>
-            <AgentProfileRow
+            </ProfileRow>
+            <ProfileRow
               leading={<ChartNoAxesColumn size={18} color={foreground} />}
               onPress={() =>
                 router.push({
@@ -410,8 +406,8 @@ function AgentForm({
               }
             >
               <Typography.Paragraph>{t("mobile.agent.info.usage.title")}</Typography.Paragraph>
-            </AgentProfileRow>
-          </AgentProfileSection>
+            </ProfileRow>
+          </ProfileSection>
           {host && canAdministerServer(host.role) ? (
             <AgentSessionSettingsSection key={`${agent.serverId}:${agent.id}`} agent={agent} available={available} />
           ) : null}
@@ -445,8 +441,8 @@ function AgentForm({
       {/* Keep all existing settings links and host capability checks. */}
       {page === "info" ? (
         <>
-          <AgentProfileSection title={t("mobile.agent.groups.knows")}>
-            <AgentProfileRow
+          <ProfileSection title={t("mobile.agent.groups.knows")}>
+            <ProfileRow
               leading={<Puzzle size={18} color={foreground} />}
               onPress={() =>
                 router.push({
@@ -458,9 +454,9 @@ function AgentForm({
               <Typography.Paragraph style={{ fontFamily: "Inter", fontSize: 16, lineHeight: 23, fontWeight: "500" }}>
                 {t("mobile.agent.info.skills.title")}
               </Typography.Paragraph>
-            </AgentProfileRow>
+            </ProfileRow>
             {canManageSharedTables(agent.serverId) ? (
-              <AgentProfileRow
+              <ProfileRow
                 leading={<Table size={18} color={foreground} />}
                 onPress={() =>
                   router.push({
@@ -472,13 +468,13 @@ function AgentForm({
                 <Typography.Paragraph style={{ fontFamily: "Inter", fontSize: 16, lineHeight: 23, fontWeight: "500" }}>
                   {t("mobile.agent.tables.title")}
                 </Typography.Paragraph>
-              </AgentProfileRow>
+              </ProfileRow>
             ) : null}
-          </AgentProfileSection>
+          </ProfileSection>
           {showBrowser || canPublishAgent(agent.serverId) ? (
-            <AgentProfileSection title={t("mobile.agent.groups.does")}>
+            <ProfileSection title={t("mobile.agent.groups.does")}>
               {showBrowser ? (
-                <AgentProfileRow
+                <ProfileRow
                   leading={<Monitor size={18} color={foreground} />}
                   disabled={!available}
                   onPress={() =>
@@ -493,10 +489,10 @@ function AgentForm({
                   >
                     {t("mobile.browser.open")}
                   </Typography.Paragraph>
-                </AgentProfileRow>
+                </ProfileRow>
               ) : null}
               {canPublishAgent(agent.serverId) ? (
-                <AgentProfileRow
+                <ProfileRow
                   leading={<Upload size={18} color={foreground} />}
                   onPress={() =>
                     router.push({
@@ -510,16 +506,16 @@ function AgentForm({
                   >
                     {t("mobile.agent.publish.title")}
                   </Typography.Paragraph>
-                </AgentProfileRow>
+                </ProfileRow>
               ) : null}
-            </AgentProfileSection>
+            </ProfileSection>
           ) : null}
-          <AgentProfileSection
+          <ProfileSection
             title={t("mobile.agent.groups.rules")}
             footer={showNotifications ? t("mobile.agent.notifications.footer") : undefined}
           >
             {showPermissions ? (
-              <AgentProfileRow
+              <ProfileRow
                 leading={<ShieldCheck size={18} color={foreground} />}
                 supportingText={adminSettings ? t(PERMISSION_LABEL[agentPermissionLevel(adminSettings)]) : undefined}
                 onPress={() =>
@@ -532,7 +528,7 @@ function AgentForm({
                 <Typography.Paragraph style={{ fontFamily: "Inter", fontSize: 16, lineHeight: 23, fontWeight: "500" }}>
                   {t("mobile.agent.permissions.title")}
                 </Typography.Paragraph>
-              </AgentProfileRow>
+              </ProfileRow>
             ) : null}
             {showNotifications ? (
               <AgentNotificationsRow
@@ -541,7 +537,7 @@ function AgentForm({
                 leading={<Bell size={18} color={foreground} />}
               />
             ) : null}
-            <AgentProfileRow
+            <ProfileRow
               leading={<SlidersHorizontal size={18} color={foreground} />}
               onPress={() =>
                 router.push({
@@ -553,8 +549,8 @@ function AgentForm({
               <Typography.Paragraph style={{ fontFamily: "Inter", fontSize: 16, lineHeight: 23, fontWeight: "500" }}>
                 {t("mobile.agent.advanced.title")}
               </Typography.Paragraph>
-            </AgentProfileRow>
-          </AgentProfileSection>
+            </ProfileRow>
+          </ProfileSection>
         </>
       ) : null}
     </SheetScrollView>

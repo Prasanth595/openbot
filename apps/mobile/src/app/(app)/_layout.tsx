@@ -323,9 +323,8 @@ function AuthenticatedStack() {
             contentStyle: { backgroundColor: sheetBackground },
             headerShown: false,
             scrollEdgeEffects: { top: "hidden", bottom: "soft" },
-            presentation: "formSheet",
-            sheetAllowedDetents: [0.85],
-            sheetGrabberVisible: true,
+            presentation: "card",
+            animation: pushAnimation,
           }}
         />
         <Stack.Screen

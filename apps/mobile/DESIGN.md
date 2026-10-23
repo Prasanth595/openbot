@@ -48,7 +48,9 @@ panel. This is an explicit exception to the ordinary 0.85 form detent. Native gr
 dismissal and inner route transitions remain active. Their content uses Inter and the concept
 row geometry. The latest user request makes the chat identity plain and restores a separate
 info button that opens the profile. Its old action sheet is removed, and Open browser is in the profile's
-Does group when the host supports browser streaming.
+Does group when the host supports browser streaming. Channel Info uses the same native profile
+header, identity layout, fields and grouped action rows. It keeps channel member and lead selection,
+Browser, Memories and Routines. New channel remains a native form sheet.
 
 The team card shows the first pinned agent. A complete server list adds a default lead pin if no
 visible pin exists. The lead cannot be unpinned; pin commands and native menus enforce this rule.
