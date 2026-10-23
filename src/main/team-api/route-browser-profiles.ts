@@ -14,6 +14,7 @@ import {
 import { sourceText } from "@openbot/i18n/source";
 import { runCauseEffect } from "../../backend/effect-boundary";
 import { AgentNotFoundError } from "../agent-admin-settings";
+import { BrowserProfileRejectedError } from "../browser-profile-service";
 import type { TeamApiBrowser, TeamApiBrowserProfiles } from "./dependencies";
 import { HttpError } from "./http-error";
 import type { RouteOutcome, TeamApiRequestContext } from "./request-context";
@@ -93,9 +94,9 @@ export async function routeBrowserProfiles(
     }
   } catch (error) {
     if (error instanceof AgentNotFoundError) throw new HttpError(404, error.message);
-    // The profile service throws only sentences written for the person who manages the profiles,
-    // such as a name in use or a missing profile, so the admin reads the reason.
-    if (error instanceof Error && !(error instanceof HttpError)) throw new HttpError(409, error.message);
+    // A name in use or a missing profile is catalog text for the admin. Any other failure stays
+    // private: the server answers it with its generic error.
+    if (error instanceof BrowserProfileRejectedError) throw new HttpError(409, error.message);
     throw error;
   }
 }

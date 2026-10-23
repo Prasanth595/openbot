@@ -142,13 +142,15 @@ export function ConversationPanels(panelProps: { onOpenUsage?: ((trigger: HTMLBu
       ? props.runtime.admin !== undefined && serverCanAdminister(props.server, "agent-publish-v1")
       : props.server?.kind === "local";
   // The web client asks the host directly; desktop goes through main for this computer and for a joined server.
-  const browserProfileCalls = createMemo(() =>
-    props.runtime
-      ? props.runtime.browserProfiles
-      : props.server && serverSupportsCapability(props.server, BROWSER_PROFILES_CAPABILITY)
-        ? desktopBrowserProfileCalls(props.server.id)
-        : undefined,
+  // The calls follow the server id, so a new summary of the same server keeps the loaded profiles.
+  const browserProfileServerId = createMemo(() =>
+    props.server && serverSupportsCapability(props.server, BROWSER_PROFILES_CAPABILITY) ? props.server.id : undefined,
   );
+  const browserProfileCalls = createMemo(() => {
+    if (props.runtime) return props.runtime.browserProfiles;
+    const serverId = browserProfileServerId();
+    return serverId === undefined ? undefined : desktopBrowserProfileCalls(serverId);
+  });
   let browserPreviewTrigger: HTMLButtonElement | undefined;
   /** The panes this chat can open. The web client has no Files pane, and a chat without a thread has no files. */
   const sidePanelPanes = createMemo((): SidePanelPane[] => [

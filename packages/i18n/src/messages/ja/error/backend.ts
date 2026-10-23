@@ -288,6 +288,7 @@ export const messages = {
     "このエージェントのブラウザープロファイルはもうありません。エージェントの設定で別のプロファイルを選んでください。",
   "error.backend.browserProfileNotFound": "このブラウザープロファイルはもうありません。",
   "error.backend.browserProfileNameTaken": "この名前のブラウザープロファイルはすでにあります。",
+  "error.backend.browserSessionInUse": "このブラウザーセッションはまだタブで使われています。もう一度お試しください。",
   "error.backend.browserProfileLimit": "ブラウザープロファイルは {limit} 個まで作成できます。",
   "error.backend.browserLowMemory":
     "このサーバーはメモリーが不足しているため、ブラウザーで新しいタブを開けません。タブを閉じるか、ほかのエージェントの作業が終わるまでお待ちください。",

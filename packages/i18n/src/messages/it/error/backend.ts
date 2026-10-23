@@ -288,6 +288,7 @@ export const messages = {
     "Il profilo browser di questo agente non esiste più. Scegli un altro profilo nelle impostazioni dell’agente.",
   "error.backend.browserProfileNotFound": "Questo profilo browser non esiste più.",
   "error.backend.browserProfileNameTaken": "Esiste già un profilo browser con questo nome.",
+  "error.backend.browserSessionInUse": "Una scheda usa ancora questa sessione del browser. Riprova.",
   "error.backend.browserProfileLimit": "Puoi avere fino a {limit} profili browser.",
   "error.backend.browserLowMemory":
     "Su questo server la memoria è quasi esaurita, quindi il browser non può aprire un'altra scheda. Chiudi una scheda o attendi che gli altri agenti finiscano.",

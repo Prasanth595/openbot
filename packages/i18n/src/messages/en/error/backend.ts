@@ -274,6 +274,7 @@ export const messages = defineMessages("error.backend", {
     "The browser profile of this agent no longer exists. Choose another profile in the agent settings.",
   "error.backend.browserProfileNotFound": "This browser profile no longer exists.",
   "error.backend.browserProfileNameTaken": "A browser profile with this name already exists.",
+  "error.backend.browserSessionInUse": "A tab still uses this browser session. Try again.",
   "error.backend.browserProfileLimit": "You can have up to {limit} browser profiles.",
   "error.backend.browserLowMemory":
     "This server is low on memory, so the browser cannot open another tab. Close a tab, or wait for other agents to finish.",

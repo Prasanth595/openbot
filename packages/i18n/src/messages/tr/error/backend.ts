@@ -272,6 +272,7 @@ export const messages = {
     "Bu ajanın tarayıcı profili artık yok. Ajan ayarlarından başka bir profil seçin.",
   "error.backend.browserProfileNotFound": "Bu tarayıcı profili artık yok.",
   "error.backend.browserProfileNameTaken": "Bu adla bir tarayıcı profili zaten var.",
+  "error.backend.browserSessionInUse": "Bir sekme bu tarayıcı oturumunu hâlâ kullanıyor. Yeniden deneyin.",
   "error.backend.browserProfileLimit": "En fazla {limit} tarayıcı profiliniz olabilir.",
   "error.backend.browserLowMemory":
     "Bu sunucunun belleği azaldı, bu nedenle tarayıcı başka bir sekme açamıyor. Bir sekmeyi kapatın veya diğer ajanların bitmesini bekleyin.",

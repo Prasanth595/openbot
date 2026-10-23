@@ -371,9 +371,12 @@ function storyBrowserProfiles(initial: readonly BrowserProfileSummary[]): Server
     setState((draft) => {
       if (draft.profiles) recipe(draft.profiles);
     });
-  const names: Record<string, string> = { chief: "Chief", research: "Research", sales: "Sales Outbound" };
   return {
-    agentName: (agentId) => names[agentId],
+    listAgents: async () => [
+      { id: "chief", name: "Chief" },
+      { id: "research", name: "Research" },
+      { id: "sales", name: "Sales Outbound" },
+    ],
     store: {
       state,
       refresh: async () => undefined,

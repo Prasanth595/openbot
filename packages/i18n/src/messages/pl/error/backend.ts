@@ -281,6 +281,7 @@ export const messages = {
     "Profil przeglądarki tego agenta już nie istnieje. Wybierz inny profil w ustawieniach agenta.",
   "error.backend.browserProfileNotFound": "Ten profil przeglądarki już nie istnieje.",
   "error.backend.browserProfileNameTaken": "Profil przeglądarki o tej nazwie już istnieje.",
+  "error.backend.browserSessionInUse": "Karta nadal używa tej sesji przeglądarki. Spróbuj ponownie.",
   "error.backend.browserProfileLimit": "Możesz mieć maksymalnie {limit} profili przeglądarki.",
   "error.backend.browserLowMemory":
     "Na tym serwerze brakuje pamięci, więc przeglądarka nie może otworzyć kolejnej karty. Zamknij kartę lub poczekaj, aż inni agenci skończą.",

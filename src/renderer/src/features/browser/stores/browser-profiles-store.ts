@@ -37,9 +37,13 @@ export function createBrowserProfilesStore(calls: () => BrowserProfileCalls) {
       });
   }
 
+  // The change is done when the list fails, so a failed list does not report it as failed; the
+  // next refresh shows it.
+  const refreshAfterChange = () => refresh().catch(() => undefined);
+
   async function change(action: () => Promise<unknown>): Promise<void> {
     await action();
-    await refresh();
+    await refreshAfterChange();
   }
 
   return {
@@ -48,7 +52,7 @@ export function createBrowserProfilesStore(calls: () => BrowserProfileCalls) {
     /** Returns the id of the new profile. */
     create: async (name: string): Promise<string> => {
       const profile = await calls().create(name);
-      await refresh();
+      await refreshAfterChange();
       return profile.id;
     },
     rename: (profileId: string, name: string) => change(() => calls().update({ profileId, name })),

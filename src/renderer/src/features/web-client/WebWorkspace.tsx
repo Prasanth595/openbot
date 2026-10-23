@@ -1171,18 +1171,18 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   };
   // The Browser profiles section, for an owner or admin of a host with `browser-profiles-v1`. One
   // store per host, so the list of the last host never shows for the next.
+  // The store follows the host id, so a new summary of the same host keeps the loaded list.
+  const browserProfileHostId = createMemo(() => {
+    const current = server();
+    return serverCanAdminister(current, BROWSER_PROFILES_CAPABILITY) ? current?.id : undefined;
+  });
   const browserProfiles = createMemo(() => {
     const calls = runtime.browserProfiles;
-    const current = server();
-    return calls && serverCanAdminister(current, BROWSER_PROFILES_CAPABILITY)
-      ? createBrowserProfilesStore(() => calls)
-      : undefined;
+    return calls && browserProfileHostId() !== undefined ? createBrowserProfilesStore(() => calls) : undefined;
   });
   const browserProfileSettings = createMemo((): ServerBrowserProfilesOptions | undefined => {
     const store = browserProfiles();
-    return store
-      ? { store, agentName: (agentId) => workspace.profiles().find((agent) => agent.id === agentId)?.name }
-      : undefined;
+    return store ? { store, listAgents: async () => workspace.profiles() } : undefined;
   });
   const openBrowserProfileSettings = (trigger: HTMLElement) => {
     const current = server();

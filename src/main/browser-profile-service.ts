@@ -1,4 +1,4 @@
-import { Effect, Schema } from "effect";
+import { Effect, Schema, Semaphore } from "effect";
 // Named browser profiles, and the profile of each agent, as this computer holds them. The local
 // window uses this; the agent setting writes through `AgentService.updateAgent`, which closes the
 // agent's tabs when its profile changes. A profile name is user data: it is never logged.
@@ -57,7 +57,7 @@ export function createBrowserProfileService({
   }
   function requireProfile(profileId: string): BrowserProfileRecord {
     const profile = store.get(profileId);
-    if (!profile) throw new Error(sourceText("error.backend.browserProfileNotFound"));
+    if (!profile) throw new BrowserProfileRejectedError(sourceText("error.backend.browserProfileNotFound"));
     return profile;
   }
   function requireFreeName(name: string, profileId?: string): void {
@@ -67,20 +67,24 @@ export function createBrowserProfileService({
         (profile) =>
           profile.id !== profileId && profile.name.localeCompare(name, undefined, { sensitivity: "accent" }) === 0,
       );
-    if (taken) throw new Error(sourceText("error.backend.browserProfileNameTaken"));
+    if (taken) throw new BrowserProfileRejectedError(sourceText("error.backend.browserProfileNameTaken"));
   }
-  function summary(profile: BrowserProfileRecord): BrowserProfileSummary {
+  function summary(
+    profile: BrowserProfileRecord,
+    agentList: readonly AgentSummary[] = agents.listAgents(),
+  ): BrowserProfileSummary {
     return {
       id: profile.id,
       name: profile.name,
       hue: profile.hue,
-      agentIds: agents
-        .listAgents()
-        .filter((agent) => agent.browserProfileId === profile.id)
-        .map((agent) => agent.id),
+      agentIds: agentList.filter((agent) => agent.browserProfileId === profile.id).map((agent) => agent.id),
       tabCount: browser.tabIdsInSession({ kind: "profile", profileId: profile.id }).length,
     };
   }
+  // One change at a time, so an agent cannot move into a profile while a delete moves its agents out.
+  const changes = Semaphore.makeUnsafe(1);
+  const serialized = <A>(change: Effect.Effect<A, BrowserProfileFailure>) =>
+    changes.withPermits(1)(change).pipe(Effect.uninterruptible);
   const check = <T>(run: () => T) => Effect.try({ try: run, catch: (cause) => new BrowserProfileFailure({ cause }) });
 
   const closeAndClear = Effect.fn("BrowserProfiles.closeAndClear")(function* (tabSession: BrowserTabSession) {
@@ -92,7 +96,9 @@ export function createBrowserProfileService({
     return yield* check(() => {
       const profiles = store.list();
       if (profiles.length >= BROWSER_PROFILE_LIMIT)
-        throw new Error(sourceText("error.backend.browserProfileLimit", { limit: BROWSER_PROFILE_LIMIT }));
+        throw new BrowserProfileRejectedError(
+          sourceText("error.backend.browserProfileLimit", { limit: BROWSER_PROFILE_LIMIT }),
+        );
       requireFreeName(name);
       return summary(store.create(name, nextBrowserProfileHue(profiles.map((profile) => profile.hue))));
     });
@@ -150,19 +156,21 @@ export function createBrowserProfileService({
   });
 
   return {
-    list: () => ({
-      profiles: store.list().map(summary),
-      sharedAgentIds: agents
-        .listAgents()
-        .filter((agent) => agentBrowserProfile(agent).kind === "shared")
-        .map((agent) => agent.id),
-    }),
-    create: (name) => create(name).pipe(Effect.uninterruptible),
-    update: (input) => update(input).pipe(Effect.uninterruptible),
-    clear: (input) => clear(input).pipe(Effect.uninterruptible),
-    delete: (profileId) => remove(profileId).pipe(Effect.uninterruptible),
+    list: () => {
+      const agentList = agents.listAgents();
+      return {
+        profiles: store.list().map((profile) => summary(profile, agentList)),
+        sharedAgentIds: agentList
+          .filter((agent) => agentBrowserProfile(agent).kind === "shared")
+          .map((agent) => agent.id),
+      };
+    },
+    create: (name) => serialized(create(name)),
+    update: (input) => serialized(update(input)),
+    clear: (input) => serialized(clear(input)),
+    delete: (profileId) => serialized(remove(profileId)),
     readAgent: (agentId) => agentBrowserProfile(requireAgent(agentId)),
-    updateAgent: (input) => updateAgent(input).pipe(Effect.uninterruptible),
+    updateAgent: (input) => serialized(updateAgent(input)),
     tabProfiles: () => {
       const profiles = new Map(store.list().map((profile) => [profile.id, profile]));
       return browser.listTabSessions().flatMap(({ tabId, tabSession }): BrowserTabProfile[] => {
@@ -173,6 +181,9 @@ export function createBrowserProfileService({
     },
   };
 }
+
+/** A change that the person who manages the profiles can correct: its message is catalog text for them. */
+export class BrowserProfileRejectedError extends Error {}
 
 export class BrowserProfileFailure extends Schema.TaggedError<BrowserProfileFailure>()("BrowserProfileFailure", {
   cause: Schema.Defect(),

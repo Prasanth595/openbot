@@ -2063,7 +2063,7 @@ export class BrowserHost {
   ): Effect.fn.Return<void, BrowserOperationError> {
     const partition = browserTabPartition(tabSession);
     if (this.tabIdsInSession(tabSession).length > 0)
-      return yield* browserFailure(new Error("A tab still uses the browser session."));
+      return yield* browserFailure(new Error(sourceText("error.backend.browserSessionInUse")));
     // A session that never opened has nothing to clear, and opening one would create it.
     if (!this.#tabSessions.has(partition) && !existsSync(join(app.getPath("sessionData"), "Partitions", partition)))
       return;

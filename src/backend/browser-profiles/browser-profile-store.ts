@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { type AvatarHue, isAvatarHue } from "@openbot/contracts/ipc";
+import type { DynamicRecord } from "@openbot/contracts/runtime-values";
 import { databaseRows, requiredNumberColumn, requiredStringColumn } from "../database/database-rows";
 import type { OpenBotDatabase } from "../openbot-database";
 
@@ -28,16 +29,16 @@ export class BrowserProfileStore {
           "SELECT profile_id, name, hue FROM browser_profiles ORDER BY name COLLATE NOCASE, created_at, profile_id",
         )
         .all(),
-    ).map((row) => {
-      // The column CHECK keeps the hue in the list.
-      const hue = requiredNumberColumn(row, "hue");
-      if (!isAvatarHue(hue)) throw new Error("Invalid browser profile hue.");
-      return { id: requiredStringColumn(row, "profile_id"), name: requiredStringColumn(row, "name"), hue };
-    });
+    ).map(profileRecord);
   }
 
   get(id: string): BrowserProfileRecord | undefined {
-    return this.list().find((profile) => profile.id === id);
+    const [row] = databaseRows(
+      this.#database.connection
+        .prepare("SELECT profile_id, name, hue FROM browser_profiles WHERE profile_id = ?")
+        .all(id),
+    );
+    return row === undefined ? undefined : profileRecord(row);
   }
 
   /** Adds a profile with a new random id. The caller checks the name. */
@@ -65,4 +66,11 @@ export class BrowserProfileStore {
   delete(id: string): void {
     this.#database.connection.prepare("DELETE FROM browser_profiles WHERE profile_id = ?").run(id);
   }
+}
+
+function profileRecord(row: DynamicRecord): BrowserProfileRecord {
+  // The column CHECK keeps the hue in the list.
+  const hue = requiredNumberColumn(row, "hue");
+  if (!isAvatarHue(hue)) throw new Error("Invalid browser profile hue.");
+  return { id: requiredStringColumn(row, "profile_id"), name: requiredStringColumn(row, "name"), hue };
 }

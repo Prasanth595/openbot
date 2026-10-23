@@ -413,10 +413,14 @@ function ServerSettings(props: { connectors: ConnectorRegistry }) {
   } = useServerSettings();
   /**
    * The named browser profiles of the selected server: this computer, or a joined server whose host
-   * serves `browser-profiles-v1` to this owner or admin. The section lists them each time it opens.
+   * serves `browser-profiles-v1` to this owner or admin. One store per server, so the list of the
+   * last server never shows for the next. The section lists them each time it opens.
    */
-  const browserProfileCalls = createMemo(() => desktopBrowserProfileCalls(serverSettingsTarget()?.id));
-  const browserProfiles = createBrowserProfilesStore(browserProfileCalls);
+  const browserProfileServerId = createMemo(() => serverSettingsTarget()?.id);
+  const browserProfiles = createMemo(() => {
+    const calls = desktopBrowserProfileCalls(browserProfileServerId());
+    return createBrowserProfilesStore(() => calls);
+  });
   // The workspace belongs to the selected server. For another server, the switch comes first and
   // the agent is published for the scope it lands in; a message there opens as its agent's chat.
   const openOnServer = (server: ServerSummary, agentId: string, open: () => void) => {
@@ -719,10 +723,7 @@ function ServerSettings(props: { connectors: ConnectorRegistry }) {
           }
           browserProfiles={
             serverCanAdminister(server(), BROWSER_PROFILES_CAPABILITY)
-              ? {
-                  store: browserProfiles,
-                  agentName: (agentId) => agentList().find((agent) => agent.id === agentId)?.name,
-                }
+              ? { store: browserProfiles(), listAgents: () => appPort().agent.listAgents(server().id) }
               : undefined
           }
         />

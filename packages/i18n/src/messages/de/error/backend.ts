@@ -301,6 +301,7 @@ export const messages = {
     "Das Browserprofil dieses Agenten existiert nicht mehr. Wähle in den Agenteneinstellungen ein anderes Profil.",
   "error.backend.browserProfileNotFound": "Dieses Browserprofil existiert nicht mehr.",
   "error.backend.browserProfileNameTaken": "Es gibt bereits ein Browserprofil mit diesem Namen.",
+  "error.backend.browserSessionInUse": "Ein Tab verwendet diese Browsersitzung noch. Versuche es noch einmal.",
   "error.backend.browserProfileLimit": "Du kannst bis zu {limit} Browserprofile haben.",
   "error.backend.browserLowMemory":
     "Dieser Server hat wenig freien Arbeitsspeicher. Der Browser kann daher keinen weiteren Tab öffnen. Schließe einen Tab oder warte, bis andere Agenten fertig sind.",

@@ -288,6 +288,7 @@ export const messages = {
     "El perfil de navegador de este agente ya no existe. Elige otro perfil en los ajustes del agente.",
   "error.backend.browserProfileNotFound": "Este perfil de navegador ya no existe.",
   "error.backend.browserProfileNameTaken": "Ya existe un perfil de navegador con este nombre.",
+  "error.backend.browserSessionInUse": "Una pestaña todavía usa esta sesión del navegador. Inténtalo de nuevo.",
   "error.backend.browserProfileLimit": "Puedes tener hasta {limit} perfiles de navegador.",
   "error.backend.browserLowMemory":
     "Este servidor tiene poca memoria disponible, por lo que el navegador no puede abrir otra pestaña. Cierra una pestaña o espera a que terminen otros agentes.",

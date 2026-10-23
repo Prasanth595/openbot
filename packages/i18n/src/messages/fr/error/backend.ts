@@ -297,6 +297,7 @@ export const messages = {
     "Le profil de navigateur de cet agent n’existe plus. Choisissez un autre profil dans les réglages de l’agent.",
   "error.backend.browserProfileNotFound": "Ce profil de navigateur n’existe plus.",
   "error.backend.browserProfileNameTaken": "Un profil de navigateur porte déjà ce nom.",
+  "error.backend.browserSessionInUse": "Un onglet utilise encore cette session de navigateur. Réessayez.",
   "error.backend.browserProfileLimit": "Vous pouvez avoir jusqu’à {limit} profils de navigateur.",
   "error.backend.browserLowMemory":
     "Ce serveur manque de mémoire : le navigateur ne peut pas ouvrir un autre onglet. Fermez un onglet, ou attendez la fin du travail des autres agents.",
