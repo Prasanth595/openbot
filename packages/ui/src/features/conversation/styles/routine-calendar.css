@@ -469,7 +469,7 @@
   grid-column: var(--routine-planner-empty-column);
   margin-top: calc(var(--openbot-space-8) + var(--openbot-space-1));
   padding-inline: var(--openbot-space-2);
-  animation: routine-planner-empty-life 6600ms var(--openbot-ease-out) both;
+  animation: routine-planner-empty-life var(--routine-planner-empty-life) var(--openbot-ease-out) both;
 }
 
 .routine-planner-empty-run > .routine-planner-run {

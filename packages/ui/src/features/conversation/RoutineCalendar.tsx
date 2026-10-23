@@ -251,6 +251,7 @@ export function RoutineCalendar(props: RoutineCalendarProps) {
 
   /** With no routine, there is nothing to move through: the calendar shows its pitch on a faint month. */
   const empty = () => (props.state ?? "ready") === "ready" && props.routines.length === 0;
+  const emptyMonth = createMemo(() => daysFor(today(), "month"));
 
   return (
     <section class="routine-planner" aria-labelledby="routine-planner-heading" data-view={state.view}>
@@ -370,9 +371,9 @@ export function RoutineCalendar(props: RoutineCalendarProps) {
             </Show>
           </Alert>
         </Match>
-        <Match when={props.routines.length === 0}>
+        <Match when={empty()}>
           <RoutineCalendarEmpty
-            days={daysFor(today(), "month")}
+            days={emptyMonth()}
             today={today()}
             agents={props.agents}
             onCreateRoutine={props.onCreateRoutine}

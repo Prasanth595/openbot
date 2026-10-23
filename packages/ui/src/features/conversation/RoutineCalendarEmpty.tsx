@@ -79,7 +79,7 @@ const SAMPLE_RUNS: SampleRun[] = [
   },
 ];
 
-/** A new run lands on each step. A run stays for `LIFE` steps; its CSS animation is as long. */
+/** A new run lands on each step. A run stays for `LIFE` steps, and its CSS animation is as long. */
 const STEP_MS = 2200;
 const LIFE = 3;
 /** The handwriting speed and the pause before it starts, in milliseconds. */
@@ -197,6 +197,8 @@ function RoutineCalendarEmptyBoard(props: {
   const { format } = useText();
   const month = () => calendarMonthStart(props.today);
   const rows = () => Math.max(1, Math.ceil(props.days.length / 7));
+  // A short month wraps a low run to the top row, which no run near it in time uses.
+  const row = (run: SampleRun) => run.row % rows();
   const shown = createMemo(() => shownRuns(props.step));
   return (
     <div class="routine-planner-empty-board" aria-hidden="true">
@@ -219,8 +221,8 @@ function RoutineCalendarEmptyBoard(props: {
             <RoutineCalendarEmptyRun
               run={item().run}
               slot={item().slot}
-              row={Math.min(item().run.row, rows() - 1)}
-              day={props.days[Math.min(item().run.row, rows() - 1) * 7 + item().run.column]}
+              row={row(item().run)}
+              day={props.days[row(item().run) * 7 + item().run.column]}
               agent={props.agents.length > 0 ? props.agents[item().run.agent % props.agents.length] : undefined}
             />
           )}
@@ -265,6 +267,7 @@ function RoutineCalendarEmptyRun(props: {
     <div
       class="routine-planner-empty-run"
       style={{
+        "--routine-planner-empty-life": `${STEP_MS * LIFE}ms`,
         "--routine-planner-empty-row": String(props.row + 1),
         "--routine-planner-empty-column": String(props.run.column + 1),
         "--routine-planner-empty-slot": String(props.slot + 1),
