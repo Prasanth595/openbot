@@ -14,7 +14,7 @@ import {
   Webhook,
 } from "@openbot/ui";
 import type { JSX } from "@solidjs/web";
-import { createSignal, createStore, Show } from "solid-js";
+import { createEffect, createSignal, createStore, Show } from "solid-js";
 import { useText } from "../../text";
 import { CodeBlock } from "./CodeBlock";
 import { RoutineWebhookEvents } from "./RoutineWebhookEvents";
@@ -64,7 +64,7 @@ const IGNORED_TEXT = {
 function curlExample(url: string): string {
   return [
     `BODY='{"type":"order.created","data":{"order":{"status":"paid"}}}'`,
-    "TS=$(date +%s); ID=$(uuidgen)",
+    "TS=$(date +%s); ID=$(openssl rand -hex 16)",
     `SIG=$(printf '%s.%s.%s' "$TS" "$ID" "$BODY" | openssl dgst -sha256 -hmac "$OPENBOT_WEBHOOK_SECRET" | sed 's/^.* //')`,
     `curl -X POST "${url}" \\`,
     `  -H "Content-Type: application/json" \\`,
@@ -91,6 +91,31 @@ export function RoutineWebhookTrigger(props: RoutineWebhookTriggerProps) {
     result: null,
     testError: null,
   });
+  // The editor can keep this card when it opens another routine, so a new endpoint clears the
+  // steps. A new secret, such as after Regenerate, must be copied again.
+  let shownUrl = props.url;
+  createEffect(
+    () => props.url,
+    (url) => {
+      if (shownUrl !== null && url !== shownUrl)
+        setSteps((state) => {
+          state.urlCopied = false;
+          state.secretCopied = false;
+          state.result = null;
+          state.testError = null;
+        });
+      shownUrl = url;
+    },
+  );
+  createEffect(
+    () => props.secret,
+    (secret) => {
+      if (secret !== null)
+        setSteps((state) => {
+          state.secretCopied = false;
+        });
+    },
+  );
   async function regenerate(): Promise<void> {
     if (confirm()?.pending) return;
     setConfirm({ pending: true, error: null });

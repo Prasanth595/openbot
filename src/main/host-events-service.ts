@@ -91,7 +91,8 @@ type TestEventData = { [key: string]: TestEventData | EventScalar };
 
 /** Data that each filter matches: every pointer leads to its value. Conflicting filters cannot all match. */
 function testEventData(filters: readonly EventFilter[]): EventJsonValue {
-  const root: TestEventData = {};
+  // Without a prototype, a token such as "__proto__" is an own key and cannot reach Object.prototype.
+  const root: TestEventData = Object.create(null);
   for (const { pointer, value } of filters) {
     // The empty pointer compares the complete data with the value.
     if (pointer === "") return value;
@@ -105,7 +106,7 @@ function testEventData(filters: readonly EventFilter[]): EventJsonValue {
       const child = node[token];
       if (typeof child === "object" && child !== null) node = child;
       else {
-        const created: TestEventData = {};
+        const created: TestEventData = Object.create(null);
         node[token] = created;
         node = created;
       }
