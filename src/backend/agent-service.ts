@@ -4100,6 +4100,8 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       // and the log, and a CLI quotes what it was given: a failure against a custom endpoint can
       // carry that endpoint's API key or a header value.
       message: this.#mcp.redact(error instanceof Error ? error.message : String(error)),
+      ...(context?.provider ? { provider: context.provider } : {}),
+      ...(context?.model ? { model: context.model } : {}),
     });
   }
 

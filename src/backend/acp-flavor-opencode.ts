@@ -147,4 +147,7 @@ export const OPENCODE_ACP_FLAVOR: AcpFlavor = {
   // while probing model options; keep the last successful list instead of making a connected
   // provider appear to have no models.
   keepModelsOnRefreshFailure: true,
+  // A long answer with no tool call otherwise shows nothing until the prompt ends, and the turn
+  // looks stuck (#2858).
+  streamAnswerBeforePromptReturns: true,
 };

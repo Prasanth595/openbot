@@ -71,6 +71,7 @@ export function ConversationComposer() {
     currentChatConversationKey,
     currentChatError,
     currentChatErrorReference,
+    currentChatErrorRun,
     currentDraft,
     dismissCurrentChatErrors,
     installedSkills,
@@ -520,6 +521,7 @@ export function ConversationComposer() {
           {(message) => (
             <ComposerErrorBanner
               message={message()}
+              title={currentChatErrorRun() ?? undefined}
               tone={unreadableContent() ? "warning" : "danger"}
               reference={currentChatErrorReference()}
               onShown={() => reportErrorBanner(message(), "turn")}

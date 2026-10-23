@@ -198,6 +198,7 @@
     "test:acp-directories": "bun scripts/acp-additional-directories-e2e.ts",
     "test:acp-flavors": "bun scripts/acp-flavor-e2e.ts",
     "test:acp-mcp-names": "bun scripts/acp-mcp-server-names-e2e.ts",
+    "test:acp-turn-stall": "bun scripts/acp-turn-stall-e2e.ts",
     "test:acp-instructions-once": "bun scripts/acp-instructions-once-e2e.ts",
     "test:muse-instructions-once": "bun scripts/muse-instructions-once-e2e.ts",
     "test:provider-conformance": "bun scripts/provider-conformance-e2e.ts",

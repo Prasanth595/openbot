@@ -100,6 +100,7 @@ export function createConversationViewScope(props: ConversationProps) {
     setComposerErrorReferences,
     conversationErrors,
     setConversationErrors,
+    conversationErrorRuns,
     voicePhase,
     setVoicePhase,
     voiceModelProgress,
@@ -316,6 +317,14 @@ export function createConversationViewScope(props: ConversationProps) {
     if (!target || !message) return null;
     const entry = composerErrorReferences()[composerDraftKey(target)];
     return entry?.message === message ? entry.reference : null;
+  });
+  /** The provider and model of the run behind the shown error. A later error of another run shows none. */
+  const currentChatErrorRun = createMemo(() => {
+    const target = currentTarget();
+    const message = currentChatError();
+    if (!target || !message) return null;
+    const entry = conversationErrorRuns()[composerDraftKey(target)];
+    return entry?.message === message ? entry.run : null;
   });
   const queue = createQueueStore({ props, hiddenAwaitingReplyIds });
   const { activeDeliveries, orderedQueuedDeliveries, presentedQueueDeliveries, queuePanelVisible } = queue;
@@ -1590,6 +1599,7 @@ export function createConversationViewScope(props: ConversationProps) {
     currentComposerError,
     currentChatError,
     currentChatErrorReference,
+    currentChatErrorRun,
     currentChatConversationKey,
     dismissCurrentChatErrors,
     dismissAwaitingReplies,
