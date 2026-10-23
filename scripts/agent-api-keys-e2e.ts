@@ -200,6 +200,14 @@ try {
     assert.deepEqual(names, ["OPENAI_API_KEY"]);
   });
 
+  await step("a member can skip, so the turn does not wait for an owner", async () => {
+    const skipped = requestKey({ name: "STRIPE_API_KEY", title: "Stripe key" }, "turn-5");
+    await answer(skipped.id, {}, MEMBER);
+    assert.equal(agentAnswer(client.answers.get(skipped.id)).status, "skipped");
+    const names = (await Effect.runPromise(apiKeys.list(AGENT))).map((key) => key.name);
+    assert.deepEqual(names, ["OPENAI_API_KEY"]);
+  });
+
   await step("an expired form saves nothing", async () => {
     const { id } = requestKey({ name: "GITHUB_TOKEN", title: "GitHub token" }, "turn-4");
     registry.cancelRequest(client, id);

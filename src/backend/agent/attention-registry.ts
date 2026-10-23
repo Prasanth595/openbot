@@ -455,12 +455,13 @@ export class AttentionRegistry {
       const pending = this.#prompts.get(input.requestId);
       const apiKey = pending?.uiBlock?.apiKey;
       if (!pending?.uiBlock || !apiKey) return null;
+      if (pending.savingApiKey) throw new Error(sourceText("error.backend.apiKeySaving"));
+      const value = uiBlockAnswer(pending.uiBlock.spec, input.answers, responder)?.values?.[API_KEY_FIELD_ID];
+      // A skip saves nothing, so a member may give it: the turn must not wait for an owner.
+      if (typeof value !== "string" || value === "") return null;
       // The key goes to an agent of this server that every member may run.
       if (responder && !responder.privileged)
         throw new ForbiddenAttentionAnswer(sourceText("error.backend.apiKeyNotAllowed"));
-      if (pending.savingApiKey) throw new Error(sourceText("error.backend.apiKeySaving"));
-      const value = uiBlockAnswer(pending.uiBlock.spec, input.answers, responder)?.values?.[API_KEY_FIELD_ID];
-      if (typeof value !== "string" || value === "") return null;
       if (!this.#apiKeys) throw new Error(sourceText("error.backend.apiKeySaveFailed"));
       pending.savingApiKey = true;
       return { pending, apiKeys: this.#apiKeys, name: apiKey.name, value };

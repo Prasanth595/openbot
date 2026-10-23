@@ -630,7 +630,7 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
       "Ask the user for an API key or token that your task needs, such as for a script or a service, and wait for the answer.",
       "The user enters it in a secure form in this conversation. OpenBot saves it for you in a private file outside your workspace and keeps it for later turns; you never get the value.",
       'The result is JSON: {"status":"saved","name","path"} when the user saved it; {"status":"skipped"} when the user closed the form; or {"status":"expired"} when the turn ended first.',
-      'Use the key only by reading the file in your command, such as OPENAI_API_KEY="$(cat <path>)" python script.py. Never print, echo, log or copy the value, and never write it into the workspace.',
+      "Use the key only by reading the file in your command, and quote the path, which can hold spaces: OPENAI_API_KEY=\"$(cat '<path>')\" python script.py. Never print, echo, log or copy the value, and never write it into the workspace.",
       "Call list_api_keys first: do not ask again for a key that is saved. A new answer replaces the saved key. Only the server owner or an admin can answer. It does not work in a Slack, Discord or Telegram chat.",
     ].join(" "),
     shape: requestApiKeyToolSchema.shape,
