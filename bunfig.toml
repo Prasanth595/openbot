@@ -7,8 +7,7 @@ linker = "hoisted"
 minimumReleaseAge = 259200
 # The OpenBot maintainer owns and publishes bloub, so a new release does not wait.
 # Effect 4.0.0 is explicitly approved for this migration before the age limit.
-# heroui-native 1.0.11 is approved for the Expo SDK 58 bump on 2026-10-23, before it is 3 days old.
-minimumReleaseAgeExcludes = ["@norbert_bodziony/bloub", "effect", "heroui-native"]
+minimumReleaseAgeExcludes = ["@norbert_bodziony/bloub", "effect"]
 
 # `trustedDependencies` in package.json replaces the default Bun trust list.
 # Only these packages can run install scripts. Each one downloads or selects
