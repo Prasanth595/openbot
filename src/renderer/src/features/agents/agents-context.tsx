@@ -16,6 +16,7 @@ import { desktopAnalytics } from "../../analytics";
 import { FALLBACK_STATUS } from "../../app-defaults";
 import { agentProfilesEqual, toAgentProfile } from "../../app-message-projection";
 import { createStoredProfile, updateStored } from "../../app-stored-values";
+import { usePlatform } from "../../platform";
 import { createScopeGuard } from "../../scope-lifetime";
 import { createSimpleContext } from "../../simple-context";
 import { useUiErrors } from "../../ui-errors";
@@ -24,7 +25,7 @@ import { useDirectMessages } from "../conversation/direct-messages-context";
 import { remoteAdminServer } from "../servers/server-capabilities";
 import { useServers } from "../servers/servers-context";
 import { useWindowPage } from "../window/window-page-context";
-import type { CreationPreference } from "./agent-creation-model";
+import type { CreationPreference, DevelopmentCreation } from "./agent-creation-model";
 import { AGENT_SELECTION_STORAGE_KEY, readAgentSelection, writeAgentSelection } from "./agent-selection";
 import { agentsPort } from "./agents-port";
 import {
@@ -145,6 +146,16 @@ const Agents = createSimpleContext({
       },
     });
     const agentStatus = createMemo(() => withHostAccounts(providerStatus(), hostAccounts.host()));
+    const platform = usePlatform();
+    /** A development build's own server starts a new agent on the development default, as its backend does. */
+    const developmentCreation = createMemo((): DevelopmentCreation | null =>
+      activeServer()?.kind === "local" && platform.appInfo()?.variant === "dev"
+        ? {
+            providerAvailable: (provider) =>
+              agentStatus().providers?.some((row) => row.id === provider && row.state === "available") ?? false,
+          }
+        : null,
+    );
     createEffect(providerStatus, hostAccounts.schedule);
     let openedAgentChatId: string | null = null;
     /** Agents whose delete can still be undone. Main still has them, so each roster read leaves them out. */
@@ -377,6 +388,7 @@ const Agents = createSimpleContext({
       setSettingsRequest,
       agentStatus,
       setAgentStatus,
+      developmentCreation,
       hostAccountLimits: hostAccounts.limits,
       refreshHostAccounts: hostAccounts.refresh,
       refreshHostAccountUsage: hostAccounts.refreshUsage,

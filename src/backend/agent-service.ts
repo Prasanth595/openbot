@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { agentProviderDescriptor } from "@openbot/contracts/agent-providers";
 import { sortConversationMessages } from "@openbot/contracts/conversation-order";
+import { developmentStartingModel } from "@openbot/contracts/development-defaults";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import type {
   AgentAccessLevel,
@@ -149,6 +150,7 @@ import { mcpServersFromGateway } from "./agent/mcp-tools";
 import { MemoryHold } from "./agent/memory-hold";
 import {
   creationModel,
+  developmentDefaultsApply,
   type ModelChoice,
   modelUnavailableError,
   type ProviderPreference,
@@ -2067,6 +2069,13 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
           );
           if (requested) {
             yield* lifecycleStep("check provider switch", () => this.#providers.requireProviderOn(requested.provider));
+            // The new-agent form names the development default's model but no effort, so the effort
+            // comes from that default, as it does for an agent that names no model.
+            const development = developmentStartingModel({
+              enabled: developmentDefaultsApply(this.#preference(), this.#developmentDefaults),
+              models: [requested.model],
+              providerAvailable: () => true,
+            });
             return yield* this.#store.updateAgent({
               agentId: agent.id,
               provider: requested.provider,
@@ -2074,7 +2083,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
               reasoningEffort:
                 input.reasoningEffort && requested.model.supportedReasoningEfforts.includes(input.reasoningEffort)
                   ? input.reasoningEffort
-                  : requested.model.defaultReasoningEffort,
+                  : (development?.model ?? requested.model).defaultReasoningEffort,
             });
           }
           const starting = this.#startingChoice();

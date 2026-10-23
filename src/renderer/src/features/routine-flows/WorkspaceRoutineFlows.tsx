@@ -22,7 +22,7 @@ import { desktopRoutineFlowsHost } from "./routine-flows-port";
 
 export function WorkspaceRoutineFlows() {
   const { t } = useText();
-  const { activeAgent, agentList, modelOptions, agentStatus, serverSetupChoice } = useAgents();
+  const { activeAgent, agentList, modelOptions, agentStatus, serverSetupChoice, developmentCreation } = useAgents();
   const { setupState } = useSetup();
   const { customProviders } = useCustomProviders();
   const { customAgents } = useCustomAgents();
@@ -30,7 +30,7 @@ export function WorkspaceRoutineFlows() {
   const { createAgentInPlace } = useAgentActions();
   /** A new agent starts on the model the agent form would pick, and the user can change it. */
   const newAgentModels = createMemo((): DiagramModelChoice | undefined => {
-    const initial = resolveCreationModel(serverSetupChoice() ?? setupState(), modelOptions());
+    const initial = resolveCreationModel(serverSetupChoice() ?? setupState(), modelOptions(), developmentCreation());
     return initial
       ? {
           options: modelOptions(),

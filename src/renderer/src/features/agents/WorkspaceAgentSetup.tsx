@@ -27,6 +27,7 @@ export function WorkspaceAgentSetup() {
     modelOptions,
     agentStatus,
     serverSetupChoice,
+    developmentCreation,
   } = useAgents();
   const { createAgent } = useAgentActions();
   const { setupState } = useSetup();
@@ -73,11 +74,12 @@ export function WorkspaceAgentSetup() {
       touched: modelTouched(),
       setup: serverSetupChoice() ?? setupState(),
       options: modelOptions(),
+      development: developmentCreation(),
       draft: agentSetupDraft(),
     }),
-    ({ touched, setup, options, draft }) => {
+    ({ touched, setup, options, development, draft }) => {
       if (touched) return;
-      const resolved = resolveCreationModel(setup, options);
+      const resolved = resolveCreationModel(setup, options, development);
       if (!resolved) return;
       if (draft.provider === resolved.provider && draft.model === resolved.model) return;
       setAgentSetupDraft({ ...draft, provider: resolved.provider, model: resolved.model });
