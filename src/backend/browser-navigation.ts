@@ -136,7 +136,8 @@ const watchNavigation = Effect.fn("Browser.watchNavigation")(
             () =>
               setImmediate(() => {
                 initiationPending = false;
-                if (!contents.isLoading()) complete();
+                // A closed tab settled the wait already, and its contents cannot be read.
+                if (!settled && !contents.isLoading()) complete();
               }),
             (error) =>
               setImmediate(() => {
