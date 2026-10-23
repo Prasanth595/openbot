@@ -70,6 +70,10 @@ export const messages = {
     "Questa richiesta supera il limite del contesto di instradamento. Seleziona un membro o invia una richiesta più breve.",
   "error.backend.channelTaskMemberRequired": "Scegli un membro per questa attività.",
   "error.backend.channelRoutingFailed": "L'instradamento non è riuscito. Scegli un membro o riprova.",
+  "error.backend.channelLeadTimedOut":
+    "Il responsabile del canale non ha risposto in tempo. Scegli un membro o riprova.",
+  "error.backend.channelLeadFailed":
+    "Il responsabile del canale non è riuscito a instradare questo messaggio. Scegli un membro o riprova.",
   "error.backend.channelRequestMemberRequired": "Scegli un membro per questa richiesta.",
   "error.backend.channelDeliveryNotCreated": "La consegna del canale non è stata creata.",
   "error.backend.channelAssignmentStopped": "Questa assegnazione del canale è stata interrotta o sostituita.",

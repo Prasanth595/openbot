@@ -21,7 +21,7 @@ import {
   type UpdateChannelMemoryInput,
 } from "@openbot/contracts/ipc";
 import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
-import { isFixedSourceText, sourceText } from "@openbot/i18n/source";
+import { isFixedSourceText, matchingSourceKeys, sourceText } from "@openbot/i18n/source";
 import { Deferred, Effect, Exit, Fiber, Result, Schema, Scope } from "effect";
 import { type ChannelOperationError, channelFailure, channelResult, channelSync } from "./channel-effects";
 import { ChannelHistory, type ChannelTextModel, isMemberThinking } from "./channel-history";
@@ -963,13 +963,11 @@ export class ChannelService {
             continue;
           }
           channel = yield* channelSync(() => this.store.get(channelId));
-          // Catalog text without a placeholder, such as an unavailable lead model or a timed-out
-          // routing turn, holds nothing from a provider, so the channel shows it. Any other cause
-          // goes to the redacted error path; without it no one could see why routing failed.
-          const shown =
-            error instanceof ChannelRoutingError || (error instanceof Error && isFixedSourceText(error.message));
-          if (!shown) this.hooks.error(error);
-          const detail = shown ? error.message : sourceText("error.backend.channelRoutingFailed");
+          // A cause without channel text goes to the redacted error path; without it no one could
+          // see why routing failed.
+          const shown = error instanceof ChannelRoutingError ? error.message : routingFailureText(error);
+          if (shown === null) this.hooks.error(error);
+          const detail = shown ?? sourceText("error.backend.channelRoutingFailed");
           yield* channelSync(() =>
             this.store.update(channel, {
               tasks: [{ ...task, state: "paused", error: detail }],
@@ -2444,6 +2442,20 @@ export class ChannelService {
     ]);
     yield* Scope.close(this.#scope, Exit.void);
   }, Effect.uninterruptible).bind(this);
+}
+
+/**
+ * The channel text for a failed routing turn, or null when the cause has none. Catalog text without
+ * a placeholder holds nothing from a provider, so the channel can show it. The routing turn runs as
+ * a profile generation, whose texts name a profile; those become channel texts.
+ */
+function routingFailureText(error: unknown): string | null {
+  if (!(error instanceof Error) || !isFixedSourceText(error.message)) return null;
+  if (error.message === sourceText("error.agent.profileTimedOut"))
+    return sourceText("error.backend.channelLeadTimedOut");
+  if (matchingSourceKeys(error.message).some((key) => key.startsWith("error.agent.profile")))
+    return sourceText("error.backend.channelLeadFailed");
+  return error.message;
 }
 
 function terminal(task: ChannelTask): boolean {
