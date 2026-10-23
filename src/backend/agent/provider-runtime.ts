@@ -26,6 +26,7 @@ import { startAcpAuthentication } from "./../acp-sign-in";
 import { type AgentClient, AgentProcessExitError, type AgentProvider } from "./../agent-client";
 import { CodexAppServerClient } from "./../app-server-client";
 import { type AgentCliInfo, type BundledProviderExecutables, CodexCliError, cliPathEnvironment } from "./../cli";
+import { readCursorUsage } from "./../cursor-usage";
 import { causeHelpers } from "../effect-boundary";
 import { McpHandoffLog } from "./../mcp-handoff-log";
 import { providerMcpServerName } from "./../mcp-provider-shapes";
@@ -850,6 +851,9 @@ export class ProviderRuntime implements ProviderPort {
                 deadline,
               ),
             );
+          } else if (provider === "cursor") {
+            // Cursor's usage is one HTTPS request with the CLI's token, so do not start the CLI for it.
+            usage = normalizeAccountUsage(yield* readCursorUsage().pipe(toProviderOperationFailed, deadline));
           } else {
             // Starting a provider that has no usage reading only to get nothing back cost a cold
             // start on every dock poll.
@@ -3088,7 +3092,12 @@ export class ProviderRuntime implements ProviderPort {
       }
       // The usage notice reports the limit only for a provider with a usage reading. Another
       // provider's line goes on to the error below, or nothing on screen would name the limit.
-      if (isUsageLimitDiagnostic(message) && agentProviderDescriptor(client.provider).reportsUsage) {
+      // Cursor's line goes on too: its reading has no on-demand or team limit.
+      if (
+        isUsageLimitDiagnostic(message) &&
+        client.provider !== "cursor" &&
+        agentProviderDescriptor(client.provider).reportsUsage
+      ) {
         stderrLogger.warn("A provider reported an exhausted usage limit.", { provider: client.provider, message });
         Effect.runFork(this.refreshUsageAfterLimit(client));
         return;

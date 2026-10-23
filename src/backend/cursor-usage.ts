@@ -82,7 +82,8 @@ export const readCursorUsage = Effect.fn("Cursor.readUsage")(function* () {
       Effect.gen(function* () {
         const response = yield* Effect.tryPromise({
           try: () =>
-            fetch(new URL(CURRENT_PERIOD_USAGE_PATH, endpoint), {
+            // Appended, not resolved: a resolved absolute path drops a path in the endpoint.
+            fetch(`${endpoint.replace(/\/+$/u, "")}${CURRENT_PERIOD_USAGE_PATH}`, {
               method: "POST",
               headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
               body: "{}",
