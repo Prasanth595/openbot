@@ -1,8 +1,10 @@
 {
-  "version": "0.48.1",
+  "version": "0.48.2",
   "highlights": [
-    "Channels route messages again when the lead agent uses a free OpenCode model.",
-    "Agent profiles that a free OpenCode model writes work again.",
-    "Did a channel show \"Routing failed. Choose a member or try again.\" after the last update? Update to fix it."
+    "Sign in to a site for your server's browser on this computer, for sites such as X that refuse a server sign-in.",
+    "Give an agent its own browser session, so two agents can use different accounts on the same site.",
+    "Agents move to a backup model on provider errors, and stuck OpenCode turns now end after 5 minutes.",
+    "Right-click a message to reply, copy, react or read it aloud, and duplicate a whole sidebar section.",
+    "Voice prompts and read-aloud replies now work on Linux."
   ]
 }

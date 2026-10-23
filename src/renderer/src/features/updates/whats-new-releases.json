@@ -1,5 +1,38 @@
 [
   {
+    "version": "0.48.2",
+    "date": "2026-10-23",
+    "notices": [],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "Sign in to a site for a server's browser on this computer: select \"Sign in on this computer\" in the browser's page menu.",
+          "Turn on \"Own browser session\" in an agent's settings to keep its sign-ins apart from other agents.",
+          "Right-click a message to reply, copy, react or read it aloud.",
+          "Duplicate a whole sidebar section from its menu.",
+          "Reset the usage limits of a Codex account from Settings → Providers when Codex gave it a reset credit.",
+          "Voice prompts and read-aloud replies work on Linux."
+        ]
+      },
+      {
+        "type": "changed",
+        "items": [
+          "When a provider error stops an agent, it moves to its next backup model when backup models are set to Automatic.",
+          "A webhook routine shows its setup as three steps, and \"Send test event\" checks it."
+        ]
+      },
+      {
+        "type": "fixed",
+        "items": [
+          "OpenBot no longer quits on macOS when an agent opens a page that redirects while it loads.",
+          "An OpenCode turn that stops sending anything ends after 5 minutes with an error.",
+          "MCP servers with a space in their name work with Gemini and other ACP agents."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.48.1",
     "date": "2026-10-22",
     "notices": [],
