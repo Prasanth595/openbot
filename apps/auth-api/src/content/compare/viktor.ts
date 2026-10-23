@@ -2,7 +2,7 @@ import { OPENBOT_LINKS } from "../../lib/landing-links";
 import type { Comparison } from "./comparison";
 
 // Every statement about Viktor here is taken from viktor.com: its home page, pricing page,
-// security page, documentation, privacy policy and general terms (both last updated
+// security page, changelog, documentation, privacy policy and general terms (both last updated
 // 2026-07-31); each page used is in `sources`. Viktor is a service of Zeta AI, Inc., a
 // Delaware corporation. Check them again, and move `checkedAt`, whenever this file changes.
 
@@ -17,7 +17,7 @@ export const VIKTOR_COMPARISON: Comparison = {
     "You want a free app that you can download today, with source code that you can read.",
   ],
   rivalPlans:
-    "Viktor chooses the models. Its security page names OpenAI, Anthropic and Google, and an admin sets the fast and the deep model for the workspace. You pay in credits: $100 in free credits to start, then a Team plan from $50 a month for 20,000 credits.",
+    "You choose from the models that Viktor offers, from OpenAI, Anthropic, Google and xAI, or connect your own OpenRouter key. An admin sets the default model for the workspace. You pay in credits: up to $100 in free credits to start, then a Team plan from $50 a month for 20,000 credits.",
   chooseRival: [
     "Your team works in Slack or Microsoft Teams, and you want one AI coworker that everyone mentions there.",
     "You need a ready connection to many business apps, such as Salesforce, HubSpot and Google Ads.",
@@ -31,7 +31,7 @@ export const VIKTOR_COMPARISON: Comparison = {
       openbot:
         "Use the plans you already have: ChatGPT, Claude, Gemini, Grok, Cursor or Cline. Or run free models and your own model through OpenCode. Choose one for each agent, and change it later.",
       rival:
-        "Viktor chooses the models. An admin can set the workspace's fast and deep model, and Viktor bills each task in credits.",
+        "Models from OpenAI, Anthropic, Google and xAI, or your own OpenRouter key. You cannot use a ChatGPT or Claude plan that you already pay for, and Viktor bills each task in credits.",
       better: "openbot",
     },
     {
@@ -40,14 +40,14 @@ export const VIKTOR_COMPARISON: Comparison = {
       openbot:
         "Free for noncommercial use; commercial use needs a license. Your agents use the plans you already pay for, so there is no charge for each task.",
       rival:
-        "$100 in free credits, then from $50 a month for 20,000 credits. Viktor says that 40,000 credits are about 80 to 400 tasks, and scheduled tasks use credits too.",
+        "Up to $100 in free credits, then from $50 a month for 20,000 credits. Viktor says that 40,000 credits are about 80 to 400 tasks, and scheduled tasks use credits too.",
       better: "openbot",
     },
     {
       icon: "laptop",
       topic: "Where agents work",
       openbot: "On the computer that runs OpenBot, or on a hosted OpenBot server in the EU.",
-      rival: "On Viktor's own cloud computer for your workspace, hosted on AWS in the US (us-east-1).",
+      rival: "On Viktor's own cloud computer for your workspace, in the US.",
       better: "openbot",
     },
     {
@@ -56,7 +56,7 @@ export const VIKTOR_COMPARISON: Comparison = {
       openbot:
         "Workspaces, chats and files stay in a database on your computer. The provider you choose gets the requests you send. Product analytics, with no chat content, are on by default and linked to your account when you sign in; you can turn them off.",
       rival:
-        "Stored in the US. Viktor reads every message in the Slack channels it joins, and up to about 90 days of earlier history. EU data residency is only on Enterprise contracts.",
+        "Stored in the US. Viktor can read all messages in the Slack channels it joins, not only those that mention it, and can get up to about 90 days of earlier history. EU data residency is only on Enterprise contracts.",
       better: "openbot",
     },
     {
@@ -93,7 +93,7 @@ export const VIKTOR_COMPARISON: Comparison = {
       icon: "globe",
       topic: "Who can use it",
       openbot:
-        "Anyone, in any country: OpenBot has no region lock. The desktop app is in 10 languages, and hosted servers run in the EU.",
+        "Anyone, in any country: OpenBot has no region lock. Each AI provider sets the countries for its own plan. The desktop app is in 10 languages, and hosted servers run in the EU.",
       rival: "Businesses only: its terms say that the service is not for consumers.",
       better: "openbot",
     },
@@ -106,14 +106,14 @@ export const VIKTOR_COMPARISON: Comparison = {
     },
   ],
   intro:
-    "Viktor is an AI coworker that lives in Slack and Microsoft Teams. Anyone on the team mentions it, and it does the work on its own cloud computer: reports, ad campaigns, bug triage, internal apps and invoices, with more than 9,800 connected apps. OpenBot also gives you AI agents that do real work. The difference is where they run, who holds your data, and how you pay. Viktor runs in the US, reads the channels it joins, and bills each task in credits. OpenBot runs a team of agents on your own computer, keeps your data there, and uses the AI plans you already pay for.",
+    "Viktor is an AI coworker that lives in Slack and Microsoft Teams. Anyone on the team mentions it, and it does the work on its own cloud computer: reports, ad campaigns, bug triage, internal apps and invoices, with more than 9,800 connected apps. OpenBot also gives you AI agents that do real work. The difference is where they run, who holds your data, and how you pay. Viktor runs in the US, can read the channels it joins, and bills each task in credits. OpenBot runs a team of agents on your own computer, keeps your data there, and uses the AI plans you already pay for.",
   sections: [
     {
       title: "Models and what you pay",
       openbot:
         "OpenBot runs the provider tools you already use, with the plans you already pay for: Codex with your ChatGPT plan, Claude Code with your Claude plan, Gemini with your Google AI Pro or Ultra plan, Grok CLI with your Grok account or an xAI API key, Cursor CLI with your Cursor plan or a Cursor API key, and Cline with your Cline account. OpenCode runs free models, or your own model on any OpenAI-compatible server, also one on your computer. You choose the provider, the model and the reasoning effort for each agent. OpenBot is free for noncommercial use, so a busy month does not cost more.",
       rival:
-        "Viktor chooses the models: its security page names OpenAI, Anthropic and Google. An admin can set which model answers fast requests and which answers deep ones, but you cannot use a plan that you already pay for. You pay in credits, shared by the whole workspace. You start with up to $100 in free credits. The Team plan starts at $50 a month for 20,000 credits and goes up to $30,000 a month; Enterprise costs more. Viktor says that a quick Slack question uses about 50 to 100 credits, a deep research report 500 to 2,000, and a full project 2,000 to 5,000. Scheduled tasks use credits each time they run, and unused credits roll over for one month only.",
+        "Viktor offers models from OpenAI, Anthropic, Google and xAI, and an admin sets the default model for the workspace. You can also connect your own OpenRouter key; those models are billed to your OpenRouter account. You cannot use a ChatGPT or Claude plan that you already pay for. You pay in credits, shared by the whole workspace. You start with up to $100 in free credits. The Team plan starts at $50 a month for 20,000 credits and goes up to $50,000 a month for 20 million credits; Enterprise has custom prices. Viktor says that a quick Slack question uses about 50 to 100 credits, a deep research report 500 to 2,000, and a full project 2,000 to 5,000. Scheduled tasks use credits each time they run, and unused credits roll over for one month only.",
       better: "openbot",
     },
     {
@@ -145,14 +145,14 @@ export const VIKTOR_COMPARISON: Comparison = {
       openbot:
         "OpenBot agents show a draft before they send a message for you. They send it after you approve it, or when you or a routine that you set up tells them to send. Before a payment, an agent reads back the item, price and total and asks you to confirm. A new agent has Full access: it does not ask before it runs a command. Set an agent to Ask first, and that agent asks you first; you answer in the chat or from a notification on your phone.",
       rival:
-        "Some built-in actions, such as joining a Slack channel, always need approval in Viktor. For each integration tool, an admin chooses if it runs on its own, needs approval, or never runs, and a user can click Always approve. Viktor's terms make you responsible for all messages and actions sent or taken through your account, and you must indemnify Viktor for any action it takes through a connected app under the permissions you set.",
+        "Some built-in actions, such as joining a Slack channel, always need approval in Viktor. For each integration tool, an admin chooses if it runs on its own, needs approval, or never runs, and a user who can edit that tool can click Always approve (not in Microsoft Teams). Viktor's terms make you responsible for all messages and actions sent or taken through your account, and you must defend Viktor against third-party claims that come from any action it takes through a connected app under the permissions you set.",
     },
     {
       title: "Integrations and company controls",
       openbot:
-        "OpenBot agents use MCP servers, plugins from the OpenBot catalog, and the tools on the computer that runs them. They can also answer in Slack, Discord and Telegram. OpenBot has no SOC 2 report: your data stays on a computer that you control, so your own security controls apply to it.",
+        "OpenBot agents use MCP servers, plugins from the OpenBot catalog, and the tools on the computer that runs them. They can also answer in Slack, Discord and Telegram. OpenBot has no SOC 2 report. On your own computer, your own security controls apply to your data.",
       rival:
-        "Viktor connects to more than 9,800 apps and builds a custom integration for one it does not have. It has a SOC 2 Type 1 report; SOC 2 Type 2 and ISO 27001 are in progress. Enterprise adds SAML single sign-on, audit logs, a DPA and an SLA.",
+        "Viktor connects to more than 9,800 apps and builds a custom integration for one it does not have. It has a SOC 2 Type 1 report; SOC 2 Type 2 and ISO 27001 are in progress. Enterprise adds SAML single sign-on, role-based access, audit logs and a DPA.",
       better: "rival",
     },
   ],
@@ -170,7 +170,7 @@ export const VIKTOR_COMPARISON: Comparison = {
     {
       question: "Can I use my ChatGPT or Claude plan with Viktor?",
       answer:
-        "No. Viktor chooses the models and bills them in credits. OpenBot runs Codex with your ChatGPT plan, Claude Code with your Claude plan, and Gemini, Grok, Cursor and Cline with your own accounts.",
+        "No. Viktor bills its models in credits, or you connect your own OpenRouter key. OpenBot runs Codex with your ChatGPT plan, Claude Code with your Claude plan, and Gemini, Grok, Cursor and Cline with your own accounts.",
     },
     {
       question: "Does Viktor read all my Slack messages?",
@@ -197,8 +197,11 @@ export const VIKTOR_COMPARISON: Comparison = {
     { label: "Viktor", url: "https://viktor.com/" },
     { label: "Viktor pricing", url: "https://viktor.com/pricing" },
     { label: "Viktor security", url: "https://viktor.com/security" },
+    { label: "Viktor changelog", url: "https://viktor.com/changelog" },
     { label: "Viktor approvals", url: "https://viktor.com/docs/approvals" },
+    { label: "Viktor integration permissions", url: "https://viktor.com/docs/integration-permissions" },
     { label: "Viktor chat commands", url: "https://viktor.com/docs/chat-commands" },
+    { label: "Viktor enterprise", url: "https://viktor.com/enterprise" },
     { label: "Viktor privacy policy", url: "https://viktor.com/legal/privacy" },
     { label: "Viktor general terms", url: "https://viktor.com/legal/general-terms" },
     { label: "OpenBot privacy notes", url: OPENBOT_LINKS.privacy },
