@@ -537,7 +537,7 @@ const Conversation = createSimpleContext({
       const windowMode = conversations[agentId]?.windowMode ?? "latest";
       // A snapshot carries the latest part of the thread. An agent that is not open shows none of it,
       // and opening it reads the latest page again, so only the tail is converted and kept. A window
-      // around an older message, from a search, keeps the whole snapshot.
+      // around an older message, from a search, converts the whole snapshot.
       const sourceMessages =
         inactive && windowMode === "latest" && snapshot.messages.length > INACTIVE_SNAPSHOT_TAIL
           ? snapshot.messages.slice(-INACTIVE_SNAPSHOT_TAIL)

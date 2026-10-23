@@ -62,12 +62,11 @@ export function missingReplyOriginals(page: Pick<ConversationPage, "messages" | 
  *
  * A snapshot is only the tail of the conversation: main caps it at its cache
  * limit. Loaded messages before the first one it shares are older than that
- * tail, so they stay. What the user is looking at decides how much of the
- * snapshot applies: a window loaded *around* a message keeps only messages
- * already on screen, because anything else in the snapshot belongs to the far
- * end of a gap. A window at the latest end keeps those, plus everything after
- * the last one it recognises - that is the new arrivals. A latest window that
- * shares nothing with the snapshot is replaced by it.
+ * tail, so they stay. The window keeps the snapshot messages already on
+ * screen, plus everything after the last one it recognises - that is the new
+ * arrivals. A window loaded *around* a message takes them only when its last
+ * message is in the snapshot; otherwise they belong to the far end of a gap. A
+ * latest window that shares nothing with the snapshot is replaced by it.
  */
 export function windowedSnapshotMessages<Message extends { id: string }>(
   loaded: readonly Message[],
@@ -79,7 +78,9 @@ export function windowedSnapshotMessages<Message extends { id: string }>(
   if (mode === "latest" && firstShared === -1) return [...snapshot];
   const older = loaded.slice(0, firstShared === -1 ? loaded.length : firstShared);
   const loadedIds = new Set(loaded.map((message) => message.id));
-  if (mode === "around") return [...older, ...snapshot.filter((message) => loadedIds.has(message.id))];
-  const lastLoadedIndex = snapshot.reduce((last, message, index) => (loadedIds.has(message.id) ? index : last), -1);
+  const takesArrivals = mode === "latest" || snapshotIds.has(loaded.at(-1)?.id ?? "");
+  const lastLoadedIndex = takesArrivals
+    ? snapshot.reduce((last, message, index) => (loadedIds.has(message.id) ? index : last), -1)
+    : snapshot.length;
   return [...older, ...snapshot.filter((message, index) => loadedIds.has(message.id) || index > lastLoadedIndex)];
 }
