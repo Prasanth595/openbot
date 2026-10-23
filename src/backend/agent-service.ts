@@ -309,6 +309,8 @@ export interface AgentServiceOptions {
    * agent, as the Team API gives it for their own save. Omitted, `manage`.
    */
   channelPersonAgentLevel?: (personId: string, agentId: string) => AgentAccessLevel;
+  /** Whether that person uses a remote client, which has only the released routine schedules. Omitted, no. */
+  channelRemotePerson?: (personId: string) => boolean;
   deleteWithRevokedApproval?: (
     agentId: string,
     remove: () => Effect.Effect<void, AgentRemovalFailed>,
@@ -982,6 +984,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       },
       memoriesChanged: (channelId) => this.#emit({ type: "channel-memories-changed", channelId }),
       ...(options.channelPersonAgentLevel ? { personAgentLevel: options.channelPersonAgentLevel } : {}),
+      ...(options.channelRemotePerson ? { remotePerson: options.channelRemotePerson } : {}),
       routines: {
         list: (channelId) => this.#channelRoutines.list(channelId),
         create: (input) => this.#channelRoutines.create(input),

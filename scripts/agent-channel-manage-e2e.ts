@@ -150,7 +150,7 @@ interface ChannelToolArgs {
   routineId?: string;
   name?: string;
   instruction?: string;
-  schedule?: { kind: "daily"; time: string };
+  schedule?: { kind: "daily"; time: string } | { kind: "once"; date: string; time: string };
   active?: boolean;
 }
 
@@ -228,6 +228,7 @@ const agents = new AgentService({
   // The limited member sees Tester but cannot chat with it, and does not see the other agents.
   channelPersonAgentLevel: (personId, agentId) =>
     personId !== LIMITED.id ? "manage" : agentId === limitedVisibleAgentId ? "view" : "none",
+  channelRemotePerson: (personId) => personId === LIMITED.id,
 });
 
 const channels = () => agents.channels;
@@ -457,6 +458,26 @@ try {
       unseen.text.includes("is not a member") &&
       channelOf(channelId).members.some((member) => member.agentId === writer.id),
     unseen.text,
+  );
+  // The Team API has no one-time channel routine, so a team member's request cannot make one.
+  const remoteOnce = await callTool(
+    "one-time routine for a team member",
+    channelId,
+    lead.id,
+    "channel_create_routine",
+    {
+      name: "Reminder",
+      instruction: "Remind the channel.",
+      schedule: { kind: "once", date: "2099-01-01", time: "09:00" },
+    },
+    LIMITED,
+  );
+  pass(
+    "A team member's request cannot make a one-time channel routine",
+    !remoteOnce.success &&
+      remoteOnce.text.includes("one-time channel routine") &&
+      !agents.listChannelRoutines(channelId).some((item) => item.name === "Reminder"),
+    remoteOnce.text,
   );
 
   // 7. Removing the lead leaves the channel without one.

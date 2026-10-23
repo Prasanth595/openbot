@@ -88,6 +88,8 @@ export interface ChannelHooks {
    * this computer's user reaches the channel.
    */
   personAgentLevel?(personId: string, agentId: string): AgentAccessLevel;
+  /** Whether the person who asked uses a remote client, which has only the released routine schedules. */
+  remotePerson?(personId: string): boolean;
   /** The schedule routines of the channels, for the routine tools. Omitted, those tools fail. */
   routines?: ChannelRoutineToolPort;
   error(error: unknown): void;
@@ -1907,7 +1909,9 @@ export class ChannelService {
         channelId,
         Effect.gen({ self: this }, function* () {
           yield* channelSync(open);
-          const outcome = yield* channelSync(() => channelRoutineTool(routines, channelId, tool, args));
+          const outcome = yield* channelSync(() =>
+            channelRoutineTool(routines, channelId, tool, args, this.hooks.remotePerson?.(person.id) ?? false),
+          );
           result = outcome.result;
           const changed = outcome.note;
           if (!changed) return;

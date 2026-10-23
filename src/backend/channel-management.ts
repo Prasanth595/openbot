@@ -10,6 +10,7 @@ import {
   type ChannelTask,
   type CreateChannelRoutineInput,
   type DeleteChannelRoutineInput,
+  isReleasedRoutineSchedule,
   type UpdateChannelRoutineInput,
 } from "@openbot/contracts/ipc";
 import { type DynamicRecord, isBoolean, isString } from "@openbot/contracts/runtime-values";
@@ -160,10 +161,23 @@ export function channelRoutineTool(
   channelId: string,
   tool: string,
   value: unknown,
+  remotePerson: boolean,
 ): { result: unknown; note?: ChannelChangeNote } {
+  const all = routines.list(channelId);
+  // A one-time routine stays on this computer: the Team API neither lists nor changes it, so a team
+  // member's request works only with the routines their own app has.
+  const visible = remotePerson ? all.filter((routine) => isReleasedRoutineSchedule(routine.trigger.schedule)) : all;
+  const schedule = (input: unknown) => {
+    const parsed = routineToolSchedule(input);
+    if (remotePerson && !isReleasedRoutineSchedule(parsed))
+      throw new RoutineInputError(
+        "The person who asked uses OpenBot on another computer, which cannot show a one-time channel routine. Use a repeating schedule.",
+      );
+    return parsed;
+  };
   if (tool === "channel_list_routines") {
     routineToolArguments(value, []);
-    return { result: { routines: routines.list(channelId) } };
+    return { result: { routines: visible } };
   }
   if (tool === "channel_create_routine") {
     const args = routineToolArguments(value, [
@@ -178,7 +192,7 @@ export function channelRoutineTool(
     const active = args.active ?? true;
     if (!isBoolean(active)) throw new RoutineInputError("active must be a boolean.");
     const name = routineToolString(args.name, "name", INPUT_LIMITS.routineName, "A routine name is required.");
-    requireFreeName(routines.list(channelId), name);
+    requireFreeName(all, name);
     const routine = routines.create({
       channelId,
       name,
@@ -193,7 +207,7 @@ export function channelRoutineTool(
         args.timezone === undefined
           ? routines.timezone()
           : routineToolString(args.timezone, "timezone", 128, "A routine timezone is required."),
-      schedule: routineToolSchedule(args.schedule),
+      schedule: schedule(args.schedule),
       ...routineToolPolicies(args),
     });
     return {
@@ -209,8 +223,7 @@ export function channelRoutineTool(
       : ["routineId"],
   );
   const routineId = routineToolString(args.routineId, "routineId", INPUT_LIMITS.identifier, "routineId is required.");
-  const existing = routines.list(channelId);
-  const current = existing.find((routine) => routine.id === routineId);
+  const current = visible.find((routine) => routine.id === routineId);
   if (!current)
     throw new RoutineInputError(
       `This channel has no scheduled routine with routineId ${routineId}. Call channel_list_routines.`,
@@ -227,7 +240,7 @@ export function channelRoutineTool(
   const input: UpdateChannelRoutineInput = { channelId, routineId, ...routineToolPolicies(args) };
   if (args.name !== undefined) {
     input.name = routineToolString(args.name, "name", INPUT_LIMITS.routineName, "A routine name is required.");
-    if (input.name.trim().toLowerCase() !== current.name.trim().toLowerCase()) requireFreeName(existing, input.name);
+    if (input.name.trim().toLowerCase() !== current.name.trim().toLowerCase()) requireFreeName(all, input.name);
   }
   if (args.instruction !== undefined)
     input.instruction = routineToolString(
@@ -240,7 +253,7 @@ export function channelRoutineTool(
     if (!isBoolean(args.active)) throw new RoutineInputError("active must be a boolean.");
     input.active = args.active;
   }
-  if (args.schedule !== undefined) input.schedule = routineToolSchedule(args.schedule);
+  if (args.schedule !== undefined) input.schedule = schedule(args.schedule);
   if (Object.keys(input).length === 2) throw new RoutineInputError("At least one routine update is required.");
   const routine = routines.update(input);
   return {

@@ -1518,15 +1518,24 @@ export class HostService extends EventEmitter<HostEvents> {
    * person who is no longer an active member of the team has none.
    */
   channelPersonAgentLevel(personId: string, agentId: string): AgentAccessLevel {
-    if (personId === SIGNED_OUT_CHANNEL_MEMBER_ID) return "manage";
-    try {
-      if (personId === `local-user:${this.#options.getSignedInUser().id}`) return "manage";
-    } catch {
-      // Signed out: the person is a team member or nobody this computer knows.
-    }
+    if (!this.channelPersonIsRemote(personId)) return "manage";
     const member = this.#options.store.getMember(personId);
     if (!member || member.disabled) return "none";
     return this.#api.agentLevel(member, agentId);
+  }
+
+  /**
+   * Whether `personId`, who wrote a channel request, is someone other than this computer's user: a
+   * team member, whose app has only what the Team API gives it.
+   */
+  channelPersonIsRemote(personId: string): boolean {
+    if (personId === SIGNED_OUT_CHANNEL_MEMBER_ID || personId === this.#findCurrentMemberId()) return false;
+    try {
+      return personId !== `local-user:${this.#options.getSignedInUser().id}`;
+    } catch {
+      // Signed out: the person is a team member or nobody this computer knows.
+      return true;
+    }
   }
 
   /** The channel list as the host user reads it, as the IPC list does. Empty without channels. */

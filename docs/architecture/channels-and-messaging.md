@@ -173,7 +173,9 @@ channel. A member change is a `save` through the command queue, with the draft r
 channel when its turn comes. The caller cannot remove itself or an owner of a task above its own,
 and removing the lead clears the lead. An agent that a person adds must be one that person can chat
 with, and one they remove must be one they can see: main answers `personAgentLevel` with the level
-their own Team API save has (`HostService.channelPersonAgentLevel`). A retried call finds the
+their own Team API save has (`HostService.channelPersonAgentLevel`). For a team member's request,
+the routine tools do not list, make or change a one-time routine, which the Team API does not carry
+(`HostService.channelPersonIsRemote`). A retried call finds the
 receipt of its change and changes nothing again. Each change
 writes a `channel-change` note in the same commit, with the agent as author and a source text that
 names the agent, the change and the person. Clients show it as an activity row, and it is not
