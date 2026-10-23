@@ -402,7 +402,7 @@ const newDiagram: Diagram = { ...succeededDiagram, id: "diagram-new", lastRuns: 
 const emptyDiagram: Diagram = {
   ...succeededDiagram,
   id: "diagram-empty",
-  name: "Untitled diagram",
+  name: "Chief",
   nodes: [],
   edges: [],
   lastRuns: [],
@@ -553,6 +553,7 @@ function InteractiveDiagram(props: {
   owner?: AgentProfile | undefined;
   assistant?: boolean;
   editable?: boolean;
+  onCreateRoutine?: () => void;
 }) {
   const [diagram, setDiagram] = createStore<Diagram>(structuredClone(untrack(() => props.diagram)));
   const [chat, setChat] = createStore({
@@ -658,6 +659,7 @@ function InteractiveDiagram(props: {
       now={NOW}
       agents={agents}
       editable={props.editable}
+      onCreateRoutine={props.onCreateRoutine}
       assistant={
         props.assistant === false
           ? undefined
@@ -968,9 +970,19 @@ export const WebhookRoutine: Story = {
   decorators: [(Story) => <div style={{ display: "flex", height: "100vh" }}>{Story()}</div>],
 };
 
+/**
+ * An agent with no routine yet: a faint morning brief builds itself behind the pitch, one run
+ * passes through it, and it starts again. Under reduced motion it shows the finished run.
+ */
 export const Empty: Story = {
-  render: () => <InteractiveDiagram diagram={emptyDiagram} />,
+  render: () => <InteractiveDiagram diagram={emptyDiagram} owner={chief} onCreateRoutine={fn()} />,
   decorators: [(Story) => <div style={{ display: "flex", height: "100vh" }}>{Story()}</div>],
+};
+
+/** The same canvas in a narrow pane: a smaller title and a fainter diagram. */
+export const EmptyNarrow: Story = {
+  render: () => <InteractiveDiagram diagram={emptyDiagram} owner={chief} onCreateRoutine={fn()} />,
+  decorators: [(Story) => <div style={{ display: "flex", width: "640px", height: "100vh" }}>{Story()}</div>],
 };
 
 /** A viewer who cannot edit: the ports and tools are off, and there is no assistant. */

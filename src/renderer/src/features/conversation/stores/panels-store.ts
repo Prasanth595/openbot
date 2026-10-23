@@ -27,7 +27,8 @@ const { t, errorMessage } = currentText();
 
 export interface RoutineSettingsRequest {
   agentId: string;
-  routineId: string;
+  /** Null starts a new routine. */
+  routineId: string | null;
   routineName: string;
   nonce: number;
 }
@@ -211,14 +212,14 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
     setActiveRightPanel("task", agentId);
   }
 
-  function openRoutineSettings(routine: { routineId: string; name: string }): void {
+  function openRoutineSettings(routine: { routineId: string; name: string } | "new"): void {
     const agentId = deps.props.agent?.id;
     if (!agentId) return;
     routineSettingsRequestNonce += 1;
     setRoutineSettingsRequest({
       agentId,
-      routineId: routine.routineId,
-      routineName: routine.name,
+      routineId: routine === "new" ? null : routine.routineId,
+      routineName: routine === "new" ? "" : routine.name,
       nonce: routineSettingsRequestNonce,
     });
     setActiveRightPanel("settings", agentId);
