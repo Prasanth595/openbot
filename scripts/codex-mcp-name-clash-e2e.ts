@@ -117,7 +117,7 @@ async function startHttpMcp() {
       tools: [{ name: "ping", inputSchema: { type: "object", properties: {} } }],
     }));
     mcp.setRequestHandler(CallToolRequestSchema, async () => ({ content: [{ type: "text", text: "pong" }] }));
-    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
+    const transport = new StreamableHTTPServerTransport({ enableJsonResponse: true });
     response.on("close", () => {
       void transport.close();
       void mcp.close();
