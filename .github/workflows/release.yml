@@ -72,6 +72,8 @@ jobs:
       - name: Validate release version
         id: release
         shell: bash
+        env:
+          DISCORD_RELEASE_ROLE_ID: ${{ vars.DISCORD_RELEASE_ROLE_ID }}
         run: |
           package_version="$(bun -p 'require("./package.json").version')"
           tag_version="${GITHUB_REF_NAME#v}"
@@ -1065,6 +1067,7 @@ jobs:
       - name: Post the announcement
         env:
           DISCORD_RELEASE_WEBHOOK_URL: ${{ secrets.DISCORD_RELEASE_WEBHOOK_URL }}
+          DISCORD_RELEASE_ROLE_ID: ${{ vars.DISCORD_RELEASE_ROLE_ID }}
           RELEASE_VERSION: ${{ needs.validate.outputs.release_version }}
         run: bun scripts/discord-release-announcement.ts send "$RELEASE_VERSION"
 

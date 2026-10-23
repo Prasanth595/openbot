@@ -46,6 +46,14 @@ for (const name of [
     failures.push(`GitHub release secret ${name} is missing`);
   }
 }
+// The Discord post mentions this role. Without it, the post job fails after the release.
+let releaseRoleId = "";
+try {
+  releaseRoleId = run("gh", ["variable", "get", "DISCORD_RELEASE_ROLE_ID"]);
+} catch {
+  // `gh` fails when the variable does not exist.
+}
+if (!releaseRoleId) failures.push("GitHub repository variable DISCORD_RELEASE_ROLE_ID is missing");
 
 try {
   const productionSecrets = run("gh", ["secret", "list", "--env", "cloudflare-production"]);

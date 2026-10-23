@@ -457,17 +457,27 @@ required upgrade step first. Use the rules of the post-update notes: do not copy
 developer setup, internal paths, credentials, or unpublished plans. Replace the highlights of the
 previous release; the file holds only one version.
 
-`scripts/discord-release-announcement.ts` builds the message: `@everyone`, the title
-`OpenBot vx.y.z is out`, the highlights, and a link to the version on `/changelog`. Run
+`scripts/discord-release-announcement.ts` builds the message: a mention of the `Release Pings`
+role, the title `OpenBot vx.y.z is out`, the highlights, and a link to the version on `/changelog`.
+It notifies only that role, not `@everyone` or `@here`. Run
 `bun scripts/discord-release-announcement.ts check x.y.z` to see it. The tag workflow and
 `bun run release:preflight` stop when the file is not for the release version, has fewer than 3 or
 more than 5 highlights, has a highlight that is empty or has a placeholder, a line break or a
-mention, or makes a message longer than 2000 characters. After the GitHub Release, the Docker image
-and the boat snapshot are published, the `discord-announce` job posts the message as OpenBot
-through the channel webhook in the `DISCORD_RELEASE_WEBHOOK_URL` secret of the `release`
-environment. To make the webhook, open the channel settings in Discord, then
-Integrations > Webhooks, and name it `OpenBot` with the OpenBot icon. A failed post does not undo
-the release: re-run the job. A re-run after a successful post posts the message again.
+mention, or makes a message longer than 2000 characters. `bun run release:preflight` also stops
+when the `DISCORD_RELEASE_ROLE_ID` repository variable does not exist, and the tag workflow stops
+when it is set and is not a Discord role ID. After the GitHub Release, the Docker image and the
+boat snapshot are published, the `discord-announce` job posts the message as OpenBot through the
+channel webhook in the `DISCORD_RELEASE_WEBHOOK_URL` secret of the `release` environment. The job
+fails, and posts nothing, when `DISCORD_RELEASE_ROLE_ID` is not set. A failed post does not undo the
+release: re-run the job. A re-run after a successful post posts the message again.
+
+One-time setup:
+
+1. In Discord, open the settings of the announcement channel, then Integrations > Webhooks. Make a
+   webhook named `OpenBot` with the OpenBot icon. Add its URL as the secret
+   `DISCORD_RELEASE_WEBHOOK_URL` of the `release` environment.
+2. In Discord, turn on Developer Mode, open Server Settings > Roles, right-click `Release Pings` and
+   select Copy Role ID. Add the ID as the repository variable `DISCORD_RELEASE_ROLE_ID`.
 
 The mobile app has its own post, file, webhook and workflow. It waits until both stores have the
 version. See [the mobile Discord announcement](../apps/mobile/README.md#discord-announcement).
