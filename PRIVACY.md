@@ -28,11 +28,12 @@ sign-in code, to the host through the same encrypted host connection, not throug
 Worker. A Slack or Discord install sends its sealed grant to the host on the same path; the user's
 computer cannot open it. Neither computer logs the code, and the host keeps the grant.
 When a member of a joined server selects "Sign in on this computer" in that server's browser, the
-desktop app opens the site in a window on their computer, with a session in memory only. After Done,
-it sends the cookies of that site, and of no other site, to the host through the same encrypted host
-connection, not through the account Worker. The host sets them in the browser session of the tab,
-which every agent and member of the server can use. Neither computer logs the cookie values. The
-desktop app then removes the window's session.
+desktop app opens the site in a window on their computer, with a session in memory only. When the
+window finds a completed sign-in, or when the member selects Done, it sends the cookies of that site,
+and of no other site, to the host through the same encrypted host connection, not through the account
+Worker. The host sets them in the browser session of the tab: the shared session, which every agent
+and member of the server can use, or the session of an agent that has a browser session of its own.
+Neither computer logs the cookie values. The desktop app then removes the window's session.
 To show each server's state, the browser also keeps a status connection to each host of the account
 that no tab has open, as the mobile app does; the host then shows the member as present. Host logos
 come from the account Worker to members of the host, and the browser can cache them.
