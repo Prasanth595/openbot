@@ -84,6 +84,8 @@ export const ANTIGRAVITY_ACP_FLAVOR: AcpFlavor = {
   // Antigravity keeps session/prompt open while background tasks run. Its text must not wait for
   // that response.
   streamAnswerBeforePromptReturns: true,
+  // A silent prompt can be a background task that still runs, so the turn is not ended as stalled.
+  promptOpenForBackgroundTasks: true,
   // Antigravity 1.3.0 sends `usage_update` but has no ACP method or command that compacts.
   contextCompaction: "handoff",
 };

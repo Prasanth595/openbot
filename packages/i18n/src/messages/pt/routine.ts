@@ -245,7 +245,6 @@ export const messages = {
   "routine.settings.webhookSummaryAny": "Quando um webhook chegar",
   "routine.trigger.change": "Mudar gatilho",
   "routine.trigger.groupSchedule": "Agendamento",
-  "routine.trigger.groupAdvanced": "Avançado",
   "routine.trigger.onceDescription": "Em uma data e hora escolhidas",
   "routine.trigger.hourlyDescription": "A cada hora dentro das horas escolhidas",
   "routine.trigger.dailyDescription": "Todos os dias em um horário escolhido",

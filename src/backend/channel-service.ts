@@ -23,7 +23,7 @@ import {
   type UpdateChannelMemoryInput,
 } from "@openbot/contracts/ipc";
 import { type DynamicRecord, isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
-import { sourceText } from "@openbot/i18n/source";
+import { isFixedSourceText, matchingSourceKeys, sourceText } from "@openbot/i18n/source";
 import { Deferred, Effect, Exit, Fiber, Result, Schema, Scope } from "effect";
 import { type ChannelOperationError, channelFailure, channelResult, channelSync } from "./channel-effects";
 import { ChannelHistory, type ChannelTextModel, isMemberThinking } from "./channel-history";
@@ -989,8 +989,11 @@ export class ChannelService {
             continue;
           }
           channel = yield* channelSync(() => this.store.get(channelId));
-          const detail =
-            error instanceof ChannelRoutingError ? error.message : "Routing failed. Choose a member or try again.";
+          // A cause without channel text goes to the redacted error path; without it no one could
+          // see why routing failed.
+          const shown = error instanceof ChannelRoutingError ? error.message : routingFailureText(error);
+          if (shown === null) this.hooks.error(error);
+          const detail = shown ?? sourceText("error.backend.channelRoutingFailed");
           yield* channelSync(() =>
             this.store.update(channel, {
               tasks: [{ ...task, state: "paused", error: detail }],
@@ -2560,6 +2563,21 @@ export class ChannelService {
     ]);
     yield* Scope.close(this.#scope, Exit.void);
   }, Effect.uninterruptible).bind(this);
+}
+
+/**
+ * The channel text for a failed routing turn, or null when the cause has none. Backend catalog text
+ * without a placeholder holds nothing from a provider, so the channel can show it. The routing turn
+ * runs as a profile generation, whose texts name a profile; those become channel texts. Provider
+ * texts can also name a profile, so they are not shown.
+ */
+function routingFailureText(error: unknown): string | null {
+  if (!(error instanceof Error) || !isFixedSourceText(error.message)) return null;
+  if (error.message === sourceText("error.agent.profileTimedOut"))
+    return sourceText("error.backend.channelLeadTimedOut");
+  const keys = matchingSourceKeys(error.message);
+  if (keys.some((key) => key.startsWith("error.agent.profile"))) return sourceText("error.backend.channelLeadFailed");
+  return keys.some((key) => key.startsWith("error.backend.")) ? error.message : null;
 }
 
 function terminal(task: ChannelTask): boolean {

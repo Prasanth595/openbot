@@ -573,7 +573,10 @@ export class UpdateService extends EventEmitter<UpdateServiceEvents> {
           if (this.#checkRequest) yield* Deferred.await(this.#checkRequest).pipe(Effect.catch(() => Effect.void));
           if (this.#installGeneration !== generation) return;
           this.#installHandedOver = true;
-          yield* updateSync(() => this.#updater.quitAndInstall(false, true));
+          // Silent, so the assisted Windows installer shows no page and opens the app again: it ignores
+          // the force-run flag in a visible run. Other updaters only relaunch, now from `true` and not
+          // from `autoRunAppAfterInstall`, which is also `true`.
+          yield* updateSync(() => this.#updater.quitAndInstall(true, true));
           this.#armPhaseTimer();
         }),
       );

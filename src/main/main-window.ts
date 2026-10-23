@@ -280,8 +280,9 @@ export function createMainWindowController({
         window.webContents.inspectElement(params.x, params.y);
         return;
       }
-      // The chat has no custom menu, so selected text would have no way to reach the clipboard.
-      // The native edit menu covers copy, select-all and link copying; anything else keeps no menu.
+      // A chat message opens its own menu, but leaves selected text and links to this one
+      // (`keepNativeMenu` in `ChatMessageRow`). The native edit menu covers copy, select-all and
+      // link copying; anything else keeps no menu.
       const items = chatContextMenuItems({
         selectionText: params.selectionText,
         isEditable: params.isEditable,

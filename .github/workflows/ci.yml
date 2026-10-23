@@ -373,6 +373,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: bun run test:routine-fresh-session
 
+      - name: Run the routine failure report E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:routine-report-failure
+
       - name: Run the agent webhook routine E2E test
         if: ${{ !cancelled() }}
         run: bun run test:agent-webhook-routine
@@ -381,9 +385,17 @@ jobs:
         if: ${{ !cancelled() }}
         run: bun run test:agent-channel-manage
 
+      - name: Run the agent profile accounts E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:agent-profile-accounts
+
       - name: Run the Claude usage after a resume E2E test
         if: ${{ !cancelled() }}
         run: bun run test:claude-usage-resume
+
+      - name: Run the backup model failover E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:backup-model-failover
 
       - name: Run the ZIP attachment E2E test
         if: ${{ !cancelled() }}
@@ -393,9 +405,21 @@ jobs:
         if: ${{ !cancelled() }}
         run: bun run test:agent-mcp-tools
 
+      - name: Run the agent bulk settings E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:agent-update-agents
+
       - name: Run the Gemini usage E2E test
         if: ${{ !cancelled() }}
         run: bun run test:antigravity-usage
+
+      - name: Run the Cursor usage E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:cursor-usage
+
+      - name: Run the Pi sign-in outside OpenBot E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:pi-sign-in-watch
 
       - name: Upload the reports
         if: always()
@@ -419,12 +443,18 @@ jobs:
             .openbot-build/codex-missing-rollout-e2e/
             .openbot-build/codex-usage-metering-e2e/
             .openbot-build/routine-fresh-session-e2e/
+            .openbot-build/routine-report-failure-e2e/
             .openbot-build/agent-webhook-routine-e2e/
             .openbot-build/agent-channel-manage-e2e/
+            .openbot-build/agent-profile-accounts-e2e/
             .openbot-build/claude-usage-resume-e2e/
+            .openbot-build/backup-model-failover-e2e/
             .openbot-build/zip-attachment-e2e/
             .openbot-build/agent-mcp-tools-e2e/
+            .openbot-build/agent-update-agents-e2e/
             .openbot-build/antigravity-usage-e2e/
+            .openbot-build/cursor-usage-e2e/
+            .openbot-build/pi-sign-in-watch-e2e/
           if-no-files-found: ignore
 
   provider-fakes-e2e:
@@ -465,6 +495,14 @@ jobs:
         if: ${{ !cancelled() }}
         run: bun run test:acp-flavors
 
+      - name: Run the ACP MCP server names E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:acp-mcp-names
+
+      - name: Run the ACP turn stall E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:acp-turn-stall
+
       - name: Run the ACP instructions once E2E test
         if: ${{ !cancelled() }}
         run: bun run test:acp-instructions-once
@@ -485,6 +523,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: bun run test:opencode-downgraded-session
 
+      - name: Run the OpenCode service failure E2E test
+        if: ${{ !cancelled() }}
+        run: bun run test:opencode-service-failure
+
       - name: Run the Cline free models E2E test
         if: ${{ !cancelled() }}
         run: bun run test:cline-free-models
@@ -504,11 +546,14 @@ jobs:
             .openbot-build/codex-login-path-e2e/
             .openbot-build/acp-additional-directories-e2e/
             .openbot-build/acp-flavor-e2e/
+            .openbot-build/acp-mcp-server-names-e2e/
+            .openbot-build/acp-turn-stall-e2e/
             .openbot-build/acp-instructions-once-e2e/
             .openbot-build/muse-instructions-once-e2e/
             .openbot-build/provider-conformance-e2e/
             .openbot-build/opencode-expired-key-e2e/
             .openbot-build/opencode-downgraded-session-e2e/
+            .openbot-build/opencode-service-failure-e2e/
             .openbot-build/cline-free-models-e2e/
             .openbot-build/provider-transcript-replay-e2e/
           if-no-files-found: ignore

@@ -7,6 +7,8 @@ export const messages = {
   "status.agent.contextCleared": "Contexte effacé. Une nouvelle discussion commence ici.",
   "status.agent.modelSwitchedForLimit": "Limite d’utilisation atteinte. Passage à {model}.",
   "status.agent.modelReturnedAfterLimit": "Limite d’utilisation terminée. Retour à {model}.",
+  "status.agent.modelSwitchedForError": "Erreur du fournisseur. Passage à {model}.",
+  "status.agent.modelReturnedAfterError": "Retour à {model} après l’erreur du fournisseur.",
   "status.agent.marketplaceSuggested": "Application de la Marketplace suggérée : {app}.",
   "status.agent.channelMemberAdded": "{agent} a ajouté {member} au canal. {person} l’a demandé.",
   "status.agent.channelMemberRemoved": "{agent} a retiré {member} du canal. {person} l’a demandé.",

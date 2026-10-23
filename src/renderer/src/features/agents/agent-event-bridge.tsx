@@ -1,3 +1,4 @@
+import { providerDisplayName } from "@openbot/contracts/agent-providers";
 import type { AgentEvent, AgentRuntimeSnapshot } from "@openbot/contracts/ipc";
 import { cleanAgentMessageText } from "@openbot/team-client/agent-message-text";
 import { reconcileQueuesWithRuntimeWork } from "@openbot/team-client/dynamic-island-coordinator";
@@ -23,7 +24,7 @@ import { latestIncomingConversationMessage } from "../conversation/conversation-
 import { useServers } from "../servers/servers-context";
 import { useSidebar } from "../sidebar/sidebar-context";
 import { readDictatedReplies } from "../speech/speech-replies";
-import { claimErrorToast, readableAgentError } from "./agent-error-text";
+import { claimErrorToast, providerErrorTitle, readableAgentError } from "./agent-error-text";
 import { createAgentEventSounds } from "./agent-event-sounds";
 import { reconcileAttentionApprovals, reconcileAttentionPrompts } from "./agent-runtime-snapshot";
 import { useAgents } from "./agents-context";
@@ -51,7 +52,7 @@ export function AgentEventBridge() {
   const { applyAgentStatus, refreshAgentProviders } = useProviders();
   const { agentList, setModelOptions, explicitlyOpenedAgentChatId, applyStoredAgents, applyUserHiddenAgents } =
     useAgents();
-  const { setConversationErrors } = useConversationController();
+  const { setConversationErrors, setConversationErrorRuns } = useConversationController();
   const agentTasks = useAgentTasks();
   const {
     applyRuntimeMessages,
@@ -308,10 +309,19 @@ export function AgentEventBridge() {
           // become a message the user had to scroll past to reach their own conversation. One
           // entry per chat means the newest report replaces the last, so an outage costs the
           // reader one line whatever its length, and dismissing it clears the whole run.
-          setConversationErrors((current) => ({
-            ...current,
-            [composerDraftKey({ agentId, serverId: activeServerId() })]: readableAgentError(event.message),
-          }));
+          const key = composerDraftKey({ agentId, serverId: activeServerId() });
+          const message = readableAgentError(event.message);
+          setConversationErrors((current) => ({ ...current, [key]: message }));
+          // The provider and model above the error let the user report which run failed (#2858).
+          const provider = event.provider ? providerDisplayName(event.provider) : null;
+          const run =
+            provider && event.model ? currentText().t("agent.error.run", { provider, model: event.model }) : provider;
+          setConversationErrorRuns((current) => {
+            if (run) return { ...current, [key]: { message, run } };
+            if (!(key in current)) return current;
+            const { [key]: _replaced, ...next } = current;
+            return next;
+          });
           return;
         }
         // No agent to attach it to - a provider that fails to start is the common case - so this
@@ -331,7 +341,7 @@ export function AgentEventBridge() {
           // provider error sends the user to the wrong settings page.
           const { t } = currentText();
           const title =
-            event.code === "mcp_server_not_started" ? t("agent.error.mcpNotStarted") : t("agent.error.provider");
+            event.code === "mcp_server_not_started" ? t("agent.error.mcpNotStarted") : providerErrorTitle(event.code);
           toast.error(title, {
             ...{ description: toastKey },
             report: { operation: "provider", source: "provider", cause_code: classifyFailure(event.message) },

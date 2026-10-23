@@ -74,6 +74,23 @@ the Dynamic Island shows no new reply. A client without the capability gets the 
 `turn-completed` event and shows the run as finished, as before. A malformed
 `quiet-turn-completed` event is an error.
 
+## Failed routine runs
+
+A run's status comes from its queue delivery (`routineStatusForDelivery`), so a completed turn is a
+`succeeded` run, also when the task inside it failed. Every run prompt names the
+`routine_report_failure` tool, the Test run and a flow handoff too. The agent calls it with a short
+`reason` when the task could not be done. The reason is held in memory until the turn completes.
+When the turn completes, each routine delivery of the turn ends `completed` with the reason in its
+`error` column (redacted as other errors). The agent did answer, so the answer, the chat digest and
+the notification are as before. `routineStatusForDelivery` maps a completed delivery with an error to
+a `failed` run with that error, so the run goes from `running` to `failed` in one step, and every
+later reconcile keeps it failed. No column was added. A failed run is never quiet, also after a call
+to `routine_no_update`: that call then answers `shown`, and the history import keeps the answers. A provider error or an interrupt still wins: the delivery then ends `failed`
+or `interrupted` with its own error. The run history shows the error of a failed run. A result
+destination gets the answer of a failed run whose delivery completed; a provider failure has no
+answer and sends nothing. Outside a routine run the tool returns the same error as
+`routine_no_update`.
+
 A routine run whose last answer is only the marker, also a Test run that shows it in the chat, does
 not put the marker in the preview either. The provider history import
 (`src/backend/provider-history-import.ts`) decides from the staged items alone: in a turn that a
@@ -142,7 +159,8 @@ on a joined host.
   skipped, so a failure never leaves a flow waiting.
 - A handoff is a mailbox delivery from the routine (`RoutineScheduler.enqueueHandoff`). It names the
   same routine and run, but `reconcileDelivery` finds a run only by its own delivery, so the run status
-  does not change.
+  does not change. A `routine_report_failure` call in a handoff turn fails only that step, through its
+  completed delivery's error, and the agents after it are skipped.
 - A canvas shows routines of every trigger kind (`routine-flow-routines.ts`). A webhook routine
   carries its endpoint, event type and filters; the details panel saves them, rotates the secret and
   runs a test through the events API, as the routine settings do. On a joined host only an owner or
@@ -340,14 +358,23 @@ These are manual model evaluations, separate from the fake-provider lifecycle re
 Users create and edit agent profiles by asking an agent in the normal desktop or mobile
 conversation. `openbot.create_agent` creates a persistent teammate with instructions and a first
 task; `openbot.update_profile` changes an existing agent's name, title, instructions, generated
-or custom avatar, provider, model, reasoning effort, access, Computer Use, or notifications. `avatarPath` accepts a local PNG, JPEG, or WebP file up to 512 KB, with relative
+or custom avatar, provider, model, reasoning effort, account, backup models, access, Computer Use, or notifications. `avatarPath` accepts a local PNG, JPEG, or WebP file up to 512 KB, with relative
 paths resolved from the calling agent’s workspace. The agent uses its available tools to resize or
 compress a copy when needed. OpenBot validates the prepared file before profile changes and copies
 it into managed avatar storage. Generated avatar settings remove the custom image. Both run through
 the existing agent service and validate arguments before changing state.
 `openbot.create_agent` also accepts an optional `provider`, `model` and `reasoningEffort`. The
 read-only `openbot.list_models` returns the models of each provider that the model picker shows, with
-their reasoning efforts and the default model for a request that names only a provider. An unknown
+their reasoning efforts and the default model for a request that names only a provider. A provider
+that can hold more than one account also lists its accounts, with the provider's own sign-in
+(`default`) first: the id, the name the user gave it (or null), and the state. It never lists the
+account email, credentials or account folders. `update_profile` takes the
+agent's `providerAccountId` and its `backupModels` (`automatic` and an `order` of provider, model
+and account), the same choices that the settings page offers. OpenBot checks each backup model and
+account against the lists before it writes, and the agent service checks the primary account; an
+account change, like a provider change, waits until the agent is idle. These changes apply at once,
+as the other profile fields do. `read_agent` and the `update_profile` result return the account,
+the backup models and `usageLimitReturn`, the model that the agent left for a usage limit or a provider error (`cause: "provider-error"`). An unknown
 model or an unsupported effort is an error that names the valid values; OpenBot checks them before
 it creates the agent. Without a provider and a model, the new agent starts on the calling agent's
 provider, model and reasoning effort, so a team that one agent creates runs where that agent runs.
@@ -359,6 +386,11 @@ and the names and transports of the MCP servers it gets. It does not return MCP 
 environment values, URLs, or headers, because they can hold secrets. `install_local_skill`,
 `set_skill_enabled`, `uninstall_skill`, and the routine tools take an optional `agentId`; without
 it they act on the caller. `uninstall_skill` never removes skill files that the user changed.
+`openbot.update_agents` gives several agents the same provider, model, reasoning effort, access,
+Computer Use, or notifications setting in one call. Each agent gets the checks of `update_profile`
+and its own `updateAgent` write, in order. A failure for one agent does not stop or undo the others,
+and the result reports `ok` with the new settings, or the error, for each agent id. A provider or
+model that is not listed fails the whole call before any write.
 An agent can only restrict access and Computer Use, for itself or a teammate. The router writes
 only a restriction, so a user change between its check and the write is never undone. Only the
 user widens them again, and only the user moves an agent between Ask first and Full access, and changes local script runs. An agent changes MCP servers only with the MCP server tools, after the user's request and approval. A new agent gets

@@ -1011,9 +1011,16 @@ attachments, and tool results go to that process, and the CLI sends them to Curs
 Cursor's sign-in page in your browser, or the CLI uses `CURSOR_API_KEY` from the environment that
 started OpenBot. OpenBot gives that key only to the local CLI, in its environment, and does
 not store it. The CLI keeps its login and session files
-in `~/.cursor` (on Linux, the login is in `~/.config/cursor`). OpenBot does not read, copy, or
-upload these files. Cursor's terms apply: <https://cursor.com/terms-of-service>. Team members see
-the host's Cursor agents, as for the other providers, when their app supports Cursor.
+in `~/.cursor` (on Linux, the login is in `~/.config/cursor`). On macOS the CLI keeps its login in
+the login Keychain. OpenBot does not copy or upload these files. Cursor's terms apply:
+<https://cursor.com/terms-of-service>. Team members see the host's Cursor agents, as for the other
+providers, when their app supports Cursor.
+
+To show the remaining Cursor plan usage in Usage, OpenBot reads the CLI's access token: on macOS
+from the Keychain item `cursor-access-token`, else from the CLI's `auth.json`. OpenBot sends the
+token only to Cursor (`api2.cursor.sh`, or `CURSOR_API_ENDPOINT` when you set it for the CLI), in
+the same usage request that the CLI sends. The request contains no conversation, file, or model
+data. OpenBot does not store, log, or send the token or the usage to its maintainer.
 
 ### Cline
 

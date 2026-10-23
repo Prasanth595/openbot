@@ -24,7 +24,7 @@ export const messages = {
   "agentSettings.backupModels.intro":
     "Quand {model} atteint sa limite d’utilisation avant que {name} commence à écrire, {name} vous demande quel modèle utiliser.",
   "agentSettings.backupModels.introAutomatic":
-    "Quand {model} atteint sa limite d’utilisation avant que {name} commence à écrire, {name} passe au premier modèle disponible dans l’ordre.",
+    "Quand {model} atteint sa limite d’utilisation ou échoue sur une erreur du fournisseur avant que {name} commence à écrire, {name} passe au premier modèle disponible dans l’ordre.",
   "agentSettings.backupModels.ask": "Demander avant de changer",
   "agentSettings.backupModels.order": "Ordre",
   "agentSettings.backupModels.listLabel": "Modèles de secours, dans l’ordre",
@@ -37,7 +37,7 @@ export const messages = {
   "agentSettings.backupModels.unavailable": "Indisponible pour le moment · ignoré",
   "agentSettings.backupModels.withAccount": "{model} · {account}",
   "agentSettings.backupModels.note":
-    "{name} ne change jamais de modèle après avoir commencé à écrire. Il revient à {model} quand la limite prend fin.",
+    "{name} ne change jamais de modèle après avoir commencé à écrire. Il revient à {model} quand la limite prend fin, ou 10 minutes après une erreur du fournisseur.",
   "agentSettings.groups.brain": "Cerveau",
   "agentSettings.groups.knows": "Connaissances",
   "agentSettings.groups.does": "Actions",

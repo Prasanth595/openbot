@@ -3,6 +3,7 @@ import { chatVisualItemType } from "@openbot/contracts/chat-visual";
 import { sortConversationMessages } from "@openbot/contracts/conversation-order";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import type {
+  AgentModelChoice,
   AgentModelOption,
   AgentSummary,
   AvatarImageInput,
@@ -49,6 +50,7 @@ import {
   CHAT_VISUAL_PREVIEW_DEFAULT_WIDTH,
   htmlPreviewToolSchema,
   htmlRenderToolSchema,
+  routineReportFailureToolSchema,
 } from "../openbot-tools";
 import { type AppServerRequest, type DynamicToolCallParams, type DynamicToolResult, isRecord } from "../protocol";
 import { handleRoutineFlowTool, type RoutineFlowTools } from "../routine-flows/routine-flow-tools";
@@ -71,8 +73,11 @@ import { isHostedSiteMutationTool } from "./hosted-site-events";
 import type { MailboxSync } from "./mailbox-sync";
 import { type AgentMcpServers, handleMcpServerTool, isMcpServerTool } from "./mcp-tools";
 import {
+  agentAccountSetup,
   listModelsPayload,
   modelList,
+  type ProviderAccountRows,
+  requestedBackupModels,
   requestedRuntime,
   requestedToolModel,
   requireReasoningEffort,
@@ -83,10 +88,12 @@ import {
   PROFILE_TOOL_NAMES,
   profileToolErrorMessage,
   readAgentToolSchema,
+  restrictionInput,
   updateProfileToolSchema,
+  widensAgentSettings,
 } from "./profile-tools";
 import { browserUserControlResult } from "./prompts";
-import { ROUTINE_NO_UPDATE_TOOL } from "./routine-quiet-runs";
+import { ROUTINE_NO_UPDATE_TOOL, ROUTINE_REPORT_FAILURE_TOOL } from "./routine-quiet-runs";
 import type { RoutineScheduler } from "./routine-scheduler";
 import { type OpenBotToolResponse, openBotToolFailure, openBotToolResult } from "./routine-tools";
 import {
@@ -103,6 +110,7 @@ import { toolCallIdempotencyKey } from "./tool-call-idempotency";
 import { discoverTools, resolveDeferredTool } from "./tool-catalog";
 import { ToolOperationFailed, toolStep, toToolOperationFailed } from "./tool-operation";
 import type { AgentBrowserHost } from "./turn-lifecycle";
+import { handleUpdateAgentsTool } from "./update-agents-tool";
 
 const logger = createOpenBotLogger("openbot-tool-router");
 
@@ -123,6 +131,8 @@ function captureFailure(failure: ScreenCaptureFailed) {
 export interface OpenBotToolRouterHooks {
   listAgents(): AgentSummary[];
   listModels(): AgentModelOption[];
+  /** The accounts of a signed-in provider, as the settings page lists them. */
+  providerAccounts: ProviderAccountRows;
   preferredProvider(): AgentProvider;
   createAgent(
     input: CreateAgentInput,
@@ -144,6 +154,8 @@ export interface OpenBotToolRouterHooks {
   turnActivity(agentId: string, turnId: string | null): { startedAt: number | null; lastEventAt: number | null };
   /** Records a no-update tool call for the turn; null when no routine run started the turn. */
   requestNoUpdate(agentId: string, threadId: string, turnId: string): "quiet" | "shown" | null;
+  /** Records the reason a routine run failed for the turn; false when no routine run started the turn. */
+  reportRoutineFailure(agentId: string, turnId: string, reason: string): boolean;
   /** Starts a new chat with the agent when its turn ends and its queue is empty. */
   requestNewChat(agentId: string): void;
 }
@@ -588,6 +600,7 @@ export class OpenBotToolRouter {
       provider: agent.provider,
       model: agent.model,
       reasoningEffort: agent.reasoningEffort,
+      ...agentAccountSetup(agent),
       access: workspaceAccessEnforced(agent) ? "workspace" : "full",
       computerUse,
       notifications: agent.notifications,
@@ -775,8 +788,13 @@ export class OpenBotToolRouter {
 
     if (params.tool === "list_models") {
       const args = listModelsToolSchema.parse(params.arguments ?? {});
-      const payload = listModelsPayload(this.#hooks.listModels(), this.#hooks.preferredProvider(), args.provider);
-      return { success: true, contentItems: [{ type: "inputText", text: JSON.stringify(payload) }] };
+      const payload = listModelsPayload(
+        this.#hooks.listModels(),
+        this.#hooks.preferredProvider(),
+        this.#hooks.providerAccounts,
+        args.provider,
+      );
+      return { success: true, contentItems: [{ type: "inputText", text: redactText(JSON.stringify(payload)) }] };
     }
 
     if (params.tool === "interrupt_agent") return yield* this.#interruptTool.handle(params, senderAgentId);
@@ -790,6 +808,8 @@ export class OpenBotToolRouter {
     if (params.tool === "create_agent") return yield* this.#createAgent(params, senderAgentId);
 
     if (params.tool === "update_profile") return yield* this.#updateProfile(params, senderAgentId);
+
+    if (params.tool === "update_agents") return yield* handleUpdateAgentsTool(params, senderAgentId, this.#hooks);
 
     if (params.tool === "start_new_chat") {
       const agent = this.#store.list().find((candidate) => candidate.id === senderAgentId);
@@ -814,6 +834,13 @@ export class OpenBotToolRouter {
           ? { status: "quiet", note: "This run ends without a message or a notification. End your turn now." }
           : { status: "shown", note: "Someone waits for this answer. Report the result as usual." },
       );
+    }
+
+    if (params.tool === ROUTINE_REPORT_FAILURE_TOOL) {
+      const { reason } = routineReportFailureToolSchema.parse(params.arguments ?? {});
+      if (!this.#hooks.reportRoutineFailure(senderAgentId, params.turnId, reason))
+        return openBotToolFailure("Use this tool only in a routine run.");
+      return openBotToolResult({ status: "failed", note: "This run ends as failed. Give your answer as usual." });
     }
 
     const sidebarResult = yield* handleSidebarTool(
@@ -1314,7 +1341,19 @@ export class OpenBotToolRouter {
       senderAgentId: string,
     ): Effect.fn.Return<OpenBotToolResponse, ToolOperationFailed> {
       const args = updateProfileToolSchema.parse(params.arguments, { reportInput: true });
-      const { agentId, avatarHue, avatarPath, provider, model, reasoningEffort, access, computerUse, ...fields } = args;
+      const {
+        agentId,
+        avatarHue,
+        avatarPath,
+        provider,
+        model,
+        reasoningEffort,
+        providerAccountId,
+        backupModels,
+        access,
+        computerUse,
+        ...fields
+      } = args;
       if (avatarPath !== undefined && (args.avatarSeed !== undefined || avatarHue !== undefined)) {
         throw new Error("Use avatarPath or generated avatar settings, not both.");
       }
@@ -1322,6 +1361,8 @@ export class OpenBotToolRouter {
       if (
         Object.values(fields).every((value) => value === undefined) &&
         Object.values(runtimeRequest).every((value) => value === undefined) &&
+        providerAccountId === undefined &&
+        backupModels === undefined &&
         access === undefined &&
         computerUse === undefined &&
         avatarHue === undefined &&
@@ -1331,18 +1372,30 @@ export class OpenBotToolRouter {
       }
       const sender = this.#hooks.listAgents().find((agent) => agent.id === senderAgentId);
       if (!sender) throw new Error("The calling agent no longer exists.");
-      // Only the user can widen what an agent may do. An agent can restrict itself or a teammate, and a
-      // request for the value the agent already has changes nothing.
       const target = this.#requireAgent(agentId);
-      if (
-        (access === "full" && workspaceAccessEnforced(target)) ||
-        (computerUse === true && !agentComputerUseEnabled(target))
-      ) {
+      if (widensAgentSettings(target, access, computerUse)) {
         return openBotToolFailure(sourceText("error.agent.onlyUserWidensSettings"));
       }
       // Checked before anything is written, so a model the provider does not list leaves the name
       // and every other field of the same call unchanged.
       const runtime = requestedRuntime(target, runtimeRequest, this.#hooks.listModels());
+      // The model and account the agent has after this call. A provider change without an account
+      // moves the agent to the new provider's own sign-in.
+      const ownProvider = runtime.provider ?? target.provider;
+      const own: AgentModelChoice = {
+        provider: ownProvider,
+        model: runtime.model ?? target.model,
+        providerAccountId:
+          providerAccountId !== undefined
+            ? (providerAccountId ?? undefined)
+            : ownProvider === target.provider
+              ? target.providerAccountId
+              : undefined,
+      };
+      const backups =
+        backupModels === undefined
+          ? undefined
+          : requestedBackupModels(backupModels, this.#hooks.listModels(), this.#hooks.providerAccounts, own);
       const image =
         avatarPath === undefined
           ? undefined
@@ -1355,9 +1408,10 @@ export class OpenBotToolRouter {
         ...(fields.avatarSeed === undefined ? {} : { avatarSeed: fields.avatarSeed }),
         ...(fields.notifications === undefined ? {} : { notifications: fields.notifications }),
         ...runtime,
-        // Only a restriction is written, so a user change between the check and this write is never undone.
-        ...(access === "workspace" ? { access } : {}),
-        ...(computerUse === false ? { computerUse } : {}),
+        // The agent service checks that the account exists for the agent's provider after this change.
+        ...(providerAccountId === undefined ? {} : { providerAccountId }),
+        ...(backups === undefined ? {} : { backupModels: backups }),
+        ...restrictionInput(access, computerUse),
         ...(avatarHue === undefined ? {} : { avatarHue }),
       };
       let updated = yield* this.#hooks.updateAgent(input, senderAgentId).pipe(toToolOperationFailed);
@@ -1382,6 +1436,7 @@ export class OpenBotToolRouter {
               provider: updated.provider,
               model: updated.model,
               reasoningEffort: updated.reasoningEffort,
+              ...agentAccountSetup(updated),
               access: workspaceAccessEnforced(updated) ? "workspace" : "full",
               computerUse: agentComputerUseEnabled(updated),
               notifications: updated.notifications,

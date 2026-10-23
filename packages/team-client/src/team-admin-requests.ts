@@ -151,6 +151,7 @@ import {
   decodeEventStatus,
   decodeSaveEventRoutineResult,
   decodeWebhookSecret,
+  decodeWebhookTestResult,
   type EventActivity,
   type EventRoutine,
   type EventRoutineRef,
@@ -162,6 +163,7 @@ import {
   type SaveEventRoutineInput,
   type SaveEventRoutineResult,
   type WebhookSecret,
+  type WebhookTestResult,
 } from "@openbot/contracts/ipc-events";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import { AGENT_ADMIN_ROUTES } from "@openbot/contracts/team-protocol/agent-admin-v1";
@@ -190,6 +192,7 @@ import { type SIGN_IN_RELAY_PROVIDERS, SIGN_IN_RELAY_ROUTES } from "@openbot/con
 import { SKILLS_ADMIN_ROUTES } from "@openbot/contracts/team-protocol/skills-admin-v1";
 import { STORAGE_ROUTES } from "@openbot/contracts/team-protocol/storage-v1";
 import type { TeamProtocolV2Json } from "@openbot/contracts/team-protocol/v2";
+import { WEBHOOK_TESTS_ROUTES } from "@openbot/contracts/team-protocol/webhook-tests-v1";
 import { Effect, Schema } from "effect";
 import { bytesToBase64 } from "./base64";
 import type { TeamApiRequest } from "./team-api-requests";
@@ -410,6 +413,14 @@ export function rotateEventRoutineSecret(
   input: EventRoutineRef,
 ): Effect.Effect<WebhookSecret, TeamAdminRequestError> {
   return adminCall(() => request("POST", EVENTS_ROUTES.rotateSecret, decodeWebhookSecret, eventBody(input)));
+}
+
+/** Asks the host to send one signed test event to the routine. Only a host with `webhook-tests-v1` answers it. */
+export function sendEventRoutineTestEvent(
+  request: TeamApiRequest,
+  input: EventRoutineRef,
+): Effect.Effect<WebhookTestResult, TeamAdminRequestError> {
+  return adminCall(() => request("POST", WEBHOOK_TESTS_ROUTES.send, decodeWebhookTestResult, eventBody(input)));
 }
 
 export function listEventActivity(

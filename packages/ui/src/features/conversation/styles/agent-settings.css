@@ -377,6 +377,28 @@
   margin-top: 0;
 }
 
+/* What a field misses, under its control, where the field limit goes. */
+.agent-routine-field-error {
+  margin: var(--openbot-space-1-5) 0 0 var(--openbot-space-2);
+}
+
+/* Schedule or webhook: two equal choices above the trigger. */
+.agent-routine-trigger-kind {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--openbot-space-1);
+  margin: 0 0 var(--openbot-space-2);
+  border: 1px solid var(--openbot-border);
+  border-radius: var(--openbot-radius-md);
+  padding: var(--openbot-space-0-5);
+}
+
+.agent-routine-trigger-kind-icon {
+  width: var(--openbot-icon-sm);
+  height: var(--openbot-icon-sm);
+}
+
 /* The schedule and history are fields, so their headings match the field labels. */
 .agent-routine-when h3,
 .agent-routine-history h3 {
@@ -426,7 +448,7 @@
   cursor: pointer;
 }
 
-/* The time, then a muted note: an ignored webhook request, skipped runs, or a late start. */
+/* The time, then a muted note: an ignored webhook request, skipped runs, a late start, or why a run failed. */
 .agent-routine-run-text {
   display: flex;
   min-width: 0;

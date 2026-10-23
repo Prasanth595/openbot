@@ -62,6 +62,7 @@ import {
   decodeEventStatus,
   decodeSaveEventRoutineResult,
   decodeWebhookSecret,
+  decodeWebhookTestResult,
 } from "@openbot/contracts/ipc-events";
 import { contextBridge, ipcRenderer, webUtils } from "electron";
 import {
@@ -1115,6 +1116,7 @@ const openbotApi: OpenBotDesktopApi = {
     deleteRoutine: decodeVoid,
     testRoutine: decodeVoid,
     rotateSecret: decodeWebhookSecret,
+    sendTestEvent: decodeWebhookTestResult,
     listActivity: decodeEventActivity,
     listRoutineRuns: decodeEventRoutineRuns,
   }),

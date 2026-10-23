@@ -400,6 +400,7 @@ export const messages = {
   "settings.hostedServers.deleteFailed": "サーバーを削除できませんでした。",
   "settings.hostedServers.plan.label": "プラン",
   "settings.hostedServers.plan.recommended": "おすすめ",
+  "settings.hostedServers.plan.soldOut": "売り切れ",
   "settings.hostedServers.plan.perMonth": "/ 月",
   "settings.hostedServers.plan.disk": "{count} GB のストレージ",
   "settings.hostedServers.plan.linux": "Linux マシン",

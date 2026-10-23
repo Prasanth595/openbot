@@ -97,6 +97,15 @@ const SESSION_LIST_PAGES = 50;
 /** Maximum replay work waiting for the storage consumer before the import fails safely. */
 const ACP_HISTORY_REPLAY_QUEUE_LIMIT = 256;
 
+/**
+ * How long a turn may send nothing, with no tool call open and no question to the user, before
+ * OpenBot ends it. An OpenCode prompt can stay open for an hour with no update (#2858).
+ */
+const ACP_TURN_STALL_MS = 5 * 60_000;
+
+/** How long a stopped turn may take to end before OpenBot ends it itself. */
+const ACP_STOP_GRACE_MS = 10_000;
+
 interface ClientEvents {
   notification: [notification: AppServerNotification];
   request: [request: AppServerRequest];
@@ -139,6 +148,12 @@ interface AcpTurn {
   stopped: boolean;
   completing: boolean;
   task: Fiber.Fiber<void, ProviderClientOperationError> | null;
+  /** When the agent last sent an update for this turn, or the user last answered it. */
+  lastActivityAt: number;
+  /** Questions and approvals that wait for the user. The turn is not stalled while one is open. */
+  waitingOnUser: number;
+  /** OpenBot ended the turn because the agent did not. Its open tool calls get no more updates. */
+  abandoned: boolean;
 }
 
 interface AcpThread {
@@ -306,6 +321,8 @@ export interface AcpProviderOptions {
    * so a configuration can never displace the tools the agent depends on.
    */
   mcpServers?: McpServerSource | undefined;
+  /** How long a turn may send nothing before it fails (`ACP_TURN_STALL_MS` when absent). */
+  turnStallMs?: number;
   /** What this provider could not be given. Reported once per spawn, by `AgentService`. */
   reportMcpDrops?: McpDropReporter | undefined;
   mcpToolRuntimes?: McpToolRuntimeSource | undefined;
@@ -917,16 +934,15 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
         turn.stopped = true;
         const cancel = providerCall(() => this.#requireConnection().cancel({ sessionId: thread.id }));
         if (this.#flavor.cancelLocallyThenResume) {
-          thread.needsResume = true;
-          yield* cancel.pipe(
-            Effect.ensuring(
-              Effect.gen({ self: this }, function* () {
-                if (turn.task) yield* Fiber.interrupt(turn.task);
-                yield* this.#completeTurn(thread, turn, "interrupted", null);
-              }),
-            ),
+          yield* cancel.pipe(Effect.ensuring(this.#abandonTurn(thread, turn, "interrupted", null)));
+        } else {
+          yield* cancel;
+          // An agent can ignore the cancel (OpenCode, #2858). The turn then ends here after a grace.
+          yield* Effect.forkIn(
+            Effect.sleep(ACP_STOP_GRACE_MS).pipe(Effect.andThen(this.#abandonTurn(thread, turn, "interrupted", null))),
+            this.#scope,
           );
-        } else yield* cancel;
+        }
         return yield* providerSync(() => decoder({}));
       }
       case "thread/compact/start":
@@ -1674,6 +1690,9 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
       stopped: false,
       completing: false,
       task: null,
+      lastActivityAt: Date.now(),
+      waitingOnUser: 0,
+      abandoned: false,
     };
     thread.activeTurn = turn;
     this.#threads.holdForTurn(thread);
@@ -1684,6 +1703,7 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
     turn.task = yield* Effect.forkIn(this.#consumePrompt(thread, turn, blocks), this.#scope, {
       startImmediately: true,
     });
+    if (!this.#flavor.promptOpenForBackgroundTasks) yield* Effect.forkIn(this.#watchStall(thread, turn), this.#scope);
     return { turn: { id: turn.id, status: "inProgress" } };
   });
 
@@ -1763,6 +1783,7 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
     }
     const thread = this.#threads.get(notification.sessionId);
     if (!thread) return;
+    if (thread.activeTurn) thread.activeTurn.lastActivityAt = Date.now();
     const update = notification.update;
     if (update.sessionUpdate === "config_option_update") {
       thread.configOptions = update.configOptions;
@@ -1943,6 +1964,66 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
     turn.thoughtItemId = `${turn.id}:thought:${turn.messages.length}`;
   }
 
+  /**
+   * Ends a turn that the agent did not end. The prompt may still run in the agent, so the next
+   * prompt opens the session again first, and a tool that the old prompt asks for is refused. An
+   * agent that cannot give a session back keeps it, because opening it again would replace it.
+   */
+  readonly #abandonTurn = Effect.fn("AcpAgentClient.abandonTurn")(function* (
+    this: AcpAgentClient,
+    thread: AcpThread,
+    turn: AcpTurn,
+    status: "interrupted" | "failed",
+    error: string | null,
+  ) {
+    if (thread.activeTurn !== turn || turn.completing) return;
+    if (this.#supportsSessionResume || this.#loadsSessions) thread.needsResume = true;
+    turn.abandoned = true;
+    if (turn.task) yield* Fiber.interrupt(turn.task);
+    yield* this.#completeTurn(thread, turn, status, error);
+  });
+
+  /** Fails a turn that sends nothing while no tool call runs and no question waits for the user. */
+  readonly #watchStall = Effect.fn("AcpAgentClient.watchStall")(function* (
+    this: AcpAgentClient,
+    thread: AcpThread,
+    turn: AcpTurn,
+  ) {
+    const limit = this.options.turnStallMs ?? ACP_TURN_STALL_MS;
+    // A stopped turn ends by its stop, as interrupted, and not as a stall.
+    while (thread.activeTurn === turn && !turn.completing && !turn.stopped) {
+      const silentFor = Date.now() - turn.lastActivityAt;
+      if (silentFor < limit || turn.toolItems.size > 0 || turn.waitingOnUser > 0) {
+        yield* Effect.sleep(silentFor < limit ? limit - silentFor : limit);
+        continue;
+      }
+      this.emit("diagnostic", `${this.#label} sent nothing for ${silentFor} ms; ending turn ${turn.id}.`);
+      yield* providerCall(() => this.#requireConnection().cancel({ sessionId: thread.id })).pipe(Effect.ignore);
+      yield* this.#abandonTurn(
+        thread,
+        turn,
+        "failed",
+        sourceText("error.agent.turnStalled", { provider: this.#label }),
+      );
+    }
+  });
+
+  /** Runs a request that waits for the user. The turn does not count as stalled meanwhile. */
+  #waitForUser<A, E>(turn: AcpTurn | null | undefined, request: Effect.Effect<A, E>): Effect.Effect<A, E> {
+    if (!turn) return request;
+    return Effect.suspend(() => {
+      turn.waitingOnUser += 1;
+      return request;
+    }).pipe(
+      Effect.ensuring(
+        Effect.sync(() => {
+          turn.waitingOnUser -= 1;
+          turn.lastActivityAt = Date.now();
+        }),
+      ),
+    );
+  }
+
   readonly #completeTurn = Effect.fn("AcpAgentClient.completeTurn")(function* (
     this: AcpAgentClient,
     thread: AcpThread,
@@ -1963,7 +2044,7 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
     for (const item of turn.toolItems.values()) {
       // A stopped stream cannot provide another tool result. Preserve its last output without
       // reporting successful execution. A normal completion can leave background tasks active.
-      const interrupted = this.#flavor.interruptToolsOnStop === true && status !== "completed";
+      const interrupted = (this.#flavor.interruptToolsOnStop === true || turn.abandoned) && status !== "completed";
       const settled = interrupted ? { ...item, status: status === "failed" ? "failed" : "interrupted" } : item;
       turn.messages.push(settled);
       if (interrupted)
@@ -2039,8 +2120,9 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
           ? "file-change"
           : "permissions";
     const requestedPermissions = kind === "permissions" ? { [params.toolCall.kind ?? "file-system"]: true } : null;
-    const result = yield* this.#serverRequests
-      .call(
+    const result = yield* this.#waitForUser(
+      thread?.activeTurn,
+      this.#serverRequests.call(
         `item/${kind === "command" ? "commandExecution" : kind === "file-change" ? "fileChange" : "permissions"}/requestApproval`,
         {
           threadId: params.sessionId,
@@ -2049,8 +2131,8 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
           reason: params.toolCall.title ?? null,
           permissions: requestedPermissions,
         },
-      )
-      .pipe(toProviderClientOperationError);
+      ),
+    ).pipe(toProviderClientOperationError);
     const accepted =
       isRecord(result) &&
       (result.decision === "accept" ||
@@ -2070,14 +2152,15 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
     const sessionId = getString(params, "sessionId") ?? [...this.#threads.ids()][0];
     if (sessionId && this.#historyReplays.has(sessionId)) return {};
     const thread = sessionId ? this.#threads.get(sessionId) : undefined;
-    const result = yield* this.#serverRequests
-      .call("item/tool/requestUserInput", {
+    const result = yield* this.#waitForUser(
+      thread?.activeTurn,
+      this.#serverRequests.call("item/tool/requestUserInput", {
         ...params,
         threadId: sessionId,
         turnId: thread?.activeTurn?.id ?? randomUUID(),
         sourceMethod: method,
-      })
-      .pipe(toProviderClientOperationError);
+      }),
+    ).pipe(toProviderClientOperationError);
     return yield* providerSync(() => (isRecord(result) ? result : {}));
   });
 

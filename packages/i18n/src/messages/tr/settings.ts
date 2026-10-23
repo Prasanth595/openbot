@@ -404,6 +404,7 @@ export const messages = {
   "settings.hostedServers.deleteFailed": "Sunucu silinemedi.",
   "settings.hostedServers.plan.label": "Plan",
   "settings.hostedServers.plan.recommended": "En avantajlı",
+  "settings.hostedServers.plan.soldOut": "Tükendi",
   "settings.hostedServers.plan.perMonth": "/ ay",
   "settings.hostedServers.plan.disk": "{count} GB depolama",
   "settings.hostedServers.plan.linux": "Linux makinesi",

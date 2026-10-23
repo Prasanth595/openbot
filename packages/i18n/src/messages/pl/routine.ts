@@ -298,7 +298,6 @@ export const messages = {
 
   "routine.trigger.change": "Zmień wyzwalacz",
   "routine.trigger.groupSchedule": "Harmonogram",
-  "routine.trigger.groupAdvanced": "Zaawansowane",
   "routine.trigger.onceDescription": "W wybranym dniu i o wybranej godzinie",
   "routine.trigger.hourlyDescription": "Co godzinę w wybranych godzinach",
   "routine.trigger.dailyDescription": "Codziennie o wybranej godzinie",

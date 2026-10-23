@@ -258,7 +258,6 @@ export const messages = {
 
   "routine.trigger.change": "Cambia attivazione",
   "routine.trigger.groupSchedule": "Pianificazione",
-  "routine.trigger.groupAdvanced": "Avanzate",
   "routine.trigger.onceDescription": "In una data e un'ora a scelta",
   "routine.trigger.hourlyDescription": "Ogni ora, nelle ore scelte",
   "routine.trigger.dailyDescription": "Ogni giorno a un'ora scelta",

@@ -1,5 +1,5 @@
 import { chatVisualReply } from "@openbot/contracts/chat-visual";
-import type { ConversationMessageSender } from "@openbot/contracts/ipc";
+import type { ConversationMessageSender, MessageReaction } from "@openbot/contracts/ipc";
 import type { ConversationUiBlock } from "@openbot/contracts/ui-blocks";
 import { Button } from "@openbot/ui";
 import type { AgentMessage, ChatActionMarkerModel } from "@openbot/ui/data";
@@ -18,7 +18,7 @@ import { ContextCompactionMarker, type ContextCompactionView } from "@openbot/ui
 import { BrowserTakeoverCard } from "@openbot/ui/features/conversation/ConversationPrompts";
 import { dayMarkerLabel } from "@openbot/ui/features/conversation/chat-day-markers";
 import { ReplyReturnButton, ScrollToLatestButton } from "@openbot/ui/features/conversation/MessageNavigation";
-import { MessageActions } from "@openbot/ui/features/conversation/MessageRendering";
+import { MessageActions, MessageMenu } from "@openbot/ui/features/conversation/MessageRendering";
 import { PendingSendStatus } from "@openbot/ui/features/conversation/PendingSendStatus";
 import { SubagentGroup } from "@openbot/ui/features/conversation/Subagents";
 import { TaskList } from "@openbot/ui/features/conversation/TaskList";
@@ -555,6 +555,13 @@ export function ConversationTimeline() {
                   if (sender) return memberAuthor(sender).name;
                   return channel && referenced?.author === "agent" ? channel.author(referenced).name : undefined;
                 };
+                // A workspace path is in the workspace of the agent that wrote it. A person's message in
+                // a channel names no agent, so its paths stay text.
+                const workspaceAgentId = () => {
+                  if (!channel) return props.agent?.id;
+                  const current = message();
+                  return current?.author === "agent" ? current.senderAgentId : undefined;
+                };
                 // A row the host has not drawn yet has no reactions, replies or menu: its id is not the
                 // host's, even after the host answered.
                 const hostless = createMemo(() => message()?.id.startsWith(PENDING_SEND_ID_PREFIX) === true);
@@ -929,6 +936,25 @@ export function ConversationTimeline() {
                     actor: { kind: "user" as const },
                   }));
                 });
+                // The action row and the right-click menu run the same actions.
+                const messageActions = {
+                  onReact: (emoji: MessageReaction | null) => {
+                    const currentMessage = message();
+                    if (currentMessage) void reactToMessage(currentMessage, emoji);
+                  },
+                  onReply: () => {
+                    const currentMessage = message();
+                    if (currentMessage) replyToMessage(currentMessage);
+                  },
+                  onCopy: () => {
+                    const currentMessage = message();
+                    if (currentMessage) void copyMessage(currentMessage);
+                  },
+                };
+                const messageReadAloud = () =>
+                  spokenReplyIds().has((message() ?? initialMessage).id)
+                    ? undefined
+                    : readAloudAction(message() ?? initialMessage);
                 return (
                   <div
                     data-index={virtualRow.index}
@@ -992,7 +1018,11 @@ export function ConversationTimeline() {
                             onPreview={(attachment) => void previewAttachment(attachment)}
                             onAttachmentAction={attachmentAction}
                             onOpenSharedFile={openSharedFile}
-                            onOpenWorkspaceFile={openWorkspaceFile}
+                            onOpenWorkspaceFile={
+                              workspaceAgentId()
+                                ? (path) => openWorkspaceFile(path, undefined, workspaceAgentId())
+                                : undefined
+                            }
                             onOpenQuote={openQuote}
                             onDownload={(attachment) => attachmentAction(attachment, "download")}
                             mediaSource={runtime.attachmentMedia}
@@ -1040,25 +1070,23 @@ export function ConversationTimeline() {
                                     if (!messageId) return;
                                     setExpandedEmojiMessageId((current) => (current === messageId ? null : messageId));
                                   }}
-                                  onReact={(emoji) => {
-                                    const currentMessage = message();
-                                    if (currentMessage) void reactToMessage(currentMessage, emoji);
-                                  }}
-                                  onReply={() => {
-                                    const currentMessage = message();
-                                    if (currentMessage) replyToMessage(currentMessage);
-                                  }}
-                                  onCopy={() => {
-                                    const currentMessage = message();
-                                    if (currentMessage) void copyMessage(currentMessage);
-                                  }}
-                                  readAloud={
-                                    spokenReplyIds().has((message() ?? initialMessage).id)
-                                      ? undefined
-                                      : readAloudAction(message() ?? initialMessage)
-                                  }
+                                  {...messageActions}
+                                  readAloud={messageReadAloud()}
                                 />
                               </Show>
+                            }
+                            menu={
+                              hostless()
+                                ? undefined
+                                : () => (
+                                    <MessageMenu
+                                      message={message() ?? initialMessage}
+                                      reactions={!channel}
+                                      authorName={channel ? author().name : undefined}
+                                      {...messageActions}
+                                      readAloud={messageReadAloud()}
+                                    />
+                                  )
                             }
                           >
                             <Show when={playerKind()}>

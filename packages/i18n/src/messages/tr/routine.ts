@@ -258,7 +258,6 @@ export const messages = {
   "routine.settings.webhookSummaryAny": "Bir webhook geldiğinde",
   "routine.trigger.change": "Tetikleyiciyi değiştir",
   "routine.trigger.groupSchedule": "Zamanlama",
-  "routine.trigger.groupAdvanced": "Gelişmiş",
   "routine.trigger.onceDescription": "Seçilen tarih ve saatte",
   "routine.trigger.hourlyDescription": "Seçilen saatler içinde her saat",
   "routine.trigger.dailyDescription": "Her gün seçilen saatte",

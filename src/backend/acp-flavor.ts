@@ -50,6 +50,11 @@ export interface AcpFlavor {
   interruptToolsOnStop?: true;
   /** Answer text is shown at once, not only when `session/prompt` answers. */
   streamAnswerBeforePromptReturns?: true;
+  /**
+   * `session/prompt` stays open with no update while background tasks run, so a silent turn is not
+   * stalled and OpenBot does not end it (`ACP_TURN_STALL_MS`).
+   */
+  promptOpenForBackgroundTasks?: true;
   /** OpenBot compacts by replacing the session, for an agent that reports `usage_update` and has no compact request. */
   contextCompaction?: "handoff";
 }

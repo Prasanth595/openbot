@@ -22,7 +22,6 @@ import { useConversationController } from "./conversation-controller-context";
 import { conversationRuntime } from "./conversation-runtime";
 import { useConversationViewScope } from "./conversation-scope";
 import { agentSkillsMode } from "./installed-skills-source";
-import { filePreviewQuoteId } from "./quoted-text";
 import { desktopChatEventRoutinesApi } from "./routine-webhooks-api";
 
 const BROWSER_PANEL_DEFAULT_RATIO = 0.5;
@@ -86,9 +85,10 @@ export function ConversationPanels(panelProps: { onOpenUsage?: ((trigger: HTMLBu
     openSharedFile,
     previewAttachment,
     openSidebarFileExternally,
-    openWorkspaceFile,
     openWorkspaceFolder,
     openWorkspaceFolderEntry,
+    previewQuoteId,
+    previewWorkspaceAgentId,
     sidebarFileBack,
     openSidebarFileBack,
     props,
@@ -293,13 +293,13 @@ export function ConversationPanels(panelProps: { onOpenUsage?: ((trigger: HTMLBu
                 onWidthChange={setBrowserPanelWidth}
                 onOpenLink={(url) => void openExternalMessageUrl(url)}
                 onOpenSharedFile={openSharedFile}
-                onOpenWorkspaceFile={file().directory ? openWorkspaceFolderEntry : openWorkspaceFile}
+                onOpenWorkspaceFile={previewWorkspaceAgentId() ? openWorkspaceFolderEntry : undefined}
                 onOpenWorkspaceFolder={openWorkspaceFolder}
                 onBack={sidebarFileBack() === null ? undefined : openSidebarFileBack}
                 sourceUrl={attached()?.previewUrl ?? null}
                 pageUrl={htmlAttachmentPageUrl(attached()) ?? file().preview?.pageUrl}
                 pageHtml={props.runtime?.visualPage ? htmlAttachmentPageHtml(attached(), file().preview) : undefined}
-                selectionQuoteId={filePreviewQuoteId(file())}
+                selectionQuoteId={previewQuoteId()}
                 onOpenExternally={openSidebarFileExternally}
                 onDownload={downloadSidebarFile}
                 /* A browser cannot show a file in the file manager. */

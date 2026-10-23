@@ -4,6 +4,7 @@ import {
   BubbleContent,
   BubbleReactions,
   Button,
+  ContextMenu,
   Message,
   MessageAvatar,
   MessageContent,
@@ -61,6 +62,8 @@ export interface ChatMessageRowProps {
   reactionOverflowCount?: number | undefined;
   onRemoveReaction?: (() => void) | undefined;
   actions?: JSX.Element;
+  /** Draws the right-click menu, a `MessageMenu`. Without it, right-click keeps the native menu. */
+  menu?: (() => JSX.Element) | undefined;
   footer?: JSX.Element;
   /** Extra content inside the bubble, under the body: a question prompt, a note about the message. */
   children?: JSX.Element;
@@ -71,7 +74,7 @@ export interface ChatMessageRowProps {
   onPreview: (attachment: AttachmentSummary) => void;
   onAttachmentAction: (attachment: AttachmentSummary, action: "open" | "reveal" | "download") => void;
   onOpenSharedFile?: (path: string) => void;
-  onOpenWorkspaceFile?: (path: string) => void;
+  onOpenWorkspaceFile?: ((path: string) => void) | undefined;
   onOpenQuote?: ((messageId: string, text: string) => void) | undefined;
   onDownload?: ((attachment: AttachmentSummary) => void) | undefined;
   /** Loads the images and media of a client that gets no `previewUrl`. */
@@ -104,25 +107,59 @@ export function ChatMessageRow(props: ChatMessageRowProps): JSX.Element {
     if (own() || currentSeed === undefined) return undefined;
     return `--message-author-color: ${avatarHeadColor(currentSeed, props.author.agent?.avatarHue ?? null)}`;
   };
-  return (
-    <Message
-      role="article"
-      align={person() ? "end" : "start"}
-      aria-label={t("chat.row.label", { name: props.author.name })}
-      data-author={person() ? "user" : "assistant"}
-      data-chat-search-message={props["data-chat-search-message"]}
-      style={authorStyle()}
-      class={[
-        "message-entry",
-        {
-          "message-entry-animated": props.animate === true,
-          "message-entry-user": person(),
-          "message-entry-agent": !person(),
-          "message-entry-with-author": props.showAuthor === true && !person(),
-        },
-        props.class,
-      ]}
-    >
+  const rowClass = () => [
+    "message-entry",
+    {
+      "message-entry-animated": props.animate === true,
+      "message-entry-user": person(),
+      "message-entry-agent": !person(),
+      "message-entry-with-author": props.showAuthor === true && !person(),
+    },
+    props.class,
+  ];
+  // The native menu copies selected text and links, and Shift opens Inspect Element. These cases
+  // stop the event before the trigger's delegated handler, which would prevent its default, so the
+  // native menu still opens. The keyboard opens the menu with a synthetic event, which always opens it.
+  const onSelection = (event: MouseEvent) => {
+    const selection = window.getSelection();
+    return (
+      selection !== null &&
+      selection.rangeCount > 0 &&
+      !selection.isCollapsed &&
+      [...selection.getRangeAt(0).getClientRects()].some(
+        (rect) =>
+          event.clientX >= rect.left &&
+          event.clientX <= rect.right &&
+          event.clientY >= rect.top &&
+          event.clientY <= rect.bottom,
+      )
+    );
+  };
+  const keepNativeMenu = (row: HTMLElement) => {
+    // Chromium on macOS can select the word under the pointer before `contextmenu`, so the press
+    // that opens a menu records the selection the user made before it.
+    let pressOnSelection: boolean | undefined;
+    row.addEventListener(
+      "pointerdown",
+      (event) => {
+        if (event.button === 2 || event.ctrlKey) pressOnSelection = onSelection(event);
+      },
+      { capture: true },
+    );
+    row.addEventListener(
+      "contextmenu",
+      (event) => {
+        const selected = pressOnSelection ?? onSelection(event);
+        pressOnSelection = undefined;
+        if (!event.isTrusted) return;
+        const link = event.target instanceof Element && event.target.closest("a[href]") !== null;
+        if (event.shiftKey || link || selected) event.stopPropagation();
+      },
+      { capture: true },
+    );
+  };
+  const body = (): JSX.Element => (
+    <>
       <Show when={props.showAuthor && !person()}>
         <MessageAvatar class="message-author-avatar">
           <Show when={props.author.agent} fallback={<AgentAvatar seed={seed()} />}>
@@ -253,6 +290,60 @@ export function ChatMessageRow(props: ChatMessageRowProps): JSX.Element {
           <MessageFooter>{props.footer}</MessageFooter>
         </Show>
       </MessageContent>
-    </Message>
+    </>
+  );
+  return (
+    <Show
+      when={props.menu}
+      fallback={
+        <Message
+          role="article"
+          align={person() ? "end" : "start"}
+          aria-label={t("chat.row.label", { name: props.author.name })}
+          data-author={person() ? "user" : "assistant"}
+          data-chat-search-message={props["data-chat-search-message"]}
+          style={authorStyle()}
+          class={rowClass()}
+        >
+          {body()}
+        </Message>
+      }
+    >
+      {(menu) => (
+        <ContextMenu.Root modal={false}>
+          <ContextMenu.Trigger
+            as="div"
+            ref={keepNativeMenu}
+            aria-keyshortcuts="Shift+F10"
+            onKeyDown={(event: KeyboardEvent & { currentTarget: HTMLElement }) => {
+              if (event.key !== "ContextMenu" && !(event.shiftKey && event.key === "F10")) return;
+              event.preventDefault();
+              const bounds = event.currentTarget.getBoundingClientRect();
+              event.currentTarget.dispatchEvent(
+                new MouseEvent("contextmenu", {
+                  bubbles: true,
+                  cancelable: true,
+                  clientX: bounds.left,
+                  clientY: bounds.top,
+                }),
+              );
+            }}
+            role="article"
+            // The trigger is the row, so it draws the `Message` primitive's element itself:
+            // `as={Message}` would spread Kobalte's own props onto the DOM.
+            data-slot="message"
+            data-align={person() ? "end" : "start"}
+            aria-label={t("chat.row.label", { name: props.author.name })}
+            data-author={person() ? "user" : "assistant"}
+            data-chat-search-message={props["data-chat-search-message"]}
+            style={authorStyle() ?? ""}
+            class={["ui-message", ...rowClass()]}
+          >
+            {body()}
+          </ContextMenu.Trigger>
+          <ContextMenu.Portal>{menu()()}</ContextMenu.Portal>
+        </ContextMenu.Root>
+      )}
+    </Show>
   );
 }

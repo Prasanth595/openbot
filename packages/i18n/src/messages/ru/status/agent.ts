@@ -7,6 +7,8 @@ export const messages = {
   "status.agent.contextCleared": "Контекст очищен. Здесь начинается новый чат.",
   "status.agent.modelSwitchedForLimit": "Лимит использования исчерпан. Переключено на {model}.",
   "status.agent.modelReturnedAfterLimit": "Лимит использования обновился. Снова используется {model}.",
+  "status.agent.modelSwitchedForError": "Ошибка провайдера. Переключено на {model}.",
+  "status.agent.modelReturnedAfterError": "После ошибки провайдера снова используется {model}.",
   "status.agent.marketplaceSuggested": "Предложено приложение из каталога: {app}.",
   "status.agent.channelMemberAdded": "Агент {agent} добавил {member} в канал. Запрос: {person}.",
   "status.agent.channelMemberRemoved": "Агент {agent} удалил {member} из канала. Запрос: {person}.",

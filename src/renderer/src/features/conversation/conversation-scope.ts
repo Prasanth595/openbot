@@ -28,11 +28,11 @@ import { conversationRuntime } from "./conversation-runtime";
 import type { ComposerDraft, ConversationProps, ConversationTarget, SidePanelPane } from "./conversation-types";
 import {
   clearQuotedTextHighlight,
-  filePreviewQuoteId,
   highlightQuotedText,
   messageTextBlocks,
   revealFileQuote,
   stopRevealingFileQuote,
+  workspaceAgentOfPath,
 } from "./quoted-text";
 import { createActivityStore } from "./stores/activity-store";
 import { createBrowserStore } from "./stores/browser-store";
@@ -100,6 +100,7 @@ export function createConversationViewScope(props: ConversationProps) {
     setComposerErrorReferences,
     conversationErrors,
     setConversationErrors,
+    conversationErrorRuns,
     voicePhase,
     setVoicePhase,
     voiceModelProgress,
@@ -252,6 +253,8 @@ export function createConversationViewScope(props: ConversationProps) {
     openWorkspaceFile,
     openWorkspaceFolder,
     openWorkspaceFolderEntry,
+    previewQuoteId,
+    previewWorkspaceAgentId,
     sidebarFileBack,
     openSidebarFileBack,
     openSidebarFileExternally,
@@ -316,6 +319,14 @@ export function createConversationViewScope(props: ConversationProps) {
     if (!target || !message) return null;
     const entry = composerErrorReferences()[composerDraftKey(target)];
     return entry?.message === message ? entry.reference : null;
+  });
+  /** The provider and model of the run behind the shown error. A later error of another run shows none. */
+  const currentChatErrorRun = createMemo(() => {
+    const target = currentTarget();
+    const message = currentChatError();
+    if (!target || !message) return null;
+    const entry = conversationErrorRuns()[composerDraftKey(target)];
+    return entry?.message === message ? entry.run : null;
   });
   const queue = createQueueStore({ props, hiddenAwaitingReplyIds });
   const { activeDeliveries, orderedQueuedDeliveries, presentedQueueDeliveries, queuePanelVisible } = queue;
@@ -964,8 +975,7 @@ export function createConversationViewScope(props: ConversationProps) {
     stopRevealingFileQuote();
     const file = fileQuoteTarget(messageId);
     if (file) {
-      const shown =
-        filePreviewOpen() && filePreviewQuoteId(sidebarFilePreview()) === fileQuoteId({ ...file, lines: undefined });
+      const shown = filePreviewOpen() && previewQuoteId() === fileQuoteId({ ...file, lines: undefined });
       if (shown || openQuotedFile(file)) revealFileQuote(document, file, text);
       return;
     }
@@ -976,7 +986,13 @@ export function createConversationViewScope(props: ConversationProps) {
   function openQuotedFile(file: FileQuoteTarget): boolean {
     if (file.source !== "attachment") {
       if (file.source === "shared") openSharedFile(file.path);
-      else openWorkspaceFile(file.path);
+      // A channel quote names an absolute path, so its workspace gives the agent.
+      else
+        openWorkspaceFile(
+          file.path,
+          undefined,
+          props.channel ? workspaceAgentOfPath(props.agents, file.path) : undefined,
+        );
       return true;
     }
     const attachment = props.messages
@@ -1590,6 +1606,7 @@ export function createConversationViewScope(props: ConversationProps) {
     currentComposerError,
     currentChatError,
     currentChatErrorReference,
+    currentChatErrorRun,
     currentChatConversationKey,
     dismissCurrentChatErrors,
     dismissAwaitingReplies,
@@ -1663,6 +1680,8 @@ export function createConversationViewScope(props: ConversationProps) {
     openWorkspaceFile,
     openWorkspaceFolder,
     openWorkspaceFolderEntry,
+    previewQuoteId,
+    previewWorkspaceAgentId,
     sidebarFileBack,
     openSidebarFileBack,
     awaitingReplies,

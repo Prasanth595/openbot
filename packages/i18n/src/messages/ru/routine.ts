@@ -299,7 +299,6 @@ export const messages = {
 
   "routine.trigger.change": "Изменить триггер",
   "routine.trigger.groupSchedule": "Расписание",
-  "routine.trigger.groupAdvanced": "Расширенные",
   "routine.trigger.onceDescription": "В выбранные дату и время",
   "routine.trigger.hourlyDescription": "Каждый час в выбранные часы",
   "routine.trigger.dailyDescription": "Каждый день в выбранное время",

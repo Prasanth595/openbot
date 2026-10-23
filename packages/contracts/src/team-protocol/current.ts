@@ -71,6 +71,7 @@ import { SKILLS_EVENTS_CAPABILITY } from "./skills-events-v1";
 import { TEAM_SUBAGENTS_CAPABILITY } from "./subagents-v1";
 import { TEAM_UI_BLOCKS_CAPABILITY } from "./ui-blocks-v1";
 import { TEAM_OPEN_PROVIDERS_CAPABILITY, TEAM_PROTOCOL_V8_CAPABILITIES } from "./v8";
+import { WEBHOOK_TESTS_CAPABILITY } from "./webhook-tests-v1";
 import { WORKSPACE_DIRECTORY_CAPABILITY } from "./workspace-directory-v1";
 
 export const TEAM_SEMANTIC_TAGS_CAPABILITY = "installed-skills";
@@ -174,6 +175,7 @@ export {
   TEAM_PROMPT_MULTI_SELECT_CAPABILITY,
   TEAM_SUBAGENTS_CAPABILITY,
   TEAM_UI_BLOCKS_CAPABILITY,
+  WEBHOOK_TESTS_CAPABILITY,
   WORKSPACE_DIRECTORY_CAPABILITY,
 };
 
@@ -265,6 +267,7 @@ export const TEAM_CURRENT_CAPABILITIES = [
   TEAM_CHANNEL_ATTENTION_CAPABILITY,
   AGENT_BACKUP_MODELS_CAPABILITY,
   ROUTINE_RESULTS_CAPABILITY,
+  WEBHOOK_TESTS_CAPABILITY,
 ] as const;
 
 export type TeamCurrentCapability = (typeof TEAM_CURRENT_CAPABILITIES)[number];
@@ -370,7 +373,8 @@ export const TEAM_BOOTSTRAP_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
     capability !== TEAM_PROMPT_MULTI_SELECT_CAPABILITY &&
     capability !== TEAM_CHANNEL_ATTENTION_CAPABILITY &&
     capability !== AGENT_BACKUP_MODELS_CAPABILITY &&
-    capability !== ROUTINE_RESULTS_CAPABILITY,
+    capability !== ROUTINE_RESULTS_CAPABILITY &&
+    capability !== WEBHOOK_TESTS_CAPABILITY,
 );
 // A v7 host does not know the v8 markers, so a client sends them only after it negotiates protocol 8.
 const TEAM_PROTOCOL_V7_CURRENT_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
@@ -419,6 +423,7 @@ export function legacyTeamCapabilities(capabilities: readonly string[]): string[
       capability !== TEAM_PROMPT_MULTI_SELECT_CAPABILITY &&
       capability !== TEAM_CHANNEL_ATTENTION_CAPABILITY &&
       capability !== AGENT_BACKUP_MODELS_CAPABILITY &&
-      capability !== ROUTINE_RESULTS_CAPABILITY,
+      capability !== ROUTINE_RESULTS_CAPABILITY &&
+      capability !== WEBHOOK_TESTS_CAPABILITY,
   );
 }
