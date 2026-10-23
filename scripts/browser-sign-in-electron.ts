@@ -101,7 +101,9 @@ async function main(): Promise<void> {
       focusable: false,
       webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false },
     });
-    browser = new BrowserHost(window, join(fixtureRoot, "downloads"), join(fixtureRoot, "tabs.json"));
+    browser = new BrowserHost(window, join(fixtureRoot, "downloads"), join(fixtureRoot, "tabs.json"), {
+      ownBrowserSession: (agentId) => agentId === "own-session-agent",
+    });
     const host = browser;
     const target = { serverId: "fixture-server", tabId: "" };
 
@@ -193,13 +195,39 @@ async function main(): Promise<void> {
       expirationDate: null,
     };
     assert.equal(await runCauseEffect(host.importSignIn(tab.id, [foreign])), 0, "A foreign cookie was set.");
+    // The domain text fits the tab's host, but the URL made from it points to another host.
+    const crafted = { ...foreign, name: "crafted", domain: "localhost#.127.0.0.1" };
+    assert.equal(await runCauseEffect(host.importSignIn(tab.id, [crafted])), 0, "A crafted domain was set.");
     const reloaded = loaded(tabContents);
     assert.equal(await runCauseEffect(host.importSignIn(tab.id, collected)), 3);
     await reloaded;
     assert.equal(tabContents.getTitle(), "signed-in");
     assert.deepEqual(await tabContents.session.cookies.get({ url: origin }).then(names), ["js", "pref", "session"]);
     assert.deepEqual(await tabContents.session.cookies.get({ name: "foreign" }).then(names), []);
-    recordCases("import-refuses-other-site", "import-sets-site-cookies", "import-reloads-signed-in");
+    assert.deepEqual(await tabContents.session.cookies.get({ name: "crafted" }).then(names), []);
+    recordCases(
+      "import-refuses-other-site",
+      "import-refuses-crafted-domain",
+      "import-sets-site-cookies",
+      "import-reloads-signed-in",
+    );
+
+    // 6b. A tab of an agent with a browser session of its own gets the sign-in in that session.
+    const before = new Set(webContents.getAllWebContents());
+    const ownTab = await runCauseEffect(host.open(`${origin}/home`, "own-session-thread", "own-session-agent"));
+    const ownContents = webContents.getAllWebContents().find((item) => !before.has(item));
+    assert(ownContents, "Missing the own-session tab contents.");
+    assert.notEqual(ownContents.session, tabContents.session, "The agent tab uses the shared session.");
+    const own: BrowserSignInCookie = { ...foreign, name: "own", domain: "127.0.0.1" };
+    assert.equal(await runCauseEffect(host.importSignIn(ownTab.id, [own])), 1);
+    assert.deepEqual(await ownContents.session.cookies.get({ name: "own" }).then(names), ["own"]);
+    assert.deepEqual(
+      await tabContents.session.cookies.get({ name: "own" }).then(names),
+      [],
+      "Went to the shared session.",
+    );
+    await runCauseEffect(host.close(ownTab.id));
+    recordCases("import-uses-agent-session");
 
     // 7. Discard closes every window of the sign-in and removes what it kept.
     await runCauseEffect(signIns.discard());

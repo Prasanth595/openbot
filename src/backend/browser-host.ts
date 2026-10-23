@@ -851,7 +851,7 @@ export class BrowserHost {
     const tab = yield* this.#requireTab(tabId);
     const page = URL.canParse(tab.contents.getURL()) ? new URL(tab.contents.getURL()) : null;
     if (!page || (page.protocol !== "https:" && page.protocol !== "http:")) return 0;
-    const target = tab.privateSession ?? this.#session;
+    const target = this.#tabSession(tab);
     const results = yield* Effect.forEach(
       cookies.filter((cookie) => browserSignInCookieFitsHost(cookie.domain, page.hostname)),
       (cookie) =>

@@ -114,6 +114,9 @@ export function decodeBrowserSignInImport(input: unknown): BrowserSignInImport {
   return { tabId: String(identifier(input.tabId)), cookies: input.cookies.map(signInCookie) };
 }
 
+/** A host name only. The host puts the domain in a URL, so a `/`, `?` or `#` must not change its host. */
+const COOKIE_DOMAIN = /^[a-z0-9_-]+(?:\.[a-z0-9_-]+)*$/u;
+
 /**
  * The cookies that go to a tab: the tab's host itself, a parent domain of it (not a top-level one),
  * or a subdomain of it. Both sides apply it; Chromium on the host also refuses a public suffix.
@@ -121,7 +124,7 @@ export function decodeBrowserSignInImport(input: unknown): BrowserSignInImport {
 export function browserSignInCookieFitsHost(cookieDomain: string, host: string): boolean {
   const domain = cookieDomain.replace(/^\./u, "").toLowerCase();
   const page = host.toLowerCase();
-  if (!domain || !page) return false;
+  if (!COOKIE_DOMAIN.test(domain) || !page) return false;
   return domain === page || (domain.includes(".") && page.endsWith(`.${domain}`)) || domain.endsWith(`.${page}`);
 }
 
