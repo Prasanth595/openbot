@@ -207,6 +207,8 @@ export interface AgentMessage {
   actionMarker?: ChatActionMarkerModel | undefined;
   items?: string[];
   itemIds?: string[];
+  /** When the host wrote each of `items`, to place them between a turn's progress lines. */
+  itemCreatedAt?: string[];
   plan?: AgentMessagePlan | undefined;
   /** The subagents that the agent started in this turn, on a `subagents` message. */
   subagents?: ConversationSubagent[] | undefined;

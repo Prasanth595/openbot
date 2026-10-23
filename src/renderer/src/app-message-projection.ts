@@ -185,6 +185,7 @@ export function toAgentMessages(
       const text = cleanAgentMessageText(message.text);
       existing.items = [...(existing.items ?? []), text];
       existing.itemIds = [...(existing.itemIds ?? []), message.id];
+      existing.itemCreatedAt = [...(existing.itemCreatedAt ?? []), message.createdAt];
       existing.streaming = existing.streaming || message.status === "streaming";
       continue;
     }
@@ -202,6 +203,7 @@ export function toAgentMessages(
       kind: "thinking",
       items: [text],
       itemIds: [message.id],
+      itemCreatedAt: [message.createdAt],
     };
     thinkingByTurn.set(key, thinking);
     result.push(thinking);

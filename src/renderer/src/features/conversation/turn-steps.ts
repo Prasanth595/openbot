@@ -37,8 +37,9 @@ export function createTurnSteps(deps: {
   lines: () => TurnStepLines | undefined;
   activeTurnId: () => string | null | undefined;
 }) {
-  // When this window first saw each thought. A progress line has its own time, and the two are
-  // ordered by them, so a line shows between the thoughts it came between.
+  // A thought is ordered by when the host wrote it, and a progress line by when this window got it,
+  // so a line shows between the thoughts it came between. A thought with no time (from a client
+  // that does not send one) uses the time this window first saw it.
   const seenAt = new Map<string, number>();
   const lists = new Map<string, AgentStep[]>();
   const sources = createMemo(() => {
@@ -64,7 +65,8 @@ export function createTurnSteps(deps: {
     for (const [index, text] of (thoughts?.items ?? []).entries()) {
       if (!text.trim()) continue;
       const id = thoughts?.itemIds?.[index] ?? `${thoughts?.id}:${index}`;
-      const at = seenAt.get(id) ?? now;
+      const written = Date.parse(thoughts?.itemCreatedAt?.[index] ?? "");
+      const at = Number.isFinite(written) ? written : (seenAt.get(id) ?? now);
       seenAt.set(id, at);
       timed.push({ step: { id, kind: "thinking", text }, at });
     }
