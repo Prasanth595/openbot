@@ -31,12 +31,10 @@ import {
   HeroRequest,
   ListingBlock,
   ListingFacts,
+  ListingHeader,
   ListingHeaderAction,
-  ListingHero,
-  ListingTitle,
   TryPressable,
 } from "../components/listing-sheet-parts";
-import { ListingIcon } from "../components/marketplace-parts";
 import {
   agentListing,
   appListings,
@@ -45,7 +43,7 @@ import {
   skillListing,
 } from "../model/marketplace-listings";
 import type { MobilePlugin } from "../model/plugin-catalog.generated";
-import { pluginConnectMethod } from "../model/plugin-connect";
+import { pluginConnectMethod, pluginServerId } from "../model/plugin-connect";
 import { useMarketplaceInstalled } from "../model/use-marketplace";
 import { usePluginConnect } from "../model/use-plugin-connect";
 import { useTryInChat } from "../model/use-try-in-chat";
@@ -57,7 +55,12 @@ import { useTryInChat } from "../model/use-try-in-chat";
  */
 export function MarketplaceListingScreen() {
   const { t, errorMessage } = useText();
-  const { serverId, kind, id } = useLocalSearchParams<{ serverId: string; kind: string; id: string }>();
+  const { serverId, kind, id, name } = useLocalSearchParams<{
+    serverId: string;
+    kind: string;
+    id: string;
+    name?: string;
+  }>();
   const { session } = useMobileSession();
   const apiUrl = session?.apiUrl ?? null;
   const agent = useQuery({
@@ -115,6 +118,8 @@ export function MarketplaceListingScreen() {
       contentContainerClassName="gap-6 px-5 pb-safe-offset-5 pt-5"
       contentInsetAdjustmentBehavior="automatic"
     >
+      {/* The name from the row, from the first frame; the loaded listing sets the same title. */}
+      <Stack.Screen options={{ title: name ?? "" }} />
       {isAndroid ? (
         <AndroidHeaderButton
           placement="left"
@@ -254,13 +259,9 @@ function AgentPage({
         }
         onPress={() => void install()}
       />
-      <ListingTitle listing={listing} />
-      <ListingHero listing={listing}>
-        <View className="items-center gap-4">
-          <ListingIcon listing={listing} size={88} />
-          {detail.skills.length > 0 ? <HeroChips items={detail.skills.slice(0, 4).map((item) => item.name)} /> : null}
-        </View>
-      </ListingHero>
+      <ListingHeader listing={listing}>
+        {detail.skills.length > 0 ? <HeroChips items={detail.skills.slice(0, 4).map((item) => item.name)} /> : null}
+      </ListingHeader>
       <ListingFacts facts={facts} />
       {detail.description ? <Typography.Paragraph>{detail.description}</Typography.Paragraph> : null}
       {pending ? (
@@ -375,10 +376,9 @@ function SkillPage({
         label={t("mobile.marketplace.skill.add")}
         onPress={chooseAgents}
       />
-      <ListingTitle listing={listing} />
-      <ListingHero listing={listing}>
+      <ListingHeader listing={listing}>
         <HeroRequest listing={listing} text={example} targets={targets} caption={tryCaption} />
-      </ListingHero>
+      </ListingHeader>
       <ListingFacts facts={facts} />
       <Typography.Paragraph>{detail.description}</Typography.Paragraph>
       {block ? (
@@ -474,8 +474,7 @@ function AppPage({
         label={working ? t("mobile.marketplace.app.connecting") : t("mobile.marketplace.app.add")}
         onPress={add}
       />
-      <ListingTitle listing={listing} />
-      <ListingHero listing={listing}>
+      <ListingHeader listing={listing}>
         {first ? (
           <HeroRequest
             listing={listing}
@@ -486,13 +485,21 @@ function AppPage({
         ) : (
           <HeroChips items={[plugin.tagline]} />
         )}
-      </ListingHero>
+      </ListingHeader>
       <ListingFacts facts={facts} />
       <Typography.Paragraph>{plugin.description}</Typography.Paragraph>
       {working ? <SettingsNote>{t("mobile.marketplace.app.connecting")}</SettingsNote> : null}
       {connected ? (
         <SettingsSection footer={t("mobile.marketplace.app.connectedHint")}>
-          <SettingsRow onPress={() => router.push({ pathname: "/server-settings/mcp", params: { serverId } })}>
+          <SettingsRow
+            onPress={() => {
+              // The app's own MCP page; the list when the row is not known yet, such as right after a connect.
+              const mcpServerId = pluginServerId(plugin, installed.mcpServers ?? []);
+              if (mcpServerId)
+                router.push({ pathname: "/server-settings/mcp-server", params: { serverId, mcpServerId } });
+              else router.push({ pathname: "/server-settings/mcp", params: { serverId } });
+            }}
+          >
             <Typography.Paragraph>{t("mobile.marketplace.app.connected")}</Typography.Paragraph>
           </SettingsRow>
         </SettingsSection>

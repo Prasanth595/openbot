@@ -97,7 +97,19 @@ export function ListingRow({
   );
 }
 
-/** A card of the agent shelf: the avatar, the name, two lines about it, and its state. */
+/** The text on a listing's gradient: a dark panel, so that white text reads on every palette. */
+const ON_GRADIENT = {
+  panel: "rgba(0, 0, 0, 0.42)",
+  text: "#ffffff",
+  secondary: "rgba(255, 255, 255, 0.82)",
+  muted: "rgba(255, 255, 255, 0.72)",
+};
+
+/**
+ * A card of the agent shelf: the agent's gradient with its avatar, as in the banner above it, then the
+ * name, two lines about it, and the category and installs on the card's own surface. An agent the
+ * server has carries a check mark.
+ */
 export function AgentCard({
   listing,
   installed,
@@ -107,32 +119,53 @@ export function AgentCard({
   installed: boolean;
   onPress: () => void;
 }) {
-  const { t } = useText();
+  const { t, format } = useText();
+  const success = String(useCSSVariable("--openbot-success-text"));
+  const meta = [
+    listing.category ? t(CATEGORY_LABELS[listing.category]) : null,
+    listing.kind === "app"
+      ? null
+      : t("mobile.marketplace.overview.installs", { installs: format.compact(listing.installs) }),
+  ]
+    .filter(Boolean)
+    .join(" · ");
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={installed ? t("mobile.marketplace.row.installed", { name: listing.name }) : listing.name}
-      className="w-40 gap-2 rounded-grouped bg-grouped p-3.5"
+      className="w-44 overflow-hidden rounded-grouped bg-grouped"
       style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, borderCurve: "continuous" })}
       onPress={() => {
         void haptics.impact("soft");
         onPress();
       }}
     >
-      <ListingIcon listing={listing} size={44} />
-      <Typography.Paragraph numberOfLines={1} className="font-semibold" style={typeScale.body}>
-        {listing.name}
-      </Typography.Paragraph>
-      <Typography.Paragraph
-        numberOfLines={2}
-        className="text-grouped-secondary"
-        style={{ ...typeScale.caption, minHeight: 36 }}
-      >
-        {listing.description}
-      </Typography.Paragraph>
-      <Typography.Paragraph className={installed ? "text-success-text" : "text-accent-text"} style={typeScale.caption}>
-        {installed ? t("mobile.marketplace.installed") : t("mobile.marketplace.overview.view")}
-      </Typography.Paragraph>
+      <View className="h-24 items-center justify-center">
+        <ListingGradient name={listing.name} />
+        <ListingIcon listing={listing} size={60} />
+      </View>
+      <View className="gap-1 px-3.5 pt-3 pb-3.5">
+        <Typography.Paragraph numberOfLines={1} className="font-semibold" style={typeScale.body}>
+          {listing.name}
+        </Typography.Paragraph>
+        <Typography.Paragraph
+          numberOfLines={2}
+          className="text-grouped-secondary"
+          style={{ ...typeScale.caption, minHeight: 36 }}
+        >
+          {listing.description}
+        </Typography.Paragraph>
+        <View className="mt-1.5 flex-row items-center gap-1.5">
+          <Typography.Paragraph
+            numberOfLines={1}
+            className="min-w-0 flex-1 text-grouped-secondary"
+            style={typeScale.small}
+          >
+            {meta}
+          </Typography.Paragraph>
+          {installed ? <CircleCheck color={success} size={16} strokeWidth={2.2} /> : null}
+        </View>
+      </View>
     </Pressable>
   );
 }
@@ -177,8 +210,9 @@ export function AppTile({
 }
 
 /**
- * The featured agent at the top of the overview: the listing's gradient, as on the desktop page, with
- * its avatar, and the name over a dark panel so that the text reads on every palette.
+ * The agent with the most installs, at the top of the overview: its avatar large on the listing's
+ * gradient, as on the desktop page, and the name over a dark panel so that the text reads on every
+ * palette.
  */
 export function FeaturedAgent({
   listing,
@@ -194,7 +228,7 @@ export function FeaturedAgent({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={t("mobile.marketplace.overview.featuredLabel", { name: listing.name })}
+      accessibilityLabel={t("mobile.marketplace.overview.mostInstalledLabel", { name: listing.name })}
       className="overflow-hidden rounded-3xl"
       style={({ pressed }) => ({ borderCurve: "continuous", opacity: pressed ? 0.85 : 1 })}
       onPress={() => {
@@ -203,20 +237,22 @@ export function FeaturedAgent({
       }}
     >
       <ListingGradient name={listing.name} />
-      <View className="flex-row items-start justify-between px-5 pt-5 pb-10">
-        <View className="rounded-full px-2.5 py-1" style={{ backgroundColor: "rgba(0, 0, 0, 0.28)" }}>
+      <View className="px-5 pt-5">
+        <View className="self-start rounded-full px-2.5 py-1" style={{ backgroundColor: "rgba(0, 0, 0, 0.28)" }}>
           <Typography.Paragraph className="font-semibold" style={{ ...typeScale.small, color: "#ffffff" }}>
-            {t("mobile.marketplace.overview.featured")}
+            {t("mobile.marketplace.overview.mostInstalled")}
           </Typography.Paragraph>
         </View>
-        <ListingIcon listing={listing} size={72} />
       </View>
-      <View className="gap-3 px-5 py-4" style={{ backgroundColor: "rgba(0, 0, 0, 0.42)" }}>
+      <View className="items-center pt-2 pb-8">
+        <ListingIcon listing={listing} size={108} />
+      </View>
+      <View className="gap-3 px-5 py-4" style={{ backgroundColor: ON_GRADIENT.panel }}>
         <View className="gap-1">
-          <Typography.Heading type="h3" numberOfLines={1} style={{ color: "#ffffff" }}>
+          <Typography.Heading type="h3" numberOfLines={1} style={{ color: ON_GRADIENT.text }}>
             {listing.name}
           </Typography.Heading>
-          <Typography.Paragraph numberOfLines={2} style={{ ...typeScale.preview, color: "rgba(255, 255, 255, 0.82)" }}>
+          <Typography.Paragraph numberOfLines={2} style={{ ...typeScale.preview, color: ON_GRADIENT.secondary }}>
             {listing.description}
           </Typography.Paragraph>
         </View>
@@ -224,7 +260,7 @@ export function FeaturedAgent({
           <Typography.Paragraph
             numberOfLines={1}
             className="min-w-0 flex-1"
-            style={{ ...typeScale.caption, color: "rgba(255, 255, 255, 0.72)" }}
+            style={{ ...typeScale.caption, color: ON_GRADIENT.muted }}
           >
             {installs === null
               ? listing.creatorName

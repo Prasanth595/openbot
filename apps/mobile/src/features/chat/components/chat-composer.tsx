@@ -3,6 +3,7 @@ import { GlassView } from "expo-glass-effect";
 import { useIsFocused } from "expo-router";
 import { Button, Spinner, Typography } from "heroui-native";
 import ArrowUp from "lucide-react-native/icons/arrow-up";
+import Blocks from "lucide-react-native/icons/blocks";
 import Mic from "lucide-react-native/icons/mic";
 import Plus from "lucide-react-native/icons/plus";
 import Reply from "lucide-react-native/icons/reply";
@@ -43,6 +44,7 @@ import type { ChatBubbleMessage } from "@/features/chat/model/chat-messages";
 import type { MobileAgent } from "@/features/workspace/model/workspace-types";
 import { haptics } from "@/shared/lib/haptics";
 import { useMotionPreference, useReducedMotion } from "@/shared/lib/motion";
+import { isAndroid } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
 import { editMentionDraft, insertMention, mentionDraft, mentionQuery } from "../model/chat-mentions";
 import { applyMarkdownListEdit, markdownListReturn } from "../model/composer-lists";
@@ -128,10 +130,12 @@ interface ChatComposerProps {
   /** Replaces "Ask {name}", such as while the composer answers a question. */
   placeholder?: string;
   mentionAgents: MobileAgent[];
-  /** The skills of the chat's agent. `@` offers them after the agents, as references to that skill. */
+  /** The skills of the chat's agent and the apps of its server. `@` offers them after the agents. */
   mentionSkills?: readonly MentionSkill[];
-  /** A new value writes `@` in the field and offers the skills alone, for Use skill in the plus menu. */
+  /** A new value writes `@` in the field and offers the skills and apps alone, for the plus menu. */
   skillPickerVersion?: number;
+  /** Tells the chat when the `@` list opens and closes, so that a drag in it does not move the keyboard. */
+  onSuggestionsVisibleChange?: (visible: boolean) => void;
   bottomInset: number;
   disabled: boolean;
   draft: string;
@@ -170,8 +174,12 @@ interface ChatComposerProps {
 const NO_FILES: ChatAttachments["items"] = [];
 const NO_SKILLS: readonly MentionSkill[] = [];
 
-/** A skill that the composer can name, as `@[name](skill:id)`. */
+/**
+ * A skill or a connected app that the composer can name, as `@[name](skill:id)` or `@[name](mcp:id)`,
+ * the references the desktop composer writes.
+ */
 export interface MentionSkill {
+  kind: "skill" | "mcp";
   id: string;
   name: string;
   description: string;
@@ -209,6 +217,7 @@ export const ChatComposer = memo(function ChatComposer({
   mentionAgents,
   mentionSkills = NO_SKILLS,
   skillPickerVersion = 0,
+  onSuggestionsVisibleChange,
   bottomInset,
   disabled,
   draft,
@@ -615,7 +624,13 @@ export const ChatComposer = memo(function ChatComposer({
   }, [disabled, sendGate]);
 
   const suggestionCount = suggestions.length + skillSuggestions.length;
-  const suggestionsVisible = Boolean(focused && query && suggestionCount > 0 && !disabled);
+  // Android takes the focus from the field when its keyboard hides, which a drag in this list does, and
+  // when the plus menu that asks for the skills closes. There the list stays while an `@` query is in
+  // the text, and closes with a choice or the end of the query. iOS keeps the field focused for both.
+  const suggestionsVisible = Boolean((focused || isAndroid) && query && suggestionCount > 0 && !disabled);
+  useEffect(() => {
+    onSuggestionsVisibleChange?.(suggestionsVisible);
+  }, [onSuggestionsVisibleChange, suggestionsVisible]);
   const announcedSuggestions = useRef("");
   useEffect(() => {
     // The list opens and closes under the keyboard with no focus change, so a
@@ -757,37 +772,54 @@ export const ChatComposer = memo(function ChatComposer({
                 </Typography.Paragraph>
               </Button>
             ))}
-            {skillSuggestions.length > 0 && suggestions.length > 0 ? (
-              <Typography type="body-xs" className="px-4 pt-2 pb-1 text-muted">
-                {t("mobile.chat.composer.skills")}
-              </Typography>
-            ) : null}
-            {skillSuggestions.map((skill) => (
-              <Button
-                key={skill.id}
-                variant="ghost"
-                className="min-h-12 flex-row justify-start gap-3 rounded-none px-4"
-                accessibilityLabel={t("mobile.chat.composer.useSkill", { name: skill.name })}
-                onPress={() => {
-                  void haptics.selection();
-                  const next = insertMention(latestTextRef.current, query, skill, "skill");
-                  latestTextRef.current = next;
-                  onChangeDraft(next);
-                  const position = query.start + skill.name.length + 2;
-                  setCursor(position);
-                  pendingCursor.current = position;
-                  setSkillsOnly(false);
-                  inputRef.current?.focus();
-                }}
-              >
-                <View className="size-7 items-center justify-center rounded-lg bg-control">
-                  <Sparkles color={String(foreground)} size={16} strokeWidth={1.9} />
+            {(["skill", "mcp"] as const).map((kind) => {
+              const group = skillSuggestions.filter((tool) => tool.kind === kind);
+              if (group.length === 0) return null;
+              // A heading when the list shows another group above this one.
+              const titled = suggestions.length > 0 || (kind === "mcp" && group.length < skillSuggestions.length);
+              return (
+                <View key={kind}>
+                  {titled ? (
+                    <Typography type="body-xs" className="px-4 pt-2 pb-1 text-muted">
+                      {t(kind === "skill" ? "mobile.chat.composer.skills" : "mobile.chat.composer.apps")}
+                    </Typography>
+                  ) : null}
+                  {group.map((tool) => (
+                    <Button
+                      key={tool.id}
+                      variant="ghost"
+                      className="min-h-12 flex-row justify-start gap-3 rounded-none px-4"
+                      accessibilityLabel={t(
+                        kind === "skill" ? "mobile.chat.composer.useSkill" : "mobile.chat.composer.useApp",
+                        { name: tool.name },
+                      )}
+                      onPress={() => {
+                        void haptics.selection();
+                        const next = insertMention(latestTextRef.current, query, tool, kind);
+                        latestTextRef.current = next;
+                        onChangeDraft(next);
+                        const position = query.start + tool.name.length + 2;
+                        setCursor(position);
+                        pendingCursor.current = position;
+                        setSkillsOnly(false);
+                        inputRef.current?.focus();
+                      }}
+                    >
+                      <View className="size-7 items-center justify-center rounded-lg bg-control">
+                        {kind === "skill" ? (
+                          <Sparkles color={String(foreground)} size={16} strokeWidth={1.9} />
+                        ) : (
+                          <Blocks color={String(foreground)} size={16} strokeWidth={1.9} />
+                        )}
+                      </View>
+                      <Typography.Paragraph numberOfLines={1} className="flex-1">
+                        {tool.name}
+                      </Typography.Paragraph>
+                    </Button>
+                  ))}
                 </View>
-                <Typography.Paragraph numberOfLines={1} className="flex-1">
-                  {skill.name}
-                </Typography.Paragraph>
-              </Button>
-            ))}
+              );
+            })}
           </ScrollView>
         </GlassView>
       ) : null}

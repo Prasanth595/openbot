@@ -2,7 +2,7 @@ import { SheetPageStack } from "@/shared/components/sheet-page-stack";
 
 export const unstable_settings = { initialRouteName: "index" };
 
-/** The page sets its own title, the listing's name, when the listing loads. */
+/** The page sets its title, the listing's name. Empty until then, so the route name never shows. */
 export default function MarketplaceListingLayout() {
-  return <SheetPageStack />;
+  return <SheetPageStack title="" />;
 }

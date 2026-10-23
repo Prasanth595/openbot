@@ -12,6 +12,7 @@ import type { MobileTranslate } from "@openbot/i18n/mobile";
 import * as Linking from "expo-linking";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
+import Blocks from "lucide-react-native/icons/blocks";
 import FileText from "lucide-react-native/icons/file-text";
 import Sparkles from "lucide-react-native/icons/sparkles";
 import type { Token, Tokens } from "marked";
@@ -122,8 +123,9 @@ function textSize(presentation: TextPresentation): number {
 // same space in the owning text view so its last line does not clip the capsule.
 function textContainerStyle(source: string, presentation: TextPresentation): TextStyle {
   const hasMention =
-    chatTagReferences(source).some((reference) => reference.kind === "agent" || reference.kind === "skill") ||
-    plainMentionParts(source, presentation.agents).some((part) => part.agent);
+    chatTagReferences(source).some(
+      (reference) => reference.kind === "agent" || reference.kind === "skill" || reference.kind === "mcp",
+    ) || plainMentionParts(source, presentation.agents).some((part) => part.agent);
   // Inline math is moved down to the math axis in the same way.
   const hasMath = chatMathStart(source) !== undefined;
   // Android moves code chips down as well; see `inlineChipStyle`.
@@ -313,8 +315,12 @@ function AgentMention({ agent, presentation }: { agent: MobileAgent; presentatio
   );
 }
 
-/** A skill that a message names: the same chip as an agent mention, with the skill mark for the avatar. */
-function SkillMention({ name, presentation }: { name: string; presentation: TextPresentation }) {
+/**
+ * A skill or an app that a message names: the same chip as an agent mention, with the skill or app mark
+ * for the avatar, as the desktop chip has.
+ */
+function SkillMention({ name, app, presentation }: { name: string; app: boolean; presentation: TextPresentation }) {
+  const Mark = app ? Blocks : Sparkles;
   const chip = mentionChip(presentation);
   return (
     <View
@@ -322,7 +328,7 @@ function SkillMention({ name, presentation }: { name: string; presentation: Text
       className="max-w-full flex-row items-center gap-1 rounded-full bg-control/30 pr-1.5 pl-1"
       style={chip.style}
     >
-      <Sparkles
+      <Mark
         color={presentation.style.color === undefined ? undefined : String(presentation.style.color)}
         size={chip.mark - 2 * presentation.fontScale}
         strokeWidth={2}
@@ -364,8 +370,15 @@ function inline(tokens: Token[], parentPresentation: TextPresentation): ReactNod
       return <AgentMention key={offset} agent={agent} presentation={presentation} />;
     }
     if (token.type === "skillMention") {
-      const name = chatTagReferences(token.raw)[0]?.name ?? "";
-      return <SkillMention key={offset} name={name} presentation={presentation} />;
+      const reference = chatTagReferences(token.raw)[0];
+      return (
+        <SkillMention
+          key={offset}
+          name={reference?.name ?? ""}
+          app={reference?.kind === "mcp"}
+          presentation={presentation}
+        />
+      );
     }
     if (token.type === "br") return "\n";
     // The list row draws the task mark, so the checkbox token adds nothing.
@@ -510,8 +523,12 @@ function selectableInline(tokens: Token[], presentation: TextPresentation, segme
       if (agent) inlineView(<AgentMention key={offset} agent={agent} presentation={presentation} />, `@${agent.name}`);
       else text(`@${reference?.name ?? "Agent"}`);
     } else if (token.type === "skillMention") {
-      const name = chatTagReferences(token.raw)[0]?.name ?? "";
-      inlineView(<SkillMention key={offset} name={name} presentation={presentation} />, `@${name}`);
+      const reference = chatTagReferences(token.raw)[0];
+      const name = reference?.name ?? "";
+      inlineView(
+        <SkillMention key={offset} name={name} app={reference?.kind === "mcp"} presentation={presentation} />,
+        `@${name}`,
+      );
     } else if (token.type === "br") {
       text("\n");
     } else if (token.type === "checkbox") {

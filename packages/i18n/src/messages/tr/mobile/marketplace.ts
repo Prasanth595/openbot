@@ -26,9 +26,10 @@ export const messages = {
   "mobile.marketplace.filter.installed": "Yalnızca kurulu",
   "mobile.marketplace.filter.remove": "{name} filtresini kaldır",
   "mobile.marketplace.filter.clear": "Temizle",
-  "mobile.marketplace.overview.featured": "Öne çıkan ajan",
-  "mobile.marketplace.overview.featuredLabel": "Öne çıkan ajan: {name}",
+  "mobile.marketplace.overview.mostInstalled": "En çok kurulan",
+  "mobile.marketplace.overview.mostInstalledLabel": "En çok kurulan ajan: {name}",
   "mobile.marketplace.overview.featuredMeta": "{name} · {installs} kurulum",
+  "mobile.marketplace.overview.installs": "{installs} kurulum",
   "mobile.marketplace.overview.agents": "Popüler ajanlar",
   "mobile.marketplace.overview.apps": "Uygulamalar",
   "mobile.marketplace.overview.skills": "Popüler beceriler",
@@ -89,7 +90,11 @@ export const messages = {
   "mobile.marketplace.app.keyIntro":
     "Hesabınızdaki anahtarı yapıştırın. Sunucu, uygulamayı kaydetmeden önce anahtarı test eder.",
   "mobile.marketplace.app.signInIntro": "Uygulamanın sayfasında oturum açın. Oturumu bu telefon değil, sunucu saklar.",
-  "mobile.marketplace.app.signIn": "Oturum aç",
+  "mobile.marketplace.app.stepOpen": "{name} giriş sayfasını açın.",
+  "mobile.marketplace.app.stepAllow": "Giriş yapın ve erişime izin verin.",
+  "mobile.marketplace.app.stepReturn": "Buraya dönün. {name} sunucunuzda bağlanır.",
+  "mobile.marketplace.app.openSignIn": "Giriş sayfasını aç",
+  "mobile.marketplace.app.keySecure": "Anahtar yalnızca sunucunuza, şifreli bir bağlantıyla gider.",
   "mobile.marketplace.app.connecting": "Bağlanıyor",
   "mobile.marketplace.app.connected": "Bağlandı",
   "mobile.marketplace.app.connectedHint":
@@ -103,7 +108,6 @@ export const messages = {
     "Bu uygulama tarayıcıda oturum açmayı gerektirir. Sunucudaki OpenBot'u güncelleyin veya uygulamayı bilgisayarda bağlayın.",
   "mobile.marketplace.app.waiting": "Oturum açma sayfası bekleniyor…",
   "mobile.marketplace.app.openAgain": "Oturum açma sayfasını yeniden aç",
-  "mobile.marketplace.app.signInHint": "Sayfada oturum açın. Oturum açma tamamlanınca uygulama bağlanır.",
   "mobile.marketplace.app.pasteHint":
     "Sonunda sayfa, yüklenmeyen bir adres açar. Bu adresi kopyalayıp aşağıya yapıştırın.",
   "mobile.marketplace.app.pasteLabel": "Oturum açma sonrası adres",

@@ -26,9 +26,10 @@ export const messages = {
   "mobile.marketplace.filter.installed": "Installés uniquement",
   "mobile.marketplace.filter.remove": "Retirer le filtre {name}",
   "mobile.marketplace.filter.clear": "Effacer",
-  "mobile.marketplace.overview.featured": "Agent à la une",
-  "mobile.marketplace.overview.featuredLabel": "Agent à la une : {name}",
+  "mobile.marketplace.overview.mostInstalled": "Le plus installé",
+  "mobile.marketplace.overview.mostInstalledLabel": "Agent le plus installé : {name}",
   "mobile.marketplace.overview.featuredMeta": "Par {name} · {installs} installations",
+  "mobile.marketplace.overview.installs": "{installs} installations",
   "mobile.marketplace.overview.agents": "Agents populaires",
   "mobile.marketplace.overview.apps": "Apps",
   "mobile.marketplace.overview.skills": "Compétences populaires",
@@ -92,7 +93,11 @@ export const messages = {
   "mobile.marketplace.app.keyIntro": "Collez la clé de votre compte. Le serveur la teste avant d’enregistrer l’app.",
   "mobile.marketplace.app.signInIntro":
     "Connectez-vous sur la page de l’app. Le serveur conserve la connexion, pas ce téléphone.",
-  "mobile.marketplace.app.signIn": "Se connecter",
+  "mobile.marketplace.app.stepOpen": "Ouvrez la page de connexion de {name}.",
+  "mobile.marketplace.app.stepAllow": "Connectez-vous et autorisez l’accès.",
+  "mobile.marketplace.app.stepReturn": "Revenez ici. {name} se connecte sur votre serveur.",
+  "mobile.marketplace.app.openSignIn": "Ouvrir la connexion",
+  "mobile.marketplace.app.keySecure": "La clé va uniquement à votre serveur, par une connexion chiffrée.",
   "mobile.marketplace.app.connecting": "Connexion",
   "mobile.marketplace.app.connected": "Connectée",
   "mobile.marketplace.app.connectedHint":
@@ -106,7 +111,6 @@ export const messages = {
     "Cette app demande une connexion dans le navigateur. Mettez à jour OpenBot sur le serveur ou connectez l’app sur l’ordinateur.",
   "mobile.marketplace.app.waiting": "En attente de la page de connexion…",
   "mobile.marketplace.app.openAgain": "Rouvrir la page de connexion",
-  "mobile.marketplace.app.signInHint": "Connectez-vous sur la page. L’app se connecte quand la connexion est terminée.",
   "mobile.marketplace.app.pasteHint":
     "À la fin, la page ouvre une adresse qui ne se charge pas. Copiez cette adresse et collez-la ci-dessous.",
   "mobile.marketplace.app.pasteLabel": "Adresse après la connexion",

@@ -52,8 +52,8 @@ const markdown = new Marked({
       start: (source) => source.indexOf("@["),
       tokenizer(source) {
         const reference = chatTagReferences(source)[0];
-        // A skill that a message names, such as a Try from the Marketplace, draws as a chip, as an agent does.
-        if (reference?.start === 0 && reference.kind === "skill")
+        // A skill or an app that a message names, such as a Try from the Marketplace, draws as a chip.
+        if (reference?.start === 0 && (reference.kind === "skill" || reference.kind === "mcp"))
           return { type: "skillMention", raw: source.slice(0, reference.end) };
       },
     },

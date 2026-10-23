@@ -294,6 +294,9 @@ export function ChatView({
   const queryClient = useQueryClient();
   // Use skill in the plus menu bumps it; the composer then writes `@` and offers the skills.
   const [skillPickerVersion, setSkillPickerVersion] = useState(0);
+  // On Android a drag in the open `@` list was also the swipe that hides the keyboard: the composer
+  // followed the finger down behind the keyboard, which stayed. iOS keeps the swipe.
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const composerAttachments = useChatAttachments([], undefined, () => workspace().attachmentSupport(target.serverId));
   const attachments = composerAttachments;
   const [messageAliases, setMessageAliases] = useState<ReadonlyMap<string, string>>(new Map());
@@ -880,7 +883,7 @@ export function ChatView({
             // the attachment menu on the plus it belongs to and floats it above
             // that strip instead. A swipe down still dismisses the keyboard
             // from the message list, only not from the composer itself.
-            enableSwipeToDismiss
+            enableSwipeToDismiss={!(isAndroid && suggestionsOpen)}
           >
             <ChatHeader
               target={target}
@@ -1089,6 +1092,7 @@ export function ChatView({
                   mentionAgents={mentionAgents}
                   mentionSkills={mentionSkills}
                   skillPickerVersion={skillPickerVersion}
+                  onSuggestionsVisibleChange={setSuggestionsOpen}
                   key={target.id}
                   action={action}
                   actionForeground={actionForeground}

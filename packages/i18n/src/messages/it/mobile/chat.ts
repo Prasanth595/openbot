@@ -113,7 +113,7 @@ export const messages = {
   "mobile.chat.attachment.files": "File",
   "mobile.chat.attachment.photos": "Foto",
   "mobile.chat.attachment.camera": "Fotocamera",
-  "mobile.chat.attachment.useSkill": "Usa skill",
+  "mobile.chat.attachment.useSkill": "Usa skill o app",
   "mobile.chat.attachment.addFailed": "Impossibile aggiungere l'allegato",
   "mobile.chat.attachment.limit": "Puoi allegare fino a {limit} file.",
   "mobile.chat.attachment.unsupported":
@@ -134,6 +134,8 @@ export const messages = {
   "mobile.chat.composer.mention": "Menziona {name}",
   "mobile.chat.composer.skills": "Skill",
   "mobile.chat.composer.useSkill": "Usa la skill {name}",
+  "mobile.chat.composer.apps": "App",
+  "mobile.chat.composer.useApp": "Usa l’app {name}",
   "mobile.chat.composer.cancelReply": "Annulla risposta",
   "mobile.chat.composer.messageAgent": "Scrivi a {name}",
   "mobile.chat.composer.pasteFailed": "Impossibile allegare il testo incollato",

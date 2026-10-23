@@ -104,6 +104,9 @@ export function MarketplaceSearchBar({
       id: "category",
       title: t("mobile.marketplace.filter.category"),
       image: "folder",
+      // Android draws a sub-menu as a layer under its row, which runs off the screen above a bottom
+      // field, and a menu with a sub-menu cannot scroll. The categories are one more group there.
+      displayInline: isAndroid,
       subactions: [
         {
           id: "category:all",

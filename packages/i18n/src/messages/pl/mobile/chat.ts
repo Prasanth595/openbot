@@ -115,7 +115,7 @@ export const messages = {
   "mobile.chat.attachment.files": "Pliki",
   "mobile.chat.attachment.photos": "Zdjęcia",
   "mobile.chat.attachment.camera": "Aparat",
-  "mobile.chat.attachment.useSkill": "Użyj umiejętności",
+  "mobile.chat.attachment.useSkill": "Użyj umiejętności lub aplikacji",
   "mobile.chat.attachment.addFailed": "Nie udało się dodać załącznika",
   "mobile.chat.attachment.limit": "Maksymalna liczba załączonych plików: {limit}.",
   "mobile.chat.attachment.unsupported":
@@ -135,6 +135,8 @@ export const messages = {
   "mobile.chat.composer.mention": "Oznacz: {name}",
   "mobile.chat.composer.skills": "Umiejętności",
   "mobile.chat.composer.useSkill": "Użyj umiejętności: {name}",
+  "mobile.chat.composer.apps": "Aplikacje",
+  "mobile.chat.composer.useApp": "Użyj aplikacji: {name}",
   "mobile.chat.composer.cancelReply": "Anuluj odpowiedź",
   "mobile.chat.composer.messageAgent": "Wiadomość do: {name}",
   "mobile.chat.composer.pasteFailed": "Nie udało się załączyć wklejonego tekstu",

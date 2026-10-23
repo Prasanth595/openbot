@@ -5,11 +5,17 @@ export function mentionDraft(source: string) {
   let text = "";
   const mentions = [];
   for (const reference of chatTagReferences(source)) {
-    if (reference.kind !== "agent" && reference.kind !== "quote" && reference.kind !== "skill") continue;
+    if (
+      reference.kind !== "agent" &&
+      reference.kind !== "quote" &&
+      reference.kind !== "skill" &&
+      reference.kind !== "mcp"
+    )
+      continue;
     text += source.slice(cursor, reference.start);
     const start = text.length;
     // A quote keeps its marker through an edit, as a mention does. The phone cannot jump to its source.
-    // A skill reads as its name after @, as the desktop chip does, and its marker goes to the host.
+    // A skill or an app reads as its name after @, as the desktop chip does; its marker goes to the host.
     text += reference.kind === "quote" ? `“${reference.name}”` : `@${reference.name}`;
     mentions.push({ start, end: text.length, reference, wire: source.slice(reference.start, reference.end) });
     cursor = reference.end;
@@ -49,12 +55,12 @@ export function mentionQuery(source: string, cursor: number) {
   return { start, end: cursor, query: query.toLocaleLowerCase() };
 }
 
-/** Writes an agent mention, or a skill reference such as the desktop chip sends, over the typed `@query`. */
+/** Writes an agent mention, or a skill or app reference as the desktop chip sends it, over the typed `@query`. */
 export function insertMention(
   source: string,
   range: { start: number; end: number },
   agent: { id: string; name: string },
-  kind: "agent" | "skill" = "agent",
+  kind: "agent" | "skill" | "mcp" = "agent",
 ) {
   const wireOffset = (position: number) => {
     let offset = position;

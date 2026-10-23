@@ -50,7 +50,11 @@ export function MarketplaceScreen() {
   const installed = useMarketplaceInstalled(serverId);
   const title = t("mobile.app.route.marketplace");
   const listing = (item: MarketplaceListing) => {
-    router.push({ pathname: "/marketplace-listing", params: { serverId, kind: item.kind, id: item.id } });
+    // The name goes along, so the sheet has its title before the listing loads.
+    router.push({
+      pathname: "/marketplace-listing",
+      params: { serverId, kind: item.kind, id: item.id, name: item.name },
+    });
   };
   const showAll = (kind: MarketplaceKind) => {
     void haptics.selection();
@@ -154,6 +158,11 @@ function SectionHeader({ title, onShowAll }: { title: string; onShowAll?: () => 
   );
 }
 
+/** A listing's installs. Apps have no install count. */
+function installsOf(listing: MarketplaceListing): number {
+  return listing.kind === "app" ? 0 : listing.installs;
+}
+
 function Overview({
   listings,
   pending,
@@ -171,7 +180,13 @@ function Overview({
   const agents = listings.filter((item) => item.kind === "agent").sort(byPopularity);
   const apps = listings.filter((item) => item.kind === "app").sort(byPopularity);
   const skills = listings.filter((item) => item.kind === "skill").sort(byPopularity);
-  const [featured, ...shelf] = agents;
+  // The banner shows the agent with the most installs, so it follows the catalog as installs change.
+  // The catalog page is sorted by installs, so its first page holds the top agent.
+  const featured = agents.reduce<MarketplaceListing | undefined>(
+    (top, item) => (top === undefined || installsOf(item) > installsOf(top) ? item : top),
+    undefined,
+  );
+  const shelf = agents.filter((item) => item !== featured);
   return (
     <>
       {featured ? (

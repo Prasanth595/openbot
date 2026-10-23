@@ -26,9 +26,10 @@ export const messages = {
   "mobile.marketplace.filter.installed": "Nur installierte",
   "mobile.marketplace.filter.remove": "Filter {name} entfernen",
   "mobile.marketplace.filter.clear": "Löschen",
-  "mobile.marketplace.overview.featured": "Empfohlener Agent",
-  "mobile.marketplace.overview.featuredLabel": "Empfohlener Agent: {name}",
+  "mobile.marketplace.overview.mostInstalled": "Meistinstalliert",
+  "mobile.marketplace.overview.mostInstalledLabel": "Meistinstallierter Agent: {name}",
   "mobile.marketplace.overview.featuredMeta": "Von {name} · {installs} Installationen",
+  "mobile.marketplace.overview.installs": "{installs} Installationen",
   "mobile.marketplace.overview.agents": "Beliebte Agenten",
   "mobile.marketplace.overview.apps": "Apps",
   "mobile.marketplace.overview.skills": "Beliebte Fähigkeiten",
@@ -92,7 +93,11 @@ export const messages = {
     "Füge den Schlüssel aus deinem Konto ein. Der Server testet ihn, bevor er die App speichert.",
   "mobile.marketplace.app.signInIntro":
     "Melde dich auf der Seite der App an. Die Anmeldung bleibt auf dem Server, nicht auf diesem Telefon.",
-  "mobile.marketplace.app.signIn": "Anmelden",
+  "mobile.marketplace.app.stepOpen": "Öffne die Anmeldeseite von {name}.",
+  "mobile.marketplace.app.stepAllow": "Melde dich an und erlaube den Zugriff.",
+  "mobile.marketplace.app.stepReturn": "Komm hierher zurück. {name} wird auf deinem Server verbunden.",
+  "mobile.marketplace.app.openSignIn": "Anmeldeseite öffnen",
+  "mobile.marketplace.app.keySecure": "Der Schlüssel geht nur verschlüsselt an deinen Server.",
   "mobile.marketplace.app.connecting": "Verbindet",
   "mobile.marketplace.app.connected": "Verbunden",
   "mobile.marketplace.app.connectedHint":
@@ -105,8 +110,6 @@ export const messages = {
     "Diese App verlangt eine Anmeldung im Browser. Aktualisiere OpenBot auf dem Server oder verbinde die App auf dem Computer.",
   "mobile.marketplace.app.waiting": "Warten auf die Anmeldeseite…",
   "mobile.marketplace.app.openAgain": "Anmeldeseite erneut öffnen",
-  "mobile.marketplace.app.signInHint":
-    "Melde dich auf der Seite an. Die App verbindet sich, wenn die Anmeldung abgeschlossen ist.",
   "mobile.marketplace.app.pasteHint":
     "Am Ende öffnet die Seite eine Adresse, die nicht lädt. Kopiere diese Adresse und füge sie unten ein.",
   "mobile.marketplace.app.pasteLabel": "Adresse nach der Anmeldung",

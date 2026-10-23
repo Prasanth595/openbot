@@ -26,9 +26,10 @@ export const messages = {
   "mobile.marketplace.filter.installed": "Tylko zainstalowane",
   "mobile.marketplace.filter.remove": "Usuń filtr: {name}",
   "mobile.marketplace.filter.clear": "Wyczyść",
-  "mobile.marketplace.overview.featured": "Polecany agent",
-  "mobile.marketplace.overview.featuredLabel": "Polecany agent: {name}",
+  "mobile.marketplace.overview.mostInstalled": "Najczęściej instalowany",
+  "mobile.marketplace.overview.mostInstalledLabel": "Najczęściej instalowany agent: {name}",
   "mobile.marketplace.overview.featuredMeta": "Autor: {name} · Instalacje: {installs}",
+  "mobile.marketplace.overview.installs": "Instalacje: {installs}",
   "mobile.marketplace.overview.agents": "Popularni agenci",
   "mobile.marketplace.overview.apps": "Aplikacje",
   "mobile.marketplace.overview.skills": "Popularne umiejętności",
@@ -90,7 +91,11 @@ export const messages = {
   "mobile.marketplace.app.keyIntro": "Wklej klucz ze swojego konta. Serwer sprawdza go przed zapisaniem aplikacji.",
   "mobile.marketplace.app.signInIntro":
     "Zaloguj się na stronie aplikacji. Logowanie przechowuje serwer, nie ten telefon.",
-  "mobile.marketplace.app.signIn": "Zaloguj się",
+  "mobile.marketplace.app.stepOpen": "Otwórz stronę logowania {name}.",
+  "mobile.marketplace.app.stepAllow": "Zaloguj się i zezwól na dostęp.",
+  "mobile.marketplace.app.stepReturn": "Wróć tutaj. {name} połączy się na Twoim serwerze.",
+  "mobile.marketplace.app.openSignIn": "Otwórz logowanie",
+  "mobile.marketplace.app.keySecure": "Klucz trafia tylko do Twojego serwera, przez szyfrowane połączenie.",
   "mobile.marketplace.app.connecting": "Łączenie",
   "mobile.marketplace.app.connected": "Połączono",
   "mobile.marketplace.app.connectedHint":
@@ -103,7 +108,6 @@ export const messages = {
     "Ta aplikacja wymaga logowania w przeglądarce. Zaktualizuj OpenBot na serwerze lub połącz aplikację na komputerze.",
   "mobile.marketplace.app.waiting": "Oczekiwanie na stronę logowania…",
   "mobile.marketplace.app.openAgain": "Otwórz ponownie stronę logowania",
-  "mobile.marketplace.app.signInHint": "Zaloguj się na stronie. Aplikacja połączy się po zakończeniu logowania.",
   "mobile.marketplace.app.pasteHint":
     "Na końcu strona otwiera adres, który się nie wczytuje. Skopiuj ten adres i wklej go poniżej.",
   "mobile.marketplace.app.pasteLabel": "Adres po zalogowaniu",

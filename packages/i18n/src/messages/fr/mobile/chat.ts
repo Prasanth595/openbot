@@ -113,7 +113,7 @@ export const messages = {
   "mobile.chat.attachment.files": "Fichiers",
   "mobile.chat.attachment.photos": "Photos",
   "mobile.chat.attachment.camera": "Appareil photo",
-  "mobile.chat.attachment.useSkill": "Utiliser une compétence",
+  "mobile.chat.attachment.useSkill": "Utiliser une compétence ou une app",
   "mobile.chat.attachment.addFailed": "Impossible d’ajouter la pièce jointe",
   "mobile.chat.attachment.limit": "Vous pouvez joindre jusqu’à {limit} fichiers.",
   "mobile.chat.attachment.unsupported":
@@ -134,6 +134,8 @@ export const messages = {
   "mobile.chat.composer.mention": "Mentionner {name}",
   "mobile.chat.composer.skills": "Compétences",
   "mobile.chat.composer.useSkill": "Utiliser la compétence {name}",
+  "mobile.chat.composer.apps": "Apps",
+  "mobile.chat.composer.useApp": "Utiliser l’app {name}",
   "mobile.chat.composer.cancelReply": "Annuler la réponse",
   "mobile.chat.composer.messageAgent": "Message à {name}",
   "mobile.chat.composer.pasteFailed": "Impossible de joindre le texte collé",

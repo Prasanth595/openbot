@@ -95,13 +95,16 @@ leave the filter without a place.
 The filter is a glass button beside the field, in its own capsule, that opens a native `MenuView`:
 the kind (one inline group), a category submenu, and Installed only. It is not inside the field: on
 iOS the menu grows out of the view it opens from, so a button in the field would take the whole field
-into the menu. Each filter that is set shows as a token in the field, and a tap on a token removes it. A filter or a query turns the overview into one grouped list in place;
+into the menu. Android shows the categories as one more group of the menu, not as a sub-menu: the
+Android menu draws a sub-menu as a layer under its row, which runs off the screen above a bottom field.
+The Android menu opens above a button in the lower half of the screen and fits its height to the room
+there. Each filter that is set shows as a token in the field, and a tap on a token removes it. A filter or a query turns the overview into one grouped list in place;
 there is no results overlay. A close button comes in beside the field while it has focus or text.
 
 A listing opens as one sheet with a nested stack. The first page shows the listing as the desktop
-page does: the icon and name, the listing's gradient (`ListingGradient`, the still colours of the
-desktop `SkillGradient`) with an example request or the agent's skills on it, a row of facts, and the
-content (SKILL.md, an agent's skills and routines, an app's prompts). The `+` in the native header
+page does: one header card on the listing's gradient (`ListingGradient`, the still colours of the
+desktop `SkillGradient`) with the icon, name, creator and kind, and an example request or the agent's
+skills under them; then the facts in a grid of two columns, and the content (SKILL.md, an agent's skills and routines, an app's prompts). The `+` in the native header
 installs. A skill opens the agent choice as the next page, and an app that asks for a key or a
 sign-in opens its connect page; each page has its own `SheetSaveAction`. The arrow on an example request is the desktop Try: it puts the request
 (a skill keeps its `@[name](skill:id)` marker) in an agent's message field and the chat replaces the

@@ -5,7 +5,7 @@ import ArrowRight from "lucide-react-native/icons/arrow-right";
 import Plus from "lucide-react-native/icons/plus";
 import RotateCw from "lucide-react-native/icons/rotate-cw";
 import type { ReactNode } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { Pressable, View } from "react-native";
 import { useUniwind } from "uniwind";
 import { AndroidHeaderButton } from "@/shared/components/android-header-button";
 import { type MenuAction, MenuView } from "@/shared/components/menu-view";
@@ -66,42 +66,35 @@ export function ListingHeaderAction({
   );
 }
 
-/** The icon, name, creator and kind of a listing, at the top of its sheet. */
-export function ListingTitle({ listing }: { listing: MarketplaceListing }) {
+/**
+ * The top of a listing's sheet: one card on the listing's gradient, as on the desktop page, with its
+ * icon, name, creator, kind and category, and what it does under them - an example request for a skill
+ * or an app, or the skills an agent brings. A dark scrim keeps the white text readable on every palette.
+ */
+export function ListingHeader({ listing, children }: { listing: MarketplaceListing; children?: ReactNode }) {
   const { t } = useText();
   const subtitle = useListingSubtitle()(listing, true);
   return (
-    <View className="flex-row items-center gap-4">
+    <View className="overflow-hidden rounded-3xl" style={{ borderCurve: "continuous" }}>
       <Stack.Screen options={{ title: listing.name }} />
-      <ListingIcon listing={listing} size={64} />
-      <View className="min-w-0 flex-1 gap-0.5">
-        <Typography.Heading type="h3" numberOfLines={2}>
-          {listing.name}
-        </Typography.Heading>
-        <Typography.Paragraph type="body-sm" numberOfLines={1} className="text-grouped-secondary">
-          {t("mobile.marketplace.listing.creator", { name: listing.creatorName })}
-        </Typography.Paragraph>
-        <Typography.Paragraph type="body-xs" numberOfLines={1} className="text-grouped-secondary">
-          {subtitle}
-        </Typography.Paragraph>
-      </View>
-    </View>
-  );
-}
-
-/**
- * The listing's gradient, as the desktop page shows it, with what the listing does on it: an example
- * request in a message field for a skill or an app, or the skills an agent brings.
- */
-export function ListingHero({ listing, children }: { listing: MarketplaceListing; children: ReactNode }) {
-  return (
-    <View
-      accessibilityElementsHidden={false}
-      className="overflow-hidden rounded-3xl px-4 py-9"
-      style={{ borderCurve: "continuous" }}
-    >
       <ListingGradient name={listing.name} />
-      {children}
+      <View className="absolute inset-0" style={{ backgroundColor: "rgba(0, 0, 0, 0.16)" }} />
+      <View className="items-center gap-4 px-4 pt-7 pb-5">
+        <ListingIcon listing={listing} size={88} />
+        <View className="items-center gap-1 px-2">
+          <Typography.Heading type="h3" align="center" numberOfLines={2} style={{ color: "#ffffff" }}>
+            {listing.name}
+          </Typography.Heading>
+          <Typography.Paragraph
+            align="center"
+            numberOfLines={2}
+            style={{ ...typeScale.caption, color: "rgba(255, 255, 255, 0.85)" }}
+          >
+            {[t("mobile.marketplace.listing.creator", { name: listing.creatorName }), subtitle].join(" · ")}
+          </Typography.Paragraph>
+        </View>
+        {children ? <View className="self-stretch">{children}</View> : null}
+      </View>
     </View>
   );
 }
@@ -230,28 +223,39 @@ export function HeroChips({ items }: { items: readonly string[] }) {
 }
 
 /**
- * The properties of a listing in one row, as an app store shows them: a small label over each value,
- * between hairlines. A long row scrolls sideways.
+ * The properties of a listing in a grid of two columns, with hairlines between the cells and the rows:
+ * a small label over each value. An odd last property takes the whole row, centred.
  */
 export function ListingFacts({ facts }: { facts: readonly { label: string; value: string }[] }) {
+  const rows: (typeof facts)[] = [];
+  for (let index = 0; index < facts.length; index += 2) rows.push(facts.slice(index, index + 2));
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="px-1">
-      {facts.map((fact, index) => (
-        <View
-          key={fact.label}
-          accessible
-          accessibilityLabel={`${fact.label}: ${fact.value}`}
-          className={`min-w-24 items-center gap-1 px-4 ${index > 0 ? "border-l border-grouped-border" : ""}`}
-        >
-          <Typography.Paragraph type="body-xs" numberOfLines={1} className="text-grouped-secondary">
-            {fact.label}
-          </Typography.Paragraph>
-          <Typography.Paragraph numberOfLines={1} className="font-semibold" style={typeScale.body}>
-            {fact.value}
-          </Typography.Paragraph>
+    <View>
+      {rows.map((row, index) => (
+        <View key={row.map((fact) => fact.label).join("|")}>
+          {index > 0 ? <View className="h-px bg-grouped-border" /> : null}
+          <View className="flex-row">
+            {row.map((fact, cell) => (
+              <View key={fact.label} className="flex-1 flex-row">
+                {cell > 0 ? <View className="my-3 w-px bg-grouped-border" /> : null}
+                <View
+                  accessible
+                  accessibilityLabel={`${fact.label}: ${fact.value}`}
+                  className="flex-1 items-center gap-0.5 px-2 py-3"
+                >
+                  <Typography.Paragraph type="body-xs" numberOfLines={1} className="text-grouped-secondary">
+                    {fact.label}
+                  </Typography.Paragraph>
+                  <Typography.Paragraph numberOfLines={1} className="font-semibold" style={typeScale.body}>
+                    {fact.value}
+                  </Typography.Paragraph>
+                </View>
+              </View>
+            ))}
+          </View>
         </View>
       ))}
-    </ScrollView>
+    </View>
   );
 }
 

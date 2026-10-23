@@ -26,9 +26,10 @@ export const messages = {
   "mobile.marketplace.filter.installed": "Solo instalados",
   "mobile.marketplace.filter.remove": "Quitar el filtro {name}",
   "mobile.marketplace.filter.clear": "Borrar",
-  "mobile.marketplace.overview.featured": "Agente destacado",
-  "mobile.marketplace.overview.featuredLabel": "Agente destacado: {name}",
+  "mobile.marketplace.overview.mostInstalled": "Más instalado",
+  "mobile.marketplace.overview.mostInstalledLabel": "Agente más instalado: {name}",
   "mobile.marketplace.overview.featuredMeta": "De {name} · {installs} instalaciones",
+  "mobile.marketplace.overview.installs": "{installs} instalaciones",
   "mobile.marketplace.overview.agents": "Agentes populares",
   "mobile.marketplace.overview.apps": "Apps",
   "mobile.marketplace.overview.skills": "Habilidades populares",
@@ -92,7 +93,11 @@ export const messages = {
   "mobile.marketplace.app.keyIntro": "Pega la clave de tu cuenta. El servidor la prueba antes de guardar la app.",
   "mobile.marketplace.app.signInIntro":
     "Inicia sesión en la página de la app. El servidor guarda la sesión, no este teléfono.",
-  "mobile.marketplace.app.signIn": "Iniciar sesión",
+  "mobile.marketplace.app.stepOpen": "Abre la página de inicio de sesión de {name}.",
+  "mobile.marketplace.app.stepAllow": "Inicia sesión y permite el acceso.",
+  "mobile.marketplace.app.stepReturn": "Vuelve aquí. {name} se conecta en tu servidor.",
+  "mobile.marketplace.app.openSignIn": "Abrir inicio de sesión",
+  "mobile.marketplace.app.keySecure": "La clave solo va a tu servidor, por una conexión cifrada.",
   "mobile.marketplace.app.connecting": "Conectando",
   "mobile.marketplace.app.connected": "Conectada",
   "mobile.marketplace.app.connectedHint":
@@ -105,8 +110,6 @@ export const messages = {
     "Esta app pide iniciar sesión en el navegador. Actualiza OpenBot en el servidor o conecta la app en el ordenador.",
   "mobile.marketplace.app.waiting": "Esperando la página de inicio de sesión…",
   "mobile.marketplace.app.openAgain": "Abrir de nuevo la página de inicio de sesión",
-  "mobile.marketplace.app.signInHint":
-    "Inicia sesión en la página. La app se conecta cuando termina el inicio de sesión.",
   "mobile.marketplace.app.pasteHint":
     "Al final, la página abre una dirección que no carga. Copia esa dirección y pégala abajo.",
   "mobile.marketplace.app.pasteLabel": "Dirección tras iniciar sesión",

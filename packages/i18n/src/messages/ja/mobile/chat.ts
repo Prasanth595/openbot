@@ -111,7 +111,7 @@ export const messages = {
   "mobile.chat.attachment.files": "ファイル",
   "mobile.chat.attachment.photos": "写真",
   "mobile.chat.attachment.camera": "カメラ",
-  "mobile.chat.attachment.useSkill": "スキルを使う",
+  "mobile.chat.attachment.useSkill": "スキルやアプリを使う",
   "mobile.chat.attachment.addFailed": "添付ファイルを追加できませんでした",
   "mobile.chat.attachment.limit": "添付できるファイルは {limit} 件までです。",
   "mobile.chat.attachment.unsupported":
@@ -131,6 +131,8 @@ export const messages = {
   "mobile.chat.composer.mention": "{name} をメンション",
   "mobile.chat.composer.skills": "スキル",
   "mobile.chat.composer.useSkill": "スキル {name} を使う",
+  "mobile.chat.composer.apps": "アプリ",
+  "mobile.chat.composer.useApp": "アプリ {name} を使う",
   "mobile.chat.composer.cancelReply": "返信をキャンセル",
   "mobile.chat.composer.messageAgent": "{name} へのメッセージ",
   "mobile.chat.composer.pasteFailed": "貼り付けたテキストを添付できませんでした",

@@ -26,9 +26,10 @@ export const messages = {
   "mobile.marketplace.filter.installed": "Solo installati",
   "mobile.marketplace.filter.remove": "Rimuovi il filtro {name}",
   "mobile.marketplace.filter.clear": "Cancella",
-  "mobile.marketplace.overview.featured": "Agente in evidenza",
-  "mobile.marketplace.overview.featuredLabel": "Agente in evidenza: {name}",
+  "mobile.marketplace.overview.mostInstalled": "Più installato",
+  "mobile.marketplace.overview.mostInstalledLabel": "Agente più installato: {name}",
   "mobile.marketplace.overview.featuredMeta": "Di {name} · {installs} installazioni",
+  "mobile.marketplace.overview.installs": "{installs} installazioni",
   "mobile.marketplace.overview.agents": "Agenti popolari",
   "mobile.marketplace.overview.apps": "App",
   "mobile.marketplace.overview.skills": "Skill popolari",
@@ -89,7 +90,11 @@ export const messages = {
   "mobile.marketplace.app.keyIntro": "Incolla la chiave del tuo account. Il server la verifica prima di salvare l’app.",
   "mobile.marketplace.app.signInIntro":
     "Accedi nella pagina dell’app. Il server conserva l’accesso, non questo telefono.",
-  "mobile.marketplace.app.signIn": "Accedi",
+  "mobile.marketplace.app.stepOpen": "Apri la pagina di accesso di {name}.",
+  "mobile.marketplace.app.stepAllow": "Accedi e consenti l’accesso.",
+  "mobile.marketplace.app.stepReturn": "Torna qui. {name} si collega al tuo server.",
+  "mobile.marketplace.app.openSignIn": "Apri pagina di accesso",
+  "mobile.marketplace.app.keySecure": "La chiave va solo al tuo server, con una connessione cifrata.",
   "mobile.marketplace.app.connecting": "Connessione",
   "mobile.marketplace.app.connected": "Connessa",
   "mobile.marketplace.app.connectedHint":
@@ -102,7 +107,6 @@ export const messages = {
     "Questa app chiede l’accesso nel browser. Aggiorna OpenBot sul server oppure connetti l’app sul computer.",
   "mobile.marketplace.app.waiting": "In attesa della pagina di accesso…",
   "mobile.marketplace.app.openAgain": "Riapri la pagina di accesso",
-  "mobile.marketplace.app.signInHint": "Accedi nella pagina. L’app si connette quando l’accesso è completato.",
   "mobile.marketplace.app.pasteHint":
     "Alla fine, la pagina apre un indirizzo che non si carica. Copia quell’indirizzo e incollalo qui sotto.",
   "mobile.marketplace.app.pasteLabel": "Indirizzo dopo l’accesso",

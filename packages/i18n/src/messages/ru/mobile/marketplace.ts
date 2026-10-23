@@ -26,9 +26,10 @@ export const messages = {
   "mobile.marketplace.filter.installed": "Только установленные",
   "mobile.marketplace.filter.remove": "Убрать фильтр «{name}»",
   "mobile.marketplace.filter.clear": "Сбросить",
-  "mobile.marketplace.overview.featured": "Рекомендуемый агент",
-  "mobile.marketplace.overview.featuredLabel": "Рекомендуемый агент: {name}",
+  "mobile.marketplace.overview.mostInstalled": "Самый популярный",
+  "mobile.marketplace.overview.mostInstalledLabel": "Самый популярный агент: {name}",
   "mobile.marketplace.overview.featuredMeta": "Автор: {name} · Установки: {installs}",
+  "mobile.marketplace.overview.installs": "Установки: {installs}",
   "mobile.marketplace.overview.agents": "Популярные агенты",
   "mobile.marketplace.overview.apps": "Приложения",
   "mobile.marketplace.overview.skills": "Популярные навыки",
@@ -89,7 +90,11 @@ export const messages = {
     "Вставьте ключ из своего аккаунта. Сервер проверит его перед сохранением приложения.",
   "mobile.marketplace.app.signInIntro":
     "Войдите на странице приложения. Вход хранится на сервере, а не на этом телефоне.",
-  "mobile.marketplace.app.signIn": "Войти",
+  "mobile.marketplace.app.stepOpen": "Откройте страницу входа {name}.",
+  "mobile.marketplace.app.stepAllow": "Войдите и разрешите доступ.",
+  "mobile.marketplace.app.stepReturn": "Вернитесь сюда. {name} подключится на вашем сервере.",
+  "mobile.marketplace.app.openSignIn": "Открыть вход",
+  "mobile.marketplace.app.keySecure": "Ключ передаётся только на ваш сервер по зашифрованному соединению.",
   "mobile.marketplace.app.connecting": "Подключение",
   "mobile.marketplace.app.connected": "Подключено",
   "mobile.marketplace.app.connectedHint":
@@ -102,7 +107,6 @@ export const messages = {
     "Этому приложению нужен вход в браузере. Обновите OpenBot на сервере или подключите приложение на компьютере.",
   "mobile.marketplace.app.waiting": "Ожидание страницы входа…",
   "mobile.marketplace.app.openAgain": "Снова открыть страницу входа",
-  "mobile.marketplace.app.signInHint": "Войдите на странице. Приложение подключится, когда вход завершится.",
   "mobile.marketplace.app.pasteHint":
     "В конце страница открывает адрес, который не загружается. Скопируйте этот адрес и вставьте его ниже.",
   "mobile.marketplace.app.pasteLabel": "Адрес после входа",

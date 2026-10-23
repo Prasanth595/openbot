@@ -85,6 +85,12 @@ function isPluginAppConfig(config: McpServerConfig, app: MobilePluginApp): boole
   );
 }
 
+/** The id of the host's row that this plugin's app installed as, for its own MCP page, or null. */
+export function pluginServerId(plugin: MobilePlugin, servers: readonly McpServerConfig[]): string | null {
+  const app = plugin.apps[0];
+  return (app && servers.find((config) => isPluginAppConfig(config, app))?.id) || null;
+}
+
 /** Every app of the plugin is a server on the host. */
 export function pluginInstalled(plugin: MobilePlugin, servers: readonly McpServerConfig[]): boolean {
   return plugin.apps.every((app) => servers.some((config) => isPluginAppConfig(config, app)));
