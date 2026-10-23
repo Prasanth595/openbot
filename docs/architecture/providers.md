@@ -654,8 +654,10 @@ Two holds move an agent:
   after it goes back. The return is marked `cause: "provider-error"`, so the notes read
   `model-switch:provider-error` and `model-switch:provider-error-ended`.
 
-A turn that wrote text or ran a tool fails with its error, as with no backup. Channel tasks, a
-refused `turn/start`, and a provider that fails to start do not fail over.
+A turn that wrote text or ran a tool fails with its error, as with no backup. Tasks, channel tasks,
+a refused `turn/start`, and a provider that fails to start do not fail over. A message runs again at
+most once for each model that failed it, so a move that cannot happen shows the error on the next
+failure; the check for a ready backup runs again when the turn ends.
 
 
 ## Provider settings and the ACP registry

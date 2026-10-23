@@ -25,7 +25,7 @@ import { isBoundedString, isIdentifier } from "./ipc-bounded-values";
 import { isHiddenAt } from "./ipc-hidden-agents";
 import { type BusyMessageMode, isBusyMessageMode } from "./ipc-queue";
 import type { SidebarLayoutSnapshot } from "./ipc-sidebar-layout";
-import { type DynamicRecord, isBoolean, isDynamicRecord, isNumber, isOneOf } from "./runtime-values";
+import { type DynamicRecord, isBoolean, isDynamicRecord, isNumber, isOneOf, isString } from "./runtime-values";
 
 /**
  * How far an agent may reach on this computer. `workspace` limits writes to the agent's workspace, the
@@ -101,8 +101,11 @@ export function isAgentModelChoice(value: unknown): value is AgentModelChoice {
 /** The model an agent left for a usage limit or a provider error, with the reasoning effort it had there. */
 export interface AgentUsageLimitReturn extends AgentModelChoice {
   reasoningEffort: AgentReasoningEffort;
-  /** "provider-error" when a provider error made the agent leave. Absent means a usage limit. */
-  cause?: "provider-error" | undefined;
+  /**
+   * "provider-error" when a provider error made the agent leave. Absent means a usage limit. Another
+   * value, from a newer build, reads as a usage limit, so the agent still goes back.
+   */
+  cause?: string | undefined;
 }
 
 export function isAgentUsageLimitReturn(value: unknown): value is AgentUsageLimitReturn {
@@ -110,7 +113,7 @@ export function isAgentUsageLimitReturn(value: unknown): value is AgentUsageLimi
     isDynamicRecord(value) &&
     isAgentModelChoice(value) &&
     isReasoningEffort(value.reasoningEffort) &&
-    (value.cause === undefined || value.cause === "provider-error")
+    (value.cause === undefined || isString(value.cause))
   );
 }
 

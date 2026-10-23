@@ -1360,11 +1360,12 @@ export class OpenBotToolRouter {
       }
       // Checked before anything is written, so a model the provider does not list leaves the name
       // and every other field of the same call unchanged.
-      const runtime = requestedRuntime(target, runtimeRequest, this.#hooks.listModels());
+      const models = this.#hooks.listModels();
+      const runtime = requestedRuntime(target, runtimeRequest, models);
       const backups =
         backupModels === undefined
           ? undefined
-          : requestedBackupModels(backupModels, this.#hooks.listModels(), (id, accountId) =>
+          : requestedBackupModels(backupModels, models, (id, accountId) =>
               this.#hooks.hasProviderAccount(id, accountId),
             );
       const image =
@@ -1411,6 +1412,7 @@ export class OpenBotToolRouter {
               computerUse: agentComputerUseEnabled(updated),
               notifications: updated.notifications,
               backupModels: updated.backupModels ?? null,
+              returnTo: updated.usageLimitReturn ?? null,
             }),
           },
         ],
