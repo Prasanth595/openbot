@@ -214,7 +214,6 @@ export const messages = {
   "error.provider.tryAgain": "Tekrar deneyin.",
   "error.provider.noAgentProcess": "{provider} bu ajan için çalışan bir işleme sahip değil.",
   "error.provider.stoppedBeforeAgentProcess": "{provider} ajanın işlemi başlamadan önce durdu.",
-  "error.provider.namedFailure": "{provider} bir hata bildirdi: {detail}",
   "error.provider.archiveUnreadable": "Çalışma zamanı arşivi okunamıyor veya desteklenmeyen bir biçim kullanıyor.",
   "error.provider.antigravityArchivePath": "Gemini arşivi beklenmeyen bir dosya içeriyor.",
   "error.provider.antigravityChecksum": "Gemini çalışma zamanı sağlama toplamı (checksum) eşleşmiyor.",

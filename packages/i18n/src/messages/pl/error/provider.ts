@@ -213,7 +213,6 @@ export const messages = {
   "error.provider.tryAgain": "Spróbuj ponownie.",
   "error.provider.noAgentProcess": "{provider} nie ma uruchomionego procesu dla tego agenta.",
   "error.provider.stoppedBeforeAgentProcess": "{provider} zatrzymał się przed uruchomieniem procesu agenta.",
-  "error.provider.namedFailure": "{provider} zgłasza błąd: {detail}",
   "error.provider.archiveUnreadable":
     "Nie można odczytać archiwum środowiska uruchomieniowego lub ma ono nieobsługiwany format.",
   "error.provider.antigravityArchivePath": "Archiwum Gemini zawiera nieoczekiwany plik.",

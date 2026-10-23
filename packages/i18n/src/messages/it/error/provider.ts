@@ -215,7 +215,6 @@ export const messages = {
   "error.provider.tryAgain": "Riprova.",
   "error.provider.noAgentProcess": "{provider} non ha nessun processo in esecuzione per questo agente.",
   "error.provider.stoppedBeforeAgentProcess": "{provider} si è fermato prima che partisse il processo dell'agente.",
-  "error.provider.namedFailure": "{provider} ha segnalato un errore: {detail}",
   "error.provider.archiveUnreadable": "L'archivio del runtime non è leggibile o usa un formato non supportato.",
   "error.provider.antigravityArchivePath": "L'archivio di Gemini contiene un file inatteso.",
   "error.provider.antigravityChecksum": "Checksum del runtime di Gemini non corrispondente.",

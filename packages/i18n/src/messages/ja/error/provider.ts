@@ -217,7 +217,6 @@ export const messages = {
   "error.provider.tryAgain": "もう一度お試しください。",
   "error.provider.noAgentProcess": "{provider} には、このエージェント用に実行中のプロセスがありません。",
   "error.provider.stoppedBeforeAgentProcess": "エージェントのプロセスが開始する前に {provider} が停止しました。",
-  "error.provider.namedFailure": "{provider} がエラーを報告しました: {detail}",
   "error.provider.archiveUnreadable": "ランタイムのアーカイブを読み取れないか、対応していない形式です。",
   "error.provider.antigravityArchivePath": "Gemini のアーカイブに予期しないファイルがあります。",
   "error.provider.antigravityChecksum": "Gemini ランタイムのチェックサムが一致しません。",

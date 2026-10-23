@@ -212,7 +212,6 @@ export const messages = {
   "error.provider.tryAgain": "Повторите попытку.",
   "error.provider.noAgentProcess": "У {provider} нет запущенного процесса для этого агента.",
   "error.provider.stoppedBeforeAgentProcess": "{provider} остановился до запуска процесса агента.",
-  "error.provider.namedFailure": "{provider} сообщает об ошибке: {detail}",
   "error.provider.archiveUnreadable": "Архив среды выполнения не читается или имеет неподдерживаемый формат.",
   "error.provider.antigravityArchivePath": "В архиве Gemini неожиданный файл.",
   "error.provider.antigravityChecksum": "Контрольная сумма среды выполнения Gemini не совпадает.",

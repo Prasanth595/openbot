@@ -23,7 +23,7 @@ import { latestIncomingConversationMessage } from "../conversation/conversation-
 import { useServers } from "../servers/servers-context";
 import { useSidebar } from "../sidebar/sidebar-context";
 import { readDictatedReplies } from "../speech/speech-replies";
-import { claimErrorToast, readableAgentError } from "./agent-error-text";
+import { claimErrorToast, providerErrorTitle, readableAgentError } from "./agent-error-text";
 import { createAgentEventSounds } from "./agent-event-sounds";
 import { reconcileAttentionApprovals, reconcileAttentionPrompts } from "./agent-runtime-snapshot";
 import { useAgents } from "./agents-context";
@@ -331,7 +331,7 @@ export function AgentEventBridge() {
           // provider error sends the user to the wrong settings page.
           const { t } = currentText();
           const title =
-            event.code === "mcp_server_not_started" ? t("agent.error.mcpNotStarted") : t("agent.error.provider");
+            event.code === "mcp_server_not_started" ? t("agent.error.mcpNotStarted") : providerErrorTitle(event.code);
           toast.error(title, {
             ...{ description: toastKey },
             report: { operation: "provider", source: "provider", cause_code: classifyFailure(event.message) },
