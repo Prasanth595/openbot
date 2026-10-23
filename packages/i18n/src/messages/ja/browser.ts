@@ -143,7 +143,7 @@ export const messages = {
   "browser.signIn.failed": "OpenBot はサインインを送信できませんでした。",
   "browser.profiles.title": "ブラウザープロファイル",
   "browser.profiles.subtitle":
-    "各プロファイルは、専用のサインイン、Cookie、サイトデータをこのコンピューターに保持します。",
+    "各プロファイルは、専用のサインイン、Cookie、サイトデータを OpenBot を実行しているコンピューターに保持します。",
   "browser.profiles.label": "ブラウザープロファイル",
   "browser.profiles.newName": "プロファイル名",
   "browser.profiles.create": "追加",

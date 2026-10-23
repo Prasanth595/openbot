@@ -146,7 +146,7 @@ export const messages = {
   "browser.signIn.failed": "OpenBot n’a pas pu envoyer la connexion.",
   "browser.profiles.title": "Profils de navigateur",
   "browser.profiles.subtitle":
-    "Chaque profil garde ses propres connexions, cookies et données de sites sur cet ordinateur.",
+    "Chaque profil garde ses propres connexions, cookies et données de sites sur l’ordinateur qui exécute OpenBot.",
   "browser.profiles.label": "Profils de navigateur",
   "browser.profiles.newName": "Nom du profil",
   "browser.profiles.create": "Ajouter",

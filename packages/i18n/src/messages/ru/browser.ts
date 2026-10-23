@@ -150,7 +150,7 @@ export const messages = {
   "browser.signIn.failed": "OpenBot не удалось отправить вход.",
   "browser.profiles.title": "Профили браузера",
   "browser.profiles.subtitle":
-    "Каждый профиль хранит свои входы в аккаунты, cookie и данные сайтов на этом компьютере.",
+    "Каждый профиль хранит свои входы в аккаунты, cookie и данные сайтов на компьютере, где работает OpenBot.",
   "browser.profiles.label": "Профили браузера",
   "browser.profiles.newName": "Имя профиля",
   "browser.profiles.create": "Добавить",

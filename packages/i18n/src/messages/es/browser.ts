@@ -146,7 +146,7 @@ export const messages = {
   "browser.signIn.failed": "OpenBot no pudo enviar el inicio de sesión.",
   "browser.profiles.title": "Perfiles del navegador",
   "browser.profiles.subtitle":
-    "Cada perfil guarda sus propios inicios de sesión, cookies y datos de sitios en este equipo.",
+    "Cada perfil guarda sus propios inicios de sesión, cookies y datos de sitios en el equipo que ejecuta OpenBot.",
   "browser.profiles.label": "Perfiles del navegador",
   "browser.profiles.newName": "Nombre del perfil",
   "browser.profiles.create": "Añadir",

@@ -151,7 +151,7 @@ export const messages = {
   "browser.signIn.failed": "OpenBot nie mógł wysłać logowania.",
   "browser.profiles.title": "Profile przeglądarki",
   "browser.profiles.subtitle":
-    "Każdy profil przechowuje na tym komputerze własne logowania, pliki cookie i dane witryn.",
+    "Każdy profil przechowuje na komputerze, na którym działa OpenBot, własne logowania, pliki cookie i dane witryn.",
   "browser.profiles.label": "Profile przeglądarki",
   "browser.profiles.newName": "Nazwa profilu",
   "browser.profiles.create": "Dodaj",

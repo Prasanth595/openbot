@@ -142,7 +142,8 @@ export const messages = defineMessages("browser", {
   "browser.signIn.stillSignedOut": "{server} still shows a sign-in page for {site}. Finish the sign-in in the window.",
   "browser.signIn.failed": "OpenBot could not send the sign-in.",
   "browser.profiles.title": "Browser profiles",
-  "browser.profiles.subtitle": "Each profile keeps its own sign-ins, cookies and site data on this computer.",
+  "browser.profiles.subtitle":
+    "Each profile keeps its own sign-ins, cookies and site data on the computer that runs OpenBot.",
   "browser.profiles.label": "Browser profiles",
   "browser.profiles.newName": "Profile name",
   "browser.profiles.create": "Add",

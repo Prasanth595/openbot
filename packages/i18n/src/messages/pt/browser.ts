@@ -143,7 +143,8 @@ export const messages = {
   "browser.signIn.stillSignedOut": "{server} ainda mostra uma página de login de {site}. Termine o login na janela.",
   "browser.signIn.failed": "O OpenBot não conseguiu enviar o login.",
   "browser.profiles.title": "Perfis do navegador",
-  "browser.profiles.subtitle": "Cada perfil mantém logins, cookies e dados de sites próprios neste computador.",
+  "browser.profiles.subtitle":
+    "Cada perfil mantém logins, cookies e dados de sites próprios no computador que executa o OpenBot.",
   "browser.profiles.label": "Perfis do navegador",
   "browser.profiles.newName": "Nome do perfil",
   "browser.profiles.create": "Adicionar",

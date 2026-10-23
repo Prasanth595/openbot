@@ -144,7 +144,8 @@ export const messages = {
     "{server} mostra ancora una pagina di accesso di {site}. Completa l’accesso nella finestra.",
   "browser.signIn.failed": "OpenBot non è riuscito a inviare l’accesso.",
   "browser.profiles.title": "Profili del browser",
-  "browser.profiles.subtitle": "Ogni profilo mantiene accessi, cookie e dati dei siti propri su questo computer.",
+  "browser.profiles.subtitle":
+    "Ogni profilo mantiene accessi, cookie e dati dei siti propri sul computer su cui gira OpenBot.",
   "browser.profiles.label": "Profili del browser",
   "browser.profiles.newName": "Nome del profilo",
   "browser.profiles.create": "Aggiungi",

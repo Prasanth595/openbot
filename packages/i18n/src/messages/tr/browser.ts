@@ -145,7 +145,7 @@ export const messages = {
   "browser.signIn.failed": "OpenBot oturumu gönderemedi.",
   "browser.profiles.title": "Tarayıcı profilleri",
   "browser.profiles.subtitle":
-    "Her profil kendi oturum açma bilgilerini, çerezlerini ve site verilerini bu bilgisayarda tutar.",
+    "Her profil kendi oturum açma bilgilerini, çerezlerini ve site verilerini OpenBot'u çalıştıran bilgisayarda tutar.",
   "browser.profiles.label": "Tarayıcı profilleri",
   "browser.profiles.newName": "Profil adı",
   "browser.profiles.create": "Ekle",

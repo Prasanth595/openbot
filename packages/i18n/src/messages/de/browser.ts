@@ -147,7 +147,8 @@ export const messages = {
     "{server} zeigt für {site} noch eine Anmeldeseite. Schließe die Anmeldung im Fenster ab.",
   "browser.signIn.failed": "OpenBot konnte die Anmeldung nicht senden.",
   "browser.profiles.title": "Browser-Profile",
-  "browser.profiles.subtitle": "Jedes Profil behält eigene Anmeldungen, Cookies und Website-Daten auf diesem Computer.",
+  "browser.profiles.subtitle":
+    "Jedes Profil behält eigene Anmeldungen, Cookies und Website-Daten auf dem Computer, auf dem OpenBot läuft.",
   "browser.profiles.label": "Browser-Profile",
   "browser.profiles.newName": "Profilname",
   "browser.profiles.create": "Hinzufügen",
