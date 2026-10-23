@@ -1,3 +1,4 @@
+import { providerDisplayName } from "@openbot/contracts/agent-providers";
 import type { AgentEvent, AgentRuntimeSnapshot } from "@openbot/contracts/ipc";
 import { cleanAgentMessageText } from "@openbot/team-client/agent-message-text";
 import { reconcileQueuesWithRuntimeWork } from "@openbot/team-client/dynamic-island-coordinator";
@@ -51,7 +52,7 @@ export function AgentEventBridge() {
   const { applyAgentStatus, refreshAgentProviders } = useProviders();
   const { agentList, setModelOptions, explicitlyOpenedAgentChatId, applyStoredAgents, applyUserHiddenAgents } =
     useAgents();
-  const { setConversationErrors } = useConversationController();
+  const { setConversationErrors, setConversationErrorRuns } = useConversationController();
   const agentTasks = useAgentTasks();
   const {
     applyRuntimeMessages,
@@ -308,10 +309,15 @@ export function AgentEventBridge() {
           // become a message the user had to scroll past to reach their own conversation. One
           // entry per chat means the newest report replaces the last, so an outage costs the
           // reader one line whatever its length, and dismissing it clears the whole run.
-          setConversationErrors((current) => ({
-            ...current,
-            [composerDraftKey({ agentId, serverId: activeServerId() })]: readableAgentError(event.message),
-          }));
+          const key = composerDraftKey({ agentId, serverId: activeServerId() });
+          const message = readableAgentError(event.message);
+          setConversationErrors((current) => ({ ...current, [key]: message }));
+          // The provider and model above the error let the user report which run failed (#2858).
+          if (event.provider) {
+            const provider = providerDisplayName(event.provider);
+            const run = event.model ? currentText().t("agent.error.run", { provider, model: event.model }) : provider;
+            setConversationErrorRuns((current) => ({ ...current, [key]: { message, run } }));
+          }
           return;
         }
         // No agent to attach it to - a provider that fails to start is the common case - so this
