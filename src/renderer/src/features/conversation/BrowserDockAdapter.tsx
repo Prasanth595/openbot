@@ -14,7 +14,7 @@ import type { ComposerAgent, ComposerMcpServer, ComposerSkill } from "@openbot/u
 import { BrowserDock, type BrowserIslandContent } from "@openbot/ui/features/browser/BrowserDock";
 import { browserActionLabel } from "@openbot/ui/features/browser/browser-action-labels";
 import { useText } from "@openbot/ui/text";
-import { createEffect, createMemo, createSignal, createStore, Show, snapshot, untrack } from "solid-js";
+import { createEffect, createMemo, createSignal, Show, snapshot, untrack } from "solid-js";
 import { deviceSendShortcut } from "../../send-shortcut-preference";
 import { serverSupportsCapability } from "../servers/server-capabilities";
 import { conversationPort } from "./conversation-port";
@@ -77,28 +77,26 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined; 
     return request && request.tabId === adapterProps.tab?.id ? request : undefined;
   };
   /**
-   * `sent` is the card that the user answered. It goes from the dock at once, and the dock shows the agent's
-   * work. When the answer fails, the card shows again as a new `attempt`.
+   * The cards that the user answered. A card goes from the dock at once, and the dock shows the agent's work.
+   * When the answer fails, the card shows again as a new `attempt`.
    */
-  const [answer, setAnswer] = createStore<{ sent: string | undefined; attempt: number }>({
-    sent: undefined,
-    attempt: 0,
-  });
+  const [answered, setAnswered] = createSignal<ReadonlySet<string>>(new Set());
+  const [attempt, setAttempt] = createSignal(0);
   /**
    * One open question with no choices is answered from the field. Other questions show as a card over the
    * page. A secret answer, a card of the agent's own design, and a card that main would refuse need the chat.
    */
-  const question = () => {
+  const question = createMemo(() => {
     const prompt = props.prompt;
     if (!prompt || prompt.agentId !== props.agent?.id || prompt.questions.length === 0) return undefined;
-    if (answer.sent === `prompt:${prompt.requestId}`) return undefined;
+    if (answered().has(promptCardKey(prompt))) return undefined;
     const [first] = prompt.questions;
     const fromField = prompt.questions.length === 1 && first && first.options === null && !first.isSecret;
     const card: BrowserIslandContent = {
       kind: "prompt",
       requestId: prompt.requestId,
       questions: prompt.questions,
-      attempt: answer.attempt,
+      attempt: attempt(),
     };
     const inDock =
       !fromField &&
@@ -106,14 +104,14 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined; 
       prompt.questions.every((entry) => !entry.isSecret) &&
       isBrowserDockIsland(card);
     return { prompt, first: fromField ? first : undefined, card: inDock ? card : undefined };
-  };
-  const approval = (): BrowserIslandContent | undefined => {
+  });
+  const approval = createMemo(() => {
     const current = props.approval;
     if (!current || current.agentId !== props.agent?.id) return undefined;
-    if (answer.sent === `approval:${current.requestId}`) return undefined;
-    const card: BrowserIslandContent = { kind: "approval", approval: current, attempt: answer.attempt };
+    if (answered().has(approvalCardKey(current))) return undefined;
+    const card: BrowserIslandContent = { kind: "approval", approval: current, attempt: attempt() };
     return isBrowserDockIsland(card) ? card : undefined;
-  };
+  });
   const reply = createMemo(() => {
     const agentId = props.agent?.id;
     const marker = agentId ? openedAfter().get(agentId) : undefined;
@@ -198,8 +196,11 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined; 
       // The user can select the tab of another agent before the answer arrives: clear the draft of this one.
       const target = currentTarget();
       const draft = currentDraft();
-      void props.onAnswerPrompt({ [asked.first.id]: [answer] }).then((answered) => {
-        if (answered && target) clearSubmittedDraft(target, { ...draft, attachments: [] });
+      const prompt = asked.prompt;
+      void props.onAnswerPrompt({ [asked.first.id]: [answer] }).then((done) => {
+        if (!done) return;
+        presentResolution(prompt);
+        if (target) clearSubmittedDraft(target, { ...draft, attachments: [] });
       });
       return;
     }
@@ -208,32 +209,51 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined; 
 
   /** Answers the card on the page. An answer for a card that has gone does nothing. */
   async function answerPrompt(requestId: string | number, answers: Record<string, string[]>): Promise<boolean> {
-    const current = question()?.card;
-    if (current?.kind !== "prompt" || String(current.requestId) !== String(requestId)) return false;
-    return sendAnswer(`prompt:${current.requestId}`, () => props.onAnswerPrompt(answers));
+    const asked = question();
+    if (asked?.card?.kind !== "prompt" || String(asked.prompt.requestId) !== String(requestId)) return false;
+    const prompt = asked.prompt;
+    const done = await sendAnswer(promptCardKey(prompt), () => props.onAnswerPrompt(answers));
+    if (done) presentResolution(prompt);
+    return done;
   }
 
   async function respondApproval(requestId: string | number, decision: "accept" | "decline"): Promise<boolean> {
     const current = approval();
     if (current?.kind !== "approval" || String(current.approval.requestId) !== String(requestId)) return false;
-    return sendAnswer(`approval:${current.approval.requestId}`, () => props.onRespondToApproval(decision));
+    const key = approvalCardKey(current.approval);
+    const done = await sendAnswer(key, () => props.onRespondToApproval(decision));
+    // The approval has gone from the turns, and the agent can use its request id again.
+    if (done) forgetAnswered(key);
+    return done;
+  }
+
+  /**
+   * The chat shows the answer of its own card, then marks the prompt as done. The dock card has gone, so it
+   * marks it at once: the chat must not show the card again.
+   */
+  function presentResolution(prompt: NonNullable<typeof props.prompt>) {
+    props.onPromptResolutionPresented?.(prompt.agentId, prompt.turnId, prompt.requestId);
+  }
+
+  function forgetAnswered(key: string) {
+    setAnswered((keys) => {
+      const next = new Set(keys);
+      next.delete(key);
+      return next;
+    });
   }
 
   /** Removes the card while its answer goes to the agent, and shows it again when the answer fails. */
-  async function sendAnswer(card: string, respond: () => Promise<boolean>): Promise<boolean> {
-    setAnswer((state) => {
-      state.sent = card;
-    });
+  async function sendAnswer(key: string, respond: () => Promise<boolean>): Promise<boolean> {
+    setAnswered((keys) => new Set(keys).add(key));
     let done = false;
     try {
       done = await respond();
       return done;
     } finally {
       if (!done) {
-        setAnswer((state) => {
-          if (state.sent === card) state.sent = undefined;
-          state.attempt += 1;
-        });
+        forgetAnswered(key);
+        setAttempt((value) => value + 1);
       }
     }
   }
@@ -402,6 +422,15 @@ export function BrowserDockAdapter(adapterProps: { tab: BrowserTab | undefined; 
       }}
     </Show>
   );
+}
+
+/** The request ids count per agent process, so the key also has the agent and the turn. */
+function promptCardKey(prompt: { agentId: string; turnId: string; requestId: string | number }): string {
+  return JSON.stringify(["prompt", prompt.agentId, prompt.turnId, String(prompt.requestId)]);
+}
+
+function approvalCardKey(approval: { agentId: string; requestId: string | number }): string {
+  return JSON.stringify(["approval", approval.agentId, String(approval.requestId)]);
 }
 
 /** Main refuses a whole presentation with a field over its limit, so a long step or reply is cut here. */

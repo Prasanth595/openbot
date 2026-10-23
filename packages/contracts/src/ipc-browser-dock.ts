@@ -253,7 +253,8 @@ function isPromptAnswers(value: unknown): value is Record<string, string[]> {
   let total = 0;
   for (const [questionId, answers] of entries) {
     if (
-      !isIdentifier(questionId) ||
+      // The same bound as the id of a question on the card, which can be empty.
+      !isBoundedString(questionId, INPUT_LIMITS.identifier) ||
       !Array.isArray(answers) ||
       answers.length > INPUT_LIMITS.promptAnswersPerQuestion
     ) {
