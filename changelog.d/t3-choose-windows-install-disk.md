@@ -6,3 +6,5 @@
 ### Changed
 
 - On Windows, Restart and install updates OpenBot with no installer window, then opens it again.
+  **The update from 0.48.1 or older still shows the installer window once. Select Finish to open
+  OpenBot again.** Your settings, agents and chats stay.
