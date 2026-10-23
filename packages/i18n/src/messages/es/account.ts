@@ -39,6 +39,8 @@ export const messages = {
     other: "{count} horas",
   },
   "account.usage.window.minutes": "{minutes} min",
+  "account.usage.window.cursorModels": "Modelos de Cursor",
+  "account.usage.window.otherModels": "Otros modelos",
   "account.update.failedRetry": "La actualización falló. Vuelve a intentarlo.",
   "account.update.managedByHost": "Gestionado por el host",
   "account.update.restart": "Reiniciar",

@@ -502,6 +502,19 @@ hooks, rules, MCP and permission files there and in the CLI config folder, and t
 `.workspace-trusted` and `mcp-approvals.json` files in each folder in `projects`. Migration 24 adds
 `cursor` to `projection_provider_sessions`.
 
+The CLI reports no usage over ACP. The driver's `readRateLimits` (`src/backend/cursor-usage.ts`)
+sends the request that the CLI sends itself, `aiserver.v1.DashboardService/GetCurrentPeriodUsage`
+as Connect JSON to `https://api2.cursor.sh` or `CURSOR_API_ENDPOINT`, with the CLI's access token.
+The token comes from where the CLI keeps it: on macOS the login Keychain item `cursor-access-token`
+(account `cursor-user`), read with `/usr/bin/security` because the CLI writes it with that tool,
+then `~/.cursor/auth.json`; on Linux `$XDG_CONFIG_HOME/cursor/auth.json` or
+`~/.config/cursor/auth.json`; on Windows `%APPDATA%\Cursor\auth.json`. Cursor does not document
+this API. `autoPercentUsed` (Cursor's own models) fills the primary window and `apiPercentUsed`
+(all other models) the secondary one, both for the billing cycle; the dock names them by slot for a
+`cursor` row, because both windows have the same length. A plan with only `totalPercentUsed` fills
+the primary window. No token, a 401 or 403, or no percentage gives no reading.
+`scripts/cursor-usage-e2e.ts` covers it.
+
 Team API v1–v5 do not know `cursor`. The host hides Cursor agents, models, status, and sign-in
 state from peers on those versions, and the `providers-v1` to `providers-v3` routes omit it. A route
 that reads an agent ID from the body answers 404 for a hidden agent (`requireVisibleBodyAgent`). A

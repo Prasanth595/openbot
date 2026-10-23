@@ -328,6 +328,11 @@ export const STORY_USAGE: AccountUsage = {
       primary: null,
       secondary: { usedPercent: 22, windowDurationMins: 10_080, resetsAt: 1_787_040_000 },
     },
+    {
+      id: "cursor",
+      primary: { usedPercent: 37, windowDurationMins: 43_200, resetsAt: 1_788_220_800 },
+      secondary: { usedPercent: 82, windowDurationMins: 43_200, resetsAt: 1_788_220_800 },
+    },
   ],
 };
 
