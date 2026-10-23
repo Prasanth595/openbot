@@ -224,7 +224,7 @@ Use `src/shared/components/sheet-scroll-view.tsx` as the root scroll container. 
   following existing screens. Reuse `SheetFormField` instead of rebuilding its platform inputs.
 - `SheetScrollView` uses `KeyboardAwareScrollView` to reveal the focused field and keep the last
   action reachable above the keyboard. Keep `mode="insets"` so keyboard clearance does not add a
-  layout spacer. Use `disableScrollOnKeyboardHide` to keep the user's position. The keyboard-controller 1.21.9 patch shrinks insets during dismissal and
+  layout spacer. Use `disableScrollOnKeyboardHide` to keep the user's position. The keyboard-controller 1.22.7 patch shrinks insets during dismissal and
   clamps only the current offset beyond the remaining content, instead of replaying a saved offset
   after a new drag. Check that event sequence again when the library changes. Leave
   `automaticallyAdjustKeyboardInsets` disabled and do not add another keyboard-avoiding wrapper. Verify tapping outside a field followed immediately by scrolling,

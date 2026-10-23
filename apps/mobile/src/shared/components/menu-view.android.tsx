@@ -33,11 +33,11 @@ import Share from "lucide-react-native/icons/share";
 import Star from "lucide-react-native/icons/star";
 import StarOff from "lucide-react-native/icons/star-off";
 import TextWrap from "lucide-react-native/icons/text-wrap";
-import Trash2 from "lucide-react-native/icons/trash-2";
+import Trash2 from "lucide-react-native/icons/trash";
 import Users from "lucide-react-native/icons/users";
 import X from "lucide-react-native/icons/x";
 import { Fragment, type Ref, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { BackHandler, Pressable, useWindowDimensions, type View } from "react-native";
+import { BackHandler, Pressable, useWindowDimensions, type ViewInstance } from "react-native";
 import { ScrollView } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCSSVariable } from "uniwind";
@@ -194,7 +194,7 @@ export function MenuView({
   const { height } = useWindowDimensions();
   const safeArea = useSafeAreaInsets();
   const trigger = useRef<MenuTriggerRef>(null);
-  const anchor = useRef<View>(null);
+  const anchor = useRef<ViewInstance>(null);
   const [isOpen, setIsOpen] = useState(false);
   // Where the menu opens and the height it has there. A button in the lower half of the screen, such as
   // the filter beside a bottom search field, opens the menu above it, so the menu does not run off the

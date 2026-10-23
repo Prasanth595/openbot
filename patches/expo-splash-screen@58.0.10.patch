@@ -1,10 +1,10 @@
 diff --git a/android/src/main/java/expo/modules/splashscreen/SplashScreenManager.kt b/android/src/main/java/expo/modules/splashscreen/SplashScreenManager.kt
-index 0dcb89e6cf02fdbd414375e2cd0b7ac4fe2e4950..5e0dd9a0b730f0ebd30fc01336b32141c1380287 100644
+index bc44b70..86bd5bf 100644
 --- a/android/src/main/java/expo/modules/splashscreen/SplashScreenManager.kt
 +++ b/android/src/main/java/expo/modules/splashscreen/SplashScreenManager.kt
-@@ -33,6 +33,15 @@ object SplashScreenManager {
-       return
-     }
+@@ -41,6 +41,15 @@ object SplashScreenManager {
+       }
+     })
  
 +    // On API 31-33 an exit animation listener makes the platform move the splash view into the
 +    // app and hide the starting window leash on the first draw. When the starting window is
@@ -15,6 +15,6 @@ index 0dcb89e6cf02fdbd414375e2cd0b7ac4fe2e4950..5e0dd9a0b730f0ebd30fc01336b32141
 +      return
 +    }
 +
-     val duration = options.duration
- 
      splashScreen.setOnExitAnimationListener { splashScreenViewProvider ->
+       val splashScreenView = splashScreenViewProvider.view
+       splashScreenView

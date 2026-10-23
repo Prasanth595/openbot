@@ -6,7 +6,7 @@ import Search from "lucide-react-native/icons/search";
 import SlidersHorizontal from "lucide-react-native/icons/sliders-horizontal";
 import X from "lucide-react-native/icons/x";
 import { useRef } from "react";
-import { Keyboard, Pressable, TextInput, View } from "react-native";
+import { Keyboard, Pressable, TextInput, type TextInputInstance, View } from "react-native";
 import { useReanimatedKeyboardAnimation } from "react-native-keyboard-controller";
 import Animated, { FadeIn, FadeOut, useAnimatedStyle } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -52,7 +52,7 @@ export function MarketplaceSearchBar({
 }) {
   const { t } = useText();
   const { theme } = useUniwind();
-  const input = useRef<TextInput>(null);
+  const input = useRef<TextInputInstance>(null);
   const insets = useSafeAreaInsets();
   const liquidGlass = useLiquidGlass();
   const reduced = useReducedMotion();

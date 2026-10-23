@@ -80,7 +80,7 @@
   },
   "scripts": {
     "prepare": "bun scripts/install-git-hooks.ts",
-    "postinstall": "bun scripts/electron-dist-cache.ts restore && bun scripts/install-electron.ts && bun scripts/electron-dist-cache.ts save && bun scripts/setup-mobile-skia.ts && bun scripts/stamp-install.ts",
+    "postinstall": "bun scripts/electron-dist-cache.ts restore && bun scripts/install-electron.ts && bun scripts/electron-dist-cache.ts save && bun scripts/stamp-install.ts",
     "api:start": "bun run --cwd apps/auth-api start",
     "api:build": "bun run --cwd apps/auth-api build",
     "api:images": "bun run --cwd apps/auth-api images",
@@ -396,16 +396,15 @@
     "@kobalte/core@2.0.0-alpha.0": "patches/@kobalte%2Fcore@2.0.0-alpha.0.patch",
     "dmg-builder@26.15.7": "patches/dmg-builder@26.15.7.patch",
     "solid-sonner@0.3.2": "patches/solid-sonner@0.3.2.patch",
-    "expo-router@57.0.22": "patches/expo-router@57.0.22.patch",
-    "react-native-keyboard-controller@1.21.9": "patches/react-native-keyboard-controller@1.21.9.patch",
     "solid-recharts@1.0.1": "patches/solid-recharts@1.0.1.patch",
     "@solidjs/signals@2.0.0-rc.0": "patches/@solidjs%2Fsignals@2.0.0-rc.0.patch",
     "@solidjs/web@2.0.0-rc.0": "patches/@solidjs%2Fweb@2.0.0-rc.0.patch",
-    "expo@57.0.24": "patches/expo@57.0.24.patch",
-    "react-native-screens@4.26.2": "patches/react-native-screens@4.26.2.patch",
-    "react-native-reanimated@4.5.5": "patches/react-native-reanimated@4.5.5.patch",
+    "expo@58.0.16": "patches/expo@58.0.16.patch",
+    "expo-router@58.0.24": "patches/expo-router@58.0.24.patch",
+    "expo-splash-screen@58.0.10": "patches/expo-splash-screen@58.0.10.patch",
+    "react-native-keyboard-controller@1.22.7": "patches/react-native-keyboard-controller@1.22.7.patch",
     "react-native-uitextview@2.7.1": "patches/react-native-uitextview@2.7.1.patch",
-    "expo-splash-screen@57.0.9": "patches/expo-splash-screen@57.0.9.patch"
+    "@react-native-masked-view/masked-view@0.3.2": "patches/@react-native-masked-view%2Fmasked-view@0.3.2.patch"
   },
   "trustedDependencies": [
     "electron-winstaller",

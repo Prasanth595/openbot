@@ -23,8 +23,9 @@ import { ChatGlassIconButton } from "@/features/chat/components/chat-glass-icon-
 import { ChatMarkdown } from "@/features/chat/components/chat-markdown";
 import { CodeDocument } from "@/features/chat/components/code-document";
 import DiagramCanvas from "@/features/chat/components/diagram-canvas.dom";
-import { PdfPreview, SpreadsheetFilePreview } from "@/features/chat/components/file-document-preview";
+import { SpreadsheetFilePreview } from "@/features/chat/components/file-document-preview";
 import HtmlPreview from "@/features/chat/components/html-preview.dom";
+import { PdfPreview } from "@/features/chat/components/pdf-preview";
 import { PREVIEW_TEXT_LIMIT } from "@/features/chat/model/attachment-file-preview";
 import { type CodePreviewEntry, codePreview } from "@/features/chat/model/code-preview-store";
 import { useMermaidDiagram } from "@/features/chat/model/mermaid-diagrams";

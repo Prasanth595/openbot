@@ -30,7 +30,17 @@ import {
   useRef,
   useState,
 } from "react";
-import { AccessibilityInfo, BackHandler, Keyboard, Pressable, ScrollView, TextInput, View } from "react-native";
+import {
+  AccessibilityInfo,
+  BackHandler,
+  Keyboard,
+  Pressable,
+  ScrollView,
+  TextInput,
+  type TextInputInstance,
+  View,
+  type ViewInstance,
+} from "react-native";
 import { KeyboardAwareScrollView, useReanimatedKeyboardAnimation } from "react-native-keyboard-controller";
 import Animated, {
   cubicBezier,
@@ -155,7 +165,7 @@ export interface HomeSearch {
   closeSearch: () => void;
   /** Closes the search for a result that opens another screen. */
   leave: () => void;
-  input: RefObject<TextInput | null>;
+  input: RefObject<TextInputInstance | null>;
   progress: SharedValue<number>;
   /** 1 while the results leave. Opening and closing move differently. */
   closing: SharedValue<number>;
@@ -201,7 +211,7 @@ export function useHomeSearch(): HomeSearch {
   const serverId = useMobileWorkspaceSelector((current) => current.activeServer.id);
   const agents = useMobileWorkspaceSelector((current) => current.activeAgents);
   const canUseTasks = useMobileWorkspaceSelector((current) => current.canUseTasks(current.activeServer.id));
-  const input = useRef<TextInput>(null);
+  const input = useRef<TextInputInstance>(null);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -593,7 +603,7 @@ export function HomeSearchBar({
 }: {
   search: HomeSearch;
   /** Android: the home content that the field blurs. */
-  blurTarget?: RefObject<View | null>;
+  blurTarget?: RefObject<ViewInstance | null>;
 }) {
   const { t } = useText();
   const { input } = search;

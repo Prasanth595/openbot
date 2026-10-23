@@ -26,6 +26,7 @@ import {
   useMobileWorkspaceReader,
 } from "@/features/workspace/context/mobile-workspace-context";
 import { androidBackOptions } from "@/shared/components/android-header-button";
+import { headerFontOptions } from "@/shared/lib/app-font";
 import { useReducedMotion } from "@/shared/lib/motion";
 import { isAndroid, isIOS } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
@@ -34,7 +35,7 @@ import { useText } from "@/shared/lib/text";
 const NOTIFICATION_CHANNEL_WAIT_MS = 8_000;
 
 export const unstable_settings = {
-  initialRouteName: "connected",
+  anchor: "connected",
 };
 
 function AuthenticatedStack() {
@@ -146,7 +147,6 @@ function AuthenticatedStack() {
   return (
     <ChatNavigationGateContext value={navigationGate}>
       <Stack
-        initialRouteName="connected"
         screenListeners={({ route }) =>
           route.name === "connected"
             ? {
@@ -163,6 +163,7 @@ function AuthenticatedStack() {
           // The full screens put the back arrow in the glass circle, as the home buttons are.
           ...androidBackOptions(props, { glass: true }),
           headerBackButtonDisplayMode: "minimal",
+          ...headerFontOptions,
           headerShadowVisible: false,
           headerTransparent: isIOS,
           sheetExpandsWhenScrolledToEdge: false,

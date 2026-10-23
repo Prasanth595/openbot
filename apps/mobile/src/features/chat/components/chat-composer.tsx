@@ -17,6 +17,7 @@ import {
   Pressable,
   ScrollView,
   TextInput,
+  type TextInputInstance,
   useWindowDimensions,
   View,
   type ViewStyle,
@@ -274,7 +275,7 @@ export const ChatComposer = memo(function ChatComposer({
   // What the bar has to stay open for. A send takes the text and the files out of
   // the composer at once, so a draft is always a new one.
   const hasDraft = Boolean(draft.trim()) || files.length > 0;
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
   const isFocused = useIsFocused();
   const latestTextRef = useRef(draft);
   const [sendGate] = useState(createComposerSendGate);

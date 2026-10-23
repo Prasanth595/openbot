@@ -8,7 +8,8 @@ import type { ReactNode } from "react";
 import { Pressable, View } from "react-native";
 import { useUniwind } from "uniwind";
 import { AndroidHeaderButton } from "@/shared/components/android-header-button";
-import { type MenuAction, MenuView } from "@/shared/components/menu-view";
+import { CoveringMenuView } from "@/shared/components/covering-menu-view";
+import type { MenuAction } from "@/shared/components/menu-view";
 import { haptics } from "@/shared/lib/haptics";
 import { isAndroid, isIOS } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
@@ -107,7 +108,8 @@ export interface TryTargets {
 
 /**
  * Opens a Try: one agent opens its chat at once, and more agents ask which one, in a native menu. The
- * child is the control the user presses.
+ * child is the control the user presses. The menu covers the child, so a row of text keeps its React
+ * Native width and wraps.
  */
 export function TryPressable({
   targets,
@@ -123,16 +125,15 @@ export function TryPressable({
   const [only] = targets.agents;
   if (targets.agents.length > 1)
     return (
-      <MenuView
+      <CoveringMenuView
         colorScheme={theme === "dark" ? "dark" : "light"}
         title={t("mobile.marketplace.try.choose")}
         actions={targets.agents.map((agent): MenuAction => ({ id: agent.id, title: agent.name }))}
         onPressAction={({ nativeEvent }) => targets.onTry(nativeEvent.event)}
+        accessibilityLabel={label}
       >
-        <View accessible accessibilityRole="button" accessibilityLabel={label}>
-          {children}
-        </View>
-      </MenuView>
+        {children}
+      </CoveringMenuView>
     );
   return (
     <Pressable

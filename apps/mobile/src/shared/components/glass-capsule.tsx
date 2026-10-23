@@ -1,7 +1,7 @@
 import { BlurView } from "expo-blur";
 import { GlassView } from "expo-glass-effect";
 import type { PropsWithChildren, RefObject } from "react";
-import { Platform, StyleSheet, View } from "react-native";
+import { Platform, StyleSheet, View, type ViewInstance } from "react-native";
 import Animated, { cubicBezier } from "react-native-reanimated";
 import { useCSSVariable, useUniwind } from "uniwind";
 import { ChromeGlassSheen } from "@/shared/components/chrome-glass-sheen";
@@ -37,7 +37,7 @@ export function GlassCapsule({
 }: PropsWithChildren<{
   liquidGlass: boolean;
   /** Android: the content to blur under the capsule. Without it the capsule has the solid glass. */
-  blurTarget?: RefObject<View | null>;
+  blurTarget?: RefObject<ViewInstance | null>;
   /** Shows the solid glass over the blur, for a time when the target is not under the capsule. */
   blurPaused?: boolean;
   fallbackBackground: unknown;

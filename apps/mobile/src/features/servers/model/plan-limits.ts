@@ -76,7 +76,7 @@ function saveReading(account: string, serverId: string, limits: PlanLimits): voi
   if (JSON.stringify(saved.get(key)) === JSON.stringify(reading)) return;
   saved.set(key, reading);
   try {
-    new File(Paths.cache, SAVED_FILE).write(JSON.stringify([...saved]));
+    new File(Paths.cache, SAVED_FILE).writeSync(JSON.stringify([...saved]));
   } catch {
     // The reading stays in memory for this launch.
   }
