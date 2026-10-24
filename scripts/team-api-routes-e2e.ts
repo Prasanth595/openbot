@@ -54,6 +54,7 @@ import {
   ROUTINE_RESULTS_ROUTES,
 } from "@openbot/contracts/team-protocol/routine-results-v1";
 import { SIDE_QUESTION_CAPABILITY, SIDE_QUESTION_ROUTES } from "@openbot/contracts/team-protocol/side-question-v1";
+import { STORAGE_DISK_CAPABILITY, STORAGE_DISK_ROUTES } from "@openbot/contracts/team-protocol/storage-disk-v1";
 import {
   TEAM_APP_VERSION_HEADER,
   TEAM_CAPABILITIES_HEADER,
@@ -620,6 +621,17 @@ try {
     },
     bitwardenConnector,
     browserProfiles,
+    // Only the disk of the host answers here; the storage-v1 routes are not part of this run.
+    storage: {
+      usage: unused("storage.usage"),
+      deleteFile: unused("storage.deleteFile"),
+      clear: unused("storage.clear"),
+      disk: () =>
+        Effect.sync(() => {
+          record("disk");
+          return { freeBytes: 2 * 1024 ** 3, totalBytes: 64 * 1024 ** 3 };
+        }),
+    },
     // The host's own sign-in has two usage reset credits; a reset spends one.
     providerUsageResets: {
       providerUsageResets: (provider) =>
@@ -1638,6 +1650,48 @@ try {
       "the host logs no profile name",
       !logged.some((line) => line.includes("Client A") || line.includes("Client B")),
       null,
+    );
+  }
+
+  // ---- Disk space (storage-disk-v1) ----
+  {
+    const unsupported = await call("POST", STORAGE_DISK_ROUTES.disk, { token: bobToken, json: {} });
+    check(
+      "the disk route without the capability gets 400 storageUnsupported",
+      errorIs(unsupported, 400, sourceText("error.team.storageUnsupported")) && callsOf("disk").length === 0,
+      summary(unsupported),
+    );
+    const diskCapabilities = [AGENT_HIDDEN_CAPABILITY, TEAM_QUEUE_EDIT_CAPABILITY, STORAGE_DISK_CAPABILITY];
+    // Every signed-in member reads the disk, as the frozen contract says; the client shows the card to admins.
+    const member = await call("POST", STORAGE_DISK_ROUTES.disk, {
+      token: bobToken,
+      json: {},
+      capabilities: diskCapabilities,
+    });
+    const owner = await call("POST", STORAGE_DISK_ROUTES.disk, {
+      token: adaToken,
+      json: {},
+      capabilities: diskCapabilities,
+    });
+    const expected = { freeBytes: 2 * 1024 ** 3, totalBytes: 64 * 1024 ** 3 };
+    check(
+      "a member and the owner read the free and total bytes of the host disk",
+      member.status === 200 &&
+        owner.status === 200 &&
+        isDeepStrictEqual(member.body, expected) &&
+        isDeepStrictEqual(owner.body, expected) &&
+        callsOf("disk").length === 2,
+      [summary(member), summary(owner)],
+    );
+    const withBody = await call("POST", STORAGE_DISK_ROUTES.disk, {
+      token: bobToken,
+      json: { path: "/" },
+      capabilities: diskCapabilities,
+    });
+    check(
+      "the disk route ignores a path in the body and reads the disk of the OpenBot data",
+      withBody.status === 200 && isDeepStrictEqual(withBody.body, expected) && callsOf("disk").length === 3,
+      summary(withBody),
     );
   }
 

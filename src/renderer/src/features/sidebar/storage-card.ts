@@ -5,6 +5,7 @@ import { createMemo, createSignal, untrack } from "solid-js";
 import { createUsageRefreshPoll } from "../account/usage-refresh-poll";
 import { canManageStorage } from "../files/storage-usage";
 import { serverSupportsCapability } from "../servers/server-capabilities";
+import { sidebarPort } from "./sidebar-port";
 
 const GB = 1024 ** 3;
 
@@ -57,19 +58,21 @@ export function createStorageCard(server: () => ServerSummary | undefined) {
   });
 
   function refresh(serverId: string): void {
-    window.openbot.storage.getDisk(serverId).then(
-      (answer) => {
-        // An answer for a server that is no longer selected is dropped.
-        if (untrack(target) !== serverId) return;
-        setDisk(answer ? { serverId, disk: answer } : null);
-        // Space came back, so the next "low" shows the card again.
-        if (answer && storageLevel(answer) === null) writeDismissed(serverId, false);
-      },
-      // A failed read shows no card. The next poll asks again.
-      () => {
-        if (untrack(target) === serverId) setDisk(null);
-      },
-    );
+    sidebarPort()
+      .storage.getDisk(serverId)
+      .then(
+        (answer) => {
+          // An answer for a server that is no longer selected is dropped.
+          if (untrack(target) !== serverId) return;
+          setDisk(answer ? { serverId, disk: answer } : null);
+          // Space came back, so the next "low" shows the card again.
+          if (answer && storageLevel(answer) === null) writeDismissed(serverId, false);
+        },
+        // A failed read shows no card. The next poll asks again.
+        () => {
+          if (untrack(target) === serverId) setDisk(null);
+        },
+      );
   }
   createUsageRefreshPoll({ target, refresh, refreshAtStart: true });
 

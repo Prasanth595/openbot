@@ -314,7 +314,8 @@ does not count it. See [hosted servers](../hosted-servers.md) step 5.
 
 An owner or admin of a joined server manages its host through optional `POST /v1/admin/...` routes.
 Each capability has a frozen codec in `team-protocol/<name>-v1.ts`, registered in
-`team-protocol/optional-routes.ts`, and both transports use it. Every route calls `requireAdmin`. The
+`team-protocol/optional-routes.ts`, and both transports use it. Every route calls `requireAdmin`,
+except two that also answer a member: `/v1/browser/tab-profiles` and `storage-disk-v1`. The
 host advertises a capability only when its `TeamApiAdmin` member exists.
 
 | Capability | Grants | IPC group |
