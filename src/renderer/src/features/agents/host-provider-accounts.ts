@@ -58,6 +58,18 @@ export function withHostAccountUsage(
   return { limits: [...usage.limits.filter((limit) => limit.accountId === undefined), ...accountLimits] };
 }
 
+/** Whether an account is connected in `next` and was not in `previous`. */
+function newlyConnected(previous: HostProviderAccounts, next: HostProviderAccounts): boolean {
+  const connected = (host: HostProviderAccounts) =>
+    host.providers.flatMap((row) =>
+      row.accounts
+        .filter((account) => account.state === "connected")
+        .map((account) => `${row.provider}\n${account.id}`),
+    );
+  const before = new Set(connected(previous));
+  return connected(next).some((key) => !before.has(key));
+}
+
 export interface HostAccountsSource {
   /** The joined server that serves `provider-accounts-v1` to this account, if any. */
   serverId: Accessor<string | undefined>;
@@ -90,8 +102,11 @@ export function createHostAccounts(source: HostAccountsSource) {
     }
     const next = await source.accounts(serverId);
     if (!isCurrent() || request !== generation) return;
+    const previous = untrack(host);
     setHost(next);
     source.applied?.(next);
+    // The rail shows an account only with a reading, and the host sends no reading after a sign-in.
+    if (previous && newlyConnected(previous, next)) void refreshUsage().catch(() => undefined);
   }
 
   async function refreshUsage(): Promise<void> {

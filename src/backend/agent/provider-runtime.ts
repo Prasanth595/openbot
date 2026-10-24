@@ -582,6 +582,7 @@ export class ProviderRuntime implements ProviderPort {
               Effect.mapError((error) => new ProviderAccountFailed({ cause: error.cause })),
             ),
           changed: () => this.#setStatus({}),
+          usageChanged: (limit) => this.#emit({ type: "usage-changed", usage: { limits: [structuredClone(limit)] } }),
           redact: (text) => this.#redactMcp(redactText(text)),
         })
       : null;
