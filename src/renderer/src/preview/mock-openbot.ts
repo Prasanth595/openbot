@@ -1307,6 +1307,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       usageResets: (provider) => api.providerUsageResets(provider),
       resetUsage: (input) => api.resetProviderUsage(input),
       startRelaySignIn: async () => undefined,
+      startAccountRelaySignIn: async () => undefined,
       relaySignInStatus: async () => ({ page: null, result: null }),
       openRelaySignIn: async () => undefined,
       pasteRelaySignIn: async () => undefined,

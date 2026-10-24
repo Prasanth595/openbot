@@ -67,6 +67,7 @@ import {
   MCP_SIGN_IN_APP_CAPABILITY,
   MCP_SIGN_IN_CAPABILITY,
   ONEPASSWORD_CONNECTOR_CAPABILITY,
+  PROVIDER_ACCOUNT_RELAY_CAPABILITY,
   PROVIDER_ACCOUNTS_CAPABILITY,
   PROVIDER_HOST_SIGN_IN_CAPABILITY,
   PROVIDER_USAGE_RESET_CAPABILITY,
@@ -1877,6 +1878,12 @@ export class TeamApiServer {
           return this.#options.mcpServers !== undefined && this.#options.mcpSignIns !== undefined;
         if (capability === SIGN_IN_RELAY_CAPABILITY)
           return this.#options.mcpServers !== undefined && this.#options.signInRelay !== undefined;
+        if (capability === PROVIDER_ACCOUNT_RELAY_CAPABILITY)
+          return (
+            this.#options.mcpServers !== undefined &&
+            this.#options.signInRelay !== undefined &&
+            this.#options.providerAccounts !== undefined
+          );
         if (capability === CONNECTORS_CAPABILITY) return this.#options.connectors !== undefined;
         if (capability === DISCORD_ACCESS_CAPABILITY) return this.#options.connectors !== undefined;
         if (capability === ONEPASSWORD_CONNECTOR_CAPABILITY) return this.#options.onePasswordConnector !== undefined;

@@ -107,13 +107,14 @@ the sign-in and keeps the grant.
 
 The optional Team API capability `sign-in-relay-v1` carries the relay. The frozen contract is
 [`sign-in-relay-v1.ts`](../../packages/contracts/src/team-protocol/sign-in-relay-v1.ts). It has
-three start routes. They share `status`, `complete` and `cancel`:
+three start routes, and `provider-account-relay-v1` adds a fourth. They share `status`, `complete` and `cancel`:
 
 | Start route | What it signs in | How the host delivers the callback |
 | --- | --- | --- |
 | `mcp/start` | A URL MCP server, from server settings or the Marketplace | It gives the code to `McpOAuth` (owned flow). |
 | `provider/start` | The CLI of a provider in `SIGN_IN_RELAY_PROVIDERS`: Codex, Claude, Gemini (`antigravity`) and Muse | It replays the query to the CLI's own loopback listener on the host. A Muse device page has no callback: the client only opens it. |
 | `link/start` | A sign-in page that an agent of the host printed in its conversation | It replays the query to the loopback address of that page. |
+| `provider-account/start` | An account after the first of Codex or Claude (`PROVIDER_ACCOUNT_RELAY_PROVIDERS`), new or signed out. The separate capability `provider-account-relay-v1` adds this route ([`provider-account-relay-v1.ts`](../../packages/contracts/src/team-protocol/provider-account-relay-v1.ts)) | It replays the query to the loopback listener of the account's CLI on the host, as for `provider/start`. |
 
 ### Sequence
 

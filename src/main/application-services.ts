@@ -2031,10 +2031,12 @@ export async function createApplicationServices({
   const mcpHostSignIns = new McpHostSignIns({ service, browser });
   const providerSignIns = new ProviderHostSignIns({ service, browser });
   const providerAccountsHost = new ProviderAccountsHost({ service, browser });
-  // The flows end with the sign-ins they relay, which `mcpHostSignIns` and `providerSignIns` close.
+  // The flows end with the sign-ins they relay, which `mcpHostSignIns`, `providerSignIns` and
+  // `providerAccountsHost` close.
   const signInRelayHost = new SignInRelayHost({
     mcp: mcpHostSignIns,
     providers: providerSignIns,
+    accounts: providerAccountsHost,
     receiveMcpGrant: (state, code) => mcpOAuth.receiveAuthorizationCode(state, code),
     // The search ignores case, so the exact address is checked again on each agent message it finds.
     printedLink: (agentId, url) =>
