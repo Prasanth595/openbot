@@ -9,7 +9,7 @@ import type { GrokCliInfo } from "./cli";
 import type { McpDropReporter, McpEndpointSource, McpServerSource, McpToolRuntimeSource } from "./mcp-provider-shapes";
 import { confineSpawnTarget, grokStatePaths, type ProcessConfinement } from "./process-confinement";
 import { type AccountRateLimitsReadResult, getRecord, getString } from "./protocol";
-import { providerCall, providerFailure } from "./provider-client-effects";
+import { providerCall } from "./provider-client-effects";
 
 export class GrokAgentClient extends AcpAgentClient {
   constructor(
@@ -80,7 +80,9 @@ const steer = Effect.fn("Grok.steer")(function* (
 ) {
   const text = message.blocks.flatMap((block) => (block.type === "text" ? [block.text] : [])).join("\n\n");
   const images = message.blocks.filter((block) => block.type === "image");
-  const response = yield* providerCall(() =>
+  // Grok refuses with an error, and it always answers `{ result: { status: "queued" } }` when it keeps
+  // the message. Another check of the answer would put a message that Grok kept back in the queue.
+  yield* providerCall(() =>
     connection.extMethod("_x.ai/interject", {
       sessionId: message.sessionId,
       text,
@@ -88,9 +90,6 @@ const steer = Effect.fn("Grok.steer")(function* (
       content: [{ type: "text", text }, ...images],
     }),
   );
-  // Grok 1.0.62 to 1.0.70 answer `{ result: { status: "queued" } }`.
-  if (getString(getRecord(response, "result"), "status") !== "queued")
-    return yield* providerFailure(new Error(sourceText("error.backend.steerUnsupported")));
 });
 
 function grokAccount(value: unknown): { email: string | null } {
