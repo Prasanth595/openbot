@@ -424,10 +424,16 @@ export class ChannelStore {
       db.prepare(
         "INSERT INTO projection_channel_messages VALUES (?, ?, ?, ?) ON CONFLICT(channel_id, message_id) DO UPDATE SET message_json = excluded.message_json",
       ).run(change.channel.id, message.id, assigned, JSON.stringify({ ...message, sequence: assigned }));
-      if (existing)
+      if (existing) {
         db.prepare(
           "UPDATE projection_channel_summaries SET version = version + 1, through_sequence = 0, text = '' WHERE channel_id = ? AND through_sequence >= ?",
         ).run(change.channel.id, assigned);
+        // A member read this message before it changed, as when a correction supersedes a result. A
+        // packet with only later messages would not show the change, so the next one is complete.
+        db.prepare(
+          "UPDATE projection_channel_contexts SET through_sequence = 0, summary_version = 0 WHERE channel_id = ? AND through_sequence >= ?",
+        ).run(change.channel.id, assigned);
+      }
     }
     for (const task of change.tasks)
       db.prepare(
