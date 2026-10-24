@@ -254,11 +254,6 @@
 }
 
 @media (max-width: 620px) {
-  .agent-queue-panel {
-    margin-right: 2px;
-    margin-left: 2px;
-  }
-
   .agent-queue-steer {
     width: 26px;
     padding: 0;

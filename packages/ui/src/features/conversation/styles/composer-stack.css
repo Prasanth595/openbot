@@ -10,13 +10,24 @@
  * The stack only has a frame when something shows in it: the queue slot stays in the DOM while
  * closed, and a frame round an empty slot would be a line over the input.
  */
+.composer-stack {
+  --composer-stack-inset: var(--openbot-space-3);
+}
+
+/* A narrow pane gives the rows the width the side margins took. */
+@media (max-width: 620px) {
+  .composer-stack {
+    --composer-stack-inset: 2px;
+  }
+}
+
 .composer-stack:has(> :not(.agent-queue-slot), > .agent-queue-slot > .agent-queue-slot-inner > *) {
   --composer-stack-overlap: 14px;
 
   position: relative;
   z-index: 10;
   overflow: hidden;
-  margin: 0 var(--openbot-space-3) calc(-1 * var(--composer-stack-overlap));
+  margin: 0 var(--composer-stack-inset) calc(-1 * var(--composer-stack-overlap));
   border: 1px solid var(--openbot-queue-border);
   border-radius: var(--openbot-radius-lg);
   background: var(--openbot-queue-surface);
@@ -39,4 +50,18 @@
 
 .composer-stack .composer-notice {
   padding-bottom: var(--notice-inset);
+}
+
+/*
+ * A compaction notice that leaves when it is the only card takes the frame with it: the frame drops
+ * behind the input the way the notice did on its own. The notice keeps its own exit animation,
+ * because its `onAnimationEnd` removes it. With reduced motion the notice fades in 1ms, so the frame
+ * does not move.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .composer-stack:has(> .context-compaction-notice[data-leaving]):not(
+    :has(> :not(.agent-queue-slot, [data-leaving]), > .agent-queue-slot > .agent-queue-slot-inner > *)
+  ) {
+    animation: context-compaction-notice-out var(--openbot-duration-toast-exit) var(--openbot-ease-in-out) forwards;
+  }
 }
