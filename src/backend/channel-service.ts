@@ -326,9 +326,10 @@ export class ChannelService {
       // A request that stopped only because the channel had no lead goes to the lead the save sets,
       // as a hidden or limited lead's request waits and starts by itself. Without this it stayed
       // stopped until the reader pressed Continue, which a reader who had just picked a lead missed.
+      // An archived channel keeps its work stopped: unarchiving starts nothing.
       const lead = command.draft.leadAgentId;
       const waitingForLead =
-        lead && lead !== existing?.leadAgentId
+        lead && lead !== existing?.leadAgentId && !existing?.archived
           ? (yield* channelSync(() => this.store.tasks(channel.id))).filter(
               (task) =>
                 task.state === "paused" &&
