@@ -461,9 +461,15 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     },
     [connectionWaits],
   );
+  // The query of `AgentPhoto`, so the Live Activity and the photo share one transfer and one copy.
   const loadAgentAvatar = useCallback(
-    (agentId: string, avatarUrl: string, serverId: string) => requestAgentAvatar(request, agentId, avatarUrl, serverId),
-    [request],
+    (agentId: string, avatarUrl: string, serverId: string) =>
+      queryClient.fetchQuery({
+        queryKey: queryKeys.agentAvatar(queryScope, serverId, agentId, avatarUrl),
+        queryFn: () => requestAgentAvatar(request, agentId, avatarUrl, serverId),
+        staleTime: Infinity,
+      }),
+    [request, queryClient, queryScope],
   );
   const postLiveActivityAction = useCallback(
     (serverId: string, path: string, body: TeamProtocolV2Json) => request("POST", path, ignoreResponse, body, serverId),
