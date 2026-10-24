@@ -141,40 +141,55 @@ function AwaitingReplyList(props: AwaitingReplyListProps) {
       <div id={panelId} class="task-list-panel" inert={open() ? undefined : true}>
         <ol class="task-list-items">
           <For each={props.items} keyed={(item) => item.id}>
-            {(item, index) => (
-              <li
-                class="task-list-item awaiting-replies-item"
-                data-state={markState(item())}
-                data-wait={item().wait ? "" : undefined}
-                style={{ "--task-list-index": index() }}
-              >
-                <AgentAvatar
-                  agent={item().agent}
-                  seed={item().agent ? undefined : item().name}
-                  class="awaiting-replies-avatar"
-                />
-                <span class="awaiting-replies-text">
-                  <span class="awaiting-replies-name">{item().name}</span>
-                  <Show when={preview(item())}>{(text) => <span class="awaiting-replies-preview">{text()}</span>}</Show>
-                </span>
-                <span class="awaiting-replies-state">
-                  <Show when={item().detail}>
-                    {(detail) => <span class="awaiting-replies-detail">{detail()}</span>}
-                  </Show>
-                  <span class="awaiting-replies-state-label">{stateLabel(item())}</span>
-                  <span class="task-list-item-mark" aria-hidden="true">
-                    <TaskMark state={markState(item())} />
+            {(item, index) => {
+              // Two rows can have the same action word, so the button also names the agent.
+              const rowId = createUniqueId();
+              return (
+                <li
+                  class="task-list-item awaiting-replies-item"
+                  data-state={markState(item())}
+                  data-wait={item().wait ? "" : undefined}
+                  style={{ "--task-list-index": index() }}
+                >
+                  <AgentAvatar
+                    agent={item().agent}
+                    seed={item().agent ? undefined : item().name}
+                    class="awaiting-replies-avatar"
+                  />
+                  <span class="awaiting-replies-text">
+                    <span id={`${rowId}-name`} class="awaiting-replies-name">
+                      {item().name}
+                    </span>
+                    <Show when={preview(item())}>
+                      {(text) => <span class="awaiting-replies-preview">{text()}</span>}
+                    </Show>
                   </span>
-                </span>
-                <Show when={openAction(item())}>
-                  {(action) => (
-                    <Button size="xs" variant="secondary" class="awaiting-replies-open" onClick={() => action().run()}>
-                      {action().label}
-                    </Button>
-                  )}
-                </Show>
-              </li>
-            )}
+                  <span class="awaiting-replies-state">
+                    <Show when={item().detail}>
+                      {(detail) => <span class="awaiting-replies-detail">{detail()}</span>}
+                    </Show>
+                    <span class="awaiting-replies-state-label">{stateLabel(item())}</span>
+                    <span class="task-list-item-mark" aria-hidden="true">
+                      <TaskMark state={markState(item())} />
+                    </span>
+                  </span>
+                  <Show when={openAction(item())}>
+                    {(action) => (
+                      <Button
+                        id={`${rowId}-open`}
+                        size="xs"
+                        variant="secondary"
+                        class="awaiting-replies-open"
+                        aria-labelledby={`${rowId}-open ${rowId}-name`}
+                        onClick={() => action().run()}
+                      >
+                        {action().label}
+                      </Button>
+                    )}
+                  </Show>
+                </li>
+              );
+            }}
           </For>
         </ol>
       </div>
