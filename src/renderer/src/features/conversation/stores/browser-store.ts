@@ -262,10 +262,17 @@ export function createBrowserStore(deps: BrowserStoreDeps) {
     serverSupportsCapability(deps.props.server, "browser-sign-in") &&
     webHost(tab?.url) !== null;
 
+  /** A channel opens the takeover page in the owner's chat and this store unmounts, so only the owner's chat signs in. */
+  const canSignInTakeoverLocally = () => {
+    const tab = browserTakeoverTab();
+    return tab !== undefined && browserTabs().some((entry) => entry.id === tab.id) && canSignInLocally(tab);
+  };
+
   /** The agent found that the takeover page refused the sign-in from the server, and this computer can sign in. */
   function blockedTakeoverSignIn() {
     const tab = browserTakeoverTab();
-    if (deps.props.browserTakeover?.reason !== "sign-in-blocked" || !tab || !canSignInLocally(tab)) return undefined;
+    if (deps.props.browserTakeover?.reason !== "sign-in-blocked" || !tab || !canSignInTakeoverLocally())
+      return undefined;
     return { server: deps.props.server?.name ?? "", signingIn: localSignIn()?.tabId === tab.id };
   }
 
@@ -640,6 +647,7 @@ export function createBrowserStore(deps: BrowserStoreDeps) {
       state: localSignIn,
       canStart: canSignInLocally,
       start: startLocalSignIn,
+      canStartForTakeover: canSignInTakeoverLocally,
       startForTakeover: signInTakeoverTabLocally,
       blockedTakeover: blockedTakeoverSignIn,
       reopen: openLocalSignInWindow,

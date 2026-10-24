@@ -1351,7 +1351,7 @@ export function ConversationTimeline() {
                 onOpen={openBrowserTakeoverTab}
                 onComplete={() => respondToBrowserTakeover("complete")}
                 onCancel={() => respondToBrowserTakeover("cancel")}
-                onSignInLocally={localSignIn.canStart(browserTakeoverTab()) ? localSignIn.startForTakeover : undefined}
+                onSignInLocally={localSignIn.canStartForTakeover() ? localSignIn.startForTakeover : undefined}
                 signInBlocked={localSignIn.blockedTakeover()}
                 browserSecret={{
                   loadPreview: runtime.browser.capturePreview,
