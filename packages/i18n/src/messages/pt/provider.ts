@@ -62,9 +62,10 @@ export const messages = {
   "provider.aria.codeFallback": "Entrar em {name} com um código",
   "provider.aria.moreActions": "Mais ações para {name}",
   "provider.aria.use": "Usar {name} no OpenBot",
+  "provider.use.inUseOne": "{agent} usa {name}. Mude o modelo deste agente e depois desligue {name}.",
   "provider.use.inUse": {
-    one: "{agents} usa {name}. Mude o modelo deste agente e depois desligue {name}.",
-    other: "{agents} usam {name}. Mude o modelo destes agentes e depois desligue {name}.",
+    one: "{count} agente usa {name}. Mude o modelo deste agente e depois desligue {name}.",
+    other: "{count} agentes usam {name}. Mude o modelo destes agentes e depois desligue {name}.",
   },
   "provider.codeLogin.title": "Entrar em {name} com um código",
   "provider.codeLogin.description": "Conclua no celular ou em outro navegador. O OpenBot aguarda aqui.",

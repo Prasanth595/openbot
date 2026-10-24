@@ -81,11 +81,12 @@ export const messages = {
   "provider.aria.moreActions": "Więcej działań: {name}",
 
   "provider.aria.use": "Używaj {name} w OpenBot",
+  "provider.use.inUseOne": "{agent} używa {name}. Zmień model tego agenta, a potem wyłącz {name}.",
   "provider.use.inUse": {
-    one: "{agents} używa {name}. Zmień model tego agenta, a potem wyłącz {name}.",
-    few: "{agents} używają {name}. Zmień model tych agentów, a potem wyłącz {name}.",
-    many: "{agents} używają {name}. Zmień model tych agentów, a potem wyłącz {name}.",
-    other: "{agents} używają {name}. Zmień model tych agentów, a potem wyłącz {name}.",
+    one: "{count} agent używa {name}. Zmień model tego agenta, a potem wyłącz {name}.",
+    few: "{count} agenci używają {name}. Zmień model tych agentów, a potem wyłącz {name}.",
+    many: "{count} agentów używa {name}. Zmień model tych agentów, a potem wyłącz {name}.",
+    other: "{count} agenta używa {name}. Zmień model tych agentów, a potem wyłącz {name}.",
   },
 
   "provider.codeLogin.title": "Zaloguj się do {name} kodem",

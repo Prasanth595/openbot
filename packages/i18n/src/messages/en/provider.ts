@@ -72,11 +72,12 @@ export const messages = defineMessages("provider", {
   "provider.aria.moreActions": "More actions for {name}",
 
   // The switch that turns a provider on or off in OpenBot. While an agent uses the provider, the
-  // switch stays on and the row names the agents.
+  // switch stays on and a toast names the agent, or counts the agents when there are more.
   "provider.aria.use": "Use {name} in OpenBot",
+  "provider.use.inUseOne": "{agent} uses {name}. Change the model of this agent, then turn {name} off.",
   "provider.use.inUse": {
-    one: "{agents} uses {name}. Change the model of this agent, then turn {name} off.",
-    other: "{agents} use {name}. Change the model of these agents, then turn {name} off.",
+    one: "{count} agent uses {name}. Change the model of this agent, then turn {name} off.",
+    other: "{count} agents use {name}. Change the model of these agents, then turn {name} off.",
   },
 
   // The dialog that signs in to a provider with a code on another device.

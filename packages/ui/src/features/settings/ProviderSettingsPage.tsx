@@ -70,6 +70,7 @@ import {
   providerAction,
   providerStatusLabel,
   servesCustomProvider,
+  showProviderInUse,
 } from "../../components/provider-row";
 import { useText } from "../../text";
 import { AccountUsageWindowList } from "../account/AccountUsageDetails";
@@ -1262,11 +1263,10 @@ function RuntimeSection(props: SectionProps) {
 
 /** The default and the switch, at the end of the page, as the other settings pages keep their switches. */
 function UseSection(props: SectionProps) {
-  const { t, format, errorMessage } = useText();
-  const [change, setChange] = createStore<{ pending: boolean; error: string | null; refused: object | null }>({
+  const { t, errorMessage } = useText();
+  const [change, setChange] = createStore<{ pending: boolean; error: string | null }>({
     pending: false,
     error: null,
-    refused: null,
   });
   const usedBy = () => props.option.usedBy ?? [];
   const isDefault = () => props.defaultProvider?.value === props.option.id;
@@ -1282,18 +1282,12 @@ function UseSection(props: SectionProps) {
     const name = defaultName();
     return name ? t("provider.settings.startsWith", { name }) : null;
   };
-  /** The refused attempt, until the agents move to another provider. */
-  const refusal = () => (change.refused && usedBy().length > 0 ? change.refused : null);
   async function setOn(on: boolean) {
     if (!on && usedBy().length > 0) {
-      // Each attempt is a new object, so the message is drawn again and a screen reader reads it again.
-      setChange((state) => {
-        state.refused = {};
-      });
+      showProviderInUse(t, usedBy(), props.option.name);
       return;
     }
     setChange((state) => {
-      state.refused = null;
       state.pending = true;
       state.error = null;
     });
@@ -1341,15 +1335,6 @@ function UseSection(props: SectionProps) {
             <Item class="settings-modal-row">
               <ItemContent>
                 <ItemTitle>{t("provider.settings.useTitle", { name: props.option.name })}</ItemTitle>
-                <Show when={refusal()} keyed>
-                  <ItemDescription class="provider-settings-error" role="alert">
-                    {t("provider.use.inUse", {
-                      count: usedBy().length,
-                      agents: format.list(usedBy()),
-                      name: props.option.name,
-                    })}
-                  </ItemDescription>
-                </Show>
                 <Show when={change.error}>
                   {(message) => (
                     <ItemDescription class="provider-settings-error" role="alert">

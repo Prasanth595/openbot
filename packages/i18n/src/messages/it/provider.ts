@@ -66,9 +66,10 @@ export const messages = {
   "provider.aria.moreActions": "Altre azioni per {name}",
 
   "provider.aria.use": "Usa {name} in OpenBot",
+  "provider.use.inUseOne": "{agent} usa {name}. Cambia il modello di questo agente, poi disattiva {name}.",
   "provider.use.inUse": {
-    one: "{agents} usa {name}. Cambia il modello di questo agente, poi disattiva {name}.",
-    other: "{agents} usano {name}. Cambia il modello di questi agenti, poi disattiva {name}.",
+    one: "{count} agente usa {name}. Cambia il modello di questo agente, poi disattiva {name}.",
+    other: "{count} agenti usano {name}. Cambia il modello di questi agenti, poi disattiva {name}.",
   },
 
   "provider.codeLogin.title": "Accedi a {name} con un codice",

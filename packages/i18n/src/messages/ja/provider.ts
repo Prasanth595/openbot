@@ -67,8 +67,11 @@ export const messages = {
   "provider.aria.codeFallback": "コードで {name} にログイン",
   "provider.aria.moreActions": "{name} のその他の操作",
   "provider.aria.use": "OpenBot で {name} を使用",
+  "provider.use.inUseOne":
+    "{agent} が {name} を使用しています。このエージェントのモデルを変更してから、{name} をオフにしてください。",
   "provider.use.inUse": {
-    other: "{agents} が {name} を使用しています。エージェントのモデルを変更してから、{name} をオフにしてください。",
+    other:
+      "{count} 個のエージェントが {name} を使用しています。これらのエージェントのモデルを変更してから、{name} をオフにしてください。",
   },
 
   "provider.codeLogin.title": "コードで {name} にログイン",
