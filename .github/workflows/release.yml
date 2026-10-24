@@ -1188,7 +1188,9 @@ jobs:
 
   # `nix/sources.json` names the release that the Nix flake installs. It can only name a published
   # release, because its hashes come from the release's SHA256SUMS.txt. So the update goes to main in
-  # its own PR. A PR made with GITHUB_TOKEN starts no workflows, so the job starts CI on it.
+  # its own PR. The PR's own workflow runs wait for approval because GITHUB_TOKEN opened it, and the
+  # merge waits for them, so the job approves them. It also starts CI on the branch. The PR merges
+  # itself when the required checks pass.
   nix-sources:
     name: Open Nix sources PR
     needs: [validate, publish]
@@ -1253,4 +1255,21 @@ jobs:
           gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$branch" --label no-changelog \
             --title "build(nix): install OpenBot $RELEASE_VERSION" \
             --body "Points the Nix flake at the published v$RELEASE_VERSION release. The hashes come from its \`SHA256SUMS.txt\`."
+          gh pr merge "$branch" --repo "$GITHUB_REPOSITORY" --auto --squash
           gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "$branch"
+          head_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$branch" --jq .object.sha)"
+          approved=0
+          for _ in $(seq 1 12); do
+            runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$head_sha&event=pull_request&status=action_required" \
+              --jq '.workflow_runs[].id')"
+            for run in $runs; do
+              if gh api -X POST "repos/$GITHUB_REPOSITORY/actions/runs/$run/approve" >/dev/null; then
+                approved=$((approved + 1))
+              fi
+            done
+            [ "$approved" -ge 1 ] && [ -z "$runs" ] && break
+            sleep 5
+          done
+          if [ "$approved" -eq 0 ]; then
+            echo "::warning::No PR workflow run was approved. Approve the runs on the PR so that it can merge."
+          fi
