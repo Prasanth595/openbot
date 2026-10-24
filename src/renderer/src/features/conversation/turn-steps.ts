@@ -11,7 +11,7 @@ const NO_STEPS: AgentStep[] = [];
 /** The id of a subagent's span in a trace is this prefix and the subagent id. */
 export const SUBAGENT_SPAN_PREFIX = "subagent:";
 /** The id of the span of another agent's reply is this prefix and the id of the reply message. */
-export const REPLY_SPAN_PREFIX = "reply:";
+const REPLY_SPAN_PREFIX = "reply:";
 
 function sameSteps(left: readonly AgentStep[], right: readonly AgentStep[]): boolean {
   return (
