@@ -581,15 +581,7 @@ function AgentMessageTextToggle(props: {
 }) {
   const { t } = useText();
   const expanded = () => props.marker.expanded === true;
-  // The agent on the other end: the sender of a message that arrived, or the recipients of one sent.
-  const name = () => {
-    if (props.marker.direction === "incoming") {
-      return agentName(props.agents, props.marker.sourceAgentId, t);
-    }
-    const recipients = props.marker.targetDeliveries;
-    if (recipients.length !== 1) return t("chat.marker.agentCount", { count: recipients.length });
-    return agentName(props.agents, recipients[0]?.agentId, t);
-  };
+  const name = () => counterpartName(props.marker, props.agents, t);
   const label = () => {
     if (props.marker.direction === "incoming") {
       return t(expanded() ? "chat.marker.hideMessageFrom" : "chat.marker.showMessageFrom", { name: name() });
@@ -616,6 +608,14 @@ function AgentMessageTextToggle(props: {
 
 function agentName(agents: AgentProfile[], agentId: string | undefined, t: AppTranslate): string {
   return agents.find((agent) => agent.id === agentId)?.name ?? t("chat.marker.unavailableAgent");
+}
+
+/** The agent on the other end: the sender of a message that arrived, or the recipients of one sent. */
+function counterpartName(marker: AgentMessageMarkerModel, agents: AgentProfile[], t: AppTranslate): string {
+  if (marker.direction === "incoming") return agentName(agents, marker.sourceAgentId, t);
+  const recipients = marker.targetDeliveries;
+  if (recipients.length !== 1) return t("chat.marker.agentCount", { count: recipients.length });
+  return agentName(agents, recipients[0]?.agentId, t);
 }
 
 function RoutineRunHistory(props: {
@@ -974,12 +974,7 @@ function markerAccessibleLabel(
   if (marker.kind === "skill-lifecycle") return t("chat.marker.accessible.named", { label, name: marker.skillName });
   const unavailable = t("chat.marker.unavailableAgent");
   if (marker.kind === "agent-message") {
-    const agent =
-      marker.direction === "incoming"
-        ? (agents.find((candidate) => candidate.id === marker.sourceAgentId)?.name ?? unavailable)
-        : marker.targetDeliveries.length === 1
-          ? (agents.find((candidate) => candidate.id === marker.targetDeliveries[0]?.agentId)?.name ?? unavailable)
-          : t("chat.marker.agentCount", { count: marker.targetDeliveries.length });
+    const agent = counterpartName(marker, agents, t);
     return t("chat.marker.accessible.message", { label, agent, status: t(STATUS_LABELS[marker.status]) });
   }
   if (marker.kind === "channel-routing") {
