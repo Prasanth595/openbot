@@ -29,6 +29,11 @@ import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import type { TeamCurrentCapability } from "@openbot/contracts/team-protocol/current";
 import {
+  PROVIDER_ACCOUNT_RELAY_CAPABILITY,
+  PROVIDER_ACCOUNT_RELAY_PROVIDERS,
+  PROVIDER_ACCOUNT_RELAY_ROUTES,
+} from "@openbot/contracts/team-protocol/provider-account-relay-v1";
+import {
   PROVIDER_ACCOUNTS_CAPABILITY,
   PROVIDER_ACCOUNTS_ROUTES,
 } from "@openbot/contracts/team-protocol/provider-accounts-v1";
@@ -246,6 +251,22 @@ export function providerAdminIpcHandlers({
     )
       throw new Error(sourceText("error.team.providersUnsupported"));
   }
+  /** Starts the flow that the `start` route opens on the host, in place of any relayed sign-in of `provider`. */
+  async function startRelay(serverId: string, provider: AgentProviderId, path: string, body: unknown): Promise<void> {
+    const key = relayKey(serverId, provider);
+    await stopRelay(key);
+    const post = <T>(path: string, decoder: ResponseDecoder<T>, body: unknown) =>
+      remoteServers.request(serverId, path, decoder, { method: "POST", body });
+    const start = post(path, decodeSignInRelayFlow, body);
+    const running: RelayedSignIn = {
+      fiber: Effect.runFork(relay.run(key, signInRelayRemote(post, start))),
+      result: null,
+    };
+    relayed.set(key, running);
+    running.fiber.addObserver((exit) => {
+      running.result = relayEnding(exit);
+    });
+  }
   async function stopRelay(key: string): Promise<void> {
     const running = relayed.get(key);
     relayed.delete(key);
@@ -327,21 +348,17 @@ export function providerAdminIpcHandlers({
         PROVIDER_USAGE_RESET_ROUTES.consume,
         decodeProviderUsageResetOutcomeFromHost,
       ),
-      startRelaySignIn: relaySignIn(parseProviderId, async (provider, serverId) => {
+      startRelaySignIn: relaySignIn(parseProviderId, (provider, serverId) => {
         requireRelay(serverId, provider);
-        const key = relayKey(serverId, provider);
-        await stopRelay(key);
-        const post = <T>(path: string, decoder: ResponseDecoder<T>, body: unknown) =>
-          remoteServers.request(serverId, path, decoder, { method: "POST", body });
-        const start = post(SIGN_IN_RELAY_ROUTES.providerStart, decodeSignInRelayFlow, { provider });
-        const running: RelayedSignIn = {
-          fiber: Effect.runFork(relay.run(key, signInRelayRemote(post, start))),
-          result: null,
-        };
-        relayed.set(key, running);
-        running.fiber.addObserver((exit) => {
-          running.result = relayEnding(exit);
-        });
+        return startRelay(serverId, provider, SIGN_IN_RELAY_ROUTES.providerStart, { provider });
+      }),
+      startAccountRelaySignIn: relaySignIn(parseConnectProviderAccountInput, ({ provider, accountId }, serverId) => {
+        if (
+          !remoteServers.supportsCapability(serverId, PROVIDER_ACCOUNT_RELAY_CAPABILITY) ||
+          !PROVIDER_ACCOUNT_RELAY_PROVIDERS.some((candidate) => candidate === provider)
+        )
+          throw new Error(sourceText("error.team.providersUnsupported"));
+        return startRelay(serverId, provider, PROVIDER_ACCOUNT_RELAY_ROUTES.start, { provider, accountId });
       }),
       relaySignInStatus: relaySignIn(parseProviderId, (provider, serverId): ProviderRelaySignInStatus => {
         const key = relayKey(serverId, provider);

@@ -1,8 +1,8 @@
 // Checks that a provider error moves an agent set to switch without asking to its next backup model,
 // and that read_agent shows the move (#2834). Runs the real agent service on a temporary profile. Claude is the real `ClaudeAgentClient`,
 // which the Claude Agent SDK connects to a stand-in `claude` executable. The stand-in answers each
-// message on its current model, and fails it with "API Error: 503 Service Unavailable" when that model
-// is in `failing.json`. A message with `act-then-fail` writes text before it fails.
+// message on its current model, and fails it with the CLI's report of an Anthropic overload (529)
+// when that model is in `failing.json`. A message with `act-then-fail` writes text before it fails.
 // Checks:
 //   1. A turn that wrote text before the error does not move: it fails with its error, as before.
 //   2. An agent with no backup models fails with its error, as before.
@@ -42,7 +42,9 @@ const failingFile = join(root, "failing.json");
 const claudeExecutable = join(root, "claude");
 const PRIMARY: AgentModelId = defaultProviderModel("claude");
 const BACKUP: AgentModelId = PRIMARY === "claude-sonnet-5-5" ? "claude-opus-5-5" : "claude-sonnet-5-5";
-const PROVIDER_ERROR = "API Error: 503 Service Unavailable";
+// The text the Claude CLI writes in an outage. It names no HTTP status phrase, only the 529 and its type.
+const PROVIDER_ERROR =
+  'API Error: 529 {"type":"error","error":{"type":"overloaded_error","message":"Overloaded"},"request_id":"req_e2e"}';
 
 // Before the service modules load: the stores and the CLI search read these.
 process.env.HOME = home;

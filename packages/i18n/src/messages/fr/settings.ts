@@ -40,6 +40,12 @@ export const messages = {
   "settings.launchAtLogin.description": "Ouvrir l’application lorsque vous vous connectez à cet ordinateur.",
   "settings.keepRunning.title": "Garder OpenBot actif en arrière-plan",
   "settings.keepRunning.description": "Poursuivre les tâches en cours après la fermeture de la fenêtre.",
+  "settings.keepAwake.title": "Empêcher la mise en veille",
+  "settings.keepAwake.description":
+    "Les routines s’exécutent à l’heure tant que l’ordinateur est branché. L’écran peut quand même s’éteindre.",
+  "settings.keepAwakeOnBattery.title": "Aussi sur batterie",
+  "settings.keepAwakeOnBattery.description":
+    "Garder l’ordinateur éveillé aussi sur batterie. La batterie se décharge plus vite.",
   "settings.restoreWorkspace.title": "Restaurer le dernier espace de travail au lancement",
   "settings.restoreWorkspace.description": "Rouvrir l’espace de travail et les tâches de votre session précédente.",
   "settings.externalLinks.title": "Ouvrir les liens externes dans",

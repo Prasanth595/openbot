@@ -83,9 +83,29 @@ export function AgentActivityIndicator(props: {
   steps?: readonly AgentStep[] | undefined;
   /** The "Show agent steps" setting: the steps are open when the turn starts. */
   stepsOpenByDefault?: boolean | undefined;
+  /**
+   * The provider name, when nothing has come from the provider for a while or the computer has no
+   * network. The line then says that it waits, with no shine, because a silent provider is not visible work.
+   */
+  waitingFor?: string | null | undefined;
 }) {
   const { t, format } = useText();
-  const label = () => props.detail ?? t(agentActivityLabelKey(props.label));
+  const label = () => {
+    const provider = props.waitingFor;
+    if (provider) return t("chat.activity.waitingFor", { provider });
+    return props.detail ?? t(agentActivityLabelKey(props.label));
+  };
+  const statusLabel = () => {
+    const name = props.agent?.name ?? t("chat.activity.agentFallback");
+    const provider = props.waitingFor;
+    return provider
+      ? t("chat.activity.waitingStatus", { name, provider })
+      : t("chat.activity.status", { name, label: label() });
+  };
+  // A named function, not a ternary in the prop: the compiler wraps a ternary prop in a memo, and
+  // the avatar reads its mood in a tracked effect, where a new memo halts the reactive system.
+  const mood = () => (props.waitingFor ? "connecting" : "working");
+  const waiting = () => (props.waitingFor ? "true" : undefined);
   const elapsedMs = createElapsed(() => (props.phase === "exiting" ? undefined : props.since));
   const elapsed = createMemo(() => {
     const ms = elapsedMs();
@@ -97,23 +117,14 @@ export function AgentActivityIndicator(props: {
     return `${minutes} ${seconds}`;
   });
   return (
-    <div class="agent-activity-entry" data-state={props.phase ?? "active"}>
-      <span
-        class="sr-only"
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
-        aria-label={t("chat.activity.status", {
-          name: props.agent?.name ?? t("chat.activity.agentFallback"),
-          label: label(),
-        })}
-      />
+    <div class="agent-activity-entry" data-state={props.phase ?? "active"} data-waiting={waiting()}>
+      <span class="sr-only" role="status" aria-live="polite" aria-atomic="true" aria-label={statusLabel()} />
       <AgentActivityBody
         steps={props.steps}
         stepsOpenByDefault={props.stepsOpenByDefault}
         live={props.phase !== "exiting"}
       >
-        <AgentAvatar agent={props.agent} mood="working" class="agent-activity-avatar" />
+        <AgentAvatar agent={props.agent} mood={mood()} class="agent-activity-avatar" />
         <span class="agent-activity-label">{label()}</span>
         <Show when={elapsed()}>{(time) => <span class="agent-activity-elapsed">{time()}</span>}</Show>
       </AgentActivityBody>

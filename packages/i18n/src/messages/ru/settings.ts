@@ -36,6 +36,12 @@ export const messages = {
   "settings.launchAtLogin.description": "Открывать приложение, когда вы входите в систему на этом компьютере.",
   "settings.keepRunning.title": "Оставлять OpenBot работать в фоне",
   "settings.keepRunning.description": "Активные задачи продолжат выполняться после закрытия окна.",
+  "settings.keepAwake.title": "Не переводить компьютер в сон",
+  "settings.keepAwake.description":
+    "Регулярные задачи запускаются вовремя, пока компьютер подключён к сети. Экран всё равно может выключаться.",
+  "settings.keepAwakeOnBattery.title": "И от батареи",
+  "settings.keepAwakeOnBattery.description":
+    "Не давать компьютеру засыпать и при работе от батареи. Батарея разряжается быстрее.",
   "settings.restoreWorkspace.title": "Восстанавливать последнее рабочее пространство при запуске",
   "settings.restoreWorkspace.description": "Открывать рабочее пространство и задачи из предыдущего сеанса.",
   "settings.externalLinks.title": "Открывать внешние ссылки в",

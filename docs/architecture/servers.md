@@ -32,6 +32,15 @@ renderer hides those controls from a member. The wire carries no absolute paths,
 download files travel only as category totals. A host without the capability reads as null, and the
 surface asks for an update; a change is refused before any request.
 
+The optional `storage-disk-v1` capability adds `POST /v1/storage/disk` (`team-protocol/storage-disk-v1.ts`).
+It answers the free and total bytes of the disk that holds the host data, from one `statfs` call
+with no scan, so it is a passive route. Every member can read it. The sidebar storage card
+(`features/sidebar/storage-card.ts`) reads it for an owner or admin of the selected server, at
+start, every five minutes, and when Server settings closes. Under 10% free (at most 5 GB) the card
+says "Storage almost full" and can be closed until the next level; under 2% free (at most 1 GB) it
+is red and cannot be closed. "Free up space" opens Server settings › Storage. A host without the
+capability shows no card.
+
 ### Hosted sites per server
 
 A hosted site belongs to the server that published it (`hosted_sites.server_id`, D1 `0024`). The user
@@ -305,7 +314,8 @@ does not count it. See [hosted servers](../hosted-servers.md) step 5.
 
 An owner or admin of a joined server manages its host through optional `POST /v1/admin/...` routes.
 Each capability has a frozen codec in `team-protocol/<name>-v1.ts`, registered in
-`team-protocol/optional-routes.ts`, and both transports use it. Every route calls `requireAdmin`. The
+`team-protocol/optional-routes.ts`, and both transports use it. Every route calls `requireAdmin`,
+except two that also answer a member: `/v1/browser/tab-profiles` and `storage-disk-v1`. The
 host advertises a capability only when its `TeamApiAdmin` member exists.
 
 | Capability | Grants | IPC group |

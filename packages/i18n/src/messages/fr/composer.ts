@@ -5,6 +5,10 @@ export const messages = {
   "composer.queueEdit.body":
     "Vous modifiez un message en attente. Enregistrez ou annulez la modification pour permettre son exécution.",
   "composer.queueEdit.cancel": "Annuler",
+  "composer.providerWait.offlineTitle": "Pas de connexion Internet",
+  "composer.providerWait.offline":
+    "{provider} ne peut pas répondre tant que cet ordinateur n’est pas de nouveau en ligne.",
+  "composer.providerWait.silent": "{provider} n’a rien envoyé depuis {duration}.",
   "composer.notice.dismiss": "Fermer l’erreur",
   "composer.signIn.title": "Connexion requise",
   "composer.signIn.body": "Connectez-vous à {provider} pour envoyer des messages.",

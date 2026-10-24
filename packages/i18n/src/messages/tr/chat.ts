@@ -13,6 +13,8 @@ export const messages = {
   "chat.activity.innerCouncil": "İç konseye danışılıyor…",
   "chat.activity.cookingUp": "Faydalı bir şeyler hazırlanıyor…",
   "chat.activity.status": "{name} çalışıyor: {label}",
+  "chat.activity.waitingFor": "{provider} bekleniyor…",
+  "chat.activity.waitingStatus": "{name}, {provider} için bekliyor",
   "chat.activity.agentFallback": "Ajan",
   "chat.activity.current": "Geçerli etkinlik",
   "chat.steps.show": "Adımları göster",

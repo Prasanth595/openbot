@@ -27,6 +27,7 @@ import { ROUTINE_RECOVERY_ROUTES } from "@openbot/contracts/team-protocol/routin
 import { ROUTINE_RESULTS_ROUTES } from "@openbot/contracts/team-protocol/routine-results-v1";
 import { SHARED_TABLES_ROUTES } from "@openbot/contracts/team-protocol/shared-tables-v1";
 import { SKILLS_ADMIN_ROUTES } from "@openbot/contracts/team-protocol/skills-admin-v1";
+import { STORAGE_DISK_ROUTES } from "@openbot/contracts/team-protocol/storage-disk-v1";
 import { STORAGE_ROUTES } from "@openbot/contracts/team-protocol/storage-v1";
 
 /**
@@ -57,6 +58,7 @@ const PASSIVE_ROUTES: ReadonlySet<string> = new Set([
   ANDROID_PUSH_NOTIFICATIONS_ROUTES.register,
   ANDROID_PUSH_NOTIFICATIONS_ROUTES.remove,
   STORAGE_ROUTES.usage,
+  STORAGE_DISK_ROUTES.disk,
   AGENT_ADMIN_ROUTES.settings,
   AGENT_HOST_SETTINGS_ROUTES.settings,
   AGENT_BACKUP_MODELS_ROUTES.settings,

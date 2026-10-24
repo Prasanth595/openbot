@@ -425,6 +425,7 @@ import type {
   OldRuntimeVersions,
   OpenStorageLocationInput,
   OpenStoredFileInput,
+  StorageDisk,
   StorageUsage,
 } from "./ipc-storage";
 import type {
@@ -903,6 +904,11 @@ export const IPC_ENDPOINTS = {
     // `openRelaySignIn` opens the page when the user asks, and `pasteRelaySignIn` takes the address
     // the browser shows when the callback cannot reach this computer.
     startRelaySignIn: scopedRequest<AgentProviderId, void, "required">()("provider-admin:start-relay-sign-in"),
+    // The relayed sign-in of an account after the first (`provider-account-relay-v1`). The other relay
+    // requests run it, by its provider, as they run `startRelaySignIn`'s.
+    startAccountRelaySignIn: scopedRequest<ConnectProviderAccountInput, void, "required">()(
+      "provider-admin:start-account-relay-sign-in",
+    ),
     relaySignInStatus: scopedRequest<AgentProviderId, ProviderRelaySignInStatus, "required">()(
       "provider-admin:relay-sign-in-status",
     ),
@@ -1522,6 +1528,8 @@ export const IPC_ENDPOINTS = {
   // Bound against the storage service, not `AgentService`, so it is its own group.
   storage: {
     getUsage: scopedRequest<GetStorageUsageInput, StorageUsage | null, "required">()("storage:get-usage"),
+    // Free and total disk space with no scan, for the sidebar storage card. Null before `storage-disk-v1`.
+    getDisk: scopedQuery<StorageDisk | null, "required">()("storage:get-disk"),
     deleteFile: scopedRequest<DeleteStoredFileInput, void, "required">()("storage:delete-file"),
     clear: scopedRequest<ClearStorageInput, void, "required">()("storage:clear"),
     openFile: scopedRequest<OpenStoredFileInput, void, "required">()("storage:open-file"),

@@ -4,6 +4,7 @@ import { computeAgentAvatarMoods } from "@openbot/ui/features/agents/agent-avata
 import { Sidebar } from "@openbot/ui/features/sidebar/Sidebar";
 import { SidebarCommunityCard } from "@openbot/ui/features/sidebar/SidebarCommunityCard";
 import { SidebarMobileAppCard } from "@openbot/ui/features/sidebar/SidebarMobileAppCard";
+import { SidebarStorageCard } from "@openbot/ui/features/sidebar/SidebarStorageCard";
 import { computeSidebarAgentStates } from "@openbot/ui/features/sidebar/sidebar-agent-states";
 import { teamMemberName } from "@openbot/ui/features/team/TeamPersonAvatar";
 import { useText } from "@openbot/ui/text";
@@ -31,6 +32,7 @@ import { SidebarUpdateIsland } from "../updates/SidebarUpdateIsland";
 import { useWindowPage } from "../window/window-page-context";
 import { createCommunityCardVisibility } from "./community-card";
 import { useSidebar } from "./sidebar-context";
+import { createStorageCard } from "./storage-card";
 
 /** Dismissing the mobile app card is a choice of this computer, like the sidebar width. The key is
  * new with the Android release, so a computer that dismissed the iPhone-only card sees it once more. */
@@ -68,7 +70,7 @@ export function WorkspaceSidebar(props: { peopleEnabled: boolean }) {
   const windowAgentIds = createMemo(
     () => new Set(chatWindows().flatMap((target) => (target.serverId === activeServerId() ? [target.agentId] : []))),
   );
-  const { openServerSettings } = useServerSettings();
+  const { openServerSettings, serverSettingsOpen } = useServerSettings();
   const serverActions = useServerActions();
   const { openAppSettings, setSkillsMarketplaceOpen } = useSettings();
   const {
@@ -118,6 +120,11 @@ export function WorkspaceSidebar(props: { peopleEnabled: boolean }) {
     window.localStorage.getItem(MOBILE_APP_DISMISSED_STORAGE_KEY) === "true",
   );
   const communityCard = createCommunityCardVisibility();
+  const storageCard = createStorageCard(activeServer);
+  // A clear in Server settings frees space, so the card reads the disk again when settings close.
+  createEffect(serverSettingsOpen, (open, wasOpen) => {
+    if (!open && wasOpen) storageCard.refresh();
+  });
 
   /* Channels reach the sidebar as data, not as a list of their own: they sit in the layout's
    * sections beside the agents, so the sidebar has to be able to order and group them. The Routines
@@ -277,8 +284,21 @@ export function WorkspaceSidebar(props: { peopleEnabled: boolean }) {
       onOpenSearch={() => setGlobalSearchVisibility(true)}
       footer={
         <>
-          {/* One card at a time: the community card waits until the mobile app card is dismissed. */}
-          <Show when={!platform.landingPreview && !mobileAppDismissed()}>
+          {/* One card at a time. A disk that is almost full comes first; the community card waits
+           * until the mobile app card is dismissed. */}
+          <Show when={storageCard.card()}>
+            {(card) => (
+              <SidebarStorageCard
+                level={card().level}
+                serverName={activeServer()?.name ?? ""}
+                freeBytes={card().freeBytes}
+                totalBytes={card().totalBytes}
+                onFreeUpSpace={() => openServerSettings(card().serverId, null, "storage")}
+                onDismiss={() => storageCard.dismiss(card().serverId)}
+              />
+            )}
+          </Show>
+          <Show when={!platform.landingPreview && !storageCard.card() && !mobileAppDismissed()}>
             <SidebarMobileAppCard
               onOpenInstall={() => openAppSettings(null, "mobile-connect")}
               onDismiss={() => {
@@ -287,7 +307,9 @@ export function WorkspaceSidebar(props: { peopleEnabled: boolean }) {
               }}
             />
           </Show>
-          <Show when={!platform.landingPreview && mobileAppDismissed() && !communityCard.dismissed()}>
+          <Show
+            when={!platform.landingPreview && !storageCard.card() && mobileAppDismissed() && !communityCard.dismissed()}
+          >
             <SidebarCommunityCard
               onJoinDiscord={() => void appPort().openExternal("discord")}
               onFollowX={() => void appPort().openExternal("x")}

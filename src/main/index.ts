@@ -22,6 +22,7 @@ import {
   nativeImage,
   net,
   powerMonitor,
+  powerSaveBlocker,
   protocol,
   screen,
   shell,
@@ -91,6 +92,7 @@ import { storageIpcHandlers } from "./ipc/storage-handlers";
 import { teamIpcHandlers } from "./ipc/team-handlers";
 import { updateIpcHandlers } from "./ipc/update-handlers";
 import { voiceIpcHandlers } from "./ipc/voice-handlers";
+import { KeepAwake } from "./keep-awake";
 import { installLinuxDesktopEntry } from "./linux-desktop-entry";
 import { configureLinuxGpu } from "./linux-gpu-mode";
 import { configureLinuxPasswordStore } from "./linux-password-store";
@@ -1230,7 +1232,7 @@ if (!hasSingleInstanceLock) {
       });
       const tray = backgroundTray;
       tray.sync(appBehavior.keepRunningInBackground);
-      const unsubscribeBackgroundTray = appBehavior.subscribe(tray.sync);
+      const unsubscribeBackgroundTray = appBehavior.subscribe(() => tray.sync(appBehavior.keepRunningInBackground));
       teardown.push(0, "background tray", () => {
         unsubscribeBackgroundTray();
         tray.destroy();
@@ -1292,6 +1294,25 @@ if (!hasSingleInstanceLock) {
       powerMonitor.on("suspend", () => routineWake.suspend());
       powerMonitor.on("resume", () => routineWake.resume());
       teardown.push(0, "routine wake", () => routineWake.dispose());
+      const keepAwake = new KeepAwake({
+        enabled: () => appBehavior.keepAwake,
+        onBatteryToo: () => appBehavior.keepAwakeOnBattery,
+        onBattery: () => powerMonitor.isOnBatteryPower(),
+        start: () => powerSaveBlocker.start("prevent-app-suspension"),
+        stop: (id) => powerSaveBlocker.stop(id),
+        log: (message) => logger.info(message),
+      });
+      const syncKeepAwake = () => keepAwake.sync();
+      syncKeepAwake();
+      const unsubscribeKeepAwake = appBehavior.subscribe(syncKeepAwake);
+      powerMonitor.on("on-ac", syncKeepAwake);
+      powerMonitor.on("on-battery", syncKeepAwake);
+      teardown.push(0, "keep awake", () => {
+        unsubscribeKeepAwake();
+        powerMonitor.off("on-ac", syncKeepAwake);
+        powerMonitor.off("on-battery", syncKeepAwake);
+        keepAwake.dispose();
+      });
       const teamIdentity = teamStore.getIdentity();
       if (built.serverMode) {
         const serverModeControl = built.serverMode;

@@ -334,6 +334,8 @@ export function decodeAppBehaviorPreference(value: unknown): AppBehaviorPreferen
   return {
     launchAtLogin: nullableBoolean(preference, "launchAtLogin"),
     keepRunningInBackground: nullableBoolean(preference, "keepRunningInBackground"),
+    keepAwake: nullableBoolean(preference, "keepAwake"),
+    keepAwakeOnBattery: nullableBoolean(preference, "keepAwakeOnBattery"),
   };
 }
 

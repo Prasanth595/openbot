@@ -485,6 +485,14 @@
   animation: image-generation-shine 2.25s cubic-bezier(0.25, 0.1, 0.25, 1) infinite;
 }
 
+/* A wait for the provider is not work, so its label does not shine. */
+.agent-activity-entry[data-waiting="true"] .agent-activity-label {
+  animation: none;
+  background: none;
+  color: var(--openbot-text-secondary);
+  -webkit-text-fill-color: currentColor;
+}
+
 .agent-activity-elapsed {
   flex: 0 0 auto;
   color: var(--openbot-text-muted);

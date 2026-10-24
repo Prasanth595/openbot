@@ -35,6 +35,11 @@ export const messages = {
   "settings.launchAtLogin.description": "このコンピューターにサインインするとアプリを開きます。",
   "settings.keepRunning.title": "OpenBot をバックグラウンドで実行し続ける",
   "settings.keepRunning.description": "ウィンドウを閉じたあとも実行中のタスクを続けます。",
+  "settings.keepAwake.title": "このコンピュータをスリープさせない",
+  "settings.keepAwake.description":
+    "電源に接続している間、ルーティンが予定どおりに実行されます。ディスプレイはオフになることがあります。",
+  "settings.keepAwakeOnBattery.title": "バッテリー駆動中も",
+  "settings.keepAwakeOnBattery.description": "バッテリー駆動中もスリープさせません。バッテリーの消耗が早くなります。",
   "settings.restoreWorkspace.title": "起動時に前回のワークスペースを復元する",
   "settings.restoreWorkspace.description": "前回のセッションのワークスペースとタスクを開きます。",
   "settings.externalLinks.title": "外部リンクの開き方",

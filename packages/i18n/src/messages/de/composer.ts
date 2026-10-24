@@ -5,6 +5,9 @@ export const messages = {
   "composer.queueEdit.body":
     "Du bearbeitest eine Nachricht in der Warteschlange. Speichere die Änderung oder brich sie ab, damit die Nachricht ausgeführt werden kann.",
   "composer.queueEdit.cancel": "Bearbeitung abbrechen",
+  "composer.providerWait.offlineTitle": "Keine Internetverbindung",
+  "composer.providerWait.offline": "{provider} kann erst antworten, wenn dieser Computer wieder online ist.",
+  "composer.providerWait.silent": "{provider} hat seit {duration} nichts gesendet.",
   "composer.notice.dismiss": "Fehler ausblenden",
   "composer.signIn.title": "Anmeldung erforderlich",
   "composer.signIn.body": "Melde dich bei {provider} an, um Nachrichten zu senden.",
