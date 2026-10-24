@@ -102,6 +102,13 @@ export function createRendererForwarders({
   notificationPreviewEnabled,
 }: RendererForwarderDependencies) {
   // The user looks at the app when the main window or one of its chat windows has focus.
+  /** The main window and each chat window (#2964). A chat window does not outlive the main window. */
+  function appWindows(): BrowserWindow[] {
+    const window = getMainWindow();
+    if (!window || window.isDestroyed()) return [];
+    return [window, ...getChatWindows()];
+  }
+
   function appFocused(window: BrowserWindow): boolean {
     return window.isFocused() || getChatWindows().some((chatWindow) => chatWindow.isFocused());
   }
@@ -111,8 +118,7 @@ export function createRendererForwarders({
     const window = getMainWindow();
     if (!window || window.isDestroyed()) return;
     const scoped = bufferedLive ? { serverId, event, bufferedLive } : { serverId, event };
-    sendToRenderer(window, IPC_ENDPOINTS.agent.scopedEvent, scoped);
-    for (const chatWindow of getChatWindows()) sendToRenderer(chatWindow, IPC_ENDPOINTS.agent.scopedEvent, scoped);
+    for (const target of appWindows()) sendToRenderer(target, IPC_ENDPOINTS.agent.scopedEvent, scoped);
     // Once for the app, not once for each window.
     void notifyAgentEvent(serverId, event).catch(() => undefined);
     if (event.type === "channels-changed") refreshChannels(serverId);
@@ -394,69 +400,47 @@ export function createRendererForwarders({
   }
 
   function forwardUpdateStatus(status: import("@openbot/contracts/ipc").UpdateStatus): void {
-    const window = getMainWindow();
-    if (!window || window.isDestroyed()) return;
-    sendToRenderer(window, IPC_ENDPOINTS.update.event, status);
+    for (const window of appWindows()) sendToRenderer(window, IPC_ENDPOINTS.update.event, status);
   }
 
   function forwardUpdatePreference(preference: import("@openbot/contracts/ipc").UpdatePreference): void {
-    const window = getMainWindow();
-    if (!window || window.isDestroyed()) return;
-    sendToRenderer(window, IPC_ENDPOINTS.update.preference, preference);
+    for (const window of appWindows()) sendToRenderer(window, IPC_ENDPOINTS.update.preference, preference);
   }
 
   function forwardVoiceModelStatus(status: VoiceModelStatus): void {
-    const window = getMainWindow();
-    if (!window || window.isDestroyed()) return;
-    sendToRenderer(window, IPC_ENDPOINTS.voice.modelStatus, status);
+    for (const window of appWindows()) sendToRenderer(window, IPC_ENDPOINTS.voice.modelStatus, status);
   }
 
   function forwardSpeechModelStatus(status: SpeechModelStatus): void {
-    const window = getMainWindow();
-    if (!window || window.isDestroyed()) return;
-    sendToRenderer(window, IPC_ENDPOINTS.voice.speechModelStatus, status);
+    for (const window of appWindows()) sendToRenderer(window, IPC_ENDPOINTS.voice.speechModelStatus, status);
   }
 
   function forwardVoiceStreamTranscript(transcript: VoiceStreamTranscript): void {
-    const window = getMainWindow();
-    if (!window || window.isDestroyed()) return;
-    sendToRenderer(window, IPC_ENDPOINTS.voice.streamTranscript, transcript);
+    for (const window of appWindows()) sendToRenderer(window, IPC_ENDPOINTS.voice.streamTranscript, transcript);
   }
 
   function forwardProviderRuntimeStatus(snapshot: import("@openbot/contracts/ipc").ProviderRuntimeSnapshot): void {
-    const window = getMainWindow();
-    if (!window || window.isDestroyed()) return;
-    sendToRenderer(window, IPC_ENDPOINTS.providerRuntimes.event, snapshot);
-    for (const chatWindow of getChatWindows())
-      sendToRenderer(chatWindow, IPC_ENDPOINTS.providerRuntimes.event, snapshot);
+    for (const window of appWindows()) sendToRenderer(window, IPC_ENDPOINTS.providerRuntimes.event, snapshot);
   }
 
   function forwardGitHubConnectorStatus(status: import("@openbot/contracts/ipc").GitHubConnectorStatus): void {
-    const window = getMainWindow();
-    if (!window || window.isDestroyed()) return;
-    sendToRenderer(window, IPC_ENDPOINTS.githubConnector.changed, status);
+    for (const window of appWindows()) sendToRenderer(window, IPC_ENDPOINTS.githubConnector.changed, status);
   }
 
   function forwardOnePasswordConnectorStatus(
     status: import("@openbot/contracts/ipc").OnePasswordConnectorStatus,
   ): void {
-    const window = getMainWindow();
-    if (!window || window.isDestroyed()) return;
-    sendToRenderer(window, IPC_ENDPOINTS.onePasswordConnector.changed, status);
+    for (const window of appWindows()) sendToRenderer(window, IPC_ENDPOINTS.onePasswordConnector.changed, status);
   }
 
   function forwardBitwardenConnectorStatus(status: import("@openbot/contracts/ipc").BitwardenConnectorStatus): void {
-    const window = getMainWindow();
-    if (!window || window.isDestroyed()) return;
-    sendToRenderer(window, IPC_ENDPOINTS.bitwardenConnector.changed, status);
+    for (const window of appWindows()) sendToRenderer(window, IPC_ENDPOINTS.bitwardenConnector.changed, status);
   }
 
   function forwardHostStatus(status: import("@openbot/contracts/ipc").HostStatus): void {
-    const window = getMainWindow();
-    if (!window || window.isDestroyed()) return;
     const remoteServers = getRemoteServerManager();
     const servers = remoteServers ? withLocalHostSummary(remoteServers.list(), status) : null;
-    for (const target of [window, ...getChatWindows()]) {
+    for (const target of appWindows()) {
       sendToRenderer(target, IPC_ENDPOINTS.host.event, status);
       if (servers) sendToRenderer(target, IPC_ENDPOINTS.servers.event, servers);
     }
@@ -469,20 +453,16 @@ export function createRendererForwarders({
   }
 
   function forwardServers(servers: import("@openbot/contracts/ipc").ServerSummary[]): void {
-    const window = getMainWindow();
-    if (!window || window.isDestroyed()) return;
     const host = getHostService();
     const summaries = host ? withLocalHostSummary(servers, host.getStatus()) : servers;
-    for (const target of [window, ...getChatWindows()]) sendToRenderer(target, IPC_ENDPOINTS.servers.event, summaries);
+    for (const target of appWindows()) sendToRenderer(target, IPC_ENDPOINTS.servers.event, summaries);
   }
 
   function forwardTeamPresence(
     serverId: string,
     snapshot: import("@openbot/contracts/ipc").TeamPresenceSnapshot,
   ): void {
-    const window = getMainWindow();
-    if (!window || window.isDestroyed()) return;
-    for (const target of [window, ...getChatWindows()]) {
+    for (const target of appWindows()) {
       sendToRenderer(target, IPC_ENDPOINTS.servers.scopedPresence, { serverId, snapshot });
     }
   }

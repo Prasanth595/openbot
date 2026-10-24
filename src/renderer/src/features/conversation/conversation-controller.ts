@@ -321,6 +321,7 @@ export function createStableConversationState(
     setEditingOriginalAttachmentIds,
     editingPendingSave,
     setEditingPendingSave,
+    persistDrafts,
     composerFocusRequest,
     setComposerFocusRequest,
     pendingSends,

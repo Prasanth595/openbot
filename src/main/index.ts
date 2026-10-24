@@ -579,7 +579,9 @@ function registerIpcHandlers({
   // a domain's whole surface in one file rather than find it interleaved with window and lifecycle
   // code. `registerIpcGroups` takes one entry per group in `IPC_ENDPOINTS`, so a group no registrar
   // covers - or a registrar that stops covering one - fails to compile here, naming the group.
-  const getMainWindow = () => windowHolder.current;
+  // Every handler below reads this only as the parent of a native dialog. A dialog opens on the
+  // window that the user works in: when a chat window has focus, the main window can be hidden.
+  const getDialogParent = () => windows.getChatWindows().find((window) => window.isFocused()) ?? windowHolder.current;
 
   registerIpcGroups({
     ...appIpcHandlers({
@@ -604,7 +606,7 @@ function registerIpcHandlers({
       initializeAgent: () => runCauseEffect(agentInitialization.start()),
       appVariant,
       analyticsCaptureUrl,
-      getMainWindow,
+      getMainWindow: getDialogParent,
       openChatWindow: windows.openChatWindow,
       chatWindowTargets: windows.chatWindowTargets,
       setAnalyticsTrackingEnabled: (enabled) => analytics.setTrackingEnabled(enabled),
@@ -621,8 +623,13 @@ function registerIpcHandlers({
     ...providerIpcHandlers({ service, providerRuntimes, credentials: providerCredentials }),
     ...voiceIpcHandlers({ voice, speech, service }),
     ...accountIpcHandlers({ centralAuth, host }),
-    ...skillIpcHandlers({ skills, getMainWindow, translate: language.translate }),
-    ...hostedSiteIpcHandlers({ hostedSites, remoteServers, getMainWindow, translate: language.translate }),
+    ...skillIpcHandlers({ skills, getMainWindow: getDialogParent, translate: language.translate }),
+    ...hostedSiteIpcHandlers({
+      hostedSites,
+      remoteServers,
+      getMainWindow: getDialogParent,
+      translate: language.translate,
+    }),
     ...githubConnectorIpcHandlers({ githubConnector, remoteServers, openExternal: (url) => shell.openExternal(url) }),
     ...onePasswordConnectorIpcHandlers({ onePasswordConnector, remoteServers }),
     ...bitwardenConnectorIpcHandlers({ bitwardenConnector, remoteServers }),
@@ -644,13 +651,18 @@ function registerIpcHandlers({
       agentImport,
       hermesImport,
       remoteServers,
-      getMainWindow,
+      getMainWindow: getDialogParent,
       translate: language.translate,
       exportSkillDirectory: app.isPackaged
         ? join(process.resourcesPath, "agent-import")
         : resolve(__dirname, "../../resources/agent-import"),
     }),
-    ...instanceTransferIpcHandlers({ instanceTransfer, remoteServers, getMainWindow, translate: language.translate }),
+    ...instanceTransferIpcHandlers({
+      instanceTransfer,
+      remoteServers,
+      getMainWindow: getDialogParent,
+      translate: language.translate,
+    }),
     ...updateIpcHandlers({ updater, updatePreferenceFile, requestedUpdate, idleRestart }),
     ...notificationIpcHandlers({
       notificationPreference,
@@ -716,13 +728,19 @@ function registerIpcHandlers({
       toolRuntimes: () => providerRuntimes.mcpToolRuntimes(),
       relay: signInRelayClient,
     }),
-    ...attachmentIpcHandlers({ service, mailbox, remoteServers, getMainWindow, translate: language.translate }),
+    ...attachmentIpcHandlers({
+      service,
+      mailbox,
+      remoteServers,
+      getMainWindow: getDialogParent,
+      translate: language.translate,
+    }),
     ...storageIpcHandlers({
       storage: storageUsage,
       providerRuntimes,
       mailbox,
       remoteServers,
-      getMainWindow,
+      getMainWindow: getDialogParent,
       translate: language.translate,
       agents: () => service.listAgents(),
       openPath: (path) => shell.openPath(path),
@@ -1310,8 +1328,11 @@ if (!hasSingleInstanceLock) {
             ),
           );
       });
+      // A chat window is the app too (#2964): the user can move focus straight into it.
+      const isAppWindow = (window: BrowserWindow | null) =>
+        window !== null && (window === windowHolder.current || windows.getChatWindows().includes(window));
       app.on("browser-window-focus", (_event, window) => {
-        if (window === windowHolder.current) {
+        if (isAppWindow(window)) {
           startDirectoryWatch();
           void Effect.runPromise(remoteServers.setAppFocused(true));
         }
@@ -1329,7 +1350,7 @@ if (!hasSingleInstanceLock) {
         stopDirectoryWatch();
         stopDirectoryWatch = watchRemoteHostDirectory({
           isActive: () =>
-            Boolean(windowHolder.current?.isFocused()) && built.centralAuth.getState().status === "signed_in",
+            isAppWindow(BrowserWindow.getFocusedWindow()) && built.centralAuth.getState().status === "signed_in",
           refresh: () => directoryRefresh.refresh(),
         });
       };

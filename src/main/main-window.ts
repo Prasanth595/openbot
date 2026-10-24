@@ -291,6 +291,10 @@ export function createMainWindowController({
       if (chatWindows.get(key)?.window === window) chatWindows.delete(key);
       announceChatWindows();
     });
+    // Focus cannot bring back a crashed page. The main window still shows the chat.
+    window.webContents.on("render-process-gone", () => {
+      if (!window.isDestroyed()) window.destroy();
+    });
     window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
     window.webContents.on("will-navigate", (event, targetUrl) => {
       if (!isTrustedRendererUrl(targetUrl)) event.preventDefault();
