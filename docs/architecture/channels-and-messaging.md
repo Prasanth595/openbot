@@ -155,7 +155,10 @@ supplies the accepted result schema and the channel summary in place of the tran
 stale routing cannot broadcast a request. Routing can select an existing task, ask a question, or
 indicate that no work is needed. A selected owner or existing task adds one channel message from the
 lead, so the selection is visible and the user can correct it. Deterministic selection adds no
-message.
+message. A request that needs routing in a channel with no lead stops with the reason
+`channelLeadRequired`. A save that sets a new lead queues these requests again, and the lead routes
+them. A lead change does not move a task that already has an owner. The member packet names the lead
+(`leadAgentId`).
 
 Channel tools retrieve history, assign a child task, transfer ownership, and report results. The
 runtime supplies channel and caller identity. A child keeps its parent owner; a transfer changes it.

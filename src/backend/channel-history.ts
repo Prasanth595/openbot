@@ -175,6 +175,7 @@ export class ChannelHistory {
             title: channel.title,
             instructions: channel.instructions,
             members: channel.members,
+            leadAgentId: channel.leadAgentId,
           },
           agentId: agent.id,
           task,

@@ -323,17 +323,43 @@ export class ChannelService {
         assigned.flatMap((task) => descendants(this.store.tasks(channel.id), task.id)).map((task) => task.id),
       );
       const tasks = (yield* channelSync(() => this.store.tasks(channel.id))).filter((task) => removed.has(task.id));
+      // A request that stopped only because the channel had no lead goes to the lead the save sets,
+      // as a hidden or limited lead's request waits and starts by itself. Without this it stayed
+      // stopped until the reader pressed Continue, which a reader who had just picked a lead missed.
+      const lead = command.draft.leadAgentId;
+      const waitingForLead =
+        lead && lead !== existing?.leadAgentId
+          ? (yield* channelSync(() => this.store.tasks(channel.id))).filter(
+              (task) =>
+                task.state === "paused" &&
+                !task.ownerAgentId &&
+                task.error === sourceText("error.backend.channelLeadRequired"),
+            )
+          : [];
       const result = yield* channelSync(() =>
         this.store.update(
           { ...channel, ...command.draft },
           {
             messages: notes,
-            tasks: tasks.map((task) => ({
-              ...task,
-              state: "paused",
-              revision: task.revision + 1,
-              error: "The assigned member was removed.",
-            })),
+            tasks: [
+              ...tasks.map(
+                (task): ChannelTask => ({
+                  ...task,
+                  state: "paused",
+                  revision: task.revision + 1,
+                  error: "The assigned member was removed.",
+                }),
+              ),
+              ...waitingForLead.map(
+                (task): ChannelTask => ({
+                  ...task,
+                  state: "queued",
+                  revision: task.revision + 1,
+                  error: null,
+                  assignmentCount: 0,
+                }),
+              ),
+            ],
           },
           operationId,
         ),
