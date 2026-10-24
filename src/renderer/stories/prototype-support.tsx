@@ -9,7 +9,6 @@ import { createStore, onSettled, Show, untrack } from "solid-js";
 import { App } from "../src/App";
 import { createMockOpenBot, type MockOpenBotControls, type MockOpenBotOptions } from "../src/preview/mock-openbot";
 import { OpenBotPlayground } from "../src/preview/OpenBotPlayground";
-import "./PrototypeSupport.css";
 
 /** The real app on the preview mock. `setup` adds data to the mock before the app reads it. */
 export function PrototypeApp(props: { options?: MockOpenBotOptions; setup?: (mock: MockOpenBotControls) => void }) {
@@ -39,20 +38,21 @@ const SLOTS = [
 export type AppSlotName = (typeof SLOTS)[number][0];
 
 /**
- * The shell elements of the app under `attach`, and the chat that the sidebar shows as open. The
- * app draws them after its first data arrives, and a new chat draws a new header, so the store
- * follows each change of the DOM.
+ * The shell elements of the app under `attach`. The app draws them after its first data arrives,
+ * and a new chat draws a new header, so the store follows each change of the DOM.
  */
 export function createAppDom() {
-  const [dom, setDom] = createStore<
-    { root: HTMLElement | null; activeChatId: string | null } & Record<AppSlotName, Element | null>
-  >({ root: null, activeChatId: null, header: null, topbar: null, rail: null, sidebar: null });
+  const [dom, setDom] = createStore<{ root: HTMLElement | null } & Record<AppSlotName, Element | null>>({
+    root: null,
+    header: null,
+    topbar: null,
+    rail: null,
+    sidebar: null,
+  });
 
   const sync = (root: HTMLElement) =>
     setDom((draft) => {
       for (const [slot, selector] of SLOTS) draft[slot] = root.querySelector(selector);
-      draft.activeChatId =
-        root.querySelector(".agent-row-active")?.closest("[data-chat-id]")?.getAttribute("data-chat-id") ?? null;
     });
 
   onSettled(() => {
@@ -96,23 +96,5 @@ export function AppSlot(props: { app: AppDom; slot: AppSlotName; children: JSX.E
     <Show when={props.app.dom[props.slot]} keyed>
       {(element) => <Portal mount={element}>{props.children}</Portal>}
     </Show>
-  );
-}
-
-/** A copy of the avatar of a chat's sidebar row: the agent, or the members of a channel. */
-export function RowAvatar(props: { app: AppDom; id: string; class?: string }) {
-  return (
-    <span
-      class={["prototype-row-avatar", props.class]}
-      aria-hidden="true"
-      ref={(element) =>
-        untrack(() => {
-          const avatar = props.app.dom.root?.querySelector(
-            `[data-chat-id="${CSS.escape(props.id)}"] .agent-row-avatar > :first-child`,
-          );
-          if (avatar) element.replaceChildren(avatar.cloneNode(true));
-        })
-      }
-    />
   );
 }
