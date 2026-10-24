@@ -3,9 +3,11 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { dirname, join } from "node:path";
 import { redactText } from "@openbot/logging";
+import { Effect } from "effect";
 import { app, BrowserWindow, type WebContents, type WebFrameMain, webContents } from "electron";
 import { z } from "zod";
 import { BrowserHost } from "../src/backend/browser-host";
+import type { BrowserCardVault } from "../src/backend/browser-tool-actions";
 import { BROWSER_DYNAMIC_TOOLS } from "../src/backend/browser-tools";
 import { runCauseEffect } from "../src/backend/effect-boundary";
 import type { DynamicToolCallParams, DynamicToolResult } from "../src/backend/protocol";
@@ -157,12 +159,23 @@ async function main(): Promise<void> {
       turnId: "card-turn",
       callId: `card-${++sequence}`,
     });
-    const call = (tool: string, args: DynamicToolCallParams["arguments"]) =>
-      runCauseEffect(
-        host.handleDynamicTool(params(tool, args), {
-          cardSecret: (cardId) => (cardId === CARD_ID ? CARD : null),
+    // The owner's approvals, as the Vault keeps them, and the answer the owner gives to the next card.
+    const approvedSites = new Map<string, Set<string>>();
+    const approvals: Array<{ page: string; frames: readonly string[] }> = [];
+    let ownerAnswer = true;
+    const cardVault: BrowserCardVault = {
+      secret: (cardId) => (cardId === CARD_ID ? CARD : null),
+      approved: (_cardId, page, frames) => frames.every((frame) => approvedSites.get(page)?.has(frame)),
+      approve: (_cardId, page, frames) =>
+        Effect.sync(() => {
+          approvals.push({ page, frames });
+          if (!ownerAnswer) return false;
+          approvedSites.set(page, new Set([...(approvedSites.get(page) ?? []), ...frames]));
+          return true;
         }),
-      );
+    };
+    const call = (tool: string, args: DynamicToolCallParams["arguments"]) =>
+      runCauseEffect(host.handleDynamicTool(params(tool, args), { cardVault }));
     const text = (result: DynamicToolResult) =>
       result.contentItems.map((item) => (item.type === "inputText" ? item.text : "")).join("\n");
     const failure = (result: DynamicToolResult) => {
@@ -229,18 +242,22 @@ async function main(): Promise<void> {
     phase("main-frame-fill");
     const main = await open(`${CHECKOUT}/checkout`);
     const before = await snapshot(main.tabId);
-    const mainFill = await call("fill_card", {
-      tabId: main.tabId,
-      cardId: CARD_ID,
-      targets: {
-        number: ref(before, "Card number"),
-        securityCode: ref(before, "Security code"),
-        expMonth: ref(before, "Expiry month"),
-        expYear: ref(before, "Expiry year"),
-        nameOnCard: ref(before, "Name on card"),
-      },
-    });
+    const mainTargets = {
+      number: ref(before, "Card number"),
+      securityCode: ref(before, "Security code"),
+      expMonth: ref(before, "Expiry month"),
+      expYear: ref(before, "Expiry year"),
+      nameOnCard: ref(before, "Name on card"),
+    };
+    ownerAnswer = false;
+    const declined = await call("fill_card", { tabId: main.tabId, cardId: CARD_ID, targets: mainTargets });
+    assert(failure(declined).includes("did not approve"), "A declined fill was not refused.");
+    assert.equal((await values(main.contents)).number?.value, "", "A declined fill typed the number.");
+    assert.deepEqual(approvals, [{ page: CHECKOUT, frames: [CHECKOUT] }], "The approval did not name the page.");
+    ownerAnswer = true;
+    const mainFill = await call("fill_card", { tabId: main.tabId, cardId: CARD_ID, targets: mainTargets });
     assert(mainFill.success, `Main-frame fill failed: ${redactText(text(mainFill))}`);
+    assert.equal(approvals.length, 2, "The approved fill did not ask the owner once.");
     assertHidden(text(mainFill), "the fill result");
     const mainResult = fillSchema.parse(JSON.parse(text(mainFill)));
     assert.deepEqual(
@@ -257,7 +274,14 @@ async function main(): Promise<void> {
     assert.equal(mainValues.year?.value, "2030", "The year option is wrong.");
     assert.equal(mainValues.number?.trusted, "true", "The number input was not native.");
     formats.selects = `${mainValues.month?.value}/${mainValues.year?.value}`;
-    recordCases("main-frame-fill", "result-names-fields-only", "native-input", "select-month-year");
+    recordCases(
+      "approval-declined-types-nothing",
+      "approval-names-page",
+      "main-frame-fill",
+      "result-names-fields-only",
+      "native-input",
+      "select-month-year",
+    );
 
     phase("scrub");
     const after = await snapshot(main.tabId);
@@ -326,6 +350,11 @@ async function main(): Promise<void> {
       },
     });
     assert(frameFill.success, `Payment-frame fill failed: ${redactText(text(frameFill))}`);
+    assert.deepEqual(
+      approvals.at(-1),
+      { page: SHOP, frames: [PAYMENTS, SHOP] },
+      "The approval did not name the page and each frame origin.",
+    );
     assertHidden(text(frameFill), "the frame fill result");
     const frameValues = await values(paymentFrame);
     assert.equal(frameValues.number?.value, CARD.number, "The number did not reach the payment frame.");
@@ -334,7 +363,15 @@ async function main(): Promise<void> {
     assert.equal(frameValues.number?.trusted, "true", "The frame number input was not native.");
     assert.equal((await values(framed.contents)).name?.value, CARD.nameOnCard, "The name did not arrive.");
     formats.placeholder = String(frameValues.expiry?.value);
-    recordCases("payment-frame-fill", "expiry-placeholder-format");
+    const asked = approvals.length;
+    const refill = await call("fill_card", {
+      tabId: framed.tabId,
+      cardId: CARD_ID,
+      targets: { number: ref(await snapshot(framed.tabId), "Card number") },
+    });
+    assert(refill.success, `The approved site was refused: ${redactText(text(refill))}`);
+    assert.equal(approvals.length, asked, "An approved site asked the owner again.");
+    recordCases("payment-frame-fill", "expiry-placeholder-format", "approval-frames-named", "approved-site-no-ask");
     await runCauseEffect(host.close(framed.tabId));
 
     phase("refusals");

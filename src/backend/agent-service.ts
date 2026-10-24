@@ -130,7 +130,12 @@ import { AgentRemoval, AgentRemovalFailed } from "./agent/agent-removal";
 import { AgentSettingsRefused } from "./agent/agent-settings-refused";
 import type { ApprovalAutomationPolicy } from "./agent/approval-automation";
 import { AttachmentGateway } from "./agent/attachment-gateway";
-import { AttentionRegistry, type LocalAttentionResponse, type PromptResponder } from "./agent/attention-registry";
+import {
+  type ApprovalResponder,
+  AttentionRegistry,
+  type LocalAttentionResponse,
+  type PromptResponder,
+} from "./agent/attention-registry";
 import { BootRecovery } from "./agent/boot-recovery";
 import { BrowserUploads } from "./agent/browser-uploads";
 import type { ChatVisualPreviewHost } from "./agent/chat-visual-preview";
@@ -4189,9 +4194,13 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       );
   }
 
-  respondToApproval(input: RespondToApprovalInput): Effect.Effect<void, AgentLifecycleFailed> {
+  /** `responder` is absent for the person at this computer; the Team API gives the member who answers. */
+  respondToApproval(
+    input: RespondToApprovalInput,
+    responder?: ApprovalResponder,
+  ): Effect.Effect<void, AgentLifecycleFailed> {
     return this.#attention
-      .respondToApproval(input)
+      .respondToApproval(input, responder)
       .pipe(
         Effect.mapError(
           (failure) => new AgentLifecycleFailed({ operation: "respondToApproval", cause: failure.cause }),

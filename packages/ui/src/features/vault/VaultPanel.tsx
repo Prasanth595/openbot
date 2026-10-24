@@ -165,6 +165,8 @@ type CardDraft = {
   expiry: string;
   securityCode: string;
   billingContactId: string;
+  /** The sites where agents can fill the card with no approval. The user can only remove one. */
+  fillSites: string[];
 };
 type ContactDraft = { kind: "contact" } & VaultContactFields;
 type Draft = LoginDraft | CardDraft | ContactDraft;
@@ -198,8 +200,18 @@ function draftOf(kind: VaultItemKind, item: VaultItemSummary | null): Draft {
           expiry: expiryText(item.expMonth, item.expYear),
           securityCode: "",
           billingContactId: item.billingContactId ?? "",
+          fillSites: item.fillSites,
         }
-      : { kind, label: "", nameOnCard: "", number: "", expiry: "", securityCode: "", billingContactId: "" };
+      : {
+          kind,
+          label: "",
+          nameOnCard: "",
+          number: "",
+          expiry: "",
+          securityCode: "",
+          billingContactId: "",
+          fillSites: [],
+        };
   if (item?.kind === "contact") {
     const { id: _id, kind: _kind, ...fields } = item;
     return { kind, ...fields };
@@ -246,6 +258,7 @@ function saveInput(draft: Draft, id: string | null): VaultSaveInput {
       billingContactId: draft.billingContactId || null,
       number: number === "" ? null : number,
       securityCode: securityCode === "" ? null : securityCode,
+      fillSites: draft.fillSites,
     };
   }
   const { kind: _kind, ...fields } = draft;
@@ -1051,6 +1064,27 @@ function ItemDialog(props: {
                 </For>
               </NativeSelect>
             </Field>
+            <Show when={card().fillSites.length > 0}>
+              <fieldset class="vault-wide vault-fill-sites">
+                <legend class="ui-label">{t("vault.field.fillSites")}</legend>
+                <ul class="vault-sites">
+                  <For each={card().fillSites}>
+                    {(site) => (
+                      <li class="vault-site">
+                        <span class="vault-truncate">{site}</span>
+                        <IconButton
+                          label={t("vault.removeSite", { site })}
+                          variant="ghost"
+                          onClick={() => set(card(), { fillSites: card().fillSites.filter((kept) => kept !== site) })}
+                        >
+                          <X />
+                        </IconButton>
+                      </li>
+                    )}
+                  </For>
+                </ul>
+              </fieldset>
+            </Show>
           </div>
         )}
       </Match>

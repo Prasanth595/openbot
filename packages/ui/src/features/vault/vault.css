@@ -92,6 +92,33 @@
   grid-column: 1 / -1;
 }
 
+.vault-fill-sites {
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.vault-fill-sites > .ui-label {
+  margin-block-end: var(--openbot-space-1-5);
+  padding: 0;
+}
+
+.vault-sites {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vault-site {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--openbot-space-2);
+  min-width: 0;
+}
+
 .vault-secret {
   position: relative;
   display: flex;

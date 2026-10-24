@@ -445,15 +445,15 @@ export class BrowserCdpEngine {
    * Types a saved card into the fields that the agent named, in the main page or in an HTTPS payment
    * frame that runs in its own process. Each field is checked before any value goes in: attached, in
    * an HTTPS frame that `checkOrigin` allows, enabled, of a kind that takes the value, and for the
-   * number and the code, not in a form that sends its fields in the page address. Each field is then
-   * filled with native input after its identity is checked again. Snapshots hide the values from
-   * before the first one is typed.
+   * number and the code, not in a form that sends its fields in the page address. When `allowFill`
+   * then refuses, nothing is typed and the result is empty. Each field is then filled with native input
+   * after its identity is checked again. Snapshots hide the values from before the first one is typed.
    */
   readonly fillCard = Effect.fn("BrowserCdp.fillCard")(function* (
     this: BrowserCdpEngine,
     targets: BrowserCardTargets,
     card: VaultCardSecret,
-    policy: { checkOrigin: (origin: string) => void; onFill: () => void },
+    policy: { checkOrigin: (origin: string) => void; allowFill: () => boolean; onFill: () => void },
     deadline: number,
   ): Effect.fn.Return<BrowserCardFillResult, BrowserOperationError> {
     const generation = this.#navigationGeneration;
@@ -510,6 +510,7 @@ export class BrowserCdpEngine {
         yield* browserSync(() => assertBeforeDeadline(deadline));
         if (generation !== this.#navigationGeneration)
           return yield* browserFailure(new Error("The card page changed. Take a fresh snapshot."));
+        if (!policy.allowFill()) return { filled: [], unconfirmed: [] };
         this.#cardScrub.add(card.number, card.securityCode);
         policy.onFill();
         const filled: BrowserCardField[] = [];

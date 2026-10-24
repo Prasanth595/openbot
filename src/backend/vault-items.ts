@@ -86,6 +86,10 @@ export interface VaultItems {
   listForAgent(): { logins: VaultLoginForAgent[]; cards: VaultCardForAgent[]; contacts: VaultContactForAgent[] };
   /** The values to type for `cardId`, or null when no such card is saved. */
   cardSecret(cardId: string): VaultCardSecret | null;
+  /** Whether the owner let agents fill `cardId` on the HTTPS `page` into fields of each of `frames`. */
+  cardFillApproved(cardId: string, page: string, frames: readonly string[]): boolean;
+  /** Keeps the owner's approval to fill `cardId` on `page` into fields of `frames`. */
+  approveCardFill(cardId: string, page: string, frames: readonly string[]): Effect.Effect<void, PasswordVaultError>;
   /** Adds or changes an item. `addedBy` is the agent's name, if known; a new item keeps it. */
   save(
     change: VaultAgentChange,

@@ -677,7 +677,8 @@ async function createMessagingServices({
     threads: service.messaging,
     agents: {
       listAgents: () => service.listAgents(),
-      respondToApproval: (input) => service.respondToApproval(input),
+      // A chat app user is not the owner, even when the owner links the chat.
+      respondToApproval: (input) => service.respondToApproval(input, { owner: false }),
       onEvent: (listener) => {
         service.on("event", listener);
         return () => service.off("event", listener);

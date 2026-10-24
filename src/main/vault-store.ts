@@ -35,6 +35,13 @@ const cardSchema = Schema.Struct({
   /** Digits only, or "" when the user did not save one. */
   securityCode: Schema.String,
   billingContactId: Schema.NullOr(Schema.String),
+  /**
+   * The HTTPS pages where the owner let agents fill this card, each with the origins of the frames that
+   * got its fields. A fill anywhere else waits for the owner's approval. Absent when there is none.
+   */
+  fillSites: Schema.optionalKey(
+    Schema.Array(Schema.Struct({ page: Schema.String, frames: Schema.Array(Schema.String) })),
+  ),
   addedBy,
 });
 

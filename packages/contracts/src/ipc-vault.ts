@@ -45,6 +45,8 @@ export interface VaultCardSummary extends VaultItemOrigin {
   /** Four digits. */
   expYear: number;
   billingContactId: string | null;
+  /** The HTTPS page origins where the owner let agents fill this card with no approval. */
+  fillSites: string[];
 }
 
 export interface VaultContactFields {
@@ -100,6 +102,8 @@ export type VaultSaveInput =
       billingContactId: string | null;
       number: string | null;
       securityCode: string | null;
+      /** The approved sites to keep. A site can only be removed here; omitted keeps them all. */
+      fillSites?: string[] | undefined;
     }
   | ({ kind: "contact"; id: string | null } & VaultContactFields);
 
@@ -114,5 +118,7 @@ export type VaultImportResult = { imported: number; skipped: number; state: Vaul
 export const EMPTY_VAULT: VaultState = { status: "ready", items: [] };
 
 export const VAULT_TEXT_LIMIT = 512;
+/** The approved sites that one card keeps. The oldest goes when a new one is approved. */
+export const VAULT_FILL_SITE_LIMIT = 100;
 export const VAULT_NOTES_LIMIT = 4096;
 export const VAULT_PASSWORD_LIMIT = 1024;

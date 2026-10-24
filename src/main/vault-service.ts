@@ -6,6 +6,7 @@
 import { randomUUID } from "node:crypto";
 import {
   cardBrand,
+  VAULT_FILL_SITE_LIMIT,
   VAULT_NOTES_LIMIT,
   VAULT_PASSWORD_LIMIT,
   VAULT_TEXT_LIMIT,
@@ -182,6 +183,7 @@ function summary(record: VaultRecord): VaultItemSummary[] {
         expMonth: card.expMonth,
         expYear: card.expYear,
         billingContactId: card.billingContactId,
+        fillSites: (card.fillSites ?? []).map(({ page }) => page),
       }),
     ),
     ...record.contacts.map((contact): VaultItemSummary => ({ ...contact, kind: "contact" })),
@@ -373,6 +375,24 @@ export class VaultService {
     return outcome.deleted;
   });
 
+  /** Lets agents fill `cardId` on `page` into fields in `frames`, next to what the owner approved before. */
+  readonly #approveCardFill = Effect.fn("VaultService.approveCardFill")(function* (
+    this: VaultService,
+    cardId: string,
+    page: string,
+    frames: readonly string[],
+  ) {
+    yield* this.#change((record) => {
+      const card = this.#find(record.cards, cardId);
+      const sites = card.fillSites ?? [];
+      const known = sites.find((entry) => entry.page === page)?.frames ?? [];
+      const site = { page, frames: [...new Set([...known, ...frames])] };
+      // The newest approval goes last, so the limit drops the oldest one.
+      const fillSites = [...sites.filter((entry) => entry.page !== page), site].slice(-VAULT_FILL_SITE_LIMIT);
+      return { ...record, cards: replaceOrAdd(record.cards, { ...card, fillSites }) };
+    });
+  });
+
   readonly #saveTypedLogin = Effect.fn("VaultService.saveTypedLogin")(function* (
     this: VaultService,
     login: VaultTypedLogin,
@@ -465,6 +485,15 @@ export class VaultService {
           }
         : null;
     },
+    cardFillApproved: (cardId, page, frames) => {
+      if (this.#status !== "ready") return false;
+      const site = this.#store
+        .read()
+        .cards.find((item) => item.id === cardId)
+        ?.fillSites?.find((entry) => entry.page === page);
+      return site !== undefined && frames.every((frame) => site.frames.includes(frame));
+    },
+    approveCardFill: (cardId, page, frames) => this.#approveCardFill(cardId, page, frames),
     save: (change, addedBy) => this.#agentSave(change, addedBy),
     delete: (id) => this.#agentDelete(id),
     saveLogin: (login, addedBy) => this.#saveTypedLogin(login, addedBy),
@@ -529,6 +558,9 @@ export class VaultService {
     if (!number) return refuse("error.vault.cardNumberInvalid");
     if (input.billingContactId !== null && !record.contacts.some(({ id }) => id === input.billingContactId))
       return refuse("error.vault.contactMissing");
+    // The page can only remove an approved site. A new one comes from the owner's approval card.
+    const kept = input.fillSites;
+    const fillSites = (existing?.fillSites ?? []).filter(({ page }) => kept === undefined || kept.includes(page));
     return {
       id: existing?.id ?? randomUUID(),
       label: input.label,
@@ -538,6 +570,7 @@ export class VaultService {
       expYear: input.expYear,
       securityCode: input.securityCode ?? existing?.securityCode ?? "",
       billingContactId: input.billingContactId,
+      ...(fillSites.length > 0 ? { fillSites } : {}),
       ...origin(existing, addedBy),
     };
   }

@@ -42,8 +42,9 @@ import { createOpenBotLogger, redactText, toLogValue } from "@openbot/logging";
 import { Deferred, Effect, Result, Schema } from "effect";
 import type { AgentApiKeys } from "../agent-api-keys";
 import type { AgentClient } from "../agent-client";
-import type { BrowserOperationError } from "../browser-effects";
+import { type BrowserOperationError, browserFailure } from "../browser-effects";
 import type { PreparedBrowserSecret } from "../browser-host";
+import type { BrowserCardVault } from "../browser-tool-actions";
 import { type BrowserToolArguments, parseBrowserToolCall } from "../browser-tools";
 import { causeHelpers } from "../effect-boundary";
 import type { PasswordVault, PasswordVaultError } from "../password-vault";
@@ -55,7 +56,7 @@ import {
   getString,
   type RequestId,
 } from "../protocol";
-import type { VaultAgentChange, VaultAgentResult, VaultCardSecret, VaultItems } from "../vault-items";
+import type { VaultAgentChange, VaultAgentResult, VaultItems } from "../vault-items";
 import { type ApprovalAutomationPolicy, NO_APPROVAL_AUTOMATION, shouldAutoApprove } from "./approval-automation";
 import type { ConversationRuntime } from "./conversation-runtime";
 import type { HostedSiteOperationFailed } from "./hosted-site-coordinator";
@@ -133,6 +134,15 @@ export interface PromptResponder {
 
 const AUTOMATIC_RESPONDER: PromptResponder = { privileged: true, automatic: true };
 
+/**
+ * Who answers an approval. Absent means the person at this computer, who owns the server. A team
+ * member, a chat app user or a local script gives `owner: false`, and the Team API gives the owner's
+ * own clients `owner: true`.
+ */
+export interface ApprovalResponder {
+  owner: boolean;
+}
+
 interface PendingApproval {
   client: AgentClient;
   id: RequestId;
@@ -144,6 +154,8 @@ interface PendingApproval {
   decide?: (decision: ToolApprovalDecision) => void;
   /** The tool asks even when the agent has Full access, so a later grant does not answer it. */
   alwaysAsk?: boolean;
+  /** Only the owner can answer, because the approval lets agents use what is the owner's alone. */
+  ownerOnly?: boolean;
 }
 
 type ToolApprovalDecision = "accept" | "decline" | "cancel";
@@ -430,7 +442,8 @@ export class AttentionRegistry {
         throw new InactiveAttentionRequest(sourceText("error.backend.approvalInactive"));
       });
     }
-    return yield* this.respondToApproval({ requestId: pending.id, decision: input.decision });
+    // A local script is not the owner: an agent can run one.
+    return yield* this.respondToApproval({ requestId: pending.id, decision: input.decision }, { owner: false });
   }).bind(this);
 
   #localHandle(pending: PendingPrompt | PendingApproval | PendingBrowserTakeover): string {
@@ -563,10 +576,13 @@ export class AttentionRegistry {
   readonly respondToApproval = Effect.fn("AttentionRegistry.respondToApproval")(function* (
     this: AttentionRegistry,
     input: RespondToApprovalInput,
+    responder?: ApprovalResponder,
   ) {
     const pending = yield* attentionStep(() => {
       const value = this.#approvals.get(input.requestId);
       if (!value) throw new InactiveAttentionRequest(sourceText("error.backend.approvalInactive"));
+      if (value.ownerOnly && responder && !responder.owner)
+        throw new ForbiddenAttentionAnswer(sourceText("error.backend.approvalOwnerOnly"));
       return value;
     });
     this.#routines.markRunningForTurn(getString(pending.params, "turnId"));
@@ -767,10 +783,11 @@ export class AttentionRegistry {
     client: AgentClient,
     request: AppServerRequest,
     approval: AgentApproval,
-    options: { readonly alwaysAsk?: boolean } = {},
+    options: { readonly alwaysAsk?: boolean; readonly ownerOnly?: boolean } = {},
   ) {
     if (request.signal?.aborted) return "cancel" as const;
-    if (!options.alwaysAsk && this.#answersForAgent(approval.agentId)) return "accept" as const;
+    const alwaysAsk = options.alwaysAsk || options.ownerOnly;
+    if (!alwaysAsk && this.#answersForAgent(approval.agentId)) return "accept" as const;
     const decision = Deferred.makeUnsafe<ToolApprovalDecision>();
     this.#approvals.set(request.id, {
       client,
@@ -779,7 +796,8 @@ export class AttentionRegistry {
       params: request.params,
       approval,
       decide: (value) => Deferred.doneUnsafe(decision, Effect.succeed(value)),
-      ...(options.alwaysAsk ? { alwaysAsk: true } : {}),
+      ...(alwaysAsk ? { alwaysAsk: true } : {}),
+      ...(options.ownerOnly ? { ownerOnly: true } : {}),
     });
     this.#routines.markNeedsAttention(approval.turnId);
     this.#emit({ type: "approval", approval });
@@ -987,9 +1005,55 @@ export class AttentionRegistry {
     return result;
   }).bind(this);
 
-  /** The values `fill_card` types for `cardId`. They go to the browser host only, never to the agent. */
-  vaultCardSecret(cardId: string): VaultCardSecret | null {
-    return this.#vaultItems?.cardSecret(cardId) ?? null;
+  /**
+   * The saved cards for one `fill_card` call. Their values go to the browser host only, never to the
+   * agent. A fill on a page that the owner did not approve for the card waits for the owner, with Full
+   * access too: a page or a team member can tell an agent to fill a card into a form that sends it away.
+   */
+  cardVault(
+    client: AgentClient,
+    request: AppServerRequest,
+    params: DynamicToolCallParams,
+  ): BrowserCardVault | undefined {
+    const vault = this.#vaultItems;
+    const agentId = params.ownerAgentId;
+    if (!vault || !agentId) return undefined;
+    return {
+      secret: (cardId) => vault.cardSecret(cardId),
+      approved: (cardId, page, frames) => vault.cardFillApproved(cardId, page, frames),
+      approve: (cardId, page, frames) =>
+        Effect.gen({ self: this }, function* () {
+          const card = vault.listForAgent().cards.find(({ id }) => id === cardId);
+          if (!card) return false;
+          const others = frames.filter((frame) => frame !== page);
+          const reason = [
+            sourceText("status.agent.vaultCardFill", { card: card.label || `•••• ${card.last4}`, site: page }),
+            ...(others.length > 0
+              ? [sourceText("status.agent.vaultCardFillFrames", { origins: others.join(", ") })]
+              : []),
+          ].join(" ");
+          const decision = yield* this.awaitToolApproval(
+            client,
+            request,
+            {
+              requestId: request.id,
+              agentId,
+              threadId: params.threadId,
+              turnId: params.turnId,
+              kind: "permissions",
+              command: null,
+              cwd: null,
+              reason,
+              grantRoot: null,
+              permissions: null,
+            },
+            { ownerOnly: true },
+          );
+          if (decision !== "accept") return false;
+          yield* vault.approveCardFill(cardId, page, frames).pipe(Effect.mapError(browserFailure));
+          return true;
+        }),
+    };
   }
 
   /**

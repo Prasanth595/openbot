@@ -2,6 +2,7 @@
 // message; a value that the user typed wrong is refused with text that the page shows.
 
 import {
+  VAULT_FILL_SITE_LIMIT,
   VAULT_NOTES_LIMIT,
   VAULT_PASSWORD_LIMIT,
   VAULT_TEXT_LIMIT,
@@ -98,6 +99,12 @@ function contactFields(value: DynamicRecord): VaultContactFields {
   return fields;
 }
 
+/** The approved sites that a card keeps. The service keeps only those that it saved itself. */
+function siteList(value: unknown): string[] {
+  if (!Array.isArray(value) || value.length > VAULT_FILL_SITE_LIMIT) throw new Error("fillSites is invalid.");
+  return value.map((site) => rawText(site, "fillSites", VAULT_TEXT_LIMIT));
+}
+
 /**
  * The item to save. A login's website must be HTTPS; a card number must pass the Luhn check, and its
  * security code has 3 or 4 digits. A null secret keeps the saved value.
@@ -128,6 +135,7 @@ export function decodeVaultSaveInput(value: unknown): VaultSaveInput {
       const securityCode = nullableText(value.securityCode, "securityCode", 8);
       if (securityCode && !/^\d{3,4}$/u.test(securityCode)) throw userError("error.vault.securityCodeInvalid");
       const billingContactId = value.billingContactId === null ? null : id(value.billingContactId);
+      const fillSites = value.fillSites === undefined ? undefined : siteList(value.fillSites);
       return {
         kind: "card",
         id: itemId,
@@ -137,6 +145,7 @@ export function decodeVaultSaveInput(value: unknown): VaultSaveInput {
         billingContactId,
         number,
         securityCode,
+        ...(fillSites === undefined ? {} : { fillSites }),
       };
     }
     case "contact":

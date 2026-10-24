@@ -53,7 +53,7 @@ export interface DeveloperInstructionOptions {
 function vaultInstruction(vault: VaultContents, serverHost: boolean): string {
   const saved = [vault.cards ? "cards" : "", vault.contacts ? "contact info" : ""].filter(Boolean).join(" and ");
   const cards = vault.cards
-    ? "Fill card fields, payment frames included, with openbot_browser.fill_card: pass a target for each card field on the page, the security code too when hasSecurityCode is true. You never see the number or security code. Use request_takeover for 3-D Secure, bank confirmation, or a card field that fill_card refuses."
+    ? "Fill card fields, payment frames included, with openbot_browser.fill_card: pass a target for each card field on the page, the security code too when hasSecurityCode is true. You never see the number or security code. The first fill of a card on a site waits for the owner's approval. Use request_takeover for 3-D Secure, bank confirmation, or a card field that fill_card refuses."
     : serverHost
       ? "No card is saved: use request_takeover for card fields."
       : "No card is saved. When the user wants you to pay, ask the user to add the card in Server settings > Vault, or use request_takeover for the card fields.";

@@ -22,6 +22,9 @@ export const messages = defineMessages("status.agent", {
   "status.agent.screenCaptureWindow": "Capture the window {name} and send the image to the agent's model.",
   "status.agent.screenCaptureRegion":
     "Capture the screen area at {x}, {y}, {width} × {height} points and send the image to the agent's model.",
+  "status.agent.vaultCardFill":
+    "Fill the saved card {card} on {site}. After you approve, agents can fill this card on this site with no approval. Remove the site in Server settings > Vault.",
+  "status.agent.vaultCardFillFrames": "The card fields are in frames from {origins}.",
   "status.agent.screenCaptureProgress": "Asking to capture the screen…",
   "status.agent.screenCaptureReviewing": "Reviewing the screen capture…",
   "status.agent.memoriesSearching": "Searching its memories…",

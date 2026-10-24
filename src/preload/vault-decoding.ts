@@ -12,6 +12,7 @@ import type {
 import {
   decodeList,
   decodeRecord,
+  guardedListDecoder,
   nullableString,
   requiredBoolean,
   requiredNumber,
@@ -22,6 +23,7 @@ import { type DynamicRecord, isOneOf, isString } from "@openbot/contracts/runtim
 const STATUSES: readonly VaultStatus[] = ["ready", "unavailable", "unreadable"];
 const BRANDS: readonly VaultCardBrand[] = ["visa", "mastercard", "amex", "discover"];
 const SECRET_KEYS = ["password", "number", "securityCode"] as const;
+const decodeFillSites = guardedListDecoder(isString, "fillSites");
 
 function contactFields(item: DynamicRecord) {
   return {
@@ -74,6 +76,7 @@ function vaultItem(item: DynamicRecord): VaultItemSummary {
         expMonth: requiredNumber(item, "expMonth"),
         expYear: requiredNumber(item, "expYear"),
         billingContactId: nullableString(item, "billingContactId"),
+        fillSites: decodeFillSites(item.fillSites),
       };
     }
     case "contact":

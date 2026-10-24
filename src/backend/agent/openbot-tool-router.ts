@@ -408,7 +408,7 @@ export class OpenBotToolRouter {
                 default:
                   return yield* this.#browser.handleDynamicTool(params, {
                     onUserControl: userControl,
-                    cardSecret: (cardId) => this.#attention.vaultCardSecret(cardId),
+                    cardVault: this.#attention.cardVault(client, toolRequest, params),
                   });
               }
             });

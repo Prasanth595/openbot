@@ -12,8 +12,18 @@ export interface BrowserDynamicToolHooks {
   onUploadOperationStarted?: (completion: Fiber.Fiber<void, BrowserOperationError>) => void;
   /** A person controls the tab. The caller waits for the release and gives the result of the tool call. */
   onUserControl?: (tabId: string) => Effect.Effect<DynamicToolResult>;
-  /** The values `fill_card` types for a saved card, or null when no such card is saved. */
-  cardSecret?: (cardId: string) => VaultCardSecret | null;
+  /** The saved cards that `fill_card` types. With none, `fill_card` fills nothing. */
+  cardVault?: BrowserCardVault | undefined;
+}
+
+/** The saved cards that `fill_card` types, and the owner's approval of each page that they go to. */
+export interface BrowserCardVault {
+  /** The values to type, or null when no such card is saved. */
+  secret(cardId: string): VaultCardSecret | null;
+  /** Whether the owner let agents fill `cardId` on the HTTPS `page` into fields of each of `frames`. */
+  approved(cardId: string, page: string, frames: readonly string[]): boolean;
+  /** Asks the owner and keeps the approval. False when the owner declined or nobody answered. */
+  approve(cardId: string, page: string, frames: readonly string[]): Effect.Effect<boolean, BrowserOperationError>;
 }
 
 export type BrowserInputCall = Extract<

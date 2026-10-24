@@ -218,7 +218,7 @@ const BROWSER_TOOL_DEFINITIONS = [
   browserTool({
     name: "fill_card",
     description:
-      "Type a saved card from list_vault_items into card fields from one fresh snapshot: the number, and any of the security code, a single expiry field or month and year fields (inputs or native selects), and the name on the card. Fields can be on the HTTPS page or in an HTTPS payment frame. You never see the number or the security code: snapshots hide them. Does not submit. Returns the filled field names and a fresh snapshot. Screenshots, evaluate and recording are unavailable until the page navigates.",
+      "Type a saved card from list_vault_items into card fields from one fresh snapshot: the number, and any of the security code, a single expiry field or month and year fields (inputs or native selects), and the name on the card. Fields can be on the HTTPS page or in an HTTPS payment frame. You never see the number or the security code: snapshots hide them. Does not submit. The first fill of a card on a site waits for the server owner's approval. Returns the filled field names and a fresh snapshot. Screenshots, evaluate and recording are unavailable until the page navigates.",
     shape: {
       tabId,
       cardId: identifier,

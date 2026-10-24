@@ -121,6 +121,7 @@ import {
   runTabFillFields,
 } from "./browser-tab-operations";
 import {
+  type BrowserCardVault,
   type BrowserDynamicToolHooks,
   type BrowserInputCall,
   browserInputAction,
@@ -135,6 +136,7 @@ import {
 import { runCauseEffect } from "./effect-boundary";
 import type { DynamicToolCallParams, DynamicToolResult } from "./protocol";
 import { isRecord } from "./protocol";
+import type { VaultCardSecret } from "./vault-items";
 
 interface BrowserHostEvents {
   changed: [tabs: BrowserTab[], activeTabId: string | null];
@@ -1761,51 +1763,21 @@ export class BrowserHost {
     fill_card: ({ args }, params, hooks) =>
       Effect.gen({ self: this }, function* () {
         yield* browserSync(() => this.#requireToolTab(params, args.tabId));
-        const card = hooks.cardSecret?.(args.cardId) ?? null;
-        if (!card) return yield* browserFailure(new Error("No saved card has this id. Call list_vault_items."));
-        const tab = yield* this.#requireTab(args.tabId);
-        if (tab.secret) return yield* browserFailure(new Error(sourceText("error.backend.authActive")));
-        let result: BrowserCardFillResult = { filled: [], unconfirmed: [] };
-        const snapshot = yield* this.#runAction(
-          args.tabId,
-          "fill_card",
-          args.targets.number,
-          (current, deadline, markDispatched) =>
-            Effect.gen({ self: this }, function* () {
-              const topOrigin = urlOrigin(currentTabUrl(current));
-              if (!topOrigin?.startsWith("https://"))
-                return yield* browserFailure(new Error("Card fill needs an HTTPS page. Use request_takeover."));
-              // A recording would keep the frames that show the card.
-              yield* this.#recorder.discard(args.tabId, "requested");
-              result = yield* current.engine.fillCard(
-                args.targets,
-                card,
-                {
-                  checkOrigin: (origin) => {
-                    // A script the agent ran on the page or the payment frame's site can read the fields.
-                    if (this.#agentScriptedOrigins.has(origin) || this.#agentScriptedOrigins.has(topOrigin))
-                      throw new Error(
-                        "Card fill is unavailable on a site where you ran evaluate. Use request_takeover.",
-                      );
-                    this.#requireIsolatedFromConnectedTabs(current, topOrigin);
-                    if (origin !== topOrigin) this.#requireIsolatedFromConnectedTabs(current, origin);
-                  },
-                  onFill: () => {
-                    markDispatched();
-                    current.filledCard = true;
-                    this.#invalidateViews(current);
-                  },
-                },
-                deadline,
-              );
-            }),
-          browserToolTimeout(args.timeoutMs),
-        );
-        return textResult({
-          filled: result.filled,
-          ...(result.unconfirmed.length > 0 ? { unconfirmed: result.unconfirmed } : {}),
-          snapshot,
-        });
+        const vault = hooks.cardVault;
+        const card = vault?.secret(args.cardId) ?? null;
+        if (!vault || !card)
+          return yield* browserFailure(new Error("No saved card has this id. Call list_vault_items."));
+        // The first fill on a page, or into a frame of a new origin, waits for the owner's approval.
+        // The approval comes outside the tab queue, and the second pass checks every field again.
+        const first = yield* this.#fillCard(args, card, vault);
+        if (first.status === "filled") return first.result;
+        if (!(yield* vault.approve(args.cardId, first.page, first.frames)))
+          return yield* browserFailure(
+            new Error("The owner did not approve this card fill. Ask the user, or use request_takeover."),
+          );
+        const second = yield* this.#fillCard(args, card, vault);
+        if (second.status === "filled") return second.result;
+        return yield* browserFailure(new Error("The card page changed during the approval. Take a fresh snapshot."));
       }),
     wait_for: ({ args }, params) =>
       Effect.gen({ self: this }, function* () {
@@ -1999,6 +1971,74 @@ export class BrowserHost {
       : (tabs.at(-1)?.id ?? null);
     return { tabs, activeTabId };
   }
+
+  /**
+   * One pass of `fill_card`. It types the card only when the owner approved the page and the origin of
+   * each field's frame. Otherwise it types nothing and names the page and the frame origins to approve.
+   * That pass ends with a failure in the tab queue, so it takes no snapshot and the refs stay current.
+   */
+  readonly #fillCard = Effect.fn("BrowserHost.fillCard")(function* (
+    this: BrowserHost,
+    args: BrowserToolArguments<"fill_card">,
+    card: VaultCardSecret,
+    vault: BrowserCardVault,
+  ) {
+    const tab = yield* this.#requireTab(args.tabId);
+    if (tab.secret) return yield* browserFailure(new Error(sourceText("error.backend.authActive")));
+    let result: BrowserCardFillResult = { filled: [], unconfirmed: [] };
+    const outcome: { approval: { page: string; frames: string[] } | null } = { approval: null };
+    const snapshot = yield* this.#runAction(
+      args.tabId,
+      "fill_card",
+      args.targets.number,
+      (current, deadline, markDispatched) =>
+        Effect.gen({ self: this }, function* () {
+          const topOrigin = urlOrigin(currentTabUrl(current));
+          if (!topOrigin?.startsWith("https://"))
+            return yield* browserFailure(new Error("Card fill needs an HTTPS page. Use request_takeover."));
+          const frames = new Set<string>();
+          // A recording would keep the frames that show the card.
+          yield* this.#recorder.discard(args.tabId, "requested");
+          result = yield* current.engine.fillCard(
+            args.targets,
+            card,
+            {
+              checkOrigin: (origin) => {
+                // A script the agent ran on the page or the payment frame's site can read the fields.
+                if (this.#agentScriptedOrigins.has(origin) || this.#agentScriptedOrigins.has(topOrigin))
+                  throw new Error("Card fill is unavailable on a site where you ran evaluate. Use request_takeover.");
+                this.#requireIsolatedFromConnectedTabs(current, topOrigin);
+                if (origin !== topOrigin) this.#requireIsolatedFromConnectedTabs(current, origin);
+                frames.add(origin);
+              },
+              allowFill: () => {
+                if (vault.approved(args.cardId, topOrigin, [...frames])) return true;
+                outcome.approval = { page: topOrigin, frames: [...frames] };
+                return false;
+              },
+              onFill: () => {
+                markDispatched();
+                current.filledCard = true;
+                this.#invalidateViews(current);
+              },
+            },
+            deadline,
+          );
+          if (outcome.approval)
+            return yield* browserFailure(new Error("The card fill waits for the owner's approval."));
+        }),
+      browserToolTimeout(args.timeoutMs),
+    ).pipe(Effect.catch((error) => (outcome.approval ? Effect.succeed(null) : Effect.fail(error))));
+    if (outcome.approval) return { status: "approval" as const, ...outcome.approval };
+    return {
+      status: "filled" as const,
+      result: textResult({
+        filled: result.filled,
+        ...(result.unconfirmed.length > 0 ? { unconfirmed: result.unconfirmed } : {}),
+        snapshot,
+      }),
+    };
+  });
 
   readonly #runInputTool = Effect.fn("BrowserHost.runInputTool")(function* (
     this: BrowserHost,

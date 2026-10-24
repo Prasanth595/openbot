@@ -31,6 +31,7 @@ const ITEMS: VaultItemSummary[] = [
     expMonth: 8,
     expYear: 2029,
     billingContactId: "contact-office",
+    fillSites: ["https://shop.example", "https://checkout.example.org"],
   },
   {
     id: "card-travel",
@@ -42,6 +43,7 @@ const ITEMS: VaultItemSummary[] = [
     expMonth: 1,
     expYear: 2028,
     billingContactId: null,
+    fillSites: [],
   },
   {
     id: "contact-office",

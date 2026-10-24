@@ -38,9 +38,9 @@ export function createMockVault(): OpenBotDesktopApi["vault"] {
       if (input.number !== null) saved.number = input.number.replace(/\D/gu, "");
       if (input.securityCode !== null) saved.securityCode = input.securityCode;
       secrets.set(id, saved);
-      const { number: _number, securityCode: _securityCode, ...card } = input;
+      const { number: _number, securityCode: _securityCode, fillSites = [], ...card } = input;
       const number = saved.number ?? "";
-      return { ...card, id, brand: brandOf(number), last4: number.slice(-4) };
+      return { ...card, id, brand: brandOf(number), last4: number.slice(-4), fillSites };
     }
     return { ...input, id };
   };
