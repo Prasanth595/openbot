@@ -597,10 +597,25 @@ export class ChannelStore {
     sessionId: string,
     throughSequence: number,
     summaryVersion: number,
-    operationId = `channel-context-accepted:${channelId}:${agentId}:${sessionId}:${throughSequence}:${summaryVersion}`,
   ): void {
+    const current = databaseRow(
+      this.database.connection
+        .prepare(
+          "SELECT session_id, through_sequence, summary_version FROM projection_channel_contexts WHERE channel_id = ? AND agent_id = ?",
+        )
+        .get(channelId, agentId),
+    );
+    if (
+      current &&
+      current.session_id === sessionId &&
+      current.through_sequence === throughSequence &&
+      current.summary_version === summaryVersion
+    )
+      return;
+    // Each change has its own operation: after a compaction reset, the cursor can come back to a value
+    // that an earlier operation set, and a key made from the values would skip it as a repeat.
     this.database.dispatch(
-      operationId,
+      `channel-context-accepted:${randomUUID()}`,
       [
         {
           aggregateType: "channel",
@@ -637,7 +652,6 @@ export class ChannelStore {
         sessionId,
         0,
         0,
-        `channel-context-reset:${randomUUID()}`,
       );
   }
 

@@ -951,6 +951,13 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         const session = agent ? this.#store.database.activeProviderSession(threadId, agent.provider) : null;
         return session ? this.#compaction.contextInputCharacters(session.externalSessionId) : 120_000;
       },
+      // Claude and the app-server providers report each compaction. An ACP agent or Pi can compact
+      // on its own with no report, so its next packet would leave out what the summary dropped.
+      reportsCompactions: (agentId) => {
+        const agent = this.#store.list().find((item) => item.id === agentId);
+        const mode = agent ? this.#providers.clientForAgent(agent)?.contextCompaction : undefined;
+        return mode === "native" || mode === "events";
+      },
       forgetThread: (threadId) => this.#forgetExecutionThread(threadId).pipe(toChannelOperationError),
       loadedSnapshot: (threadId) => this.#conversation.loadedExecutionSnapshot(threadId),
       // A held agent gets no channel assignment: one that waited for the reset would hold its
