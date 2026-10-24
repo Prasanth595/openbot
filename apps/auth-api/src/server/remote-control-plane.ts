@@ -48,7 +48,7 @@ import {
 import { sourceText } from "@openbot/i18n/source";
 import { Context, Effect, Layer, Result, Schema } from "effect";
 import { importJWK, type JWK, type JWTPayload, SignJWT } from "jose";
-import { getServerEntitlement } from "./billing-entitlement";
+import { getServerEntitlement, SERVER_MEMBER_LIMIT_SQL } from "./billing-entitlement";
 import { OPEN_STATUSES_SQL } from "./billing-errors";
 import { decodeBase64Url, hmacSha256, importHmacSha256Key, randomToken, sha256 } from "./crypto";
 import { PERSISTENT_SESSION_EXPIRES_AT } from "./session-policy";
@@ -2845,17 +2845,8 @@ export class RemoteControlPlane {
     hostId: string,
   ): Effect.fn.Return<number, RemoteFailure, RemoteDependencies> {
     const dependencies = yield* RemoteDependencies;
-    // Only the account that owns the server gets its custom limit, as with `getServerEntitlement`.
     const custom = yield* remoteCall(() =>
-      dependencies.database
-        .prepare(
-          `SELECT l.member_limit FROM server_member_limits l
-             LEFT JOIN remote_hosts h ON h.host_id = l.server_id AND h.owner_user_id = l.owner_user_id
-             LEFT JOIN hosted_servers hs ON hs.server_id = l.server_id AND hs.owner_user_id = l.owner_user_id
-            WHERE l.server_id = ? AND (h.host_id IS NOT NULL OR hs.server_id IS NOT NULL)`,
-        )
-        .bind(hostId)
-        .first<{ member_limit: number }>(),
+      dependencies.database.prepare(SERVER_MEMBER_LIMIT_SQL).bind(hostId).first<{ member_limit: number }>(),
     );
     if (custom) return custom.member_limit;
     return memberLimitForPlan(

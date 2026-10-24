@@ -1,5 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it } from "vitest";
+import { SERVER_MEMBER_LIMIT_SQL } from "../src/server/billing-entitlement";
 import { migratedDatabase, migration } from "./sqlite-d1";
 
 const databases: DatabaseSync[] = [];
@@ -52,15 +53,7 @@ describe("server member limits migration", () => {
     expect(() => insert.run("host-2", "missing", 10)).toThrow();
 
     // The query of RemoteControlPlane.#memberLimit.
-    const customLimit = (serverId: string) =>
-      database
-        .prepare(
-          `SELECT l.member_limit FROM server_member_limits l
-             LEFT JOIN remote_hosts h ON h.host_id = l.server_id AND h.owner_user_id = l.owner_user_id
-             LEFT JOIN hosted_servers hs ON hs.server_id = l.server_id AND hs.owner_user_id = l.owner_user_id
-            WHERE l.server_id = ? AND (h.host_id IS NOT NULL OR hs.server_id IS NOT NULL)`,
-        )
-        .get(serverId);
+    const customLimit = (serverId: string) => database.prepare(SERVER_MEMBER_LIMIT_SQL).get(serverId);
     expect(customLimit("host-1")).toEqual({ member_limit: 40 });
     expect(customLimit("hosted-1")).toEqual({ member_limit: 60 });
 
