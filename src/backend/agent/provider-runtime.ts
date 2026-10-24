@@ -540,6 +540,10 @@ export class ProviderRuntime implements ProviderPort {
           cli: (provider) =>
             this.#clients.has(provider) || this.#released.has(provider) ? this.#cli.get(provider) : undefined,
           defaultEmail: (provider) => this.#accounts.get(provider)?.email ?? null,
+          signInTemp: (provider) => {
+            const temp = provider === "antigravity" ? antigravityTemp(this.#credentials) : undefined;
+            return temp && { ...temp, provider: providerLabel(provider) };
+          },
           authenticate: (provider, cli, accountEnvironment) =>
             this.#authenticateClient(provider, cli, { accountEnvironment }).pipe(
               Effect.mapError((error) => new ProviderAccountFailed({ cause: error.cause })),

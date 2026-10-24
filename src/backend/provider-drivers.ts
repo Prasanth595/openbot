@@ -23,6 +23,7 @@ import { ClaudeAgentClient } from "./claude-client";
 import {
   type AgentCliInfo,
   antigravityAnswersUsageCommand,
+  antigravityReadsGeminiHome,
   cliPathEnvironment,
   resolveAntigravityCli,
   resolveClaudeCli,
@@ -86,10 +87,12 @@ const CLI_LOGIN_TIMEOUT_MS = 10 * 60_000;
 export interface ProviderAccountSupport {
   /** The variable that names the CLI's home folder. */
   readonly homeVariable: string;
-  /** Signs a new, empty home folder in through the browser. */
-  readonly signIn: ProviderCliCommand;
+  /** Signs a new, empty home folder in through the browser: a CLI command, or an ACP `authenticate`. */
+  readonly signIn: ProviderCliCommand | AcpAuthenticateSignIn;
   /** Signs the account out before its folder is removed, for a CLI that keeps a credential outside it. */
   readonly signOut?: ProviderCliCommand;
+  /** False for a CLI version that ignores `homeVariable`. Absent when every version reads it. */
+  supports?(cli: AgentCliInfo): boolean;
 }
 
 const CLAUDE_COMMAND_ENV = (cli: AgentCliInfo): Record<string, string> =>
@@ -131,17 +134,19 @@ type ProviderSignIn =
    * `muse login` with no terminal only prints that page and never opens it.
    */
   | { kind: "muse-device"; timeoutMs: number }
-  /**
-   * OpenBot starts the ACP server and calls `authenticate` with this method, which opens a browser
-   * from the server. Only the sign-in process calls it: in a status probe it would open a browser.
-   */
-  | {
-      kind: "acp-authenticate";
-      methodId: string;
-      argv: readonly string[];
-      env?: Readonly<Record<string, string>>;
-      timeoutMs: number;
-    };
+  | AcpAuthenticateSignIn;
+
+/**
+ * OpenBot starts the ACP server and calls `authenticate` with this method, which opens a browser
+ * from the server. Only the sign-in process calls it: in a status probe it would open a browser.
+ */
+export interface AcpAuthenticateSignIn {
+  readonly kind: "acp-authenticate";
+  readonly methodId: string;
+  readonly argv: readonly string[];
+  readonly env?: Readonly<Record<string, string>>;
+  readonly timeoutMs: number;
+}
 
 /**
  * A sign-in the user finishes on another device, for a host with no browser the user can see.
@@ -160,14 +165,19 @@ type ProviderCodeSignIn =
  * computer. The CLI saves only the chosen method, never the key, so the key goes in
  * `GEMINI_API_KEY` at every spawn. A saved key wins over a Google account: the user saved it last.
  * A profile-generation client gets the key but not the agent environment, as before.
+ *
+ * The key belongs to the provider's own sign-in. An account after the first is a Google account in
+ * its own `GEMINI_HOME`, so its processes get that folder and never the key.
  */
 function antigravityKeyOptions(context: ProviderClientContext, agentEnvironment: boolean) {
-  const key = () => context.apiKey("antigravity");
+  const account = context.accountEnvironment;
+  const key = () => (account ? null : context.apiKey("antigravity"));
   return {
     extraEnv: () => {
       const saved = key();
       return {
         ...(agentEnvironment ? context.agentEnvironment?.() : {}),
+        ...account,
         ...(saved ? { GEMINI_API_KEY: saved } : {}),
       };
     },
@@ -190,6 +200,17 @@ function antigravityKeyOptions(context: ProviderClientContext, agentEnvironment:
  * (#2988). The token file is the store on every platform, so each process shares one sign-in.
  */
 const ANTIGRAVITY_ENV = { AGY_ACP_FORCE_FILE_STORAGE: "1" };
+
+/**
+ * The sandbox paths of a Gemini process: in the account's `GEMINI_HOME` when it has one. The
+ * sandbox cannot create the folders in a new account's home, so OpenBot makes them.
+ */
+function antigravityAccountStatePaths(context: ProviderClientContext) {
+  const state = antigravityStatePaths({ ...process.env, ...context.accountEnvironment });
+  if (context.accountEnvironment)
+    for (const folder of state.writable) mkdirSync(folder, { recursive: true, mode: 0o700 });
+  return state;
+}
 
 /**
  * Antigravity 1.3.0 starts Google's browser sign-in by itself when `session/new` finds no valid
@@ -222,6 +243,15 @@ export function antigravityTemp(context: Pick<ProviderClientContext, "providerTe
  * argument. OpenBot starts it the same way.
  */
 const ANTIGRAVITY_ARGV: readonly string[] = process.platform === "linux" ? ["--uid="] : [];
+
+// `oauth-personal` is the Google account sign-in that a Google AI Pro or Ultra plan uses.
+const ANTIGRAVITY_SIGN_IN: AcpAuthenticateSignIn = {
+  kind: "acp-authenticate",
+  methodId: "oauth-personal",
+  argv: ANTIGRAVITY_ARGV,
+  env: ANTIGRAVITY_ENV,
+  timeoutMs: CLI_LOGIN_TIMEOUT_MS,
+};
 
 const CLINE_ARGV: readonly string[] = ["--acp"];
 
@@ -689,13 +719,12 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
   },
   {
     id: "antigravity",
-    // `oauth-personal` is the Google account sign-in that a Google AI Pro or Ultra plan uses.
-    signIn: {
-      kind: "acp-authenticate",
-      methodId: "oauth-personal",
-      argv: ANTIGRAVITY_ARGV,
-      env: ANTIGRAVITY_ENV,
-      timeoutMs: CLI_LOGIN_TIMEOUT_MS,
+    signIn: ANTIGRAVITY_SIGN_IN,
+    // The token file and `settings.json`, which names the sign-in method, are in `GEMINI_HOME`.
+    accounts: {
+      homeVariable: "GEMINI_HOME",
+      signIn: ANTIGRAVITY_SIGN_IN,
+      supports: (cli) => antigravityReadsGeminiHome(cli.version),
     },
     resolveCli: resolveAntigravityCli,
     createClient: (cli, timeout, context, confinement) =>
@@ -707,7 +736,7 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
         discoveryCwd: () => discoveryFolder("antigravity"),
         privateTemp: antigravityTemp(context),
         ...(confinement
-          ? { confine: (target) => confineSpawnTarget(target, confinement, antigravityStatePaths()) }
+          ? { confine: (target) => confineSpawnTarget(target, confinement, antigravityAccountStatePaths(context)) }
           : {}),
         ...antigravityKeyOptions(context, true),
         signInMessage: sourceText("error.provider.antigravitySignIn"),

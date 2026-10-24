@@ -1038,8 +1038,9 @@ starts the server as a local process. Prompts, attachments, and tool results go 
 and the server sends them to Google. Connect opens Google's sign-in page in your browser. On this
 computer, Sign in saves a Gemini API key instead: OpenBot encrypts it in its existing provider
 credential store, gives it to the server as `GEMINI_API_KEY`, and redacts it from logs. The server
-sends the key to Google. The server keeps its login and session files in `~/.gemini`, or in `$GEMINI_HOME`. OpenBot does not
-read, copy, or upload these files. Google's terms apply: <https://antigravity.google/terms>.
+sends the key to Google. The server keeps its login and session files in `~/.gemini`, or in `$GEMINI_HOME`. Each Gemini
+account that you add after the first keeps them in a folder of its own in OpenBot's data folder, and gets no saved API key;
+Remove deletes that folder. OpenBot does not read, copy, or upload these files. Google's terms apply: <https://antigravity.google/terms>.
 Gemini agents stay on this computer: OpenBot does not show them to team members.
 
 To show the remaining Gemini quota in Usage, OpenBot sends the server's `/usage` command in a

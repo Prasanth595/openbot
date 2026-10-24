@@ -14,11 +14,13 @@ import {
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger } from "@openbot/logging";
 import { Cause, Effect, Fiber, Schema, type Scope } from "effect";
+import { startAcpAuthentication } from "./../acp-sign-in";
 import type { AgentClient } from "./../agent-client";
 import { type AgentCliInfo, cliPathEnvironment } from "./../cli";
 import type { AccountReadResult } from "./../protocol";
 import { ProviderSignInError } from "../provider-client-effects";
 import { type ProviderAccountSupport, requireProviderDriver } from "./../provider-drivers";
+import type { ProviderTempOptions } from "./../provider-temp";
 import { shortenDiagnostic } from "./../stderr-diagnostics";
 import { stopProcessTree } from "../windows-process-tree";
 import { captureBrowser } from "./browser-capture";
@@ -55,6 +57,8 @@ export interface ProviderAccountsHost {
   /** The CLI of the provider's own sign-in, or undefined when it is not connected. */
   cli(provider: AgentProviderId): AgentCliInfo | undefined;
   defaultEmail(provider: AgentProviderId): string | null;
+  /** The temporary folder of an ACP sign-in process, as the provider's own sign-in gets it. */
+  signInTemp(provider: AgentProviderId): ProviderTempOptions | undefined;
   /** Starts and checks a client that signs in to the account's folder. The caller stops it. */
   authenticate(
     provider: AgentProviderId,
@@ -114,9 +118,17 @@ export class ProviderAccounts {
     return { [support.homeVariable]: this.#store.home(account) };
   }
 
+  /** The support of a provider whose connected CLI reads the home folder variable. */
+  #support(provider: AgentProviderId): ProviderAccountSupport | undefined {
+    const support = ProviderAccounts.support(provider);
+    if (!support?.supports) return support;
+    const cli = this.#host.cli(provider);
+    return cli && support.supports(cli) ? support : undefined;
+  }
+
   /** The rows of a connected provider that can hold more than one account; its own sign-in first. */
   rows(provider: AgentProviderId, defaultEmail: string | null): ProviderAccountStatus[] | undefined {
-    if (!ProviderAccounts.support(provider)) return undefined;
+    if (!this.#support(provider)) return undefined;
     return [
       {
         id: DEFAULT_PROVIDER_ACCOUNT_ID,
@@ -151,7 +163,7 @@ export class ProviderAccounts {
     openExternal: (url: string) => Promise<void>,
     onHost: boolean,
   ) {
-    const support = ProviderAccounts.support(provider);
+    const support = this.#support(provider);
     const name = providerLabel(provider);
     if (!support) return yield* accountFailure(sourceText("error.provider.accountsUnsupported", { provider: name }));
     const cli = this.#host.cli(provider);
@@ -175,17 +187,33 @@ export class ProviderAccounts {
     yield* this.#interrupt(account.id);
     if (added) this.#added.add(account.id);
     this.#setState(account.id, { state: "connecting", message: null });
+    const command = support.signIn;
     const signIn = Effect.scoped(
       Effect.gen({ self: this }, function* () {
+        if ("kind" in command) {
+          // A Reconnect signs the account out first: its saved token would answer with no browser page.
+          // The server prints Google's page, which a host shows and Linux opens through the desktop.
+          const login = yield* startAcpAuthentication({
+            executable: cli.executable,
+            argv: command.argv,
+            env: { ...cliPathEnvironment(cli), ...command.env, ...this.environment(account) },
+            methodId: command.methodId,
+            timeoutMs: command.timeoutMs,
+            ...(added ? {} : { logout: true }),
+            privateTemp: this.#host.signInTemp(provider),
+            ...(onHost || process.platform === "linux" ? { openGoogleSignIn: openExternal } : {}),
+          });
+          return yield* login.done;
+        }
         const browser = onHost ? yield* captureBrowser(openExternal) : {};
         const child = yield* Effect.acquireRelease(
           Effect.sync(() =>
-            spawn(cli.executable, [...support.signIn.argv], {
+            spawn(cli.executable, [...command.argv], {
               cwd: process.cwd(),
               env: {
                 ...process.env,
                 ...cliPathEnvironment(cli),
-                ...support.signIn.env(cli),
+                ...command.env(cli),
                 ...this.environment(account),
                 ...browser,
               },
@@ -196,7 +224,7 @@ export class ProviderAccounts {
           ),
           (child) => stopProcessTree(child).pipe(Effect.ignore),
         );
-        yield* waitForSuccessfulProcess(child, support.signIn.timeoutMs);
+        yield* waitForSuccessfulProcess(child, command.timeoutMs);
       }),
     ).pipe(
       Effect.andThen(this.#check(account)),

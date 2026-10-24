@@ -440,6 +440,17 @@ included, gets `AGY_ACP_FORCE_FILE_STORAGE=1` and keeps the token in
 version saved in the Keychain is not read, so the user signs in again once. Migration 22 adds `antigravity` to
 `projection_provider_sessions`.
 
+From 1.4.0 the server keeps the token, `settings.json` (which names the sign-in method) and its
+conversations in `$GEMINI_HOME/antigravity-acp`, with `~/.gemini` when the variable is not set. So
+Gemini can hold more than one account: each account after the first gets `GEMINI_HOME` set to its
+own folder (`antigravityReadsGeminiHome` gates it), and `antigravityStatePaths` confines its process
+to that folder. The sandbox cannot create folders in a new account's home, so OpenBot makes them.
+The account sign-in is the same ACP `authenticate` call as the first account's; a Reconnect calls
+`logout` first. A saved Gemini API key belongs to the first account: an account process never gets
+`GEMINI_API_KEY`. The server reports no email and the token file holds none, so OpenBot cannot see
+that two accounts are the same Google account. A joined server signs the account in through the
+live view, because `provider-account-relay-v1` names Codex and Claude only.
+
 From 1.4.1 the server answers a prompt that starts with `/usage` itself, without a model turn: it
 reads the Google account's quota summary and sends one Markdown answer. The driver's
 `readRateLimits` sends it in a session that no thread owns (`privatePrompt` in
