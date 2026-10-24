@@ -182,8 +182,7 @@ export const GROK_BOT_COMPARISON: Comparison = {
     },
     {
       question: "Can I use my ChatGPT, Claude or Gemini subscription with OpenBot?",
-      answer:
-        "Yes. OpenBot signs in to each provider tool with your own account: your ChatGPT plan for Codex, your Claude plan for Claude Code, and a Google AI Pro or Ultra plan for Gemini. Grok CLI uses your Grok account or an xAI API key, Cursor CLI your Cursor plan, Cline your Cline account, and Muse Code your Meta account. When a plan reaches its limit, an agent can move to a backup model on another provider. OpenBot adds no charge of its own.",
+      answer: OPENBOT_TEXT.plansFaq,
     },
     {
       question: "Can I use my own model with OpenBot?",

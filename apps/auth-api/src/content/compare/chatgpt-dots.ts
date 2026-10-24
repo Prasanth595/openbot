@@ -167,8 +167,7 @@ export const CHATGPT_DOTS_COMPARISON: Comparison = {
     },
     {
       title: "How agents work as a team",
-      openbot:
-        "In OpenBot, each agent is a full coding agent: Codex, Claude Code, Gemini, Grok CLI, Cursor CLI, Cline, OpenCode, Pi, Muse Code or an agent of your own, each with its own job and workspace. A lead agent can give parts of a task to other agents in a shared channel. You follow their work and step in when a decision needs you. For a team of people, one computer runs the host and the others join it; the chats and files stay on the host. Roles set which agents each member can view, chat with or manage.",
+      openbot: OPENBOT_TEXT.teamSection,
       rival:
         "Today, each person starts with one primary dot, and OpenAI plans teams of dots that work together later. One dot works on several projects at the same time, and it can give work to other agents; its rules then apply to that work too. You can bring a dot into Slack and Microsoft Teams channels. Companies can preview specialist dots, each with its own identity.",
       better: "openbot",

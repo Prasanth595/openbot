@@ -160,8 +160,7 @@ export const CLAUDE_COWORK_COMPARISON: Comparison = {
     },
     {
       title: "How agents work as a team",
-      openbot:
-        "In OpenBot, each agent is a full coding agent: Codex, Claude Code, Gemini, Grok CLI, Cursor CLI, Cline, OpenCode, Pi, Muse Code or an agent of your own, each with its own job and workspace. A lead agent can give parts of a task to other agents in a shared channel. You follow their work and step in when a decision needs you. For a team of people, one computer runs the host and the others join it; the chats and files stay on the host. Roles set which agents each member can view, chat with or manage.",
+      openbot: OPENBOT_TEXT.teamSection,
       rival:
         "Claude Cowork is one agent that can break a complex task into smaller parts and give them to sub-agents that work at the same time. You cannot share a session with other people, but you can share the artifacts it makes. On Team and Enterprise plans, members can share projects, and owners can turn Cowork off for the organisation.",
     },

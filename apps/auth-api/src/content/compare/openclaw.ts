@@ -152,8 +152,7 @@ export const OPENCLAW_COMPARISON: Comparison = {
     },
     {
       title: "How agents work as a team",
-      openbot:
-        "In OpenBot, each agent is a full coding agent: Codex, Claude Code, Gemini, Grok CLI, Cursor CLI, Cline, OpenCode, Pi, Muse Code or an agent of your own, each with its own job and workspace. A lead agent can give parts of a task to other agents in a shared channel. You follow their work and step in when a decision needs you. For a team of people, one computer runs the host and the others join it; the chats and files stay on the host. Roles set which agents each member can view, chat with or manage.",
+      openbot: OPENBOT_TEXT.teamSection,
       rival:
         "One OpenClaw Gateway can run several isolated agents, each with its own workspace and session history, and messages go to the right agent by rules. An agent can run its turns through Codex, Claude Code or Gemini CLI, and it can start subagents, 5 active in each session by default. Through ACP, it can also give work to Claude Code, Codex, Cursor, Gemini CLI and others. A team can share one Gateway, with shared sessions and roles; OpenClaw says a Gateway is one trust domain, for people who already trust each other.",
     },
@@ -183,8 +182,7 @@ export const OPENCLAW_COMPARISON: Comparison = {
     },
     {
       question: "Can I use my ChatGPT, Claude or Gemini subscription with OpenBot?",
-      answer:
-        "Yes. OpenBot signs in to each provider tool with your own account: your ChatGPT plan for Codex, your Claude plan for Claude Code, and a Google AI Pro or Ultra plan for Gemini. Grok CLI uses your Grok account or an xAI API key, Cursor CLI your Cursor plan, Cline your Cline account, and Muse Code your Meta account. When a plan reaches its limit, an agent can move to a backup model on another provider. OpenBot adds no charge of its own.",
+      answer: OPENBOT_TEXT.plansFaq,
     },
     {
       question: "Can I use my Claude or Gemini subscription with OpenClaw?",
@@ -237,6 +235,7 @@ export const OPENCLAW_COMPARISON: Comparison = {
     { label: "OpenClaw files on disk", url: `${OPENCLAW_DOCS}/help/faq/where-things-live-on-disk` },
     { label: "OpenClaw multi-agent routing", url: `${OPENCLAW_DOCS}/concepts/multi-agent` },
     { label: "OpenClaw for teams", url: `${OPENCLAW_DOCS}/start/teams` },
+    { label: "OpenClaw telemetry", url: `${OPENCLAW_DOCS}/gateway/telemetry` },
     { label: "OpenClaw hosting FAQ", url: `${OPENCLAW_DOCS}/help/faq-first-run/providers-and-hosting` },
     { label: "ClawBot by Ipsion AI", url: "https://clawbot-ai.app" },
     { label: "OpenClaw Control UI settings", url: "https://docs.openclaw.ai/web/control-ui/settings" },

@@ -92,6 +92,12 @@ export const OPENBOT_TEXT = {
     "Agents answer in Slack, Discord and Telegram, and a routine can send its answers there. Connect more than one Slack workspace or Discord server.",
   plansSection: `${OPENBOT_PLANS_TEXT} When a plan reaches its limit or a provider is down, the agent can move to a backup model. When you move an agent to a different provider, it keeps its role, workspace and conversation.`,
   plansList: OPENBOT_PLANS_TEXT,
+  /** The OpenBot side of the "How agents work as a team" section. */
+  teamSection:
+    "In OpenBot, each agent is a full coding agent: Codex, Claude Code, Gemini, Grok CLI, Cursor CLI, Cline, OpenCode, Pi, Muse Code or an agent of your own, each with its own job and workspace. A lead agent can give parts of a task to other agents in a shared channel. You follow their work and step in when a decision needs you. For a team of people, one computer runs the host and the others join it; the chats and files stay on the host. Roles set which agents each member can view, chat with or manage.",
+  /** The answer to "Can I use my … subscription with OpenBot?". */
+  plansFaq:
+    "Yes. OpenBot signs in to each provider tool with your own account: your ChatGPT plan for Codex, your Claude plan for Claude Code, and a Google AI Pro or Ultra plan for Gemini. Grok CLI uses your Grok account or an xAI API key, Cursor CLI your Cursor plan, Cline your Cline account, and Muse Code your Meta account. When a plan reaches its limit, an agent can move to a backup model on another provider. OpenBot adds no charge of its own.",
   workSection:
     "OpenBot runs on the computer that hosts it. Agent workspaces, conversations and app data stay on that computer, so it must stay on while its agents work. Run it on a desktop or a server that stays on, and your agents keep working while your laptop is closed. On macOS and Windows, Keep this computer awake stops sleep while the computer is on power, so routines run on time. If you do not want to keep a computer on, use a hosted OpenBot server. It is a Linux server in the EU (Germany, Finland or France), from €20 or $25 a month, and it keeps the workspaces and chats of its agents. Local-first is not offline: an agent that uses a hosted provider still sends its requests to that provider.",
   phonesSection:

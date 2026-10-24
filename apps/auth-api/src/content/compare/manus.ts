@@ -158,8 +158,7 @@ export const MANUS_COMPARISON: Comparison = {
     },
     {
       title: "How agents work as a team",
-      openbot:
-        "In OpenBot, each agent is a full coding agent: Codex, Claude Code, Gemini, Grok CLI, Cursor CLI, Cline, OpenCode, Pi, Muse Code or an agent of your own, each with its own job and workspace. A lead agent can give parts of a task to other agents in a shared channel. You follow their work and step in when a decision needs you. For a team of people, one computer runs the host and the others join it; the chats and files stay on the host. Roles set which agents each member can view, chat with or manage.",
+      openbot: OPENBOT_TEXT.teamSection,
       rival:
         "Manus is one agent that can split a large task: Wide Research starts hundreds of independent agents that work in parallel. Paid plans run up to 20 tasks at the same time. Up to 50 people can work in one task, and only the owner of the task pays the credits. The Team plan pools credits and adds single sign-on; the owner of a team can see all the session data of its members.",
     },
@@ -185,8 +184,7 @@ export const MANUS_COMPARISON: Comparison = {
     },
     {
       question: "Can I use my ChatGPT, Claude or Gemini subscription with OpenBot?",
-      answer:
-        "Yes. OpenBot signs in to each provider tool with your own account: your ChatGPT plan for Codex, your Claude plan for Claude Code, and a Google AI Pro or Ultra plan for Gemini. Grok CLI uses your Grok account or an xAI API key, Cursor CLI your Cursor plan, Cline your Cline account, and Muse Code your Meta account. When a plan reaches its limit, an agent can move to a backup model on another provider. OpenBot adds no charge of its own.",
+      answer: OPENBOT_TEXT.plansFaq,
     },
     {
       question: "Can I use my own AI plan or model with Manus?",
