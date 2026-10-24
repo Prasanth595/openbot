@@ -89,6 +89,7 @@ export function createHostAccounts(source: HostAccountsSource) {
   const [limits, setLimits] = createSignal<AccountUsageLimit[]>([]);
   const isCurrent = createScopeGuard();
   let generation = 0;
+  let usageGeneration = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
 
   async function refresh(): Promise<void> {
@@ -112,8 +113,10 @@ export function createHostAccounts(source: HostAccountsSource) {
   async function refreshUsage(): Promise<void> {
     const serverId = untrack(source.serverId);
     if (!serverId) return;
+    // Two reads can run together, such as after an account action and after a new account connects.
+    const request = ++usageGeneration;
     const usage = await source.usage(serverId);
-    if (isCurrent() && serverId === untrack(source.serverId)) setLimits(usage.limits);
+    if (isCurrent() && request === usageGeneration && serverId === untrack(source.serverId)) setLimits(usage.limits);
   }
 
   /** Several changes often come together, such as the status and the agents after a sign-in. */

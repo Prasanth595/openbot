@@ -1184,6 +1184,8 @@ export class TeamApiServer {
 
     for (const [client, connection] of this.#eventClients) {
       const event = this.#eventFor(connection, broadcast);
+      // Only accounts after the first: a client reads an empty reading as no provider reporting.
+      if (event !== broadcast && event.type === "usage-changed" && event.usage.limits.length === 0) continue;
       if (event.type === "conversation") {
         const legacy = isLegacyConversationClient(connection);
         if ((audience === "legacy" && !legacy) || (audience === "modern" && legacy)) continue;
