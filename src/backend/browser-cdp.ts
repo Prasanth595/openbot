@@ -446,14 +446,19 @@ export class BrowserCdpEngine {
    * frame that runs in its own process. Each field is checked before any value goes in: attached, in
    * an HTTPS frame that `checkOrigin` allows, enabled, of a kind that takes the value, and for the
    * number and the code, not in a form that sends its fields in the page address. When `allowFill`
-   * then refuses, nothing is typed and the result is empty. Each field is then filled with native input
-   * after its identity is checked again. Snapshots hide the values from before the first one is typed.
+   * then refuses, nothing is typed and the result is empty; when it allows, it can prepare the tab
+   * first. Each field is then filled with native input after its identity is checked again. Snapshots
+   * hide the values from before the first one is typed.
    */
   readonly fillCard = Effect.fn("BrowserCdp.fillCard")(function* (
     this: BrowserCdpEngine,
     targets: BrowserCardTargets,
     card: VaultCardSecret,
-    policy: { checkOrigin: (origin: string) => void; allowFill: () => boolean; onFill: () => void },
+    policy: {
+      checkOrigin: (origin: string) => void;
+      allowFill: () => Effect.Effect<boolean, BrowserOperationError>;
+      onFill: () => void;
+    },
     deadline: number,
   ): Effect.fn.Return<BrowserCardFillResult, BrowserOperationError> {
     const generation = this.#navigationGeneration;
@@ -507,10 +512,10 @@ export class BrowserCdpEngine {
           if (!isString(fingerprint)) return yield* unavailable(field, "is unavailable. Take a fresh snapshot.");
           fields.push({ field, ...node, description, text, fingerprint });
         }
+        if (!(yield* policy.allowFill())) return { filled: [], unconfirmed: [] };
         yield* browserSync(() => assertBeforeDeadline(deadline));
         if (generation !== this.#navigationGeneration)
           return yield* browserFailure(new Error("The card page changed. Take a fresh snapshot."));
-        if (!policy.allowFill()) return { filled: [], unconfirmed: [] };
         this.#cardScrub.add(card.number, card.securityCode);
         policy.onFill();
         const filled: BrowserCardField[] = [];

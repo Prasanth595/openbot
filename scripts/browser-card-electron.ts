@@ -249,10 +249,15 @@ async function main(): Promise<void> {
       expYear: ref(before, "Expiry year"),
       nameOnCard: ref(before, "Name on card"),
     };
+    const recording = await call("recording_start", { tabId: main.tabId });
+    assert(recording.success, `Recording did not start: ${text(recording)}`);
     ownerAnswer = false;
     const declined = await call("fill_card", { tabId: main.tabId, cardId: CARD_ID, targets: mainTargets });
     assert(failure(declined).includes("did not approve"), "A declined fill was not refused.");
     assert.equal((await values(main.contents)).number?.value, "", "A declined fill typed the number.");
+    // A hidden window records no frames, so the stop can fail; a discarded recording fails another way.
+    const kept = await call("recording_stop", { tabId: main.tabId });
+    assert(!text(kept).includes("not being recorded"), "A declined fill discarded the recording.");
     assert.deepEqual(approvals, [{ page: CHECKOUT, frames: [CHECKOUT] }], "The approval did not name the page.");
     ownerAnswer = true;
     const mainFill = await call("fill_card", { tabId: main.tabId, cardId: CARD_ID, targets: mainTargets });
@@ -276,6 +281,7 @@ async function main(): Promise<void> {
     formats.selects = `${mainValues.month?.value}/${mainValues.year?.value}`;
     recordCases(
       "approval-declined-types-nothing",
+      "approval-declined-keeps-recording",
       "approval-names-page",
       "main-frame-fill",
       "result-names-fields-only",

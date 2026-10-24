@@ -1997,8 +1997,6 @@ export class BrowserHost {
           if (!topOrigin?.startsWith("https://"))
             return yield* browserFailure(new Error("Card fill needs an HTTPS page. Use request_takeover."));
           const frames = new Set<string>();
-          // A recording would keep the frames that show the card.
-          yield* this.#recorder.discard(args.tabId, "requested");
           result = yield* current.engine.fillCard(
             args.targets,
             card,
@@ -2012,9 +2010,12 @@ export class BrowserHost {
                 frames.add(origin);
               },
               allowFill: () => {
-                if (vault.approved(args.cardId, topOrigin, [...frames])) return true;
-                outcome.approval = { page: topOrigin, frames: [...frames] };
-                return false;
+                if (!vault.approved(args.cardId, topOrigin, [...frames])) {
+                  outcome.approval = { page: topOrigin, frames: [...frames] };
+                  return Effect.succeed(false);
+                }
+                // A recording would keep the frames that show the card. A fill that waits keeps it.
+                return this.#recorder.discard(args.tabId, "requested").pipe(Effect.as(true));
               },
               onFill: () => {
                 markDispatched();
