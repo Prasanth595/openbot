@@ -445,7 +445,6 @@ export function legacyTeamCapabilities(capabilities: readonly string[]): string[
       capability !== TEAM_QUEUE_WINDOW_CAPABILITY &&
       capability !== BROWSER_USER_CONTROL_CAPABILITY &&
       capability !== DEVICE_TOOLS_CAPABILITY &&
-      capability !== DEVICE_TOOLS_CAPABILITY &&
       capability !== BROWSER_PAGE_STATE_CAPABILITY &&
       capability !== BROWSER_SIGN_IN_CAPABILITY &&
       capability !== TEAM_UI_BLOCKS_CAPABILITY &&
