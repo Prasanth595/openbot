@@ -91,7 +91,8 @@ export function collectProviderUsage(
   if (session.provider === "antigravity") {
     // Antigravity 1.4.3 sends the tokens of this prompt only: `_extract_turn_usage` subtracts the
     // session's total at the turn's start, and a restored session starts from its saved total. So
-    // each turn is its own counter. Gemini bills thinking as output, and Antigravity sends it apart.
+    // each prompt is its own counter, also when a delivery that hit a limit runs again with the same
+    // turn ID. Gemini bills thinking as output, and Antigravity sends it apart.
     const tokens = acpTokens(value);
     const thought = count(value.thoughtTokens);
     usage.record({
@@ -100,7 +101,7 @@ export function collectProviderUsage(
       turnId,
       provider: session.provider,
       model,
-      counterId: `${session.id}:antigravity:${turnId}`,
+      counterId: `${session.id}:antigravity:${getString(params, "promptId") ?? turnId}`,
       baseline: false,
       tokens: { ...tokens, output: tokens.output === null ? null : tokens.output + (thought ?? 0) },
     });

@@ -471,8 +471,8 @@ has no category breakdown.
 
 Antigravity 1.4.3 also returns `usage` from `session/prompt`: the tokens of that prompt only, measured
 from the session's total at the turn's start. A restored session starts from its saved total.
-`src/backend/agent/usage-collection.ts` books each turn as its own counter and adds `thoughtTokens`
-to the output. 1.4.1 and earlier return no `usage`.
+`src/backend/agent/usage-collection.ts` books each prompt result as its own counter (`promptId`, because
+a delivery that runs again keeps its turn ID) and adds `thoughtTokens` to the output. 1.4.1 and earlier return no `usage`.
 
 Antigravity 1.3.0 keeps `session/prompt` open until its harness reports
 `STATE_FULLY_IDLE`. A background task can thus keep a turn open after answer text
