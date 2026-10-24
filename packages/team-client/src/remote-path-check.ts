@@ -12,6 +12,8 @@ export interface ProbeArm {
   rttMs: number | null;
   /** The bytes that the selected pair sent until now. */
   bytesSent: number;
+  /** The data bytes that the selected pair received until now. */
+  bytesReceived: number;
   /** The bytes in the rpc channel ahead of the probe. */
   rpcBuffered: number;
   probeBytes: number;
@@ -57,7 +59,7 @@ const PROBE_DEADLINE_MS = 12_000;
 const BUSY_HOST_DEADLINE_MS = 60_000;
 
 /** The probe has left the phone once everything queued ahead of it, plus itself, has been sent. */
-export function probeLeft(arm: ProbeArm, now: ProbeSample): boolean {
+function probeLeft(arm: ProbeArm, now: ProbeSample): boolean {
   return now.bytesSent - arm.bytesSent >= arm.rpcBuffered + arm.probeBytes;
 }
 
@@ -65,26 +67,20 @@ export function probeLeft(arm: ProbeArm, now: ProbeSample): boolean {
  * dead/send-stalled: the probe is still queued, and the path sent less than one probe frame across
  * the last two checks. The phone acknowledges the data that it receives, so a path that sends
  * nothing of its own still sends about 0.5 KB/s; a strict zero would never match.
- * dead/no-answer: the probe left, and no answer came within the answer window after it left. Each
- * read that finds new host data after the probe left starts a new answer window, up to 60 s after
- * the arm.
+ * dead/no-answer: the probe left, and no answer came within the answer window after it left. When
+ * the host sent data after the arm, such as the acknowledgement of the probe, the wait extends to
+ * 60 s after the arm: the host has the probe and is only slow (#1954).
  * pending: otherwise, until 12 s after the arm. The caller's timeout limits each deadline.
  * `earlier` holds the previous samples of this probe, oldest first.
  */
 export function judgePath(arm: ProbeArm, earlier: readonly ProbeSample[], now: ProbeSample): PathVerdict {
   const deadline = arm.at + Math.min(PROBE_DEADLINE_MS, arm.limitMs);
-  const samples = [...earlier, now];
-  const leftIndex = samples.findIndex((sample) => probeLeft(arm, sample));
-  const left = samples[leftIndex];
+  const left = [...earlier, now].find((sample) => probeLeft(arm, sample));
   if (left) {
-    let lastData: ProbeSample | null = null;
-    for (let index = leftIndex + 1; index < samples.length; index += 1) {
-      const sample = samples[index];
-      const previous = samples[index - 1];
-      if (sample && previous && sample.bytesReceived > previous.bytesReceived) lastData = sample;
-    }
-    const answerBy = lastData
-      ? Math.min(arm.at + Math.min(BUSY_HOST_DEADLINE_MS, arm.limitMs), lastData.at + answerWindowMs(arm))
+    // Data from the host after the arm includes the acknowledgement of the probe: the host has it.
+    const hostSends = now.bytesReceived > arm.bytesReceived;
+    const answerBy = hostSends
+      ? arm.at + Math.min(BUSY_HOST_DEADLINE_MS, arm.limitMs)
       : Math.min(deadline, left.at + answerWindowMs(arm));
     if (now.at >= answerBy) return { kind: "dead", reason: "no-answer" };
     return { kind: "pending", recheckAt: Math.min(answerBy, now.at + PATH_CHECK_INTERVAL_MS) };

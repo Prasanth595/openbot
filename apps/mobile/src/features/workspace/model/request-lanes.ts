@@ -20,7 +20,10 @@ export function isBackgroundRead(method: string, path: string): boolean {
   return BACKGROUND_READS.some((read) => read.method === method && read.route.test(route));
 }
 
-/** Runs at most `limit` tasks at a time, in the order they arrive. */
+/**
+ * Runs at most `limit` tasks at a time. A free slot goes to the newest waiting task: a screen that
+ * opens after a burst of reads waits for one read, not for the whole burst.
+ */
 export function createRequestLimiter(limit: number) {
   let running = 0;
   const waiting: (() => void)[] = [];
@@ -31,7 +34,7 @@ export function createRequestLimiter(limit: number) {
       return await task();
     } finally {
       // The slot goes to the next task directly, so a new task cannot take it first.
-      const next = waiting.shift();
+      const next = waiting.pop();
       if (next) next();
       else running -= 1;
     }

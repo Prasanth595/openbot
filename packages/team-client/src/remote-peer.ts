@@ -1360,6 +1360,7 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
           at: Date.now(),
           rttMs: sent.rttMs,
           bytesSent: sent.bytesSent,
+          bytesReceived: sent.bytesReceived,
           rpcBuffered: state.channels.rpc?.bufferedAmount ?? 0,
           probeBytes: new TextEncoder().encode(payload).byteLength,
           fresh: !state.answeredRequest,
