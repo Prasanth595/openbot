@@ -91,6 +91,7 @@ import { skillIpcHandlers } from "./ipc/skill-handlers";
 import { storageIpcHandlers } from "./ipc/storage-handlers";
 import { teamIpcHandlers } from "./ipc/team-handlers";
 import { updateIpcHandlers } from "./ipc/update-handlers";
+import { vaultIpcHandlers } from "./ipc/vault-handlers";
 import { voiceIpcHandlers } from "./ipc/voice-handlers";
 import { KeepAwake } from "./keep-awake";
 import { installLinuxDesktopEntry } from "./linux-desktop-entry";
@@ -350,6 +351,7 @@ const {
   forwardGitHubConnectorStatus,
   forwardOnePasswordConnectorStatus,
   forwardBitwardenConnectorStatus,
+  forwardVaultState,
   forwardHostStatus,
   forwardRemoteDesktopSessions,
   forwardServers,
@@ -551,6 +553,7 @@ function registerIpcHandlers({
   githubConnector,
   onePasswordConnector,
   bitwardenConnector,
+  vault,
   billing,
   license,
   hostedServers,
@@ -638,6 +641,7 @@ function registerIpcHandlers({
     ...githubConnectorIpcHandlers({ githubConnector, remoteServers, openExternal: (url) => shell.openExternal(url) }),
     ...onePasswordConnectorIpcHandlers({ onePasswordConnector, remoteServers }),
     ...bitwardenConnectorIpcHandlers({ bitwardenConnector, remoteServers }),
+    ...vaultIpcHandlers({ vault, getMainWindow: getDialogParent, translate: language.translate }),
     ...billingIpcHandlers({ billing }),
     ...licenseIpcHandlers({ license }),
     ...routineFeedIpcHandlers({ routineFeed }),
@@ -1191,6 +1195,7 @@ if (!hasSingleInstanceLock) {
       built.githubConnector.onChanged(forwardGitHubConnectorStatus);
       built.onePasswordConnector.onChanged(forwardOnePasswordConnectorStatus);
       built.bitwardenConnector.onChanged(forwardBitwardenConnectorStatus);
+      built.vault.onChanged(forwardVaultState);
       remoteServers.on("changed", forwardServers);
       remoteServers.on("agent", (serverId, event, bufferedLive) => {
         forwardAgentEvent(serverId, event, bufferedLive);

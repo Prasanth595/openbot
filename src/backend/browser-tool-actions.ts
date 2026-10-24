@@ -4,6 +4,7 @@ import type { BrowserCdpEngine } from "./browser-cdp";
 import { type BrowserOperationError, browserSync } from "./browser-effects";
 import type { BrowserToolCall } from "./browser-tools";
 import type { DynamicToolResult } from "./protocol";
+import type { VaultCardSecret } from "./vault-items";
 
 export interface BrowserDynamicToolHooks {
   onUploadTargetResolved?: (inputId: string, documentId: string) => void;
@@ -11,6 +12,8 @@ export interface BrowserDynamicToolHooks {
   onUploadOperationStarted?: (completion: Fiber.Fiber<void, BrowserOperationError>) => void;
   /** A person controls the tab. The caller waits for the release and gives the result of the tool call. */
   onUserControl?: (tabId: string) => Effect.Effect<DynamicToolResult>;
+  /** The values `fill_card` types for a saved card, or null when no such card is saved. */
+  cardSecret?: (cardId: string) => VaultCardSecret | null;
 }
 
 export type BrowserInputCall = Extract<

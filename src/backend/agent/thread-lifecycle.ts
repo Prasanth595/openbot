@@ -49,7 +49,12 @@ import { readCodexMcpConfig } from "./codex-mcp-config";
 import type { ContextCompaction } from "./context-compaction";
 import type { ConversationRuntime } from "./conversation-runtime";
 import { agentNamesById } from "./delivery-content";
-import { developerInstructions, memoryContext, type SectionTeammates } from "./developer-instructions";
+import {
+  developerInstructions,
+  memoryContext,
+  type SectionTeammates,
+  type VaultContents,
+} from "./developer-instructions";
 import {
   appendRoutineDigest,
   readHandoffHistory,
@@ -131,6 +136,8 @@ export interface ThreadLifecycleOptions {
   agentEnvironment?: (inherited?: NodeJS.ProcessEnv) => Readonly<Record<string, string>>;
   /** Whether a password vault is connected, read at each start and resume of a session. */
   passwordVaultConnected?: () => boolean;
+  /** What the Vault holds, read at each start and resume of a session. */
+  vaultItems?: () => VaultContents;
   /** OpenBot runs on a server. The prompt then names the sign-in on the user's computer. */
   serverHost?: boolean;
   /** The other agents in an agent's sidebar section, read at each start and resume of a session. */
@@ -163,6 +170,7 @@ export class ThreadLifecycle {
   ) => Effect.Effect<string | null, McpOperationError>;
   readonly #agentEnvironment: () => Readonly<Record<string, string>>;
   readonly #passwordVaultConnected: () => boolean;
+  readonly #vaultItems: () => VaultContents;
   readonly #serverHost: boolean;
   readonly #sectionTeammates: (agentId: string) => SectionTeammates | null;
   readonly #pendingHandoffs = new Map<string, string>();
@@ -190,6 +198,7 @@ export class ThreadLifecycle {
     this.#mcpProxyFingerprint = options.mcpProxyFingerprint ?? (() => Effect.succeed(null));
     this.#agentEnvironment = options.agentEnvironment ?? (() => ({}));
     this.#passwordVaultConnected = options.passwordVaultConnected ?? (() => false);
+    this.#vaultItems = options.vaultItems ?? (() => ({ available: false, cards: false, contacts: false }));
     this.#serverHost = options.serverHost ?? false;
     this.#sectionTeammates = options.sectionTeammates ?? (() => null);
   }
@@ -932,6 +941,7 @@ export class ThreadLifecycle {
     const options = {
       computerUseInOwnChat,
       passwordVault: this.#passwordVaultConnected(),
+      vaultItems: this.#vaultItems(),
       serverHost: this.#serverHost,
       memoryLimit: this.#memories.limit(),
       storedMemoryCount: this.#memories.listFor(agent.id).length,

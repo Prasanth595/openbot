@@ -22,6 +22,7 @@ import {
   marketplaceSuggestionItemType,
   mcpSignInItemType,
   skillConversationEventItemType,
+  VAULT_CHANGE_ITEM_TYPE,
   workspaceAccessEnforced,
 } from "@openbot/contracts/ipc";
 import { isString } from "@openbot/contracts/runtime-values";
@@ -397,7 +398,16 @@ export class OpenBotToolRouter {
                 ? this.#browserUploads.uploadFiles(agentId, params)
                 : params.tool === "list_logins"
                   ? this.#attention.listVaultLogins(params)
-                  : this.#browser.handleDynamicTool(params, { onUserControl: userControl });
+                  : params.tool === "list_vault_items"
+                    ? this.#attention.listVaultItems(params)
+                    : params.tool === "save_vault_item"
+                      ? this.#attention.saveVaultItem(params)
+                      : params.tool === "delete_vault_item"
+                        ? this.#attention.deleteVaultItem(params)
+                        : this.#browser.handleDynamicTool(params, {
+                            onUserControl: userControl,
+                            cardSecret: (cardId) => this.#attention.vaultCardSecret(cardId),
+                          });
             });
             const signal = toolRequest.signal;
             const cancelled = Effect.callback<never>((resume) => {
@@ -1208,12 +1218,27 @@ export class OpenBotToolRouter {
     });
   });
 
+  /** Adds the note that an agent changed the Vault. `text` names the item, never a secret. */
+  postVaultNote(agentId: string, threadId: string, turnId: string, text: string): void {
+    this.#postSystemCard(agentId, threadId, turnId, {
+      itemType: VAULT_CHANGE_ITEM_TYPE,
+      text,
+      eventType: "vault.changed",
+      detail: {},
+    });
+  }
+
   /** Adds a card that the renderer draws from its item type, with `text` for a client that cannot. */
   #postSystemCard(
     agentId: string,
     threadId: string,
     turnId: string,
-    card: { itemType: string; text: string; eventType: string; detail: { appId: string } | { mcpServerId: string } },
+    card: {
+      itemType: string;
+      text: string;
+      eventType: string;
+      detail: { appId: string } | { mcpServerId: string } | Record<string, never>;
+    },
   ): void {
     const snapshot = structuredClone(this.#conversation.ensureSnapshot(agentId, threadId));
     const message: ConversationMessage = {

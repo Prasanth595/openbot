@@ -295,6 +295,8 @@ import {
   UpdateService,
 } from "./update-service";
 import { listSiblingOpenBotInstances } from "./update-sibling-instances";
+import { VaultService } from "./vault-service";
+import { VaultStore } from "./vault-store";
 import { VoiceApiKeyStore } from "./voice-api-key-store";
 import { openScribeSocket } from "./voice-cloud-stream";
 import {
@@ -358,6 +360,8 @@ const GITHUB_CONNECTOR_FILE = "openbot-github-connector-v1.json";
 const ONEPASSWORD_CONNECTOR_FILE = "openbot-onepassword-connector-v1.json";
 /** The Bitwarden API key and master password of a host connection (`bitwarden-connector-v1`), with the same cipher. */
 const BITWARDEN_CONNECTOR_FILE = "openbot-bitwarden-connector-v1.json";
+/** The logins, payment cards and contact info of the Vault in Server settings, with the same cipher. */
+const VAULT_FILE = "openbot-vault-v1.json";
 /** Which agent each imported Hermes profile made, so a second import updates that agent. */
 const HERMES_IMPORT_LINKS_FILE = "openbot-hermes-imports-v1.json";
 
@@ -496,6 +500,7 @@ export interface ApplicationServices {
   githubConnector: GitHubConnectorService;
   onePasswordConnector: OnePasswordConnectorService;
   bitwardenConnector: BitwardenConnectorService;
+  vault: VaultService;
   mailbox: MailboxStore;
   storageUsage: StorageUsageService;
   browser: BrowserHost;
@@ -1364,6 +1369,16 @@ export async function createApplicationServices({
   });
 
   /*
+   * The Vault in Server settings. Every agent fills its logins, cards and contact info; the file
+   * holds no resource, so nothing is torn down.
+   */
+  const vault = new VaultService({
+    store: new VaultStore(join(app.getPath("userData"), VAULT_FILE), secretCipher),
+    canPersist: secretCipher.canPersist,
+  });
+  await Effect.runPromise(vault.load());
+
+  /*
    * The 1Password connection. The browser fills logins from it, so the agent service reads it. The
    * login list is read from 1Password in the background; startup does not wait for it.
    */
@@ -1623,7 +1638,12 @@ export async function createApplicationServices({
       mcpServer: () => githubConnector.mcpServer(),
       mcpAuthorization: () => githubConnector.mcpAuthorization().pipe(toMcpGatewayFailed),
     },
-    passwordVault: passwordVaultRouter(onePasswordConnector, bitwardenConnector),
+    passwordVault: passwordVaultRouter([
+      { prefix: "", vault: onePasswordConnector },
+      { prefix: "bitwarden:", vault: bitwardenConnector },
+      { prefix: "openbot:", vault: vault.logins },
+    ]),
+    vaultItems: vault.items,
     agentApiKeys,
     localSkillTools: () => localSkillTools(skills),
     routineFlowTools: () => routineFlowRuntime,
@@ -2818,6 +2838,7 @@ export async function createApplicationServices({
     githubConnector,
     onePasswordConnector,
     bitwardenConnector,
+    vault,
     mailbox,
     storageUsage,
     browser,

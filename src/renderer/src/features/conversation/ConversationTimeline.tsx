@@ -1440,6 +1440,7 @@ export function ConversationTimeline() {
                 signInBlocked={localSignIn.blockedTakeover()}
                 browserSecret={{
                   loadPreview: runtime.browser.capturePreview,
+                  vaultSave: props.server?.kind === "local",
                   onRespond: runtime.agent.respondToBrowserSecret,
                 }}
               />

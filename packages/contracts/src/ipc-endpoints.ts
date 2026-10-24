@@ -190,7 +190,7 @@ import type {
   UpdateAgentBrowserProfileInput,
   UpdateBrowserProfileInput,
 } from "./ipc-browser-profiles";
-import type { RespondToBrowserSecretInput } from "./ipc-browser-secret";
+import type { LocalBrowserSecretResponse } from "./ipc-browser-secret";
 import type {
   ChannelMemory,
   CreateChannelMemoryInput,
@@ -466,6 +466,7 @@ import type {
   UpdateHostIdentityInput,
   UpdateTeamMemberInput,
 } from "./ipc-team-host";
+import type { VaultImportResult, VaultSaveInput, VaultSecretRequest, VaultState } from "./ipc-vault";
 import type {
   SpeechAudio,
   SpeechInput,
@@ -1063,6 +1064,18 @@ export const IPC_ENDPOINTS = {
     ),
     hostDisconnect: scopedQuery<BitwardenConnectorStatus, "required">()("bitwarden-connector:host-disconnect"),
   },
+  // The Vault of this computer. Lists carry no password, card number or security code: `reveal`
+  // returns one when the user asks, and `copy` writes one to the clipboard in main.
+  vault: {
+    list: request<undefined, VaultState>()("vault:list"),
+    save: request<VaultSaveInput, VaultState>()("vault:save"),
+    delete: request<string, VaultState>()("vault:delete"),
+    reveal: request<VaultSecretRequest, string>()("vault:reveal"),
+    copy: request<VaultSecretRequest, void>()("vault:copy"),
+    importCsv: request<undefined, VaultImportResult>()("vault:import-csv"),
+    reset: request<undefined, VaultState>()("vault:reset"),
+    changed: event<VaultState>()("vault:changed"),
+  },
   // The 1Password connection of this computer. The token goes from the renderer to main once, in
   // `connectWithToken`; every answer is the status only. The `host*` endpoints do the same for a
   // joined server (`onepassword-connector-v1`), with a token only: the host has no 1Password app.
@@ -1272,7 +1285,7 @@ export const IPC_ENDPOINTS = {
     compactContext: scopedRequest<string, void>()("agent:compact-context"),
     respondToPrompt: scopedRequest<RespondToPromptInput, void>()("agent:respond-to-prompt"),
     respondToApproval: scopedRequest<RespondToApprovalInput, void>()("agent:respond-to-approval"),
-    respondToBrowserSecret: scopedRequest<RespondToBrowserSecretInput, void>()("agent:respond-to-browser-secret"),
+    respondToBrowserSecret: scopedRequest<LocalBrowserSecretResponse, void>()("agent:respond-to-browser-secret"),
     respondToBrowserTakeover: scopedRequest<RespondToBrowserTakeoverInput, void>()("agent:respond-to-browser-takeover"),
     scopedEvent: event<ScopedAgentEvent>()("agent:event"),
   },
@@ -1665,6 +1678,7 @@ export const IPC_GROUP_PATHS = {
   githubConnector: "githubConnector",
   onePasswordConnector: "onePasswordConnector",
   bitwardenConnector: "bitwardenConnector",
+  vault: "vault",
   hostedSites: "hostedSites",
   routineFeed: "routineFeed",
   routineFlows: "routineFlows",

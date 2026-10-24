@@ -586,6 +586,21 @@ is not included in analytics; provider output uses the application's secret reda
   service account token for that server in Server settings › Connectors. The token goes once, over the
   encrypted connection, to the server, which keeps it in the same file on its own disk. The
   computer that sent it does not keep it, and no answer from the server carries it.
+- The Vault (Server settings › Vault) is kept in
+  `~/Library/Application Support/OpenBot/openbot-vault-v1.json`, encrypted by the operating system's
+  secret storage. It holds the logins, payment cards (number, expiry, security code, name) and
+  contact info that the user saves. On a computer with no secret storage, such as Linux with no
+  keyring, the Vault saves nothing. The file never leaves this computer, and joined servers and team
+  members cannot read it. An agent gets the login sites and usernames, the card names with their last
+  four digits and expiry, and the contact info; it never gets a password, a card number, a security
+  code or login notes. An agent can add and change contact info, change the site and username of a
+  login and the name, expiry and billing address of a card, and delete items, with no approval: the
+  chat shows each change, and an item that an agent adds keeps the agent's name. A password that the
+  user types into the secure sign-in card goes to the Vault only while Save to Vault is checked. The
+  browser types those values into the page, where the page's own scripts can read them, as they read
+  what a person types. Until that page navigates, the agent cannot take a screenshot, evaluate
+  script or record in that tab, and its snapshots hide the card fields. Passwords and card numbers
+  are redacted from logs, exports and diagnostics. A CSV import is read on this computer only.
 - `~/Library/Application Support/OpenBot/logs/trace.ndjson` is a local trace of IPC calls,
   provider turns, main-process failures, and the steps of each connection to a joined server. Each
   line holds a time, the IPC channel name, the turn origin, the failure origin (`uncaughtException`

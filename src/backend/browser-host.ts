@@ -49,6 +49,7 @@ import {
   webContents,
 } from "electron";
 import { writeJsonFileAtomically } from "./atomic-json-file";
+import type { BrowserCardFillResult } from "./browser-card-fill";
 import {
   BrowserCdpEngine,
   type BrowserScreencastFrame,
@@ -516,6 +517,7 @@ export class BrowserHost {
       tab.recording ||
       tab.secret !== undefined ||
       tab.secretDocument === true ||
+      tab.filledCard === true ||
       this.#takeoverTabIds.has(tab.id) ||
       this.#userControlTabIds.has(tab.id) ||
       tab.contents.isCurrentlyAudible()
@@ -1276,10 +1278,16 @@ export class BrowserHost {
   }
 
   #requireNoSecretDocument(tab: BrowserHostTab, action: string): void {
-    if ([...this.#connectedTabs(tab)].some((connected) => connected.secretDocument))
+    if ([...this.#connectedTabs(tab)].some((connected) => connected.secretDocument || connected.filledCard))
       throw new Error(
         `${action} is unavailable while a page that received a secret is open. Use snapshots and actions until it navigates.`,
       );
+  }
+
+  /** A filled card shows on the page, so no image of the tab leaves the host until it navigates. */
+  #requireNoFilledCard(tab: BrowserHostTab, action: string): void {
+    if (tab.filledCard)
+      throw new Error(`${action} is unavailable while the page shows a filled card. Use snapshots until it navigates.`);
   }
 
   #connectedTabs(tab: BrowserHostTab): Set<BrowserHostTab> {
@@ -1425,6 +1433,7 @@ export class BrowserHost {
   ): Effect.fn.Return<string, BrowserOperationError> {
     return yield* this.#enqueue(tabId, (tab, keepQueueBlocked) =>
       Effect.gen({ self: this }, function* () {
+        yield* browserSync(() => this.#requireNoFilledCard(tab, "Browser screenshot"));
         const image = yield* boundEngineOperation(
           tab,
           tab.engine.screenshot(),
@@ -1448,6 +1457,7 @@ export class BrowserHost {
     yield* this.#wake(tab);
     if (tab.secret?.submitted)
       return yield* browserFailure(new Error("Browser inspection is protected during authentication. Use takeover."));
+    yield* browserSync(() => this.#requireNoFilledCard(tab, "Browser preview"));
     const cached = savedPreview(tab);
     if (cached && tab.pendingOperations > 0) return cached;
     const started = yield* this.#previewCapture(tab);
@@ -1482,6 +1492,7 @@ export class BrowserHost {
         const result = yield* Effect.exit(
           enqueueTabOperation(tab, (_tab, keepQueueBlocked) =>
             Effect.gen({ self: this }, function* () {
+              yield* browserSync(() => this.#requireNoFilledCard(tab, "Browser preview"));
               const image = yield* boundEngineOperation(
                 tab,
                 tab.engine.screenshot(),
@@ -1546,6 +1557,7 @@ export class BrowserHost {
     const tab = yield* this.#requireTab(tabId);
     if (tab.secret?.submitted)
       return yield* browserFailure(new Error(sourceText("error.backend.browserViewProtected")));
+    yield* browserSync(() => this.#requireNoFilledCard(tab, "Browser view"));
     const generation = tab.captureGeneration;
     let invalidated = false;
     // Chromium reports the cursor of the input it dispatches, the live view's pointer included.
@@ -1577,7 +1589,7 @@ export class BrowserHost {
           ...(viewport ? { viewport } : {}),
         },
         (frame) => {
-          if (!tab.secret?.submitted && tab.captureGeneration === generation) onFrame(frame);
+          if (!tab.secret?.submitted && !tab.filledCard && tab.captureGeneration === generation) onFrame(frame);
         },
         (error) => {
           tab.viewInvalidations.delete(invalidate);
@@ -1665,7 +1677,8 @@ export class BrowserHost {
         const capture = yield* this.#enqueue(tabId, (tab, keepQueueBlocked) =>
           Effect.gen({ self: this }, function* () {
             const result = yield* readTabSnapshot(tab, tab.revision + 1, keepQueueBlocked);
-            const includeImage = mode === "always" || (mode === "auto" && result.recommendImage);
+            if (mode === "always") yield* browserSync(() => this.#requireNoFilledCard(tab, "A snapshot image"));
+            const includeImage = mode === "always" || (mode === "auto" && result.recommendImage && !tab.filledCard);
             if (!includeImage) return { result, imageUrl: null };
             const image = yield* boundEngineOperation(
               tab,
@@ -1745,6 +1758,55 @@ export class BrowserHost {
     set_checked: (call, params, hooks) => this.#runInputTool(call, params, hooks),
     drag: (call, params, hooks) => this.#runInputTool(call, params, hooks),
     upload_files: (call, params, hooks) => this.#runInputTool(call, params, hooks),
+    fill_card: ({ args }, params, hooks) =>
+      Effect.gen({ self: this }, function* () {
+        yield* browserSync(() => this.#requireToolTab(params, args.tabId));
+        const card = hooks.cardSecret?.(args.cardId) ?? null;
+        if (!card) return yield* browserFailure(new Error("No saved card has this id. Call list_vault_items."));
+        const tab = yield* this.#requireTab(args.tabId);
+        if (tab.secret) return yield* browserFailure(new Error(sourceText("error.backend.authActive")));
+        let result: BrowserCardFillResult = { filled: [], unconfirmed: [] };
+        const snapshot = yield* this.#runAction(
+          args.tabId,
+          "fill_card",
+          args.targets.number,
+          (current, deadline, markDispatched) =>
+            Effect.gen({ self: this }, function* () {
+              const topOrigin = urlOrigin(currentTabUrl(current));
+              if (!topOrigin?.startsWith("https://"))
+                return yield* browserFailure(new Error("Card fill needs an HTTPS page. Use request_takeover."));
+              // A recording would keep the frames that show the card.
+              yield* this.#recorder.discard(args.tabId, "requested");
+              result = yield* current.engine.fillCard(
+                args.targets,
+                card,
+                {
+                  checkOrigin: (origin) => {
+                    // A script the agent ran on the page or the payment frame's site can read the fields.
+                    if (this.#agentScriptedOrigins.has(origin) || this.#agentScriptedOrigins.has(topOrigin))
+                      throw new Error(
+                        "Card fill is unavailable on a site where you ran evaluate. Use request_takeover.",
+                      );
+                    this.#requireIsolatedFromConnectedTabs(current, topOrigin);
+                    if (origin !== topOrigin) this.#requireIsolatedFromConnectedTabs(current, origin);
+                  },
+                  onFill: () => {
+                    markDispatched();
+                    current.filledCard = true;
+                    this.#invalidateViews(current);
+                  },
+                },
+                deadline,
+              );
+            }),
+          browserToolTimeout(args.timeoutMs),
+        );
+        return textResult({
+          filled: result.filled,
+          ...(result.unconfirmed.length > 0 ? { unconfirmed: result.unconfirmed } : {}),
+          snapshot,
+        });
+      }),
     wait_for: ({ args }, params) =>
       Effect.gen({ self: this }, function* () {
         const tabId = args.tabId;
@@ -1875,6 +1937,9 @@ export class BrowserHost {
     submit_secret: rejectTakeoverTool,
     request_takeover: rejectTakeoverTool,
     list_logins: rejectTakeoverTool,
+    list_vault_items: rejectTakeoverTool,
+    save_vault_item: rejectTakeoverTool,
+    delete_vault_item: rejectTakeoverTool,
   };
 
   readonly handleDynamicTool = Effect.fn("BrowserHost.handleDynamicTool")(function* (
@@ -1922,7 +1987,13 @@ export class BrowserHost {
   }).bind(this);
 
   #toolTabs(params: DynamicToolCallParams): { tabs: BrowserTab[]; activeTabId: string | null } {
-    const tabs = this.listTabs().filter((tab) => this.#canUseToolTab(params, tab));
+    // A page can put a typed card value in its title or address, so they go through the tab's scrub.
+    const tabs = this.listTabs()
+      .filter((tab) => this.#canUseToolTab(params, tab))
+      .map((tab) => {
+        const engine = this.#tabs.get(tab.id)?.engine;
+        return engine ? { ...tab, title: engine.scrubText(tab.title), url: engine.scrubText(tab.url) } : tab;
+      });
     const activeTabId = tabs.some((tab) => tab.id === this.#activeTabId)
       ? this.#activeTabId
       : (tabs.at(-1)?.id ?? null);
@@ -2419,6 +2490,11 @@ export class BrowserHost {
       tab.documents += 1;
       if (tab.secretDocument) {
         tab.secretDocument = false;
+        contents.navigationHistory.clear();
+      }
+      // The next document has no card in its fields. History would bring the filled page back.
+      if (tab.filledCard) {
+        tab.filledCard = false;
         contents.navigationHistory.clear();
       }
       if (tab.secret?.submitted) {

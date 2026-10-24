@@ -55,6 +55,7 @@ import type {
   HostAnalyticsInput,
   ListChannelRoutineRunsInput,
   ListRoutineRunsInput,
+  LocalBrowserSecretResponse,
   McpServerConfig,
   McpSignInAppInput,
   McpSignInAppState,
@@ -68,7 +69,6 @@ import type {
   ReorderQueueInput,
   ResetAgentSessionSettingInput,
   RespondToApprovalInput,
-  RespondToBrowserSecretInput,
   RespondToBrowserTakeoverInput,
   RespondToPromptInput,
   Routine,
@@ -225,6 +225,7 @@ import { RoutineRecords } from "./routine-records";
 import type { RoutineHoldWindow } from "./routine-store";
 import { RoutineTimer } from "./routine-timer";
 import type { SidebarLayoutStore } from "./sidebar-layout-store";
+import type { VaultItems } from "./vault-items";
 import {
   listWorkspaceDirectory,
   type ResolvedSharedFile,
@@ -347,6 +348,8 @@ export interface AgentServiceOptions {
   githubConnector?: GitHubConnectorSource | null;
   /** The 1Password vault the user shared with OpenBot, or `null`. The browser fills logins from it. */
   passwordVault?: PasswordVault | null;
+  /** The cards and contact info of the Vault, or `null`. The browser fills cards from it. */
+  vaultItems?: VaultItems | null;
   /** Where the API keys that users enter through `request_api_key` are saved, or `null`. */
   agentApiKeys?: AgentApiKeys | null;
   /**
@@ -768,6 +771,10 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       emitError: (code, error, agentId) => this.#emitError(code, error, agentId),
       emitRuntimeSnapshot: () => this.#emitRuntimeSnapshot(),
       ...(options.passwordVault === undefined ? {} : { passwordVault: options.passwordVault }),
+      ...(options.vaultItems === undefined ? {} : { vaultItems: options.vaultItems }),
+      agentName: (agentId) => store.list().find((candidate) => candidate.id === agentId)?.name,
+      // The router is made later; a note comes only from a tool call, after both exist.
+      noteVaultChange: (agentId, threadId, turnId, text) => this.#tools.postVaultNote(agentId, threadId, turnId, text),
       apiKeys: options.agentApiKeys ?? null,
     });
     this.#duplication = new DuplicationGate({
@@ -873,6 +880,11 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       mcpProxyFingerprint: (configs) => this.#mcp.proxyFingerprint(configs).pipe(toMcpOperationError),
       ...(credentials.agentEnvironment ? { agentEnvironment: credentials.agentEnvironment } : {}),
       passwordVaultConnected: () => options.passwordVault?.connected() ?? false,
+      vaultItems: () => ({
+        available: options.vaultItems !== undefined,
+        cards: options.vaultItems?.hasCards() ?? false,
+        contacts: options.vaultItems?.hasContacts() ?? false,
+      }),
       // Only a server has a memory reading.
       serverHost: hostMemory !== null,
       sectionTeammates: (agentId) => this.sectionTeammates(agentId),
@@ -4174,7 +4186,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       );
   }
 
-  respondToBrowserSecret(input: RespondToBrowserSecretInput): Effect.Effect<void, AgentLifecycleFailed> {
+  respondToBrowserSecret(input: LocalBrowserSecretResponse): Effect.Effect<void, AgentLifecycleFailed> {
     return this.#attention
       .respondToBrowserSecret(input)
       .pipe(

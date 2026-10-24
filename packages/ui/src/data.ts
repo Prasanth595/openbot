@@ -152,6 +152,7 @@ export type ChatActionMarkerModel =
   | { kind: "model-switch"; reason: ModelSwitchReason; text: string; timestamp: string }
   /** A member agent changed the channel at a person's request. `text` is the host's note. */
   | { kind: "channel-change"; text: string; timestamp: string }
+  | { kind: "vault-change"; text: string; timestamp: string }
   | {
       kind: "unavailable";
       label: string;
