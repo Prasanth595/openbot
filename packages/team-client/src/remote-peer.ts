@@ -1363,6 +1363,7 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
           rpcBuffered: state.channels.rpc?.bufferedAmount ?? 0,
           probeBytes: new TextEncoder().encode(payload).byteLength,
           fresh: !state.answeredRequest,
+          limitMs: timeoutMs,
         };
         const answer = Deferred.makeUnsafe<{ status: number; body: TeamProtocolV2Json }, RemotePeerError>();
         const response = yield* Effect.acquireUseRelease(
@@ -1403,9 +1404,7 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
               timer: setTimeout(
                 checksConnection ? checkPath : expire,
                 checksConnection
-                  ? arm
-                    ? PATH_CHECK_INTERVAL_MS
-                    : unmeasuredProbeMs(!state.answeredRequest)
+                  ? Math.min(arm ? PATH_CHECK_INTERVAL_MS : unmeasuredProbeMs(!state.answeredRequest), timeoutMs)
                   : timeoutMs,
               ),
             };

@@ -17,6 +17,8 @@ export interface ProbeArm {
   probeBytes: number;
   /** No request was answered on this peer yet, so its SCTP association is cold. */
   fresh: boolean;
+  /** The caller's request timeout. The probe never waits longer. */
+  limitMs: number;
 }
 
 /** A later read of the selected pair. */
@@ -63,17 +65,27 @@ export function probeLeft(arm: ProbeArm, now: ProbeSample): boolean {
  * dead/send-stalled: the probe is still queued, and the path sent less than one probe frame across
  * the last two checks. The phone acknowledges the data that it receives, so a path that sends
  * nothing of its own still sends about 0.5 KB/s; a strict zero would never match.
- * dead/no-answer: the probe left, and no answer came within the answer window after it left. While
- * the host sends data after the probe left, the window extends up to 60 s after the arm.
- * pending: otherwise, until 12 s after the arm.
+ * dead/no-answer: the probe left, and no answer came within the answer window after it left. Each
+ * read that finds new host data after the probe left starts a new answer window, up to 60 s after
+ * the arm.
+ * pending: otherwise, until 12 s after the arm. The caller's timeout limits each deadline.
  * `earlier` holds the previous samples of this probe, oldest first.
  */
 export function judgePath(arm: ProbeArm, earlier: readonly ProbeSample[], now: ProbeSample): PathVerdict {
-  const deadline = arm.at + PROBE_DEADLINE_MS;
-  const left = [...earlier, now].find((sample) => probeLeft(arm, sample));
+  const deadline = arm.at + Math.min(PROBE_DEADLINE_MS, arm.limitMs);
+  const samples = [...earlier, now];
+  const leftIndex = samples.findIndex((sample) => probeLeft(arm, sample));
+  const left = samples[leftIndex];
   if (left) {
-    const hostSends = now.bytesReceived > left.bytesReceived;
-    const answerBy = hostSends ? arm.at + BUSY_HOST_DEADLINE_MS : Math.min(deadline, left.at + answerWindowMs(arm));
+    let lastData: ProbeSample | null = null;
+    for (let index = leftIndex + 1; index < samples.length; index += 1) {
+      const sample = samples[index];
+      const previous = samples[index - 1];
+      if (sample && previous && sample.bytesReceived > previous.bytesReceived) lastData = sample;
+    }
+    const answerBy = lastData
+      ? Math.min(arm.at + Math.min(BUSY_HOST_DEADLINE_MS, arm.limitMs), lastData.at + answerWindowMs(arm))
+      : Math.min(deadline, left.at + answerWindowMs(arm));
     if (now.at >= answerBy) return { kind: "dead", reason: "no-answer" };
     return { kind: "pending", recheckAt: Math.min(answerBy, now.at + PATH_CHECK_INTERVAL_MS) };
   }
