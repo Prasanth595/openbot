@@ -747,6 +747,7 @@ export function ConversationTimeline() {
                                         messageId={message()?.id ?? initialMessage.id}
                                         appId={suggestion().appId}
                                         connectors={props.connectors}
+                                        mcpServers={mcpServers()}
                                         onOpenMarketplaceApp={props.onOpenMarketplaceApp}
                                       />
                                     )}
