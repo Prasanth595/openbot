@@ -81,7 +81,15 @@ interface ChannelChange {
  * Owns durable channel records. Every change and its retry receipt commit together.
  */
 export class ChannelStore {
+  /** By channel: how many times a message changed in place after it was complete, in this process. */
+  readonly #completedMessageChanges = new Map<string, number>();
+
   constructor(readonly database: OpenBotDatabase) {}
+
+  /** A packet built before this count changed can show a message as it was before. */
+  completedMessageChanges(channelId: string): number {
+    return this.#completedMessageChanges.get(channelId) ?? 0;
+  }
 
   get(channelId: string): Channel {
     const row = databaseRow(
@@ -406,7 +414,9 @@ export class ChannelStore {
     for (const message of change.messages) {
       const existing = databaseRow(
         db
-          .prepare("SELECT sequence FROM projection_channel_messages WHERE channel_id = ? AND message_id = ?")
+          .prepare(
+            "SELECT sequence, json_extract(message_json, '$.message.status') AS status FROM projection_channel_messages WHERE channel_id = ? AND message_id = ?",
+          )
           .get(change.channel.id, message.id),
       );
       const last = databaseRow(
@@ -425,6 +435,9 @@ export class ChannelStore {
         "INSERT INTO projection_channel_messages VALUES (?, ?, ?, ?) ON CONFLICT(channel_id, message_id) DO UPDATE SET message_json = excluded.message_json",
       ).run(change.channel.id, message.id, assigned, JSON.stringify({ ...message, sequence: assigned }));
       if (existing) {
+        // A streaming message changes on each part of its text; a packet already leaves it unread.
+        if (existing.status !== "streaming")
+          this.#completedMessageChanges.set(change.channel.id, this.completedMessageChanges(change.channel.id) + 1);
         db.prepare(
           "UPDATE projection_channel_summaries SET version = version + 1, through_sequence = 0, text = '' WHERE channel_id = ? AND through_sequence >= ?",
         ).run(change.channel.id, assigned);
