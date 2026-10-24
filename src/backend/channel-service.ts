@@ -1755,21 +1755,22 @@ export class ChannelService {
         (item) => item.id === assignment.taskId,
       );
       if (!task) return;
-      // The delta went to another session, so this session did not read the earlier messages. The
-      // cursor stays on the other session, and the next packet is complete. The entry stays too: the
-      // turn start can report this acceptance a second time.
+      // The drain and the turn start both report the same turn. Only the first report saves the
+      // cursor: a changed message or a compaction can reset it before the second report.
+      const repeated = assignment.state === "running" && assignment.turnId === turnId;
       // A message that the packet showed changed after it was built, so the packet shows it as it was.
-      // The cursor goes to zero, also on the assignment for a second report, and the next packet is
-      // complete.
+      // The cursor goes to zero, and the next packet is complete.
       const prepared = this.#preparedChanges.get(deliveryId);
       this.#preparedChanges.delete(deliveryId);
       const cursor =
         prepared === undefined || prepared === this.store.completedMessageChanges(assignment.channelId)
           ? { throughSequence: assignment.throughSequence, summaryVersion: assignment.summaryVersion }
           : { throughSequence: 0, summaryVersion: 0 };
+      // The delta went to another session, so this session did not read the earlier messages. The
+      // cursor stays on the other session, and the next packet is complete.
       const delta = this.#deltas.get(deliveryId);
-      if (delta === undefined || delta.sessionId === sessionId) {
-        this.#deltas.delete(deliveryId);
+      this.#deltas.delete(deliveryId);
+      if (!repeated && (delta === undefined || delta.sessionId === sessionId)) {
         yield* channelSync(() =>
           this.#acceptContext(
             assignment.channelId,
