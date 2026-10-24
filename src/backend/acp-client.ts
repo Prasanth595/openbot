@@ -2330,10 +2330,12 @@ function isSessionNotFound(error: unknown, sessionId: string, flavor: AcpFlavor)
  * The agent's explanation of a protocol error, which `String(error)` leaves out. When a handler in
  * an ACP agent throws, the SDK puts the thrown message in `data.details` (#1193). Grok sends a string
  * `data`, such as "session/resume does not support additionalDirectories" (#1729), or `data.detail`.
+ * Grok 1.0.67 moves that string to `data.message` when it adds the turn's usage or an HTTP status (#2980).
  */
 function failureDetail(error: RequestError): string | null {
   const data = error.data;
-  const detail = typeof data === "string" ? data : isRecord(data) ? (data.details ?? data.detail) : undefined;
+  const detail =
+    typeof data === "string" ? data : isRecord(data) ? (data.details ?? data.detail ?? data.message) : undefined;
   return typeof detail === "string" && detail ? detail : null;
 }
 
