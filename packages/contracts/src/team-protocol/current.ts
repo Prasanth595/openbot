@@ -74,6 +74,7 @@ import { SIDE_QUESTION_CAPABILITY } from "./side-question-v1";
 import { SIGN_IN_RELAY_CAPABILITY } from "./sign-in-relay-v1";
 import { SKILLS_ADMIN_CAPABILITY } from "./skills-admin-v1";
 import { SKILLS_EVENTS_CAPABILITY } from "./skills-events-v1";
+import { STORAGE_DISK_CAPABILITY } from "./storage-disk-v1";
 import { TEAM_SUBAGENTS_CAPABILITY } from "./subagents-v1";
 import { TEAM_UI_BLOCKS_CAPABILITY } from "./ui-blocks-v1";
 import { TEAM_OPEN_PROVIDERS_CAPABILITY, TEAM_PROTOCOL_V8_CAPABILITIES } from "./v8";
@@ -174,6 +175,7 @@ export {
   SKILLS_ADMIN_CAPABILITY,
   SKILLS_EVENTS_CAPABILITY,
   STORAGE_CAPABILITY,
+  STORAGE_DISK_CAPABILITY,
   TEAM_BROWSER_NAVIGATION_CAPABILITY,
   TEAM_BROWSER_VIEW_CAPABILITY,
   TEAM_BROWSER_VIEW_CLIPBOARD_CAPABILITY,
@@ -286,6 +288,7 @@ export const TEAM_CURRENT_CAPABILITIES = [
   AGENT_TASK_LIMIT_CAPABILITY,
   BROWSER_PROFILES_CAPABILITY,
   PROVIDER_ACCOUNT_RELAY_CAPABILITY,
+  STORAGE_DISK_CAPABILITY,
 ] as const;
 
 export type TeamCurrentCapability = (typeof TEAM_CURRENT_CAPABILITIES)[number];
@@ -398,7 +401,8 @@ export const TEAM_BOOTSTRAP_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
     capability !== BITWARDEN_CONNECTOR_CAPABILITY &&
     capability !== AGENT_TASK_LIMIT_CAPABILITY &&
     capability !== BROWSER_PROFILES_CAPABILITY &&
-    capability !== PROVIDER_ACCOUNT_RELAY_CAPABILITY,
+    capability !== PROVIDER_ACCOUNT_RELAY_CAPABILITY &&
+    capability !== STORAGE_DISK_CAPABILITY,
 );
 // A v7 host does not know the v8 markers, so a client sends them only after it negotiates protocol 8.
 const TEAM_PROTOCOL_V7_CURRENT_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
@@ -454,6 +458,7 @@ export function legacyTeamCapabilities(capabilities: readonly string[]): string[
       capability !== BITWARDEN_CONNECTOR_CAPABILITY &&
       capability !== AGENT_TASK_LIMIT_CAPABILITY &&
       capability !== BROWSER_PROFILES_CAPABILITY &&
-      capability !== PROVIDER_ACCOUNT_RELAY_CAPABILITY,
+      capability !== PROVIDER_ACCOUNT_RELAY_CAPABILITY &&
+      capability !== STORAGE_DISK_CAPABILITY,
   );
 }

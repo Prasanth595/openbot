@@ -112,6 +112,12 @@ reusable. The [Zaidan catalog](https://zaidan.carere.dev/docs/components) is a s
 *patterns*, not a dependency — it is not installed here; adapt its source to this repository's
 SolidJS conventions, tokens, typography, spacing, icons and accessibility requirements.
 
+A story that shows a feature in context renders the real `App` (`OpenBotPlayground`, or
+`PrototypeApp` from `stories/prototype-support.tsx`) or the real container, such as
+`ServerSettingsStory` from `stories/server-settings-story.tsx` or `StoryConversation`. Do not
+hand-build the shell, a header, a sidebar, a settings menu, or a composer: a copy keeps the old
+design when the app changes. Delete a concept or prototype story when its decision is made.
+
 ## Design system
 
 Use `lucide-solid` icons, and reuse a suitable one before adding an inline SVG or a local icon

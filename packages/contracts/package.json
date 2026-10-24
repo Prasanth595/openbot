@@ -106,6 +106,7 @@
     "./team-protocol/quiet-turn-v1": "./src/team-protocol/quiet-turn-v1.ts",
     "./team-protocol/mcp-v1": "./src/team-protocol/mcp-v1.ts",
     "./team-protocol/storage-v1": "./src/team-protocol/storage-v1.ts",
+    "./team-protocol/storage-disk-v1": "./src/team-protocol/storage-disk-v1.ts",
     "./team-protocol/agent-admin-v1": "./src/team-protocol/agent-admin-v1.ts",
     "./team-protocol/agent-memories-v1": "./src/team-protocol/agent-memories-v1.ts",
     "./team-protocol/agent-backup-models-v1": "./src/team-protocol/agent-backup-models-v1.ts",
