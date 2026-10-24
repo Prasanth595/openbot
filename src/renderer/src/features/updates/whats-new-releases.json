@@ -35,7 +35,8 @@
           "An hourly routine can run between two times that cross midnight.",
           "A failed Codex tool call no longer shows a ChatGPT error notice in each chat.",
           "After an update installs, OpenBot deletes the downloaded update file.",
-          "A long preview in a confirm card has a \"Show all\" button."
+          "A long preview in a confirm card has a \"Show all\" button.",
+          "In a channel, Open on a browser step card opens the page in the chat of the agent that asked."
         ]
       }
     ]

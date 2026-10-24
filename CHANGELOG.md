@@ -70,6 +70,8 @@ All notable changes to OpenBot will be documented here. The project follows
 - A long preview in an agent's confirm card now has a "Show all" button that opens the full text, and "Show less" closes it again. Before, the preview stopped at a fixed height with no visible sign that more text was there.
 - **On macOS, sign in to Gemini again after you upgrade.**
 - On macOS, a Gemini agent with Workspace only access now uses the Google sign-in. Before, it stopped with "Gemini did not return an authenticated account" while Settings showed Gemini as connected.
+- The web client connects to a server again in seconds after a connection stops working. Before, on a server that uses a relay, it could wait up to a minute when it still received data from the server.
+- In a channel, Open on a "Complete the step" browser card now opens the page in the chat of the agent that asked. Before, Open did nothing, and the card showed "Browser page" with no preview.
 
 ## [0.48.2] - 2026-10-23
 
