@@ -1094,6 +1094,7 @@ export async function createApplicationServices({
     path: join(app.getPath("userData"), APP_BEHAVIOR_PREFERENCE_FILE),
     loginItem: createLoginItem({ appVariant, server: Boolean(hostedServer || serverModeEnvironment) }),
     offersBackground: process.platform !== "darwin" && !hostedServer && !serverModeEnvironment,
+    offersKeepAwake: process.platform !== "linux" && !hostedServer && !serverModeEnvironment,
   });
   await runCauseEffect(appBehavior.load());
   void Effect.runPromise(appBehavior.refreshLoginItem()).catch((error) =>
