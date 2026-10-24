@@ -248,10 +248,6 @@
   border-color: var(--openbot-danger-focus);
 }
 
-:where(.ui-button-variant-destructive, .ui-button-variant-destructive-ghost):focus-visible {
-  box-shadow: 0 0 0 3px var(--openbot-danger-focus);
-}
-
 :where(.ui-button)[aria-invalid="true"] {
   border-color: var(--openbot-danger-border);
   box-shadow: 0 0 0 3px var(--openbot-danger-focus);
@@ -600,9 +596,9 @@
   color: var(--openbot-text-placeholder);
 }
 
+/* A focused field gets a neutral border and no ring. */
 :where(.ui-input, .ui-textarea, .ui-native-select):focus-visible {
   border-color: var(--openbot-border-focus);
-  box-shadow: var(--openbot-focus-ring);
 }
 
 :where(.ui-input, .ui-textarea, .ui-native-select)[aria-invalid="true"] {
@@ -659,9 +655,8 @@
 }
 
 .ui-select .ui-select-trigger:focus-visible {
-  border-color: var(--openbot-border-strong);
+  border-color: var(--openbot-border-focus);
   outline: 0;
-  box-shadow: 0 0 0 3px var(--openbot-hover);
 }
 
 .ui-select-trigger[data-disabled] {
