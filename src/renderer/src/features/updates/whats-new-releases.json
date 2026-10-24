@@ -16,7 +16,8 @@
           "Show a visual reply full screen. A button in the page can put an answer in the message box.",
           "Change the server key in Server settings → General → Server key if the key file was copied or exposed.",
           "Choose \"Private network\" in Mobile Connect settings to connect remote devices only over Tailscale or the same Wi-Fi.",
-          "On a joined server, an owner or admin can connect Bitwarden, manage browser profiles and set \"Tasks at once\" for each agent."
+          "On a joined server, an owner or admin can connect Bitwarden, manage browser profiles and set \"Tasks at once\" for each agent.",
+          "On macOS and Windows, turn on \"Keep this computer awake\" in Settings → General so routines run on time while the computer is connected to power."
         ]
       },
       {

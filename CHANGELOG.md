@@ -37,6 +37,7 @@ All notable changes to OpenBot will be documented here. The project follows
 - Each named profile has a color, and the shared profile is gray. The browser profile list, the browser toolbar and a line under each tab show it, so the tabs of different accounts look different. A new profile gets a color that no other profile uses, if one is free. Server settings > Browser profiles changes it.
 - The Tasks page before the first task is no longer blank. It shows a short pitch, the composer under it, and a faint sample list: a task arrives in Waiting, moves to Working, then to Needs you as Answered, and fades. With reduced motion, the list stands still.
 - Back and Forward arrows in the sidebar top bar open the chats that you opened before, as in a browser. The keys are ⌘[ and ⌘] on macOS and Alt+← and Alt+→ on Windows and Linux. The side buttons of a mouse also work. The history stays in memory for the open server.
+- On macOS and Windows, the "Keep this computer awake" setting (Settings > General) stops the idle sleep of the computer while it is connected to power, so routines run on time. It is off by default. On battery, the computer sleeps as usual, unless you also turn on "Also on battery". The display can still turn off, and a closed laptop lid or a sleep that you select still sleeps the computer.
 
 ### Changed
 
