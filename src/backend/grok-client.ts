@@ -1,4 +1,4 @@
-import type { ClientSideConnection, InitializeResponse } from "@agentclientprotocol/sdk";
+import type { ClientSideConnection, ContentBlock, InitializeResponse } from "@agentclientprotocol/sdk";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import { type DynamicRecord, isNumber } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
@@ -9,7 +9,7 @@ import type { GrokCliInfo } from "./cli";
 import type { McpDropReporter, McpEndpointSource, McpServerSource, McpToolRuntimeSource } from "./mcp-provider-shapes";
 import { confineSpawnTarget, grokStatePaths, type ProcessConfinement } from "./process-confinement";
 import { type AccountRateLimitsReadResult, getRecord, getString } from "./protocol";
-import { providerCall } from "./provider-client-effects";
+import { providerCall, providerFailure } from "./provider-client-effects";
 
 export class GrokAgentClient extends AcpAgentClient {
   constructor(
@@ -54,6 +54,7 @@ export class GrokAgentClient extends AcpAgentClient {
         providerCall(() => connection.extMethod("_x.ai/auth/info", {})).pipe(Effect.map(grokAccount)),
       readRateLimits: (connection) =>
         providerCall(() => connection.extMethod("_x.ai/billing", {})).pipe(Effect.map(grokRateLimits)),
+      steer,
     });
   }
 }
@@ -67,6 +68,29 @@ const authenticate = Effect.fn("Grok.authenticate")(function* (
   const selected =
     advertised.find((method) => method.id === authMethod) ?? advertised.find((method) => method.id === "cached_token");
   if (selected) yield* providerCall(() => connection.authenticate({ methodId: selected.id }));
+});
+
+/**
+ * Grok's `x.ai/interject` puts a message in the running turn, and the agent reads it after its
+ * current tool call or model step. Grok reads only the first text block and the images.
+ */
+const steer = Effect.fn("Grok.steer")(function* (
+  connection: ClientSideConnection,
+  message: { sessionId: string; messageId: string | null; blocks: ContentBlock[] },
+) {
+  const text = message.blocks.flatMap((block) => (block.type === "text" ? [block.text] : [])).join("\n\n");
+  const images = message.blocks.filter((block) => block.type === "image");
+  const response = yield* providerCall(() =>
+    connection.extMethod("_x.ai/interject", {
+      sessionId: message.sessionId,
+      text,
+      ...(message.messageId ? { interjectionId: message.messageId } : {}),
+      content: [{ type: "text", text }, ...images],
+    }),
+  );
+  // Grok 1.0.62 to 1.0.70 answer `{ result: { status: "queued" } }`.
+  if (getString(getRecord(response, "result"), "status") !== "queued")
+    return yield* providerFailure(new Error(sourceText("error.backend.steerUnsupported")));
 });
 
 function grokAccount(value: unknown): { email: string | null } {

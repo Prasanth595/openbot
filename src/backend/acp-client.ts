@@ -357,6 +357,15 @@ export interface AcpProviderOptions {
     connection: ClientSideConnection,
     privatePrompt: (text: string) => Effect.Effect<string, ProviderClientOperationError>,
   ): Effect.Effect<AccountRateLimitsReadResult, ProviderClientOperationError>;
+  /**
+   * Gives the running turn a message that the agent reads at its next step. ACP has no steer
+   * request, so only an agent with an extension of its own has this; without it the message waits
+   * in the queue.
+   */
+  steer?(
+    connection: ClientSideConnection,
+    message: { sessionId: string; messageId: string | null; blocks: ContentBlock[] },
+  ): Effect.Effect<void, ProviderClientOperationError>;
 }
 
 export class AcpAgentClient extends EventEmitter<ClientEvents> {
@@ -919,9 +928,25 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
         const response = yield* this.#startTurnEffect(params);
         return yield* providerSync(() => decoder(response));
       }
-      case "turn/steer":
+      case "turn/steer": {
         // A second ACP prompt can cancel the active turn. Keep deferred input in the mailbox.
-        return yield* providerFailure(new Error(sourceText("error.backend.steerUnsupported")));
+        const steer = this.options.steer;
+        if (!steer) return yield* providerFailure(new Error(sourceText("error.backend.steerUnsupported")));
+        const threadId = yield* providerSync(() => requiredString(params, "threadId"));
+        const turn = this.#threads.get(threadId)?.activeTurn;
+        // A stopped turn drops the message, and an agent that has ended its turn starts the message
+        // as a turn of its own, which OpenBot did not start. The message then waits in the queue.
+        if (!turn || turn.id !== getString(params, "expectedTurnId") || turn.stopped || turn.completing)
+          return yield* providerFailure(new Error(sourceText("error.backend.steerTurnChanged")));
+        const blocks = yield* promptBlocksEffect(params);
+        yield* steer(this.#requireConnection(), {
+          sessionId: threadId,
+          messageId: getString(params, "clientUserMessageId"),
+          blocks,
+        });
+        turn.lastActivityAt = Date.now();
+        return yield* providerSync(() => decoder({ turnId: turn.id }));
+      }
       case "turn/interrupt": {
         const threadId = yield* providerSync(() => requiredString(params, "threadId"));
         // A closed idle session has no turn to stop.
