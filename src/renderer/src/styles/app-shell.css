@@ -1319,6 +1319,21 @@ textarea {
   stroke-width: var(--openbot-icon-stroke);
 }
 
+.sidebar-history-button > svg {
+  width: var(--openbot-icon-md);
+  height: var(--openbot-icon-md);
+  stroke-width: var(--openbot-icon-stroke);
+}
+
+/* No chat to open in that direction. The arrow stays in its place, so the bar does not move. */
+.sidebar-history-button:disabled,
+.sidebar-history-button:disabled:hover {
+  background: transparent;
+  color: var(--openbot-text-muted);
+  cursor: default;
+  opacity: 0.4;
+}
+
 .sidebar-update-button,
 .sidebar-update-button:hover {
   color: var(--openbot-accent-text);

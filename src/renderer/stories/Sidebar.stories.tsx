@@ -308,6 +308,20 @@ export const ServerUpdate: Story = {
   decorators: [(Story) => <div style={{ width: "280px", height: "100vh" }}>{Story()}</div>],
 };
 
+/** Back opens the chat that was open before. Forward has no chat yet, so it is disabled. */
+export const ChatHistory: Story = {
+  args: {
+    chatHistory: {
+      back: { name: "Research" },
+      forward: null,
+      keys: { back: "⌘[", forward: "⌘]" },
+      onBack: fn(),
+      onForward: fn(),
+    },
+  },
+  decorators: [(Story) => <div style={{ width: "280px", height: "100vh" }}>{Story()}</div>],
+};
+
 export const MobileAppCard: Story = {
   args: { footer: <SidebarMobileAppCard onOpenInstall={fn()} onDismiss={fn()} /> },
   decorators: [(Story) => <div style={{ width: "280px", height: "100vh" }}>{Story()}</div>],

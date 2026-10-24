@@ -57,6 +57,11 @@ export interface SidebarProps {
   onOpenServerSettings?: ((trigger: HTMLElement) => void) | undefined;
   /** The desktop server menu. Without it, the server name opens the server settings. */
   serverMenu?: Omit<ServerMenuProps, "serverName" | "compact"> | undefined;
+  /**
+   * Back and Forward between the chats this window opened. The top bar shows the two arrows only when
+   * it is set. `back` and `forward` name the chat that each arrow opens, or are null when there is none.
+   */
+  chatHistory?: SidebarChatHistory | undefined;
   /** A new OpenBot version of the server. The header shows a button that opens its update. */
   serverUpdate?: { version: string; running: boolean; onOpen: () => void } | undefined;
   agents: AgentProfile[];
@@ -121,6 +126,15 @@ export interface SidebarProps {
         onSelect: () => void;
       }
     | undefined;
+}
+
+export interface SidebarChatHistory {
+  back: { name: string } | null;
+  forward: { name: string } | null;
+  /** The keys of each arrow, as the tooltip shows them, such as "⌘[". */
+  keys: { back: string; forward: string };
+  onBack: () => void;
+  onForward: () => void;
 }
 
 export type SidebarRoutinePhase = "running" | "queued" | "failed";
