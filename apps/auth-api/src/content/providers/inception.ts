@@ -11,7 +11,7 @@ export const INCEPTION_PROVIDER: ProviderPage = {
   provider: "inception",
   name: "Inception",
   answer:
-    "OpenBot runs Inception's Mercury models as one agent of a team, on macOS, Windows or Linux, with an Inception API key. You get shared channels with agents on other providers, and an app on your phone.",
+    "OpenBot runs Inception's Mercury models as one agent of a team, on macOS, Windows or Linux, with an Inception API key. You get shared channels with agents on other providers.",
   connect:
     "Download Pi in OpenBot first: Mercury runs in OpenBot's copy of Pi. Then select Connect on the Inception row and paste an Inception API key. OpenBot keeps the key encrypted and does not change Pi's own settings.",
   adds: [
@@ -40,6 +40,7 @@ export const INCEPTION_PROVIDER: ProviderPage = {
     },
   ],
   comparisons: ["best-ai-agent-apps"],
+  localOnly: true,
   faq: [
     {
       question: "What is Mercury?",
@@ -55,6 +56,11 @@ export const INCEPTION_PROVIDER: ProviderPage = {
       question: "Why does Inception need Pi?",
       answer:
         "OpenBot runs Mercury in its own copy of Pi. Download Pi once in OpenBot, and Inception agents then use it with your Inception API key.",
+    },
+    {
+      question: "Can I use Inception agents from my phone or share them with a team?",
+      answer:
+        "No. Inception agents use the API key on your computer, so they stay on that computer. The phone apps and team members do not see them. Agents on other providers are available on your phone and to your team.",
     },
   ],
   sources: [

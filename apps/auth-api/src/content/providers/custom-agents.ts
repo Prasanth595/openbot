@@ -31,7 +31,7 @@ export const CUSTOM_AGENTS_PROVIDER: ProviderPage = {
       text: "OpenBot keeps the environment variables of each agent, such as an API key, encrypted.",
     },
   ],
-  vendor: "Goose, Qwen Code, GitHub and Oh My Pi",
+  vendor: "their makers",
   officialApps: [
     {
       name: "Goose",

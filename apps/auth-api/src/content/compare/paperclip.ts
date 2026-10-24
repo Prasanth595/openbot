@@ -242,10 +242,6 @@ export const PAPERCLIP_COMPARISON: Comparison = {
     { label: "Paperclip Cloud waitlist", url: "https://paperclip.ing/waitlist/" },
     { label: "Paperclip Claude adapter", url: "https://docs.paperclip.ing/adapters/claude-local" },
     { label: "Paperclip secrets", url: "https://docs.paperclip.ing/deploy/secrets" },
-    {
-      label: "Paperclip chat channels feature map",
-      url: "https://github.com/paperclipai/paperclip/blob/master/maps/feature-map/chat-channels.md",
-    },
     { label: "OpenBot privacy notes", url: OPENBOT_LINKS.privacy },
     { label: "OpenBot source code", url: OPENBOT_LINKS.repository },
   ],
